@@ -97,6 +97,8 @@
 
 #include "soh/SohGui/SohMenu.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -146,6 +148,19 @@ const uint16_t kClassBits[6] = {
     (uint16_t)RSBS_ITEMCLASS_PROGRESSION,   (uint16_t)RSBS_ITEMCLASS_SONGS,          (uint16_t)RSBS_ITEMCLASS_MASKS,
     (uint16_t)RSBS_ITEMCLASS_DUNGEON_ITEMS, (uint16_t)RSBS_ITEMCLASS_DUNGEON_REWARD, (uint16_t)RSBS_ITEMCLASS_SIDEQUEST,
 };
+
+// The class checkboxes' names, restated for the same reason: each is the
+// class's display name plus a per-direction "##" ID suffix, because the same six
+// names appear under both directions and a name is the widget's ID.
+const char* const kClassNames[6] = {
+    "Progression", "Songs", "Masks", "Dungeon Items", "Dungeon Rewards", "Sidequest Items",
+};
+const char* const kClassIdSuffix[2] = { "##OoTClass", "##MMClass" };
+
+/** The checkbox name for class @p bit of direction @p which (0 OoT, 1 MM). */
+std::string ClassRowName(int which, int bit) {
+    return std::string(kClassNames[bit]) + kClassIdSuffix[which];
+}
 
 /** The row name the menu builds for @p id: §4.2's marker, then the model's label. */
 std::string RowName(ComboSettingId id) {
@@ -208,20 +223,29 @@ int StagedBool(WidgetInfo& row) {
 }
 
 /**
- * Assert @p row is in ADR 0004 §6 state 4: disabled, with the reason string the
- * MODEL owns. The string identity matters as much as the disabling — a row that
+ * Assert @p row is in ADR 0004 §6 state 4: disabled, with the reason the MODEL
+ * owns. The reason's identity matters as much as the disabling — a row that
  * greyed itself with a capability reason ("not yet available") would send a
  * player hunting for a missing feature instead of telling them the choice was
- * already made.
+ * already made. The tooltip is SoH's disabled shape (MenuDrawItem's "This
+ * setting is disabled because:" then "- Reason"), so the model's reason is
+ * CONTAINED, compared without case (SoH writes reasons in Title Case).
  */
 void ExpectDecided(WidgetInfo& row, const char* what) {
     const char* reason = Combo_ComboSettingReadOnlyReason();
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char ch) { return (char)std::tolower(ch); });
+        return s;
+    };
+    const std::string tip = row.options->disabledTooltip != nullptr ? row.options->disabledTooltip : "";
     ROWS_CHECK(row.options->disabled, "%s must be read-only once the record is frozen", what);
-    ROWS_CHECK(reason != nullptr && row.options->disabledTooltip != nullptr &&
-                   std::string(row.options->disabledTooltip) == std::string(reason != nullptr ? reason : ""),
+    ROWS_CHECK(reason != nullptr && lower(tip).find(lower(reason)) != std::string::npos,
                "%s must carry the model's reason (%s), not a capability reason; it carries '%s'", what,
-               reason != nullptr ? reason : "(null)",
-               row.options->disabledTooltip != nullptr ? row.options->disabledTooltip : "(null)");
+               reason != nullptr ? reason : "(null)", tip.c_str());
+    ROWS_CHECK(tip.rfind("This setting is disabled because:", 0) == 0,
+               "%s's disabled tooltip is not in SoH's disabled shape (\"This setting is disabled because:\" then "
+               "\"- Reason\"): '%s'",
+               what, tip.c_str());
 }
 
 } // namespace
@@ -382,9 +406,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "directions); an allocated RSBS_ITEMCLASS_* bit has no row",
                classCheckboxes);
     for (int which = 0; which < 2; which++) {
-        const std::string prefix = (which == 0) ? "Ocarina of Time item class: " : "Majora's Mask item class: ";
         for (int bit = 0; bit < 6; bit++) {
-            const std::string name = prefix + Combo_ForeignItemClassName(kClassBits[bit]);
+            const std::string name = ClassRowName(which, bit);
             ROWS_CHECK(FindRow(rows, name) != nullptr, "no checkbox row named '%s'", name.c_str());
         }
     }
@@ -427,8 +450,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // The OoT set is SONGS alone, so exactly one of its six boxes is ticked.
         int ticked = 0;
         for (int bit = 0; bit < 6; bit++) {
-            WidgetInfo* box = FindRow(rows, std::string("Ocarina of Time item class: ") +
-                                                Combo_ForeignItemClassName(kClassBits[bit]));
+            WidgetInfo* box = FindRow(rows, ClassRowName(0, bit));
             if (box == nullptr) {
                 continue;
             }
@@ -504,10 +526,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "world was built without a shared ocarina and a row that showed otherwise would be lying about it",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]));
     for (int which = 0; which < 2; which++) {
-        const std::string prefix = (which == 0) ? "Ocarina of Time item class: " : "Majora's Mask item class: ";
         const uint16_t mask = (which == 0) ? frozen.itemClassOoT : frozen.itemClassMM;
         for (int bit = 0; bit < 6; bit++) {
-            WidgetInfo* box = FindRow(rows, prefix + Combo_ForeignItemClassName(kClassBits[bit]));
+            WidgetInfo* box = FindRow(rows, ClassRowName(which, bit));
             if (box == nullptr) {
                 continue;
             }
@@ -522,8 +543,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // the two "places nothing" lines is shown. A note that never hides would
     // report an empty pool for a world that has one.
     {
-        WidgetInfo* ootNote = FindRow(rows, "No Ocarina of Time classes armed: this direction places nothing.");
-        WidgetInfo* mmNote = FindRow(rows, "No Majora's Mask classes armed: this direction places nothing.");
+        WidgetInfo* ootNote = FindRow(rows, "No Ocarina of Time items will cross.");
+        WidgetInfo* mmNote = FindRow(rows, "No Majora's Mask items will cross.");
         ROWS_CHECK(ootNote != nullptr && ootNote->isHidden, "the OoT empty-set note is shown for a non-empty mask");
         ROWS_CHECK(mmNote != nullptr && !mmNote->isHidden, "the MM empty-set note is hidden for an empty mask");
     }
@@ -627,13 +648,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         gComboCtx.sourceIsRando = false;
         gComboCtx.sharedRandoSettingsHash = 0;
         RunPreFunc(*statusRow);
-        ROWS_CHECK(statusRow->name.find("corrupt session state") != std::string::npos,
+        ROWS_CHECK(statusRow->name.find("Session state is corrupt") != std::string::npos,
                    "a frozen record with no live pairing is not named as corrupt: '%s'", statusRow->name.c_str());
 
         // Unfrozen and unpaired: the ordinary pre-creation state.
         ComboContext_Init();
         RunPreFunc(*statusRow);
-        ROWS_CHECK(statusRow->name.find("freeze into the paired world's identity") != std::string::npos,
+        ROWS_CHECK(statusRow->name.find("saved into the next paired world") != std::string::npos,
                    "the pre-creation status line does not say these freeze at creation: '%s'", statusRow->name.c_str());
     }
 

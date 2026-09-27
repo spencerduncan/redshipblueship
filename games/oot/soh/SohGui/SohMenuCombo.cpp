@@ -104,14 +104,42 @@ static const uint16_t comboRuleClassBits[6] = {
 };
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
-// foreign_items.h because they are .redsave format), with the copy that says
-// what each one does rather than what it is called.
+// foreign_items.h because they are .redsave format). Short Title Case values,
+// as SoH's comboboxes have; what each one does is the tooltip's "Value: effect"
+// list (docs/ui-style-guide.md R-N6, SohMenuSettings.cpp's Boot Sequence).
 static const std::map<int32_t, const char*> comboRuleDirectionOptions = {
-    { (int32_t)RSBS_COMBO_DIR_OFF, "Off (paired world, no crossings)" },
-    { (int32_t)RSBS_COMBO_DIR_FORWARD, "Ocarina of Time items into Majora's Mask only" },
-    { (int32_t)RSBS_COMBO_DIR_REVERSE, "Majora's Mask items into Ocarina of Time only" },
-    { (int32_t)RSBS_COMBO_DIR_BOTH, "Both directions" },
+    { (int32_t)RSBS_COMBO_DIR_OFF, "Off" },
+    { (int32_t)RSBS_COMBO_DIR_FORWARD, "OoT Items to MM" },
+    { (int32_t)RSBS_COMBO_DIR_REVERSE, "MM Items to OoT" },
+    { (int32_t)RSBS_COMBO_DIR_BOTH, "Both Directions" },
 };
+
+// The six item classes' player-facing names and tooltips, in comboRuleClassBits'
+// order. Menu-local on purpose: Combo_ForeignItemClassName keeps its lowercase
+// log identifiers ("dungeon-items"), which are what the placement log and the
+// spoiler print. The checkbox names carry a "##" suffix per direction because the
+// same six names appear twice on the page and a name is the widget's ID (the
+// "Customize Behavior##Frogs" idiom, SohMenuEnhancements.cpp).
+static const char* const comboRuleClassNames[6] = {
+    "Progression", "Songs", "Masks", "Dungeon Items", "Dungeon Rewards", "Sidequest Items",
+};
+static const char* const comboRuleClassTooltips[6] = {
+    "Allows major items and their upgrades to cross.",
+    "Allows ocarina songs to cross.",
+    "Allows masks to cross.",
+    "Allows small keys, boss keys, maps and compasses to cross.",
+    "Allows medallions, spiritual stones and boss remains to cross.",
+    "Allows sidequest rewards that are not needed to finish the game to cross.",
+};
+static const char* const comboRuleClassIdSuffix[2] = { "##OoTClass", "##MMClass" };
+
+// The disabled tooltip of every rule row once the world is frozen: MenuDrawItem's
+// own disabled shape ("This setting is disabled because: \n" then "\n- Reason",
+// Menu.cpp), written directly because the reason is not a DisableOption. The
+// reason fragment is the model's Combo_ComboSettingReadOnlyReason ("already
+// decided") in SoH's Title Case reason style.
+static const char* const kComboRuleDecidedTooltip =
+    "This setting is disabled because: \n\n- Already Decided When This World Was Created";
 
 // A direction value the direction row's combo map had to be taught about at
 // runtime, or 0. See ComboRuleDirectionPreFunc: std::map::at throws, and
@@ -155,8 +183,9 @@ static bool ComboRuleShownRecord(ComboSettingsRecord* out) {
 }
 
 /**
- * The read-only half of state 4. The reason string is the MODEL's
- * (Combo_ComboSettingReadOnlyReason) and is deliberately NOT a capability
+ * The read-only half of state 4. The reason is the MODEL's
+ * (Combo_ComboSettingReadOnlyReason, "already decided"), shown in the shape
+ * MenuDrawItem gives every disabled SoH row, and is deliberately NOT a capability
  * reason: a capability gate says "not yet available" and sends a player hunting
  * for a missing feature, while a freeze says "already decided". It tracks
  * Combo_ComboSettingsFrozen() exactly, so the greying here and the writers'
@@ -172,9 +201,20 @@ static void ComboRuleApplyDecided(WidgetInfo& info, bool decided) {
     if (!decided) {
         return;
     }
-    const char* reason = Combo_ComboSettingReadOnlyReason();
     info.options->disabled = true;
-    info.options->disabledTooltip = (reason != nullptr) ? reason : "";
+    info.options->disabledTooltip = kComboRuleDecidedTooltip;
+}
+
+/**
+ * Reset's action, run by the confirm popup's Reset button. Clears rather than
+ * writing the defaults back: an unset key and a key explicitly holding the
+ * default resolve identically today, but only the cleared one reads as "the
+ * player never touched it".
+ */
+static void ComboRuleResetAll() {
+    for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+        Combo_ComboSettingClear((ComboSettingId)i);
+    }
 }
 
 /** The item-class staging index for @p id: 0 for the OoT pool, 1 for MM's. */
@@ -214,7 +254,7 @@ static void ComboRuleDirectionPreFunc(WidgetInfo& info) {
     }
     if (!options->comboMap.contains(comboRuleDirection)) {
         static char unknownLabel[32];
-        snprintf(unknownLabel, sizeof(unknownLabel), "(unknown direction %d)", (int)comboRuleDirection);
+        snprintf(unknownLabel, sizeof(unknownLabel), "Unknown (%d)", (int)comboRuleDirection);
         options->comboMap[comboRuleDirection] = unknownLabel;
         comboRuleUnknownDirection = comboRuleDirection;
     }
@@ -244,35 +284,29 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
     Combo_ComboSettingsSummary(&summary);
     const char* reason = Combo_ComboSettingReadOnlyReason();
 
-    char buffer[768];
+    char buffer[256];
     if (reason != nullptr && !summary.paired) {
         // A frozen record with no live pairing is a state no created combo file
         // may be in (ADR 0011 decision 4.2). Combo_ComboSettingsSummary
         // deliberately reports an ABSENT record for it rather than presenting
-        // gComboCtx's zeros as rules, so the rows below show zeros — say why,
+        // gComboCtx's zeros as rules, so the rows below show zeros: say so,
         // instead of letting a player read "no classes armed" as their world.
         snprintf(buffer, sizeof(buffer),
-                 "The cross-game rules are frozen but no paired world is live — corrupt session state. The values "
-                 "below are not this session's rules; return to the title screen.");
+                 "Session state is corrupt: these rules are frozen but no paired world is loaded, so the values "
+                 "below are not in effect. Return to the title screen.");
     } else if (reason != nullptr) {
         snprintf(buffer, sizeof(buffer),
-                 "Already decided: this paired world's cross-game rules were frozen into its identity "
-                 "(fingerprint %08X) when the world was created. The values below are read from the save, not "
-                 "from the settings store, and cannot be changed for this pair. To play under different rules, "
-                 "return to the title screen — these unlock there — then set them and generate a new seed.",
+                 "Already decided when this world was created (fingerprint %08X). Return to the title screen to "
+                 "choose rules for a new world.",
                  (unsigned)summary.comboSettingsHash);
     } else if (summary.paired) {
         snprintf(buffer, sizeof(buffer),
-                 "These freeze into the paired world's identity. The world you are paired with predates them: it "
-                 "was generated when there was only one rule set, and the shipped defaults are recorded into it at "
-                 "its first crossing. The values below describe the NEXT world you create — leave them at the "
-                 "defaults before crossing into this one.");
+                 "Your paired world predates these rules and uses the defaults. Changes here apply to the next "
+                 "world you create.");
     } else {
         snprintf(buffer, sizeof(buffer),
-                 "These freeze into the paired world's identity. They govern the crossing between both games and "
-                 "are decided once, when a randomized Ocarina of Time world is generated. After that the record in "
-                 "the save is the authority, and a crossing or a load whose authored rules no longer match it is "
-                 "refused by name.");
+                 "These rules are saved into the next paired world when it is generated, and cannot be changed "
+                 "for that world afterwards.");
     }
     comboRuleStatusText = buffer;
     info.name = comboRuleStatusText;
@@ -345,8 +379,8 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
  * the SohGui TUs already declare SohGui::mSohMenu, so no production header grows
  * a test-only entry point.
  *
- * The caller owns the sidebar: AddMenuCombo() creates it and pins `path.column`,
- * so this function only adds rows. That is a change from the interim registrar,
+ * The caller owns the sidebar: AddMenuCombo() creates it with two columns, and
+ * this function pins `path.column` before each column's first row. That is a change from the interim registrar,
  * which had to pin the column itself because five `Rando::Settings` option groups
  * ran immediately before it and left `path.column` wherever their last COLUMN
  * container landed (option.cpp:469-472). Nothing runs before this page in the
@@ -355,19 +389,27 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
  * swapped), which no compile catches.
  */
 void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
-    // ---- The combo rules themselves (#655, #668) ---------------------------
     // Six settings, rendered as rows rather than as the pop-out pane PR #652
     // shipped. See the block comment at the top of this file for why every row
     // is a pointer-based widget over a src/common writer rather than a
     // WIDGET_CVAR_* one, and for which value each row shows in which state.
-    menu.AddWidget(path, "Cross-Game Combo Rules", WIDGET_SEPARATOR_TEXT);
-    // The state line. Its name is rewritten every frame by its PreFunc, so it is
-    // kept out of the menu search rather than seeding it with a paragraph.
+    //
+    // The layout is SoH's Randomizer > General (SohMenuRandomizer.cpp), the page
+    // docs/ui-style-guide.md section 12 compares this one with: two columns, the
+    // first opened by one gray note, then SeparatorText groups, and the primary
+    // button at 250 px. Column 1 holds the crossing itself, column 2 the two
+    // item-class sets.
+
+    // ---- Column 1: the state note, the crossing, Reset ---------------------
+    path.column = SECTION_COLUMN_1;
+    // The state note. Its name is rewritten every frame by its PreFunc, so it is
+    // kept out of the menu search rather than seeding it with a sentence.
     menu.AddWidget(path, "Combo Rules Status", WIDGET_TEXT)
         .RaceDisable(false)
         .HideInSearch(true)
         .PreFunc(ComboRuleStatusPreFunc)
         .Options(TextOptions().Color(UIWidgets::Colors::Gray));
+    menu.AddWidget(path, "Item Crossing", WIDGET_SEPARATOR_TEXT);
 
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_DIRECTION), WIDGET_COMBOBOX)
         .ValuePointer(&comboRuleDirection)
@@ -375,14 +417,17 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, comboRuleDirection); })
         .Options(ComboboxOptions()
                      .ComboMap(comboRuleDirectionOptions)
-                     .Tooltip("Which way items may cross between the two games. \"Off\" is a real paired world with "
-                              "no crossings, not a broken one."));
+                     .Tooltip("Chooses which way items may cross between the two games.\n\n"
+                              "Off: No items cross. The two games are still one paired world.\n"
+                              "OoT Items to MM: Ocarina of Time items may appear in Majora's Mask.\n"
+                              "MM Items to OoT: Majora's Mask items may appear in Ocarina of Time.\n"
+                              "Both Directions: Items may cross both ways."));
 
     // Pool sizes. The label carries a %d because UIWidgets::SliderInt renders an
-    // Above-positioned label through ImGui::Text(label, *value) — the same shape
-    // as the "Item Scale: %.2f" row above. Bounds are the model's pinned space
-    // (1..RSBS_FOREIGN_PLACEMENT_CAP), not local numbers: a slider that can
-    // reach a value Combo_ComboSettingSet refuses is a control that lies.
+    // Above-positioned label through ImGui::Text(label, *value), SoH's "Name: %d"
+    // slider shape. Bounds are the model's pinned space (1..RSBS_FOREIGN_PLACEMENT_CAP),
+    // not local numbers: a slider that can reach a value Combo_ComboSettingSet
+    // refuses is a control that lies.
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_POOL_SIZE_OOT) + ": %d", WIDGET_SLIDER_INT)
         .ValuePointer(&comboRulePoolSize[0])
         .PreFunc([](WidgetInfo& info) {
@@ -396,7 +441,7 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                      .Min(1)
                      .Max((int32_t)RSBS_FOREIGN_PLACEMENT_CAP)
                      .DefaultValue(Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_OOT))
-                     .Tooltip("How many Ocarina of Time items may be placed on Majora's Mask checks at most."));
+                     .Tooltip("Sets the most Ocarina of Time items that may be placed on Majora's Mask checks."));
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_POOL_SIZE_MM) + ": %d", WIDGET_SLIDER_INT)
         .ValuePointer(&comboRulePoolSize[1])
         .PreFunc([](WidgetInfo& info) {
@@ -410,20 +455,56 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                      .Min(1)
                      .Max((int32_t)RSBS_FOREIGN_PLACEMENT_CAP)
                      .DefaultValue(Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_MM))
-                     .Tooltip("How many Majora's Mask items may be placed on Ocarina of Time checks at most."));
+                     .Tooltip("Sets the most Majora's Mask items that may be placed on Ocarina of Time checks."));
 
-    // The two item-class bitsets. One setting each, six checkboxes each: the
-    // marker and the model's label ride on the group's header row, and the
-    // Callback rebuilds the WHOLE mask from the six staging bits so the store
-    // never holds a half-applied one. Checkbox names are prefixed per direction
-    // because the six class names repeat and a widget name must be unique.
+    // The shared ocarina (#668). A comboFlags BIT rather than a field of its
+    // own, so the row is a plain checkbox over the model's 0/1 space; everything
+    // else about it is the other rows' pattern verbatim: the staging buffer, the
+    // PreFunc that refreshes from the record, the Callback that offers the edit
+    // to src/common's writer, and the marker in the name.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_OCARINA), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedOcarina)
+        .PreFunc([](WidgetInfo& info) {
+            ComboSettingsRecord shown;
+            const bool decided = ComboRuleShownRecord(&shown);
+            comboRuleSharedOcarina = (shown.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, comboRuleSharedOcarina ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the ocarina one item across both games: finding an ocarina in either game gives you one in the "
+            "other. Majora's Mask's ocarina gives the Fairy Ocarina in Ocarina of Time."));
+
+    // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
+    // SohMenuSettings.cpp); the popup's own Reset button does the work.
+    menu.AddWidget(path, "Reset Combo Rules", WIDGET_BUTTON)
+        .Callback([](WidgetInfo& info) {
+            SohGui::RegisterPopup("Reset Combo Rules",
+                                  "This will reset every cross-game rule to its default value.\nContinue?", "Reset",
+                                  "Cancel", ComboRuleResetAll, nullptr);
+        })
+        .PreFunc([](WidgetInfo& info) {
+            // A live Reset under a frozen record would be a control that
+            // (correctly) does nothing: ADR 0004 section 5's vacuous-gate class.
+            ComboRuleApplyDecided(info, Combo_ComboSettingsFrozen());
+        })
+        .Options(ButtonOptions()
+                     .Size(ImVec2(250.f, 0.f))
+                     .Tooltip("Resets every cross-game rule to the value RedShipBlueShip ships with."));
+
+    // ---- Column 2: the two item-class sets ---------------------------------
+    // One setting each, six checkboxes each: the marker and the model's label
+    // ride on the group's separator, and the Callback rebuilds the WHOLE mask
+    // from the six staging bits so the store never holds a half-applied one.
+    path.column = SECTION_COLUMN_2;
     for (const ComboSettingId classId : { COMBO_SETTING_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_MM }) {
         const int which = ComboRuleClassIndex(classId);
-        const std::string rowPrefix = (which == 0) ? "Ocarina of Time item class: " : "Majora's Mask item class: ";
 
         menu.AddWidget(path, ComboRuleRowName(classId), WIDGET_SEPARATOR_TEXT);
         for (int bit = 0; bit < 6; bit++) {
-            menu.AddWidget(path, rowPrefix + Combo_ForeignItemClassName(comboRuleClassBits[bit]), WIDGET_CHECKBOX)
+            menu.AddWidget(path, std::string(comboRuleClassNames[bit]) + comboRuleClassIdSuffix[which], WIDGET_CHECKBOX)
                 .ValuePointer(&comboRuleItemClass[which][bit])
                 .PreFunc([which, bit](WidgetInfo& info) {
                     ComboSettingsRecord shown;
@@ -440,16 +521,12 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                     }
                     Combo_ComboSettingSet(classId, (int32_t)next);
                 })
-                .Options(CheckboxOptions().Tooltip(
-                    "Whether items of this class may cross. An empty set is a legitimate world in which this "
-                    "direction places nothing."));
+                .Options(CheckboxOptions().Tooltip(comboRuleClassTooltips[bit]));
         }
         // An empty mask is legal (ADR 0011 decision 3.3) but worth naming: the
         // placement pass logs "no crossings" and places nothing, and a player
         // who did not mean that would read it as a broken pool.
-        menu.AddWidget(path,
-                       which == 0 ? "No Ocarina of Time classes armed: this direction places nothing."
-                                  : "No Majora's Mask classes armed: this direction places nothing.",
+        menu.AddWidget(path, which == 0 ? "No Ocarina of Time items will cross." : "No Majora's Mask items will cross.",
                        WIDGET_TEXT)
             .RaceDisable(false)
             .HideInSearch(true)
@@ -460,46 +537,6 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             })
             .Options(TextOptions().Color(UIWidgets::Colors::Gray));
     }
-
-    // The shared ocarina (#668). A comboFlags BIT rather than a field of its
-    // own, so the row is a plain checkbox over the model's 0/1 space; everything
-    // else about it is the five rows' pattern verbatim — the staging buffer, the
-    // PreFunc that refreshes from the record, the Callback that offers the edit
-    // to src/common's writer, and the marker in the name.
-    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_OCARINA), WIDGET_CHECKBOX)
-        .ValuePointer(&comboRuleSharedOcarina)
-        .PreFunc([](WidgetInfo& info) {
-            ComboSettingsRecord shown;
-            const bool decided = ComboRuleShownRecord(&shown);
-            comboRuleSharedOcarina = (shown.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0;
-            ComboRuleApplyDecided(info, decided);
-        })
-        .Callback([](WidgetInfo& info) {
-            Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, comboRuleSharedOcarina ? 1 : 0);
-        })
-        .Options(CheckboxOptions().Tooltip(
-            "Treat the ocarina as ONE instrument across both games: finding an ocarina in either game gives you "
-            "one in the other. Ocarina of Time's Fairy Ocarina counts, because Majora's Mask has only one "
-            "ocarina; Majora's Mask's ocarina gives you the Fairy Ocarina in Ocarina of Time, never the Ocarina "
-            "of Time itself."));
-
-    menu.AddWidget(path, "Reset Combo Rules To Defaults", WIDGET_BUTTON)
-        .PreFunc([](WidgetInfo& info) {
-            // A live Reset under a frozen record would be a control that
-            // (correctly) does nothing — ADR 0004 §5's vacuous-gate class.
-            ComboRuleApplyDecided(info, Combo_ComboSettingsFrozen());
-        })
-        .Callback([](WidgetInfo& info) {
-            // Clears rather than writing the defaults back: an unset key and a
-            // key explicitly holding the default resolve identically today, but
-            // only the cleared one reads as "the player never touched it".
-            for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
-                Combo_ComboSettingClear((ComboSettingId)i);
-            }
-        })
-        .Options(ButtonOptions()
-                     .Size(ImVec2(250.f, 0.f))
-                     .Tooltip("Clears all six rules back to the values RedShipBlueShip ships with."));
 }
 
 /**
@@ -656,11 +693,13 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
 void SohMenu::AddMenuCombo() {
     AddMenuEntry("Combo", CVAR_SETTING("Menu.ComboSidebarSection"));
 
-    // PIN THE COLUMN on every page. Each page below declares one column, so a row
-    // parked in a higher one is registered and never drawn - Menu::DrawElement
-    // iterates columnCount columns, not every column a caller left behind.
+    // PIN THE COLUMN on every page. A row parked in a column past the page's
+    // count is registered and never drawn - Menu::DrawElement iterates
+    // columnCount columns, not every column a caller left behind. Cross-Game
+    // Rules declares two (its registrar pins each column itself); every other
+    // page one.
     WidgetPath path = { "Combo", "Cross-Game Rules", SECTION_COLUMN_1 };
-    AddSidebarEntry("Combo", path.sidebarName, 1);
+    AddSidebarEntry("Combo", path.sidebarName, 2);
     AddComboRulesWidgets(*this, path);
 
     path.sidebarName = "Cross-Game Windows";

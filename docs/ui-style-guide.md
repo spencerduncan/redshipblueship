@@ -222,7 +222,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > MM Enhancements | Enhancements > Quality of Life |
 | Randomizer > Cross-Game | Randomizer > General (its gray note) |
 | MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
-| Creation overlay (and, once it exists, the Reset confirm) | the SoH modal ("Clear Config") |
+| Creation overlay, Cross-Game Rules Reset confirm | the SoH modal ("Clear Config") |
 
 Compare within the same run, the same profile and the same backend. Check:
 - the fonts, rounding, borders and theme tints

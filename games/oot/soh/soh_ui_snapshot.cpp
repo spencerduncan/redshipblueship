@@ -1160,14 +1160,18 @@ bool IsInteractive(WidgetType t);
 
 /** At most @p max characters of @p s, cut back to a word boundary. A tooltip is
  *  hard-wrapped at about 60 characters (UIWidgets::WrappedText), so a prefix of
- *  40 always lies on its first logged line. */
-std::string WordPrefix(const std::string& s, size_t max) {
-    if (s.size() <= max) {
-        return s;
-    }
-    size_t cut = s.rfind(' ', max);
-    if (cut == std::string::npos || cut < max / 2) {
-        cut = max;
+ *  40 always lies on its first logged line. An authored line break ends the
+ *  prefix too: SoH's disabled shape ("This setting is disabled because: " then a
+ *  blank line and "- Reason", Menu.cpp) would otherwise put a newline inside it,
+ *  and the text log holds each line separately. */
+std::string WordPrefix(const std::string& in, size_t max) {
+    const std::string s = in.substr(0, in.find('\n'));
+    size_t cut = s.size();
+    if (s.size() > max) {
+        cut = s.rfind(' ', max);
+        if (cut == std::string::npos || cut < max / 2) {
+            cut = max;
+        }
     }
     std::string out = s.substr(0, cut);
     while (!out.empty() && (out.back() == ' ' || out.back() == ',' || out.back() == ':')) {
@@ -1333,10 +1337,10 @@ void Session::BuildPageList() {
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
-                p.stateText["unpaired"] = { "They govern the crossing between both games" };
-                p.stateText["paired-legacy"] = { "The world you are paired with predates them" };
-                p.stateText["frozen"] = { "Already decided: this paired world" };
-                p.stateText["corrupt"] = { "frozen but no paired world is live" };
+                p.stateText["unpaired"] = { "saved into the next paired world" };
+                p.stateText["paired-legacy"] = { "Your paired world predates these rules" };
+                p.stateText["frozen"] = { "Already decided when this world was created" };
+                p.stateText["corrupt"] = { "Session state is corrupt" };
                 p.stateContrast = { { "unpaired", "paired-legacy" },
                                     { "paired-legacy", "unpaired" },
                                     { "frozen", "unpaired" },
@@ -1413,6 +1417,23 @@ void Session::BuildPageList() {
         p.window = ComboGui::kComboTrackerWindowName;
         p.states = { "paired", "unpaired" };
         p.expectText = { ComboGui::kComboTrackerWindowName };
+        pages.push_back(p);
+    }
+    // Ours: the Cross-Game Rules Reset confirm, opened through the row's own
+    // Callback (so the capture is the popup a player gets) and compared with
+    // SoH's "Clear Config" modal.
+    if (entries.contains("Combo") && entries.at("Combo").sidebars.contains("Cross-Game Rules")) {
+        PageSpec p;
+        p.id = "modal/Reset Combo Rules";
+        p.origin = Origin::RSBS;
+        p.kind = Kind::MODAL;
+        p.header = "Combo";
+        p.sidebar = "Cross-Game Rules";
+        p.window = "Reset Combo Rules";
+        p.states = { "" };
+        p.compareWith = "modal/Clear Config";
+        p.expectText = { "Reset Combo Rules", "Cancel" };
+        p.scroll = false;
         pages.push_back(p);
     }
     {
@@ -2307,13 +2328,36 @@ void Session::CaptureModal(const PageSpec& p) {
         return;
     }
     menu->Hide();
-    // SoH's own strings (SohMenuSettings.cpp, the "Clear Devices" button), with
-    // null callbacks: nothing is cleared, and the popup is dismissed below.
-    SohGui::RegisterPopup("Clear Config",
-                          "This will completely erase the controls config, including registered devices.\nContinue?",
-                          "Clear", "Cancel", nullptr, nullptr);
     Capture c;
     c.id = p.id;
+    if (p.origin == Origin::SOH_REFERENCE) {
+        // SoH's own strings (SohMenuSettings.cpp, the "Clear Devices" button), with
+        // null callbacks: nothing is cleared, and the popup is dismissed below.
+        SohGui::RegisterPopup(
+            "Clear Config", "This will completely erase the controls config, including registered devices.\nContinue?",
+            "Clear", "Cancel", nullptr, nullptr);
+    } else {
+        // Ours: fire the button row's own Callback, which queues its confirm.
+        // DismissPopup below never runs the popup's buttons, so nothing is reset.
+        WidgetInfo* row = FindRow(*menu, p.header, p.sidebar, [](const WidgetInfo& w) {
+            return w.type == WIDGET_BUTTON && w.name.find("Reset") != std::string::npos;
+        });
+        if (row == nullptr || row->callback == nullptr) {
+            c.status = "fail";
+            c.reason = "no Reset button row with a Callback on " + p.header + "/" + p.sidebar;
+            c.spec = &p;
+            Record(std::move(c));
+            return;
+        }
+        row->callback(*row);
+        if (SohGui::PopupsQueued() == 0) {
+            c.status = "fail";
+            c.reason = "the Reset button queued no confirm popup";
+            c.spec = &p;
+            Record(std::move(c));
+            return;
+        }
+    }
     // A modal's background dim fades in over about a sixth of a second of REAL
     // time (NewFrame advances DimBgRatio by DeltaTime * 6), so how many frames it
     // takes depends on the host's frame rate and the capture would race it.
@@ -2510,7 +2554,13 @@ void Session::WriteComposites() {
             UiImage_FitLongSide(&stacked, 1568, &fitted) == 0) {
             const std::string name = "compare/" + Slug(c.id) + "__vs__" + Slug(ref->id) +
                                      (c.variant.empty() ? "" : "@" + Slug(c.variant)) + ".png";
-            UiImage_WritePng(&fitted, (out / name).string().c_str());
+            const std::string path = (out / name).string();
+            if (UiImage_WritePng(&fitted, path.c_str()) != 0) {
+                // Not a failed capture, but never silent: on Windows a long output
+                // directory pushes these names past MAX_PATH and the composites an
+                // agent reads simply do not exist.
+                printf("[UI-SNAPSHOT] warning: could not write %s (%zu characters)\n", path.c_str(), path.size());
+            }
         }
         UiImage_Free(&a);
         UiImage_Free(&b);
@@ -2538,7 +2588,10 @@ void Session::WriteIterComposites() {
         const std::string stem = c.pngRel.substr(std::string("pages/").size());
         if (UiImage_StackVertical(&before, &c.image, 8, &stacked) == 0 &&
             UiImage_FitLongSide(&stacked, 1568, &fitted) == 0) {
-            UiImage_WritePng(&fitted, (out / ("iter/" + stem)).string().c_str());
+            const std::string path = (out / ("iter/" + stem)).string();
+            if (UiImage_WritePng(&fitted, path.c_str()) != 0) {
+                printf("[UI-SNAPSHOT] warning: could not write %s (%zu characters)\n", path.c_str(), path.size());
+            }
         }
         uint64_t changed = 0;
         if (UiImage_AbsDiffX4(&before, &c.image, &diff, &changed) == 0) {
