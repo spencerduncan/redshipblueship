@@ -113,11 +113,13 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 - **Nothing of the switch has been played yet.** Every claim above comes from tests,
   measurements and UI captures. The playtest is
   [`playtest-2026-09.md`](playtest-2026-09.md).
-- **The in-game crossing views are empty.** Combo > Windows > Toggle Cross-Game Spoiler
-  and the Combo Tracker's cross-game section still read the tables the single bag no longer
-  writes, so they show nothing for a new world. The spoiler JSON's `combo.crossingStore`
-  lists every crossing with display names
-  ([#755](https://github.com/spencerduncan/redshipblueship/issues/755)).
+- **The in-game crossing views lag Majora's Mask.** Combo > Windows > Toggle Cross-Game
+  Spoiler and the Combo Tracker list every crossing in both directions, by name, with
+  whether each host check was collected. That state comes from each game's own save, and
+  Majora's Mask's is read as of the last game switch or save (as of file creation until
+  Majora's Mask is first entered), so a crossing collected in
+  Majora's Mask shows as collected after the next save or switch (the note under each
+  list says so; #755, #757).
 - **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero
   or barren analysis. Crossing hosts are never hinted, and an OoT item that crossed is
   hinted as "Termina" (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).

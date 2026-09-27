@@ -39,9 +39,12 @@
  *    adapter to UNAVAILABLE, proving liveness is re-checked per call.
  *
  * 6. FOREIGN ROWS RESOLVE BOTH DIRECTIONS WITH NAMES. One placement per
- *    table; rows carry the describer item name, the host-game check name
- *    (MM side), the redeemed bit from the tagged array, and vanish when the
- *    world is unpaired ("not paired" must never render as "no crossings").
+ *    table; rows carry the describer item name and article, the host-game
+ *    check name (MM side), the found state read from the HOST game's save
+ *    (#755: the MM host's obtained byte in the authored shadow, flipped both
+ *    ways; the OoT host is UNKNOWN once its world is released), and vanish
+ *    when the world is unpaired ("not paired" must never render as "no
+ *    crossings"). The crossing-store half is ComboCrossingViews.
  *
  * 7. FRESHNESS LABELS ARE PLAYER WORDING (UI parity M8). The window prints the
  *    label as a gray note with a closing period, so every label, for both
@@ -263,23 +266,42 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(foreignRow.hostCheckId == kObtainedB);
     CTV_ASSERT(foreignRow.originGame == (uint8_t)GAME_OOT);
     CTV_ASSERT(strcmp(foreignRow.itemName, "Lens of Truth") == 0);
+    CTV_ASSERT(foreignRow.itemArticle != NULL);
     // The MM adapter is registered, so the host check resolves to a name.
     CTV_ASSERT(foreignRow.hostCheckName != NULL && foreignRow.hostCheckName[0] != '\0');
-    CTV_ASSERT(!foreignRow.redeemed);
+    // kObtainedB is obtained in the authored MM shadow: the host game's save
+    // says this crossing was found.
+    CTV_ASSERT(foreignRow.found == COMBO_TRACKER_FOUND_YES);
 
     CTV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_OOT, 0, &foreignRow));
     CTV_ASSERT(foreignRow.hostGame == (uint8_t)GAME_OOT);
     CTV_ASSERT(foreignRow.hostCheckId == kOoTHostCheck);
     CTV_ASSERT(foreignRow.originGame == (uint8_t)GAME_MM);
     CTV_ASSERT(strcmp(foreignRow.itemName, "Lens of Truth") == 0);
+    // The OoT world was released above: OoT has nothing to read, so the OoT
+    // host's found state is UNKNOWN, never "not found".
+    CTV_ASSERT(foreignRow.found == COMBO_TRACKER_FOUND_UNKNOWN);
     CTV_ASSERT(!Combo_TrackerForeignRowAt((uint8_t)GAME_OOT, 1, &foreignRow)); // only one crossing
 
-    // The redeemed bit reads through from the tagged array.
+    // Found follows the host check's obtained byte, not the shared-item array:
+    // clear the byte and the row reads NO; a redeemed tagged entry for the same
+    // item does not bring it back.
+    blob[desc->checkTableOffset + (size_t)kObtainedB * desc->checkStride + desc->obtainedOffset] = 0;
+    Context_UpdateShadowCopy(GAME_MM, blob.data(), blob.size());
     gComboCtx.sharedItemsTagged[0].originGame = ootItem.originGame;
     gComboCtx.sharedItemsTagged[0].id = ootItem.id;
     gComboCtx.sharedItemsTagged[0].flags = RSBS_SHARED_ITEM_REDEEMED;
     CTV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &foreignRow));
-    CTV_ASSERT(foreignRow.redeemed);
+    CTV_ASSERT(foreignRow.found == COMBO_TRACKER_FOUND_NO);
+    ComboTrackerForeignProgress progress;
+    Combo_TrackerForeignProgress((uint8_t)GAME_MM, &progress);
+    CTV_ASSERT(progress.total == 1 && progress.found == 0 && progress.freshness == COMBO_TRACKER_FRESH_STALE);
+    blob[desc->checkTableOffset + (size_t)kObtainedB * desc->checkStride + desc->obtainedOffset] = 1;
+    Context_UpdateShadowCopy(GAME_MM, blob.data(), blob.size());
+    Combo_TrackerForeignProgress((uint8_t)GAME_MM, &progress);
+    CTV_ASSERT(progress.total == 1 && progress.found == 1);
+    Combo_TrackerForeignProgress((uint8_t)GAME_OOT, &progress);
+    CTV_ASSERT(progress.total == 1 && progress.found == 0 && progress.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE);
 
     // Unpaired again: the rows must vanish ("not paired" != "no crossings").
     ComboContext_Init();

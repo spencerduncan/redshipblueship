@@ -62,6 +62,9 @@ typedef enum {
  * Label for a freshness value, per game, in player wording with no closing
  * period (the stale wording differs: MM's shadow is "As of the last game
  * switch or save", OoT's suspended heap is "As of the last game switch").
+ * MM's stale label reads "As of file creation" while the shadow holds the
+ * paired creation event's armed half that MM has never run (no file-select
+ * marker), so it depends on the shadow as well as on its arguments.
  * Never NULL — out-of-range yields a visible placeholder rather
  * than a crash in a printf-family call.
  */
@@ -228,30 +231,79 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out);
 /** Display name for `game`'s check `checkId`, or NULL. */
 const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId);
 
+// ============================================================================
+// Cross-game crossings: the rows both panes draw (#755, #757)
+// ============================================================================
+//
+// WHERE THE ROWS COME FROM. Under the single bag (ADR 0010 increment 3, PR #743)
+// the crossing store (crossing_store.h) is the ONLY record of which host holds
+// which foreign item; the two pinned tables in gComboCtx are written by the
+// legacy spoiler load alone. So a crossing row is exactly what the host's give
+// path would yield (Combo_GetForeignPlacementForCheck and its OoT twin): the
+// pinned rows of `hostGame`'s table first, in slot order, then the store's rows
+// for `hostGame` in insertion order, skipping a store row whose host already has
+// a pinned row (the give path reads the pinned row there, so that store row is
+// unreachable and must not be listed twice). On a single-bag world the pinned
+// tables are empty and the rows are the store's, in the order the one spoiler's
+// combo.crossingStore section prints them.
+//
+// NAMES. The host check is named by the HOST game's tracker adapter (the same
+// name the per-game panel prints for that check; for MM that is the readable
+// CheckNames spelling, not the RC_* spelling MM's describer serves). The item is
+// named by its ORIGIN game's describer, with that describer's article.
+//
+// FOUND. A crossing is found once its host check is collected in the host
+// game's own save: MM's RANDO_SAVE_CHECKS[host].obtained (the bit MM's give path
+// gates the crossing's delivery on), OoT's check status for the host. That is
+// per host, so two copies of one item on two hosts are counted apart; the
+// shared-item array cannot say that (its entries carry no host and are recycled
+// once redeemed). The host game's data carries the per-game panel's freshness:
+// MM's is the last game switch or save, OoT's is live while OoT runs. When the
+// host game has nothing to read, found is UNKNOWN, never "not found".
+
+/** Whether a crossing's host check has been collected, per the host game's save. */
+typedef enum {
+    COMBO_TRACKER_FOUND_UNKNOWN = 0, // the host game's data is unavailable, or it has no row for the check
+    COMBO_TRACKER_FOUND_NO = 1,
+    COMBO_TRACKER_FOUND_YES = 2,
+} ComboTrackerFound;
+
 /**
- * One cross-game placement, from whichever direction's table `hostGame`
- * selects (the direction IS the accessor — the two tables are separate key
- * spaces, ADR 0009 decision 3). `itemName` is never NULL (pinned-pool name or
- * a visible placeholder); `hostCheckName` may be NULL.
+ * One crossing: host check `hostCheckId` of `hostGame` yields the foreign item
+ * `(originGame, itemId)`. `itemName` and `itemArticle` are never NULL
+ * (`itemArticle` is "" when the describer has none; it carries its own trailing
+ * space, as Combo_GetForeignItemArticle's does); `hostCheckName` may be NULL,
+ * and the renderer then prints the id.
  */
 typedef struct {
     uint8_t hostGame;          // game whose world holds the check
     uint16_t hostCheckId;      // that game's check id
-    const char* hostCheckName; // resolved via that game's adapter; may be NULL
-    uint8_t originGame;        // the item's id-space owner
+    const char* hostCheckName; // resolved via the host game's adapter; may be NULL
+    uint8_t originGame;        // the item's id-space owner (the other game)
     uint16_t itemId;
-    const char* itemName; // never NULL
-    bool redeemed;        // the origin game has already awarded this crossing
+    const char* itemName;    // never NULL
+    const char* itemArticle; // never NULL
+    uint8_t found;           // ComboTrackerFound
 } ComboTrackerForeignRow;
 
-/** Occupied placement slots hosted by `hostGame`; 0 when the worlds are not
- *  paired (same honesty rule as the spoiler view: "not paired" must never
- *  render as "no crossings"). */
+/** Crossings hosted by `hostGame` (see "WHERE THE ROWS COME FROM"); 0 when the
+ *  worlds are not paired (same honesty rule as the spoiler view: "not paired"
+ *  must never render as "no crossings"). */
 int Combo_TrackerForeignCount(uint8_t hostGame);
 
-/** Fill `out` with `hostGame`'s crossing `index` (slot order). False for a
- *  NULL `out`, an out-of-range index, or an unpaired world. */
+/** Fill `out` with `hostGame`'s crossing `index`, in the order above. False for
+ *  a NULL `out`, an out-of-range index, or an unpaired world. */
 bool Combo_TrackerForeignRowAt(uint8_t hostGame, int index, ComboTrackerForeignRow* out);
+
+/** One direction's totals: the counts the panes put in their notes. */
+typedef struct {
+    int total;         // == Combo_TrackerForeignCount(hostGame)
+    int found;         // rows whose found == COMBO_TRACKER_FOUND_YES
+    uint8_t freshness; // ComboTrackerFreshness of the host game's data; UNAVAILABLE = found is not known
+} ComboTrackerForeignProgress;
+
+/** Fill `out` with `hostGame`'s totals. NULL `out` is ignored. */
+void Combo_TrackerForeignProgress(uint8_t hostGame, ComboTrackerForeignProgress* out);
 
 /** Fallback ComboTrackerForeignRow.itemName for a placement whose item its
  *  origin's describer cannot name (the spoiler view's placeholder rule). */

@@ -3,8 +3,9 @@
  * @brief The combo tracker's view model (#458). See combo_tracker_view.h.
  *
  * Everything here is a pure read: gComboCtx through the foreign_items.h
- * accessors, the MM shadow blob through the registered offset descriptor, and
- * the OoT heap through the registered vtable. No gSaveContext through either
+ * accessors, the crossing store through crossing_store.h, the MM shadow blob
+ * through the registered offset descriptor, and the OoT heap through the
+ * registered vtable. No gSaveContext through either
  * game's layout, no ImGui, no game headers, no caching — the view is
  * recomputed per call so progress made mid-session shows on the next frame
  * and no stale copy can outlive a .redsave Load.
@@ -12,7 +13,8 @@
 
 #include "combo_tracker_view.h"
 
-#include "context.h" // Context_GetMMSaveContext / Context_GetCurrentGame
+#include "context.h"        // Context_GetMMSaveContext / Context_GetCurrentGame
+#include "crossing_store.h" // Combo_Crossings_Count / Combo_Crossings_At (#755)
 #include "game.h"    // MM_SAVE_CONTEXT_SIZE
 
 #include <stdio.h>
@@ -75,6 +77,8 @@ void Combo_Tracker_RegisterOoT(const ComboOoTTrackerOps* ops) {
 // Freshness
 // ============================================================================
 
+static bool MMShadowNeverEntered(void);
+
 const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness) {
     switch (freshness) {
         // Player wording (the window prints it as a gray note): a game switch is
@@ -85,6 +89,12 @@ const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness) {
             // The stale wording is per game because the mechanism differs: the
             // MM panel reads a shadow written at freeze/save time; the OoT
             // panel reads a heap that simply stopped advancing at suspend.
+            // MM's half of a paired file that MM has never run: the creation
+            // event armed it and nothing has written it since, so "the last game
+            // switch or save" would name an event that never happened.
+            if (game == (uint8_t)GAME_MM && MMShadowNeverEntered()) {
+                return "As of file creation";
+            }
             return (game == (uint8_t)GAME_MM) ? "As of the last game switch or save" : "As of the last game switch";
         case COMBO_TRACKER_FRESH_UNAVAILABLE:
             return "No data";
@@ -110,6 +120,14 @@ static uint32_t MMBlobReadU32(const uint8_t* blob, uint32_t offset) {
  * marker. An all-zero shadow — MM never entered this session — fails the
  * compare and reads as UNAVAILABLE rather than as a vanilla save with zero
  * progress.
+ *
+ * A RANDOMIZED save type is the second proof of a resident MM world (#755). The
+ * paired creation event arms MM's half of a new world in this shadow without
+ * MM's file-select marker: observed on the ComboSingleBag pinned seed after
+ * OoT_Creation_AuthorRandoFile, newf is six zero bytes and saveType is
+ * SAVETYPE_RANDO. Gated on the marker alone, a fresh paired world read "no data"
+ * for MM and none of its MM-hosted crossings could say whether it was found.
+ * SAVETYPE_RANDO is nonzero, so an all-zero shadow still reads as absent.
  */
 static const uint8_t* MMBlobIfPresent(void) {
     if (!sMMRegistered) {
@@ -120,9 +138,22 @@ static const uint8_t* MMBlobIfPresent(void) {
         return NULL;
     }
     if (sMMDesc.newfLen > 0 && memcmp(blob + sMMDesc.newfOffset, sMMDesc.newf, sMMDesc.newfLen) != 0) {
-        return NULL;
+        if (sMMDesc.saveTypeRando == 0 || MMBlobReadU32(blob, sMMDesc.saveTypeOffset) != sMMDesc.saveTypeRando) {
+            return NULL;
+        }
     }
     return blob;
+}
+
+/**
+ * A resident MM world that MM itself has never written: present only by the
+ * randomized save type, without MM's file-select marker. That is exactly the
+ * creation event's armed half (see MMBlobIfPresent); MM's own file load and
+ * every departure freeze carry the marker.
+ */
+static bool MMShadowNeverEntered(void) {
+    const uint8_t* blob = MMBlobIfPresent();
+    return blob != NULL && sMMDesc.newfLen > 0 && memcmp(blob + sMMDesc.newfOffset, sMMDesc.newf, sMMDesc.newfLen) != 0;
 }
 
 static void MMSummary(ComboTrackerGameSummary* out) {
@@ -224,7 +255,7 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
 }
 
 // ============================================================================
-// Identity + cross-game placements
+// Identity + cross-game crossings (#755, #757)
 // ============================================================================
 
 void Combo_TrackerIdentity(ComboTrackerIdentity* out) {
@@ -240,26 +271,11 @@ void Combo_TrackerIdentity(ComboTrackerIdentity* out) {
 }
 
 /**
- * Same redeemed derivation the spoiler view uses: a linear (originGame, id)
- * scan of the tagged array, flags deliberately not part of the match so
- * SOURCED entries (ADR 0005) report their redeemed bit honestly.
+ * The direction is the accessor (ADR 0009 decision 3): the two pinned tables
+ * are separate key spaces, so `hostGame` selects the TABLE and nothing ever
+ * looks one up with the other's key.
  */
-static bool TrackerItemRedeemed(uint8_t originGame, uint16_t itemId) {
-    for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
-        const SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
-        if (slot->originGame == originGame && slot->id == itemId && (slot->flags & RSBS_SHARED_ITEM_REDEEMED) != 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
- * The direction is the accessor (ADR 0009 decision 3): the two placement
- * tables are separate key spaces, so `hostGame` selects the TABLE and nothing
- * ever looks one up with the other's key.
- */
-static const ComboForeignPlacement* ForeignTableFor(uint8_t hostGame) {
+static const ComboForeignPlacement* PinnedTableFor(uint8_t hostGame) {
     if (hostGame == (uint8_t)GAME_MM) {
         return gComboCtx.foreignPlacements;
     }
@@ -269,50 +285,146 @@ static const ComboForeignPlacement* ForeignTableFor(uint8_t hostGame) {
     return NULL;
 }
 
-int Combo_TrackerForeignCount(uint8_t hostGame) {
-    if (!Combo_ForeignPairingActive()) {
-        return 0; // "not paired", not "no crossings" — same rule as the spoiler view
+/** Does `table` hold an occupied pinned slot for `hostCheck`? Occupancy is the
+ *  item tag, exactly as Combo_CountForeignPlacements derives it. */
+static bool PinnedHasHost(const ComboForeignPlacement* table, uint16_t hostCheck) {
+    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
+        if (table[i].item.originGame != (uint8_t)GAME_NONE && table[i].mmCheckId == hostCheck) {
+            return true;
+        }
     }
-    if (hostGame == (uint8_t)GAME_MM) {
-        return Combo_CountForeignPlacements();
-    }
-    if (hostGame == (uint8_t)GAME_OOT) {
-        return Combo_CountForeignPlacementsOoT();
-    }
-    return 0;
+    return false;
 }
 
-bool Combo_TrackerForeignRowAt(uint8_t hostGame, int index, ComboTrackerForeignRow* out) {
-    if (out == NULL || index < 0 || !Combo_ForeignPairingActive()) {
-        return false;
-    }
-    const ComboForeignPlacement* table = ForeignTableFor(hostGame);
+/**
+ * The `index`-th crossing of `hostGame` as a (host check, item) pair, in the
+ * order the header documents: pinned slots first, then the store's rows whose
+ * host has no pinned slot. With `index < 0` nothing is returned and the walk
+ * only counts. @return the number of crossings `hostGame` hosts; `*outFound` is
+ * set when row `index` exists.
+ */
+static int CrossingWalk(uint8_t hostGame, int index, uint16_t* outHost, SharedItem* outItem, bool* outFound) {
+    *outFound = false;
+    const ComboForeignPlacement* table = PinnedTableFor(hostGame);
     if (table == NULL) {
-        return false;
+        return 0;
     }
-
-    // Slot order, counting only occupied slots — row N is the Nth crossing as
-    // serialized, and occupancy is the item tag (no count field to disagree).
     int seen = 0;
     for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
         const ComboForeignPlacement* slot = &table[i];
         if (slot->item.originGame == (uint8_t)GAME_NONE) {
             continue;
         }
-        if (seen++ != index) {
-            continue;
+        if (seen++ == index) {
+            // The member NAME is mmCheckId; in the OoT table it holds an OoT RC.
+            *outHost = slot->mmCheckId;
+            *outItem = slot->item;
+            *outFound = true;
+            return seen;
         }
-
-        const char* itemName = Combo_GetForeignItemName(slot->item);
-        out->hostGame = hostGame;
-        out->hostCheckId = slot->mmCheckId; // the member NAME is mmCheckId; in the
-                                            // OoT table it holds an OoT RC (context.h)
-        out->hostCheckName = Combo_TrackerCheckName(hostGame, slot->mmCheckId);
-        out->originGame = slot->item.originGame;
-        out->itemId = slot->item.id;
-        out->itemName = (itemName != NULL) ? itemName : RSBS_TRACKER_UNKNOWN_ITEM_NAME;
-        out->redeemed = TrackerItemRedeemed(slot->item.originGame, slot->item.id);
-        return true;
     }
-    return false;
+    const int storeCount = Combo_Crossings_Count((GameId)hostGame);
+    for (int i = 0; i < storeCount; i++) {
+        ComboCrossing c;
+        if (!Combo_Crossings_At((GameId)hostGame, i, &c) || PinnedHasHost(table, c.hostCheck)) {
+            continue; // shadowed by a pinned row: the give path never reads it
+        }
+        if (seen++ == index) {
+            *outHost = c.hostCheck;
+            *outItem = c.item;
+            *outFound = true;
+            return seen;
+        }
+    }
+    return seen;
+}
+
+/**
+ * Has `hostGame`'s own save collected `hostCheck`? Read through the same
+ * adapters the per-game panels use, so the answer carries their freshness.
+ */
+static uint8_t HostCheckFound(uint8_t hostGame, uint16_t hostCheck) {
+    if (hostGame == (uint8_t)GAME_MM) {
+        const uint8_t* blob = MMBlobIfPresent();
+        if (blob == NULL || (uint32_t)hostCheck >= sMMDesc.checkCount ||
+            MMBlobReadU32(blob, sMMDesc.saveTypeOffset) != sMMDesc.saveTypeRando) {
+            return COMBO_TRACKER_FOUND_UNKNOWN;
+        }
+        const uint8_t* row = blob + sMMDesc.checkTableOffset + (size_t)hostCheck * sMMDesc.checkStride;
+        return row[sMMDesc.obtainedOffset] != 0 ? COMBO_TRACKER_FOUND_YES : COMBO_TRACKER_FOUND_NO;
+    }
+    if (hostGame == (uint8_t)GAME_OOT && sOoTOps != NULL) {
+        // OoT's own adapter indexes rows by check id; any other registrant (the
+        // UI snapshot's synthetic world) is searched, so the answer never
+        // depends on that coincidence.
+        ComboTrackerCheckRow row;
+        if (sOoTOps->checkAt((int)hostCheck, &row) && row.checkId == hostCheck) {
+            return row.obtained ? COMBO_TRACKER_FOUND_YES : COMBO_TRACKER_FOUND_NO;
+        }
+        const int count = sOoTOps->checkCount();
+        for (int i = 0; i < count; i++) {
+            if (sOoTOps->checkAt(i, &row) && row.checkId == hostCheck) {
+                return row.obtained ? COMBO_TRACKER_FOUND_YES : COMBO_TRACKER_FOUND_NO;
+            }
+        }
+    }
+    return COMBO_TRACKER_FOUND_UNKNOWN;
+}
+
+int Combo_TrackerForeignCount(uint8_t hostGame) {
+    if (!Combo_ForeignPairingActive()) {
+        return 0; // "not paired", not "no crossings" — same rule as the spoiler view
+    }
+    uint16_t host = 0;
+    SharedItem item;
+    bool found = false;
+    return CrossingWalk(hostGame, -1, &host, &item, &found);
+}
+
+bool Combo_TrackerForeignRowAt(uint8_t hostGame, int index, ComboTrackerForeignRow* out) {
+    if (out == NULL || index < 0 || !Combo_ForeignPairingActive()) {
+        return false;
+    }
+    uint16_t host = 0;
+    SharedItem item;
+    bool found = false;
+    (void)CrossingWalk(hostGame, index, &host, &item, &found);
+    if (!found) {
+        return false;
+    }
+
+    const char* itemName = Combo_GetForeignItemName(item);
+    const char* article = Combo_GetForeignItemArticle(item);
+    out->hostGame = hostGame;
+    out->hostCheckId = host;
+    out->hostCheckName = Combo_TrackerCheckName(hostGame, host);
+    out->originGame = item.originGame;
+    out->itemId = item.id;
+    out->itemName = (itemName != NULL) ? itemName : RSBS_TRACKER_UNKNOWN_ITEM_NAME;
+    out->itemArticle = (article != NULL) ? article : "";
+    out->found = HostCheckFound(hostGame, host);
+    return true;
+}
+
+void Combo_TrackerForeignProgress(uint8_t hostGame, ComboTrackerForeignProgress* out) {
+    if (out == NULL) {
+        return;
+    }
+    memset(out, 0, sizeof(*out));
+    out->total = Combo_TrackerForeignCount(hostGame);
+    for (int i = 0; i < out->total; i++) {
+        ComboTrackerForeignRow row;
+        if (Combo_TrackerForeignRowAt(hostGame, i, &row) && row.found == COMBO_TRACKER_FOUND_YES) {
+            out->found++;
+        }
+    }
+    // The host game's freshness, by the per-game panel's own rule: MM's data is
+    // never live, OoT's is live only while OoT runs.
+    if (hostGame == (uint8_t)GAME_MM) {
+        out->freshness = (MMBlobIfPresent() != NULL) ? COMBO_TRACKER_FRESH_STALE : COMBO_TRACKER_FRESH_UNAVAILABLE;
+    } else if (hostGame == (uint8_t)GAME_OOT && sOoTOps != NULL && sOoTOps->checkCount() > 0) {
+        out->freshness = (Context_GetCurrentGame() == GAME_OOT) ? COMBO_TRACKER_FRESH_LIVE : COMBO_TRACKER_FRESH_STALE;
+    } else {
+        out->freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
+    }
 }

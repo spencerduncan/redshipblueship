@@ -1999,6 +1999,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # #626 twin), and the other game's arrival apply shows it rather than the
     # one-heart floor. Both directions, real drivers, ROM-free and display-free.
     redship_add_test(NAME ComboGameOverRevive COMMAND redship --test combo-gameover-revive)
+    # #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
+    # read the crossing store (both directions, host check names, item names and
+    # articles, found per host check from each game's save). The synthetic row is
+    # ROM-free and display-free (default tier); the world row runs over the
+    # ComboSingleBag pinned seed's real world and compares the panes with the one
+    # spoiler's combo.crossingStore section (rando tier: it needs a generation).
+    redship_add_test(NAME ComboCrossingViews COMMAND redship --test combo-crossing-views)
+    redship_add_test(NAME ComboCrossingViewsWorld COMMAND redship --test combo-crossing-views-world
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #750, the OoT leg of #666 (games/oot/soh/oot_abandoned_session_test.cpp):
     # the same departure shape on OoT, whose numLoaded is never zeroed again
     # after the ActorDB entry is created. The row drives OoT's registered
