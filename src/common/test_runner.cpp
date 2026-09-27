@@ -694,6 +694,11 @@ extern "C" {
 // SCOPE (compiled as C++). Its SqpDeadHeartPickups is also called by
 // combo-logic-bag-composition B7 (declared there).
 #include "tests/test_shared_quantity_policy.c"
+// #706: MM's enabled mod set — enable, disable and reorder round-trip through
+// the persisted lists, and the scan's rules. ROM-free and display-free; FILE
+// SCOPE (compiled as C++). Its wrapper (Test_MMModSet) is below, after the shared
+// bring-up helpers it needs.
+#include "tests/test_mm_mod_set.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -3780,6 +3785,26 @@ TestResult Test_OoTPlentifulProgressive(void) {
     return OoTPlentifulProgressive_Run();
 }
 
+// #706: MM's enabled mod set. Needs only the console variables, i.e. the
+// display-free shared bring-up; no archive, so it never skips.
+TestResult Test_MMModSet(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton
+");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure
+");
+        return TEST_FAIL;
+    }
+    const int rc = MMModSet_RunHeadless();
+    printf("[TEST] %s: mm mod set rc=%d
+", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -4558,6 +4583,10 @@ const TestDescriptor gTests[] = {
      "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
      "trimmed hearts end the shared bar at exactly 320 with zero dead pickups (lane K13)",
      Test_SharedQuantityPolicy},
+    {"mm-mod-set",
+     "MM's enabled mod set: enable, disable and reorder round-trip through the persisted lists; unset lists keep the "
+     "stem order, new archives arrive enabled on top, a disabled mod stays disabled (#706)",
+     Test_MMModSet},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

@@ -125,6 +125,10 @@ set(REDSHIP_COMMON_SOURCES
     # #645 lane K11): the coordinator's one production caller. Game-header-free.
     # APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_single_bag.c
+    # Majora's Mask's enabled mod set (#706): which mods/mm archives MM mounts and
+    # in what order, read by MM's mount and the Combo > MM Mods page. Game-header-
+    # free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/mm_mod_set.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -204,6 +208,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/notification_layout_probe.h
     # Header for triforce_hunt.c above (ADR 0010 O10)
     ${CMAKE_SOURCE_DIR}/src/common/triforce_hunt.h
+    # Header for mm_mod_set.cpp above (#706)
+    ${CMAKE_SOURCE_DIR}/src/common/mm_mod_set.h
 )
 
 # ============================================================================
@@ -1966,6 +1972,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # carrier: ROM-free and display-free, so the default tier. The same trim over
     # both REAL pools is combo-logic-bag-composition B7.
     redship_add_test(NAME SharedQuantityPolicy COMMAND redship --test shared-quantity-policy)
+
+    # MM'S ENABLED MOD SET (#706): enable, disable and reorder round-trip through
+    # the persisted lists, and the scan's rules, over a staged tree of empty files.
+    # Needs the console variables only: ROM-free and display-free, the default
+    # tier. MMModsMount proves the same set drives the real mount and the re-apply.
+    redship_add_test(NAME MMModSet COMMAND redship --test mm-mod-set)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

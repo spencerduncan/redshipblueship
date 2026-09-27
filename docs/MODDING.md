@@ -144,21 +144,28 @@ priority field. Each game mounts its base archives first (`oot.o2r`/`oot-mq.o2r`
 overrides a base asset at all. Its `loose/` folder is mounted after all of its
 packed mods, so a loose file beats both.
 
-- **Between two mods of the same game:** later wins. OoT's order is the one you
-  set in its in-game mod menu (Enhancements → Mods), where you can enable,
-  disable and drag to reorder. MM has no such menu yet: **every** archive under
-  `mods/mm/` is mounted, sorted by file name ignoring the extension, so `10-base`
-  loses to `20-override`. Rename to reorder; move the file out of `mods/mm/` to
-  disable it. (Precisely, MM compares the whole path with the extension removed,
-  which is upstream 2Ship's own comparator — so a subfolder name participates
-  too: `mods/mm/aaa/z.o2r` loses to `mods/mm/bbb/a.o2r`.)
+- **Between two mods of the same game:** the one listed higher wins. OoT's order
+  is the one you set in its mod menu (Settings → Mod Menu: Edit, then the arrows
+  or drag to reorder). MM's is set on **Combo → MM Mods**, which lists every
+  archive under `mods/mm/` in two columns: Enabled Mods, highest priority at the
+  top, with arrows to move a mod up or down and one to turn it off; and Disabled
+  Mods, with an arrow to turn it back on. A mod you turn back on, and any archive
+  you add to the folder, goes to the top of the enabled list, as a new file does
+  in OoT's menu.
 
-  **This is a known asymmetry inside one game, and it is not the intended end
-  state.** OoT's half of the tree has enable/disable/reorder and MM's half does
-  not; an MM mod menu at parity is tracked as a follow-up issue. It is listed here
-  rather than papered over, because the alternative available today — making MM
-  read OoT's `EnabledMods` setting — would let a stale OoT list silently disable an
-  MM mod, which is a worse asymmetry, not a smaller one.
+  Until you change anything there, MM's order is upstream 2Ship's: every archive
+  under `mods/mm/` sorted by file name ignoring the extension, so `10-base` loses
+  to `20-override`. (Precisely, the whole path with the extension removed — so a
+  subfolder name participates too: `mods/mm/aaa/z.o2r` loses to
+  `mods/mm/bbb/a.o2r`.)
+
+  MM loads its mods once, the first time it starts in a session. A change made
+  before that applies when MM starts; a change made after it applies after a
+  restart, the same as every change in OoT's mod menu, and the page says so. MM's
+  choices are saved in its own two settings (`gSettings.MM.EnabledMods`,
+  `gSettings.MM.DisabledMods`), not in OoT's `EnabledMods`: sharing OoT's list
+  would let a stale OoT entry silently disable an MM mod. A disabled mod stays
+  disabled even if you move its file out of the folder and back.
 
   Two related differences that were **not** worth keeping have been aligned
   instead: which file types count as a mod archive (both sides use OoT's rule, see
@@ -167,10 +174,10 @@ packed mods, so a loose file beats both.
   linked mod folder worked under `mods/` and silently did nothing under
   `mods/mm/`).
 
-  One more difference is bookkeeping rather than behaviour you can see: OoT mounts
-  only the archives its enabled list names and identifies them by file name with
-  the extension removed, so two archives with the same name in different
-  subfolders count as one. MM mounts everything it finds.
+  One more difference is bookkeeping rather than behaviour you can see: OoT
+  identifies a mod by its file name with the extension removed, so two archives
+  with the same name in different subfolders count as one. MM identifies a mod by
+  its path inside `mods/mm/`, so they are two mods.
 - **Between the two games:** OoT and MM already ship many colliding resource
   paths of their own — 151 object names, 14 actor overlays and all three
   `gameplay_*_keep` archives (`docs/resource-namespace-audit.md`), plus 595 paths

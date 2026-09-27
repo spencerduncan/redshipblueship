@@ -141,6 +141,7 @@
 #include "combo_ui.h"
 #include "context.h"
 #include "cvar_shared_keys.h"
+#include "mm_mod_set.h" // #706: the MM Mods page's model, authored for its "listed" state
 #include "foreign_items.h"
 #include "gen_progress_overlay.h"
 #include "headless_crash.h"
@@ -730,6 +731,11 @@ const char* KindName(Kind k) {
     }
     return "?";
 }
+
+// The MM Mods page's "listed" state (#706): two enabled archives, one in a
+// subfolder, and one disabled, so both columns and every arrow are drawn.
+const char* const kMmModsListedEnabled[] = { "10-hd-textures.o2r", "packs/20-retro-hud.o2r" };
+const char* const kMmModsListedDisabled = "30-alt-link.o2r";
 
 struct PageSpec {
     std::string id;
@@ -1380,6 +1386,9 @@ void Session::BuildPageList() {
              { "Randomizer", "Logic/Access" },
              { "Enhancements", "Quality of Life" },
              { "Settings", "General" },
+             // OoT's mod menu (the Popout Mod Menu Window row, which embeds
+             // ModMenuWindow): the reference for Combo/MM Mods.
+             { "Settings", "Mod Menu" },
          }) {
         PageSpec p = menuPage(h, s, Origin::SOH_REFERENCE);
         p.needsRom = true;
@@ -1451,6 +1460,7 @@ void Session::BuildPageList() {
         { "Cross-Game Rules", "Randomizer/General" },
         { "Windows", "Randomizer/Item Tracker" },
         { "Majora's Mask", "Enhancements/Quality of Life" },
+        { "MM Mods", "Settings/Mod Menu" },
     };
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {
@@ -1504,6 +1514,15 @@ void Session::BuildPageList() {
                     p.hovers = { "first-row" };
                     p.hoverRows["first-row"] = RSBS::kHostedMmEnhancements[0].label;
                 }
+            } else if (sidebar == "MM Mods") {
+                // "": whatever the harness's own mods root holds (normally
+                // nothing, so the empty-folder note). "listed": a synthetic list
+                // with one disabled mod, so both columns and every arrow draw.
+                p.states = { "", "listed" };
+                p.stateText["listed"] = { kMmModsListedEnabled[0], kMmModsListedDisabled };
+                p.stateContrast = { { "listed", "" } };
+                p.hovers = { "rescan" };
+                p.hoverRows["rescan"] = "Rescan Mods Folder";
             } else if (sidebar == "Windows") {
                 // An MM tracker toggle: SoH's "Toggles the <Window>." plus the
                 // sentence that explains its blank window under Ocarina of Time.
@@ -2020,6 +2039,16 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         if (state == "autosave") {
             CVarSetInteger("gEnhancements.Autosave", 1);
         }
+    } else if (p.id == "Combo/MM Mods") {
+        // The page scans lazily when the model is empty, so "" draws the harness's
+        // own (normally empty) mods root; "listed" loads a synthetic list through
+        // the model's test seam, which persists nothing and reads no disk.
+        Combo_MMModSet_Reset();
+        if (state == "listed") {
+            CVarSetString(RSBS_CVAR_MM_DISABLED_MODS, kMmModsListedDisabled);
+            const char* keys[] = { kMmModsListedEnabled[0], kMmModsListedEnabled[1], kMmModsListedDisabled };
+            Combo_MMModSet_LoadForTest(keys, 3);
+        }
     } else if (p.id == "Settings/Graphics") {
         if (state == "match-refresh-rate") {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
@@ -2045,6 +2074,11 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
 }
 
 void Session::LeaveState(const PageSpec& p, const std::string& state) {
+    if (p.id == "Combo/MM Mods") {
+        CVarClear(RSBS_CVAR_MM_ENABLED_MODS);
+        CVarClear(RSBS_CVAR_MM_DISABLED_MODS);
+        Combo_MMModSet_Reset();
+    }
     if (p.id == "Combo/Majora's Mask" && state == "autosave") {
         CVarClear("gEnhancements.Autosave");
     }
