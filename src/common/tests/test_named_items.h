@@ -11,20 +11,21 @@
  * still never names an RG_* or RI_* value.
  *
  * OoT's item table is filled at OTR bring-up; a ROM-free process that never ran
- * it gets it from OoT_ComboLogic_TestEnsureItemTable (idempotent), which is what
- * the O8 classification lock already uses.
+ * it gets it from OoT_ComboLogic_TestEnsureItemTableTransient (idempotent), which
+ * leaves no Rando::Context behind: other rows in the same `--test all` process
+ * assert that none exists yet.
  */
 #ifndef RSBS_TEST_NAMED_ITEMS_H
 #define RSBS_TEST_NAMED_ITEMS_H
 
 #include "../foreign_items.h"
 
-extern "C" int OoT_ComboLogic_TestEnsureItemTable(void);
+extern "C" int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 
 /** The tagged item of @p origin whose describer name is @p name. False when the
  *  origin's table has no such row (or, for OoT, could not be built). */
 static inline bool TestNamedItem(uint8_t origin, const char* name, SharedItem* out) {
-    if (origin == (uint8_t)GAME_OOT && OoT_ComboLogic_TestEnsureItemTable() != 0) {
+    if (origin == (uint8_t)GAME_OOT && OoT_ComboLogic_TestEnsureItemTableTransient() != 0) {
         return false;
     }
     return Combo_GetForeignItemByNameFor(origin, name, out);

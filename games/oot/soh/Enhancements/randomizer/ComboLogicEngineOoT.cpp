@@ -2495,6 +2495,36 @@ extern "C" int OoT_ComboLogic_TestCountIceTraps(void) {
 }
 
 /**
+ * TEST BRIDGE (redship tier; src/common/tests/test_named_items.h): the same
+ * bring-up as OoT_ComboLogic_TestEnsureItemTable below, but a Context it had to
+ * create for InitItemTable is RELEASED again, so the process is left exactly as
+ * it was apart from the filled table. InitItemTable only dereferences the
+ * Context to reach its Logic (item_list.cpp) and keeps nothing, and the table is
+ * a static array, so the names outlive the Context.
+ *
+ * Exists because the ROM-free rows run in ONE process under `--test all`, and
+ * some of them (combo-tracker-view's never-booted leg) assert that no heap
+ * Rando::Context exists yet: a lock that only wanted an item's NAME must not
+ * leave one behind. The Context <-> Logic back-edge is what keeps a created
+ * instance alive past its scope; breaking it drops the instance with its last
+ * owner.
+ *
+ * @return 0 when the table is ready afterwards, -1 otherwise.
+ */
+extern "C" int OoT_ComboLogic_TestEnsureItemTableTransient(void) {
+    if (!OoTFillClassTableReady()) {
+        if (Rando::Context::GetInstance() == nullptr) {
+            std::shared_ptr<Rando::Context> created = Rando::Context::CreateInstance();
+            Rando::StaticData::InitItemTable();
+            created->GetLogic()->SetContext(nullptr);
+        } else {
+            Rando::StaticData::InitItemTable();
+        }
+    }
+    return OoTFillClassTableReady() ? 0 : -1;
+}
+
+/**
  * TEST BRIDGE (redship tier; src/common/tests/test_shared_items_class.c): bring
  * OoT's item table up in a process that never ran the OTR bring-up — the
  * display-free, ROM-free tier. Mirrors `Rando_HeadlessSeedTest`'s fallback order
