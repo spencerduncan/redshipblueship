@@ -1977,6 +1977,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the graph is retired, skips client-free ones, restores the statics only
     # Destroy used to restore, and drops every per-actor ObjectExtension entry.
     redship_add_test(NAME MMAbandonedSessionStatics COMMAND redship --test mm-abandoned-session-statics)
+    # #664: an F10 from either game's game-over screen revives the departing bar
+    # to that game's continue value -- or, mid fairy revive, to the spent fairy's
+    # refill -- before the freeze (OoT_Combo_ReviveDeadHealthForFreeze and MM's
+    # #626 twin), and the other game's arrival apply shows it rather than the
+    # one-heart floor. Both directions, real drivers, ROM-free and display-free.
+    redship_add_test(NAME ComboGameOverRevive COMMAND redship --test combo-gameover-revive)
 
     # A FOREIGN ITEM'S ICON IN MM'S GET-ITEM TEXTBOX (#607, Tier 2b of #494): every
     # OoT progression item answers a well-formed icon with an MM textbox branch,
