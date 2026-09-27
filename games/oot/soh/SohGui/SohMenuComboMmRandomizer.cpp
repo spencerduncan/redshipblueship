@@ -53,8 +53,7 @@
 #include "soh/SohGui/SohGui.hpp"
 
 // src/common only: the page model, the two descriptor views, and the combo_ui
-// seam's SoH chip and name cell (ComboUiSoh.cpp), which also report each trick
-// row's rectangle to the UI snapshot harness's hover finder.
+// seam (its SoH tag chip, and the rect recorder the trick names report to).
 #include "combo_mm_options_page.h"
 #include "combo_ui.h"
 
@@ -334,6 +333,36 @@ std::vector<TagFilter>& TagFilters() {
     return filters;
 }
 
+/**
+ * A trick row's name cell, as DrawTricksMenu draws it: ImGui::Text after the
+ * chips, clipped rather than wrapped (the column's child scrolls horizontally,
+ * as SoH's does; wrapping inside a narrow column broke a long name into a word
+ * or a letter per line), then UIWidgets::Tooltip. A disabled row's name is
+ * dimmed by the disabled alpha rather than drawn inside BeginDisabled, so it
+ * stays hoverable and shows its disabled tooltip, the tooltip a UIWidgets
+ * widget with the same options would show (ComboUi_ShownTooltip). The cell's
+ * rectangle goes to the combo_ui rect recorder, which is how the UI snapshot
+ * harness finds and hovers a trick row.
+ */
+void DrawTrickName(const char* label, const ComboUiWidgetOpts& opts) {
+    ImGui::SameLine();
+    if (opts.disabled) {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
+    }
+    ImGui::Text("%s", label);
+    if (opts.disabled) {
+        ImGui::PopStyleVar();
+    }
+    const char* shown = ComboUi_ShownTooltip(&opts);
+    if (shown != nullptr && shown[0] != '\0') {
+        UIWidgets::Tooltip(shown);
+    }
+    const ImVec2 a = ImGui::GetItemRectMin();
+    const ImVec2 b = ImGui::GetItemRectMax();
+    ComboUi_NotifyRect(label, shown, a.x, a.y, b.x, b.y);
+}
+
 /** SoH's Rando::Tricks::CheckTags: a row shows only when every one of its tags does. */
 bool TagsShown(const ComboMMTrickDesc* desc) {
     if (desc->chipCount == 0) {
@@ -364,9 +393,9 @@ bool TagsShown(const ComboMMTrickDesc* desc) {
  * logic) stays in the Disabled column with its arrow disabled and its reason in
  * the disabled tooltip in SoH's shape; SoH has no such rows. Once the world is
  * frozen every arrow and button is disabled with "Already Decided", but the
- * areas still open, because a frozen trick set is worth reading. The name
- * wraps rather than clips, through the combo_ui seam's SoH name cell, which also
- * reports the row to the UI snapshot harness's hover finder. Every tag in the
+ * areas still open, because a frozen trick set is worth reading. The name cell
+ * (DrawTrickName) reports the row to the UI snapshot harness's hover finder
+ * through the combo_ui rect recorder. Every tag in the
  * filter bar starts shown (SoH starts Glitch hidden), so the page opens on every
  * trick the pop-out window listed.
  */
@@ -519,7 +548,7 @@ void DrawMmTrickList(WidgetInfo& info) {
                         for (int c = 0; c < (int)desc->chipCount && c < COMBO_MM_TRICK_MAX_CHIPS; c++) {
                             ComboUi_Get()->TagChip(desc->chipLabels[c], desc->chipTones[c], &opts);
                         }
-                        ComboUi_Get()->RowText(desc->label, &opts);
+                        DrawTrickName(desc->label, opts);
                         ImGui::PopID();
                     }
                     areaOpen[area] = true;

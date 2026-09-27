@@ -3089,30 +3089,58 @@ void Session::CapturePaneHovers(const PageSpec& p, const std::string& state) {
         probe.label = ph.label;
         ComboUi_SetRectRecorder(PaneHoverRecord, &probe);
         std::string why;
-        for (int i = 0; i < 4; i++) {
+        // Rows are brought into view on both axes: at a narrow profile the
+        // tricks table's child clips a long row's name off its right edge (the
+        // child scrolls horizontally, as SoH's does), and a pointer there would
+        // hover nothing. The horizontal scroll is put back after the capture.
+        ImGuiWindow* scroller = nullptr;
+        float scrollXBefore = -1.0f;
+        ImRect clip;
+        for (int i = 0; i < 6; i++) {
             probe.found = false;
             probe.window = nullptr;
             if (!PumpFrame(nullptr, false, nullptr, why)) {
                 break;
             }
-            ImGuiWindow* scroller = probe.window != nullptr ? probe.window : ImGui::FindWindowByName(p.window.c_str());
-            if (probe.found && scroller != nullptr) {
-                const ImRect clip = scroller->InnerClipRect;
-                if (probe.rect.Min.y >= clip.Min.y && probe.rect.Max.y <= clip.Max.y) {
-                    break;
-                }
+            scroller = probe.window != nullptr ? probe.window : ImGui::FindWindowByName(p.window.c_str());
+            if (!probe.found || scroller == nullptr) {
+                continue;
+            }
+            clip = scroller->InnerClipRect;
+            const bool yIn = probe.rect.Min.y >= clip.Min.y && probe.rect.Max.y <= clip.Max.y;
+            const bool xIn = probe.rect.Min.x >= clip.Min.x &&
+                             probe.rect.Min.x + std::min(probe.rect.GetWidth(), 48.0f) <= clip.Max.x;
+            if (yIn && xIn) {
+                break;
+            }
+            if (!yIn) {
                 ImGui::SetScrollY(scroller, std::max(0.0f, scroller->Scroll.y + probe.rect.Min.y - clip.Min.y -
                                                                clip.GetHeight() / 3.0f));
+            }
+            if (!xIn && scroller->ScrollMax.x > 0.0f) {
+                if (scrollXBefore < 0.0f) {
+                    scrollXBefore = scroller->Scroll.x;
+                }
+                ImGui::SetScrollX(scroller, std::max(0.0f, scroller->Scroll.x + probe.rect.Min.x - clip.Min.x - 8.0f));
             }
         }
         if (!probe.found) {
             c.status = "fail";
             c.reason = "no row labelled \"" + ph.label + "\" was drawn through the combo_ui seam";
         } else {
-            gHooks.hoverPos = probe.rect.GetCenter();
+            // The middle of the part of the row its window shows.
+            ImRect shown = probe.rect;
+            if (scroller != nullptr) {
+                shown.ClipWith(clip);
+            }
+            gHooks.hoverPos =
+                shown.GetWidth() > 0.0f && shown.GetHeight() > 0.0f ? shown.GetCenter() : probe.rect.GetCenter();
             if (Settle(c, true, nullptr, nullptr)) {
                 Oracle(p, c);
             }
+        }
+        if (scroller != nullptr && scrollXBefore >= 0.0f) {
+            ImGui::SetScrollX(scroller, scrollXBefore);
         }
         ComboUi_SetRectRecorder(nullptr, nullptr);
         Finish(c, p);
