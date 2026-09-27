@@ -49,17 +49,25 @@
 
 #include "ForeignTextboxIcon.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <string>
+#include <variant>
+#include <vector>
 
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/archive/ArchiveManager.h>
 
 #include "2s2h/CustomMessage/CustomMessage.h"
+// Test bridges only: the row drives CheckQueue's real foreign give lambda.
+#include "2s2h/CustomItem/CustomItem.h"
+#include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Rando/MiscBehavior/MiscBehavior.h"
 
 extern "C" {
 #include "variables.h" // MM_gPlayState
@@ -70,6 +78,10 @@ extern s16 D_801CFE04[];
 extern s16 D_801CFE1C[];
 extern s16 D_801CFE34[];
 }
+
+// CustomMessage.cpp's file-scope message the OnOpenText hook loads (test bridges
+// read it to see what CheckQueue's give lambda handed the textbox).
+extern CustomMessage::Entry activeCustomMessage;
 
 // src/common. Outside any extern "C" block: each header manages its own linkage.
 #include "foreign_items.h"
@@ -233,6 +245,23 @@ extern "C" int MM_ForeignTextboxIcon_TestNoteTintMatches(const ComboTextboxIcon*
 /** Any real MM check id (the placement table keys on it). */
 extern "C" uint16_t MM_ForeignTextboxIcon_TestSomeCheck(void) {
     return (uint16_t)RC_CLOCK_TOWN_BOMBERS_NOTEBOOK;
+}
+
+/** A second real MM check id, distinct from TestSomeCheck, that the row leaves
+ *  WITHOUT a placement (so the lookup, not the RC_UNKNOWN guard, says no). */
+extern "C" uint16_t MM_ForeignTextboxIcon_TestOtherCheck(void) {
+    return (uint16_t)RC_CLOCK_TOWN_POSTBOX;
+}
+
+/** TextureMounted with the override cleared: the PRODUCTION branch (the __OTR__
+ *  prefix test, then the live ArchiveManager). 1 mounted, 0 not; the override is
+ *  restored to whatever it was. */
+extern "C" int MM_ForeignTextboxIcon_TestTextureMountedReal(const char* texture) {
+    const int saved = sMountOverride;
+    sMountOverride = -1;
+    const bool mounted = TextureMounted(texture);
+    sMountOverride = saved;
+    return mounted ? 1 : 0;
 }
 
 namespace {
@@ -431,9 +460,103 @@ bool RunDecodeChain() {
     return true;
 }
 
+/**
+ * THE PRODUCTION WIRING (#607 review): CheckQueue's REAL foreign give lambda.
+ *
+ * Marks `mmCheckId` eligible, runs Rando::MiscBehavior::CheckQueue() so it queues
+ * its GIEventGiveItem, and calls that event's own giveItem against a fake item00
+ * actor exactly as MM's give path does (CUSTOM_ITEM_PARAM = the check,
+ * GIVE_ITEM_CUTSCENE set, so the lambda takes the SetActiveCustomMessage branch).
+ * The Entry it leaves in activeCustomMessage must carry (wantTexture,
+ * wantItemId), and loading THAT Entry the way the OnOpenText hook does, then the
+ * real header decode, must put wantTexture in the icon segment. With wantTexture
+ * null the expectation is the icon-less pre-#607 textbox.
+ *
+ * `obtained` is pre-set on the host so RecordForeignPickup authors no durable
+ * shared-item record whatever the pairing state; every piece of state touched
+ * (the save-check table, the MM event queue and current event, activeCustomMessage)
+ * is restored on every exit.
+ */
+bool RunCheckQueueGive(uint16_t mmCheckId, const char* wantTexture, uint8_t wantItemId) {
+    struct Restore {
+        std::vector<RandoSaveCheck> checks;
+        std::vector<GIEvent> queue;
+        GIEvent current;
+        CustomMessage::Entry active;
+        Restore()
+            : checks(std::begin(RANDO_SAVE_CHECKS), std::end(RANDO_SAVE_CHECKS)), queue(MM_GameEvents_Queue()),
+              current(MM_GameEvents_Current()), active(activeCustomMessage) {
+        }
+        ~Restore() {
+            Rando::MiscBehavior::CheckQueueReset();
+            std::copy(checks.begin(), checks.end(), std::begin(RANDO_SAVE_CHECKS));
+            MM_GameEvents_Queue() = queue;
+            MM_GameEvents_Current() = current;
+            activeCustomMessage = active;
+        }
+    } restore;
+
+    for (RandoSaveCheck& check : RANDO_SAVE_CHECKS) {
+        check.eligible = false;
+    }
+    RANDO_SAVE_CHECKS[mmCheckId].eligible = true;
+    RANDO_SAVE_CHECKS[mmCheckId].obtained = true;
+    Rando::MiscBehavior::CheckQueueReset();
+    // A sentinel Entry, so an untouched activeCustomMessage cannot pass.
+    activeCustomMessage = CustomMessage::Entry{};
+    activeCustomMessage.msg = "(the give lambda never ran)";
+    activeCustomMessage.foreignIconTexture = "(sentinel)";
+    activeCustomMessage.foreignIconItemId = 0x7F;
+
+    Rando::MiscBehavior::CheckQueue();
+    std::vector<GIEvent>& queue = MM_GameEvents_Queue();
+    FTI_EXPECT(queue.size() == 1, "Q1 CheckQueue queued %zu events for the eligible foreign host, want 1",
+               queue.size());
+    GIEventGiveItem* give = std::get_if<GIEventGiveItem>(&queue.back());
+    FTI_EXPECT(give != nullptr && give->giveItem != nullptr, "Q1 the queued event is not a GIEventGiveItem");
+    FTI_EXPECT(give->param == (s16)mmCheckId && give->showGetItemCutscene,
+               "Q1 the event is not the foreign branch's (param %d, cutscene %d)", (int)give->param,
+               (int)give->showGetItemCutscene);
+
+    FakePlay fake;
+    Actor item00;
+    std::memset(&item00, 0, sizeof(item00));
+    {
+        Actor* actor = &item00; // the CUSTOM_ITEM_* macros name `actor`
+        CUSTOM_ITEM_PARAM = (s16)mmCheckId;
+        CUSTOM_ITEM_FLAGS = CustomItem::GIVE_ITEM_CUTSCENE;
+    }
+    give->giveItem(&item00, fake.play);
+
+    FTI_EXPECT(activeCustomMessage.msg.rfind("You found ", 0) == 0, "Q2 the give left message \"%s\"",
+               activeCustomMessage.msg.c_str());
+    FTI_EXPECT(activeCustomMessage.icon == kNoIcon, "Q2 header icon byte %d, want 0xFE", (int)activeCustomMessage.icon);
+    FTI_EXPECT(activeCustomMessage.foreignIconTexture == wantTexture,
+               "Q2 the Entry CheckQueue built carries texture %s, want %s",
+               activeCustomMessage.foreignIconTexture ? activeCustomMessage.foreignIconTexture : "(null)",
+               wantTexture ? wantTexture : "(null)");
+    FTI_EXPECT(activeCustomMessage.foreignIconItemId == wantItemId,
+               "Q2 the Entry CheckQueue built carries item id %d, want %d", (int)activeCustomMessage.foreignIconItemId,
+               (int)wantItemId);
+
+    // The OnOpenText hook's load of that very Entry, then the real decode.
+    LoadAndDecode(fake, activeCustomMessage, CUSTOM_MESSAGE_ID);
+    FTI_EXPECT(fake.play->msgCtx.itemId == wantItemId, "Q3 decoded itemId %d, want %d", (int)fake.play->msgCtx.itemId,
+               (int)wantItemId);
+    FTI_EXPECT(fake.segments[TEXTBOX_SEG_ICON] == wantTexture, "Q3 icon segment is not %s",
+               wantTexture ? wantTexture : "untouched");
+    return true;
+}
+
 #undef FTI_EXPECT
 
 } // namespace
+
+/** CheckQueue's real foreign give, end to end (RunCheckQueueGive): 0 on success. */
+extern "C" int MM_ForeignTextboxIcon_TestCheckQueueGive(uint16_t mmCheckId, const char* wantTexture,
+                                                        uint8_t wantItemId) {
+    return RunCheckQueueGive(mmCheckId, wantTexture, wantItemId) ? 0 : 1;
+}
 
 /** The MM half of the ForeignTextboxIcon row: 0 on success. */
 extern "C" int MM_ForeignTextboxIcon_RunHeadless(void) {

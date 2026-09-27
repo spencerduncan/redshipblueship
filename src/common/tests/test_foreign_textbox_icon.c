@@ -22,15 +22,26 @@
  *  I4 FALLBACK. Unknown ids, an untagged item, and a source's half-answers (no
  *     texture, empty texture, no shape, an unknown shape) all answer 0 with the
  *     output zeroed, which is the pre-#607 icon-less textbox.
- *  I5 THE CHECK-LEVEL CHAIN CheckQueue calls: an OoT item placed on an MM check
+ *  I5 THE CHECK-LEVEL LOOKUP CheckQueue calls: an OoT item placed on an MM check
  *     resolves to the origin's texture and an MM textbox branch; with the
- *     texture's archive not mounted it falls back; an unplaced check falls back.
+ *     texture's archive not mounted it falls back; a REAL MM check with no
+ *     placement falls back (not RC_UNKNOWN, which a guard answers first). The
+ *     mount test's PRODUCTION branch (override cleared) answers no for a path
+ *     without the __OTR__ prefix and for an __OTR__ path no archive holds; its
+ *     "yes" needs a mounted oot.o2r and is not driven headless.
  *  I6 THE TEXTBOX (games/mm/2s2h/Rando/ForeignTextboxIconSingleExe.cpp, run from
  *     here): the REAL CustomMessage load and the REAL vendored Message_DecodeHeader
  *     put the OoT texture in the icon segment, a consumed arm does not leak into
  *     the next message, native icons are untouched, and the REAL
  *     MM_Message_DrawItemIcon reads each shape at exactly its format and size.
  *     Delete the fenced hook in z_message.c and D1 goes red.
+ *  I7 THE PRODUCTION WIRING: CheckQueue's REAL foreign give lambda. The row marks
+ *     the host eligible, lets Rando::MiscBehavior::CheckQueue() queue its event,
+ *     runs that event's giveItem, and asserts the Entry it leaves in
+ *     activeCustomMessage carries the origin texture and MM item id, and that
+ *     the OnOpenText load of that Entry plus the real decode puts the texture in
+ *     the icon segment. Unmounted, the same lambda leaves the icon-less textbox.
+ *     Build the Entry in CheckQueue without the two #607 fields and Q2 goes red.
  *
  * Not lockable headless: the pixels. Whether OoT's texture actually rasterizes in
  * MM's textbox is the playtest paragraph of the PR.
@@ -59,6 +70,9 @@ int MM_ForeignTextboxIcon_TestNoteTintMatches(const ComboTextboxIcon* icon);
 void MM_ForeignTextboxIcon_TestSetMountOverride(int value);
 int MM_ForeignTextboxIcon_TestForCheck(uint16_t mmCheckId, const char** texture, uint8_t* textboxItemId);
 uint16_t MM_ForeignTextboxIcon_TestSomeCheck(void);
+uint16_t MM_ForeignTextboxIcon_TestOtherCheck(void);
+int MM_ForeignTextboxIcon_TestTextureMountedReal(const char* texture);
+int MM_ForeignTextboxIcon_TestCheckQueueGive(uint16_t mmCheckId, const char* wantTexture, uint8_t wantItemId);
 int MM_ForeignTextboxIcon_RunHeadless(void);
 }
 
@@ -332,15 +346,41 @@ TestResult Test_ForeignTextboxIcon(void) {
         const int unmounted = MM_ForeignTextboxIcon_TestForCheck(check, &texture, &itemId);
         const bool unmountedOk = unmounted == 0 && texture == nullptr && itemId == 0xFE;
         MM_ForeignTextboxIcon_TestSetMountOverride(1);
-        const int unplaced = MM_ForeignTextboxIcon_TestForCheck(0, &texture, &itemId);
+        const uint16_t other = MM_ForeignTextboxIcon_TestOtherCheck();
+        const int unplaced = MM_ForeignTextboxIcon_TestForCheck(other, &texture, &itemId);
         const bool unplacedOk = unplaced == 0 && texture == nullptr && itemId == 0xFE;
+        // The same lookup with the SAME mount answer on the placed host says yes,
+        // so the unplaced "no" is the placement table's, not the mount's.
+        const int placedAgain = MM_ForeignTextboxIcon_TestForCheck(check, &texture, &itemId);
+
+        // I7, while the placement stands: CheckQueue's real give lambda.
+        const uint8_t wantItemId = MM_ForeignTextboxIcon_ItemIdForShape(&expected);
+        const int giveMounted = MM_ForeignTextboxIcon_TestCheckQueueGive(check, expected.texture, wantItemId);
+        MM_ForeignTextboxIcon_TestSetMountOverride(0);
+        const int giveUnmounted = MM_ForeignTextboxIcon_TestCheckQueueGive(check, nullptr, 0xFE);
         MM_ForeignTextboxIcon_TestSetMountOverride(-1);
+
+        // The production mount branch (no override): both answers are "no".
+        const int realNoPrefix = MM_ForeignTextboxIcon_TestTextureMountedReal(
+            "textures/icon_item_static/gItemIconHookshotTex");
+        const int realMissing = MM_ForeignTextboxIcon_TestTextureMountedReal(
+            "__OTR__textures/rsbs_no_such_object/gRsbsNoSuchTex");
+        const int realNull = MM_ForeignTextboxIcon_TestTextureMountedReal(nullptr);
 
         std::memcpy(gComboCtx.foreignPlacements, saved, sizeof(saved));
         FTI_ASSERT(placed >= 0, "I5 placement accepted");
         FTI_ASSERT(mountedOk, "I5 a placed OoT item resolves to the origin texture and an MM textbox branch");
         FTI_ASSERT(unmountedOk, "I5 an unmounted origin archive falls back to the icon-less textbox");
-        FTI_ASSERT(unplacedOk, "I5 an unplaced check falls back");
+        FTI_ASSERT(other != check && other != 0, "I5 the unplaced host is a real, different MM check");
+        FTI_ASSERT(unplacedOk, "I5 a real MM check with no placement falls back");
+        FTI_ASSERT(placedAgain == 1, "I5 the placed host still resolves under the same mount answer");
+        FTI_ASSERT(realNoPrefix == 0, "I5 the production mount test refuses a path without the __OTR__ prefix");
+        FTI_ASSERT(realMissing == 0, "I5 the production mount test refuses an __OTR__ path no archive holds");
+        FTI_ASSERT(realNull == 0, "I5 the production mount test refuses a null path");
+        FTI_ASSERT(giveMounted == 0,
+                   "I7 CheckQueue's real give lambda hands the textbox the OoT icon (see the Q-line above)");
+        FTI_ASSERT(giveUnmounted == 0,
+                   "I7 unmounted, CheckQueue's real give lambda leaves the icon-less textbox (see the Q-line above)");
     }
 
     // ---- I6 --------------------------------------------------------------------
