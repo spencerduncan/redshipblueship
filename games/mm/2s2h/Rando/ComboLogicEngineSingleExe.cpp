@@ -1723,6 +1723,32 @@ extern "C" int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* out
     return total;
 }
 
+/**
+ * TEST BRIDGE (combo-single-bag leg E and the event sample; PR #743 review): the
+ * walk above over the ARMED MM SHADOW instead of the live buffer. After a real
+ * creation event the live buffer holds OoT's file again, and MM's finished world
+ * lives only in the shadow the event armed.
+ * @return the shuffled-check count, or -1 when there is no MM shadow.
+ */
+extern "C" int MM_ComboLogic_TestShuffledItemsInShadow(uint16_t* outItems, int cap) {
+    const SaveContext* shadow = static_cast<const SaveContext*>(Context_GetMMSaveContext());
+    if (shadow == nullptr) {
+        return -1;
+    }
+    int total = 0;
+    for (int rc = 0; rc < (int)RC_MAX; ++rc) {
+        const RandoSaveCheck& check = shadow->save.shipSaveInfo.rando.randoSaveChecks[rc];
+        if (!check.shuffled) {
+            continue;
+        }
+        if (total < cap && outItems != nullptr) {
+            outItems[total] = (uint16_t)check.randoItemId;
+        }
+        total++;
+    }
+    return total;
+}
+
 /** TEST BRIDGE: the live save's maximum health as CHECK_MAX_HP reads it
  *  (`healthCapacity`, 16 per heart). */
 extern "C" int MM_ComboLogic_TestHealthCapacity(void) {

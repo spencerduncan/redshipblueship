@@ -103,6 +103,7 @@ static int OoT_ComboLogic_TestSetNativeGeneralPass(int) {
 // world's hint checks below (PR #743 review).
 extern "C" int OoT_Combo_CheckHostsCrossing(int rc);
 extern "C" int Rando_HintAreaForItemOutsideHyrule(int item);
+extern "C" int Rando_HintAreaFromCrossingStore(int item);
 #else
 static int OoT_Combo_CheckHostsCrossing(int) {
     return 0;
@@ -120,6 +121,10 @@ static int OoT_Combo_CheckHostsCrossing(int) {
  *        "an Isolated Place" (the RA_NONE a location with no area answers);
  *   (P4) every OoT item the crossing store hosts in MM resolves to Termina, so P3
  *        is not vacuous on a seed whose hinted items all stayed home.
+ *   (P5) OUTSIDE the remainder's hint pass (now: this validator runs after it) the
+ *        hint pass does not read the store at all: every one of those items answers
+ *        RA_NONE, so a later hint pass over another world cannot name Termina off
+ *        this world's crossings.
  */
 static int ValidateGeneratedHints(bool pairedWorld) {
     auto ctx = Rando::Context::GetInstance();
@@ -276,10 +281,16 @@ static int ValidateGeneratedHints(bool pairedWorld) {
                 continue;
             }
             ootItemsInMM++;
-            if (Rando_HintAreaForItemOutsideHyrule((int)row.item.id) != (int)RA_TERMINA) {
+            if (Rando_HintAreaFromCrossingStore((int)row.item.id) != (int)RA_TERMINA) {
                 fprintf(stderr, "[rando-hints] FAIL: OoT item %u is hosted in MM but a hint would not name Termina "
                                 "(P4)\n",
                         (unsigned)row.item.id);
+                failures++;
+            }
+            if (Rando_HintAreaForItemOutsideHyrule((int)row.item.id) != (int)RA_NONE) {
+                fprintf(stderr, "[rando-hints] FAIL: outside the paired remainder the hint pass still reads the "
+                                "crossing store: OoT item %u would be hinted as area %d (P5)\n",
+                        (unsigned)row.item.id, Rando_HintAreaForItemOutsideHyrule((int)row.item.id));
                 failures++;
             }
         }

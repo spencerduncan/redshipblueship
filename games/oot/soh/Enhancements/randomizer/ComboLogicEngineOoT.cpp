@@ -2340,6 +2340,13 @@ bool sNativeGeneralPassForTest = false;
 /** True only while OoT_ComboLogic_FinishGeneralPass writes the spoiler of a
  *  single-bag paired world (spoiler_log.cpp marks the document with it). */
 bool sWritingSingleBagSpoiler = false;
+/** True only while OoT_ComboLogic_FinishGeneralPass runs OoT's remainder (whose
+ *  tail writes the hints) for the paired world whose crossings the store was just
+ *  given (OoT_Creation_FinishPairedHalf captures, then calls the remainder). The
+ *  hint pass reads the crossing store only under it (PR #743 review): the store
+ *  outlives the creation that filled it, so any other hint pass would read
+ *  another world's crossings. */
+bool sHintingPairedRemainder = false;
 /** The export rows (source 0, export order) the last successful bag took. */
 std::vector<int> sBagExportRows;
 /** The export rows THE SHARED-QUANTITY TRIM removed (combo_logic.h): each leaves
@@ -2517,7 +2524,20 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
     }
     const int leftovers = (int)GetAllEmptyLocations().size();
     const int remainingRows = (int)remaining.size();
-    RsbsFinishPairedGeneralPass(remaining);
+    {
+        // RAII: RsbsFinishPairedGeneralPass can throw (the fill's own
+        // exceptions), and a flag left set would let a later hint pass read
+        // this world's crossings.
+        struct HintingPairedRemainder {
+            HintingPairedRemainder() {
+                sHintingPairedRemainder = true;
+            }
+            ~HintingPairedRemainder() {
+                sHintingPairedRemainder = false;
+            }
+        } hinting;
+        RsbsFinishPairedGeneralPass(remaining);
+    }
     if (priorLive) {
         SaveContext* mine = lg->GetSaveContext();
         lg->SetSaveContext(&gSaveContext);
@@ -2552,6 +2572,12 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
 
 extern "C" int OoT_ComboLogic_WritingSingleBagSpoiler(void) {
     return sWritingSingleBagSpoiler ? 1 : 0;
+}
+
+/** 1 while OoT's remainder hints the paired world whose crossings the store holds
+ *  (see sHintingPairedRemainder); hints.cpp reads the store only then. */
+extern "C" int OoT_ComboLogic_HintingPairedRemainder(void) {
+    return sHintingPairedRemainder ? 1 : 0;
 }
 
 /**

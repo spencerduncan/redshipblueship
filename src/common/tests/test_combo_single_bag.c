@@ -66,14 +66,33 @@
  *       (OoT_Creation_AuthorRandoFile: the event, THEN Randomizer_InitSaveFile)
  *       gives the item placed at each of those hosts, at least one of which was a
  *       general-pass host still empty at Generate.
+ *   E2. THE EVENT'S STEP ORDER (#680's, restored on the second review): the same
+ *       real event records "M0S0J0A1" — MM's half authored, the crossings stored
+ *       and OoT's remainder placed, the spoiler joined, each with NO armed MM
+ *       shadow, and only then the arm. Red with the arm back inside MM's half:
+ *       "M1S1J1A1".
+ *   E3. ZERO DEAD HEART PICKUPS OVER THE REAL EVENT (leg D4's walk, second
+ *       review): the world that same event finished — OoT's final world, MM's
+ *       shuffled checks read from the ARMED MM shadow, the crossing store — ends
+ *       the shared bar at exactly 320 with zero clamped pickups. D4 walks the
+ *       headless harness's creation (the same fill and the same two per-game
+ *       passes, without the event's bracket, spoiler and arm) and can also compare
+ *       against the coordinator's tables, which the event drops on commit.
  *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
  * each (ladder attempts, batch attempts, rounds, wall time, status) and a
  * distribution summary. It asserts nothing and exists so the PR's timing claim
- * describes a sample rather than one seed. Each line times the whole creation
- * (OoT's Generate, MM's creation-time half with the fill, OoT's tail) and walks
- * the finished world's hearts as leg D4 does.
+ * describes a sample rather than one seed. Each line times the HEADLESS paired
+ * creation (OoT's Generate, MM's creation-time half with the fill, OoT's tail with
+ * the spoiler off) and walks the finished world's hearts as leg D4 does.
+ *
+ * RSBS_CSB_SAMPLE_EVENT=N (not set by CTest) measures the REAL creation instead:
+ * per seed, OoT's Generate, then OoT_Creation_AuthorRandoFile — the creation event
+ * (MM's half, OoT's tail with the spoiler written and joined, the arm) and
+ * Randomizer_InitSaveFile — timed end to end, with leg E3's heart walk over the
+ * armed world. Save_SaveFile (the slot write) and the overlay's presentation are
+ * the only parts of a file-select creation it leaves out.
  *
  * WHY THE `rando` TIER. Everything here needs a real OoT generation and MM's
  * real region graph; a ROM-free run has neither, and every count would be zero.
@@ -118,7 +137,9 @@ int Randomizer_TestHostEmpty(int rc);
 int Randomizer_TestStartingGiveMatchesPlacement(int rc);
 int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_t* outHosts, uint16_t* outFlags, int cap);
 int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int cap);
+int MM_ComboLogic_TestShuffledItemsInShadow(uint16_t* outItems, int cap);
 void Randomizer_TestClearOoTSave(void);
+const char* OoT_Creation_TestLastSequence(void);
 }
 
 // THE PLAY-SIDE CHECK (lane K13): award every heart row of a bag, interleaved by
@@ -246,7 +267,13 @@ void CsbAddHeart(std::vector<ComboLogicBagItem>& out, uint8_t origin, uint16_t i
     out.push_back(row);
 }
 
-CsbHeartWalk CsbWalkFinishedWorldHearts(const ComboSingleBagReport& bag) {
+/**
+ * @param afterEvent false: the headless harness's world (MM's bytes live, the
+ *        coordinator's tables still held, so placedByBag is counted); true: a world
+ *        a REAL creation event finished (OoT's bytes live, MM's world only in the
+ *        armed shadow, the tables dropped on commit: placedByBag stays -1).
+ */
+CsbHeartWalk CsbWalkFinishedWorldHearts(const ComboSingleBagReport& bag, bool afterEvent = false) {
     CsbHeartWalk w;
     std::vector<ComboLogicBagItem> hearts;
     std::vector<uint16_t> items(8192, 0);
@@ -254,7 +281,8 @@ CsbHeartWalk CsbWalkFinishedWorldHearts(const ComboSingleBagReport& bag) {
     for (int i = 0; i < w.ootHosted && i < (int)items.size(); i++) {
         CsbAddHeart(hearts, (uint8_t)GAME_OOT, items[(size_t)i]);
     }
-    w.mmShuffled = MM_ComboLogic_TestShuffledItems(items.data(), nullptr, (int)items.size());
+    w.mmShuffled = afterEvent ? MM_ComboLogic_TestShuffledItemsInShadow(items.data(), (int)items.size())
+                              : MM_ComboLogic_TestShuffledItems(items.data(), nullptr, (int)items.size());
     for (int i = 0; i < w.mmShuffled && i < (int)items.size(); i++) {
         CsbAddHeart(hearts, (uint8_t)GAME_MM, items[(size_t)i]);
     }
@@ -270,14 +298,14 @@ CsbHeartWalk CsbWalkFinishedWorldHearts(const ComboSingleBagReport& bag) {
     std::vector<ComboLogicBagItem> placed;
     ComboLogicPlacement p;
     for (const GameId host : { GAME_OOT, GAME_MM }) {
-        for (int i = 0; i < Combo_Logic_PlacementCount(host); i++) {
+        for (int i = 0; !afterEvent && i < Combo_Logic_PlacementCount(host); i++) {
             if (Combo_Logic_PlacementAt(host, i, &p)) {
                 CsbAddHeart(placed, p.item.originGame, p.item.id);
             }
         }
     }
     w.heartRows = (int)hearts.size();
-    w.placedByBag = (int)placed.size();
+    w.placedByBag = afterEvent ? -1 : (int)placed.size();
     // The shared bar starts at the larger frozen starting health (shared_items.h).
     w.startHealth = bag.startingHealthOoT > bag.startingHealthMM ? bag.startingHealthOoT : bag.startingHealthMM;
     w.dead = SqpDeadHeartPickups(hearts.empty() ? nullptr : hearts.data(), (int)hearts.size(), w.startHealth,
@@ -361,6 +389,74 @@ TestResult CsbSample(int n) {
     return TEST_PASS;
 }
 
+/** RSBS_CSB_SAMPLE_EVENT=N: N REAL paired creations (the event + InitSaveFile). */
+TestResult CsbSampleEvent(int n) {
+    printf("[TEST] combo-single-bag EVENT SAMPLE: %d real paired creations (Generate, then the creation event with "
+           "the spoiler written and joined, the arm, and Randomizer_InitSaveFile) under the shipped per-attempt "
+           "budget %ums (host scale %u%%)\n",
+           n, Combo_GenBudget_FillBudgetMs(0), Combo_GenBudget_HostScalePercent());
+    int ok = 0;
+    int timeouts = 0;
+    int other = 0;
+    int deadTotal = 0;
+    uint32_t worstMs = 0;
+    uint32_t bestMs = 0xFFFFFFFFu;
+    uint64_t sumMs = 0;
+    int batchHist[RSBS_COMBO_LOGIC_FILL_RETRIES + 2] = { 0 };
+    for (int i = 0; i < n; i++) {
+        const std::string seed = "RSBSSAMPLE" + std::to_string(i);
+        Combo_Crossings_Clear();
+        Context_ClearFrozenState(GAME_MM);
+        const uint32_t tGen = Combo_GenBudget_NowMs();
+        if (Rando_HeadlessSeedTest(seed.c_str()) != 0) {
+            printf("[EVENT-SAMPLE] %s: OoT generation failed\n", seed.c_str());
+            other++;
+            continue;
+        }
+        Randomizer_TestClearOoTSave();
+        const uint32_t t0 = Combo_GenBudget_NowMs();
+        const int created = OoT_Creation_AuthorRandoFile(0);
+        const uint32_t tEnd = Combo_GenBudget_NowMs();
+        const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+        const uint32_t total = tEnd - tGen;
+        printf("[EVENT-SAMPLE] %s: created=%d status=%s ladder=%d batches=%d rounds=%d bag=%d rows fill=%ums; end to "
+               "end %ums = OoT Generate %ums + creation event and InitSaveFile %ums; steps %s; crossings MM<-OoT %d "
+               "OoT<-MM %d\n",
+               seed.c_str(), created, Combo_Logic_StatusName(bag.status), MM_Rando_PairedGenLastAttempts(),
+               bag.fill.attempts, bag.fill.rounds, bag.bagCount, bag.wallMs, total, t0 - tGen, tEnd - t0,
+               OoT_Creation_TestLastSequence(), bag.crossingsIntoMM, bag.crossingsIntoOoT);
+        if (created == 1) {
+            ok++;
+            const CsbHeartWalk hw = CsbWalkFinishedWorldHearts(bag, true);
+            deadTotal += hw.dead > 0 ? hw.dead : 0;
+            printf("[EVENT-SAMPLE] %s: hearts in the armed world %d, %d pickups from 0x%X, %d dead, bar ends 0x%X\n",
+                   seed.c_str(), hw.heartRows, hw.pickups, (unsigned)hw.startHealth, hw.dead, (unsigned)hw.finalValue);
+            worstMs = total > worstMs ? total : worstMs;
+            bestMs = total < bestMs ? total : bestMs;
+            sumMs += total;
+            const int b = bag.fill.attempts < 0 ? 0
+                          : bag.fill.attempts > RSBS_COMBO_LOGIC_FILL_RETRIES + 1 ? RSBS_COMBO_LOGIC_FILL_RETRIES + 1
+                                                                                  : bag.fill.attempts;
+            batchHist[b]++;
+        } else if (bag.status == RSBS_COMBO_LOGIC_ERR_ABORTED) {
+            timeouts++;
+        } else {
+            other++;
+        }
+    }
+    printf("[EVENT-SAMPLE] summary: %d/%d created, %d per-attempt budget stops (GenerationTimeout), %d other "
+           "failures; end to end mean %ums, best %ums, worst %ums; %d dead heart pickups in total\n",
+           ok, n, timeouts, other, ok > 0 ? (unsigned)(sumMs / (uint64_t)ok) : 0u, ok > 0 ? bestMs : 0u, worstMs,
+           deadTotal);
+    for (int b = 0; b <= RSBS_COMBO_LOGIC_FILL_RETRIES + 1; b++) {
+        if (batchHist[b] > 0) {
+            printf("[EVENT-SAMPLE] batch attempts %d: %d creation(s)\n", b, batchHist[b]);
+        }
+    }
+    Combo_Crossings_Clear();
+    return TEST_PASS;
+}
+
 } // namespace
 
 TestResult ComboSingleBag_Run(void) {
@@ -368,6 +464,12 @@ TestResult ComboSingleBag_Run(void) {
         const int n = atoi(sample);
         if (n > 0) {
             return CsbSample(n);
+        }
+    }
+    if (const char* sample = std::getenv("RSBS_CSB_SAMPLE_EVENT")) {
+        const int n = atoi(sample);
+        if (n > 0) {
+            return CsbSampleEvent(n);
         }
     }
     printf("[TEST] combo-single-bag: the single-bag fill at the creation event over both real engines, and ADR "
@@ -635,7 +737,34 @@ TestResult ComboSingleBag_Run(void) {
 
         Randomizer_TestClearOoTSave();
         Randomizer_TestResetStartingGiveLog();
+        // No armed MM shadow going in, so E2 reads only what THIS event armed.
+        Context_ClearFrozenState(GAME_MM);
         CSB_ASSERT(OoT_Creation_AuthorRandoFile(0) == 1, "the paired creation under the creation-give settings failed");
+
+        // E2. The event's step order.
+        const char* steps = OoT_Creation_TestLastSequence();
+        printf("[TEST] combo-single-bag: the creation event's steps: %s (expected M0S0J0A1)\n", steps);
+        CSB_ASSERT(std::strcmp(steps, "M0S0J0A1") == 0,
+                   "the creation event did not run MM's half, the crossings and OoT's remainder, and the spoiler join "
+                   "with no armed MM shadow and THEN arm it (#680's order)");
+        CSB_ASSERT(Context_HasFrozenState(GAME_MM) != 0, "the finished creation left no armed MM shadow");
+
+        // E3. Zero dead heart pickups over the world this real event finished.
+        {
+            const ComboSingleBagReport eventBag = *Combo_SingleBag_LastReport();
+            const CsbHeartWalk hw = CsbWalkFinishedWorldHearts(eventBag, true);
+            printf("[TEST] combo-single-bag: the real event's world: %d heart rows (%d OoT-hosted rows and %d MM "
+                   "shuffled checks read from the armed shadow, %d crossings); %d pickups from 0x%X: %d dead, the bar "
+                   "ends at %d\n",
+                   hw.heartRows, hw.ootHosted, hw.mmShuffled,
+                   Combo_Crossings_Count(GAME_OOT) + Combo_Crossings_Count(GAME_MM), hw.pickups,
+                   (unsigned)hw.startHealth, hw.dead, hw.finalValue);
+            CSB_ASSERT(eventBag.trimmedOoT + eventBag.trimmedMM > 0,
+                       "the real event's creation trimmed nothing, so E3 would prove nothing");
+            CSB_ASSERT(hw.ootHosted > 0 && hw.mmShuffled > 0, "the real event's finished world could not be read");
+            CSB_ASSERT(hw.pickups > 0 && hw.dead == 0 && hw.finalValue == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
+                       "the real event's hearts do not end the shared bar at exactly 320 with zero dead pickups");
+        }
         for (int i = 0; i < 3; i++) {
             const int rc = Randomizer_TestCreationGiveHost(i);
             const int verdict = Randomizer_TestStartingGiveMatchesPlacement(rc);

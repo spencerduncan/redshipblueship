@@ -290,8 +290,11 @@ extern "C" int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained) {
 // to nothing, clears both placement tables, and returns nonzero; z_sram.c then
 // abandons the file. The caller sees one boolean and a reason string.
 
-// The MM half of the creation event (games/mm/2s2h/GameExports_SingleExe.cpp).
-extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath);
+// The MM half of the creation event (games/mm/2s2h/GameExports_SingleExe.cpp):
+// authored first, armed LAST (after the crossings and the one spoiler; #680's
+// order, restored on the PR #743 review).
+extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPath);
+extern "C" int MM_Rando_ArmCreatedHalf(int slot);
 // The #533 refusal surface (src/common/save.h) and this file's own
 // file-select failure toast, both raised from the failure branch below so
 // that ONE callable carries the whole terminal-failure contract — z_sram.c
@@ -492,6 +495,31 @@ extern "C" int OoT_Creation_FinishPairedHalf(int writeSpoiler) {
     return crossings;
 }
 
+// ----------------------------------------------------------------------------
+// THE CREATION'S STEP ORDER, RECORDED (PR #743 review)
+// ----------------------------------------------------------------------------
+// #680's order is: crossings stored, spoiler written and joined, identity
+// published, MM shadow armed LAST. The event records each step as it completes,
+// with whether the MM shadow was armed at that moment ('1') or not ('0'), so a
+// lock can read "M0S0J0A1" off a real creation: MM's half authored unarmed, the
+// store and OoT's remainder unarmed, the join unarmed, then armed. Arming anywhere
+// earlier (inside MM's half, where it used to happen) reads "M1S1J1A1".
+static char sCreationSequence[16];
+static int sCreationSequenceLen = 0;
+
+static void CreationStep(char step) {
+    if (sCreationSequenceLen + 2 < (int)sizeof(sCreationSequence)) {
+        sCreationSequence[sCreationSequenceLen++] = step;
+        sCreationSequence[sCreationSequenceLen++] = Context_HasFrozenState(GAME_MM) ? '1' : '0';
+        sCreationSequence[sCreationSequenceLen] = 0;
+    }
+}
+
+/** TEST BRIDGE: the last paired creation event's step record (see above). */
+extern "C" const char* OoT_Creation_TestLastSequence(void) {
+    return sCreationSequence;
+}
+
 /**
  * RETRACT A FAILED PAIRED CREATION: everything the freeze and the event published,
  * so no artifact of a half-created world survives — no identity for a later
@@ -625,7 +653,10 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
     sCreationBracketActive = true;
 
-    const int mmRc = MM_Rando_GenerateAtCreation(slot, "");
+    sCreationSequenceLen = 0;
+    sCreationSequence[0] = 0;
+    const int mmRc = MM_Rando_AuthorHalfAtCreation(slot, "");
+    CreationStep('M');
 
     sCreationBracketActive = false;
     // MM's finished half, kept for the spoiler join at the end (see its buffer).
@@ -640,9 +671,8 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     if (mmRc != 0) {
         // TERMINAL. Retract everything the freeze published so no artifact of a
         // half-created world survives: no identity for a later arrival to
-        // compare against, no crossing tables for either direction, no armed MM
-        // shadow (the MM half never armed one — it returned before that, or
-        // arming itself failed).
+        // compare against, no crossing tables for either direction, and no armed
+        // MM shadow (nothing has armed one yet: the arm is this event's last step).
         fprintf(stderr,
                 "[OoT] creation event: FAILED (MM half rc=%d) — retracting the pairing identity; slot %d must not be "
                 "written\n",
@@ -667,7 +697,11 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     //      hosts, overrides, hints, and its spoiler document.
     //   3. THE ONE SPOILER: MM's half joined into OoT's document as "combo", over
     //      a second short bracket that puts MM's finished bytes back in view.
-    //   4. COMMIT: the coordinator's and both engines' roll-back records are
+    //   4. THE ARM, LAST (#680's order: store, spoiler, publish, arm): inside the
+    //      same bracket, MM's finished half becomes the armed MM shadow. Nothing
+    //      before this point has armed anything, so a failure in steps 1-3 — or
+    //      an exception out of them — leaves no armed shadow behind.
+    //   5. COMMIT: the coordinator's and both engines' roll-back records are
     //      dropped, so no later fill can "restore" this world.
     //
     // A failure in any of them fails the creation the same way a failed MM half
@@ -677,8 +711,10 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     const int crossings = OoT_Creation_FinishPairedHalf(1);
     bool tailOk = crossings >= 0;
     if (tailOk) {
+        CreationStep('S');
         Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_SPOILER, 0, "writing the paired spoiler");
         const std::string cvarPath = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");
+        std::string ootSpoilerAbsolute;
         if (cvarPath.empty()) {
             fprintf(stderr, "[OoT] creation event: no OoT spoiler on record - the paired half has nothing to join\n");
         } else {
@@ -686,14 +722,22 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
             if (relative.rfind("./", 0) == 0) {
                 relative = relative.substr(2);
             }
-            const std::string ootSpoilerAbsolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
-            memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
-            memcpy(&gSaveContext, sMmFinishedSave, sizeof(SaveContext));
-            sCreationBracketActive = true;
-            MM_Rando_AugmentSpoilerWithPairedHalf(ootSpoilerAbsolute.c_str());
-            sCreationBracketActive = false;
-            memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
+            ootSpoilerAbsolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
         }
+        // MM's finished bytes back in view, for the join and then the arm.
+        memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
+        memcpy(&gSaveContext, sMmFinishedSave, sizeof(SaveContext));
+        sCreationBracketActive = true;
+        if (!ootSpoilerAbsolute.empty()) {
+            MM_Rando_AugmentSpoilerWithPairedHalf(ootSpoilerAbsolute.c_str());
+            CreationStep('J');
+        }
+        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_PUBLISH, 0, nullptr);
+        const int armRc = MM_Rando_ArmCreatedHalf(slot);
+        CreationStep('A');
+        sCreationBracketActive = false;
+        memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
+        tailOk = armRc == 0;
     }
     const ComboSingleBagReport* bag = Combo_SingleBag_LastReport();
     fprintf(stderr,
@@ -703,20 +747,18 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
             bag->fill.rounds, bag->wallMs);
     Combo_SingleBag_Forget();
     if (!tailOk) {
-        // The MM half ARMED its shadow before it returned (MM_Rando_GenerateAtCreation
-        // arms while MM's bytes are live, the one window it can), so a tail failure
-        // retracts an armed shadow. The same retraction as the MM-half failure, so
-        // the two routes cannot drift apart again.
+        // A tail failure before the arm leaves nothing armed; the arm itself
+        // refusing leaves nothing armed either. The same retraction as the
+        // MM-half failure regardless, so the two routes cannot drift apart again.
         RetractFailedPairedCreation(slot);
         return 0;
     }
 
     fprintf(stderr,
             "[OoT] creation event: the OoT-side tail after MM's half returned (crossings, OoT's remainder, the spoiler "
-            "join) took %ums (#582)\n",
-            Combo_GenProgress_ElapsedMs() - ootTailStartMs);
+            "join, the arm) took %ums (#582); steps %s\n",
+            Combo_GenProgress_ElapsedMs() - ootTailStartMs, sCreationSequence);
     fflush(stderr);
-    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_PUBLISH, 0, nullptr);
     Combo_GenProgress_End(true);
     fprintf(stderr, "[OoT] creation event: slot %d complete — both halves authored under one frozen identity\n", slot);
     fflush(stderr);

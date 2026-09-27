@@ -978,6 +978,7 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
 // + every foreign placement to the same digest file, so the SeedDeterminism
 // two-process diff covers the whole paired world.
 extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath);
+extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 // Hint-validity lock (#441, body in menu.cpp): generates one seed, then asserts
 // every enabled hint names a REAL item — no hint may resolve to the no-item
 // sentinel, hinted locations must hold items, and each hinted location's name
@@ -1234,6 +1235,17 @@ TestResult Test_RandoDeterminism(void) {
     // wrapper's two runs share it (see CMake/CheckSeedDeterminism.cmake).
     const char* seed = "RSBSUNIFIED1";
     const char* digestOut = std::getenv("RSBS_SEED_DIGEST_OUT");  // NULL => digest to stdout
+    // RSBS_OOT_NATIVE_GENERAL_PASS=1 (set by no CTest row): OoT's OWN general pass
+    // for this paired world, so the digest's OoT lines (placementHash,
+    // placedCount) can be compared same-seed against a main-lineage binary, whose
+    // paired generation ran that pass natively (PR #743 review). The MM half
+    // below then finds no deferred world to fill and fails; only the OoT lines
+    // are the comparison.
+    if (const char* native = std::getenv("RSBS_OOT_NATIVE_GENERAL_PASS")) {
+        if (atoi(native) > 0) {
+            (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
+        }
+    }
     int rc = Rando_HeadlessSeedDeterminismDigest(seed, digestOut);
     printf("[TEST] %s: determinism digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     if (rc != 0) {

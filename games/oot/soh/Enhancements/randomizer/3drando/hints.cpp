@@ -661,17 +661,14 @@ void CreateStoneHints() {
 // ForeignItemsSingleExe.cpp: 1 when the crossing store hosts OoT item `rg` on an MM
 // check of the paired world (the single-bag fill put it in Termina).
 extern "C" int OoT_Combo_ItemHostedInMM(int rg);
+// ComboLogicEngineOoT.cpp: 1 while OoT's remainder hints the paired world whose
+// crossings the store holds.
+extern "C" int OoT_ComboLogic_HintingPairedRemainder(void);
 #endif
 
-/**
- * The area a hint names for `item` when FindItemsAndMarkHinted found it at no OoT
- * location (RC_UNKNOWN_CHECK). Under the single bag that is an item the fill placed
- * in the paired Majora's Mask world, and the hint says so (RA_TERMINA) instead of
- * falling through to GetRandomArea on a location with no area, which asserted and
- * answered RA_NONE, "an Isolated Place" (PR #743 review). Anything else keeps the
- * native answer.
- */
-static RandomizerArea HintAreaForItemOutsideHyrule(RandomizerGet item) {
+/** The crossing store's answer for `item`, with no question asked about whose
+ *  world is being hinted: RA_TERMINA when the store hosts it in MM. */
+static RandomizerArea CrossingStoreAreaForItem(RandomizerGet item) {
 #ifdef RSBS_SINGLE_EXECUTABLE
     if (OoT_Combo_ItemHostedInMM((int)item) != 0) {
         return RA_TERMINA;
@@ -681,8 +678,42 @@ static RandomizerArea HintAreaForItemOutsideHyrule(RandomizerGet item) {
     return RA_NONE;
 }
 
+/**
+ * The area a hint names for `item` when FindItemsAndMarkHinted found it at no OoT
+ * location (RC_UNKNOWN_CHECK). Under the single bag that is an item the fill placed
+ * in the paired Majora's Mask world, and the hint says so (RA_TERMINA) instead of
+ * falling through to GetRandomArea on a location with no area, which asserted and
+ * answered RA_NONE, "an Isolated Place" (PR #743 review). Anything else keeps the
+ * native answer.
+ *
+ * ONLY WHILE HINTING THE WORLD THE STORE DESCRIBES (PR #743 review, second round).
+ * The crossing store outlives the creation that filled it: it is cleared on a cold
+ * boot, a slot load, a failed creation and a session invalidation, but not by a
+ * new generation. So a hint pass that is NOT OoT's remainder for the paired world
+ * just captured (a spoiler load's CreateStaticHints, a native general pass) would
+ * read another world's crossings and could name Termina for an item that world
+ * never sent there. The store is read only under
+ * OoT_ComboLogic_HintingPairedRemainder, which the remainder sets for exactly the
+ * pass that follows the capture.
+ */
+static RandomizerArea HintAreaForItemOutsideHyrule(RandomizerGet item) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (OoT_ComboLogic_HintingPairedRemainder() != 0) {
+        return CrossingStoreAreaForItem(item);
+    }
+#endif
+    (void)item;
+    return RA_NONE;
+}
+
+/** TEST BRIDGE: the hint pass's answer right now (gated, as production asks it). */
 extern "C" int Rando_HintAreaForItemOutsideHyrule(int item) {
     return (int)HintAreaForItemOutsideHyrule((RandomizerGet)item);
+}
+
+/** TEST BRIDGE: the answer the paired remainder's hint pass gets (the store's). */
+extern "C" int Rando_HintAreaFromCrossingStore(int item) {
+    return (int)CrossingStoreAreaForItem((RandomizerGet)item);
 }
 
 std::vector<RandomizerCheck> FindItemsAndMarkHinted(std::vector<RandomizerGet> items,
