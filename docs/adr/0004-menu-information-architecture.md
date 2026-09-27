@@ -6,7 +6,10 @@
   implemented 2026-09-20** (#497 steps 3/5/6 — see the amendment at the end;
   no decided text changes); **§5/§6's presentation follows SoH's disabled-row
   idiom from 2026-09-27** (operator ruling; the state leaves the row name and the
-  capability registry's issue numbers leave the pixels — see the last amendment)
+  capability registry's issue numbers leave the pixels — see the 2026-09-27
+  presentation amendment); **§4.1a(ii)'s host is superseded 2026-09-27**: MM's
+  randomizer options and tricks are Combo menu pages, not a common-owned window
+  (operator ruling; see the host amendment at the end)
 - For: #392 (Phase 3.0 tracker), #34 (settings migration), #497, #499
 - Amended on acceptance: §4.1 (scope and host of the MM randomizer pane — see
   §4.1a), §2d (the #454 disagreement, now ruled), and "What this ADR does not
@@ -216,7 +219,7 @@ controls are what a player sees by default and the per-game ones read as excepti
 | **Enhancements** | Quality of Life, Skips & Speed-ups, Graphics, Items, Fixes, Difficulty, Minigames, Extra Modes | Shared-intent entries first in each sidebar; then `— Ocarina of Time —` and `— Majora's Mask —` separators for tier-3 entries |
 | **Cheats** | ~~(promoted out of Enhancements)~~ **stays an Enhancements sidebar** | Superseded on acceptance — see resolved call 1. Shared-intent block first (the 5 matched + 5 converged cheats), then per-game |
 | **Cosmetics** | Cosmetics Editor, Audio Editor, HUD Editor | Mostly (O) per game; MM's 3 tunic keys converge — see classification §3.3 BUG 1 |
-| **Randomizer** | OoT, MM, **Paired** | See §4.1 and **§4.1a** — MM's half is a common-owned window, not a SohMenu sidebar, for the timing reason given there |
+| **Randomizer** | OoT, MM, **Paired** | See §4.1 and **§4.1a** — MM's half is a common-owned window, not a SohMenu sidebar, for the timing reason given there (host superseded 2026-09-27: Combo > MM Randomizer and Combo > MM Tricks pages, see the host amendment) |
 | **Trackers** | Item, Check, Entrance, Combo | Per findings §3, MM trackers are nearly free — blocked on registration surface + selective un-elision, not hook migration |
 | **Combo** | Pairing status, Save slots, Entrance links, Hot-swap | Tier 4. Absorbs `ComboMenuBar`'s working `.redsave` file-select panel |
 | **Dev Tools** | (existing) | Shared where already shared; MM's viewers gated per §5 |
@@ -661,3 +664,81 @@ to SoH's own disabled row, Settings > Graphics > Current FPS under Match Refresh
    is drawn, and `MenuMmEnhancementRows` refuses a manifest reason that prints a number. Giving the
    manifest its own issue field, and the MM Enhancements page the gray note item 3 requires once any of
    its rows goes non-live, is #747.
+
+## Amendment 2026-09-27 — §4.1a(ii)'s host: MM's randomizer options and tricks are Combo menu pages
+
+**§4.1a(ii)'s host decision is superseded. Its timing requirement and every other §4.1a conclusion stand.** The MM
+randomizer options, all 47 `RandoOptionId`s and the trick table beside them, move from the common-owned pop-out window
+(`src/common/ComboMmOptionsWindow.cpp`, deleted) to two pages of the tier-4 Combo section: **Combo > MM Randomizer**
+and **Combo > MM Tricks** (`games/oot/soh/SohGui/SohMenuComboMmRandomizer.cpp`). They sit directly under the Majora's
+Mask page. The window's "Toggle MM Randomizer Options" row leaves Combo > Windows, which keeps only the tools used during
+play: the Cross-Game Spoiler, the Combo Tracker and MM's four tracker windows.
+
+**The operator's ruling (2026-09-27), in intent:** the collapsible floating windows are for things a player wants
+on hand DURING gameplay, and settings belong in the menu itself. The operator made the same complaint on 2026-09-16
+about the tier-4 rules ("combo settings should be built into the menu itself ... instead of being pop out panes"),
+which #655 answered by moving those rules to Combo > Cross-Game Rules. This is SoH's own split. SoH's randomizer
+settings are page rows (Randomizer > General and the option-group sidebars, `option.cpp`'s
+`OptionGroup::AddWidgets`), and its trick list is a page (Randomizer > Tricks/Glitches). SoH's floating windows are
+live tools toggled from a page (Item, Entrance and Check Tracker, Timers, Input Viewer), or editors that its
+`WindowButtonOptions` embeds in their own page until the player pops them out. `docs/ui-style-guide.md` section 10
+records the rule.
+
+**Why the 2026-07 host argument no longer holds.** §4.1a(ii) chose a window "for the timing reason", and its
+2026-07-30 amendment restated the deadline as *reachable before the combo file is created* and asserted that "a
+`SohMenu` pane satisfies neither deadline". What has landed since contradicts that assertion. The Combo section is part
+of OoT's live SohMenu, which is up at OoT's file select, before creation. **Combo > Cross-Game Rules is the existing
+precedent** (#655, PR #742, #760): since 2026-09-20 it has held exactly this kind of setting (the direction, the goal,
+the item classes), chosen before creation and frozen at the same creation event, as a SohMenu page reachable from file
+select. And `RegisterComboSectionPage` (`SohMenu.h`) lets content whose model `src/common` owns register as a Combo
+page. So a page meets the deadline.
+
+What §4.1a(ii) was really protecting is ADR 0008 rule 1 and §3's one-shell rule: the option table and its freeze live
+in `src/common`, not in either game's boot; there is no second menu shell; and the surface reads no `gSettings.Menu.*`
+key (#451). Those are properties of the DATA, and the ADR 0008 ownership test is "a test about the *data*, not about the
+pixels". They are preserved by splitting the two: the DATA and the freeze predicate stay in `src/common`
+(`combo_mm_options_view.h`'s descriptor accessors and gated writers, `Combo_MMProfileFrozen()`, and the page view model
+`src/common/combo_mm_options_page.{h,c}`), and only the DRAWING moves into a Combo page, registered by an OoT TU under
+`SohGui/` that uses SoH's widgets directly (the trick rows draw their chips and names through the `combo_ui` seam, PR
+#748). The practical reason the options stayed a window, that `src/common` could not draw with SoH's widgets
+(UIWidgets needs an SoH header; ADR 0002), was a drawing constraint, not a timing one, and this split removes it. §3's
+"one shell, extend SohMenu" rule, the reason §4.1a had to argue for an exception, now simply applies. The §4.1a
+MM-side reader allowlist (`src/common/tests/test_cvar_classification.c`) is unchanged and stays green.
+
+**What does not change.**
+1. **The model and the gate.** The pages read MM's descriptor tables through `src/common`'s accessors and write only
+   through `Combo_MMOptionSetValue` / `Combo_MMTrickSetValue` and the Clear pair, which refuse while
+   `Combo_MMProfileFrozen()`. Each row is a pointer widget over a staging value, never a `WIDGET_CVAR_*` row (those
+   are their own writers). So a greyed row is still presentation, not the gate (§6).
+2. **The four presentations.** The options page shows the live, capability-disabled and frozen states through
+   `SohMenu::ApplyPresentation`, in SoH's disabled-tooltip shape. The suspended state is a gray note via
+   `ApplyPresentationNote`, with its own sentence, because SohMenu's default says the settings "take effect when you
+   return", which is false for options that take effect at generation. The trick rows show the same states in the
+   same tooltip shape. One detail differs from the window: a row that was both frozen and capability-blocked listed
+   both reasons there, and now shows only "Already Decided", because `ApplyPresentation` carries one state and §6
+   says the frozen reason is not the capability reason.
+3. **No shared-intent marker.** Every row is a tier-3 MM key (§4.1a's consequence).
+4. **#451's arming condition.** The page view model (`src/common/combo_mm_options_page.c`) reads no
+   `gSettings.Menu.*` key, and the `ComboMMOptionsPage` lock scans it for one, as the window lock scanned the window.
+   The pages persist their sidebar selection in `gSettings.Menu.ComboSidebarSection`, the Combo header's own key
+   (2026-09-20 amendment). No MM-side code reads that key, and it is not in `RSBS::kMenuIndexKeys`.
+
+**What does change: SoH's race lockout now applies.** SoH's race lockout (`CVAR_SETTING("DisableChanges")`) disables
+every SohMenu row whose `WidgetInfo::raceDisable` is set (the default; `Menu.cpp`'s `MenuDrawItem`), and replaces that
+row's disabled tooltip with its own "- Race Lockout Active" list. SoH's DrawTricksMenu wraps its trick list in
+`BeginDisabled(DisableChanges)`. The retired window read no `DisableChanges` at all, so under a lockout MM's options and
+tricks were editable there. On the pages they are not: every option row and Reset keep SoH's default, and the trick
+list applies the lockout as DrawTricksMenu does, so MM's settings lock exactly as SoH's randomizer rows do. Under a
+lockout a frozen row's tooltip reads "Race Lockout Active" instead of "Already Decided"; the gray status note opts out
+of the lockout (`RaceDisable(false)`, as every note on the pages does), so the freeze stays legible without hovering.
+This is deliberate: a row that ignored the lockout would be the one setting a race could still change.
+
+**Consequence: the window's visibility key is retired.** `gCombo.Windows.MMOptions` is no longer read or classified
+(`RSBS::kComboKeys` holds three window preferences, not four). A config that still holds it keeps an inert entry.
+
+**Locks:** `ComboMMOptionsPage` (the page model, replacing `ComboMMOptionsWindow`), `MenuMmRandomizerPages` (the rows
+equal the descriptor table; the columns, states and gated writes; leg 8, the race lockout as above), `UiSnapshot`'s
+trick census (in every captured state the trick list draws each of MM's tricks exactly once, in the column its value
+puts it in, with its state's tooltip), and `MenuComboSection` leg 3 (Combo > Windows holds
+exactly its six live-play buttons). The pages are drawn by `UiSnapshot` beside Randomizer > General and Randomizer >
+Tricks/Glitches.

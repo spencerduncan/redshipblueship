@@ -5,7 +5,7 @@
  *
  * The fallback is what a pane draws when NO table is installed: a link that
  * lacks games/oot/soh/SohGui/ComboUiSoh.cpp. The shipped binary always installs
- * SoH's table (ComboUiSoh.cpp's file-scope initializer; the ComboMMOptionsWindow
+ * SoH's table (ComboUiSoh.cpp's file-scope initializer; the ComboMMOptionsPage
  * lock asserts it), so no player sees these widgets. They are deliberately plain
  * ImGui with no colour of their own: this TU has no SoH palette to take one from,
  * and a hand-picked colour is the thing docs/ui-style-guide.md R-C1 forbids. The

@@ -223,7 +223,7 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
     printf("[TEST] mm-rando-options: MM's 47 rando options have rows, labels, honest gating, and CVar-bound "
            "widgets (#497 step 4, #499 step 5)\n");
 
-    // Drive the real registrar. Combo_MMOptionsWindow_Init also calls this;
+    // Drive the real registrar. Combo_MMOptionsPages_Init also calls this;
     // calling it directly is what keeps this test a lock on the TABLE rather
     // than on the window.
     MM_RandoOptionsUi_Register();

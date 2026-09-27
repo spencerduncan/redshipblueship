@@ -312,7 +312,7 @@ const OptionUi kOptionUi[] = {
       // carries no state either: the row is drawn disabled, and its reason is
       // its disabled tooltip. The reason is a Title Case fragment in SoH's
       // disabledMap style (R-S2: "Debug Mode is Disabled"), not a sentence; the
-      // pane's lock (ComboMMOptionsWindow leg 5) pins that shape.
+      // pages' model lock (ComboMMOptionsPage leg 7) pins that shape.
       "Majora Access: Remains",
       "This option was retired and has no effect.",
       0, 0, nullptr, 0,
@@ -682,11 +682,12 @@ std::vector<ComboMMOptionDesc>& DescriptorTable() {
  * file-scope registrar could publish a table built from an empty map — and it
  * would fail as "the pane has no rows", with nothing pointing at the cause.
  *
- * Called instead from Combo_MMOptionsWindow_Init(), which runs from the combo
- * entry point after both games' statics are constructed. Idempotent: the
+ * Called instead from Combo_MMOptionsPages_Init(), which the Combo > MM
+ * Randomizer page's registrar and the combo entry point both run after both
+ * games' statics are constructed. Idempotent: the
  * descriptor vector is built once and re-registering the same pointer is
- * harmless (the registry logs a replacement, which is why the window calls this
- * once rather than per frame).
+ * harmless (the registry logs a replacement, which is why the page calls this
+ * once, at registration, rather than per frame).
  */
 extern "C" void MM_RandoOptionsUi_Register(void) {
     auto& table = DescriptorTable();
@@ -929,7 +930,7 @@ std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
             // Player-facing (UI parity M6): the tracking issue (#578 part 3)
             // stays in this comment, out of the text a player reads, and the
             // reason is a Title Case fragment in SoH's disabledMap style (R-S2:
-            // "Not Available on DirectX"), pinned by ComboMMOptionsWindow leg 5.
+            // "Not Available on DirectX"), pinned by ComboMMOptionsPage leg 7.
             desc.disabledReason = "Not Yet Supported by Logic";
         } else {
             desc.disabledReason = "";
