@@ -206,7 +206,7 @@ and on ours (R-N4).
 - Inside a pane, use the same helpers with `THEME_COLOR` (`randomizer_check_tracker.cpp:2223-2283`). From `src/common`,
   which cannot include UIWidgets, go through the `combo_ui` seam (`src/common/combo_ui.h`): a C function table
   (Checkbox, Combobox, SliderInt, Button, SeparatorText, NoteText, WarningText, Tooltip, TagChip, Confirm,
-  PushTheme/PopTheme, Spacer) that `SohGui/ComboUiSoh.cpp` implements with those helpers and installs from a file-scope
+  PushTheme/PopTheme, Spacer, RowText) that `SohGui/ComboUiSoh.cpp` implements with those helpers and installs from a file-scope
   initializer. Pass each widget its tooltip and, when disabled, a disabled tooltip from `ComboUi_DisabledTooltip`
   (shape (a) of R-S2). Every widget reports its rectangle and shown tooltip to an optional recorder, which is how the
   snapshot harness finds and hovers a pane row. With no table installed, `ComboUi_Get()` returns a raw-ImGui fallback
@@ -294,15 +294,20 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 **Variants:**
 - STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
   that draws an empty-set note), Majora's Mask's autosave,
-  and the MM options pane's unpaired, frozen, mm-suspended and tricks-open (the Tricks header and its first area open).
+  and the MM options pane's unpaired, frozen, mm-suspended, tricks-open (its first area and the first area holding a
+  reserved trick open), tricks-frozen (frozen, with the area of the longest trick name open) and tricks-narrow (that
+  area live, the pane resized to its minimum width, which the capture asserts); the Tricks states are compared with
+  Randomizer > Tricks/Glitches (`PageSpec::stateCompareWith`).
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
   direction and goal comboboxes and (frozen) its first slider and its goal row; Majora's Mask hovers its first row and
   Windows its MM Item Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state). The MM
-  options pane hovers its first row (unpaired and frozen) and its first capability-blocked row (`PageSpec::paneHovers`,
-  found through the `combo_ui` rect recorder); a disabled row's hover must show SoH's disabled shape with no tracker
-  number.
+  options pane hovers its first row (unpaired and frozen), its first capability-blocked row, and in the Tricks states a
+  live, an unbound, a reserved and a frozen trick (`PageSpec::paneHovers`, found through the `combo_ui` rect
+  recorder); a disabled row's hover must show SoH's disabled shape with no tracker number. Pane hovers are composited
+  against Settings > Graphics' Current FPS hover (`PageSpec::hoverCompareWith`), SoH's one captured tooltip: SoH's
+  Tricks page draws its trick names as plain text with no item id, so no hover can be injected there.
 - MODAL: SoH's "Clear Config" reference, the Cross-Game Rules Reset confirm, and the MM options pane's Reset confirm
   (queued through `Combo_MMOptionsRequestReset`, the call the pane's button makes).
 - `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open

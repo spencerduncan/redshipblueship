@@ -741,6 +741,13 @@ struct PageSpec {
     std::string sidebar;
     std::string window; // WINDOW/OVERLAY/MODAL: the ImGui window name to crop (TOAST: a name prefix)
     std::string compareWith;
+    // Per state: a different reference for that state's captures (the MM options
+    // pane's tricks-open state is read against SoH's Tricks page, not Logic/Access).
+    std::map<std::string, std::string> stateCompareWith;
+    // Hover captures: the page whose hover capture they are read against, when
+    // the state's reference has none (SoH's Tricks page draws its trick names
+    // as plain text with no item id, so no hover of its own can be injected).
+    std::string hoverCompareWith;
     bool compareDefaulted = false;
     std::vector<std::string> states; // "" = the default state
     std::vector<std::string> hovers; // hover variant names (MENU_PAGE only)
@@ -1271,13 +1278,14 @@ std::vector<std::string> TooltipLinePrefixes(const std::string& tip) {
  * The first trick row DrawTricksSection draws once its first area is open: the
  * lowest area id that has a row (it walks areas in id order), and that area's
  * first row in table order. @p areaOut receives the area id, -1 if none.
+ * With @p want set, only rows it accepts count (the first RESERVED row, say).
  */
-const ComboMMTrickDesc* FirstTrickArea(int* areaOut) {
+const ComboMMTrickDesc* FirstTrickArea(int* areaOut, bool (*want)(const ComboMMTrickDesc*) = nullptr) {
     *areaOut = -1;
     const ComboMMTrickDesc* best = nullptr;
     for (int i = 0; i < Combo_MMTrickCount(); i++) {
         const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
-        if (d != nullptr && (best == nullptr || d->area < best->area)) {
+        if (d != nullptr && (want == nullptr || want(d)) && (best == nullptr || d->area < best->area)) {
             best = d;
         }
     }
@@ -1285,6 +1293,37 @@ const ComboMMTrickDesc* FirstTrickArea(int* areaOut) {
         *areaOut = (int)best->area;
     }
     return best;
+}
+
+bool IsReservedTrick(const ComboMMTrickDesc* d) {
+    return d->reserved;
+}
+
+/** The row with the longest name (then the most chips), the worst case for wrapping. */
+const ComboMMTrickDesc* LongestTrick() {
+    const ComboMMTrickDesc* best = nullptr;
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (d == nullptr || d->label == nullptr) {
+            continue;
+        }
+        if (best == nullptr || strlen(d->label) > strlen(best->label) ||
+            (strlen(d->label) == strlen(best->label) && d->chipCount > best->chipCount)) {
+            best = d;
+        }
+    }
+    return best;
+}
+
+/** The first row of @p area, in table order, that @p want accepts; NULL if none. */
+const ComboMMTrickDesc* FirstTrickIn(int area, bool (*want)(const ComboMMTrickDesc*)) {
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (d != nullptr && (int)d->area == area && want(d)) {
+            return d;
+        }
+    }
+    return nullptr;
 }
 
 /**
@@ -1558,18 +1597,27 @@ void Session::BuildPageList() {
         p.id = std::string("window/") + ComboGui::kComboMMOptionsWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboMMOptionsWindowName;
-        p.states = { "unpaired", "frozen", "mm-suspended", "tricks-open" };
+        p.states = { "unpaired", "frozen", "mm-suspended", "tricks-open", "tricks-frozen", "tricks-narrow" };
         p.compareWith = "Randomizer/Logic/Access";
         p.expectText = { ComboGui::kComboMMOptionsWindowName };
-        // ComboMmOptionsWindow.cpp's state note (unpaired, frozen), its
-        // suspended note and the Tricks headline, plus the first trick row of the
-        // area the tricks-open state expands (FirstTrickArea). Matched against
+        // ComboMmOptionsWindow.cpp's state note (unpaired, frozen) and its
+        // suspended note, plus a trick row from each area the tricks-open state
+        // expands (TricksOpenAreaIds, below). Matched against
         // the pane's VISIBLE-ONLY log, so each one was on screen in some
         // captured view.
         p.stateText["unpaired"] = { "No paired world yet" };
         p.stateText["frozen"] = { "Already decided when this world was created" };
         p.stateText["mm-suspended"] = { "Majora's Mask is suspended" };
-        p.stateText["tricks-open"] = { "trick keys are wired to logic" };
+        // tricks-open is read against SoH's own Tricks page, the shape the section
+        // follows; every other state against Logic/Access.
+        p.stateCompareWith["tricks-open"] = "Randomizer/Tricks/Glitches";
+        p.stateCompareWith["tricks-frozen"] = "Randomizer/Tricks/Glitches";
+        p.stateCompareWith["tricks-narrow"] = "Randomizer/Tricks/Glitches";
+        // Every pane hover (option rows and trick rows) is read against SoH's
+        // own menu-row tooltip, Settings > Graphics' Current FPS: the same
+        // UIWidgets tooltip chrome DrawTricksMenu's name cell uses, in the only
+        // SoH capture that shows a tooltip.
+        p.hoverCompareWith = "Settings/Graphics";
         // Hovers, through the combo_ui seam's rect recorder: the first option row
         // (its description), the first capability-blocked row (SoH's disabled
         // shape with the model's reason), and the first row again while frozen
@@ -1587,17 +1635,60 @@ void Session::BuildPageList() {
                 break;
             }
         }
+        // tricks-open opens two areas (TricksOpenAreaIds): the first, and the first
+        // one holding a reserved row. Its text is a row from each, which only an
+        // open area draws (the Tricks note is drawn in every state, so it cannot
+        // tell tricks-open from unpaired). Its hovers are a live trick (its
+        // description), an unbound one and a reserved one (SoH's disabled shape
+        // with the table's reason), all found through the rect recorder by the
+        // name the row hands the seam's RowText.
         {
             int area = -1;
             const ComboMMTrickDesc* first = FirstTrickArea(&area);
             if (first != nullptr && first->label != nullptr) {
                 p.stateText["tricks-open"].push_back(VisibleLabel(first->label));
+                const ComboMMTrickDesc* live =
+                    FirstTrickIn(area, [](const ComboMMTrickDesc* d) { return d->bound && !d->reserved; });
+                const ComboMMTrickDesc* unbound =
+                    FirstTrickIn(area, [](const ComboMMTrickDesc* d) { return !d->bound && !d->reserved; });
+                if (live != nullptr) {
+                    p.paneHovers.push_back({ "trick-live", "tricks-open", live->label, false });
+                }
+                if (unbound != nullptr) {
+                    p.paneHovers.push_back({ "trick-unbound", "tricks-open", unbound->label, true });
+                }
+            }
+            int reservedArea = -1;
+            const ComboMMTrickDesc* reserved = FirstTrickArea(&reservedArea, IsReservedTrick);
+            if (reserved != nullptr && reserved->label != nullptr) {
+                p.stateText["tricks-open"].push_back(VisibleLabel(reserved->label));
+                p.paneHovers.push_back({ "trick-reserved", "tricks-open", reserved->label, true });
+            }
+            // tricks-frozen is the frozen state with the one area holding the
+            // longest name open: the row a narrow pane wraps most (with the most
+            // chips beside it on a tie), and every row disabled by the freeze.
+            // Its hover is that area's first live row, whose tooltip must then be
+            // SoH's disabled shape naming the freeze, as the option rows' is.
+            const ComboMMTrickDesc* longest = LongestTrick();
+            if (longest != nullptr && longest->label != nullptr) {
+                p.stateText["tricks-frozen"] = { "Already decided when this world was created",
+                                                 WordPrefix(VisibleLabel(longest->label), 16) };
+                const ComboMMTrickDesc* live = FirstTrickIn(
+                    (int)longest->area, [](const ComboMMTrickDesc* d) { return d->bound && !d->reserved; });
+                if (live != nullptr) {
+                    p.paneHovers.push_back({ "trick-frozen", "tricks-frozen", live->label, true });
+                }
+                // tricks-narrow is the same area, live, with the pane resized to
+                // the narrowest the player can make it (the pane's size
+                // constraint; CaptureWindowPage asks for 1 px and asserts it got
+                // exactly kComboMMOptionsMinWidth): how the longest names wrap
+                // at the worst width a player can choose.
+                p.stateText["tricks-narrow"] = { WordPrefix(VisibleLabel(longest->label), 16) };
             }
         }
-        p.stateContrast = { { "unpaired", "frozen" },
-                            { "frozen", "unpaired" },
-                            { "mm-suspended", "unpaired" },
-                            { "tricks-open", "unpaired" } };
+        p.stateContrast = { { "unpaired", "frozen" },        { "frozen", "unpaired" },
+                            { "mm-suspended", "unpaired" },  { "tricks-open", "unpaired" },
+                            { "tricks-frozen", "unpaired" }, { "tricks-narrow", "unpaired" } };
         pages.push_back(p);
     }
     {
@@ -2039,7 +2130,7 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         }
     } else if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboMMOptionsWindowName) {
         Context_SetCurrentGame(state == "mm-suspended" ? GAME_OOT : GAME_MM);
-        if (state == "frozen") {
+        if (state == "frozen" || state == "tricks-frozen") {
             AuthorPairing();
             gComboCtx.mmProfileDigest = 0x4D4D0001u;
         }
@@ -2693,22 +2784,33 @@ const char* PaneCvar(const std::string& window) {
 }
 
 /**
- * The ImGui ids of the Tricks header and of its first area's tree node, as
+ * The ImGui ids of the area tree nodes a Tricks state opens, as
  * DrawTricksSection (ComboMmOptionsWindow.cpp) forms them inside the pane's
- * Begin: CollapsingHeader("Tricks") at the window's root id, then
- * PushID("tricks"), PushID(area), TreeNode(areaName). Their open state lives in
- * the pane window's StateStorage, which is what the tricks-open state writes.
+ * Begin: PushID("tricks") at the window's root id, then PushID(area),
+ * TreeNode(areaName). tricks-open opens two areas, the first (a live and an
+ * unbound row) and the first holding a reserved row; tricks-frozen opens the
+ * area of the longest name (LongestTrick). Their open state lives in the pane
+ * window's StateStorage, which is what the state writes.
  */
-void TricksOpenIds(ImGuiWindow* w, ImGuiID* header, ImGuiID* firstArea) {
-    *header = ImHashStr("Tricks", 0, w->ID);
-    *firstArea = 0;
-    int area = -1;
-    const ComboMMTrickDesc* first = FirstTrickArea(&area);
-    if (first != nullptr && first->areaName != nullptr) {
-        const ImGuiID tricks = ImHashStr("tricks", 0, w->ID);
-        const ImGuiID areaSeed = ImHashData(&area, sizeof(area), tricks);
-        *firstArea = ImHashStr(first->areaName, 0, areaSeed);
+std::vector<ImGuiID> TricksOpenAreaIds(ImGuiWindow* w, bool longest) {
+    std::vector<ImGuiID> ids;
+    const ImGuiID tricks = ImHashStr("tricks", 0, w->ID);
+    auto add = [&](const ComboMMTrickDesc* d) {
+        if (d != nullptr && d->areaName != nullptr) {
+            const int area = (int)d->area;
+            const ImGuiID areaSeed = ImHashData(&area, sizeof(area), tricks);
+            ids.push_back(ImHashStr(d->areaName, 0, areaSeed));
+        }
+    };
+    if (longest) {
+        add(LongestTrick());
+        return ids;
     }
+    for (bool reservedOnly : { false, true }) {
+        int area = -1;
+        add(FirstTrickArea(&area, reservedOnly ? IsReservedTrick : nullptr));
+    }
+    return ids;
 }
 
 void Session::CaptureWindowPage(const PageSpec& p) {
@@ -2734,19 +2836,25 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         // These panes read their visibility CVar LIVE in Draw() (they override it),
         // so setting the CVar is what opens them; Show() would do nothing.
         CVarSetInteger(cvar, 1);
-        const bool tricks = (state == "tricks-open");
-        auto setTricksOpen = [&p](int open) {
+        const bool narrow = (state == "tricks-narrow");
+        const bool tricks = (state == "tricks-open" || state == "tricks-frozen" || narrow);
+        auto setTricksOpen = [&p, &state](int open) {
             ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
             if (w != nullptr) {
-                ImGuiID header = 0;
-                ImGuiID area = 0;
-                TricksOpenIds(w, &header, &area);
-                w->StateStorage.SetInt(header, open);
-                if (area != 0) {
+                for (ImGuiID area : TricksOpenAreaIds(w, state != "tricks-open")) {
                     w->StateStorage.SetInt(area, open);
                 }
             }
         };
+        // tricks-narrow asks for a 1 px wide pane every frame; the pane's size
+        // constraint is what holds it at its minimum. The size it had is put
+        // back after the state.
+        ImVec2 sizeBefore(0.0f, 0.0f);
+        if (narrow) {
+            if (ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str())) {
+                sizeBefore = w->SizeFull;
+            }
+        }
         // The pane's .txt is VISIBLE-ONLY (see HookState::unclipLog), so a state's
         // text is asserted against what some captured view actually showed.
         gHooks.unclipLog = false;
@@ -2765,6 +2873,9 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 if (tricks) {
                     setTricksOpen(1);
                 }
+                if (narrow) {
+                    ImGui::SetWindowSize(p.window.c_str(), ImVec2(1.0f, sizeBefore.y > 0.0f ? sizeBefore.y : 560.0f));
+                }
                 if (scrollIndex == 0) {
                     ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
                     if (w != nullptr) {
@@ -2779,6 +2890,15 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             if (w != nullptr) {
                 c.scrollY = w->Scroll.y;
                 c.scrollMax = w->ScrollMax.y;
+                // The narrowed pane must sit at exactly its minimum: wider means
+                // the 1 px request did not land (the capture would show the
+                // default layout and prove nothing), narrower means the pane lost
+                // its size constraint.
+                if (narrow && c.status == "pass" && std::fabs(w->Size.x - ComboGui::kComboMMOptionsMinWidth) > 0.5f) {
+                    c.status = "fail";
+                    c.reason = "tricks-narrow drew the pane " + std::to_string((int)w->Size.x) +
+                               " px wide, not its minimum " + std::to_string((int)ComboGui::kComboMMOptionsMinWidth);
+                }
             }
             Finish(c, p);
             const bool unfinished = w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
@@ -2853,6 +2973,9 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         gHooks.unclipLog = true;
         if (tricks) {
             setTricksOpen(0);
+        }
+        if (narrow && sizeBefore.x > 0.0f) {
+            ImGui::SetWindowSize(p.window.c_str(), sizeBefore);
         }
         CVarSetInteger(cvar, 0);
         LeaveState(p, state);
@@ -3465,7 +3588,15 @@ bool CropContent(const Capture& c, UiImage* outImg) {
 
 void Session::WriteComposites() {
     for (const Capture& c : captures) {
-        if (c.spec == nullptr || c.spec->compareWith.empty() || c.image.rgba == nullptr || c.status != "pass") {
+        if (c.spec == nullptr || c.image.rgba == nullptr || c.status != "pass") {
+            continue;
+        }
+        const auto perState = c.spec->stateCompareWith.find(c.state);
+        const std::string& compareWith =
+            (!c.hover.empty() && !c.spec->hoverCompareWith.empty())
+                ? c.spec->hoverCompareWith
+                : (perState != c.spec->stateCompareWith.end() ? perState->second : c.spec->compareWith);
+        if (compareWith.empty()) {
             continue;
         }
         // Scroll captures compare against the reference's matching scroll
@@ -3473,17 +3604,17 @@ void Session::WriteComposites() {
         const Capture* ref = nullptr;
         if (!c.hover.empty()) {
             for (const Capture& r : captures) {
-                if (r.id == c.spec->compareWith && !r.hover.empty() && r.image.rgba != nullptr && r.status == "pass") {
+                if (r.id == compareWith && !r.hover.empty() && r.image.rgba != nullptr && r.status == "pass") {
                     ref = &r;
                     break;
                 }
             }
         }
         if (ref == nullptr && c.scrollIndex >= 0) {
-            ref = FindCapture(captures, c.spec->compareWith, "scroll" + std::to_string(c.scrollIndex));
+            ref = FindCapture(captures, compareWith, "scroll" + std::to_string(c.scrollIndex));
         }
         if (ref == nullptr) {
-            ref = FirstCapture(captures, c.spec->compareWith);
+            ref = FirstCapture(captures, compareWith);
         }
         if (ref == nullptr && c.spec->kind == Kind::MENU_PAGE) {
             // ROM-free (hosted CI), the named reference is a skipped page. Dev
@@ -3610,7 +3741,9 @@ bool Session::WriteManifest() {
             j += std::string(",\"origin\":\"") + (p->origin == Origin::RSBS ? "RSBS" : "SOH_REFERENCE") + "\"";
             j += std::string(",\"kind\":\"") + KindName(p->kind) + "\"";
             j += ",\"header\":\"" + JsonEscape(p->header) + "\",\"sidebar\":\"" + JsonEscape(p->sidebar) + "\"";
-            j += ",\"compareWith\":\"" + JsonEscape(p->compareWith) + "\"";
+            const auto perState = p->stateCompareWith.find(c.state);
+            j += ",\"compareWith\":\"" +
+                 JsonEscape(perState != p->stateCompareWith.end() ? perState->second : p->compareWith) + "\"";
             if (p->kind == Kind::MENU_PAGE) {
                 j += ",\"bodyText\":\"" + JsonEscape(p->bodyText) + "\"";
             }
