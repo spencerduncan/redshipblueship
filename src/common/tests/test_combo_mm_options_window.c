@@ -240,6 +240,9 @@ extern "C" int Combo_MMOptionsWindow_RunHeadless(void) {
         // (or the TU from the link) and this goes red.
         CMOW_ASSERT(ComboUi_IsInstalled());
         CMOW_ASSERT(ComboUi_Get() != NULL);
+        // The trick rows' name cell (UI parity M6 part 2), the table's last
+        // entry: an installer built against an older header would leave it NULL.
+        CMOW_ASSERT(ComboUi_Get()->RowText != NULL);
 
         // SoH's disabled shape (a), exactly as Menu::MenuDrawItem builds it from
         // its disabledMap: the head, a blank line, then "- <Reason>" per reason.
@@ -304,8 +307,10 @@ extern "C" int Combo_MMOptionsWindow_RunHeadless(void) {
         // frozen and retired row does not stack a Title Case fragment over a
         // sentence: it starts upper case, every word of four or more letters
         // is capitalised, and it carries no colon and no closing punctuation.
-        // The reserved tricks' reasons (StaticData/Tricks.cpp) are the Tricks
-        // section's and are migrated with it (UI parity M6 part 2).
+        // That covers the reserved tricks' reasons (StaticData/Tricks.cpp, "Needs
+        // Hover Boots From Ocarina of Time") as well as the unbound ones: the
+        // Tricks section prints both in the same disabled tooltip (UI parity M6
+        // part 2).
         auto fragment = [](const char* text) {
             if (text == NULL || text[0] == '\0') {
                 return true;
@@ -343,7 +348,7 @@ extern "C" int Combo_MMOptionsWindow_RunHeadless(void) {
         }
         for (int i = 0; i < Combo_MMTrickCount(); i++) {
             const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
-            if (!d->reserved && !fragment(d->disabledReason)) {
+            if (!fragment(d->disabledReason)) {
                 printf("[TEST] FAIL: MM trick %s's disabled reason '%s' is not a Title Case fragment (R-S2)\n",
                        d->name, d->disabledReason);
                 return TEST_FAIL;

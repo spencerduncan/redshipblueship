@@ -50,7 +50,12 @@ struct RandoStaticTrick {
     bool reserved;
     const char* displayName;
     const char* tooltip;
-    /** Why the row is reserved; NULL exactly when `reserved` is false. */
+    /** Why the row is reserved, as the player reads it in the options pane's
+     *  disabled tooltip: a Title Case fragment in SoH's disabledMap style naming
+     *  the Ocarina of Time item ("Needs Hover Boots From Ocarina of Time"; the
+     *  ComboMMOptionsWindow lock holds the shape). The engineering cause, ADR
+     *  0010 increment 3, is TrickIds.h's to say, not the player's. NULL exactly
+     *  when `reserved` is false. */
     const char* reservedReason;
 };
 
