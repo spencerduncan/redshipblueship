@@ -14,11 +14,12 @@
  *      Field with cutscene 0xFFF7, which is the ending and then the credits.
  *      MM_ComboGoal_RedirectEndingIfWithheld runs right after those assignments
  *      and, when the paired goal is unmet, rewrites them the way OoTMM does
- *      (mm/play/play.c): day 0 at 05:59, the new-day save (MM's own
- *      Sram_SaveSpecialNewDay, the save the ending itself makes, which rolls the
- *      cycle over and commits the unified save), and a warp to South Clock Town,
- *      where a new cycle starts. The Dawn of the First Day then plays as after
- *      the Song of Time. SkipSoTCutscenes lands a skipped Song of Time at the
+ *      (mm/play/play.c): Link back in human form with no mask on (the fight may
+ *      have been fought as the Fierce Deity), day 0 at 05:59, the new-day save
+ *      (MM's own Sram_SaveSpecialNewDay, the save the ending itself makes, which
+ *      rolls the cycle over and commits the unified save), and a warp to South
+ *      Clock Town, where a new cycle starts. The Dawn of the First Day then
+ *      plays as after the Song of Time. SkipSoTCutscenes lands a skipped Song of Time at the
  *      same entrance with the same day and time.
  *
  * Unpaired (no frozen combo record) both are no-ops and MM ends as upstream.
@@ -48,6 +49,9 @@ extern "C" int MM_ComboGoal_RedirectEndingIfWithheld(PlayState* play) {
     if (play == NULL || Combo_GoalOnFinalBossDefeated(GAME_MM, LiveTriforcePieces()) != RSBS_GOAL_ENDING_WITHHOLD) {
         return 0;
     }
+    // OoTMM resets the form and the mask before its new-day save; so does this.
+    gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+    gSaveContext.save.equippedMask = PLAYER_MASK_NONE;
     gSaveContext.save.day = 0;
     gSaveContext.save.time = CLOCK_TIME(6, 0) - 1;
     Sram_SaveSpecialNewDay(play);

@@ -37,9 +37,13 @@ u8 sGoalSaveBuf[SAVE_BUFFER_SIZE];
 } // namespace
 
 /**
- * @return 0 the ending warp stands (Termina Field, 0xFFF7) and no cycle rolled;
+ * The fight is entered as the Fierce Deity, so the row also sees whether the
+ * rewrite puts Link back in human form with no mask (OoTMM's mm/play/play.c).
+ *
+ * @return 0 the ending warp stands (Termina Field, 0xFFF7), no cycle rolled and
+ *           the form is untouched;
  *         1 it was rewritten to South Clock Town at day 0, 05:59, no cutscene,
- *           after the new-day save rolled the cycle over;
+ *           human form, no mask, after the new-day save rolled the cycle over;
  *        -1 anything else (a half-rewritten warp).
  */
 extern "C" int MM_ComboGoalTest_EndingSite(void) {
@@ -52,6 +56,8 @@ extern "C" int MM_ComboGoalTest_EndingSite(void) {
     gSaveContext.fileNum = 0xFF;
     gSaveContext.save.day = 3;
     gSaveContext.save.time = CLOCK_TIME(5, 0);
+    gSaveContext.save.playerForm = PLAYER_FORM_FIERCE_DEITY;
+    gSaveContext.save.equippedMask = PLAYER_MASK_FIERCE_DEITY;
     const s32 resetsBefore = gSaveContext.save.saveInfo.playerData.threeDayResetCount;
 
     std::vector<uint8_t> playMem(sizeof(PlayState), uint8_t(0));
@@ -69,6 +75,8 @@ extern "C" int MM_ComboGoalTest_EndingSite(void) {
     const int trigger = play->transitionTrigger;
     const int day = gSaveContext.save.day;
     const int time = gSaveContext.save.time;
+    const int form = gSaveContext.save.playerForm;
+    const int mask = gSaveContext.save.equippedMask;
     const bool rolled = gSaveContext.save.saveInfo.playerData.threeDayResetCount == resetsBefore + 1;
 
     memcpy(&gSaveContext, saved.get(), sizeof(SaveContext));
@@ -77,11 +85,12 @@ extern "C" int MM_ComboGoalTest_EndingSite(void) {
     if (trigger != TRANS_TRIGGER_START) {
         return -1;
     }
-    if (entrance == ENTRANCE(TERMINA_FIELD, 0) && cutscene == 0xFFF7 && day == 3 && !rolled) {
+    if (entrance == ENTRANCE(TERMINA_FIELD, 0) && cutscene == 0xFFF7 && day == 3 && !rolled &&
+        form == PLAYER_FORM_FIERCE_DEITY && mask == PLAYER_MASK_FIERCE_DEITY) {
         return 0;
     }
     if (entrance == ENTRANCE(SOUTH_CLOCK_TOWN, 0) && cutscene == 0 && day == 0 &&
-        time == (int)(u16)(CLOCK_TIME(6, 0) - 1) && rolled) {
+        time == (int)(u16)(CLOCK_TIME(6, 0) - 1) && rolled && form == PLAYER_FORM_HUMAN && mask == PLAYER_MASK_NONE) {
         return 1;
     }
     return -1;
