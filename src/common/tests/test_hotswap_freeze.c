@@ -29,10 +29,15 @@
  * The "../entrance.h" include below resolves to nothing in practice —
  * test_runner.cpp already includes entrance.h at FILE scope, so the guard is
  * set by the time we get here. That ordering matters: entrance.h's second half
- * declares C++-linkage Entrance_* functions, and pulling it in for the first
- * time from inside an extern "C" block would give those C linkage and collide
- * with OoT's randomizer Entrance_Init. Do not move this file's inclusion above
- * test_runner.cpp's own includes.
+ * (#ifdef __cplusplus) declares C++-linkage functions, and pulling it in for the
+ * first time from inside an extern "C" block would give them C linkage. The two
+ * Entrance_SetStartupEntrance overloads then stop compiling (C2733: an overload
+ * cannot have C linkage), and ComboEntrance_Init and the rest would name
+ * unmangled symbols that no object defines (LNK2019 against the C++ definitions
+ * in entrance.cpp). Before #665 the reset was spelled Entrance_Init and C
+ * linkage also made it collide with OoT's randomizer Entrance_Init; the rename
+ * removed that part, the linkage hazard stays. Do not move this file's
+ * inclusion above test_runner.cpp's own includes.
  */
 
 #include "../context.h"

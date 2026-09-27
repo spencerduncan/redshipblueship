@@ -376,9 +376,10 @@ extern "C" {
 
 // Roundtrip SaveContext byte-integrity test (issue #262). Included at FILE
 // SCOPE (compiled as C++), NOT inside the extern "C" block above: its body
-// calls the C++-linkage Entrance_Init/Entrance_RegisterDefaultLinks. Under
-// extern "C" those would bind to OoT's C-linkage randomizer Entrance_Init
-// instead of the combo entrance system.
+// calls the C++-linkage ComboEntrance_Init/Entrance_RegisterDefaultLinks from
+// entrance.h's C++ section. (Before #665 the reset was spelled Entrance_Init,
+// the same spelling as OoT's C-linkage randomizer function; that hazard is gone
+// with the rename, the placement stays.)
 #include "tests/test_roundtrip_integrity.c"
 
 // Shared-state plumbing smoke test (issue #264) — included like the lifecycle
@@ -2666,7 +2667,7 @@ TestResult Test_SwitchOoTMM(void) {
     printf("[TEST] switch-oot-mm: Test game switch OoT -> MM\n");
 
     // Initialize entrance system
-    Entrance_Init();
+    ComboEntrance_Init();
     Entrance_RegisterDefaultLinks();
 
     // Simulate OoT triggering Happy Mask Shop entrance
@@ -2698,7 +2699,7 @@ TestResult Test_SwitchMMOoT(void) {
     printf("[TEST] switch-mm-oot: Test game switch MM -> OoT\n");
 
     // Initialize entrance system
-    Entrance_Init();
+    ComboEntrance_Init();
     Entrance_RegisterDefaultLinks();
 
     // Simulate MM entering the Clock Tower from South Clock Town — the
@@ -2727,7 +2728,7 @@ TestResult Test_Roundtrip(void) {
     // Initialize systems
     Context_InitFrozenStates();
     Context_ClearAllFrozenStates();
-    Entrance_Init();
+    ComboEntrance_Init();
     Entrance_RegisterDefaultLinks();
 
     // ------------------------------------------------------------------
@@ -2832,7 +2833,7 @@ TestResult Test_EntranceDedup(void) {
     printf("[TEST] entrance-dedup: duplicate links rejected; each portal face routes home\n");
 
     // --- Leg 1: the production portal registers, and routes both ways. ------
-    Entrance_Init();
+    ComboEntrance_Init();
     if (!Entrance_RegisterPortalLinks(false)) {
         printf("[TEST] FAIL: default portal registration was rejected on an empty table\n");
         return TEST_FAIL;
@@ -2874,7 +2875,7 @@ TestResult Test_EntranceDedup(void) {
 
     // --- Leg 3: the test portal, registered alone, returns to Kokiri. -------
     // Under the old first-match shadowing this produced 0x01D1 (the #374 bug).
-    Entrance_Init();
+    ComboEntrance_Init();
     if (!Entrance_RegisterPortalLinks(true)) {
         printf("[TEST] FAIL: test portal registration was rejected on an empty table\n");
         return TEST_FAIL;
@@ -2941,7 +2942,7 @@ TestResult Test_EntranceDedup(void) {
     }
 
     // Restore the default table for tests that run after this one.
-    Entrance_Init();
+    ComboEntrance_Init();
     Entrance_RegisterDefaultLinks();
     printf("[TEST] PASS: duplicate source doors rejected atomically; each face routes home\n");
     return TEST_PASS;
@@ -2951,7 +2952,7 @@ TestResult Test_MidosHouse(void) {
     printf("[TEST] midos-house: Test Mido's House entrance (test mode)\n");
 
     // Initialize with TEST links (Mido's House instead of Happy Mask Shop)
-    Entrance_Init();
+    ComboEntrance_Init();
     Entrance_RegisterTestLinks();
 
     // Simulate entering Mido's House in OoT
@@ -2981,7 +2982,7 @@ TestResult Test_StartupEntrance(void) {
     printf("[TEST] startup-entrance: Test startup entrance flow\n");
 
     // Initialize systems
-    Entrance_Init();
+    ComboEntrance_Init();
     Entrance_RegisterTestLinks();
 
     // Step 1: Simulate OoT triggering Mido's House entrance

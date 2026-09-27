@@ -8,12 +8,12 @@
  *
  * This file is #included into test_runner.cpp at FILE SCOPE (compiled as C++),
  * NOT inside the extern "C" block used for test_game_lifecycle.c. That
- * placement is required: the body calls Entrance_Init() and
+ * placement is required: the body calls ComboEntrance_Init() and
  * Entrance_RegisterDefaultLinks(), which entrance.h declares only in its C++
- * section and entrance.cpp defines with C++ (mangled) linkage. Under extern "C"
- * the unmangled Entrance_Init would instead bind to OoT's randomizer
- * Entrance_Init (randomizer_entrance.c). Compiled as C++ it correctly resolves
- * to the combo entrance system. The Combo_, Context_, and ComboContext_ symbols
+ * section and entrance.cpp defines with C++ (mangled) linkage. (Until #665 the
+ * reset was spelled Entrance_Init, which OoT's randomizer_entrance.c also
+ * defines with C linkage; the rename removed that ambiguity.) The Combo_,
+ * Context_, and ComboContext_ symbols
  * and gComboCtx are genuine C-linkage and resolve identically either way.
  *
  * Headless: no SDL, no real game boot. The roundtrip is driven entirely through
@@ -102,7 +102,7 @@ static int TestRoundtripIntegrity_Run(void) {
     Context_InitFrozenStates();
     Context_ClearAllFrozenStates();
     ComboContext_Init();
-    Entrance_Init();
+    ComboEntrance_Init();
     Entrance_RegisterDefaultLinks();
 
     /* Build a populated (non-zero, deterministic) OoT SaveContext and snapshot

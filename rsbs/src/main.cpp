@@ -361,7 +361,7 @@ int main(int argc, char** argv) {
     // Initialize combo infrastructure
     Context_InitFrozenStates();
     ComboContext_Init();
-    Entrance_Init();
+    ComboEntrance_Init();
 
     // Register the one cross-game portal. The mask-shop door and Mido's House
     // are two OoT-side faces of the SAME portal (both return through MM
