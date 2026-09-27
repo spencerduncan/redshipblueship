@@ -129,3 +129,6 @@ games/oot/soh/SohGui/ComboUiSoh.cpp
 games/oot/soh/SohGui/SohMenuComboMmMods.cpp
 games/oot/soh/oot_gameover_revive_test.cpp
 games/mm/2s2h/mm_gameover_revive_test.cpp
+games/mm/2s2h/Rando/ForeignTextboxIcon.h
+games/mm/2s2h/Rando/ForeignTextboxIconSingleExe.cpp
+games/oot/soh/Enhancements/randomizer/ForeignTextboxIconOoT.cpp

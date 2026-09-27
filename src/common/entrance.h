@@ -151,13 +151,25 @@ void Combo_ClearGameSwitchRequest(void);
 
 // ============================================================================
 // C++ API - for internal use and testing (C++ linkage, name-mangled)
-// These do NOT collide with OoT's Entrance_* functions which have C linkage
+// C++ linkage keeps these distinct LINK symbols from OoT's C-linkage Entrance_*
+// family, but it does not keep the SPELLINGS apart: a TU that sees two
+// declarations of one name binds to whichever it saw first (#665). So no name
+// here may be one a port defines; the FUNC scan in
+// .github/scripts/check-odr-declaration-collisions.py enforces that.
 // ============================================================================
 
 /**
- * Initialize the entrance table (clears all links)
+ * Initialize the combo entrance module: clears every link, the pending switch,
+ * the startup entrance, the F10 switch request and the cross-game arrival latch.
+ *
+ * Named ComboEntrance_Init, not Entrance_Init (#665). SoH's entrance shuffle
+ * owns `extern "C" void Entrance_Init(void)` (randomizer_entrance.h, reached
+ * from <z64.h> through z64save.h), a different function with the same
+ * signature. Any TU that included <z64.h> first bound its "combo reset" to
+ * SoH's randomizer initializer (an OoT test row crashed on exactly that, PR
+ * #650), and including entrance.h first was a hard C2732 instead.
  */
-void Entrance_Init(void);
+void ComboEntrance_Init(void);
 
 /**
  * Register the default OoTMM combomizer links:

@@ -48,10 +48,11 @@ bool sGameSwitchRequested = false;
 PendingGameSwitch gPendingSwitch = {};
 
 // ============================================================================
-// C++ API implementation (C++ linkage - no collision with OoT's Entrance_*)
+// C++ API implementation (C++ linkage; spellings kept apart from every function
+// a port defines, #665 -- see the banner in entrance.h)
 // ============================================================================
 
-void Entrance_Init(void) {
+void ComboEntrance_Init(void) {
     gEntranceLinks.clear();
     gPendingSwitch = {};
     sStartupEntrance = 0;

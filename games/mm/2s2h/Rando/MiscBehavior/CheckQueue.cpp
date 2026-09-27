@@ -9,6 +9,7 @@
 #include "Traps.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "2s2h/Rando/Foreign.h" // Lane C1 (#392): foreign-check lookup + shared-structure recording
+#include "2s2h/Rando/ForeignTextboxIcon.h" // #607: the origin game's icon inside the blue textbox
 // Lane 6 (#502): drain of the deferred cross-game give (ForeignItemsSingleExe.cpp).
 extern "C" int MM_ForeignItem_FlushPending(void);
 #endif
@@ -101,12 +102,23 @@ void Rando::MiscBehavior::CheckQueue() {
                             // "You found " + article + name + "!". The article
                             // rides the pooled descriptor because MM cannot read
                             // OoT's item table (ADR 0002).
+                            //
+                            // #607: and the icon a native pickup shows, from the
+                            // same origin: the ORIGIN game's texture, drawn by the
+                            // MM textbox branch that fits its layout. When there is
+                            // none (no origin answer, archive not mounted) the
+                            // header keeps RI_NONE's 0xFE, the icon-less textbox.
+                            const char* iconTexture = nullptr;
+                            uint8_t iconItemId = 0xFE;
+                            Rando::Foreign::ForeignTextboxIconForCheck(checkId, &iconTexture, &iconItemId);
                             CustomMessage::Entry entry = {
                                 .textboxType = 2,
                                 .icon = Rando::StaticData::GetIconForZMessage(RI_NONE),
                                 .msg = std::string("You found ") +
                                        Rando::Foreign::ForeignArticleForCheck(checkId) +
                                        (foreignName != nullptr ? foreignName : "a foreign item") + "!",
+                                .foreignIconTexture = iconTexture,
+                                .foreignIconItemId = iconItemId,
                             };
                             if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {
                                 CustomMessage::SetActiveCustomMessage(entry.msg, entry);

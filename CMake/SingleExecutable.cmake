@@ -129,6 +129,10 @@ set(REDSHIP_COMMON_SOURCES
     # in what order, read by MM's mount and the Combo > MM Mods page. Game-header-
     # free. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/mm_mod_set.cpp
+    # A foreign item's icon inside the host's get-item textbox (#607): the
+    # registry each ORIGIN game answers through. Game-header-free. APPENDED,
+    # never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -169,6 +173,7 @@ set(REDSHIP_COMMON_HEADERS
     # Header for shared_resources.c above (#525)
     ${CMAKE_SOURCE_DIR}/src/common/shared_resources.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
@@ -1990,6 +1995,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # Needs the console variables only: ROM-free and display-free, the default
     # tier. MMModsMount proves the same set drives the real mount and the re-apply.
     redship_add_test(NAME MMModSet COMMAND redship --test mm-mod-set)
+    # A FOREIGN ITEM'S ICON IN MM'S GET-ITEM TEXTBOX (#607, Tier 2b of #494): every
+    # OoT progression item answers a well-formed icon with an MM textbox branch,
+    # unknown ids and half-answers fall back, and the REAL CustomMessage load, the
+    # vendored header decode and the icon draw put OoT's texture in MM's textbox at
+    # its own format and size. Static tables and a heap PlayState: default tier.
+    redship_add_test(NAME ForeignTextboxIcon COMMAND redship --test foreign-textbox-icon)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
