@@ -12,6 +12,7 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include "Types.h"
@@ -159,6 +160,21 @@ bool IsForeignHostClass(RandoCheckId randoCheckId);
  *  dead end, exactly as MM's own fill does. */
 void RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool,
                             int ladderAttempt);
+
+/** A single-bag fill that REFUSED to run or that an engine broke, as opposed to
+ *  a world that dead-ended (PR #743 review). Thrown by RunPairedSingleBagFill for
+ *  every status Combo_SingleBag_StatusIsWorldDeadEnd rejects: no frozen identity,
+ *  OoT not at its general-pass point, a missing engine, a capacity overflow, an
+ *  engine that refused or broke monotonicity. None of those is a property of the
+ *  attempt's seed, so no re-seed can fix it; OnFileCreate's ladder catches this
+ *  type BEFORE its generic dead-end catch and fails the creation at once with this
+ *  reason, instead of re-running GeneratePools nine more times and reporting an
+ *  exhausted ladder. */
+class PairedFillRefused : public std::runtime_error {
+  public:
+    explicit PairedFillRefused(const std::string& what) : std::runtime_error(what) {
+    }
+};
 
 /** True if this MM check hosts a foreign item in the current paired world. */
 bool IsForeignCheck(RandoCheckId randoCheckId);

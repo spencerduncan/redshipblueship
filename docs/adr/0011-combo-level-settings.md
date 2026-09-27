@@ -1303,14 +1303,19 @@ terms of those passes. None of them changes position, width, value space or
 the canonical encoding, so `comboSettingsHash` and every frozen record keep
 their meaning as identity; what changes is what generation does with them.
 
-- **`poolSizeOoT` / `poolSizeMM`: read by no generation.** They capped how many
-  duplicate copies a pass pinned. Under one bag the number of crossings is an
-  outcome of the fill (how many bag rows the draw puts on the other game's
-  hosts), not a setting. The fields stay in the record because the record is
-  format and both bytes are folded into the fingerprint; changing their
-  meaning would move every world's identity. `Combo_ComboPoolSizeFor` still
-  resolves them for the record's own locks. The pane's two pool-size rows no
-  longer change a world; retiring them from the pane is follow-up work.
+- **`poolSizeOoT` / `poolSizeMM`: no rule reads them, but they re-seed the
+  world.** They capped how many duplicate copies a pass pinned. Under one bag
+  the number of crossings is an outcome of the fill (how many bag rows the draw
+  puts on the other game's hosts), not a setting. The fields stay in the record
+  because the record is format and both bytes are folded into the fingerprint;
+  changing their meaning would move every world's identity. That fingerprint
+  (`comboSettingsHash`) is also folded into the single bag's seed
+  (`Combo_SingleBag_SeedFor`), so changing a pool size, although it changes no
+  rule, draws a different world: every placement moves. The same holds for
+  every `itemClass*` bit other than PROGRESSION. `Combo_ComboPoolSizeFor` still
+  resolves them for the record's own locks. Retiring the pane's two pool-size
+  rows, or dropping inert fields from the fill's seed (which would move every
+  golden), is follow-up work.
 - **`direction`: gates which origins may cross, per bag row.** A bag row whose
   origin `Combo_ComboDirectionArms` does not arm is `HOME_ONLY`: it is still in
   the bag, still assumed, still proved, and the fill places it only on its own

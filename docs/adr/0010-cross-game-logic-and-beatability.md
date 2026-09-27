@@ -1722,10 +1722,24 @@ and `Combo_ComboSettingsFrozen`):
 - Each game's own pass fills its leftover hosts: MM's traps first, then the
   rest, padded with junk; OoT's `RsbsFinishPairedGeneralPass` (traps first, then
   the rest, then OoT's overrides, entrances, hints and warp-song texts).
-- The crossings are written to the crossing store (K10) and the one spoiler's
-  `combo` section is joined from that storage; the identity publish then arms
-  the MM shadow, in #680's order. A failed ladder retracts the identity and
-  clears the store (publish-then-retract).
+- MM's half arms the MM shadow before it returns, while MM's bytes are live
+  (the one window it can). OoT's tail runs after that: the crossings are
+  written to the crossing store (K10), OoT's remainder is placed, and the one
+  spoiler's `combo` section is joined from that storage. So the arm precedes
+  the crossings and the join, not the reverse; what keeps that safe is the
+  retraction: a failed ladder or a failed OoT tail retracts the identity, the
+  armed shadow, the store and the combo and triforce records through one
+  function (publish-then-retract).
+- `OoT_Sram_InitSave` runs the creation event BEFORE `Randomizer_InitSaveFile`
+  (`OoT_Creation_AuthorRandoFile`). The general-pass hosts are empty until the
+  event places them, and `Randomizer_InitSaveFile` hands out creation-time items
+  by reading hosts (Link's Pocket, Impa's song under Skip Child Zelda, the
+  Master Sword on an adult start): read first, those gave the host's vanilla
+  item and never the placed one.
+- Each side hosts at most `RSBS_CROSSINGS_PER_SIDE_MAX` crossings
+  (`maxCrossingsPerSide`, the shared-item array's capacity): a crossing pickup
+  takes one un-merged slot until its origin game redeems it, and a refused
+  record would lose the item.
 - Crossings go only to hosts whose give path delivers them: the ABI-5 vtable
   entry `hostAcceptsForeign` (OoT: `ACTOR_EN_BOX` chests that are not shops,
   scrubs, merchants or the chest game; MM: `IsForeignHostClass`, Tier-A chests).
@@ -1737,17 +1751,22 @@ and `Combo_ComboSettingsFrozen`):
 per-attempt budget; the coordinator reports each round, the proof and the
 surplus stage to an observer, which reports progress to the overlay and stops
 the fill at the budget (`RSBS_COMBO_LOGIC_ERR_ABORTED`). A wall-clock stop is a
-`GenerationTimeout`, never a ladder rung (#581 section 2a); a structural
-failure is a rung and re-seeds from `Combo_SingleBag_SeedFor(attempt)`. An
-exhausted ladder fails the creation at file select.
+`GenerationTimeout`, never a ladder rung (#581 section 2a). Only a world dead
+end (`NO_CANDIDATE`, `GOAL_UNPROVABLE`, `NOT_ALL_REACHED`) is a rung and
+re-seeds from `Combo_SingleBag_SeedFor(attempt)`; a refusal or an engine defect
+(`BAD_REQUEST`, `NO_ENGINE`, `CAPACITY`, `ENGINE_REFUSED`, ...) is
+`PairedFillRefused` and fails the creation on the attempt it happened, because
+no re-seed can change it. An exhausted ladder fails the creation at file
+select.
 
 **Removal (D3).** Both pinned pools (`kForeignPoolV1`, `kForeignPoolMMV1`), their
 exclusion tables and the six numbered criteria, the pool registry and class
 draw, MM's forward overlay pass and OoT's reverse pass are deleted, with the
 pair-level locks below landing in the same change. The arrival compare-and-refuse
 machinery (#570/#680) is untouched. What `poolSize*`, `direction` and
-`itemClass*` mean now is ADR 0011's 2026-09-27 amendment: pool sizes are read
-by no generation, the direction and the PROGRESSION bit make a row `HOME_ONLY`.
+`itemClass*` mean now is ADR 0011's 2026-09-27 amendment: pool sizes change no
+rule (but, being in the fingerprint the fill's seed folds, they re-seed the
+world), the direction and the PROGRESSION bit make a row `HOME_ONLY`.
 Names, articles and arrival icons for any crossed item come from each game's
 describer.
 
@@ -1772,4 +1791,11 @@ reason: O10's count exists (lane K12 merged during this lane), but the single
 bag does not pass the frozen requirement to the coordinator and nothing yet
 proves each half's pieces are bag rows the proof can count. Hints in a paired
 world carry no pair-level way-of-the-hero or barren analysis (no pair-level
-playthrough exists yet). The pane's pool-size rows no longer change a world.
+playthrough exists yet); what they do carry is checked against the paired
+world itself: a crossing host is never hintable, and an OoT item hint whose
+target crossed into MM names Termina (`RA_TERMINA`). The pane's pool-size rows
+change no rule but re-seed the world. A paired world's OoT spoiler is refused
+as a solo OoT world at file select: the pairing and its crossings are not
+rebuilt from a spoiler there. A netplay peer's sourced grants share the
+shared-item array with crossing pickups and are not yet made to leave the
+crossings' slots free.

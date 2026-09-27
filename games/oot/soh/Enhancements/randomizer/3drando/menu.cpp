@@ -18,7 +18,10 @@
 #include "../SeedContext.h"
 #include "../settings.h"
 #include "../item_location.h"
+#include <cstdio>
+#include <fstream>
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
+#include "crossing_store.h" // src/common — the paired world's hint checks (PR #743 review)
 
 namespace {
 bool seedChanged;
@@ -95,17 +98,30 @@ static int OoT_ComboLogic_TestSetNativeGeneralPass(int) {
 //       missing entry shows up here instead of as "No Item" in someone's game;
 //   (3) rendered text — no hint's final message may contain the sentinel, which
 //       catches any resolution path the first two passes don't model.
-extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
-    // OoT's NATIVE general pass (lane K11): this lock validates the hints OoT's
-    // own fill tail writes over a world whose general pass it placed, so it asks
-    // Fill() not to defer that pass to a paired creation's single bag.
-    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
-    int rc = Rando_HeadlessSeedTest(seedStr);
-    if (rc != 0) {
-        fprintf(stderr, "[rando-hints] generation failed rc=%d\n", rc);
-        return rc;
-    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ForeignItemsSingleExe.cpp / hints.cpp: the crossing store's view, for the paired
+// world's hint checks below (PR #743 review).
+extern "C" int OoT_Combo_CheckHostsCrossing(int rc);
+extern "C" int Rando_HintAreaForItemOutsideHyrule(int item);
+#else
+static int OoT_Combo_CheckHostsCrossing(int) {
+    return 0;
+}
+#endif
 
+/**
+ * The three #441 passes (and the round trip) over every enabled hint of the LIVE
+ * context. With `pairedWorld`, the world is a single-bag paired world completed by
+ * the creation event (PR #743 review), and four more things must hold:
+ *   (P1) no hint names a crossing host: it physically holds a cover item, so any
+ *        location hint about it would name the cover, not the MM item it yields;
+ *   (P2) no crossing host is even hintable, so no distribution can pick one;
+ *   (P3) an item hint whose target is at no OoT location names Termina, never
+ *        "an Isolated Place" (the RA_NONE a location with no area answers);
+ *   (P4) every OoT item the crossing store hosts in MM resolves to Termina, so P3
+ *        is not vacuous on a seed whose hinted items all stayed home.
+ */
+static int ValidateGeneratedHints(bool pairedWorld) {
     auto ctx = Rando::Context::GetInstance();
     if (!ctx) {
         fprintf(stderr, "[rando-hints] no Rando::Context after generation\n");
@@ -122,6 +138,7 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
 
     size_t hintsChecked = 0;
     size_t failures = 0;
+    size_t terminaHints = 0;
 
     for (int h = RH_NONE + 1; h < RH_MAX; h++) {
         const auto hintKey = static_cast<RandomizerHint>(h);
@@ -136,7 +153,30 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
         const HintType hintType = hint->GetHintType();
         const bool namesAnItem = (hintType == HINT_TYPE_ITEM || hintType == HINT_TYPE_ITEM_AREA);
 
-        for (const RandomizerCheck hintedCheck : hint->GetHintedLocations()) {
+        const std::vector<RandomizerCheck> hintedLocations = hint->GetHintedLocations();
+        const std::vector<RandomizerArea> hintedAreas = hint->GetHintedAreas();
+        for (size_t li = 0; li < hintedLocations.size(); li++) {
+            const RandomizerCheck hintedCheck = hintedLocations[li];
+            if (pairedWorld) {
+                if (OoT_Combo_CheckHostsCrossing((int)hintedCheck) != 0) {
+                    fprintf(stderr, "[rando-hints] FAIL %s: names crossing host %d, which holds a cover item (P1)\n",
+                            hintName.c_str(), (int)hintedCheck);
+                    failures++;
+                    continue;
+                }
+                if (hintedCheck == RC_UNKNOWN_CHECK) {
+                    if (li < hintedAreas.size() && hintedAreas[li] == RA_TERMINA) {
+                        terminaHints++;
+                    } else {
+                        fprintf(stderr,
+                                "[rando-hints] FAIL %s: target %zu is at no OoT location and the hint does not name "
+                                "Termina (area %d) (P3)\n",
+                                hintName.c_str(), li, li < hintedAreas.size() ? (int)hintedAreas[li] : -1);
+                        failures++;
+                    }
+                    continue;
+                }
+            }
             // (1) An item hint that points at an empty location is the
             // under-placement half of this bug class.
             if (namesAnItem && ctx->GetItemLocation(hintedCheck)->GetPlacedRandomizerGet() == RG_NONE) {
@@ -215,8 +255,117 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
         return 6;
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (pairedWorld) {
+        int crossingHosts = 0;
+        for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+            ComboCrossing row;
+            if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
+                continue;
+            }
+            crossingHosts++;
+            if (ctx->GetItemLocation((RandomizerCheck)row.hostCheck)->IsHintable()) {
+                fprintf(stderr, "[rando-hints] FAIL: crossing host %u is hintable (P2)\n", (unsigned)row.hostCheck);
+                failures++;
+            }
+        }
+        int ootItemsInMM = 0;
+        for (int i = 0; i < Combo_Crossings_Count(GAME_MM); i++) {
+            ComboCrossing row;
+            if (!Combo_Crossings_At(GAME_MM, i, &row) || row.item.originGame != (uint8_t)GAME_OOT) {
+                continue;
+            }
+            ootItemsInMM++;
+            if (Rando_HintAreaForItemOutsideHyrule((int)row.item.id) != (int)RA_TERMINA) {
+                fprintf(stderr, "[rando-hints] FAIL: OoT item %u is hosted in MM but a hint would not name Termina "
+                                "(P4)\n",
+                        (unsigned)row.item.id);
+                failures++;
+            }
+        }
+        fprintf(stderr,
+                "[rando-hints] paired world: %d crossing hosts in OoT (none may be hintable), %d OoT items in MM, "
+                "%zu hinted target(s) named Termina\n",
+                crossingHosts, ootItemsInMM, terminaHints);
+        if (crossingHosts == 0 || ootItemsInMM == 0) {
+            fprintf(stderr, "[rando-hints] the paired world crossed nothing in one direction; P2/P4 are vacuous\n");
+            return 7;
+        }
+    }
+#endif
+
     fprintf(stderr, "[rando-hints] checked %zu enabled hints, %zu failures\n", hintsChecked, failures);
     return failures == 0 ? 0 : 1;
+}
+
+extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
+    // OoT's NATIVE general pass (lane K11): this lock validates the hints OoT's
+    // own fill tail writes over a world whose general pass it placed, so it asks
+    // Fill() not to defer that pass to a paired creation's single bag.
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
+    int rc = Rando_HeadlessSeedTest(seedStr);
+    if (rc != 0) {
+        fprintf(stderr, "[rando-hints] generation failed rc=%d\n", rc);
+        return rc;
+    }
+    return ValidateGeneratedHints(false);
+}
+
+/**
+ * The same hint validity over the world the SHIPPED paired path produced (PR #743
+ * review): the caller has run a paired generation, MM's creation-time half (the
+ * single-bag fill) and OoT's remainder, whose tail wrote these hints. The three
+ * #441 rows above validate OoT's native general pass, which a paired file no
+ * longer ships.
+ */
+extern "C" int Rando_ValidatePairedWorldHints(void) {
+    return ValidateGeneratedHints(true);
+}
+
+/**
+ * TEST BRIDGE (combo-creation-event; PR #743 review): reload the OoT spoiler the
+ * paired creation wrote, the way file select does (Context::ParseSpoiler), and the
+ * same document with its paired-world markers stripped.
+ *
+ * @param path              the spoiler the creation wrote (absolute).
+ * @param outMarked         1 when the document carries the paired-world markers.
+ * @param outPairedLoaded   Randomizer_IsSpoilerLoaded after parsing it (must be 0:
+ *                          refused).
+ * @param outStrippedLoaded the same after parsing the stripped copy (must be 1: the
+ *                          refusal keys on the markers, not on the document).
+ * @return 0 when both parses ran; nonzero when the file could not be read or the
+ *         stripped copy could not be written.
+ */
+extern "C" int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded,
+                                             int* outStrippedLoaded) {
+    nlohmann::json doc;
+    try {
+        std::ifstream in(path);
+        if (!in.is_open()) {
+            return 1;
+        }
+        in >> doc;
+    } catch (...) { return 2; }
+    *outMarked = (doc.is_object() && doc.contains("combo") && doc.contains("rsbsSingleBagWorld")) ? 1 : 0;
+
+    auto ctx = Rando::Context::GetInstance();
+    ctx->ParseSpoiler(path);
+    *outPairedLoaded = ctx->IsSpoilerLoaded() ? 1 : 0;
+
+    doc.erase("combo");
+    doc.erase("rsbsSingleBagWorld");
+    const std::string stripped = std::string(path) + ".stripped-test.json";
+    try {
+        std::ofstream out(stripped);
+        if (!out.is_open()) {
+            return 3;
+        }
+        out << doc.dump();
+    } catch (...) { return 3; }
+    ctx->ParseSpoiler(stripped.c_str());
+    *outStrippedLoaded = ctx->IsSpoilerLoaded() ? 1 : 0;
+    std::remove(stripped.c_str());
+    return 0;
 }
 
 // Implemented in SaveManager.cpp (which owns the private SaveRandomizer /

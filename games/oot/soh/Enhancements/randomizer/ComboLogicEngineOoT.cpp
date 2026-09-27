@@ -1057,6 +1057,14 @@ int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
         checkType == RCTYPE_CHEST_GAME || loc->IsShop()) {
         return 0;
     }
+    // THE WHOLE CHEST-GAME ROOM, not only its RCTYPE_CHEST_GAME rows (PR #743
+    // review; found by the category sweep below). The game's reward is tagged
+    // RCTYPE_STANDARD and sits on an ACTOR_EN_BOX, but Randomizer::GetCheckObjectFromActor
+    // also resolves it from the ACTOR_ITEM_ETCETERA prize, a give path that is not
+    // the chest's; and the room resets its chests' flags on every play.
+    if (loc->GetScene() == SCENE_TREASURE_BOX_SHOP) {
+        return 0;
+    }
     return 1;
 }
 
@@ -2305,6 +2313,9 @@ namespace {
 bool sGeneralPassDeferred = false;
 /** TEST ONLY: run OoT's NATIVE general pass even for a paired world. */
 bool sNativeGeneralPassForTest = false;
+/** True only while OoT_ComboLogic_FinishGeneralPass writes the spoiler of a
+ *  single-bag paired world (spoiler_log.cpp marks the document with it). */
+bool sWritingSingleBagSpoiler = false;
 /** The export rows (source 0, export order) the last successful bag took. */
 std::vector<int> sBagExportRows;
 } // namespace
@@ -2412,8 +2423,17 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
     }
     itemPool.clear();
 
-    // 2. The coordinator's OoT hosts are hintable, as the native pass's are.
+    // 2. The coordinator's OoT hosts are hintable, as the native pass's are —
+    //    EXCEPT a crossing host. It physically holds kOoTForeignJunkCover while
+    //    its real content is an MM item delivered through the crossing store, and
+    //    OoT's hint text reads the physical item: a gossip stone would name a Blue
+    //    Rupee for an MM progression item (PR #743 review). Kept out of every
+    //    location hint instead; where an OoT item hint's target crossed into MM,
+    //    hints.cpp names Termina.
     for (int i = 0; i < sPlacementCount; ++i) {
+        if (sPlacements[i].item.originGame != (uint8_t)GAME_OOT) {
+            continue;
+        }
         Rando::ItemLocation* il = ctx->GetItemLocation(sPlacements[i].host);
         if (il != nullptr) {
             il->SetAsHintable();
@@ -2462,7 +2482,10 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
 
     // 5. OoT's spoiler document.
     if (writeSpoiler) {
-        if (SpoilerLog_Write()) {
+        sWritingSingleBagSpoiler = true;
+        const bool spoilerWritten = SpoilerLog_Write() != nullptr;
+        sWritingSingleBagSpoiler = false;
+        if (spoilerWritten) {
             SPDLOG_INFO("Writing Spoiler Log Done (paired world, after the single-bag fill)");
         } else {
             SPDLOG_ERROR("Writing Spoiler Log Failed (paired world)");
@@ -2473,6 +2496,70 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
     }
     fflush(stderr);
     return 0;
+}
+
+extern "C" int OoT_ComboLogic_WritingSingleBagSpoiler(void) {
+    return sWritingSingleBagSpoiler ? 1 : 0;
+}
+
+/**
+ * TEST BRIDGE (combo-single-bag; PR #743 review): sweep EVERY OoT location through
+ * the ABI-5 foreign-host predicate, by category, from facts the predicate does not
+ * share a line with where possible. The combo-single-bag row's own host assertion
+ * asks the same predicate the fill filtered on, so it cannot see the predicate
+ * itself loosen; this can. Categories, each of which must be REJECTED:
+ *   [0] RCTYPE_SHOP rows and every IsShop() location,
+ *   [1] RCTYPE_SCRUB rows,
+ *   [2] RCTYPE_MERCHANT rows,
+ *   [3] RCTYPE_CHEST_GAME rows,
+ *   [4] every location whose NAME says shop, bazaar or chest game (independent of
+ *       the type tags the predicate reads),
+ *   [5] every location whose actor is not ACTOR_EN_BOX.
+ * [6] counts the ACCEPTED rows, which must all be ACTOR_EN_BOX and are the
+ * non-vacuity half: a predicate that rejected everything would pass [0]-[5].
+ *
+ * @param outCounts 7 ints: the rows seen per category.
+ * @return the number of rows the predicate accepted against its category.
+ */
+extern "C" int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts) {
+    for (int i = 0; i < 7; ++i) {
+        outCounts[i] = 0;
+    }
+    int violations = 0;
+    for (int c = 1; c < (int)RC_MAX; ++c) {
+        const RandomizerCheck rc = (RandomizerCheck)c;
+        if (!OoTComboLogicIsRealCheck(rc)) {
+            continue;
+        }
+        Rando::Location* loc = Rando::StaticData::GetLocation(rc);
+        const bool accepted = OoT_ComboLogic_HostAcceptsForeign(nullptr, (uint16_t)c) != 0;
+        const RandomizerCheckType type = loc->GetRCType();
+        const std::string& name = loc->GetName();
+        const bool categories[6] = {
+            type == RCTYPE_SHOP || loc->IsShop(),
+            type == RCTYPE_SCRUB,
+            type == RCTYPE_MERCHANT,
+            type == RCTYPE_CHEST_GAME,
+            name.find("Shop") != std::string::npos || name.find("Bazaar") != std::string::npos ||
+                name.find("Chest Game") != std::string::npos,
+            loc->GetActorID() != ACTOR_EN_BOX,
+        };
+        for (int k = 0; k < 6; ++k) {
+            if (!categories[k]) {
+                continue;
+            }
+            outCounts[k]++;
+            if (accepted) {
+                fprintf(stderr, "[OoT/ComboLogic] host-rule sweep: '%s' (check %d) is accepted but is category %d\n",
+                        name.c_str(), c, k);
+                violations++;
+            }
+        }
+        if (accepted) {
+            outCounts[6]++;
+        }
+    }
+    return violations;
 }
 
 /** TEST BRIDGE (combo-single-bag): OoT hosts the fill considers that hold nothing. */

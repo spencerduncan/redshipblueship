@@ -290,6 +290,9 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         freq.logicRung = sReport.rung;
         freq.seed = sReport.seed;
         freq.maxAttempts = 0; // RSBS_COMBO_LOGIC_FILL_RETRIES batch roll-backs
+        // Every crossing is delivered through one shared-item slot; bound each
+        // side by the array, so no pickup can find it full (context.h).
+        freq.maxCrossingsPerSide = (uint16_t)RSBS_CROSSINGS_PER_SIDE_MAX;
         freq.observer = SingleBagObserve;
         freq.observerCtx = &watch;
         status = Combo_Logic_RunFill(&freq, &sReport.fill);
@@ -354,6 +357,17 @@ finish:
         *out = sReport;
     }
     return status;
+}
+
+bool Combo_SingleBag_StatusIsWorldDeadEnd(int status) {
+    switch (status) {
+        case RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE:
+        case RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE:
+        case RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED:
+            return true;
+        default:
+            return false;
+    }
 }
 
 void Combo_SingleBag_Forget(void) {

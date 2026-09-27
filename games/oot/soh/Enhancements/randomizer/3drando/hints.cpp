@@ -657,6 +657,34 @@ void CreateStoneHints() {
     ReachabilitySearch({});
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ForeignItemsSingleExe.cpp: 1 when the crossing store hosts OoT item `rg` on an MM
+// check of the paired world (the single-bag fill put it in Termina).
+extern "C" int OoT_Combo_ItemHostedInMM(int rg);
+#endif
+
+/**
+ * The area a hint names for `item` when FindItemsAndMarkHinted found it at no OoT
+ * location (RC_UNKNOWN_CHECK). Under the single bag that is an item the fill placed
+ * in the paired Majora's Mask world, and the hint says so (RA_TERMINA) instead of
+ * falling through to GetRandomArea on a location with no area, which asserted and
+ * answered RA_NONE, "an Isolated Place" (PR #743 review). Anything else keeps the
+ * native answer.
+ */
+static RandomizerArea HintAreaForItemOutsideHyrule(RandomizerGet item) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (OoT_Combo_ItemHostedInMM((int)item) != 0) {
+        return RA_TERMINA;
+    }
+#endif
+    (void)item;
+    return RA_NONE;
+}
+
+extern "C" int Rando_HintAreaForItemOutsideHyrule(int item) {
+    return (int)HintAreaForItemOutsideHyrule((RandomizerGet)item);
+}
+
 std::vector<RandomizerCheck> FindItemsAndMarkHinted(std::vector<RandomizerGet> items,
                                                     std::vector<RandomizerCheck> hintChecks) {
     std::vector<RandomizerCheck> locations = {};
@@ -695,9 +723,13 @@ static void CreateAltarHint(RandomizerHint hintKey, HintType hintType, std::vect
             ctx->GetOption(RSK_SHUFFLE_DUNGEON_REWARDS).Is(RO_DUNGEON_REWARDS_VANILLA);
         locs = FindItemsAndMarkHinted(rewards, rewardsInferrable ? std::vector<RandomizerCheck>{}
                                                                  : std::vector<RandomizerCheck>{ altarCheck });
-        for (auto loc : locs) {
-            if (loc != RC_UNKNOWN_CHECK) {
-                areas.push_back(ctx->GetItemLocation(loc)->GetRandomArea());
+        for (size_t i = 0; i < locs.size(); i++) {
+            if (locs[i] != RC_UNKNOWN_CHECK) {
+                areas.push_back(ctx->GetItemLocation(locs[i])->GetRandomArea());
+            } else if (HintAreaForItemOutsideHyrule(rewards[i]) == RA_TERMINA) {
+                // A reward the single bag placed in Termina keeps its position in
+                // the altar's list rather than shifting every later reward's area.
+                areas.push_back(RA_TERMINA);
             }
         }
     }
@@ -733,7 +765,13 @@ void CreateStaticHintFromData(RandomizerHint hint, StaticHintInfo staticData) {
                 }
             }
             std::vector<RandomizerArea> areas = {};
-            for (auto loc : locations) {
+            for (size_t i = 0; i < locations.size(); i++) {
+                const RandomizerCheck loc = locations[i];
+                if (loc == RC_UNKNOWN_CHECK && i < staticData.targetItems.size() &&
+                    HintAreaForItemOutsideHyrule(staticData.targetItems[i]) == RA_TERMINA) {
+                    areas.push_back(RA_TERMINA);
+                    continue;
+                }
                 ctx->GetItemLocation(loc)->SetHintAccesible();
                 if (ctx->GetItemLocation(loc)->GetAreas().empty()) {
                     // If we get to here then it means a location got through with no area assignment, which means
@@ -760,8 +798,12 @@ void CreateStaticItemHint(RandomizerHint hintKey, std::vector<RandomizerHintText
     auto ctx = Rando::Context::GetInstance();
     std::vector<RandomizerCheck> locations = FindItemsAndMarkHinted(items, hintChecks);
     std::vector<RandomizerArea> areas = {};
-    for (auto loc : locations) {
-        areas.push_back(ctx->GetItemLocation(loc)->GetRandomArea());
+    for (size_t i = 0; i < locations.size(); i++) {
+        if (locations[i] == RC_UNKNOWN_CHECK && HintAreaForItemOutsideHyrule(items[i]) == RA_TERMINA) {
+            areas.push_back(RA_TERMINA);
+            continue;
+        }
+        areas.push_back(ctx->GetItemLocation(locations[i])->GetRandomArea());
     }
     ctx->AddHint(hintKey, Hint(hintKey, HINT_TYPE_AREA, hintTextKeys, locations, areas, {}, yourPocket));
 }

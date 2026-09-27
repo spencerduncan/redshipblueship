@@ -924,11 +924,38 @@ static bool ComboLogicObserve(const ComboLogicFillRequest* req, int stage, const
  * hosts always; the other game's only when the row is not HOME_ONLY and the host
  * engine does not refuse foreign items there.
  */
+/** The running fill's per-side crossing bound (ComboLogicFillRequest's
+ *  `maxCrossingsPerSide`; 0: unbounded), and, per host game, whether that side
+ *  has reached it. The flags are recomputed from the tables before every draw
+ *  (ComboLogicRefreshCrossingBudget), so a batch roll-back that takes rows out
+ *  gives their budget back without any bookkeeping of its own. */
+static int sMaxCrossingsPerSide;
+static bool sCrossingSideFull[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
+
+static void ComboLogicRefreshCrossingBudget(void) {
+    for (int g = 0; g < RSBS_FOREIGN_POOL_ORIGIN_COUNT; ++g) {
+        sCrossingSideFull[g] = false;
+    }
+    if (sMaxCrossingsPerSide <= 0) {
+        return;
+    }
+    for (int g = 0; g < RSBS_FOREIGN_POOL_ORIGIN_COUNT; ++g) {
+        if (!ComboLogicIsGame((uint8_t)g)) {
+            continue;
+        }
+        int crossings = 0;
+        for (int i = 0; i < sPlacementCount[g]; ++i) {
+            crossings += (sPlacements[g][i].item.originGame != (uint8_t)g) ? 1 : 0;
+        }
+        sCrossingSideFull[g] = crossings >= sMaxCrossingsPerSide;
+    }
+}
+
 static bool ComboLogicRowMayUseHost(const ComboLogicBagItem* item, uint8_t hostGame, uint16_t host) {
     if (item->item.originGame == hostGame) {
         return true;
     }
-    if ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u) {
+    if ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u || sCrossingSideFull[hostGame]) {
         return false;
     }
     const ComboLogicEngine* e = ComboLogicEngineFor(hostGame);
@@ -942,7 +969,7 @@ static bool ComboLogicRowUsesWholeSide(const ComboLogicBagItem* item, uint8_t ho
     if (item->item.originGame == hostGame) {
         return true;
     }
-    if ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u) {
+    if ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u || sCrossingSideFull[hostGame]) {
         return false;
     }
     const ComboLogicEngine* e = ComboLogicEngineFor(hostGame);
@@ -955,7 +982,8 @@ static int ComboLogicEligibleOnSide(const ComboLogicBagItem* item, uint8_t hostG
     if (ComboLogicRowUsesWholeSide(item, hostGame)) {
         return buf->count;
     }
-    if (item->item.originGame != hostGame && (item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u) {
+    if (item->item.originGame != hostGame &&
+        ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u || sCrossingSideFull[hostGame])) {
         return 0;
     }
     int n = 0;
@@ -1006,6 +1034,7 @@ static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, 
     // crossing row sees the other side's candidates filtered by that engine's
     // `hostAcceptsForeign`. Still ONE uniform draw over what the row may use — not
     // "pick a side, then a host", for the XOR-bias reason stated above.
+    ComboLogicRefreshCrossingBudget();
     const int nOoT = ComboLogicEligibleOnSide(item, (uint8_t)GAME_OOT);
     const int nMM = ComboLogicEligibleOnSide(item, (uint8_t)GAME_MM);
     const int total = nOoT + nMM;
@@ -1289,6 +1318,7 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
     ComboLogicPartitionBag(req);
     res.droppedDigest = 2166136261u; // FNV-1a offset basis: "nothing dropped"
+    sMaxCrossingsPerSide = (int)req->maxCrossingsPerSide;
 
     // The base rung is a different HOST SOURCE, not a different distribution:
     // see ComboLogicFillNoLogic. Everything below this point runs a round per

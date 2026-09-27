@@ -786,8 +786,9 @@ TestResult Test_ForeignHostEligibility(void) {
 //     locked by shared-items-class; that crossings deliver is locked end to end
 //     by combo-single-bag and combo-creation-event.
 //   - the class bitset draws a rule-defined pool: the bitset now gates HOME_ONLY
-//     per origin (combo_single_bag.c), locked by combo-single-bag's direction
-//     and item-class legs.
+//     per origin (combo_single_bag.c), locked by combo-single-bag's leg C (the
+//     frozen direction OFF) and leg C2 (a frozen class set without PROGRESSION:
+//     that origin crosses nothing while the other still crosses).
 //   - the name inverse is total: Combo_GetForeignItemByNameFor is describer-
 //     backed and total by construction; the name legs above drive it.
 // ============================================================================

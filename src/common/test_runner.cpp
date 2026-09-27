@@ -1473,6 +1473,7 @@ uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 int MM_Rando_Logic_JoinOrderProbe(void);
 void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse, int* outIdentityOk);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
+int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded, int* outStrippedLoaded);
 // #582's overlay leg. games/oot/soh/SohGui/CreationProgressOverlay.h documents
 // why the probe returns whether it could present rather than asserting it.
 int OoT_CreationProgressOverlay_TestPresentOnce(void);
@@ -1939,6 +1940,48 @@ TestResult Test_ComboCreationEvent(void) {
             return TEST_FAIL;
         }
         printf("[TEST] #585: the fill's reachability traversal joins time states instead of first-visit-wins\n");
+    }
+
+    // ------------------------------------------------------------------
+    // Leg 11 — a paired world's OoT spoiler is REFUSED as a solo OoT world (PR
+    // #743 review). File select re-parses CVAR SpoilerLog when no seed was
+    // generated in-process (z_file_choose.c); under the single bag that document
+    // holds cover items where MM items cross in and lacks the OoT items that
+    // crossed out, so a solo file built from it could not be finished. Last,
+    // because the parse replaces the live OoT context.
+    // ------------------------------------------------------------------
+    {
+        std::string relative = CVarGetString("gGeneral.SpoilerLog", "");
+        if (relative.rfind("./", 0) == 0) {
+            relative = relative.substr(2);
+        }
+        if (relative.empty()) {
+            printf("[TEST] FAIL: the paired creation left no OoT spoiler on record to reload\n");
+            return TEST_FAIL;
+        }
+        const std::string absolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
+        int marked = 0;
+        int pairedLoaded = -1;
+        int strippedLoaded = -1;
+        const int reloadRc = Rando_TestReloadPairedSpoiler(absolute.c_str(), &marked, &pairedLoaded, &strippedLoaded);
+        printf("[TEST] spoiler reload: rc=%d marked=%d paired-loaded=%d stripped-loaded=%d (%s)\n", reloadRc, marked,
+               pairedLoaded, strippedLoaded, absolute.c_str());
+        if (reloadRc != 0 || marked != 1) {
+            printf("[TEST] FAIL: the paired world's spoiler could not be read back or carries no paired-world "
+                   "marker\n");
+            return TEST_FAIL;
+        }
+        if (pairedLoaded != 0) {
+            printf("[TEST] FAIL: a paired world's spoiler loaded as a solo OoT world — its crossing hosts hold cover "
+                   "items and the OoT items that crossed into Termina are missing from it\n");
+            return TEST_FAIL;
+        }
+        if (strippedLoaded != 1) {
+            printf("[TEST] FAIL: the same document without its paired-world markers did not load, so the refusal "
+                   "is not what refused it\n");
+            return TEST_FAIL;
+        }
+        printf("[TEST] spoiler reload: the paired world's spoiler is refused as a solo world; unmarked, it loads\n");
     }
 
     ComboContext_Init();

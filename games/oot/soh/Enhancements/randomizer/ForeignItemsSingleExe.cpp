@@ -45,6 +45,7 @@
 #include "soh/Enhancements/randomizer/item.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/logic.h"
+#include "soh/Enhancements/randomizer/savefile.h" // Randomizer_InitSaveFile: runs AFTER the creation event
 // ReachabilitySearch — the reverse pass's reachability gate (#656). The same
 // header entrance.cpp reaches it through, from the same directory.
 #include "3drando/fill.hpp"
@@ -211,6 +212,34 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
  */
 extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
     return OoT_Foreign_RecordPickupImpl(rc) ? 1 : 0;
+}
+
+/**
+ * Does the crossing store host OoT item `rg` on an MM check (the single-bag fill
+ * put it in Termina)? Read by OoT's hint pass (3drando/hints.cpp), which runs in
+ * OoT's remainder AFTER the creation captured the crossings, so an item hint whose
+ * target is not at any OoT location can say where it is (PR #743 review).
+ */
+extern "C" int OoT_Combo_ItemHostedInMM(int rg) {
+    for (int i = 0; i < Combo_Crossings_Count(GAME_MM); ++i) {
+        ComboCrossing row;
+        if (Combo_Crossings_At(GAME_MM, i, &row) && row.item.originGame == (uint8_t)GAME_OOT &&
+            row.item.id == (uint16_t)rg) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/** 1 when OoT check `rc` hosts an MM item in the crossing store (a crossing host). */
+extern "C" int OoT_Combo_CheckHostsCrossing(int rc) {
+    for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); ++i) {
+        ComboCrossing row;
+        if (Combo_Crossings_At(GAME_OOT, i, &row) && row.hostCheck == (uint16_t)rc) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /** TEST BRIDGE: mark an OoT check collected (or not), as the drain does after a
@@ -463,6 +492,49 @@ extern "C" int OoT_Creation_FinishPairedHalf(int writeSpoiler) {
     return crossings;
 }
 
+/**
+ * RETRACT A FAILED PAIRED CREATION: everything the freeze and the event published,
+ * so no artifact of a half-created world survives — no identity for a later
+ * arrival to compare against, no crossing tables for either direction, no armed
+ * MM shadow, no engine record a later fill could "restore", no combo or triforce
+ * record. ONE function for every failure route out of the event (PR #743 review):
+ * the MM-half failure and the OoT-tail failure used to carry two hand-copied lists,
+ * and the tail's had already lost the triforce record's zeroing.
+ *
+ * The player-visible half (the #533 slot latch and the toast) is raised here too,
+ * for the same reason: a creation that failed must surface identically from every
+ * route into it.
+ */
+static void RetractFailedPairedCreation(int slot) {
+    Combo_GenProgress_End(false);
+    RsbsSave_RefuseSlotGeneration(slot);
+    OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+    Context_ClearFrozenState(GAME_MM);
+    Combo_ClearForeignPlacements();
+    Combo_ClearForeignPlacementsOoT();
+    Combo_ClearForeignGiveCaps();
+    // The single bag's own artifacts (lane K11): no crossings for a world that
+    // was not created, and no engine record that a later fill could "restore".
+    Combo_Crossings_Clear();
+    Combo_SingleBag_Forget();
+    // formatVersion 0 is the record's ABSENT tag (ADR 0011 decision 4.2) — the
+    // occupancy byte that makes the other eleven usable. Zeroing it is how a
+    // record is retracted; there is deliberately no "unfreeze" API, because the
+    // only legitimate retraction is this one.
+    memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
+    gComboCtx.comboSettingsHash = 0;
+    // The O10 triforce record (ADR 0010) was frozen beside the combo record and
+    // goes with it. Left behind, it would sit next to an ABSENT goal as a hunt
+    // nobody froze, which Combo_TriforceRecordDivergence reads as damage. Four
+    // zero bytes is how every non-hunt world stores it.
+    memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
+    gComboCtx.sourceIsRando = false;
+    gComboCtx.sharedRandoSeed = 0;
+    gComboCtx.sharedRandoSettingsHash = 0;
+    gComboCtx.mmProfileDigest = 0;
+    gComboCtx.mmPairedAttempt = 0;
+}
+
 extern "C" int OoT_RunPairedCreationEvent(int slot) {
     if (!Combo_ForeignPairingActive()) {
         // A vanilla file, or a rando file whose stamp the KEEP identity check
@@ -576,37 +648,7 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
                 "written\n",
                 mmRc, slot);
         fflush(stderr);
-        Combo_GenProgress_End(false);
-        // The player-visible half, raised HERE rather than by the caller: a
-        // creation that failed must surface identically from every route into
-        // it, and the only way to guarantee that is for the surface to live
-        // with the verdict.
-        RsbsSave_RefuseSlotGeneration(slot);
-        OoT_Creation_ReportFailureAtFileSelect(slot, 0);
-        Context_ClearFrozenState(GAME_MM);
-        Combo_ClearForeignPlacements();
-        Combo_ClearForeignPlacementsOoT();
-        Combo_ClearForeignGiveCaps();
-        // The single bag's own artifacts (lane K11): no crossings for a world that
-        // was not created, and no engine record that a later fill could "restore".
-        Combo_Crossings_Clear();
-        Combo_SingleBag_Forget();
-        // formatVersion 0 is the record's ABSENT tag (ADR 0011 decision 4.2) —
-        // the occupancy byte that makes the other eleven usable. Zeroing it is
-        // how a record is retracted; there is deliberately no "unfreeze" API,
-        // because the only legitimate retraction is this one.
-        memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
-        gComboCtx.comboSettingsHash = 0;
-        // The O10 triforce record (ADR 0010) was frozen beside the combo record
-        // and goes with it. Left behind, it would sit next to an ABSENT goal as
-        // a hunt nobody froze, which Combo_TriforceRecordDivergence reads as
-        // damage. Four zero bytes is how every non-hunt world stores it.
-        memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
-        gComboCtx.sourceIsRando = false;
-        gComboCtx.sharedRandoSeed = 0;
-        gComboCtx.sharedRandoSettingsHash = 0;
-        gComboCtx.mmProfileDigest = 0;
-        gComboCtx.mmPairedAttempt = 0;
+        RetractFailedPairedCreation(slot);
         return 0;
     }
 
@@ -661,21 +703,11 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
             bag->fill.rounds, bag->wallMs);
     Combo_SingleBag_Forget();
     if (!tailOk) {
-        Combo_GenProgress_End(false);
-        RsbsSave_RefuseSlotGeneration(slot);
-        OoT_Creation_ReportFailureAtFileSelect(slot, 0);
-        Context_ClearFrozenState(GAME_MM);
-        Combo_ClearForeignPlacements();
-        Combo_ClearForeignPlacementsOoT();
-        Combo_ClearForeignGiveCaps();
-        Combo_Crossings_Clear();
-        memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
-        gComboCtx.comboSettingsHash = 0;
-        gComboCtx.sourceIsRando = false;
-        gComboCtx.sharedRandoSeed = 0;
-        gComboCtx.sharedRandoSettingsHash = 0;
-        gComboCtx.mmProfileDigest = 0;
-        gComboCtx.mmPairedAttempt = 0;
+        // The MM half ARMED its shadow before it returned (MM_Rando_GenerateAtCreation
+        // arms while MM's bytes are live, the one window it can), so a tail failure
+        // retracts an armed shadow. The same retraction as the MM-half failure, so
+        // the two routes cannot drift apart again.
+        RetractFailedPairedCreation(slot);
         return 0;
     }
 
@@ -688,6 +720,37 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     Combo_GenProgress_End(true);
     fprintf(stderr, "[OoT] creation event: slot %d complete — both halves authored under one frozen identity\n", slot);
     fflush(stderr);
+    return 1;
+}
+
+/**
+ * A RANDOMIZER FILE'S AUTHORING, IN ITS ONE CORRECT ORDER (PR #743 review): the
+ * paired creation event, THEN Randomizer_InitSaveFile. Called by OoT_Sram_InitSave
+ * (z_sram.c) for every randomizer file in the single executable, and by the
+ * combo-single-bag row, so the lock drives the production order rather than a
+ * copy of it.
+ *
+ * WHY THIS ORDER. Under the single bag a paired OoT world stops at its general
+ * pass at Generate, and its general-pass hosts stay EMPTY until the event places
+ * the bag and OoT's remainder. Randomizer_InitSaveFile hands out creation-time
+ * items by READING hosts (Link's Pocket, Impa's song under Skip Child Zelda,
+ * Malon's egg and Zelda's letter, the Master Sword on an adult start) and marks
+ * each check collected. Any of them can be a general-pass host (Link's Pocket =
+ * Anything; songs Anywhere; Shuffle Master Sword). Read empty,
+ * Context::GetFinalGIEntry answers the host's VANILLA item, so the player got a
+ * free vanilla item and never received the one the fill placed and the proof
+ * counted. With the event first, every host is placed before anything reads it;
+ * for an unpaired file the event authors nothing and the order changes nothing.
+ *
+ * @return 1 when the file may be written; 0 when the paired creation failed (the
+ *         event has already retracted the identity and raised the refusal
+ *         surface), in which case Randomizer_InitSaveFile does not run either.
+ */
+extern "C" int OoT_Creation_AuthorRandoFile(int slot) {
+    if (!OoT_RunPairedCreationEvent(slot)) {
+        return 0;
+    }
+    Randomizer_InitSaveFile();
     return 1;
 }
 

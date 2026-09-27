@@ -2099,6 +2099,16 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
                                               "ms per-attempt budget after " + std::to_string(report.fill.rounds) +
                                               " rounds");
     }
+    if (status != RSBS_COMBO_LOGIC_OK && !Combo_SingleBag_StatusIsWorldDeadEnd(status)) {
+        // Not a world dead end: a refusal to run (no frozen identity, OoT not at
+        // its general-pass point), a missing engine, a capacity overflow or an
+        // engine defect. Another seed cannot change any of them, so this is NOT a
+        // ladder rung (PR #743 review): the ladder fails the creation at once with
+        // this reason.
+        throw Rando::Foreign::PairedFillRefused(std::string("single-bag fill refused: ") +
+                                                Combo_Logic_StatusName(status) +
+                                                " (not a world dead end; no re-seed can fix it)");
+    }
     if (status != RSBS_COMBO_LOGIC_OK) {
         throw std::runtime_error(std::string("single-bag fill: ") + Combo_Logic_StatusName(status) + " after " +
                                  std::to_string(report.fill.attempts) + " batch attempt(s)");

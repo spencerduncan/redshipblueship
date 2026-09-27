@@ -142,6 +142,19 @@ uint32_t Combo_SingleBag_SeedFor(int ladderAttempt);
  */
 void Combo_SingleBag_Forget(void);
 
+/**
+ * Is `status` (a Combo_SingleBag_Run return) a DETERMINISTIC WORLD DEAD END, the
+ * only kind of failure the attempt ladder may climb a rung on (PR #743 review)?
+ * True for RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE, _GOAL_UNPROVABLE and
+ * _NOT_ALL_REACHED: facts about the world this attempt's seed drew, which another
+ * seed can change. False for OK, for ERR_ABORTED (a wall-clock stop, never a rung,
+ * #581 section 2a) and for every refusal and engine defect (BAD_REQUEST,
+ * NO_ENGINE, UNSUPPORTED_GOAL, NON_MONOTONE, NO_FIXPOINT, CAPACITY,
+ * ENGINE_REFUSED): none of those depends on the seed, so re-seeding only repeats
+ * it and then misreports the failure as an exhausted ladder.
+ */
+bool Combo_SingleBag_StatusIsWorldDeadEnd(int status);
+
 // ----------------------------------------------------------------------------
 // The two ports' halves (implemented in each game's engine TU; declared here so
 // src/common names no game header, ADR 0002).

@@ -430,6 +430,25 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                                 std::to_string(attempt + 1) +
                                 "; the attempt ladder deliberately does not re-roll a non-deterministic failure (" +
                                 std::string(timeoutError.what()) + ")");
+                        } catch (const Rando::Foreign::PairedFillRefused& refusal) {
+                            // NOT a ladder rung either (PR #743 review). The fill
+                            // refused to run, or an engine broke its contract:
+                            // no frozen identity, OoT's world not at its
+                            // general-pass point, a missing engine, a capacity
+                            // overflow. None of those depends on this attempt's
+                            // seed, so re-rolling would only repeat it nine more
+                            // times and then report "exhausted the attempt
+                            // ladder", which names the wrong cause. Fail now,
+                            // with the real reason; `exhausted` stays false.
+                            Rando::Foreign::NotePairedGenerationOutcome(attempt + 1, false);
+                            fprintf(stderr,
+                                    "[MM] paired generation: attempt %d/%d REFUSED by the single-bag fill (%s) — not "
+                                    "re-rolled: it is not a world dead end\n",
+                                    attempt + 1, Rando::Foreign::kPairedGenMaxAttempts, refusal.what());
+                            throw std::runtime_error("Paired generation refused by the single-bag fill on ladder "
+                                                     "attempt " +
+                                                     std::to_string(attempt + 1) + " (" + std::string(refusal.what()) +
+                                                     ")");
                         } catch (const std::exception& attemptError) {
                             fprintf(stderr, "[MM] paired generation: attempt %d/%d dead-ended (%s)\n", attempt + 1,
                                     Rando::Foreign::kPairedGenMaxAttempts, attemptError.what());

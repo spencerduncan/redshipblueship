@@ -417,6 +417,11 @@ typedef enum {
     RA_ICE_CAVERN,
     RA_GERUDO_TRAINING_GROUND,
     RA_GANONS_CASTLE,
+    // RedShipBlueShip (ADR 0010 increment 3, PR #743 review): an OoT item the
+    // single-bag fill placed in the paired Majora's Mask world. It holds no OoT
+    // location; the hint pass names it for items the crossing store hosts in MM.
+    // Appended last so every existing area keeps its value.
+    RA_TERMINA,
     RA_MAX
 } RandomizerArea;
 
@@ -6342,6 +6347,9 @@ typedef enum {
     RHT_DODONGOS_CAVERN_GRASS,
     RHT_BOTTOM_OF_THE_WELL_GRASS,
     RHT_JABU_JABUS_BELLY_GRASS,
+    // RedShipBlueShip: the area name of RA_TERMINA. Appended last so every
+    // existing text key keeps its value.
+    RHT_TERMINA,
     // MAX
     RHT_MAX,
 } RandomizerHintTextKey;

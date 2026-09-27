@@ -1406,6 +1406,17 @@ typedef struct {
      *  and so is a pair of engines without `triforcePieces` — as
      *  RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL — both before any attempt. */
     uint16_t triforceRequired;
+    /** THE PER-SIDE CROSSING BOUND (PR #743 review; 0: unbounded). At most this
+     *  many placements on ONE host game may carry the OTHER game's item: once a
+     *  side holds that many, a crossing row may use only its own game's hosts
+     *  (exactly as if it were HOME_ONLY) for the rest of the attempt. Each crossing
+     *  pickup is delivered through one slot of the shared-item array
+     *  (Combo_RecordSharedItemCrossing), and a record the array refuses is a
+     *  progression item lost for good; the production caller passes
+     *  RSBS_CROSSINGS_PER_SIDE_MAX (context.h), which is what makes that refusal
+     *  unreachable. Counted over the coordinator's tables, so a batch roll-back
+     *  gives the budget back with the rows. */
+    uint16_t maxCrossingsPerSide;
 } ComboLogicFillRequest;
 
 typedef struct {

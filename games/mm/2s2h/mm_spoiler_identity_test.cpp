@@ -490,6 +490,145 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
         return Fail(63, "the standalone spoiler's world was not applied");
     }
 
+    // ---- Legs 7-11: THE LEGACY RECONSTRUCTION, LOCKED WHILE IT SHIPS ------------
+    // (PR #743 review.) Under the single bag no new world writes a "foreign"
+    // section, but ReconstructForeignPlacements still loads one from an older
+    // spoiler, and its host rule moved from IsEligibleHost to IsForeignHostClass.
+    // MMRandoGen's paired phase locked these legs over a generated pinned-table
+    // world and was retired with the pinned pools; they are re-established here
+    // over the staged document, under a MATCHING identity so the #610 gate above
+    // is not what decides them.
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    ComboContext_Init();
+    ArmPairing(kSeedA, kHashA, kDigestA);
+    ResetRefusalSurface();
+    nlohmann::json legacy;
+    try {
+        legacy = Rando::Spoiler::LoadFromFile(selected);
+    } catch (const std::exception& e) { return Fail(70, "the staged legacy spoiler did not load: %s", e.what()); }
+
+    // 7. PRESERVE-LIVE: a populated table is never overwritten by a spoiler load.
+    {
+        Combo_ClearForeignPlacements();
+        if (Combo_SetForeignPlacement((uint16_t)host, secondItem) < 0) {
+            return Fail(71, "could not seed the live placement for the preserve leg");
+        }
+        ComboForeignPlacement before[RSBS_FOREIGN_PLACEMENT_CAP];
+        memcpy(before, gComboCtx.foreignPlacements, sizeof(before));
+        const int rc = Rando::Spoiler::ReconstructForeignPlacements(legacy);
+        if (rc != -1 || memcmp(before, gComboCtx.foreignPlacements, sizeof(before)) != 0) {
+            return Fail(72, "reconstruction overwrote a live placement table (returned %d) instead of preserving it",
+                        rc);
+        }
+    }
+
+    // 8. EXACT REBUILD, REDEMPTION-SAFE, JUNK HOST: from an empty table the entry
+    //    comes back on its host, the host keeps a legal junk item, and a planted
+    //    REDEEMED shared-item entry is left exactly as it was.
+    {
+        Combo_ClearForeignPlacements();
+        SharedItem redeemed = {};
+        redeemed.originGame = (uint8_t)GAME_OOT;
+        redeemed.flags = RSBS_SHARED_ITEM_REDEEMED;
+        redeemed.id = placed.id;
+        gComboCtx.sharedItemsTagged[0] = redeemed;
+        RANDO_SAVE_CHECKS[host].randoItemId = RI_UNKNOWN; // what ApplyToSaveContext leaves at a foreign host
+        const int rc = Rando::Spoiler::ReconstructForeignPlacements(legacy);
+        const SharedItem* got = Combo_GetForeignPlacementForCheck((uint16_t)host);
+        if (rc != 1 || Combo_CountForeignPlacements() != 1 || got == nullptr || got->originGame != placed.originGame ||
+            got->id != placed.id) {
+            return Fail(80, "the legacy section did not rebuild host %s's placement exactly (returned %d, table %d)",
+                        hostName, rc, Combo_CountForeignPlacements());
+        }
+        const RandoItemId held = RANDO_SAVE_CHECKS[host].randoItemId;
+        if (Rando::StaticData::Items[held].randoItemType != RITYPE_JUNK) {
+            return Fail(81, "the rebuilt host %s holds a non-junk MM item (%d), not the legal junk sentinel", hostName,
+                        (int)held);
+        }
+        if (memcmp(&gComboCtx.sharedItemsTagged[0], &redeemed, sizeof(SharedItem)) != 0) {
+            return Fail(82, "reconstruction mutated redeemed shared-item state");
+        }
+        memset(&gComboCtx.sharedItemsTagged[0], 0, sizeof(SharedItem));
+    }
+
+    // 9. MALFORMED, REJECTED ATOMICALLY: a section with one good entry (on a second
+    //    eligible host) and one naming an item no game has must throw and commit
+    //    NEITHER — validate-then-commit, whichever order the object iterates in.
+    {
+        RandoCheckId host2 = RC_UNKNOWN;
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (randoStaticCheck.randoCheckId != RC_UNKNOWN && randoCheckId != host &&
+                Rando::Foreign::IsForeignHostClass(randoCheckId)) {
+                host2 = randoCheckId;
+                break;
+            }
+        }
+        if (host2 == RC_UNKNOWN) {
+            return Fail(90, "no second eligible host exists to build the atomicity case from");
+        }
+        nlohmann::json malformed = legacy;
+        nlohmann::json bad = legacy["foreign"][hostName];
+        bad["item"] = "Definitely Not An Ocarina of Time Item";
+        malformed["foreign"][Rando::StaticData::Checks.at(host2).name] = legacy["foreign"][hostName];
+        malformed["foreign"][hostName] = bad;
+        Combo_ClearForeignPlacements();
+        bool threw = false;
+        try {
+            Rando::Spoiler::ReconstructForeignPlacements(malformed);
+        } catch (const std::exception&) { threw = true; }
+        if (!threw || Combo_CountForeignPlacements() != 0) {
+            return Fail(91, "a malformed section was not rejected atomically (threw=%d, placements=%d)", threw ? 1 : 0,
+                        Combo_CountForeignPlacements());
+        }
+    }
+
+    // 10. ABSENT: no "foreign" section is not an error and yields an empty table.
+    {
+        nlohmann::json absent = legacy;
+        absent.erase("foreign");
+        Combo_ClearForeignPlacements();
+        if (Rando::Spoiler::ReconstructForeignPlacements(absent) != 0 || Combo_CountForeignPlacements() != 0) {
+            return Fail(100, "an absent foreign section did not yield an empty table cleanly");
+        }
+    }
+
+    // 11. STALE HOST, REJECTED: an entry on a check the current host rule refuses
+    //     (not a Tier-A chest) is dropped, and the host degrades to legal junk
+    //     rather than the unresolvable RI_UNKNOWN that would arm `.eligible` and
+    //     give nothing.
+    {
+        RandoCheckId stale = RC_UNKNOWN;
+        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+            if (randoStaticCheck.randoCheckId != RC_UNKNOWN && !Rando::Foreign::IsForeignHostClass(randoCheckId)) {
+                stale = randoCheckId;
+                break;
+            }
+        }
+        if (stale == RC_UNKNOWN) {
+            return Fail(110, "every check is a foreign host class, so the stale-host case cannot be built");
+        }
+        nlohmann::json staleDoc = legacy;
+        const nlohmann::json entry = legacy["foreign"][hostName];
+        staleDoc["foreign"] = nlohmann::json::object();
+        staleDoc["foreign"][Rando::StaticData::Checks.at(stale).name] = entry;
+        RANDO_SAVE_CHECKS[stale].randoItemId = RI_UNKNOWN;
+        RANDO_SAVE_CHECKS[stale].shuffled = true;
+        RANDO_SAVE_CHECKS[stale].skipped = false;
+        Combo_ClearForeignPlacements();
+        const int rc = Rando::Spoiler::ReconstructForeignPlacements(staleDoc);
+        if (rc != 0 || Combo_CountForeignPlacements() != 0 ||
+            Combo_GetForeignPlacementForCheck((uint16_t)stale) != nullptr) {
+            return Fail(111, "stale host %s was reconstructed anyway (returned %d, table %d)",
+                        Rando::StaticData::Checks.at(stale).name, rc, Combo_CountForeignPlacements());
+        }
+        const RandoItemId held = RANDO_SAVE_CHECKS[stale].randoItemId;
+        if (Rando::StaticData::Items[held].randoItemType != RITYPE_JUNK || held == RI_UNKNOWN || held == RI_NONE) {
+            return Fail(112, "the rejected host %s holds %d, not a legal junk item",
+                        Rando::StaticData::Checks.at(stale).name, (int)held);
+        }
+    }
+    Combo_ClearForeignPlacements();
+
     // Leave process-global state clean for whatever test runs next.
     RsbsSave_ResetSlotSessionState();
     RsbsSave_SetActiveSlot(-1);
@@ -499,7 +638,9 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
     CVarSetInteger("gRando.SpoilerFileIndex", 0);
 
     printf("[TEST] PASS: the spoiler foreign section commits only under a matching pairing identity; every "
-           "divergent term refuses through the #533 surface; standalone spoiler loads untouched\n");
+           "divergent term refuses through the #533 surface; standalone spoiler loads untouched; the legacy "
+           "reconstruction preserves a live table, rebuilds exactly, is redemption-safe, rejects a malformed section "
+           "atomically, accepts an absent one and drops a stale host to junk\n");
     return 0;
 }
 

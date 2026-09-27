@@ -2258,9 +2258,51 @@ TestResult ClProductionRulesLeg(void) {
                   "P4: an unknown compose flag is refused");
     }
 
+    // P5. THE PER-SIDE CROSSING BOUND (PR #743 review): four OoT rows on an open
+    //     world of 4 OoT + 4 MM hosts. With `maxCrossingsPerSide` = 1, no seed puts
+    //     more than one OoT item on an MM host, on either fill path; without the
+    //     bound, some seed puts two or more there (the bound is what stopped it).
+    {
+        ComboLogicBagItem bag[4];
+        for (int i = 0; i < 4; ++i) {
+            bag[i] = ClBagItem(O, oItems[i], RSBS_ITEMCLASS_PROGRESSION);
+        }
+        int unboundedOver = 0;
+        int boundedAtCap = 0;
+        for (uint32_t seed = 1; seed <= 24; ++seed) {
+            for (const uint8_t rung : { (uint8_t)RSBS_COMBO_RUNG_NONE, (uint8_t)RSBS_COMBO_RUNG_BEATABLE }) {
+                ComboLogicFillRequest req;
+                memset(&req, 0, sizeof(req));
+                req.bag = bag;
+                req.bagCount = 4;
+                req.goal = RSBS_COMBO_GOAL_BEAT_EITHER;
+                req.logicRung = rung;
+                req.seed = seed;
+                req.maxCrossingsPerSide = 1;
+                ComboLogicFillResult res;
+                ClBuildOpenWorld(4, 4);
+                CL_ASSERT(Combo_Logic_RunFill(&req, &res) == RSBS_COMBO_LOGIC_OK, "P5: the bounded fill places the bag");
+                int intoOoT = 0;
+                int intoMM = 0;
+                ClCountCrossings(&intoOoT, &intoMM, nullptr);
+                CL_ASSERT(intoMM <= 1, "P5: a side received more crossings than the per-side bound allows");
+                boundedAtCap += (intoMM == 1) ? 1 : 0;
+
+                req.maxCrossingsPerSide = 0;
+                ClBuildOpenWorld(4, 4);
+                CL_ASSERT(Combo_Logic_RunFill(&req, &res) == RSBS_COMBO_LOGIC_OK, "P5: the unbounded fill");
+                ClCountCrossings(&intoOoT, &intoMM, nullptr);
+                unboundedOver += (intoMM > 1) ? 1 : 0;
+            }
+        }
+        CL_ASSERT(boundedAtCap > 0, "P5: the bounded fill never crossed at all, so the bound was never reached");
+        CL_ASSERT(unboundedOver > 0, "P5: without the bound no seed crossed twice, so the leg proves nothing");
+        Combo_Logic_ResetPlacements();
+    }
+
     printf("[TEST] combo-logic-bag-model: P production rules: HOME_ONLY rows stay home, the foreign-host predicate "
            "filters crossings, the observer stops with ERR_ABORTED and otherwise changes nothing, confined rows enter "
-           "home-only\n");
+           "home-only, the per-side crossing bound holds\n");
     return TEST_PASS;
 }
 } // namespace

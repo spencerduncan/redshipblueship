@@ -22,6 +22,8 @@
 // ComboLogicEngineOoT.cpp: a loaded spoiler replaces the world, so a general pass
 // deferred for the previous generation's single-bag fill no longer exists.
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
+#include "soh/Notification/Notification.h" // the refusal of a paired world's spoiler (PR #743 review)
+#include <cstdio>
 #endif
 extern "C" {
 #include <functions.h>
@@ -426,6 +428,32 @@ void Context::ParseSpoiler(const char* spoilerFileName) {
         nlohmann::json spoilerFileJson;
         spoilerFileStream >> spoilerFileJson;
         spoilerFileStream.close();
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // A PAIRED WORLD'S SPOILER IS NOT A SOLO OoT WORLD (PR #743 review). Under
+        // the single bag its OoT locations hold cover items (a Blue Rupee) where
+        // MM items cross in, and the OoT items that crossed into Termina — the
+        // Light Arrows, on the shipped default seed — are at no location in it.
+        // Loaded here it would build an OoT-only file that cannot be finished, and
+        // nothing about that file would say so. The pairing and its crossings are
+        // not rebuilt from a spoiler at file select, so the document is REFUSED,
+        // loudly, and the context stays empty: the player generates the seed again.
+        if (spoilerFileJson.is_object() &&
+            (spoilerFileJson.contains("combo") || spoilerFileJson.contains("rsbsSingleBagWorld"))) {
+            SPDLOG_ERROR("Spoiler {} belongs to a paired Ocarina of Time + Majora's Mask world; it cannot be loaded as "
+                         "a solo Ocarina of Time world. Generate the seed again.",
+                         spoilerFileName);
+            fprintf(stderr,
+                    "[OoT] spoiler-load: REFUSED '%s' — it is half of a paired single-bag world (its OoT locations "
+                    "hold cover items and the items that crossed into Termina are missing), not a solo OoT world\n",
+                    spoilerFileName);
+            fflush(stderr);
+            Notification::Emit({
+                .prefix = "Spoiler not loaded: ",
+                .message = "it belongs to a paired Ocarina of Time + Majora's Mask world. Generate the seed again.",
+            });
+            return;
+        }
+#endif
         ParseHashIconIndexesJson(spoilerFileJson);
         Rando::Settings::GetInstance()->ParseJson(spoilerFileJson);
         ParseItemLocationsJson(spoilerFileJson);
