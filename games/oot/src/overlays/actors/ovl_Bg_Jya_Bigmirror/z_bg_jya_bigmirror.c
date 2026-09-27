@@ -16,6 +16,10 @@ void BgJyaBigmirror_Draw(Actor* thisx, PlayState* play);
 
 static u8 sKankyoIsSpawned = false;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_BgJyaBigmirror_Reset(void);
+#endif
+
 const ActorInit Bg_Jya_Bigmirror_InitVars = {
     ACTOR_BG_JYA_BIGMIRROR,
     ACTORCAT_BG,
@@ -26,7 +30,11 @@ const ActorInit Bg_Jya_Bigmirror_InitVars = {
     (ActorFunc)BgJyaBigmirror_Destroy,
     (ActorFunc)BgJyaBigmirror_Update,
     (ActorFunc)BgJyaBigmirror_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_BgJyaBigmirror_Reset,
+#else
     NULL,
+#endif
 };
 
 typedef struct {
@@ -249,3 +257,30 @@ void BgJyaBigmirror_Draw(Actor* thisx, PlayState* play) {
         BgJyaBigmirror_DrawLightBeam(&this->actor, play);
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] BgJyaBigmirror_Destroy clears the one-instance latch sKankyoIsSpawned when the instance that set it
+// goes; its Init kills every later instance while it is set. Nothing but Destroy ever put it back. A cross-game
+// departure abandons OoT's Play gamestate without deleting its actors (OoT_RetireAbandonedSession,
+// GameExports_SingleExe.cpp), so it kept the abandoned session's value. OoT_Actor_FreeOverlay calls this only once
+// the overlay has no clients, when every Destroy has already restored the initial value, so on a normal teardown it
+// changes nothing.
+void OoT_BgJyaBigmirror_Reset(void) {
+    sKankyoIsSpawned = false;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_BgJyaBigmirror_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        sKankyoIsSpawned = true;
+    } else {
+        sKankyoIsSpawned = false;
+    }
+}
+
+s32 OoT_BgJyaBigmirror_DestroyStaticsDirtyForTest(void) {
+    return sKankyoIsSpawned != false;
+}
+#endif

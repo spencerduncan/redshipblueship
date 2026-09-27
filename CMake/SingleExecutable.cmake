@@ -1972,6 +1972,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the graph is retired, skips client-free ones, restores the statics only
     # Destroy used to restore, and drops every per-actor ObjectExtension entry.
     redship_add_test(NAME MMAbandonedSessionStatics COMMAND redship --test mm-abandoned-session-statics)
+    # #750, the OoT leg of #666 (games/oot/soh/oot_abandoned_session_test.cpp):
+    # the same departure shape on OoT, whose numLoaded is never zeroed again
+    # after the ActorDB entry is created. The row drives OoT's registered
+    # suspend twice and checks each abandoned session's overlays are reset once
+    # after the graph is retired, client-free ones are not, no client count
+    # outlives a departure, the statics only Destroy restored are restored, and
+    # no per-actor ObjectExtension entry survives.
+    redship_add_test(NAME OoTAbandonedSessionStatics COMMAND redship --test oot-abandoned-session-statics)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

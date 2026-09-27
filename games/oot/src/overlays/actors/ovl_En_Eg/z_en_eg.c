@@ -22,6 +22,10 @@ static EnEgActionFunc OoT_sActionFuncs[] = {
     func_809FFDC8,
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_EnEg_Reset(void);
+#endif
+
 const ActorInit En_Eg_InitVars = {
     ACTOR_EN_EG,
     ACTORCAT_ITEMACTION,
@@ -32,7 +36,11 @@ const ActorInit En_Eg_InitVars = {
     (ActorFunc)EnEg_Destroy,
     (ActorFunc)EnEg_Update,
     (ActorFunc)EnEg_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_EnEg_Reset,
+#else
     NULL,
+#endif
 };
 
 void EnEg_PlayVoidOutSFX() {
@@ -75,3 +83,29 @@ void EnEg_Update(Actor* thisx, PlayState* play) {
 
 void EnEg_Draw(Actor* thisx, PlayState* play) {
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] EnEg_Destroy clears voided, the once-only latch of the tower-collapse void-out trigger. Nothing but
+// Destroy ever put it back. A cross-game departure abandons OoT's Play gamestate without deleting its actors
+// (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp), so it kept the abandoned session's value.
+// OoT_Actor_FreeOverlay calls this only once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void OoT_EnEg_Reset(void) {
+    voided = false;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_EnEg_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        voided = true;
+    } else {
+        voided = false;
+    }
+}
+
+s32 OoT_EnEg_DestroyStaticsDirtyForTest(void) {
+    return voided != false;
+}
+#endif

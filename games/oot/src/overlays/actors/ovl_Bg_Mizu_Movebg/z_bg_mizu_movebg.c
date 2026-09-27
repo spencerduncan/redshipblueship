@@ -25,6 +25,10 @@ void func_8089E318(BgMizuMovebg* this, PlayState* play);
 void func_8089E650(BgMizuMovebg* this, PlayState* play);
 s32 func_8089E108(Path* pathList, Vec3f* pos, s32 pathId, s32 pointId);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_BgMizuMovebg_Reset(void);
+#endif
+
 const ActorInit Bg_Mizu_Movebg_InitVars = {
     ACTOR_BG_MIZU_MOVEBG,
     ACTORCAT_BG,
@@ -35,7 +39,11 @@ const ActorInit Bg_Mizu_Movebg_InitVars = {
     (ActorFunc)BgMizuMovebg_Destroy,
     (ActorFunc)BgMizuMovebg_Update,
     (ActorFunc)BgMizuMovebg_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_BgMizuMovebg_Reset,
+#else
     NULL,
+#endif
 };
 
 static f32 D_8089EB40[] = { -115.200005f, -115.200005f, -115.200005f, 0.0f };
@@ -390,3 +398,29 @@ void BgMizuMovebg_Draw(Actor* thisx, PlayState* play2) {
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] BgMizuMovebg_Destroy releases the moving-platform sfx ownership bits in D_8089EE40; while a bit is
+// held no other platform plays that sound. Nothing but Destroy ever put it back. A cross-game departure abandons
+// OoT's Play gamestate without deleting its actors (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp), so it
+// kept the abandoned session's value. OoT_Actor_FreeOverlay calls this only once the overlay has no clients, when
+// every Destroy has already restored the initial value, so on a normal teardown it changes nothing.
+void OoT_BgMizuMovebg_Reset(void) {
+    D_8089EE40 = 0;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_BgMizuMovebg_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        D_8089EE40 = 3;
+    } else {
+        D_8089EE40 = 0;
+    }
+}
+
+s32 OoT_BgMizuMovebg_DestroyStaticsDirtyForTest(void) {
+    return D_8089EE40 != 0;
+}
+#endif

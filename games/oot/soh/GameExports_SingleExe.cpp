@@ -33,6 +33,10 @@
 // OTRGlobals.h only forward-declares Rando::Context, which is enough to hold
 // the shared_ptr but not to call through it.
 #include "soh/Enhancements/randomizer/SeedContext.h"
+// #750: OoT_RetireAbandonedSession walks the actor DB and drops every
+// per-actor object extension of the session a departure abandons.
+#include "soh/ActorDB.h"
+#include "soh/ObjectExtension/ObjectExtension.h"
 // SET_NEXT_GAMESTATE for the gameplay round-trip driver. Must come after
 // GameInteractor.h (-> z64.h): macros.h declares `extern GraphicsContext*`
 // and needs the type defined first.
@@ -54,6 +58,10 @@ void OoT_Audio_PreNMI(void);
 // re-entry after a switch re-inits the system arena under any suspended
 // gamestate, so the frame loop must cold-start instead of resuming.
 void OoT_Graph_ResetRunFrameContext(void);
+// z_actor.c: runs an overlay's reset once it has no clients (#750).
+void OoT_Actor_FreeOverlay(ActorDBEntry* dbEntry);
+// Defined below OoT_Game_Suspend, which calls it (#750).
+void OoT_RetireAbandonedSession(void);
 // Wait for the OTR audio std::thread to finish any in-flight buffer before
 // the switch hot-swaps resource archives (OTRGlobals.cpp).
 void OoT_Audio_DrainForSuspend(void);
@@ -902,7 +910,68 @@ void OoT_Game_Suspend(void) {
     fflush(stderr);
     OoT_Graph_ResetRunFrameContext();
 
+    // The Play gamestate just retired never ran Play_Destroy, so none of its
+    // actors were deleted: put back what their deletion would have (#750).
+    OoT_RetireAbandonedSession();
+
     fprintf(stderr, "[OoT] Game_Suspend complete\n");
+    fflush(stderr);
+}
+
+/**
+ * Undo what an ABANDONED OoT Play session left behind (#750, the OoT leg of
+ * #666; MM's twin is MM_RetireAbandonedSession).
+ *
+ * Every departure from OoT retires its Play gamestate without Play_Destroy
+ * (OoT_Graph_ResetRunFrameContext in OoT_Game_Suspend; the next entry re-runs
+ * Main(), which re-initializes the system arena the actors lived in). So
+ * OoT_Actor_Delete never runs for the actors that were live at that instant,
+ * and two things its epilogue does are otherwise never done:
+ *
+ *  - each actor's ActorDB entry loses a client (numLoaded--), and the last
+ *    client out runs the entry's `reset` (OoT_Actor_FreeOverlay), which is how
+ *    the port puts overlay file-scope statics back. Unlike MM, OoT never zeroes
+ *    numLoaded again after the entry is created (MM's Actor_InitContext does
+ *    on every Play_Init), so without this an overlay with a live actor at
+ *    departure keeps a phantom client for the rest of the process: its reset
+ *    never runs again, even on ordinary in-OoT scene changes, and every further
+ *    departure adds another phantom.
+ *  - ObjectExtension_Free(actor) drops the per-actor data SoH hangs off actor
+ *    addresses (the rando check identity of a pot, crate, grass blade, tree,
+ *    beehive, fairy or scrub, the actor-list index, enemy maximum health). The
+ *    next session's arena reuses those addresses.
+ *
+ * Both are done here, at the point the session is abandoned. Entries already
+ * at zero clients are skipped on purpose: they were reset when their last
+ * client went, and not every reset is idempotent. The actors' own Destroy
+ * functions are NOT run: they take the PlayState of a gamestate that has
+ * already been retired (dynapoly, colliders, lights, skeletons). Overlays whose
+ * Destroy is what restores a static got that restore in a reset of their own
+ * (the [RSBS #750] blocks under games/oot/src/overlays/actors).
+ *
+ * The oot-abandoned-session-statics row (oot_abandoned_session_test.cpp) drives
+ * OoT_GetGameOps()->suspend, so it fails if this call leaves OoT_Game_Suspend
+ * or moves ahead of OoT_Graph_ResetRunFrameContext.
+ */
+void OoT_RetireAbandonedSession(void) {
+    s32 overlays = 0;
+
+    if (ActorDB::Instance != nullptr) {
+        const int count = ActorDB::Instance->GetEntryCount();
+        for (int i = 0; i < count; i++) {
+            ActorDBEntry* entry = &ActorDB::Instance->RetrieveEntry(i).entry;
+            if (entry->numLoaded <= 0) {
+                continue;
+            }
+            entry->numLoaded = 0;
+            OoT_Actor_FreeOverlay(entry);
+            overlays++;
+        }
+    }
+    const size_t extensions = ObjectExtension::GetInstance().ClearAll();
+
+    fprintf(stderr, "[OoT] Abandoned session retired: %d overlay(s) reset, %zu object extension entries dropped\n",
+            (int)overlays, extensions);
     fflush(stderr);
 }
 

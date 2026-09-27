@@ -125,6 +125,10 @@ static EnRu2DrawFunc OoT_sDrawFuncs[] = {
     EnRu2_DrawXlu,
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_EnRu2_Reset(void);
+#endif
+
 const ActorInit En_Ru2_InitVars = {
     ACTOR_EN_RU2,
     ACTORCAT_NPC,
@@ -135,7 +139,11 @@ const ActorInit En_Ru2_InitVars = {
     (ActorFunc)EnRu2_Destroy,
     (ActorFunc)EnRu2_Update,
     (ActorFunc)EnRu2_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_EnRu2_Reset,
+#else
     NULL,
+#endif
 };
 
 void EnRu2_InitCollider(Actor* thisx, PlayState* play) {
@@ -970,3 +978,29 @@ void EnRu2_Draw(Actor* thisx, PlayState* play) {
     }
     OoT_sDrawFuncs[this->drawConfig](this, play);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] EnRu2_Destroy clears D_80AF4118, the cutscene-edge latch adult Ruto's actor toggles. Nothing but
+// Destroy ever put it back. A cross-game departure abandons OoT's Play gamestate without deleting its actors
+// (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp), so it kept the abandoned session's value.
+// OoT_Actor_FreeOverlay calls this only once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void OoT_EnRu2_Reset(void) {
+    D_80AF4118 = 0;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_EnRu2_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        D_80AF4118 = 1;
+    } else {
+        D_80AF4118 = 0;
+    }
+}
+
+s32 OoT_EnRu2_DestroyStaticsDirtyForTest(void) {
+    return D_80AF4118 != 0;
+}
+#endif
