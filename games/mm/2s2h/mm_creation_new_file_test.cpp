@@ -95,7 +95,7 @@ void ReadArmedHalf() {
 }
 
 void PrintHalf(const char* when) {
-    const u8* n = sHalf.save.saveInfo.playerData.newf;
+    const u8* n = reinterpret_cast<const u8*>(sHalf.save.saveInfo.playerData.newf);
     printf("[TEST] %s: %s: newf=%02X %02X %02X %02X %02X %02X saveType=%d fileNum=0x%X flashSaveAvailable=%d "
            "checksum=0x%04X fileCreatedAt=%llu finalSeed=%08X\n",
            sRow, when, n[0], n[1], n[2], n[3], n[4], n[5], (int)sHalf.save.shipSaveInfo.saveType,
