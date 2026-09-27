@@ -10,12 +10,5 @@ S1 | src/common/ComboMmOptionsWindow.cpp | if (ImGui::Checkbox(desc->label, &on)
 S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("- %s", desc->disabledReason);
 S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("Tricks: table not available in this build.");
 S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("[%s]", desc->tagSummary);
-S3 | src/common/ComboTrackerWindow.cpp | ImGui::TextDisabled("(%s)", Combo_TrackerFreshnessLabel(game, summary.freshness));
-S3 | src/common/ComboTrackerWindow.cpp | ImGui::TextDisabled("No data yet.");
-S3 | src/common/ComboTrackerWindow.cpp | ImGui::TextDisabled("No paired world.");
-S3 | src/common/ComboTrackerWindow.cpp | ImGui::TextDisabled("Settings digest %08X / MM profile %08X", (unsigned)identity.sharedRandoSettingsHash,
 S4 | src/common/ComboMmOptionsWindow.cpp | if (!ImGui::CollapsingHeader("Tricks", ImGuiTreeNodeFlags_None)) {
 S5 | src/common/ComboMmOptionsWindow.cpp | ImGui::Spacing();
-S5 | src/common/ComboSpoilerWindow.cpp | ImGui::Spacing();
-S5 | src/common/ComboSpoilerWindow.cpp | ImGui::Spacing();
-S5 | src/common/ComboTrackerWindow.cpp | ImGui::Spacing();

@@ -59,9 +59,10 @@ typedef enum {
 } ComboTrackerFreshness;
 
 /**
- * Label for a freshness value, per game (the stale wording differs: MM's
- * shadow is "as of last freeze/save", OoT's suspended heap is "as of
- * suspend"). Never NULL — out-of-range yields a visible placeholder rather
+ * Label for a freshness value, per game, in player wording with no closing
+ * period (the stale wording differs: MM's shadow is "As of the last game
+ * switch or save", OoT's suspended heap is "As of the last game switch").
+ * Never NULL — out-of-range yields a visible placeholder rather
  * than a crash in a printf-family call.
  */
 const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness);
