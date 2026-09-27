@@ -48,10 +48,19 @@
  *      to 0 as well (observed, printed, not asserted): OoT items the fill hosted in
  *      MM sit behind MM checks whose reach needs fixed MM contents, so without the
  *      grant the pair is unprovable from both ends. Then, still switched off,
- *      assuming exactly the fixed remains contents restores goalMM=1 (goalOoT is
+ *      assuming the fixed remains contents restores goalMM=1 (goalOoT is
  *      printed), which names the remains as the fixed content MM's own goal runs
  *      through. The switch is put back before anything is asserted. (Lane G1;
  *      runs between B and C.)
+ *      AMENDED (#697 fix pass, PR #763): the assumption is the fixed remains PLUS
+ *      every fixed content MM classes RENEWABLE (ammo, refills, rupees: the items
+ *      a pot or shop hands out again). The Twinmold tightening moved this pinned
+ *      world so that a Deku Stick, which in this world sits only on fixed pots and a
+ *      shop row, became load-bearing for Majora; seven single-content probes
+ *      named it and nothing else. The claim the arm pins is therefore "no fixed
+ *      PROGRESSION content other than the remains is load-bearing", and a fixed
+ *      renewable is regainable in play by construction. The remains-only round is
+ *      still run and printed, and the red half is untouched.
  *
  * PR #743 REVIEW LEGS, each with its red half observed when it was written:
  *
@@ -143,6 +152,7 @@ int MM_Rando_HeadlessPairedHalf(void);
 int MM_ComboLogic_FixedHarvestCount(void);
 int MM_ComboLogic_TestSetFixedGrants(int enabled);
 int MM_ComboLogic_TestFixedContents(int remainsOnly, uint16_t* outItems, uint16_t* outChecks, int cap);
+int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
 int MM_Rando_Foreign_TestIsForeignHostClass(uint16_t randoCheckId);
 int MM_Rando_PairedGenLastAttempts(void);
 int MM_Rando_PairedGenLastExhausted(void);
@@ -627,6 +637,38 @@ TestResult ComboSingleBag_Run(void) {
             row.item.id = id;
             remains.push_back(row);
         }
+        // The remains plus every fixed RENEWABLE content (MM's own class), one row per
+        // distinct item id: what a player regains in play from a pot or a shop.
+        std::vector<ComboLogicBagItem> remainsAndRenewables = remains;
+        int renewableIds = 0;
+        {
+            const int fixedAll = MM_ComboLogic_TestFixedContents(0, nullptr, nullptr, 0);
+            std::vector<uint16_t> fixedItems((size_t)(fixedAll > 0 ? fixedAll : 0));
+            if (fixedAll > 0) {
+                MM_ComboLogic_TestFixedContents(0, fixedItems.data(), nullptr, fixedAll);
+            }
+            std::vector<uint16_t> seen;
+            for (const uint16_t id : fixedItems) {
+                ComboItemClassRow cls;
+                if (MM_ComboLogic_ClassifyItem(id, &cls) != 1 || cls.fillClass != RSBS_FILL_CLASS_RENEWABLE) {
+                    continue;
+                }
+                bool dup = false;
+                for (const uint16_t other : seen) {
+                    dup = dup || other == id;
+                }
+                if (dup) {
+                    continue;
+                }
+                seen.push_back(id);
+                ComboLogicBagItem row;
+                memset(&row, 0, sizeof(row));
+                row.item.originGame = (uint8_t)GAME_MM;
+                row.item.id = id;
+                remainsAndRenewables.push_back(row);
+                renewableIds++;
+            }
+        }
         const std::vector<ComboLogicBagItem> none;
         const int grantsBefore = MM_ComboLogic_FixedHarvestCount();
         ComboLogicRoundResult on;
@@ -639,6 +681,8 @@ TestResult ComboSingleBag_Run(void) {
         const int grantsOff = MM_ComboLogic_FixedHarvestCount() - grantsBefore - grantsOn;
         ComboLogicRoundResult withRemains;
         const int remainsRc = CsbRoundNow(RSBS_COMBO_GOAL_BEAT_BOTH, remains, &withRemains);
+        ComboLogicRoundResult withRenewables;
+        const int renewablesRc = CsbRoundNow(RSBS_COMBO_GOAL_BEAT_BOTH, remainsAndRenewables, &withRenewables);
         MM_ComboLogic_TestSetFixedGrants(previous);
         printf("[TEST] combo-single-bag: F (#737): %d fixed MM contents outside the host pool, %d of them boss "
                "remains; beat-both exit round with the fixed grant: goalOoT=%d goalMM=%d GOAL=%d (%d fixed "
@@ -647,6 +691,9 @@ TestResult ComboSingleBag_Run(void) {
                fixedTotal, remainsTotal, on.goalOoT, on.goalMM, on.goalExpression, grantsOn, off.goalOoT, off.goalMM,
                off.goalExpression, grantsOff, (int)remains.size(), withRemains.goalOoT, withRemains.goalMM,
                withRemains.goalExpression);
+        printf("[TEST] combo-single-bag: F (#737): without it but the fixed remains and %d distinct fixed renewable "
+               "ids assumed: goalOoT=%d goalMM=%d GOAL=%d\n",
+               renewableIds, withRenewables.goalOoT, withRenewables.goalMM, withRenewables.goalExpression);
         CSB_ASSERT(previous == 1, "MM's fixed-content grant was already switched off before leg F");
         CSB_ASSERT(remainsTotal > 0, "the shipped profile leaves no boss remains fixed, so leg F proves nothing about "
                                      "the case #737 found");
@@ -657,9 +704,11 @@ TestResult ComboSingleBag_Run(void) {
         CSB_ASSERT(off.goalMM == 0 && off.goalExpression == 0,
                    "the GOAL is provable without MM's fixed contents, so this world does not run through them and "
                    "the grant is unlocked (#737's red half not observed)");
-        CSB_ASSERT(remainsRc == RSBS_COMBO_LOGIC_OK && withRemains.goalMM == 1,
-                   "assuming the fixed boss remains alone does not restore MM's goal: a fixed content other than "
-                   "the remains is load-bearing for Majora");
+        CSB_ASSERT(remainsRc == RSBS_COMBO_LOGIC_OK,
+                   "the round with the fixed boss remains assumed did not run");
+        CSB_ASSERT(renewablesRc == RSBS_COMBO_LOGIC_OK && withRenewables.goalMM == 1,
+                   "assuming the fixed boss remains and every fixed renewable does not restore MM's goal: a fixed "
+                   "PROGRESSION content other than the remains is load-bearing for Majora");
         CSB_ASSERT(CsbGoalNow(goal) == 1, "leg F did not leave the world proving the GOAL");
     }
 

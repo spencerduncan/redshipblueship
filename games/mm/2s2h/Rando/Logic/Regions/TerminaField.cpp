@@ -12,7 +12,9 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(GREAT_BAY_COAST, 0),              ENTRANCE(TERMINA_FIELD, 2), true),
         },
         .connections = {
-            CONNECTION(RR_TERMINA_FIELD, CAN_PLAY_SONG(EPONA)),
+            // #697 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF: OoTMM's "Great Bay Fence" -> "Termina Field" is
+            // `can_play_epona || (can_goron_bomb_jump && has_bombs) || ...`. Mirror below.
+            CONNECTION(RR_TERMINA_FIELD, CAN_PLAY_SONG(EPONA) || CAN_GORON_BOMB_JUMP_FENCE),
         },
     };
     Regions[RR_TERMINA_FIELD_BEFORE_PATH_TO_MOUNTAIN_VILLAGE] = RandoRegion{ .sceneId = SCENE_00KEIKOKU,
@@ -527,8 +529,11 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_TERMINA_FIELD_BEFORE_PATH_TO_MOUNTAIN_VILLAGE, HAS_ITEM(ITEM_BOW)),
-            CONNECTION(RR_TERMINA_FIELD_BEFORE_GREAT_BAY_COAST, CAN_PLAY_SONG(EPONA)),
-            CONNECTION(RR_ASTRAL_OBSERVATORY_OUTSIDE, CAN_BE_DEKU),
+            // #697 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF, on the two Termina Field exits OoTMM gates with it:
+            // "Great Bay Fence" (`can_play_epona || (can_goron_bomb_jump && has_bombs)`) and "Astral
+            // Observatory Balcony" (`has(MASK_DEKU) || ... || (can_goron_bomb_jump && has_bombs)`).
+            CONNECTION(RR_TERMINA_FIELD_BEFORE_GREAT_BAY_COAST, CAN_PLAY_SONG(EPONA) || CAN_GORON_BOMB_JUMP_FENCE),
+            CONNECTION(RR_ASTRAL_OBSERVATORY_OUTSIDE, CAN_BE_DEKU || CAN_GORON_BOMB_JUMP_FENCE),
             CONNECTION(RR_TERMINA_FIELD_COW_GROTTO, CAN_USE_EXPLOSIVE), // TODO: Grotto mapping
             CONNECTION(RR_TERMINA_FIELD_PILLAR_GROTTO, true), // TODO: Grotto mapping
             CONNECTION(RR_TERMINA_FIELD_TALL_GRASS_GROTTO, true), // TODO: Grotto mapping
