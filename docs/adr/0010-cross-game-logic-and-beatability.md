@@ -1777,14 +1777,20 @@ Arrows on Shadow Temple Compass Chest) each leave the GOAL provable with the
 crossing and unprovable when that host's item is removed. Direction OFF makes
 all 306 bag rows home-only, crosses nothing and still proves.
 
-**Measured** (development workstation, host calibration 18 ms against the 18 ms
-reference, scale 100%; shipped profile; `ComboCreationEvent`): one real creation
-end to end took **14.8 s**: OoT's Generate 165 ms, then the creation event
-14,614 ms, of which the single-bag fill was 13,840 ms (306 bag rows, 2 batch
-attempts, 595 rounds, 37 crossings into MM and 59 into OoT) and OoT's tail
-705 ms. That is 0.49x the 30 s per-attempt floor and 0.16x the 90 s ceiling. The
-pinned golden seed's fill took one batch and 307 rounds (6,975 ms in
-`ComboSingleBag`).
+**Measured** over a sample, not one seed (PR #743 review;
+`RSBS_CSB_SAMPLE=30 redship --test combo-single-bag`, development workstation
+shared with other builds, host calibration 19 ms against the 18 ms reference,
+scale 105%, per-attempt budget 31.5 s; shipped profile; 30 consecutive seeds):
+30 of 30 created on the first ladder attempt, with no per-attempt budget stop.
+28 fills took one batch (307 rounds) and 2 took two (about 600 rounds). MM's
+creation-time half (the fill plus MM's own pass) averaged 9.7 s; the fastest
+single-batch fill was 6.5 s, and the worst creation was a two-batch one at
+24.7 s under load, 0.78x the budget. A seed needing four or more batches at
+this host's 6.5-8 s per batch would exceed the budget and fail as a
+`GenerationTimeout`; none of the 30 did, which bounds that rate below about 10%
+(rule of three), not at zero. OoT's Generate (about 0.2 s) and OoT's tail
+(about 0.7 s) come on top. Crossings: 9 of the 30 worlds put exactly
+`RSBS_CROSSINGS_PER_SIDE_MAX` (64) MM items in OoT, so the bound shapes worlds.
 
 **Not built.** A paired `triforce-hunt` creation is refused at Generate with a
 reason: O10's count exists (lane K12 merged during this lane), but the single
