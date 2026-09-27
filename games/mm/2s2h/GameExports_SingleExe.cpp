@@ -45,6 +45,8 @@
 // #670: the per-game mod-archive registry (#593) plus the shared mods/ tree
 // partition. MM's mod mount feeds the first and obeys the second.
 #include "mod_archives.h"
+// #706: MM's enabled mod set. The mount below mounts what it says, in its order.
+#include "mm_mod_set.h"
 // Paired-world keying + placement-table accessors (#439 switch-entry
 // activation logs the placement count at the pairing decision point).
 #include "foreign_items.h"
@@ -934,57 +936,28 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
 // that stops an OoT mod being registered under GAME_MM, which WOULD survive the
 // switch and shadow MM permanently.
 //
-// Everything under mods/mm/ is mounted — MM has no equivalent of OoT's
-// enabled-subset mod menu, so there is no enabled set to consult, and upstream
-// BenPort mounts the whole folder too. Precedence is the sort below.
+// WHICH archives, and in what order, is MM's enabled mod set (#706,
+// src/common/mm_mod_set.h): the archives under mods/mm the player has not turned
+// off, in the order the Combo > MM Mods page arranges them. With nothing chosen
+// that is every archive, in upstream BenPort's stem order (Rsbs::MMModNameLess),
+// which is what #670 shipped; a new archive defaults to enabled, as in OoT's mod
+// menu. A disabled archive is neither mounted nor registered, so #593's
+// switch-time re-apply has nothing to resurrect.
 //
-// That IS a one-game-semantics divergence and it ships knowingly: inside one game,
-// OoT's half of the mods tree has enable/disable/reorder and MM's half does not
-// (rename to reorder, move the file out to disable). It is not hidden — it is
-// stated in docs/MODDING.md and in the PR — and the MM mod menu that closes it is
-// the filed follow-up. The alternative available today would be to make MM read
-// OoT's `gSettings.EnabledMods` CVar, which would put MM's mods in OoT's mod menu
-// list and let a stale OoT enabled-set silently disable an MM mod; that is a worse
-// divergence, not a smaller one. The extension set, by contrast, was cheap to
-// align and therefore was (difference 4 above).
-
-// Sort key for mod precedence: the whole path with its EXTENSION removed,
-// compared case-insensitively. Byte-for-byte upstream BenPort's comparator
-// (games/mm/2s2h/BenPort.cpp), kept identical on purpose so a mod behaves the
-// same here as in standalone 2Ship.
-//
-// Two consequences worth stating because they are not obvious. Stripping the
-// extension means renaming `10-foo.otr` to `10-foo.o2r` does not move a mod in
-// the order — that is the point of it. Comparing the whole path rather than the
-// file name means a subfolder's name participates: mods sitting directly in
-// mods/mm/ are ordered by their file names, which is the common case, but
-// mods/mm/aaa/z.o2r sorts before mods/mm/bbb/a.o2r.
-static bool MMModNameLess(const std::string& a, const std::string& b) {
-    const std::string aStem = a.substr(0, a.find_last_of('.'));
-    const std::string bStem = b.substr(0, b.find_last_of('.'));
-    return std::lexicographical_compare(aStem.begin(), aStem.end(), bStem.begin(), bStem.end(), [](char c1, char c2) {
-        return std::tolower((unsigned char)c1) < std::tolower((unsigned char)c2);
-    });
-}
-
-// Which files in mods/mm are archives at all. The SHARED rule
-// (src/common/mod_archives.cpp), which is OoT's rule: `.o2r`, plus `.otr` where
-// the MPQ reader is compiled in, and never `.zip`.
-//
-// Upstream BenPort's own list here was `.o2r`/`.zip`/`.otr`
-// (games/mm/2s2h/BenPort.cpp), and an earlier revision of this PR copied it. That
-// gave the two halves of ONE shared folder tree different file types — the same
-// distribution zip mounted under mods/mm and ignored under mods/ — which is the
-// divergence the one-game rule exists to prevent, and OoT's reason for excluding
-// `.zip` (a mod is usually distributed AS a zip that CONTAINS the .o2r) applies
-// verbatim to mods/mm. Nothing regresses: single-exe MM mounted no mods at all
-// before #670, so there is no installed base of MM `.zip` mods to break.
-static bool MMIsModArchiveExtension(const std::filesystem::path& p) {
-    return Combo_ModArchiveExtensionIsValid(p.extension().string().c_str());
-}
+// Until #706 MM had no enabled set at all: inside one game, OoT's half of the
+// mods tree had enable/disable/reorder and MM's did not (rename to reorder, move
+// the file out to disable). The alternative that was available then — making MM
+// read OoT's `gSettings.EnabledMods` CVar — would have put MM's mods in OoT's mod
+// menu list and let a stale OoT enabled-set silently disable an MM mod, so MM's
+// set is its own pair of CVars instead. The walk, the partition skip, the shared
+// extension rule (difference 4 above: `.o2r`, `.otr` with the MPQ reader, never
+// `.zip`) and the stem comparator moved to src/common/mm_mod_set.cpp with it,
+// unchanged, so the menu's scan and this mount cannot disagree about what is in
+// the folder.
 
 /**
- * Mount every MM mod archive under @p modsRoot, in precedence order.
+ * Mount every ENABLED MM mod archive under @p modsRoot, in precedence order
+ * (#706: the enabled set, Rsbs::MMModArchivesToMount).
  *
  * @param modsRoot the shared mods directory (LocateFileAcrossAppDirs("mods")).
  *                 Only the `mm` subtree of it is MM's; see the block comment.
@@ -1009,42 +982,11 @@ static int MountMMModArchives(const std::string& modsRoot) {
         return 0;
     }
 
-    std::vector<std::string> modPaths;
-    // recursive: a mod may ship as mods/mm/<modname>/<archive>.o2r, and upstream
-    // BenPort recurses too. Every step takes an error_code overload, so nothing in
-    // a player's mods folder — a broken reparse point, a permission-denied
-    // subdirectory — can throw out of MM's boot path.
-    //
-    // walkEc is the ITERATION's error and controls the loop; entryEc is separate
-    // and per-entry. Sharing one would end the walk on the first entry whose
-    // status could not be read, silently dropping every mod after it.
-    //
-    // Rsbs::kModsWalkOptions, the SAME options OoT's walk over the same tree uses
-    // (src/common/mod_archives.h). This originally passed only
-    // skip_permission_denied while OoT followed directory symlinks, so a mod
-    // installed through a symlinked folder — the documented "a mod may ship as its
-    // own folder" layout, kept in one library and linked into two installs — worked
-    // under mods/ and silently did nothing under mods/mm/. One tree, one traversal
-    // rule.
-    std::error_code walkEc;
-    for (std::filesystem::recursive_directory_iterator it(modsRoot, Rsbs::kModsWalkOptions, walkEc), end;
-         it != end && !walkEc; it.increment(walkEc)) {
-        const std::filesystem::path& p = it->path();
-        std::error_code entryEc;
-        if (it->is_directory(entryEc) || !MMIsModArchiveExtension(p)) {
-            continue;
-        }
-        const std::string generic = p.generic_string();
-        // The partition. A file OoT owns must never be mounted here: registering
-        // it under GAME_MM would make the switch-time re-apply stack OoT's mods
-        // over MM's base archives on every MM arrival.
-        if (!Combo_ModPathIsForGame(GAME_MM, modsRoot.c_str(), generic.c_str())) {
-            continue;
-        }
-        modPaths.push_back(generic);
-    }
-
-    std::sort(modPaths.begin(), modPaths.end(), MMModNameLess);
+    // #706: the enabled set, in mount order (last wins). Rsbs::MMModArchivesToMount
+    // is #670's walk (partition, extension rule, kModsWalkOptions, stem sort)
+    // followed by the enabled/disabled resolution; it also records this mount so
+    // the menu can tell the player when a change needs a restart.
+    const std::vector<std::string> modPaths = Rsbs::MMModArchivesToMount(modsRoot);
 
     int mounted = 0;
     for (const std::string& modPath : modPaths) {

@@ -17,6 +17,11 @@
  * `MMRT_`, and verified string-for-string against `master` on 2026-09-20 (see
  * TrickIds.h's ATTRIBUTION for what "verified" covered, including the two
  * upstream `\s` escapes transcribed as JavaScript renders them).
+ * THREE tooltips carry one appended, parenthesised sentence of OURS (#697):
+ * `MMRT_GORON_BOMB_JUMP`, `MMRT_OOB_MOVEMENT` and `MMRT_GBT_FIRELESS`. OoTMM's
+ * sentence is kept verbatim in front of it; the addition says what THIS
+ * dialect's logic expects where it differs from the OoTMM text (fences want
+ * bombs, no Short Hookshot Anywhere, no Adult Link).
  * `MMRT_GBT_BOSS_KEY_ICE` at the end is OURS and its strings are original.
  *
  * EXPLICIT NON-SOURCE: **mm-rando (GPL-3.0)**. Nothing in this file came from
@@ -118,7 +123,8 @@ std::map<MMRandoTrickId, RandoStaticTrick> Tricks = {
          "Climb the roof with a precise jump to access the South Clock Town Chest", NULL),
     MMRT(GORON_BOMB_JUMP, MMRTA_MILK_ROAD, MMRTT_NOVICE, false,
          "Bomb Jump Fences as Goron",
-         "Place down bombs or a Powder Keg, then use the Goron Pound to leap into the air and get damaged mid-air by the explosion to hop over fences", NULL),
+         "Place down bombs or a Powder Keg, then use the Goron Pound to leap into the air and get damaged mid-air by the explosion to hop over fences"
+         " (In this randomizer, logic expects real bombs for every fence. A Powder Keg counts only at the non-fence jumps, and only with \"Use Powder Kegs as Explosives\" also enabled.)", NULL),
     MMRT(BOMBER_GUESS, MMRTA_CLOCK_TOWN, MMRTT_NOVICE, false,
          "Guess Bombers' Code",
          "Guess the Bombers' Code for Astral Observatory from 120 possible combinations. Grants access to the Bomber's Notebook check when entering ECT from the Bombers Hideout.", NULL),
@@ -199,7 +205,8 @@ std::map<MMRandoTrickId, RandoStaticTrick> Tricks = {
          "Light the four torches using somewhat precise arrow shots", NULL),
     MMRT(OOB_MOVEMENT, MMRTA_GENERAL, MMRTT_NOVICE, false,
          "Walk Along Surfaces Out of Bounds",
-         "With this trick enabled, logic may expect you to use Short Hookshot Anywhere to reach normally inaccessible surfaces to get behind the Milk Road Boulder and (with 3 elegy statues) climb Stone Tower.", NULL),
+         "With this trick enabled, logic may expect you to use Short Hookshot Anywhere to reach normally inaccessible surfaces to get behind the Milk Road Boulder and (with 3 elegy statues) climb Stone Tower."
+         " (In this randomizer, logic never expects Short Hookshot Anywhere. The one place this trick is used is the Pirates' Fortress plaza upper chest, reached as Goron without the Hookshot.)", NULL),
     MMRT(ST_UPDRAFTS, MMRTA_STONE_TOWER, MMRTT_NOVICE, false,
          "Stone Tower Updrafts without Deku Mask",
          "This room can be traversed using Recoil Flips or Goron Mask instead of Deku Mask.", NULL),
@@ -235,7 +242,8 @@ std::map<MMRandoTrickId, RandoStaticTrick> Tricks = {
          "Jump off the tree and jump slash Tingle's balloon. Sticks will not work.", NULL),
     MMRT(GBT_FIRELESS, MMRTA_GREAT_BAY_TEMPLE, MMRTT_NOVICE, false,
          "Great Bay Temple without Fire Arrows",
-         "It is possible to traverse the final room in the reverse loop using Zora Mask or Adult Link with a jump slash.", NULL),
+         "It is possible to traverse the final room in the reverse loop using Zora Mask or Adult Link with a jump slash."
+         " (In this randomizer, Adult Link is not an option: logic expects the Deku Mask AND the Zora Mask for that room, and the Zora Mask with Ice Arrows for the boss-key chest.)", NULL),
     MMRT(IGOS_DINS, MMRTA_IKANA_CASTLE, MMRTT_NOVICE | MMRTT_COMBO, true,
          "Burn Igos' curtain with Din's Fire",
          "Igos' left curtain can be burned by standing at the top of the stairs next to his throne.", "Needs Din's Fire From Ocarina of Time"),

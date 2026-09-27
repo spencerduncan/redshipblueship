@@ -9,7 +9,7 @@ The test is pixels. Render the SoH reference and ours with `redship --test ui-sn
 (section 12). Each rule cites the SoH line it copies. A rule marked [project rule] is stricter than SoH on purpose.
 
 **Scope (ours):**
-- `SohGui/SohMenuCombo.cpp` and `SohGui/SohMenuComboMmEnhancements.cpp`
+- `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp` and `SohGui/SohMenuComboMmMods.cpp`
 - `AddCrossGamePointerWidgets` (`SohMenuRandomizer.cpp:823-846`)
 - the capability and presentation code in `SohMenu.cpp:199-600`
 - `SohGui/CreationProgressOverlay.cpp`
@@ -277,6 +277,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > Cross-Game Rules | Randomizer > General |
 | Combo > Windows | Randomizer > Item Tracker |
 | Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
+| Combo > MM Mods | Randomizer > Tricks/Glitches (the two-column Disabled/Enabled table; OoT's Settings > Mod Menu throws in the harness's fresh config) |
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
 | Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |

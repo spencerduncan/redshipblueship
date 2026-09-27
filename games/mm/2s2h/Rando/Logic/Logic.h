@@ -387,6 +387,32 @@ void ValidateRegionTimeOwnership(RandoRegionId regionId, RandoCheckId checkId, u
 // fewer items behind a stick-only kill, never more — and MM_TRICK reads the
 // FROZEN per-file set, so a world generated with the trick on keeps expecting it.
 #define CAN_FIGHT_WITH_DEKU_STICK (MM_TRICK(MMRT_DEKU_STICK_FIGHTING) && HAS_ITEM(ITEM_DEKU_STICK))
+// #697 (#578 part 3, third pass) — MMRT_GORON_BOMB_JUMP's two shapes, taken from OoTMM's
+// data/macros/macros_mm.yml (MIT; read-only reference, operator directive 2026-09-27: OoTMM is
+// the reference for player-facing logic choices):
+//
+//   can_goron_bomb_jump: "trick(MM_GORON_BOMB_JUMP) && has_mask_goron && (has_bombs ||
+//                          trick_keg_explosives)"
+//
+// and every FENCE-like site OoTMM gates with it (Milk Road, Gorman Track, Road to Ikana, the
+// Termina Field Great Bay fence and the observatory ledge) writes `can_goron_bomb_jump &&
+// has_bombs`: a keg does not clear those. So there are two macros — the general one, whose keg
+// leg is itself gated by MMRT_KEG_EXPLOSIVES exactly as OoTMM's `trick_keg_explosives` is, and
+// the fence one, which wants real bombs. Both are default-off tricks: neither can be true with
+// the shipped trick set T = empty.
+#define CAN_GORON_BOMB_JUMP                              \
+    (MM_TRICK(MMRT_GORON_BOMB_JUMP) && CAN_BE_GORON && \
+     (HAS_ITEM(ITEM_BOMB) || (MM_TRICK(MMRT_KEG_EXPLOSIVES) && HAS_ITEM(ITEM_POWDER_KEG))))
+#define CAN_GORON_BOMB_JUMP_FENCE (MM_TRICK(MMRT_GORON_BOMB_JUMP) && CAN_BE_GORON && HAS_ITEM(ITEM_BOMB))
+// #697 — MMRT_SHT_HOT_WATER ("Use Hot Spring Water to melt all the ice instead of Fire Arrows or
+// Din's Fire"), after OoTMM's `trick_sht_hot_water`: "((has_hot_water_distance &&
+// has(OWL_SNOWHEAD)) || has_hot_water_er || has_hot_water_farore) && trick(MM_SHT_HOT_WATER)".
+// Only the first leg is expressible in MM-only terms (the second needs entrance rando, the third
+// Farore's Wind): bottled water from a hot spring this world reaches, carried by Soaring to the
+// Snowhead owl before it cools (`has_hot_water_distance` = Soaring && hot water).
+#define CAN_CARRY_HOT_WATER_TO_SNOWHEAD                                            \
+    (MM_TRICK(MMRT_SHT_HOT_WATER) && HAS_BOTTLE && CAN_ACCESS(HOT_SPRING_WATER) && \
+     CAN_PLAY_SONG(SOARING) && CAN_OWL_WARP(OWL_WARP_SNOWHEAD))
 #define CAN_USE_SWORD (CAN_USE_HUMAN_SWORD || HAS_ITEM(ITEM_SWORD_GREAT_FAIRY) || CAN_BE_DEITY)
 // Be careful here, as some checks require you to play the song as a specific form
 #define CAN_PLAY_SONG(song)                                                   \
@@ -396,6 +422,20 @@ void ValidateRegionTimeOwnership(RandoRegionId regionId, RandoCheckId checkId, u
 #define GBT_CAN_REVERSE_WATER_FLOW                                                         \
     (RANDO_EVENTS[RE_GREAT_BAY_RED_SWITCH_1] && RANDO_EVENTS[RE_GREAT_BAY_RED_SWITCH_2] && \
      HAS_ITEM(ITEM_HOOKSHOT)) // Keeping for the sake of check tracker clarity
+// #697 — MMRT_GBT_CENTRAL_GEYSER ("Using Fire and Ice Arrows on the water stream above the ladder
+// ... it is possible to sink down during the cutscene, then swim into one of the tunnels"). OoTMM's
+// great_bay_temple.yml puts it on exactly four exits of its Central Room — the map room, red pipe 1,
+// the compass room and the pre-boss room, each as the non-Zora alternative to `underwater_walking`
+// — so "one of the tunnels" is all four, and this macro stands in for CAN_BE_ZORA on the four
+// matching CONNECTIONs in Regions/GreatBayTemple.cpp. The OoT-spell legs are not expressible here.
+#define GBT_CAN_RIDE_CENTRAL_GEYSER \
+    (MM_TRICK(MMRT_GBT_CENTRAL_GEYSER) && CAN_USE_MAGIC_ARROW(FIRE) && CAN_USE_MAGIC_ARROW(ICE))
+// #697 — MMRT_GBT_FIRELESS ("It is possible to traverse the final room in the reverse loop using
+// Zora Mask or Adult Link with a jump slash"). OoTMM's Green Pipe 3 sites write the trick leg as
+// `trick(MM_GBT_FIRELESS) && has(MASK_DEKU) && (has_mask_zora || (is_adult && ...))`; Adult Link is
+// an OoT-side form, so the MM-only leg is Deku AND Zora. It replaces the Fire Arrow on the five
+// Green Pipe 3 sites whose OoTMM counterparts carry it (see Regions/GreatBayTemple.cpp).
+#define GBT_CAN_CROSS_GREEN_PIPE_3_FIRELESS (MM_TRICK(MMRT_GBT_FIRELESS) && CAN_BE_DEKU && CAN_BE_ZORA)
 #define GBT_GREEN_SWITCH_FLOW                                                                  \
     (RANDO_EVENTS[RE_GREAT_BAY_GREEN_SWITCH_1] && RANDO_EVENTS[RE_GREAT_BAY_GREEN_SWITCH_2] && \
      RANDO_EVENTS[RE_GREAT_BAY_GREEN_SWITCH_3])
@@ -799,7 +839,21 @@ inline bool CanKillEnemy(ActorId EnemyId) {
                    (Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_ODOLWA) ||
                     RANDO_SAVE_OPTIONS[RO_SHUFFLE_BOSS_SOULS] == RO_GENERIC_NO);
         case ACTOR_BOSS_02: // Twinmold
-            return (HAS_ITEM(ITEM_BOW) || (HAS_ITEM(ITEM_MASK_GIANT) && HAS_MAGIC && CAN_USE_HUMAN_SWORD)) &&
+            // #697 — MMRT_TWINMOLD_BOW and MMRT_TWINMOLD_FIRE_AND_ICE, both DEFAULT OFF. A TIGHTENING:
+            // this row admitted the Bow alone unconditionally, and OoTMM's macros_mm.yml gates exactly
+            // that behind a trick — "can_kill_twinmold": `soul_boss(...) && ((trick(MM_TWINMOLD_BOW) &&
+            // has_arrows) || (trick(MM_TWINMOLD_FIRE_AND_ICE) && can_use_fire_arrows &&
+            // can_use_ice_arrows) || (has_magic && ((has(MASK_GIANT) && has_sword) || has(MASK_FIERCE_DEITY))))`.
+            // Same class as the Powder Keg (#578 finding (a)), the GBT boss-key edge (finding (b)) and
+            // Deku-Stick combat (#719), which the operator ruled "sync and gate"; the 2026-09-27
+            // directive makes OoTMM the reference for exactly this choice. So the shipped rung now wants
+            // the Giant's Mask (with magic and a sword) for Twinmold, and the Bow only under the trick.
+            // The Fire+Ice key stops being vacuous as a result (it was implied by the ungated Bow).
+            // OoTMM's Fierce Deity leg is a tricks-off difference, not a trick, and is not added here.
+            return ((MM_TRICK(MMRT_TWINMOLD_BOW) && HAS_ITEM(ITEM_BOW)) ||
+                    (MM_TRICK(MMRT_TWINMOLD_FIRE_AND_ICE) && CAN_USE_MAGIC_ARROW(FIRE) &&
+                     CAN_USE_MAGIC_ARROW(ICE)) ||
+                    (HAS_ITEM(ITEM_MASK_GIANT) && HAS_MAGIC && CAN_USE_HUMAN_SWORD)) &&
                    (Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_TWINMOLD) ||
                     RANDO_SAVE_OPTIONS[RO_SHUFFLE_BOSS_SOULS] == RO_GENERIC_NO);
         case ACTOR_BOSS_03: // Gyorg

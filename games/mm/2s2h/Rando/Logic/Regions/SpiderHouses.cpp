@@ -44,7 +44,9 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .connections = {
             CONNECTION(RR_OCEAN_SPIDER_HOUSE_ENTRANCE_UPPER, CAN_BE_GORON),
-            CONNECTION(RR_OCEAN_SPIDER_HOUSE_CENTRAL_ROOM, HAS_ITEM(ITEM_HOOKSHOT))
+            // #697 — MMRT_GORON_BOMB_JUMP, DEFAULT OFF: OoTMM's "Ocean Spider House Front" -> "Back" is
+            // `can_hookshot_short || can_goron_bomb_jump`.
+            CONNECTION(RR_OCEAN_SPIDER_HOUSE_CENTRAL_ROOM, HAS_ITEM(ITEM_HOOKSHOT) || CAN_GORON_BOMB_JUMP)
         }
     };
     Regions[RR_OCEAN_SPIDER_HOUSE_ENTRANCE_UPPER] = RandoRegion{ .name = "Entrance Upper", .sceneId = SCENE_KINDAN2,
@@ -80,7 +82,13 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_OCEAN_SKULLTULA_COLORED_SKULLS_CHANDELIER_3, CanKillEnemy(ACTOR_EN_SW)),
             CHECK(RC_OCEAN_SKULLTULA_COLORED_SKULLS_POT, CanKillEnemy(ACTOR_EN_SW)),
             CHECK(RC_OCEAN_SKULLTULA_COLORED_SKULLS_BEHIND_PICTURE, HAS_ITEM(ITEM_HOOKSHOT) || CAN_BE_ZORA),
-            CHECK(RC_OCEAN_SPIDER_HOUSE_CHEST_PIECE_OF_HEART, HAS_ITEM(ITEM_BOW) && HAS_ITEM(ITEM_MASK_CAPTAIN)),
+            // #697 — MMRT_CAPTAIN_SKIP ("Guess the code on the masks you hit with arrows."), DEFAULT
+            // OFF. The Captain's Hat IS the code term here — it is how the vanilla route reads the order
+            // off the Stalchildren — so the trick is its alternative and the Bow stays outside: OoTMM's
+            // "Ocean Spider House Chest HP" is `has_arrows && ((has(MASK_CAPTAIN) && soul_stalchild) ||
+            // trick(MM_CAPTAIN_SKIP))`. (An earlier pass recorded "no spider-house code term exists";
+            // this row was it.)
+            CHECK(RC_OCEAN_SPIDER_HOUSE_CHEST_PIECE_OF_HEART, HAS_ITEM(ITEM_BOW) && (HAS_ITEM(ITEM_MASK_CAPTAIN) || MM_TRICK(MMRT_CAPTAIN_SKIP))),
             CHECK(RC_OCEAN_SPIDER_HOUSE_COLORED_SKULLS_POT_01, true),
             CHECK(RC_OCEAN_SPIDER_HOUSE_COLORED_SKULLS_POT_02, true),
             CHECK(RC_ENEMY_DROP_SKULLTULA, CanKillEnemy(ACTOR_EN_ST)),
