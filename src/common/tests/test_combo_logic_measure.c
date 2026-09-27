@@ -273,6 +273,7 @@ uint16_t MM_ComboLogic_StartingHealth(void);
 // (ComboLogicEngineSingleExe.cpp; duplicates of test_combo_single_bag.c's).
 int MM_ComboLogic_TestSetFixedGrants(int enabled);
 int MM_ComboLogic_TestFixedContents(int remainsOnly, uint16_t* outItems, uint16_t* outChecks, int cap);
+int MM_ComboLogic_TestAuthorCheckTable(void);
 
 // libultraship's C CVar bridge, for the plentiful profile's MM options.
 void CVarSetInteger(const char* name, int32_t value);
@@ -936,10 +937,17 @@ TestResult ComboLogicMeasure_Run(void) {
 
     MM_ComboLogic_ResetCounters();
     const int mmLogicMode = MM_ComboLogic_ApplyShippedProfile();
+    // MM's CHECK TABLE as GeneratePools writes it in a creation (lane G1, #737):
+    // every fixed check holds its vanilla item, which the engine's A7 grants when a
+    // round reaches it. Without it the table is the initialised save's and A7 has
+    // nothing to grant, so beat-both is unprovable here while it proves in
+    // production.
+    const int mmPooledChecks = MM_ComboLogic_TestAuthorCheckTable();
+    CLM_ASSERT(mmPooledChecks > 0, "GeneratePools pooled no MM check while authoring the check table");
     printf("[TEST] combo-logic-measure: MM profile resolved from the shipped CVars; RO_LOGIC=%d, starting items "
-           "granted (the state the creation seam hands MM's engine — NOT the zeroed save mm-combo-logic-engine "
-           "measures)\n",
-           mmLogicMode);
+           "granted, check table authored by GeneratePools (%d checks pooled, the rest fixed) — the state the "
+           "creation seam hands MM's engine, NOT the zeroed save mm-combo-logic-engine measures\n",
+           mmLogicMode, mmPooledChecks);
 
     // ------------------------------------------------------------------
     // S4's INNER baseline, and the reason there are two.

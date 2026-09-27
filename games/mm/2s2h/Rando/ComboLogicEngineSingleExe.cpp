@@ -1671,6 +1671,44 @@ extern "C" int MM_ComboLogic_MarkPoolRows(const uint16_t* pool, int count, uint1
  * written, the item TOTAL returned and the check total through `outCheckTotal`.
  * -1 when the region graph is not up.
  */
+/**
+ * TEST ONLY — author the live save's CHECK TABLE the way MM's creation does
+ * before its fill: run `GeneratePools` over a heap copy of the save's rando info
+ * (with the configured starting items, exactly as MM_ComboLogic_TestGeneratePool
+ * does) and copy back `randoSaveChecks` alone — every graph check's vanilla item,
+ * the user-excluded checks' junk and `skipped` marks, and the rolled prices. The
+ * item pool is discarded; the options and everything else in the save are left as
+ * they were.
+ *
+ * WHY IT EXISTS (#737, lane G1). A7 grants a reached check's FIXED content from
+ * `RANDO_SAVE_CHECKS`, which in a production creation `GeneratePools` has just
+ * written. combo-logic-measure resolves the shipped profile into a freshly
+ * initialised save and ran `GeneratePools` only over a COPY
+ * (MM_ComboLogic_TestGeneratePool), so every fixed check still read the
+ * initialised table's zero item, A7 granted nothing, and the row's beat-both
+ * could never prove there even after #743 made it prove in production. The row
+ * calls this right after MM_ComboLogic_ApplyShippedProfile, inside its outer save
+ * bracket and before its post-profile baseline: part of "the state the creation
+ * seam hands MM's engine". Consumes `Ship_Random` (the prices), as a creation
+ * does. @return the number of checks GeneratePools pooled, or -1 with no graph.
+ */
+extern "C" int MM_ComboLogic_TestAuthorCheckTable(void) {
+    if (Rando::Logic::Regions.empty()) {
+        return -1;
+    }
+    std::unique_ptr<RandoSaveInfo> info = std::make_unique<RandoSaveInfo>();
+    memcpy(info.get(), &gSaveContext.save.shipSaveInfo.rando, sizeof(RandoSaveInfo));
+    auto startingItems = Rando::GetStartingItemsFromConfig();
+    Rando::SetStartingItemsInSave(*info, startingItems);
+    std::vector<RandoCheckId> checkPool;
+    std::vector<RandoItemId> itemPool;
+    Rando::Logic::GeneratePools(*info, checkPool, itemPool);
+    static_assert(sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveChecks) == sizeof(info->randoSaveChecks),
+                  "the check table copied back is the one GeneratePools wrote");
+    memcpy(gSaveContext.save.shipSaveInfo.rando.randoSaveChecks, info->randoSaveChecks, sizeof(info->randoSaveChecks));
+    return (int)checkPool.size();
+}
+
 extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
                                               int checkCap, int* outCheckTotal) {
     if (Rando::Logic::Regions.empty()) {
