@@ -723,10 +723,22 @@ MM-side reader allowlist (`src/common/tests/test_cvar_classification.c`) is unch
    The pages persist their sidebar selection in `gSettings.Menu.ComboSidebarSection`, the Combo header's own key
    (2026-09-20 amendment). No MM-side code reads that key, and it is not in `RSBS::kMenuIndexKeys`.
 
+**What does change: SoH's race lockout now applies.** SoH's race lockout (`CVAR_SETTING("DisableChanges")`) disables
+every SohMenu row whose `WidgetInfo::raceDisable` is set (the default; `Menu.cpp`'s `MenuDrawItem`), and replaces that
+row's disabled tooltip with its own "- Race Lockout Active" list. SoH's DrawTricksMenu wraps its trick list in
+`BeginDisabled(DisableChanges)`. The retired window read no `DisableChanges` at all, so under a lockout MM's options and
+tricks were editable there. On the pages they are not: every option row and Reset keep SoH's default, and the trick
+list applies the lockout as DrawTricksMenu does, so MM's settings lock exactly as SoH's randomizer rows do. Under a
+lockout a frozen row's tooltip reads "Race Lockout Active" instead of "Already Decided"; the gray status note opts out
+of the lockout (`RaceDisable(false)`, as every note on the pages does), so the freeze stays legible without hovering.
+This is deliberate: a row that ignored the lockout would be the one setting a race could still change.
+
 **Consequence: the window's visibility key is retired.** `gCombo.Windows.MMOptions` is no longer read or classified
 (`RSBS::kComboKeys` holds three window preferences, not four). A config that still holds it keeps an inert entry.
 
 **Locks:** `ComboMMOptionsPage` (the page model, replacing `ComboMMOptionsWindow`), `MenuMmRandomizerPages` (the rows
-equal the descriptor table; the columns, states and gated writes), and `MenuComboSection` leg 3 (Combo > Windows holds
+equal the descriptor table; the columns, states and gated writes; leg 8, the race lockout as above), `UiSnapshot`'s
+trick census (in every captured state the trick list draws each of MM's tricks exactly once, in the column its value
+puts it in, with its state's tooltip), and `MenuComboSection` leg 3 (Combo > Windows holds
 exactly its six live-play buttons). The pages are drawn by `UiSnapshot` beside Randomizer > General and Randomizer >
 Tricks/Glitches.

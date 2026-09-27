@@ -51,6 +51,21 @@
  *      Mask is not running and the profile is editable; the tricks page's note
  *      is the model's headline.
  *
+ *   8. THE RACE LOCKOUT DIFFERS FROM SOH'S RANDOMIZER PAGES. SoH's race lockout
+ *      (CVAR_SETTING("DisableChanges"), Menu.cpp's MenuDrawItem) disables every
+ *      row whose WidgetInfo::raceDisable is set, and SoH's Randomizer > General
+ *      rows keep that default. So does every interactive row here (each option
+ *      row and Reset): under a lockout MM's options lock exactly as OoT's do.
+ *      Every gray note opts out (RaceDisable(false)), so the status note still
+ *      says the world is frozen while a lockout replaces a row's "Already
+ *      Decided" tooltip with its own. The pop-out window these pages replaced
+ *      ignored the lockout; the change is deliberate (ADR 0004's 2026-09-27
+ *      host amendment). The trick list applies the lockout itself, as SoH's
+ *      DrawTricksMenu does.
+ *
+ * What the trick list DRAWS (every trick once, in its column, with its reason)
+ * is UiSnapshot's trick census: it needs an ImGui frame, which this row has not.
+ *
  * Appearance is UiSnapshot's (the pages' captures beside Randomizer > General
  * and Randomizer > Tricks/Glitches).
  */
@@ -488,6 +503,28 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
         }
     }
     printf("[TEST] leg 7: the status, suspended and tricks notes are the model's sentences in every state\n");
+
+    // ---- Leg 8: the race lockout, as SoH's Randomizer pages have it ------------
+    {
+        int locked = 0;
+        for (SidebarEntry* page : { &options, &tricks }) {
+            for (FlatRow& row : FlattenRows(*page)) {
+                if (IsInteractiveRow(*row.info)) {
+                    MMRP_CHECK(row.info->raceDisable,
+                               "the row \"%s\" ignores SoH's race lockout; SoH's Randomizer > General rows obey it",
+                               row.info->name.c_str());
+                    locked += row.info->raceDisable ? 1 : 0;
+                } else if (row.info->type == WIDGET_TEXT) {
+                    MMRP_CHECK(!row.info->raceDisable,
+                               "the note \"%s\" is disabled by the race lockout; a note is not a setting",
+                               row.info->name.c_str());
+                }
+            }
+        }
+        MMRP_CHECK(locked == count + 1, "%d rows obey the race lockout, expected every option row and Reset (%d)",
+                   locked, count + 1);
+    }
+    printf("[TEST] leg 8: every option row and Reset obeys SoH's race lockout; every note stays legible\n");
 
     ComboContext_Init();
     Context_SetCurrentGame(prevGame);

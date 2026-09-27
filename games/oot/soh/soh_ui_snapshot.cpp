@@ -802,6 +802,10 @@ struct PageSpec {
         bool disabled = false; // the row is disabled: its tooltip must be SoH's disabled shape
     };
     std::vector<PaneHover> paneHovers;
+    // Combo > MM Tricks' row census (CheckTrickCensus): in every state, the
+    // trick list draws each of MM's tricks exactly once, in the column its
+    // value puts it in, with the tooltip its state gives it.
+    bool trickCensus = false;
 };
 
 struct Capture {
@@ -929,6 +933,7 @@ class Session {
     void CaptureMenuPage(const PageSpec& p);
     void CaptureWindowPage(const PageSpec& p);
     void CapturePaneHovers(const PageSpec& p, const std::string& state);
+    void CheckTrickCensus(const PageSpec& p, const std::string& state);
     void CaptureOverlay(const PageSpec& p);
     void CaptureModal(const PageSpec& p);
     void CaptureModalVariant(const PageSpec& p, const std::string& state);
@@ -1476,6 +1481,22 @@ bool IsReservedTrick(const ComboMMTrickDesc* d) {
     return d->reserved;
 }
 
+/**
+ * The tricks Combo > MM Tricks' states turn on, so both of the list's columns
+ * draw rows and the trick census counts both: the last two settable rows in
+ * table order (the hovers' targets are the first area's, so they stay put).
+ */
+std::vector<const ComboMMTrickDesc*> CensusOnTricks() {
+    std::vector<const ComboMMTrickDesc*> on;
+    for (int i = Combo_MMTrickCount() - 1; i >= 0 && on.size() < 2; i--) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (d != nullptr && d->bound && !d->reserved) {
+            on.push_back(d);
+        }
+    }
+    return on;
+}
+
 /** The row with the longest name (then the most chips), the worst case for wrapping. */
 const ComboMMTrickDesc* LongestTrick() {
     const ComboMMTrickDesc* best = nullptr;
@@ -1871,6 +1892,8 @@ void Session::BuildPageList() {
                 if (reserved != nullptr) {
                     p.paneHovers.push_back({ "trick-reserved", "unpaired", reserved->label, true });
                 }
+                // The hovers above read four rows; the census reads every row.
+                p.trickCensus = true;
             }
             pages.push_back(p);
         }
@@ -2384,6 +2407,13 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         // Majora's Mask running unless the state is the suspended one, so the
         // suspended note shows in exactly one state; frozen is a creation stamp.
         Context_SetCurrentGame(state == "mm-suspended" ? GAME_OOT : GAME_MM);
+        if (p.trickCensus) {
+            // Two tricks on before any freeze (the writer refuses once frozen),
+            // so the Enabled Tricks column has rows for the census to count.
+            for (const ComboMMTrickDesc* d : CensusOnTricks()) {
+                Combo_MMTrickSetValue(d, true);
+            }
+        }
         if (state == "frozen") {
             AuthorPairing();
             gComboCtx.mmProfileDigest = 0x4D4D0001u;
@@ -2425,6 +2455,12 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     ComboContext_Init();
     Combo_Crossings_Clear();
+    if (p.trickCensus) {
+        // After ComboContext_Init: the writers refuse while the stamp stands.
+        for (const ComboMMTrickDesc* d : CensusOnTricks()) {
+            Combo_MMTrickClear(d);
+        }
+    }
     Context_SetCurrentGame(gSavedGame);
 }
 
@@ -2944,6 +2980,7 @@ void Session::CaptureMenuPage(const PageSpec& p) {
         // it hands the seam's rect recorder, scrolled into view in whichever
         // window drew it (the tricks table's own child), then hovered.
         CapturePaneHovers(p, state);
+        CheckTrickCensus(p, state);
         LeaveState(p, state);
     }
     if (p.rowStateProbe) {
@@ -3054,6 +3091,30 @@ void PaneHoverRecord(void* user, const char* label, const char* tooltip, float m
     probe->window = GImGui->CurrentWindow;
 }
 
+/**
+ * The combo_ui rect recorder's sink for Combo > MM Tricks' row census: every
+ * trick name the list drew in one frame, the column child that drew it
+ * (DrawMmTrickList's "ChildMmTricksDisabled" / "ChildMmTricksEnabled"), and the
+ * tooltip a hover would show. A report from any other window is not a trick row
+ * and is left out.
+ */
+struct TrickCensusRow {
+    std::string label;
+    std::string tooltip;
+    bool enabledColumn = false;
+};
+
+void TrickCensusRecord(void* user, const char* label, const char* tooltip, float, float, float, float) {
+    const ImGuiWindow* w = GImGui->CurrentWindow;
+    const char* name = w != nullptr && w->Name != nullptr ? w->Name : "";
+    const bool enabled = std::strstr(name, "ChildMmTricksEnabled") != nullptr;
+    if (!enabled && std::strstr(name, "ChildMmTricksDisabled") == nullptr) {
+        return;
+    }
+    static_cast<std::vector<TrickCensusRow>*>(user)->push_back(
+        TrickCensusRow{ label != nullptr ? label : "", tooltip != nullptr ? tooltip : "", enabled });
+}
+
 const char* PaneCvar(const std::string& window) {
     if (window == ComboGui::kComboSpoilerWindowName) {
         return ComboGui::kComboSpoilerVisibilityCVar;
@@ -3151,6 +3212,108 @@ void Session::CapturePaneHovers(const PageSpec& p, const std::string& state) {
         // Put the pointer away and re-settle so the next capture has no hover.
         PumpFrame(nullptr, false, nullptr, why);
     }
+}
+
+/**
+ * Combo > MM Tricks' row census, in @p state: one frame of the page drawn with
+ * the rect recorder listening, then every one of MM's trick descriptors must
+ * have been drawn exactly once, in the column its value puts it in (Enabled
+ * when on), with the tooltip its row state gives it (its description while
+ * live; SoH's disabled shape around the model's reason while blocked or
+ * frozen), and nothing drawn that is not in the table. Every tag of the filter
+ * bar starts shown and every area starts open, so the list the page opens on is
+ * the whole table. The hovers read four rows; this is what turns a draw change
+ * that drops, doubles or misfiles a trick (a visibility or area-walk bug) red.
+ */
+void Session::CheckTrickCensus(const PageSpec& p, const std::string& state) {
+    if (!p.trickCensus) {
+        return;
+    }
+    const std::string where = p.id + " (" + (state.empty() ? std::string("default") : state) + ")";
+    std::vector<TrickCensusRow> drawn;
+    ComboUi_SetRectRecorder(TrickCensusRecord, &drawn);
+    std::string why;
+    // Two frames, the census being the last one's alone: the first may still
+    // carry a hover or scroll the previous capture left.
+    for (int i = 0; i < 2; i++) {
+        drawn.clear();
+        if (!PumpFrame(nullptr, false, nullptr, why)) {
+            break;
+        }
+    }
+    ComboUi_SetRectRecorder(nullptr, nullptr);
+    const int count = Combo_MMTrickCount();
+    if (count <= 0) {
+        Fail(where + ": the trick census found no MM trick table to count");
+        return;
+    }
+    // Per label, how often each column should and did draw it (a label shared by
+    // two descriptors counts twice; the table's labels are unique today).
+    std::map<std::string, std::pair<int, int>> want; // label -> (Disabled column, Enabled column)
+    std::map<std::string, std::pair<int, int>> got;
+    std::map<std::string, const ComboMMTrickDesc*> byLabel;
+    for (int i = 0; i < count; i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (d == nullptr || d->label == nullptr) {
+            Fail(where + ": trick descriptor " + std::to_string(i) + " has no label to find it by");
+            continue;
+        }
+        if (Combo_MMTrickGetValue(d)) {
+            want[d->label].second++;
+        } else {
+            want[d->label].first++;
+        }
+        byLabel.emplace(d->label, d);
+    }
+    int problems = 0;
+    int enabledRows = 0;
+    auto report = [&](const std::string& what) {
+        if (problems++ < 12) {
+            Fail(where + ": " + what);
+        }
+    };
+    for (const TrickCensusRow& row : drawn) {
+        if (row.enabledColumn) {
+            got[row.label].second++;
+            enabledRows++;
+        } else {
+            got[row.label].first++;
+        }
+        const auto known = byLabel.find(row.label);
+        if (known == byLabel.end()) {
+            report("the trick list drew \"" + row.label + "\", which is not in MM's trick table");
+            continue;
+        }
+        const ComboMMTrickDesc* d = known->second;
+        const char* reason = "";
+        const ComboMMRowState rowState = Combo_MMOptionsPage_TrickState(d, &reason);
+        const std::string expected = rowState == COMBO_MM_ROW_LIVE
+                                         ? std::string(d->tooltip != nullptr ? d->tooltip : "")
+                                         : std::string(SohGui::SohMenu::DisabledTooltip(reason));
+        if (row.tooltip != expected) {
+            report("the trick \"" + row.label + "\" shows the tooltip \"" + row.tooltip + "\"; its row state (" +
+                   std::to_string((int)rowState) + ") gives \"" + expected + "\"");
+        }
+    }
+    for (const auto& [label, expect] : want) {
+        const auto g = got.find(label);
+        const std::pair<int, int> seen = g != got.end() ? g->second : std::make_pair(0, 0);
+        if (seen != expect) {
+            report("the trick \"" + label + "\" was drawn " + std::to_string(seen.first) + "x in Disabled Tricks and " +
+                   std::to_string(seen.second) + "x in Enabled Tricks; its value puts it " +
+                   std::to_string(expect.first) + "x / " + std::to_string(expect.second) + "x");
+        }
+    }
+    if (problems > 12) {
+        Fail(where + ": the trick census found " + std::to_string(problems) + " problems in all (12 shown)");
+    }
+    if (enabledRows == 0 || (size_t)enabledRows == drawn.size()) {
+        Fail(where + ": the trick census drew rows in only one column; the state must put rows in both, or one "
+                     "column's walk goes uncounted");
+    }
+    printf("[UI-SNAPSHOT] trick census %s: %d descriptors, %zu rows drawn (%d Enabled Tricks, %zu Disabled Tricks), "
+           "%d problems\n",
+           where.c_str(), count, drawn.size(), enabledRows, drawn.size() - (size_t)enabledRows, problems);
 }
 
 void Session::CaptureWindowPage(const PageSpec& p) {
