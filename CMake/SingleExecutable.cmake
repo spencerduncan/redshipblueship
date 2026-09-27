@@ -1967,6 +1967,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # carrier: ROM-free and display-free, so the default tier. The same trim over
     # both REAL pools is combo-logic-bag-composition B7.
     redship_add_test(NAME SharedQuantityPolicy COMMAND redship --test shared-quantity-policy)
+    # #664: an F10 from either game's game-over screen revives the departing bar
+    # to that game's continue value before the freeze (OoT_Combo_ReviveDeadHealthForFreeze
+    # and MM's #626 twin), and the other game's arrival apply shows it rather than
+    # the one-heart floor. Both directions, real drivers, ROM-free and display-free.
+    redship_add_test(NAME ComboGameOverRevive COMMAND redship --test combo-gameover-revive)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
