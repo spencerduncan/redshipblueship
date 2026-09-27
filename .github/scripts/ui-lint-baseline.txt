@@ -13,7 +13,6 @@ S1 | src/common/ComboMmOptionsWindow.cpp | if (ImGui::SliderInt(desc->label, &v,
 S1 | src/common/ComboMmOptionsWindow.cpp | if (ImGui::SliderInt(desc->label, &v, (int)desc->minValue, (int)desc->maxValue, label)) {
 S1 | src/common/ComboMmOptionsWindow.cpp | if (desc->valueLabels != NULL && ImGui::BeginCombo(desc->label, preview)) {
 S1 | src/common/ComboMmOptionsWindow.cpp | } else if (ImGui::Button("Reset all to defaults")) {
-S10 | games/oot/soh/SohGui/SohMenuCombo.cpp | Reset Combo Rules To Defaults
 S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | failureToast.messageColor[0] = 1.0f;
 S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | failureToast.messageColor[1] = 1.0f;
 S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | failureToast.messageColor[2] = 1.0f;

@@ -17,6 +17,41 @@
 
 #include "stb_image.h"
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
+/* fopen, and on Windows a second try through the extended-length namespace
+ * ("\\?\") when the plain open fails. The narrow CRT open is limited to MAX_PATH
+ * (260), and the snapshot harness's compare/ and iter/ names under a long output
+ * directory (a temp or scratch path) pass it; before this, those composites were
+ * silently not written. The path is made absolute with GetFullPathNameW, which
+ * also turns '/' into '\\' as the namespace requires. UNC paths keep the plain
+ * open only. */
+static FILE* UiImage_Open(const char* path, const char* mode) {
+    FILE* fp = fopen(path, mode);
+#ifdef _WIN32
+    if (fp == NULL) {
+        wchar_t wide[2048];
+        wchar_t wmode[8];
+        wchar_t full[2048 + 4];
+        if (MultiByteToWideChar(CP_ACP, 0, path, -1, wide, 2048) > 0 &&
+            MultiByteToWideChar(CP_ACP, 0, mode, -1, wmode, 8) > 0) {
+            full[0] = L'\\';
+            full[1] = L'\\';
+            full[2] = L'?';
+            full[3] = L'\\';
+            const DWORD len = GetFullPathNameW(wide, 2048, full + 4, NULL);
+            if (len > 0 && len < 2048 && !(full[4] == L'\\' && full[5] == L'\\')) {
+                fp = _wfopen(full, wmode);
+            }
+        }
+    }
+#endif
+    return fp;
+}
+
 int UiImage_Alloc(UiImage* img, int w, int h) {
     if (img == NULL || w <= 0 || h <= 0) {
         return -1;
@@ -209,7 +244,7 @@ int UiImage_WritePng(const UiImage* img, const char* path) {
         rows[y] = (png_bytep)(img->rgba + (size_t)y * (size_t)img->w * 4);
     }
     UiPngSink sink;
-    sink.fp = fopen(path, "wb");
+    sink.fp = UiImage_Open(path, "wb");
     sink.failed = 0;
     if (sink.fp == NULL) {
         free(rows);
@@ -254,7 +289,12 @@ int UiImage_ReadPng(UiImage* out, const char* path) {
     int w = 0;
     int h = 0;
     int comp = 0;
-    unsigned char* data = stbi_load(path, &w, &h, &comp, 4);
+    FILE* fp = UiImage_Open(path, "rb");
+    if (fp == NULL) {
+        return -1;
+    }
+    unsigned char* data = stbi_load_from_file(fp, &w, &h, &comp, 4);
+    fclose(fp);
     if (data == NULL) {
         return -1;
     }

@@ -40,8 +40,10 @@ and on ours (R-N4).
   - 2 for mixed pages (`SohMenuSettings.cpp:128`)
   - 1 for window-button and tracker pages (`SohMenuRandomizer.cpp:739`)
 
-  Below 800 px the columns collapse to 1 (`Menu.cpp:892`). Sidebar names are Title Case, 1-3 words, at most 20
-  characters. The selection persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename a shipped sidebar,
+  Below 800 px the columns collapse to 1 (`Menu.cpp:892`). Sidebar names are Title Case, 1-3 words, and fit the
+  200 px sidebar in Montserrat 24: about 16 characters, but measure it in the snapshot PNG, because the budget is
+  pixels, not characters. SoH's widest entry, "Entrance Tracker" (16), is about 169 px. Our "MM Enhancements" (15)
+  reaches the divider, and "Cross-Game Windows" (18) is clipped on both sides. The selection persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename a shipped sidebar,
   including ours. A page must hold at least one widget (#640, `Menu.cpp:896-904`). Pages under Combo register through
   `RegisterComboSectionPage` (`SohMenu.h:176-212`).
 - **Column.** Set `path.column` explicitly before each column's first row (`SohMenuEnhancements.cpp:235,284`).
@@ -161,8 +163,9 @@ and on ours (R-N4).
     (`SohMenuEnhancements.cpp:315-320`), "This is not compatible with ..." (`:219`), "Must be on File Select to ..."
     (`SohMenuRandomizer.cpp:615`).
 
-  Ours use shape (a), written directly into `disabledTooltip` ("This setting is disabled because: \n\n- Already Decided
-  When This World Was Created"). Do not use `activeDisables` for this: it is a `std::vector<DisableOption>`, and
+  Ours use shape (a), written directly into `disabledTooltip` ("This setting is disabled because: \n\n- Already
+  Decided"). The reason fragment is the model's own reason string in Title Case, built at runtime, never a literal
+  that adds words the model does not own. Do not use `activeDisables` for this: it is a `std::vector<DisableOption>`, and
   `DisableOption` spans 0..13 (`MenuTypes.h:7-22`), so keys outside that enum cannot be represented.
 - **R-S3.** A disabled reason lives in the tooltip, never in the label and never inline. A state that must be legible
   WITHOUT hovering (ADR 0004 sections 4.2 and 6) is one gray note row above the group (`SohMenuRandomizer.cpp:627-629`).
@@ -222,7 +225,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > MM Enhancements | Enhancements > Quality of Life |
 | Randomizer > Cross-Game | Randomizer > General (its gray note) |
 | MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
-| Creation overlay (and, once it exists, the Reset confirm) | the SoH modal ("Clear Config") |
+| Creation overlay, Cross-Game Rules Reset confirm | the SoH modal ("Clear Config") |
 
 Compare within the same run, the same profile and the same backend. Check:
 - the fonts, rounding, borders and theme tints
@@ -239,10 +242,15 @@ Compare within the same run, the same profile and the same backend. Check:
 | `iter/<slug>.png`, `iter/<slug>.diff.png` | before over after, and the difference x4 (only with `RSBS_UI_SNAPSHOT_BASELINE`) |
 | `manifest.json` | the run (backend, readback, profile, archives) and, per capture, the hashes, the content rectangle, the settle count and the verdicts |
 | `runtime-lint.txt` | the runtime copy lint R1-R7 over our rows |
+
+A `compare/` or `iter/` image that cannot be written is counted, not silent: the summary line reads "N composite(s)
+not written" and the manifest's run block holds `compositeWriteFailures`. On Windows the writer retries a path past
+MAX_PATH through the extended-length namespace, so a long output directory no longer loses them.
 | `soh-names.txt` | SoH's own row names and tooltips (ROM-rich runs only; R8) |
 
 **Variants:**
-- STATE: the four Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt), MM Enhancements' autosave,
+- STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
+  that draws an empty-set note), MM Enhancements' autosave,
   and the MM options pane's unpaired, frozen, mm-suspended and tricks-open (the Tricks header and its first area open).
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
@@ -283,7 +291,10 @@ fresh directory to keep that path exercised.
   that string is absent from a sibling page's capture
 - each authored state shows its own text (the manifest's `found`), in some captured view, and that text is absent
   from the state's contrast (the capture the row would produce if the state were not authored)
-- each hover shows its row's current tooltip (`hoverText`), which is absent from the same state without the pointer
+- each hover shows every authored line of its row's current tooltip (`hoverLines`; `hoverText` is the first), each
+  absent from the same state without the pointer. Every line, because SoH's disabled shape opens every disabled
+  row's tooltip with the same "This setting is disabled because:", so only the reason line proves which tooltip was
+  drawn
 - the frame converged
 - no popup leaked
 - no game framebuffer was composited
@@ -307,6 +318,7 @@ names what must fail. Run them after changing the harness itself.
 | `throw,leave-open` | the exception path leaves the ImGui frame open (the old behaviour) | the open-frame check, on the next pump |
 | `keep-imgui-ini` | `imgui.ini` stays armed and ImGui's shutdown save runs | the isolation check on `imgui.ini` |
 | `player-config` | the harness names `shipofharkinian.json` as its config | the isolation check on `shipofharkinian.json` |
+| `hover-first-line` | a hovered row draws only the first line of its tooltip | every hover whose tooltip has a second line ("does not show its row's tooltip") |
 
 **The original-page guard runs on a ROM-staged workstation only.** Hosted CI is ROM-free: SoH's own menu is not
 populated there (only Dev Tools/General registers), R8's `soh-names.txt` is not written, and CI has no base run to
