@@ -39,7 +39,7 @@
  *    adapter to UNAVAILABLE, proving liveness is re-checked per call.
  *
  * 6. FOREIGN ROWS RESOLVE BOTH DIRECTIONS WITH NAMES. One placement per
- *    table; rows carry the pinned-pool item name, the host-game check name
+ *    table; rows carry the describer item name, the host-game check name
  *    (MM side), the redeemed bit from the tagged array, and vanish when the
  *    world is unpaired ("not paired" must never render as "no crossings").
  *
@@ -55,6 +55,7 @@
 #include "../foreign_items.h"
 #include "../game.h"
 #include "../test_runner.h"
+#include "test_named_items.h"
 
 #include <cstdio>
 #include <cstring>
@@ -233,18 +234,16 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     gComboCtx.sharedRandoSeed = 0xC0FFEE97u;
     gComboCtx.sharedRandoSettingsHash = 0x5EED0497u;
 
-    const ComboForeignItemDef* ootPool = NULL;
-    const int ootPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_OOT, &ootPool);
-    CTV_ASSERT(ootPoolCount >= 1);
-    const ComboForeignItemDef* mmPool = NULL;
-    const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
-    CTV_ASSERT(mmPoolCount >= 1);
+    SharedItem ootItem;
+    SharedItem mmItem;
+    CTV_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &ootItem));
+    CTV_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Lens of Truth", &mmItem));
 
     // One crossing per direction: MM check kObtainedB hosts an OoT item, and
     // an arbitrary OoT check hosts an MM item.
-    CTV_ASSERT(Combo_SetForeignPlacement(kObtainedB, ootPool[0].item) >= 0);
+    CTV_ASSERT(Combo_SetForeignPlacement(kObtainedB, ootItem) >= 0);
     const uint16_t kOoTHostCheck = 0x0123;
-    CTV_ASSERT(Combo_SetForeignPlacementOoT(kOoTHostCheck, mmPool[0].item) >= 0);
+    CTV_ASSERT(Combo_SetForeignPlacementOoT(kOoTHostCheck, mmItem) >= 0);
 
     Combo_TrackerIdentity(&identity);
     CTV_ASSERT(identity.paired);
@@ -256,7 +255,7 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(foreignRow.hostGame == (uint8_t)GAME_MM);
     CTV_ASSERT(foreignRow.hostCheckId == kObtainedB);
     CTV_ASSERT(foreignRow.originGame == (uint8_t)GAME_OOT);
-    CTV_ASSERT(strcmp(foreignRow.itemName, ootPool[0].name) == 0);
+    CTV_ASSERT(strcmp(foreignRow.itemName, "Lens of Truth") == 0);
     // The MM adapter is registered, so the host check resolves to a name.
     CTV_ASSERT(foreignRow.hostCheckName != NULL && foreignRow.hostCheckName[0] != '\0');
     CTV_ASSERT(!foreignRow.redeemed);
@@ -265,12 +264,12 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(foreignRow.hostGame == (uint8_t)GAME_OOT);
     CTV_ASSERT(foreignRow.hostCheckId == kOoTHostCheck);
     CTV_ASSERT(foreignRow.originGame == (uint8_t)GAME_MM);
-    CTV_ASSERT(strcmp(foreignRow.itemName, mmPool[0].name) == 0);
+    CTV_ASSERT(strcmp(foreignRow.itemName, "Lens of Truth") == 0);
     CTV_ASSERT(!Combo_TrackerForeignRowAt((uint8_t)GAME_OOT, 1, &foreignRow)); // only one crossing
 
     // The redeemed bit reads through from the tagged array.
-    gComboCtx.sharedItemsTagged[0].originGame = ootPool[0].item.originGame;
-    gComboCtx.sharedItemsTagged[0].id = ootPool[0].item.id;
+    gComboCtx.sharedItemsTagged[0].originGame = ootItem.originGame;
+    gComboCtx.sharedItemsTagged[0].id = ootItem.id;
     gComboCtx.sharedItemsTagged[0].flags = RSBS_SHARED_ITEM_REDEEMED;
     CTV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &foreignRow));
     CTV_ASSERT(foreignRow.redeemed);

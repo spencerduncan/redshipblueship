@@ -51,6 +51,7 @@
 #include "../context.h"
 #include "../foreign_items.h"
 #include "../test_runner.h"
+#include "test_named_items.h"
 
 #include <cstdio>
 #include <memory>
@@ -197,10 +198,9 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             gComboCtx.sourceIsRando = true;
             gComboCtx.sharedRandoSeed = 0xC0FFEE97u;
             gComboCtx.sharedRandoSettingsHash = 0x5EED0497u;
-            const ComboForeignItemDef* pool = NULL;
-            const int poolCount = Combo_GetForeignItemPool(&pool);
-            CTW_ASSERT(poolCount >= 1);
-            CTW_ASSERT(Combo_SetForeignPlacement(0x0401, pool[0].item) >= 0);
+            SharedItem item;
+            CTW_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &item));
+            CTW_ASSERT(Combo_SetForeignPlacement(0x0401, item) >= 0);
             CTW_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 1);
         } else {
             CTW_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 0);

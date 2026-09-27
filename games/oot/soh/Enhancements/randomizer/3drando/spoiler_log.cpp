@@ -38,6 +38,11 @@ json jsonData;
 std::map<RandomizerHintTextKey, Rando::ItemLocation*> hintedLocations;
 
 extern std::array<std::string, 17> hintCategoryNames;
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ComboLogicEngineOoT.cpp: 1 while OoT's remainder writes a single-bag paired
+// world's spoiler (ADR 0010 increment 3, PR #743 review).
+extern "C" int OoT_ComboLogic_WritingSingleBagSpoiler(void);
+#endif
 extern Region* GetHintRegion(uint32_t);
 
 namespace {
@@ -348,6 +353,18 @@ const char* SpoilerLog_Write() {
     jsonData["git_commit"] = (char*)OoT_gGitCommitHash;
     jsonData["seed"] = ctx->GetSeedString();
     jsonData["finalSeed"] = ctx->GetSeed();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // THIS DOCUMENT IS HALF OF A PAIRED WORLD (PR #743 review). Under the single
+    // bag its OoT locations hold cover items where MM items cross in, and OoT
+    // items that crossed into Termina are at no location here, so it does not
+    // describe a playable OoT-only world. Written by OoT's own writer rather than
+    // left to the "combo" section the creation event joins in afterwards, so the
+    // marker exists even if that join never happened. Context::ParseSpoiler
+    // refuses a document carrying either.
+    if (OoT_ComboLogic_WritingSingleBagSpoiler() != 0) {
+        jsonData["rsbsSingleBagWorld"] = true;
+    }
+#endif
 
     // Write Hash
     int index = 0;

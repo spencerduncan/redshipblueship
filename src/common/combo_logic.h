@@ -95,8 +95,17 @@ extern "C" {
  *  OPTIONAL entry, `triforcePieces`, the engine-neutral piece query the
  *  triforce-hunt goal reads. Every ABI-3 meaning is unchanged; an engine that
  *  leaves the entry NULL registers as before and simply cannot answer a
- *  triforce-hunt fill (refused with RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL). */
-#define RSBS_COMBO_LOGIC_ENGINE_ABI 4u
+ *  triforce-hunt fill (refused with RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL).
+ *
+ *  5 (2026-09-27, the production wiring, ADR 0010 increment 3, lane K11): the
+ *  vtable gains ONE more OPTIONAL trailing pointer, `hostAcceptsForeign`, and
+ *  bag rows gain RSBS_COMBO_BAG_HOME_ONLY. An ABI-4 engine never answered "may a foreign
+ *  item land on this host", so the coordinator would have placed a crossing on
+ *  a host whose give path cannot deliver one (an OoT freestanding item, an MM
+ *  shop slot) and the player would have picked up the junk cover instead of a
+ *  progression item. The number moves because an old engine's silence would be
+ *  read as "every host accepts", which is exactly that defect. */
+#define RSBS_COMBO_LOGIC_ENGINE_ABI 5u
 
 // ============================================================================
 // Status codes — DIAGNOSTICS, NOT FORMAT
@@ -157,6 +166,13 @@ extern "C" {
  *  `beginQuery` or `snapshot` returned 0, or `place` returned 0 for a host the
  *  engine had itself offered as a candidate. */
 #define RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED 10
+/** The caller's fill observer asked the fill to stop (ComboLogicFillRequest's
+ *  `observer` returned nonzero). The production caller does that ONLY for a
+ *  WALL-CLOCK stop, and a wall clock never decides a world (PR #581 §2a): this
+ *  status is therefore deliberately distinct from every dead end above, so the
+ *  attempt ladder can refuse to climb a rung on it. The tables hold whatever the
+ *  interrupted attempt had placed; a caller discards them. */
+#define RSBS_COMBO_LOGIC_ERR_ABORTED 11
 
 /** Its name ("ok", "no-engine", ...), or "(unknown)". Never NULL. */
 const char* Combo_Logic_StatusName(int status);
@@ -777,6 +793,29 @@ typedef struct ComboLogicEngine {
      * shape.
      */
     int (*triforcePieces)(void* self);
+
+    /**
+     * OPTIONAL (ABI 5). May an item of the OTHER game's origin be placed on
+     * `hostCheck`, a host in THIS engine's check id-space?
+     *
+     * WHY IT EXISTS. A crossing only exists for the player if the host's own give
+     * path can deliver a foreign item when the check is collected. Neither port
+     * delivers from every check: OoT's foreign delivery rides the RC-queue drain
+     * that its chests use, and MM's rides the ordinary eligible->CheckQueue path,
+     * which its shop and Tingle flows do not take (Foreign.cpp's host classes).
+     * A crossing placed anywhere else would be a progression item the player can
+     * never receive — they would pick up the junk cover — so the proof would be
+     * about a world that does not exist. Each engine therefore answers for its
+     * own host classes, and the coordinator never draws a foreign row onto a
+     * host that says no.
+     *
+     * NULL means every host accepts a foreign item (the synthetic stub engines'
+     * answer). A pure function of the host and the engine's static tables: legal
+     * outside a round, consumes no RNG, called during a draw.
+     *
+     * @return nonzero when a foreign-origin item may be placed on `hostCheck`.
+     */
+    int (*hostAcceptsForeign)(void* self, uint16_t hostCheck);
 } ComboLogicEngine;
 
 /**
@@ -947,9 +986,17 @@ int Combo_Logic_EvaluateTriforceHunt(int sharedPieces, uint16_t required);
  *  the GOAL proof may rely on (a plentiful duplicate). See THE BAG MODEL below.
  *  RAM only; not format. */
 #define RSBS_COMBO_BAG_SURPLUS 0x0001u
+/** `ComboLogicBagItem.bagFlags`: this row may only be HOSTED BY ITS OWN ORIGIN
+ *  GAME (ABI 5). It is still one bag row — assumed like any other, proved like any
+ *  other — but the draw offers it only its origin side's candidates. Set by the
+ *  production wiring for (a) every row of an origin the frozen DIRECTION does not
+ *  arm to cross (ADR 0011 decision 2.3: "the direction byte gates only what
+ *  crosses"), and (b) the CONFINED rows of THE BAG COMPOSITION RULE, which a frozen
+ *  setting keeps in their own game. RAM only; not format. */
+#define RSBS_COMBO_BAG_HOME_ONLY 0x0002u
 /** Every bag flag this build understands. A row carrying any other bit is
  *  refused (RSBS_COMBO_LOGIC_ERR_BAD_REQUEST) rather than silently ignored. */
-#define RSBS_COMBO_BAG_FLAGS_KNOWN RSBS_COMBO_BAG_SURPLUS
+#define RSBS_COMBO_BAG_FLAGS_KNOWN (RSBS_COMBO_BAG_SURPLUS | RSBS_COMBO_BAG_HOME_ONLY)
 
 /** The assumed set / bag element: ONE COPY of an origin-tagged item, the class
  *  it was admitted under, and its bag flags. The class is CARRIED, not filtered
@@ -1284,14 +1331,19 @@ int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 // game) is neither counted toward a budget nor trimmed. No trim-family item is
 // confinable today (neither port tags a health, double-defense or capacity-tier
 // item with an armedBy bit; combo-logic-bag-composition B7 pins that over both
-// real pools), so the question does not arise until one is.
+// real pools), so the question does not arise until one is. Under
+// RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME (production) a CONFINED row is admitted
+// as a HOME_ONLY bag row in the bag-writing pass, AFTER the trim: it still sits
+// outside every budget.
 //
 // WHAT THE BUILDER DOES NOT DECIDE: whether a bag row may be HOSTED by the other
 // game. The fill places every bag row on the union of both games' hosts; the
-// per-item "may this leave its home game" narrowing belongs to the pool draw
-// before the bag (Combo_ForeignPoolDrawFor, ADR 0011 decision 3.1), which the
-// production wiring (lane K11) owns. A measured bag is therefore an upper bound on
-// the bag a paired world will fill.
+// per-item "may this leave its home game" narrowing is the caller's, per row:
+// production (combo_single_bag.c, ADR 0010 increment 3) marks a row
+// RSBS_COMBO_BAG_HOME_ONLY when its origin's direction is unarmed or its
+// origin's frozen item-class mask lacks RSBS_ITEMCLASS_PROGRESSION, and the
+// fill then draws that row only onto its own game's hosts. A measured bag with
+// no row marked is the upper bound on what a paired world may cross.
 
 /** `ComboLogicPoolRow.poolFlags`: this copy was added by its port's PLENTIFUL
  *  setting — beyond what the frozen settings' non-plentiful pool would hold. */
@@ -1329,11 +1381,25 @@ typedef struct {
     int plentiful;                      // rows the export marked PLENTIFUL, whatever their disposition
 } ComboLogicComposeCounts;
 
+/** `ComboLogicComposeRequest.composeFlags`: admit CONFINED rows to the bag as
+ *  HOME_ONLY rows (REQUIRED, or SURPLUS when plentiful) instead of counting them
+ *  out. The production wiring (lane K11) sets it: under one bag there is no
+ *  general pass left in either game for a confined row to fall to, so the
+ *  coordinator places it — on its own game's hosts only, which is exactly the
+ *  confinement the frozen setting asked for. Without the flag the rule is the
+ *  K9 table verbatim, which is what the measurement rows and the rule's own lock
+ *  run. The admission happens in the bag-writing pass, AFTER THE SHARED-QUANTITY
+ *  TRIM: a confined row is still disposition CONFINED while the trim groups and
+ *  budgets, so it sits outside every shared budget and is never trimmed. */
+#define RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME 0x0001u
+#define RSBS_COMBO_COMPOSE_FLAGS_KNOWN RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME
+
 typedef struct {
     const ComboLogicPoolRow* rows; // both games' pool rows, in any interleaving; NULL iff rowCount == 0
     int rowCount;
     uint32_t armedOoT; // the frozen armed word for OoT-origin rows (RSBS_FILL_ARM_*)
     uint32_t armedMM;  // ... and for MM-origin rows
+    uint16_t composeFlags; // RSBS_COMBO_COMPOSE_* flags; 0 = the rule table exactly as stated above
     // --- THE SHARED-QUANTITY TRIM's inputs (lane K13). The trim is ON unless
     //     `quantityFlags` says otherwise, and a trimming request MUST publish both
     //     starting healths: a zero-initialised request is REFUSED
@@ -1389,6 +1455,32 @@ bool Combo_Logic_ComposeTrimmedAt(int index, int* outPoolIndex);
 // THE SINGLE-BAG ASSUMED FILL
 // ============================================================================
 
+/** Where a fill is, as its observer sees it. Diagnostics, not format. */
+#define RSBS_COMBO_FILL_STAGE_ROUND 0   /**< a round for one REQUIRED row is about to run */
+#define RSBS_COMBO_FILL_STAGE_PROOF 1   /**< the exit-condition round is about to run */
+#define RSBS_COMBO_FILL_STAGE_SURPLUS 2 /**< the surplus phase is about to run */
+
+typedef struct {
+    int stage;          // RSBS_COMBO_FILL_STAGE_*
+    int attempt;        // 1-based batch attempt within this RunFill
+    int requiredPlaced; // REQUIRED rows placed so far in this attempt
+    int requiredCount;  // REQUIRED rows in the bag
+    int rounds;         // rounds run so far, across every attempt of this call
+} ComboLogicFillProgress;
+
+/**
+ * The fill's OBSERVER: called before every round and before the surplus phase,
+ * on the fill's own thread. A progress surface reports from here and pumps its
+ * frames; a wall-clock budget checks itself here.
+ *
+ * Returning NONZERO stops the fill with RSBS_COMBO_LOGIC_ERR_ABORTED. THE
+ * OBSERVER MUST NOT DECIDE ANYTHING ABOUT THE WORLD: it sees no bag row, no host
+ * and no RNG, so it cannot steer a placement, and the only thing it can do is
+ * stop. That is the #581 §2a shape the MM fill's timeout already has — a stop is
+ * never a rung.
+ */
+typedef int (*ComboLogicFillObserver)(void* ctx, const ComboLogicFillProgress* progress);
+
 typedef struct {
     const ComboLogicBagItem* bag; // the union bag; NULL iff bagCount == 0
     int bagCount;
@@ -1405,6 +1497,10 @@ typedef struct {
     /** Batch roll-backs within this seed; 0 means RSBS_COMBO_LOGIC_FILL_RETRIES.
      *  Re-rolling the SEED is the attempt ladder's job, one level up. */
     int maxAttempts;
+    /** Optional (NULL: none). See ComboLogicFillObserver. Never part of the
+     *  determinism contract below: an observer that returns zero changes nothing. */
+    ComboLogicFillObserver observer;
+    void* observerCtx;
     /** RSBS_COMBO_GOAL_TRIFORCE_HUNT only (ADR 0010 answer O10): the frozen
      *  combo requirement, from the FROZEN triforce record
      *  (Combo_TriforceHuntRequired), never a CVar. Ignored by every other goal.
@@ -1412,6 +1508,17 @@ typedef struct {
      *  and so is a pair of engines without `triforcePieces` — as
      *  RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL — both before any attempt. */
     uint16_t triforceRequired;
+    /** THE PER-SIDE CROSSING BOUND (PR #743 review; 0: unbounded). At most this
+     *  many placements on ONE host game may carry the OTHER game's item: once a
+     *  side holds that many, a crossing row may use only its own game's hosts
+     *  (exactly as if it were HOME_ONLY) for the rest of the attempt. Each crossing
+     *  pickup is delivered through one slot of the shared-item array
+     *  (Combo_RecordSharedItemCrossing), and a record the array refuses is a
+     *  progression item lost for good; the production caller passes
+     *  RSBS_CROSSINGS_PER_SIDE_MAX (context.h), which is what makes that refusal
+     *  unreachable. Counted over the coordinator's tables, so a batch roll-back
+     *  gives the budget back with the rows. */
+    uint16_t maxCrossingsPerSide;
 } ComboLogicFillRequest;
 
 typedef struct {
@@ -1551,10 +1658,13 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 // DELIBERATELY ABSENT — do not read these as oversights
 // ============================================================================
 //
-//  - ANY PRODUCTION WIRING. No shipping TU registers an engine and no creation
-//    seam calls the fill. The two engine implementations are two follow-on
-//    lanes; until both exist a paired fill cannot run at all, which is why
-//    Combo_Logic_RunFill refuses with one engine instead of half-filling.
+//  - (no longer absent) PRODUCTION WIRING. Both real engines register from
+//    file-scope registrars, and the paired creation event calls the fill once
+//    per ladder attempt through combo_single_bag.h (ADR 0010 increment 3, lane
+//    K11): OoT's general pass is deferred, MM's creation-time half composes the
+//    bag, runs this fill under the #582 budget, and each game's own pass fills
+//    its leftovers. Combo_Logic_RunFill still refuses with one engine instead of
+//    half-filling.
 //  - THE O7 BOUNDARY CARVE. Answered (ADR 0010 amendment 2026-09-27): no
 //    `reserved[]` carve; the crossing rows persist in crossing_store.h's block
 //    and come back through Combo_Logic_HydrateTables. The tables stay RAM.
@@ -1562,19 +1672,24 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    BUILDER (Combo_Logic_ComposeBag, above), which decides membership; the fill
 //    reads no class and filters nothing, so its stub-engine locks keep synthetic
 //    ids. `ComboLogicBagItem.itemClass` is still the ADR 0011 selection bit,
-//    carried and recorded, and any narrowing by it belongs to the pool DRAW
-//    (`Combo_ForeignPoolDrawFor`) which runs before the bag exists — the six
-//    membership criteria run FIRST and the bitset selects among the survivors
-//    (ADR 0011 decision 3.1), an ordering this file may not weaken.
+//    carried and recorded; the only narrowing it drives is the per-row
+//    HOME_ONLY flag the production caller sets from it (combo_single_bag.c),
+//    which the fill honours as a host restriction, never as a membership
+//    change: classification (the bag builder) runs FIRST.
 //  - (no longer absent) THE O10 SHARED TRIFORCE COUNT. triforce-hunt is
 //    evaluated as the sum of both engines' `triforcePieces` against the frozen
 //    requirement the request carries (Combo_Logic_EvaluateTriforceHunt); the
 //    record, the shared count and the win arms live in triforce_hunt.h. It is
 //    refused only over an engine without the query, or with no requirement.
+//    The PRODUCTION caller does not pass the requirement yet, so a paired
+//    triforce-hunt creation is refused at Generate (playthrough.cpp) until the
+//    single bag carries the hunt.
 //  - THE SPOILER. One artifact for the pair is #564 V23 / audit P11; this
-//    coordinator exposes its tables and stops there.
+//    coordinator exposes its tables and stops there (the creation event prints
+//    the crossing store into the one spoiler's combo section).
 //  - THE ATTEMPT LADDER. Re-rolling the seed on a failed fill is the layer
-//    above; the coordinator's retries are batch roll-backs within ONE seed.
+//    above (MM's OnFileCreate ladder, which re-seeds Combo_SingleBag_SeedFor per
+//    attempt); the coordinator's retries are batch roll-backs within ONE seed.
 //  - PER-GAME PASSES. OoT's restricted-pool fills and both games' junk
 //    `FastFill`s stay per-game and are not this bag (audit amendment 2). The
 //    coordinator hands each game its leftover host list

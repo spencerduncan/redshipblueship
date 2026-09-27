@@ -2465,6 +2465,12 @@ void StaticData::HintTable_Init() {
                                                  /*french*/ "tes poches"));
                                               // /*spanish*/tu bolsillo
 
+    // RedShipBlueShip (ADR 0010 increment 3): where a hinted OoT item is when the
+    // single-bag fill placed it in the paired Majora's Mask world.
+    hintTextTable[RHT_TERMINA] = HintText(CustomMessage("Termina",
+                                             /*german*/ "in Termina",
+                                             /*french*/ "Termina"));
+
     hintTextTable[RHT_ISOLATED_PLACE] = HintText(CustomMessage("an Isolated Place",
                                                     /*german*/ "an einem abgelegenen Ort",
                                                     /*french*/ "un lieu isolé"));

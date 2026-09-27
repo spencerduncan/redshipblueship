@@ -86,9 +86,11 @@ nlohmann::json GenerateFromSaveContext() {
         // The PINNED table only (ADR 0010 O7). The give-path accessors also
         // answer from the crossing store, whose rows are printed in the one
         // spoiler's combo.crossingStore; this section is the pinned table's
-        // commit, reloaded by pool NAME and capped at the pinned table's size,
-        // so a store row here would be printed twice and, for any item outside
-        // the pools or past the cap, make the spoiler unloadable.
+        // commit, reloaded by item NAME and capped at the pinned table's size,
+        // so a store row here would be printed twice and, past the cap, make the
+        // spoiler unloadable. Under one bag (ADR 0010 increment 3) nothing writes
+        // the pinned table at generation, so for a new world this section is
+        // empty; it survives for the load path's sake.
         spoiler["foreign"] = nlohmann::json::object();
         for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
             if (randoStaticCheck.randoCheckId == RC_UNKNOWN || !Rando::Foreign::IsPinnedForeignCheck(randoCheckId)) {
@@ -98,21 +100,6 @@ nlohmann::json GenerateFromSaveContext() {
             spoiler["foreign"][randoStaticCheck.name] = {
                 { "originGame", "OOT" },
                 { "item", foreignName != nullptr ? foreignName : "(unknown foreign item)" },
-            };
-        }
-
-        // ADR 0010 increment 1.3 under-supply rule: when the reachability gate
-        // left fewer eligible hosts than pool items, FEWER were placed (cap ≠
-        // promise) and the spoiler is the durable, loud record of it — a
-        // player reading "4 items promised, 2 crossed" learns it here, not
-        // from a bug report. Absent whenever the pool placed in full.
-        const Rando::Foreign::PlacementStats& stats = Rando::Foreign::LastPlacementStats();
-        if (stats.placed < stats.requested) {
-            spoiler["foreignShortfall"] = {
-                { "requested", stats.requested },
-                { "placed", stats.placed },
-                { "eligibleHosts", stats.eligibleHosts },
-                { "reachableEligibleHosts", stats.reachableEligibleHosts },
             };
         }
     }

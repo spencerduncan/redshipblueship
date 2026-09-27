@@ -47,16 +47,17 @@ typedef struct {
     uint16_t mmCheckId;    // MM RandoCheckId hosting the foreign item (never 0)
     uint8_t originGame;    // GameId owning itemId's id-space (GAME_OOT today)
     uint16_t itemId;       // RG_* when originGame == GAME_OOT
-    const char* itemName;  // pinned-pool display name; never NULL (see below)
+    const char* itemName;  // origin describer's display name; never NULL (see below)
     bool redeemed;         // the origin game has already awarded this crossing
 } ComboSpoilerRow;
 
 /**
- * Fallback `ComboSpoilerRow.itemName` for a placement whose item is not in the
- * pinned pool. `Combo_GetForeignItemName` returns NULL there, and a view that
- * propagated the NULL would hand a printf-family "%s" an invalid pointer.
- * Reaching this string means the placement table and the pinned pool have
- * diverged — a bug worth seeing on screen rather than crashing on.
+ * Fallback `ComboSpoilerRow.itemName` for a placement whose item its origin's
+ * describer cannot name (an unregistered game, an unknown id).
+ * `Combo_GetForeignItemName` returns NULL there, and a view that propagated the
+ * NULL would hand a printf-family "%s" an invalid pointer. Reaching this string
+ * means the placement table names an item its own game does not know — a bug
+ * worth seeing on screen rather than crashing on.
  */
 #define RSBS_SPOILER_UNKNOWN_ITEM_NAME "Unknown Foreign Item"
 

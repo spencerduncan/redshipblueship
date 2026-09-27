@@ -121,6 +121,10 @@ set(REDSHIP_COMMON_SOURCES
     # decoder, FNV-1a 64 and the composites. Game-header-free C; the capture half
     # is games/oot/soh/soh_ui_snapshot.cpp. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/ui_snapshot_image.c
+    # The single-bag fill AT THE CREATION EVENT (ADR 0010 increment 3, D3/D5;
+    # #645 lane K11): the coordinator's one production caller. Game-header-free.
+    # APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_single_bag.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -173,6 +177,7 @@ set(REDSHIP_COMMON_HEADERS
     # two follow-on lanes implement (#645)
     ${CMAKE_SOURCE_DIR}/src/common/combo_logic.h
     ${CMAKE_SOURCE_DIR}/src/common/crossing_store.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_single_bag.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     # Header for mod_archives.cpp above (#593)
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
@@ -465,11 +470,11 @@ if(BUILD_TESTING)
     # gComboCtx.foreignPlacements round-trips through the .redsave record.
     redship_add_test(NAME ForeignItemGive COMMAND redship --test foreign-item-give)
     redship_add_test(NAME ForeignItemGiveReverse COMMAND redship --test foreign-item-give-reverse)
-    # #488: a foreign item may only be hosted by a check class the GAME arms.
+    # #488: a crossing may only be hosted by a check class the GAME arms.
     # CheckQueue's foreign branch is nested inside `if (eligible)`, so an
-    # unarmed host strands a pinned OoT progression item and makes the paired
-    # world unwinnable with no error. Drives the real selection predicate over
-    # MM's real check table; also prints the eligible-host supply count.
+    # unarmed host strands the crossing and makes the paired world unwinnable
+    # with no error. Drives the real host-class predicate (the MM engine's
+    # hostAcceptsForeign) over MM's real check table; prints the host supply.
     redship_add_test(NAME ForeignHostEligibility COMMAND redship --test foreign-host-eligibility)
     # #502: MM's award callback was still the Lane A1 logging stub, so the whole
     # consumer walk landed on a no-op. Drives the REAL MM_ConsumeSharedItems ->
@@ -477,28 +482,9 @@ if(BUILD_TESTING)
     # crossing, order preservation, origin filtering, and that a NULL PlayState
     # defers the give instead of dereferencing it.
     redship_add_test(NAME ForeignAwardMM COMMAND redship --test foreign-award-mm)
-    # #510: the reverse direction's SOURCE pool (kForeignPoolMMV1). Display-free
-    # — the table is a static in the WHOLE_ARCHIVE'd 2ship_rando and its
-    # registrar runs before main() — so this row doubles as the runtime proof
-    # that the registrar survived the link. A dropped file-scope initializer is
-    # silent at compile and link time and would leave OoT unable to place
-    # anything (#516's dead-registrar class).
-    redship_add_test(NAME ForeignPoolMM COMMAND redship --test foreign-pool-mm)
-    # #495 / ADR 0011 decision 3: the cross-game item class is a RULE over both
-    # pools and the RSBS_ITEMCLASS_* bitset in the frozen combo record is the
-    # setting that selects it. Three claims, in the order they can fail: the
-    # DEFAULT bitset draws the pinned tables byte-identically (the parity pin —
-    # this row is the ROM-free half of it; the half that notices a MOVED draw is
-    # GoldenSeedDigestDefault, not SeedDeterminism, which as #688 established
-    # diffs two runs of one binary and stays green through any deterministic
-    # move); a
-    # NARROWED bitset draws only members of the armed classes (red before the
-    # rule engine, when the bitset was stored and compared but consumed by
-    # nothing); and the name inverse stays TOTAL over every item any class can
-    # name even with ZERO classes armed, which is why the class carries no seed
-    # term (accepted answer O3) and why the spoiler-LOAD path can run in a
-    # process that never generated. Display-free and ROM-free like its siblings.
-    redship_add_test(NAME ForeignItemClass COMMAND redship --test foreign-item-class)
+    # #510's ForeignPoolMM and #495's ForeignItemClass rows are RETIRED with the
+    # pinned pools they locked (ADR 0010 increment 3, D3; lane K11): items leave
+    # origin pools under one bag, so there is no pool to register or draw.
     # Shared cross-game resources (#525): rupees and hearts are ONE quantity
     # spanning both games. Locks the delta-harvest watermark that survives MM's
     # 500-rupee tier-3 wallet against OoT's 999 (a naive copy costs the player
@@ -1264,10 +1250,8 @@ if(BUILD_TESTING)
     # accepts nothing, and a "only chests are hosts" assertion passes with a
     # count of zero. The row asserts a NON-ZERO eligible-host count and prints
     # it, so host supply is visible before it becomes a shortfall.
-    redship_add_test(NAME ForeignPlacementOoT COMMAND redship --test foreign-placement-oot
-        LABEL rando
-        TIMEOUT 300
-        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # (#510's ForeignPlacementOoT row is RETIRED with the reverse overlay pass it
+    # locked; ADR 0010 increment 3, lane K11. Its successor is ComboSingleBag.)
 
     # ADR 0010 increment 2 (#644): THE MERGED CREATION EVENT, end to end. The
     # freeze precedes OoT's Fill(), the whole MM half is authored and armed at
@@ -1572,7 +1556,10 @@ if(BUILD_TESTING)
         # The paired MM world's own golden. Its digest carries the ladder rung the
         # world converged through (winningAttempt / mmPairedAttempt), so this row
         # pins not just the world but the DERIVATION that reached it.
-        "GoldenPairedAttemptDigest|paired-attempt-digest|mm-paired-attempt|RSBS_ATTEMPT_DIGEST_OUT|OFF|"
+        # ARCHIVE-SENSITIVE since ADR 0010 increment 3 (lane K11): the ladder world's
+        # identity now comes from a real OoT generation, whose settings string —
+        # and so every seed downstream of it — depends on the mounted archive set.
+        "GoldenPairedAttemptDigest|paired-attempt-digest|mm-paired-attempt|RSBS_ATTEMPT_DIGEST_OUT|ON|"
         # #681 review: the ARMED reverse draw. The three goldens above run the
         # shipped profile, which arms no give-capability family, so the
         # capability rows and the per-family budget never ran under any pin. The
@@ -1958,6 +1945,18 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy"
                     "RSBS_UI_LINT_BASELINE=${CMAKE_SOURCE_DIR}/.github/scripts/ui-runtime-lint-baseline.txt")
+    # ADR 0010 increment 3 (lane K11): THE SINGLE-BAG FILL AT THE CREATION EVENT,
+    # over both real engines: a paired OoT generation stops at its general pass,
+    # MM's creation-time half places the union bag over both games (GOAL proven,
+    # crossings both ways on hosts whose give path can deliver them, no trap
+    # crossing, MM's fixed contents granted — #737), D5's pair-level locks paired
+    # with removal in BOTH directions, the direction gate (OFF crosses nothing and
+    # still proves), and OoT's remainder. rando tier: it needs a real generation.
+    redship_add_test(NAME ComboSingleBag COMMAND redship --test combo-single-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # THE SHARED-QUANTITY POOL POLICY (lane K13; #525 x #645 increment 3): every
     # capacity-like #525 family is trimmed in the bag composer to what the one shared
     # quantity can absorb (health 44 pieces + 6 containers, double defense 1, tiers to

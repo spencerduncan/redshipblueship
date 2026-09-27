@@ -20,9 +20,12 @@
  *      byte-exact through a .redsave Save/Load, and unset slots stay unset
  *      (the growth contract's zero-means-unset, mirroring SaveTaggedItems).
  *
- * The pinned pool itself is also sanity-locked: every entry must be tagged
- * GAME_OOT with a nonzero id and a display name, and the name lookup must
- * round-trip — the MM textbox and both spoiler surfaces depend on it.
+ * The NAME surface is also locked: an item is named, articled and iconed by its
+ * origin game's describer, the (origin, name) inverse round-trips, and the two
+ * id-spaces never borrow each other's names — the MM textbox, the OoT arrival
+ * toast and both spoiler surfaces depend on it. (The pinned pool these legs
+ * used to walk retired in ADR 0010 increment 3; the items are now looked up by
+ * name, see test_named_items.h.)
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++, like test_save_roundtrip.c) for the rsbs::SaveManager half; every
@@ -34,6 +37,7 @@
 #include "../save.h"
 #include "../shared_items.h"
 #include "../test_runner.h"
+#include "test_named_items.h"
 
 #include <cstdio>
 #include <cstring>
@@ -46,43 +50,23 @@
 // test_shared_state_roundtrip.c does for the switch policy).
 extern "C" {
 int MM_Rando_Foreign_RecordPickup(uint16_t randoCheckId);
+void MM_Rando_Foreign_TestSetObtained(uint16_t randoCheckId, int obtained);
 int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 
-// #488 host-eligibility lock. The first is the REAL selection predicate
-// PlaceForeignItems' candidate loop calls — driving it here is what makes this
-// lock a test of selection rather than of a paraphrase. The rest are the
-// inspection/stamping accessors that let a src/common test build a synthetic
-// save over MM's real check table (Rando/Foreign.cpp's bridge block).
-int MM_Rando_Foreign_IsEligibleHost(uint16_t randoCheckId);
+// The foreign-host CLASS (#488's surviving half; ADR 0010 increment 3): the
+// predicate the MM engine's hostAcceptsForeign answers with, plus the
+// inspection accessors that restate the class independently from MM's real
+// check table (Rando/Foreign.cpp's bridge block).
+int MM_Rando_Foreign_TestIsForeignHostClass(uint16_t randoCheckId);
 int MM_Rando_Foreign_TestCheckIdMax(void);
 int MM_Rando_Foreign_TestCheckClass(uint16_t randoCheckId, int* outIsChestType, int* outHasChestFlag);
-void MM_Rando_Foreign_TestStampCheck(uint16_t randoCheckId, int shuffled, int skipped, uint16_t itemId);
-void MM_Rando_Foreign_TestStampAllChecks(int shuffled, int skipped, uint16_t itemId);
 void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown);
 
-// #510 reverse-pool bridges (games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp).
-// The first is the REAL id predicate MM_ForeignItem_Give gates on; the second
-// reports an item's class straight out of MM's own table. Both are read from MM
-// rather than re-derived here, so a pool row whose classification changes
-// upstream moves this lock with it instead of leaving it asserting a stale copy.
+// MM's give id predicate (games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp): the
+// reverse legs pick an MM item MM's own give accepts.
 int MM_ForeignItem_TestIsGiveableId(uint16_t riId);
 int MM_ForeignItem_TestIsJunkClassId(uint16_t riId);
-
-// #495 criterion-attribution bridges: each pool TU's table of ids that were
-// CONSIDERED and rejected, with the criterion number that rejected them. This
-// TU has neither game's enum in scope by design, so it cannot name RI_TRAP or
-// RG_FAIRY_BOW itself — it walks these instead, which is also what keeps the
-// lock testing the real tables rather than a second copy of them.
-int MM_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCriterion);
-int OoT_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCriterion);
-
-// #510 OoT-side host predicate (games/oot/soh/Enhancements/randomizer/
-// ForeignItemsSingleExe.cpp) — the SAME function OoT_PlaceForeignItems' candidate
-// loop calls. Its fill-side half reads GetPlacedRandomizerGet(), so it accepts
-// nothing until a real generation has run: see Test_ForeignPlacementOoT, which
-// lives in the display-requiring `rando` tier for exactly that reason.
-int OoT_Foreign_IsEligibleHost(uint16_t rc);
 
 // #493 REVERSE-DIRECTION PRODUCTION CHAIN. Every symbol below is the real
 // shipping one; there is no stand-in anywhere in this list, which is the whole
@@ -97,6 +81,7 @@ int OoT_Foreign_IsEligibleHost(uint16_t rc);
 //                                   dereferencing, which is exactly the state
 //                                   MM's arrival point is in.
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
+int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
 void MM_ConsumeSharedItems(void);
 int MM_ForeignItem_TestPendingCount(void);
 uint16_t MM_ForeignItem_TestPendingAt(int index);
@@ -173,182 +158,90 @@ TestResult Test_ForeignItemGive(void) {
            "(Lane C1)\n");
 
     // ------------------------------------------------------------------
-    // Pool sanity: pinned, OoT-tagged, named, lookup round-trips.
+    // The name surface: describer-backed, origin-keyed, round-trips.
     // ------------------------------------------------------------------
     //
-    // #495'S PRIMARY LOCK LIVES HERE, AND IT IS RE-AIMED (ADR 0011 decision
-    // 3.2). The issue asked for "a different sharedRandoSeed must produce a
-    // different pool — otherwise the 'rule' is a constant wearing a rule's
-    // clothes". That assertion MUST NOT BE WRITTEN: it is satisfiable only by a
-    // seed-varying class, which makes Combo_GetForeignItemByNameFor PARTIAL on
-    // the spoiler-LOAD path (a name that was in the pool at generation is absent
-    // at load, in a process that never generated). A lock that cannot pass gets
-    // "fixed" by weakening it, which is why the correction is recorded in an ADR
-    // rather than in a review comment.
-    //
-    // Re-aimed at the two observables that DO matter, and both are asserted —
-    // "a different seed must produce different PLACEMENTS" by SeedDeterminism's
-    // foreignOoTHash fold and MMRandoGen's digest, and "a different itemClass*
-    // bitset must produce a different derived pool" by the ForeignItemClass row
-    // below, which also carries the parity pin this one leaves implicit.
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPool(&pool);
-    FI_ASSERT(pool != NULL);
-    FI_ASSERT(poolCount >= 1 && poolCount <= (int)RSBS_FOREIGN_PLACEMENT_CAP);
-    // The pool this row goes on to drive is the DRAWN pool under the shipped
-    // rules: with every class armed the draw is the whole table, so everything
-    // below is testing what a created world actually places. Written against
-    // the explicit v1 union rather than the resolved mask because this block
-    // runs BEFORE the clean-slate ComboContext_Init below, and `--test all`
-    // shares one process — the claim is about the TABLE, not about whatever the
-    // previous row left frozen.
-    FI_ASSERT(Combo_ForeignPoolClassMembersFor((uint8_t)GAME_OOT, (uint16_t)RSBS_ITEMCLASS_ALL_V1, NULL, 0) ==
-              poolCount);
-    for (int i = 0; i < poolCount; i++) {
-        FI_ASSERT(pool[i].item.originGame == (uint8_t)GAME_OOT);
-        FI_ASSERT(pool[i].item.id != 0);
-        FI_ASSERT(pool[i].item.flags == 0);
-        FI_ASSERT(pool[i].name != NULL && pool[i].name[0] != '\0');
-        FI_ASSERT(Combo_GetForeignItemName(pool[i].item) == pool[i].name);
+    // Two real OoT items, looked up by (origin, name) — the spoiler-LOAD
+    // inverse — rather than by a hardcoded RG_* this TU cannot name. Lens of
+    // Truth is ALSO a real MM display name, which is what the collision legs
+    // below need.
+    SharedItem ootLens;
+    SharedItem ootHammer;
+    FI_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &ootLens));
+    FI_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Megaton Hammer", &ootHammer));
+    const SharedItem kOoTItems[] = { ootLens, ootHammer };
+    for (const SharedItem& item : kOoTItems) {
+        FI_ASSERT(item.originGame == (uint8_t)GAME_OOT);
+        FI_ASSERT(item.id != 0);
+        FI_ASSERT(item.flags == 0);
+        const char* name = Combo_GetForeignItemName(item);
+        FI_ASSERT(name != NULL && name[0] != '\0');
+        // Same answer through both entry points: one describer, two names for it.
+        FI_ASSERT(Combo_DescribeItemName(item) == name);
         // #510: MM's pickup textbox reads "You found " + article + name, and MM
-        // cannot look up OoT's item table for the article — so it rides here.
-        FI_ASSERT(pool[i].article != NULL);
-        FI_ASSERT(Combo_GetForeignItemArticle(pool[i].item) == pool[i].article);
-        if (pool[i].article[0] != '\0') {
-            FI_ASSERT(pool[i].article[strlen(pool[i].article) - 1] == ' ');
+        // cannot look up OoT's item table for the article — it rides the
+        // describer, with its own trailing space.
+        const char* article = Combo_GetForeignItemArticle(item);
+        FI_ASSERT(article != NULL);
+        if (article[0] != '\0') {
+            FI_ASSERT(article[strlen(article) - 1] == ' ');
         }
-        // #494: the arrival-toast icon accessor serves the pool's own iconName
-        // pointer back verbatim (identity, not a copy), origin-keyed like the
-        // name/article lookups. Every OoT pool entry carries an ITEM_* key, so
-        // none is NULL here — but a NULL entry would be a text-only toast, not a
-        // defect, so the contract asserted is "serves the column exactly", not
-        // "always non-NULL".
-        FI_ASSERT(Combo_GetForeignItemIconName(pool[i].item) == pool[i].iconName);
-        FI_ASSERT(pool[i].iconName != NULL && pool[i].iconName[0] == 'I'); // ITEM_* texture-map key
-    }
-    // (originGame, name) uniqueness WITHIN a pool. Two entries sharing a name
-    // in one id-space would make that origin's inverse ambiguous, which no
-    // amount of origin-dispatch can repair.
-    for (int i = 0; i < poolCount; i++) {
-        for (int j = i + 1; j < poolCount; j++) {
-            FI_ASSERT(strcmp(pool[i].name, pool[j].name) != 0);
-            FI_ASSERT(pool[i].item.id != pool[j].item.id);
-        }
-    }
-    // Round-trip through the origin-keyed inverse, and confirm the OoT pool is
-    // NOT reachable by asking for MM's id-space.
-    for (int i = 0; i < poolCount; i++) {
+        // #494: the OoT arrival toast's icon is an ITEM_* texture-map key.
+        const char* icon = Combo_GetForeignItemIconName(item);
+        FI_ASSERT(icon != NULL && icon[0] == 'I');
+        // The inverse round-trips to the SAME id, under OoT only.
         SharedItem back;
-        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, pool[i].name, &back));
-        FI_ASSERT(back.originGame == pool[i].item.originGame && back.id == pool[i].item.id);
-        // NOT "the name must not exist in MM's pool": since #510 a real MM pool
-        // is registered and "Lens of Truth" is a genuine row in BOTH id-spaces, so
-        // that assertion would be false-by-design. The invariant that actually
-        // matters is that the two id-spaces never bleed: if the name resolves
-        // under GAME_MM at all, it comes back MM-tagged and is a DIFFERENT item
-        // from the OoT row of the same name.
-        SharedItem mmSide;
-        if (Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, pool[i].name, &mmSide)) {
-            FI_ASSERT(mmSide.originGame == (uint8_t)GAME_MM);
-            FI_ASSERT(mmSide.originGame != back.originGame);
-        }
-        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_NONE, pool[i].name, NULL));
+        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, name, &back));
+        FI_ASSERT(back.originGame == item.originGame && back.id == item.id);
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_NONE, name, NULL));
     }
+    FI_ASSERT(ootLens.id != ootHammer.id);
+    FI_ASSERT(strcmp(Combo_GetForeignItemArticle(ootLens), "the ") == 0);
+    FI_ASSERT(strcmp(Combo_GetForeignItemIconName(ootLens), "ITEM_LENS") == 0);
 
     // ------------------------------------------------------------------
     // ADR 0009 decision 3: (origin, name) is the key; bare name is NOT.
     // ------------------------------------------------------------------
-    // The reason the lookups take an origin at all. "Lens of Truth" is a real
-    // display name in BOTH id-spaces — OoT's RG_LENS_OF_TRUTH row and MM's
-    // RI_LENS row — so a name-only inverse resolves it to whichever
-    // pool it happens to scan first and writes a WRONG ORIGIN TAG into the
-    // placement table. That is the #356 aliasing class arriving through the
-    // spoiler-LOAD path, which rebuilds state from untrusted text on disk.
-    //
-    // #493's issue text asks for a "no cross-pool name collision" assertion.
-    // That assertion is NOT satisfiable and is deliberately not written here:
-    // it would go red the moment a real MM pool exists, and the natural fix —
-    // renaming an item away from its real name — would degrade the spoiler to
-    // work around a lookup bug. We assert the collision is HANDLED instead.
-    //
-    // Driven against the REAL MM pool since #510 (kForeignPoolMMV1). The
-    // synthetic stand-in that used to live here — and its
-    // Combo_RegisterForeignItemPool / un-register pair — is GONE, deliberately:
-    // registering over the real pool clobbers process-global state, and the
-    // un-register left GAME_MM with NO pool for every later row in
-    // `--test all`. The collision is real now, so it is tested for real.
+    // "Lens of Truth" is a real display name in BOTH id-spaces, so a name-only
+    // inverse would resolve it to whichever game it asked first and write a
+    // WRONG ORIGIN TAG into a placement table — the #356 aliasing class through
+    // the spoiler-LOAD path. The collision is asserted HANDLED, never absent:
+    // renaming an item to dodge it would degrade the spoiler to work around a
+    // lookup bug.
     {
-        const ComboForeignItemDef* mmPool = NULL;
-        const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
-        FI_ASSERT(mmPoolCount >= 1 && mmPool != NULL); // MM's file-scope registrar ran
-
-        // The collision this whole surface exists for must ACTUALLY be present in
-        // the two real pools, or everything below passes for want of a conflict.
-        //
-        // The colliding pair is "Lens of Truth" (OoT's RG_LENS_OF_TRUTH row
-        // against MM's RI_LENS row). It was "Bomb Bag" until shared ammo (#525)
-        // made the bomb-bag capacity one cross-game quantity and criterion 6
-        // retired BOTH halves of that pair at once — which is exactly why the
-        // OoT Lens row and these assertions landed in the same commit as the
-        // deletions. Renaming a row to dodge a collision is never the fix: the
-        // display name is the spoiler-load persistence key.
-        int ootCollisionIdx = -1;
-        for (int k = 0; k < poolCount; k++) {
-            if (strcmp(pool[k].name, "Lens of Truth") == 0) {
-                ootCollisionIdx = k;
-            }
-        }
-        int mmCollisionIdx = -1;
-        for (int k = 0; k < mmPoolCount; k++) {
-            if (strcmp(mmPool[k].name, "Lens of Truth") == 0) {
-                mmCollisionIdx = k;
-            }
-        }
-        FI_ASSERT(ootCollisionIdx >= 0); // OoT's RG_LENS_OF_TRUTH row
-        FI_ASSERT(mmCollisionIdx >= 0);  // MM's RI_LENS row
-
-        // The colliding bare name resolves to a DIFFERENT item under each
-        // origin — never to the same one, and never to nothing.
         SharedItem fromOoT, fromMM;
         FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, "Lens of Truth", &fromOoT));
         FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, "Lens of Truth", &fromMM));
         FI_ASSERT(fromOoT.originGame == (uint8_t)GAME_OOT);
         FI_ASSERT(fromMM.originGame == (uint8_t)GAME_MM);
-        // Pin BOTH sides to their real pool rows rather than asserting the two
-        // results merely differ. Comparing (id, origin) pairs would be
-        // tautological — the origins are already asserted distinct just above —
-        // and would still pass if a lookup returned the wrong row of its own pool.
-        FI_ASSERT(fromOoT.id == pool[ootCollisionIdx].item.id);
-        FI_ASSERT(fromMM.id == mmPool[mmCollisionIdx].item.id);
+        FI_ASSERT(fromOoT.id == ootLens.id);
+        FI_ASSERT(MM_ForeignItem_TestIsGiveableId(fromMM.id) == 1); // a real MM item, not a sentinel
+        FI_ASSERT(strcmp(Combo_GetForeignItemName(fromMM), "Lens of Truth") == 0);
 
         // The legacy bare-name entry point keeps its exact previous meaning:
-        // the OoT pool. Call sites that predate the origin dimension must not
-        // have silently changed behavior when the MM pool appeared.
+        // the OoT id-space.
         SharedItem legacy;
         FI_ASSERT(Combo_GetForeignItemByName("Lens of Truth", &legacy));
         FI_ASSERT(legacy.originGame == (uint8_t)GAME_OOT && legacy.id == fromOoT.id);
 
-        // Forward direction dispatches on the item's own tag: two items with the
-        // SAME raw id in different id-spaces must not resolve to one name.
-        const ComboForeignItemDef& mmProbe = mmPool[0];
-        FI_ASSERT(Combo_GetForeignItemName(mmProbe.item) != NULL);
-        FI_ASSERT(strcmp(Combo_GetForeignItemName(mmProbe.item), mmProbe.name) == 0);
-        SharedItem ootSameId = mmProbe.item;
+        // Forward direction dispatches on the item's own tag: the SAME raw id in
+        // the other id-space must not borrow this one's name.
+        SharedItem ootSameId = fromMM;
         ootSameId.originGame = (uint8_t)GAME_OOT;
-        // Same raw id, OoT id-space: must not borrow MM's name. (It may be a
-        // real OoT pool entry with its OWN name, or nothing; either is correct,
-        // borrowing MM's is not.)
         const char* ootName = Combo_GetForeignItemName(ootSameId);
-        FI_ASSERT(ootName == NULL || strcmp(ootName, mmProbe.name) != 0);
+        FI_ASSERT(ootName == NULL || strcmp(ootName, "Lens of Truth") != 0 || ootSameId.id == fromOoT.id);
 
-        // An untagged item resolves to no pool and therefore to no name — and,
-        // by the same walk, to no icon (#494).
+        // An untagged item has no id-space: no name, no article, no icon.
         SharedItem untaggedName;
         untaggedName.originGame = (uint8_t)GAME_NONE;
         untaggedName.flags = 0;
-        untaggedName.id = mmProbe.item.id;
+        untaggedName.id = fromMM.id;
         FI_ASSERT(Combo_GetForeignItemName(untaggedName) == NULL);
+        FI_ASSERT(Combo_GetForeignItemArticle(untaggedName) == NULL);
         FI_ASSERT(Combo_GetForeignItemIconName(untaggedName) == NULL);
+        // A name no game has resolves to nothing, in either id-space.
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, "Not An Item Anywhere", NULL));
+        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, "Not An Item Anywhere", NULL));
     }
 
     // ------------------------------------------------------------------
@@ -373,16 +266,14 @@ TestResult Test_ForeignItemGive(void) {
     untagged.flags = 0;
     untagged.id = 7;
     FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, untagged) < 0); // untagged item rejected
-    FI_ASSERT(Combo_SetForeignPlacement(0, pool[0].item) < 0);              // RC_UNKNOWN rejected
-    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, pool[0].item) >= 0);
-    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, pool[0].item) < 0); // duplicate check rejected
-    if (poolCount > 1) {
-        FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckB, pool[1].item) >= 0);
-    }
-    FI_ASSERT(Combo_CountForeignPlacements() == (poolCount > 1 ? 2 : 1));
+    FI_ASSERT(Combo_SetForeignPlacement(0, ootLens) < 0);              // RC_UNKNOWN rejected
+    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, ootLens) >= 0);
+    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, ootLens) < 0); // duplicate check rejected
+    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckB, ootHammer) >= 0);
+    FI_ASSERT(Combo_CountForeignPlacements() == 2);
     const SharedItem* hosted = Combo_GetForeignPlacementForCheck(kForeignTestCheckA);
     FI_ASSERT(hosted != NULL);
-    FI_ASSERT(hosted->originGame == (uint8_t)GAME_OOT && hosted->id == pool[0].item.id);
+    FI_ASSERT(hosted->originGame == (uint8_t)GAME_OOT && hosted->id == ootLens.id);
     FI_ASSERT(Combo_GetForeignPlacementForCheck(0x0999) == NULL);
 
     // ------------------------------------------------------------------
@@ -394,10 +285,15 @@ TestResult Test_ForeignItemGive(void) {
     FI_ASSERT(MM_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 1);
     FI_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == 1);
     FI_ASSERT(gComboCtx.sharedItemsTagged[0].originGame == (uint8_t)GAME_OOT);
-    FI_ASSERT(gComboCtx.sharedItemsTagged[0].id == pool[0].item.id);
-    FI_ASSERT(gComboCtx.sharedItemsTagged[0].flags == 0);
-    FI_ASSERT(MM_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 1); // de-dup: same slot, no double
+    FI_ASSERT(gComboCtx.sharedItemsTagged[0].id == ootLens.id);
+    // One COPY per crossing pickup (ADR 0010 increment 3): the record is never
+    // content-merged, and the once-per-host gate is the check's `obtained` bit,
+    // which the CheckQueue lambda sets right after the call.
+    FI_ASSERT(gComboCtx.sharedItemsTagged[0].flags == RSBS_SHARED_ITEM_CROSSING);
+    MM_Rando_Foreign_TestSetObtained(kForeignTestCheckA, 1);
+    FI_ASSERT(MM_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 0); // a later cycle: no second copy
     FI_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == 1);
+    MM_Rando_Foreign_TestSetObtained(kForeignTestCheckA, 0);
 
     // ------------------------------------------------------------------
     // (b) The crossing survives MM suspend -> OoT arrival through the real
@@ -416,7 +312,7 @@ TestResult Test_ForeignItemGive(void) {
     FI_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, ForeignTestAward, &award) == 1);
     FI_ASSERT(award.awardCount == 1);
     FI_ASSERT(award.lastOrigin == (uint8_t)GAME_OOT);
-    FI_ASSERT(award.lastId == pool[0].item.id);
+    FI_ASSERT(award.lastId == ootLens.id);
     // Redeemed but still present — the durable record of the crossing.
     FI_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == 0);
     FI_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true) == 1);
@@ -447,7 +343,7 @@ TestResult Test_ForeignItemGive(void) {
     // Typed spot-checks so a memcmp-passing-but-misread layout fails loudly.
     FI_ASSERT(gComboCtx.foreignPlacements[0].mmCheckId == kForeignTestCheckA);
     FI_ASSERT(gComboCtx.foreignPlacements[0].item.originGame == (uint8_t)GAME_OOT);
-    FI_ASSERT(gComboCtx.foreignPlacements[0].item.id == pool[0].item.id);
+    FI_ASSERT(gComboCtx.foreignPlacements[0].item.id == ootLens.id);
     const int lastSlot = (int)RSBS_FOREIGN_PLACEMENT_CAP - 1;
     FI_ASSERT(gComboCtx.foreignPlacements[lastSlot].mmCheckId == 0 &&
               gComboCtx.foreignPlacements[lastSlot].item.originGame == (uint8_t)GAME_NONE);
@@ -536,10 +432,9 @@ TestResult Test_ForeignItemGiveReverse(void) {
     FI_ASSERT(Combo_CountForeignPlacements() == 0);
 
     // And symmetrically, once the forward table holds the same key.
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPool(&pool);
-    FI_ASSERT(poolCount >= 1 && pool != NULL);
-    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, pool[0].item) >= 0);
+    SharedItem ootItem;
+    FI_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &ootItem));
+    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, ootItem) >= 0);
     FI_ASSERT(Combo_CountForeignPlacements() == 1);
     FI_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
 
@@ -557,7 +452,7 @@ TestResult Test_ForeignItemGiveReverse(void) {
     FI_ASSERT(Combo_CountForeignPlacementsOoT() == 1);
     FI_ASSERT(Combo_GetForeignPlacementForOoTCheck(kForeignTestCheckA) != NULL);
 
-    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckB, pool[0].item) >= 0);
+    FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckB, ootItem) >= 0);
     Combo_ClearForeignPlacementsOoT();
     FI_ASSERT(Combo_CountForeignPlacementsOoT() == 0);
     FI_ASSERT(Combo_CountForeignPlacements() == 1);
@@ -675,14 +570,12 @@ TestResult Test_ForeignItemGiveReverse(void) {
     MM_ForeignItem_TestResetPending();
     FI_ASSERT(MM_ForeignItem_TestPendingCount() == 0);
 
-    // A REAL MM pool entry: the reverse pass can only ever place one of these,
-    // and MM's give only accepts ids its own table knows. An arbitrary u16
-    // would be refused downstream and the chain would look broken for the wrong
-    // reason.
-    const ComboForeignItemDef* mmPool = NULL;
-    const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
-    FI_ASSERT(mmPoolCount > 0 && mmPool != NULL);
-    const SharedItem placedItem = mmPool[0].item;
+    // A REAL MM item, found by name: MM's give only accepts ids its own table
+    // knows, so an arbitrary u16 would be refused downstream and the chain would
+    // look broken for the wrong reason.
+    SharedItem placedItem;
+    FI_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Lens of Truth", &placedItem));
+    FI_ASSERT(MM_ForeignItem_TestIsGiveableId(placedItem.id) == 1);
     FI_ASSERT(placedItem.originGame == (uint8_t)GAME_MM);
 
     FI_ASSERT(Combo_SetForeignPlacementOoT(kForeignTestCheckA, placedItem) >= 0);
@@ -715,11 +608,22 @@ TestResult Test_ForeignItemGiveReverse(void) {
     FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 1);
     FI_ASSERT(gComboCtx.sharedItemsTagged[0].originGame == (uint8_t)GAME_MM);
     FI_ASSERT(gComboCtx.sharedItemsTagged[0].id == placedItem.id);
-    FI_ASSERT(gComboCtx.sharedItemsTagged[0].flags == 0);
+    FI_ASSERT(gComboCtx.sharedItemsTagged[0].flags == RSBS_SHARED_ITEM_CROSSING);
 
-    // ---- (3) A re-fired queue de-dups rather than doubling -------------
-    FI_ASSERT(OoT_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 1);
-    FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 1);
+    // ---- (3) A collected host does not deliver twice -------------------
+    // The once-per-host gate is the location's collected status (the RC-queue
+    // drain checks it too); a record is one copy and is never content-merged.
+    // The gate needs OoT's location table, which a ROM-free process may not have
+    // built; there the drain's own `!loc->HasObtained()` is the whole gate and
+    // this leg has nothing to drive, which it says rather than asserting it.
+    if (OoT_Rando_Foreign_TestSetObtained(kForeignTestCheckA, 1) != 0) {
+        FI_ASSERT(OoT_Rando_Foreign_RecordPickup(kForeignTestCheckA) == 0);
+        FI_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == 1);
+        OoT_Rando_Foreign_TestSetObtained(kForeignTestCheckA, 0);
+    } else {
+        printf("[TEST] foreign-item-give-reverse: no OoT location table in this process; the collected-host gate is "
+               "the RC-queue drain's own check\n");
+    }
 
     // ---- (4) The crossing: OoT suspends, MM arrives, MM awards ---------
     // The real switch seam, then MM's real consumer. With no PlayState the give
@@ -799,798 +703,92 @@ TestResult Test_ForeignItemGiveReverse(void) {
 }
 
 // ============================================================================
-// #488: foreign-HOST eligibility.
+// #488: the foreign-HOST CLASS.
 //
 // The give path only reaches a foreign placement from inside
-// `if (randoSaveCheck.eligible)` (MM's MiscBehavior/CheckQueue.cpp:39-53), so a
-// host whose `.eligible` bit is never armed strands its pinned OoT progression
-// item permanently â€” invisible, unwinnable, and indistinguishable in-game from
-// an item that was never placed. The old host predicate said nothing about
-// arming: it required only the fill-time `.shuffled` bit plus "holds a
-// junk-class item", and excluded only shops.
+// `if (randoSaveCheck.eligible)` (MM's MiscBehavior/CheckQueue.cpp), so a host
+// whose `.eligible` bit is never armed strands its crossing permanently —
+// invisible, unwinnable, and indistinguishable in-game from an item that was
+// never placed. #488 tightened the host rule to Tier A: cycle-reset chests,
+// whose flag game code arms on the ordinary path.
 //
-// This drives MM_Rando_Foreign_IsEligibleHost â€” the SAME function
-// PlaceForeignItems' candidate loop calls, which is the whole reason the
-// predicate was extracted â€” over MM's REAL Rando::StaticData::Checks table with
-// a synthetic all-shuffled save. It is not a reimplementation of the rule; if
-// the rule changes, this moves with it.
-//
-// The negatives that were GREEN-on-a-bug before #488 are the `.skipped` leg,
-// the two sentinel legs (RI_UNKNOWN/RI_NONE are both declared RITYPE_JUNK, so
-// a type-only test accepted them), and the whole-table class sweep (the old
-// predicate accepted every non-shop check type). The `.shuffled` and
-// RC_UNKNOWN legs are NOT new — the old inline predicate tested both — and are
-// kept as positive/negative controls rather than as regression evidence.
+// Under the single bag (ADR 0010 increment 3) this CLASS is the whole of the
+// MM host rule: the MM engine's hostAcceptsForeign answers with
+// Rando::Foreign::IsForeignHostClass, and the fill draws a crossing onto no
+// other MM check. The fill-side halves of the old predicate ("the fill put junk
+// here", "not skipped", "not a sentinel") retired with the overlay pass that
+// needed them: the single-bag fill places onto a host before any junk exists,
+// and skipped checks are not in its host pool at all. This drives the REAL
+// predicate over MM's REAL static check table and restates the class
+// independently through the inspection bridge, so the two cannot drift.
 // ============================================================================
 TestResult Test_ForeignHostEligibility(void) {
-    printf("[TEST] foreign-host-eligibility: only game-armed check classes can host a foreign item (#488)\n");
+    printf("[TEST] foreign-host-eligibility: only game-armed check classes can host a crossing (#488)\n");
 
     const int checkIdMax = MM_Rando_Foreign_TestCheckIdMax();
     FI_ASSERT(checkIdMax > 1);
 
-    uint16_t riJunk = 0xFFFF;
-    uint16_t riNone = 0xFFFF;
-    uint16_t riUnknown = 0xFFFF;
-    MM_Rando_Foreign_TestItemSentinels(&riJunk, &riNone, &riUnknown);
-    // RI_UNKNOWN is enumerator 0 â€” a zero-initialised slot. That it is a
-    // DISTINCT value from the legal junk filler is the premise of the sentinel
-    // rejection below; assert it rather than assume it.
-    FI_ASSERT(riUnknown == 0);
-    FI_ASSERT(riJunk != riUnknown && riJunk != riNone);
-
-    // The synthetic save: every check shuffled, not skipped, holding the legal
-    // junk filler. Under the OLD predicate this made nearly every row in the
-    // table a legal host; under the new one only the armed classes survive.
-    MM_Rando_Foreign_TestStampAllChecks(/*shuffled=*/1, /*skipped=*/0, riJunk);
-
-    // ------------------------------------------------------------------
-    // Whole-table sweep. Two facts at once: what the predicate accepts, and
-    // the static-table invariant Tier A is defined in terms of.
-    // ------------------------------------------------------------------
     int acceptedCount = 0;
     int chestRowCount = 0;
     int chestRowsMissingFlag = 0;
-    int firstChestId = 0;
     int firstNonChestAcceptedId = 0;
     int firstRejectedNonChestId = 0;
     for (int id = 1; id < checkIdMax; id++) {
         int isChestType = 0;
         int hasChestFlag = 0;
         if (MM_Rando_Foreign_TestCheckClass((uint16_t)id, &isChestType, &hasChestFlag) == 0) {
-            continue; // not a real row (RC_UNKNOWN sentinel / gap)
+            FI_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass((uint16_t)id) == 0); // not a real row
+            continue;
         }
         if (isChestType) {
             chestRowCount++;
             if (!hasChestFlag) {
                 chestRowsMissingFlag++;
             }
-            if (firstChestId == 0) {
-                firstChestId = id;
-            }
         } else if (firstRejectedNonChestId == 0) {
             firstRejectedNonChestId = id;
         }
-
-        if (MM_Rando_Foreign_IsEligibleHost((uint16_t)id)) {
+        if (MM_Rando_Foreign_TestIsForeignHostClass((uint16_t)id)) {
             acceptedCount++;
             if (!isChestType && firstNonChestAcceptedId == 0) {
                 firstNonChestAcceptedId = id;
             }
         }
     }
-
-    // This number sizes the foreign pool â€” it is the input #495 (the
-    // rule-defined pool) needs, so print it whether or not anything fails.
-    printf("[TEST] foreign-host-eligibility: %d eligible hosts over %d chest rows (table has %d check ids)\n",
+    printf("[TEST] foreign-host-eligibility: %d host-class checks over %d chest rows (table has %d check ids)\n",
            acceptedCount, chestRowCount, checkIdMax - 1);
 
-    // Tier A ships alone: nothing outside RCTYPE_CHEST may be accepted.
+    // Tier A ships alone: nothing outside RCTYPE_CHEST may be accepted, and the
+    // sweep must actually have met a non-chest row to reject.
     FI_ASSERT(firstNonChestAcceptedId == 0);
-    // ...and the sweep must have actually exercised a non-chest row, or the
-    // assertion above passed for want of anything to reject.
     FI_ASSERT(firstRejectedNonChestId != 0);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost((uint16_t)firstRejectedNonChestId) == 0);
-
-    // Static-table invariant: every chest row carries FLAG_CYCL_SCENE_CHEST.
-    // A FLAG_NONE chest row added later would have no vanilla setter and would
-    // strand â€” and nothing else in the tree would notice.
+    // Static-table invariant: every chest row carries FLAG_CYCL_SCENE_CHEST. A
+    // FLAG_NONE chest row would have no vanilla setter and would strand.
     FI_ASSERT(chestRowCount > 0);
     FI_ASSERT(chestRowsMissingFlag == 0);
-    // Because the predicate's other conditions are all satisfied by the
-    // synthetic save, acceptance must be exactly the chest rows. An inequality
-    // here means the class rule and the table have drifted apart.
+    // Acceptance is exactly the chest rows: an inequality means the class rule
+    // and the table have drifted apart.
     FI_ASSERT(acceptedCount == chestRowCount);
+    // RC_UNKNOWN and an out-of-range id are never hosts.
+    FI_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass(0) == 0);
+    FI_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass((uint16_t)checkIdMax) == 0);
 
-    // Supply: the tightened predicate must still be able to host the whole
-    // pinned pool. Falling under this is the "stop and report" condition, not
-    // a cue to widen the predicate until the number is comfortable.
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPool(&pool);
-    FI_ASSERT(poolCount > 0);
-    FI_ASSERT(acceptedCount >= poolCount);
-
-    // ------------------------------------------------------------------
-    // Per-condition negatives, on a real chest row. The positive control is
-    // re-asserted between each one, so a negative can never pass because the
-    // host became ineligible for an unrelated reason.
-    // ------------------------------------------------------------------
-    FI_ASSERT(firstChestId != 0);
-    const uint16_t chest = (uint16_t)firstChestId;
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 1);
-
-    // RC_UNKNOWN is never a host, and neither is an out-of-range id.
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(0) == 0);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost((uint16_t)checkIdMax) == 0);
-
-    // Defect A: a user-EXCLUDED check is marked `shuffled = true;
-    // randoItemId = RI_JUNK; skipped = true` by GeneratePools and kept out of
-    // checkPool â€” so under the old predicate it was a top-priority host for a
-    // pinned progression item.
-    MM_Rando_Foreign_TestStampCheck(chest, /*shuffled=*/1, /*skipped=*/1, riJunk);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
-    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riJunk);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 1);
-
-    // Defect B: RI_UNKNOWN (a zero-initialised or unresolvable slot) and
-    // RI_NONE ("literally nothing") are both declared RITYPE_JUNK, so a
-    // type-only test accepts an item that is not an item.
-    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riUnknown);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
-    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riNone);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
-    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riJunk);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 1);
-
-    // Carried over unchanged from the old predicate: a check outside the fill
-    // is not a host. (The non-junk-item rejection is covered by the sentinel
-    // legs above and by the whole-table sweep, which stamps only junk.)
-    MM_Rando_Foreign_TestStampCheck(chest, /*shuffled=*/0, 0, riJunk);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
-    MM_Rando_Foreign_TestStampCheck(chest, 1, 0, riJunk);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 1);
-
-    // Leave MM's check table as a fresh save would: nothing shuffled, nothing
-    // held. `--test all` runs every row in one process.
-    MM_Rando_Foreign_TestStampAllChecks(/*shuffled=*/0, /*skipped=*/0, riUnknown);
-    FI_ASSERT(MM_Rando_Foreign_IsEligibleHost(chest) == 0);
-
-    printf("[TEST] PASS: only chest-class hosts with a live, non-skipped, legal-junk slot can host a foreign item\n");
+    printf("[TEST] PASS: only chest-class checks can host a crossing\n");
     return TEST_PASS;
 }
 
 // ============================================================================
-// #510: the reverse direction's SOURCE pool (kForeignPoolMMV1).
-//
-// The MM twin of the pool-sanity block inside Test_ForeignItemGive, plus the
-// two membership rules that pool is authored under. Display-free: the table is a
-// static in the WHOLE_ARCHIVE'd 2ship_rando and its registrar runs before main(),
-// so this needs no fill, no save and no window.
-//
-// This row is also the runtime proof that MM's registrar SURVIVED THE LINK. The
-// dead-registrar class (#516) is silent at compile and link time — a dropped
-// file-scope initializer just leaves the pool empty — and an empty pool would
-// make OoT_PlaceForeignItems return -1 and fail every paired generation.
+// #510's foreign-pool-mm row and #495's foreign-item-class row are RETIRED with
+// the pinned pools they locked (ADR 0010 increment 3, D3; lane K11). What they
+// asserted and where it lives now:
+//   - the pool is registered / well-formed / non-junk / giveable: there is no
+//     pool. Which items may cross is the O8 classification owner's answer,
+//     locked by shared-items-class; that crossings deliver is locked end to end
+//     by combo-single-bag and combo-creation-event.
+//   - the class bitset draws a rule-defined pool: the bitset now gates HOME_ONLY
+//     per origin (combo_single_bag.c), locked by combo-single-bag's leg C (the
+//     frozen direction OFF) and leg C2 (a frozen class set without PROGRESSION:
+//     that origin crosses nothing while the other still crosses).
+//   - the name inverse is total: Combo_GetForeignItemByNameFor is describer-
+//     backed and total by construction; the name legs above drive it.
 // ============================================================================
-TestResult Test_ForeignPoolMM(void) {
-    printf("[TEST] foreign-pool-mm: MM's cross-game source pool is registered, well-formed and non-junk (#510)\n");
-
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &pool);
-    printf("[TEST] foreign-pool-mm: %d MM source items registered (placement cap is %d per seed)\n", poolCount,
-           (int)RSBS_FOREIGN_PLACEMENT_CAP);
-    FI_ASSERT(pool != NULL);
-    // Deliberately NOT `poolCount <= RSBS_FOREIGN_PLACEMENT_CAP` (the shape the
-    // OoT pool's static_assert uses). The cap bounds PLACEMENTS PER SEED, not
-    // candidates; this pool is intentionally far larger so the per-seed draw
-    // varies. A pool clamped to the cap would be the bug, not the guarantee.
-    FI_ASSERT(poolCount >= 1);
-
-    for (int i = 0; i < poolCount; i++) {
-        FI_ASSERT(pool[i].item.originGame == (uint8_t)GAME_MM);
-        FI_ASSERT(pool[i].item.id != 0); // RI_UNKNOWN is enumerator 0
-        FI_ASSERT(pool[i].item.flags == 0);
-        FI_ASSERT(pool[i].name != NULL && pool[i].name[0] != '\0');
-        FI_ASSERT(Combo_GetForeignItemName(pool[i].item) == pool[i].name);
-
-        // #510 presentation: OoT builds the pickup line as article + name, and
-        // it cannot read MM's item table to get the article — so every row must
-        // carry one. NULL would print "You found Powder Keg"; the empty string is
-        // legal and correct for the several MM items that take no article
-        // ("Garo's Mask", "Epona's Song").
-        FI_ASSERT(pool[i].article != NULL);
-        FI_ASSERT(Combo_GetForeignItemArticle(pool[i].item) == pool[i].article);
-        // A non-empty article carries its own trailing space, so callers
-        // concatenate with no separator logic. Catches "the" for "the ".
-        if (pool[i].article[0] != '\0') {
-            FI_ASSERT(pool[i].article[strlen(pool[i].article) - 1] == ' ');
-        }
-
-        // Membership rule (1): every entry must be an id MM's own give ACCEPTS.
-        // Driven through the real predicate MM_ForeignItem_Give gates on, not a
-        // copy of it — an entry it refuses is an item the player is promised in
-        // OoT ("it will be awarded there!") and then never receives in Termina.
-        FI_ASSERT(MM_ForeignItem_TestIsGiveableId(pool[i].item.id) == 1);
-
-        // Membership rule (2): no junk-class item may be a cross-game SOURCE.
-        // Junk is what a foreign HOST degrades to, so crossing it would spend one
-        // of at most RSBS_FOREIGN_PLACEMENT_CAP slots on a strictly worse
-        // duplicate of what the host already physically holds. -1 would mean the
-        // id names no row in MM's table at all.
-        FI_ASSERT(MM_ForeignItem_TestIsJunkClassId(pool[i].item.id) == 0);
-    }
-
-    // (originGame, name) uniqueness WITHIN the pool, and id uniqueness with it. A
-    // duplicate name makes this origin's spoiler-load inverse ambiguous, which no
-    // amount of origin dispatch can repair — it is the same defect the (origin,
-    // name) key exists to prevent, arriving from inside one pool instead of
-    // between two.
-    for (int i = 0; i < poolCount; i++) {
-        for (int j = i + 1; j < poolCount; j++) {
-            FI_ASSERT(strcmp(pool[i].name, pool[j].name) != 0);
-            FI_ASSERT(pool[i].item.id != pool[j].item.id);
-        }
-    }
-
-    // Round-trip through the origin-keyed inverse — the spoiler-LOAD path, which
-    // rebuilds a placement table from untrusted text on disk and must never have
-    // to fabricate an RI_*.
-    for (int i = 0; i < poolCount; i++) {
-        SharedItem back;
-        FI_ASSERT(Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, pool[i].name, &back));
-        FI_ASSERT(back.originGame == (uint8_t)GAME_MM && back.id == pool[i].item.id);
-        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_NONE, pool[i].name, NULL));
-    }
-
-    // Membership rule (6), #525: no SHARED CROSS-GAME RESOURCE may be a
-    // crossing. Rupees and hearts are one quantity spanning both games now —
-    // one wallet, one health bar (src/common/shared_resources.h) — so a wallet
-    // or heart item has nothing left to carry across. Shipping one anyway would
-    // hand the player a second copy of a capacity they already have, or a rupee
-    // award the next harvest reconciles straight back out.
-    //
-    // Asserted as an EXCLUSION rather than an exact pool count on purpose: the
-    // count is not the invariant and would go stale the moment an unrelated row
-    // is added, whereas "these are not eligible to cross" is exactly what
-    // criterion 6 says.
-    //
-    // Keyed on the DISPLAY NAME, not the RI_* id, because this TU is src/common
-    // and has no MM headers in scope by design — the same reason the giveable /
-    // junk-class checks above go through MM-side bridge predicates. The name is
-    // not a weaker key here: it is the pool's own persistence key (the
-    // spoiler-LOAD inverse is keyed on (originGame, name)), so a row that
-    // answers to one of these names IS the row that must be gone.
-    //
-    // "Double Defense" is in this list because it lived under core equipment,
-    // NOT the health block — a block-shaped delete misses it, and it is the row
-    // a reviewer is most likely to miss too.
-    static const char* const kSharedResourceNames[] = {
-        "Progressive Wallet", "Adult's Wallet",  "Giant's Wallet",
-        "Double Defense",     "Heart Container", "Heart Piece",
-        // Shared magic (#525's optional tier): one meter across both games, so
-        // the three MM magic rows left by the same criterion. Exact display
-        // names, spelled from the pool's own rows — a typo here passes
-        // vacuously, because the assertion is a not-equal sweep.
-        "Progressive Magic",  "Power of Magic",  "Magic Upgrade",
-        // Shared ammo: the capacity tiers are one cross-game quantity now, so
-        // every bag and quiver row left. The BOW rows are here for a reason
-        // that is easy to miss — MM's own bow give sets UPG_QUIVER to 1, so in
-        // MM owning the bow IS quiver tier 1, which makes a bow crossing a
-        // mutation of the shared resource rather than a new item.
-        "Bomb Bag",           "Big Bomb Bag",    "Biggest Bomb Bag",
-        "Large Quiver",       "Largest Quiver",  "Progressive Bomb Bag",
-        "Bow",                "Progressive Bow",
-        // Shared hookshot: one inventory byte in each game, so it crosses as a
-        // monotonic tier (0/1/2) rather than as an item handed over once.
-        "Hookshot",
-    };
-    for (size_t k = 0; k < sizeof(kSharedResourceNames) / sizeof(kSharedResourceNames[0]); k++) {
-        for (int i = 0; i < poolCount; i++) {
-            FI_ASSERT(strcmp(pool[i].name, kSharedResourceNames[k]) != 0);
-        }
-        // ...and the name-keyed inverse agrees, so a spoiler naming one of these
-        // cannot resurrect a crossing the shared-resource model replaced.
-        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, kSharedResourceNames[k], NULL));
-    }
-
-    // THE SAME SWEEP AGAINST OoT's POOL. Criterion 6 had no OoT twin until
-    // shared ammo, and that was a real hole rather than an omission worth
-    // leaving: OoT's own pool shipped "Fairy Bow" and "Bomb Bag" rows, and both
-    // became shared resources here, so nothing was watching the side that
-    // actually had to lose entries. Reusing the MM name list is meaningful
-    // wherever the two games spell a row identically — "Bomb Bag" collided
-    // across the pools for exactly that reason — and inert elsewhere, so the
-    // OoT-specific spellings are named separately below.
-    const ComboForeignItemDef* ootPool = NULL;
-    const int ootPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_OOT, &ootPool);
-    FI_ASSERT(ootPoolCount >= 1 && ootPool != NULL);
-    static const char* const kOoTSharedResourceNames[] = {
-        // Retired from kForeignPoolV1 by criterion 6 when shared ammo landed.
-        // Byte-exact as that table spelled them, which is what makes the sweep
-        // non-vacuous: these strings were really there.
-        "Fairy Bow",
-        "Bomb Bag",
-        // ...and this one when the hookshot became a shared tier.
-        "Progressive Hookshot",
-    };
-    for (size_t k = 0; k < sizeof(kSharedResourceNames) / sizeof(kSharedResourceNames[0]); k++) {
-        for (int i = 0; i < ootPoolCount; i++) {
-            FI_ASSERT(strcmp(ootPool[i].name, kSharedResourceNames[k]) != 0);
-        }
-    }
-    for (size_t k = 0; k < sizeof(kOoTSharedResourceNames) / sizeof(kOoTSharedResourceNames[0]); k++) {
-        for (int i = 0; i < ootPoolCount; i++) {
-            FI_ASSERT(strcmp(ootPool[i].name, kOoTSharedResourceNames[k]) != 0);
-        }
-        FI_ASSERT(!Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, kOoTSharedResourceNames[k], NULL));
-    }
-
-    // The shrink is real, not a rename: eighteen rows have left across the
-    // three tiers and nothing took their place. Bounded rather than exact for
-    // the reason above — a future shared resource removes more, and unrelated
-    // work may add.
-    // Counted over the UNCONDITIONAL rows (requiredGiveCaps == 0): the #681
-    // capability rows are a separate, profile-gated block appended after them,
-    // and folding them in would make this bound say nothing about the shrink.
-    int unconditionalRows = 0;
-    for (int i = 0; i < poolCount; i++) {
-        if (pool[i].requiredGiveCaps == 0) {
-            unconditionalRows++;
-        }
-    }
-    printf("[TEST] foreign-pool-mm: %d entries after the #525 shared-resource shrink (%d unconditional, %d "
-           "capability-gated)\n",
-           poolCount, unconditionalRows, poolCount - unconditionalRows);
-    FI_ASSERT(unconditionalRows <= 128);
-
-    // OoT's pool must stay clear of test_combo_spoiler_view.c's floor of 3,
-    // which it sat exactly on before shared ammo added the Lens, Boomerang and
-    // Megaton Hammer rows. Asserted here rather than left implicit because the
-    // ammo tier is what took two rows OUT of a four-row pool.
-    printf("[TEST] foreign-pool-oot: %d entries\n", ootPoolCount);
-    FI_ASSERT(ootPoolCount >= 3);
-
-    printf("[TEST] PASS: MM source pool registered, well-formed, giveable, non-junk, name-invertible, "
-           "no shared resources\n");
-    return TEST_PASS;
-}
-
-// ============================================================================
-// #495: the cross-game item class is a RULE, and the class BITSET is the
-// setting (ADR 0011 decision 3; accepted answers O3 and O7).
-//
-// What replaced what: the pool draw used to be "the literal table, in order",
-// so the four pinned OoT rows WERE the whole universe and the bitset carved by
-// increment 1 was read but unconsumed. Now every row names one
-// RSBS_ITEMCLASS_* bit, the draw is Combo_ForeignPoolDrawFor over the FROZEN
-// bitset, and the pinned table is one class's membership.
-//
-// THE THREE CLAIMS THIS ROW EXISTS FOR, in the order they can fail:
-//
-//  (P) PARITY. Under the shipped defaults the draw is the identity permutation
-//      over the unconditional prefix (no give capability is armed by the
-//      shipped profile, #681), so every already-generated world is
-//      byte-identical. This is the pin the
-//      whole increment is bounded by — SeedDeterminism's foreignOoTHash and
-//      MMRandoGen's placement digest both fold the drawn entries, so if this
-//      assertion is wrong those rows move.
-//
-//  (N) NARROWING. A narrowed bitset draws ONLY members of the armed classes.
-//      RED before the rule engine: the bitset was stored and compared but no
-//      code consumed it, so every mask produced the same full pool.
-//
-//  (T) TOTALITY. Combo_GetForeignItemByNameFor stays TOTAL over every item ANY
-//      class can name, whatever is frozen. This is why the class carries no
-//      seed term (O3) and why the FILTER returns indices while the REGISTRY
-//      keeps serving the whole pool: the spoiler-LOAD path runs in processes
-//      that never generated, and a selection-scoped inverse would make a
-//      spoiler that was valid at generation unreadable at load.
-//
-// Display-free, ROM-free, save-free: both tables are statics in WHOLE_ARCHIVE'd
-// libraries whose registrars run before main().
-// ============================================================================
-
-namespace {
-// Every allocated bit, spelled out rather than reusing RSBS_ITEMCLASS_ALL_V1,
-// so a bit ADDED to the union without a matching lock update is a red row here
-// instead of a silently widened default.
-const uint16_t kAllocatedClassBits[] = {
-    (uint16_t)RSBS_ITEMCLASS_PROGRESSION,   (uint16_t)RSBS_ITEMCLASS_SONGS,
-    (uint16_t)RSBS_ITEMCLASS_MASKS,         (uint16_t)RSBS_ITEMCLASS_DUNGEON_ITEMS,
-    (uint16_t)RSBS_ITEMCLASS_DUNGEON_REWARD, (uint16_t)RSBS_ITEMCLASS_SIDEQUEST,
-};
-const int kAllocatedClassBitCount = (int)(sizeof(kAllocatedClassBits) / sizeof(kAllocatedClassBits[0]));
-
-int PopCount16(uint16_t v) {
-    int n = 0;
-    while (v != 0) {
-        n += (v & 1u);
-        v = (uint16_t)(v >> 1);
-    }
-    return n;
-}
-} // namespace
-
-TestResult Test_ForeignItemClass(void) {
-    printf("[TEST] foreign-item-class: the frozen class bitset selects the DRAW; the pool and the name inverse stay "
-           "whole (#495)\n");
-
-    ComboContext_Init();
-    // Nothing published: the state of a process that neither generated nor
-    // hydrated, in which every capability row must be undrawable (#681).
-    Combo_ClearForeignGiveCaps();
-
-    const uint8_t kOrigins[] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
-
-    // ------------------------------------------------------------------
-    // (0) The bit table is pinned, and every bit has a name.
-    // ------------------------------------------------------------------
-    // A renumbering is already a red BUILD (foreign_items.h's static_assert);
-    // this is the runtime half — an allocated bit with no name would render as
-    // "(unknown)" in every log line and refusal message the rule produces.
-    FI_ASSERT((uint16_t)RSBS_ITEMCLASS_ALL_V1 == 0x003Fu);
-    uint16_t unionOfBits = 0;
-    for (int b = 0; b < kAllocatedClassBitCount; b++) {
-        FI_ASSERT(PopCount16(kAllocatedClassBits[b]) == 1);
-        FI_ASSERT(strcmp(Combo_ForeignItemClassName(kAllocatedClassBits[b]), "(unknown)") != 0);
-        unionOfBits = (uint16_t)(unionOfBits | kAllocatedClassBits[b]);
-    }
-    FI_ASSERT(unionOfBits == (uint16_t)RSBS_ITEMCLASS_ALL_V1);
-    // An UNALLOCATED bit has no name and, below, no members.
-    FI_ASSERT(strcmp(Combo_ForeignItemClassName(0x0040u), "(unknown)") == 0);
-    // The criteria are named too — an exclusion attributed to a criterion the
-    // name table does not know is an exclusion nobody can read.
-    for (uint8_t c = (uint8_t)RSBS_FOREIGN_CRIT_REAL_ITEM; c < (uint8_t)RSBS_FOREIGN_CRIT_COUNT; c++) {
-        FI_ASSERT(strcmp(Combo_ForeignCriterionName(c), "(unknown)") != 0);
-    }
-    FI_ASSERT(strcmp(Combo_ForeignCriterionName((uint8_t)RSBS_FOREIGN_CRIT_COUNT), "(unknown)") == 0);
-
-    // ------------------------------------------------------------------
-    // (1) EVERY ROW OF BOTH POOLS IS CLASSIFIED, with EXACTLY ONE bit.
-    // ------------------------------------------------------------------
-    // Zero bits: the row is selected by no mask and would silently leave the
-    // pool the moment the rule went live. Two bits: the row is drawn by either
-    // class, which makes claim (N) untestable. C cannot express "exactly one
-    // allocated bit" in an initializer, so it is asserted here.
-    for (int o = 0; o < 2; o++) {
-        const ComboForeignItemDef* pool = NULL;
-        const int poolCount = Combo_GetForeignItemPoolFor(kOrigins[o], &pool);
-        FI_ASSERT(poolCount >= 1 && pool != NULL);
-        bool inCapabilityBlock = false;
-        for (int i = 0; i < poolCount; i++) {
-            FI_ASSERT(PopCount16(pool[i].itemClass) == 1);
-            FI_ASSERT((pool[i].itemClass & (uint16_t)RSBS_ITEMCLASS_ALL_V1) == pool[i].itemClass);
-            // #681: the capability column is 0 or EXACTLY ONE allocated
-            // RSBS_GIVECAP_* bit. An unallocated bit would be masked off by
-            // Combo_ForeignGiveCapsArm and read as "requires nothing" once any
-            // profile was published: a row admitted by a bit nobody publishes.
-            const uint16_t caps = pool[i].requiredGiveCaps;
-            FI_ASSERT(caps == 0 || (PopCount16(caps) == 1 && (caps & (uint16_t)RSBS_GIVECAP_ALL_V1) == caps));
-            // OoT's gives are all unconditional: nothing on OoT's side is
-            // published, so an OoT capability row could never be drawn.
-            if (kOrigins[o] == (uint8_t)GAME_OOT) {
-                FI_ASSERT(caps == 0);
-            }
-            // Capability rows form a SUFFIX. That is what keeps the unarmed
-            // draw the identity over the unconditional prefix — the same
-            // indices every world drew before the column existed.
-            if (caps != 0) {
-                inCapabilityBlock = true;
-            }
-            FI_ASSERT(!inCapabilityBlock || caps != 0);
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // (P) THE PARITY PIN. Default bitset => the identity permutation.
-    // ------------------------------------------------------------------
-    // Asserted as index-for-index equality with 0..(prefix-1), not merely as an
-    // equal COUNT: the draw is the INPUT both passes consume from identity-
-    // seeded streams (the forward pass shuffles then truncates it, #583; the
-    // reverse pass draws from it without replacement), so a list with the right
-    // size and the wrong order would re-order every already-generated world's
-    // crossings while passing a count check.
-    FI_ASSERT(!Combo_ComboSettingsFrozen()); // fresh gComboCtx: the unfrozen fallback path
-    for (int o = 0; o < 2; o++) {
-        const uint8_t origin = kOrigins[o];
-        const ComboForeignItemDef* pool = NULL;
-        const int poolCount = Combo_GetForeignItemPoolFor(origin, &pool);
-
-        // The unfrozen fallback is the shipped default, NOT zero. A
-        // zero-extended legacy record resolving to "no classes" would silently
-        // generate a paired world with no crossings at all.
-        FI_ASSERT(Combo_ComboItemClassFor(origin) == (uint16_t)RSBS_ITEMCLASS_ALL_V1);
-
-        // With no give capability published, the capability rows (#681) are
-        // undrawable and the draw is the identity over the unconditional
-        // PREFIX — for OoT, whose rows are all unconditional, the whole pool.
-        int unconditional = 0;
-        while (unconditional < poolCount && pool[unconditional].requiredGiveCaps == 0) {
-            unconditional++;
-        }
-        if (origin == (uint8_t)GAME_OOT) {
-            FI_ASSERT(unconditional == poolCount);
-        }
-        std::vector<int> draw((size_t)poolCount, -1);
-        const int drawCount = Combo_ForeignPoolDrawFor(origin, draw.data(), poolCount);
-        FI_ASSERT(drawCount == unconditional);
-        for (int i = 0; i < unconditional; i++) {
-            FI_ASSERT(draw[(size_t)i] == i);
-        }
-        printf("[TEST] foreign-item-class: origin %u parity — draw is the identity permutation over %d of %d rows "
-               "(no give capability published)\n",
-               (unsigned)origin, unconditional, poolCount);
-    }
-
-    // The same parity under an explicitly FROZEN default record, because that
-    // is the path a created world actually takes (the fallback above is only
-    // for legacy/pre-freeze files).
-    {
-        ComboSettingsRecord defaults;
-        Combo_ComboSettingsDefaults(&defaults);
-        gComboCtx.comboSettings = defaults;
-        FI_ASSERT(Combo_ComboSettingsFrozen());
-        for (int o = 0; o < 2; o++) {
-            const ComboForeignItemDef* pool = NULL;
-            const int poolCount = Combo_GetForeignItemPoolFor(kOrigins[o], &pool);
-            FI_ASSERT(Combo_ComboItemClassFor(kOrigins[o]) == (uint16_t)RSBS_ITEMCLASS_ALL_V1);
-            int unconditional = 0;
-            while (unconditional < poolCount && pool[unconditional].requiredGiveCaps == 0) {
-                unconditional++;
-            }
-            std::vector<int> draw((size_t)poolCount, -1);
-            FI_ASSERT(Combo_ForeignPoolDrawFor(kOrigins[o], draw.data(), poolCount) == unconditional);
-            for (int i = 0; i < unconditional; i++) {
-                FI_ASSERT(draw[(size_t)i] == i);
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // (G) THE GIVE-CAPABILITY NARROWING (#681; ADR 0011 decision 3.5 / O8).
-    // ------------------------------------------------------------------
-    // Criterion 3 is profile-conditional: a row tagged with an RSBS_GIVECAP_*
-    // bit is drawable exactly when the origin's FROZEN profile published that
-    // capability. Four claims, all under the default (every class armed) record
-    // frozen just above:
-    //   - UNPUBLISHED and PUBLISHED-ZERO draw the same thing — the unconditional
-    //     prefix — so a profile that shuffles none of the four families (the
-    //     shipped one) reproduces today's draw byte for byte;
-    //   - each family ALONE adds exactly its own rows, appended in pool order;
-    //   - every family together draws the whole pool as the identity;
-    //   - each family has members, so none of the above is vacuous.
-    {
-        const ComboForeignItemDef* pool = NULL;
-        const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &pool);
-        int unconditional = 0;
-        while (unconditional < poolCount && pool[unconditional].requiredGiveCaps == 0) {
-            unconditional++;
-        }
-        FI_ASSERT(unconditional < poolCount); // the capability block exists at all
-
-        std::vector<int> unpublished((size_t)poolCount, -1);
-        Combo_ClearForeignGiveCaps();
-        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, unpublished.data(), poolCount) == unconditional);
-
-        std::vector<int> publishedZero((size_t)poolCount, -1);
-        Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, 0u);
-        FI_ASSERT(Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM));
-        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, publishedZero.data(), poolCount) == unconditional);
-        FI_ASSERT(unpublished == publishedZero);
-
-        const uint16_t kFamilies[] = { (uint16_t)RSBS_GIVECAP_SOULS, (uint16_t)RSBS_GIVECAP_OCARINA_BUTTONS,
-                                       (uint16_t)RSBS_GIVECAP_SWIM, (uint16_t)RSBS_GIVECAP_CLOCKS };
-        int familyTotal = 0;
-        for (size_t f = 0; f < sizeof(kFamilies) / sizeof(kFamilies[0]); f++) {
-            int members = 0;
-            for (int i = 0; i < poolCount; i++) {
-                if (pool[i].requiredGiveCaps == kFamilies[f]) {
-                    members++;
-                }
-            }
-            FI_ASSERT(members >= 1);
-            familyTotal += members;
-
-            Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, kFamilies[f]);
-            FI_ASSERT(Combo_ForeignGiveCapsArm((uint8_t)GAME_MM, kFamilies[f]));
-            std::vector<int> draw((size_t)poolCount, -1);
-            const int n = Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, draw.data(), poolCount);
-            FI_ASSERT(n == unconditional + members);
-            int prev = -1;
-            for (int i = 0; i < n; i++) {
-                const int idx = draw[(size_t)i];
-                FI_ASSERT(idx > prev);
-                prev = idx;
-                if (i < unconditional) {
-                    FI_ASSERT(idx == i);
-                } else {
-                    // ...and nothing from any OTHER family.
-                    FI_ASSERT(pool[idx].requiredGiveCaps == kFamilies[f]);
-                }
-            }
-            printf("[TEST] foreign-item-class: MM capability %04X alone arms %d rows (%d drawable)\n",
-                   (unsigned)kFamilies[f], members, n);
-        }
-        FI_ASSERT(unconditional + familyTotal == poolCount);
-
-        Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, RSBS_GIVECAP_ALL_V1);
-        std::vector<int> all((size_t)poolCount, -1);
-        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, all.data(), poolCount) == poolCount);
-        for (int i = 0; i < poolCount; i++) {
-            FI_ASSERT(all[(size_t)i] == i);
-        }
-        printf("[TEST] foreign-item-class: MM draw %d rows with no capability armed, %d with all four\n",
-               unconditional, poolCount);
-        // The narrowing lives in the DRAW only: the class-member view and the
-        // registry keep spanning every row (claim (T) below).
-        FI_ASSERT(Combo_ForeignPoolClassMembersFor((uint8_t)GAME_MM, (uint16_t)RSBS_ITEMCLASS_ALL_V1, NULL, 0) ==
-                  poolCount);
-    }
-
-    // ------------------------------------------------------------------
-    // (N) NARROWING. Each armed bit yields ONLY members of that class, the
-    //     classes PARTITION the pool, and the frozen record is what selects.
-    //     Every give capability is armed here (left so by (G) above), so the
-    //     class rule is the only filter in play and the partition is over the
-    //     whole pool.
-    // ------------------------------------------------------------------
-    FI_ASSERT(Combo_ForeignGiveCapsArm((uint8_t)GAME_MM, RSBS_GIVECAP_ALL_V1));
-    for (int o = 0; o < 2; o++) {
-        const uint8_t origin = kOrigins[o];
-        const ComboForeignItemDef* pool = NULL;
-        const int poolCount = Combo_GetForeignItemPoolFor(origin, &pool);
-
-        int summed = 0;
-        for (int b = 0; b < kAllocatedClassBitCount; b++) {
-            const uint16_t bit = kAllocatedClassBits[b];
-
-            // Freeze a record that arms exactly this one class for this origin.
-            // Written through the RECORD, not through a parameter, because the
-            // claim under test is "the FROZEN setting selects" — a filter
-            // driven only by an explicit mask argument would pass even if no
-            // production path ever read gComboCtx.
-            ComboSettingsRecord rec;
-            Combo_ComboSettingsDefaults(&rec);
-            if (origin == (uint8_t)GAME_OOT) {
-                rec.itemClassOoT = bit;
-            } else {
-                rec.itemClassMM = bit;
-            }
-            gComboCtx.comboSettings = rec;
-            FI_ASSERT(Combo_ComboItemClassFor(origin) == bit);
-
-            std::vector<int> draw((size_t)poolCount, -1);
-            const int n = Combo_ForeignPoolDrawFor(origin, draw.data(), poolCount);
-            FI_ASSERT(n >= 0 && n <= poolCount);
-            summed += n;
-
-            int prev = -1;
-            for (int i = 0; i < n; i++) {
-                const int idx = draw[(size_t)i];
-                FI_ASSERT(idx >= 0 && idx < poolCount);
-                // ONLY members of the armed class...
-                FI_ASSERT(pool[idx].itemClass == bit);
-                // ...and still in POOL ORDER, which is world-visible.
-                FI_ASSERT(idx > prev);
-                prev = idx;
-            }
-            // The count-only form must agree with the filled form, or the
-            // shortfall alarm that uses it reports a different number from the
-            // pass it is describing.
-            FI_ASSERT(Combo_ForeignPoolDrawFor(origin, NULL, 0) == n);
-
-            printf("[TEST] foreign-item-class: origin %u class %-14s -> %d of %d rows\n", (unsigned)origin,
-                   Combo_ForeignItemClassName(bit), n, poolCount);
-        }
-        // The classes PARTITION the pool: exactly-one-bit per row (asserted
-        // above) plus per-class counts summing to the whole means no row is
-        // double-counted and none is stranded.
-        FI_ASSERT(summed == poolCount);
-    }
-
-    // The empty and unallocated masks select nothing — "no classes armed" is a
-    // legitimate state (the direction byte is what says OFF), and an
-    // unallocated bit must not resolve to members it cannot have.
-    for (int o = 0; o < 2; o++) {
-        FI_ASSERT(Combo_ForeignPoolClassMembersFor(kOrigins[o], 0u, NULL, 0) == 0);
-        FI_ASSERT(Combo_ForeignPoolClassMembersFor(kOrigins[o], 0x0040u, NULL, 0) == 0);
-    }
-    // An origin with no pool has no members and no class, whatever is frozen.
-    FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_NONE, NULL, 0) == 0);
-    FI_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_NONE) == 0);
-
-    // A FROZEN zero is honoured verbatim rather than clamped up to the
-    // defaults (ADR 0011 decision 3.3). This is the one place the class differs
-    // from the pool SIZE, whose zero IS clamped, and getting it backwards would
-    // silently re-arm a direction the player turned off.
-    {
-        ComboSettingsRecord rec;
-        Combo_ComboSettingsDefaults(&rec);
-        rec.itemClassOoT = 0;
-        rec.itemClassMM = 0;
-        gComboCtx.comboSettings = rec;
-        FI_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_OOT) == 0);
-        FI_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_MM) == 0);
-        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_OOT, NULL, 0) == 0);
-        FI_ASSERT(Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, NULL, 0) == 0);
-    }
-
-    // ------------------------------------------------------------------
-    // (T) TOTALITY of the name inverse, UNDER THE NARROWEST SELECTION.
-    // ------------------------------------------------------------------
-    // Left frozen at itemClass == 0 from the block above — the state in which a
-    // selection-scoped inverse would resolve NOTHING. Every name any class can
-    // produce must still round-trip, because this is the spoiler-LOAD path and
-    // it runs in processes that never generated (accepted answer O3).
-    FI_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_OOT) == 0);
-    for (int o = 0; o < 2; o++) {
-        const uint8_t origin = kOrigins[o];
-        const ComboForeignItemDef* pool = NULL;
-        const int poolCount = Combo_GetForeignItemPoolFor(origin, &pool);
-        // The REGISTRY still serves the whole pool: only the DRAW narrows.
-        FI_ASSERT(poolCount >= 1 && pool != NULL);
-        for (int i = 0; i < poolCount; i++) {
-            SharedItem back;
-            FI_ASSERT(Combo_GetForeignItemByNameFor(origin, pool[i].name, &back));
-            FI_ASSERT(back.originGame == origin && back.id == pool[i].item.id);
-            // And the forward direction with it — a spoiler writes the name the
-            // pool gave it, so both halves must span the same set.
-            FI_ASSERT(Combo_GetForeignItemName(pool[i].item) == pool[i].name);
-        }
-        printf("[TEST] foreign-item-class: origin %u name inverse total over %d rows with ZERO classes armed\n",
-               (unsigned)origin, poolCount);
-    }
-
-    // ------------------------------------------------------------------
-    // (C) CRITERION ATTRIBUTION: every excluded candidate names the criterion
-    //     that excluded it, and is absent from the pool AND the inverse.
-    // ------------------------------------------------------------------
-    // Without this the class rule has no observable and the lock degenerates
-    // into "the table looks right" (ADR 0011's increment-3 test-locks row). It
-    // is driven through each pool TU's own table rather than a list kept here,
-    // so a row that drifts back into a pool goes red at the exclusion it
-    // contradicts rather than passing quietly.
-    for (int o = 0; o < 2; o++) {
-        const uint8_t origin = kOrigins[o];
-        const ComboForeignItemDef* pool = NULL;
-        const int poolCount = Combo_GetForeignItemPoolFor(origin, &pool);
-
-        int exclusions = 0;
-        uint16_t excludedId = 0;
-        uint8_t criterion = 0;
-        int seenCriteria = 0;
-        for (int index = 0;; index++) {
-            const int ok = (origin == (uint8_t)GAME_OOT)
-                               ? OoT_ForeignItem_TestExclusionAt(index, &excludedId, &criterion)
-                               : MM_ForeignItem_TestExclusionAt(index, &excludedId, &criterion);
-            if (!ok) {
-                break;
-            }
-            exclusions++;
-            // A real criterion, in the published range, with a real name.
-            FI_ASSERT(criterion >= (uint8_t)RSBS_FOREIGN_CRIT_REAL_ITEM &&
-                      criterion < (uint8_t)RSBS_FOREIGN_CRIT_COUNT);
-            FI_ASSERT(strcmp(Combo_ForeignCriterionName(criterion), "(unknown)") != 0);
-            seenCriteria |= (1 << criterion);
-            // ...and the id it names really is out of the pool. This is the
-            // assertion that catches a shared resource drifting back in.
-            for (int i = 0; i < poolCount; i++) {
-                FI_ASSERT(pool[i].item.id != excludedId);
-            }
-        }
-        // Non-vacuous: an empty table would make every assertion above a no-op.
-        FI_ASSERT(exclusions >= 5);
-        // And the exclusions are not all one criterion — a table that only ever
-        // said "criterion 6" would not be evidence that six criteria exist.
-        FI_ASSERT(PopCount16((uint16_t)(seenCriteria & 0xFFFF)) >= 4);
-        printf("[TEST] foreign-item-class: origin %u — %d attributed exclusions across %d criteria\n",
-               (unsigned)origin, exclusions, PopCount16((uint16_t)(seenCriteria & 0xFFFF)));
-    }
-
-    // Leave global state clean for any subsequent row in `--test all`.
-    ComboContext_Init();
-    Combo_ClearForeignGiveCaps();
-
-    printf("[TEST] PASS: default bitset draws the pinned pool byte-identically; a narrowed bitset draws only its "
-           "classes; give capabilities only narrow; the name inverse stays total\n");
-    return TEST_PASS;
-}

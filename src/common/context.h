@@ -164,6 +164,29 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
 #define RSBS_SHARED_ITEM_CAP 64u
 
 /**
+ * THE PER-SIDE CROSSING BOUND the single-bag fill places under (PR #743 review):
+ * at most this many of ONE game's hosts may hold the other game's items.
+ *
+ * WHY IT IS THE SHARED-ITEM CAPACITY. A crossing pickup is delivered through one
+ * un-merged entry of sharedItemsTagged (Combo_RecordSharedItemCrossing), and an
+ * entry is redeemed when its ORIGIN game next runs. So the un-redeemed crossing
+ * entries at any moment are the pickups made in the game the player is in, of the
+ * other game's items: at most the number of crossings that game hosts. Keeping
+ * that number within RSBS_SHARED_ITEM_CAP per side is what makes "every slot
+ * holds an un-redeemed item, record REFUSED" unreachable for crossings on their
+ * own: a refusal falls through to the host's own cover item and would lose the
+ * only copy of a progression item the proof counted.
+ *
+ * NOT covered: the array's one other producer in a shipping build, a netplay
+ * peer's sourced grant (ADR 0005), shares the same slots. Grants have
+ * backpressure and crossings do not, so a peer that fills the array while the
+ * player collects crossings can still make a pickup refuse (loudly: the overflow
+ * count rises). Reserving slots for the crossings still owed needs a durable count
+ * of crossings already collected, which the record does not carry yet.
+ */
+#define RSBS_CROSSINGS_PER_SIDE_MAX RSBS_SHARED_ITEM_CAP
+
+/**
  * SharedItem.flags bit: the ORIGIN game has redeemed (actually awarded) this
  * entry. Lane C's give path records a foreign pickup with flags == 0; the
  * origin game's consumer sets this bit when it hands the item to the player,
@@ -183,6 +206,20 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * in-process, which is exactly what a zero bit means.
  */
 #define RSBS_SHARED_ITEM_SOURCED 0x02u
+
+/**
+ * SharedItem.flags bit: this entry was recorded by a CROSSING PICKUP — a host
+ * check of one game yielding an item of the other (Combo_RecordSharedItemCrossing,
+ * ADR 0010 increment 3). Each such entry is ONE COPY: under the single bag two
+ * hosts can hold two copies of one id (two OoT small keys in two MM chests), and
+ * the in-process content de-dup would merge the second pickup into the first
+ * while both were un-redeemed, losing a copy the proof counted. So content de-dup
+ * neither merges INTO nor FROM an entry with this bit, the same disjoint-domain
+ * rule RSBS_SHARED_ITEM_SOURCED already follows. The pickup itself fires once per
+ * host (both give paths gate on the check's obtained flag), which is the de-dup a
+ * crossing needs. Zero == unset holds: no legacy entry was a crossing copy.
+ */
+#define RSBS_SHARED_ITEM_CROSSING 0x04u
 
 /**
  * Capacity of ComboContext.foreignPlacements (Lane C1, #392): how many MM
@@ -525,8 +562,8 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboSharedResource, kind) == 0 && offsetof(Comb
 typedef struct {
     uint8_t formatVersion; // 0 = record ABSENT (legacy / never frozen); nonzero = every field below is authoritative
     uint8_t direction;     // RSBS_COMBO_DIR_*; OFF is a NONZERO enumerator
-    uint8_t poolSizeOoT;   // max OoT-origin placements into MM checks, 1..RSBS_FOREIGN_PLACEMENT_CAP
-    uint8_t poolSizeMM;    // max MM-origin placements into OoT checks, 1..RSBS_FOREIGN_PLACEMENT_CAP
+    uint8_t poolSizeOoT;   // 1..RSBS_FOREIGN_PLACEMENT_CAP; no rule reads it since ADR 0010 inc. 3 (it re-seeds)
+    uint8_t poolSizeMM;    // 1..RSBS_FOREIGN_PLACEMENT_CAP; no rule reads it since ADR 0010 inc. 3 (it re-seeds)
     uint16_t itemClassOoT; // RSBS_ITEMCLASS_* bitset over the OoT pool
     uint16_t itemClassMM;  // RSBS_ITEMCLASS_* bitset over the MM pool
     uint8_t goal;          // RSBS_COMBO_GOAL_* (ADR 0010 D1); illegal to be 0 inside a formatted record

@@ -7,6 +7,8 @@
 #include "context.h"
 #include "entrance.h"
 #include "foreign_items.h" // ADR 0010 inc. 2: the frozen record + the O8 give-caps surface
+#include "combo_logic.h"   // ADR 0010 inc. 3: the armed-caps bag pin (lane K11)
+#include "shared_items.h"  // ADR 0010 inc. 3: the O8 arming rows the armed-caps pin reads
 #include "gen_budget.h"    // ADR 0010 inc. 2: the #582 fill budget + progress surface
 #include "gen_progress_overlay.h" // #582: the on-screen creation-progress surface
 #include "save.h"          // the #533 slot-session surface the creation/arrival legs reset
@@ -682,6 +684,10 @@ extern "C" {
 // the default tier on every PR even though the window-bound harness does not.
 // FILE SCOPE (compiled as C++).
 #include "tests/test_ui_snapshot_image.c"
+// ADR 0010 increment 3 (lane K11): the single-bag fill at the creation event over
+// both real engines, and D5's pair-level locks paired with removal. rando tier;
+// FILE SCOPE (compiled as C++) like its combo-logic siblings.
+#include "tests/test_combo_single_bag.c"
 // THE SHARED-QUANTITY POOL POLICY and the composer's trim (lane K13; #525 x #645):
 // the policy table, the budgets, the trim over a synthetic pool shaped like both
 // shipped pools, and the play-side carrier walk. ROM-free and display-free; FILE
@@ -972,6 +978,7 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
 // + every foreign placement to the same digest file, so the SeedDeterminism
 // two-process diff covers the whole paired world.
 extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath);
+extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 // Hint-validity lock (#441, body in menu.cpp): generates one seed, then asserts
 // every enabled hint names a REAL item — no hint may resolve to the no-item
 // sentinel, hinted locations must hold items, and each hinted location's name
@@ -1228,6 +1235,17 @@ TestResult Test_RandoDeterminism(void) {
     // wrapper's two runs share it (see CMake/CheckSeedDeterminism.cmake).
     const char* seed = "RSBSUNIFIED1";
     const char* digestOut = std::getenv("RSBS_SEED_DIGEST_OUT");  // NULL => digest to stdout
+    // RSBS_OOT_NATIVE_GENERAL_PASS=1 (set by no CTest row): OoT's OWN general pass
+    // for this paired world, so the digest's OoT lines (placementHash,
+    // placedCount) can be compared same-seed against a main-lineage binary, whose
+    // paired generation ran that pass natively (PR #743 review). The MM half
+    // below then finds no deferred world to fill and fails; only the OoT lines
+    // are the comparison.
+    if (const char* native = std::getenv("RSBS_OOT_NATIVE_GENERAL_PASS")) {
+        if (atoi(native) > 0) {
+            (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
+        }
+    }
     int rc = Rando_HeadlessSeedDeterminismDigest(seed, digestOut);
     printf("[TEST] %s: determinism digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     if (rc != 0) {
@@ -1244,36 +1262,42 @@ TestResult Test_RandoDeterminism(void) {
     return mmRc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// #681 review: THE ARMED REVERSE DRAW, PINNED. Driven only by the
-// GoldenSeedDigestArmedCaps golden row (CMake/SingleExecutable.cmake,
-// REDSHIP_GOLDEN_DIGESTS), which compares the digest this writes against
-// tests/golden/seed-digest-armed-caps.txt.
+// #681 review, re-aimed by ADR 0010 increment 3 (lane K11): THE ARMED CAPABILITY
+// ROWS, PINNED. Driven only by the GoldenSeedDigestArmedCaps golden row
+// (CMake/SingleExecutable.cmake, REDSHIP_GOLDEN_DIGESTS), which compares the
+// digest this writes against tests/golden/seed-digest-armed-caps.txt.
 //
-// WHY IT EXISTS. The three other goldens run the shipped profile, which arms no
-// give-capability family (every family's MM option defaults off), so the
-// capability rows and the per-family budget in OoT_PlaceForeignItems never
-// execute under any pin. ForeignPlacementOoT drives the armed path but asserts
-// BOUNDS (at least one capability row, no family over budget), and a bound
-// cannot see a reorder of the 63 appended rows, a new budget constant or a
-// changed set-aside stream: each of those moves every armed world while every
-// bound stays true. This dispatch generates the SAME seed as rando-determinism
-// with all four families armed through MM's own option CVars, so the pinned
-// foreignOoT<n> lines are an armed world's exact (host, item) table.
+// WHY IT EXISTS. The other goldens run the shipped profile, which arms no
+// give-capability family (every family's MM option defaults off), so MM's
+// capability rows (souls, ocarina buttons, swim, clocks) never reach a pinned
+// world. This dispatch generates the SAME seed as rando-determinism with all four
+// families armed through MM's own option CVars.
 //
-// WHY THE MM HALF IS NOT RUN. The armed MM profile (enemy + boss soul shuffle in
-// particular) makes MM's own fill hit its 30 s wall-clock abort on this seed
-// (measured: "attempt 1/10 hit the fill's WALL-CLOCK abort"), and a golden that
-// rides a machine-speed timeout would be a flaky pin. The reverse table is
-// decided entirely on the OoT side, before MM generates anything, so the digest
-// stops after the OoT half; the MM-side fields stay pinned by the other goldens.
+// WHAT IT PINS NOW. It used to pin the REVERSE overlay pass's table under the
+// armed draw; that pass is retired (items leave origin pools). Under one bag a
+// capability family's arming decides whether its rows ENTER THE BAG (REQUIRED, so
+// they may cross) or stay CONFINED at home, so the pin is the composed bag over
+// OoT's deferred general-pass pool and MM's pool under the frozen armed profile:
+// per-game disposition counts, how many bag rows need a capability, and an FNV
+// digest of the bag's rows in order. A reorder of the capability rows, an arming
+// rule change or a pool change moves it.
 //
-// The profile is set HERE rather than through RSBS_DIAG_CVARS so it travels with
-// the lock (the same choice the RandoEntrancePin row made), and the row
-// refuses to pin a world that did not actually arm every family or that hosts
-// no capability row at all - either would be a golden that pins nothing this
-// row was added for.
+// WHY THE FILL IS NOT RUN. The bag is decided before any fill, and the armed MM
+// profile's bag is large enough that a fill would ride the per-attempt wall clock
+// — a golden must not. The MM-side fields stay pinned by the other goldens.
+extern "C" {
+int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_t* outHosts, uint16_t* outFlags, int cap);
+uint32_t OoT_ComboLogic_ConfinementArmed(void);
+int MM_ComboLogic_TestPairedPool(uint16_t* outItems, uint16_t* outFlags, int cap);
+void MM_Rando_InitCore(void);
+uint16_t OoT_ComboLogic_StartingHealth(void);
+uint16_t MM_ComboLogic_StartingHealth(void);
+uint32_t Combo_SingleBag_TrimSeed(void);
+}
+
 TestResult Test_RandoArmedCapsDigest(void) {
-    printf("[TEST] rando-armed-caps-digest: the reverse draw with every give-capability family armed (#681)\n");
+    printf("[TEST] rando-armed-caps-digest: the composed bag with every give-capability family armed (#681, lane "
+           "K11)\n");
 
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -1299,16 +1323,18 @@ TestResult Test_RandoArmedCapsDigest(void) {
 
     const char* digestOut = std::getenv("RSBS_SEED_DIGEST_OUT"); // NULL => digest to stdout
     const int rc = Rando_HeadlessSeedDeterminismDigest("RSBSUNIFIED1", digestOut);
-    for (const char* cvar : kArming) {
-        CVarClear(cvar);
-    }
     if (rc != 0) {
+        for (const char* cvar : kArming) {
+            CVarClear(cvar);
+        }
         printf("[TEST] FAIL: armed-profile determinism digest rc=%d\n", rc);
         return TEST_FAIL;
     }
-
     if (!Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ||
         Combo_ForeignGiveCaps((uint8_t)GAME_MM) != (uint16_t)RSBS_GIVECAP_ALL_V1) {
+        for (const char* cvar : kArming) {
+            CVarClear(cvar);
+        }
         printf("[TEST] FAIL: the armed profile published caps=%04X (published=%d); expected every family (%04X) - "
                "this golden would pin a world that is not the armed one\n",
                (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM),
@@ -1316,31 +1342,112 @@ TestResult Test_RandoArmedCapsDigest(void) {
         return TEST_FAIL;
     }
 
-    const ComboForeignItemDef* mmPool = nullptr;
-    const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
-    int capabilityPlacements = 0;
-    int placements = 0;
-    for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
-        const ComboForeignPlacement& p = gComboCtx.foreignPlacementsOoT[slot];
-        if (p.item.originGame == (uint8_t)GAME_NONE) {
-            continue;
-        }
-        placements++;
-        for (int row = 0; row < mmPoolCount; row++) {
-            if (mmPool[row].item.id == p.item.id && mmPool[row].requiredGiveCaps != 0) {
-                capabilityPlacements++;
-                break;
-            }
-        }
+    // The two pools the creation would hand the single bag, under the frozen
+    // armed profile (the CVars stay set until MM's profile has been resolved).
+    MM_Rando_InitCore();
+    std::vector<uint16_t> ootItems(8192, 0), ootFlags(8192, 0), mmItems(8192, 0), mmFlags(8192, 0);
+    const int ootRows = OoT_ComboLogic_ExportPool(0, ootItems.data(), nullptr, ootFlags.data(), 8192);
+    const int mmRows = MM_ComboLogic_TestPairedPool(mmItems.data(), mmFlags.data(), 8192);
+    for (const char* cvar : kArming) {
+        CVarClear(cvar);
     }
-    printf("[TEST] rando-armed-caps-digest: %d of %d reverse placements are capability rows\n", capabilityPlacements,
-           placements);
-    if (capabilityPlacements <= 0) {
-        printf("[TEST] FAIL: the armed world hosts no capability row, so its golden would not pin the capability "
-               "draw or the budget - pick a seed where it does\n");
+    if (ootRows <= 0 || mmRows <= 0 || ootRows > 8192 || mmRows > 8192) {
+        printf("[TEST] FAIL: the pools could not be read (OoT %d, MM %d rows)\n", ootRows, mmRows);
         return TEST_FAIL;
     }
-    printf("[TEST] PASS: armed-profile digest written\n");
+    std::vector<ComboLogicPoolRow> rows;
+    for (int i = 0; i < ootRows; i++) {
+        ComboLogicPoolRow r;
+        memset(&r, 0, sizeof(r));
+        r.item.originGame = (uint8_t)GAME_OOT;
+        r.item.id = ootItems[(size_t)i];
+        r.poolFlags = ootFlags[(size_t)i];
+        rows.push_back(r);
+    }
+    for (int i = 0; i < mmRows; i++) {
+        ComboLogicPoolRow r;
+        memset(&r, 0, sizeof(r));
+        r.item.originGame = (uint8_t)GAME_MM;
+        r.item.id = mmItems[(size_t)i];
+        r.poolFlags = mmFlags[(size_t)i];
+        rows.push_back(r);
+    }
+    ComboLogicComposeRequest creq;
+    memset(&creq, 0, sizeof(creq));
+    creq.rows = rows.data();
+    creq.rowCount = (int)rows.size();
+    creq.armedOoT = OoT_ComboLogic_ConfinementArmed() | Combo_ItemClassArmedFromFrozen((uint8_t)GAME_OOT);
+    creq.armedMM = Combo_ItemClassArmedFromFrozen((uint8_t)GAME_MM);
+    creq.composeFlags = RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME;
+    // THE SHARED-QUANTITY TRIM exactly as production composes it
+    // (combo_single_bag.c): the identity's trim seed and both frozen starting
+    // healths (MM's reads the profile TestPairedPool just resolved into the save).
+    creq.trimSeed = Combo_SingleBag_TrimSeed();
+    creq.startingHealthOoT = OoT_ComboLogic_StartingHealth();
+    creq.startingHealthMM = MM_ComboLogic_StartingHealth();
+    std::vector<ComboLogicBagItem> bag((size_t)RSBS_COMBO_LOGIC_BAG_CAP);
+    ComboLogicComposeResult cres;
+    const int cst = Combo_Logic_ComposeBag(&creq, bag.data(), RSBS_COMBO_LOGIC_BAG_CAP, nullptr, &cres);
+    if (cst != RSBS_COMBO_LOGIC_OK) {
+        printf("[TEST] FAIL: the armed bag could not be composed (%s)\n", Combo_Logic_StatusName(cst));
+        return TEST_FAIL;
+    }
+    int capabilityRows = 0;
+    uint32_t bagDigest = 2166136261u;
+    for (int i = 0; i < cres.bagCount; i++) {
+        const ComboLogicBagItem& b = bag[(size_t)i];
+        if ((Combo_ItemClassArmedBy(b.item) & RSBS_FILL_ARM_GIVECAPS_MASK) != 0u) {
+            capabilityRows++;
+        }
+        const uint8_t bytes[5] = { b.item.originGame, (uint8_t)(b.item.id & 0xFF), (uint8_t)(b.item.id >> 8),
+                                   (uint8_t)(b.bagFlags & 0xFF), (uint8_t)(b.bagFlags >> 8) };
+        for (uint8_t v : bytes) {
+            bagDigest ^= v;
+            bagDigest *= 16777619u;
+        }
+    }
+    printf("[TEST] rando-armed-caps-digest: %d bag rows, %d of them need a give capability\n", cres.bagCount,
+           capabilityRows);
+    if (capabilityRows <= 0) {
+        printf("[TEST] FAIL: no armed capability row entered the bag, so this golden would not pin the arming\n");
+        return TEST_FAIL;
+    }
+
+    FILE* out = stdout;
+    bool closeOut = false;
+    if (digestOut != nullptr && digestOut[0] != '\0') {
+        out = fopen(digestOut, "a"); // APPEND: the OoT half wrote the file first
+        if (out == nullptr) {
+            printf("[TEST] FAIL: cannot open digest output '%s'\n", digestOut);
+            return TEST_FAIL;
+        }
+        closeOut = true;
+    }
+    const ComboLogicComposeCounts& o = cres.perGame[GAME_OOT];
+    const ComboLogicComposeCounts& m = cres.perGame[GAME_MM];
+    fprintf(out,
+            "armedGiveCaps=%04X\n"
+            "armedOoTPoolRows=%d\n"
+            "armedMMPoolRows=%d\n"
+            "armedBagRows=%d\n"
+            "armedBagCapabilityRows=%d\n"
+            "armedBagDigest=%08X\n"
+            "armedOoT=req%d/sur%d/conf%d/ren%d/junk%d/trap%d/trim%d\n"
+            "armedMM=req%d/sur%d/conf%d/ren%d/junk%d/trap%d/trim%d\n"
+            "armedTrimSeed=%08X\n"
+            "armedStartingHealth=%04X/%04X\n",
+            (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM), ootRows, mmRows, cres.bagCount, capabilityRows,
+            bagDigest, o.rows[RSBS_COMBO_COMPOSE_REQUIRED], o.rows[RSBS_COMBO_COMPOSE_SURPLUS],
+            o.rows[RSBS_COMBO_COMPOSE_CONFINED], o.rows[RSBS_COMBO_COMPOSE_RENEWABLE], o.rows[RSBS_COMBO_COMPOSE_JUNK],
+            o.rows[RSBS_COMBO_COMPOSE_TRAP], o.rows[RSBS_COMBO_COMPOSE_TRIMMED], m.rows[RSBS_COMBO_COMPOSE_REQUIRED],
+            m.rows[RSBS_COMBO_COMPOSE_SURPLUS], m.rows[RSBS_COMBO_COMPOSE_CONFINED],
+            m.rows[RSBS_COMBO_COMPOSE_RENEWABLE], m.rows[RSBS_COMBO_COMPOSE_JUNK], m.rows[RSBS_COMBO_COMPOSE_TRAP],
+            m.rows[RSBS_COMBO_COMPOSE_TRIMMED], creq.trimSeed, (unsigned)creq.startingHealthOoT,
+            (unsigned)creq.startingHealthMM);
+    if (closeOut) {
+        fclose(out);
+    }
+    printf("[TEST] PASS: armed-profile bag digest written\n");
     return TEST_PASS;
 }
 
@@ -1397,6 +1504,7 @@ uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 int MM_Rando_Logic_JoinOrderProbe(void);
 void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse, int* outIdentityOk);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
+int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded, int* outStrippedLoaded);
 // #582's overlay leg. games/oot/soh/SohGui/CreationProgressOverlay.h documents
 // why the probe returns whether it could present rather than asserting it.
 int OoT_CreationProgressOverlay_TestPresentOnce(void);
@@ -1423,6 +1531,13 @@ static int sCreationPhaseCount = 0;
 
 static void CreationPhaseSink(const ComboGenProgress* progress) {
     const int cap = (int)(sizeof(sCreationPhaseOrder) / sizeof(sCreationPhaseOrder[0]));
+    // TRANSITIONS, not reports (lane K11): the single-bag fill reports its
+    // progress inside RSBS_GENPHASE_MM_FILL about once a second, so a long fill
+    // would otherwise spend this fixed array on repeats of one phase and push the
+    // PUBLISH record the order legs look for off the end.
+    if (progress != NULL && sCreationPhaseCount > 0 && sCreationPhaseOrder[sCreationPhaseCount - 1] == progress->phase) {
+        return;
+    }
     if (progress != NULL && sCreationPhaseCount < cap) {
         sCreationPhaseOrder[sCreationPhaseCount++] = progress->phase;
     }
@@ -1858,6 +1973,48 @@ TestResult Test_ComboCreationEvent(void) {
         printf("[TEST] #585: the fill's reachability traversal joins time states instead of first-visit-wins\n");
     }
 
+    // ------------------------------------------------------------------
+    // Leg 11 — a paired world's OoT spoiler is REFUSED as a solo OoT world (PR
+    // #743 review). File select re-parses CVAR SpoilerLog when no seed was
+    // generated in-process (z_file_choose.c); under the single bag that document
+    // holds cover items where MM items cross in and lacks the OoT items that
+    // crossed out, so a solo file built from it could not be finished. Last,
+    // because the parse replaces the live OoT context.
+    // ------------------------------------------------------------------
+    {
+        std::string relative = CVarGetString("gGeneral.SpoilerLog", "");
+        if (relative.rfind("./", 0) == 0) {
+            relative = relative.substr(2);
+        }
+        if (relative.empty()) {
+            printf("[TEST] FAIL: the paired creation left no OoT spoiler on record to reload\n");
+            return TEST_FAIL;
+        }
+        const std::string absolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
+        int marked = 0;
+        int pairedLoaded = -1;
+        int strippedLoaded = -1;
+        const int reloadRc = Rando_TestReloadPairedSpoiler(absolute.c_str(), &marked, &pairedLoaded, &strippedLoaded);
+        printf("[TEST] spoiler reload: rc=%d marked=%d paired-loaded=%d stripped-loaded=%d (%s)\n", reloadRc, marked,
+               pairedLoaded, strippedLoaded, absolute.c_str());
+        if (reloadRc != 0 || marked != 1) {
+            printf("[TEST] FAIL: the paired world's spoiler could not be read back or carries no paired-world "
+                   "marker\n");
+            return TEST_FAIL;
+        }
+        if (pairedLoaded != 0) {
+            printf("[TEST] FAIL: a paired world's spoiler loaded as a solo OoT world — its crossing hosts hold cover "
+                   "items and the OoT items that crossed into Termina are missing from it\n");
+            return TEST_FAIL;
+        }
+        if (strippedLoaded != 1) {
+            printf("[TEST] FAIL: the same document without its paired-world markers did not load, so the refusal "
+                   "is not what refused it\n");
+            return TEST_FAIL;
+        }
+        printf("[TEST] spoiler reload: the paired world's spoiler is refused as a solo world; unmarked, it loads\n");
+    }
+
     ComboContext_Init();
     RsbsSave_ResetSlotSessionState();
     printf("[TEST] PASS: one creation event authored both halves; the arrival hydrates or refuses and never "
@@ -1865,481 +2022,11 @@ TestResult Test_ComboCreationEvent(void) {
     return TEST_PASS;
 }
 
-// ============================================================================
-// #510: the REVERSE foreign pool, end to end through a real OoT generation.
-//
-// WHY THIS ROW IS IN THE `rando` TIER AND NOT THE DISPLAY-FREE ONE. OoT's host
-// predicate reads GetPlacedRandomizerGet() — a FILL RESULT. In a ROM-free run
-// with no fill every location is RG_NONE, so the predicate accepts nothing and a
-// naive "only chests are accepted" assertion passes with an accepted count of
-// ZERO: green, and testing nothing. That is the same vacuity trap #491 recorded
-// for MM's deferred COND_HOOK unregister. The defence is structural — run a real
-// generation first — plus an explicit assertion that the accepted count is
-// NON-ZERO, and printing it so a supply regression is visible in CI logs before
-// it becomes a shortfall.
-//
-// Bridges: OoT_Foreign_IsEligibleHost is the real predicate the placement pass
-// uses; MM_ConsumeSharedItems -> MM_AwardSharedItem -> MM_ForeignItem_Give is
-// MM's real, already-merged (#507) award chain.
-// ============================================================================
-extern "C" {
-int OoT_Foreign_IsEligibleHost(uint16_t rc);
-void MM_ConsumeSharedItems(void);
-int MM_ForeignItem_TestPendingCount(void);
-uint16_t MM_ForeignItem_TestPendingAt(int index);
-void MM_ForeignItem_TestResetPending(void);
-}
-
-TestResult Test_ForeignPlacementOoT(void) {
-    printf("[TEST] foreign-placement-oot: a real OoT generation hosts MM items, deterministically, and MM's award "
-           "chain accepts them (#510)\n");
-
-    auto shipCtx = CreateHarnessStyleContext();
-    if (!shipCtx) {
-        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
-        return TEST_FAIL;
-    }
-
-    static char arg0[] = "redship";
-    static char* fakeArgv[] = { arg0, nullptr };
-    InitOTRForMMFirstBoot(1, fakeArgv);
-
-    // A REAL fill. Everything below depends on this having run — without it the
-    // predicate is vacuous and the placement table is empty.
-    const char* kSeed = "RSBSFOREIGN1";
-    int rc = Rando_HeadlessSeedTest(kSeed);
-    if (rc != 0) {
-        printf("[TEST] FAIL: seed generation rc=%d\n", rc);
-        return TEST_FAIL;
-    }
-
-    // The producer's gate: generation stamps the pairing identity, so by now the
-    // reverse placement pass has run inside Playthrough_Init.
-    if (!Combo_ForeignPairingActive()) {
-        printf("[TEST] FAIL: generation did not stamp the pairing identity\n");
-        return TEST_FAIL;
-    }
-
-    // ------------------------------------------------------------------
-    // Host supply: NON-ZERO, and printed.
-    // ------------------------------------------------------------------
-    int eligibleHosts = 0;
-    for (int id = 1; id < 4200; id++) { // RC_MAX is ~4134; the predicate rejects out-of-range itself
-        if (OoT_Foreign_IsEligibleHost((uint16_t)id)) {
-            eligibleHosts++;
-        }
-    }
-    printf("[TEST] foreign-placement-oot: %d eligible OoT host checks after a real fill\n", eligibleHosts);
-    if (eligibleHosts <= 0) {
-        printf("[TEST] FAIL: no eligible OoT host check — the predicate accepts nothing (vacuity)\n");
-        return TEST_FAIL;
-    }
-
-    // ------------------------------------------------------------------
-    // Placements: made, MM-tagged, named, and hosted on eligible checks.
-    // ------------------------------------------------------------------
-    const int placedCount = Combo_CountForeignPlacementsOoT();
-    printf("[TEST] foreign-placement-oot: %d MM items hosted in OoT checks (cap %d)\n", placedCount,
-           (int)RSBS_FOREIGN_PLACEMENT_CAP);
-    if (placedCount <= 0) {
-        printf("[TEST] FAIL: generation placed no MM items despite an active pairing\n");
-        return TEST_FAIL;
-    }
-    if (placedCount > (int)RSBS_FOREIGN_PLACEMENT_CAP) {
-        printf("[TEST] FAIL: placement count %d exceeds the carve\n", placedCount);
-        return TEST_FAIL;
-    }
-
-    for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
-        const ComboForeignPlacement& p = gComboCtx.foreignPlacementsOoT[slot];
-        if (p.item.originGame == (uint8_t)GAME_NONE) {
-            continue; // unset slot
-        }
-        if (p.item.originGame != (uint8_t)GAME_MM) {
-            printf("[TEST] FAIL: OoT-hosted placement in slot %d is not MM-tagged (%u)\n", slot,
-                   (unsigned)p.item.originGame);
-            return TEST_FAIL;
-        }
-        // Resolvable through the pool: the spoiler and both presentation surfaces
-        // read the name through exactly this call.
-        if (Combo_GetForeignItemName(p.item) == nullptr) {
-            printf("[TEST] FAIL: hosted MM item id=%u resolves to no pool entry\n", (unsigned)p.item.id);
-            return TEST_FAIL;
-        }
-        // The host must still satisfy the predicate that selected it — it keeps
-        // its own junk item, which is the degrade invariant (#488): with the
-        // placement table absent the check just yields the junk it really holds.
-        if (!OoT_Foreign_IsEligibleHost(p.mmCheckId)) {
-            printf("[TEST] FAIL: OoT check %u hosts an MM item but is not an eligible host\n",
-                   (unsigned)p.mmCheckId);
-            return TEST_FAIL;
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // MM's REAL award chain accepts a really-placed item, exactly once.
-    // ------------------------------------------------------------------
-    // The in-game pickup seam (hook_handlers.cpp) needs a live PlayState and is
-    // gameplay-tier, so this drives the half CI can honestly reach: record the
-    // crossing the way the seam does, then run MM's real consumer. With no
-    // PlayState the give DEFERS into MM's pending queue (#502) rather than
-    // dereferencing — so the queue is the observable that the id survived the
-    // whole path in MM's id-space.
-    const SharedItem firstPlaced = gComboCtx.foreignPlacementsOoT[0].item;
-    Combo_ClearSharedItemOutbox();
-    MM_ForeignItem_TestResetPending();
-    if (Combo_RecordSharedItem(GAME_MM, firstPlaced.id) < 0) {
-        printf("[TEST] FAIL: could not record the crossing\n");
-        return TEST_FAIL;
-    }
-    MM_ConsumeSharedItems();
-    if (MM_ForeignItem_TestPendingCount() != 1 || MM_ForeignItem_TestPendingAt(0) != firstPlaced.id) {
-        printf("[TEST] FAIL: MM's award chain did not accept the placed item (pending=%d)\n",
-               MM_ForeignItem_TestPendingCount());
-        return TEST_FAIL;
-    }
-    // Single-use: a second arrival awards nothing more.
-    MM_ForeignItem_TestResetPending();
-    MM_ConsumeSharedItems();
-    if (MM_ForeignItem_TestPendingCount() != 0) {
-        printf("[TEST] FAIL: crossing awarded twice\n");
-        return TEST_FAIL;
-    }
-    MM_ForeignItem_TestResetPending();
-
-    // ------------------------------------------------------------------
-    // DETERMINISM: the same seed reproduces the same placements exactly.
-    // ------------------------------------------------------------------
-    // The selection stream is a LOCAL xorshift32 seeded from the paired identity,
-    // deliberately not drawn from the fill's RNG. If it ever started borrowing
-    // Random_Init's stream — or iterating an unordered container — this is what
-    // goes red, and it is the same property the SeedDeterminism digest folds.
-    ComboForeignPlacement firstRun[RSBS_FOREIGN_PLACEMENT_CAP];
-    memcpy(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun));
-
-    rc = Rando_HeadlessSeedTest(kSeed);
-    if (rc != 0) {
-        printf("[TEST] FAIL: second seed generation rc=%d\n", rc);
-        return TEST_FAIL;
-    }
-    if (memcmp(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun)) != 0) {
-        printf("[TEST] FAIL: same seed produced different foreign placements (nondeterministic)\n");
-        return TEST_FAIL;
-    }
-
-    // ------------------------------------------------------------------
-    // THE DIRECTION GATE, on the REAL pass (ADR 0011 increment 4, #493).
-    // ------------------------------------------------------------------
-    // Driven by re-running OoT_PlaceForeignItems over the LIVE fill this test
-    // already has, with the frozen record's direction byte moved — which is the
-    // only way to assert the gate without a second generation, and which drives
-    // the production function rather than the predicate it calls.
-    //
-    // The frozen record is the authority: generation froze it (Playthrough_Init,
-    // ADR 0011 decision 4.1), and no CVar may reach a placement pass. Two
-    // unarmed values, because they fail differently in principle —
-    // RSBS_COMBO_DIR_FORWARD arms the OTHER direction, RSBS_COMBO_DIR_OFF arms
-    // neither — and a gate that keyed on "not BOTH" rather than on this pass's
-    // own origin would pass one and fail the other.
-    //
-    // Restoring BOTH must reproduce the SAME table byte for byte. That is the
-    // acceptance bar the whole increment is bounded by: under the shipped
-    // default nothing moves, which is why SeedDeterminism's foreignOoTHash and
-    // foreignOoTCount are unchanged by this change.
-    {
-        const uint8_t savedDirection = gComboCtx.comboSettings.direction;
-        if (!Combo_ComboSettingsFrozen()) {
-            printf("[TEST] FAIL: generation did not freeze the combo record — the gate has no authority to read\n");
-            return TEST_FAIL;
-        }
-        if (savedDirection != RSBS_COMBO_DIR_BOTH) {
-            printf("[TEST] FAIL: the shipped default direction is not BOTH (got %u) — every world just changed\n",
-                   (unsigned)savedDirection);
-            return TEST_FAIL;
-        }
-
-        static const uint8_t kUnarmed[] = { (uint8_t)RSBS_COMBO_DIR_FORWARD, (uint8_t)RSBS_COMBO_DIR_OFF };
-        for (size_t i = 0; i < sizeof(kUnarmed) / sizeof(kUnarmed[0]); i++) {
-            gComboCtx.comboSettings.direction = kUnarmed[i];
-            const int replaced = OoT_PlaceForeignItems();
-            if (replaced != 0 || Combo_CountForeignPlacementsOoT() != 0) {
-                printf("[TEST] FAIL: direction=%u still placed %d MM items (%d in table) — the reverse pass is not "
-                       "gated\n",
-                       (unsigned)kUnarmed[i], replaced, Combo_CountForeignPlacementsOoT());
-                return TEST_FAIL;
-            }
-        }
-
-        gComboCtx.comboSettings.direction = savedDirection;
-        const int rearmed = OoT_PlaceForeignItems();
-        if (rearmed != placedCount) {
-            printf("[TEST] FAIL: re-arming direction=BOTH placed %d, expected %d\n", rearmed, placedCount);
-            return TEST_FAIL;
-        }
-        if (memcmp(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun)) != 0) {
-            printf("[TEST] FAIL: the re-armed pass produced a DIFFERENT table — the gate is not free\n");
-            return TEST_FAIL;
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // THE GIVE-CAPABILITY NARROWING, on the REAL pass (#681; ADR 0011 O8).
-    // ------------------------------------------------------------------
-    // Criterion 3 is profile-conditional now: a soul / ocarina-button / swim /
-    // clock row is drawn only when the paired MM world's FROZEN profile
-    // published that family's capability. Two profiles over the SAME live fill:
-    //
-    //  - the shipped profile, which arms none of the four families. Generation
-    //    published it (Playthrough_Init -> MM_Rando_PublishProfileGiveCaps), so
-    //    it must read "published, zero" — not "unpublished" — and re-running
-    //    the pass must reproduce the generated table BYTE FOR BYTE. That is what
-    //    makes "the narrowing only narrows" checkable: today's worlds did not
-    //    move.
-    //  - a profile that arms every family, under a class record narrowed to
-    //    PROGRESSION (the class every capability row is in) so the draw is dense
-    //    enough in capability rows that "none placed" would be a real signal
-    //    rather than a 3% draw. It must place at least one capability row, never
-    //    more than RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET of one family, and the SAME
-    //    class record with the capabilities UNARMED must place none — the pair
-    //    that distinguishes "narrowed by the profile" from "never drawn".
-    {
-        if (!Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) || Combo_ForeignGiveCaps((uint8_t)GAME_MM) != 0u) {
-            printf("[TEST] FAIL: after a shipped-profile generation the MM give capabilities read published=%d "
-                   "caps=%04X; expected published with nothing armed (#681)\n",
-                   Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ? 1 : 0,
-                   (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM));
-            return TEST_FAIL;
-        }
-
-        const ComboForeignItemDef* mmPool = nullptr;
-        const int mmPoolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
-        auto capsOfPlaced = [&](const SharedItem& item) -> uint16_t {
-            for (int row = 0; row < mmPoolCount; row++) {
-                if (mmPool[row].item.id == item.id) {
-                    return mmPool[row].requiredGiveCaps;
-                }
-            }
-            return 0xFFFFu; // not a pool row at all: reported below
-        };
-        // Per-family counts of the capability rows in the live table; returns
-        // the total, or -1 when a slot names a row the pool does not have.
-        auto countCapabilityRows = [&](int outPerFamily[4]) -> int {
-            int total = 0;
-            for (int f = 0; f < 4; f++) {
-                outPerFamily[f] = 0;
-            }
-            for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
-                const ComboForeignPlacement& p = gComboCtx.foreignPlacementsOoT[slot];
-                if (p.item.originGame == (uint8_t)GAME_NONE) {
-                    continue;
-                }
-                const uint16_t caps = capsOfPlaced(p.item);
-                if (caps == 0xFFFFu) {
-                    return -1;
-                }
-                for (int f = 0; f < 4; f++) {
-                    if ((caps & (1u << f)) != 0) {
-                        outPerFamily[f]++;
-                        total++;
-                    }
-                }
-            }
-            return total;
-        };
-
-        int perFamily[4];
-        if (countCapabilityRows(perFamily) != 0) {
-            printf("[TEST] FAIL: the shipped-profile world hosts a capability row its profile does not arm (#681)\n");
-            return TEST_FAIL;
-        }
-
-        const ComboSettingsRecord savedRecord = gComboCtx.comboSettings;
-        gComboCtx.comboSettings.itemClassMM = (uint16_t)RSBS_ITEMCLASS_PROGRESSION;
-
-        // Narrowed class, capabilities UNARMED (published, zero): no capability row.
-        OoT_PlaceForeignItems();
-        const int unarmedCaps = countCapabilityRows(perFamily);
-        if (unarmedCaps != 0 || Combo_CountForeignPlacementsOoT() <= 0) {
-            printf("[TEST] FAIL: with no give capability armed the PROGRESSION-only draw placed %d capability row(s) "
-                   "over %d placements; expected 0 over at least 1 (#681)\n",
-                   unarmedCaps, Combo_CountForeignPlacementsOoT());
-            gComboCtx.comboSettings = savedRecord;
-            return TEST_FAIL;
-        }
-
-        // Same class, every family ARMED.
-        Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, RSBS_GIVECAP_ALL_V1);
-        OoT_PlaceForeignItems();
-        const int armedCaps = countCapabilityRows(perFamily);
-        bool overBudget = false;
-        for (int f = 0; f < 4; f++) {
-            if (perFamily[f] > RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET) {
-                overBudget = true;
-            }
-        }
-        printf("[TEST] foreign-placement-oot: PROGRESSION-only, every capability armed: %d of %d placements are "
-               "capability rows (souls %d, buttons %d, swim %d, clocks %d; budget %d per family)\n",
-               armedCaps, Combo_CountForeignPlacementsOoT(), perFamily[0], perFamily[1], perFamily[2], perFamily[3],
-               RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET);
-        Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, 0u);
-        gComboCtx.comboSettings = savedRecord;
-        if (armedCaps <= 0) {
-            printf("[TEST] FAIL: with every give capability armed the PROGRESSION-only draw placed no capability row "
-                   "- the profile-conditional rows are not reachable by the draw (#681)\n");
-            return TEST_FAIL;
-        }
-        if (overBudget) {
-            printf("[TEST] FAIL: one give-capability family exceeded its per-seed budget of %d (#681)\n",
-                   RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET);
-            return TEST_FAIL;
-        }
-
-        // Back to the shipped profile and record: the generated table, byte for byte.
-        OoT_PlaceForeignItems();
-        if (memcmp(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun)) != 0) {
-            printf("[TEST] FAIL: the shipped profile no longer reproduces the generated table after the capability "
-                   "probes - the narrowing is not free (#681)\n");
-            return TEST_FAIL;
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // THE REACHABILITY GATE, on the REAL pass (#656; ADR 0010 increment 1.3).
-    // ------------------------------------------------------------------
-    // The forward pass (MM) has filtered its candidates through
-    // ComputeReachableCheckSet since PR #580; the reverse pass had no
-    // reachability term at all, so an MM item could land on an OoT check the OoT
-    // solver can never reach — beatability broken with no signal.
-    //
-    // TWO CLAIMS, and they are different:
-    //
-    //  (a) THE GATE IS VACUOUS UNDER THE SHIPPED DEFAULT, measured rather than
-    //      assumed. RSK_ALL_LOCATIONS_REACHABLE defaults to on, so every eligible
-    //      host is inside the closure and the gate drops nothing — which is what
-    //      keeps the reverse pass's placements identical to the pre-gate ones.
-    //      This is the assertion that EARNED its place: the first draft of the
-    //      gate recomputed the closure without resetting the Logic inventory
-    //      first, and this leg measured 48 of 57 hosts "reachable" at the tail of
-    //      a real generation against 57 of 57 a moment later — nine reachable
-    //      hosts silently removed and a different world produced. Note that
-    //      neither SeedDeterminism nor RandoDeterminism could have caught it:
-    //      both compare two runs of the SAME binary to each other
-    //      (CMake/CheckSeedDeterminism.cmake), so a change that is deterministic
-    //      is invisible to them. The byte-comparison against the pre-gate table
-    //      in the direction-gate block above is what went red.
-    //
-    //  (b) THE PASS HONOURS THE GATE. Asserted by making a specific host
-    //      unreachable and watching the real OoT_PlaceForeignItems never choose
-    //      it. The pass recomputes the closure itself (that is deliberate: the
-    //      pool marks after Fill() are the residue of whichever search ran last),
-    //      so the recompute is switched off for the duration — otherwise the
-    //      injected state is erased before the pass reads it and this leg could
-    //      only ever test the predicate, never the gate. The switch defaults to
-    //      the production behaviour and production never calls it.
-    {
-        const int gateEligible = OoT_Foreign_TestLastEligibleHosts();
-        const int gateReachable = OoT_Foreign_TestLastReachableHosts();
-        printf("[TEST] foreign-placement-oot: reachability gate saw %d eligible hosts, %d reachable\n", gateEligible,
-               gateReachable);
-        if (gateEligible <= 0 || gateReachable <= 0) {
-            printf("[TEST] FAIL: the reachability gate recorded no hosts — it did not run (#656)\n");
-            return TEST_FAIL;
-        }
-        if (gateReachable != gateEligible) {
-            printf("[TEST] FAIL: the gate dropped %d of %d eligible hosts under the SHIPPED default (All Locations "
-                   "Reachable is on, so the closure must be total) — the reverse pass is now producing a different "
-                   "world than it did before the gate (#656)\n",
-                   gateEligible - gateReachable, gateEligible);
-            return TEST_FAIL;
-        }
-
-        // Collect the reachable eligible hosts the pass would draw from, then
-        // make all but ONE unreachable. Every placement must land on the survivor.
-        std::vector<uint16_t> hosts;
-        for (int id = 1; id < 4200; id++) {
-            if (OoT_Foreign_IsEligibleHost((uint16_t)id) && OoT_Foreign_IsReachableHost((uint16_t)id)) {
-                hosts.push_back((uint16_t)id);
-            }
-        }
-        if (hosts.size() < 2) {
-            printf("[TEST] FAIL: fewer than two reachable eligible hosts (%zu) — this leg cannot distinguish\n",
-                   hosts.size());
-            return TEST_FAIL;
-        }
-
-        const int priorRecompute = OoT_Foreign_TestSetReachabilityRecompute(0);
-        const uint16_t survivor = hosts.back();
-        for (size_t i = 0; i + 1 < hosts.size(); i++) {
-            if (!OoT_Foreign_TestSetHostReachable(hosts[i], 0)) {
-                printf("[TEST] FAIL: could not clear the reachability mark on host %u\n", (unsigned)hosts[i]);
-                OoT_Foreign_TestSetReachabilityRecompute(priorRecompute);
-                return TEST_FAIL;
-            }
-        }
-
-        const int gatedPlaced = OoT_PlaceForeignItems();
-        int offending = -1;
-        for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
-            const ComboForeignPlacement& p = gComboCtx.foreignPlacementsOoT[slot];
-            if (p.item.originGame == (uint8_t)GAME_NONE) {
-                continue;
-            }
-            if (p.mmCheckId != survivor) {
-                offending = (int)p.mmCheckId;
-                break;
-            }
-        }
-        // ONE reachable host, so exactly one placement: hosts are drawn without
-        // replacement and the count is min(pool, poolSize, candidates).
-        const bool honoured = (gatedPlaced == 1) && (offending < 0);
-
-        // ...and with the survivor unreachable too, the pass must FAIL rather
-        // than fall back to an unreachable host: -2 is "a paired world's
-        // cross-game half would be silently absent", which is exactly what an
-        // unhostable world is.
-        int starvedRc = 0;
-        if (honoured) {
-            OoT_Foreign_TestSetHostReachable(survivor, 0);
-            starvedRc = OoT_PlaceForeignItems();
-        }
-
-        // Restore before judging, so a failure cannot leave the process poisoned
-        // for the assertions after this block.
-        for (size_t i = 0; i < hosts.size(); i++) {
-            OoT_Foreign_TestSetHostReachable(hosts[i], 1);
-        }
-        OoT_Foreign_TestSetReachabilityRecompute(priorRecompute);
-
-        if (!honoured) {
-            printf("[TEST] FAIL: with one reachable host the pass placed %d items and hosted on check %d — the "
-                   "reverse pass ignores the reachability gate (#656)\n",
-                   gatedPlaced, offending);
-            return TEST_FAIL;
-        }
-        if (starvedRc != -2) {
-            printf("[TEST] FAIL: with NO reachable host the pass returned %d, expected -2 (a paired world whose "
-                   "cross-game half is silently absent must fail generation) (#656)\n",
-                   starvedRc);
-            return TEST_FAIL;
-        }
-
-        // The restore must reproduce the original table byte for byte: the gate
-        // is free when the closure is total.
-        const int restored = OoT_PlaceForeignItems();
-        if (restored != placedCount || memcmp(firstRun, gComboCtx.foreignPlacementsOoT, sizeof(firstRun)) != 0) {
-            printf("[TEST] FAIL: restoring full reachability placed %d (expected %d) or a different table — the gate "
-                   "is not free under the shipped default (#656)\n",
-                   restored, placedCount);
-            return TEST_FAIL;
-        }
-    }
-
-    Combo_ClearSharedItemOutbox();
-    printf("[TEST] PASS: %d MM items hosted over %d eligible OoT checks, all inside OoT's reachable closure, "
-           "deterministic, gated on the frozen direction, MM awards each once\n",
-           placedCount, eligibleHosts);
-    return TEST_PASS;
-}
+// #510's REVERSE-pool row (foreign-placement-oot) is RETIRED with the overlay
+// pass it locked (ADR 0010 increment 3, D3; lane K11). Its successor is
+// combo-single-bag (tests/test_combo_single_bag.c): the crossings are the single
+// bag's, placed at the creation event over both real engines, and D5's
+// pair-level locks with removal are asserted there.
 
 // Lane C0 reachability lock (#392): MM's 2ship_rando is un-elided and
 // actually generates — ShipInit registrars populated the Logic/Regions
@@ -4010,6 +3697,20 @@ TestResult Test_ComboLogicMultiplicity(void) {
     return ComboLogicMultiplicity_Run();
 }
 
+// The single-bag fill at the creation event over both real engines (lane K11).
+// Same bring-up split as Test_ComboLogicMeasure above, for the same reason.
+TestResult Test_ComboSingleBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char csbArg0[] = "redship";
+    static char* csbArgv[] = { csbArg0, nullptr };
+    InitOTRForMMFirstBoot(1, csbArgv);
+    return ComboSingleBag_Run();
+}
+
 // ADR 0010 answer O6's grow-check over both real engines (#645, #500). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason.
 TestResult Test_ComboLogicMonotonicity(void) {
@@ -4202,8 +3903,6 @@ const TestDescriptor gTests[] = {
     // #510: the reverse pool end to end over a REAL fill. In this tier, not the
     // display-free one, because OoT's host predicate reads a fill result — with
     // no fill it accepts nothing and the lock would pass vacuously.
-    {"foreign-placement-oot", "Real OoT fill hosts MM items deterministically; MM's award chain accepts them (#510)",
-     Test_ForeignPlacementOoT},
     // ADR 0010 increment 2 (#644): the whole paired creation at one seam,
     // the arrival reduced to hydrate-or-refuse, the #582 budget, the one
     // spoiler and #585's join. Same tier and the same reason as the row
@@ -4283,29 +3982,17 @@ const TestDescriptor gTests[] = {
      Test_ForeignItemGiveReverse},
     // #488: host selection must reject any check class the game does not arm —
     // the give path is gated on `.eligible`, so an unarmed host strands a
-    // pinned OoT progression item and no error is ever raised.
-    {"foreign-host-eligibility",
-     "Foreign hosts limited to game-armed check classes; skipped/sentinel slots rejected (#488)",
+    // crossing and no error is ever raised.
+    {"foreign-host-eligibility", "Crossing hosts limited to game-armed check classes (#488)",
      Test_ForeignHostEligibility},
     // #502: MM's half of the crossing. The reverse row above deliberately stops
     // at a test award callback because MM_AwardSharedItem was a placeholder
     // fprintf; this one drives the real one and the real give behind it.
     {"foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
      Test_ForeignAwardMM},
-    // #510: the reverse direction's SOURCE pool. Display-free — the table is a
-    // static in the WHOLE_ARCHIVE'd 2ship_rando and its registrar runs before
-    // main() — so this also proves that registrar survived the link.
-    {"foreign-pool-mm", "MM's cross-game source pool: registered, well-formed, giveable, non-junk (#510)",
-     Test_ForeignPoolMM},
-    // #495: the cross-game item class is a RULE over the pool and the class
-    // BITSET is the setting. The parity half is the acceptance bar — under the
-    // shipped defaults the draw is the identity permutation over the
-    // unconditional prefix (#681), so no generated world moves — and the
-    // totality half is why the class carries no seed term.
-    {"foreign-item-class",
-     "Item class is a rule: default bitset draws the pinned pool byte-identically, a narrowed one draws only its "
-     "classes, the name inverse stays total (#495)",
-     Test_ForeignItemClass},
+    // #510's foreign-pool-mm and #495's foreign-item-class rows are RETIRED with
+    // the pinned pools (ADR 0010 increment 3, D3); see the note at the end of
+    // tests/test_foreign_items.c for where each claim is locked now.
     // #525: shared cross-game resources. Display-free, ROM-free and save-free —
     // everything under test is gComboCtx plus a RAM watermark table.
     {"shared-resources", "One quantity across both games: watermark, disciplines, seed, heart clamp (#525)",
@@ -4859,6 +4546,13 @@ const TestDescriptor gTests[] = {
      "Render SoH's reference menu pages and every RedShipBlueShip page into PNGs, text logs and a manifest "
      "(structure-only asserts; RSBS_UI_SNAPSHOT_* env)",
      Test_UiSnapshot},
+    // ADR 0010 increment 3 (lane K11): the single-bag fill at the creation event
+    // over both real engines, and D5's pair-level locks paired with removal.
+    // Needs a generation; skipped by `--test all` below like its siblings.
+    {"combo-single-bag",
+     "The single-bag fill at the creation event over both real engines: the GOAL proven with crossings both ways on "
+     "deliverable hosts, D5's removal locks in both directions, the direction gate, and OoT's remainder",
+     Test_ComboSingleBag},
     {"shared-quantity-policy",
      "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "
      "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
@@ -4946,7 +4640,6 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||
-                strcmp(gTests[i].name, "foreign-placement-oot") == 0 ||
                 strcmp(gTests[i].name, "combo-creation-event") == 0 ||
                 strcmp(gTests[i].name, "mm-trick-gbt-gate") == 0 ||
                 strcmp(gTests[i].name, "mm-trick-bindings") == 0 ||
@@ -4957,6 +4650,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
+                strcmp(gTests[i].name, "combo-single-bag") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.

@@ -346,9 +346,12 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     const uint32_t savedMmProfileDigest = gComboCtx.mmProfileDigest;
     // #534: the reverse placement table (OoT checks hosting MM items, #524)
     // travels WITH the stamp because it has the same author and the same
-    // moment of authorship: Playthrough_Init stamps the pairing identity and
-    // immediately derives these placements from it (OoT_PlaceForeignItems),
-    // both BEFORE the file being created exists. Nothing re-places the
+    // moment of authorship: Playthrough_Init stamps the pairing identity and,
+    // until ADR 0010 increment 3 retired the reverse overlay pass
+    // (OoT_PlaceForeignItems), immediately derived these placements from it,
+    // both BEFORE the file being created exists. Under one bag the table stays
+    // empty (the crossings live in the crossing store, whose own KEEP rule is
+    // crossing_store.h's) and this snapshot keeps an empty table empty. Nothing re-places the
     // reverse table after generation — unlike the FORWARD table
     // (foreignPlacements), which is deliberately NOT snapshotted because at
     // this point it can only hold a DEAD session's rows, so keeping it would

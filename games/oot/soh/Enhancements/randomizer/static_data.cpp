@@ -178,6 +178,7 @@ std::unordered_map<uint32_t, RandomizerHintTextKey> StaticData::areaNames = {
     { RA_ICE_CAVERN, RHT_ICE_CAVERN },
     { RA_GERUDO_TRAINING_GROUND, RHT_GERUDO_TRAINING_GROUND },
     { RA_GANONS_CASTLE, RHT_GANONS_CASTLE },
+    { RA_TERMINA, RHT_TERMINA }, // RedShipBlueShip: an OoT item placed in the paired MM world
 };
 
 std::unordered_map<uint32_t, RandomizerHintTextKey> StaticData::trialData = {

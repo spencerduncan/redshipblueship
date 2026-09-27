@@ -53,6 +53,7 @@ extern "C" int Rando_GetCrossingEntranceIndices(int* forwardIndex, int* reverseI
 // and then SetAllToContext()s them, so CVars set BEFORE this call are what the
 // generation runs with.
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
+extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 
 // games/oot/soh/Enhancements/randomizer/entrance.h declares this inside the
 // header's C++-only region, which also drags in location_access.h and
@@ -158,6 +159,10 @@ extern "C" int RandoTest_EntrancePinGenerated(void) {
     CVarSetInteger("gRandoSettings.MixOverworld", 1);
     CVarSetInteger("gRandoSettings.DecoupleEntrances", 1);
 
+    // OoT's NATIVE general pass (lane K11): this row reads a world whose general
+    // pass OoT's own fill placed, not the paired creation's single bag, so it asks
+    // Fill() not to defer it (ComboLogicEngineOoT.cpp).
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
     const int rc = Rando_HeadlessSeedTest(kSeed);
     OEP_ASSERT(rc == 0, "generation failed with interior + overworld + mixed + decoupled entrance shuffle");
 
