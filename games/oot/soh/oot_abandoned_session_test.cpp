@@ -135,7 +135,7 @@ void IdleProbeReset(void) {
 
 // The overlays whose Destroy was the only thing restoring a file-scope static,
 // each with the seed/read accessors its TU exports for this row.
-struct DestroyMaintainedOverlay {
+struct OoTDestroyMaintainedOverlay {
     s16 actorId;
     const char* name;
     void (*setDirty)(s32 dirty);
@@ -144,7 +144,7 @@ struct DestroyMaintainedOverlay {
 
 #define OAS_ROW(id, label, stem) \
     { id, label, OoT_##stem##_SetDestroyStaticsForTest, OoT_##stem##_DestroyStaticsDirtyForTest }
-const DestroyMaintainedOverlay kDestroyMaintained[] = {
+const OoTDestroyMaintainedOverlay kDestroyMaintained[] = {
     OAS_ROW(ACTOR_BG_HAKA_GATE, "Bg_Haka_Gate sSkullOfTruthRotY/sBgPoEventPuzzleState", BgHakaGate),
     OAS_ROW(ACTOR_BG_JYA_1FLIFT, "Bg_Jya_1flift sKankyoIsSpawned", BgJya1flift),
     OAS_ROW(ACTOR_BG_JYA_BIGMIRROR, "Bg_Jya_Bigmirror sKankyoIsSpawned", BgJyaBigmirror),
@@ -175,7 +175,7 @@ ActorDBEntry* Entry(s32 id) {
 
 // Everything the row seeds, put back on EVERY exit path, including a failed
 // assertion's early return.
-struct AbandonedSessionRowGuard {
+struct OoTAbandonedSessionRowGuard {
     bool ownsActorDB = false;
     bool seeded = false;
     s32 probeSlot = -1;
@@ -188,7 +188,7 @@ struct AbandonedSessionRowGuard {
     s32 audioInitialized = 0;
     const ComboContext* comboSnapshot = nullptr;
 
-    ~AbandonedSessionRowGuard() {
+    ~OoTAbandonedSessionRowGuard() {
         if (seeded) {
             Entry(probeSlot)->reset = NULL;
             Entry(probeSlot)->numLoaded = 0;
@@ -218,7 +218,7 @@ struct AbandonedSessionRowGuard {
 // clients spawned on top of whatever the counts already were (OoT_Actor_Spawn's
 // numLoaded++), with each static where a live client leaves it; an actor carries
 // an ObjectExtension entry.
-void StageAbandonedSession(AbandonedSessionRowGuard& guard, u8* fakePlayState, s32 probeClients) {
+void StageAbandonedSession(OoTAbandonedSessionRowGuard& guard, u8* fakePlayState, s32 probeClients) {
     OoT_gPlayState = (PlayState*)fakePlayState;
     for (size_t k = 0; k < kDestroyMaintainedCount; k++) {
         Entry(kDestroyMaintained[k].actorId)->numLoaded++;
@@ -228,7 +228,7 @@ void StageAbandonedSession(AbandonedSessionRowGuard& guard, u8* fakePlayState, s
     SetActorListIndex(guard.fakeActor, 7);
 }
 
-struct SessionAfter {
+struct OoTSessionAfter {
     s32 probeClients;
     s32 idleClients;
     s32 destroyMaintainedClients;
@@ -238,8 +238,8 @@ struct SessionAfter {
     size_t extensions;
 };
 
-SessionAfter ReadAfter(const AbandonedSessionRowGuard& guard) {
-    SessionAfter after = {};
+OoTSessionAfter ReadAfter(const OoTAbandonedSessionRowGuard& guard) {
+    OoTSessionAfter after = {};
     after.probeClients = Entry(guard.probeSlot)->numLoaded;
     after.idleClients = Entry(guard.idleSlot)->numLoaded;
     for (size_t k = 0; k < kDestroyMaintainedCount; k++) {
@@ -256,7 +256,7 @@ SessionAfter ReadAfter(const AbandonedSessionRowGuard& guard) {
     return after;
 }
 
-void PrintAfter(const char* label, const SessionAfter& a) {
+void PrintAfter(const char* label, const OoTSessionAfter& a) {
     printf("[TEST] oot-abandoned-session-statics: after %s: probe clients %d, probe resets %d (graph retired first: "
            "%d), idle clients %d, idle resets %d, Destroy-maintained clients %d, stale Destroy-maintained statics "
            "%d/%zu%s%s, list index %d, extension entries %zu\n",
@@ -272,7 +272,7 @@ extern "C" int OoT_AbandonedSessionStatics_RunHeadless(void) {
     printf("[TEST] oot-abandoned-session-statics: an abandoned OoT session's overlay statics and client counts are "
            "reset (#750)\n");
 
-    AbandonedSessionRowGuard guard;
+    OoTAbandonedSessionRowGuard guard;
     if (ActorDB::Instance == nullptr) {
         // The headless tier never runs InitOTR; the real table is pure data.
         ActorDB::Instance = new ActorDB();
@@ -344,7 +344,7 @@ extern "C" int OoT_AbandonedSessionStatics_RunHeadless(void) {
 
     OoT_GetGameOps()->suspend();
 
-    const SessionAfter first = ReadAfter(guard);
+    const OoTSessionAfter first = ReadAfter(guard);
     const int probeCallsFirst = sProbeResetCalls;
     PrintAfter("first suspend", first);
 
@@ -353,7 +353,7 @@ extern "C" int OoT_AbandonedSessionStatics_RunHeadless(void) {
     const s32 probeClientsSecondBefore = Entry(guard.probeSlot)->numLoaded;
     OoT_GetGameOps()->suspend();
 
-    const SessionAfter second = ReadAfter(guard);
+    const OoTSessionAfter second = ReadAfter(guard);
     PrintAfter("second suspend", second);
 
     // The seeding took (read before the suspends; asserted here, with the guard
