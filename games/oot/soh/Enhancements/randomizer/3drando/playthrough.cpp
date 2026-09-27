@@ -21,6 +21,7 @@
 // the creation event freezes the MM half's option profile too (#498/#564).
 #include "combo_mm_options_view.h"
 #include "triforce_hunt.h" // src/common — the frozen O10 triforce record (ADR 0010)
+#include "combo_goal.h"    // src/common — Combo_GoalKeepsOwnHuntWin (#768)
 #include "gen_budget.h" // src/common — the #582 progress surface (OoT's half)
 // ComboLogicEngineOoT.cpp: the paired world's general pass, deferred to the
 // single-bag fill at the creation event (ADR 0010 increment 3, lane K11).
@@ -51,6 +52,35 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     StopPerformanceTimer(PT_REGION_RESET);
 
     ctx->FinalizeSettings(excludedLocations, enabledTricks);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #768: in a paired world the frozen combo goal is the only win condition
+    // (src/common/combo_goal.h). OoT's own triforce hunt in its "Win" mode is a
+    // second one, and SoH generates it by moving OoT's win off Ganon
+    // (item_pool.cpp puts RG_TRIFORCE at RC_TRIFORCE_COMPLETED and a blue rupee
+    // at RC_GANON), so the coordinator would prove the hunt as OoT's half while
+    // the paired game ends at Ganon: a world whose proof is not its ending.
+    // Under a boss goal the hunt is therefore generated as "Ganon's Boss Key":
+    // the same pieces, the same requirement, completing it opens Ganon's tower
+    // door, and Ganon is OoT's win in the proof and in play. Decided here,
+    // before the settings string is hashed, so the settings hash, the seed, the
+    // spoiler and the save all describe the world that is generated. The goal is
+    // read through the one resolver the creation freeze below uses; nothing here
+    // consumes the RNG.
+    {
+        ComboSettingsRecord rsbsGoalPreview;
+        Combo_ResolveComboSettings(&rsbsGoalPreview);
+        if (!Combo_GoalKeepsOwnHuntWin(rsbsGoalPreview.goal) &&
+            ctx->GetOption(RSK_TRIFORCE_HUNT).Is(RO_TRIFORCE_HUNT_WIN)) {
+            ctx->GetOption(RSK_TRIFORCE_HUNT).Set(RO_TRIFORCE_HUNT_GBK);
+            SPDLOG_WARN("Paired world: OoT's Triforce Hunt \"Win\" is generated as \"Ganon's Boss Key\" under combo "
+                        "goal {}: the combo goal decides the end, and the hunt opens Ganon's tower door (#768)",
+                        (unsigned)rsbsGoalPreview.goal);
+            fprintf(stderr,
+                    "[OoT] Triforce Hunt: \"Win\" generated as \"Ganon's Boss Key\" under combo goal %u (#768)\n",
+                    (unsigned)rsbsGoalPreview.goal);
+        }
+    }
+#endif
     // once the settings have been finalized turn them into a string for hashing
     std::string settingsStr;
     auto& optionGroups = Rando::Settings::GetInstance()->GetOptionGroups();

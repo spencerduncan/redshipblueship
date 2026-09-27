@@ -15,15 +15,17 @@
  *   2. THE WIN ARM, `MM_TriforceHuntWin_RunHeadless`, run by the rando row
  *      `rando-triforce-hunt-win` because MM's give path dispatches
  *      GameInteractor hooks and so needs MM's first-boot bring-up. It drives the
- *      REAL `Rando::GiveItem(RI_TRIFORCE_PIECE)` and reads what MM's own hunt
- *      ending leaves behind (Majora's soul granted and one ending transition
- *      queued):
- *        - UNARMED (no frozen hunt): MM's own `==` at MM's own requirement
- *          fires, exactly as upstream wrote it. This is what makes the next
- *          leg's silence mean something.
- *        - ARMED: reaching MM's OWN requirement does NOT fire — it is an input
- *          to the combo requirement, not the threshold — and reaching the COMBO
- *          requirement does.
+ *      REAL `Rando::GiveItem(RI_TRIFORCE_PIECE)` unpaired and under every combo
+ *      goal value, and reads what MM's hunt ending leaves behind (Majora's soul,
+ *      one OnGameCompletion dispatch, one ending transition queued):
+ *        - W1 UNPAIRED: MM's own `==` at MM's own requirement fires all three,
+ *          exactly as upstream wrote it. This is what makes the next legs'
+ *          silence mean something.
+ *        - W2 A BOSS GOAL (1, 2, 4, 5; #768): MM's own requirement grants the
+ *          soul (the hunt's lock on Majora) and ends nothing.
+ *        - W3/W4 TRIFORCE-HUNT (3): MM's OWN requirement does NOT fire - it is
+ *          an input to the combo requirement, not the threshold - and reaching
+ *          the COMBO requirement fires all three.
  *      It also checks MM_Rando_ResolveTriforceHalf reads MM's half the way the
  *      record's rule says, from BOTH sources: the save's frozen options
  *      (fromSave=1) and the CVar resolution (fromSave=0) that both production
@@ -31,9 +33,10 @@
  *      gate). And it checks that the arrival's half compare refuses a half the
  *      record did not freeze.
  *
- * COUNTERFACTUAL, run before landing: replace the Combo_TriforceHuntOnPieceGiven
- * call in Rando/GiveItem.cpp with upstream's `== RANDO_SAVE_OPTIONS[...]` and
- * leg W2 goes red at the own-requirement give.
+ * COUNTERFACTUAL, run before landing (#768): main's arm (no goal block before
+ * OnGameCompletion) turns W2 red. (#740 ran the other one: upstream's `==` in
+ * place of the Combo_TriforceHuntOnPieceGiven call turns the own-requirement
+ * leg under triforce-hunt, now W3, red.)
  */
 
 #include "global.h"
@@ -60,6 +63,7 @@ extern "C" int MM_TriforceHuntTest_Count(void) {
 #else
 
 #include "2s2h/Rando/Rando.h"
+#include "2s2h/GameInteractor/GameInteractor.h" // OnGameCompletion, S2H::GameHooks (the registry MM dispatches)
 #include "2s2h/Rando/StaticData/StaticData.h"
 
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -165,53 +169,97 @@ extern "C" int MM_TriforceHuntWin_RunHeadless(void) {
 
     std::vector<GIEvent>& queue = MM_GameEvents_Queue();
     const size_t queueBase = queue.size();
+    // OnGameCompletion is observed directly: a counting hook beside whatever
+    // else is registered (SavingEnhancements' file-completed stamp).
+    static int sCompletions = 0;
+    sCompletions = 0;
+    const uint32_t completionHook =
+        S2H::GameHooks::Register<GameInteractor::OnGameCompletion>([]() { sCompletions++; });
 
-    // ---- W1: UNARMED, MM's own hunt, exactly as upstream ------------------
-    // No frozen hunt (beat-both world): the arm must fire at MM's own
-    // requirement. Without this leg, W2's silence could be a dead arm.
-    MTH_ASSERT(FreezeWorld((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH) == RSBS_TRIFORCE_OK,
-               "a beat-both creation must freeze (a zero triforce record)");
-    MTH_ASSERT(!Combo_TriforceHuntArmed(), "a beat-both world must not arm the combo hunt");
+    // ---- W1: UNPAIRED, MM's own hunt, exactly as upstream ------------------
+    // No frozen combo record: the arm must fire at MM's own requirement - soul,
+    // OnGameCompletion and the ending transition. Without this leg the paired
+    // legs' silence could be a dead arm.
+    ComboContext_Init();
+    MTH_ASSERT(!Combo_ComboSettingsFrozen(), "an initialized context must hold no frozen combo record");
     ArmHuntSave((uint16_t)(kMmRequired - 1));
     Rando::GiveItem(RI_TRIFORCE_PIECE);
     MTH_ASSERT(gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces == kMmRequired,
                "the piece give did not count the piece");
-    MTH_ASSERT(SoulFound(), "UNARMED: reaching MM's own requirement did not grant Majora's soul - MM's own hunt "
+    MTH_ASSERT(SoulFound(), "UNPAIRED: reaching MM's own requirement did not grant Majora's soul - MM's own hunt "
                             "ending is not reached through the arm");
-    MTH_ASSERT(queue.size() == queueBase + 1, "UNARMED: reaching MM's own requirement did not queue MM's ending "
-                                              "transition");
+    MTH_ASSERT(queue.size() == queueBase + 1 && sCompletions == 1,
+               "UNPAIRED: reaching MM's own requirement did not dispatch OnGameCompletion and queue MM's ending "
+               "transition, as upstream does");
     queue.resize(queueBase);
+    sCompletions = 0;
 
-    // ---- W2: ARMED, the own requirement is NOT the threshold --------------
-    MTH_ASSERT(FreezeWorld((uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) == RSBS_TRIFORCE_OK,
-               "a triforce-hunt creation over two coherent halves must freeze");
-    MTH_ASSERT(Combo_TriforceHuntArmed(), "a frozen triforce-hunt world must arm the combo hunt");
-    MTH_ASSERT(Combo_TriforceHuntRequired() == (uint16_t)(kOotRequired + kMmRequired),
-               "the combo requirement is not the sum of the two halves' requirements");
-    ArmHuntSave((uint16_t)(kMmRequired - 1));
-    Rando::GiveItem(RI_TRIFORCE_PIECE);
-    MTH_ASSERT(gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces == kMmRequired, "the piece was not counted");
-    MTH_ASSERT(!SoulFound() && queue.size() == queueBase,
-               "ARMED: MM's OWN requirement ended a paired hunt - under the combo goal it is an input to the "
-               "combo requirement, not the threshold (ADR 0010 O10)");
+    const uint8_t kGoals[5] = {
+        (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH,     (uint8_t)RSBS_COMBO_GOAL_BEAT_EITHER,
+        (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT, (uint8_t)RSBS_COMBO_GOAL_BEAT_OOT,
+        (uint8_t)RSBS_COMBO_GOAL_BEAT_MM,
+    };
+    for (uint8_t goal : kGoals) {
+        MTH_ASSERT(FreezeWorld(goal) == RSBS_TRIFORCE_OK, "a paired creation over two coherent halves must freeze");
+        if (goal != (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) {
+            // ---- W2: a BOSS goal: MM's own requirement is the hunt, never the
+            // win (#768). Majora's soul is granted (the hunt's lock on Majora);
+            // no OnGameCompletion, no ending transition.
+            MTH_ASSERT(!Combo_TriforceHuntArmed(), "a boss-goal world must not arm the combo hunt");
+            ArmHuntSave((uint16_t)(kMmRequired - 1));
+            Rando::GiveItem(RI_TRIFORCE_PIECE);
+            MTH_ASSERT(gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces == kMmRequired,
+                       "the piece was not counted");
+            if (!SoulFound() || queue.size() != queueBase || sCompletions != 0) {
+                printf("[TEST] FAIL: W2 goal %u: MM's OWN triforce hunt in a paired world whose combo goal is a boss "
+                       "goal: soul %d, ending transitions queued %d, OnGameCompletion dispatched %d (expected 1, 0, "
+                       "0) - the frozen combo goal is the only win condition; the hunt only unlocks Majora (#768) "
+                       "(%s:%d)\n",
+                       (unsigned)goal, SoulFound() ? 1 : 0, (int)(queue.size() - queueBase), sCompletions, __FILE__,
+                       __LINE__);
+                queue.resize(queueBase);
+                S2H::GameHooks::Unregister<GameInteractor::OnGameCompletion>(completionHook);
+                return 1;
+            }
+            continue;
+        }
 
-    // ---- W3: ARMED, the combo requirement IS the threshold ----------------
-    // The counter is the one combo count (an arrival would have raised it to
-    // pieces found in OoT too); set it one short and give.
-    const uint16_t comboRequired = Combo_TriforceHuntRequired();
-    gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces = (uint16_t)(comboRequired - 1);
-    Rando::GiveItem(RI_TRIFORCE_PIECE);
-    MTH_ASSERT(gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces == comboRequired, "the piece was not counted");
-    MTH_ASSERT(SoulFound(), "ARMED: reaching the COMBO requirement in MM did not grant Majora's soul");
-    MTH_ASSERT(queue.size() == queueBase + 1,
-               "ARMED: reaching the COMBO requirement in MM did not queue MM's ending transition - the win must fire "
-               "in whichever game the reaching collect happens");
-    queue.resize(queueBase);
-    // Equality, as MM tests it: one more piece past the requirement fires nothing.
-    Rando::GiveItem(RI_TRIFORCE_PIECE);
-    MTH_ASSERT(queue.size() == queueBase, "ARMED: a piece past the combo requirement fired the ending a second time");
+        // ---- W3: triforce-hunt, the own requirement is NOT the threshold ----
+        MTH_ASSERT(Combo_TriforceHuntArmed(), "a frozen triforce-hunt world must arm the combo hunt");
+        MTH_ASSERT(Combo_TriforceHuntRequired() == (uint16_t)(kOotRequired + kMmRequired),
+                   "the combo requirement is not the sum of the two halves' requirements");
+        ArmHuntSave((uint16_t)(kMmRequired - 1));
+        Rando::GiveItem(RI_TRIFORCE_PIECE);
+        MTH_ASSERT(gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces == kMmRequired,
+                   "the piece was not counted");
+        MTH_ASSERT(!SoulFound() && queue.size() == queueBase && sCompletions == 0,
+                   "ARMED: MM's OWN requirement ended a paired hunt - under the combo goal it is an input to the "
+                   "combo requirement, not the threshold (ADR 0010 O10)");
 
-    // ---- W4: MM's half, read the way the record's rule says ---------------
+        // ---- W4: triforce-hunt, the combo requirement IS the win -------------
+        // The counter is the one combo count (an arrival would have raised it to
+        // pieces found in OoT too); set it one short and give.
+        const uint16_t comboRequired = Combo_TriforceHuntRequired();
+        gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces = (uint16_t)(comboRequired - 1);
+        Rando::GiveItem(RI_TRIFORCE_PIECE);
+        MTH_ASSERT(gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces == comboRequired,
+                   "the piece was not counted");
+        MTH_ASSERT(SoulFound(), "ARMED: reaching the COMBO requirement in MM did not grant Majora's soul");
+        MTH_ASSERT(queue.size() == queueBase + 1 && sCompletions == 1,
+                   "ARMED: reaching the COMBO requirement in MM did not dispatch OnGameCompletion and queue MM's "
+                   "ending transition - the win must fire in whichever game the reaching collect happens");
+        queue.resize(queueBase);
+        sCompletions = 0;
+        // Equality, as MM tests it: one more piece past the requirement fires nothing.
+        Rando::GiveItem(RI_TRIFORCE_PIECE);
+        MTH_ASSERT(queue.size() == queueBase && sCompletions == 0,
+                   "ARMED: a piece past the combo requirement fired the ending a second time");
+    }
+    S2H::GameHooks::Unregister<GameInteractor::OnGameCompletion>(completionHook);
+    printf("[TEST] MM: unpaired as upstream; under goals 1, 2, 4, 5 the own hunt grants Majora's soul and ends "
+           "nothing; under goal 3 only the combo requirement ends the game\n");
+
+    // ---- W5: MM's half, read the way the record's rule says ---------------
     {
         ArmHuntSave(0);
         uint16_t total = 0xFFFF;
