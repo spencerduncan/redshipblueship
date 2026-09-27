@@ -415,6 +415,12 @@ fresh directory to keep that path exercised.
   absent from the same state without the pointer. Every line, because SoH's disabled shape opens every disabled
   row's tooltip with the same "This setting is disabled because:", so only the reason line proves which tooltip was
   drawn
+- Combo > MM Tricks' trick census, in each of its states (both turn two tricks on first, so both columns draw): for
+  one frame the `combo_ui` rect recorder lists every trick name the list drew and the column child that drew it, and
+  each of MM's trick descriptors must appear exactly once, in the column its value puts it in, with its row state's
+  tooltip, and no other name may appear. The hovers read four rows; the census reads all of them. Observed red
+  2026-09-27 with a trick dropped, one drawn twice and one misfiled into the other column: three problems per state,
+  each named
 - the frame converged
 - no popup leaked
 - no game framebuffer was composited
