@@ -153,9 +153,10 @@
  *       OoT host supply is SMALLER than production's, which is pessimistic for a
  *       convergence question and makes surplus DROPS appear that production would
  *       not see (the plentiful profile drops some for exactly this reason). MM empties
- *       nothing and needs to: its engine harvests only coordinator placements, never
- *       a host's vanilla contents — which is also why a check OUTSIDE MM's check pool
- *       gives the round nothing (M2d measures what that costs MM's goal).
+ *       nothing and need not: its engine harvests coordinator placements and, since
+ *       #737 (the engine's A7), the FIXED contents of reached checks OUTSIDE MM's
+ *       check pool — never a pooled host's pre-written vanilla item, which is the
+ *       coordinator's to decide.
  *
  * ============================================================================
  * WHY THE `rando` TIER
@@ -268,6 +269,13 @@ int OoT_ComboLogic_TestCounterItemId(int kind);
 // budget (ComboLogicEngineOoT.cpp / ComboLogicEngineSingleExe.cpp).
 uint16_t OoT_ComboLogic_StartingHealth(void);
 uint16_t MM_ComboLogic_StartingHealth(void);
+// #737's lock (lane G1): A7's test switch and the fixed contents it grants
+// (ComboLogicEngineSingleExe.cpp; duplicates of test_combo_single_bag.c's).
+int MM_ComboLogic_TestSetFixedGrants(int enabled);
+int MM_ComboLogic_TestFixedContents(int remainsOnly, uint16_t* outItems, uint16_t* outChecks, int cap);
+int MM_ComboLogic_TestAuthorCheckTable(uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
+                                       int checkCap, int* outCheckTotal);
+int MM_ComboLogic_TestClearCheckContents(const uint16_t* checks, int count);
 
 // libultraship's C CVar bridge, for the plentiful profile's MM options.
 void CVarSetInteger(const char* name, int32_t value);
@@ -506,15 +514,59 @@ int ClmRecompose(const ClmComposed& c, uint16_t quantityFlags, std::vector<Combo
     return status;
 }
 
+/** MM's GeneratePools result: the item pool with its plentiful marks, and the
+ *  check pool (the hosts MM's creation would shuffle over). */
+struct ClmMmPool {
+    std::vector<uint16_t> items;
+    std::vector<uint16_t> flags;
+    std::vector<uint16_t> checks;
+};
+
+/**
+ * MM's pool in ONE GeneratePools call, into buffers sized up front. GeneratePools
+ * consumes Ship_Random (and under RO_PLENTIFUL_ITEMS draws WHICH lesser rows to
+ * duplicate), so a count-then-fill pair would be two DIFFERENT pools — the first
+ * "maximal" measurement read its count from one and its rows from another and
+ * showed two phantom RI_UNKNOWN rows where the pools differed. With
+ * `authorCheckTable` the same call also writes the live save's check table
+ * (MM_ComboLogic_TestAuthorCheckTable), so the table's prices and the pool come
+ * from one draw, as in a creation; a caller doing that hands the result to
+ * ClmCompose instead of letting it export again.
+ */
+bool ClmExportMm(ClmMmPool& p, bool authorCheckTable) {
+    const int kMmItemCap = 8192;
+    p.items.assign((size_t)kMmItemCap, 0);
+    p.flags.assign((size_t)kMmItemCap, 0);
+    p.checks.assign((size_t)RSBS_COMBO_LOGIC_HOST_CAP, 0);
+    int mmCheckTotal = 0;
+    const int mmTotal =
+        authorCheckTable
+            ? MM_ComboLogic_TestAuthorCheckTable(p.items.data(), p.flags.data(), kMmItemCap, p.checks.data(),
+                                                 RSBS_COMBO_LOGIC_HOST_CAP, &mmCheckTotal)
+            : MM_ComboLogic_TestGeneratePool(p.items.data(), p.flags.data(), kMmItemCap, p.checks.data(),
+                                             RSBS_COMBO_LOGIC_HOST_CAP, &mmCheckTotal);
+    if (mmTotal <= 0 || mmTotal > kMmItemCap || mmCheckTotal <= 0 || mmCheckTotal > RSBS_COMBO_LOGIC_HOST_CAP) {
+        printf("[TEST] compose: MM's export returned %d rows / %d checks (caps %d / %d)\n", mmTotal, mmCheckTotal,
+               kMmItemCap, (int)RSBS_COMBO_LOGIC_HOST_CAP);
+        return false;
+    }
+    p.items.resize((size_t)mmTotal);
+    p.flags.resize((size_t)mmTotal);
+    p.checks.resize((size_t)mmCheckTotal);
+    return true;
+}
+
 /**
  * Export both pools and compose the bag. OoT's pool is read back from the
  * GENERATED WORLD (OoT_ComboLogic_ExportPool source 1: a finished fill has drained
- * `itemPool`); MM's is GeneratePools' real pool under the resolved profile. Call
- * after the OoT generation, MM_Rando_InitCore and MM_ComboLogic_ApplyShippedProfile.
- * Consumes MM's Ship_Random (GeneratePools' prices and plentiful half) — see
- * MM_ComboLogic_TestGeneratePool.
+ * `itemPool`); MM's is GeneratePools' real pool under the resolved profile —
+ * `mmPool` when the caller already exported it (combo-logic-measure, which
+ * authors MM's check table from that same call), else exported here. Call after
+ * the OoT generation, MM_Rando_InitCore and MM_ComboLogic_ApplyShippedProfile.
+ * An export here consumes MM's Ship_Random (GeneratePools' prices and plentiful
+ * half) — see MM_ComboLogic_TestGeneratePool.
  */
-bool ClmCompose(ClmComposed& c, uint16_t quantityFlags = 0u) {
+bool ClmCompose(ClmComposed& c, uint16_t quantityFlags = 0u, const ClmMmPool* mmPool = nullptr) {
     const int ootTotal = OoT_ComboLogic_ExportPool(1, nullptr, nullptr, nullptr, 0);
     if (ootTotal <= 0) {
         printf("[TEST] compose: OoT's export returned nothing (%d)\n", ootTotal);
@@ -522,25 +574,17 @@ bool ClmCompose(ClmComposed& c, uint16_t quantityFlags = 0u) {
     }
     std::vector<uint16_t> ootItems((size_t)ootTotal), ootHosts((size_t)ootTotal), ootFlags((size_t)ootTotal);
     OoT_ComboLogic_ExportPool(1, ootItems.data(), ootHosts.data(), ootFlags.data(), ootTotal);
-    // MM's pool in ONE call, into buffers sized up front. GeneratePools consumes
-    // Ship_Random (and under RO_PLENTIFUL_ITEMS draws WHICH lesser rows to
-    // duplicate), so a count-then-fill pair would be two DIFFERENT pools — the
-    // first "maximal" measurement read its count from one and its rows from
-    // another and showed two phantom RI_UNKNOWN rows where the pools differed.
-    const int kMmItemCap = 8192;
-    std::vector<uint16_t> mmItems((size_t)kMmItemCap), mmFlags((size_t)kMmItemCap);
-    c.mmChecks.assign((size_t)RSBS_COMBO_LOGIC_HOST_CAP, 0);
-    int mmCheckTotal = 0;
-    const int mmTotal = MM_ComboLogic_TestGeneratePool(mmItems.data(), mmFlags.data(), kMmItemCap, c.mmChecks.data(),
-                                                       RSBS_COMBO_LOGIC_HOST_CAP, &mmCheckTotal);
-    if (mmTotal <= 0 || mmTotal > kMmItemCap || mmCheckTotal <= 0 || mmCheckTotal > RSBS_COMBO_LOGIC_HOST_CAP) {
-        printf("[TEST] compose: MM's export returned %d rows / %d checks (caps %d / %d)\n", mmTotal, mmCheckTotal,
-               kMmItemCap, (int)RSBS_COMBO_LOGIC_HOST_CAP);
-        return false;
+    ClmMmPool exported;
+    if (mmPool == nullptr) {
+        if (!ClmExportMm(exported, false)) {
+            return false;
+        }
+        mmPool = &exported;
     }
-    mmItems.resize((size_t)mmTotal);
-    mmFlags.resize((size_t)mmTotal);
-    c.mmChecks.resize((size_t)mmCheckTotal);
+    const std::vector<uint16_t>& mmItems = mmPool->items;
+    const std::vector<uint16_t>& mmFlags = mmPool->flags;
+    const int mmTotal = (int)mmItems.size();
+    c.mmChecks = mmPool->checks;
     c.rows.clear();
     c.ootHost.clear();
     for (int i = 0; i < ootTotal; ++i) {
@@ -931,10 +975,48 @@ TestResult ComboLogicMeasure_Run(void) {
 
     MM_ComboLogic_ResetCounters();
     const int mmLogicMode = MM_ComboLogic_ApplyShippedProfile();
+    // MM's CHECK TABLE as GeneratePools writes it in a creation (lane G1, #737):
+    // every fixed check holds its vanilla item, which the engine's A7 grants when a
+    // round reaches it. Without it the table is the initialised save's and A7 has
+    // nothing to grant, so beat-both is unprovable here while it proves in
+    // production. The SAME GeneratePools call yields the pool ClmCompose composes
+    // below (review of PR #758): a second call would draw from a shifted Ship_Random
+    // stream, and the pool's prices and plentiful copies would not be the table's.
+    ClmMmPool mmPool;
+    CLM_ASSERT(ClmExportMm(mmPool, true), "MM's pool export (authoring the check table) returned nothing");
+    // MM's HOST POOL is GeneratePools' own check pool — the hosts MM's creation
+    // shuffles over — handed to the engine below through MM_ComboLogic_SetHostPool
+    // (the increment-4 seam); RSBS_COMBO_MEASURE_MM_HOSTS can narrow it. A pooled
+    // check the narrowing DROPS is outside the host pool, so A7 would read it as
+    // fixed and grant the vanilla item GeneratePools merely pre-wrote there, and
+    // MM_ComboLogic_TestFixedContents would count it as fixed. Its table entry is
+    // emptied instead, which is what the whole table held before #737's authoring:
+    // a narrowed run grants nothing from a dropped pooled check. Done here, before
+    // the inner baseline, because it is part of the state the measurement starts
+    // from.
+    std::vector<uint16_t> mmHostPool = mmPool.checks;
+    int mmDroppedPooled = 0;
+    if (mmHostTarget > 0) {
+        mmHostPool = StrideSample(mmHostPool, mmHostTarget);
+        std::vector<bool> kept(1u << 16, false);
+        for (const uint16_t check : mmHostPool) {
+            kept[check] = true;
+        }
+        std::vector<uint16_t> dropped;
+        for (const uint16_t check : mmPool.checks) {
+            if (!kept[check]) {
+                dropped.push_back(check);
+            }
+        }
+        mmDroppedPooled = MM_ComboLogic_TestClearCheckContents(dropped.data(), (int)dropped.size());
+        CLM_ASSERT(mmDroppedPooled == (int)dropped.size(),
+                   "a pooled MM check the host narrowing dropped could not be emptied in the check table");
+    }
     printf("[TEST] combo-logic-measure: MM profile resolved from the shipped CVars; RO_LOGIC=%d, starting items "
-           "granted (the state the creation seam hands MM's engine — NOT the zeroed save mm-combo-logic-engine "
-           "measures)\n",
-           mmLogicMode);
+           "granted, check table authored by the same GeneratePools call as the pool (%d checks pooled, the rest "
+           "fixed; %d pooled checks dropped by RSBS_COMBO_MEASURE_MM_HOSTS emptied) — the state the creation seam "
+           "hands MM's engine, NOT the zeroed save mm-combo-logic-engine measures\n",
+           mmLogicMode, (int)mmPool.checks.size(), mmDroppedPooled);
 
     // ------------------------------------------------------------------
     // S4's INNER baseline, and the reason there are two.
@@ -981,7 +1063,7 @@ TestResult ComboLogicMeasure_Run(void) {
     printf("[TEST] combo-logic-measure: shared-quantity trim %s (RSBS_COMBO_MEASURE_UNTRIMMED=1 turns it off)\n",
            untrimmed ? "OFF" : "on");
     ClmComposed composed;
-    CLM_ASSERT(ClmCompose(composed, untrimmed ? (uint16_t)RSBS_COMBO_QUANTITY_KEEP_ALL : (uint16_t)0u),
+    CLM_ASSERT(ClmCompose(composed, untrimmed ? (uint16_t)RSBS_COMBO_QUANTITY_KEEP_ALL : (uint16_t)0u, &mmPool),
                "a pool export returned nothing");
     ClmPrintComposition("combo-logic-measure", profile, composed);
     CLM_ASSERT(composed.status == RSBS_COMBO_LOGIC_OK, "the composed bag was refused (see the counts above)");
@@ -1016,14 +1098,9 @@ TestResult ComboLogicMeasure_Run(void) {
                    "the same rows composed with and without the trim differ by exactly the trimmed rows");
     }
 
-    // MM's HOST POOL is GeneratePools' own check pool — the hosts MM's creation
-    // shuffles over — through MM_ComboLogic_SetHostPool (the increment-4 seam), and
-    // RSBS_COMBO_MEASURE_MM_HOSTS can narrow it further. Restored in the teardown.
+    // MM's HOST POOL (chosen, and narrowed if asked, where the check table was
+    // authored above) goes to the engine here. Restored in the teardown.
     const int mmGraphHosts = mm->allEmptyHosts(mm->self, nullptr, 0);
-    std::vector<uint16_t> mmHostPool = composed.mmChecks;
-    if (mmHostTarget > 0) {
-        mmHostPool = StrideSample(mmHostPool, mmHostTarget);
-    }
     MM_ComboLogic_SetHostPool(mmHostPool.data(), (int)mmHostPool.size());
     const int mmPooledHosts = mm->allEmptyHosts(mm->self, nullptr, 0);
     const int ootOwned = OoT_ComboLogic_TestOwnedHostCount();
@@ -1043,8 +1120,10 @@ TestResult ComboLogicMeasure_Run(void) {
     // composed bag). An OoT row in the sample has its host EMPTIED, so the item is
     // in the bag and not also in the world; an OoT bag row left out of the sample
     // stays natively placed and OoT's own search harvests it. MM rows empty
-    // nothing: MM's engine harvests only coordinator placements, never a host's
-    // vanilla contents, so an MM bag row is in the world only once it is placed.
+    // nothing and need not: MM's engine harvests coordinator placements and, since
+    // #737 (A7), the FIXED contents of reached checks OUTSIDE the host pool —
+    // never a pooled host's pre-written vanilla item — so an MM bag row is in the
+    // world only once it is placed.
     // ------------------------------------------------------------------
     std::vector<uint16_t> ootComposedIdx;
     std::vector<uint16_t> mmComposedIdx;
@@ -1093,7 +1172,9 @@ TestResult ComboLogicMeasure_Run(void) {
     // their hosts are emptied like the bag rows' and restored in the teardown.
     // Without this the OoT engine would still collect every trimmed heart from the
     // generated world and the measurement would prove over hearts the world no
-    // longer has. MM needs nothing: its engine never harvests vanilla contents.
+    // longer has. MM needs nothing: a trimmed MM row's item sits in the pool, and
+    // its engine grants vanilla contents only from checks OUTSIDE the host pool
+    // (A7, #737), never a pooled host's.
     int ootTrimmedHostsEmptied = 0;
     for (const int poolIdx : composed.trimmed) {
         if (composed.rows[(size_t)poolIdx].item.originGame != (uint8_t)GAME_OOT) {
@@ -1229,8 +1310,19 @@ TestResult ComboLogicMeasure_Run(void) {
     //       a trap, whose give leaves the save).
     // M2b=1 says MM's composed progression carries Majora. M2b=0 with M2c=1 says a
     // FILLER-class item is load-bearing for MM's goal — the #733 class, which the
-    // composition must not leave open. Printed, not asserted: it measures the
-    // fixture. RunRound has no bag cap.
+    // composition must not leave open. RunRound has no bag cap.
+    //
+    // ONE ASSERTION HERE, and it is #737's lock rather than a number about the
+    // fixture: M2b reads goalMM=1, because MM's engine grants the fixed contents of
+    // reached checks outside the check pool (A7) — on the shipped, plentiful and
+    // armed profiles that is where the boss remains are. Before #737's fix M2b read
+    // 0 on shipped and plentiful. The red half is observed in the same run: with A7
+    // switched off (MM_ComboLogic_TestSetFixedGrants, test only) M2b reads
+    // goalMM=0. Every profile but maximal MUST leave boss remains fixed (asserted:
+    // a regressed check-table authoring would otherwise skip the red half silently,
+    // as the pre-authoring binary did); maximal shuffles them, nothing is fixed to
+    // observe, and the row prints that. Observed locally 2026-09-27 on all four
+    // profiles; CI runs shipped.
     {
         std::vector<ComboLogicBagItem> required;
         std::vector<ComboLogicBagItem> withFiller;
@@ -1265,9 +1357,10 @@ TestResult ComboLogicMeasure_Run(void) {
         }
         // M2d: + the VANILLA item of every MM graph check that is NOT in the check
         // pool — the fixed contents MM's own creation leaves in place (a category
-        // whose shuffle is off keeps its vanilla item) and that MM's engine never
-        // harvests (it grants only coordinator placements). M2c=0 with M2d=1 says
-        // MM's goal needs those fixed contents: a harvest the engine does not do.
+        // whose shuffle is off keeps its vanilla item). Found by lane K9 as the
+        // mechanism of #737 (M2c=0, M2d=1). Since A7 the engine grants those
+        // contents itself when their checks are reached, so M2d now assumes copies
+        // A7 also grants: it can only agree with M2b, and is kept as that cross-check.
         std::vector<ComboLogicBagItem> withFixed = withFiller;
         int fixedRows = 0;
         int fixedProgression = 0;
@@ -1297,6 +1390,7 @@ TestResult ComboLogicMeasure_Run(void) {
                 fixedProgression += (Combo_ItemClassOf(row.item) == RSBS_FILL_CLASS_PROGRESSION) ? 1 : 0;
             }
         }
+        int m2bGoalMM = -1;
         const std::vector<ComboLogicBagItem>* sets[3] = { &required, &withFiller, &withFixed };
         const char* names[3] = { "M2b MM REQUIRED rows", "M2c + MM filler rows", "M2d + MM fixed vanilla contents" };
         printf("[TEST] combo-logic-measure: M2d adds %d fixed vanilla contents of MM graph checks outside the check pool "
@@ -1317,6 +1411,39 @@ TestResult ComboLogicMeasure_Run(void) {
                    "beat-both=%d candidatesMM=%d — against goalMM=%d for the measurement bag\n",
                    names[s], req.assumedCount, (s >= 1) ? fillerRows : 0, ms, res.goalOoT, res.goalMM,
                    res.goalExpression, res.candidatesMM, firstRound.goalMM);
+            if (s == 0) {
+                m2bGoalMM = res.goalMM;
+            }
+        }
+
+        // #737's lock, both halves (see the block comment above M2b).
+        const int fixedRemains = MM_ComboLogic_TestFixedContents(1, nullptr, nullptr, 0);
+        const int fixedAll = MM_ComboLogic_TestFixedContents(0, nullptr, nullptr, 0);
+        ComboLogicRoundRequest offReq;
+        memset(&offReq, 0, sizeof(offReq));
+        offReq.assumed = required.data();
+        offReq.assumedCount = (int)required.size();
+        offReq.goal = RSBS_COMBO_GOAL_BEAT_BOTH;
+        ComboLogicRoundResult offRes;
+        memset(&offRes, 0, sizeof(offRes));
+        const int wasOn = MM_ComboLogic_TestSetFixedGrants(0);
+        const int offStatus = Combo_Logic_RunRound(&offReq, &offRes);
+        MM_ComboLogic_TestSetFixedGrants(wasOn);
+        printf("[TEST] combo-logic-measure: #737: %d fixed MM contents outside the check pool (%d boss remains); M2b "
+               "goalMM=%d with the fixed grant, goalMM=%d without it%s\n",
+               fixedAll, fixedRemains, m2bGoalMM, offRes.goalMM,
+               (fixedRemains > 0) ? "" : " (nothing fixed on this profile: no red half to observe)");
+        CLM_ASSERT(wasOn == 1, "MM's fixed-content grant was switched off before M2b");
+        CLM_ASSERT(m2bGoalMM == 1, "M2b: MM's composed REQUIRED rows plus the fixed contents MM's engine grants do "
+                                   "not prove Majora (#737)");
+        CLM_ASSERT(offStatus == RSBS_COMBO_LOGIC_OK, "the switched-off M2b round did not succeed");
+        CLM_ASSERT(ClmProfileIsMaximal(profile) || fixedRemains > 0,
+                   "a non-maximal profile leaves no boss remains fixed: either MM's check table was not authored "
+                   "(and #737's red half would be skipped silently) or the profile now shuffles the remains and this "
+                   "lock must name a profile that does not");
+        if (fixedRemains > 0) {
+            CLM_ASSERT(offRes.goalMM == 0, "M2b proves Majora without the fixed boss remains, so #737's lock observed "
+                                           "no red half");
         }
     }
 

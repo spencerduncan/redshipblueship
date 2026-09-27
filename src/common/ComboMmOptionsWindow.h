@@ -81,6 +81,13 @@ inline constexpr const char* kComboMMOptionsWindowName = "Majora's Mask Randomiz
 // Visibility CVar, in the same "gCombo.Windows.*" space as the spoiler view's.
 inline constexpr const char* kComboMMOptionsVisibilityCVar = "gCombo.Windows.MMOptions";
 
+// The narrowest the player can resize the pane to. A trick row is the box, up
+// to two tag chips (the widest pair, "Intermediate" and "OoT Items", ends about
+// 330 px in) and then the name, which wraps in whatever is left; below this the
+// longest names would break into a word per line. The snapshot harness's
+// tricks-narrow state renders the pane at exactly this width.
+inline constexpr float kComboMMOptionsMinWidth = 560.0f;
+
 // The Reset confirm's title (a SohGui::RegisterPopup title, so also the key the
 // popup is dismissed by).
 inline constexpr const char* kComboMMOptionsResetTitle = "Reset MM Randomizer Options";

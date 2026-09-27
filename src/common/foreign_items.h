@@ -204,9 +204,19 @@ bool Combo_ForeignPairingActive(void);
 
 // GOAL. ADR 0010 D1 owns the value LIST; ADR 0011 owns their ENCODING.
 // Pinned, append-only.
-#define RSBS_COMBO_GOAL_BEAT_BOTH 1u
-#define RSBS_COMBO_GOAL_BEAT_EITHER 2u
-#define RSBS_COMBO_GOAL_TRIFORCE_HUNT 3u
+#define RSBS_COMBO_GOAL_BEAT_BOTH 1u     // OOT_GOAL && MM_GOAL (OoTMM 'both'; the shipped default)
+#define RSBS_COMBO_GOAL_BEAT_EITHER 2u   // OOT_GOAL || MM_GOAL (OoTMM 'any')
+#define RSBS_COMBO_GOAL_TRIFORCE_HUNT 3u // one shared piece count (answer O10; OoTMM 'triforce')
+// Appended 2026-09-27 (ADR 0010 D1 / ADR 0011 amendments): OoTMM's single-game
+// goals. Each is ONE half's own goal alone; the other half's goal is no term
+// of the expression, so the fill never has to prove it (it still places that
+// half's items under the same rung). MM_GOAL keeps the coordinator's arrival
+// gate: Termina is entered through OoT's crossing, so `beat-mm` still needs
+// that crossing provably open. OoTMM's 'triforce3' (Triforce Quest) is NOT a
+// value here: it is three NAMED shared pieces placed with their own hint
+// machinery, none of which exists in either port.
+#define RSBS_COMBO_GOAL_BEAT_OOT 4u // OOT_GOAL alone (OoTMM 'ganon')
+#define RSBS_COMBO_GOAL_BEAT_MM 5u  // MM_GOAL alone (OoTMM 'majora')
 
 // Logic rung. ADR 0010 §2.2's ladder; same ownership split. The trick set T is
 // a PARAMETER of the rung and is deliberately NOT encoded here — it is each
@@ -301,7 +311,8 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_DIR_OFF == 1u && RSBS_COMBO_DIR_FORWARD == 2u 
                        "RSBS_COMBO_DIR_* values are .redsave format: pinned, append-only, "
                        "retire-never-renumber (ADR 0011 decision 1.2.1)");
 RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_GOAL_BEAT_BOTH == 1u && RSBS_COMBO_GOAL_BEAT_EITHER == 2u &&
-                           RSBS_COMBO_GOAL_TRIFORCE_HUNT == 3u,
+                           RSBS_COMBO_GOAL_TRIFORCE_HUNT == 3u && RSBS_COMBO_GOAL_BEAT_OOT == 4u &&
+                           RSBS_COMBO_GOAL_BEAT_MM == 5u,
                        "RSBS_COMBO_GOAL_* values are .redsave format: pinned, append-only, "
                        "retire-never-renumber (ADR 0011 decision 1.2.1)");
 RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_RUNG_NONE == 1u && RSBS_COMBO_RUNG_BEATABLE == 2u &&

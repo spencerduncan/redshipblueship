@@ -660,3 +660,18 @@ void EnTest4_Update(Actor* thisx, PlayState* play) {
 void EnTest4_Reset(void) {
     sIsLoaded = false;
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #666] Read and set the one-clock-actor latch for the
+// mm-abandoned-session-statics row (games/mm/2s2h/mm_resume_state_test.cpp).
+// sIsLoaded is file-static; the row needs to put it in the state an abandoned
+// session leaves (EnTest4_Init latched it, and no Play_Destroy freed the
+// actor) without booting a scene.
+s32 MM_EnTest4_IsLoadedLatchForTest(void) {
+    return sIsLoaded;
+}
+
+void MM_EnTest4_SetLoadedLatchForTest(s32 isLoaded) {
+    sIsLoaded = isLoaded;
+}
+#endif

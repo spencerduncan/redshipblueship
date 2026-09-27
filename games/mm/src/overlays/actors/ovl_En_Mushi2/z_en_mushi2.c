@@ -11,6 +11,9 @@
 
 void EnMushi2_Init(Actor* thisx, PlayState* play);
 void EnMushi2_Destroy(Actor* thisx, PlayState* play);
+#ifdef RSBS_SINGLE_EXECUTABLE
+void EnMushi2_Reset(void);
+#endif
 void EnMushi2_Update(Actor* thisx, PlayState* play);
 void EnMushi2_Draw(Actor* thisx, PlayState* play);
 
@@ -39,6 +42,9 @@ ActorProfile En_Mushi2_Profile = {
     /**/ EnMushi2_Destroy,
     /**/ EnMushi2_Update,
     /**/ EnMushi2_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    /**/ EnMushi2_Reset,
+#endif
 };
 
 static ColliderJntSphElementInit MM_sJntSphElementsInit[1] = {
@@ -1238,3 +1244,29 @@ void EnMushi2_Draw(Actor* thisx, PlayState* play) {
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MM_SkelAnime_DrawOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, NULL);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #666] EnMushi2_Destroy takes each bug out of the D_80A6B994 count (the
+// crowd test in func_80A68BA0 sends bugs away once more than three are out), so
+// nothing but Destroy ever put it back. A cross-game
+// departure abandons MM's Play gamestate without deleting its actors
+// (MM_ActorOverlayTable_RetireAbandonedClients, z_actor.c), which leaves it
+// holding the abandoned session's value. MM_Actor_FreeOverlay calls this only
+// once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void EnMushi2_Reset(void) {
+    D_80A6B994 = 0;
+}
+
+// [RSBS #666] Seed and read the static above for the mm-abandoned-session-statics
+// row (games/mm/2s2h/mm_resume_state_test.cpp): dirty != 0 puts it where a live
+// client leaves it, 0 puts back the initial value; the check is nonzero while it
+// is not the initial value.
+void MM_EnMushi2_SetDestroyStaticsForTest(s32 dirty) {
+    D_80A6B994 = dirty ? 3 : 0;
+}
+
+s32 MM_EnMushi2_DestroyStaticsDirtyForTest(void) {
+    return D_80A6B994 != 0;
+}
+#endif
