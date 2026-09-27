@@ -26,7 +26,9 @@
  *    (ImGuiUtils.cpp customItemsMapping); the jabber nuts show the Deku Nut, as
  *    SoH's jabbernutMapping does; bean souls show the Magic Bean; the ocarina
  *    buttons show the Fairy Ocarina; overworld keys and the skeleton key show the
- *    small key; Greg shows the rupee counter icon in SoH's Greg green.
+ *    small key; Greg shows the rupee counter icon in SoH's Greg green. The
+ *    action-shuffle abilities (Climb, Crawl, Open Chests) have no OoT icon and
+ *    keep the icon-less textbox.
  *
  * WHAT IT NEVER DOES: read the save, the rando Context or any live state. The
  * answer is a pure function of static tables, so it is the same while OoT is
@@ -267,6 +269,54 @@ extern "C" int OoT_ComboTextboxIcon(uint16_t id, ComboTextboxIcon* out) {
             return IconForItemId(ITEM_BULLET_BAG_50, out);
         case RG_BOMBCHU_INF:
             return IconForItemId(ITEM_BOMBCHU, out);
+        // MOD_RANDOMIZER rows whose entry carries an RG_* (or, for the Master
+        // Sword, an ItemID the modIndex says not to trust): the item they give.
+        case RG_MASTER_SWORD:
+            return IconForItemId(ITEM_SWORD_MASTER, out);
+        case RG_MAGIC_BEAN_PACK:
+            return IconForItemId(ITEM_BEAN, out);
+        case RG_BOTTLE_WITH_RED_POTION:
+            return IconForItemId(ITEM_POTION_RED, out);
+        case RG_BOTTLE_WITH_GREEN_POTION:
+            return IconForItemId(ITEM_POTION_GREEN, out);
+        case RG_BOTTLE_WITH_BLUE_POTION:
+            return IconForItemId(ITEM_POTION_BLUE, out);
+        case RG_BOTTLE_WITH_FAIRY:
+            return IconForItemId(ITEM_FAIRY, out);
+        case RG_BOTTLE_WITH_FISH:
+            return IconForItemId(ITEM_FISH, out);
+        case RG_BOTTLE_WITH_BLUE_FIRE:
+            return IconForItemId(ITEM_BLUE_FIRE, out);
+        case RG_BOTTLE_WITH_BUGS:
+            return IconForItemId(ITEM_BUG, out);
+        case RG_BOTTLE_WITH_POE:
+            return IconForItemId(ITEM_POE, out);
+        case RG_BOTTLE_WITH_BIG_POE:
+            return IconForItemId(ITEM_BIG_POE, out);
+        case RG_BOTTLE_WITH_MILK:
+            return IconForItemId(ITEM_MILK_BOTTLE, out);
+        case RG_KEATON_MASK:
+            return IconForItemId(ITEM_MASK_KEATON, out);
+        case RG_SKULL_MASK:
+            return IconForItemId(ITEM_MASK_SKULL, out);
+        case RG_SPOOKY_MASK:
+            return IconForItemId(ITEM_MASK_SPOOKY, out);
+        case RG_BUNNY_HOOD:
+            return IconForItemId(ITEM_MASK_BUNNY, out);
+        case RG_GORON_MASK:
+            return IconForItemId(ITEM_MASK_GORON, out);
+        case RG_ZORA_MASK:
+            return IconForItemId(ITEM_MASK_ZORA, out);
+        case RG_GERUDO_MASK:
+            return IconForItemId(ITEM_MASK_GERUDO, out);
+        case RG_MASK_OF_TRUTH:
+            return IconForItemId(ITEM_MASK_TRUTH, out);
+        // The action-shuffle abilities have no OoT icon at all (SoH's tracker
+        // draws them over a blank button background): the icon-less textbox.
+        case RG_CLIMB:
+        case RG_CRAWL:
+        case RG_OPEN_CHEST:
+            return 0;
         default:
             break;
     }

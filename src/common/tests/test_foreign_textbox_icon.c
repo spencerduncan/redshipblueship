@@ -9,7 +9,8 @@
  *     OoT_ComboTextboxIcon (pointer identity): a registrar the linker dropped
  *     (#516/#678 class) would leave every foreign pickup icon-less.
  *  I2 COVERAGE. EVERY OoT id the O8 classification owner calls PROGRESSION (the
- *     items that may cross onto an MM check) answers an icon, and the answer's
+ *     items that may cross onto an MM check) answers an icon, except exactly the
+ *     three action-shuffle abilities OoT has no icon for, and the answer's
  *     path agrees with its declared shape (a 24x24 quest icon from
  *     icon_item_24_static, the note for a song, ...) and names an OoT archive
  *     path, never MM's `_yar` archives. Every answered icon also has an MM textbox
@@ -106,6 +107,24 @@ bool FtiPathFitsShape(const ComboTextboxIcon& icon) {
     }
 }
 
+/** OoT progression items with NO icon anywhere in OoT: SoH's action-shuffle
+ *  abilities, which its tracker draws over a blank button background. Exact: the
+ *  walk requires each to fall back and counts them, so a new gap cannot hide here
+ *  and an ability that gains an icon must leave the list. */
+const char* const kFtiIconlessByDesign[] = { "Climb", "Crawl", "Open Chests" };
+
+bool FtiIsIconlessByDesign(const char* name) {
+    if (name == nullptr) {
+        return false;
+    }
+    for (const char* listed : kFtiIconlessByDesign) {
+        if (std::strcmp(listed, name) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // ---- I4: synthetic half-answers ---------------------------------------------
 int sFtiSyntheticMode = 0;
 int FtiSyntheticSource(uint16_t id, ComboTextboxIcon* out) {
@@ -173,6 +192,7 @@ TestResult Test_ForeignTextboxIcon(void) {
     int progression = 0;
     int byShape[COMBO_TEXTBOX_ICON_SHAPE_COUNT] = {};
     int otherAnswered = 0;
+    int iconless = 0;
     int failures = 0;
     for (int id = 1; id < idSpace; id++) {
         ComboItemClassRow row;
@@ -188,9 +208,17 @@ TestResult Test_ForeignTextboxIcon(void) {
         const SharedItem item = FtiItem((uint8_t)GAME_OOT, (uint16_t)id);
         const char* name = Combo_GetForeignItemName(item);
         if (answered != 1) {
+            if (FtiIsIconlessByDesign(name)) {
+                iconless++;
+                continue;
+            }
             printf("[TEST]   no icon: RG %d \"%s\"\n", id, name != nullptr ? name : "?");
             failures++;
             continue;
+        }
+        if (FtiIsIconlessByDesign(name)) {
+            printf("[TEST]   answers an icon but is listed as icon-less: RG %d \"%s\"\n", id, name);
+            failures++;
         }
         byShape[icon.shape]++;
         if (!FtiPathFitsShape(icon) || FtiContains(icon.texture, "_yar")) {
@@ -209,10 +237,12 @@ TestResult Test_ForeignTextboxIcon(void) {
             failures++;
         }
     }
-    printf("[TEST]   %d OoT progression items: %d item, %d quest, %d note, %d rupee icons; %d failures "
-           "(%d non-progression ids also answer)\n",
+    printf("[TEST]   %d OoT progression items: %d item, %d quest, %d note, %d rupee icons, %d icon-less by "
+           "design; %d failures (%d non-progression ids also answer)\n",
            progression, byShape[COMBO_TEXTBOX_ICON_ITEM], byShape[COMBO_TEXTBOX_ICON_QUEST],
-           byShape[COMBO_TEXTBOX_ICON_NOTE], byShape[COMBO_TEXTBOX_ICON_RUPEE], failures, otherAnswered);
+           byShape[COMBO_TEXTBOX_ICON_NOTE], byShape[COMBO_TEXTBOX_ICON_RUPEE], iconless, failures, otherAnswered);
+    FTI_ASSERT(iconless == (int)(sizeof(kFtiIconlessByDesign) / sizeof(kFtiIconlessByDesign[0])),
+               "I2 exactly the adjudicated icon-less abilities fall back (shrink the list when one gains an icon)");
     FTI_ASSERT(progression > 100, "I2 the walk saw OoT's progression items");
     FTI_ASSERT(failures == 0, "I2 every OoT progression item has a well-formed textbox icon with an MM branch");
     FTI_ASSERT(byShape[COMBO_TEXTBOX_ICON_ITEM] > 0 && byShape[COMBO_TEXTBOX_ICON_QUEST] > 0 &&
