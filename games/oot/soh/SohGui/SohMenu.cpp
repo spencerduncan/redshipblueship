@@ -215,8 +215,12 @@ namespace {
  * then #669) were both reasons nobody could trace back to a tracker, and the
  * gating lock refuses a reason with no `#NNN` in it for exactly that reason.
  */
+// The wording predates ADR 0010 increment 3 (the gate now observes MM's engine
+// registrar, MMHostedAbsent below) and is kept verbatim: it is a baselined
+// player-visible string (.github/scripts/ui-lint-baseline.txt), which may only
+// shrink, and "MM's half never registered" is still what it tells the player.
 constexpr const char* kCapReasonMMHosted =
-    "Not yet available: Majora's Mask support is not in this build - MM's combo-logic engine never registered (#392)";
+    "Not yet available: Majora's Mask support is not in this build - MM's item pool never registered (#392)";
 constexpr const char* kCapReasonComboHosted =
     "Not yet available: the cross-game settings store is not reachable in this process (#498)";
 constexpr const char* kCapReasonComboPaired =

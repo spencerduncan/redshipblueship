@@ -22,14 +22,6 @@ S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | failureTo
 S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | failureToast.prefixColor[1] = 0.35f;
 S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | failureToast.prefixColor[2] = 0.3f;
 S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | failureToast.prefixColor[3] = 1.0f;
-S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | shortfallToast.messageColor[0] = 1.0f;
-S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | shortfallToast.messageColor[1] = 1.0f;
-S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | shortfallToast.messageColor[2] = 1.0f;
-S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | shortfallToast.messageColor[3] = 1.0f;
-S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | shortfallToast.prefixColor[0] = 1.0f;
-S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | shortfallToast.prefixColor[1] = 0.8f;
-S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | shortfallToast.prefixColor[2] = 0.3f;
-S2 | games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp | shortfallToast.prefixColor[3] = 1.0f;
 S2 | games/oot/soh/SohGui/CreationProgressOverlay.cpp | IM_COL32(0, 0, 0, 170));
 S2 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextColored(ImVec4(0.55f, 0.78f, 0.98f, 1.0f), "Frozen at creation");
 S2 | src/common/ComboMmOptionsWindow.cpp | const ImVec4 warn(0.98f, 0.76f, 0.24f, 1.0f);
