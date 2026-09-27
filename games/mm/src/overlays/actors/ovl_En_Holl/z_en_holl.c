@@ -43,6 +43,9 @@
 
 void MM_EnHoll_Init(Actor* thisx, PlayState* play);
 void MM_EnHoll_Destroy(Actor* thisx, PlayState* play);
+#ifdef RSBS_SINGLE_EXECUTABLE
+void MM_EnHoll_Reset(void);
+#endif
 void MM_EnHoll_Update(Actor* thisx, PlayState* play);
 void MM_EnHoll_Draw(Actor* thisx, PlayState* play);
 
@@ -65,6 +68,9 @@ ActorProfile En_Holl_Profile = {
     /**/ MM_EnHoll_Destroy,
     /**/ MM_EnHoll_Update,
     /**/ MM_EnHoll_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    /**/ MM_EnHoll_Reset,
+#endif
 };
 
 #include "overlays/ovl_En_Holl/ovl_En_Holl.h"
@@ -346,3 +352,31 @@ void MM_EnHoll_Draw(Actor* thisx, PlayState* play) {
         CLOSE_DISPS(play->state.gfxCtx);
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #666] MM_EnHoll_Destroy releases sInstancePlayingSound when its owner
+// goes, so nothing but Destroy ever put it back. A cross-game
+// departure abandons MM's Play gamestate without deleting its actors
+// (MM_ActorOverlayTable_RetireAbandonedClients, z_actor.c), which leaves it
+// holding the abandoned session's value. MM_Actor_FreeOverlay calls this only
+// once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void MM_EnHoll_Reset(void) {
+    sInstancePlayingSound = NULL;
+}
+
+// [RSBS #666] Seed and read the static above for the mm-abandoned-session-statics
+// row (games/mm/2s2h/mm_resume_state_test.cpp): dirty != 0 puts it where a live
+// client leaves it, 0 puts back the initial value; the check is nonzero while it
+// is not the initial value.
+void MM_EnHoll_SetDestroyStaticsForTest(s32 dirty) {
+    static EnHoll sSentinel;
+
+    // Never dereferenced: only compared against a live EnHoll.
+    sInstancePlayingSound = dirty ? &sSentinel : NULL;
+}
+
+s32 MM_EnHoll_DestroyStaticsDirtyForTest(void) {
+    return sInstancePlayingSound != NULL;
+}
+#endif
