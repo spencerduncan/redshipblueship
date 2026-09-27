@@ -403,7 +403,9 @@ std::shared_ptr<CreationSaveObserverWindow> gSaveObserver;
  * draws the last game frame into it) and, when it is open, SoH's menu. So the old
  * rect dimmed only what nothing else covered; in the UI snapshot, where no game
  * image is drawn, it was black on black. A window in the display order dims what
- * a modal would, and the snapshot's over-menu variant shows it doing that.
+ * a modal would. The snapshot's over-menu variant checks that pixel by pixel:
+ * every menu pixel outside the box must be the undimmed menu blended with this
+ * colour, and this window must sit above the menu and below the box.
  */
 void DrawDimBackdrop(const ImGuiViewport* viewport) {
     ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
@@ -439,14 +441,26 @@ void DrawDimBackdrop(const ImGuiViewport* viewport) {
  * suppression in PresentOneGuiFrame, because a pumped frame draws SoH's whole menu
  * and not just this window (property 2 in the file comment).
  *
- * IT IS DRAWN TO LOOK LIKE SoH's MODAL (SohModals.cpp, the "Clear Config"
- * confirm, and the ROM-extraction progress modal), which the UI snapshot compares it with
- * (docs/ui-style-guide.md section 12), and its bar is SoH's ROM-extraction bar:
- * the modal's dim, its popup background, its focused title bar, the style's own
- * window padding, and the extraction modal's theme-coloured bar. Every colour is a
- * style colour or the theme palette; none is hand-picked. The title bar is pushed to the ACTIVE colour because a modal
- * is always the focused window and this one never takes focus (NoFocusOnAppearing: a pumped frame must not move the
- * player's keyboard focus).
+ * IT IS DRAWN TO LOOK LIKE SoH's PROGRESS MODAL, the ROM-extraction dialog
+ * (OTRGlobals.cpp, RunExtract), which the UI snapshot compares it with
+ * (docs/ui-style-guide.md section 12): the popup background, the theme-coloured
+ * title bar, the translucent black border, the style's own window padding and
+ * the theme-coloured bar. Every colour is a style colour or the theme palette;
+ * none is hand-picked.
+ *
+ * THE TITLE BAR IS PUSHED TO THE THEME COLOUR HERE because nothing else pushes
+ * it on this frame. SoH themes the focused title bar per frame, around the
+ * draw (OTRGlobals.cpp's graphics loop, and RunExtract around its own frame);
+ * this frame is pumped by PaintOneFrameUnderOoTSave, outside that push, so the
+ * style's unthemed colour would show. Both TitleBg and TitleBgActive are pushed:
+ * a modal is always the focused window, and this one never takes focus
+ * (NoFocusOnAppearing: a pumped frame must not move the player's keyboard focus).
+ *
+ * ONE DELIBERATE DIFFERENCE FROM THE EXTRACTION DIALOG: its dim. RunExtract
+ * pushes an opaque DarkGray dim because it runs before the game exists, with
+ * nothing behind it worth showing. This overlay covers file select, so it dims
+ * with the style's ImGuiCol_ModalWindowDimBg, the way SoH's in-game modals
+ * (SohModals.cpp, "Clear Config") dim the menu and the game.
  */
 void DrawOverlayContents() {
     // Read from inside the frame, so the row that checks the suppression is
@@ -469,13 +483,19 @@ void DrawOverlayContents() {
 
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowViewport(viewport->ID);
-    // The bar is styled exactly as SoH styles its own progress dialog, the ROM
-    // extraction modal (OTRGlobals.cpp, RunExtract): rounding 3 and padding 10x8
-    // (UIWidgets' framed-widget values), the theme colour for the fill and the
-    // same colour at 0.6 alpha for the track.
+    // The box and bar are styled exactly as SoH styles its own progress dialog,
+    // the ROM extraction modal (OTRGlobals.cpp, RunExtract): the theme colour on
+    // the title bar, black at 0.3 alpha on the border (the palette's Black with
+    // RunExtract's alpha), rounding 3 and padding 10x8 (UIWidgets' framed-widget
+    // values), the theme colour for the fill and the same colour at 0.6 alpha for
+    // the track.
     const ImVec4 theme = UIWidgets::ColorValues.at(THEME_COLOR);
+    ImVec4 border = UIWidgets::ColorValues.at(UIWidgets::Colors::Black);
+    border.w = 0.3f;
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_PopupBg));
-    ImGui::PushStyleColor(ImGuiCol_TitleBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
+    ImGui::PushStyleColor(ImGuiCol_TitleBg, theme);
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, theme);
+    ImGui::PushStyleColor(ImGuiCol_Border, border);
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(theme.x, theme.y, theme.z, 0.6f));
     ImGui::PushStyleColor(ImGuiCol_PlotHistogram, theme);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
@@ -508,7 +528,7 @@ void DrawOverlayContents() {
     }
     ImGui::End();
     ImGui::PopStyleVar(2);
-    ImGui::PopStyleColor(4);
+    ImGui::PopStyleColor(6);
 }
 
 /**

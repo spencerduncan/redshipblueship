@@ -1329,9 +1329,19 @@ extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested) {
  * just because its production caller is better equipped. The toast is the
  * surface; the sound is not load-bearing.
  *
- * VISUAL, THEREFORE UNVERIFIABLE BY THE TIERS. The locks assert the CREATION's
- * verdict (no file written, no identity left, slot refused); that the toast
- * renders is a playtest observation. Stated rather than implied.
+ * THE TOAST IS CHECKED BY THE UI TIER, the verdict by the creation locks. The
+ * locks assert the CREATION's verdict (no file written, no identity left, slot
+ * refused). The ui tier's UiSnapshot row draws this function's toast through the
+ * real Notifications window (the "toast/creation-failure" page) and fails it if
+ * the toast is missing, blank, or runs off an 832-px window. What neither can
+ * show is the toast over a live file select; that is still a playtest
+ * observation.
+ *
+ * THE COPY is one line, because the notification overlay draws prefix and
+ * message on ONE line at 1.8x and never wraps: about 53 characters fit the
+ * smallest window the ui tier renders (832 px). "Not created" says both that
+ * no file exists and that nothing was saved; "Majora's Mask" is spelled out
+ * (docs/ui-style-guide.md R-N8: only labels abbreviate it).
  *
  * @param slot   the slot whose creation failed.
  * @param reason reserved for a future failure taxonomy; 0 today ("generation
@@ -1346,8 +1356,8 @@ extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason) {
     fflush(stderr);
 
     Notification::Emit({
-        .prefix = "File not created:",
-        .message = "try another seed or MM options.",
+        .prefix = "Not created:",
+        .message = "try a new seed or Majora's Mask options.",
         .mute = true, // see the header: this seam is driven by display-free locks too
     });
 }

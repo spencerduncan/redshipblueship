@@ -48,8 +48,10 @@
  * player's imgui.ini path is left armed and ImGui's shutdown save is run),
  * player-config (the harness names the player's shipofharkinian.json as its
  * config), hover-first-line (a hovered row draws only its tooltip's first
- * line). A sabotaged run is expected to fail; docs/ui-style-guide.md section
- * 12 lists what each one must turn red.
+ * line), no-menu-under (the creation overlay's over-menu variant leaves the
+ * menu hidden), no-dim (the creation overlay's dim is drawn transparent). A
+ * sabotaged run is expected to fail; docs/ui-style-guide.md section 12 lists
+ * what each one must turn red.
  *
  * ============================================================================
  * HOW A FRAME IS MADE (and why each step is where it is)
@@ -114,6 +116,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cinttypes>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -890,6 +893,7 @@ class Session {
     void CaptureWindowPage(const PageSpec& p);
     void CaptureOverlay(const PageSpec& p);
     void CaptureModal(const PageSpec& p);
+    void CaptureModalVariant(const PageSpec& p, const std::string& state);
     void CaptureToast(const PageSpec& p);
     void Navigate(const PageSpec& p);
     std::vector<ImGuiWindow*> SectionChildren(const PageSpec& p);
@@ -1387,16 +1391,21 @@ void Session::BuildPageList() {
         p.origin = Origin::SOH_REFERENCE;
         p.kind = Kind::MODAL;
         p.window = "Clear Config";
-        p.states = { "" };
+        // over-menu: the same modal over the same open menu page the creation
+        // overlay's over-menu variant sits on (Combo > Cross-Game Rules), so the
+        // two can be read side by side: the dim, and what shows through the box.
+        p.states = { "", "over-menu" };
         p.expectText = { "Clear Config", "Cancel" };
         p.scroll = false;
         pages.push_back(p);
     }
     {
         // SoH's one progress dialog: the ROM-extraction modal (OTRGlobals.cpp,
-        // RunExtract), drawn by DrawExtractionReference below at a fixed half-way
-        // state. The creation overlay is a progress dialog too, so this is its
-        // reference; "Clear Config" stays the reference for confirms.
+        // RunExtract), drawn by PushExtractionFrameStyle + DrawExtractionReference
+        // below at a fixed half-way state. The creation overlay is a progress
+        // dialog too, so this is its reference; "Clear Config" stays the reference
+        // for confirms. The copy is held to RunExtract's style statements by the
+        // static lint (check-ui-parity-lint.py, "C1"), so it cannot drift silently.
         PageSpec p;
         p.id = "modal/ROM Extraction";
         p.origin = Origin::SOH_REFERENCE;
@@ -1596,8 +1605,10 @@ void Session::BuildPageList() {
         p.kind = Kind::OVERLAY;
         p.window = "Creating Your Paired World";
         // over-menu: the menu left open under the overlay, as a pumped frame draws
-        // it (Gui::StartDraw -> DrawMenu). A modal dims the menu too; this is the
-        // capture that shows whether the overlay's dim does.
+        // it (Gui::StartDraw -> DrawMenu). A modal dims the menu too, and this
+        // variant's oracle (DimOracle) requires the overlay's dim to: the menu
+        // drawn, the dim window between it and the box, and every pixel outside
+        // the box equal to the undimmed menu blended with ModalWindowDimBg.
         p.states = { "", "over-menu" };
         p.compareWith = "modal/ROM Extraction";
         p.expectText = { "Creating Your Paired World" };
@@ -1606,7 +1617,7 @@ void Session::BuildPageList() {
     }
     for (const auto& [id, text] : std::vector<std::pair<std::string, std::string>>{
              { "toast/creation-shortfall", "Fewer cross-game items:" },
-             { "toast/creation-failure", "File not created:" },
+             { "toast/creation-failure", "Not created:" },
          }) {
         PageSpec p;
         p.id = id;
@@ -2702,6 +2713,145 @@ void Session::CaptureWindowPage(const PageSpec& p) {
     }
 }
 
+/** The menu page every over-menu variant sits on: one of ours, drawn on a ROM-free run too. */
+PageSpec OverMenuPage() {
+    PageSpec under;
+    under.header = "Combo";
+    under.sidebar = "Cross-Game Rules";
+    return under;
+}
+
+// The creation overlay's dim window (CreationProgressOverlay.cpp, kDimWindowName).
+// Named here rather than exported: a rename turns the over-menu oracle red by
+// name, which is the point of it.
+constexpr const char* kOverlayDimWindow = "##CreationProgressDim";
+
+/**
+ * THE OVER-MENU ORACLE: is the menu under this box dimmed the way a modal dims it?
+ *
+ * @p bare is the same menu page settled with nothing over it; @p c is the capture
+ * with the dimming surface over it, its contentRect already the box (Oracle).
+ * Three requirements, each failing the capture by name:
+ *   1. the menu was drawn ("Main Menu" active in the dimmed frame), and the bare
+ *      frame is not nearly uniform outside the box (so there was a menu to dim);
+ *   2. when @p dimWindow is named (the overlay draws its own dim), that window was
+ *      drawn and sits above the menu and below the box in the display order;
+ *   3. every pixel outside the box equals the bare pixel blended with the style's
+ *      ImGuiCol_ModalWindowDimBg, as the GPU blends it, within 2 per channel.
+ * A real BeginPopupModal passes the same check with @p dimWindow null (ImGui draws
+ * that dim itself), which is what makes "dims the way a modal dims" a measured
+ * claim rather than a reading of the picture.
+ */
+void DimOracle(const UiImage& bare, Capture& c, const char* dimWindow, const char* boxWindow) {
+    if (c.status != "pass") {
+        return;
+    }
+    ImGuiContext& g = *GImGui;
+    auto fail = [&c](const std::string& why) {
+        c.status = "fail";
+        c.reason = why;
+    };
+    ImGuiWindow* menuWindow = ImGui::FindWindowByName("Main Menu");
+    if (menuWindow == nullptr || !menuWindow->Active) {
+        fail("the menu under the dim was not drawn (\"Main Menu\" not active)");
+        return;
+    }
+    auto orderOf = [&g](ImGuiWindow* w) {
+        for (int i = 0; i < g.Windows.Size; i++) {
+            if (g.Windows[i] == w) {
+                return i;
+            }
+        }
+        return -1;
+    };
+    if (dimWindow != nullptr) {
+        ImGuiWindow* dim = ImGui::FindWindowByName(dimWindow);
+        ImGuiWindow* box = ImGui::FindWindowByName(boxWindow);
+        if (dim == nullptr || !dim->Active) {
+            fail(std::string("the dim window \"") + dimWindow + "\" was not drawn");
+            return;
+        }
+        const int m = orderOf(menuWindow);
+        const int d = orderOf(dim);
+        const int b = box == nullptr ? -1 : orderOf(box);
+        if (!(m < d && d < b)) {
+            fail("display order is menu " + std::to_string(m) + ", dim " + std::to_string(d) + ", box " +
+                 std::to_string(b) + " (back to front); the dim must sit above the menu and below the box");
+            return;
+        }
+    }
+    const UiImage& img = c.image;
+    if (bare.rgba == nullptr || img.rgba == nullptr || bare.w != img.w || bare.h != img.h) {
+        fail("no undimmed capture of the same size to compare the dim with");
+        return;
+    }
+    // The dim as the frame drew it: the style colour with the style alpha, packed
+    // to 8 bits per channel (GetColorU32), then blended src-alpha over the menu.
+    ImVec4 dimColour = ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg];
+    dimColour.w *= ImGui::GetStyle().Alpha;
+    const ImU32 packed = ImGui::ColorConvertFloat4ToU32(dimColour);
+    const float src[3] = { (float)((packed >> IM_COL32_R_SHIFT) & 0xFF), (float)((packed >> IM_COL32_G_SHIFT) & 0xFF),
+                           (float)((packed >> IM_COL32_B_SHIFT) & 0xFF) };
+    const float alpha = (float)((packed >> IM_COL32_A_SHIFT) & 0xFF) / 255.0f;
+    // The box, grown by 2 px for its border's antialiased edge.
+    const int bx0 = (int)std::floor(c.contentRect[0]) - 2;
+    const int by0 = (int)std::floor(c.contentRect[1]) - 2;
+    const int bx1 = (int)std::ceil(c.contentRect[0] + c.contentRect[2]) + 2;
+    const int by1 = (int)std::ceil(c.contentRect[1] + c.contentRect[3]) + 2;
+    int64_t checked = 0;
+    int64_t off = 0;
+    int firstX = -1;
+    int firstY = -1;
+    int got[3] = { 0, 0, 0 };
+    int want[3] = { 0, 0, 0 };
+    std::set<uint32_t> bareColours;
+    for (int y = 0; y < img.h; y++) {
+        for (int x = 0; x < img.w; x++) {
+            if (x >= bx0 && x < bx1 && y >= by0 && y < by1) {
+                continue;
+            }
+            const size_t o = ((size_t)y * (size_t)img.w + (size_t)x) * 4;
+            checked++;
+            if (bareColours.size() < 64) {
+                bareColours.insert((uint32_t)bare.rgba[o] | ((uint32_t)bare.rgba[o + 1] << 8) |
+                                   ((uint32_t)bare.rgba[o + 2] << 16));
+            }
+            bool ok = true;
+            int expected[3];
+            for (int ch = 0; ch < 3; ch++) {
+                expected[ch] = (int)std::lround(src[ch] * alpha + (float)bare.rgba[o + ch] * (1.0f - alpha));
+                if (std::abs((int)img.rgba[o + ch] - expected[ch]) > 2) {
+                    ok = false;
+                }
+            }
+            if (!ok) {
+                if (off == 0) {
+                    firstX = x;
+                    firstY = y;
+                    for (int ch = 0; ch < 3; ch++) {
+                        got[ch] = img.rgba[o + ch];
+                        want[ch] = expected[ch];
+                    }
+                }
+                off++;
+            }
+        }
+    }
+    if (bareColours.size() < 16) {
+        fail("outside the box the undimmed frame has only " + std::to_string(bareColours.size()) +
+             " colours: there is no menu under the dim to check");
+        return;
+    }
+    if (off != 0) {
+        auto rgb = [](const int v[3]) {
+            return "(" + std::to_string(v[0]) + "," + std::to_string(v[1]) + "," + std::to_string(v[2]) + ")";
+        };
+        fail(std::to_string(off) + " of " + std::to_string(checked) +
+             " pixels outside the box are not the menu dimmed by ModalWindowDimBg (first at " + std::to_string(firstX) +
+             "," + std::to_string(firstY) + ": " + rgb(got) + ", expected " + rgb(want) + ")");
+    }
+}
+
 void Session::CaptureOverlay(const PageSpec& p) {
     for (const std::string& state : p.states) {
         const std::string variant = VariantName(state, "");
@@ -2720,22 +2870,40 @@ void Session::CaptureOverlay(const PageSpec& p) {
         view.elapsedMs = 12300;
         view.budgetMs = 30000;
         snprintf(view.caption, sizeof(view.caption), "Building the Majora's Mask world (attempt 1 of 3)");
-        if (state == "over-menu") {
-            PageSpec under;
-            under.header = "Combo";
-            under.sidebar = "Cross-Game Rules";
-            Navigate(under);
-        } else {
-            menu->Hide();
-        }
+        const bool overMenu = state == "over-menu";
         Capture c;
         c.id = p.id;
         c.variant = variant;
         c.state = state;
-        auto extra = [&view]() { OoT_CreationProgressOverlay_TestDrawContents(&view); };
-        if (Settle(c, false, extra, nullptr)) {
-            Oracle(p, c);
+        // RSBS_UI_SNAPSHOT_SABOTAGE=no-menu-under leaves the menu hidden under the
+        // over-menu variant; =no-dim draws the overlay's dim fully transparent.
+        // Each must turn DimOracle red.
+        if (overMenu && !opt.Sabotaged("no-menu-under")) {
+            Navigate(OverMenuPage());
+        } else {
+            menu->Hide();
         }
+        Capture bare;
+        if (overMenu && !Settle(bare, false, nullptr, nullptr)) {
+            c.status = "fail";
+            c.reason = "the menu alone did not settle: " + bare.reason;
+        }
+        const bool noDim = opt.Sabotaged("no-dim");
+        auto extra = [&view, noDim]() {
+            if (noDim) {
+                ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+            }
+            OoT_CreationProgressOverlay_TestDrawContents(&view);
+            if (noDim) {
+                ImGui::PopStyleColor();
+            }
+        };
+        if (c.status == "pass" && Settle(c, false, extra, nullptr)) {
+            if (Oracle(p, c) && overMenu) {
+                DimOracle(bare.image, c, kOverlayDimWindow, p.window.c_str());
+            }
+        }
+        UiImage_Free(&bare.image);
         Finish(c, p);
         Record(std::move(c));
     }
@@ -2743,12 +2911,27 @@ void Session::CaptureOverlay(const PageSpec& p) {
 
 /**
  * SoH's ROM-extraction progress modal, reproduced for the reference page
- * "modal/ROM Extraction": the style pushes, flags and widget sizes are
- * OTRGlobals.cpp's (RunExtract, the ImGui-driven extraction flow ported from
- * upstream SoH), with a fixed state instead of a live extraction -- half way, one
- * archive file named. It is a copy because the original is inline in a boot
- * loop and cannot be called; keep it in step with that code.
- *
+ * "modal/ROM Extraction". RunExtract (OTRGlobals.cpp, the ImGui-driven
+ * extraction flow ported from upstream SoH) pushes two style colours around its
+ * WHOLE frame -- the themed active title bar and an opaque DarkGray modal dim,
+ * both still in force when ImGui::Render draws the dim -- and five more around
+ * the modal itself. PushExtractionFrameStyle/PopExtractionFrameStyle are the
+ * first two, called outside the harness's frames for the same reason;
+ * DrawExtractionReference is the modal, with a fixed state instead of a live
+ * extraction (half way, one archive file named). It is a copy because the
+ * original is inline in a boot loop and cannot be called. The static lint's C1
+ * check (.github/scripts/check-ui-parity-lint.py) compares every style push,
+ * pop, the modal's flags and the bar's size in these three functions with
+ * RunExtract's, statement for statement, so the copy cannot drift silently.
+ */
+void PushExtractionFrameStyle() {
+    UIWidgets::Colors themeColor =
+        static_cast<UIWidgets::Colors>(CVarGetInteger(CVAR_SETTING("Menu.Theme"), UIWidgets::Colors::LightBlue));
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, UIWidgets::ColorValues.at(themeColor));
+    ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, UIWidgets::ColorValues.at(UIWidgets::Colors::DarkGray));
+}
+
+/**
  * RunExtract calls OpenPopup and BeginPopupModal with ImGui's implicit fallback
  * window current; the harness's frame has none at the point extra ImGui is
  * submitted, and both calls hash the popup's name through the current window, so
@@ -2796,13 +2979,47 @@ void DrawExtractionReference(int mode, bool* open) {
     ImGui::End();
 }
 
+void PopExtractionFrameStyle() {
+    ImGui::PopStyleColor(2);
+}
+
 void Session::CaptureModal(const PageSpec& p) {
-    if (!Selected(p, "")) {
-        return;
+    for (const std::string& state : p.states) {
+        const std::string variant = VariantName(state, "");
+        if (Selected(p, variant)) {
+            CaptureModalVariant(p, state);
+        }
     }
-    menu->Hide();
+}
+
+void Session::CaptureModalVariant(const PageSpec& p, const std::string& state) {
     Capture c;
     c.id = p.id;
+    c.variant = VariantName(state, "");
+    c.state = state;
+    // A modal's background dim fades in over about a sixth of a second of REAL
+    // time (NewFrame advances DimBgRatio by DeltaTime * 6), so how many frames it
+    // takes depends on the host's frame rate and the capture would race it.
+    // Start every frame fully dimmed instead: the picture is the settled one,
+    // deterministically.
+    auto fullDim = []() { GImGui->DimBgRatio = 1.0f; };
+    // over-menu: the menu page the creation overlay's over-menu variant sits on,
+    // settled alone first so DimOracle has the undimmed picture.
+    const bool overMenu = state == "over-menu";
+    Capture bare;
+    if (overMenu) {
+        Navigate(OverMenuPage());
+        if (!Settle(bare, false, nullptr, fullDim)) {
+            c.status = "fail";
+            c.reason = "the menu alone did not settle: " + bare.reason;
+            UiImage_Free(&bare.image);
+            Finish(c, p);
+            Record(std::move(c));
+            return;
+        }
+    } else {
+        menu->Hide();
+    }
     // The extraction reference is drawn inside the frame, not queued.
     const bool extraction = p.origin == Origin::SOH_REFERENCE && p.window == "ROM Extraction";
     int extractionMode = 0;
@@ -2826,6 +3043,7 @@ void Session::CaptureModal(const PageSpec& p) {
             c.status = "fail";
             c.reason = "no Reset button row with a Callback on " + p.header + "/" + p.sidebar;
             c.spec = &p;
+            UiImage_Free(&bare.image);
             Record(std::move(c));
             return;
         }
@@ -2834,19 +3052,21 @@ void Session::CaptureModal(const PageSpec& p) {
             c.status = "fail";
             c.reason = "the Reset button queued no confirm popup";
             c.spec = &p;
+            UiImage_Free(&bare.image);
             Record(std::move(c));
             return;
         }
     }
-    // A modal's background dim fades in over about a sixth of a second of REAL
-    // time (NewFrame advances DimBgRatio by DeltaTime * 6), so how many frames it
-    // takes depends on the host's frame rate and the capture would race it.
-    // Start every frame fully dimmed instead: the picture is the settled one,
-    // deterministically.
-    auto fullDim = []() { GImGui->DimBgRatio = 1.0f; };
-    if (Settle(c, false, extra, fullDim)) {
-        Oracle(p, c);
+    // RunExtract's frame-wide pushes, outside the frames as RunExtract has them.
+    if (extraction) {
+        PushExtractionFrameStyle();
     }
+    if (Settle(c, false, extra, fullDim)) {
+        if (Oracle(p, c) && overMenu) {
+            DimOracle(bare.image, c, nullptr, p.window.c_str());
+        }
+    }
+    UiImage_Free(&bare.image);
     Finish(c, p);
     // Teardown, then assert nothing is left queued for the pages after this one.
     std::string why;
@@ -2855,6 +3075,7 @@ void Session::CaptureModal(const PageSpec& p) {
         PumpFrame(nullptr, false, extra, why);
         extractionMode = 2;
         PumpFrame(nullptr, false, extra, why);
+        PopExtractionFrameStyle();
         if (extractionOpen && c.status == "pass") {
             c.status = "fail";
             c.reason = "the extraction reference modal did not close";
