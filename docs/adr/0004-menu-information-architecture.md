@@ -4,7 +4,9 @@
   2026-07-30** under the one-game-semantics ruling; **one §4.1a consequence
   superseded 2026-07-31** by ADR 0010; **§5, §4.2, §6 and §4's Combo row
   implemented 2026-09-20** (#497 steps 3/5/6 — see the amendment at the end;
-  no decided text changes)
+  no decided text changes); **§5/§6's presentation follows SoH's disabled-row
+  idiom from 2026-09-27** (operator ruling; the state leaves the row name and the
+  capability registry's issue numbers leave the pixels — see the last amendment)
 - For: #392 (Phase 3.0 tracker), #34 (settings migration), #497, #499
 - Amended on acceptance: §4.1 (scope and host of the MM randomizer pane — see
   §4.1a), §2d (the #454 disagreement, now ruled), and "What this ADR does not
@@ -606,3 +608,53 @@ in a TU `games/mm/CMakeLists.txt` excludes from every target, and OoT's live one
 
 **Locks:** `MenuCapabilityGating`, `MenuComboSection` and `SetMenuCount` in the `redship` tier,
 with `ComboSettingsRows` following the rows to their new host.
+
+## Amendment 2026-09-27 — §5 and §6's presentation follows SoH's disabled-row idiom; the state leaves the row name
+
+**Nothing §5 or §6 decides changes: the four states, what each one denies, and the rule that a
+frozen entry's reason is not the capability reason all stand.** What changes is how they LOOK, and
+one sentence of the 2026-09-20 amendment above, which is superseded here rather than edited: *"The
+state is written into the row NAME as well as the tooltip"*. The operator's ruling (2026-09-27, on
+the UI-parity plan's M4): *"follow the soh idiom"*. The vendored Ship of Harkinian menus are the
+reference for everything this project adds, and SoH never writes a state or an explanation into an
+interactive row's name. What it does rewrite at runtime is narrower: a button may relabel the action it
+performs ("Enable##Sail" / "Disable##Sail", `SohMenuNetwork.cpp`), and a TEXT row may carry a live value
+(`ResolutionEditor.cpp`). It explains a disabled row in the tooltip, in one shape that `MenuDrawItem`
+builds from `disabledMap` (`Menu.cpp`): "This setting is disabled because:", a blank line, then
+"- <Reason>", with each reason a short fragment, mostly Title Case ("Save Not Loaded", "Match Refresh
+Rate is Enabled"; a few are sentence case, "Disabling VSync not supported").
+
+**What shipped against it** (`SohMenu.cpp`'s capability and presentation code, locked by
+`MenuCapabilityGating`, and drawn by the `UiSnapshot` row's harness-only `Combo/Row States` page next
+to SoH's own disabled row, Settings > Graphics > Current FPS under Match Refresh Rate):
+1. **A row's name is its own in every state.** `ApplyPresentation` no longer composes
+   " - not yet available: <reason>" into the name. The "[Both Games]" marker (§4.2) is a different
+   thing and stays.
+2. **The two disabled states (capability, frozen) use SoH's disabled tooltip**, shape (a) above,
+   written directly into `disabledTooltip` (a capability key is not a `DisableOption`, for the
+   reason the 2026-09-20 amendment gives). The reason is player text in SoH's style: "No Paired World
+   Yet", "Majora's Mask Not in This Build", "Already Decided".
+3. **"Legible without hovering" (§4.2, §6) is met by ONE gray note per gated group**, SoH's gray
+   `WIDGET_TEXT` idiom (`SohMenuRandomizer.cpp`), hidden while the group is live, and written as a
+   sentence-case sentence like SoH's own notes ("These settings are not available yet.", or the
+   caller's own). The note is also the only part of a state that survives a race lockout: there
+   `MenuDrawItem` rebuilds the tooltip from `activeDisables` and appends "- Race Lockout Active", so
+   SoH's own `disabledMap` rows keep their reason but a tooltip written directly, as ours must be, is
+   replaced. That replacement is the mechanical reason the 2026-09-20 text put the state in the name,
+   and it remains a known divergence from SoH under race lockout (forced by the `DisableOption` limit
+   above). The note answers the same need without renaming the control.
+4. **The editable-but-not-active state (§6 point 3) is a gray note, not a label.** The rows stay
+   enabled and unrenamed; the note reads "Majora's Mask is suspended; these take effect when you
+   return."
+5. **The issue-naming requirement moved from the visible string to the record.** The 2026-09-20 text
+   requires that "a reason string must name the issue that tracks the absence", and §5's example
+   string carries "(#438)". Not one of SoH's disabled reasons carries a tracker number, so a reason is
+   now split: the player text carries none, and the capability's record keeps the issue as a separate
+   field (`SohMenuCapabilityRecord::issue`). The requirement did not weaken: the gating lock still
+   refuses a built-in with no issue (`issue == 0`), and it now also refuses player text that prints
+   one. This split covers the CAPABILITY REGISTRY. The MM Enhancements manifest
+   (`kHostedMmEnhancements`, `src/common/cvar_shared_keys.h`) reaches the same tooltip through a
+   free-form `reason` field with no issue field beside it; every manifest row is Live today, so none
+   is drawn, and `MenuMmEnhancementRows` refuses a manifest reason that prints a number. Giving the
+   manifest its own issue field, and the MM Enhancements page the gray note item 3 requires once any of
+   its rows goes non-live, is #747.

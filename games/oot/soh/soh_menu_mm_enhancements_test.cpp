@@ -201,9 +201,28 @@ bool IsDisabled(WidgetInfo& info) {
 // ---- Synthetic rows for leg 4 ----------------------------------------------
 // The manifest's four rows are all Live, so the non-live presentation path has no
 // production data to exercise it. These two drive it through the SAME
-// ApplyPresentation call the production PreFunc makes.
-constexpr const char* kSyntheticPartialReason = "Partially available: its draw leg has no MM dispatch point (#438)";
-constexpr const char* kSyntheticDormantReason = "Not yet available: its provider is elided from this build (#427)";
+// ApplyPresentation call the production PreFunc makes. Their reasons are player
+// text in SoH's disabled-reason style (ADR 0004's 2026-09-27 amendment): short
+// Title Case fragments with no tracker number, because this leg locks the
+// tooltip EXACTLY and a number here would lock a tracker into the pixels.
+constexpr const char* kSyntheticPartialReason = "Draw Leg Not Wired in Majora's Mask";
+constexpr const char* kSyntheticDormantReason = "Provider Not in This Build";
+
+/** Does @p text print a tracker number ("#" then a digit)? SoH's disabled
+ *  reasons never do (ADR 0004's 2026-09-27 amendment). */
+bool PrintsIssueNumber(const char* text) {
+    for (const char* p = text; p != nullptr && *p != '\0'; p++) {
+        if (p[0] == '#' && p[1] >= '0' && p[1] <= '9') {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** SoH's disabled tooltip around @p reason, exactly as MenuDrawItem builds one. */
+std::string SohDisabledShape(const char* reason) {
+    return std::string("This setting is disabled because: \n\n- ") + reason;
+}
 
 } // namespace
 
@@ -350,6 +369,15 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
     // ---- Leg 3: a Live row draws live ---------------------------------------
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
         const RSBS::HostedMmEnhancement& desc = RSBS::kHostedMmEnhancements[i];
+        // Every manifest reason, whatever its hosting: it is drawn after "- " in
+        // SoH's disabled tooltip, so it is player text and prints no tracker
+        // number (ADR 0004's 2026-09-27 amendment). The manifest has no separate
+        // issue field yet (#747); until it does, a non-live row names its
+        // tracker in a source comment beside the entry, never in the string.
+        MME_CHECK(!PrintsIssueNumber(desc.reason),
+                  "the manifest reason for \"%s\" prints a tracker number (\"%s\"); it is drawn in the disabled "
+                  "tooltip, and no SoH disabled reason carries one",
+                  desc.key, desc.reason != nullptr ? desc.reason : "(null)");
         if (desc.hosting != RSBS::MmEnhancementHosting::OwnRow) {
             continue;
         }
@@ -381,9 +409,14 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                       "whole point is that a toggle which does nothing is worse than no toggle",
                       desc.key, desc.liveness == RSBS::MmEnhancementLiveness::Partial ? "Partial" : "Dormant");
             const char* tip = DisabledTooltipOf(*row->info);
-            MME_CHECK(tip != nullptr && std::string(tip) == desc.reason,
-                      "the row on \"%s\" carries disabled tooltip \"%s\", expected the manifest reason \"%s\"",
+            MME_CHECK(tip != nullptr && std::string(tip) == SohDisabledShape(desc.reason),
+                      "the row on \"%s\" carries disabled tooltip \"%s\", expected SoH's disabled shape around the "
+                      "manifest reason \"%s\"",
                       desc.key, tip != nullptr ? tip : "(null)", desc.reason);
+            MME_CHECK(row->info->name == beforeName,
+                      "the row on \"%s\" is classified non-live and its name changed from \"%s\" to \"%s\"; the state "
+                      "belongs in the tooltip and the group's gray note",
+                      desc.key, beforeName.c_str(), row->info->name.c_str());
         }
     }
     printf("[TEST] leg 3: each own-row key's presentation matches its manifest liveness class, twice over\n");
@@ -513,25 +546,21 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
             MME_CHECK(IsDisabled(*row->info), "the synthetic non-live row \"%s\" came out of a draw pass ENABLED",
                       c.name);
             const char* tip = DisabledTooltipOf(*row->info);
-            MME_CHECK(tip != nullptr && std::string(tip) == c.reason,
+            // SoH's disabled row (ADR 0004's 2026-09-27 amendment): MenuDrawItem's
+            // own tooltip shape around the reason, and the row's own name.
+            const std::string wantTip = SohDisabledShape(c.reason);
+            MME_CHECK(tip != nullptr && std::string(tip) == wantTip,
                       "the synthetic non-live row \"%s\" carries disabled tooltip \"%s\", expected \"%s\"", c.name,
-                      tip != nullptr ? tip : "(null)", c.reason);
-            MME_CHECK(row->info->name != std::string(c.name),
-                      "the synthetic non-live row's NAME is unchanged (\"%s\"). ADR 0004's rule is that a row a player "
-                      "must read without hovering says its state in the name, not only in a tooltip",
-                      row->info->name.c_str());
-            MME_CHECK(row->info->name == afterOne,
-                      "the synthetic non-live row's name grew across two draw passes: \"%s\" then \"%s\". "
-                      "ResetDisables() does not clear `name`, so a PreFunc that appended rather than normalising "
-                      "through StripPresentationSuffix compounds every frame",
+                      tip != nullptr ? tip : "(null)", wantTip.c_str());
+            MME_CHECK(row->info->name == std::string(c.name) && afterOne == std::string(c.name),
+                      "the synthetic non-live row's NAME changed (\"%s\", then \"%s\"). SoH never writes a state or an "
+                      "explanation into an interactive row's name; the state belongs in the tooltip and the group's "
+                      "gray note",
                       afterOne.c_str(), row->info->name.c_str());
-            MME_CHECK(SohGui::SohMenu::StripPresentationSuffix(row->info->name) == std::string(c.name),
-                      "stripping the presentation suffix from \"%s\" does not give back \"%s\"",
-                      row->info->name.c_str(), c.name);
         }
     }
-    printf("[TEST] leg 4: a Partial and a Dormant row both render disabled, with their reason, and their names do not "
-           "compound across frames\n");
+    printf("[TEST] leg 4: a Partial and a Dormant row both render disabled, with SoH's disabled tooltip around their "
+           "reason, and keep their names\n");
 
     if (gFailures == 0) {
         printf("[TEST] menu-mm-enhancement-rows: PASS\n");

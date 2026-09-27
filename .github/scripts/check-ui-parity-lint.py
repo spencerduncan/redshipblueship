@@ -23,8 +23,9 @@ Rules (level; what it catches):
              player-visible string literal (adjacent literals joined; logging,
              asserts and test sinks skipped; `// ui-lint: internal-id` on the
              line exempts an internal window id)
-  S8  hint   ApplyPresentation call sites (the state-in-the-name mechanism);
-             printed, never failed
+  S8  hint   ApplyPresentation call sites (ADR 0004 section 6's gated rows:
+             a reviewer checks each group also has its gray note); printed,
+             never failed
   S9  warn   a literal CVar key in a menu row (.CVar("..."))
   S10 warn   a Reset/Clear/Delete/Erase button row with no RegisterPopup confirm
   S11 error  a WIDGET_WINDOW_BUTTON row not shaped like SoH's: name starts
