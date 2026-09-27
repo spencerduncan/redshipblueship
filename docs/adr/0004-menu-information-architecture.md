@@ -587,7 +587,10 @@ lockout.
 `Menu.RandomizerSidebarSection` and `Menu.NetworkSidebarSection` were, and deliberately not added to
 `RSBS::kMenuIndexKeys`, which holds the four keys #451 contends over and carries neither of those
 two either. It hosts `Cross-Game Rules` (the six tier-4 `gCombo.Rando.*` rows, moved off their
-interim host in `SohMenuRandomizer.cpp`) and `Cross-Game Windows`. §4's table lists four sidebars;
+interim host in `SohMenuRandomizer.cpp`) and `Cross-Game Windows`. (2026-09-27, UI parity lane U3:
+`Cross-Game Windows` is now `Windows`, and the contributed `MM Enhancements` page is now `Majora's Mask`, because both
+labels overflowed the 200 px sidebar; `ComboSidebarCarryRenamedSelection` carries a persisted selection from each old
+name.) §4's table lists four sidebars;
 the other two plus the `ComboMenuBar` `.redsave` file-select absorption are **not built**, and they
 are unregistered rather than registered-and-empty because an empty multi-column page leaves
 `Menu::DrawElement`'s unconditional `SetNextWindowPos` unconsumed and undocks libultraship's

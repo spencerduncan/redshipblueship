@@ -623,11 +623,14 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
  * no capability to be absent. MM's four trackers are MMActiveGated: they draw
  * only while MM is the running game, and under OoT the window opens blank, which
  * is the upstream behaviour rather than a broken control. Their tooltips say so
- * ("Shows only while Majora's Mask is running."), which is the answer to the
- * blank window without a gate. Gating them on SOH_MENU_CAP_MM_HOSTED would be
- * defensible if MM's half could be absent from this binary; it cannot be, and a
- * gate whose predicate is a constant is the decoration ADR 0004 section 5 is
- * against.
+ * with the caveat every MM-only row carries ("Majora's Mask only.", guide
+ * R-TT6), which is the answer to the blank window without a gate. Each names
+ * the window by its registered "MM ..." name, as SoH's "Toggles the Item
+ * Tracker." names its own, and stays under UIWidgets::WrappedText's 80
+ * characters so it draws on one line as SoH's do (the earlier "Shows only while
+ * Majora's Mask is running." wrapped a lone "running." onto a second line). Gating them on SOH_MENU_CAP_MM_HOSTED would
+ * be defensible if MM's half could be absent from this binary; it cannot be, and a gate whose predicate is a constant
+ * is the decoration ADR 0004 section 5 is against.
  */
 void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
     // ---- The common-owned cross-game windows --------------------------------
@@ -686,7 +689,7 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
     // The windows are MMActiveGated, so they draw only while MM is the running
     // game - the buttons are usable from the first frame, the window simply
     // stays blank under OoT, which is the upstream behavior and what each
-    // tooltip's second sentence tells the player.
+    // tooltip's trailing "Majora's Mask only." tells the player.
     //
     // "From the first frame" only holds because rsbs/src/main.cpp registers the
     // four windows at startup (#535). They used to register from MM_Rando_Init,
@@ -706,9 +709,7 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .RaceDisable(false)
         .WindowName("MM Item Tracker")
         .HideInSearch(true)
-        .Options(WindowButtonOptions()
-                     .Tooltip("Toggles the Majora's Mask Item Tracker. Shows only while Majora's Mask is running.")
-                     .EmbedWindow(false));
+        .Options(WindowButtonOptions().Tooltip("Toggles the MM Item Tracker. Majora's Mask only.").EmbedWindow(false));
     menu.AddWidget(path, "MM Item Tracker Settings", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Popout MM Item Tracker Settings", WIDGET_WINDOW_BUTTON)
         .CVar(RSBS_CVAR_MM_WINDOW_ITEM_TRACKER_SETTINGS)
@@ -716,8 +717,7 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .WindowName("MM Item Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions()
-                     .Tooltip("Enables the separate Majora's Mask Item Tracker Settings Window. Shows only while "
-                              "Majora's Mask is running.")
+                     .Tooltip("Enables the separate MM Item Tracker Settings Window. Majora's Mask only.")
                      .EmbedWindow(false));
     menu.AddWidget(path, "MM Check Tracker", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Toggle MM Check Tracker", WIDGET_WINDOW_BUTTON)
@@ -725,9 +725,7 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .RaceDisable(false)
         .WindowName("MM Check Tracker")
         .HideInSearch(true)
-        .Options(WindowButtonOptions()
-                     .Tooltip("Toggles the Majora's Mask Check Tracker. Shows only while Majora's Mask is running.")
-                     .EmbedWindow(false));
+        .Options(WindowButtonOptions().Tooltip("Toggles the MM Check Tracker. Majora's Mask only.").EmbedWindow(false));
     menu.AddWidget(path, "MM Check Tracker Settings", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Popout MM Check Tracker Settings", WIDGET_WINDOW_BUTTON)
         .CVar(RSBS_CVAR_MM_WINDOW_CHECK_TRACKER_SETTINGS)
@@ -735,8 +733,7 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .WindowName("MM Check Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions()
-                     .Tooltip("Enables the separate Majora's Mask Check Tracker Settings Window. Shows only while "
-                              "Majora's Mask is running.")
+                     .Tooltip("Enables the separate MM Check Tracker Settings Window. Majora's Mask only.")
                      .EmbedWindow(false));
 }
 
@@ -754,14 +751,34 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
  * a config that last had the page open under its old name would otherwise fall
  * back to the section's first page. ComboSidebarCarryRenamedSelection moves it
  * to the new name, once, before the menu's first draw reads the key.
+ *
+ * The same day the contributed "MM Enhancements" page became "Majora's Mask"
+ * (SohMenuComboMmEnhancements.cpp says why). Its new name is spelled a second
+ * time in the table below because that TU's constant is file-local on purpose;
+ * MenuComboSection leg 6 requires every carried-to name to be a registered
+ * page, so the two spellings cannot drift apart without a red row.
  */
 static constexpr const char* kComboWindowsPage = "Windows";
-static constexpr const char* kComboWindowsPageFormerName = "Cross-Game Windows";
+
+struct ComboSidebarRename {
+    const char* formerName;
+    const char* currentName;
+};
+static constexpr ComboSidebarRename kComboSidebarRenames[] = {
+    { "Cross-Game Windows", kComboWindowsPage },
+    { "MM Enhancements", "Majora's Mask" },
+};
 
 static void ComboSidebarCarryRenamedSelection(const char* sidebarCvar) {
     const char* selected = CVarGetString(sidebarCvar, "");
-    if (selected != nullptr && strcmp(selected, kComboWindowsPageFormerName) == 0) {
-        CVarSetString(sidebarCvar, kComboWindowsPage);
+    if (selected == nullptr) {
+        return;
+    }
+    for (const ComboSidebarRename& rename : kComboSidebarRenames) {
+        if (strcmp(selected, rename.formerName) == 0) {
+            CVarSetString(sidebarCvar, rename.currentName);
+            return;
+        }
     }
 }
 

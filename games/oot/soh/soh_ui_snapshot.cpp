@@ -1350,7 +1350,7 @@ void Session::BuildPageList() {
     static const std::map<std::string, std::string> kCompare = {
         { "Cross-Game Rules", "Randomizer/General" },
         { "Windows", "Randomizer/Item Tracker" },
-        { "MM Enhancements", "Enhancements/Quality of Life" },
+        { "Majora's Mask", "Enhancements/Quality of Life" },
     };
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {
@@ -1382,7 +1382,7 @@ void Session::BuildPageList() {
                                     { "frozen", "unpaired" },
                                     { "corrupt", "unpaired" },
                                     { "empty-oot-classes", "unpaired" } };
-            } else if (sidebar == "MM Enhancements") {
+            } else if (sidebar == "Majora's Mask") {
                 p.states = { "", "autosave" };
                 // The row gated on gEnhancements.Autosave (the table's
                 // shownWhileKey), which hides while Autosave is off.
@@ -1394,7 +1394,7 @@ void Session::BuildPageList() {
                     }
                 }
                 if (p.stateText["autosave"].empty()) {
-                    Fail("Combo/MM Enhancements: no hosted row is gated on gEnhancements.Autosave, so the autosave "
+                    Fail("Combo/Majora's Mask: no hosted row is gated on gEnhancements.Autosave, so the autosave "
                          "state has nothing to show");
                 }
                 p.stateContrast = { { "autosave", "" } };
@@ -1836,7 +1836,7 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             // Unpaired, so the writer takes it; LeaveState clears the key.
             Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, 0);
         }
-    } else if (p.id == "Combo/MM Enhancements") {
+    } else if (p.id == "Combo/Majora's Mask") {
         if (state == "autosave") {
             CVarSetInteger("gEnhancements.Autosave", 1);
         }
@@ -1854,7 +1854,7 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
 }
 
 void Session::LeaveState(const PageSpec& p, const std::string& state) {
-    if (p.id == "Combo/MM Enhancements" && state == "autosave") {
+    if (p.id == "Combo/Majora's Mask" && state == "autosave") {
         CVarClear("gEnhancements.Autosave");
     }
     if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {

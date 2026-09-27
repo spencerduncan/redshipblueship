@@ -62,10 +62,13 @@
  *
  *  7. A RENAMED PAGE STRANDS THE SELECTION. The Windows page shipped as "Cross-Game
  *     Windows" and was renamed on 2026-09-27 because the old name was wider than
- *     the 200 px sidebar (the snapshot harness drew it as "ross-Game Window").
- *     Selection persists by display name in gSettings.Menu.ComboSidebarSection,
- *     so leg 6 drives AddMenuCombo over a config holding the old name and
- *     requires the new one afterwards, and leaves any other value alone.
+ *     the 200 px sidebar (the snapshot harness drew it as "ross-Game Window");
+ *     the same day "MM Enhancements" became "Majora's Mask", because its 192 px
+ *     label left the selected highlight no padding. Selection persists by
+ *     display name in gSettings.Menu.ComboSidebarSection, so leg 6 drives
+ *     AddMenuCombo over a config holding each old name and requires the new one
+ *     afterwards (a registered page, so the carry table cannot name a page that
+ *     does not exist), and leaves every other value alone.
  *
  * WHAT IS NOT COVERED. The six tier-4 rules' own behaviour — the staging buffers,
  * the freeze gate, the values-from-the-save rule — is `ComboSettingsRows`, which
@@ -299,17 +302,13 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         { "Toggle Combo Tracker", "gCombo.Windows.Tracker", "Combo Tracker", "Combo Tracker",
           "Toggles the Combo Tracker." },
         { "Toggle MM Item Tracker", "gWindows.ItemTracker", "MM Item Tracker", "MM Item Tracker",
-          "Toggles the Majora's Mask Item Tracker. Shows only while Majora's Mask is running." },
+          "Toggles the MM Item Tracker. Majora's Mask only." },
         { "Popout MM Item Tracker Settings", "gWindows.ItemTrackerSettings", "MM Item Tracker Settings",
-          "MM Item Tracker Settings",
-          "Enables the separate Majora's Mask Item Tracker Settings Window. Shows only while Majora's Mask is "
-          "running." },
+          "MM Item Tracker Settings", "Enables the separate MM Item Tracker Settings Window. Majora's Mask only." },
         { "Toggle MM Check Tracker", "gWindows.CheckTracker", "MM Check Tracker", "MM Check Tracker",
-          "Toggles the Majora's Mask Check Tracker. Shows only while Majora's Mask is running." },
+          "Toggles the MM Check Tracker. Majora's Mask only." },
         { "Popout MM Check Tracker Settings", "gWindows.CheckTrackerSettings", "MM Check Tracker Settings",
-          "MM Check Tracker Settings",
-          "Enables the separate Majora's Mask Check Tracker Settings Window. Shows only while Majora's Mask is "
-          "running." },
+          "MM Check Tracker Settings", "Enables the separate MM Check Tracker Settings Window. Majora's Mask only." },
     };
     if (!combo.sidebars.contains("Windows")) {
         printf("[TEST] FAIL(3): the Combo section has no \"Windows\" page, so none of its seven window rows can be "
@@ -354,6 +353,13 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             COMBO_CHECK(tip != nullptr && std::string(tip) == expected.tooltip,
                         "row '%s' has tooltip \"%s\", expected \"%s\"", expected.rowName,
                         tip != nullptr ? tip : "(null)", expected.tooltip);
+            // One line, as SoH's own tracker tooltips are: UIWidgets::WrappedText
+            // breaks at 80 characters, and the longer MM caveat this replaced
+            // wrapped a lone "running." onto a second line.
+            COMBO_CHECK(tip == nullptr || std::string(tip).size() <= 80,
+                        "row '%s' has a %zu-character tooltip; UIWidgets::WrappedText wraps past 80, and SoH's tracker "
+                        "tooltips are one line",
+                        expected.rowName, tip != nullptr ? std::string(tip).size() : (std::size_t)0);
         }
         printf("[TEST] leg 3: all %d cross-game window rows carry a matching CVar/WindowName pair, stay pop-out, and "
                "sit under their own separator with SoH's tooltip\n",
@@ -382,6 +388,19 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         } else {
             SidebarEntry& page = randoSidebars.at("Cross-Game");
             COMBO_CHECK(RowCount(page) > 0, "Randomizer / Cross-Game survives with no widgets -- #640's failure mode");
+            // The MEASURE (UI parity M2): two declared columns with the rows in
+            // the first, so the gray note wraps at Randomizer > General's column
+            // width instead of running as one line across the whole page.
+            COMBO_CHECK(page.columnCount == 2,
+                        "Randomizer / Cross-Game declares %u columns, expected 2: with one, its gray note runs as a "
+                        "single line across the page instead of wrapping like Randomizer > General's notes",
+                        page.columnCount);
+            for (std::size_t column = 1; column < page.columnWidgets.size(); column++) {
+                COMBO_CHECK(page.columnWidgets.at(column).empty(),
+                            "Randomizer / Cross-Game has %zu widget(s) in column %zu; the pointer rows belong in the "
+                            "first",
+                            page.columnWidgets.at(column).size(), column);
+            }
             bool pointsAtCombo = false;
             for (auto& column : page.columnWidgets) {
                 for (WidgetInfo& row : column) {
@@ -525,10 +544,11 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             const char* after;
         };
         const Carry kCarries[] = {
-            { "Cross-Game Windows", "Windows" }, // the old name moves to the new one
-            { "Windows", "Windows" },            // the new name stays
-            { "Cross-Game Rules", "Cross-Game Rules" },
-            { "MM Enhancements", "MM Enhancements" },
+            { "Cross-Game Windows", "Windows" },    // the old name moves to the new one
+            { "Windows", "Windows" },               // the new name stays
+            { "MM Enhancements", "Majora's Mask" }, // the second rename, the same day
+            { "Majora's Mask", "Majora's Mask" },
+            { "Cross-Game Rules", "Cross-Game Rules" }, // a page never renamed is left alone
         };
         for (const Carry& carry : kCarries) {
             CVarSetString(kSidebarKey, carry.before);
@@ -546,8 +566,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         } else {
             CVarSetString(kSidebarKey, saved.c_str());
         }
-        printf("[TEST] leg 6: a selection saved on \"Cross-Game Windows\" is carried to \"Windows\"; every other "
-               "value is left alone\n");
+        printf("[TEST] leg 6: selections saved on \"Cross-Game Windows\" and \"MM Enhancements\" are carried to "
+               "\"Windows\" and \"Majora's Mask\"; every other value is left alone\n");
     }
 
     if (gFailures == 0) {

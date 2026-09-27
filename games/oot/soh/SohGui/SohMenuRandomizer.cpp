@@ -810,8 +810,10 @@ void SohMenu::AddMenuRandomizer() {
  *
  * WHY A ROW AND NOT AN EMPTY PAGE. An empty multi-column page is #640's failure
  * mode - Menu::DrawElement's unconditional SetNextWindowPos goes unconsumed and
- * undocks libultraship's "Main Game" window. This page declares one column and
- * holds two widgets.
+ * undocks libultraship's "Main Game" window. This page holds two widgets, in the
+ * first of two declared columns: two for the MEASURE (UI parity M2), so its gray
+ * note wraps at the width of Randomizer > General's column notes instead of
+ * running as one line across the whole page.
  *
  * Externally linked and declared in no header, like the registrar it replaces:
  * MenuComboSection drives it directly, because AddMenuRandomizer as a whole
@@ -824,10 +826,10 @@ void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path) {
     // PIN THE COLUMN: OptionGroup::AddWidgets advances path.column per COLUMN
     // container (option.cpp:469-472) and five option groups run immediately
     // before this page, so what arrives here is whatever the last settings column
-    // left behind. This page draws one column, so it takes the first.
+    // left behind. This page fills one column, so it takes the first.
     path.column = SECTION_COLUMN_1;
     path.sidebarName = "Cross-Game";
-    menu.AddSidebarEntry("Randomizer", path.sidebarName, 1);
+    menu.AddSidebarEntry("Randomizer", path.sidebarName, 2);
     // UI parity M2: a Title Case separator and ONE gray sentence, the shape of
     // SoH's own notes (SohMenuRandomizer.cpp's General page). The sentence names
     // the header, not the pages under it, so renaming a Combo page cannot strand

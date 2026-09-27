@@ -206,8 +206,8 @@ void DrawAutosaveIcon() {
  *
  * Hoisted out of HandleAutoSave, with the upstream literal and default kept
  * byte-for-byte, so the one read site HandleAutoSave uses is also the one the
- * mm-enhancement-toggles lock measures: the unified menu's "MM Enhancements"
- * page now hosts a slider on this key, and a slider whose key or unit drifted
+ * mm-enhancement-toggles lock measures: the unified menu's Combo > "Majora's
+ * Mask" page now hosts a slider on this key, and a slider whose key or unit drifted
  * from this read would move a value nothing consults (#499's failure). The
  * key is NOT OoT's: OoT's twin (soh/Enhancements/QoL/Autosave.cpp) hardcodes
  * three minutes with no CVar, which is why RSBS::kMustStayDistinct holds it.

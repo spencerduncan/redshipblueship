@@ -679,8 +679,8 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // operator's 2026-09-16 ruling keeps the DEFAULT (off, vanilla respawn);
     // exposing the toggle does not change it.
     { "gEnhancements.Kaleido.GameOver", "Game Over Prompt",
-      "Dying opens the Game Over screen with the save prompt, as in Ocarina of Time, instead of respawning at the "
-      "area entrance. The screen's artwork is not drawn yet. Majora's Mask only.",
+      "Opens the Game Over screen and its save prompt on death instead of respawning at the area entrance; the "
+      "screen's artwork is not drawn yet. Majora's Mask only.",
       "games/mm/src/code/z_game_over.c:84, "
       "games/mm/src/overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope_NES.c:978",
       nullptr, "", MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
@@ -691,14 +691,14 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // enforced on every CI build. Legs 2 and 3 are MMClockShuffleSongs'
     // registry-content probes.
     { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Song of Double Time",
-      "Lets the Song of Double Time pick any time of day instead of only the next dawn or dusk. With Clock "
-      "Shuffle on, it refuses a half-day this file does not own. Majora's Mask only.",
+      "Lets the Song of Double Time pick any time of day instead of only the next dawn or dusk, and with Clock "
+      "Shuffle on refuses a half-day this file does not own. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp:472",
       "gEnhancements.Songs.BetterSongOfDoubleTime", "ShouldVanillaBehavior[VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT]",
       MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
     { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Song of Time Cutscenes",
-      "Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes. With Clock Shuffle on, "
-      "the Song of Time returns to the earliest half-day this file owns. Majora's Mask only.",
+      "Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes, and with Clock Shuffle on "
+      "returns the Song of Time to the earliest half-day this file owns. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/SkipSoTCutscenes.cpp:101", "gEnhancements.Songs.SkipSoTCutscenes",
       "OnActorUpdate[ACTOR_EN_TEST6]", MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
 
