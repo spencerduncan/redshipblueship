@@ -973,8 +973,7 @@ TestResult ComboLogicMeasure_Run(void) {
     // measurement. It changes only which rows the bag holds; every assertion below
     // still runs.
     const bool untrimmed = EnvInt("RSBS_COMBO_MEASURE_UNTRIMMED", 0, 0, 1) != 0;
-    printf("[TEST] combo-logic-measure: shared-quantity trim %s (RSBS_COMBO_MEASURE_UNTRIMMED=1 turns it off)
-",
+    printf("[TEST] combo-logic-measure: shared-quantity trim %s (RSBS_COMBO_MEASURE_UNTRIMMED=1 turns it off)\n",
            untrimmed ? "OFF" : "on");
     ClmComposed composed;
     CLM_ASSERT(ClmCompose(composed, untrimmed ? (uint16_t)RSBS_COMBO_QUANTITY_KEEP_ALL : (uint16_t)0u),
