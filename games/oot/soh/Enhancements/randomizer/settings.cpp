@@ -10,6 +10,10 @@
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "static_data.h" // #702: PopulateExcludeLocationsOptions reads the location table
+#endif
+
 namespace Rando {
 std::shared_ptr<Settings> Settings::mInstance;
 
@@ -2771,6 +2775,17 @@ void Settings::CreateOptions() {
     mOptionGroups[RSG_ITEM_POOL] =
         OptionGroup("Item Pool Settings", std::initializer_list<Option*>({ &mOptions[RSK_ITEM_POOL] }));
     // TODO: Progressive Goron Sword, Remove Double Defense
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #702: the RSG_EXCLUDES_* groups below COPY the per-area lists, so the lists
+    // must be full HERE, not whenever Context::AddExcludedOptions() gets round to
+    // it. Upstream fills them only there, and which of the two runs first depends
+    // on the archive set: with oot.o2r mounted the SoH menu calls this function
+    // first and every group copied an empty list, so the settings string
+    // Playthrough_Init hashes folded none of the 2,449 exclude options and a
+    // player's world was not the pinned (archive-free) world. Filling them here
+    // makes both environments fold the same option set.
+    PopulateExcludeLocationsOptions();
+#endif
     mOptionGroups[RSG_EXCLUDES_KOKIRI_FOREST] =
         OptionGroup::SubGroup("Kokiri Forest", mExcludeLocationsOptionsAreas[RCAREA_KOKIRI_FOREST]);
     mOptionGroups[RSG_EXCLUDES_LOST_WOODS] =
@@ -2907,6 +2922,30 @@ void Context::ResetTrickOptions() {
 const std::array<Option, RSK_MAX>& Settings::GetAllOptions() const {
     return mOptions;
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+void Settings::PopulateExcludeLocationsOptions() {
+    // Moved here verbatim from Context::AddExcludedOptions() (#702), which now
+    // calls this, so the skip rule and the de-duplication exist once.
+    for (auto& loc : StaticData::GetLocationTable()) {
+        // Checks of these types don't have items, skip them.
+        if (loc.GetRandomizerCheck() == RC_UNKNOWN_CHECK || loc.GetRandomizerCheck() == RC_TRIFORCE_COMPLETED ||
+            loc.GetRCType() == RCTYPE_CHEST_GAME || loc.GetRCType() == RCTYPE_STATIC_HINT ||
+            loc.GetRCType() == RCTYPE_GOSSIP_STONE) {
+            continue;
+        }
+        bool alreadyAdded = false;
+        for (Option* location : mExcludeLocationsOptionsAreas[loc.GetArea()]) {
+            if (location->GetName() == loc.GetExcludedOption()->GetName()) {
+                alreadyAdded = true;
+            }
+        }
+        if (!alreadyAdded) {
+            mExcludeLocationsOptionsAreas[loc.GetArea()].push_back(loc.GetExcludedOption());
+        }
+    }
+}
+#endif
 
 std::vector<Option*>& Settings::GetExcludeOptionsForArea(const RandomizerCheckArea area) {
     return mExcludeLocationsOptionsAreas[area];
