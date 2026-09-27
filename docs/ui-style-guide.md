@@ -42,9 +42,13 @@ and on ours (R-N4).
 
   Below 800 px the columns collapse to 1 (`Menu.cpp:892`). Sidebar names are Title Case, 1-3 words, and fit the
   200 px sidebar in Montserrat 24: about 16 characters, but measure it in the snapshot PNG, because the budget is
-  pixels, not characters. SoH's widest entry, "Entrance Tracker" (16), is about 169 px. Our "MM Enhancements" (15)
-  reaches the divider, and "Cross-Game Windows" (18) is clipped on both sides. The selection persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename a shipped sidebar,
-  including ours. A page must hold at least one widget (#640, `Menu.cpp:896-904`). Pages under Combo register through
+  pixels, not characters. SoH's widest entry, "Entrance Tracker" (16), is about 169 px; a selected entry's highlight
+  needs about 10 px of padding each side, so keep a label under about 180 px. Our "Cross-Game Windows" (18) was cut on
+  both sides ("ross-Game Window"), and our "MM Enhancements" (15) measured 192 px, the whole child width, so its selected
+  highlight lost its padding and rounded corners. Since 2026-09-27 those pages are "Windows" and "Majora's Mask". The selection
+  persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename an SoH sidebar. One of ours is renamed only together
+  with a carry of the persisted value (`ComboSidebarCarryRenamedSelection`, `SohMenuCombo.cpp`) and a lock leg that
+  drives it (MenuComboSection leg 6). A page must hold at least one widget (#640, `Menu.cpp:896-904`). Pages under Combo register through
   `RegisterComboSectionPage` (`SohMenu.h:176-212`).
 - **Column.** Set `path.column` explicitly before each column's first row (`SohMenuEnhancements.cpp:235,284`).
 - **Section.** `WIDGET_SEPARATOR_TEXT` (`Menu.cpp:370-379`). Most SoH columns open with one
@@ -157,8 +161,8 @@ and on ours (R-N4).
 - **R-S1. Hidden** means the parent feature is off. Set `info.isHidden` in a PreFunc (`SohMenuEnhancements.cpp:164-168`).
 - **R-S2. Disabled** means the row exists but something outside it forces it. SoH has two shapes:
   - (a) The disabledMap shape, built by MenuDrawItem as `"This setting is disabled because: \n"` followed by
-    `"\n- <Reason>"` for each reason (`Menu.cpp:284,294-296`). Reasons are short Title Case fragments ("Save Not
-    Loaded").
+    `"\n- <Reason>"` for each reason (`Menu.cpp:284,294-296`). Reasons are short fragments, mostly Title Case ("Save
+    Not Loaded"; a few are sentence case, "Disabling VSync not supported").
   - (b) A direct sentence in `disabledTooltip`: "This setting is forcefully enabled because ..."
     (`SohMenuEnhancements.cpp:315-320`), "This is not compatible with ..." (`:219`), "Must be on File Select to ..."
     (`SohMenuRandomizer.cpp:615`).
@@ -169,7 +173,18 @@ and on ours (R-N4).
   `DisableOption` spans 0..13 (`MenuTypes.h:7-22`), so keys outside that enum cannot be represented.
 - **R-S3.** A disabled reason lives in the tooltip, never in the label and never inline. A state that must be legible
   WITHOUT hovering (ADR 0004 sections 4.2 and 6) is one gray note row above the group (`SohMenuRandomizer.cpp:627-629`).
-  That note also survives a race lockout, which replaces the tooltip (`Menu.cpp:301-305`).
+  That note also survives a race lockout, which rebuilds the tooltip from `activeDisables` and appends "- Race Lockout
+  Active" (`Menu.cpp:294-305`): an SoH disabledMap row keeps its reason, a directly written tooltip (ours) is replaced.
+- **R-S3a.** A row gated through SohMenu's capability and presentation API gets both halves from it (ADR 0004's
+  2026-09-27 amendment): `SohMenu::ApplyPresentation` / `CapabilityGate` keep the row's name and write shape (a) through
+  `SohMenu::DisabledTooltip`; the group's note is a gray `WIDGET_TEXT` row with `.HideInSearch(true)` and
+  `.RaceDisable(false)` whose PreFunc is `SohMenu::CapabilityNote(key[, sentence])` or calls
+  `SohMenu::ApplyPresentationNote`. A note is a sentence-case sentence, never a Title Case reason fragment pasted into
+  one. The editable-but-not-active state is the note alone ("Majora's Mask is suspended; these take effect when you
+  return."; that default is Majora's-Mask-specific, so an Ocarina of Time group passes its own sentence). A
+  capability's tracking issue is a separate field of its record (`RegisterCapability(key, predicate, text, issue)`),
+  never part of the text a player reads. The MM Enhancements manifest's `reason` has no issue field yet: it must print
+  no number (`MenuMmEnhancementRows`), and its page has no note row yet (#747).
 - **R-S4.** `RaceDisable` defaults to true (`MenuTypes.h:113`). Mark cosmetic and QoL rows `.RaceDisable(false)`.
 - **R-S5.** Destructive buttons confirm through `SohGui::RegisterPopup(title, message, "Reset", "Cancel", cb, nullptr)`
   (`SohMenuSettings.cpp:419-432`).
@@ -221,9 +236,9 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Ours | SoH reference |
 |---|---|
 | Combo > Cross-Game Rules | Randomizer > General |
-| Combo > Cross-Game Windows | Randomizer > Item Tracker |
-| Combo > MM Enhancements | Enhancements > Quality of Life |
-| Randomizer > Cross-Game | Randomizer > General (its gray note) |
+| Combo > Windows | Randomizer > Item Tracker |
+| Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
+| Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
 | Creation overlay, Cross-Game Rules Reset confirm | the SoH modal ("Clear Config") |
 
@@ -250,11 +265,13 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 
 **Variants:**
 - STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
-  that draws an empty-set note), MM Enhancements' autosave,
+  that draws an empty-set note), Majora's Mask's autosave,
   and the MM options pane's unpaired, frozen, mm-suspended and tricks-open (the Tricks header and its first area open).
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
-- HOVER: a pointer injected before ImGui reads input, so the tooltip is captured.
+- HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
+  direction combobox and (frozen) its first slider; Majora's Mask hovers its first row and Windows its MM Item
+  Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state).
 - MODAL.
 
 **Environment:**

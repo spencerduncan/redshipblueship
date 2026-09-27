@@ -157,6 +157,17 @@
 #define RSBS_CVAR_COMBO_WINDOW_TRACKER "gCombo.Windows.Tracker"
 #define RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS "gCombo.Windows.ComboSettings"
 
+/* MM's four tracker windows' visibility toggles (#489, #535), MM's upstream
+ * "gWindows.*" names. NOT tier-4 keys and not in kComboKeys: they are MM's own
+ * window preferences, spelled here so the OoT-hosted Combo > Windows rows can
+ * name them without an MM header. games/mm/2s2h/TrackersGuiSingleExe.cpp
+ * static_asserts its ctor CVars (S2H::TrackersGui::k*VisibilityCVar) equal
+ * these, so the menu row and the window cannot drift apart. */
+#define RSBS_CVAR_MM_WINDOW_ITEM_TRACKER "gWindows.ItemTracker"
+#define RSBS_CVAR_MM_WINDOW_ITEM_TRACKER_SETTINGS "gWindows.ItemTrackerSettings"
+#define RSBS_CVAR_MM_WINDOW_CHECK_TRACKER "gWindows.CheckTracker"
+#define RSBS_CVAR_MM_WINDOW_CHECK_TRACKER_SETTINGS "gWindows.CheckTrackerSettings"
+
 #ifdef __cplusplus
 
 #include <cstddef>
@@ -668,10 +679,8 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // operator's 2026-09-16 ruling keeps the DEFAULT (off, vanilla respawn);
     // exposing the toggle does not change it.
     { "gEnhancements.Kaleido.GameOver", "Game Over Prompt",
-      "Majora's Mask only. Dying opens Majora's Mask's \"GAME OVER\" screen with the save prompt and "
-      "\"Continue playing?\", the way Ocarina of Time's half always does, instead of reloading the area entrance "
-      "with three hearts. Off by default (#653): the reload is 2ship's inherited behaviour and the operator kept it. "
-      "The prompt's own artwork has never been drawn in this build - see #682.",
+      "Opens the Game Over screen and its save prompt on death instead of respawning at the area entrance; the "
+      "screen's artwork is not drawn yet. Majora's Mask only.",
       "games/mm/src/code/z_game_over.c:84, "
       "games/mm/src/overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope_NES.c:978",
       nullptr, "", MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
@@ -682,15 +691,14 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // enforced on every CI build. Legs 2 and 3 are MMClockShuffleSongs'
     // registry-content probes.
     { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Song of Double Time",
-      "Majora's Mask only. Song of Double Time asks for any time of day rather than only the next dawn or dusk, "
-      "and refuses a half-day this file does not own when Clock Shuffle is on.",
+      "Lets the Song of Double Time pick any time of day instead of only the next dawn or dusk, and with Clock "
+      "Shuffle on refuses a half-day this file does not own. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp:472",
       "gEnhancements.Songs.BetterSongOfDoubleTime", "ShouldVanillaBehavior[VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT]",
       MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
     { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Song of Time Cutscenes",
-      "Majora's Mask only. Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes. "
-      "With Clock Shuffle on, a Song of Time reset lands on the earliest half-day this file owns instead of the "
-      "vanilla dawn.",
+      "Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes, and with Clock Shuffle on "
+      "returns the Song of Time to the earliest half-day this file owns. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/SkipSoTCutscenes.cpp:101", "gEnhancements.Songs.SkipSoTCutscenes",
       "OnActorUpdate[ACTOR_EN_TEST6]", MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
 
@@ -705,10 +713,12 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // re-arms BOTH halves. A second checkbox here would be a second writer over
     // one key with nothing to gain, which is the duplicate-host shape #655
     // removed for the tier-4 rules. The row points at the live control instead.
-    { "gEnhancements.Autosave", "Autosave (hosted under Enhancements)",
-      "Applies to both games. The control is Enhancements -> Saving -> \"Autosave\"; clicking it re-arms Majora's "
-      "Mask's periodic owl save too (#614/#629). Majora's Mask's own interval is the slider below, shown once "
-      "Autosave is on.",
+    //
+    // UI parity M3: the page draws this row as a separator carrying `label` over
+    // a gray note that IS `tooltip` (a TEXT row has no tooltip of its own), so
+    // both are SoH-shaped copy: a one-word section name and one sentence.
+    { "gEnhancements.Autosave", "Autosave",
+      "Autosave is under Enhancements > Quality of Life and applies to both games.",
       "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:485", "gEnhancements.Autosave",
       "OnGameStateDrawFinish", MmEnhancementHosting::HostedElsewhere, MmEnhancementLiveness::Live, "" },
 
@@ -746,8 +756,7 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // Hence the "Majora's Mask only" label. A preference: no freeze, no digest,
     // no .redsave impact.
     { "gEnhancements.Saving.AutosaveInterval", "MM Autosave Interval: %d minutes",
-      "Majora's Mask only. How often Majora's Mask's periodic owl save fires while Autosave is on. Ocarina of "
-      "Time's autosave interval is a fixed 3 minutes and this slider does not change it.",
+      "Sets how often the owl autosave fires; Ocarina of Time keeps its fixed 3 minutes. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:216 (read by HandleAutoSave, :223)", nullptr, "",
       MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "", MmEnhancementWidget::SliderInt, 1, 60, 5,
       "%d minutes", "gEnhancements.Autosave" },

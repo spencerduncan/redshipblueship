@@ -345,12 +345,14 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // survives anywhere in it), because the window rows moved to a sibling page:
     // checking only the rules page would make that assertion vacuous.
     std::vector<PageRow> sectionRows = rows;
-    if (sidebars.contains("Cross-Game Windows")) {
-        for (PageRow& windowRow : FlattenPage(sidebars.at("Cross-Game Windows").columnWidgets)) {
+    // "Windows" was "Cross-Game Windows" until 2026-09-27 (UI parity: the old
+    // name was wider than the sidebar); MenuComboSection pins the rename.
+    if (sidebars.contains("Windows")) {
+        for (PageRow& windowRow : FlattenPage(sidebars.at("Windows").columnWidgets)) {
             sectionRows.push_back(windowRow);
         }
     } else {
-        printf("[TEST] FAIL: the \"Combo\" menu has no \"Cross-Game Windows\" sidebar page; leg 2's no-pop-out "
+        printf("[TEST] FAIL: the \"Combo\" menu has no \"Windows\" sidebar page; leg 2's no-pop-out "
                "assertion would be vacuous\n");
         gFailures++;
     }
@@ -438,7 +440,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         }
     }
     // Over the WHOLE section, not just the rules page: the window buttons live on
-    // the sibling Cross-Game Windows page since #497 step 6, so a check confined
+    // the sibling Windows page since #497 step 6, so a check confined
     // to the rules page could never see the row it is looking for.
     for (PageRow& pageRow : sectionRows) {
         WidgetInfo& row = *pageRow.first;

@@ -6,13 +6,6 @@
 # The baseline may only SHRINK: a fixed row makes its line stale and the row fails
 # until the line is deleted. Never add a line to make the row pass. R2w/R4w are
 # warnings and are never listed here.
-R3 | Combo/MM Enhancements | Applies to both games. The control is Enhancements -> Saving -> "Autosave"; clicking it re
-R3 | Combo/MM Enhancements | Game Over Prompt
 R3 | MM options pane | Retired (ADR 0010 O1): no code will ever read this option
 R3 | MM options pane | Retired: this option never had a consumer and, by operator ruling (ADR 0010 answer O1), ne
 R3 | MM options pane/Tricks | No logic binding yet (#578 part 3)
-R3 | Randomizer/Cross-Game | The cross-game combo rules, the cross-game windows and Majora's Mask's trackers now live u
-R3 | cvar_shared_keys.h/kHostedMmEnhancements | Autosave (hosted under Enhancements)
-R3 | cvar_shared_keys.h/kHostedMmEnhancements | Game Over Prompt
-R6 | Combo/MM Enhancements | Applies to both games. The control is Enhancements -> Saving
-R6 | Randomizer/Cross-Game | The cross-game combo rules, the cross-game windows and Major

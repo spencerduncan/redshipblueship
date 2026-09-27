@@ -120,7 +120,7 @@ negation probe (PR [#734](https://github.com/spencerduncan/redshipblueship/pull/
   ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), 14 of 23
   hook types remain). The pane says which and why; an option that is enabled and
   does nothing is a bug worth reporting.
-- **MM's enhancement toggles live on Combo → MM Enhancements.** The curated MM
+- **MM's enhancement toggles live on Combo → Majora's Mask** (named MM Enhancements until 2026-09-27). The curated MM
   enhancement toggles — the game-over prompt, `BetterSongOfDoubleTime`,
   `SkipSoTCutscenes`, a pointer to the shared `Autosave` checkbox on OoT's
   Enhancements page, and (since PR [#730](https://github.com/spencerduncan/redshipblueship/pull/730), [#693](https://github.com/spencerduncan/redshipblueship/issues/693)) MM's own autosave interval slider
@@ -264,7 +264,7 @@ MM is the newer half of the combo and still carries more debt than OoT.
 MM's vanilla death behaviour (reload at the area entrance with three hearts, no
 "Continue?" prompt) is the combo's shipped default; it is not a regression. The
 2ship game-over prompt enhancement (`gEnhancements.Kaleido.GameOver`) is off by default.
-Since PR [#695](https://github.com/spencerduncan/redshipblueship/pull/695) ([#682](https://github.com/spencerduncan/redshipblueship/issues/682)) you can turn it on from Combo → MM Enhancements.
+Since PR [#695](https://github.com/spencerduncan/redshipblueship/pull/695) ([#682](https://github.com/spencerduncan/redshipblueship/issues/682)) you can turn it on from Combo → Majora's Mask.
 ADR 0009's death-decline autosave machinery and #626's F10-during-game-over case
 only apply once that enhancement is enabled — operator ruling, 2026-09-16
 ([#653](https://github.com/spencerduncan/redshipblueship/issues/653)).

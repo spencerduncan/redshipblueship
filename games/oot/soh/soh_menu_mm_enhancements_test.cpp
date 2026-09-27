@@ -34,9 +34,18 @@
  *   2. A ROW IS BOUND TO THE WRONG KEY, or to none. `WIDGET_CVAR_CHECKBOX` with a
  *      null or misspelled `.CVar` draws and writes nothing the provider reads.
  *
- *   3. A ROW IS REGISTERED PAST THE COLUMN COUNT. The page declares one column
- *      and `Menu::DrawElement` iterates `columnCount` columns, so a row in a
- *      higher one is registered and never drawn.
+ *   3. A ROW IS REGISTERED PAST THE COLUMN COUNT, or in the wrong column. The
+ *      page declares three columns (UI parity M3: the column measure of its
+ *      reference, Enhancements > Quality of Life) and `Menu::DrawElement`
+ *      iterates `columnCount` columns, so a row in a higher one is registered and
+ *      never drawn. The toggles fill the first column; the first pointer row
+ *      opens the second and the rows after it stay there, so a pointer and the
+ *      rows gated on it are read together. The third is empty, for the measure.
+ *
+ *   9. A TOOLTIP LEAVES SoH's VOICE (docs/ui-style-guide.md R-TT2, R-TT4,
+ *      R-TT6). Every own-row tooltip opens with a present-tense verb, is at most
+ *      two sentences, and ends with the "Majora's Mask only." caveat. The
+ *      runtime lint counts none of that, so leg 6 does.
  *
  *   4. THE PAGE IS EMPTY, or the pointer row is the only thing on it. #640: an
  *      empty multi-column page leaves `SetNextWindowPos` unconsumed and undocks
@@ -201,9 +210,28 @@ bool IsDisabled(WidgetInfo& info) {
 // ---- Synthetic rows for leg 4 ----------------------------------------------
 // The manifest's four rows are all Live, so the non-live presentation path has no
 // production data to exercise it. These two drive it through the SAME
-// ApplyPresentation call the production PreFunc makes.
-constexpr const char* kSyntheticPartialReason = "Partially available: its draw leg has no MM dispatch point (#438)";
-constexpr const char* kSyntheticDormantReason = "Not yet available: its provider is elided from this build (#427)";
+// ApplyPresentation call the production PreFunc makes. Their reasons are player
+// text in SoH's disabled-reason style (ADR 0004's 2026-09-27 amendment): short
+// Title Case fragments with no tracker number, because this leg locks the
+// tooltip EXACTLY and a number here would lock a tracker into the pixels.
+constexpr const char* kSyntheticPartialReason = "Draw Leg Not Wired in Majora's Mask";
+constexpr const char* kSyntheticDormantReason = "Provider Not in This Build";
+
+/** Does @p text print a tracker number ("#" then a digit)? SoH's disabled
+ *  reasons never do (ADR 0004's 2026-09-27 amendment). */
+bool PrintsIssueNumber(const char* text) {
+    for (const char* p = text; p != nullptr && *p != '\0'; p++) {
+        if (p[0] == '#' && p[1] >= '0' && p[1] <= '9') {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** SoH's disabled tooltip around @p reason, exactly as MenuDrawItem builds one. */
+std::string SohDisabledShape(const char* reason) {
+    return std::string("This setting is disabled because: \n\n- ") + reason;
+}
 
 } // namespace
 
@@ -228,9 +256,9 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
             if (page.sidebarName == pageName) {
                 registered = true;
-                MME_CHECK(page.columnCount == 1,
-                          "the MM enhancement page declares %u columns; it registers rows in the first one only, and "
-                          "Menu::DrawElement iterates columnCount columns",
+                MME_CHECK(page.columnCount == 3,
+                          "the MM enhancement page declares %u columns, expected 3: Quality of Life's count, so its "
+                          "rows have that page's width (the toggles in the first, the Autosave group in the second)",
                           page.columnCount);
                 MME_CHECK(page.registrar != nullptr, "the MM enhancement page registered a null registrar");
             }
@@ -267,15 +295,74 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
     MME_CHECK(rows.size() >= RSBS::kHostedMmEnhancementCount + 1,
               "the MM enhancement page holds %zu widgets; %zu manifest rows plus a heading is the minimum", rows.size(),
               RSBS::kHostedMmEnhancementCount + (std::size_t)1);
-    for (FlatRow& row : rows) {
-        MME_CHECK(row.column == (uint32_t)SECTION_COLUMN_1,
-                  "row \"%s\" is registered in column %u; the page draws one column, so anything past the first is "
-                  "registered and never drawn",
-                  row.info->name.c_str(), row.column);
+    // Which column each row belongs in, from the manifest: the first pointer
+    // row's label opens the second column, and nothing before it may be there.
+    const char* firstPointerLabel = nullptr;
+    for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount && firstPointerLabel == nullptr; i++) {
+        if (RSBS::kHostedMmEnhancements[i].hosting == RSBS::MmEnhancementHosting::HostedElsewhere) {
+            firstPointerLabel = RSBS::kHostedMmEnhancements[i].label;
+        }
     }
-    printf("[TEST] leg 1: the page is registered through the extension point, declares one column and holds %zu "
-           "widgets\n",
-           rows.size());
+    bool inSecondGroup = false;
+    std::size_t perColumn[2] = { 0, 0 };
+    for (FlatRow& row : rows) {
+        if (firstPointerLabel != nullptr && row.info->type == WIDGET_SEPARATOR_TEXT &&
+            row.info->name == firstPointerLabel) {
+            inSecondGroup = true;
+        }
+        const uint32_t expected = inSecondGroup ? (uint32_t)SECTION_COLUMN_2 : (uint32_t)SECTION_COLUMN_1;
+        MME_CHECK(row.column == expected,
+                  "row \"%s\" is registered in column %u, expected %u: the toggles fill the first column and the "
+                  "first pointer row opens the second (a row past the page's two columns is never drawn)",
+                  row.info->name.c_str(), row.column, expected);
+        if (row.column < 2) {
+            perColumn[row.column]++;
+        }
+    }
+    MME_CHECK(perColumn[0] > 0 && perColumn[1] > 0,
+              "the page's columns hold %zu and %zu widgets; an empty column in a multi-column page is #640's failure "
+              "mode",
+              perColumn[0], perColumn[1]);
+    printf("[TEST] leg 1: the page is registered through the extension point, declares three columns and holds %zu "
+           "widgets (%zu toggles side, %zu Autosave side)\n",
+           rows.size(), perColumn[0], perColumn[1]);
+
+    // ---- Leg 6: every own-row tooltip is in SoH's voice -----------------------
+    // R-TT2 (present tense, verb first: SoH's "Makes...", "Allows...",
+    // "Toggles..." -- a third-person verb, so the first word ends in 's'),
+    // R-TT4 (one or two sentences, the trailing caveat included) and R-TT6 (the
+    // caveat trails). A pointer row's text is a gray note, not a tooltip, and
+    // is not held to this.
+    {
+        const std::string kCaveat = " Majora's Mask only.";
+        for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+            const RSBS::HostedMmEnhancement& e = RSBS::kHostedMmEnhancements[i];
+            if (e.hosting != RSBS::MmEnhancementHosting::OwnRow) {
+                continue;
+            }
+            const std::string tip = e.tooltip != nullptr ? e.tooltip : "";
+            const std::string firstWord = tip.substr(0, tip.find(' '));
+            MME_CHECK(!firstWord.empty() && firstWord.back() == 's',
+                      "\"%s\"'s tooltip opens with \"%s\", not a present-tense verb (R-TT2: \"Makes...\", "
+                      "\"Toggles...\")",
+                      e.key, firstWord.c_str());
+            std::size_t sentences = 0;
+            for (std::size_t at = tip.find(". "); at != std::string::npos; at = tip.find(". ", at + 2)) {
+                sentences++;
+            }
+            if (!tip.empty() && tip.back() == '.') {
+                sentences++;
+            }
+            MME_CHECK(sentences >= 1 && sentences <= 2,
+                      "\"%s\"'s tooltip is %zu sentences; SoH's are one or two, the trailing caveat included (R-TT4)",
+                      e.key, sentences);
+            MME_CHECK(
+                tip.size() > kCaveat.size() && tip.compare(tip.size() - kCaveat.size(), kCaveat.size(), kCaveat) == 0,
+                "\"%s\"'s tooltip does not end with \"%s\" (R-TT6: the caveat trails)", e.key, kCaveat.c_str() + 1);
+        }
+        printf("[TEST] leg 6: every own-row tooltip opens with a verb, is at most two sentences and ends with the "
+               "Majora's Mask caveat\n");
+    }
 
     // ---- Leg 2: every manifest key has a row, bound to that key -------------
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
@@ -350,6 +437,15 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
     // ---- Leg 3: a Live row draws live ---------------------------------------
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
         const RSBS::HostedMmEnhancement& desc = RSBS::kHostedMmEnhancements[i];
+        // Every manifest reason, whatever its hosting: it is drawn after "- " in
+        // SoH's disabled tooltip, so it is player text and prints no tracker
+        // number (ADR 0004's 2026-09-27 amendment). The manifest has no separate
+        // issue field yet (#747); until it does, a non-live row names its
+        // tracker in a source comment beside the entry, never in the string.
+        MME_CHECK(!PrintsIssueNumber(desc.reason),
+                  "the manifest reason for \"%s\" prints a tracker number (\"%s\"); it is drawn in the disabled "
+                  "tooltip, and no SoH disabled reason carries one",
+                  desc.key, desc.reason != nullptr ? desc.reason : "(null)");
         if (desc.hosting != RSBS::MmEnhancementHosting::OwnRow) {
             continue;
         }
@@ -381,9 +477,14 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                       "whole point is that a toggle which does nothing is worse than no toggle",
                       desc.key, desc.liveness == RSBS::MmEnhancementLiveness::Partial ? "Partial" : "Dormant");
             const char* tip = DisabledTooltipOf(*row->info);
-            MME_CHECK(tip != nullptr && std::string(tip) == desc.reason,
-                      "the row on \"%s\" carries disabled tooltip \"%s\", expected the manifest reason \"%s\"",
+            MME_CHECK(tip != nullptr && std::string(tip) == SohDisabledShape(desc.reason),
+                      "the row on \"%s\" carries disabled tooltip \"%s\", expected SoH's disabled shape around the "
+                      "manifest reason \"%s\"",
                       desc.key, tip != nullptr ? tip : "(null)", desc.reason);
+            MME_CHECK(row->info->name == beforeName,
+                      "the row on \"%s\" is classified non-live and its name changed from \"%s\" to \"%s\"; the state "
+                      "belongs in the tooltip and the group's gray note",
+                      desc.key, beforeName.c_str(), row->info->name.c_str());
         }
     }
     printf("[TEST] leg 3: each own-row key's presentation matches its manifest liveness class, twice over\n");
@@ -513,25 +614,21 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
             MME_CHECK(IsDisabled(*row->info), "the synthetic non-live row \"%s\" came out of a draw pass ENABLED",
                       c.name);
             const char* tip = DisabledTooltipOf(*row->info);
-            MME_CHECK(tip != nullptr && std::string(tip) == c.reason,
+            // SoH's disabled row (ADR 0004's 2026-09-27 amendment): MenuDrawItem's
+            // own tooltip shape around the reason, and the row's own name.
+            const std::string wantTip = SohDisabledShape(c.reason);
+            MME_CHECK(tip != nullptr && std::string(tip) == wantTip,
                       "the synthetic non-live row \"%s\" carries disabled tooltip \"%s\", expected \"%s\"", c.name,
-                      tip != nullptr ? tip : "(null)", c.reason);
-            MME_CHECK(row->info->name != std::string(c.name),
-                      "the synthetic non-live row's NAME is unchanged (\"%s\"). ADR 0004's rule is that a row a player "
-                      "must read without hovering says its state in the name, not only in a tooltip",
-                      row->info->name.c_str());
-            MME_CHECK(row->info->name == afterOne,
-                      "the synthetic non-live row's name grew across two draw passes: \"%s\" then \"%s\". "
-                      "ResetDisables() does not clear `name`, so a PreFunc that appended rather than normalising "
-                      "through StripPresentationSuffix compounds every frame",
+                      tip != nullptr ? tip : "(null)", wantTip.c_str());
+            MME_CHECK(row->info->name == std::string(c.name) && afterOne == std::string(c.name),
+                      "the synthetic non-live row's NAME changed (\"%s\", then \"%s\"). SoH never writes a state or an "
+                      "explanation into an interactive row's name; the state belongs in the tooltip and the group's "
+                      "gray note",
                       afterOne.c_str(), row->info->name.c_str());
-            MME_CHECK(SohGui::SohMenu::StripPresentationSuffix(row->info->name) == std::string(c.name),
-                      "stripping the presentation suffix from \"%s\" does not give back \"%s\"",
-                      row->info->name.c_str(), c.name);
         }
     }
-    printf("[TEST] leg 4: a Partial and a Dormant row both render disabled, with their reason, and their names do not "
-           "compound across frames\n");
+    printf("[TEST] leg 4: a Partial and a Dormant row both render disabled, with SoH's disabled tooltip around their "
+           "reason, and keep their names\n");
 
     if (gFailures == 0) {
         printf("[TEST] menu-mm-enhancement-rows: PASS\n");
