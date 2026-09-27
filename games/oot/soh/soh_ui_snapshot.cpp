@@ -132,10 +132,10 @@
 #include <vector>
 
 // src/common (on soh's include path). All game-header-free.
-#include "ComboMmOptionsWindow.h"
 #include "ComboSpoilerWindow.h"
 #include "ComboTrackerWindow.h"
-#include "combo_logic.h" // RSBS_COMBO_HALF_* (the goal-warning toast page)
+#include "combo_logic.h"           // RSBS_COMBO_HALF_* (the goal-warning toast page)
+#include "combo_mm_options_page.h" // Combo > MM Randomizer / MM Tricks: page names, row suffix, reset title
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
@@ -748,8 +748,9 @@ struct PageSpec {
     std::string sidebar;
     std::string window; // WINDOW/OVERLAY/MODAL: the ImGui window name to crop (TOAST: a name prefix)
     std::string compareWith;
-    // Per state: a different reference for that state's captures (the MM options
-    // pane's tricks-open state is read against SoH's Tricks page, not Logic/Access).
+    // Per state: a different reference for that state's captures (unused by the
+    // shipped pages since the MM options pane became pages; kept for a page
+    // whose states read against different SoH pages).
     std::map<std::string, std::string> stateCompareWith;
     // Hover captures: the page whose hover capture they are read against, when
     // the state's reference has none (SoH's Tricks page draws its trick names
@@ -760,8 +761,13 @@ struct PageSpec {
     std::vector<std::string> hovers; // hover variant names (MENU_PAGE only)
     // Hover name -> the exact name of the row it points at, for a hover whose
     // target is not one of Cross-Game Rules' settings. Captured in the page's
-    // first state only (and, when hoverStates is set, only if listed there).
+    // first state only (and, when hoverStates is set, only if listed there),
+    // unless hoverRowState names the one state it is captured in.
     std::map<std::string, std::string> hoverRows;
+    std::map<std::string, std::string> hoverRowState;
+    // Named hovers on a DISABLED row: their tooltip must be SoH's disabled shape
+    // (DisabledShapeVerdict), as the row-state probe's are.
+    std::set<std::string> disabledHovers;
     std::vector<std::string> expectText;
     // MENU_PAGE: a string only this page's body draws (assert 6); empty when no
     // registered row yields one, which fails the page.
@@ -782,9 +788,11 @@ struct PageSpec {
     // The row-state probe: a harness-only Combo sidebar installed for this page's
     // captures and removed afterwards (see InstallRowStateProbe).
     bool rowStateProbe = false;
-    // WINDOW only: hover variants on a pane row, found by the label it passes to
-    // the combo_ui seam (a pane has no WidgetInfo whose postFunc could be
-    // wrapped), each captured in one named state.
+    // Hover variants on a row drawn through the combo_ui seam, found by the
+    // label it passes to the seam's rect recorder (such a row has no WidgetInfo
+    // whose postFunc could be wrapped: a pane's rows, or a trick row inside
+    // Combo > MM Tricks' custom list), each captured in one named state. WINDOW
+    // and MENU_PAGE alike.
     struct PaneHover {
         std::string name;
         std::string state;
@@ -918,6 +926,7 @@ class Session {
     // captures
     void CaptureMenuPage(const PageSpec& p);
     void CaptureWindowPage(const PageSpec& p);
+    void CapturePaneHovers(const PageSpec& p, const std::string& state);
     void CaptureOverlay(const PageSpec& p);
     void CaptureModal(const PageSpec& p);
     void CaptureModalVariant(const PageSpec& p, const std::string& state);
@@ -1184,7 +1193,7 @@ void Session::MirrorProductionWindows() {
     // button whose window is not registered renders disabled), and the captures
     // would show a state no player sees.
     Combo_SpoilerWindow_Init();
-    Combo_MMOptionsWindow_Init();
+    Combo_MMOptionsPages_Init();
     MM_TrackersGui_Init();
     Combo_TrackerWindow_Init();
 }
@@ -1393,10 +1402,11 @@ ImGuiID TrackerOoTChecksId(ImGuiWindow* w) {
 }
 
 /**
- * The first trick row DrawTricksSection draws once its first area is open: the
- * lowest area id that has a row (it walks areas in id order), and that area's
- * first row in table order. @p areaOut receives the area id, -1 if none.
- * With @p want set, only rows it accepts count (the first RESERVED row, say).
+ * The first trick row Combo > MM Tricks draws (DrawMmTrickList,
+ * SohMenuComboMmRandomizer.cpp): the lowest area id that has a row (it walks
+ * areas in id order), and that area's first row in table order. @p areaOut
+ * receives the area id, -1 if none. With @p want set, only rows it accepts
+ * count (the first RESERVED row, say).
  */
 const ComboMMTrickDesc* FirstTrickArea(int* areaOut, bool (*want)(const ComboMMTrickDesc*) = nullptr) {
     *areaOut = -1;
@@ -1633,6 +1643,10 @@ void Session::BuildPageList() {
         // filePaths.at("") throws. Tricks/Glitches is SoH's other two-column
         // Disabled/Enabled table page, the layout this page shares.
         { "MM Mods", "Randomizer/Tricks/Glitches" },
+        // MM's randomizer options and tricks, pages since 2026-09-27 (they were
+        // a pop-out pane): read against the SoH pages whose shape they take.
+        { COMBO_MM_OPTIONS_PAGE_NAME, "Randomizer/General" },
+        { COMBO_MM_TRICKS_PAGE_NAME, "Randomizer/Tricks/Glitches" },
     };
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {
@@ -1723,6 +1737,91 @@ void Session::BuildPageList() {
                 // sentence that explains its blank window under Ocarina of Time.
                 p.hovers = { "mm-item-tracker" };
                 p.hoverRows["mm-item-tracker"] = "Toggle MM Item Tracker";
+            } else if (sidebar == COMBO_MM_OPTIONS_PAGE_NAME) {
+                // The model's state note in each state (combo_mm_options_page.c),
+                // and the suspended note, which only a non-MM running game shows.
+                p.states = { "unpaired", "frozen", "mm-suspended" };
+                p.stateText["unpaired"] = { "No paired world yet" };
+                p.stateText["frozen"] = { "Already decided when this world was created" };
+                p.stateText["mm-suspended"] = { "Majora's Mask is suspended" };
+                p.stateContrast = { { "unpaired", "frozen" },
+                                    { "frozen", "unpaired" },
+                                    { "mm-suspended", "unpaired" } };
+                // Hovers, by row name (the page's own derivation: the "##MMRando"
+                // id suffix on a checkbox or combobox, "Name: %d" on a slider):
+                // the first row's description unpaired, the same row frozen
+                // (SoH's disabled shape, "Already Decided"), and the first row a
+                // capability blocks (SoH's disabled shape, the table's reason).
+                auto rowName = [](const ComboMMOptionDesc* d) {
+                    if (d->widget == COMBO_MM_WIDGET_SLIDER) {
+                        return std::string(d->label) + ": %d";
+                    }
+                    if (d->widget == COMBO_MM_WIDGET_TIME) {
+                        return std::string(d->label);
+                    }
+                    return std::string(d->label) + COMBO_MM_OPTIONS_ROW_ID_SUFFIX;
+                };
+                if (Combo_MMOptionCount() > 0 && Combo_MMOptionAt(0) != nullptr) {
+                    p.hovers = { "first-row", "frozen-row" };
+                    p.hoverRows["first-row"] = rowName(Combo_MMOptionAt(0));
+                    p.hoverRows["frozen-row"] = rowName(Combo_MMOptionAt(0));
+                    p.hoverRowState["first-row"] = "unpaired";
+                    p.hoverRowState["frozen-row"] = "frozen";
+                    p.disabledHovers.insert("frozen-row");
+                }
+                for (int i = 0; i < Combo_MMOptionCount(); i++) {
+                    const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+                    if (d != nullptr &&
+                        (d->liveness == COMBO_MM_LIVENESS_PARTIAL || d->liveness == COMBO_MM_LIVENESS_DORMANT)) {
+                        p.hovers.push_back("blocked-row");
+                        p.hoverRows["blocked-row"] = rowName(d);
+                        p.hoverRowState["blocked-row"] = "unpaired";
+                        p.disabledHovers.insert("blocked-row");
+                        break;
+                    }
+                }
+            } else if (sidebar == COMBO_MM_TRICKS_PAGE_NAME) {
+                // Unpaired: the model's headline; frozen: the freeze sentence.
+                p.states = { "unpaired", "frozen" };
+                p.stateText["unpaired"] = { "tricks are supported by the randomizer logic" };
+                p.stateText["frozen"] = { "Already decided when this world was created" };
+                p.stateContrast = { { "unpaired", "frozen" }, { "frozen", "unpaired" } };
+                // Every trick row draws its name through the combo_ui seam, whose
+                // rect recorder is how a hover finds it (the list is one custom
+                // row, so no WidgetInfo per trick). A live trick (its
+                // description), an unbound and a reserved one (SoH's disabled
+                // shape with the table's reason), and a live one again frozen.
+                p.hoverCompareWith = "Settings/Graphics";
+                int area = -1;
+                const ComboMMTrickDesc* first = FirstTrickArea(&area);
+                if (first != nullptr) {
+                    const ComboMMTrickDesc* live =
+                        FirstTrickIn(area, [](const ComboMMTrickDesc* d) { return d->bound && !d->reserved; });
+                    const ComboMMTrickDesc* unbound =
+                        FirstTrickIn(area, [](const ComboMMTrickDesc* d) { return !d->bound && !d->reserved; });
+                    if (live == nullptr) {
+                        int liveArea = -1;
+                        live = FirstTrickArea(&liveArea,
+                                              [](const ComboMMTrickDesc* d) { return d->bound && !d->reserved; });
+                    }
+                    if (unbound == nullptr) {
+                        int unboundArea = -1;
+                        unbound = FirstTrickArea(&unboundArea,
+                                                 [](const ComboMMTrickDesc* d) { return !d->bound && !d->reserved; });
+                    }
+                    if (live != nullptr) {
+                        p.paneHovers.push_back({ "trick-live", "unpaired", live->label, false });
+                        p.paneHovers.push_back({ "trick-frozen", "frozen", live->label, true });
+                    }
+                    if (unbound != nullptr) {
+                        p.paneHovers.push_back({ "trick-unbound", "unpaired", unbound->label, true });
+                    }
+                }
+                int reservedArea = -1;
+                const ComboMMTrickDesc* reserved = FirstTrickArea(&reservedArea, IsReservedTrick);
+                if (reserved != nullptr) {
+                    p.paneHovers.push_back({ "trick-reserved", "unpaired", reserved->label, true });
+                }
             }
             pages.push_back(p);
         }
@@ -1760,105 +1859,6 @@ void Session::BuildPageList() {
     {
         PageSpec p = menuPage("Randomizer", "Cross-Game", Origin::RSBS);
         p.compareWith = "Randomizer/General";
-        pages.push_back(p);
-    }
-    {
-        PageSpec p;
-        p.id = std::string("window/") + ComboGui::kComboMMOptionsWindowName;
-        p.kind = Kind::WINDOW;
-        p.window = ComboGui::kComboMMOptionsWindowName;
-        p.states = { "unpaired", "frozen", "mm-suspended", "tricks-open", "tricks-frozen", "tricks-narrow" };
-        p.compareWith = "Randomizer/Logic/Access";
-        p.expectText = { ComboGui::kComboMMOptionsWindowName };
-        // ComboMmOptionsWindow.cpp's state note (unpaired, frozen) and its
-        // suspended note, plus a trick row from each area the tricks-open state
-        // expands (TricksOpenAreaIds, below). Matched against
-        // the pane's VISIBLE-ONLY log, so each one was on screen in some
-        // captured view.
-        p.stateText["unpaired"] = { "No paired world yet" };
-        p.stateText["frozen"] = { "Already decided when this world was created" };
-        p.stateText["mm-suspended"] = { "Majora's Mask is suspended" };
-        // tricks-open is read against SoH's own Tricks page, the shape the section
-        // follows; every other state against Logic/Access.
-        p.stateCompareWith["tricks-open"] = "Randomizer/Tricks/Glitches";
-        p.stateCompareWith["tricks-frozen"] = "Randomizer/Tricks/Glitches";
-        p.stateCompareWith["tricks-narrow"] = "Randomizer/Tricks/Glitches";
-        // Every pane hover (option rows and trick rows) is read against SoH's
-        // own menu-row tooltip, Settings > Graphics' Current FPS: the same
-        // UIWidgets tooltip chrome DrawTricksMenu's name cell uses, in the only
-        // SoH capture that shows a tooltip.
-        p.hoverCompareWith = "Settings/Graphics";
-        // Hovers, through the combo_ui seam's rect recorder: the first option row
-        // (its description), the first capability-blocked row (SoH's disabled
-        // shape with the model's reason), and the first row again while frozen
-        // (the same shape, "Already Decided"). The rows come from the table, so
-        // a relabel moves the hover with it.
-        if (Combo_MMOptionCount() > 0 && Combo_MMOptionAt(0) != nullptr) {
-            p.paneHovers.push_back({ "first-row", "unpaired", Combo_MMOptionAt(0)->label, false });
-            p.paneHovers.push_back({ "frozen-row", "frozen", Combo_MMOptionAt(0)->label, true });
-        }
-        for (int i = 0; i < Combo_MMOptionCount(); i++) {
-            const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
-            if (d != nullptr &&
-                (d->liveness == COMBO_MM_LIVENESS_PARTIAL || d->liveness == COMBO_MM_LIVENESS_DORMANT)) {
-                p.paneHovers.push_back({ "blocked-row", "unpaired", d->label, true });
-                break;
-            }
-        }
-        // tricks-open opens two areas (TricksOpenAreaIds): the first, and the first
-        // one holding a reserved row. Its text is a row from each, which only an
-        // open area draws (the Tricks note is drawn in every state, so it cannot
-        // tell tricks-open from unpaired). Its hovers are a live trick (its
-        // description), an unbound one and a reserved one (SoH's disabled shape
-        // with the table's reason), all found through the rect recorder by the
-        // name the row hands the seam's RowText.
-        {
-            int area = -1;
-            const ComboMMTrickDesc* first = FirstTrickArea(&area);
-            if (first != nullptr && first->label != nullptr) {
-                p.stateText["tricks-open"].push_back(VisibleLabel(first->label));
-                const ComboMMTrickDesc* live =
-                    FirstTrickIn(area, [](const ComboMMTrickDesc* d) { return d->bound && !d->reserved; });
-                const ComboMMTrickDesc* unbound =
-                    FirstTrickIn(area, [](const ComboMMTrickDesc* d) { return !d->bound && !d->reserved; });
-                if (live != nullptr) {
-                    p.paneHovers.push_back({ "trick-live", "tricks-open", live->label, false });
-                }
-                if (unbound != nullptr) {
-                    p.paneHovers.push_back({ "trick-unbound", "tricks-open", unbound->label, true });
-                }
-            }
-            int reservedArea = -1;
-            const ComboMMTrickDesc* reserved = FirstTrickArea(&reservedArea, IsReservedTrick);
-            if (reserved != nullptr && reserved->label != nullptr) {
-                p.stateText["tricks-open"].push_back(VisibleLabel(reserved->label));
-                p.paneHovers.push_back({ "trick-reserved", "tricks-open", reserved->label, true });
-            }
-            // tricks-frozen is the frozen state with the one area holding the
-            // longest name open: the row a narrow pane wraps most (with the most
-            // chips beside it on a tie), and every row disabled by the freeze.
-            // Its hover is that area's first live row, whose tooltip must then be
-            // SoH's disabled shape naming the freeze, as the option rows' is.
-            const ComboMMTrickDesc* longest = LongestTrick();
-            if (longest != nullptr && longest->label != nullptr) {
-                p.stateText["tricks-frozen"] = { "Already decided when this world was created",
-                                                 WordPrefix(VisibleLabel(longest->label), 16) };
-                const ComboMMTrickDesc* live = FirstTrickIn(
-                    (int)longest->area, [](const ComboMMTrickDesc* d) { return d->bound && !d->reserved; });
-                if (live != nullptr) {
-                    p.paneHovers.push_back({ "trick-frozen", "tricks-frozen", live->label, true });
-                }
-                // tricks-narrow is the same area, live, with the pane resized to
-                // the narrowest the player can make it (the pane's size
-                // constraint; CaptureWindowPage asks for 1 px and asserts it got
-                // exactly kComboMMOptionsMinWidth): how the longest names wrap
-                // at the worst width a player can choose.
-                p.stateText["tricks-narrow"] = { WordPrefix(VisibleLabel(longest->label), 16) };
-            }
-        }
-        p.stateContrast = { { "unpaired", "frozen" },        { "frozen", "unpaired" },
-                            { "mm-suspended", "unpaired" },  { "tricks-open", "unpaired" },
-                            { "tricks-frozen", "unpaired" }, { "tricks-narrow", "unpaired" } };
         pages.push_back(p);
     }
     {
@@ -1910,18 +1910,21 @@ void Session::BuildPageList() {
         p.scroll = false;
         pages.push_back(p);
     }
-    // Ours: the MM options pane's Reset confirm, queued through the same call
-    // the pane's Reset button makes (Combo_MMOptionsRequestReset), so the capture
-    // is the popup a player gets.
-    {
+    // Ours: Combo > MM Randomizer's Reset confirm, opened through the row's own
+    // Callback (so the capture is the popup a player gets) and compared with
+    // SoH's "Clear Config" modal. It was the MM options pane's confirm until the
+    // options became pages.
+    if (entries.contains("Combo") && entries.at("Combo").sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME)) {
         PageSpec p;
-        p.id = std::string("modal/") + ComboGui::kComboMMOptionsResetTitle;
+        p.id = std::string("modal/") + COMBO_MM_OPTIONS_RESET_TITLE;
         p.origin = Origin::RSBS;
         p.kind = Kind::MODAL;
-        p.window = ComboGui::kComboMMOptionsResetTitle;
+        p.header = "Combo";
+        p.sidebar = COMBO_MM_OPTIONS_PAGE_NAME;
+        p.window = COMBO_MM_OPTIONS_RESET_TITLE;
         p.states = { "" };
         p.compareWith = "modal/Clear Config";
-        p.expectText = { ComboGui::kComboMMOptionsResetTitle, "Cancel" };
+        p.expectText = { COMBO_MM_OPTIONS_RESET_TITLE, "Cancel" };
         p.scroll = false;
         pages.push_back(p);
     }
@@ -2324,9 +2327,12 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             // for.
             CVarSetInteger(CVAR_SETTING("DisableChanges"), 1);
         }
-    } else if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboMMOptionsWindowName) {
+    } else if (p.id == std::string("Combo/") + COMBO_MM_OPTIONS_PAGE_NAME ||
+               p.id == std::string("Combo/") + COMBO_MM_TRICKS_PAGE_NAME) {
+        // Majora's Mask running unless the state is the suspended one, so the
+        // suspended note shows in exactly one state; frozen is a creation stamp.
         Context_SetCurrentGame(state == "mm-suspended" ? GAME_OOT : GAME_MM);
-        if (state == "frozen" || state == "tricks-frozen") {
+        if (state == "frozen") {
             AuthorPairing();
             gComboCtx.mmProfileDigest = 0x4D4D0001u;
         }
@@ -2740,7 +2746,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
         for (const std::string& hv : p.hovers) {
             const auto namedRow = p.hoverRows.find(hv);
             const bool byName = namedRow != p.hoverRows.end();
-            if (byName ? (state != p.states.front()) : ((hv.rfind("frozen-", 0) == 0) != (state == "frozen"))) {
+            const auto namedState = p.hoverRowState.find(hv);
+            const std::string& hoverState = namedState != p.hoverRowState.end() ? namedState->second : p.states.front();
+            if (byName ? (state != hoverState) : ((hv.rfind("frozen-", 0) == 0) != (state == "frozen"))) {
                 continue;
             }
             if (!p.hoverStates.empty() &&
@@ -2868,14 +2876,22 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             Finish(c, p);
             // The row-state probe's hovers are the four presentation states'
             // disabled rows: each must show SoH's disabled shape (a), and no
-            // tracker number (ADR 0004's 2026-09-27 amendment).
-            if (HoverVerdict(c, label, authoredTip) && p.rowStateProbe) {
+            // tracker number (ADR 0004's 2026-09-27 amendment). So must a named
+            // hover the page lists as disabled (Combo > MM Randomizer's frozen and
+            // capability-blocked rows).
+            if (HoverVerdict(c, label, authoredTip) && (p.rowStateProbe || p.disabledHovers.contains(hv))) {
                 DisabledShapeVerdict(c, label, authoredTip);
             }
             Record(std::move(c));
             // Put the pointer away and re-settle so the next capture has no hover.
             PumpFrame(nullptr, false, nullptr, why);
         }
+
+        // Seam hovers on a menu page: a row drawn inside a custom widget through
+        // the combo_ui seam (Combo > MM Tricks' trick rows), found by the label
+        // it hands the seam's rect recorder, scrolled into view in whichever
+        // window drew it (the tricks table's own child), then hovered.
+        CapturePaneHovers(p, state);
         LeaveState(p, state);
     }
     if (p.rowStateProbe) {
@@ -2963,12 +2979,15 @@ void Session::DisabledShapeVerdict(Capture& c, const std::string& label, const s
 
 // ---- panes, overlay, modal ------------------------------------------------------------------
 
-/** The combo_ui rect recorder's sink for one pane hover: the row whose label matches. */
+/** The combo_ui rect recorder's sink for one seam hover: the row whose label matches. */
 struct PaneHoverProbe {
     std::string label;
     bool found = false;
     ImRect rect;
     std::string tooltip;
+    // The window the row was drawn in: the pane itself, or the child a menu
+    // page's custom list scrolls in (Combo > MM Tricks' table columns).
+    ImGuiWindow* window = nullptr;
 };
 
 void PaneHoverRecord(void* user, const char* label, const char* tooltip, float minX, float minY, float maxX,
@@ -2980,12 +2999,10 @@ void PaneHoverRecord(void* user, const char* label, const char* tooltip, float m
     probe->found = true;
     probe->rect = ImRect(minX, minY, maxX, maxY);
     probe->tooltip = tooltip != nullptr ? tooltip : "";
+    probe->window = GImGui->CurrentWindow;
 }
 
 const char* PaneCvar(const std::string& window) {
-    if (window == ComboGui::kComboMMOptionsWindowName) {
-        return ComboGui::kComboMMOptionsVisibilityCVar;
-    }
     if (window == ComboGui::kComboSpoilerWindowName) {
         return ComboGui::kComboSpoilerVisibilityCVar;
     }
@@ -2996,33 +3013,64 @@ const char* PaneCvar(const std::string& window) {
 }
 
 /**
- * The ImGui ids of the area tree nodes a Tricks state opens, as
- * DrawTricksSection (ComboMmOptionsWindow.cpp) forms them inside the pane's
- * Begin: PushID("tricks") at the window's root id, then PushID(area),
- * TreeNode(areaName). tricks-open opens two areas, the first (a live and an
- * unbound row) and the first holding a reserved row; tricks-frozen opens the
- * area of the longest name (LongestTrick). Their open state lives in the pane
- * window's StateStorage, which is what the state writes.
+ * The seam hovers of @p p in @p state: each row is found by the label it hands
+ * the combo_ui seam, whose rect recorder reports where it drew, in which window,
+ * and the tooltip a hover shows; it is scrolled into view in that window and
+ * hovered the way a menu row is. Shared by panes and by menu pages whose rows
+ * live inside a custom widget (Combo > MM Tricks).
  */
-std::vector<ImGuiID> TricksOpenAreaIds(ImGuiWindow* w, bool longest) {
-    std::vector<ImGuiID> ids;
-    const ImGuiID tricks = ImHashStr("tricks", 0, w->ID);
-    auto add = [&](const ComboMMTrickDesc* d) {
-        if (d != nullptr && d->areaName != nullptr) {
-            const int area = (int)d->area;
-            const ImGuiID areaSeed = ImHashData(&area, sizeof(area), tricks);
-            ids.push_back(ImHashStr(d->areaName, 0, areaSeed));
+void Session::CapturePaneHovers(const PageSpec& p, const std::string& state) {
+    for (const PageSpec::PaneHover& ph : p.paneHovers) {
+        if (ph.state != state) {
+            continue;
         }
-    };
-    if (longest) {
-        add(LongestTrick());
-        return ids;
+        const std::string variant = VariantName(state, "hover-" + ph.name);
+        if (!Selected(p, variant)) {
+            continue;
+        }
+        Capture c;
+        c.id = p.id;
+        c.state = state;
+        c.variant = variant;
+        c.hover = ph.label;
+        PaneHoverProbe probe;
+        probe.label = ph.label;
+        ComboUi_SetRectRecorder(PaneHoverRecord, &probe);
+        std::string why;
+        for (int i = 0; i < 4; i++) {
+            probe.found = false;
+            probe.window = nullptr;
+            if (!PumpFrame(nullptr, false, nullptr, why)) {
+                break;
+            }
+            ImGuiWindow* scroller = probe.window != nullptr ? probe.window : ImGui::FindWindowByName(p.window.c_str());
+            if (probe.found && scroller != nullptr) {
+                const ImRect clip = scroller->InnerClipRect;
+                if (probe.rect.Min.y >= clip.Min.y && probe.rect.Max.y <= clip.Max.y) {
+                    break;
+                }
+                ImGui::SetScrollY(scroller, std::max(0.0f, scroller->Scroll.y + probe.rect.Min.y - clip.Min.y -
+                                                               clip.GetHeight() / 3.0f));
+            }
+        }
+        if (!probe.found) {
+            c.status = "fail";
+            c.reason = "no row labelled \"" + ph.label + "\" was drawn through the combo_ui seam";
+        } else {
+            gHooks.hoverPos = probe.rect.GetCenter();
+            if (Settle(c, true, nullptr, nullptr)) {
+                Oracle(p, c);
+            }
+        }
+        ComboUi_SetRectRecorder(nullptr, nullptr);
+        Finish(c, p);
+        if (HoverVerdict(c, ph.label, probe.tooltip) && ph.disabled) {
+            DisabledShapeVerdict(c, ph.label, probe.tooltip);
+        }
+        Record(std::move(c));
+        // Put the pointer away and re-settle so the next capture has no hover.
+        PumpFrame(nullptr, false, nullptr, why);
     }
-    for (bool reservedOnly : { false, true }) {
-        int area = -1;
-        add(FirstTrickArea(&area, reservedOnly ? IsReservedTrick : nullptr));
-    }
-    return ids;
 }
 
 void Session::CaptureWindowPage(const PageSpec& p) {
@@ -3061,33 +3109,14 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         } else {
             CVarSetInteger(cvar, 1);
         }
-        const bool narrow = (state == "tricks-narrow");
-        const bool tricks = (state == "tricks-open" || state == "tricks-frozen" || narrow);
         const bool checksOpen = (state == "progress" && p.window == ComboGui::kComboTrackerWindowName);
-        auto setTricksOpen = [&p, &state](int open) {
-            ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
-            if (w != nullptr) {
-                for (ImGuiID area : TricksOpenAreaIds(w, state != "tricks-open")) {
-                    w->StateStorage.SetInt(area, open);
-                }
-            }
-        };
-        // tricks-narrow asks for a 1 px wide pane every frame; the pane's size
-        // constraint is what holds it at its minimum. The size it had is put
-        // back after the state.
-        ImVec2 sizeBefore(0.0f, 0.0f);
-        if (narrow) {
-            if (ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str())) {
-                sizeBefore = w->SizeFull;
-            }
-        }
         // The pane's .txt is VISIBLE-ONLY (see HookState::unclipLog), so a state's
         // text is asserted against what some captured view actually showed.
         gHooks.unclipLog = false;
         // The pane scrolls as a whole (it has no section children), and it is
         // stepped the way a menu page's columns are, one view minus a 48 px
-        // overlap per capture, so a long pane (the MM options, the Tricks section
-        // under them) is captured to its end instead of to its first fold.
+        // overlap per capture, so a long pane is captured to its end instead of
+        // to its first fold.
         int scrollIndex = 0;
         for (;;) {
             Capture c;
@@ -3096,17 +3125,11 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             c.scrollIndex = scrollIndex;
             c.variant = VariantName(state, "scroll" + std::to_string(scrollIndex));
             auto before = [&]() {
-                if (tricks) {
-                    setTricksOpen(1);
-                }
                 if (checksOpen) {
                     ImGuiWindow* tw = ImGui::FindWindowByName(p.window.c_str());
                     if (tw != nullptr) {
                         tw->StateStorage.SetInt(TrackerOoTChecksId(tw), 1);
                     }
-                }
-                if (narrow) {
-                    ImGui::SetWindowSize(p.window.c_str(), ImVec2(1.0f, sizeBefore.y > 0.0f ? sizeBefore.y : 560.0f));
                 }
                 if (scrollIndex == 0) {
                     ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
@@ -3122,15 +3145,6 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             if (w != nullptr) {
                 c.scrollY = w->Scroll.y;
                 c.scrollMax = w->ScrollMax.y;
-                // The narrowed pane must sit at exactly its minimum: wider means
-                // the 1 px request did not land (the capture would show the
-                // default layout and prove nothing), narrower means the pane lost
-                // its size constraint.
-                if (narrow && c.status == "pass" && std::fabs(w->Size.x - ComboGui::kComboMMOptionsMinWidth) > 0.5f) {
-                    c.status = "fail";
-                    c.reason = "tricks-narrow drew the pane " + std::to_string((int)w->Size.x) +
-                               " px wide, not its minimum " + std::to_string((int)ComboGui::kComboMMOptionsMinWidth);
-                }
             }
             Finish(c, p);
             const bool unfinished = w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
@@ -3149,66 +3163,8 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             scrollIndex++;
         }
 
-        // Hover variants: the row is found by the label it hands the combo_ui
-        // seam, whose rect recorder reports where it drew and the tooltip a hover
-        // shows; then it is scrolled into view and hovered the way a menu row is.
-        for (const PageSpec::PaneHover& ph : p.paneHovers) {
-            if (ph.state != state) {
-                continue;
-            }
-            const std::string variant = VariantName(state, "hover-" + ph.name);
-            if (!Selected(p, variant)) {
-                continue;
-            }
-            Capture c;
-            c.id = p.id;
-            c.state = state;
-            c.variant = variant;
-            c.hover = ph.label;
-            PaneHoverProbe probe;
-            probe.label = ph.label;
-            ComboUi_SetRectRecorder(PaneHoverRecord, &probe);
-            std::string why;
-            for (int i = 0; i < 4; i++) {
-                probe.found = false;
-                if (!PumpFrame(nullptr, false, nullptr, why)) {
-                    break;
-                }
-                ImGuiWindow* pane = ImGui::FindWindowByName(p.window.c_str());
-                if (probe.found && pane != nullptr) {
-                    const ImRect clip = pane->InnerClipRect;
-                    if (probe.rect.Min.y >= clip.Min.y && probe.rect.Max.y <= clip.Max.y) {
-                        break;
-                    }
-                    ImGui::SetScrollY(
-                        pane, std::max(0.0f, pane->Scroll.y + probe.rect.Min.y - clip.Min.y - clip.GetHeight() / 3.0f));
-                }
-            }
-            if (!probe.found) {
-                c.status = "fail";
-                c.reason = "no pane row labelled \"" + ph.label + "\" was drawn through the combo_ui seam";
-            } else {
-                gHooks.hoverPos = probe.rect.GetCenter();
-                if (Settle(c, true, nullptr, nullptr)) {
-                    Oracle(p, c);
-                }
-            }
-            ComboUi_SetRectRecorder(nullptr, nullptr);
-            Finish(c, p);
-            if (HoverVerdict(c, ph.label, probe.tooltip) && ph.disabled) {
-                DisabledShapeVerdict(c, ph.label, probe.tooltip);
-            }
-            Record(std::move(c));
-            // Put the pointer away and re-settle so the next capture has no hover.
-            PumpFrame(nullptr, false, nullptr, why);
-        }
+        CapturePaneHovers(p, state);
         gHooks.unclipLog = true;
-        if (tricks) {
-            setTricksOpen(0);
-        }
-        if (narrow && sizeBefore.x > 0.0f) {
-            ImGui::SetWindowSize(p.window.c_str(), sizeBefore);
-        }
         if (sohPane) {
             guiWindow->Hide();
         } else {
@@ -3538,18 +3494,6 @@ void Session::CaptureModalVariant(const PageSpec& p, const std::string& state) {
         SohGui::RegisterPopup(
             "Clear Config", "This will completely erase the controls config, including registered devices.\nContinue?",
             "Clear", "Cancel", nullptr, nullptr);
-    } else if (p.window == ComboGui::kComboMMOptionsResetTitle) {
-        // Ours, a pane's: the call the pane's Reset button makes, which queues the
-        // confirm through the combo_ui seam. DismissPopup below never runs the
-        // popup's buttons, so nothing is reset.
-        Combo_MMOptionsRequestReset();
-        if (SohGui::PopupsQueued() == 0) {
-            c.status = "fail";
-            c.reason = "the MM options pane's Reset queued no confirm popup";
-            c.spec = &p;
-            Record(std::move(c));
-            return;
-        }
     } else {
         // Ours: fire the button row's own Callback, which queues its confirm.
         // DismissPopup below never runs the popup's buttons, so nothing is reset.
@@ -4225,17 +4169,17 @@ int Session::RuntimeLint() {
     for (int i = 0; i < Combo_MMOptionCount(); i++) {
         const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
         if (d != nullptr) {
-            refString("MM options pane", d->label);
-            refString("MM options pane", d->tooltip);
-            refString("MM options pane", d->disabledReason);
+            refString("Combo/MM Randomizer table", d->label);
+            refString("Combo/MM Randomizer table", d->tooltip);
+            refString("Combo/MM Randomizer table", d->disabledReason);
         }
     }
     for (int i = 0; i < Combo_MMTrickCount(); i++) {
         const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
         if (d != nullptr) {
-            refString("MM options pane/Tricks", d->label);
-            refString("MM options pane/Tricks", d->tooltip);
-            refString("MM options pane/Tricks", d->disabledReason);
+            refString("Combo/MM Tricks table", d->label);
+            refString("Combo/MM Tricks table", d->tooltip);
+            refString("Combo/MM Tricks table", d->disabledReason);
         }
     }
 

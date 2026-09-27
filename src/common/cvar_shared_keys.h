@@ -153,11 +153,13 @@
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
- * the whole namespace and not just its identity half; the three older
- * windows' headers still spell their own literal, which the lock verifies
- * against this table. */
+ * the whole namespace and not just its identity half; the two older windows'
+ * headers still spell their own literal, which the lock verifies against this
+ * table. The MM randomizer options window's key (gCombo.Windows.MMOptions)
+ * left with that window on 2026-09-27, when the options became Combo menu
+ * pages: nothing reads it, so it is no longer classified or spelled. A config
+ * that still holds it keeps an inert entry. */
 #define RSBS_CVAR_COMBO_WINDOW_SPOILER "gCombo.Windows.Spoiler"
-#define RSBS_CVAR_COMBO_WINDOW_MM_OPTIONS "gCombo.Windows.MMOptions"
 #define RSBS_CVAR_COMBO_WINDOW_TRACKER "gCombo.Windows.Tracker"
 #define RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS "gCombo.Windows.ComboSettings"
 
@@ -535,7 +537,6 @@ inline constexpr ComboKey kComboKeys[] = {
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
-    { RSBS_CVAR_COMBO_WINDOW_MM_OPTIONS, ComboKeyClass::Preference, "MM options pane visibility (#497/#499)" },
     { RSBS_CVAR_COMBO_WINDOW_TRACKER, ComboKeyClass::Preference, "combo tracker window visibility (#458)" },
     { RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS, ComboKeyClass::Preference,
       "combo settings pane visibility (ADR 0011 increment 2)" },

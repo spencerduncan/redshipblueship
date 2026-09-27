@@ -27,7 +27,7 @@
 #include "game_lifecycle.h"
 #include "context.h"
 #include "ComboSpoilerWindow.h"   // Combo_SpoilerWindow_Init (#496, ADR 0008)
-#include "ComboMmOptionsWindow.h" // Combo_MMOptionsWindow_Init (#497/#499, ADR 0004+0008)
+#include "combo_mm_options_page.h" // Combo_MMOptionsPages_Init (#497/#499, ADR 0004)
 #include "ComboSettingsWindow.h"  // Combo_ComboSettingsWindow_Init (#498, ADR 0011 inc 2)
 #include "ComboTrackerWindow.h"   // Combo_TrackerWindow_Init (#458, ADR 0008)
 #include "entrance.h"
@@ -587,21 +587,23 @@ int main(int argc, char** argv) {
     // its Gui by now; the call is a safe no-op if it has not.
     Combo_SpoilerWindow_Init();
 
-    // MM randomizer options pane (#497 step 4, #499). Same seam, same reason —
-    // but the timing argument is stronger here than for the spoiler: the paired
-    // MM profile is snapshotted at MM's cross-game arrival and an existing MM
-    // save is never regenerated, so a chooser hung off MM's boot would only
-    // exist after the point at which it could still change anything. It has to
-    // be reachable while OoT is the running game.
-    Combo_MMOptionsWindow_Init();
+    // MM randomizer options (#497 step 4, #499). Since 2026-09-27 they are menu
+    // pages (Combo > MM Randomizer and Combo > MM Tricks), not a window, and the
+    // page registrar publishes MM's two descriptor tables itself when OoT's menu
+    // is built. This call is the same publication again (idempotent), so the
+    // model is up in a session whose menu never built. The timing argument that
+    // made the options a common-owned window still holds for where they are
+    // drawn: they freeze at the creation event, so they must be reachable while
+    // OoT is the running game, and OoT's menu is.
+    Combo_MMOptionsPages_Init();
 
     // The combo settings pane (#498, ADR 0011 increment 2): the five tier-4
-    // gCombo.Rando.* keys. Same seam, same reason as the MM options pane above,
+    // gCombo.Rando.* keys. Same seam, same reason as the spoiler above,
     // and the same timing argument -- these freeze into the paired world's
     // identity at OoT's generation, so the pane has to be reachable while OoT
     // is the running game or it can no longer change anything. Named here
-    // rather than left to the MM pane's own bring-up (which also calls it, and
-    // it is idempotent) so this list is the whole set of common-owned windows.
+    // rather than left to Combo_MMOptionsPages_Init (which also calls it, and it
+    // is idempotent) so this list is the whole set of common-owned windows.
     Combo_ComboSettingsWindow_Init();
 
     // MM's four tracker windows (#535). Same seam, same reason: registration
