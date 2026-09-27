@@ -153,9 +153,10 @@
  *       OoT host supply is SMALLER than production's, which is pessimistic for a
  *       convergence question and makes surplus DROPS appear that production would
  *       not see (the plentiful profile drops some for exactly this reason). MM empties
- *       nothing and needs to: its engine harvests only coordinator placements, never
- *       a host's vanilla contents — which is also why a check OUTSIDE MM's check pool
- *       gives the round nothing (M2d measures what that costs MM's goal).
+ *       nothing and need not: its engine harvests coordinator placements and, since
+ *       #737 (the engine's A7), the FIXED contents of reached checks OUTSIDE MM's
+ *       check pool — never a pooled host's pre-written vanilla item, which is the
+ *       coordinator's to decide.
  *
  * ============================================================================
  * WHY THE `rando` TIER
@@ -268,6 +269,10 @@ int OoT_ComboLogic_TestCounterItemId(int kind);
 // budget (ComboLogicEngineOoT.cpp / ComboLogicEngineSingleExe.cpp).
 uint16_t OoT_ComboLogic_StartingHealth(void);
 uint16_t MM_ComboLogic_StartingHealth(void);
+// #737's lock (lane G1): A7's test switch and the fixed contents it grants
+// (ComboLogicEngineSingleExe.cpp; duplicates of test_combo_single_bag.c's).
+int MM_ComboLogic_TestSetFixedGrants(int enabled);
+int MM_ComboLogic_TestFixedContents(int remainsOnly, uint16_t* outItems, uint16_t* outChecks, int cap);
 
 // libultraship's C CVar bridge, for the plentiful profile's MM options.
 void CVarSetInteger(const char* name, int32_t value);
@@ -1229,8 +1234,16 @@ TestResult ComboLogicMeasure_Run(void) {
     //       a trap, whose give leaves the save).
     // M2b=1 says MM's composed progression carries Majora. M2b=0 with M2c=1 says a
     // FILLER-class item is load-bearing for MM's goal — the #733 class, which the
-    // composition must not leave open. Printed, not asserted: it measures the
-    // fixture. RunRound has no bag cap.
+    // composition must not leave open. RunRound has no bag cap.
+    //
+    // ONE ASSERTION HERE, and it is #737's lock rather than a number about the
+    // fixture: M2b reads goalMM=1 on every profile, because MM's engine grants the
+    // fixed contents of reached checks outside the check pool (A7) — on the shipped
+    // and plentiful profiles that is where the boss remains are. Before #737's fix
+    // M2b read 0 on both. The red half is observed in the same run: with A7 switched
+    // off (MM_ComboLogic_TestSetFixedGrants, test only) M2b reads goalMM=0 whenever
+    // the profile leaves any boss remains fixed; on the maximal profile nothing is
+    // fixed and there is no red half to observe, which the row prints.
     {
         std::vector<ComboLogicBagItem> required;
         std::vector<ComboLogicBagItem> withFiller;
@@ -1265,9 +1278,10 @@ TestResult ComboLogicMeasure_Run(void) {
         }
         // M2d: + the VANILLA item of every MM graph check that is NOT in the check
         // pool — the fixed contents MM's own creation leaves in place (a category
-        // whose shuffle is off keeps its vanilla item) and that MM's engine never
-        // harvests (it grants only coordinator placements). M2c=0 with M2d=1 says
-        // MM's goal needs those fixed contents: a harvest the engine does not do.
+        // whose shuffle is off keeps its vanilla item). Found by lane K9 as the
+        // mechanism of #737 (M2c=0, M2d=1). Since A7 the engine grants those
+        // contents itself when their checks are reached, so M2d now assumes copies
+        // A7 also grants: it can only agree with M2b, and is kept as that cross-check.
         std::vector<ComboLogicBagItem> withFixed = withFiller;
         int fixedRows = 0;
         int fixedProgression = 0;
@@ -1297,6 +1311,7 @@ TestResult ComboLogicMeasure_Run(void) {
                 fixedProgression += (Combo_ItemClassOf(row.item) == RSBS_FILL_CLASS_PROGRESSION) ? 1 : 0;
             }
         }
+        int m2bGoalMM = -1;
         const std::vector<ComboLogicBagItem>* sets[3] = { &required, &withFiller, &withFixed };
         const char* names[3] = { "M2b MM REQUIRED rows", "M2c + MM filler rows", "M2d + MM fixed vanilla contents" };
         printf("[TEST] combo-logic-measure: M2d adds %d fixed vanilla contents of MM graph checks outside the check pool "
@@ -1317,6 +1332,35 @@ TestResult ComboLogicMeasure_Run(void) {
                    "beat-both=%d candidatesMM=%d — against goalMM=%d for the measurement bag\n",
                    names[s], req.assumedCount, (s >= 1) ? fillerRows : 0, ms, res.goalOoT, res.goalMM,
                    res.goalExpression, res.candidatesMM, firstRound.goalMM);
+            if (s == 0) {
+                m2bGoalMM = res.goalMM;
+            }
+        }
+
+        // #737's lock, both halves (see the block comment above M2b).
+        const int fixedRemains = MM_ComboLogic_TestFixedContents(1, nullptr, nullptr, 0);
+        const int fixedAll = MM_ComboLogic_TestFixedContents(0, nullptr, nullptr, 0);
+        ComboLogicRoundRequest offReq;
+        memset(&offReq, 0, sizeof(offReq));
+        offReq.assumed = required.data();
+        offReq.assumedCount = (int)required.size();
+        offReq.goal = RSBS_COMBO_GOAL_BEAT_BOTH;
+        ComboLogicRoundResult offRes;
+        memset(&offRes, 0, sizeof(offRes));
+        const int wasOn = MM_ComboLogic_TestSetFixedGrants(0);
+        const int offStatus = Combo_Logic_RunRound(&offReq, &offRes);
+        MM_ComboLogic_TestSetFixedGrants(wasOn);
+        printf("[TEST] combo-logic-measure: #737: %d fixed MM contents outside the check pool (%d boss remains); M2b "
+               "goalMM=%d with the fixed grant, goalMM=%d without it%s\n",
+               fixedAll, fixedRemains, m2bGoalMM, offRes.goalMM,
+               (fixedRemains > 0) ? "" : " (nothing fixed on this profile: no red half to observe)");
+        CLM_ASSERT(wasOn == 1, "MM's fixed-content grant was switched off before M2b");
+        CLM_ASSERT(m2bGoalMM == 1, "M2b: MM's composed REQUIRED rows plus the fixed contents MM's engine grants do "
+                                   "not prove Majora (#737)");
+        CLM_ASSERT(offStatus == RSBS_COMBO_LOGIC_OK, "the switched-off M2b round did not succeed");
+        if (fixedRemains > 0) {
+            CLM_ASSERT(offRes.goalMM == 0, "M2b proves Majora without the fixed boss remains, so #737's lock observed "
+                                           "no red half");
         }
     }
 
