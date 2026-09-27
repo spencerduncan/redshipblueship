@@ -28,6 +28,12 @@
 
 #include "combo_goal.h"
 
+// z64.h includes <memory> under __cplusplus. Included first here, outside the
+// extern "C" block below: libstdc++ refuses templates with C linkage, so a
+// first sight of <memory> inside that block fails to compile with GCC 11 on
+// Linux (MSVC accepts it, which is how it passed the Windows build).
+#include <memory>
+
 extern "C" {
 #include <z64.h>
 #include "variables.h"
