@@ -832,6 +832,11 @@ const MMRandoTrickId kBoundTricks[] = {
     // part 2. Logic/Regions/WoodfallTemple.cpp (the water-room hive) and
     // Logic/Regions/PiratesFortress.cpp (RE_PIRATE_FORTRESS_BEEHIVE_HIT).
     MMRT_HIVE_BOMBCHU,
+    // #697 third pass (a TIGHTENING). Logic/Logic.h's CanKillEnemy(ACTOR_BOSS_02):
+    // the Bow alone no longer kills Twinmold tricks-off, as in OoTMM.
+    MMRT_TWINMOLD_BOW,
+    // #697 third pass. The same row; non-vacuous now that the Bow is gated.
+    MMRT_TWINMOLD_FIRE_AND_ICE,
     // part 1 (finding (b)). Logic/Regions/GreatBayTemple.cpp — the compass-room
     // boss-key connection.
     MMRT_GBT_BOSS_KEY_ICE,

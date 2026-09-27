@@ -839,7 +839,21 @@ inline bool CanKillEnemy(ActorId EnemyId) {
                    (Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_ODOLWA) ||
                     RANDO_SAVE_OPTIONS[RO_SHUFFLE_BOSS_SOULS] == RO_GENERIC_NO);
         case ACTOR_BOSS_02: // Twinmold
-            return (HAS_ITEM(ITEM_BOW) || (HAS_ITEM(ITEM_MASK_GIANT) && HAS_MAGIC && CAN_USE_HUMAN_SWORD)) &&
+            // #697 — MMRT_TWINMOLD_BOW and MMRT_TWINMOLD_FIRE_AND_ICE, both DEFAULT OFF. A TIGHTENING:
+            // this row admitted the Bow alone unconditionally, and OoTMM's macros_mm.yml gates exactly
+            // that behind a trick — "can_kill_twinmold": `soul_boss(...) && ((trick(MM_TWINMOLD_BOW) &&
+            // has_arrows) || (trick(MM_TWINMOLD_FIRE_AND_ICE) && can_use_fire_arrows &&
+            // can_use_ice_arrows) || (has_magic && ((has(MASK_GIANT) && has_sword) || has(MASK_FIERCE_DEITY))))`.
+            // Same class as the Powder Keg (#578 finding (a)), the GBT boss-key edge (finding (b)) and
+            // Deku-Stick combat (#719), which the operator ruled "sync and gate"; the 2026-09-27
+            // directive makes OoTMM the reference for exactly this choice. So the shipped rung now wants
+            // the Giant's Mask (with magic and a sword) for Twinmold, and the Bow only under the trick.
+            // The Fire+Ice key stops being vacuous as a result (it was implied by the ungated Bow).
+            // OoTMM's Fierce Deity leg is a tricks-off difference, not a trick, and is not added here.
+            return ((MM_TRICK(MMRT_TWINMOLD_BOW) && HAS_ITEM(ITEM_BOW)) ||
+                    (MM_TRICK(MMRT_TWINMOLD_FIRE_AND_ICE) && CAN_USE_MAGIC_ARROW(FIRE) &&
+                     CAN_USE_MAGIC_ARROW(ICE)) ||
+                    (HAS_ITEM(ITEM_MASK_GIANT) && HAS_MAGIC && CAN_USE_HUMAN_SWORD)) &&
                    (Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_TWINMOLD) ||
                     RANDO_SAVE_OPTIONS[RO_SHUFFLE_BOSS_SOULS] == RO_GENERIC_NO);
         case ACTOR_BOSS_03: // Gyorg
