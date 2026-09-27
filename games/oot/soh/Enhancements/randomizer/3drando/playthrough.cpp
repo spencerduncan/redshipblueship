@@ -20,6 +20,7 @@
 // src/common — MM_Rando_ComputeProfileStamp (defined MM-side, Foreign.cpp):
 // the creation event freezes the MM half's option profile too (#498/#564).
 #include "combo_mm_options_view.h"
+#include "triforce_hunt.h" // src/common — the frozen O10 triforce record (ADR 0010)
 #include "gen_budget.h" // src/common — the #582 progress surface (OoT's half)
 // ComboLogicEngineOoT.cpp: the paired world's general pass, deferred to the
 // single-bag fill at the creation event (ADR 0010 increment 3, lane K11).
@@ -146,6 +147,7 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     const uint32_t rsbsPriorMmProfileDigest = gComboCtx.mmProfileDigest;
     const ComboSettingsRecord rsbsPriorComboSettings = gComboCtx.comboSettings;
     const uint32_t rsbsPriorComboSettingsHash = gComboCtx.comboSettingsHash;
+    const ComboTriforceRecord rsbsPriorComboTriforce = gComboCtx.comboTriforce;
     const uint32_t rsbsPriorGiveCaps = Combo_ForeignGiveCaps((uint8_t)GAME_MM);
     const bool rsbsPriorGiveCapsPublished = Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM);
     auto rsbsRollbackFreeze = [&]() {
@@ -155,6 +157,7 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         gComboCtx.mmProfileDigest = rsbsPriorMmProfileDigest;
         gComboCtx.comboSettings = rsbsPriorComboSettings;
         gComboCtx.comboSettingsHash = rsbsPriorComboSettingsHash;
+        gComboCtx.comboTriforce = rsbsPriorComboTriforce;
         Combo_ClearForeignGiveCaps();
         if (rsbsPriorGiveCapsPublished) {
             Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, rsbsPriorGiveCaps);
@@ -247,6 +250,39 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
                     gComboCtx.comboSettingsHash);
     }
 
+    // ADR 0010 answer O10: under the combo goal triforce-hunt, the ONE piece
+    // count's requirement and the split of pieces between the two pools freeze
+    // HERE, from each half's own settings (the rule is at ComboTriforceRecord,
+    // context.h). Every other goal — the shipped default among them — stores
+    // four zero bytes and this block changes nothing. Reads settings only, so it
+    // consumes no RNG and moves no world. A hunt the rule cannot describe (no
+    // pieces in either pool, a half requiring more than it holds, a combo total
+    // past OoT's 8-bit counter) is refused like a failed fill: rolled back,
+    // nothing generated.
+    {
+        ComboTriforceHalf ootHalf = { 0, 0 };
+        ComboTriforceHalf mmHalf = { 0, 0 };
+        // The halves are only resolved for a hunt: every other world reads
+        // nothing here, not even MM's CVars.
+        if (gComboCtx.comboSettings.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) {
+            if (ctx->GetOption(RSK_TRIFORCE_HUNT).IsNot(RO_TRIFORCE_HUNT_OFF)) {
+                ootHalf.total = (uint16_t)(ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_TOTAL).Get() + 1);
+                ootHalf.required = (uint16_t)(ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED).Get() + 1);
+            }
+            MM_Rando_ResolveTriforceHalf(/*fromSave=*/0, &mmHalf.total, &mmHalf.required);
+        }
+        const int triforceStatus = Combo_TriforceFreezeAtCreation(&ootHalf, &mmHalf);
+        if (triforceStatus != RSBS_TRIFORCE_OK) {
+            SPDLOG_ERROR("Paired identity: the combo goal is triforce-hunt but the two halves' piece settings cannot "
+                         "describe one ({}: OoT {} of {}, MM {} of {}); aborting generation (ADR 0010 O10)",
+                         Combo_TriforceStatusName(triforceStatus), ootHalf.required, ootHalf.total, mmHalf.required,
+                         mmHalf.total);
+            rsbsRollbackFreeze();
+            Combo_GenProgress_End(false);
+            return -1;
+        }
+    }
+
     // THE GATE'S SECOND ACT (#657). Asking the CVars before Fill() is only half
     // of what ADR 0009 decision 2 designed: the answer then has to be FROZEN, so
     // that every later reader — the file-create seam, both placement passes,
@@ -267,19 +303,21 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         return -1;
     }
 
-    // THE GOAL MUST HAVE AN EVALUATOR, AND THIS IS WHERE A CREATION CAN STILL BE
-    // TOLD SO (ADR 0010 increment 3, lane K11). The single-bag fill's exit
-    // condition is the frozen GOAL, and RSBS_COMBO_GOAL_TRIFORCE_HUNT has no
-    // evaluator in this build: answer O10's ONE shared piece count across both
-    // worlds is not on main (combo_logic.h, RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL).
-    // Refused HERE, at Generate, with the reason, rather than after the player has
-    // named a file — and never silently proved as beat-both, which would ship a
-    // world whose stated goal is not the one that was proved.
+    // THE SINGLE BAG DOES NOT YET CARRY A HUNT, AND THIS IS WHERE A CREATION CAN
+    // STILL BE TOLD SO (ADR 0010 increment 3, lane K11). Answer O10's shared
+    // piece count (triforce_hunt.h) and the coordinator's triforce-hunt predicate
+    // exist, but the single-bag fill this lane wires does not pass the frozen
+    // requirement to it, and nothing here proves that each half's pieces are
+    // bag rows the proof can count rather than leftovers a junk pass scatters
+    // without logic. Until that is built and locked, a paired triforce-hunt
+    // world is refused HERE, at Generate, with the reason, rather than after the
+    // player has named a file — and never proved as something else, which would
+    // ship a world whose stated goal is not the one that was proved.
     if (gComboCtx.comboSettings.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) {
-        SPDLOG_ERROR("Paired identity: the combo GOAL is triforce-hunt, which this build cannot prove (ADR 0010 "
-                     "O10's shared piece count is not built); refusing to generate");
-        fprintf(stderr, "[OoT] generation REFUSED: combo GOAL triforce-hunt has no evaluator in this build (one "
-                        "shared piece count across both worlds, ADR 0010 O10, is not built yet)\n");
+        SPDLOG_ERROR("Paired identity: the combo GOAL is triforce-hunt, which the single-bag fill does not carry yet "
+                     "(ADR 0010 increment 3); refusing to generate");
+        fprintf(stderr, "[OoT] generation REFUSED: combo GOAL triforce-hunt is not carried by the single-bag fill yet "
+                        "(ADR 0010 increment 3; the O10 shared count exists, the bag's hunt wiring does not)\n");
         rsbsRollbackFreeze();
         Combo_GenProgress_End(false);
         return -1;

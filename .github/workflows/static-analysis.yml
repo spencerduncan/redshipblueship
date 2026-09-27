@@ -98,3 +98,28 @@ jobs:
           else
             echo "No issues found!" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  ui-parity-lint:
+    # The static half of docs/ui-style-guide.md's lint: this project's ImGui
+    # surfaces against the SoH menu conventions (raw widgets, literal colours,
+    # TextDisabled for meaning, issue numbers in player text, window-button shape,
+    # ...). Fails on any hit not in .github/scripts/ui-lint-baseline.txt and on
+    # any baseline entry that is no longer hit. On a pull request it also fails
+    # when that baseline or the runtime lint's (ui-runtime-lint-baseline.txt)
+    # GAINED an entry relative to the base branch: without that, a PR could add
+    # a hit and the matching baseline line together and pass, and "the
+    # baselines may only shrink" would be a request rather than a check.
+    # Build-free; the runtime half runs inside the UiSnapshot ctest row.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The base branch's copies of the baselines are read with git show.
+          fetch-depth: 0
+      - name: Self-test the UI parity lint
+        run: python3 .github/scripts/check-ui-parity-lint.py --self-test
+      - name: Check this project's UI against the SoH conventions
+        run: python3 .github/scripts/check-ui-parity-lint.py
+      - name: The lint baselines may only shrink
+        if: github.event_name == 'pull_request'
+        run: python3 .github/scripts/check-ui-parity-lint.py --no-grow-against "origin/${{ github.base_ref }}"

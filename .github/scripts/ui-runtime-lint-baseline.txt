@@ -1,0 +1,36 @@
+# Runtime UI lint baseline (the UiSnapshot row, docs/ui-style-guide.md section 13).
+#
+# One ACCEPTED hit per line, exactly as build/ui-snapshots/runtime-lint.txt prints it:
+# rule | where | row. These are this project's rows that do not yet follow the SoH
+# conventions -- the migration list -- recorded so the row fails on anything NEW.
+# The baseline may only SHRINK: a fixed row makes its line stale and the row fails
+# until the line is deleted. Never add a line to make the row pass. R2w/R4w are
+# warnings and are never listed here.
+R3 | Combo/MM Enhancements | Applies to both games. The control is Enhancements -> Saving -> "Autosave"; clicking it re
+R3 | Combo/MM Enhancements | Game Over Prompt
+R3 | MM options pane | Retired (ADR 0010 O1): no code will ever read this option
+R3 | MM options pane | Retired: this option never had a consumer and, by operator ruling (ADR 0010 answer O1), ne
+R3 | MM options pane/Tricks | No logic binding yet (#578 part 3)
+R3 | Randomizer/Cross-Game | The cross-game combo rules, the cross-game windows and Majora's Mask's trackers now live u
+R3 | cvar_shared_keys.h/kHostedMmEnhancements | Autosave (hosted under Enhancements)
+R3 | cvar_shared_keys.h/kHostedMmEnhancements | Game Over Prompt
+R4 | Combo/Cross-Game Rules | Majora's Mask item class: dungeon-items :: not Title Case
+R4 | Combo/Cross-Game Rules | Majora's Mask item class: dungeon-reward :: not Title Case
+R4 | Combo/Cross-Game Rules | Majora's Mask item class: masks :: not Title Case
+R4 | Combo/Cross-Game Rules | Majora's Mask item class: progression :: not Title Case
+R4 | Combo/Cross-Game Rules | Majora's Mask item class: sidequest :: not Title Case
+R4 | Combo/Cross-Game Rules | Majora's Mask item class: songs :: not Title Case
+R4 | Combo/Cross-Game Rules | Ocarina of Time item class: dungeon-items :: not Title Case
+R4 | Combo/Cross-Game Rules | Ocarina of Time item class: dungeon-reward :: not Title Case
+R4 | Combo/Cross-Game Rules | Ocarina of Time item class: masks :: not Title Case
+R4 | Combo/Cross-Game Rules | Ocarina of Time item class: progression :: not Title Case
+R4 | Combo/Cross-Game Rules | Ocarina of Time item class: sidequest :: not Title Case
+R4 | Combo/Cross-Game Rules | Ocarina of Time item class: songs :: not Title Case
+R4 | Combo/Cross-Game Rules | [Both Games] Majora's Mask items into Ocarina of Time checks (max): %d :: not Title Case
+R4 | Combo/Cross-Game Rules | [Both Games] Ocarina of Time items into Majora's Mask checks (max): %d :: not Title Case
+R4 | Combo/Cross-Game Rules | [Both Games] Shared Ocarina (one instrument in both games) :: not Title Case
+R6 | Combo/Cross-Game Rules | Already decided: this paired world's cross-game rules were f
+R6 | Combo/Cross-Game Rules | These freeze into the paired world's identity. The world you
+R6 | Combo/Cross-Game Rules | These freeze into the paired world's identity. They govern t
+R6 | Combo/MM Enhancements | Applies to both games. The control is Enhancements -> Saving
+R6 | Randomizer/Cross-Game | The cross-game combo rules, the cross-game windows and Major

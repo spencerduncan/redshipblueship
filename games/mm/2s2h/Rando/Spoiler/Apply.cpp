@@ -29,8 +29,10 @@ namespace Spoiler {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 // Lane C1 follow-up (#392): rebuild gComboCtx.foreignPlacements from a loaded
-// spoiler's "foreign" section — the spoiler-LOAD counterpart of generation's
-// Rando::Foreign::PlaceForeignItems (games/mm/2s2h/Rando/Foreign.cpp). Without
+// spoiler's "foreign" section — the spoiler-LOAD counterpart of what was
+// generation's Rando::Foreign::PlaceForeignItems (retired, ADR 0010 increment 3:
+// a new world's pinned table is empty and its crossings reload through the
+// crossing store's combo.crossingStore section instead). Without
 // this a paired MM world entered via the LOAD path never rebuilds the placement
 // table, and its foreign checks silently degrade to the junk-class MM item they
 // physically hold (the gap the C1 landing on #392 noted).
@@ -454,7 +456,7 @@ void ApplyToSaveContext(nlohmann::json spoiler) {
     // Lane C1 follow-up (#392): a paired MM world entered via the spoiler-LOAD
     // path must rebuild its cross-game placements from the spoiler, or its
     // foreign checks degrade to the junk they physically hold. This is the LOAD
-    // counterpart of generation's Rando::Foreign::PlaceForeignItems. Runs after
+    // counterpart of the retired Rando::Foreign::PlaceForeignItems. Runs after
     // the checks are applied; never touches sharedItemsTagged (redemption-safe).
     ReconstructForeignPlacements(spoiler);
 #endif

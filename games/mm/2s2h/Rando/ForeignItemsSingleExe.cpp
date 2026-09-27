@@ -48,8 +48,9 @@
  * The lane brief offers two ways out: restrict the pool to a hand-audited
  * NULL-play-safe RI_* set, or move redemption to the gameplay-gated frame-tick
  * safe point shared_items.h:52-64 already defines. This TU takes the second,
- * for a reason specific to how the work is split: the reverse-direction pool
- * (kForeignPoolMMV1) is authored by a DIFFERENT lane, later. An allowlist
+ * for a reason specific to how the work was split: the reverse-direction pool
+ * (kForeignPoolMMV1, since retired) was authored by a DIFFERENT lane, later,
+ * and under one bag any MM progression item may arrive here. An allowlist
  * audited against today's pool would be a correctness guarantee that silently
  * expires the moment somebody adds a row — the failure mode being a crash on
  * the arrival path, i.e. the worst place to learn about it. Deferral is
@@ -342,7 +343,7 @@ extern "C" int MM_ForeignItem_TestItemIdMax(void) {
 }
 
 /** The REAL id predicate MM_ForeignItem_Give gates on. Exposed rather than
- *  re-derived in the test for the same reason MM_Rando_Foreign_IsEligibleHost
+ *  re-derived in the test for the same reason MM_Rando_Foreign_TestIsForeignHostClass
  *  is: a lock that paraphrases the rule stops testing it the moment the rule
  *  moves. */
 extern "C" int MM_ForeignItem_TestIsGiveableId(uint16_t riId) {
@@ -351,7 +352,7 @@ extern "C" int MM_ForeignItem_TestIsGiveableId(uint16_t riId) {
 
 /** Is `riId` declared RITYPE_JUNK in MM's item table? (#510)
  *
- *  The observable for kForeignPoolMMV1's membership rule (2) — "no junk-class
+ *  The observable for the retired kForeignPoolMMV1's membership rule (2) — "no junk-class
  *  item may be a cross-game SOURCE, because junk is what a foreign HOST degrades
  *  to". Reported from MM's real table rather than re-derived in the test, so a
  *  row whose type changes upstream moves the lock with it instead of leaving it

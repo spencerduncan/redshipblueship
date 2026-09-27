@@ -170,6 +170,9 @@
  *      predicate; until it has one, increment 4 must consult
  *      `Rando::IsEligibleHost` before choosing a shop host for a foreign item.
  *      That is stated in the PR as a contract gap, not worked around here.
+ *      [Closed by ABI 5, lane K11: the vtable's `hostAcceptsForeign`, answered
+ *      here by Rando::Foreign::IsForeignHostClass, is that per-origin predicate;
+ *      IsEligibleHost retired with the overlay pass.]
  *
  * (A4) The host universe is LARGER THAN THE COORDINATOR'S SCRATCH BUFFER, and
  *      that is a fact about MM rather than a choice here: MM's graph names about
@@ -885,6 +888,22 @@ int GoalReached(void* self) {
     return Rando::Logic::MmGoalMajoraDefeated(crawl) ? 1 : 0;
 }
 
+/**
+ * `triforcePieces` (ABI 4, ADR 0010 answer O10): MM's half of the ONE shared
+ * piece count — `foundTriforcePieces` in the snapshotted live save, which is
+ * where this engine's give path (MmGiveOneCopy, for both `assumeOwnItem` and
+ * the per-host harvest) puts every piece the round granted, clamped at the
+ * seed's `RO_TRIFORCE_PIECES_MAX`. A pure read; the round's restore puts the
+ * counter back with the rest of the save.
+ */
+int TriforcePieces(void* self) {
+    (void)self;
+    if (!sRound.inRound) {
+        return 0;
+    }
+    return (int)gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces;
+}
+
 int Place(void* self, uint16_t hostCheck, SharedItem item) {
     (void)self;
     if (item.originGame != (uint8_t)GAME_OOT && item.originGame != (uint8_t)GAME_MM) {
@@ -962,7 +981,7 @@ void ClearPlacements(void* self) {
 }
 
 /**
- * May an OoT-origin item be placed on this MM host (combo_logic.h ABI 4)? Only on
+ * May an OoT-origin item be placed on this MM host (combo_logic.h ABI 5)? Only on
  * the host class MM's foreign give path delivers from — the class the forward
  * overlay pass always used (Rando::Foreign::IsForeignHostClass, Foreign.cpp):
  * a check whose `.eligible` bit game code arms on the ordinary CheckQueue path,
@@ -1012,12 +1031,12 @@ const ComboLogicEngine kMmEngine = {
     /* endQuery          */ EndQuery,
     /* snapshot          */ Snapshot,
     /* restore           */ Restore,
+    /* triforcePieces    */ TriforcePieces,
     /* hostAcceptsForeign*/ HostAcceptsForeign,
 };
 
 /**
- * File-scope registrar, the same shape as kForeignPoolMMV1's in
- * ForeignItemsSingleExe.cpp. Registration STORES A POINTER and calls nothing, so
+ * File-scope registrar, the same shape as the (retired) kForeignPoolMMV1's was. Registration STORES A POINTER and calls nothing, so
  * running it at static-initialisation time is safe in both directions: the
  * coordinator's registry is a zero-initialised static array with no dynamic
  * initialiser of its own, and none of the functions above runs until somebody

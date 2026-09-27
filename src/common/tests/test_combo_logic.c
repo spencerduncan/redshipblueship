@@ -965,7 +965,8 @@ TestResult Test_ComboLogicEngineSurface(void) {
               "beat-either must not be narrowed to an XOR (ADR 0010 §1.2)");
     CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_BEAT_EITHER, 0, 0) == 0, "beat-either: neither half");
     CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_TRIFORCE_HUNT, 1, 1) == -1,
-              "triforce-hunt has no evaluator until answer O10's shared piece count exists");
+              "triforce-hunt is a COUNT (answer O10): the boolean form must not answer it "
+              "(Combo_Logic_EvaluateTriforceHunt does; locked by combo-triforce-hunt)");
     CL_ASSERT(Combo_Logic_EvaluateGoal(0u, 1, 1) == -1, "an unpinned GOAL value has no evaluator");
 
     // --- the fill's refusals, before any world is authored ----------------
@@ -1000,7 +1001,8 @@ TestResult Test_ComboLogicEngineSurface(void) {
         const int mmCalls2 = gClMM.placeCalls;
         CL_ASSERT(ClRunFill(bag, 1, RSBS_COMBO_GOAL_TRIFORCE_HUNT, RSBS_COMBO_RUNG_BEATABLE, 1u, &res) ==
                       RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL,
-                  "triforce-hunt must refuse rather than be evaluated as beat-both");
+                  "triforce-hunt over engines with no triforcePieces query must refuse rather than be evaluated as "
+                  "beat-both");
         CL_ASSERT(gClOoT.placeCalls == ootCalls2 && gClMM.placeCalls == mmCalls2,
                   "an unsupported goal must be caught before anything is placed");
         CL_ASSERT(res.placed == 0 && res.attempts == 0, "and no attempt may have run");
@@ -2036,7 +2038,7 @@ TestResult ClComposeLeg(void) {
 
 
 // ---------------------------------------------------------------------------
-// P. THE PRODUCTION RULES (ABI 4; #645 lane K11): the four things the single-bag
+// P. THE PRODUCTION RULES (ABI 5; #645 lane K11): the four things the single-bag
 //    wiring needs from the coordinator, locked over the stub engines — HOME_ONLY
 //    rows, the per-engine foreign-host predicate, the fill observer's stop, and
 //    CONFINED rows admitted home-only. Each leg carries its counterfactual, so a
@@ -2090,7 +2092,7 @@ void ClCountCrossings(int* intoOoT, int* intoMM, bool* ootForeignOnly41) {
 }
 
 TestResult ClProductionRulesLeg(void) {
-    CL_ASSERT(RSBS_COMBO_LOGIC_ENGINE_ABI == 4u, "P0: the production wiring is ABI 4");
+    CL_ASSERT(RSBS_COMBO_LOGIC_ENGINE_ABI == 5u, "P0: the production wiring is ABI 5");
     const uint8_t O = (uint8_t)GAME_OOT;
     const uint8_t M = (uint8_t)GAME_MM;
     const uint16_t oItems[4] = { kOotSword, kOotHook, kOotLens, kOotBoots };

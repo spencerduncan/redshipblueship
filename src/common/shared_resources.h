@@ -18,8 +18,9 @@
  * game with a single magic meter" — then ammo: the quiver, bomb-bag, stick
  * and nut capacity TIERS plus the arrow, bomb, bombchu, stick and nut COUNTS —
  * then the hookshot — and, behind a per-world setting, the ocarina (#668).
- * That is what justifies the matching pool shrink in `kForeignPoolMMV1`
- * (#525): with one wallet, one health bar, one magic meter, one quiver and one
+ * That is what justified the matching pool shrink in the (since retired,
+ * ADR 0010 increment 3) `kForeignPoolMMV1` (#525), and what the O8
+ * classification owner now decides once: with one wallet, one health bar, one magic meter, one quiver and one
  * hookshot spanning both games, MM's wallet/heart/double-defense/magic/ammo/
  * hookshot rows are no longer separate items to cross — they ARE the shared
  * resource, so shipping them as foreign placements too would hand the player a
@@ -147,17 +148,19 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 19u
+#define RSBS_SHARED_RES_KIND_COUNT 20u
 
 /**
  * Is `kind` ARMED for this world?
  *
- * Seventeen of the eighteen kinds are unconditional: #525 decided that both
+ * Seventeen of the nineteen kinds are unconditional: #525 decided that both
  * games share one wallet, one health bar, one magic meter, one set of ammo and
  * one hookshot, and no save can turn that off. RSBS_SHARED_RES_OCARINA_TIER
  * (#668) is the first that a PLAYER chooses, through the tier-4
  * `gCombo.Rando.SharedOcarina` key frozen into ComboSettingsRecord.comboFlags
- * at file creation.
+ * at file creation. RSBS_SHARED_RES_TRIFORCE_PIECES (ADR 0010 O10) is the
+ * second: armed only while the FROZEN combo goal is triforce-hunt with a valid
+ * frozen triforce record (Combo_TriforceHuntArmed, triforce_hunt.h).
  *
  * THE GATE LIVES HERE, ONCE, AND BOTH ENTRY POINTS CONSULT IT. A gate written
  * into the four per-game call sites instead would be four chances to gate one

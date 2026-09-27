@@ -1247,3 +1247,91 @@ narrowing itself is now delivered, on branch
 
 The O8 row reads **delivered, 2026-09-26** with this entry, and decision 3.5's
 "do not ship it early" is discharged: it shipped after both gates were open.
+
+### 2026-09-27 -- The O10 triforce record: a 4-byte carve at 896 beside the combo record (format note)
+
+ADR 0010 answer O10 needs a frozen combo-level triforce requirement and a
+split of pieces between the two pools. The 12-byte record cannot hold it:
+
+- The record is pinned. Its one spare byte (`spare1`) is too small for two
+  counts.
+- A value in the record would also be compared against the live CVar
+  resolution at every arrival. Nothing in the tier-4 keys resolves a triforce
+  count; it is derived from each half's own settings.
+
+So the values go in a separate block. This is the format note.
+
+- **Layout.** `ComboTriforceRecord { totalOoT, requiredOoT, totalMM,
+  requiredMM }` is four `uint8_t` fields, 4 bytes, at `.redsave` Tier-1 offset
+  **896**. It is carved from the front of `reserved[108]`, which is now
+  `reserved[104]` at offset **900**. Both offsets and the member offsets are
+  `RSBS_CTX_STATIC_ASSERT`ed in `context.h`. `test_combo_settings.c` pins 896,
+  900 and 104.
+- **Why the halves and not the sums.** MM's win arm must read the combo
+  requirement in a session where OoT's randomizer settings were never loaded.
+  Storing each half also lets each game re-derive its own half and compare it.
+  A stored sum could not say which half moved.
+- **Zero means absent.** Every world whose goal is not triforce-hunt stores
+  four zero bytes. That is also what a record written before this carve reads
+  as, so no formatVersion is needed.
+  - `RSBS_COMBO_CONTEXT_RECORD_SIZE` (1024) is unchanged, and so is
+    `RSBS_SAVE_VERSION`.
+  - An older build reads the block as reserved headroom.
+  - A pre-carve `.redsave` loads as "no hunt", which is true of every world an
+    older build could author.
+  - No save is invalidated.
+- **Consistency is checked, not trusted.** `Combo_TriforceRecordDivergence`
+  refuses a record that contradicts the combo record's goal, on the load path
+  and on the arrival refusal, as the damage bit `RSBS_COMBO_DIVERGE_TRIFORCE`.
+  The record is not folded into `comboSettingsHash`: its inputs are already in
+  the fingerprint's two half-digests, and folding it would have changed every
+  existing fingerprint's encoding.
+- **Budget.** `reserved[]` is now 104 bytes. That is 40 above ADR 0009's
+  64-byte floor, and the next carver starts from 104.
+- **KEEP set.** The record is authored by the creation event, so
+  `Context_InvalidateSessionState` keeps it with `comboSettings` under
+  `RSBS_SEED_STAMP_KEEP` and drops it on every other path, per decision 4.3's
+  rule.
+
+### 2026-09-27 -- Under one bag: what `poolSize*`, `direction` and `itemClass*` mean now (ADR 0010 increment 3)
+
+ADR 0010 increment 3 (lane K11) replaces both overlay passes with one fill at
+the creation event, and retires the two pinned pools the passes drew from
+(`kForeignPoolV1`, `kForeignPoolMMV1`, with their exclusion tables and
+decision 3's six numbered criteria). Three record fields were defined in
+terms of those passes. None of them changes position, width, value space or
+the canonical encoding, so `comboSettingsHash` and every frozen record keep
+their meaning as identity; what changes is what generation does with them.
+
+- **`poolSizeOoT` / `poolSizeMM`: read by no generation.** They capped how many
+  duplicate copies a pass pinned. Under one bag the number of crossings is an
+  outcome of the fill (how many bag rows the draw puts on the other game's
+  hosts), not a setting. The fields stay in the record because the record is
+  format and both bytes are folded into the fingerprint; changing their
+  meaning would move every world's identity. `Combo_ComboPoolSizeFor` still
+  resolves them for the record's own locks. The pane's two pool-size rows no
+  longer change a world; retiring them from the pane is follow-up work.
+- **`direction`: gates which origins may cross, per bag row.** A bag row whose
+  origin `Combo_ComboDirectionArms` does not arm is `HOME_ONLY`: it is still in
+  the bag, still assumed, still proved, and the fill places it only on its own
+  game's checks. `OFF` is therefore one fill with one proof and zero crossings,
+  which is the decision 2.3 amendment's reading of OFF (a paired world, not an
+  unpaired one). `FORWARD` and `REVERSE` let one origin cross and keep the
+  other home.
+- **`itemClassOoT` / `itemClassMM`: the PROGRESSION bit gates crossing.** Every
+  bag row is progression by construction (the O8 owner admits only
+  progression, plus CONFINED rows as `HOME_ONLY`), so the only bit the fill can
+  read is `RSBS_ITEMCLASS_PROGRESSION`: clear, and every row of that origin is
+  `HOME_ONLY`. The other allocated bits have no rows to select among. Decision
+  3's ordering survives in its new home: classification (the bag builder) runs
+  first, and the bitset only narrows where a classified row may land.
+- **The criteria.** Criteria 1, 2, 3 and 5 are the O8 owner's classes
+  (sentinels and junk are not progression, a trap is its own class, a
+  capability row enters only when its arming conditions hold). Criterion 4 (no
+  world event) is a row armed by nothing. Criterion 6 (#525's shared resources)
+  is reconciled once in the owner table (#731). The numbered constants and the
+  per-pool exclusion tables are deleted rather than retired in place: they
+  were never format.
+
+No save is invalidated by the record; the worlds move because the fill does
+(ADR 0010's 2026-09-27 increment-3 amendment).

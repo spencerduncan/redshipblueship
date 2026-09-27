@@ -2299,9 +2299,19 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     // A REAL paired generation under the live CVars (lane K11): the single-bag
     // fill needs OoT's world under the identity, so no leg stamps one by hand.
     if (K11PairedOoTGenerate(kExhaustSeed) != 0) {
-        fprintf(stderr, "[MM-EXHAUST] FAIL(20): the OoT half of the pinned seed could not be generated\n");
-        return 20;
+        fprintf(stderr, "[MM-EXHAUST] FAIL(21): the OoT half of the pinned seed could not be generated\n");
+        return 21;
     }
+    // The O10 triforce record (ADR 0010) a triforce-hunt creation would have
+    // frozen in Playthrough_Init before this seam ran. A paired world cannot be
+    // a hunt yet (the creation refuses that GOAL until the bag carries the
+    // pieces), so it is planted over the real generation's zero record: the retraction below must take it with the
+    // rest of the identity (FAIL(20)), or the context is left holding a hunt
+    // record beside an absent goal, which reads as damage.
+    gComboCtx.comboTriforce.totalOoT = 5;
+    gComboCtx.comboTriforce.requiredOoT = 3;
+    gComboCtx.comboTriforce.totalMM = 4;
+    gComboCtx.comboTriforce.requiredMM = 3;
 
     // THE CREATION EVENT, end to end — which since ADR 0010 increment 2 is where
     // a terminal ladder failure lands. It raises the whole refusal surface
@@ -2327,6 +2337,15 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
                 gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.mmProfileDigest,
                 Combo_ComboSettingsFrozen() ? 1 : 0);
         return 19;
+    }
+    if (gComboCtx.comboTriforce.totalOoT != 0 || gComboCtx.comboTriforce.requiredOoT != 0 ||
+        gComboCtx.comboTriforce.totalMM != 0 || gComboCtx.comboTriforce.requiredMM != 0) {
+        fprintf(stderr,
+                "[MM-EXHAUST] FAIL(20): the failed creation left the frozen TRIFORCE record behind (OoT %u of %u, MM "
+                "%u of %u) beside a retracted combo record - a hunt nobody froze (ADR 0010 O10)\n",
+                (unsigned)gComboCtx.comboTriforce.requiredOoT, (unsigned)gComboCtx.comboTriforce.totalOoT,
+                (unsigned)gComboCtx.comboTriforce.requiredMM, (unsigned)gComboCtx.comboTriforce.totalMM);
+        return 20;
     }
     if (!MM_Rando_PairedGenLastExhausted() || MM_Rando_PairedGenLastAttempts() != MM_Rando_PairedGenMaxAttempts()) {
         fprintf(stderr,
@@ -2383,8 +2402,8 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     // A REAL paired generation under the live CVars (lane K11): the single-bag
     // fill needs OoT's world under the identity, so no leg stamps one by hand.
     if (K11PairedOoTGenerate(kExhaustSeed) != 0) {
-        fprintf(stderr, "[MM-EXHAUST] FAIL(20): the OoT half of the pinned seed could not be generated\n");
-        return 20;
+        fprintf(stderr, "[MM-EXHAUST] FAIL(21): the OoT half of the pinned seed could not be generated\n");
+        return 21;
     }
 
     const int counterCreated = OoT_RunPairedCreationEvent(0);
@@ -2437,8 +2456,8 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     // A REAL paired generation under the live CVars (lane K11): the single-bag
     // fill needs OoT's world under the identity, so no leg stamps one by hand.
     if (K11PairedOoTGenerate(kExhaustSeed) != 0) {
-        fprintf(stderr, "[MM-EXHAUST] FAIL(20): the OoT half of the pinned seed could not be generated\n");
-        return 20;
+        fprintf(stderr, "[MM-EXHAUST] FAIL(21): the OoT half of the pinned seed could not be generated\n");
+        return 21;
     }
 
     // ARMED BEFORE the creation runs, which is also the non-vacuity guard on the

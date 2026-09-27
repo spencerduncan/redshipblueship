@@ -173,6 +173,12 @@ int OoT_MenuRegistrars_RunHeadless(void);
 // the display-free shared bring-up (the keys live in the CVar store). Returns 0
 // on pass, non-zero on fail.
 int OoT_ComboSettingsRows_RunHeadless(void);
+// The UI snapshot harness (games/oot/soh/soh_ui_snapshot.cpp): renders SoH's own
+// menu pages and every page this project added into PNGs, a text log and a
+// manifest under RSBS_UI_SNAPSHOT_OUT, and asserts STRUCTURE only (drawn, not
+// blank, reachable, converged, isolated). Needs a window; `ui` label.
+// Returns 0 on pass, non-zero on fail.
+int OoT_UiSnapshot_Run(const char* pages, const char* outDir);
 // SohMenu capability gating and the shared-intent marker
 // (games/oot/soh/soh_menu_capability_test.cpp, #497 steps 3 and 5). ADR 0004 §5:
 // a row may declare a capability and must render disabled-WITH-REASON when it is
@@ -657,6 +663,12 @@ extern "C" {
 // check and region sets never shrinking, a planted negation observed red. Same
 // tier, FILE SCOPE / C++ compilation and reason as the two rows above.
 #include "tests/test_combo_logic_monotonicity.c"
+// ADR 0010 answer O10: one shared triforce piece count across both worlds — the
+// frozen record's rule, the freeze and its refusal, the MONOTONIC discipline pin,
+// the cross-game sum through BOTH games' real shims, the win decision, and the
+// coordinator's triforce-hunt predicate over stub engines. Display-free and
+// ROM-free (`redship` tier). FILE SCOPE (compiled as C++).
+#include "tests/test_triforce_hunt.c"
 // #726: OoT's OWN fill under a plentiful pool — the native full-world harvest
 // never holds a progressive tier past the top, and the wallet never wraps. Same
 // tier, FILE SCOPE / C++ compilation and reason as the rows above.
@@ -666,6 +678,12 @@ extern "C" {
 // coordinator hydrate). ROM-free and display-free; FILE SCOPE (compiled as C++)
 // for rsbs::SaveManager, like test_foreign_items.c.
 #include "tests/test_crossing_store.c"
+// The UI snapshot harness's pixel half (src/common/ui_snapshot_image.c): the PNG
+// writer and decoder, the content hash, the blank-page oracle and the composites,
+// round-tripped over a synthetic image. Display-free and ROM-free, so it runs in
+// the default tier on every PR even though the window-bound harness does not.
+// FILE SCOPE (compiled as C++).
+#include "tests/test_ui_snapshot_image.c"
 // ADR 0010 increment 3 (lane K11): the single-bag fill at the creation event over
 // both real engines, and D5's pair-level locks paired with removal. rando tier;
 // FILE SCOPE (compiled as C++) like its combo-logic siblings.
@@ -2448,6 +2466,16 @@ TestResult Test_MMModsMount(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The UI snapshot harness (see the extern decl above). Everything it takes comes
+// from the environment (RSBS_UI_SNAPSHOT_*), which the harness reads itself, so
+// the wrapper passes nothing. Needs a window and soh.o2r; `ui` label, and
+// skipped by `--test all`.
+TestResult Test_UiSnapshot(void) {
+    const int rc = OoT_UiSnapshot_Run(nullptr, nullptr);
+    printf("[TEST] %s: ui-snapshot rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #705: which folders are each game's loose asset layer. Lists a staged directory
 // tree only — no archive, no Ship::Context — so it never skips.
 TestResult Test_LooseModsDiscovery(void) {
@@ -3623,6 +3651,31 @@ TestResult Test_ComboLogicMonotonicity(void) {
     return ComboLogicMonotonicity_Run();
 }
 
+// ADR 0010 answer O10's win trigger, in BOTH games' real piece-give arms: OoT's
+// Randomizer_Item_Give reads the seed's settings through a generated context,
+// and MM's Rando::GiveItem dispatches GameInteractor hooks, so both need the
+// same bring-up as the rows above. Assertions in
+// games/oot/soh/oot_triforce_hunt_test.cpp and games/mm/2s2h/mm_triforce_hunt_test.cpp.
+extern "C" int OoT_TriforceHuntWin_RunGenerated(void);
+extern "C" int MM_TriforceHuntWin_RunHeadless(void);
+TestResult Test_RandoTriforceHuntWin(void) {
+    printf("[TEST] rando-triforce-hunt-win: a paired triforce hunt ends at the combo requirement, in whichever game "
+           "reaches it (ADR 0010 O10)\n");
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char tfwArg0[] = "redship";
+    static char* tfwArgv[] = { tfwArg0, nullptr };
+    InitOTRForMMFirstBoot(1, tfwArgv);
+    const int oot = OoT_TriforceHuntWin_RunGenerated();
+    const int mm = MM_TriforceHuntWin_RunHeadless();
+    printf("[TEST] %s: rando-triforce-hunt-win (OoT rc=%d, MM rc=%d)\n", (oot == 0 && mm == 0) ? "PASS" : "FAIL", oot,
+           mm);
+    return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
+}
+
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason; the row
 // body lives in tests/test_combo_logic_measure.c beside the composition helpers
@@ -4384,6 +4437,18 @@ const TestDescriptor gTests[] = {
      "A loose file under each game's mods partition overrides its base archive and packed mods, is re-applied on "
      "arrival, is registered only to its own game, and is shadowed by the other game's base archives there (#705)",
      Test_LooseModsMount},
+    // ADR 0010 answer O10. The first row is display-free and ROM-free; the
+    // second drives both games' real give arms and is skipped by `--test all`
+    // below like its rando-tier siblings.
+    {"combo-triforce-hunt",
+     "One shared triforce piece count across both worlds: the frozen record's rule and refusal, the MONOTONIC "
+     "discipline pin, k+m in both games through both real shims, the win decision, and the coordinator's "
+     "triforce-hunt predicate over stub engines (ADR 0010 O10)",
+     Test_ComboTriforceHunt},
+    {"rando-triforce-hunt-win",
+     "Both games' real piece-give arms: unarmed each ends its own hunt as upstream; paired, only the combo requirement "
+     "ends the combo, in whichever game reaches it (ADR 0010 O10)",
+     Test_RandoTriforceHuntWin},
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     {"combo-logic-bag-composition",
@@ -4397,6 +4462,16 @@ const TestDescriptor gTests[] = {
      "OoT's own fill on a plentiful + tycoon profile: after the native full-world harvest no progressive tier is "
      "past its top and the wallet rests at the tycoon tier instead of wrapping to 0 (#726)",
      Test_OoTPlentifulProgressive},
+    // The UI snapshot harness: its display-free pixel half, then the window-bound
+    // capture itself (skipped by `--test all`; the `ui` CTest label runs it).
+    {"ui-snapshot-image",
+     "The UI snapshot harness's PNG writer, decoder, content hash, blank-page oracle and composites round-trip "
+     "a synthetic image",
+     Test_UiSnapshotImage},
+    {"ui-snapshot",
+     "Render SoH's reference menu pages and every RedShipBlueShip page into PNGs, text logs and a manifest "
+     "(structure-only asserts; RSBS_UI_SNAPSHOT_* env)",
+     Test_UiSnapshot},
     // ADR 0010 increment 3 (lane K11): the single-bag fill at the creation event
     // over both real engines, and D5's pair-level locks paired with removal.
     // Needs a generation; skipped by `--test all` below like its siblings.
@@ -4493,6 +4568,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-measure") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
+                strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 ||
@@ -4501,8 +4577,11 @@ int TestRunner_Run(const char* testName) {
                 // run inside a suite whose result is a pass/fail count.
                 strcmp(gTests[i].name, "combo-logic-give-probe") == 0 ||
                 strcmp(gTests[i].name, "rando-entrance-pin") == 0 ||
-                strcmp(gTests[i].name, "oot-logic-export") == 0) {
-                printf("\n--- Skipping: %s (needs display; runs as a rando-label CTest) ---\n", gTests[i].name);
+                strcmp(gTests[i].name, "oot-logic-export") == 0 ||
+                // A window and soh.o2r, and a run of its own: the `ui` CTest label.
+                strcmp(gTests[i].name, "ui-snapshot") == 0) {
+                printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
+                       strcmp(gTests[i].name, "ui-snapshot") == 0 ? "ui" : "rando");
                 continue;
             }
             // mm-registrar-coverage used to be skipped here: it is the only row

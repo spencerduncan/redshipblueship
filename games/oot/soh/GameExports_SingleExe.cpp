@@ -23,6 +23,7 @@
 #include "save.h" // RsbsSave_SetActiveSlot — publish the slot MM will save into
 #include "shared_items.h"
 #include "shared_resources.h" // Shared cross-game rupees/hearts (#525)
+#include "triforce_hunt.h"    // ADR 0010 O10: the one triforce piece count's apply cap
 #include "foreign_items.h"    // OoT_ForeignItem_Give (Lane C1 redemption)
 #include "entrance.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
@@ -1674,6 +1675,13 @@ extern "C" void OoT_HarvestSharedResources(void) {
     // With the option off this call touches neither the pool nor the watermark
     // table.
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, OoT_ReadOcarinaTier());
+
+    // Triforce pieces (ADR 0010 answer O10): OoT's counter is a MIRROR of the
+    // one combo count, so harvesting it max-merges OoT's collects into that
+    // count. Offered unconditionally like the ocarina; the arming gate (the
+    // frozen goal is triforce-hunt) lives in Combo_HarvestSharedResource.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_TRIFORCE_PIECES,
+                                (uint16_t)gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected);
 }
 
 /**
@@ -1846,6 +1854,18 @@ extern "C" void OoT_ApplySharedResources(void) {
     uint16_t ocarinaTier = OoT_ReadOcarinaTier();
     if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, OOT_MAX_OCARINA_TIER, &ocarinaTier)) {
         OoT_WriteOcarinaTier(ocarinaTier);
+    }
+
+    // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the
+    // frozen combo goal is triforce-hunt. OoT's counter becomes the whole combo
+    // count, so the next piece OoT gives adds to BOTH worlds' collects and its
+    // give arm compares the combo requirement against it. The cap is the combo
+    // total, which the creation rule bounds at OoT's 8-bit counter; the 0xFF
+    // clamp restates that bound where the narrowing happens.
+    uint16_t triforcePieces = (uint16_t)gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected;
+    const uint16_t triforceCap = Combo_TriforceHuntTotal() > 0xFFu ? 0xFFu : Combo_TriforceHuntTotal();
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_TRIFORCE_PIECES, triforceCap, &triforcePieces)) {
+        gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected = (u8)triforcePieces;
     }
 }
 

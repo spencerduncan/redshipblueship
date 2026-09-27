@@ -108,6 +108,14 @@ set(REDSHIP_COMMON_SOURCES
     # this half is game-header-free C so a headless row can drive it. APPENDED,
     # never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/gen_progress_overlay.c
+    # The combo triforce hunt (ADR 0010 answer O10): the frozen record, the
+    # arming gate of the one shared piece count, and the win decision both
+    # ports' piece-give arms call. Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/triforce_hunt.c
+    # The UI snapshot harness's pixel half: RGBA buffer, libpng writer, stb
+    # decoder, FNV-1a 64 and the composites. Game-header-free C; the capture half
+    # is games/oot/soh/soh_ui_snapshot.cpp. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/ui_snapshot_image.c
     # The single-bag fill AT THE CREATION EVENT (ADR 0010 increment 3, D3/D5;
     # #645 lane K11): the coordinator's one production caller. Game-header-free.
     # APPENDED, never reordered.
@@ -189,6 +197,8 @@ set(REDSHIP_COMMON_HEADERS
     # are still needed even though MM no longer hands OoT its own Options.
     ${CMAKE_SOURCE_DIR}/src/common/notification_bridge.h
     ${CMAKE_SOURCE_DIR}/src/common/notification_layout_probe.h
+    # Header for triforce_hunt.c above (ADR 0010 O10)
+    ${CMAKE_SOURCE_DIR}/src/common/triforce_hunt.h
 )
 
 # ============================================================================
@@ -218,6 +228,12 @@ target_include_directories(redship_common PRIVATE
 target_link_libraries(redship_common PUBLIC
     libultraship
 )
+
+# ui_snapshot_image.c writes PNGs through libpng (already REQUIRED by the
+# top-level CMakeLists and linked through ZAPDLib, and listed in
+# THIRD_PARTY_NOTICES.md) and decodes them through libultraship's `stb` target
+# (stb_image). PRIVATE: nothing else in redship_common needs either.
+target_link_libraries(redship_common PRIVATE PNG::PNG stb)
 
 # Define COMBO_BUILDING_DLL so SharedGraphics exports symbols with __declspec(dllexport)
 target_compile_definitions(redship_common PRIVATE COMBO_BUILDING_DLL)
@@ -1846,6 +1862,19 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # ADR 0010 answer O10: ONE shared triforce piece count across both worlds.
+    # ComboTriforceHunt is display-free and ROM-free: the frozen record's rule and
+    # its refusal, the MONOTONIC discipline pin (a lower harvest after a full
+    # apply keeps the count), collect k in OoT and m in MM through both games'
+    # REAL shims and read k+m in both, the win decision both give arms call, and
+    # the coordinator's triforce-hunt predicate over stub engines.
+    # RandoTriforceHuntWin drives both games' REAL piece-give arms (OoT's needs a
+    # generated context, MM's dispatches GameInteractor hooks), so it is `rando`.
+    redship_add_test(NAME ComboTriforceHunt COMMAND redship --test combo-triforce-hunt)
+    redship_add_test(NAME RandoTriforceHuntWin COMMAND redship --test rando-triforce-hunt-win
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
     # #731, #733): the composed bag holds progression copies only, plentiful copies
     # are surplus, OoT's restricted passes confine their families, filler and traps
@@ -1891,6 +1920,26 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME CrossingStoreCapacity COMMAND redship --test crossing-store-capacity)
     redship_add_test(NAME CrossingStoreRedsave COMMAND redship --test crossing-store-redsave)
     redship_add_test(NAME CrossingStoreSpoiler COMMAND redship --test crossing-store-spoiler)
+    # The UI snapshot harness (docs/ui-style-guide.md, section 12). UiSnapshotImage is
+    # its display-free pixel half and runs in the default tier. UiSnapshot renders
+    # SoH's own menu pages and every page this project added into
+    # <build>/ui-snapshots/ and asserts STRUCTURE only -- never pixels against a
+    # stored image, never generation. It has its OWN label, `ui`, not `rando`, so
+    # CI runs it in a dedicated step with an explicit 24-bit xvfb screen and the
+    # golden rows' environment is untouched. It needs soh.o2r (the menu fonts);
+    # without oot.o2r only the ROM-free pages draw and the rest are recorded as
+    # skipped. NOT RSBS_DISABLE_OTR_INIT, unlike the rando rows: that flag also
+    # skips OTRMessage_Init, and Settings > General's Language row builds its combo
+    # map from the loaded message tables, so with it the reference page throws
+    # (std::map::at on an empty map) -- measured. soh.o2r being required is also
+    # what keeps OTRAudio_Init's synchronous audio load from hanging. The runtime
+    # lint compares against a checked-in baseline that may only shrink.
+    redship_add_test(NAME UiSnapshotImage COMMAND redship --test ui-snapshot-image)
+    redship_add_test(NAME UiSnapshot COMMAND redship --test ui-snapshot
+        LABEL ui
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy"
+                    "RSBS_UI_LINT_BASELINE=${CMAKE_SOURCE_DIR}/.github/scripts/ui-runtime-lint-baseline.txt")
     # ADR 0010 increment 3 (lane K11): THE SINGLE-BAG FILL AT THE CREATION EVENT,
     # over both real engines: a paired OoT generation stops at its general pass,
     # MM's creation-time half places the union bag over both games (GOAL proven,

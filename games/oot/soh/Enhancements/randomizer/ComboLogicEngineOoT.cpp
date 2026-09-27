@@ -260,7 +260,7 @@ bool OoTComboLogicReady() {
 
 /** Does `rc` name a real row in the location table? A gap is default-constructed
  *  and keeps RC_UNKNOWN_CHECK, so the identity test rejects it — the same test
- *  OoT_Foreign_IsEligibleHostImpl uses, for the same reason. */
+ *  the retired OoT_Foreign_IsEligibleHostImpl used, for the same reason. */
 bool OoTComboLogicIsRealCheck(RandomizerCheck rc) {
     if (rc <= RC_UNKNOWN_CHECK || rc >= RC_MAX) {
         return false;
@@ -827,6 +827,24 @@ int OoT_ComboLogic_GoalReached(void* self) {
 }
 
 /**
+ * `triforcePieces` (ABI 4, ADR 0010 answer O10): OoT's half of the ONE shared
+ * piece count, read from the DETACHED simulated save the round's `expand`
+ * rebuilt — the pieces this round assumed (`assumeOwnItem`) plus the ones its
+ * search harvested from reached hosts. Both routes grant through
+ * `ApplyItemEffect`, whose round clamp stops the counter at
+ * `RSK_TRIFORCE_HUNT_PIECES_TOTAL + 1` (`logic.cpp`), so OoT's half never
+ * answers more than OoT's own pool holds. A pure read, like `goalReached`, and
+ * 0 outside a round.
+ */
+int OoT_ComboLogic_TriforcePieces(void* self) {
+    (void)self;
+    if (!sInQuery || !OoTComboLogicReady()) {
+        return 0;
+    }
+    return (int)OoTComboLogicSingleton()->GetSaveContext()->ship.quest.data.randomizer.triforcePiecesCollected;
+}
+
+/**
  * Record that an OoT host holds `item`.
  *
  * Own-origin: `Context::PlaceItemInLocation`, the port's own primitive, so the
@@ -1009,13 +1027,13 @@ void OoT_ComboLogic_EndQuery(void* self) {
 }
 
 /**
- * May an MM-origin item be placed on this OoT host (combo_logic.h ABI 4)?
+ * May an MM-origin item be placed on this OoT host (combo_logic.h ABI 5)?
  *
  * ONLY WHERE OoT'S GIVE PATH CAN DELIVER ONE. A foreign item in an OoT check is
  * delivered by the RC-queue drain (hook_handlers.cpp), which consults the
  * placement table (and, behind it, the crossing store) before OoT's own give —
  * and that drain is what OoT's TREASURE CHESTS go through. So the host class is
- * the static half of OoT_Foreign_IsEligibleHostImpl (ForeignItemsSingleExe.cpp):
+ * the static half of the retired reverse pass's OoT_Foreign_IsEligibleHostImpl:
  * an `ACTOR_EN_BOX` row, never a shop, scrub, merchant or chest-game slot, whose
  * give-and-price flows differ from the ordinary collect path. The fill-side half
  * of that predicate ("the fill put junk here") is the old overlay pass's and does
@@ -1070,6 +1088,7 @@ const ComboLogicEngine kOoTComboLogicEngine = {
     /* endQuery          */ OoT_ComboLogic_EndQuery,
     /* snapshot          */ nullptr,
     /* restore           */ nullptr,
+    /* triforcePieces    */ OoT_ComboLogic_TriforcePieces,
     /* hostAcceptsForeign*/ OoT_ComboLogic_HostAcceptsForeign,
 };
 

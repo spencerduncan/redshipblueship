@@ -550,13 +550,22 @@ uint8_t Combo_ComboDirection(void);
 bool Combo_ComboSharedOcarina(void);
 
 /** Does the resolved direction arm crossings ORIGINATING in @p originGame?
- *  (GAME_OOT -> the forward pass, GAME_MM -> the reverse pass.) Increment 4's
- *  gate; see Combo_ComboDirection. */
+ *  Increment 4's gate; see Combo_ComboDirection. Under one bag (ADR 0010
+ *  increment 3) the single-bag fill reads it per bag row: a row whose origin is
+ *  not armed is HOME_ONLY — still placed, still proved, only never on the other
+ *  game's checks. OFF is therefore one fill with one proof and no crossings. */
 bool Combo_ComboDirectionArms(uint8_t originGame);
 
 /**
- * How many placements this direction may make: the frozen record's pool size
- * for @p originGame, CLAMPED to RSBS_FOREIGN_PLACEMENT_CAP.
+ * The frozen record's pool size for @p originGame, CLAMPED to
+ * RSBS_FOREIGN_PLACEMENT_CAP.
+ *
+ * NO GENERATION READS IT ANY MORE (ADR 0010 increment 3, D3). It bounded how
+ * many duplicate copies an overlay pass pinned; under one bag the number of
+ * crossings is an outcome of the fill, not a setting, and nothing caps it here.
+ * The field stays in the record because the record is format and the field is
+ * folded into comboSettingsHash (changing its meaning would move every world's
+ * identity); the accessor stays for the record's own locks.
  *
  * An UNFROZEN record yields the shipped default (the cap), so a legacy world,
  * a pre-freeze world and a world generated before this carve all place exactly
@@ -696,6 +705,14 @@ int Combo_FreezeLegacyComboSettings(void);
  *  whole justification for storing twelve bytes is that the refusal can name
  *  WHICH RULE diverged — and "comboFlags" is a field name, not a rule. */
 #define RSBS_COMBO_DIVERGE_SHARED_OCARINA 0x0800u
+/** The frozen triforce-hunt record (ADR 0010 answer O10, ComboTriforceRecord)
+ *  does not agree with the combo record beside it or with the half its own game
+ *  re-derives: a hunt goal with no valid record, a record under any other goal,
+ *  or a half that is not what that game's frozen settings produce. DAMAGE, not a
+ *  session change: the record is written once by the creation event from inputs
+ *  the fingerprint and the MM profile digest already pin, so a disagreement here
+ *  is the stored identity contradicting itself. See triforce_hunt.h. */
+#define RSBS_COMBO_DIVERGE_TRIFORCE 0x1000u
 
 /**
  * Which FIELDS differ between a frozen record and a live resolution, as

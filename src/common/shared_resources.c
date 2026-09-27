@@ -19,6 +19,7 @@
 // from the frozen combo record. foreign_items.h is game-header-free too, so this
 // TU stays compilable in the ROM-free harness.
 #include "foreign_items.h"
+#include "triforce_hunt.h" // Combo_TriforceHuntArmed: the O10 kind's arming gate
 #include <stdio.h>
 #include <string.h>
 
@@ -66,6 +67,16 @@ static bool IsMonotonicKind(uint8_t kind) {
         case RSBS_SHARED_RES_NUT_TIER:
         case RSBS_SHARED_RES_HOOKSHOT_TIER:
         case RSBS_SHARED_RES_OCARINA_TIER:
+        // ADR 0010 O10: the one triforce piece count. MONOTONIC because a piece
+        // is never spent. A consumable harvest reads a LOWER live value after a
+        // full apply (a counter reset, a stale save) as pieces spent and takes
+        // them out of the pool; max-merge keeps the count. That is the only
+        // behaviour that tells the two disciplines apart: a consumable apply
+        // records what it materialized as the watermark, so ordinary collects
+        // across switches sum the same way under either (the cross-game sum in
+        // combo-triforce-hunt passes under both; its discipline-pin leg is the
+        // one that fails under CONSUMABLE).
+        case RSBS_SHARED_RES_TRIFORCE_PIECES:
             return true;
         default:
             // The spent quantities — rupees, current health, current magic, and
@@ -203,6 +214,12 @@ bool Combo_SharedResourceKindArmed(uint8_t kind) {
     // like a player who has not found the item.
     if (kind == (uint8_t)RSBS_SHARED_RES_OCARINA_TIER) {
         return Combo_ComboSharedOcarina();
+    }
+    // ADR 0010 O10: the frozen goal decides, read from the record, never a CVar.
+    // There is no live-resolution fallback as the ocarina has: before a world
+    // exists there is no hunt to share a count for.
+    if (kind == (uint8_t)RSBS_SHARED_RES_TRIFORCE_PIECES) {
+        return Combo_TriforceHuntArmed();
     }
     return true;
 }

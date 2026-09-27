@@ -346,9 +346,12 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     const uint32_t savedMmProfileDigest = gComboCtx.mmProfileDigest;
     // #534: the reverse placement table (OoT checks hosting MM items, #524)
     // travels WITH the stamp because it has the same author and the same
-    // moment of authorship: Playthrough_Init stamps the pairing identity and
-    // immediately derives these placements from it (OoT_PlaceForeignItems),
-    // both BEFORE the file being created exists. Nothing re-places the
+    // moment of authorship: Playthrough_Init stamps the pairing identity and,
+    // until ADR 0010 increment 3 retired the reverse overlay pass
+    // (OoT_PlaceForeignItems), immediately derived these placements from it,
+    // both BEFORE the file being created exists. Under one bag the table stays
+    // empty (the crossings live in the crossing store, whose own KEEP rule is
+    // crossing_store.h's) and this snapshot keeps an empty table empty. Nothing re-places the
     // reverse table after generation — unlike the FORWARD table
     // (foreignPlacements), which is deliberately NOT snapshotted because at
     // this point it can only hold a DEAD session's rows, so keeping it would
@@ -377,6 +380,10 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // is silent in exactly one direction.
     const ComboSettingsRecord savedComboSettings = gComboCtx.comboSettings;
     const uint32_t savedComboSettingsHash = gComboCtx.comboSettingsHash;
+    // ADR 0010 answer O10: the frozen triforce-hunt record is authored by the
+    // same creation event, right after the combo record, so it is in the same
+    // KEEP set for the same reason.
+    const ComboTriforceRecord savedComboTriforce = gComboCtx.comboTriforce;
 
     // Frozen blobs and shadow copies in one call — they are the same storage
     // (FrozenStateManager::ClearFrozenState memsets the buffer AND clears
@@ -426,6 +433,10 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         // without the other could not tell a legacy record from a torn one.
         gComboCtx.comboSettings = savedComboSettings;
         gComboCtx.comboSettingsHash = savedComboSettingsHash;
+        // The triforce record describes a goal the combo record states, so it
+        // moves with it: a kept goal of triforce-hunt with a dropped record
+        // would disarm the one shared piece count for a world that froze it.
+        gComboCtx.comboTriforce = savedComboTriforce;
         // The crossing store (ADR 0010 O7) is KEPT by not being cleared: it
         // lives outside gComboCtx, so the ComboContext_Init above never touched
         // it. Same author and same moment as the stamp; see

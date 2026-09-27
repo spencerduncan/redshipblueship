@@ -194,7 +194,7 @@ TestResult ComboSingleBag_Run(void) {
     const ComboLogicEngine* mmEngine = Combo_Logic_GetEngine(GAME_MM);
     CSB_ASSERT(ootEngine != nullptr && mmEngine != nullptr && ootEngine->hostAcceptsForeign != nullptr &&
                    mmEngine->hostAcceptsForeign != nullptr,
-               "an engine answers no foreign-host question (ABI 4)");
+               "an engine answers no foreign-host question (ABI 5)");
     for (const ComboLogicPlacement& p : full.oot) {
         CSB_ASSERT(Combo_ItemClassOf(p.item) != RSBS_FILL_CLASS_TRAP, "a trap row was placed by the coordinator");
         if (p.item.originGame == (uint8_t)GAME_MM) {
