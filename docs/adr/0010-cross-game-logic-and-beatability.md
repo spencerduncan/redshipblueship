@@ -1695,3 +1695,219 @@ an engine-neutral count, not an item id.
 - The hunt's presentation: OoT's and MM's own "x of y" texts and trackers
   still print each game's own requirement. That is GOAL-UI / O11 work.
 - The OoT half's re-derivation on arrival in OoT.
+
+### 2026-09-27 -- Increment 3 delivered at the seam: the single-bag fill at the creation event (lane K11)
+
+Decision 5's increment 3 ("items leave origin pools. One fill, at the creation
+event, draws from the union bag and places across both games' shuffled check
+sets") is wired into production. This entry records where it sits, what it
+removed, and what it measured.
+
+**The seam.** In a paired world (the frozen identity, `Combo_ForeignPairingActive`
+and `Combo_ComboSettingsFrozen`):
+
+- OoT's `Fill()` runs its restricted passes (dungeon rewards, own-dungeon items,
+  restricted songs and dungeon items, Link's pocket) and stops before the general
+  advancement pass, leaving those hosts empty and those items in the pool
+  (`generalPassDeferred`). No spoiler is written yet.
+- The creation event (`OoT_RunPairedCreationEvent`) runs MM's half; after
+  `GeneratePools` and `GrantStartingItems`, MM's `OnFileCreate` calls
+  `Rando::Foreign::RunPairedSingleBagFill` inside the attempt ladder, which calls
+  `Combo_SingleBag_Run` (`src/common/combo_single_bag.{h,c}`): the bag is composed
+  from OoT's deferred general-pass pool and MM's pool by the O8 owner (K9), each
+  row is gated by the frozen direction and item class, and the coordinator fills
+  it over both registered engines under the frozen GOAL and rung. OoT placements
+  land through the OoT engine's `place`, MM's through MM's `place` into
+  `RANDO_SAVE_CHECKS`.
+- Each game's own pass fills its leftover hosts: MM's traps first, then the
+  rest, padded with junk; OoT's `RsbsFinishPairedGeneralPass` (traps first, then
+  the rest, then OoT's overrides, entrances, hints and warp-song texts).
+- The arm is the creation's LAST step, in #680's order (store, spoiler,
+  publish, arm). MM's half (`MM_Rando_AuthorHalfAtCreation`) returns its world
+  unarmed. OoT's tail then writes the crossings to the crossing store (K10),
+  places OoT's remainder and writes OoT's spoiler, and puts MM's finished bytes
+  back in view over a short bracket, inside which it joins the spoiler's
+  `combo` section and then arms the MM shadow (`MM_Rando_ArmCreatedHalf`). Any
+  failure before the arm, or an exception out of the tail, leaves no armed
+  shadow; every failure route still retracts the identity, the store and the
+  combo and triforce records through one function (publish-then-retract).
+  `ComboSingleBag` leg E2 reads the order off a real event (`M0S0J0A1`: each
+  step with the shadow unarmed, then armed); red with the arm inside MM's
+  half, where the first cut of this lane put it (`M1S1J1A1`). The headless
+  harnesses keep `MM_Rando_GenerateAtCreation`, which authors and arms back to
+  back.
+- `OoT_Sram_InitSave` runs the creation event BEFORE `Randomizer_InitSaveFile`
+  (`OoT_Creation_AuthorRandoFile`). The general-pass hosts are empty until the
+  event places them, and `Randomizer_InitSaveFile` hands out creation-time items
+  by reading hosts (Link's Pocket, Impa's song under Skip Child Zelda, the
+  Master Sword on an adult start): read first, those gave the host's vanilla
+  item and never the placed one.
+- Each side hosts at most `RSBS_CROSSINGS_PER_SIDE_MAX` crossings
+  (`maxCrossingsPerSide`, the shared-item array's capacity): a crossing pickup
+  takes one un-merged slot until its origin game redeems it, and a refused
+  record would lose the item.
+- Crossings go only to hosts whose give path delivers them: the ABI-5 vtable
+  entry `hostAcceptsForeign` (OoT: `ACTOR_EN_BOX` chests that are not shops,
+  scrubs, merchants or the chest game; MM: `IsForeignHostClass`, Tier-A chests).
+- MM's engine grants the fixed contents of reached checks outside the host pool
+  during expansion (#737), without which beat-both was unprovable on the
+  shipped profile.
+
+**Failure and budget.** The fill runs under MM's attempt ladder and the #582
+per-attempt budget; the coordinator reports each round, the proof and the
+surplus stage to an observer, which reports progress to the overlay and stops
+the fill at the budget (`RSBS_COMBO_LOGIC_ERR_ABORTED`). A wall-clock stop is a
+`GenerationTimeout`, never a ladder rung (#581 section 2a). Only a world dead
+end (`NO_CANDIDATE`, `GOAL_UNPROVABLE`, `NOT_ALL_REACHED`) is a rung and
+re-seeds from `Combo_SingleBag_SeedFor(attempt)`; a refusal or an engine defect
+(`BAD_REQUEST`, `NO_ENGINE`, `CAPACITY`, `ENGINE_REFUSED`, ...) is
+`PairedFillRefused` and fails the creation on the attempt it happened, because
+no re-seed can change it. An exhausted ladder fails the creation at file
+select.
+
+**Removal (D3).** Both pinned pools (`kForeignPoolV1`, `kForeignPoolMMV1`), their
+exclusion tables and the six numbered criteria, the pool registry and class
+draw, MM's forward overlay pass and OoT's reverse pass are deleted, with the
+pair-level locks below landing in the same change. The arrival compare-and-refuse
+machinery (#570/#680) is untouched. What `poolSize*`, `direction` and
+`itemClass*` mean now is ADR 0011's 2026-09-27 amendment: pool sizes change no
+rule (but, being in the fingerprint the fill's seed folds, they re-seed the
+world), the direction and the PROGRESSION bit make a row `HOME_ONLY`.
+Names, articles and arrival icons for any crossed item come from each game's
+describer.
+
+**D5, paired with removal, over the real engines** (`ComboSingleBag`, rando
+tier). On the pinned seed an OoT item hosted only in MM (Din's Fire on
+`RC_WOODFALL_TEMPLE_CENTER_CHEST`) and an MM item hosted only in OoT (Ice
+Arrows on Shadow Temple Compass Chest) each leave the GOAL provable with the
+crossing and unprovable when that host's item is removed. Direction OFF makes
+all 306 bag rows home-only, crosses nothing and still proves.
+
+**Measured** over a sample, not one seed (PR #743 review;
+`RSBS_CSB_SAMPLE=30 redship --test combo-single-bag`, development workstation
+shared with other builds, host calibration 19 ms against the 18 ms reference,
+scale 105%, per-attempt budget 31.5 s; shipped profile; 30 consecutive seeds):
+30 of 30 created on the first ladder attempt, with no per-attempt budget stop.
+28 fills took one batch (307 rounds) and 2 took two (about 600 rounds). MM's
+creation-time half (the fill plus MM's own pass) averaged 9.7 s; the fastest
+single-batch fill was 6.5 s, and the worst creation was a two-batch one at
+24.7 s under load, 0.78x the budget. A seed needing four or more batches at
+this host's 6.5-8 s per batch would exceed the budget and fail as a
+`GenerationTimeout`; none of the 30 did, which bounds that rate below about 10%
+(rule of three), not at zero. OoT's Generate (about 0.2 s) and OoT's tail
+(about 0.7 s) come on top. Crossings: 9 of the 30 worlds put exactly
+`RSBS_CROSSINGS_PER_SIDE_MAX` (64) MM items in OoT, so the bound shapes worlds.
+
+**Not built.** A paired `triforce-hunt` creation is refused at Generate with a
+reason: O10's count exists (lane K12 merged during this lane), but the single
+bag does not pass the frozen requirement to the coordinator and nothing yet
+proves each half's pieces are bag rows the proof can count. Hints in a paired
+world carry no pair-level way-of-the-hero or barren analysis (no pair-level
+playthrough exists yet); what they do carry is checked against the paired
+world itself: a crossing host is never hintable, and an OoT item hint whose
+target crossed into MM names Termina (`RA_TERMINA`). The pane's pool-size rows
+change no rule but re-seed the world. A paired world's OoT spoiler is refused
+as a solo OoT world at file select: the pairing and its crossings are not
+rebuilt from a spoiler there. A netplay peer's sourced grants share the
+shared-item array with crossing pickups and are not yet made to leave the
+crossings' slots free.
+
+### 2026-09-27 -- Increment 3: the single bag is the trimmed bag (PR #744 integrated, lane K11b)
+
+PR #744 (lane K13) made the bag composer trim every capacity-like shared
+family (health, double defense, the capacity tiers) to what the one shared
+quantity can absorb, and refuse a trimming request that does not publish both
+frozen starting healths. The production caller now composes with it:
+
+- `Combo_SingleBag_Run` publishes both games' frozen starting healths
+  (`OoT_ComboLogic_StartingHealth`, `MM_ComboLogic_StartingHealth`) and a trim
+  seed, `Combo_SingleBag_TrimSeed()`: the frozen identity under its own domain
+  tag and without the ladder attempt, so every ladder attempt fills the same
+  bag. Production never sets `RSBS_COMBO_QUANTITY_KEEP_ALL`.
+- A trimmed row goes back to its origin game's own pass as one filler copy,
+  never as the item: OoT adds one `GetJunkItem()` per trimmed row to its
+  remainder (after re-seeding the remainder stream), and MM's own pass adds one
+  `RI_JUNK` per trimmed row. Both passes still deal traps first. Handing the
+  rows back as themselves (what the per-game passes did with every non-bag row)
+  put the dead pickups straight back: on the pinned seed the finished world
+  then held 89 heart rows, 48 of them dead.
+- `RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME` admits a CONFINED row in the
+  composer's bag-writing pass, after the trim, so a confined row sits outside
+  every shared budget. No trim-family item is confinable (#744's B7).
+- `hostAcceptsForeign`, `maxCrossingsPerSide`, the #582 budget and the #581
+  section 2a rule are as above. The #680 order was NOT as above when this entry
+  was first written: the arm ran inside MM's half, before the crossings and the
+  spoiler. It is restored (the arm is last; see the seam's bullet above), on
+  the second review of PR #743.
+- OoT's hint pass reads the crossing store only while OoT's remainder hints the
+  paired world whose crossings were just captured
+  (`OoT_ComboLogic_HintingPairedRemainder`). The store outlives its creation, so
+  any other hint pass (a spoiler load's static hints, a native general pass)
+  would otherwise read another world's crossings. Leg D2's P5 locks it; red
+  with the gate removed.
+- No ADR 0011 record field changes meaning. The trim reads the starting
+  healths from the settings the identity already froze, and its seed from the
+  identity, so no new byte is recorded and the fingerprint is unchanged.
+
+**What it measured.** Two measurements, and the first is NOT a real creation.
+
+*The headless paired creation* (fill + both per-game passes, spoiler off; the
+first cut of this entry called it "one real creation"): shipped profile,
+development workstation (host calibration 18 ms against the 18 ms reference,
+scale 100%, per-attempt budget 30 s), one seed
+(`RSBS_CSB_SAMPLE=1 redship --test combo-single-bag`, seed `RSBSSAMPLE0`). It
+drives `Rando_HeadlessSeedTest`, `MM_Rando_HeadlessPairedHalf` and
+`OoT_Creation_FinishPairedHalf(0)`, so it leaves out the spoiler write and
+join, the creation event's bracket and arm, `Randomizer_InitSaveFile` and
+`Save_SaveFile`:
+
+| | |
+|---|---|
+| End to end | 6.14 s = OoT Generate 0.19 s + MM's creation-time half 5.61 s + OoT's tail 0.33 s |
+| Fill | 5.61 s, 256 rounds, 1 batch attempt, 0 roll-backs, first ladder attempt |
+| Bag | 255 rows (OoT 64, MM 191; 306 before the trim); 22 OoT + 29 MM rows trimmed to filler |
+| Crossings | 32 OoT items into MM, 64 MM items into OoT (the per-side bound) |
+| Hearts | 50 heart rows in the finished world, all placed by the coordinator; 50 pickups from 3 hearts, 0 dead, the bar ends at 320 |
+
+*Thirty real creations through the event* (second review of PR #743;
+`RSBS_CSB_SAMPLE_EVENT=30 redship --test combo-single-bag`, seeds
+`RSBSSAMPLE0`-`29`, shipped profile, host calibration 19 ms against 18 ms,
+scale 105%, per-attempt budget 31.5 s, no compile running at start or end).
+Each is OoT's Generate, then `OoT_Creation_AuthorRandoFile`: the creation event
+with OoT's spoiler written and MM's half joined, the arm, and
+`Randomizer_InitSaveFile`. Only `Save_SaveFile` (the slot write) and the
+overlay's presentation are left out. 30 of 30 created on the first ladder
+attempt with no budget stop; 29 fills took one batch (256 rounds) and one took
+two (498 rounds). End to end: mean 7.19 s, best 5.89 s, worst 13.71 s (the
+two-batch seed) = 0.44x the per-attempt budget. The fill averaged 6.41 s;
+everything else in the event (MM's pre-fill stretch, MM's own pass, OoT's tail
+with the spoiler, the arm and `Randomizer_InitSaveFile`) averaged 0.56 s
+(at most 1.11 s); OoT's Generate averaged 0.23 s. Every creation recorded the
+step order `M0S0J0A1`, and every armed world walked 50 heart pickups with 0
+dead. At about 6.4 s per batch, a seed would need five batches to exceed the
+budget; none of the 30 needed more than two, which bounds the rate of a
+budget failure below about 10% (rule of three), not at zero.
+
+The earlier figures (one seed at 14.8 s; the 30-seed mean of 9.7 s for MM's
+half) were taken over the untrimmed 306-row bag and a busier workstation, so
+neither measurement above is a like-for-like comparison. A one-batch fill is
+256 rounds now against 307.
+
+**Locked.** `ComboSingleBag` leg D4 walks every max-health row of the headless
+paired creation's finished world (OoT's final world, MM's shuffled checks and
+each crossing's real item from the crossing store) through the real shared
+carrier from the frozen bar: on the pinned seed 50 pickups, 0 dead, bar at
+320, and exactly the 50 heart rows the coordinator placed. Red with the
+trimmed rows handed back as themselves: 89 heart rows, 48 dead (65 and 24 on
+the second review's re-run with only OoT's rows handed back). Leg E3 walks
+the world a REAL creation event finished, MM's half read from the armed
+shadow: 50 pickups, 0 dead, bar at 320; red with OoT's trimmed rows handed
+back: 62 heart rows, 27 dead. Both walks cover MM's SHUFFLED checks and OoT's
+hosted rows only: a heart left vanilla on an unshuffled MM check is neither
+budgeted by the trim nor walked. On the shipped profile none is: both
+games' whole heart counts (OoT 8 containers + 36 pieces, MM 4 + 52) are pool
+rows. Whether another option leaves one unshuffled is not checked here. D5 still holds both ways
+on the pinned seed (an OoT Bottle with Ruto's Letter on
+`RC_WOODFALL_TEMPLE_BOW_CHEST`; MM's New Wave Bossa Nova on Gerudo Training
+Ground Maze Right Side Chest); direction OFF makes all 255 rows home-only.
+The four goldens moved once more, in one re-pin commit.

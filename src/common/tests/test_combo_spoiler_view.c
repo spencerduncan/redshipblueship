@@ -5,13 +5,14 @@
  * The model is the thing that turns "a JSON file on disk the operator has to
  * be told the path to" into something the running game can render. This test
  * does NOT stub it. It populates gComboCtx through the REAL
- * Combo_SetForeignPlacement with entries drawn from the REAL pinned pool,
+ * Combo_SetForeignPlacement with REAL OoT items (looked up by name through
+ * the origin describer; the pinned pool retired in ADR 0010 increment 3),
  * records a crossing through the REAL give path (the same
  * MM_Rando_Foreign_RecordPickup -> Combo_RedeemSharedItemsForGame pair
  * test_foreign_items.c drives), and asserts on the model's output:
  *
  *  1. One row per occupied placement slot, in slot order, each carrying its
- *     pinned-pool display name — not a placeholder, not an id rendered as text.
+ *     describer display name — not a placeholder, not an id rendered as text.
  *  2. The crossed-and-awarded entry reports redeemed == true and the others
  *     false. This is the assertion that makes the view worth having: a spoiler
  *     that cannot distinguish "hosted" from "already collected" is a file dump.
@@ -37,6 +38,7 @@
 #include "../save.h"
 #include "../shared_items.h"
 #include "../test_runner.h"
+#include "test_named_items.h"
 
 #include <cstdio>
 #include <cstring>
@@ -70,10 +72,12 @@ TestResult Test_ComboSpoilerView(void) {
     printf("[TEST] combo-spoiler-view: the in-game view model reports crossings, their names and their collected "
            "state, and distinguishes unpaired from empty (#496)\n");
 
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPool(&pool);
-    CSV_ASSERT(pool != NULL);
-    CSV_ASSERT(poolCount >= 3); // this test places three distinct pool entries
+    // Three distinct real OoT items, by name (the placement rows below).
+    SharedItem items[3];
+    const char* const kItemNames[3] = { "Lens of Truth", "Megaton Hammer", "Boomerang" };
+    for (int i = 0; i < 3; i++) {
+        CSV_ASSERT(TestNamedItem((uint8_t)GAME_OOT, kItemNames[i], &items[i]));
+    }
 
     // ------------------------------------------------------------------
     // 3 (first, while the state is honestly unpaired): NOT PAIRED must not
@@ -105,7 +109,7 @@ TestResult Test_ComboSpoilerView(void) {
     CSV_ASSERT(!Combo_ForeignPairingActive()); // seed without settings digest
     gComboCtx.sharedRandoSettingsHash = 0x5EED0496u;
     CSV_ASSERT(Combo_ForeignPairingActive());
-    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckA, pool[0].item) >= 0);
+    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckA, items[0]) >= 0);
     CSV_ASSERT(Combo_SpoilerRowCount() == 1);
     gComboCtx.sharedRandoSettingsHash = 0; // un-pair, leaving the table populated
     CSV_ASSERT(Combo_CountForeignPlacements() == 1);
@@ -116,10 +120,10 @@ TestResult Test_ComboSpoilerView(void) {
     gComboCtx.sharedRandoSettingsHash = 0x5EED0496u; // re-pair for the rest
 
     // ------------------------------------------------------------------
-    // 1: one row per occupied slot, in slot order, with pinned-pool names.
+    // 1: one row per occupied slot, in slot order, with describer names.
     // ------------------------------------------------------------------
-    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckB, pool[1].item) >= 0);
-    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckC, pool[2].item) >= 0);
+    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckB, items[1]) >= 0);
+    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckC, items[2]) >= 0);
     CSV_ASSERT(Combo_SpoilerRowCount() == 3);
 
     Combo_SpoilerPairingSummary(&summary);
@@ -134,10 +138,10 @@ TestResult Test_ComboSpoilerView(void) {
         CSV_ASSERT(Combo_SpoilerRowAt(i, &row));
         CSV_ASSERT(row.mmCheckId == expectedChecks[i]);
         CSV_ASSERT(row.originGame == (uint8_t)GAME_OOT);
-        CSV_ASSERT(row.itemId == pool[i].item.id);
-        // The pinned-pool display name, not a placeholder and not the fallback.
+        CSV_ASSERT(row.itemId == items[i].id);
+        // The describer display name, not a placeholder and not the fallback.
         CSV_ASSERT(row.itemName != NULL);
-        CSV_ASSERT(strcmp(row.itemName, pool[i].name) == 0);
+        CSV_ASSERT(strcmp(row.itemName, kItemNames[i]) == 0);
         CSV_ASSERT(strcmp(row.itemName, RSBS_SPOILER_UNKNOWN_ITEM_NAME) != 0);
         CSV_ASSERT(!row.redeemed); // nothing collected yet
     }

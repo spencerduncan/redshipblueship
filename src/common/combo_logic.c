@@ -113,6 +113,7 @@ const char* Combo_Logic_StatusName(int status) {
         case RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED: return "not-all-reached";
         case RSBS_COMBO_LOGIC_ERR_CAPACITY: return "capacity";
         case RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED: return "engine-refused";
+        case RSBS_COMBO_LOGIC_ERR_ABORTED: return "aborted";
         default: return "(unknown)";
     }
 }
@@ -885,6 +886,14 @@ int Combo_Logic_RunRound(const ComboLogicRoundRequest* req, ComboLogicRoundResul
 
 static ComboLogicBagItem sAssumedBuf[RSBS_COMBO_LOGIC_BAG_CAP];
 static int sBagOrder[RSBS_COMBO_LOGIC_BAG_CAP];
+/** The required / surplus split of the bag, each in BAG ORDER. Filled once per
+ *  fill by ComboLogicPartitionBag; the required list is then shuffled per
+ *  attempt into sBagOrder, the surplus list never is (its order IS the drop
+ *  rule). */
+static int sRequiredIdx[RSBS_COMBO_LOGIC_BAG_CAP];
+static int sRequiredCount;
+static int sSurplusIdx[RSBS_COMBO_LOGIC_BAG_CAP];
+static int sSurplusCount;
 
 static void ComboLogicResetFillResult(ComboLogicFillResult* out) {
     memset(out, 0, sizeof(*out));
@@ -893,6 +902,116 @@ static void ComboLogicResetFillResult(ComboLogicFillResult* out) {
 
 static bool ComboLogicRungIsPinned(uint8_t rung) {
     return rung == RSBS_COMBO_RUNG_NONE || rung == RSBS_COMBO_RUNG_BEATABLE || rung == RSBS_COMBO_RUNG_ALL_REACHABLE;
+}
+
+/**
+ * Tell the request's observer where the fill is, and ask whether to stop.
+ * @return true when the observer asked the fill to STOP (RSBS_COMBO_LOGIC_ERR_ABORTED).
+ */
+static bool ComboLogicObserve(const ComboLogicFillRequest* req, int stage, const ComboLogicFillResult* res) {
+    if (req->observer == NULL) {
+        return false;
+    }
+    ComboLogicFillProgress p;
+    p.stage = stage;
+    p.attempt = res->attempts;
+    p.requiredPlaced = res->requiredPlaced;
+    p.requiredCount = sRequiredCount;
+    p.rounds = res->rounds;
+    return req->observer(req->observerCtx, &p) != 0;
+}
+
+/**
+ * May `item` land on `host`, a candidate of `hostGame`? (ABI 5.) Its own game's
+ * hosts always; the other game's only when the row is not HOME_ONLY and the host
+ * engine does not refuse foreign items there.
+ */
+/** The running fill's per-side crossing bound (ComboLogicFillRequest's
+ *  `maxCrossingsPerSide`; 0: unbounded), and, per host game, whether that side
+ *  has reached it. The flags are recomputed from the tables before every draw
+ *  (ComboLogicRefreshCrossingBudget), so a batch roll-back that takes rows out
+ *  gives their budget back without any bookkeeping of its own. */
+static int sMaxCrossingsPerSide;
+static bool sCrossingSideFull[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
+
+static void ComboLogicRefreshCrossingBudget(void) {
+    for (int g = 0; g < RSBS_FOREIGN_POOL_ORIGIN_COUNT; ++g) {
+        sCrossingSideFull[g] = false;
+    }
+    if (sMaxCrossingsPerSide <= 0) {
+        return;
+    }
+    for (int g = 0; g < RSBS_FOREIGN_POOL_ORIGIN_COUNT; ++g) {
+        if (!ComboLogicIsGame((uint8_t)g)) {
+            continue;
+        }
+        int crossings = 0;
+        for (int i = 0; i < sPlacementCount[g]; ++i) {
+            crossings += (sPlacements[g][i].item.originGame != (uint8_t)g) ? 1 : 0;
+        }
+        sCrossingSideFull[g] = crossings >= sMaxCrossingsPerSide;
+    }
+}
+
+static bool ComboLogicRowMayUseHost(const ComboLogicBagItem* item, uint8_t hostGame, uint16_t host) {
+    if (item->item.originGame == hostGame) {
+        return true;
+    }
+    if ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u || sCrossingSideFull[hostGame]) {
+        return false;
+    }
+    const ComboLogicEngine* e = ComboLogicEngineFor(hostGame);
+    return e != NULL && (e->hostAcceptsForeign == NULL || e->hostAcceptsForeign(e->self, host) != 0);
+}
+
+/** Is every host on `hostGame`'s side usable by `item` without asking per host?
+ *  True for its own side, and for the other side when the row may cross and the
+ *  host engine accepts foreign items everywhere (no predicate). */
+static bool ComboLogicRowUsesWholeSide(const ComboLogicBagItem* item, uint8_t hostGame) {
+    if (item->item.originGame == hostGame) {
+        return true;
+    }
+    if ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u || sCrossingSideFull[hostGame]) {
+        return false;
+    }
+    const ComboLogicEngine* e = ComboLogicEngineFor(hostGame);
+    return e != NULL && e->hostAcceptsForeign == NULL;
+}
+
+/** How many of `hostGame`'s current candidates `item` may use. */
+static int ComboLogicEligibleOnSide(const ComboLogicBagItem* item, uint8_t hostGame) {
+    const ComboLogicHostBuf* buf = &sCandidates[hostGame];
+    if (ComboLogicRowUsesWholeSide(item, hostGame)) {
+        return buf->count;
+    }
+    if (item->item.originGame != hostGame &&
+        ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u || sCrossingSideFull[hostGame])) {
+        return 0;
+    }
+    int n = 0;
+    for (int i = 0; i < buf->count; ++i) {
+        if (ComboLogicRowMayUseHost(item, hostGame, buf->host[i])) {
+            ++n;
+        }
+    }
+    return n;
+}
+
+/** The index into `hostGame`'s buffer of the `k`-th candidate `item` may use. */
+static int ComboLogicEligibleAt(const ComboLogicBagItem* item, uint8_t hostGame, int k) {
+    const ComboLogicHostBuf* buf = &sCandidates[hostGame];
+    if (ComboLogicRowUsesWholeSide(item, hostGame)) {
+        return k;
+    }
+    for (int i = 0; i < buf->count; ++i) {
+        if (ComboLogicRowMayUseHost(item, hostGame, buf->host[i])) {
+            if (k == 0) {
+                return i;
+            }
+            --k;
+        }
+    }
+    return -1; // unreachable: k < ComboLogicEligibleOnSide
 }
 
 /**
@@ -910,8 +1029,16 @@ static bool ComboLogicRungIsPinned(uint8_t rung) {
  *                proving rungs, plain exhaustion under `none`.
  */
 static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, bool* deadEnd) {
-    const int nOoT = sCandidates[(uint8_t)GAME_OOT].count;
-    const int nMM = sCandidates[(uint8_t)GAME_MM].count;
+    // THE ROW'S OWN UNION (ABI 5). A row that may cross, drawn onto sides whose
+    // engines accept foreign items everywhere, sees exactly the old union, so the
+    // draw below consumes the same single RNG value over the same count and every
+    // pre-ABI-4 world is reproduced. A HOME_ONLY row sees only its own side; a
+    // crossing row sees the other side's candidates filtered by that engine's
+    // `hostAcceptsForeign`. Still ONE uniform draw over what the row may use — not
+    // "pick a side, then a host", for the XOR-bias reason stated above.
+    ComboLogicRefreshCrossingBudget();
+    const int nOoT = ComboLogicEligibleOnSide(item, (uint8_t)GAME_OOT);
+    const int nMM = ComboLogicEligibleOnSide(item, (uint8_t)GAME_MM);
     const int total = nOoT + nMM;
 
     *deadEnd = false;
@@ -922,7 +1049,11 @@ static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, 
 
     const uint32_t pick = ComboLogicRngBelow(rng, (uint32_t)total);
     const uint8_t hostGame = (pick < (uint32_t)nOoT) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
-    const int hostIndex = (pick < (uint32_t)nOoT) ? (int)pick : (int)(pick - (uint32_t)nOoT);
+    const int eligibleIndex = (pick < (uint32_t)nOoT) ? (int)pick : (int)(pick - (uint32_t)nOoT);
+    const int hostIndex = ComboLogicEligibleAt(item, hostGame, eligibleIndex);
+    if (hostIndex < 0) {
+        return RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED; // a predicate that changed its answer mid-draw
+    }
     const uint16_t host = sCandidates[hostGame].host[hostIndex];
 
     if (!ComboLogicAddPlacement(hostGame, host, item->item, item->itemClass)) {
@@ -970,15 +1101,6 @@ static void ComboLogicRecordDrop(const ComboLogicFillRequest* req, int bagIndex,
     ComboLogicDigestByte(&res->droppedDigest, (uint8_t)((row->item.id >> 8) & 0xFF));
     res->surplusDropped++;
 }
-
-/** The required / surplus split of the bag, each in BAG ORDER. Filled once per
- *  fill by ComboLogicPartitionBag; the required list is then shuffled per
- *  attempt into sBagOrder, the surplus list never is (its order IS the drop
- *  rule). */
-static int sRequiredIdx[RSBS_COMBO_LOGIC_BAG_CAP];
-static int sRequiredCount;
-static int sSurplusIdx[RSBS_COMBO_LOGIC_BAG_CAP];
-static int sSurplusCount;
 
 static void ComboLogicPartitionBag(const ComboLogicFillRequest* req) {
     sRequiredCount = 0;
@@ -1085,6 +1207,9 @@ static int ComboLogicFillNoLogic(const ComboLogicFillRequest* req, ComboLogicFil
 
     for (int k = 0; k < sRequiredCount; ++k) {
         bool deadEnd = false;
+        if (ComboLogicObserve(req, RSBS_COMBO_FILL_STAGE_ROUND, res)) {
+            return RSBS_COMBO_LOGIC_ERR_ABORTED;
+        }
         int st = ComboLogicCollectFrom((uint8_t)GAME_OOT, false);
 
         if (st == RSBS_COMBO_LOGIC_OK) {
@@ -1113,6 +1238,9 @@ static int ComboLogicFillNoLogic(const ComboLogicFillRequest* req, ComboLogicFil
     }
     // Then the SURPLUS rows, in bag order, from every empty host; the tail that
     // finds none is dropped.
+    if (sSurplusCount > 0 && ComboLogicObserve(req, RSBS_COMBO_FILL_STAGE_SURPLUS, res)) {
+        return RSBS_COMBO_LOGIC_ERR_ABORTED;
+    }
     return ComboLogicPlaceSurplus(req, false, &rng, res);
 }
 
@@ -1192,6 +1320,7 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
     ComboLogicPartitionBag(req);
     res.droppedDigest = 2166136261u; // FNV-1a offset basis: "nothing dropped"
+    sMaxCrossingsPerSide = (int)req->maxCrossingsPerSide;
 
     // The base rung is a different HOST SOURCE, not a different distribution:
     // see ComboLogicFillNoLogic. Everything below this point runs a round per
@@ -1231,8 +1360,11 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
                 sAssumedBuf[assumedCount++] = req->bag[sBagOrder[j]];
             }
 
-            const int st =
-                ComboLogicRoundRun(sAssumedBuf, assumedCount, req->goal, req->triforceRequired, &round);
+            if (ComboLogicObserve(req, RSBS_COMBO_FILL_STAGE_ROUND, &res)) {
+                status = RSBS_COMBO_LOGIC_ERR_ABORTED;
+                goto finish;
+            }
+            const int st = ComboLogicRoundRun(sAssumedBuf, assumedCount, req->goal, req->triforceRequired, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 // An engine-contract failure is not a dead end and retrying it
@@ -1265,6 +1397,10 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         // The guarantee is the fill's exit condition, never a check bolted on
         // after it (ADR 0010 §2.3). `beatable` and `all-reachable` differ only
         // in this block; `none` never reaches it (it returned above).
+        if (ComboLogicObserve(req, RSBS_COMBO_FILL_STAGE_PROOF, &res)) {
+            status = RSBS_COMBO_LOGIC_ERR_ABORTED;
+            goto finish;
+        }
         {
             const int st = ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, &round);
             res.rounds++;
@@ -1288,6 +1424,10 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         // reached, unassigned hosts (arrival gate applied): the supply every
         // surplus row draws from. Under `beatable`, every empty host is (see
         // ComboLogicPlaceSurplus).
+        if (sSurplusCount > 0 && ComboLogicObserve(req, RSBS_COMBO_FILL_STAGE_SURPLUS, &res)) {
+            status = RSBS_COMBO_LOGIC_ERR_ABORTED;
+            goto finish;
+        }
         {
             const int st = ComboLogicPlaceSurplus(req, req->logicRung == RSBS_COMBO_RUNG_ALL_REACHABLE, &rng, &res);
             if (st != RSBS_COMBO_LOGIC_OK) {
@@ -1566,6 +1706,11 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
         status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
         goto finish;
     }
+    if ((req->composeFlags & (uint16_t)~RSBS_COMBO_COMPOSE_FLAGS_KNOWN) != 0u) {
+        fprintf(stderr, "[ComboLogic] compose refused: unknown compose flags 0x%04X\n", (unsigned)req->composeFlags);
+        status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        goto finish;
+    }
     if ((req->quantityFlags & RSBS_COMBO_QUANTITY_KEEP_ALL) == 0u &&
         (req->startingHealthOoT == 0u || req->startingHealthMM == 0u)) {
         // THE SHARED-QUANTITY TRIM's health budget is a function of the frozen
@@ -1640,7 +1785,16 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
             sComposeTrimmedCount++;
             continue;
         }
-        if (disp[i] != (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED && disp[i] != (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS) {
+        // A CONFINED row enters only under RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME,
+        // and then as a HOME_ONLY row: still counted CONFINED in pass 1, so the
+        // counts keep saying which rows a frozen setting holds at home. It is
+        // admitted HERE, after the trim, so it never sat in a trim group and
+        // never counted toward a shared budget (B7 pins that no trim-family row
+        // is confinable).
+        const bool confinedHome = disp[i] == (uint8_t)RSBS_COMBO_COMPOSE_CONFINED &&
+                                  (req->composeFlags & RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME) != 0u;
+        if (disp[i] != (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED && disp[i] != (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS &&
+            !confinedHome) {
             continue; // counted for its own game's pass; never a bag row
         }
         if (res.bagCount < outCap) {
@@ -1649,7 +1803,10 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
             b->item.originGame = req->rows[i].item.originGame;
             b->item.id = req->rows[i].item.id;
             b->itemClass = 0u;
-            b->bagFlags = (disp[i] == (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS) ? RSBS_COMBO_BAG_SURPLUS : 0u;
+            const bool surplus = (disp[i] == (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS) ||
+                                 (confinedHome && (req->rows[i].poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u);
+            b->bagFlags = (uint16_t)((surplus ? RSBS_COMBO_BAG_SURPLUS : 0u) |
+                                     (confinedHome ? RSBS_COMBO_BAG_HOME_ONLY : 0u));
             if (outPoolIndex != NULL) {
                 outPoolIndex[res.bagCount] = i;
             }

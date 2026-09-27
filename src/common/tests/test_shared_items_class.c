@@ -109,9 +109,6 @@ int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
 int OoT_ComboLogic_TestEnsureItemTable(void);
 int OoT_ComboLogic_TestFillAdvancement(uint16_t id);
 int MM_ComboLogic_TestFillAdvancement(uint16_t id);
-// The foreign-pool TUs' adjudications (ForeignItemsSingleExe.cpp, both games).
-int OoT_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCriterion);
-int MM_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCriterion);
 int MM_ForeignItem_TestIsJunkClassId(uint16_t riId);
 }
 
@@ -305,51 +302,16 @@ TestResult SicCoverageAndTraps(uint8_t origin, int expectedRealNonFillRows) {
                    "MM's RI_TRAP is non-junk to MM's own fill, so the trap-first rule decides at least one row");
     }
 
-    // S3: every criterion-5 (REWARD) exclusion of this game's foreign pool is a
-    // TRAP here — the pool TU's hand adjudication and this table name the same
-    // punishments.
-    int rewardExclusions = 0;
-    for (int index = 0;; index++) {
-        uint16_t excludedId = 0;
-        uint8_t criterion = 0;
-        const int more = origin == (uint8_t)GAME_OOT ? OoT_ForeignItem_TestExclusionAt(index, &excludedId, &criterion)
-                                                     : MM_ForeignItem_TestExclusionAt(index, &excludedId, &criterion);
-        if (!more) {
-            break;
-        }
-        if (criterion == RSBS_FOREIGN_CRIT_REWARD) {
-            rewardExclusions++;
-            SIC_ASSERT(Combo_ItemClassOf(SicItem(origin, excludedId)) == RSBS_FILL_CLASS_TRAP,
-                       "a criterion-5 exclusion is a TRAP in the owner table");
-        }
-    }
-    SIC_ASSERT(rewardExclusions >= 1, "each foreign pool adjudicates at least one trap (anti-vacuity)");
+    // S3 (every criterion-5 exclusion of the foreign pool is a TRAP here) is
+    // RETIRED with the pinned pools and their exclusion tables (ADR 0010
+    // increment 3, D3): this table is now the only adjudication, and "a trap
+    // never crosses" is asserted over it directly above.
     return TEST_PASS;
 }
 
-// S7 for one origin.
-TestResult SicForeignPoolAgrees(uint8_t origin) {
-    const ComboForeignItemDef* pool = nullptr;
-    const int count = Combo_GetForeignItemPoolFor(origin, &pool);
-    SIC_ASSERT(count > 0 && pool != nullptr, "the foreign pool is registered");
-    int perClass[RSBS_FILL_CLASS_COUNT] = { 0 };
-    for (int i = 0; i < count; i++) {
-        const uint8_t cls = Combo_ItemClassOf(pool[i].item);
-        SIC_ASSERT(cls < RSBS_FILL_CLASS_COUNT, "a pool row's class is a real enumerator");
-        perClass[cls]++;
-        if (cls != RSBS_FILL_CLASS_PROGRESSION) {
-            printf("[TEST] %s pool row '%s' (id %u) is %s in the owner table\n", SicGameName(origin), pool[i].name,
-                   (unsigned)pool[i].item.id, Combo_ItemClassName(cls));
-        }
-        // A pool row is an item ADR 0011 lets cross; the owner lets only
-        // PROGRESSION cross (Combo_ItemClassMayCrossUnder). Anything else —
-        // renewable included — is the two tables disagreeing about one item.
-        SIC_ASSERT(cls == RSBS_FILL_CLASS_PROGRESSION, "every foreign-pool row is PROGRESSION in the owner table");
-    }
-    printf("[TEST] %s foreign pool (%d rows): progression=%d (every row)\n", SicGameName(origin), count,
-           perClass[RSBS_FILL_CLASS_PROGRESSION]);
-    return TEST_PASS;
-}
+// S7 (every foreign-pool row is PROGRESSION in the owner table) is RETIRED with
+// the pinned pools (ADR 0010 increment 3, D3): the owner table is now the only
+// membership rule a crossing is drawn under.
 
 // Restores, on EVERY exit of the row (an early SIC_ASSERT return included), the
 // process state the row touches: the published give caps of both origins and the
@@ -605,11 +567,6 @@ TestResult Test_SharedItemClass(void) {
                    "publishing the frozen caps changes no source answer: the condition is a predicate, not an input");
     }
     Combo_ClearForeignGiveCaps();
-
-    // ---- S7: the foreign pools agree ---------------------------------------
-    if (SicForeignPoolAgrees((uint8_t)GAME_OOT) != TEST_PASS || SicForeignPoolAgrees((uint8_t)GAME_MM) != TEST_PASS) {
-        return TEST_FAIL;
-    }
 
     // ---- S8, over the REAL tables: one class per shared kind (#731, #733) ---
     int sharedByBoth = 0;

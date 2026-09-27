@@ -49,6 +49,7 @@ int OoT_ComboLogic_TestClampActive(void);
 int OoT_NativeFill_TestPlentifulTycoonProfile(void);
 int OoT_NativeFill_TestHarvestProgressives(int* outLevels, int* outCopies, int* outReached);
 int Rando_HeadlessSeedTest(const char* seedStr);
+int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 }
 
 #define PLP_ASSERT(cond, msg)                                               \
@@ -83,6 +84,10 @@ TestResult OoTPlentifulProgressive_Run(void) {
     for (int i = 0; i < 3; ++i) {
         CVarSetInteger(kProfile[i], kProfileValue[i]);
     }
+    // OoT's NATIVE general pass (lane K11): this row measures OoT's own fill or a world
+    // with its general pass placed by it, not the paired creation's single bag, so it
+    // asks Fill() not to defer the general pass (ComboLogicEngineOoT.cpp).
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
     const int genRc = Rando_HeadlessSeedTest("RSBSPLENTIFUL726");
     for (int i = 0; i < 3; ++i) {
         CVarClear(kProfile[i]);

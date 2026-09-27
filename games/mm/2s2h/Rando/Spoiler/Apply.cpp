@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 #include "foreign_items.h" // src/common — placement table + pinned-pool reverse lookup (Lane C1, #392)
-#include "Rando/Foreign.h" // Rando::Foreign::IsEligibleHost — the host rule the LOAD path must reapply (#488)
+#include "Rando/Foreign.h" // Rando::Foreign::IsForeignHostClass — the host rule the LOAD path must reapply (#488)
 // The #533/#568 REFUSED machinery and its player-visible half. The identity
 // gate below reports through exactly the surface #570's arrival refusal uses
 // (#610) — a divergent spoiler and a divergent arrival are the same class of
@@ -29,8 +29,10 @@ namespace Spoiler {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 // Lane C1 follow-up (#392): rebuild gComboCtx.foreignPlacements from a loaded
-// spoiler's "foreign" section — the spoiler-LOAD counterpart of generation's
-// Rando::Foreign::PlaceForeignItems (games/mm/2s2h/Rando/Foreign.cpp). Without
+// spoiler's "foreign" section — the spoiler-LOAD counterpart of what was
+// generation's Rando::Foreign::PlaceForeignItems (retired, ADR 0010 increment 3:
+// a new world's pinned table is empty and its crossings reload through the
+// crossing store's combo.crossingStore section instead). Without
 // this a paired MM world entered via the LOAD path never rebuilds the placement
 // table, and its foreign checks silently degrade to the junk-class MM item they
 // physically hold (the gap the C1 landing on #392 noted).
@@ -363,7 +365,7 @@ int ReconstructForeignPlacements(const nlohmann::json& spoiler) {
         //  - The half that DOES bite is the check-class allowlist — which is
         //    the one that matters, because it is the half that decides whether
         //    the host can ever be armed.
-        if (!Rando::Foreign::IsEligibleHost((RandoCheckId)p.checkId)) {
+        if (!Rando::Foreign::IsForeignHostClass((RandoCheckId)p.checkId)) {
             // Restore `shuffled` only. randoItemId deliberately KEEPS the
             // RI_JUNK written above: this branch is precisely the
             // "placement is absent" case the normalization comment describes,
@@ -454,7 +456,7 @@ void ApplyToSaveContext(nlohmann::json spoiler) {
     // Lane C1 follow-up (#392): a paired MM world entered via the spoiler-LOAD
     // path must rebuild its cross-game placements from the spoiler, or its
     // foreign checks degrade to the junk they physically hold. This is the LOAD
-    // counterpart of generation's Rando::Foreign::PlaceForeignItems. Runs after
+    // counterpart of the retired Rando::Foreign::PlaceForeignItems. Runs after
     // the checks are applied; never touches sharedItemsTagged (redemption-safe).
     ReconstructForeignPlacements(spoiler);
 #endif

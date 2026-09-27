@@ -52,6 +52,11 @@ class Item {
     uint16_t GetPrice() const;
     std::shared_ptr<GetItemEntry> GetGIEntry() const;
     GetItemEntry GetGIEntry_Copy() const;
+    // RSBS (ADR 0010 increment 3): the entry this row was BUILT with, or nullptr
+    // for a row whose entry is resolved per call (the progressive items). Reads
+    // no Logic and no settings, so it is safe where GetGIEntry is not (a
+    // presentation lookup on OoT's NULL-play redemption path).
+    const GetItemEntry* GetStaticGIEntry() const;
     void SetPrice(uint16_t price_);
     void SetAsPlaythrough();
     void SetCustomDrawFunc(CustomDrawFunc) const;

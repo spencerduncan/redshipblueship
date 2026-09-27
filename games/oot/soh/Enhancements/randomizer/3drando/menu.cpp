@@ -18,7 +18,10 @@
 #include "../SeedContext.h"
 #include "../settings.h"
 #include "../item_location.h"
+#include <cstdio>
+#include <fstream>
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
+#include "crossing_store.h" // src/common — the paired world's hint checks (PR #743 review)
 
 namespace {
 bool seedChanged;
@@ -68,6 +71,15 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr) {
     return ok ? 0 : 1;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
+extern "C" int OoT_ComboLogic_GeneralPassDeferred(void);
+#else
+static int OoT_ComboLogic_TestSetNativeGeneralPass(int) {
+    return 0;
+}
+#endif
+
 // Hint-validity harness bridge (#441): run ONE seed generation, then prove that
 // every generated hint names a REAL item — no hint may resolve to the no-item
 // sentinel (itemTable[RG_NONE], "No Item"). The operator-visible bug was a
@@ -86,13 +98,35 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr) {
 //       missing entry shows up here instead of as "No Item" in someone's game;
 //   (3) rendered text — no hint's final message may contain the sentinel, which
 //       catches any resolution path the first two passes don't model.
-extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
-    int rc = Rando_HeadlessSeedTest(seedStr);
-    if (rc != 0) {
-        fprintf(stderr, "[rando-hints] generation failed rc=%d\n", rc);
-        return rc;
-    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ForeignItemsSingleExe.cpp / hints.cpp: the crossing store's view, for the paired
+// world's hint checks below (PR #743 review).
+extern "C" int OoT_Combo_CheckHostsCrossing(int rc);
+extern "C" int Rando_HintAreaForItemOutsideHyrule(int item);
+extern "C" int Rando_HintAreaFromCrossingStore(int item);
+#else
+static int OoT_Combo_CheckHostsCrossing(int) {
+    return 0;
+}
+#endif
 
+/**
+ * The three #441 passes (and the round trip) over every enabled hint of the LIVE
+ * context. With `pairedWorld`, the world is a single-bag paired world completed by
+ * the creation event (PR #743 review), and four more things must hold:
+ *   (P1) no hint names a crossing host: it physically holds a cover item, so any
+ *        location hint about it would name the cover, not the MM item it yields;
+ *   (P2) no crossing host is even hintable, so no distribution can pick one;
+ *   (P3) an item hint whose target is at no OoT location names Termina, never
+ *        "an Isolated Place" (the RA_NONE a location with no area answers);
+ *   (P4) every OoT item the crossing store hosts in MM resolves to Termina, so P3
+ *        is not vacuous on a seed whose hinted items all stayed home.
+ *   (P5) OUTSIDE the remainder's hint pass (now: this validator runs after it) the
+ *        hint pass does not read the store at all: every one of those items answers
+ *        RA_NONE, so a later hint pass over another world cannot name Termina off
+ *        this world's crossings.
+ */
+static int ValidateGeneratedHints(bool pairedWorld) {
     auto ctx = Rando::Context::GetInstance();
     if (!ctx) {
         fprintf(stderr, "[rando-hints] no Rando::Context after generation\n");
@@ -109,6 +143,7 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
 
     size_t hintsChecked = 0;
     size_t failures = 0;
+    size_t terminaHints = 0;
 
     for (int h = RH_NONE + 1; h < RH_MAX; h++) {
         const auto hintKey = static_cast<RandomizerHint>(h);
@@ -123,7 +158,30 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
         const HintType hintType = hint->GetHintType();
         const bool namesAnItem = (hintType == HINT_TYPE_ITEM || hintType == HINT_TYPE_ITEM_AREA);
 
-        for (const RandomizerCheck hintedCheck : hint->GetHintedLocations()) {
+        const std::vector<RandomizerCheck> hintedLocations = hint->GetHintedLocations();
+        const std::vector<RandomizerArea> hintedAreas = hint->GetHintedAreas();
+        for (size_t li = 0; li < hintedLocations.size(); li++) {
+            const RandomizerCheck hintedCheck = hintedLocations[li];
+            if (pairedWorld) {
+                if (OoT_Combo_CheckHostsCrossing((int)hintedCheck) != 0) {
+                    fprintf(stderr, "[rando-hints] FAIL %s: names crossing host %d, which holds a cover item (P1)\n",
+                            hintName.c_str(), (int)hintedCheck);
+                    failures++;
+                    continue;
+                }
+                if (hintedCheck == RC_UNKNOWN_CHECK) {
+                    if (li < hintedAreas.size() && hintedAreas[li] == RA_TERMINA) {
+                        terminaHints++;
+                    } else {
+                        fprintf(stderr,
+                                "[rando-hints] FAIL %s: target %zu is at no OoT location and the hint does not name "
+                                "Termina (area %d) (P3)\n",
+                                hintName.c_str(), li, li < hintedAreas.size() ? (int)hintedAreas[li] : -1);
+                        failures++;
+                    }
+                    continue;
+                }
+            }
             // (1) An item hint that points at an empty location is the
             // under-placement half of this bug class.
             if (namesAnItem && ctx->GetItemLocation(hintedCheck)->GetPlacedRandomizerGet() == RG_NONE) {
@@ -202,8 +260,123 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
         return 6;
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (pairedWorld) {
+        int crossingHosts = 0;
+        for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+            ComboCrossing row;
+            if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
+                continue;
+            }
+            crossingHosts++;
+            if (ctx->GetItemLocation((RandomizerCheck)row.hostCheck)->IsHintable()) {
+                fprintf(stderr, "[rando-hints] FAIL: crossing host %u is hintable (P2)\n", (unsigned)row.hostCheck);
+                failures++;
+            }
+        }
+        int ootItemsInMM = 0;
+        for (int i = 0; i < Combo_Crossings_Count(GAME_MM); i++) {
+            ComboCrossing row;
+            if (!Combo_Crossings_At(GAME_MM, i, &row) || row.item.originGame != (uint8_t)GAME_OOT) {
+                continue;
+            }
+            ootItemsInMM++;
+            if (Rando_HintAreaFromCrossingStore((int)row.item.id) != (int)RA_TERMINA) {
+                fprintf(stderr, "[rando-hints] FAIL: OoT item %u is hosted in MM but a hint would not name Termina "
+                                "(P4)\n",
+                        (unsigned)row.item.id);
+                failures++;
+            }
+            if (Rando_HintAreaForItemOutsideHyrule((int)row.item.id) != (int)RA_NONE) {
+                fprintf(stderr, "[rando-hints] FAIL: outside the paired remainder the hint pass still reads the "
+                                "crossing store: OoT item %u would be hinted as area %d (P5)\n",
+                        (unsigned)row.item.id, Rando_HintAreaForItemOutsideHyrule((int)row.item.id));
+                failures++;
+            }
+        }
+        fprintf(stderr,
+                "[rando-hints] paired world: %d crossing hosts in OoT (none may be hintable), %d OoT items in MM, "
+                "%zu hinted target(s) named Termina\n",
+                crossingHosts, ootItemsInMM, terminaHints);
+        if (crossingHosts == 0 || ootItemsInMM == 0) {
+            fprintf(stderr, "[rando-hints] the paired world crossed nothing in one direction; P2/P4 are vacuous\n");
+            return 7;
+        }
+    }
+#endif
+
     fprintf(stderr, "[rando-hints] checked %zu enabled hints, %zu failures\n", hintsChecked, failures);
     return failures == 0 ? 0 : 1;
+}
+
+extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
+    // OoT's NATIVE general pass (lane K11): this lock validates the hints OoT's
+    // own fill tail writes over a world whose general pass it placed, so it asks
+    // Fill() not to defer that pass to a paired creation's single bag.
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
+    int rc = Rando_HeadlessSeedTest(seedStr);
+    if (rc != 0) {
+        fprintf(stderr, "[rando-hints] generation failed rc=%d\n", rc);
+        return rc;
+    }
+    return ValidateGeneratedHints(false);
+}
+
+/**
+ * The same hint validity over the world the SHIPPED paired path produced (PR #743
+ * review): the caller has run a paired generation, MM's creation-time half (the
+ * single-bag fill) and OoT's remainder, whose tail wrote these hints. The three
+ * #441 rows above validate OoT's native general pass, which a paired file no
+ * longer ships.
+ */
+extern "C" int Rando_ValidatePairedWorldHints(void) {
+    return ValidateGeneratedHints(true);
+}
+
+/**
+ * TEST BRIDGE (combo-creation-event; PR #743 review): reload the OoT spoiler the
+ * paired creation wrote, the way file select does (Context::ParseSpoiler), and the
+ * same document with its paired-world markers stripped.
+ *
+ * @param path              the spoiler the creation wrote (absolute).
+ * @param outMarked         1 when the document carries the paired-world markers.
+ * @param outPairedLoaded   Randomizer_IsSpoilerLoaded after parsing it (must be 0:
+ *                          refused).
+ * @param outStrippedLoaded the same after parsing the stripped copy (must be 1: the
+ *                          refusal keys on the markers, not on the document).
+ * @return 0 when both parses ran; nonzero when the file could not be read or the
+ *         stripped copy could not be written.
+ */
+extern "C" int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded,
+                                             int* outStrippedLoaded) {
+    nlohmann::json doc;
+    try {
+        std::ifstream in(path);
+        if (!in.is_open()) {
+            return 1;
+        }
+        in >> doc;
+    } catch (...) { return 2; }
+    *outMarked = (doc.is_object() && doc.contains("combo") && doc.contains("rsbsSingleBagWorld")) ? 1 : 0;
+
+    auto ctx = Rando::Context::GetInstance();
+    ctx->ParseSpoiler(path);
+    *outPairedLoaded = ctx->IsSpoilerLoaded() ? 1 : 0;
+
+    doc.erase("combo");
+    doc.erase("rsbsSingleBagWorld");
+    const std::string stripped = std::string(path) + ".stripped-test.json";
+    try {
+        std::ofstream out(stripped);
+        if (!out.is_open()) {
+            return 3;
+        }
+        out << doc.dump();
+    } catch (...) { return 3; }
+    ctx->ParseSpoiler(stripped.c_str());
+    *outStrippedLoaded = ctx->IsSpoilerLoaded() ? 1 : 0;
+    std::remove(stripped.c_str());
+    return 0;
 }
 
 // Implemented in SaveManager.cpp (which owns the private SaveRandomizer /
@@ -231,6 +404,10 @@ extern "C" void Rando_TestRoundTripRandomizerSection(int* outResetCleared, int* 
 // no-item sentinel. It is the reload-path complement to #445's generation-time
 // lock.
 extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr) {
+    // OoT's NATIVE general pass (lane K11): this lock validates the hints OoT's
+    // own fill tail writes over a world whose general pass it placed, so it asks
+    // Fill() not to defer that pass to a paired creation's single bag.
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
     int rc = Rando_HeadlessSeedTest(seedStr);
     if (rc != 0) {
         fprintf(stderr, "[hint-reload] generation failed rc=%d\n", rc);
@@ -370,6 +547,10 @@ extern "C" bool Combo_HasStartupEntranceForGame(const char* gameId);
 // must still fire, proving the guard is the only thing that saved the world and
 // the assertion above is not vacuous).
 extern "C" int Rando_HeadlessHintCrossGameTest(const char* seedStr) {
+    // OoT's NATIVE general pass (lane K11): this lock validates the hints OoT's
+    // own fill tail writes over a world whose general pass it placed, so it asks
+    // Fill() not to defer that pass to a paired creation's single bag.
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
     int rc = Rando_HeadlessSeedTest(seedStr);
     if (rc != 0) {
         fprintf(stderr, "[hint-crossgame] generation failed rc=%d\n", rc);
@@ -486,6 +667,35 @@ extern "C" int Rando_HeadlessHintCrossGameTest(const char* seedStr) {
     return failures == 0 ? 0 : 1;
 }
 
+/**
+ * The canonical OoT placement hash: "<rc>:<placedItem>;" for every location in
+ * ascending RandomizerCheck order, folded through the project's FNV-1a so a digest
+ * file stays small and stable. Shared by the OoT digest above and by the MM half's
+ * digest, which folds OoT's FINAL world after the single-bag fill (lane K11).
+ */
+extern "C" uint32_t Rando_HeadlessPlacementHash(size_t* outPlacedCount) {
+    auto ctx = Rando::Context::GetInstance();
+    size_t placedCount = 0;
+    std::string blob;
+    if (ctx) {
+        blob.reserve(static_cast<size_t>(RC_MAX) * 8);
+        for (int i = 0; i < RC_MAX; i++) {
+            RandomizerGet item = ctx->GetItemLocation(static_cast<RandomizerCheck>(i))->GetPlacedRandomizerGet();
+            if (item != RG_NONE) {
+                placedCount++;
+            }
+            blob += std::to_string(i);
+            blob += ':';
+            blob += std::to_string(static_cast<int>(item));
+            blob += ';';
+        }
+    }
+    if (outPlacedCount != nullptr) {
+        *outPlacedCount = placedCount;
+    }
+    return SohUtils::Hash(blob);
+}
+
 // Determinism harness bridge (Lane B, Phase 3.0): run ONE seed generation and
 // emit a canonical, side-effect-free digest of (a) the unified-seed producer's
 // output in gComboCtx and (b) the full item placement, so an external wrapper
@@ -531,47 +741,18 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
         return 4;
     }
 
-    // Canonical placement blob: "<rc>:<placedItem>;" for every location, in
-    // ascending RandomizerCheck order, folded through the project's FNV-1a so the
-    // digest file stays small and stable.
-    std::string blob;
-    blob.reserve(static_cast<size_t>(RC_MAX) * 8);
+    // Canonical placement blob (Rando_HeadlessPlacementHash above). Since ADR 0010
+    // increment 3 (lane K11) a PAIRED generation stops at its general pass, so
+    // this hash describes OoT's world at the Generate button — the restricted
+    // passes and the fixed placements — and the MM half's digest appends OoT's
+    // FINAL world (ootFinalPlacementHash) once the single-bag fill has run.
     size_t placedCount = 0;
-    for (int i = 0; i < RC_MAX; i++) {
-        RandomizerGet item = ctx->GetItemLocation(static_cast<RandomizerCheck>(i))->GetPlacedRandomizerGet();
-        if (item != RG_NONE) {
-            placedCount++;
-        }
-        blob += std::to_string(i);
-        blob += ':';
-        blob += std::to_string(static_cast<int>(item));
-        blob += ';';
-    }
-    const uint32_t placementHash = SohUtils::Hash(blob);
-
-    // #510: fold the REVERSE foreign placements (MM items hosted in OoT checks,
-    // written by OoT_PlaceForeignItems during the generation above) into the same
-    // digest. Without this the two-process diff would happily agree on a world
-    // whose cross-game half was drawn differently each run — the placement pass
-    // seeds a local xorshift32 from the paired identity precisely so it cannot,
-    // and this is what holds it to that. Canonical, fixed-slot order, and stable
-    // when the carve is empty (an unpaired world digests as all-zero slots rather
-    // than as absent, so a pairing that stops firing shows up as a mismatch).
-    std::string foreignBlob;
-    size_t foreignCount = 0;
-    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        const ComboForeignPlacement& fp = gComboCtx.foreignPlacementsOoT[i];
-        if (fp.item.originGame != (uint8_t)GAME_NONE) {
-            foreignCount++;
-        }
-        foreignBlob += std::to_string(fp.mmCheckId);
-        foreignBlob += ':';
-        foreignBlob += std::to_string((int)fp.item.originGame);
-        foreignBlob += ':';
-        foreignBlob += std::to_string(fp.item.id);
-        foreignBlob += ';';
-    }
-    const uint32_t foreignHash = SohUtils::Hash(foreignBlob);
+    const uint32_t placementHash = Rando_HeadlessPlacementHash(&placedCount);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    const int generalPassDeferred = OoT_ComboLogic_GeneralPassDeferred();
+#else
+    const int generalPassDeferred = 0;
+#endif
 
     FILE* out = stdout;
     bool closeOut = false;
@@ -589,48 +770,34 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
             "sourceIsRando=%d\n"
             "placementHash=%08X\n"
             "placedCount=%zu\n"
-            "foreignOoTHash=%08X\n"
-            "foreignOoTCount=%zu\n"
+            // ADR 0010 increment 3 (lane K11): 1 when this generation stopped at its
+            // general pass for the single-bag fill (every paired world); the
+            // reverse overlay table that used to follow here is retired with the
+            // pass that wrote it.
+            "generalPassDeferred=%d\n"
             // ADR 0009 decision 1's consequence, finally payable: fold the
             // combo-level rules into the determinism digest, or "changing a
             // combo setting changes the derived world" stays unassertable —
             // which is exactly what #498 says about this digest today. The
-            // creation event stamps it just above the reverse placement pass, so
-            // it is live by the time this runs. The RECORD is emitted beside the
-            // fingerprint deliberately: a digest-only line would tell a diff
-            // that something changed without telling a human what.
+            // RECORD is emitted beside the fingerprint deliberately: a
+            // digest-only line would tell a diff that something changed without
+            // telling a human what.
             "comboSettingsHash=%08X\n"
             "comboSettings=v%u/d%u/p%u,%u/c%04X,%04X/g%u/r%u\n",
             gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, gComboCtx.sourceIsRando ? 1 : 0,
-            placementHash, placedCount, foreignHash, foreignCount, gComboCtx.comboSettingsHash,
+            placementHash, placedCount, generalPassDeferred, gComboCtx.comboSettingsHash,
             (unsigned)gComboCtx.comboSettings.formatVersion, (unsigned)gComboCtx.comboSettings.direction,
             (unsigned)gComboCtx.comboSettings.poolSizeOoT, (unsigned)gComboCtx.comboSettings.poolSizeMM,
             (unsigned)gComboCtx.comboSettings.itemClassOoT, (unsigned)gComboCtx.comboSettings.itemClassMM,
             (unsigned)gComboCtx.comboSettings.goal, (unsigned)gComboCtx.comboSettings.logicRung);
-    // #688: the REVERSE table, slot by slot, beside its hash. The hash alone is
-    // enough for a two-run self-diff (either it matches or it does not), but a
-    // GOLDEN row has to tell a reviewer WHICH placement moved — "foreignOoTHash
-    // 3F2A1B07 -> 91CC04DE" is unreviewable, and the forward table has carried
-    // its per-slot lines since Lane C1 for exactly this reason. Occupied slots
-    // only, mirroring the MM half's `foreign%d=` convention; the u16 in THIS
-    // table holds an OoT RandomizerCheck (context.h:636), so the line is named
-    // for what it carries rather than for the struct field.
-    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        const ComboForeignPlacement& slot = gComboCtx.foreignPlacementsOoT[i];
-        if (slot.item.originGame == (uint8_t)GAME_NONE) {
-            continue;
-        }
-        fprintf(out, "foreignOoT%d=%u:%u:%u\n", i, (unsigned)slot.mmCheckId, (unsigned)slot.item.originGame,
-                (unsigned)slot.item.id);
-    }
     if (closeOut) {
         fclose(out);
     }
     fprintf(stderr,
             "[rando-determinism] digest: seed=%08X settingsHash=%08X placementHash=%08X placed=%zu "
-            "foreignOoTHash=%08X foreignOoT=%zu\n",
-            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, placementHash, placedCount, foreignHash,
-            foreignCount);
+            "generalPassDeferred=%d\n",
+            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, placementHash, placedCount,
+            generalPassDeferred);
     return 0;
 }
 
