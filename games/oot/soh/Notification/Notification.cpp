@@ -215,6 +215,10 @@ extern "C" void OoT_Notification_Emit(const ComboNotification* notification) {
     Notification::Emit(options);
 }
 
+extern "C" void OoT_Notification_ClearForTest(void) {
+    Notification::notifications.clear();
+}
+
 extern "C" int OoT_Notification_PeekLastForTest(ComboNotification* out) {
     if (out == nullptr || Notification::notifications.empty()) {
         return 0;

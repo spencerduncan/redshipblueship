@@ -188,7 +188,13 @@
 
 #include "CreationProgressOverlay.h"
 
+// UIWidgets.hpp first: it defines IMGUI_DEFINE_MATH_OPERATORS before its own
+// <imgui.h>, and imgui_internal.h refuses a later define.
+#include "UIWidgets.hpp"
+#include "SohGui.hpp"
+
 #include <imgui.h>
+#include <imgui_internal.h> // BringWindowToDisplayFront: the dim above the menu and the game, the box above the dim
 #include <fast/Fast3dWindow.h>
 #include <libultraship/bridge.h>
 #include <libultraship/bridge/windowbridge.h>
@@ -293,7 +299,9 @@ const ComboGenOverlayView* gPaintingView = nullptr;
 Ship::Gui* gFrameGui = nullptr;
 Fast::Fast3dWindow* gFrameFast = nullptr;
 
-const char* kWindowName = "Creating your paired world";
+const char* kWindowName = "Creating Your Paired World";
+/** The full-viewport window that carries the dim; see DrawDimBackdrop. */
+const char* kDimWindowName = "##CreationProgressDim"; // ui-lint: internal-id
 
 // ---------------------------------------------------------------------------
 // THE SAVE-BYTES OBSERVER (test-only; registered by the creation row, never by a
@@ -379,19 +387,66 @@ class CreationSaveObserverWindow final : public Ship::GuiWindow {
 std::shared_ptr<CreationSaveObserverWindow> gSaveObserver;
 
 /**
+ * The dim behind the box, drawn the way SoH's modals are dimmed.
+ *
+ * SoH's confirm dialogs (SohModals.cpp) are BeginPopupModal windows, and ImGui
+ * dims everything behind a modal with the style's ImGuiCol_ModalWindowDimBg --
+ * the menu, the game image, every other window -- while the modal itself stays
+ * bright. This surface is deliberately NOT a popup (see DrawOverlayContents), so
+ * it reproduces that look instead of inheriting it: one input-less, full-viewport
+ * window filled with the same style colour and brought to the display front, and
+ * then the box brought to the front above it.
+ *
+ * WHY A WINDOW AND NOT THE BACKGROUND DRAW LIST, which is what this used to use.
+ * The background list renders BEHIND every window, and on a real pumped frame
+ * windows cover the viewport: libultraship's "Main Game" window (Gui::DrawGame
+ * draws the last game frame into it) and, when it is open, SoH's menu. So the old
+ * rect dimmed only what nothing else covered; in the UI snapshot, where no game
+ * image is drawn, it was black on black. A window in the display order dims what
+ * a modal would, and the snapshot's over-menu variant shows it doing that.
+ */
+void DrawDimBackdrop(const ImGuiViewport* viewport) {
+    ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    if (ImGui::Begin(kDimWindowName, nullptr,
+                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs |
+                         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
+                         ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                         ImGuiWindowFlags_NoDocking)) {
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+        ImGui::GetWindowDrawList()->AddRectFilled(viewport->Pos, viewport->Pos + viewport->Size,
+                                                  ImGui::GetColorU32(ImGuiCol_ModalWindowDimBg));
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+}
+
+/**
  * The ImGui half. Runs with OoT's gSaveContext visible and an ImGui frame
  * already open.
  *
- * A PLAIN WINDOW PLUS A DIM RECT, NOT A BeginPopupModal, and the reason is the
+ * A PLAIN WINDOW PLUS A DIM, NOT A BeginPopupModal, and the reason is the
  * teardown. A popup's open/closed flag lives in the ImGui context BETWEEN our
  * pumped frames and the real game frames, so a creation that ended without our
  * terminal paint reaching `CloseCurrentPopup` would leave a dead modal sitting
  * over file select, and the public API has no "close that popup by name". A
  * window is submitted or it is not: when the state machine stops being SHOWN we
- * simply stop drawing, and there is no residue to clean up. The dimming rect
- * SAYS "nothing else on screen is actionable"; what MAKES that true is the input
+ * simply stop drawing, and there is no residue to clean up. The dim SAYS
+ * "nothing else on screen is actionable"; what MAKES that true is the input
  * suppression in PresentOneGuiFrame, because a pumped frame draws SoH's whole menu
  * and not just this window (property 2 in the file comment).
+ *
+ * IT IS DRAWN TO LOOK LIKE SoH's MODAL (SohModals.cpp, the "Clear Config"
+ * confirm, and the ROM-extraction progress modal), which the UI snapshot compares it with
+ * (docs/ui-style-guide.md section 12), and its bar is SoH's ROM-extraction bar:
+ * the modal's dim, its popup background, its focused title bar, the style's own
+ * window padding, and the extraction modal's theme-coloured bar. Every colour is a
+ * style colour or the theme palette; none is hand-picked. The title bar is pushed to the ACTIVE colour because a modal
+ * is always the focused window and this one never takes focus (NoFocusOnAppearing: a pumped frame must not move the
+ * player's keyboard focus).
  */
 void DrawOverlayContents() {
     // Read from inside the frame, so the row that checks the suppression is
@@ -410,20 +465,26 @@ void DrawOverlayContents() {
     }
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::GetBackgroundDrawList()->AddRectFilled(
-        viewport->Pos, ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y),
-        IM_COL32(0, 0, 0, 170));
+    DrawDimBackdrop(viewport);
 
-    ImGui::SetNextWindowPos(
-        ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f, viewport->Pos.y + viewport->Size.y * 0.5f), ImGuiCond_Always,
-        ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowBgAlpha(0.94f);
+    ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowViewport(viewport->ID);
+    // The bar is styled exactly as SoH styles its own progress dialog, the ROM
+    // extraction modal (OTRGlobals.cpp, RunExtract): rounding 3 and padding 10x8
+    // (UIWidgets' framed-widget values), the theme colour for the fill and the
+    // same colour at 0.6 alpha for the track.
+    const ImVec4 theme = UIWidgets::ColorValues.at(THEME_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_PopupBg));
+    ImGui::PushStyleColor(ImGuiCol_TitleBg, ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(theme.x, theme.y, theme.z, 0.6f));
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, theme);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f, 16.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 8.0f));
     if (ImGui::Begin(kWindowName, nullptr,
                      ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                          ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings |
                          ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking)) {
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         ImGui::Text("%s", view->caption);
 
         // The elapsed counter is the honest part of the surface: the fraction is
@@ -432,17 +493,22 @@ void DrawOverlayContents() {
         // budget" would read as a broken bar rather than as "this phase is not
         // the timed one".
         if (view->budgetMs > 0) {
-            ImGui::Text("%.1f s elapsed  -  this attempt may take up to %.0f s", (double)view->elapsedMs / 1000.0,
+            ImGui::Text("%.1f s elapsed (up to %.0f s)", (double)view->elapsedMs / 1000.0,
                         (double)view->budgetMs / 1000.0);
         } else {
             ImGui::Text("%.1f s elapsed", (double)view->elapsedMs / 1000.0);
         }
 
-        ImGui::ProgressBar(view->fraction, ImVec2(520.0f, 32.0f), "");
-        ImGui::TextDisabled("Both halves of this world are being generated now, under one frozen identity.");
+        // The extraction bar's 600 x 50, in font units (docs/ui-style-guide.md
+        // R-T2) so it scales with "ImGui Menu Scaling" the way the text does: at
+        // the default 20 px font it is the same 600 x 50. No percentage inside it:
+        // the fraction is a phase position, not a measured share of the work.
+        ImGui::ProgressBar(view->fraction, ImVec2(ImGui::GetFontSize() * 30.0f, ImGui::GetFontSize() * 2.5f), "");
+        ImGui::Text("Your file is created once both worlds are ready.");
     }
     ImGui::End();
     ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor(4);
 }
 
 /**
