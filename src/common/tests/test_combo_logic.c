@@ -1294,8 +1294,9 @@ TestResult Test_ComboLogicFixpoint(void) {
                   "MM's half still proves and OoT's still does not");
         CL_ASSERT(withoutHost.goalExpression == 1, "beat-either permits the unbeatable half");
 
-        // The single-game goals over the same two worlds. With the Lens only in
-        // Termina, both halves prove and both goals hold. With it removed, only
+        // The single-game goals over the same two worlds (beat-both over them is
+        // asserted above: provable with the host, flipped without it). With the
+        // Lens only in Termina, both halves prove and both goals hold. With it removed, only
         // MM's half proves: beat-mm holds (OoT's unprovable half is no term of
         // it) and beat-oot does not -- the removal flips exactly the goal whose
         // half lost its item.
@@ -1308,9 +1309,6 @@ TestResult Test_ComboLogicFixpoint(void) {
         CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_MM, NULL, 0, &withHost) == RSBS_COMBO_LOGIC_OK &&
                       withHost.goalExpression == 1,
                   "beat-mm: MM's half proves in the paired world");
-        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &withHost) == RSBS_COMBO_LOGIC_OK &&
-                      withHost.goalExpression == 1,
-                  "beat-both: both halves prove in the paired world");
 
         ClBuildCrossingWorld(0u);
         Combo_Logic_Place(GAME_OOT, 10, ClItem((uint8_t)GAME_MM, kMmOcarina), RSBS_ITEMCLASS_PROGRESSION);
@@ -1321,10 +1319,6 @@ TestResult Test_ComboLogicFixpoint(void) {
         CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_OOT, NULL, 0, &withoutHost) == RSBS_COMBO_LOGIC_OK, "beat-oot round");
         CL_ASSERT(withoutHost.goalExpression == 0,
                   "beat-oot must NOT hold once the only Lens is gone, although MM's half still proves");
-        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &withoutHost) == RSBS_COMBO_LOGIC_OK,
-                  "beat-both round");
-        CL_ASSERT(withoutHost.goalExpression == 0,
-                  "beat-both must NOT hold on the removal world: it has a term for OoT's unprovable half");
     }
 
     // --- MM's bracket: the re-apply after restore ------------------------
