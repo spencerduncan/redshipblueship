@@ -22,8 +22,8 @@
  *     session whose arena hands the same addresses to other actors.
  * And because Destroy never runs, a static that only Destroy put back (the
  * one-instance latches of the Spirit Temple lifts and mirror, Dampe's race
- * ghost, the Zora diving game, the Lon Lon milk-crate index, ...) kept the
- * abandoned session's value.
+ * ghost, the Zora diving game, the Lon Lon milk-crate index, the Sunlight
+ * Arrows sun-switch flag, ...) kept the abandoned session's value.
  *
  * THE FIX UNDER TEST. OoT_Game_Suspend calls OoT_RetireAbandonedSession
  * (games/oot/soh/GameExports_SingleExe.cpp) right after the graph is retired:
@@ -103,6 +103,7 @@ OOT_ABANDONED_ACCESSORS(EnRl)
 OOT_ABANDONED_ACCESSORS(EnRu1)
 OOT_ABANDONED_ACCESSORS(EnRu2)
 OOT_ABANDONED_ACCESSORS(ObjBean)
+OOT_ABANDONED_ACCESSORS(ObjLightswitch)
 #undef OOT_ABANDONED_ACCESSORS
 }
 
@@ -163,6 +164,7 @@ const DestroyMaintainedOverlay kDestroyMaintained[] = {
     OAS_ROW(ACTOR_EN_RU1, "En_Ru1 D_80AF1938", EnRu1),
     OAS_ROW(ACTOR_EN_RU2, "En_Ru2 D_80AF4118", EnRu2),
     OAS_ROW(ACTOR_OBJ_BEAN, "Obj_Bean D_80B90E30", ObjBean),
+    OAS_ROW(ACTOR_OBJ_LIGHTSWITCH, "Obj_Lightswitch sunSwitchActivatedByLightArrow", ObjLightswitch),
 };
 #undef OAS_ROW
 constexpr size_t kDestroyMaintainedCount = ARRAY_COUNT(kDestroyMaintained);
