@@ -226,6 +226,7 @@ uint32_t OoT_ComboLogic_TestWorldDigest(void);
 // OoT's headless generation (games/oot/soh/.../randomizer.cpp via the harness) —
 // a duplicate.
 int Rando_HeadlessSeedTest(const char* seedStr);
+int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 
 // MM (games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp) + its rando bring-up.
 // MM_Rando_InitCore, MM_ComboLogic_SnapshotLive and MM_ComboLogic_ShrinkObservations
@@ -904,6 +905,10 @@ TestResult ComboLogicMeasure_Run(void) {
     // A REAL OoT generation, then MM's rando bring-up. Everything below is
     // vacuous without both.
     // ------------------------------------------------------------------
+    // OoT's NATIVE general pass (lane K11): this row measures OoT's own fill or a world
+    // with its general pass placed by it, not the paired creation's single bag, so it
+    // asks Fill() not to defer the general pass (ComboLogicEngineOoT.cpp).
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
     const double genT0 = NowMs();
     const int rc = Rando_HeadlessSeedTest("RSBSCOMBOMEASURE1");
     const double genMs = NowMs() - genT0;
@@ -1721,6 +1726,10 @@ TestResult ComboLogicBagComposition_Run(void) {
     CLB_ASSERT(oot != nullptr && mm != nullptr, "both real engines are registered");
 
     ClmProfileApply(profile);
+    // OoT's NATIVE general pass (lane K11): this row measures OoT's own fill or a world
+    // with its general pass placed by it, not the paired creation's single bag, so it
+    // asks Fill() not to defer the general pass (ComboLogicEngineOoT.cpp).
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
     CLB_ASSERT(Rando_HeadlessSeedTest("RSBSCOMBOBAGCOMP1") == 0, "headless OoT seed generation failed");
     MM_Rando_InitCore();
 

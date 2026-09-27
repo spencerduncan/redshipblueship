@@ -1292,3 +1292,51 @@ So the values go in a separate block. This is the format note.
   `Context_InvalidateSessionState` keeps it with `comboSettings` under
   `RSBS_SEED_STAMP_KEEP` and drops it on every other path, per decision 4.3's
   rule.
+
+### 2026-09-27 -- Under one bag: what `poolSize*`, `direction` and `itemClass*` mean now (ADR 0010 increment 3)
+
+ADR 0010 increment 3 (lane K11) replaces both overlay passes with one fill at
+the creation event, and retires the two pinned pools the passes drew from
+(`kForeignPoolV1`, `kForeignPoolMMV1`, with their exclusion tables and
+decision 3's six numbered criteria). Three record fields were defined in
+terms of those passes. None of them changes position, width, value space or
+the canonical encoding, so `comboSettingsHash` and every frozen record keep
+their meaning as identity; what changes is what generation does with them.
+
+- **`poolSizeOoT` / `poolSizeMM`: no rule reads them, but they re-seed the
+  world.** They capped how many duplicate copies a pass pinned. Under one bag
+  the number of crossings is an outcome of the fill (how many bag rows the draw
+  puts on the other game's hosts), not a setting. The fields stay in the record
+  because the record is format and both bytes are folded into the fingerprint;
+  changing their meaning would move every world's identity. That fingerprint
+  (`comboSettingsHash`) is also folded into the single bag's seed
+  (`Combo_SingleBag_SeedFor`), so changing a pool size, although it changes no
+  rule, draws a different world: every placement moves. The same holds for
+  every `itemClass*` bit other than PROGRESSION. `Combo_ComboPoolSizeFor` still
+  resolves them for the record's own locks. Retiring the pane's two pool-size
+  rows, or dropping inert fields from the fill's seed (which would move every
+  golden), is follow-up work.
+- **`direction`: gates which origins may cross, per bag row.** A bag row whose
+  origin `Combo_ComboDirectionArms` does not arm is `HOME_ONLY`: it is still in
+  the bag, still assumed, still proved, and the fill places it only on its own
+  game's checks. `OFF` is therefore one fill with one proof and zero crossings,
+  which is the decision 2.3 amendment's reading of OFF (a paired world, not an
+  unpaired one). `FORWARD` and `REVERSE` let one origin cross and keep the
+  other home.
+- **`itemClassOoT` / `itemClassMM`: the PROGRESSION bit gates crossing.** Every
+  bag row is progression by construction (the O8 owner admits only
+  progression, plus CONFINED rows as `HOME_ONLY`), so the only bit the fill can
+  read is `RSBS_ITEMCLASS_PROGRESSION`: clear, and every row of that origin is
+  `HOME_ONLY`. The other allocated bits have no rows to select among. Decision
+  3's ordering survives in its new home: classification (the bag builder) runs
+  first, and the bitset only narrows where a classified row may land.
+- **The criteria.** Criteria 1, 2, 3 and 5 are the O8 owner's classes
+  (sentinels and junk are not progression, a trap is its own class, a
+  capability row enters only when its arming conditions hold). Criterion 4 (no
+  world event) is a row armed by nothing. Criterion 6 (#525's shared resources)
+  is reconciled once in the owner table (#731). The numbered constants and the
+  per-pool exclusion tables are deleted rather than retired in place: they
+  were never format.
+
+No save is invalidated by the record; the worlds move because the fill does
+(ADR 0010's 2026-09-27 increment-3 amendment).

@@ -132,9 +132,17 @@
 #include "soh/Enhancements/randomizer/logic.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "3drando/fill.hpp"
+#include "3drando/random.hpp"
+#include "3drando/spoiler_log.hpp"
+#include "soh/util.h"
 
-#include "combo_logic.h" // src/common — the vtable this file implements
-#include "context.h"     // src/common — SharedItem, GameId
+#include <spdlog/spdlog.h>
+#include <string>
+
+#include "combo_logic.h"           // src/common — the vtable this file implements
+#include "context.h"               // src/common — SharedItem, GameId
+#include "foreign_items.h"         // src/common — the frozen pairing identity and combo record
+#include "soh/SohGui/ImGuiUtils.h" // GetTextureForItemId: the describer's arrival-toast icon key
 
 extern "C" {
 #include <z64.h>
@@ -252,7 +260,7 @@ bool OoTComboLogicReady() {
 
 /** Does `rc` name a real row in the location table? A gap is default-constructed
  *  and keeps RC_UNKNOWN_CHECK, so the identity test rejects it — the same test
- *  OoT_Foreign_IsEligibleHostImpl uses, for the same reason. */
+ *  the retired OoT_Foreign_IsEligibleHostImpl used, for the same reason. */
 bool OoTComboLogicIsRealCheck(RandomizerCheck rc) {
     if (rc <= RC_UNKNOWN_CHECK || rc >= RC_MAX) {
         return false;
@@ -1018,6 +1026,48 @@ void OoT_ComboLogic_EndQuery(void* self) {
     }
 }
 
+/**
+ * May an MM-origin item be placed on this OoT host (combo_logic.h ABI 5)?
+ *
+ * ONLY WHERE OoT'S GIVE PATH CAN DELIVER ONE. A foreign item in an OoT check is
+ * delivered by the RC-queue drain (hook_handlers.cpp), which consults the
+ * placement table (and, behind it, the crossing store) before OoT's own give —
+ * and that drain is what OoT's TREASURE CHESTS go through. So the host class is
+ * the static half of the retired reverse pass's OoT_Foreign_IsEligibleHostImpl:
+ * an `ACTOR_EN_BOX` row, never a shop, scrub, merchant or chest-game slot, whose
+ * give-and-price flows differ from the ordinary collect path. The fill-side half
+ * of that predicate ("the fill put junk here") is the old overlay pass's and does
+ * not apply: the coordinator only ever offers EMPTY hosts, and this engine's
+ * `place` puts the junk cover there itself.
+ *
+ * A pure function of the static location table: legal outside a round, no RNG.
+ */
+int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
+    (void)self;
+    const RandomizerCheck rc = (RandomizerCheck)hostCheck;
+    if (!OoTComboLogicIsRealCheck(rc)) {
+        return 0;
+    }
+    Rando::Location* loc = Rando::StaticData::GetLocation(rc);
+    if (loc->GetActorID() != ACTOR_EN_BOX) {
+        return 0;
+    }
+    const RandomizerCheckType checkType = loc->GetRCType();
+    if (checkType == RCTYPE_SHOP || checkType == RCTYPE_SCRUB || checkType == RCTYPE_MERCHANT ||
+        checkType == RCTYPE_CHEST_GAME || loc->IsShop()) {
+        return 0;
+    }
+    // THE WHOLE CHEST-GAME ROOM, not only its RCTYPE_CHEST_GAME rows (PR #743
+    // review; found by the category sweep below). The game's reward is tagged
+    // RCTYPE_STANDARD and sits on an ACTOR_EN_BOX, but Randomizer::GetCheckObjectFromActor
+    // also resolves it from the ACTOR_ITEM_ETCETERA prize, a give path that is not
+    // the chest's; and the room resets its chests' flags on every play.
+    if (loc->GetScene() == SCENE_TREASURE_BOX_SHOP) {
+        return 0;
+    }
+    return 1;
+}
+
 // ============================================================================
 // Registration
 // ============================================================================
@@ -1047,6 +1097,7 @@ const ComboLogicEngine kOoTComboLogicEngine = {
     /* snapshot          */ nullptr,
     /* restore           */ nullptr,
     /* triforcePieces    */ OoT_ComboLogic_TriforcePieces,
+    /* hostAcceptsForeign*/ OoT_ComboLogic_HostAcceptsForeign,
 };
 
 struct OoTComboLogicRegistrar {
@@ -1086,7 +1137,33 @@ const char* OoTComboDescribeCheck(uint16_t check) {
     return name.empty() ? nullptr : name.c_str();
 }
 
-const ComboGameDescriber kOoTComboDescriber = { OoTComboDescribeItem, OoTComboDescribeCheck };
+const char* OoTComboDescribeArticle(uint16_t id) {
+    if (id == 0 || id >= (uint16_t)RG_MAX) {
+        return nullptr;
+    }
+    // The ENGLISH article, matching the English name the describer serves.
+    return Rando::StaticData::RetrieveItem((RandomizerGet)id).GetArticle().GetEnglish().c_str();
+}
+
+/** The ITEM_* texture-map key OoT's notification overlay resolves through
+ *  GetTextureByName for this item (#494) — GetTextureForItemId of the ItemID in
+ *  the entry the row was built with. A progressive item's row has no static
+ *  entry (it resolves per tier, against Logic, at give time), so it resolves to
+ *  no key here and toasts text-only rather than reaching for Logic. */
+const char* OoTComboDescribeIcon(uint16_t id) {
+    if (id == 0 || id >= (uint16_t)RG_MAX) {
+        return nullptr;
+    }
+    const GetItemEntry* entry = Rando::StaticData::RetrieveItem((RandomizerGet)id).GetStaticGIEntry();
+    if (entry == nullptr) {
+        return nullptr;
+    }
+    const char* key = GetTextureForItemId((uint32_t)entry->itemId);
+    return (key != nullptr && key[0] != '\0') ? key : nullptr;
+}
+
+const ComboGameDescriber kOoTComboDescriber = { OoTComboDescribeItem, OoTComboDescribeCheck, OoTComboDescribeArticle,
+                                                OoTComboDescribeIcon };
 
 /** Same shape as the engine registrar above: stores a pointer, calls nothing. */
 struct OoTComboDescriberRegistrar {
@@ -2235,6 +2312,381 @@ extern "C" int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_
         }
     }
     return total;
+}
+
+// ============================================================================
+// THE PAIRED WORLD'S GENERAL PASS, DEFERRED TO THE CREATION EVENT (ADR 0010
+// increment 3, D3; lane K11). See fill.cpp's seam and src/common/combo_single_bag.h.
+// ============================================================================
+//
+// Fill() stops a paired world after its restricted passes and records that here;
+// the single-bag fill (Combo_SingleBag_Run) places the bag over OoT's still-empty
+// general-pass hosts and MM's pool at the creation event; this file's
+// OoT_ComboLogic_FinishGeneralPass then runs OoT's per-game remainder (its junk,
+// renewables and traps onto its leftover hosts, overrides, hints, the spoiler).
+
+// fill.cpp: the remainder (RSBS_SINGLE_EXECUTABLE only) and the empty-host walk.
+int RsbsFinishPairedGeneralPass(std::vector<RandomizerGet>& remainingPool);
+std::vector<RandomizerCheck> GetAllEmptyLocations();
+// item_pool.cpp: OoT's own junk draw (the item FastFill pads with), for the
+// trimmed rows' filler.
+RandomizerGet GetJunkItem();
+
+namespace {
+/** OoT's world is waiting at its general-pass point for the single-bag fill. */
+bool sGeneralPassDeferred = false;
+/** TEST ONLY: run OoT's NATIVE general pass even for a paired world. */
+bool sNativeGeneralPassForTest = false;
+/** True only while OoT_ComboLogic_FinishGeneralPass writes the spoiler of a
+ *  single-bag paired world (spoiler_log.cpp marks the document with it). */
+bool sWritingSingleBagSpoiler = false;
+/** True only while OoT_ComboLogic_FinishGeneralPass runs OoT's remainder (whose
+ *  tail writes the hints) for the paired world whose crossings the store was just
+ *  given (OoT_Creation_FinishPairedHalf captures, then calls the remainder). The
+ *  hint pass reads the crossing store only under it (PR #743 review): the store
+ *  outlives the creation that filled it, so any other hint pass would read
+ *  another world's crossings. */
+bool sHintingPairedRemainder = false;
+/** The export rows (source 0, export order) the last successful bag took. */
+std::vector<int> sBagExportRows;
+/** The export rows THE SHARED-QUANTITY TRIM removed (combo_logic.h): each leaves
+ *  the pool and comes back as ONE OoT junk copy, never as the item. */
+std::vector<int> sTrimmedExportRows;
+} // namespace
+
+/** Fill()'s question: should this generation stop at its general pass? Yes for a
+ *  paired world (the freeze in Playthrough_Init has run by the time Fill() asks),
+ *  unless a test asked for the native pass. */
+extern "C" int OoT_ComboLogic_DeferGeneralPassWanted(void) {
+    return (!sNativeGeneralPassForTest && Combo_ForeignPairingActive() && Combo_ComboSettingsFrozen()) ? 1 : 0;
+}
+
+/** Set by Fill() when it stops (1); cleared by every new generation, a spoiler
+ *  load, and OoT_ComboLogic_FinishGeneralPass (0). */
+extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred) {
+    sGeneralPassDeferred = (deferred != 0);
+    if (!sGeneralPassDeferred) {
+        sBagExportRows.clear();
+        sTrimmedExportRows.clear();
+    }
+}
+
+extern "C" int OoT_ComboLogic_GeneralPassDeferred(void) {
+    return sGeneralPassDeferred ? 1 : 0;
+}
+
+/** TEST SEAM: 1 makes Fill() run OoT's own general pass for a paired world, for
+ *  the rows that measure OoT's NATIVE fill; 0 restores production. Returns the
+ *  prior value. */
+extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native) {
+    const int prior = sNativeGeneralPassForTest ? 1 : 0;
+    sNativeGeneralPassForTest = (native != 0);
+    return prior;
+}
+
+extern "C" void OoT_ComboLogic_NoteBagRows(const int* exportRows, int count) {
+    sBagExportRows.clear();
+    for (int i = 0; exportRows != nullptr && i < count; ++i) {
+        sBagExportRows.push_back(exportRows[i]);
+    }
+}
+
+extern "C" void OoT_ComboLogic_NoteTrimmedRows(const int* exportRows, int count) {
+    sTrimmedExportRows.clear();
+    for (int i = 0; exportRows != nullptr && i < count; ++i) {
+        sTrimmedExportRows.push_back(exportRows[i]);
+    }
+}
+
+/**
+ * COMMIT (Combo_SingleBag_Forget): forget which hosts the coordinator gave this
+ * engine WITHOUT restoring their prior item. The record exists for the batch
+ * roll-back; kept past the creation it would let a later fill's reset write
+ * RG_NONE into this finished world's hosts.
+ */
+extern "C" void OoT_ComboLogic_ForgetPlacements(void) {
+    sPlacementCount = 0;
+}
+
+/**
+ * OoT'S PER-GAME REMAINDER, after the single-bag fill placed the bag.
+ *
+ *  1. Remove from `itemPool` the rows the bag took (OoT_ComboLogic_NoteBagRows,
+ *     in export order: source 0 enumerates `itemPool` skipping RG_NONE, and so
+ *     does this walk) and the rows THE SHARED-QUANTITY TRIM removed
+ *     (OoT_ComboLogic_NoteTrimmedRows). What is left is OoT's junk, renewables
+ *     and traps; after step 3 each trimmed row adds ONE GetJunkItem() copy — the
+ *     junk OoT's own FastFill pads with, drawn from the re-seeded stream — so a
+ *     trimmed heart's host gets filler, never the dead pickup (combo_logic.h,
+ *     THE SHARED-QUANTITY TRIM, rule 5).
+ *  2. Mark every host the coordinator filled HINTABLE, as the native general
+ *     pass's AssumedFill(…, setLocationsAsHintable = true) would have.
+ *  3. Re-seed OoT's RNG from the seed hash Playthrough_Init already derived, plus
+ *     a domain tag: the time between Generate and file creation is the player's,
+ *     and nothing may let it (or anything else that drew from the stream in
+ *     between) choose this world's junk and hints.
+ *  4. fill.cpp's RsbsFinishPairedGeneralPass: traps, then junk, onto the
+ *     leftover hosts; overrides; hints; warp song texts.
+ *  5. Optionally write OoT's spoiler document (the creation seam then grows its
+ *     "combo" section).
+ *
+ * THE LIVE SAVE IS PROTECTED. Context::PlaceItemInLocation applies an item's
+ * effect under Glitchless whatever its argument says, through Logic's save
+ * context — and at file creation that can be `&gSaveContext`, the file being
+ * created. So Logic is detached for the whole remainder and re-attached after,
+ * the same bracket the engine's own query uses.
+ *
+ * @return 0 on success; nonzero when OoT's world is not at its general-pass point.
+ */
+extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
+    if (!sGeneralPassDeferred || !OoTComboLogicReady()) {
+        fprintf(stderr, "[OoT/ComboLogic] finish refused: OoT's world is not waiting at its general pass\n");
+        return 1;
+    }
+    auto ctx = Rando::Context::GetInstance();
+
+    // 1. The bag's rows leave the pool.
+    std::vector<bool> taken;
+    {
+        std::vector<int> itemPoolIndexOfRow;
+        for (size_t i = 0; i < itemPool.size(); ++i) {
+            if (itemPool[i] == RG_NONE) {
+                continue;
+            }
+            itemPoolIndexOfRow.push_back((int)i);
+        }
+        taken.assign(itemPool.size(), false);
+        for (const int row : sBagExportRows) {
+            if (row >= 0 && row < (int)itemPoolIndexOfRow.size()) {
+                taken[(size_t)itemPoolIndexOfRow[(size_t)row]] = true;
+            }
+        }
+        for (const int row : sTrimmedExportRows) {
+            if (row >= 0 && row < (int)itemPoolIndexOfRow.size()) {
+                taken[(size_t)itemPoolIndexOfRow[(size_t)row]] = true;
+            }
+        }
+    }
+    std::vector<RandomizerGet> remaining;
+    for (size_t i = 0; i < itemPool.size(); ++i) {
+        if (!taken[i] && itemPool[i] != RG_NONE) {
+            remaining.push_back(itemPool[i]);
+        }
+    }
+    itemPool.clear();
+
+    // 2. The coordinator's OoT hosts are hintable, as the native pass's are —
+    //    EXCEPT a crossing host. It physically holds kOoTForeignJunkCover while
+    //    its real content is an MM item delivered through the crossing store, and
+    //    OoT's hint text reads the physical item: a gossip stone would name a Blue
+    //    Rupee for an MM progression item (PR #743 review). Kept out of every
+    //    location hint instead; where an OoT item hint's target crossed into MM,
+    //    hints.cpp names Termina.
+    for (int i = 0; i < sPlacementCount; ++i) {
+        if (sPlacements[i].item.originGame != (uint8_t)GAME_OOT) {
+            continue;
+        }
+        Rando::ItemLocation* il = ctx->GetItemLocation(sPlacements[i].host);
+        if (il != nullptr) {
+            il->SetAsHintable();
+        }
+    }
+
+    // 3. The stream, from the identity.
+    Random_Init(SohUtils::Hash(ctx->GetHash() + std::string("|rsbs-single-bag-oot-remainder-v1")));
+
+    // The trimmed rows' filler: one OoT junk copy each, from that stream.
+    // RsbsFinishPairedGeneralPass deals traps first and these with the rest.
+    const int trimmedRows = (int)sTrimmedExportRows.size();
+    for (int i = 0; i < trimmedRows; ++i) {
+        remaining.push_back(GetJunkItem());
+    }
+
+    // 4. The remainder, with Logic detached from any live save.
+    //
+    // THE LANGUAGE BYTE. The hint and spoiler text below resolve every message
+    // through CustomMessage::GetForCurrentLanguage, which indexes a per-language
+    // table with `gSaveContext.language` unchecked. At OoT's file-create seam that
+    // byte is the file's own, valid by construction; a caller that runs this with
+    // any other bytes in gSaveContext (a headless harness, whose MM half is live
+    // there) would index past the table. So an out-of-range byte reads as English
+    // for exactly the duration of this remainder and is put back after — the
+    // bytes are otherwise untouched.
+    const uint8_t priorLanguage = (uint8_t)gSaveContext.language;
+    const bool languageGuard = priorLanguage >= (uint8_t)LANGUAGE_MAX;
+    if (languageGuard) {
+        gSaveContext.language = LANGUAGE_ENG;
+    }
+    Rando::Logic* lg = OoTComboLogicSingleton();
+    const bool priorLive = (lg->GetSaveContext() == &gSaveContext);
+    if (priorLive) {
+        lg->Reset(true);
+    }
+    const int leftovers = (int)GetAllEmptyLocations().size();
+    const int remainingRows = (int)remaining.size();
+    {
+        // RAII: RsbsFinishPairedGeneralPass can throw (the fill's own
+        // exceptions), and a flag left set would let a later hint pass read
+        // this world's crossings.
+        struct HintingPairedRemainder {
+            HintingPairedRemainder() {
+                sHintingPairedRemainder = true;
+            }
+            ~HintingPairedRemainder() {
+                sHintingPairedRemainder = false;
+            }
+        } hinting;
+        RsbsFinishPairedGeneralPass(remaining);
+    }
+    if (priorLive) {
+        SaveContext* mine = lg->GetSaveContext();
+        lg->SetSaveContext(&gSaveContext);
+        if (mine != nullptr && mine != &gSaveContext && mine != OoTComboLogicScratchSave(false)) {
+            free(mine); // mirrors Logic::NewSaveContext, as the engine's endQuery does
+        }
+    }
+    const int bagRowsTaken = (int)sBagExportRows.size();
+    OoT_ComboLogic_SetGeneralPassDeferred(0);
+    fprintf(stderr,
+            "[OoT/ComboLogic] general pass finished: %d bag rows left the pool, %d trimmed rows became junk, %d "
+            "per-game rows onto %d leftover hosts, %d empty after\n",
+            bagRowsTaken, trimmedRows, remainingRows, leftovers, (int)GetAllEmptyLocations().size());
+
+    // 5. OoT's spoiler document.
+    if (writeSpoiler) {
+        sWritingSingleBagSpoiler = true;
+        const bool spoilerWritten = SpoilerLog_Write() != nullptr;
+        sWritingSingleBagSpoiler = false;
+        if (spoilerWritten) {
+            SPDLOG_INFO("Writing Spoiler Log Done (paired world, after the single-bag fill)");
+        } else {
+            SPDLOG_ERROR("Writing Spoiler Log Failed (paired world)");
+        }
+    }
+    if (languageGuard) {
+        gSaveContext.language = priorLanguage;
+    }
+    fflush(stderr);
+    return 0;
+}
+
+extern "C" int OoT_ComboLogic_WritingSingleBagSpoiler(void) {
+    return sWritingSingleBagSpoiler ? 1 : 0;
+}
+
+/** 1 while OoT's remainder hints the paired world whose crossings the store holds
+ *  (see sHintingPairedRemainder); hints.cpp reads the store only then. */
+extern "C" int OoT_ComboLogic_HintingPairedRemainder(void) {
+    return sHintingPairedRemainder ? 1 : 0;
+}
+
+/**
+ * TEST BRIDGE (combo-single-bag; PR #743 review): sweep EVERY OoT location through
+ * the ABI-5 foreign-host predicate, by category, from facts the predicate does not
+ * share a line with where possible. The combo-single-bag row's own host assertion
+ * asks the same predicate the fill filtered on, so it cannot see the predicate
+ * itself loosen; this can. Categories, each of which must be REJECTED:
+ *   [0] RCTYPE_SHOP rows and every IsShop() location,
+ *   [1] RCTYPE_SCRUB rows,
+ *   [2] RCTYPE_MERCHANT rows,
+ *   [3] RCTYPE_CHEST_GAME rows,
+ *   [4] every location whose NAME says shop, bazaar or chest game (independent of
+ *       the type tags the predicate reads),
+ *   [5] every location whose actor is not ACTOR_EN_BOX.
+ * [6] counts the ACCEPTED rows, which must all be ACTOR_EN_BOX and are the
+ * non-vacuity half: a predicate that rejected everything would pass [0]-[5].
+ *
+ * @param outCounts 7 ints: the rows seen per category.
+ * @return the number of rows the predicate accepted against its category.
+ */
+extern "C" int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts) {
+    for (int i = 0; i < 7; ++i) {
+        outCounts[i] = 0;
+    }
+    int violations = 0;
+    for (int c = 1; c < (int)RC_MAX; ++c) {
+        const RandomizerCheck rc = (RandomizerCheck)c;
+        if (!OoTComboLogicIsRealCheck(rc)) {
+            continue;
+        }
+        Rando::Location* loc = Rando::StaticData::GetLocation(rc);
+        const bool accepted = OoT_ComboLogic_HostAcceptsForeign(nullptr, (uint16_t)c) != 0;
+        const RandomizerCheckType type = loc->GetRCType();
+        const std::string& name = loc->GetName();
+        const bool categories[6] = {
+            type == RCTYPE_SHOP || loc->IsShop(),
+            type == RCTYPE_SCRUB,
+            type == RCTYPE_MERCHANT,
+            type == RCTYPE_CHEST_GAME,
+            name.find("Shop") != std::string::npos || name.find("Bazaar") != std::string::npos ||
+                name.find("Chest Game") != std::string::npos,
+            loc->GetActorID() != ACTOR_EN_BOX,
+        };
+        for (int k = 0; k < 6; ++k) {
+            if (!categories[k]) {
+                continue;
+            }
+            outCounts[k]++;
+            if (accepted) {
+                fprintf(stderr, "[OoT/ComboLogic] host-rule sweep: '%s' (check %d) is accepted but is category %d\n",
+                        name.c_str(), c, k);
+                violations++;
+            }
+        }
+        if (accepted) {
+            outCounts[6]++;
+        }
+    }
+    return violations;
+}
+
+/** TEST BRIDGE (combo-single-bag): OoT hosts the fill considers that hold nothing. */
+extern "C" int OoT_ComboLogic_TestEmptyHostCount(void) {
+    return OoTComboLogicReady() ? (int)GetAllEmptyLocations().size() : -1;
+}
+
+/** TEST BRIDGE (combo-single-bag): OoT locations holding an ice trap. */
+extern "C" int OoT_ComboLogic_TestCountIceTraps(void) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return -1;
+    }
+    int count = 0;
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        count += (il != nullptr && il->GetPlacedRandomizerGet() == RG_ICE_TRAP) ? 1 : 0;
+    }
+    return count;
+}
+
+/**
+ * TEST BRIDGE (redship tier; src/common/tests/test_named_items.h): the same
+ * bring-up as OoT_ComboLogic_TestEnsureItemTable below, but a Context it had to
+ * create for InitItemTable is RELEASED again, so the process is left exactly as
+ * it was apart from the filled table. InitItemTable only dereferences the
+ * Context to reach its Logic (item_list.cpp) and keeps nothing, and the table is
+ * a static array, so the names outlive the Context.
+ *
+ * Exists because the ROM-free rows run in ONE process under `--test all`, and
+ * some of them (combo-tracker-view's never-booted leg) assert that no heap
+ * Rando::Context exists yet: a lock that only wanted an item's NAME must not
+ * leave one behind. The Context <-> Logic back-edge is what keeps a created
+ * instance alive past its scope; breaking it drops the instance with its last
+ * owner.
+ *
+ * @return 0 when the table is ready afterwards, -1 otherwise.
+ */
+extern "C" int OoT_ComboLogic_TestEnsureItemTableTransient(void) {
+    if (!OoTFillClassTableReady()) {
+        if (Rando::Context::GetInstance() == nullptr) {
+            std::shared_ptr<Rando::Context> created = Rando::Context::CreateInstance();
+            Rando::StaticData::InitItemTable();
+            created->GetLogic()->SetContext(nullptr);
+        } else {
+            Rando::StaticData::InitItemTable();
+        }
+    }
+    return OoTFillClassTableReady() ? 0 : -1;
 }
 
 /**

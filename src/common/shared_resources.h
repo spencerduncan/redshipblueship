@@ -18,8 +18,9 @@
  * game with a single magic meter" — then ammo: the quiver, bomb-bag, stick
  * and nut capacity TIERS plus the arrow, bomb, bombchu, stick and nut COUNTS —
  * then the hookshot — and, behind a per-world setting, the ocarina (#668).
- * That is what justifies the matching pool shrink in `kForeignPoolMMV1`
- * (#525): with one wallet, one health bar, one magic meter, one quiver and one
+ * That is what justified the matching pool shrink in the (since retired,
+ * ADR 0010 increment 3) `kForeignPoolMMV1` (#525), and what the O8
+ * classification owner now decides once: with one wallet, one health bar, one magic meter, one quiver and one
  * hookshot spanning both games, MM's wallet/heart/double-defense/magic/ammo/
  * hookshot rows are no longer separate items to cross — they ARE the shared
  * resource, so shipping them as foreign placements too would hand the player a

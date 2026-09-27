@@ -41,6 +41,7 @@
 #include "../foreign_items.h"
 #include "../shared_items.h"
 #include "../test_runner.h"
+#include "test_named_items.h"
 
 #include <cstdio>
 #include <cstring>
@@ -59,6 +60,7 @@ uint16_t MM_ForeignItem_TestPendingAt(int index);
 void MM_ForeignItem_TestResetPending(void);
 int MM_ForeignItem_TestItemIdMax(void);
 int MM_ForeignItem_TestIsGiveableId(uint16_t riId);
+int MM_ForeignItem_TestIsJunkClassId(uint16_t riId);
 
 // The arrival toast's payload, as the give builds it (#494). Same
 // BuildArrivalToast the Notification::Emit in GiveNow is handed.
@@ -193,10 +195,9 @@ TestResult Test_ForeignAwardMM(void) {
     ComboContext_Init();
     Combo_ClearSharedItemOutbox();
     MM_ForeignItem_TestResetPending();
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPool(&pool);
-    FA_ASSERT(poolCount > 0 && pool != NULL);
-    FA_ASSERT(Combo_RecordSharedItem(GAME_OOT, pool[0].item.id) >= 0);
+    SharedItem ootItem;
+    FA_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &ootItem));
+    FA_ASSERT(Combo_RecordSharedItem(GAME_OOT, ootItem.id) >= 0);
 
     MM_ConsumeSharedItems();
     FA_ASSERT(MM_ForeignItem_TestPendingCount() == 0);
@@ -226,85 +227,79 @@ TestResult Test_ForeignAwardMM(void) {
     // ------------------------------------------------------------------
     // Presentation is display-tier: what the player sees is the operator's to
     // verify, and CI must not pretend otherwise. What CI can honestly lock is
-    // that every surface which HAS to name a foreign item can: the MM pickup
-    // textbox (Rando::Foreign::ForeignNameForCheck), the OoT arrival toast
-    // (Combo_GetForeignItemName in OoT_AwardSharedItem), and both spoilers all
-    // resolve through the same descriptor. An entry with no name degrades all
-    // four at once to "Foreign Treasure", silently.
-    //
-    // Deliberately RED-able: this walks EVERY registered origin's pool, so an
-    // entry added later without a name fails here rather than at whichever
-    // surface the player happens to reach first. It still asserts nothing about
-    // the icon: a foreign item is drawn model-less and toasted without an icon
-    // in the game that is NOT its own (#510), because reaching the other game's
-    // icon needs a cross-archive accessor src/common does not have. The one
-    // place an icon IS native — MM receiving an MM item — is locked in (8).
-    for (uint8_t origin = 0; origin < (uint8_t)RSBS_FOREIGN_POOL_ORIGIN_COUNT; origin++) {
-        const ComboForeignItemDef* originPool = NULL;
-        const int n = Combo_GetForeignItemPoolFor(origin, &originPool);
-        if (n == 0) {
-            continue; // that origin's pool TU is not linked in this build
+    // that every surface which HAS to name a crossing can: the MM pickup
+    // textbox (Rando::Foreign::ForeignNameForCheck), the OoT arrival and pickup
+    // toasts (Combo_GetForeignItemName) and both spoilers all resolve through
+    // the origin game's describer. Under one bag ANY progression item may cross
+    // (ADR 0010 increment 3), so this walks every id MM's give accepts, not a
+    // pool: an MM item the give accepts but the describer cannot name would
+    // present as "a foreign item" in OoT, silently.
+    int mmNamed = 0;
+    for (int id = 1; id < itemIdMax; id++) {
+        // In the give's id range AND a row of MM's item table (the enum has gaps
+        // with no table row; MM_ForeignItem_TestIsJunkClassId reports those -1).
+        if (!MM_ForeignItem_TestIsGiveableId((uint16_t)id) || MM_ForeignItem_TestIsJunkClassId((uint16_t)id) < 0) {
+            continue;
         }
-        FA_ASSERT(originPool != NULL);
-        for (int i = 0; i < n; i++) {
-            FA_ASSERT(originPool[i].item.originGame == origin);
-            FA_ASSERT(originPool[i].name != NULL && originPool[i].name[0] != '\0');
-            // Through the real accessor the presentation surfaces call, not
-            // just the table field they happen to be stored in.
-            const char* resolved = Combo_GetForeignItemName(originPool[i].item);
-            FA_ASSERT(resolved != NULL && strcmp(resolved, originPool[i].name) == 0);
+        SharedItem mmItem;
+        mmItem.originGame = (uint8_t)GAME_MM;
+        mmItem.flags = 0;
+        mmItem.id = (uint16_t)id;
+        const char* name = Combo_GetForeignItemName(mmItem);
+        if (name == NULL || name[0] == '\0') {
+            printf("[TEST] FAIL: MM item id %d is giveable but its describer names it nothing\n", id);
+            return TEST_FAIL;
         }
+        FA_ASSERT(Combo_GetForeignItemArticle(mmItem) != NULL);
+        mmNamed++;
     }
+    FA_ASSERT(mmNamed > 0);
 
     // ------------------------------------------------------------------
     // (8) The MM ARRIVAL toast names the item, natively (#494).
     // ------------------------------------------------------------------
-    // Until #494 the MM arrival was SILENT: MM_AwardSharedItem logged to stderr
-    // and the item simply appeared in the inventory, an arbitrary number of
-    // scenes after the OoT check that granted it. The give now emits MM's own
-    // pickup toast, and this is the honest lock on it — the pixels are the
-    // operator's to verify, the RESOLUTION is CI's.
+    // Until #494 the MM arrival was SILENT. The give now emits MM's own pickup
+    // toast, and this is the honest lock on it — the pixels are the operator's
+    // to verify, the RESOLUTION is CI's.
     //
     // The assertion is an EQUALITY against the WHOLE toast — every field the
-    // overlay draws, joined the way it draws them — and not a non-empty check
-    // on the item name. That is what makes it falsifiable in both directions:
-    //   - any tell added back anywhere in the toast breaks the equality: "…
-    //     from Ocarina of Time" appended to the verb, an origin badge parked in
-    //     the unused `.prefix`, a changed verb. An item-name-only observable
-    //     would have missed all three, which is the whole point of asserting
-    //     the rendered line instead;
-    //   - MM's item table drifting away from kForeignPoolMMV1's generated
-    //     article/name columns also breaks it, and those columns are a
-    //     persistence key (the spoiler-load inverse), so that drift matters
-    //     beyond display.
-    // Two independent tables have to agree; neither is derived from the other
-    // at runtime.
-    //
-    // The expected line is "You got " + article + name because
-    // ComboForeignItemDef.article carries its own trailing space (foreign_items.h)
-    // while the verb is a separate Options field the overlay spaces itself.
+    // overlay draws, joined the way it draws them — so any tell added back
+    // anywhere ("… from Ocarina of Time", an origin badge in `.prefix`, a
+    // changed verb) breaks it. The expected line is built from the DESCRIBER's
+    // article + name (the surface every other presentation reads), while the
+    // toast is built by MM's own GetItemName: two paths over MM's table that
+    // must agree, for every item MM's give accepts.
     {
-        const ComboForeignItemDef* mmPool = NULL;
-        const int mmCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &mmPool);
         char shown[128];
         char expected[128];
-        FA_ASSERT(mmCount > 0 && mmPool != NULL);
-        for (int i = 0; i < mmCount; i++) {
-            const int len = MM_ForeignItem_TestArrivalText(mmPool[i].item.id, shown, (int)sizeof(shown));
+        int compared = 0;
+        for (int id = 1; id < itemIdMax; id++) {
+            if (!MM_ForeignItem_TestIsGiveableId((uint16_t)id) || MM_ForeignItem_TestIsJunkClassId((uint16_t)id) < 0 ||
+                id == (int)riJunk) {
+                continue; // not a table row; RI_JUNK's toast names the CURRENT junk item, by design
+            }
+            SharedItem mmItem;
+            mmItem.originGame = (uint8_t)GAME_MM;
+            mmItem.flags = 0;
+            mmItem.id = (uint16_t)id;
+            const int len = MM_ForeignItem_TestArrivalText((uint16_t)id, shown, (int)sizeof(shown));
             FA_ASSERT(len > 0);
-            FA_ASSERT(mmPool[i].article != NULL);
-            snprintf(expected, sizeof(expected), "You got %s%s", mmPool[i].article, mmPool[i].name);
+            const char* article = Combo_GetForeignItemArticle(mmItem);
+            FA_ASSERT(article != NULL);
+            snprintf(expected, sizeof(expected), "You got %s%s", article, Combo_GetForeignItemName(mmItem));
             if (strcmp(shown, expected) != 0) {
-                printf("[TEST] FAIL: arrival toast for pool entry %d shows '%s', expected '%s'\n", i, shown, expected);
+                printf("[TEST] FAIL: arrival toast for MM item %d shows '%s', expected '%s'\n", id, shown, expected);
                 return TEST_FAIL;
             }
             // The icon is allowed to be absent — Emit renders a text-only toast
-            // for a null icon, which is a degradation, not a defect. What must
-            // not happen is an empty-but-present path, which would draw a blank
-            // 24x24 hole where the item icon belongs.
-            const char* icon = MM_ForeignItem_TestArrivalIcon(mmPool[i].item.id);
+            // for a null icon. What must not happen is an empty-but-present
+            // path, which would draw a blank 24x24 hole.
+            const char* icon = MM_ForeignItem_TestArrivalIcon((uint16_t)id);
             FA_ASSERT(icon == NULL || icon[0] != '\0');
+            compared++;
         }
+        FA_ASSERT(compared > 0);
+        printf("[TEST] foreign-award-mm: %d MM arrival toasts match their describer article + name\n", compared);
         // A sentinel id resolves to nothing rather than to a fabricated string:
         // the toast is only ever built for an id the give accepted.
         FA_ASSERT(MM_ForeignItem_TestArrivalText(riNone, shown, (int)sizeof(shown)) == -1);

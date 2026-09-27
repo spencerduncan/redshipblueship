@@ -1,6 +1,7 @@
 /**
- * ForeignItemsSingleExe.cpp — the pinned foreign-item pool and the OoT-side
- * redemption give (Phase 3.0 Lane C1, #392; ADR 0002).
+ * ForeignItemsSingleExe.cpp — the OoT-side redemption give, the crossing
+ * pickup, and the paired creation event (Phase 3.0 Lane C1, #392; ADR 0002;
+ * ADR 0010 increments 2 and 3).
  *
  * This is the ONE translation unit where the cross-game item class is defined,
  * because it is the one place the real RG_* enumerators may appear: everything
@@ -9,9 +10,10 @@
  * class). MM and the ROM-free test harness reach the pool through the
  * extern "C" surface declared in src/common/foreign_items.h.
  *
- * Pool choice (C0 handoff on #392): ~4 OoT progression items with clean give
- * semantics. The handoff's example list named RG_PROGRESSIVE_STRENGTH_UPGRADE,
- * which does not exist; the real enumerator is RG_PROGRESSIVE_STRENGTH.
+ * The pinned OoT pool this TU used to define (kForeignPoolV1, ~4 rows) and the
+ * reverse overlay pass (OoT_PlaceForeignItems) are RETIRED (ADR 0010 increment
+ * 3, D3; lane K11): items leave origin pools, and every crossing is a placement
+ * the single-bag fill makes at the creation event.
  *
  * Redemption give: progressive entries resolve against the LIVE save via
  * Item::GetGIEntry_Copy() — Logic's save context is pointed at gSaveContext on
@@ -24,12 +26,9 @@
  * Lives in soh/Enhancements/randomizer/ (soh_rando) which links WHOLE_ARCHIVE,
  * so these definitions always survive the link.
  *
- * #510 added the REVERSE direction's producer half at the bottom of this file:
- * OoT_Foreign_IsEligibleHost (which OoT check may host an MM item) and
- * OoT_PlaceForeignItems (the generation-time placement pass Playthrough_Init
- * calls). Those are the twin of MM's Rando::Foreign, and they consume MM's
- * kForeignPoolMMV1 through the same origin-indexed registry — so this file still
- * never sees an RI_*, only origin-tagged SharedItems.
+ * The crossing pickup (OoT_Rando_Foreign_RecordPickup) reads the placement
+ * table and, behind it, the crossing store, and this file still never sees an
+ * RI_*, only origin-tagged SharedItems.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -47,13 +46,16 @@
 #include "soh/Enhancements/randomizer/item.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/logic.h"
+#include "soh/Enhancements/randomizer/savefile.h" // Randomizer_InitSaveFile: runs AFTER the creation event
 // ReachabilitySearch — the reverse pass's reachability gate (#656). The same
 // header entrance.cpp reaches it through, from the same directory.
 #include "3drando/fill.hpp"
 
-#include "foreign_items.h" // src/common — ComboForeignItemDef, SharedItem
-#include "shared_items.h"  // src/common — Combo_RecordSharedItem (#493)
-#include "gen_budget.h"    // src/common — the #582 fill budget + progress surface
+#include "foreign_items.h"    // src/common — SharedItem, the placement tables
+#include "combo_single_bag.h" // src/common — the single-bag fill (ADR 0010 increment 3, lane K11)
+#include "crossing_store.h"   // src/common — the creation writer of the crossings (ADR 0010 O7)
+#include "shared_items.h"     // src/common — Combo_RecordSharedItem (#493)
+#include "gen_budget.h"       // src/common — the #582 fill budget + progress surface
 
 extern "C" {
 #include <z64.h>
@@ -66,182 +68,16 @@ u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry);
 void GiveLinkRupees(int numOfRupees);
 
 // ============================================================================
-// The pinned pool ("foreign item class v1")
+// The pinned pool ("foreign item class v1") — RETIRED (ADR 0010 increment 3,
+// D3; lane K11)
 // ============================================================================
-
-// Aggregate member-wise init is the sanctioned way to build a SharedItem (the
-// ADR's static_asserts reject raw-integer conversion; explicit members carry
-// the tag). Values must fit the struct's uint8_t/uint16_t members — a
-// constant-expression enumerator that fits is not a narrowing conversion.
-// The article column matches OoT's own item table (Item::GetArticle), so MM's
-// pickup textbox reads exactly like an MM one: "You found the Fairy Bow!".
-// CRITERION 6 APPLIES HERE TOO (#525). "Fairy Bow" and "Bomb Bag" used to sit
-// in this table and left with shared ammo: the quiver and bomb-bag capacity
-// tiers are now ONE quantity spanning both games (src/common/shared_resources.h),
-// and in MM owning the bow IS quiver tier 1, so either row would have crossed
-// as a mutation of the shared resource rather than as a new item.
-// "Progressive Hookshot" left the same way when the hookshot became
-// RSBS_SHARED_RES_HOOKSHOT_TIER — a progressive whose every step now moves a
-// shared quantity is the clearest case criterion 6 has. Nothing in this pool
-// may be a shared cross-game resource: no wallet, heart, magic, ammo or
-// hookshot row.
 //
-// "Lens of Truth" IS THE CROSS-POOL COLLISION, deliberately. Display names are
-// the spoiler-load persistence key, and the lookups are keyed on
-// (originGame, name) precisely because a bare name can appear in both pools;
-// "Bomb Bag" was that pair until shared ammo retired both halves, so this row
-// was added in the same commit that deleted them and inherits the job. The
-// collision is asserted on purpose in test_foreign_items.c — it must not be
-// "fixed" by renaming either side. MM's twin is the RI_LENS row, and the two
-// strings must stay byte-identical.
-//
-// Boomerang and Megaton Hammer widen a pool that was down to three rows against
-// MM's 116, which made the forward direction ship nearly the same items every
-// seed (a follow-up #525 lists in as many words). Both are plain MOD_NONE
-// inventory items whose give falls through OoT_Item_Give's generic tail — save
-// writes only, no PlayState deref — which is what makes them safe on the
-// NULL-play redemption path the pool is given through.
-// The `iconName` column is the ITEM_* texture-map key each item's OoT arrival
-// toast renders (#494) — the exact string GetTextureForItemId returns for that
-// item's GetItemEntry.itemId, which is what the Notification overlay resolves
-// through GetTextureByName. Verified against item_list.cpp's item table and the
-// Plandomizer itemImageMap: GI_LENS -> ITEM_LENS, GI_BOOMERANG -> ITEM_BOOMERANG,
-// GI_HAMMER -> ITEM_HAMMER. Progressive Strength has no single item id (it
-// resolves per-tier at give time), so it takes the base-tier bracelet icon as a
-// stable representative rather than a per-tier lookup on the NULL-play redemption
-// path — a decoration, not the give. src/common serves these back verbatim via
-// Combo_GetForeignItemIconName; it never has to translate an RG_* itself.
-//
-// THE CLASS COLUMN (#495, ADR 0011 decision 3). Every row now names the ONE
-// RSBS_ITEMCLASS_* bit it belongs to, and the pool draw is a rule evaluation
-// over those bits rather than "the whole array, in order". Both placement
-// passes call Combo_ForeignPoolDrawFor, which filters this table by the frozen
-// itemClass* bitset and preserves pool order.
-//
-// ALL FOUR ROWS ARE `PROGRESSION`, and that is the point rather than an
-// accident: this table WAS the entire cross-game item class, and it becomes ONE
-// CLASS'S MEMBERSHIP. Every row is a major/progressive OoT item whose give is
-// unconditionally effectful and NULL-play safe — which is exactly what
-// RSBS_ITEMCLASS_PROGRESSION names. The other five classes are unpopulated on
-// this side today: OoT's songs, masks (it has none), dungeon items and dungeon
-// rewards have not been adjudicated against the six criteria, and an unaudited
-// row admitted by a class bit would be a crossing the redemption path cannot
-// safely give. Appending members later is a table edit here, not a format
-// change anywhere — which is the whole reason the class is a rule.
-static const ComboForeignItemDef kForeignPoolV1[] = {
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_PROGRESSIVE_STRENGTH },
-      "Progressive Strength Upgrade",
-      "a ",
-      RSBS_ITEMCLASS_PROGRESSION,
-      "ITEM_BRACELET" },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_LENS_OF_TRUTH },
-      "Lens of Truth",
-      "the ",
-      RSBS_ITEMCLASS_PROGRESSION,
-      "ITEM_LENS" },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_BOOMERANG },
-      "Boomerang",
-      "the ",
-      RSBS_ITEMCLASS_PROGRESSION,
-      "ITEM_BOOMERANG" },
-    { { (uint8_t)GAME_OOT, 0, (uint16_t)RG_MEGATON_HAMMER },
-      "Megaton Hammer",
-      "the ",
-      RSBS_ITEMCLASS_PROGRESSION,
-      "ITEM_HAMMER" },
-};
-
-static constexpr int kForeignPoolCount = sizeof(kForeignPoolV1) / sizeof(kForeignPoolV1[0]);
-// A COMPILE-TIME BOUND ON THE MAXIMUM, not the runtime limit. How many of these
-// rows a given world may actually place is the frozen record's poolSizeOoT,
-// clamped by Combo_ComboPoolSizeFor and applied at the placement pass (ADR 0011
-// increment 3). This assert survives because the OoT table happens to be
-// smaller than the carve; the MM table deliberately carries no such assert, for
-// the reason its own header states.
-static_assert(kForeignPoolCount <= (int)RSBS_FOREIGN_PLACEMENT_CAP,
-              "the pinned foreign pool must fit the gComboCtx placement carve");
-
-// ----------------------------------------------------------------------------
-// THE EXCLUSIONS, WITH ATTRIBUTION (ADR 0011 decision 3.4)
-// ----------------------------------------------------------------------------
-//
-// The six criteria are numbered in src/common/foreign_items.h. Every id below
-// was considered for this pool and REJECTED, and each names the criterion that
-// rejected it. Promoting these from prose to a table is what gives the class
-// rule an observable: without it, the only evidence "the rule ran" is a table
-// that happens to look right, and a row that quietly drifted back in would be
-// invisible to CI. The ForeignItemClass lock walks this table and asserts every
-// entry is absent from the pool AND absent from the name inverse.
-//
-// This is deliberately the ADJUDICATED set, not a machine sweep of RG_NONE..
-// RG_MAX. Criterion 3 ("the give is unconditionally effectful") is a property of
-// the PAIRED world's option profile, which OoT's generation pass cannot read —
-// ADR 0011 decision 3.5 / answer O8 keep that criterion blanket until ADR 0010
-// increment 2 moves the MM freeze ahead of Fill() and publishes option VALUES
-// rather than a digest. A sweep would therefore have to guess criterion 3, and
-// guessing it is precisely the promise ("it will be awarded there!") that
-// criterion 3 exists to protect.
-namespace {
-struct ForeignExclusionOoT {
-    uint16_t id;
-    uint8_t criterion;
-};
-
-const ForeignExclusionOoT kForeignExclusionsOoT[] = {
-    // (1) Sentinels. RG_NONE is "the fill placed nothing here"; it is not an item.
-    { (uint16_t)RG_NONE, (uint8_t)RSBS_FOREIGN_CRIT_REAL_ITEM },
-    // (2) Junk-class. A foreign HOST already physically holds an OoT junk item —
-    //     that is the degrade invariant — so crossing junk spends one of at most
-    //     RSBS_FOREIGN_PLACEMENT_CAP slots on a worse duplicate of what is there.
-    { (uint16_t)RG_GREEN_RUPEE, (uint8_t)RSBS_FOREIGN_CRIT_NOT_JUNK },
-    // (4) Global world event: the Triforce completion cascade is a per-world goal
-    //     quantity, and detonating it from a redemption flush is exactly what a
-    //     cross-game seam must not do.
-    { (uint16_t)RG_TRIFORCE, (uint8_t)RSBS_FOREIGN_CRIT_NO_WORLD_EVENT },
-    { (uint16_t)RG_TRIFORCE_PIECE, (uint8_t)RSBS_FOREIGN_CRIT_NO_WORLD_EVENT },
-    // (5) Reward, not punishment. The MM-side pickup text promises an award in
-    //     Hyrule; delivering a trap instead would make that text a lie. (The give
-    //     still HANDLES RG_ICE_TRAP — it arrives through other paths — but the
-    //     cross-game class does not source it.)
-    { (uint16_t)RG_ICE_TRAP, (uint8_t)RSBS_FOREIGN_CRIT_REWARD },
-    // (6) #525 shared cross-game resources. These are one quantity spanning both
-    //     games now, so there is nothing left for them to CROSS. The first three
-    //     were REALLY IN THIS TABLE and left with the sharing that replaced them —
-    //     "Fairy Bow" and "Bomb Bag" with shared ammo, "Progressive Hookshot" with
-    //     RSBS_SHARED_RES_HOOKSHOT_TIER — which is what makes this block a record
-    //     of decisions rather than a hypothetical.
-    { (uint16_t)RG_FAIRY_BOW, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
-    { (uint16_t)RG_BOMB_BAG, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
-    { (uint16_t)RG_PROGRESSIVE_HOOKSHOT, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
-    { (uint16_t)RG_PROGRESSIVE_BOW, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
-    { (uint16_t)RG_PROGRESSIVE_BOMB_BAG, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
-    { (uint16_t)RG_PROGRESSIVE_WALLET, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
-    { (uint16_t)RG_PROGRESSIVE_MAGIC_METER, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
-    { (uint16_t)RG_HEART_CONTAINER, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
-    { (uint16_t)RG_PIECE_OF_HEART, (uint8_t)RSBS_FOREIGN_CRIT_NOT_SHARED_RESOURCE },
-};
-
-constexpr int kForeignExclusionsOoTCount = sizeof(kForeignExclusionsOoT) / sizeof(kForeignExclusionsOoT[0]);
-} // namespace
-
-// Publish the table into src/common's origin-indexed registry (ADR 0009
-// decision 3) rather than defining the lookups here. The pool DEFINITION still
-// lives in this TU — that is the ADR 0002 invariant, and the RG_* enumerators
-// above are why — but the lookups now have to serve two pools, and src/common
-// cannot call into either game. Registration inverts that: each pool TU hands
-// its static table down, and neither game has to be linkable from the other.
-//
-// File-scope initializer, so it runs before main() and before any gameplay or
-// test code can ask for the pool. This TU lives in soh_rando, which links
-// WHOLE_ARCHIVE, so the initializer is never dropped as unreferenced.
-namespace {
-struct ForeignPoolV1Registrar {
-    ForeignPoolV1Registrar() {
-        Combo_RegisterForeignItemPool((uint8_t)GAME_OOT, kForeignPoolV1, kForeignPoolCount);
-    }
-};
-const ForeignPoolV1Registrar gForeignPoolV1Registrar;
-} // namespace
+// kForeignPoolV1 (Progressive Strength, Lens of Truth, Boomerang, Megaton
+// Hammer) and its criterion-attributed exclusion table fed MM's forward overlay
+// pass, which pinned those items onto MM junk as duplicate copies. Under one bag
+// every OoT progression item the frozen settings hand to the general pass may
+// cross (the O8 owner, src/common/shared_items.h, decides membership), and which
+// ones do is the single-bag fill's decision.
 
 // ============================================================================
 // Redemption give (called by OoT_AwardSharedItem, the A1 consumer callback)
@@ -285,527 +121,16 @@ extern "C" int OoT_ForeignItem_Give(uint16_t rgId) {
 }
 
 // ============================================================================
-// REVERSE DIRECTION (#510): host eligibility + the OoT placement pass
+// REVERSE DIRECTION (#510): the OoT placement pass — RETIRED (ADR 0010
+// increment 3, D3; lane K11)
 // ============================================================================
 //
-// The mirror of Rando::Foreign::IsEligibleHost / PlaceForeignItems on the MM
-// side (games/mm/2s2h/Rando/Foreign.cpp), for the other direction: MM items
-// (kForeignPoolMMV1) hosted in OoT checks, recorded in
-// gComboCtx.foreignPlacementsOoT and delivered in Termina by MM_AwardSharedItem.
-//
-// THE ASYMMETRY THAT MATTERS: **OoT has no RCTYPE_CHEST.** MM classifies a chest
-// with a dedicated check type, so its predicate keys on
-// `randoCheckType == RCTYPE_CHEST`. OoT's chests are RCTYPE_STANDARD and are
-// identified by the ACTOR they are built from — Location::Chest stores
-// ACTOR_EN_BOX (location_list.cpp passes it for every chest row) — so the
-// equivalent test here is on GetActorID(), not on the check type. Keying this
-// on a nonexistent RCTYPE_CHEST would silently accept nothing.
-//
-// TWO OBJECTS, TWO ACCESSORS. The static class of a check and the item the fill
-// actually placed there live in different tables and are reached differently:
-//   - Rando::StaticData::GetLocation(rc)          -> Rando::Location*    (static)
-//   - Rando::Context::GetInstance()->GetItemLocation(rc) -> Rando::ItemLocation* (fill)
-// Reading both off one pointer does not compile; they are separate types.
-//
-// WHY JUNK-CLASS. Same invariant MM's predicate enforces: a foreign host must
-// physically hold a legal junk item of its OWN game, because that is what the
-// check degrades to if the placement table is ever absent (a pre-#493 .redsave
-// zero-extends to an empty table). Nothing crashes, nothing aliases — the player
-// just gets the blue rupee that was really in the chest.
-static bool OoT_Foreign_IsEligibleHostImpl(RandomizerCheck rc) {
-    if (rc <= RC_UNKNOWN_CHECK || rc >= RC_MAX) {
-        return false;
-    }
-
-    Rando::Location* loc = Rando::StaticData::GetLocation(rc);
-    // A gap in the table is default-constructed and keeps RC_UNKNOWN_CHECK, so
-    // an id that does not name a real row fails this identity test.
-    if (loc == nullptr || loc->GetRandomizerCheck() != rc) {
-        return false;
-    }
-
-    // Tier A, and the only tier: an actual treasure chest.
-    if (loc->GetActorID() != ACTOR_EN_BOX) {
-        return false;
-    }
-
-    // Commerce is excluded EXPLICITLY even though no shop/scrub/merchant row is
-    // ACTOR_EN_BOX today. Their give-and-price flow and their spoiler shape both
-    // differ from the ordinary collect path this presentation targets, so the
-    // exclusion must survive any future widening of the actor test (the same
-    // reasoning MM's IsAllowedHostClass states for RCTYPE_SHOP).
-    const RandomizerCheckType checkType = loc->GetRCType();
-    if (checkType == RCTYPE_SHOP || checkType == RCTYPE_SCRUB || checkType == RCTYPE_MERCHANT ||
-        checkType == RCTYPE_CHEST_GAME) {
-        return false;
-    }
-    if (loc->IsShop()) {
-        return false;
-    }
-
-    // The fill-side half. RG_NONE is "the fill placed nothing here" (an
-    // unshuffled or unreached location) — the OoT analogue of MM's `.shuffled`
-    // test, and the reason a ROM-free run with no fill accepts nothing.
-    auto ctx = Rando::Context::GetInstance();
-    if (ctx == nullptr) {
-        return false;
-    }
-    Rando::ItemLocation* itemLoc = ctx->GetItemLocation(rc);
-    if (itemLoc == nullptr) {
-        return false;
-    }
-    const RandomizerGet placedItem = itemLoc->GetPlacedRandomizerGet();
-    if (placedItem == RG_NONE) {
-        return false;
-    }
-
-    return Rando::StaticData::RetrieveItem(placedItem).GetCategory() == ITEM_CATEGORY_JUNK;
-}
-
-// ============================================================================
-// THE REVERSE PASS'S REACHABILITY GATE (#656; ADR 0010 increment 1.3, P6)
-// ============================================================================
-//
-// WHAT WAS ASYMMETRIC. Increment 1.3's reachability requirement (PR #580) was
-// applied to the FORWARD pass only: Rando::Foreign::PlaceForeignItems filters
-// its candidates through Rando::Logic::ComputeReachableCheckSet(), while this
-// file's reverse pass accepted every eligible chest in 1..RC_MAX regardless of
-// whether OoT's own solver can reach it. Under a setting that does not
-// guarantee full reachability that silently hosts an MM item on an OoT check
-// the player can never open — a beatability break with no signal until someone
-// notices the check is unobtainable.
-//
-// THE ORACLE IS THE FILL'S OWN, not a second definition of reachable.
-// ReachabilitySearch (3drando/fill.hpp) walks the region graph from RR_ROOT with
-// the starting inventory applied and every placed item collected as it goes, and
-// marks each location it reaches with ItemLocation::AddToPool(). That mark is the
-// one ValidateEntrances tests to decide ctx->allLocationsReachable (fill.cpp:
-// "Location ... not reachable"), so "reachable" here is the fill's own notion
-// rather than a second one that could drift from it; the drift would look like a
-// placement bug.
-//
-// WHY THE MARKS MUST BE RECOMPUTED RATHER THAN READ. addedToPool is scratch
-// state that every search resets (ResetLogic -> Context::LocationReset), so
-// whatever survives Fill() is the residue of whichever search ran last —
-// CalculateBarren's, not a closure over the finished world. Reading it would be
-// a gate whose answer depends on the order of the calculations before it.
-//
-// ...AND WHY THE RECOMPUTE MUST RESET Logic FIRST. This is the correction that
-// makes the gate correct rather than merely present, and it was MEASURED, not
-// reasoned: ResetLogic's own comment is "Reset non-Logic-class logic", and it
-// does not touch the `logic` singleton's simulated inventory at all — it only
-// clears region access and the pool marks, then ADDS the starting inventory on
-// top of whatever items the previous search happened to leave collected. So
-// ReachabilitySearch alone is not a function of the finished world; it is a
-// function of the finished world PLUS the residue of the last search. Without
-// the logic->Reset() below, this gate reported 48 of 57 eligible hosts reachable
-// when it ran at the tail of a real generation and 57 of 57 when the same pass
-// ran again a moment later — it silently removed nine reachable hosts and
-// changed which checks the world used, and ForeignPlacementOoT's "re-arming must
-// reproduce the same table" assertion is what caught it. Every other caller that
-// wants a closure over a finished world resets first the same way
-// (GeneratePlaythrough: logic->Reset() then ResetLogic; IsBeatableWithout:
-// logic->Reset() then CheckBeatable).
-//
-// VACUOUS UNDER THE SHIPPED DEFAULT, AND THAT IS THE POINT. RSK_ALL_LOCATIONS_
-// REACHABLE defaults to RO_GENERIC_ON (settings.cpp), so a default seed has
-// every location in the closure and this gate removes no candidate — which is
-// what keeps the reverse pass's placements byte-identical to the pre-gate ones.
-//
-// THAT USED TO READ "and therefore the rando tier's determinism digests", which
-// credited the wrong rows (#688): SeedDeterminism and its siblings diff two runs
-// of the SAME binary, so a gate that deterministically dropped nine reachable
-// hosts passed all of them — which is precisely how the stale-inventory defect
-// above reached a green tier. Since #688 the rows that hold this claim are the
-// GOLDEN ones (GoldenSeedDigestDefault / GoldenSeedDigestProfileV1), which
-// compare one run against `tests/golden/`; a gate that starts dropping hosts
-// under the shipped default moves foreignOoTHash, foreignOoTCount and the
-// per-slot foreignOoT<n> lines and turns them red. It earns its place
-// on the non-default settings (ALR off, and the no-logic rules) where
-// unreachable locations genuinely exist. The counters below make the vacuity
-// MEASURED rather than asserted: the lock reads eligible vs reachable and fails
-// if the gate ever drops a host under the shipped default, which is exactly how
-// the stale-inventory defect above was found.
-//
-// NO RNG, AND NOTHING AFTER IT DRAWS. Neither logic->Reset() nor
-// ReachabilitySearch consumes a random number (the fill already calls the search
-// inside its own playthrough work, before the spoiler is written), and this pass
-// runs after Fill(), GenerateHash() and SpoilerLog_Write(), so it cannot shift a
-// draw the fill already made. The state it mutates — region access flags, the
-// simulated inventory, the pool marks — is generation scratch: Logic::Reset's
-// NewSaveContext() allocates a fresh heap SaveContext and never writes
-// gSaveContext, and nothing in the tree reads addedToPool after generation
-// (SeedContext.cpp's only use is another reset).
-static int sOoTLastEligibleHosts = 0;
-static int sOoTLastReachableHosts = 0;
-// Production is always true. The reverse-placement lock flips it off so it can
-// install a hand-made reachability mark set and prove the PASS honours it —
-// otherwise the pass's own recompute would erase the injected state and the
-// lock could only ever test the predicate, never the gate. See
-// OoT_Foreign_TestSetReachabilityRecompute.
-static bool sOoTRecomputeHostReachability = true;
-
-// Recompute the closure, for its SIDE EFFECT on the pool marks. The return value
-// is deliberately ignored: with every location holding a placed item and
-// calculatingAvailableChecks false, ReachabilitySearch never pushes a placed
-// location into accessibleLocations (fill.cpp AddCheckToLogic), so the returned
-// vector is empty while the AddToPool marks it set along the way are the complete
-// closure. Those marks are what ValidateEntrances reads.
-//
-// logic->Reset() FIRST, and it is load-bearing — see the block above. Without it
-// the search starts from the previous search's collected inventory and the gate
-// is not a function of the finished world.
-static void OoT_Foreign_RecomputeHostReachability() {
-    auto ctx = Rando::Context::GetInstance();
-    if (ctx == nullptr || logic == nullptr) {
-        // No fill in this process: nothing to compute a closure over. Leaving the
-        // marks alone rather than clearing them keeps the pass's behaviour
-        // decided by the eligibility predicate, which is the only oracle a
-        // fill-less process has.
-        return;
-    }
-    logic->Reset();
-    ReachabilitySearch(ctx->allLocations);
-}
-
-static bool OoT_Foreign_IsReachableHostImpl(RandomizerCheck rc) {
-    auto ctx = Rando::Context::GetInstance();
-    if (ctx == nullptr) {
-        return false;
-    }
-    Rando::ItemLocation* itemLoc = ctx->GetItemLocation(rc);
-    return itemLoc != nullptr && itemLoc->IsAddedToPool();
-}
-
-// Local, self-contained PRNG for placement selection — deliberately NOT drawn
-// from Random_Init's stream. The fill consumes that stream, so taking numbers
-// out of it here would shift every subsequent draw and change the OoT world
-// itself as a side effect of the cross-game feature being on. Same reasoning,
-// same xorshift32, as Rando::Foreign's sSelectState.
-static uint32_t sOoTSelectState;
-
-static uint32_t OoT_Foreign_SelectNext() {
-    uint32_t x = sOoTSelectState;
-    x ^= x << 13;
-    x ^= x >> 17;
-    x ^= x << 5;
-    sOoTSelectState = (x != 0) ? x : 0xB5297A4Du;
-    return sOoTSelectState;
-}
-
-/**
- * Place MM items into eligible OoT checks. Called once from Playthrough_Init,
- * AFTER the gComboCtx pairing stamp (the identity this derives from must be live).
- *
- * @return the number of placements made (>= 0), or NEGATIVE if the pairing is
- *         active but the pass could not honour it at all — see the note below.
- *
- * ERROR SIGNALLING — RETURN CODE, NEVER AN EXCEPTION. OoT's generation chain has
- * no try/catch anywhere: Rando_HeadlessSeedTest (extern "C") -> GenerateRandomizer
- * -> Playthrough_Init. A throw would cross that extern "C" boundary uncaught and
- * std::terminate the process, killing the headless SeedDeterminism/MMRandoGen CI
- * rows and the live GUI generate alike. GenerateRandomizer already speaks return
- * codes (`if (ret < 0) return false`), so shortfall rides that convention.
- *
- * A PARTIAL placement is NOT a shortfall and must not fail generation: the pool
- * is ~128 entries against a cap of 8, so placing fewer than the pool is the
- * normal, intended outcome. Only two states are errors, and both mean the
- * cross-game half of a PAIRED world would be silently absent:
- *   -1  the MM pool is not registered at all (the Mode-B elision class — if
- *       2ship_rando's pool TU is ever dropped from the link this turns a silent
- *       feature loss into a loud generation failure)
- *   -2  no eligible host exists in the finished fill. OoT has ~100 chest rows and
- *       junk is plentiful, so zero is not a reachable fill outcome; it means the
- *       predicate and the table have drifted apart.
- */
-extern "C" int OoT_PlaceForeignItems(void) {
-    // A re-generated world must not inherit the previous one's placements.
-    Combo_ClearForeignPlacementsOoT();
-
-    if (!Combo_ForeignPairingActive()) {
-        return 0; // solo OoT rando: nothing to pair with, and that is normal
-    }
-
-    // THE DIRECTION GATE (ADR 0011 increment 4, #493's "the direction byte").
-    // Read from the FROZEN record — never a live CVar — through the same
-    // accessor MM's forward pass uses for its own origin. GAME_MM is this
-    // pass's origin: it places MM-ORIGIN items into OoT checks, so it is armed
-    // by RSBS_COMBO_DIR_REVERSE and by RSBS_COMBO_DIR_BOTH.
-    //
-    // Zero placements is the correct outcome, NOT an error: RSBS_COMBO_DIR_OFF
-    // and RSBS_COMBO_DIR_FORWARD both describe real, chooseable paired worlds
-    // (ADR 0011 decision 2.3), so this returns 0 like the solo case rather than
-    // one of the negative shortfall codes, which mean "a paired world's
-    // cross-game half would be SILENTLY absent". Under the shipped default
-    // (BOTH) this predicate is true and nothing moves — the parity that keeps
-    // foreignOoTHash byte-stable, which since #688 is checked by the GOLDEN row
-    // GoldenSeedDigestDefault and not (as this comment used to say) by
-    // SeedDeterminism, which cannot see a deterministic move at all.
-    if (!Combo_ComboDirectionArms((uint8_t)GAME_MM)) {
-        fprintf(stderr,
-                "[OoT] foreign placement: direction=%u does not arm MM-origin crossings — no reverse placements "
-                "(frozen=%d)\n",
-                (unsigned)Combo_ComboDirection(), Combo_ComboSettingsFrozen() ? 1 : 0);
-        return 0;
-    }
-
-    const ComboForeignItemDef* pool = nullptr;
-    const int poolCount = Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, &pool);
-    if (poolCount <= 0 || pool == nullptr) {
-        fprintf(stderr, "[OoT] foreign placement: pairing is active but MM's source pool is empty — "
-                        "2ship_rando's pool TU was elided (#510)\n");
-        return -1;
-    }
-
-    auto ctx = Rando::Context::GetInstance();
-    if (ctx == nullptr) {
-        fprintf(stderr, "[OoT] foreign placement: no Rando::Context\n");
-        return -1;
-    }
-
-    // THE REACHABILITY GATE (#656), computed before the candidate walk and
-    // before the selection stream is seeded. Symmetric with the forward pass,
-    // which computes Rando::Logic::ComputeReachableCheckSet() at the same point
-    // for the same reason. See the block above OoT_Foreign_Recompute-
-    // HostReachability for the oracle, the vacuity under the shipped default and
-    // why it consumes no RNG.
-    if (sOoTRecomputeHostReachability) {
-        OoT_Foreign_RecomputeHostReachability();
-    }
-
-    // Candidates in ascending RandomizerCheck order. Walking the enum range
-    // rather than ctx->allLocations keeps the order fixed by construction — it
-    // cannot be perturbed by pool-bookkeeping changes — which is what a STORED
-    // digest needs (the golden rows; #688). Same shape as the digest's own walk.
-    //
-    // Reachability composes OUTSIDE OoT_Foreign_IsEligibleHostImpl, exactly as
-    // it does on MM's side and for the same reason: that predicate is also the
-    // LOAD path's gate and the ROM-free eligibility lock's subject, neither of
-    // which has a reachability closure to consult.
-    std::vector<RandomizerCheck> candidates;
-    int eligibleHosts = 0;
-    for (int i = 1; i < RC_MAX; i++) {
-        const RandomizerCheck rc = (RandomizerCheck)i;
-        if (!OoT_Foreign_IsEligibleHostImpl(rc)) {
-            continue;
-        }
-        eligibleHosts++;
-        if (OoT_Foreign_IsReachableHostImpl(rc)) {
-            candidates.push_back(rc);
-        }
-    }
-    sOoTLastEligibleHosts = eligibleHosts;
-    sOoTLastReachableHosts = (int)candidates.size();
-
-    // Both counts printed every generation, like MM's pass prints its own: host
-    // supply is a number worth watching in CI logs and playtest output BEFORE it
-    // becomes a shortfall, and the gap between them is how much work the
-    // reachability gate did for this world.
-    fprintf(stderr,
-            "[OoT] foreign placement: %d MM pool items over %zu reachable eligible host checks (%d eligible before "
-            "the reachability gate)\n",
-            poolCount, candidates.size(), eligibleHosts);
-
-    if (candidates.empty()) {
-        // -2 keeps its meaning: "a paired world's cross-game half would be
-        // SILENTLY absent". It now covers one more cause — every eligible host
-        // is outside OoT's own reachable closure — and that is a generation
-        // failure for exactly the same reason the predicate-drift case is. The
-        // alternative, placing into the unreachable ones anyway, is the #656 bug.
-        fprintf(stderr,
-                "[OoT] foreign placement: no REACHABLE eligible OoT host check in this fill (%d eligible, all "
-                "outside the reachable closure) (#510/#656)\n",
-                eligibleHosts);
-        return -2;
-    }
-
-    // Deterministic from the paired-world identity alone: same seed + same
-    // settings profile => same placements. gComboCtx.sharedRandoSettingsHash is
-    // live by now (Playthrough_Init stamps it immediately before calling us), and
-    // the ":foreign-oot-v1" suffix keeps this stream disjoint from MM's
-    // ":foreign-v1" one so the two directions can never shadow each other.
-    sOoTSelectState = SohUtils::Hash(std::to_string(ctx->GetSeed()) + ":" +
-                                     std::to_string(gComboCtx.sharedRandoSettingsHash) + ":foreign-oot-v1");
-    if (sOoTSelectState == 0) {
-        sOoTSelectState = 0xB5297A4Du;
-    }
-
-    // BOTH sides are drawn without replacement. Drawing the ITEM matters as much
-    // as drawing the host: the pool is far larger than the cap, so walking it in
-    // order would place the same first 8 entries in every seed and make the
-    // other ~126 dead weight. (The forward pass used to walk its pool in order,
-    // on the grounds that pool <= cap made that equivalent; #580's reachability
-    // gate broke the equivalence, and since #583 it shuffles before truncating.)
-    //
-    // WHICH pool entries are drawable is now the RULE (#495, ADR 0011 decision
-    // 3): Combo_ForeignPoolDrawFor filters MM's pool by the FROZEN itemClassMM
-    // bitset, in pool order, narrowed by the frozen MM profile's published give
-    // capabilities (#681). With the shipped defaults (every allocated class bit,
-    // no capability armed) this is the identity over the UNCONDITIONAL PREFIX of
-    // the pool — byte-identical to the list this loop built by hand before the
-    // capability rows were appended — which is what keeps foreignOoTHash from
-    // moving, as GoldenSeedDigestDefault checks and SeedDeterminism never could
-    // (#688). There is NO seed term in the class (accepted
-    // answer O3): variety comes from the draw below, and a seed-varying class
-    // would make the spoiler-load name inverse partial.
-    std::vector<int> poolIndices((size_t)poolCount, 0);
-    const int drawable = Combo_ForeignPoolDrawFor((uint8_t)GAME_MM, poolIndices.data(), poolCount);
-    poolIndices.resize((size_t)(drawable > 0 ? drawable : 0));
-    if (poolIndices.empty()) {
-        // Every class unarmed for this direction. A real, chooseable world under
-        // ADR 0011 decision 3.3 (the direction byte, not this, is what says
-        // "off"), so it is a loud log and zero placements rather than a failure.
-        fprintf(stderr, "[OoT] foreign placement: MM item classes %04X select no pool entry — no crossings\n",
-                (unsigned)Combo_ComboItemClassFor((uint8_t)GAME_MM));
-        return 0;
-    }
-
-    // How many crossings this direction may make comes from the FROZEN COMBO
-    // RECORD (ADR 0011 decision 1, accepted answer O4), not from the cap alone.
-    // Combo_ComboPoolSizeFor already clamps to RSBS_FOREIGN_PLACEMENT_CAP and
-    // falls back to it for an unfrozen record, so the shipped defaults place
-    // exactly what this line placed before the record existed — a count that
-    // could exceed the table's capacity would be a setting that lies, and a
-    // zero-extended legacy record must never resolve to "no crossings".
-    const int poolSize = Combo_ComboPoolSizeFor((uint8_t)GAME_MM);
-    // FILTER FIRST, THEN DRAW TO COUNT. The class rule decides WHICH entries are
-    // drawable; the pool size decides HOW MANY of them get placed. Bounding on
-    // poolIndices.size() rather than poolCount is what makes the two compose —
-    // bounding on the raw pool would let the draw index past the filtered list.
-    const int wanted = std::min({ (int)poolIndices.size(), poolSize, (int)candidates.size() });
-    // The direction reached here is necessarily one that ARMS this pass — the
-    // gate above returned already if it did not (ADR 0011 increment 4). It is
-    // still printed, because "which rules produced this world" is the line a
-    // reader of a generation log looks for first.
-    fprintf(stderr,
-            "[OoT] foreign placement: combo rules direction=%u poolSizeMM=%d classMM=%04X (%zu of %d pool entries in "
-            "class) (frozen=%d)\n",
-            (unsigned)Combo_ComboDirection(), poolSize, (unsigned)Combo_ComboItemClassFor((uint8_t)GAME_MM),
-            poolIndices.size(), poolCount, Combo_ComboSettingsFrozen() ? 1 : 0);
-
-    // THE PER-FAMILY BUDGET (#681; RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET in
-    // foreign_items.h). A capability row (requiredGiveCaps != 0) is drawable
-    // only when the frozen MM profile arms its family — Combo_ForeignPoolDrawFor
-    // already enforced that — and at most BUDGET rows of one family place per
-    // seed. A row drawn after its family is spent is set aside WITHOUT drawing a
-    // host, and the attempt does not count toward `wanted`. With no family
-    // armed no capability row is drawable, so the budget never fires and the
-    // stream below is the one this loop always consumed: that is what keeps a
-    // default-profile world byte-identical.
-    static_assert(RSBS_GIVECAP_ALL_V1 == 0x000Fu, "one budget counter per allocated give-capability bit");
-    int familyPlaced[4] = { 0, 0, 0, 0 };
-    auto familyOf = [](uint16_t caps) -> int {
-        for (int bit = 0; bit < 4; bit++) {
-            if ((caps & (1u << bit)) != 0) {
-                return bit;
-            }
-        }
-        return -1;
-    };
-
-    int placed = 0;
-    for (int i = 0; i < wanted && !poolIndices.empty(); i++) {
-        const size_t poolPick = (size_t)(OoT_Foreign_SelectNext() % (uint32_t)poolIndices.size());
-        const int poolEntry = poolIndices[poolPick];
-        poolIndices.erase(poolIndices.begin() + (std::ptrdiff_t)poolPick);
-
-        const int family = familyOf(pool[poolEntry].requiredGiveCaps);
-        if (family >= 0) {
-            if (familyPlaced[family] >= RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET) {
-                fprintf(stderr,
-                        "[OoT] foreign placement: '%s' set aside - its give-capability family is at budget (%d)\n",
-                        pool[poolEntry].name, RSBS_FOREIGN_GIVECAP_FAMILY_BUDGET);
-                i--;
-                continue;
-            }
-            familyPlaced[family]++;
-        }
-
-        const size_t hostPick = (size_t)(OoT_Foreign_SelectNext() % (uint32_t)candidates.size());
-        const RandomizerCheck hostCheck = candidates[hostPick];
-        candidates.erase(candidates.begin() + (std::ptrdiff_t)hostPick);
-
-        if (Combo_SetForeignPlacementOoT((uint16_t)hostCheck, pool[poolEntry].item) >= 0) {
-            placed++;
-            fprintf(stderr, "[OoT] foreign placement: '%s' hosted at OoT check %s\n", pool[poolEntry].name,
-                    Rando::StaticData::GetLocation(hostCheck)->GetName().c_str());
-        }
-    }
-
-    return placed;
-}
-
-// ROM-free test bridge (redship tier; src/common/tests/test_foreign_items.c).
-// The SAME predicate the candidate loop above calls — exposed rather than
-// paraphrased in the test for the reason MM_Rando_Foreign_IsEligibleHost is: a
-// lock that restates the rule stops testing it the moment the rule moves.
-extern "C" int OoT_Foreign_IsEligibleHost(uint16_t rc) {
-    return OoT_Foreign_IsEligibleHostImpl((RandomizerCheck)rc) ? 1 : 0;
-}
-
-// ---------------------------------------------------------------------------
-// The reachability gate's test surface (#656). Four bridges, each exposing a
-// fact the lock cannot otherwise observe, and none of them called by production.
-// ---------------------------------------------------------------------------
-
-/** The reachability term ALONE, for the check the candidate walk would ask
- *  about. Exposed rather than paraphrased for the same reason
- *  OoT_Foreign_IsEligibleHost is: a lock that restates the rule stops testing it
- *  the moment the rule moves. */
-extern "C" int OoT_Foreign_IsReachableHost(uint16_t rc) {
-    return OoT_Foreign_IsReachableHostImpl((RandomizerCheck)rc) ? 1 : 0;
-}
-
-/** Eligible hosts counted by the LAST placement pass, before the gate. */
-extern "C" int OoT_Foreign_TestLastEligibleHosts(void) {
-    return sOoTLastEligibleHosts;
-}
-
-/** ...and after it. Equal to the above under the shipped default (All Locations
- *  Reachable is on), which is how the lock asserts the gate moves nothing there
- *  instead of taking it on trust. */
-extern "C" int OoT_Foreign_TestLastReachableHosts(void) {
-    return sOoTLastReachableHosts;
-}
-
-/**
- * Turn the pass's own closure recompute off (0) or on (1), returning the
- * previous setting.
- *
- * TEST-ONLY, AND LOAD-BEARING FOR NON-VACUITY. With the recompute on, any
- * reachability state a lock installs by hand is erased by the pass's first act,
- * so the only thing a lock could prove is that the predicate distinguishes —
- * never that the PASS honours it. With it off, a lock can mark a specific host
- * unreachable, run the real OoT_PlaceForeignItems, and assert that host is never
- * chosen: the assertion that goes red if the gate is deleted. Production never
- * calls this, and the flag defaults to the production behaviour, so a build that
- * lost the test TU still gates.
- */
-extern "C" int OoT_Foreign_TestSetReachabilityRecompute(int enable) {
-    const int previous = sOoTRecomputeHostReachability ? 1 : 0;
-    sOoTRecomputeHostReachability = (enable != 0);
-    return previous;
-}
-
-/** Set (1) or clear (0) one check's reachability mark, through the same
- *  ItemLocation pool API the fill's own search uses. Returns 1 when the mark was
- *  applied. Test-only; pairs with the recompute switch above. */
-extern "C" int OoT_Foreign_TestSetHostReachable(uint16_t rc, int reachable) {
-    auto ctx = Rando::Context::GetInstance();
-    if (ctx == nullptr) {
-        return 0;
-    }
-    Rando::ItemLocation* itemLoc = ctx->GetItemLocation((RandomizerCheck)rc);
-    if (itemLoc == nullptr) {
-        return 0;
-    }
-    if (reachable != 0) {
-        itemLoc->AddToPool();
-    } else {
-        itemLoc->RemoveFromPool();
-    }
-    return 1;
-}
+// OoT_PlaceForeignItems, its chest-only host predicate and its reachability gate
+// (#656) are gone with the pool they drew from. The host-class half of that
+// predicate lives on as the OoT engine's `hostAcceptsForeign`
+// (ComboLogicEngineOoT.cpp), which the single-bag fill consults before it draws a
+// crossing onto an OoT host; the fill-side half ("the fill put junk here") and
+// the reachability gate are the fill's own proof now.
 
 // ============================================================================
 // REVERSE DIRECTION (#493): the PICKUP CORE — the OoT twin of
@@ -857,11 +182,21 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
         return false;
     }
 
-    // Durable immediately (Combo_RecordSharedItem writes the serialized array,
-    // so an OoT save+quit before the next switch cannot lose the pickup — the
-    // stage/commit outbox is RAM-only, see shared_items.h). The producer de-dups
-    // an identical un-redeemed entry, so a re-fired queue cannot double-record.
-    return Combo_RecordSharedItem((GameId)item->originGame, item->id) >= 0;
+    // ONCE PER HOST. The drain gates on `!loc->HasObtained()` already; the same
+    // gate is here too, so the recording function cannot be the thing that
+    // double-delivers when a future caller forgets it.
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* il = (ctx != nullptr) ? ctx->GetItemLocation((RandomizerCheck)rc) : nullptr;
+    if (il != nullptr && il->HasObtained()) {
+        return false;
+    }
+
+    // Durable immediately (the serialized array, so an OoT save+quit before the
+    // next switch cannot lose the pickup — the stage/commit outbox is RAM-only,
+    // see shared_items.h). ONE COPY PER PICKUP (ADR 0010 increment 3): under the
+    // single bag two OoT hosts may hold two copies of one MM id, and both must
+    // reach MM, so the record is never content-merged (RSBS_SHARED_ITEM_CROSSING).
+    return Combo_RecordSharedItemCrossing((GameId)item->originGame, item->id) >= 0;
 }
 
 /**
@@ -880,27 +215,43 @@ extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
 }
 
 /**
- * Walk the CRITERION-ATTRIBUTED EXCLUSION table (#495, ADR 0011 decision 3.4):
- * entry `index`'s rejected RG_* id and the criterion number that rejected it.
- *
- * The observable that makes the class rule testable. src/common has no OoT enum
- * in scope by design, so the lock cannot name RG_FAIRY_BOW itself; it walks this
- * bridge instead and asserts each excluded id is absent from the pool and from
- * the name inverse. Exposed rather than re-listed in the test for the standing
- * reason: a lock that keeps its own copy of the rule stops testing the rule.
- *
- * @return 1 while `index` names an entry, 0 once it is past the end.
+ * Does the crossing store host OoT item `rg` on an MM check (the single-bag fill
+ * put it in Termina)? Read by OoT's hint pass (3drando/hints.cpp), which runs in
+ * OoT's remainder AFTER the creation captured the crossings, so an item hint whose
+ * target is not at any OoT location can say where it is (PR #743 review).
  */
-extern "C" int OoT_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8_t* outCriterion) {
-    if (index < 0 || index >= kForeignExclusionsOoTCount) {
+extern "C" int OoT_Combo_ItemHostedInMM(int rg) {
+    for (int i = 0; i < Combo_Crossings_Count(GAME_MM); ++i) {
+        ComboCrossing row;
+        if (Combo_Crossings_At(GAME_MM, i, &row) && row.item.originGame == (uint8_t)GAME_OOT &&
+            row.item.id == (uint16_t)rg) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/** 1 when OoT check `rc` hosts an MM item in the crossing store (a crossing host). */
+extern "C" int OoT_Combo_CheckHostsCrossing(int rc) {
+    for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); ++i) {
+        ComboCrossing row;
+        if (Combo_Crossings_At(GAME_OOT, i, &row) && row.hostCheck == (uint16_t)rc) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/** TEST BRIDGE: mark an OoT check collected (or not), as the drain does after a
+ *  pickup, so a lock can drive the once-per-host gate. Returns 1 when applied, 0
+ *  when this process has no OoT location table to apply it to (a ROM-free row). */
+extern "C" int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained) {
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* il = (ctx != nullptr && rc < RC_MAX) ? ctx->GetItemLocation((RandomizerCheck)rc) : nullptr;
+    if (il == nullptr) {
         return 0;
     }
-    if (outId != nullptr) {
-        *outId = kForeignExclusionsOoT[index].id;
-    }
-    if (outCriterion != nullptr) {
-        *outCriterion = kForeignExclusionsOoT[index].criterion;
-    }
+    il->SetCheckStatus(obtained != 0 ? RCSHOW_COLLECTED : RCSHOW_UNCHECKED);
     return 1;
 }
 
@@ -939,8 +290,11 @@ extern "C" int OoT_ForeignItem_TestExclusionAt(int index, uint16_t* outId, uint8
 // to nothing, clears both placement tables, and returns nonzero; z_sram.c then
 // abandons the file. The caller sees one boolean and a reason string.
 
-// The MM half of the creation event (games/mm/2s2h/GameExports_SingleExe.cpp).
-extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath);
+// The MM half of the creation event (games/mm/2s2h/GameExports_SingleExe.cpp):
+// authored first, armed LAST (after the crossings and the one spoiler; #680's
+// order, restored on the PR #743 review).
+extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPath);
+extern "C" int MM_Rando_ArmCreatedHalf(int slot);
 // The #533 refusal surface (src/common/save.h) and this file's own
 // file-select failure toast, both raised from the failure branch below so
 // that ONE callable carries the whole terminal-failure contract — z_sram.c
@@ -948,7 +302,6 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
 // standing up OoT's file select.
 extern "C" void RsbsSave_RefuseSlotGeneration(int slot);
 extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
-extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested);
 // The ON-SCREEN progress surface's presentation half (#582),
 // games/oot/soh/SohGui/CreationProgressOverlay.cpp. Installed from the seam
 // below rather than at boot so the thread it latches as "the renderer's" is
@@ -1010,6 +363,11 @@ static_assert(MM_SAVE_CONTEXT_SIZE <= sizeof(SaveContext),
 static char sOoTSaveSnapshot[sizeof(SaveContext)];
 static char sMmInFlightSave[sizeof(SaveContext)];
 static bool sCreationBracketActive = false;
+// MM's finished half, kept past the bracket for the ONE spoiler's join (lane K11):
+// the join reads MM's world out of gSaveContext, and under one bag it runs AFTER
+// OoT's own remainder has been placed and its spoiler written, which needs OoT's
+// bytes live. So the join gets a second, short bracket over these bytes.
+static char sMmFinishedSave[sizeof(SaveContext)];
 
 extern "C" void OoT_Creation_PaintWithOoTSaveVisible(void (*paint)(void)) {
     if (paint == nullptr) {
@@ -1098,10 +456,133 @@ extern "C" int OoT_Creation_LiveSaveIsOoTSnapshot(void) {
  *         file", which succeeds by authoring nothing); 0 when the paired
  *         creation FAILED and the file must not be written.
  */
+// ComboLogicEngineOoT.cpp: OoT's per-game remainder after the single-bag fill.
+extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler);
+
+/**
+ * OoT'S SIDE OF A PAIRED CREATION, after the MM half has run the single-bag fill
+ * (ADR 0010 increment 3; lane K11). Two steps, in this order:
+ *
+ *   1. THE CROSSINGS, captured from the coordinator's tables into the crossing
+ *      store (ADR 0010 O7): the one durable record of which host of either game
+ *      yields an item of the other, frozen with the world and persisted in the
+ *      .redsave's Tier-4 by the file's first Save_SaveFile().
+ *   2. OoT's REMAINDER (OoT_ComboLogic_FinishGeneralPass): its junk, renewables
+ *      and traps onto its leftover hosts, its overrides, its hints and, when
+ *      `writeSpoiler`, its spoiler document.
+ *
+ * A named function rather than lines in OoT_RunPairedCreationEvent because the
+ * headless harnesses that drive MM's half directly (the golden digests, the
+ * ladder and switch-entry rows) must complete the SAME world the creation event
+ * completes, not a copy of the steps.
+ *
+ * @return the number of crossings stored (>= 0); negative when the creation must
+ *         fail (-1 the store refused the crossings, -2 OoT's remainder could not
+ *         run). On failure the store is left empty.
+ */
+extern "C" int OoT_Creation_FinishPairedHalf(int writeSpoiler) {
+    const int crossings = Combo_Crossings_CaptureFromCoordinator();
+    if (crossings < 0) {
+        fprintf(stderr, "[OoT] creation: the crossing store refused the single bag's crossings (%s)\n",
+                Combo_Crossings_StatusName(crossings));
+        return -1;
+    }
+    if (OoT_ComboLogic_FinishGeneralPass(writeSpoiler) != 0) {
+        fprintf(stderr, "[OoT] creation: OoT's remainder after the single-bag fill could not run\n");
+        Combo_Crossings_Clear();
+        return -2;
+    }
+    return crossings;
+}
+
+// ----------------------------------------------------------------------------
+// THE CREATION'S STEP ORDER, RECORDED (PR #743 review)
+// ----------------------------------------------------------------------------
+// #680's order is: crossings stored, spoiler written and joined, identity
+// published, MM shadow armed LAST. The event records each step as it completes,
+// with whether the MM shadow was armed at that moment ('1') or not ('0'), so a
+// lock can read "M0S0J0A1" off a real creation: MM's half authored unarmed, the
+// store and OoT's remainder unarmed, the join unarmed, then armed. Arming anywhere
+// earlier (inside MM's half, where it used to happen) reads "M1S1J1A1".
+static char sCreationSequence[16];
+static int sCreationSequenceLen = 0;
+
+static void CreationStep(char step) {
+    if (sCreationSequenceLen + 2 < (int)sizeof(sCreationSequence)) {
+        sCreationSequence[sCreationSequenceLen++] = step;
+        sCreationSequence[sCreationSequenceLen++] = Context_HasFrozenState(GAME_MM) ? '1' : '0';
+        sCreationSequence[sCreationSequenceLen] = 0;
+    }
+}
+
+/** TEST BRIDGE: the last paired creation event's step record (see above). */
+extern "C" const char* OoT_Creation_TestLastSequence(void) {
+    return sCreationSequence;
+}
+
+/**
+ * RETRACT A FAILED PAIRED CREATION: everything the freeze and the event published,
+ * so no artifact of a half-created world survives — no identity for a later
+ * arrival to compare against, no crossing tables for either direction, no armed
+ * MM shadow, no engine record a later fill could "restore", no combo or triforce
+ * record. ONE function for every failure route out of the event (PR #743 review):
+ * the MM-half failure and the OoT-tail failure used to carry two hand-copied lists,
+ * and the tail's had already lost the triforce record's zeroing.
+ *
+ * The player-visible half (the #533 slot latch and the toast) is raised here too,
+ * for the same reason: a creation that failed must surface identically from every
+ * route into it.
+ */
+static void RetractFailedPairedCreation(int slot) {
+    Combo_GenProgress_End(false);
+    RsbsSave_RefuseSlotGeneration(slot);
+    OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+    Context_ClearFrozenState(GAME_MM);
+    Combo_ClearForeignPlacements();
+    Combo_ClearForeignPlacementsOoT();
+    Combo_ClearForeignGiveCaps();
+    // The single bag's own artifacts (lane K11): no crossings for a world that
+    // was not created, and no engine record that a later fill could "restore".
+    Combo_Crossings_Clear();
+    Combo_SingleBag_Forget();
+    // formatVersion 0 is the record's ABSENT tag (ADR 0011 decision 4.2) — the
+    // occupancy byte that makes the other eleven usable. Zeroing it is how a
+    // record is retracted; there is deliberately no "unfreeze" API, because the
+    // only legitimate retraction is this one.
+    memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
+    gComboCtx.comboSettingsHash = 0;
+    // The O10 triforce record (ADR 0010) was frozen beside the combo record and
+    // goes with it. Left behind, it would sit next to an ABSENT goal as a hunt
+    // nobody froze, which Combo_TriforceRecordDivergence reads as damage. Four
+    // zero bytes is how every non-hunt world stores it.
+    memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
+    gComboCtx.sourceIsRando = false;
+    gComboCtx.sharedRandoSeed = 0;
+    gComboCtx.sharedRandoSettingsHash = 0;
+    gComboCtx.mmProfileDigest = 0;
+    gComboCtx.mmPairedAttempt = 0;
+}
+
 extern "C" int OoT_RunPairedCreationEvent(int slot) {
     if (!Combo_ForeignPairingActive()) {
         // A vanilla file, or a rando file whose stamp the KEEP identity check
-        // discarded (#597). Nothing to author; not a failure.
+        // discarded (#597). Nothing to author; not a failure — UNLESS OoT's world
+        // is a paired generation's, waiting at its general pass for a single-bag
+        // fill that can now never run (the pairing it was generated for is gone:
+        // a creation that failed and retracted it, or a stamp discarded since).
+        // That world has no general pass at all, so a file created from it would
+        // be missing most of OoT's items. Refused, the same way a failed creation
+        // is (ADR 0010 increment 3, lane K11): the player generates again.
+        if (OoT_ComboLogic_GeneralPassDeferred() != 0) {
+            fprintf(stderr,
+                    "[OoT] creation event: slot %d REFUSED — OoT's world was generated for a paired creation that no "
+                    "longer has an identity, and its general pass was never placed; generate the seed again\n",
+                    slot);
+            fflush(stderr);
+            RsbsSave_RefuseSlotGeneration(slot);
+            OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+            return 0;
+        }
         return 1;
     }
 
@@ -1133,25 +614,11 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
                 Combo_ForeignCrossingsRequested() ? 1 : 0, crossingsAuthored ? 1 : 0);
     }
 
-    // The OoT spoiler document this creation will grow its "combo" section into
-    // (#660). CVAR_GENERAL("SpoilerLog") holds "./Randomizer/<hash-icons>.json",
-    // written minutes ago by SpoilerLog_Write; resolve it the way that writer
-    // did. Handed to the MM half rather than used here, because the join needs
-    // MM's world live in gSaveContext and the bracket below takes that away the
-    // moment the call returns.
-    std::string ootSpoilerAbsolute;
-    {
-        const std::string cvarPath = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");
-        if (cvarPath.empty()) {
-            fprintf(stderr, "[OoT] creation event: no OoT spoiler on record - the paired half has nothing to join\n");
-        } else {
-            std::string relative = cvarPath;
-            if (relative.rfind("./", 0) == 0) {
-                relative = relative.substr(2);
-            }
-            ootSpoilerAbsolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
-        }
-    }
+    // THE OoT SPOILER IS NOT WRITTEN YET (ADR 0010 increment 3, lane K11). A
+    // paired world's OoT half stopped at its general pass at Generate, and its
+    // spoiler is written below, once the single-bag fill inside the MM half has
+    // placed the bag and OoT's own remainder is down. So the MM half is handed
+    // no path and does not join; the join runs at the end of this function.
 
     // The creation seam's own progress session (#582). Separate from the one
     // Playthrough_Init opened around OoT's staged generation, because the two
@@ -1186,9 +653,14 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
     sCreationBracketActive = true;
 
-    const int mmRc = MM_Rando_GenerateAtCreation(slot, ootSpoilerAbsolute.c_str());
+    sCreationSequenceLen = 0;
+    sCreationSequence[0] = 0;
+    const int mmRc = MM_Rando_AuthorHalfAtCreation(slot, "");
+    CreationStep('M');
 
     sCreationBracketActive = false;
+    // MM's finished half, kept for the spoiler join at the end (see its buffer).
+    memcpy(sMmFinishedSave, &gSaveContext, sizeof(SaveContext));
     memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
     // The OoT-side tail, measured for the same reason MM measures its two
     // stretches (#582's review asked for numbers rather than the assertion that
@@ -1199,83 +671,128 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     if (mmRc != 0) {
         // TERMINAL. Retract everything the freeze published so no artifact of a
         // half-created world survives: no identity for a later arrival to
-        // compare against, no crossing tables for either direction, no armed MM
-        // shadow (the MM half never armed one — it returned before that, or
-        // arming itself failed).
+        // compare against, no crossing tables for either direction, and no armed
+        // MM shadow (nothing has armed one yet: the arm is this event's last step).
         fprintf(stderr,
                 "[OoT] creation event: FAILED (MM half rc=%d) — retracting the pairing identity; slot %d must not be "
                 "written\n",
                 mmRc, slot);
         fflush(stderr);
-        Combo_GenProgress_End(false);
-        // The player-visible half, raised HERE rather than by the caller: a
-        // creation that failed must surface identically from every route into
-        // it, and the only way to guarantee that is for the surface to live
-        // with the verdict.
-        RsbsSave_RefuseSlotGeneration(slot);
-        OoT_Creation_ReportFailureAtFileSelect(slot, 0);
-        Context_ClearFrozenState(GAME_MM);
-        Combo_ClearForeignPlacements();
-        Combo_ClearForeignPlacementsOoT();
-        Combo_ClearForeignGiveCaps();
-        // formatVersion 0 is the record's ABSENT tag (ADR 0011 decision 4.2) —
-        // the occupancy byte that makes the other eleven usable. Zeroing it is
-        // how a record is retracted; there is deliberately no "unfreeze" API,
-        // because the only legitimate retraction is this one.
-        memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
-        gComboCtx.comboSettingsHash = 0;
-        // The O10 triforce record (ADR 0010) was frozen beside the combo record
-        // and goes with it. Left behind, it would sit next to an ABSENT goal as
-        // a hunt nobody froze, which Combo_TriforceRecordDivergence reads as
-        // damage. Four zero bytes is how every non-hunt world stores it.
-        memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
-        gComboCtx.sourceIsRando = false;
-        gComboCtx.sharedRandoSeed = 0;
-        gComboCtx.sharedRandoSettingsHash = 0;
-        gComboCtx.mmProfileDigest = 0;
-        gComboCtx.mmPairedAttempt = 0;
+        RetractFailedPairedCreation(slot);
         return 0;
     }
 
     // ------------------------------------------------------------------------
-    // THE FOREIGN-PLACEMENT SHORTFALL, SURFACED AT CREATION (#583).
+    // THE SINGLE BAG'S OoT-SIDE TAIL (ADR 0010 increment 3, D3; lane K11).
     //
-    // The under-supply rule (#580) places fewer crossings rather than stranding
-    // them on unreachable hosts. That is right, and it was invisible: a player
-    // promised four crossings who got two found out by reading the spoiler JSON.
-    // The number is decided here, so it is announced here — on the same overlay
-    // every other creation-time verdict uses, with the counts that explain it.
+    // The MM half ran the single-bag fill over both worlds and MM's own pass over
+    // MM's leftovers. What is left is OoT's, and it runs HERE because it needs
+    // OoT's bytes live (its spoiler writer reads gSaveContext.language):
     //
-    // NOT AN ERROR AND NOT A FAILURE. While crossings are duplicate overlays
-    // (increments 1-2) the origin world keeps its own copy of every pool item,
-    // so a missing crossing costs "fewer extras" and never a winnable world.
-    // The toast says fewer, the creation succeeds, and the spoiler keeps the
-    // durable record.
-    {
-        int requested = 0;
-        int placed = 0;
-        int eligible = 0;
-        int reachable = 0;
-        if (MM_Rando_LastPlacementStats(&requested, &placed, &eligible, &reachable)) {
-            fprintf(stderr,
-                    "[OoT] creation event: SHORTFALL — %d of %d cross-game items found a host in Termina "
-                    "(%d eligible host checks, %d of them reachable)\n",
-                    placed, requested, eligible, reachable);
-            fflush(stderr);
-
-            OoT_Creation_EmitShortfallToast(placed, requested);
+    //   1. THE CROSSINGS, captured from the coordinator's tables into the store
+    //      (ADR 0010 O7) — the one durable record of which host of either game
+    //      yields an item of the other, frozen with the world, persisted in the
+    //      .redsave's Tier-4 by the Save_SaveFile() this seam's caller runs next.
+    //   2. OoT's REMAINDER: its junk, renewables and traps onto its leftover
+    //      hosts, overrides, hints, and its spoiler document.
+    //   3. THE ONE SPOILER: MM's half joined into OoT's document as "combo", over
+    //      a second short bracket that puts MM's finished bytes back in view.
+    //   4. THE ARM, LAST (#680's order: store, spoiler, publish, arm): inside the
+    //      same bracket, MM's finished half becomes the armed MM shadow. Nothing
+    //      before this point has armed anything, so a failure in steps 1-3 — or
+    //      an exception out of them — leaves no armed shadow behind.
+    //   5. COMMIT: the coordinator's and both engines' roll-back records are
+    //      dropped, so no later fill can "restore" this world.
+    //
+    // A failure in any of them fails the creation the same way a failed MM half
+    // does: nothing is written, nothing of the identity survives.
+    // ------------------------------------------------------------------------
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_CROSSINGS, 0, "Filling Hyrule's remaining checks");
+    const int crossings = OoT_Creation_FinishPairedHalf(1);
+    bool tailOk = crossings >= 0;
+    if (tailOk) {
+        CreationStep('S');
+        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_SPOILER, 0, "writing the paired spoiler");
+        const std::string cvarPath = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");
+        std::string ootSpoilerAbsolute;
+        if (cvarPath.empty()) {
+            fprintf(stderr, "[OoT] creation event: no OoT spoiler on record - the paired half has nothing to join\n");
+        } else {
+            std::string relative = cvarPath;
+            if (relative.rfind("./", 0) == 0) {
+                relative = relative.substr(2);
+            }
+            ootSpoilerAbsolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
         }
+        // MM's finished bytes back in view, for the join and then the arm.
+        memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
+        memcpy(&gSaveContext, sMmFinishedSave, sizeof(SaveContext));
+        sCreationBracketActive = true;
+        if (!ootSpoilerAbsolute.empty()) {
+            MM_Rando_AugmentSpoilerWithPairedHalf(ootSpoilerAbsolute.c_str());
+            CreationStep('J');
+        }
+        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_PUBLISH, 0, nullptr);
+        const int armRc = MM_Rando_ArmCreatedHalf(slot);
+        CreationStep('A');
+        sCreationBracketActive = false;
+        memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
+        tailOk = armRc == 0;
+    }
+    const ComboSingleBagReport* bag = Combo_SingleBag_LastReport();
+    fprintf(stderr,
+            "[OoT] creation event: single bag — %d crossings stored (%d OoT items in Termina, %d MM items in Hyrule), "
+            "%d rows placed, %d surplus dropped, %d rounds, fill %ums\n",
+            crossings, bag->crossingsIntoMM, bag->crossingsIntoOoT, bag->fill.placed, bag->fill.surplusDropped,
+            bag->fill.rounds, bag->wallMs);
+    Combo_SingleBag_Forget();
+    if (!tailOk) {
+        // A tail failure before the arm leaves nothing armed; the arm itself
+        // refusing leaves nothing armed either. The same retraction as the
+        // MM-half failure regardless, so the two routes cannot drift apart again.
+        RetractFailedPairedCreation(slot);
+        return 0;
     }
 
     fprintf(stderr,
-            "[OoT] creation event: the OoT-side tail after MM's half returned (shortfall stats + toast) took %ums "
-            "(#582)\n",
-            Combo_GenProgress_ElapsedMs() - ootTailStartMs);
+            "[OoT] creation event: the OoT-side tail after MM's half returned (crossings, OoT's remainder, the spoiler "
+            "join, the arm) took %ums (#582); steps %s\n",
+            Combo_GenProgress_ElapsedMs() - ootTailStartMs, sCreationSequence);
     fflush(stderr);
-    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_PUBLISH, 0, nullptr);
     Combo_GenProgress_End(true);
     fprintf(stderr, "[OoT] creation event: slot %d complete — both halves authored under one frozen identity\n", slot);
     fflush(stderr);
+    return 1;
+}
+
+/**
+ * A RANDOMIZER FILE'S AUTHORING, IN ITS ONE CORRECT ORDER (PR #743 review): the
+ * paired creation event, THEN Randomizer_InitSaveFile. Called by OoT_Sram_InitSave
+ * (z_sram.c) for every randomizer file in the single executable, and by the
+ * combo-single-bag row, so the lock drives the production order rather than a
+ * copy of it.
+ *
+ * WHY THIS ORDER. Under the single bag a paired OoT world stops at its general
+ * pass at Generate, and its general-pass hosts stay EMPTY until the event places
+ * the bag and OoT's remainder. Randomizer_InitSaveFile hands out creation-time
+ * items by READING hosts (Link's Pocket, Impa's song under Skip Child Zelda,
+ * Malon's egg and Zelda's letter, the Master Sword on an adult start) and marks
+ * each check collected. Any of them can be a general-pass host (Link's Pocket =
+ * Anything; songs Anywhere; Shuffle Master Sword). Read empty,
+ * Context::GetFinalGIEntry answers the host's VANILLA item, so the player got a
+ * free vanilla item and never received the one the fill placed and the proof
+ * counted. With the event first, every host is placed before anything reads it;
+ * for an unpaired file the event authors nothing and the order changes nothing.
+ *
+ * @return 1 when the file may be written; 0 when the paired creation failed (the
+ *         event has already retracted the identity and raised the refusal
+ *         surface), in which case Randomizer_InitSaveFile does not run either.
+ */
+extern "C" int OoT_Creation_AuthorRandoFile(int slot) {
+    if (!OoT_RunPairedCreationEvent(slot)) {
+        return 0;
+    }
+    Randomizer_InitSaveFile();
     return 1;
 }
 
@@ -1296,6 +813,12 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
  * Muted for the same reason the failure toast below is: the creation event runs
  * inside the display-free locks as well as inside file select, and
  * Notification::Emit's unmuted arm plays an OoT sound.
+ *
+ * NO PRODUCTION CALLER UNDER THE SINGLE BAG (ADR 0010 increment 3). The count it
+ * reports came from the post-fill overlay passes over the pinned pools
+ * (the retired MM_Rando_LastPlacementStats); the single-bag fill replaced both, so the
+ * creation event no longer raises it. It stays because the ui tier's
+ * "toast/creation-shortfall" page draws it; it goes when that page does.
  */
 extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested) {
     char message[96];

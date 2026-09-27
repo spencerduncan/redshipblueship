@@ -333,6 +333,22 @@ TestResult Test_GrantOverflow(void) {
     GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) ==
               RSBS_GRANT_DUPLICATE);
 
+    // ---- A SIDE'S WORTH OF CROSSINGS FITS (PR #743 review) ---------------------
+    // The single-bag fill bounds each side's crossings by RSBS_CROSSINGS_PER_SIDE_MAX
+    // (combo_logic.h `maxCrossingsPerSide`) because every crossing pickup takes one
+    // un-merged slot and a refused one loses the item. So the most a player can
+    // collect before the other game redeems — every crossing one game hosts, two
+    // copies of one id included — must record, and that bound must be the array.
+    static_assert(RSBS_CROSSINGS_PER_SIDE_MAX <= RSBS_SHARED_ITEM_CAP,
+                  "the per-side crossing bound outgrew the shared-item array its pickups are delivered through");
+    GrantTestReset();
+    for (uint32_t i = 0; i < RSBS_CROSSINGS_PER_SIDE_MAX; i++) {
+        // ids repeat in pairs: a crossing copy is never content-merged
+        GS_ASSERT(Combo_RecordSharedItemCrossing(GAME_MM, (uint16_t)(300u + i / 2u)) >= 0);
+    }
+    GS_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == (int)RSBS_CROSSINGS_PER_SIDE_MAX);
+    GS_ASSERT(Combo_GetSharedItemOverflowCount() == 0);
+
     GrantTestReset();
     printf("[TEST] PASS: overflow refuses loudly and durably; backpressure retries deliver; order survives "
            "reclamation\n");

@@ -2040,6 +2040,279 @@ TestResult ClComposeLeg(void) {
     return TEST_PASS;
 }
 
+
+// ---------------------------------------------------------------------------
+// P. THE PRODUCTION RULES (ABI 5; #645 lane K11): the four things the single-bag
+//    wiring needs from the coordinator, locked over the stub engines — HOME_ONLY
+//    rows, the per-engine foreign-host predicate, the fill observer's stop, and
+//    CONFINED rows admitted home-only. Each leg carries its counterfactual, so a
+//    rule that stopped applying would go red rather than pass on a lucky draw.
+// ---------------------------------------------------------------------------
+int ClHostOnlyAccepts41(void* self, uint16_t hostCheck) {
+    (void)self;
+    return hostCheck == 41 ? 1 : 0;
+}
+
+int ClHostAcceptsNone(void* self, uint16_t hostCheck) {
+    (void)self;
+    (void)hostCheck;
+    return 0;
+}
+
+struct ClObserveCounter {
+    int calls = 0;
+    int stopAt = -1; // call index that returns "stop"; -1 never
+    int lastStage = -1;
+};
+
+int ClObserve(void* ctx, const ComboLogicFillProgress* p) {
+    ClObserveCounter* c = (ClObserveCounter*)ctx;
+    const int index = c->calls++;
+    c->lastStage = p->stage;
+    return (c->stopAt >= 0 && index >= c->stopAt) ? 1 : 0;
+}
+
+/** Placements whose item is NOT of the host's own game, per host game. */
+void ClCountCrossings(int* intoOoT, int* intoMM, bool* ootForeignOnly41) {
+    ComboLogicPlacement p;
+    *intoOoT = 0;
+    *intoMM = 0;
+    if (ootForeignOnly41 != nullptr) {
+        *ootForeignOnly41 = true;
+    }
+    for (int i = 0; i < Combo_Logic_PlacementCount(GAME_OOT); ++i) {
+        if (Combo_Logic_PlacementAt(GAME_OOT, i, &p) && p.item.originGame != (uint8_t)GAME_OOT) {
+            (*intoOoT)++;
+        }
+    }
+    for (int i = 0; i < Combo_Logic_PlacementCount(GAME_MM); ++i) {
+        if (Combo_Logic_PlacementAt(GAME_MM, i, &p) && p.item.originGame != (uint8_t)GAME_MM) {
+            (*intoMM)++;
+            if (ootForeignOnly41 != nullptr && p.hostCheck != 41) {
+                *ootForeignOnly41 = false;
+            }
+        }
+    }
+}
+
+TestResult ClProductionRulesLeg(void) {
+    CL_ASSERT(RSBS_COMBO_LOGIC_ENGINE_ABI == 5u, "P0: the production wiring is ABI 5");
+    const uint8_t O = (uint8_t)GAME_OOT;
+    const uint8_t M = (uint8_t)GAME_MM;
+    const uint16_t oItems[4] = { kOotSword, kOotHook, kOotLens, kOotBoots };
+    const uint16_t mItems[4] = { kMmOcarina, kMmBow, kMmRemains, kMmMask };
+
+    // P1. HOME_ONLY: an exact-fit world of 4 + 4 hosts and 4 + 4 rows. Home-only,
+    //     every row lands on its own game on every seed; without the flag, some
+    //     seed crosses (the draw CAN cross, so the flag is what stopped it).
+    {
+        ComboLogicBagItem home[8];
+        ComboLogicBagItem crossable[8];
+        for (int i = 0; i < 4; ++i) {
+            home[i] = ClBagItem(O, oItems[i], RSBS_ITEMCLASS_PROGRESSION);
+            home[4 + i] = ClBagItem(M, mItems[i], RSBS_ITEMCLASS_PROGRESSION);
+            home[i].bagFlags = RSBS_COMBO_BAG_HOME_ONLY;
+            home[4 + i].bagFlags = RSBS_COMBO_BAG_HOME_ONLY;
+            crossable[i] = ClBagItem(O, oItems[i], RSBS_ITEMCLASS_PROGRESSION);
+            crossable[4 + i] = ClBagItem(M, mItems[i], RSBS_ITEMCLASS_PROGRESSION);
+        }
+        int freeCrossed = 0;
+        for (uint32_t seed = 1; seed <= 16; ++seed) {
+            for (const uint8_t rung : { (uint8_t)RSBS_COMBO_RUNG_NONE, (uint8_t)RSBS_COMBO_RUNG_BEATABLE }) {
+                ClBuildOpenWorld(4, 4);
+                ComboLogicFillResult res;
+                CL_ASSERT(ClRunFill(home, 8, RSBS_COMBO_GOAL_BEAT_EITHER, rung, seed, &res) == RSBS_COMBO_LOGIC_OK,
+                          "P1: a home-only exact fit fills");
+                int intoOoT = 0;
+                int intoMM = 0;
+                ClCountCrossings(&intoOoT, &intoMM, nullptr);
+                CL_ASSERT(intoOoT == 0 && intoMM == 0, "P1: a HOME_ONLY row never lands on the other game's host");
+                ClBuildOpenWorld(4, 4);
+                CL_ASSERT(ClRunFill(crossable, 8, RSBS_COMBO_GOAL_BEAT_EITHER, rung, seed, &res) == RSBS_COMBO_LOGIC_OK,
+                          "P1: the same rows without the flag fill");
+                ClCountCrossings(&intoOoT, &intoMM, nullptr);
+                freeCrossed += (intoOoT + intoMM > 0) ? 1 : 0;
+            }
+        }
+        CL_ASSERT(freeCrossed > 0, "P1: without HOME_ONLY no seed crossed, so the leg above proves nothing");
+    }
+
+    // P2. THE FOREIGN-HOST PREDICATE: MM accepts a foreign item only on host 41,
+    //     OoT accepts none. Every crossing into MM is on 41 and none enters OoT;
+    //     with the predicates absent, some seed puts an OoT row on another MM host.
+    {
+        ComboLogicBagItem bag[6];
+        for (int i = 0; i < 4; ++i) {
+            bag[i] = ClBagItem(O, oItems[i], RSBS_ITEMCLASS_PROGRESSION);
+        }
+        bag[4] = ClBagItem(M, kMmOcarina, RSBS_ITEMCLASS_PROGRESSION);
+        bag[5] = ClBagItem(M, kMmBow, RSBS_ITEMCLASS_PROGRESSION);
+        int unfilteredElsewhere = 0;
+        int filteredCrossings = 0;
+        for (uint32_t seed = 1; seed <= 16; ++seed) {
+            ClBuildOpenWorld(4, 4);
+            gClVtMM.hostAcceptsForeign = ClHostOnlyAccepts41;
+            gClVtOoT.hostAcceptsForeign = ClHostAcceptsNone;
+            CL_ASSERT(Combo_Logic_RegisterEngine(GAME_OOT, &gClVtOoT) && Combo_Logic_RegisterEngine(GAME_MM, &gClVtMM),
+                      "P2: engines with a predicate register (the pointer is optional)");
+            ComboLogicFillResult res;
+            CL_ASSERT(ClRunFill(bag, 6, RSBS_COMBO_GOAL_BEAT_EITHER, RSBS_COMBO_RUNG_NONE, seed, &res) ==
+                          RSBS_COMBO_LOGIC_OK,
+                      "P2: the filtered fill places the bag");
+            int intoOoT = 0;
+            int intoMM = 0;
+            bool only41 = true;
+            ClCountCrossings(&intoOoT, &intoMM, &only41);
+            CL_ASSERT(intoOoT == 0, "P2: no MM row landed on an OoT host that accepts no foreign item");
+            CL_ASSERT(only41 && intoMM <= 1, "P2: an OoT row landed on an MM host the predicate refuses");
+            filteredCrossings += intoMM;
+
+            ClBuildOpenWorld(4, 4); // predicates cleared by the rebuild
+            CL_ASSERT(ClRunFill(bag, 6, RSBS_COMBO_GOAL_BEAT_EITHER, RSBS_COMBO_RUNG_NONE, seed, &res) ==
+                          RSBS_COMBO_LOGIC_OK,
+                      "P2: the unfiltered fill places the bag");
+            ClCountCrossings(&intoOoT, &intoMM, &only41);
+            unfilteredElsewhere += only41 ? 0 : 1;
+        }
+        CL_ASSERT(filteredCrossings > 0, "P2: host 41 never received a crossing, so the predicate was never consulted");
+        CL_ASSERT(unfilteredElsewhere > 0, "P2: without the predicate no OoT row ever landed off host 41 — vacuous");
+    }
+
+    // P3. THE OBSERVER: it sees every round and the proof, returning 0 changes
+    //     nothing, and returning nonzero stops the fill with ERR_ABORTED — its own
+    //     status, not a dead end the ladder would climb on.
+    {
+        ComboLogicBagItem bag[4];
+        for (int i = 0; i < 4; ++i) {
+            bag[i] = ClBagItem(O, oItems[i], RSBS_ITEMCLASS_PROGRESSION);
+        }
+        ClBuildOpenWorld(4, 4);
+        ComboLogicFillResult plain;
+        CL_ASSERT(ClRunFill(bag, 4, RSBS_COMBO_GOAL_BEAT_EITHER, RSBS_COMBO_RUNG_BEATABLE, 77u, &plain) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "P3: the fill with no observer");
+
+        ClBuildOpenWorld(4, 4);
+        ClObserveCounter watch;
+        ComboLogicFillRequest req;
+        memset(&req, 0, sizeof(req));
+        req.bag = bag;
+        req.bagCount = 4;
+        req.goal = RSBS_COMBO_GOAL_BEAT_EITHER;
+        req.logicRung = RSBS_COMBO_RUNG_BEATABLE;
+        req.seed = 77u;
+        req.observer = ClObserve;
+        req.observerCtx = &watch;
+        ComboLogicFillResult watched;
+        CL_ASSERT(Combo_Logic_RunFill(&req, &watched) == RSBS_COMBO_LOGIC_OK, "P3: the observed fill");
+        CL_ASSERT(watched.placementDigest == plain.placementDigest && watched.rounds == plain.rounds,
+                  "P3: an observer that never stops changes nothing about the world");
+        CL_ASSERT(watch.calls == plain.rounds && watch.lastStage == RSBS_COMBO_FILL_STAGE_PROOF,
+                  "P3: the observer is told before every round, the exit round last");
+
+        ClBuildOpenWorld(4, 4);
+        ClObserveCounter stop;
+        stop.stopAt = 2;
+        req.observerCtx = &stop;
+        ComboLogicFillResult stopped;
+        CL_ASSERT(Combo_Logic_RunFill(&req, &stopped) == RSBS_COMBO_LOGIC_ERR_ABORTED,
+                  "P3: an observer that asks to stop ends the fill with ERR_ABORTED");
+        CL_ASSERT(stopped.attempts == 1 && stopped.rounds == 2 && stop.calls == 3,
+                  "P3: the stop is taken where it was asked, inside the first batch, and nothing is retried");
+        CL_ASSERT(strcmp(Combo_Logic_StatusName(RSBS_COMBO_LOGIC_ERR_ABORTED), "aborted") == 0,
+                  "P3: the stop has its own name");
+        Combo_Logic_ResetPlacements();
+    }
+
+    // P4. CONFINED ROWS, ADMITTED HOME-ONLY: the composition rule's production
+    //     flag. The same pool as leg C; the two confined rows (OoT id 2 behind the
+    //     keys bit, MM id 5 behind the souls bit) now enter the bag HOME_ONLY and
+    //     are still COUNTED confined. An unknown compose flag is refused.
+    {
+        const ClComposeSourceGuard guard;
+        CL_ASSERT(guard.installed, "P4: both synthetic classification sources installed");
+        const uint16_t P = RSBS_COMBO_POOL_PLENTIFUL;
+        const ComboLogicPoolRow pool[] = {
+            ClPoolRow(O, 1, 0), ClPoolRow(O, 1, P), ClPoolRow(O, 2, 0), ClPoolRow(O, 3, 0), ClPoolRow(O, 4, P),
+            ClPoolRow(O, 5, 0), ClPoolRow(M, 1, 0), ClPoolRow(M, 2, 0), ClPoolRow(M, 2, P), ClPoolRow(M, 3, 0),
+            ClPoolRow(M, 4, 0), ClPoolRow(M, 5, 0), ClPoolRow(O, 1, 0), ClPoolRow(O, 6, 0),
+        };
+        ComboLogicComposeRequest req;
+        memset(&req, 0, sizeof(req));
+        req.rows = pool;
+        req.rowCount = (int)(sizeof(pool) / sizeof(pool[0]));
+        req.composeFlags = RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME;
+        // THE SHARED-QUANTITY TRIM refuses an unpublished starting bar (as leg C
+        // says); no row here is a trim family, so the values change nothing.
+        req.startingHealthOoT = 0x30u;
+        req.startingHealthMM = 0x30u;
+        ComboLogicBagItem bag[16];
+        int index[16];
+        ComboLogicComposeResult res;
+        CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_OK && res.bagCount == 9,
+                  "P4: the two confined rows join the seven of leg C");
+        int homeOnly = 0;
+        for (int i = 0; i < res.bagCount; ++i) {
+            const bool confined = (index[i] == 2 || index[i] == 11);
+            CL_ASSERT(((bag[i].bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u) == confined,
+                      "P4: exactly the confined rows are HOME_ONLY");
+            homeOnly += confined ? 1 : 0;
+        }
+        CL_ASSERT(homeOnly == 2 && res.perGame[O].rows[RSBS_COMBO_COMPOSE_CONFINED] == 1 &&
+                      res.perGame[M].rows[RSBS_COMBO_COMPOSE_CONFINED] == 1,
+                  "P4: admitted rows are still counted CONFINED");
+        req.composeFlags = 0x8000u;
+        CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 16, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+                  "P4: an unknown compose flag is refused");
+    }
+
+    // P5. THE PER-SIDE CROSSING BOUND (PR #743 review): four OoT rows on an open
+    //     world of 4 OoT + 4 MM hosts. With `maxCrossingsPerSide` = 1, no seed puts
+    //     more than one OoT item on an MM host, on either fill path; without the
+    //     bound, some seed puts two or more there (the bound is what stopped it).
+    {
+        ComboLogicBagItem bag[4];
+        for (int i = 0; i < 4; ++i) {
+            bag[i] = ClBagItem(O, oItems[i], RSBS_ITEMCLASS_PROGRESSION);
+        }
+        int unboundedOver = 0;
+        int boundedAtCap = 0;
+        for (uint32_t seed = 1; seed <= 24; ++seed) {
+            for (const uint8_t rung : { (uint8_t)RSBS_COMBO_RUNG_NONE, (uint8_t)RSBS_COMBO_RUNG_BEATABLE }) {
+                ComboLogicFillRequest req;
+                memset(&req, 0, sizeof(req));
+                req.bag = bag;
+                req.bagCount = 4;
+                req.goal = RSBS_COMBO_GOAL_BEAT_EITHER;
+                req.logicRung = rung;
+                req.seed = seed;
+                req.maxCrossingsPerSide = 1;
+                ComboLogicFillResult res;
+                ClBuildOpenWorld(4, 4);
+                CL_ASSERT(Combo_Logic_RunFill(&req, &res) == RSBS_COMBO_LOGIC_OK, "P5: the bounded fill places the bag");
+                int intoOoT = 0;
+                int intoMM = 0;
+                ClCountCrossings(&intoOoT, &intoMM, nullptr);
+                CL_ASSERT(intoMM <= 1, "P5: a side received more crossings than the per-side bound allows");
+                boundedAtCap += (intoMM == 1) ? 1 : 0;
+
+                req.maxCrossingsPerSide = 0;
+                ClBuildOpenWorld(4, 4);
+                CL_ASSERT(Combo_Logic_RunFill(&req, &res) == RSBS_COMBO_LOGIC_OK, "P5: the unbounded fill");
+                ClCountCrossings(&intoOoT, &intoMM, nullptr);
+                unboundedOver += (intoMM > 1) ? 1 : 0;
+            }
+        }
+        CL_ASSERT(boundedAtCap > 0, "P5: the bounded fill never crossed at all, so the bound was never reached");
+        CL_ASSERT(unboundedOver > 0, "P5: without the bound no seed crossed twice, so the leg proves nothing");
+        Combo_Logic_ResetPlacements();
+    }
+
+    printf("[TEST] combo-logic-bag-model: P production rules: HOME_ONLY rows stay home, the foreign-host predicate "
+           "filters crossings, the observer stops with ERR_ABORTED and otherwise changes nothing, confined rows enter "
+           "home-only, the per-side crossing bound holds\n");
+    return TEST_PASS;
+}
 } // namespace
 
 TestResult Test_ComboLogicBagModel(void) {
@@ -2356,6 +2629,11 @@ TestResult Test_ComboLogicBagModel(void) {
     if (ClComposeLeg() != TEST_PASS) {
         return TEST_FAIL;
     }
+    if (ClProductionRulesLeg() != TEST_PASS) {
+        ClUninstall();
+        return TEST_FAIL;
+    }
+    ClUninstall();
 
     printf("[TEST] combo-logic-bag-model: PASS\n");
     return TEST_PASS;

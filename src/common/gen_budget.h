@@ -127,6 +127,12 @@ uint32_t Combo_GenBudget_FillBudgetMs(int attempt);
 /** The whole creation's budget in ms (per-attempt x the multiplier). */
 uint32_t Combo_GenBudget_TotalBudgetMs(void);
 
+/** The budget's own clock, in ms since an arbitrary origin (the one every
+ *  number in this file is measured in). Exposed for the single-bag fill's
+ *  per-attempt stop (combo_single_bag.c), which must measure in the same clock
+ *  the presentation credit below is measured in. Only DIFFERENCES mean anything. */
+uint32_t Combo_GenBudget_NowMs(void);
+
 /**
  * TEST SEAM. Pin the host scale so the locks are deterministic on any CI
  * machine; 0 restores the measured value. Nothing in a shipping path calls this.
