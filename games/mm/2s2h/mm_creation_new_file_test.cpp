@@ -243,26 +243,27 @@ extern "C" int MM_CreationNewFile_RunSynthetic(void) {
     const uint32_t kSeed = 0x5EED0765u;
     memset(&gSaveContext, 0, sizeof(SaveContext));
     MM_Sram_InitNewSave();
+    // MM_Sram_InitSave's own steps over the SAME bytes (InitNewSave draws its
+    // random save fields -- lottery, bomber and spider-house codes -- from the
+    // RNG, so a second InitNewSave is a different Save): the 'ZELDA3' marker,
+    // then the checksum over Save. The typed name and button 0's cutsceneIndex
+    // are the two InitSave steps the creation event does not take (see
+    // MM_Creation_StampNewFileFields's header), so they are left out here too.
+    static Save sMMPath;
+    memcpy(&sMMPath, &gSaveContext.save, sizeof(Save));
+    memcpy(sMMPath.saveInfo.playerData.newf, kNewf, sizeof(kNewf));
+    sMMPath.saveInfo.checksum = Sram_CalcChecksum(&sMMPath, sizeof(Save));
+
     MM_Creation_StampNewFileFields();
-    const u16 stampedChecksum = gSaveContext.save.saveInfo.checksum;
+    printf("[TEST] %s: checksum stamped=0x%04X MM's path=0x%04X\n", sRow, (unsigned)gSaveContext.save.saveInfo.checksum,
+           (unsigned)sMMPath.saveInfo.checksum);
+    CNF_ASSERT(gSaveContext.save.saveInfo.checksum == sMMPath.saveInfo.checksum,
+               "the checksum is the one MM_Sram_InitSave computes");
+    CNF_ASSERT(memcmp(&gSaveContext.save, &sMMPath, sizeof(Save)) == 0,
+               "the stamped Save is byte-identical to MM_Sram_InitSave's (name and button-0 cutscene aside)");
     // Stand-in for OnFileCreate's rando block (the generation's first stamp).
     gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
     gSaveContext.save.shipSaveInfo.rando.finalSeed = kSeed;
-
-    // Checksum parity with MM_Sram_InitSave: marker first, then the sum over
-    // Save, before OnSaveInit.
-    {
-        static SaveContext sExpect;
-        memcpy(&sExpect, &gSaveContext, sizeof(SaveContext));
-        memset(&gSaveContext, 0, sizeof(SaveContext));
-        MM_Sram_InitNewSave();
-        memcpy(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf));
-        const u16 mmPathChecksum = Sram_CalcChecksum(&gSaveContext.save, sizeof(Save));
-        memcpy(&gSaveContext, &sExpect, sizeof(SaveContext));
-        printf("[TEST] %s: checksum stamped=0x%04X MM's path=0x%04X\n", sRow, (unsigned)stampedChecksum,
-               (unsigned)mmPathChecksum);
-        CNF_ASSERT(stampedChecksum == mmPathChecksum, "the checksum is the one MM_Sram_InitSave computes");
-    }
 
     CNF_ASSERT(MM_Rando_ArmCreatedHalf(0) == 0, "the authored half arms");
     CNF_ASSERT(Context_HasFrozenState(GAME_MM) != 0, "the MM shadow is armed");

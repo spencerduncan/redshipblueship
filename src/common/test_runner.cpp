@@ -778,12 +778,10 @@ static TestResult Test_OoTAbandonedSessionStatics(void) {
 
 // The creation-authored MM half as MM's own new-file path would author it (#765;
 // see the extern decls above). Thin wrappers over the C entry points in
-// games/mm/2s2h/mm_creation_new_file_test.cpp.
+// games/mm/2s2h/mm_creation_new_file_test.cpp. The world row's wrapper sits beside
+// Test_ComboCrossingViewsWorld: it needs the same generation bring-up.
 static TestResult Test_MMCreationNewFile(void) {
     return MM_CreationNewFile_RunSynthetic() == 0 ? TEST_PASS : TEST_FAIL;
-}
-static TestResult Test_MMCreationNewFileWorld(void) {
-    return MM_CreationNewFile_RunWorld() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM extended-culling binding (see the extern decl above). Thin wrapper over
@@ -3803,6 +3801,21 @@ TestResult Test_ComboCrossingViewsWorld(void) {
     static char* cxvArgv[] = { cxvArg0, nullptr };
     InitOTRForMMFirstBoot(1, cxvArgv);
     return ComboCrossingViews_RunWorld();
+}
+
+// #765's world row (games/mm/2s2h/mm_creation_new_file_test.cpp): the production
+// creation event over the ComboSingleBag pinned seed, so the same bring-up as the
+// crossing-views world row above.
+TestResult Test_MMCreationNewFileWorld(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char cnfArg0[] = "redship";
+    static char* cnfArgv[] = { cnfArg0, nullptr };
+    InitOTRForMMFirstBoot(1, cnfArgv);
+    return MM_CreationNewFile_RunWorld() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ADR 0010 answer O6's grow-check over both real engines (#645, #500). Same
