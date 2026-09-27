@@ -190,6 +190,20 @@ own surface (`Combo_Logic_GetEngine`, `Combo_Logic_RunRound`):
   same step another is gained. Both candidate counts, OoT's crossing flag and
   both goal flags must also move across the prefixes. MM's crossing flag is
   already open at the empty prefix. G4 is sampled; the per-grant check is G1.
+- **G5, MM's fixed-content grant** (A7, #737). G1-G4 run with no MM host pool
+  set, and A7 grants only when one is: a reached check outside the host pool
+  grants the item `GeneratePools` left there. So G5 authors the live save's check
+  table and takes MM's pool from one `GeneratePools` call
+  (`MM_ComboLogic_TestAuthorCheckTable`), sets that check pool as the host pool,
+  and walks the pool's bag forward (per grant) and in reverse. Neither walk may
+  lose a check or region, MM's shrink counter must not move, and the two orders
+  must close on the same set. A7 must grant more fixed contents by the end of the
+  walk than at its start. Every step's closure with A7 must contain the same
+  step's closure without it. The red half runs the forward walk again with A7
+  switched off (`MM_ComboLogic_TestSetFixedGrants`, test only). It must grant
+  nothing and end with strictly fewer checks reached, so the row goes red if A7
+  is deleted or disabled. G5 has no planted non-monotone A7: its per-step
+  comparison is G1's, whose red half is observed.
 - **The red halves, one per lock.** Test-only TUs (`ComboLogicMonotonicityOoT.cpp`,
   `ComboLogicMonotonicitySingleExe.cpp`) plant **one bad edge** at runtime into
   each live graph, on the single inbound edge of a region reached at the start.

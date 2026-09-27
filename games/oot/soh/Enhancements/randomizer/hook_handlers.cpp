@@ -370,8 +370,8 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #510 — the reverse direction's PRODUCER. This OoT check hosts an MM item
-    // (gComboCtx.foreignPlacementsOoT, written by OoT_PlaceForeignItems at
-    // generation). Hand it to the shared structure instead of OoT's give path;
+    // (the pinned reverse table, and behind it the crossing store the single-bag
+    // fill writes at creation, ADR 0010 increment 3). Hand it to the shared structure instead of OoT's give path;
     // MM's already-wired consumer (MM_AwardSharedItem -> MM_ForeignItem_Give)
     // awards it on the next arrival in Termina. The OoT item table still holds a
     // junk item at this check — the placement table overrides it here, exactly as

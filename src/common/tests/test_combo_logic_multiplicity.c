@@ -158,8 +158,9 @@ TestResult ComboLogicMultiplicity_Run(void) {
     const ComboLogicEngine* oot = Combo_Logic_GetEngine(GAME_OOT);
     const ComboLogicEngine* mm = Combo_Logic_GetEngine(GAME_MM);
     CLX_ASSERT(oot != nullptr && mm != nullptr, "both real engines must be registered");
-    // ABI 3 is the multiplicity contract; ABI 4 (ADR 0010 O10) only appended the
-    // optional `triforcePieces` entry and keeps every ABI-3 meaning.
+    // ABI 3 is the multiplicity contract; ABI 4 (ADR 0010 O10) and ABI 5 (the
+    // production wiring) only appended optional entries (`triforcePieces`,
+    // `hostAcceptsForeign`) and keep every ABI-3 meaning.
     CLX_ASSERT(RSBS_COMBO_LOGIC_ENGINE_ABI >= 3u && oot->abiVersion == RSBS_COMBO_LOGIC_ENGINE_ABI &&
                    mm->abiVersion == RSBS_COMBO_LOGIC_ENGINE_ABI,
                "both engines must speak this build's ABI, which keeps ABI 3's one-call-is-one-copy contract");

@@ -49,6 +49,26 @@
  *       ever drops between consecutive sampled prefixes. This is the operator as
  *       the fill sees it — both engines, the arrival gate, the exchange — not
  *       each engine alone. Sampled, not per-grant: G1 is the per-grant check.
+ *   G5. MM's FIXED-CONTENT GRANT (A7, #737; review of PR #758). G1-G4 run with no
+ *       host pool set, and A7 grants only when one is (a check OUTSIDE the host
+ *       pool keeps the item GeneratePools left there, and a round grants it when
+ *       reached), so without G5 this row could not see A7 at all. G5 authors the
+ *       live save's check table and takes the pool from ONE GeneratePools call
+ *       (MM_ComboLogic_TestAuthorCheckTable), hands the engine that check pool as
+ *       its host pool (MM_ComboLogic_SetHostPool, the production seam), and walks
+ *       the POOL's bag (built as above, so no copy A7 grants is also a bag row):
+ *       forward per grant, reverse, and forward again with A7 switched off
+ *       (MM_ComboLogic_TestSetFixedGrants, test only). Asserted: neither A7 walk
+ *       ever loses a check or region (G1's comparison) and MM's shrink counter
+ *       stays put; the two orders reach the same closure (G2's); A7 granted
+ *       fixed contents and granted MORE of them as the walk grew reach than at its
+ *       start, so the walk exercised A7 rather than a round that happened to
+ *       reach fixed checks once; every step's closure with A7 contains the same
+ *       step's without it (granting the fixed contents never takes reach away);
+ *       and the switched-off walk granted none and ends strictly smaller — A7's
+ *       red half, so a deleted or disabled A7 turns G5 red. The rounds' save
+ *       discipline is compared against the authored state; then the pre-G5 bytes
+ *       are put back and the host pool cleared, before the row's own comparison.
  *
  * THE BAG (the operator's multiplicity ruling, 2026-09-26: "keep in mind that
  * there are usually options here. like plentiful drops is an option ... ice traps
@@ -122,8 +142,11 @@
  *    second call per step would only confirm; the final confirmation asserts it.
  *  - OoT's fill-item hosts are EMPTIED for the walk (and restored after), so the
  *    search does not harvest the generated world's own items and the bag is the
- *    only source. MM's engine harvests only coordinator placements, of which there
- *    are none.
+ *    only source. MM's engine harvests coordinator placements, of which there are
+ *    none, and (A7) fixed contents only once a host pool is set, which only G5
+ *    does. G5 walks tricks off, on the shipped profile only, and has no planted
+ *    NON-MONOTONE A7 to observe: its per-step comparison is G1's, whose red half
+ *    is observed above; what G5's own red half proves is that the walk RAN A7.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE and compiled as C++,
  * like every file in this directory — so everything here is in its own namespace.
@@ -153,6 +176,7 @@ int OoT_ComboLogic_TestPlacedItemAt(uint16_t rc, uint16_t* outItemId, int* outAd
 int OoT_ComboLogic_TestSetPlacedItem(uint16_t rc, uint16_t itemId);
 uint32_t OoT_ComboLogic_TestWorldDigest(void);
 int Rando_HeadlessSeedTest(const char* seedStr);
+int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 // OoT probe (games/oot/soh/Enhancements/randomizer/ComboLogicMonotonicityOoT.cpp).
 int OoT_ComboMono_RegionBits(uint8_t* out, int cap);
 int OoT_ComboMono_ForceAllTricks(int on);
@@ -171,6 +195,13 @@ int MM_ComboLogic_SnapshotLive(void);
 int MM_ComboLogic_HeldPlacementCount(void);
 void MM_ComboLogic_ResetCounters(void);
 int MM_ComboLogic_TestRoundRegions(uint16_t* outRegions, uint64_t* outTimeSlices, int cap);
+// G5 (#737's A7 in the grow-check): the check table and pool from one
+// GeneratePools call, the host-pool seam, A7's counter and its test switch.
+int MM_ComboLogic_TestAuthorCheckTable(uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
+                                       int checkCap, int* outCheckTotal);
+void MM_ComboLogic_SetHostPool(const uint16_t* checks, int count);
+int MM_ComboLogic_FixedHarvestCount(void);
+int MM_ComboLogic_TestSetFixedGrants(int enabled);
 // MM probe (games/mm/2s2h/Rando/ComboLogicMonotonicitySingleExe.cpp).
 int MM_ComboMono_ForceAllTricks(int on);
 int MM_ComboMono_NegatableItem(uint16_t riId);
@@ -1061,6 +1092,102 @@ TestResult CoordinatorRedHalf(const char* name, int side, const std::vector<Comb
     return TEST_PASS;
 }
 
+/**
+ * G5: MM's A7 inside the grow-check (see the file comment). Leaves the host pool
+ * SET and the check table AUTHORED; the caller clears the pool and puts the save
+ * back. `*outRows` receives the bag size walked.
+ */
+TestResult FixedGrantWalks(Side& s, int* outRows) {
+    const int kItemCap = 8192;
+    std::vector<uint16_t> items((size_t)kItemCap, 0);
+    std::vector<uint16_t> flags((size_t)kItemCap, 0);
+    std::vector<uint16_t> checks((size_t)RSBS_COMBO_LOGIC_HOST_CAP, 0);
+    int checkTotal = 0;
+    const int total = MM_ComboLogic_TestAuthorCheckTable(items.data(), flags.data(), kItemCap, checks.data(),
+                                                         RSBS_COMBO_LOGIC_HOST_CAP, &checkTotal);
+    CLMONO_ASSERT(total > 0 && total <= kItemCap && checkTotal > 0 && checkTotal <= RSBS_COMBO_LOGIC_HOST_CAP,
+                  "G5: MM's pool export (authoring the check table) returned nothing or overflowed");
+    items.resize((size_t)total);
+    checks.resize((size_t)checkTotal);
+    // The authored state, which every G5 round must leave the live save in.
+    std::unique_ptr<unsigned char[]> saveAuthored(new unsigned char[OOT_SAVE_CONTEXT_SIZE]);
+    memcpy(saveAuthored.get(), gSaveContext, OOT_SAVE_CONTEXT_SIZE);
+    MM_ComboLogic_SetHostPool(checks.data(), checkTotal);
+    const Bag bag = BuildBag(GAME_MM, items);
+    *outRows = (int)bag.rows.size();
+    CLMONO_ASSERT(bag.required > 0, "G5: MM's pool holds no progression copy - the walk would grant nothing");
+    const std::vector<uint16_t> reverse(bag.rows.rbegin(), bag.rows.rend());
+    const std::vector<uint16_t> none;
+
+    const int shrink0 = MM_ComboLogic_ShrinkObservations();
+    const int f0 = MM_ComboLogic_FixedHarvestCount();
+    const Walk start = RunWalk(s, none, false);
+    const int f1 = MM_ComboLogic_FixedHarvestCount();
+    const Walk fwd = RunWalk(s, bag.rows, true);
+    const int f2 = MM_ComboLogic_FixedHarvestCount();
+    const Walk rev = RunWalk(s, reverse, false);
+    const int f3 = MM_ComboLogic_FixedHarvestCount();
+    const int shrink1 = MM_ComboLogic_ShrinkObservations();
+    // A7's red half. Switched back on before any assertion can return.
+    const int previous = MM_ComboLogic_TestSetFixedGrants(0);
+    const Walk off = RunWalk(s, bag.rows, true);
+    const int f4 = MM_ComboLogic_FixedHarvestCount();
+    MM_ComboLogic_TestSetFixedGrants(previous);
+
+    const int grantsStart = f1 - f0;
+    const int grantsFwd = f2 - f1;
+    const int grantsRev = f3 - f2;
+    const int grantsOff = f4 - f3;
+    int containKind = -1;
+    int containId = -1;
+    int containStep = -1;
+    uint64_t containBits = 0;
+    if (fwd.trace.size() == off.trace.size()) {
+        for (size_t i = 0; i < fwd.trace.size(); ++i) {
+            if (!Contains(fwd.trace[i], off.trace[i], &containKind, &containId, &containBits)) {
+                containStep = (int)i;
+                break;
+            }
+        }
+    }
+    printf("[TEST] combo-logic-monotonicity: G5 (#737 A7): MM pool %d copies over a check pool of %d, bag %d rows = "
+           "%d required + %d surplus + %d filler; fixed contents granted: %d at the start, %d over the forward walk, "
+           "%d over the reverse walk, %d with A7 switched off; final closure checks/regions: forward %d/%d, reverse "
+           "%d/%d, A7 off %d/%d; forward walk %s, reverse walk %s; per-step A7-on contains A7-off: %s\n",
+           total, checkTotal, (int)bag.rows.size(), bag.required, bag.surplus, bag.filler, grantsStart, grantsFwd,
+           grantsRev, grantsOff, fwd.final_.checkCount, fwd.final_.regionCount, rev.final_.checkCount,
+           rev.final_.regionCount, off.final_.checkCount, off.final_.regionCount, fwd.lost ? "LOST" : "never lost",
+           rev.lost ? "LOST" : "never lost", containStep < 0 ? "yes" : "NO");
+    if (fwd.lost) {
+        PrintLoss("G5 forward", fwd);
+    }
+    if (rev.lost) {
+        PrintLoss("G5 reverse", rev);
+    }
+    CLMONO_ASSERT(previous == 1, "G5: MM's fixed-content grant was already switched off");
+    CLMONO_ASSERT(memcmp(saveAuthored.get(), gSaveContext, OOT_SAVE_CONTEXT_SIZE) == 0,
+                  "G5: a round with the host pool set leaked into the live save (compared against the authored "
+                  "state, before the caller puts the pre-G5 bytes back)");
+    CLMONO_ASSERT(start.opened && fwd.opened && rev.opened && off.opened, "G5: a round did not open");
+    CLMONO_ASSERT(fwd.fixpointConfirmed && rev.fixpointConfirmed && off.fixpointConfirmed,
+                  "G5: a walk's final expand still reported change");
+    CLMONO_ASSERT(!fwd.lost && !rev.lost, "G5: reachability SHRANK along a walk with MM's fixed contents granted");
+    CLMONO_ASSERT(shrink1 == shrink0, "G5: MM's own shrink counter saw a recompute come back smaller");
+    CLMONO_ASSERT(Equal(fwd.final_, rev.final_), "G5: the forward and reverse walks reached different closures with "
+                                                 "MM's fixed contents granted");
+    CLMONO_ASSERT(grantsFwd > grantsStart && grantsStart >= 0,
+                  "G5: the forward walk granted no more fixed contents than its start - A7 did not grow with reach, "
+                  "so the walk did not exercise it");
+    CLMONO_ASSERT(grantsRev == grantsFwd, "G5: the two orders granted different numbers of fixed contents");
+    CLMONO_ASSERT(containStep < 0 && fwd.trace.size() == off.trace.size(),
+                  "G5: a step's closure WITH the fixed grant lacks something the same step reaches without it");
+    CLMONO_ASSERT(grantsOff == 0, "G5 RED HALF: the switched-off walk still granted fixed contents");
+    CLMONO_ASSERT(off.final_.checkCount < fwd.final_.checkCount,
+                  "G5 RED HALF: the walk reaches as much without the fixed grant as with it - G5 would stay green "
+                  "with A7 deleted");
+    return TEST_PASS;
+}
+
 } // namespace clmono
 
 TestResult ComboLogicMonotonicity_Run(void) {
@@ -1074,6 +1201,10 @@ TestResult ComboLogicMonotonicity_Run(void) {
     CLMONO_ASSERT(oot->abiVersion == RSBS_COMBO_LOGIC_ENGINE_ABI && mm->abiVersion == RSBS_COMBO_LOGIC_ENGINE_ABI,
                   "a registered engine carries the wrong ABI");
 
+    // OoT's NATIVE general pass (lane K11): this row measures OoT's own fill or a world
+    // with its general pass placed by it, not the paired creation's single bag, so it
+    // asks Fill() not to defer the general pass (ComboLogicEngineOoT.cpp).
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
     CLMONO_ASSERT(Rando_HeadlessSeedTest("RSBSCOMBOMONO1") == 0, "headless OoT seed generation failed");
     MM_Rando_InitCore();
 
@@ -1131,6 +1262,7 @@ TestResult ComboLogicMonotonicity_Run(void) {
     RedPlan mmPlan;
     int ootRows = 0;
     int mmRows = 0;
+    int g5Rows = 0;
     auto body = [&]() -> TestResult {
         for (int i = 0; i < owned; ++i) {
             if (ootEmpty[(size_t)i]) {
@@ -1212,6 +1344,18 @@ TestResult ComboLogicMonotonicity_Run(void) {
                                        MM_ComboMono_Disarm);
             }
         }
+
+        // G5: MM's A7 (#737). It AUTHORS the live save's check table, which is not
+        // the profile-applied state the row's closing comparison is against: the
+        // walks' own save discipline is checked against the authored state, then
+        // the pre-G5 bytes are put back (construction, not a claim).
+        if (r == TEST_PASS) {
+            std::unique_ptr<unsigned char[]> saveBeforeG5(new unsigned char[OOT_SAVE_CONTEXT_SIZE]);
+            memcpy(saveBeforeG5.get(), gSaveContext, OOT_SAVE_CONTEXT_SIZE);
+            r = FixedGrantWalks(mmSide, &g5Rows);
+            memcpy(gSaveContext, saveBeforeG5.get(), OOT_SAVE_CONTEXT_SIZE);
+            MM_ComboLogic_SetHostPool(nullptr, 0);
+        }
         return r;
     };
     TestResult r = body();
@@ -1224,6 +1368,8 @@ TestResult ComboLogicMonotonicity_Run(void) {
     MM_ComboMono_Disarm();
     OoT_ComboMono_ForceAllTricks(0);
     MM_ComboMono_ForceAllTricks(0);
+    MM_ComboLogic_SetHostPool(nullptr, 0);
+    (void)MM_ComboLogic_TestSetFixedGrants(1);
     int restoreFailures = 0;
     for (int i = 0; i < owned; ++i) {
         if (OoT_ComboLogic_TestSetPlacedItem(ootHosts[(size_t)i], ootPrior[(size_t)i]) != 1) {
@@ -1249,8 +1395,9 @@ TestResult ComboLogicMonotonicity_Run(void) {
     memcpy(gSaveContext, saveBefore.get(), OOT_SAVE_CONTEXT_SIZE); // construction, not a claim
 
     printf("[TEST] PASS: reachability never shrank over %d OoT and %d MM grants per walk, four orders, tricks off and "
-           "on; the orders agree; the coordinator's prefixes never lost a host; and every lock (G1-G4) went red on its "
-           "planted edge on both engines\n",
-           ootRows, mmRows);
+           "on; the orders agree; the coordinator's prefixes never lost a host; every lock (G1-G4) went red on its "
+           "planted edge on both engines; and over %d MM grants with the host pool set, MM's fixed-content grant (A7) "
+           "grew with reach, never took reach away, and its absence was seen (G5)\n",
+           ootRows, mmRows, g5Rows);
     return TEST_PASS;
 }

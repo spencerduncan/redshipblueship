@@ -170,6 +170,9 @@
  *      predicate; until it has one, increment 4 must consult
  *      `Rando::IsEligibleHost` before choosing a shop host for a foreign item.
  *      That is stated in the PR as a contract gap, not worked around here.
+ *      [Closed by ABI 5, lane K11: the vtable's `hostAcceptsForeign`, answered
+ *      here by Rando::Foreign::IsForeignHostClass, is that per-origin predicate;
+ *      IsEligibleHost retired with the overlay pass.]
  *
  * (A4) The host universe is LARGER THAN THE COORDINATOR'S SCRATCH BUFFER, and
  *      that is a fact about MM rather than a choice here: MM's graph names about
@@ -270,11 +273,14 @@
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <map>
 #include <memory>
 #include <set>
+#include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -283,6 +289,7 @@
 #include "Rando/Foreign.h" // Rando::Foreign::ResolvePairedProfile — measurement bridge only
 #include "Rando/StaticData/StaticData.h"
 #include "Rando/Logic/Logic.h"
+#include "2s2h/ShipUtils.h" // Ship_Random: MM's own pass over its leftover hosts (lane K11)
 
 extern "C" {
 #include "variables.h"
@@ -304,7 +311,10 @@ void MM_Sram_InitNewSave(void);
 // own linkage and pull in <stdbool.h>/<stdint.h> (matching Foreign.cpp and
 // ForeignItemsSingleExe.cpp).
 #include "combo_logic.h"
+#include "combo_single_bag.h" // src/common — the single-bag fill at the creation event (lane K11)
 #include "context.h"
+#include "gen_budget.h"   // src/common — the #582 per-attempt budget
+#include "shared_items.h" // src/common — the O8 class of a pool row (traps stay home)
 
 namespace {
 
@@ -369,6 +379,15 @@ int sRedundantEndQueries = 0;
 // the lock can assert the harvest actually fired rather than inferring it from a
 // reachability number that could move for another reason.
 int sHarvests = 0;
+// How many FIXED check contents `expand` has granted (A7, #737). Observable for
+// the same reason.
+int sFixedHarvests = 0;
+// A7's switch. ALWAYS true in production: nothing but the #737 lock's red half
+// (MM_ComboLogic_TestSetFixedGrants) ever clears it, and that lock puts it back
+// before it asserts anything. It exists so the lock can OBSERVE, in the same
+// binary and over the same world, that the GOAL runs through the fixed contents:
+// goalMM=1 with the grant, 0 without it.
+bool sFixedGrantsEnabled = true;
 
 // ============================================================================
 // The host universe (A3)
@@ -772,6 +791,43 @@ int Expand(void* self) {
             grantedThisPass = true;
             changed = 1;
         }
+
+        // --- A7 (#737): the FIXED contents of reached checks OUTSIDE the host
+        // pool. When a caller hands this engine GeneratePools' check pool
+        // (MM_ComboLogic_SetHostPool, the production seam), every graph check NOT
+        // in it keeps the item GeneratePools left there: its vanilla item, because
+        // that check's category is not shuffled (the boss remains on the shipped
+        // profile, among ~1885 others). The player collects those in play and MM's
+        // own fill counts them; a round that did not would prove Majora's
+        // condition from the bag alone, which it cannot, and `beat-both` could
+        // never hold on a profile that leaves anything fixed (#737). So each such
+        // check grants its content ONCE PER ROUND when reached, through the same
+        // clamps as every other copy — monotone, like the harvest above.
+        //
+        // NEVER a pooled check's content: that host's item is the coordinator's
+        // to decide (its vanilla item is merely what GeneratePools pre-wrote). And
+        // never a USER-EXCLUDED check's (`skipped`): it holds junk by the player's
+        // choice. With no host pool set (a caller that never ran GeneratePools)
+        // there is no "outside", and nothing is granted — the pre-#737 behaviour.
+        if (sHostPoolSet && sFixedGrantsEnabled) {
+            for (RandoCheckId randoCheckId : sRound.checks) {
+                const uint16_t check = (uint16_t)randoCheckId;
+                if (std::binary_search(sHostPool.begin(), sHostPool.end(), check)) {
+                    continue;
+                }
+                const RandoSaveCheck& fixedCheck = RANDO_SAVE_CHECKS[randoCheckId];
+                if (fixedCheck.skipped || !IsGiveableItemId((uint16_t)fixedCheck.randoItemId)) {
+                    continue;
+                }
+                if (!sRound.harvestedHosts.insert(check).second) {
+                    continue;
+                }
+                MmGiveOneCopy((uint16_t)fixedCheck.randoItemId);
+                sFixedHarvests++;
+                grantedThisPass = true;
+                changed = 1;
+            }
+        }
     }
 
     sRound.expands++;
@@ -930,6 +986,19 @@ void ClearPlacements(void* self) {
     sHeld.clear();
 }
 
+/**
+ * May an OoT-origin item be placed on this MM host (combo_logic.h ABI 5)? Only on
+ * the host class MM's foreign give path delivers from — the class the forward
+ * overlay pass always used (Rando::Foreign::IsForeignHostClass, Foreign.cpp):
+ * a check whose `.eligible` bit game code arms on the ordinary CheckQueue path,
+ * never a shop or Tingle slot. A crossing anywhere else would leave the player
+ * holding the RI_JUNK cover instead of the item.
+ */
+int HostAcceptsForeign(void* self, uint16_t hostCheck) {
+    (void)self;
+    return Rando::Foreign::IsForeignHostClass((RandoCheckId)hostCheck) ? 1 : 0;
+}
+
 void EndQuery(void* self) {
     (void)self;
     sEndQueryCalls++;
@@ -969,18 +1038,16 @@ const ComboLogicEngine kMmEngine = {
     /* snapshot          */ Snapshot,
     /* restore           */ Restore,
     /* triforcePieces    */ TriforcePieces,
+    /* hostAcceptsForeign*/ HostAcceptsForeign,
 };
 
 /**
- * File-scope registrar, the same shape as kForeignPoolMMV1's in
- * ForeignItemsSingleExe.cpp. Registration STORES A POINTER and calls nothing, so
- * running it at static-initialisation time is safe in both directions: the
- * coordinator's registry is a zero-initialised static array with no dynamic
- * initialiser of its own, and none of the functions above runs until somebody
- * drives the vtable. It deliberately does NOT go through RegisterShipInitFunc —
- * this engine must be published whether or not MM's rando bring-up has run, so
- * that a caller who forgets the bring-up gets BeginQuery's loud refusal instead
- * of RSBS_COMBO_LOGIC_ERR_NO_ENGINE, which would read as "MM was not built in".
+ * File-scope registrar, the same shape as the (retired) kForeignPoolMMV1's was. Registration STORES A POINTER and calls
+ * nothing, so running it at static-initialisation time is safe in both directions: the coordinator's registry is a
+ * zero-initialised static array with no dynamic initialiser of its own, and none of the functions above runs until
+ * somebody drives the vtable. It deliberately does NOT go through RegisterShipInitFunc — this engine must be published
+ * whether or not MM's rando bring-up has run, so that a caller who forgets the bring-up gets BeginQuery's loud refusal
+ * instead of RSBS_COMBO_LOGIC_ERR_NO_ENGINE, which would read as "MM was not built in".
  */
 struct ComboLogicEngineRegistrar {
     ComboLogicEngineRegistrar() {
@@ -1002,7 +1069,14 @@ const char* MmComboDescribeItem(uint16_t id) {
     if (id == 0 || it == Rando::StaticData::Items.end()) {
         return nullptr;
     }
-    return it->second.spoilerName != nullptr ? it->second.spoilerName : it->second.name;
+    // The DISPLAY name ("Lens of Truth"), not the enum-spelled spoilerName
+    // ("RI_LENS"): the same kind of name OoT's describer serves, and the one a
+    // pickup sentence, a tracker row and the combo spoiler all print (ADR 0010
+    // increment 3 routes every crossing's presentation through here). MM display
+    // names are not unique, so the (origin, name) inverse resolves an MM name to
+    // its LOWEST id; the only reader that depends on the inverse (MM's
+    // spoiler-LOAD "foreign" section) reads OoT-origin names only.
+    return it->second.name;
 }
 
 const char* MmComboDescribeCheck(uint16_t check) {
@@ -1013,7 +1087,33 @@ const char* MmComboDescribeCheck(uint16_t check) {
     return it->second.name;
 }
 
-const ComboGameDescriber kMmComboDescriber = { MmComboDescribeItem, MmComboDescribeCheck };
+/** MM's article with the trailing space the describer contract carries (MM's
+ *  own table stores "the" / "a" / "an" / "" and GetItemName adds the space). */
+const char* MmComboDescribeArticle(uint16_t id) {
+    const auto it = Rando::StaticData::Items.find((RandoItemId)id);
+    if (id == 0 || it == Rando::StaticData::Items.end()) {
+        return nullptr;
+    }
+    const char* article = it->second.article;
+    if (article == nullptr || article[0] == '\0') {
+        return "";
+    }
+    if (strcmp(article, "the") == 0) {
+        return "the ";
+    }
+    if (strcmp(article, "a") == 0) {
+        return "a ";
+    }
+    if (strcmp(article, "an") == 0) {
+        return "an ";
+    }
+    return nullptr; // an article this mapping does not know: no article rather than a wrong one
+}
+
+// No icon: an MM item arriving in MM builds its own toast (BuildArrivalToast,
+// ForeignItemsSingleExe.cpp), so nothing asks the describer for one.
+const ComboGameDescriber kMmComboDescriber = { MmComboDescribeItem, MmComboDescribeCheck, MmComboDescribeArticle,
+                                               nullptr };
 
 /** Same shape as the engine registrar above: stores a pointer, calls nothing. */
 struct MmComboDescriberRegistrar {
@@ -1055,6 +1155,83 @@ extern "C" void MM_ComboLogic_SetHostPool(const uint16_t* checks, int count) {
     }
     sHostPool.assign(unique.begin(), unique.end());
     sHostPoolSet = true;
+}
+
+/**
+ * COMMIT (Combo_SingleBag_Forget): forget the placements this engine was given
+ * WITHOUT restoring their priors, and drop the host pool. After a creation the
+ * live save is a different world's (OoT's, once the creation bracket closes), and
+ * a later reset that "restored" these priors would write them into it.
+ */
+extern "C" void MM_ComboLogic_ForgetPlacements(void) {
+    sHeld.clear();
+    sHostPool.clear();
+    sHostPoolSet = false;
+}
+
+/** How many fixed check contents rounds have granted (A7, #737). */
+extern "C" int MM_ComboLogic_FixedHarvestCount(void) {
+    return sFixedHarvests;
+}
+
+/** TEST ONLY — the #737 lock's red half: turn A7's grant of fixed contents off
+ *  (0) or back on (nonzero). Returns the previous setting so the lock restores
+ *  exactly what it found. Production never calls it. */
+extern "C" int MM_ComboLogic_TestSetFixedGrants(int enabled) {
+    const int previous = sFixedGrantsEnabled ? 1 : 0;
+    sFixedGrantsEnabled = (enabled != 0);
+    return previous;
+}
+
+/**
+ * TEST ONLY — the FIXED contents A7 would grant, listed: for every check of MM's
+ * region graph OUTSIDE the host pool (so only meaningful once
+ * `MM_ComboLogic_SetHostPool` has been called; with no pool there is no outside
+ * and the answer is 0), not user-excluded, holding a giveable item, the item
+ * `RANDO_SAVE_CHECKS` holds there — exactly A7's filter, minus reachability.
+ * `remainsOnly` != 0 narrows it to the boss-remains checks (`RCTYPE_REMAINS`),
+ * the category the shipped profile leaves unshuffled and Majora's lair needs.
+ * Ascending check id. Same truncation contract as the enumerators: at most `cap`
+ * written, the TOTAL returned; either pointer may be NULL.
+ */
+extern "C" int MM_ComboLogic_TestFixedContents(int remainsOnly, uint16_t* outItems, uint16_t* outChecks, int cap) {
+    if (!sHostPoolSet) {
+        return 0;
+    }
+    std::set<uint16_t> graph;
+    for (const auto& regionEntry : Rando::Logic::Regions) {
+        for (const auto& checkEntry : regionEntry.second.checks) {
+            graph.insert((uint16_t)checkEntry.first);
+        }
+    }
+    int total = 0;
+    for (const uint16_t check : graph) {
+        if (check == (uint16_t)RC_UNKNOWN || check >= (uint16_t)RC_MAX ||
+            std::binary_search(sHostPool.begin(), sHostPool.end(), check)) {
+            continue;
+        }
+        const auto staticIt = Rando::StaticData::Checks.find((RandoCheckId)check);
+        if (staticIt == Rando::StaticData::Checks.end()) {
+            continue;
+        }
+        if (remainsOnly != 0 && staticIt->second.randoCheckType != RCTYPE_REMAINS) {
+            continue;
+        }
+        const RandoSaveCheck& fixedCheck = RANDO_SAVE_CHECKS[(RandoCheckId)check];
+        if (fixedCheck.skipped || !IsGiveableItemId((uint16_t)fixedCheck.randoItemId)) {
+            continue;
+        }
+        if (total < cap) {
+            if (outItems != nullptr) {
+                outItems[total] = (uint16_t)fixedCheck.randoItemId;
+            }
+            if (outChecks != nullptr) {
+                outChecks[total] = check;
+            }
+        }
+        total++;
+    }
+    return total;
 }
 
 /** How many times a recompute inside a round came back smaller than the round's
@@ -1475,27 +1652,19 @@ extern "C" int MM_ComboLogic_MarkPoolRows(const uint16_t* pool, int count, uint1
     return marked;
 }
 
+namespace {
+
 /**
- * MEASUREMENT BRIDGE: MM's real pool under the profile the live save holds —
- * `GeneratePools` run over a HEAP COPY of the save's rando info (so neither the
- * live `randoSaveChecks` nor anything else in the save is written), with the
- * configured starting items persisted into the copy first, exactly as
- * OnFileCreate does. Returns the item pool (with its plentiful marks) and the
- * check pool, the host list MM's creation would shuffle over.
- *
- * IT CONSUMES `Ship_Random`: GeneratePools draws shop and Tingle prices and, under
- * RO_PLENTIFUL_ITEMS, the half of the lesser rows it duplicates. That is the same
- * stream and the same draws the creation seam's own GeneratePools call makes, so
- * a caller must call this INSTEAD of generating, never in addition — which is why
- * it is a measurement bridge and not a production entry (production marks its own
- * GeneratePools result through MM_ComboLogic_MarkPoolRows).
- *
- * Same truncation contract as the enumerators: at most `itemCap` / `checkCap`
- * written, the item TOTAL returned and the check total through `outCheckTotal`.
- * -1 when the region graph is not up.
+ * The one body behind MM_ComboLogic_TestGeneratePool and
+ * MM_ComboLogic_TestAuthorCheckTable: ONE `GeneratePools` call over a heap copy
+ * of the save's rando info (configured starting items persisted into the copy
+ * first, exactly as OnFileCreate does), its item pool (with plentiful marks) and
+ * check pool written out under the enumerators' truncation contract, and — only
+ * when `authorCheckTable` — the copy's `randoSaveChecks` copied back into the
+ * live save. Nothing else in the save is written either way.
  */
-extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
-                                              int checkCap, int* outCheckTotal) {
+int GeneratePoolBridge(bool authorCheckTable, uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
+                       int checkCap, int* outCheckTotal) {
     if (Rando::Logic::Regions.empty()) {
         return -1;
     }
@@ -1514,6 +1683,12 @@ extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outF
     std::vector<uint16_t> flags(items.size(), 0);
     if (!items.empty() && MM_ComboLogic_MarkPoolRows(items.data(), (int)items.size(), flags.data()) < 0) {
         return -1;
+    }
+    if (authorCheckTable) {
+        static_assert(sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveChecks) == sizeof(info->randoSaveChecks),
+                      "the check table copied back is the one GeneratePools wrote");
+        memcpy(gSaveContext.save.shipSaveInfo.rando.randoSaveChecks, info->randoSaveChecks,
+               sizeof(info->randoSaveChecks));
     }
     const int total = (int)items.size();
     for (int i = 0; i < total && i < itemCap; ++i) {
@@ -1536,6 +1711,121 @@ extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outF
     return total;
 }
 
+} // namespace
+
+/**
+ * MEASUREMENT BRIDGE: MM's real pool under the profile the live save holds —
+ * `GeneratePools` run over a HEAP COPY of the save's rando info (so neither the
+ * live `randoSaveChecks` nor anything else in the save is written), with the
+ * configured starting items persisted into the copy first, exactly as
+ * OnFileCreate does. Returns the item pool (with its plentiful marks) and the
+ * check pool, the host list MM's creation would shuffle over.
+ *
+ * IT CONSUMES `Ship_Random`: GeneratePools draws shop and Tingle prices and, under
+ * RO_PLENTIFUL_ITEMS, the half of the lesser rows it duplicates. That is the same
+ * stream and the same draws the creation seam's own GeneratePools call makes, so
+ * a caller must call this INSTEAD of generating, never in addition — which is why
+ * it is a measurement bridge and not a production entry (production marks its own
+ * GeneratePools result through MM_ComboLogic_MarkPoolRows). A caller that also
+ * needs the check table GeneratePools writes calls
+ * MM_ComboLogic_TestAuthorCheckTable INSTEAD of this, never as well: a second call
+ * draws its pool from a shifted `Ship_Random` stream, so its prices and plentiful
+ * copies would no longer be the check table's.
+ *
+ * Same truncation contract as the enumerators: at most `itemCap` / `checkCap`
+ * written, the item TOTAL returned and the check total through `outCheckTotal`.
+ * -1 when the region graph is not up.
+ */
+extern "C" int MM_ComboLogic_TestGeneratePool(uint16_t* outItems, uint16_t* outFlags, int itemCap, uint16_t* outChecks,
+                                              int checkCap, int* outCheckTotal) {
+    return GeneratePoolBridge(false, outItems, outFlags, itemCap, outChecks, checkCap, outCheckTotal);
+}
+
+/**
+ * TEST ONLY — MM_ComboLogic_TestGeneratePool AND the live save's CHECK TABLE, from
+ * the SAME `GeneratePools` call, as MM's creation has both before its fill. The
+ * pools come back exactly as MM_ComboLogic_TestGeneratePool returns them (same
+ * arguments, same truncation contract), and the heap copy's `randoSaveChecks` is
+ * copied back into the live save: every graph check's vanilla item, the
+ * user-excluded checks' junk and `skipped` marks, and the rolled prices, all from
+ * the draw that produced the returned pool. The options and everything else in
+ * the save are left as they were.
+ *
+ * WHY IT EXISTS (#737, lane G1). A7 grants a reached check's FIXED content from
+ * `RANDO_SAVE_CHECKS`, which in a production creation `GeneratePools` has just
+ * written. combo-logic-measure resolves the shipped profile into a freshly
+ * initialised save and ran `GeneratePools` only over a COPY
+ * (MM_ComboLogic_TestGeneratePool), so every fixed check still read the
+ * initialised table's zero item, A7 granted nothing, and the row's beat-both
+ * could never prove there even after #743 made it prove in production.
+ *
+ * ONE CALL, NOT TWO: a caller uses this INSTEAD of MM_ComboLogic_TestGeneratePool,
+ * never as well (see its comment), so the check table and the pool come from one
+ * draw of `Ship_Random`, as they do in a creation. It consumes `Ship_Random`
+ * exactly as MM_ComboLogic_TestGeneratePool does. -1 when the region graph is not
+ * up.
+ */
+extern "C" int MM_ComboLogic_TestAuthorCheckTable(uint16_t* outItems, uint16_t* outFlags, int itemCap,
+                                                  uint16_t* outChecks, int checkCap, int* outCheckTotal) {
+    return GeneratePoolBridge(true, outItems, outFlags, itemCap, outChecks, checkCap, outCheckTotal);
+}
+
+/**
+ * TEST ONLY — empty the authored check table at `checks`: each one's
+ * `randoItemId` becomes RI_UNKNOWN, which A7 and MM_ComboLogic_TestFixedContents
+ * skip as not giveable. For a measurement that NARROWS the host pool below
+ * GeneratePools' check pool (combo-logic-measure's RSBS_COMBO_MEASURE_MM_HOSTS):
+ * a pooled check the narrowing drops falls outside the host pool, so A7 would
+ * read it as FIXED and grant the vanilla item GeneratePools merely pre-wrote
+ * there. That is a pooled check's content, which is never A7's to grant. Emptied,
+ * it grants nothing, as before the check table was authored. Returns how many
+ * entries it emptied (RC_UNKNOWN and ids at or past RC_MAX are ignored).
+ */
+extern "C" int MM_ComboLogic_TestClearCheckContents(const uint16_t* checks, int count) {
+    if (checks == nullptr || count <= 0) {
+        return 0;
+    }
+    int cleared = 0;
+    for (int i = 0; i < count; ++i) {
+        if (checks[i] == (uint16_t)RC_UNKNOWN || checks[i] >= (uint16_t)RC_MAX) {
+            continue;
+        }
+        RANDO_SAVE_CHECKS[(RandoCheckId)checks[i]].randoItemId = RI_UNKNOWN;
+        cleared++;
+    }
+    return cleared;
+}
+
+/**
+ * DIGEST BRIDGE (GoldenSeedDigestArmedCaps, lane K11): the pool MM's creation
+ * would hand the single bag under the FROZEN paired profile — MM_Sram_InitNewSave,
+ * the paired profile resolution, the ladder's attempt-0 seed (GeneratePools draws
+ * prices from it), then GeneratePools over a heap copy — with its plentiful marks.
+ * Fills nothing, so an armed profile's give-capability rows can be pinned by the
+ * bag they enter without riding a fill's wall clock. Needs MM's rando core up.
+ * Writes at most `cap` rows; returns the total, or -1 on refusal.
+ */
+extern "C" int MM_ComboLogic_TestPairedPool(uint16_t* outItems, uint16_t* outFlags, int cap) {
+    if (Rando::Logic::Regions.empty()) {
+        return -1;
+    }
+    if (gRegEditor == NULL) {
+        static RegEditor sPairedPoolRegEditor = {};
+        gRegEditor = &sPairedPoolRegEditor;
+    }
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    try {
+        Rando::Foreign::ResolvePairedProfile(true);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[MM ComboLogic] paired pool: the frozen profile could not be resolved: %s\n", e.what());
+        return -1;
+    }
+    Ship_Random_Seed(Rando::Foreign::MixPairedFinalSeedForAttempt(0));
+    return MM_ComboLogic_TestGeneratePool(outItems, outFlags, cap, nullptr, 0, nullptr);
+}
+
 /**
  * TEST BRIDGE (#733): the two MM checks Regions/East.cpp gates on
  * `CHECK_MAX_HP(4)` — the Ikana Canyon ghost hut's piece of heart and the Poe
@@ -1550,6 +1840,60 @@ extern "C" int MM_ComboLogic_TestHeartGatedChecks(uint16_t* out, int cap) {
         if (out != nullptr) {
             out[i] = gated[i];
         }
+    }
+    return total;
+}
+
+/**
+ * TEST BRIDGE (combo-single-bag leg D4, lane K11b): the item every SHUFFLED check
+ * of the live save holds (RANDO_SAVE_CHECKS, whole id space, check order) — MM's
+ * world as the creation left it, the coordinator's placements and MM's own pass
+ * alike. A crossing host holds its junk cover here; its real content is the
+ * crossing store's. At most `cap` written; the total returned. Either out array
+ * may be NULL.
+ */
+extern "C" int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int cap) {
+    int total = 0;
+    for (int rc = 0; rc < (int)RC_MAX; ++rc) {
+        const RandoSaveCheck& check = RANDO_SAVE_CHECKS[rc];
+        if (!check.shuffled) {
+            continue;
+        }
+        if (total < cap) {
+            if (outItems != nullptr) {
+                outItems[total] = (uint16_t)check.randoItemId;
+            }
+            if (outChecks != nullptr) {
+                outChecks[total] = (uint16_t)rc;
+            }
+        }
+        total++;
+    }
+    return total;
+}
+
+/**
+ * TEST BRIDGE (combo-single-bag leg E and the event sample; PR #743 review): the
+ * walk above over the ARMED MM SHADOW instead of the live buffer. After a real
+ * creation event the live buffer holds OoT's file again, and MM's finished world
+ * lives only in the shadow the event armed.
+ * @return the shuffled-check count, or -1 when there is no MM shadow.
+ */
+extern "C" int MM_ComboLogic_TestShuffledItemsInShadow(uint16_t* outItems, int cap) {
+    const SaveContext* shadow = static_cast<const SaveContext*>(Context_GetMMSaveContext());
+    if (shadow == nullptr) {
+        return -1;
+    }
+    int total = 0;
+    for (int rc = 0; rc < (int)RC_MAX; ++rc) {
+        const RandoSaveCheck& check = shadow->save.shipSaveInfo.rando.randoSaveChecks[rc];
+        if (!check.shuffled) {
+            continue;
+        }
+        if (total < cap && outItems != nullptr) {
+            outItems[total] = (uint16_t)check.randoItemId;
+        }
+        total++;
     }
     return total;
 }
@@ -1903,6 +2247,154 @@ extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
     }
     const RandoItemType type = it->second.randoItemType;
     return (type != RITYPE_JUNK && type != RITYPE_HEALTH) ? 1 : 0;
+}
+
+// ============================================================================
+// THE PAIRED CREATION'S FILL (ADR 0010 increment 3, D3; lane K11)
+// ============================================================================
+//
+// Called from OnFileCreate's paired branch, INSIDE the attempt ladder, in place
+// of MM's own fill and the forward crossing pass. The live save is in its
+// file-creation state (GeneratePools has run over it, the starting items are
+// granted), which is the state combo_logic.h's `beginQuery` contract makes the
+// caller's job for an engine with no detached save.
+//
+// Throws, as MM's own fill does, so the ladder's two catches keep their meaning:
+//   - Rando::Logic::GenerationTimeout for the per-attempt WALL-CLOCK stop
+//     (RSBS_COMBO_LOGIC_ERR_ABORTED): the ladder stops and never climbs a rung on
+//     it (#581 §2a);
+//   - std::runtime_error for every deterministic dead end (no candidate, the GOAL
+//     unprovable, not all reached): a rung, re-derived from the next attempt's
+//     seed.
+// Combo_SingleBag_Run has already rolled both engines back on a failure.
+//
+// ON SUCCESS it also runs MM's OWN PASS over MM's leftover hosts (combo_logic.h,
+// THE BAG MODEL shape 4): the rows the bag did not take (MM's junk, renewables and
+// traps), traps first, the rest shuffled with MM's own fill RNG, padded with
+// RI_JUNK exactly as the native balance pads. A row THE SHARED-QUANTITY TRIM
+// removed (RSBS_SINGLE_BAG_MM_ROW_TRIMMED) is not its item any more: it joins the
+// rest as ONE RI_JUNK copy, so its host gets filler and never the dead pickup.
+// The native balance step itself does NOT run over a paired world's pool: it
+// would erase or fold rows the bag admitted
+// (MM's bombchus and hearts are PROGRESSION), which is the decision combo_logic.h
+// ("MM'S BALANCE STEP AND THE BAG") left to this lane: the bag is composed from the
+// pre-balance pool, and only the leftovers are balanced, by this pass.
+void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool,
+                                            int ladderAttempt) {
+    // THE LADDER'S TEST RUNG (ForceShortForeignPlacements): a deterministic dead
+    // end injected BEFORE any engine is touched, so the attempt fails the way a
+    // real one does and the next attempt re-derives from its own seed. Zero on
+    // every shipping path.
+    if (Rando::Foreign::ConsumeForcedLadderRung()) {
+        throw std::runtime_error("single-bag fill: injected ladder rung (test)");
+    }
+    std::vector<uint16_t> hosts;
+    hosts.reserve(checkPool.size());
+    for (const RandoCheckId randoCheckId : checkPool) {
+        if (randoCheckId != RC_UNKNOWN) {
+            hosts.push_back((uint16_t)randoCheckId);
+        }
+    }
+    MM_ComboLogic_SetHostPool(hosts.data(), (int)hosts.size());
+
+    std::vector<uint16_t> items(itemPool.size(), 0);
+    for (size_t i = 0; i < itemPool.size(); ++i) {
+        items[i] = (uint16_t)itemPool[i];
+    }
+    std::vector<uint16_t> flags(items.size(), 0);
+    if (!items.empty() && MM_ComboLogic_MarkPoolRows(items.data(), (int)items.size(), flags.data()) < 0) {
+        throw std::runtime_error("single-bag fill: MM's pool is not the one GeneratePools just returned");
+    }
+
+    // The per-attempt budget: the value the ladder armed on the fill's budget
+    // channel (a lock's injected value included), else the #582 budget itself.
+    const uint32_t budgetMs = (Rando::Logic::gRsbsGlitchlessTimeoutMsOverride != 0)
+                                  ? (uint32_t)Rando::Logic::gRsbsGlitchlessTimeoutMsOverride
+                                  : Combo_GenBudget_FillBudgetMs(ladderAttempt);
+
+    std::vector<uint8_t> inBag(items.size(), 0);
+    ComboSingleBagReport report;
+    const int status = Combo_SingleBag_Run(items.data(), flags.data(), (int)items.size(), ladderAttempt, budgetMs,
+                                           inBag.data(), &report);
+    if (status == RSBS_COMBO_LOGIC_ERR_ABORTED) {
+        throw Rando::Logic::GenerationTimeout("single-bag fill stopped by its " + std::to_string(budgetMs) +
+                                              "ms per-attempt budget after " + std::to_string(report.fill.rounds) +
+                                              " rounds");
+    }
+    if (status != RSBS_COMBO_LOGIC_OK && !Combo_SingleBag_StatusIsWorldDeadEnd(status)) {
+        // Not a world dead end: a refusal to run (no frozen identity, OoT not at
+        // its general-pass point), a missing engine, a capacity overflow or an
+        // engine defect. Another seed cannot change any of them, so this is NOT a
+        // ladder rung (PR #743 review): the ladder fails the creation at once with
+        // this reason.
+        throw Rando::Foreign::PairedFillRefused(std::string("single-bag fill refused: ") +
+                                                Combo_Logic_StatusName(status) +
+                                                " (not a world dead end; no re-seed can fix it)");
+    }
+    if (status != RSBS_COMBO_LOGIC_OK) {
+        throw std::runtime_error(std::string("single-bag fill: ") + Combo_Logic_StatusName(status) + " after " +
+                                 std::to_string(report.fill.attempts) + " batch attempt(s)");
+    }
+
+    // --- MM's own pass over its leftover hosts --------------------------------
+    std::vector<RandoItemId> traps;
+    std::vector<RandoItemId> rest;
+    int trimmedToJunk = 0;
+    for (size_t i = 0; i < itemPool.size(); ++i) {
+        if (inBag[i] == RSBS_SINGLE_BAG_MM_ROW_IN_BAG) {
+            continue;
+        }
+        if (inBag[i] == RSBS_SINGLE_BAG_MM_ROW_TRIMMED) {
+            rest.push_back(RI_JUNK);
+            trimmedToJunk++;
+            continue;
+        }
+        SharedItem row = { (uint8_t)GAME_MM, 0, (uint16_t)itemPool[i] };
+        if (Combo_ItemClassOf(row) == RSBS_FILL_CLASS_TRAP) {
+            traps.push_back(itemPool[i]);
+        } else {
+            rest.push_back(itemPool[i]);
+        }
+    }
+    const int leftoverTotal = Combo_Logic_LeftoverHosts(GAME_MM, nullptr, 0);
+    if (leftoverTotal < 0) {
+        throw std::runtime_error("single-bag fill: MM's leftover hosts could not be enumerated");
+    }
+    std::vector<uint16_t> leftovers((size_t)leftoverTotal, 0);
+    if (leftoverTotal > 0) {
+        Combo_Logic_LeftoverHosts(GAME_MM, leftovers.data(), leftoverTotal);
+    }
+    // Shuffle the hosts with MM's own fill RNG (the stream the ladder seeded for
+    // this attempt), then deal traps first and the rest after.
+    for (size_t i = 0; i + 1 < leftovers.size(); ++i) {
+        std::swap(leftovers[i], leftovers[(size_t)Ship_Random((s32)i, (s32)leftovers.size())]);
+    }
+    for (size_t i = 0; i + 1 < rest.size(); ++i) {
+        std::swap(rest[i], rest[(size_t)Ship_Random((s32)i, (s32)rest.size())]);
+    }
+    size_t trapIndex = 0;
+    size_t restIndex = 0;
+    int padded = 0;
+    for (const uint16_t host : leftovers) {
+        RandoItemId item;
+        if (trapIndex < traps.size()) {
+            item = traps[trapIndex++];
+        } else if (restIndex < rest.size()) {
+            item = rest[restIndex++];
+        } else {
+            item = RI_JUNK;
+            padded++;
+        }
+        RANDO_SAVE_CHECKS[host].randoItemId = item;
+        RANDO_SAVE_CHECKS[host].shuffled = true;
+    }
+    fprintf(stderr,
+            "[MM] single-bag fill: MM's own pass put %d trap(s) and %d other row(s) (%d of them junk for trimmed "
+            "rows) on %d leftover host(s), padded %d with junk, dropped %d trap(s) and %d other row(s) for want of "
+            "hosts\n",
+            (int)trapIndex, (int)restIndex, trimmedToJunk, leftoverTotal, padded, (int)(traps.size() - trapIndex),
+            (int)(rest.size() - restIndex));
+    fflush(stderr);
 }
 
 #endif /* RSBS_SINGLE_EXECUTABLE */

@@ -139,6 +139,14 @@ typedef void (*ComboSharedItemAward)(const SharedItem* item, void* ctx);
 int Combo_RecordSharedItem(GameId originGame, uint16_t id);
 
 /**
+ * CROSSING-PICKUP PRODUCER (ADR 0010 increment 3). Record one COPY of a cross-game
+ * item a host check just yielded, flagged RSBS_SHARED_ITEM_CROSSING and never
+ * merged with another entry (see that flag). Same durability, capacity and
+ * reclamation as Combo_RecordSharedItem; same return contract.
+ */
+int Combo_RecordSharedItemCrossing(GameId originGame, uint16_t id);
+
+/**
  * PRODUCER (deferred stage). Enqueue an item into a process-global RAM outbox,
  * to be flushed into gComboCtx by Combo_CommitStagedSharedItems at the next
  * Game_Suspend. A caller that would rather hand off at the switch boundary than

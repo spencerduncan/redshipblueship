@@ -80,7 +80,60 @@ void Combo_ClearStartupEntrance(void);
 // and the owl page tables come from z64save.h above; func_80147414 is
 // file-scope in z_sram_NES.c with no header declaration of its own.
 void func_80147414(SramContext* sramCtx, s32 fileNum, s32 arg2);
+
+// ADR 0010 increment 3 (lane K11): a paired MM half is placed by the single-bag
+// fill, which needs OoT's world at its general pass and a frozen combo record —
+// i.e. a REAL OoT generation (the Generate button), never a hand-stamped
+// identity. These are that generation (3drando/menu.cpp), OoT's side of the
+// creation tail (ForeignItemsSingleExe.cpp) and the canonical OoT placement hash.
+int Rando_HeadlessSeedTest(const char* seedStr);
+int OoT_ComboLogic_GeneralPassDeferred(void);
+int OoT_Creation_FinishPairedHalf(int writeSpoiler);
+uint32_t Rando_HeadlessPlacementHash(size_t* outPlacedCount);
 }
+
+#include "combo_single_bag.h" // src/common — the single bag's report and commit (lane K11)
+#include "crossing_store.h"   // src/common — the crossings the creation stores (ADR 0010 O7)
+
+namespace {
+
+/**
+ * A paired world's IDENTITY and OoT half, the way the Generate button makes them:
+ * a real headless OoT generation, which freezes the pairing identity and the combo
+ * record from the live CVars (MM's option CVars included, through the profile
+ * stamp) and stops OoT's fill at its general pass. Replaces the hand-stamped
+ * `gComboCtx.sourceIsRando = 1; sharedRandoSeed = N` fixtures these rows used
+ * before the single bag: a hand-stamped identity has no OoT world under it, so the
+ * single-bag fill refuses it.
+ * @return 0 on success.
+ */
+int K11PairedOoTGenerate(const char* ootSeed) {
+    if (Rando_HeadlessSeedTest(ootSeed) != 0) {
+        fprintf(stderr, "[K11] OoT generation for seed %s failed\n", ootSeed);
+        return 1;
+    }
+    if (!Combo_ForeignPairingActive() || !Combo_ComboSettingsFrozen() || !OoT_ComboLogic_GeneralPassDeferred()) {
+        fprintf(stderr, "[K11] OoT generation for seed %s did not leave a frozen paired world at its general pass\n",
+                ootSeed);
+        return 2;
+    }
+    return 0;
+}
+
+/**
+ * OoT's side of the creation tail after an MM half this harness authored directly
+ * (MM_Rando_GenerateAtCreation or a raw OnSaveInit): the crossings into the store
+ * and OoT's remainder, then the commit. The same function the creation event runs,
+ * with no spoiler. Leaves gSaveContext as it found it.
+ * @return the crossing count (>= 0), or negative on failure.
+ */
+int K11FinishPairedOoTHalf() {
+    const int crossings = OoT_Creation_FinishPairedHalf(0);
+    Combo_SingleBag_Forget();
+    return crossings;
+}
+
+} // namespace
 
 extern "C" int MM_Rando_HeadlessGenTest(void) {
     auto ctx = Ship::Context::GetInstance();
@@ -327,678 +380,18 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
     CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_NEARLY_NO_LOGIC);
 
     // ======================================================================
-    // Paired-world phase (Lane C1, #392) — the spoiler's foreign section
-    // lock. Stamp the Lane B carrier the way OoT's live producer would, then
-    // generate through the real dispatch chain: the single-exe branch in
-    // OnFileCreate must derive the seed from the master seed, swap junk
-    // placements for the pinned OoT items (gComboCtx.foreignPlacements; the
-    // MM table keeps RI_JUNK), and describe every crossing in the spoiler's
-    // "foreign" section. Retries over fixed master seeds mirror the main
-    // phase: an unlucky derived seed can genuinely dead-end the fill.
+    // The PAIRED-WORLD phase that used to live here is RETIRED with the forward
+    // overlay pass it locked (ADR 0010 increment 3, D3; lane K11). It stamped a
+    // pairing identity by hand and drove OnFileCreate's paired branch to watch
+    // Rando::Foreign::PlaceForeignItems pin a few OoT items onto MM junk as
+    // duplicate overlays, plus the reachability gate, the spoiler's pinned
+    // "foreign" section and its under-supply record. None of that exists under
+    // one bag: a paired MM half is placed by the single-bag fill at the creation
+    // event, which needs OoT's world at its general pass and a frozen combo
+    // record — a hand-stamped identity has neither, and is refused. The paired
+    // generation is locked where it now happens: combo-creation-event,
+    // combo-single-bag and the golden digests.
     // ======================================================================
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPool(&pool);
-    if (poolCount <= 0 || pool == NULL) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(9): pinned foreign pool is empty\n");
-        return 9;
-    }
-
-    ComboContext_Init();
-    gComboCtx.sourceIsRando = true;
-    gComboCtx.sharedRandoSettingsHash = 0x51A7E57Du; // nonzero: "profile recorded" (Lane B contract)
-    static const uint32_t kMasterSeeds[] = { 0x00C0C0A1u, 0x00C0C0A2u, 0x00C0C0A3u, 0x00C0C0A4u, 0x00C0C0A5u };
-    bool pairedGenerated = false;
-    for (uint32_t masterSeed : kMasterSeeds) {
-        gComboCtx.sharedRandoSeed = masterSeed;
-        // The paired branch must IGNORE the user seed; leave a poison value to
-        // prove it (a world generated from this string would name a different
-        // spoiler file than the derived name asserted below).
-        CVarSetString("gRando.InputSeed", "USERSEEDPOISON");
-        memset(&gSaveContext, 0, sizeof(gSaveContext));
-        MM_Sram_InitNewSave();
-        GameInteractor_ExecuteOnSaveInit(0);
-        if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
-            pairedGenerated = true;
-            break;
-        }
-        fprintf(stderr, "[MM-RANDO-GEN] paired master seed %08X dead-ended; trying next\n", masterSeed);
-    }
-    if (!pairedGenerated) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(10): every paired master seed dead-ended\n");
-        return 10;
-    }
-
-    // ADR 0010 increment 1.3: the placement count is now min(pool, reachable
-    // eligible hosts) — under-supply places fewer rather than placing an
-    // unreachable host. Zero placements would make every assertion below
-    // vacuous, so that stays a hard failure.
-    const int placedCount = Combo_CountForeignPlacements();
-    const Rando::Foreign::PlacementStats& placeStats = Rando::Foreign::LastPlacementStats();
-    const int expectedPlaced =
-        poolCount < placeStats.reachableEligibleHosts ? poolCount : placeStats.reachableEligibleHosts;
-    if (placedCount == 0 || placedCount != expectedPlaced || placedCount != placeStats.placed) {
-        fprintf(stderr,
-                "[MM-RANDO-GEN] FAIL(11): expected %d foreign placements (pool %d, reachable eligible hosts %d), "
-                "found %d (test-side pairing key: sourceIsRando=%d settingsHash=%08X seed=%08X)\n",
-                expectedPlaced, poolCount, placeStats.reachableEligibleHosts, placedCount,
-                gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash, gComboCtx.sharedRandoSeed);
-        return 11;
-    }
-
-    // ======================================================================
-    // Reachability-gate locks (ADR 0010 increment 1.3, #500 work item 2).
-    //
-    // (a) The closure itself is side-effect-free and deterministic in-process:
-    //     computing it twice over the same world yields the identical set and
-    //     leaves gSaveContext byte-identical (the memcpy swap discipline).
-    //     The two-PROCESS half of the determinism lock is the mmReachable*
-    //     lines MM_Rando_HeadlessForeignDigest folds into SeedDeterminism's
-    //     byte-compare.
-    // (b) Every placement the shipping code just recorded is a member of the
-    //     closure recomputed from the post-fill save (asserted inside the
-    //     placement loop below). Counterfactual: revert the reachability gate
-    //     in Rando::Foreign::PlaceForeignItems and, for this pinned world,
-    //     the ungated selection provably pins an unreachable host — premise
-    //     (c) is what keeps that counterfactual deterministic rather than
-    //     xorshift-lucky.
-    // (c) Premise / non-vacuity: replay the UNGATED selection (the exact
-    //     xorshift stream over the eligible-only candidate list the pre-gate
-    //     code used) and assert it picks at least one host OUTSIDE the
-    //     closure. If a master-seed change ever breaks this premise, pin a
-    //     seed that restores it — do not delete the premise, it is what makes
-    //     lock (b) falsifiable.
-    // ======================================================================
-    auto reachSnapshot = std::make_unique<SaveContext>();
-    memcpy(reachSnapshot.get(), &gSaveContext, sizeof(SaveContext));
-    const std::set<RandoCheckId> reachable = Rando::Logic::ComputeReachableCheckSet();
-    if (memcmp(reachSnapshot.get(), &gSaveContext, sizeof(SaveContext)) != 0) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(28): ComputeReachableCheckSet left gSaveContext mutated — the memcpy "
-                        "swap discipline is broken\n");
-        return 28;
-    }
-    if (reachable.empty() || Rando::Logic::ComputeReachableCheckSet() != reachable) {
-        fprintf(stderr,
-                "[MM-RANDO-GEN] FAIL(28): reachable-check closure empty or unstable across two in-process runs "
-                "(%zu checks)\n",
-                reachable.size());
-        return 28;
-    }
-    fprintf(stderr, "[MM-RANDO-GEN] reachable-check closure: %zu checks\n", reachable.size());
-
-    {
-        // (c): the ungated candidate universe, then the shipping selection
-        // stream replayed over it. Stream recipe and step mirror
-        // Rando/Foreign.cpp (seed string ":foreign-v1", xorshift32 13/17/5,
-        // zero displaced to 0xB5297A4D); if that recipe ever changes, this
-        // probe fails loudly and moves with it.
-        std::vector<RandoCheckId> ungated;
-        int unreachableEligible = 0;
-        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
-            if (Rando::Foreign::IsEligibleHost(randoCheckId)) {
-                ungated.push_back(randoCheckId);
-                if (!reachable.contains(randoCheckId)) {
-                    unreachableEligible++;
-                }
-            }
-        }
-        if (unreachableEligible == 0) {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(29): every eligible host is reachable in this world — the gate has "
-                            "nothing to exclude and lock (b) is vacuous; pin a different master seed\n");
-            return 29;
-        }
-        uint32_t simState = Ship_Hash(std::to_string(gComboCtx.sharedRandoSeed) + ":" +
-                                      std::to_string(gComboCtx.sharedRandoSettingsHash) + ":" +
-                                      std::to_string(gSaveContext.save.shipSaveInfo.rando.finalSeed) + ":foreign-v1");
-        if (simState == 0) {
-            simState = 0xB5297A4Du;
-        }
-        bool ungatedWouldStrand = false;
-        for (int i = 0; i < poolCount && !ungated.empty(); i++) {
-            uint32_t x = simState;
-            x ^= x << 13;
-            x ^= x >> 17;
-            x ^= x << 5;
-            simState = (x != 0) ? x : 0xB5297A4Du;
-            const size_t pick = (size_t)(simState % (uint32_t)ungated.size());
-            if (!reachable.contains(ungated[pick])) {
-                ungatedWouldStrand = true;
-            }
-            ungated.erase(ungated.begin() + (std::ptrdiff_t)pick);
-        }
-        if (!ungatedWouldStrand) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(29): the ungated selection replay picks only reachable hosts for this seed "
-                    "(%d of %d eligible hosts unreachable) — reverting the gate would not go red; pin a master seed "
-                    "whose ungated pick strands\n",
-                    unreachableEligible, placeStats.eligibleHosts);
-            return 29;
-        }
-        fprintf(stderr,
-                "[MM-RANDO-GEN] gate premise holds: %d of %d eligible hosts unreachable, ungated replay would have "
-                "stranded a foreign item\n",
-                unreachableEligible, placeStats.eligibleHosts);
-    }
-    // ADR 0002: hosting checks keep a legal MM item (junk-class) in the MM
-    // save table; every recorded placement carries the OoT origin tag.
-    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        const ComboForeignPlacement& p = gComboCtx.foreignPlacements[i];
-        if (p.item.originGame == GAME_NONE) {
-            continue;
-        }
-        if (p.item.originGame != GAME_OOT || Combo_GetForeignItemName(p.item) == NULL) {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(12): placement slot %d not a named OoT-tagged pool item\n", i);
-            return 12;
-        }
-        const RandoCheckId hostCheck = (RandoCheckId)p.mmCheckId;
-
-        // #488, part 1 — the INDEPENDENT restatement, and the load-bearing one.
-        //
-        // A post-condition that calls IsEligibleHost cannot fail for a wrong
-        // host rule: PlaceForeignItems selected these very checks by calling
-        // IsEligibleHost, and nothing between selection and here mutates either
-        // of its inputs (Rando::StaticData::Checks is static; the only
-        // RANDO_SAVE_CHECKS writes in between are `.eligible` on two starting-
-        // item rows, a field the predicate never reads). Loosen the predicate
-        // and both sides move together. The condition this replaced —
-        // "shuffled && holds a junk-class item" — had the same defect; it was
-        // simply a textual copy of the selector rather than a call to it.
-        //
-        // So state the property #488 is actually about, read straight from the
-        // static table with no reference to the predicate: the host belongs to
-        // a check class whose `.eligible` bit is armed by game code. Tier A is
-        // RCTYPE_CHEST carrying FLAG_CYCL_SCENE_CHEST (z_en_box.c ->
-        // Flags_SetTreasure -> OnFlagSet). If someone widens IsEligibleHost
-        // without widening the audit, THIS is the assertion that catches it, on
-        // an actual paired fill rather than the synthetic table the ROM-free
-        // ForeignHostEligibility lock uses.
-        const auto staticIt = Rando::StaticData::Checks.find(hostCheck);
-        if (staticIt == Rando::StaticData::Checks.end() || staticIt->second.randoCheckType != RCTYPE_CHEST ||
-            staticIt->second.flagType != FLAG_CYCL_SCENE_CHEST) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(12): hosting check %u is not a Tier A (chest/FLAG_CYCL_SCENE_CHEST) host — "
-                    "its .eligible bit is not game-armed, so this placement would strand\n",
-                    (unsigned)p.mmCheckId);
-            return 12;
-        }
-
-        // #488, part 2 — the cheap consistency tie-back. Tautological w.r.t.
-        // the selector as argued above, and kept anyway for the one thing it
-        // does catch: a placement whose mmCheckId did not survive the u16
-        // round-trip through the placement table would fail the predicate here
-        // even though part 1's static lookup might land on some other real row.
-        // (Calls the C++ predicate directly rather than the
-        // MM_Rando_Foreign_IsEligibleHost bridge: this is an MM C++ TU that
-        // already includes Foreign.h, and the bridge is a one-line forwarder to
-        // exactly this function. The bridge exists for src/common, which cannot
-        // see the namespace.)
-        if (!Rando::Foreign::IsEligibleHost(hostCheck)) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(12): hosting check %u is a chest row but fails the host predicate (held item "
-                    "%d, skipped=%d) — placement/table inconsistency\n",
-                    (unsigned)p.mmCheckId, (int)RANDO_SAVE_CHECKS[hostCheck].randoItemId,
-                    RANDO_SAVE_CHECKS[hostCheck].skipped ? 1 : 0);
-            return 12;
-        }
-
-        // ADR 0010 increment 1.3, lock (b): the placement the SHIPPING code
-        // recorded is in the closure recomputed from the post-fill save. RED
-        // with the gate reverted — premise (c) above proved the ungated
-        // stream picks an unreachable host for this pinned world.
-        if (!reachable.contains(hostCheck)) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(30): hosting check %u (%s) is OUTSIDE the reachable-check closure — the "
-                    "reachability gate (ADR 0010 increment 1.3) is not being applied and this foreign item is "
-                    "stranded\n",
-                    (unsigned)p.mmCheckId, staticIt->second.name);
-            return 30;
-        }
-    }
-
-    // The spoiler landed under the DERIVED paired name and describes every
-    // crossing: "foreign" as {checkName: {originGame, item}}, and the human-
-    // readable checks list reads as the foreign item, not junk.
-    std::string pairedSpoilerPath =
-        Rando::Spoiler::SpoilerDirectory() + "/RSBSPAIR" + std::to_string(gComboCtx.sharedRandoSeed) + ".json";
-    std::ifstream pairedFile(pairedSpoilerPath);
-    if (!pairedFile.is_open()) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(13): paired spoiler missing at %s (seed derivation broken?)\n",
-                pairedSpoilerPath.c_str());
-        return 13;
-    }
-    nlohmann::json pairedSpoiler;
-    try {
-        pairedFile >> pairedSpoiler;
-    } catch (const std::exception& e) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(13): paired spoiler unparseable: %s\n", e.what());
-        return 13;
-    }
-    if (!pairedSpoiler.contains("foreign") || !pairedSpoiler["foreign"].is_object() ||
-        (int)pairedSpoiler["foreign"].size() != placedCount) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(14): spoiler 'foreign' section missing or wrong size\n");
-        return 14;
-    }
-    // Shortfall bookkeeping must be consistent with the world: a full
-    // placement writes NO shortfall record; a short one writes the loud one
-    // (that branch is driven deterministically by the under-supply phase
-    // below).
-    if (placedCount == poolCount && pairedSpoiler.contains("foreignShortfall")) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(14): fully-placed world wrote a foreignShortfall record\n");
-        return 14;
-    }
-    if (placedCount < poolCount && !pairedSpoiler.contains("foreignShortfall")) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(14): short-placed world wrote no foreignShortfall record\n");
-        return 14;
-    }
-    for (auto& [checkName, entry] : pairedSpoiler["foreign"].items()) {
-        if (!entry.contains("originGame") || entry["originGame"] != "OOT" || !entry.contains("item")) {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(14): foreign entry '%s' malformed\n", checkName.c_str());
-            return 14;
-        }
-        const std::string itemName = entry["item"];
-        if (!pairedSpoiler["checks"].contains(checkName) ||
-            pairedSpoiler["checks"][checkName] != itemName + " (Ocarina of Time)") {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(14): checks entry for '%s' does not read as the foreign item\n",
-                    checkName.c_str());
-            return 14;
-        }
-    }
-    fprintf(stderr, "[MM-RANDO-GEN] paired world: %d foreign placements, spoiler foreign section verified\n",
-            placedCount);
-
-    // ======================================================================
-    // Spoiler-LOAD reconstruction lock (Lane C1 follow-up, #392). The paired
-    // world just generated wrote gComboCtx.foreignPlacements AND a spoiler with
-    // a "foreign" section. Prove the spoiler-LOAD path
-    // (Rando::Spoiler::ReconstructForeignPlacements, the counterpart of
-    // generation's PlaceForeignItems, reached through ApplyToSaveContext)
-    // rebuilds those placements exactly — the gap the C1 landing on #392 noted,
-    // where a loaded paired world degraded its foreign checks to junk — while
-    // never disturbing redeemed cross-game state.
-    // ======================================================================
-    ComboForeignPlacement generated[RSBS_FOREIGN_PLACEMENT_CAP];
-    memcpy(generated, gComboCtx.foreignPlacements, sizeof(generated));
-
-    // Re-read the just-written spoiler through the REAL LoadFromFile validator.
-    nlohmann::json loadedSpoiler;
-    try {
-        loadedSpoiler =
-            Rando::Spoiler::LoadFromFile(std::string("RSBSPAIR") + std::to_string(gComboCtx.sharedRandoSeed) + ".json");
-    } catch (const std::exception& e) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(16): loading the paired spoiler threw: %s\n", e.what());
-        return 16;
-    }
-
-    // Preserve-guard: with the live table still populated, reconstruction must
-    // REFUSE (return -1) and leave it byte-identical — a spoiler load must never
-    // clobber a live paired session's placements.
-    if (Rando::Spoiler::ReconstructForeignPlacements(loadedSpoiler) != -1 ||
-        memcmp(generated, gComboCtx.foreignPlacements, sizeof(generated)) != 0) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(16): reconstruction overwrote a live placement table instead of "
-                        "preserving it\n");
-        return 16;
-    }
-
-    // Plant a REDEEMED cross-game entry so the lock proves reconstruction never
-    // touches sharedItemsTagged (redemption survives a spoiler load).
-    SharedItem redeemed = {};
-    redeemed.originGame = (uint8_t)GAME_OOT;
-    redeemed.flags = RSBS_SHARED_ITEM_REDEEMED;
-    redeemed.id = pool[0].item.id;
-    gComboCtx.sharedItemsTagged[0] = redeemed;
-
-    // Clear the table (the state a new-file spoiler load starts from, after
-    // OnFileCreate's pre-apply clear) and reconstruct from the loaded spoiler.
-    Combo_ClearForeignPlacements();
-    const int reconstructed = Rando::Spoiler::ReconstructForeignPlacements(loadedSpoiler);
-    if (reconstructed != placedCount) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(17): reconstructed %d placements, expected %d\n", reconstructed,
-                placedCount);
-        return 17;
-    }
-
-    // Reconstructed table must match the generated one EXACTLY (host check ->
-    // origin-tagged item), order-independently (a JSON object has no slot order).
-    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        if (generated[i].item.originGame == GAME_NONE) {
-            continue;
-        }
-        const SharedItem* got = Combo_GetForeignPlacementForCheck(generated[i].mmCheckId);
-        if (got == NULL || got->originGame != generated[i].item.originGame || got->id != generated[i].item.id ||
-            got->flags != generated[i].item.flags) {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(18): host check %u did not reconstruct to its generated item\n",
-                    (unsigned)generated[i].mmCheckId);
-            return 18;
-        }
-        // ADR 0002 host invariant on the load path: the MM save table keeps a
-        // legal junk-class MM item at the host check (never RI_UNKNOWN / a raw
-        // RG_*), so the check degrades to junk if the placement is ever absent.
-        const RandoItemId heldAfterLoad = RANDO_SAVE_CHECKS[(RandoCheckId)generated[i].mmCheckId].randoItemId;
-        if (Rando::StaticData::Items[heldAfterLoad].randoItemType != RITYPE_JUNK) {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(18): reconstructed host check %u holds a non-junk MM item (%d)\n",
-                    (unsigned)generated[i].mmCheckId, (int)heldAfterLoad);
-            return 18;
-        }
-    }
-    if (Combo_CountForeignPlacements() != placedCount) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(18): reconstructed count %d != generated %d\n",
-                Combo_CountForeignPlacements(), placedCount);
-        return 18;
-    }
-
-    // Redemption survived untouched.
-    if (memcmp(&gComboCtx.sharedItemsTagged[0], &redeemed, sizeof(SharedItem)) != 0) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(19): reconstruction mutated redeemed shared-item state\n");
-        return 19;
-    }
-
-    // Malformed foreign section: refuse (throw) and leave the table untouched —
-    // validate-then-commit is atomic, no partial population.
-    {
-        Combo_ClearForeignPlacements();
-        nlohmann::json malformed = loadedSpoiler;
-        for (auto& [checkName, entry] : malformed["foreign"].items()) {
-            entry["item"] = "Definitely Not A Pinned Pool Item";
-            break;
-        }
-        bool threw = false;
-        try {
-            Rando::Spoiler::ReconstructForeignPlacements(malformed);
-        } catch (const std::exception&) { threw = true; }
-        if (!threw || Combo_CountForeignPlacements() != 0) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(20): malformed foreign section not rejected atomically (threw=%d, "
-                    "placements=%d)\n",
-                    threw ? 1 : 0, Combo_CountForeignPlacements());
-            return 20;
-        }
-    }
-
-    // Absent foreign section: not an error; yields an empty table cleanly.
-    {
-        Combo_ClearForeignPlacements();
-        nlohmann::json noForeign = loadedSpoiler;
-        noForeign.erase("foreign");
-        if (Rando::Spoiler::ReconstructForeignPlacements(noForeign) != 0 || Combo_CountForeignPlacements() != 0) {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(21): absent foreign section did not yield an empty table cleanly\n");
-            return 21;
-        }
-    }
-
-    // #488, step 6: a spoiler written by a PRE-tightening build can name a host
-    // the current rule rejects — the old predicate accepted every non-shop
-    // check type, and ~94% of its candidate pool was non-chest. Reconstruction
-    // must drop that placement rather than rebuild a crossing the give path can
-    // never deliver, and must leave the host holding the legal junk sentinel
-    // (not the unresolvable RI_UNKNOWN that ApplyToSaveContext leaves at a
-    // foreign host, which would arm `.eligible` and then give nothing).
-    //
-    // Without this leg the reject branch ships untested: the ROM-free
-    // ForeignHostEligibility lock drives the predicate, not the load path.
-    {
-        Combo_ClearForeignPlacements();
-
-        // First non-chest row in the table, chosen at runtime so this does not
-        // pin a check name that a future table edit could remove.
-        const Rando::StaticData::RandoStaticCheck* ineligible = nullptr;
-        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
-            if (randoStaticCheck.randoCheckId != RC_UNKNOWN && randoStaticCheck.randoCheckType != RCTYPE_CHEST &&
-                randoStaticCheck.randoCheckType != RCTYPE_SHOP &&
-                randoStaticCheck.randoCheckType != RCTYPE_TINGLE_SHOP) {
-                ineligible = &randoStaticCheck;
-                break;
-            }
-        }
-        if (ineligible == nullptr) {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(22): no non-chest check row to build the stale-host case from\n");
-            return 22;
-        }
-
-        nlohmann::json staleHost = loadedSpoiler;
-        nlohmann::json foreignEntry;
-        for (auto& [checkName, entry] : staleHost["foreign"].items()) {
-            foreignEntry = entry;
-            break;
-        }
-        staleHost["foreign"] = nlohmann::json::object();
-        staleHost["foreign"][ineligible->name] = foreignEntry;
-
-        // The state ApplyToSaveContext leaves at a foreign host: shuffled, with
-        // the "<item> (Ocarina of Time)" name unresolvable to a RandoItemId.
-        RANDO_SAVE_CHECKS[ineligible->randoCheckId].randoItemId = RI_UNKNOWN;
-        RANDO_SAVE_CHECKS[ineligible->randoCheckId].shuffled = true;
-        RANDO_SAVE_CHECKS[ineligible->randoCheckId].skipped = false;
-
-        const int staleReconstructed = Rando::Spoiler::ReconstructForeignPlacements(staleHost);
-        if (staleReconstructed != 0 || Combo_CountForeignPlacements() != 0 ||
-            Combo_GetForeignPlacementForCheck((uint16_t)ineligible->randoCheckId) != NULL) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(22): stale spoiler host %s (type %d) was reconstructed anyway (returned %d, "
-                    "table holds %d)\n",
-                    ineligible->name, (int)ineligible->randoCheckType, staleReconstructed,
-                    Combo_CountForeignPlacements());
-            return 22;
-        }
-        const RandoItemId heldAfterReject = RANDO_SAVE_CHECKS[ineligible->randoCheckId].randoItemId;
-        if (Rando::StaticData::Items[heldAfterReject].randoItemType != RITYPE_JUNK || heldAfterReject == RI_UNKNOWN ||
-            heldAfterReject == RI_NONE) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(22): rejected host %s left holding %d — must degrade to a legal junk item, "
-                    "not a sentinel that arms .eligible and gives nothing\n",
-                    ineligible->name, (int)heldAfterReject);
-            return 22;
-        }
-    }
-
-    // Wiring: the REAL apply path (ApplyToSaveContext, the spoiler-LOAD entry
-    // point OnFileCreate's load branch invokes) must itself drive reconstruction
-    // — not just the focused helper above. Clear, apply the whole spoiler, and
-    // confirm the placements came back.
-    Combo_ClearForeignPlacements();
-    try {
-        Rando::Spoiler::ApplyToSaveContext(loadedSpoiler);
-    } catch (const std::exception& e) {
-        fprintf(stderr, "[MM-RANDO-GEN] FAIL(22): ApplyToSaveContext threw on the paired spoiler: %s\n", e.what());
-        return 22;
-    }
-    if (Combo_CountForeignPlacements() != placedCount) {
-        fprintf(stderr,
-                "[MM-RANDO-GEN] FAIL(22): ApplyToSaveContext did not reconstruct foreign placements (found %d)\n",
-                Combo_CountForeignPlacements());
-        return 22;
-    }
-
-    // Restore the paired world's live placements for the OnSaveLoad phase below,
-    // and clear the planted redeemed entry.
-    Combo_ClearForeignPlacements();
-    memcpy(gComboCtx.foreignPlacements, generated, sizeof(generated));
-    memset(&gComboCtx.sharedItemsTagged[0], 0, sizeof(SharedItem));
-
-    fprintf(stderr, "[MM-RANDO-GEN] spoiler-LOAD reconstruction verified: preserve-live, rebuild-exact, "
-                    "redemption-safe, malformed-refused, absent-ok, stale-host-rejected, apply-wired\n");
-
-    // ======================================================================
-    // Under-supply lock (ADR 0010 increment 1.3 rule 3 — cap ≠ promise).
-    // Deterministically shrink the reachable eligible host supply below the
-    // pool size ON THE REAL PLACEMENT PATH: keep two of the gated run's own
-    // hosts (reachable + eligible by construction), mark every other eligible
-    // host user-excluded (.skipped — the bit GeneratePools writes for
-    // excluded checks, which IsEligibleHost rejects), rerun PlaceForeignItems,
-    // and assert it places exactly the supply — no throw, stats recorded,
-    // spoiler carrying the loud shortfall record. Counterfactuals: restore
-    // the pre-ADR-0010 shortfall-is-fatal throw and this phase dies in the
-    // catch; drop the spoiler record and the foreignShortfall assert goes
-    // red. Honest limit: this drives PlaceForeignItems directly, so
-    // OnFileCreate's no-throw-on-shortfall stance is covered by review, not
-    // by this phase (forcing a natural shortfall through the full
-    // OnFileCreate chain would need exclusion-list fixtures whose fill
-    // dead-end behavior is not deterministic).
-    // ======================================================================
-    {
-        auto shortSnapshot = std::make_unique<SaveContext>();
-        memcpy(shortSnapshot.get(), &gSaveContext, sizeof(SaveContext));
-
-        std::set<RandoCheckId> keepers;
-        for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP && (int)keepers.size() < 2; i++) {
-            if (generated[i].item.originGame != GAME_NONE) {
-                keepers.insert((RandoCheckId)generated[i].mmCheckId);
-            }
-        }
-        if ((int)keepers.size() != 2 || poolCount <= 2) {
-            fprintf(stderr, "[MM-RANDO-GEN] FAIL(31): under-supply premise broken (%zu keepers, pool %d)\n",
-                    keepers.size(), poolCount);
-            return 31;
-        }
-        for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
-            if (Rando::Foreign::IsEligibleHost(randoCheckId) && !keepers.contains(randoCheckId)) {
-                RANDO_SAVE_CHECKS[randoCheckId].skipped = true;
-            }
-        }
-
-        int shortPlaced = -1;
-        try {
-            shortPlaced = Rando::Foreign::PlaceForeignItems();
-        } catch (const std::exception& e) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(31): under-supply THREW instead of placing fewer (cap != promise): %s\n",
-                    e.what());
-            return 31;
-        }
-        const Rando::Foreign::PlacementStats& shortStats = Rando::Foreign::LastPlacementStats();
-        if (shortPlaced != 2 || shortStats.placed != 2 || shortStats.requested != poolCount ||
-            shortStats.reachableEligibleHosts != 2) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(31): under-supply placed %d (stats: placed %d, requested %d, reachable "
-                    "eligible %d) — expected exactly the supply of 2\n",
-                    shortPlaced, shortStats.placed, shortStats.requested, shortStats.reachableEligibleHosts);
-            return 31;
-        }
-        for (RandoCheckId keeper : keepers) {
-            if (Combo_GetForeignPlacementForCheck((uint16_t)keeper) == NULL) {
-                fprintf(stderr, "[MM-RANDO-GEN] FAIL(31): under-supply run did not host on remaining supply check %u\n",
-                        (unsigned)keeper);
-                return 31;
-            }
-        }
-
-        nlohmann::json shortSpoiler = Rando::Spoiler::GenerateFromSaveContext();
-        if (!shortSpoiler.contains("foreignShortfall") || (int)shortSpoiler["foreign"].size() != 2 ||
-            shortSpoiler["foreignShortfall"]["requested"] != poolCount ||
-            shortSpoiler["foreignShortfall"]["placed"] != 2 ||
-            shortSpoiler["foreignShortfall"]["reachableEligibleHosts"] != 2) {
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] FAIL(32): spoiler does not carry the loud shortfall record (foreignShortfall) "
-                    "for a short-placed world\n");
-            return 32;
-        }
-        fprintf(stderr, "[MM-RANDO-GEN] under-supply verified: placed 2 of %d, shortfall recorded in the spoiler\n",
-                poolCount);
-
-        // ------------------------------------------------------------------
-        // Drop order under shortfall (#583): SHUFFLE, THEN TRUNCATE.
-        //
-        // Same injected shortfall (two reachable eligible hosts, a pool of
-        // `poolCount`), re-run under a series of paired identities. The pass
-        // must drop a DIFFERENT subset across identities and the SAME subset
-        // twice for one identity, and the creation-time surface
-        // (MM_Rando_LastPlacementStats, #680) must report the same counts on
-        // every run: the order moved, the numbers did not.
-        //
-        // Certain-red counterfactual: walk `drawable` in table order again (the
-        // pre-#583 loop) and every identity keeps the first two pool rows and
-        // drops the tail, so this fails with one kept set across all twelve
-        // identities and the tail row never placed. Only the identity's
-        // master-seed term is perturbed; it feeds both selection streams and
-        // nothing else PlaceForeignItems reads (the host candidates come from
-        // the save, not from gComboCtx).
-        // ------------------------------------------------------------------
-        {
-            const ComboForeignItemDef* orderPool = nullptr;
-            const int orderPoolCount = Combo_GetForeignItemPool(&orderPool);
-            auto placedMask = [&]() -> uint32_t {
-                uint32_t mask = 0;
-                for (int slot = 0; slot < (int)RSBS_FOREIGN_PLACEMENT_CAP; slot++) {
-                    const ComboForeignPlacement& fp = gComboCtx.foreignPlacements[slot];
-                    if (fp.item.originGame == GAME_NONE) {
-                        continue;
-                    }
-                    for (int row = 0; row < orderPoolCount && row < 32; row++) {
-                        if (orderPool[row].item.originGame == fp.item.originGame &&
-                            orderPool[row].item.id == fp.item.id) {
-                            mask |= 1u << row;
-                        }
-                    }
-                }
-                return mask;
-            };
-            const uint32_t savedMasterSeed = gComboCtx.sharedRandoSeed;
-            std::set<uint32_t> keptSets;
-            bool tailEverPlaced = false;
-            const uint32_t tailBit =
-                (orderPoolCount > 0 && orderPoolCount <= 32) ? (1u << (orderPoolCount - 1)) : 0u;
-            for (uint32_t probe = 0; probe < 12; probe++) {
-                gComboCtx.sharedRandoSeed = savedMasterSeed ^ (0x9E3779B9u * (probe + 1));
-                uint32_t firstMask = 0;
-                for (int rerun = 0; rerun < 2; rerun++) {
-                    int orderPlaced = -1;
-                    try {
-                        orderPlaced = Rando::Foreign::PlaceForeignItems();
-                    } catch (const std::exception& e) {
-                        gComboCtx.sharedRandoSeed = savedMasterSeed;
-                        fprintf(stderr, "[MM-RANDO-GEN] FAIL(33): drop-order probe %u threw: %s\n", probe, e.what());
-                        return 33;
-                    }
-                    int surfRequested = -1;
-                    int surfPlaced = -1;
-                    int surfReachable = -1;
-                    const int surfShort =
-                        MM_Rando_LastPlacementStats(&surfRequested, &surfPlaced, nullptr, &surfReachable);
-                    if (orderPlaced != 2 || surfPlaced != 2 || surfRequested != poolCount || surfReachable != 2 ||
-                        surfShort != 1) {
-                        gComboCtx.sharedRandoSeed = savedMasterSeed;
-                        fprintf(stderr,
-                                "[MM-RANDO-GEN] FAIL(33): drop-order probe %u: placed %d, surface reports placed %d "
-                                "of requested %d over %d reachable hosts (shortfall=%d); expected 2 of %d over 2, "
-                                "shortfall=1\n",
-                                probe, orderPlaced, surfPlaced, surfRequested, surfReachable, surfShort, poolCount);
-                        return 33;
-                    }
-                    const uint32_t mask = placedMask();
-                    if (rerun == 0) {
-                        firstMask = mask;
-                    } else if (mask != firstMask) {
-                        gComboCtx.sharedRandoSeed = savedMasterSeed;
-                        fprintf(stderr,
-                                "[MM-RANDO-GEN] FAIL(33): drop-order probe %u kept pool set %03X then %03X for ONE "
-                                "identity; the order is not a function of the paired identity\n",
-                                probe, firstMask, mask);
-                        return 33;
-                    }
-                }
-                keptSets.insert(firstMask);
-                if ((firstMask & tailBit) != 0) {
-                    tailEverPlaced = true;
-                }
-            }
-            gComboCtx.sharedRandoSeed = savedMasterSeed;
-            if (keptSets.size() < 2 || !tailEverPlaced) {
-                fprintf(stderr,
-                        "[MM-RANDO-GEN] FAIL(33): under a 2-host shortfall 12 identities kept %zu distinct pool "
-                        "subset(s) and the pool's tail row was %splaced; the shortfall drops the TAIL, not a random "
-                        "subset (#583)\n",
-                        keptSets.size(), tailEverPlaced ? "" : "never ");
-                return 33;
-            }
-            fprintf(stderr,
-                    "[MM-RANDO-GEN] drop order verified: 12 identities kept %zu distinct 2-of-%d subsets, stable "
-                    "within each identity; the tail row crossed in at least one (#583)\n",
-                    keptSets.size(), poolCount);
-        }
-
-        // Restore the world and the real run's placements for the phases below.
-        memcpy(&gSaveContext, shortSnapshot.get(), sizeof(SaveContext));
-        Combo_ClearForeignPlacements();
-        memcpy(gComboCtx.foreignPlacements, generated, sizeof(generated));
-    }
 
     // OnSaveLoad chain lock (Lane C1): dispatching the real save-load bridge
     // with the rando save live must arm the rando behaviors — the
@@ -1300,28 +693,6 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
         return 3;
     }
 
-    // The digest must describe an ACTUAL cross-game world: a paired
-    // generation that placed nothing would produce a stable-but-empty digest,
-    // turning lock (c) vacuous. Fail loudly instead. ADR 0010 increment 1.3:
-    // the expected count is min(pool, reachable eligible hosts) — the
-    // reachability gate may legitimately place fewer than the pool — but zero
-    // stays fatal (vacuity).
-    {
-        const ComboForeignItemDef* digestPool = NULL;
-        const int digestPoolCount = Combo_GetForeignItemPool(&digestPool);
-        const Rando::Foreign::PlacementStats& digestStats = Rando::Foreign::LastPlacementStats();
-        const int digestExpected =
-            digestPoolCount < digestStats.reachableEligibleHosts ? digestPoolCount : digestStats.reachableEligibleHosts;
-        if (Combo_CountForeignPlacements() == 0 || Combo_CountForeignPlacements() != digestExpected) {
-            fprintf(stderr,
-                    "[MM-FOREIGN-DIGEST] FAIL(5): expected %d foreign placements (pool %d, reachable eligible %d), "
-                    "found %d\n",
-                    digestExpected, digestPoolCount, digestStats.reachableEligibleHosts,
-                    Combo_CountForeignPlacements());
-            return 5;
-        }
-    }
-
     // Canonical MM placement blob in fixed check order (std::map), folded
     // through the project's FNV-1a — mirrors the OoT digest's placementHash.
     std::string blob;
@@ -1351,6 +722,32 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
     }
     const uint32_t mmReachableHash = Ship_Hash(reachableBlob);
 
+    // ------------------------------------------------------------------
+    // THE SINGLE BAG (ADR 0010 increment 3, lane K11). OnSaveInit above ran the
+    // single-bag fill over OoT's deferred general pass and this MM pool, then
+    // MM's own pass. What is left is OoT's side, exactly as the creation event
+    // runs it (the crossings into the store, OoT's remainder), after which the
+    // digest folds OoT's FINAL world and every crossing, row by row.
+    // ------------------------------------------------------------------
+    const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+    const int crossings = OoT_Creation_FinishPairedHalf(0);
+    if (crossings < 0) {
+        fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(5): OoT's side of the creation tail failed (%d)\n", crossings);
+        Combo_SingleBag_Forget();
+        return 5;
+    }
+    if (crossings == 0) {
+        // Vacuity: a paired world under direction BOTH that crossed nothing would
+        // pin a stable-but-empty table and prove nothing about the single bag.
+        fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(6): the paired world crossed no item in either direction\n");
+        Combo_SingleBag_Forget();
+        return 6;
+    }
+    size_t ootFinalPlaced = 0;
+    const uint32_t ootFinalHash = Rando_HeadlessPlacementHash(&ootFinalPlaced);
+    const uint32_t coordinatorDigest = Combo_Logic_PlacementDigest();
+    Combo_SingleBag_Forget();
+
     FILE* out = stdout;
     bool closeOut = false;
     if (outPath != NULL && outPath[0] != '\0') {
@@ -1366,99 +763,81 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
             "mmPlacementHash=%08X\n"
             "mmReachableCount=%zu\n"
             "mmReachableHash=%08X\n"
-            "foreignCount=%d\n"
             // ADR 0010 increment 1.2: the winning ladder attempt joins the
             // two-process diff, so both processes must not merely reach the
             // same world — they must reach it via the same derivation.
-            "mmPairedAttempt=%u\n",
+            "mmPairedAttempt=%u\n"
+            // ADR 0010 increment 3 (lane K11): the single bag that placed both
+            // worlds' progression, and OoT's world after OoT's own remainder.
+            "bagSeed=%08X\n"
+            "bagRows=%d\n"
+            // PR #744's shared-quantity trim: pool rows handed back to each
+            // origin's own pass as filler (lane K11b).
+            "bagTrimmedOoT=%d\n"
+            "bagTrimmedMM=%d\n"
+            "bagHomeOnly=%d\n"
+            "bagRequiredPlaced=%d\n"
+            "bagSurplusPlaced=%d\n"
+            "bagSurplusDropped=%d\n"
+            "bagBatchAttempts=%d\n"
+            "bagRounds=%d\n"
+            "bagLeftoverOoT=%d\n"
+            "bagLeftoverMM=%d\n"
+            "coordinatorDigest=%08X\n"
+            "ootFinalPlacementHash=%08X\n"
+            "ootFinalPlacedCount=%zu\n"
+            "crossingDigest=%08X\n"
+            "crossingsInOoT=%d\n"
+            "crossingsInMM=%d\n",
             gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, digestReachable.size(), mmReachableHash,
-            Combo_CountForeignPlacements(), (unsigned)gComboCtx.mmPairedAttempt);
-    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        const ComboForeignPlacement& p = gComboCtx.foreignPlacements[i];
-        if (p.item.originGame == GAME_NONE) {
-            continue;
+            (unsigned)gComboCtx.mmPairedAttempt, bag.seed, bag.bagCount, bag.trimmedOoT, bag.trimmedMM, bag.homeOnlyRows, bag.fill.requiredPlaced,
+            bag.fill.surplusPlaced, bag.fill.surplusDropped, bag.fill.attempts, bag.fill.rounds,
+            bag.fill.leftoverHostsOoT, bag.fill.leftoverHostsMM, coordinatorDigest, ootFinalHash, ootFinalPlaced,
+            Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM));
+    // Every crossing, row by row, so a golden diff names WHICH host moved:
+    // host:origin:id, in the coordinator's order.
+    for (const GameId host : { GAME_OOT, GAME_MM }) {
+        for (int i = 0; i < Combo_Crossings_Count(host); i++) {
+            ComboCrossing row;
+            if (Combo_Crossings_At(host, i, &row)) {
+                fprintf(out, "%s%d=%u:%u:%u\n", host == GAME_OOT ? "crossingOoT" : "crossingMM", i,
+                        (unsigned)row.hostCheck, (unsigned)row.item.originGame, (unsigned)row.item.id);
+            }
         }
-        fprintf(out, "foreign%d=%u:%u:%u\n", i, (unsigned)p.mmCheckId, (unsigned)p.item.originGame,
-                (unsigned)p.item.id);
     }
     if (closeOut) {
         fclose(out);
     }
-    fprintf(stderr, "[MM-FOREIGN-DIGEST] mmFinalSeed=%08X mmPlacementHash=%08X mmReachableHash=%08X foreign=%d\n",
-            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, mmReachableHash,
-            Combo_CountForeignPlacements());
-
-    // ------------------------------------------------------------------
-    // THE FORWARD DIRECTION'S GATE (ADR 0011 increment 4, #493).
-    // ------------------------------------------------------------------
-    // The MM twin of the leg Test_ForeignPlacementOoT runs on OoT's reverse
-    // pass, and it lives HERE because this is the only headless bridge that
-    // reaches Rando::Foreign::PlaceForeignItems with a LIVE PAIRING —
-    // MMRandoGen's world is solo, so the same leg there would assert a pass
-    // that returns 0 for the wrong reason (vacuity).
-    //
-    // Deliberately AFTER the digest is written and closed, so it cannot perturb
-    // a single byte of the two-process determinism artifact. The pass is
-    // re-runnable by construction: it re-seeds its selection stream from the
-    // paired identity, so restoring the armed direction rebuilds the identical
-    // table — which is also what this leg asserts, and what makes "the gate is
-    // free at the shipped defaults" a measurement rather than a claim.
-    {
-        ComboForeignPlacement digestTable[RSBS_FOREIGN_PLACEMENT_CAP];
-        memcpy(digestTable, gComboCtx.foreignPlacements, sizeof(digestTable));
-        const int digestPlaced = Combo_CountForeignPlacements();
-        const uint8_t savedDirection = gComboCtx.comboSettings.direction;
-
-        if (!Combo_ComboSettingsFrozen() || savedDirection != RSBS_COMBO_DIR_BOTH) {
-            fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(6): the creation event did not freeze direction=BOTH (frozen=%d "
-                            "direction=%u) — the gate has no authority to read\n",
-                    Combo_ComboSettingsFrozen() ? 1 : 0, (unsigned)savedDirection);
-            return 6;
-        }
-
-        // Two unarmed values, because they fail differently in principle:
-        // REVERSE arms the OTHER direction, OFF arms neither. A gate keyed on
-        // "not BOTH" would pass one and fail the other.
-        // PlaceForeignItems signals a STRUCTURAL defect by throwing (the #488
-        // "the table refused an insert" path), which OnFileCreate's attempt
-        // ladder catches in production. Nothing catches it here, so the leg
-        // does — an uncaught throw out of this extern "C" bridge would
-        // std::terminate the determinism row instead of failing it.
-        static const uint8_t kUnarmed[] = { (uint8_t)RSBS_COMBO_DIR_REVERSE, (uint8_t)RSBS_COMBO_DIR_OFF };
-        try {
-            for (uint8_t direction : kUnarmed) {
-                gComboCtx.comboSettings.direction = direction;
-                const int replaced = Rando::Foreign::PlaceForeignItems();
-                if (replaced != 0 || Combo_CountForeignPlacements() != 0) {
-                    fprintf(stderr,
-                            "[MM-FOREIGN-DIGEST] FAIL(7): direction=%u still placed %d OoT items (%d in table) — the "
-                            "forward pass is not gated\n",
-                            (unsigned)direction, replaced, Combo_CountForeignPlacements());
-                    gComboCtx.comboSettings.direction = savedDirection;
-                    return 7;
-                }
-            }
-
-            gComboCtx.comboSettings.direction = savedDirection;
-            const int rearmed = Rando::Foreign::PlaceForeignItems();
-            if (rearmed != digestPlaced || memcmp(digestTable, gComboCtx.foreignPlacements, sizeof(digestTable)) != 0) {
-                fprintf(stderr,
-                        "[MM-FOREIGN-DIGEST] FAIL(8): re-arming direction=BOTH placed %d (expected %d) or produced a "
-                        "different table — the gate is not free at the shipped defaults\n",
-                        rearmed, digestPlaced);
-                return 8;
-            }
-            fprintf(stderr, "[MM-FOREIGN-DIGEST] direction gate: unarmed => 0 placements, re-armed => %d, table "
-                            "byte-identical\n",
-                    rearmed);
-        } catch (const std::exception& e) {
-            gComboCtx.comboSettings.direction = savedDirection;
-            fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(9): the direction-gate leg threw: %s\n", e.what());
-            return 9;
-        }
-    }
-
+    fprintf(stderr,
+            "[MM-FOREIGN-DIGEST] mmFinalSeed=%08X mmPlacementHash=%08X mmReachableHash=%08X crossings=%d (OoT %d, MM "
+            "%d) ootFinal=%08X\n",
+            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, mmReachableHash, crossings,
+            Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM), ootFinalHash);
     return 0;
+}
+
+/**
+ * TEST BRIDGE (combo-single-bag, lane K11): MM's creation-time half over the
+ * paired world the preceding OoT generation froze — the real OnSaveInit chain,
+ * whose paired branch runs the single-bag fill — WITHOUT OoT's side of the tail,
+ * so the caller can probe the coordinator's tables with MM's world still live.
+ * @return 0 when a rando world was produced.
+ */
+extern "C" int MM_Rando_HeadlessPairedHalf(void) {
+    MM_Rando_Init();
+    if (Rando::Logic::Regions.empty()) {
+        return 2;
+    }
+    if (gRegEditor == NULL) {
+        static RegEditor sPairedHalfRegEditor = {};
+        gRegEditor = &sPairedHalfRegEditor;
+    }
+    CVarSetInteger("gRando.SpoilerFileIndex", 0);
+    CVarSetInteger("gRando.GenerateSpoiler", 0);
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveInit(0);
+    return gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO ? 0 : 1;
 }
 
 // ============================================================================
@@ -1523,13 +902,6 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     // an old world — pin the hostile value the real session can carry.
     CVarSetInteger("gRando.SpoilerFileIndex", 3);
 
-    const ComboForeignItemDef* pool = NULL;
-    const int poolCount = Combo_GetForeignItemPool(&pool);
-    if (poolCount <= 0 || pool == NULL) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(3): pinned foreign pool is empty\n");
-        return 3;
-    }
-
     // ----------------------------------------------------------------------
     // Phase 1 — fresh switch-entry into a live paired OoT world.
     // ----------------------------------------------------------------------
@@ -1547,27 +919,35 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     // MM fill can genuinely dead-end on an unlucky seed, and the claim under
     // test is about the seam, not about any particular seed filling.
     // Deterministic either way (fixed list, fixed fill).
-    static const uint32_t kMasterSeeds[] = { 2108649350u, 1234567u, 77777777u, 424242u, 999983u };
+    //
+    // SINCE ADR 0010 INCREMENT 3 (lane K11) each seed is a REAL OoT generation —
+    // the Generate button's freeze and OoT's deferred general pass — rather than
+    // a hand-stamped identity: the single-bag fill that places the MM half needs
+    // OoT's world under it. The claim under test is still the seam.
+    static const char* const kPairSeeds[] = { "RSBSPAIRSWITCH1", "RSBSPAIRSWITCH2", "RSBSPAIRSWITCH3" };
     uint32_t usedMasterSeed = 0;
+    const char* usedPairSeed = nullptr;
 
-    for (uint32_t masterSeed : kMasterSeeds) {
-        // Lane B's carrier, stamped as a live OoT generation stamps it.
+    for (const char* pairSeed : kPairSeeds) {
         Combo_ClearForeignPlacements();
         Combo_ClearFrozenState("mm");
         Combo_ClearStartupEntrance();
-        gComboCtx.sourceIsRando = 1;
-        gComboCtx.sharedRandoSeed = masterSeed;
-        gComboCtx.sharedRandoSettingsHash = 0x5DAD32CEu;
-        // Each iteration models a fresh LEGACY (pre-freeze) pair: no creation
-        // stamp, so the arrival identity gate (#498/#564) takes the
-        // freeze-at-first-crossing path rather than comparing against a stale
-        // digest a previous iteration froze.
-        gComboCtx.mmProfileDigest = 0;
+        if (K11PairedOoTGenerate(pairSeed) != 0) {
+            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(3): the OoT half of paired seed %s could not be generated\n",
+                    pairSeed);
+            return 3;
+        }
+        const uint32_t masterSeed = gComboCtx.sharedRandoSeed;
 
-        // THE CREATION EVENT, which is where the MM half now comes from. It
-        // brackets its own gSaveContext snapshot, so the bootstrap authored
-        // below is unaffected by it.
+        // THE CREATION EVENT'S MM HALF, which is where the MM world now comes
+        // from, then OoT's side of the same creation (the crossings and OoT's
+        // remainder) — the whole creation minus its snapshot ceremony.
         const int mmCreated = MM_Rando_GenerateAtCreation(0, nullptr);
+        if (mmCreated == 0 && K11FinishPairedOoTHalf() < 0) {
+            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(35): OoT's side of the creation tail failed for seed %s\n",
+                    pairSeed);
+            return 35;
+        }
 
         // The cold gamestate-chain boot a switch performs: ConsoleLogo skips
         // to TitleSetup, TitleSetup authors a VANILLA bootstrap file with
@@ -1612,6 +992,7 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
             }
             fprintf(stderr, "[MM-PAIR-SWITCH] hooks re-armed at consumption (give VB suppressed)\n");
             usedMasterSeed = masterSeed;
+            usedPairSeed = pairSeed;
             break;
         }
 
@@ -1639,37 +1020,13 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     fprintf(stderr, "[MM-PAIR-SWITCH] switch-entry HYDRATED the creation-authored half under master seed %u\n",
             usedMasterSeed);
 
-    // ADR 0010 increment 1.3: expected count is min(pool, reachable eligible
-    // hosts), never zero; and every placement this pinned-seed row wrote must
-    // be inside the reachable closure recomputed from the arrived save — the
-    // placements-in-reachable-set assertion extended over the switch-entry
-    // pinned seed, per the ADR's increment-1 lock list.
-    const int pairSwitchPlaced = Combo_CountForeignPlacements();
-    {
-        const Rando::Foreign::PlacementStats& switchStats = Rando::Foreign::LastPlacementStats();
-        const int switchExpected =
-            poolCount < switchStats.reachableEligibleHosts ? poolCount : switchStats.reachableEligibleHosts;
-        if (pairSwitchPlaced == 0 || pairSwitchPlaced != switchExpected) {
-            fprintf(stderr,
-                    "[MM-PAIR-SWITCH] FAIL(7): expected %d foreign placements after switch-entry pairing (pool %d, "
-                    "reachable eligible %d), found %d\n",
-                    switchExpected, poolCount, switchStats.reachableEligibleHosts, pairSwitchPlaced);
-            return 7;
-        }
-        const std::set<RandoCheckId> switchReachable = Rando::Logic::ComputeReachableCheckSet();
-        for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-            const ComboForeignPlacement& p = gComboCtx.foreignPlacements[i];
-            if (p.item.originGame == GAME_NONE) {
-                continue;
-            }
-            if (!switchReachable.contains((RandoCheckId)p.mmCheckId)) {
-                fprintf(stderr,
-                        "[MM-PAIR-SWITCH] FAIL(7): hosting check %u is outside the reachable-check closure — the "
-                        "reachability gate (ADR 0010 increment 1.3) did not hold on the switch-entry path\n",
-                        (unsigned)p.mmCheckId);
-                return 7;
-            }
-        }
+    // ADR 0010 increment 3 (lane K11): the crossings are the single bag's, in the
+    // crossing store the creation captured — never zero for a paired world under
+    // direction BOTH (a world that crossed nothing proves nothing about the seam).
+    const uint32_t pairSwitchCrossingDigest = Combo_Crossings_Digest();
+    if (Combo_Crossings_Count(GAME_OOT) + Combo_Crossings_Count(GAME_MM) == 0) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(7): the paired world crossed no item in either direction\n");
+        return 7;
     }
     if (gSaveContext.save.entrance != kArrival) {
         fprintf(stderr,
@@ -1699,8 +1056,12 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
             fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(9): paired spoiler unparseable: %s\n", e.what());
             return 9;
         }
-        if (!j.contains("foreign") || !j["foreign"].is_object() || (int)j["foreign"].size() != pairSwitchPlaced) {
-            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(10): spoiler 'foreign' section missing or wrong size\n");
+        // The MM spoiler's pinned "foreign" section is the retired overlay pass's
+        // (lane K11): a single-bag world lists its crossings in the one spoiler's
+        // combo.crossingStore, so this file must not claim a pinned crossing.
+        if (j.contains("foreign") && j["foreign"].is_object() && !j["foreign"].empty()) {
+            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(10): the MM spoiler lists pinned 'foreign' crossings in a "
+                            "single-bag world\n");
             return 10;
         }
     }
@@ -1750,8 +1111,9 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
                 gSaveContext.save.saveInfo.playerData.rupees, gSaveContext.save.day);
         return 13;
     }
-    if (memcmp(pairedPlacements, gComboCtx.foreignPlacements, sizeof(pairedPlacements)) != 0) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(14): return leg disturbed the foreign placement table\n");
+    if (memcmp(pairedPlacements, gComboCtx.foreignPlacements, sizeof(pairedPlacements)) != 0 ||
+        Combo_Crossings_Digest() != pairSwitchCrossingDigest) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(14): return leg disturbed the placement table or the crossings\n");
         return 14;
     }
     if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GREAT_FAIRY, true)) {
@@ -1850,11 +1212,19 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     Combo_ClearFrozenState("mm");
     Combo_ClearStartupEntrance();
     Combo_ClearForeignPlacements();
-    gComboCtx.sourceIsRando = 1;
-    gComboCtx.sharedRandoSeed = usedMasterSeed;
-    gComboCtx.sharedRandoSettingsHash = 0x5DAD32CEu;
-    gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
+    // A REAL generation under the phase-1 seed (lane K11): it freezes the stamp
+    // exactly as Playthrough_Init computes it, and gives the MM half an OoT world
+    // to be filled against.
+    if (K11PairedOoTGenerate(usedPairSeed) != 0) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(31): phase 4a could not regenerate the paired OoT half\n");
+        return 31;
+    }
     const uint32_t phase4Stamp = gComboCtx.mmProfileDigest;
+    if (phase4Stamp != MM_Rando_ComputeProfileStamp()) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(31): the generation froze a stamp the live profile does not "
+                        "reproduce\n");
+        return 31;
+    }
     if (phase4Stamp == 0) {
         fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(31): creation stamp computed as zero\n");
         return 31;
@@ -1865,7 +1235,8 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     // empty session too — vacuously. What the refusal must actually do now is
     // DECLINE TO APPLY an MM half that really is sitting there armed, so the
     // half is authored under the MATCHING profile before the divergence.
-    if (MM_Rando_GenerateAtCreation(0, nullptr) != 0 || !Context_HasFrozenState(GAME_MM)) {
+    if (MM_Rando_GenerateAtCreation(0, nullptr) != 0 || !Context_HasFrozenState(GAME_MM) ||
+        K11FinishPairedOoTHalf() < 0) {
         fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(32): phase 4a could not author the MM half to refuse — the refuse "
                         "leg would pass vacuously\n");
         return 32;
@@ -1924,7 +1295,10 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     Combo_ClearFrozenState("mm");
     Combo_ClearStartupEntrance();
     Combo_ClearForeignPlacements();
-    gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
+    if (K11PairedOoTGenerate(usedPairSeed) != 0) {
+        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(34): phase 4b could not regenerate the paired OoT half\n");
+        return 34;
+    }
     if (gComboCtx.mmProfileDigest != phase4Stamp) {
         fprintf(stderr,
                 "[MM-PAIR-SWITCH] FAIL(27): undoing the divergence did not restore the creation profile "
@@ -1933,7 +1307,8 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         return 27;
     }
 
-    if (MM_Rando_GenerateAtCreation(0, nullptr) != 0 || !Context_HasFrozenState(GAME_MM)) {
+    if (MM_Rando_GenerateAtCreation(0, nullptr) != 0 || !Context_HasFrozenState(GAME_MM) ||
+        K11FinishPairedOoTHalf() < 0) {
         fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(34): phase 4b could not author the MM half to hydrate\n");
         return 34;
     }
@@ -2617,6 +1992,9 @@ void LadderClearOptionCVars() {
  * for a moved fill is a deliberate new pin, never a bent derivation.
  */
 constexpr uint32_t kLadderMasterSeed = 1u;
+/** The pinned ladder world's OoT seed (lane K11): the identity now comes from a
+ *  real OoT generation of this string, not from a hand-stamped master seed. */
+constexpr const char* kLadderSeed = "RSBSLADDER1";
 /** Ladder rungs injected before the winning attempt. 1 => attempt 0 fails
  *  deterministically, attempt 1 wins. */
 constexpr int kLadderInjectedRungs = 1;
@@ -2627,6 +2005,9 @@ constexpr int kLadderInjectedRungs = 1;
  *  wanted: the leg proves a SUCCESSFUL default-profile arrival latches
  *  nothing. */
 constexpr uint32_t kDefaultProfileConvergingSeed = 1u;
+/** The exhaustion row's OoT seed (lane K11): every leg's identity comes from a
+ *  real OoT generation of this string under that leg's CVars. */
+constexpr const char* kExhaustSeed = "RSBSEXHAUST1";
 } // namespace
 
 /**
@@ -2684,63 +2065,35 @@ extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
     CVarSetInteger("gRando.GenerateSpoiler", 0); // the digest is the artifact
     CVarSetString("gRando.InputSeed", "USERSEEDPOISON"); // the paired branch must ignore this
 
-    // One paired generation for one master seed, through the real dispatch
-    // chain, from a fresh legacy (pre-freeze) carrier each time.
-    auto generateFor = [](uint32_t masterSeed) {
-        ComboContext_Init();
-        gComboCtx.sourceIsRando = 1;
-        gComboCtx.sharedRandoSeed = masterSeed;
-        gComboCtx.sharedRandoSettingsHash = 0x1ADD3125u; // nonzero: "profile recorded" (Lane B contract)
-        gComboCtx.mmProfileDigest = 0;
+    // One paired creation for the pinned seed: since ADR 0010 increment 3 (lane
+    // K11) a REAL OoT generation (the Generate button's freeze and OoT's deferred
+    // general pass), then MM's half through the real dispatch chain — where the
+    // single-bag fill runs under the ladder. The re-pin scan mode this row used
+    // to carry hunted MM-fill dead-ends under a hand-stamped identity; neither
+    // exists any more, and the rung stays injected for the reason above.
+    if (K11PairedOoTGenerate(kLadderSeed) != 0) {
+        fprintf(stderr, "[MM-ATTEMPT] FAIL(9): the OoT half of the pinned ladder seed %s could not be generated\n",
+                kLadderSeed);
+        return 9;
+    }
+    auto generateFor = []() {
         memset(&gSaveContext, 0, sizeof(gSaveContext));
         MM_Sram_InitNewSave();
         GameInteractor_ExecuteOnSaveInit(0);
     };
 
-    // Re-pin scan mode (see kLadderMasterSeed's recipe). Prints per-seed
-    // ladder outcomes and asserts nothing — it exists to HUNT for a natural
-    // deterministic dead-end, so it runs the heavy dead-end-prone profile
-    // rather than the pinned path's defaults. Read its output with the
-    // wall-clock discriminator in mind: `attempts=1 converged=0` is a timeout
-    // and is NOT a pinnable dead-end.
-    const char* scanSpec = std::getenv("RSBS_ATTEMPT_SEED_SCAN");
-    if (scanSpec != NULL && scanSpec[0] != '\0') {
-        CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_OCARINA_BUTTONS].cvar, RO_GENERIC_ON);
-        CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_SWIM].cvar, RO_GENERIC_ON);
-        CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_BOSS_REMAINS].cvar, RO_GENERIC_ON);
-        CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_OWL_STATUES].cvar, RO_GENERIC_ON);
-        CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_ON);
-        unsigned scanStart = 0;
-        unsigned scanCount = 0;
-        if (sscanf(scanSpec, "%u:%u", &scanStart, &scanCount) != 2 || scanCount == 0) {
-            fprintf(stderr, "[MM-ATTEMPT] FAIL(9): RSBS_ATTEMPT_SEED_SCAN must be <startSeed>:<count>\n");
-            return 9;
-        }
-        for (unsigned i = 0; i < scanCount; i++) {
-            const uint32_t seed = (uint32_t)(scanStart + i);
-            generateFor(seed);
-            fprintf(stderr, "[MM-ATTEMPT] scan: seed=%u attempts=%d exhausted=%d converged=%d\n", (unsigned)seed,
-                    MM_Rando_PairedGenLastAttempts(), MM_Rando_PairedGenLastExhausted(),
-                    gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO ? 1 : 0);
-        }
-        LadderClearOptionCVars();
-        ComboContext_Init();
-        memset(&gSaveContext, 0, sizeof(gSaveContext));
-        return 0;
-    }
-
     // Arm exactly one deterministic ladder rung, then generate. The injection
     // is consumed by attempt 0's placement pass; attempt 1 runs the real one.
     Rando::Foreign::ForceShortForeignPlacements(kLadderInjectedRungs);
-    generateFor(kLadderMasterSeed);
+    generateFor();
     Rando::Foreign::ForceShortForeignPlacements(0); // disarm before any early return
 
     if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
         fprintf(stderr,
-                "[MM-ATTEMPT] FAIL(3): the pinned ladder master seed %u EXHAUSTED the ladder (%d attempts) — with "
-                "only %d rung(s) injected the ladder must converge, so either the ladder is gone (an injected rung "
-                "now goes straight to the vanilla revert) or the fill stopped converging for this identity\n",
-                (unsigned)kLadderMasterSeed, MM_Rando_PairedGenLastAttempts(), kLadderInjectedRungs);
+                "[MM-ATTEMPT] FAIL(3): the pinned ladder seed %s EXHAUSTED the ladder (%d attempts) — with only "
+                "%d rung(s) injected the ladder must converge, so either the ladder is gone (an injected rung now "
+                "goes straight to the vanilla revert) or the fill stopped converging for this identity\n",
+                kLadderSeed, MM_Rando_PairedGenLastAttempts(), kLadderInjectedRungs);
         return 3;
     }
     const int attempts = MM_Rando_PairedGenLastAttempts();
@@ -2754,7 +2107,7 @@ extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
     }
     if (Rando::Foreign::ForcedShortForeignPlacementsRemaining() != 0) {
         fprintf(stderr, "[MM-ATTEMPT] FAIL(11): injected rungs did not drain — the winning attempt never ran a real "
-                        "foreign-placement pass, so this digest describes a world that was never placed\n");
+                        "single-bag fill, so this digest describes a world that was never placed\n");
         return 11;
     }
     if (MM_Rando_PairedGenLastExhausted()) {
@@ -2768,26 +2121,18 @@ extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
                 (unsigned)gComboCtx.mmPairedAttempt, attempts);
         return 6;
     }
-    {
-        // ADR 0010 increment 1.3: the winning attempt's placement pass runs
-        // under the reachability gate, so the expected count is
-        // min(pool, reachable eligible hosts) — the gate may legitimately
-        // place fewer than the pool — but ZERO stays fatal (a ladder digest
-        // describing a world that hosted nothing would be vacuous), mirroring
-        // MM_Rando_HeadlessForeignDigest's FAIL(5).
-        const ComboForeignItemDef* pool = NULL;
-        const int poolCount = Combo_GetForeignItemPool(&pool);
-        const Rando::Foreign::PlacementStats& attemptStats = Rando::Foreign::LastPlacementStats();
-        const int attemptExpected =
-            poolCount < attemptStats.reachableEligibleHosts ? poolCount : attemptStats.reachableEligibleHosts;
-        if (Combo_CountForeignPlacements() == 0 || Combo_CountForeignPlacements() != attemptExpected) {
-            fprintf(stderr,
-                    "[MM-ATTEMPT] FAIL(7): expected %d foreign placements (pool %d, reachable eligible %d), "
-                    "found %d\n",
-                    attemptExpected, poolCount, attemptStats.reachableEligibleHosts, Combo_CountForeignPlacements());
-            return 7;
-        }
+    // OoT's side of the same creation (lane K11): the crossings into the store and
+    // OoT's remainder. A ladder world that crossed nothing would pin a table that
+    // proves nothing about the single bag, so zero stays fatal.
+    const ComboSingleBagReport attemptBag = *Combo_SingleBag_LastReport();
+    const int attemptCrossings = K11FinishPairedOoTHalf();
+    if (attemptCrossings <= 0) {
+        fprintf(stderr, "[MM-ATTEMPT] FAIL(7): the converged ladder world stored %d crossings (expected > 0)\n",
+                attemptCrossings);
+        return 7;
     }
+    size_t attemptOoTPlaced = 0;
+    const uint32_t attemptOoTHash = Rando_HeadlessPlacementHash(&attemptOoTPlaced);
 
     // Canonical world digest, mirroring MM_Rando_HeadlessForeignDigest's
     // shape: final seed + attempt + placement blob hash + every foreign
@@ -2815,28 +2160,40 @@ extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
         closeOut = true;
     }
     fprintf(out,
-            "ladderMasterSeed=%u\n"
+            "ladderMasterSeed=%08X\n"
             "mmFinalSeed=%08X\n"
             "winningAttempt=%d\n"
             "mmPairedAttempt=%u\n"
             "mmPlacementHash=%08X\n"
-            "foreignCount=%d\n",
-            (unsigned)kLadderMasterSeed, gSaveContext.save.shipSaveInfo.rando.finalSeed, attempts - 1,
-            (unsigned)gComboCtx.mmPairedAttempt, placementHash, Combo_CountForeignPlacements());
-    for (int i = 0; i < (int)RSBS_FOREIGN_PLACEMENT_CAP; i++) {
-        const ComboForeignPlacement& p = gComboCtx.foreignPlacements[i];
-        if (p.item.originGame == GAME_NONE) {
-            continue;
+            // ADR 0010 increment 3 (lane K11): the single bag of the winning
+            // attempt, OoT's final world, and every crossing.
+            "bagSeed=%08X\n"
+            "bagRows=%d\n"
+            "bagRounds=%d\n"
+            "ootFinalPlacementHash=%08X\n"
+            "crossingDigest=%08X\n"
+            "crossingsInOoT=%d\n"
+            "crossingsInMM=%d\n",
+            gComboCtx.sharedRandoSeed, gSaveContext.save.shipSaveInfo.rando.finalSeed, attempts - 1,
+            (unsigned)gComboCtx.mmPairedAttempt, placementHash, attemptBag.seed, attemptBag.bagCount,
+            attemptBag.fill.rounds, attemptOoTHash, Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT),
+            Combo_Crossings_Count(GAME_MM));
+    for (const GameId host : { GAME_OOT, GAME_MM }) {
+        for (int i = 0; i < Combo_Crossings_Count(host); i++) {
+            ComboCrossing row;
+            if (Combo_Crossings_At(host, i, &row)) {
+                fprintf(out, "%s%d=%u:%u:%u\n", host == GAME_OOT ? "crossingOoT" : "crossingMM", i,
+                        (unsigned)row.hostCheck, (unsigned)row.item.originGame, (unsigned)row.item.id);
+            }
         }
-        fprintf(out, "foreign%d=%u:%u:%u\n", i, (unsigned)p.mmCheckId, (unsigned)p.item.originGame,
-                (unsigned)p.item.id);
     }
     if (closeOut) {
         fclose(out);
     }
-    fprintf(stderr, "[MM-ATTEMPT] PASS: pinned seed %u converged on ladder attempt %d (mmFinalSeed=%08X, "
-                    "placementHash=%08X)\n",
-            (unsigned)kLadderMasterSeed, attempts - 1, gSaveContext.save.shipSaveInfo.rando.finalSeed, placementHash);
+    fprintf(stderr, "[MM-ATTEMPT] PASS: pinned seed %s converged on ladder attempt %d (mmFinalSeed=%08X, "
+                    "placementHash=%08X, %d crossings)\n",
+            kLadderSeed, attempts - 1, gSaveContext.save.shipSaveInfo.rando.finalSeed, placementHash,
+            attemptCrossings);
 
     // Leave clean global state for later dispatches in the same process — the
     // pinned profile CVars included, since they are exactly the kind of
@@ -2943,13 +2300,16 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     Combo_ClearFrozenState("mm");
     Combo_ClearStartupEntrance();
     ComboContext_Init();
-    gComboCtx.sourceIsRando = 1;
-    gComboCtx.sharedRandoSeed = kDefaultProfileConvergingSeed;
-    gComboCtx.sharedRandoSettingsHash = 0x0E8A0570u;
-    gComboCtx.mmProfileDigest = 0;
+    // A REAL paired generation under the live CVars (lane K11): the single-bag
+    // fill needs OoT's world under the identity, so no leg stamps one by hand.
+    if (K11PairedOoTGenerate(kExhaustSeed) != 0) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(21): the OoT half of the pinned seed could not be generated\n");
+        return 21;
+    }
     // The O10 triforce record (ADR 0010) a triforce-hunt creation would have
-    // frozen in Playthrough_Init before this seam ran. No production goal can be
-    // a hunt yet, so it is planted: the retraction below must take it with the
+    // frozen in Playthrough_Init before this seam ran. A paired world cannot be
+    // a hunt yet (the creation refuses that GOAL until the bag carries the
+    // pieces), so it is planted over the real generation's zero record: the retraction below must take it with the
     // rest of the identity (FAIL(20)), or the context is left holding a hunt
     // record beside an absent goal, which reads as damage.
     gComboCtx.comboTriforce.totalOoT = 5;
@@ -3043,10 +2403,12 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     Combo_ClearFrozenState("mm");
     Combo_ClearStartupEntrance();
     ComboContext_Init();
-    gComboCtx.sourceIsRando = 1;
-    gComboCtx.sharedRandoSeed = kDefaultProfileConvergingSeed;
-    gComboCtx.sharedRandoSettingsHash = 0x0E8A0570u;
-    gComboCtx.mmProfileDigest = 0;
+    // A REAL paired generation under the live CVars (lane K11): the single-bag
+    // fill needs OoT's world under the identity, so no leg stamps one by hand.
+    if (K11PairedOoTGenerate(kExhaustSeed) != 0) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(21): the OoT half of the pinned seed could not be generated\n");
+        return 21;
+    }
 
     const int counterCreated = OoT_RunPairedCreationEvent(0);
 
@@ -3095,10 +2457,12 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     Combo_ClearFrozenState("mm");
     Combo_ClearStartupEntrance();
     ComboContext_Init();
-    gComboCtx.sourceIsRando = 1;
-    gComboCtx.sharedRandoSeed = kDefaultProfileConvergingSeed;
-    gComboCtx.sharedRandoSettingsHash = 0x0E8A0570u;
-    gComboCtx.mmProfileDigest = 0;
+    // A REAL paired generation under the live CVars (lane K11): the single-bag
+    // fill needs OoT's world under the identity, so no leg stamps one by hand.
+    if (K11PairedOoTGenerate(kExhaustSeed) != 0) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(21): the OoT half of the pinned seed could not be generated\n");
+        return 21;
+    }
 
     // ARMED BEFORE the creation runs, which is also the non-vacuity guard on the
     // #582 budget: OnFileCreate only writes its calibrated budget into a ZERO

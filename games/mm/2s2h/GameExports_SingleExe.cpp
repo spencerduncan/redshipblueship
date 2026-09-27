@@ -3095,7 +3095,7 @@ extern "C" void MM_GameHooks_ExecuteOnGameCompletion(void) {
  * cross-game arrival path DOES route through MM_Item_Give: MM_ConsumeSharedItems
  * (z_play.c) -> Combo_RedeemSharedItemsForGame -> MM_AwardSharedItem ->
  * MM_ForeignItem_Give -> GiveNow (Rando/ForeignItemsSingleExe.cpp:467) ->
- * Rando::GiveItem -> MM_Item_Give for most of kForeignPoolMMV1. Reviving this
+ * Rando::GiveItem -> MM_Item_Give for most MM items that can cross. Reviving this
  * dispatch cannot double-give: the two locks that matter both sit UPSTREAM of
  * the give and are untouched here -- the durable RSBS_SHARED_ITEM_REDEEMED
  * latch (src/common/shared_items.c:277-283) and the clear-the-queue-before-
@@ -4213,6 +4213,15 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
  * first .redsave — written by the Save_SaveFile() a few lines later — already
  * carries a complete MM half. Arrival then hydrates it and generates nothing.
  *
+ * TWO STEPS SINCE ADR 0010 INCREMENT 3, AND THE PRODUCTION EVENT CALLS THEM APART
+ * (PR #743 review). MM_Rando_AuthorHalfAtCreation generates and authors the half;
+ * MM_Rando_ArmCreatedHalf arms it. Under the single bag OoT's side of the creation
+ * (the crossings into the store, OoT's remainder, the one spoiler) runs AFTER this
+ * half returns, and #680's order puts the arm LAST: store, spoiler, publish, arm.
+ * So OoT_RunPairedCreationEvent authors here, runs its tail, and only then puts
+ * MM's finished bytes back in view and arms them. This function is the two steps
+ * back to back, for the headless harnesses that author an MM half and hydrate it.
+ *
  * WHY THIS IS FEASIBLE AND NOT HOPEFUL. The rando-determinism CI row has run
  * OoT generation plus the FULL paired MM generation in one process, with MM
  * never booted and no MM archives mounted, since Lane C1
@@ -4251,7 +4260,7 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
  *         the caller may keep, and the caller fails the whole file creation on
  *         any nonzero return.
  */
-extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath) {
+extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPath) {
     if (!Combo_ForeignPairingActive()) {
         // Not a paired creation. Not an error: a vanilla OoT file has no MM half
         // to author, and its first crossing still gets the vanilla post-intro
@@ -4304,8 +4313,8 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
             Combo_GenProgress_ElapsedMs() - rsbsPrepStartMs);
     fflush(stderr);
     GameInteractor_ExecuteOnSaveInit(0);
-    // Where MM's own post-fill stretch starts (the spoiler join and the shadow
-    // arm). Measured for the same reason the pre-fill one is.
+    // Where MM's own post-fill stretch starts (the harness-only spoiler join).
+    // Measured for the same reason the pre-fill one is.
     const uint32_t rsbsPostFillStartMs = Combo_GenProgress_ElapsedMs();
 
     if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
@@ -4341,11 +4350,30 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
     // disagrees with save.time is a shadow somebody will read before that.
     gSaveContext.skyboxTime = gSaveContext.save.time;
 
-    // #564 step 9: the MM half becomes the shadow, and the shadow is ARMED so
-    // the arrival's Combo_ConsumeFrozenState hands it to MM's live gSaveContext.
-    // Arming is the explicit inverse the freeze machinery lacked until #589 —
-    // shadow bytes and frozen blob are the same storage, and hasBeenFrozen is
-    // the only thing separating them (context.h).
+    fprintf(stderr,
+            "[MM] creation: MM half authored for slot %d (mmFinalSeed=%08X foreignPlacements=%d ladderAttempt=%d; "
+            "MM's post-fill stretch took %ums); NOT armed yet — the caller arms it last\n",
+            slot, gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements(),
+            MM_Rando_PairedGenLastAttempts(), Combo_GenProgress_ElapsedMs() - rsbsPostFillStartMs);
+    fflush(stderr);
+    return 0;
+}
+
+/**
+ * #564 STEP 9, THE LAST STEP OF A PAIRED CREATION: the authored MM half becomes
+ * the MM shadow, and the shadow is ARMED so the arrival's Combo_ConsumeFrozenState
+ * hands it to MM's live gSaveContext. Arming is the explicit inverse the freeze
+ * machinery lacked until #589 — shadow bytes and frozen blob are the same storage,
+ * and hasBeenFrozen is the only thing separating them (context.h).
+ *
+ * The caller must have MM's finished half live in gSaveContext (the creation event
+ * puts it back in view over a short bracket). Called by OoT_RunPairedCreationEvent
+ * after the crossings are stored and the one spoiler is written and joined, so a
+ * failure anywhere before it leaves no armed shadow behind (#680's order).
+ *
+ * @return 0 when armed; 4 when the blob refused to arm (all-zero).
+ */
+extern "C" int MM_Rando_ArmCreatedHalf(int slot) {
     Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
     const int armed = Context_ArmShadowAsFrozen(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0);
     if (!armed) {
@@ -4357,14 +4385,25 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
         fflush(stderr);
         return 4;
     }
-
-    fprintf(stderr,
-            "[MM] creation: MM half authored and armed for slot %d (mmFinalSeed=%08X foreignPlacements=%d "
-            "ladderAttempt=%d; MM's post-fill stretch — spoiler join + shadow arm — took %ums)\n",
-            slot, gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements(),
-            MM_Rando_PairedGenLastAttempts(), Combo_GenProgress_ElapsedMs() - rsbsPostFillStartMs);
+    fprintf(stderr, "[MM] creation: MM half armed as the MM shadow for slot %d (mmFinalSeed=%08X)\n", slot,
+            gSaveContext.save.shipSaveInfo.rando.finalSeed);
     fflush(stderr);
     return 0;
+}
+
+/**
+ * Author the MM half and arm it, back to back: the headless harnesses' entry (the
+ * switch-entry and spoiler-identity rows author a half, then hydrate it). The
+ * production creation event calls the two steps apart (see above).
+ * @return 0 on success (including "not a paired creation", which authors and arms
+ *         nothing); the failing step's code otherwise.
+ */
+extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath) {
+    const int authored = MM_Rando_AuthorHalfAtCreation(slot, ootSpoilerPath);
+    if (authored != 0 || !Combo_ForeignPairingActive()) {
+        return authored;
+    }
+    return MM_Rando_ArmCreatedHalf(slot);
 }
 
 /**
