@@ -124,18 +124,17 @@ void ArmLiveMMSession(int16_t health) {
 // request. Combo_CheckEntranceSwitch suppresses its freeze when a switch is
 // already pending (wasAlreadyPending), so every entrance leg needs this first.
 //
-// Entrance_Init here, but NOT in the OoT twin: MM's header chain never declares
-// the C-linkage Entrance_Init that SoH's entrance shuffle owns, so this
-// spelling reaches src/common/entrance.cpp's C++-linkage function. On the OoT
-// side the same name is already taken and the row crashed for it; the note above
-// oot_scene_flag_freeze_test.cpp's ResetEntranceTable records the whole trap.
+// ComboEntrance_Init, the same reset the OoT twin now uses. It was spelled
+// Entrance_Init until #665, a spelling SoH's entrance shuffle also owns; the
+// note above oot_scene_flag_freeze_test.cpp's ResetEntranceTable records how
+// that bit the OoT row.
 //
 // Returns false if the table was NOT actually reset. Entrance_RegisterDefaultLinks
 // refuses a door that some link already claims, so a true return is proof the
-// preceding Entrance_Init really cleared the combo link table. Both rows carry
-// the guard so a rebind on either side fails with a message, not a crash.
+// preceding ComboEntrance_Init really cleared the combo link table. Both rows
+// carry the guard so a rebind on either side fails with a message, not a crash.
 bool ResetEntranceTable(void) {
-    Entrance_Init();
+    ComboEntrance_Init();
     const bool registered = Entrance_RegisterDefaultLinks();
     Combo_ClearGameSwitchRequest();
     return registered;

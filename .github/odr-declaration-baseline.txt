@@ -65,3 +65,14 @@ TYPE platform
 TYPE save_file
 TYPE select_folder
 TYPE settings
+FUNC GetActorCategoryName
+FUNC MM_FaultDrawer_DrawText
+FUNC MM_FaultDrawer_Printf
+FUNC MM_FaultDrawer_SetCharPad
+FUNC MM_osCartRomInit
+FUNC MM_osContGetReadData
+FUNC MM_osContInit
+FUNC MM_osContStartReadData
+FUNC MM_osGetTime
+FUNC MM_osMotorInit
+FUNC MM_sprintf
