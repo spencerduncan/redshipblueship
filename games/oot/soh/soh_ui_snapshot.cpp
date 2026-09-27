@@ -731,7 +731,7 @@ struct PageSpec {
     std::vector<std::string> hovers; // hover variant names (MENU_PAGE only)
     // Hover name -> the exact name of the row it points at, for a hover whose
     // target is not one of Cross-Game Rules' settings. Captured in the page's
-    // first state only.
+    // first state only (and, when hoverStates is set, only if listed there).
     std::map<std::string, std::string> hoverRows;
     std::vector<std::string> expectText;
     // MENU_PAGE: a string only this page's body draws (assert 6); empty when no
@@ -744,6 +744,15 @@ struct PageSpec {
     std::map<std::string, std::string> stateContrast;
     bool scroll = true;
     bool needsRom = false;
+    // When non-empty, hover variants are taken in these states only. A race
+    // lockout rebuilds the tooltip from `activeDisables` plus "- Race Lockout
+    // Active": it REPLACES a directly written disabled tooltip (ours) and only
+    // appends to an SoH disabledMap one, so our row's hover there shows none of
+    // its own text and proves nothing about it.
+    std::vector<std::string> hoverStates;
+    // The row-state probe: a harness-only Combo sidebar installed for this page's
+    // captures and removed afterwards (see InstallRowStateProbe).
+    bool rowStateProbe = false;
 };
 
 struct Capture {
@@ -789,6 +798,17 @@ struct Profile {
     int posY = 100;
 };
 
+// The row-state probe's sidebar and rows (InstallRowStateProbe).
+constexpr const char* kRowStatesSidebar = "Row States";
+constexpr const char* kProbeLiveRow = "Live Setting";
+constexpr const char* kProbeSuspendedRow = "Suspended Setting";
+constexpr const char* kProbeGatedRow = "Gated Setting";
+constexpr const char* kProbeDecidedRow = "Decided Setting";
+bool gProbeLive = false;
+bool gProbeSuspended = false;
+bool gProbeGated = false;
+bool gProbeDecided = false;
+
 class Session {
   public:
     explicit Session(const Options& o) : opt(o) {
@@ -828,6 +848,12 @@ class Session {
     std::map<const WidgetInfo*, std::string> textRows;
     std::set<std::string> dynamicHits;
     void CollectDynamicLint();
+
+    // The row-state probe (ADR 0004 section 6's four presentations on synthetic
+    // rows): installed only while its own page is captured.
+    std::vector<const WidgetInfo*> probeRows;
+    void InstallRowStateProbe();
+    void RemoveRowStateProbe();
 
     // hover target recording
     std::string hoverTarget;
@@ -1333,6 +1359,19 @@ void Session::BuildPageList() {
         pages.push_back(p);
     }
     {
+        // SoH's own disabled row, the reference for every unavailable or locked
+        // row of ours (docs/ui-style-guide.md section 8): with Match Refresh Rate
+        // on, SohMenuSettings.cpp's Current FPS PreFunc pushes
+        // DISABLE_FOR_MATCH_REFRESH_RATE_ON and MenuDrawItem builds the
+        // "This setting is disabled because:" tooltip from disabledMap.
+        PageSpec p = menuPage("Settings", "Graphics", Origin::SOH_REFERENCE);
+        p.needsRom = true;
+        p.states = { "match-refresh-rate" };
+        p.hovers = { "current-fps" };
+        p.hoverRows = { { "current-fps", "Current FPS" } };
+        pages.push_back(p);
+    }
+    {
         PageSpec p;
         p.id = "modal/Clear Config";
         p.origin = Origin::SOH_REFERENCE;
@@ -1414,6 +1453,34 @@ void Session::BuildPageList() {
         }
     } else {
         Fail("the live menu has no \"Combo\" header, so none of this project's menu pages can be captured");
+    }
+    if (entries.contains("Combo")) {
+        // ADR 0004 section 6's four presentations on synthetic rows (see
+        // InstallRowStateProbe), compared with SoH's own disabled row.
+        PageSpec p;
+        p.id = std::string("Combo/") + kRowStatesSidebar;
+        p.header = "Combo";
+        p.sidebar = kRowStatesSidebar;
+        p.origin = Origin::RSBS;
+        p.kind = Kind::MENU_PAGE;
+        p.rowStateProbe = true;
+        p.compareWith = "Settings/Graphics";
+        p.states = { "", "race-lockout" };
+        p.hovers = { "capability", "frozen" };
+        p.hoverRows = { { "capability", kProbeGatedRow }, { "frozen", kProbeDecidedRow } };
+        p.hoverStates = { "" };
+        {
+            const std::vector<std::string> notes = {
+                SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_INACTIVE_GAME),
+                SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_CAPABILITY),
+                SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_FROZEN),
+            };
+            p.stateText[""] = notes;
+            p.stateText["race-lockout"] = notes;
+        }
+        p.bodyText = "Suspended Game";
+        p.expectText = { p.bodyText };
+        pages.push_back(p);
     }
     {
         PageSpec p = menuPage("Randomizer", "Cross-Game", Origin::RSBS);
@@ -1840,6 +1907,17 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         if (state == "autosave") {
             CVarSetInteger("gEnhancements.Autosave", 1);
         }
+    } else if (p.id == "Settings/Graphics") {
+        if (state == "match-refresh-rate") {
+            CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
+        }
+    } else if (p.rowStateProbe) {
+        if (state == "race-lockout") {
+            // MenuDrawItem's race lockout (Menu.cpp) disables every RaceDisable
+            // row and REPLACES its disabled tooltip: the case the gray notes are
+            // for.
+            CVarSetInteger(CVAR_SETTING("DisableChanges"), 1);
+        }
     } else if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboMMOptionsWindowName) {
         Context_SetCurrentGame(state == "mm-suspended" ? GAME_OOT : GAME_MM);
         if (state == "frozen") {
@@ -1857,11 +1935,118 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.id == "Combo/Majora's Mask" && state == "autosave") {
         CVarClear("gEnhancements.Autosave");
     }
+    if (p.id == "Settings/Graphics" && state == "match-refresh-rate") {
+        CVarClear(CVAR_SETTING("MatchRefreshRate"));
+    }
+    if (p.rowStateProbe && state == "race-lockout") {
+        CVarClear(CVAR_SETTING("DisableChanges"));
+    }
     if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {
         Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_OOT);
     }
     ComboContext_Init();
     Context_SetCurrentGame(gSavedGame);
+}
+
+// ---- the row-state probe ------------------------------------------------------------------
+
+/**
+ * ADR 0004 section 6's four presentations, on synthetic rows. No production row
+ * takes a gated path today (every MM Enhancements row is Live), so without this
+ * page the presentation code would never reach a pixel. It is installed into the
+ * live menu's Combo header only while its own captures run and removed right
+ * after, so no other page's sidebar and no SoH reference ever shows it. Each row
+ * goes through the production API a real caller uses: the capability row through
+ * SohMenu::CapabilityGate on a real built-in capability (COMBO_PAIRED, absent in
+ * every state this page authors, because EnterState resets gComboCtx), the other
+ * two gated rows through SohMenu::ApplyPresentation. The rows join R5/R6 while
+ * installed, so a presentation that rewrites a row's name is a runtime-lint hit.
+ * No group title repeats a reason fragment ("Already Decided"): SeparatorText
+ * logs as "--- <title>", which would hold the "- <Reason>" tooltip line and
+ * defeat the hover contrast.
+ */
+void Session::InstallRowStateProbe() {
+    auto soh = std::dynamic_pointer_cast<SohGui::SohMenu>(menu);
+    auto& entries = MenuEntries(*menu);
+    if (soh == nullptr || !entries.contains("Combo") || entries.at("Combo").sidebars.contains(kRowStatesSidebar)) {
+        return;
+    }
+    soh->AddSidebarEntry("Combo", kRowStatesSidebar, 2);
+    WidgetPath path = { "Combo", kRowStatesSidebar, SECTION_COLUMN_1 };
+    soh->AddWidget(path, "Applies Now", WIDGET_SEPARATOR_TEXT);
+    soh->AddWidget(path, kProbeLiveRow, WIDGET_CHECKBOX)
+        .ValuePointer(&gProbeLive)
+        .Options(UIWidgets::CheckboxOptions().Tooltip("Toggles a setting that applies now."));
+    soh->AddWidget(path, "Suspended Game", WIDGET_SEPARATOR_TEXT);
+    soh->AddWidget(path, "Suspended Game Note", WIDGET_TEXT)
+        .RaceDisable(false)
+        .HideInSearch(true)
+        .PreFunc([](WidgetInfo& note) {
+            SohGui::SohMenu::ApplyPresentationNote(note, SohGui::SOH_MENU_PRESENT_INACTIVE_GAME);
+        })
+        .Options(UIWidgets::TextOptions().Color(UIWidgets::Colors::Gray));
+    soh->AddWidget(path, kProbeSuspendedRow, WIDGET_CHECKBOX)
+        .ValuePointer(&gProbeSuspended)
+        .PreFunc([](WidgetInfo& info) {
+            SohGui::SohMenu::ApplyPresentation(info, info.name, SohGui::SOH_MENU_PRESENT_INACTIVE_GAME,
+                                               "Majora's Mask is suspended");
+        })
+        .Options(UIWidgets::CheckboxOptions().Tooltip("Toggles a setting that takes effect in Majora's Mask."));
+    path.column = SECTION_COLUMN_2;
+    soh->AddWidget(path, "Gated by Capability", WIDGET_SEPARATOR_TEXT);
+    soh->AddWidget(path, "Gated by Capability Note", WIDGET_TEXT)
+        .RaceDisable(false)
+        .HideInSearch(true)
+        .PreFunc(SohGui::SohMenu::CapabilityNote(SohGui::SOH_MENU_CAP_COMBO_PAIRED))
+        .Options(UIWidgets::TextOptions().Color(UIWidgets::Colors::Gray));
+    soh->AddWidget(path, kProbeGatedRow, WIDGET_CHECKBOX)
+        .ValuePointer(&gProbeGated)
+        .PreFunc(SohGui::SohMenu::CapabilityGate(SohGui::SOH_MENU_CAP_COMBO_PAIRED))
+        .Options(UIWidgets::CheckboxOptions().Tooltip("Toggles a setting that needs a paired world."));
+    soh->AddWidget(path, "Frozen at Creation", WIDGET_SEPARATOR_TEXT);
+    soh->AddWidget(path, "Frozen at Creation Note", WIDGET_TEXT)
+        .RaceDisable(false)
+        .HideInSearch(true)
+        .PreFunc(
+            [](WidgetInfo& note) { SohGui::SohMenu::ApplyPresentationNote(note, SohGui::SOH_MENU_PRESENT_FROZEN); })
+        .Options(UIWidgets::TextOptions().Color(UIWidgets::Colors::Gray));
+    soh->AddWidget(path, kProbeDecidedRow, WIDGET_CHECKBOX)
+        .ValuePointer(&gProbeDecided)
+        .PreFunc([](WidgetInfo& info) {
+            SohGui::SohMenu::ApplyPresentation(info, info.name, SohGui::SOH_MENU_PRESENT_FROZEN, nullptr);
+        })
+        .Options(UIWidgets::CheckboxOptions().Tooltip("Toggles a setting that was fixed when the world was created."));
+
+    // Resolved after every AddWidget (a push_back can reallocate a column).
+    const std::string where = std::string("Combo/") + kRowStatesSidebar;
+    for (auto& column : entries.at("Combo").sidebars.at(kRowStatesSidebar).columnWidgets) {
+        for (WidgetInfo& row : column) {
+            probeRows.push_back(&row);
+            if (IsInteractive(row.type)) {
+                registeredNames[&row] = { where, row.name };
+            } else if (row.type == WIDGET_TEXT) {
+                textRows[&row] = where;
+            }
+        }
+    }
+}
+
+void Session::RemoveRowStateProbe() {
+    // The R5/R6 hits these rows produced are already in dynamicHits; the rows
+    // themselves are about to be destroyed.
+    for (const WidgetInfo* row : probeRows) {
+        registeredNames.erase(row);
+        textRows.erase(row);
+    }
+    probeRows.clear();
+    auto& entries = MenuEntries(*menu);
+    if (!entries.contains("Combo")) {
+        return;
+    }
+    MainMenuEntry& combo = entries.at("Combo");
+    combo.sidebars.erase(kRowStatesSidebar);
+    combo.sidebarOrder.erase(std::remove(combo.sidebarOrder.begin(), combo.sidebarOrder.end(), kRowStatesSidebar),
+                             combo.sidebarOrder.end());
 }
 
 // ---- recording ---------------------------------------------------------------------------
@@ -2014,6 +2199,9 @@ WidgetInfo* FindRow(Ship::Menu& m, const std::string& header, const std::string&
 constexpr int kMaxScrollSteps = 8;
 
 void Session::CaptureMenuPage(const PageSpec& p) {
+    if (p.rowStateProbe) {
+        InstallRowStateProbe();
+    }
     auto& entries = MenuEntries(*menu);
     const bool present = entries.contains(p.header) && entries.at(p.header).sidebars.contains(p.sidebar);
     for (const std::string& state : p.states) {
@@ -2121,6 +2309,10 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             if (byName ? (state != p.states.front()) : ((hv == "frozen-slider") != (state == "frozen"))) {
                 continue;
             }
+            if (!p.hoverStates.empty() &&
+                std::find(p.hoverStates.begin(), p.hoverStates.end(), state) == p.hoverStates.end()) {
+                continue;
+            }
             const std::string variant = VariantName(state, "hover-" + hv);
             if (!Selected(p, variant)) {
                 continue;
@@ -2158,7 +2350,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             const bool firstLineOnly = opt.Sabotaged("hover-first-line");
             std::string authoredTip;
             std::string drawnTip;
-            row->preFunc = [savedPre, savedTooltip, firstLineOnly, &authoredTip, &drawnTip](WidgetInfo& info) {
+            Ship::Menu* hoverMenu = menu.get();
+            row->preFunc = [savedPre, savedTooltip, firstLineOnly, hoverMenu, &authoredTip,
+                            &drawnTip](WidgetInfo& info) {
                 if (info.options != nullptr) {
                     // Undo last frame's sabotage first: a row whose PreFunc does not
                     // rewrite its tooltip would otherwise read the cut one back as
@@ -2175,6 +2369,15 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                                          info.options->disabledTooltip[0] != '\0';
                 const char* tip = useDisabled ? info.options->disabledTooltip : info.options->tooltip;
                 authoredTip = tip != nullptr ? tip : "";
+                if (!info.activeDisables.empty()) {
+                    // SoH's disabledMap shape: MenuDrawItem builds this tooltip
+                    // right after the PreFunc returns (Menu.cpp), in exactly
+                    // this form.
+                    authoredTip = "This setting is disabled because: \n";
+                    for (auto option : info.activeDisables) {
+                        authoredTip += std::string("\n- ") + hoverMenu->GetDisabledMap().at(option).reason;
+                    }
+                }
                 if (firstLineOnly) {
                     drawnTip = authoredTip.substr(0, authoredTip.find('\n'));
                     if (useDisabled) {
@@ -2262,6 +2465,28 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                         }
                     }
                 }
+                // The row-state probe's hovers are the four presentation states'
+                // disabled rows: each must show SoH's disabled shape (a), and no
+                // tracker number (ADR 0004's 2026-09-27 amendment). Checked on the
+                // AUTHORED tooltip, which the loop above has just proved is drawn.
+                if (c.status == "pass" && p.rowStateProbe) {
+                    const std::string head = "This setting is disabled because:";
+                    bool number = false;
+                    for (std::size_t k = 0; k + 1 < authoredTip.size(); k++) {
+                        if (authoredTip[k] == '#' && authoredTip[k + 1] >= '0' && authoredTip[k + 1] <= '9') {
+                            number = true;
+                        }
+                    }
+                    if (authoredTip.compare(0, head.size(), head) != 0) {
+                        c.status = "fail";
+                        c.reason = "the hovered row \"" + label + "\" does not show SoH's disabled tooltip (\"" + head +
+                                   "\" then \"- <Reason>\"): \"" + authoredTip + "\"";
+                    } else if (number) {
+                        c.status = "fail";
+                        c.reason = "the hovered row \"" + label + "\" prints a tracker number in its tooltip: \"" +
+                                   authoredTip + "\"; the issue belongs in the capability's record, not in the pixels";
+                    }
+                }
                 for (const std::string& line : c.hoverLines) {
                     if (c.text.find(line) != std::string::npos) {
                         c.found.push_back(line);
@@ -2275,6 +2500,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             PumpFrame(nullptr, false, nullptr, why);
         }
         LeaveState(p, state);
+    }
+    if (p.rowStateProbe) {
+        RemoveRowStateProbe();
     }
 }
 
@@ -2640,7 +2868,15 @@ void Session::WriteComposites() {
         // Scroll captures compare against the reference's matching scroll
         // position where it has one, else its first capture.
         const Capture* ref = nullptr;
-        if (c.scrollIndex >= 0) {
+        if (!c.hover.empty()) {
+            for (const Capture& r : captures) {
+                if (r.id == c.spec->compareWith && !r.hover.empty() && r.image.rgba != nullptr && r.status == "pass") {
+                    ref = &r;
+                    break;
+                }
+            }
+        }
+        if (ref == nullptr && c.scrollIndex >= 0) {
             ref = FindCapture(captures, c.spec->compareWith, "scroll" + std::to_string(c.scrollIndex));
         }
         if (ref == nullptr) {

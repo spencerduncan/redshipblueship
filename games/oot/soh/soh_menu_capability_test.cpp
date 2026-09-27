@@ -25,7 +25,11 @@
  *  2. A STALE REASON. Twice now a disabled-with-reason row outlived its blocker
  *     (#438's remainder, then #669, re-measured by PR #677). A reason nobody can
  *     trace back to a tracker is a reason nobody retires, so leg 1 refuses a
- *     built-in capability whose reason carries no `#NNN`.
+ *     built-in capability whose RECORD names no issue (`issue == 0`). Since ADR
+ *     0004's 2026-09-27 amendment the number lives in the record and not in the
+ *     player text, so leg 1 also refuses a reason that prints one: no SoH
+ *     disabled reason carries a tracker number. Both refusals are shown to bite
+ *     on synthetic records, not only asserted green on the built-ins.
  *
  *  3. A MARKER THE PASS DOES NOT ACTUALLY REACH. §4.2 is "a hard requirement on
  *     the widget, not a tooltip nicety", and the failure mode of a
@@ -38,15 +42,19 @@
  *     check: every row bound to a shared-intent key leads with the marker, and
  *     every row that is not, does not.
  *
- *  4. A PRESENTATION THAT ACCUMULATES. `ApplyPresentation` writes the state into
- *     the row NAME (§4.2's "legible without hovering", and because MenuDrawItem's
- *     race-lockout branch overwrites `disabledTooltip` outright). A PreFunc runs
- *     every frame and `WidgetInfo::ResetDisables()` does not clear `name`, so a
- *     naive version compounds — "Row - not yet available: ..." becomes that twice,
- *     then three times — and a row that recovers keeps its stale label forever.
- *     Leg 5 applies the same state repeatedly and asserts exactly one suffix,
- *     then walks every transition between the four states and asserts the name
- *     ends up as if only the last one had been applied.
+ *  4. A PRESENTATION THAT REWRITES THE ROW. ADR 0004's 2026-09-27 amendment
+ *     ("follow the SoH idiom"): a row's NAME never carries its state — SoH
+ *     never writes a state or an explanation into an interactive row's name (a
+ *     button may relabel its action, "Enable##Sail"/"Disable##Sail"; a TEXT row
+ *     may carry a live value) — a disabled state is SoH's
+ *     disabled row with MenuDrawItem's own tooltip shape ("This setting is
+ *     disabled because: " then "- <Reason>"), and what must be legible without
+ *     hovering is ONE gray note above the group. A PreFunc runs every frame and
+ *     `WidgetInfo::ResetDisables()` does not clear `name`, so leg 5 applies every
+ *     state three times and walks every transition between the four, asserting
+ *     the name is the registered one throughout and the tooltip is exactly the
+ *     SoH shape; leg 7 locks the note (hidden while live, one or two sentences,
+ *     no tracker number, the operator's INACTIVE_GAME wording).
  *
  * HOW IT OBSERVES. A derived probe reaches `Ship::Menu`'s protected
  * `menuEntries` (no production header grows a test-only reader), constructed with
@@ -115,18 +123,6 @@ void RunPreFunc(WidgetInfo& row) {
     }
 }
 
-/** How many times @p needle occurs in @p haystack. */
-int CountOf(const std::string& haystack, const std::string& needle) {
-    if (needle.empty()) {
-        return 0;
-    }
-    int n = 0;
-    for (std::size_t at = haystack.find(needle); at != std::string::npos; at = haystack.find(needle, at + 1)) {
-        n++;
-    }
-    return n;
-}
-
 const char* Tooltip(const WidgetInfo& row) {
     if (row.options == nullptr || row.options->disabledTooltip == nullptr) {
         return "";
@@ -163,7 +159,37 @@ bool SyntheticAbsent(disabledInfo& info) {
     return gSyntheticAbsent;
 }
 
-constexpr const char* kSyntheticReason = "Not yet available: a synthetic capability owned by this test (#497)";
+constexpr const char* kSyntheticReason = "Synthetic Capability Absent";
+constexpr uint32_t kSyntheticIssue = 497;
+
+/** SoH's disabled tooltip for @p reason, spelled out here rather than read from
+ *  SohMenu::DisabledTooltip, so the lock compares against MenuDrawItem's shape
+ *  (Menu.cpp: "This setting is disabled because: \n" then "\n- <reason>") and
+ *  not against the function under test. */
+std::string SohShape(const std::string& reason) {
+    return std::string("This setting is disabled because: \n\n- ") + reason;
+}
+
+/** Does @p text carry a `#NNN` tracker reference? */
+bool HasIssueNumber(const std::string& text) {
+    for (std::size_t i = 0; i + 1 < text.size(); i++) {
+        if (text[i] == '#' && text[i + 1] >= '0' && text[i + 1] <= '9') {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** How many sentences @p s holds (terminal punctuation followed by a space or the end). */
+int Sentences(const std::string& s) {
+    int n = 0;
+    for (std::size_t i = 0; i < s.size(); i++) {
+        if ((s[i] == '.' || s[i] == '!' || s[i] == '?') && (i + 1 == s.size() || s[i + 1] == ' ')) {
+            n++;
+        }
+    }
+    return n;
+}
 
 int gChainedRan = 0;
 int gChainedSawDisabled = 0;
@@ -193,23 +219,36 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
                   "built-in capability %u publishes no reason; a row gated on it would grey itself "
                   "with an empty tooltip, which reads as a bug in the menu",
                   key);
-        bool namesAnIssue = false;
-        for (std::size_t i = 0; i + 1 < reason.size(); i++) {
-            if (reason[i] == '#' && reason[i + 1] >= '0' && reason[i + 1] <= '9') {
-                namesAnIssue = true;
-                break;
-            }
-        }
-        CAP_CHECK(namesAnIssue,
-                  "built-in capability %u's reason names no issue (#NNN): \"%s\". Two disabled-with-reason rows have "
+        CAP_CHECK(SohGui::SohMenu::CapabilityIssue(key) != 0,
+                  "built-in capability %u (\"%s\") records no tracking issue. Two disabled-with-reason rows have "
                   "already outlived their blocker (#438's remainder, then #669); a reason nobody can trace is a "
                   "reason nobody retires",
                   key, reason.c_str());
+        CAP_CHECK(!HasIssueNumber(reason),
+                  "built-in capability %u's player text prints a tracker number: \"%s\". The number belongs to the "
+                  "record (SohMenuCapabilityRecord::issue); no SoH disabled reason carries one (ADR 0004's "
+                  "2026-09-27 amendment)",
+                  key, reason.c_str());
+        CAP_CHECK(SohGui::SohMenu::CapabilityTraceable(key), "built-in capability %u is not traceable (\"%s\", #%u)",
+                  key, reason.c_str(), SohGui::SohMenu::CapabilityIssue(key));
     }
     CAP_CHECK(SohGui::SohMenu::GetCapabilityMap().size() >= (std::size_t)SohGui::SOH_MENU_CAP_BUILTIN_COUNT,
               "the capability registry holds %zu entries, fewer than the %d built-ins",
               SohGui::SohMenu::GetCapabilityMap().size(), (int)SohGui::SOH_MENU_CAP_BUILTIN_COUNT);
-    printf("[TEST] leg 1: all %d built-in capabilities publish a reason that names an issue\n",
+    // The lock's red halves, on synthetic records: it must BITE on a record with
+    // no issue and on player text that prints one, or leg 1's green above proves
+    // nothing about the next capability somebody registers.
+    SohGui::SohMenu::RegisterCapability(kRefusedKey, SyntheticAbsent, "Untracked Reason", 0);
+    CAP_CHECK(std::string(SohGui::SohMenu::CapabilityReason(kRefusedKey)) == "Untracked Reason",
+              "a record with no issue did not install; its rows would grey with the generic fallback instead");
+    CAP_CHECK(!SohGui::SohMenu::CapabilityTraceable(kRefusedKey),
+              "CapabilityTraceable accepted a record with issue == 0 -- the NamesAnIssue lock no longer bites");
+    SohGui::SohMenu::RegisterCapability(kRefusedKey, SyntheticAbsent, "Tracked In The Pixels (#497)", 497);
+    CAP_CHECK(!SohGui::SohMenu::CapabilityTraceable(kRefusedKey),
+              "CapabilityTraceable accepted player text that prints its tracker number");
+    SohGui::SohMenu::UnregisterCapability(kRefusedKey);
+    printf("[TEST] leg 1: all %d built-in capabilities record an issue and print none; the lock bites on issue == 0 "
+           "and on a number in the player text\n",
            (int)SohGui::SOH_MENU_CAP_BUILTIN_COUNT);
 
     // ---- The synthetic page every later leg draws on ------------------------
@@ -217,7 +256,7 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     // CapabilityGate PreFunc resolves its key every frame and an unregistered key
     // reads ABSENT -- registering afterwards would work, but the order here is
     // the one a contributing TU's file-scope registrar actually has.
-    SohGui::SohMenu::RegisterCapability(kSyntheticKey, SyntheticAbsent, kSyntheticReason);
+    SohGui::SohMenu::RegisterCapability(kSyntheticKey, SyntheticAbsent, kSyntheticReason, kSyntheticIssue);
 
     const std::string kMmRowBase = "Needs Majora's Mask";
     const std::string kSynRowBase = "Needs The Synthetic Capability";
@@ -225,6 +264,7 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     const std::string kChainedRowBase = "Chained Gate";
     const std::string kHiddenRowBase = "Hidden Then Gated";
     const std::string kStateRowBase = "Presentation States";
+    const std::string kNoteRowBase = "Group Note";
 
     CapabilityMenuProbe probe;
     probe.AddMenuEntry("CapProbe", "gSettings.Menu.CapProbeSidebarSection");
@@ -254,6 +294,8 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
         .ValuePointer(&gHiddenValue)
         .PreFunc(SohGui::SohMenu::CapabilityGate(kSyntheticKey, [](WidgetInfo& info) { info.isHidden = true; }));
     probe.AddWidget(path, kStateRowBase, WIDGET_CHECKBOX).ValuePointer(&gStateValue);
+    // Leg 7's gray note: a TEXT row, driven the way a gated group's note is.
+    probe.AddWidget(path, kNoteRowBase, WIDGET_TEXT);
 
     // Resolved AFTER every registration: AddWidget push_backs, so a reference
     // taken earlier can be dangling.
@@ -264,9 +306,10 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     WidgetInfo* chainedRow = FindRow(gatesPage, kChainedRowBase);
     WidgetInfo* hiddenRow = FindRow(gatesPage, kHiddenRowBase);
     WidgetInfo* stateRow = FindRow(gatesPage, kStateRowBase);
+    WidgetInfo* noteRow = FindRow(gatesPage, kNoteRowBase);
     if (mmRow == nullptr || synRow == nullptr || unregRow == nullptr || chainedRow == nullptr || hiddenRow == nullptr ||
-        stateRow == nullptr) {
-        printf("[TEST] FAIL: the probe page did not register all six rows; nothing below can run\n");
+        stateRow == nullptr || noteRow == nullptr) {
+        printf("[TEST] FAIL: the probe page did not register all seven rows; nothing below can run\n");
         return 1;
     }
 
@@ -308,25 +351,20 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
                   "'%s' is still enabled with its capability absent -- ADR 0004 §5's one "
                   "forbidden outcome, a functional-looking control over nothing",
                   kMmRowBase.c_str());
-        CAP_CHECK(std::string(Tooltip(*mmRow)) == mmReason,
-                  "'%s' greyed itself with '%s', not the capability reason '%s'", kMmRowBase.c_str(), Tooltip(*mmRow),
-                  mmReason.c_str());
-        CAP_CHECK(mmRow->name.rfind(kMmRowBase, 0) == 0, "'%s' lost its base name: '%s'", kMmRowBase.c_str(),
-                  mmRow->name.c_str());
-        CAP_CHECK(mmRow->name.find(PresentLabel(SohGui::SOH_MENU_PRESENT_CAPABILITY)) != std::string::npos,
-                  "'%s' does not state its state in the NAME: '%s'. §4.2 wants it legible without hovering, and "
-                  "MenuDrawItem's race-lockout branch overwrites disabledTooltip outright",
+        CAP_CHECK(std::string(Tooltip(*mmRow)) == SohShape(mmReason),
+                  "'%s' greyed itself with '%s', not SoH's disabled shape around the capability reason ('%s')",
+                  kMmRowBase.c_str(), Tooltip(*mmRow), SohShape(mmReason).c_str());
+        CAP_CHECK(mmRow->name == kMmRowBase,
+                  "'%s' carries its state in the NAME: '%s'. SoH never writes a state or an explanation into an "
+                  "interactive row's name; the state belongs in the tooltip and the group's gray note (ADR 0004's "
+                  "2026-09-27 amendment)",
                   kMmRowBase.c_str(), mmRow->name.c_str());
-        CAP_CHECK(CountOf(mmRow->name, PresentLabel(SohGui::SOH_MENU_PRESENT_CAPABILITY)) == 1,
-                  "'%s' accumulated its state label over 3 frames: '%s'", kMmRowBase.c_str(), mmRow->name.c_str());
 
         // PRESENT again: the row must recover, NAME included.
         Combo_RegisterForeignItemPool((uint8_t)GAME_MM, mmPool, mmPoolCount);
         RunPreFunc(*mmRow);
         CAP_CHECK(!mmRow->options->disabled, "'%s' stayed disabled after its capability came back", kMmRowBase.c_str());
-        CAP_CHECK(mmRow->name == kMmRowBase,
-                  "'%s' kept a stale state label after its capability came back: '%s'. ResetDisables() clears "
-                  "`disabled` but not `name`, so the gate has to restore it",
+        CAP_CHECK(mmRow->name == kMmRowBase, "'%s' changed its name when its capability came back: '%s'",
                   kMmRowBase.c_str(), mmRow->name.c_str());
         CAP_CHECK(Combo_GetForeignItemPoolFor((uint8_t)GAME_MM, NULL) == mmPoolCount,
                   "MM's pool was not restored to its %d entries; AllTests runs every row in ONE process", mmPoolCount);
@@ -346,16 +384,20 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     gSyntheticAbsent = true;
     RunPreFunc(*synRow);
     CAP_CHECK(synRow->options->disabled, "'%s' is enabled while its capability reports ABSENT", kSynRowBase.c_str());
-    CAP_CHECK(std::string(Tooltip(*synRow)) == kSyntheticReason, "'%s' carries '%s', expected the registered reason",
-              kSynRowBase.c_str(), Tooltip(*synRow));
+    CAP_CHECK(std::string(Tooltip(*synRow)) == SohShape(kSyntheticReason),
+              "'%s' carries '%s', expected SoH's disabled shape around the registered reason", kSynRowBase.c_str(),
+              Tooltip(*synRow));
+    CAP_CHECK(SohGui::SohMenu::CapabilityIssue(kSyntheticKey) == kSyntheticIssue,
+              "RegisterCapability did not record the synthetic issue (got %u)",
+              SohGui::SohMenu::CapabilityIssue(kSyntheticKey));
 
     // Refusals. A capability with no predicate or no reason must not install --
     // a half-registered key would read PRESENT by accident, or grey rows with an
     // empty tooltip.
-    SohGui::SohMenu::RegisterCapability(kRefusedKey, nullptr, "Not yet available: has no predicate (#497)");
+    SohGui::SohMenu::RegisterCapability(kRefusedKey, nullptr, "Has No Predicate", 497);
     CAP_CHECK(std::string(SohGui::SohMenu::CapabilityReason(kRefusedKey)).empty(),
               "RegisterCapability accepted a capability with no predicate");
-    SohGui::SohMenu::RegisterCapability(kRefusedKey, SyntheticAbsent, "");
+    SohGui::SohMenu::RegisterCapability(kRefusedKey, SyntheticAbsent, "", 497);
     CAP_CHECK(std::string(SohGui::SohMenu::CapabilityReason(kRefusedKey)).empty(),
               "RegisterCapability accepted a capability with an empty reason");
 
@@ -365,8 +407,13 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
               "'%s' is enabled although nothing in this build publishes the capability it asked for. Letting it look "
               "live is the vacuous-gate class in UI form",
               kUnregRowBase.c_str());
-    CAP_CHECK(std::string(Tooltip(*unregRow)).find("#497") != std::string::npos,
-              "the unregistered-key fallback reason names no tracker: '%s'", Tooltip(*unregRow));
+    CAP_CHECK(std::string(Tooltip(*unregRow)).rfind(SohShape(""), 0) == 0 &&
+                  std::string(Tooltip(*unregRow)).size() > SohShape("").size(),
+              "the unregistered-key fallback is not SoH's disabled shape with a reason: '%s'", Tooltip(*unregRow));
+    CAP_CHECK(!HasIssueNumber(Tooltip(*unregRow)), "the unregistered-key fallback prints a tracker number: '%s'",
+              Tooltip(*unregRow));
+    CAP_CHECK(unregRow->name == kUnregRowBase, "the unregistered-key row carries its state in the name: '%s'",
+              unregRow->name.c_str());
     printf("[TEST] leg 3: RegisterCapability round-trips, refuses a predicate-less and a reason-less capability, and "
            "an unregistered key reads ABSENT\n");
 
@@ -388,20 +435,25 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     printf("[TEST] leg 4: the chained gate runs the row's own PreFunc first, keeps the last word on `disabled`, and "
            "skips a hidden row\n");
 
-    // ---- Leg 5: §6's four presentations, and no accumulation ---------------
+    // ---- Leg 5: §6's four presentations, the SoH way -------------------------
     // §6's table is what each state DENIES: live denies nothing; inactive denies
     // "this takes effect now" and stays EDITABLE; capability denies "this works";
-    // frozen denies "this is still a choice".
+    // frozen denies "this is still a choice". The 2026-09-27 amendment fixes how:
+    // the name is the row's own in every state, a disabled state is SoH's
+    // disabled tooltip, and the note (leg 7) says what must be read unhovered.
     struct StateCase {
         SohGui::SohMenuPresentation state;
         const char* reason;
         bool expectDisabled;
+        const char* expectReason; // the "- <reason>" line, for a disabled state
     };
     const StateCase kCases[] = {
-        { SohGui::SOH_MENU_PRESENT_LIVE, nullptr, false },
-        { SohGui::SOH_MENU_PRESENT_INACTIVE_GAME, "Majora's Mask is suspended", false },
-        { SohGui::SOH_MENU_PRESENT_CAPABILITY, "Not yet available: a reason with a tracker (#497)", true },
-        { SohGui::SOH_MENU_PRESENT_FROZEN, "Already decided: frozen into this world's identity", true },
+        { SohGui::SOH_MENU_PRESENT_LIVE, nullptr, false, nullptr },
+        { SohGui::SOH_MENU_PRESENT_INACTIVE_GAME, "Majora's Mask is suspended", false, nullptr },
+        { SohGui::SOH_MENU_PRESENT_CAPABILITY, "Synthetic Reason", true, "Synthetic Reason" },
+        { SohGui::SOH_MENU_PRESENT_CAPABILITY, nullptr, true, "Not Yet Available" },
+        { SohGui::SOH_MENU_PRESENT_FROZEN, "Already Decided", true, "Already Decided" },
+        { SohGui::SOH_MENU_PRESENT_FROZEN, nullptr, true, "Already Decided" },
     };
     for (const StateCase& c : kCases) {
         stateRow->name = kStateRowBase;
@@ -411,26 +463,24 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
             stateRow->ResetDisables();
             SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, c.state, c.reason);
         }
-        const char* label = PresentLabel(c.state);
         CAP_CHECK(stateRow->options->disabled == c.expectDisabled,
                   "state %d left disabled=%d, expected %d -- ADR 0004 §6's table is what each presentation must deny",
                   (int)c.state, (int)stateRow->options->disabled, (int)c.expectDisabled);
-        CAP_CHECK(stateRow->name.rfind(kStateRowBase, 0) == 0, "state %d lost the base name: '%s'", (int)c.state,
-                  stateRow->name.c_str());
-        if (c.state == SohGui::SOH_MENU_PRESENT_LIVE) {
-            CAP_CHECK(stateRow->name == kStateRowBase, "a LIVE row is labelled: '%s'", stateRow->name.c_str());
-            CAP_CHECK(std::string(Tooltip(*stateRow)).empty(), "a LIVE row carries a disabled tooltip: '%s'",
-                      Tooltip(*stateRow));
-        } else {
-            CAP_CHECK(CountOf(stateRow->name, label) == 1, "state %d accumulated its label over 3 frames: '%s'",
-                      (int)c.state, stateRow->name.c_str());
-            CAP_CHECK(stateRow->name.find(c.reason) != std::string::npos,
-                      "state %d does not carry its reason in the NAME: '%s'", (int)c.state, stateRow->name.c_str());
-        }
+        CAP_CHECK(stateRow->name == kStateRowBase,
+                  "state %d rewrote the row's NAME to '%s'. SoH never writes a state or an explanation into an "
+                  "interactive row's name; the state belongs in the tooltip and the group's gray note (ADR 0004's "
+                  "2026-09-27 amendment)",
+                  (int)c.state, stateRow->name.c_str());
         if (c.expectDisabled) {
-            CAP_CHECK(std::string(Tooltip(*stateRow)) == c.reason, "state %d's tooltip is '%s', expected '%s'",
-                      (int)c.state, Tooltip(*stateRow), c.reason);
+            CAP_CHECK(std::string(Tooltip(*stateRow)) == SohShape(c.expectReason),
+                      "state %d's tooltip is '%s', expected SoH's disabled shape '%s'", (int)c.state,
+                      Tooltip(*stateRow), SohShape(c.expectReason).c_str());
+        } else {
+            CAP_CHECK(std::string(Tooltip(*stateRow)).empty(),
+                      "state %d is editable but carries a disabled tooltip: '%s'", (int)c.state, Tooltip(*stateRow));
         }
+        CAP_CHECK(!HasIssueNumber(Tooltip(*stateRow)), "state %d's tooltip prints a tracker number: '%s'", (int)c.state,
+                  Tooltip(*stateRow));
     }
 
     // A LIVE application must DROP a reason it is handed: a control that works
@@ -438,33 +488,40 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     // says nothing.
     stateRow->name = kStateRowBase;
     stateRow->ResetDisables();
-    SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, SohGui::SOH_MENU_PRESENT_LIVE,
-                                       "Not yet available: should be dropped (#497)");
-    CAP_CHECK(stateRow->name == kStateRowBase, "a LIVE row given a reason kept it in the name: '%s'",
+    SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, SohGui::SOH_MENU_PRESENT_LIVE, "Should Be Dropped");
+    CAP_CHECK(stateRow->name == kStateRowBase, "a LIVE row given a reason changed its name: '%s'",
               stateRow->name.c_str());
     CAP_CHECK(std::string(Tooltip(*stateRow)).empty(), "a LIVE row given a reason kept it as a tooltip: '%s'",
               Tooltip(*stateRow));
 
-    // Every transition between the four states, from a name the previous state
-    // already wrote. The name must read as if only the last state had applied.
+    // Every transition between the four states. The row must read as if only
+    // the last state had applied: its own name, and the last state's tooltip.
     for (int from = 0; from < (int)SohGui::SOH_MENU_PRESENT_COUNT; from++) {
         for (int to = 0; to < (int)SohGui::SOH_MENU_PRESENT_COUNT; to++) {
             stateRow->name = kStateRowBase;
             stateRow->ResetDisables();
             SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, (SohGui::SohMenuPresentation)from,
-                                               from == (int)SohGui::SOH_MENU_PRESENT_LIVE ? nullptr
-                                                                                          : "Reason A (#497)");
+                                               from == (int)SohGui::SOH_MENU_PRESENT_LIVE ? nullptr : "Reason A");
             stateRow->ResetDisables();
             SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, (SohGui::SohMenuPresentation)to,
-                                               to == (int)SohGui::SOH_MENU_PRESENT_LIVE ? nullptr : "Reason B (#497)");
-
-            std::string expected = kStateRowBase;
-            if (to != (int)SohGui::SOH_MENU_PRESENT_LIVE) {
-                expected += std::string(" - ") + PresentLabel((SohGui::SohMenuPresentation)to) + ": Reason B (#497)";
-            }
-            CAP_CHECK(stateRow->name == expected, "state %d -> %d left the name '%s', expected '%s'", from, to,
-                      stateRow->name.c_str(), expected.c_str());
+                                               to == (int)SohGui::SOH_MENU_PRESENT_LIVE ? nullptr : "Reason B");
+            CAP_CHECK(stateRow->name == kStateRowBase, "state %d -> %d left the name '%s', expected '%s'", from, to,
+                      stateRow->name.c_str(), kStateRowBase.c_str());
+            const bool disabledTo =
+                to == (int)SohGui::SOH_MENU_PRESENT_CAPABILITY || to == (int)SohGui::SOH_MENU_PRESENT_FROZEN;
+            const std::string wantTip = disabledTo ? SohShape("Reason B") : std::string();
+            CAP_CHECK(std::string(Tooltip(*stateRow)) == wantTip, "state %d -> %d left the tooltip '%s', expected '%s'",
+                      from, to, Tooltip(*stateRow), wantTip.c_str());
         }
+    }
+
+    // A name an older build's composition left behind heals on the next frame
+    // rather than persisting (the old suffix, both spellings).
+    for (const char* legacy : { " - not yet available: Reason (#497)", " - Already Decided" }) {
+        stateRow->name = kStateRowBase + legacy;
+        stateRow->ResetDisables();
+        SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, SohGui::SOH_MENU_PRESENT_CAPABILITY, "Reason");
+        CAP_CHECK(stateRow->name == kStateRowBase, "a legacy suffixed name did not heal: '%s'", stateRow->name.c_str());
     }
 
     // §6's one explicit confusion: the two disabled states may not borrow each
@@ -474,16 +531,16 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     stateRow->ResetDisables();
     SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, SohGui::SOH_MENU_PRESENT_CAPABILITY,
                                        "already decided: borrowed from the freeze");
-    CAP_CHECK(std::string(Tooltip(*stateRow)) == std::string(PresentLabel(SohGui::SOH_MENU_PRESENT_CAPABILITY)),
+    CAP_CHECK(std::string(Tooltip(*stateRow)) == SohShape(PresentLabel(SohGui::SOH_MENU_PRESENT_CAPABILITY)),
               "a CAPABILITY gate kept a borrowed freeze reason: '%s'", Tooltip(*stateRow));
     stateRow->name = kStateRowBase;
     stateRow->ResetDisables();
     SohGui::SohMenu::ApplyPresentation(*stateRow, stateRow->name, SohGui::SOH_MENU_PRESENT_FROZEN,
                                        SohGui::SohMenu::CapabilityReason(SohGui::SOH_MENU_CAP_MM_HOSTED));
-    CAP_CHECK(std::string(Tooltip(*stateRow)) == std::string(PresentLabel(SohGui::SOH_MENU_PRESENT_FROZEN)),
+    CAP_CHECK(std::string(Tooltip(*stateRow)) == SohShape(PresentLabel(SohGui::SOH_MENU_PRESENT_FROZEN)),
               "a FROZEN row kept a registered capability reason: '%s'", Tooltip(*stateRow));
-    printf("[TEST] leg 5: all four §6 presentations render per the ADR, every transition between them is idempotent, "
-           "and the two disabled states cannot borrow each other's wording\n");
+    printf("[TEST] leg 5: all four §6 presentations keep the row's name and use SoH's disabled tooltip, every "
+           "transition between them is idempotent, and the two disabled states cannot borrow each other's wording\n");
 
     // ---- Leg 6: §4.2's marker, manifest-driven, over a PRODUCTION section ---
     CAP_CHECK(std::string(SohGui::SohMenu::SharedIntentMarker()) == std::string(Combo_ComboSettingSharedMarker()),
@@ -566,6 +623,77 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
                "and is idempotent\n",
                marked);
     }
+
+    // ---- Leg 7: the one gray note per gated group ---------------------------
+    // What must be legible WITHOUT hovering, and what survives a race lockout
+    // (MenuDrawItem replaces a directly written disabled tooltip there, which
+    // ours must be): SoH's TEXT-row idiom.
+    {
+        WidgetInfo& note = *noteRow;
+        for (int s = 0; s < (int)SohGui::SOH_MENU_PRESENT_COUNT; s++) {
+            const auto state = (SohGui::SohMenuPresentation)s;
+            note.ResetDisables();
+            SohGui::SohMenu::ApplyPresentationNote(note, state);
+            if (state == SohGui::SOH_MENU_PRESENT_LIVE) {
+                CAP_CHECK(note.isHidden, "a LIVE group's note is shown ('%s'); a live group says nothing",
+                          note.name.c_str());
+                continue;
+            }
+            CAP_CHECK(!note.isHidden, "state %d's note is hidden", s);
+            CAP_CHECK(note.name == SohGui::SohMenu::PresentationNoteText(state),
+                      "state %d's note reads '%s', expected its canonical sentence '%s'", s, note.name.c_str(),
+                      SohGui::SohMenu::PresentationNoteText(state));
+            const int sentences = Sentences(note.name);
+            CAP_CHECK(sentences >= 1 && sentences <= 2 && note.name.size() <= 200 && !HasIssueNumber(note.name),
+                      "state %d's note is not one or two short sentences without a tracker number: '%s'", s,
+                      note.name.c_str());
+        }
+        CAP_CHECK(std::string(SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_INACTIVE_GAME)) ==
+                      "Majora's Mask is suspended; these take effect when you return.",
+                  "INACTIVE_GAME's note is not the operator's wording: '%s'",
+                  SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_INACTIVE_GAME));
+        note.ResetDisables();
+        SohGui::SohMenu::ApplyPresentationNote(note, SohGui::SOH_MENU_PRESENT_FROZEN, "A caller's own sentence.");
+        CAP_CHECK(note.name == "A caller's own sentence.", "the note ignored its caller's sentence: '%s'",
+                  note.name.c_str());
+
+        // The capability note, over the registry: hidden while present, a
+        // sentence-case sentence while absent (the state's canonical one, or the
+        // caller's), and idempotent per frame. NOT the reason fragment pasted
+        // into a sentence ("Unavailable: No Paired World Yet."): that read as
+        // neither SoH's reason style nor its gray-note style beside sentence-case
+        // siblings, so the fragment stays in the rows' tooltip.
+        const WidgetFunc capNote = SohGui::SohMenu::CapabilityNote(kSyntheticKey);
+        gSyntheticAbsent = false;
+        note.ResetDisables();
+        capNote(note);
+        CAP_CHECK(note.isHidden, "the capability note is shown while its capability is present: '%s'",
+                  note.name.c_str());
+        gSyntheticAbsent = true;
+        for (int frame = 0; frame < 3; frame++) {
+            note.ResetDisables();
+            capNote(note);
+        }
+        const std::string wantNote = SohGui::SohMenu::PresentationNoteText(SohGui::SOH_MENU_PRESENT_CAPABILITY);
+        CAP_CHECK(!note.isHidden && note.name == wantNote, "the capability note reads '%s' (hidden=%d), expected '%s'",
+                  note.name.c_str(), (int)note.isHidden, wantNote.c_str());
+        CAP_CHECK(note.name.find(kSyntheticReason) == std::string::npos,
+                  "the capability note pastes the Title Case reason fragment into a sentence: '%s'", note.name.c_str());
+        const WidgetFunc ownNote = SohGui::SohMenu::CapabilityNote(kSyntheticKey, "These need a synthetic world.");
+        note.ResetDisables();
+        ownNote(note);
+        CAP_CHECK(!note.isHidden && note.name == "These need a synthetic world.",
+                  "the capability note ignored its caller's sentence: '%s' (hidden=%d)", note.name.c_str(),
+                  (int)note.isHidden);
+        gSyntheticAbsent = false;
+        note.ResetDisables();
+        ownNote(note);
+        CAP_CHECK(note.isHidden, "a capability note with its own sentence is shown while present: '%s'",
+                  note.name.c_str());
+        gSyntheticAbsent = true;
+    }
+    printf("[TEST] leg 7: the gray note hides for a live group, says each other state in one or two sentences with no "
+           "tracker number, and follows its capability\n");
 
     // Leave the process clean: the capability registry is process-global and
     // AllTests runs every dispatch entry in ONE process.

@@ -56,8 +56,3 @@ S6 | src/common/ComboMmOptionsWindow.cpp | ImGui::SetTooltip("%s", text);
 S7 | games/mm/2s2h/Rando/OptionsUiSingleExe.cpp | No logic binding yet (#578 part 3)
 S7 | games/mm/2s2h/Rando/OptionsUiSingleExe.cpp | Retired (ADR 0010 O1): no code will ever read this option
 S7 | games/mm/2s2h/Rando/OptionsUiSingleExe.cpp | Retired: this option never had a consumer and, by operator ruling (ADR 0010 answer O1), never will.
-S7 | games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted | Not yet available: Majora's Mask support is not in this build - MM's item pool never registered (#39
-S7 | games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted | Not yet available: no paired Majora's Mask world yet - generate a randomized Ocarina of Time seed fi
-S7 | games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted | Not yet available: the cross-game settings store is not reachable in this process (#498)
-S7 | games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted | Not yet available: this control declares a capability nothing in this build publishes (#497)
-S7 | games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted | Only available in the combined RedShipBlueShip executable (#392)
