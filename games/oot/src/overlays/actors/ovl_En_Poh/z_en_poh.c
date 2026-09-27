@@ -45,6 +45,10 @@ void EnPoh_TalkComposer(EnPoh* this, PlayState* play);
 
 static s16 D_80AE1A50 = 0;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_EnPoh_Reset(void);
+#endif
+
 const ActorInit En_Poh_InitVars = {
     ACTOR_EN_POH,
     ACTORCAT_ENEMY,
@@ -55,7 +59,11 @@ const ActorInit En_Poh_InitVars = {
     (ActorFunc)OoT_EnPoh_Destroy,
     (ActorFunc)OoT_EnPoh_Update,
     NULL,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_EnPoh_Reset,
+#else
     NULL,
+#endif
 };
 
 static ColliderCylinderInit OoT_sCylinderInit = {
@@ -1199,3 +1207,29 @@ void EnPoh_DrawSoul(Actor* thisx, PlayState* play) {
     }
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] OoT_EnPoh_Destroy takes a rupee Poe out of the count D_80AE1A50; Init kills a new rupee Poe once the
+// count reaches 3. Nothing but Destroy ever put it back. A cross-game departure abandons OoT's Play gamestate
+// without deleting its actors (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp), so it kept the abandoned
+// session's value. OoT_Actor_FreeOverlay calls this only once the overlay has no clients, when every Destroy has
+// already restored the initial value, so on a normal teardown it changes nothing.
+void OoT_EnPoh_Reset(void) {
+    D_80AE1A50 = 0;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_EnPoh_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        D_80AE1A50 = 2;
+    } else {
+        D_80AE1A50 = 0;
+    }
+}
+
+s32 OoT_EnPoh_DestroyStaticsDirtyForTest(void) {
+    return D_80AE1A50 != 0;
+}
+#endif

@@ -36,6 +36,10 @@ void ObjLightswitch_DisappearDelay(ObjLightswitch* this, PlayState* play);
 void ObjLightswitch_SetupDisappear(ObjLightswitch* this);
 void ObjLightswitch_Disappear(ObjLightswitch* this, PlayState* play);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_ObjLightswitch_Reset(void);
+#endif
+
 const ActorInit Obj_Lightswitch_InitVars = {
     ACTOR_OBJ_LIGHTSWITCH,
     ACTORCAT_SWITCH,
@@ -46,7 +50,11 @@ const ActorInit Obj_Lightswitch_InitVars = {
     (ActorFunc)OoT_ObjLightswitch_Destroy,
     (ActorFunc)OoT_ObjLightswitch_Update,
     (ActorFunc)OoT_ObjLightswitch_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_ObjLightswitch_Reset,
+#else
     NULL,
+#endif
 };
 
 static ColliderJntSphElementInit sColliderJntSphElementInit[] = {
@@ -577,3 +585,31 @@ void OoT_ObjLightswitch_Draw(Actor* thisx, PlayState* play) {
         ObjLightswitch_DrawOpa(this, play);
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] OoT_ObjLightswitch_Destroy clears sunSwitchActivatedByLightArrow (SoH's Sunlight Arrows flag) when a
+// sun switch goes, after unsetting that switch's flag; Init clears it again only for a switch that starts off, so a
+// switch that starts on would inherit the abandoned session's flag and unset its own switch flag on room exit.
+// Nothing but Destroy ever put it back. A cross-game departure abandons OoT's Play gamestate without deleting its
+// actors (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp), so it kept the abandoned session's value.
+// OoT_Actor_FreeOverlay calls this only once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void OoT_ObjLightswitch_Reset(void) {
+    sunSwitchActivatedByLightArrow = false;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_ObjLightswitch_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        sunSwitchActivatedByLightArrow = true;
+    } else {
+        sunSwitchActivatedByLightArrow = false;
+    }
+}
+
+s32 OoT_ObjLightswitch_DestroyStaticsDirtyForTest(void) {
+    return sunSwitchActivatedByLightArrow != false;
+}
+#endif

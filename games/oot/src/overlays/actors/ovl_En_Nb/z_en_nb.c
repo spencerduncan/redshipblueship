@@ -1531,6 +1531,10 @@ void OoT_EnNb_Draw(Actor* thisx, PlayState* play) {
     OoT_sDrawFuncs[this->drawMode](this, play);
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void OoT_EnNb_Reset(void);
+#endif
+
 const ActorInit En_Nb_InitVars = {
     ACTOR_EN_NB,
     ACTORCAT_NPC,
@@ -1541,5 +1545,35 @@ const ActorInit En_Nb_InitVars = {
     (ActorFunc)OoT_EnNb_Destroy,
     (ActorFunc)OoT_EnNb_Update,
     (ActorFunc)OoT_EnNb_Draw,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    (ActorResetFunc)OoT_EnNb_Reset,
+#else
     NULL,
+#endif
 };
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] OoT_EnNb_Destroy clears D_80AB4318, the cutscene-edge latch Nabooru's actor toggles. Nothing but
+// Destroy ever put it back. A cross-game departure abandons OoT's Play gamestate without deleting its actors
+// (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp), so it kept the abandoned session's value.
+// OoT_Actor_FreeOverlay calls this only once the overlay has no clients, when every Destroy has already restored the
+// initial value, so on a normal teardown it changes nothing.
+void OoT_EnNb_Reset(void) {
+    D_80AB4318 = 0;
+}
+
+// [RSBS #750] Seed and read the static(s) above for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live client leaves them, 0 puts back
+// the initial value; the check is nonzero while any is not at its initial value.
+void OoT_EnNb_SetDestroyStaticsForTest(s32 dirty) {
+    if (dirty) {
+        D_80AB4318 = 1;
+    } else {
+        D_80AB4318 = 0;
+    }
+}
+
+s32 OoT_EnNb_DestroyStaticsDirtyForTest(void) {
+    return D_80AB4318 != 0;
+}
+#endif

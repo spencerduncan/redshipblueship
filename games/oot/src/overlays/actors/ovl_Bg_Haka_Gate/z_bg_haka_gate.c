@@ -374,4 +374,26 @@ void BgHakaGate_Draw(Actor* thisx, PlayState* play) {
 
 void BgHakaGate_Reset(void) {
     sStatueRotY = 0;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // [RSBS #750] BgHakaGate_Destroy puts the Skull of Truth puzzle state back when the statue goes, and nothing else
+    // ever does. A cross-game departure abandons OoT's Play gamestate without deleting its actors
+    // (OoT_RetireAbandonedSession, GameExports_SingleExe.cpp). This runs only once the overlay has no clients, after
+    // the statue's Destroy has already restored both, so on a normal teardown it changes nothing.
+    sSkullOfTruthRotY = 0x100;
+    sBgPoEventPuzzleState = 1;
+#endif
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #750] Seed and read the Destroy-maintained statics for the oot-abandoned-session-statics row
+// (games/oot/soh/oot_abandoned_session_test.cpp): dirty != 0 puts them where a live statue leaves them (puzzle
+// solved), 0 puts back the initial values; the check is nonzero while either is not at its initial value.
+void OoT_BgHakaGate_SetDestroyStaticsForTest(s32 dirty) {
+    sSkullOfTruthRotY = dirty ? 0x4000 : 0x100;
+    sBgPoEventPuzzleState = dirty ? SKULL_OF_TRUTH_FOUND : 1;
+}
+
+s32 OoT_BgHakaGate_DestroyStaticsDirtyForTest(void) {
+    return (sSkullOfTruthRotY != 0x100) || (sBgPoEventPuzzleState != 1);
+}
+#endif
