@@ -694,6 +694,11 @@ extern "C" {
 // SCOPE (compiled as C++). Its SqpDeadHeartPickups is also called by
 // combo-logic-bag-composition B7 (declared there).
 #include "tests/test_shared_quantity_policy.c"
+// A foreign item's icon in MM's get-item textbox (#607): the origin's answer for
+// every OoT progression item, the fallbacks, and the real load/decode/draw chain
+// (its MM half is games/mm/2s2h/Rando/ForeignTextboxIconSingleExe.cpp). FILE
+// SCOPE (compiled as C++).
+#include "tests/test_foreign_textbox_icon.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -4558,6 +4563,11 @@ const TestDescriptor gTests[] = {
      "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
      "trimmed hearts end the shared bar at exactly 320 with zero dead pickups (lane K13)",
      Test_SharedQuantityPolicy},
+    {"foreign-textbox-icon",
+     "A foreign (OoT) item picked up in MM shows OoT's own icon in the blue get-item textbox: every OoT progression "
+     "item answers a well-formed icon with an MM textbox branch, unknown ids fall back to the icon-less textbox, and "
+     "the real load, header decode and draw carry it (#607)",
+     Test_ForeignTextboxIcon},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

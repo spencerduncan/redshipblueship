@@ -7,6 +7,10 @@ extern "C" {
 extern f32 sNESFontWidths[160];
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/ForeignTextboxIcon.h" // #607: MM_ForeignTextboxIcon_Arm
+#endif
+
 CustomMessage::Entry activeCustomMessage;
 
 std::string CustomMessage::RemoveColorCodes(const std::string& input) {
@@ -166,6 +170,13 @@ void CustomMessage::LoadCustomMessageIntoFont(CustomMessage::Entry entry) {
 
     msgCtx->msgLength = entry.msg.length() + MESSAGE_HEADER_SIZE;
     memcpy(&font->msgBuf, buff, msgCtx->msgLength);
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #607: every custom load re-arms the foreign icon for the message it just
+    // wrote (nullptr disarms), so the arm always describes the buffer the next
+    // header decode reads.
+    MM_ForeignTextboxIcon_Arm(entry.foreignIconTexture, entry.foreignIconItemId);
+#endif
 }
 
 void CustomMessage::RegisterHooks() {

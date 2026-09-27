@@ -126,3 +126,6 @@ games/mm/2s2h/mm_triforce_hunt_test.cpp
 games/oot/soh/oot_triforce_hunt_test.cpp
 games/oot/soh/soh_ui_snapshot.cpp
 games/oot/soh/SohGui/ComboUiSoh.cpp
+games/mm/2s2h/Rando/ForeignTextboxIcon.h
+games/mm/2s2h/Rando/ForeignTextboxIconSingleExe.cpp
+games/oot/soh/Enhancements/randomizer/ForeignTextboxIconOoT.cpp

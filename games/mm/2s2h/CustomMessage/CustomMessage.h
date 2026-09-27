@@ -38,6 +38,14 @@ struct Entry {
     uint16_t secondItemCost = 0xFFFF;
     bool autoFormat = true;
     std::string msg = "";
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #607: a foreign (other-game) item's icon, which no header icon byte can
+    // name. The origin game's texture path plus the MM item id whose textbox
+    // branch draws that texture's layout; `icon` stays 0xFE. Carried to the
+    // header decode by LoadCustomMessageIntoFont (Rando/ForeignTextboxIcon.h).
+    const char* foreignIconTexture = nullptr;
+    uint8_t foreignIconItemId = 0xFE;
+#endif
 };
 
 void RegisterHooks();
