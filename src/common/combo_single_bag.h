@@ -52,6 +52,16 @@
  *     and traps never enter; each game's own pass places them on its own
  *     leftover hosts, which is how "a trap never crosses" (a caller convention,
  *     combo_logic.h) is kept.
+ *     THE SHARED-QUANTITY TRIM (combo_logic.h; lane K13, PR #744) runs inside the
+ *     composer: this caller publishes both games' FROZEN starting healths
+ *     (OoT_ComboLogic_StartingHealth / MM_ComboLogic_StartingHealth, from the
+ *     settings the identity froze) and a trim seed derived from the identity
+ *     (Combo_SingleBag_TrimSeed), never KEEP_ALL. A TRIMMED row is not its item
+ *     any more: it goes back to its ORIGIN game's own pass as ONE FILLER COPY
+ *     (OoT: OoT_ComboLogic_NoteTrimmedRows, one GetJunkItem() each; MM: the
+ *     RSBS_SINGLE_BAG_MM_ROW_TRIMMED mark, one RI_JUNK each), dealt after that
+ *     game's traps. Handing it back as the item would put the dead heart pickups
+ *     the trim removed straight back into the world through the per-game pass.
  *  2. WHICH ORIGINS MAY CROSS. The frozen DIRECTION must arm the origin
  *     (Combo_ComboDirectionArms), and the frozen ITEM-CLASS bitset for that origin
  *     must hold RSBS_ITEMCLASS_PROGRESSION: the one class either pinned pool ever
@@ -60,7 +70,10 @@
  *     is still ONE fill with ONE proof; nothing crosses.
  *  3. THE SEED. A pure function of the frozen identity (master seed, OoT settings
  *     hash, MM profile digest, combo fingerprint) and the ladder attempt
- *     (Combo_SingleBag_SeedFor). No game RNG.
+ *     (Combo_SingleBag_SeedFor). No game RNG. The TRIM seed is the same identity
+ *     under its own domain tag and WITHOUT the ladder attempt: which copies of a
+ *     shared family survive is a fact of the world's identity, so a ladder retry
+ *     re-draws the placements over the same bag.
  *  4. THE BUDGET. The per-attempt wall-clock budget MM's ladder hands its fill
  *     (#582) is checked between rounds by the fill's observer; exceeding it is
  *     RSBS_COMBO_LOGIC_ERR_ABORTED, which the ladder treats as a wall-clock STOP
@@ -80,6 +93,11 @@
 extern "C" {
 #endif
 
+/** `Combo_SingleBag_Run`'s `outMmInBag` values, one per MM pool row. */
+#define RSBS_SINGLE_BAG_MM_ROW_OWN_PASS 0 /**< left for MM's own pass, as itself */
+#define RSBS_SINGLE_BAG_MM_ROW_IN_BAG 1   /**< a bag row: the coordinator placed (or dropped) it */
+#define RSBS_SINGLE_BAG_MM_ROW_TRIMMED 2  /**< trimmed: MM's own pass deals one junk copy instead */
+
 /** What the last single-bag fill did. Diagnostics, not format. */
 typedef struct {
     int status;        // RSBS_COMBO_LOGIC_*
@@ -92,6 +110,11 @@ typedef struct {
     int ootRows;       // OoT general-pass pool rows exported
     int mmRows;        // MM pool rows handed in
     ComboLogicComposeResult compose;
+    uint32_t trimSeed;          // THE SHARED-QUANTITY TRIM's seed (Combo_SingleBag_TrimSeed)
+    uint16_t startingHealthOoT; // the frozen starting healths the trim was handed (0x10 per heart)
+    uint16_t startingHealthMM;
+    int trimmedOoT; // OoT pool rows the trim removed: each one OoT filler copy
+    int trimmedMM;  // ... and MM's
     int bagCount;
     int homeOnlyRows; // bag rows kept in their own game (direction / class / confinement)
     ComboLogicFillResult fill;
@@ -113,14 +136,18 @@ typedef struct {
  * @param mmItems     MM's pool, one row per copy, in GeneratePools' order
  * @param mmFlags     each row's RSBS_COMBO_POOL_* flags (MM_ComboLogic_MarkPoolRows)
  * @param budgetMs    the per-attempt wall-clock budget; 0 = none
- * @param outMmInBag  optional, `mmCount` bytes: 1 where that MM row entered the
- *                    bag (the coordinator placed or dropped it), 0 where it is
- *                    left for MM's own pass. Written only on success.
+ * @param outMmInBag  optional, `mmCount` bytes, one RSBS_SINGLE_BAG_MM_ROW_* per
+ *                    MM row: IN_BAG where it entered the bag (the coordinator
+ *                    placed or dropped it), TRIMMED where the shared-quantity trim
+ *                    removed it (MM's own pass deals ONE JUNK COPY for it, never
+ *                    the item), OWN_PASS where it is left for MM's own pass as
+ *                    itself. Written only on success.
  * @return RSBS_COMBO_LOGIC_OK, or the refusal / failure status. ON ANY FAILURE
  *         both engines and both tables are rolled back to the state they held on
  *         entry (Combo_Logic_ResetPlacements), so a ladder retry starts clean.
- *         ON SUCCESS OoT's engine is told which of its pool rows the bag took, so
- *         OoT_ComboLogic_FinishGeneralPass fills OoT's leftovers from the rest.
+ *         ON SUCCESS OoT's engine is told which of its pool rows the bag took and
+ *         which the trim removed, so OoT_ComboLogic_FinishGeneralPass fills OoT's
+ *         leftovers from the rest, with one junk copy per trimmed row.
  */
 int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mmCount, int ladderAttempt,
                         uint32_t budgetMs, uint8_t* outMmInBag, ComboSingleBagReport* out);
@@ -130,6 +157,10 @@ const ComboSingleBagReport* Combo_SingleBag_LastReport(void);
 
 /** The coordinator seed for ladder attempt `ladderAttempt` under the frozen identity. */
 uint32_t Combo_SingleBag_SeedFor(int ladderAttempt);
+
+/** THE SHARED-QUANTITY TRIM's seed (ComboLogicComposeRequest.trimSeed) under the
+ *  frozen identity: its own domain tag, no ladder attempt (see rule 3 above). */
+uint32_t Combo_SingleBag_TrimSeed(void);
 
 /**
  * COMMIT: the world is decided, so drop every record of HOW it was decided without
@@ -168,6 +199,13 @@ uint32_t OoT_ComboLogic_ConfinementArmed(void);
 int OoT_ComboLogic_GeneralPassDeferred(void);
 /** OoT: the export rows (source 0, export order) the bag took. */
 void OoT_ComboLogic_NoteBagRows(const int* exportRows, int count);
+/** OoT: the export rows (source 0, export order) THE SHARED-QUANTITY TRIM removed;
+ *  OoT's remainder places one junk copy for each instead of the item. */
+void OoT_ComboLogic_NoteTrimmedRows(const int* exportRows, int count);
+/** Each game's FROZEN starting health in health units (0x10 per heart), for the
+ *  trim's health budget (lane K13's exports; 0 = not published). */
+uint16_t OoT_ComboLogic_StartingHealth(void);
+uint16_t MM_ComboLogic_StartingHealth(void);
 /** OoT: drop the engine's placement record without restoring (see Forget). */
 void OoT_ComboLogic_ForgetPlacements(void);
 /** MM (ComboLogicEngineSingleExe.cpp): the same for MM's engine, and its host pool. */

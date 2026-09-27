@@ -2328,6 +2328,9 @@ extern "C" int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_
 // fill.cpp: the remainder (RSBS_SINGLE_EXECUTABLE only) and the empty-host walk.
 int RsbsFinishPairedGeneralPass(std::vector<RandomizerGet>& remainingPool);
 std::vector<RandomizerCheck> GetAllEmptyLocations();
+// item_pool.cpp: OoT's own junk draw (the item FastFill pads with), for the
+// trimmed rows' filler.
+RandomizerGet GetJunkItem();
 
 namespace {
 /** OoT's world is waiting at its general-pass point for the single-bag fill. */
@@ -2339,6 +2342,9 @@ bool sNativeGeneralPassForTest = false;
 bool sWritingSingleBagSpoiler = false;
 /** The export rows (source 0, export order) the last successful bag took. */
 std::vector<int> sBagExportRows;
+/** The export rows THE SHARED-QUANTITY TRIM removed (combo_logic.h): each leaves
+ *  the pool and comes back as ONE OoT junk copy, never as the item. */
+std::vector<int> sTrimmedExportRows;
 } // namespace
 
 /** Fill()'s question: should this generation stop at its general pass? Yes for a
@@ -2354,6 +2360,7 @@ extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred) {
     sGeneralPassDeferred = (deferred != 0);
     if (!sGeneralPassDeferred) {
         sBagExportRows.clear();
+        sTrimmedExportRows.clear();
     }
 }
 
@@ -2377,6 +2384,13 @@ extern "C" void OoT_ComboLogic_NoteBagRows(const int* exportRows, int count) {
     }
 }
 
+extern "C" void OoT_ComboLogic_NoteTrimmedRows(const int* exportRows, int count) {
+    sTrimmedExportRows.clear();
+    for (int i = 0; exportRows != nullptr && i < count; ++i) {
+        sTrimmedExportRows.push_back(exportRows[i]);
+    }
+}
+
 /**
  * COMMIT (Combo_SingleBag_Forget): forget which hosts the coordinator gave this
  * engine WITHOUT restoring their prior item. The record exists for the batch
@@ -2392,7 +2406,12 @@ extern "C" void OoT_ComboLogic_ForgetPlacements(void) {
  *
  *  1. Remove from `itemPool` the rows the bag took (OoT_ComboLogic_NoteBagRows,
  *     in export order: source 0 enumerates `itemPool` skipping RG_NONE, and so
- *     does this walk). What is left is OoT's junk, renewables and traps.
+ *     does this walk) and the rows THE SHARED-QUANTITY TRIM removed
+ *     (OoT_ComboLogic_NoteTrimmedRows). What is left is OoT's junk, renewables
+ *     and traps; after step 3 each trimmed row adds ONE GetJunkItem() copy — the
+ *     junk OoT's own FastFill pads with, drawn from the re-seeded stream — so a
+ *     trimmed heart's host gets filler, never the dead pickup (combo_logic.h,
+ *     THE SHARED-QUANTITY TRIM, rule 5).
  *  2. Mark every host the coordinator filled HINTABLE, as the native general
  *     pass's AssumedFill(…, setLocationsAsHintable = true) would have.
  *  3. Re-seed OoT's RNG from the seed hash Playthrough_Init already derived, plus
@@ -2435,6 +2454,11 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
                 taken[(size_t)itemPoolIndexOfRow[(size_t)row]] = true;
             }
         }
+        for (const int row : sTrimmedExportRows) {
+            if (row >= 0 && row < (int)itemPoolIndexOfRow.size()) {
+                taken[(size_t)itemPoolIndexOfRow[(size_t)row]] = true;
+            }
+        }
     }
     std::vector<RandomizerGet> remaining;
     for (size_t i = 0; i < itemPool.size(); ++i) {
@@ -2463,6 +2487,13 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
 
     // 3. The stream, from the identity.
     Random_Init(SohUtils::Hash(ctx->GetHash() + std::string("|rsbs-single-bag-oot-remainder-v1")));
+
+    // The trimmed rows' filler: one OoT junk copy each, from that stream.
+    // RsbsFinishPairedGeneralPass deals traps first and these with the rest.
+    const int trimmedRows = (int)sTrimmedExportRows.size();
+    for (int i = 0; i < trimmedRows; ++i) {
+        remaining.push_back(GetJunkItem());
+    }
 
     // 4. The remainder, with Logic detached from any live save.
     //
@@ -2497,9 +2528,9 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
     const int bagRowsTaken = (int)sBagExportRows.size();
     OoT_ComboLogic_SetGeneralPassDeferred(0);
     fprintf(stderr,
-            "[OoT/ComboLogic] general pass finished: %d bag rows left the pool, %d per-game rows onto %d leftover "
-            "hosts, %d empty after\n",
-            bagRowsTaken, remainingRows, leftovers, (int)GetAllEmptyLocations().size());
+            "[OoT/ComboLogic] general pass finished: %d bag rows left the pool, %d trimmed rows became junk, %d "
+            "per-game rows onto %d leftover hosts, %d empty after\n",
+            bagRowsTaken, trimmedRows, remainingRows, leftovers, (int)GetAllEmptyLocations().size());
 
     // 5. OoT's spoiler document.
     if (writeSpoiler) {

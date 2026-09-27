@@ -771,6 +771,10 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
             // worlds' progression, and OoT's world after OoT's own remainder.
             "bagSeed=%08X\n"
             "bagRows=%d\n"
+            // PR #744's shared-quantity trim: pool rows handed back to each
+            // origin's own pass as filler (lane K11b).
+            "bagTrimmedOoT=%d\n"
+            "bagTrimmedMM=%d\n"
             "bagHomeOnly=%d\n"
             "bagRequiredPlaced=%d\n"
             "bagSurplusPlaced=%d\n"
@@ -786,7 +790,7 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
             "crossingsInOoT=%d\n"
             "crossingsInMM=%d\n",
             gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, digestReachable.size(), mmReachableHash,
-            (unsigned)gComboCtx.mmPairedAttempt, bag.seed, bag.bagCount, bag.homeOnlyRows, bag.fill.requiredPlaced,
+            (unsigned)gComboCtx.mmPairedAttempt, bag.seed, bag.bagCount, bag.trimmedOoT, bag.trimmedMM, bag.homeOnlyRows, bag.fill.requiredPlaced,
             bag.fill.surplusPlaced, bag.fill.surplusDropped, bag.fill.attempts, bag.fill.rounds,
             bag.fill.leftoverHostsOoT, bag.fill.leftoverHostsMM, coordinatorDigest, ootFinalHash, ootFinalPlaced,
             Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM));

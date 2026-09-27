@@ -34,6 +34,12 @@ static uint16_t sOoTFlags[COMBO_SINGLE_BAG_ROW_CAP];
 static ComboLogicBagItem sBag[RSBS_COMBO_LOGIC_BAG_CAP];
 static int sBagPoolIndex[RSBS_COMBO_LOGIC_BAG_CAP];
 static int sOoTBagRows[RSBS_COMBO_LOGIC_BAG_CAP];
+/** The pool rows (indices into sRows) THE SHARED-QUANTITY TRIM removed, captured
+ *  right after the compose (Combo_Logic_ComposeTrimmedAt's record is the
+ *  composer's, and the next compose overwrites it). */
+static int sTrimmedPoolRows[RSBS_COMBO_LOGIC_BAG_CAP];
+static int sTrimmedCount;
+static int sOoTTrimmedRows[RSBS_COMBO_LOGIC_BAG_CAP];
 
 static ComboSingleBagReport sReport;
 
@@ -52,23 +58,33 @@ static void SingleBagFold(uint32_t* h, uint32_t v) {
     }
 }
 
-uint32_t Combo_SingleBag_SeedFor(int ladderAttempt) {
-    // FNV-1a over the frozen identity, a domain tag and the ladder attempt. The
-    // tag keeps this stream disjoint from every other identity-derived stream in
-    // the tree (the old placement passes' xorshifts, MM's attempt mix), so a
-    // change to one can never alias the other.
+/** FNV-1a over a domain tag and the frozen identity. The tag keeps each stream
+ *  disjoint from every other identity-derived stream in the tree (the old
+ *  placement passes' xorshifts, MM's attempt mix, each other), so a change to
+ *  one can never alias another. */
+static uint32_t SingleBagIdentityHash(const char* tag) {
     uint32_t h = 2166136261u;
-    static const char kTag[] = "rsbs-single-bag-v1";
-    for (size_t i = 0; i + 1 < sizeof(kTag); ++i) {
-        h ^= (uint8_t)kTag[i];
+    for (const char* c = tag; *c != '\0'; ++c) {
+        h ^= (uint8_t)*c;
         h *= 16777619u;
     }
     SingleBagFold(&h, gComboCtx.sharedRandoSeed);
     SingleBagFold(&h, gComboCtx.sharedRandoSettingsHash);
     SingleBagFold(&h, gComboCtx.mmProfileDigest);
     SingleBagFold(&h, gComboCtx.comboSettingsHash);
+    return h;
+}
+
+uint32_t Combo_SingleBag_SeedFor(int ladderAttempt) {
+    uint32_t h = SingleBagIdentityHash("rsbs-single-bag-v1");
     SingleBagFold(&h, (uint32_t)ladderAttempt);
     return h;
+}
+
+uint32_t Combo_SingleBag_TrimSeed(void) {
+    // No ladder attempt: which copies of a shared family survive is decided by
+    // the identity alone, so every ladder attempt fills the same bag.
+    return SingleBagIdentityHash("rsbs-single-bag-trim-v1");
 }
 
 // ============================================================================
@@ -226,12 +242,34 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         creq.armedOoT = OoT_ComboLogic_ConfinementArmed() | Combo_ItemClassArmedFromFrozen((uint8_t)GAME_OOT);
         creq.armedMM = Combo_ItemClassArmedFromFrozen((uint8_t)GAME_MM);
         creq.composeFlags = RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME;
+        // THE SHARED-QUANTITY TRIM (combo_logic.h): ON, never KEEP_ALL. Both
+        // starting bars come from the frozen settings; the composer refuses a
+        // zero rather than guessing one.
+        creq.trimSeed = Combo_SingleBag_TrimSeed();
+        creq.startingHealthOoT = OoT_ComboLogic_StartingHealth();
+        creq.startingHealthMM = MM_ComboLogic_StartingHealth();
+        creq.quantityFlags = 0u;
+        sReport.trimSeed = creq.trimSeed;
+        sReport.startingHealthOoT = creq.startingHealthOoT;
+        sReport.startingHealthMM = creq.startingHealthMM;
         status = Combo_Logic_ComposeBag(&creq, sBag, RSBS_COMBO_LOGIC_BAG_CAP, sBagPoolIndex, &sReport.compose);
         if (status != RSBS_COMBO_LOGIC_OK) {
             fprintf(stderr, "[SingleBag] the bag could not be composed: %s\n", Combo_Logic_StatusName(status));
             goto finish;
         }
         sReport.bagCount = sReport.compose.bagCount;
+        sTrimmedCount = 0;
+        int poolRow = -1;
+        for (int i = 0; Combo_Logic_ComposeTrimmedAt(i, &poolRow); ++i) {
+            // The composer refuses (CAPACITY) a compose whose trimmed record
+            // overflows, so every trimmed row fits here.
+            sTrimmedPoolRows[sTrimmedCount++] = poolRow;
+            if (poolRow < sReport.ootRows) {
+                sReport.trimmedOoT++;
+            } else {
+                sReport.trimmedMM++;
+            }
+        }
     }
 
     // --- 2. which origins may cross -------------------------------------------
@@ -254,7 +292,8 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         fprintf(stderr,
                 "[SingleBag] bag: %d rows (OoT %d req + %d surplus + %d confined; MM %d req + %d surplus + %d confined) "
                 "from %d OoT + %d MM pool rows; %d home-only; crossings armed OoT->MM=%d MM->OoT=%d; filler left to "
-                "each game: OoT %d junk / %d renewable / %d trap, MM %d junk / %d renewable / %d trap\n",
+                "each game: OoT %d junk / %d renewable / %d trap / %d trimmed, MM %d junk / %d renewable / %d trap / "
+                "%d trimmed (trim seed %08X, starting health OoT 0x%X MM 0x%X)\n",
                 sReport.bagCount, sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_REQUIRED],
                 sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_SURPLUS],
                 sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_CONFINED],
@@ -264,10 +303,11 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
                 sReport.homeOnlyRows, ootMayCross ? 1 : 0, mmMayCross ? 1 : 0,
                 sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_JUNK],
                 sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_RENEWABLE],
-                sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_TRAP],
+                sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_TRAP], sReport.trimmedOoT,
                 sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_JUNK],
                 sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_RENEWABLE],
-                sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_TRAP]);
+                sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_TRAP], sReport.trimmedMM, sReport.trimSeed,
+                (unsigned)sReport.startingHealthOoT, (unsigned)sReport.startingHealthMM);
     }
 
     // --- 3 + 4. the fill, seeded from the identity, stopped by the budget -----
@@ -307,18 +347,30 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
     // --- success: the bookkeeping each game's own pass needs -----------------
     {
         int ootBag = 0;
+        int ootTrimmed = 0;
         if (outMmInBag != NULL) {
-            memset(outMmInBag, 0, (size_t)mmCount);
+            memset(outMmInBag, RSBS_SINGLE_BAG_MM_ROW_OWN_PASS, (size_t)mmCount);
         }
         for (int i = 0; i < sReport.bagCount; ++i) {
             const int poolRow = sBagPoolIndex[i];
             if (poolRow < sReport.ootRows) {
                 sOoTBagRows[ootBag++] = poolRow;
             } else if (outMmInBag != NULL) {
-                outMmInBag[poolRow - sReport.ootRows] = 1;
+                outMmInBag[poolRow - sReport.ootRows] = RSBS_SINGLE_BAG_MM_ROW_IN_BAG;
+            }
+        }
+        // THE TRIMMED ROWS go back to their ORIGIN game's own pass as filler,
+        // never as the item (combo_logic.h, THE SHARED-QUANTITY TRIM, rule 5).
+        for (int i = 0; i < sTrimmedCount; ++i) {
+            const int poolRow = sTrimmedPoolRows[i];
+            if (poolRow < sReport.ootRows) {
+                sOoTTrimmedRows[ootTrimmed++] = poolRow;
+            } else if (outMmInBag != NULL) {
+                outMmInBag[poolRow - sReport.ootRows] = RSBS_SINGLE_BAG_MM_ROW_TRIMMED;
             }
         }
         OoT_ComboLogic_NoteBagRows(sOoTBagRows, ootBag);
+        OoT_ComboLogic_NoteTrimmedRows(sOoTTrimmedRows, ootTrimmed);
 
         ComboLogicPlacement p;
         for (int i = 0; i < Combo_Logic_PlacementCount(GAME_MM); ++i) {
@@ -344,11 +396,12 @@ finish:
     sReport.status = status;
     sReport.wallMs = Combo_GenBudget_NowMs() - t0;
     fprintf(stderr,
-            "[SingleBag] ladder attempt %d: %s — goal %u rung %u seed %08X; %d rows placed (%d required, %d surplus, "
-            "%d dropped), %d crossings into MM, %d into OoT, leftovers OoT %d / MM %d; %d batch attempt(s), %d rounds, "
-            "%ums (budget %ums)\n",
+            "[SingleBag] ladder attempt %d: %s — goal %u rung %u seed %08X; %d bag rows (%d OoT + %d MM trimmed to "
+            "filler); %d rows placed (%d required, %d surplus, %d dropped), %d crossings into MM, %d into OoT, "
+            "leftovers OoT %d / MM %d; %d batch attempt(s), %d rounds, %ums (budget %ums)\n",
             ladderAttempt + 1, Combo_Logic_StatusName(status), (unsigned)sReport.goal, (unsigned)sReport.rung,
-            sReport.seed, sReport.fill.placed, sReport.fill.requiredPlaced, sReport.fill.surplusPlaced,
+            sReport.seed, sReport.bagCount, sReport.trimmedOoT, sReport.trimmedMM, sReport.fill.placed,
+            sReport.fill.requiredPlaced, sReport.fill.surplusPlaced,
             sReport.fill.surplusDropped, sReport.crossingsIntoMM, sReport.crossingsIntoOoT,
             sReport.fill.leftoverHostsOoT, sReport.fill.leftoverHostsMM, sReport.fill.attempts, sReport.fill.rounds,
             sReport.wallMs, budgetMs);

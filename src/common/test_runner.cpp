@@ -1278,6 +1278,9 @@ int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_t* outHosts
 uint32_t OoT_ComboLogic_ConfinementArmed(void);
 int MM_ComboLogic_TestPairedPool(uint16_t* outItems, uint16_t* outFlags, int cap);
 void MM_Rando_InitCore(void);
+uint16_t OoT_ComboLogic_StartingHealth(void);
+uint16_t MM_ComboLogic_StartingHealth(void);
+uint32_t Combo_SingleBag_TrimSeed(void);
 }
 
 TestResult Test_RandoArmedCapsDigest(void) {
@@ -1364,6 +1367,12 @@ TestResult Test_RandoArmedCapsDigest(void) {
     creq.armedOoT = OoT_ComboLogic_ConfinementArmed() | Combo_ItemClassArmedFromFrozen((uint8_t)GAME_OOT);
     creq.armedMM = Combo_ItemClassArmedFromFrozen((uint8_t)GAME_MM);
     creq.composeFlags = RSBS_COMBO_COMPOSE_ADMIT_CONFINED_HOME;
+    // THE SHARED-QUANTITY TRIM exactly as production composes it
+    // (combo_single_bag.c): the identity's trim seed and both frozen starting
+    // healths (MM's reads the profile TestPairedPool just resolved into the save).
+    creq.trimSeed = Combo_SingleBag_TrimSeed();
+    creq.startingHealthOoT = OoT_ComboLogic_StartingHealth();
+    creq.startingHealthMM = MM_ComboLogic_StartingHealth();
     std::vector<ComboLogicBagItem> bag((size_t)RSBS_COMBO_LOGIC_BAG_CAP);
     ComboLogicComposeResult cres;
     const int cst = Combo_Logic_ComposeBag(&creq, bag.data(), RSBS_COMBO_LOGIC_BAG_CAP, nullptr, &cres);
@@ -1411,14 +1420,18 @@ TestResult Test_RandoArmedCapsDigest(void) {
             "armedBagRows=%d\n"
             "armedBagCapabilityRows=%d\n"
             "armedBagDigest=%08X\n"
-            "armedOoT=req%d/sur%d/conf%d/ren%d/junk%d/trap%d\n"
-            "armedMM=req%d/sur%d/conf%d/ren%d/junk%d/trap%d\n",
+            "armedOoT=req%d/sur%d/conf%d/ren%d/junk%d/trap%d/trim%d\n"
+            "armedMM=req%d/sur%d/conf%d/ren%d/junk%d/trap%d/trim%d\n"
+            "armedTrimSeed=%08X\n"
+            "armedStartingHealth=%04X/%04X\n",
             (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM), ootRows, mmRows, cres.bagCount, capabilityRows,
             bagDigest, o.rows[RSBS_COMBO_COMPOSE_REQUIRED], o.rows[RSBS_COMBO_COMPOSE_SURPLUS],
             o.rows[RSBS_COMBO_COMPOSE_CONFINED], o.rows[RSBS_COMBO_COMPOSE_RENEWABLE], o.rows[RSBS_COMBO_COMPOSE_JUNK],
-            o.rows[RSBS_COMBO_COMPOSE_TRAP], m.rows[RSBS_COMBO_COMPOSE_REQUIRED], m.rows[RSBS_COMBO_COMPOSE_SURPLUS],
-            m.rows[RSBS_COMBO_COMPOSE_CONFINED], m.rows[RSBS_COMBO_COMPOSE_RENEWABLE], m.rows[RSBS_COMBO_COMPOSE_JUNK],
-            m.rows[RSBS_COMBO_COMPOSE_TRAP]);
+            o.rows[RSBS_COMBO_COMPOSE_TRAP], o.rows[RSBS_COMBO_COMPOSE_TRIMMED], m.rows[RSBS_COMBO_COMPOSE_REQUIRED],
+            m.rows[RSBS_COMBO_COMPOSE_SURPLUS], m.rows[RSBS_COMBO_COMPOSE_CONFINED],
+            m.rows[RSBS_COMBO_COMPOSE_RENEWABLE], m.rows[RSBS_COMBO_COMPOSE_JUNK], m.rows[RSBS_COMBO_COMPOSE_TRAP],
+            m.rows[RSBS_COMBO_COMPOSE_TRIMMED], creq.trimSeed, (unsigned)creq.startingHealthOoT,
+            (unsigned)creq.startingHealthMM);
     if (closeOut) {
         fclose(out);
     }

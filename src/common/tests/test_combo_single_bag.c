@@ -52,6 +52,14 @@
  *   D3. A REFUSAL IS NOT A RUNG: a second creation over an OoT world that already
  *       finished its general pass is refused by the fill (BAD_REQUEST) and fails
  *       on its FIRST ladder attempt, not after ten, and not as "exhausted".
+ *   D4. ZERO DEAD HEART PICKUPS over the PRODUCTION creation (PR #744's B7
+ *       shape, lane K11b): every max-health row the finished paired world holds
+ *       — OoT's final world, MM's shuffled checks, and each crossing's real item
+ *       from the crossing store — awarded through the REAL shared carrier from
+ *       the frozen starting bar ends the bar at exactly 320 with zero clamped
+ *       pickups, and the world holds exactly the heart rows the coordinator
+ *       placed (none came back through a per-game pass). Red with the trimmed
+ *       rows handed back to the per-game passes as themselves.
  *   E.  CREATION-TIME GIVES READ THE PLACED WORLD: under Link's Pocket =
  *       Anything, Skip Child Zelda with songs Anywhere, and an adult start with
  *       the Master Sword shuffled, the production author order
@@ -63,7 +71,9 @@
  * creations of consecutive seeds under the shipped per-attempt budget, one line
  * each (ladder attempts, batch attempts, rounds, wall time, status) and a
  * distribution summary. It asserts nothing and exists so the PR's timing claim
- * describes a sample rather than one seed.
+ * describes a sample rather than one seed. Each line times the whole creation
+ * (OoT's Generate, MM's creation-time half with the fill, OoT's tail) and walks
+ * the finished world's hearts as leg D4 does.
  *
  * WHY THE `rando` TIER. Everything here needs a real OoT generation and MM's
  * real region graph; a ROM-free run has neither, and every count would be zero.
@@ -77,6 +87,7 @@
 #include "../crossing_store.h"
 #include "../foreign_items.h"
 #include "../shared_items.h"
+#include "../shared_resources.h"
 #include "../test_runner.h"
 
 #include <cstdio>
@@ -105,8 +116,16 @@ void Randomizer_TestResetStartingGiveLog(void);
 int Randomizer_TestCreationGiveHost(int i);
 int Randomizer_TestHostEmpty(int rc);
 int Randomizer_TestStartingGiveMatchesPlacement(int rc);
+int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_t* outHosts, uint16_t* outFlags, int cap);
+int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int cap);
 void Randomizer_TestClearOoTSave(void);
 }
+
+// THE PLAY-SIDE CHECK (lane K13): award every heart row of a bag, interleaved by
+// origin, through the REAL shared carrier. Defined in test_shared_quantity_policy.c
+// (included after this file).
+int SqpDeadHeartPickups(const ComboLogicBagItem* bag, int count, uint16_t startHealth, int* outPickups,
+                        int* outFinal);
 
 namespace {
 
@@ -200,6 +219,72 @@ int CsbFindRemovalWitness(const CsbTables& full, GameId hostGame, uint8_t goal, 
     return -1;
 }
 
+/** Leg D4's walk over the FINISHED paired world (after OoT's remainder, before
+ *  Combo_SingleBag_Forget: the coordinator's tables are still read). */
+struct CsbHeartWalk {
+    int ootHosted = -1;     // OoT final-world rows read (ExportPool source 1)
+    int mmShuffled = -1;    // MM shuffled checks read
+    int heartRows = 0;      // max-health rows in the finished world, crossings included
+    int placedByBag = 0;    // max-health rows the coordinator placed
+    int pickups = 0;        // pickups the carrier walk made
+    int dead = -1;          // pickups the 20-heart clamp swallowed
+    int finalValue = 0;     // the bar at the end of the walk
+    uint16_t startHealth = 0;
+};
+
+void CsbAddHeart(std::vector<ComboLogicBagItem>& out, uint8_t origin, uint16_t id) {
+    SharedItem item;
+    memset(&item, 0, sizeof(item));
+    item.originGame = origin;
+    item.id = id;
+    if (Combo_ItemClassSharedKind(item) != RSBS_SHARED_RES_HEALTH_QUARTERS) {
+        return;
+    }
+    ComboLogicBagItem row;
+    memset(&row, 0, sizeof(row));
+    row.item = item;
+    out.push_back(row);
+}
+
+CsbHeartWalk CsbWalkFinishedWorldHearts(const ComboSingleBagReport& bag) {
+    CsbHeartWalk w;
+    std::vector<ComboLogicBagItem> hearts;
+    std::vector<uint16_t> items(8192, 0);
+    w.ootHosted = OoT_ComboLogic_ExportPool(1, items.data(), nullptr, nullptr, (int)items.size());
+    for (int i = 0; i < w.ootHosted && i < (int)items.size(); i++) {
+        CsbAddHeart(hearts, (uint8_t)GAME_OOT, items[(size_t)i]);
+    }
+    w.mmShuffled = MM_ComboLogic_TestShuffledItems(items.data(), nullptr, (int)items.size());
+    for (int i = 0; i < w.mmShuffled && i < (int)items.size(); i++) {
+        CsbAddHeart(hearts, (uint8_t)GAME_MM, items[(size_t)i]);
+    }
+    // A crossing host physically holds its junk cover; the item is the store's.
+    for (const GameId host : { GAME_OOT, GAME_MM }) {
+        for (int i = 0; i < Combo_Crossings_Count(host); i++) {
+            ComboCrossing row;
+            if (Combo_Crossings_At(host, i, &row)) {
+                CsbAddHeart(hearts, row.item.originGame, row.item.id);
+            }
+        }
+    }
+    std::vector<ComboLogicBagItem> placed;
+    ComboLogicPlacement p;
+    for (const GameId host : { GAME_OOT, GAME_MM }) {
+        for (int i = 0; i < Combo_Logic_PlacementCount(host); i++) {
+            if (Combo_Logic_PlacementAt(host, i, &p)) {
+                CsbAddHeart(placed, p.item.originGame, p.item.id);
+            }
+        }
+    }
+    w.heartRows = (int)hearts.size();
+    w.placedByBag = (int)placed.size();
+    // The shared bar starts at the larger frozen starting health (shared_items.h).
+    w.startHealth = bag.startingHealthOoT > bag.startingHealthMM ? bag.startingHealthOoT : bag.startingHealthMM;
+    w.dead = SqpDeadHeartPickups(hearts.empty() ? nullptr : hearts.data(), (int)hearts.size(), w.startHealth,
+                                 &w.pickups, &w.finalValue);
+    return w;
+}
+
 /** The Rando settings leg E generates under, as CVars (restored after). */
 const char* const kCsbGiveCVars[][2] = {
     { "gRandoSettings.LinksPocket", "2" },        // RO_LINKS_POCKET_ANYTHING
@@ -224,6 +309,7 @@ TestResult CsbSample(int n) {
     int maxSide = 0;
     for (int i = 0; i < n; i++) {
         const std::string seed = "RSBSSAMPLE" + std::to_string(i);
+        const uint32_t tGen = Combo_GenBudget_NowMs();
         if (Rando_HeadlessSeedTest(seed.c_str()) != 0) {
             printf("[SAMPLE] %s: OoT generation failed\n", seed.c_str());
             other++;
@@ -233,10 +319,11 @@ TestResult CsbSample(int n) {
         const int rc = MM_Rando_HeadlessPairedHalf();
         const uint32_t ms = Combo_GenBudget_NowMs() - t0;
         const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
-        printf("[SAMPLE] %s: rc=%d status=%s ladder=%d batches=%d rounds=%d fill=%ums half=%ums crossings MM<-OoT %d "
-               "OoT<-MM %d\n",
+        printf("[SAMPLE] %s: rc=%d status=%s ladder=%d batches=%d (roll-backs %d) rounds=%d bag=%d rows (trimmed "
+               "OoT %d MM %d) fill=%ums half=%ums crossings MM<-OoT %d OoT<-MM %d\n",
                seed.c_str(), rc, Combo_Logic_StatusName(bag.status), MM_Rando_PairedGenLastAttempts(),
-               bag.fill.attempts, bag.fill.rounds, bag.wallMs, ms, bag.crossingsIntoMM, bag.crossingsIntoOoT);
+               bag.fill.attempts, bag.fill.attempts > 0 ? bag.fill.attempts - 1 : 0, bag.fill.rounds, bag.bagCount,
+               bag.trimmedOoT, bag.trimmedMM, bag.wallMs, ms, bag.crossingsIntoMM, bag.crossingsIntoOoT);
         if (rc == 0) {
             ok++;
             const int b = bag.fill.attempts < 0 ? 0
@@ -247,7 +334,14 @@ TestResult CsbSample(int n) {
             sumMs += ms;
             maxSide = bag.crossingsIntoMM > maxSide ? bag.crossingsIntoMM : maxSide;
             maxSide = bag.crossingsIntoOoT > maxSide ? bag.crossingsIntoOoT : maxSide;
+            const uint32_t tTail = Combo_GenBudget_NowMs();
             (void)OoT_Creation_FinishPairedHalf(0);
+            const uint32_t tEnd = Combo_GenBudget_NowMs();
+            const CsbHeartWalk hw = CsbWalkFinishedWorldHearts(bag);
+            printf("[SAMPLE] %s: end to end %ums = OoT Generate %ums + MM half %ums + OoT tail %ums; hearts in the "
+                   "world %d (bag placed %d), %d pickups from 0x%X, %d dead, bar ends 0x%X\n",
+                   seed.c_str(), tEnd - tGen, t0 - tGen, ms, tEnd - tTail, hw.heartRows, hw.placedByBag, hw.pickups,
+                   (unsigned)hw.startHealth, hw.dead, (unsigned)hw.finalValue);
         } else if (bag.status == RSBS_COMBO_LOGIC_ERR_ABORTED) {
             timeouts++;
         } else {
@@ -458,6 +552,28 @@ TestResult ComboSingleBag_Run(void) {
         printf("[TEST] combo-single-bag: paired-world hint validity rc=%d\n", hintRc);
         CSB_ASSERT(hintRc == 0, "a paired world's hints name a crossing host, leave one hintable, point at no OoT "
                                 "location without naming Termina, or fail a #441 check (see [rando-hints])");
+    }
+
+    // ------------------------------------------------------------------
+    // D4. Zero dead heart pickups over THIS creation's placements.
+    // ------------------------------------------------------------------
+    {
+        const CsbHeartWalk hw = CsbWalkFinishedWorldHearts(finalBag);
+        printf("[TEST] combo-single-bag: trimmed OoT %d + MM %d rows to filler; the finished world holds %d heart "
+               "rows (%d OoT-hosted rows and %d MM shuffled checks read, the coordinator placed %d); %d pickups from "
+               "0x%X: %d dead, the bar ends at %d\n",
+               finalBag.trimmedOoT, finalBag.trimmedMM, hw.heartRows, hw.ootHosted, hw.mmShuffled, hw.placedByBag,
+               hw.pickups, (unsigned)hw.startHealth, hw.dead, hw.finalValue);
+        CSB_ASSERT(finalBag.trimmedOoT + finalBag.trimmedMM > 0,
+                   "the shipped profile's creation trimmed nothing, so this leg would prove nothing");
+        CSB_ASSERT(hw.ootHosted > 0 && hw.mmShuffled > 0, "the finished world could not be read");
+        CSB_ASSERT(finalBag.startingHealthOoT != 0u && finalBag.startingHealthMM != 0u,
+                   "the creation did not publish both frozen starting healths to the trim");
+        CSB_ASSERT(hw.heartRows == hw.placedByBag,
+                   "the finished world holds heart rows the coordinator did not place: a trimmed row came back "
+                   "through a per-game pass as itself");
+        CSB_ASSERT(hw.pickups > 0 && hw.dead == 0 && hw.finalValue == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
+                   "the creation's hearts do not end the shared bar at exactly 320 with zero dead pickups");
     }
     Combo_SingleBag_Forget();
 

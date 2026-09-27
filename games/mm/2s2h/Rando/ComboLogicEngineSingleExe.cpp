@@ -1695,6 +1695,34 @@ extern "C" int MM_ComboLogic_TestHeartGatedChecks(uint16_t* out, int cap) {
     return total;
 }
 
+/**
+ * TEST BRIDGE (combo-single-bag leg D4, lane K11b): the item every SHUFFLED check
+ * of the live save holds (RANDO_SAVE_CHECKS, whole id space, check order) — MM's
+ * world as the creation left it, the coordinator's placements and MM's own pass
+ * alike. A crossing host holds its junk cover here; its real content is the
+ * crossing store's. At most `cap` written; the total returned. Either out array
+ * may be NULL.
+ */
+extern "C" int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int cap) {
+    int total = 0;
+    for (int rc = 0; rc < (int)RC_MAX; ++rc) {
+        const RandoSaveCheck& check = RANDO_SAVE_CHECKS[rc];
+        if (!check.shuffled) {
+            continue;
+        }
+        if (total < cap) {
+            if (outItems != nullptr) {
+                outItems[total] = (uint16_t)check.randoItemId;
+            }
+            if (outChecks != nullptr) {
+                outChecks[total] = (uint16_t)rc;
+            }
+        }
+        total++;
+    }
+    return total;
+}
+
 /** TEST BRIDGE: the live save's maximum health as CHECK_MAX_HP reads it
  *  (`healthCapacity`, 16 per heart). */
 extern "C" int MM_ComboLogic_TestHealthCapacity(void) {
@@ -2068,8 +2096,11 @@ extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
 // ON SUCCESS it also runs MM's OWN PASS over MM's leftover hosts (combo_logic.h,
 // THE BAG MODEL shape 4): the rows the bag did not take (MM's junk, renewables and
 // traps), traps first, the rest shuffled with MM's own fill RNG, padded with
-// RI_JUNK exactly as the native balance pads. The native balance step itself does
-// NOT run over a paired world's pool: it would erase or fold rows the bag admitted
+// RI_JUNK exactly as the native balance pads. A row THE SHARED-QUANTITY TRIM
+// removed (RSBS_SINGLE_BAG_MM_ROW_TRIMMED) is not its item any more: it joins the
+// rest as ONE RI_JUNK copy, so its host gets filler and never the dead pickup.
+// The native balance step itself does NOT run over a paired world's pool: it
+// would erase or fold rows the bag admitted
 // (MM's bombchus and hearts are PROGRESSION), which is the decision combo_logic.h
 // ("MM'S BALANCE STEP AND THE BAG") left to this lane: the bag is composed from the
 // pre-balance pool, and only the leftovers are balanced, by this pass.
@@ -2133,8 +2164,14 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
     // --- MM's own pass over its leftover hosts --------------------------------
     std::vector<RandoItemId> traps;
     std::vector<RandoItemId> rest;
+    int trimmedToJunk = 0;
     for (size_t i = 0; i < itemPool.size(); ++i) {
-        if (inBag[i]) {
+        if (inBag[i] == RSBS_SINGLE_BAG_MM_ROW_IN_BAG) {
+            continue;
+        }
+        if (inBag[i] == RSBS_SINGLE_BAG_MM_ROW_TRIMMED) {
+            rest.push_back(RI_JUNK);
+            trimmedToJunk++;
             continue;
         }
         SharedItem row = { (uint8_t)GAME_MM, 0, (uint16_t)itemPool[i] };
@@ -2177,9 +2214,10 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
         RANDO_SAVE_CHECKS[host].shuffled = true;
     }
     fprintf(stderr,
-            "[MM] single-bag fill: MM's own pass put %d trap(s) and %d other row(s) on %d leftover host(s), padded %d "
-            "with junk, dropped %d trap(s) and %d other row(s) for want of hosts\n",
-            (int)trapIndex, (int)restIndex, leftoverTotal, padded, (int)(traps.size() - trapIndex),
+            "[MM] single-bag fill: MM's own pass put %d trap(s) and %d other row(s) (%d of them junk for trimmed "
+            "rows) on %d leftover host(s), padded %d with junk, dropped %d trap(s) and %d other row(s) for want of "
+            "hosts\n",
+            (int)trapIndex, (int)restIndex, trimmedToJunk, leftoverTotal, padded, (int)(traps.size() - trapIndex),
             (int)(rest.size() - restIndex));
     fflush(stderr);
 }
