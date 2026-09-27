@@ -142,7 +142,9 @@
 #include "combo_tracker_view.h"
 #include "combo_ui.h"
 #include "context.h"
+#include "crossing_store.h" // the crossings the tracker and spoiler states author (#755)
 #include "cvar_shared_keys.h"
+#include "game.h" // MM_SAVE_CONTEXT_SIZE (the authored MM shadow)
 #include "foreign_items.h"
 #include "gen_progress_overlay.h"
 #include "headless_crash.h"
@@ -1276,23 +1278,26 @@ std::vector<std::string> TooltipLinePrefixes(const std::string& tip) {
 }
 
 /**
- * Cross-game placements for the spoiler's and the tracker's populated states,
- * through the production setters (Combo_SetForeignPlacement /
- * Combo_SetForeignPlacementOoT) with items looked up by describer name, the way
- * the ROM-free locks do (test_named_items.h). Needs AuthorPairing first: a
- * setter refuses an unpaired world. The ids are arbitrary host checks; the
- * spoiler prints MM ids as hex (a name accessor is a follow-up), and the tracker
- * resolves what its adapters can.
+ * Cross-game crossings for the spoiler's and the tracker's populated states,
+ * through the crossing store (Combo_Crossings_Replace), the single bag's only
+ * record of them (#755), with items looked up by describer name, the way the
+ * ROM-free locks do (test_named_items.h). Needs AuthorPairing first: the panes
+ * list nothing for an unpaired world. Two OoT items on real MM checks, one MM
+ * item on an OoT check the synthetic OoT world below names; the MM checks are
+ * named by MM's tracker adapter, which MirrorProductionWindows registers.
  */
 constexpr const char* kSnapshotOoTItemA = "Lens of Truth";
 // The SoH pane our tracker and spoiler panes are read against (compareWith).
 constexpr const char* kSohPaneReference = "window/Check Tracker Settings";
 constexpr const char* kSnapshotOoTItemB = "Megaton Hammer";
-// The OoT check hosting the MM item in the "progress" state. The synthetic OoT
-// adapter names none of its checks this id, so the tracker's MM-to-OoT table
-// prints it as hex: a string only that table draws.
-constexpr uint16_t kSnapshotMMToOoTCheckId = 0x0123;
-constexpr const char* kSnapshotMMToOoTCheck = "Check 0x0123";
+// MM checks hosting the OoT items; the first is collected in the authored MM save.
+constexpr uint16_t kSnapshotOoTToMMCheckA = 0x0401;
+constexpr uint16_t kSnapshotOoTToMMCheckB = 0x0402;
+// The OoT check hosting the MM item: the synthetic OoT world's collected
+// "KF Kokiri Sword Chest" (kSnapshotOoTChecks[0] below).
+constexpr uint16_t kSnapshotMMToOoTCheckId = 0x0101;
+// A string only the MM-items-in-OoT crossing list draws (its note).
+constexpr const char* kSnapshotMMToOoTNote = "1 Majora's Mask item was placed in Ocarina of Time checks.";
 
 extern "C" int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 
@@ -1307,28 +1312,69 @@ bool SnapshotNamedItem(uint8_t origin, const char* name, SharedItem* out) {
     return false;
 }
 
-void AuthorCrossings(bool bothDirections) {
+void AuthorCrossings() {
     SharedItem item;
+    std::vector<ComboCrossing> mmHosted;
+    std::vector<ComboCrossing> ootHosted;
     if (SnapshotNamedItem((uint8_t)GAME_OOT, kSnapshotOoTItemA, &item)) {
-        Combo_SetForeignPlacement(0x0401, item);
+        mmHosted.push_back({ kSnapshotOoTToMMCheckA, 0x0001, item });
     }
     if (SnapshotNamedItem((uint8_t)GAME_OOT, kSnapshotOoTItemB, &item)) {
-        Combo_SetForeignPlacement(0x0402, item);
+        mmHosted.push_back({ kSnapshotOoTToMMCheckB, 0x0001, item });
     }
     // MM's describer reads static data, so this lookup needs no ROM-free
-    // fallback; if it ever fails, the row is missing and the "progress" state's
-    // kSnapshotMMToOoTCheck text fails the capture instead of passing silently.
-    if (bothDirections && SnapshotNamedItem((uint8_t)GAME_MM, "Lens of Truth", &item)) {
-        Combo_SetForeignPlacementOoT(kSnapshotMMToOoTCheckId, item);
+    // fallback; if it ever fails, the row is missing and the states'
+    // kSnapshotMMToOoTNote text fails the capture instead of passing silently.
+    if (SnapshotNamedItem((uint8_t)GAME_MM, "Lens of Truth", &item)) {
+        ootHosted.push_back({ kSnapshotMMToOoTCheckId, 0x0001, item });
+    }
+    Combo_Crossings_Clear();
+    Combo_Crossings_Replace(ootHosted.empty() ? nullptr : ootHosted.data(), (int)ootHosted.size(),
+                            mmHosted.empty() ? nullptr : mmHosted.data(), (int)mmHosted.size());
+}
+
+/**
+ * The MM save the crossing states read found state from: a randomized MM world
+ * in the shadow, at the offsets MM's tracker adapter registered, with the first
+ * MM host collected and the second not. The resident shadow is kept aside and
+ * put back in LeaveState, so no later page sees it.
+ */
+std::vector<uint8_t> gSnapshotMMShadowBackup;
+
+void AuthorMMShadow() {
+    const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
+    const void* resident = Context_GetMMSaveContext();
+    if (desc == nullptr || resident == nullptr) {
+        return;
+    }
+    gSnapshotMMShadowBackup.assign((const uint8_t*)resident, (const uint8_t*)resident + MM_SAVE_CONTEXT_SIZE);
+    std::vector<uint8_t> blob((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    const uint32_t seed = gComboCtx.sharedRandoSeed; // MM's final seed IS the paired seed
+    std::memcpy(blob.data() + desc->newfOffset, desc->newf, desc->newfLen);
+    std::memcpy(blob.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
+    std::memcpy(blob.data() + desc->finalSeedOffset, &seed, sizeof(uint32_t));
+    for (const uint16_t check : { kSnapshotOoTToMMCheckA, kSnapshotOoTToMMCheckB }) {
+        uint8_t* row = blob.data() + desc->checkTableOffset + (size_t)check * desc->checkStride;
+        row[desc->shuffledOffset] = 1;
+        row[desc->obtainedOffset] = (check == kSnapshotOoTToMMCheckA) ? 1 : 0;
+    }
+    Context_UpdateShadowCopy(GAME_MM, blob.data(), blob.size());
+}
+
+void RestoreMMShadow() {
+    if (!gSnapshotMMShadowBackup.empty()) {
+        Context_UpdateShadowCopy(GAME_MM, gSnapshotMMShadowBackup.data(), gSnapshotMMShadowBackup.size());
+        gSnapshotMMShadowBackup.clear();
     }
 }
 
 /**
- * A synthetic OoT tracker adapter for the tracker's "progress" state: a resident
- * randomized world with one collected, one skipped and two open checks, so the
- * Checks list draws every status glyph. Installed through the production
- * registrar (Combo_Tracker_RegisterOoT) and replaced by the real adapter in
- * LeaveState.
+ * A synthetic OoT tracker adapter for the tracker's "progress" state and the
+ * spoiler's "crossings" state: a resident randomized world with one collected,
+ * one skipped and two open checks, so the Checks list draws every status glyph
+ * and the MM-items-in-OoT crossing reads its found state. Installed through the
+ * production registrar (Combo_Tracker_RegisterOoT) and replaced by the real
+ * adapter in LeaveState.
  */
 struct SnapshotCheck {
     uint16_t id;
@@ -1824,12 +1870,13 @@ void Session::BuildPageList() {
         p.id = std::string("window/") + ComboGui::kComboSpoilerWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboSpoilerWindowName;
-        // "crossings" authors placements (AuthorCrossings), so the table is drawn:
-        // "paired" alone holds none and only ever showed the empty note.
+        // "crossings" authors crossings both ways (AuthorCrossings), an MM save and
+        // an OoT world to read their found state from, so both tables are drawn:
+        // "paired" alone holds none and only ever showed the empty notes.
         p.states = { "paired", "crossings", "unpaired" };
         p.compareWith = kSohPaneReference;
         p.expectText = { ComboGui::kComboSpoilerWindowName };
-        p.stateText["crossings"] = { kSnapshotOoTItemA };
+        p.stateText["crossings"] = { kSnapshotOoTItemA, kSnapshotMMToOoTNote };
         p.stateText["unpaired"] = { "No paired world" };
         p.stateContrast = { { "crossings", "paired" }, { "unpaired", "paired" } };
         pages.push_back(p);
@@ -1840,13 +1887,14 @@ void Session::BuildPageList() {
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboTrackerWindowName;
         // "progress" installs a synthetic OoT adapter with a resident world and
-        // opens its Checks list, and authors placements both ways, so the check
-        // glyphs and both placement tables are drawn: without a loaded save,
-        // "paired" only ever showed the no-data notes.
+        // opens its Checks list, authors an MM save, and authors crossings both
+        // ways, so the check glyphs and both crossing tables are drawn with their
+        // found state: without a loaded save, "paired" only ever showed the
+        // no-data notes.
         p.states = { "paired", "unpaired", "progress" };
         p.compareWith = kSohPaneReference;
         p.expectText = { ComboGui::kComboTrackerWindowName };
-        p.stateText["progress"] = { kSnapshotOoTChecks[0].name, kSnapshotOoTItemA, kSnapshotMMToOoTCheck };
+        p.stateText["progress"] = { kSnapshotOoTChecks[0].name, kSnapshotOoTItemA, kSnapshotMMToOoTNote };
         p.stateText["unpaired"] = { "No paired world" };
         p.stateContrast = { { "progress", "paired" }, { "unpaired", "paired" } };
         pages.push_back(p);
@@ -2234,6 +2282,7 @@ GameId gSavedGame = GAME_NONE;
 void Session::EnterState(const PageSpec& p, const std::string& state) {
     gSavedGame = Context_GetCurrentGame();
     ComboContext_Init();
+    Combo_Crossings_Clear();
     if (opt.Sabotaged("no-state")) {
         return;
     }
@@ -2279,12 +2328,10 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
     } else if (p.kind == Kind::WINDOW) {
         if (state == "paired") {
             AuthorPairing();
-        } else if (state == "crossings") {
+        } else if (state == "crossings" || state == "progress") {
             AuthorPairing();
-            AuthorCrossings(false);
-        } else if (state == "progress") {
-            AuthorPairing();
-            AuthorCrossings(true);
+            AuthorCrossings();
+            AuthorMMShadow();
             Context_SetCurrentGame(GAME_OOT);
             Combo_Tracker_RegisterOoT(&kSnapshotOoTOps);
         }
@@ -2304,10 +2351,12 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {
         Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_OOT);
     }
-    if (p.kind == Kind::WINDOW && state == "progress") {
+    if (p.kind == Kind::WINDOW && (state == "progress" || state == "crossings")) {
         OoT_TrackerAdapter_Register();
+        RestoreMMShadow();
     }
     ComboContext_Init();
+    Combo_Crossings_Clear();
     Context_SetCurrentGame(gSavedGame);
 }
 

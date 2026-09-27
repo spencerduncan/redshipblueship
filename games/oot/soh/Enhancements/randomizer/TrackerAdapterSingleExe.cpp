@@ -207,4 +207,25 @@ extern "C" void OoT_TrackerAdapter_TestReleaseWorld(void) {
     sTrackerTestWorld.reset();
 }
 
+/**
+ * Mark OoT check @p rc collected (or back to unchecked) in whichever heap
+ * Rando::Context is live: the authored world above, or a real generated one
+ * (ComboCrossingViewsWorld marks a crossing host found through this, #755).
+ * @return the check's previous obtained projection (1 or 0), or -1 with no
+ *         heap context or an out-of-range id.
+ */
+extern "C" int OoT_TrackerAdapter_TestSetCollected(uint16_t rc, int collected) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || rc == 0 || rc >= (uint16_t)RC_MAX) {
+        return -1;
+    }
+    if (GameInteractor::Instance == nullptr) {
+        GameInteractor::Instance = new GameInteractor(); // SetCheckStatus dispatches a hook
+    }
+    Rando::ItemLocation* loc = ctx->GetItemLocation((size_t)rc);
+    const int was = StatusObtained(loc->GetCheckStatus()) ? 1 : 0;
+    loc->SetCheckStatus(collected != 0 ? RCSHOW_COLLECTED : RCSHOW_UNCHECKED);
+    return was;
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE

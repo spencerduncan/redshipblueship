@@ -130,30 +130,55 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     ImGui::PopID();
 }
 
+} // namespace
+
 /**
- * One direction's placement table. The direction is the accessor — the two
- * tables are separate key spaces and are never merged (ADR 0009). SoH's table
- * shape (SohMenuRandomizer.cpp's location tables; the Check Tracker Settings
- * pane's table): cell padding 8x8, horizontal and vertical borders, a header
- * row. The header is a short Title Case name (R-N1) with no count in it
- * (R-N4); the gray note under it says how many and which way, or that there
- * are none.
+ * One direction's crossing table (declared in ComboTrackerWindow.h). The
+ * direction is the accessor — the two directions are separate key spaces and
+ * are never merged (ADR 0009). SoH's table shape (SohMenuRandomizer.cpp's
+ * location tables; the Check Tracker Settings pane's table): cell padding 8x8,
+ * horizontal and vertical borders, a header row. The header is a short Title
+ * Case name (R-N1) with no count in it (R-N4); the gray note under it says how
+ * many, which way, and how many of their checks were collected.
  */
-void DrawForeignList(uint8_t hostGame, const char* title, const char* itemGame, const char* hostName) {
-    const int count = Combo_TrackerForeignCount(hostGame);
+void DrawCrossingList(uint8_t hostGame) {
+    const bool inMM = hostGame == (uint8_t)GAME_MM;
+    const char* title = inMM ? "In MM Checks" : "In OoT Checks";
+    const char* itemGame = inMM ? "Ocarina of Time" : "Majora's Mask";
+    const char* hostName = inMM ? "Majora's Mask" : "Ocarina of Time";
+
+    ComboTrackerForeignProgress progress;
+    Combo_TrackerForeignProgress(hostGame, &progress);
+    const int count = progress.total;
     Ui().SeparatorText(title);
-    char note[160];
+    char note[224];
     if (count == 0) {
         snprintf(note, sizeof(note), "No %s items were placed in %s checks.", itemGame, hostName);
         Ui().NoteText(note);
         return;
     }
-    snprintf(note, sizeof(note), "%d %s %s placed in %s checks.", count, itemGame,
-             count == 1 ? "item was" : "items were", hostName);
+    // The second sentence is the host game's own save: how many of these checks
+    // it has collected, and, when that data is not live, as of when (the same
+    // wording the game panel above prints, lower-cased to run on). With nothing
+    // to read from the host game, no collected count is claimed at all.
+    int len = snprintf(note, sizeof(note), "%d %s %s placed in %s checks.", count, itemGame,
+                       count == 1 ? "item was" : "items were", hostName);
+    if (progress.freshness != COMBO_TRACKER_FRESH_UNAVAILABLE && len > 0 && len < (int)sizeof(note)) {
+        if (progress.freshness == COMBO_TRACKER_FRESH_LIVE) {
+            snprintf(note + len, sizeof(note) - (size_t)len, " %d collected.", progress.found);
+        } else {
+            char when[96];
+            snprintf(when, sizeof(when), "%s", Combo_TrackerFreshnessLabel(hostGame, progress.freshness));
+            if (when[0] >= 'A' && when[0] <= 'Z') {
+                when[0] = (char)(when[0] - 'A' + 'a');
+            }
+            snprintf(note + len, sizeof(note) - (size_t)len, " %d collected, %s.", progress.found, when);
+        }
+    }
     Ui().NoteText(note);
     ImGui::PushID((int)hostGame);
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f));
-    if (ImGui::BeginTable("##Placements", 3, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
+    if (ImGui::BeginTable("##Crossings", 3, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
         // Check names run longer than item names ("Stone Tower Temple ..."), so the
         // check column takes the larger share and both wrap rather than clip.
         ImGui::TableSetupColumn("Check", ImGuiTableColumnFlags_WidthStretch, 3.0f);
@@ -170,20 +195,24 @@ void DrawForeignList(uint8_t hostGame, const char* title, const char* itemGame, 
             if (row.hostCheckName != nullptr) {
                 ImGui::TextWrapped("%s", row.hostCheckName);
             } else {
+                // No name table for the host game (its adapter is not
+                // registered): the game-local id is still an honest label.
                 ImGui::TextWrapped("Check 0x%04X", (unsigned)row.hostCheckId);
             }
             ImGui::TableNextColumn();
+            // The bare display name, as SoH's own item tables print one; the
+            // row's article is for a sentence, and a table cell is not one.
             ImGui::TextWrapped("%s", row.itemName);
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted(row.redeemed ? "Yes" : "No");
+            ImGui::TextUnformatted(row.found == COMBO_TRACKER_FOUND_YES  ? "Yes"
+                                   : row.found == COMBO_TRACKER_FOUND_NO ? "No"
+                                                                         : "Unknown");
         }
         ImGui::EndTable();
     }
     ImGui::PopStyleVar();
     ImGui::PopID();
 }
-
-} // namespace
 
 void ComboTrackerWindow::Draw() {
     // Read the visibility CVar LIVE rather than trusting the ctor-latched
@@ -227,9 +256,9 @@ void ComboTrackerWindow::DrawElement() {
     DrawGamePanel((uint8_t)GAME_MM, "Majora's Mask", identity);
 
     if (identity.paired && ImGui::CollapsingHeader("Cross-Game Placements", ImGuiTreeNodeFlags_DefaultOpen)) {
-        DrawForeignList((uint8_t)GAME_MM, "In MM Checks", "Ocarina of Time", "Majora's Mask");
+        DrawCrossingList((uint8_t)GAME_MM);
         Ui().Spacer(0.0f);
-        DrawForeignList((uint8_t)GAME_OOT, "In OoT Checks", "Majora's Mask", "Ocarina of Time");
+        DrawCrossingList((uint8_t)GAME_OOT);
     }
     Ui().PopTheme();
 }

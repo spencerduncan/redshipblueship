@@ -47,6 +47,7 @@
 #include "../combo_spoiler_view.h"
 #include "../combo_ui.h"
 #include "../context.h"
+#include "../crossing_store.h"
 #include "../foreign_items.h"
 #include "../test_runner.h"
 #include "test_named_items.h"
@@ -136,6 +137,7 @@ extern "C" int Combo_SpoilerWindow_RunHeadless(void) {
     // the window must be inert in both, and must not care which game is live.
     for (int paired = 0; paired <= 1; paired++) {
         ComboContext_Init();
+        Combo_Crossings_Clear();
         if (paired) {
             gComboCtx.sourceIsRando = true;
             gComboCtx.sharedRandoSeed = 0xC0FFEE97u;
@@ -143,9 +145,19 @@ extern "C" int Combo_SpoilerWindow_RunHeadless(void) {
             SharedItem item;
             CSW_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &item));
             CSW_ASSERT(Combo_SetForeignPlacement(0x0401, item) >= 0);
-            CSW_ASSERT(Combo_SpoilerRowCount() == 1);
+            CSW_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_MM) == 1);
+            // The other direction through the crossing store (#755).
+            SharedItem mmItem;
+            CSW_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Lens of Truth", &mmItem));
+            ComboCrossing ootHosted;
+            ootHosted.hostCheck = 0x0123;
+            ootHosted.itemClass = 0x0001;
+            ootHosted.item = mmItem;
+            CSW_ASSERT(Combo_Crossings_Replace(&ootHosted, 1, nullptr, 0) == 1);
+            CSW_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_OOT) == 1);
         } else {
-            CSW_ASSERT(Combo_SpoilerRowCount() == 0);
+            CSW_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_MM) == 0);
+            CSW_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_OOT) == 0);
         }
 
         for (GameId game : allGames) {
@@ -179,16 +191,16 @@ extern "C" int Combo_SpoilerWindow_RunHeadless(void) {
         // Each styled element through the seam, not just a ComboUi_Get() helper
         // that nothing calls.
         CSW_ASSERT(text.find("Ui().NoteText(") != std::string::npos);
-        CSW_ASSERT(text.find("Ui().SeparatorText(") != std::string::npos);
         CSW_ASSERT(text.find("Ui().PushTheme()") != std::string::npos);
         CSW_ASSERT(text.find("Ui().Spacer(") != std::string::npos);
-        // SoH's table shape (style guide section 10): 8x8 cells, both borders, a
-        // header row, and no ScrollY inside a pane that scrolls as a whole.
-        CSW_ASSERT(text.find("ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f)") != std::string::npos);
-        CSW_ASSERT(text.find("ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV") != std::string::npos);
-        CSW_ASSERT(text.find("TableHeadersRow()") != std::string::npos);
-        CSW_ASSERT(text.find("ImGuiTableFlags_ScrollY") == std::string::npos);
-        CSW_ASSERT(text.find("ImGuiTableFlags_RowBg") == std::string::npos);
+        // Both directions, through the Combo Tracker's own crossing list (#755):
+        // the section headers, the notes and SoH's table shape are that list's,
+        // and ComboTrackerWindow's own lock scans them there. A pane that drew
+        // its own table again could list a world's crossings differently.
+        CSW_ASSERT(text.find("DrawCrossingList((uint8_t)GAME_MM)") != std::string::npos);
+        CSW_ASSERT(text.find("DrawCrossingList((uint8_t)GAME_OOT)") != std::string::npos);
+        CSW_ASSERT(text.find("BeginTable") == std::string::npos);
+        CSW_ASSERT(text.find("0x%04X") == std::string::npos); // #757: no hex id column of its own
         // The section header carries no count (R-N4); the seed is named as the
         // Combo Tracker names it.
         CSW_ASSERT(text.find("(%d)") == std::string::npos);
@@ -201,6 +213,7 @@ extern "C" int Combo_SpoilerWindow_RunHeadless(void) {
     // Leave global state clean for any subsequent test.
     CVarClear(ComboGui::kComboSpoilerVisibilityCVar);
     ComboContext_Init();
+    Combo_Crossings_Clear();
 
     printf("[TEST] PASS: spoiler window registers de-collided and idempotently, and its draw path is inert under "
            "GAME_OOT/GAME_MM/GAME_NONE in both paired and unpaired worlds\n");

@@ -2,15 +2,18 @@
  * @file ComboSpoilerWindow.h
  * @brief The in-game cross-game spoiler panel (#496 steps 3-4; ADR 0008).
  *
- * Renders src/common/combo_spoiler_view.h's model: which MM check hosts which
- * OoT item, and whether it has been collected yet. Before this, the paired
- * world's spoiler existed only as `randomizer-mm/RSBSPAIR<masterSeed>.json`
- * and the operator had to be told an absolute path to read their own seed.
+ * Renders src/common/combo_spoiler_view.h's model: which check of one game
+ * hosts which item of the other, in both directions, and whether each host
+ * check has been collected (#755, #757). Before this, the paired world's
+ * spoiler existed only as a JSON file and the operator had to be told an
+ * absolute path to read their own seed.
  *
- * This is the first common-owned Gui window (ADR 0008). It reads `gComboCtx`
- * and NOTHING else — no `gSaveContext` through either game's layout — which is
- * what makes it safe to draw under GAME_OOT, GAME_MM and GAME_NONE alike, and
- * why it needs no equivalent of MM's `MMActiveGated` wrapper.
+ * This is the first common-owned Gui window (ADR 0008). It reads `gComboCtx`,
+ * the crossing store and the combo tracker's adapters, and NOTHING else — no
+ * `gSaveContext` through either game's layout — which is what makes it safe to
+ * draw under GAME_OOT, GAME_MM and GAME_NONE alike, and why it needs no
+ * equivalent of MM's `MMActiveGated` wrapper. Its two lists are drawn by the
+ * Combo Tracker's own DrawCrossingList, so the panes cannot disagree.
  *
  * Openability: `Ship::GuiWindow` latches its visibility CVar in the ctor and
  * nothing re-syncs CVar -> visibility per frame, so `Draw()` reads the CVar

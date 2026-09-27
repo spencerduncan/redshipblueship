@@ -700,6 +700,13 @@ extern "C" {
 // SCOPE (compiled as C++). Its SqpDeadHeartPickups is also called by
 // combo-logic-bag-composition B7 (declared there).
 #include "tests/test_shared_quantity_policy.c"
+// #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
+// read the crossing store in both directions, named, with found state per host
+// check from each game's save. combo-crossing-views is ROM-free (redship tier);
+// combo-crossing-views-world runs over the ComboSingleBag pinned seed's real
+// world against the one spoiler's combo section (rando tier). FILE SCOPE
+// (compiled as C++).
+#include "tests/test_combo_crossing_views.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -3724,6 +3731,34 @@ TestResult Test_ComboSingleBag(void) {
     return ComboSingleBag_Run();
 }
 
+// #755/#757's two rows (tests/test_combo_crossing_views.c). The synthetic row
+// needs the display-free shared bring-up for the OoT authoring seam, like
+// combo-tracker-view; the world row needs a generation, like combo-single-bag.
+TestResult Test_ComboCrossingViews(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return ComboCrossingViews_RunSynthetic();
+}
+
+TestResult Test_ComboCrossingViewsWorld(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char cxvArg0[] = "redship";
+    static char* cxvArgv[] = { cxvArg0, nullptr };
+    InitOTRForMMFirstBoot(1, cxvArgv);
+    return ComboCrossingViews_RunWorld();
+}
+
 // ADR 0010 answer O6's grow-check over both real engines (#645, #500). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason.
 TestResult Test_ComboLogicMonotonicity(void) {
@@ -4576,6 +4611,14 @@ const TestDescriptor gTests[] = {
      "(En_Test4's clock latch) after the graph is retired, client-free overlays are not, the statics only Destroy "
      "restored are restored, and no per-actor ObjectExtension entry survives (#666)",
      Test_MMAbandonedSessionStatics},
+    {"combo-crossing-views",
+     "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
+     "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",
+     Test_ComboCrossingViews},
+    {"combo-crossing-views-world",
+     "Over the ComboSingleBag pinned seed's real single-bag world, both panes list exactly the one spoiler's "
+     "combo.crossingStore rows, named, found per host (#755, #757)",
+     Test_ComboCrossingViewsWorld},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4669,6 +4712,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 ||
+                strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.

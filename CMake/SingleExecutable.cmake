@@ -1972,6 +1972,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the graph is retired, skips client-free ones, restores the statics only
     # Destroy used to restore, and drops every per-actor ObjectExtension entry.
     redship_add_test(NAME MMAbandonedSessionStatics COMMAND redship --test mm-abandoned-session-statics)
+    # #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
+    # read the crossing store (both directions, host check names, item names and
+    # articles, found per host check from each game's save). The synthetic row is
+    # ROM-free and display-free (default tier); the world row runs over the
+    # ComboSingleBag pinned seed's real world and compares the panes with the one
+    # spoiler's combo.crossingStore section (rando tier: it needs a generation).
+    redship_add_test(NAME ComboCrossingViews COMMAND redship --test combo-crossing-views)
+    redship_add_test(NAME ComboCrossingViewsWorld COMMAND redship --test combo-crossing-views-world
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

@@ -1,31 +1,41 @@
 /**
  * @file test_combo_spoiler_view.c
- * @brief ROM-free lock for the cross-game spoiler VIEW MODEL (#496).
+ * @brief ROM-free lock for the cross-game spoiler VIEW MODEL (#496; #755, #757).
  *
  * The model is the thing that turns "a JSON file on disk the operator has to
  * be told the path to" into something the running game can render. This test
- * does NOT stub it. It populates gComboCtx through the REAL
- * Combo_SetForeignPlacement with REAL OoT items (looked up by name through
- * the origin describer; the pinned pool retired in ADR 0010 increment 3),
- * records a crossing through the REAL give path (the same
- * MM_Rando_Foreign_RecordPickup -> Combo_RedeemSharedItemsForGame pair
- * test_foreign_items.c drives), and asserts on the model's output:
+ * does NOT stub it. It populates the two sources the give path reads — the
+ * legacy pinned table through the REAL Combo_SetForeignPlacement, and the
+ * crossing store through the REAL Combo_Crossings_Replace — with REAL items
+ * (looked up by name through the origin describer), and asserts on the
+ * model's output:
  *
- *  1. One row per occupied placement slot, in slot order, each carrying its
- *     describer display name — not a placeholder, not an id rendered as text.
- *  2. The crossed-and-awarded entry reports redeemed == true and the others
- *     false. This is the assertion that makes the view worth having: a spoiler
- *     that cannot distinguish "hosted" from "already collected" is a file dump.
- *  3. With Combo_ForeignPairingActive() false, ZERO rows and a summary with
- *     paired == false — the assertion that separates "no crossings" from "no
- *     pairing". An unpaired world must never render as an empty crossing list.
- *  4. The model round-trips a .redsave Save/Load unchanged, so a reloaded
- *     session shows the same crossings (same Save/Load pair
- *     test_foreign_items.c uses).
+ *  1. With Combo_ForeignPairingActive() false, ZERO rows in both directions and
+ *     a summary with paired == false — the assertion that separates "no
+ *     crossings" from "no pairing". An unpaired world must never render as an
+ *     empty crossing list.
+ *  2. BOTH DIRECTIONS, FROM THE STORE (#755). Store rows are listed for the
+ *     game that hosts them, in insertion order, each with its describer name
+ *     and article. Before #755 the view read the forward pinned table only, so
+ *     every single-bag world (whose crossings live in the store alone) showed
+ *     none, and the MM-items-in-OoT direction was never shown at all.
+ *  3. THE GIVE PATH'S PRECEDENCE. Legacy pinned rows come first, in slot order,
+ *     and a store row whose host also has a pinned row is NOT listed: the give
+ *     path reads the pinned row there, so listing both would show a crossing
+ *     the world cannot yield.
+ *  4. MM HOST CHECKS ARE NAMED (#757) once MM's tracker adapter is registered
+ *     (the production state from Combo_TrackerWindow_Init), not hex ids.
+ *  5. The model round-trips a .redsave Save/Load unchanged, so a reloaded
+ *     session shows the same crossings (the pinned table rides Tier-1, the
+ *     store rides Tier-4).
+ *
+ * Found state (per host check, from each game's own save) is locked by
+ * ComboTrackerView and ComboCrossingViews, whose authored MM shadow and OoT
+ * heap it needs; this row keeps to what the spoiler's rows are.
  *
  * Deliberately absent: any assertion about pixels. The model is pure C with no
  * ImGui; the window that renders it is locked separately for registration and
- * game-agnosticism, and its APPEARANCE is operator verification.
+ * game-agnosticism, and its APPEARANCE is judged from the UiSnapshot captures.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++, like test_foreign_items.c) for the rsbs::SaveManager half; every model
@@ -34,6 +44,7 @@
 
 #include "../combo_spoiler_view.h"
 #include "../context.h"
+#include "../crossing_store.h"
 #include "../foreign_items.h"
 #include "../save.h"
 #include "../shared_items.h"
@@ -42,10 +53,6 @@
 
 #include <cstdio>
 #include <cstring>
-
-extern "C" {
-int MM_Rando_Foreign_RecordPickup(uint16_t randoCheckId);
-}
 
 #define CSV_ASSERT(cond)                                                                                               \
     do {                                                                                                               \
@@ -56,34 +63,68 @@ int MM_Rando_Foreign_RecordPickup(uint16_t randoCheckId);
     } while (0)
 
 namespace {
-// Arbitrary nonzero MM RandoCheckIds — the common layer stores them opaquely.
+// Real MM RandoCheckIds (below RC_MAX), stored opaquely by the common layer.
 const uint16_t kSpoilerCheckA = 0x0311;
 const uint16_t kSpoilerCheckB = 0x0312;
 const uint16_t kSpoilerCheckC = 0x0313;
+const uint16_t kSpoilerStoreMM = 0x0401;
+// OoT check ids hosting MM items (store rows).
+const uint16_t kSpoilerStoreOoT1 = 0x0055;
+const uint16_t kSpoilerStoreOoT2 = 0x0056;
 const char* const kSpoilerSaveDir = "rsbs_test_saves_spoiler_view";
 
-void SpoilerNoopAward(const SharedItem* item, void* ctx) {
-    (void)item;
-    (void)ctx;
+ComboCrossing SpoilerCrossing(uint16_t host, SharedItem item) {
+    ComboCrossing c;
+    c.hostCheck = host;
+    c.itemClass = 0x0001;
+    c.item = item;
+    return c;
+}
+
+/** Row `index` of `hostGame` has this host and item, a name and an article. */
+bool SpoilerRowIs(uint8_t hostGame, int index, uint16_t host, SharedItem item, const char* name) {
+    ComboSpoilerRow row;
+    memset(&row, 0, sizeof(row));
+    if (!Combo_SpoilerRowAt(hostGame, index, &row)) {
+        printf("[TEST] combo-spoiler-view: no row %d for host game %u\n", index, (unsigned)hostGame);
+        return false;
+    }
+    const bool ok = row.hostGame == hostGame && row.hostCheckId == host && row.originGame == item.originGame &&
+                    row.itemId == item.id && row.itemName != NULL && strcmp(row.itemName, name) == 0 &&
+                    row.itemArticle != NULL;
+    if (!ok) {
+        printf("[TEST] combo-spoiler-view: row %d of host game %u is host 0x%04X item %u:%u '%s', expected host "
+               "0x%04X item %u:%u '%s'\n",
+               index, (unsigned)hostGame, (unsigned)row.hostCheckId, (unsigned)row.originGame, (unsigned)row.itemId,
+               row.itemName != NULL ? row.itemName : "(null)", (unsigned)host, (unsigned)item.originGame,
+               (unsigned)item.id, name);
+    }
+    return ok;
 }
 } // namespace
 
 TestResult Test_ComboSpoilerView(void) {
-    printf("[TEST] combo-spoiler-view: the in-game view model reports crossings, their names and their collected "
-           "state, and distinguishes unpaired from empty (#496)\n");
+    printf("[TEST] combo-spoiler-view: the in-game view model lists both directions' crossings from the crossing "
+           "store and the legacy pinned table, named, and distinguishes unpaired from empty (#496, #755, #757)\n");
 
-    // Three distinct real OoT items, by name (the placement rows below).
-    SharedItem items[3];
-    const char* const kItemNames[3] = { "Lens of Truth", "Megaton Hammer", "Boomerang" };
-    for (int i = 0; i < 3; i++) {
-        CSV_ASSERT(TestNamedItem((uint8_t)GAME_OOT, kItemNames[i], &items[i]));
+    // Real items, by name (the placement rows below).
+    SharedItem oot[4];
+    const char* const kOoTNames[4] = { "Lens of Truth", "Megaton Hammer", "Boomerang", "Hookshot" };
+    for (int i = 0; i < 4; i++) {
+        CSV_ASSERT(TestNamedItem((uint8_t)GAME_OOT, kOoTNames[i], &oot[i]));
+    }
+    SharedItem mm[2];
+    const char* const kMMNames[2] = { "Lens of Truth", "Hookshot" };
+    for (int i = 0; i < 2; i++) {
+        CSV_ASSERT(TestNamedItem((uint8_t)GAME_MM, kMMNames[i], &mm[i]));
     }
 
     // ------------------------------------------------------------------
-    // 3 (first, while the state is honestly unpaired): NOT PAIRED must not
+    // 1 (first, while the state is honestly unpaired): NOT PAIRED must not
     // look like NO CROSSINGS.
     // ------------------------------------------------------------------
     ComboContext_Init();
+    Combo_Crossings_Clear();
     Context_InitFrozenStates();
     Context_ClearAllFrozenStates();
     Combo_ClearSharedItemOutbox();
@@ -93,87 +134,99 @@ TestResult Test_ComboSpoilerView(void) {
     memset(&summary, 0xA5, sizeof(summary));
     Combo_SpoilerPairingSummary(&summary);
     CSV_ASSERT(!summary.paired);
-    CSV_ASSERT(summary.placementCount == 0);
-    CSV_ASSERT(Combo_SpoilerRowCount() == 0);
+    CSV_ASSERT(summary.mmHosted == 0 && summary.ootHosted == 0);
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_MM) == 0);
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_OOT) == 0);
 
     ComboSpoilerRow row;
     memset(&row, 0xA5, sizeof(row));
-    CSV_ASSERT(!Combo_SpoilerRowAt(0, &row));
-    CSV_ASSERT(row.mmCheckId == 0xA5A5); // untouched on failure
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, 0, &row));
+    CSV_ASSERT(row.hostCheckId == 0xA5A5); // untouched on failure
 
-    // Placements EXIST but pairing does not: the model must still report zero
-    // rows. This is the leg that would pass vacuously if the model simply
-    // counted the table.
+    // Crossings EXIST (both sources) but pairing does not: the model must
+    // still report zero rows. This is the leg that would pass vacuously if the
+    // model simply counted the tables.
     gComboCtx.sourceIsRando = true;
     gComboCtx.sharedRandoSeed = 0xC0FFEE96u;
     CSV_ASSERT(!Combo_ForeignPairingActive()); // seed without settings digest
     gComboCtx.sharedRandoSettingsHash = 0x5EED0496u;
     CSV_ASSERT(Combo_ForeignPairingActive());
-    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckA, items[0]) >= 0);
-    CSV_ASSERT(Combo_SpoilerRowCount() == 1);
-    gComboCtx.sharedRandoSettingsHash = 0; // un-pair, leaving the table populated
-    CSV_ASSERT(Combo_CountForeignPlacements() == 1);
-    CSV_ASSERT(Combo_SpoilerRowCount() == 0);
-    CSV_ASSERT(!Combo_SpoilerRowAt(0, &row));
+    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckA, oot[0]) >= 0);
+    {
+        const ComboCrossing ootHosted[2] = { SpoilerCrossing(kSpoilerStoreOoT1, mm[0]),
+                                             SpoilerCrossing(kSpoilerStoreOoT2, mm[1]) };
+        // kSpoilerCheckA is ALSO pinned: the store row there is shadowed (leg 3).
+        const ComboCrossing mmHosted[2] = { SpoilerCrossing(kSpoilerStoreMM, oot[3]),
+                                            SpoilerCrossing(kSpoilerCheckA, oot[2]) };
+        CSV_ASSERT(Combo_Crossings_Replace(ootHosted, 2, mmHosted, 2) == 4);
+    }
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_MM) > 0);
+    gComboCtx.sharedRandoSettingsHash = 0; // un-pair, leaving both sources populated
+    CSV_ASSERT(Combo_CountForeignPlacements() == 1 && Combo_Crossings_Count(GAME_OOT) == 2);
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_MM) == 0);
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_OOT) == 0);
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_OOT, 0, &row));
     Combo_SpoilerPairingSummary(&summary);
-    CSV_ASSERT(!summary.paired && summary.placementCount == 0);
+    CSV_ASSERT(!summary.paired && summary.mmHosted == 0 && summary.ootHosted == 0);
     gComboCtx.sharedRandoSettingsHash = 0x5EED0496u; // re-pair for the rest
 
     // ------------------------------------------------------------------
-    // 1: one row per occupied slot, in slot order, with describer names.
+    // 2 + 3: both directions; pinned first, then the store, shadowed hosts
+    //        skipped.
     // ------------------------------------------------------------------
-    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckB, items[1]) >= 0);
-    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckC, items[2]) >= 0);
-    CSV_ASSERT(Combo_SpoilerRowCount() == 3);
+    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckB, oot[1]) >= 0);
+    CSV_ASSERT(Combo_SetForeignPlacement(kSpoilerCheckC, oot[2]) >= 0);
 
     Combo_SpoilerPairingSummary(&summary);
     CSV_ASSERT(summary.paired);
     CSV_ASSERT(summary.sharedRandoSeed == 0xC0FFEE96u);
     CSV_ASSERT(summary.sharedRandoSettingsHash == 0x5EED0496u);
-    CSV_ASSERT(summary.placementCount == 3);
+    // MM hosts: 3 pinned + 1 store row (the store row on kSpoilerCheckA is shadowed).
+    CSV_ASSERT(summary.mmHosted == 4);
+    CSV_ASSERT(summary.ootHosted == 2);
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_MM) == 4);
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_OOT) == 2);
 
-    const uint16_t expectedChecks[3] = { kSpoilerCheckA, kSpoilerCheckB, kSpoilerCheckC };
-    for (int i = 0; i < 3; i++) {
-        memset(&row, 0, sizeof(row));
-        CSV_ASSERT(Combo_SpoilerRowAt(i, &row));
-        CSV_ASSERT(row.mmCheckId == expectedChecks[i]);
-        CSV_ASSERT(row.originGame == (uint8_t)GAME_OOT);
-        CSV_ASSERT(row.itemId == items[i].id);
-        // The describer display name, not a placeholder and not the fallback.
-        CSV_ASSERT(row.itemName != NULL);
-        CSV_ASSERT(strcmp(row.itemName, kItemNames[i]) == 0);
-        CSV_ASSERT(strcmp(row.itemName, RSBS_SPOILER_UNKNOWN_ITEM_NAME) != 0);
-        CSV_ASSERT(!row.redeemed); // nothing collected yet
+    CSV_ASSERT(SpoilerRowIs((uint8_t)GAME_MM, 0, kSpoilerCheckA, oot[0], kOoTNames[0]));
+    CSV_ASSERT(SpoilerRowIs((uint8_t)GAME_MM, 1, kSpoilerCheckB, oot[1], kOoTNames[1]));
+    CSV_ASSERT(SpoilerRowIs((uint8_t)GAME_MM, 2, kSpoilerCheckC, oot[2], kOoTNames[2]));
+    CSV_ASSERT(SpoilerRowIs((uint8_t)GAME_MM, 3, kSpoilerStoreMM, oot[3], kOoTNames[3]));
+    CSV_ASSERT(SpoilerRowIs((uint8_t)GAME_OOT, 0, kSpoilerStoreOoT1, mm[0], kMMNames[0]));
+    CSV_ASSERT(SpoilerRowIs((uint8_t)GAME_OOT, 1, kSpoilerStoreOoT2, mm[1], kMMNames[1]));
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, 4, &row));  // one past the end
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_OOT, 2, &row)); // one past the end
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, -1, &row)); // negative index
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, 0, NULL));  // NULL out
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_NONE, 0, &row)); // not a game
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_NONE) == 0);
+    // The article comes from the origin's describer (OoT: "the " for the Lens).
+    CSV_ASSERT(Combo_SpoilerRowAt((uint8_t)GAME_MM, 0, &row));
+    {
+        const char* article = Combo_GetForeignItemArticle(oot[0]);
+        CSV_ASSERT(strcmp(row.itemArticle, article != NULL ? article : "") == 0);
     }
-    CSV_ASSERT(!Combo_SpoilerRowAt(3, &row));  // one past the end
-    CSV_ASSERT(!Combo_SpoilerRowAt(-1, &row)); // negative index
-    CSV_ASSERT(!Combo_SpoilerRowAt(0, NULL));  // NULL out
 
     // ------------------------------------------------------------------
-    // 2: the collected crossing reports redeemed; its neighbours do not.
-    //    Driven through the REAL give path, not by setting the flag.
+    // 4: MM host checks are NAMED once MM's tracker adapter is registered.
     // ------------------------------------------------------------------
-    CSV_ASSERT(MM_Rando_Foreign_RecordPickup(kSpoilerCheckB) == 1);
-    // Picked up but not yet awarded on the OoT side: the crossing is pending,
-    // not redeemed. The view must not call that "collected".
-    CSV_ASSERT(Combo_SpoilerRowAt(1, &row) && !row.redeemed);
-
-    CSV_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, SpoilerNoopAward, NULL) == 1);
-    for (int i = 0; i < 3; i++) {
-        memset(&row, 0, sizeof(row));
-        CSV_ASSERT(Combo_SpoilerRowAt(i, &row));
-        CSV_ASSERT(row.redeemed == (i == 1));
+    MM_TrackerAdapter_Register();
+    for (int i = 0; i < Combo_SpoilerRowCount((uint8_t)GAME_MM); i++) {
+        CSV_ASSERT(Combo_SpoilerRowAt((uint8_t)GAME_MM, i, &row));
+        CSV_ASSERT(row.hostCheckName != NULL && row.hostCheckName[0] != '\0');
+        CSV_ASSERT(strncmp(row.hostCheckName, "RC_", 3) != 0); // the readable name, not the enum spelling
+        CSV_ASSERT(strcmp(row.hostCheckName, Combo_TrackerCheckName((uint8_t)GAME_MM, row.hostCheckId)) == 0);
     }
-    // The placement survives redemption — the world still hosts the item, so
-    // the spoiler stays truthful; only the crossing is marked done.
-    CSV_ASSERT(Combo_SpoilerRowCount() == 3);
 
     // ------------------------------------------------------------------
-    // 4: the whole view round-trips a .redsave Save/Load unchanged.
+    // 5: the whole view round-trips a .redsave Save/Load unchanged.
     // ------------------------------------------------------------------
-    ComboSpoilerRow expectedRows[3];
-    for (int i = 0; i < 3; i++) {
-        CSV_ASSERT(Combo_SpoilerRowAt(i, &expectedRows[i]));
+    ComboSpoilerRow expectedMM[4];
+    ComboSpoilerRow expectedOoT[2];
+    for (int i = 0; i < 4; i++) {
+        CSV_ASSERT(Combo_SpoilerRowAt((uint8_t)GAME_MM, i, &expectedMM[i]));
+    }
+    for (int i = 0; i < 2; i++) {
+        CSV_ASSERT(Combo_SpoilerRowAt((uint8_t)GAME_OOT, i, &expectedOoT[i]));
     }
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
@@ -182,34 +235,40 @@ TestResult Test_ComboSpoilerView(void) {
     CSV_ASSERT(mgr.Save(0));
 
     ComboContext_Init(); // wipe live state...
-    CSV_ASSERT(Combo_SpoilerRowCount() == 0);
+    Combo_Crossings_Clear();
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_MM) == 0);
     memset(gComboCtx.foreignPlacements, 0x5A, sizeof(gComboCtx.foreignPlacements)); // ...then scribble
     CSV_ASSERT(mgr.Load(0));
 
-    CSV_ASSERT(Combo_SpoilerRowCount() == 3);
-    for (int i = 0; i < 3; i++) {
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_MM) == 4);
+    CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_OOT) == 2);
+    for (int i = 0; i < 6; i++) {
+        const uint8_t host = i < 4 ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+        const ComboSpoilerRow& want = i < 4 ? expectedMM[i] : expectedOoT[i - 4];
         memset(&row, 0, sizeof(row));
-        CSV_ASSERT(Combo_SpoilerRowAt(i, &row));
-        CSV_ASSERT(row.mmCheckId == expectedRows[i].mmCheckId);
-        CSV_ASSERT(row.originGame == expectedRows[i].originGame);
-        CSV_ASSERT(row.itemId == expectedRows[i].itemId);
-        CSV_ASSERT(strcmp(row.itemName, expectedRows[i].itemName) == 0);
-        // The redeemed bit rides sharedItemsTagged, a different carve than the
-        // placements — a reloaded session must not forget what was collected.
-        CSV_ASSERT(row.redeemed == expectedRows[i].redeemed);
+        CSV_ASSERT(Combo_SpoilerRowAt(host, i < 4 ? i : i - 4, &row));
+        CSV_ASSERT(row.hostCheckId == want.hostCheckId);
+        CSV_ASSERT(row.originGame == want.originGame);
+        CSV_ASSERT(row.itemId == want.itemId);
+        CSV_ASSERT(strcmp(row.itemName, want.itemName) == 0);
+        CSV_ASSERT(strcmp(row.itemArticle, want.itemArticle) == 0);
+        CSV_ASSERT(row.found == want.found);
     }
     Combo_SpoilerPairingSummary(&summary);
     CSV_ASSERT(summary.paired);
     CSV_ASSERT(summary.sharedRandoSeed == 0xC0FFEE96u);
     CSV_ASSERT(summary.sharedRandoSettingsHash == 0x5EED0496u);
     mgr.DeleteSave(0);
+    mgr.SetSaveDirectory("Save");
 
     // Leave global state clean for any subsequent test.
     Context_ClearAllFrozenStates();
     Combo_ClearSharedItemOutbox();
     ComboContext_Init();
+    Combo_Crossings_Clear();
 
-    printf("[TEST] PASS: spoiler view reports named crossings in slot order with their collected state, survives a "
-           "save round trip, and reports unpaired distinctly from empty\n");
+    printf("[TEST] PASS: spoiler view lists both directions from the crossing store after the legacy pinned rows "
+           "(shadowed hosts skipped), named and articled, survives a save round trip, and reports unpaired "
+           "distinctly from empty\n");
     return TEST_PASS;
 }

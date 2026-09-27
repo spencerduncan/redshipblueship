@@ -313,10 +313,11 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   reserved trick open), tricks-frozen (frozen, with the area of the longest trick name open) and tricks-narrow (that
   area live, the pane resized to its minimum width, which the capture asserts); the Tricks states are compared with
   Randomizer > Tricks/Glitches (`PageSpec::stateCompareWith`).
-  The Cross-Game Spoiler draws paired (no crossings), crossings (placements authored through
-  `Combo_SetForeignPlacement`, so its table is drawn) and unpaired; the Combo Tracker draws paired, unpaired and
-  progress (a synthetic OoT tracker adapter with one collected, one skipped and two open checks, its Checks list open,
-  and placements both ways, so the status glyphs and both placement tables are drawn).
+  The Cross-Game Spoiler draws paired (no crossings), crossings (crossings both ways authored through the crossing
+  store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their collected
+  column) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
+  adapter, with one collected, one skipped and two open OoT checks and its Checks list open, so the status glyphs and
+  both crossing tables are drawn).
 - SoH PANE: SoH's Check Tracker Settings pane, the reference both of those panes compare with (`compare/`). It is
   opened through its own `GuiWindow::Show` and closed with `Hide`, because an SoH pane latches its visibility CVar at
   construction and never re-reads it (ours read theirs live). A run where the pane is not registered skips it ROM-free
