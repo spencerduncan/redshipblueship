@@ -137,3 +137,4 @@ games/mm/2s2h/Rando/ComboGoalEndingMM.cpp
 games/oot/soh/oot_combo_goal_test.cpp
 games/mm/2s2h/mm_combo_goal_test.cpp
 games/oot/soh/oot_abandoned_session_test.cpp
+games/mm/2s2h/mm_creation_new_file_test.cpp

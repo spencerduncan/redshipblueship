@@ -97,6 +97,12 @@ int MM_AbandonedSessionStatics_RunHeadless(void);
 // the statics only Destroy used to restore, and drop every per-actor
 // ObjectExtension entry, on a second abandonment as on the first.
 int OoT_AbandonedSessionStatics_RunHeadless(void);
+// mm-creation-new-file / -world (#765, games/mm/2s2h/mm_creation_new_file_test.cpp):
+// the paired creation event arms an MM half carrying what MM's own new-file path
+// stamps (marker, checksum, fileNum 0xFF, flashSaveAvailable), which the tracker,
+// the slot panel and the moon-crash reset then read as a started file.
+int MM_CreationNewFile_RunSynthetic(void);
+int MM_CreationNewFile_RunWorld(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -768,6 +774,16 @@ static TestResult Test_MMAbandonedSessionStatics(void) {
 // display, no ROM; a scope guard restores everything it seeds on every exit.
 static TestResult Test_OoTAbandonedSessionStatics(void) {
     return OoT_AbandonedSessionStatics_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The creation-authored MM half as MM's own new-file path would author it (#765;
+// see the extern decls above). Thin wrappers over the C entry points in
+// games/mm/2s2h/mm_creation_new_file_test.cpp.
+static TestResult Test_MMCreationNewFile(void) {
+    return MM_CreationNewFile_RunSynthetic() == 0 ? TEST_PASS : TEST_FAIL;
+}
+static TestResult Test_MMCreationNewFileWorld(void) {
+    return MM_CreationNewFile_RunWorld() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM extended-culling binding (see the extern decl above). Thin wrapper over
@@ -4712,6 +4728,15 @@ const TestDescriptor gTests[] = {
      "are not reset, the statics only Destroy restored are restored, and no per-actor ObjectExtension entry survives "
      "(#750)",
      Test_OoTAbandonedSessionStatics},
+    {"mm-creation-new-file",
+     "A creation-authored MM half carries what MM's own new-file path stamps (the 'ZELDA3' marker, the checksum, "
+     "fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker alone, the slot panel reads it "
+     "started, and the moon-crash reset keeps the consumed half (#765)",
+     Test_MMCreationNewFile},
+    {"mm-creation-new-file-world",
+     "The production paired creation over the ComboSingleBag pinned seed arms an MM half MM's own new-file path "
+     "would recognize: marker, fileNum 0xFF, tracker present, slot started, moon-crash reset keeps it (#765)",
+     Test_MMCreationNewFileWorld},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4806,6 +4831,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
+                strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.

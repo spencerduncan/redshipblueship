@@ -49,6 +49,7 @@
 static_assert(sizeof(bool) == 1, "RandoSaveCheck's flags are read as single bytes through the descriptor");
 static_assert(sizeof(SaveType) == 4, "ShipSaveInfo.saveType is read as a u32 through the descriptor");
 static_assert(sizeof(((RandoSaveInfo*)0)->finalSeed) == 4, "finalSeed is read as a u32 through the descriptor");
+static_assert(sizeof(((ShipSaveInfo*)0)->fileCreatedAt) == 8, "fileCreatedAt is read as a u64 through the descriptor");
 
 // The whole check table must sit inside the shadow blob capacity, or the
 // reader would count truncated rows. GameExports_SingleExe.cpp already
@@ -103,6 +104,7 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     std::memcpy(desc.newf, kMMNewf, sizeof(kMMNewf));
     desc.saveTypeOffset = (uint32_t)offsetof(SaveContext, save.shipSaveInfo.saveType);
     desc.saveTypeRando = (uint32_t)SAVETYPE_RANDO;
+    desc.createdAtOffset = (uint32_t)offsetof(SaveContext, save.shipSaveInfo.fileCreatedAt);
     desc.finalSeedOffset = (uint32_t)offsetof(SaveContext, save.shipSaveInfo.rando.finalSeed);
     desc.checkTableOffset = (uint32_t)offsetof(SaveContext, save.shipSaveInfo.rando.randoSaveChecks);
     desc.checkStride = (uint32_t)sizeof(RandoSaveCheck);

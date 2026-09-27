@@ -169,6 +169,9 @@ extern "C" {
     // than included: TrackersGuiSingleExe.h lives under games/mm/2s2h, which is
     // not on this target's include path.
     void MM_TrackersGui_Init(void);
+    // MM's .redsave slot-metadata descriptor (#765, games/mm/2s2h/
+    // GameExports_SingleExe.cpp). Same include-path reason as above.
+    void MM_SlotMeta_Register(void);
     // Build-version strings baked into each game library
     // (games/*/src/boot/build.c); declarations match each game's own header.
     extern const char OoT_gBuildVersion[];
@@ -627,6 +630,13 @@ int main(int argc, char** argv) {
     // from exactly the sessions that need it. Also registers both games'
     // tracker adapters (MM's shadow-offset descriptor, OoT's heap accessors).
     Combo_TrackerWindow_Init();
+
+    // MM's slot metadata for the unified file panel (#765). Same seam, same
+    // reason as the tracker: the panel is drawn while OoT runs, and its only
+    // other registrar (MM's SaveManager.cpp) is excluded from this link, so
+    // without this every slot's MM half read "not started". Pure offsets; needs
+    // nothing of MM's booted.
+    MM_SlotMeta_Register();
 
     // Belt and braces: re-assert the unattended-safe handlers after game init.
     // The claim above already makes Ship::Context::InitCrashHandler a no-op
