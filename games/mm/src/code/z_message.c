@@ -2148,6 +2148,10 @@ void Message_GetTimerDigits(OSTime time, s16 digits[8]) {
     digits[7] = t;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void MM_ForeignTextboxIcon_OnDecodeHeader(PlayState* play); // 2s2h/Rando/ForeignTextboxIconSingleExe.cpp
+#endif
+
 void Message_DecodeHeader(PlayState* play) {
     Font* font;
     MessageContext* msgCtx = &play->msgCtx;
@@ -2189,6 +2193,12 @@ void Message_DecodeHeader(PlayState* play) {
         if (msgCtx->itemId != 0xFE) {
             MM_Message_LoadItemIcon(play, msgCtx->itemId, msgCtx->textboxY + 10);
         }
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #607 (RSBS): a foreign item's icon, which the header byte cannot name.
+        // No-op unless CustomMessage armed one for this message. Lane-6 re-vendor
+        // note: this call and its declaration are the whole z_message.c delta.
+        MM_ForeignTextboxIcon_OnDecodeHeader(play);
+#endif
     }
 }
 
