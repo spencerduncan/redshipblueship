@@ -50,8 +50,8 @@
 #include "3drando/fill.hpp"
 
 #include "foreign_items.h"       // src/common — SharedItem, the placement tables
-#include "combo_single_bag.h" // src/common — the single-bag fill (ADR 0010 increment 3, lane K11)
-#include "crossing_store.h"   // src/common — the creation writer of the crossings (ADR 0010 O7)
+#include "combo_single_bag.h"    // src/common — the single-bag fill (ADR 0010 increment 3, lane K11)
+#include "crossing_store.h"      // src/common — the creation writer of the crossings (ADR 0010 O7)
 #include "shared_items.h"        // src/common — Combo_RecordSharedItem (#493)
 #include "notification_bridge.h" // src/common — the shared refusal/failure overlay
 #include "gen_budget.h"          // src/common — the #582 fill budget + progress surface

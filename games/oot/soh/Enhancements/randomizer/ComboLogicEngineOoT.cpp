@@ -139,9 +139,9 @@
 #include <spdlog/spdlog.h>
 #include <string>
 
-#include "combo_logic.h"   // src/common — the vtable this file implements
-#include "context.h"       // src/common — SharedItem, GameId
-#include "foreign_items.h" // src/common — the frozen pairing identity and combo record
+#include "combo_logic.h"           // src/common — the vtable this file implements
+#include "context.h"               // src/common — SharedItem, GameId
+#include "foreign_items.h"         // src/common — the frozen pairing identity and combo record
 #include "soh/SohGui/ImGuiUtils.h" // GetTextureForItemId: the describer's arrival-toast icon key
 
 extern "C" {

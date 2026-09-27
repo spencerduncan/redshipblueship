@@ -99,7 +99,7 @@
 // linkage (matching Foreign.cpp / mm_rando_options_test.cpp).
 #include "foreign_items.h"
 #include "tests/test_named_items.h" // real OoT items by name (the pinned pool retired, ADR 0010 increment 3)
-#include "crossing_store.h" // ADR 0010 O7: the store rows the "foreign" section must not list
+#include "crossing_store.h"         // ADR 0010 O7: the store rows the "foreign" section must not list
 #include "shared_items.h"
 #include "save.h"                // the #533 REFUSED surface this gate reports through
 #include "notification_bridge.h" // the player-visible half of that surface

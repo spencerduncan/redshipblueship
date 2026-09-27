@@ -1695,3 +1695,81 @@ an engine-neutral count, not an item id.
 - The hunt's presentation: OoT's and MM's own "x of y" texts and trackers
   still print each game's own requirement. That is GOAL-UI / O11 work.
 - The OoT half's re-derivation on arrival in OoT.
+
+### 2026-09-27 -- Increment 3 delivered at the seam: the single-bag fill at the creation event (lane K11)
+
+Decision 5's increment 3 ("items leave origin pools. One fill, at the creation
+event, draws from the union bag and places across both games' shuffled check
+sets") is wired into production. This entry records where it sits, what it
+removed, and what it measured.
+
+**The seam.** In a paired world (the frozen identity, `Combo_ForeignPairingActive`
+and `Combo_ComboSettingsFrozen`):
+
+- OoT's `Fill()` runs its restricted passes (dungeon rewards, own-dungeon items,
+  restricted songs and dungeon items, Link's pocket) and stops before the general
+  advancement pass, leaving those hosts empty and those items in the pool
+  (`generalPassDeferred`). No spoiler is written yet.
+- The creation event (`OoT_RunPairedCreationEvent`) runs MM's half; after
+  `GeneratePools` and `GrantStartingItems`, MM's `OnFileCreate` calls
+  `Rando::Foreign::RunPairedSingleBagFill` inside the attempt ladder, which calls
+  `Combo_SingleBag_Run` (`src/common/combo_single_bag.{h,c}`): the bag is composed
+  from OoT's deferred general-pass pool and MM's pool by the O8 owner (K9), each
+  row is gated by the frozen direction and item class, and the coordinator fills
+  it over both registered engines under the frozen GOAL and rung. OoT placements
+  land through the OoT engine's `place`, MM's through MM's `place` into
+  `RANDO_SAVE_CHECKS`.
+- Each game's own pass fills its leftover hosts: MM's traps first, then the
+  rest, padded with junk; OoT's `RsbsFinishPairedGeneralPass` (traps first, then
+  the rest, then OoT's overrides, entrances, hints and warp-song texts).
+- The crossings are written to the crossing store (K10) and the one spoiler's
+  `combo` section is joined from that storage; the identity publish then arms
+  the MM shadow, in #680's order. A failed ladder retracts the identity and
+  clears the store (publish-then-retract).
+- Crossings go only to hosts whose give path delivers them: the ABI-5 vtable
+  entry `hostAcceptsForeign` (OoT: `ACTOR_EN_BOX` chests that are not shops,
+  scrubs, merchants or the chest game; MM: `IsForeignHostClass`, Tier-A chests).
+- MM's engine grants the fixed contents of reached checks outside the host pool
+  during expansion (#737), without which beat-both was unprovable on the
+  shipped profile.
+
+**Failure and budget.** The fill runs under MM's attempt ladder and the #582
+per-attempt budget; the coordinator reports each round, the proof and the
+surplus stage to an observer, which reports progress to the overlay and stops
+the fill at the budget (`RSBS_COMBO_LOGIC_ERR_ABORTED`). A wall-clock stop is a
+`GenerationTimeout`, never a ladder rung (#581 section 2a); a structural
+failure is a rung and re-seeds from `Combo_SingleBag_SeedFor(attempt)`. An
+exhausted ladder fails the creation at file select.
+
+**Removal (D3).** Both pinned pools (`kForeignPoolV1`, `kForeignPoolMMV1`), their
+exclusion tables and the six numbered criteria, the pool registry and class
+draw, MM's forward overlay pass and OoT's reverse pass are deleted, with the
+pair-level locks below landing in the same change. The arrival compare-and-refuse
+machinery (#570/#680) is untouched. What `poolSize*`, `direction` and
+`itemClass*` mean now is ADR 0011's 2026-09-27 amendment: pool sizes are read
+by no generation, the direction and the PROGRESSION bit make a row `HOME_ONLY`.
+Names, articles and arrival icons for any crossed item come from each game's
+describer.
+
+**D5, paired with removal, over the real engines** (`ComboSingleBag`, rando
+tier). On the pinned seed an OoT item hosted only in MM (Din's Fire on
+`RC_WOODFALL_TEMPLE_CENTER_CHEST`) and an MM item hosted only in OoT (Ice
+Arrows on Shadow Temple Compass Chest) each leave the GOAL provable with the
+crossing and unprovable when that host's item is removed. Direction OFF makes
+all 306 bag rows home-only, crosses nothing and still proves.
+
+**Measured** (development workstation, host calibration 18 ms against the 18 ms
+reference, scale 100%; shipped profile; `ComboCreationEvent`): one real creation
+end to end took **14.8 s**: OoT's Generate 165 ms, then the creation event
+14,614 ms, of which the single-bag fill was 13,840 ms (306 bag rows, 2 batch
+attempts, 595 rounds, 37 crossings into MM and 59 into OoT) and OoT's tail
+705 ms. That is 0.49x the 30 s per-attempt floor and 0.16x the 90 s ceiling. The
+pinned golden seed's fill took one batch and 307 rounds (6,975 ms in
+`ComboSingleBag`).
+
+**Not built.** A paired `triforce-hunt` creation is refused at Generate with a
+reason: O10's count exists (lane K12 merged during this lane), but the single
+bag does not pass the frozen requirement to the coordinator and nothing yet
+proves each half's pieces are bag rows the proof can count. Hints in a paired
+world carry no pair-level way-of-the-hero or barren analysis (no pair-level
+playthrough exists yet). The pane's pool-size rows no longer change a world.

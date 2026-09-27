@@ -1036,14 +1036,12 @@ const ComboLogicEngine kMmEngine = {
 };
 
 /**
- * File-scope registrar, the same shape as the (retired) kForeignPoolMMV1's was. Registration STORES A POINTER and calls nothing, so
- * running it at static-initialisation time is safe in both directions: the
- * coordinator's registry is a zero-initialised static array with no dynamic
- * initialiser of its own, and none of the functions above runs until somebody
- * drives the vtable. It deliberately does NOT go through RegisterShipInitFunc —
- * this engine must be published whether or not MM's rando bring-up has run, so
- * that a caller who forgets the bring-up gets BeginQuery's loud refusal instead
- * of RSBS_COMBO_LOGIC_ERR_NO_ENGINE, which would read as "MM was not built in".
+ * File-scope registrar, the same shape as the (retired) kForeignPoolMMV1's was. Registration STORES A POINTER and calls
+ * nothing, so running it at static-initialisation time is safe in both directions: the coordinator's registry is a
+ * zero-initialised static array with no dynamic initialiser of its own, and none of the functions above runs until
+ * somebody drives the vtable. It deliberately does NOT go through RegisterShipInitFunc — this engine must be published
+ * whether or not MM's rando bring-up has run, so that a caller who forgets the bring-up gets BeginQuery's loud refusal
+ * instead of RSBS_COMBO_LOGIC_ERR_NO_ENGINE, which would read as "MM was not built in".
  */
 struct ComboLogicEngineRegistrar {
     ComboLogicEngineRegistrar() {
@@ -2031,7 +2029,6 @@ extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
     const RandoItemType type = it->second.randoItemType;
     return (type != RITYPE_JUNK && type != RITYPE_HEALTH) ? 1 : 0;
 }
-
 
 // ============================================================================
 // THE PAIRED CREATION'S FILL (ADR 0010 increment 3, D3; lane K11)
