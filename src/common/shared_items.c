@@ -709,9 +709,10 @@ bool Combo_SharedQuantityPolicyOf(uint8_t kind, ComboSharedQuantityPolicy* out) 
                 p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
                 p.budget = RSBS_SHARED_QTY_BUDGET_HEALTH;
                 break;
-            // The per-game ceilings are the give paths' tops, the same numbers the
-            // carrier's shims apply with (OOT_/MM_MAX_*_TIER, GameExports_SingleExe.cpp;
-            // restated here because this TU names no game header).
+            // The per-game ceilings are the give paths' tops: for every kind but the
+            // wallet the same numbers the carrier's shims apply with (OOT_/MM_MAX_*_TIER,
+            // GameExports_SingleExe.cpp; restated here because this TU names no game
+            // header). The wallet is the exception, see its case.
             case RSBS_SHARED_RES_DOUBLE_DEFENSE:
                 p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
                 p.budget = RSBS_SHARED_QTY_BUDGET_TIER;
@@ -720,10 +721,12 @@ bool Combo_SharedQuantityPolicyOf(uint8_t kind, ComboSharedQuantityPolicy* out) 
                 p.ceilingMM = 1u;
                 break;
             case RSBS_SHARED_RES_WALLET_TIER:
-                // Both progressive wallets stop at the giant's wallet (MM's
-                // ConvertItem: CUR_UPG_VALUE(UPG_WALLET) >= 2); OoT's reaches the
-                // tycoon's only when its pool carries that copy, which the pool
-                // count raises the ceiling to.
+                // NOT the carrier's number: OOT_/MM_MAX_WALLET_TIER are 3 (the
+                // carrier's clamp admits a tycoon tier), but both progressive-wallet
+                // GIVE paths stop at the giant's wallet (MM's ConvertItem:
+                // CUR_UPG_VALUE(UPG_WALLET) >= 2); OoT's reaches the tycoon's only
+                // when its pool carries that copy, which the pool count raises the
+                // ceiling to.
             case RSBS_SHARED_RES_MAGIC_LEVEL:
                 p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
                 p.budget = RSBS_SHARED_QTY_BUDGET_TIER;
@@ -780,7 +783,19 @@ const char* Combo_SharedQuantityPolicyName(uint8_t policy) {
 
 int Combo_SharedQuantityHealthBudget(uint16_t startingHealth, int piecesAvailable, int containersAvailable,
                                      int* outPieces, int* outContainers) {
-    const int start = (startingHealth == 0u) ? (int)RSBS_SHARED_QTY_DEFAULT_START_HEALTH : (int)startingHealth;
+    if (startingHealth == 0u) {
+        // NOT PUBLISHED. There is no default: a guessed three hearts under-trims a
+        // two-heart world below its shared maximum (72 quarters of headroom, 68
+        // kept), which is the reduction this policy exists to prevent.
+        if (outPieces != NULL) {
+            *outPieces = 0;
+        }
+        if (outContainers != NULL) {
+            *outContainers = 0;
+        }
+        return -1;
+    }
+    const int start = (int)startingHealth;
     int budget = ((int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS - start) / 4; // in quarters (heart pieces)
     if (budget < 0) {
         budget = 0;
@@ -794,7 +809,10 @@ int Combo_SharedQuantityHealthBudget(uint16_t startingHealth, int piecesAvailabl
     const int containerShort =
         (containersAvailable >= 0 && containersAvailable < containers) ? containers - containersAvailable : 0;
     pieces += 4 * containerShort;
-    containers += pieceShort / 4;
+    // Rounded UP: a piece shortfall that is not a whole heart still needs a whole
+    // container to cover it. The partial overfill (under one heart) only clamps at
+    // the carrier; rounding down would leave the bar short of its maximum.
+    containers += (pieceShort + 3) / 4;
     if (piecesAvailable >= 0 && pieces > piecesAvailable) {
         pieces = piecesAvailable;
     }

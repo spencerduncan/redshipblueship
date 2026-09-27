@@ -684,11 +684,15 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 // OPPOSITE ONE: #525 made health, double defense, magic, the four ammo capacity
 // tiers, the hookshot, the wallet and (when armed) the ocarina ONE quantity
 // spanning both games, but both games' full pools of those items were still
-// placed. OoT's pool carries 8 heart containers + 36 pieces (17 hearts of items)
-// and MM's 4 + 52 (17 more), against a shared bar that starts at 3 hearts and
-// clamps at RSBS_SHARED_RES_MAX_HEALTH_QUARTERS (20): about half of every heart
-// pickup in a full paired run lands on a bar the carrier has already clamped,
-// a DEAD pickup. Same shape, smaller, for every capacity-like family.
+// placed. Each port sizes its heart pool to take ITS OWN bar from the starting
+// hearts to 20: on the shipped (balanced) profile OoT's pool carries 11 heart
+// containers + 24 pieces (the treasure-game piece included; item_pool.cpp sizes
+// it from RSK_STARTING_HEARTS, so vanilla OoT's 8 + 36 is not the randomizer's
+// shape) and MM's 4 + 52, 17 hearts of items EACH,
+// against a shared bar that starts at 3 hearts and clamps at
+// RSBS_SHARED_RES_MAX_HEALTH_QUARTERS (20): about half of every heart pickup in a
+// full paired run lands on a bar the carrier has already clamped, a DEAD pickup.
+// Same shape, smaller, for every capacity-like family.
 //
 // THE POLICY, per #525 kind. What shared_resources.h says is ALWAYS shared is
 // trimmed; the one conditionally shared capacity (the ocarina, armed per world
@@ -717,12 +721,14 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 // MM's pool carries only two progressive bomb bags because its first comes from a
 // vanilla shop, and OoT's three reach the top the shared tier is.
 //
-// A GAME'S CEILING is its give path's top tier, the per-game ceilings the shared
-// carrier's shims apply with (GameExports_SingleExe.cpp): double defense 1/1, magic
-// 2/2, the four ammo capacities 3/3, hookshot 2 (OoT, the longshot) / 1 (MM), the
-// ocarina 2 / 1, the wallet 2 / 2 — OoT's progressive wallet reaches its third tier
-// (the tycoon's wallet) only when its pool carries that copy, so a game's ceiling
-// is raised to its own pool count where the pool holds more.
+// A GAME'S CEILING is its GIVE PATH's top tier: double defense 1/1, magic 2/2, the
+// four ammo capacities 3/3, hookshot 2 (OoT, the longshot) / 1 (MM), the ocarina
+// 2 / 1 — for these the same numbers the shared carrier's shims clamp with
+// (GameExports_SingleExe.cpp) — and the wallet 2 / 2, which is NOT the carrier's
+// number (OOT_/MM_MAX_WALLET_TIER are 3; both progressive-wallet gives stop at the
+// giant's wallet). OoT's progressive wallet reaches its third tier (the tycoon's
+// wallet) only when its pool carries that copy, so a game's ceiling is raised to
+// its own pool count where the pool holds more.
 //
 // UNEQUAL CEILINGS ARE KEPT WHOLE, and this is a correctness rule, not caution.
 // A copy's give is an INCREMENT in its own game (`CurrentUpgrade + 1`, clamped at
@@ -763,7 +769,9 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
  *  and 6 containers for both games = 17 hearts, the whole 3 -> 20 headroom. */
 #define RSBS_SHARED_QTY_HEART_PIECES 44
 #define RSBS_SHARED_QTY_HEART_CONTAINERS 6
-/** The health units (0x10 per heart) both ports start a file with by default. */
+/** The health units (0x10 per heart) both ports start a file with by default.
+ *  Documentation for tests and prints ONLY: an unpublished (0) starting health is
+ *  refused, never read as this. */
 #define RSBS_SHARED_QTY_DEFAULT_START_HEALTH 0x30u
 /** The unit sizes of the two health grades (ComboItemClassRow.sharedUnits). */
 #define RSBS_SHARED_QTY_UNITS_PIECE 1u
@@ -790,20 +798,26 @@ const char* Combo_SharedQuantityPolicyName(uint8_t policy);
 
 /**
  * THE HEALTH BUDGET, in copies per grade, for a world whose shared bar starts at
- * @p startingHealth health units (0x10 per heart; 0 = not published, read as
- * RSBS_SHARED_QTY_DEFAULT_START_HEALTH): the MAX of the two games' frozen
- * starting health, because the shared bar is a max-merge from its first harvest.
+ * @p startingHealth health units (0x10 per heart): the MAX of the two games'
+ * frozen starting health, because the shared bar is a max-merge from its first
+ * harvest. 0 means NOT PUBLISHED and is REFUSED (returns -1, writes 0 / 0): there
+ * is no default, because a guessed three hearts under-trims a two-heart world
+ * below its shared maximum. RSBS_SHARED_QTY_DEFAULT_START_HEALTH names both ports'
+ * default for tests and prints; nothing reads it as a fallback.
  *
  * The budget in quarters is (320 - start) / 4. Pieces take min(44, budget); the
- * rest is containers, with a remainder under one heart going to pieces. At the
- * default three hearts that is exactly OoTMM's 44 + 6 (68 quarters, 17 hearts);
- * four starting hearts is 44 + 5; two is 44 + 7. When a grade has fewer copies
+ * rest is containers, with a remainder under one heart going to pieces. At three
+ * starting hearts that is exactly OoTMM's 44 + 6 (68 quarters, 17 hearts); four
+ * starting hearts is 44 + 5; two is 44 + 7. When a grade has fewer copies
  * AVAILABLE than its budget (@p piecesAvailable, @p containersAvailable; negative
- * = unlimited), the unused quarters move to the other grade (whole hearts to
- * containers, four pieces per container the other way), so a pool short of one
- * grade still fills the bar. The kept units never exceed the budget.
+ * = unlimited), the unused quarters move to the other grade: four pieces per
+ * missing container, and one container per missing heart of pieces ROUNDED UP
+ * (14 missing pieces move FOUR containers), so a pool short of one grade still
+ * fills the bar. The kept units reach the budget whenever the pool holds that
+ * much and exceed it by at most three quarters (a partial container the carrier
+ * clamps); a shortfall would be a below-maximum reduction, an overfill is not.
  *
- * @return the budget in quarters.
+ * @return the budget in quarters, or -1 when @p startingHealth is 0.
  */
 int Combo_SharedQuantityHealthBudget(uint16_t startingHealth, int piecesAvailable, int containersAvailable,
                                      int* outPieces, int* outContainers);

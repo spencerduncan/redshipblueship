@@ -1934,6 +1934,10 @@ TestResult ClComposeLeg(void) {
     memset(&req, 0, sizeof(req));
     req.rows = pool;
     req.rowCount = poolCount;
+    // THE SHARED-QUANTITY TRIM (lane K13) refuses an unpublished starting bar; this
+    // pool holds no trim-family row, so any published value leaves the rule alone.
+    req.startingHealthOoT = 0x30u;
+    req.startingHealthMM = 0x30u;
 
     // C1. THE RULE TABLE, nothing armed.
     ComboLogicBagItem bag[16];

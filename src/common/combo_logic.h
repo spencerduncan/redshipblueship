@@ -1273,6 +1273,19 @@ int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 // whole call: the untrimmed bag, for the before/after measurement and for the
 // locks' red halves. Production never sets it.
 //
+// REFUSED, not defaulted: with the trim on, a request whose startingHealthOoT or
+// startingHealthMM is 0 (unpublished) is RSBS_COMBO_LOGIC_ERR_BAD_REQUEST before
+// any row is read. The health budget is a function of the frozen starting bar, so
+// there is no safe guess; a caller that zero-initialises the request must publish
+// both values (or say KEEP_ALL) before the composer will answer.
+//
+// CONFINED rows are never grouped: the trim reads only REQUIRED and SURPLUS
+// dispositions, so a row the rule CONFINES (a frozen setting keeps it in its own
+// game) is neither counted toward a budget nor trimmed. No trim-family item is
+// confinable today (neither port tags a health, double-defense or capacity-tier
+// item with an armedBy bit; combo-logic-bag-composition B7 pins that over both
+// real pools), so the question does not arise until one is.
+//
 // WHAT THE BUILDER DOES NOT DECIDE: whether a bag row may be HOSTED by the other
 // game. The fill places every bag row on the union of both games' hosts; the
 // per-item "may this leave its home game" narrowing belongs to the pool draw
@@ -1321,13 +1334,18 @@ typedef struct {
     int rowCount;
     uint32_t armedOoT; // the frozen armed word for OoT-origin rows (RSBS_FILL_ARM_*)
     uint32_t armedMM;  // ... and for MM-origin rows
-    // --- THE SHARED-QUANTITY TRIM's inputs (lane K13). All-zero is the shipped
-    //     default: trim on, three starting hearts, seed 0. ---------------------
+    // --- THE SHARED-QUANTITY TRIM's inputs (lane K13). The trim is ON unless
+    //     `quantityFlags` says otherwise, and a trimming request MUST publish both
+    //     starting healths: a zero-initialised request is REFUSED
+    //     (RSBS_COMBO_LOGIC_ERR_BAD_REQUEST), never read as a default. ----------
     /** Seeds WHICH copies the trim keeps. Derived by the caller from the frozen
      *  identity (as ComboLogicFillRequest.seed is); never a game's RNG. */
     uint32_t trimSeed;
-    /** Each game's FROZEN starting health, in health units (0x10 per heart); 0 =
-     *  not published, read as three hearts. The shared bar starts at the larger. */
+    /** Each game's FROZEN starting health, in health units (0x10 per heart), from
+     *  OoT_ComboLogic_StartingHealth / MM_ComboLogic_StartingHealth. The shared bar
+     *  starts at the larger. 0 = NOT PUBLISHED: a request with the trim on and
+     *  either one 0 is refused, because a guessed three hearts would trim a
+     *  two-heart world's hearts below its shared maximum (68 of 72 quarters). */
     uint16_t startingHealthOoT;
     uint16_t startingHealthMM;
     uint16_t quantityFlags; // RSBS_COMBO_QUANTITY_* bits; 0 = the trim as stated above

@@ -17,19 +17,26 @@
  *
  *   Q1 THE POLICY TABLE: every #525 kind's policy as shared_items.h states it,
  *      the ocarina's frozen arming resolved (unarmed = keep-all).
- *   Q2 THE BUDGETS: 44 pieces + 6 containers at three starting hearts; the
- *      starting-health and short-grade adjustments; tier budgets from the pools'
- *      own ceilings; unequal ceilings kept whole; double defense capped at 1;
- *      the proportional spread.
- *   Q3 THE TRIM over a pool shaped like both shipped pools (OoT 36 pieces + 8
- *      containers, MM 52 + 4, one double defense each, 3 + 3 quivers, 2 + 1
- *      hookshots, rupees and bombchus): exactly 44 + 6 + 1 kept, quiver 3 of 6
+ *   Q2 THE BUDGETS: 44 pieces + 6 containers at three starting hearts; an
+ *      unpublished (0) start refused, never defaulted; the starting-health and
+ *      short-grade adjustments (a piece shortfall moves containers ROUNDED UP,
+ *      so the bar is never left short); tier budgets from the pools' own
+ *      ceilings; unequal ceilings kept whole; double defense capped at 1; the
+ *      proportional spread.
+ *   Q3 THE TRIM over a pool shaped like both shipped pools (OoT's balanced 24
+ *      pieces + 11 containers, MM 52 + 4, one double defense each, 3 + 3 quivers,
+ *      2 + 1 hookshots, rupees and bombchus): exactly 44 + 6 + 1 kept, quiver 3 of 6
  *      (a kind with N max and 2N copies keeps exactly N), the hookshot whole,
  *      every removed copy counted as filler under its ORIGIN and listed; rupees
  *      (renewable, keep-all) and bombchus (progression, keep-all) untouched; the
  *      bag a stable filter of the pool. Deterministic per seed, different across
  *      seeds (the sensitivity control). RED HALF: RSBS_COMBO_QUANTITY_KEEP_ALL
- *      composes the untrimmed bag (100 heart rows, 2 double defenses).
+ *      composes the untrimmed bag (91 heart rows, 2 double defenses). THE
+ *      OCARINA GATE at composer level: 2 + 2 ocarinas (equal effective ceilings)
+ *      trim to 2 when the frozen record shares the ocarina and keep all 4 when it
+ *      does not. THE STARTING BAR: a request with either starting health 0 is
+ *      refused; a two-heart world keeps 44 + 7 and fills the bar from 0x20, which
+ *      the three-heart bag cannot (red half, observed: it stops at 0x130).
  *   Q4 PLENTIFUL: surplus of a trimmed family is surplus relative to the trimmed
  *      count (one game's worth of extras), and never touches REQUIRED rows.
  *   Q5 THE PLAY-SIDE CHECK, which is the operator's actual concern: every heart
@@ -334,14 +341,16 @@ struct SqpPool {
     }
 };
 
-/** Both shipped pools' SHAPE for these families (the real counts are printed over
- *  the real exports by combo-logic-bag-composition B7). */
+/** Both shipped pools' SHAPE for these families: OoT's balanced pool at three
+ *  starting hearts (item_pool.cpp: the treasure-game piece + 3 + 20 pieces, 20 - 4
+ *  - 5 = 11 containers) and MM's 52 + 4. The real counts are printed over the real
+ *  exports by combo-logic-bag-composition B7. */
 SqpPool SqpShippedShape() {
     const uint8_t O = (uint8_t)GAME_OOT;
     const uint8_t M = (uint8_t)GAME_MM;
     SqpPool p;
-    p.Add(O, kSqpPiece, 36);
-    p.Add(O, kSqpContainer, 8);
+    p.Add(O, kSqpPiece, 24);
+    p.Add(O, kSqpContainer, 11);
     p.Add(O, kSqpDoubleDefense, 1);
     p.Add(O, kSqpQuiver, 3);
     p.Add(O, kSqpHookshot, 2);
@@ -367,8 +376,8 @@ struct SqpComposed {
     std::vector<int> trimmed;
 };
 
-SqpComposed SqpCompose(const SqpPool& pool, uint32_t seed, uint16_t quantityFlags = 0u, uint16_t startOoT = 0u,
-                       uint16_t startMM = 0u) {
+SqpComposed SqpCompose(const SqpPool& pool, uint32_t seed, uint16_t quantityFlags = 0u, uint16_t startOoT = 0x30u,
+                       uint16_t startMM = 0x30u) {
     SqpComposed c;
     memset(&c.res, 0, sizeof(c.res));
     ComboLogicComposeRequest req;
@@ -488,10 +497,12 @@ TestResult Test_SharedQuantityPolicy(void) {
     {
         int pc = -1;
         int hc = -1;
-        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0u, -1, -1, &pc, &hc) == 68 && pc == 44 && hc == 6,
-                   "Q2: three starting hearts (the unpublished default) is OoTMM's 44 pieces + 6 containers");
-        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 88, 12, &pc, &hc) == 68 && pc == 44 && hc == 6,
-                   "Q2: 0x30 is the same budget");
+        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0u, -1, -1, &pc, &hc) == -1 && pc == 0 && hc == 0,
+                   "Q2: an UNPUBLISHED (0) starting health is refused: no default three hearts");
+        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, -1, -1, &pc, &hc) == 68 && pc == 44 && hc == 6,
+                   "Q2: three starting hearts is OoTMM's 44 pieces + 6 containers");
+        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 76, 15, &pc, &hc) == 68 && pc == 44 && hc == 6,
+                   "Q2: 0x30 over the shipped pools' 76 pieces + 15 containers is the same budget");
         SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x40u, -1, -1, &pc, &hc) == 64 && pc == 44 && hc == 5,
                    "Q2: four starting hearts is 44 + 5");
         SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x20u, -1, -1, &pc, &hc) == 72 && pc == 44 && hc == 7,
@@ -500,8 +511,13 @@ TestResult Test_SharedQuantityPolicy(void) {
                    "Q2: nineteen starting hearts leaves one heart of pieces");
         SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x140u, -1, -1, &pc, &hc) == 0 && pc == 0 && hc == 0,
                    "Q2: twenty starting hearts leaves nothing to place");
-        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 30, 20, &pc, &hc) == 68 && pc == 30 && hc == 9,
-                   "Q2: fourteen missing pieces move three whole hearts to containers (never past the budget)");
+        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 30, 20, &pc, &hc) == 68 && pc == 30 && hc == 10 &&
+                       pc + 4 * hc >= 68,
+                   "Q2: fourteen missing pieces move FOUR containers (rounded up: 30 + 40 quarters reach the 68-quarter "
+                   "bar; rounding down stopped at 66, half a heart short of the shared maximum)");
+        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 32, 20, &pc, &hc) == 68 && pc == 32 && hc == 9 &&
+                       pc + 4 * hc == 68,
+                   "Q2: twelve missing pieces (a whole three hearts) move exactly three containers");
         SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 88, 4, &pc, &hc) == 68 && pc == 52 && hc == 4,
                    "Q2: two missing containers move eight pieces the other way");
 
@@ -538,8 +554,12 @@ TestResult Test_SharedQuantityPolicy(void) {
         int b = -1;
         Combo_SharedQuantitySplit(44, 36, 52, 0u, &a, &b);
         SQP_ASSERT(a == 18 && b == 26, "Q2: 44 pieces over 36/52 split 18/26 (proportional)");
+        Combo_SharedQuantitySplit(44, 24, 52, 0u, &a, &b);
+        SQP_ASSERT(a == 14 && b == 30, "Q2: 44 pieces over the shipped 24/52 split 14/30");
         Combo_SharedQuantitySplit(6, 8, 4, 0u, &a, &b);
         SQP_ASSERT(a == 4 && b == 2, "Q2: 6 containers over 8/4 split 4/2");
+        Combo_SharedQuantitySplit(6, 11, 4, 0u, &a, &b);
+        SQP_ASSERT(a == 4 && b == 2, "Q2: 6 containers over the shipped 11/4 split 4/2");
         Combo_SharedQuantitySplit(1, 1, 1, 0u, &a, &b);
         SQP_ASSERT(a == 1 && b == 0, "Q2: an exact tie goes to OoT on an even tie seed");
         Combo_SharedQuantitySplit(1, 1, 1, 1u, &a, &b);
@@ -567,14 +587,14 @@ TestResult Test_SharedQuantityPolicy(void) {
            SqpCount(trim, M, kSqpQuiver), SqpBoth(trim, kSqpHookshot), SqpBoth(trim, kSqpBombchu),
            trim.res.perGame[O].rows[RSBS_COMBO_COMPOSE_TRIMMED], trim.res.perGame[M].rows[RSBS_COMBO_COMPOSE_TRIMMED]);
     // The red half first: the untrimmed bag is the defect.
-    SQP_ASSERT(SqpBoth(full, kSqpPiece) == 88 && SqpBoth(full, kSqpContainer) == 12 &&
+    SQP_ASSERT(SqpBoth(full, kSqpPiece) == 76 && SqpBoth(full, kSqpContainer) == 15 &&
                    SqpBoth(full, kSqpDoubleDefense) == 2 && SqpBoth(full, kSqpQuiver) == 6 && full.trimmed.empty() &&
                    full.res.perGame[O].rows[RSBS_COMBO_COMPOSE_TRIMMED] == 0 &&
                    full.res.perGame[M].rows[RSBS_COMBO_COMPOSE_TRIMMED] == 0,
-               "Q3 RED HALF: KEEP_ALL composes every copy: 88 pieces, 12 containers, 2 double defenses, 6 quivers");
+               "Q3 RED HALF: KEEP_ALL composes every copy: 76 pieces, 15 containers, 2 double defenses, 6 quivers");
     SQP_ASSERT(SqpBoth(trim, kSqpPiece) == 44 && SqpBoth(trim, kSqpContainer) == 6,
                "Q3: the trimmed bag holds exactly 44 pieces + 6 containers across both games");
-    SQP_ASSERT(SqpCount(trim, O, kSqpPiece) == 18 && SqpCount(trim, M, kSqpPiece) == 26 &&
+    SQP_ASSERT(SqpCount(trim, O, kSqpPiece) == 14 && SqpCount(trim, M, kSqpPiece) == 30 &&
                    SqpCount(trim, O, kSqpContainer) == 4 && SqpCount(trim, M, kSqpContainer) == 2,
                "Q3: the spread is proportional, so both worlds keep heart checks");
     SQP_ASSERT(SqpBoth(trim, kSqpDoubleDefense) == 1, "Q3: exactly one double defense");
@@ -584,7 +604,8 @@ TestResult Test_SharedQuantityPolicy(void) {
     SQP_ASSERT(SqpBoth(trim, kSqpHookshot) == 3 && SqpCount(trim, O, kSqpHookshot) == 2 &&
                    SqpCount(trim, M, kSqpHookshot) == 1,
                "Q3: the unequal-ceiling hookshot (2 vs 1) keeps every copy");
-    SQP_ASSERT(SqpBoth(trim, kSqpOcarina) == 3, "Q3: the unarmed shared ocarina keeps every copy");
+    SQP_ASSERT(SqpBoth(trim, kSqpOcarina) == 3,
+               "Q3: the 2 + 1 ocarina keeps every copy (unarmed here; armed, its ceilings 2 vs 1 differ too)");
     SQP_ASSERT(SqpBoth(trim, kSqpBombchu) == 10 && SqpBoth(full, kSqpBombchu) == 10,
                "Q3: bombchus (a KEEP_ALL kind, PROGRESSION) are untouched");
     SQP_ASSERT(trim.res.perGame[O].rows[RSBS_COMBO_COMPOSE_RENEWABLE] == 20 &&
@@ -625,7 +646,7 @@ TestResult Test_SharedQuantityPolicy(void) {
         }
         SQP_ASSERT(sum == poolG, "Q3: every pool row keeps exactly one disposition");
     }
-    SQP_ASSERT((int)trim.trimmed.size() == 44 + 6 + 1 + 3, "Q3: 44 pieces + 6 containers + 1 DD + 3 quivers trimmed");
+    SQP_ASSERT((int)trim.trimmed.size() == 32 + 9 + 1 + 3, "Q3: 32 pieces + 9 containers + 1 DD + 3 quivers trimmed");
     for (size_t i = 1; i < trim.poolIndex.size(); ++i) {
         SQP_ASSERT(trim.poolIndex[i] > trim.poolIndex[i - 1], "Q3: the bag is a STABLE filter of the pool");
     }
@@ -651,12 +672,69 @@ TestResult Test_SharedQuantityPolicy(void) {
     const SqpComposed start4 = SqpCompose(shipped, 0x0A11u, 0u, 0x30u, 0x40u);
     SQP_ASSERT(SqpBoth(start4, kSqpPiece) == 44 && SqpBoth(start4, kSqpContainer) == 5,
                "Q3: a four-heart starting bar (the larger of the two) keeps 44 + 5");
+    // THE STARTING BAR IS PUBLISHED OR THE COMPOSE IS REFUSED (review of PR #744: a
+    // zero-initialised request used to be read as three hearts).
+    {
+        const SqpComposed none = SqpCompose(shipped, 0x0A11u, 0u, 0u, 0u);
+        const SqpComposed noOoT = SqpCompose(shipped, 0x0A11u, 0u, 0u, 0x30u);
+        const SqpComposed noMM = SqpCompose(shipped, 0x0A11u, 0u, 0x30u, 0u);
+        const SqpComposed keepNone = SqpCompose(shipped, 0x0A11u, RSBS_COMBO_QUANTITY_KEEP_ALL, 0u, 0u);
+        SQP_ASSERT(none.status == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST &&
+                       noOoT.status == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST &&
+                       noMM.status == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST && none.trimmed.empty(),
+                   "Q3: a trimming request with either starting health unpublished (0) is REFUSED, never defaulted");
+        SQP_ASSERT(keepNone.status == RSBS_COMBO_LOGIC_OK && keepNone.res.bagCount == full.res.bagCount,
+                   "Q3: KEEP_ALL needs no starting health (nothing is trimmed)");
+        // A two-heart world: 72 quarters of headroom, so 44 + 7.
+        const SqpComposed two = SqpCompose(shipped, 0x0A11u, 0u, 0x20u, 0x20u);
+        SQP_ASSERT(two.status == RSBS_COMBO_LOGIC_OK && SqpBoth(two, kSqpPiece) == 44 &&
+                       SqpBoth(two, kSqpContainer) == 7,
+                   "Q3: a two-heart world keeps 44 pieces + 7 containers");
+        const SqpWalk w2 = SqpWalkHealth(SqpHeartRowsInterleaved(two.bag.data(), (int)two.bag.size()), 0x20u);
+        const SqpWalk w2bad = SqpWalkHealth(SqpHeartRowsInterleaved(trim.bag.data(), (int)trim.bag.size()), 0x20u);
+        printf("[TEST] shared-quantity-policy: Q3 two-heart world: its own bag %d pickups %d dead bar 0x%X; the "
+               "three-heart bag from the same 0x20 start: %d pickups %d dead bar 0x%X\n",
+               w2.pickups, w2.dead, (unsigned)w2.finalValue, w2bad.pickups, w2bad.dead, (unsigned)w2bad.finalValue);
+        SQP_ASSERT(w2.pickups == 51 && w2.dead == 0 && w2.finalValue == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
+                   "Q3: the two-heart bag fills the bar from 0x20 to exactly 320 with zero dead pickups");
+        SQP_ASSERT(w2bad.finalValue == 0x130,
+                   "Q3 RED HALF: the three-heart budget (what an unpublished start used to read as) leaves a "
+                   "two-heart world at 19 hearts, a below-maximum reduction");
+    }
+
+    // THE OCARINA GATE, at composer level (review of PR #744: the 2 + 1 row above
+    // is kept whole by its unequal ceilings whether armed or not, so it cannot see
+    // the gate). 2 + 2 copies raise MM's effective ceiling to 2, equal to OoT's:
+    // armed, the family trims to 2; unarmed, it is not a shared quantity at all.
+    {
+        SqpPool oc;
+        oc.Add(O, kSqpOcarina, 2);
+        oc.Add(M, kSqpOcarina, 2);
+        SqpFreeze(true);
+        const SqpComposed armed = SqpCompose(oc, 0x0C33u);
+        SqpFreeze(false);
+        const SqpComposed unarmed = SqpCompose(oc, 0x0C33u);
+        printf("[TEST] shared-quantity-policy: Q3 ocarina 2 + 2: ARMED keeps %d (OoT %d, MM %d), trims %d; UNARMED "
+               "keeps %d, trims %d\n",
+               SqpBoth(armed, kSqpOcarina), SqpCount(armed, O, kSqpOcarina), SqpCount(armed, M, kSqpOcarina),
+               (int)armed.trimmed.size(), SqpBoth(unarmed, kSqpOcarina), (int)unarmed.trimmed.size());
+        SQP_ASSERT(armed.status == RSBS_COMBO_LOGIC_OK && SqpBoth(armed, kSqpOcarina) == 2 &&
+                       armed.trimmed.size() == 2 && SqpCount(armed, O, kSqpOcarina) == 1 &&
+                       SqpCount(armed, M, kSqpOcarina) == 1,
+                   "Q3: an ARMED shared ocarina (2 + 2, equal effective ceilings) trims to 2, one per game");
+        SQP_ASSERT(unarmed.status == RSBS_COMBO_LOGIC_OK && SqpBoth(unarmed, kSqpOcarina) == 4 &&
+                       unarmed.trimmed.empty(),
+                   "Q3: an UNARMED ocarina (the frozen record does not share it) keeps all 4 copies");
+    }
+
     // An unknown quantity flag is refused.
     {
         ComboLogicComposeRequest bad;
         memset(&bad, 0, sizeof(bad));
         bad.rows = shipped.rows.data();
         bad.rowCount = (int)shipped.rows.size();
+        bad.startingHealthOoT = 0x30u; // published, so the flag alone is what is refused
+        bad.startingHealthMM = 0x30u;
         bad.quantityFlags = 0x8000u;
         ComboLogicBagItem sink[1];
         SQP_ASSERT(Combo_Logic_ComposeBag(&bad, sink, 1, nullptr, nullptr) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
@@ -716,7 +794,7 @@ TestResult Test_SharedQuantityPolicy(void) {
                    "Q5: the trimmed pool's 50 heart pickups end the bar at exactly 320 with ZERO dead pickups");
         SQP_ASSERT(wt2.dead == 0 && wt2.finalValue == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
                    "Q5: ... in a second pickup order too");
-        SQP_ASSERT(wf.pickups == 100 && wf.dead > 0 && wf.finalValue == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
+        SQP_ASSERT(wf.pickups == 91 && wf.dead > 0 && wf.finalValue == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
                    "Q5 RED HALF: the untrimmed pool clamps: pickups past the 20-heart bar are dead");
 
         // The quiver (equal ceilings 3/3): the trimmed copies all count, in both orders.

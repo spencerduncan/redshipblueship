@@ -984,6 +984,32 @@ TestResult ComboLogicMeasure_Run(void) {
                "an MM progression row is CONFINED: MM has no restricted pass to place it, so the pool and the frozen "
                "profile disagree");
     const int fullUnionBag = composed.res.bagCount;
+    // THE SAME EXPORTED ROWS, THE OTHER TRIM SETTING (review of PR #744): MM's
+    // export consumes Ship_Random, so two runs of this row compose different MM
+    // pools and their bag sizes differ by more than the trim. Recomposing THIS
+    // run's rows is the only same-pool before/after; its delta is exactly the
+    // trimmed rows. Timings are NOT paired this way (a second fill would double
+    // the row); a before/after of timings across two runs carries pool variation.
+    {
+        std::vector<ComboLogicBagItem> otherBag;
+        ComboLogicComposeResult otherRes;
+        memset(&otherRes, 0, sizeof(otherRes));
+        std::vector<int> otherTrimmed;
+        const int otherStatus = ClmRecompose(composed, untrimmed ? (uint16_t)0u : (uint16_t)RSBS_COMBO_QUANTITY_KEEP_ALL,
+                                             otherBag, otherRes, &otherTrimmed);
+        const int trimmedBag = untrimmed ? otherRes.bagCount : composed.res.bagCount;
+        const int untrimmedBag = untrimmed ? composed.res.bagCount : otherRes.bagCount;
+        const int trimmedRows = untrimmed ? (int)otherTrimmed.size() : (int)composed.trimmed.size();
+        printf("[TEST] combo-logic-measure: SAME-POOL TRIM DELTA (this run's exported rows composed both ways): "
+               "untrimmed bag %d, trimmed bag %d, delta %d = %d trimmed rows (OoT %d, MM %d)\n",
+               untrimmedBag, trimmedBag, untrimmedBag - trimmedBag, trimmedRows,
+               untrimmed ? otherRes.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_TRIMMED]
+                         : composed.res.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_TRIMMED],
+               untrimmed ? otherRes.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_TRIMMED]
+                         : composed.res.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_TRIMMED]);
+        CLM_ASSERT(otherStatus == RSBS_COMBO_LOGIC_OK && untrimmedBag - trimmedBag == trimmedRows,
+                   "the same rows composed with and without the trim differ by exactly the trimmed rows");
+    }
 
     // MM's HOST POOL is GeneratePools' own check pool — the hosts MM's creation
     // shuffles over — through MM_ComboLogic_SetHostPool (the increment-4 seam), and
@@ -1575,7 +1601,10 @@ TestResult ComboLogicMeasure_Run(void) {
 //     SURPLUS rows, MM counts its trap rows, and every marked progression copy is
 //     SURPLUS (never REQUIRED).
 //  B3 MM'S HEARTS ARE REQUIRED ROWS, AND THE PROOF READS THEM (#733). Every MM
-//     pool row feeding the heart-quarters kind is in the bag as REQUIRED; and over
+//     pool row feeding the heart-quarters kind is classified REQUIRED/SURPLUS by
+//     the rule and ends up EXACTLY ONCE as either a bag row or a TRIMMED row (the
+//     shared-quantity trim, B7, removes some: "every MM heart row is in the bag"
+//     is false since lane K13, and the row counts and asserts that); and over
 //     MM's REAL engine, a round assuming every MM REQUIRED row reaches both
 //     CHECK_MAX_HP(4) checks, while the same round WITHOUT the heart rows reaches
 //     neither — the red half, so the classification is load-bearing and not
@@ -1859,6 +1888,27 @@ TestResult ComboLogicBagComposition_Run(void) {
             rupeeRows += (Combo_ItemClassSharedKind(r.item) == RSBS_SHARED_RES_RUPEES) ? 1 : 0;
         }
         CLB_ASSERT(rupeeRows > 0, "B7: the real pools carry rupee rows (the KEEP_ALL control is not vacuous)");
+        // THE CONFINEMENT PREMISE (for lane K11's ADMIT_CONFINED_HOME port): the
+        // trim groups REQUIRED/SURPLUS rows only, so a CONFINED trim-family row
+        // would be admitted HOME_ONLY outside every budget. Neither port tags a
+        // trim-family item with an armedBy bit today, so no such row can exist
+        // under ANY arming; pinned here over both real pools.
+        int trimFamilyRows = 0;
+        for (const ComboLogicPoolRow& r : c.rows) {
+            ComboSharedQuantityPolicy pol;
+            const uint8_t kind = Combo_ItemClassSharedKind(r.item);
+            if (kind == 0u || !Combo_SharedQuantityPolicyOf(kind, &pol) ||
+                pol.policy != RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX) {
+                continue;
+            }
+            trimFamilyRows++;
+            CLB_ASSERT(Combo_ItemClassArmedBy(r.item) == 0u &&
+                           Combo_Logic_ComposeDisposition(r.item, r.poolFlags, 0u) != RSBS_COMBO_COMPOSE_CONFINED,
+                       "B7: no trim-family pool row is confinable (armedBy 0), so none is ever CONFINED outside the "
+                       "budgets");
+        }
+        printf("[TEST] combo-logic-bag-composition: B7 %d trim-family pool rows, none confinable\n", trimFamilyRows);
+        CLB_ASSERT(trimFamilyRows > 0, "B7: the confinement premise read real trim-family rows");
         for (int d = 0; d < RSBS_COMBO_COMPOSE_COUNT; ++d) {
             if (d == RSBS_COMBO_COMPOSE_REQUIRED || d == RSBS_COMBO_COMPOSE_SURPLUS ||
                 d == RSBS_COMBO_COMPOSE_TRIMMED) {
@@ -1918,14 +1968,47 @@ TestResult ComboLogicBagComposition_Run(void) {
             mmRequiredNoHearts.push_back(b);
         }
     }
-    for (const ComboLogicPoolRow& r : c.rows) {
+    // Membership, per pool row: a bag row (via the pool index) or a TRIMMED row.
+    std::vector<int> inBag(c.rows.size(), 0);
+    std::vector<int> inTrim(c.rows.size(), 0);
+    for (const int idx : c.bagPoolIndex) {
+        inBag[(size_t)idx]++;
+    }
+    for (const int idx : c.trimmed) {
+        inTrim[(size_t)idx]++;
+    }
+    int mmHeartPool = 0;
+    int mmHeartBag = 0;
+    int mmHeartTrimmed = 0;
+    for (size_t i = 0; i < c.rows.size(); ++i) {
+        const ComboLogicPoolRow& r = c.rows[i];
         if (r.item.originGame == (uint8_t)GAME_MM && Combo_ItemClassSharedKind(r.item) == RSBS_SHARED_RES_HEALTH_QUARTERS) {
             const int d = Combo_Logic_ComposeDisposition(r.item, r.poolFlags, c.armedMM);
             CLB_ASSERT(d == RSBS_COMBO_COMPOSE_REQUIRED || d == RSBS_COMBO_COMPOSE_SURPLUS,
-                       "B3: every MM heart-quarter pool row is in the bag (#733)");
+                       "B3: every MM heart-quarter pool row is classified REQUIRED/SURPLUS by the rule (#733)");
+            CLB_ASSERT(inBag[i] + inTrim[i] == 1,
+                       "B3: every MM heart-quarter pool row is EXACTLY ONE of a bag row or a TRIMMED row (filler for "
+                       "MM's own junk pass), never dropped and never both");
+            mmHeartPool++;
+            mmHeartBag += inBag[i];
+            mmHeartTrimmed += inTrim[i];
         }
     }
-    CLB_ASSERT(heartRows > 0, "B3: MM's pool carries heart rows and they are REQUIRED bag rows");
+    printf("[TEST] combo-logic-bag-composition: B3 MM heart-quarter pool rows %d = %d bag rows + %d TRIMMED rows\n",
+           mmHeartPool, mmHeartBag, mmHeartTrimmed);
+    int mmHeartBagRows = 0;
+    for (const ComboLogicBagItem& b : c.bag) {
+        mmHeartBagRows += (b.item.originGame == (uint8_t)GAME_MM &&
+                           Combo_ItemClassSharedKind(b.item) == RSBS_SHARED_RES_HEALTH_QUARTERS)
+                              ? 1
+                              : 0;
+    }
+    CLB_ASSERT(mmHeartPool > 0 && mmHeartBag == mmHeartBagRows,
+               "B3: the MM heart rows found through the pool index are the bag's MM heart rows");
+    CLB_ASSERT(mmHeartTrimmed > 0 && mmHeartBag < mmHeartPool,
+               "B3 (the old claim's red half, observed on every run): some MM heart rows are TRIMMED, so 'every MM "
+               "heart-quarter pool row is in the bag' is FALSE under the shared-quantity trim");
+    CLB_ASSERT(heartRows > 0, "B3: MM's pool carries heart rows and the kept ones are REQUIRED bag rows");
 
     uint16_t gated[4] = { 0, 0, 0, 0 };
     const int gatedCount = MM_ComboLogic_TestHeartGatedChecks(gated, 4);

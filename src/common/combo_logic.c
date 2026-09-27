@@ -1521,7 +1521,9 @@ static void ComboTrimSharedQuantities(const ComboLogicComposeRequest* req, uint8
             }
             int pieces = 0;
             int containers = 0;
-            (void)Combo_SharedQuantityHealthBudget(start, nO[0] + nM[0], nO[1] + nM[1], &pieces, &containers);
+            if (Combo_SharedQuantityHealthBudget(start, nO[0] + nM[0], nO[1] + nM[1], &pieces, &containers) < 0) {
+                continue; // unreachable: ComposeBag refused an unpublished start; never trim to zero
+            }
             ComboTrimGroup(req, disp, scratch, kind, grades[0], (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, pieces, res);
             ComboTrimGroup(req, disp, scratch, kind, grades[1], (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, containers, res);
             for (int g = 0; g < 2; ++g) {
@@ -1561,6 +1563,17 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
 
     if (req == NULL || req->rowCount < 0 || (req->rowCount > 0 && req->rows == NULL) || outCap < 0 ||
         (outCap > 0 && outBag == NULL) || (req->quantityFlags & (uint16_t)~RSBS_COMBO_QUANTITY_FLAGS_KNOWN) != 0u) {
+        status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        goto finish;
+    }
+    if ((req->quantityFlags & RSBS_COMBO_QUANTITY_KEEP_ALL) == 0u &&
+        (req->startingHealthOoT == 0u || req->startingHealthMM == 0u)) {
+        // THE SHARED-QUANTITY TRIM's health budget is a function of the frozen
+        // starting bar; an unpublished one is refused, never guessed (combo_logic.h).
+        fprintf(stderr,
+                "[ComboLogic] compose refused: the shared-quantity trim needs both frozen starting healths "
+                "(OoT 0x%X, MM 0x%X; 0 = not published)\n",
+                (unsigned)req->startingHealthOoT, (unsigned)req->startingHealthMM);
         status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
         goto finish;
     }
