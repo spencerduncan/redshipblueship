@@ -729,6 +729,10 @@ struct PageSpec {
     bool compareDefaulted = false;
     std::vector<std::string> states; // "" = the default state
     std::vector<std::string> hovers; // hover variant names (MENU_PAGE only)
+    // Hover name -> the exact name of the row it points at, for a hover whose
+    // target is not one of Cross-Game Rules' settings. Captured in the page's
+    // first state only.
+    std::map<std::string, std::string> hoverRows;
     std::vector<std::string> expectText;
     // MENU_PAGE: a string only this page's body draws (assert 6); empty when no
     // registered row yields one, which fails the page.
@@ -1107,7 +1111,7 @@ bool Session::BringUp(std::string& why) {
 
 void Session::MirrorProductionWindows() {
     // The same registrations rsbs/src/main.cpp makes after the first game starts.
-    // Without them the Cross-Game Windows rows grey themselves (#535: a window
+    // Without them the Combo > Windows rows grey themselves (#535: a window
     // button whose window is not registered renders disabled), and the captures
     // would show a state no player sees.
     Combo_SpoilerWindow_Init();
@@ -1345,7 +1349,7 @@ void Session::BuildPageList() {
     // Randomizer/General by default and says so in the manifest.
     static const std::map<std::string, std::string> kCompare = {
         { "Cross-Game Rules", "Randomizer/General" },
-        { "Cross-Game Windows", "Randomizer/Item Tracker" },
+        { "Windows", "Randomizer/Item Tracker" },
         { "MM Enhancements", "Enhancements/Quality of Life" },
     };
     auto& entries = MenuEntries(*menu);
@@ -1394,6 +1398,17 @@ void Session::BuildPageList() {
                          "state has nothing to show");
                 }
                 p.stateContrast = { { "autosave", "" } };
+                // The first row's tooltip: the page's tooltip voice, with its
+                // trailing "Majora's Mask only." caveat (guide R-TT6).
+                if (RSBS::kHostedMmEnhancementCount > 0 && RSBS::kHostedMmEnhancements[0].label != nullptr) {
+                    p.hovers = { "first-row" };
+                    p.hoverRows["first-row"] = RSBS::kHostedMmEnhancements[0].label;
+                }
+            } else if (sidebar == "Windows") {
+                // An MM tracker toggle: SoH's "Toggles the <Window>." plus the
+                // sentence that explains its blank window under Ocarina of Time.
+                p.hovers = { "mm-item-tracker" };
+                p.hoverRows["mm-item-tracker"] = "Toggle MM Item Tracker";
             }
             pages.push_back(p);
         }
@@ -2101,17 +2116,25 @@ void Session::CaptureMenuPage(const PageSpec& p) {
 
         // Hover variants: the tooltip is part of the page's look.
         for (const std::string& hv : p.hovers) {
-            if ((hv == "frozen-slider") != (state == "frozen")) {
+            const auto namedRow = p.hoverRows.find(hv);
+            const bool byName = namedRow != p.hoverRows.end();
+            if (byName ? (state != p.states.front()) : ((hv == "frozen-slider") != (state == "frozen"))) {
                 continue;
             }
             const std::string variant = VariantName(state, "hover-" + hv);
             if (!Selected(p, variant)) {
                 continue;
             }
-            ComboSettingId targetId = (hv == "direction") ? COMBO_SETTING_DIRECTION : COMBO_SETTING_POOL_SIZE_OOT;
-            const std::string label = Combo_ComboSettingLabel(targetId);
-            WidgetInfo* row = FindRow(*menu, p.header, p.sidebar,
-                                      [&](const WidgetInfo& w) { return w.name.find(label) != std::string::npos; });
+            std::string label;
+            if (byName) {
+                label = namedRow->second;
+            } else {
+                ComboSettingId targetId = (hv == "direction") ? COMBO_SETTING_DIRECTION : COMBO_SETTING_POOL_SIZE_OOT;
+                label = Combo_ComboSettingLabel(targetId);
+            }
+            WidgetInfo* row = FindRow(*menu, p.header, p.sidebar, [&](const WidgetInfo& w) {
+                return byName ? w.name == label : w.name.find(label) != std::string::npos;
+            });
             Capture c;
             c.id = p.id;
             c.state = state;

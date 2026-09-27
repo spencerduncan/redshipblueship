@@ -828,12 +828,15 @@ void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path) {
     path.column = SECTION_COLUMN_1;
     path.sidebarName = "Cross-Game";
     menu.AddSidebarEntry("Randomizer", path.sidebarName, 1);
-    menu.AddWidget(path, "Cross-game settings moved to the Combo section", WIDGET_SEPARATOR_TEXT);
+    // UI parity M2: a Title Case separator and ONE gray sentence, the shape of
+    // SoH's own notes (SohMenuRandomizer.cpp's General page). The sentence names
+    // the header, not the pages under it, so renaming a Combo page cannot strand
+    // it; why these rows are combo-level is ADR 0004's to say, not the player's
+    // to read.
+    menu.AddWidget(path, "Moved to Combo", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path,
-                   "The cross-game combo rules, the cross-game windows and Majora's Mask's trackers now live under "
-                   "the Combo header - Combo / Cross-Game Rules and Combo / Cross-Game Windows. They are "
-                   "combo-level settings rather than Ocarina of Time randomizer settings, which is the tier ADR "
-                   "0004 gives them.",
+                   "The cross-game rules, the cross-game windows and Majora's Mask's trackers are now under the "
+                   "Combo header.",
                    WIDGET_TEXT)
         .RaceDisable(false)
         // Out of the menu search, like the tier-4 status row: a widget's NAME is

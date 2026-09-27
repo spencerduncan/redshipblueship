@@ -41,6 +41,9 @@
 
 #include "TrackersGuiSingleExe.h"
 
+// RSBS_CVAR_MM_WINDOW_*: the spelling the OoT-hosted Combo > Windows rows use.
+#include "cvar_shared_keys.h"
+
 #include <memory>
 
 #include <ship/Context.h>
@@ -58,6 +61,22 @@
 #include "2s2h/Enhancements/Trackers/ItemTracker/ItemTrackerSettings.h"
 #include "2s2h/Rando/StaticData/StaticData.h" // Rando::StaticData::PopulateCheckNames
 #include "2s2h/DeveloperTools/SaveEditor.h"
+
+// The Combo > Windows rows (games/oot/soh/SohGui/SohMenuCombo.cpp) open these
+// windows by writing RSBS_CVAR_MM_WINDOW_* and cannot include this TU's header,
+// so the two spellings are tied here: a WINDOW_BUTTON whose CVar is not the
+// window's ctor CVar is a button whose open/close label reads wrong while it
+// works. A red build, not a red test.
+static_assert(RSBS::MmEnhStringEqual(S2H::TrackersGui::kItemTrackerVisibilityCVar, RSBS_CVAR_MM_WINDOW_ITEM_TRACKER),
+              "the MM item tracker's ctor CVar and the Combo > Windows row's spelling differ");
+static_assert(RSBS::MmEnhStringEqual(S2H::TrackersGui::kItemTrackerSettingsVisibilityCVar,
+                                     RSBS_CVAR_MM_WINDOW_ITEM_TRACKER_SETTINGS),
+              "the MM item tracker settings' ctor CVar and the Combo > Windows row's spelling differ");
+static_assert(RSBS::MmEnhStringEqual(S2H::TrackersGui::kCheckTrackerVisibilityCVar, RSBS_CVAR_MM_WINDOW_CHECK_TRACKER),
+              "the MM check tracker's ctor CVar and the Combo > Windows row's spelling differ");
+static_assert(RSBS::MmEnhStringEqual(S2H::TrackersGui::kCheckTrackerSettingsVisibilityCVar,
+                                     RSBS_CVAR_MM_WINDOW_CHECK_TRACKER_SETTINGS),
+              "the MM check tracker settings' ctor CVar and the Combo > Windows row's spelling differ");
 #include "2s2h/ShipUtils.h"
 
 #include "context.h" // src/common — Context_GetCurrentGame / GameId

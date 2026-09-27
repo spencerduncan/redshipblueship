@@ -25,7 +25,7 @@
  *
  * WHAT IS NOT BUILT HERE, named rather than implied. ADR 0004 section 4's table
  * lists four Combo sidebars - pairing status, save slots, entrance links,
- * hot-swap. Two pages ship: `Cross-Game Rules` and `Cross-Game Windows`. The
+ * hot-swap. Two pages ship: `Cross-Game Rules` and `Windows`. The
  * other three would be EMPTY pages today, and an empty multi-column page is
  * #640's failure mode exactly (Menu::DrawElement's unconditional
  * SetNextWindowPos goes unconsumed and undocks libultraship's "Main Game"
@@ -54,9 +54,16 @@
 // gSaveContext.
 #include "combo_settings_view.h"
 #include "foreign_items.h"
+// The windows the Windows page opens: their registered names and visibility
+// CVars, from the constants the windows themselves are built with.
+#include "ComboMmOptionsWindow.h"
+#include "ComboSpoilerWindow.h"
+#include "ComboTrackerWindow.h"
+#include "cvar_shared_keys.h"
 
-#include <cctype> // toupper, for the disabled reason's Title Case
-#include <cstdio> // snprintf, for the combo-rule status line and fingerprint
+#include <cctype>  // toupper, for the disabled reason's Title Case
+#include <cstdio>  // snprintf, for the combo-rule status line and fingerprint
+#include <cstring> // strcmp, for the renamed sidebar's persisted selection
 #include <functional>
 #include <string>
 #include <vector>
@@ -586,138 +593,176 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
 }
 
 /**
- * The common-owned cross-game windows and MM's four trackers, moved here with
- * the rules (#497 step 6). Same registrar shape and same reason for being
- * externally linked.
+ * The Windows page: the common-owned cross-game windows and MM's four trackers,
+ * moved here with the rules (#497 step 6). Same registrar shape and same reason
+ * for being externally linked.
+ *
+ * SHAPED LIKE SoH's OWN TRACKER PAGES (UI parity M5; docs/ui-style-guide.md
+ * R-N7). Randomizer > Item Tracker gives each window its own SEPARATOR_TEXT over
+ * a "Toggle <Window>" row whose tooltip reads "Toggles the <Window>.", and each
+ * settings window its own separator over a "Popout <Window> Settings" row
+ * ("Enables the separate <Window> Settings Window."). Every window here follows
+ * that shape, so the page reads as one more SoH tracker page.
  *
  * WINDOW_BUTTON reads .CVar only for the open/close label and calls the window's
  * own ToggleVisibility (UIWidgets.cpp:198), so .CVar MUST equal the window's ctor
- * visibility CVar and .WindowName its registered name. The string literals below
- * match the OoT tracker rows in SohMenuRandomizer.cpp (which hardcode the same
- * way); the authoritative constants are ComboGui::kComboMMOptions* /
- * kComboSpoiler* / kComboTracker* in src/common/ComboMmOptionsWindow.h,
- * ComboSpoilerWindow.h and ComboTrackerWindow.h, and
- * kCheckTracker* / kItemTracker* in games/mm/2s2h/TrackersGuiSingleExe.h.
- * (Spaced deliberately: "kCheckTracker*" followed immediately by "/" closes this
- * block comment, which is what it did before this line was fixed.)
+ * visibility CVar and .WindowName its registered name. Both come from the
+ * constants the windows are built with: ComboGui::kComboMMOptions* /
+ * kComboSpoiler* / kComboTracker* (src/common/ComboMmOptionsWindow.h,
+ * ComboSpoilerWindow.h, ComboTrackerWindow.h) and the RSBS_CVAR_MM_WINDOW_*
+ * macros in src/common/cvar_shared_keys.h, which
+ * games/mm/2s2h/TrackersGuiSingleExe.cpp static_asserts its own ctor CVars
+ * against. The four MM window NAMES stay literals: their constants live in an MM
+ * header this OoT TU does not include. MenuComboSection restates every pair as
+ * literals on purpose, so the menu and the window still have to agree with a
+ * third spelling.
  *
  * WHY THESE ROWS ARE UNGATED, now that #497 step 3 gives them a gate to use.
  * Both common-owned windows read only gComboCtx and CVars, never either game's
  * gSaveContext (ADR 0008 rule 5), so they are safe under every GameId - there is
  * no capability to be absent. MM's four trackers are MMActiveGated: they draw
  * only while MM is the running game, and under OoT the window opens blank, which
- * is the upstream behaviour rather than a broken control. Gating them on
- * SOH_MENU_CAP_MM_HOSTED would be defensible if MM's half could be absent from
- * this binary; it cannot be, and a gate whose predicate is a constant is the
- * decoration ADR 0004 section 5 is against.
+ * is the upstream behaviour rather than a broken control. Their tooltips say so
+ * ("Shows only while Majora's Mask is running."), which is the answer to the
+ * blank window without a gate. Gating them on SOH_MENU_CAP_MM_HOSTED would be
+ * defensible if MM's half could be absent from this binary; it cannot be, and a
+ * gate whose predicate is a constant is the decoration ADR 0004 section 5 is
+ * against.
  */
 void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
     // ---- The common-owned cross-game windows --------------------------------
-    menu.AddWidget(path, "Cross-Game Windows", WIDGET_SEPARATOR_TEXT);
-    // Seed configuration — always reachable, like the trackers.
+    // Seed configuration - always reachable, like the trackers.
+    menu.AddWidget(path, "MM Randomizer Options", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Toggle MM Randomizer Options", WIDGET_WINDOW_BUTTON)
-        .CVar("gCombo.Windows.MMOptions")
+        .CVar(ComboGui::kComboMMOptionsVisibilityCVar)
         .RaceDisable(false)
-        .WindowName("Majora's Mask Randomizer Options")
+        .WindowName(ComboGui::kComboMMOptionsWindowName)
         .HideInSearch(true)
-        .Options(WindowButtonOptions()
-                     .Tooltip("Toggles the Majora's Mask randomizer options pane (the paired MM world's settings).")
-                     .EmbedWindow(false));
+        .Options(WindowButtonOptions().Tooltip("Toggles the Majora's Mask Randomizer Options.").EmbedWindow(false));
     // NO "Toggle Combo Settings" ROW (#655). PR #652 put one here, opening the
     // common-owned ComboSettingsWindow pane. The five settings it rendered are
-    // the rows above now, so a button that opens a second surface over the same
-    // five keys would be the only way for the two to disagree. The window stays
-    // REGISTERED (ComboMmOptionsWindow.cpp and rsbs/src/main.cpp both call
-    // Combo_ComboSettingsWindow_Init, and its headless lock still drives it) but
-    // nothing in the menu writes gCombo.Windows.ComboSettings any more, so it
-    // does not appear. See src/common/ComboSettingsWindow.h for why it was kept
-    // rather than deleted.
+    // the rows of Cross-Game Rules now, so a button that opens a second surface
+    // over the same five keys would be the only way for the two to disagree. The
+    // window stays REGISTERED (ComboMmOptionsWindow.cpp and rsbs/src/main.cpp
+    // both call Combo_ComboSettingsWindow_Init, and its headless lock still
+    // drives it) but nothing in the menu writes gCombo.Windows.ComboSettings any
+    // more, so it does not appear. See src/common/ComboSettingsWindow.h for why
+    // it was kept rather than deleted.
     //
-    // Spoiler — reveals paired-seed placements, so race-disabled like a spoiler tool.
+    // Spoiler - reveals paired-seed placements, so race-disabled like a spoiler tool.
+    menu.AddWidget(path, "Cross-Game Spoiler", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Toggle Cross-Game Spoiler", WIDGET_WINDOW_BUTTON)
-        .CVar("gCombo.Windows.Spoiler")
+        .CVar(ComboGui::kComboSpoilerVisibilityCVar)
         .RaceDisable(true)
-        .WindowName("Cross-Game Spoiler")
+        .WindowName(ComboGui::kComboSpoilerWindowName)
         .HideInSearch(true)
-        .Options(WindowButtonOptions()
-                     .Tooltip("Toggles the cross-game spoiler (which MM check hosts which OoT item, and vice versa).")
-                     .EmbedWindow(false));
-    // Combo tracker (#458) — both games' progress at once, the inactive game's
+        .Options(WindowButtonOptions().Tooltip("Toggles the Cross-Game Spoiler.").EmbedWindow(false));
+    // Combo tracker (#458) - both games' progress at once, the inactive game's
     // included ("as of last freeze/save"). Race-disabled like the spoiler: its
     // cross-game section names items sitting on uncollected checks.
-    // Constants: ComboGui::kComboTracker* in src/common/ComboTrackerWindow.h.
+    menu.AddWidget(path, "Combo Tracker", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Toggle Combo Tracker", WIDGET_WINDOW_BUTTON)
-        .CVar("gCombo.Windows.Tracker")
+        .CVar(ComboGui::kComboTrackerVisibilityCVar)
         .RaceDisable(true)
-        .WindowName("Combo Tracker")
+        .WindowName(ComboGui::kComboTrackerWindowName)
         .HideInSearch(true)
-        .Options(WindowButtonOptions()
-                     .Tooltip("Toggles the combo tracker (both games' check progress at once, including the game "
-                              "that is not running).")
-                     .EmbedWindow(false));
+        .Options(WindowButtonOptions().Tooltip("Toggles the Combo Tracker.").EmbedWindow(false));
 
     // MM's four tracker windows had the same unreachability bug as the two
     // windows above. #489 made them openable and correctly named (they register
     // under "MM "-prefixed names, since SoH owns the unprefixed ones), but
     // nothing in the live menu ever wrote their visibility CVars:
     //   - MM's own menu, BenGui.cpp SetupGuiElements, is excluded from single-exe
-    //     (0 hits in redship.map) — that was their intended writer.
-    //   - The OoT tracker rows above cannot serve: CVAR_WINDOW expands to
+    //     (0 hits in redship.map) - that was their intended writer.
+    //   - The OoT tracker rows cannot serve: CVAR_WINDOW expands to
     //     "gOpenWindows.*" (CVAR_PREFIX_WINDOW, CMake/soh-cvars.cmake:8) while
-    //     MM's trackers read "gWindows.*". Different CVars entirely, by design —
+    //     MM's trackers read "gWindows.*". Different CVars entirely, by design -
     //     the distinct namespaces are what avoid a store collision.
     //   - ItemTrackerSettings.cpp does link and has its own Enable/Disable
     //     button, but it is drawn INSIDE the settings window, which has no
     //     writer either. Chicken-and-egg.
     // So the only way to open them was the console. These rows are the writer.
     //
-    // Names and CVars are the constants in games/mm/2s2h/TrackersGuiSingleExe.h
-    // (kCheckTracker*/kItemTracker*), spelled as literals to match the rows
-    // above. The windows are MMActiveGated, so they draw only while MM is the
-    // running game — the buttons are usable from the first frame, the window
-    // simply stays blank under OoT, which is the upstream behavior.
+    // The windows are MMActiveGated, so they draw only while MM is the running
+    // game - the buttons are usable from the first frame, the window simply
+    // stays blank under OoT, which is the upstream behavior and what each
+    // tooltip's second sentence tells the player.
     //
     // "From the first frame" only holds because rsbs/src/main.cpp registers the
     // four windows at startup (#535). They used to register from MM_Rando_Init,
-    // i.e. only once MM had booted in this process, which left this separator
-    // sitting over four rows whose per-frame GetGuiWindow lookup failed. Menu.cpp
-    // now greys such a row out instead of skipping it, but that is the fallback.
+    // i.e. only once MM had booted in this process, which left these rows over
+    // a per-frame GetGuiWindow lookup that failed. Menu.cpp now greys such a
+    // row out instead of skipping it, but that is the fallback.
     //
-    // EmbedWindow(false) on all four, unlike the OoT settings rows above: the
-    // embed path calls window->DrawElement() directly, which bypasses the
-    // MMActiveGated Draw wrapper — the only thing keeping MM tracker UI from
+    // EmbedWindow(false) on all four, like SoH's own tracker toggles: the embed
+    // path calls window->DrawElement() directly, which bypasses the
+    // MMActiveGated Draw wrapper - the only thing keeping MM tracker UI from
     // drawing while OoT is the running game, and (before mm.o2r is mounted) from
     // reaching for tracker icons that are not loaded. Pop-out only, so the gate
     // stays the single authority on when MM tracker UI draws.
-    menu.AddWidget(path, "Majora's Mask Trackers", WIDGET_SEPARATOR_TEXT);
+    menu.AddWidget(path, "MM Item Tracker", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Toggle MM Item Tracker", WIDGET_WINDOW_BUTTON)
-        .CVar("gWindows.ItemTracker")
+        .CVar(RSBS_CVAR_MM_WINDOW_ITEM_TRACKER)
         .RaceDisable(false)
         .WindowName("MM Item Tracker")
         .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Toggles the Majora's Mask item tracker.").EmbedWindow(false));
+        .Options(WindowButtonOptions()
+                     .Tooltip("Toggles the Majora's Mask Item Tracker. Shows only while Majora's Mask is running.")
+                     .EmbedWindow(false));
+    menu.AddWidget(path, "MM Item Tracker Settings", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Popout MM Item Tracker Settings", WIDGET_WINDOW_BUTTON)
-        .CVar("gWindows.ItemTrackerSettings")
+        .CVar(RSBS_CVAR_MM_WINDOW_ITEM_TRACKER_SETTINGS)
         .RaceDisable(false)
         .WindowName("MM Item Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions()
-                     .Tooltip("Enables the Majora's Mask Item Tracker Settings window.")
+                     .Tooltip("Enables the separate Majora's Mask Item Tracker Settings Window. Shows only while "
+                              "Majora's Mask is running.")
                      .EmbedWindow(false));
+    menu.AddWidget(path, "MM Check Tracker", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Toggle MM Check Tracker", WIDGET_WINDOW_BUTTON)
-        .CVar("gWindows.CheckTracker")
+        .CVar(RSBS_CVAR_MM_WINDOW_CHECK_TRACKER)
         .RaceDisable(false)
         .WindowName("MM Check Tracker")
         .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Toggles the Majora's Mask check tracker.").EmbedWindow(false));
+        .Options(WindowButtonOptions()
+                     .Tooltip("Toggles the Majora's Mask Check Tracker. Shows only while Majora's Mask is running.")
+                     .EmbedWindow(false));
+    menu.AddWidget(path, "MM Check Tracker Settings", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Popout MM Check Tracker Settings", WIDGET_WINDOW_BUTTON)
-        .CVar("gWindows.CheckTrackerSettings")
+        .CVar(RSBS_CVAR_MM_WINDOW_CHECK_TRACKER_SETTINGS)
         .RaceDisable(false)
         .WindowName("MM Check Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions()
-                     .Tooltip("Enables the Majora's Mask Check Tracker Settings window.")
+                     .Tooltip("Enables the separate Majora's Mask Check Tracker Settings Window. Shows only while "
+                              "Majora's Mask is running.")
                      .EmbedWindow(false));
+}
+
+/**
+ * The Windows page's sidebar name, and the name it shipped under.
+ *
+ * RENAMED 2026-09-27 (UI parity, lane U3). "Cross-Game Windows" is wider than
+ * the 200 px sidebar in Montserrat 24: ModernMenuSidebarEntry centres a label
+ * on the child's work rect, so an over-wide one is cut on BOTH sides, and the
+ * snapshot harness showed it as "ross-Game Window" at 1280x800. SoH's own
+ * sidebar names are one or two short words ("Item Tracker", "Entrance
+ * Tracker"); under the Combo header the page needs no qualifier.
+ *
+ * Selection persists BY DISPLAY NAME in gSettings.Menu.ComboSidebarSection, so
+ * a config that last had the page open under its old name would otherwise fall
+ * back to the section's first page. ComboSidebarCarryRenamedSelection moves it
+ * to the new name, once, before the menu's first draw reads the key.
+ */
+static constexpr const char* kComboWindowsPage = "Windows";
+static constexpr const char* kComboWindowsPageFormerName = "Cross-Game Windows";
+
+static void ComboSidebarCarryRenamedSelection(const char* sidebarCvar) {
+    const char* selected = CVarGetString(sidebarCvar, "");
+    if (selected != nullptr && strcmp(selected, kComboWindowsPageFormerName) == 0) {
+        CVarSetString(sidebarCvar, kComboWindowsPage);
+    }
 }
 
 /**
@@ -738,6 +783,7 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
  */
 void SohMenu::AddMenuCombo() {
     AddMenuEntry("Combo", CVAR_SETTING("Menu.ComboSidebarSection"));
+    ComboSidebarCarryRenamedSelection(CVAR_SETTING("Menu.ComboSidebarSection"));
 
     // PIN THE COLUMN on every page. A row parked in a column past the page's
     // count is registered and never drawn - Menu::DrawElement iterates
@@ -748,7 +794,7 @@ void SohMenu::AddMenuCombo() {
     AddSidebarEntry("Combo", path.sidebarName, 2);
     AddComboRulesWidgets(*this, path);
 
-    path.sidebarName = "Cross-Game Windows";
+    path.sidebarName = kComboWindowsPage;
     path.column = SECTION_COLUMN_1;
     AddSidebarEntry("Combo", path.sidebarName, 1);
     AddComboWindowWidgets(*this, path);
