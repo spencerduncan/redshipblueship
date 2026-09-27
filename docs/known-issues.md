@@ -47,8 +47,8 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   [#631](https://github.com/spencerduncan/redshipblueship/pull/631)) and the frozen direction.
 - **Hearts and capacity upgrades are counted once for the pair.** Health is one shared
   bar. On the shipped profile the two pools hold 76 Pieces of Heart, 15 Heart Containers
-  and 2 Double Defense; the bag keeps 44, 6 and 1 (OoT 14 + 4 + 1, MM 30 + 2 + 0), and the
-  bar stops at 20 hearts (PR [#744](https://github.com/spencerduncan/redshipblueship/pull/744)). That is 42 trimmed heart and
+  and 2 Double Defense; the bag keeps 44, 6 and 1 (pieces and containers OoT 14 + 4, MM 30 + 2;
+  the Double Defense from either game), and the bar stops at 20 hearts (PR [#744](https://github.com/spencerduncan/redshipblueship/pull/744)). That is 42 trimmed heart and
   double-defense rows. Capacity families whose top tier is the same in both games (magic,
   quiver, bomb bag, and the wallet when OoT has no tycoon's wallet) are trimmed to the
   shared maximum the same way; with them, 51 rows (OoT 22, MM 29) become filler in their
