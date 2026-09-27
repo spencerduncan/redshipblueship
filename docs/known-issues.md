@@ -141,7 +141,7 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 - **Some MM randomizer options are disabled-with-reason** on Combo → MM Randomizer:
   their gameplay hooks are not yet dispatched in the single-executable build
   ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), 14 of 23
-  hook types remain). The pane says which and why; an option that is enabled and
+  hook types remain). The page says which and why; an option that is enabled and
   does nothing is a bug worth reporting.
 - **MM's enhancement toggles live on Combo → Majora's Mask** (named MM Enhancements until 2026-09-27). The curated MM
   enhancement toggles — the game-over prompt, `BetterSongOfDoubleTime`,

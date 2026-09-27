@@ -234,7 +234,7 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   initializer. Pass each widget its tooltip and, when disabled, a disabled tooltip from `ComboUi_DisabledTooltip`
   (shape (a) of R-S2). Every widget reports its rectangle and shown tooltip to an optional recorder, which is how the
   snapshot harness finds and hovers a pane row. With no table installed, `ComboUi_Get()` returns a raw-ImGui fallback
-  (`combo_ui.cpp`, excluded from the lint); the shipped binary always installs SoH's (the ComboMMOptionsWindow lock).
+  (`combo_ui.cpp`, excluded from the lint); the shipped binary always installs SoH's (the ComboMMOptionsPage lock).
 - **Settings groups** in a pane use `SeparatorText` [project rule, matching SoH's randomizer option pages,
   `option.cpp:450-479`]. `CollapsingHeader` is an SoH editor and tracker idiom (`CosmeticsEditor.cpp`,
   `SohInputEditorWindow.cpp`, `randomizer_check_tracker.cpp`). It is allowed in our tracker and spoiler panes, not in

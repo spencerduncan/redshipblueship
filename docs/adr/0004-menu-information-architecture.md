@@ -219,7 +219,7 @@ controls are what a player sees by default and the per-game ones read as excepti
 | **Enhancements** | Quality of Life, Skips & Speed-ups, Graphics, Items, Fixes, Difficulty, Minigames, Extra Modes | Shared-intent entries first in each sidebar; then `— Ocarina of Time —` and `— Majora's Mask —` separators for tier-3 entries |
 | **Cheats** | ~~(promoted out of Enhancements)~~ **stays an Enhancements sidebar** | Superseded on acceptance — see resolved call 1. Shared-intent block first (the 5 matched + 5 converged cheats), then per-game |
 | **Cosmetics** | Cosmetics Editor, Audio Editor, HUD Editor | Mostly (O) per game; MM's 3 tunic keys converge — see classification §3.3 BUG 1 |
-| **Randomizer** | OoT, MM, **Paired** | See §4.1 and **§4.1a** — MM's half is a common-owned window, not a SohMenu sidebar, for the timing reason given there |
+| **Randomizer** | OoT, MM, **Paired** | See §4.1 and **§4.1a** — MM's half is a common-owned window, not a SohMenu sidebar, for the timing reason given there (host superseded 2026-09-27: Combo > MM Randomizer and Combo > MM Tricks pages, see the host amendment) |
 | **Trackers** | Item, Check, Entrance, Combo | Per findings §3, MM trackers are nearly free — blocked on registration surface + selective un-elision, not hook migration |
 | **Combo** | Pairing status, Save slots, Entrance links, Hot-swap | Tier 4. Absorbs `ComboMenuBar`'s working `.redsave` file-select panel |
 | **Dev Tools** | (existing) | Shared where already shared; MM's viewers gated per §5 |
@@ -685,15 +685,25 @@ live tools toggled from a page (Item, Entrance and Check Tracker, Timers, Input 
 records the rule.
 
 **Why the 2026-07 host argument no longer holds.** §4.1a(ii) chose a window "for the timing reason", and its
-2026-07-30 amendment restated the deadline as *reachable before the combo file is created*. The Combo section is part
-of OoT's live SohMenu, and that menu is up at OoT's file select, before creation. Combo > Cross-Game Rules has
-authored the tier-4 rules, which freeze at the same creation event, from that same place since 2026-09-20. So a page
-meets the deadline. The practical reason the options stayed a window was that `src/common`, which owns their model,
-could not draw with SoH's widgets (UIWidgets needs an SoH header; ADR 0002). That was a drawing constraint, not a
-timing one. It no longer binds: the pages are registered by an OoT TU under `SohGui/`, which uses SoH's widgets
-directly, and the trick rows draw their chips and names through the `combo_ui` seam (PR #748). ADR 0008 is not
-disturbed. It governs windows that belong to neither game, and these are now rows of the one shell rather than a
-window. §3's "one shell, extend SohMenu" rule, the reason §4.1a had to argue for an exception, now simply applies.
+2026-07-30 amendment restated the deadline as *reachable before the combo file is created* and asserted that "a
+`SohMenu` pane satisfies neither deadline". What has landed since contradicts that assertion. The Combo section is part
+of OoT's live SohMenu, which is up at OoT's file select, before creation. **Combo > Cross-Game Rules is the existing
+precedent** (#655, PR #742, #760): since 2026-09-20 it has held exactly this kind of setting (the direction, the goal,
+the item classes), chosen before creation and frozen at the same creation event, as a SohMenu page reachable from file
+select. And `RegisterComboSectionPage` (`SohMenu.h`) lets content whose model `src/common` owns register as a Combo
+page. So a page meets the deadline.
+
+What §4.1a(ii) was really protecting is ADR 0008 rule 1 and §3's one-shell rule: the option table and its freeze live
+in `src/common`, not in either game's boot; there is no second menu shell; and the surface reads no `gSettings.Menu.*`
+key (#451). Those are properties of the DATA, and the ADR 0008 ownership test is "a test about the *data*, not about the
+pixels". They are preserved by splitting the two: the DATA and the freeze predicate stay in `src/common`
+(`combo_mm_options_view.h`'s descriptor accessors and gated writers, `Combo_MMProfileFrozen()`, and the page view model
+`src/common/combo_mm_options_page.{h,c}`), and only the DRAWING moves into a Combo page, registered by an OoT TU under
+`SohGui/` that uses SoH's widgets directly (the trick rows draw their chips and names through the `combo_ui` seam, PR
+#748). The practical reason the options stayed a window, that `src/common` could not draw with SoH's widgets
+(UIWidgets needs an SoH header; ADR 0002), was a drawing constraint, not a timing one, and this split removes it. §3's
+"one shell, extend SohMenu" rule, the reason §4.1a had to argue for an exception, now simply applies. The §4.1a
+MM-side reader allowlist (`src/common/tests/test_cvar_classification.c`) is unchanged and stays green.
 
 **What does not change.**
 1. **The model and the gate.** The pages read MM's descriptor tables through `src/common`'s accessors and write only
