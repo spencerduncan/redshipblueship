@@ -1969,6 +1969,8 @@ Locked by `ComboLogicEngineSurface` (the truth table for all five values),
 `ComboLogicFixpoint` and `ComboLogicFill` over stub engines (each new goal
 proves the world whose other half is unprovable, and the same world under
 the other single-game goal and under `beat-both` is unprovable), and
-`ComboLogicMeasure` over both real engines: with only the measurement bag's
-OoT rows, `beat-oot` proves and `beat-mm` and `beat-both` return
-`goal-unprovable` on the same bag and seed.
+`OoTLogicExport` over both real engines: on a generated world whose OoT half
+proves and whose MM half does not, a fill of three OoT progression copies
+proves under `beat-oot` (first attempt, all three placed on MM checks) and
+returns `goal-unprovable` under `beat-mm` and `beat-both` on the same bag,
+seed and engines.
