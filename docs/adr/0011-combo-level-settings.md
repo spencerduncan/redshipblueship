@@ -1354,10 +1354,14 @@ encoding.
 - **No format change.** The values fit the existing `goal` byte (offset 8).
   `RSBS_COMBO_SETTINGS_FORMAT_VERSION` stays 1: a record written before
   these values existed can only hold 1, 2 or 3, and it means what it meant.
-  An older build that meets a 4 or a 5 has no evaluator for it; its
-  coordinator refuses such a goal as `unsupported-goal` rather than guessing.
-  This build's row shows a goal it does not know as "Unknown (n)" rather than
-  throwing on it.
+  An older build never creates a 4 or a 5: it has no Goal key, so its
+  resolver always yields its default, 1. It meets one only at load or at
+  MM's arrival, on a record a newer build froze, and there its divergence
+  compare (`Combo_ComboSettingsDivergenceBetween`) finds the stamped goal
+  unequal to its own resolved 1 and refuses the file, naming `goal`. That
+  build has no Goal key the player could set to match, so such a file cannot
+  be played on it. This build's row shows a goal it does not know as
+  "Unknown (n)" rather than throwing on it.
 - **The key.** The goal was the record's only field besides `logicRung`
   with no tier-4 key (increment 2 left both at their defaults). It now has
   one: `gCombo.Rando.Goal`, classified Identity in `RSBS::kComboKeys`

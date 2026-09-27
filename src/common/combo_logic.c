@@ -385,6 +385,23 @@ int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached
     }
 }
 
+uint32_t Combo_Logic_UnprovedHalves(const ComboLogicFillResult* res) {
+    if (res == NULL || res->status != RSBS_COMBO_LOGIC_OK) {
+        return 0u; // no world was created, so there is nothing to warn about
+    }
+    if (res->proofSkipped || !res->goalProven) {
+        return RSBS_COMBO_HALF_OOT | RSBS_COMBO_HALF_MM; // rung `none`: nothing was proved
+    }
+    uint32_t halves = 0u;
+    if (res->goalOoT != 1) {
+        halves |= RSBS_COMBO_HALF_OOT;
+    }
+    if (res->goalMM != 1) {
+        halves |= RSBS_COMBO_HALF_MM;
+    }
+    return halves;
+}
+
 int Combo_Logic_EvaluateTriforceHunt(int sharedPieces, uint16_t required) {
     if (sharedPieces < 0 || required == 0u) {
         // A half that could not answer, or a requirement that describes no hunt:
@@ -903,6 +920,8 @@ static int sSurplusCount;
 static void ComboLogicResetFillResult(ComboLogicFillResult* out) {
     memset(out, 0, sizeof(*out));
     out->status = RSBS_COMBO_LOGIC_OK;
+    out->goalOoT = -1; // no proving round has held yet
+    out->goalMM = -1;
 }
 
 static bool ComboLogicRungIsPinned(uint8_t rung) {
@@ -1465,6 +1484,10 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
         res.goalProven = true;
         res.allHostsReached = (round.allHostsReached == 1);
+        // The proving round's own halves (the confirming round's, when surplus
+        // was placed: a superset of the proof). Reported, never read here.
+        res.goalOoT = (round.goalOoT == 1) ? 1 : 0;
+        res.goalMM = (round.goalMM == 1) ? 1 : 0;
         status = RSBS_COMBO_LOGIC_OK;
         goto finish;
     }

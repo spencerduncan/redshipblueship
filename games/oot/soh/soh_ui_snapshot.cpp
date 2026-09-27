@@ -135,6 +135,7 @@
 #include "ComboMmOptionsWindow.h"
 #include "ComboSpoilerWindow.h"
 #include "ComboTrackerWindow.h"
+#include "combo_logic.h" // RSBS_COMBO_HALF_* (the goal-warning toast page)
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
@@ -156,6 +157,7 @@ extern "C" const char OoT_gGitCommitHash[];
 // The creation seam's two toasts (games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp),
 // drawn from their production emitters so a toast page shows what a player gets.
 extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested);
+extern "C" void OoT_Creation_EmitGoalWarningToast(uint32_t unprovedHalves);
 extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
 
 namespace SohGui {
@@ -1467,7 +1469,8 @@ void Session::BuildPageList() {
                 p.states = { "unpaired", "paired-legacy", "frozen", "corrupt", "empty-oot-classes" };
                 // The goal row (ADR 0010 D1) is hovered too: its tooltip carries
                 // one "Value: effect" line per goal, all of which the oracle reads.
-                p.hovers = { "direction", "goal", "frozen-slider" };
+                // frozen-goal: the goal row's disabled tooltip once the world is decided.
+                p.hovers = { "direction", "goal", "frozen-slider", "frozen-goal" };
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
@@ -1666,6 +1669,7 @@ void Session::BuildPageList() {
     for (const auto& [id, text] : std::vector<std::pair<std::string, std::string>>{
              { "toast/creation-shortfall", "Fewer cross-game items:" },
              { "toast/creation-failure", "Not created:" },
+             { "toast/creation-goal-warning", "Not proven:" },
          }) {
         PageSpec p;
         p.id = id;
@@ -2433,7 +2437,7 @@ void Session::CaptureMenuPage(const PageSpec& p) {
         for (const std::string& hv : p.hovers) {
             const auto namedRow = p.hoverRows.find(hv);
             const bool byName = namedRow != p.hoverRows.end();
-            if (byName ? (state != p.states.front()) : ((hv == "frozen-slider") != (state == "frozen"))) {
+            if (byName ? (state != p.states.front()) : ((hv.rfind("frozen-", 0) == 0) != (state == "frozen"))) {
                 continue;
             }
             if (!p.hoverStates.empty() &&
@@ -2448,9 +2452,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             if (byName) {
                 label = namedRow->second;
             } else {
-                ComboSettingId targetId = (hv == "direction") ? COMBO_SETTING_DIRECTION
-                                          : (hv == "goal")    ? COMBO_SETTING_GOAL
-                                                              : COMBO_SETTING_POOL_SIZE_OOT;
+                ComboSettingId targetId = (hv == "direction")                     ? COMBO_SETTING_DIRECTION
+                                          : (hv == "goal" || hv == "frozen-goal") ? COMBO_SETTING_GOAL
+                                                                                  : COMBO_SETTING_POOL_SIZE_OOT;
                 label = Combo_ComboSettingLabel(targetId);
             }
             WidgetInfo* row = FindRow(*menu, p.header, p.sidebar, [&](const WidgetInfo& w) {
@@ -3271,6 +3275,10 @@ void Session::CaptureToast(const PageSpec& p) {
         OoT_Creation_EmitShortfallToast(2, 4);
     } else if (p.id == "toast/creation-failure") {
         OoT_Creation_ReportFailureAtFileSelect(0, 0);
+    } else if (p.id == "toast/creation-goal-warning") {
+        // ADR 0010 section 1.2's creation warning, as a "Ganon" world raises it:
+        // MM's half carries no proof. The longest of its three copies.
+        OoT_Creation_EmitGoalWarningToast(RSBS_COMBO_HALF_MM);
     }
     if (Settle(c, false, nullptr, nullptr)) {
         // The window is named "notification#<id>" and the id is the overlay's

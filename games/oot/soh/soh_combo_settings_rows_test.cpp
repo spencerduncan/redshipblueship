@@ -421,7 +421,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // ---- Leg 1b: the goal row offers exactly OoTMM's goals, in its words ----
     // The value space is the pinned RSBS_COMBO_GOAL_* table (1..5) and each label
     // is OoTMM's own name for the value (packages/core/src/settings/data.ts:
-    // both, any, triforce, ganon, majora). A sixth entry would be a goal this
+    // any, ganon, majora, both, triforce; its triforce3 is not offered). A
+    // sixth entry would be a goal this
     // build has no evaluator for; a missing one, a value the player cannot pick.
     // Its tooltip names every value as a "Value: effect" line (ui-style-guide
     // R-N6), so a label with no explanation is red too.
@@ -450,6 +451,28 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ROWS_CHECK(tooltip.find(std::string("\n") + g.label + ": ") != std::string::npos,
                        "the goal row's tooltip has no '%s: effect' line", g.label);
         }
+        // ADR 0010 section 1.2: a goal that leaves a half without proof is
+        // "documented at the setting". Each such line names what may be
+        // unfinishable, and the tooltip does not promise that meeting the goal
+        // ends the game (OoTMM's does; this build plays each game's own ending).
+        const struct {
+            const char* label;
+            const char* warns;
+        } kGoalWarnings[] = {
+            { "Any Final Boss", "The other game may be unfinishable." },
+            { "Ganon", "Majora's Mask may be unfinishable." },
+            { "Majora", "Ocarina of Time may be unfinishable." },
+        };
+        for (const auto& w : kGoalWarnings) {
+            const size_t at = tooltip.find(std::string("\n") + w.label + ": ");
+            const size_t end = at == std::string::npos ? std::string::npos : tooltip.find('\n', at + 1);
+            const std::string line = at == std::string::npos ? "" : tooltip.substr(at + 1, end - at - 1);
+            ROWS_CHECK(line.find(w.warns) != std::string::npos,
+                       "the goal row's '%s' line does not say '%s' (ADR 0010 section 1.2: documented at the setting)",
+                       w.label, w.warns);
+        }
+        ROWS_CHECK(tooltip.find("does not end the paired game") != std::string::npos,
+                   "the goal row's tooltip must say that meeting the goal does not end the paired game");
         ROWS_CHECK(Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH,
                    "the goal's shipped default is %d, expected beat-both (OoTMM's default is 'both')",
                    (int)Combo_ComboSettingDefault(COMBO_SETTING_GOAL));

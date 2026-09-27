@@ -127,10 +127,14 @@ static const std::map<int32_t, const char*> comboRuleDirectionOptions = {
 
 // The five pinned RSBS_COMBO_GOAL_* enumerators (1..5, static_asserted in
 // foreign_items.h), named in OoTMM's own words for its `goal` setting, whose
-// values these are (packages/core/src/settings/data.ts: both, any, ganon,
-// majora, triforce). The dropdown lists them in enumerator order, because a
-// std::map iterates by key: the default first, then the values in the order
-// they were appended to the pinned table.
+// values these are (packages/core/src/settings/data.ts lists them in the order
+// any, ganon, majora, both, triforce, triforce3; triforce3 is not offered).
+// The dropdown does NOT follow that order: ComboboxOptions' comboMap is a
+// std::map keyed by the stored value, so it lists them in enumerator order --
+// the default first, then the values in the order they were appended to the
+// pinned table. Reordering would need a second, display-only numbering between
+// the row and the record, which the frozen-state and unknown-value legs read
+// directly.
 static const std::map<int32_t, const char*> comboRuleGoalOptions = {
     { (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH, "Ganon & Majora" },
     { (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER, "Any Final Boss" },
@@ -518,14 +522,15 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_GOAL, comboRuleGoal); })
         .Options(ComboboxOptions()
                      .ComboMap(comboRuleGoalOptions)
-                     .Tooltip("Chooses what you must do to finish the paired world. The seed is built so it can "
-                              "be done.\n\n"
-                              "Ganon & Majora: Defeat both Ganon and Majora, in any order.\n"
-                              "Any Final Boss: Defeat either Ganon or Majora.\n"
+                     .Tooltip("Chooses which final boss the seed guarantees you can reach and defeat. Meeting it "
+                              "does not end the paired game: each boss plays its own game's ending.\n\n"
+                              "Ganon & Majora: Defeat both Ganon and Majora, in any order. Both games are "
+                              "finishable.\n"
+                              "Any Final Boss: Defeat either Ganon or Majora. The other game may be unfinishable.\n"
                               "Triforce Hunt: Collect Triforce Pieces from both games. Paired worlds cannot be "
                               "created with this goal yet.\n"
-                              "Ganon: Defeat Ganon.\n"
-                              "Majora: Defeat Majora."));
+                              "Ganon: Defeat Ganon. Majora's Mask may be unfinishable.\n"
+                              "Majora: Defeat Majora. Ocarina of Time may be unfinishable."));
 
     menu.AddWidget(path, "Item Crossing", WIDGET_SEPARATOR_TEXT);
 

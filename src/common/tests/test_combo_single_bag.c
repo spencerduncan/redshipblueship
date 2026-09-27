@@ -140,6 +140,7 @@ int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int
 int MM_ComboLogic_TestShuffledItemsInShadow(uint16_t* outItems, int cap);
 void Randomizer_TestClearOoTSave(void);
 const char* OoT_Creation_TestLastSequence(void);
+uint32_t OoT_Creation_TestLastUnprovedHalves(void);
 }
 
 // THE PLAY-SIDE CHECK (lane K13): award every heart row of a bag, interleaved by
@@ -748,6 +749,23 @@ TestResult ComboSingleBag_Run(void) {
                    "the creation event did not run MM's half, the crossings and OoT's remainder, and the spoiler join "
                    "with no armed MM shadow and THEN arm it (#680's order)");
         CSB_ASSERT(Context_HasFrozenState(GAME_MM) != 0, "the finished creation left no armed MM shadow");
+
+        // E2b. ADR 0010 section 1.2's creation warning is computed by the real
+        // event from its own fill, and under the frozen goal of this world (the
+        // shipped beat-both, both halves proved) it names nothing. A creation
+        // that never asked leaves the sentinel, which is red here too.
+        {
+            const ComboSingleBagReport warnBag = *Combo_SingleBag_LastReport();
+            const uint32_t warned = OoT_Creation_TestLastUnprovedHalves();
+            printf("[TEST] combo-single-bag: the creation warning under GOAL %u: halves without proof 0x%X (proof "
+                   "halves OoT %d MM %d)\n",
+                   (unsigned)gComboCtx.comboSettings.goal, (unsigned)warned, warnBag.fill.goalOoT, warnBag.fill.goalMM);
+            CSB_ASSERT(warned == Combo_Logic_UnprovedHalves(&warnBag.fill),
+                       "the creation event did not compute its warning from its own fill");
+            CSB_ASSERT(gComboCtx.comboSettings.goal != (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH ||
+                           (warned == 0u && warnBag.fill.goalOoT == 1 && warnBag.fill.goalMM == 1),
+                       "a beat-both creation must prove both halves and warn about neither");
+        }
 
         // E3. Zero dead heart pickups over the world this real event finished.
         {

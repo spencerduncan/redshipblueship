@@ -991,8 +991,9 @@ TestResult OoTLogicExport_Run(void) {
                        "the goal expression is not the half the goal names (beat-oot 1, beat-mm 0, beat-both 0)");
         }
 
-        // THE FILL, which is what a creation runs: the four OoT progression
-        // copies above as the bag, both real engines' hosts, the proved rung.
+        // THE FILL, which is what a creation runs: the OoT progression copies
+        // above as the bag (at most four; three on this seed), both real
+        // engines' hosts, the proved rung.
         // Only with MM's REAL engine: a stub MM half would make "MM cannot
         // prove" a property of the stub.
         if (usingRealMm) {

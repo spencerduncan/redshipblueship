@@ -992,6 +992,37 @@ TestResult Test_ComboLogicEngineSurface(void) {
     CL_ASSERT(Combo_Logic_EvaluateGoal(6u, 1, 1) == -1,
               "one past the pinned table has no evaluator (a goal a later build appends is refused, not guessed)");
 
+    // ADR 0010 §1.2's creation warning reads the PROOF's halves, never the goal.
+    {
+        ComboLogicFillResult r;
+        memset(&r, 0, sizeof(r));
+        CL_ASSERT(Combo_Logic_UnprovedHalves(NULL) == 0u, "no fill result, no warning");
+        r.status = RSBS_COMBO_LOGIC_OK;
+        r.goalProven = true;
+        const struct {
+            int o, m;
+            uint32_t halves;
+        } kHalves[] = { { 1, 1, 0u },
+                        { 1, 0, RSBS_COMBO_HALF_MM },
+                        { 0, 1, RSBS_COMBO_HALF_OOT },
+                        { -1, -1, RSBS_COMBO_HALF_OOT | RSBS_COMBO_HALF_MM } };
+        for (size_t i = 0; i < sizeof(kHalves) / sizeof(kHalves[0]); i++) {
+            r.goalOoT = kHalves[i].o;
+            r.goalMM = kHalves[i].m;
+            CL_ASSERT(Combo_Logic_UnprovedHalves(&r) == kHalves[i].halves,
+                      "a proved world must name exactly the halves its proving round did not prove");
+        }
+        r.goalOoT = 1;
+        r.goalMM = 0;
+        r.status = RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE;
+        CL_ASSERT(Combo_Logic_UnprovedHalves(&r) == 0u, "a failed fill created no world, so it warns about nothing");
+        r.status = RSBS_COMBO_LOGIC_OK;
+        r.goalProven = false;
+        r.proofSkipped = true;
+        CL_ASSERT(Combo_Logic_UnprovedHalves(&r) == (RSBS_COMBO_HALF_OOT | RSBS_COMBO_HALF_MM),
+                  "rung `none` proved nothing, so both halves carry no proof");
+    }
+
     // --- the fill's refusals, before any world is authored ----------------
     {
         ComboLogicBagItem bag[1];
@@ -1277,6 +1308,9 @@ TestResult Test_ComboLogicFixpoint(void) {
         CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_MM, NULL, 0, &withHost) == RSBS_COMBO_LOGIC_OK &&
                       withHost.goalExpression == 1,
                   "beat-mm: MM's half proves in the paired world");
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &withHost) == RSBS_COMBO_LOGIC_OK &&
+                      withHost.goalExpression == 1,
+                  "beat-both: both halves prove in the paired world");
 
         ClBuildCrossingWorld(0u);
         Combo_Logic_Place(GAME_OOT, 10, ClItem((uint8_t)GAME_MM, kMmOcarina), RSBS_ITEMCLASS_PROGRESSION);
@@ -1287,6 +1321,10 @@ TestResult Test_ComboLogicFixpoint(void) {
         CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_OOT, NULL, 0, &withoutHost) == RSBS_COMBO_LOGIC_OK, "beat-oot round");
         CL_ASSERT(withoutHost.goalExpression == 0,
                   "beat-oot must NOT hold once the only Lens is gone, although MM's half still proves");
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &withoutHost) == RSBS_COMBO_LOGIC_OK,
+                  "beat-both round");
+        CL_ASSERT(withoutHost.goalExpression == 0,
+                  "beat-both must NOT hold on the removal world: it has a term for OoT's unprovable half");
     }
 
     // --- MM's bracket: the re-apply after restore ------------------------
@@ -1515,6 +1553,10 @@ TestResult Test_ComboLogicFill(void) {
                       "a single-game goal on the provable world");
             CL_ASSERT(res.goalProven && res.placementDigest == bothDigest,
                       "a single-game goal must place exactly as beat-both does on a world both halves prove");
+            // Both halves proved, so the creation warning names nothing, whatever
+            // the goal: the warning reads the proof, not the goal.
+            CL_ASSERT(res.goalOoT == 1 && res.goalMM == 1 && Combo_Logic_UnprovedHalves(&res) == 0u,
+                      "a world whose halves both prove must report both proved and warn about neither");
         }
 
         // (2) beat-oot over a world whose MM half is unbeatable by its own
@@ -1528,6 +1570,18 @@ TestResult Test_ComboLogicFill(void) {
         CL_ASSERT(res.goalProven, "beat-oot's exit condition held");
         CL_ASSERT(Combo_Logic_PlacementCount(GAME_MM) > 0,
                   "beat-oot must still place into MM's checks: the unproved half is filled, not skipped");
+        // ADR 0010 §1.2's creation warning: the half that carries no proof is
+        // MM's, and it alone is named.
+        CL_ASSERT(res.goalOoT == 1 && res.goalMM == 0,
+                  "beat-oot's proving round must report OoT's half proved and MM's not");
+        CL_ASSERT(Combo_Logic_UnprovedHalves(&res) == RSBS_COMBO_HALF_MM,
+                  "beat-oot over an unbeatable MM half must name MM's half, and only it, as carrying no proof");
+        // beat-either over the same world proves too, and names the same half.
+        ClBuildFillWorldHalves(true, false);
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_EITHER, RSBS_COMBO_RUNG_BEATABLE, 0xB0B1u, &res) ==
+                          RSBS_COMBO_LOGIC_OK &&
+                      Combo_Logic_UnprovedHalves(&res) == RSBS_COMBO_HALF_MM,
+                  "beat-either over an unbeatable MM half must prove and name MM's half as carrying no proof");
         ClBuildFillWorldHalves(true, false);
         CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_MM, RSBS_COMBO_RUNG_BEATABLE, 0xB0B1u, &res) ==
                       RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
@@ -1536,6 +1590,8 @@ TestResult Test_ComboLogicFill(void) {
         CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0xB0B1u, &res) ==
                       RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
                   "RED HALF: beat-both over the same world must be unprovable");
+        CL_ASSERT(res.goalOoT == -1 && res.goalMM == -1 && Combo_Logic_UnprovedHalves(&res) == 0u,
+                  "a failed fill reports no proving round and warns about nothing (it created no world)");
 
         // (3) The mirror: OoT's half unbeatable by its own parameters.
         ClBuildFillWorldHalves(false, true);
@@ -1544,10 +1600,16 @@ TestResult Test_ComboLogicFill(void) {
                   "beat-mm must prove a world whose only unprovable half is OoT's");
         CL_ASSERT(res.goalProven && Combo_Logic_PlacementCount(GAME_OOT) > 0,
                   "beat-mm proved and still placed into OoT's checks");
+        CL_ASSERT(Combo_Logic_UnprovedHalves(&res) == RSBS_COMBO_HALF_OOT,
+                  "beat-mm over an unbeatable OoT half must name OoT's half, and only it, as carrying no proof");
         ClBuildFillWorldHalves(false, true);
         CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_OOT, RSBS_COMBO_RUNG_BEATABLE, 0xB0B2u, &res) ==
                       RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
                   "RED HALF: beat-oot over the same world must be unprovable");
+        ClBuildFillWorldHalves(false, true);
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0xB0B2u, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
+                  "RED HALF: beat-both over the same world must be unprovable");
         CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
     }
 
