@@ -6,20 +6,8 @@
 # gate can fail on anything NEW. The baseline may only SHRINK: a fix makes a line
 # stale, the check then fails until the line is deleted. Never add a line to make
 # the check pass; fix the surface instead.
-S1 | src/common/ComboMmOptionsWindow.cpp | ImGui::Button("Reset all to defaults");
 S1 | src/common/ComboMmOptionsWindow.cpp | if (ImGui::Checkbox(desc->label, &on)) {
-S1 | src/common/ComboMmOptionsWindow.cpp | if (ImGui::Checkbox(desc->label, &on)) {
-S1 | src/common/ComboMmOptionsWindow.cpp | if (ImGui::SliderInt(desc->label, &v, (int)desc->minValue, (int)desc->maxValue)) {
-S1 | src/common/ComboMmOptionsWindow.cpp | if (ImGui::SliderInt(desc->label, &v, (int)desc->minValue, (int)desc->maxValue, label)) {
-S1 | src/common/ComboMmOptionsWindow.cpp | if (desc->valueLabels != NULL && ImGui::BeginCombo(desc->label, preview)) {
-S1 | src/common/ComboMmOptionsWindow.cpp | } else if (ImGui::Button("Reset all to defaults")) {
-S2 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextColored(ImVec4(0.55f, 0.78f, 0.98f, 1.0f), "Frozen at creation");
-S2 | src/common/ComboMmOptionsWindow.cpp | const ImVec4 warn(0.98f, 0.76f, 0.24f, 1.0f);
-S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("%s (unsupported widget)", desc->label);
 S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("- %s", desc->disabledReason);
-S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("- %s", desc->disabledReason);
-S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("- profile frozen at creation");
-S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("Majora's Mask - suspended (these stay editable)");
 S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("Tricks: table not available in this build.");
 S3 | src/common/ComboMmOptionsWindow.cpp | ImGui::TextDisabled("[%s]", desc->tagSummary);
 S3 | src/common/ComboTrackerWindow.cpp | ImGui::TextDisabled("(%s)", Combo_TrackerFreshnessLabel(game, summary.freshness));
@@ -27,14 +15,7 @@ S3 | src/common/ComboTrackerWindow.cpp | ImGui::TextDisabled("No data yet.");
 S3 | src/common/ComboTrackerWindow.cpp | ImGui::TextDisabled("No paired world.");
 S3 | src/common/ComboTrackerWindow.cpp | ImGui::TextDisabled("Settings digest %08X / MM profile %08X", (unsigned)identity.sharedRandoSettingsHash,
 S4 | src/common/ComboMmOptionsWindow.cpp | if (!ImGui::CollapsingHeader("Tricks", ImGuiTreeNodeFlags_None)) {
-S4 | src/common/ComboMmOptionsWindow.cpp | if (!ImGui::CollapsingHeader(Combo_MMOptionGroupName(group), ImGuiTreeNodeFlags_DefaultOpen)) {
-S5 | src/common/ComboMmOptionsWindow.cpp | ImGui::Spacing();
-S5 | src/common/ComboMmOptionsWindow.cpp | ImGui::Spacing();
 S5 | src/common/ComboMmOptionsWindow.cpp | ImGui::Spacing();
 S5 | src/common/ComboSpoilerWindow.cpp | ImGui::Spacing();
 S5 | src/common/ComboSpoilerWindow.cpp | ImGui::Spacing();
 S5 | src/common/ComboTrackerWindow.cpp | ImGui::Spacing();
-S6 | src/common/ComboMmOptionsWindow.cpp | ImGui::SetTooltip("%s", text);
-S7 | games/mm/2s2h/Rando/OptionsUiSingleExe.cpp | No logic binding yet (#578 part 3)
-S7 | games/mm/2s2h/Rando/OptionsUiSingleExe.cpp | Retired (ADR 0010 O1): no code will ever read this option
-S7 | games/mm/2s2h/Rando/OptionsUiSingleExe.cpp | Retired: this option never had a consumer and, by operator ruling (ADR 0010 answer O1), never will.

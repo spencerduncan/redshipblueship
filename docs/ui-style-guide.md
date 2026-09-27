@@ -200,9 +200,17 @@ and on ours (R-N4).
 
 - A pane derives from `Ship::GuiWindow`, registers with `AddGuiWindow` and a `CVAR_WINDOW` key, and is opened from a
   WINDOW_BUTTON row. Common-owned panes follow ADR 0008.
+- **Chrome** is `GuiWindow::Draw`'s: ImGui's title bar with a close button, because `GuiWindow::Draw` passes the
+  window's visibility to `ImGui::Begin` (`libultraship/src/ship/window/gui/GuiWindow.cpp:72`). A pane that overrides
+  `Draw` (to read its CVar live) still passes an `open` flag and calls `SetVisibility(false)` when it is closed.
 - Inside a pane, use the same helpers with `THEME_COLOR` (`randomizer_check_tracker.cpp:2223-2283`). From `src/common`,
-  which cannot include UIWidgets, go through a C function-table seam that an OoT TU implements with those helpers (the
-  plan's `ComboUi` seam, M6; it does not exist yet).
+  which cannot include UIWidgets, go through the `combo_ui` seam (`src/common/combo_ui.h`): a C function table
+  (Checkbox, Combobox, SliderInt, Button, SeparatorText, NoteText, WarningText, Tooltip, TagChip, Confirm,
+  PushTheme/PopTheme, Spacer) that `SohGui/ComboUiSoh.cpp` implements with those helpers and installs from a file-scope
+  initializer. Pass each widget its tooltip and, when disabled, a disabled tooltip from `ComboUi_DisabledTooltip`
+  (shape (a) of R-S2). Every widget reports its rectangle and shown tooltip to an optional recorder, which is how the
+  snapshot harness finds and hovers a pane row. With no table installed, `ComboUi_Get()` returns a raw-ImGui fallback
+  (`combo_ui.cpp`, excluded from the lint); the shipped binary always installs SoH's (the ComboMMOptionsWindow lock).
 - **Settings groups** in a pane use `SeparatorText` [project rule, matching SoH's randomizer option pages,
   `option.cpp:450-479`]. `CollapsingHeader` is an SoH editor and tracker idiom (`CosmeticsEditor.cpp`,
   `SohInputEditorWindow.cpp`, `randomizer_check_tracker.cpp`). It is allowed in our tracker and spoiler panes, not in
@@ -259,7 +267,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
 | Creation overlay over the open menu | SoH's modal over the same menu page ("Clear Config@over-menu") |
-| Cross-Game Rules Reset confirm | the SoH modal ("Clear Config") |
+| Cross-Game Rules Reset confirm, MM options Reset confirm | the SoH modal ("Clear Config") |
 | The creation shortfall and failure toasts | SoH's toast shape ("Game autosaved") |
 
 Compare within the same run, the same profile and the same backend. Check:
@@ -291,8 +299,11 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
   direction combobox and (frozen) its first slider; Majora's Mask hovers its first row and Windows its MM Item
-  Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state).
-- MODAL.
+  Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state). The MM options pane hovers
+  its first row (unpaired and frozen) and its first capability-blocked row (`PageSpec::paneHovers`, found through the
+  `combo_ui` rect recorder); a disabled row's hover must show SoH's disabled shape with no tracker number.
+- MODAL: SoH's "Clear Config" reference, the Cross-Game Rules Reset confirm, and the MM options pane's Reset confirm
+  (queued through `Combo_MMOptionsRequestReset`, the call the pane's button makes).
 - `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open
   under the box, as a real pumped frame draws it. The page is first settled alone, then with the box over it, and
   `DimOracle` requires three things: "Main Menu" was drawn (and the bare frame is not nearly uniform outside the box);

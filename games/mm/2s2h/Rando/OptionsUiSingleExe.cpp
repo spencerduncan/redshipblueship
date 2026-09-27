@@ -306,9 +306,15 @@ const OptionUi kOptionUi[] = {
       "Majora Access: Remains Required", "How many boss remains are needed to reach Majora.",
       0, 4, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_MAJORA_REMAINS, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_CHECKBOX,
-      "Majora Access: Remains (retired)",
-      "Retired: this option never had a consumer and, by operator ruling (ADR 0010 answer O1), never will. "
-      "The row remains as a save-format tombstone.",
+      // Player-facing copy (UI parity M6): no ruling or ADR reference in the
+      // label, tooltip or reason (docs/ui-style-guide.md R-N4, R-TT5); the ruling
+      // is recorded in the comment below, where a maintainer reads it. The label
+      // carries no state either: the row is drawn disabled, and its reason is
+      // its disabled tooltip. The reason is a Title Case fragment in SoH's
+      // disabledMap style (R-S2: "Debug Mode is Disabled"), not a sentence; the
+      // pane's lock (ComboMMOptionsWindow leg 5) pins that shape.
+      "Majora Access: Remains",
+      "This option was retired and has no effect.",
       0, 0, nullptr, 0,
       // The 47th id. Given a StaticData row so the option id space is total
       // (#499 step 5). RETIRED by the operator (ADR 0010 answer O1,
@@ -319,7 +325,7 @@ const OptionUi kOptionUi[] = {
       // tombstone note at StaticData/Options.cpp). A future edit that gives
       // this row a consumer or a live widget is overturning an operator
       // ruling, not finishing a TODO; the mm-rando-options lock pins this.
-      COMBO_MM_LIVENESS_DORMANT, "Retired (ADR 0010 O1): no code will ever read this option" },
+      COMBO_MM_LIVENESS_DORMANT, "Option is Retired" },
 
     // ---- Shuffle Options ---------------------------------------------------
     { RO_SHUFFLE_COWS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
@@ -885,7 +891,11 @@ std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
             // region-file pass can bind these at all until increment 3.
             desc.disabledReason = row.reservedReason;
         } else if (!desc.bound) {
-            desc.disabledReason = "No logic binding yet (#578 part 3)";
+            // Player-facing (UI parity M6): the tracking issue (#578 part 3)
+            // stays in this comment, out of the text a player reads, and the
+            // reason is a Title Case fragment in SoH's disabledMap style (R-S2:
+            // "Not Available on DirectX"), pinned by ComboMMOptionsWindow leg 5.
+            desc.disabledReason = "Not Yet Supported by Logic";
         } else {
             desc.disabledReason = "";
         }
