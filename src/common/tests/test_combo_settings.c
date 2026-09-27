@@ -186,8 +186,9 @@ TestResult Test_ComboSettingsFormat(void) {
               "RSBS_COMBO_DIR_OFF must not be 0: a legacy record zero-extends, so OFF at zero would silently "
               "strip the crossings from every pre-carve paired save");
     CS_ASSERT(RSBS_COMBO_GOAL_BEAT_BOTH == 1u && RSBS_COMBO_GOAL_BEAT_EITHER == 2u &&
-                  RSBS_COMBO_GOAL_TRIFORCE_HUNT == 3u,
-              "RSBS_COMBO_GOAL_* renumbered");
+                  RSBS_COMBO_GOAL_TRIFORCE_HUNT == 3u && RSBS_COMBO_GOAL_BEAT_OOT == 4u &&
+                  RSBS_COMBO_GOAL_BEAT_MM == 5u,
+              "RSBS_COMBO_GOAL_* renumbered (beat-oot and beat-mm were APPENDED as 4 and 5, 2026-09-27)");
     CS_ASSERT(RSBS_COMBO_RUNG_NONE == 1u && RSBS_COMBO_RUNG_BEATABLE == 2u && RSBS_COMBO_RUNG_ALL_REACHABLE == 3u,
               "RSBS_COMBO_RUNG_* renumbered");
     CS_ASSERT(RSBS_ITEMCLASS_PROGRESSION == 0x0001u && RSBS_ITEMCLASS_SONGS == 0x0002u &&
@@ -939,8 +940,11 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
                   Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_OOT) == (int32_t)defaults.poolSizeOoT &&
                   Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_MM) == (int32_t)defaults.poolSizeMM &&
                   Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_OOT) == (int32_t)defaults.itemClassOoT &&
-                  Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_MM) == (int32_t)defaults.itemClassMM,
+                  Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_MM) == (int32_t)defaults.itemClassMM &&
+                  Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)defaults.goal,
               "each key's default must be the defaults record's own field — one definition of 'what ships'");
+    CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH,
+              "the goal key's default must be beat-both (ADR 0010 O11; OoTMM's own default is 'both')");
     for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
         const ComboSettingId id = (ComboSettingId)i;
         CS_ASSERT(Combo_ComboSettingResolved(id) == Combo_ComboSettingDefault(id),
@@ -988,6 +992,18 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             { COMBO_SETTING_SHARED_OCARINA, 2, false },
             { COMBO_SETTING_SHARED_OCARINA, -1, false },
             { COMBO_SETTING_SHARED_OCARINA, 0x100, false },
+            // The goal (ADR 0010 D1): exactly the five pinned enumerators. 0 is
+            // a legacy record's "unset" and is no choice; 6 is one past the
+            // table, a goal this build has no evaluator for.
+            { COMBO_SETTING_GOAL, 0, false },
+            { COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH, true },
+            { COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER, true },
+            { COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT, true },
+            { COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_OOT, true },
+            { COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM, true },
+            { COMBO_SETTING_GOAL, 6, false },
+            { COMBO_SETTING_GOAL, -1, false },
+            { COMBO_SETTING_GOAL, 255, false },
         };
         for (size_t i = 0; i < sizeof(kProbes) / sizeof(kProbes[0]); i++) {
             if (Combo_ComboSettingValueValid(kProbes[i].id, kProbes[i].value) != kProbes[i].valid) {
@@ -1103,6 +1119,36 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(authoredFingerprint != kDefaultsFingerprint,
               "a different direction and class bitset must change comboSettingsHash — the whole point of folding "
               "the record into the fingerprint");
+
+    // ---- (3b) The goal is authored the same way (ADR 0010 D1) --------------
+    // Each of the two appended values reaches record byte 8 and moves the
+    // fingerprint; clearing the key puts the record back exactly. Self
+    // contained, so every later leg still sees the goal at its default.
+    {
+        const uint8_t kGoals[2] = { (uint8_t)RSBS_COMBO_GOAL_BEAT_OOT, (uint8_t)RSBS_COMBO_GOAL_BEAT_MM };
+        uint32_t goalFingerprint[2] = { 0u, 0u };
+        for (int g = 0; g < 2; g++) {
+            CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)kGoals[g]) == 1,
+                      "an in-space goal must land while nothing is frozen");
+            ComboSettingsRecord withGoal;
+            Combo_ResolveComboSettings(&withGoal);
+            CS_ASSERT(withGoal.goal == kGoals[g], "the resolver did not read the authored goal");
+            uint8_t goalCanon[RSBS_COMBO_SETTINGS_CANONICAL_LEN];
+            Combo_ComboSettingsCanonical(&withGoal, goalCanon);
+            CS_ASSERT(goalCanon[8] == kGoals[g], "the authored goal is not canonical byte 8");
+            goalFingerprint[g] = Combo_ComputeComboSettingsHash(&withGoal, kSettingsHash, kProfileDigest);
+            CS_ASSERT(goalFingerprint[g] != authoredFingerprint,
+                      "an authored goal must change comboSettingsHash: a world proved against a different goal is a "
+                      "different world");
+        }
+        CS_ASSERT(goalFingerprint[0] != goalFingerprint[1], "beat-oot and beat-mm must not share a fingerprint");
+        CS_ASSERT(Combo_ComboSettingClear(COMBO_SETTING_GOAL) == 1, "clear the goal again");
+        ComboSettingsRecord cleared;
+        Combo_ResolveComboSettings(&cleared);
+        CS_ASSERT(ComboSettingsRecordsEqual(cleared, live) &&
+                      Combo_ComputeComboSettingsHash(&cleared, kSettingsHash, kProfileDigest) == authoredFingerprint,
+                  "a cleared goal must resolve back to the record it left, byte for byte");
+    }
 
     // ---- THE OFF RULING (#667) --------------------------------------------
     //
@@ -1330,6 +1376,8 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, 0x0040) == 0 &&
                   Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, -1) == 0,
               "an unallocated class bit must be refused at the writer");
+    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_GOAL, 0) == 0 && Combo_ComboSettingSet(COMBO_SETTING_GOAL, 6) == 0,
+              "an out-of-table goal must be refused at the writer");
     {
         int32_t stored = 0;
         CS_ASSERT(Combo_ComboSettingReadStore(COMBO_SETTING_DIRECTION, &stored) &&
@@ -1342,7 +1390,10 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_POOL_SIZE_OOT), 0);
     CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_POOL_SIZE_MM), 99);
     CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_ITEM_CLASS_MM), 0x8000);
+    CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_GOAL), 6);
     Combo_ResolveComboSettings(&live);
+    CS_ASSERT(live.goal == RSBS_COMBO_GOAL_BEAT_BOTH,
+              "an out-of-table goal must resolve to the SHIPPED DEFAULT, never to a goal nothing can evaluate");
     CS_ASSERT(live.direction == RSBS_COMBO_DIR_BOTH,
               "an out-of-table direction must resolve to the SHIPPED DEFAULT, never to a new enumerator");
     CS_ASSERT(live.poolSizeOoT == RSBS_FOREIGN_PLACEMENT_CAP && live.poolSizeMM == RSBS_FOREIGN_PLACEMENT_CAP,

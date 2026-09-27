@@ -37,6 +37,22 @@
  *      coordinator's crossings, leaves no OoT host empty and every OoT ice trap
  *      on an OoT host.
  *
+ *   F. THE GOAL RUNS THROUGH MM's FIXED CONTENTS (#737). On the shipped profile
+ *      the boss remains are not shuffled: their checks sit outside GeneratePools'
+ *      check pool and keep their vanilla items, which the player collects in play
+ *      and MM's own fill credits. Over THIS proven world's tables, the exit round
+ *      under beat-both reads goalMM=1 with MM's engine granting reached fixed
+ *      contents (A7), and goalMM=0 — beat-both 0 — with that grant switched off
+ *      (MM_ComboLogic_TestSetFixedGrants, test only): the red half, observed in
+ *      every run rather than once on an older binary. Switched off, goalOoT falls
+ *      to 0 as well (observed, printed, not asserted): OoT items the fill hosted in
+ *      MM sit behind MM checks whose reach needs fixed MM contents, so without the
+ *      grant the pair is unprovable from both ends. Then, still switched off,
+ *      assuming exactly the fixed remains contents restores goalMM=1 (goalOoT is
+ *      printed), which names the remains as the fixed content MM's own goal runs
+ *      through. The switch is put back before anything is asserted. (Lane G1;
+ *      runs between B and C.)
+ *
  * PR #743 REVIEW LEGS, each with its red half observed when it was written:
  *
  *   A2. OoT's foreign-host rule, swept over every OoT location by category (shop,
@@ -125,6 +141,8 @@ int OoT_ComboLogic_TestEmptyHostCount(void);
 int OoT_Creation_FinishPairedHalf(int writeSpoiler);
 int MM_Rando_HeadlessPairedHalf(void);
 int MM_ComboLogic_FixedHarvestCount(void);
+int MM_ComboLogic_TestSetFixedGrants(int enabled);
+int MM_ComboLogic_TestFixedContents(int remainsOnly, uint16_t* outItems, uint16_t* outChecks, int cap);
 int MM_Rando_Foreign_TestIsForeignHostClass(uint16_t randoCheckId);
 int MM_Rando_PairedGenLastAttempts(void);
 int MM_Rando_PairedGenLastExhausted(void);
@@ -140,6 +158,7 @@ int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int
 int MM_ComboLogic_TestShuffledItemsInShadow(uint16_t* outItems, int cap);
 void Randomizer_TestClearOoTSave(void);
 const char* OoT_Creation_TestLastSequence(void);
+uint32_t OoT_Creation_TestLastUnprovedHalves(void);
 }
 
 // THE PLAY-SIDE CHECK (lane K13): award every heart row of a bag, interleaved by
@@ -195,6 +214,17 @@ int CsbGoalNow(uint8_t goal) {
         return -1;
     }
     return res.goalExpression;
+}
+
+/** One round over the current tables under `goal`, with `assumed` held. */
+int CsbRoundNow(uint8_t goal, const std::vector<ComboLogicBagItem>& assumed, ComboLogicRoundResult* out) {
+    ComboLogicRoundRequest req;
+    memset(&req, 0, sizeof(req));
+    req.assumed = assumed.empty() ? nullptr : assumed.data();
+    req.assumedCount = (int)assumed.size();
+    req.goal = goal;
+    memset(out, 0, sizeof(*out));
+    return Combo_Logic_RunRound(&req, out);
 }
 
 int CsbCopiesOf(const CsbTables& t, SharedItem item) {
@@ -579,6 +609,61 @@ TestResult ComboSingleBag_Run(void) {
     CSB_ASSERT(CsbGoalNow(goal) == 1, "the restored world no longer proves the GOAL");
 
     // ------------------------------------------------------------------
+    // F. #737: the GOAL runs through MM's fixed contents; both halves observed.
+    // ------------------------------------------------------------------
+    {
+        const int fixedTotal = MM_ComboLogic_TestFixedContents(0, nullptr, nullptr, 0);
+        const int remainsTotal = MM_ComboLogic_TestFixedContents(1, nullptr, nullptr, 0);
+        std::vector<uint16_t> remainsItems((size_t)(remainsTotal > 0 ? remainsTotal : 0));
+        std::vector<uint16_t> remainsChecks(remainsItems.size());
+        if (remainsTotal > 0) {
+            MM_ComboLogic_TestFixedContents(1, remainsItems.data(), remainsChecks.data(), remainsTotal);
+        }
+        std::vector<ComboLogicBagItem> remains;
+        for (const uint16_t id : remainsItems) {
+            ComboLogicBagItem row;
+            memset(&row, 0, sizeof(row));
+            row.item.originGame = (uint8_t)GAME_MM;
+            row.item.id = id;
+            remains.push_back(row);
+        }
+        const std::vector<ComboLogicBagItem> none;
+        const int grantsBefore = MM_ComboLogic_FixedHarvestCount();
+        ComboLogicRoundResult on;
+        const int onRc = CsbRoundNow(RSBS_COMBO_GOAL_BEAT_BOTH, none, &on);
+        const int grantsOn = MM_ComboLogic_FixedHarvestCount() - grantsBefore;
+        // The red half. Switched back on before any assertion can return.
+        const int previous = MM_ComboLogic_TestSetFixedGrants(0);
+        ComboLogicRoundResult off;
+        const int offRcF = CsbRoundNow(RSBS_COMBO_GOAL_BEAT_BOTH, none, &off);
+        const int grantsOff = MM_ComboLogic_FixedHarvestCount() - grantsBefore - grantsOn;
+        ComboLogicRoundResult withRemains;
+        const int remainsRc = CsbRoundNow(RSBS_COMBO_GOAL_BEAT_BOTH, remains, &withRemains);
+        MM_ComboLogic_TestSetFixedGrants(previous);
+        printf("[TEST] combo-single-bag: F (#737): %d fixed MM contents outside the host pool, %d of them boss "
+               "remains; beat-both exit round with the fixed grant: goalOoT=%d goalMM=%d GOAL=%d (%d fixed "
+               "contents granted); without it: goalOoT=%d goalMM=%d GOAL=%d (%d granted); without it but the %d "
+               "fixed remains assumed: goalOoT=%d goalMM=%d GOAL=%d\n",
+               fixedTotal, remainsTotal, on.goalOoT, on.goalMM, on.goalExpression, grantsOn, off.goalOoT, off.goalMM,
+               off.goalExpression, grantsOff, (int)remains.size(), withRemains.goalOoT, withRemains.goalMM,
+               withRemains.goalExpression);
+        CSB_ASSERT(previous == 1, "MM's fixed-content grant was already switched off before leg F");
+        CSB_ASSERT(remainsTotal > 0, "the shipped profile leaves no boss remains fixed, so leg F proves nothing about "
+                                     "the case #737 found");
+        CSB_ASSERT(onRc == RSBS_COMBO_LOGIC_OK && on.goalMM == 1 && on.goalExpression == 1 && grantsOn > 0,
+                   "with MM's fixed contents granted, the proven world's exit round does not prove beat-both");
+        CSB_ASSERT(offRcF == RSBS_COMBO_LOGIC_OK && grantsOff == 0,
+                   "the switched-off round still granted fixed contents");
+        CSB_ASSERT(off.goalMM == 0 && off.goalExpression == 0,
+                   "the GOAL is provable without MM's fixed contents, so this world does not run through them and "
+                   "the grant is unlocked (#737's red half not observed)");
+        CSB_ASSERT(remainsRc == RSBS_COMBO_LOGIC_OK && withRemains.goalMM == 1,
+                   "assuming the fixed boss remains alone does not restore MM's goal: a fixed content other than "
+                   "the remains is load-bearing for Majora");
+        CSB_ASSERT(CsbGoalNow(goal) == 1, "leg F did not leave the world proving the GOAL");
+    }
+
+    // ------------------------------------------------------------------
     // C. The direction gate under one bag, then BOTH reproduced.
     // ------------------------------------------------------------------
     const uint8_t savedDirection = gComboCtx.comboSettings.direction;
@@ -748,6 +833,23 @@ TestResult ComboSingleBag_Run(void) {
                    "the creation event did not run MM's half, the crossings and OoT's remainder, and the spoiler join "
                    "with no armed MM shadow and THEN arm it (#680's order)");
         CSB_ASSERT(Context_HasFrozenState(GAME_MM) != 0, "the finished creation left no armed MM shadow");
+
+        // E2b. ADR 0010 section 1.2's creation warning is computed by the real
+        // event from its own fill, and under the frozen goal of this world (the
+        // shipped beat-both, both halves proved) it names nothing. A creation
+        // that never asked leaves the sentinel, which is red here too.
+        {
+            const ComboSingleBagReport warnBag = *Combo_SingleBag_LastReport();
+            const uint32_t warned = OoT_Creation_TestLastUnprovedHalves();
+            printf("[TEST] combo-single-bag: the creation warning under GOAL %u: halves without proof 0x%X (proof "
+                   "halves OoT %d MM %d)\n",
+                   (unsigned)gComboCtx.comboSettings.goal, (unsigned)warned, warnBag.fill.goalOoT, warnBag.fill.goalMM);
+            CSB_ASSERT(warned == Combo_Logic_UnprovedHalves(&warnBag.fill),
+                       "the creation event did not compute its warning from its own fill");
+            CSB_ASSERT(gComboCtx.comboSettings.goal != (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH ||
+                           (warned == 0u && warnBag.fill.goalOoT == 1 && warnBag.fill.goalMM == 1),
+                       "a beat-both creation must prove both halves and warn about neither");
+        }
 
         // E3. Zero dead heart pickups over the world this real event finished.
         {

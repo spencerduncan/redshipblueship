@@ -146,6 +146,10 @@
  * created before it existed — and every world whose player leaves it alone —
  * resolves to the same twelve record bytes and the same comboSettingsHash. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA "gCombo.Rando.SharedOcarina"
+/* ADR 0010 D1's GOAL (its working name, kept): one of the pinned
+ * RSBS_COMBO_GOAL_* enumerators, DEFAULT beat-both (1), so a player who leaves
+ * it alone resolves to the same twelve record bytes as before it existed. */
+#define RSBS_CVAR_COMBO_RANDO_GOAL "gCombo.Rando.Goal"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -525,6 +529,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, ComboKeyClass::Identity,
       "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_OCARINA bit (#668): the ocarina is ONE "
       "monotonic shared instrument across both games" },
+    { RSBS_CVAR_COMBO_RANDO_GOAL, ComboKeyClass::Identity,
+      "ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*, ADR 0010 D1): the expression the creation's proof must "
+      "satisfy" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -892,11 +899,11 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Six identity keys (the five of ADR 0011 increment 2 plus SharedOcarina, #668)
-// + four window-visibility preferences. Pinning the count makes a silently
-// dropped row a compile error; the lock's tree scan makes a silently ADDED key a
-// red test.
-static_assert(kComboKeyCount == 10, "six gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 10");
+// Seven identity keys (the five of ADR 0011 increment 2, SharedOcarina (#668)
+// and Goal (ADR 0010 D1)) + four window-visibility preferences. Pinning the
+// count makes a silently dropped row a compile error; the lock's tree scan makes
+// a silently ADDED key a red test.
+static_assert(kComboKeyCount == 11, "seven gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 11");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

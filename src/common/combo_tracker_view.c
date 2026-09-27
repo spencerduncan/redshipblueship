@@ -77,15 +77,17 @@ void Combo_Tracker_RegisterOoT(const ComboOoTTrackerOps* ops) {
 
 const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness) {
     switch (freshness) {
+        // Player wording (the window prints it as a gray note): a game switch is
+        // what freezes MM's shadow and suspends OoT's heap.
         case COMBO_TRACKER_FRESH_LIVE:
-            return "live";
+            return "Updated live";
         case COMBO_TRACKER_FRESH_STALE:
             // The stale wording is per game because the mechanism differs: the
             // MM panel reads a shadow written at freeze/save time; the OoT
             // panel reads a heap that simply stopped advancing at suspend.
-            return (game == (uint8_t)GAME_MM) ? "as of last freeze/save" : "as of suspend";
+            return (game == (uint8_t)GAME_MM) ? "As of the last game switch or save" : "As of the last game switch";
         case COMBO_TRACKER_FRESH_UNAVAILABLE:
-            return "no data";
+            return "No data";
         default:
             return "(bad freshness)";
     }

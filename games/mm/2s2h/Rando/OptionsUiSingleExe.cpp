@@ -855,44 +855,47 @@ bool IsBoundTrick(MMRandoTrickId mmRandoTrickId) {
     return false;
 }
 
-/** The tag set as one human string. Joined here so src/common never learns
- *  MM's tag enum; the bitmask travels too, for a future filter UI.
- *
- *  The cache is a std::map, NOT a vector, and that is load-bearing rather than
- *  taste. This function hands out a `const char*` into a stored string and is
- *  then called again for the next row: a vector reallocates as it grows and
- *  MOVES its elements, so every pointer handed out before the growth dangles —
- *  and with the short-string optimization the character buffer lives INSIDE the
- *  moved string object, so a heap buffer does not save it either. A map's nodes
- *  never move, so a returned pointer stays valid for the process's life. Keying
- *  by the bitmask also collapses the 86 rows onto the handful of distinct tag
- *  sets. The vector version of this function is what `mm-trick-table` check (c)
- *  caught: row index 2's tag summary read empty once a later row grew the
- *  vector out from under it. */
-const char* TagSummary(uint32_t tags) {
-    static std::map<uint32_t, std::string> sTagStrings;
-    auto cached = sTagStrings.find(tags);
-    if (cached != sTagStrings.end()) {
-        return cached->second.c_str();
+/** A tag's chip colour, named as a combo_ui palette tone. The rungs MM shares
+ *  with SoH take SoH's colours (tricks.cpp's Tricks::GetTagColor: Novice green,
+ *  Intermediate orange, Advanced blue, Expert red, Experimental light blue,
+ *  Glitch white), so one difficulty reads the same colour on both games' trick
+ *  lists. "OoT Items" is ours and has no SoH colour: gray, the palette's
+ *  neutral, because the row that carries it is always disabled with the reason. */
+ComboUiTone TagTone(MMRandoTrickTag tag) {
+    switch (tag) {
+        case MMRTT_NOVICE:
+            return COMBO_UI_TONE_GREEN;
+        case MMRTT_INTERMEDIATE:
+            return COMBO_UI_TONE_ORANGE;
+        case MMRTT_ADVANCED:
+            return COMBO_UI_TONE_BLUE;
+        case MMRTT_EXPERT:
+            return COMBO_UI_TONE_RED;
+        case MMRTT_EXPERIMENTAL:
+            return COMBO_UI_TONE_LIGHT_BLUE;
+        case MMRTT_GLITCH:
+            return COMBO_UI_TONE_WHITE;
+        case MMRTT_COMBO:
+        default:
+            return COMBO_UI_TONE_GRAY;
     }
-    std::string s;
+}
+
+/** Fills a descriptor's chips from its tag set, one per tag in tag order, so the
+ *  difficulty rung is always the first chip. The labels are GetTrickTagName's
+ *  static strings, so the pointers stay valid for the process's life. */
+void FillTagChips(ComboMMTrickDesc* desc, uint32_t tags) {
     static const MMRandoTrickTag kAllTags[] = { MMRTT_NOVICE,       MMRTT_INTERMEDIATE, MMRTT_ADVANCED, MMRTT_EXPERT,
                                                 MMRTT_EXPERIMENTAL, MMRTT_GLITCH,       MMRTT_COMBO };
+    desc->chipCount = 0;
     for (MMRandoTrickTag tag : kAllTags) {
-        if ((tags & (uint32_t)tag) == 0) {
+        if ((tags & (uint32_t)tag) == 0 || desc->chipCount >= COMBO_MM_TRICK_MAX_CHIPS) {
             continue;
         }
-        if (!s.empty()) {
-            s += ", ";
-        }
-        s += Rando::StaticData::GetTrickTagName(tag);
+        desc->chipLabels[desc->chipCount] = Rando::StaticData::GetTrickTagName(tag);
+        desc->chipTones[desc->chipCount] = TagTone(tag);
+        desc->chipCount++;
     }
-    if (s.empty()) {
-        // The lock forbids an empty tag set; this keeps a broken table from
-        // handing the pane a NULL-adjacent empty label.
-        s = "(untagged)";
-    }
-    return sTagStrings.emplace(tags, s).first->second.c_str();
 }
 
 std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
@@ -902,8 +905,7 @@ std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
     }
     // Reserve up front: the descriptors are handed to src/common as a raw
     // pointer, so a reallocation mid-build would leave the registry pointing at
-    // freed memory. (TagSummary's own strings are kept in a node-based map for
-    // the same reason; see its comment.)
+    // freed memory.
     sTrickDescriptors.reserve((size_t)MMRT_MAX);
     for (auto& [mmRandoTrickId, row] : Rando::StaticData::Tricks) {
         ComboMMTrickDesc desc = {};
@@ -915,7 +917,7 @@ std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
         desc.area = (uint8_t)row.area;
         desc.areaName = Rando::StaticData::GetTrickAreaName(row.area);
         desc.tags = row.tags;
-        desc.tagSummary = TagSummary(row.tags);
+        FillTagChips(&desc, row.tags);
         desc.reserved = row.reserved;
         desc.bound = IsBoundTrick(mmRandoTrickId);
         if (row.reserved) {

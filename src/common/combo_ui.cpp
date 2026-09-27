@@ -137,12 +137,15 @@ void FallbackTooltip(const char* text) {
     }
 }
 
-void FallbackTagChip(const char* label, ComboUiTone) {
+void FallbackTagChip(const char* label, ComboUiTone, const ComboUiWidgetOpts* opts) {
+    const ComboUiWidgetOpts& o = OptsOrDefault(opts);
     ImGui::SameLine();
+    ImGui::BeginDisabled(o.disabled);
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     const char* hidden = strstr(label, "##"); // an id suffix is not drawn, as in ImGui's own labels
     ImGui::TextUnformatted(label, hidden);
     ImGui::PopStyleColor();
+    ImGui::EndDisabled();
 }
 
 /**
@@ -166,10 +169,19 @@ void FallbackSpacer(float height) {
     ImGui::Dummy(ImVec2(0.0f, height));
 }
 
+void FallbackRowText(const char* text, const ComboUiWidgetOpts* opts) {
+    const ComboUiWidgetOpts& o = OptsOrDefault(opts);
+    ImGui::SameLine();
+    ImGui::BeginDisabled(o.disabled);
+    ImGui::TextWrapped("%s", text);
+    ImGui::EndDisabled();
+    FinishItem(text, o);
+}
+
 const ComboUiTable kFallback = {
     FallbackCheckbox,  FallbackCombobox,    FallbackSliderInt, FallbackButton,  FallbackSeparatorText,
     FallbackNoteText,  FallbackWarningText, FallbackTooltip,   FallbackTagChip, FallbackConfirm,
-    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,
+    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText,
 };
 
 } // namespace

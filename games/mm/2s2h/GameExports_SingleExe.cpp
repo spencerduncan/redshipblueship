@@ -78,7 +78,8 @@
 // forward-declared, or the call would not resolve to the 2ship_enh definition.
 #include "2s2h/Enhancements/GfxPatcher/PlayerCustomFlipbooks.h"
 #include "2s2h/Rando/Rando.h"
-#include "2s2h/Rando/Foreign.h" // attempt-ladder outcome accessors (ADR 0010 inc. 1.2)
+#include "2s2h/ObjectExtension/ObjectExtension.h" // #666: MM_RetireAbandonedSession
+#include "2s2h/Rando/Foreign.h"                   // attempt-ladder outcome accessors (ADR 0010 inc. 1.2)
 #include "2s2h/ShipInit.hpp"
 #include "2s2h/resource/type/2shResourceType.h"
 #include "2s2h/resource/importer/PathFactory.h"
@@ -122,6 +123,10 @@ void Regs_Init(void);
 // Retire the graph coroutine on suspend (games/mm/src/code/graph.c) —
 // mirrors OoT: the frame loop must cold-start on re-entry after a switch.
 void MM_Graph_ResetRunFrameContext(void);
+// Retire the abandoned session's actor-overlay clients (z_actor.c, #666).
+s32 MM_ActorOverlayTable_RetireAbandonedClients(void);
+// Defined below MM_Game_Suspend, which calls it.
+void MM_RetireAbandonedSession(void);
 // Audio reset for cross-game switch (issue #157) and suspend (issue #270)
 extern s32 gAudioCtxInitalized;
 void AudioThread_InitMesgQueues(void);
@@ -2170,7 +2175,53 @@ void MM_Game_Suspend(void) {
     fflush(stderr);
     MM_Graph_ResetRunFrameContext();
 
+    // The Play gamestate just retired never ran MM_Play_Destroy, so none of
+    // its actors were deleted: put back what their deletion would have (#666).
+    MM_RetireAbandonedSession();
+
     fprintf(stderr, "[MM] Game_Suspend complete\n");
+    fflush(stderr);
+}
+
+/**
+ * Undo what an ABANDONED MM Play session left behind (#666).
+ *
+ * Every departure from MM retires its Play gamestate without MM_Play_Destroy
+ * (MM_Graph_ResetRunFrameContext in MM_Game_Suspend; MM_ResumeColdBootPrep
+ * below re-arms the arena the actors lived in). So MM_Actor_Delete never runs
+ * for the actors that were live at that instant, and two things it would have
+ * done are otherwise never done:
+ *
+ *  - each actor's overlay loses a client, and the last client out runs the
+ *    profile's `reset`, which is how the port puts overlay file-scope statics
+ *    back. En_Test4's sIsLoaded is the instance that matters in play: left
+ *    latched, the next session's clock actor kills itself in EnTest4_Init,
+ *    and the arrival scene runs without it (no dawn or night transition, no
+ *    day-2 rain, no final-hours events until the next scene load).
+ *  - ObjectExtension_Free(actor) drops the per-actor data 2S2H hangs off
+ *    actor addresses (the rando check id of a pot, a grass blade or a crate,
+ *    the actor-list index, enemy maximum health). The next session's arena
+ *    reuses those addresses, and a pot whose own check is already obtained
+ *    never overwrites the entry (IdentifyPot skips the set), so it would read
+ *    the abandoned pot's check id.
+ *
+ * Both are done here, at the point the session is abandoned. The actors' own
+ * Destroy functions are NOT run: they take the PlayState of a gamestate
+ * that has already been retired (colliders, effects, audio). Overlays whose
+ * Destroy (or a per-type Destroy helper) is what restores a static got that
+ * restore in a reset of their own (En_Grasshopper, En_Holl, En_Tanron5,
+ * En_Viewer, En_Mushi2 new; En_Invadepoh's existing reset extended).
+ *
+ * The mm-abandoned-session-statics row (mm_resume_state_test.cpp) drives
+ * MM_GetGameOps()->suspend, so it fails if this call leaves MM_Game_Suspend
+ * or moves ahead of MM_Graph_ResetRunFrameContext.
+ */
+extern "C" void MM_RetireAbandonedSession(void) {
+    const s32 overlays = MM_ActorOverlayTable_RetireAbandonedClients();
+    const size_t extensions = ObjectExtension::GetInstance().ClearAll();
+
+    fprintf(stderr, "[MM] Abandoned session retired: %d overlay(s) reset, %zu object extension entries dropped\n",
+            (int)overlays, extensions);
     fflush(stderr);
 }
 
@@ -3766,6 +3817,18 @@ extern "C" void MM_Combo_FlushSceneFlagsForFreeze(void) {
  * distinguishes standalone 2ship (which never reaches this seam) from a combo
  * session, whereas an MM-first session hot-swapping to a fresh OoT still owes
  * a resumable MM blob for the trip back.
+ *
+ * A FAIRY REVIVE IN PROGRESS GETS THE FAIRY'S REFILL, NOT 0x30 (#664 review).
+ * Player's death handler (z_player.c) spends the bottled fairy at the killing
+ * blow (MM_Inventory_ConsumeFairy -> gameOverCtx.state = GAMEOVER_REVIVE_START)
+ * and writes the refill (healthAccumulator = 0xA0, poured in 4 per frame by the
+ * interface update and clamped at the capacity) only after a 60-frame
+ * countdown, so health sits at 0 for over a second with the bottle gone. The
+ * continue literal there would take the fairy and the heal it paid for. With a
+ * live PlayState whose game-over machine is in its GAMEOVER_REVIVE_* range the
+ * revive gives what the fairy would have: 0xA0 clamped to the capacity. OoT's
+ * twin (OoT_Combo_ReviveDeadHealthForFreeze) applies the same rule with OoT's
+ * own refill (MAX_HEALTH).
  */
 extern "C" void MM_Combo_ReviveDeadHealthForFreeze(void) {
     if (!MM_SaveIsLiveFile()) {
@@ -3774,10 +3837,21 @@ extern "C" void MM_Combo_ReviveDeadHealthForFreeze(void) {
     if (gSaveContext.save.saveInfo.playerData.health > 0) {
         return;
     }
-    gSaveContext.save.saveInfo.playerData.health = 0x30;
+    const PlayState* play = MM_gPlayState;
+    const bool fairySpent = play != NULL && play->gameOverCtx.state >= GAMEOVER_REVIVE_START &&
+                            play->gameOverCtx.state <= GAMEOVER_REVIVE_FADE_OUT;
+    if (fairySpent) {
+        // The spent fairy's refill (0xA0 through the accumulator), clamped as
+        // the interface update clamps it.
+        const s16 capacity = gSaveContext.save.saveInfo.playerData.healthCapacity;
+        gSaveContext.save.saveInfo.playerData.health = capacity < 0xA0 ? capacity : 0xA0;
+    } else {
+        gSaveContext.save.saveInfo.playerData.health = 0x30;
+    }
     gSaveContext.healthAccumulator = 0;
-    fprintf(stderr, "[MM] pre-freeze: revived a dead health bar to %d before the departure freeze (#626)\n",
-            (int)gSaveContext.save.saveInfo.playerData.health);
+    fprintf(stderr, "[MM] pre-freeze: revived a dead health bar to %d (%s) before the departure freeze (#626)\n",
+            (int)gSaveContext.save.saveInfo.playerData.health,
+            fairySpent ? "the spent fairy's refill" : "the continue value");
     fflush(stderr);
 }
 

@@ -52,9 +52,9 @@ void Combo_ComboSettingsDefaults(ComboSettingsRecord* out) {
     // ADR 0010 D1 / answer O11: GOAL stays beat-both (OoTMM's own goal likewise
     // defaults to 'both'), and the shipped rung is the strictest Ship of
     // Harkinian ships — the proved, no-tricks rung, never the base `none`.
-    // Both terms are inert today: their consumers are ADR 0010's increments.
-    // They are frozen anyway, because a term added to the identity later cannot
-    // describe a world that was already created.
+    // Both are read by the single-bag fill at the creation event (ADR 0010
+    // increment 3); the goal is a player's choice since 2026-09-27, and this is
+    // the value an unset key resolves to.
     out->goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH;
     out->logicRung = (uint8_t)RSBS_COMBO_RUNG_BEATABLE;
     // comboFlags stays 0 (#668): every allocated flag CHANGES a world, so the
@@ -84,13 +84,16 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     // authored" and "what ships" the same record, and the SeedDeterminism /
     // MMRandoGen / HeadlessForeignDigest rows byte-stable.
     //
-    // goal and logicRung stay at their defaults: ADR 0010 owns their authoring.
+    // logicRung stays at its default: ADR 0010 owns its authoring. The goal is
+    // authored since 2026-09-27 (ADR 0010 D1's value list, OoTMM's goals); its
+    // default is beat-both, so an unset key reproduces the record exactly.
     Combo_ComboSettingsDefaults(out);
     out->direction = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION);
     out->poolSizeOoT = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_POOL_SIZE_OOT);
     out->poolSizeMM = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_POOL_SIZE_MM);
     out->itemClassOoT = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_OOT);
     out->itemClassMM = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_MM);
+    out->goal = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
     // comboFlags is ASSEMBLED from its flag keys, never overlaid: the byte is a
     // bitset and each bit has its own key, so writing the whole byte from the
     // set of resolved booleans is what keeps an unallocated bit at 0 in a

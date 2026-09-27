@@ -24,10 +24,13 @@
  *    driven. What is asserted instead is that clearing the CVar is sufficient
  *    to keep it out of ImGui regardless of active game or pairing state.
  *
- * Deliberately absent: any assertion about appearance. What the panel LOOKS
- * like — column widths, the unpaired copy, whether the collected column reads
- * at a glance — is operator verification and no headless test can stand in for
- * it.
+ * 4. DRAWN THE SoH WAY (UI parity M8), as far as a source scan can hold it:
+ *    through the combo_ui seam, with SoH's close-button chrome and no settings
+ *    digest.
+ *
+ * Appearance itself — column widths, the unpaired copy, whether the collected
+ * column reads at a glance — is judged from the UiSnapshot row's captures
+ * (Cross-Game Spoiler @paired, @crossings and @unpaired), not here.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++) — it drives the C++-linkage ComboGui::RegisterComboSpoilerWindow.
@@ -42,13 +45,17 @@
 
 #include "../ComboSpoilerWindow.h"
 #include "../combo_spoiler_view.h"
+#include "../combo_ui.h"
 #include "../context.h"
 #include "../foreign_items.h"
 #include "../test_runner.h"
 #include "test_named_items.h"
 
 #include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <string>
 
 #include <ship/window/gui/Gui.h>
 #include <ship/window/gui/GuiWindow.h>
@@ -149,6 +156,45 @@ extern "C" int Combo_SpoilerWindow_RunHeadless(void) {
             window->Update();
         }
     }
+
+#ifdef RSBS_SOURCE_DIR
+    // ---- 4. Drawn the SoH way (UI parity M8) -------------------------------
+    // Appearance itself is judged from the UiSnapshot captures; what a source
+    // scan can hold is the shape: the pane draws its notes, spacing and themed
+    // headers through the combo_ui seam (whose SoH table is installed), passes
+    // an open flag to ImGui::Begin and clears its visibility through
+    // SetVisibility when closed (SoH's pane chrome), and prints no settings
+    // digest and no TextDisabled/hand-spacing call.
+    {
+        CSW_ASSERT(ComboUi_IsInstalled());
+        std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/src/common/ComboSpoilerWindow.cpp", std::ios::binary);
+        CSW_ASSERT(in.good());
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CSW_ASSERT(text.find("ComboUi_Get()") != std::string::npos);
+        CSW_ASSERT(text.find(", &open,") != std::string::npos);
+        CSW_ASSERT(text.find("SetVisibility(false)") != std::string::npos);
+        CSW_ASSERT(text.find("ImGui::TextDisabled") == std::string::npos);
+        CSW_ASSERT(text.find("ImGui::Spacing") == std::string::npos);
+        CSW_ASSERT(text.find("digest") == std::string::npos);
+        // Each styled element through the seam, not just a ComboUi_Get() helper
+        // that nothing calls.
+        CSW_ASSERT(text.find("Ui().NoteText(") != std::string::npos);
+        CSW_ASSERT(text.find("Ui().SeparatorText(") != std::string::npos);
+        CSW_ASSERT(text.find("Ui().PushTheme()") != std::string::npos);
+        CSW_ASSERT(text.find("Ui().Spacer(") != std::string::npos);
+        // SoH's table shape (style guide section 10): 8x8 cells, both borders, a
+        // header row, and no ScrollY inside a pane that scrolls as a whole.
+        CSW_ASSERT(text.find("ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f)") != std::string::npos);
+        CSW_ASSERT(text.find("ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV") != std::string::npos);
+        CSW_ASSERT(text.find("TableHeadersRow()") != std::string::npos);
+        CSW_ASSERT(text.find("ImGuiTableFlags_ScrollY") == std::string::npos);
+        CSW_ASSERT(text.find("ImGuiTableFlags_RowBg") == std::string::npos);
+        // The section header carries no count (R-N4); the seed is named as the
+        // Combo Tracker names it.
+        CSW_ASSERT(text.find("(%d)") == std::string::npos);
+        CSW_ASSERT(text.find("\"Paired Seed: %u\"") != std::string::npos);
+    }
+#endif
 
     Context_SetCurrentGame(prevGame);
 

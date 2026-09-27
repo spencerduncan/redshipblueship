@@ -1,8 +1,10 @@
 # Known issues
 
-**Applies to:** `main` at `4a3bf058` (2026-09-26, PR #734) and the GitHub Actions builds cut from
-it; the `v0.1.1-prealpha` tag (2026-07-03) is older than everything in the first section.
-**Last updated:** 2026-09-26 (wave-6 hygiene).
+**Applies to:** `main` at `0c8807b3` (2026-09-27, PR #743, the single-bag switch) and the GitHub
+Actions builds cut from it; the `v0.1.1-prealpha` tag (2026-07-03) is older than everything in the
+first section.
+**Last updated:** 2026-09-27 (the single-bag switch). **Playtesting this build?** Start with
+[`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
 one executable, round-trips between them through the Happy Mask Shop ↔ Clock Tower
@@ -21,38 +23,46 @@ this list, the issue link is the place to add detail.
 
 ### Cross-game randomization: what ships now, and what does not
 
-The headline feature is real but partial. Phase 3.1 (tracker
-[#492](https://github.com/spencerduncan/redshipblueship/issues/492)) shipped; Phase
-3.2 — cross-game *logic* — has its **increment 2 merged** (PR
-[#680](https://github.com/spencerduncan/redshipblueship/pull/680), 2026-09-17):
-generation now happens once, at file creation, not on first arrival. Increment 3
-(the single-bag fill and the beatability proof) has started but **is not wired into
-generation**: the combo-logic coordinator (PRs [#701](https://github.com/spencerduncan/redshipblueship/pull/701), [#717](https://github.com/spencerduncan/redshipblueship/pull/717)), both games' solver
-exports it drives (PRs [#714](https://github.com/spencerduncan/redshipblueship/pull/714), [#715](https://github.com/spencerduncan/redshipblueship/pull/715)) and a first cost/convergence measurement
-(PR [#722](https://github.com/spencerduncan/redshipblueship/pull/722)) are on `main`. Since 2026-09-26 so are three more pieces:
-the multiplicity contract with the bag's surplus / filler / trap rules (PR [#728](https://github.com/spencerduncan/redshipblueship/pull/728)),
-the item classification table (PR [#725](https://github.com/spencerduncan/redshipblueship/pull/725)), and the monotonicity grow-check and
-negation probe (PR [#734](https://github.com/spencerduncan/redshipblueship/pull/734)). No generated world uses any of it yet
-([#500](https://github.com/spencerduncan/redshipblueship/issues/500), epics
-[#644](https://github.com/spencerduncan/redshipblueship/issues/644) delivered,
-[#645](https://github.com/spencerduncan/redshipblueship/issues/645) in progress).
+The headline feature is real, and since 2026-09-27 it has cross-game logic. Phase 3.1
+(tracker [#492](https://github.com/spencerduncan/redshipblueship/issues/492)) shipped; Phase 3.2 (cross-game *logic*, [#500](https://github.com/spencerduncan/redshipblueship/issues/500)) has
+**increment 2** (generation once, at file creation; PR [#680](https://github.com/spencerduncan/redshipblueship/pull/680)) and now
+**increment 3** in production: **the single-bag fill** (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743), epic
+[#645](https://github.com/spencerduncan/redshipblueship/issues/645)). One fill at the creation event places one bag of items across both
+games' checks and proves the frozen goal over both games' logic at once. An item that
+crosses leaves its home pool. The pieces it composes landed in waves 4-6: the coordinator
+and both solver exports (PRs [#701](https://github.com/spencerduncan/redshipblueship/pull/701), [#714](https://github.com/spencerduncan/redshipblueship/pull/714), [#715](https://github.com/spencerduncan/redshipblueship/pull/715), [#717](https://github.com/spencerduncan/redshipblueship/pull/717)),
+multiplicity and the surplus / filler / trap rules ([#728](https://github.com/spencerduncan/redshipblueship/pull/728)), the item
+classification table ([#725](https://github.com/spencerduncan/redshipblueship/pull/725)), the monotonicity check ([#734](https://github.com/spencerduncan/redshipblueship/pull/734)), durable
+crossings and the one spoiler ([#736](https://github.com/spencerduncan/redshipblueship/pull/736)), bag composition ([#738](https://github.com/spencerduncan/redshipblueship/pull/738)), one shared
+triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740)) and the shared-quantity trim ([#744](https://github.com/spencerduncan/redshipblueship/pull/744)).
 
-**What ships at `4a3bf058`:**
+**What ships at `0c8807b3`:**
 
-- **One seed, one paired world, items crossing in both directions.** Generating an
-  OoT randomizer seed also generates a paired Majora's Mask world; OoT items are
-  placed in MM checks and MM items in OoT checks. Which items may cross is decided
-  by a **rule-defined item class**, not a hand-written list (PR
-  [#631](https://github.com/spencerduncan/redshipblueship/pull/631)); the reverse
-  direction is armed and delivered (PR
-  [#632](https://github.com/spencerduncan/redshipblueship/pull/632)).
-- **Both worlds are generated together, once, at file creation.** The whole
-  paired creation — freeze, both fills, both crossing passes, one spoiler, one
-  atomic identity publish, and an authored-and-armed MM shadow — now runs at the
-  OoT file-create seam (PR [#680](https://github.com/spencerduncan/redshipblueship/pull/680)).
+- **One seed, one paired world, one bag, items crossing in both directions.** Generating an
+  OoT randomizer seed also generates the paired Majora's Mask world. OoT items are
+  placed on MM checks and MM items on OoT checks, and **a crossed item is no longer also
+  in its home pool** (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)). Crossings land only on chests (OoT: non-shop
+  `EN_BOX` chests outside the treasure-chest game; MM: its Tier-A chests), at most 64 per
+  side. Which items may cross is decided by a rule-defined item class (PR
+  [#631](https://github.com/spencerduncan/redshipblueship/pull/631)) and the frozen direction.
+- **Hearts and capacity upgrades are counted once for the pair.** Health is one shared
+  bar. On the shipped profile the two pools hold 76 Pieces of Heart, 15 Heart Containers
+  and 2 Double Defense; the bag keeps 44, 6 and 1 (pieces and containers OoT 14 + 4, MM 30 + 2;
+  the Double Defense from either game), and the bar stops at 20 hearts (PR [#744](https://github.com/spencerduncan/redshipblueship/pull/744)). That is 42 trimmed heart and
+  double-defense rows. Capacity families whose top tier is the same in both games (magic,
+  quiver, bomb bag, and the wallet when OoT has no tycoon's wallet) are trimmed to the
+  shared maximum the same way; with them, 51 rows (OoT 22, MM 29) become filler in their
+  home game. Families whose top tiers differ keep every copy and cost a known dead pickup:
+  the hookshot (OoT 2, MM 1) always, and the ocarina when the frozen rules arm it. Stick
+  and nut capacity exist only in OoT and are unchanged.
+- **Both worlds are generated together, once, at file creation.** Freeze, the single-bag
+  fill, each game's own pass over its leftover checks (traps and junk stay in their home
+  game), one spoiler with a `combo` section, one atomic identity publish, and the MM shadow
+  armed last (PRs [#680](https://github.com/spencerduncan/redshipblueship/pull/680), [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
   Arrival in MM no longer generates anything: it hydrates the frozen shadow or
   refuses. A generation failure fails file creation itself, at file select, with
-  no partial identity and no silent vanilla Termina fallback.
+  no partial identity and no silent vanilla Termina fallback. A paired world's OoT
+  spoiler loaded on its own at file select is refused with a toast.
 - **Foreign items have their own identity.** An OoT item in Termina shows its real
   name and a coloured pickup toast; an MM item in Hyrule is presented as a native
   pickup (PRs [#524](https://github.com/spencerduncan/redshipblueship/pull/524),
@@ -66,20 +76,17 @@ negation probe (PR [#734](https://github.com/spencerduncan/redshipblueship/pull/
   is **refused** when you next cross, and the save slot is marked refused rather
   than silently overwritten (PR
   [#568](https://github.com/spencerduncan/redshipblueship/pull/568)). Set MM's
-  options *before* creating the file: `Randomizer → Cross-Game → Toggle MM
-  Randomizer Options`.
-- **The paired MM world is generated with logic set to Glitchless** by default,
-  behind a deterministic attempt ladder with a visible generation-progress surface
-  and a host-calibrated budget (~30 s floor, ~90 s ceiling; PR
-  [#680](https://github.com/spencerduncan/redshipblueship/pull/680)), and foreign
-  items are only hosted on checks the MM crawl can reach (PRs
-  [#580](https://github.com/spencerduncan/redshipblueship/pull/580),
-  [#581](https://github.com/spencerduncan/redshipblueship/pull/581)). Each half is
-  beatable on its own terms. **An on-screen progress bar now paints during
-  file creation** (PR [#707](https://github.com/spencerduncan/redshipblueship/pull/707), [#582](https://github.com/spencerduncan/redshipblueship/issues/582)): the blocking creation pumps frames, so
-  the window stays responsive and shows which phase and attempt it is on instead
-  of freezing for up to the whole budget. Menu input is suppressed while it
-  paints.
+  options *before* creating the file: `Combo → Windows → Toggle MM Randomizer
+  Options` (moved from Randomizer → Cross-Game by PR
+  [#745](https://github.com/spencerduncan/redshipblueship/pull/745)).
+- **The pair is generated with logic set to Glitchless** by default, and the fill proves
+  `beat-both` (the only goal a production world has today) over both games' logic.
+  It runs behind a deterministic attempt ladder with a host-calibrated budget (~30 s
+  floor, ~90 s ceiling; PRs [#680](https://github.com/spencerduncan/redshipblueship/pull/680), [#743](https://github.com/spencerduncan/redshipblueship/pull/743)). On the development
+  workstation 30 real creations took 5.9-13.7 s, each on its first attempt. **A progress
+  overlay paints during file creation** ("Placing item n of N in both worlds"; PRs
+  [#707](https://github.com/spencerduncan/redshipblueship/pull/707), [#749](https://github.com/spencerduncan/redshipblueship/pull/749), [#582](https://github.com/spencerduncan/redshipblueship/issues/582)): the window stays responsive and menu
+  input is suppressed while it paints.
 - **The Happy Mask Shop door is never shuffled.** It is the OoT ↔ MM crossing, so
   OoT's own entrance randomizer now leaves both directions of it out of every
   shuffle pool; under interior (or any) entrance shuffle the door you walk
@@ -101,20 +108,32 @@ negation probe (PR [#734](https://github.com/spencerduncan/redshipblueship/pull/
 
 **What does not ship yet:**
 
-- **There is no cross-game logic.** Nothing proves that an item you need in one
-  game is not locked behind a check in the other game that needs that same item.
-  The **spoiler log carries that burden**: read it (`Randomizer → Cross-Game →
-  Toggle Cross-Game Spoiler`, or the JSON next to your OoT spoiler) before you
-  commit to a route. This is ADR 0010's territory — epics
-  [#644](https://github.com/spencerduncan/redshipblueship/issues/644) (merged
-  generation, delivered) and
-  [#645](https://github.com/spencerduncan/redshipblueship/issues/645)
-  (the single-bag fill with a beatability proof, in progress).
-- **Crossings are still duplicates.** An item that crosses is *also* still in its
-  home game's pool. Items leave origin pools only with #645.
-- **Generation can still abort**, now at file creation rather than at first
-  crossing. If file creation refuses, the fix is to try again or use a lighter
-  MM profile; no partial or corrupt file is left behind.
+- **Nothing of the switch has been played yet.** Every claim above comes from tests,
+  measurements and UI captures. The playtest is
+  [`playtest-2026-09.md`](playtest-2026-09.md).
+- **The in-game crossing views are empty.** Combo > Windows > Toggle Cross-Game Spoiler
+  and the Combo Tracker's cross-game section still read the tables the single bag no longer
+  writes, so they show nothing for a new world. The spoiler JSON's `combo.crossingStore`
+  lists every crossing with display names
+  ([#755](https://github.com/spencerduncan/redshipblueship/issues/755)).
+- **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero
+  or barren analysis. Crossing hosts are never hinted, and an OoT item that crossed is
+  hinted as "Termina" (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+- **No goal choice yet.** Every paired world is `beat-both`; a paired triforce hunt is
+  refused at generation (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+- **Some settings re-seed the world without changing a rule.** The pool-size sliders and
+  every item class other than Progression are read by no rule since the switch, but they
+  are part of the world's fingerprint, so changing one gives a different world from the
+  same seed (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+- **Surplus filler can be dropped** when more MM items land in Hyrule than OoT items
+  leave; only filler gives way (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+- **Netplay and crossings share one 64-slot shared-item array.** Crossings alone cannot
+  fill it, but a netplay peer's grants take slots too, so a pickup can still be refused
+  (loudly) while both happen (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+- **Generation can still abort**, at file creation. A wall-clock stop fails the creation
+  with a toast ("Not created: try a new seed or Majora's Mask options."). No creation in
+  the 30-seed sample needed more than two fill batches, which bounds the failure rate
+  below about 10%, not at zero. No partial or corrupt file is left behind.
 - **Some MM randomizer options are disabled-with-reason** in the MM options pane:
   their gameplay hooks are not yet dispatched in the single-executable build
   ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), 14 of 23
@@ -132,8 +151,8 @@ negation probe (PR [#734](https://github.com/spencerduncan/redshipblueship/pull/
 ### Back up your saves. Seriously.
 
 The cross-game save (`.redsave`) format **has been re-versioned** since the last
-revision of this document — it is now version 2, and this build reads version 1
-files too (`src/common/save.h`). The format has grown several times since July as the
+revision of this document — it is now version 3 (durable crossings, PR
+[#736](https://github.com/spencerduncan/redshipblueship/pull/736)), and this build reads versions 1 and 2 too (`src/common/save.h`). The format has grown several times since July as the
 combo context gained its identity, commit and settings records. A refused or
 corrupt `.redsave` is now quarantined with a reason rather than overwritten
 ([#533](https://github.com/spencerduncan/redshipblueship/issues/533), PR
@@ -150,6 +169,12 @@ refused on load rather than silently re-generated. This project is pre-release �
 the operator has accepted invalidating existing saves rather than spending effort
 on migration. **If a paired file from before this build is refused, create a new
 file**; there is no recovery path for the old one.
+
+**Paired files created between PR #680 and the switch (PR #743, 2026-09-27) are NOT
+refused.** They load and keep playing the world they were created with: the old
+overlay world, where a crossed item is also still in its home pool. They show nothing
+of the single-bag fill, and the same seed now generates a different world. Create a new
+file to play the current build.
 
 ---
 

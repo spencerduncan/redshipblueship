@@ -1340,3 +1340,41 @@ their meaning as identity; what changes is what generation does with them.
 
 No save is invalidated by the record; the worlds move because the fill does
 (ADR 0010's 2026-09-27 increment-3 amendment).
+
+### 2026-09-27 -- GOAL values 4 and 5, and `gCombo.Rando.Goal` (format note)
+
+ADR 0010's amendment of the same date appends two GOAL values. This is their
+encoding.
+
+- **Values.** `RSBS_COMBO_GOAL_BEAT_OOT` = **4** and
+  `RSBS_COMBO_GOAL_BEAT_MM` = **5**, appended after
+  `RSBS_COMBO_GOAL_TRIFORCE_HUNT` = 3. Decision 1.2.1's rule held: nothing
+  was renumbered, and the pinning static assert in `foreign_items.h` now
+  covers all five. 0 is still the legacy "unset" and is never authorable.
+- **No format change.** The values fit the existing `goal` byte (offset 8).
+  `RSBS_COMBO_SETTINGS_FORMAT_VERSION` stays 1: a record written before
+  these values existed can only hold 1, 2 or 3, and it means what it meant.
+  An older build never creates a 4 or a 5: it has no Goal key, so its
+  resolver always yields its default, 1. It meets one only at load or at
+  MM's arrival, on a record a newer build froze, and there its divergence
+  compare (`Combo_ComboSettingsDivergenceBetween`) finds the stamped goal
+  unequal to its own resolved 1 and refuses the file, naming `goal`. That
+  build has no Goal key the player could set to match, so such a file cannot
+  be played on it. This build's row shows a goal it does not know as
+  "Unknown (n)" rather than throwing on it.
+- **The key.** The goal was the record's only field besides `logicRung`
+  with no tier-4 key (increment 2 left both at their defaults). It now has
+  one: `gCombo.Rando.Goal`, classified Identity in `RSBS::kComboKeys`
+  (eleven entries), resolved by `Combo_ResolveComboSettings` through the one
+  reader, `COMBO_SETTING_GOAL` (appended to `ComboSettingId`). Its value space
+  is exactly the five enumerators; an out-of-space stored value resolves to
+  `beat-both` with a logged reason, as every key's does.
+- **Nothing moves by default.** The key's default is the defaults record's
+  `goal` (beat-both), so with the key unset the canonical bytes, the pinned
+  fingerprint vector and the goldens are unchanged. A non-default goal moves
+  the fingerprint, which is the point: it is a different world.
+- **What a player meets.** The goal is identity, so it follows decision 4's
+  rule like the direction: a file created under one goal and loaded while
+  the session's goal key holds another is refused at the load and at MM's
+  arrival, naming `goal`, and the file is not quarantined. Setting the key
+  back loads it.
