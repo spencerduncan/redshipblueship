@@ -733,6 +733,11 @@ extern "C" {
 // world against the one spoiler's combo section (rando tier). FILE SCOPE
 // (compiled as C++).
 #include "tests/test_combo_crossing_views.c"
+// The paired game's end under the frozen combo goal (#762): the predicate, the
+// decision for every goal in both orders, each port's redirect (its helpers are
+// games/oot/soh/oot_combo_goal_test.cpp and games/mm/2s2h/mm_combo_goal_test.cpp)
+// and the call sites' wiring from source. FILE SCOPE (compiled as C++).
+#include "tests/test_combo_goal.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -4725,6 +4730,12 @@ const TestDescriptor gTests[] = {
      "Over the ComboSingleBag pinned seed's real single-bag world, both panes list exactly the one spoiler's "
      "combo.crossingStore rows, named, found per host (#755, #757)",
      Test_ComboCrossingViewsWorld},
+    {"combo-goal-ending",
+     "The paired game ends when the frozen goal is met, in the game whose final boss meets it: beat-both withholds "
+     "the first boss's ending and plays the second's, single-game goals end on their own boss, triforce-hunt on the "
+     "shared count, unpaired files as upstream; each port's redirect, Time Splits, fail-open, and every call site "
+     "wired under its guard (#762)",
+     Test_ComboGoalEnding},
     {"oot-abandoned-session-statics",
      "A cross-game departure retires OoT's abandoned Play session, twice: ActorDB entries with live clients are "
      "reset once each time after the graph is retired and no client count outlives a departure, client-free entries "

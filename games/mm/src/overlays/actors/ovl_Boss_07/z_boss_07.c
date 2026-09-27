@@ -31,6 +31,14 @@
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#762): the paired game's end under the frozen combo goal. Declared here
+// because games/mm/src/**.c has no src/common on its include path; defined in
+// 2s2h/Rando/ComboGoalEndingMM.cpp.
+int MM_ComboGoal_OnMajoraDefeated(void);
+int MM_ComboGoal_RedirectEndingIfWithheld(PlayState* play);
+#endif
+
 #define FLAGS                                                                                 \
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
      ACTOR_FLAG_DRAW_CULLING_DISABLED)
@@ -1774,6 +1782,13 @@ void Boss07_Wrath_SetupDeathCutscene(Boss07* this, PlayState* play) {
     this->damagedTimer = 1000;
 
     GameInteractor_ExecuteOnBossDefeated(this->actor.id); // 2S2H Time Splits
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#762): in a paired world whose frozen goal is still unmet the game
+    // is not complete; the defeat is recorded (combo_goal.h).
+    if (!MM_ComboGoal_OnMajoraDefeated()) {
+        return;
+    }
+#endif
     GameInteractor_ExecuteOnGameCompletion();
 }
 
@@ -1961,6 +1976,12 @@ void Boss07_Wrath_DeathCutscene(Boss07* this, PlayState* play) {
                         play->nextEntrance = ENTRANCE(TERMINA_FIELD, 0);
                         gSaveContext.nextCutsceneIndex = 0xFFF7;
                         play->transitionTrigger = TRANS_TRIGGER_START;
+#ifdef RSBS_SINGLE_EXECUTABLE
+                        // RSBS (#762): a paired world whose frozen goal is still
+                        // unmet gets no ending here; the warp is rewritten to a new
+                        // cycle in South Clock Town (combo_goal.h).
+                        MM_ComboGoal_RedirectEndingIfWithheld(play);
+#endif
                     }
                 }
                 if (this->cutsceneTimer > 300) {

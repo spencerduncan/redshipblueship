@@ -2009,3 +2009,92 @@ first attempt, all three placed on MM checks, and returns `goal-unprovable`
 under `beat-mm` and `beat-both` on the same bag, seed and engines); and by
 `ComboSingleBag`, which checks that the real creation event computes its
 warning from its own fill and, under the shipped `beat-both`, names nothing.
+
+### 2026-09-27 -- D1: meeting the goal ends the paired game (#762)
+
+The divergence the previous amendment recorded is closed. The paired game
+now ends the way OoTMM's does: the final-boss defeat that makes the frozen
+goal expression true plays its own game's ending, and a final-boss defeat
+that leaves it false plays no ending.
+
+- **What OoTMM does** (read at OoTMM/OoTMM 57cc028b,
+  `packages/generator/src`): `common/config.c` `Config_IsGoal()` is false
+  while the goal names a boss that is not yet beaten. `oot/play/play.c`
+  `endGame()` sets the durable "Ganon beaten" flag on OoT's post-Ganon
+  ending entrance, saves, and plays the ending only when `Config_IsGoal()`
+  holds; otherwise the player stays in OoT (Ganon's Castle exterior, or
+  Ganon's Tower under entrance shuffle). `mm/play/play.c` sets "Majora
+  beaten" on the arrival that starts MM's ending and, when the goal is not
+  met, sets day 0 at 05:59, makes the new-day save and warps to the start of
+  a new cycle. Neither shows a message or an item-get: each also calls
+  `sendSelfTriforce()` / `sendSelfMajorasMask()`, which marks the boss's NPC
+  check obtained, and whose `Multi_SendSelfItem` is a no-op unless
+  `CFG_MULTIPLAYER` is set (`common/multi/multi.c` `Multi_BeforeSend`); in a
+  multiworld the echo arrives with that NPC check already marked, so
+  `MultiProcessMessageItemWAL` gives nothing (`common/mark.c` `Mark_GetOot`
+  / `Mark_GetMm` read the same bitmap). Under the triforce goals the last
+  piece calls `comboCreditWarp()` (`common/triggers.c`) and both final
+  bosses are locked away (`oot/doors.c`, `mm/actors/En/En_Js.c`).
+- **The record.** Each game's final-boss defeat is one bit in
+  `gComboCtx.sharedFlags` word 0 (bit 0 Ganon, bit 1 Majora), the first
+  bits ADR 0002's kept array has carried. It is session state: the
+  creation event's invalidation zeroes it (the KEEP set does not name it),
+  the `.redsave` Tier-1 record carries it, and it is resident across a game
+  switch.
+- **The predicate** (`src/common/combo_goal.c`, `Combo_GoalMet`) reads the
+  FROZEN goal only and evaluates it with the coordinator's own expression
+  (`Combo_Logic_EvaluateGoal`), so the runtime end and the creation's proof
+  mean the same thing by a goal. `triforce-hunt` is the shared piece count
+  against the frozen combo requirement (`Combo_Logic_EvaluateTriforceHunt`);
+  neither boss is a term of it.
+- **The ending sites** (guarded by `RSBS_SINGLE_EXECUTABLE`): Ganon's
+  final blow (the `OnBossDefeat` hook in `BossDefeatTimestamps.cpp`) gates
+  OoT's "game complete" stat mark, and BossGanon2's warp to the
+  Chamber of the Sages (cutscene 0xFFF2) is rewritten, when the goal is
+  unmet, to Ganon's Tower as an adult after one save
+  (`ComboGoalEndingOoT.cpp`). Ganon's Tower is used in every case because
+  OoT's own load puts a save made in Ganon's arena there. Majora's final
+  blow gates MM's `OnGameCompletion`, and its warp to Termina Field
+  (cutscene 0xFFF7) is rewritten, when the goal is unmet, to OoTMM's
+  sequence: day 0 at 05:59, MM's own new-day save
+  (`Sram_SaveSpecialNewDay`), South Clock Town (`ComboGoalEndingMM.cpp`).
+  Time Splits' completion (`TimeSplitCompleteSplits`, which runs when the
+  player's last split is collected, and Ganon can be that split) is the
+  third writer of OoT's mark and asks the same question read-only
+  (`Combo_GoalAllowsCompletion`). Without a frozen combo record every site
+  is a no-op and each game ends as upstream.
+- **Fail direction.** A frozen goal that cannot be evaluated (a goal byte
+  outside the pinned table, or a triforce-hunt record that fails its check,
+  which disarms the hunt) FAILS OPEN: the defeat is recorded and the game
+  ends as its own game, with an ERROR in the log. Withholding there would
+  leave a paired world that can never end. Creation and the `.redsave`
+  load refuse both states, so this is the answer for a damaged record.
+- **Triforce hunt and the bosses (a divergence from OoTMM).** OoTMM locks
+  both bosses away under its triforce goals. Here each boss is locked by
+  its own half's hunt when that half's hunt is on (SoH keeps Ganon's Boss
+  Key out of the pool and grants it with the hunt; 2S2H withholds Majora's
+  soul until the hunt completes), but the combo record requires only one
+  half's hunt to be on, so the other half's boss can be reachable. That boss
+  is fightable and its defeat is withheld (the player is returned to the
+  game) rather than locked: locking it means a new condition in that half's
+  logic graph, which the composition ruling keeps upstream-shaped, and the
+  outcome for the goal is the same (no boss ever ends a triforce-hunt world).
+- **Legacy pairs (pre-ADR-0011).** Before its first crossing a legacy pair
+  has no frozen record, so a defeat there is "own" and is not recorded; the
+  first crossing freezes the shipped default, beat-both. A legacy pair that
+  beat Ganon before its first crossing therefore has Majora withheld and
+  must beat Ganon again (OoT's ending does not save, so the pre-Ganon save
+  is still there). Accepted: saves are pre-release.
+- **Not covered:** a half's own triforce hunt in a world whose combo goal
+  is not triforce-hunt still ends that half's game through its own win arm
+  (#768).
+
+Locked by `ComboGoalEnding`: the predicate for all five values; the
+decision for every goal in both orders; unpaired files; the record's
+lifetime; each port's redirect over a replica of its site's assignments
+on a heap PlayState (the actors are not run); the real Time Splits
+completion; the fail-open answer; and, from source, that every call site
+makes its call right after the upstream lines it follows under its guard,
+that the replicas replay the actors' lines, and that no other completion
+writer exists (with the counterfactuals run inside the row). The Goal
+row's tooltip now says "The paired game ends when the goal is met".

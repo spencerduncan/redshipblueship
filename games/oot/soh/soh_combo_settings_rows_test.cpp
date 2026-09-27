@@ -471,8 +471,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        "the goal row's '%s' line does not say '%s' (ADR 0010 section 1.2: documented at the setting)",
                        w.label, w.warns);
         }
-        ROWS_CHECK(tooltip.find("does not end the paired game") != std::string::npos,
-                   "the goal row's tooltip must say that meeting the goal does not end the paired game");
+        ROWS_CHECK(tooltip.find("The paired game ends when the goal is met") != std::string::npos,
+                   "the goal row's tooltip must say that the paired game ends when the goal is met (#762)");
         ROWS_CHECK(Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH,
                    "the goal's shipped default is %d, expected beat-both (OoTMM's default is 'both')",
                    (int)Combo_ComboSettingDefault(COMBO_SETTING_GOAL));

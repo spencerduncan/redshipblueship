@@ -344,8 +344,20 @@ void HandleDragAndDrop(std::vector<SplitObject>& objectList, int targetIndex, co
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// soh/Enhancements/randomizer/ComboGoalEndingOoT.cpp
+extern "C" int OoT_ComboGoal_GameMayComplete(void);
+#endif
+
 void TimeSplitCompleteSplits() {
     gSaveContext.ship.stats.itemTimestamp[TIMESTAMP_DEFEAT_GANON] = GAMEPLAYSTAT_TOTAL_TIME;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#762): Ganon can be the last split; in a paired world whose frozen
+    // goal is still unmet the game is not complete (src/common/combo_goal.h).
+    if (!OoT_ComboGoal_GameMayComplete()) {
+        return;
+    }
+#endif
     gSaveContext.ship.stats.gameComplete = true;
 }
 
