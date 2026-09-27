@@ -433,7 +433,7 @@ names what must fail. Run them after changing the harness itself.
 |---|---|---|
 | `no-state` | EnterState authors nothing | every authored state's text check ("does not show", or "also shown in state") |
 | `no-hover` | no pointer injection | every hover ("the hover capture shows no tooltip") |
-| `no-scroll` | panes keep their first view | `tricks-open` ("does not show ... in any captured view") |
+| `no-scroll` | panes keep their first view | the Combo Tracker's `progress` ("does not show ... in any captured view"; observed 2026-09-27, when the MM options pane's `tricks-open` state left with the pane) |
 | `throw` | the first project page's first row throws mid-draw | that capture only, by name; every later capture still passes (not blank) |
 | `throw,leave-open` | the exception path leaves the ImGui frame open (the old behaviour) | the open-frame check, on the next pump |
 | `keep-imgui-ini` | `imgui.ini` stays armed and ImGui's shutdown save runs | the isolation check on `imgui.ini` |
