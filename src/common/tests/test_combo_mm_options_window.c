@@ -49,7 +49,8 @@
  *    composer must build SoH's shape exactly as Menu::MenuDrawItem does, the
  *    shown-tooltip rule must match UIWidgets' (a disabled widget shows its
  *    disabled tooltip), no player-facing reason may carry a tracker number or an
- *    ADR reference, and the pane's own draw TUs still name no gSettings.Menu.*
+ *    ADR reference, every reason the pane prints is a Title Case fragment in
+ *    SoH's disabledMap style (R-S2), and the pane's own draw TUs still name no gSettings.Menu.*
  *    key (ADR 0004 §4.1a(ii): a common-owned window is not a second menu shell).
  *
  * Deliberately absent: any assertion about appearance. That is judged from
@@ -293,6 +294,58 @@ extern "C" int Combo_MMOptionsWindow_RunHeadless(void) {
             CMOW_ASSERT(d != NULL);
             if (cites(d->disabledReason)) {
                 printf("[TEST] FAIL: MM trick %s cites a tracker or ADR in its disabled reason\n", d->name);
+                return TEST_FAIL;
+            }
+        }
+
+        // Every reason the pane prints in a disabled tooltip is a fragment in
+        // SoH's disabledMap style (docs/ui-style-guide.md R-S2: "Save Not
+        // Loaded", "Debug Mode is Disabled", "Not Available on DirectX"), so a
+        // frozen and retired row does not stack a Title Case fragment over a
+        // sentence: it starts upper case, every word of four or more letters
+        // is capitalised, and it carries no colon and no closing punctuation.
+        // The reserved tricks' reasons (StaticData/Tricks.cpp) are the Tricks
+        // section's and are migrated with it (UI parity M6 part 2).
+        auto fragment = [](const char* text) {
+            if (text == NULL || text[0] == '\0') {
+                return true;
+            }
+            if (!(text[0] >= 'A' && text[0] <= 'Z')) {
+                return false;
+            }
+            const size_t n = strlen(text);
+            if (text[n - 1] == '.' || text[n - 1] == '!' || text[n - 1] == '?' || strchr(text, ':') != NULL) {
+                return false;
+            }
+            for (const char* w = text; *w != '\0';) {
+                while (*w == ' ') {
+                    w++;
+                }
+                const char* e = w;
+                while (*e != '\0' && *e != ' ') {
+                    e++;
+                }
+                if (e - w >= 4 && *w >= 'a' && *w <= 'z') {
+                    return false;
+                }
+                w = e;
+            }
+            return true;
+        };
+        CMOW_ASSERT(fragment("Already Decided"));
+        for (int i = 0; i < Combo_MMOptionCount(); i++) {
+            const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+            if (!fragment(d->disabledReason)) {
+                printf("[TEST] FAIL: MM option %s's disabled reason '%s' is not a Title Case fragment (R-S2)\n",
+                       d->name, d->disabledReason);
+                return TEST_FAIL;
+            }
+        }
+        for (int i = 0; i < Combo_MMTrickCount(); i++) {
+            const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+            if (!d->reserved && !fragment(d->disabledReason)) {
+                printf("[TEST] FAIL: MM trick %s's disabled reason '%s' is not a Title Case fragment (R-S2)\n",
+                       d->name, d->disabledReason);
                 return TEST_FAIL;
             }
         }

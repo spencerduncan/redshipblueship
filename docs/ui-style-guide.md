@@ -200,6 +200,9 @@ and on ours (R-N4).
 
 - A pane derives from `Ship::GuiWindow`, registers with `AddGuiWindow` and a `CVAR_WINDOW` key, and is opened from a
   WINDOW_BUTTON row. Common-owned panes follow ADR 0008.
+- **Chrome** is `GuiWindow::Draw`'s: ImGui's title bar with a close button, because `GuiWindow::Draw` passes the
+  window's visibility to `ImGui::Begin` (`libultraship/src/ship/window/gui/GuiWindow.cpp:72`). A pane that overrides
+  `Draw` (to read its CVar live) still passes an `open` flag and calls `SetVisibility(false)` when it is closed.
 - Inside a pane, use the same helpers with `THEME_COLOR` (`randomizer_check_tracker.cpp:2223-2283`). From `src/common`,
   which cannot include UIWidgets, go through the `combo_ui` seam (`src/common/combo_ui.h`): a C function table
   (Checkbox, Combobox, SliderInt, Button, SeparatorText, NoteText, WarningText, Tooltip, TagChip, Confirm,

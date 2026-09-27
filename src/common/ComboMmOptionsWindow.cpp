@@ -55,12 +55,15 @@ constexpr const char* kFrozenReason = "Already Decided";
  *
  * Three states, three different facts:
  *  - FROZEN (ADR 0004 §6's fourth state, #564 V25): the profile was stamped into
- *    the world's identity at creation. The note names the identity (its
- *    fingerprint, the MM profile digest) and the ACTUAL escape, which is not
- *    obvious and is not "create a new paired world": the stamp lands at
+ *    the world's identity at creation. The note names the ACTUAL escape, which
+ *    is not obvious and is not "create a new paired world": the stamp lands at
  *    generation, so re-generating re-stamps the same profile, and the only
  *    unfreezing events are Context_InvalidateSessionState's drop paths, the
- *    title screen first among them.
+ *    title screen first among them. It prints NO fingerprint: the one number a
+ *    player is shown for the world is Combo > Cross-Game Rules' (the whole
+ *    pair's comboSettingsHash, which folds this profile's digest in), and a
+ *    second "fingerprint" here, the MM profile digest alone, would name the
+ *    same world with a different number.
  *  - PAIRED, NOT FROZEN (#564 V8): a legacy pre-freeze pair, whose profile
  *    freezes at its first crossing.
  *  - UNPAIRED: no world yet; these freeze into the next one at generation.
@@ -69,23 +72,18 @@ void DrawStatusNote(bool frozen) {
     ComboMMProfileSummary summary;
     Combo_MMProfileSummary(&summary);
 
-    char note[256];
     if (frozen) {
-        snprintf(note, sizeof(note),
-                 "Already decided when this world was created (fingerprint %08X). Return to the title screen to "
-                 "choose options for a new world.",
-                 (unsigned)summary.mmProfileDigest);
+        Ui().NoteText("Already decided when this world was created. Return to the title screen to choose options "
+                      "for a new world.");
     } else if (summary.paired) {
-        snprintf(note, sizeof(note),
-                 "Your paired world predates saved Majora's Mask options. These are saved into it when you first "
-                 "cross into Majora's Mask.");
+        Ui().NoteText("Your paired world predates saved Majora's Mask options. These are saved into it when you "
+                      "first cross into Majora's Mask.");
     } else {
         // "Not paired" and "paired with a default profile" are different facts:
         // a seedless header would describe a world that does not exist.
-        snprintf(note, sizeof(note),
-                 "No paired world yet. These options are saved into the next paired world when it is generated.");
+        Ui().NoteText("No paired world yet. These options are saved into the next paired world when it is "
+                      "generated.");
     }
-    Ui().NoteText(note);
 
     // ADR 0004 §6's third state, editable but not the running game. Not shown
     // once frozen, where "editable" would be false.
@@ -341,15 +339,20 @@ void ComboMmOptionsWindow::Draw() {
         return;
     }
 
+    // SoH's pane chrome: Ship::GuiWindow::Draw passes its visibility to
+    // ImGui::Begin, so every SoH pane (the tracker settings popouts among them)
+    // carries a close button in its title bar. Closing clears the visibility
+    // CVar through SetVisibility, which also schedules the save, exactly as a
+    // closed SoH pane does.
+    bool open = true;
     ImGui::SetNextWindowSize(ImVec2(620.0f, 560.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(kComboMMOptionsWindowName, nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) {
-        ImGui::End();
-        return;
+    if (ImGui::Begin(kComboMMOptionsWindowName, &open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+        DrawElement();
     }
-
-    DrawElement();
-
     ImGui::End();
+    if (!open) {
+        SetVisibility(false);
+    }
 }
 
 void ComboMmOptionsWindow::DrawElement() {

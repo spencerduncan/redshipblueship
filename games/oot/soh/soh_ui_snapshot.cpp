@@ -3460,6 +3460,32 @@ int Session::RuntimeLint() {
     return bad;
 }
 
+/**
+ * R8's one volatile pair: SoH's Settings > General "About" column names the
+ * binary's own build (SohMenuSettings.cpp: "Branch: <branch>", "Commit: <hash>"),
+ * so any two differently committed binaries differ there although no SoH wording
+ * changed. Both sides of the comparison mask those two values; every other row,
+ * the About column's other rows included, is compared byte for byte.
+ */
+static std::string MaskBuildStamp(const std::string& names) {
+    std::istringstream in(names);
+    std::string line;
+    std::string out;
+    while (std::getline(in, line)) {
+        const size_t a = line.find(" | ");
+        if (a != std::string::npos && line.rfind("Settings/General | ", 0) == 0) {
+            const size_t b = line.find(" | ", a + 3);
+            const std::string row = line.substr(a + 3, b == std::string::npos ? std::string::npos : b - a - 3);
+            if (row.rfind("Commit: ", 0) == 0 || row.rfind("Branch: ", 0) == 0) {
+                line = line.substr(0, a + 3) + row.substr(0, 8) + "<build stamp>" +
+                       (b == std::string::npos ? std::string() : line.substr(b));
+            }
+        }
+        out += line + "\n";
+    }
+    return out;
+}
+
 void Session::DumpSohNames() {
     if (romFree) {
         return;
@@ -3492,9 +3518,12 @@ void Session::DumpSohNames() {
             }
         }
     }
+    body = MaskBuildStamp(body);
     WriteTextFile(out / "soh-names.txt", body);
     if (!opt.baseline.empty()) {
-        const std::string before = ReadTextFile(fs::path(opt.baseline) / "soh-names.txt");
+        // Masked again on read: a baseline written before the mask existed
+        // carries its build's literal commit and branch.
+        const std::string before = MaskBuildStamp(ReadTextFile(fs::path(opt.baseline) / "soh-names.txt"));
         if (!before.empty() && before != body) {
             Fail("R8: SoH's own row names or tooltips differ from the baseline run's soh-names.txt");
         }

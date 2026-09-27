@@ -310,7 +310,9 @@ const OptionUi kOptionUi[] = {
       // label, tooltip or reason (docs/ui-style-guide.md R-N4, R-TT5); the ruling
       // is recorded in the comment below, where a maintainer reads it. The label
       // carries no state either: the row is drawn disabled, and its reason is
-      // its disabled tooltip.
+      // its disabled tooltip. The reason is a Title Case fragment in SoH's
+      // disabledMap style (R-S2: "Debug Mode is Disabled"), not a sentence; the
+      // pane's lock (ComboMMOptionsWindow leg 5) pins that shape.
       "Majora Access: Remains",
       "This option was retired and has no effect.",
       0, 0, nullptr, 0,
@@ -323,7 +325,7 @@ const OptionUi kOptionUi[] = {
       // tombstone note at StaticData/Options.cpp). A future edit that gives
       // this row a consumer or a live widget is overturning an operator
       // ruling, not finishing a TODO; the mm-rando-options lock pins this.
-      COMBO_MM_LIVENESS_DORMANT, "Retired: this option has no effect." },
+      COMBO_MM_LIVENESS_DORMANT, "Option is Retired" },
 
     // ---- Shuffle Options ---------------------------------------------------
     { RO_SHUFFLE_COWS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
@@ -890,8 +892,10 @@ std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
             desc.disabledReason = row.reservedReason;
         } else if (!desc.bound) {
             // Player-facing (UI parity M6): the tracking issue (#578 part 3)
-            // stays in this comment, out of the text a player reads.
-            desc.disabledReason = "Not supported by the randomizer logic yet.";
+            // stays in this comment, out of the text a player reads, and the
+            // reason is a Title Case fragment in SoH's disabledMap style (R-S2:
+            // "Not Available on DirectX"), pinned by ComboMMOptionsWindow leg 5.
+            desc.disabledReason = "Not Yet Supported by Logic";
         } else {
             desc.disabledReason = "";
         }
