@@ -188,8 +188,10 @@ static RegisterShipInitFunc initFunc([]() {
             // ...` with no water term, and puts the water ONLY on the way to the shrine side
             // (`is_swamp_cleared && can_swim`) — exactly where this file puts
             // `RE_CLEARED_WOODFALL_TEMPLE && CAN_TRAVERSE_WAIST_DEEP_WATER`. So this term is the guards,
-            // and the trick is its alternative. (OoTMM's `can_enter_deku_palace` also admits the Captain's
-            // Hat; that is a tricks-off difference, not this key's, and is left alone.)
+            // and the trick is its alternative. (OoTMM's `can_enter_deku_palace` is `has(MASK_DEKU) ||
+            // has_mask_skull` (macros_mm.yml:194), and `has_mask_skull` is OoT's SKULL MASK (MASK_SKULL /
+            // SHARED_MASK_SKULL, :192), not MM's Captain's Hat. That is a cross-game tricks-off route this
+            // MM-only condition cannot name; it is not this key's, and is left alone.)
             CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, CAN_BE_DEKU || MM_TRICK(MMRT_PALACE_GUARD_SKIP)),
             CONNECTION(RR_DEKU_PALACE_INSIDE_UPPER_BEAN_SIDE, (CAN_BE_DEKU || (RANDO_EVENTS[RE_CLEARED_WOODFALL_TEMPLE] && CAN_TRAVERSE_WAIST_DEEP_WATER)) && CAN_USE_DAY2_RAIN_BEAN),
         },

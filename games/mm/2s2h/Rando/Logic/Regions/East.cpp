@@ -517,7 +517,13 @@ static RegisterShipInitFunc initFunc([]() {
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(STONE_TOWER_INVERTED, 0),         ENTRANCE(STONE_TOWER, 1), CAN_PLAY_SONG(ELEGY) && HAS_ITEM(ITEM_BOW) && HAS_ITEM(ITEM_ARROW_LIGHT) && HAS_MAGIC),
-            EXIT(ENTRANCE(STONE_TOWER_TEMPLE, 0),           ENTRANCE(STONE_TOWER, 2), CAN_BE_ZORA && CAN_BE_GORON && CAN_PLAY_SONG(ELEGY))
+            // #697 — MMRT_ONE_MASK_STONE_TOWER also opens the temple door (DEFAULT OFF). OoTMM gates the
+            // one-mask trick on the CLIMB only: stone_tower.yml's "Stone Tower Top" -> "Stone Tower Front of
+            // Temple" is `can_use_elegy || ...`, with no mask term at all. This exit keeps 2ship's own
+            // tricks-off Zora-and-Goron requirement (a tricks-off divergence from OoTMM, recorded on #697,
+            // not changed here), and admits exactly what the climb admits under the trick: the Elegy with
+            // ONE of the two masks. Without this disjunct the trick reached the Top but never the temple.
+            EXIT(ENTRANCE(STONE_TOWER_TEMPLE, 0),           ENTRANCE(STONE_TOWER, 2), CAN_PLAY_SONG(ELEGY) && ((CAN_BE_ZORA && CAN_BE_GORON) || (MM_TRICK(MMRT_ONE_MASK_STONE_TOWER) && (CAN_BE_ZORA || CAN_BE_GORON))))
         },
         .connections = {
             CONNECTION(RR_STONE_TOWER_UPPER, HAS_ITEM(ITEM_HOOKSHOT)),

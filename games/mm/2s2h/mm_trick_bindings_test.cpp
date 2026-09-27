@@ -46,6 +46,13 @@
  *      outright. `kSurvivorProbes` holds these, and unlike the other legs it does
  *      not stop at the first failure, so one broken build shows every arm it
  *      breaks.
+ *  (g) PER REWRITTEN EDGE, ITS TRICKS-OFF ROUTE. With every trick bit clear, the
+ *      route the edge is meant to open on must OPEN, and (per row) the same route
+ *      minus one of its terms must stay SHUT. Legs (a)/(b)/(f) cannot see an edit
+ *      that makes a tricks-off condition STRICTER than intended (a wallet level
+ *      typed one too high, a boss kill that lost its tricks-off leg): each of their
+ *      red halves is already a tricks-off refusal. `kTricksOffRouteProbes` holds
+ *      these (#697 fix pass: the two tightenings and the Stone Tower rewrite).
  *  (c) COVERAGE, against the shipped `bound` flag rather than against a list in
  *      this file. Every key the pane describes as bound-and-not-reserved must be
  *      probed here or be one of the keys in kCoveredElsewhere (part 1's two and
@@ -492,6 +499,109 @@ void InvZoraAndIce() {
     InvBowIceArrowsAndMagic();
 }
 
+// ---- #697 fix pass: the inner conjuncts and the tricks-off routes ----------
+
+/** GBT_CAN_RIDE_CENTRAL_GEYSER's OTHER inner conjunct: the Fire Arrows gone, the
+ *  Ice Arrows, magic and swim kept. Paired with the Ice-dropped control above, the
+ *  two together pin both arrow terms of the macro. */
+void InvGeyserNoFireAndSwim() {
+    Give(ITEM_BOW);
+    Give(ITEM_ARROW_ICE);
+    gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_SWIM);
+}
+
+void InvGeyserNoFireSwimAndFlow() {
+    InvGeyserNoFireAndSwim();
+    SetReversedWaterFlow();
+}
+
+/** CAN_CARRY_HOT_WATER_TO_SNOWHEAD minus ONE of its carrying terms each: the bottle,
+ *  the Song of Soaring, the Snowhead owl. The water itself is the original control. */
+void InvHotWaterSoaringNoBottle() {
+    RANDO_EVENTS[RE_ACCESS_HOT_SPRING_WATER] = 1;
+    GiveOcarinaAndButtons();
+    SET_QUEST_ITEM(QUEST_SONG_SOARING);
+    SET_OWL_WARP(OWL_WARP_SNOWHEAD);
+}
+
+void InvHotWaterNoSoaring() {
+    Give(ITEM_BOTTLE);
+    RANDO_EVENTS[RE_ACCESS_HOT_SPRING_WATER] = 1;
+    GiveOcarinaAndButtons();
+    SET_OWL_WARP(OWL_WARP_SNOWHEAD);
+}
+
+void InvHotWaterSoaringNoOwl() {
+    Give(ITEM_BOTTLE);
+    RANDO_EVENTS[RE_ACCESS_HOT_SPRING_WATER] = 1;
+    GiveOcarinaAndButtons();
+    SET_QUEST_ITEM(QUEST_SONG_SOARING);
+}
+
+/** Stone Tower's ZORA leg of the one-mask disjunct (the Goron leg is above). */
+void InvHookshotElegyZora() {
+    InvHookshotElegy();
+    Give(ITEM_MASK_ZORA);
+}
+
+/** The temple door at the Top: a playable Elegy and ONE mask, no Hookshot (the door
+ *  does not read it). */
+void InvElegyOnly() {
+    GiveOcarinaAndButtons();
+    SET_QUEST_ITEM(QUEST_SONG_ELEGY);
+}
+
+void InvElegyGoron() {
+    InvElegyOnly();
+    Give(ITEM_MASK_GORON);
+}
+
+void InvElegyZora() {
+    InvElegyOnly();
+    Give(ITEM_MASK_ZORA);
+}
+
+/** Twinmold's tricks-off route, `HAS_ITEM(ITEM_MASK_GIANT) && HAS_MAGIC &&
+ *  CAN_USE_HUMAN_SWORD`, in full and minus one term each. CAN_USE_HUMAN_SWORD reads
+ *  the EQUIPPED sword, so the sword is set through the equips bitfield. */
+void GiveKokiriSwordEquipped() {
+    SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+}
+
+void InvGiantMagicSword() {
+    Give(ITEM_MASK_GIANT);
+    gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+    GiveKokiriSwordEquipped();
+}
+
+void InvGiantSwordNoMagic() {
+    Give(ITEM_MASK_GIANT);
+    GiveKokiriSwordEquipped();
+}
+
+void InvGiantMagicNoSword() {
+    Give(ITEM_MASK_GIANT);
+    gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+}
+
+void InvMagicSwordNoGiant() {
+    gSaveContext.save.saveInfo.playerData.isMagicAcquired = true;
+    GiveKokiriSwordEquipped();
+}
+
+/** The Giant's Wallet (upgrade level 2): the third of OoTMM's three wallets. */
+void InvGiantsWallet() {
+    MM_Inventory_ChangeUpgrade(UPG_WALLET, 2);
+}
+
+/** The vanilla two-mask climb in full, for leg (g)'s tricks-off route. */
+void InvHookshotElegyGoronZora() {
+    InvHookshotElegy();
+    Give(ITEM_MASK_GORON);
+    Give(ITEM_MASK_ZORA);
+}
+
 const Probe kProbes[] = {
     // MMRT_LENS. Empty inventory and no magic, so the only way in is the trick.
     { MMRT_LENS, "Lone Peak Shrine's invisible chest without Lens of Truth", EDGE_CHECK, RR_LONE_PEAK_SHRINE,
@@ -859,6 +969,95 @@ const Probe kProbes[] = {
     { MMRT_TWINMOLD_FIRE_AND_ICE, "Twinmold with only Fire and Ice Arrows", EDGE_CHECK, RR_STONE_TOWER_TEMPLE_BOSS_ROOM,
       (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_BOSS_HEART_CONTAINER, kAllTime, InvBowFireIceAndMagic,
       InvBowFireAndMagic },
+
+    // ---- #697 fix pass: one control per INNER conjunct the rows above left unpinned ----
+    //
+    // Each row repeats an edge above with a DIFFERENT control, because one Probe carries
+    // one control and each of these macros has more than one term the trick must keep.
+    // A later edit that deletes any one of them now turns a row red.
+
+    // GBT_CAN_CROSS_GREEN_PIPE_3_FIRELESS = trick && Deku && Zora. The rows above drop
+    // Zora; these drop Deku (the Zora Mask alone).
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's green pipe 3 chest fireless, Deku still required", EDGE_CHECK,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_CHEST, kAllTime, InvDekuAndZora,
+      InvZoraMask },
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's green pipe 3 upper pot 01 fireless, Deku still required", EDGE_CHECK,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_UPPER_POT_01, kAllTime,
+      InvDekuAndZora, InvZoraMask },
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's green pipe 3 upper pot 02 fireless, Deku still required", EDGE_CHECK,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RC_GREAT_BAY_TEMPLE_GREEN_PIPE_3_UPPER_POT_02, kAllTime,
+      InvDekuAndZora, InvZoraMask },
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's map room from green pipe 3 fireless, Deku still required", EDGE_CONNECTION,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RR_GREAT_BAY_TEMPLE_MAP_ROOM, kAllTime, InvDekuAndZora, InvZoraMask },
+    { MMRT_GBT_FIRELESS, "Great Bay Temple's second green switch fireless, Deku still required", EDGE_EVENT,
+      RR_GREAT_BAY_TEMPLE_GREEN_PIPE_3, (int32_t)RE_GREAT_BAY_GREEN_SWITCH_2, kAllTime, InvDekuAndZora, InvZoraMask },
+    // GBT_CAN_RIDE_CENTRAL_GEYSER = trick && Fire && Ice. The rows above drop Ice; these
+    // drop Fire.
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's map room from the geyser, Fire Arrows still required",
+      EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_MAP_ROOM, kAllTime,
+      InvGeyserAndSwim, InvGeyserNoFireAndSwim },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's red pipe from the geyser, Fire Arrows still required",
+      EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_RED_PIPE_BEFORE_WART, kAllTime,
+      InvGeyserAndSwim, InvGeyserNoFireAndSwim },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's compass-room tunnel from the geyser, Fire Arrows still required",
+      EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_COMPASS_ROOM_TUNNEL, kAllTime,
+      InvGeyserSwimAndFlow, InvGeyserNoFireSwimAndFlow },
+    { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's pre-boss room from the geyser, Fire Arrows still required",
+      EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_PRE_BOSS_ROOM, kAllTime,
+      InvGeyserSwimAndFlow, InvGeyserNoFireSwimAndFlow },
+    // CAN_CARRY_HOT_WATER_TO_SNOWHEAD = trick && bottle && water && Soaring && owl. The
+    // rows above drop the water; these drop the bottle, Soaring and the owl in turn, on
+    // every one of the four sites.
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's central room first floor with hot water, a bottle still required",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_ENTRANCE_AFTER_BLOCK, (int32_t)RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR,
+      kAllTime, InvHotWaterSoaring, InvHotWaterSoaringNoBottle },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's central room first floor with hot water, Soaring still required",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_ENTRANCE_AFTER_BLOCK, (int32_t)RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR,
+      kAllTime, InvHotWaterSoaring, InvHotWaterNoSoaring },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's central room first floor with hot water, the owl still required",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_ENTRANCE_AFTER_BLOCK, (int32_t)RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR,
+      kAllTime, InvHotWaterSoaring, InvHotWaterSoaringNoOwl },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's upper pillar room with hot water, a bottle still required",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR, (int32_t)RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER,
+      kAllTime, InvHotWaterSoaring, InvHotWaterSoaringNoBottle },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's upper pillar room with hot water, Soaring still required", EDGE_CONNECTION,
+      RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR, (int32_t)RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER, kAllTime,
+      InvHotWaterSoaring, InvHotWaterNoSoaring },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's upper pillar room with hot water, the owl still required", EDGE_CONNECTION,
+      RR_SNOWHEAD_TEMPLE_CENTRAL_ROOM_FIRST_FLOOR, (int32_t)RR_SNOWHEAD_TEMPLE_PILLARS_ROOM_UPPER, kAllTime,
+      InvHotWaterSoaring, InvHotWaterSoaringNoOwl },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's compass-room ledge chest with hot water, a bottle still required",
+      EDGE_CHECK, RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_LEDGE_CHEST, kAllTime,
+      InvHotWaterSoaring, InvHotWaterSoaringNoBottle },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's compass-room ledge chest with hot water, Soaring still required",
+      EDGE_CHECK, RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_LEDGE_CHEST, kAllTime,
+      InvHotWaterSoaring, InvHotWaterNoSoaring },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's compass-room ledge chest with hot water, the owl still required",
+      EDGE_CHECK, RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RC_SNOWHEAD_TEMPLE_COMPASS_ROOM_LEDGE_CHEST, kAllTime,
+      InvHotWaterSoaring, InvHotWaterSoaringNoOwl },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's block room upper floor with hot water, a bottle still required",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER, kAllTime,
+      InvHotWaterSoaring, InvHotWaterSoaringNoBottle },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's block room upper floor with hot water, Soaring still required",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER, kAllTime,
+      InvHotWaterSoaring, InvHotWaterNoSoaring },
+    { MMRT_SHT_HOT_WATER, "Snowhead Temple's block room upper floor with hot water, the owl still required",
+      EDGE_CONNECTION, RR_SNOWHEAD_TEMPLE_COMPASS_ROOM, (int32_t)RR_SNOWHEAD_TEMPLE_BLOCK_ROOM_UPPER, kAllTime,
+      InvHotWaterSoaring, InvHotWaterSoaringNoOwl },
+    // MMRT_ONE_MASK_STONE_TOWER's ZORA leg, both directions: the rows above prove the
+    // Goron half of `(CAN_BE_GORON || CAN_BE_ZORA)`; these prove the other half.
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower's Elegy climb with two statues (Human, Zora)", EDGE_CONNECTION,
+      RR_STONE_TOWER_BOTTOM, (int32_t)RR_STONE_TOWER_MIDDLE, kAllTime, InvHookshotElegyZora, InvHookshotElegy },
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower's Elegy climb with two statues (Human, Zora), the mirror direction",
+      EDGE_CONNECTION, RR_STONE_TOWER_MIDDLE, (int32_t)RR_STONE_TOWER_BOTTOM, kAllTime, InvHookshotElegyZora,
+      InvHookshotElegy },
+    // ...and the temple door at the Top, which the fix pass widens under the same key
+    // (East.cpp carries the OoTMM citation): the Elegy and one mask, each mask in turn;
+    // the control is the Elegy with no mask.
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower Temple's door from the Top with the Elegy and the Goron Mask", EDGE_EXIT,
+      RR_STONE_TOWER_TOP, (int32_t)ENTRANCE(STONE_TOWER_TEMPLE, 0), kAllTime, InvElegyGoron, InvElegyOnly },
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower Temple's door from the Top with the Elegy and the Zora Mask", EDGE_EXIT,
+      RR_STONE_TOWER_TOP, (int32_t)ENTRANCE(STONE_TOWER_TEMPLE, 0), kAllTime, InvElegyZora, InvElegyOnly },
 };
 
 /**
@@ -947,6 +1146,71 @@ const SurvivorProbe kSurvivorProbes[] = {
     { MMRT_GBT_CENTRAL_GEYSER, "Great Bay Temple's pre-boss room stays shut before the flow is reversed",
       EDGE_CONNECTION, RR_GREAT_BAY_TEMPLE_CENTRAL_ROOM, (int32_t)RR_GREAT_BAY_TEMPLE_PRE_BOSS_ROOM, kAllTime,
       InvZoraSwimNoFlow },
+};
+
+/**
+ * Leg (g). The TRICKS-OFF route that a tightening, or a widening that rewrote an edge,
+ * must leave standing. Legs (a)/(b)/(f) all look at what the trick adds or what the
+ * edge still refuses; none of them shows that the edge still OPENS on the route it is
+ * meant to open on with every trick off. Without that, `CUR_UPG_VALUE(UPG_WALLET) >= 3`
+ * for `>= 2` on the bank's heart piece, or a Twinmold row that lost its Giant's-Mask
+ * leg, passes every other arm: both only make the tricks-off condition STRICTER, and
+ * every red half above is a tricks-off refusal already.
+ *
+ * Each row: with EVERY trick bit clear (a zeroed save freezes none), `inventory` must
+ * OPEN the edge, and `without` (when not NULL) must leave it SHUT, still with every
+ * trick clear. The `without` arm pins one term of the tricks-off route, so a route
+ * with three conjuncts gets three rows. `trick` names the key whose edit this guards.
+ */
+struct TricksOffRouteProbe {
+    MMRandoTrickId trick;
+    const char* what;
+    EdgeKind kind;
+    RandoRegionId region;
+    int32_t target;
+    uint64_t time;
+    void (*inventory)();
+    void (*without)();
+};
+
+const TricksOffRouteProbe kTricksOffRouteProbes[] = {
+    // MMRT_BANK_ONE_WALLET's tightening: the heart piece (OoTMM's reward 3) is the
+    // Giant's Wallet with the tricks off, and the Adult Wallet is not enough.
+    { MMRT_BANK_ONE_WALLET, "the bank's heart piece with the Giant's Wallet, tricks off", EDGE_CHECK,
+      RR_CLOCK_TOWN_WEST, (int32_t)RC_CLOCK_TOWN_WEST_BANK_PIECE_OF_HEART, kAllTime, InvGiantsWallet, InvAdultWallet },
+    // The interest reward (reward 2) is the Adult Wallet with the tricks off, and the
+    // Child Wallet is not enough.
+    { MMRT_BANK_ONE_WALLET, "the bank's interest reward with the Adult Wallet, tricks off", EDGE_CHECK,
+      RR_CLOCK_TOWN_WEST, (int32_t)RC_CLOCK_TOWN_WEST_BANK_INTEREST, kAllTime, InvAdultWallet, InvEmpty },
+    // MMRT_TWINMOLD_BOW's tightening: the Giant's Mask, magic and a sword still kill
+    // Twinmold with the tricks off; each of the three is still required; and the Bow
+    // alone no longer does, on all three checks the kill gates.
+    { MMRT_TWINMOLD_BOW, "Twinmold's heart container by Giant's Mask, tricks off (magic still required)", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_BOSS_ROOM, (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_BOSS_HEART_CONTAINER, kAllTime,
+      InvGiantMagicSword, InvGiantSwordNoMagic },
+    { MMRT_TWINMOLD_BOW, "Twinmold's heart container by Giant's Mask, tricks off (a sword still required)", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_BOSS_ROOM, (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_BOSS_HEART_CONTAINER, kAllTime,
+      InvGiantMagicSword, InvGiantMagicNoSword },
+    { MMRT_TWINMOLD_BOW, "Twinmold's heart container by Giant's Mask, tricks off (the mask still required)", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_BOSS_ROOM, (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_BOSS_HEART_CONTAINER, kAllTime,
+      InvGiantMagicSword, InvMagicSwordNoGiant },
+    { MMRT_TWINMOLD_BOW, "Twinmold's heart container by Giant's Mask, tricks off (the Bow alone is not enough)",
+      EDGE_CHECK, RR_STONE_TOWER_TEMPLE_BOSS_ROOM, (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_BOSS_HEART_CONTAINER,
+      kAllTime, InvGiantMagicSword, InvBow },
+    { MMRT_TWINMOLD_BOW, "Twinmold's blue warp by Giant's Mask, tricks off (the Bow alone is not enough)", EDGE_CHECK,
+      RR_STONE_TOWER_TEMPLE_BOSS_ROOM, (int32_t)RC_STONE_TOWER_TEMPLE_INVERTED_BOSS_WARP, kAllTime, InvGiantMagicSword,
+      InvBow },
+    { MMRT_TWINMOLD_BOW, "the Oath to Order after Twinmold by Giant's Mask, tricks off (the Bow alone is not enough)",
+      EDGE_CHECK, RR_STONE_TOWER_TEMPLE_BOSS_ROOM, (int32_t)RC_GIANTS_CHAMBER_OATH_TO_ORDER, kAllTime,
+      InvGiantMagicSword, InvBow },
+    // MMRT_ONE_MASK_STONE_TOWER rewrote the climb and the temple door: both still open
+    // on the vanilla two-mask route with the tricks off, and one mask is not enough.
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower's climb with both masks, tricks off (one mask is not enough)",
+      EDGE_CONNECTION, RR_STONE_TOWER_BOTTOM, (int32_t)RR_STONE_TOWER_MIDDLE, kAllTime, InvHookshotElegyGoronZora,
+      InvHookshotElegyGoron },
+    { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower Temple's door with both masks, tricks off (one mask is not enough)",
+      EDGE_EXIT, RR_STONE_TOWER_TOP, (int32_t)ENTRANCE(STONE_TOWER_TEMPLE, 0), kAllTime, InvElegyGoronZoraNoHookshot,
+      InvElegyZora },
 };
 
 /** Keys whose red/green pairs live in their own rows (part 1's two, and #719's
@@ -1057,13 +1321,16 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
     int rc = 0;
 
     // ---- (a), (b), (d): the per-edge red/green pairs ----------------------
+    //
+    // No early exit (#697 fix pass): a broken build shows EVERY row it breaks, so one
+    // mutation run observes several red halves at once. rc keeps the last code.
     for (const Probe& probe : kProbes) {
         const char* why = "";
         const std::function<bool()>* condition = FindCondition(probe.kind, probe.region, probe.target, &why);
         if (condition == NULL) {
             rc = BindFail(1, "%s [%s]: %s — the binding's edge is gone, so this probe would be vacuous", probe.what,
                           TrickName(probe.trick), why);
-            break;
+            continue;
         }
 
         ArmSave(probe.time, probe.inventory);
@@ -1073,7 +1340,7 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
                           "%s [%s]: the edge is OPEN with the trick off — either the disjunct is ungated or this "
                           "row's save satisfies the edge without it, which makes the green half meaningless",
                           probe.what, TrickName(probe.trick));
-            break;
+            continue;
         }
 
         SetFrozenTrick(probe.trick, true);
@@ -1082,7 +1349,7 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
                           "%s [%s]: the edge is CLOSED with the trick on — the binding is not wired, or a term "
                           "this row's save does not satisfy was made a conjunct of the trick",
                           probe.what, TrickName(probe.trick));
-            break;
+            continue;
         }
 
         if (probe.withoutTrickItem != NULL) {
@@ -1093,7 +1360,7 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
                               "%s [%s]: the trick ALONE opens the edge, without a term the edge must still require — "
                               "the disjunct replaced that requirement instead of joining it",
                               probe.what, TrickName(probe.trick));
-                break;
+                continue;
             }
         }
 
@@ -1107,7 +1374,7 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
     // the reviewer of #703 showed leg (b) never observed its red half for these
     // rows, so when one of them is broken it should be possible to see ALL of them
     // in one run rather than one per rebuild.
-    if (rc == 0) {
+    {
         for (const SurvivorProbe& probe : kSurvivorProbes) {
             const char* why = "";
             const std::function<bool()>* condition = FindCondition(probe.kind, probe.region, probe.target, &why);
@@ -1135,6 +1402,40 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
                        TrickName(probe.trick));
             }
         }
+    }
+
+    // ---- (g): the tricks-off route each rewritten edge must still open on ----
+    //
+    // Same no-early-exit policy as (f), for the same reason.
+    for (const TricksOffRouteProbe& probe : kTricksOffRouteProbes) {
+        const char* why = "";
+        const std::function<bool()>* condition = FindCondition(probe.kind, probe.region, probe.target, &why);
+        if (condition == NULL) {
+            rc = BindFail(14, "%s [%s]: %s — the edge this route guards is gone", probe.what, TrickName(probe.trick),
+                          why);
+            continue;
+        }
+        // ArmSave zeroes the whole save, so EVERY frozen trick bit is clear here.
+        ArmSave(probe.time, probe.inventory);
+        if (!(*condition)()) {
+            rc = BindFail(15,
+                          "%s [%s]: the edge is SHUT on its tricks-off route with every trick off — an edit made "
+                          "the TRICKS-OFF condition stricter than the route this row names",
+                          probe.what, TrickName(probe.trick));
+            continue;
+        }
+        if (probe.without != NULL) {
+            ArmSave(probe.time, probe.without);
+            if ((*condition)()) {
+                rc = BindFail(16,
+                              "%s [%s]: the edge is OPEN with every trick off and one term of its tricks-off route "
+                              "cleared — that term was deleted, or the trick's disjunct leaked out of its gate",
+                              probe.what, TrickName(probe.trick));
+                continue;
+            }
+        }
+        printf("[TEST]   ok: %s [%s] (tricks-off route%s)\n", probe.what, TrickName(probe.trick),
+               probe.without != NULL ? " + term-still-required control" : "");
     }
 
     // ---- (c): coverage, measured against the SHIPPED bound flag -----------
@@ -1287,10 +1588,11 @@ extern "C" int MM_TrickBindings_RunHeadless(void) {
 
     if (rc == 0) {
         printf("[TEST] PASS: %d edges across %d trick keys are closed with the trick off and open with it on, %d "
-               "surviving-conjunct arms stay shut with the trick off AND on, every shipped bound key is probed, and no "
-               "key removes reach when enabled\n",
+               "surviving-conjunct arms stay shut with the trick off AND on, %d tricks-off routes still open with "
+               "every trick off, every shipped bound key is probed, and no key removes reach when enabled\n",
                (int)(sizeof(kProbes) / sizeof(kProbes[0])), (int)probedKeys.size(),
-               (int)(sizeof(kSurvivorProbes) / sizeof(kSurvivorProbes[0])));
+               (int)(sizeof(kSurvivorProbes) / sizeof(kSurvivorProbes[0])),
+               (int)(sizeof(kTricksOffRouteProbes) / sizeof(kTricksOffRouteProbes[0])));
     }
     return rc;
 }
