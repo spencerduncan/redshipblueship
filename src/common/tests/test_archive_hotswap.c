@@ -180,7 +180,7 @@ long ArchiveHotswap_PeakDeltaKb(void) {
  * C++ linkage (referenced only from this TU's gTests[] table). This lets it
  * call the C++-linkage Entrance_* API. The entrance table is NOT set up by
  * main() in --test mode (main returns from TestRunner_Run before its
- * Entrance_Init call), so this test initializes it itself.
+ * ComboEntrance_Init call), so this test initializes it itself.
  * ======================================================================== */
 
 #define HOTSWAP_ASSERT(cond, msg)                                  \
@@ -213,7 +213,7 @@ TestResult Test_ArchiveHotswapLogic(void) {
     /* Fresh state. */
     Context_InitFrozenStates();
     Context_ClearAllFrozenStates();
-    Entrance_Init();
+    ComboEntrance_Init();
     Entrance_RegisterDefaultLinks();
     ArchiveHotswap_ResetCycle();
 

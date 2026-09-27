@@ -121,10 +121,10 @@ endfunction()
 #
 # These files are deliberately NOT separate translation units: each is pulled
 # into test_runner.cpp either inside an `extern "C"` block or at file scope,
-# and which one is load-bearing (test_roundtrip_integrity.c must compile as C++
-# or its Entrance_Init call binds to OoT's C-linkage randomizer symbol instead
-# of the combo entrance system). Compiling them as their own TUs as well would
-# define every symbol twice.
+# and which one is load-bearing (test_roundtrip_integrity.c calls the C++-linkage
+# entrance API and stays at file scope; before #665 its reset call shared a
+# spelling with OoT's C-linkage randomizer Entrance_Init). Compiling them as
+# their own TUs as well would define every symbol twice.
 #
 # So this globs to DETECT rather than to build: CONFIGURE_DEPENDS re-runs
 # configure when a file is added to the directory, and a file that is never
