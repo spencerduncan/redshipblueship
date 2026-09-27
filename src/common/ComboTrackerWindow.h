@@ -51,6 +51,30 @@ inline constexpr const char* kComboTrackerWindowName = "Combo Tracker";
 // nor MM's "gWindows.*", so no store collision).
 inline constexpr const char* kComboTrackerVisibilityCVar = "gCombo.Windows.Tracker";
 
+/**
+ * Both panes' size (#755 follow-up): first use opens them at kComboPaneWidth x
+ * kComboPaneHeight, and a pane is never taller than what it draws, so a short
+ * state (unpaired, or paired with no crossings) is not a tall empty box under a
+ * few lines; a long one scrolls, as SoH's panes do. The player can still
+ * resize it, up to its content's height. When the content grows while the pane
+ * is fitted to it (a file with crossings loaded under an open pane), the pane
+ * grows with it, up to kComboPaneHeight.
+ */
+inline constexpr float kComboPaneWidth = 480.0f;
+inline constexpr float kComboPaneHeight = 520.0f;
+
+struct ComboPaneFit {
+    float contentHeight = 0.0f; // the last frame's content height, title bar included; 0 = not measured yet
+    float width = 0.0f;         // the last frame's window size
+    float height = 0.0f;
+    float growTo = 0.0f; // nonzero: the height to grow to on the next frame
+};
+
+/** Before ImGui::Begin: the first-use size, the content cap, and any growth. */
+void BeginComboPaneFit(ComboPaneFit& fit);
+/** Inside the window, after its last item: measure what was drawn. */
+void EndComboPaneFit(ComboPaneFit& fit);
+
 class ComboTrackerWindow final : public Ship::GuiWindow {
   public:
     using Ship::GuiWindow::GuiWindow;
@@ -63,6 +87,9 @@ class ComboTrackerWindow final : public Ship::GuiWindow {
     }
     void UpdateElement() override {
     }
+
+  private:
+    ComboPaneFit mFit;
 };
 
 /**
@@ -75,8 +102,10 @@ void RegisterComboTrackerWindow(std::shared_ptr<Ship::Gui> gui);
  * One direction's crossings, drawn the one way both panes draw them (#755): a
  * short section header ("In MM Checks" / "In OoT Checks"), a gray note saying
  * how many of the other game's items the host game holds and how many of their
- * checks the host game's save has collected, and SoH's table shape with the
- * host check's name, the item's name and whether the check was collected. The
+ * checks the host game's save has collected, and SoH's table shape with two
+ * columns: the host check's name, led by the same status glyph the per-game
+ * Checks lists use (collected, open, or a question mark when the host game has
+ * nothing to read), and the item's name. The
  * Combo Tracker and the Cross-Game Spoiler both call this, so the two panes
  * cannot list a world's crossings differently. Must be called inside an ImGui
  * window, between the seam's PushTheme/PopTheme or not.

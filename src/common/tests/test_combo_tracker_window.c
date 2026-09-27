@@ -290,6 +290,12 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         CTW_ASSERT(hasToken("ICON_FA_CHECK_SQUARE_O"));
         CTW_ASSERT(hasToken("ICON_FA_MINUS_SQUARE_O"));
         CTW_ASSERT(hasToken("ICON_FA_SQUARE_O"));
+        // One notation for a found state (#766 review): a crossing row leads its
+        // check name with the same glyph, with no Yes/No "Collected" column, and
+        // the section says "Crossings" as the notes and the spoiler JSON do.
+        CTW_ASSERT(text.find("FoundGlyph(row.found)") != std::string::npos);
+        CTW_ASSERT(text.find("\"Collected\"") == std::string::npos);
+        CTW_ASSERT(text.find("\"Cross-Game Placements\"") == std::string::npos);
         CTW_ASSERT(text.find("[x]") == std::string::npos);
         CTW_ASSERT(text.find("[s]") == std::string::npos);
         CTW_ASSERT(text.find("[ ]") == std::string::npos);

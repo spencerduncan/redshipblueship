@@ -228,7 +228,11 @@ and on ours (R-N4).
   libultraship's `IconsFontAwesome4.h`), never bracketed ASCII such as `[x]`, `[s]` or `[ ]`. This is a project
   convention, not an SoH idiom: SoH's check tracker marks a check's status by row colour and uses glyphs only on its
   skip and lock buttons (`ICON_FA_PLUS`/`ICON_FA_TIMES`, `ICON_FA_UNLOCK`/`ICON_FA_LOCK`,
-  `randomizer_check_tracker.cpp`).
+  `randomizer_check_tracker.cpp`). A pane uses ONE notation for one state: the crossing tables lead each check name
+  with the Checks lists' glyph rather than adding a Yes/No column.
+- **Pane size.** The Combo Tracker and the Cross-Game Spoiler open at 480 x 520 and are never taller than what they
+  draw (`ComboPaneFit`, `ComboTrackerWindow.h`), so a short state is not a tall empty box; a long one scrolls, as
+  SoH's panes do. Table cells wrap in balanced lines, so a long name never leaves its last word alone on a line.
 - **Trick lists** follow `DrawTricksMenu` (`SohMenuRandomizer.cpp:171-551`): a filter; "Disable All" and "Enable All"
   250 px buttons; a two-column Disabled/Enabled table of area tree nodes; coloured tag chips (`tricks.cpp:101-110`); and
   the description as a tooltip.
@@ -314,8 +318,8 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   area live, the pane resized to its minimum width, which the capture asserts); the Tricks states are compared with
   Randomizer > Tricks/Glitches (`PageSpec::stateCompareWith`).
   The Cross-Game Spoiler draws paired (no crossings), crossings (crossings both ways authored through the crossing
-  store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their collected
-  column) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
+  store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
+  glyphs) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
   adapter, with one collected, one skipped and two open OoT checks and its Checks list open, so the status glyphs and
   both crossing tables are drawn).
 - SoH PANE: SoH's Check Tracker Settings pane, the reference both of those panes compare with (`compare/`). It is

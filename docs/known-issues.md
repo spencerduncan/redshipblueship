@@ -114,7 +114,8 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 - **The in-game crossing views lag Majora's Mask.** Combo > Windows > Toggle Cross-Game
   Spoiler and the Combo Tracker list every crossing in both directions, by name, with
   whether each host check was collected. That state comes from each game's own save, and
-  Majora's Mask's is read as of the last game switch or save, so a crossing collected in
+  Majora's Mask's is read as of the last game switch or save (as of file creation until
+  Majora's Mask is first entered), so a crossing collected in
   Majora's Mask shows as collected after the next save or switch (the note under each
   list says so; #755, #757).
 - **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero

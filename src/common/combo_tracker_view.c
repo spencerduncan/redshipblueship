@@ -77,6 +77,8 @@ void Combo_Tracker_RegisterOoT(const ComboOoTTrackerOps* ops) {
 // Freshness
 // ============================================================================
 
+static bool MMShadowNeverEntered(void);
+
 const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness) {
     switch (freshness) {
         // Player wording (the window prints it as a gray note): a game switch is
@@ -87,6 +89,12 @@ const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness) {
             // The stale wording is per game because the mechanism differs: the
             // MM panel reads a shadow written at freeze/save time; the OoT
             // panel reads a heap that simply stopped advancing at suspend.
+            // MM's half of a paired file that MM has never run: the creation
+            // event armed it and nothing has written it since, so "the last game
+            // switch or save" would name an event that never happened.
+            if (game == (uint8_t)GAME_MM && MMShadowNeverEntered()) {
+                return "As of file creation";
+            }
             return (game == (uint8_t)GAME_MM) ? "As of the last game switch or save" : "As of the last game switch";
         case COMBO_TRACKER_FRESH_UNAVAILABLE:
             return "No data";
@@ -135,6 +143,17 @@ static const uint8_t* MMBlobIfPresent(void) {
         }
     }
     return blob;
+}
+
+/**
+ * A resident MM world that MM itself has never written: present only by the
+ * randomized save type, without MM's file-select marker. That is exactly the
+ * creation event's armed half (see MMBlobIfPresent); MM's own file load and
+ * every departure freeze carry the marker.
+ */
+static bool MMShadowNeverEntered(void) {
+    const uint8_t* blob = MMBlobIfPresent();
+    return blob != NULL && sMMDesc.newfLen > 0 && memcmp(blob + sMMDesc.newfOffset, sMMDesc.newf, sMMDesc.newfLen) != 0;
 }
 
 static void MMSummary(ComboTrackerGameSummary* out) {

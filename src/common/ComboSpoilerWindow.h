@@ -33,6 +33,8 @@
 #include <memory>
 #include <ship/window/gui/GuiWindow.h>
 
+#include "ComboTrackerWindow.h" // ComboPaneFit: both panes size the same way
+
 namespace Ship {
 class Gui;
 }
@@ -61,6 +63,9 @@ class ComboSpoilerWindow final : public Ship::GuiWindow {
     }
     void UpdateElement() override {
     }
+
+  private:
+    ComboPaneFit mFit; // the Combo Tracker's pane size (ComboTrackerWindow.h)
 };
 
 /**

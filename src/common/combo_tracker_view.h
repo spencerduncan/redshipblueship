@@ -62,6 +62,9 @@ typedef enum {
  * Label for a freshness value, per game, in player wording with no closing
  * period (the stale wording differs: MM's shadow is "As of the last game
  * switch or save", OoT's suspended heap is "As of the last game switch").
+ * MM's stale label reads "As of file creation" while the shadow holds the
+ * paired creation event's armed half that MM has never run (no file-select
+ * marker), so it depends on the shadow as well as on its arguments.
  * Never NULL — out-of-range yields a visible placeholder rather
  * than a crash in a printf-family call.
  */

@@ -52,10 +52,12 @@ void ComboSpoilerWindow::Draw() {
     // Closing clears the visibility CVar through SetVisibility, which also
     // schedules the save, as a closed SoH pane does.
     bool open = true;
-    // The Combo Tracker's size: the pane now lists both directions (#755).
-    ImGui::SetNextWindowSize(ImVec2(480.0f, 520.0f), ImGuiCond_FirstUseEver);
+    // The Combo Tracker's size and fit: the pane lists both directions (#755),
+    // and a paired world with no crossings is a few lines, not a tall empty box.
+    BeginComboPaneFit(mFit);
     if (ImGui::Begin(kComboSpoilerWindowName, &open, ImGuiWindowFlags_NoFocusOnAppearing)) {
         DrawElement();
+        EndComboPaneFit(mFit);
     }
     ImGui::End();
     if (!open) {

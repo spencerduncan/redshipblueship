@@ -15,13 +15,16 @@
  * Check Tracker Settings pane: the theme's Header / HeaderHovered /
  * HeaderActive colours reach a table's header row only while it is hovered or
  * clicked. A check's status is a FontAwesome glyph, a
- * project convention (SoH's check tracker marks status by row colour instead).
+ * project convention (SoH's check tracker marks status by row colour instead),
+ * and it is the ONE notation for it: the crossing tables lead each host check's
+ * name with the same glyph the Checks lists use.
  * src/common cannot include UIWidgets, so every styled element goes through the
  * combo_ui seam.
  */
 
 #include "ComboTrackerWindow.h"
 
+#include <cfloat>
 #include <cstdio>
 
 #include <imgui.h>
@@ -54,6 +57,43 @@ const char* CheckGlyph(const ComboTrackerCheckRow& row) {
         return ICON_FA_CHECK_SQUARE_O;
     }
     return row.skipped ? ICON_FA_MINUS_SQUARE_O : ICON_FA_SQUARE_O;
+}
+
+/** A crossing's found state in the Checks lists' notation (CheckGlyph). */
+const char* FoundGlyph(uint8_t found) {
+    if (found == COMBO_TRACKER_FOUND_YES) {
+        return ICON_FA_CHECK_SQUARE_O;
+    }
+    return found == COMBO_TRACKER_FOUND_NO ? ICON_FA_SQUARE_O : ICON_FA_QUESTION_CIRCLE_O;
+}
+
+/**
+ * Wrapped text with balanced lines: the narrowest wrap width that still takes
+ * no more lines than the cell's full width does. A long name then breaks into
+ * even lines instead of leaving its last word alone on one ("Stone Tower
+ * Temple Entrance Small Crate" over "02"). Text that fits is drawn as is.
+ */
+void TextBalanced(const char* text) {
+    const float avail = ImGui::GetContentRegionAvail().x;
+    const float full = ImGui::CalcTextSize(text).x;
+    float wrap = avail;
+    if (avail > 0.0f && full > avail) {
+        const float height = ImGui::CalcTextSize(text, nullptr, false, avail).y;
+        float lo = 1.0f;
+        float hi = avail;
+        for (int i = 0; i < 12 && hi - lo > 1.0f; i++) {
+            const float mid = (lo + hi) * 0.5f;
+            if (ImGui::CalcTextSize(text, nullptr, false, mid).y <= height) {
+                hi = mid;
+            } else {
+                lo = mid;
+            }
+        }
+        wrap = hi;
+    }
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + wrap);
+    ImGui::TextUnformatted(text);
+    ImGui::PopTextWrapPos();
 }
 
 /**
@@ -178,12 +218,14 @@ void DrawCrossingList(uint8_t hostGame) {
     Ui().NoteText(note);
     ImGui::PushID((int)hostGame);
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f));
-    if (ImGui::BeginTable("##Crossings", 3, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
+    if (ImGui::BeginTable("##Crossings", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
         // Check names run longer than item names ("Stone Tower Temple ..."), so the
-        // check column takes the larger share and both wrap rather than clip.
+        // check column takes the larger share; both wrap in balanced lines rather
+        // than clip or orphan a word. There is no third column for the collected state: the
+        // found state is the glyph leading the check's name, the one notation
+        // the per-game Checks lists above use for the same fact.
         ImGui::TableSetupColumn("Check", ImGuiTableColumnFlags_WidthStretch, 3.0f);
         ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch, 2.0f);
-        ImGui::TableSetupColumn("Collected", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableHeadersRow();
         for (int i = 0; i < count; i++) {
             ComboTrackerForeignRow row;
@@ -192,26 +234,55 @@ void DrawCrossingList(uint8_t hostGame) {
             }
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
+            // The glyph, then the name beside it; a wrapped name's later lines
+            // start under its first word, not under the glyph.
+            ImGui::TextUnformatted(FoundGlyph(row.found));
+            ImGui::SameLine();
             if (row.hostCheckName != nullptr) {
-                ImGui::TextWrapped("%s", row.hostCheckName);
+                TextBalanced(row.hostCheckName);
             } else {
                 // No name table for the host game (its adapter is not
                 // registered): the game-local id is still an honest label.
-                ImGui::TextWrapped("Check 0x%04X", (unsigned)row.hostCheckId);
+                char id[24];
+                snprintf(id, sizeof(id), "Check 0x%04X", (unsigned)row.hostCheckId);
+                TextBalanced(id);
             }
             ImGui::TableNextColumn();
             // The bare display name, as SoH's own item tables print one; the
             // row's article is for a sentence, and a table cell is not one.
-            ImGui::TextWrapped("%s", row.itemName);
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(row.found == COMBO_TRACKER_FOUND_YES  ? "Yes"
-                                   : row.found == COMBO_TRACKER_FOUND_NO ? "No"
-                                                                         : "Unknown");
+            TextBalanced(row.itemName);
         }
         ImGui::EndTable();
     }
     ImGui::PopStyleVar();
     ImGui::PopID();
+}
+
+void BeginComboPaneFit(ComboPaneFit& fit) {
+    ImGui::SetNextWindowSize(ImVec2(kComboPaneWidth, kComboPaneHeight), ImGuiCond_FirstUseEver);
+    if (fit.growTo > 0.0f && fit.width > 0.0f) {
+        ImGui::SetNextWindowSize(ImVec2(fit.width, fit.growTo), ImGuiCond_Always);
+        fit.growTo = 0.0f;
+    }
+    if (fit.contentHeight > 0.0f) {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), ImVec2(FLT_MAX, fit.contentHeight));
+    }
+}
+
+void EndComboPaneFit(ComboPaneFit& fit) {
+    // Window-local cursor Y includes the title bar and the scroll, so after the
+    // last item it is the height the whole pane needs, less the trailing item
+    // spacing and plus the bottom padding.
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float content = ImGui::GetCursorPosY() - style.ItemSpacing.y + style.WindowPadding.y;
+    const ImVec2 size = ImGui::GetWindowSize();
+    const bool fitted = fit.contentHeight > 0.0f && size.y >= fit.contentHeight - 0.5f;
+    if (fitted && content > fit.contentHeight + 0.5f && size.y < kComboPaneHeight) {
+        fit.growTo = content < kComboPaneHeight ? content : kComboPaneHeight;
+    }
+    fit.contentHeight = content;
+    fit.width = size.x;
+    fit.height = size.y;
 }
 
 void ComboTrackerWindow::Draw() {
@@ -226,9 +297,10 @@ void ComboTrackerWindow::Draw() {
     // Closing clears the visibility CVar through SetVisibility, which also
     // schedules the save, as a closed SoH pane does.
     bool open = true;
-    ImGui::SetNextWindowSize(ImVec2(480.0f, 520.0f), ImGuiCond_FirstUseEver);
+    BeginComboPaneFit(mFit);
     if (ImGui::Begin(kComboTrackerWindowName, &open, ImGuiWindowFlags_NoFocusOnAppearing)) {
         DrawElement();
+        EndComboPaneFit(mFit);
     }
     ImGui::End();
     if (!open) {
@@ -255,7 +327,9 @@ void ComboTrackerWindow::DrawElement() {
     DrawGamePanel((uint8_t)GAME_OOT, "Ocarina of Time", identity);
     DrawGamePanel((uint8_t)GAME_MM, "Majora's Mask", identity);
 
-    if (identity.paired && ImGui::CollapsingHeader("Cross-Game Placements", ImGuiTreeNodeFlags_DefaultOpen)) {
+    // "Crossings": the word the notes, the spoiler JSON (combo.crossingStore) and
+    // the docs use for these rows.
+    if (identity.paired && ImGui::CollapsingHeader("Crossings", ImGuiTreeNodeFlags_DefaultOpen)) {
         DrawCrossingList((uint8_t)GAME_MM);
         Ui().Spacer(0.0f);
         DrawCrossingList((uint8_t)GAME_OOT);

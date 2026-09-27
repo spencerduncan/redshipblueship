@@ -35,12 +35,22 @@
  *        on two MM hosts, one collected: one row YES, the other NO (the old
  *        (origin, id) scan could only answer the same for both), and the
  *        per-direction totals the notes print;
- *     4. a game switch: OoT's found state is kept and relabelled stale while MM
- *        runs, and an MM departure's freeze (Context_FreezeState) is what moves
- *        MM's found state;
+ *     4. a game switch, SIMULATED at the context layer (no Game_Suspend or
+ *        Game_Resume runs): OoT's found state is kept and relabelled stale while
+ *        MM is current, and an MM departure's freeze (Context_FreezeState of an
+ *        authored blob) is what moves MM's found state;
  *     5. a .redsave load with MM never booted: save, wipe every source (the
- *        combo context, the store, both shadows), load: the same rows, names and
- *        found states come back.
+ *        combo context, the store, both shadows AND OoT's heap world), load.
+ *        The rows, their names and MM's found state come back from the
+ *        .redsave. OoT's found state does NOT: OoT's check status is not in the
+ *        .redsave but in OoT's own .sav ("trackerData", loaded by OoT's
+ *        LoadFile before the .redsave hook runs), so right after the .redsave
+ *        load every OoT-hosted row reads UNKNOWN, never a stale YES or NO. The
+ *        OoT world is then re-authored as the stand-in for OoT's own .sav load
+ *        (this ROM-free row cannot drive SoH's SaveManager), and the rows read
+ *        what they read before the save.
+ *   The MM stale label on a shadow MM never wrote (the creation event's armed
+ *   half) is "As of file creation", not "the last game switch or save".
  *
  *   combo-crossing-views-world (rando tier). A REAL single-bag world, the
  *   ComboSingleBag pinned seed (RSBSSINGLEBAG1), made by the production creation
@@ -303,6 +313,10 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
         CXV_ASSERT(ok && unmarkedRows == inMM);
         Combo_TrackerForeignProgress((uint8_t)GAME_MM, &mmProgress);
         CXV_ASSERT(mmProgress.found == 1 && mmProgress.freshness == COMBO_TRACKER_FRESH_STALE);
+        // MM has never written this half: its data is as of file creation, and
+        // the note must not name a switch or save that never happened.
+        CXV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE),
+                          "As of file creation") == 0);
         // ...but an all-zero shadow (MM never entered) is still no data at all.
         std::vector<uint8_t> zero((size_t)MM_SAVE_CONTEXT_SIZE, 0);
         Context_UpdateShadowCopy(GAME_MM, zero.data(), zero.size());
@@ -312,6 +326,8 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
         CXV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &unknownRow) &&
                    unknownRow.found == COMBO_TRACKER_FOUND_UNKNOWN);
         Context_UpdateShadowCopy(GAME_MM, blob.data(), blob.size());
+        CXV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE),
+                          "As of the last game switch or save") == 0);
     }
 
     // ---- 4. a game switch --------------------------------------------------
@@ -346,6 +362,7 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     ComboContext_Init();
     Combo_Crossings_Clear();
     Context_ClearAllFrozenStates(); // zeroes MM's shadow: MM has nothing to read
+    OoT_TrackerAdapter_TestReleaseWorld(); // OoT's heap world goes too: nothing survives but the files
     CXV_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 0);
     Combo_TrackerForeignProgress((uint8_t)GAME_MM, &mmProgress);
     CXV_ASSERT(mmProgress.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE);
@@ -354,12 +371,31 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     CXV_ASSERT(mgr.LoadSlot(0) == RSBS_LOAD_OK);
     const std::vector<CxvRow> loadedMM = CxvPaneRows((uint8_t)GAME_MM, &ok);
     CXV_ASSERT(ok);
-    const std::vector<CxvRow> loadedOoT = CxvPaneRows((uint8_t)GAME_OOT, &ok);
+    std::vector<CxvRow> loadedOoT = CxvPaneRows((uint8_t)GAME_OOT, &ok);
     CXV_ASSERT(ok);
     CXV_ASSERT(loadedMM == savedMM);
-    CXV_ASSERT(loadedOoT == savedOoT);
     Combo_TrackerForeignProgress((uint8_t)GAME_MM, &mmProgress);
     CXV_ASSERT(mmProgress.total == 3 && mmProgress.found == 2 && mmProgress.freshness == COMBO_TRACKER_FRESH_STALE);
+    // OoT's rows come back from the .redsave's crossing block, named; their
+    // found state is not the .redsave's to give, so it reads UNKNOWN until
+    // OoT's own save is loaded.
+    CXV_ASSERT(loadedOoT.size() == savedOoT.size());
+    for (size_t i = 0; i < loadedOoT.size(); i++) {
+        CxvRow expect = savedOoT[i];
+        expect.found = COMBO_TRACKER_FOUND_UNKNOWN;
+        CXV_ASSERT(loadedOoT[i] == expect);
+    }
+    Combo_TrackerForeignProgress((uint8_t)GAME_OOT, &ootProgress);
+    CXV_ASSERT(ootProgress.total == 2 && ootProgress.found == 0 &&
+               ootProgress.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE);
+    // OoT's own .sav load, stood in for by re-authoring the same world: the
+    // rows read exactly what they read before the save.
+    CXV_ASSERT(OoT_TrackerAdapter_TestAuthorWorld(0x0A11CE01u, ootIds) == 3);
+    loadedOoT = CxvPaneRows((uint8_t)GAME_OOT, &ok);
+    CXV_ASSERT(ok);
+    CXV_ASSERT(loadedOoT == savedOoT);
+    Combo_TrackerForeignProgress((uint8_t)GAME_OOT, &ootProgress);
+    CXV_ASSERT(ootProgress.total == 2 && ootProgress.found == 1);
     printf("[TEST] combo-crossing-views: after the load, %d crossings in MM (%d found), %d in OoT (%d found)\n",
            (int)loadedMM.size(), mmProgress.found, (int)loadedOoT.size(), ootProgress.found);
 
