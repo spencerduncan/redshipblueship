@@ -126,4 +126,6 @@ games/mm/2s2h/mm_triforce_hunt_test.cpp
 games/oot/soh/oot_triforce_hunt_test.cpp
 games/oot/soh/soh_ui_snapshot.cpp
 games/oot/soh/SohGui/ComboUiSoh.cpp
+games/oot/soh/oot_gameover_revive_test.cpp
+games/mm/2s2h/mm_gameover_revive_test.cpp
 games/oot/soh/oot_abandoned_session_test.cpp

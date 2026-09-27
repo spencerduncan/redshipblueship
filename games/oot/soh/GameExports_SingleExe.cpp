@@ -16,6 +16,7 @@
 #include <libultraship/bridge.h>
 #include <ship/Context.h>
 #include "z64save.h"
+#include "soh/cvar_prefixes.h" // CVAR_ENHANCEMENT: the continue value OoT_Combo_ReviveDeadHealthForFreeze mirrors
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
@@ -1160,8 +1161,8 @@ extern "C" void OoT_Combo_FlushSceneFlagsForFreeze(void) {
  *         switch instead of proceeding into a stale restore.
  */
 extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
-    // Pre-freeze discipline (#638, #626): the live scene flags and, on MM, a
-    // dead health bar must be folded into gSaveContext BEFORE the bytes are
+    // Pre-freeze discipline (#638, #626, #664): the live scene flags and a
+    // dead health bar (both games, #626/#664) must be folded into gSaveContext BEFORE the bytes are
     // captured. This is the one point on the F10 path that passes the real
     // gSaveContext, so the flush lives here rather than inside
     // Switch_PrepareHotSwap (which src/common tests drive with scratch buffers).
@@ -1674,6 +1675,89 @@ static bool OoT_SaveIsLiveFile(void) {
 }
 
 /**
+ * OoT's half of the pre-freeze revive (#664), the twin of
+ * MM_Combo_ReviveDeadHealthForFreeze (#626 / PR #650).
+ *
+ * THE ROUTE. OoT's game-over is vanilla, not an enhancement: Link's health hits
+ * 0, GameOver_Update runs the death states, and the kaleido chain
+ * (z_kaleido_scope_PAL.c, pauseCtx->state 8 through 0x11) shows "GAME OVER",
+ * the save prompt and "Continue playing?". Health stays at 0 for that whole
+ * stretch; the only writer that lifts it is the prompt's continue leg
+ * (state 0x11). F10 is polled ungated every frame from OoT's graph loop
+ * (graph.c, Combo_CheckHotSwap), so a press anywhere in that stretch breaks the
+ * loop and reaches Combo_FreezeActiveGameForHotSwap(GAME_OOT) with health 0.
+ * Before this hook, Combo_FlushLiveStateForFreeze's GAME_OOT branch flushed
+ * scene flags only: the frozen OoT half carried a dead bar, and
+ * OoT_HarvestSharedResources (Game_Suspend, after the freeze) read it verbatim
+ * into the shared CONSUMABLE bar, which MM's apply ASSIGNS on arrival -- where
+ * only its one-heart floor stood between the player and a dead spawn. Once a
+ * watermark exists (any earlier crossing), the harvest debits the bar to 0 and
+ * MM arrives with one heart, not the three the continue prompt would have given.
+ *
+ * THE RULE, symmetric with MM's: revive rather than refuse, because F10 from
+ * the game-over screen is a switch taken with Link dead, and a switch owes a
+ * RESUMABLE half (the reasoning #625 and ADR 0009 decision 4b record for MM).
+ * The revived value is OoT's own continue value, the exact expression of the
+ * kaleido continue leg and of Sram_OpenSave (z_sram.c): STARTING_HEALTH, three
+ * hearts, or the full capacity when the FullHealthSpawn enhancement is on. MM's
+ * twin writes MM's own continue literal (0x30) for the same reason: the player
+ * gets what the continue prompt would have given them. The heal accumulator is
+ * cleared as the continue leg clears it. The magic-meter regrow the continue
+ * leg also starts is deliberately NOT replicated, for the reason #625 records:
+ * it is multi-frame and this departure has no frames left.
+ *
+ * A FAIRY REVIVE IN PROGRESS IS NOT THE CONTINUE CASE. Player's death
+ * handler (z_player.c) spends the bottled fairy at the killing blow
+ * (OoT_Inventory_ConsumeFairy -> gameOverCtx.state = GAMEOVER_REVIVE_START),
+ * but the refill -- healthAccumulator = MAX_HEALTH, which the interface update
+ * pours in 4 per frame and clamps at the capacity -- is written only after a
+ * 60-frame countdown that starts later still. Health sits at 0 for over a
+ * second with the bottle already gone. The continue value there would take the
+ * fairy AND the refill it paid for; the player owns that heal exactly as a live
+ * bar owns its pending accumulator. So when a live PlayState shows the
+ * game-over machine in its GAMEOVER_REVIVE_* range, the revive gives what the
+ * fairy would have: MAX_HEALTH clamped to the capacity. Once the refill has
+ * lifted health above 0 the bar is alive and passes through untouched,
+ * accumulator and all.
+ *
+ * GATED ON gameMode (OoT_SaveIsLiveFile, the harvest's own gate), never
+ * fileNum: a cross-game session is pinned to the 0xFF sentinel, and a revive
+ * that fired where the harvest would not -- the title screen's attract save --
+ * would edit a save nobody is playing. Idempotent: a live bar is untouched.
+ *
+ * The CVar read is guarded on a live Ship::Context: the CVar bridge
+ * dereferences the singleton unconditionally, and headless rows reach this
+ * freeze seam without one. Production always has one.
+ */
+extern "C" void OoT_Combo_ReviveDeadHealthForFreeze(void) {
+    if (!OoT_SaveIsLiveFile()) {
+        return;
+    }
+    if (gSaveContext.health > 0) {
+        return;
+    }
+    const PlayState* play = OoT_gPlayState;
+    const bool fairySpent = play != NULL && play->gameOverCtx.state >= GAMEOVER_REVIVE_START &&
+                            play->gameOverCtx.state <= GAMEOVER_REVIVE_FADE_OUT;
+    if (fairySpent) {
+        // The spent fairy's refill (MAX_HEALTH through the accumulator),
+        // clamped as the interface update clamps it.
+        gSaveContext.health = gSaveContext.healthCapacity < MAX_HEALTH ? gSaveContext.healthCapacity : MAX_HEALTH;
+    } else {
+        bool fullHealthSpawn = false;
+        auto context = Ship::Context::GetInstance();
+        if (context != nullptr && context->GetConsoleVariables() != nullptr) {
+            fullHealthSpawn = CVarGetInteger(CVAR_ENHANCEMENT("FullHealthSpawn"), 0) != 0;
+        }
+        gSaveContext.health = fullHealthSpawn ? gSaveContext.healthCapacity : STARTING_HEALTH;
+    }
+    gSaveContext.healthAccumulator = 0;
+    fprintf(stderr, "[OoT] pre-freeze: revived a dead health bar to %d (%s) before the departure freeze (#664)\n",
+            (int)gSaveContext.health, fairySpent ? "the spent fairy's refill" : "the continue value");
+    fflush(stderr);
+}
+
+/**
  * HARVEST (#525). Fold OoT's live resource values into the shared pool.
  *
  * Called from OoT_Game_Suspend — the one point on BOTH the entrance and the F10
@@ -1822,11 +1906,12 @@ extern "C" void OoT_ApplySharedResources(void) {
     uint16_t health = gSaveContext.health < 0 ? 0u : (uint16_t)gSaveContext.health;
     if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_CURRENT, (uint16_t)gSaveContext.healthCapacity,
                                   &health)) {
-        // Floor at one heart. A departing game cannot normally hand over a dead
-        // bar (death resets health before any suspend can see it), so this only
-        // fires on a corrupt or hand-edited pool — and spawning dead on a
-        // cross-game arrival lands in a death handler no arrival path has ever
-        // been tested through.
+        // Floor at one heart. A departing game cannot hand over a dead bar: an
+        // F10 from either game's game-over screen revives before the freeze
+        // (MM_Combo_ReviveDeadHealthForFreeze #626, OoT_Combo_ReviveDeadHealthForFreeze
+        // #664), so this only fires on a corrupt or hand-edited pool — and
+        // spawning dead on a cross-game arrival lands in a death handler no
+        // arrival path has ever been tested through.
         gSaveContext.health = (s16)(health < 0x10u ? 0x10u : health);
     }
 

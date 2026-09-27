@@ -48,6 +48,7 @@ extern "C" {
 void OoT_Combo_FlushSceneFlagsForFreeze(void);
 void MM_Combo_FlushSceneFlagsForFreeze(void);
 void MM_Combo_ReviveDeadHealthForFreeze(void);
+void OoT_Combo_ReviveDeadHealthForFreeze(void);
 
 /**
  * Where a hot-swapped game should spawn when the player comes back to it.
@@ -134,7 +135,10 @@ int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size
  * The same seam is where MM revives a dead health bar before it is frozen
  * (#626): an F10 during MM's game-over screen bypasses the kaleido death exit
  * that PR #625 guarded, and would otherwise freeze health == 0 into MM's shadow
- * and hand the shared CONSUMABLE bar to OoT at zero.
+ * and hand the shared CONSUMABLE bar to OoT at zero. OoT has the same shape
+ * (#664): its game-over screen is vanilla and holds health at 0 until the
+ * continue leg, and F10 is polled ungated from its graph loop too, so OoT
+ * revives at the same seam, to its own continue value.
  *
  * WHERE IT IS CALLED, AND WHERE IT DELIBERATELY IS NOT. Both production freeze
  * drivers call this immediately before their freeze:
@@ -161,6 +165,7 @@ void Combo_FlushLiveStateForFreeze(GameId departing) {
     switch (departing) {
         case GAME_OOT:
             OoT_Combo_FlushSceneFlagsForFreeze();
+            OoT_Combo_ReviveDeadHealthForFreeze();
             break;
         case GAME_MM:
             MM_Combo_FlushSceneFlagsForFreeze();

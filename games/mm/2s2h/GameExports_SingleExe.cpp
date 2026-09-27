@@ -3817,6 +3817,18 @@ extern "C" void MM_Combo_FlushSceneFlagsForFreeze(void) {
  * distinguishes standalone 2ship (which never reaches this seam) from a combo
  * session, whereas an MM-first session hot-swapping to a fresh OoT still owes
  * a resumable MM blob for the trip back.
+ *
+ * A FAIRY REVIVE IN PROGRESS GETS THE FAIRY'S REFILL, NOT 0x30 (#664 review).
+ * Player's death handler (z_player.c) spends the bottled fairy at the killing
+ * blow (MM_Inventory_ConsumeFairy -> gameOverCtx.state = GAMEOVER_REVIVE_START)
+ * and writes the refill (healthAccumulator = 0xA0, poured in 4 per frame by the
+ * interface update and clamped at the capacity) only after a 60-frame
+ * countdown, so health sits at 0 for over a second with the bottle gone. The
+ * continue literal there would take the fairy and the heal it paid for. With a
+ * live PlayState whose game-over machine is in its GAMEOVER_REVIVE_* range the
+ * revive gives what the fairy would have: 0xA0 clamped to the capacity. OoT's
+ * twin (OoT_Combo_ReviveDeadHealthForFreeze) applies the same rule with OoT's
+ * own refill (MAX_HEALTH).
  */
 extern "C" void MM_Combo_ReviveDeadHealthForFreeze(void) {
     if (!MM_SaveIsLiveFile()) {
@@ -3825,10 +3837,21 @@ extern "C" void MM_Combo_ReviveDeadHealthForFreeze(void) {
     if (gSaveContext.save.saveInfo.playerData.health > 0) {
         return;
     }
-    gSaveContext.save.saveInfo.playerData.health = 0x30;
+    const PlayState* play = MM_gPlayState;
+    const bool fairySpent = play != NULL && play->gameOverCtx.state >= GAMEOVER_REVIVE_START &&
+                            play->gameOverCtx.state <= GAMEOVER_REVIVE_FADE_OUT;
+    if (fairySpent) {
+        // The spent fairy's refill (0xA0 through the accumulator), clamped as
+        // the interface update clamps it.
+        const s16 capacity = gSaveContext.save.saveInfo.playerData.healthCapacity;
+        gSaveContext.save.saveInfo.playerData.health = capacity < 0xA0 ? capacity : 0xA0;
+    } else {
+        gSaveContext.save.saveInfo.playerData.health = 0x30;
+    }
     gSaveContext.healthAccumulator = 0;
-    fprintf(stderr, "[MM] pre-freeze: revived a dead health bar to %d before the departure freeze (#626)\n",
-            (int)gSaveContext.save.saveInfo.playerData.health);
+    fprintf(stderr, "[MM] pre-freeze: revived a dead health bar to %d (%s) before the departure freeze (#626)\n",
+            (int)gSaveContext.save.saveInfo.playerData.health,
+            fairySpent ? "the spent fairy's refill" : "the continue value");
     fflush(stderr);
 }
 

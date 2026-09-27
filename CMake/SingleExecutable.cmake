@@ -1972,6 +1972,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the graph is retired, skips client-free ones, restores the statics only
     # Destroy used to restore, and drops every per-actor ObjectExtension entry.
     redship_add_test(NAME MMAbandonedSessionStatics COMMAND redship --test mm-abandoned-session-statics)
+    # #664: an F10 from either game's game-over screen revives the departing bar
+    # to that game's continue value -- or, mid fairy revive, to the spent fairy's
+    # refill -- before the freeze (OoT_Combo_ReviveDeadHealthForFreeze and MM's
+    # #626 twin), and the other game's arrival apply shows it rather than the
+    # one-heart floor. Both directions, real drivers, ROM-free and display-free.
+    redship_add_test(NAME ComboGameOverRevive COMMAND redship --test combo-gameover-revive)
     # #750, the OoT leg of #666 (games/oot/soh/oot_abandoned_session_test.cpp):
     # the same departure shape on OoT, whose numLoaded is never zeroed again
     # after the ActorDB entry is created. The row drives OoT's registered
