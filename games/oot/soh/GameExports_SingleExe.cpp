@@ -1088,8 +1088,8 @@ extern "C" void OoT_Combo_FlushSceneFlagsForFreeze(void) {
  *         switch instead of proceeding into a stale restore.
  */
 extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
-    // Pre-freeze discipline (#638, #626): the live scene flags and, on MM, a
-    // dead health bar must be folded into gSaveContext BEFORE the bytes are
+    // Pre-freeze discipline (#638, #626, #664): the live scene flags and a
+    // dead health bar (both games, #626/#664) must be folded into gSaveContext BEFORE the bytes are
     // captured. This is the one point on the F10 path that passes the real
     // gSaveContext, so the flush lives here rather than inside
     // Switch_PrepareHotSwap (which src/common tests drive with scratch buffers).
@@ -1633,10 +1633,19 @@ static bool OoT_SaveIsLiveFile(void) {
  * leg also starts is deliberately NOT replicated, for the reason #625 records:
  * it is multi-frame and this departure has no frames left.
  *
- * A fairy revive in progress is the same case: Link is dead with the bottle
- * already spent until the fairy's refill starts, and a press in that window
- * gets the continue value. Once the refill has lifted health above 0 the bar
- * is alive and passes through untouched.
+ * A FAIRY REVIVE IN PROGRESS IS NOT THE CONTINUE CASE. Player's death
+ * handler (z_player.c) spends the bottled fairy at the killing blow
+ * (OoT_Inventory_ConsumeFairy -> gameOverCtx.state = GAMEOVER_REVIVE_START),
+ * but the refill -- healthAccumulator = MAX_HEALTH, which the interface update
+ * pours in 4 per frame and clamps at the capacity -- is written only after a
+ * 60-frame countdown that starts later still. Health sits at 0 for over a
+ * second with the bottle already gone. The continue value there would take the
+ * fairy AND the refill it paid for; the player owns that heal exactly as a live
+ * bar owns its pending accumulator. So when a live PlayState shows the
+ * game-over machine in its GAMEOVER_REVIVE_* range, the revive gives what the
+ * fairy would have: MAX_HEALTH clamped to the capacity. Once the refill has
+ * lifted health above 0 the bar is alive and passes through untouched,
+ * accumulator and all.
  *
  * GATED ON gameMode (OoT_SaveIsLiveFile, the harvest's own gate), never
  * fileNum: a cross-game session is pinned to the 0xFF sentinel, and a revive
@@ -1654,15 +1663,24 @@ extern "C" void OoT_Combo_ReviveDeadHealthForFreeze(void) {
     if (gSaveContext.health > 0) {
         return;
     }
-    bool fullHealthSpawn = false;
-    auto context = Ship::Context::GetInstance();
-    if (context != nullptr && context->GetConsoleVariables() != nullptr) {
-        fullHealthSpawn = CVarGetInteger(CVAR_ENHANCEMENT("FullHealthSpawn"), 0) != 0;
+    const PlayState* play = OoT_gPlayState;
+    const bool fairySpent = play != NULL && play->gameOverCtx.state >= GAMEOVER_REVIVE_START &&
+                            play->gameOverCtx.state <= GAMEOVER_REVIVE_FADE_OUT;
+    if (fairySpent) {
+        // The spent fairy's refill (MAX_HEALTH through the accumulator),
+        // clamped as the interface update clamps it.
+        gSaveContext.health = gSaveContext.healthCapacity < MAX_HEALTH ? gSaveContext.healthCapacity : MAX_HEALTH;
+    } else {
+        bool fullHealthSpawn = false;
+        auto context = Ship::Context::GetInstance();
+        if (context != nullptr && context->GetConsoleVariables() != nullptr) {
+            fullHealthSpawn = CVarGetInteger(CVAR_ENHANCEMENT("FullHealthSpawn"), 0) != 0;
+        }
+        gSaveContext.health = fullHealthSpawn ? gSaveContext.healthCapacity : STARTING_HEALTH;
     }
-    gSaveContext.health = fullHealthSpawn ? gSaveContext.healthCapacity : STARTING_HEALTH;
     gSaveContext.healthAccumulator = 0;
-    fprintf(stderr, "[OoT] pre-freeze: revived a dead health bar to %d before the departure freeze (#664)\n",
-            (int)gSaveContext.health);
+    fprintf(stderr, "[OoT] pre-freeze: revived a dead health bar to %d (%s) before the departure freeze (#664)\n",
+            (int)gSaveContext.health, fairySpent ? "the spent fairy's refill" : "the continue value");
     fflush(stderr);
 }
 

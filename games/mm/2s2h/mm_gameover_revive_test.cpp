@@ -21,7 +21,46 @@ namespace {
 // Frozen-blob readback target. File-static: MM's runtime SaveContext carries the
 // 2s2h extensions and is tens of KB.
 SaveContext sMMScratch;
+// A zeroed stand-in for a live MM PlayState, so the revive can read the
+// game-over machine's state (the fairy legs). Only gameOverCtx.state is set;
+// the scene-flag flush the same freeze runs copies its zeroed actorCtx into
+// cycleSceneFlags[0], which nothing in the row reads.
+PlayState sMMPlay;
+PlayState* sMMPrevPlay = NULL;
+bool sMMPlaySwapped = false;
 } // namespace
+
+/** Point MM_gPlayState at the stand-in with the given game-over state, or back
+ *  at NULL when state < 0. The first call remembers the previous pointer for
+ *  MM_GameOverReviveTest_RestorePlay. */
+extern "C" void MM_GameOverReviveTest_SetPlay(int gameOverState) {
+    if (!sMMPlaySwapped) {
+        sMMPrevPlay = MM_gPlayState;
+        sMMPlaySwapped = true;
+    }
+    if (gameOverState < 0) {
+        MM_gPlayState = NULL;
+        return;
+    }
+    memset(&sMMPlay, 0, sizeof(PlayState));
+    sMMPlay.gameOverCtx.state = (u16)gameOverState;
+    MM_gPlayState = &sMMPlay;
+}
+
+extern "C" void MM_GameOverReviveTest_RestorePlay(void) {
+    if (sMMPlaySwapped) {
+        MM_gPlayState = sMMPrevPlay;
+        sMMPlaySwapped = false;
+    }
+}
+
+/** MM's game-over states the OoT driver needs by value (MM's enum, not OoT's). */
+extern "C" int MM_GameOverReviveTest_StateDeathFadeOut(void) {
+    return GAMEOVER_DEATH_FADE_OUT;
+}
+extern "C" int MM_GameOverReviveTest_StateReviveWaitFairy(void) {
+    return GAMEOVER_REVIVE_WAIT_FAIRY;
+}
 
 /** MM's live save as a cross-game MM session runs it: the 0xFF "no flash slot"
  *  sentinel and GAMEMODE_NORMAL (the gate MM_SaveIsLiveFile reads), with the

@@ -41,12 +41,19 @@
  *   4. The gate is gameMode: a dead bar under TITLE_SCREEN is left alone.
  *   5. FullHealthSpawn on: the revive gives the full capacity, exactly as OoT's
  *      continue leg and Sram_OpenSave do.
+ *   6. OoT fairy revive in progress (#664 review): the bottle is spent at the
+ *      killing blow and health sits at 0 until the 60-frame countdown writes
+ *      the refill. With a live PlayState in GAMEOVER_REVIVE_* the revive gives
+ *      the fairy's refill (MAX_HEALTH clamped to capacity), the harvest
+ *      publishes it and MM arrives with it; the same live PlayState in a DEATH
+ *      state still gets the continue value.
+ *   7. MM fairy revive in progress: MM's twin gives MM's refill (0xA0 clamped
+ *      to capacity), both the clamped and the unclamped case, OoT arrives with
+ *      it; a live MM PlayState in a DEATH state still gets 0x30.
  *
- * COUNTERFACTUALS, each run against a rebuilt binary before landing: with the
- * GAME_OOT dispatch removed from Combo_FlushLiveStateForFreeze (main's shape),
- * leg 1 fails at the frozen-bar assertion; with the hook's gameMode gate
- * removed, leg 4 fails; with the live-bar early return removed, leg 3 fails;
- * with the FullHealthSpawn read ignored, leg 5 fails.
+ * COUNTERFACTUALS: see the PR body for the observed red output of each
+ * mutation (dispatch removed, gameMode gate removed, live-bar early return
+ * removed, FullHealthSpawn ignored, either game's fairy branch removed).
  */
 
 #include <z64.h>
@@ -76,6 +83,10 @@ extern "C" void MM_GameOverReviveTest_ArmLive(int16_t health, int16_t capacity);
 extern "C" void MM_GameOverReviveTest_SetHealth(int16_t health);
 extern "C" int MM_GameOverReviveTest_Health(void);
 extern "C" int MM_GameOverReviveTest_FrozenHealth(void);
+extern "C" void MM_GameOverReviveTest_SetPlay(int gameOverState);
+extern "C" void MM_GameOverReviveTest_RestorePlay(void);
+extern "C" int MM_GameOverReviveTest_StateDeathFadeOut(void);
+extern "C" int MM_GameOverReviveTest_StateReviveWaitFairy(void);
 
 namespace {
 
@@ -104,6 +115,18 @@ const int kOneHeartFloor = 0x10;
 // Frozen-blob readback target. File-static: SoH's runtime SaveContext carries
 // the ship.* extensions and is over 100 KB.
 SaveContext sScratch;
+
+// A zeroed stand-in for a live OoT PlayState, so the revive can read the
+// game-over machine's state (leg 6). Only gameOverCtx.state is set; the
+// scene-flag flush the same freeze runs copies its zeroed actorCtx flags into
+// sceneFlags[0], which nothing in the row reads.
+PlayState sPlay;
+
+void SetLiveOoTPlay(int gameOverState) {
+    memset(&sPlay, 0, sizeof(PlayState));
+    sPlay.gameOverCtx.state = (u16)gameOverState;
+    OoT_gPlayState = &sPlay;
+}
 
 // A live cross-game OoT session: the 0xFF sentinel a cross-game session is
 // pinned to and GAMEMODE_NORMAL, which is what the gate reads.
@@ -229,6 +252,80 @@ int RunChecks(void) {
                "with FullHealthSpawn on, OoT's own continue leg (and Sram_OpenSave) respawn at full capacity; "
                "the revive must give the same value (#664)");
 
+    // ---- 6. OoT fairy revive in progress: the fairy's refill, not 3 hearts --
+    ResetPool();
+    Context_SetCurrentGame(GAME_OOT);
+    ArmLiveOoT(kAlive);
+    OoT_HarvestSharedResources();
+    // The killing blow with a bottled fairy: the bottle is already spent and
+    // the game-over machine is in its revive range, but the 60-frame countdown
+    // has not yet written healthAccumulator = MAX_HEALTH.
+    gSaveContext.health = 0;
+    gSaveContext.healthAccumulator = 0;
+    SetLiveOoTPlay(GAMEOVER_REVIVE_WAIT_GROUND);
+    GOR_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_OOT) == 1, "an F10 during a fairy revive is a switch");
+    OoT_gPlayState = NULL;
+    GOR_ASSERT(FrozenOoTHealth() == kCapacity,
+               "a fairy spent at the killing blow owes its refill (MAX_HEALTH clamped to capacity): the continue "
+               "value would take the fairy and the heal it paid for (#664 review)");
+    GOR_ASSERT(gSaveContext.health == kCapacity && gSaveContext.healthAccumulator == 0,
+               "the LIVE OoT bar carries the fairy's refill into the harvest (#664 review)");
+    OoT_HarvestSharedResources();
+    GOR_ASSERT(PooledHealth(&pooled) && pooled == (uint16_t)kCapacity,
+               "the OoT departure must publish the fairy's refill (#664 review)");
+    MM_GameOverReviveTest_ArmLive(kStaleArrival, kCapacity);
+    MM_ApplySharedResources();
+    GOR_ASSERT(MM_GameOverReviveTest_Health() == kCapacity, "MM must arrive with the fairy's refill (#664 review)");
+    // The same live PlayState in a DEATH state (no fairy) keeps the continue value.
+    ResetPool();
+    ArmLiveOoT(0);
+    SetLiveOoTPlay(GAMEOVER_DEATH_MENU);
+    GOR_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_OOT) == 1, "a live-play game-over OoT hot swap must freeze");
+    OoT_gPlayState = NULL;
+    GOR_ASSERT(FrozenOoTHealth() == STARTING_HEALTH,
+               "with a live PlayState on the game-over menu (no fairy) the revive is still the continue value");
+
+    // ---- 7. MM fairy revive in progress: MM's refill (0xA0), clamped --------
+    const int16_t kMMSmallCapacity = 6 * 0x10;  // below 0xA0: the refill clamps to it
+    const int16_t kMMLargeCapacity = 20 * 0x10; // above 0xA0: the refill is 0xA0
+    const int kMMFairyRefill = 0xA0;
+    // 7a. Clamped, end to end into OoT's arrival.
+    ResetPool();
+    Context_SetCurrentGame(GAME_MM);
+    MM_GameOverReviveTest_ArmLive(kMMSmallCapacity - 0x10, kMMSmallCapacity);
+    MM_HarvestSharedResources();
+    MM_GameOverReviveTest_SetHealth(0);
+    MM_GameOverReviveTest_SetPlay(MM_GameOverReviveTest_StateReviveWaitFairy());
+    GOR_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_MM) == 1, "an F10 during MM's fairy revive is a switch");
+    MM_GameOverReviveTest_SetPlay(-1);
+    GOR_ASSERT(MM_GameOverReviveTest_FrozenHealth() == kMMSmallCapacity,
+               "MM's spent fairy owes its refill, clamped to the capacity (0x60 here), not the 0x30 continue "
+               "literal (#664 review)");
+    MM_HarvestSharedResources();
+    GOR_ASSERT(PooledHealth(&pooled) && pooled == (uint16_t)kMMSmallCapacity,
+               "the MM departure must publish the fairy's refill (#664 review)");
+    Context_SetCurrentGame(GAME_OOT);
+    ArmLiveOoT(kStaleArrival);
+    OoT_ApplySharedResources();
+    GOR_ASSERT(gSaveContext.health == kMMSmallCapacity, "OoT must arrive with MM's fairy refill (#664 review)");
+    // 7b. Unclamped: a capacity above the refill gets exactly 0xA0.
+    ResetPool();
+    Context_SetCurrentGame(GAME_MM);
+    MM_GameOverReviveTest_ArmLive(0, kMMLargeCapacity);
+    MM_GameOverReviveTest_SetPlay(MM_GameOverReviveTest_StateReviveWaitFairy());
+    GOR_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_MM) == 1, "an F10 during MM's fairy revive is a switch");
+    MM_GameOverReviveTest_SetPlay(-1);
+    GOR_ASSERT(MM_GameOverReviveTest_FrozenHealth() == kMMFairyRefill,
+               "MM's fairy refill is 0xA0 (ten hearts) when the capacity is above it (#664 review)");
+    // 7c. A live MM PlayState in a DEATH state (no fairy) keeps 0x30.
+    ResetPool();
+    MM_GameOverReviveTest_ArmLive(0, kMMLargeCapacity);
+    MM_GameOverReviveTest_SetPlay(MM_GameOverReviveTest_StateDeathFadeOut());
+    GOR_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_MM) == 1, "a live-play MM game-over hot swap must freeze");
+    MM_GameOverReviveTest_SetPlay(-1);
+    GOR_ASSERT(MM_GameOverReviveTest_FrozenHealth() == kMMContinue,
+               "with a live MM PlayState in the death fade-out (no fairy) the revive is still 0x30 (#626)");
+
     return 0;
 }
 
@@ -254,6 +351,7 @@ extern "C" int OoT_GameOverRevive_RunHeadless(void) {
         CVarClear(kFullHealthSpawn);
     }
     OoT_gPlayState = prevPlay;
+    MM_GameOverReviveTest_RestorePlay();
     memset(&gSaveContext, 0, sizeof(SaveContext));
     Context_ClearAllFrozenStates();
     ComboContext_Init();
