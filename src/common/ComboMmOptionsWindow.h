@@ -35,13 +35,17 @@
  *    the profile is unfrozen, but the pane says so, because "editable" and "in
  *    effect right now" are different facts.
  *  - DISABLED BY CAPABILITY: the behaviour has no MM dispatch point (#438), so
- *    the row is drawn disabled WITH ITS REASON. A control that flips a CVar and
- *    changes nothing is the vacuous gate in UI form; collapsing this into
- *    "editable" would produce exactly that.
+ *    the row is drawn disabled WITH ITS REASON (in its disabled tooltip, SoH's
+ *    shape). A control that flips a CVar and changes nothing is the vacuous gate
+ *    in UI form; collapsing this into "editable" would produce exactly that.
  *  - FROZEN AT CREATION (#498/#564): a creation event stamped the profile into
  *    the paired world's identity (Combo_MMProfileFrozen). Every row read-only,
- *    with the reason stated pane-wide; the underlying writers reject on their
- *    own, so the greying is honest rather than the gate.
+ *    with the reason stated pane-wide by the gray state note and per row by the
+ *    disabled tooltip; the underlying writers reject on their own, so the
+ *    greying is honest rather than the gate.
+ *
+ * Drawn through the `combo_ui` seam (combo_ui.h), so the shipped binary renders
+ * it with SoH's own widgets (UI parity M6, docs/ui-style-guide.md section 10).
  *
  * Openability: `Ship::GuiWindow` latches its visibility CVar in the ctor and
  * nothing re-syncs CVar -> visibility per frame, so `Draw()` reads the CVar live
@@ -77,6 +81,10 @@ inline constexpr const char* kComboMMOptionsWindowName = "Majora's Mask Randomiz
 // Visibility CVar, in the same "gCombo.Windows.*" space as the spoiler view's.
 inline constexpr const char* kComboMMOptionsVisibilityCVar = "gCombo.Windows.MMOptions";
 
+// The Reset confirm's title (a SohGui::RegisterPopup title, so also the key the
+// popup is dismissed by).
+inline constexpr const char* kComboMMOptionsResetTitle = "Reset MM Randomizer Options";
+
 class ComboMmOptionsWindow final : public Ship::GuiWindow {
   public:
     using Ship::GuiWindow::GuiWindow;
@@ -108,6 +116,15 @@ extern "C" {
  * the state every ROM-free harness runs in.
  */
 void Combo_MMOptionsWindow_Init(void);
+
+/**
+ * What the pane's Reset button does: queue the confirm (combo_ui's Confirm,
+ * SohGui::RegisterPopup in the shipped binary) whose Reset clears every MM
+ * option and trick CVar. Queues only; nothing is cleared until the player
+ * confirms. Public so the UI snapshot harness can capture the confirm a player
+ * gets without clicking.
+ */
+void Combo_MMOptionsRequestReset(void);
 
 #ifdef __cplusplus
 }

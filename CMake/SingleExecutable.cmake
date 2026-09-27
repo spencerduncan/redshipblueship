@@ -62,6 +62,11 @@ set(REDSHIP_COMMON_SOURCES
     # descriptor set covers RandoOptionId exactly.
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_tricks_view.c
     ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.cpp
+    # The combo_ui seam (UI parity M6): the table our common-owned panes draw
+    # through, SoH's disabled-tooltip composer, the snapshot harness's rect
+    # recorder, and the raw-ImGui fallback. SoH's implementation is
+    # games/oot/soh/SohGui/ComboUiSoh.cpp (soh_port, by GLOB).
+    ${CMAKE_SOURCE_DIR}/src/common/combo_ui.cpp
     # The tier-4 combo settings (ADR 0011 increment 2): the five gCombo.Rando.*
     # keys' authoring surface — the one reader the resolver uses and the one
     # writer pair that refuses once the record is frozen — and the pane that

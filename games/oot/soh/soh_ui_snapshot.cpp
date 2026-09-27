@@ -133,6 +133,7 @@
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
+#include "combo_ui.h"
 #include "context.h"
 #include "cvar_shared_keys.h"
 #include "foreign_items.h"
@@ -753,6 +754,16 @@ struct PageSpec {
     // The row-state probe: a harness-only Combo sidebar installed for this page's
     // captures and removed afterwards (see InstallRowStateProbe).
     bool rowStateProbe = false;
+    // WINDOW only: hover variants on a pane row, found by the label it passes to
+    // the combo_ui seam (a pane has no WidgetInfo whose postFunc could be
+    // wrapped), each captured in one named state.
+    struct PaneHover {
+        std::string name;
+        std::string state;
+        std::string label;
+        bool disabled = false; // the row is disabled: its tooltip must be SoH's disabled shape
+    };
+    std::vector<PaneHover> paneHovers;
 };
 
 struct Capture {
@@ -884,6 +895,8 @@ class Session {
     void Navigate(const PageSpec& p);
     std::vector<ImGuiWindow*> SectionChildren(const PageSpec& p);
     bool Oracle(const PageSpec& p, Capture& c);
+    bool HoverVerdict(Capture& c, const std::string& label, const std::string& authoredTip);
+    static void DisabledShapeVerdict(Capture& c, const std::string& label, const std::string& authoredTip);
     void Finish(Capture& c, const PageSpec& p);
     void Record(Capture&& c);
 
@@ -1495,14 +1508,32 @@ void Session::BuildPageList() {
         p.states = { "unpaired", "frozen", "mm-suspended", "tricks-open" };
         p.compareWith = "Randomizer/Logic/Access";
         p.expectText = { ComboGui::kComboMMOptionsWindowName };
-        // ComboMmOptionsWindow.cpp's pairing summary, frozen banner, active-game
-        // line and Tricks headline, plus the first trick row of the area the
-        // tricks-open state expands (FirstTrickArea). Matched against the pane's
-        // VISIBLE-ONLY log, so each one was on screen in some captured view.
+        // ComboMmOptionsWindow.cpp's state note (unpaired, frozen), its
+        // suspended note and the Tricks headline, plus the first trick row of the
+        // area the tricks-open state expands (FirstTrickArea). Matched against
+        // the pane's VISIBLE-ONLY log, so each one was on screen in some
+        // captured view.
         p.stateText["unpaired"] = { "No paired world yet" };
-        p.stateText["frozen"] = { "Frozen at creation" };
-        p.stateText["mm-suspended"] = { "Majora's Mask - suspended" };
+        p.stateText["frozen"] = { "Already decided when this world was created" };
+        p.stateText["mm-suspended"] = { "Majora's Mask is suspended" };
         p.stateText["tricks-open"] = { "trick keys are wired to logic" };
+        // Hovers, through the combo_ui seam's rect recorder: the first option row
+        // (its description), the first capability-blocked row (SoH's disabled
+        // shape with the model's reason), and the first row again while frozen
+        // (the same shape, "Already Decided"). The rows come from the table, so
+        // a relabel moves the hover with it.
+        if (Combo_MMOptionCount() > 0 && Combo_MMOptionAt(0) != nullptr) {
+            p.paneHovers.push_back({ "first-row", "unpaired", Combo_MMOptionAt(0)->label, false });
+            p.paneHovers.push_back({ "frozen-row", "frozen", Combo_MMOptionAt(0)->label, true });
+        }
+        for (int i = 0; i < Combo_MMOptionCount(); i++) {
+            const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+            if (d != nullptr &&
+                (d->liveness == COMBO_MM_LIVENESS_PARTIAL || d->liveness == COMBO_MM_LIVENESS_DORMANT)) {
+                p.paneHovers.push_back({ "blocked-row", "unpaired", d->label, true });
+                break;
+            }
+        }
         {
             int area = -1;
             const ComboMMTrickDesc* first = FirstTrickArea(&area);
@@ -1548,6 +1579,21 @@ void Session::BuildPageList() {
         p.states = { "" };
         p.compareWith = "modal/Clear Config";
         p.expectText = { "Reset Combo Rules", "Cancel" };
+        p.scroll = false;
+        pages.push_back(p);
+    }
+    // Ours: the MM options pane's Reset confirm, queued through the same call
+    // the pane's Reset button makes (Combo_MMOptionsRequestReset), so the capture
+    // is the popup a player gets.
+    {
+        PageSpec p;
+        p.id = std::string("modal/") + ComboGui::kComboMMOptionsResetTitle;
+        p.origin = Origin::RSBS;
+        p.kind = Kind::MODAL;
+        p.window = ComboGui::kComboMMOptionsResetTitle;
+        p.states = { "" };
+        p.compareWith = "modal/Clear Config";
+        p.expectText = { ComboGui::kComboMMOptionsResetTitle, "Cancel" };
         p.scroll = false;
         pages.push_back(p);
     }
@@ -2430,70 +2476,11 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                 row->options->tooltip = savedTooltip;
             }
             Finish(c, p);
-            // Every authored line of the tooltip this row's PreFunc set up (a
-            // disabled row shows its disabled tooltip instead), each as a prefix
-            // that sits on that line's first wrapped line. All of them, not the
-            // first: SoH's disabled shape opens every disabled row's tooltip with
-            // the same "This setting is disabled because:", so only the reason line
-            // shows that THIS row's tooltip was drawn.
-            c.hoverLines = TooltipLinePrefixes(authoredTip);
-            c.hoverText = c.hoverLines.empty() ? std::string() : c.hoverLines.front();
-            if (c.status == "pass") {
-                if (c.hoverLines.empty()) {
-                    c.status = "fail";
-                    c.reason = "the hovered row \"" + label + "\" has no tooltip to show";
-                }
-                for (const std::string& line : c.hoverLines) {
-                    if (c.status != "pass") {
-                        break;
-                    }
-                    if (c.text.find(line) == std::string::npos) {
-                        c.status = "fail";
-                        c.reason =
-                            "the hover capture does not show its row's tooltip: \"" + line + "\" is not in its text";
-                        break;
-                    }
-                    // Contrast: the same state's captures WITHOUT the pointer must not
-                    // hold it, or its presence here proves nothing about a tooltip.
-                    for (const Capture& other : captures) {
-                        if (other.id == c.id && other.state == c.state && other.hover.empty() &&
-                            other.text.find(line) != std::string::npos) {
-                            c.status = "fail";
-                            c.reason = "\"" + line + "\" is also in " + other.variant +
-                                       ", captured without the pointer, so it does not prove a tooltip";
-                            break;
-                        }
-                    }
-                }
-                // The row-state probe's hovers are the four presentation states'
-                // disabled rows: each must show SoH's disabled shape (a), and no
-                // tracker number (ADR 0004's 2026-09-27 amendment). Checked on the
-                // AUTHORED tooltip, which the loop above has just proved is drawn.
-                if (c.status == "pass" && p.rowStateProbe) {
-                    const std::string head = "This setting is disabled because:";
-                    bool number = false;
-                    for (std::size_t k = 0; k + 1 < authoredTip.size(); k++) {
-                        if (authoredTip[k] == '#' && authoredTip[k + 1] >= '0' && authoredTip[k + 1] <= '9') {
-                            number = true;
-                        }
-                    }
-                    if (authoredTip.compare(0, head.size(), head) != 0) {
-                        c.status = "fail";
-                        c.reason = "the hovered row \"" + label + "\" does not show SoH's disabled tooltip (\"" + head +
-                                   "\" then \"- <Reason>\"): \"" + authoredTip + "\"";
-                    } else if (number) {
-                        c.status = "fail";
-                        c.reason = "the hovered row \"" + label + "\" prints a tracker number in its tooltip: \"" +
-                                   authoredTip + "\"; the issue belongs in the capability's record, not in the pixels";
-                    }
-                }
-                for (const std::string& line : c.hoverLines) {
-                    if (c.text.find(line) != std::string::npos) {
-                        c.found.push_back(line);
-                    } else {
-                        c.missing.push_back(line);
-                    }
-                }
+            // The row-state probe's hovers are the four presentation states'
+            // disabled rows: each must show SoH's disabled shape (a), and no
+            // tracker number (ADR 0004's 2026-09-27 amendment).
+            if (HoverVerdict(c, label, authoredTip) && p.rowStateProbe) {
+                DisabledShapeVerdict(c, label, authoredTip);
             }
             Record(std::move(c));
             // Put the pointer away and re-settle so the next capture has no hover.
@@ -2506,7 +2493,104 @@ void Session::CaptureMenuPage(const PageSpec& p) {
     }
 }
 
+/**
+ * A hover capture's verdict, shared by menu rows and pane rows: every authored
+ * line of the tooltip the row set up (a disabled row shows its disabled tooltip
+ * instead), each as a prefix that sits on that line's first wrapped line, must
+ * be in the capture's text. All of them, not the first: SoH's disabled shape
+ * opens every disabled row's tooltip with the same "This setting is disabled
+ * because:", so only the reason line shows that THIS row's tooltip was drawn.
+ * Each line must also be ABSENT from the same state's captures without the
+ * pointer, or its presence proves nothing about a tooltip. Returns false when the
+ * capture had already failed (nothing was judged).
+ */
+bool Session::HoverVerdict(Capture& c, const std::string& label, const std::string& authoredTip) {
+    c.hoverLines = TooltipLinePrefixes(authoredTip);
+    c.hoverText = c.hoverLines.empty() ? std::string() : c.hoverLines.front();
+    if (c.status != "pass") {
+        return false;
+    }
+    if (c.hoverLines.empty()) {
+        c.status = "fail";
+        c.reason = "the hovered row \"" + label + "\" has no tooltip to show";
+    }
+    for (const std::string& line : c.hoverLines) {
+        if (c.status != "pass") {
+            break;
+        }
+        if (c.text.find(line) == std::string::npos) {
+            c.status = "fail";
+            c.reason = "the hover capture does not show its row's tooltip: \"" + line + "\" is not in its text";
+            break;
+        }
+        for (const Capture& other : captures) {
+            if (other.id == c.id && other.state == c.state && other.hover.empty() &&
+                other.text.find(line) != std::string::npos) {
+                c.status = "fail";
+                c.reason = "\"" + line + "\" is also in " + other.variant +
+                           ", captured without the pointer, so it does not prove a tooltip";
+                break;
+            }
+        }
+    }
+    for (const std::string& line : c.hoverLines) {
+        if (c.text.find(line) != std::string::npos) {
+            c.found.push_back(line);
+        } else {
+            c.missing.push_back(line);
+        }
+    }
+    return true;
+}
+
+/**
+ * A hovered DISABLED row's tooltip must be SoH's disabled shape (a) ("This
+ * setting is disabled because:" then "- <Reason>") and carry no tracker number
+ * (ADR 0004's 2026-09-27 amendment). Checked on the AUTHORED tooltip, which
+ * HoverVerdict has just proved is drawn; a no-op on a capture that already failed.
+ */
+void Session::DisabledShapeVerdict(Capture& c, const std::string& label, const std::string& authoredTip) {
+    if (c.status != "pass") {
+        return;
+    }
+    const std::string head = "This setting is disabled because:";
+    bool number = false;
+    for (std::size_t k = 0; k + 1 < authoredTip.size(); k++) {
+        if (authoredTip[k] == '#' && authoredTip[k + 1] >= '0' && authoredTip[k + 1] <= '9') {
+            number = true;
+        }
+    }
+    if (authoredTip.compare(0, head.size(), head) != 0) {
+        c.status = "fail";
+        c.reason = "the hovered row \"" + label + "\" does not show SoH's disabled tooltip (\"" + head +
+                   "\" then \"- <Reason>\"): \"" + authoredTip + "\"";
+    } else if (number) {
+        c.status = "fail";
+        c.reason = "the hovered row \"" + label + "\" prints a tracker number in its tooltip: \"" + authoredTip +
+                   "\"; the issue belongs in the capability's record, not in the pixels";
+    }
+}
+
 // ---- panes, overlay, modal ------------------------------------------------------------------
+
+/** The combo_ui rect recorder's sink for one pane hover: the row whose label matches. */
+struct PaneHoverProbe {
+    std::string label;
+    bool found = false;
+    ImRect rect;
+    std::string tooltip;
+};
+
+void PaneHoverRecord(void* user, const char* label, const char* tooltip, float minX, float minY, float maxX,
+                     float maxY) {
+    PaneHoverProbe* probe = static_cast<PaneHoverProbe*>(user);
+    if (label == nullptr || probe->label != label) {
+        return;
+    }
+    probe->found = true;
+    probe->rect = ImRect(minX, minY, maxX, maxY);
+    probe->tooltip = tooltip != nullptr ? tooltip : "";
+}
 
 const char* PaneCvar(const std::string& window) {
     if (window == ComboGui::kComboMMOptionsWindowName) {
@@ -2625,6 +2709,60 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             ImGui::SetScrollY(w, std::min(w->ScrollMax.y, w->Scroll.y + step));
             scrollIndex++;
         }
+
+        // Hover variants: the row is found by the label it hands the combo_ui
+        // seam, whose rect recorder reports where it drew and the tooltip a hover
+        // shows; then it is scrolled into view and hovered the way a menu row is.
+        for (const PageSpec::PaneHover& ph : p.paneHovers) {
+            if (ph.state != state) {
+                continue;
+            }
+            const std::string variant = VariantName(state, "hover-" + ph.name);
+            if (!Selected(p, variant)) {
+                continue;
+            }
+            Capture c;
+            c.id = p.id;
+            c.state = state;
+            c.variant = variant;
+            c.hover = ph.label;
+            PaneHoverProbe probe;
+            probe.label = ph.label;
+            ComboUi_SetRectRecorder(PaneHoverRecord, &probe);
+            std::string why;
+            for (int i = 0; i < 4; i++) {
+                probe.found = false;
+                if (!PumpFrame(nullptr, false, nullptr, why)) {
+                    break;
+                }
+                ImGuiWindow* pane = ImGui::FindWindowByName(p.window.c_str());
+                if (probe.found && pane != nullptr) {
+                    const ImRect clip = pane->InnerClipRect;
+                    if (probe.rect.Min.y >= clip.Min.y && probe.rect.Max.y <= clip.Max.y) {
+                        break;
+                    }
+                    ImGui::SetScrollY(
+                        pane, std::max(0.0f, pane->Scroll.y + probe.rect.Min.y - clip.Min.y - clip.GetHeight() / 3.0f));
+                }
+            }
+            if (!probe.found) {
+                c.status = "fail";
+                c.reason = "no pane row labelled \"" + ph.label + "\" was drawn through the combo_ui seam";
+            } else {
+                gHooks.hoverPos = probe.rect.GetCenter();
+                if (Settle(c, true, nullptr, nullptr)) {
+                    Oracle(p, c);
+                }
+            }
+            ComboUi_SetRectRecorder(nullptr, nullptr);
+            Finish(c, p);
+            if (HoverVerdict(c, ph.label, probe.tooltip) && ph.disabled) {
+                DisabledShapeVerdict(c, ph.label, probe.tooltip);
+            }
+            Record(std::move(c));
+            // Put the pointer away and re-settle so the next capture has no hover.
+            PumpFrame(nullptr, false, nullptr, why);
+        }
         gHooks.unclipLog = true;
         if (tricks) {
             setTricksOpen(0);
@@ -2674,6 +2812,18 @@ void Session::CaptureModal(const PageSpec& p) {
         SohGui::RegisterPopup(
             "Clear Config", "This will completely erase the controls config, including registered devices.\nContinue?",
             "Clear", "Cancel", nullptr, nullptr);
+    } else if (p.window == ComboGui::kComboMMOptionsResetTitle) {
+        // Ours, a pane's: the call the pane's Reset button makes, which queues the
+        // confirm through the combo_ui seam. DismissPopup below never runs the
+        // popup's buttons, so nothing is reset.
+        Combo_MMOptionsRequestReset();
+        if (SohGui::PopupsQueued() == 0) {
+            c.status = "fail";
+            c.reason = "the MM options pane's Reset queued no confirm popup";
+            c.spec = &p;
+            Record(std::move(c));
+            return;
+        }
     } else {
         // Ours: fire the button row's own Callback, which queues its confirm.
         // DismissPopup below never runs the popup's buttons, so nothing is reset.

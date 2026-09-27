@@ -42,10 +42,19 @@
  *    Falsifiable: remove the Combo_MMProfileFrozen() check from either writer
  *    and its half goes red.
  *
- * Deliberately absent: any assertion about appearance. Whether the grouping
- * reads well, whether the disabled rows' reasons are legible beside their
- * widgets, and whether the three standing warnings land are operator
- * verification; no headless test can stand in for them.
+ * 5. THE combo_ui SEAM IS SoH's (UI parity M6). The pane draws through
+ *    src/common/combo_ui.h; the shipped binary must have SoH's table installed
+ *    (games/oot/soh/SohGui/ComboUiSoh.cpp's file-scope initializer), or the
+ *    pane silently falls back to raw, unthemed ImGui. The disabled-tooltip
+ *    composer must build SoH's shape exactly as Menu::MenuDrawItem does, the
+ *    shown-tooltip rule must match UIWidgets' (a disabled widget shows its
+ *    disabled tooltip), no player-facing reason may carry a tracker number or an
+ *    ADR reference, and the pane's own draw TUs still name no gSettings.Menu.*
+ *    key (ADR 0004 §4.1a(ii): a common-owned window is not a second menu shell).
+ *
+ * Deliberately absent: any assertion about appearance. That is judged from
+ * pixels, by the UiSnapshot row's captures of this pane (docs/ui-style-guide.md
+ * section 12), not by a headless test.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++)
  * — it drives the C++-linkage ComboGui::RegisterComboMmOptionsWindow.
@@ -59,24 +68,29 @@
 #include "../ComboMmOptionsWindow.h"
 #include "../ComboSpoilerWindow.h"
 #include "../combo_mm_options_view.h"
+#include "../combo_mm_tricks_view.h"
+#include "../combo_ui.h"
 #include "../context.h"
 #include "../foreign_items.h"
 #include "../test_runner.h"
 
 #include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <string>
 
 #include <ship/window/gui/Gui.h>
 #include <ship/window/gui/GuiWindow.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
-#define CMOW_ASSERT(cond)                                                                                              \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CMOW_ASSERT(cond)                                                  \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 namespace {
@@ -218,11 +232,92 @@ extern "C" int Combo_MMOptionsWindow_RunHeadless(void) {
         CMOW_ASSERT(!Combo_MMOptionIsExplicit(checkbox));
     }
 
+    // ---- The combo_ui seam (UI parity M6) ----------------------------------
+    {
+        // SoH's table, not the raw-ImGui fallback, is what the shipped binary
+        // draws this pane with. Falsifiable: drop ComboUiSoh.cpp's initializer
+        // (or the TU from the link) and this goes red.
+        CMOW_ASSERT(ComboUi_IsInstalled());
+        CMOW_ASSERT(ComboUi_Get() != NULL);
+
+        // SoH's disabled shape (a), exactly as Menu::MenuDrawItem builds it from
+        // its disabledMap: the head, a blank line, then "- <Reason>" per reason.
+        CMOW_ASSERT(strcmp(ComboUi_DisabledTooltip("Already Decided", NULL),
+                           "This setting is disabled because: \n\n- Already Decided") == 0);
+        CMOW_ASSERT(strcmp(ComboUi_DisabledTooltip("Already Decided", "Retired"),
+                           "This setting is disabled because: \n\n- Already Decided\n- Retired") == 0);
+        CMOW_ASSERT(ComboUi_DisabledTooltip(NULL, "")[0] == '\0');
+        // Stored once per composition, so the pointer a widget holds stays valid.
+        CMOW_ASSERT(ComboUi_DisabledTooltip("Already Decided", NULL) ==
+                    ComboUi_DisabledTooltip(NULL, "Already Decided"));
+
+        // UIWidgets' rule: a disabled widget shows its disabled tooltip, an
+        // enabled one its description.
+        ComboUiWidgetOpts o;
+        o.tooltip = "description";
+        o.disabled = true;
+        o.disabledTooltip = "reason";
+        CMOW_ASSERT(strcmp(ComboUi_ShownTooltip(&o), "reason") == 0);
+        o.disabled = false;
+        CMOW_ASSERT(strcmp(ComboUi_ShownTooltip(&o), "description") == 0);
+        o.tooltip = "";
+        CMOW_ASSERT(ComboUi_ShownTooltip(&o) == NULL);
+
+        // No player-facing text in either table carries a tracker number or an
+        // ADR reference (docs/ui-style-guide.md R-N4, R-TT5): the pane prints
+        // every reason in a disabled tooltip, where a player reads it.
+        auto cites = [](const char* text) {
+            if (text == NULL) {
+                return false;
+            }
+            for (const char* c = text; *c != '\0'; c++) {
+                if (c[0] == '#' && c[1] >= '0' && c[1] <= '9') {
+                    return true;
+                }
+                if (strncmp(c, "ADR ", 4) == 0) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        for (int i = 0; i < Combo_MMOptionCount(); i++) {
+            const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+            CMOW_ASSERT(d != NULL);
+            if (cites(d->label) || cites(d->tooltip) || cites(d->disabledReason)) {
+                printf("[TEST] FAIL: MM option %s cites a tracker or ADR in player-facing text\n", d->name);
+                return TEST_FAIL;
+            }
+        }
+        for (int i = 0; i < Combo_MMTrickCount(); i++) {
+            const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+            CMOW_ASSERT(d != NULL);
+            if (cites(d->disabledReason)) {
+                printf("[TEST] FAIL: MM trick %s cites a tracker or ADR in its disabled reason\n", d->name);
+                return TEST_FAIL;
+            }
+        }
+
+#ifdef RSBS_SOURCE_DIR
+        // The pane reads no menu-index key: its draw TUs name no gSettings.Menu.*
+        // key (the theme reaches it through ComboUiSoh.cpp, from the live menu's
+        // own cached index, not a CVar read here).
+        for (const char* rel : { "src/common/ComboMmOptionsWindow.cpp", "src/common/combo_ui.cpp" }) {
+            std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/" + rel, std::ios::binary);
+            CMOW_ASSERT(in.good());
+            const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            CMOW_ASSERT(!text.empty());
+            CMOW_ASSERT(text.find("gSettings.Menu") == std::string::npos);
+            CMOW_ASSERT(text.find("CVAR_SETTING(\"Menu") == std::string::npos);
+        }
+#endif
+    }
+
     // Leave global state clean for any subsequent test.
     CVarClear(ComboGui::kComboMMOptionsVisibilityCVar);
     ComboContext_Init();
 
     printf("[TEST] PASS: the MM options pane registers de-collided and idempotently beside both games' windows and "
-           "the combo spoiler, and its draw path is inert under GAME_OOT/GAME_MM/GAME_NONE\n");
+           "the combo spoiler, its draw path is inert under GAME_OOT/GAME_MM/GAME_NONE, and it draws through SoH's "
+           "combo_ui table\n");
     return TEST_PASS;
 }
