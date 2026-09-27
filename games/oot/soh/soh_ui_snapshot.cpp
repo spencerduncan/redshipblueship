@@ -1343,6 +1343,9 @@ std::vector<uint8_t> gSnapshotMMShadowBackup;
 
 void AuthorMMShadow() {
     const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
+    // The shadow storage exists only once the frozen-state manager is
+    // initialized (idempotent); before that GetMMSaveContext answers NULL.
+    Context_InitFrozenStates();
     const void* resident = Context_GetMMSaveContext();
     if (desc == nullptr || resident == nullptr) {
         return;

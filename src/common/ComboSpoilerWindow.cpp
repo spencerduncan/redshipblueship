@@ -52,7 +52,8 @@ void ComboSpoilerWindow::Draw() {
     // Closing clears the visibility CVar through SetVisibility, which also
     // schedules the save, as a closed SoH pane does.
     bool open = true;
-    ImGui::SetNextWindowSize(ImVec2(460.0f, 320.0f), ImGuiCond_FirstUseEver);
+    // The Combo Tracker's size: the pane now lists both directions (#755).
+    ImGui::SetNextWindowSize(ImVec2(480.0f, 520.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(kComboSpoilerWindowName, &open, ImGuiWindowFlags_NoFocusOnAppearing)) {
         DrawElement();
     }
