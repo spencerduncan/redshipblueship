@@ -3790,18 +3790,15 @@ TestResult Test_OoTPlentifulProgressive(void) {
 TestResult Test_MMModSet(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
-        printf("[TEST] FAIL: could not create Ship::Context singleton
-");
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
         return TEST_FAIL;
     }
     if (OoT_InitSharedContextSubsystems() != 0) {
-        printf("[TEST] FAIL: shared bring-up reported failure
-");
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
         return TEST_FAIL;
     }
     const int rc = MMModSet_RunHeadless();
-    printf("[TEST] %s: mm mod set rc=%d
-", rc == 0 ? "PASS" : "FAIL", rc);
+    printf("[TEST] %s: mm mod set rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 

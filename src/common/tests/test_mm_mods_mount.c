@@ -1253,12 +1253,10 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
                sharedWalkLegRan ? "ran and passed."
                                 : "DID NOT RUN here: no directory link could be created (only reachable on Windows; "
                                   "on POSIX that is a FAIL, not a skip).");
-        printf("[mm-mods-mount] #706 enabled set: %s
-               ",
-                   enabledSetLegRan
-                   ? "a disabled archive was neither mounted nor registered, the player's order was the "
-                     "mount order, and both held across EnsureGameArchivesLoaded(OoT) then (MM)"
-                   : "DID NOT RUN");
+        printf("[mm-mods-mount] #706 enabled set: %s\n",
+               enabledSetLegRan ? "a disabled archive was neither mounted nor registered, the player's order was the "
+                                  "mount order, and both held across EnsureGameArchivesLoaded(OoT) then (MM)"
+                                : "DID NOT RUN");
     }
     return rc;
 }
