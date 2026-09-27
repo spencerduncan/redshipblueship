@@ -164,7 +164,7 @@ and the group sizes at each step, same binary, same seed:
 | Environment | Order | Exclude options in the groups at fold time | Lines folded | `settingsHash` |
 |---|---|---|---|---|
 | archive-free | `AddExcludedOptions` (fills the lists), then the harness's `CreateOptions` (copies them) | 2,449 | 3,087 | `01CBE129` |
-| ROM-mounted | the SoH menu's `CreateOptions` (copies empty lists), then `AddExcludedOptions` | 0 (the lists held 2,449) | 638 | `4029E439` |
+| ROM-mounted | the SoH menu's `CreateOptions` (copies empty lists), then `AddExcludedOptions`, then the harness's `CreateOptions` (returns at once on the #340 guard; not logged, see below) | 0 (the lists held 2,449) | 638 | `4029E439` |
 
 `CreateOptions()` builds each `RSG_EXCLUDES_*` group as a **copy** of
 `mExcludeLocationsOptionsAreas[area]`, and those lists were filled only by
@@ -178,6 +178,17 @@ fill the lists itself before it builds the groups
 `AddExcludedOptions()` now calls too), so the folded option set no longer depends
 on who ran first. The archive-free world did not move (all four goldens are
 unchanged); the ROM-mounted world moved onto it.
+
+The harness calls `CreateOptions()` in the ROM-mounted run too
+(`Rando_HeadlessSeedTest` in `3drando/menu.cpp`, the bridge the golden dispatches
+use), and it does so after `InitOTRImpl` has filled the lists. That later call
+changes nothing only because of a once-guard, `if (mOptionsCreated) return;`, which
+#340 (`c5c0fc25`) added to `CreateOptions()` and which the vendored upstream
+`settings.cpp` (`639ea0d8`) does not have: it returns before building anything, so
+the menu's empty-list copy is the one that sticks. The probe sat after that guard,
+so it logged only the call that got past it, and the harness's early-returning call
+does not appear in its output (the table's third step is read from the code, not
+from the probe).
 
 ### What the settings fingerprint folds (decided 2026-09-27, #702)
 
@@ -217,10 +228,15 @@ with exclusions gets its own fingerprint.
   golden row runs its dispatch twice: once in an archive-free sandbox,
   `build-cmake/golden-archive-free/<golden-name>/` (a hard link to the binary and to
   the **port archives only**), and once in the build directory itself with
-  `oot.o2r`/`mm.o2r` mounted — the environment a player has. Both digests are
-  compared to the same golden, **and to each other**; a difference between the two is
-  reported as `THE ARCHIVE SET CHANGED THE WORLD (#702 regressed)`, separately from a
-  moved golden, because it is a different bug. That cross-comparison is the lock on
+  `oot.o2r`/`mm.o2r` mounted — the archive set a player has, though not the whole of
+  a player's bring-up: both runs are the headless dispatch, with the row's
+  `RSBS_DISABLE_OTR_INIT=1` and the harness's empty exclude and trick sets, not the
+  file-select Generate path. Both digests are compared to the same golden, **and to
+  each other**; a difference between the two is reported as `THE TWO ENVIRONMENTS
+  GENERATED DIFFERENT WORLDS`, separately from a moved golden, because it is a
+  different bug. The message names both candidate causes — #702 regressed, or
+  build-directory content the sandbox does not carry (`mods/`, `assets/`) moved the
+  world — and lists what the build directory's `mods/` holds. That cross-comparison is the lock on
   `settingsHash` (and every other field) being archive-independent: the same binary,
   two environments, one digest. On the unfixed code all four rows went red this way
   (`settingsHash 01CBE129 -> 4029E439` on `seed-digest-default`).
@@ -251,7 +267,8 @@ with exclusions gets its own fingerprint.
   run in the build directory". The ROM-mounted run, by contrast, runs in the build
   directory as it is, `mods/` included; a tree with mods staged that changes the
   world will turn that half red, and the right reading is "mods moved the world",
-  not "#702 regressed".
+  not "#702 regressed" — which is why the failure message offers both readings and
+  prints the `mods/` listing rather than naming #702 alone.
 
   If the sandbox cannot be built, the row **fails** — it does not skip. A sandbox
   that cannot be built is a broken harness, not a false world move, and the failure
@@ -416,7 +433,10 @@ when the two worlds differed (#702). What `ON` does, exactly, when
 
 Both behaviours are described in "The archive set is part of the pin". With `OFF` the
 row runs once, in the build directory, whatever is mounted there, and nothing compares
-the two environments; there is no golden that wants that today. A five-field line aborts configure at `list(GET _golden_fields 5 ...)` with
+the two environments; there is no golden that wants that today. Its closing line
+says which case it was: "ran ROM-mounted only and nothing compared the two
+environments" when `oot.o2r`/`mm.o2r` were present, "the ROM-mounted half of this row
+did not run" when they were not. A five-field line aborts configure at `list(GET _golden_fields 5 ...)` with
 `list index: 5 out of range`; all three consumers — the CTest loop and the two re-pin
 targets — read all six.
 

@@ -334,15 +334,19 @@ endfunction()
 set(_run_dir "${WORK_DIR}")
 set(_run_exe "${REDSHIP_EXE}")
 set(_run_env "work-dir")
+# Which ROM-derived archives WORK_DIR holds, measured whatever ARCHIVE_FREE_ONLY
+# says: the closing STATUS line of an OFF row has to say whether its single run was
+# ROM-mounted, and it used to claim "no ROM-derived archive is staged here" without
+# looking.
+set(_rom_archives "")
+foreach(_rom IN LISTS _rom_archive_names)
+    if(EXISTS "${WORK_DIR}/${_rom}")
+        list(APPEND _rom_archives "${_rom}")
+    endif()
+endforeach()
+string(REPLACE ";" ", " _rom_list "${_rom_archives}")
 if(ARCHIVE_FREE_ONLY)
-    set(_rom_archives "")
-    foreach(_rom IN LISTS _rom_archive_names)
-        if(EXISTS "${WORK_DIR}/${_rom}")
-            list(APPEND _rom_archives "${_rom}")
-        endif()
-    endforeach()
     if(_rom_archives)
-        string(REPLACE ";" ", " _rom_list "${_rom_archives}")
         if(REGEN AND ALLOW_ROM_ARCHIVE_REGEN)
             message(WARNING
                 "CheckGoldenDigest(${GOLDEN_NAME}): re-pinning an archive-free golden with ${_rom_list} mounted "
@@ -566,8 +570,10 @@ _digest_lines("${_golden}" _golden_lines)
 # could only check the archive-free half, in the sandbox above. With the option
 # groups built the same way in both environments, the ROM-mounted world IS the
 # pinned world, and a ROM-staged run now generates it too — in the build
-# directory, with oot.o2r/mm.o2r mounted, i.e. the environment a player has — and
-# compares it against the SAME golden. So in the operator's tree every golden row
+# directory, with oot.o2r/mm.o2r mounted (the archive set a player has; it is
+# still the headless dispatch, with the row's RSBS_DISABLE_OTR_INIT=1 and the
+# harness's empty exclude/trick sets, not the file-select Generate path, so it is
+# NOT the whole of a player's bring-up) — and compares it against the SAME golden. So in the operator's tree every golden row
 # checks both worlds against one file, and additionally against each other, which
 # is the cross-environment lock on `settingsHash` (and every other field) that
 # #702 asks for: the same binary, run archive-free and ROM-mounted, must write the
@@ -667,12 +673,26 @@ if(_report)
         "${_report}")
 endif()
 if(_cross_report)
-    # Named separately from a moved golden because it is a different bug: the
-    # archive set changed the world again, which is #702 regressing, whatever the
-    # golden says. It is reported even when the archive-free half matches.
+    # Named separately from a moved golden because it is a different bug, and
+    # reported even when the archive-free half matches. It has TWO candidate
+    # causes and the message names both: the two runs differ in the archive set
+    # AND in everything the sandbox deliberately leaves behind (mods/, assets/ —
+    # see _archive_free_sandbox's header), so "#702 regressed" is only one reading.
+    # What mods/ holds is listed so a reader can tell which applies without
+    # opening the build directory.
+    file(GLOB _wd_mods LIST_DIRECTORIES true RELATIVE "${WORK_DIR}" "${WORK_DIR}/mods/*")
+    if(_wd_mods)
+        string(REPLACE ";" ", " _wd_mods_list "${_wd_mods}")
+        set(_mods_note "${WORK_DIR}/mods holds: ${_wd_mods_list}")
+    else()
+        set(_mods_note "${WORK_DIR}/mods is empty or absent, which points at the archive set")
+    endif()
     string(APPEND _failure
-        "\n  THE ARCHIVE SET CHANGED THE WORLD (#702 regressed) — the same binary generated a different digest "
-        "ROM-mounted (${WORK_DIR}, oot.o2r/mm.o2r mounted) than archive-free (${_run_dir}):"
+        "\n  THE TWO ENVIRONMENTS GENERATED DIFFERENT WORLDS — the same binary wrote a different digest in the build "
+        "directory (${WORK_DIR}: ROM archives ${_rom_list} mounted, plus its mods/ and assets/) than in the "
+        "archive-free sandbox (${_run_dir}: port archives only). Either #702 regressed (the archive set changes what "
+        "the settings string folds again), or build-directory content the sandbox does not carry moved the world "
+        "(${_mods_note}):"
         "${_cross_report}")
 elseif(_rom_report)
     string(APPEND _failure
@@ -709,6 +729,14 @@ if(_rom_run)
         "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
         "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} in BOTH environments — archive-free (${_run_dir}) and ROM-mounted "
         "(${WORK_DIR}) — so the pinned world did not move and the archive set does not change it (#702).")
+elseif(_rom_archives)
+    # ARCHIVE_FREE_ONLY=OFF with ROM archives staged: the one run WAS ROM-mounted,
+    # and no archive-free run happened to compare it with.
+    message(STATUS
+        "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
+        "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} (generated in ${_run_dir} [${_run_env}] with ${_rom_list} mounted) "
+        "— the pinned world did not move. This row is ARCHIVE_FREE_ONLY=OFF, so it ran ROM-mounted only and nothing "
+        "compared the two environments (#702).")
 else()
     message(STATUS
         "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
