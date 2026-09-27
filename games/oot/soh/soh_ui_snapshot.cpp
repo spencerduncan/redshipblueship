@@ -1276,7 +1276,14 @@ std::vector<std::string> TooltipLinePrefixes(const std::string& tip) {
  * resolves what its adapters can.
  */
 constexpr const char* kSnapshotOoTItemA = "Lens of Truth";
+// The SoH pane our tracker and spoiler panes are read against (compareWith).
+constexpr const char* kSohPaneReference = "window/Check Tracker Settings";
 constexpr const char* kSnapshotOoTItemB = "Megaton Hammer";
+// The OoT check hosting the MM item in the "progress" state. The synthetic OoT
+// adapter names none of its checks this id, so the tracker's MM-to-OoT table
+// prints it as hex: a string only that table draws.
+constexpr uint16_t kSnapshotMMToOoTCheckId = 0x0123;
+constexpr const char* kSnapshotMMToOoTCheck = "Check 0x0123";
 
 extern "C" int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 
@@ -1299,8 +1306,11 @@ void AuthorCrossings(bool bothDirections) {
     if (SnapshotNamedItem((uint8_t)GAME_OOT, kSnapshotOoTItemB, &item)) {
         Combo_SetForeignPlacement(0x0402, item);
     }
+    // MM's describer reads static data, so this lookup needs no ROM-free
+    // fallback; if it ever fails, the row is missing and the "progress" state's
+    // kSnapshotMMToOoTCheck text fails the capture instead of passing silently.
     if (bothDirections && SnapshotNamedItem((uint8_t)GAME_MM, "Lens of Truth", &item)) {
-        Combo_SetForeignPlacementOoT(0x0123, item);
+        Combo_SetForeignPlacementOoT(kSnapshotMMToOoTCheckId, item);
     }
 }
 
@@ -1545,6 +1555,22 @@ void Session::BuildPageList() {
         p.scroll = false;
         pages.push_back(p);
     }
+    {
+        // SoH's own pane, the reference for the Combo Tracker and Cross-Game
+        // Spoiler panes (docs/ui-style-guide.md section 10): its title bar and
+        // close button, and SoH's table shape (CellPadding 8x8, BordersH|V,
+        // TableSetupColumn + TableHeadersRow) at pane scale. The Check Tracker
+        // itself draws only "Waiting for file load..." without a save.
+        PageSpec p;
+        p.id = kSohPaneReference;
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::WINDOW;
+        p.window = "Check Tracker Settings";
+        p.states = { "" };
+        p.expectText = { "Check Tracker Settings", "General settings" };
+        p.needsRom = true;
+        pages.push_back(p);
+    }
 
     // Ours. Every Combo sidebar the live menu registered, in its own order, so a
     // page added later cannot escape the harness: an unlisted page compares with
@@ -1705,6 +1731,7 @@ void Session::BuildPageList() {
         // "crossings" authors placements (AuthorCrossings), so the table is drawn:
         // "paired" alone holds none and only ever showed the empty note.
         p.states = { "paired", "crossings", "unpaired" };
+        p.compareWith = kSohPaneReference;
         p.expectText = { ComboGui::kComboSpoilerWindowName };
         p.stateText["crossings"] = { kSnapshotOoTItemA };
         p.stateText["unpaired"] = { "No paired world" };
@@ -1721,8 +1748,9 @@ void Session::BuildPageList() {
         // glyphs and both placement tables are drawn: without a loaded save,
         // "paired" only ever showed the no-data notes.
         p.states = { "paired", "unpaired", "progress" };
+        p.compareWith = kSohPaneReference;
         p.expectText = { ComboGui::kComboTrackerWindowName };
-        p.stateText["progress"] = { kSnapshotOoTChecks[0].name, kSnapshotOoTItemA };
+        p.stateText["progress"] = { kSnapshotOoTChecks[0].name, kSnapshotOoTItemA, kSnapshotMMToOoTCheck };
         p.stateText["unpaired"] = { "No paired world" };
         p.stateContrast = { { "progress", "paired" }, { "unpaired", "paired" } };
         pages.push_back(p);
@@ -2829,28 +2857,41 @@ void TricksOpenIds(ImGuiWindow* w, ImGuiID* header, ImGuiID* firstArea) {
 }
 
 void Session::CaptureWindowPage(const PageSpec& p) {
-    const char* cvar = PaneCvar(p.window);
+    // Ours read their visibility CVar LIVE in Draw() (they override it), so
+    // setting the CVar is what opens them; Show() would do nothing. An SoH pane
+    // is the other way round: Ship::GuiWindow latches the CVar in its ctor and
+    // Draw() tests IsVisible(), so it is opened with Show() and closed with Hide().
+    const bool sohPane = p.origin == Origin::SOH_REFERENCE;
+    const char* cvar = sohPane ? nullptr : PaneCvar(p.window);
+    auto guiWindow = gui->GetGuiWindow(p.window);
     for (const std::string& state : p.states) {
         const std::string base = VariantName(state, "");
         if (!Selected(p, base) && !Selected(p, VariantName(state, "scroll0"))) {
             continue;
         }
-        if (cvar == nullptr || gui->GetGuiWindow(p.window) == nullptr) {
+        if ((!sohPane && cvar == nullptr) || guiWindow == nullptr) {
             Capture c;
             c.id = p.id;
             c.state = state;
             c.variant = base;
-            c.status = "fail";
-            c.reason = "the pane \"" + p.window + "\" is not registered";
+            if (p.needsRom && romFree) {
+                c.status = "skip";
+                c.reason = "needs oot.o2r";
+            } else {
+                c.status = "fail";
+                c.reason = "the pane \"" + p.window + "\" is not registered";
+            }
             c.spec = &p;
             Record(std::move(c));
             continue;
         }
         EnterState(p, state);
         menu->Hide();
-        // These panes read their visibility CVar LIVE in Draw() (they override it),
-        // so setting the CVar is what opens them; Show() would do nothing.
-        CVarSetInteger(cvar, 1);
+        if (sohPane) {
+            guiWindow->Show();
+        } else {
+            CVarSetInteger(cvar, 1);
+        }
         const bool tricks = (state == "tricks-open");
         const bool checksOpen = (state == "progress" && p.window == ComboGui::kComboTrackerWindowName);
         auto setTricksOpen = [&p](int open) {
@@ -2978,7 +3019,11 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         if (tricks) {
             setTricksOpen(0);
         }
-        CVarSetInteger(cvar, 0);
+        if (sohPane) {
+            guiWindow->Hide();
+        } else {
+            CVarSetInteger(cvar, 0);
+        }
         LeaveState(p, state);
     }
 }

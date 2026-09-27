@@ -124,7 +124,11 @@ typedef struct {
      */
     void (*Confirm)(const char* title, const char* message, const char* confirmLabel, const char* cancelLabel,
                     void (*onConfirm)(void* user), void* user);
-    /** Theme the header, tree-node and selectable highlight until PopTheme (UIWidgets::PushStyleHeader). */
+    /**
+     * Theme collapsing headers (and the header, tree-node and selectable
+     * highlight) until PopTheme, as SoH's tracker panes do
+     * (UIWidgets::PushStyleCombobox: rounded, 10x6 padding, theme colour at half alpha).
+     */
     void (*PushTheme)(void);
     void (*PopTheme)(void);
     /** Vertical space, SoH's UIWidgets::Spacer (0 is one item spacing). */

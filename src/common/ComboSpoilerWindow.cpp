@@ -9,8 +9,11 @@
  * It is drawn the way SoH draws its own panes (docs/ui-style-guide.md section
  * 10): the title bar's close button, a gray note for state, a section header,
  * and SoH's table shape (cell padding 8x8, horizontal and vertical borders, a
- * header row in the theme's header colours). src/common cannot include
- * UIWidgets, so every styled element goes through the combo_ui seam.
+ * header row). The header row stays in ImGui's table-header gray, as SoH's own
+ * tables do (the Check Tracker Settings pane): the theme's Header /
+ * HeaderHovered / HeaderActive colours reach a table's header row only while
+ * it is hovered or clicked. src/common cannot include UIWidgets, so every styled element goes
+ * through the combo_ui seam.
  */
 
 #include "ComboSpoilerWindow.h"
@@ -75,27 +78,33 @@ void ComboSpoilerWindow::DrawElement() {
         return;
     }
 
-    ImGui::Text("Seed: %u", (unsigned)summary.sharedRandoSeed);
+    // "Paired Seed", the Combo Tracker's word for the same number.
+    ImGui::Text("Paired Seed: %u", (unsigned)summary.sharedRandoSeed);
     Ui().Spacer(0.0f);
 
+    // A short Title Case header (R-N1) with no count in it (R-N4): the gray
+    // note under it says how many and which way, or that there are none.
     const int rowCount = Combo_SpoilerRowCount();
-    char header[64];
-    snprintf(header, sizeof(header), "OoT Items in MM Checks (%d)", rowCount);
-    Ui().SeparatorText(header);
+    Ui().SeparatorText("In MM Checks");
     if (rowCount == 0) {
         Ui().NoteText("No Ocarina of Time items were placed in Majora's Mask checks.");
         return;
     }
+    char note[96];
+    snprintf(note, sizeof(note), "%d Ocarina of Time %s placed in Majora's Mask checks.", rowCount,
+             rowCount == 1 ? "item was" : "items were");
+    Ui().NoteText(note);
 
     Ui().PushTheme();
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f));
     // No ScrollY: the pane scrolls as a whole, as SoH's tables inside a pane do;
     // a scrolling table with no height fills the pane with empty bordered rows.
     if (ImGui::BeginTable("##ComboSpoilerRows", 3, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
-        // MM check IDS, not names: common code has no MM check-name table and
-        // must not acquire one by including an MM header. Resolving these to
-        // readable names needs the MM adapter (#458). Labelled as ids so the
-        // column is honest about what it is.
+        // MM check IDS, not names. The MM tracker adapter can already resolve
+        // them (Combo_TrackerCheckName, which the Combo Tracker's placement
+        // table uses); switching this column to names is #757, kept out of the
+        // UI-parity change. Labelled as ids so the column is honest about what
+        // it is.
         ImGui::TableSetupColumn("MM Check ID", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Collected", ImGuiTableColumnFlags_WidthFixed);

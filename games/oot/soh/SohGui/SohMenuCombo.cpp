@@ -661,7 +661,7 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Toggles the Cross-Game Spoiler.").EmbedWindow(false));
     // Combo tracker (#458) - both games' progress at once, the inactive game's
-    // included ("as of last freeze/save"). Race-disabled like the spoiler: its
+    // included ("As of the last game switch or save"). Race-disabled like the spoiler: its
     // cross-game section names items sitting on uncollected checks.
     menu.AddWidget(path, "Combo Tracker", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Toggle Combo Tracker", WIDGET_WINDOW_BUTTON)

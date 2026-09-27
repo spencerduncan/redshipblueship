@@ -176,6 +176,23 @@ extern "C" int Combo_SpoilerWindow_RunHeadless(void) {
         CSW_ASSERT(text.find("ImGui::TextDisabled") == std::string::npos);
         CSW_ASSERT(text.find("ImGui::Spacing") == std::string::npos);
         CSW_ASSERT(text.find("digest") == std::string::npos);
+        // Each styled element through the seam, not just a ComboUi_Get() helper
+        // that nothing calls.
+        CSW_ASSERT(text.find("Ui().NoteText(") != std::string::npos);
+        CSW_ASSERT(text.find("Ui().SeparatorText(") != std::string::npos);
+        CSW_ASSERT(text.find("Ui().PushTheme()") != std::string::npos);
+        CSW_ASSERT(text.find("Ui().Spacer(") != std::string::npos);
+        // SoH's table shape (style guide section 10): 8x8 cells, both borders, a
+        // header row, and no ScrollY inside a pane that scrolls as a whole.
+        CSW_ASSERT(text.find("ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f)") != std::string::npos);
+        CSW_ASSERT(text.find("ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV") != std::string::npos);
+        CSW_ASSERT(text.find("TableHeadersRow()") != std::string::npos);
+        CSW_ASSERT(text.find("ImGuiTableFlags_ScrollY") == std::string::npos);
+        CSW_ASSERT(text.find("ImGuiTableFlags_RowBg") == std::string::npos);
+        // The section header carries no count (R-N4); the seed is named as the
+        // Combo Tracker names it.
+        CSW_ASSERT(text.find("(%d)") == std::string::npos);
+        CSW_ASSERT(text.find("\"Paired Seed: %u\"") != std::string::npos);
     }
 #endif
 

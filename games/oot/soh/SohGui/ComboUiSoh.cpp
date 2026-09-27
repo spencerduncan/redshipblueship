@@ -191,12 +191,18 @@ void SohConfirm(const char* title, const char* message, const char* confirmLabel
         nullptr);
 }
 
+// SoH's tracker panes theme a collapsing header with the combobox style: the
+// Check Tracker Settings pane's section headers (randomizer_check_tracker.cpp,
+// ImGuiDrawTwoColorPickerSection) draw rounded, 10x6-padded headers in the theme
+// colour at half alpha. PushStyleHeader (CosmeticsEditor.cpp's flat, opaque
+// header) is the editor-pane variant; our panes are trackers, and the harness
+// captures the Check Tracker Settings pane beside them.
 void SohPushTheme() {
-    UIWidgets::PushStyleHeader(Theme());
+    UIWidgets::PushStyleCombobox(Theme());
 }
 
 void SohPopTheme() {
-    UIWidgets::PopStyleHeader();
+    UIWidgets::PopStyleCombobox();
 }
 
 void SohSpacer(float height) {

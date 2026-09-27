@@ -15,9 +15,9 @@
  * gSaveContext to read (unified storage holds OoT's bytes), but the frozen
  * shadow Context_GetMMSaveContext() hands out is a raw SaveContext image
  * written at freeze/save time. Reading it at these offsets is exactly as
- * valid as the freeze itself, and the view labels the result stale ("as of
- * last freeze/save") — never live, even while MM is the active game, because
- * the shadow lags the live save (#458 design note).
+ * valid as the freeze itself, and the view labels the result stale ("As of
+ * the last game switch or save") — never live, even while MM is the active
+ * game, because the shadow lags the live save (#458 design note).
  *
  * THE TRIPWIRES. The descriptor is built from offsetof/sizeof, so it cannot
  * drift from the struct — what CAN break silently is the geometry: the table

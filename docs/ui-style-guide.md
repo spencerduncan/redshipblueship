@@ -214,14 +214,21 @@ and on ours (R-N4).
 - **Settings groups** in a pane use `SeparatorText` [project rule, matching SoH's randomizer option pages,
   `option.cpp:450-479`]. `CollapsingHeader` is an SoH editor and tracker idiom (`CosmeticsEditor.cpp`,
   `SohInputEditorWindow.cpp`, `randomizer_check_tracker.cpp`). It is allowed in our tracker and spoiler panes, not in
-  settings panes or menu pages. Theme it as SoH's editor panes do (`UIWidgets::PushStyleHeader(THEME_COLOR)`,
-  `CosmeticsEditor.cpp`; the seam's PushTheme/PopTheme).
+  settings panes or menu pages. Theme it as SoH's tracker panes do (`UIWidgets::PushStyleCombobox(THEME_COLOR)` around
+  the header: rounded, 10x6 padding, the theme colour at half alpha, as the Check Tracker Settings pane's section
+  headers in `randomizer_check_tracker.cpp`; the seam's PushTheme/PopTheme). `CosmeticsEditor.cpp`'s flat, opaque
+  `PushStyleHeader` is SoH's editor-pane variant; the tracker style is the one captured beside our panes.
 - **Tables** in a pane take SoH's shape (`randomizer_check_tracker.cpp`'s settings table, `SohMenuRandomizer.cpp`'s
   location tables): `CellPadding` 8x8, `BordersH | BordersV`, `TableSetupColumn` + `TableHeadersRow`, cells that wrap
   rather than clip. No `ScrollY` inside a pane that scrolls as a whole: a scrolling table with no height fills the pane
-  with empty bordered rows.
+  with empty bordered rows. The header row stays ImGui's table-header gray, as in the Check Tracker Settings pane:
+  the theme's `ImGuiCol_Header*` colours reach a header row only while it is hovered or clicked. A count belongs in
+  a gray note under the section header, never in the header (R-N1, R-N4).
 - **Status marks** are FontAwesome glyphs (merged into every menu font, `OTRGlobals.cpp`; the macros are
-  libultraship's `IconsFontAwesome4.h`), as SoH's check tracker marks its rows, never bracketed ASCII such as `[x]`.
+  libultraship's `IconsFontAwesome4.h`), never bracketed ASCII such as `[x]`, `[s]` or `[ ]`. This is a project
+  convention, not an SoH idiom: SoH's check tracker marks a check's status by row colour and uses glyphs only on its
+  skip and lock buttons (`ICON_FA_PLUS`/`ICON_FA_TIMES`, `ICON_FA_UNLOCK`/`ICON_FA_LOCK`,
+  `randomizer_check_tracker.cpp`).
 - **Trick lists** follow `DrawTricksMenu` (`SohMenuRandomizer.cpp:171-551`): a filter; "Disable All" and "Enable All"
   250 px buttons; a two-column Disabled/Enabled table of area tree nodes; coloured tag chips (`tricks.cpp:101-110`); and
   the description as a tooltip.
@@ -272,7 +279,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
-| Combo Tracker pane, Cross-Game Spoiler pane | Randomizer > Item Tracker (its settings table), and SoH's check tracker pane code (no SoH window is captured) |
+| Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
 | Creation overlay over the open menu | SoH's modal over the same menu page ("Clear Config@over-menu") |
 | Cross-Game Rules Reset confirm, MM options Reset confirm | the SoH modal ("Clear Config") |
@@ -307,6 +314,10 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   `Combo_SetForeignPlacement`, so its table is drawn) and unpaired; the Combo Tracker draws paired, unpaired and
   progress (a synthetic OoT tracker adapter with one collected, one skipped and two open checks, its Checks list open,
   and placements both ways, so the status glyphs and both placement tables are drawn).
+- SoH PANE: SoH's Check Tracker Settings pane, the reference both of those panes compare with (`compare/`). It is
+  opened through its own `GuiWindow::Show` and closed with `Hide`, because an SoH pane latches its visibility CVar at
+  construction and never re-reads it (ours read theirs live). A run where the pane is not registered skips it ROM-free
+  and fails it ROM-rich.
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its

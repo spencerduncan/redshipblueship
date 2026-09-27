@@ -8,11 +8,16 @@
  *
  * It is drawn the way SoH draws its own tracker and editor panes
  * (docs/ui-style-guide.md section 10): the title bar's close button, themed
- * collapsing headers (UIWidgets::PushStyleHeader(THEME_COLOR), as
- * CosmeticsEditor.cpp does), gray notes for state, FontAwesome glyphs for a
- * check's status, and SoH's table shape (cell padding 8x8, horizontal and
- * vertical borders, a header row). src/common cannot include UIWidgets, so
- * every styled element goes through the combo_ui seam.
+ * collapsing headers (UIWidgets::PushStyleCombobox(THEME_COLOR), as the Check
+ * Tracker Settings pane's section headers are), gray notes for state, and
+ * SoH's table shape (cell padding 8x8, horizontal and vertical borders, a
+ * header row). The header row stays in ImGui's table-header gray, as in the
+ * Check Tracker Settings pane: the theme's Header / HeaderHovered /
+ * HeaderActive colours reach a table's header row only while it is hovered or
+ * clicked. A check's status is a FontAwesome glyph, a
+ * project convention (SoH's check tracker marks status by row colour instead).
+ * src/common cannot include UIWidgets, so every styled element goes through the
+ * combo_ui seam.
  */
 
 #include "ComboTrackerWindow.h"
@@ -39,9 +44,10 @@ const ComboUiTable& Ui() {
 }
 
 /**
- * A check's status as a glyph, the way SoH's check tracker marks a row with an
- * icon rather than bracketed text: a ticked box when collected, a box with a
- * minus when the player skipped it, an empty box otherwise.
+ * A check's status as a FontAwesome glyph (a project convention, style guide
+ * section 10: SoH's check tracker colours the row instead, and uses glyphs only
+ * on its skip/lock buttons): a ticked box when collected, a box with a minus
+ * when the player skipped it, an empty box otherwise.
  */
 const char* CheckGlyph(const ComboTrackerCheckRow& row) {
     if (row.obtained) {
@@ -56,7 +62,7 @@ const char* CheckGlyph(const ComboTrackerCheckRow& row) {
  * game argument is the origin tag, and nothing here compares ids across
  * panels (ADR 0002).
  */
-void DrawGamePanel(uint8_t game, const char* title) {
+void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& identity) {
     if (!ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
     }
@@ -88,7 +94,12 @@ void DrawGamePanel(uint8_t game, const char* title) {
     snprintf(note, sizeof(note), "%s.", Combo_TrackerFreshnessLabel(game, summary.freshness));
     Ui().NoteText(note);
 
-    ImGui::Text("Seed: %u", (unsigned)summary.seed);
+    // The pane's top line already prints the paired seed; a game whose own
+    // seed is that same number would only repeat it (MM's final seed IS the
+    // paired seed), so the panel prints its seed only when it says something new.
+    if (!identity.paired || summary.seed != identity.sharedRandoSeed) {
+        ImGui::Text("Seed: %u", (unsigned)summary.seed);
+    }
     ImGui::Text("Checks: %d / %d", summary.obtained, summary.shuffled);
     if (summary.skipped > 0) {
         ImGui::Text("Skipped: %d", summary.skipped);
@@ -122,19 +133,24 @@ void DrawGamePanel(uint8_t game, const char* title) {
 /**
  * One direction's placement table. The direction is the accessor — the two
  * tables are separate key spaces and are never merged (ADR 0009). SoH's table
- * shape (SohMenuRandomizer.cpp's location tables; the check tracker's
- * settings table): cell padding 8x8, horizontal and vertical borders, a header
- * row.
+ * shape (SohMenuRandomizer.cpp's location tables; the Check Tracker Settings
+ * pane's table): cell padding 8x8, horizontal and vertical borders, a header
+ * row. The header is a short Title Case name (R-N1) with no count in it
+ * (R-N4); the gray note under it says how many and which way, or that there
+ * are none.
  */
-void DrawForeignList(uint8_t hostGame, const char* title, const char* emptyNote) {
+void DrawForeignList(uint8_t hostGame, const char* title, const char* itemGame, const char* hostName) {
     const int count = Combo_TrackerForeignCount(hostGame);
-    char header[64];
-    snprintf(header, sizeof(header), "%s (%d)", title, count);
-    Ui().SeparatorText(header);
+    Ui().SeparatorText(title);
+    char note[160];
     if (count == 0) {
-        Ui().NoteText(emptyNote);
+        snprintf(note, sizeof(note), "No %s items were placed in %s checks.", itemGame, hostName);
+        Ui().NoteText(note);
         return;
     }
+    snprintf(note, sizeof(note), "%d %s %s placed in %s checks.", count, itemGame,
+             count == 1 ? "item was" : "items were", hostName);
+    Ui().NoteText(note);
     ImGui::PushID((int)hostGame);
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f));
     if (ImGui::BeginTable("##Placements", 3, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
@@ -198,22 +214,22 @@ void ComboTrackerWindow::DrawElement() {
     ComboTrackerIdentity identity;
     Combo_TrackerIdentity(&identity);
     if (identity.paired) {
-        ImGui::Text("Seed: %u", (unsigned)identity.sharedRandoSeed);
+        // "Paired Seed", not "Seed": each game panel below may print its own
+        // seed, and the two must not read as the same line.
+        ImGui::Text("Paired Seed: %u", (unsigned)identity.sharedRandoSeed);
     } else {
         Ui().NoteText("No paired world.");
     }
     Ui().Spacer(0.0f);
 
     Ui().PushTheme();
-    DrawGamePanel((uint8_t)GAME_OOT, "Ocarina of Time");
-    DrawGamePanel((uint8_t)GAME_MM, "Majora's Mask");
+    DrawGamePanel((uint8_t)GAME_OOT, "Ocarina of Time", identity);
+    DrawGamePanel((uint8_t)GAME_MM, "Majora's Mask", identity);
 
     if (identity.paired && ImGui::CollapsingHeader("Cross-Game Placements", ImGuiTreeNodeFlags_DefaultOpen)) {
-        DrawForeignList((uint8_t)GAME_MM, "OoT Items in MM Checks",
-                        "No Ocarina of Time items were placed in Majora's Mask checks.");
+        DrawForeignList((uint8_t)GAME_MM, "In MM Checks", "Ocarina of Time", "Majora's Mask");
         Ui().Spacer(0.0f);
-        DrawForeignList((uint8_t)GAME_OOT, "MM Items in OoT Checks",
-                        "No Majora's Mask items were placed in Ocarina of Time checks.");
+        DrawForeignList((uint8_t)GAME_OOT, "In OoT Checks", "Majora's Mask", "Ocarina of Time");
     }
     Ui().PopTheme();
 }
