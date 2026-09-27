@@ -60,9 +60,11 @@
 
 #include <imgui_internal.h> // ImGui::TreeNodeSetOpen, as DrawTricksMenu uses it
 
+#include <algorithm>
 #include <cstdio>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace SohGui {
 
@@ -244,10 +246,114 @@ bool InColumn(const ComboMMTrickDesc* desc, bool enabledColumn) {
     return Combo_MMTrickGetValue(desc) == enabledColumn;
 }
 
+/** A combo_ui tone as SoH's palette entry (the chip colours ComboUiSoh.cpp draws). */
+Colors ToneColor(ComboUiTone tone) {
+    switch (tone) {
+        case COMBO_UI_TONE_GRAY:
+            return Colors::Gray;
+        case COMBO_UI_TONE_ORANGE:
+            return Colors::Orange;
+        case COMBO_UI_TONE_GREEN:
+            return Colors::Green;
+        case COMBO_UI_TONE_BLUE:
+            return Colors::Blue;
+        case COMBO_UI_TONE_LIGHT_BLUE:
+            return Colors::LightBlue;
+        case COMBO_UI_TONE_RED:
+            return Colors::Red;
+        case COMBO_UI_TONE_PURPLE:
+            return Colors::Purple;
+        case COMBO_UI_TONE_WHITE:
+            return Colors::White;
+        case COMBO_UI_TONE_THEME:
+        default:
+            return THEME_COLOR;
+    }
+}
+
+/**
+ * SoH's tag order on its Tricks page (tricks.cpp's Tag enum: Novice,
+ * Intermediate, Advanced, Expert, Extreme, Experimental, Glitch), by the
+ * palette tone each rung shares with SoH; "OoT Items" (gray) is ours and last.
+ */
+int ToneRank(ComboUiTone tone) {
+    switch (tone) {
+        case COMBO_UI_TONE_GREEN:
+            return 0;
+        case COMBO_UI_TONE_ORANGE:
+            return 1;
+        case COMBO_UI_TONE_BLUE:
+            return 2;
+        case COMBO_UI_TONE_RED:
+            return 3;
+        case COMBO_UI_TONE_PURPLE:
+            return 4;
+        case COMBO_UI_TONE_LIGHT_BLUE:
+            return 5;
+        case COMBO_UI_TONE_WHITE:
+            return 6;
+        default:
+            return 7;
+    }
+}
+
+/** One tag of the filter bar: a chip label the table uses, its tone, and
+ *  whether rows carrying it are shown. */
+struct TagFilter {
+    std::string label;
+    ComboUiTone tone;
+    bool shown;
+};
+
+/**
+ * The filter bar's tags, built once from the chips the table carries (the tag
+ * enum is MM's, so this TU learns the tags from the descriptors, never the
+ * enum), in SoH's order. Every tag starts shown. SoH starts Glitch hidden; here
+ * nothing is hidden until the player chooses, so the page opens on every trick
+ * the pop-out window used to list.
+ */
+std::vector<TagFilter>& TagFilters() {
+    static std::vector<TagFilter> filters;
+    if (!filters.empty()) {
+        return filters;
+    }
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
+        for (int c = 0; desc != nullptr && c < (int)desc->chipCount && c < COMBO_MM_TRICK_MAX_CHIPS; c++) {
+            bool known = false;
+            for (const TagFilter& f : filters) {
+                known = known || f.label == desc->chipLabels[c];
+            }
+            if (!known && desc->chipLabels[c] != nullptr) {
+                filters.push_back(TagFilter{ desc->chipLabels[c], desc->chipTones[c], true });
+            }
+        }
+    }
+    std::stable_sort(filters.begin(), filters.end(),
+                     [](const TagFilter& a, const TagFilter& b) { return ToneRank(a.tone) < ToneRank(b.tone); });
+    return filters;
+}
+
+/** SoH's Rando::Tricks::CheckTags: a row shows only when every one of its tags does. */
+bool TagsShown(const ComboMMTrickDesc* desc) {
+    if (desc->chipCount == 0) {
+        return false;
+    }
+    for (int c = 0; c < (int)desc->chipCount && c < COMBO_MM_TRICK_MAX_CHIPS; c++) {
+        for (const TagFilter& f : TagFilters()) {
+            if (f.label == desc->chipLabels[c] && !f.shown) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 /**
  * Combo > MM Tricks' list, in the shape of SoH's Randomizer > Tricks/Glitches
  * (DrawTricksMenu, SohMenuRandomizer.cpp): a filter, "Disable All" and "Enable
- * All" at SoH's 250 px, then a bordered two-column Disabled/Enabled table with
+ * All" at SoH's 250 px, the tag filter bar, then a bordered two-column
+ * Disabled/Enabled table with
  * "Collapse All", "Open All" and "Enable/Disable Visible" over each column,
  * area tree nodes that start open, and one row per trick: SoH's themed arrow
  * button, the tag chips with the difficulty rung first, then the name, whose
@@ -260,7 +366,9 @@ bool InColumn(const ComboMMTrickDesc* desc, bool enabledColumn) {
  * frozen every arrow and button is disabled with "Already Decided", but the
  * areas still open, because a frozen trick set is worth reading. The name
  * wraps rather than clips, through the combo_ui seam's SoH name cell, which also
- * reports the row to the UI snapshot harness's hover finder.
+ * reports the row to the UI snapshot harness's hover finder. Every tag in the
+ * filter bar starts shown (SoH starts Glitch hidden), so the page opens on every
+ * trick the pop-out window listed.
  */
 void DrawMmTrickList(WidgetInfo& info) {
     static ImGuiTextFilter trickFilter;
@@ -302,6 +410,25 @@ void DrawMmTrickList(WidgetInfo& info) {
         enableAll = true;
     }
 
+    // SoH's tag filter bar (DrawTricksMenu's "trickTags" table): one selectable
+    // per tag in the tag's colour; a row shows only while all its tags do.
+    std::vector<TagFilter>& tags = TagFilters();
+    if (!tags.empty() &&
+        ImGui::BeginTable("mmTrickTags", (int)tags.size(),
+                          ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders)) {
+        for (TagFilter& tag : tags) {
+            ImGui::TableNextColumn();
+            // SoH's GetTextColor: white on every tag but the white one.
+            const Colors text = (tag.shown && tag.tone == COMBO_UI_TONE_WHITE) ? Colors::Black : Colors::White;
+            ImGui::PushStyleColor(ImGuiCol_Text, UIWidgets::ColorValues.at(text));
+            ImGui::PushStyleColor(ImGuiCol_Header, UIWidgets::ColorValues.at(ToneColor(tag.tone)));
+            ImGui::Selectable((tag.label + "##MMTrickTag").c_str(), &tag.shown);
+            ImGui::PopStyleColor(2);
+        }
+        ImGui::EndTable();
+    }
+    auto visible = [](const ComboMMTrickDesc* desc) { return trickFilter.PassFilter(desc->label) && TagsShown(desc); };
+
     if (ImGui::BeginTable("tableMmTricks", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
         ImGui::TableSetupColumn("Disabled Tricks", ImGuiTableColumnFlags_WidthStretch, 200.0f);
         ImGui::TableSetupColumn("Enabled Tricks", ImGuiTableColumnFlags_WidthStretch, 200.0f);
@@ -339,7 +466,7 @@ void DrawMmTrickList(WidgetInfo& info) {
                 for (int i = 0; i < count; i++) {
                     const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
                     const bool settable = desc != nullptr && desc->bound && !desc->reserved;
-                    if (settable && InColumn(desc, enabledColumn) && trickFilter.PassFilter(desc->label) &&
+                    if (settable && InColumn(desc, enabledColumn) && visible(desc) &&
                         (!areaOpen.contains((int)desc->area) || areaOpen.at((int)desc->area))) {
                         Combo_MMTrickSetValue(desc, !enabledColumn);
                     }
@@ -354,8 +481,7 @@ void DrawMmTrickList(WidgetInfo& info) {
                 const char* areaName = nullptr;
                 for (int i = 0; i < count && areaName == nullptr; i++) {
                     const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
-                    if (desc != nullptr && (int)desc->area == area && InColumn(desc, enabledColumn) &&
-                        trickFilter.PassFilter(desc->label)) {
+                    if (desc != nullptr && (int)desc->area == area && InColumn(desc, enabledColumn) && visible(desc)) {
                         areaName = desc->areaName;
                     }
                 }
@@ -371,7 +497,7 @@ void DrawMmTrickList(WidgetInfo& info) {
                     for (int i = 0; i < count; i++) {
                         const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
                         if (desc == nullptr || (int)desc->area != area || !InColumn(desc, enabledColumn) ||
-                            !trickFilter.PassFilter(desc->label)) {
+                            !visible(desc)) {
                             continue;
                         }
                         const char* reason = "";
@@ -544,7 +670,7 @@ void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path) {
     // frozen profile it is disabled with the freeze as its reason: a live Reset
     // there would be a control that (correctly) does nothing.
     path.column = SECTION_COLUMN_2;
-    menu.AddWidget(path, "Reset MM Randomizer Options", WIDGET_BUTTON)
+    menu.AddWidget(path, "Reset MM Randomizer", WIDGET_BUTTON)
         .Callback([](WidgetInfo& info) {
             SohGui::RegisterPopup(
                 COMBO_MM_OPTIONS_RESET_TITLE,

@@ -250,7 +250,7 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
             }
             if (row.info->type == WIDGET_BUTTON) {
                 resets++;
-                MMRP_CHECK(row.info->name == "Reset MM Randomizer Options", "unexpected button '%s'",
+                MMRP_CHECK(row.info->name == COMBO_MM_OPTIONS_RESET_TITLE, "unexpected button '%s'",
                            row.info->name.c_str());
             }
             MMRP_CHECK(row.column < options.columnCount,
@@ -303,7 +303,7 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
            count);
 
     // ---- Leg 4: the states -----------------------------------------------------
-    FlatRow* reset = FindByName(rows, "Reset MM Randomizer Options");
+    FlatRow* reset = FindByName(rows, COMBO_MM_OPTIONS_RESET_TITLE);
     for (int frozen = 0; frozen <= 1; frozen++) {
         Freeze(frozen != 0);
         for (int i = 0; i < count; i++) {

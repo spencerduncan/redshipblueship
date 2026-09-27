@@ -70,7 +70,7 @@ extern "C" {
 #define COMBO_MM_OPTIONS_ROW_ID_SUFFIX "##MMRando"
 
 /** The Reset confirm's title (a SohGui::RegisterPopup title). */
-#define COMBO_MM_OPTIONS_RESET_TITLE "Reset MM Randomizer Options"
+#define COMBO_MM_OPTIONS_RESET_TITLE "Reset MM Randomizer"
 
 /** The freeze's disabled reason, in SoH's reason style ("Save Not Loaded"): the
  *  words SohMenu gives its FROZEN presentation and the Cross-Game Rules rows
