@@ -211,6 +211,16 @@ and on ours (R-N4).
   250 px buttons; a two-column Disabled/Enabled table of area tree nodes; coloured tag chips (`tricks.cpp:101-110`); and
   the description as a tooltip.
 - **Modals** are a centred `BeginPopupModal` with text and themed buttons (`SohModals.cpp:55-83`).
+- **Progress dialogs** look like SoH's ROM-extraction modal (`OTRGlobals.cpp`, `RunExtract`): the modal's dim
+  (`ImGuiCol_ModalWindowDimBg`) over everything else, the popup background, the active title bar, and a bar with
+  rounding 3, padding 10x8, the theme colour as the fill and the same colour at 0.6 alpha as the track, 600 x 50 at the
+  default scale (in font units). The creation overlay (`CreationProgressOverlay.cpp`) is a plain window rather than a
+  popup for teardown reasons, so it draws the dim itself: a full-viewport, input-less window brought to the display
+  front, never the background draw list (that renders behind the game image and the menu).
+- **Toasts** are `Notification::Emit` with `Notification::Options`' default colours and the player's configured
+  duration, as every SoH toast is (`Autosave.cpp`'s "Game autosaved"): an optional short prefix and one short message.
+  The overlay draws every field on ONE line at 1.8x and never wraps, so a toast is about 50 characters at most; the
+  UI snapshot's toast pages fail when a toast leaves the window. Mute it when the call site can run without audio.
 
 ## 11. Anti-patterns
 
@@ -240,7 +250,9 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
-| Creation overlay, Cross-Game Rules Reset confirm | the SoH modal ("Clear Config") |
+| Creation overlay (also over the open menu) | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal) |
+| Cross-Game Rules Reset confirm | the SoH modal ("Clear Config") |
+| The creation shortfall and failure toasts | SoH's toast shape ("Game autosaved") |
 
 Compare within the same run, the same profile and the same backend. Check:
 - the fonts, rounding, borders and theme tints
@@ -273,6 +285,12 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   direction combobox and (frozen) its first slider; Majora's Mask hovers its first row and Windows its MM Item
   Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state).
 - MODAL.
+- The creation overlay's `over-menu`: the menu left open under it, as a real pumped frame draws it; the dim must cover
+  the menu the way a modal's does.
+- TOAST: a page emits one toast through its production emitter (`OoT_Creation_EmitShortfallToast`,
+  `OoT_Creation_ReportFailureAtFileSelect`), captures it, and clears it (`OoT_Notification_ClearForTest`). Its oracle
+  finds exactly one `notification#` window, requires it inside the window's width, and measures "not blank" inside the
+  toast's own rectangle. ROM-free, the harness registers its own Notifications window, so CI draws them too.
 
 **Environment:**
 
