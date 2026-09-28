@@ -27,6 +27,8 @@ Named CTest targets (60s timeout): BootOoT, BootMM, SwitchOoTMM, SwitchMMOoT, Ro
 
 Test source: `src/common/tests/`
 
+Test windows do not take keyboard focus: every `--test` / `--integration-test` process arms SDL's no-activation hint in code and every CTest row also carries `SDL_WINDOW_NO_ACTIVATION_WHEN_SHOWN=1`, so a tier can run while you type elsewhere (each row prints a `[FOCUS]` line; `TestWindowNoActivation` locks it). DXGI cannot honour that hint (libultraship shows its DirectX 11 window with `ShowWindow(SW_SHOW)`), so run tests with the GL backend (`shipofharkinian.json` `Window.Backend.Id 1`), which the staged trees already do.
+
 CI: GitHub Actions — builds, clang-format, static analysis, multi-distro testing
 
 ## Code Style

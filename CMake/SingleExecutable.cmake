@@ -137,6 +137,11 @@ set(REDSHIP_COMMON_SOURCES
     # the defeat record, the goal predicate and the decision both ports' ending
     # sites call. Game-header-free. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_goal.c
+    # Test windows never take keyboard focus (lane F1, #310): the SDL
+    # no-activation hints main.cpp arms for --test / --integration-test, the
+    # [FOCUS] probe each row prints, and the probe window its lock shows.
+    # APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/test_window_focus.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -221,6 +226,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_goal.h
     # Header for mm_mod_set.cpp above (#706)
     ${CMAKE_SOURCE_DIR}/src/common/mm_mod_set.h
+    # Header for test_window_focus.cpp above (lane F1)
+    ${CMAKE_SOURCE_DIR}/src/common/test_window_focus.h
 )
 
 # ============================================================================
@@ -2098,6 +2105,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # Lane F1 (wave 7g, #310): test windows never take keyboard focus from the
+    # person at the workstation. main.cpp arms SDL's no-activation hint in code for
+    # every --test / --integration-test process (src/common/test_window_focus.h),
+    # and redship_add_test() also puts SDL_WINDOW_NO_ACTIVATION_WHEN_SHOWN=1 in
+    # every row's environment. This row removes that variable from its own process
+    # and asserts the in-code value, then shows a real window and (on Windows)
+    # asserts it took no focus; with no display it reports and passes on the hint
+    # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
+    redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

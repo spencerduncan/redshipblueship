@@ -15,7 +15,9 @@
 
 #include "integration_test_hooks.h"
 #include "headless_crash.h"
+#include "test_window_focus.h" // lane F1: test windows never take focus
 #include "rsbs_version.h"
+#include <SDL2/SDL_hints.h>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -1600,6 +1602,79 @@ TestResult Test_DigestOutHandRun(void) {
 #undef DOH_ASSERT
     printf("[TEST] %s: digest-out resolver, %d dispatch(es), %d failure(s)\n", failures == 0 ? "PASS" : "FAIL",
            (int)(sizeof(kDigestOutDispatches) / sizeof(kDigestOutDispatches[0])), failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Lane F1 lock (wave 7g, Refs #310): a test process never shows a window that
+// takes the keyboard from the person at the workstation.
+//   W1 main.cpp armed the policy for --test (TestWindowFocus_IsArmed);
+//   W2 SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN reads "1" -- measured with the
+//      same-named ENVIRONMENT variable REMOVED from this process first, so the
+//      value is main's in-code override, not the one every CTest row now also
+//      carries (a plain SDL_SetHint under that variable is refused by SDL and
+//      would leave nothing here);
+//   W3 SDL_HINT_FORCE_RAISEWINDOW reads "0" (same measurement);
+//   W4 a real shown window, pumped for a few frames, did not take keyboard
+//      focus: no SDL keyboard focus, no SDL_WINDOW_INPUT_FOCUS, zero
+//      FOCUS_GAINED/TAKE_FOCUS events. Asserted on Windows (the workstation);
+//      reported elsewhere, because an Xvfb display has no window manager and
+//      hands X input focus to a new window whatever the hint says (the UI
+//      harness's Linux CI manifests read windowActivated=true with the hint set),
+//      and a hosted runner's redship tier has no display at all.
+// No gated raise call exists to count: SDL_RaiseWindow, SDL_SetWindowInputFocus,
+// SetForegroundWindow and BringWindowToTop appear nowhere in libultraship/src,
+// games/oot/soh, games/mm/2s2h, src/common or rsbs; W4 measures the show itself.
+// Red half: RSBS_TEST_FOCUS_SABOTAGE=no-hint makes main skip the arming.
+TestResult Test_TestWindowNoActivation(void) {
+    printf("[TEST] test-window-no-activation: a test window is shown without taking keyboard focus\n");
+    int failures = 0;
+#define TWNA_ASSERT(cond, ...)            \
+    do {                                  \
+        if (!(cond)) {                    \
+            printf("[TEST] FAIL: ");      \
+            printf(__VA_ARGS__);          \
+            printf("\n");                 \
+            failures++;                   \
+        }                                 \
+    } while (0)
+
+    DigestOut_SetEnv(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, nullptr);
+#ifdef SDL_HINT_FORCE_RAISEWINDOW
+    DigestOut_SetEnv(SDL_HINT_FORCE_RAISEWINDOW, nullptr);
+#endif
+
+    TWNA_ASSERT(TestWindowFocus_IsArmed() == 1,
+                "W1: main.cpp did not arm the no-activation policy for --test (TestWindowFocus_ArmForTestMode)");
+    const char* noAct = SDL_GetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN);
+    TWNA_ASSERT(noAct != nullptr && strcmp(noAct, "1") == 0,
+                "W2: SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN is '%s' with the environment variable removed, not "
+                "'1'",
+                noAct != nullptr ? noAct : "(unset)");
+#ifdef SDL_HINT_FORCE_RAISEWINDOW
+    const char* raise = SDL_GetHint(SDL_HINT_FORCE_RAISEWINDOW);
+    TWNA_ASSERT(raise != nullptr && strcmp(raise, "0") == 0,
+                "W3: SDL_HINT_FORCE_RAISEWINDOW is '%s' with the environment variable removed, not '0'",
+                raise != nullptr ? raise : "(unset)");
+#endif
+
+    TestWindowFocusProbeResult r;
+    TestWindowFocus_ShowProbeWindow(&r);
+    if (r.ran == 0) {
+        printf("[TEST] W4 not run: %s\n", r.why);
+    } else {
+        printf("[FOCUS] probe window: keyboardFocus=%s inputFocusFlag=%d focusGainedEvents=%d\n",
+               r.keyboardFocus != 0 ? "TAKEN" : "none", r.inputFocusFlag, r.focusGainedEvents);
+#ifdef _WIN32
+        TWNA_ASSERT(r.keyboardFocus == 0 && r.inputFocusFlag == 0 && r.focusGainedEvents == 0,
+                    "W4: the probe window took keyboard focus when shown (keyboardFocus=%d inputFocusFlag=%d "
+                    "focusGainedEvents=%d)",
+                    r.keyboardFocus, r.inputFocusFlag, r.focusGainedEvents);
+#else
+        printf("[TEST] W4 reported, not asserted, off Windows (no window manager decides focus here)\n");
+#endif
+    }
+#undef TWNA_ASSERT
+    printf("[TEST] %s: test-window-no-activation, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -5140,6 +5215,10 @@ const TestDescriptor gTests[] = {
      "naming the variable and the CTest rows that do; set, it resolves the exact path; every digest dispatch "
      "resolves through the one resolver (#710)",
      Test_DigestOutHandRun},
+    {"test-window-no-activation",
+     "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
+     "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
+     Test_TestWindowNoActivation},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -5292,6 +5371,11 @@ int TestRunner_Run(const char* testName) {
 
     // Run single test
     TestResult result = RunSingleTest(testName);
+    // Whether this row's window (if it had one) holds the keyboard as the row
+    // ends: one [FOCUS] line per row, so a tier log answers "did anything steal
+    // focus" row by row (lane F1). Report only; the lock is the
+    // test-window-no-activation row.
+    TestWindowFocus_Probe(testName);
     if (result == TEST_SKIP) {
         // Rows that can self-skip declare SKIP_RETURN_CODE 77 in
         // CMake/SingleExecutable.cmake, so ctest reports "Skipped" rather than

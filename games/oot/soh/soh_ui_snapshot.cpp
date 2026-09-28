@@ -49,7 +49,9 @@
  * player-config (the harness names the player's shipofharkinian.json as its
  * config), hover-first-line (a hovered row draws only its tooltip's first
  * line), no-menu-under (the creation overlay's over-menu variant leaves the
- * menu hidden), no-dim (the creation overlay's dim is drawn transparent). A
+ * menu hidden), no-dim (the creation overlay's dim is drawn transparent),
+ * activate (the no-activation hint is overridden to "0" before the window
+ * exists, so the window is shown the way a player's is). A
  * sabotaged run is expected to fail; docs/ui-style-guide.md section 12 lists
  * what each one must turn red.
  *
@@ -883,6 +885,8 @@ class Session {
     std::shared_ptr<UiSnapshotMenu> probe;
     bool romFree = true;
     bool windowActivated = false;
+    // SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN as the window was created.
+    std::string noActivationHint;
     // compare/ and iter/ images that could not be written. Counted into the
     // summary line and the manifest: a missing composite is what an agent
     // iterating from the output directory would otherwise never notice.
@@ -1099,7 +1103,19 @@ bool Session::BringUp(std::string& why) {
     // Before the window exists: a snapshot run must not steal focus from whatever
     // the person at the workstation is doing. (DXGI activates regardless; the
     // workstation therefore defaults to GL.)
+    // rsbs/src/main.cpp has already armed the same hint for every --test process
+    // (at OVERRIDE priority, lane F1) before this runs; this call is kept so the
+    // harness states its own requirement where the window is made.
     SDL_SetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "1");
+    if (opt.Sabotaged("activate")) {
+        // The regression the windowActivated failure exists to catch: the window
+        // is shown the way a player's is, and activates.
+        SDL_SetHintWithPriority(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "0", SDL_HINT_OVERRIDE);
+    }
+    {
+        const char* hint = SDL_GetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN);
+        noActivationHint = hint != nullptr ? hint : "";
+    }
 
     auto ctx = Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE " - UI snapshot", kShortName, configName);
     if (ctx == nullptr) {
@@ -4146,6 +4162,7 @@ bool Session::WriteManifest() {
          ",\"mm\":" + std::string(fs::exists(Ship::Context::LocateFileAcrossAppDirs("mm.o2r")) ? "true" : "false") +
          "},";
     j += std::string("\"windowActivated\":") + (windowActivated ? "true" : "false") + ",";
+    j += "\"noActivationHint\":\"" + JsonEscape(noActivationHint) + "\",";
     j += "\"settle\":[" + std::to_string(opt.settleMin) + "," + std::to_string(opt.settleMax) + "],";
     j += "\"pages\":\"" + JsonEscape(opt.pages) + "\",";
     j += "\"sabotage\":\"" + JsonEscape(opt.sabotage) + "\",";
@@ -4628,6 +4645,25 @@ int Session::Run() {
         PumpFrame(nullptr, false, nullptr, why);
     }
     windowActivated = (SDL_GetKeyboardFocus() != nullptr);
+#if defined(_WIN32)
+    // A snapshot run must not take the keyboard from the person at the
+    // workstation, and on Windows with GL it provably need not: SDL shows the
+    // window with SW_SHOWNA under the hint both main.cpp and BringUp arm. So there
+    // an activated window is a failure, not a report (lane F1). It stays a report
+    // on DirectX 11, whose HWND libultraship shows with ShowWindow(SW_SHOW)
+    // (gfx_dxgi.cpp) without consulting SDL's hint, and off Windows, where an
+    // Xvfb display has no window manager and gives a new window X input focus
+    // regardless (the Linux CI manifests read windowActivated=true with the hint
+    // set).
+    if (windowActivated && renderer.backend == Backend::GL) {
+        Fail(
+            "focus: the harness window took keyboard focus on Windows/OpenGL (SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN "
+            "was '" +
+            noActivationHint +
+            "' when it was created); a test window must never take the caret from the person at "
+            "the workstation");
+    }
+#endif
 
     for (const PageSpec& p : pages) {
         // One page throwing (a std::map::at on a missing key inside a draw, say)
