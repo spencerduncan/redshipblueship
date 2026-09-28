@@ -108,6 +108,13 @@ int MM_CreationNewFile_RunWorld(void);
 // combo-player-name (#773, same file): OoT's typed name translates into MM's
 // charset for the paired half (OoTMM's mapping), and the slot panel decodes it.
 int MM_CreationPlayerName_Run(void);
+// mm-moon-crash-never-saved (#785, same file): a paired half created and never
+// saved restores as created after a moon crash; no commit at all restarts the
+// clock at dawn.
+int MM_MoonCrashNeverSaved_Run(void);
+// mm-moon-crash-pool-applied (#785 review, same file): after a moon crash
+// restores a commit taken on OoT's side, MM's consumables equal the pool.
+int MM_MoonCrashPoolApplied_Run(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -876,6 +883,14 @@ static bool MMCreationNewFile_EntryPointRegisters(void) {
            "checked\n");
     return false;
 #endif
+}
+
+static TestResult Test_MMMoonCrashNeverSaved(void) {
+    return MM_MoonCrashNeverSaved_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMMoonCrashPoolApplied(void) {
+    return MM_MoonCrashPoolApplied_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 static TestResult Test_MMCreationNewFile(void) {
@@ -5339,13 +5354,13 @@ const TestDescriptor gTests[] = {
     {"mm-creation-new-file",
      "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
      "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
-     "alone, the slot panel reads it started under that name, and the moon-crash reset keeps the consumed half "
-     "(#765, #773)",
+     "alone, the slot panel reads it started under that name, and a moon crash restores the last whole commit "
+     "(#765, #773, #785)",
      Test_MMCreationNewFile},
     {"mm-creation-new-file-world",
      "The production paired creation over the ComboSingleBag pinned seed arms an MM half MM's own new-file path "
      "would recognize: OoT's typed name in MM's charset, marker, fileNum 0xFF, tracker present, slot started under "
-     "that name, moon-crash reset keeps it (#765, #773)",
+     "that name, a moon crash restores the last whole commit (#765, #773, #785)",
      Test_MMCreationNewFileWorld},
     {"digest-out-hand-run",
      "A digest dispatch run without its output variable prints a one-line notice that it wrote NO digest file, "
@@ -5370,6 +5385,15 @@ const TestDescriptor gTests[] = {
      "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
      "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
      Test_TestWindowNoActivation},
+    {"mm-moon-crash-never-saved",
+     "A moon crash in a paired MM half created and never saved restores the half as created (its only commit is "
+     "the creation's, vanilla's new-file flash write): day 0, 05:59, not day 4; a session with no commit at all "
+     "restarts the clock at dawn and keeps the half (#785)",
+     Test_MMMoonCrashNeverSaved},
+    {"mm-moon-crash-pool-applied",
+     "A moon crash that restores a commit taken on OoT's side (the pool moved after MM's departure) leaves MM's "
+     "rupees, health and ammo EQUAL to the restored pool, and a later spend is an exact delta (#785)",
+     Test_MMMoonCrashPoolApplied},
     {"array-reader-agreement",
      "OoT's and MM's 'OARR' Array readers fill vertices identically: the boot check, then a synthetic payload whose "
      "one-line reader mutations are each detected (#604)",
@@ -5391,6 +5415,9 @@ struct IntegrationTestDescriptor {
     const char* description;
     IntegrationTestMode mode;
     GameId targetGame;
+    // Only read for INT_TEST_GAMEPLAY_ROUNDTRIP rows; every other row leaves it
+    // at GP_VARIANT_ROUNDTRIP (value-initialized).
+    GameplayVariant gameplayVariant;
 };
 
 const IntegrationTestDescriptor gIntegrationTests[] = {
@@ -5409,6 +5436,13 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
      "Operator crash repro: debug save, live gameplay, production OoT<->MM round trip (freeze/restore + "
      "resume leg), post-return debug warp, door transition. Env: RSBS_GP_FRAMES/CYCLES/BOOT|WARP|EXIT_ENTRANCE",
      INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT},
+    {"int-paired-first-crossing",
+     "The first crossing of a PAIRED file with the archives mounted, in one process: generate the pinned world "
+     "(RSBSSINGLEBAG1) on the shipped defaults, create the file through OoT's new-file seam (the production creation "
+     "event), load it as the file select does, walk into MM through the Happy Mask Shop, assert the arrival hydrated "
+     "the creation-frozen half (stderr lines, pairing, crossing store, no refusal), and come back restored. "
+     "RSBS_PFC_SKIP_CREATION=1 is the red half",
+     INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT, GP_VARIANT_PAIRED_FIRST_CROSSING},
     {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 
@@ -5629,6 +5663,9 @@ bool TestRunner_SetupIntegrationTest(const char* testName) {
 
             // Set up integration test hooks
             IntegrationTest_SetMode(gIntegrationTests[i].mode);
+            if (gIntegrationTests[i].mode == INT_TEST_GAMEPLAY_ROUNDTRIP) {
+                IntegrationTest_SetGameplayVariant(gIntegrationTests[i].gameplayVariant);
+            }
 
             printf("[INT-TEST] Setting up integration test: %s\n", testName);
             printf("[INT-TEST] Target game: %s\n", Game_ToString(sTargetGame));
@@ -5659,6 +5696,9 @@ int TestRunner_GetIntegrationTestResult(void) {
     }
 
     bool passed = IntegrationTest_BootPassed();
+    // The paired row's stderr tee (a no-op for every other row): drain it and
+    // put fd 2 back before the process _Exit()s, so no line is lost in the pipe.
+    IntegrationTest_StderrCaptureStop();
     printf("\n=== Integration Test Result ===\n");
     printf("Test: %s\n", sIntegrationTestName);
     printf("Result: %s\n", passed ? "PASS" : "FAIL");

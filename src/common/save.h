@@ -144,6 +144,25 @@ typedef enum RsbsLoadOutcome {
     RSBS_LOAD_REFUSED = 2,  // validation failed; evidence quarantined; writes latched
 } RsbsLoadOutcome;
 
+// ---- In-session reset from the last whole commit (#785) ---------------------
+// What SaveManager::RestoreLastCommitForReset found. Only RSBS_RESET_RESTORED
+// changed anything; every other outcome is a clean no-op on every store (the
+// file is never quarantined or renamed here: a reset is not a load, and the
+// refusal machinery belongs to LoadSlot).
+typedef enum RsbsResetOutcome {
+    RSBS_RESET_RESTORED = 0,     // Tier-1's world, the OoT shadow and the MM half are the last commit's
+    RSBS_RESET_NO_SLOT = 1,      // the session has no active slot (or it is out of range)
+    RSBS_RESET_NOT_WRITABLE = 2, // the slot is latched this session: the session does not own that file
+    RSBS_RESET_NO_COMMIT = 3,    // no .redsave at the slot
+    RSBS_RESET_UNREADABLE = 4,   // the .redsave fails validation
+    RSBS_RESET_STALE = 5,        // its generation is not the session's last commit
+    RSBS_RESET_OTHER_WORLD = 6,  // its identity or crossing set is not the live world's
+    RSBS_RESET_REJECTED = 7,     // its MM half is empty, or the caller's check refused it
+} RsbsResetOutcome;
+
+/** The caller's check of the committed MM half (bytes, size) before anything moves; nonzero accepts. */
+typedef int (*RsbsResetAcceptHalf)(const uint8_t* mmBlob, size_t size, void* ctx);
+
 // ---- C-visible per-game metadata-offset descriptor ------------------------
 // Registered by each game's TU (which alone knows its SaveContext layout) so
 // that save.cpp can read player-name / play-time / "valid" marker bytes from a
@@ -479,6 +498,50 @@ public:
     SlotMeta ReadMeta(int slot) const;
 
     /**
+     * THE LAST WHOLE COMMIT, RESTORED IN PLACE (#785: a moon crash in a paired
+     * MM half). Vanilla MM answers a moon crash by reloading the file from
+     * flash; OoTMM's default ("Last Save") reloads BOTH games' saves and its
+     * shared custom save (packages/generator/src/mm/save.c MoonCrashReset:
+     * Save_ReadOwn + Save_ReadForeign). The combo's file is the .redsave and a
+     * durable commit is the WHOLE file (ADR 0009 decision 4), so the reload is
+     * the whole last commit: its Tier-1 world, its OoT half and its MM half,
+     * restored together. Restoring MM's half alone is the #531 loss mechanism
+     * ADR 0009 decision 4b rejected (a REDEEMED record outliving the world it
+     * accounts for), which is why this is one call and not an MM-only read.
+     *
+     * Checks, all BEFORE anything moves, so every refusal is a clean no-op:
+     * the slot is this session's (writable, not latched); the file validates
+     * (ReadSlotFile, the one validator LoadSlot uses); its commit generation IS
+     * the session's last commit (a mismatch means the session and the file
+     * disagree about what was last written); its identity (seed, rule hashes,
+     * MM profile digest, paired attempt, triforce record) and its crossing set
+     * are the live world's; its MM half is not empty; and `accept`, when
+     * given, admits the MM half (the MM side checks its marker and seed).
+     *
+     * What moves on RSBS_RESET_RESTORED:
+     *   - gComboCtx takes the commit's record EXCEPT the session fields
+     *     (switchRequested, targetGame/Entrance, sourceGame/Entrance, saveSlot)
+     *     and commitGeneration, which stay live (the generation is monotonic
+     *     and equal anyway). Identity fields are equal by the check above.
+     *   - The crossing store is NOT touched: it is world identity frozen at
+     *     creation, the only truth for foreign placements, and equal by the
+     *     check above.
+     *   - The RAM-only shared-resource watermarks are dropped, exactly as a
+     *     load drops them, so the pool the commit carried is not re-counted
+     *     against a pre-reset baseline; the caller re-seeds its own watermarks
+     *     from the restored half (a harvest with no watermark is delta zero).
+     *   - The OoT shadow takes the commit's OoT half (its frozen flag and
+     *     return entrance are left as they are). `*outOoTHalfMoved` says
+     *     whether those bytes differed, i.e. whether OoT progress made after
+     *     the last commit was rolled back with it.
+     *   - The commit's MM half is copied to `mmOut` (`mmOutSize` bytes, at most
+     *     this build's MM tier); the caller applies it to its live SaveContext.
+     * GAME THREAD ONLY: it writes gComboCtx and a shadow.
+     */
+    RsbsResetOutcome RestoreLastCommitForReset(int slot, uint8_t* mmOut, size_t mmOutSize, RsbsResetAcceptHalf accept,
+                                               void* acceptCtx, bool* outOoTHalfMoved);
+
+    /**
      * Game-side TUs register the byte offsets save.cpp needs to read each
      * game's metadata. Stored per-GameId; later calls overwrite. Passing
      * GAME_NONE / nullptr / an out-of-range game is a no-op.
@@ -756,6 +819,13 @@ void RsbsSave_RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc);
  * outside the charset shown as '?'. Always NUL-terminates. (#773)
  */
 void RsbsSave_DecodeN64FilenameName(const uint8_t name[8], char outName[9]);
+
+/**
+ * The C form of SaveManager::RestoreLastCommitForReset (#785). Returns an
+ * RsbsResetOutcome; `outOoTHalfMoved` may be NULL.
+ */
+int RsbsSave_RestoreLastCommitForReset(int slot, uint8_t* mmOut, size_t mmOutSize, RsbsResetAcceptHalf accept,
+                                       void* acceptCtx, int* outOoTHalfMoved);
 
 #ifdef __cplusplus
 }

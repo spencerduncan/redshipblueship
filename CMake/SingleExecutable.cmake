@@ -2104,8 +2104,9 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the cross-game session's fileNum 0xFF / flashSaveAvailable -- so the Combo
     # Tracker reads it present by the marker alone (no save-type widening), the
     # .redsave slot panel reads it started (MM's slot metadata, registered from
-    # the combo entry point), and the moon-crash reset over the consumed half
-    # keeps the save. games/mm/2s2h/mm_creation_new_file_test.cpp. The synthetic
+    # the combo entry point), and a moon crash over the consumed half restores
+    # the last whole .redsave commit (#785), not the pre-crash day 4.
+    # games/mm/2s2h/mm_creation_new_file_test.cpp. The synthetic
     # row is ROM-free and display-free (default tier); the world row runs the
     # production creation event over the ComboSingleBag pinned seed (rando tier:
     # it needs a generation).
@@ -2145,6 +2146,22 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+
+    # #785: a moon crash in a paired MM half restores the last whole .redsave
+    # commit (the file as last saved, vanilla's flash reload; OoTMM's default
+    # "Last Save"). This row is the never-saved case: a half whose only commit is
+    # the creation's own restores AS CREATED (day 0, 05:59), and a session with
+    # no commit at all restarts the clock alone at dawn instead of staying on
+    # day 4. The committed-owl-save case rides mm-creation-new-file(-world).
+    # ROM-free (default tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashNeverSaved COMMAND redship --test mm-moon-crash-never-saved)
+
+    # #785 review: the last commit's pool and its MM half need not agree (an
+    # OoT-side commit writes MM's half from its departure shadow while the pool
+    # holds OoT's later balances). After the crash MM's consumables must equal
+    # the restored pool, or a spend in OoT is refunded in MM. ROM-free (default
+    # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashPoolApplied COMMAND redship --test mm-moon-crash-pool-applied)
 
     # #604: both games ship an 'OARR' Array reader and one process holds both, so
     # a vertex array parses with whichever owns the loader slot for its archive
@@ -2206,6 +2223,27 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration-soak
         TIMEOUT ${REDSHIP_GAMEPLAY_SOAK_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=3")
+
+    # The FIRST CROSSING OF A PAIRED FILE with the archives mounted, in one
+    # process (hop 6 of the playtest path, which no row ran before: the rows
+    # above cross with a vanilla debug save, and ComboCreationEvent /
+    # MMPairSwitchEntry run creation and arrival with RSBS_DISABLE_OTR_INIT=1).
+    # The gameplay round trip's paired variant: generate the pinned world
+    # (RSBSSINGLEBAG1) on the shipped defaults, create file 3 through OoT's own
+    # new-file seam (the production creation event), load it back as the file
+    # select does, walk into MM through the Happy Mask Shop, and assert on the
+    # REAL arrival: the "[MM] pairing:" stderr lines (profile match, HYDRATED
+    # with the crossing store's counts), the pairing, the crossing store, and no
+    # refusal line or toast; then back to OoT, restored and not regenerated.
+    # RSBS_PFC_SKIP_CREATION=1 is the red half (debug save, no creation: fails on
+    # skipped-because-no-paired-oot-world). Same ROM/display needs as the round
+    # trip, so hosted CI cannot run it (workflow_dispatch only, like its
+    # siblings). games/oot/soh/GameExports_SingleExe.cpp (boot, return leg),
+    # games/mm/2s2h/GameExports_SingleExe.cpp (arrival).
+    redship_add_test(NAME IntPairedFirstCrossing
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
 
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.

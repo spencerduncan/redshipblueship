@@ -192,6 +192,10 @@ extern "C" {
 
 #ifndef _WIN32
 static void SignalHandler(int signal) {
+    // The paired integration row tees fd 2 through a pipe from before this
+    // handler is superseded; write the report to the real stderr, since the
+    // tee's reader may never run again (a no-op for every other run).
+    IntegrationTest_StderrCaptureRestoreForCrash();
     fprintf(stderr, "\n[CRASH] Signal received: %d\n", signal);
     switch (signal) {
         case SIGSEGV: fprintf(stderr, "[CRASH] SIGSEGV (Segmentation fault)\n"); break;
@@ -225,6 +229,8 @@ static void InstallCrashHandler(void) {
 #include <windows.h>
 
 static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* exceptionInfo) {
+    // As SignalHandler: the report goes to the real stderr, not the tee.
+    IntegrationTest_StderrCaptureRestoreForCrash();
     fprintf(stderr, "\n[CRASH] Windows exception: 0x%08X\n",
             exceptionInfo->ExceptionRecord->ExceptionCode);
     fflush(stderr);

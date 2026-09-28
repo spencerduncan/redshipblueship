@@ -217,8 +217,8 @@ file to play the current build.
 
 **Paired files created before PR #772 (2026-09-28) are NOT refused, and are safe to
 play.** Every arrival in MM now gives the session the cross-game slot number, so the
-moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)); the moon crash
-still leaves the cycle on day 4 (see the open entry below). What stays wrong on such a
+moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)), and a moon
+crash restores the file's last save (PR [#789](https://github.com/spencerduncan/redshipblueship/pull/789); see the #785 entry below). What stays wrong on such a
 file is display only: the Combo Tracker's Majora's Mask panel reads "No data yet". A new
 file's panel reads "As of file creation." until MM is first entered. (#772 also describes
 an `[MM v]` / `[MM _]` file-select marker; it is printed only by `ComboMenuBar`, which this
@@ -255,32 +255,63 @@ folder from earlier play.
 | Creation time, shipped defaults | 10 real paired creations (`RSBS_CSB_SAMPLE_EVENT=10`: Generate, the creation event with the spoiler written, the arm, `Randomizer_InitSaveFile`). 10 of 10 created on the first attempt with no budget stop. Mean 8.5 s, best 6.2 s, worst 13.0 s (the one seed whose fill needed a second batch), against the 30 s budget. Every world's 50 heart pickups filled the bar with none wasted |
 | DX11 menus against OpenGL | See below: no visible difference |
 
-**What this does not cover: the first crossing into a paired Termina with the real game
-data loaded.** No automated row runs the whole path in one process: create a paired file
-through the creation event, then walk into MM with the ROM archives mounted. The
-integration rows cross with a vanilla debug save, and their log says so on every MM
-arrival: `[MM] pairing: skipped-because-no-paired-oot-world`. The rows that do run
-creation and then an MM arrival in one process (`ComboCreationEvent`, `MMPairSwitchEntry`)
-run with the OTR archive init disabled (`RSBS_DISABLE_OTR_INIT=1`), so no real game data is
-loaded. Both passed, and their logs show the two
-lines §3 of the playtest guide asks you to look for:
-`[MM] pairing: arrival profile matches the creation-frozen identity` and
-`[MM] pairing: HYDRATED from the frozen MM half (saveType=rando ...`. `MMPairSwitchEntry`
-also passed its return leg ("restored, not regenerated") and its refusal leg. So the
-playtest's first crossing (guide §3, step 3) is the first time this path runs with the
-real game. That is why it comes first.
+**What the smoke did not cover then, and a row covers now: the first crossing into a
+paired Termina with the real game data loaded.** At `d928d67d` no automated row ran the
+whole path in one process: create a paired file through the creation event, then walk
+into MM with the ROM archives mounted. The integration rows crossed with a vanilla debug
+save, and their log said so on every MM arrival:
+`[MM] pairing: skipped-because-no-paired-oot-world`. The rows that did run creation and
+then an MM arrival in one process (`ComboCreationEvent`, `MMPairSwitchEntry`) ran with the
+OTR archive init disabled (`RSBS_DISABLE_OTR_INIT=1`), so no real game data was loaded.
 
-**Reads like a bug, but is not one.** Every HYDRATED line ends with
-`foreignPlacements=0`, even when the file has dozens of crossings. That count is the
-retired item table from before the single-bag switch. Crossings are now kept in the
-crossing store, which the Combo Tracker and Cross-Game Spoiler read. A zero there does
-not mean nothing crossed.
+Since PR [#790](https://github.com/spencerduncan/redshipblueship/pull/790) the
+`integration` label has a row that does it: `IntPairedFirstCrossing`
+(`redship --integration-test int-paired-first-crossing`). In one process, with the ROM
+archives mounted and a real OpenGL window, it takes the title to the file select (SoH's
+"Boot Sequence: File Select" path), generates the pinned world `RSBSSINGLEBAG1` on the
+shipped defaults (checked: it fails if the config sets any OoT, MM or combo setting),
+creates file 3 through OoT's own new-file seam (`OoT_Sram_InitSave`,
+which runs the production creation event and writes the slot), loads that file back the
+way the file select does, and plays it from the Market (0x01D1). The loaded file must carry
+the identity the creation recorded before the load (seed, settings digests, crossing counts
+and digest). It walks through the
+Happy Mask Shop (0x0530) into South Clock Town (0xD800), then back through the Clock
+Tower door (0xC010). It fails unless the MM arrival logs both lines §3 of the playtest
+guide asks you to look for, the pairing is live in MM, the crossing store is frozen and
+not empty, the MM half is the one the creation armed, nothing generated at the arrival,
+and no refusal was logged or toasted. The return leg must restore OoT's half, not
+regenerate it. The first green run (workstation, Windows, OpenGL, archives extracted
+at the branch tip, 55.2 s) logged:
+
+```
+[MM] pairing: arrival profile matches the creation-frozen identity (13DE4C35)
+[MM] pairing: HYDRATED from the frozen MM half (saveType=rando mmFinalSeed=8DDF1DEE crossingsInHyrule=51 crossingsInTermina=21) — nothing was generated at this arrival
+[PFC] return leg PASS: OoT's half restored, not regenerated (file 3, OoT world seed 2852956488, sentinel deaths=777 survived), same identity: ...
+```
+
+Hosted CI cannot run it, like every `integration` row: it needs the ROM-derived archives.
+It runs locally (see [`ci-gameplay-repro-postmortem.md`](ci-gameplay-repro-postmortem.md) §7)
+and in the manual `integration-tests` workflow on a ROM-equipped runner. With
+`RSBS_PFC_SKIP_CREATION=1` the row boots the debug save instead, as the older rows do, and
+fails on the `skipped-because-no-paired-oot-world` line: that is its red half. The playtest's
+first crossing (guide §3, step 3) is still the first time a person walks this path, and it
+still comes first. What the row cannot see is what a person sees: it fires the door
+transitions directly, and the Happy Mask Shop's Closed Forest gate is not in its path.
+
+**The HYDRATED line's count.** At `d928d67d` every HYDRATED line ended with
+`foreignPlacements=0`, even when the file had dozens of crossings. That count was the
+retired item table from before the single-bag switch. Since PR
+[#790](https://github.com/spencerduncan/redshipblueship/pull/790) the line prints the
+crossing store's two counts instead: `crossingsInHyrule` (Majora's Mask items in Ocarina of
+Time checks) and `crossingsInTermina` (Ocarina of Time items in Majora's Mask checks). The
+Combo Tracker and the Cross-Game Spoiler read the same store.
 
 **Smaller notes.**
 - The test portal (`--test-entrance`, Mido's House to the Clock Tower) skips Closed
   Forest. On the shipped defaults, the Happy Mask Shop opens only after the Deku Tree.
-- No `integration` or `integration-soak` row loaded a `.redsave`. Every MM arrival in them
-  was vanilla (`skipped-because-no-paired-oot-world`). The `redship` tier's save rows do
+- No `integration` or `integration-soak` row loaded a `.redsave` at `d928d67d`. Every MM
+  arrival in them was vanilla (`skipped-because-no-paired-oot-world`). `IntPairedFirstCrossing`
+  (PR [#790](https://github.com/spencerduncan/redshipblueship/pull/790)) now writes and loads one. The `redship` tier's save rows do
   load `.redsave` files and refuse some of them on purpose: a verbose re-run of the tier
   printed 66 `[RsbsSave] slot N REFUSED` lines (20 rows, plus `AllTests` repeating them),
   and every one of those rows passed.
@@ -420,23 +451,55 @@ over the live one (observed in a headless row: day, rupees and inventory wiped).
 now authored as MM's own new-file path authors it, and every arrival pins the cross-game slot
 number, which also covers older files (see "Back up your saves"). The fix is locked
 headlessly and has not been played; the playtest guide's scenario I4 checks it in game.
-What it fixes is the wipe only: after a moon crash the half is kept but stays on day 4
+It fixed the wipe only; the half then stayed on day 4 after a crash, fixed separately
 (next entry). To see whether a file's MM half exists, open the Combo Tracker's Majora's
 Mask panel ("As of file creation." or a later freshness note, versus "No data yet").
 
-### A moon crash in a paired MM half leaves the cycle on day 4 — [#785](https://github.com/spencerduncan/redshipblueship/issues/785)
+### ~~A moon crash in a paired MM half leaves the cycle on day 4~~ — RESOLVED ([#785](https://github.com/spencerduncan/redshipblueship/issues/785), PR [#789](https://github.com/spencerduncan/redshipblueship/pull/789))
 
-Open; read from code, not run. `Interface_StartMoonCrash` sets day 4 and 06:00 before the
-crash cutscene, and vanilla rolls the cycle back when `Sram_ResetSaveFromMoonCrash`
-reloads the file's flash slot. A cross-game session has no flash slot, so that reload is
-skipped and nothing else resets the day, and since PR #772 every paired arrival takes this
-path. After a crash the half is **not** empty, but it stays on day 4: the Final Hours
-clock is drawn, the Dawn of the First Day does not play, and the crash cannot trigger
-again, because it fires only at the end of day 3. The fix tracked in #785 is to restore
-the last committed MM half, as vanilla's reload does.
+`Interface_StartMoonCrash` sets day 4 and 06:00 before the crash cutscene, and vanilla
+rolls the cycle back when `Sram_ResetSaveFromMoonCrash` reloads the file from flash. A
+cross-game session has no flash slot, so that reload was skipped and the half stayed on
+day 4 (Final Hours clock, no Dawn of the First Day, no second crash). Now the reload is the
+file's **last save**: the last whole `.redsave` commit (an owl save, the autosave, the Song
+of Time, a save in OoT, or the file's creation), with both halves and the cross-game records
+restored together. This is what vanilla's reload does and what OoTMM's default
+("Last Save") moon crash does. What to expect:
 
-**Workaround:** play the Song of Time before the end of day 3, as you would to avoid the
-crash anyway; let the moon crash only to check the playtest guide's scenario I4.
+- MM progress since that save is lost, as in vanilla. After an owl save or autosave the
+  clock resumes at that save's day and time; the Dawn of the First Day plays only when the
+  last save was a Song of Time or the file's creation (a file never saved restarts as
+  created). A save taken within about ten in-game minutes of the crash is pulled back to
+  05:49 on the final day, OoTMM's grace period, so the moon cannot fall again at once.
+- **OoT is part of the same file.** If you played OoT after your last save and crossed into
+  MM without saving, the crash takes OoT's half back to that save too. Save before you cross
+  if that matters to you.
+- Shared rupees, health, magic and ammo come back at the shared pool's value as of that
+  save, applied to MM as an arrival applies them. They do not come back at MM's own
+  balance from its last departure. After a save in OoT these two differ, and without the
+  apply MM would have refunded what OoT spent (fixed in the same PR; row
+  `mm-moon-crash-pool-applied`).
+- A cross-game item that reached MM after the save is not lost: it is delivered again at
+  your next arrival in MM, or, if OoT's half went back too, it waits at its check again.
+- Where you wake (traced in source, not played): the crash cutscene ends in the Clock
+  Tower interior with the Happy Mask Salesman's scene (the same destination the Skip Moon
+  Crash enhancement sets, `ENTRANCE(CLOCK_TOWER_INTERIOR, 3)`), then you walk out into
+  South Clock Town. The Dawn of the First Day card needs the restored clock at day 0
+  before 06:01, so it does not appear after an owl save or autosave.
+- A session with nothing saved at all (a refused slot, a debug boot) has nothing to reload;
+  there the clock alone restarts at dawn. Nothing else about the cycle is reset on that
+  path: cycle events (`weekEventReg`) and the rest of the half keep their pre-crash
+  values, apart from what vanilla's own tail clears (event flags, cycle scene flags from
+  the permanent ones, timers).
+- **Pending the operator's ruling (decision 16):** rolling OoT's half back with MM's, and
+  resuming mid-cycle after an owl save or autosave (vanilla deletes the owl save and
+  reloads the last Song of Time save). Both follow OoTMM's default. OoTMM also commits at
+  every game switch (`comboGameSwitch` saves with `SF_OWL`), so its last save never
+  predates the crossing and a crash there cannot take back unsaved OoT play. This build
+  does not commit at a crossing.
+
+Locked headlessly (`mm-creation-new-file`, `mm-creation-new-file-world`,
+`mm-moon-crash-never-saved`, `mm-moon-crash-pool-applied`); not played. The playtest guide's scenario I4 checks it in game.
 
 ### ~~F10 hot-swap silently rolls back your progress~~ — RESOLVED ([#364](https://github.com/spencerduncan/redshipblueship/issues/364), PR [#400](https://github.com/spencerduncan/redshipblueship/pull/400))
 
@@ -741,6 +804,10 @@ Two rows to know about before you read a red or green as a signal:
   ([#544](https://github.com/spencerduncan/redshipblueship/issues/544)). It is
   not a regression signal; it has never proved what its name claims. The other
   integration rows are real.
+- **`IntPairedFirstCrossing` is the only row that crosses with a paired file** (PR
+  [#790](https://github.com/spencerduncan/redshipblueship/pull/790)). Like every
+  `integration` row it needs the ROM archives, so hosted CI never runs it; run it locally
+  before merging anything that touches creation, the `.redsave` load, or the MM arrival.
 
 Also: clang-format is enforced against an incremental allowlist
 (`.github/clang-format-paths.txt`), not the full tree

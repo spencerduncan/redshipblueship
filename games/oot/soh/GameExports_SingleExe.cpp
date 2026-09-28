@@ -34,6 +34,17 @@
 // OTRGlobals.h only forward-declares Rando::Context, which is enough to hold
 // the shared_ptr but not to call through it.
 #include "soh/Enhancements/randomizer/SeedContext.h"
+#include "soh/SaveManager.h"     // SaveFileMetaInfo: the paired row's slot ownership mark
+#include "notification_bridge.h" // the paired row's "no refusal toast" check
+#include "crossing_store.h"      // the paired row's crossing-store check
+// The paired row's "shipped defaults" check: every setting the generation
+// reads, per surface (OoT's options/tricks/exclusions, MM's options/tricks, the
+// combo settings), must be unset in the CVar store.
+#include "soh/Enhancements/randomizer/settings.h"
+#include "soh/Enhancements/randomizer/static_data.h"
+#include "combo_mm_options_view.h"
+#include "combo_mm_tricks_view.h"
+#include "combo_settings_view.h"
 // #750: OoT_RetireAbandonedSession resets the actor DB's clients and drops every
 // per-actor object extension of the session a departure abandons.
 #include "soh/ActorDB.h"
@@ -252,6 +263,531 @@ static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from
 }
 
 // ============================================================================
+// int-paired-first-crossing (the gameplay round trip's paired variant)
+// ============================================================================
+
+extern "C" {
+void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx);
+void OoT_Sram_OpenSave(void);
+// ovl_file_choose: the file select gamestate (SoH's Boot Sequence: File Select target).
+void FileChoose_Init(GameState* thisx);
+u32 Save_Exist(int fileNum);
+void Save_DeleteFile(int fileNum);
+SaveFileMetaInfo* Save_GetSaveMetaInfo(int fileNum);
+// 3drando/menu.cpp: the synchronous generation the rando-tier creation rows use.
+int Rando_HeadlessSeedTest(const char* seedStr);
+// OTRGlobals.h declares these inside its C-only block.
+uint32_t Randomizer_GetCurrentWorldSeed(void);
+// games/mm/2s2h/GameExports_SingleExe.cpp: MM's generation dispatch count.
+uint32_t MM_Rando_OnSaveInitDispatchCount(void);
+}
+
+// The slot the paired row writes: the THIRD file (fileNum 2), named "RSBSTEST"
+// in OoT's NTSC filename charset. The name is also the row's ownership mark: a
+// slot holding a file by any other name is refused, never erased, so running the
+// row in a build directory somebody plays in cannot destroy their save.
+static const int kPfcSlot = 2;
+static const uint8_t kPfcName[8] = { 0xBC, 0xBD, 0xAC, 0xBD, 0xBE, 0xAF, 0xBD, 0xBE };
+// The ComboSingleBag / mm-creation-new-file-world pinned seed.
+static const char* const kPfcSeed = "RSBSSINGLEBAG1";
+// OoT-only sentinel written into the live OoT half just before the Happy Mask
+// Shop door; the return leg must find it (the half was RESTORED from the frozen
+// state, not reloaded from the slot or regenerated). OoT's death counter is not
+// a shared cross-game resource, and the slot on disk holds 0.
+static const u16 kPfcDeathsSentinel = 777;
+static uint32_t sPfcOoTWorldSeed = 0;
+
+static bool PfcNoRefusalToast(char* msg, size_t cap) {
+    const int toasts = OoT_Notification_EmittedCountForTest();
+    for (int i = 0; i < toasts; i++) {
+        char toast[256];
+        if (OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast)) &&
+            (strstr(toast, "Not paired") != nullptr || strstr(toast, "Not saved") != nullptr)) {
+            snprintf(msg, cap, "a refusal toast was raised (toast %d of %d): \"%s\"", i + 1, toasts, toast);
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * "Shipped defaults" means NOTHING the generation reads was chosen: every
+ * option, trick and exclusion CVar of all three surfaces is unset, so each one
+ * resolves to its compiled default. Rando_HeadlessSeedTest reads the live CVar
+ * store (the build directory's persisted config), so a config that carries any
+ * randomizer choice would generate a different world under the same log line.
+ * Returns the number of explicit settings found and names the first few in
+ * `msg`; 0 is the only passing answer.
+ */
+static int PfcExplicitWorldSettings(char* msg, size_t cap) {
+    int found = 0;
+    std::string names;
+    auto note = [&](const std::string& cvar) {
+        if (found < 4) {
+            names += names.empty() ? cvar : ", " + cvar;
+        }
+        found++;
+    };
+    auto checkInt = [&](const std::string& cvar) {
+        if (!cvar.empty() && Combo_CVarIsExplicitInt(cvar.c_str())) {
+            note(cvar);
+        }
+    };
+    // OoT: the option set Rando_HeadlessSeedTest builds (CreateOptions is what
+    // it calls first; calling it here as well changes nothing it reads).
+    auto settings = Rando::Settings::GetInstance();
+    settings->CreateOptions();
+    int ootOptions = 0;
+    for (const auto& option : settings->GetAllOptions()) {
+        ootOptions += option.GetCVarName().empty() ? 0 : 1;
+        checkInt(option.GetCVarName());
+    }
+    for (int i = 0; i < RT_MAX; i++) {
+        checkInt(settings->GetTrickOption(static_cast<RandomizerTrick>(i)).GetCVarName());
+    }
+    for (int i = 0; i < RC_MAX; i++) {
+        Rando::Location* loc = Rando::StaticData::GetLocation(static_cast<RandomizerCheck>(i));
+        if (loc != nullptr && loc->GetExcludedOption() != nullptr) {
+            checkInt(loc->GetExcludedOption()->GetCVarName());
+        }
+    }
+    for (const char* list : { CVAR_RANDOMIZER_SETTING("ExcludedLocations"), CVAR_RANDOMIZER_SETTING("EnabledTricks"),
+                              CVAR_RANDOMIZER_SETTING("EnabledGlitches") }) {
+        const char* value = CVarGetString(list, "");
+        if (value != nullptr && value[0] != '\0') {
+            note(list);
+        }
+    }
+    // MM: the descriptor tables the options and tricks pages register (both
+    // idempotent; re-registering the same table is silent).
+    if (Combo_MMOptionCount() == 0) {
+        MM_RandoOptionsUi_Register();
+    }
+    if (Combo_MMTrickCount() == 0) {
+        MM_RandoTricksUi_Register();
+    }
+    for (int i = 0; i < Combo_MMOptionCount(); i++) {
+        const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
+        if (desc != nullptr && desc->cvar != nullptr) {
+            checkInt(desc->cvar);
+        }
+    }
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
+        if (desc != nullptr && desc->cvar != nullptr) {
+            checkInt(desc->cvar);
+        }
+    }
+    // The combo settings.
+    for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+        int32_t value = 0;
+        if (Combo_ComboSettingReadStore((ComboSettingId)i, &value)) {
+            note(Combo_ComboSettingKey((ComboSettingId)i));
+        }
+    }
+    if (ootOptions == 0 || Combo_MMOptionCount() == 0 || Combo_MMTrickCount() == 0) {
+        // A surface with no descriptors would pass vacuously.
+        snprintf(
+            msg, cap,
+            "the defaults check has nothing to check on some surface (OoT options %d, MM options %d, MM tricks %d)",
+            ootOptions, Combo_MMOptionCount(), Combo_MMTrickCount());
+        return -1;
+    }
+    snprintf(msg, cap,
+             "%d explicit (%s%s); checked %d OoT options, %d OoT tricks, %d OoT exclusions, %d MM options, "
+             "%d MM tricks, %d combo settings",
+             found, names.empty() ? "none" : names.c_str(), found > 4 ? ", ..." : "", ootOptions, (int)RT_MAX,
+             (int)RC_MAX, Combo_MMOptionCount(), Combo_MMTrickCount(), (int)COMBO_SETTING_COUNT);
+    return found;
+}
+
+/**
+ * The creation's own account of the crossings, read off the lines it printed,
+ * against the live store right after OoT_Sram_InitSave returned (before any
+ * load): "[OoT] creation event: single bag — N crossings stored (X OoT items in
+ * Termina, Y MM items in Hyrule)" and "[Crossings] captured A OoT-hosted and B
+ * MM-hosted crossings (digest D)". Returns false with the reason in `msg`.
+ */
+static bool PfcCreationMatchesStore(char* msg, size_t cap) {
+    char bagLine[512];
+    char capLine[512];
+    int total = -1;
+    int intoTermina = -1;
+    int intoHyrule = -1;
+    if (!IntegrationTest_StderrCaptureLast("[OoT] creation event: single bag", bagLine, sizeof(bagLine))) {
+        snprintf(msg, cap, "the creation never logged its single-bag line");
+        return false;
+    }
+    const char* p = strstr(bagLine, "single bag");
+    while (*p != '\0' && (*p < '0' || *p > '9')) {
+        p++;
+    }
+    if (sscanf(p, "%d crossings stored (%d OoT items in Termina, %d MM items in Hyrule)", &total, &intoTermina,
+               &intoHyrule) != 3) {
+        snprintf(msg, cap, "the creation's single-bag line does not parse: \"%s\"", bagLine);
+        return false;
+    }
+    int capOoT = -1;
+    int capMM = -1;
+    unsigned capDigest = 0;
+    const char* c = nullptr;
+    if (IntegrationTest_StderrCaptureLast("[Crossings] captured", capLine, sizeof(capLine))) {
+        c = strstr(capLine, "captured ");
+    }
+    if (c == nullptr ||
+        sscanf(c, "captured %d OoT-hosted and %d MM-hosted crossings (digest %X)", &capOoT, &capMM, &capDigest) != 3) {
+        snprintf(msg, cap, "the crossing store's capture line is missing or does not parse: \"%s\"",
+                 c != nullptr ? capLine : "(none)");
+        return false;
+    }
+    const int storeHyrule = Combo_Crossings_Count(GAME_OOT);
+    const int storeTermina = Combo_Crossings_Count(GAME_MM);
+    const unsigned storeDigest = (unsigned)Combo_Crossings_Digest();
+    if (total <= 0 || total != intoTermina + intoHyrule || intoTermina != storeTermina || intoHyrule != storeHyrule ||
+        capOoT != storeHyrule || capMM != storeTermina || capDigest != storeDigest) {
+        snprintf(msg, cap,
+                 "the creation's crossings disagree with the store it left: bag line %d = %d into Termina + %d into "
+                 "Hyrule; capture line %d OoT-hosted, %d MM-hosted, digest %08X; store inHyrule=%d inTermina=%d "
+                 "digest %08X",
+                 total, intoTermina, intoHyrule, capOoT, capMM, capDigest, storeHyrule, storeTermina, storeDigest);
+        return false;
+    }
+    snprintf(msg, cap, "%d crossings (%d OoT items in Termina, %d MM items in Hyrule), digest %08X", total, intoTermina,
+             intoHyrule, storeDigest);
+    return true;
+}
+
+static bool sPfcCreationAttempted = false;
+
+/**
+ * The paired variant's boot: the production path a player takes, minus the menu
+ * clicks. It runs from the REAL file select (FileChoose_Main's OnFileChooseMain,
+ * with its own FileChooseContext), which the title reaches the way SoH's "Boot
+ * Sequence: File Select" setting takes it there (GpPairedTitleToFileSelect), so
+ * Title_Destroy's Sram_InitSram (SaveManager::Init: the Save directory, the slot
+ * metadata) has run before anything is created, exactly as in play.
+ *
+ *   1. GENERATE the pinned paired world on the shipped defaults (no config beyond
+ *      the OpenGL backend): Rando_HeadlessSeedTest(RSBSSINGLEBAG1), the same
+ *      call and seed as the mm-creation-new-file-world row, then the
+ *      seed-generated flag the menu's RandoMain::GenerateRando sets.
+ *   2. CREATE the file through OoT's own new-file seam, OoT_Sram_InitSave (what
+ *      the naming screen's "END" calls, z_file_nameset_NES.c): session retire,
+ *      the slot arm, THE CREATION EVENT (OoT_Creation_AuthorRandoFile: MM's half
+ *      authored and armed, the single bag, the crossings stored, the spoiler),
+ *      Randomizer_InitSaveFile, and the slot's first write (.sav + .redsave).
+ *   3. LOAD that file the way the file select does (FileChoose_LoadGame):
+ *      Sram_OpenSave (Save_LoadFile, whose OnLoadFile reads the .redsave back:
+ *      the frozen rules, the crossing store, the armed MM half), the same field
+ *      resets, then OnLoadGame.
+ *   4. PLACE the loaded file at the round trip's boot entrance (Market, 0x01D1,
+ *      child, noon: the same spawn the debug-save repro uses) and enter Play.
+ *
+ * So the session plays slot 3's OoT half AS LOADED BACK FROM DISK, and MM's first
+ * arrival hydrates the MM half the load re-armed from the .redsave.
+ */
+static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const char* from) {
+    const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+    char msg[512];
+    if (fileChoose == NULL) {
+        IntegrationTest_GameplayFail("no file-select GameState available for the paired creation");
+        return;
+    }
+    GameState* gameState = &fileChoose->state;
+    // Runs at most once: the file select's main keeps calling the boot
+    // injection while the phase is still BOOT, and a failure below leaves it
+    // there until the exit request lands. A second pass would erase the slot
+    // the first one wrote (a failure keeps it for forensics) and generate again.
+    if (sPfcCreationAttempted) {
+        static bool sReentryLogged = false;
+        if (!sReentryLogged) {
+            sReentryLogged = true;
+            fprintf(stderr, "[PFC] the file select re-entered the boot injection after the creation attempt; "
+                            "not running it again\n");
+            fflush(stderr);
+        }
+        return;
+    }
+    sPfcCreationAttempted = true;
+
+    // ---- 0. the slot: empty, or this row's own file from an earlier run -----
+    if (Save_Exist(kPfcSlot)) {
+        const SaveFileMetaInfo* meta = Save_GetSaveMetaInfo(kPfcSlot);
+        if (meta == NULL || memcmp(meta->playerName, kPfcName, sizeof(kPfcName)) != 0) {
+            snprintf(msg, sizeof(msg),
+                     "file slot %d already holds a save this row did not create; refusing to erase it (run the row "
+                     "in a build directory without that save)",
+                     kPfcSlot + 1);
+            IntegrationTest_GameplayFail(msg);
+            return;
+        }
+        fprintf(stderr, "[PFC] erasing this row's own file from an earlier run (slot %d)\n", kPfcSlot + 1);
+        Save_DeleteFile(kPfcSlot);
+    }
+
+    // ---- 1. generate ---------------------------------------------------------
+    // "The shipped defaults" is checked, not assumed: generation reads the live
+    // CVar store, which here is the build directory's persisted config.
+    const int explicitSettings = PfcExplicitWorldSettings(msg, sizeof(msg));
+    if (explicitSettings != 0) {
+        char reason[640];
+        snprintf(reason, sizeof(reason),
+                 "the world would not be generated on the shipped defaults: %s (run the row with a config that "
+                 "carries no randomizer, MM or combo setting)",
+                 msg);
+        IntegrationTest_GameplayFail(reason);
+        return;
+    }
+    fprintf(stderr, "[PFC] shipped defaults verified: %s\n", msg);
+    fprintf(stderr, "[PFC] generating the pinned paired world %s on the shipped defaults at %s\n", kPfcSeed, from);
+    fflush(stderr);
+    if (Rando_HeadlessSeedTest(kPfcSeed) != 0) {
+        IntegrationTest_GameplayFail("the pinned paired world did not generate");
+        return;
+    }
+    OTRGlobals::Instance->gRandoContext->SetSeedGenerated(true);
+    if (!Combo_ForeignPairingActive()) {
+        IntegrationTest_GameplayFail("generation on the shipped defaults published no cross-game pairing identity");
+        return;
+    }
+
+    // ---- 2. create, through the naming screen's seam -------------------------
+    // What the naming screen leaves set when the player confirms a name on file
+    // 3 with the Randomizer quest selected (z_file_nameset_NES.c): the button,
+    // the quest, the typed name in the slot's metadata, the slot as fileNum.
+    fileChoose->buttonIndex = kPfcSlot;
+    fileChoose->questType[kPfcSlot] = QUEST_RANDOMIZER;
+    fileChoose->n64ddFlag = 0;
+    memcpy(Save_GetSaveMetaInfo(kPfcSlot)->playerName, kPfcName, sizeof(kPfcName));
+    gSaveContext.fileNum = kPfcSlot;
+    const u16 dayTime = gSaveContext.dayTime;
+    fprintf(stderr, "[PFC] creating file %d through OoT_Sram_InitSave (the production creation event)\n", kPfcSlot + 1);
+    fflush(stderr);
+    OoT_Sram_InitSave(fileChoose);
+    gSaveContext.dayTime = dayTime;
+    char line[512];
+    snprintf(msg, sizeof(msg), "[OoT] creation event: slot %d complete", kPfcSlot);
+    if (!Save_Exist(kPfcSlot) || !RsbsSave_HasSave(kPfcSlot) ||
+        !IntegrationTest_StderrCaptureLast(msg, line, sizeof(line))) {
+        snprintf(msg, sizeof(msg),
+                 "the creation did not write a complete paired file (slot %d: .sav %s, .redsave %s, creation-complete "
+                 "line %s)",
+                 kPfcSlot + 1, Save_Exist(kPfcSlot) ? "written" : "MISSING",
+                 RsbsSave_HasSave(kPfcSlot) ? "written" : "MISSING",
+                 IntegrationTest_StderrCaptureCount("creation event: slot") > 0 ? "absent" : "never logged");
+        IntegrationTest_GameplayFail(msg);
+        return;
+    }
+    fprintf(stderr, "[PFC] created: \"%s\"\n", line);
+
+    // ---- the identity AS CREATED, before anything is loaded back ---------------
+    // The baseline every later check compares against is the creation's, not
+    // the load's: a .redsave round trip that lost or reordered a crossing, or
+    // changed a digest, must fail here rather than become the baseline.
+    if (!PfcCreationMatchesStore(msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return;
+    }
+    fprintf(stderr, "[PFC] creation's crossings = the store it left: %s\n", msg);
+    if (!Combo_ForeignPairingActive() || gComboCtx.sharedRandoSeed == 0 || gComboCtx.mmProfileDigest == 0 ||
+        gComboCtx.comboSettingsHash == 0) {
+        snprintf(msg, sizeof(msg),
+                 "the creation left no complete paired identity (paired=%d masterSeed=%u mmProfileDigest=%08X "
+                 "comboFingerprint=%08X)",
+                 Combo_ForeignPairingActive() ? 1 : 0, (unsigned)gComboCtx.sharedRandoSeed,
+                 (unsigned)gComboCtx.mmProfileDigest, (unsigned)gComboCtx.comboSettingsHash);
+        IntegrationTest_GameplayFail(msg);
+        return;
+    }
+    IntegrationTest_PairedIdentityRecord();
+
+    // ---- 3. load it back, as the file select does -----------------------------
+    gSaveContext.fileNum = kPfcSlot;
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    OoT_Sram_OpenSave();
+    gameState->running = false;
+    SET_NEXT_GAMESTATE(gameState, OoT_Play_Init, PlayState);
+    gSaveContext.respawn[0].entranceIndex = ENTR_LOAD_OPENING;
+    gSaveContext.respawnFlag = 0;
+    gSaveContext.seqId = (u8)NA_BGM_DISABLED;
+    gSaveContext.natureAmbienceId = 0xFF;
+    gSaveContext.showTitleCard = true;
+    gSaveContext.timerState = TIMER_STATE_OFF;
+    gSaveContext.subTimerState = SUBTIMER_STATE_OFF;
+    gSaveContext.eventInf[0] = 0;
+    gSaveContext.eventInf[1] = 0;
+    gSaveContext.eventInf[2] = 0;
+    gSaveContext.eventInf[3] = 0;
+    gSaveContext.unk_13EE = 0x32;
+    gSaveContext.nayrusLoveTimer = 0;
+    gSaveContext.healthAccumulator = 0;
+    gSaveContext.magicState = MAGIC_STATE_IDLE;
+    gSaveContext.prevMagicState = MAGIC_STATE_IDLE;
+    gSaveContext.forcedSeqId = NA_BGM_GENERAL_SFX;
+    gSaveContext.skyboxTime = 0;
+    gSaveContext.nextTransitionType = TRANS_NEXT_TYPE_DEFAULT;
+    gSaveContext.nextCutsceneIndex = 0xFFEF;
+    gSaveContext.cutsceneTrigger = 0;
+    gSaveContext.chamberCutsceneNum = 0;
+    gSaveContext.nextDayTime = 0xFFFF;
+    gSaveContext.retainWeatherMode = 0;
+    for (int buttonIndex = 0; buttonIndex < ARRAY_COUNT(gSaveContext.buttonStatus); buttonIndex++) {
+        gSaveContext.buttonStatus[buttonIndex] = BTN_ENABLED;
+    }
+    gSaveContext.forceRisingButtonAlphas = 0;
+    gSaveContext.unk_13E8 = 0;
+    gSaveContext.unk_13EA = 0;
+    gSaveContext.unk_13EC = 0;
+    gSaveContext.magicCapacity = 0;
+    gSaveContext.magicFillTarget = gSaveContext.magic;
+    gSaveContext.magic = 0;
+    gSaveContext.magicLevel = gSaveContext.magic;
+    gSaveContext.naviTimer = 0;
+    GameInteractor_ExecuteOnLoadGame(gSaveContext.fileNum);
+
+    // ---- 4. the spawn the round trip boots into -------------------------------
+    gSaveContext.linkAge = LINK_AGE_CHILD;
+    gSaveContext.sceneSetupIndex = 0;
+    gSaveContext.cutsceneIndex = 0;
+    gSaveContext.nightFlag = 0;
+    gSaveContext.dayTime = 0x8000;
+    gSaveContext.skyboxTime = 0x8000;
+    gSaveContext.entranceIndex = cfg->bootEntrance;
+
+    // ---- the loaded file is the paired world the creation authored ------------
+    if (!IS_RANDO || !Combo_ForeignPairingActive() || !Context_HasFrozenState(GAME_MM) || !Combo_Crossings_IsFrozen() ||
+        Combo_Crossings_Count(GAME_OOT) + Combo_Crossings_Count(GAME_MM) == 0) {
+        snprintf(msg, sizeof(msg),
+                 "the loaded file is not the paired world the creation wrote (rando=%d paired=%d mmHalfArmed=%d "
+                 "crossingStoreFrozen=%d inHyrule=%d inTermina=%d)",
+                 IS_RANDO ? 1 : 0, Combo_ForeignPairingActive() ? 1 : 0, Context_HasFrozenState(GAME_MM) ? 1 : 0,
+                 Combo_Crossings_IsFrozen() ? 1 : 0, Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM));
+        IntegrationTest_GameplayFail(msg);
+        return;
+    }
+    if (!PfcNoRefusalToast(msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return;
+    }
+    char diff[512];
+    if (!IntegrationTest_PairedIdentityMatches(diff, sizeof(diff))) {
+        snprintf(msg, sizeof(msg), "the file loaded back from disk is not the world the creation authored: %s", diff);
+        IntegrationTest_GameplayFail(msg);
+        return;
+    }
+    fprintf(stderr, "[PFC] loaded identity = the creation's (masterSeed, settingsHash, mmProfileDigest, "
+                    "comboFingerprint, crossing counts and digest)\n");
+    sPfcOoTWorldSeed = Randomizer_GetCurrentWorldSeed();
+    IntegrationTest_PairedSetMMGenerationBaseline(MM_Rando_OnSaveInitDispatchCount());
+    fprintf(stderr,
+            "[PFC] session plays file %d (slot %d) as loaded back from disk: OoT world seed %u, entering Play at "
+            "entrance 0x%04X; MM generation dispatches so far %u (the creation's)\n",
+            kPfcSlot + 1, kPfcSlot, (unsigned)sPfcOoTWorldSeed, cfg->bootEntrance,
+            (unsigned)MM_Rando_OnSaveInitDispatchCount());
+    fflush(stderr);
+    IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_PRE);
+}
+
+static bool sPfcTitleRedirected = false;
+
+/**
+ * The paired variant's title: straight to the file select, as SoH's "Boot
+ * Sequence: File Select" option does it (CustomLogoTitle.cpp,
+ * OnZTitleUpdateSkipToFileSelect). Title_Destroy runs on the way out, and with
+ * it Sram_InitSram.
+ */
+static void GpPairedTitleToFileSelect(GameState* gameState) {
+    if (sPfcTitleRedirected || gameState == NULL) {
+        return;
+    }
+    sPfcTitleRedirected = true;
+    fprintf(stderr, "[PFC] title -> file select (SoH's Boot Sequence: File Select path)\n");
+    fflush(stderr);
+    gSaveContext.seqId = (u8)NA_BGM_DISABLED;
+    gSaveContext.natureAmbienceId = 0xFF;
+    gSaveContext.gameMode = GAMEMODE_FILE_SELECT;
+    gameState->running = false;
+    SET_NEXT_GAMESTATE(gameState, FileChoose_Init, FileChooseContext);
+}
+
+/**
+ * The boot injection, by variant: the debug save (the round trip, and the
+ * paired row's red half), or the paired creation, which needs the file select.
+ * `isFileSelect` says which gamestate `gameState` is.
+ */
+static void GpBootInject(GameState* gameState, const char* from, bool isFileSelect) {
+    if (IntegrationTest_PairedFirstCrossing() && !IntegrationTest_PairedSkipCreation()) {
+        if (isFileSelect) {
+            GpCreatePairedFileAndEnterPlay((FileChooseContext*)gameState, from);
+        } else {
+            GpPairedTitleToFileSelect(gameState);
+        }
+    } else {
+        GpInjectDebugSaveAndEnterPlay(gameState, from);
+    }
+}
+
+/**
+ * The paired variant's return leg (OoT scene init, Market from the Mask Shop):
+ * OoT's half came back RESTORED from the frozen state, not reloaded or
+ * regenerated, under the same identity. Returns false after failing the run.
+ */
+static bool GpPairedCheckReturn(void) {
+    char msg[768];
+    char diff[512];
+    if (!IS_RANDO || gSaveContext.fileNum != kPfcSlot) {
+        snprintf(msg, sizeof(msg), "the return leg's OoT half is not the created file (rando=%d fileNum=%d)",
+                 IS_RANDO ? 1 : 0, (int)gSaveContext.fileNum);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    const uint32_t worldSeed = Randomizer_GetCurrentWorldSeed();
+    if (worldSeed != sPfcOoTWorldSeed) {
+        snprintf(msg, sizeof(msg), "OoT's world changed across the crossing (seed %u -> %u): regenerated",
+                 (unsigned)sPfcOoTWorldSeed, (unsigned)worldSeed);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    if (gSaveContext.deaths != kPfcDeathsSentinel) {
+        snprintf(msg, sizeof(msg),
+                 "OoT's half was not restored from the frozen state: the sentinel written before the Happy Mask Shop "
+                 "door (deaths=%u) came back as %u",
+                 (unsigned)kPfcDeathsSentinel, (unsigned)gSaveContext.deaths);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    if (!IntegrationTest_PairedIdentityMatches(diff, sizeof(diff))) {
+        snprintf(msg, sizeof(msg), "the paired identity changed across the round trip: %s", diff);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    if (MM_Rando_OnSaveInitDispatchCount() != IntegrationTest_PairedMMGenerationBaseline()) {
+        snprintf(msg, sizeof(msg), "MM's generation dispatch ran during the round trip (%u -> %u)",
+                 (unsigned)IntegrationTest_PairedMMGenerationBaseline(), (unsigned)MM_Rando_OnSaveInitDispatchCount());
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    char line[512];
+    if (IntegrationTest_StderrCaptureLast("REFUSED", line, sizeof(line))) {
+        snprintf(msg, sizeof(msg), "a refusal was logged during the round trip: \"%s\"", line);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    if (!PfcNoRefusalToast(msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    char desc[256];
+    IntegrationTest_PairedIdentityDescribe(IntegrationTest_PairedIdentityRecorded(), desc, sizeof(desc));
+    fprintf(stderr,
+            "[PFC] return leg PASS: OoT's half restored, not regenerated (file %d, OoT world seed %u, sentinel "
+            "deaths=%u survived), same identity: %s\n",
+            kPfcSlot + 1, (unsigned)worldSeed, (unsigned)gSaveContext.deaths, desc);
+    fflush(stderr);
+    return true;
+}
+
+// ============================================================================
 // Integration Test Hooks
 // ============================================================================
 
@@ -462,14 +998,32 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
                 return;
             }
-            GpInjectDebugSaveAndEnterPlay((GameState*)gameState, "title screen");
+            GpBootInject((GameState*)gameState, "title screen", false);
         });
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>([]() {
             if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
                 return;
             }
-            GpInjectDebugSaveAndEnterPlay(OoT_gGameState, "file select");
+            GpBootInject(OoT_gGameState, "file select", true);
         });
+        // The paired variant's creation runs from the file select's own main
+        // (every frame, from the first one), not from OnPresentFileSelect, which
+        // waits for a Start press no unattended run sends (#544).
+        if (IntegrationTest_PairedFirstCrossing()) {
+            // The "no refusal toast" checks read the test-only toast record,
+            // which is off in every other process.
+            OoT_Notification_RecordForTest(1);
+        }
+        if (IntegrationTest_PairedFirstCrossing() && !IntegrationTest_PairedSkipCreation()) {
+            sPfcTitleRedirected = false;
+            sPfcCreationAttempted = false;
+            GameInteractor::Instance->RegisterGameHook<GameInteractor::OnFileChooseMain>([](void* gameState) {
+                if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
+                    return;
+                }
+                GpBootInject((GameState*)gameState, "file select", true);
+            });
+        }
 
         // Arrival tracking + entrance verification. Fires from the scene
         // build inside OoT_Play_Init — i.e. AFTER the startup-entrance
@@ -584,6 +1138,9 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                     IntegrationTest_GameplayFail(stateMsg);
                     return;
                 }
+            }
+            if (phase == GP_PHASE_OOT_RETURN && IntegrationTest_PairedFirstCrossing() && !GpPairedCheckReturn()) {
+                return;
             }
             sGpArrivalPhase = phase;
         });
@@ -717,6 +1274,12 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             }
             switch (phase) {
                 case GP_PHASE_OOT_PRE:
+                    if (IntegrationTest_PairedFirstCrossing()) {
+                        // Frozen with the live save by the door's cross-game switch.
+                        gSaveContext.deaths = kPfcDeathsSentinel;
+                        fprintf(stderr, "[PFC] OoT-half sentinel armed before the door: deaths=%u\n",
+                                (unsigned)kPfcDeathsSentinel);
+                    }
                     GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door");
                     IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
                     break;
@@ -741,6 +1304,14 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                             IntegrationTest_GameplayCyclesDone(), cfg->framesPerPhase);
                     fflush(stderr);
                     IntegrationTest_SetGameplayPhase(GP_PHASE_DONE);
+                    if (IntegrationTest_PairedFirstCrossing() && !IntegrationTest_PairedSkipCreation()) {
+                        // A pass leaves no file behind (a failure keeps it for
+                        // forensics; the next run erases it by its name).
+                        Save_DeleteFile(kPfcSlot);
+                        fprintf(stderr, "[PFC] PASS: the paired first crossing and its return; erased file %d\n",
+                                kPfcSlot + 1);
+                        fflush(stderr);
+                    }
                     IntegrationTest_SignalBootComplete(GAME_OOT, "gameplay round-trip complete");
                     break;
                 default:
