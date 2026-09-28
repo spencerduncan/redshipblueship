@@ -52,7 +52,8 @@
  * line), no-menu-under (the creation overlay's over-menu variant leaves the
  * menu hidden), no-dim (the creation overlay's dim is drawn transparent),
  * activate (the no-activation hint is overridden to "0" before the window
- * exists, so the window is shown the way a player's is). A
+ * exists, so the window is shown the way a player's is), no-label-fit (R9's
+ * measuring frame records no row, as if the page were not the one drawn). A
  * sabotaged run is expected to fail; docs/ui-style-guide.md section 12 lists
  * what each one must turn red.
  *
@@ -4523,8 +4524,15 @@ bool IsInteractive(WidgetType t);
  *   - a TEXT row wraps at the column (TextWrapped), so it overruns only when one
  *     word is wider than the column.
  * Custom rows (a trick table, a mod list) are left out: their last item is
- * whatever their function drew last, not the row, and their tables scroll
- * horizontally as SoH's do.
+ * whatever their function drew last, not the row. The trick tables scroll
+ * sideways as SoH's Tricks/Glitches table does; the mod list's table has no
+ * horizontal scroll and clips a long name at its column, as SoH's Mod Menu does
+ * (mod_menu.cpp, the same table flags).
+ *
+ * R9 cannot pass by measuring nothing: a measuring frame that fails is a run
+ * failure on any page, and a page of this project's with measurable rows that
+ * reports none of them (the frame drew another page, or no row reached its
+ * postFunc) is a run failure too, by name.
  *
  * A row of this project's pages that does not fit is an R9 hit, which the
  * runtime lint fails like any other hit outside the baseline. SoH's reference
@@ -4586,13 +4594,26 @@ void Session::MeasureLabelFit(const PageSpec& p, const std::string& state) {
         }
     }
     std::string why;
-    PumpFrame(nullptr, false, nullptr, why);
+    const bool pumped = PumpFrame(nullptr, false, nullptr, why);
     for (auto& [row, post] : saved) {
         row->postFunc = post;
     }
 
     const bool ours = p.origin == Origin::RSBS;
     const std::string where = p.header + "/" + p.sidebar;
+    const std::string at = where + (state.empty() ? "" : "@" + state);
+    if (ours && opt.Sabotaged("no-label-fit")) {
+        drawn->clear();
+    }
+    if (!pumped) {
+        Fail("R9: the measuring frame of " + at + " failed: " + why);
+        return;
+    }
+    if (ours && !saved.empty() && drawn->empty()) {
+        Fail("R9: measured no row of " + at + " (" + std::to_string(saved.size()) +
+             " measurable row(s) registered, none drawn)");
+        return;
+    }
     for (const Drawn& d : *drawn) {
         labelFitMeasured++;
         const float over = d.needX - d.limitX;

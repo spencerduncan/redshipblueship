@@ -775,7 +775,7 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // OoT's 3-minute behaviour onto MM's 5-minute default without anyone asking.
     // Hence the "Majora's Mask only" label. A preference: no freeze, no digest,
     // no .redsave impact.
-    { "gEnhancements.Saving.AutosaveInterval", "Autosave Interval: %d minutes",
+    { "gEnhancements.Saving.AutosaveInterval", "MM Autosave: %d minutes",
       "Sets how often the owl autosave fires; Ocarina of Time keeps its fixed 3 minutes. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:216 (read by HandleAutoSave, :223)", nullptr, "",
       MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "", MmEnhancementWidget::SliderInt, 1, 60, 5,
