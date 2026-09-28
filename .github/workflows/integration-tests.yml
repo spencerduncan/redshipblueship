@@ -268,9 +268,10 @@ jobs:
       env:
         DISPLAY: :99
 
-    # T1 (#260): needs both oot.o2r and mm.o2r — boots OoT, triggers the Happy
-    # Mask Shop entrance, expects spawn at MM South Clock Town (0xD800, the
-    # tower-exit arrival).
+    # T1 (#260): needs both oot.o2r and mm.o2r — boots OoT into gameplay on a
+    # debug save injected from the title screen (#544: it used to wait on file
+    # select, which needs a Start press), triggers the Happy Mask Shop entrance,
+    # expects spawn at MM South Clock Town (0xD800, the tower-exit arrival).
     - name: Integration Test - Switch OoT (HMS) to MM
       if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
       run: |
