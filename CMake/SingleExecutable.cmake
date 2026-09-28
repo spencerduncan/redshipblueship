@@ -2105,6 +2105,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #773: the paired world's one name. OoT's typed name, in each of OoT's
+    # filename charsets (NTSC English, NTSC Japanese, PAL), translates into MM's
+    # charset the way OoTMM's copyName does (no-glyph bytes to MM's space), every
+    # typable character prints in MM as it prints in OoT, and the slot panel
+    # decodes MM's charset. ROM-free (default tier);
+    # games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME ComboPlayerName COMMAND redship --test combo-player-name)
 
     # #781: loading a paired file whose Cross-Game Rules or MM options changed at
     # the title screen. The file's own values win at load (restored into the keys,

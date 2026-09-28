@@ -4184,6 +4184,17 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
  * booted and memsets the whole SaveContext first, so without this every one of
  * those fields reaches the armed shadow as zero:
  *
+ *   playerName = OoT's typed name in MM's charset (#773), when the caller passes
+ *     one. MM's naming screen writes the typed name here, before the marker and
+ *     the checksum; a paired half has no naming screen, and one-game semantics
+ *     give it the one name the player typed, on OoT's file select. The OoT side
+ *     translates it (OoT_PlayerName_ToMMCharset, OoTMM's mapping); this stamp
+ *     copies 8 bytes already in MM's charset. NULL (the headless harnesses that
+ *     author a half with no OoT file behind it) keeps MM_Sram_InitNewSave's
+ *     default, eight MM spaces. MM prints it wherever a textbox names Link
+ *     (MESSAGE_NAME in z_message_nes.c), copies it into the Deku Playground
+ *     high-score names (Inventory_SaveDekuPlaygroundHighScore) and seeds the
+ *     night-sky star pattern from it (z_kankyo.c); no generator reads it.
  *   newf = 'ZELDA3'. THE file-select marker (#765). Every reader keyed on it —
  *     the .redsave slot panel's "started" flag (RsbsGameMetaDesc.validMarker),
  *     the Combo Tracker's MM presence gate (combo_tracker_view.c) — read the
@@ -4205,8 +4216,6 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
  *     (z_kaleido_scope_NES.c) take their "could not save" arms on false.
  *
  * NOT stamped, and why (the rest of the field-by-field diff, #765):
- *   the player's name — MM's charset differs from OoT's by filename language,
- *     so carrying OoT's name over is a translation, not a stamp (follow-up);
  *   cutsceneIndex 0xFFF0 for button 0 — OnFileCreate's rando block writes 0
  *     over it in both paths;
  *   fileCreatedAt — MM stamps it from OnSaveLoad, which MM's file select
@@ -4216,8 +4225,12 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
  *
  * Also the redship-tier lock's authoring step (mm-creation-new-file).
  */
-extern "C" void MM_Creation_StampNewFileFields(void) {
+extern "C" void MM_Creation_StampNewFileFields(const u8* playerName) {
     static const u8 kNewf[6] = { 'Z', 'E', 'L', 'D', 'A', '3' };
+    if (playerName != NULL) {
+        memcpy(gSaveContext.save.saveInfo.playerData.playerName, playerName,
+               sizeof(gSaveContext.save.saveInfo.playerData.playerName));
+    }
     memcpy(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf));
     gSaveContext.save.saveInfo.checksum = Sram_CalcChecksum(&gSaveContext.save, sizeof(Save));
     gSaveContext.fileNum = 0xFF;
@@ -4235,14 +4248,26 @@ extern "C" void MM_Creation_StampNewFileFields(void) {
  * beside the tracker adapters, because the panel is drawn while OoT runs and
  * MM may never boot in the session.
  *
- * Same marker and play-time field as RsbsRegisterMMMetaOnce. No name: MM's
- * name bytes are MM's own charset and a paired half carries none of its own
- * (see MM_Creation_StampNewFileFields), so the panel names a slot by OoT's half.
+ * Same marker, name and play-time fields as RsbsRegisterMMMetaOnce. The name is
+ * the one OoT's file select took, translated into MM's charset at creation
+ * (#773, MM_Creation_StampNewFileFields); the descriptor decodes MM's charset
+ * for the panel, which prints raw bytes otherwise. A paired half created before
+ * #773 holds eight MM spaces, which decode to an empty name.
  */
+static void MM_SlotMeta_DecodePlayerName(const uint8_t* blob, size_t blobSize, char outName[9]) {
+    outName[0] = '\0';
+    const size_t offset = offsetof(SaveContext, save.saveInfo.playerData.playerName);
+    if (offset + 8 > blobSize) {
+        return;
+    }
+    RsbsSave_DecodeN64FilenameName(blob + offset, outName);
+}
+
 extern "C" void MM_SlotMeta_Register(void) {
     RsbsGameMetaDesc desc{};
-    desc.playerNameOffset = 0;
-    desc.playerNameLen = 0;
+    desc.playerNameOffset = static_cast<uint32_t>(offsetof(SaveContext, save.saveInfo.playerData.playerName));
+    desc.playerNameLen = 8;
+    desc.decodePlayerName = MM_SlotMeta_DecodePlayerName;
     desc.playTimeOffset = static_cast<uint32_t>(offsetof(SaveContext, save.day));
     desc.validMarkerOffset = static_cast<uint32_t>(offsetof(SaveContext, save.saveInfo.playerData.newf));
     desc.validMarkerLen = 6;
@@ -4290,8 +4315,10 @@ extern "C" void MM_SlotMeta_Register(void) {
  * `sizeof(SaveContext)` is the smaller of the two layouts.
  *
  * WHAT IT AUTHORS BEYOND THE FILL. What MM's own file-select new-file path
- * stamps and this seam would otherwise leave zero (#765): the 'ZELDA3' marker,
- * the checksum, and the cross-game session's fileNum 0xFF / flashSaveAvailable
+ * stamps and this seam would otherwise leave zero or default (#765, #773): the
+ * player's name (OoT's, already in MM's charset: `mmPlayerName`, NULL keeps
+ * MM's default), the 'ZELDA3' marker, the checksum, and the cross-game
+ * session's fileNum 0xFF / flashSaveAvailable
  * (MM_Creation_StampNewFileFields, with the whole diff in its header). Beyond
  * that, nothing. OnFileCreate's rando block already
  * authors the post-intro start state (South Clock Town, human form, Tatl,
@@ -4308,12 +4335,14 @@ extern "C" void MM_SlotMeta_Register(void) {
  *
  * @param slot the OoT slot being created — logged only; MM's generation has no
  *        slot of its own.
+ * @param mmPlayerName 8 bytes in MM's name charset (the OoT seam translates
+ *        OoT's typed name, #773), or NULL for MM's default all-space name.
  * @return 0 on success; a nonzero step code on failure. FAILURE IS TERMINAL FOR
  *         THE CREATION (ADR 0010 increment 2): nothing here is a partial state
  *         the caller may keep, and the caller fails the whole file creation on
  *         any nonzero return.
  */
-extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPath) {
+extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPath, const uint8_t* mmPlayerName) {
     if (!Combo_ForeignPairingActive()) {
         // Not a paired creation. Not an error: a vanilla OoT file has no MM half
         // to author, and its first crossing still gets the vanilla post-intro
@@ -4361,9 +4390,10 @@ extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPat
     memset(&gSaveContext, 0, sizeof(SaveContext));
     MM_Sram_InitNewSave();
     // What MM_Sram_InitSave stamps after MM_Sram_InitNewSave and before
-    // OnSaveInit, plus the cross-game session fields the whole-SaveContext
-    // consume at arrival carries into MM (#765). See the helper's header.
-    MM_Creation_StampNewFileFields();
+    // OnSaveInit (OoT's name in MM's charset, #773; the marker; the checksum),
+    // plus the cross-game session fields the whole-SaveContext consume at
+    // arrival carries into MM (#765). See the helper's header.
+    MM_Creation_StampNewFileFields(mmPlayerName);
     fprintf(stderr,
             "[MM] creation: the pre-fill stretch (rando core init + vanilla bootstrap) took %ums — this is the window "
             "the overlay captions before the ladder's first attempt report (#582)\n",
@@ -4456,7 +4486,8 @@ extern "C" int MM_Rando_ArmCreatedHalf(int slot) {
  *         nothing); the failing step's code otherwise.
  */
 extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath) {
-    const int authored = MM_Rando_AuthorHalfAtCreation(slot, ootSpoilerPath);
+    // No OoT file behind a harness half, so no name: MM's default stays (#773).
+    const int authored = MM_Rando_AuthorHalfAtCreation(slot, ootSpoilerPath, nullptr);
     if (authored != 0 || !Combo_ForeignPairingActive()) {
         return authored;
     }

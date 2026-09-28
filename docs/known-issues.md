@@ -233,6 +233,86 @@ Nothing stored in an existing save is recomputed, so existing files are unaffect
 
 ---
 
+## Pre-playtest smoke, 2026-09-27, `d928d67d`
+
+Before anyone plays, the build under test was run through the checks that hosted CI
+cannot run, because they need the ROMs. Code at `d928d67d` is the code at `d6c8f270`:
+the two commits after it changed documentation only.
+
+**How it was run.** A fresh Windows checkout at `d928d67d`, built from cold (Release,
+MSVC). `oot.o2r` and `mm.o2r` were extracted from the ROMs by that build's own
+extractor, and `soh.o2r`, `2ship.o2r` and `redship.o2r` were generated at the same commit.
+The config was OpenGL only, and windows opened without taking focus. There was no `Save/`
+folder from earlier play.
+
+| Check | Result |
+|---|---|
+| `redship` tier | 138 of 138 passed, none skipped |
+| `rando` tier | 40 of 40 passed, none skipped. All four golden-world rows passed with `tests/golden/` untouched, so the generated worlds are the pinned ones |
+| `ui` tier (OpenGL, 1280x800, ROM archives mounted) | passed: 105 captures, every one `pass`, none skipped |
+| `integration` | 5 of 6 passed. `IntSwitchOoTHmsToMm` timed out at 120 s, which is [#544](https://github.com/spencerduncan/redshipblueship/issues/544) (known, see "CI and quality gates" below). `IntBootOoT`, `IntBootMM`, `IntSwitchMmClockTownSouthToOoT`, `IntArchiveHotswapCycle` (4 arrivals) and `IntGameplayRoundtrip` passed |
+| `integration-soak` | `IntGameplayRoundtripSoak` passed: "3 round trip(s), warp, and door transition survived 120 live frames per phase" (70.6 s) |
+| Creation time, shipped defaults | 10 real paired creations (`RSBS_CSB_SAMPLE_EVENT=10`: Generate, the creation event with the spoiler written, the arm, `Randomizer_InitSaveFile`). 10 of 10 created on the first attempt with no budget stop. Mean 8.5 s, best 6.2 s, worst 13.0 s (the one seed whose fill needed a second batch), against the 30 s budget. Every world's 50 heart pickups filled the bar with none wasted |
+| DX11 menus against OpenGL | See below: no visible difference |
+
+**What this does not cover: the first crossing into a paired Termina with the real game
+data loaded.** No automated row runs the whole path in one process: create a paired file
+through the creation event, then walk into MM with the ROM archives mounted. The
+integration rows cross with a vanilla debug save, and their log says so on every MM
+arrival: `[MM] pairing: skipped-because-no-paired-oot-world`. The rows that do run
+creation and then an MM arrival in one process (`ComboCreationEvent`, `MMPairSwitchEntry`)
+run with the OTR archive init disabled (`RSBS_DISABLE_OTR_INIT=1`), so no real game data is
+loaded. Both passed, and their logs show the two
+lines §3 of the playtest guide asks you to look for:
+`[MM] pairing: arrival profile matches the creation-frozen identity` and
+`[MM] pairing: HYDRATED from the frozen MM half (saveType=rando ...`. `MMPairSwitchEntry`
+also passed its return leg ("restored, not regenerated") and its refusal leg. So the
+playtest's first crossing (guide §3, step 3) is the first time this path runs with the
+real game. That is why it comes first.
+
+**Reads like a bug, but is not one.** Every HYDRATED line ends with
+`foreignPlacements=0`, even when the file has dozens of crossings. That count is the
+retired item table from before the single-bag switch. Crossings are now kept in the
+crossing store, which the Combo Tracker and Cross-Game Spoiler read. A zero there does
+not mean nothing crossed.
+
+**Smaller notes.**
+- The test portal (`--test-entrance`, Mido's House to the Clock Tower) skips Closed
+  Forest. On the shipped defaults, the Happy Mask Shop opens only after the Deku Tree.
+- No `integration` or `integration-soak` row loaded a `.redsave`. Every MM arrival in them
+  was vanilla (`skipped-because-no-paired-oot-world`). The `redship` tier's save rows do
+  load `.redsave` files and refuse some of them on purpose: a verbose re-run of the tier
+  printed 66 `[RsbsSave] slot N REFUSED` lines (20 rows, plus `AllTests` repeating them),
+  and every one of those rows passed.
+
+**DirectX 11.** The Windows CI run on `d6c8f270` (run 36369933984) renders the menu
+pages, windows and toasts through DirectX 11 without the ROM archives. It lists 98
+captures, and 90 of them were rendered. The other 8 are the original SoH pages, which are
+skipped without `oot.o2r` (in both runs), so no original SoH page was compared under
+DirectX 11. The 90 were compared with an OpenGL render made at `d928d67d` on the same
+832x600 profile, also without the ROM archives.
+- **Text:** the text drawn is identical in all 90 rendered captures. Each capture's size,
+  content rectangle, scroll range and expected text match too.
+- **Pixels:** no capture is pixel-identical. Between 0.11% and 1.55% of a capture's pixels
+  differ, and all but 282 of those pixels (over all 90 captures) differ by exactly one
+  level. Pixels differ by more than 32 levels in only 27 captures: 11 frame-corner pixels
+  in each of the 22 MM Tricks captures, one table-line end pixel in each of the 3 MM Mods
+  captures, and 2 table-corner pixels each on the Cross-Game Spoiler (crossings) and the
+  Combo Tracker (progress, scroll 1). None of them is visible.
+- **Pages checked by eye,** side by side and in a difference image: Cross-Game Rules
+  (including the Goal tooltip), Majora's Mask, Windows, MM Mods, MM Randomizer (live and
+  frozen), MM Tricks (live and frozen), the creation overlay, the Combo Tracker and the
+  Cross-Game Spoiler. No difference is visible.
+- **Both backends, not a DX11 issue:** at 832x600, the Combo > Majora's Mask page cuts
+  off its checkbox labels next to the Autosave note. SoH's own pages do the same at that
+  size: an OpenGL render with the ROM archives mounted shows Enhancements > Quality of Life
+  ("Remember Save", "Nighttime GS A") and Settings > General ("[Both Games] Cursor Always")
+  cut off in columns of the same width. So this matches SoH and is not filed.
+
+**Findings.** None apart from #544, so no new issue was filed.
+
+---
+
 ## Save loss and corruption
 
 ### ~~A changed MM option or Cross-Game Rule breaks the pair for the session~~ — RESOLVED ([#781](https://github.com/spencerduncan/redshipblueship/issues/781); [#564](https://github.com/spencerduncan/redshipblueship/issues/564))

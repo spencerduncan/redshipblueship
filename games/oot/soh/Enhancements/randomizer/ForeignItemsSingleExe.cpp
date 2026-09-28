@@ -293,8 +293,10 @@ extern "C" int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained) {
 // The MM half of the creation event (games/mm/2s2h/GameExports_SingleExe.cpp):
 // authored first, armed LAST (after the crossings and the one spoiler; #680's
 // order, restored on the PR #743 review).
-extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPath);
+extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPath, const uint8_t* mmPlayerName);
 extern "C" int MM_Rando_ArmCreatedHalf(int slot);
+// OoT's typed name in MM's charset (#773), soh/SaveManager.cpp.
+extern "C" void OoT_PlayerName_ToMMCharset(const uint8_t* ootName, uint8_t filenameLanguage, uint8_t* mmName);
 // The #533 refusal surface (src/common/save.h) and this file's own
 // file-select failure toast, both raised from the failure branch below so
 // that ONE callable carries the whole terminal-failure contract — z_sram.c
@@ -696,13 +698,23 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     // green on MSVC, SIGABRT on the Linux CI leg. The static_assert above is what
     // makes the smaller copy sufficient: MM's whole SaveContext fits inside
     // OoT's, so there is nothing past OoT's struct end for MM to have written.
+    //
+    // THE PAIRED WORLD'S ONE NAME (#773). MM's own new-file path copies the name
+    // typed on MM's naming screen into the half; a paired half has no naming
+    // screen, and one-game semantics give it the name typed on OoT's. OoT's name
+    // and filename language are already in gSaveContext here (Sram_InitSave
+    // writes both before this seam), and are read before the bracket hands the
+    // buffer to MM. MM stamps the translated bytes where MM_Sram_InitSave stamps
+    // the typed name: before the marker and the checksum.
+    uint8_t mmPlayerName[8];
+    OoT_PlayerName_ToMMCharset(gSaveContext.playerName, gSaveContext.ship.filenameLanguage, mmPlayerName);
     memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
     sCreationBracketActive = true;
 
     sCreationSequenceLen = 0;
     sCreationSequence[0] = 0;
     sCreationUnprovedHalves = RSBS_COMBO_HALF_NONE_YET;
-    const int mmRc = MM_Rando_AuthorHalfAtCreation(slot, "");
+    const int mmRc = MM_Rando_AuthorHalfAtCreation(slot, "", mmPlayerName);
     CreationStep('M');
 
     sCreationBracketActive = false;

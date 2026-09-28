@@ -51,6 +51,106 @@ extern "C" void OoT_HarvestSharedResources(void);
 extern "C" int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 using namespace std::string_literals;
 
+/**
+ * OoT'S TYPED NAME IN MM'S CHARSET: THE PAIRED WORLD'S ONE NAME (#773).
+ *
+ * The name OoT's file select wrote into gSaveContext.playerName is in OoT's own
+ * filename charset, never ASCII, and which charset depends on the file's
+ * ship.filenameLanguage (Sram_InitSave sets it from the region and language):
+ *
+ *   NAME_LANGUAGE_NTSC_ENG / _NTSC_JPN (the NTSC charset,
+ *     z_file_nameset_data.c's keyboards): 0x00-0x09 digits, 0xAB-0xC4 'A'-'Z',
+ *     0xC5-0xDE 'a'-'z', 0xDF space, 0xE4 '-' (the JPN keyboard's long-vowel
+ *     mark is the same byte), 0xEA '.'; 0x0A-0xAA are hiragana and katakana and
+ *     0xE7/0xE8 the voicing marks.
+ *   NAME_LANGUAGE_PAL (the PAL charset, D_808123F0): 0x00-0x09 digits,
+ *     0x0A-0x23 'A'-'Z', 0x24-0x3D 'a'-'z', 0x3E space, 0x3F '-', 0x40 '.'.
+ *
+ * MM's name charset is exactly OoT's PAL one (sSaveDefaultPlayerData's "LINK" is
+ * 15 12 17 14, and z_message_nes.c's MESSAGE_NAME decode is the PAL table).
+ *
+ * The NTSC arm is OoTMM's own mapping, byte for byte: copyName in
+ * packages/generator/src/oot/save_util.c (OoTMM/OoTMM 57cc028b), which OoTMM
+ * runs when it authors MM's save from OoT's at file creation. Every byte with
+ * no MM glyph (kana, the voicing marks, anything off the keyboards) becomes
+ * MM's space 0x3E, as it does there. OoTMM ships on an NTSC OoT only, so the
+ * PAL arm is ours: identity for the bytes the two charsets share (all of
+ * 0x00-0x40), MM's space for anything else. An out-of-range filenameLanguage is
+ * read as NTSC, the way SoH's own name printer (z_message_PAL.c) reads it.
+ *
+ * Pure and total: every input byte lands in 0x00-0x40. Called at the creation
+ * seam (OoT_RunPairedCreationEvent) and by the slot panel's name decoder below.
+ */
+extern "C" void OoT_PlayerName_ToMMCharset(const uint8_t* ootName, uint8_t filenameLanguage, uint8_t* mmName) {
+    constexpr uint8_t kMMSpace = 0x3E;
+    for (int i = 0; i < 8; i++) {
+        const uint8_t c = ootName[i];
+        uint8_t out = kMMSpace;
+        if (filenameLanguage == NAME_LANGUAGE_PAL) {
+            if (c <= 0x40) {
+                out = c;
+            }
+        } else if (c <= 0x09) {
+            out = c;
+        } else if (c >= 0xAB && c < 0xAB + 26) {
+            out = static_cast<uint8_t>(c - 0xAB + 0x0A);
+        } else if (c >= 0xC5 && c < 0xC5 + 26) {
+            out = static_cast<uint8_t>(c - 0xC5 + 0x24);
+        } else if (c == 0xE4) {
+            out = 0x3F;
+        } else if (c == 0xEA) {
+            out = 0x40;
+        }
+        mmName[i] = out;
+    }
+}
+
+/**
+ * The slot panel's name for OoT's half (#773): the bytes in their own charset,
+ * printed through the MM/PAL table (the translation above, then
+ * RsbsSave_DecodeN64FilenameName). Before this the panel copied the raw bytes
+ * into its text, and they are not ASCII: an NTSC "Link" is B6 CD D2 CF.
+ * extern "C" for the combo-player-name row, which decodes a synthetic OoT save.
+ */
+extern "C" void OoT_SlotMeta_DecodePlayerName(const uint8_t* blob, size_t blobSize, char outName[9]) {
+    outName[0] = '\0';
+    if (offsetof(SaveContext, playerName) + 8 > blobSize ||
+        offsetof(SaveContext, ship.filenameLanguage) + 1 > blobSize) {
+        return;
+    }
+    uint8_t mmName[8];
+    OoT_PlayerName_ToMMCharset(blob + offsetof(SaveContext, playerName),
+                               blob[offsetof(SaveContext, ship.filenameLanguage)], mmName);
+    RsbsSave_DecodeN64FilenameName(mmName, outName);
+}
+
+/**
+ * Register OoT's metadata-offset descriptor so the unified file-select panel
+ * can render slot names / play-time / "started" without src/common ever
+ * including z64save.h. Offsets are byte positions within the OoT SaveContext
+ * blob as stored in the .redsave; offsetof on the real struct rather than
+ * hand-typed hex, so a future SaveContext layout change can't silently desync
+ * the panel. Called from SaveManager's constructor; extern "C" (and idempotent:
+ * a registration replaces the previous one) so the mm-creation-new-file rows
+ * can register it and read a committed slot through it, the way they register
+ * MM's (MM_SlotMeta_Register). The name decoder is what they lock (#773).
+ */
+extern "C" void OoT_SlotMeta_Register(void) {
+    RsbsGameMetaDesc desc{};
+    desc.playerNameOffset = static_cast<uint32_t>(offsetof(SaveContext, playerName));
+    desc.playerNameLen = 8;
+    // OoT has no continuous play-time counter; totalDays is the closest
+    // game-progress proxy we can show without parsing rando state.
+    desc.playTimeOffset = static_cast<uint32_t>(offsetof(SaveContext, totalDays));
+    desc.validMarkerOffset = static_cast<uint32_t>(offsetof(SaveContext, newf));
+    desc.validMarkerLen = 6;
+    // OoT's "newf" sentinel — file is started iff these bytes match.
+    const char kOoTNewf[6] = { 'Z', 'E', 'L', 'D', 'A', 'Z' };
+    std::memcpy(desc.validMarker, kOoTNewf, sizeof(kOoTNewf));
+    desc.decodePlayerName = OoT_SlotMeta_DecodePlayerName; // OoT's charset, not ASCII (#773)
+    RsbsSave_RegisterGameMeta(GAME_OOT, &desc);
+}
+
 void SaveManager::WriteSaveFile(const std::filesystem::path& savePath, const uintptr_t addr, void* dramAddr,
                                 const size_t size) {
     std::ofstream saveFile = std::ofstream(savePath, std::fstream::in | std::fstream::out | std::fstream::binary);
@@ -329,26 +429,8 @@ SaveManager::SaveManager() {
         RsbsSave_Save(fileNum);
     });
 
-    // Register OoT's metadata-offset descriptor so the unified file-select
-    // panel can render slot names / play-time / "started" without
-    // src/common ever including z64save.h. Offsets are byte positions
-    // within the OoT SaveContext blob as stored in the .redsave; we use
-    // offsetof on the real struct rather than hand-typed hex so a future
-    // SaveContext layout change can't silently desync the panel.
-    {
-        RsbsGameMetaDesc desc{};
-        desc.playerNameOffset = static_cast<uint32_t>(offsetof(SaveContext, playerName));
-        desc.playerNameLen = 8;
-        // OoT has no continuous play-time counter; totalDays is the closest
-        // game-progress proxy we can show without parsing rando state.
-        desc.playTimeOffset = static_cast<uint32_t>(offsetof(SaveContext, totalDays));
-        desc.validMarkerOffset = static_cast<uint32_t>(offsetof(SaveContext, newf));
-        desc.validMarkerLen = 6;
-        // OoT's "newf" sentinel — file is started iff these bytes match.
-        const char kOoTNewf[6] = { 'Z', 'E', 'L', 'D', 'A', 'Z' };
-        std::memcpy(desc.validMarker, kOoTNewf, sizeof(kOoTNewf));
-        RsbsSave_RegisterGameMeta(GAME_OOT, &desc);
-    }
+    // OoT's metadata-offset descriptor for the unified file-select panel.
+    OoT_SlotMeta_Register();
 
     smThreadPool = std::make_shared<BS::thread_pool>(1);
 
