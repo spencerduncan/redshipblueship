@@ -37,9 +37,11 @@
 #include "test_runner.h"
 #include "integration_test_hooks.h"
 #include "archive_check.h"
+#include "array_reader_agreement.h" // #604: both games' vertex readers must agree before anything draws
 #include "headless_crash.h"
 #include "test_window_focus.h" // test windows never take focus (lane F1)
 
+#include <SDL2/SDL_messagebox.h>
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/archive/ArchiveManager.h>
@@ -371,6 +373,22 @@ int main(int argc, char** argv) {
         TestWindowFocus_ArmForTestMode("--integration-test");
         // Continue to game initialization - integration tests actually run the game
         printf("[INT-TEST] Integration test mode - will boot game with hooks\n");
+    }
+
+    // #604: one process draws both games' models, and a vertex array is parsed
+    // by whichever game's 'OARR' reader owns the loader slot for its archive
+    // (OoT's for OoT archives and the curated cross-game archive, MM's for MM's
+    // once MM has initialized). The two readers are separate vendored copies; if
+    // an upstream sync ever makes them fill a vertex differently, geometry
+    // garbles with no error. Refuse to start instead. Needs no Ship::Context.
+    if (Combo_ArrayReaders_BootCheck() != 0) {
+        if (!TestRunner_IsIntegrationTestMode() && !HeadlessCrash_IsHeadless()) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "RedShipBlueShip cannot start",
+                                     "This build's Ocarina of Time and Majora's Mask model readers disagree on "
+                                     "vertex data (#604), so models would draw garbled. The details are in the log.",
+                                     nullptr);
+        }
+        return 1;
     }
 
     // Initialize combo infrastructure
