@@ -59,7 +59,6 @@ No release has been cut since `v0.1.1-prealpha` (July), which is far older than 
 - No spoiler file appears at Generate; it appears when the file is created (§2).
 - A Hyrule chest hosting an MM item gives no item and no textbox, only a corner toast, and the spoiler's `locations` entry there names the "Blue Rupee" stand-in (A4).
 - An owl save in Majora's Mask ends the MM session and puts you back in Ocarina of Time at the same place F10 does, not on a title screen. The Song of Time also saves the pair, and keeps you in MM.
-- MM text that prints the player's name shows blanks ([#773](https://github.com/spencerduncan/redshipblueship/issues/773), pending).
 
 Run them in order; later groups assume a created world. "Expect" is what the merged PRs state. Anything else is a finding.
 
@@ -176,6 +175,6 @@ Each departure prints `[OoT] Abandoned session retired: N overlay(s) reset, M ob
 - **Textbox icons:** the pixels are unverified, and an MM-first session that never entered OoT should show no icon ([#761](https://github.com/spencerduncan/redshipblueship/pull/761)).
 - **MM tricks:** physical feasibility of the new bindings is OoTMM's claim, not measured here ([#763](https://github.com/spencerduncan/redshipblueship/pull/763)).
 - **Abandoned sessions:** the in-game effects of [#751](https://github.com/spencerduncan/redshipblueship/pull/751) and [#767](https://github.com/spencerduncan/redshipblueship/pull/767) come from reading code. OoT Destroy writes to the save (room timers, Sun's Song, magic effects, `linkAge`, three flags) are still skipped at departure ([#770](https://github.com/spencerduncan/redshipblueship/issues/770)). Hook-cleared state is not retired: a remote bombchu's camera focus and ER Epona state ([#751](https://github.com/spencerduncan/redshipblueship/pull/751), [#767](https://github.com/spencerduncan/redshipblueship/pull/767)). A departure from adult Lake Hylia before the water is raised may lower a water box by another 50 units each time, if the scene resource stays cached; not checked ([#767](https://github.com/spencerduncan/redshipblueship/pull/767)).
-- **MM's player name** is expected to be blank in a paired half, so an MM textbox that prints it should show spaces ([#772](https://github.com/spencerduncan/redshipblueship/pull/772)); no such textbox has been looked at ([#773](https://github.com/spencerduncan/redshipblueship/issues/773)).
+- **MM's player name:** a paired file created after [#773](https://github.com/spencerduncan/redshipblueship/issues/773) carries OoT's name into MM (for example the Bombers' "So what's your name, guy?" in North Clock Town); no MM textbox that prints it has been looked at in play. A file created before it shows blanks there.
 - **Exclusions and the hash icons** (A9) are traced in code only ([#774](https://github.com/spencerduncan/redshipblueship/pull/774)).
 - **Renderers:** only OpenGL was captured locally. DX11 and llvmpipe renders come from CI, and macOS is not built.

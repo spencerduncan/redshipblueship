@@ -81,6 +81,34 @@ extern "C" void Randomizer_TestClearOoTSave(void) {
     gSaveContext.fileNum = 0;
 }
 
+/** The name OoT's file select would have written before the creation seam
+ *  (Sram_InitSave): 8 bytes in the charset `filenameLanguage` names (#773). */
+extern "C" void Randomizer_TestSetOoTPlayerName(const uint8_t* name, uint8_t filenameLanguage) {
+    memcpy(gSaveContext.playerName, name, sizeof(gSaveContext.playerName));
+    gSaveContext.ship.filenameLanguage = filenameLanguage;
+}
+
+/** A started OoT half as a .redsave blob holds it (#773): 'ZELDAZ', `name` in
+ *  the charset `filenameLanguage` names, and that language, written at the
+ *  real SaveContext offsets into `blob` (every other byte left as it is).
+ *  Returns 0 when `blob` is too small for any of the three fields. For the
+ *  mm-creation-new-file rows, which commit a slot and read it back through the
+ *  REGISTERED OoT descriptor (OoT_SlotMeta_Register); an MM TU cannot compute
+ *  OoT's offsets. */
+extern "C" int Randomizer_TestAuthorStartedOoTBlob(uint8_t* blob, size_t blobSize, const uint8_t* name,
+                                                   uint8_t filenameLanguage) {
+    static const char kNewf[6] = { 'Z', 'E', 'L', 'D', 'A', 'Z' };
+    if (offsetof(SaveContext, newf) + sizeof(kNewf) > blobSize ||
+        offsetof(SaveContext, playerName) + sizeof(gSaveContext.playerName) > blobSize ||
+        offsetof(SaveContext, ship.filenameLanguage) + 1 > blobSize) {
+        return 0;
+    }
+    memcpy(blob + offsetof(SaveContext, newf), kNewf, sizeof(kNewf));
+    memcpy(blob + offsetof(SaveContext, playerName), name, sizeof(gSaveContext.playerName));
+    blob[offsetof(SaveContext, ship.filenameLanguage)] = filenameLanguage;
+    return 1;
+}
+
 /** The i-th host Randomizer_InitSaveFile resolves a creation-time give from. */
 extern "C" int Randomizer_TestCreationGiveHost(int i) {
     static const RandomizerCheck kHosts[] = { RC_LINKS_POCKET, RC_SONG_FROM_IMPA, RC_TOT_MASTER_SWORD };

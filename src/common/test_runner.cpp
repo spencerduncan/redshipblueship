@@ -105,6 +105,9 @@ int OoT_AbandonedSessionStatics_RunHeadless(void);
 // the slot panel and the moon-crash reset then read as a started file.
 int MM_CreationNewFile_RunSynthetic(void);
 int MM_CreationNewFile_RunWorld(void);
+// combo-player-name (#773, same file): OoT's typed name translates into MM's
+// charset for the paired half (OoTMM's mapping), and the slot panel decodes it.
+int MM_CreationPlayerName_Run(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -879,6 +882,10 @@ static TestResult Test_MMCreationNewFile(void) {
     const bool synthetic = MM_CreationNewFile_RunSynthetic() == 0;
     const bool entryPoint = MMCreationNewFile_EntryPointRegisters();
     return entryPoint && synthetic ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_ComboPlayerName(void) {
+    return MM_CreationPlayerName_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM extended-culling binding (see the extern decl above). Thin wrapper over
@@ -5254,19 +5261,26 @@ const TestDescriptor gTests[] = {
      "archives are mounted (#702)",
      Test_RandoSettingsFoldExcludes},
     {"mm-creation-new-file",
-     "A creation-authored MM half carries what MM's own new-file path stamps (the 'ZELDA3' marker, the checksum, "
-     "fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker alone, the slot panel reads it "
-     "started, and the moon-crash reset keeps the consumed half (#765)",
+     "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
+     "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
+     "alone, the slot panel reads it started under that name, and the moon-crash reset keeps the consumed half "
+     "(#765, #773)",
      Test_MMCreationNewFile},
     {"mm-creation-new-file-world",
      "The production paired creation over the ComboSingleBag pinned seed arms an MM half MM's own new-file path "
-     "would recognize: marker, fileNum 0xFF, tracker present, slot started, moon-crash reset keeps it (#765)",
+     "would recognize: OoT's typed name in MM's charset, marker, fileNum 0xFF, tracker present, slot started under "
+     "that name, moon-crash reset keeps it (#765, #773)",
      Test_MMCreationNewFileWorld},
     {"digest-out-hand-run",
      "A digest dispatch run without its output variable prints a one-line notice that it wrote NO digest file, "
      "naming the variable and the CTest rows that do; set, it resolves the exact path; every digest dispatch "
      "resolves through the one resolver (#710)",
      Test_DigestOutHandRun},
+    {"combo-player-name",
+     "The paired world has one name: OoT's typed name, in each OoT filename charset, translates into MM's charset "
+     "as OoTMM's copyName does (no-glyph bytes to MM's space), every typable character prints in MM as in OoT, "
+     "and the slot panel decodes MM's charset (#773)",
+     Test_ComboPlayerName},
     {"test-window-no-activation",
      "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
      "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",

@@ -379,21 +379,9 @@ void ComboMenuBar::DrawFileSelect() {
                 ImGui::TextDisabled("(quarantined backup on disk)");
             }
         } else {
-            // Name: prefer OoT if started, else MM; show both if both are
-            // started so a slot with progress in each game is unambiguous.
-            // MM's descriptor registers no name (MM_SlotMeta_Register, #765:
-            // a paired half carries none of its own), so an empty MM name
-            // leaves the line to OoT's.
-            std::string nameLine;
-            if (meta.ootStarted && meta.mmStarted && meta.mmName[0] != '\0') {
-                nameLine = std::string("OoT: ") + meta.ootName + "  MM: " + meta.mmName;
-            } else if (meta.ootStarted) {
-                nameLine = std::string("OoT: ") + meta.ootName;
-            } else if (meta.mmStarted) {
-                nameLine = std::string("MM: ") + meta.mmName;
-            } else {
-                nameLine = "(no per-game progress)";
-            }
+            // Name: one line per slot (rsbs::SlotNameLine, save.h): a paired
+            // world's one name once (#773), both only when the halves differ.
+            const std::string nameLine = rsbs::SlotNameLine(meta);
             ImGui::TextUnformatted(nameLine.c_str());
 
             ImGui::SameLine();
