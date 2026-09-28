@@ -443,13 +443,32 @@ restored together. This is what vanilla's reload does and what OoTMM's default
 - **OoT is part of the same file.** If you played OoT after your last save and crossed into
   MM without saving, the crash takes OoT's half back to that save too. Save before you cross
   if that matters to you.
+- Shared rupees, health, magic and ammo come back at the shared pool's value as of that
+  save, applied to MM as an arrival applies them. They do not come back at MM's own
+  balance from its last departure. After a save in OoT these two differ, and without the
+  apply MM would have refunded what OoT spent (fixed in the same PR; row
+  `mm-moon-crash-pool-applied`).
 - A cross-game item that reached MM after the save is not lost: it is delivered again at
   your next arrival in MM, or, if OoT's half went back too, it waits at its check again.
+- Where you wake (traced in source, not played): the crash cutscene ends in the Clock
+  Tower interior with the Happy Mask Salesman's scene (the same destination the Skip Moon
+  Crash enhancement sets, `ENTRANCE(CLOCK_TOWER_INTERIOR, 3)`), then you walk out into
+  South Clock Town. The Dawn of the First Day card needs the restored clock at day 0
+  before 06:01, so it does not appear after an owl save or autosave.
 - A session with nothing saved at all (a refused slot, a debug boot) has nothing to reload;
-  there the clock alone restarts at dawn.
+  there the clock alone restarts at dawn. Nothing else about the cycle is reset on that
+  path: cycle events (`weekEventReg`) and the rest of the half keep their pre-crash
+  values, apart from what vanilla's own tail clears (event flags, cycle scene flags from
+  the permanent ones, timers).
+- **Pending the operator's ruling (decision 16):** rolling OoT's half back with MM's, and
+  resuming mid-cycle after an owl save or autosave (vanilla deletes the owl save and
+  reloads the last Song of Time save). Both follow OoTMM's default. OoTMM also commits at
+  every game switch (`comboGameSwitch` saves with `SF_OWL`), so its last save never
+  predates the crossing and a crash there cannot take back unsaved OoT play. This build
+  does not commit at a crossing.
 
 Locked headlessly (`mm-creation-new-file`, `mm-creation-new-file-world`,
-`mm-moon-crash-never-saved`); not played. The playtest guide's scenario I4 checks it in game.
+`mm-moon-crash-never-saved`, `mm-moon-crash-pool-applied`); not played. The playtest guide's scenario I4 checks it in game.
 
 ### ~~F10 hot-swap silently rolls back your progress~~ — RESOLVED ([#364](https://github.com/spencerduncan/redshipblueship/issues/364), PR [#400](https://github.com/spencerduncan/redshipblueship/pull/400))
 
