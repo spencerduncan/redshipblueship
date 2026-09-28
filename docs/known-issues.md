@@ -217,7 +217,7 @@ file to play the current build.
 **Paired files created before PR #772 (2026-09-28) are NOT refused, and are safe to
 play.** Every arrival in MM now gives the session the cross-game slot number, so the
 moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)), and a moon
-crash restores the file's last save (PR [#PRNUM](https://github.com/spencerduncan/redshipblueship/pull/PRNUM); see the #785 entry below). What stays wrong on such a
+crash restores the file's last save (PR [#789](https://github.com/spencerduncan/redshipblueship/pull/789); see the #785 entry below). What stays wrong on such a
 file is display only: the Combo Tracker's Majora's Mask panel reads "No data yet". A new
 file's panel reads "As of file creation." until MM is first entered. (#772 also describes
 an `[MM v]` / `[MM _]` file-select marker; it is printed only by `ComboMenuBar`, which this
@@ -392,7 +392,7 @@ It fixed the wipe only; the half then stayed on day 4 after a crash, fixed separ
 (next entry). To see whether a file's MM half exists, open the Combo Tracker's Majora's
 Mask panel ("As of file creation." or a later freshness note, versus "No data yet").
 
-### ~~A moon crash in a paired MM half leaves the cycle on day 4~~ — RESOLVED ([#785](https://github.com/spencerduncan/redshipblueship/issues/785), PR [#PRNUM](https://github.com/spencerduncan/redshipblueship/pull/PRNUM))
+### ~~A moon crash in a paired MM half leaves the cycle on day 4~~ — RESOLVED ([#785](https://github.com/spencerduncan/redshipblueship/issues/785), PR [#789](https://github.com/spencerduncan/redshipblueship/pull/789))
 
 `Interface_StartMoonCrash` sets day 4 and 06:00 before the crash cutscene, and vanilla
 rolls the cycle back when `Sram_ResetSaveFromMoonCrash` reloads the file from flash. A
