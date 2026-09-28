@@ -3,7 +3,7 @@
 **Applies to:** `main` at `d6c8f270` (2026-09-28, PR [#776](https://github.com/spencerduncan/redshipblueship/pull/776): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
 plus the 19 PRs merged after it) and the GitHub Actions builds cut from it; the `v0.1.1-prealpha` tag
 (2026-07-03) is older than everything in the first section.
-**Last updated:** 2026-09-28 (the playtest refresh). **Playtesting this build?** Start with
+**Last updated:** 2026-09-28 (the playtest refresh, then a corrections pass). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -183,12 +183,14 @@ durable write goes through one commit point with a generation stamp (PR
 is a promise that the *next* format change will migrate. Treat any progress made on
 a pre-alpha build as disposable, and keep copies of files you care about.
 
-**Paired files created before PR #680 (2026-09-17) are refused, not migrated.**
-Increment 2 moved the entire paired generation to the file-create seam; a save
-whose pair never crossed that seam has no frozen identity to hydrate from and is
-refused on load rather than silently re-generated. This project is pre-release —
-the operator has accepted invalidating existing saves rather than spending effort
-on migration. **If a paired file from before this build is refused, create a new
+**Paired files created before PR #680 (2026-09-17) have no Majora's Mask half and are
+not migrated.** Increment 2 moved the entire paired generation to the file-create seam; a
+save whose pair never crossed that seam has no frozen MM half to hydrate from. Loading
+such a file is not refused: it loads and plays in Ocarina of Time. The **first crossing
+into Majora's Mask** is refused with a toast rather than silently re-generating the
+world: Termina stays un-randomized and the slot is latched against writes to the pair
+for the rest of the session. This project is pre-release — the operator has accepted
+invalidating existing saves rather than spending effort on migration. **Create a new
 file**; there is no recovery path for the old one.
 
 **Paired files created between PR #680 and the switch (PR #743, 2026-09-27) are NOT
@@ -199,9 +201,12 @@ file to play the current build.
 
 **Paired files created before PR #772 (2026-09-28) are NOT refused, and are safe to
 play.** Every arrival in MM now gives the session the cross-game slot number, so the
-moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)). What stays
-wrong on such a file is display only: the file-select slot shows `[MM _]`, and the Combo
-Tracker's Majora's Mask panel shows no MM data. A new file shows `[MM v]`.
+moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)); the moon crash
+still leaves the cycle on day 4 (see the open entry below). What stays wrong on such a
+file is display only: the Combo Tracker's Majora's Mask panel reads "No data yet". A new
+file's panel reads "As of file creation." until MM is first entered. (#772 also describes
+an `[MM v]` / `[MM _]` file-select marker; it is printed only by `ComboMenuBar`, which this
+build never constructs, so no screen shows it.)
 
 **A seed string does not make the world it made on an older build.** PR [#763](https://github.com/spencerduncan/redshipblueship/pull/763)'s two
 trick tightenings moved generated worlds, and since PR [#774](https://github.com/spencerduncan/redshipblueship/pull/774) the OoT half of every
@@ -288,6 +293,23 @@ over the live one (observed in a headless row: day, rupees and inventory wiped).
 now authored as MM's own new-file path authors it, and every arrival pins the cross-game slot
 number, which also covers older files (see "Back up your saves"). The fix is locked
 headlessly and has not been played; the playtest guide's scenario I4 checks it in game.
+What it fixes is the wipe only: after a moon crash the half is kept but stays on day 4
+(next entry). To see whether a file's MM half exists, open the Combo Tracker's Majora's
+Mask panel ("As of file creation." or a later freshness note, versus "No data yet").
+
+### A moon crash in a paired MM half leaves the cycle on day 4 — [#785](https://github.com/spencerduncan/redshipblueship/issues/785)
+
+Open; read from code, not run. `Interface_StartMoonCrash` sets day 4 and 06:00 before the
+crash cutscene, and vanilla rolls the cycle back when `Sram_ResetSaveFromMoonCrash`
+reloads the file's flash slot. A cross-game session has no flash slot, so that reload is
+skipped and nothing else resets the day, and since PR #772 every paired arrival takes this
+path. After a crash the half is **not** empty, but it stays on day 4: the Final Hours
+clock is drawn, the Dawn of the First Day does not play, and the crash cannot trigger
+again, because it fires only at the end of day 3. The fix tracked in #785 is to restore
+the last committed MM half, as vanilla's reload does.
+
+**Workaround:** play the Song of Time before the end of day 3, as you would to avoid the
+crash anyway; let the moon crash only to check the playtest guide's scenario I4.
 
 ### ~~F10 hot-swap silently rolls back your progress~~ — RESOLVED ([#364](https://github.com/spencerduncan/redshipblueship/issues/364), PR [#400](https://github.com/spencerduncan/redshipblueship/pull/400))
 
