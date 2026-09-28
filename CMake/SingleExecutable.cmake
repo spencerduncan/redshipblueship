@@ -2058,6 +2058,22 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # #765: the paired creation event authors MM's half the way MM's own
+    # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
+    # the cross-game session's fileNum 0xFF / flashSaveAvailable -- so the Combo
+    # Tracker reads it present by the marker alone (no save-type widening), the
+    # .redsave slot panel reads it started (MM's slot metadata, registered from
+    # the combo entry point), and the moon-crash reset over the consumed half
+    # keeps the save. games/mm/2s2h/mm_creation_new_file_test.cpp. The synthetic
+    # row is ROM-free and display-free (default tier); the world row runs the
+    # production creation event over the ComboSingleBag pinned seed (rando tier:
+    # it needs a generation).
+    redship_add_test(NAME MMCreationNewFile COMMAND redship --test mm-creation-new-file)
+    redship_add_test(NAME MMCreationNewFileWorld COMMAND redship --test mm-creation-new-file-world
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion

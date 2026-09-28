@@ -138,6 +138,11 @@ typedef struct ComboMMTrackerDesc {
     uint8_t newf[8];
     uint32_t saveTypeOffset; // u32 read; == saveTypeRando means a rando save
     uint32_t saveTypeRando;  // MM's SAVETYPE_RANDO value
+    // ShipSaveInfo.fileCreatedAt, a u64 read. MM stamps it from OnSaveLoad, so
+    // zero means MM has never loaded this save: the half the paired creation
+    // event armed, which only MM's first arrival dispatches OnSaveLoad over
+    // (#765). Selects the stale label; presence is the marker's alone.
+    uint32_t createdAtOffset;
     uint32_t finalSeedOffset;
     uint32_t checkTableOffset; // randoSaveChecks[0]
     uint32_t checkStride;      // sizeof(RandoSaveCheck)
