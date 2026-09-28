@@ -194,15 +194,15 @@ What happens at the crossing depends on whether the file entered Majora's Mask b
 #680:
 
 - **Never crossed:** it has no frozen MM half. The **first crossing into Majora's Mask**
-  is refused with a "This file has no paired Majora's Mask world" toast rather than
+  is refused with a toast saying the file has no paired Majora's Mask world, rather than
   silently re-generating the world: Termina stays un-randomized and the slot is latched
   against writes to the pair for the rest of the session.
 - **Crossed before #680:** it carries the MM half the old arrival generated, and the
   arrival hydrates whatever frozen half it finds. It either plays that old pre-#680 MM
   world, or, if its creation-time MM profile stamp no longer matches this build's MM
-  options, is refused at the crossing by the MM-options check (a different toast:
-  "Majora's Mask options no longer match this file's creation"). Which one a given file
-  meets cannot be decided by reading.
+  options, is refused at the crossing by the MM-options check (a different toast, the
+  one the between-sessions entry below describes). Which one a given file meets cannot
+  be decided by reading.
 
 This project is pre-release — the operator has accepted invalidating existing saves
 rather than spending effort on migration. **Create a new file**; there is no recovery
