@@ -410,7 +410,7 @@ from returning.
 
 ### ~~Timers are not neutralized on the MM side of a switch~~ — RESOLVED ([#373](https://github.com/spencerduncan/redshipblueship/issues/373), PR [#419](https://github.com/spencerduncan/redshipblueship/pull/419))
 
-### ~~MM text that says the player's name shows blanks in a paired world~~ — RESOLVED ([#773](https://github.com/spencerduncan/redshipblueship/issues/773), PR pending)
+### ~~MM text that says the player's name shows blanks in a paired world~~ — RESOLVED ([#773](https://github.com/spencerduncan/redshipblueship/issues/773), PR [#782](https://github.com/spencerduncan/redshipblueship/pull/782))
 
 The paired creation now translates the name typed on OoT's file select into Majora's Mask's
 character set (OoTMM's mapping; characters MM cannot draw become a space) and stamps it on MM's
