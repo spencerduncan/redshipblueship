@@ -154,11 +154,12 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   with a toast ("Not created: try a new seed or Majora's Mask options."). No creation in
   the 30-seed sample needed more than two fill batches, which bounds the failure rate
   below about 10%, not at zero. No partial or corrupt file is left behind.
-- **Some MM randomizer options are disabled-with-reason** on Combo → MM Randomizer:
-  their gameplay hooks are not yet dispatched in the single-executable build
-  ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), 14 of 23
-  hook types remain). The page says which and why; an option that is enabled and
-  does nothing is a bug worth reporting.
+- **One MM randomizer option is drawn disabled on purpose.** "Majora Access: Remains"
+  on Combo → MM Randomizer is retired ("Option is Retired"; ADR 0010 answer O1). No MM
+  game-hook type is registered but undispatched in the single-executable build since PR
+  [#673](https://github.com/spencerduncan/redshipblueship/pull/673) closed [#438](https://github.com/spencerduncan/redshipblueship/issues/438), so no
+  other row is disabled for a missing hook; an option that is enabled and does nothing
+  is a bug worth reporting.
 - **MM's enhancement toggles live on Combo → Majora's Mask** (named MM Enhancements until 2026-09-27). The curated MM
   enhancement toggles — the game-over prompt, `BetterSongOfDoubleTime`,
   `SkipSoTCutscenes`, a pointer to the shared `Autosave` checkbox on OoT's
@@ -212,6 +213,23 @@ Nothing stored in an existing save is recomputed, so existing files are unaffect
 ---
 
 ## Save loss and corruption
+
+### A changed MM option is accepted at load and refused at the next MM arrival — [#564](https://github.com/spencerduncan/redshipblueship/issues/564)
+
+Open, and a trap between sessions. Combo → MM Randomizer and Combo → MM Tricks lock
+only while a creation stamp is resident (`Combo_MMProfileFrozen()` is
+`mmProfileDigest != 0`), and that stamp is zero on a fresh launch and after a return to the
+title screen, so both pages are editable exactly between sessions. Loading a paired file
+compares its Cross-Game Rules field by field against the live ones and refuses a change by
+name, but it does **not** recompute the MM profile: an edited MM option, trick, excluded
+check or starting item is accepted at load. The next crossing into Majora's Mask recomputes
+the profile, sees the difference and refuses: a 15-second "Cross-game pairing REFUSED"
+toast, an un-randomized Termina, and the slot latched against writes for the session
+(PR [#570](https://github.com/spencerduncan/redshipblueship/pull/570)). The file on disk is untouched.
+
+**Workaround:** once a paired file exists, leave both MM pages alone; if you changed one,
+set it back exactly or recreate the file. **The fix to come** is the same MM-profile
+compare at load time, so the refusal happens at file select, by name, before you play.
 
 ### ~~A flag set in the scene you leave through the portal can be lost~~ — RESOLVED ([#635](https://github.com/spencerduncan/redshipblueship/issues/635), community report; tracked in [#638](https://github.com/spencerduncan/redshipblueship/issues/638), PR [#650](https://github.com/spencerduncan/redshipblueship/pull/650))
 
@@ -389,11 +407,11 @@ MM's half keeps the default all-space name, so an MM textbox that prints the pla
 is expected to show blanks (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)). No such textbox has been looked at in a
 paired half ([#773](https://github.com/spencerduncan/redshipblueship/issues/773), "Not verified"). The file-select slot still shows OoT's name.
 
-### MM hook dispatch is still partial — [#438](https://github.com/spencerduncan/redshipblueship/issues/438)
+### ~~MM hook dispatch is still partial~~ — RESOLVED ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), PR [#673](https://github.com/spencerduncan/redshipblueship/pull/673))
 
-14 of MM's 23 game-hook types have no dispatch point in the single-exe build.
-Randomizer options and enhancements that depend on those hooks are shown
-disabled-with-reason on the MM randomizer page rather than silently doing nothing.
+Fixed by PR #673 (2026-09-17), which wired the last fourteen dormant MM hook types and
+the guards their registrants needed. Before it, those hook types had no dispatch point
+in the single-exe build, and options that depended on them were shown disabled-with-reason.
 The actor-init, actor-draw and open-text hooks (PR
 [#512](https://github.com/spencerduncan/redshipblueship/pull/512)), the pause-menu
 and file-select hooks (PR [#547](https://github.com/spencerduncan/redshipblueship/pull/547))
