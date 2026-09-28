@@ -31,8 +31,11 @@
  *      and before mutating the save. A pre-stamped newf marker must survive.
  *   3. Moon-crash reset (the reported path). Sram_ResetSaveFromMoonCrash under
  *      the 0xFF sentinel must not reload from flash and must not overwrite the
- *      live save with the zeroed buffer. A pre-stamped player name and day must
- *      survive.
+ *      live save with the zeroed buffer. A pre-stamped player name must survive.
+ *      With no active unified slot there is no commit to restore either (#785:
+ *      a slot-less session restores its last .redsave commit instead of the
+ *      flash file), so the clock alone restarts at dawn (day 0, 05:59) rather
+ *      than keeping the pre-crash day.
  *
  * Removing the fix (reverting the func_80147314 / Sram_ResetSaveFromMoonCrash
  * guards) flips checks 2 and 3 to failure without any crash: the OOB reads land
@@ -44,6 +47,8 @@
 
 #include <cstdio>
 #include <cstring>
+
+extern "C" void RsbsSave_SetActiveSlot(int slot);
 
 namespace {
 
@@ -134,6 +139,7 @@ extern "C" int MM_FlashFileNumOob_RunHeadless(void) {
 
         memset(&gSaveContext, 0, sizeof(gSaveContext));
         gSaveContext.fileNum = 0xFF;
+        RsbsSave_SetActiveSlot(-1); // no unified slot: nothing to restore (#785)
 
         const char kPlayerName[8] = { 'C', 'R', 'O', 'S', 'S', 'M', 'M', '\0' };
         memcpy(gSaveContext.save.saveInfo.playerData.playerName, kPlayerName, sizeof(kPlayerName));
@@ -147,8 +153,12 @@ extern "C" int MM_FlashFileNumOob_RunHeadless(void) {
 
         FLASH_ASSERT(memcmp(gSaveContext.save.saveInfo.playerData.playerName, kPlayerName, sizeof(kPlayerName)) == 0,
                      "moon-crash reset clobbered the live player name under the 0xFF sentinel");
-        FLASH_ASSERT(gSaveContext.save.day == 0x1234,
-                     "moon-crash reset wiped save.day under the 0xFF sentinel (zeroed buffer copied over the save)");
+        FLASH_ASSERT(
+            memcmp(gSaveContext.save.saveInfo.playerData.newf, kValidNewf, sizeof(kValidNewf)) == 0,
+            "moon-crash reset wiped the newf marker under the 0xFF sentinel (zeroed buffer copied over the save)");
+        FLASH_ASSERT(gSaveContext.save.day == 0 && gSaveContext.save.time == (u16)(CLOCK_TIME(6, 0) - 1),
+                     "with no commit to restore, the moon-crash reset restarts the clock at dawn (#785), "
+                     "not the pre-crash day");
     }
 
     // Leave gSaveContext clean for whatever runs next.

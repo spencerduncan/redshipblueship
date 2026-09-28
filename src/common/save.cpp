@@ -1523,6 +1523,134 @@ std::string SlotNameLine(const SlotMeta& meta) {
     return "(no per-game progress)";
 }
 
+// ============================================================================
+// In-session reset from the last whole commit (#785; see save.h)
+// ============================================================================
+
+RsbsResetOutcome SaveManager::RestoreLastCommitForReset(int slot, uint8_t* mmOut, size_t mmOutSize,
+                                                        RsbsResetAcceptHalf accept, void* acceptCtx,
+                                                        bool* outOoTHalfMoved) {
+    if (outOoTHalfMoved != nullptr) {
+        *outOoTHalfMoved = false;
+    }
+    if (!SlotInRange(slot)) {
+        return RSBS_RESET_NO_SLOT;
+    }
+    // A latched slot is a file this session does not own: refused for identity
+    // or generation at the arrival, refused at load, or never established. Its
+    // bytes are exactly what the latch exists to keep out of this session.
+    if (!IsSlotWritable(slot)) {
+        return RSBS_RESET_NOT_WRITABLE;
+    }
+    if (mmOut == nullptr || mmOutSize == 0 || mmOutSize > kMMSize) {
+        return RSBS_RESET_REJECTED;
+    }
+
+    SlotFileData data;
+    RsbsRefuseReason reason = RSBS_REFUSE_NONE;
+    const SlotReadResult result = ReadSlotFile(slot, data, reason, /*verbose=*/true);
+    if (result == SlotReadResult::Absent) {
+        return RSBS_RESET_NO_COMMIT;
+    }
+    if (result == SlotReadResult::Refused) {
+        // Named, never quarantined: the reset reads, it does not load. The next
+        // LoadSlot of this slot runs the refusal machinery at full strength.
+        std::fprintf(stderr, "[RsbsSave] slot %d: last commit unreadable for a reset (%s); nothing restored\n", slot,
+                     RefuseReasonLabel(reason));
+        return RSBS_RESET_UNREADABLE;
+    }
+
+    ComboContext combo;
+    std::memcpy(&combo, data.comboRecord.data(), sizeof(ComboContext));
+
+    // The file must BE the session's last commit. Every commit this session
+    // made stamped gComboCtx.commitGeneration and wrote that record, and a load
+    // copies the file's generation in, so equality is the ordinary state. A
+    // mismatch means a staged commit never reached disk (or the file changed
+    // underneath the session); restoring an older record would resurrect
+    // shared-item records a newer, lost commit had consumed.
+    if (combo.commitGeneration != gComboCtx.commitGeneration) {
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d: the .redsave carries commit generation %u but this session's last commit "
+                     "is %u; nothing restored\n",
+                     slot, (unsigned)combo.commitGeneration, (unsigned)gComboCtx.commitGeneration);
+        return RSBS_RESET_STALE;
+    }
+
+    // One game, one identity (ADR 0011 decision 4): a reset never changes which
+    // world is being played. Every field frozen at creation must already agree.
+    const bool sameIdentity = combo.sharedRandoSeed == gComboCtx.sharedRandoSeed &&
+                              combo.sourceIsRando == gComboCtx.sourceIsRando &&
+                              combo.sharedRandoSettingsHash == gComboCtx.sharedRandoSettingsHash &&
+                              combo.mmProfileDigest == gComboCtx.mmProfileDigest &&
+                              combo.mmPairedAttempt == gComboCtx.mmPairedAttempt &&
+                              combo.comboSettingsHash == gComboCtx.comboSettingsHash &&
+                              std::memcmp(&combo.comboTriforce, &gComboCtx.comboTriforce,
+                                          sizeof(ComboTriforceRecord)) == 0;
+    // The crossing store is the only truth for foreign placements, frozen at
+    // creation; the commit's block must be the live store byte for byte (a
+    // v1/v2 file carries none, which is true only of a world with none).
+    bool sameCrossings = false;
+    if (data.crossings.empty()) {
+        sameCrossings = Combo_Crossings_Count(GAME_OOT) == 0 && Combo_Crossings_Count(GAME_MM) == 0;
+    } else {
+        std::vector<uint8_t> live(Combo_Crossings_SerializedSize());
+        sameCrossings = Combo_Crossings_Serialize(live.data(), live.size()) == live.size() && live == data.crossings;
+    }
+    if (!sameIdentity || !sameCrossings) {
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d: the last commit names a different world than the live one (%s); nothing "
+                     "restored\n",
+                     slot, sameIdentity ? "crossing set differs" : "identity differs");
+        return RSBS_RESET_OTHER_WORLD;
+    }
+
+    bool mmEmpty = true;
+    for (uint8_t b : data.mmBlob) {
+        if (b != 0) {
+            mmEmpty = false;
+            break;
+        }
+    }
+    if (mmEmpty || (accept != nullptr && accept(data.mmBlob.data(), data.mmBlob.size(), acceptCtx) == 0)) {
+        std::fprintf(stderr, "[RsbsSave] slot %d: the last commit's MM half %s; nothing restored\n", slot,
+                     mmEmpty ? "is empty" : "was refused by the caller");
+        return RSBS_RESET_REJECTED;
+    }
+
+    // ---- every check passed: restore, all tiers together --------------------
+    ComboContext merged;
+    std::memcpy(&merged, &combo, sizeof(ComboContext));
+    merged.switchRequested = gComboCtx.switchRequested;
+    merged.targetGame = gComboCtx.targetGame;
+    merged.targetEntrance = gComboCtx.targetEntrance;
+    merged.sourceGame = gComboCtx.sourceGame;
+    merged.sourceEntrance = gComboCtx.sourceEntrance;
+    merged.saveSlot = gComboCtx.saveSlot;
+    merged.commitGeneration = gComboCtx.commitGeneration;
+    std::memcpy(&gComboCtx, &merged, sizeof(ComboContext));
+
+    // The pool is the commit's now; a watermark taken against the pre-reset
+    // half would re-count (or drain) it at the next harvest. Same reset a load
+    // performs; the caller re-seeds from the restored half.
+    Combo_ResetSharedResourceWatermarks();
+
+    const void* ootLive = Context_GetOoTSaveContext();
+    const bool ootMoved = ootLive == nullptr || std::memcmp(ootLive, data.ootBlob.data(), kOoTSize) != 0;
+    Context_UpdateShadowCopy(GAME_OOT, data.ootBlob.data(), kOoTSize);
+    if (outOoTHalfMoved != nullptr) {
+        *outOoTHalfMoved = ootMoved;
+    }
+
+    std::memcpy(mmOut, data.mmBlob.data(), mmOutSize);
+    std::fprintf(stderr,
+                 "[RsbsSave] slot %d: restored the last whole commit (generation %u) in place; OoT half %s\n", slot,
+                 (unsigned)combo.commitGeneration,
+                 ootMoved ? "ROLLED BACK too (OoT progress after that commit was never committed)"
+                          : "unchanged (already that commit's)");
+    return RSBS_RESET_RESTORED;
+}
+
 }  // namespace rsbs
 
 // ============================================================================
@@ -1530,6 +1658,17 @@ std::string SlotNameLine(const SlotMeta& meta) {
 // ============================================================================
 
 extern "C" {
+
+int RsbsSave_RestoreLastCommitForReset(int slot, uint8_t* mmOut, size_t mmOutSize, RsbsResetAcceptHalf accept,
+                                       void* acceptCtx, int* outOoTHalfMoved) {
+    bool moved = false;
+    const RsbsResetOutcome outcome =
+        rsbs::SaveManager::Instance().RestoreLastCommitForReset(slot, mmOut, mmOutSize, accept, acceptCtx, &moved);
+    if (outOoTHalfMoved != nullptr) {
+        *outOoTHalfMoved = moved ? 1 : 0;
+    }
+    return static_cast<int>(outcome);
+}
 
 int RsbsSave_Save(int slot) {
     return rsbs::SaveManager::Instance().Save(slot) ? 1 : 0;

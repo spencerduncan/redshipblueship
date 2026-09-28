@@ -39,12 +39,53 @@
  *   without the marker reads UNAVAILABLE: #755's widening is gone), labelled "As
  *   of file creation" until MM's first load stamps fileCreatedAt; the .redsave
  *   slot panel reports MM started through MM_SlotMeta_Register (and not for an
- *   all-zero MM half); and the moon-crash reset over the consumed half keeps
- *   the save.
+ *   all-zero MM half); and a moon crash over the consumed half restores the
+ *   LAST COMMIT (see "THE MOON CRASH" below).
  *
  *   mm-creation-new-file-world (rando tier). The PRODUCTION creation event
  *   (OoT_Creation_AuthorRandoFile) over the ComboSingleBag pinned seed
  *   RSBSSINGLEBAG1, then the same checks over the armed shadow it leaves.
+ *
+ * ============================================================================
+ * THE MOON CRASH (#785), IN BOTH CREATION ROWS AND ITS OWN ROW
+ * ============================================================================
+ *
+ * Interface_StartMoonCrash sets day 4 / eventDayCount 4 / 06:00 before the
+ * crash cutscene, and vanilla's Sram_ResetSaveFromMoonCrash then reloads the
+ * file from flash. A paired half runs pinned to fileNum 0xFF, so that reload
+ * never ran, nothing replaced it, and #765's lock asserted the half KEPT its
+ * pre-crash day: the file stayed on day 4 (no re-trigger, the Final Hours
+ * clock, no Dawn of the First Day). The file of a paired half is the .redsave,
+ * so the reload is its last whole commit (OoTMM's default "Last Save" moon
+ * crash reloads its own save, the foreign save and the shared save together).
+ * CheckMoonCrashRestoresLastCommit commits an owl save on day 1 through the
+ * production MM funnel, plays on (day 3, more rupees harvested into the pool,
+ * a crossing pickup recorded in Tier-1, OoT's half moved), crashes through the
+ * REAL Interface_StartMoonCrash and Sram_ResetSaveFromMoonCrash, and asserts the
+ * file as last committed: day, time, eventDayCount and inventory of the commit,
+ * the half not empty and still this world, Tier-1's post-commit record gone,
+ * OoT's half back at the commit, the pool at the committed value, and a later
+ * spend harvested as an ordinary delta (the discriminating shared-resource
+ * sequence: a watermark left from before the crash would drain the pool).
+ *
+ *   mm-moon-crash-never-saved (redship tier, ROM-free). A paired half that was
+ *   created and never saved: its only commit is the creation's own (OoT's
+ *   Sram_InitSave writes the .redsave after the creation event arms the half),
+ *   which is vanilla's new-file flash write, so the crash restores the half as
+ *   created (day 0, 05:59: Dawn of the First Day). A commit at 05:55 on the
+ *   final day restores pulled back to 05:49 (OoTMM's grace period). Then a
+ *   session with nothing durable at all (no active slot; a latched slot):
+ *   nothing to reload, the clock alone restarts at dawn and the half keeps its
+ *   bytes.
+ *
+ *   mm-moon-crash-pool-applied (redship tier, ROM-free). The commit's pool and
+ *   its MM half need not agree: an OoT-side commit writes MM's half from the
+ *   shadow frozen at MM's departure while the pool holds OoT's later balances.
+ *   After the crash MM's rupees, health and ammo must EQUAL the restored pool
+ *   (the reset applies it, as an arrival does), in the same session and after
+ *   a new session loads that file; a later spend is an exact delta. Red on the
+ *   harvest-only reset: MM came back at 80 rupees / 0x30 health / 15 nuts
+ *   against a pool of 20 / 0x20 / 5.
  *
  * ============================================================================
  * THE NAME (#773), IN ALL THREE ROWS
@@ -80,8 +121,11 @@
 
 #include "combo_tracker_view.h"
 #include "context.h"
+#include "crossing_store.h"
 #include "game.h"
 #include "save.h"
+#include "shared_items.h"
+#include "shared_resources.h"
 
 extern "C" {
 void MM_Creation_StampNewFileFields(const u8* playerName);
@@ -98,6 +142,9 @@ int Rando_HeadlessSeedTest(const char* seedStr);
 void Randomizer_TestClearOoTSave(void);
 void Combo_SingleBag_Forget(void);
 void Combo_Crossings_Clear(void);
+int MM_Combo_CaptureSaveToUnifiedSlot(void);
+void MM_HarvestSharedResources(void);
+void MM_ApplySharedResources(void);
 }
 
 namespace {
@@ -273,38 +320,173 @@ int CheckArmedHalf(uint32_t expectSeed) {
     return 0;
 }
 
+// The crash itself, as production drives it: Interface_StartMoonCrash (the
+// day 4 / eventDayCount 4 / 06:00 it sets is the premise), then the cutscene's
+// CS_MISC_RESET_SAVE_FROM_MOON_CRASH -> Sram_ResetSaveFromMoonCrash from the
+// play state's sramCtx. The BeforeMoonCrashSaveReset hook's DeleteOwlSave
+// dereferences MM_gPlayState, so a zeroed play state with a real save buffer
+// stands in (its 0x19258 bytes sit in BSS), exactly as mm-moon-crash-arm-state.
+int CrashTheMoon() {
+    static u8 sCrashSaveBuf[SAVE_BUFFER_SIZE];
+    static PlayState sCrashPlayState;
+    memset(&sCrashPlayState, 0, sizeof(sCrashPlayState));
+    memset(sCrashSaveBuf, 0, sizeof(sCrashSaveBuf));
+    sCrashPlayState.sramCtx.saveBuf = sCrashSaveBuf;
+    PlayState* const savedPlayState = MM_gPlayState;
+    MM_gPlayState = &sCrashPlayState;
+    Interface_StartMoonCrash(&sCrashPlayState);
+    const s32 crashDay = gSaveContext.save.day;
+    const s32 crashEventDay = gSaveContext.save.eventDayCount;
+    Sram_ResetSaveFromMoonCrash(&sCrashPlayState.sramCtx);
+    MM_gPlayState = savedPlayState;
+    CNF_ASSERT(crashDay == 4 && crashEventDay == 4, "Interface_StartMoonCrash sets day 4 / eventDayCount 4 (premise)");
+    return 0;
+}
+
+void PrintClock(const char* when) {
+    printf("[TEST] %s: %s: day=%d eventDayCount=%d time=0x%04X rupees=%d bottle1=0x%02X isOwlSave=%d newf[0]=%02X\n",
+           sRow, when, (int)gSaveContext.save.day, (int)gSaveContext.save.eventDayCount,
+           (unsigned)gSaveContext.save.time, (int)gSaveContext.save.saveInfo.playerData.rupees,
+           (unsigned)gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1], (int)gSaveContext.save.isOwlSave,
+           (unsigned)gSaveContext.save.saveInfo.playerData.newf[0]);
+}
+
+/** The pool's rupee value (0 when never shared). */
+uint16_t PoolRupees() {
+    uint16_t v = 0;
+    Combo_GetSharedResource(RSBS_SHARED_RES_RUPEES, &v);
+    return v;
+}
+
+/** Point the SaveManager at this file's scratch directory with slot 0 armed and active. */
+void OpenScratchSlot() {
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveDir);
+    mgr.ResetSlotSessionState();
+    mgr.DeleteSave(0); // an erase is what arms the slot for this session's writes
+    RsbsSave_SetActiveSlot(0);
+}
+
+void CloseScratchSlot() {
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    mgr.SetSaveDirectory("Save");
+    RsbsSave_SetActiveSlot(-1);
+}
+
 /**
- * The consequence the fileNum stamp exists for: the arrival consumes the armed
- * half into the live save, and the moon-crash reset must not reload a flash slot
- * the session does not have (Sram_FileNumHasFlashSlot) and copy the read stub's
- * empty buffer over it.
+ * #785: a moon crash in a paired half restores the LAST COMMIT, the file as
+ * last saved, which is what vanilla's flash reload does. The arrival consumes
+ * the armed half; an owl save on day 1 commits it; play goes on past that
+ * commit; the moon falls.
  */
-int CheckMoonCrashKeepsConsumedHalf() {
+int CheckMoonCrashRestoresLastCommit(uint32_t expectSeed) {
+    OpenScratchSlot();
+    // Production stamps Tier-1's inner magic in main.cpp (ComboContext_Init,
+    // before either game boots); a --test process exits before that line, and
+    // the world row's bring-up never re-inits gComboCtx (that would wipe the
+    // identity the creation event just stamped). Without the magic every commit
+    // this check writes reads back "Tier-1 is not a ComboContext".
+    if (memcmp(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic)) != 0) {
+        memcpy(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic));
+    }
     CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
                "the armed half is consumed into the live save, as the arrival does");
-    const s32 day = 2;
-    const s16 rupees = 0x77;
-    gSaveContext.save.day = day;
-    gSaveContext.save.saveInfo.playerData.rupees = rupees;
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.rupeeAccumulator = 0;
+    // An empty pool and no watermarks, so the rupee arithmetic below is exact
+    // whatever an earlier row or the creation left behind.
+    memset(gComboCtx.sharedResources, 0, sizeof(gComboCtx.sharedResources));
+    memset(gComboCtx.sharedResourcesExt, 0, sizeof(gComboCtx.sharedResourcesExt));
+    Combo_ResetSharedResourceWatermarks();
+
+    // ---- the last commit: an owl save on day 1 at 10:00 --------------------
+    const s32 kDay = 1;
+    const s32 kEventDay = 1;
+    const u16 kTime = (u16)CLOCK_TIME(10, 0);
+    const s16 kRupees = 50;
+    gSaveContext.save.day = kDay;
+    gSaveContext.save.eventDayCount = kEventDay;
+    gSaveContext.save.time = kTime;
+    gSaveContext.save.saveInfo.playerData.rupees = kRupees;
+    gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = ITEM_NONE;
+    gSaveContext.save.isOwlSave = true; // the owl statue's marshal state
+    CNF_ASSERT(MM_Combo_CaptureSaveToUnifiedSlot() == 1, "the owl save commits the whole file (production funnel)");
+    gSaveContext.save.isOwlSave = false;
+    const uint32_t committedGeneration = gComboCtx.commitGeneration;
+    const uint16_t committedPool = PoolRupees();
+    static SharedItem sCommittedItems[RSBS_SHARED_ITEM_CAP];
+    memcpy(sCommittedItems, gComboCtx.sharedItemsTagged, sizeof(sCommittedItems));
+    const uint32_t committedCrossings = Combo_Crossings_Digest();
+    const uint32_t committedSettingsHash = gComboCtx.comboSettingsHash;
+    const size_t ootSize = (size_t)OOT_SAVE_CONTEXT_SIZE;
+    std::vector<uint8_t> ootCommitted(ootSize, 0);
+    memcpy(ootCommitted.data(), Context_GetOoTSaveContext(), ootSize);
+    printf("[TEST] %s: committed generation %u, pool rupees %u\n", sRow, (unsigned)committedGeneration,
+           (unsigned)committedPool);
+    CNF_ASSERT(committedPool == (uint16_t)kRupees, "the commit harvested MM's balance into the pool");
+
+    // ---- play on past it: nothing below is ever committed ------------------
+    gSaveContext.save.day = 3;
+    gSaveContext.save.eventDayCount = 3;
+    gSaveContext.save.time = (u16)CLOCK_TIME(23, 0);
     gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = ITEM_BOTTLE;
+    // (A new file's wallet holds 99: the harvest clamps to it.)
+    gSaveContext.save.saveInfo.playerData.rupees = 90;
+    MM_HarvestSharedResources(); // the pool and the watermark follow MM to 90 (a suspend does this)
+    CNF_ASSERT(PoolRupees() == 90, "the uncommitted rupees reached the pool (premise)");
+    CNF_ASSERT(Combo_RecordSharedItemCrossing(GAME_OOT, 0x0042) >= 0,
+               "an MM check yielded an OoT item after the commit: Tier-1 records it (premise)");
+    CNF_ASSERT(memcmp(sCommittedItems, gComboCtx.sharedItemsTagged, sizeof(sCommittedItems)) != 0,
+               "Tier-1 moved past the commit (premise)");
+    {
+        // OoT's half moved past the commit too: the case where the commit
+        // predates an OoT leg that was never saved.
+        std::vector<uint8_t> ootLater = ootCommitted;
+        ootLater[0x100] ^= 0x5A;
+        Context_UpdateShadowCopy(GAME_OOT, ootLater.data(), ootSize);
+    }
+    PrintClock("before the crash");
 
-    SramContext sramCtx;
-    memset(&sramCtx, 0, sizeof(sramCtx));
-    memset(sSaveBuf, 0, sizeof(sSaveBuf));
-    sramCtx.saveBuf = sSaveBuf;
-    Sram_ResetSaveFromMoonCrash(&sramCtx);
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    PrintClock("after the moon-crash reset");
+    printf("[TEST] %s: after the reset: pool rupees %u, generation %u\n", sRow, (unsigned)PoolRupees(),
+           (unsigned)gComboCtx.commitGeneration);
 
-    printf("[TEST] %s: after the moon-crash reset: fileNum=0x%X day=%d rupees=%d bottle1=0x%02X newf[0]=%02X\n", sRow,
-           (unsigned)gSaveContext.fileNum, (int)gSaveContext.save.day,
-           (int)gSaveContext.save.saveInfo.playerData.rupees,
-           (unsigned)gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1],
-           (unsigned)gSaveContext.save.saveInfo.playerData.newf[0]);
-    CNF_ASSERT(gSaveContext.save.day == day && gSaveContext.save.saveInfo.playerData.rupees == rupees,
-               "the moon-crash reset keeps the consumed half's save (no reload from a flash slot it does not have)");
-    CNF_ASSERT(gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] == ITEM_BOTTLE,
-               "the moon-crash reset keeps the consumed half's inventory");
+    // ---- the vanilla outcome: the file as last saved -------------------------
+    CNF_ASSERT(gSaveContext.save.day == kDay && gSaveContext.save.eventDayCount == kEventDay &&
+                   gSaveContext.save.time == kTime,
+               "the moon crash restores the last commit's day, eventDayCount and time (not day 4)");
+    CNF_ASSERT(gSaveContext.save.saveInfo.playerData.rupees == kRupees &&
+                   gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] == ITEM_NONE,
+               "the moon crash restores the last commit's inventory; progress after it is lost");
+    CNF_ASSERT(!gSaveContext.save.isOwlSave, "the restored owl commit is not left marked as an owl save");
     CNF_ASSERT(memcmp(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf)) == 0,
-               "the moon-crash reset keeps the marker");
+               "the half is not empty: the marker survives");
+    CNF_ASSERT(gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO &&
+                   gSaveContext.save.shipSaveInfo.rando.finalSeed == expectSeed,
+               "the half is still this world (save type and seed)");
+    CNF_ASSERT(gSaveContext.fileNum == 0xFF, "the session keeps its 0xFF sentinel");
+    // ---- the whole file, not the half alone ------------------------------------
+    CNF_ASSERT(memcmp(sCommittedItems, gComboCtx.sharedItemsTagged, sizeof(sCommittedItems)) == 0,
+               "Tier-1's shared-item records are the commit's: the post-commit pickup is gone with its check");
+    CNF_ASSERT(memcmp(Context_GetOoTSaveContext(), ootCommitted.data(), ootSize) == 0,
+               "OoT's half is the commit's too (one file, one reload)");
+    CNF_ASSERT(Combo_Crossings_Digest() == committedCrossings && gComboCtx.comboSettingsHash == committedSettingsHash,
+               "the crossing set and the frozen rules are untouched");
+    CNF_ASSERT(gComboCtx.commitGeneration == committedGeneration, "the commit generation does not move");
+    // ---- the shared-resource discipline ----------------------------------------
+    CNF_ASSERT(PoolRupees() == committedPool,
+               "the pool is the commit's: neither the uncommitted 90 nor drained by a pre-crash watermark");
+    gSaveContext.save.saveInfo.playerData.rupees = kRupees - 20;
+    MM_HarvestSharedResources();
+    CNF_ASSERT(PoolRupees() == (uint16_t)(committedPool - 20),
+               "a spend after the reset is an ordinary delta against the restored balance");
+
+    CloseScratchSlot();
     return 0;
 }
 
@@ -362,7 +544,7 @@ extern "C" int MM_CreationNewFile_RunSynthetic(void) {
     if (CheckArmedHalf(kSeed) != 0) {
         return 1;
     }
-    if (CheckMoonCrashKeepsConsumedHalf() != 0) {
+    if (CheckMoonCrashRestoresLastCommit(kSeed) != 0) {
         return 1;
     }
 
@@ -395,12 +577,328 @@ extern "C" int MM_CreationNewFile_RunWorld(void) {
     if (CheckArmedHalf(seed) != 0) {
         return 1;
     }
-    if (CheckMoonCrashKeepsConsumedHalf() != 0) {
+    if (CheckMoonCrashRestoresLastCommit(seed) != 0) {
         return 1;
     }
 
     Combo_SingleBag_Forget();
     Combo_Crossings_Clear();
+    printf("[TEST] PASS: %s\n", sRow);
+    return 0;
+}
+
+/**
+ * mm-moon-crash-never-saved (#785). A paired half created and never saved, then
+ * a session with nothing durable at all.
+ *
+ * Vanilla MM writes a new file to flash when it is created (MM_Sram_InitSave),
+ * so a file never saved after creation reloads AS CREATED after a crash. The
+ * paired creation does the same: OoT's Sram_InitSave arms the slot, the
+ * creation event arms the freshly authored MM half, and Save_SaveFile commits
+ * the .redsave with it. This row takes those steps (ArmSlotOnCreate, the armed
+ * half, one commit), plays three days on the arrival's consumed half without
+ * saving, and lets the moon fall: the half must come back as created.
+ */
+extern "C" int MM_MoonCrashNeverSaved_Run(void) {
+    sRow = "mm-moon-crash-never-saved";
+    printf("[TEST] %s: a paired half created and never saved restores as created after a moon crash; a session "
+           "with no commit at all restarts the clock at dawn (#785)\n",
+           sRow);
+
+    const GameId prevGame = Context_GetCurrentGame();
+    Context_InitFrozenStates();
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+
+    // ---- the creation: the synthetic row's authoring, then its one commit ----
+    const uint32_t kSeed = 0x5EED0785u;
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Sram_InitNewSave();
+    MM_Creation_StampNewFileFields(kMMName);
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = kSeed;
+    CNF_ASSERT(MM_Rando_ArmCreatedHalf(0) == 0, "the authored half arms");
+    Context_SetCurrentGame(GAME_OOT);
+    static SaveContext sCreated;
+    memcpy(&sCreated, Context_GetMMSaveContext(), sizeof(SaveContext));
+    {
+        // OoT's half at creation: a zeroed stand-in (the row is ROM-free).
+        std::vector<uint8_t> oot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+        Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+    }
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveDir);
+    mgr.DeleteSave(0); // leftovers from an earlier run
+    mgr.ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0); // OoT's Sram_InitSave
+    CNF_ASSERT(mgr.Save(0), "the creation commits the .redsave with the armed MM half (Save_SaveFile)");
+    RsbsSave_SetActiveSlot(0);
+    printf("[TEST] %s: created half: day=%d eventDayCount=%d time=0x%04X rupees=%d\n", sRow, (int)sCreated.save.day,
+           (int)sCreated.save.eventDayCount, (unsigned)sCreated.save.time,
+           (int)sCreated.save.saveInfo.playerData.rupees);
+
+    // ---- the arrival, and three days of play that are never saved ------------
+    CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
+               "the arrival consumes the armed half");
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.save.day = 2;
+    gSaveContext.save.eventDayCount = 2;
+    gSaveContext.save.time = (u16)CLOCK_TIME(15, 0);
+    gSaveContext.save.saveInfo.playerData.rupees = 99;
+    gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = ITEM_BOTTLE;
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    PrintClock("after the moon crash (never saved)");
+    CNF_ASSERT(gSaveContext.save.day == 0 && gSaveContext.save.eventDayCount == 0 &&
+                   gSaveContext.save.time == (u16)(CLOCK_TIME(6, 0) - 1),
+               "a half never saved after creation restores to the created clock: day 0, 05:59, the Dawn of the "
+               "First Day");
+    CNF_ASSERT(memcmp(&gSaveContext.save.saveInfo, &sCreated.save.saveInfo, sizeof(sCreated.save.saveInfo)) == 0,
+               "a half never saved after creation restores to the created half: inventory, flags and name");
+    CNF_ASSERT(memcmp(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf)) == 0 &&
+                   memcmp(gSaveContext.save.saveInfo.playerData.playerName, kMMName, sizeof(kMMName)) == 0,
+               "the half is not empty: marker and name");
+    CNF_ASSERT(gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO &&
+                   gSaveContext.save.shipSaveInfo.rando.finalSeed == kSeed,
+               "the half is still this world");
+
+    // ---- OoTMM's grace period: a commit minutes before the crash -------------
+    // An autosave at 05:55 on the final day would otherwise restore a clock the
+    // moon falls on again within seconds; OoTMM's gracePeriod pulls it back to
+    // crash - 0x1E0 (05:49 on day 3). The pull-back never moves a clock further
+    // from the crash than that.
+    gSaveContext.save.day = 3;
+    gSaveContext.save.eventDayCount = 3;
+    gSaveContext.save.time = (u16)CLOCK_TIME(5, 55);
+    CNF_ASSERT(MM_Combo_CaptureSaveToUnifiedSlot() == 1, "a commit minutes before the crash lands");
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    PrintClock("after the moon crash (commit at 05:55 on day 3)");
+    CNF_ASSERT(gSaveContext.save.day == 3 && gSaveContext.save.eventDayCount == 3 &&
+                   gSaveContext.save.time == (u16)(0x3E20),
+               "a commit within the grace period is pulled back to 05:49 on day 3 (OoTMM gracePeriod)");
+
+    // ---- a session with nothing durable: no active slot, then a latched one --
+    for (int leg = 0; leg < 2; leg++) {
+        if (leg == 0) {
+            RsbsSave_SetActiveSlot(-1);
+        } else {
+            mgr.ResetSlotSessionState(); // slot 0 exists but this session never loaded, created or erased it
+            RsbsSave_SetActiveSlot(0);
+        }
+        gSaveContext.save.day = 3;
+        gSaveContext.save.eventDayCount = 3;
+        gSaveContext.save.time = (u16)CLOCK_TIME(23, 0);
+        gSaveContext.save.saveInfo.playerData.rupees = 77;
+        if (CrashTheMoon() != 0) {
+            return 1;
+        }
+        PrintClock(leg == 0 ? "after the moon crash (no active slot)" : "after the moon crash (latched slot)");
+        CNF_ASSERT(gSaveContext.save.day == 0 && gSaveContext.save.eventDayCount == 0 &&
+                       gSaveContext.save.time == (u16)(CLOCK_TIME(6, 0) - 1),
+                   "with no commit to restore, the clock alone restarts at dawn instead of staying on day 4");
+        CNF_ASSERT(gSaveContext.save.saveInfo.playerData.rupees == 77 &&
+                       memcmp(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf)) == 0,
+                   "with no commit to restore, nothing is reloaded and the half is not emptied");
+    }
+
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    mgr.SetSaveDirectory("Save");
+    RsbsSave_SetActiveSlot(-1);
+    Context_ClearAllFrozenStates();
+    ComboContext_Init();
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    Context_SetCurrentGame(prevGame);
+    printf("[TEST] PASS: %s\n", sRow);
+    return 0;
+}
+
+/**
+ * mm-moon-crash-pool-applied (#785 review). The last commit's pool and its MM
+ * half need not agree: an OoT-side commit writes MM's half from the shadow
+ * frozen at MM's last departure, while the pool holds OoT's later balances. The
+ * crash restores both, and MM's consumables must then EQUAL the pool (apply
+ * assigns them), or a balance spent in OoT is spent again in MM.
+ *
+ * Sequence: the creation commit; the arrival; MM holds 80 rupees, 0x30 health
+ * and 15 deku nuts and departs (harvest + freeze); OoT spends down to 20
+ * rupees, 0x20 health and 5 nuts (OoT-side harvests) and saves (the commit:
+ * pool 20/0x20/5, MM half 80/0x30/15); the next arrival applies the pool; MM
+ * plays on; the moon falls. Every consumable must come back at the pool's
+ * value, and a later spend must move the pool by exactly that amount. Then a
+ * NEW session loads the same file (its last commit is still the OoT-side
+ * one), arrives in MM and lets the moon fall: the same reconciliation holds.
+ */
+extern "C" int MM_MoonCrashPoolApplied_Run(void) {
+    sRow = "mm-moon-crash-pool-applied";
+    printf("[TEST] %s: after a moon crash restores a commit taken on OoT's side, MM's consumables equal the "
+           "committed pool (#785)\n",
+           sRow);
+
+    const GameId prevGame = Context_GetCurrentGame();
+    Context_InitFrozenStates();
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+
+    // ---- the creation and its commit (as mm-moon-crash-never-saved) ----------
+    const uint32_t kSeed = 0x5EED0789u;
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Sram_InitNewSave();
+    MM_Creation_StampNewFileFields(kMMName);
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = kSeed;
+    CNF_ASSERT(MM_Rando_ArmCreatedHalf(0) == 0, "the authored half arms");
+    Context_SetCurrentGame(GAME_OOT);
+    {
+        std::vector<uint8_t> oot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+        Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+    }
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveDir);
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    CNF_ASSERT(mgr.Save(0), "the creation commits the .redsave");
+    RsbsSave_SetActiveSlot(0);
+
+    // ---- the arrival; MM earns, then departs --------------------------------
+    CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
+               "the arrival consumes the armed half");
+    Context_SetCurrentGame(GAME_MM);
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.rupeeAccumulator = 0;
+    memset(gComboCtx.sharedResources, 0, sizeof(gComboCtx.sharedResources));
+    memset(gComboCtx.sharedResourcesExt, 0, sizeof(gComboCtx.sharedResourcesExt));
+    Combo_ResetSharedResourceWatermarks();
+    const s16 kMMRupees = 80;
+    const s16 kMMHealth = 0x30;
+    const s8 kMMNuts = 15;
+    gSaveContext.save.saveInfo.playerData.rupees = kMMRupees;
+    gSaveContext.save.saveInfo.playerData.health = kMMHealth;
+    MM_Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 1);
+    INV_CONTENT(ITEM_DEKU_NUT) = ITEM_DEKU_NUT;
+    AMMO(ITEM_DEKU_NUT) = kMMNuts;
+    MM_HarvestSharedResources(); // MM_Game_Suspend's harvest
+    Context_FreezeState(GAME_MM, 0, &gSaveContext, sizeof(gSaveContext));
+    Context_SetCurrentGame(GAME_OOT);
+    uint16_t pool = 0;
+    CNF_ASSERT(Combo_GetSharedResource(RSBS_SHARED_RES_RUPEES, &pool) && pool == (uint16_t)kMMRupees,
+               "MM's departure harvested its rupees into the pool (premise)");
+
+    // ---- OoT spends against the pool, then saves on its side ---------------
+    const uint16_t kPoolRupees = 20;
+    const uint16_t kPoolHealth = 0x20;
+    const uint16_t kPoolNuts = 5;
+    // OoT's first harvest of an occupied kind seeds at its live value (what its
+    // arrival's apply assigned from the pool); the second is the spend.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, (uint16_t)kMMRupees);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, kPoolRupees);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_CURRENT, (uint16_t)kMMHealth);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_CURRENT, kPoolHealth);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_NUT_COUNT, (uint16_t)kMMNuts);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_NUT_COUNT, kPoolNuts);
+    CNF_ASSERT(Combo_GetSharedResource(RSBS_SHARED_RES_RUPEES, &pool) && pool == kPoolRupees,
+               "OoT's spend moved the pool (premise)");
+    CNF_ASSERT(mgr.Save(0), "OoT's save commits: the pool from OoT, MM's half from its departure shadow");
+    const uint32_t ootSideGeneration = gComboCtx.commitGeneration;
+    {
+        const SaveContext* shadow = reinterpret_cast<const SaveContext*>(Context_GetMMSaveContext());
+        CNF_ASSERT(shadow->save.saveInfo.playerData.rupees == kMMRupees,
+                   "the committed MM half still holds MM's departure balance (premise: pool and half disagree)");
+    }
+
+    // ---- the next arrival applies the pool; MM plays on; the moon falls -----
+    CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
+               "the second arrival consumes MM's shadow");
+    Context_SetCurrentGame(GAME_MM);
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    MM_ApplySharedResources();
+    CNF_ASSERT(gSaveContext.save.saveInfo.playerData.rupees == (s16)kPoolRupees,
+               "the arrival applies the pool (premise)");
+    gSaveContext.save.day = 2;
+    gSaveContext.save.eventDayCount = 2;
+    gSaveContext.save.time = (u16)CLOCK_TIME(15, 0);
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    PrintClock("after the moon crash (OoT-side commit)");
+    uint16_t poolHealth = 0;
+    uint16_t poolNuts = 0;
+    Combo_GetSharedResource(RSBS_SHARED_RES_RUPEES, &pool);
+    Combo_GetSharedResource(RSBS_SHARED_RES_HEALTH_CURRENT, &poolHealth);
+    Combo_GetSharedResource(RSBS_SHARED_RES_NUT_COUNT, &poolNuts);
+    printf("[TEST] %s: after the crash: MM rupees=%d health=0x%X nuts=%d; pool rupees=%u health=0x%X nuts=%u\n", sRow,
+           (int)gSaveContext.save.saveInfo.playerData.rupees, (int)gSaveContext.save.saveInfo.playerData.health,
+           (int)AMMO(ITEM_DEKU_NUT), (unsigned)pool, (unsigned)poolHealth, (unsigned)poolNuts);
+    CNF_ASSERT(gSaveContext.save.day == 0 && gSaveContext.save.time == (u16)(CLOCK_TIME(6, 0) - 1),
+               "the restore took the commit (its MM half carries the created clock)");
+    CNF_ASSERT(pool == kPoolRupees && poolHealth == kPoolHealth && poolNuts == kPoolNuts, "the pool is the commit's");
+    CNF_ASSERT(gSaveContext.save.saveInfo.playerData.rupees == (s16)pool,
+               "MM's rupees equal the restored pool, not the stale half's (a spend in OoT is not refunded)");
+    CNF_ASSERT(gSaveContext.save.saveInfo.playerData.health == (s16)poolHealth, "MM's health equals the restored pool");
+    CNF_ASSERT(AMMO(ITEM_DEKU_NUT) == (s8)poolNuts, "MM's ammo equals the restored pool");
+
+    // ---- a later spend is an exact delta ------------------------------------
+    gSaveContext.save.saveInfo.playerData.rupees = (s16)(kPoolRupees - 7);
+    AMMO(ITEM_DEKU_NUT) = (s8)(kPoolNuts - 2);
+    MM_HarvestSharedResources();
+    Combo_GetSharedResource(RSBS_SHARED_RES_RUPEES, &pool);
+    Combo_GetSharedResource(RSBS_SHARED_RES_NUT_COUNT, &poolNuts);
+    CNF_ASSERT(pool == (uint16_t)(kPoolRupees - 7) && poolNuts == (uint16_t)(kPoolNuts - 2),
+               "a spend after the reset moves the pool by exactly that spend");
+
+    // ---- a NEW session loads that file, arrives in MM, and the moon falls ----
+    // The .redsave's last commit is still the OoT-side one (nothing after it was
+    // committed). A load drops the watermarks and arms MM's half from the file;
+    // the arrival applies the pool; the crash restores the same commit, and the
+    // stale half must again be reconciled to the pool.
+    Context_ClearAllFrozenStates();
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    Context_SetCurrentGame(GAME_OOT);
+    mgr.ResetSlotSessionState();
+    CNF_ASSERT(mgr.LoadSlot(0, ootSideGeneration) == RSBS_LOAD_OK, "the OoT-side commit loads in a new session");
+    RsbsSave_SetActiveSlot(0);
+    CNF_ASSERT(gComboCtx.commitGeneration == ootSideGeneration, "the load takes the file's generation");
+    CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
+               "the loaded file's MM half is armed and the arrival consumes it");
+    Context_SetCurrentGame(GAME_MM);
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    CNF_ASSERT(gSaveContext.save.saveInfo.playerData.rupees == kMMRupees,
+               "the loaded MM half is the departure shadow (premise: pool and half disagree)");
+    MM_ApplySharedResources();
+    gSaveContext.save.day = 3;
+    gSaveContext.save.eventDayCount = 3;
+    gSaveContext.save.time = (u16)CLOCK_TIME(20, 0);
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    Combo_GetSharedResource(RSBS_SHARED_RES_RUPEES, &pool);
+    Combo_GetSharedResource(RSBS_SHARED_RES_HEALTH_CURRENT, &poolHealth);
+    Combo_GetSharedResource(RSBS_SHARED_RES_NUT_COUNT, &poolNuts);
+    printf("[TEST] %s: after a load + arrival + crash: MM rupees=%d health=0x%X nuts=%d; pool rupees=%u health=0x%X "
+           "nuts=%u\n",
+           sRow, (int)gSaveContext.save.saveInfo.playerData.rupees, (int)gSaveContext.save.saveInfo.playerData.health,
+           (int)AMMO(ITEM_DEKU_NUT), (unsigned)pool, (unsigned)poolHealth, (unsigned)poolNuts);
+    CNF_ASSERT(pool == kPoolRupees && poolHealth == kPoolHealth && poolNuts == kPoolNuts,
+               "after a load, the pool is still the commit's");
+    CNF_ASSERT(gSaveContext.save.saveInfo.playerData.rupees == (s16)pool &&
+                   gSaveContext.save.saveInfo.playerData.health == (s16)poolHealth &&
+                   AMMO(ITEM_DEKU_NUT) == (s8)poolNuts,
+               "after a load, MM's rupees, health and ammo equal the restored pool");
+
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    mgr.SetSaveDirectory("Save");
+    RsbsSave_SetActiveSlot(-1);
+    Context_ClearAllFrozenStates();
+    ComboContext_Init();
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    Context_SetCurrentGame(prevGame);
     printf("[TEST] PASS: %s\n", sRow);
     return 0;
 }
