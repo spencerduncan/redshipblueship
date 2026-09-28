@@ -788,8 +788,83 @@ static TestResult Test_OoTAbandonedSessionStatics(void) {
 // see the extern decls above). Thin wrappers over the C entry points in
 // games/mm/2s2h/mm_creation_new_file_test.cpp. The world row's wrapper sits beside
 // Test_ComboCrossingViewsWorld: it needs the same generation bring-up.
+//
+// The production registration is checked from source (#765 review). Both rows
+// call MM_SlotMeta_Register() themselves, and rsbs/src/main.cpp dispatches
+// `--test` (TestRunner_Run, then _Exit) before its game init, so no runtime row
+// can see main.cpp's own call: deleting it left both rows green while every
+// slot's MM half went back to "not started". The scan holds the shape instead:
+// main.cpp calls MM_SlotMeta_Register() (and Combo_TrackerWindow_Init(), which
+// registers the tracker adapter the tracker gate reads through) as live
+// statements, once each, after the `--test` exit and before the game loop.
+#include <fstream>
+#include <iterator>
+#include <string>
+static bool MMCreationNewFile_EntryPointRegisters(void) {
+#ifdef RSBS_SOURCE_DIR
+    std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/rsbs/src/main.cpp", std::ios::binary);
+    if (!in.good()) {
+        printf("[TEST] FAIL: mm-creation-new-file: cannot read rsbs/src/main.cpp under RSBS_SOURCE_DIR\n");
+        return false;
+    }
+    std::string text;
+    for (std::istreambuf_iterator<char> it(in), end; it != end; ++it) {
+        if (*it != '\r') {
+            text.push_back(*it);
+        }
+    }
+    const size_t testExit = text.find("_Exit(testResult);");
+    const size_t gameLoop = text.find("while (keepRunning)");
+    if (testExit == std::string::npos || gameLoop == std::string::npos || gameLoop < testExit) {
+        printf("[TEST] FAIL: mm-creation-new-file: main.cpp's `--test` exit or game loop moved; the scan's "
+               "anchors (_Exit(testResult); / while (keepRunning)) need updating\n");
+        return false;
+    }
+    // A live statement: its own line, only indentation before it (so neither a
+    // comment nor the forward declaration `void MM_SlotMeta_Register(void);`).
+    auto statementAt = [&text](const std::string& stmt, size_t* count) {
+        size_t found = std::string::npos;
+        *count = 0;
+        for (size_t at = text.find(stmt); at != std::string::npos; at = text.find(stmt, at + 1)) {
+            size_t lineStart = text.rfind('\n', at);
+            lineStart = lineStart == std::string::npos ? 0 : lineStart + 1;
+            const bool indentOnly = text.find_first_not_of(" \t", lineStart) == at;
+            const bool endsLine = text.find('\n', at) == at + stmt.size();
+            if (indentOnly && endsLine) {
+                found = at;
+                ++*count;
+            }
+        }
+        return found;
+    };
+    bool ok = true;
+    for (const char* stmt : { "MM_SlotMeta_Register();", "Combo_TrackerWindow_Init();" }) {
+        size_t count = 0;
+        const size_t at = statementAt(stmt, &count);
+        const bool placed = count == 1 && at > testExit && at < gameLoop;
+        printf("[TEST] mm-creation-new-file: main.cpp `%s` live statements=%zu, after the --test exit and "
+               "before the game loop=%d\n",
+               stmt, count, placed ? 1 : 0);
+        if (!placed) {
+            printf("[TEST] FAIL: mm-creation-new-file: main.cpp does not call %s exactly once on the non-test "
+                   "path; the .redsave slot panel / Combo Tracker lose MM in production while every runtime row "
+                   "stays green (#765 review)\n",
+                   stmt);
+            ok = false;
+        }
+    }
+    return ok;
+#else
+    printf("[TEST] FAIL: mm-creation-new-file: RSBS_SOURCE_DIR undefined; main.cpp's registration cannot be "
+           "checked\n");
+    return false;
+#endif
+}
+
 static TestResult Test_MMCreationNewFile(void) {
-    return MM_CreationNewFile_RunSynthetic() == 0 ? TEST_PASS : TEST_FAIL;
+    const bool synthetic = MM_CreationNewFile_RunSynthetic() == 0;
+    const bool entryPoint = MMCreationNewFile_EntryPointRegisters();
+    return entryPoint && synthetic ? TEST_PASS : TEST_FAIL;
 }
 
 // MM extended-culling binding (see the extern decl above). Thin wrapper over
