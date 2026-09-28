@@ -169,6 +169,11 @@ namespace SohGui {
 // lock declares it the same way): AddMenuRandomizer as a whole cannot run
 // ROM-free, so the probe menu drives the pointer page directly.
 void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path);
+// Combo > Majora's Mask's body over a manifest table, and its group note's
+// sentence (SohMenuComboMmEnhancements.cpp, declared in no header, #747). The
+// MM note probe builds a page from a synthetic non-live table through it.
+void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* rows, std::size_t count);
+const char* MmEnhancementsGroupNoteText();
 } // namespace SohGui
 
 // The DX11 readback. ENABLE_DX11 is a PRIVATE define of libultraship, and
@@ -790,6 +795,9 @@ struct PageSpec {
     // The row-state probe: a harness-only Combo sidebar installed for this page's
     // captures and removed afterwards (see InstallRowStateProbe).
     bool rowStateProbe = false;
+    // The MM note probe (#747): the same, built by Combo > Majora's Mask's own
+    // builder over a synthetic non-live manifest (see InstallMmNoteProbe).
+    bool mmNoteProbe = false;
     // Hover variants on a row drawn through the combo_ui seam, found by the
     // label it passes to the seam's rect recorder (such a row has no WidgetInfo
     // whose postFunc could be wrapped: a pane's rows, or a trick row inside
@@ -862,6 +870,37 @@ bool gProbeSuspended = false;
 bool gProbeGated = false;
 bool gProbeDecided = false;
 
+// The MM note probe's sidebar and synthetic manifest (InstallMmNoteProbe, #747).
+// Combo > Majora's Mask's own builder over rows that are NOT all Live, because
+// every shipped row is, so its disabled rows and group notes never reach a pixel
+// on the shipped page. The shipped page's shape: a heading group with a Live and
+// a Dormant checkbox, then a pointer row opening a second group that holds a
+// Partial slider gated on the pointer's key (hidden, with its note, until the
+// "gate-on" state writes the key). Static storage: the page's PreFuncs keep
+// pointers into the table.
+constexpr const char* kMmNoteSidebar = "MM Row States";
+constexpr const char* kMmNoteLiveRow = "Live Enhancement";
+constexpr const char* kMmNoteDormantRow = "Dormant Enhancement";
+constexpr const char* kMmNotePartialLabel = "Partial Enhancement";
+constexpr const char* kMmNoteParentKey = "gRsbsUiSnapshot.MmNote.Parent";
+constexpr RSBS::HostedMmEnhancement kMmNoteManifest[] = {
+    { "gRsbsUiSnapshot.MmNote.Live", kMmNoteLiveRow, "Toggles a setting that applies now. Majora's Mask only.",
+      "harness", nullptr, "", RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Live, "" },
+    { "gRsbsUiSnapshot.MmNote.Dormant", kMmNoteDormantRow,
+      "Toggles a setting whose provider is not in this build. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Dormant, "Provider Not in This Build",
+      RSBS::MmEnhancementWidget::Checkbox, 0, 0, 0, nullptr, nullptr, 747 },
+    { kMmNoteParentKey, "Parent Setting", "Parent Setting is on another page and applies to both games.", "harness",
+      nullptr, "", RSBS::MmEnhancementHosting::HostedElsewhere, RSBS::MmEnhancementLiveness::Live, "" },
+    { "gRsbsUiSnapshot.MmNote.Partial", "Partial Enhancement: %d minutes",
+      "Sets a value whose draw is not wired yet. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Partial, "Draw Not Wired in Majora's Mask",
+      RSBS::MmEnhancementWidget::SliderInt, 1, 60, 5, "%d minutes", kMmNoteParentKey, 747 },
+};
+static_assert(RSBS::HostedMmEnhancementRowsAreHonest(kMmNoteManifest,
+                                                     sizeof(kMmNoteManifest) / sizeof(kMmNoteManifest[0])),
+              "the MM note probe's synthetic manifest must itself pass the manifest's honesty rule");
+
 class Session {
   public:
     explicit Session(const Options& o) : opt(o) {
@@ -907,6 +946,9 @@ class Session {
     std::vector<const WidgetInfo*> probeRows;
     void InstallRowStateProbe();
     void RemoveRowStateProbe();
+    // The MM note probe (#747), on the same pattern and the same probeRows.
+    void InstallMmNoteProbe();
+    void RemoveMmNoteProbe();
 
     // hover target recording
     std::string hoverTarget;
@@ -1928,6 +1970,38 @@ void Session::BuildPageList() {
         p.expectText = { p.bodyText };
         pages.push_back(p);
     }
+    if (entries.contains("Combo")) {
+        // #747: Combo > Majora's Mask's group note and disabled rows, drawn by
+        // the page's own builder over a synthetic non-live manifest (see
+        // InstallMmNoteProbe), compared with the shipped page's reference.
+        PageSpec p;
+        p.id = std::string("Combo/") + kMmNoteSidebar;
+        p.header = "Combo";
+        p.sidebar = kMmNoteSidebar;
+        p.origin = Origin::RSBS;
+        p.kind = Kind::MENU_PAGE;
+        p.mmNoteProbe = true;
+        p.compareWith = "Enhancements/Quality of Life";
+        // "": the Dormant row's group shows its note; the gated Partial row and
+        // its group's note are hidden. "race-lockout": the note survives it.
+        // "gate-on": the Partial row draws, disabled, under its own group's note.
+        p.states = { "", "race-lockout", "gate-on" };
+        const std::string note = SohGui::MmEnhancementsGroupNoteText();
+        p.stateText[""] = { note };
+        p.stateText["race-lockout"] = { note };
+        // The slider only: the note is in "" too (the heading group's), and the
+        // contrast requires a state's text to be absent from it. That the second
+        // group's note shows here is counted by MenuMmEnhancementRows leg 7c.
+        p.stateText["gate-on"] = { kMmNotePartialLabel };
+        p.stateContrast = { { "gate-on", "" } };
+        p.hovers = { "dormant" };
+        p.hoverRows = { { "dormant", kMmNoteDormantRow } };
+        p.disabledHovers = { "dormant" };
+        p.hoverStates = { "" };
+        p.bodyText = kMmNoteLiveRow;
+        p.expectText = { p.bodyText };
+        pages.push_back(p);
+    }
     {
         PageSpec p = menuPage("Randomizer", "Cross-Game", Origin::RSBS);
         p.compareWith = "Randomizer/General";
@@ -2395,7 +2469,10 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         if (state == "match-refresh-rate") {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
         }
-    } else if (p.rowStateProbe) {
+    } else if (p.rowStateProbe || p.mmNoteProbe) {
+        if (p.mmNoteProbe && state == "gate-on") {
+            CVarSetInteger(kMmNoteParentKey, 1);
+        }
         if (state == "race-lockout") {
             // MenuDrawItem's race lockout (Menu.cpp) disables every RaceDisable
             // row and REPLACES its disabled tooltip: the case the gray notes are
@@ -2443,8 +2520,11 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.id == "Settings/Graphics" && state == "match-refresh-rate") {
         CVarClear(CVAR_SETTING("MatchRefreshRate"));
     }
-    if (p.rowStateProbe && state == "race-lockout") {
+    if ((p.rowStateProbe || p.mmNoteProbe) && state == "race-lockout") {
         CVarClear(CVAR_SETTING("DisableChanges"));
+    }
+    if (p.mmNoteProbe && state == "gate-on") {
+        CVarClear(kMmNoteParentKey);
     }
     if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {
         Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_OOT);
@@ -2545,6 +2625,54 @@ void Session::InstallRowStateProbe() {
             }
         }
     }
+}
+
+/**
+ * #747: Combo > Majora's Mask's group note, on a harness-only page built by the
+ * shipped page's own builder (SohGui::AddMmEnhancementRows) over a synthetic
+ * manifest that holds a Dormant and a Partial row. Every shipped row is Live, so
+ * without this page neither the page's disabled rows nor its gray notes would
+ * ever reach a pixel. Installed and removed around its own captures, like the
+ * row-state probe, and its rows join R5/R6 the same way.
+ */
+void Session::InstallMmNoteProbe() {
+    auto soh = std::dynamic_pointer_cast<SohGui::SohMenu>(menu);
+    auto& entries = MenuEntries(*menu);
+    if (soh == nullptr || !entries.contains("Combo") || entries.at("Combo").sidebars.contains(kMmNoteSidebar)) {
+        return;
+    }
+    // Three columns, the shipped page's count.
+    soh->AddSidebarEntry("Combo", kMmNoteSidebar, 3);
+    WidgetPath path = { "Combo", kMmNoteSidebar, SECTION_COLUMN_1 };
+    SohGui::AddMmEnhancementRows(*soh, path, kMmNoteManifest, sizeof(kMmNoteManifest) / sizeof(kMmNoteManifest[0]));
+
+    const std::string where = std::string("Combo/") + kMmNoteSidebar;
+    for (auto& column : entries.at("Combo").sidebars.at(kMmNoteSidebar).columnWidgets) {
+        for (WidgetInfo& row : column) {
+            probeRows.push_back(&row);
+            if (IsInteractive(row.type)) {
+                registeredNames[&row] = { where, row.name };
+            } else if (row.type == WIDGET_TEXT) {
+                textRows[&row] = where;
+            }
+        }
+    }
+}
+
+void Session::RemoveMmNoteProbe() {
+    for (const WidgetInfo* row : probeRows) {
+        registeredNames.erase(row);
+        textRows.erase(row);
+    }
+    probeRows.clear();
+    auto& entries = MenuEntries(*menu);
+    if (!entries.contains("Combo")) {
+        return;
+    }
+    MainMenuEntry& combo = entries.at("Combo");
+    combo.sidebars.erase(kMmNoteSidebar);
+    combo.sidebarOrder.erase(std::remove(combo.sidebarOrder.begin(), combo.sidebarOrder.end(), kMmNoteSidebar),
+                             combo.sidebarOrder.end());
 }
 
 void Session::RemoveRowStateProbe() {
@@ -2729,6 +2857,9 @@ constexpr int kMaxScrollSteps = 8;
 void Session::CaptureMenuPage(const PageSpec& p) {
     if (p.rowStateProbe) {
         InstallRowStateProbe();
+    }
+    if (p.mmNoteProbe) {
+        InstallMmNoteProbe();
     }
     auto& entries = MenuEntries(*menu);
     const bool present = entries.contains(p.header) && entries.at(p.header).sidebars.contains(p.sidebar);
@@ -2985,6 +3116,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
     }
     if (p.rowStateProbe) {
         RemoveRowStateProbe();
+    }
+    if (p.mmNoteProbe) {
+        RemoveMmNoteProbe();
     }
 }
 
