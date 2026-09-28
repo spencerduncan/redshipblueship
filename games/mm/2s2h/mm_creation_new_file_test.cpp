@@ -166,7 +166,7 @@ int CheckArmedHalf(uint32_t expectSeed) {
     CNF_ASSERT(sHalf.fileNum == 0xFF, "the armed half carries the cross-game 0xFF fileNum sentinel, not slot 0");
     CNF_ASSERT(sHalf.flashSaveAvailable, "the armed half carries the cross-game session's flashSaveAvailable");
     CNF_ASSERT(sHalf.save.shipSaveInfo.fileCreatedAt == 0, "MM has not loaded the armed half: no creation stamp yet");
-    PrintName("the armed half's playerName", sHalf.save.saveInfo.playerData.playerName);
+    PrintName("the armed half's playerName", reinterpret_cast<const u8*>(sHalf.save.saveInfo.playerData.playerName));
     CNF_ASSERT(memcmp(sHalf.save.saveInfo.playerData.playerName, kMMName, sizeof(kMMName)) == 0,
                "the armed half carries OoT's typed name in MM's charset, not MM's all-space default (#773)");
 
