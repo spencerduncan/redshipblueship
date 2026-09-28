@@ -238,7 +238,7 @@ const ComboMMTrickDesc* FirstSettableTrick() {
     return nullptr;
 }
 
-bool Contains(const std::string& haystack, const char* needle) {
+bool PlrContains(const std::string& haystack, const char* needle) {
     return haystack.find(needle) != std::string::npos;
 }
 
@@ -300,8 +300,8 @@ int LegCrossGameRules() {
     if (writable != 1 || RsbsSave_HasQuarantine(kSlot) != 0 || RsbsSave_HasSave(kSlot) != 1) {
         return Fail(15, "leg 1: the slot is latched, quarantined or gone after a restoring load");
     }
-    if (!toast.any || !Contains(toast.prefix, "Restored from file") || !Contains(toast.message, "Goal") ||
-        !Contains(toast.message, "Crossing Direction") || !FitsOneLine(toast)) {
+    if (!toast.any || !PlrContains(toast.prefix, "Restored from file") || !PlrContains(toast.message, "Goal") ||
+        !PlrContains(toast.message, "Crossing Direction") || !FitsOneLine(toast)) {
         return Fail(16, "leg 1: no toast names what the load restored (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
@@ -367,8 +367,9 @@ int LegMmProfile() {
     }
     // Options before tricks, and one short line: the first restored row by name,
     // the trick counted ("+1"); stderr lists both.
-    if (!toast.any || !Contains(toast.prefix, "Restored from file") || !Contains(toast.message, "Majora's Mask") ||
-        !Contains(toast.message, "Starting Hearts") || !Contains(toast.message, "+1") || !FitsOneLine(toast)) {
+    if (!toast.any || !PlrContains(toast.prefix, "Restored from file") ||
+        !PlrContains(toast.message, "Majora's Mask") || !PlrContains(toast.message, "Starting Hearts") ||
+        !PlrContains(toast.message, "+1") || !FitsOneLine(toast)) {
         return Fail(27, "leg 2: no toast names what the load restored (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
@@ -443,8 +444,8 @@ int LegRoundTrip() {
     if (!trickOn) {
         return Fail(37, "leg 3: the load wrote a trick value the file does not record");
     }
-    if (!toast.any || !Contains(toast.prefix, "Not restored") || !Contains(toast.message, "Majora's Mask options") ||
-        !FitsOneLine(toast)) {
+    if (!toast.any || !PlrContains(toast.prefix, "Not restored") ||
+        !PlrContains(toast.message, "Majora's Mask options") || !FitsOneLine(toast)) {
         return Fail(38,
                     "leg 3: an MM profile the file cannot restore was not flagged at load (prefix '%s', "
                     "message '%s')",
@@ -486,7 +487,7 @@ int LegUnrestorableRule() {
     if (RsbsSave_HasQuarantine(kSlot) != 0 || RsbsSave_HasSave(kSlot) != 1) {
         return Fail(42, "leg 4: a healthy file was quarantined for a session divergence");
     }
-    if (!toast.any || !Contains(toast.prefix, "Not saved") || !Contains(toast.message, "logicRung") ||
+    if (!toast.any || !PlrContains(toast.prefix, "Not saved") || !PlrContains(toast.message, "logicRung") ||
         !FitsOneLine(toast)) {
         return Fail(43, "leg 4: the refusal is invisible — no toast names the rule (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
