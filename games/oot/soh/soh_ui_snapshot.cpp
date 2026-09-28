@@ -893,7 +893,7 @@ constexpr const char* kMmNoteLiveRow = "Live Enhancement";
 constexpr const char* kMmNoteLiveKey = "gRsbsUiSnapshot.MmNote.Live";
 constexpr const char* kMmNoteAbsentRow = "Absent Enhancement";
 constexpr const char* kMmNoteDormantRow = "Dormant Enhancement";
-constexpr const char* kMmNotePartialLabel = "Partial Enhancement";
+constexpr const char* kMmNotePartialLabel = "Partial Setting";
 constexpr const char* kMmNoteParentKey = "gRsbsUiSnapshot.MmNote.Parent";
 constexpr RSBS::HostedMmEnhancement kMmNoteManifest[] = {
     { kMmNoteLiveKey, kMmNoteLiveRow, "Toggles a setting that applies now. Majora's Mask only.", "harness", nullptr, "",
@@ -908,7 +908,7 @@ constexpr RSBS::HostedMmEnhancement kMmNoteManifest[] = {
       "Toggles a setting whose provider is not in this build. Majora's Mask only.", "harness", nullptr, "",
       RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Dormant, "Provider Not in This Build",
       RSBS::MmEnhancementWidget::Checkbox, 0, 0, 0, nullptr, kMmNoteParentKey, 747 },
-    { "gRsbsUiSnapshot.MmNote.Partial", "Partial Enhancement: %d minutes",
+    { "gRsbsUiSnapshot.MmNote.Partial", "Partial Setting: %d minutes",
       "Sets a value whose draw is not wired yet. Majora's Mask only.", "harness", nullptr, "",
       RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Partial, "Draw Not Wired in Majora's Mask",
       RSBS::MmEnhancementWidget::SliderInt, 1, 60, 5, "%d minutes", kMmNoteParentKey, 747 },
@@ -2708,8 +2708,8 @@ void Session::InstallMmNoteProbe() {
     if (soh == nullptr || !entries.contains("Combo") || entries.at("Combo").sidebars.contains(kMmNoteSidebar)) {
         return;
     }
-    // Three columns, the shipped page's count.
-    soh->AddSidebarEntry("Combo", kMmNoteSidebar, 3);
+    // Two columns, the shipped page's count.
+    soh->AddSidebarEntry("Combo", kMmNoteSidebar, 2);
     WidgetPath path = { "Combo", kMmNoteSidebar, SECTION_COLUMN_1 };
     SohGui::AddMmEnhancementRows(*soh, path, kMmNoteManifest, sizeof(kMmNoteManifest) / sizeof(kMmNoteManifest[0]));
 

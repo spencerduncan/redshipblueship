@@ -42,7 +42,18 @@ and on ours (R-N4).
   - 2 for mixed pages (`SohMenuSettings.cpp:128`)
   - 1 for window-button and tracker pages (`SohMenuRandomizer.cpp:739`)
 
-  Below 800 px the columns collapse to 1 (`Menu.cpp:892`). Sidebar names are Title Case, 1-3 words, and fit the
+  Below 800 px the columns collapse to 1 (`Menu.cpp:892`).
+- **Width [project rule].** The narrowest profile the harness renders, `min-832x600`, is the contract for our rows:
+  every row of ours fits its column there, and therefore at every wider profile. At 832 px a page's section is about
+  588 px wide, so a column is 272 px on a two-column page and 188 px on a three-column one (14 px less when the column
+  scrolls). A checkbox takes about 44 px before its label, a separator title 40 px of padding, and a slider's label
+  must fit at both ends of its range, because it prints its value. A three-column page therefore holds labels of about
+  14 characters, which is why our mixed pages use two columns, as SoH's mixed pages do. Where a label of ours is still
+  too long, shorten it to SoH's wording length with the same meaning (R-N2, R-N6) rather than changing a widget or a
+  font. SoH's own pages do not meet this, and rule 0 keeps them as shipped: 68 of their rows overrun at 832x600 (25 on
+  Enhancements > Quality of Life), 36 at 960x704 and 2 at 1280x800. The runtime lint's R9 (section 13) fails the `ui`
+  tier on a row of ours that overruns, and `label-fit.txt` reports SoH's.
+- **Sidebar names.** Sidebar names are Title Case, 1-3 words, and fit the
   200 px sidebar in Montserrat 24: about 16 characters, but measure it in the snapshot PNG, because the budget is
   pixels, not characters. SoH's widest entry, "Entrance Tracker" (16), is about 169 px; a selected entry's highlight
   needs about 10 px of padding each side, so keep a label under about 180 px. Our "Cross-Game Windows" (18) was cut on
@@ -292,8 +303,7 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   compares the toast the site queued with that copy, exactly. The long explanation belongs on the refusal's stderr
   line, not in the toast. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
   their record names (`poolSizeOoT`, `itemClassMM`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name
-  the field; the Cross-Game Rules page's own labels carry the same abbreviations ("Max OoT Items on MM Checks"); the
-  longest label alone overruns the budget; and six of the thirteen fields (`logicRung`, `comboFlags`, `spare1`,
+  the field; the Cross-Game Rules page's own labels carry the same abbreviations ("Max OoT Items", "MM Classes"); and six of the thirteen fields (`logicRung`, `comboFlags`, `spare1`,
   `formatVersion`, `comboSettingsHash`, `triforceHunt`) have no row on that page to name.
 
 ## 11. Anti-patterns
@@ -321,7 +331,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 |---|---|
 | Combo > Cross-Game Rules | Randomizer > General |
 | Combo > Windows | Randomizer > Item Tracker |
-| Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
+| Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (its rows; ours is two columns, section 1's width rule) |
 | Combo > MM Row States (harness-only: the Majora's Mask page's builder over a synthetic non-live table, so its disabled rows and group notes are drawn) | Enhancements > Quality of Life |
 | Combo > MM Mods | Randomizer > Tricks/Glitches (the two-column Disabled/Enabled table; OoT's Settings > Mod Menu throws in the harness's fresh config) |
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
@@ -347,7 +357,8 @@ Compare within the same run, the same profile and the same backend. Check:
 | `compare/<ours>__vs__<ref>[@variant].png` | the SoH reference cropped to its content, over ours |
 | `iter/<slug>.png`, `iter/<slug>.diff.png` | before over after, and the difference x4 (only with `RSBS_UI_SNAPSHOT_BASELINE`) |
 | `manifest.json` | the run (backend, readback, profile, archives) and, per capture, the hashes, the content rectangle, the settle count and the verdicts |
-| `runtime-lint.txt` | the runtime copy lint R1-R7 over our rows |
+| `runtime-lint.txt` | the runtime copy lint R1-R7 and R9 over our rows |
+| `label-fit.txt` | R9's measurements: every row, ours and SoH's, that overruns its column at this profile |
 
 A `compare/` or `iter/` image that cannot be written is counted, not silent: the summary line reads "N composite(s)
 not written" and the manifest's run block holds `compositeWriteFailures`. On Windows the writer retries a path past
@@ -512,5 +523,10 @@ A reworded entry counts as growth: fix the surface instead.
 - R5: an interactive row's name is never rewritten by its PreFunc
 - R6: TEXT notes are at most two sentences and 200 characters
 - R7: names are unique per page
+- R9: every row of our pages fits its column at the run's profile. The harness draws one frame of each page per
+  state with each row's postFunc wrapped and compares the row's rectangle with its column's clip rectangle; a
+  separator title is measured by its width (ImGui ellipsizes it), and a slider's label at both ends of its range.
+  Custom rows (trick tables, the mod list) are left out: they scroll sideways as SoH's tables do. SoH's pages are
+  measured the same way and only reported, in `label-fit.txt`
 
 The baseline is `.github/scripts/ui-runtime-lint-baseline.txt`, enforced on complete runs only.

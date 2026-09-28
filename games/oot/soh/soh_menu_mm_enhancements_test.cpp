@@ -35,12 +35,12 @@
  *      null or misspelled `.CVar` draws and writes nothing the provider reads.
  *
  *   3. A ROW IS REGISTERED PAST THE COLUMN COUNT, or in the wrong column. The
- *      page declares three columns (UI parity M3: the column measure of its
- *      reference, Enhancements > Quality of Life) and `Menu::DrawElement`
- *      iterates `columnCount` columns, so a row in a higher one is registered and
- *      never drawn. The toggles fill the first column; the first pointer row
- *      opens the second and the rows after it stay there, so a pointer and the
- *      rows gated on it are read together. The third is empty, for the measure.
+ *      page declares two columns (SoH's count for a mixed page; three, Quality
+ *      of Life's, left every label but one past its column at 832x600) and
+ *      `Menu::DrawElement` iterates `columnCount` columns, so a row in a higher
+ *      one is registered and never drawn. The toggles fill the first column;
+ *      the first pointer row opens the second and the rows after it stay there,
+ *      so a pointer and the rows gated on it are read together.
  *
  *   9. A TOOLTIP LEAVES SoH's VOICE (docs/ui-style-guide.md R-TT2, R-TT4,
  *      R-TT6). Every own-row tooltip opens with a present-tense verb, is at most
@@ -436,9 +436,10 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
             if (page.sidebarName == pageName) {
                 registered = true;
-                MME_CHECK(page.columnCount == 3,
-                          "the MM enhancement page declares %u columns, expected 3: Quality of Life's count, so its "
-                          "rows have that page's width (the toggles in the first, the Autosave group in the second)",
+                MME_CHECK(page.columnCount == 2,
+                          "the MM enhancement page declares %u columns, expected 2: SoH's count for a mixed page, "
+                          "the toggles in the first and the Autosave group in the second, each wide enough for its "
+                          "labels at 832x600",
                           page.columnCount);
                 MME_CHECK(page.registrar != nullptr, "the MM enhancement page registered a null registrar");
             }
@@ -503,7 +504,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
               "the page's columns hold %zu and %zu widgets; an empty column in a multi-column page is #640's failure "
               "mode",
               perColumn[0], perColumn[1]);
-    printf("[TEST] leg 1: the page is registered through the extension point, declares three columns and holds %zu "
+    printf("[TEST] leg 1: the page is registered through the extension point, declares two columns and holds %zu "
            "widgets (%zu toggles side, %zu Autosave side)\n",
            rows.size(), perColumn[0], perColumn[1]);
 

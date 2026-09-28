@@ -710,13 +710,13 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // check-registrar-elision.sh audits that archive as `required`, so leg 1 is
     // enforced on every CI build. Legs 2 and 3 are MMClockShuffleSongs'
     // registry-content probes.
-    { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Song of Double Time",
+    { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Double Time",
       "Lets the Song of Double Time pick any time of day instead of only the next dawn or dusk, and with Clock "
       "Shuffle on refuses a half-day this file does not own. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp:472",
       "gEnhancements.Songs.BetterSongOfDoubleTime", "ShouldVanillaBehavior[VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT]",
       MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
-    { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Song of Time Cutscenes",
+    { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Time Song Cutscenes",
       "Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes, and with Clock Shuffle on "
       "returns the Song of Time to the earliest half-day this file owns. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/SkipSoTCutscenes.cpp:101", "gEnhancements.Songs.SkipSoTCutscenes",
@@ -775,7 +775,7 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // OoT's 3-minute behaviour onto MM's 5-minute default without anyone asking.
     // Hence the "Majora's Mask only" label. A preference: no freeze, no digest,
     // no .redsave impact.
-    { "gEnhancements.Saving.AutosaveInterval", "MM Autosave Interval: %d minutes",
+    { "gEnhancements.Saving.AutosaveInterval", "Autosave Interval: %d minutes",
       "Sets how often the owl autosave fires; Ocarina of Time keeps its fixed 3 minutes. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:216 (read by HandleAutoSave, :223)", nullptr, "",
       MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "", MmEnhancementWidget::SliderInt, 1, 60, 5,

@@ -334,11 +334,19 @@ DirectX 11. The 90 were compared with an OpenGL render made at `d928d67d` on the
   (including the Goal tooltip), Majora's Mask, Windows, MM Mods, MM Randomizer (live and
   frozen), MM Tricks (live and frozen), the creation overlay, the Combo Tracker and the
   Cross-Game Spoiler. No difference is visible.
-- **Both backends, not a DX11 issue:** at 832x600, the Combo > Majora's Mask page cuts
-  off its checkbox labels next to the Autosave note. SoH's own pages do the same at that
-  size: an OpenGL render with the ROM archives mounted shows Enhancements > Quality of Life
-  ("Remember Save", "Nighttime GS A") and Settings > General ("[Both Games] Cursor Always")
-  cut off in columns of the same width. So this matches SoH and is not filed.
+- ~~**Both backends, not a DX11 issue:** at 832x600, the Combo > Majora's Mask page cuts
+  off its checkbox labels next to the Autosave note.~~ **Resolved.** SoH's own pages do the
+  same at that size, and still do: rule 0 keeps them as shipped. Measured since then (the
+  `ui` tier's runtime lint R9, which compares every row's rectangle with its column's clip
+  rectangle, OpenGL, ROM archives mounted): SoH's pages overrun 68 rows at 832x600 (25 on
+  Enhancements > Quality of Life, among them "Remember Save Location" and "Nighttime GS
+  Always Spawn"), 36 at 960x704 and 2 at 1280x800. Ours overran 25 at 832x600 and 10 at
+  960x704, not only on the Majora's Mask page: Cross-Game Rules (the pool-size sliders, the
+  class headers, Shared Ocarina), MM Randomizer (two access comboboxes and seven long
+  labels) and the harness's MM Row States probe. The Majora's Mask page now has two columns,
+  SoH's count for a mixed page, and the long labels are shorter (the renames are listed in
+  the lane's pull request), so no row of ours overruns at any of the three profiles, and R9
+  fails the `ui` tier if one does again (docs/ui-style-guide.md section 1, the width rule).
 
 **Findings.** None apart from #544, so no new issue was filed.
 
