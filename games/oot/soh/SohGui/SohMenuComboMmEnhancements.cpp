@@ -129,12 +129,13 @@ SohMenuPresentation PresentationFor(RSBS::MmEnhancementLiveness liveness) {
  * `StripPresentationSuffix`), which is what makes passing `info.name` back in
  * every frame safe rather than a suffix that compounds.
  *
- * `index` is captured by value, not a pointer into the table: the lambda
- * outlives this function and `WidgetInfo` stores it as a `WidgetFunc`.
+ * `entry` points into a table of STATIC storage (the shipped manifest, or a
+ * lock's synthetic one): the lambda outlives this function and `WidgetInfo`
+ * stores it as a `WidgetFunc`, so the row it reads must outlive the menu.
  */
-WidgetFunc PresentationPreFunc(std::size_t index) {
-    return [index](WidgetInfo& info) {
-        const RSBS::HostedMmEnhancement& row = RSBS::kHostedMmEnhancements[index];
+WidgetFunc PresentationPreFunc(const RSBS::HostedMmEnhancement* entry) {
+    return [entry](WidgetInfo& info) {
+        const RSBS::HostedMmEnhancement& row = *entry;
         // `reason` is a string literal out of the manifest, so it outlives the
         // frame — which it must, because ApplyPresentation stores it into
         // `WidgetOptions::disabledTooltip`, a `const char*` the draw path reads
@@ -153,14 +154,114 @@ WidgetFunc PresentationPreFunc(std::size_t index) {
  * a PreFunc re-evaluated each frame, and a row that is ALSO non-live composes
  * both: the gate first, then the presentation.
  */
-WidgetFunc ShownWhilePreFunc(std::size_t index) {
-    return [index](WidgetInfo& info) {
-        const RSBS::HostedMmEnhancement& row = RSBS::kHostedMmEnhancements[index];
+WidgetFunc ShownWhilePreFunc(const RSBS::HostedMmEnhancement* entry) {
+    return [entry](WidgetInfo& info) {
+        const RSBS::HostedMmEnhancement& row = *entry;
         info.isHidden = CVarGetInteger(row.shownWhileKey, 0) == 0;
         if (row.liveness != RSBS::MmEnhancementLiveness::Live) {
             SohMenu::ApplyPresentation(info, info.name, PresentationFor(row.liveness), row.reason);
         }
     };
+}
+
+/**
+ * #747: the one gray note a group carries while any row in it is drawn
+ * disabled. The sibling MM Randomizer page's group note, the same macro, so the
+ * two Majora's Mask pages say one thing one way and cannot drift. It is this
+ * project's sentence, not SoH's: SoH's original menus have no gray capability
+ * note to copy (their disabled state is tooltip-only). A sentence-case sentence
+ * (SoH's gray-note voice, style guide R-S3a), never the rows' Title Case reason
+ * fragment: that stays in each row's disabled tooltip, which "Hover one" points
+ * at.
+ */
+constexpr const char* kGroupNote = COMBO_MM_GROUP_NOTE_UNAVAILABLE;
+
+/**
+ * Does the page draw @p row DISABLED right now? A row this page owns whose
+ * provider is not fully live, and which is not hidden by its gate: a hidden row
+ * draws nothing, so a note pointing at it would say "hover one" over nothing.
+ * The gate is read the way ShownWhilePreFunc reads it, every frame.
+ */
+bool DrawsDisabled(const RSBS::HostedMmEnhancement& row) {
+    return row.hosting == RSBS::MmEnhancementHosting::OwnRow && row.liveness != RSBS::MmEnhancementLiveness::Live &&
+           (row.shownWhileKey == nullptr || CVarGetInteger(row.shownWhileKey, 0) != 0);
+}
+
+/** Could any row in [@p begin, @p end) ever be drawn disabled? Decided at
+ *  registration, because liveness is a link-time fact the table records and
+ *  does not change while the menu lives. */
+bool GroupHasNonLiveRow(const RSBS::HostedMmEnhancement* begin, const RSBS::HostedMmEnhancement* end) {
+    for (const RSBS::HostedMmEnhancement* row = begin; row != end; row++) {
+        if (row->hosting == RSBS::MmEnhancementHosting::OwnRow && row->liveness != RSBS::MmEnhancementLiveness::Live) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * #747: the group's note, directly above the group's own rows (style guide R-S3:
+ * one gray note row above the group, the MM Randomizer page's shape). For the
+ * heading group that is right under its separator; for a pointer row's group it
+ * is under the pointer's sentence, so the sentence stays with the pointer it
+ * explains and "these settings" is read right above the rows it means, not
+ * above a sentence about a live row elsewhere. Registered only for
+ * a group that holds a non-live row, so a page whose rows are all Live -- the
+ * shipped one, today -- draws exactly what it drew before. Shown while any row
+ * of the group is drawn disabled, hidden otherwise (ApplyPresentationNote's LIVE
+ * hides it). It is the part of the state that is legible WITHOUT hovering and
+ * that a race lockout cannot replace: `.RaceDisable(false)`, and a TEXT row has
+ * no tooltip for MenuDrawItem's lockout branch to rebuild (Menu.cpp's TEXT draw
+ * never reads `disabled`). That is true by construction, not a tested state:
+ * every row this page registers is `.RaceDisable(false)`, so a lockout changes
+ * nothing on it at all. Kept out of the menu search, like every gray note: its
+ * sentence is not a setting.
+ */
+void AddGroupNote(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* begin,
+                  const RSBS::HostedMmEnhancement* end) {
+    if (!GroupHasNonLiveRow(begin, end)) {
+        return;
+    }
+    menu.AddWidget(path, "Majora's Mask Group Note", WIDGET_TEXT)
+        .RaceDisable(false)
+        .HideInSearch(true)
+        .PreFunc([begin, end](WidgetInfo& note) {
+            bool disabled = false;
+            for (const RSBS::HostedMmEnhancement* row = begin; row != end && !disabled; row++) {
+                disabled = DrawsDisabled(*row);
+            }
+            SohMenu::ApplyPresentationNote(note, disabled ? SOH_MENU_PRESENT_CAPABILITY : SOH_MENU_PRESENT_LIVE,
+                                           kGroupNote);
+        })
+        .Options(TextOptions().Color(Colors::Gray));
+}
+
+/** The first pointer row at or after @p from, or @p end. A pointer row opens a
+ *  group of its own, so this is where the group holding @p from's rows ends. */
+const RSBS::HostedMmEnhancement* NextPointer(const RSBS::HostedMmEnhancement* from,
+                                             const RSBS::HostedMmEnhancement* end) {
+    while (from != end && from->hosting != RSBS::MmEnhancementHosting::HostedElsewhere) {
+        from++;
+    }
+    return from;
+}
+
+/** The heading group's rows: from the table's start to its first pointer row,
+ *  which is EMPTY when the table lists a pointer first. No pointer skip here:
+ *  a first-listed pointer opens its own group in the second column, and its
+ *  rows are that group's, so counting them for the heading too would draw a
+ *  second note under an empty heading, over nothing disabled. */
+const RSBS::HostedMmEnhancement* HeadingGroupEnd(const RSBS::HostedMmEnhancement* rows,
+                                                 const RSBS::HostedMmEnhancement* end) {
+    return NextPointer(rows, end);
+}
+
+/** The rows of the group the pointer row @p pointer opens: the rows after it,
+ *  up to the next pointer row or @p end. The pointer itself is not one of them
+ *  (it is a live separator and sentence, never drawn disabled). */
+const RSBS::HostedMmEnhancement* PointerGroupEnd(const RSBS::HostedMmEnhancement* pointer,
+                                                 const RSBS::HostedMmEnhancement* end) {
+    return NextPointer(pointer + 1, end);
 }
 
 } // namespace
@@ -172,7 +273,23 @@ WidgetFunc ShownWhilePreFunc(std::size_t index) {
  * MenuMmEnhancementRows reaches it through `AddMenuCombo()` rather than by
  * name, so that the row exercises the real seam instead of a shortcut.
  */
+void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* rows, std::size_t count);
+
 void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
+    AddMmEnhancementRows(menu, path, RSBS::kHostedMmEnhancements, RSBS::kHostedMmEnhancementCount);
+}
+
+/**
+ * The page's body over a manifest table. The shipped page passes
+ * `RSBS::kHostedMmEnhancements`; MenuMmEnhancementRows and the UiSnapshot
+ * harness pass SYNTHETIC tables holding non-live rows, because every shipped
+ * row is Live and the disabled rows and their group notes (#747) would
+ * otherwise be code no test and no pixel ever reached. Externally linked and
+ * declared in no header, like the registrar above. @p rows must have static
+ * storage: the rows' PreFuncs keep pointers into it for the life of the menu.
+ */
+void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* rows, std::size_t count) {
+    const RSBS::HostedMmEnhancement* const end = rows + count;
     // THREE COLUMNS, TWO FILLED (UI parity M3): the column measure of the page's
     // reference, Enhancements > Quality of Life, which registers three. The
     // toggles take the first and the Autosave group the second; the third is
@@ -187,9 +304,19 @@ void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
     // manifest lists after it, MenuMmEnhancementRows leg 5) share a column.
     path.column = SECTION_COLUMN_1;
     menu.AddWidget(path, "Majora's Mask Enhancements", WIDGET_SEPARATOR_TEXT);
+    AddGroupNote(menu, path, rows, HeadingGroupEnd(rows, end));
 
-    for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
-        const RSBS::HostedMmEnhancement& row = RSBS::kHostedMmEnhancements[i];
+    for (std::size_t i = 0; i < count; i++) {
+        const RSBS::HostedMmEnhancement& row = rows[i];
+
+        if (row.liveness != RSBS::MmEnhancementLiveness::Live && row.issue == 0) {
+            // Unreachable for the shipped table: HostedMmEnhancementsAreHonest()
+            // is a static_assert on it, so such a row is a red build. Only a
+            // synthetic table can reach this, and it gets the same words, logged.
+            SPDLOG_WARN("Combo > Majora's Mask: the non-live row \"{}\" records no tracking issue. A reason nobody "
+                        "can trace is a reason nobody retires.",
+                        row.key);
+        }
 
         if (row.hosting == RSBS::MmEnhancementHosting::HostedElsewhere) {
             path.column = SECTION_COLUMN_2;
@@ -213,6 +340,10 @@ void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
                 .RaceDisable(false)
                 .HideInSearch(true)
                 .Options(TextOptions().Color(Colors::Gray));
+            // #747: this group's note, if it holds a non-live row, AFTER the
+            // pointer's sentence: directly above the rows it describes, as the
+            // heading group's is.
+            AddGroupNote(menu, path, &row + 1, PointerGroupEnd(&row, end));
             continue;
         }
 
@@ -248,9 +379,9 @@ void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
                         .Options(CheckboxOptions().Tooltip(row.tooltip));
         }
         if (row.shownWhileKey != nullptr) {
-            info->PreFunc(ShownWhilePreFunc(i));
+            info->PreFunc(ShownWhilePreFunc(&row));
         } else if (row.liveness != RSBS::MmEnhancementLiveness::Live) {
-            info->PreFunc(PresentationPreFunc(i));
+            info->PreFunc(PresentationPreFunc(&row));
         }
     }
 }
@@ -287,6 +418,12 @@ static RegisterComboSectionPage_t sMmTricksPage(COMBO_MM_TRICKS_PAGE_NAME, 1, Ad
  *  drift from the registration by spelling the literal a second time. */
 const char* MmEnhancementsPageName() {
     return kMmEnhancementsPage;
+}
+
+/** The group note's sentence (#747), for the lock and the UiSnapshot harness,
+ *  for the same reason. */
+const char* MmEnhancementsGroupNoteText() {
+    return kGroupNote;
 }
 
 } // namespace SohGui
