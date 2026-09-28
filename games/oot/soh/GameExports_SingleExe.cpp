@@ -499,6 +499,13 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
     // there until the exit request lands. A second pass would erase the slot
     // the first one wrote (a failure keeps it for forensics) and generate again.
     if (sPfcCreationAttempted) {
+        static bool sReentryLogged = false;
+        if (!sReentryLogged) {
+            sReentryLogged = true;
+            fprintf(stderr, "[PFC] the file select re-entered the boot injection after the creation attempt; "
+                            "not running it again\n");
+            fflush(stderr);
+        }
         return;
     }
     sPfcCreationAttempted = true;
