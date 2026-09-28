@@ -761,6 +761,13 @@ extern "C" {
 // games/oot/soh/oot_combo_goal_test.cpp and games/mm/2s2h/mm_combo_goal_test.cpp)
 // and the call sites' wiring from source. FILE SCOPE (compiled as C++).
 #include "tests/test_combo_goal.c"
+// #604: OoT's and MM's 'OARR' Array readers parse vertices identically (the boot
+// check, a synthetic payload with mutated-copy sensitivity controls, real MM
+// vertex arrays) and the production 'Array' slot hands MM's archive to MM's
+// reader. FILE SCOPE (compiled as C++). Must come after
+// test_curated_archive_order.c: it reuses CaoResolveArchive / CaoMakeManager /
+// CaoLoadThroughWinner.
+#include "tests/test_array_reader_agreement.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -4501,6 +4508,59 @@ TestResult Test_ComboGameOverRevive(void) {
     return OoT_GameOverRevive_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #604: ROM-free and context-free — the readers are stateless, so the boot
+// check and the synthetic comparison need no bring-up. Never skips.
+TestResult Test_ArrayReaderAgreement(void) {
+    printf("[TEST] array-reader-agreement: OoT's and MM's 'OARR' readers fill vertices identically (#604)\n");
+    const int rc = ArrayReaderAgreement_RunSynthetic();
+    printf("[TEST] %s: array reader agreement rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #604 over real MM data. SKIPs when mm.o2r (ROM-derived, never in CI) is not
+// staged. The display-free shared bring-up is for the production-slot leg,
+// which loads through the global ResourceManager.
+TestResult Test_ArrayReaderAgreementMM(void) {
+    printf("[TEST] array-reader-agreement-mm: real MM vertex arrays, and the production 'Array' slot (#604)\n");
+    const std::string mmArchive = CaoResolveArchive("mm.o2r");
+    if (mmArchive.empty()) {
+        printf("[TEST] SKIP: no mm.o2r resolvable — extract MM to arm this row (#604)\n");
+        return TEST_SKIP;
+    }
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    const int rc = ArrayReaderAgreement_RunMM(mmArchive.c_str());
+    printf("[TEST] %s: array reader agreement (MM) rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #604 (b) without a ROM: the per-archive 'Array' slot over two staged
+// loose-folder archives (one recorded as MM's, one nobody's), so a removed Array
+// dispatcher is caught where ArrayReaderAgreementMM SKIPs. Needs the display-free
+// shared bring-up (it loads through the global ResourceManager). Never skips.
+TestResult Test_ArrayReaderDispatch(void) {
+    printf("[TEST] array-reader-dispatch: the 'Array' slot routes by owning archive, ROM-free (#604)\n");
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    const int rc = ArrayReaderDispatch_RunHeadless();
+    printf("[TEST] %s: array reader dispatch rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // The cross-game refusal toasts fit the screen (games/oot/soh/soh_notification_fit_test.cpp).
 // Display-free: SoH's notification overlay draws into a private ImGui context. The
 // shared bring-up for the CVar store the overlay and Notification::Emit read.
@@ -5358,6 +5418,18 @@ const TestDescriptor gTests[] = {
      "puts the river water box back, as the lake objects' Destroy does on any exit; vanilla, no blue warp, no lake "
      "object or no PlayState keep the save as it is (#770)",
      Test_OoTDepartureLakeFlag},
+    {"array-reader-agreement",
+     "OoT's and MM's 'OARR' Array readers fill vertices identically: the boot check, then a synthetic payload whose "
+     "one-line reader mutations are each detected (#604)",
+     Test_ArrayReaderAgreement},
+    {"array-reader-agreement-mm",
+     "Real MM vertex arrays parse identically through both readers, and the production 'Array' slot hands MM's "
+     "archive to MM's reader: the Zora barrier's X8 alpha bytes equal the file's (#604)",
+     Test_ArrayReaderAgreementMM},
+    {"array-reader-dispatch",
+     "ROM-free: the per-archive 'Array' slot hands an MM-recorded archive's file to MM's reader and an unowned "
+     "archive's to OoT's, over two staged loose-folder archives (#604)",
+     Test_ArrayReaderDispatch},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
