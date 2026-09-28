@@ -214,22 +214,32 @@ Nothing stored in an existing save is recomputed, so existing files are unaffect
 
 ## Save loss and corruption
 
-### A changed MM option is accepted at load and refused at the next MM arrival — [#564](https://github.com/spencerduncan/redshipblueship/issues/564)
+### A changed MM option or Cross-Game Rule breaks the pair for the session — [#564](https://github.com/spencerduncan/redshipblueship/issues/564)
 
 Open, and a trap between sessions. Combo → MM Randomizer and Combo → MM Tricks lock
 only while a creation stamp is resident (`Combo_MMProfileFrozen()` is
 `mmProfileDigest != 0`), and that stamp is zero on a fresh launch and after a return to the
 title screen, so both pages are editable exactly between sessions. Loading a paired file
-compares its Cross-Game Rules field by field against the live ones and refuses a change by
-name, but it does **not** recompute the MM profile: an edited MM option, trick, excluded
+compares its Cross-Game Rules field by field against the live ones, but it does **not**
+recompute the MM profile: an edited MM option, trick, excluded
 check or starting item is accepted at load. The next crossing into Majora's Mask recomputes
 the profile, sees the difference and refuses: a 15-second "Cross-game pairing REFUSED"
 toast, an un-randomized Termina, and the slot latched against writes for the session
 (PR [#570](https://github.com/spencerduncan/redshipblueship/pull/570)). The file on disk is untouched.
 
-**Workaround:** once a paired file exists, leave both MM pages alone; if you changed one,
-set it back exactly or recreate the file. **The fix to come** is the same MM-profile
-compare at load time, so the refusal happens at file select, by name, before you play.
+Cross-Game Rules (including the Goal) unlock between sessions the same way
+(`Combo_ComboSettingsFrozen()` is `comboSettings.formatVersion != 0`). A changed rule *is*
+caught at load, but quietly: `LoadSlot` prints the diverged fields to stderr only and
+latches the slot, and OoT's caller ignores the result, so the OoT file opens and plays
+with nothing saved to the pair. By code reading (not run), the pairing identity is not
+restored either, so the next MM arrival skips pairing and plays an un-randomized Termina
+without a toast. No in-game surface shows the refusal (the `.redsave` file panel lives in
+the never-instantiated `ComboMenuBar`).
+
+**Workaround:** once a paired file exists, leave both MM pages and Cross-Game Rules alone;
+if you changed one, set it back exactly or recreate the file. **The fix to come** is the
+same MM-profile compare at load time, plus a load refusal the player can see; neither
+exists yet.
 
 ### ~~A flag set in the scene you leave through the portal can be lost~~ — RESOLVED ([#635](https://github.com/spencerduncan/redshipblueship/issues/635), community report; tracked in [#638](https://github.com/spencerduncan/redshipblueship/issues/638), PR [#650](https://github.com/spencerduncan/redshipblueship/pull/650))
 
@@ -529,8 +539,8 @@ install's config is not read.
 ### Some menu entries are stubs
 
 Settings entries backed by unimplemented functionality are grayed out or labeled
-where they were caught; the MM randomizer options page labels each row live,
-partial, dormant or generation-only with a reason. This pass was not exhaustive —
+where they were caught. Combo → MM Randomizer shows no per-row liveness label; its one
+disabled row is the retired "Majora Access: Remains". This pass was not exhaustive —
 an enabled-looking toggle that does nothing is a plausible bug, and worth reporting.
 
 ### The "Fipps" overlay font choice is gone
