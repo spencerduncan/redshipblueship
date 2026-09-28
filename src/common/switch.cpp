@@ -49,6 +49,7 @@ void OoT_Combo_FlushSceneFlagsForFreeze(void);
 void MM_Combo_FlushSceneFlagsForFreeze(void);
 void MM_Combo_ReviveDeadHealthForFreeze(void);
 void OoT_Combo_ReviveDeadHealthForFreeze(void);
+void OoT_Combo_ApplySceneExitWritesForFreeze(void);
 
 /**
  * Where a hot-swapped game should spawn when the player comes back to it.
@@ -166,6 +167,9 @@ void Combo_FlushLiveStateForFreeze(GameId departing) {
         case GAME_OOT:
             OoT_Combo_FlushSceneFlagsForFreeze();
             OoT_Combo_ReviveDeadHealthForFreeze();
+            // #770: the save writes the windmill gear's and Lake Hylia's
+            // Destroys make on any scene exit; the departure runs no Destroy.
+            OoT_Combo_ApplySceneExitWritesForFreeze();
             break;
         case GAME_MM:
             MM_Combo_FlushSceneFlagsForFreeze();

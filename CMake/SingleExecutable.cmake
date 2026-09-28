@@ -2163,6 +2163,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME MMMoonCrashPoolApplied COMMAND redship --test mm-moon-crash-pool-applied)
 
+    # #770: two OoT actor Destroys write the save on ANY exit from their scene
+    # (the windmill gear clears the Song of Storms windmill flag; in rando, after
+    # the Water Temple blue warp, every Lake Hylia object raises the lake again),
+    # and a cross-game departure skips every Destroy. The pre-freeze seam applies
+    # both writes from the live actor lists; each row drives both real freeze
+    # drivers and reads the frozen blob back. ROM-free (default tier);
+    # games/oot/soh/oot_departure_scene_exit_test.cpp.
+    redship_add_test(NAME OoTDepartureWindmillFlag COMMAND redship --test oot-departure-windmill-flag)
+    redship_add_test(NAME OoTDepartureLakeFlag COMMAND redship --test oot-departure-lake-flag)
+
     # #604: both games ship an 'OARR' Array reader and one process holds both, so
     # a vertex array parses with whichever owns the loader slot for its archive
     # (OoT's for the curated cross-game archive). ArrayReaderAgreement runs the
