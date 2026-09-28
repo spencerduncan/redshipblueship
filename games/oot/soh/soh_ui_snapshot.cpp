@@ -49,7 +49,9 @@
  * player-config (the harness names the player's shipofharkinian.json as its
  * config), hover-first-line (a hovered row draws only its tooltip's first
  * line), no-menu-under (the creation overlay's over-menu variant leaves the
- * menu hidden), no-dim (the creation overlay's dim is drawn transparent). A
+ * menu hidden), no-dim (the creation overlay's dim is drawn transparent),
+ * activate (the no-activation hint is overridden to "0" before the window
+ * exists, so the window is shown the way a player's is). A
  * sabotaged run is expected to fail; docs/ui-style-guide.md section 12 lists
  * what each one must turn red.
  *
@@ -169,6 +171,11 @@ namespace SohGui {
 // lock declares it the same way): AddMenuRandomizer as a whole cannot run
 // ROM-free, so the probe menu drives the pointer page directly.
 void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path);
+// Combo > Majora's Mask's body over a manifest table, and its group note's
+// sentence (SohMenuComboMmEnhancements.cpp, declared in no header, #747). The
+// MM note probe builds a page from a synthetic non-live table through it.
+void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* rows, std::size_t count);
+const char* MmEnhancementsGroupNoteText();
 } // namespace SohGui
 
 // The DX11 readback. ENABLE_DX11 is a PRIVATE define of libultraship, and
@@ -790,6 +797,9 @@ struct PageSpec {
     // The row-state probe: a harness-only Combo sidebar installed for this page's
     // captures and removed afterwards (see InstallRowStateProbe).
     bool rowStateProbe = false;
+    // The MM note probe (#747): the same, built by Combo > Majora's Mask's own
+    // builder over a synthetic non-live manifest (see InstallMmNoteProbe).
+    bool mmNoteProbe = false;
     // Hover variants on a row drawn through the combo_ui seam, found by the
     // label it passes to the seam's rect recorder (such a row has no WidgetInfo
     // whose postFunc could be wrapped: a pane's rows, or a trick row inside
@@ -862,6 +872,48 @@ bool gProbeSuspended = false;
 bool gProbeGated = false;
 bool gProbeDecided = false;
 
+// The MM note probe's sidebar and synthetic manifest (InstallMmNoteProbe, #747).
+// Combo > Majora's Mask's own builder over rows that are NOT all Live, because
+// every shipped row is, so its disabled rows and group notes never reach a pixel
+// on the shipped page. The shipped page's shape, with a non-live row in EACH
+// group so both note placements are drawn: the heading group holds a Live
+// checkbox and a Dormant one gated on it (the note sits right under the
+// heading); then a pointer row opens a second group holding a Dormant checkbox
+// and a Partial slider gated on the pointer's key (the note sits under the
+// pointer's sentence, directly above those rows). Every non-live row is gated,
+// so each note depends on authored state: hidden with its rows in "", drawn over
+// them once "heading-on" / "gate-on" writes its key -- which also makes the
+// harness's own `no-state` sabotage turn both notes' checks red. Static storage:
+// the page's PreFuncs keep pointers into the table.
+constexpr const char* kMmNoteSidebar = "MM Row States";
+constexpr const char* kMmNoteLiveRow = "Live Enhancement";
+constexpr const char* kMmNoteLiveKey = "gRsbsUiSnapshot.MmNote.Live";
+constexpr const char* kMmNoteAbsentRow = "Absent Enhancement";
+constexpr const char* kMmNoteDormantRow = "Dormant Enhancement";
+constexpr const char* kMmNotePartialLabel = "Partial Enhancement";
+constexpr const char* kMmNoteParentKey = "gRsbsUiSnapshot.MmNote.Parent";
+constexpr RSBS::HostedMmEnhancement kMmNoteManifest[] = {
+    { kMmNoteLiveKey, kMmNoteLiveRow, "Toggles a setting that applies now. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Live, "" },
+    { "gRsbsUiSnapshot.MmNote.Absent", kMmNoteAbsentRow,
+      "Toggles a setting whose provider is not in this build. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Dormant, "Provider Not in This Build",
+      RSBS::MmEnhancementWidget::Checkbox, 0, 0, 0, nullptr, kMmNoteLiveKey, 747 },
+    { kMmNoteParentKey, "Parent Setting", "Parent Setting is on another page and applies to both games.", "harness",
+      nullptr, "", RSBS::MmEnhancementHosting::HostedElsewhere, RSBS::MmEnhancementLiveness::Live, "" },
+    { "gRsbsUiSnapshot.MmNote.Dormant", kMmNoteDormantRow,
+      "Toggles a setting whose provider is not in this build. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Dormant, "Provider Not in This Build",
+      RSBS::MmEnhancementWidget::Checkbox, 0, 0, 0, nullptr, kMmNoteParentKey, 747 },
+    { "gRsbsUiSnapshot.MmNote.Partial", "Partial Enhancement: %d minutes",
+      "Sets a value whose draw is not wired yet. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Partial, "Draw Not Wired in Majora's Mask",
+      RSBS::MmEnhancementWidget::SliderInt, 1, 60, 5, "%d minutes", kMmNoteParentKey, 747 },
+};
+static_assert(RSBS::HostedMmEnhancementRowsAreHonest(kMmNoteManifest,
+                                                     sizeof(kMmNoteManifest) / sizeof(kMmNoteManifest[0])),
+              "the MM note probe's synthetic manifest must itself pass the manifest's honesty rule");
+
 class Session {
   public:
     explicit Session(const Options& o) : opt(o) {
@@ -883,6 +935,8 @@ class Session {
     std::shared_ptr<UiSnapshotMenu> probe;
     bool romFree = true;
     bool windowActivated = false;
+    // SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN as the window was created.
+    std::string noActivationHint;
     // compare/ and iter/ images that could not be written. Counted into the
     // summary line and the manifest: a missing composite is what an agent
     // iterating from the output directory would otherwise never notice.
@@ -907,6 +961,9 @@ class Session {
     std::vector<const WidgetInfo*> probeRows;
     void InstallRowStateProbe();
     void RemoveRowStateProbe();
+    // The MM note probe (#747), on the same pattern and the same probeRows.
+    void InstallMmNoteProbe();
+    void RemoveMmNoteProbe();
 
     // hover target recording
     std::string hoverTarget;
@@ -1099,7 +1156,19 @@ bool Session::BringUp(std::string& why) {
     // Before the window exists: a snapshot run must not steal focus from whatever
     // the person at the workstation is doing. (DXGI activates regardless; the
     // workstation therefore defaults to GL.)
+    // rsbs/src/main.cpp has already armed the same hint for every --test process
+    // (at OVERRIDE priority, lane F1) before this runs; this call is kept so the
+    // harness states its own requirement where the window is made.
     SDL_SetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "1");
+    if (opt.Sabotaged("activate")) {
+        // The regression the windowActivated failure exists to catch: the window
+        // is shown the way a player's is, and activates.
+        SDL_SetHintWithPriority(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "0", SDL_HINT_OVERRIDE);
+    }
+    {
+        const char* hint = SDL_GetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN);
+        noActivationHint = hint != nullptr ? hint : "";
+    }
 
     auto ctx = Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE " - UI snapshot", kShortName, configName);
     if (ctx == nullptr) {
@@ -1930,6 +1999,41 @@ void Session::BuildPageList() {
         p.expectText = { p.bodyText };
         pages.push_back(p);
     }
+    if (entries.contains("Combo")) {
+        // #747: Combo > Majora's Mask's group note and disabled rows, drawn by
+        // the page's own builder over a synthetic non-live manifest (see
+        // InstallMmNoteProbe), compared with the shipped page's reference.
+        PageSpec p;
+        p.id = std::string("Combo/") + kMmNoteSidebar;
+        p.header = "Combo";
+        p.sidebar = kMmNoteSidebar;
+        p.origin = Origin::RSBS;
+        p.kind = Kind::MENU_PAGE;
+        p.mmNoteProbe = true;
+        p.compareWith = "Enhancements/Quality of Life";
+        // "": both gates are off, so every non-live row and both notes are
+        // hidden and the page shows only its Live row and the pointer.
+        // "heading-on": the Live row's key is on, so the heading group's
+        // Dormant row draws disabled under the heading group's note.
+        // "gate-on": the pointer's key is on, so the second group's two rows
+        // draw disabled under that group's note, below the pointer sentence.
+        // No race-lockout state: every row this builder registers is
+        // .RaceDisable(false) and Menu.cpp's TEXT draw never reads `disabled`,
+        // so a lockout changes nothing on this page by construction, and a
+        // capture of it could only repeat "gate-on".
+        p.states = { "", "heading-on", "gate-on" };
+        const std::string note = SohGui::MmEnhancementsGroupNoteText();
+        p.stateText["heading-on"] = { note, kMmNoteAbsentRow };
+        p.stateText["gate-on"] = { note, kMmNoteDormantRow, kMmNotePartialLabel };
+        p.stateContrast = { { "heading-on", "" }, { "gate-on", "" } };
+        p.hovers = { "dormant" };
+        p.hoverRows = { { "dormant", kMmNoteDormantRow } };
+        p.hoverRowState = { { "dormant", "gate-on" } };
+        p.disabledHovers = { "dormant" };
+        p.bodyText = kMmNoteLiveRow;
+        p.expectText = { p.bodyText };
+        pages.push_back(p);
+    }
     {
         PageSpec p = menuPage("Randomizer", "Cross-Game", Origin::RSBS);
         p.compareWith = "Randomizer/General";
@@ -2397,7 +2501,13 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         if (state == "match-refresh-rate") {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
         }
-    } else if (p.rowStateProbe) {
+    } else if (p.rowStateProbe || p.mmNoteProbe) {
+        if (p.mmNoteProbe && state == "heading-on") {
+            CVarSetInteger(kMmNoteLiveKey, 1);
+        }
+        if (p.mmNoteProbe && state == "gate-on") {
+            CVarSetInteger(kMmNoteParentKey, 1);
+        }
         if (state == "race-lockout") {
             // MenuDrawItem's race lockout (Menu.cpp) disables every RaceDisable
             // row and REPLACES its disabled tooltip: the case the gray notes are
@@ -2447,6 +2557,12 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     if (p.rowStateProbe && state == "race-lockout") {
         CVarClear(CVAR_SETTING("DisableChanges"));
+    }
+    if (p.mmNoteProbe && state == "heading-on") {
+        CVarClear(kMmNoteLiveKey);
+    }
+    if (p.mmNoteProbe && state == "gate-on") {
+        CVarClear(kMmNoteParentKey);
     }
     if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {
         Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_OOT);
@@ -2547,6 +2663,55 @@ void Session::InstallRowStateProbe() {
             }
         }
     }
+}
+
+/**
+ * #747: Combo > Majora's Mask's group note, on a harness-only page built by the
+ * shipped page's own builder (SohGui::AddMmEnhancementRows) over a synthetic
+ * manifest that holds two Dormant rows and a Partial one, a non-live row in each
+ * of its two groups. Every shipped row is Live, so
+ * without this page neither the page's disabled rows nor its gray notes would
+ * ever reach a pixel. Installed and removed around its own captures, like the
+ * row-state probe, and its rows join R5/R6 the same way.
+ */
+void Session::InstallMmNoteProbe() {
+    auto soh = std::dynamic_pointer_cast<SohGui::SohMenu>(menu);
+    auto& entries = MenuEntries(*menu);
+    if (soh == nullptr || !entries.contains("Combo") || entries.at("Combo").sidebars.contains(kMmNoteSidebar)) {
+        return;
+    }
+    // Three columns, the shipped page's count.
+    soh->AddSidebarEntry("Combo", kMmNoteSidebar, 3);
+    WidgetPath path = { "Combo", kMmNoteSidebar, SECTION_COLUMN_1 };
+    SohGui::AddMmEnhancementRows(*soh, path, kMmNoteManifest, sizeof(kMmNoteManifest) / sizeof(kMmNoteManifest[0]));
+
+    const std::string where = std::string("Combo/") + kMmNoteSidebar;
+    for (auto& column : entries.at("Combo").sidebars.at(kMmNoteSidebar).columnWidgets) {
+        for (WidgetInfo& row : column) {
+            probeRows.push_back(&row);
+            if (IsInteractive(row.type)) {
+                registeredNames[&row] = { where, row.name };
+            } else if (row.type == WIDGET_TEXT) {
+                textRows[&row] = where;
+            }
+        }
+    }
+}
+
+void Session::RemoveMmNoteProbe() {
+    for (const WidgetInfo* row : probeRows) {
+        registeredNames.erase(row);
+        textRows.erase(row);
+    }
+    probeRows.clear();
+    auto& entries = MenuEntries(*menu);
+    if (!entries.contains("Combo")) {
+        return;
+    }
+    MainMenuEntry& combo = entries.at("Combo");
+    combo.sidebars.erase(kMmNoteSidebar);
+    combo.sidebarOrder.erase(std::remove(combo.sidebarOrder.begin(), combo.sidebarOrder.end(), kMmNoteSidebar),
+                             combo.sidebarOrder.end());
 }
 
 void Session::RemoveRowStateProbe() {
@@ -2731,6 +2896,9 @@ constexpr int kMaxScrollSteps = 8;
 void Session::CaptureMenuPage(const PageSpec& p) {
     if (p.rowStateProbe) {
         InstallRowStateProbe();
+    }
+    if (p.mmNoteProbe) {
+        InstallMmNoteProbe();
     }
     auto& entries = MenuEntries(*menu);
     const bool present = entries.contains(p.header) && entries.at(p.header).sidebars.contains(p.sidebar);
@@ -2987,6 +3155,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
     }
     if (p.rowStateProbe) {
         RemoveRowStateProbe();
+    }
+    if (p.mmNoteProbe) {
+        RemoveMmNoteProbe();
     }
 }
 
@@ -4148,6 +4319,7 @@ bool Session::WriteManifest() {
          ",\"mm\":" + std::string(fs::exists(Ship::Context::LocateFileAcrossAppDirs("mm.o2r")) ? "true" : "false") +
          "},";
     j += std::string("\"windowActivated\":") + (windowActivated ? "true" : "false") + ",";
+    j += "\"noActivationHint\":\"" + JsonEscape(noActivationHint) + "\",";
     j += "\"settle\":[" + std::to_string(opt.settleMin) + "," + std::to_string(opt.settleMax) + "],";
     j += "\"pages\":\"" + JsonEscape(opt.pages) + "\",";
     j += "\"sabotage\":\"" + JsonEscape(opt.sabotage) + "\",";
@@ -4630,6 +4802,25 @@ int Session::Run() {
         PumpFrame(nullptr, false, nullptr, why);
     }
     windowActivated = (SDL_GetKeyboardFocus() != nullptr);
+#if defined(_WIN32)
+    // A snapshot run must not take the keyboard from the person at the
+    // workstation, and on Windows with GL it provably need not: SDL shows the
+    // window with SW_SHOWNA under the hint both main.cpp and BringUp arm. So there
+    // an activated window is a failure, not a report (lane F1). It stays a report
+    // on DirectX 11, whose HWND libultraship shows with ShowWindow(SW_SHOW)
+    // (gfx_dxgi.cpp) without consulting SDL's hint, and off Windows, where an
+    // Xvfb display has no window manager and gives a new window X input focus
+    // regardless (the Linux CI manifests read windowActivated=true with the hint
+    // set).
+    if (windowActivated && renderer.backend == Backend::GL) {
+        Fail(
+            "focus: the harness window took keyboard focus on Windows/OpenGL (SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN "
+            "was '" +
+            noActivationHint +
+            "' when it was created); a test window must never take the caret from the person at "
+            "the workstation");
+    }
+#endif
 
     for (const PageSpec& p : pages) {
         // One page throwing (a std::map::at on a missing key inside a draw, say)

@@ -185,8 +185,14 @@ and on ours (R-N4).
   one. The editable-but-not-active state is the note alone ("Majora's Mask is suspended; these take effect when you
   return."; that default is Majora's-Mask-specific, so an Ocarina of Time group passes its own sentence). A
   capability's tracking issue is a separate field of its record (`RegisterCapability(key, predicate, text, issue)`),
-  never part of the text a player reads. The MM Enhancements manifest's `reason` has no issue field yet: it must print
-  no number (`MenuMmEnhancementRows`), and its page has no note row yet (#747).
+  never part of the text a player reads. The Majora's Mask page's manifest rows follow the same split: `reason` is the
+  player text and prints no number, and `HostedMmEnhancement::issue` records the tracker, nonzero exactly on a non-live
+  row (`HostedMmEnhancementsAreHonest()`, `MenuMmEnhancementRows`). A group on that page holding a non-live row gets
+  one gray note directly above its rows (under its separator; in a pointer row's group, under the pointer's
+  sentence), shown while any of its rows is drawn disabled ("Some of these settings are not available in this build.
+  Hover one to see why.", `COMBO_MM_GROUP_NOTE_UNAVAILABLE`, the MM Randomizer page's group note and this project's
+  own wording: SoH's menus have no gray capability note to copy); every shipped row is Live, so the shipped page draws
+  none, and the harness-only `Combo/MM Row States` page draws both placements from a synthetic table.
 - **R-S4.** `RaceDisable` defaults to true (`MenuTypes.h:113`). Mark cosmetic and QoL rows `.RaceDisable(false)`.
 - **R-S5.** Destructive buttons confirm through `SohGui::RegisterPopup(title, message, "Reset", "Cancel", cb, nullptr)`
   (`SohMenuSettings.cpp:419-432`).
@@ -305,6 +311,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > Cross-Game Rules | Randomizer > General |
 | Combo > Windows | Randomizer > Item Tracker |
 | Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
+| Combo > MM Row States (harness-only: the Majora's Mask page's builder over a synthetic non-live table, so its disabled rows and group notes are drawn) | Enhancements > Quality of Life |
 | Combo > MM Mods | Randomizer > Tricks/Glitches (the two-column Disabled/Enabled table; OoT's Settings > Mod Menu throws in the harness's fresh config) |
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | Combo > MM Randomizer | Randomizer > General (the two-column option page) |
@@ -339,7 +346,11 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 **Variants:**
 - STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
   that draws an empty-set note), Majora's Mask's autosave,
-  Combo > MM Randomizer's unpaired, frozen and mm-suspended (each shows its own note), and Combo > MM Tricks'
+  Combo > MM Row States' default (every gated row and both notes hidden), heading-on (the heading group's Dormant row
+  drawn disabled under the note right under the heading) and gate-on (the pointer group's Dormant and Partial rows
+  drawn disabled under the note below the pointer's sentence; no race-lockout state, because every row that page
+  registers is `.RaceDisable(false)`, so a lockout changes nothing there), Combo > MM Randomizer's unpaired, frozen and
+  mm-suspended (each shows its own note), and Combo > MM Tricks'
   unpaired and frozen (the trick headline, then the freeze sentence).
   The Cross-Game Spoiler draws paired (no crossings), crossings (crossings both ways authored through the crossing
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
@@ -447,6 +458,7 @@ names what must fail. Run them after changing the harness itself.
 | `hover-first-line` | a hovered row draws only the first line of its tooltip | every hover whose tooltip has a second line ("does not show its row's tooltip") |
 | `no-menu-under` | the overlay's `over-menu` variant leaves the menu hidden | that capture ("the menu under the dim was not drawn") |
 | `no-dim` | the overlay's dim is drawn fully transparent | that capture ("... pixels outside the box are not the menu dimmed by ModalWindowDimBg") |
+| `activate` | the no-activation hint is overridden to `"0"` before the window exists | on Windows with OpenGL only, the run ("focus: the harness window took keyboard focus ..."); `windowActivated` is a report on DirectX 11 (DXGI shows its window without consulting SDL's hint) and off Windows (Xvfb has no window manager) |
 
 **The original-page guard runs on a ROM-staged workstation only.** Hosted CI is ROM-free: SoH's own menu is not
 populated there (only Dev Tools/General registers), R8's `soh-names.txt` is not written, and CI has no base run to
