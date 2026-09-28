@@ -57,6 +57,10 @@
 // OoT_Notification_Emit — the shared toast overlay (#427 bridge): the arrival
 // refusal must be player-visible in-game, not only in the file panel.
 #include "notification_bridge.h"
+// The refusal toasts' copy, and MM's half of the bridge that queues them with
+// Notification::Options' defaults.
+#include "pairing_refusal_toast.h"
+#include "2s2h/BenGui/Notification.h"
 #include "entrance.h"
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/ResourceLoader.h>
@@ -4609,27 +4613,9 @@ int MM_Rando_GateCrossGameArrival(void) {
             RsbsSave_RefuseSlotIdentity(slot);
 
             // Player-visible, immediately, on the shared overlay — stderr is
-            // not a surface and the file panel is only seen later.
-            ComboNotification refusalToast;
-            memset(&refusalToast, 0, sizeof(refusalToast));
-            refusalToast.prefix = "Cross-game pairing REFUSED:";
-            refusalToast.prefixColor[0] = 0.9f;
-            refusalToast.prefixColor[1] = 0.35f;
-            refusalToast.prefixColor[2] = 0.3f;
-            refusalToast.prefixColor[3] = 1.0f;
-            refusalToast.message = "Majora's Mask options no longer match this file's creation. "
-                                   "Termina stays un-randomized and progress here will not be saved to the pair.";
-            refusalToast.messageColor[0] = 1.0f;
-            refusalToast.messageColor[1] = 1.0f;
-            refusalToast.messageColor[2] = 1.0f;
-            refusalToast.messageColor[3] = 1.0f;
-            refusalToast.remainingTime = 15.0f;
-            // Muted: the overlay's ding is OoT's Audio_PlaySoundGeneral, and
-            // this call site runs on MM's boot path (and in the display-free
-            // rando tier) where OoT's audio session is not a given. The toast
-            // is the surface; the sound is not load-bearing.
-            refusalToast.mute = 1;
-            OoT_Notification_Emit(&refusalToast);
+            // not a surface and the file panel is only seen later. One short
+            // line in SoH's toast shape (src/common/pairing_refusal_toast.h).
+            MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MM_OPTIONS, nullptr);
             return 1;
         }
         fprintf(stderr, "[MM] pairing: arrival profile matches the creation-frozen identity (%08X)\n",
@@ -4690,28 +4676,9 @@ int MM_Rando_GateCrossGameArrival(void) {
 
             // Player-visible, immediately, on the shared overlay, and it NAMES
             // THE FIELD — the capability decision 1.1 justification 2 claims,
-            // built rather than promised.
-            static char refusalMessage[320];
-            snprintf(refusalMessage, sizeof(refusalMessage),
-                     "Cross-game rules changed since this file was created (%s). "
-                     "Termina stays un-randomized and progress here will not be saved to the pair.",
-                     fields);
-            ComboNotification refusalToast;
-            memset(&refusalToast, 0, sizeof(refusalToast));
-            refusalToast.prefix = "Cross-game pairing REFUSED:";
-            refusalToast.prefixColor[0] = 0.9f;
-            refusalToast.prefixColor[1] = 0.35f;
-            refusalToast.prefixColor[2] = 0.3f;
-            refusalToast.prefixColor[3] = 1.0f;
-            refusalToast.message = refusalMessage;
-            refusalToast.messageColor[0] = 1.0f;
-            refusalToast.messageColor[1] = 1.0f;
-            refusalToast.messageColor[2] = 1.0f;
-            refusalToast.messageColor[3] = 1.0f;
-            refusalToast.remainingTime = 15.0f;
-            // Muted for the same reason the profile refusal above is.
-            refusalToast.mute = 1;
-            OoT_Notification_Emit(&refusalToast);
+            // built rather than promised. Every field the stderr line lists is
+            // named while the one-line toast has room; the rest are counted.
+            MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_RULES, fields);
             return 1;
         }
         if (Combo_ComboSettingsFrozen()) {
@@ -4837,23 +4804,34 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
     fflush(stderr);
     RsbsSave_RefuseSlotGeneration(slot);
 
-    ComboNotification missingToast;
-    memset(&missingToast, 0, sizeof(missingToast));
-    missingToast.prefix = "Cross-game pairing REFUSED:";
-    missingToast.prefixColor[0] = 0.9f;
-    missingToast.prefixColor[1] = 0.35f;
-    missingToast.prefixColor[2] = 0.3f;
-    missingToast.prefixColor[3] = 1.0f;
-    missingToast.message = "This file has no paired Majora's Mask world. Files created before the merged "
-                           "generation update must be re-created to get one. Termina stays un-randomized and "
-                           "progress here will not be saved to the pair.";
-    missingToast.messageColor[0] = 1.0f;
-    missingToast.messageColor[1] = 1.0f;
-    missingToast.messageColor[2] = 1.0f;
-    missingToast.messageColor[3] = 1.0f;
-    missingToast.remainingTime = 15.0f;
-    missingToast.mute = 1;
-    OoT_Notification_Emit(&missingToast);
+    MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr);
+}
+
+/**
+ * THE REFUSAL TOAST (src/common/pairing_refusal_toast.h): one short line in SoH's
+ * toast shape, as PR #749 set it for our toasts — Notification::Options' default
+ * colours, the player's configured duration (Notifications.Duration), a short
+ * prefix saying what the refusal costs ("Not saved:") and a short reason. The
+ * overlay draws prefix and message on ONE line at Notifications.Size (1.8 by
+ * default) and never wraps, and the sentence pairs these toasts used to carry
+ * drew up to about 2,480 px wide (#749's playtest notes: off-screen). The long
+ * explanation stays on each refusal's stderr line.
+ *
+ * Muted: the overlay's ding is OoT's Audio_PlaySoundGeneral, and every caller can
+ * run on MM's boot path or in the display-free locks, where OoT's audio session
+ * is not a given. The toast is the surface; the sound is not load-bearing.
+ *
+ * Its own function so the ui tier's toast pages and the pairing-refusal-toast-fit
+ * lock draw the production toast rather than a copy of it.
+ */
+void MM_Rando_EmitPairingRefusalToast(int kind, const char* detail) {
+    char message[256];
+    Combo_PairingRefusalToastMessage(kind, detail, message, sizeof(message));
+    Notification::MM_Notify_Emit({
+        .prefix = Combo_PairingRefusalToastPrefix(kind),
+        .message = message,
+        .mute = true,
+    });
 }
 
 } // extern "C"
