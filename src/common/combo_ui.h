@@ -3,8 +3,10 @@
  * @brief The `combo_ui` seam: SoH's widget look for src/common panes, without
  *        an SoH header (UI parity M6; docs/ui-style-guide.md section 10).
  *
- * THE PROBLEM. Our common-owned panes (the MM Randomizer Options pane first;
- * the Combo Tracker and the Cross-Game Spoiler next) live in src/common, which
+ * THE PROBLEM. Our common-owned panes (the MM Randomizer Options pane first,
+ * a menu page since 2026-09-27 whose trick rows still draw their chips and
+ * names through this seam; the Combo Tracker and the Cross-Game Spoiler next)
+ * live in src/common, which
  * ADR 0002 keeps free of every game header, and which cannot include
  * `UIWidgets.hpp` anyway: that header includes "soh/ShipUtils.h", and
  * redship_common has games/oot/soh on its include path but not games/oot. So
@@ -20,7 +22,7 @@
  * table from a file-scope initializer, the RegisterComboSectionPage_t precedent
  * (a TU under games/oot/soh, which is WHOLE_ARCHIVE'd, so the initializer cannot
  * be elided). The shipped binary therefore always draws through SoH's helpers;
- * the ComboMMOptionsWindow lock asserts the table is installed.
+ * the ComboMMOptionsPage lock asserts the table is installed.
  *
  * FALLBACK. ComboUi_Get() never returns NULL: with nothing installed it returns
  * a raw-ImGui table (combo_ui.cpp), so a link without the OoT TU still draws a

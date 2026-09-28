@@ -19,13 +19,16 @@
  * Combo_RegisterMMOptionTable from a file-scope registrar. This file holds no
  * MM knowledge at all; it holds a flat array of strings and integers.
  *
- * WHY NOT A SohMenu PANE. ADR 0008 settled the seam for panels that belong to
- * neither game: they are owned by src/common and registered on the shared
- * Ship::Context Gui. This pane must be reachable **while OoT is active, before
- * the paired world is created**, because the profile freezes into the world's
- * identity at the creation event (#498/#564) and a divergent arrival is
- * refused. A pane hung off MM's boot would only exist after the point at which
- * it can still change anything.
+ * WHERE IT IS DRAWN. Since 2026-09-27, as two pages of OoT's live menu, Combo
+ * > MM Randomizer and Combo > MM Tricks (combo_mm_options_page.h; ADR 0004's
+ * host amendment of that date). They must be reachable **while OoT is active,
+ * before the paired world is created**, because the profile freezes into the
+ * world's identity at the creation event (#498/#564) and a divergent arrival is
+ * refused; OoT's menu is up at file select, before creation. Until then they
+ * were a common-owned pop-out window (ADR 0008), kept a window only because
+ * src/common could not draw with SoH's widgets. Nothing hung off MM's boot
+ * could serve: it would exist only after the point at which it can change
+ * anything.
  *
  * CAPABILITY GATING IS PART OF THE MODEL, NOT THE WIDGET (ADR 0004 section 5).
  * Every descriptor carries a liveness class and, when it is not live, a reason
@@ -48,8 +51,8 @@
  * CVars directly and caches nothing.
  *
  * Locked ROM-free by the MMRandoOptions CTest (table coverage and honesty,
- * driven MM-side where both tables are in scope) and the ComboMMOptionsWindow
- * CTest (the window that renders it).
+ * driven MM-side where both tables are in scope), the ComboMMOptionsPage CTest
+ * (the pages' view model) and the MenuMmRandomizerPages CTest (the rows).
  */
 
 #ifndef RSBS_COMMON_COMBO_MM_OPTIONS_VIEW_H

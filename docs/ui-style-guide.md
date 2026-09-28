@@ -9,13 +9,15 @@ The test is pixels. Render the SoH reference and ours with `redship --test ui-sn
 (section 12). Each rule cites the SoH line it copies. A rule marked [project rule] is stricter than SoH on purpose.
 
 **Scope (ours):**
-- `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp` and `SohGui/SohMenuComboMmMods.cpp`
+- `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp`, `SohGui/SohMenuComboMmMods.cpp` and
+  `SohGui/SohMenuComboMmRandomizer.cpp`
 - `AddCrossGamePointerWidgets` (`SohMenuRandomizer.cpp:823-846`)
 - the capability and presentation code in `SohMenu.cpp:199-600`
 - `SohGui/CreationProgressOverlay.cpp`
-- `src/common/Combo{MmOptions,Spoiler,Tracker}Window.cpp`
+- `src/common/Combo{Spoiler,Tracker}Window.cpp`
 - the player-facing strings in `src/common/cvar_shared_keys.h` (`kHostedMmEnhancements`)
-- `src/common/combo_settings_view.cpp`, `src/common/combo_mm_*_view.*` and `src/common/gen_progress_overlay.c`
+- `src/common/combo_settings_view.cpp`, `src/common/combo_mm_*_view.*`, `src/common/combo_mm_options_page.*` and
+  `src/common/gen_progress_overlay.c`
 - `games/mm/2s2h/Rando/OptionsUiSingleExe.cpp`
 - the toasts in the `*ForeignItemsSingleExe.cpp` TUs
 - any new ImGui-drawing TU (the lint tripwire lists them)
@@ -196,7 +198,29 @@ and on ours (R-N4).
 - **R-X2.** A TEXT row whose name changes every frame is fine (`ResolutionEditor.cpp:387-398`), but it stays within
   R-X1's length and gets `.HideInSearch(true)`.
 
-## 10. Panes (GuiWindow)
+## 10. Page or window (SoH's split)
+
+SoH decides by WHEN a surface is used, not by how big it is. Ours follow the same split.
+
+- **A setting chosen before or between sessions is a page.** Its rows are registered with `AddWidget`. SoH's
+  randomizer options are rows on Randomizer > General and the option-group sidebars (`OptionGroup::AddWidgets`,
+  `option.cpp:450-473`), and the trick list is a page whose list is one `WIDGET_CUSTOM` row (Randomizer >
+  Tricks/Glitches, `SohMenuRandomizer.cpp:723-725`, drawn by `DrawTricksMenu`).
+- **A tool used during play is a window.** It is toggled from a page by a "Toggle <Window>" row with
+  `.EmbedWindow(false)`. Examples: Item, Entrance and Check Tracker (`SohMenuRandomizer.cpp:739-790`), Timers
+  (`SohMenuEnhancements.cpp:1909`) and Input Viewer (`SohMenuSettings.cpp:445`).
+- **A large editor still lives in its page.** SoH gives some editors a `GuiWindow`, but `WindowButtonOptions`
+  embeds it by default (`EmbedWindow` defaults to true, `UIWidgets.hpp:226-262`), so the editor draws inside its
+  own page until the player pops it out with a "Popout <Window>" row. Examples: Cosmetics Editor and Audio Editor
+  (`SohMenuEnhancements.cpp:1869,1879`), Plandomizer (`SohMenuRandomizer.cpp:730`) and Mod Menu
+  (`SohMenuSettings.cpp:517`).
+
+Ours: MM's randomizer options and tricks freeze at the creation event, so they are pages (Combo > MM Randomizer
+and Combo > MM Tricks, `SohMenuComboMmRandomizer.cpp`, since 2026-09-27; ADR 0004's host amendment of that date).
+Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker and MM's trackers. A new
+surface that freezes at creation, or that feeds generation, is never a pop-out.
+
+## 10b. Panes (GuiWindow)
 
 - A pane derives from `Ship::GuiWindow`, registers with `AddGuiWindow` and a `CVAR_WINDOW` key, and is opened from a
   WINDOW_BUTTON row. Common-owned panes follow ADR 0008.
@@ -210,7 +234,7 @@ and on ours (R-N4).
   initializer. Pass each widget its tooltip and, when disabled, a disabled tooltip from `ComboUi_DisabledTooltip`
   (shape (a) of R-S2). Every widget reports its rectangle and shown tooltip to an optional recorder, which is how the
   snapshot harness finds and hovers a pane row. With no table installed, `ComboUi_Get()` returns a raw-ImGui fallback
-  (`combo_ui.cpp`, excluded from the lint); the shipped binary always installs SoH's (the ComboMMOptionsWindow lock).
+  (`combo_ui.cpp`, excluded from the lint); the shipped binary always installs SoH's (the ComboMMOptionsPage lock).
 - **Settings groups** in a pane use `SeparatorText` [project rule, matching SoH's randomizer option pages,
   `option.cpp:450-479`]. `CollapsingHeader` is an SoH editor and tracker idiom (`CosmeticsEditor.cpp`,
   `SohInputEditorWindow.cpp`, `randomizer_check_tracker.cpp`). It is allowed in our tracker and spoiler panes, not in
@@ -283,11 +307,12 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
 | Combo > MM Mods | Randomizer > Tricks/Glitches (the two-column Disabled/Enabled table; OoT's Settings > Mod Menu throws in the harness's fresh config) |
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
-| MM Randomizer Options pane / Tricks | Randomizer > Logic/Access / Tricks/Glitches |
+| Combo > MM Randomizer | Randomizer > General (the two-column option page) |
+| Combo > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |
 | Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
 | Creation overlay over the open menu | SoH's modal over the same menu page ("Clear Config@over-menu") |
-| Cross-Game Rules Reset confirm, MM options Reset confirm | the SoH modal ("Clear Config") |
+| Cross-Game Rules Reset confirm, MM Randomizer Reset confirm | the SoH modal ("Clear Config") |
 | The creation shortfall, failure and goal-warning toasts | SoH's toast shape ("Game autosaved") |
 
 Compare within the same run, the same profile and the same backend. Check:
@@ -314,10 +339,8 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 **Variants:**
 - STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
   that draws an empty-set note), Majora's Mask's autosave,
-  and the MM options pane's unpaired, frozen, mm-suspended, tricks-open (its first area and the first area holding a
-  reserved trick open), tricks-frozen (frozen, with the area of the longest trick name open) and tricks-narrow (that
-  area live, the pane resized to its minimum width, which the capture asserts); the Tricks states are compared with
-  Randomizer > Tricks/Glitches (`PageSpec::stateCompareWith`).
+  Combo > MM Randomizer's unpaired, frozen and mm-suspended (each shows its own note), and Combo > MM Tricks'
+  unpaired and frozen (the trick headline, then the freeze sentence).
   The Cross-Game Spoiler draws paired (no crossings), crossings (crossings both ways authored through the crossing
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
   glyphs) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
@@ -331,14 +354,17 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
   direction and goal comboboxes and (frozen) its first slider and its goal row; Majora's Mask hovers its first row and
-  Windows its MM Item Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state). The MM
-  options pane hovers its first row (unpaired and frozen), its first capability-blocked row, and in the Tricks states a
-  live, an unbound, a reserved and a frozen trick (`PageSpec::paneHovers`, found through the `combo_ui` rect
-  recorder); a disabled row's hover must show SoH's disabled shape with no tracker number. Pane hovers are composited
-  against Settings > Graphics' Current FPS hover (`PageSpec::hoverCompareWith`), SoH's one captured tooltip: SoH's
-  Tricks page draws its trick names as plain text with no item id, so no hover can be injected there.
-- MODAL: SoH's "Clear Config" reference, the Cross-Game Rules Reset confirm, and the MM options pane's Reset confirm
-  (queued through `Combo_MMOptionsRequestReset`, the call the pane's button makes).
+  Windows its MM Item Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state unless
+  `PageSpec::hoverRowState` names another). Combo > MM Randomizer hovers its first row unpaired and frozen and its
+  first capability-blocked row (named rows; the frozen and blocked ones are in `PageSpec::disabledHovers`). Combo > MM
+  Tricks hovers a live, an unbound and a reserved trick unpaired and the live one frozen (`PageSpec::paneHovers`,
+  found through the `combo_ui` rect recorder, because the trick list is one custom row; the harness scrolls the
+  table's own child to reach a row). A disabled row's hover must show SoH's disabled shape with no tracker number.
+  The trick hovers are composited against Settings > Graphics' Current FPS hover (`PageSpec::hoverCompareWith`),
+  SoH's one captured tooltip: SoH's Tricks page draws its trick names as plain text with no item id, so no hover can
+  be injected there.
+- MODAL: SoH's "Clear Config" reference, and the Cross-Game Rules and MM Randomizer Reset confirms (each queued
+  through its Reset row's own Callback, the call the player's click makes).
 - `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open
   under the box, as a real pumped frame draws it. The page is first settled alone, then with the box over it, and
   `DimOracle` requires three things: "Main Menu" was drawn (and the bare frame is not nearly uniform outside the box);
@@ -389,6 +415,12 @@ fresh directory to keep that path exercised.
   absent from the same state without the pointer. Every line, because SoH's disabled shape opens every disabled
   row's tooltip with the same "This setting is disabled because:", so only the reason line proves which tooltip was
   drawn
+- Combo > MM Tricks' trick census, in each of its states (both turn two tricks on first, so both columns draw): for
+  one frame the `combo_ui` rect recorder lists every trick name the list drew and the column child that drew it, and
+  each of MM's trick descriptors must appear exactly once, in the column its value puts it in, with its row state's
+  tooltip, and no other name may appear. The hovers read four rows; the census reads all of them. Observed red
+  2026-09-27 with a trick dropped, one drawn twice and one misfiled into the other column: three problems per state,
+  each named
 - the frame converged
 - no popup leaked
 - no game framebuffer was composited
@@ -407,7 +439,7 @@ names what must fail. Run them after changing the harness itself.
 |---|---|---|
 | `no-state` | EnterState authors nothing | every authored state's text check ("does not show", or "also shown in state") |
 | `no-hover` | no pointer injection | every hover ("the hover capture shows no tooltip") |
-| `no-scroll` | panes keep their first view | `tricks-open` ("does not show ... in any captured view") |
+| `no-scroll` | panes keep their first view | the Combo Tracker's `progress` ("does not show ... in any captured view"; observed 2026-09-27, when the MM options pane's `tricks-open` state left with the pane) |
 | `throw` | the first project page's first row throws mid-draw | that capture only, by name; every later capture still passes (not blank) |
 | `throw,leave-open` | the exception path leaves the ImGui frame open (the old behaviour) | the open-frame check, on the next pump |
 | `keep-imgui-ini` | `imgui.ini` stays armed and ImGui's shutdown save runs | the isolation check on `imgui.ini` |

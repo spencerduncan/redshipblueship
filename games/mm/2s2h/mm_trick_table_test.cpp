@@ -203,7 +203,7 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
 
     const GameId prevGame = Context_GetCurrentGame();
 
-    // Drive the real registrar. Combo_MMOptionsWindow_Init also calls this;
+    // Drive the real registrar. Combo_MMOptionsPages_Init also calls this;
     // calling it directly keeps this a lock on the TABLE, not on the window.
     MM_RandoTricksUi_Register();
 
