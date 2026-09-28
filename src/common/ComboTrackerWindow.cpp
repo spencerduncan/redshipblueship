@@ -356,7 +356,7 @@ void RegisterComboTrackerWindow(std::shared_ptr<Ship::Gui> gui) {
 extern "C" void Combo_TrackerWindow_Init(void) {
     // Register both adapters first, unconditionally — even in the headless
     // case below — so the model is populated for tests that never construct a
-    // Gui (the Combo_MMOptionsWindow_Init precedent). Explicit calls, not
+    // Gui. Explicit calls, not
     // file-scope registrars: the MM half reads std::maps in other TUs whose
     // static init order is unspecified, and a call site cannot be link-elided
     // the way an unreferenced registrar can (#516's dead-registrar class).

@@ -103,7 +103,8 @@
  * Both also commit a slot whose OoT half is started with that NTSC name and
  * read it back through the REGISTERED descriptors (OoT_SlotMeta_Register,
  * MM_SlotMeta_Register): the panel's OoT name is the decoded one and equals
- * MM's, and the panel line (rsbs::SlotNameLine, what ComboMenuBar draws) names
+ * MM's, and the panel line (rsbs::SlotNameLine, what Combo > Save Files draws;
+ * ComboMenuBar, which drew it first, was deleted on 2026-09-28) names
  * the slot once; a half naming a different player still shows both.
  *
  *   combo-player-name (redship tier, ROM-free). The translation itself, in each

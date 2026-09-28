@@ -125,7 +125,9 @@ past 2 with a stated forward-incompatibility — a 2048-byte Tier-1 fails
 - Forward: a v3 record read by a v2 build takes `RSBS_REFUSE_VERSION`
   (`save.cpp:384`), and since **#568** that is a first-class `RSBS_SLOT_REFUSED`
   state with quarantine, an armed-session write latch (`save.cpp:234`, `:604-611`)
-  and its own file-select rendering (`ComboMenuBar.cpp:358-440`). An old binary
+  and its own file-select rendering (`ComboMenuBar.cpp:358-440`; 2026-09-28: that
+  panel was never constructed and is deleted, and the state is drawn by the Combo >
+  Save Files page, ADR 0004's 2026-09-28 amendment). An old binary
   meeting a new save now refuses loudly and destroys nothing; when ADR 0009 was
   written it would have converted into data loss (#564 V19).
 

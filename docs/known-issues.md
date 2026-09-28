@@ -222,7 +222,8 @@ crash restores the file's last save (PR [#789](https://github.com/spencerduncan/
 file is display only: the Combo Tracker's Majora's Mask panel reads "No data yet". A new
 file's panel reads "As of file creation." until MM is first entered. (#772 also describes
 an `[MM v]` / `[MM _]` file-select marker; it is printed only by `ComboMenuBar`, which this
-build never constructs, so no screen shows it.)
+build never constructs, so no screen shows it. 2026-09-28: `ComboMenuBar` is deleted, and
+Combo > Save Files shows the same fact in its Started column, "OoT, MM" or "OoT".)
 
 **A seed string does not make the world it made on an older build.** PR [#763](https://github.com/spencerduncan/redshipblueship/pull/763)'s two
 trick tightenings moved generated worlds, and since PR [#774](https://github.com/spencerduncan/redshipblueship/pull/774) the OoT half of every
@@ -397,7 +398,8 @@ behaviour before the fix):
 > with nothing saved to the pair. By code reading (not run), the pairing identity is not
 > restored either, so the next MM arrival skips pairing and plays an un-randomized Termina
 > without a toast. No in-game surface shows the refusal (the `.redsave` file panel lives in
-> the never-instantiated `ComboMenuBar`).
+> the never-instantiated `ComboMenuBar`). (2026-09-28: `ComboMenuBar` is deleted; Combo >
+> Save Files shows a refused file as "Not paired:" with its reason.)
 >
 > **Workaround:** once a paired file exists, leave both MM pages and Cross-Game Rules alone;
 > if you changed one, set it back exactly or recreate the file. **The fix to come** is the

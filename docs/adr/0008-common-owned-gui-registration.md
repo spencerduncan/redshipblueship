@@ -32,7 +32,8 @@ game-neutral window's existence depend on which game booted:
 
 `src/common` had no wired Gui element at all before this. `ComboMenuBar` is
 compiled but nothing outside its own TU references it, so there was no
-precedent to copy — only a gap.
+precedent to copy — only a gap. (2026-09-28: `ComboMenuBar` is deleted; see
+ADR 0004's 2026-09-28 amendment.)
 
 ## Decision
 

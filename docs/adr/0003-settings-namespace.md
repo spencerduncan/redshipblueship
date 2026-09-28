@@ -185,6 +185,8 @@ Disjoint today and staying disjoint — **no renames proposed for any of these**
 writes any of it.** ComboMenuBar is dead code: compiled into `redship_common`,
 never instantiated, no `SetMenuBar` call in the single-exe link. #320 was
 closed premise-incorrect for exactly this reason and is not relitigated here.
+(2026-09-28: `ComboMenuBar.{cpp,h}` are deleted, and its `gCore`/`gOoT`/`gMM`
+constants with them; see ADR 0004's 2026-09-28 amendment.)
 
 That reservation is **rejected by this ADR.** It partitions by game, which is
 the opposite of the governing principle. Its constants should be amended to
@@ -634,7 +636,7 @@ migration.
   exception: it arms the four class-(P) menu keys in §4.2. Resolve those, or
   confirm MM's menu stays elided through the flip, before it lands.
 - **ComboMenuBar's `gCore`/`gOoT`/`gMM` constants are rejected** (§1.6) and
-  should be amended or deleted with the file.
+  should be amended or deleted with the file. (Done 2026-09-28: deleted with the file.)
 
 ## Appendix A — measurement method, and its correction
 

@@ -1,5 +1,9 @@
 # PLAN — Phase 2 T6 / Issue #35: Unified Save System
 
+> **2026-09-28 note.** This plan's file-select panel was built into `ComboMenuBar`, which was never
+> constructed; `ComboMenuBar.{cpp,h}` are deleted and the slot state is the read-only Combo > Save Files
+> page (ADR 0004's 2026-09-28 amendment). The plan below is kept as written.
+
 ## 0. TL;DR
 
 Add a host-side `SaveManager` (in `src/common/save.{h,cpp}`) that writes one binary `.redsave` file per slot containing three tiers — a fixed header (`REDSHIP1` + version + slot), the cross-game `ComboContext`, the full OoT `gSaveContext`, and the full MM `gSaveContext`. It is fed by the existing in-memory shadow copies (`Context_GetOoTSaveContext` / `Context_GetMMSaveContext` / `gComboCtx`) that the freeze/restore system already maintains, so it does **not** parse either game's JSON save format. Both games' existing per-game save/load paths are left intact and **mirrored** into the unified file via their `OnSaveFile` / `OnLoadFile` GameInteractor hooks. A unified file-select panel is added to `ComboMenuBar` reading the three-tier headers. Round-trip + version unit tests register as new CTest targets next to the existing ones.

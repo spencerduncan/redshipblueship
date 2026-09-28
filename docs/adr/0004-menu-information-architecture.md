@@ -52,7 +52,7 @@ established where we are:
   OoT init. Esc/F1 handling is game-agnostic LUS code, so **OoT's menu is what you get while
   MM is running**, and every section in it is OoT-only.
 - `ComboMenuBar` is dead code (compiled, never instantiated, F1 is a no-op). #320 was closed
-  premise-incorrect for exactly this reason.
+  premise-incorrect for exactly this reason. (2026-09-28: deleted; see the amendment of that date.)
 - MM's shell (`BenMenuBar` + `BenMenu` + tracker windows) is entirely excluded; instantiation
   is stranded in `BenGui.cpp`, whose only caller is the excluded `BenPort.cpp`.
 - Of ~195 compiled MM enhancement TUs, **~190 are link-elided**. Registration is not dispatch:
@@ -61,7 +61,8 @@ established where we are:
 
 The shell question is settled: **extend the live `SohMenu`.** Do not port MM's BenMenu shell.
 Do not revive `ComboMenuBar` — its one working piece, the `.redsave` file-select panel, moves
-into the new Combo section rather than being rebuilt.
+into the new Combo section rather than being rebuilt. (2026-09-28: it did, as the read-only Combo >
+Save Files page, and `ComboMenuBar` is deleted; see the amendment of that date.)
 
 ## Decision
 
@@ -205,7 +206,8 @@ Two sub-classes, and the menu must not blur them:
 
 New surface with no upstream counterpart: pairing status, `.redsave` slot management (the panel
 inherited from `ComboMenuBar`), entrance links, F10 hot-swap behaviour, shared-seed / shared-hash
-display.
+display. (2026-09-28: the slot panel is the read-only Combo > Save Files page and `ComboMenuBar` is
+deleted; see the amendment of that date.)
 
 ### 4. Proposed section layout
 
@@ -221,7 +223,7 @@ controls are what a player sees by default and the per-game ones read as excepti
 | **Cosmetics** | Cosmetics Editor, Audio Editor, HUD Editor | Mostly (O) per game; MM's 3 tunic keys converge — see classification §3.3 BUG 1 |
 | **Randomizer** | OoT, MM, **Paired** | See §4.1 and **§4.1a** — MM's half is a common-owned window, not a SohMenu sidebar, for the timing reason given there (host superseded 2026-09-27: Combo > MM Randomizer and Combo > MM Tricks pages, see the host amendment) |
 | **Trackers** | Item, Check, Entrance, Combo | Per findings §3, MM trackers are nearly free — blocked on registration surface + selective un-elision, not hook migration |
-| **Combo** | Pairing status, Save slots, Entrance links, Hot-swap | Tier 4. Absorbs `ComboMenuBar`'s working `.redsave` file-select panel |
+| **Combo** | Pairing status, Save slots, Entrance links, Hot-swap | Tier 4. Absorbs `ComboMenuBar`'s working `.redsave` file-select panel (built 2026-09-28 as Combo > Save Files; `ComboMenuBar` deleted) |
 | **Dev Tools** | (existing) | Shared where already shared; MM's viewers gated per §5 |
 | **Network** | (existing) | Out of scope for this ADR |
 
@@ -596,7 +598,8 @@ interim host in `SohMenuRandomizer.cpp`) and `Cross-Game Windows`. (2026-09-27, 
 `Cross-Game Windows` is now `Windows`, and the contributed `MM Enhancements` page is now `Majora's Mask`, because both
 labels overflowed the 200 px sidebar; `ComboSidebarCarryRenamedSelection` carries a persisted selection from each old
 name.) §4's table lists four sidebars;
-the other two plus the `ComboMenuBar` `.redsave` file-select absorption are **not built**, and they
+the other two plus the `ComboMenuBar` `.redsave` file-select absorption are **not built** (2026-09-28: the absorption
+is built, as Combo > Save Files; see that amendment), and they
 are unregistered rather than registered-and-empty because an empty multi-column page leaves
 `Menu::DrawElement`'s unconditional `SetNextWindowPos` unconsumed and undocks libultraship's
 "Main Game" window (#640). `Randomizer → Cross-Game` survives with a pointer row: sidebar selection
@@ -744,3 +747,40 @@ trick census (in every captured state the trick list draws each of MM's tricks e
 puts it in, with its state's tooltip), and `MenuComboSection` leg 3 (Combo > Windows holds
 exactly its six live-play buttons). The pages are drawn by `UiSnapshot` beside Randomizer > General and Randomizer >
 Tricks/Glitches.
+
+## Amendment 2026-09-28 — §4's save-slots page is built; `ComboMenuBar` is deleted
+
+**What was there.** `src/common/ComboMenuBar.{cpp,h}` were compiled into `redship_common` and constructed nowhere
+(no `SetMenuBar` or `AddGuiWindow` call named them). Everything but the `.redsave` file-select panel was a gray
+placeholder, and the panel itself reached no player: it drew each slot's name line (`rsbs::SlotNameLine`, #773), the
+`[OoT v]` / `[MM v]` started markers, a `[REFUSED: ...]` line with the reason, and Load, Delete and Save-to-slot
+buttons. The files, their two CMake entries and their lint-list line are deleted.
+
+**What moved: a read-only page, Combo > Save Files** (`games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp`, contributed
+through `RegisterComboSectionPage`; model `src/common/combo_save_files_view.{h,cpp}`, ADR 0008 rule 1). One table
+row per file: the name line, which halves are started, the game it last saved in, and a status (`Ready`, `Empty`,
+`Empty (backup kept)`, or `Not paired: <reason>` in the player's words, with a tooltip saying whether the original
+was set aside as a backup), under a gray note for the three situations (no file yet, every file pairs, one does not).
+
+**Why a page is still worth having.** The load toasts (#781/#787) cover a refusal for the cross-game rules or a
+damaged cross-game record. A refusal for the file itself (header, version, tier size, slot, truncation, CRC,
+crossing block) and a commit-skew refusal post nothing a player sees (`SaveManager::LoadSlot` writes stderr only),
+and `ReadMeta` reports a structurally refused file before any load. The Combo Tracker reads the loaded session, not
+the files on disk. So nothing else shows a file's state before it is loaded.
+
+**Page, not window.** A file's state is read between sessions (which file to load, why one will not pair), so it is
+a page under Combo (the 2026-09-27 host amendment's rule; `docs/ui-style-guide.md` section 10).
+
+**What did not move.** The three buttons. Ocarina of Time's file select already loads, creates and erases these
+files, and its erase frees a refused slot (`OnDeleteFile` -> `RsbsSave_DeleteSave`), so a second erase path would
+only need its own confirm. The note sends the player to the file select. The `[SYNCED: ...]` line became the tooltip
+of a `Ready` file whose last load resumed a newer commit.
+
+**§4's Combo row now:** Cross-Game Rules, Windows and Save Files are built (with the Majora's Mask pages); pairing
+status, entrance links and hot-swap are still unbuilt and unregistered (#640).
+
+**Locks:** `ComboSaveFilesView` (every refusal reason's words, each slot state's row, the test seam, the note) and
+`UiSnapshot` (Combo > Save Files beside Randomizer > Tricks/Glitches, states "" and "listed" authored through
+`Combo_SaveFiles_SetMetaForTest`). The deletion has no row of its own: `check-ui-parity-lint.py` fails on a listed
+path that does not exist and on any ImGui-drawing TU under `src/common` that is not listed (rule S0), and
+`SetMenuCount` holds the tree to its two `SetMenu(` call sites.

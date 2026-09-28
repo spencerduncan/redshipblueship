@@ -242,7 +242,8 @@ struct SlotMeta {
 
 /**
  * The unified file-select panel's name line for a slot that exists and passes
- * its checks (ComboMenuBar::DrawFileSelect). Prefers OoT's name if OoT's half is
+ * its checks (the Combo > Save Files page's Name column, combo_save_files_view.h).
+ * Prefers OoT's name if OoT's half is
  * started, else MM's. A paired world has one name -- its creation copies OoT's
  * into MM's half (#773) -- so the line shows it once: both names only when both
  * halves are started and really name different players. An empty MM name (a
@@ -484,7 +485,8 @@ public:
      */
     void ResetSlotSessionState();
 
-    /** Human-readable label for a refuse reason (for the file panel). */
+    /** Developer label for a refuse reason (stderr lines; the Save Files page
+     *  shows Combo_SaveFiles_RefuseText's player words instead). */
     static const char* RefuseReasonLabel(RsbsRefuseReason reason);
 
     /**

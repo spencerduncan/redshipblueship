@@ -761,6 +761,10 @@ extern "C" {
 // games/oot/soh/oot_combo_goal_test.cpp and games/mm/2s2h/mm_combo_goal_test.cpp)
 // and the call sites' wiring from source. FILE SCOPE (compiled as C++).
 #include "tests/test_combo_goal.c"
+// Lane W5: the Combo > Save Files page's model (src/common/combo_save_files_view.cpp):
+// every refusal reason's words, one row per slot state, the seam and the note.
+// ROM-free, display-free and disk-free. FILE SCOPE (compiled as C++).
+#include "tests/test_combo_save_files_view.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -5358,6 +5362,11 @@ const TestDescriptor gTests[] = {
      "puts the river water box back, as the lake objects' Destroy does on any exit; vanilla, no blue warp, no lake "
      "object or no PlayState keep the save as it is (#770)",
      Test_OoTDepartureLakeFlag},
+    {"combo-save-files-view",
+     "The Combo > Save Files page's model: every .redsave refusal reason has short player words (the load toasts' "
+     "own where a toast exists), each slot state yields its row, the test seam replaces the disk, and the page note "
+     "names the no-file, all-ready and not-paired cases (lane W5)",
+     Test_ComboSaveFilesView},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

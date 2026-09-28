@@ -654,7 +654,8 @@ Ground truth (verified 2026-07-20 — several docs claims are stale):
   (`SohGui.cpp:109-110`, "Generate Randomizer" at `SohMenuRandomizer.cpp:600-610`).
   File the ComboMenuBar-vs-SohMenu question on #392 with your recommendation and
   proceed with the minimal path (CVar + existing SohMenu hook) so the lane doesn't
-  block on UI.
+  block on UI. (2026-09-28: `ComboMenuBar` is deleted; see ADR 0004's 2026-09-28
+  amendment.)
 
 Deliverables:
 1. One seed (+ pinned settings profile) → `gComboCtx.sharedRandoSeed` +

@@ -147,8 +147,9 @@
 #include "context.h"
 #include "crossing_store.h" // the crossings the tracker and spoiler states author (#755)
 #include "cvar_shared_keys.h"
-#include "game.h"       // MM_SAVE_CONTEXT_SIZE (the authored MM shadow)
-#include "mm_mod_set.h" // #706: the MM Mods page's model, authored for its three states
+#include "game.h"                  // MM_SAVE_CONTEXT_SIZE (the authored MM shadow)
+#include "mm_mod_set.h"            // #706: the MM Mods page's model, authored for its three states
+#include "combo_save_files_view.h" // lane W5: the Save Files page's model, authored for its two states
 #include "foreign_items.h"
 #include "gen_progress_overlay.h"
 #include "headless_crash.h"
@@ -750,6 +751,37 @@ const char* KindName(Kind k) {
 // subfolder, and one disabled, so both columns and every arrow are drawn.
 const char* const kMmModsListedEnabled[] = { "10-hd-textures.o2r", "packs/20-retro-hud.o2r" };
 const char* const kMmModsListedDisabled = "30-alt-link.o2r";
+
+// The Save Files page's "listed" state (lane W5): a ready file with both halves
+// started, a healthy file this session refused (its name still shows, with the
+// longest reason), and a file refused for its CRC with its original set aside,
+// so every column and both refusal shapes draw. Authored through the model's
+// seam, so the harness never reads a Save folder.
+static rsbs::SlotMeta SaveFilesListedMeta(int slot) {
+    rsbs::SlotMeta m{};
+    m.state = RSBS_SLOT_ABSENT;
+    m.lastGame = GAME_NONE;
+    if (slot == 0 || slot == 1) {
+        m.exists = true;
+        m.valid = true;
+        m.state = RSBS_SLOT_VALID;
+        m.lastGame = slot == 0 ? GAME_MM : GAME_OOT;
+        std::snprintf(m.ootName, sizeof(m.ootName), "%s", slot == 0 ? "Link" : "Zelda");
+        std::snprintf(m.mmName, sizeof(m.mmName), "%s", slot == 0 ? "Link" : "Zelda");
+        m.ootStarted = true;
+        m.mmStarted = slot == 0;
+        if (slot == 1) {
+            m.state = RSBS_SLOT_REFUSED;
+            m.refuseReason = RSBS_REFUSE_IDENTITY;
+        }
+    } else {
+        m.exists = true;
+        m.state = RSBS_SLOT_REFUSED;
+        m.refuseReason = RSBS_REFUSE_CRC;
+        m.hasQuarantine = true;
+    }
+    return m;
+}
 
 struct PageSpec {
     std::string id;
@@ -1788,6 +1820,9 @@ void Session::BuildPageList() {
         // a pop-out pane): read against the SoH pages whose shape they take.
         { COMBO_MM_OPTIONS_PAGE_NAME, "Randomizer/General" },
         { COMBO_MM_TRICKS_PAGE_NAME, "Randomizer/Tricks/Glitches" },
+        // Each save file's cross-game state (lane W5): SoH's captured bordered
+        // table page (DrawLocationsMenu's table, whose own page is not captured).
+        { "Save Files", "Randomizer/Tricks/Glitches" },
     };
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {
@@ -1874,6 +1909,20 @@ void Session::BuildPageList() {
                 p.stateContrast = { { "", "listed" }, { "listed", "" }, { "unfinished", "listed" } };
                 p.hovers = { "rescan" };
                 p.hoverRows["rescan"] = "Rescan Mods Folder";
+            } else if (sidebar == "Save Files") {
+                // "": no file on disk, so the no-file note and three empty rows.
+                // "listed": a ready file, a session-refused one and a CRC-refused
+                // one with a backup (SaveFilesListedMeta), so its note, both
+                // refusals' words and the Started cell draw. Both through the
+                // model's seam (Combo_SaveFiles_SetMetaForTest).
+                p.states = { "", "listed" };
+                p.stateText[""] = { "No save files yet" };
+                p.stateText["listed"] = { "A file that is not paired",
+                                          std::string("Not paired: ") + Combo_SaveFiles_RefuseText(RSBS_REFUSE_CRC),
+                                          std::string("Not paired: ") +
+                                              Combo_SaveFiles_RefuseText(RSBS_REFUSE_IDENTITY),
+                                          "OoT, MM" };
+                p.stateContrast = { { "", "listed" }, { "listed", "" } };
             } else if (sidebar == "Windows") {
                 // An MM tracker toggle: SoH's "Toggles the <Window>." plus the
                 // sentence that explains its blank window under Ocarina of Time.
@@ -2517,6 +2566,18 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         } else {
             Combo_MMModSet_LoadForTest(nullptr, 0, true);
         }
+    } else if (p.id == "Combo/Save Files") {
+        // Every state reads the seam's table, never the disk.
+        if (state == "listed") {
+            rsbs::SlotMeta metas[RSBS_SAVE_MAX_SLOTS];
+            for (int i = 0; i < RSBS_SAVE_MAX_SLOTS; i++) {
+                metas[i] = SaveFilesListedMeta(i);
+            }
+            Combo_SaveFiles_SetMetaForTest(metas, RSBS_SAVE_MAX_SLOTS);
+        } else {
+            static const rsbs::SlotMeta kNoFile{};
+            Combo_SaveFiles_SetMetaForTest(&kNoFile, 0);
+        }
     } else if (p.id == "Settings/Graphics") {
         if (state == "match-refresh-rate") {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
@@ -2564,6 +2625,9 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
 }
 
 void Session::LeaveState(const PageSpec& p, const std::string& state) {
+    if (p.id == "Combo/Save Files") {
+        Combo_SaveFiles_SetMetaForTest(nullptr, 0);
+    }
     if (p.id == "Combo/MM Mods") {
         CVarClear(RSBS_CVAR_MM_ENABLED_MODS);
         CVarClear(RSBS_CVAR_MM_DISABLED_MODS);

@@ -25,13 +25,14 @@
  *
  * WHAT IS NOT BUILT HERE, named rather than implied. ADR 0004 section 4's table
  * lists four Combo sidebars - pairing status, save slots, entrance links,
- * hot-swap. Two pages ship: `Cross-Game Rules` and `Windows`. The
- * other three would be EMPTY pages today, and an empty multi-column page is
- * #640's failure mode exactly (Menu::DrawElement's unconditional
- * SetNextWindowPos goes unconsumed and undocks libultraship's "Main Game"
- * window), so they are left unregistered until they have content. Absorbing
- * `ComboMenuBar`'s `.redsave` file-select panel - the ADR's stated home for save
- * slots - is still open.
+ * hot-swap. Two pages ship here: `Cross-Game Rules` and `Windows`; save slots
+ * are the contributed `Save Files` page (SohMenuComboSaveFiles.cpp, 2026-09-28,
+ * which absorbed the never-constructed ComboMenuBar's `.redsave` panel; that
+ * file is deleted). Pairing status, entrance links and hot-swap would be EMPTY
+ * pages today, and an empty multi-column page is #640's failure mode exactly
+ * (Menu::DrawElement's unconditional SetNextWindowPos goes unconsumed and
+ * undocks libultraship's "Main Game" window), so they are left unregistered
+ * until they have content.
  *
  * THE EXTENSION POINT. Other TUs contribute pages through
  * SohGui::RegisterComboSectionPage (declared in SohMenu.h, implemented below)
