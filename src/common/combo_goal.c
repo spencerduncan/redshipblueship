@@ -119,3 +119,43 @@ int Combo_GoalOnFinalBossDefeated(GameId game, int liveTriforcePieces) {
     }
     return ending;
 }
+
+bool Combo_GoalKeepsOwnHuntWin(uint8_t goal) {
+    if (goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) {
+        return true;
+    }
+    // A boss goal the coordinator can evaluate: a half's own hunt is no term of
+    // it. Anything else is a record the creation refuses on its own.
+    return Combo_Logic_EvaluateGoal(goal, 0, 0) < 0;
+}
+
+int Combo_GoalOnTriforceHuntCompleted(GameId game, int liveTriforcePieces) {
+    if (GoalFlagFor(game) == 0u || !Combo_GoalArmed()) {
+        return RSBS_GOAL_ENDING_OWN;
+    }
+    const int state = GoalStateNow(liveTriforcePieces);
+    int ending;
+    if (state < 0) {
+        // FAIL OPEN, as the final-boss decision does: a damaged record must not
+        // turn a hunt that used to end its game into one that never can.
+        ending = RSBS_GOAL_ENDING_OWN;
+    } else if (Combo_TriforceHuntArmed()) {
+        // The combo hunt: the reaching give meets the goal (the arms only get
+        // here on the combo requirement).
+        ending = state == 1 ? RSBS_GOAL_ENDING_PLAY : RSBS_GOAL_ENDING_WITHHOLD;
+    } else {
+        // A boss goal: the half's own hunt is not a term of it (OoTMM has no
+        // per-game hunt). Its completion unlocks the final boss and ends nothing.
+        ending = RSBS_GOAL_ENDING_WITHHOLD;
+    }
+    if (state < 0) {
+        fprintf(stderr,
+                "[Combo] goal: ERROR: frozen goal %u cannot be evaluated (triforce requirement %u); %s's own triforce "
+                "hunt ends its own game instead of never ending the paired game\n",
+                (unsigned)gComboCtx.comboSettings.goal, (unsigned)Combo_TriforceHuntRequired(),
+                game == GAME_OOT ? "OoT" : "MM");
+    }
+    fprintf(stderr, "[Combo] goal: %s triforce hunt completed under goal %u -> %s\n", game == GAME_OOT ? "OoT" : "MM",
+            (unsigned)gComboCtx.comboSettings.goal, Combo_GoalEndingName(ending));
+    return ending;
+}

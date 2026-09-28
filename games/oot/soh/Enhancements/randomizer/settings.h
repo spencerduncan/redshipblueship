@@ -92,6 +92,20 @@ class Settings {
      */
     const std::vector<std::vector<Option*>>& GetExcludeLocationsOptions() const;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    /**
+     * @brief Fills each area's Exclude Location `Option` list from the static location table: one option per
+     * distinct name, for every check that can hold an item. Idempotent.
+     *
+     * #702: the one place these lists are filled. `CreateOptions()` calls it before it builds the
+     * `RSG_EXCLUDES_*` groups (which COPY these lists), so the groups — and the settings string
+     * `Playthrough_Init` folds them into — no longer depend on whether `Context::AddExcludedOptions()`
+     * happened to run first. With `oot.o2r` mounted the SoH menu reaches `CreateOptions()` before
+     * `InitOTRImpl` reaches `AddExcludedOptions()`; without it the order is reversed.
+     */
+    void PopulateExcludeLocationsOptions();
+#endif
+
     /**
      * @brief Get the list of `OptionGroup`s.
      *

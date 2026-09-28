@@ -42,6 +42,9 @@
 #include "soh/ObjectExtension/ObjectExtension.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "triforce_hunt.h" // src/common — ADR 0010 O10: the combo requirement a paired hunt ends on
+// soh/Enhancements/randomizer/ComboGoalEndingOoT.cpp — #768: may the triforce
+// piece's win arm end OoT under the frozen combo goal?
+extern "C" int OoT_ComboGoal_TriforceHuntEnds(int ownModeIsWin);
 #endif
 // Rando_HeadlessFullInitSeedTest (#560) asserts DebugConsole_Init registered its
 // commands; Context.h only forward-declares Ship::Console, so HasCommand needs
@@ -4110,10 +4113,14 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
             // ADR 0010 answer O10: under a paired triforce hunt the counter is
             // the ONE combo count (the arrival apply raised it to every piece
             // found in either world) and the threshold is the frozen COMBO
-            // requirement. Reaching it IS the combo's goal, so an armed hunt
-            // always takes the "Win" branch below, whichever mode OoT's own
-            // setting named. Unpaired, or under any other combo goal, this is
-            // OoT's own `==` and OoT's own mode, exactly.
+            // requirement. Otherwise this is OoT's own `==`.
+            //
+            // Whether the give that reached it takes the "Win" branch below is
+            // the frozen goal's answer (#768, src/common/combo_goal.h): under
+            // the combo hunt yes, whichever mode OoT's own setting named; under
+            // a boss goal never, because OoT's own hunt is not a win condition
+            // of the paired game (it keeps granting Ganon's Boss Key, the lock
+            // it puts on Ganon); unpaired, OoT's own mode decides, exactly.
             if (Combo_TriforceHuntOnPieceGiven(
                     GAME_OOT, gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected,
                     (uint16_t)(OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(
@@ -4121,9 +4128,8 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
                                1)) != RSBS_TRIFORCE_WIN_NONE) {
                 Flags_SetRandomizerInf(RAND_INF_GRANT_GANONS_BOSSKEY);
 
-                if (Combo_TriforceHuntArmed() ||
-                    OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT) ==
-                        RO_TRIFORCE_HUNT_WIN) {
+                if (OoT_ComboGoal_TriforceHuntEnds(OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(
+                                                       RSK_TRIFORCE_HUNT) == RO_TRIFORCE_HUNT_WIN)) {
 #else
             // Give Ganon's Boss Key and teleport to credits if set to Win when goal is reached.
             if (gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected ==

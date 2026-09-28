@@ -4,6 +4,9 @@
 #include "Rando/MiscBehavior/ClockShuffle.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "triforce_hunt.h" // src/common — ADR 0010 O10: the combo requirement a paired hunt ends on
+// Rando/ComboGoalEndingMM.cpp — #768: may the triforce piece's win arm end MM
+// under the frozen combo goal?
+extern "C" int MM_ComboGoal_TriforceHuntEnds(void);
 #endif
 
 extern "C" {
@@ -129,6 +132,15 @@ void Rando::GiveItem(RandoItemId randoItemId) {
                 if (!Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_MAJORA)) {
                     Rando::GiveItem(RI_SOUL_BOSS_MAJORA);
                 }
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #768 (src/common/combo_goal.h): the frozen combo goal decides
+                // whether this ends MM. Under a boss goal MM's own hunt is not a
+                // win condition of the paired game: Majora's soul (above) is
+                // what it unlocks, and Majora's defeat is the ending.
+                if (!MM_ComboGoal_TriforceHuntEnds()) {
+                    break;
+                }
+#endif
                 GameInteractor_ExecuteOnGameCompletion();
                 MM_GameEvents_Queue().emplace_back(
                     GIEventTransition{ .entrance = ENTRANCE(TERMINA_FIELD, 0),
