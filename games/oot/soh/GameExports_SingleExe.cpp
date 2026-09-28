@@ -261,6 +261,8 @@ static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from
 extern "C" {
 void OoT_Sram_InitSave(FileChooseContext* fileChooseCtx);
 void OoT_Sram_OpenSave(void);
+// ovl_file_choose: the file select gamestate (SoH's Boot Sequence: File Select target).
+void FileChoose_Init(GameState* thisx);
 u32 Save_Exist(int fileNum);
 void Save_DeleteFile(int fileNum);
 SaveFileMetaInfo* Save_GetSaveMetaInfo(int fileNum);
@@ -302,7 +304,11 @@ static bool PfcNoRefusalToast(char* msg, size_t cap) {
 
 /**
  * The paired variant's boot: the production path a player takes, minus the menu
- * clicks.
+ * clicks. It runs from the REAL file select (FileChoose_Main's OnFileChooseMain,
+ * with its own FileChooseContext), which the title reaches the way SoH's "Boot
+ * Sequence: File Select" setting takes it there (GpPairedTitleToFileSelect), so
+ * Title_Destroy's Sram_InitSram (SaveManager::Init: the Save directory, the slot
+ * metadata) has run before anything is created, exactly as in play.
  *
  *   1. GENERATE the pinned paired world on the shipped defaults (no config beyond
  *      the OpenGL backend): Rando_HeadlessSeedTest(RSBSSINGLEBAG1), the same
@@ -323,13 +329,14 @@ static bool PfcNoRefusalToast(char* msg, size_t cap) {
  * So the session plays slot 3's OoT half AS LOADED BACK FROM DISK, and MM's first
  * arrival hydrates the MM half the load re-armed from the .redsave.
  */
-static void GpCreatePairedFileAndEnterPlay(GameState* gameState, const char* from) {
+static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const char* from) {
     const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
     char msg[512];
-    if (gameState == NULL) {
-        IntegrationTest_GameplayFail("no GameState available for the paired creation");
+    if (fileChoose == NULL) {
+        IntegrationTest_GameplayFail("no file-select GameState available for the paired creation");
         return;
     }
+    GameState* gameState = &fileChoose->state;
 
     // ---- 0. the slot: empty, or this row's own file from an earlier run -----
     if (Save_Exist(kPfcSlot)) {
@@ -360,18 +367,18 @@ static void GpCreatePairedFileAndEnterPlay(GameState* gameState, const char* fro
     }
 
     // ---- 2. create, through the naming screen's seam -------------------------
-    static FileChooseContext sPfcFileChoose; // ~115 KB: static, zeroed
-    memset(&sPfcFileChoose, 0, sizeof(sPfcFileChoose));
-    sPfcFileChoose.buttonIndex = kPfcSlot;
-    sPfcFileChoose.questType[kPfcSlot] = QUEST_RANDOMIZER;
-    sPfcFileChoose.n64ddFlag = 0;
+    // What the naming screen leaves set when the player confirms a name on file
+    // 3 with the Randomizer quest selected (z_file_nameset_NES.c): the button,
+    // the quest, the typed name in the slot's metadata, the slot as fileNum.
+    fileChoose->buttonIndex = kPfcSlot;
+    fileChoose->questType[kPfcSlot] = QUEST_RANDOMIZER;
+    fileChoose->n64ddFlag = 0;
     memcpy(Save_GetSaveMetaInfo(kPfcSlot)->playerName, kPfcName, sizeof(kPfcName));
-    gSaveContext.gameMode = GAMEMODE_FILE_SELECT;
     gSaveContext.fileNum = kPfcSlot;
     const u16 dayTime = gSaveContext.dayTime;
     fprintf(stderr, "[PFC] creating file %d through OoT_Sram_InitSave (the production creation event)\n", kPfcSlot + 1);
     fflush(stderr);
-    OoT_Sram_InitSave(&sPfcFileChoose);
+    OoT_Sram_InitSave(fileChoose);
     gSaveContext.dayTime = dayTime;
     char line[512];
     snprintf(msg, sizeof(msg), "[OoT] creation event: slot %d complete", kPfcSlot);
@@ -421,8 +428,11 @@ static void GpCreatePairedFileAndEnterPlay(GameState* gameState, const char* fro
     for (int buttonIndex = 0; buttonIndex < ARRAY_COUNT(gSaveContext.buttonStatus); buttonIndex++) {
         gSaveContext.buttonStatus[buttonIndex] = BTN_ENABLED;
     }
-    gSaveContext.forceRisingButtonAlphas = gSaveContext.unk_13E8 = gSaveContext.unk_13EA = gSaveContext.unk_13EC =
-        gSaveContext.magicCapacity = 0;
+    gSaveContext.forceRisingButtonAlphas = 0;
+    gSaveContext.unk_13E8 = 0;
+    gSaveContext.unk_13EA = 0;
+    gSaveContext.unk_13EC = 0;
+    gSaveContext.magicCapacity = 0;
     gSaveContext.magicFillTarget = gSaveContext.magic;
     gSaveContext.magic = 0;
     gSaveContext.magicLevel = gSaveContext.magic;
@@ -465,10 +475,40 @@ static void GpCreatePairedFileAndEnterPlay(GameState* gameState, const char* fro
     IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_PRE);
 }
 
-/** The boot injection, by variant: the paired creation, or the debug save. */
-static void GpBootInject(GameState* gameState, const char* from) {
+static bool sPfcTitleRedirected = false;
+
+/**
+ * The paired variant's title: straight to the file select, as SoH's "Boot
+ * Sequence: File Select" option does it (CustomLogoTitle.cpp,
+ * OnZTitleUpdateSkipToFileSelect). Title_Destroy runs on the way out, and with
+ * it Sram_InitSram.
+ */
+static void GpPairedTitleToFileSelect(GameState* gameState) {
+    if (sPfcTitleRedirected || gameState == NULL) {
+        return;
+    }
+    sPfcTitleRedirected = true;
+    fprintf(stderr, "[PFC] title -> file select (SoH's Boot Sequence: File Select path)\n");
+    fflush(stderr);
+    gSaveContext.seqId = (u8)NA_BGM_DISABLED;
+    gSaveContext.natureAmbienceId = 0xFF;
+    gSaveContext.gameMode = GAMEMODE_FILE_SELECT;
+    gameState->running = false;
+    SET_NEXT_GAMESTATE(gameState, FileChoose_Init, FileChooseContext);
+}
+
+/**
+ * The boot injection, by variant: the debug save (the round trip, and the
+ * paired row's red half), or the paired creation, which needs the file select.
+ * `isFileSelect` says which gamestate `gameState` is.
+ */
+static void GpBootInject(GameState* gameState, const char* from, bool isFileSelect) {
     if (IntegrationTest_PairedFirstCrossing() && !IntegrationTest_PairedSkipCreation()) {
-        GpCreatePairedFileAndEnterPlay(gameState, from);
+        if (isFileSelect) {
+            GpCreatePairedFileAndEnterPlay((FileChooseContext*)gameState, from);
+        } else {
+            GpPairedTitleToFileSelect(gameState);
+        }
     } else {
         GpInjectDebugSaveAndEnterPlay(gameState, from);
     }
@@ -745,14 +785,26 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
                 return;
             }
-            GpBootInject((GameState*)gameState, "title screen");
+            GpBootInject((GameState*)gameState, "title screen", false);
         });
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>([]() {
             if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
                 return;
             }
-            GpBootInject(OoT_gGameState, "file select");
+            GpBootInject(OoT_gGameState, "file select", true);
         });
+        // The paired variant's creation runs from the file select's own main
+        // (every frame, from the first one), not from OnPresentFileSelect, which
+        // waits for a Start press no unattended run sends (#544).
+        if (IntegrationTest_PairedFirstCrossing() && !IntegrationTest_PairedSkipCreation()) {
+            sPfcTitleRedirected = false;
+            GameInteractor::Instance->RegisterGameHook<GameInteractor::OnFileChooseMain>([](void* gameState) {
+                if (IntegrationTest_GetGameplayPhase() != GP_PHASE_BOOT) {
+                    return;
+                }
+                GpBootInject((GameState*)gameState, "file select", true);
+            });
+        }
 
         // Arrival tracking + entrance verification. Fires from the scene
         // build inside OoT_Play_Init — i.e. AFTER the startup-entrance
