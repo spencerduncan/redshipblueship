@@ -130,7 +130,17 @@ void Settings::CreateOptionDescriptions() {
         "\n"
         "If set to Win: the game is saved and the credits roll, though you can load back in to receive Ganon's "
         "Castle Boss Key. Keep in mind that Ganon might not be logically reachable when \"All Locations Reachable\" "
-        "is disabled.";
+        "is disabled."
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #768: the paired creation changes "Win" under a boss goal
+        // (playthrough.cpp); the player is told here, where the option is set.
+        "\n"
+        "\n"
+        "In a paired OoT + MM world the combo goal decides when the game ends. Under a boss goal, \"Win\" is "
+        "generated as \"Ganon's Boss Key\": completing the hunt gives you Ganon's Castle Boss Key and the credits "
+        "do not roll."
+#endif
+        ;
     mOptionDescriptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL] =
         "The amount of Triforce pieces that will be placed in the world. "
         "Keep in mind seed generation can fail if more pieces are placed than there are junk items in the item pool.";

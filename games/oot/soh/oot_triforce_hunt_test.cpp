@@ -20,7 +20,8 @@
  *      value, and reads what the arm leaves behind:
  *        - W0 (#768): the generation itself is a paired creation under the
  *          default goal (beat-both) with OoT's hunt authored as "Win"; it must
- *          come out as "Ganon's Boss Key", with RG_TRIFORCE at RC_GANON.
+ *          come out as "Ganon's Boss Key", with RG_TRIFORCE at RC_GANON, and
+ *          the option's description (its menu tooltip) must state the change.
  *        - W1 UNPAIRED: OoT's own `==` at OoT's own requirement grants Ganon's
  *          Boss Key, and ends the game exactly when OoT's own mode is "Win".
  *        - W2 A BOSS GOAL (1, 2, 4, 5; #768): the own requirement grants the
@@ -31,13 +32,15 @@
  *
  * COUNTERFACTUALS, run before landing (#768): main's arm (the "Win" test ungated
  * by the goal) turns W2 red under "Win"; main's playthrough.cpp (no "Win"
- * change at a paired creation) turns W0 red. (#740 ran the others: upstream's
+ * change at a paired creation) turns W0 red, and so does main's
+ * option_descriptions.cpp (no paired-world note). (#740 ran the others: upstream's
  * `==` in place of the Combo_TriforceHuntOnPieceGiven call, and the armed hunt
  * not forcing the Win branch, each turned its triforce-hunt leg red.)
  */
 
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #include <libultraship/bridge.h>
 
@@ -48,6 +51,7 @@
 #include "soh/Enhancements/randomizer/static_data.h"
 #include "soh/Enhancements/randomizer/item.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
+#include "soh/Enhancements/randomizer/settings.h"
 
 #include "context.h"
 #include "foreign_items.h" // Combo_FreezeComboSettings, RSBS_COMBO_GOAL_TRIFORCE_HUNT
@@ -176,6 +180,16 @@ extern "C" int OoT_TriforceHuntWin_RunGenerated(void) {
         OTH_ASSERT(atGanon == RG_TRIFORCE && atHunt == RG_GANONS_CASTLE_BOSS_KEY,
                    "W0: the generated world does not put OoT's win at Ganon and Ganon's Boss Key at the hunt's "
                    "completion");
+        // The change is the player's to see, not only the log's: the option's
+        // description (the tooltip OoT's randomizer menu renders for it) states
+        // it where "Win" is chosen.
+        const std::string& huntDesc = Rando::Settings::GetInstance()->GetOption(RSK_TRIFORCE_HUNT).GetDescription();
+        const bool descStates =
+            huntDesc.find("Under a boss goal, \"Win\" is generated as \"Ganon's Boss Key\"") != std::string::npos;
+        printf("[TEST] W0: the Triforce Hunt option description %s the paired-world change\n",
+               descStates ? "states" : "does NOT state");
+        OTH_ASSERT(descStates, "W0: the Triforce Hunt option description does not tell the player that a paired "
+                               "creation under a boss goal generates \"Win\" as \"Ganon's Boss Key\" (#768)");
     }
 
     // OoT's own hunt, 5 pieces, 3 required. The give reads these back through
