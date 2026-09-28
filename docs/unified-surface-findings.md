@@ -88,7 +88,8 @@ one; netplay is much closer than "nothing exists."**
   libultraship `Gui` at OoT init. Esc/F1 handling is game-agnostic LUS code, so **OoT's
   menu is what you get while MM is running**, and every section in it — including the
   entire Randomizer header — is OoT-only.
-- **`ComboMenuBar` is dead code**: compiled into `redship_common`, never instantiated,
+- **`ComboMenuBar` is dead code** (2026-09-28: deleted; its slot panel became the Combo > Save
+  Files page, ADR 0004's 2026-09-28 amendment): compiled into `redship_common`, never instantiated,
   no `SetMenuBar` call exists in the single-exe link (so F1 is a no-op today). It
   reserves a *third* CVar scheme (`gCore.` / `gOoT.` / `gMM.`) that nothing reads or
   writes. Everything except its working `.redsave` file-select panel is a
@@ -236,7 +237,7 @@ semantics — **a one-line fix worth doing before anyone flips the flag.**
    trade-off is real: re-namespacing breaks verbatim upstream diffs on both games.
 2. **Menu end-state.** Extend SohMenu (cheap, settled-by-default) vs port BenMenu as a
    swappable second menu (`Gui::SetMenu` is single-slot — swap semantics undecided) vs
-   revive ComboMenuBar (relitigates a settled decision; XL).
+   revive ComboMenuBar (relitigates a settled decision; XL; 2026-09-28: deleted).
 3. **Tracker scope.** Cross-game slice inside OoT's existing trackers (small) vs
    un-eliding MM's native trackers onto the shared Gui (small-medium, needs the
    `OnSceneInit` dispatch + name de-collision + per-game gating) vs a true combo tracker

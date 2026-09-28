@@ -768,6 +768,11 @@ extern "C" {
 // test_curated_archive_order.c: it reuses CaoResolveArchive / CaoMakeManager /
 // CaoLoadThroughWinner.
 #include "tests/test_array_reader_agreement.c"
+// Lane W5: the Combo > Save Files page's model (src/common/combo_save_files_view.cpp):
+// every refusal reason's words, the toast's words where one was posted, one row
+// per slot state, the cached view's read count, the seam and the note.
+// ROM-free, display-free and disk-free. FILE SCOPE (compiled as C++).
+#include "tests/test_combo_save_files_view.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -5430,6 +5435,11 @@ const TestDescriptor gTests[] = {
      "ROM-free: the per-archive 'Array' slot hands an MM-recorded archive's file to MM's reader and an unowned "
      "archive's to OoT's, over two staged loose-folder archives (#604)",
      Test_ArrayReaderDispatch},
+    {"combo-save-files-view",
+     "The Combo > Save Files page's model: every .redsave refusal reason has short player words, a refusal that "
+     "posted a toast shows that toast's words, each slot state yields its row, one cached read serves every frame "
+     "until the page opens or the save state moves, and the note names each case (lane W5)",
+     Test_ComboSaveFilesView},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

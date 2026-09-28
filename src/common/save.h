@@ -82,7 +82,7 @@
 // blank Tier-1 and an all-zero Tier-3 — MM's ONLY persistence — unrecoverably.
 // REFUSED is now first-class: the refused file is quarantined (renamed aside,
 // never overwritten in place), the refusing session latches the slot against
-// writes, and the file panel renders REFUSED distinctly from empty.
+// writes, and the Combo > Save Files page shows REFUSED distinctly from empty.
 typedef enum RsbsSlotState {
     RSBS_SLOT_ABSENT = 0,   // no slot file (and this session refused nothing)
     RSBS_SLOT_VALID = 1,    // slot file present, header passes every compat check
@@ -188,6 +188,7 @@ typedef struct RsbsGameMetaDesc {
 
 #ifdef __cplusplus
 
+#include <atomic>
 #include <cstddef>
 #include <iosfwd>
 #include <mutex>
@@ -197,11 +198,16 @@ typedef struct RsbsGameMetaDesc {
 namespace rsbs {
 
 /**
- * Per-slot summary, cheap to compute (one header read + a handful of byte
- * pulls). Built so the unified file-select panel can render a slot without
- * loading + committing the whole ~200KB payload. `valid` is true iff the header
- * passes every check Load() does, EXCLUDING CRC — slot listing must stay fast,
- * and a bad CRC will still be caught when the user actually clicks Load.
+ * Per-slot summary without a load. NOT cheap: ReadMeta reads the header,
+ * Tier-1 and BOTH game tiers whole (about 200 KB; a registered name decoder is
+ * handed the whole blob) and scans the Save directory for quarantine evidence,
+ * so a caller reads it on demand, never per frame (the Combo > Save Files page,
+ * combo_save_files_view.h, caches it and re-reads on SlotStateEpoch). Nothing
+ * is committed. `valid` is true iff the header passes every check Load() does
+ * EXCEPT the CRC, the Tier-4 crossing block and the commit-generation
+ * comparison: those three are only found by a load, so a file that fails one
+ * of them reads VALID here until a load refuses it (then the session's refusal
+ * record and, after a restart, `quarantineReason` carry it).
  */
 struct SlotMeta {
     bool     exists;       // slot file is present and readable
@@ -224,6 +230,17 @@ struct SlotMeta {
     RsbsSlotState    state;
     RsbsRefuseReason refuseReason;
     bool             hasQuarantine;
+    // The reason named in the newest quarantine file's name
+    // (`<slot>.refused-<slug>[-N].bak`, RefuseReasonSlug), so a refusal
+    // survives a restart as evidence after `state` has gone back to ABSENT.
+    // RSBS_REFUSE_NONE without evidence or with an unknown slug.
+    RsbsRefuseReason quarantineReason;
+    // The reason words the refusal's toast showed the player, recorded by
+    // NoteSlotRefusalWords while the slot is REFUSED this session (the load's
+    // "Not paired:" toasts, the arrival's "Not saved:" toasts). Empty when the
+    // refusal posted no toast. The Save Files page shows these before its own
+    // per-reason words, so the page and the toast agree.
+    char refuseWords[64];
 
     // #531/#589 (whole-file commit, operator ruling 2026-08-04): the freshness
     // relation the LAST checked load of this slot observed between the two
@@ -241,8 +258,9 @@ struct SlotMeta {
 };
 
 /**
- * The unified file-select panel's name line for a slot that exists and passes
- * its checks (ComboMenuBar::DrawFileSelect). Prefers OoT's name if OoT's half is
+ * The name line for a slot that exists and passes its checks (the Combo > Save
+ * Files page's Name column, combo_save_files_view.h).
+ * Prefers OoT's name if OoT's half is
  * started, else MM's. A paired world has one name -- its creation copies OoT's
  * into MM's half (#773) -- so the line shows it once: both names only when both
  * halves are started and really name different players. An empty MM name (a
@@ -458,7 +476,7 @@ public:
      * RefuseSlotIdentity — latch, surface RSBS_REFUSE_GENERATION, quarantine
      * NOTHING (the .redsave is healthy; the unpaired vanilla fallback session
      * is what must not capture into it) — differing only in the reason the
-     * file panel names. Out-of-range slots (including -1) are a no-op.
+     * Save Files page names. Out-of-range slots (including -1) are a no-op.
      */
     void RefuseSlotGeneration(int slot);
 
@@ -476,6 +494,38 @@ public:
     /** True iff renamed-aside quarantine evidence (*.bak) exists for the slot. */
     bool HasQuarantine(int slot) const;
 
+    /** The reason the newest quarantine file's name carries (RefuseReasonSlug),
+     *  RSBS_REFUSE_NONE without evidence. Scans the Save directory. */
+    RsbsRefuseReason QuarantineReason(int slot) const;
+
+    /**
+     * Record the reason words a refusal's toast showed, so the Save Files page
+     * repeats them (SlotMeta.refuseWords). A no-op unless the slot is REFUSED
+     * this session; every change of the refusal record clears them. At most
+     * 63 bytes are kept.
+     */
+    void NoteSlotRefusalWords(int slot, const char* words);
+
+    /** The recorded words for a REFUSED slot, "" for none. */
+    const char* GetSlotRefusalWords(int slot) const;
+
+    /**
+     * A counter that moves whenever anything ReadMeta reports may have
+     * changed: a .redsave written, quarantined or erased, a slot armed, a
+     * refusal recorded or released, refusal words noted. Readers cache
+     * ReadMeta's answers and re-read when it moves. Safe from any thread.
+     */
+    uint32_t SlotStateEpoch() const;
+
+    /**
+     * ReadMeta for slots [0, count) under the writer's lock, TRY-locked: false
+     * (and `out` untouched) while a .redsave write is in flight, so a reader
+     * never holds a slot file open across the writer's rename (on Windows an
+     * open handle without FILE_SHARE_DELETE fails MoveFileEx, and the commit
+     * is lost). The caller retries on a later frame.
+     */
+    bool TryReadMetaAll(SlotMeta* out, int count) const;
+
     /**
      * Restore process-start latch state: all slots unarmed, no refusal records.
      * Headless tests use this to simulate a fresh session; production code has
@@ -484,7 +534,8 @@ public:
      */
     void ResetSlotSessionState();
 
-    /** Human-readable label for a refuse reason (for the file panel). */
+    /** Developer label for a refuse reason (stderr lines; the Save Files page
+     *  shows Combo_SaveFiles_RefuseText's player words instead). */
     static const char* RefuseReasonLabel(RsbsRefuseReason reason);
 
     /**
@@ -493,7 +544,7 @@ public:
      * file is missing or the header fails any compat check, returns a
      * SlotMeta whose `exists`/`valid` reflect that; per-game fields for
      * unregistered descriptors are zeroed and `started` is left false so the
-     * file-select panel renders "not started" instead of garbage names.
+     * Save Files page shows no name instead of garbage.
      */
     SlotMeta ReadMeta(int slot) const;
 
@@ -603,9 +654,9 @@ private:
     //
     // `verbose` gates the rejection logging. Load() passes true — a user-
     // initiated load that silently does nothing is the failure mode this whole
-    // path exists to prevent. HasSave/ReadMeta pass false: ReadMeta runs for
-    // every slot on every file-select frame, so logging there would be a
-    // per-frame spam loop, not a diagnostic.
+    // path exists to prevent. HasSave/ReadMeta pass false: ReadMeta is a
+    // listing of every slot (the Save Files page), where a rejection is shown
+    // on the page, not logged.
     bool DeserializeHeader(std::istream& in, int expectedSlot, RsbsSaveHeader& outHeader, bool verbose,
                            RsbsRefuseReason* outReason) const;
 
@@ -677,6 +728,15 @@ private:
     // across in-process session changes, while a refusal stays sticky.
     bool             mSlotArmed[RSBS_SAVE_MAX_SLOTS]{};
     RsbsRefuseReason mSlotRefused[RSBS_SAVE_MAX_SLOTS]{};
+    // The toast's reason words for a refused slot (NoteSlotRefusalWords).
+    char mSlotRefusedWords[RSBS_SAVE_MAX_SLOTS][64]{};
+
+    // Every write of mSlotRefused goes through here: it clears the slot's
+    // recorded words (they belonged to the previous record) and moves the epoch.
+    void SetSlotRefused(int slot, RsbsRefuseReason reason);
+
+    // SlotStateEpoch's counter.
+    std::atomic<uint32_t> mSlotEpoch{0};
 
     // #531/#589: the freshness relation the last checked load observed
     // (see LoadSlot / GetSlotCommitSkew). 0 or +1; the -1 case refuses
@@ -755,7 +815,7 @@ int RsbsSave_OoTHalfIsAuthoritative(void);
  * #533 REFUSED-state surface. LoadSlot is RsbsSave_Load with the three-way
  * outcome preserved (returns RsbsLoadOutcome); ArmSlotOnCreate is the
  * file-create seam's arming call (quarantines a failing existing file first);
- * GetSlotState / GetSlotRefuseReason / HasQuarantine feed the file panel;
+ * GetSlotState / GetSlotRefuseReason / HasQuarantine report the slot's state;
  * IsSlotWritable reports the armed-session latch. ResetSlotSessionState
  * restores process-start latch state and exists for the headless tests.
  */
@@ -791,6 +851,16 @@ enum {
     RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED = 6,    // an MM arrival while the loaded slot is refused
 };
 void RsbsSave_EmitLoadToast(int kind, const char* names, int count);
+
+/** The message a refusal kind of RsbsSave_EmitLoadToast posts (REFUSED_RULES,
+ *  REFUSED_OTHER_BUILD, REFUSED_DAMAGED, ARRIVAL_UNPAIRED), NULL for any other
+ *  kind. The emitter posts exactly these words and the load records them on
+ *  the refused slot (NoteSlotRefusalWords). */
+const char* RsbsSave_LoadToastRefusalMessage(int kind);
+
+/** SaveManager::NoteSlotRefusalWords for C callers (the arrival's refusal
+ *  toasts, the creation failure). */
+void RsbsSave_NoteSlotRefusalWords(int slot, const char* words);
 
 /** Test hook (#781 paired-load-restore leg 5): force the load's post-restore
  *  compare to fail, so the put-back is exercised. Never called in production. */

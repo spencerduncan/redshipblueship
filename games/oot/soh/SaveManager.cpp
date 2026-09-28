@@ -79,7 +79,7 @@ using namespace std::string_literals;
  * read as NTSC, the way SoH's own name printer (z_message_PAL.c) reads it.
  *
  * Pure and total: every input byte lands in 0x00-0x40. Called at the creation
- * seam (OoT_RunPairedCreationEvent) and by the slot panel's name decoder below.
+ * seam (OoT_RunPairedCreationEvent) and by the slot-metadata name decoder below.
  */
 extern "C" void OoT_PlayerName_ToMMCharset(const uint8_t* ootName, uint8_t filenameLanguage, uint8_t* mmName) {
     constexpr uint8_t kMMSpace = 0x3E;
@@ -106,9 +106,9 @@ extern "C" void OoT_PlayerName_ToMMCharset(const uint8_t* ootName, uint8_t filen
 }
 
 /**
- * The slot panel's name for OoT's half (#773): the bytes in their own charset,
+ * The Save Files page's name for OoT's half (#773): the bytes in their own charset,
  * printed through the MM/PAL table (the translation above, then
- * RsbsSave_DecodeN64FilenameName). Before this the panel copied the raw bytes
+ * RsbsSave_DecodeN64FilenameName). Before this the name line copied the raw bytes
  * into its text, and they are not ASCII: an NTSC "Link" is B6 CD D2 CF.
  * extern "C" for the combo-player-name row, which decodes a synthetic OoT save.
  */
@@ -125,12 +125,12 @@ extern "C" void OoT_SlotMeta_DecodePlayerName(const uint8_t* blob, size_t blobSi
 }
 
 /**
- * Register OoT's metadata-offset descriptor so the unified file-select panel
+ * Register OoT's metadata-offset descriptor so the Combo > Save Files page
  * can render slot names / play-time / "started" without src/common ever
  * including z64save.h. Offsets are byte positions within the OoT SaveContext
  * blob as stored in the .redsave; offsetof on the real struct rather than
  * hand-typed hex, so a future SaveContext layout change can't silently desync
- * the panel. Called from SaveManager's constructor; extern "C" (and idempotent:
+ * the page. Called from SaveManager's constructor; extern "C" (and idempotent:
  * a registration replaces the previous one) so the mm-creation-new-file rows
  * can register it and read a committed slot through it, the way they register
  * MM's (MM_SlotMeta_Register). The name decoder is what they lock (#773).
@@ -388,7 +388,7 @@ SaveManager::SaveManager() {
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnExitGame>([](int32_t fileNum) {
         // Snapshot on quit so unsaved cross-game flags (shared items, last
         // game) survive across a process exit even if the user never went
-        // through the file-select panel.
+        // through the file select.
         //
         // Thread affinity (#537): OnExitGame is dispatched from the GAME
         // THREAD (z_play.c / kaleido), and the earlier-registered handler
@@ -429,7 +429,7 @@ SaveManager::SaveManager() {
         RsbsSave_Save(fileNum);
     });
 
-    // OoT's metadata-offset descriptor for the unified file-select panel.
+    // OoT's metadata-offset descriptor for the Combo > Save Files page.
     OoT_SlotMeta_Register();
 
     smThreadPool = std::make_shared<BS::thread_pool>(1);

@@ -9,22 +9,21 @@ The test is pixels. Render the SoH reference and ours with `redship --test ui-sn
 (section 12). Each rule cites the SoH line it copies. A rule marked [project rule] is stricter than SoH on purpose.
 
 **Scope (ours):**
-- `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp`, `SohGui/SohMenuComboMmMods.cpp` and
-  `SohGui/SohMenuComboMmRandomizer.cpp`
+- `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp`, `SohGui/SohMenuComboMmMods.cpp`,
+  `SohGui/SohMenuComboMmRandomizer.cpp` and `SohGui/SohMenuComboSaveFiles.cpp`
 - `AddCrossGamePointerWidgets` (`SohMenuRandomizer.cpp:823-846`)
 - the capability and presentation code in `SohMenu.cpp:199-600`
 - `SohGui/CreationProgressOverlay.cpp`
 - `src/common/Combo{Spoiler,Tracker}Window.cpp`
 - the player-facing strings in `src/common/cvar_shared_keys.h` (`kHostedMmEnhancements`)
-- `src/common/combo_settings_view.cpp`, `src/common/combo_mm_*_view.*`, `src/common/combo_mm_options_page.*` and
-  `src/common/gen_progress_overlay.c`
+- `src/common/combo_settings_view.cpp`, `src/common/combo_mm_*_view.*`, `src/common/combo_mm_options_page.*`,
+  `src/common/combo_save_files_view.*` and `src/common/gen_progress_overlay.c`
 - `games/mm/2s2h/Rando/OptionsUiSingleExe.cpp`
 - the toasts in the `*ForeignItemsSingleExe.cpp` TUs
 - any new ImGui-drawing TU (the lint tripwire lists them)
 
 **Excluded:**
 - `ComboSettingsWindow.cpp`: retired from the menu, console-only.
-- `ComboMenuBar.cpp`: never constructed.
 - MM's tracker windows: vendored 2S2H UI.
 
 Inside an SoH-shipped file, only the functions this project added are ours.
@@ -346,6 +345,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | Combo > MM Randomizer | Randomizer > General (the two-column option page) |
 | Combo > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |
+| Combo > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "", "listed" and "backup" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
 | Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
 | Creation overlay over the open menu | SoH's modal over the same menu page ("Clear Config@over-menu") |

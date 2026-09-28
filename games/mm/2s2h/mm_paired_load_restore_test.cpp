@@ -59,13 +59,16 @@
  *           -> the same; and that empty-half file with a trick changed -> the
  *           file cannot restore it, so the load pairs, a toast
  *           warns now, nothing is written, and the arrival gate still refuses
- *           (the last line of defence)
+ *           (the last line of defence), and the Combo > Save Files page's row
+ *           for the slot repeats that refusal's toast words
  *   leg 4 - a record field no key authors (the logic rung, only another build
  *           can write it) -> REFUSED, not committed, not quarantined, a
  *           "Not paired:" toast in player words (no field identifier), and the
  *           next crossing into Majora's Mask says Termina stays un-randomized
  *           instead of skipping pairing silently; an unrefused unpaired
- *           arrival posts nothing (the control)
+ *           arrival posts nothing (the control). The Combo > Save Files page's
+ *           row for the slot reads exactly the load toast ("Not paired: <its
+ *           words>") after the load, and still does after the arrival
  *   leg 5 - a restore whose after-check fails (forced through the test hooks;
  *           unreachable by construction today) -> every key it wrote is put
  *           back as it was, set or unset, on both the Cross-Game Rules and the
@@ -104,6 +107,7 @@
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_mm_options_page.h"
+#include "combo_save_files_view.h"
 #include "game.h"
 
 extern "C" {
@@ -156,6 +160,12 @@ Toast LastToast() {
         t.any = t.message != kToastSentinel;
     }
     return t;
+}
+
+/** The Combo > Save Files page's status for the test slot, read the way the
+ *  page reads it (ReadMeta, then the model's row). */
+std::string SaveFilesStatus() {
+    return Combo_SaveFiles_RowFor(kSlot, rsbs::SaveManager::Instance().ReadMeta(kSlot)).status;
 }
 
 void Relaunch();
@@ -647,6 +657,19 @@ int LegRoundTrip() {
     if (gate != 1) {
         return Fail(39, "leg 3: the arrival gate, the last line of defence, did not refuse a diverged profile");
     }
+    // The arrival's refusal toast, and the Save Files page's row for the slot:
+    // the page repeats the toast's reason (lane W5; recorded by the toast's
+    // emitter, MM_Rando_EmitPairingRefusalToast).
+    const Toast arrivalToast = LastToast();
+    const std::string pageStatus = SaveFilesStatus();
+    const std::string pageWant = std::string("Not paired: ") + Combo_SaveFiles_ToastWords(arrivalToast.message.c_str());
+    printf("[TEST] leg 3 page OBSERVED: arrival toast=%s%s%s%s page status='%s'\n", arrivalToast.any ? "'" : "(none)",
+           arrivalToast.any ? arrivalToast.prefix.c_str() : "", arrivalToast.any ? " " : "",
+           arrivalToast.any ? arrivalToast.message.c_str() : "", pageStatus.c_str());
+    if (!arrivalToast.any || arrivalToast.message.empty() || pageStatus != pageWant) {
+        return Fail(70, "leg 3: the Save Files page reads '%s' after the arrival refused with the toast '%s %s'",
+                    pageStatus.c_str(), arrivalToast.prefix.c_str(), arrivalToast.message.c_str());
+    }
     return 0;
 }
 
@@ -705,6 +728,16 @@ int LegUnrestorableRule() {
                      "(prefix '%s', message '%s')",
                      toast.prefix.c_str(), toast.message.c_str());
     }
+    // The Combo > Save Files page says what the toast said (lane W5): the load
+    // toast is "Not paired:" + its words, and so is the page's status cell.
+    const std::string toastLine = toast.prefix + " " + toast.message;
+    const std::string pageAfterLoad = SaveFilesStatus();
+    printf("[TEST] leg 4 page OBSERVED: after the load, page status='%s' toast='%s'\n", pageAfterLoad.c_str(),
+           toastLine.c_str());
+    if (legRc == 0 && pageAfterLoad != toastLine) {
+        legRc = Fail(71, "leg 4: the Save Files page reads '%s' but the load toast said '%s'", pageAfterLoad.c_str(),
+                     toastLine.c_str());
+    }
 
     // The OoT file plays on (the caller cannot un-open it). The next crossing
     // into Majora's Mask must say what that means, not skip pairing silently.
@@ -723,6 +756,14 @@ int LegUnrestorableRule() {
                     "leg 4: the arrival after a refused load is silent — no toast says Termina plays "
                     "un-randomized (prefix '%s', message '%s')",
                     arrival.prefix.c_str(), arrival.message.c_str());
+    }
+    // The arrival's toast is about the crossing, not the file: the page keeps the
+    // load's reason.
+    const std::string pageAfterArrival = SaveFilesStatus();
+    printf("[TEST] leg 4 page OBSERVED: after the arrival, page status='%s'\n", pageAfterArrival.c_str());
+    if (legRc == 0 && pageAfterArrival != pageAfterLoad) {
+        legRc = Fail(72, "leg 4: the arrival changed the Save Files page's reason from '%s' to '%s'",
+                     pageAfterLoad.c_str(), pageAfterArrival.c_str());
     }
     return legRc;
 }

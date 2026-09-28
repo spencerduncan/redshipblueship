@@ -100,8 +100,6 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/save.cpp
     # SharedGraphics for cross-game graphics context sharing
     ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.cpp
-    # Unified menu bar for single executable
-    ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.cpp
     # MM stubs and aliases for single-exe mode
     ${CMAKE_SOURCE_DIR}/src/common/mm_stubs.c
     ${CMAKE_SOURCE_DIR}/src/common/mm_stubs.cpp
@@ -136,6 +134,10 @@ set(REDSHIP_COMMON_SOURCES
     # registry each ORIGIN game answers through. Game-header-free. APPENDED,
     # never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.c
+    # The Combo > Save Files page's model: each .redsave slot's state in the
+    # player's words (lane W5, 2026-09-28; it replaces the never-constructed
+    # ComboMenuBar panel). Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_save_files_view.cpp
     # The paired game's END under the frozen combo goal (#762, OoTMM parity):
     # the defeat record, the goal predicate and the decision both ports' ending
     # sites call. Game-header-free. APPENDED, never reordered.
@@ -208,7 +210,6 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
-    ${CMAKE_SOURCE_DIR}/src/common/ComboMenuBar.h
     ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.h
     ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.h
     ${CMAKE_SOURCE_DIR}/src/common/save.h
@@ -237,6 +238,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/pairing_refusal_toast.h
     # Header for test_window_focus.cpp above (lane F1)
     ${CMAKE_SOURCE_DIR}/src/common/test_window_focus.h
+    # Header for combo_save_files_view.cpp above (lane W5)
+    ${CMAKE_SOURCE_DIR}/src/common/combo_save_files_view.h
 )
 
 # ============================================================================
@@ -2203,6 +2206,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts the per-archive 'Array' slot routes each to the right reader. A
     # removed Array dispatcher turns it red in CI. Never skips.
     redship_add_test(NAME ArrayReaderDispatch COMMAND redship --test array-reader-dispatch)
+    # Lane W5: the Combo > Save Files page's model (each .redsave slot's state in
+    # the player's words, which replaces the never-constructed ComboMenuBar
+    # panel): every refusal reason's words, a toast's words where one was posted,
+    # one row per slot state, the cached view's read count, the test seam and the
+    # note. ROM-free, display-free and disk-free (default tier);
+    # src/common/tests/test_combo_save_files_view.c.
+    redship_add_test(NAME ComboSaveFilesView COMMAND redship --test combo-save-files-view)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
