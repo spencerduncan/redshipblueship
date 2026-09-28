@@ -2512,6 +2512,25 @@ void MM_Play_ConsumeStartupEntrance(void) {
     if (!rsbsPairingRefused) {
         hadFrozenState = Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext));
     }
+    // THE SESSION FIELDS ARE PINNED, NOT RESTORED (#765 review). fileNum and
+    // flashSaveAvailable are session state, not save state, yet the consume above
+    // copies the WHOLE SaveContext, so whatever the shadow's author left there
+    // becomes this session's for the life of the file. Every paired half created
+    // before #765 carries fileNum 0 (the creation event's memset), and 0 is a
+    // real flash slot, so every slot gate admits it: Sram_FileNumHasFlashSlot
+    // lets the moon-crash reset (Sram_ResetSaveFromMoonCrash) read single-exe's
+    // stubbed flash back over the live save; z_message.c's `fileNum != 0xFF`
+    // starts the owl save, whose Sram_UpdateWriteToFlashOwlSave readback does
+    // the same, and the Song of Time save; DeleteFileOnDeath's 0..2 range takes
+    // its slot-file arm. A cross-game session never has a flash slot. Title_Init
+    // (ovl_title/z_title.c) authors exactly these two values for the boot chain;
+    // re-assert them here, after the last write to gSaveContext from a blob, so
+    // no shadow author (an old file, a future one) can hand the session a slot.
+    // The creation stamp (MM_Creation_StampNewFileFields) writes the same values
+    // into the shadow for byte parity; this is the inverse at the restore.
+    // Locked by mm-startup-restore.
+    gSaveContext.fileNum = 0xFF;
+    gSaveContext.flashSaveAvailable = true;
     // The HYDRATE half: repair a save whose type byte was lost, report which
     // state this arrival landed in, and refuse a pairing whose MM half is
     // MISSING. It authors no world — since increment 2 the arrival has zero
