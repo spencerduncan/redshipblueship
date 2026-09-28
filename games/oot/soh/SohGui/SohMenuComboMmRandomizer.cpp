@@ -681,9 +681,8 @@ void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path) {
                     blocked = desc != nullptr && desc->group == group &&
                               Combo_MMOptionsPage_OptionState(desc, nullptr) == COMBO_MM_ROW_BLOCKED;
                 }
-                SohMenu::ApplyPresentationNote(
-                    info, blocked ? SOH_MENU_PRESENT_CAPABILITY : SOH_MENU_PRESENT_LIVE,
-                    "Some of these settings are not available in this build. Hover one to see why.");
+                SohMenu::ApplyPresentationNote(info, blocked ? SOH_MENU_PRESENT_CAPABILITY : SOH_MENU_PRESENT_LIVE,
+                                               COMBO_MM_GROUP_NOTE_UNAVAILABLE);
             });
             for (int i = 0; i < count && i < kMaxOptionRows; i++) {
                 const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
