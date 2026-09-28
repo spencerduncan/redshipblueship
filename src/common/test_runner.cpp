@@ -4477,11 +4477,9 @@ TestResult Test_ComboGameOverRevive(void) {
 // #604: ROM-free and context-free — the readers are stateless, so the boot
 // check and the synthetic comparison need no bring-up. Never skips.
 TestResult Test_ArrayReaderAgreement(void) {
-    printf("[TEST] array-reader-agreement: OoT's and MM's 'OARR' readers fill vertices identically (#604)
-");
+    printf("[TEST] array-reader-agreement: OoT's and MM's 'OARR' readers fill vertices identically (#604)\n");
     const int rc = ArrayReaderAgreement_RunSynthetic();
-    printf("[TEST] %s: array reader agreement rc=%d
-", rc == 0 ? "PASS" : "FAIL", rc);
+    printf("[TEST] %s: array reader agreement rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -4489,28 +4487,23 @@ TestResult Test_ArrayReaderAgreement(void) {
 // staged. The display-free shared bring-up is for the production-slot leg,
 // which loads through the global ResourceManager.
 TestResult Test_ArrayReaderAgreementMM(void) {
-    printf("[TEST] array-reader-agreement-mm: real MM vertex arrays, and the production 'Array' slot (#604)
-");
+    printf("[TEST] array-reader-agreement-mm: real MM vertex arrays, and the production 'Array' slot (#604)\n");
     const std::string mmArchive = CaoResolveArchive("mm.o2r");
     if (mmArchive.empty()) {
-        printf("[TEST] SKIP: no mm.o2r resolvable — extract MM to arm this row (#604)
-");
+        printf("[TEST] SKIP: no mm.o2r resolvable — extract MM to arm this row (#604)\n");
         return TEST_SKIP;
     }
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
-        printf("[TEST] FAIL: could not create Ship::Context singleton
-");
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
         return TEST_FAIL;
     }
     if (OoT_InitSharedContextSubsystems() != 0) {
-        printf("[TEST] FAIL: shared bring-up reported failure
-");
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
         return TEST_FAIL;
     }
     const int rc = ArrayReaderAgreement_RunMM(mmArchive.c_str());
-    printf("[TEST] %s: array reader agreement (MM) rc=%d
-", rc == 0 ? "PASS" : "FAIL", rc);
+    printf("[TEST] %s: array reader agreement (MM) rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
