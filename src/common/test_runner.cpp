@@ -97,6 +97,12 @@ int MM_AbandonedSessionStatics_RunHeadless(void);
 // the statics only Destroy used to restore, and drop every per-actor
 // ObjectExtension entry, on a second abandonment as on the first.
 int OoT_AbandonedSessionStatics_RunHeadless(void);
+// mm-creation-new-file / -world (#765, games/mm/2s2h/mm_creation_new_file_test.cpp):
+// the paired creation event arms an MM half carrying what MM's own new-file path
+// stamps (marker, checksum, fileNum 0xFF, flashSaveAvailable), which the tracker,
+// the slot panel and the moon-crash reset then read as a started file.
+int MM_CreationNewFile_RunSynthetic(void);
+int MM_CreationNewFile_RunWorld(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -776,6 +782,89 @@ static TestResult Test_MMAbandonedSessionStatics(void) {
 // display, no ROM; a scope guard restores everything it seeds on every exit.
 static TestResult Test_OoTAbandonedSessionStatics(void) {
     return OoT_AbandonedSessionStatics_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The creation-authored MM half as MM's own new-file path would author it (#765;
+// see the extern decls above). Thin wrappers over the C entry points in
+// games/mm/2s2h/mm_creation_new_file_test.cpp. The world row's wrapper sits beside
+// Test_ComboCrossingViewsWorld: it needs the same generation bring-up.
+//
+// The production registration is checked from source (#765 review). Both rows
+// call MM_SlotMeta_Register() themselves, and rsbs/src/main.cpp dispatches
+// `--test` (TestRunner_Run, then _Exit) before its game init, so no runtime row
+// can see main.cpp's own call: deleting it left both rows green while every
+// slot's MM half went back to "not started". The scan holds the shape instead:
+// main.cpp calls MM_SlotMeta_Register() (and Combo_TrackerWindow_Init(), which
+// registers the tracker adapter the tracker gate reads through) as live
+// statements, once each, after the `--test` exit and before the game loop.
+#include <fstream>
+#include <iterator>
+#include <string>
+static bool MMCreationNewFile_EntryPointRegisters(void) {
+#ifdef RSBS_SOURCE_DIR
+    std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/rsbs/src/main.cpp", std::ios::binary);
+    if (!in.good()) {
+        printf("[TEST] FAIL: mm-creation-new-file: cannot read rsbs/src/main.cpp under RSBS_SOURCE_DIR\n");
+        return false;
+    }
+    std::string text;
+    for (std::istreambuf_iterator<char> it(in), end; it != end; ++it) {
+        if (*it != '\r') {
+            text.push_back(*it);
+        }
+    }
+    const size_t testExit = text.find("_Exit(testResult);");
+    const size_t gameLoop = text.find("while (keepRunning)");
+    if (testExit == std::string::npos || gameLoop == std::string::npos || gameLoop < testExit) {
+        printf("[TEST] FAIL: mm-creation-new-file: main.cpp's `--test` exit or game loop moved; the scan's "
+               "anchors (_Exit(testResult); / while (keepRunning)) need updating\n");
+        return false;
+    }
+    // A live statement: its own line, only indentation before it (so neither a
+    // comment nor the forward declaration `void MM_SlotMeta_Register(void);`).
+    auto statementAt = [&text](const std::string& stmt, size_t* count) {
+        size_t found = std::string::npos;
+        *count = 0;
+        for (size_t at = text.find(stmt); at != std::string::npos; at = text.find(stmt, at + 1)) {
+            size_t lineStart = text.rfind('\n', at);
+            lineStart = lineStart == std::string::npos ? 0 : lineStart + 1;
+            const bool indentOnly = text.find_first_not_of(" \t", lineStart) == at;
+            const bool endsLine = text.find('\n', at) == at + stmt.size();
+            if (indentOnly && endsLine) {
+                found = at;
+                ++*count;
+            }
+        }
+        return found;
+    };
+    bool ok = true;
+    for (const char* stmt : { "MM_SlotMeta_Register();", "Combo_TrackerWindow_Init();" }) {
+        size_t count = 0;
+        const size_t at = statementAt(stmt, &count);
+        const bool placed = count == 1 && at > testExit && at < gameLoop;
+        printf("[TEST] mm-creation-new-file: main.cpp `%s` live statements=%zu, after the --test exit and "
+               "before the game loop=%d\n",
+               stmt, count, placed ? 1 : 0);
+        if (!placed) {
+            printf("[TEST] FAIL: mm-creation-new-file: main.cpp does not call %s exactly once on the non-test "
+                   "path; the .redsave slot panel / Combo Tracker lose MM in production while every runtime row "
+                   "stays green (#765 review)\n",
+                   stmt);
+            ok = false;
+        }
+    }
+    return ok;
+#else
+    printf("[TEST] FAIL: mm-creation-new-file: RSBS_SOURCE_DIR undefined; main.cpp's registration cannot be "
+           "checked\n");
+    return false;
+#endif
+}
+
+static TestResult Test_MMCreationNewFile(void) {
+    const bool synthetic = MM_CreationNewFile_RunSynthetic() == 0;
+    const bool entryPoint = MMCreationNewFile_EntryPointRegisters();
+    return entryPoint && synthetic ? TEST_PASS : TEST_FAIL;
 }
 
 // MM extended-culling binding (see the extern decl above). Thin wrapper over
@@ -3815,6 +3904,21 @@ TestResult Test_ComboCrossingViewsWorld(void) {
     return ComboCrossingViews_RunWorld();
 }
 
+// #765's world row (games/mm/2s2h/mm_creation_new_file_test.cpp): the production
+// creation event over the ComboSingleBag pinned seed, so the same bring-up as the
+// crossing-views world row above.
+TestResult Test_MMCreationNewFileWorld(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char cnfArg0[] = "redship";
+    static char* cnfArgv[] = { cnfArg0, nullptr };
+    InitOTRForMMFirstBoot(1, cnfArgv);
+    return MM_CreationNewFile_RunWorld() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ADR 0010 answer O6's grow-check over both real engines (#645, #500). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason.
 TestResult Test_ComboLogicMonotonicity(void) {
@@ -4742,6 +4846,15 @@ const TestDescriptor gTests[] = {
      "are not reset, the statics only Destroy restored are restored, and no per-actor ObjectExtension entry survives "
      "(#750)",
      Test_OoTAbandonedSessionStatics},
+    {"mm-creation-new-file",
+     "A creation-authored MM half carries what MM's own new-file path stamps (the 'ZELDA3' marker, the checksum, "
+     "fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker alone, the slot panel reads it "
+     "started, and the moon-crash reset keeps the consumed half (#765)",
+     Test_MMCreationNewFile},
+    {"mm-creation-new-file-world",
+     "The production paired creation over the ComboSingleBag pinned seed arms an MM half MM's own new-file path "
+     "would recognize: marker, fileNum 0xFF, tracker present, slot started, moon-crash reset keeps it (#765)",
+     Test_MMCreationNewFileWorld},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4836,6 +4949,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
+                strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.
