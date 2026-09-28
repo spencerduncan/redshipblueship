@@ -72,9 +72,11 @@
  *   created and never saved: its only commit is the creation's own (OoT's
  *   Sram_InitSave writes the .redsave after the creation event arms the half),
  *   which is vanilla's new-file flash write, so the crash restores the half as
- *   created (day 0, 05:59: Dawn of the First Day). Then a session with nothing
- *   durable at all (no active slot; a latched slot): nothing to reload, the
- *   clock alone restarts at dawn and the half keeps its bytes.
+ *   created (day 0, 05:59: Dawn of the First Day). A commit at 05:55 on the
+ *   final day restores pulled back to 05:49 (OoTMM's grace period). Then a
+ *   session with nothing durable at all (no active slot; a latched slot):
+ *   nothing to reload, the clock alone restarts at dawn and the half keeps its
+ *   bytes.
  *
  * ============================================================================
  * THE NAME (#773), IN ALL THREE ROWS
@@ -412,9 +414,10 @@ int CheckMoonCrashRestoresLastCommit(uint32_t expectSeed) {
     gSaveContext.save.eventDayCount = 3;
     gSaveContext.save.time = (u16)CLOCK_TIME(23, 0);
     gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = ITEM_BOTTLE;
-    gSaveContext.save.saveInfo.playerData.rupees = 200;
-    MM_HarvestSharedResources(); // the pool and the watermark follow MM to 200 (a suspend does this)
-    CNF_ASSERT(PoolRupees() == 200, "the uncommitted rupees reached the pool (premise)");
+    // (A new file's wallet holds 99: the harvest clamps to it.)
+    gSaveContext.save.saveInfo.playerData.rupees = 90;
+    MM_HarvestSharedResources(); // the pool and the watermark follow MM to 90 (a suspend does this)
+    CNF_ASSERT(PoolRupees() == 90, "the uncommitted rupees reached the pool (premise)");
     CNF_ASSERT(Combo_RecordSharedItemCrossing(GAME_OOT, 0x0042) >= 0,
                "an MM check yielded an OoT item after the commit: Tier-1 records it (premise)");
     CNF_ASSERT(memcmp(sCommittedItems, gComboCtx.sharedItemsTagged, sizeof(sCommittedItems)) != 0,
@@ -459,7 +462,7 @@ int CheckMoonCrashRestoresLastCommit(uint32_t expectSeed) {
     CNF_ASSERT(gComboCtx.commitGeneration == committedGeneration, "the commit generation does not move");
     // ---- the shared-resource discipline ----------------------------------------
     CNF_ASSERT(PoolRupees() == committedPool,
-               "the pool is the commit's: neither the uncommitted 200 nor drained by a pre-crash watermark");
+               "the pool is the commit's: neither the uncommitted 90 nor drained by a pre-crash watermark");
     gSaveContext.save.saveInfo.playerData.rupees = kRupees - 20;
     MM_HarvestSharedResources();
     CNF_ASSERT(PoolRupees() == (uint16_t)(committedPool - 20),
@@ -641,6 +644,23 @@ extern "C" int MM_MoonCrashNeverSaved_Run(void) {
     CNF_ASSERT(gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO &&
                    gSaveContext.save.shipSaveInfo.rando.finalSeed == kSeed,
                "the half is still this world");
+
+    // ---- OoTMM's grace period: a commit minutes before the crash -------------
+    // An autosave at 05:55 on the final day would otherwise restore a clock the
+    // moon falls on again within seconds; OoTMM's gracePeriod pulls it back to
+    // crash - 0x1E0 (05:49 on day 3). The pull-back never moves a clock further
+    // from the crash than that.
+    gSaveContext.save.day = 3;
+    gSaveContext.save.eventDayCount = 3;
+    gSaveContext.save.time = (u16)CLOCK_TIME(5, 55);
+    CNF_ASSERT(MM_Combo_CaptureSaveToUnifiedSlot() == 1, "a commit minutes before the crash lands");
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    PrintClock("after the moon crash (commit at 05:55 on day 3)");
+    CNF_ASSERT(gSaveContext.save.day == 3 && gSaveContext.save.eventDayCount == 3 &&
+                   gSaveContext.save.time == (u16)(0x3E20),
+               "a commit within the grace period is pulled back to 05:49 on day 3 (OoTMM gracePeriod)");
 
     // ---- a session with nothing durable: no active slot, then a latched one --
     for (int leg = 0; leg < 2; leg++) {
