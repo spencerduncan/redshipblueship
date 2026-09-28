@@ -4170,6 +4170,88 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
 }
 
 /**
+ * WHAT MM'S OWN NEW-FILE PATH STAMPS THAT A PAIRED CREATION HAS TO STAMP ITSELF
+ * (#765). Called by MM_Rando_AuthorHalfAtCreation right after
+ * MM_Sram_InitNewSave(), at the point MM_Sram_InitSave (z_sram_NES.c) stamps
+ * the same fields, and so BEFORE OnSaveInit: MM's own generation-failure path
+ * (OnFileCreate.cpp's catch) clears newf[0] on the assumption that the marker
+ * is already there, and that stays true here.
+ *
+ * MM's file select authors a new file as: MM_Sram_InitNewSave, the typed name,
+ * the 'ZELDA3' marker, the checksum, OnSaveInit — with the save being created
+ * living in a context whose fileNum and flashSaveAvailable were set by the
+ * title chain and the naming screen. The creation event runs with MM never
+ * booted and memsets the whole SaveContext first, so without this every one of
+ * those fields reaches the armed shadow as zero:
+ *
+ *   newf = 'ZELDA3'. THE file-select marker (#765). Every reader keyed on it —
+ *     the .redsave slot panel's "started" flag (RsbsGameMetaDesc.validMarker),
+ *     the Combo Tracker's MM presence gate (combo_tracker_view.c) — read the
+ *     paired half as "no MM save". MM itself never stamps it later on this
+ *     path: its only other writer is the owl-save delete, which assumes it.
+ *   checksum. Computed where MM computes it (over Save, before OnSaveInit), so
+ *     the half carries the value MM's own path would. Nothing in the single exe
+ *     verifies the resident half's checksum; this is for byte parity only.
+ *   fileNum = 0xFF. The cross-game sentinel. MM's naming screen puts the chosen
+ *     flash slot here; a cross-game session has none, and every MM flash path
+ *     is guarded on exactly this value (Sram_FileNumHasFlashSlot). The arrival
+ *     consumes the WHOLE SaveContext from the shadow, so a creation-authored 0
+ *     replaced the title chain's 0xFF for the life of the file — and fileNum 0
+ *     is a real slot: the moon-crash reset (Sram_ResetSaveFromMoonCrash) then
+ *     reloads slot 0 through the single-exe read stub, which returns nothing,
+ *     and copies the zeroed buffer over the live save.
+ *   flashSaveAvailable = true. Title_Init sets it and nothing in a cross-game
+ *     session clears it; the pause-save and game-over prompts
+ *     (z_kaleido_scope_NES.c) take their "could not save" arms on false.
+ *
+ * NOT stamped, and why (the rest of the field-by-field diff, #765):
+ *   the player's name — MM's charset differs from OoT's by filename language,
+ *     so carrying OoT's name over is a translation, not a stamp (follow-up);
+ *   cutsceneIndex 0xFFF0 for button 0 — OnFileCreate's rando block writes 0
+ *     over it in both paths;
+ *   fileCreatedAt — MM stamps it from OnSaveLoad, which MM's file select
+ *     dispatches right after creating a file and a paired half first sees at
+ *     its first arrival (z_play.c). It is wall-clock time, so stamping it here
+ *     would put a nondeterministic value in the authored half.
+ *
+ * Also the redship-tier lock's authoring step (mm-creation-new-file).
+ */
+extern "C" void MM_Creation_StampNewFileFields(void) {
+    static const u8 kNewf[6] = { 'Z', 'E', 'L', 'D', 'A', '3' };
+    memcpy(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf));
+    gSaveContext.save.saveInfo.checksum = Sram_CalcChecksum(&gSaveContext.save, sizeof(Save));
+    gSaveContext.fileNum = 0xFF;
+    gSaveContext.flashSaveAvailable = true;
+}
+
+/**
+ * MM's slot-metadata descriptor for the unified file panel (#765).
+ *
+ * The descriptor used to be registered only from the excluded
+ * 2s2h/SaveManager/SaveManager.cpp (RsbsRegisterMMMetaOnce, filtered out of the
+ * single-exe link by games/mm/CMakeLists.txt), so in this binary MM's metadata
+ * was never registered and every slot's MM half read "not started" whatever
+ * its bytes held. Registered from the combo entry point (rsbs/src/main.cpp)
+ * beside the tracker adapters, because the panel is drawn while OoT runs and
+ * MM may never boot in the session.
+ *
+ * Same marker and play-time field as RsbsRegisterMMMetaOnce. No name: MM's
+ * name bytes are MM's own charset and a paired half carries none of its own
+ * (see MM_Creation_StampNewFileFields), so the panel names a slot by OoT's half.
+ */
+extern "C" void MM_SlotMeta_Register(void) {
+    RsbsGameMetaDesc desc{};
+    desc.playerNameOffset = 0;
+    desc.playerNameLen = 0;
+    desc.playTimeOffset = static_cast<uint32_t>(offsetof(SaveContext, save.day));
+    desc.validMarkerOffset = static_cast<uint32_t>(offsetof(SaveContext, save.saveInfo.playerData.newf));
+    desc.validMarkerLen = 6;
+    const char kMMNewf[6] = { 'Z', 'E', 'L', 'D', 'A', '3' };
+    std::memcpy(desc.validMarker, kMMNewf, sizeof(kMMNewf));
+    RsbsSave_RegisterGameMeta(GAME_MM, &desc);
+}
+
+/**
  * THE MM HALF OF THE MERGED CREATION EVENT (ADR 0010 increment 2; #564 steps
  * 3, 4, 6, 9).
  *
@@ -4207,7 +4289,11 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
  * caller's job because only the caller knows the buffer's full size; MM's
  * `sizeof(SaveContext)` is the smaller of the two layouts.
  *
- * WHAT IT AUTHORS BEYOND THE FILL. Nothing. OnFileCreate's rando block already
+ * WHAT IT AUTHORS BEYOND THE FILL. What MM's own file-select new-file path
+ * stamps and this seam would otherwise leave zero (#765): the 'ZELDA3' marker,
+ * the checksum, and the cross-game session's fileNum 0xFF / flashSaveAvailable
+ * (MM_Creation_StampNewFileFields, with the whole diff in its header). Beyond
+ * that, nothing. OnFileCreate's rando block already
  * authors the post-intro start state (South Clock Town, human form, Tatl,
  * threeDayResetCount, isFirstCycle, the Happy Mask Salesman flag,
  * cutsceneIndex 0) and MM_Sram_InitNewSave already authors the NEW-FILE CLOCK
@@ -4274,6 +4360,10 @@ extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPat
     // binary and this seam does not acquire a private copy of it.
     memset(&gSaveContext, 0, sizeof(SaveContext));
     MM_Sram_InitNewSave();
+    // What MM_Sram_InitSave stamps after MM_Sram_InitNewSave and before
+    // OnSaveInit, plus the cross-game session fields the whole-SaveContext
+    // consume at arrival carries into MM (#765). See the helper's header.
+    MM_Creation_StampNewFileFields();
     fprintf(stderr,
             "[MM] creation: the pre-fill stretch (rando core init + vanilla bootstrap) took %ums — this is the window "
             "the overlay captions before the ladder's first attempt report (#582)\n",

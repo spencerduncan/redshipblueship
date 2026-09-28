@@ -61,7 +61,7 @@ set(REDSHIP_COMMON_SOURCES
     # different save array, and the MMRandoOptions lock asserts the option
     # descriptor set covers RandoOptionId exactly.
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_tricks_view.c
-    ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_page.c
     # The combo_ui seam (UI parity M6): the table our common-owned panes draw
     # through, SoH's disabled-tooltip composer, the snapshot harness's rect
     # recorder, and the raw-ImGui fallback. SoH's implementation is
@@ -183,7 +183,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.h
-    ${CMAKE_SOURCE_DIR}/src/common/ComboMmOptionsWindow.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_page.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSettingsWindow.h
     # Header for combo_logic.c above — it also carries the ENGINE CONTRACT the
@@ -531,11 +531,12 @@ if(BUILD_TESTING)
     redship_add_test(NAME ComboTrackerWindow COMMAND redship --test combo-tracker-window)
     # MM randomizer options (#497 step 4, #499). Display-free: the option table
     # is a static global in the WHOLE_ARCHIVE'd 2ship_rando, the profile resolver
-    # runs over a zeroed MM SaveContext with no fill, and the pane's window lock
+    # runs over a zeroed MM SaveContext with no fill, and the page view model's
+    # lock (ComboMMOptionsPage; the pages themselves are MenuMmRandomizerPages)
     # never reaches ImGui.
     redship_add_test(NAME MMRandoOptions COMMAND redship --test mm-rando-options)
     redship_add_test(NAME MMPairedProfile COMMAND redship --test mm-paired-profile)
-    redship_add_test(NAME ComboMMOptionsWindow COMMAND redship --test combo-mm-options-window)
+    redship_add_test(NAME ComboMMOptionsPage COMMAND redship --test combo-mm-options-page)
     # Spoiler-drop identity gate (#610). MM's spoiler-LOAD path rebuilt
     # gComboCtx.foreignPlacements from ANY dropped spoiler with no comparison
     # against the #570 identity terms, and the pickup that followed authored a
@@ -1122,6 +1123,15 @@ if(BUILD_TESTING)
     # store but no window.
     redship_add_test(NAME MenuMmEnhancementRows COMMAND redship --test menu-mm-enhancement-rows)
     redship_add_test(NAME MMEnhancementToggles COMMAND redship --test mm-enhancement-toggles)
+    # MM's randomizer options and tricks as Combo pages (ADR 0004's 2026-09-27
+    # host amendment). Display-free and ROM-free, like the two rows above: it
+    # builds a SohMenu probe, walks the registered rows of Combo > MM Randomizer
+    # and Combo > MM Tricks, and runs their PreFuncs and Callbacks itself. The
+    # row set must equal MM's descriptor table, each row must sit in the model's
+    # column, carry the model's state (live, blocked with its reason, frozen) and
+    # write only through the gated writers, and the Windows page must no longer
+    # offer the retired pop-out.
+    redship_add_test(NAME MenuMmRandomizerPages COMMAND redship --test menu-mm-randomizer-pages)
 
     redship_add_test(NAME AllTests COMMAND redship --test all)
 
@@ -2036,6 +2046,22 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # source (RSBS_SOURCE_DIR), that every call site is wired under its guard and
     # no other completion writer exists. ROM-free and display-free: default tier.
     redship_add_test(NAME ComboGoalEnding COMMAND redship --test combo-goal-ending)
+
+    # #765: the paired creation event authors MM's half the way MM's own
+    # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
+    # the cross-game session's fileNum 0xFF / flashSaveAvailable -- so the Combo
+    # Tracker reads it present by the marker alone (no save-type widening), the
+    # .redsave slot panel reads it started (MM's slot metadata, registered from
+    # the combo entry point), and the moon-crash reset over the consumed half
+    # keeps the save. games/mm/2s2h/mm_creation_new_file_test.cpp. The synthetic
+    # row is ROM-free and display-free (default tier); the world row runs the
+    # production creation event over the ComboSingleBag pinned seed (rando tier:
+    # it needs a generation).
+    redship_add_test(NAME MMCreationNewFile COMMAND redship --test mm-creation-new-file)
+    redship_add_test(NAME MMCreationNewFileWorld COMMAND redship --test mm-creation-new-file-world
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

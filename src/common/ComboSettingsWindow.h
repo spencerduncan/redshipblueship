@@ -19,9 +19,10 @@
  * repository and not about taste:
  *
  *  - Two of its three registration callers are outside #655's file scope
- *    (ComboMmOptionsWindow.cpp registers it as the tier-4 twin of the MM options
- *    pane; rsbs/src/main.cpp calls it directly), and deleting it would edit a
- *    sibling pane's bring-up to no behavioural end.
+ *    (Combo_MMOptionsPages_Init, combo_mm_options_page.c, brings it up as the
+ *    tier-4 twin of the MM options, which were a sibling pane until 2026-09-27;
+ *    rsbs/src/main.cpp calls it directly), and deleting it would edit a
+ *    sibling's bring-up to no behavioural end.
  *  - kComboSettingsVisibilityCVar is a classified entry in cvar_shared_keys.h's
  *    tier-4 manifest; removing the window would orphan a manifest row in a file
  *    whose classification lock is deliberately hard to edit.

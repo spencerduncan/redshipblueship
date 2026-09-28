@@ -29,7 +29,7 @@
  *  4. A WINDOW BUTTON'S CVar OR NAME DRIFTS. `WIDGET_WINDOW_BUTTON` reads `.CVar`
  *     only for its open/close label and calls the window's own
  *     `ToggleVisibility` by `.WindowName` — so a mismatched pair produces a
- *     button that looks right and opens nothing. Leg 3 pins all seven pairs, and
+ *     button that looks right and opens nothing. Leg 3 pins all six pairs, and
  *     `EmbedWindow(false)` with them: the embed path calls `DrawElement()`
  *     directly and bypasses MM's `MMActiveGated` wrapper, the only thing keeping
  *     MM tracker UI from drawing while OoT is the running game. It also pins the
@@ -285,9 +285,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         const char* separator; // the SEPARATOR_TEXT directly above the button
         const char* tooltip;
     };
-    // The authoritative constants are ComboGui::kComboMMOptions*/kComboSpoiler*/
-    // kComboTracker* (src/common/ComboMmOptionsWindow.h, ComboSpoilerWindow.h,
-    // ComboTrackerWindow.h) and kCheckTracker*/kItemTracker*
+    // The authoritative constants are ComboGui::kComboSpoiler*/kComboTracker*
+    // (src/common/ComboSpoilerWindow.h, ComboTrackerWindow.h) and
+    // kCheckTracker*/kItemTracker*
     // (games/mm/2s2h/TrackersGuiSingleExe.h). Restated as literals here on
     // purpose: the point is that the menu's spelling and the window's agree, and
     // sharing a constant would make them agree by construction instead.
@@ -295,8 +295,6 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // (SohMenuRandomizer.cpp's Item Tracker page), restated here so a rewording
     // is a deliberate lock edit.
     const WindowRow kWindowRows[] = {
-        { "Toggle MM Randomizer Options", "gCombo.Windows.MMOptions", "Majora's Mask Randomizer Options",
-          "MM Randomizer Options", "Toggles the Majora's Mask Randomizer Options." },
         { "Toggle Cross-Game Spoiler", "gCombo.Windows.Spoiler", "Cross-Game Spoiler", "Cross-Game Spoiler",
           "Toggles the Cross-Game Spoiler." },
         { "Toggle Combo Tracker", "gCombo.Windows.Tracker", "Combo Tracker", "Combo Tracker",
@@ -311,7 +309,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
           "MM Check Tracker Settings", "Enables the separate MM Check Tracker Settings Window. Majora's Mask only." },
     };
     if (!combo.sidebars.contains("Windows")) {
-        printf("[TEST] FAIL(3): the Combo section has no \"Windows\" page, so none of its seven window rows can be "
+        printf("[TEST] FAIL(3): the Combo section has no \"Windows\" page, so none of its six window rows can be "
                "checked\n");
         gFailures++;
     } else {
@@ -361,8 +359,26 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         "tooltips are one line",
                         expected.rowName, tip != nullptr ? std::string(tip).size() : (std::size_t)0);
         }
+        // Exactly the live-play tools (ADR 0004's 2026-09-27 host amendment):
+        // MM's randomizer options are pages now, and a button opening a second
+        // surface over the same keys would be a way for the two to disagree.
+        // Every window button on the page must be one of the rows above.
+        COMBO_CHECK(FindRow(windows, "Toggle MM Randomizer Options") == nullptr,
+                    "the Windows page still offers \"Toggle MM Randomizer Options\"; MM's randomizer options are "
+                    "the Combo > MM Randomizer and Combo > MM Tricks pages, not a window");
+        int windowButtons = 0;
+        for (auto& column : windows.columnWidgets) {
+            for (WidgetInfo& row : column) {
+                if (row.type == WIDGET_WINDOW_BUTTON) {
+                    windowButtons++;
+                }
+            }
+        }
+        COMBO_CHECK(windowButtons == (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])),
+                    "the Windows page holds %d window buttons, expected exactly the %d live-play tools above",
+                    windowButtons, (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])));
         printf("[TEST] leg 3: all %d cross-game window rows carry a matching CVar/WindowName pair, stay pop-out, and "
-               "sit under their own separator with SoH's tooltip\n",
+               "sit under their own separator with SoH's tooltip, and the page holds no other window button\n",
                (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])));
     }
 

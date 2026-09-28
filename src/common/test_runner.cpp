@@ -97,6 +97,12 @@ int MM_AbandonedSessionStatics_RunHeadless(void);
 // the statics only Destroy used to restore, and drop every per-actor
 // ObjectExtension entry, on a second abandonment as on the first.
 int OoT_AbandonedSessionStatics_RunHeadless(void);
+// mm-creation-new-file / -world (#765, games/mm/2s2h/mm_creation_new_file_test.cpp):
+// the paired creation event arms an MM half carrying what MM's own new-file path
+// stamps (marker, checksum, fileNum 0xFF, flashSaveAvailable), which the tracker,
+// the slot panel and the moon-crash reset then read as a started file.
+int MM_CreationNewFile_RunSynthetic(void);
+int MM_CreationNewFile_RunWorld(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -221,6 +227,12 @@ int OoT_MenuComboSection_RunHeadless(void);
 // exercises. Needs the same display-free shared bring-up as the two rows above.
 // Returns 0 on pass, non-zero on fail.
 int OoT_MenuMmEnhancementRows_RunHeadless(void);
+// MM's randomizer options and tricks as Combo pages
+// (games/oot/soh/soh_menu_mm_randomizer_pages_test.cpp; ADR 0004's 2026-09-27
+// host amendment): the registered rows equal MM's descriptor table, sit in the
+// page model's columns, carry its states and write only through the gated
+// writers. Same display-free shared bring-up as the row above. Returns 0 on pass.
+int OoT_MenuMmRandomizerPages_RunHeadless(void);
 // MM single-exe hook dispatch (games/mm/2s2h/mm_hook_dispatch_test.cpp, #511 /
 // #438): the COND_* macros park registrations in the MM-owned S2H::GameHooks
 // registry, but ShouldActorInit / OnActorInit / OnActorDraw / OnOpenText
@@ -290,10 +302,11 @@ int MM_TrackersGui_RunHeadless(void);
 // spoiler window's ctor reads ConsoleVariables off the Ship::Context
 // singleton, so its body needs the display-free shared bring-up below.
 int Combo_SpoilerWindow_RunHeadless(void);
-// src/common/tests/test_combo_mm_options_window.c — the MM options pane's
-// window lock; same bridge shape and the same reason (GuiWindow ctor reads
+// src/common/tests/test_combo_mm_options_page.c — the MM options pages' view
+// model (the pane it replaced was a window; the bridge shape stayed, because
+// the model's init brings up the tier-4 settings window, whose ctor reads
 // ConsoleVariables off the Ship::Context singleton).
-int Combo_MMOptionsWindow_RunHeadless(void);
+int Combo_MMOptionsPage_RunHeadless(void);
 // src/common/tests/test_combo_tracker_view.c — the combo tracker's per-game
 // adapters (#458). Needs the shared bring-up because the OoT authoring seam
 // constructs a real Rando::Context. test_combo_tracker_window.c is the
@@ -466,11 +479,12 @@ extern "C" {
 // the C++-linkage ComboGui::RegisterComboSpoilerWindow.
 #include "tests/test_combo_spoiler_window.c"
 
-// The MM randomizer options pane's window (#497 step 4, ADR 0004 + 0008): same
-// registration/idempotence/de-collision shape, plus a tripwire that a pane which
-// deliberately READS the active game still never reads that game's save. FILE
-// SCOPE — it drives the C++-linkage ComboGui::RegisterComboMmOptionsWindow.
-#include "tests/test_combo_mm_options_window.c"
+// The MM randomizer options pages' view model (ADR 0004's 2026-09-27 host
+// amendment; the pop-out window it replaced was #497 step 4's): the columns, the
+// row states and reasons, the notes, the freeze gate on the writers, and the
+// combo_ui seam the trick rows still draw through. FILE SCOPE, compiled as C++,
+// like the window lock it replaces.
+#include "tests/test_combo_mm_options_page.c"
 
 // The combo settings pane's window (ADR 0011 increment 2, ADR 0004 §6 + 0008):
 // same registration/idempotence/de-collision shape as the two above, plus the
@@ -768,6 +782,89 @@ static TestResult Test_MMAbandonedSessionStatics(void) {
 // display, no ROM; a scope guard restores everything it seeds on every exit.
 static TestResult Test_OoTAbandonedSessionStatics(void) {
     return OoT_AbandonedSessionStatics_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The creation-authored MM half as MM's own new-file path would author it (#765;
+// see the extern decls above). Thin wrappers over the C entry points in
+// games/mm/2s2h/mm_creation_new_file_test.cpp. The world row's wrapper sits beside
+// Test_ComboCrossingViewsWorld: it needs the same generation bring-up.
+//
+// The production registration is checked from source (#765 review). Both rows
+// call MM_SlotMeta_Register() themselves, and rsbs/src/main.cpp dispatches
+// `--test` (TestRunner_Run, then _Exit) before its game init, so no runtime row
+// can see main.cpp's own call: deleting it left both rows green while every
+// slot's MM half went back to "not started". The scan holds the shape instead:
+// main.cpp calls MM_SlotMeta_Register() (and Combo_TrackerWindow_Init(), which
+// registers the tracker adapter the tracker gate reads through) as live
+// statements, once each, after the `--test` exit and before the game loop.
+#include <fstream>
+#include <iterator>
+#include <string>
+static bool MMCreationNewFile_EntryPointRegisters(void) {
+#ifdef RSBS_SOURCE_DIR
+    std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/rsbs/src/main.cpp", std::ios::binary);
+    if (!in.good()) {
+        printf("[TEST] FAIL: mm-creation-new-file: cannot read rsbs/src/main.cpp under RSBS_SOURCE_DIR\n");
+        return false;
+    }
+    std::string text;
+    for (std::istreambuf_iterator<char> it(in), end; it != end; ++it) {
+        if (*it != '\r') {
+            text.push_back(*it);
+        }
+    }
+    const size_t testExit = text.find("_Exit(testResult);");
+    const size_t gameLoop = text.find("while (keepRunning)");
+    if (testExit == std::string::npos || gameLoop == std::string::npos || gameLoop < testExit) {
+        printf("[TEST] FAIL: mm-creation-new-file: main.cpp's `--test` exit or game loop moved; the scan's "
+               "anchors (_Exit(testResult); / while (keepRunning)) need updating\n");
+        return false;
+    }
+    // A live statement: its own line, only indentation before it (so neither a
+    // comment nor the forward declaration `void MM_SlotMeta_Register(void);`).
+    auto statementAt = [&text](const std::string& stmt, size_t* count) {
+        size_t found = std::string::npos;
+        *count = 0;
+        for (size_t at = text.find(stmt); at != std::string::npos; at = text.find(stmt, at + 1)) {
+            size_t lineStart = text.rfind('\n', at);
+            lineStart = lineStart == std::string::npos ? 0 : lineStart + 1;
+            const bool indentOnly = text.find_first_not_of(" \t", lineStart) == at;
+            const bool endsLine = text.find('\n', at) == at + stmt.size();
+            if (indentOnly && endsLine) {
+                found = at;
+                ++*count;
+            }
+        }
+        return found;
+    };
+    bool ok = true;
+    for (const char* stmt : { "MM_SlotMeta_Register();", "Combo_TrackerWindow_Init();" }) {
+        size_t count = 0;
+        const size_t at = statementAt(stmt, &count);
+        const bool placed = count == 1 && at > testExit && at < gameLoop;
+        printf("[TEST] mm-creation-new-file: main.cpp `%s` live statements=%zu, after the --test exit and "
+               "before the game loop=%d\n",
+               stmt, count, placed ? 1 : 0);
+        if (!placed) {
+            printf("[TEST] FAIL: mm-creation-new-file: main.cpp does not call %s exactly once on the non-test "
+                   "path; the .redsave slot panel / Combo Tracker lose MM in production while every runtime row "
+                   "stays green (#765 review)\n",
+                   stmt);
+            ok = false;
+        }
+    }
+    return ok;
+#else
+    printf("[TEST] FAIL: mm-creation-new-file: RSBS_SOURCE_DIR undefined; main.cpp's registration cannot be "
+           "checked\n");
+    return false;
+#endif
+}
+
+static TestResult Test_MMCreationNewFile(void) {
+    const bool synthetic = MM_CreationNewFile_RunSynthetic() == 0;
+    const bool entryPoint = MMCreationNewFile_EntryPointRegisters();
+    return entryPoint && synthetic ? TEST_PASS : TEST_FAIL;
 }
 
 // MM extended-culling binding (see the extern decl above). Thin wrapper over
@@ -3220,6 +3317,24 @@ static TestResult Test_MenuMmEnhancementRows(void) {
     return OoT_MenuMmEnhancementRows_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// MM's randomizer options and tricks as Combo pages. Same display-free shared
+// bring-up as the row above, for the same reason: AddMenuCombo registers rows
+// whose PreFuncs read the Ship::Context singleton's ConsoleVariables, and this
+// row runs each row's PreFunc and Callback itself.
+static TestResult Test_MenuMmRandomizerPages(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return OoT_MenuMmRandomizerPages_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM tracker registration surface (#392). The bridge (see the extern decl at
 // the top) constructs a standalone Ship::Gui, so it needs the same
 // display-free shared bring-up as boot-oot: GuiWindow ctors read
@@ -3394,9 +3509,9 @@ TestResult Test_ComboSpoilerWindow(void) {
     return Combo_SpoilerWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// MM randomizer options pane (#497 step 4, ADR 0004 + 0008). Same bring-up as
-// the two Gui bridges above and for the same reason.
-TestResult Test_ComboMMOptionsWindow(void) {
+// MM randomizer options pages' view model (ADR 0004's 2026-09-27 host
+// amendment). Same bring-up as the two Gui bridges above and for the same reason.
+TestResult Test_ComboMMOptionsPage(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
         printf("[TEST] FAIL: could not create Ship::Context singleton\n");
@@ -3407,7 +3522,7 @@ TestResult Test_ComboMMOptionsWindow(void) {
         return TEST_FAIL;
     }
 
-    return Combo_MMOptionsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+    return Combo_MMOptionsPage_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // Combo tracker adapters (#458). No Gui, but the OoT-side authoring seam
@@ -3789,6 +3904,21 @@ TestResult Test_ComboCrossingViewsWorld(void) {
     return ComboCrossingViews_RunWorld();
 }
 
+// #765's world row (games/mm/2s2h/mm_creation_new_file_test.cpp): the production
+// creation event over the ComboSingleBag pinned seed, so the same bring-up as the
+// crossing-views world row above.
+TestResult Test_MMCreationNewFileWorld(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char cnfArg0[] = "redship";
+    static char* cnfArgv[] = { cnfArg0, nullptr };
+    InitOTRForMMFirstBoot(1, cnfArgv);
+    return MM_CreationNewFile_RunWorld() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ADR 0010 answer O6's grow-check over both real engines (#645, #500). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason.
 TestResult Test_ComboLogicMonotonicity(void) {
@@ -4153,9 +4283,9 @@ const TestDescriptor gTests[] = {
     {"mm-combo-settings-gate",
      "A divergent combo record refuses at arrival BY NAME; a legacy pair freezes the shipped defaults (#498)",
      Test_MMComboSettingsGate},
-    {"combo-mm-options-window",
-     "Common-owned MM options pane registers de-collided; inert under every active game (#497)",
-     Test_ComboMMOptionsWindow},
+    {"combo-mm-options-page",
+     "The MM options pages' model: columns, row states and reasons, notes, and the freeze gate (#497)",
+     Test_ComboMMOptionsPage},
     // Netplay 1a (ADR 0005, #460): the sourced-grant model, transport-free.
     {"grant-idempotency", "Retransmit delivers once; a second gift of the same item delivers twice (ADR 0005)",
      Test_GrantIdempotency},
@@ -4479,6 +4609,10 @@ const TestDescriptor gTests[] = {
      "Every curated MM enhancement key reaches a live provider, and the key the menu writes is the one MM re-arms on "
      "(#682)",
      Test_MMEnhancementToggles},
+    {"menu-mm-randomizer-pages",
+     "MM's randomizer options and tricks are Combo pages whose rows equal the descriptor table and keep its gates "
+     "(#497)",
+     Test_MenuMmRandomizerPages},
     {"rando-entrance-pin", "A generated seed with interior shuffle ON keeps the mask-shop door vanilla (#661)",
      Test_RandoEntrancePin},
     // #578 part 2: the trick BINDINGS. Appended at the end of the block rather
@@ -4712,6 +4846,15 @@ const TestDescriptor gTests[] = {
      "are not reset, the statics only Destroy restored are restored, and no per-actor ObjectExtension entry survives "
      "(#750)",
      Test_OoTAbandonedSessionStatics},
+    {"mm-creation-new-file",
+     "A creation-authored MM half carries what MM's own new-file path stamps (the 'ZELDA3' marker, the checksum, "
+     "fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker alone, the slot panel reads it "
+     "started, and the moon-crash reset keeps the consumed half (#765)",
+     Test_MMCreationNewFile},
+    {"mm-creation-new-file-world",
+     "The production paired creation over the ComboSingleBag pinned seed arms an MM half MM's own new-file path "
+     "would recognize: marker, fileNum 0xFF, tracker present, slot started, moon-crash reset keeps it (#765)",
+     Test_MMCreationNewFileWorld},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -4806,6 +4949,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
+                strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never
                 // run inside a suite whose result is a pass/fail count.

@@ -260,6 +260,13 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     // sizeof(gSaveContext) - 1, is the last byte of shipSaveContext instead --
     // seeded, not restored verbatim, once that hook is live.
     ((uint8_t*)&gSaveContext)[sizeof(Save) - 1] = 0x77;
+    // The session fields a paired half created before #765 carries: the
+    // creation event's memset left fileNum 0 (a real flash slot) and
+    // flashSaveAvailable false in the shadow, and the consume copies the whole
+    // SaveContext. The arrival must pin them to the cross-game session's values
+    // (#765 review), not restore them.
+    gSaveContext.fileNum = 0;
+    gSaveContext.flashSaveAvailable = false;
     Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
 
     // The boot chain's wipe (Setup_InitImpl -> MM_SaveContext_Init).
@@ -287,6 +294,16 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     RESUME_ASSERT(((uint8_t*)&gSaveContext)[sizeof(Save) - 1] == 0x77,
                   "frozen save tail byte (last byte of `save`, ahead of the arrival-spawn resets and the "
                   "2S2H-added, non-persisted shipSaveContext tail) not restored after wipe (#617)");
+    // ...but the session has no flash slot, whatever the shadow's author left
+    // (#765 review): a restored fileNum 0 admits the moon-crash reset, the owl
+    // save's readback and the Song of Time save, each of which copies
+    // single-exe's stubbed (empty) flash over the live save.
+    printf("[TEST] mm-startup-restore: after the arrival fileNum=0x%X flashSaveAvailable=%d\n",
+           (unsigned)gSaveContext.fileNum, (int)gSaveContext.flashSaveAvailable);
+    RESUME_ASSERT(gSaveContext.fileNum == 0xFF,
+                  "arrival restored the shadow's fileNum instead of pinning the cross-game 0xFF (#765 review)");
+    RESUME_ASSERT(gSaveContext.flashSaveAvailable == true,
+                  "arrival restored the shadow's flashSaveAvailable instead of pinning true (#765 review)");
     // ...and shipSaveContext.lastTimeLog -- deliberately NOT covered by the
     // poison byte above, since RegisterSavingEnhancements' OnSaveLoad hook
     // genuinely re-seeds it on every restore, the same way sSoundMode below is

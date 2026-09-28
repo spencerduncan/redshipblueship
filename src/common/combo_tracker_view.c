@@ -48,6 +48,7 @@ void Combo_Tracker_RegisterMM(const ComboMMTrackerDesc* desc) {
         desc->skippedOffset >= desc->checkStride || desc->newfLen > sizeof(desc->newf) ||
         (uint64_t)desc->newfOffset + desc->newfLen > (uint64_t)MM_SAVE_CONTEXT_SIZE ||
         (uint64_t)desc->saveTypeOffset + 4 > (uint64_t)MM_SAVE_CONTEXT_SIZE ||
+        (uint64_t)desc->createdAtOffset + 8 > (uint64_t)MM_SAVE_CONTEXT_SIZE ||
         (uint64_t)desc->finalSeedOffset + 4 > (uint64_t)MM_SAVE_CONTEXT_SIZE) {
         fprintf(stderr, "[ComboTracker] REJECTED MM tracker descriptor: geometry reads outside the shadow blob\n");
         return;
@@ -89,9 +90,11 @@ const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness) {
             // The stale wording is per game because the mechanism differs: the
             // MM panel reads a shadow written at freeze/save time; the OoT
             // panel reads a heap that simply stopped advancing at suspend.
-            // MM's half of a paired file that MM has never run: the creation
+            // MM's half of a paired file that MM has never loaded: the creation
             // event armed it and nothing has written it since, so "the last game
-            // switch or save" would name an event that never happened.
+            // switch or save" would name an event that never happened. Keyed on
+            // the save's creation stamp, which MM writes on its first load
+            // (#765; see MMShadowNeverEntered).
             if (game == (uint8_t)GAME_MM && MMShadowNeverEntered()) {
                 return "As of file creation";
             }
@@ -121,13 +124,13 @@ static uint32_t MMBlobReadU32(const uint8_t* blob, uint32_t offset) {
  * compare and reads as UNAVAILABLE rather than as a vanilla save with zero
  * progress.
  *
- * A RANDOMIZED save type is the second proof of a resident MM world (#755). The
- * paired creation event arms MM's half of a new world in this shadow without
- * MM's file-select marker: observed on the ComboSingleBag pinned seed after
- * OoT_Creation_AuthorRandoFile, newf is six zero bytes and saveType is
- * SAVETYPE_RANDO. Gated on the marker alone, a fresh paired world read "no data"
- * for MM and none of its MM-hosted crossings could say whether it was found.
- * SAVETYPE_RANDO is nonzero, so an all-zero shadow still reads as absent.
+ * The marker alone, again (#765). #755 widened this gate to also accept a
+ * randomized save type, because the paired creation event armed MM's half
+ * without the marker. The creation event now stamps it the way MM's own
+ * file-select new-file path does (MM_Creation_StampNewFileFields), so every MM
+ * half that exists carries it and the second proof has nothing left to prove.
+ * A .redsave whose MM half was created before that stamp still reads as no
+ * data here (pre-release saves; stated in the PR that removed the widening).
  */
 static const uint8_t* MMBlobIfPresent(void) {
     if (!sMMRegistered) {
@@ -138,22 +141,30 @@ static const uint8_t* MMBlobIfPresent(void) {
         return NULL;
     }
     if (sMMDesc.newfLen > 0 && memcmp(blob + sMMDesc.newfOffset, sMMDesc.newf, sMMDesc.newfLen) != 0) {
-        if (sMMDesc.saveTypeRando == 0 || MMBlobReadU32(blob, sMMDesc.saveTypeOffset) != sMMDesc.saveTypeRando) {
-            return NULL;
-        }
+        return NULL;
     }
     return blob;
 }
 
+static uint64_t MMBlobReadU64(const uint8_t* blob, uint32_t offset) {
+    uint64_t v;
+    memcpy(&v, blob + offset, sizeof(v));
+    return v;
+}
+
 /**
- * A resident MM world that MM itself has never written: present only by the
- * randomized save type, without MM's file-select marker. That is exactly the
- * creation event's armed half (see MMBlobIfPresent); MM's own file load and
- * every departure freeze carry the marker.
+ * A resident MM save that MM itself has never loaded: its creation stamp
+ * (ShipSaveInfo.fileCreatedAt) is still zero. MM writes that stamp from
+ * OnSaveLoad, which MM's file select dispatches as it creates or loads a file
+ * and a paired half first sees at its first arrival (z_play.c), so a zero
+ * stamp is exactly the half the creation event armed and nothing has loaded
+ * since. (#755 keyed this on the missing marker, which MM's arrival and
+ * departure never restore, so after a first visit the label still said "As of
+ * file creation".)
  */
 static bool MMShadowNeverEntered(void) {
     const uint8_t* blob = MMBlobIfPresent();
-    return blob != NULL && sMMDesc.newfLen > 0 && memcmp(blob + sMMDesc.newfOffset, sMMDesc.newf, sMMDesc.newfLen) != 0;
+    return blob != NULL && MMBlobReadU64(blob, sMMDesc.createdAtOffset) == 0;
 }
 
 static void MMSummary(ComboTrackerGameSummary* out) {

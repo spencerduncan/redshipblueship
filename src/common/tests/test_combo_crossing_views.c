@@ -49,8 +49,9 @@
  *        OoT world is then re-authored as the stand-in for OoT's own .sav load
  *        (this ROM-free row cannot drive SoH's SaveManager), and the rows read
  *        what they read before the save.
- *   The MM stale label on a shadow MM never wrote (the creation event's armed
- *   half) is "As of file creation", not "the last game switch or save".
+ *   The MM stale label on a shadow MM has never loaded (the creation event's
+ *   armed half: MM's marker, no creation stamp yet, #765) is "As of file
+ *   creation", not "the last game switch or save".
  *
  *   combo-crossing-views-world (rando tier). A REAL single-bag world, the
  *   ComboSingleBag pinned seed (RSBSSINGLEBAG1), made by the production creation
@@ -225,6 +226,9 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     memcpy(blob.data() + desc->newfOffset, desc->newf, desc->newfLen);
     memcpy(blob.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
     memcpy(blob.data() + desc->finalSeedOffset, &kSeed, sizeof(uint32_t));
+    // A save MM has loaded: its OnSaveLoad stamped the creation time (#765).
+    const uint64_t kCreatedAt = 1760000000ull;
+    memcpy(blob.data() + desc->createdAtOffset, &kCreatedAt, sizeof(kCreatedAt));
     CxvSetMMObtained(blob, desc, mmA, true);
     CxvSetMMObtained(blob, desc, mmB, false);
     CxvSetMMObtained(blob, desc, mmC, false);
@@ -302,18 +306,18 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     ComboSpoilerSummary summary;
     Combo_SpoilerPairingSummary(&summary);
     CXV_ASSERT(summary.paired && summary.mmHosted == 3 && summary.ootHosted == 2);
-    // The creation event's shape: MM's half armed with a rando save type but
-    // without MM's file-select marker (observed after OoT_Creation_AuthorRandoFile;
-    // the world row runs the real one). MM's found state is still read.
+    // The creation event's shape: MM's half armed with MM's file-select marker
+    // but never loaded by MM, so no creation stamp yet (#765; the world row runs
+    // the real creation). MM's found state is read.
     {
-        std::vector<uint8_t> unmarked = blob;
-        memset(unmarked.data() + desc->newfOffset, 0, desc->newfLen);
-        Context_UpdateShadowCopy(GAME_MM, unmarked.data(), unmarked.size());
-        const std::vector<CxvRow> unmarkedRows = CxvPaneRows((uint8_t)GAME_MM, &ok);
-        CXV_ASSERT(ok && unmarkedRows == inMM);
+        std::vector<uint8_t> unloaded = blob;
+        memset(unloaded.data() + desc->createdAtOffset, 0, sizeof(uint64_t));
+        Context_UpdateShadowCopy(GAME_MM, unloaded.data(), unloaded.size());
+        const std::vector<CxvRow> unloadedRows = CxvPaneRows((uint8_t)GAME_MM, &ok);
+        CXV_ASSERT(ok && unloadedRows == inMM);
         Combo_TrackerForeignProgress((uint8_t)GAME_MM, &mmProgress);
         CXV_ASSERT(mmProgress.found == 1 && mmProgress.freshness == COMBO_TRACKER_FRESH_STALE);
-        // MM has never written this half: its data is as of file creation, and
+        // MM has never loaded this half: its data is as of file creation, and
         // the note must not name a switch or save that never happened.
         CXV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE),
                           "As of file creation") == 0);
@@ -492,8 +496,8 @@ TestResult ComboCrossingViews_RunWorld(void) {
                            pane[i].hostName == r["hostCheckName"].get<std::string>());
             }
             // A fresh world: its own game's save has collected none of the hosts.
-            // For MM that save is the shadow the creation event armed, without
-            // MM's file-select marker (see MMBlobIfPresent): NO, not UNKNOWN.
+            // For MM that save is the shadow the creation event armed, with
+            // MM's file-select marker since #765: NO, not UNKNOWN.
             CXV_ASSERT(pane[i].found == COMBO_TRACKER_FOUND_NO);
             if (i < 3) {
                 printf("[TEST] combo-crossing-views-world:   %s -> %s%s\n", pane[i].hostName.c_str(),
