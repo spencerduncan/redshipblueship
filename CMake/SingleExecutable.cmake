@@ -2139,6 +2139,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # ROM-free (default tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME MMMoonCrashNeverSaved COMMAND redship --test mm-moon-crash-never-saved)
 
+    # #785 review: the last commit's pool and its MM half need not agree (an
+    # OoT-side commit writes MM's half from its departure shadow while the pool
+    # holds OoT's later balances). After the crash MM's consumables must equal
+    # the restored pool, or a spend in OoT is refunded in MM. ROM-free (default
+    # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashPoolApplied COMMAND redship --test mm-moon-crash-pool-applied)
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion

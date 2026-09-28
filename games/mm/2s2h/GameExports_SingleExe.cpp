@@ -2062,6 +2062,7 @@ void MM_Game_Run(void) {
 // apply half; forward-declared so Game_Suspend and the unified-save capture can
 // harvest before they hand MM's state over.
 extern "C" void MM_HarvestSharedResources(void);
+extern "C" void MM_ApplySharedResources(void);
 
 /**
  * Suspend MM for a game switch (issue #270).
@@ -2378,11 +2379,18 @@ constexpr u32 kMoonCrashGrace = 0x1E0u;
  *   - A pending rupeeAccumulator belongs to the discarded span: dropped, so the
  *     restored balance IS the committed one.
  *   - OoTMM's grace period (above).
- *   - The shared-resource watermarks are re-seeded from the restored half: the
- *     restore dropped them, and a harvest with no watermark seeds at the live
- *     value with delta zero, so the pool the commit carried does not move and
- *     every later change in MM is an ordinary delta (the pool is neither
- *     re-counted nor drained).
+ *   - The restored pool is APPLIED to the restored half, exactly as an arrival
+ *     applies it (MM_ApplySharedResources: capacities raised, consumables
+ *     ASSIGNED and clamped, their watermarks set to what was materialized),
+ *     then a harvest seeds any kind the pool never held. The commit's pool
+ *     and its MM half need not agree: an OoT-side commit writes MM's half
+ *     from the shadow frozen at MM's last departure while the pool holds
+ *     OoT's later balances, so a half left at its own values would refund
+ *     every rupee, heart, magic unit and ammo count OoT spent since
+ *     (mm-moon-crash-pool-applied). A harvest ALONE is not enough: with the
+ *     watermarks dropped it seeds at the half's value with delta zero and
+ *     never reconciles the two. After the apply the pool the commit carried
+ *     does not move and every later change in MM is an ordinary delta.
  *
  * The world's identity, frozen rules and crossing set are not touched: the
  * restore refuses a commit that disagrees with any of them.
@@ -2438,6 +2446,10 @@ extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
                 (int)gSaveContext.save.day);
     }
 
+    // The pool first (assign the consumables, raise the capacities, set the
+    // watermarks), then the harvest's first-seed rule for any kind the pool
+    // never held. Same order the arrival and the next suspend give it.
+    MM_ApplySharedResources();
     MM_HarvestSharedResources();
 
     fprintf(stderr, "[MM] moon crash: restored the last commit from slot %d (day %d, time 0x%04X)%s\n", slot,

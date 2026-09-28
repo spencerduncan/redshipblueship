@@ -112,6 +112,9 @@ int MM_CreationPlayerName_Run(void);
 // saved restores as created after a moon crash; no commit at all restarts the
 // clock at dawn.
 int MM_MoonCrashNeverSaved_Run(void);
+// mm-moon-crash-pool-applied (#785 review, same file): after a moon crash
+// restores a commit taken on OoT's side, MM's consumables equal the pool.
+int MM_MoonCrashPoolApplied_Run(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -877,6 +880,10 @@ static bool MMCreationNewFile_EntryPointRegisters(void) {
 
 static TestResult Test_MMMoonCrashNeverSaved(void) {
     return MM_MoonCrashNeverSaved_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMMoonCrashPoolApplied(void) {
+    return MM_MoonCrashPoolApplied_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 static TestResult Test_MMCreationNewFile(void) {
@@ -5282,6 +5289,10 @@ const TestDescriptor gTests[] = {
      "the creation's, vanilla's new-file flash write): day 0, 05:59, not day 4; a session with no commit at all "
      "restarts the clock at dawn and keeps the half (#785)",
      Test_MMMoonCrashNeverSaved},
+    {"mm-moon-crash-pool-applied",
+     "A moon crash that restores a commit taken on OoT's side (the pool moved after MM's departure) leaves MM's "
+     "rupees, health and ammo EQUAL to the restored pool, and a later spend is an exact delta (#785)",
+     Test_MMMoonCrashPoolApplied},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
