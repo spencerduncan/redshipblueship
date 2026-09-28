@@ -373,6 +373,14 @@ void CloseScratchSlot() {
  */
 int CheckMoonCrashRestoresLastCommit(uint32_t expectSeed) {
     OpenScratchSlot();
+    // Production stamps Tier-1's inner magic in main.cpp (ComboContext_Init,
+    // before either game boots); a --test process exits before that line, and
+    // the world row's bring-up never re-inits gComboCtx (that would wipe the
+    // identity the creation event just stamped). Without the magic every commit
+    // this check writes reads back "Tier-1 is not a ComboContext".
+    if (memcmp(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic)) != 0) {
+        memcpy(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic));
+    }
     CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
                "the armed half is consumed into the live save, as the arrival does");
     gSaveContext.gameMode = GAMEMODE_NORMAL;
