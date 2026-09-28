@@ -75,6 +75,7 @@
 #include "foreign_items.h"
 #include "save.h"                  // the #533 REFUSED surface this gate reports through
 #include "notification_bridge.h"   // the player-visible half of that surface
+#include "pairing_refusal_toast.h" // that surface's one-line copy
 #include "combo_mm_options_view.h" // MM_Rando_ComputeProfileStamp — the profile leg's input
 #include "triforce_hunt.h"         // Combo_TriforceFreezeAtCreation — leg 4's frozen record
 
@@ -201,8 +202,11 @@ int AssertRefusedNaming(int baseCode, const char* leg, const char* term) {
         return Fail(baseCode + 3, "%s: the overlay still holds this leg's sentinel — no refusal toast was emitted",
                     leg);
     }
-    if (prefix.find("REFUSED") == std::string::npos) {
-        return Fail(baseCode + 3, "%s: the toast's prefix ('%s') does not read as a refusal", leg, prefix.c_str());
+    // The refusal's one-line copy (src/common/pairing_refusal_toast.h): the
+    // outcome in the prefix, the diverged fields in the message.
+    if (prefix != Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_RULES)) {
+        return Fail(baseCode + 3, "%s: the toast's prefix ('%s') is not the refusal's ('%s')", leg, prefix.c_str(),
+                    Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_RULES));
     }
     if (message.find(term) == std::string::npos) {
         return Fail(baseCode + 4,

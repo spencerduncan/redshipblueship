@@ -141,3 +141,4 @@ games/oot/soh/oot_settings_fold_test.cpp
 games/mm/2s2h/mm_creation_new_file_test.cpp
 games/oot/soh/SohGui/SohMenuComboMmRandomizer.cpp
 games/oot/soh/soh_menu_mm_randomizer_pages_test.cpp
+games/oot/soh/soh_notification_fit_test.cpp

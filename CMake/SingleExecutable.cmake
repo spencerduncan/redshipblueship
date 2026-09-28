@@ -137,6 +137,10 @@ set(REDSHIP_COMMON_SOURCES
     # the defeat record, the goal predicate and the decision both ports' ending
     # sites call. Game-header-free. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_goal.c
+    # The cross-game refusal toasts' one-line copy (#749's toast shape): the MM
+    # emitter, the ui tier's toast pages and the width lock read the same
+    # strings. Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/pairing_refusal_toast.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -221,6 +225,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_goal.h
     # Header for mm_mod_set.cpp above (#706)
     ${CMAKE_SOURCE_DIR}/src/common/mm_mod_set.h
+    # Header for pairing_refusal_toast.c above
+    ${CMAKE_SOURCE_DIR}/src/common/pairing_refusal_toast.h
 )
 
 # ============================================================================
@@ -2098,6 +2104,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # The cross-game refusal toasts fit the screen (#749's toast shape): every
+    # "Not saved:" refusal, through its production emitter, and OoT's
+    # paired-spoiler refusal, drawn by SoH's own Notification::Window in a private
+    # display-free ImGui context whose default font is SoH's (Montserrat 20, the
+    # file soh.o2r packs), at Notifications.Size 1.8 and 1.0, in the ui tier's
+    # smallest window (832 px). The RULES refusal is drawn for every one of the
+    # 8,191 divergence-field combinations. games/oot/soh/soh_notification_fit_test.cpp.
+    redship_add_test(NAME PairingRefusalToastFit COMMAND redship --test pairing-refusal-toast-fit
+        ENVIRONMENT "RSBS_NOTIFICATION_FONT=${CMAKE_SOURCE_DIR}/games/oot/assets/custom/fonts/Montserrat-Regular.ttf")
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

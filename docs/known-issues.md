@@ -223,7 +223,7 @@ title screen, so both pages are editable exactly between sessions. Loading a pai
 compares its Cross-Game Rules field by field against the live ones, but it does **not**
 recompute the MM profile: an edited MM option, trick, excluded
 check or starting item is accepted at load. The next crossing into Majora's Mask recomputes
-the profile, sees the difference and refuses: a 15-second "Cross-game pairing REFUSED"
+the profile, sees the difference and refuses: a "Not saved: Majora's Mask options changed."
 toast, an un-randomized Termina, and the slot latched against writes for the session
 (PR [#570](https://github.com/spencerduncan/redshipblueship/pull/570)). The file on disk is untouched.
 

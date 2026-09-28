@@ -4380,6 +4380,25 @@ TestResult Test_ComboGameOverRevive(void) {
     return OoT_GameOverRevive_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The cross-game refusal toasts fit the screen (games/oot/soh/soh_notification_fit_test.cpp).
+// Display-free: SoH's notification overlay draws into a private ImGui context. The
+// shared bring-up for the CVar store the overlay and Notification::Emit read.
+extern "C" int OoT_NotificationFit_RunHeadless(void);
+TestResult Test_PairingRefusalToastFit(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton
+");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure
+");
+        return TEST_FAIL;
+    }
+    return OoT_NotificationFit_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ============================================================================
 // Test registry
 // ============================================================================
@@ -5140,6 +5159,10 @@ const TestDescriptor gTests[] = {
      "naming the variable and the CTest rows that do; set, it resolves the exact path; every digest dispatch "
      "resolves through the one resolver (#710)",
      Test_DigestOutHandRun},
+    {"pairing-refusal-toast-fit",
+     "Every cross-game refusal toast fits an 832-px window at Notifications.Size 1.8 and 1.0, drawn by SoH's own "
+     "notification overlay in its default font (#749's toast shape)",
+     Test_PairingRefusalToastFit},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

@@ -16,7 +16,7 @@
 // (#610) — a divergent spoiler and a divergent arrival are the same class of
 // corruption and must not be surfaced two different ways.
 #include "save.h"
-#include "notification_bridge.h"
+#include "pairing_refusal_toast.h" // MM_Rando_EmitPairingRefusalToast — the refusal toast (#749 shape)
 #endif
 
 extern "C" {
@@ -209,26 +209,11 @@ static void RefuseForeignReconstruction(const std::string& term, const std::stri
     // surface, and a refusal nobody sees reads as "the cross-game items just
     // silently did nothing" — #564 V7's silent vanilla revert wearing a fix's
     // clothes.
-    const std::string message = "This spoiler's cross-game items were placed for a different world (divergent term: " +
-                                term + "). They will not appear here, and this session will not be saved to the pair.";
-    ComboNotification refusalToast;
-    memset(&refusalToast, 0, sizeof(refusalToast));
-    refusalToast.prefix = "Cross-game pairing REFUSED:";
-    refusalToast.prefixColor[0] = 0.9f;
-    refusalToast.prefixColor[1] = 0.35f;
-    refusalToast.prefixColor[2] = 0.3f;
-    refusalToast.prefixColor[3] = 1.0f;
-    refusalToast.message = message.c_str();
-    refusalToast.messageColor[0] = 1.0f;
-    refusalToast.messageColor[1] = 1.0f;
-    refusalToast.messageColor[2] = 1.0f;
-    refusalToast.messageColor[3] = 1.0f;
-    refusalToast.remainingTime = 15.0f;
-    // Muted for the same reason #570's refusal toast is: the overlay's ding is
-    // OoT's Audio_PlaySoundGeneral, and this runs on MM's file-create seam (and
-    // in the display-free locks) where OoT's audio session is not a given.
-    refusalToast.mute = 1;
-    OoT_Notification_Emit(&refusalToast);
+    // One short line in SoH's toast shape (src/common/pairing_refusal_toast.h):
+    // "Not saved:" and which identity term diverged, in words. The machine term
+    // and both values stay on the stderr line above. Muted, like every arrival
+    // refusal: this runs on MM's file-create seam and in the display-free locks.
+    MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_SPOILER, term.c_str());
 }
 
 int ReconstructForeignPlacements(const nlohmann::json& spoiler) {

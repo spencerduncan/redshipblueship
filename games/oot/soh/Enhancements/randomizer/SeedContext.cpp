@@ -23,6 +23,7 @@
 // deferred for the previous generation's single-bag fill no longer exists.
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
 #include "soh/Notification/Notification.h" // the refusal of a paired world's spoiler (PR #743 review)
+#include "pairing_refusal_toast.h" // that refusal's one-line copy
 #include <cstdio>
 #endif
 extern "C" {
@@ -456,9 +457,14 @@ void Context::ParseSpoiler(const char* spoilerFileName) {
                     "hold cover items and the items that crossed into Termina are missing), not a solo OoT world\n",
                     spoilerFileName);
             fflush(stderr);
+            // One short line in SoH's toast shape (src/common/pairing_refusal_toast.h);
+            // "Generate the seed again" stays on the SPDLOG line above.
+            char toastMessage[64];
+            Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_OOT_SPOILER, nullptr, toastMessage,
+                                             sizeof(toastMessage));
             Notification::Emit({
-                .prefix = "Spoiler not loaded: ",
-                .message = "it belongs to a paired Ocarina of Time + Majora's Mask world. Generate the seed again.",
+                .prefix = Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_OOT_SPOILER),
+                .message = toastMessage,
             });
             return;
         }

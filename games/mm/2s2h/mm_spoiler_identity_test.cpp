@@ -101,8 +101,9 @@
 #include "tests/test_named_items.h" // real OoT items by name (the pinned pool retired, ADR 0010 increment 3)
 #include "crossing_store.h"         // ADR 0010 O7: the store rows the "foreign" section must not list
 #include "shared_items.h"
-#include "save.h"                // the #533 REFUSED surface this gate reports through
-#include "notification_bridge.h" // the player-visible half of that surface
+#include "save.h"                  // the #533 REFUSED surface this gate reports through
+#include "notification_bridge.h"   // the player-visible half of that surface
+#include "pairing_refusal_toast.h" // that surface's one-line copy
 
 extern "C" {
 #include "variables.h"
@@ -199,12 +200,20 @@ int AssertRefused(int baseCode, const char* leg, const char* term) {
         return Fail(baseCode + 3, "%s: the overlay still holds this leg's sentinel — no refusal toast was emitted",
                     leg);
     }
-    if (prefix.find("REFUSED") == std::string::npos) {
-        return Fail(baseCode + 3, "%s: the toast's prefix ('%s') does not read as a refusal", leg, prefix.c_str());
+    // The refusal's one-line copy (src/common/pairing_refusal_toast.h) names the
+    // divergent term in words; the machine term stays on the stderr line.
+    if (prefix != Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_SPOILER)) {
+        return Fail(baseCode + 3, "%s: the toast's prefix ('%s') is not the refusal's ('%s')", leg, prefix.c_str(),
+                    Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_SPOILER));
     }
-    if (message.find(term) == std::string::npos) {
-        return Fail(baseCode + 4, "%s: the refusal does not name the divergent term '%s' (message: '%s')", leg, term,
-                    message.c_str());
+    char expected[128];
+    if (Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_SPOILER, term, expected, sizeof(expected)) != 1) {
+        return Fail(baseCode + 4, "%s: the refusal copy has no words for the divergent term '%s'", leg, term);
+    }
+    if (message != expected) {
+        return Fail(baseCode + 4,
+                    "%s: the refusal does not name the divergent term '%s' (message: '%s', expected '%s')", leg, term,
+                    message.c_str(), expected);
     }
     return 0;
 }
