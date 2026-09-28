@@ -380,6 +380,11 @@ int OoT_SceneFlagFreeze_RunHeadless(void);
 // needs the display bring-up, like the other rando-tier rows. Return 0 on pass.
 int OoTTest_EntrancePinPool(void);
 int RandoTest_EntrancePinGenerated(void);
+// #702: the per-area exclude-location groups reach OoT's settings fingerprint at
+// their shipped sizes, whichever archives are mounted. Body in
+// games/oot/soh/oot_settings_fold_test.cpp. Runs a real generation, so it needs
+// the display bring-up like the other rando-tier rows. Return 0 on pass.
+int RandoTest_SettingsFoldExcludes(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -1352,6 +1357,30 @@ TestResult Test_RandoEntrancePin(void) {
 
     int rc = RandoTest_EntrancePinGenerated();
     printf("[TEST] %s: entrance-pin generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #702 lock: the settings fingerprint folds every exclude-location group at its
+// shipped size. The bring-up is the harness's own (InitOTRForMMFirstBoot), so the
+// environment decides the init order exactly as it does for a player: with
+// oot.o2r in the working directory the SoH menu is set up and reaches
+// Settings::CreateOptions() first, which is the order that used to leave every
+// group empty. Assertions in games/oot/soh/oot_settings_fold_test.cpp.
+TestResult Test_RandoSettingsFoldExcludes(void) {
+    printf("[TEST] rando-settings-fold-excludes: exclude groups reach the settings fingerprint (#702)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = RandoTest_SettingsFoldExcludes();
+    printf("[TEST] %s: settings-fold excludes rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -4846,6 +4875,10 @@ const TestDescriptor gTests[] = {
      "are not reset, the statics only Destroy restored are restored, and no per-actor ObjectExtension entry survives "
      "(#750)",
      Test_OoTAbandonedSessionStatics},
+    {"rando-settings-fold-excludes",
+     "Every per-area exclude-location group reaches OoT's settings fingerprint at its shipped size, whichever "
+     "archives are mounted (#702)",
+     Test_RandoSettingsFoldExcludes},
     {"mm-creation-new-file",
      "A creation-authored MM half carries what MM's own new-file path stamps (the 'ZELDA3' marker, the checksum, "
      "fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker alone, the slot panel reads it "
@@ -4956,6 +4989,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-give-probe") == 0 ||
                 strcmp(gTests[i].name, "rando-entrance-pin") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-export") == 0 ||
+                strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

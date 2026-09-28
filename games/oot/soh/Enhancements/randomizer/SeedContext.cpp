@@ -283,6 +283,7 @@ void Context::AddExcludedOptions() {
             continue;
         }
         AddLocation(loc.GetRandomizerCheck(), &everyPossibleLocation);
+#ifndef RSBS_SINGLE_EXECUTABLE
         bool alreadyAdded = false;
         for (Option* location : Rando::Settings::GetInstance()->GetExcludeOptionsForArea(loc.GetArea())) {
             if (location->GetName() == loc.GetExcludedOption()->GetName()) {
@@ -292,7 +293,15 @@ void Context::AddExcludedOptions() {
         if (!alreadyAdded) {
             Rando::Settings::GetInstance()->GetExcludeOptionsForArea(loc.GetArea()).push_back(loc.GetExcludedOption());
         }
+#endif
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #702: the per-area exclude lists have one filler, shared with
+    // Settings::CreateOptions(), which needs them full before it builds the
+    // groups the settings fingerprint folds. Whichever of the two runs first
+    // fills them; the other finds every option already present.
+    Rando::Settings::GetInstance()->PopulateExcludeLocationsOptions();
+#endif
 }
 
 std::vector<RandomizerCheck> Context::GetLocations(const std::vector<RandomizerCheck>& locationPool,

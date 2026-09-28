@@ -35,23 +35,19 @@
 # Windows. A byte compare would report every field as moved on one of the two
 # platforms and teach everyone to distrust the row.
 #
-# THE ARCHIVE SET IS PART OF THE PIN (ARCHIVE_FREE_ONLY), and that is a
-# measurement, not a precaution. The OoT seed digest moves when the ROM-DERIVED
-# archives (oot.o2r / mm.o2r) are mounted beside the binary, for a reason that has
-# nothing to do with the platform: with them present, the 2,449 per-area
-# exclude-location options (option groups RSG_EXCLUDES_KOKIRI_FOREST ..
-# RSG_EXCLUDES_GANONS_CASTLE) contribute NOTHING to the settings string
-# Playthrough_Init hashes, and without them all 2,449 do. Every other option is
-# character-identical between the two runs — measured by dumping the per-option
-# text both ways, 3087 lines against 638, with the 638 shared lines byte-equal.
-# Since the fill is re-seeded with Hash(seed + settingsStr), that difference moves
-# the entire world.
-#
-# Hosted CI can never have ROM-derived archives, so the goldens pin the
-# ARCHIVE-FREE world; running the binary inside a ROM-staged build directory
-# generates a DIFFERENT, unpinned world. The mm-paired-attempt digest is NOT
-# archive-sensitive (measured: a ROM-staged Windows golden passed unchanged on
-# archive-free Linux CI), so its row carries no such guard.
+# THE ARCHIVE SET IS PART OF THE PIN (ARCHIVE_FREE_ONLY). Hosted CI can never have
+# ROM-derived archives, so the goldens pin the ARCHIVE-FREE world. Until #702 the
+# ROM-mounted world was a different one: with oot.o2r mounted the SoH menu reached
+# Settings::CreateOptions() before the per-area exclude-location lists were filled,
+# the 32 RSG_EXCLUDES_* groups copied empty lists, and the settings string
+# Playthrough_Init hashes folded 638 option lines instead of 3087 — a different
+# fill seed and a different world from the same binary. Since #702 both
+# environments fold the same set, so a ROM-staged COMPARE runs the dispatch in BOTH
+# (the sandbox below, and the build directory with the ROM archives mounted) and
+# requires both digests to equal the golden and each other; see "THE SECOND
+# ENVIRONMENT" further down. ARCHIVE_FREE_ONLY keeps its name from when the two
+# worlds differed; it now means "pinned archive-free, and proven equal ROM-mounted
+# wherever both environments exist".
 #
 # A ROM-STAGED RUN THEREFORE BUILDS AN ARCHIVE-FREE SANDBOX RATHER THAN SKIPPING
 # (the review follow-up to #688). Before it, these rows ALWAYS skipped in the
@@ -338,34 +334,39 @@ endfunction()
 set(_run_dir "${WORK_DIR}")
 set(_run_exe "${REDSHIP_EXE}")
 set(_run_env "work-dir")
+# Which ROM-derived archives WORK_DIR holds, measured whatever ARCHIVE_FREE_ONLY
+# says: the closing STATUS line of an OFF row has to say whether its single run was
+# ROM-mounted, and it used to claim "no ROM-derived archive is staged here" without
+# looking.
+set(_rom_archives "")
+foreach(_rom IN LISTS _rom_archive_names)
+    if(EXISTS "${WORK_DIR}/${_rom}")
+        list(APPEND _rom_archives "${_rom}")
+    endif()
+endforeach()
+string(REPLACE ";" ", " _rom_list "${_rom_archives}")
 if(ARCHIVE_FREE_ONLY)
-    set(_rom_archives "")
-    foreach(_rom IN LISTS _rom_archive_names)
-        if(EXISTS "${WORK_DIR}/${_rom}")
-            list(APPEND _rom_archives "${_rom}")
-        endif()
-    endforeach()
     if(_rom_archives)
-        string(REPLACE ";" ", " _rom_list "${_rom_archives}")
         if(REGEN AND ALLOW_ROM_ARCHIVE_REGEN)
             message(WARNING
-                "CheckGoldenDigest(${GOLDEN_NAME}): re-pinning an ARCHIVE-SENSITIVE golden with ${_rom_list} mounted "
+                "CheckGoldenDigest(${GOLDEN_NAME}): re-pinning an archive-free golden with ${_rom_list} mounted "
                 "in ${WORK_DIR}, because -DALLOW_ROM_ARCHIVE_REGEN=ON was passed.\n"
-                "  The resulting golden pins the ROM-MOUNTED world, which hosted CI cannot reproduce: the Linux leg "
-                "will go red on this PR and on every PR after it until the golden is re-pinned archive-free. Only do "
-                "this if that is genuinely what you meant.")
+                "  The resulting golden pins the ROM-MOUNTED world. Since #702 that should be the archive-free world "
+                "too; if it is not, hosted CI cannot reproduce it and both CI legs go red on this PR and on every PR "
+                "after it until the golden is re-pinned archive-free. Only do this if that is genuinely what you "
+                "meant.")
         elseif(REGEN)
             message(FATAL_ERROR
-                "CheckGoldenDigest(${GOLDEN_NAME}): RE-PIN REFUSED — this golden is ARCHIVE-SENSITIVE and the "
+                "CheckGoldenDigest(${GOLDEN_NAME}): RE-PIN REFUSED — this golden is pinned ARCHIVE-FREE and the "
                 "ROM-derived archive(s) ${_rom_list} are present in ${WORK_DIR}.\n"
                 "  Move these files out of that directory and re-run the target:\n"
                 "      ${WORK_DIR}/oot.o2r\n"
                 "      ${WORK_DIR}/mm.o2r\n"
-                "  Why this is refused rather than warned about: with oot.o2r mounted the per-area exclude-location "
-                "option groups drop out of the settings string Playthrough_Init hashes, the fill is re-seeded "
-                "differently, and the whole OoT world moves. A golden re-pinned here therefore pins a world hosted CI "
-                "can NEVER reproduce, and the first symptom would be a red Linux leg on this PR and on every PR after "
-                "it.\n"
+                "  Why this is refused rather than warned about: a re-pin records ONE run, and the only environment "
+                "hosted CI can reproduce is the archive-free one. Since #702 the ROM-mounted world should be the same "
+                "world, but that is what the COMPARE rows establish, not something a re-pin may assume: until #702 a "
+                "golden re-pinned here pinned a different world (the exclude-location option groups dropped out of "
+                "the settings string), and the first symptom was a red Linux leg on that PR and every PR after it.\n"
                 "  The COMPARE direction does NOT refuse: it runs the dispatch in an archive-free sandbox under "
                 "${WORK_DIR}/golden-archive-free/. REGEN deliberately does not use that sandbox — a sandbox that is "
                 "subtly wrong turns a COMPARE row red and a human reads the field diff, but would make a re-pin "
@@ -382,12 +383,12 @@ if(ARCHIVE_FREE_ONLY)
                 set(_run_exe "${_sandbox_exe}")
                 set(_run_env "archive-free-sandbox")
                 message(STATUS
-                    "CheckGoldenDigest(${GOLDEN_NAME}): ${_rom_list} are present in ${WORK_DIR}, which would generate "
-                    "a DIFFERENT, unpinned world — running the dispatch in the archive-free sandbox ${_sandbox_dir} "
-                    "instead (the binary plus the port archives ${_sandbox_ports}, and shipofharkinian.json; NOT "
-                    "mods/, assets/ or any other build-directory content — see CheckGoldenDigest.cmake's "
-                    "_archive_free_sandbox header). This is what makes the row enforceable in a ROM-staged local tree "
-                    "rather than skipped there.")
+                    "CheckGoldenDigest(${GOLDEN_NAME}): ${_rom_list} are present in ${WORK_DIR} — running the "
+                    "dispatch in the archive-free sandbox ${_sandbox_dir} (the binary plus the port archives "
+                    "${_sandbox_ports}, and shipofharkinian.json; NOT mods/, assets/ or any other build-directory "
+                    "content — see CheckGoldenDigest.cmake's _archive_free_sandbox header) AND in ${WORK_DIR} with "
+                    "those archives mounted, and comparing BOTH to the golden and to each other (#702: one golden "
+                    "covers both environments).")
             else()
                 # A BROKEN HARNESS IS RED, NOT SKIPPED. This used to emit an
                 # `RSBS_GOLDEN_SKIP:` marker that the row's SKIP_REGULAR_EXPRESSION
@@ -412,51 +413,50 @@ if(ARCHIVE_FREE_ONLY)
                     "         ${WORK_DIR}/oot.o2r\n"
                     "         ${WORK_DIR}/mm.o2r\n"
                     "  Why the sandbox exists: the goldens pin the world generated with the PORT archives only, "
-                    "because that is the world hosted CI can reproduce (a runner never has ROM-derived archives). With "
-                    "oot.o2r mounted the per-area exclude-location option groups drop out of the settings string "
-                    "Playthrough_Init hashes, the fill is re-seeded differently, and a run in ${WORK_DIR} generates a "
-                    "DIFFERENT, unpinned world — so comparing THAT to the golden would report a move that did not "
-                    "happen. See docs/determinism-goldens.md.")
+                    "because that is the world hosted CI can reproduce (a runner never has ROM-derived archives), and "
+                    "a ROM-staged run checks that world AND the ROM-mounted one, requiring them to be equal (#702). "
+                    "See docs/determinism-goldens.md.")
             endif()
         endif()
     endif()
 endif()
 
 # ----------------------------------------------------------------------------
-# Generate. One process, one run, its own output path.
+# Generate. One process per environment, each with its own output path.
 # ----------------------------------------------------------------------------
-set(_actual "${WORK_DIR}/golden-${GOLDEN_NAME}-actual.txt")
 # A stale artifact from a previous invocation must never be mistaken for this
 # run's output, so "the run succeeded but wrote nothing" stays an unambiguous
 # error rather than a silent pass against week-old bytes.
-file(REMOVE "${_actual}")
-
+#
 # WORKING_DIRECTORY is explicit even in the plain case, where it is the value this
 # row inherited from ctest anyway: the sandbox above is only archive-free because
 # the run happens INSIDE it, so "where did this run happen" must not be an
 # inherited accident.
-execute_process(
-    COMMAND ${CMAKE_COMMAND} -E env "${DIGEST_ENV}=${_actual}"
-            "${_run_exe}" --test ${DISPATCH}
-    WORKING_DIRECTORY "${_run_dir}"
-    RESULT_VARIABLE _rc
-    OUTPUT_VARIABLE _out
-    ERROR_VARIABLE _err
-)
-if(NOT _rc EQUAL 0)
-    message(FATAL_ERROR
-        "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' exited ${_rc} — generation failed before any "
-        "comparison could happen, so this row says NOTHING about whether the world moved.\n"
-        "  ran: ${_run_exe}\n  in:  ${_run_dir} [${_run_env}]\n"
-        "stdout:\n${_out}\nstderr:\n${_err}")
-endif()
-if(NOT EXISTS "${_actual}")
-    message(FATAL_ERROR
-        "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' reported success but wrote no digest at "
-        "${_actual} (is ${DIGEST_ENV} the right variable for this dispatch?).\n"
-        "  ran: ${_run_exe}\n  in:  ${_run_dir} [${_run_env}]\n"
-        "stdout:\n${_out}\nstderr:\n${_err}")
-endif()
+function(_golden_generate run_dir run_exe run_env actual)
+    file(REMOVE "${actual}")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E env "${DIGEST_ENV}=${actual}"
+                "${run_exe}" --test ${DISPATCH}
+        WORKING_DIRECTORY "${run_dir}"
+        RESULT_VARIABLE _rc
+        OUTPUT_VARIABLE _out
+        ERROR_VARIABLE _err
+    )
+    if(NOT _rc EQUAL 0)
+        message(FATAL_ERROR
+            "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' exited ${_rc} — generation failed before any "
+            "comparison could happen, so this row says NOTHING about whether the world moved.\n"
+            "  ran: ${run_exe}\n  in:  ${run_dir} [${run_env}]\n"
+            "stdout:\n${_out}\nstderr:\n${_err}")
+    endif()
+    if(NOT EXISTS "${actual}")
+        message(FATAL_ERROR
+            "CheckGoldenDigest(${GOLDEN_NAME}): '--test ${DISPATCH}' reported success but wrote no digest at "
+            "${actual} (is ${DIGEST_ENV} the right variable for this dispatch?).\n"
+            "  ran: ${run_exe}\n  in:  ${run_dir} [${run_env}]\n"
+            "stdout:\n${_out}\nstderr:\n${_err}")
+    endif()
+endfunction()
 
 # ----------------------------------------------------------------------------
 # Normalise: CR-stripped, ordered list of lines. Blank lines and free text are
@@ -494,6 +494,8 @@ function(_digest_keys lines out_keys prefix)
     set(${out_keys} "${_keys}" PARENT_SCOPE)
 endfunction()
 
+set(_actual "${WORK_DIR}/golden-${GOLDEN_NAME}-actual.txt")
+_golden_generate("${_run_dir}" "${_run_exe}" "${_run_env}" "${_actual}")
 _digest_lines("${_actual}" _actual_lines)
 
 # The digest as the CI LOG will carry it. Requirement, not decoration: the Linux
@@ -562,6 +564,37 @@ endif()
 _digest_lines("${_golden}" _golden_lines)
 
 # ----------------------------------------------------------------------------
+# THE SECOND ENVIRONMENT (#702): one golden covers both. Until #702 the settings
+# string Playthrough_Init hashes depended on which archives were mounted, so the
+# ROM-mounted world was a DIFFERENT world from the pinned one and a ROM-staged run
+# could only check the archive-free half, in the sandbox above. With the option
+# groups built the same way in both environments, the ROM-mounted world IS the
+# pinned world, and a ROM-staged run now generates it too — in the build
+# directory, with oot.o2r/mm.o2r mounted (the archive set a player has; it is
+# still the headless dispatch, with the row's RSBS_DISABLE_OTR_INIT=1 and the
+# harness's empty exclude/trick sets, not the file-select Generate path, so it is
+# NOT the whole of a player's bring-up) — and compares it against the SAME golden. So in the operator's tree every golden row
+# checks both worlds against one file, and additionally against each other, which
+# is the cross-environment lock on `settingsHash` (and every other field) that
+# #702 asks for: the same binary, run archive-free and ROM-mounted, must write the
+# same digest.
+#
+# Hosted CI has only the archive-free environment, so there this second run does
+# not happen and the row says so in its STATUS line; the lock's ROM half is
+# enforced wherever ROM archives are staged (the operator's local merge gate).
+# ----------------------------------------------------------------------------
+set(_rom_run OFF)
+if(_run_env STREQUAL "archive-free-sandbox")
+    set(_rom_run ON)
+    set(_rom_actual "${WORK_DIR}/golden-${GOLDEN_NAME}-actual-rom-mounted.txt")
+    _golden_generate("${WORK_DIR}" "${REDSHIP_EXE}" "rom-mounted-work-dir" "${_rom_actual}")
+    _digest_lines("${_rom_actual}" _rom_lines)
+    string(REPLACE ";" "\n  " _rom_pretty "${_rom_lines}")
+    message(STATUS "[golden-digest] ${GOLDEN_NAME} host=${CMAKE_HOST_SYSTEM_NAME} dispatch=${DISPATCH} "
+                   "env=rom-mounted-work-dir\n  ${_rom_pretty}")
+endif()
+
+# ----------------------------------------------------------------------------
 # Compare, field by field.
 #
 # INPUTS are the question the fill was asked; OUTPUTS are the answer it gave. A
@@ -573,34 +606,33 @@ _digest_lines("${_golden}" _golden_lines)
 # ----------------------------------------------------------------------------
 set(_input_fields seed settingsHash sourceIsRando comboSettingsHash comboSettings ladderMasterSeed)
 
-_digest_keys("${_golden_lines}" _gkeys "_g_")
-_digest_keys("${_actual_lines}" _akeys "_a_")
-
-set(_moved_outputs "")
-set(_moved_inputs "")
-set(_missing "")
-set(_added "")
-
-foreach(_key IN LISTS _gkeys)
-    if(_key IN_LIST _akeys)
-        if(NOT "${_a_${_key}}" STREQUAL "${_g_${_key}}")
-            if(_key IN_LIST _input_fields)
-                list(APPEND _moved_inputs "    ${_key}: golden '${_g_${_key}}' -> this build '${_a_${_key}}'")
-            else()
-                list(APPEND _moved_outputs "    ${_key}: golden '${_g_${_key}}' -> this build '${_a_${_key}}'")
+# Diff `actual_lines` (`actual_label`) against `ref_lines` (`ref_label`) and put a
+# field-by-field report into `out_report`, empty when every field matches.
+function(_digest_diff ref_lines ref_label actual_lines actual_label out_report)
+    _digest_keys("${ref_lines}" _rkeys "_r_")
+    _digest_keys("${actual_lines}" _akeys "_a_")
+    set(_moved_outputs "")
+    set(_moved_inputs "")
+    set(_missing "")
+    set(_added "")
+    foreach(_key IN LISTS _rkeys)
+        if(_key IN_LIST _akeys)
+            if(NOT "${_a_${_key}}" STREQUAL "${_r_${_key}}")
+                if(_key IN_LIST _input_fields)
+                    list(APPEND _moved_inputs "    ${_key}: ${ref_label} '${_r_${_key}}' -> ${actual_label} '${_a_${_key}}'")
+                else()
+                    list(APPEND _moved_outputs "    ${_key}: ${ref_label} '${_r_${_key}}' -> ${actual_label} '${_a_${_key}}'")
+                endif()
             endif()
+        else()
+            list(APPEND _missing "    ${_key} (was '${_r_${_key}}')")
         endif()
-    else()
-        list(APPEND _missing "    ${_key} (was '${_g_${_key}}')")
-    endif()
-endforeach()
-foreach(_key IN LISTS _akeys)
-    if(NOT _key IN_LIST _gkeys)
-        list(APPEND _added "    ${_key} = '${_a_${_key}}'")
-    endif()
-endforeach()
-
-if(_moved_outputs OR _moved_inputs OR _missing OR _added)
+    endforeach()
+    foreach(_key IN LISTS _akeys)
+        if(NOT _key IN_LIST _rkeys)
+            list(APPEND _added "    ${_key} = '${_a_${_key}}'")
+        endif()
+    endforeach()
     set(_report "")
     if(_moved_outputs)
         string(REPLACE ";" "\n" _block "${_moved_outputs}")
@@ -617,19 +649,70 @@ if(_moved_outputs OR _moved_inputs OR _missing OR _added)
     endif()
     if(_missing)
         string(REPLACE ";" "\n" _block "${_missing}")
-        string(APPEND _report "\n  FIELDS THE GOLDEN HAS AND THIS BUILD DID NOT EMIT:\n${_block}\n")
+        string(APPEND _report "\n  FIELDS ${ref_label} HAS AND ${actual_label} DID NOT EMIT:\n${_block}\n")
     endif()
     if(_added)
         string(REPLACE ";" "\n" _block "${_added}")
-        string(APPEND _report "\n  FIELDS THIS BUILD EMITTED THAT THE GOLDEN DOES NOT HAVE:\n${_block}\n")
+        string(APPEND _report "\n  FIELDS ${actual_label} EMITTED THAT ${ref_label} DOES NOT HAVE:\n${_block}\n")
+    endif()
+    set(${out_report} "${_report}" PARENT_SCOPE)
+endfunction()
+
+_digest_diff("${_golden_lines}" "golden" "${_actual_lines}" "this-build" _report)
+set(_cross_report "")
+set(_rom_report "")
+if(_rom_run)
+    _digest_diff("${_golden_lines}" "golden" "${_rom_lines}" "rom-mounted" _rom_report)
+    _digest_diff("${_actual_lines}" "archive-free" "${_rom_lines}" "rom-mounted" _cross_report)
+endif()
+
+set(_failure "")
+if(_report)
+    string(APPEND _failure
+        "\n  THE PINNED WORLD MOVED — this build does not reproduce the golden in ${_run_dir} [${_run_env}]:"
+        "${_report}")
+endif()
+if(_cross_report)
+    # Named separately from a moved golden because it is a different bug, and
+    # reported even when the archive-free half matches. It has TWO candidate
+    # causes and the message names both: the two runs differ in the archive set
+    # AND in everything the sandbox deliberately leaves behind (mods/, assets/ —
+    # see _archive_free_sandbox's header), so "#702 regressed" is only one reading.
+    # What mods/ holds is listed so a reader can tell which applies without
+    # opening the build directory.
+    file(GLOB _wd_mods LIST_DIRECTORIES true RELATIVE "${WORK_DIR}" "${WORK_DIR}/mods/*")
+    if(_wd_mods)
+        string(REPLACE ";" ", " _wd_mods_list "${_wd_mods}")
+        set(_mods_note "${WORK_DIR}/mods holds: ${_wd_mods_list}")
+    else()
+        set(_mods_note "${WORK_DIR}/mods is empty or absent, which points at the archive set")
+    endif()
+    string(APPEND _failure
+        "\n  THE TWO ENVIRONMENTS GENERATED DIFFERENT WORLDS — the same binary wrote a different digest in the build "
+        "directory (${WORK_DIR}: ROM archives ${_rom_list} mounted, plus its mods/ and assets/) than in the "
+        "archive-free sandbox (${_run_dir}: port archives only). Either #702 regressed (the archive set changes what "
+        "the settings string folds again), or build-directory content the sandbox does not carry moved the world "
+        "(${_mods_note}):"
+        "${_cross_report}")
+elseif(_rom_report)
+    string(APPEND _failure
+        "\n  THE ROM-MOUNTED WORLD does not reproduce the golden in ${WORK_DIR} [rom-mounted-work-dir]:"
+        "${_rom_report}")
+endif()
+
+if(_failure)
+    set(_rom_line "")
+    if(_rom_run)
+        set(_rom_line "\n  rom-mounted actual: ${_rom_actual}")
     endif()
     message(FATAL_ERROR
-        "CheckGoldenDigest(${GOLDEN_NAME}): this build does not reproduce the pinned world.\n"
+        "CheckGoldenDigest(${GOLDEN_NAME}): this build does not reproduce the pinned world in every environment "
+        "it ran in.\n"
         "  golden: ${_golden} [${_golden_kind}]\n"
-        "  actual: ${_actual}\n"
-        "  ran in: ${_run_dir} [${_run_env}]\n"
+        "  actual: ${_actual} [${_run_env}]"
+        "${_rom_line}\n"
         "  host:   ${CMAKE_HOST_SYSTEM_NAME}"
-        "${_report}"
+        "${_failure}"
         "\n  IF THE MOVE IS INTENDED, re-pin DELIBERATELY — the golden's diff is the review artifact:\n"
         "      cmake --build <build-dir> --target regen-golden-digests\n"
         "  and commit the changed file(s) stating which fields moved and why (docs/determinism-goldens.md).\n"
@@ -639,8 +722,24 @@ if(_moved_outputs OR _moved_inputs OR _missing OR _added)
         "not evidence against this failure.")
 endif()
 
+_digest_keys("${_golden_lines}" _gkeys "_g_")
 list(LENGTH _gkeys _field_count)
-message(STATUS
-    "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
-    "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} (generated in ${_run_dir} [${_run_env}]) — the pinned world did not "
-    "move.")
+if(_rom_run)
+    message(STATUS
+        "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
+        "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} in BOTH environments — archive-free (${_run_dir}) and ROM-mounted "
+        "(${WORK_DIR}) — so the pinned world did not move and the archive set does not change it (#702).")
+elseif(_rom_archives)
+    # ARCHIVE_FREE_ONLY=OFF with ROM archives staged: the one run WAS ROM-mounted,
+    # and no archive-free run happened to compare it with.
+    message(STATUS
+        "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
+        "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} (generated in ${_run_dir} [${_run_env}] with ${_rom_list} mounted) "
+        "— the pinned world did not move. This row is ARCHIVE_FREE_ONLY=OFF, so it ran ROM-mounted only and nothing "
+        "compared the two environments (#702).")
+else()
+    message(STATUS
+        "CheckGoldenDigest(${GOLDEN_NAME}): ${_field_count} field(s) match the ${_golden_kind} golden "
+        "${_golden} on ${CMAKE_HOST_SYSTEM_NAME} (generated in ${_run_dir} [${_run_env}]) — the pinned world did not "
+        "move. No ROM-derived archive is staged here, so the ROM-mounted half of this row (#702) did not run.")
+endif()
