@@ -183,15 +183,30 @@ durable write goes through one commit point with a generation stamp (PR
 is a promise that the *next* format change will migrate. Treat any progress made on
 a pre-alpha build as disposable, and keep copies of files you care about.
 
-**Paired files created before PR #680 (2026-09-17) have no Majora's Mask half and are
-not migrated.** Increment 2 moved the entire paired generation to the file-create seam; a
-save whose pair never crossed that seam has no frozen MM half to hydrate from. Loading
-such a file is not refused: it loads and plays in Ocarina of Time. The **first crossing
-into Majora's Mask** is refused with a toast rather than silently re-generating the
-world: Termina stays un-randomized and the slot is latched against writes to the pair
-for the rest of the session. This project is pre-release — the operator has accepted
-invalidating existing saves rather than spending effort on migration. **Create a new
-file**; there is no recovery path for the old one.
+**Paired files created before PR #680 (2026-09-17) are not migrated.** Increment 2
+moved the entire paired generation to the file-create seam, and the arrival in Majora's
+Mask no longer generates anything: it hydrates the frozen MM half or refuses. Such a file
+loads and plays in Ocarina of Time under the Cross-Game Rules it was created with (a
+file whose unified save carries the combo record, written since PR #628 on 2026-08-06,
+is refused at load under changed rules, as the between-sessions entry below describes;
+an older file has no record to compare and is exempt).
+What happens at the crossing depends on whether the file entered Majora's Mask before
+#680:
+
+- **Never crossed:** it has no frozen MM half. The **first crossing into Majora's Mask**
+  is refused with a "This file has no paired Majora's Mask world" toast rather than
+  silently re-generating the world: Termina stays un-randomized and the slot is latched
+  against writes to the pair for the rest of the session.
+- **Crossed before #680:** it carries the MM half the old arrival generated, and the
+  arrival hydrates whatever frozen half it finds. It either plays that old pre-#680 MM
+  world, or, if its creation-time MM profile stamp no longer matches this build's MM
+  options, is refused at the crossing by the MM-options check (a different toast:
+  "Majora's Mask options no longer match this file's creation"). Which one a given file
+  meets cannot be decided by reading.
+
+This project is pre-release — the operator has accepted invalidating existing saves
+rather than spending effort on migration. **Create a new file**; there is no recovery
+path for the old one.
 
 **Paired files created between PR #680 and the switch (PR #743, 2026-09-27) are NOT
 refused.** They load and keep playing the world they were created with: the old
