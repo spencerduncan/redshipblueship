@@ -19,6 +19,8 @@ void func_80147414(SramContext* sramCtx, s32 fileNum, s32 arg2);
 // uses for the Combo_* entry points. Guarded because that TU is only added to
 // the link in the single-exe branch of games/mm/CMakeLists.txt.
 extern int MM_Combo_CaptureSaveToUnifiedSlot(void);
+// #785: the moon-crash reset's reload for a session with no flash slot (same TU).
+extern int MM_Combo_ResetFromLastCommitOnMoonCrash(void);
 #endif
 
 #define CHECK_NEWF(newf)                                                                                 \
@@ -1413,6 +1415,17 @@ void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
             memcpy(&gSaveContext, sramCtx->saveBuf, sizeof(Save));
         }
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    else {
+        // RSBS (#785): the reload a slot-less session cannot take. The cross-game
+        // session's file is the unified .redsave, so its last whole commit is
+        // what comes back (OoTMM's default "Last Save" moon crash does the same
+        // over its shared flash); without this the half kept the day 4 /
+        // eventDayCount 4 that Interface_StartMoonCrash set and the cycle never
+        // restarted. See MM_Combo_ResetFromLastCommitOnMoonCrash.
+        MM_Combo_ResetFromLastCommitOnMoonCrash();
+    }
+#endif
     gSaveContext.save.cutsceneIndex = cutsceneIndex;
 
     RSBS_RANDO_PRESERVE_END();
