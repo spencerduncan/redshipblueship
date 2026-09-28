@@ -194,6 +194,18 @@ are the reasoning behind them.
   SKIPPED golden row means somebody re-added a skip. What the rows still do NOT give
   you: they pin the archive-free world, not a player's (#702). Full policy:
   `docs/determinism-goldens.md`.
+- **A bare `redship --test rando-determinism` writes no digest file (#710).** The
+  digest dispatches (`rando-determinism`, `rando-armed-caps-digest`,
+  `mm-paired-attempt`) write a file only when `RSBS_SEED_DIGEST_OUT` /
+  `RSBS_ATTEMPT_DIGEST_OUT` names one; otherwise they print to stdout and a
+  `[digest-out] NOTICE:` line says no file was written. The
+  `seed-determinism-run1.txt` / `paired-attempt-run1.txt` already in the build
+  directory is then an EARLIER ctest run's, and comparing it across binaries compares
+  a file with itself. Produce comparison artifacts through the rows
+  (`ctest -R "^(SeedDeterminism|MMPairedAttemptDeterminism)$"`, which delete their
+  old files first), or hand-run with the variable set to a fresh path you delete
+  first and check afterwards; for "did a pinned world move", use the golden rows.
+  Recipes: `docs/determinism-goldens.md`, "Comparing two binaries by hand".
 - This project is pre-release: invalidating an existing save to land a fix is
   acceptable and does not need product sign-off, but every PR that invalidates a
   save format or a paired file's identity must say so explicitly in its body.

@@ -1266,6 +1266,249 @@ TestResult Test_RandoEntrancePin(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #710: WHERE A DIGEST DISPATCH WRITES, AND SAYING SO WHEN IT WRITES NOWHERE.
+//
+// The digest dispatches below read their output path from the environment and
+// print the digest to stdout when it is unset. Only the CTest rows set it
+// (CMake/CheckSeedDeterminism.cmake, CheckPairedAttemptDeterminism.cmake,
+// CheckGoldenDigest.cmake), so a hand-run `redship --test rando-determinism`
+// writes no file, and the seed-determinism-run1.txt on disk is still whatever
+// the last ctest run wrote: a plausible file with a plausible mtime. Comparing a
+// main binary's "artifact" against a branch's then compares one stale file to
+// itself and reports no difference, which reads as a pass (PR #703's first
+// revision made two wrong sensitivity claims that way). Every digest dispatch
+// resolves its path HERE, and a run that writes no file says so, loudly, at the
+// start and again at the end, naming the variable and the rows that do write.
+// The DigestOutHandRun row checks that every dispatch below goes through this
+// resolver (no raw getenv of a *_DIGEST_OUT variable survives anywhere) and
+// HandRunDigestHonesty drives the real dispatches with the variable unset/set.
+struct DigestOutDispatch {
+    const char* dispatch; // the --test name
+    const char* envVar;   // the variable its CTest rows set
+    const char* rows;     // the CTest rows that DO write a file (a -R regex body)
+    const char* files;    // what those rows write, which this run does NOT refresh
+};
+
+static const DigestOutDispatch kDigestOutDispatches[] = {
+    { "rando-determinism", "RSBS_SEED_DIGEST_OUT", "SeedDeterminism|GoldenSeedDigestDefault|GoldenSeedDigestProfileV1",
+      "seed-determinism-run1.txt, golden-*-actual.txt" },
+    { "rando-armed-caps-digest", "RSBS_SEED_DIGEST_OUT", "GoldenSeedDigestArmedCaps",
+      "golden-seed-digest-armed-caps-actual.txt" },
+    { "mm-paired-attempt", "RSBS_ATTEMPT_DIGEST_OUT", "MMPairedAttemptDeterminism|GoldenPairedAttemptDigest",
+      "paired-attempt-run1.txt, golden-paired-attempt-digest-actual.txt" },
+};
+
+static const DigestOutDispatch* DigestOut_Find(const char* dispatch) {
+    for (const DigestOutDispatch& d : kDigestOutDispatches) {
+        if (strcmp(d.dispatch, dispatch) == 0) {
+            return &d;
+        }
+    }
+    return nullptr;
+}
+
+// The one-line notice. Its first words are the contract the rows grep for.
+static std::string DigestOut_Notice(const DigestOutDispatch& d) {
+    std::string s = "[digest-out] NOTICE: ";
+    s += d.envVar;
+    s += " is unset, so '--test ";
+    s += d.dispatch;
+    s += "' prints its digest to STDOUT and writes NO digest file; any ";
+    s += d.files;
+    s += " on disk is from an EARLIER run, not this one. For a file: set ";
+    s += d.envVar;
+    s += "=<path>, or run ctest -R \"^(";
+    s += d.rows;
+    s += ")$\" (docs/determinism-goldens.md)\n";
+    return s;
+}
+
+// The resolved output path, or nullptr (digest to stdout) after printing the
+// notice. Empty counts as unset: every digest writer treats "" as stdout.
+static const char* DigestOut_Resolve(const char* dispatch, bool* outNoticed) {
+    const DigestOutDispatch* d = DigestOut_Find(dispatch);
+    if (outNoticed != nullptr) {
+        *outNoticed = false;
+    }
+    if (d == nullptr) {
+        printf("[digest-out] FAIL: '%s' is not in kDigestOutDispatches; its output path cannot be resolved\n",
+               dispatch);
+        return nullptr;
+    }
+    const char* path = std::getenv(d->envVar);
+    if (path != nullptr && path[0] != '\0') {
+        return path;
+    }
+    fputs(DigestOut_Notice(*d).c_str(), stdout);
+    fflush(stdout);
+    if (outNoticed != nullptr) {
+        *outNoticed = true;
+    }
+    return nullptr;
+}
+
+// Repeats the notice when the dispatch returns, so it is also the last thing a
+// hand-runner sees after thousands of lines of generation log.
+struct DigestOutHandRunReminder {
+    const char* dispatch;
+    bool noticed;
+    ~DigestOutHandRunReminder() {
+        const DigestOutDispatch* d = DigestOut_Find(dispatch);
+        if (noticed && d != nullptr) {
+            fputs(DigestOut_Notice(*d).c_str(), stdout);
+            fflush(stdout);
+        }
+    }
+};
+
+static void DigestOut_SetEnv(const char* name, const char* value) {
+#ifdef _WIN32
+    _putenv_s(name, value != nullptr ? value : ""); // "" removes it on Windows
+#else
+    if (value != nullptr) {
+        setenv(name, value, 1); // "" stays set-but-empty, which must still count as unset
+    } else {
+        unsetenv(name);
+    }
+#endif
+}
+
+static std::string DigestOut_ReadSource(const char* rel) {
+#ifdef RSBS_SOURCE_DIR
+    FILE* f = fopen((std::string(RSBS_SOURCE_DIR) + "/" + rel).c_str(), "rb");
+    if (f == nullptr) {
+        return std::string();
+    }
+    std::string s;
+    char buf[65536];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        s.append(buf, n);
+    }
+    fclose(f);
+    return s;
+#else
+    (void)rel;
+    return std::string();
+#endif
+}
+
+extern const TestDescriptor gTests[];
+
+// #710 lock, display-free half (the real dispatches need a window, so they are
+// driven by the HandRunDigestHonesty rando row instead):
+//   H1 every kDigestOutDispatches entry is a live gTests dispatch;
+//   H2 with the variable unset (and set to ""), the resolver returns nullptr and
+//      emits the notice, whose text names the variable, the dispatch, "NO digest
+//      file", the rows that write one and the doc;
+//   H3 with the variable set, it returns that exact path and emits nothing;
+//   H4 from source: no raw getenv of a *_DIGEST_OUT variable survives in the
+//      runner or the two bridge TUs, and each table dispatch resolves through
+//      DigestOut_Resolve by name.
+TestResult Test_DigestOutHandRun(void) {
+    printf("[TEST] digest-out-hand-run: a digest dispatch run without its output variable says it wrote no file "
+           "(#710)\n");
+    int failures = 0;
+#define DOH_ASSERT(cond, ...)             \
+    do {                                  \
+        if (!(cond)) {                    \
+            printf("[TEST] FAIL: ");      \
+            printf(__VA_ARGS__);          \
+            printf("\n");                 \
+            failures++;                   \
+        }                                 \
+    } while (0)
+
+    for (const DigestOutDispatch& d : kDigestOutDispatches) {
+        bool live = false;
+        for (int i = 0; gTests[i].name != nullptr; i++) {
+            if (strcmp(gTests[i].name, d.dispatch) == 0) {
+                live = true;
+            }
+        }
+        DOH_ASSERT(live, "H1: '%s' is in kDigestOutDispatches but not in gTests", d.dispatch);
+
+        const char* saved = std::getenv(d.envVar);
+        const std::string savedCopy = saved != nullptr ? saved : "";
+        const bool hadSaved = saved != nullptr;
+
+        const char* unsetValues[] = { nullptr, "" };
+        for (const char* v : unsetValues) {
+            DigestOut_SetEnv(d.envVar, v);
+            bool noticed = false;
+            const char* path = DigestOut_Resolve(d.dispatch, &noticed);
+            DOH_ASSERT(path == nullptr, "H2: %s %s but the resolver returned '%s'", d.envVar,
+                       v == nullptr ? "unset" : "empty", path != nullptr ? path : "");
+            DOH_ASSERT(noticed, "H2: %s %s and '%s' printed no notice", d.envVar, v == nullptr ? "unset" : "empty",
+                       d.dispatch);
+        }
+        const std::string notice = DigestOut_Notice(d);
+        const std::string wantPrefix = std::string("[digest-out] NOTICE: ") + d.envVar + " is unset";
+        DOH_ASSERT(notice.rfind(wantPrefix, 0) == 0, "H2: the notice for '%s' does not start '%s'", d.dispatch,
+                   wantPrefix.c_str());
+        DOH_ASSERT(notice.find(std::string("--test ") + d.dispatch) != std::string::npos,
+                   "H2: the notice does not name the dispatch '%s'", d.dispatch);
+        DOH_ASSERT(notice.find("NO digest file") != std::string::npos, "H2: the notice for '%s' does not say NO "
+                   "digest file was written", d.dispatch);
+        DOH_ASSERT(notice.find(d.rows) != std::string::npos, "H2: the notice for '%s' does not name the rows %s",
+                   d.dispatch, d.rows);
+        DOH_ASSERT(notice.find("docs/determinism-goldens.md") != std::string::npos,
+                   "H2: the notice for '%s' does not point at the doc", d.dispatch);
+        size_t newlines = 0;
+        for (char c : notice) {
+            newlines += c == '\n' ? 1u : 0u;
+        }
+        DOH_ASSERT(newlines == 1 && notice.back() == '\n',
+                   "H2: the notice for '%s' is not exactly one line", d.dispatch);
+
+        const char* kPath = "rsbs-digest-out-probe/never-written.txt";
+        DigestOut_SetEnv(d.envVar, kPath);
+        bool noticed = true;
+        const char* path = DigestOut_Resolve(d.dispatch, &noticed);
+        DOH_ASSERT(path != nullptr && strcmp(path, kPath) == 0, "H3: %s=%s but the resolver returned '%s'",
+                   d.envVar, kPath, path != nullptr ? path : "(null)");
+        DOH_ASSERT(!noticed, "H3: %s is set and '%s' still printed the notice", d.envVar, d.dispatch);
+
+        DigestOut_SetEnv(d.envVar, hadSaved ? savedCopy.c_str() : nullptr);
+    }
+
+#ifndef RSBS_SOURCE_DIR
+    DOH_ASSERT(false, "H4: RSBS_SOURCE_DIR is undefined: the dispatch sources cannot be checked");
+#else
+    static const char* const kSources[] = {
+        "src/common/test_runner.cpp",
+        "games/oot/soh/Enhancements/randomizer/3drando/menu.cpp",
+        "games/mm/2s2h/mm_rando_gen_test.cpp",
+    };
+    std::string runner;
+    for (const char* rel : kSources) {
+        const std::string src = DigestOut_ReadSource(rel);
+        DOH_ASSERT(!src.empty(), "H4: could not read %s", rel);
+        if (strcmp(rel, "src/common/test_runner.cpp") == 0) {
+            runner = src;
+        }
+        // A raw read is `getenv(` followed by a quoted *_DIGEST_OUT literal.
+        size_t at = 0;
+        while ((at = src.find("getenv(", at)) != std::string::npos) {
+            const size_t close = src.find(')', at);
+            const std::string call = src.substr(at, close == std::string::npos ? 64 : close - at + 1);
+            const bool raw = call.find("\"RSBS_") != std::string::npos && call.find("DIGEST_OUT\"") != std::string::npos;
+            DOH_ASSERT(!raw, "H4: %s reads %s directly; resolve it through DigestOut_Resolve so a hand-run says it "
+                       "wrote no file", rel, call.c_str());
+            at += 7;
+        }
+    }
+    for (const DigestOutDispatch& d : kDigestOutDispatches) {
+        const std::string call = std::string("DigestOut_Resolve(\"") + d.dispatch + "\"";
+        DOH_ASSERT(runner.find(call) != std::string::npos, "H4: no %s...) call in test_runner.cpp", call.c_str());
+    }
+#endif
+#undef DOH_ASSERT
+    printf("[TEST] %s: digest-out resolver, %d dispatch(es), %d failure(s)\n", failures == 0 ? "PASS" : "FAIL",
+           (int)(sizeof(kDigestOutDispatches) / sizeof(kDigestOutDispatches[0])), failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Lane B unified-seed lock. Single run: bring up OoT, generate one pinned seed,
 // and (inside the bridge) assert the LIVE producer stamped
 // gComboCtx.sourceIsRando/sharedRandoSeed at generation time, then emit a
@@ -1277,6 +1520,9 @@ TestResult Test_RandoEntrancePin(void) {
 // (Fast3dWindow) like rando-gen, so it is skipped by `--test all`.
 TestResult Test_RandoDeterminism(void) {
     printf("[TEST] rando-determinism: unified-seed producer fires + placement digest emitted (Lane B)\n");
+    // #710: resolved first, so a hand-run's notice precedes the generation log.
+    DigestOutHandRunReminder handRun{ "rando-determinism", false };
+    const char* digestOut = DigestOut_Resolve("rando-determinism", &handRun.noticed); // NULL => stdout
 
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -1292,7 +1538,6 @@ TestResult Test_RandoDeterminism(void) {
     // supplied via the CTest ENVIRONMENT (RSBS_DIAG_CVARS), so the determinism
     // wrapper's two runs share it (see CMake/CheckSeedDeterminism.cmake).
     const char* seed = "RSBSUNIFIED1";
-    const char* digestOut = std::getenv("RSBS_SEED_DIGEST_OUT");  // NULL => digest to stdout
     // RSBS_OOT_NATIVE_GENERAL_PASS=1 (set by no CTest row): OoT's OWN general pass
     // for this paired world, so the digest's OoT lines (placementHash,
     // placedCount) can be compared same-seed against a main-lineage binary, whose
@@ -1356,6 +1601,8 @@ uint32_t Combo_SingleBag_TrimSeed(void);
 TestResult Test_RandoArmedCapsDigest(void) {
     printf("[TEST] rando-armed-caps-digest: the composed bag with every give-capability family armed (#681, lane "
            "K11)\n");
+    DigestOutHandRunReminder handRun{ "rando-armed-caps-digest", false }; // #710
+    const char* digestOut = DigestOut_Resolve("rando-armed-caps-digest", &handRun.noticed); // NULL => stdout
 
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -1379,7 +1626,6 @@ TestResult Test_RandoArmedCapsDigest(void) {
         CVarSetInteger(cvar, 1);
     }
 
-    const char* digestOut = std::getenv("RSBS_SEED_DIGEST_OUT"); // NULL => digest to stdout
     const int rc = Rando_HeadlessSeedDeterminismDigest("RSBSUNIFIED1", digestOut);
     if (rc != 0) {
         for (const char* cvar : kArming) {
@@ -2161,6 +2407,8 @@ TestResult Test_MMPairSwitchEntry(void) {
 TestResult Test_MMPairedAttempt(void) {
     printf("[TEST] mm-paired-attempt: pinned multi-attempt master seed converges deterministically on the ladder "
            "(ADR 0010 inc. 1.2)\n");
+    DigestOutHandRunReminder handRun{ "mm-paired-attempt", false }; // #710
+    const char* digestOut = DigestOut_Resolve("mm-paired-attempt", &handRun.noticed); // NULL => stdout
 
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -2172,7 +2420,6 @@ TestResult Test_MMPairedAttempt(void) {
     static char* fakeArgv[] = { arg0, nullptr };
     InitOTRForMMFirstBoot(1, fakeArgv);
 
-    const char* digestOut = std::getenv("RSBS_ATTEMPT_DIGEST_OUT"); // NULL => digest to stdout
     int rc = MM_Rando_HeadlessPairedAttemptDigest(digestOut);
     printf("[TEST] %s: attempt-ladder digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
@@ -4742,6 +4989,11 @@ const TestDescriptor gTests[] = {
      "are not reset, the statics only Destroy restored are restored, and no per-actor ObjectExtension entry survives "
      "(#750)",
      Test_OoTAbandonedSessionStatics},
+    {"digest-out-hand-run",
+     "A digest dispatch run without its output variable prints a one-line notice that it wrote NO digest file, "
+     "naming the variable and the CTest rows that do; set, it resolves the exact path; every digest dispatch "
+     "resolves through the one resolver (#710)",
+     Test_DigestOutHandRun},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

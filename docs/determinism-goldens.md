@@ -138,6 +138,71 @@ build would turn the oracle back into a no-op.
    equally verifiable and a divergence between the two toolchains turns one leg red
    rather than passing unnoticed.
 
+## Comparing two binaries by hand: never read a file a bare `--test` did not write
+
+The golden rows answer one question: does *this* binary still produce the pinned
+worlds? Sometimes a lane needs a different comparison — a main binary against a
+branch binary under a profile no golden pins, or a sensitivity control. There is
+one trap in doing that by hand, and it has already produced wrong claims (#710).
+
+**A bare `redship --test rando-determinism` writes no digest file.** The three
+digest dispatches — `rando-determinism`, `rando-armed-caps-digest` (both
+`RSBS_SEED_DIGEST_OUT`) and `mm-paired-attempt` (`RSBS_ATTEMPT_DIGEST_OUT`) — write
+a file only when that variable names one, and print the digest to stdout
+otherwise. Only the CTest rows set it. So after a hand-run, `seed-determinism-run1.txt`,
+`paired-attempt-run1.txt` and `golden-*-actual.txt` in the build directory are still
+whatever the last ctest run wrote, with a plausible mtime and plausible contents.
+"Compare the main binary's artifact against the branch's" then compares one stale
+file with itself and reports no difference, which reads as a pass. PR #703's first
+revision made two confident sensitivity claims that way; re-run, the digests were
+byte-identical in every direction, including for controls that should have moved.
+
+Since #710 a digest dispatch run with its variable unset (or empty) prints a
+one-line `[digest-out] NOTICE:` that it wrote **no** file, naming the variable and
+the rows that do write one — before the generation log and again as its last line.
+If you see that notice, whatever file you were about to read is not from this run.
+
+The recipes, in order of preference:
+
+1. **Did my change move a pinned world?** Run the golden rows
+   (`ctest --test-dir build-cmake -R "^Golden"` selects all four today), never a hand
+   comparison. Moving a
+   world on purpose is a re-pin (above).
+2. **The same seed and profile, two binaries, through the rows.** In each build
+   directory run `ctest --test-dir <build> -R "^(SeedDeterminism|MMPairedAttemptDeterminism)$"`,
+   then compare `<build>/seed-determinism-run1.txt` (and `paired-attempt-run1.txt`)
+   across the two directories. Each row deletes its previous files before it runs
+   and fails if a run wrote none, so a file that exists after a green row is that
+   row's. Both build directories must have the same archive set staged: the seed
+   digests are archive-sensitive (see the next section).
+3. **A profile no row pins (a sensitivity control, an `RSBS_DIAG_CVARS`
+   experiment).** Hand-run with a path of your own that no row writes, deleted
+   first, and check that it exists afterwards. From PowerShell:
+
+   ```
+   Remove-Item -ErrorAction Ignore $env:TEMP\main-probe.txt
+   $env:SDL_AUDIODRIVER = 'dummy'; $env:RSBS_DISABLE_OTR_INIT = '1'
+   $env:RSBS_DIAG_CVARS = 'gRandoSettings.ShuffleSongs=2'   # the SeedDeterminism profile; omit for the shipped one
+   $env:RSBS_SEED_DIGEST_OUT = "$env:TEMP\main-probe.txt"
+   .\build-cmake\redship.exe --test rando-determinism
+   Test-Path $env:TEMP\main-probe.txt                        # must be True, or there is nothing to compare
+   ```
+
+   and the same with the other binary and another path. `RSBS_ATTEMPT_DIGEST_OUT`
+   with `--test mm-paired-attempt` for the paired ladder world.
+
+A comparison that reports **no difference** proves nothing until a control that
+*must* differ (another seed, another profile) has been run the same way and did
+differ. Byte-identical results in every direction, including for a control that
+should have moved, is the signature of comparing a file with itself.
+
+Two rows lock this: `DigestOutHandRun` (redship tier: the resolver's unset / empty /
+set answers, the notice text, and a source check that every digest dispatch resolves
+its path through one function) and `HandRunDigestHonesty` (rando tier,
+`CMake/CheckHandRunDigest.cmake`: the real `rando-determinism` and
+`mm-paired-attempt` dispatches run with the variable unset print the notice, leave a
+planted stale file untouched and create no file; set, the file appears).
+
 ## The archive set is part of the pin
 
 A golden pins a world **and the archive set that generated it**. The two seed
