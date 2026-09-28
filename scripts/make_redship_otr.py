@@ -83,14 +83,19 @@ Design constraints, in the order they matter:
      the Array factory is GAME-OWNED -- OoT registers
      SOH::ResourceFactoryBinaryArrayV0 (games/oot/soh/resource/importer/
      ArrayFactory.cpp) and MM registers S2H::ResourceFactoryBinaryArrayV0
-     (games/mm/2s2h/resource/importer/ArrayFactory.cpp).  redship.o2r belongs to
-     neither game's registry, so whichever game is RUNNING parses the curated
-     array -- OoT's factory parses MM's vertices, and vice versa.
+     (games/mm/2s2h/resource/importer/ArrayFactory.cpp).  In the single
+     executable the 'Array' loader slot is dispatched per archive once MM has
+     initialized (games/mm/2s2h/GameExports_SingleExe.cpp): MM's reader for
+     archives recorded as MM's, OoT's for everything else.  redship.o2r is
+     recorded as neither game's, so OoT's reader parses every curated array --
+     OoT's factory parses MM's vertices, in either game.
 
      That works today only by coincidence of layout, and only on part of the
      format.  The two factories are byte-identical on the VERTEX path (same
      16-byte F3DVtx, same field order, same read order), which is why the
-     shipped model works.  They diverge on the SCALAR path: MM implements
+     shipped model works, and the boot check Combo_ArrayReaders_BootCheck
+     (src/common/array_reader_agreement.cpp) refuses to start a build whose
+     readers disagree there.  They diverge on the SCALAR path: MM implements
      S8/U8/X8/S16/U16/X16/S32/U32/X32/S64/U64/X64, OoT implements only
      S16/U16 and falls through `default: break` on the rest -- reading ZERO
      bytes where MM reads one to eight.  A curated array carrying any of those

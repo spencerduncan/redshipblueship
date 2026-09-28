@@ -1989,6 +1989,7 @@ extern "C" void InitOTR(int argc, char* argv[]) {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include "f3dvtx_wire_layout.h" // src/common — #604: the vertex record both Array readers fill
 /**
  * Shared bring-up entry for MM-first boots (issues #329/#330).
  *
@@ -2043,6 +2044,18 @@ std::shared_ptr<Ship::ResourceFactory> OoT_CreatePathFactory() {
 }
 
 /**
+ * Same again for the "Array" ('OARR') loader slot (#604). Every extracted
+ * object's vertex data is an 'OARR' Array, and both ports ship a reader for it.
+ * MM's port layer dispatches this slot per source archive once MM initializes
+ * (RsbsMMArchiveFactoryDispatcher), and src/common/array_reader_agreement.cpp
+ * compares the two readers' output at boot and in the array-reader-agreement
+ * rows, so a vertex array parses the same whichever reader gets it.
+ */
+std::shared_ptr<Ship::ResourceFactory> OoT_CreateArrayFactory() {
+    return std::make_shared<SOH::ResourceFactoryBinaryArrayV0>();
+}
+
+/**
  * Headless registration of the MODEL pipeline's factories (#577), for tests
  * that need to load a display list without the display-bound Initialize path.
  *
@@ -2057,8 +2070,9 @@ std::shared_ptr<Ship::ResourceFactory> OoT_CreatePathFactory() {
  * crossgame-model row is that an MM model parses under the factory surface an
  * OoT session actually has. (The two readers' Vertex paths are byte-identical —
  * same 16-byte F3DVtx layout, same field order; they diverge only on the scalar
- * widths MM's reader additionally handles. Compare ArrayFactory.cpp in each
- * tree before assuming that stays true.)
+ * widths MM's reader additionally handles. That is no longer an assumption:
+ * the boot check Combo_ArrayReaders_BootCheck and the array-reader-agreement
+ * rows compare the two readers' output, #604.)
  *
  * Idempotent: re-registering a slot installs an equivalent factory.
  */

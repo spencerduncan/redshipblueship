@@ -95,6 +95,8 @@
 #include "2s2h/resource/importer/KeyFrameFactory.h"
 #include "2s2h/resource/importer/SceneFactory.h"
 #include "2s2h/resource/importer/CutsceneFactory.h"
+#include "2s2h/resource/importer/ArrayFactory.h" // #604: MM's own 'OARR' reader
+#include "f3dvtx_wire_layout.h"                  // src/common — #604: the vertex record both readers fill
 #include <ship/resource/ResourceFactory.h>
 #include <vector>
 #include <algorithm>
@@ -217,6 +219,7 @@ extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 std::shared_ptr<Ship::ResourceFactory> OoT_CreateSceneFactory();
 std::shared_ptr<Ship::ResourceFactory> OoT_CreateCutsceneFactory();
 std::shared_ptr<Ship::ResourceFactory> OoT_CreatePathFactory();
+std::shared_ptr<Ship::ResourceFactory> OoT_CreateArrayFactory(); // #604
 
 // MM's message-table loader (games/mm/2s2h/z_message_OTR.cpp) — populates
 // sMessageTableNES/sMessageTableCredits from mm.o2r. Without it, the first
@@ -1402,6 +1405,23 @@ static void RegisterMMResourceFactories() {
         RESOURCE_FORMAT_BINARY, "Cutscene", static_cast<uint32_t>(S2H::ResourceType::SOH_Cutscene), 0,
         /*allowOverwrite=*/true);
 
+    // Array ('OARR') — per-archive too (#604). Every extracted object's vertex
+    // data is an 'OARR' Array, and until this dispatcher MM's own reader was not
+    // even compiled: OoT's parsed every MM array. The Vertex paths agree
+    // (Combo_ArrayReaders_BootCheck refuses to boot if they ever stop), but the
+    // scalar paths do not: OoT's reader implements only S16/U16 and reads ZERO
+    // bytes for any other width, desyncing the rest of the resource. MM's one
+    // such array, object_link_zora_U8_011710 (ZSCALAR_X8), is the alpha ramp
+    // Player_DrawZoraShield reads every frame of the Zora barrier. Arrays served
+    // by any archive not recorded as MM's (OoT's, and the curated cross-game
+    // redship.o2r) still parse with OoT's reader, which the agreement check
+    // covers on the Vertex path.
+    loader->RegisterResourceFactory(
+        std::make_shared<RsbsMMArchiveFactoryDispatcher>(OoT_CreateArrayFactory(),
+                                                         std::make_shared<S2H::ResourceFactoryBinaryArrayV0>()),
+        RESOURCE_FORMAT_BINARY, "Array", static_cast<uint32_t>(S2H::ResourceType::SOH_Array), 0,
+        /*allowOverwrite=*/true);
+
     // TextMM — MM-only text format
     loader->RegisterResourceFactory(std::make_shared<S2H::ResourceFactoryBinaryTextMMV0>(), RESOURCE_FORMAT_BINARY,
                                     "TextMM", static_cast<uint32_t>(S2H::ResourceType::TSH_TextMM), 0);
@@ -1418,6 +1438,15 @@ static void RegisterMMResourceFactories() {
                                     "KeyFrameSkel", static_cast<uint32_t>(S2H::ResourceType::TSH_CKeyFrameSkel), 0);
 
     fprintf(stderr, "[MM] Registered MM resource factories\n");
+}
+
+/**
+ * MM's own 'OARR' Array reader, for the #604 agreement check
+ * (src/common/array_reader_agreement.cpp), which cannot include either game's
+ * factory header. Mirrors OoT_CreateArrayFactory in games/oot/soh/OTRGlobals.cpp.
+ */
+std::shared_ptr<Ship::ResourceFactory> MM_CreateArrayFactory() {
+    return std::make_shared<S2H::ResourceFactoryBinaryArrayV0>();
 }
 
 /**
