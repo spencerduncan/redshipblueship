@@ -2095,8 +2095,9 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the cross-game session's fileNum 0xFF / flashSaveAvailable -- so the Combo
     # Tracker reads it present by the marker alone (no save-type widening), the
     # .redsave slot panel reads it started (MM's slot metadata, registered from
-    # the combo entry point), and the moon-crash reset over the consumed half
-    # keeps the save. games/mm/2s2h/mm_creation_new_file_test.cpp. The synthetic
+    # the combo entry point), and a moon crash over the consumed half restores
+    # the last whole .redsave commit (#785), not the pre-crash day 4.
+    # games/mm/2s2h/mm_creation_new_file_test.cpp. The synthetic
     # row is ROM-free and display-free (default tier); the world row runs the
     # production creation event over the ComboSingleBag pinned seed (rando tier:
     # it needs a generation).
@@ -2122,6 +2123,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+
+    # #785: a moon crash in a paired MM half restores the last whole .redsave
+    # commit (the file as last saved, vanilla's flash reload; OoTMM's default
+    # "Last Save"). This row is the never-saved case: a half whose only commit is
+    # the creation's own restores AS CREATED (day 0, 05:59), and a session with
+    # no commit at all restarts the clock alone at dawn instead of staying on
+    # day 4. The committed-owl-save case rides mm-creation-new-file(-world).
+    # ROM-free (default tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashNeverSaved COMMAND redship --test mm-moon-crash-never-saved)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

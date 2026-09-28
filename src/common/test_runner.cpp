@@ -108,6 +108,10 @@ int MM_CreationNewFile_RunWorld(void);
 // combo-player-name (#773, same file): OoT's typed name translates into MM's
 // charset for the paired half (OoTMM's mapping), and the slot panel decodes it.
 int MM_CreationPlayerName_Run(void);
+// mm-moon-crash-never-saved (#785, same file): a paired half created and never
+// saved restores as created after a moon crash; no commit at all restarts the
+// clock at dawn.
+int MM_MoonCrashNeverSaved_Run(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -869,6 +873,10 @@ static bool MMCreationNewFile_EntryPointRegisters(void) {
            "checked\n");
     return false;
 #endif
+}
+
+static TestResult Test_MMMoonCrashNeverSaved(void) {
+    return MM_MoonCrashNeverSaved_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 static TestResult Test_MMCreationNewFile(void) {
@@ -5223,13 +5231,13 @@ const TestDescriptor gTests[] = {
     {"mm-creation-new-file",
      "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
      "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
-     "alone, the slot panel reads it started under that name, and the moon-crash reset keeps the consumed half "
-     "(#765, #773)",
+     "alone, the slot panel reads it started under that name, and a moon crash restores the last whole commit "
+     "(#765, #773, #785)",
      Test_MMCreationNewFile},
     {"mm-creation-new-file-world",
      "The production paired creation over the ComboSingleBag pinned seed arms an MM half MM's own new-file path "
      "would recognize: OoT's typed name in MM's charset, marker, fileNum 0xFF, tracker present, slot started under "
-     "that name, moon-crash reset keeps it (#765, #773)",
+     "that name, a moon crash restores the last whole commit (#765, #773, #785)",
      Test_MMCreationNewFileWorld},
     {"digest-out-hand-run",
      "A digest dispatch run without its output variable prints a one-line notice that it wrote NO digest file, "
@@ -5245,6 +5253,11 @@ const TestDescriptor gTests[] = {
      "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
      "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
      Test_TestWindowNoActivation},
+    {"mm-moon-crash-never-saved",
+     "A moon crash in a paired MM half created and never saved restores the half as created (its only commit is "
+     "the creation's, vanilla's new-file flash write): day 0, 05:59, not day 4; a session with no commit at all "
+     "restarts the clock at dawn and keeps the half (#785)",
+     Test_MMMoonCrashNeverSaved},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

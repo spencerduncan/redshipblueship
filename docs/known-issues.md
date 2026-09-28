@@ -216,8 +216,8 @@ file to play the current build.
 
 **Paired files created before PR #772 (2026-09-28) are NOT refused, and are safe to
 play.** Every arrival in MM now gives the session the cross-game slot number, so the
-moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)); the moon crash
-still leaves the cycle on day 4 (see the open entry below). What stays wrong on such a
+moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)), and a moon
+crash restores the file's last save (PR [#PRNUM](https://github.com/spencerduncan/redshipblueship/pull/PRNUM); see the #785 entry below). What stays wrong on such a
 file is display only: the Combo Tracker's Majora's Mask panel reads "No data yet". A new
 file's panel reads "As of file creation." until MM is first entered. (#772 also describes
 an `[MM v]` / `[MM _]` file-select marker; it is printed only by `ComboMenuBar`, which this
@@ -308,23 +308,36 @@ over the live one (observed in a headless row: day, rupees and inventory wiped).
 now authored as MM's own new-file path authors it, and every arrival pins the cross-game slot
 number, which also covers older files (see "Back up your saves"). The fix is locked
 headlessly and has not been played; the playtest guide's scenario I4 checks it in game.
-What it fixes is the wipe only: after a moon crash the half is kept but stays on day 4
+It fixed the wipe only; the half then stayed on day 4 after a crash, fixed separately
 (next entry). To see whether a file's MM half exists, open the Combo Tracker's Majora's
 Mask panel ("As of file creation." or a later freshness note, versus "No data yet").
 
-### A moon crash in a paired MM half leaves the cycle on day 4 — [#785](https://github.com/spencerduncan/redshipblueship/issues/785)
+### ~~A moon crash in a paired MM half leaves the cycle on day 4~~ — RESOLVED ([#785](https://github.com/spencerduncan/redshipblueship/issues/785), PR [#PRNUM](https://github.com/spencerduncan/redshipblueship/pull/PRNUM))
 
-Open; read from code, not run. `Interface_StartMoonCrash` sets day 4 and 06:00 before the
-crash cutscene, and vanilla rolls the cycle back when `Sram_ResetSaveFromMoonCrash`
-reloads the file's flash slot. A cross-game session has no flash slot, so that reload is
-skipped and nothing else resets the day, and since PR #772 every paired arrival takes this
-path. After a crash the half is **not** empty, but it stays on day 4: the Final Hours
-clock is drawn, the Dawn of the First Day does not play, and the crash cannot trigger
-again, because it fires only at the end of day 3. The fix tracked in #785 is to restore
-the last committed MM half, as vanilla's reload does.
+`Interface_StartMoonCrash` sets day 4 and 06:00 before the crash cutscene, and vanilla
+rolls the cycle back when `Sram_ResetSaveFromMoonCrash` reloads the file from flash. A
+cross-game session has no flash slot, so that reload was skipped and the half stayed on
+day 4 (Final Hours clock, no Dawn of the First Day, no second crash). Now the reload is the
+file's **last save**: the last whole `.redsave` commit (an owl save, the autosave, the Song
+of Time, a save in OoT, or the file's creation), with both halves and the cross-game records
+restored together. This is what vanilla's reload does and what OoTMM's default
+("Last Save") moon crash does. What to expect:
 
-**Workaround:** play the Song of Time before the end of day 3, as you would to avoid the
-crash anyway; let the moon crash only to check the playtest guide's scenario I4.
+- MM progress since that save is lost, as in vanilla. After an owl save or autosave the
+  clock resumes at that save's day and time; the Dawn of the First Day plays only when the
+  last save was a Song of Time or the file's creation (a file never saved restarts as
+  created). A save taken within about ten in-game minutes of the crash is pulled back to
+  05:49 on the final day, OoTMM's grace period, so the moon cannot fall again at once.
+- **OoT is part of the same file.** If you played OoT after your last save and crossed into
+  MM without saving, the crash takes OoT's half back to that save too. Save before you cross
+  if that matters to you.
+- A cross-game item that reached MM after the save is not lost: it is delivered again at
+  your next arrival in MM, or, if OoT's half went back too, it waits at its check again.
+- A session with nothing saved at all (a refused slot, a debug boot) has nothing to reload;
+  there the clock alone restarts at dawn.
+
+Locked headlessly (`mm-creation-new-file`, `mm-creation-new-file-world`,
+`mm-moon-crash-never-saved`); not played. The playtest guide's scenario I4 checks it in game.
 
 ### ~~F10 hot-swap silently rolls back your progress~~ — RESOLVED ([#364](https://github.com/spencerduncan/redshipblueship/issues/364), PR [#400](https://github.com/spencerduncan/redshipblueship/pull/400))
 
