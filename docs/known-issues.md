@@ -774,10 +774,14 @@ Two rows to know about before you read a red or green as a signal:
   timed out at 120 s every time without running one assertion. It now injects a
   debug save from the title screen (as `IntGameplayRoundtrip` does), fires the
   Happy Mask Shop entrance after 20 live gameplay frames outside the shop, and
-  asserts the switch routes to MM `0xD800`. A wedge fails inside 30 s per stage
-  with a line naming the stage ("title screen / file select never presented",
-  "gameplay never reached", ...) instead of hitting the CTest wall, so a red
-  run of this row is a regression to read, not known noise.
+  asserts the switch routes to MM `0xD800`. When an OoT stage before the trigger
+  stalls while OoT keeps running frames (the #544 state), the row fails after
+  30 s in that stage with a line naming it ("title screen / file select never
+  presented", "gameplay never reached", ...) instead of hitting the CTest wall.
+  A wedge inside a single frame, or in the OoT-to-MM hand-off and MM half after
+  the trigger, still ends at the 120 s CTest timeout: the budget is checked once
+  per OoT frame, not from a watchdog thread. Either way a red run of this row is
+  a regression to read, not known noise.
 
 Also: clang-format is enforced against an incremental allowlist
 (`.github/clang-format-paths.txt`), not the full tree

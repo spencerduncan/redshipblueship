@@ -275,9 +275,18 @@ static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from
 // the row never executed one of its assertions. It now reaches gameplay the
 // way IntGameplayRoundtrip does — a debug save injected from the title screen,
 // Play entered directly outside the Happy Mask Shop — fires the HMS entrance
-// after a window of live gameplay frames, and on a wedge fails with the stage
-// it was stuck in, on a wall-clock budget well under the 120 s CTest timeout,
-// instead of hitting the wall silently.
+// after a window of live gameplay frames, and, when an OoT stage before the
+// trigger stalls while OoT keeps ticking frames (the #544 attract-demo state),
+// fails with the stage it was stuck in on a per-stage wall-clock budget instead
+// of hitting the wall silently.
+//
+// What this does NOT cover: the budget is checked from OoT's
+// OnGameStateMainStart, not from a thread, so (a) a wedge inside one OoT frame
+// (e.g. a hang in Play_Init after the injection) never reaches the check, and
+// (b) once the row is T1_STAGE_TRIGGERED the check stops, and the OoT->MM
+// hand-off (suspend, archive swap, MM_Game_Init) and the MM half have only
+// MM's frame-counted scene-load watchdog. Those still end at the CTest
+// timeout; a wall-clock watchdog thread is the fix, not done here.
 typedef enum {
     T1_STAGE_BOOT,          // waiting for the title screen (or file select) to inject the debug save
     T1_STAGE_ENTERING_PLAY, // debug save injected; waiting for OoT's scene init at kT1BootEntrance
@@ -292,8 +301,11 @@ static std::chrono::steady_clock::time_point sT1StageStart{};
 // Right outside the Happy Mask Shop: where a player stands before walking in.
 static const uint16_t kT1BootEntrance = OOT_ENTR_MARKET_FROM_MASK_SHOP;
 static const int kT1GameplayFramesBeforeTrigger = 20;
-// Per stage. Three stalled stages back to back still end before the 120 s
-// REDSHIP_INTEGRATION_TEST_TIMEOUT; a healthy run spends a few seconds in each.
+// Per stage, wall clock, checked once per OoT frame. One stalled stage fails
+// the row, so a stall is reported at about 30 s plus the time spent in earlier
+// stages (a healthy run spends under a second in each). It bounds only OoT
+// stages that keep ticking frames; see the block comment above for what still
+// reaches the 120 s REDSHIP_INTEGRATION_TEST_TIMEOUT.
 static const int kT1StageBudgetSecs = 30;
 
 static const char* T1StageName(T1Stage stage) {
@@ -476,9 +488,10 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             T1SetStage(T1_STAGE_GAMEPLAY);
         });
 
-        // Frame driver + wall-clock watchdog. Runs on every OoT gamestate's
-        // frame (title, opening, file select, play), so a wedge in any stage
-        // before the trigger is caught here.
+        // Frame driver + wall-clock budget check. Runs on every OoT gamestate's
+        // frame (title, opening, file select, play), so a stage before the
+        // trigger that stalls while frames keep ticking is caught here. A wedge
+        // inside a frame never returns to this hook (see the T1 block comment).
         GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
             if (Context_GetCurrentGame() != GAME_OOT) {
                 return; // (#344) MM frames share this hook storage
