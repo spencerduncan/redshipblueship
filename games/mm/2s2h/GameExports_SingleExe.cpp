@@ -2211,6 +2211,7 @@ void MM_Game_Run(void) {
 // apply half; forward-declared so Game_Suspend and the unified-save capture can
 // harvest before they hand MM's state over.
 extern "C" void MM_HarvestSharedResources(void);
+extern "C" void MM_ApplySharedResources(void);
 
 /**
  * Suspend MM for a game switch (issue #270).
@@ -2462,6 +2463,149 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
             (unsigned)gComboCtx.commitGeneration);
     fflush(stderr);
     return ok;
+}
+
+namespace {
+
+// The committed MM half a moon-crash reset reads back (#785). Static: ~48 KiB.
+SaveContext sMoonCrashCommittedHalf;
+
+/**
+ * The MM side's check of the committed half, before anything moves: it must be
+ * a started MM file ('ZELDA3') of the SAME world the live half is (save type
+ * and final seed). A commit that fails this is not the half this session is
+ * playing, whatever its Tier-1 says.
+ */
+int MoonCrashAcceptCommittedHalf(const uint8_t* mmBlob, size_t size, void* ctx) {
+    (void)ctx;
+    if (size < sizeof(SaveContext)) {
+        return 0;
+    }
+    const SaveContext* half = reinterpret_cast<const SaveContext*>(mmBlob);
+    static const char kNewf[6] = { 'Z', 'E', 'L', 'D', 'A', '3' };
+    return memcmp(half->save.saveInfo.playerData.newf, kNewf, sizeof(kNewf)) == 0 &&
+           half->save.shipSaveInfo.saveType == gSaveContext.save.shipSaveInfo.saveType &&
+           half->save.shipSaveInfo.rando.finalSeed == gSaveContext.save.shipSaveInfo.rando.finalSeed;
+}
+
+// OoTMM's grace period (packages/generator/src/common/save.c gracePeriod, run on
+// every MM save load including its moon-crash reload): a clock that lands at or
+// within GRACE of the crash is pulled back to crash - GRACE, so the moon cannot
+// fall again before the player can act. Same linear clock as OoTMM's
+// Time_Game2Linear (common/time.c): day * 0x10000 + (time - 06:00), crash at
+// day 4 06:00 (OoTMM's Time_LinearMoonCrash with no half-day shuffle).
+constexpr u32 kMoonCrashLinear = 4u * 0x10000u;
+constexpr u32 kMoonCrashGrace = 0x1E0u;
+
+} // namespace
+
+/**
+ * THE MOON-CRASH RESET OF A PAIRED MM HALF (#785). Called from
+ * Sram_ResetSaveFromMoonCrash (z_sram_NES.c) in place of the flash reload, which
+ * a cross-game session can never take (fileNum is pinned to the 0xFF sentinel:
+ * Sram_FileNumHasFlashSlot). Before this nothing replaced it, so the half kept
+ * Interface_StartMoonCrash's day 4 / eventDayCount 4 / 06:00: the moon could not
+ * fall again (z_en_test4.c needs day 3), the Final Hours clock stayed up and no
+ * Dawn of the First Day came.
+ *
+ * Vanilla's reload is "the file as last saved". The combo's file is the
+ * .redsave, and OoTMM's default moon-crash behaviour ("Last Save": "all progress
+ * made in MM since the last save will be lost") reloads its own save, the
+ * foreign save and the shared custom save together (mm/save.c MoonCrashReset).
+ * So: the whole last commit, through RsbsSave_RestoreLastCommitForReset (which
+ * owns every whole-file and identity check; see save.h), and then only the
+ * MM-side steps:
+ *
+ *   - gSaveContext.save takes the committed half's Save, exactly the
+ *     sizeof(Save) vanilla's memcpy moves; everything outside Save stays live and
+ *     the caller's vanilla tail resets it (eventInf, cycle flags from permanent,
+ *     timers).
+ *   - isOwlSave and pauseSaveEntrance return to their between-saves values. A
+ *     commit taken by an owl statue or the autosave captured them set; the
+ *     BeforeMoonCrashSaveReset hook (DeleteOwlSave) has just cleared them for the
+ *     same reason ("so after reloading the save file it doesn't try to load at
+ *     the owl's position").
+ *   - A pending rupeeAccumulator belongs to the discarded span: dropped, so the
+ *     restored balance IS the committed one.
+ *   - OoTMM's grace period (above).
+ *   - The restored pool is APPLIED to the restored half, exactly as an arrival
+ *     applies it (MM_ApplySharedResources: capacities raised, consumables
+ *     ASSIGNED and clamped, their watermarks set to what was materialized),
+ *     then a harvest seeds any kind the pool never held. The commit's pool
+ *     and its MM half need not agree: an OoT-side commit writes MM's half
+ *     from the shadow frozen at MM's last departure while the pool holds
+ *     OoT's later balances, so a half left at its own values would refund
+ *     every rupee, heart, magic unit and ammo count OoT spent since
+ *     (mm-moon-crash-pool-applied). A harvest ALONE is not enough: with the
+ *     watermarks dropped it seeds at the half's value with delta zero and
+ *     never reconciles the two. After the apply the pool the commit carried
+ *     does not move and every later change in MM is an ordinary delta.
+ *
+ * The world's identity, frozen rules and crossing set are not touched: the
+ * restore refuses a commit that disagrees with any of them.
+ *
+ * WHEN THERE IS NO COMMIT TO RESTORE (no active slot, a slot this session does
+ * not own, an unreadable or mismatched file). Every paired file has one: the
+ * creation writes the .redsave with the freshly authored MM half (OoT's
+ * Sram_InitSave: the creation event arms the half, then Save_SaveFile commits
+ * it), which is vanilla's new-file flash write, so a paired half that was
+ * never saved restores to the half as created (day 0, 05:59 -> Dawn of the
+ * First Day), exactly as a vanilla file never saved after creation does. What is
+ * left is a session with nothing durable at all (a latched slot, a debug boot);
+ * there is no save to reload, so the clock alone is reset to what
+ * MM_Sram_InitNewSave authors (day 0, eventDayCount 0, 05:59) and the cycle
+ * starts again at dawn instead of staying on day 4.
+ *
+ * @return 1 when the last commit was restored, 0 when the clock-only fallback ran.
+ */
+extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
+    const int slot = RsbsSave_GetActiveSlot();
+    int ootMoved = 0;
+    const int outcome =
+        RsbsSave_RestoreLastCommitForReset(slot, reinterpret_cast<uint8_t*>(&sMoonCrashCommittedHalf),
+                                           sizeof(SaveContext), MoonCrashAcceptCommittedHalf, nullptr, &ootMoved);
+    if (outcome != RSBS_RESET_RESTORED) {
+        gSaveContext.save.day = 0;
+        gSaveContext.save.eventDayCount = 0;
+        gSaveContext.save.time = CLOCK_TIME(6, 0) - 1;
+        fprintf(stderr,
+                "[MM] moon crash: no restorable commit (slot %d, outcome %d); the clock alone restarts at the dawn "
+                "of the first day\n",
+                slot, outcome);
+        fflush(stderr);
+        return 0;
+    }
+
+    memcpy(&gSaveContext.save, &sMoonCrashCommittedHalf.save, sizeof(Save));
+    gSaveContext.save.isOwlSave = false;
+    gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
+    gSaveContext.rupeeAccumulator = 0;
+
+    const u32 linear = (u32)gSaveContext.save.day * 0x10000u + (u16)(gSaveContext.save.time - CLOCK_TIME(6, 0));
+    if (linear + kMoonCrashGrace >= kMoonCrashLinear) {
+        const u32 graced = kMoonCrashLinear - kMoonCrashGrace;
+        gSaveContext.save.day = (s32)(graced >> 16);
+        gSaveContext.save.time = (u16)((graced & 0xFFFFu) + CLOCK_TIME(6, 0));
+        if (gSaveContext.save.eventDayCount > gSaveContext.save.day) {
+            gSaveContext.save.eventDayCount = gSaveContext.save.day;
+        }
+        fprintf(stderr,
+                "[MM] moon crash: the committed clock was within the grace period; pulled back to day %d 05:49 "
+                "(OoTMM gracePeriod)\n",
+                (int)gSaveContext.save.day);
+    }
+
+    // The pool first (assign the consumables, raise the capacities, set the
+    // watermarks), then the harvest's first-seed rule for any kind the pool
+    // never held. Same order the arrival and the next suspend give it.
+    MM_ApplySharedResources();
+    MM_HarvestSharedResources();
+
+    fprintf(stderr, "[MM] moon crash: restored the last commit from slot %d (day %d, time 0x%04X)%s\n", slot,
+            (int)gSaveContext.save.day, (unsigned)gSaveContext.save.time,
+            ootMoved ? "; OoT's half was rolled back to it too" : "");
+    fflush(stderr);
+    return 1;
 }
 
 /**
