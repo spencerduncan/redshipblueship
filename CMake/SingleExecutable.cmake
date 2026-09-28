@@ -2041,6 +2041,31 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # source (RSBS_SOURCE_DIR), that every call site is wired under its guard and
     # no other completion writer exists. ROM-free and display-free: default tier.
     redship_add_test(NAME ComboGoalEnding COMMAND redship --test combo-goal-ending)
+    # #710: A HAND-RUN DIGEST SAYS IT WROTE NO FILE. The digest dispatches write to
+    # the file their *_DIGEST_OUT variable names and to stdout when it is unset;
+    # only the CTest rows set it, so a hand-run `--test rando-determinism` left the
+    # previous ctest run's seed-determinism-run1.txt on disk looking fresh. Every
+    # digest dispatch now resolves its path through one resolver, which prints a
+    # one-line notice (naming the variable and the rows that write a file) when it
+    # is unset. This row is the display-free half: the resolver's unset / empty /
+    # set answers, the notice's text, and from source (RSBS_SOURCE_DIR) that no raw
+    # getenv of a *_DIGEST_OUT variable survives. HandRunDigestHonesty below drives
+    # the real dispatches, which need a window.
+    redship_add_test(NAME DigestOutHandRun COMMAND redship --test digest-out-hand-run)
+    # #710, the real dispatches (CMake/CheckHandRunDigest.cmake): rando-determinism
+    # and mm-paired-attempt run with the variable unset in a private directory
+    # print the notice twice, leave a planted stale artifact byte-identical and
+    # create no .txt file; set, the file appears and no notice is printed. A meta
+    # row (drives no --test entry of its own); rando tier because the dispatches
+    # bring up a Fast3dWindow. Three generations, so SeedDeterminism's timeout.
+    redship_add_test(NAME HandRunDigestHonesty
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckHandRunDigest.cmake
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2")
 
     # #702: the per-area exclude-location option groups reach OoT's settings
     # fingerprint at their shipped sizes (nonzero, equal to each area's exclude
