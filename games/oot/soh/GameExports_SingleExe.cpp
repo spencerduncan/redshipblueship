@@ -215,20 +215,23 @@ static void GpFireOoTDoor(uint16_t entrance, const char* what) {
 }
 
 /**
- * Author a debug save in-place and enter Play directly at the configured
- * boot entrance. Mirrors the operator's map-select flow — Select_LoadGame
- * (z_select.c) and the boot branch of Enhancements/Warping.cpp Warp() — so
- * the test runs on the same kind of full-inventory save + Play_Init entry the
- * manual repro uses.
+ * Author a debug save in-place and enter Play directly at `entrance`. Mirrors
+ * the operator's map-select flow — Select_LoadGame (z_select.c) and the boot
+ * branch of Enhancements/Warping.cpp Warp() — so the test runs on the same
+ * kind of full-inventory save + Play_Init entry the manual repro uses.
+ *
+ * Shared by every integration row that needs live gameplay without a Start
+ * press: called from the title screen's OnZTitleUpdate (which ticks every
+ * frame of the boot logo, unattended) or, belt-and-braces, from
+ * OnPresentFileSelect. `tag` prefixes the log line. Returns false (and does
+ * nothing) when there is no GameState to redirect.
  */
-static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from) {
-    const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+static bool IntInjectDebugSaveAndEnterPlay(GameState* gameState, uint16_t entrance, bool adult, const char* tag,
+                                           const char* from) {
     if (gameState == NULL) {
-        IntegrationTest_GameplayFail("no GameState available for debug-save injection");
-        return;
+        return false;
     }
-    fprintf(stderr, "[GP-TEST] injecting debug save at %s; entering Play at entrance 0x%04X\n", from,
-            cfg->bootEntrance);
+    fprintf(stderr, "[%s] injecting debug save at %s; entering Play at entrance 0x%04X\n", tag, from, entrance);
     fflush(stderr);
 
     gSaveContext.gameMode = GAMEMODE_NORMAL;
@@ -245,11 +248,11 @@ static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from
     // RSBS_GP_BOOT_AGE=adult the save boots adult instead, so the run
     // exercises the forced-child-on-return swap in OoT_Game_Resume (the
     // return-leg assert requires child either way).
-    gSaveContext.linkAge = cfg->bootAdult ? LINK_AGE_ADULT : LINK_AGE_CHILD;
+    gSaveContext.linkAge = adult ? LINK_AGE_ADULT : LINK_AGE_CHILD;
     gSaveContext.nightFlag = 0;
     gSaveContext.dayTime = 0x8000;
     gSaveContext.skyboxTime = 0x8000;
-    gSaveContext.entranceIndex = cfg->bootEntrance;
+    gSaveContext.entranceIndex = entrance;
     gSaveContext.seqId = (u8)NA_BGM_DISABLED;
     gSaveContext.natureAmbienceId = 0xFF;
     gSaveContext.showTitleCard = true;
@@ -259,7 +262,161 @@ static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from
     gameState->running = false;
     SET_NEXT_GAMESTATE(gameState, OoT_Play_Init, PlayState);
     GameInteractor_ExecuteOnLoadGame(gSaveContext.fileNum);
+    return true;
+}
+
+// The gameplay round-trip's boot step: the configured entrance and age.
+static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from) {
+    const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
+    if (!IntInjectDebugSaveAndEnterPlay(gameState, cfg->bootEntrance, cfg->bootAdult != 0, "GP-TEST", from)) {
+        IntegrationTest_GameplayFail("no GameState available for debug-save injection");
+        return;
+    }
     IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_PRE);
+}
+
+// ============================================================================
+// T1 (#260, #544): Happy Mask Shop -> MM, fired from live gameplay
+// ============================================================================
+//
+// #544: this row used to fire from OnPresentFileSelect, whose only dispatch is
+// FileChoose_FinishFadeIn (z_file_choose.c) — reached only after a Start press
+// at the title, which no unattended run sends. OoT settled into the attract
+// demo loop (cutsceneIndex 0xfff3/0xfff2) until the CTest wall killed it, so
+// the row never executed one of its assertions. It now reaches gameplay the
+// way IntGameplayRoundtrip does — a debug save injected from the title screen,
+// Play entered directly outside the Happy Mask Shop — fires the HMS entrance
+// after a window of live gameplay frames, and, when an OoT stage before the
+// trigger stalls while OoT keeps ticking frames (the #544 attract-demo state),
+// fails with the stage it was stuck in on a per-stage wall-clock budget instead
+// of hitting the wall silently.
+//
+// What this does NOT cover: the budget is checked from OoT's
+// OnGameStateMainStart, not from a thread, so (a) a wedge inside one OoT frame
+// (e.g. a hang in Play_Init after the injection) never reaches the check, and
+// (b) once the row is T1_STAGE_TRIGGERED the check stops, and the OoT->MM
+// hand-off (suspend, archive swap, MM_Game_Init) and the MM half have only
+// MM's frame-counted scene-load watchdog. Those still end at the CTest
+// timeout; a wall-clock watchdog thread is the fix, not done here.
+typedef enum {
+    T1_STAGE_BOOT,          // waiting for the title screen (or file select) to inject the debug save
+    T1_STAGE_ENTERING_PLAY, // debug save injected; waiting for OoT's scene init at kT1BootEntrance
+    T1_STAGE_GAMEPLAY,      // scene built; counting live gameplay frames before the trigger
+    T1_STAGE_TRIGGERED,     // HMS entrance fired and routing asserted; MM's side owns the rest
+    T1_STAGE_FAILED,
+} T1Stage;
+
+static T1Stage sT1Stage = T1_STAGE_BOOT;
+static int sT1GameplayFrames = 0;
+static std::chrono::steady_clock::time_point sT1StageStart{};
+// Right outside the Happy Mask Shop: where a player stands before walking in.
+static const uint16_t kT1BootEntrance = OOT_ENTR_MARKET_FROM_MASK_SHOP;
+static const int kT1GameplayFramesBeforeTrigger = 20;
+// Per stage, wall clock, checked once per OoT frame. One stalled stage fails
+// the row, so a stall is reported at about 30 s plus the time spent in earlier
+// stages (a healthy run spends under a second in each). It bounds only OoT
+// stages that keep ticking frames; see the block comment above for what still
+// reaches the 120 s REDSHIP_INTEGRATION_TEST_TIMEOUT.
+static const int kT1StageBudgetSecs = 30;
+
+static const char* T1StageName(T1Stage stage) {
+    switch (stage) {
+        case T1_STAGE_BOOT:
+            return "boot";
+        case T1_STAGE_ENTERING_PLAY:
+            return "entering-play";
+        case T1_STAGE_GAMEPLAY:
+            return "gameplay";
+        case T1_STAGE_TRIGGERED:
+            return "triggered";
+        case T1_STAGE_FAILED:
+            return "failed";
+    }
+    return "unknown";
+}
+
+static double T1SecondsInStage(void) {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - sT1StageStart).count();
+}
+
+static void T1SetStage(T1Stage stage) {
+    fprintf(stderr, "[OoT-INT-TEST] T1 stage %s -> %s (%.1f s in %s)\n", T1StageName(sT1Stage), T1StageName(stage),
+            T1SecondsInStage(), T1StageName(sT1Stage));
+    fflush(stderr);
+    sT1Stage = stage;
+    sT1StageStart = std::chrono::steady_clock::now();
+}
+
+// Fail loudly with the stage and enough state to attribute the wedge from the
+// log alone. RequestExit does not set the pass flag; Combo_RequestGameSwitch
+// makes Combo_CheckHotSwap return true so OoT's frame loop actually hands back
+// to main, which sees the exit request before any switch.
+static void T1Fail(const char* why) {
+    PlayState* play = OoT_gPlayState;
+    fprintf(stderr,
+            "[OoT-INT-TEST] FAIL (int-switch-oot-hms-to-mm): %s [stage=%s after %.1f s; gameMode=%d "
+            "entranceIndex=0x%04X cutsceneIndex=0x%04X gPlayState=%p sceneNum=%d]\n",
+            why, T1StageName(sT1Stage), T1SecondsInStage(), (int)gSaveContext.gameMode,
+            (uint16_t)gSaveContext.entranceIndex, (uint16_t)gSaveContext.cutsceneIndex, (void*)play,
+            play != NULL ? (int)play->sceneNum : -1);
+    fflush(stderr);
+    sT1Stage = T1_STAGE_FAILED;
+    IntegrationTest_RequestExit();
+    Combo_RequestGameSwitch();
+}
+
+static void T1InjectFrom(GameState* gameState, const char* from) {
+    if (sT1Stage != T1_STAGE_BOOT) {
+        return;
+    }
+    if (!IntInjectDebugSaveAndEnterPlay(gameState, kT1BootEntrance, false, "OoT-INT-TEST", from)) {
+        T1Fail("no GameState available for debug-save injection");
+        return;
+    }
+    T1SetStage(T1_STAGE_ENTERING_PLAY);
+}
+
+// Fire the HMS entrance and assert where it routes. Same call OoT's z_play.c
+// makes when the player walks into the Happy Mask Shop door — minus the
+// SaveContext freeze, which IntGameplayRoundtrip's production door covers.
+static void T1TriggerHmsAndAssertRouting(void) {
+    fprintf(stderr, "[OoT-INT-TEST] gameplay reached (scene %d, %d live frames); triggering HMS entrance 0x%04X\n",
+            OoT_gPlayState != NULL ? (int)OoT_gPlayState->sceneNum : -1, sT1GameplayFrames, OOT_ENTR_HAPPY_MASK_SHOP);
+    fflush(stderr);
+
+    Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
+
+    if (!Combo_IsCrossGameSwitch()) {
+        T1Fail("HMS entrance did not register a cross-game switch");
+        return;
+    }
+
+    const char* target = Combo_GetSwitchTargetGameId();
+    uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
+
+    if (!target || strcmp(target, "mm") != 0) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "target should be 'mm', got '%s'", target ? target : "(null)");
+        T1Fail(msg);
+        return;
+    }
+
+    if (targetEntrance != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "target entrance should be 0x%04X (South Clock Town tower exit), got 0x%04X",
+                 MM_ENTR_SOUTH_CLOCK_TOWN_0, targetEntrance);
+        T1Fail(msg);
+        return;
+    }
+
+    fprintf(stderr, "[OoT-INT-TEST] PASS leg 1: HMS routes to MM 0x%04X; main loop will run the switch\n",
+            targetEntrance);
+    fflush(stderr);
+    T1SetStage(T1_STAGE_TRIGGERED);
+    // Intentionally NOT signaling boot complete here. OoT's frame loop sees
+    // the pending cross-game switch in Combo_CheckHotSwap and hands off to MM;
+    // the MM-side hook signals the final pass once South Clock Town is loaded
+    // and stable (and has its own scene-load watchdog).
 }
 
 // ============================================================================
@@ -823,56 +980,88 @@ static void OoT_RegisterIntegrationTestHooks(void) {
         fprintf(stderr, "[OoT] Integration test hooks registered\n");
         fflush(stderr);
     } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM) {
-        // T1 (#260): Boot OoT, programmatically trigger the Happy Mask Shop
-        // entrance, assert the cross-game switch resolves to MM South Clock
-        // Town (the tower-exit arrival). Leg 1 of the test passes when
-        // routing is verified here; final pass is signaled from the MM-side
-        // hook after MM stabilizes post-switch.
+        // T1 (#260, #544): reach live OoT gameplay without a Start press, fire
+        // the Happy Mask Shop entrance from there, assert the cross-game switch
+        // resolves to MM South Clock Town (the tower-exit arrival). Leg 1 passes
+        // when routing is verified here; the final pass is signaled from the
+        // MM-side hook after MM stabilizes post-switch. Stage machine and
+        // watchdog: T1Stage above.
         fprintf(stderr, "[OoT] Registering integration test hooks for HMS->MM switch (T1)\n");
         fflush(stderr);
 
-        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>([]() {
-            fprintf(stderr, "[OoT-INT-TEST] File select reached; triggering HMS entrance 0x%04X\n",
-                    OOT_ENTR_HAPPY_MASK_SHOP);
+        sT1Stage = T1_STAGE_BOOT;
+        sT1GameplayFrames = 0;
+        sT1StageStart = std::chrono::steady_clock::now();
+
+        // Boot injection, whichever fires first (both are no-ops past
+        // T1_STAGE_BOOT). The title hook ticks every frame of the boot logo, so
+        // an unattended run always reaches it; file select is belt-and-braces
+        // for a boot sequence that skips straight there.
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnZTitleUpdate>(
+            [](void* gameState) { T1InjectFrom((GameState*)gameState, "title screen"); });
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>(
+            []() { T1InjectFrom(OoT_gGameState, "file select"); });
+
+        // Gameplay reached: OoT_Play_Init built the scene the debug save asked
+        // for. Fires after the startup-entrance consumption, so entranceIndex
+        // is final here.
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSceneInit>([](int16_t sceneNum) {
+            if (Context_GetCurrentGame() != GAME_OOT || sT1Stage != T1_STAGE_ENTERING_PLAY) {
+                return; // shared hook storage guard (#344); only the injected arrival counts
+            }
+            uint16_t entrance = (uint16_t)gSaveContext.entranceIndex;
+            fprintf(stderr, "[OoT-INT-TEST] OoT scene init: scene %d, entrance 0x%04X, gameMode %d\n", sceneNum,
+                    entrance, (int)gSaveContext.gameMode);
             fflush(stderr);
-
-            // Same call OoT's z_play.c makes when the player walks into the
-            // Happy Mask Shop door — minus the freeze, which T3 covers.
-            Combo_CheckCrossGameEntrance("oot", OOT_ENTR_HAPPY_MASK_SHOP);
-
-            if (!Combo_IsCrossGameSwitch()) {
-                fprintf(stderr, "[OoT-INT-TEST] FAIL: HMS entrance did not register a cross-game switch\n");
-                fflush(stderr);
-                IntegrationTest_RequestExit();
+            if (entrance != kT1BootEntrance) {
+                char msg[112];
+                snprintf(msg, sizeof(msg), "gameplay arrived at entrance 0x%04X, expected 0x%04X", entrance,
+                         kT1BootEntrance);
+                T1Fail(msg);
                 return;
             }
+            sT1GameplayFrames = 0;
+            T1SetStage(T1_STAGE_GAMEPLAY);
+        });
 
-            const char* target = Combo_GetSwitchTargetGameId();
-            uint16_t targetEntrance = Combo_GetSwitchTargetEntrance();
-
-            if (!target || strcmp(target, "mm") != 0) {
-                fprintf(stderr, "[OoT-INT-TEST] FAIL: target should be 'mm', got '%s'\n", target ? target : "(null)");
-                fflush(stderr);
-                IntegrationTest_RequestExit();
+        // Frame driver + wall-clock budget check. Runs on every OoT gamestate's
+        // frame (title, opening, file select, play), so a stage before the
+        // trigger that stalls while frames keep ticking is caught here. A wedge
+        // inside a frame never returns to this hook (see the T1 block comment).
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+            if (Context_GetCurrentGame() != GAME_OOT) {
+                return; // (#344) MM frames share this hook storage
+            }
+            if (sT1Stage == T1_STAGE_TRIGGERED || sT1Stage == T1_STAGE_FAILED) {
                 return;
             }
-
-            if (targetEntrance != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
-                fprintf(stderr,
-                        "[OoT-INT-TEST] FAIL: target entrance should be 0x%04X (South Clock Town tower exit), "
-                        "got 0x%04X\n",
-                        MM_ENTR_SOUTH_CLOCK_TOWN_0, targetEntrance);
-                fflush(stderr);
-                IntegrationTest_RequestExit();
+            if (T1SecondsInStage() >= kT1StageBudgetSecs) {
+                switch (sT1Stage) {
+                    case T1_STAGE_BOOT:
+                        T1Fail("title screen / file select never presented: the debug save was never injected");
+                        break;
+                    case T1_STAGE_ENTERING_PLAY:
+                        T1Fail("gameplay never reached: no OoT scene init after the debug-save injection");
+                        break;
+                    default:
+                        T1Fail("gameplay reached but never ran live frames (no PlayState / not GAMEMODE_NORMAL)");
+                        break;
+                }
                 return;
             }
-
-            fprintf(stderr, "[OoT-INT-TEST] PASS leg 1: HMS routes to MM 0x%04X; main loop will run the switch\n",
-                    targetEntrance);
-            fflush(stderr);
-            // Intentionally NOT signaling boot complete here. The main loop
-            // will see the pending cross-game switch on Combo_CheckHotSwap
-            // and hand off to MM. The MM-side hook signals the final pass.
+            if (sT1Stage != T1_STAGE_GAMEPLAY) {
+                return;
+            }
+            PlayState* play = OoT_gPlayState;
+            if (play == NULL || OoT_gGameState != &play->state || gSaveContext.gameMode != GAMEMODE_NORMAL ||
+                GET_PLAYER(play) == NULL) {
+                sT1GameplayFrames = 0;
+                return;
+            }
+            if (++sT1GameplayFrames < kT1GameplayFramesBeforeTrigger) {
+                return;
+            }
+            T1TriggerHmsAndAssertRouting();
         });
 
         fprintf(stderr, "[OoT] HMS->MM switch hooks registered\n");
