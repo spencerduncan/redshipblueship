@@ -255,32 +255,63 @@ folder from earlier play.
 | Creation time, shipped defaults | 10 real paired creations (`RSBS_CSB_SAMPLE_EVENT=10`: Generate, the creation event with the spoiler written, the arm, `Randomizer_InitSaveFile`). 10 of 10 created on the first attempt with no budget stop. Mean 8.5 s, best 6.2 s, worst 13.0 s (the one seed whose fill needed a second batch), against the 30 s budget. Every world's 50 heart pickups filled the bar with none wasted |
 | DX11 menus against OpenGL | See below: no visible difference |
 
-**What this does not cover: the first crossing into a paired Termina with the real game
-data loaded.** No automated row runs the whole path in one process: create a paired file
-through the creation event, then walk into MM with the ROM archives mounted. The
-integration rows cross with a vanilla debug save, and their log says so on every MM
-arrival: `[MM] pairing: skipped-because-no-paired-oot-world`. The rows that do run
-creation and then an MM arrival in one process (`ComboCreationEvent`, `MMPairSwitchEntry`)
-run with the OTR archive init disabled (`RSBS_DISABLE_OTR_INIT=1`), so no real game data is
-loaded. Both passed, and their logs show the two
-lines §3 of the playtest guide asks you to look for:
-`[MM] pairing: arrival profile matches the creation-frozen identity` and
-`[MM] pairing: HYDRATED from the frozen MM half (saveType=rando ...`. `MMPairSwitchEntry`
-also passed its return leg ("restored, not regenerated") and its refusal leg. So the
-playtest's first crossing (guide §3, step 3) is the first time this path runs with the
-real game. That is why it comes first.
+**What the smoke did not cover then, and a row covers now: the first crossing into a
+paired Termina with the real game data loaded.** At `d928d67d` no automated row ran the
+whole path in one process: create a paired file through the creation event, then walk
+into MM with the ROM archives mounted. The integration rows crossed with a vanilla debug
+save, and their log said so on every MM arrival:
+`[MM] pairing: skipped-because-no-paired-oot-world`. The rows that did run creation and
+then an MM arrival in one process (`ComboCreationEvent`, `MMPairSwitchEntry`) ran with the
+OTR archive init disabled (`RSBS_DISABLE_OTR_INIT=1`), so no real game data was loaded.
 
-**Reads like a bug, but is not one.** Every HYDRATED line ends with
-`foreignPlacements=0`, even when the file has dozens of crossings. That count is the
-retired item table from before the single-bag switch. Crossings are now kept in the
-crossing store, which the Combo Tracker and Cross-Game Spoiler read. A zero there does
-not mean nothing crossed.
+Since PR [#790](https://github.com/spencerduncan/redshipblueship/pull/790) the
+`integration` label has a row that does it: `IntPairedFirstCrossing`
+(`redship --integration-test int-paired-first-crossing`). In one process, with the ROM
+archives mounted and a real OpenGL window, it takes the title to the file select (SoH's
+"Boot Sequence: File Select" path), generates the pinned world `RSBSSINGLEBAG1` on the
+shipped defaults (checked: it fails if the config sets any OoT, MM or combo setting),
+creates file 3 through OoT's own new-file seam (`OoT_Sram_InitSave`,
+which runs the production creation event and writes the slot), loads that file back the
+way the file select does, and plays it from the Market (0x01D1). The loaded file must carry
+the identity the creation recorded before the load (seed, settings digests, crossing counts
+and digest). It walks through the
+Happy Mask Shop (0x0530) into South Clock Town (0xD800), then back through the Clock
+Tower door (0xC010). It fails unless the MM arrival logs both lines §3 of the playtest
+guide asks you to look for, the pairing is live in MM, the crossing store is frozen and
+not empty, the MM half is the one the creation armed, nothing generated at the arrival,
+and no refusal was logged or toasted. The return leg must restore OoT's half, not
+regenerate it. The first green run (workstation, Windows, OpenGL, archives extracted
+at the branch tip, 55.2 s) logged:
+
+```
+[MM] pairing: arrival profile matches the creation-frozen identity (13DE4C35)
+[MM] pairing: HYDRATED from the frozen MM half (saveType=rando mmFinalSeed=8DDF1DEE crossingsInHyrule=51 crossingsInTermina=21) — nothing was generated at this arrival
+[PFC] return leg PASS: OoT's half restored, not regenerated (file 3, OoT world seed 2852956488, sentinel deaths=777 survived), same identity: ...
+```
+
+Hosted CI cannot run it, like every `integration` row: it needs the ROM-derived archives.
+It runs locally (see [`ci-gameplay-repro-postmortem.md`](ci-gameplay-repro-postmortem.md) §7)
+and in the manual `integration-tests` workflow on a ROM-equipped runner. With
+`RSBS_PFC_SKIP_CREATION=1` the row boots the debug save instead, as the older rows do, and
+fails on the `skipped-because-no-paired-oot-world` line: that is its red half. The playtest's
+first crossing (guide §3, step 3) is still the first time a person walks this path, and it
+still comes first. What the row cannot see is what a person sees: it fires the door
+transitions directly, and the Happy Mask Shop's Closed Forest gate is not in its path.
+
+**The HYDRATED line's count.** At `d928d67d` every HYDRATED line ended with
+`foreignPlacements=0`, even when the file had dozens of crossings. That count was the
+retired item table from before the single-bag switch. Since PR
+[#790](https://github.com/spencerduncan/redshipblueship/pull/790) the line prints the
+crossing store's two counts instead: `crossingsInHyrule` (Majora's Mask items in Ocarina of
+Time checks) and `crossingsInTermina` (Ocarina of Time items in Majora's Mask checks). The
+Combo Tracker and the Cross-Game Spoiler read the same store.
 
 **Smaller notes.**
 - The test portal (`--test-entrance`, Mido's House to the Clock Tower) skips Closed
   Forest. On the shipped defaults, the Happy Mask Shop opens only after the Deku Tree.
-- No `integration` or `integration-soak` row loaded a `.redsave`. Every MM arrival in them
-  was vanilla (`skipped-because-no-paired-oot-world`). The `redship` tier's save rows do
+- No `integration` or `integration-soak` row loaded a `.redsave` at `d928d67d`. Every MM
+  arrival in them was vanilla (`skipped-because-no-paired-oot-world`). `IntPairedFirstCrossing`
+  (PR [#790](https://github.com/spencerduncan/redshipblueship/pull/790)) now writes and loads one. The `redship` tier's save rows do
   load `.redsave` files and refuse some of them on purpose: a verbose re-run of the tier
   printed 66 `[RsbsSave] slot N REFUSED` lines (20 rows, plus `AllTests` repeating them),
   and every one of those rows passed.
@@ -773,6 +804,10 @@ Two rows to know about before you read a red or green as a signal:
   ([#544](https://github.com/spencerduncan/redshipblueship/issues/544)). It is
   not a regression signal; it has never proved what its name claims. The other
   integration rows are real.
+- **`IntPairedFirstCrossing` is the only row that crosses with a paired file** (PR
+  [#790](https://github.com/spencerduncan/redshipblueship/pull/790)). Like every
+  `integration` row it needs the ROM archives, so hosted CI never runs it; run it locally
+  before merging anything that touches creation, the `.redsave` load, or the MM arrival.
 
 Also: clang-format is enforced against an incremental allowlist
 (`.github/clang-format-paths.txt`), not the full tree

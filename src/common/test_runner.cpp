@@ -5343,6 +5343,9 @@ struct IntegrationTestDescriptor {
     const char* description;
     IntegrationTestMode mode;
     GameId targetGame;
+    // Only read for INT_TEST_GAMEPLAY_ROUNDTRIP rows; every other row leaves it
+    // at GP_VARIANT_ROUNDTRIP (value-initialized).
+    GameplayVariant gameplayVariant;
 };
 
 const IntegrationTestDescriptor gIntegrationTests[] = {
@@ -5361,6 +5364,13 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
      "Operator crash repro: debug save, live gameplay, production OoT<->MM round trip (freeze/restore + "
      "resume leg), post-return debug warp, door transition. Env: RSBS_GP_FRAMES/CYCLES/BOOT|WARP|EXIT_ENTRANCE",
      INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT},
+    {"int-paired-first-crossing",
+     "The first crossing of a PAIRED file with the archives mounted, in one process: generate the pinned world "
+     "(RSBSSINGLEBAG1) on the shipped defaults, create the file through OoT's new-file seam (the production creation "
+     "event), load it as the file select does, walk into MM through the Happy Mask Shop, assert the arrival hydrated "
+     "the creation-frozen half (stderr lines, pairing, crossing store, no refusal), and come back restored. "
+     "RSBS_PFC_SKIP_CREATION=1 is the red half",
+     INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT, GP_VARIANT_PAIRED_FIRST_CROSSING},
     {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 
@@ -5581,6 +5591,9 @@ bool TestRunner_SetupIntegrationTest(const char* testName) {
 
             // Set up integration test hooks
             IntegrationTest_SetMode(gIntegrationTests[i].mode);
+            if (gIntegrationTests[i].mode == INT_TEST_GAMEPLAY_ROUNDTRIP) {
+                IntegrationTest_SetGameplayVariant(gIntegrationTests[i].gameplayVariant);
+            }
 
             printf("[INT-TEST] Setting up integration test: %s\n", testName);
             printf("[INT-TEST] Target game: %s\n", Game_ToString(sTargetGame));
@@ -5611,6 +5624,9 @@ int TestRunner_GetIntegrationTestResult(void) {
     }
 
     bool passed = IntegrationTest_BootPassed();
+    // The paired row's stderr tee (a no-op for every other row): drain it and
+    // put fd 2 back before the process _Exit()s, so no line is lost in the pipe.
+    IntegrationTest_StderrCaptureStop();
     printf("\n=== Integration Test Result ===\n");
     printf("Test: %s\n", sIntegrationTestName);
     printf("Result: %s\n", passed ? "PASS" : "FAIL");
