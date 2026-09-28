@@ -2099,6 +2099,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # #781: loading a paired file whose Cross-Game Rules or MM options changed at
+    # the title screen. The file's own values win at load (restored into the keys,
+    # named in a toast), what the file cannot restore is refused or flagged
+    # visibly, and the arrival gate agrees with a file that loaded. Loads through
+    # the OnLoadFile seam's own calls. games/mm/2s2h/mm_paired_load_restore_test.cpp.
+    redship_add_test(NAME PairedLoadRestore COMMAND redship --test paired-load-restore)
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
