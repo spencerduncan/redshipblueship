@@ -8,6 +8,8 @@
 
 #include "save.h"
 
+#include "combo_mm_options_view.h" // MM_Rando_RestoreProfileForLoad: the load-time MM profile compare (#781)
+#include "combo_settings_view.h"   // Combo_ComboSettingsRestoreLive: frozen wins at load (#781)
 #include "context.h"
 #include "crossing_store.h" // the v3 Tier-4 crossing block (ADR 0010 O7)
 #include "entrance.h" // MM_ENTR_SOUTH_CLOCK_TOWN_0 — the armed blob's return entrance
@@ -15,6 +17,7 @@
 // runs over the record it just read (ADR 0011 decision 4).
 #include "foreign_items.h"
 #include "game.h"
+#include "notification_bridge.h" // the load's player-visible surface (#781): stderr is not one
 #include "shared_resources.h"
 #include "triforce_hunt.h" // ADR 0010 O10: the triforce record joins the load-time identity check
 
@@ -71,6 +74,36 @@ void SaveLogReject(bool verbose, const char* reason, unsigned long long got,
 bool SaveLogFail(int slot, const char* reason) {
     std::fprintf(stderr, "[RsbsSave] slot %d NOT saved: %s\n", slot, reason);
     return false;
+}
+
+// The load's player-visible surface (#781). A load that changed the session's
+// rules, or refused the pair, used to say so on stderr only, which no player
+// reads. Two shapes: an INFO toast in SoH's own notification colours (what the
+// load did for the player), and a REFUSAL toast in the colours of the arrival
+// gate's refusals (GameExports_SingleExe.cpp), so the two refusal surfaces read
+// as one. Muted like those: the overlay's ding is OoT's audio, and this runs in
+// the display-free rows too.
+void LoadToast(bool refusal, const char* prefix, const char* message) {
+    ComboNotification toast;
+    std::memset(&toast, 0, sizeof(toast));
+    toast.prefix = prefix;
+    toast.message = message;
+    if (refusal) {
+        const float prefixColor[4] = { 0.9f, 0.35f, 0.3f, 1.0f };
+        const float messageColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        std::memcpy(toast.prefixColor, prefixColor, sizeof(prefixColor));
+        std::memcpy(toast.messageColor, messageColor, sizeof(messageColor));
+        toast.remainingTime = 15.0f;
+    } else {
+        // Notification::Options' own defaults (soh/Notification/Notification.h).
+        const float prefixColor[4] = { 0.5f, 0.5f, 1.0f, 1.0f };
+        const float messageColor[4] = { 0.7f, 0.7f, 0.7f, 1.0f };
+        std::memcpy(toast.prefixColor, prefixColor, sizeof(prefixColor));
+        std::memcpy(toast.messageColor, messageColor, sizeof(messageColor));
+        toast.remainingTime = 10.0f;
+    }
+    toast.mute = 1;
+    OoT_Notification_Emit(&toast);
 }
 
 // Filename-safe tag for the quarantine rename, so the renamed-aside evidence
@@ -808,30 +841,86 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     // The O10 triforce record (ADR 0010) is checked over the SAME just-read
     // bytes: a record contradicting the goal beside it is damage to the stored
     // identity, quarantined like a fingerprint mismatch.
-    const uint32_t comboDiverged =
+    //
+    // FROZEN WINS AT LOAD (#781, one-game semantics). A field-only divergence
+    // used to refuse here, and the refusal was invisible: the only production
+    // caller (OoT's OnLoadFile seam) cannot un-open the OoT file it is loading,
+    // so the .sav played on with the pairing identity already dropped by
+    // Context_InvalidateSessionOnSlotLoad, and the next MM arrival silently took
+    // the no-paired-world leg. Under the ruling the file's rules ARE the rules;
+    // the live keys are staging for the next file. So a divergence every bit of
+    // which a key authors is answered by putting the file's values back into
+    // the keys (Combo_ComboSettingsRestoreLive), after which the resolver, this
+    // compare and every arrival compare agree with the file, and the load
+    // commits. What cannot be restored through a key (damage, or a field no key
+    // authors, which only a different build can have written) still refuses,
+    // now with a toast.
+    uint32_t comboDiverged =
         Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash, combo.sharedRandoSettingsHash,
                                          combo.mmProfileDigest) |
         Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
+    char restoredRules[192] = { 0 };
+    if (comboDiverged != 0 && !Combo_ComboSettingsDivergenceIsDamage(comboDiverged) &&
+        Combo_ComboSettingsRestoreLive(&combo.comboSettings, comboDiverged, restoredRules, sizeof(restoredRules)) ==
+            1) {
+        const uint32_t afterRestore =
+            Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash,
+                                             combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
+            Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d: the cross-game rules this session held differed from the file's; the "
+                     "file's own values were restored (%s) — frozen wins at load (#781)\n",
+                     slot, restoredRules);
+        comboDiverged = afterRestore;
+        if (comboDiverged != 0) {
+            restoredRules[0] = '\0';
+        }
+    }
     if (comboDiverged != 0) {
         char fields[192];
         Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
+        static char refusalMessage[320];
         if (Combo_ComboSettingsDivergenceIsDamage(comboDiverged)) {
             std::fprintf(stderr,
                          "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the stored cross-game identity is "
                          "damaged (%s). Evidence quarantined; erase the slot to release it.\n",
                          slot, fields);
             QuarantineSlotFile(slot, RSBS_REFUSE_IDENTITY);
+            std::snprintf(refusalMessage, sizeof(refusalMessage),
+                          "This file's cross-game record is damaged (%s). It plays without Majora's Mask and "
+                          "progress will not be saved to the pair. Erase the file to release it.",
+                          fields);
         } else {
             std::fprintf(stderr,
                          "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
-                         "created under do not match this session's: %s. Divergence is corruption to refuse, never "
-                         "a choice to honour. The on-disk .redsave is intact and untouched; set the rules back to "
-                         "match it (or erase the slot) and load again.\n",
+                         "created under do not match this session's and cannot be restored from it: %s. The "
+                         "on-disk .redsave is intact and untouched.\n",
                          slot, fields);
+            std::snprintf(refusalMessage, sizeof(refusalMessage),
+                          "This file was made with cross-game rules this version cannot restore (%s). It plays "
+                          "without Majora's Mask and progress will not be saved to the pair.",
+                          fields);
         }
+        LoadToast(/*refusal=*/true, "Cross-game pairing REFUSED:", refusalMessage);
         mSlotRefused[slot] = RSBS_REFUSE_IDENTITY;
         mSlotArmed[slot] = false;
         return RSBS_LOAD_REFUSED;
+    }
+
+    // The MM half of the same rule (#781): the profile digest the arrival gate
+    // recomputes (MM_Rando_GateCrossGameArrival) is recomputed HERE too, and a
+    // divergence the file can answer is answered by writing the file's own
+    // options and tricks back, so an arrival never refuses a file that loaded.
+    // What the file cannot answer (an input it does not record) does not refuse
+    // the load: the pair is restored below, the player is told now rather than
+    // at the Happy Mask Shop, and the arrival gate remains the last line of
+    // defence. Only for a stamped pair, and only with a CVar store to compare.
+    char restoredMm[256] = { 0 };
+    int mmProfileOutcome = RSBS_MM_PROFILE_LOAD_MATCHES;
+    if (combo.sourceIsRando && combo.sharedRandoSettingsHash != 0 && combo.mmProfileDigest != 0 &&
+        Combo_ComboSettingStoreAvailable()) {
+        mmProfileOutcome = MM_Rando_RestoreProfileForLoad(data.mmBlob.data(), data.mmBlob.size(),
+                                                          combo.mmProfileDigest, restoredMm, sizeof(restoredMm));
     }
 
     // All checks passed — commit. gComboCtx and both shadows are updated.
@@ -959,6 +1048,26 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
                          "OoT's own .sav for this load (#589)\n",
                          slot);
         }
+    }
+
+    // What the load did to the session's rules, where the player can see it
+    // (#781). Persisted so the config file agrees with what the pages now show.
+    if (restoredRules[0] != '\0' || mmProfileOutcome == RSBS_MM_PROFILE_LOAD_RESTORED) {
+        Combo_ComboSettingsPersistStore();
+    }
+    if (restoredRules[0] != '\0') {
+        LoadToast(/*refusal=*/false, "Cross-Game Rules restored from this file:", restoredRules);
+    }
+    if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_RESTORED) {
+        LoadToast(/*refusal=*/false, "Majora's Mask options restored from this file:", restoredMm);
+    } else if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d: the live MM profile does not match the file's (%08X) and the file cannot "
+                     "restore it; the next crossing into Majora's Mask will be refused until it does\n",
+                     slot, (unsigned)combo.mmProfileDigest);
+        LoadToast(/*refusal=*/true, "Cross-game pairing at risk:",
+                  "Majora's Mask options differ from this file's and cannot be restored from it. Crossing into "
+                  "Termina will be refused until they match.");
     }
 
     // A successful load is one of the three legitimate arming events, and it

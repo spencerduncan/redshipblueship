@@ -215,13 +215,14 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
         char tricks[256];
         ComboContext_Init();
         Context_SetCurrentGame(GAME_OOT);
-        CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_StatusNote(), "No paired world yet"));
+        CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_StatusNote(), "Loading a paired file restores"));
         CMOP_ASSERT(Combo_MMOptionsPage_Suspended());
         CMOP_ASSERT(Combo_MMOptionsPage_LockWarning() != NULL);
         CMOP_ASSERT(Combo_MMOptionsPage_FallbackWarning() != NULL);
         char expected[64];
         snprintf(expected, sizeof(expected), "%d of %d tricks", Combo_MMOptionsPage_SettableTrickCount(), trickCount);
         CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_TricksNote(tricks, sizeof(tricks)), expected));
+        CMOP_ASSERT(CmopContains(tricks, "Loading a paired file restores"));
 
         Context_SetCurrentGame(GAME_MM);
         CMOP_ASSERT(!Combo_MMOptionsPage_Suspended());

@@ -406,9 +406,12 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
                  "Your paired world predates these rules and will use the defaults. Keep them at the defaults "
                  "until you have crossed into it once.");
     } else {
+        // No paired file is loaded, so the rows author the NEXT world. Loading
+        // an existing paired file puts that file's own rules back (#781), so an
+        // edit here never reaches a world that already exists.
         snprintf(buffer, sizeof(buffer),
-                 "These rules are saved into the next paired world when it is generated, and cannot be changed "
-                 "for that world afterwards.");
+                 "These rules apply to the next paired world you create, and cannot be changed for it afterwards. "
+                 "Loading a paired file restores that file's own rules.");
     }
     comboRuleStatusText = buffer;
     info.name = comboRuleStatusText;

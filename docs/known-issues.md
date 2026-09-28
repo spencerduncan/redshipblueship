@@ -214,7 +214,27 @@ Nothing stored in an existing save is recomputed, so existing files are unaffect
 
 ## Save loss and corruption
 
-### A changed MM option or Cross-Game Rule breaks the pair for the session — [#564](https://github.com/spencerduncan/redshipblueship/issues/564)
+### ~~A changed MM option or Cross-Game Rule breaks the pair for the session~~ — RESOLVED ([#781](https://github.com/spencerduncan/redshipblueship/issues/781); [#564](https://github.com/spencerduncan/redshipblueship/issues/564))
+
+Fixed by the #781 change: **the file's own rules win at load.** The pages are still
+editable between sessions, and what they hold there is staging for the next file.
+Loading a paired file now compares both its Cross-Game Rules and its Majora's Mask
+profile (the same digest the crossing checks) and puts the file's own values back into
+the pages:
+- a changed Cross-Game Rule (Goal, Crossing Direction, pool sizes, item classes, Shared
+  Ocarina) is restored, and a toast reads "Cross-Game Rules restored from this file:"
+  with the rows it reset;
+- a changed MM option or trick is restored from the file's MM half, and a toast reads
+  "Majora's Mask options restored from this file:" with the rows it reset.
+
+The file loads paired, the slot stays writable, and the next crossing into Majora's Mask
+agrees with the file. Two cases the file cannot answer stay visible instead of silent:
+an MM identity input the file does not record (the excluded-check list or the
+starting-item block, which no page in this build edits) loads the file paired but posts
+"Cross-game pairing at risk:", and the crossing is refused until they match; a Cross-Game
+record field no page authors (only a file from another build can differ there) refuses
+the load with a "Cross-game pairing REFUSED:" toast naming the field, and the OoT file
+plays without the pair. The original report, kept for matching old logs:
 
 Open, and a trap between sessions. Combo → MM Randomizer and Combo → MM Tricks lock
 only while a creation stamp is resident (`Combo_MMProfileFrozen()` is
@@ -236,10 +256,8 @@ restored either, so the next MM arrival skips pairing and plays an un-randomized
 without a toast. No in-game surface shows the refusal (the `.redsave` file panel lives in
 the never-instantiated `ComboMenuBar`).
 
-**Workaround:** once a paired file exists, leave both MM pages and Cross-Game Rules alone;
-if you changed one, set it back exactly or recreate the file. **The fix to come** is the
-same MM-profile compare at load time, plus a load refusal the player can see; neither
-exists yet.
+**Workaround (before the fix):** once a paired file exists, leave both MM pages and
+Cross-Game Rules alone; if you changed one, set it back exactly or recreate the file.
 
 ### ~~A flag set in the scene you leave through the portal can be lost~~ — RESOLVED ([#635](https://github.com/spencerduncan/redshipblueship/issues/635), community report; tracked in [#638](https://github.com/spencerduncan/redshipblueship/issues/638), PR [#650](https://github.com/spencerduncan/redshipblueship/pull/650))
 

@@ -704,8 +704,8 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
         fileTricks[mmRandoTrickId] = half->save.shipSaveInfo.rando.randoSaveTricks[mmRandoTrickId] != 0 ? 1 : 0;
     }
-    const uint32_t candidate = Rando::Foreign::DigestFromIdentity(
-        Rando::Foreign::ProfileIdentityString(fileValues.data(), fileTricks.data()));
+    const uint32_t candidate =
+        Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(fileValues.data(), fileTricks.data()));
     if (candidate != frozenDigest) {
         fprintf(stderr,
                 "[MM] profile: load-time restore impossible — the file's own options and tricks give %08X, not the "

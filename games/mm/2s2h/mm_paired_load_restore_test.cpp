@@ -188,6 +188,11 @@ int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride
         gSaveContext.save.shipSaveInfo.rando.finalSeed = kSeed;
         Rando::Foreign::ResolvePairedProfile(/*paired=*/true);
         Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
+    } else {
+        // Written explicitly: the shadow buffers outlive a session reset, so an
+        // earlier leg's half would otherwise ride along into this file.
+        std::vector<uint8_t> none(MM_SAVE_CONTEXT_SIZE, 0);
+        Context_UpdateShadowCopy(GAME_MM, none.data(), none.size());
     }
     // OoT's half is a stand-in: every load below passes generation 0 (a .sav
     // with no mirrored generation, exempt), so this blob is never armed.
@@ -277,8 +282,9 @@ int LegCrossGameRules() {
         return Fail(12, "leg 1: the loaded record is not the file's own");
     }
     if (goal != (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER || direction != (int32_t)RSBS_COMBO_DIR_FORWARD) {
-        return Fail(13, "leg 1: the live keys still hold the session's values (goal %d, direction %d) — the file's "
-                        "rules must win at load",
+        return Fail(13,
+                    "leg 1: the live keys still hold the session's values (goal %d, direction %d) — the file's "
+                    "rules must win at load",
                     (int)goal, (int)direction);
     }
     if (Combo_ComboSettingsDivergence() != 0) {
@@ -335,9 +341,8 @@ int LegMmProfile() {
     const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
     printf("[TEST] leg 2 OBSERVED: load rc=%d paired=%d liveProfileMatchesFile=%d trick=%d startingHearts=%d "
            "writable=%d toast=%s%s%s%s arrivalGate=%d (1 = REFUSED)\n",
-           rc, paired ? 1 : 0, matches ? 1 : 0, trickOn ? 1 : 0, (int)heartsNow, writable,
-           toast.any ? "'" : "(none)", toast.any ? toast.prefix.c_str() : "", toast.any ? " " : "",
-           toast.any ? toast.message.c_str() : "", gate);
+           rc, paired ? 1 : 0, matches ? 1 : 0, trickOn ? 1 : 0, (int)heartsNow, writable, toast.any ? "'" : "(none)",
+           toast.any ? toast.prefix.c_str() : "", toast.any ? " " : "", toast.any ? toast.message.c_str() : "", gate);
 
     if (!paired || gComboCtx.mmProfileDigest != fileDigest) {
         return Fail(23, "leg 2: the load did not restore the pair's MM identity");
@@ -430,8 +435,9 @@ int LegRoundTrip() {
         return Fail(37, "leg 3: the load wrote a trick value the file does not record");
     }
     if (!toast.any || !Contains(toast.prefix, "at risk") || !Contains(toast.message, "Majora's Mask options")) {
-        return Fail(38, "leg 3: an MM profile the file cannot restore was not flagged at load (prefix '%s', "
-                        "message '%s')",
+        return Fail(38,
+                    "leg 3: an MM profile the file cannot restore was not flagged at load (prefix '%s', "
+                    "message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
     if (gate != 1) {

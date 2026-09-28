@@ -94,7 +94,10 @@ const char* Combo_MMOptionsPage_StatusNote(void) {
         return "Your paired world predates saved Majora's Mask options. These are saved into it when you first "
                "cross into Majora's Mask.";
     }
-    return "No paired world yet. These options are saved into the next paired world when it is generated.";
+    // No paired file is loaded, so the rows author the NEXT world; loading an
+    // existing paired file puts that file's own options back (#781).
+    return "These options apply to the next paired world you create. Loading a paired file restores that file's "
+           "own options.";
 }
 
 bool Combo_MMOptionsPage_Suspended(void) {
@@ -112,7 +115,10 @@ const char* Combo_MMOptionsPage_LockWarning(void) {
     if (Combo_MMProfileFrozen()) {
         return NULL;
     }
-    return "Generating a paired world locks these options in, and a crossing whose options differ is refused.";
+    // No longer "a crossing whose options differ is refused": the load restores
+    // a file's own options (#781), so a player cannot reach that crossing
+    // through this page.
+    return "Generating a paired world locks these options in for that world.";
 }
 
 const char* Combo_MMOptionsPage_FallbackWarning(void) {
@@ -143,9 +149,11 @@ const char* Combo_MMOptionsPage_TricksNote(char* buf, size_t size) {
         snprintf(buf, size, "Already decided when this world was created. Return to the title screen to choose "
                             "tricks for a new world.");
     } else {
+        // Two sentences at most (R-X1): the trick headline, then what a load
+        // does (#781).
         snprintf(buf, size,
-                 "%d of %d tricks are supported by the randomizer logic so far. The others are shown, but cannot "
-                 "be turned on yet.",
+                 "%d of %d tricks are supported by the randomizer logic so far; the others cannot be turned on yet. "
+                 "Loading a paired file restores that file's own tricks.",
                  Combo_MMOptionsPage_SettableTrickCount(), count);
     }
     return buf;

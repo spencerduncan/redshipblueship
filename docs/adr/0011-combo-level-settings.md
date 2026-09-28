@@ -1377,4 +1377,67 @@ encoding.
   rule like the direction: a file created under one goal and loaded while
   the session's goal key holds another is refused at the load and at MM's
   arrival, naming `goal`, and the file is not quarantined. Setting the key
-  back loads it.
+  back loads it. (Superseded at the load by the 2026-09-28 amendment below:
+  the load now restores the file's goal into the key.)
+
+### 2026-09-28 -- Frozen wins at load (#781)
+
+Decision 4 says "compared at every arrival and load; refused on divergence".
+At the LOAD, that refusal was a defect under one-game semantics, found by
+PR #780's review and filed as #781:
+
+- The only production caller of the load (OoT's `OnLoadFile` seam,
+  `games/oot/soh/SaveManager.cpp`) runs at the tail of OoT's own file load
+  and cannot un-open the OoT file, so it discarded `RSBS_LOAD_REFUSED`. The
+  `.sav` played on with the pairing identity already dropped by
+  `Context_InvalidateSessionOnSlotLoad`, and the next MM arrival took the
+  no-paired-world leg without a toast: a paired file played unpaired. The
+  refusal was on stderr only.
+- The MM profile was not compared at the load at all, so a changed MM option
+  or trick loaded and was refused at the first crossing, mid-play.
+- Both "frozen" predicates read the resident identity, which a fresh launch
+  and the title screen drop, so the pages that author these keys are
+  editable exactly between sessions. The trap was reachable by design.
+
+**The ruling, applied: the file's frozen rules win at load.** A paired file's
+rules were decided at its creation; the live keys between sessions are
+staging for the next file and have no claim on a file that already exists.
+So `SaveManager::LoadSlot` now answers a divergence the file can answer by
+putting the file's own values back where the resolvers read them, then
+commits:
+
+- **Cross-Game Rules.** When every diverged bit is a rule a key authors
+  (goal, direction, both pool sizes, both class masks, the shared ocarina),
+  `Combo_ComboSettingsRestoreLive` writes the record's values into the
+  `gCombo.Rando.*` keys (directly: `Combo_ComboSettingSet`'s frozen gate
+  refuses EDITS of a decided world, and this is the decided world's own
+  value). The compare is re-run and is clean, and the load commits. A toast
+  names the restored rows.
+- **The MM profile.** The load recomputes the digest the arrival gate
+  recomputes (`MM_Rando_ComputeProfileStamp`). On a difference,
+  `MM_Rando_RestoreProfileForLoad` reads the file's own options and trick
+  set from its MM half (creation resolved them into `RANDO_SAVE_OPTIONS` and
+  `randoSaveTricks`), checks that they reproduce the frozen digest, and only
+  then writes them into the `gRando.Options.*` / `gRando.Tricks.*` keys. A
+  toast names the restored rows.
+
+So an arrival never refuses a file that loaded, for every divergence a page
+in this build can author. What the file cannot answer stays visible:
+
+- A combo record field no key authors (`logicRung`, an unallocated flag bit,
+  `spare1`), which only another build can have written, still refuses the
+  load and latches the slot without quarantine, now with a
+  "Cross-game pairing REFUSED:" toast naming the field. Damage (unreadable
+  record, fingerprint, triforce) refuses and quarantines as before, with the
+  same toast.
+- An MM identity input the file does not record (the excluded-check list,
+  the starting-item block; no single-exe page edits either) cannot be
+  restored. The load still commits the pair, so the session is never
+  silently unpaired, and posts "Cross-game pairing at risk:"; the arrival
+  gate stays the last line of defence and refuses at the crossing.
+
+Nothing about creation changes: the creation event resolves the keys at
+Generate, exactly as before, and a restore only ever writes values a file
+already froze. The pages' pre-creation notes now say that a load restores a
+file's own rules. Locked by `PairedLoadRestore` (through the `OnLoadFile`
+seam's own calls) and by `ComboSettingsAuthoring` leg 7, inverted.
