@@ -19,6 +19,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -27,6 +29,7 @@
 #include <fcntl.h>
 #include <io.h>
 #else
+#include <fcntl.h>
 #include <unistd.h>
 #endif
 
@@ -59,19 +62,36 @@ std::atomic<int> sGameplayVariant{GP_VARIANT_ROUNDTRIP};
 // end; a reader thread copies every byte to the ORIGINAL stderr (a dup of the
 // old fd 2) as it arrives, and keeps the lines the paired row asserts on. The
 // kept set is filtered so a long session costs a few kilobytes, not the whole
-// log: a line is kept when it names a pairing, a creation or a refusal.
+// log: a line is kept when it names a pairing, a creation, the crossing store
+// or a refusal.
+//
+// Lifetime: the state is heap-allocated and never freed, and the reader thread
+// is DETACHED, so no exit path (exit(), _Exit(), a crash) can run a joinable
+// std::thread's destructor (std::terminate) or a destructor under a reader that
+// is still blocked in read(). Stop waits for the reader a BOUNDED time: a child
+// process that inherited fd 2 (the pipe's write end) keeps the pipe open, and a
+// verdict must never wait on it. The pipe's own ends are created
+// non-inheritable (_O_NOINHERIT / FD_CLOEXEC), so only fd 2 itself can leak.
 // ---------------------------------------------------------------------------
-std::mutex sCaptureMutex;
-std::vector<std::string> sCaptureLines;
-std::string sCapturePartial;
-std::thread sCaptureThread;
+struct CaptureState {
+    std::mutex mutex;
+    std::vector<std::string> lines;
+    std::string partial;
+    std::mutex doneMutex;
+    std::condition_variable doneCv;
+    bool readerDone = false;
+};
+CaptureState* sCapture = nullptr; // allocated once, never freed
 std::atomic<bool> sCaptureActive{false};
 int sCaptureOrigFd = -1; // dup of the original fd 2
 int sCapturePipeRead = -1;
 int sCapturePipeWrite = -1;
+// How long Stop waits for the reader to drain after the write end is closed.
+constexpr int kCaptureDrainBoundMs = 2000;
 
 bool CaptureKeeps(const std::string& line) {
-    static const char* const kTags[] = { "pairing", "creation", "REFUSED", "Not paired", "Not saved", "[PFC" };
+    static const char* const kTags[] = { "pairing", "creation", "[Crossings]", "REFUSED",
+                                         "Not paired", "Not saved", "[PFC" };
     for (const char* tag : kTags) {
         if (line.find(tag) != std::string::npos) {
             return true;
@@ -81,19 +101,20 @@ bool CaptureKeeps(const std::string& line) {
 }
 
 void CaptureAppend(const char* data, size_t len) {
-    std::lock_guard<std::mutex> lock(sCaptureMutex);
+    std::lock_guard<std::mutex> lock(sCapture->mutex);
+    std::string& partial = sCapture->partial;
     for (size_t i = 0; i < len; i++) {
         const char c = data[i];
         if (c == '\n') {
-            if (!sCapturePartial.empty() && sCapturePartial.back() == '\r') {
-                sCapturePartial.pop_back();
+            if (!partial.empty() && partial.back() == '\r') {
+                partial.pop_back();
             }
-            if (CaptureKeeps(sCapturePartial)) {
-                sCaptureLines.push_back(sCapturePartial);
+            if (CaptureKeeps(partial)) {
+                sCapture->lines.push_back(partial);
             }
-            sCapturePartial.clear();
-        } else if (sCapturePartial.size() < 4096) {
-            sCapturePartial.push_back(c);
+            partial.clear();
+        } else if (partial.size() < 4096) {
+            partial.push_back(c);
         }
     }
 }
@@ -117,6 +138,9 @@ void CaptureReaderMain() {
 #endif
         CaptureAppend(buf, (size_t)n);
     }
+    std::lock_guard<std::mutex> lock(sCapture->doneMutex);
+    sCapture->readerDone = true;
+    sCapture->doneCv.notify_all();
 }
 
 // The recorded paired identity (int-paired-first-crossing).
@@ -392,10 +416,15 @@ bool IntegrationTest_StderrCaptureStart(void) {
     if (sCaptureActive.load()) {
         return true;
     }
+    if (sCapture == nullptr) {
+        sCapture = new CaptureState();
+    }
     fflush(stderr);
     int fds[2] = { -1, -1 };
 #ifdef _WIN32
-    if (_pipe(fds, 1 << 16, _O_BINARY) != 0) {
+    // Both ends non-inheritable; fd 2 below is a separate (inheritable, as any
+    // stderr is) duplicate of the write end.
+    if (_pipe(fds, 1 << 16, _O_BINARY | _O_NOINHERIT) != 0) {
         return false;
     }
     sCaptureOrigFd = _dup(2);
@@ -405,10 +434,13 @@ bool IntegrationTest_StderrCaptureStart(void) {
         return false;
     }
 #else
+    // pipe() + FD_CLOEXEC rather than pipe2(): macOS has no pipe2.
     if (pipe(fds) != 0) {
         return false;
     }
-    sCaptureOrigFd = dup(2);
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    fcntl(fds[1], F_SETFD, FD_CLOEXEC);
+    sCaptureOrigFd = fcntl(2, F_DUPFD_CLOEXEC, 0);
     if (sCaptureOrigFd < 0 || dup2(fds[1], 2) < 0) {
         close(fds[0]);
         close(fds[1]);
@@ -417,8 +449,12 @@ bool IntegrationTest_StderrCaptureStart(void) {
 #endif
     sCapturePipeRead = fds[0];
     sCapturePipeWrite = fds[1];
+    {
+        std::lock_guard<std::mutex> lock(sCapture->doneMutex);
+        sCapture->readerDone = false;
+    }
     sCaptureActive = true;
-    sCaptureThread = std::thread(CaptureReaderMain);
+    std::thread(CaptureReaderMain).detach();
     return true;
 }
 
@@ -428,8 +464,8 @@ void IntegrationTest_StderrCaptureStop(void) {
     }
     fflush(stderr);
     // Point fd 2 back at the original stderr, then close the pipe's write end
-    // (both references to it are then gone), so the reader drains what is left
-    // and sees EOF.
+    // (both of this process's references to it are then gone), so the reader
+    // drains what is left and sees EOF.
 #ifdef _WIN32
     _dup2(sCaptureOrigFd, 2);
     _close(sCapturePipeWrite);
@@ -437,8 +473,23 @@ void IntegrationTest_StderrCaptureStop(void) {
     dup2(sCaptureOrigFd, 2);
     close(sCapturePipeWrite);
 #endif
-    if (sCaptureThread.joinable()) {
-        sCaptureThread.join();
+    sCapturePipeWrite = -1;
+    bool drained = false;
+    {
+        std::unique_lock<std::mutex> lock(sCapture->doneMutex);
+        drained = sCapture->doneCv.wait_for(lock, std::chrono::milliseconds(kCaptureDrainBoundMs),
+                                            [] { return sCapture->readerDone; });
+    }
+    if (!drained) {
+        // Something else still holds the write end (a child that inherited fd
+        // 2). Leave the reader and its read end alone: the process is about to
+        // exit, and the verdict must not wait on a pipe it does not control.
+        fprintf(stderr,
+                "[PFC] stderr tee: the reader did not see EOF within %d ms (another process holds the pipe); "
+                "continuing without it\n",
+                kCaptureDrainBoundMs);
+        fflush(stderr);
+        return;
     }
 #ifdef _WIN32
     _close(sCapturePipeRead);
@@ -446,7 +497,6 @@ void IntegrationTest_StderrCaptureStop(void) {
     close(sCapturePipeRead);
 #endif
     sCapturePipeRead = -1;
-    sCapturePipeWrite = -1;
 }
 
 void IntegrationTest_StderrCaptureRestoreForCrash(void) {
@@ -461,12 +511,12 @@ void IntegrationTest_StderrCaptureRestoreForCrash(void) {
 }
 
 int IntegrationTest_StderrCaptureCount(const char* needle) {
-    if (needle == nullptr) {
+    if (needle == nullptr || sCapture == nullptr) {
         return 0;
     }
-    std::lock_guard<std::mutex> lock(sCaptureMutex);
+    std::lock_guard<std::mutex> lock(sCapture->mutex);
     int count = 0;
-    for (const std::string& line : sCaptureLines) {
+    for (const std::string& line : sCapture->lines) {
         if (line.find(needle) != std::string::npos) {
             count++;
         }
@@ -479,8 +529,11 @@ bool IntegrationTest_StderrCaptureLast(const char* needle, char* out, size_t cap
         return false;
     }
     out[0] = '\0';
-    std::lock_guard<std::mutex> lock(sCaptureMutex);
-    for (auto it = sCaptureLines.rbegin(); it != sCaptureLines.rend(); ++it) {
+    if (sCapture == nullptr) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(sCapture->mutex);
+    for (auto it = sCapture->lines.rbegin(); it != sCapture->lines.rend(); ++it) {
         if (it->find(needle) != std::string::npos) {
             snprintf(out, cap, "%s", it->c_str());
             return true;
@@ -510,7 +563,7 @@ void IntegrationTest_PairedIdentityRecord(void) {
     sPairedIdentityRecorded = true;
     char desc[256];
     IntegrationTest_PairedIdentityDescribe(&sPairedIdentity, desc, sizeof(desc));
-    fprintf(stderr, "[PFC] identity recorded: %s\n", desc);
+    fprintf(stderr, "[PFC] identity recorded at creation (before the load): %s\n", desc);
     fflush(stderr);
 }
 

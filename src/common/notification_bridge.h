@@ -109,13 +109,16 @@ int OoT_Notification_PeekLastForTest(ComboNotification* out);
 // in a shipping path calls this.
 void OoT_Notification_ClearForTest(void);
 
-// Test-only: every toast queued since the process started, in order, whether or
+// Test-only: every toast queued while recording is on, in order, whether or
 // not it is still on screen. The overlay's store drops a toast when its duration
 // runs out, so a row that asserts "no refusal toast was raised" across a long
 // session (int-paired-first-crossing: creation, load, a crossing and a return)
-// cannot read the store; it reads this. Count, then one entry as
-// "<prefix> <message>" (truncated to `cap`); At returns 0 for an index out of
-// range. Kept for every process: a toast is rare, and a string each is cheap.
+// cannot read the store; it reads this. Recording is OFF by default and nothing
+// in a shipping path turns it on: RecordForTest(1) starts it (the paired row's
+// OoT driver, at hook registration, before any creation), RecordForTest(0)
+// stops it and frees the record. Count, then one entry as "<prefix> <message>"
+// (truncated to `cap`); At returns 0 for an index out of range.
+void OoT_Notification_RecordForTest(int on);
 int OoT_Notification_EmittedCountForTest(void);
 int OoT_Notification_EmittedAtForTest(int index, char* out, size_t cap);
 

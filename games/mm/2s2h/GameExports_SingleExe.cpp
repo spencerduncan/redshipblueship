@@ -896,7 +896,7 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
 
     // Nothing generated MM's world at this arrival: the generation dispatch
     // count has not moved since the creation event, and the identity recorded
-    // after the file was created and loaded is the live one.
+    // when the creation event returned (before the load) is the live one.
     const uint32_t dispatches = MM_Rando_OnSaveInitDispatchCount();
     if (dispatches != IntegrationTest_PairedMMGenerationBaseline()) {
         snprintf(msg, sizeof(msg), "MM's generation dispatch ran at the arrival (%u after the creation, %u now)",

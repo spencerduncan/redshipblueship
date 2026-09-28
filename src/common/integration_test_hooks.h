@@ -280,8 +280,9 @@ int IntegrationTest_StderrCaptureCount(const char* needle);
 bool IntegrationTest_StderrCaptureLast(const char* needle, char* out, size_t cap);
 
 // ----------------------------------------------------------------------------
-// The paired world's identity, recorded after the file is created and loaded,
-// and compared at every later arrival (int-paired-first-crossing). Read from
+// The paired world's identity, recorded right after the creation event returns
+// (BEFORE the file is loaded back), and compared after the load and at every
+// later arrival (int-paired-first-crossing). Read from
 // the game-neutral carriers only (gComboCtx and the crossing store), so the
 // same comparison runs from either game's driver.
 // ----------------------------------------------------------------------------

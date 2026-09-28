@@ -13,7 +13,11 @@ namespace Notification {
 
 static uint32_t nextId = 0;
 static std::vector<Options> notifications = {};
-// Every toast ever queued, "<prefix> <message>" (OoT_Notification_EmittedAtForTest).
+// Test-only record of every toast queued while recording is on, as
+// "<prefix> <message>" (OoT_Notification_EmittedAtForTest). OFF unless a test
+// row turns it on (OoT_Notification_RecordForTest), so a shipping process keeps
+// nothing and Emit behaves exactly as upstream.
+static bool recordForTest = false;
 static std::vector<std::string> emittedForTest = {};
 
 void Window::Draw() {
@@ -129,8 +133,10 @@ void Window::UpdateElement() {
 
 void Emit(Options notification) {
     notification.id = nextId++;
-    emittedForTest.push_back(notification.prefix.empty() ? notification.message
-                                                         : notification.prefix + " " + notification.message);
+    if (recordForTest) {
+        emittedForTest.push_back(notification.prefix.empty() ? notification.message
+                                                             : notification.prefix + " " + notification.message);
+    }
     if (notification.remainingTime == 0.0f) {
         notification.remainingTime = CVarGetFloat(CVAR_SETTING("Notifications.Duration"), 10.0f);
     }
@@ -237,6 +243,14 @@ extern "C" void OoT_Notification_EmitDefault(const char* prefix, const char* mes
 
 extern "C" void OoT_Notification_ClearForTest(void) {
     Notification::notifications.clear();
+}
+
+extern "C" void OoT_Notification_RecordForTest(int on) {
+    Notification::recordForTest = on != 0;
+    if (!Notification::recordForTest) {
+        Notification::emittedForTest.clear();
+        Notification::emittedForTest.shrink_to_fit();
+    }
 }
 
 extern "C" int OoT_Notification_EmittedCountForTest(void) {
