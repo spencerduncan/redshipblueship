@@ -673,6 +673,10 @@ int main(int argc, char** argv) {
 
         // Integration test exit takes priority over game switching
         if (TestRunner_IsIntegrationTestMode() && IntegrationTest_ExitRequested()) {
+            // The integration run's [FOCUS] line (lane F1): the game window is
+            // still up here, so this reads whether it holds the keyboard after a
+            // real boot, and armed=1 shows main armed the hint on this path too.
+            TestWindowFocus_Probe(integrationTestArg);
             keepRunning = false;
             break;
         }

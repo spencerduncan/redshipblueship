@@ -21,6 +21,13 @@
  * stray `SDL_WINDOW_NO_ACTIVATION_WHEN_SHOWN=0` in the environment would silently
  * win over a plain SDL_SetHint. OVERRIDE is the only priority that beats it.
  *
+ * The hints live until SDL_Quit, which clears every hint (OVERRIDE ones too).
+ * The only SDL_Quit is GfxWindowBackendSDL2::Destroy, reached through
+ * ~Fast3dWindow when DeinitOTR drops the window at final shutdown
+ * (GameRunner_ShutdownAll in main.cpp); a --test process _Exits after its row
+ * without reaching it, and no row tears the window down and shows another. A
+ * row that ever does must call TestWindowFocus_ArmForTestMode again first.
+ *
  * What it cannot fix: libultraship's DXGI backend shows its own HWND with
  * ShowWindow(SW_SHOW) (fast/backends/gfx_dxgi.cpp), which never consults SDL's
  * hint, so a DirectX 11 window activates regardless. Tests are run with the GL

@@ -1624,7 +1624,8 @@ TestResult Test_DigestOutHandRun(void) {
 // No gated raise call exists to count: SDL_RaiseWindow, SDL_SetWindowInputFocus,
 // SetForegroundWindow and BringWindowToTop appear nowhere in libultraship/src,
 // games/oot/soh, games/mm/2s2h, src/common or rsbs; W4 measures the show itself.
-// Red half: RSBS_TEST_FOCUS_SABOTAGE=no-hint makes main skip the arming.
+// Red half: RSBS_TEST_FOCUS_SABOTAGE=no-hint makes main skip the arming, which
+// turns W1-W3 red; W4 is then not run (no window is shown without the hint).
 TestResult Test_TestWindowNoActivation(void) {
     printf("[TEST] test-window-no-activation: a test window is shown without taking keyboard focus\n");
     int failures = 0;
@@ -1657,8 +1658,19 @@ TestResult Test_TestWindowNoActivation(void) {
                 raise != nullptr ? raise : "(unset)");
 #endif
 
+    // W4 shows its window only under the hint W2 just read as "1". Without it the
+    // window WOULD take the keyboard from the person at the workstation -- the
+    // very thing this lane exists to stop -- so a run that is already red on W2
+    // (the RSBS_TEST_FOCUS_SABOTAGE=no-hint red half included) does not also steal
+    // focus to say so again.
+    const bool hintArmed = noAct != nullptr && strcmp(noAct, "1") == 0;
     TestWindowFocusProbeResult r;
-    TestWindowFocus_ShowProbeWindow(&r);
+    if (hintArmed) {
+        TestWindowFocus_ShowProbeWindow(&r);
+    } else {
+        memset(&r, 0, sizeof(r));
+        snprintf(r.why, sizeof(r.why), "the no-activation hint is not '1' (W2), so a shown window would take focus");
+    }
     if (r.ran == 0) {
         printf("[TEST] W4 not run: %s\n", r.why);
     } else {
