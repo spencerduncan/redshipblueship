@@ -4514,6 +4514,26 @@ TestResult Test_ArrayReaderAgreementMM(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #604 (b) without a ROM: the per-archive 'Array' slot over two staged
+// loose-folder archives (one recorded as MM's, one nobody's), so a removed Array
+// dispatcher is caught where ArrayReaderAgreementMM SKIPs. Needs the display-free
+// shared bring-up (it loads through the global ResourceManager). Never skips.
+TestResult Test_ArrayReaderDispatch(void) {
+    printf("[TEST] array-reader-dispatch: the 'Array' slot routes by owning archive, ROM-free (#604)\n");
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    const int rc = ArrayReaderDispatch_RunHeadless();
+    printf("[TEST] %s: array reader dispatch rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ============================================================================
 // Test registry
 // ============================================================================
@@ -5293,6 +5313,10 @@ const TestDescriptor gTests[] = {
      "Real MM vertex arrays parse identically through both readers, and the production 'Array' slot hands MM's "
      "archive to MM's reader: the Zora barrier's X8 alpha bytes equal the file's (#604)",
      Test_ArrayReaderAgreementMM},
+    {"array-reader-dispatch",
+     "ROM-free: the per-archive 'Array' slot hands an MM-recorded archive's file to MM's reader and an unowned "
+     "archive's to OoT's, over two staged loose-folder archives (#604)",
+     Test_ArrayReaderDispatch},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 

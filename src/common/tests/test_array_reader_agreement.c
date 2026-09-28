@@ -7,7 +7,7 @@
  * Which reader parses a given array depends on the loader slot's owner and the
  * archive that served it, so a cross-game model drawn by OoT parses MM's
  * vertices with OoT's reader. That only works while the two readers agree, and
- * a divergence produces garbled geometry, not an error. Two rows:
+ * a divergence produces garbled geometry, not an error. Three rows:
  *
  * array-reader-agreement (ROM-free, never skips): the production boot check
  * Combo_ArrayReaders_BootCheck, then the same comparison spelled out over the
@@ -27,6 +27,10 @@
  * 80 alpha bytes must equal the bytes in the file. OoT's reader reads zero
  * bytes per X8 element and pushes uninitialized values.
  *
+ * array-reader-dispatch (ROM-free, never skips): the per-archive 'Array' slot
+ * over two staged loose-folder archives, one recorded as MM's and one nobody's,
+ * so CI catches a removed Array dispatcher too. See ArrayReaderDispatch_RunHeadless.
+ *
  * Observing the red half without touching vendored code: set
  * RSBS_ARRAY_AGREEMENT_MUTANT to 1 (tc[] read order swapped) or 2 (flag read
  * as one byte) and the mutated copy stands in for MM's reader in the agreement
@@ -43,15 +47,21 @@
 #include "array_reader_agreement.h"
 #include "f3dvtx_wire_layout.h"
 
+#include <ship/Context.h>
 #include <ship/resource/ResourceFactoryBinary.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/Archive.h>
+#include <ship/resource/archive/ArchiveManager.h>
 #include <ship/utils/binarytools/BinaryReader.h>
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <memory>
 #include <string>
+#include <typeinfo>
 #include <vector>
 
 // Defined in each game's own TU (games/oot/soh/OTRGlobals.cpp,
@@ -421,5 +431,194 @@ extern "C" int ArrayReaderAgreement_RunMM(const char* mmArchive) {
                 kAraZoraShieldVtx);
         failures++;
     }
+    return failures == 0 ? 0 : 1;
+}
+
+// ---- array-reader-dispatch: the (b) lock without a ROM ----------------------
+//
+// ArrayReaderAgreementMM is the only other row that drives the per-archive
+// 'Array' slot, and it SKIPs wherever mm.o2r is absent: in CI, always. So a
+// change that dropped the Array dispatcher from RegisterMMResourceFactories
+// would be caught only by a local ROM-staged run. This row stages its OWN two
+// loose-folder archives (libultraship's FolderArchive, what AddArchive builds for
+// a path with no extension), each serving one synthetic ZSCALAR_X8 'OARR' array:
+//
+//   <root>/mm       mounted through MM_MountArchiveHeadless, which records it as
+//                   MM's (RecordMMArchivePath, the dispatcher's predicate)
+//   <root>/unowned  added to the shared ArchiveManager directly: nobody's, like
+//                   the curated cross-game redship.o2r
+//
+// then registers OoT's factories and MM's over them, as production does, and
+// asserts through the global ResourceManager that the slot handed the MM-owned
+// file to MM's reader (dynamic type S2H::Array, and MM's production accessor
+// ResourceMgr_LoadArrayByNameAsU8 returns the file's bytes) and the unowned file
+// to OoT's (dynamic type SOH::Array). The type check reads the parsed resource's
+// RTTI name, so no game header is needed (ADR 0002). ROM-free: it needs only the
+// display-free shared bring-up, and never skips.
+
+extern "C" bool Combo_ArchivePathIsMM(const char* path);
+
+namespace {
+
+constexpr const char* kAraDispatchRoot = "rsbs604_array_dispatch";
+constexpr const char* kAraDispatchMMPath = "rsbs604/mm-owned-x8";
+constexpr const char* kAraDispatchUnownedPath = "rsbs604/unowned-x8";
+constexpr uint32_t kAraArrayTypeScalar = 16; // ArrayResourceType::Scalar in both ports' Array.h
+constexpr size_t kAraDispatchCount = 24;
+
+uint8_t AraDispatchValue(size_t i) {
+    return static_cast<uint8_t>(0x5A + i * 37); // varied: never constant, never all zero
+}
+
+// One whole OTR file: the 64-byte header ResourceLoader::ReadResourceInitDataBinary
+// reads (byte order, custom flag, two unused bytes, type, version, id, zero
+// padding), then a Scalar array of kAraDispatchCount ZSCALAR_X8 elements.
+std::vector<char> AraDispatchFile() {
+    std::vector<char> out(OTR_HEADER_SIZE, 0);
+    out[0] = static_cast<char>(Ship::Endianness::Little);
+    auto putU32At = [&out](size_t at, uint32_t v) {
+        for (int b = 0; b < 4; b++) {
+            out[at + b] = static_cast<char>((v >> (8 * b)) & 0xFF);
+        }
+    };
+    putU32At(4, kAraTypeOARR);
+    auto putU32 = [&out](uint32_t v) {
+        for (int b = 0; b < 4; b++) {
+            out.push_back(static_cast<char>((v >> (8 * b)) & 0xFF));
+        }
+    };
+    putU32(kAraArrayTypeScalar);
+    putU32(static_cast<uint32_t>(kAraDispatchCount));
+    for (size_t i = 0; i < kAraDispatchCount; i++) {
+        putU32(kAraScalarX8);
+        out.push_back(static_cast<char>(AraDispatchValue(i)));
+    }
+    return out;
+}
+
+bool AraWriteFile(const std::filesystem::path& p, const std::vector<char>& bytes) {
+    std::error_code ec;
+    std::filesystem::create_directories(p.parent_path(), ec);
+    if (ec) {
+        return false;
+    }
+    std::FILE* f = std::fopen(p.string().c_str(), "wb");
+    if (f == nullptr) {
+        return false;
+    }
+    const bool ok = std::fwrite(bytes.data(), 1, bytes.size(), f) == bytes.size();
+    return std::fclose(f) == 0 && ok;
+}
+
+bool AraContains(const std::string& haystack, const char* needle) {
+    return haystack.find(needle) != std::string::npos;
+}
+
+} // namespace
+
+extern "C" int ArrayReaderDispatch_RunHeadless(void) {
+    int failures = 0;
+    auto ctx = Ship::Context::GetInstance();
+    auto rm = ctx != nullptr ? ctx->GetResourceManager() : nullptr;
+    auto archiveMgr = rm != nullptr ? rm->GetArchiveManager() : nullptr;
+    if (archiveMgr == nullptr) {
+        fprintf(stderr, "[array-reader-dispatch] FAIL: no shared ArchiveManager\n");
+        return 1;
+    }
+
+    const std::filesystem::path root = std::filesystem::absolute(kAraDispatchRoot).lexically_normal();
+    std::error_code ec;
+    std::filesystem::remove_all(root, ec);
+    const std::vector<char> file = AraDispatchFile();
+    if (!AraWriteFile(root / "mm" / kAraDispatchMMPath, file) ||
+        !AraWriteFile(root / "unowned" / kAraDispatchUnownedPath, file)) {
+        fprintf(stderr, "[array-reader-dispatch] FAIL: could not stage %s\n", root.generic_string().c_str());
+        std::filesystem::remove_all(root, ec);
+        return 1;
+    }
+    const std::string mmDir = (root / "mm").generic_string();
+    const std::string unownedDir = (root / "unowned").generic_string();
+
+    auto snapshot = archiveMgr->GetArchives();
+    // Production order: OoT's factories at boot, then MM's over them
+    // (MM_Game_Init), with MM's archive recorded as MM's (LoadMMArchives).
+    if (OoT_RegisterModelResourceFactoriesHeadless() != 0 || MM_MountArchiveHeadless(mmDir.c_str()) != 0 ||
+        MM_RegisterResourceFactoriesHeadless() != 0 || archiveMgr->AddArchive(unownedDir) == nullptr) {
+        fprintf(stderr, "[array-reader-dispatch] FAIL: headless registration or folder mount failed\n");
+        archiveMgr->SetArchives(snapshot);
+        std::filesystem::remove_all(root, ec);
+        return 1;
+    }
+
+    // Premises: each path is served by the folder staged for it, and only the
+    // first folder is recorded as MM's.
+    auto ownerOf = [&archiveMgr](const char* path) {
+        auto archive = archiveMgr->GetArchiveFromFile(path);
+        return archive != nullptr ? archive->GetPath() : std::string("(none)");
+    };
+    const std::string mmOwner = ownerOf(kAraDispatchMMPath);
+    const std::string unownedOwner = ownerOf(kAraDispatchUnownedPath);
+    const bool mmOwnerIsMM = Combo_ArchivePathIsMM(mmOwner.c_str());
+    const bool unownedOwnerIsMM = Combo_ArchivePathIsMM(unownedOwner.c_str());
+    printf("[array-reader-dispatch] %s served by %s (recorded as MM's: %s)\n", kAraDispatchMMPath, mmOwner.c_str(),
+           mmOwnerIsMM ? "yes" : "no");
+    printf("[array-reader-dispatch] %s served by %s (recorded as MM's: %s)\n", kAraDispatchUnownedPath,
+           unownedOwner.c_str(), unownedOwnerIsMM ? "yes" : "no");
+    if (!mmOwnerIsMM || unownedOwnerIsMM) {
+        fprintf(stderr, "[array-reader-dispatch] FAIL: the staged folders' ownership is not what the row needs\n");
+        failures++;
+    }
+
+    rm->UnloadResource(kAraDispatchMMPath);
+    rm->UnloadResource(kAraDispatchUnownedPath);
+
+    // Which reader served each file: the parsed resource's dynamic type.
+    auto mmRes = rm->LoadResourceProcess(kAraDispatchMMPath, /*loadExact*/ true, nullptr);
+    auto unownedRes = rm->LoadResourceProcess(kAraDispatchUnownedPath, /*loadExact*/ true, nullptr);
+    const std::string mmType = mmRes != nullptr ? typeid(*mmRes).name() : "(no resource)";
+    const std::string unownedType = unownedRes != nullptr ? typeid(*unownedRes).name() : "(no resource)";
+    printf("[array-reader-dispatch] MM-owned file parsed as %s; unowned file parsed as %s\n", mmType.c_str(),
+           unownedType.c_str());
+    const bool mmServedByMM = AraContains(mmType, "S2H") && !AraContains(mmType, "SOH");
+    if (!mmServedByMM) {
+        fprintf(stderr,
+                "[array-reader-dispatch] FAIL: the 'Array' slot did not hand the MM-owned archive's file to MM's "
+                "reader (S2H::Array expected, got %s): is the Array dispatcher still registered in "
+                "RegisterMMResourceFactories?\n",
+                mmType.c_str());
+        failures++;
+    }
+    if (!AraContains(unownedType, "SOH") || AraContains(unownedType, "S2H")) {
+        fprintf(stderr,
+                "[array-reader-dispatch] FAIL: a file from an archive not recorded as MM's was not parsed by OoT's "
+                "reader (SOH::Array expected, got %s)\n",
+                unownedType.c_str());
+        failures++;
+    }
+
+    // And the bytes MM's production accessor hands its caller are the file's.
+    // Only asked of an S2H resource: the accessor static_casts to S2H::Array.
+    if (mmServedByMM) {
+        uint8_t got[kAraDispatchCount];
+        std::memset(got, 0xA5, sizeof(got));
+        const uint8_t* ret = ResourceMgr_LoadArrayByNameAsU8(kAraDispatchMMPath, got);
+        size_t mismatches = 0;
+        for (size_t i = 0; i < kAraDispatchCount; i++) {
+            mismatches += got[i] != AraDispatchValue(i) ? 1 : 0;
+        }
+        printf("[array-reader-dispatch] ResourceMgr_LoadArrayByNameAsU8(%s): %zu of %zu X8 bytes match the file\n",
+               kAraDispatchMMPath, kAraDispatchCount - mismatches, kAraDispatchCount);
+        if (ret != got || mismatches != 0) {
+            fprintf(stderr, "[array-reader-dispatch] FAIL: MM's accessor returned %zu wrong byte(s)\n", mismatches);
+            failures++;
+        }
+    }
+
+    mmRes.reset();
+    unownedRes.reset();
+    rm->UnloadResource(kAraDispatchMMPath);
+    rm->UnloadResource(kAraDispatchUnownedPath);
+    archiveMgr->SetArchives(snapshot);
+    std::filesystem::remove_all(root, ec);
     return failures == 0 ? 0 : 1;
 }

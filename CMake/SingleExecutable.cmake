@@ -2138,6 +2138,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME ArrayReaderAgreement COMMAND redship --test array-reader-agreement)
     redship_add_test(NAME ArrayReaderAgreementMM COMMAND redship --test array-reader-agreement-mm)
     set_tests_properties(ArrayReaderAgreementMM PROPERTIES SKIP_RETURN_CODE 77)
+    # #604 (b) without a ROM: ArrayReaderAgreementMM SKIPs in CI, so this row
+    # stages two loose-folder archives (one recorded as MM's, one nobody's) and
+    # asserts the per-archive 'Array' slot routes each to the right reader. A
+    # removed Array dispatcher turns it red in CI. Never skips.
+    redship_add_test(NAME ArrayReaderDispatch COMMAND redship --test array-reader-dispatch)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
