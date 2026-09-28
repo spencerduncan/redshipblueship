@@ -77,6 +77,17 @@ extern "C" {
  *  carry, so the paired world's authoring surfaces say one thing. */
 #define COMBO_MM_OPTIONS_FROZEN_REASON "Already Decided"
 
+/**
+ * The gray group note both Majora's Mask pages draw over a group holding a row
+ * that is disabled because this build lacks it (MM Randomizer's option groups,
+ * and Combo > Majora's Mask's manifest groups, #747). ONE spelling, so the two
+ * pages cannot drift apart. The wording is this project's own: SoH's original
+ * menus have no gray capability note (their disabled state is tooltip-only), so
+ * there is no SoH sentence to copy; it follows SoH's gray-note voice (a
+ * sentence-case sentence, style guide R-S3a) and points at the rows' tooltips.
+ */
+#define COMBO_MM_GROUP_NOTE_UNAVAILABLE "Some of these settings are not available in this build. Hover one to see why."
+
 /** How many columns the options page declares (SoH's Randomizer > General). */
 #define COMBO_MM_OPTIONS_PAGE_COLUMNS 2
 
@@ -141,10 +152,6 @@ bool Combo_MMOptionsPage_Suspended(void);
 
 /** That note's sentence. */
 const char* Combo_MMOptionsPage_SuspendedNote(void);
-
-/** The creation-lock warning (orange), or NULL once frozen (the status note
- *  says it then). */
-const char* Combo_MMOptionsPage_LockWarning(void);
 
 /** The vanilla-fallback warning (orange), shown in every state. */
 const char* Combo_MMOptionsPage_FallbackWarning(void);

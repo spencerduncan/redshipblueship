@@ -177,6 +177,7 @@
 #ifdef __cplusplus
 
 #include <cstddef>
+#include <cstdint>
 
 namespace RSBS {
 
@@ -672,6 +673,17 @@ struct HostedMmEnhancement {
     /// not a liveness class: the provider is linked either way; the gate says the
     /// SETTING is moot while its parent feature is off.
     const char* shownWhileKey = nullptr;
+
+    // ---- #747: trailing and defaulted, so every Live row needs no edit ----
+    /// The tracker issue that records why the row is not fully live: nonzero
+    /// EXACTLY when `liveness` is not Live. The capability registry's split
+    /// (`SohMenuCapabilityRecord{gate, issue}`, ADR 0004's 2026-09-27
+    /// amendment) applied to this table: `reason` is player text drawn after
+    /// "- " in SoH's disabled tooltip and never prints a tracker number, so the
+    /// number lives here, where the locks read it. A non-live row with no issue
+    /// is a reason nobody can trace and so nobody retires (#438's remainder,
+    /// then #669).
+    uint32_t issue = 0;
 };
 
 inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
@@ -807,6 +819,8 @@ constexpr bool MmEnhKeyMustStayDistinct(const char* key) {
  *    has no leg-1 evidence at all, which is the claim-without-measurement #669
  *    was filed about.
  *  - `reason` is empty EXACTLY when the row is Live. Both directions.
+ *  - (#747) `issue` is zero EXACTLY when the row is Live. Both directions: a
+ *    non-live row names the tracker that retires it, and a Live row has none.
  *  - `registryProbe` is empty EXACTLY when `registrarKey` is NULL. A probe with
  *    no registrar to attribute, or a registrar nothing can attribute, is a
  *    liveness claim nobody can check.
@@ -818,9 +832,9 @@ constexpr bool MmEnhKeyMustStayDistinct(const char* key) {
  *    row of this manifest accounts for, so the gate is itself a hosted,
  *    evidenced key rather than a free-floating literal.
  */
-constexpr bool HostedMmEnhancementsAreHonest() {
-    for (std::size_t i = 0; i < kHostedMmEnhancementCount; i++) {
-        const HostedMmEnhancement& row = kHostedMmEnhancements[i];
+constexpr bool HostedMmEnhancementRowsAreHonest(const HostedMmEnhancement* rows, std::size_t count) {
+    for (std::size_t i = 0; i < count; i++) {
+        const HostedMmEnhancement& row = rows[i];
         if (MmEnhStringEmpty(row.key) || MmEnhStringEmpty(row.label) || MmEnhStringEmpty(row.tooltip) ||
             MmEnhStringEmpty(row.provider)) {
             return false;
@@ -831,11 +845,14 @@ constexpr bool HostedMmEnhancementsAreHonest() {
         if (MmEnhStringEmpty(row.reason) != (row.liveness == MmEnhancementLiveness::Live)) {
             return false;
         }
+        if ((row.issue == 0) != (row.liveness == MmEnhancementLiveness::Live)) {
+            return false;
+        }
         if (MmEnhStringEmpty(row.registryProbe) != (row.registrarKey == nullptr)) {
             return false;
         }
-        for (std::size_t j = i + 1; j < kHostedMmEnhancementCount; j++) {
-            if (MmEnhStringEqual(row.key, kHostedMmEnhancements[j].key)) {
+        for (std::size_t j = i + 1; j < count; j++) {
+            if (MmEnhStringEqual(row.key, rows[j].key)) {
                 return false;
             }
         }
@@ -855,8 +872,8 @@ constexpr bool HostedMmEnhancementsAreHonest() {
                 return false;
             }
             bool gateHosted = false;
-            for (std::size_t j = 0; j < kHostedMmEnhancementCount; j++) {
-                if (j != i && MmEnhStringEqual(row.shownWhileKey, kHostedMmEnhancements[j].key)) {
+            for (std::size_t j = 0; j < count; j++) {
+                if (j != i && MmEnhStringEqual(row.shownWhileKey, rows[j].key)) {
                     gateHosted = true;
                 }
             }
@@ -866,6 +883,14 @@ constexpr bool HostedMmEnhancementsAreHonest() {
         }
     }
     return true;
+}
+
+/** The shipped manifest's honesty. The table-taking form above exists so the
+ *  locks can hold a SYNTHETIC non-live table to the same rules and watch each
+ *  one go red (MenuMmEnhancementRows leg 7), which the all-Live shipped table
+ *  cannot show. */
+constexpr bool HostedMmEnhancementsAreHonest() {
+    return HostedMmEnhancementRowsAreHonest(kHostedMmEnhancements, kHostedMmEnhancementCount);
 }
 
 inline constexpr std::size_t kConvergedKeyCount = sizeof(kConvergedKeys) / sizeof(kConvergedKeys[0]);
@@ -926,9 +951,9 @@ static_assert(MmEnhKeyMustStayDistinct("gEnhancements.Saving.AutosaveInterval"),
               "the hosted MM autosave interval must stay in kMustStayDistinct: OoT hardcodes its own 3-minute "
               "interval with no CVar, so the two intervals must not converge (#693)");
 static_assert(HostedMmEnhancementsAreHonest(),
-              "a hosted MM enhancement row is dishonest: a missing key/label/tooltip/provider, a reason that does "
-              "not match its liveness class, a registry probe with no registrar (or the reverse), or two rows on "
-              "one key");
+              "a hosted MM enhancement row is dishonest: a missing key/label/tooltip/provider, a reason or an issue "
+              "that does not match its liveness class, a registry probe with no registrar (or the reverse), or two "
+              "rows on one key");
 static_assert(ComboIdentityKeysAreIdentity(),
               "every gCombo.Rando.* key authors the frozen ComboSettingsRecord and MUST be classified Identity "
               "(ADR 0004 §6 state 4; ADR 0011 increment 2)");

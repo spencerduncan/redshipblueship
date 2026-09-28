@@ -663,7 +663,9 @@ to SoH's own disabled row, Settings > Graphics > Current FPS under Match Refresh
    free-form `reason` field with no issue field beside it; every manifest row is Live today, so none
    is drawn, and `MenuMmEnhancementRows` refuses a manifest reason that prints a number. Giving the
    manifest its own issue field, and the MM Enhancements page the gray note item 3 requires once any of
-   its rows goes non-live, is #747.
+   its rows goes non-live, is #747. (Done by #747's pull request: `HostedMmEnhancement::issue`, required
+   nonzero exactly on a non-live row, and one gray note per group holding a non-live row, drawn by the
+   `UiSnapshot` row's harness-only `Combo/MM Row States` page.)
 
 ## Amendment 2026-09-27 — §4.1a(ii)'s host: MM's randomizer options and tricks are Combo menu pages
 

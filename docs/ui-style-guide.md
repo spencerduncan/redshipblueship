@@ -185,8 +185,14 @@ and on ours (R-N4).
   one. The editable-but-not-active state is the note alone ("Majora's Mask is suspended; these take effect when you
   return."; that default is Majora's-Mask-specific, so an Ocarina of Time group passes its own sentence). A
   capability's tracking issue is a separate field of its record (`RegisterCapability(key, predicate, text, issue)`),
-  never part of the text a player reads. The MM Enhancements manifest's `reason` has no issue field yet: it must print
-  no number (`MenuMmEnhancementRows`), and its page has no note row yet (#747).
+  never part of the text a player reads. The Majora's Mask page's manifest rows follow the same split: `reason` is the
+  player text and prints no number, and `HostedMmEnhancement::issue` records the tracker, nonzero exactly on a non-live
+  row (`HostedMmEnhancementsAreHonest()`, `MenuMmEnhancementRows`). A group on that page holding a non-live row gets
+  one gray note directly above its rows (under its separator; in a pointer row's group, under the pointer's
+  sentence), shown while any of its rows is drawn disabled ("Some of these settings are not available in this build.
+  Hover one to see why.", `COMBO_MM_GROUP_NOTE_UNAVAILABLE`, the MM Randomizer page's group note and this project's
+  own wording: SoH's menus have no gray capability note to copy); every shipped row is Live, so the shipped page draws
+  none, and the harness-only `Combo/MM Row States` page draws both placements from a synthetic table.
 - **R-S4.** `RaceDisable` defaults to true (`MenuTypes.h:113`). Mark cosmetic and QoL rows `.RaceDisable(false)`.
 - **R-S5.** Destructive buttons confirm through `SohGui::RegisterPopup(title, message, "Reset", "Cancel", cb, nullptr)`
   (`SohMenuSettings.cpp:419-432`).
@@ -316,6 +322,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > Cross-Game Rules | Randomizer > General |
 | Combo > Windows | Randomizer > Item Tracker |
 | Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
+| Combo > MM Row States (harness-only: the Majora's Mask page's builder over a synthetic non-live table, so its disabled rows and group notes are drawn) | Enhancements > Quality of Life |
 | Combo > MM Mods | Randomizer > Tricks/Glitches (the two-column Disabled/Enabled table; OoT's Settings > Mod Menu throws in the harness's fresh config) |
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | Combo > MM Randomizer | Randomizer > General (the two-column option page) |
@@ -350,7 +357,11 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 **Variants:**
 - STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
   that draws an empty-set note), Majora's Mask's autosave,
-  Combo > MM Randomizer's unpaired, frozen and mm-suspended (each shows its own note), and Combo > MM Tricks'
+  Combo > MM Row States' default (every gated row and both notes hidden), heading-on (the heading group's Dormant row
+  drawn disabled under the note right under the heading) and gate-on (the pointer group's Dormant and Partial rows
+  drawn disabled under the note below the pointer's sentence; no race-lockout state, because every row that page
+  registers is `.RaceDisable(false)`, so a lockout changes nothing there), Combo > MM Randomizer's unpaired, frozen and
+  mm-suspended (each shows its own note), and Combo > MM Tricks'
   unpaired and frozen (the trick headline, then the freeze sentence).
   The Cross-Game Spoiler draws paired (no crossings), crossings (crossings both ways authored through the crossing
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
@@ -383,11 +394,12 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   the box equals the bare pixel blended with the style's `ImGuiCol_ModalWindowDimBg`, within 2 per channel. SoH's
   modal passes the same pixel check, so "dims the way a modal dims" is measured, not read off the picture.
 - TOAST: a page emits one toast through its production emitter (`OoT_Creation_EmitShortfallToast`,
-  `OoT_Creation_ReportFailureAtFileSelect`, `OoT_Creation_EmitGoalWarningToast`, `MM_Rando_EmitPairingRefusalToast`),
-  captures it, and clears it
-  (`OoT_Notification_ClearForTest`). Its oracle finds exactly one `notification#` window, requires it inside the
-  window's width, and measures "not blank" inside the toast's own rectangle. ROM-free, the harness registers its own
-  Notifications window, so CI draws them too.
+  `OoT_Creation_ReportFailureAtFileSelect`, `OoT_Creation_EmitGoalWarningToast`, the cross-game refusals'
+  `MM_Rando_EmitPairingRefusalToast` on the `toast/pairing-refused-*` pages, and the paired-file load's
+  `RsbsSave_EmitLoadToast` on the `toast/load-*` pages, each with the longest input a real load passes), captures
+  it, and clears it (`OoT_Notification_ClearForTest`). Its oracle finds exactly one `notification#` window, requires
+  it inside the window's width, and measures "not blank" inside the toast's own rectangle. ROM-free, the harness
+  registers its own Notifications window, so CI draws them too.
 
 **Environment:**
 

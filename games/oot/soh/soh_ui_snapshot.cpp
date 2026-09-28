@@ -154,6 +154,7 @@
 #include "headless_crash.h"
 #include "notification_bridge.h"
 #include "rsbs_version.h"
+#include "save.h" // RsbsSave_EmitLoadToast: the paired-file load's toasts (#781)
 #include "ui_snapshot_image.h"
 
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
@@ -172,6 +173,11 @@ namespace SohGui {
 // lock declares it the same way): AddMenuRandomizer as a whole cannot run
 // ROM-free, so the probe menu drives the pointer page directly.
 void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path);
+// Combo > Majora's Mask's body over a manifest table, and its group note's
+// sentence (SohMenuComboMmEnhancements.cpp, declared in no header, #747). The
+// MM note probe builds a page from a synthetic non-live table through it.
+void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* rows, std::size_t count);
+const char* MmEnhancementsGroupNoteText();
 } // namespace SohGui
 
 // The DX11 readback. ENABLE_DX11 is a PRIVATE define of libultraship, and
@@ -793,6 +799,9 @@ struct PageSpec {
     // The row-state probe: a harness-only Combo sidebar installed for this page's
     // captures and removed afterwards (see InstallRowStateProbe).
     bool rowStateProbe = false;
+    // The MM note probe (#747): the same, built by Combo > Majora's Mask's own
+    // builder over a synthetic non-live manifest (see InstallMmNoteProbe).
+    bool mmNoteProbe = false;
     // Hover variants on a row drawn through the combo_ui seam, found by the
     // label it passes to the seam's rect recorder (such a row has no WidgetInfo
     // whose postFunc could be wrapped: a pane's rows, or a trick row inside
@@ -865,6 +874,48 @@ bool gProbeSuspended = false;
 bool gProbeGated = false;
 bool gProbeDecided = false;
 
+// The MM note probe's sidebar and synthetic manifest (InstallMmNoteProbe, #747).
+// Combo > Majora's Mask's own builder over rows that are NOT all Live, because
+// every shipped row is, so its disabled rows and group notes never reach a pixel
+// on the shipped page. The shipped page's shape, with a non-live row in EACH
+// group so both note placements are drawn: the heading group holds a Live
+// checkbox and a Dormant one gated on it (the note sits right under the
+// heading); then a pointer row opens a second group holding a Dormant checkbox
+// and a Partial slider gated on the pointer's key (the note sits under the
+// pointer's sentence, directly above those rows). Every non-live row is gated,
+// so each note depends on authored state: hidden with its rows in "", drawn over
+// them once "heading-on" / "gate-on" writes its key -- which also makes the
+// harness's own `no-state` sabotage turn both notes' checks red. Static storage:
+// the page's PreFuncs keep pointers into the table.
+constexpr const char* kMmNoteSidebar = "MM Row States";
+constexpr const char* kMmNoteLiveRow = "Live Enhancement";
+constexpr const char* kMmNoteLiveKey = "gRsbsUiSnapshot.MmNote.Live";
+constexpr const char* kMmNoteAbsentRow = "Absent Enhancement";
+constexpr const char* kMmNoteDormantRow = "Dormant Enhancement";
+constexpr const char* kMmNotePartialLabel = "Partial Enhancement";
+constexpr const char* kMmNoteParentKey = "gRsbsUiSnapshot.MmNote.Parent";
+constexpr RSBS::HostedMmEnhancement kMmNoteManifest[] = {
+    { kMmNoteLiveKey, kMmNoteLiveRow, "Toggles a setting that applies now. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Live, "" },
+    { "gRsbsUiSnapshot.MmNote.Absent", kMmNoteAbsentRow,
+      "Toggles a setting whose provider is not in this build. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Dormant, "Provider Not in This Build",
+      RSBS::MmEnhancementWidget::Checkbox, 0, 0, 0, nullptr, kMmNoteLiveKey, 747 },
+    { kMmNoteParentKey, "Parent Setting", "Parent Setting is on another page and applies to both games.", "harness",
+      nullptr, "", RSBS::MmEnhancementHosting::HostedElsewhere, RSBS::MmEnhancementLiveness::Live, "" },
+    { "gRsbsUiSnapshot.MmNote.Dormant", kMmNoteDormantRow,
+      "Toggles a setting whose provider is not in this build. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Dormant, "Provider Not in This Build",
+      RSBS::MmEnhancementWidget::Checkbox, 0, 0, 0, nullptr, kMmNoteParentKey, 747 },
+    { "gRsbsUiSnapshot.MmNote.Partial", "Partial Enhancement: %d minutes",
+      "Sets a value whose draw is not wired yet. Majora's Mask only.", "harness", nullptr, "",
+      RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Partial, "Draw Not Wired in Majora's Mask",
+      RSBS::MmEnhancementWidget::SliderInt, 1, 60, 5, "%d minutes", kMmNoteParentKey, 747 },
+};
+static_assert(RSBS::HostedMmEnhancementRowsAreHonest(kMmNoteManifest,
+                                                     sizeof(kMmNoteManifest) / sizeof(kMmNoteManifest[0])),
+              "the MM note probe's synthetic manifest must itself pass the manifest's honesty rule");
+
 class Session {
   public:
     explicit Session(const Options& o) : opt(o) {
@@ -912,6 +963,9 @@ class Session {
     std::vector<const WidgetInfo*> probeRows;
     void InstallRowStateProbe();
     void RemoveRowStateProbe();
+    // The MM note probe (#747), on the same pattern and the same probeRows.
+    void InstallMmNoteProbe();
+    void RemoveMmNoteProbe();
 
     // hover target recording
     std::string hoverTarget;
@@ -1767,7 +1821,8 @@ void Session::BuildPageList() {
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
-                p.stateText["unpaired"] = { "saved into the next paired world" };
+                p.stateText["unpaired"] = { "apply to the next paired world",
+                                            "Loading a paired file restores its own rules" };
                 p.stateText["paired-legacy"] = { "Your paired world predates these rules",
                                                  "Keep them at the defaults until you have crossed into it once" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
@@ -1828,7 +1883,7 @@ void Session::BuildPageList() {
                 // The model's state note in each state (combo_mm_options_page.c),
                 // and the suspended note, which only a non-MM running game shows.
                 p.states = { "unpaired", "frozen", "mm-suspended" };
-                p.stateText["unpaired"] = { "No paired world yet" };
+                p.stateText["unpaired"] = { "Loading a paired file restores its own options" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateText["mm-suspended"] = { "Majora's Mask is suspended" };
                 p.stateContrast = { { "unpaired", "frozen" },
@@ -1870,7 +1925,8 @@ void Session::BuildPageList() {
             } else if (sidebar == COMBO_MM_TRICKS_PAGE_NAME) {
                 // Unpaired: the model's headline; frozen: the freeze sentence.
                 p.states = { "unpaired", "frozen" };
-                p.stateText["unpaired"] = { "tricks are supported by the randomizer logic" };
+                p.stateText["unpaired"] = { "tricks are supported by the randomizer logic",
+                                            "Loading a paired file restores its own tricks" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateContrast = { { "unpaired", "frozen" }, { "frozen", "unpaired" } };
                 // Every trick row draws its name through the combo_ui seam, whose
@@ -1942,6 +1998,41 @@ void Session::BuildPageList() {
             p.stateText["race-lockout"] = notes;
         }
         p.bodyText = "Suspended Game";
+        p.expectText = { p.bodyText };
+        pages.push_back(p);
+    }
+    if (entries.contains("Combo")) {
+        // #747: Combo > Majora's Mask's group note and disabled rows, drawn by
+        // the page's own builder over a synthetic non-live manifest (see
+        // InstallMmNoteProbe), compared with the shipped page's reference.
+        PageSpec p;
+        p.id = std::string("Combo/") + kMmNoteSidebar;
+        p.header = "Combo";
+        p.sidebar = kMmNoteSidebar;
+        p.origin = Origin::RSBS;
+        p.kind = Kind::MENU_PAGE;
+        p.mmNoteProbe = true;
+        p.compareWith = "Enhancements/Quality of Life";
+        // "": both gates are off, so every non-live row and both notes are
+        // hidden and the page shows only its Live row and the pointer.
+        // "heading-on": the Live row's key is on, so the heading group's
+        // Dormant row draws disabled under the heading group's note.
+        // "gate-on": the pointer's key is on, so the second group's two rows
+        // draw disabled under that group's note, below the pointer sentence.
+        // No race-lockout state: every row this builder registers is
+        // .RaceDisable(false) and Menu.cpp's TEXT draw never reads `disabled`,
+        // so a lockout changes nothing on this page by construction, and a
+        // capture of it could only repeat "gate-on".
+        p.states = { "", "heading-on", "gate-on" };
+        const std::string note = SohGui::MmEnhancementsGroupNoteText();
+        p.stateText["heading-on"] = { note, kMmNoteAbsentRow };
+        p.stateText["gate-on"] = { note, kMmNoteDormantRow, kMmNotePartialLabel };
+        p.stateContrast = { { "heading-on", "" }, { "gate-on", "" } };
+        p.hovers = { "dormant" };
+        p.hoverRows = { { "dormant", kMmNoteDormantRow } };
+        p.hoverRowState = { { "dormant", "gate-on" } };
+        p.disabledHovers = { "dormant" };
+        p.bodyText = kMmNoteLiveRow;
         p.expectText = { p.bodyText };
         pages.push_back(p);
     }
@@ -2047,6 +2138,16 @@ void Session::BuildPageList() {
              { "toast/pairing-refused-missing-half", "Not saved:" },
              { "toast/pairing-refused-spoiler", "Not saved:" },
              { "toast/paired-spoiler-not-loaded", "Spoiler not loaded:" },
+             // The paired-file load's toasts (#781), each through the load's
+             // own emitter with the longest input a real load can pass it.
+             { "toast/load-rules-restored", "Restored from file:" },
+             { "toast/load-mm-restored-one", "Restored for Majora's Mask:" },
+             { "toast/load-mm-restored-many", "Restored for Majora's Mask:" },
+             { "toast/load-mm-not-restored", "Not restored:" },
+             { "toast/load-refused-rules", "Not paired:" },
+             { "toast/load-refused-other-build", "Not paired:" },
+             { "toast/load-refused-damaged", "Not paired:" },
+             { "toast/load-arrival-unpaired", "Not paired:" },
          }) {
         PageSpec p;
         p.id = id;
@@ -2420,7 +2521,13 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         if (state == "match-refresh-rate") {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
         }
-    } else if (p.rowStateProbe) {
+    } else if (p.rowStateProbe || p.mmNoteProbe) {
+        if (p.mmNoteProbe && state == "heading-on") {
+            CVarSetInteger(kMmNoteLiveKey, 1);
+        }
+        if (p.mmNoteProbe && state == "gate-on") {
+            CVarSetInteger(kMmNoteParentKey, 1);
+        }
         if (state == "race-lockout") {
             // MenuDrawItem's race lockout (Menu.cpp) disables every RaceDisable
             // row and REPLACES its disabled tooltip: the case the gray notes are
@@ -2470,6 +2577,12 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     if (p.rowStateProbe && state == "race-lockout") {
         CVarClear(CVAR_SETTING("DisableChanges"));
+    }
+    if (p.mmNoteProbe && state == "heading-on") {
+        CVarClear(kMmNoteLiveKey);
+    }
+    if (p.mmNoteProbe && state == "gate-on") {
+        CVarClear(kMmNoteParentKey);
     }
     if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {
         Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_OOT);
@@ -2570,6 +2683,55 @@ void Session::InstallRowStateProbe() {
             }
         }
     }
+}
+
+/**
+ * #747: Combo > Majora's Mask's group note, on a harness-only page built by the
+ * shipped page's own builder (SohGui::AddMmEnhancementRows) over a synthetic
+ * manifest that holds two Dormant rows and a Partial one, a non-live row in each
+ * of its two groups. Every shipped row is Live, so
+ * without this page neither the page's disabled rows nor its gray notes would
+ * ever reach a pixel. Installed and removed around its own captures, like the
+ * row-state probe, and its rows join R5/R6 the same way.
+ */
+void Session::InstallMmNoteProbe() {
+    auto soh = std::dynamic_pointer_cast<SohGui::SohMenu>(menu);
+    auto& entries = MenuEntries(*menu);
+    if (soh == nullptr || !entries.contains("Combo") || entries.at("Combo").sidebars.contains(kMmNoteSidebar)) {
+        return;
+    }
+    // Three columns, the shipped page's count.
+    soh->AddSidebarEntry("Combo", kMmNoteSidebar, 3);
+    WidgetPath path = { "Combo", kMmNoteSidebar, SECTION_COLUMN_1 };
+    SohGui::AddMmEnhancementRows(*soh, path, kMmNoteManifest, sizeof(kMmNoteManifest) / sizeof(kMmNoteManifest[0]));
+
+    const std::string where = std::string("Combo/") + kMmNoteSidebar;
+    for (auto& column : entries.at("Combo").sidebars.at(kMmNoteSidebar).columnWidgets) {
+        for (WidgetInfo& row : column) {
+            probeRows.push_back(&row);
+            if (IsInteractive(row.type)) {
+                registeredNames[&row] = { where, row.name };
+            } else if (row.type == WIDGET_TEXT) {
+                textRows[&row] = where;
+            }
+        }
+    }
+}
+
+void Session::RemoveMmNoteProbe() {
+    for (const WidgetInfo* row : probeRows) {
+        registeredNames.erase(row);
+        textRows.erase(row);
+    }
+    probeRows.clear();
+    auto& entries = MenuEntries(*menu);
+    if (!entries.contains("Combo")) {
+        return;
+    }
+    MainMenuEntry& combo = entries.at("Combo");
+    combo.sidebars.erase(kMmNoteSidebar);
+    combo.sidebarOrder.erase(std::remove(combo.sidebarOrder.begin(), combo.sidebarOrder.end(), kMmNoteSidebar),
+                             combo.sidebarOrder.end());
 }
 
 void Session::RemoveRowStateProbe() {
@@ -2754,6 +2916,9 @@ constexpr int kMaxScrollSteps = 8;
 void Session::CaptureMenuPage(const PageSpec& p) {
     if (p.rowStateProbe) {
         InstallRowStateProbe();
+    }
+    if (p.mmNoteProbe) {
+        InstallMmNoteProbe();
     }
     auto& entries = MenuEntries(*menu);
     const bool present = entries.contains(p.header) && entries.at(p.header).sidebars.contains(p.sidebar);
@@ -3010,6 +3175,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
     }
     if (p.rowStateProbe) {
         RemoveRowStateProbe();
+    }
+    if (p.mmNoteProbe) {
+        RemoveMmNoteProbe();
     }
 }
 
@@ -3821,6 +3989,61 @@ void Session::CaptureModalVariant(const PageSpec& p, const std::string& state) {
     Record(std::move(c));
 }
 
+/**
+ * The paired-file load's toasts (#781) through RsbsSave_EmitLoadToast, the one
+ * emitter the load and the MM arrival call, each with the longest input a real
+ * load can hand it: every Cross-Game Rule restored at once (their labels in the
+ * page's order), the settable MM trick with the longest label alone (the cut
+ * case), and every settable MM trick at once (the "+N" case).
+ */
+static void EmitLoadToastPage(const std::string& id) {
+    if (id == "toast/load-rules-restored") {
+        std::string rules;
+        for (ComboSettingId rule :
+             { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION, COMBO_SETTING_POOL_SIZE_OOT, COMBO_SETTING_POOL_SIZE_MM,
+               COMBO_SETTING_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_MM, COMBO_SETTING_SHARED_OCARINA }) {
+            rules += (rules.empty() ? "" : ", ") + std::string(Combo_ComboSettingLabel(rule));
+        }
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_RULES_RESTORED, rules.c_str(), 0);
+    } else if (id == "toast/load-mm-restored-one" || id == "toast/load-mm-restored-many") {
+        const bool many = id == "toast/load-mm-restored-many";
+        std::string longest;
+        std::string all;
+        int count = 0;
+        for (int i = 0; i < Combo_MMTrickCount(); i++) {
+            const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+            if (d == nullptr || !d->bound || d->reserved || d->label == nullptr) {
+                continue;
+            }
+            count++;
+            all += (all.empty() ? "" : ", ") + std::string(d->label);
+            if (std::strlen(d->label) > longest.size()) {
+                longest = d->label;
+            }
+        }
+        if (count == 0) {
+            // ROM-free with no MM trick table: an option label stands in.
+            longest = all = "Starting Hearts";
+            count = 1;
+        }
+        if (many) {
+            RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, all.c_str(), count);
+        } else {
+            RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, longest.c_str(), 1);
+        }
+    } else if (id == "toast/load-mm-not-restored") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_NOT_RESTORED, nullptr, 0);
+    } else if (id == "toast/load-refused-rules") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_RULES, nullptr, 0);
+    } else if (id == "toast/load-refused-other-build") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD, nullptr, 0);
+    } else if (id == "toast/load-refused-damaged") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_DAMAGED, nullptr, 0);
+    } else if (id == "toast/load-arrival-unpaired") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED, nullptr, 0);
+    }
+}
+
 void Session::CaptureToast(const PageSpec& p) {
     if (!Selected(p, "")) {
         return;
@@ -3867,6 +4090,8 @@ void Session::CaptureToast(const PageSpec& p) {
     } else if (p.id == "toast/paired-spoiler-not-loaded") {
         // SeedContext.cpp's refusal emitter, muted as every harness toast is.
         OoT_EmitPairedSpoilerRefusalToast(/*mute=*/1);
+    } else if (p.id.rfind("toast/load-", 0) == 0) {
+        EmitLoadToastPage(p.id);
     }
     if (Settle(c, false, nullptr, nullptr)) {
         // The window is named "notification#<id>" and the id is the overlay's

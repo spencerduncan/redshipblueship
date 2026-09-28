@@ -2111,6 +2111,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #773: the paired world's one name. OoT's typed name, in each of OoT's
+    # filename charsets (NTSC English, NTSC Japanese, PAL), translates into MM's
+    # charset the way OoTMM's copyName does (no-glyph bytes to MM's space), every
+    # typable character prints in MM as it prints in OoT, and the slot panel
+    # decodes MM's charset. ROM-free (default tier);
+    # games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME ComboPlayerName COMMAND redship --test combo-player-name)
 
     # The cross-game refusal toasts fit the screen (#749's toast shape): every
     # "Not saved:" refusal, through its production emitter, and OoT's
@@ -2120,6 +2127,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # smallest window (832 px). The RULES refusal is drawn for every one of the
     # 8,191 divergence-field combinations. games/oot/soh/soh_notification_fit_test.cpp.
     redship_add_test(NAME PairingRefusalToastFit COMMAND redship --test pairing-refusal-toast-fit)
+    # #781: loading a paired file whose Cross-Game Rules or MM options changed at
+    # the title screen. The file's own values win at load (restored into the keys,
+    # named in a toast), what the file cannot restore is refused or flagged
+    # visibly, and the arrival gate agrees with a file that loaded. Loads through
+    # the OnLoadFile seam's own calls. games/mm/2s2h/mm_paired_load_restore_test.cpp.
+    redship_add_test(NAME PairedLoadRestore COMMAND redship --test paired-load-restore)
     # Lane F1 (wave 7g, #310): test windows never take keyboard focus from the
     # person at the workstation. main.cpp arms SDL's no-activation hint in code for
     # every --test / --integration-test process (src/common/test_window_focus.h),

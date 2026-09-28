@@ -53,6 +53,7 @@
 #include "game.h"     // GameId, OOT_SAVE_CONTEXT_SIZE, MM_SAVE_CONTEXT_SIZE
 #include "context.h"  // ComboContext, gComboCtx, Context_* shadow API
 
+#include <stddef.h>
 #include <stdint.h>
 
 // On-disk constants (visible to both C and C++).
@@ -157,6 +158,13 @@ typedef struct RsbsGameMetaDesc {
     uint32_t validMarkerOffset;
     uint32_t validMarkerLen;    // 0 → treat as always-valid (skip the check)
     uint8_t  validMarker[8];    // expected bytes (e.g. "ZELDAZ", "ZELDA3")
+    // Optional (#773). A game's name bytes are in that game's own filename
+    // charset, never ASCII, so the panel cannot print them as they are. A
+    // registrar that knows its charset supplies this to turn them into
+    // printable text (NUL-terminated, at most 8 characters). It is handed the
+    // whole blob because a charset can depend on another field of the save
+    // (OoT's filename language). NULL keeps the raw-byte copy.
+    void (*decodePlayerName)(const uint8_t* blob, size_t blobSize, char outName[9]);
 } RsbsGameMetaDesc;
 
 #ifdef __cplusplus
@@ -212,6 +220,17 @@ struct SlotMeta {
     // reset by erase/create/reset.
     int commitSkew;
 };
+
+/**
+ * The unified file-select panel's name line for a slot that exists and passes
+ * its checks (ComboMenuBar::DrawFileSelect). Prefers OoT's name if OoT's half is
+ * started, else MM's. A paired world has one name -- its creation copies OoT's
+ * into MM's half (#773) -- so the line shows it once: both names only when both
+ * halves are started and really name different players. An empty MM name (a
+ * paired half created before #773 holds eight MM spaces) leaves the line to
+ * OoT's. Pure, so the mm-creation-new-file rows can lock it.
+ */
+std::string SlotNameLine(const SlotMeta& meta);
 
 #pragma pack(push, 1)
 /**
@@ -688,6 +707,33 @@ int  RsbsSave_HasQuarantine(int slot);
 void RsbsSave_ResetSlotSessionState(void);
 
 /**
+ * The paired-file load's toasts (#781), in SoH's toast shape (default colours,
+ * the player's duration, one line; docs/ui-style-guide.md section 10b). One
+ * emitter holds the copy, so the load, the MM arrival and the UI snapshot's
+ * toast/load-* pages post exactly the same words.
+ *
+ * @p names is a ", "-joined list of row labels (RULES_RESTORED and
+ * MM_RESTORED only; NULL otherwise) and @p count the true number of rows,
+ * which may exceed the names the list carries (0: the list is complete). The
+ * message names as many rows as fit whole, cuts a first name that does not fit
+ * with "...", and counts the rest as "+N".
+ */
+enum {
+    RSBS_LOAD_TOAST_RULES_RESTORED = 0,  // "Restored from file: Goal, Crossing Direction"
+    RSBS_LOAD_TOAST_MM_RESTORED = 1,     // "Restored for Majora's Mask: Starting Hearts +1"
+    RSBS_LOAD_TOAST_MM_NOT_RESTORED = 2, // the file cannot restore its MM profile
+    RSBS_LOAD_TOAST_REFUSED_RULES = 3,   // refused: keyed rules differ and the store could not take them
+    RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD = 4, // refused: a record field no key authors (another build's file)
+    RSBS_LOAD_TOAST_REFUSED_DAMAGED = 5,     // refused: the stored cross-game identity is damaged
+    RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED = 6,    // an MM arrival while the loaded slot is refused
+};
+void RsbsSave_EmitLoadToast(int kind, const char* names, int count);
+
+/** Test hook (#781 paired-load-restore leg 5): force the load's post-restore
+ *  compare to fail, so the put-back is exercised. Never called in production. */
+void RsbsSave_ForceLoadRestoreVerifyFailForTest(int on);
+
+/**
  * Session-scoped "which slot is open" (see SaveManager::SetActiveSlot).
  * RsbsSave_GetActiveSlot returns -1 when no slot has been established, which
  * every caller must treat as "do not write" rather than as slot 0.
@@ -701,6 +747,15 @@ int  RsbsSave_GetActiveSlot(void);
  * z64save.h, so save.cpp never has to. Passing GAME_NONE or NULL is a no-op.
  */
 void RsbsSave_RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc);
+
+/**
+ * The N64 filename charset MM's names are written in (and OoT's PAL release's):
+ * 0x00-0x09 digits, 0x0A-0x23 'A'-'Z', 0x24-0x3D 'a'-'z', 0x3E space, 0x3F '-',
+ * 0x40 '.'. Decodes 8 name bytes into `outName` the way MM's textbox prints the
+ * name (z_message_nes.c's MESSAGE_NAME case): trailing spaces dropped, any byte
+ * outside the charset shown as '?'. Always NUL-terminates. (#773)
+ */
+void RsbsSave_DecodeN64FilenameName(const uint8_t name[8], char outName[9]);
 
 #ifdef __cplusplus
 }
