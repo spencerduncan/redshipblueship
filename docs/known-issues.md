@@ -258,7 +258,8 @@ Fixed by PR #772 (2026-09-28). The creation event left MM's half with slot numbe
 flash slot, so the moon-crash reset and the owl save's readback copied an empty save buffer
 over the live one (observed in a headless row: day, rupees and inventory wiped). The half is
 now authored as MM's own new-file path authors it, and every arrival pins the cross-game slot
-number, which also covers older files (see "Back up your saves").
+number, which also covers older files (see "Back up your saves"). The fix is locked
+headlessly and has not been played; the playtest guide's scenario I4 checks it in game.
 
 ### ~~F10 hot-swap silently rolls back your progress~~ — RESOLVED ([#364](https://github.com/spencerduncan/redshipblueship/issues/364), PR [#400](https://github.com/spencerduncan/redshipblueship/pull/400))
 
@@ -384,8 +385,9 @@ from returning.
 ### MM text that says the player's name shows blanks in a paired world — [#773](https://github.com/spencerduncan/redshipblueship/issues/773)
 
 The paired creation does not carry OoT's typed name into Majora's Mask's character set, so
-MM's half keeps the default all-space name and any MM textbox that prints the player's name
-shows blanks (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)). The file-select slot still shows OoT's name.
+MM's half keeps the default all-space name, so an MM textbox that prints the player's name
+is expected to show blanks (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)). No such textbox has been looked at in a
+paired half ([#773](https://github.com/spencerduncan/redshipblueship/issues/773), "Not verified"). The file-select slot still shows OoT's name.
 
 ### MM hook dispatch is still partial — [#438](https://github.com/spencerduncan/redshipblueship/issues/438)
 
