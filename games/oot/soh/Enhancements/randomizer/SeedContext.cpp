@@ -23,6 +23,7 @@
 // deferred for the previous generation's single-bag fill no longer exists.
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
 #include "soh/Notification/Notification.h" // the refusal of a paired world's spoiler (PR #743 review)
+#include "pairing_refusal_toast.h" // that refusal's one-line copy
 #include <cstdio>
 #endif
 extern "C" {
@@ -423,6 +424,25 @@ GetItemEntry Context::GetFinalGIEntry(const RandomizerCheck rc, const bool check
     return giEntry;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * THE OoT EMITTER for the paired-spoiler refusal below (declared in
+ * src/common/pairing_refusal_toast.h): the copy from that one file, queued with
+ * Notification::Options' defaults. ParseSpoiler calls it unmuted, as SoH's
+ * file-select toasts are; the ui tier's toast page and the width lock call it
+ * muted. Its own function so what they draw is what the refusal emits.
+ */
+extern "C" void OoT_EmitPairedSpoilerRefusalToast(int mute) {
+    char message[64];
+    Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_OOT_SPOILER, nullptr, message, sizeof(message));
+    Notification::Emit({
+        .prefix = Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_OOT_SPOILER),
+        .message = message,
+        .mute = mute != 0,
+    });
+}
+#endif
+
 void Context::ParseSpoiler(const char* spoilerFileName) {
     std::ifstream spoilerFileStream(SohUtils::Sanitize(spoilerFileName));
     if (!spoilerFileStream) {
@@ -456,10 +476,9 @@ void Context::ParseSpoiler(const char* spoilerFileName) {
                     "hold cover items and the items that crossed into Termina are missing), not a solo OoT world\n",
                     spoilerFileName);
             fflush(stderr);
-            Notification::Emit({
-                .prefix = "Spoiler not loaded: ",
-                .message = "it belongs to a paired Ocarina of Time + Majora's Mask world. Generate the seed again.",
-            });
+            // One short line in SoH's toast shape (src/common/pairing_refusal_toast.h);
+            // "Generate the seed again" stays on the SPDLOG line above.
+            OoT_EmitPairedSpoilerRefusalToast(/*mute=*/0);
             return;
         }
 #endif

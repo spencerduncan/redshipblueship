@@ -40,6 +40,21 @@
  *           also carry the "goal" field divergence; the leg is about which
  *           refusal names triforceHunt, which only the gate's MM half
  *           compare (GameExports_SingleExe.cpp) can decide.
+ *   leg 5 — the frozen MM option profile diverges (#570)
+ *                                     -> REFUSED by the profile leg, the slot
+ *                                        latched, and the toast the SITE queued
+ *                                        is the refusal emitter's copy, exactly
+ *   leg 6 — a live pairing with no MM half to hydrate (ADR 0010 increment 2)
+ *                                     -> the slot latched and the toast the
+ *                                        missing-half SITE queued is the
+ *                                        emitter's copy, exactly
+ *
+ * THE TOAST COPY. Every refusal leg also compares the toast its production site
+ * queued with MM_Rando_EmitPairingRefusalToast's copy
+ * (src/common/pairing_refusal_toast.h), prefix and message, exactly: the width
+ * lock (pairing-refusal-toast-fit) holds that copy on screen, and this is what
+ * holds each site to that copy. A site that went back to an inline Notification
+ * call of its own would pass the width lock and fail here.
  *
  * NON-VACUITY. A gate that refused everything would pass leg 1 and prove
  * nothing. Two things close that, in different places and deliberately so:
@@ -75,6 +90,7 @@
 #include "foreign_items.h"
 #include "save.h"                  // the #533 REFUSED surface this gate reports through
 #include "notification_bridge.h"   // the player-visible half of that surface
+#include "pairing_refusal_toast.h" // that surface's one-line copy
 #include "combo_mm_options_view.h" // MM_Rando_ComputeProfileStamp — the profile leg's input
 #include "triforce_hunt.h"         // Combo_TriforceFreezeAtCreation — leg 4's frozen record
 
@@ -201,8 +217,11 @@ int AssertRefusedNaming(int baseCode, const char* leg, const char* term) {
         return Fail(baseCode + 3, "%s: the overlay still holds this leg's sentinel — no refusal toast was emitted",
                     leg);
     }
-    if (prefix.find("REFUSED") == std::string::npos) {
-        return Fail(baseCode + 3, "%s: the toast's prefix ('%s') does not read as a refusal", leg, prefix.c_str());
+    // The refusal's one-line copy (src/common/pairing_refusal_toast.h): the
+    // outcome in the prefix, the diverged fields in the message.
+    if (prefix != Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_RULES)) {
+        return Fail(baseCode + 3, "%s: the toast's prefix ('%s') is not the refusal's ('%s')", leg, prefix.c_str(),
+                    Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_RULES));
     }
     if (message.find(term) == std::string::npos) {
         return Fail(baseCode + 4,
@@ -212,6 +231,35 @@ int AssertRefusedNaming(int baseCode, const char* leg, const char* term) {
                     leg, term, message.c_str());
     }
     return 0;
+}
+
+/** The toast the refusal SITE queued is, prefix and message, exactly the
+ *  refusal emitter's copy for @p kind (src/common/pairing_refusal_toast.h). */
+int AssertToastIs(int code, const char* leg, int kind, const char* detail) {
+    ComboNotification toast;
+    memset(&toast, 0, sizeof(toast));
+    if (OoT_Notification_PeekLastForTest(&toast) != 1) {
+        return Fail(code, "%s: no toast reached the shared overlay", leg);
+    }
+    const std::string prefix = toast.prefix != nullptr ? toast.prefix : "";
+    const std::string message = toast.message != nullptr ? toast.message : "";
+    char expected[256];
+    Combo_PairingRefusalToastMessage(kind, detail, expected, sizeof(expected));
+    const char* expectedPrefix = Combo_PairingRefusalToastPrefix(kind);
+    if (prefix != expectedPrefix || message != expected) {
+        return Fail(code,
+                    "%s: the refusal site queued '%s %s', not the refusal emitter's '%s %s' — a site that emits its "
+                    "own copy is not the toast pairing-refusal-toast-fit holds on screen",
+                    leg, prefix.c_str(), message.c_str(), expectedPrefix, expected);
+    }
+    return 0;
+}
+
+/** AssertToastIs for a RULES refusal over the divergence bits @p bits. */
+int AssertRulesToastIs(int code, const char* leg, uint32_t bits) {
+    char fields[256];
+    Combo_ComboSettingsDivergenceDescribe(bits, fields, sizeof(fields));
+    return AssertToastIs(code, leg, RSBS_PAIRING_REFUSAL_RULES, fields);
 }
 
 } // namespace
@@ -253,6 +301,9 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
         const int rc = AssertRefusedNaming(10, "leg 1 (direction diverged)", "direction");
         if (rc != 0) {
             return rc;
+        }
+        if (int toastRc = AssertRulesToastIs(17, "leg 1 (direction diverged)", RSBS_COMBO_DIVERGE_DIRECTION)) {
+            return toastRc;
         }
         // NEVER self-healed: overwriting the frozen record with the divergent
         // resolution would make every divergence disappear the instant it was
@@ -367,12 +418,20 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
                 if (rc != 0) {
                     return rc;
                 }
+                if (int toastRc = AssertRulesToastIs(53, "leg 4 (MM's triforce half moved)",
+                                                     RSBS_COMBO_DIVERGE_GOAL | RSBS_COMBO_DIVERGE_TRIFORCE)) {
+                    return toastRc;
+                }
             } else {
                 // Refused (by the goal no session can author yet), but NOT for
                 // the triforce record: MM's half matches what MM resolves.
                 const int rc = AssertRefusedNaming(47, "leg 4 (MM's triforce half matches)", "goal");
                 if (rc != 0) {
                     return rc;
+                }
+                if (int toastRc =
+                        AssertRulesToastIs(54, "leg 4 (MM's triforce half matches)", RSBS_COMBO_DIVERGE_GOAL)) {
+                    return toastRc;
                 }
                 ComboNotification toast;
                 memset(&toast, 0, sizeof(toast));
@@ -388,10 +447,62 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // Leg 5 — the frozen MM option profile diverges (#570): the profile leg
+    // refuses, and its site's toast is the emitter's copy.
+    // ------------------------------------------------------------------------
+    {
+        ComboContext_Init();
+        ArmPairing();
+        gComboCtx.mmProfileDigest ^= 0x5A5A5A5Au; // "the options changed after creation"
+        ArmVanillaBootstrapSave();
+        ResetRefusalSurface();
+
+        const int refused = RunArrival(/*hadFrozenState=*/0);
+        if (refused < 0) {
+            return 99;
+        }
+        if (refused != 1) {
+            return Fail(60, "leg 5: an MM option profile that no longer matches the creation stamp was not refused");
+        }
+        if (RsbsSave_IsSlotWritable(kSlot) != 0) {
+            return Fail(61, "leg 5: the profile refusal left the active slot writable");
+        }
+        if (int rc = AssertToastIs(62, "leg 5 (MM options changed)", RSBS_PAIRING_REFUSAL_MM_OPTIONS, nullptr)) {
+            return rc;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Leg 6 — a live pairing with NO MM half to hydrate: the gate passes (the
+    // legacy writer freezes the defaults, the profile matches), and the hydrate
+    // half refuses the missing half through its site's toast.
+    // ------------------------------------------------------------------------
+    {
+        ComboContext_Init();
+        ArmPairing();
+        ArmVanillaBootstrapSave();
+        ResetRefusalSurface();
+
+        const int refused = RunArrival(/*hadFrozenState=*/0);
+        if (refused < 0) {
+            return 99;
+        }
+        if (refused != 0) {
+            return Fail(70, "leg 6 setup: the gate refused a healthy pair, so the missing-half leg was never reached");
+        }
+        if (RsbsSave_IsSlotWritable(kSlot) != 0) {
+            return Fail(71, "leg 6: a pairing with no MM half to hydrate left the active slot writable");
+        }
+        if (int rc = AssertToastIs(72, "leg 6 (no MM half)", RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr)) {
+            return rc;
+        }
+    }
+
     ComboContext_Init();
     RsbsSave_ResetSlotSessionState();
     printf("[TEST] PASS: the arrival gate refuses a divergent combo record by name and freezes a legacy pair's "
-           "shipped defaults\n");
+           "shipped defaults; the profile, rules and missing-half refusal sites queue the refusal emitter's copy\n");
     return 0;
 }
 
