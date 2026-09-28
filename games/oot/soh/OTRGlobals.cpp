@@ -122,7 +122,6 @@
 #include <fast/resource/factory/TextureFactory.h>
 #include <fast/resource/factory/VertexFactory.h>
 #include "soh/resource/importer/ArrayFactory.h"
-#include "f3dvtx_wire_layout.h" // src/common — #604: the vertex record both Array readers fill
 #include "soh/resource/importer/AnimationFactory.h"
 #include "soh/resource/importer/AudioSampleFactory.h"
 #include "soh/resource/importer/AudioSequenceFactory.h"
@@ -1990,6 +1989,7 @@ extern "C" void InitOTR(int argc, char* argv[]) {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include "f3dvtx_wire_layout.h" // src/common — #604: the vertex record both Array readers fill
 /**
  * Shared bring-up entry for MM-first boots (issues #329/#330).
  *
