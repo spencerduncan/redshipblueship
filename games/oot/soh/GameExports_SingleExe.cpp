@@ -1146,6 +1146,106 @@ extern "C" void OoT_Combo_FlushSceneFlagsForFreeze(void) {
     Play_SaveSceneFlags(play);
 }
 
+// z_actor.c. functions.h is not included here (see Play_SaveSceneFlags above);
+// these are the exact entry points the two Destroys below call, so the flag
+// hooks (check tracker, network sync) see the same dispatch a scene exit gives.
+extern "C" s32 OoT_Flags_GetEventChkInf(s32 flag);
+extern "C" void OoT_Flags_SetEventChkInf(s32 flag);
+extern "C" void Flags_UnsetEventChkInf(s32 flag);
+
+/**
+ * OoT's half of the pre-freeze discipline for actor Destroys whose writes are
+ * "on any exit from this scene" (#770, the residue of #750 / PR #767).
+ *
+ * Both cross-game departures retire OoT's Play gamestate without Play_Destroy,
+ * so no actor Destroy runs for the actors live at that instant (see
+ * OoT_RetireAbandonedSession, which puts back overlay statics and ActorDB client
+ * counts, and deliberately does not run Destroys). Two Destroys write the save
+ * UNCONDITIONALLY on scene exit, so an F10 (or a cross-game door) froze the save
+ * as if the player had never left:
+ *
+ *  - Bg_Relay_Objects (z_bg_relay_objects.c, BgRelayObjects_Destroy): the
+ *    windmill's rotating gear unsets EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL
+ *    whenever gSaveContext.cutsceneIndex < 0xFFF0. The flag is what makes the
+ *    gear and Kakariko's windmill sails (Bg_Spot01_Fusya) spin fast; vanilla
+ *    clears it on every non-cutscene exit from the windmill.
+ *  - Bg_Spot06_Objects (z_bg_spot06_objects.c, BgSpot06Objects_Destroy): every
+ *    Lake Hylia object, in rando, sets EVENTCHKINF_RAISED_LAKE_HYLIA_WATER once
+ *    EVENTCHKINF_USED_WATER_TEMPLE_BLUE_WARP is set (the water-control switch
+ *    lowers the lake only for the visit). The same Destroy writes the lower
+ *    river water box's zMin back on the resource-cached scene collision header
+ *    unconditionally, because Init subtracts 50 from it whenever the lake loads
+ *    lowered; that is the non-save half of the same skip and is applied here too.
+ *
+ * WHY HERE AND NOT AT OoT_Game_Suspend. The blob is captured BEFORE suspend on
+ * both paths (Combo_CheckEntranceSwitch and Combo_FreezeActiveGameForHotSwap,
+ * each right after Combo_FlushLiveStateForFreeze); a write at suspend or in
+ * OoT_RetireAbandonedSession would change the live gSaveContext after the
+ * freeze and never reach the frozen half. This runs inside that flush, where
+ * the PlayState and its actor lists are still live.
+ *
+ * WHICH ACTORS. The live actor lists are walked, so the condition is the
+ * Destroy's own, evaluated on the actors that would have been destroyed: an
+ * actor with a destroy function (OoT_Actor_Destroy calls only a non-NULL one),
+ * the gear by its post-Init params (WINDMILL_ROTATING_GEAR, 0; a duplicate gear
+ * is killed with params 0xFF and its Destroy writes nothing), any Lake Hylia
+ * object for the lake. Scene numbers are not consulted: the actors are what the
+ * Destroys key on. No vendored Destroy is touched; an ordinary in-OoT scene exit
+ * still runs them and never reaches this function, which only the cross-game
+ * freeze seam calls. Idempotent (an unset, a set and an assignment). NULL-safe
+ * on OoT_gPlayState like the scene-flag flush: no live PlayState, nothing to do.
+ *
+ * NOT HERE: Obj_Lightswitch's Destroy unsets a scene switch flag only when
+ * SoH's Sunlight Arrows static says a Light Arrow lit the switch (not
+ * unconditional scene-exit semantics; #767 already resets that static), and the
+ * session-only rows of #770 are normalised on re-entry (see that issue).
+ */
+extern "C" void OoT_Combo_ApplySceneExitWritesForFreeze(void) {
+    PlayState* play = OoT_gPlayState;
+    if (play == NULL) {
+        return;
+    }
+    // Values private to the two overlays' .c files: WindmillSetpiecesMode's
+    // WINDMILL_ROTATING_GEAR, LakeHyliaWaterBoxIndices'
+    // LHWB_GERUDO_VALLEY_RIVER_LOWER, and WATER_LEVEL_RIVER_LOWER_Z.
+    const s16 kWindmillRotatingGear = 0;
+    const s32 kRiverLowerWaterBox = 1;
+    const s16 kRiverLowerZMin = 2203;
+
+    bool windmillGear = false;
+    bool lakeObjects = false;
+    for (s32 category = 0; category < ACTORCAT_MAX; category++) {
+        for (Actor* actor = play->actorCtx.actorLists[category].head; actor != NULL; actor = actor->next) {
+            if (actor->destroy == NULL) {
+                continue;
+            }
+            if (actor->id == ACTOR_BG_RELAY_OBJECTS && actor->params == kWindmillRotatingGear) {
+                windmillGear = true;
+            } else if (actor->id == ACTOR_BG_SPOT06_OBJECTS) {
+                lakeObjects = true;
+            }
+        }
+    }
+
+    if (windmillGear && gSaveContext.cutsceneIndex < 0xFFF0 &&
+        OoT_Flags_GetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL)) {
+        Flags_UnsetEventChkInf(EVENTCHKINF_PLAYED_SONG_OF_STORMS_IN_WINDMILL);
+        fprintf(stderr, "[OoT] pre-freeze: windmill gear exit cleared the Song of Storms windmill flag (#770)\n");
+    }
+
+    if (lakeObjects) {
+        CollisionHeader* colHeader = play->colCtx.colHeader;
+        if (colHeader != NULL && colHeader->waterBoxes != NULL && colHeader->numWaterBoxes > kRiverLowerWaterBox) {
+            colHeader->waterBoxes[kRiverLowerWaterBox].zMin = kRiverLowerZMin;
+        }
+        if (IS_RANDO && OoT_Flags_GetEventChkInf(EVENTCHKINF_USED_WATER_TEMPLE_BLUE_WARP) &&
+            !OoT_Flags_GetEventChkInf(EVENTCHKINF_RAISED_LAKE_HYLIA_WATER)) {
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_RAISED_LAKE_HYLIA_WATER);
+            fprintf(stderr, "[OoT] pre-freeze: Lake Hylia exit raised the water again after the Water Temple (#770)\n");
+        }
+    }
+}
+
 /**
  * Freeze the departing game for an F10 hot swap (#364).
  *
