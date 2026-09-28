@@ -2160,6 +2160,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME MMMoonCrashPoolApplied COMMAND redship --test mm-moon-crash-pool-applied)
 
+    # #770: two OoT actor Destroys write the save on ANY exit from their scene
+    # (the windmill gear clears the Song of Storms windmill flag; in rando, after
+    # the Water Temple blue warp, every Lake Hylia object raises the lake again),
+    # and a cross-game departure skips every Destroy. The pre-freeze seam applies
+    # both writes from the live actor lists; each row drives both real freeze
+    # drivers and reads the frozen blob back. ROM-free (default tier);
+    # games/oot/soh/oot_departure_scene_exit_test.cpp.
+    redship_add_test(NAME OoTDepartureWindmillFlag COMMAND redship --test oot-departure-windmill-flag)
+    redship_add_test(NAME OoTDepartureLakeFlag COMMAND redship --test oot-departure-lake-flag)
+
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)
     # These tests actually boot the games and verify boot completion
@@ -2202,6 +2212,27 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration-soak
         TIMEOUT ${REDSHIP_GAMEPLAY_SOAK_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=3")
+
+    # The FIRST CROSSING OF A PAIRED FILE with the archives mounted, in one
+    # process (hop 6 of the playtest path, which no row ran before: the rows
+    # above cross with a vanilla debug save, and ComboCreationEvent /
+    # MMPairSwitchEntry run creation and arrival with RSBS_DISABLE_OTR_INIT=1).
+    # The gameplay round trip's paired variant: generate the pinned world
+    # (RSBSSINGLEBAG1) on the shipped defaults, create file 3 through OoT's own
+    # new-file seam (the production creation event), load it back as the file
+    # select does, walk into MM through the Happy Mask Shop, and assert on the
+    # REAL arrival: the "[MM] pairing:" stderr lines (profile match, HYDRATED
+    # with the crossing store's counts), the pairing, the crossing store, and no
+    # refusal line or toast; then back to OoT, restored and not regenerated.
+    # RSBS_PFC_SKIP_CREATION=1 is the red half (debug save, no creation: fails on
+    # skipped-because-no-paired-oot-world). Same ROM/display needs as the round
+    # trip, so hosted CI cannot run it (workflow_dispatch only, like its
+    # siblings). games/oot/soh/GameExports_SingleExe.cpp (boot, return leg),
+    # games/mm/2s2h/GameExports_SingleExe.cpp (arrival).
+    redship_add_test(NAME IntPairedFirstCrossing
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
 
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.

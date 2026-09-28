@@ -239,6 +239,47 @@ CTest rows (label `integration`, plus `integration-soak`):
 (`RSBS_GP_CYCLES=3`, 900 s). Scene/frame parameters are env vars on purpose: a
 sweep varies them without new build-system rows.
 
+### The paired variant: `int-paired-first-crossing`
+
+`redship --integration-test int-paired-first-crossing` (CTest `IntPairedFirstCrossing`,
+label `integration`, 300 s) runs the same phase machine with a PAIRED file instead of the
+debug save. Boot goes title -> file select (SoH's "Boot Sequence: File Select" path, so
+`Title_Destroy`'s `Sram_InitSram` runs first, as in play), and from the file select's own
+main it generates the pinned world `RSBSSINGLEBAG1` on the shipped defaults, creates file 3
+through `OoT_Sram_InitSave` (the production creation event and the slot's first write),
+loads it back as `FileChoose_LoadGame` does, and enters Play at 0x01D1. The row writes only
+file 3, named `RSBSTEST`; it refuses to erase a file 3 with any other name, and erases its
+own on a pass.
+
+Extra assertions, all loud:
+
+- **boot (before generating):** "the shipped defaults" is checked, not assumed. Generation
+  reads the live CVar store, which is the build directory's persisted config, so every
+  setting it reads (OoT's options, tricks and exclusions, MM's options and tricks, the
+  combo settings) must be unset; the row fails naming the explicit keys otherwise.
+- **creation (right after `OoT_Sram_InitSave` returns, before the load):** the creation's
+  own `[OoT] creation event: single bag — N crossings stored (X ..., Y ...)` line and the
+  store's `[Crossings] captured A OoT-hosted and B MM-hosted crossings (digest D)` line must
+  equal the store it left (counts and digest). The identity is recorded HERE (masterSeed,
+  settingsHash, mmProfileDigest, comboFingerprint, the crossing counts and digest), and the
+  file loaded back from disk must match it, so a `.redsave` round trip that loses or reorders
+  a crossing fails instead of becoming the baseline. The creation runs at most once.
+- **mm-stabilize (every arrival):** the stderr lines
+  `[MM] pairing: arrival profile matches the creation-frozen identity` and
+  `[MM] pairing: HYDRATED from the frozen MM half`, read back through a tee of fd 2
+  (`IntegrationTest_StderrCapture*`, `src/common/integration_test_hooks.cpp`); no
+  `skipped-because-no-paired-oot-world`, no `REFUSED` line, no "Not paired" / "Not saved"
+  toast; `Combo_ForeignPairingActive()`; a frozen, non-empty crossing store whose counts
+  the HYDRATED line prints; the MM seed of the creation's "armed" line = the HYDRATED line's
+  = the live save's; MM's generation dispatch count unchanged since the creation; the
+  identity recorded at the creation unchanged.
+- **oot-return:** OoT's half is the created file, its world seed unchanged, a sentinel
+  written before the Happy Mask Shop door (`deaths=777`) survived (restored from the frozen
+  state, not reloaded or regenerated), and the identity unchanged.
+
+`RSBS_PFC_SKIP_CREATION=1` boots the debug save instead and must fail at mm-stabilize on the
+`skipped-because-no-paired-oot-world` line (the red half).
+
 ### Scope honesty — what this harness does NOT reproduce
 
 - **The operator's actual save.** The debug save is late-game-shaped, but the
@@ -348,7 +389,16 @@ xvfb-run -a env RSBS_GP_CYCLES=3 RSBS_GP_FRAMES=300 RSBS_GP_WARP_ENTRANCE=0x00CD
 
 # Or via ctest (same binary, wired timeouts):
 ctest --test-dir build-cmake -R IntGameplayRoundtrip --output-on-failure
+
+# The paired first crossing (creation -> real MM arrival -> return), and its red half:
+ctest --test-dir build-cmake -R '^IntPairedFirstCrossing$' --output-on-failure
+RSBS_PFC_SKIP_CREATION=1 ./build-cmake/redship --integration-test int-paired-first-crossing  # must FAIL
 ```
+
+Stage every archive from the branch you are testing: `ExtractAssets`, `ExtractMMAssets`,
+`GenerateSohOtr`, `Generate2ShipOtr`, then `GenerateRedshipOtr` (it reads the extracted
+`oot.o2r` / `mm.o2r`, so it goes last), and copy `games/oot/oot.o2r` and `games/mm/mm.o2r`
+into `build-cmake/`. Archives copied from an older build can mount stale custom assets.
 
 (On the operator's Windows machine: same flags, no xvfb — run it in a normal
 session; the window will flash through the phases.)

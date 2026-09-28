@@ -1517,7 +1517,12 @@ void Context_InvalidateSessionOnSlotLoad(void);
  *   - both games revive a dead health bar (health <= 0 -> the game's own
  *     continue value, healthAccumulator cleared) so an F10 during the
  *     game-over screen freezes a resumable half and hands the other game a
- *     live shared bar (MM #626, OoT #664).
+ *     live shared bar (MM #626, OoT #664);
+ *   - OoT applies the save writes two actor Destroys make on ANY exit from
+ *     their scene (the windmill gear clears the Song of Storms windmill flag;
+ *     in rando after the Water Temple blue warp, the Lake Hylia objects raise
+ *     the lake again), which the departure skips with every other Destroy
+ *     (#770).
  *
  * Every production freeze driver calls this immediately before its freeze:
  * Combo_CheckEntranceSwitch before Combo_FreezeState, and

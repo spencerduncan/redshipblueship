@@ -4545,6 +4545,20 @@ TestResult Test_PairedLoadRestore(void) {
     return MM_PairedLoadRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// games/oot/soh/oot_departure_scene_exit_test.cpp (#770): the save writes the
+// windmill gear's and Lake Hylia's Destroys make on any scene exit reach the
+// frozen OoT half on both departure drivers. ROM-free and display-free.
+extern "C" int OoT_DepartureWindmillFlag_RunHeadless(void);
+extern "C" int OoT_DepartureLakeFlag_RunHeadless(void);
+
+TestResult Test_OoTDepartureWindmillFlag(void) {
+    return OoT_DepartureWindmillFlag_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+TestResult Test_OoTDepartureLakeFlag(void) {
+    return OoT_DepartureLakeFlag_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ============================================================================
 // Test registry
 // ============================================================================
@@ -5334,6 +5348,16 @@ const TestDescriptor gTests[] = {
      "A moon crash that restores a commit taken on OoT's side (the pool moved after MM's departure) leaves MM's "
      "rupees, health and ammo EQUAL to the restored pool, and a later spend is an exact delta (#785)",
      Test_MMMoonCrashPoolApplied},
+    {"oot-departure-windmill-flag",
+     "A cross-game departure (F10 or door) from the windmill with the gear live freezes the Song of Storms windmill "
+     "flag cleared, as the gear's Destroy leaves it on any non-cutscene exit; no gear, a cutscene, or no PlayState "
+     "writes nothing (#770)",
+     Test_OoTDepartureWindmillFlag},
+    {"oot-departure-lake-flag",
+     "A cross-game departure from Lake Hylia in rando after the Water Temple blue warp freezes the lake raised and "
+     "puts the river water box back, as the lake objects' Destroy does on any exit; vanilla, no blue warp, no lake "
+     "object or no PlayState keep the save as it is (#770)",
+     Test_OoTDepartureLakeFlag},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
@@ -5343,6 +5367,9 @@ struct IntegrationTestDescriptor {
     const char* description;
     IntegrationTestMode mode;
     GameId targetGame;
+    // Only read for INT_TEST_GAMEPLAY_ROUNDTRIP rows; every other row leaves it
+    // at GP_VARIANT_ROUNDTRIP (value-initialized).
+    GameplayVariant gameplayVariant;
 };
 
 const IntegrationTestDescriptor gIntegrationTests[] = {
@@ -5362,6 +5389,13 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
      "Operator crash repro: debug save, live gameplay, production OoT<->MM round trip (freeze/restore + "
      "resume leg), post-return debug warp, door transition. Env: RSBS_GP_FRAMES/CYCLES/BOOT|WARP|EXIT_ENTRANCE",
      INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT},
+    {"int-paired-first-crossing",
+     "The first crossing of a PAIRED file with the archives mounted, in one process: generate the pinned world "
+     "(RSBSSINGLEBAG1) on the shipped defaults, create the file through OoT's new-file seam (the production creation "
+     "event), load it as the file select does, walk into MM through the Happy Mask Shop, assert the arrival hydrated "
+     "the creation-frozen half (stderr lines, pairing, crossing store, no refusal), and come back restored. "
+     "RSBS_PFC_SKIP_CREATION=1 is the red half",
+     INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT, GP_VARIANT_PAIRED_FIRST_CROSSING},
     {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
 };
 
@@ -5582,6 +5616,9 @@ bool TestRunner_SetupIntegrationTest(const char* testName) {
 
             // Set up integration test hooks
             IntegrationTest_SetMode(gIntegrationTests[i].mode);
+            if (gIntegrationTests[i].mode == INT_TEST_GAMEPLAY_ROUNDTRIP) {
+                IntegrationTest_SetGameplayVariant(gIntegrationTests[i].gameplayVariant);
+            }
 
             printf("[INT-TEST] Setting up integration test: %s\n", testName);
             printf("[INT-TEST] Target game: %s\n", Game_ToString(sTargetGame));
@@ -5612,6 +5649,9 @@ int TestRunner_GetIntegrationTestResult(void) {
     }
 
     bool passed = IntegrationTest_BootPassed();
+    // The paired row's stderr tee (a no-op for every other row): drain it and
+    // put fd 2 back before the process _Exit()s, so no line is lost in the pipe.
+    IntegrationTest_StderrCaptureStop();
     printf("\n=== Integration Test Result ===\n");
     printf("Test: %s\n", sIntegrationTestName);
     printf("Result: %s\n", passed ? "PASS" : "FAIL");
