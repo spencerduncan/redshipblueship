@@ -82,6 +82,7 @@ extern "C" {
 void MM_Creation_StampNewFileFields(const u8* playerName);
 void OoT_PlayerName_ToMMCharset(const uint8_t* ootName, uint8_t filenameLanguage, uint8_t* mmName);
 void Randomizer_TestSetOoTPlayerName(const uint8_t* name, uint8_t filenameLanguage);
+void OoT_SlotMeta_DecodePlayerName(const uint8_t* blob, size_t blobSize, char outName[9]);
 void MM_SlotMeta_Register(void);
 int MM_Rando_ArmCreatedHalf(int slot);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
@@ -533,6 +534,30 @@ extern "C" int MM_CreationPlayerName_Run(void) {
     const uint8_t offCharset[8] = { 0x15, 0x41, 0xDF, 0x3E, 0x3E, 0x3E, 0x3E, 0x3E };
     RsbsSave_DecodeN64FilenameName(offCharset, out);
     CNF_ASSERT(strcmp(out, "L??") == 0, "a byte outside MM's charset prints as '?'");
+
+    // ---- 5. the slot panel's OoT decoder, over a synthetic OoT save ---------
+    // The panel copied OoT's raw charset bytes before #773; it now prints them
+    // through the same translation, in the file's own filename language.
+    struct OoTPanelCase {
+        uint8_t lang;
+        uint8_t oot[8];
+        const char* expect;
+    };
+    const OoTPanelCase panel[] = {
+        { kLangNtscEng, { 0xAB, 0xC6, 0x01, 0xDF, 0xDE, 0xE4, 0xEA, 0xE7 }, "Ab1 z-." },
+        { kLangNtscEng, { 0xB6, 0xCD, 0xD2, 0xCF, 0xDF, 0xDF, 0xDF, 0xDF }, "Link" },
+        { kLangPal, { 0x15, 0x12, 0x17, 0x14, 0x3E, 0x3E, 0x3E, 0x3E }, "LINK" },
+        { kLangNtscJpn, { 0x0A, 0x5A, 0xAB, 0xDF, 0xDF, 0xDF, 0xDF, 0xDF }, "  A" },
+    };
+    for (const OoTPanelCase& p : panel) {
+        Randomizer_TestClearOoTSave();
+        Randomizer_TestSetOoTPlayerName(p.oot, p.lang);
+        OoT_SlotMeta_DecodePlayerName(reinterpret_cast<const uint8_t*>(&gSaveContext), (size_t)OOT_SAVE_CONTEXT_SIZE,
+                                      out);
+        printf("[TEST] %s: OoT panel decode (language %u) = \"%s\"\n", sRow, (unsigned)p.lang, out);
+        CNF_ASSERT(strcmp(out, p.expect) == 0, "the slot panel prints OoT's name in the file's own charset");
+    }
+    Randomizer_TestClearOoTSave();
 
     printf("[TEST] PASS: %s\n", sRow);
     return 0;

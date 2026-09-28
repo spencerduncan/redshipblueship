@@ -110,8 +110,9 @@ extern "C" void OoT_PlayerName_ToMMCharset(const uint8_t* ootName, uint8_t filen
  * printed through the MM/PAL table (the translation above, then
  * RsbsSave_DecodeN64FilenameName). Before this the panel copied the raw bytes,
  * so an NTSC name such as "Link" (B6 CD D2 CF) printed as non-ASCII garbage.
+ * extern "C" for the combo-player-name row, which decodes a synthetic OoT save.
  */
-static void OoT_SlotMeta_DecodePlayerName(const uint8_t* blob, size_t blobSize, char outName[9]) {
+extern "C" void OoT_SlotMeta_DecodePlayerName(const uint8_t* blob, size_t blobSize, char outName[9]) {
     outName[0] = '\0';
     if (offsetof(SaveContext, playerName) + 8 > blobSize ||
         offsetof(SaveContext, ship.filenameLanguage) + 1 > blobSize) {
