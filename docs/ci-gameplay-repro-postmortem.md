@@ -114,6 +114,10 @@ boot/routing smoke tests, and every one of the four crash ingredients is missing
   state, and an entrance history. The crash's first domino
   (`Cutscene_HandleConditionalTriggers` consuming restored save state in
   `Play_Init`) can never fall.
+  (Since #544 the row injects a debug save from the title screen and fires the
+  switch from live gameplay outside the Happy Mask Shop, because the file-select
+  hook never fired unattended at all. It still skips the freeze;
+  `IntGameplayRoundtrip` is the row that covers the production door.)
 - **The freeze/restore path is deliberately skipped.** The switch hooks call
   `Combo_CheckCrossGameEntrance(...)` directly — the comment says "minus the
   freeze, which T3 covers". But the production path the operator exercises is
@@ -549,7 +553,7 @@ its globals from the map at crash time for exactly that reason.
 Open faults filed from these sessions (not part of the harness change): the
 exit-teardown heap corruption above; the DXGI present deadlock; the Wasapi
 handoff deadlock; `int-switch-oot-hms-to-mm` needing a human START press
-(`OnPresentFileSelect` never fires unattended); MM intra-frame wedges being
+(`OnPresentFileSelect` never fires unattended; fixed by #544); MM intra-frame wedges being
 invisible to the frame-count watchdog (a wall-clock watchdog thread is the
 candidate fix); unified-save `Load` not marking restored blobs as frozen
 (`Context_UpdateShadowCopy` never sets `hasBeenFrozen`), so a loaded `.redsave`

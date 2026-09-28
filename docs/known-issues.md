@@ -250,7 +250,7 @@ folder from earlier play.
 | `redship` tier | 138 of 138 passed, none skipped |
 | `rando` tier | 40 of 40 passed, none skipped. All four golden-world rows passed with `tests/golden/` untouched, so the generated worlds are the pinned ones |
 | `ui` tier (OpenGL, 1280x800, ROM archives mounted) | passed: 105 captures, every one `pass`, none skipped |
-| `integration` | 5 of 6 passed. `IntSwitchOoTHmsToMm` timed out at 120 s, which is [#544](https://github.com/spencerduncan/redshipblueship/issues/544) (known, see "CI and quality gates" below). `IntBootOoT`, `IntBootMM`, `IntSwitchMmClockTownSouthToOoT`, `IntArchiveHotswapCycle` (4 arrivals) and `IntGameplayRoundtrip` passed |
+| `integration` | 5 of 6 passed. `IntSwitchOoTHmsToMm` timed out at 120 s, which was [#544](https://github.com/spencerduncan/redshipblueship/issues/544) (fixed since; see "CI and quality gates" below). `IntBootOoT`, `IntBootMM`, `IntSwitchMmClockTownSouthToOoT`, `IntArchiveHotswapCycle` (4 arrivals) and `IntGameplayRoundtrip` passed |
 | `integration-soak` | `IntGameplayRoundtripSoak` passed: "3 round trip(s), warp, and door transition survived 120 live frames per phase" (70.6 s) |
 | Creation time, shipped defaults | 10 real paired creations (`RSBS_CSB_SAMPLE_EVENT=10`: Generate, the creation event with the spoiler written, the arm, `Randomizer_InitSaveFile`). 10 of 10 created on the first attempt with no budget stop. Mean 8.5 s, best 6.2 s, worst 13.0 s (the one seed whose fill needed a second batch), against the 30 s budget. Every world's 50 heart pickups filled the bar with none wasted |
 | DX11 menus against OpenGL | See below: no visible difference |
@@ -799,11 +799,20 @@ Two rows to know about before you read a red or green as a signal:
   `rando` tier, every golden row included. The `rando` tier adds about a minute.
   The first Windows run after a runner-image or compiler change rebuilds the sccache from zero and
   takes far longer. That is a cold cache, not a regression.
-- **`IntSwitchOoTHmsToMm` always times out unattended** — it waits on the
-  file-select hook, which needs a Start press the harness never sends
-  ([#544](https://github.com/spencerduncan/redshipblueship/issues/544)). It is
-  not a regression signal; it has never proved what its name claims. The other
-  integration rows are real.
+- **`IntSwitchOoTHmsToMm` is a real signal now.** Until
+  [#544](https://github.com/spencerduncan/redshipblueship/issues/544) it waited on
+  the file-select hook, which needs a Start press the harness never sends, so it
+  timed out at 120 s every time without running one assertion. It now injects a
+  debug save from the title screen (as `IntGameplayRoundtrip` does), fires the
+  Happy Mask Shop entrance after 20 live gameplay frames outside the shop, and
+  asserts the switch routes to MM `0xD800`. When an OoT stage before the trigger
+  stalls while OoT keeps running frames (the #544 state), the row fails after
+  30 s in that stage with a line naming it ("title screen / file select never
+  presented", "gameplay never reached", ...) instead of hitting the CTest wall.
+  A wedge inside a single frame, or in the OoT-to-MM hand-off and MM half after
+  the trigger, still ends at the 120 s CTest timeout: the budget is checked once
+  per OoT frame, not from a watchdog thread. Either way a red run of this row is
+  a regression to read, not known noise.
 - **`IntPairedFirstCrossing` is the only row that crosses with a paired file** (PR
   [#790](https://github.com/spencerduncan/redshipblueship/pull/790)). Like every
   `integration` row it needs the ROM archives, so hosted CI never runs it; run it locally
