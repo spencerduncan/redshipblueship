@@ -153,10 +153,6 @@ bool Combo_MMOptionsPage_Suspended(void);
 /** That note's sentence. */
 const char* Combo_MMOptionsPage_SuspendedNote(void);
 
-/** The creation-lock warning (orange), or NULL once frozen (the status note
- *  says it then). */
-const char* Combo_MMOptionsPage_LockWarning(void);
-
 /** The vanilla-fallback warning (orange), shown in every state. */
 const char* Combo_MMOptionsPage_FallbackWarning(void);
 

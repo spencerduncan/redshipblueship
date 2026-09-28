@@ -383,10 +383,11 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   the box equals the bare pixel blended with the style's `ImGuiCol_ModalWindowDimBg`, within 2 per channel. SoH's
   modal passes the same pixel check, so "dims the way a modal dims" is measured, not read off the picture.
 - TOAST: a page emits one toast through its production emitter (`OoT_Creation_EmitShortfallToast`,
-  `OoT_Creation_ReportFailureAtFileSelect`, `OoT_Creation_EmitGoalWarningToast`), captures it, and clears it
-  (`OoT_Notification_ClearForTest`). Its oracle finds exactly one `notification#` window, requires it inside the
-  window's width, and measures "not blank" inside the toast's own rectangle. ROM-free, the harness registers its own
-  Notifications window, so CI draws them too.
+  `OoT_Creation_ReportFailureAtFileSelect`, `OoT_Creation_EmitGoalWarningToast`, and the paired-file load's
+  `RsbsSave_EmitLoadToast` on the `toast/load-*` pages, each with the longest input a real load passes), captures
+  it, and clears it (`OoT_Notification_ClearForTest`). Its oracle finds exactly one `notification#` window, requires
+  it inside the window's width, and measures "not blank" inside the toast's own rectangle. ROM-free, the harness
+  registers its own Notifications window, so CI draws them too.
 
 **Environment:**
 

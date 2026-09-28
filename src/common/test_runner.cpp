@@ -4534,6 +4534,25 @@ TestResult Test_ArrayReaderDispatch(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// games/mm/2s2h/mm_paired_load_restore_test.cpp (#781): loading a paired file
+// whose rules the session changed at the title screen. MM-side because the MM
+// half is authored the way creation authors it and the arrival gate is MM's.
+// Needs the shared bring-up: the rules and the MM profile are CVars.
+extern "C" int MM_PairedLoadRestore_RunHeadless(void);
+
+TestResult Test_PairedLoadRestore(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_PairedLoadRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ============================================================================
 // Test registry
 // ============================================================================
@@ -5296,6 +5315,11 @@ const TestDescriptor gTests[] = {
      "naming the variable and the CTest rows that do; set, it resolves the exact path; every digest dispatch "
      "resolves through the one resolver (#710)",
      Test_DigestOutHandRun},
+    {"paired-load-restore",
+     "Loading a paired file whose Cross-Game Rules or MM options changed at the title screen restores the file's "
+     "own values, names them in a toast, and never plays the file unpaired; what the file cannot restore is "
+     "refused or flagged visibly (#781)",
+     Test_PairedLoadRestore},
     {"combo-player-name",
      "The paired world has one name: OoT's typed name, in each OoT filename charset, translates into MM's charset "
      "as OoTMM's copyName does (no-glyph bytes to MM's space), every typable character prints in MM as in OoT, "
