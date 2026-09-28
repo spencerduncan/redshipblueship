@@ -52,6 +52,8 @@
  *   2. paired, divergent sharedRandoSeed            -> NOT committed, refused
  *   3. paired, divergent sharedRandoSettingsHash    -> NOT committed, refused
  *   4. paired, divergent mmProfileDigest            -> NOT committed, refused
+ *   4b. the SESSION recorded no settings profile     -> NOT committed, refused
+ *   4c. the spoiler's identity OMITS the seed        -> NOT committed, refused
  *   5. paired, identity matches                     -> COMMITTED, no refusal
  *   6. standalone spoiler, no "foreign" section     -> loads, no refusal
  *
@@ -65,8 +67,12 @@
  * machinery latches the active slot with `RSBS_REFUSE_IDENTITY` (the same
  * reason #570's arrival gate uses — the slot FILE is healthy, the SESSION
  * diverged, so nothing is quarantined), and the shared overlay carries a toast
- * that NAMES the divergent term. A refusal the player cannot see is #564 V7's
- * silent vanilla revert wearing a fix's clothes.
+ * that says what the refusing check found. A refusal the player cannot see is
+ * #564 V7's silent vanilla revert wearing a fix's clothes. The toast is keyed on
+ * the ROUTE (RSBS_SPOILER_REFUSAL_*), not the machine term: legs 4b and 4c report
+ * the same terms as legs 3 and 2 (sharedRandoSettingsHash, sharedRandoSeed), and
+ * their toasts must not claim the spoiler names another world's settings or seed
+ * when the session has none or the spoiler names none.
  *
  * ============================================================================
  * mm-foreign-pickup-gate — the durable-record gate
@@ -169,9 +175,10 @@ void ResetRefusalSurface() {
 
 /**
  * The refusal surface, asserted as a whole: latched slot, RSBS_REFUSE_IDENTITY,
- * no quarantine (the .redsave is healthy), and a toast naming `term`.
+ * no quarantine (the .redsave is healthy), and a toast that is, exactly, the
+ * refusal emitter's copy for `route` (an RSBS_SPOILER_REFUSAL_* key).
  */
-int AssertRefused(int baseCode, const char* leg, const char* term) {
+int AssertRefused(int baseCode, const char* leg, const char* route) {
     if (RsbsSave_IsSlotWritable(kSlot) != 0) {
         return Fail(baseCode,
                     "%s: the active slot was not latched — this session's captures can still reach the "
@@ -200,20 +207,19 @@ int AssertRefused(int baseCode, const char* leg, const char* term) {
         return Fail(baseCode + 3, "%s: the overlay still holds this leg's sentinel — no refusal toast was emitted",
                     leg);
     }
-    // The refusal's one-line copy (src/common/pairing_refusal_toast.h) names the
-    // divergent term in words; the machine term stays on the stderr line.
+    // The refusal's one-line copy (src/common/pairing_refusal_toast.h) says what
+    // the refusing route found; the machine term stays on the stderr line.
     if (prefix != Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_SPOILER)) {
         return Fail(baseCode + 3, "%s: the toast's prefix ('%s') is not the refusal's ('%s')", leg, prefix.c_str(),
                     Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_SPOILER));
     }
     char expected[128];
-    if (Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_SPOILER, term, expected, sizeof(expected)) != 1) {
-        return Fail(baseCode + 4, "%s: the refusal copy has no words for the divergent term '%s'", leg, term);
+    if (Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_SPOILER, route, expected, sizeof(expected)) != 1) {
+        return Fail(baseCode + 4, "%s: the refusal copy has no words for the route '%s'", leg, route);
     }
     if (message != expected) {
-        return Fail(baseCode + 4,
-                    "%s: the refusal does not name the divergent term '%s' (message: '%s', expected '%s')", leg, term,
-                    message.c_str(), expected);
+        return Fail(baseCode + 4, "%s: the refusal does not say what route '%s' found (message: '%s', expected '%s')",
+                    leg, route, message.c_str(), expected);
     }
     return 0;
 }
@@ -390,7 +396,7 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
                     "(#610)",
                     Combo_CountForeignPlacements());
     }
-    if (int rc = AssertRefused(12, "unpaired", "sourceIsRando")) {
+    if (int rc = AssertRefused(12, "unpaired", RSBS_SPOILER_REFUSAL_NOT_PAIRED)) {
         return rc;
     }
     // The MM world itself still loaded: the gate is on the combo commit, not on
@@ -412,7 +418,7 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
         return Fail(21, "a spoiler naming seed %08X committed %d placement(s) into a session pairing seed %08X", kSeedA,
                     Combo_CountForeignPlacements(), kSeedA ^ 0x00BADBADu);
     }
-    if (int rc = AssertRefused(22, "divergent seed", "sharedRandoSeed")) {
+    if (int rc = AssertRefused(22, "divergent seed", RSBS_SPOILER_REFUSAL_OTHER_SEED)) {
         return rc;
     }
 
@@ -428,7 +434,7 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
         return Fail(31, "a spoiler naming settings %08X committed %d placement(s) into a session pairing %08X", kHashA,
                     Combo_CountForeignPlacements(), kHashA ^ 0x00BADBADu);
     }
-    if (int rc = AssertRefused(32, "divergent settings", "sharedRandoSettingsHash")) {
+    if (int rc = AssertRefused(32, "divergent settings", RSBS_SPOILER_REFUSAL_OTHER_SETTINGS)) {
         return rc;
     }
 
@@ -447,8 +453,56 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
         return Fail(41, "a spoiler naming profile %08X committed %d placement(s) into a pair frozen at %08X", kDigestA,
                     Combo_CountForeignPlacements(), kDigestA ^ 0x00BADBADu);
     }
-    if (int rc = AssertRefused(42, "divergent profile", "mmProfileDigest")) {
+    if (int rc = AssertRefused(42, "divergent profile", RSBS_SPOILER_REFUSAL_OTHER_MM_OPTIONS)) {
         return rc;
+    }
+
+    // ---- Leg 4b: the SESSION recorded no settings profile ------------------
+    // Reported with leg 3's term (sharedRandoSettingsHash), but the spoiler names
+    // nothing different: the session has no profile to pair with.
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    ComboContext_Init();
+    ArmPairing(kSeedA, 0, kDigestA);
+    ResetRefusalSurface();
+    if (int rc = driveLoad(selected, 100, &err)) {
+        return Fail(rc, "no-settings-session load threw instead of refusing: %s", err);
+    }
+    if (Combo_CountForeignPlacements() != 0) {
+        return Fail(101, "a session with no settings profile committed %d placement(s) from a dropped spoiler",
+                    Combo_CountForeignPlacements());
+    }
+    if (int rc = AssertRefused(102, "session without settings", RSBS_SPOILER_REFUSAL_SESSION_UNSETTLED)) {
+        return rc;
+    }
+
+    // ---- Leg 4c: the spoiler's identity OMITS the seed ---------------------
+    // Reported with leg 2's term (sharedRandoSeed), but the spoiler names no seed
+    // at all, so "another seed" would be false.
+    {
+        nlohmann::json noSeed = staged;
+        if (!noSeed.contains("rsbsPairing") || !noSeed["rsbsPairing"].is_object() ||
+            !noSeed["rsbsPairing"].contains("sharedRandoSeed")) {
+            return Fail(110, "the staged spoiler carries no rsbsPairing.sharedRandoSeed to omit");
+        }
+        noSeed["rsbsPairing"].erase("sharedRandoSeed");
+        const std::string noSeedName = "rsbs610-no-seed.json";
+        try {
+            Rando::Spoiler::SaveToFile(noSeedName, noSeed);
+        } catch (const std::exception& e) { return Fail(110, "staging the seedless spoiler threw: %s", e.what()); }
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        ComboContext_Init();
+        ArmPairing(kSeedA, kHashA, kDigestA);
+        ResetRefusalSurface();
+        if (int rc = driveLoad(noSeedName, 111, &err)) {
+            return Fail(rc, "seedless-identity load threw instead of refusing: %s", err);
+        }
+        if (Combo_CountForeignPlacements() != 0) {
+            return Fail(112, "a spoiler whose identity names no seed committed %d placement(s)",
+                        Combo_CountForeignPlacements());
+        }
+        if (int rc = AssertRefused(113, "identity without a seed", RSBS_SPOILER_REFUSAL_IDENTITY_INCOMPLETE)) {
+            return rc;
+        }
     }
 
     // ---- Leg 5: NON-VACUITY — the identity matches, so it commits ----------

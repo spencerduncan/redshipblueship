@@ -110,32 +110,35 @@ static int RulesMessage(const char* detail, char* out, size_t len) {
     return 0;
 }
 
-/* The MM spoiler loader's identity terms (Rando/Spoiler/Apply.cpp,
+/* The MM spoiler loader's refusal routes (Rando/Spoiler/Apply.cpp,
  * ForeignIdentityDiverges), each said in words. The stderr line keeps the
- * machine term and both values. */
-typedef struct SpoilerTermCopy {
-    const char* term;
+ * machine term and both values. Keyed on the route, never the term: a term the
+ * spoiler OMITS is not a term it names differently. */
+typedef struct SpoilerRouteCopy {
+    const char* route;
     const char* message;
-} SpoilerTermCopy;
+} SpoilerRouteCopy;
 
-static const SpoilerTermCopy kSpoilerTerms[] = {
-    { "sourceIsRando", "this spoiler needs a paired file." },
-    { "rsbsPairing", "spoiler has no cross-game identity." },
-    { "sharedRandoSeed", "spoiler is for another seed." },
-    { "sharedRandoSettingsHash", "spoiler is for other settings." },
-    { "mmProfileDigest", "spoiler has other Majora's Mask options." },
+static const SpoilerRouteCopy kSpoilerRoutes[] = {
+    { RSBS_SPOILER_REFUSAL_NOT_PAIRED, "this spoiler needs a paired file." },
+    { RSBS_SPOILER_REFUSAL_SESSION_UNSETTLED, "spoiler does not match this world." },
+    { RSBS_SPOILER_REFUSAL_NO_IDENTITY, "spoiler has no cross-game identity." },
+    { RSBS_SPOILER_REFUSAL_IDENTITY_INCOMPLETE, "spoiler has an incomplete identity." },
+    { RSBS_SPOILER_REFUSAL_OTHER_SEED, "spoiler is for another seed." },
+    { RSBS_SPOILER_REFUSAL_OTHER_SETTINGS, "spoiler is for other settings." },
+    { RSBS_SPOILER_REFUSAL_OTHER_MM_OPTIONS, "spoiler has other Majora's Mask options." },
 };
 
 static int SpoilerMessage(const char* detail, char* out, size_t len) {
     if (detail != NULL) {
-        for (size_t i = 0; i < sizeof(kSpoilerTerms) / sizeof(kSpoilerTerms[0]); i++) {
-            if (strcmp(detail, kSpoilerTerms[i].term) == 0) {
-                CopyOut(out, len, kSpoilerTerms[i].message);
+        for (size_t i = 0; i < sizeof(kSpoilerRoutes) / sizeof(kSpoilerRoutes[0]); i++) {
+            if (strcmp(detail, kSpoilerRoutes[i].route) == 0) {
+                CopyOut(out, len, kSpoilerRoutes[i].message);
                 return 1;
             }
         }
     }
-    CopyOut(out, len, "spoiler is for another world.");
+    CopyOut(out, len, "spoiler does not match this world.");
     return 0;
 }
 
@@ -150,9 +153,12 @@ int Combo_PairingRefusalToastMessage(int kind, const char* detail, char* out, si
         case RSBS_PAIRING_REFUSAL_RULES:
             return RulesMessage(detail, out, len);
         case RSBS_PAIRING_REFUSAL_MISSING_HALF:
-            // The one remedy for every route here (a file created before the MM
-            // half moved to creation, or a missing or refused .redsave).
-            CopyOut(out, len, "no Majora's Mask world; re-create the file.");
+            // The fact, not a remedy: this leg is reached by a file created before
+            // the MM half moved to creation AND by a missing, refused or torn
+            // .redsave (GameExports_SingleExe.cpp), and "re-create the file"
+            // would throw away progress a backup could restore. The routes and
+            // their remedies stay on the stderr line and in the playtest guide.
+            CopyOut(out, len, "this file has no Majora's Mask world.");
             return 0;
         case RSBS_PAIRING_REFUSAL_SPOILER:
             return SpoilerMessage(detail, out, len);

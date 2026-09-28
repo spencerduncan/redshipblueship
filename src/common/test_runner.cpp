@@ -1926,7 +1926,8 @@ uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 int MM_Rando_Logic_JoinOrderProbe(void);
 void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse, int* outIdentityOk);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
-int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded, int* outStrippedLoaded);
+int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded, int* outStrippedLoaded,
+                                  int* outRefusalToast);
 // #582's overlay leg. games/oot/soh/SohGui/CreationProgressOverlay.h documents
 // why the probe returns whether it could present rather than asserting it.
 int OoT_CreationProgressOverlay_TestPresentOnce(void);
@@ -2416,9 +2417,11 @@ TestResult Test_ComboCreationEvent(void) {
         int marked = 0;
         int pairedLoaded = -1;
         int strippedLoaded = -1;
-        const int reloadRc = Rando_TestReloadPairedSpoiler(absolute.c_str(), &marked, &pairedLoaded, &strippedLoaded);
-        printf("[TEST] spoiler reload: rc=%d marked=%d paired-loaded=%d stripped-loaded=%d (%s)\n", reloadRc, marked,
-               pairedLoaded, strippedLoaded, absolute.c_str());
+        int refusalToast = -1;
+        const int reloadRc = Rando_TestReloadPairedSpoiler(absolute.c_str(), &marked, &pairedLoaded, &strippedLoaded,
+                                                           &refusalToast);
+        printf("[TEST] spoiler reload: rc=%d marked=%d paired-loaded=%d stripped-loaded=%d refusal-toast=%d (%s)\n",
+               reloadRc, marked, pairedLoaded, strippedLoaded, refusalToast, absolute.c_str());
         if (reloadRc != 0 || marked != 1) {
             printf("[TEST] FAIL: the paired world's spoiler could not be read back or carries no paired-world "
                    "marker\n");
@@ -2432,6 +2435,15 @@ TestResult Test_ComboCreationEvent(void) {
         if (strippedLoaded != 1) {
             printf("[TEST] FAIL: the same document without its paired-world markers did not load, so the refusal "
                    "is not what refused it\n");
+            return TEST_FAIL;
+        }
+        if (refusalToast != 1) {
+            // The refusal SITE (Context::ParseSpoiler) must queue the emitter's
+            // copy (OoT_EmitPairedSpoilerRefusalToast): that copy is what
+            // pairing-refusal-toast-fit keeps on screen, and a site emitting its
+            // own text would pass that lock unseen.
+            printf("[TEST] FAIL: the paired-spoiler refusal did not queue the refusal emitter's toast (see the line "
+                   "above)\n");
             return TEST_FAIL;
         }
         printf("[TEST] spoiler reload: the paired world's spoiler is refused as a solo world; unmarked, it loads\n");

@@ -424,6 +424,25 @@ GetItemEntry Context::GetFinalGIEntry(const RandomizerCheck rc, const bool check
     return giEntry;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * THE OoT EMITTER for the paired-spoiler refusal below (declared in
+ * src/common/pairing_refusal_toast.h): the copy from that one file, queued with
+ * Notification::Options' defaults. ParseSpoiler calls it unmuted, as SoH's
+ * file-select toasts are; the ui tier's toast page and the width lock call it
+ * muted. Its own function so what they draw is what the refusal emits.
+ */
+extern "C" void OoT_EmitPairedSpoilerRefusalToast(int mute) {
+    char message[64];
+    Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_OOT_SPOILER, nullptr, message, sizeof(message));
+    Notification::Emit({
+        .prefix = Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_OOT_SPOILER),
+        .message = message,
+        .mute = mute != 0,
+    });
+}
+#endif
+
 void Context::ParseSpoiler(const char* spoilerFileName) {
     std::ifstream spoilerFileStream(SohUtils::Sanitize(spoilerFileName));
     if (!spoilerFileStream) {
@@ -459,13 +478,7 @@ void Context::ParseSpoiler(const char* spoilerFileName) {
             fflush(stderr);
             // One short line in SoH's toast shape (src/common/pairing_refusal_toast.h);
             // "Generate the seed again" stays on the SPDLOG line above.
-            char toastMessage[64];
-            Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_OOT_SPOILER, nullptr, toastMessage,
-                                             sizeof(toastMessage));
-            Notification::Emit({
-                .prefix = Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_OOT_SPOILER),
-                .message = toastMessage,
-            });
+            OoT_EmitPairedSpoilerRefusalToast(/*mute=*/0);
             return;
         }
 #endif

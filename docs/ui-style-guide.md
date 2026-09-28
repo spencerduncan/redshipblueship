@@ -278,9 +278,17 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   width of the 832-px window the ui tier renders); the UI snapshot's toast pages fail when a toast leaves the window.
   R-N8 still applies: spell out "Majora's Mask" and "Ocarina of Time" in a toast's sentence. Mute it when the call
   site can run without audio. The cross-game refusals follow this shape: "Not saved:" plus a short reason, their copy
-  in `src/common/pairing_refusal_toast.c`, and the redship-tier row `PairingRefusalToastFit` draws every one through
-  SoH's own overlay in an 832-px window at sizes 1.8 and 1.0. The long explanation belongs on the refusal's stderr
-  line, not in the toast.
+  in `src/common/pairing_refusal_toast.c`, emitted through `MM_Rando_EmitPairingRefusalToast` and
+  `OoT_EmitPairedSpoilerRefusalToast`. The redship-tier row `PairingRefusalToastFit` draws every one through SoH's own
+  overlay at sizes 1.8 and 1.0, in an 832-px window and in a 4K window at the X-Large menu scale, and requires each to
+  keep the overlay's 30-px margin on the left as well as the right, as SoH's own toasts do: at most 772 px in the
+  832-px window. Each refusal site's own row (`mm-combo-settings-gate`, `mm-spoiler-identity`, `combo-creation-event`)
+  compares the toast the site queued with that copy, exactly. The long explanation belongs on the refusal's stderr
+  line, not in the toast. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
+  their record names (`poolSizeOoT`, `itemClassMM`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name
+  the field; the Cross-Game Rules page's own labels carry the same abbreviations ("Max OoT Items on MM Checks"); the
+  longest label alone overruns the budget; and six of the thirteen fields (`logicRung`, `comboFlags`, `spare1`,
+  `formatVersion`, `comboSettingsHash`, `triforceHunt`) have no row on that page to name.
 
 ## 11. Anti-patterns
 

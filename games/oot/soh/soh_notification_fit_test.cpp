@@ -1,8 +1,10 @@
 /**
  * @file soh_notification_fit_test.cpp
- * @brief Display-free lock: every cross-game refusal toast fits the smallest
- *        window the ui tier renders, drawn by SoH's OWN notification overlay in
- *        the real menu font, at the default Notifications.Size (1.8) and at 1.0.
+ * @brief Display-free lock: every cross-game refusal toast keeps the overlay's
+ *        margin on both sides of the smallest window the ui tier renders, drawn
+ *        by SoH's OWN notification overlay in the real menu font, at the default
+ *        Notifications.Size (1.8) and at 1.0; and at the X-Large menu scale in a
+ *        4K window.
  *
  * CTest label "redship", row PairingRefusalToastFit in CMake/SingleExecutable.cmake,
  * dispatch "pairing-refusal-toast-fit" in src/common/test_runner.cpp.
@@ -18,25 +20,39 @@
  * overlay's layout. The row builds a private ImGui context whose default font is
  * the one SoH makes default (OTRGlobals.cpp: fontStandardLarger =
  * Montserrat-Regular.ttf at 20 px, loaded from the same file soh.o2r packs), sets
- * the display to the ui tier's smallest profile (832 x 600, soh_ui_snapshot.cpp
- * "min-832x600"), emits each toast through its PRODUCTION emitter, and calls SoH's
- * Notification::Window::Draw itself for a few frames. The toast window's position
- * and size are then read back exactly as the ui tier's TOAST oracle reads them
- * (every active "notification#" window) and must lie inside [0, 832]. Draw
- * right-aligns a toast 30 px in from the edge and grows it leftwards, so a toast
- * wider than 802 px starts left of 0: off-screen, which is the defect.
+ * the display to a profile, emits each toast through its PRODUCTION emitter, and
+ * calls SoH's Notification::Window::Draw itself for a few frames. The toast
+ * window's position and size are then read back exactly as the ui tier's TOAST
+ * oracle reads them (every active "notification#" window). Draw right-aligns a
+ * toast a fixed margin in from the right edge and grows it leftwards, so the
+ * right margin is MEASURED (display width less the window's right edge), and the
+ * toast must keep the same margin on the left: a toast that does not crowds the
+ * left edge, which no SoH toast does ("Game autosaved"), and one wider still runs
+ * off it, which is the defect.
  *
- * WHAT IT COVERS:
- *   - the four "Not saved:" refusals through MM_Rando_EmitPairingRefusalToast,
- *     the RULES refusal over EVERY one of the 8,191 non-empty combinations of the
- *     13 divergence bits (Combo_ComboSettingsDivergenceDescribe's own field list),
- *     and the SPOILER refusal over every identity term the MM loader reports;
- *   - OoT's paired-spoiler refusal (SeedContext.cpp), with its prefix and copy;
- *   - each at Notifications.Size 1.8 (the default and the playtest scale) and 1.0;
+ * PROFILES:
+ *   - 832 x 600 at FontGlobalScale 1.0: the ui tier's smallest profile
+ *     (soh_ui_snapshot.cpp, "min-832x600") at SoH's default menu scale;
+ *   - 3840 x 2160 at FontGlobalScale 2.0: a 4K window at SoH's X-Large menu
+ *     scale, applied the way OTRGlobals::ScaleImGui applies it (style sizes
+ *     scaled, FontGlobalScale set), which multiplies every toast's font.
+ * Each at Notifications.Size 1.8 (the default and the playtest scale) and 1.0.
+ *
+ * WHAT IT COVERS, in every profile and size:
+ *   - the four "Not saved:" refusals through MM_Rando_EmitPairingRefusalToast:
+ *     the RULES refusal over EVERY non-empty combination of the divergence bits
+ *     (their count is DERIVED from Combo_ComboSettingsDivergenceFieldName, so a
+ *     new bit is covered the day it is named), and the SPOILER refusal over every
+ *     route the MM loader reports plus an unknown one;
+ *   - OoT's paired-spoiler refusal through OoT_EmitPairedSpoilerRefusalToast;
  *   - that a one-field RULES refusal names its field, and that the two-field
  *     refusal mm-combo-settings-gate leg 4 depends on names both;
  *   - the creation-failure toast (PR #749) as the calibration: #749 measured it
  *     at 800 px in the ui tier's 832-px window, and this row prints its own width.
+ * That the production refusal SITES call these emitters is locked where each
+ * site is driven: mm-combo-settings-gate (MM options, rules, missing half),
+ * mm-spoiler-identity (spoiler) and combo-creation-event (OoT spoiler) compare
+ * the toast each site queued with the emitter's copy, exactly.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -57,7 +73,7 @@
 #include <set>
 #include <string>
 
-#include "foreign_items.h" // Combo_ComboSettingsDivergenceDescribe, RSBS_COMBO_DIVERGE_*
+#include "foreign_items.h" // Combo_ComboSettingsDivergenceDescribe / FieldName, RSBS_COMBO_DIVERGE_*
 #include "notification_bridge.h"
 #include "pairing_refusal_toast.h"
 
@@ -65,13 +81,23 @@ extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
 
 namespace {
 
-// The ui tier's smallest profile (soh_ui_snapshot.cpp, ChooseProfile: "min-832x600").
-constexpr float kWindowWidth = 832.0f;
-constexpr float kWindowHeight = 600.0f;
 // SoH's default font (OTRGlobals.cpp: fontStandardLarger, ImGui::GetIO().FontDefault).
 constexpr float kDefaultFontPixels = 20.0f;
-// Every divergence bit Combo_ComboSettingsDivergenceDescribe names (foreign_items.h).
-constexpr int kDivergenceBits = 13;
+
+struct Profile {
+    const char* name;
+    float width;
+    float height;
+    // OTRGlobals.cpp imguiScaleOptionToValue: 1.0 is the default, 2.0 X-Large.
+    float menuScale;
+};
+
+constexpr Profile kProfiles[] = {
+    // The ui tier's smallest profile (soh_ui_snapshot.cpp, ChooseProfile: "min-832x600").
+    { "832x600 at menu scale 1.0", 832.0f, 600.0f, 1.0f },
+    // A 4K window at SoH's X-Large menu scale.
+    { "3840x2160 at menu scale 2.0", 3840.0f, 2160.0f, 2.0f },
+};
 
 int Fail(const char* fmt, ...) {
     va_list args;
@@ -123,6 +149,7 @@ Measured DrawAndMeasure(Notification::Window& overlay) {
 
 struct FitRun {
     Notification::Window* overlay = nullptr;
+    const Profile* profile = nullptr;
     int checked = 0;
     float widest = 0.0f;
     std::string widestText;
@@ -132,17 +159,27 @@ struct FitRun {
 int CheckOne(FitRun& run, const char* what, float scale) {
     const Measured m = DrawAndMeasure(*run.overlay);
     OoT_Notification_ClearForTest();
+    const Profile& p = *run.profile;
     if (m.windows != 1) {
-        return Fail("%s at %.1fx: %d toast window(s) drawn, expected exactly one", what, scale, m.windows);
+        return Fail("%s at %.1fx, %s: %d toast window(s) drawn, expected exactly one", what, scale, p.name, m.windows);
     }
     if (m.message.find('\n') != std::string::npos || m.prefix.find('\n') != std::string::npos) {
         return Fail("%s: the toast carries a line break ('%s %s'); SoH's toasts are one line", what, m.prefix.c_str(),
                     m.message.c_str());
     }
     const float width = m.x1 - m.x0;
-    if (m.x0 < 0.0f || m.x1 > kWindowWidth) {
-        return Fail("%s at %.1fx: the toast runs off the %d-px window (x %.0f to %.0f, %.0f px wide): '%s %s'", what,
-                    scale, (int)kWindowWidth, m.x0, m.x1, width, m.prefix.c_str(), m.message.c_str());
+    // The overlay's right margin, measured: Draw anchors the window's right edge
+    // there. A toast must keep the same margin on the left.
+    const float margin = p.width - m.x1;
+    if (margin <= 0.0f) {
+        return Fail("%s at %.1fx, %s: the toast's right edge is at %.0f, not inside the %.0f-px window", what, scale,
+                    p.name, m.x1, p.width);
+    }
+    if (m.x0 < margin) {
+        return Fail("%s at %.1fx, %s: the toast leaves %.0f px on the left against the overlay's %.0f-px right "
+                    "margin (x %.0f to %.0f, %.0f px wide, at most %.0f): '%s %s'",
+                    what, scale, p.name, m.x0, margin, m.x0, m.x1, width, p.width - 2.0f * margin, m.prefix.c_str(),
+                    m.message.c_str());
     }
     run.checked++;
     if (scale > 1.5f && width > run.widest) {
@@ -156,17 +193,43 @@ void SetScale(float scale) {
     CVarSetFloat(CVAR_SETTING("Notifications.Size"), scale);
 }
 
+/**
+ * How many RSBS_COMBO_DIVERGE_* bits exist, DERIVED from the describer's own
+ * name table: the bits are allocated from bit 0 upwards, so the count is the
+ * first bit Combo_ComboSettingsDivergenceFieldName does not name. -1 when a named
+ * bit sits above an unnamed one (a hole the loop below would skip).
+ */
+int CountDivergenceBits() {
+    int count = 0;
+    while (count < 32 && strcmp(Combo_ComboSettingsDivergenceFieldName(1u << count), "(unknown)") != 0) {
+        count++;
+    }
+    for (int b = count; b < 32; b++) {
+        if (strcmp(Combo_ComboSettingsDivergenceFieldName(1u << b), "(unknown)") != 0) {
+            return -1;
+        }
+    }
+    return count;
+}
+
 } // namespace
 
 extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
-    printf("[TEST] pairing-refusal-toast-fit: every cross-game refusal toast fits an %dx%d window at "
-           "Notifications.Size 1.8 and 1.0, drawn by SoH's own overlay in its default font\n",
-           (int)kWindowWidth, (int)kWindowHeight);
+    printf("[TEST] pairing-refusal-toast-fit: every cross-game refusal toast keeps the overlay's margin on both "
+           "sides, drawn by SoH's own overlay in its default font, at Notifications.Size 1.8 and 1.0, in an 832-px "
+           "window and a 4K window at the X-Large menu scale\n");
 
     if (fontPath == nullptr || fontPath[0] == '\0') {
         return Fail("no font path: the runner resolves games/oot/assets/custom/fonts/Montserrat-Regular.ttf (the "
                     "file soh.o2r packs as SoH's default font) under RSBS_SOURCE_DIR");
     }
+    const int divergenceBits = CountDivergenceBits();
+    if (divergenceBits <= 0 || divergenceBits > 30) {
+        return Fail("the divergence field names are not a contiguous run from bit 0 (count %d); the RULES sweep "
+                    "cannot know which bits to cover",
+                    divergenceBits);
+    }
+    const uint32_t combinations = (1u << divergenceBits) - 1u;
 
     ImGuiContext* previous = ImGui::GetCurrentContext();
     ImGuiContext* context = ImGui::CreateContext();
@@ -174,7 +237,6 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
-    io.DisplaySize = ImVec2(kWindowWidth, kWindowHeight);
     io.DeltaTime = 1.0f / 60.0f;
     ImFont* font = io.Fonts->AddFontFromFileTTF(fontPath, kDefaultFontPixels);
     int rc = 0;
@@ -187,85 +249,101 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
         int texH = 0;
         io.Fonts->GetTexDataAsRGBA32(&pixels, &texW, &texH); // builds the atlas; no renderer needs it
     }
+    const ImGuiStyle baseStyle = ImGui::GetStyle();
 
     // The overlay's own position and scale settings, pinned for the run and
     // cleared after it: bottom right (its default, 3) is where a toast grows
     // leftwards off the window.
     CVarSetInteger(CVAR_SETTING("Notifications.Position"), 3);
     Notification::Window overlay("", true, "Notifications Window");
-    FitRun run;
-    run.overlay = &overlay;
     OoT_Notification_ClearForTest();
 
     // Every toast is checked even after a failure, so a red run lists all of
-    // them (at most kMaxRulesFailures of the rules combinations).
+    // them (at most kMaxRulesFailures of the rules combinations per pass).
     constexpr int kMaxRulesFailures = 3;
     int failures = 0;
-    for (float scale : { 1.8f, 1.0f }) {
+    int checked = 0;
+    for (const Profile& profile : kProfiles) {
         if (rc != 0) {
             break;
         }
-        SetScale(scale);
+        // OTRGlobals::ScaleImGui: style sizes scaled by the menu scale, and the
+        // scale set as FontGlobalScale (which the overlay's SetWindowFontScale
+        // multiplies).
+        ImGui::GetStyle() = baseStyle;
+        ImGui::GetStyle().ScaleAllSizes(profile.menuScale);
+        io.FontGlobalScale = profile.menuScale;
+        io.DisplaySize = ImVec2(profile.width, profile.height);
+        FitRun run;
+        run.overlay = &overlay;
+        run.profile = &profile;
+        const int failuresBefore = failures;
 
-        // Calibration: PR #749's creation-failure toast, measured at 800 px in
-        // the ui tier's 832-px window.
-        OoT_Creation_ReportFailureAtFileSelect(0, 0);
-        {
-            const Measured m = DrawAndMeasure(overlay);
-            OoT_Notification_ClearForTest();
-            printf(
-                "[TEST] calibration at %.1fx: PR #749's creation-failure toast draws %.0f px wide (x %.0f to %.0f)\n",
-                scale, m.x1 - m.x0, m.x0, m.x1);
-        }
+        for (float scale : { 1.8f, 1.0f }) {
+            SetScale(scale);
 
-        MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MM_OPTIONS, nullptr);
-        failures += CheckOne(run, "MM-options refusal", scale);
-        MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr);
-        failures += CheckOne(run, "missing-half refusal", scale);
-        for (const char* term : { "sourceIsRando", "rsbsPairing", "sharedRandoSeed", "sharedRandoSettingsHash",
-                                  "mmProfileDigest", "anUnknownTermTheCopyHasNoWordsFor" }) {
-            MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_SPOILER, term);
-            const std::string what = std::string("spoiler refusal (") + term + ")";
-            failures += CheckOne(run, what.c_str(), scale);
-        }
-        {
-            char message[256];
-            Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_OOT_SPOILER, nullptr, message, sizeof(message));
-            Notification::Emit({
-                .prefix = Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_OOT_SPOILER),
-                .message = message,
-                .mute = true,
-            });
+            // Calibration: PR #749's creation-failure toast, measured at 800 px in
+            // the ui tier's 832-px window.
+            OoT_Creation_ReportFailureAtFileSelect(0, 0);
+            {
+                const Measured m = DrawAndMeasure(overlay);
+                OoT_Notification_ClearForTest();
+                printf("[TEST] calibration, %s, %.1fx: PR #749's creation-failure toast draws %.0f px wide (x %.0f "
+                       "to %.0f)\n",
+                       profile.name, scale, m.x1 - m.x0, m.x0, m.x1);
+            }
+
+            MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MM_OPTIONS, nullptr);
+            failures += CheckOne(run, "MM-options refusal", scale);
+            MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr);
+            failures += CheckOne(run, "missing-half refusal", scale);
+            for (const char* route : { RSBS_SPOILER_REFUSAL_NOT_PAIRED, RSBS_SPOILER_REFUSAL_SESSION_UNSETTLED,
+                                       RSBS_SPOILER_REFUSAL_NO_IDENTITY, RSBS_SPOILER_REFUSAL_IDENTITY_INCOMPLETE,
+                                       RSBS_SPOILER_REFUSAL_OTHER_SEED, RSBS_SPOILER_REFUSAL_OTHER_SETTINGS,
+                                       RSBS_SPOILER_REFUSAL_OTHER_MM_OPTIONS, "anUnknownRouteTheCopyHasNoWordsFor" }) {
+                MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_SPOILER, route);
+                const std::string what = std::string("spoiler refusal (") + route + ")";
+                failures += CheckOne(run, what.c_str(), scale);
+            }
+            OoT_EmitPairedSpoilerRefusalToast(/*mute=*/1);
             failures += CheckOne(run, "OoT paired-spoiler refusal", scale);
-        }
 
-        // RULES: every non-empty combination of the divergence bits, drawn once
-        // per distinct message.
-        std::set<std::string> drawn;
-        int rulesFailures = 0;
-        for (uint32_t bits = 1; bits < (1u << kDivergenceBits) && rulesFailures < kMaxRulesFailures; bits++) {
-            char fields[192];
-            Combo_ComboSettingsDivergenceDescribe(bits, fields, sizeof(fields));
-            char message[512];
-            const int named =
-                Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_RULES, fields, message, sizeof(message));
-            if ((bits & (bits - 1)) == 0 && named != 1) {
-                rulesFailures += Fail("the one-field rules refusal for '%s' does not name it: '%s'", fields, message);
-                continue;
+            // RULES: every non-empty combination of the divergence bits, drawn once
+            // per distinct message.
+            std::set<std::string> drawn;
+            int rulesFailures = 0;
+            for (uint32_t bits = 1; bits <= combinations && rulesFailures < kMaxRulesFailures; bits++) {
+                char fields[256];
+                Combo_ComboSettingsDivergenceDescribe(bits, fields, sizeof(fields));
+                char message[512];
+                const int named =
+                    Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_RULES, fields, message, sizeof(message));
+                if ((bits & (bits - 1)) == 0 && named != 1) {
+                    rulesFailures +=
+                        Fail("the one-field rules refusal for '%s' does not name it: '%s'", fields, message);
+                    continue;
+                }
+                if (!drawn.insert(message).second) {
+                    continue;
+                }
+                MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_RULES, fields);
+                const std::string what = std::string("rules refusal (") + fields + ")";
+                rulesFailures += CheckOne(run, what.c_str(), scale);
             }
-            if (!drawn.insert(message).second) {
-                continue;
+            failures += rulesFailures;
+            if (rulesFailures == 0) {
+                printf("[TEST] %s, %.1fx: %zu distinct rules messages over %u field combinations (%d bits) fit\n",
+                       profile.name, scale, drawn.size(), combinations, divergenceBits);
             }
-            MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_RULES, fields);
-            const std::string what = std::string("rules refusal (") + fields + ")";
-            rulesFailures += CheckOne(run, what.c_str(), scale);
         }
-        failures += rulesFailures;
-        if (rulesFailures == 0) {
-            printf("[TEST] %.1fx: %zu distinct rules messages over %u field combinations fit\n", scale, drawn.size(),
-                   (1u << kDivergenceBits) - 1u);
+        checked += run.checked;
+        if (failures == failuresBefore) {
+            printf("[TEST] %s: widest refusal toast at 1.8x is %.0f px ('%s')\n", profile.name, run.widest,
+                   run.widestText.c_str());
         }
     }
+    ImGui::GetStyle() = baseStyle;
+    io.FontGlobalScale = 1.0f;
     if (rc == 0 && failures != 0) {
         rc = Fail("%d refusal toast check(s) failed (listed above)", failures);
     }
@@ -273,7 +351,7 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
     if (rc == 0) {
         // mm-combo-settings-gate leg 4 tells a moved triforce half from a matching
         // one by whether the toast names "triforceHunt" beside "goal".
-        char fields[192];
+        char fields[256];
         Combo_ComboSettingsDivergenceDescribe(RSBS_COMBO_DIVERGE_GOAL | RSBS_COMBO_DIVERGE_TRIFORCE, fields,
                                               sizeof(fields));
         char message[128];
@@ -291,9 +369,9 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
     if (rc != 0) {
         return rc;
     }
-    printf("[TEST] widest refusal toast at 1.8x: %.0f px in the %d-px window ('%s')\n", run.widest, (int)kWindowWidth,
-           run.widestText.c_str());
-    printf("[TEST] PASS: %d refusal toasts drawn by SoH's overlay, every one inside the window\n", run.checked);
+    printf("[TEST] PASS: %d refusal toasts drawn by SoH's overlay, every one keeping the overlay's margin on both "
+           "sides\n",
+           checked);
     return 0;
 }
 

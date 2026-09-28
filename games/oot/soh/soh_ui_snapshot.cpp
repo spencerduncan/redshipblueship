@@ -3846,17 +3846,11 @@ void Session::CaptureToast(const PageSpec& p) {
     } else if (p.id == "toast/pairing-refused-missing-half") {
         MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr);
     } else if (p.id == "toast/pairing-refused-spoiler") {
-        // The longest of the spoiler terms' messages.
-        MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_SPOILER, "mmProfileDigest");
+        // The longest of the spoiler routes' messages.
+        MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_SPOILER, RSBS_SPOILER_REFUSAL_OTHER_MM_OPTIONS);
     } else if (p.id == "toast/paired-spoiler-not-loaded") {
-        // SeedContext.cpp's refusal emits these two fields inline; this is its copy.
-        char message[64];
-        Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_OOT_SPOILER, nullptr, message, sizeof(message));
-        Notification::Emit({
-            .prefix = Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_OOT_SPOILER),
-            .message = message,
-            .mute = true,
-        });
+        // SeedContext.cpp's refusal emitter, muted as every harness toast is.
+        OoT_EmitPairedSpoilerRefusalToast(/*mute=*/1);
     }
     if (Settle(c, false, nullptr, nullptr)) {
         // The window is named "notification#<id>" and the id is the overlay's
