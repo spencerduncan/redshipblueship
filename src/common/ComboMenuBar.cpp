@@ -1,7 +1,6 @@
 #include "ComboMenuBar.h"
 
 #include <imgui.h>
-#include <cstring>
 #include <string>
 #include <ship/Context.h>
 #include <ship/window/Window.h>
@@ -380,23 +379,9 @@ void ComboMenuBar::DrawFileSelect() {
                 ImGui::TextDisabled("(quarantined backup on disk)");
             }
         } else {
-            // Name: prefer OoT if started, else MM. A paired world has one
-            // name: its creation copies OoT's into MM's half (#773), so the
-            // line shows it once. Both only when both are started and the two
-            // halves really name different players; an empty MM name (a paired
-            // half created before #773 holds eight spaces) leaves the line to
-            // OoT's.
-            std::string nameLine;
-            if (meta.ootStarted && meta.mmStarted && meta.mmName[0] != '\0' &&
-                std::strcmp(meta.ootName, meta.mmName) != 0) {
-                nameLine = std::string("OoT: ") + meta.ootName + "  MM: " + meta.mmName;
-            } else if (meta.ootStarted) {
-                nameLine = std::string("OoT: ") + meta.ootName;
-            } else if (meta.mmStarted) {
-                nameLine = std::string("MM: ") + meta.mmName;
-            } else {
-                nameLine = "(no per-game progress)";
-            }
+            // Name: one line per slot (rsbs::SlotNameLine, save.h): a paired
+            // world's one name once (#773), both only when the halves differ.
+            const std::string nameLine = rsbs::SlotNameLine(meta);
             ImGui::TextUnformatted(nameLine.c_str());
 
             ImGui::SameLine();

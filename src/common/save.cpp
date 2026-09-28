@@ -1337,6 +1337,19 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     return meta;
 }
 
+std::string SlotNameLine(const SlotMeta& meta) {
+    if (meta.ootStarted && meta.mmStarted && meta.mmName[0] != '\0' && std::strcmp(meta.ootName, meta.mmName) != 0) {
+        return std::string("OoT: ") + meta.ootName + "  MM: " + meta.mmName;
+    }
+    if (meta.ootStarted) {
+        return std::string("OoT: ") + meta.ootName;
+    }
+    if (meta.mmStarted) {
+        return std::string("MM: ") + meta.mmName;
+    }
+    return "(no per-game progress)";
+}
+
 }  // namespace rsbs
 
 // ============================================================================

@@ -221,6 +221,17 @@ struct SlotMeta {
     int commitSkew;
 };
 
+/**
+ * The unified file-select panel's name line for a slot that exists and passes
+ * its checks (ComboMenuBar::DrawFileSelect). Prefers OoT's name if OoT's half is
+ * started, else MM's. A paired world has one name -- its creation copies OoT's
+ * into MM's half (#773) -- so the line shows it once: both names only when both
+ * halves are started and really name different players. An empty MM name (a
+ * paired half created before #773 holds eight MM spaces) leaves the line to
+ * OoT's. Pure, so the mm-creation-new-file rows can lock it.
+ */
+std::string SlotNameLine(const SlotMeta& meta);
+
 #pragma pack(push, 1)
 /**
  * Tier-0 header. Fixed 32 bytes, packed so its layout is stable across

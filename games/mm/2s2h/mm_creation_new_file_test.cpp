@@ -59,6 +59,11 @@
  * synthetic OoT name (NTSC English "Ab1 z-." plus a voicing mark, which has no
  * MM glyph) and check the half's bytes and the slot panel's decoded name; the
  * synthetic row's byte parity with MM_Sram_InitSave now INCLUDES the name.
+ * Both also commit a slot whose OoT half is started with that NTSC name and
+ * read it back through the REGISTERED descriptors (OoT_SlotMeta_Register,
+ * MM_SlotMeta_Register): the panel's OoT name is the decoded one and equals
+ * MM's, and the panel line (rsbs::SlotNameLine, what ComboMenuBar draws) names
+ * the slot once; a half naming a different player still shows both.
  *
  *   combo-player-name (redship tier, ROM-free). The translation itself, in each
  *   of OoT's filename charsets, against explicit expected MM bytes; every byte
@@ -83,6 +88,8 @@ void MM_Creation_StampNewFileFields(const u8* playerName);
 void OoT_PlayerName_ToMMCharset(const uint8_t* ootName, uint8_t filenameLanguage, uint8_t* mmName);
 void Randomizer_TestSetOoTPlayerName(const uint8_t* name, uint8_t filenameLanguage);
 void OoT_SlotMeta_DecodePlayerName(const uint8_t* blob, size_t blobSize, char outName[9]);
+void OoT_SlotMeta_Register(void);
+int Randomizer_TestAuthorStartedOoTBlob(uint8_t* blob, size_t blobSize, const uint8_t* name, uint8_t filenameLanguage);
 void MM_SlotMeta_Register(void);
 int MM_Rando_ArmCreatedHalf(int slot);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
@@ -208,19 +215,47 @@ int CheckArmedHalf(uint32_t expectSeed) {
         PutShadow(armed);
     }
 
-    // ---- 3. the .redsave slot panel: MM started -----------------------------
+    // ---- 3. the .redsave slot panel: both halves started, one name ----------
+    // Both descriptors as production registers them (OoT's is registered by
+    // OoT's SaveManager constructor; registering again replaces it with the
+    // same descriptor). The OoT half in the slot is started, with the name the
+    // creation translated: NTSC English bytes, which print as garbage unless
+    // the registered OoT descriptor decodes them (#773).
+    OoT_SlotMeta_Register();
     MM_SlotMeta_Register();
+    const size_t ootSize = (size_t)OOT_SAVE_CONTEXT_SIZE;
+    std::vector<uint8_t> ootPrev(ootSize, 0);
+    memcpy(ootPrev.data(), Context_GetOoTSaveContext(), ootSize);
+    {
+        std::vector<uint8_t> ootStarted(ootSize, 0);
+        CNF_ASSERT(Randomizer_TestAuthorStartedOoTBlob(ootStarted.data(), ootSize, kOoTName, kLangNtscEng) == 1,
+                   "a started OoT half with the typed NTSC name is authored");
+        Context_UpdateShadowCopy(GAME_OOT, ootStarted.data(), ootSize);
+    }
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     mgr.SetSaveDirectory(kSaveDir);
     mgr.ResetSlotSessionState();
     mgr.DeleteSave(0); // an erase is what unlatches the slot for this session's write
     CNF_ASSERT(mgr.Save(0), "the slot commits");
     rsbs::SlotMeta meta = mgr.ReadMeta(0);
-    printf("[TEST] %s: slot meta: valid=%d ootStarted=%d mmStarted=%d mmName=\"%s\"\n", sRow, (int)meta.valid,
-           (int)meta.ootStarted, (int)meta.mmStarted, meta.mmName);
+    const std::string nameLine = rsbs::SlotNameLine(meta);
+    printf("[TEST] %s: slot meta: valid=%d ootStarted=%d mmStarted=%d ootName=\"%s\" mmName=\"%s\" line=\"%s\"\n", sRow,
+           (int)meta.valid, (int)meta.ootStarted, (int)meta.mmStarted, meta.ootName, meta.mmName, nameLine.c_str());
     CNF_ASSERT(meta.valid && meta.mmStarted, "the slot panel reads the paired MM half as started");
     CNF_ASSERT(strcmp(meta.mmName, kPanelName) == 0,
                "the slot panel names MM's half by the one name, decoded from MM's charset (#773)");
+    CNF_ASSERT(meta.ootStarted, "the slot panel reads the OoT half as started");
+    CNF_ASSERT(strcmp(meta.ootName, kPanelName) == 0,
+               "the registered OoT descriptor decodes OoT's NTSC name bytes, not the raw charset (#773)");
+    CNF_ASSERT(strcmp(meta.ootName, meta.mmName) == 0, "both halves of the paired slot carry the one name");
+    CNF_ASSERT(nameLine == std::string("OoT: ") + kPanelName, "the panel line names the paired slot once");
+    {
+        // Control: halves that really name different players still show both.
+        rsbs::SlotMeta other = meta;
+        snprintf(other.mmName, sizeof(other.mmName), "%s", "Zed");
+        CNF_ASSERT(rsbs::SlotNameLine(other) == std::string("OoT: ") + kPanelName + "  MM: Zed",
+                   "a slot whose halves name different players shows both names");
+    }
     {
         // Control: an MM half that does not exist reads not started.
         std::vector<uint8_t> zero((size_t)MM_SAVE_CONTEXT_SIZE, 0);
@@ -231,6 +266,7 @@ int CheckArmedHalf(uint32_t expectSeed) {
         CNF_ASSERT(meta.valid && !meta.mmStarted, "an all-zero MM half reads not started");
         PutShadow(armed);
     }
+    Context_UpdateShadowCopy(GAME_OOT, ootPrev.data(), ootSize);
     mgr.DeleteSave(0);
     mgr.ResetSlotSessionState();
     mgr.SetSaveDirectory("Save");
