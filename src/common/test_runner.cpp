@@ -769,7 +769,8 @@ extern "C" {
 // CaoLoadThroughWinner.
 #include "tests/test_array_reader_agreement.c"
 // Lane W5: the Combo > Save Files page's model (src/common/combo_save_files_view.cpp):
-// every refusal reason's words, one row per slot state, the seam and the note.
+// every refusal reason's words, the toast's words where one was posted, one row
+// per slot state, the cached view's read count, the seam and the note.
 // ROM-free, display-free and disk-free. FILE SCOPE (compiled as C++).
 #include "tests/test_combo_save_files_view.c"
 
@@ -5435,9 +5436,9 @@ const TestDescriptor gTests[] = {
      "archive's to OoT's, over two staged loose-folder archives (#604)",
      Test_ArrayReaderDispatch},
     {"combo-save-files-view",
-     "The Combo > Save Files page's model: every .redsave refusal reason has short player words (the load toasts' "
-     "own where a toast exists), each slot state yields its row, the test seam replaces the disk, and the page note "
-     "names the no-file, all-ready and not-paired cases (lane W5)",
+     "The Combo > Save Files page's model: every .redsave refusal reason has short player words, a refusal that "
+     "posted a toast shows that toast's words, each slot state yields its row, one cached read serves every frame "
+     "until the page opens or the save state moves, and the note names each case (lane W5)",
      Test_ComboSaveFilesView},
     {nullptr, nullptr, nullptr}  // Sentinel
 };

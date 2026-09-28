@@ -223,7 +223,8 @@ file is display only: the Combo Tracker's Majora's Mask panel reads "No data yet
 file's panel reads "As of file creation." until MM is first entered. (#772 also describes
 an `[MM v]` / `[MM _]` file-select marker; it is printed only by `ComboMenuBar`, which this
 build never constructs, so no screen shows it. 2026-09-28: `ComboMenuBar` is deleted, and
-Combo > Save Files shows the same fact in its Started column, "OoT, MM" or "OoT".)
+no screen carries the marker: a paired creation stamps both halves' markers at creation
+(#765), so for any file made since then it says nothing about which half was played.)
 
 **A seed string does not make the world it made on an older build.** PR [#763](https://github.com/spencerduncan/redshipblueship/pull/763)'s two
 trick tightenings moved generated worlds, and since PR [#774](https://github.com/spencerduncan/redshipblueship/pull/774) the OoT half of every

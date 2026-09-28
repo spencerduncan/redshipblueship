@@ -752,11 +752,12 @@ const char* KindName(Kind k) {
 const char* const kMmModsListedEnabled[] = { "10-hd-textures.o2r", "packs/20-retro-hud.o2r" };
 const char* const kMmModsListedDisabled = "30-alt-link.o2r";
 
-// The Save Files page's "listed" state (lane W5): a ready file with both halves
-// started, a healthy file this session refused (its name still shows, with the
-// longest reason), and a file refused for its CRC with its original set aside,
-// so every column and both refusal shapes draw. Authored through the model's
-// seam, so the harness never reads a Save folder.
+// The Save Files page's "listed" state (lane W5): a ready file, a healthy file
+// this session's load refused for its cross-game rules (its name still shows,
+// and its status repeats the load toast's words, recorded as the load records
+// them), and a file refused for its CRC with its original set aside (no toast:
+// the page's own words), so every column and both refusal shapes draw. Authored
+// through the model's seam, so the harness never reads a Save folder.
 static rsbs::SlotMeta SaveFilesListedMeta(int slot) {
     rsbs::SlotMeta m{};
     m.state = RSBS_SLOT_ABSENT;
@@ -773,6 +774,8 @@ static rsbs::SlotMeta SaveFilesListedMeta(int slot) {
         if (slot == 1) {
             m.state = RSBS_SLOT_REFUSED;
             m.refuseReason = RSBS_REFUSE_IDENTITY;
+            std::snprintf(m.refuseWords, sizeof(m.refuseWords), "%s",
+                          RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_RULES));
         }
     } else {
         m.exists = true;
@@ -1910,19 +1913,22 @@ void Session::BuildPageList() {
                 p.hovers = { "rescan" };
                 p.hoverRows["rescan"] = "Rescan Mods Folder";
             } else if (sidebar == "Save Files") {
-                // "": no file on disk, so the no-file note and three empty rows.
-                // "listed": a ready file, a session-refused one and a CRC-refused
-                // one with a backup (SaveFilesListedMeta), so its note, both
-                // refusals' words and the Started cell draw. Both through the
-                // model's seam (Combo_SaveFiles_SetMetaForTest).
-                p.states = { "", "listed" };
-                p.stateText[""] = { "No save files yet" };
+                // "": no cross-game record at any slot, so its note and three
+                // record-less rows. "listed": a ready file, a load refused for its
+                // rules (the toast's words) and a CRC-refused one with a backup
+                // (SaveFilesListedMeta), so its note and both refusal shapes draw.
+                // "backup": a record set aside by a refusal in an earlier session
+                // (after a restart only its evidence remains), so the backup note
+                // and row. All through the model's seam
+                // (Combo_SaveFiles_SetMetaForTest).
+                p.states = { "", "listed", "backup" };
+                p.stateText[""] = { "No cross-game record yet" };
                 p.stateText["listed"] = { "A file that is not paired",
                                           std::string("Not paired: ") + Combo_SaveFiles_RefuseText(RSBS_REFUSE_CRC),
                                           std::string("Not paired: ") +
-                                              Combo_SaveFiles_RefuseText(RSBS_REFUSE_IDENTITY),
-                                          "OoT, MM" };
-                p.stateContrast = { { "", "listed" }, { "listed", "" } };
+                                              RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_RULES) };
+                p.stateText["backup"] = { "was kept as a backup", "No cross-game record (backup kept)" };
+                p.stateContrast = { { "", "listed" }, { "listed", "" }, { "backup", "" } };
             } else if (sidebar == "Windows") {
                 // An MM tracker toggle: SoH's "Toggles the <Window>." plus the
                 // sentence that explains its blank window under Ocarina of Time.
@@ -2574,6 +2580,14 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
                 metas[i] = SaveFilesListedMeta(i);
             }
             Combo_SaveFiles_SetMetaForTest(metas, RSBS_SAVE_MAX_SLOTS);
+        } else if (state == "backup") {
+            // Slot 1's record was quarantined for its CRC in an earlier session:
+            // no record, no session refusal, only the evidence's file name.
+            rsbs::SlotMeta metas[2] = {};
+            metas[1].state = RSBS_SLOT_ABSENT;
+            metas[1].hasQuarantine = true;
+            metas[1].quarantineReason = RSBS_REFUSE_CRC;
+            Combo_SaveFiles_SetMetaForTest(metas, 2);
         } else {
             static const rsbs::SlotMeta kNoFile{};
             Combo_SaveFiles_SetMetaForTest(&kNoFile, 0);

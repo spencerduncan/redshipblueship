@@ -483,6 +483,7 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
         std::filesystem::remove(tmpPath, ec);
         return false;
     }
+    mSlotEpoch.fetch_add(1, std::memory_order_relaxed);
     return true;
 }
 
@@ -747,6 +748,7 @@ void SaveManager::QuarantineSlotFile(int slot, RsbsRefuseReason reason) {
         return;
     }
     std::fprintf(stderr, "[RsbsSave] slot %d refused file quarantined to '%s'\n", slot, target.c_str());
+    mSlotEpoch.fetch_add(1, std::memory_order_relaxed);
 }
 
 int SaveManager::CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t ootSavGeneration) {
@@ -800,7 +802,7 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
         // what is left. Every refusal path used to fall through to a state
         // indistinguishable from "no save at all".
         QuarantineSlotFile(slot, reason);
-        mSlotRefused[slot] = reason;
+        SetSlotRefused(slot, reason);
         mSlotArmed[slot] = false;
         std::fprintf(stderr, "[RsbsSave] slot %d REFUSED (%s); slot latched against writes this session\n",
                      slot, RefuseReasonLabel(reason));
@@ -834,7 +836,7 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
                      "to release it.\n",
                      slot, ootSavGeneration, combo.commitGeneration);
         QuarantineSlotFile(slot, RSBS_REFUSE_COMMIT_SKEW);
-        mSlotRefused[slot] = RSBS_REFUSE_COMMIT_SKEW;
+        SetSlotRefused(slot, RSBS_REFUSE_COMMIT_SKEW);
         mSlotArmed[slot] = false;
         return RSBS_LOAD_REFUSED;
     }
@@ -964,7 +966,9 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
             }
         }
         RsbsSave_EmitLoadToast(refusalToast, nullptr, 0);
-        mSlotRefused[slot] = RSBS_REFUSE_IDENTITY;
+        SetSlotRefused(slot, RSBS_REFUSE_IDENTITY);
+        // The Save Files page repeats the toast's reason (combo_save_files_view.h).
+        NoteSlotRefusalWords(slot, RsbsSave_LoadToastRefusalMessage(refusalToast));
         mSlotArmed[slot] = false;
         return RSBS_LOAD_REFUSED;
     }
@@ -1139,7 +1143,7 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     // slot path (say, the player restored the quarantined .bak by hand), the
     // slot is theirs again.
     mSlotArmed[slot] = true;
-    mSlotRefused[slot] = RSBS_REFUSE_NONE;
+    SetSlotRefused(slot, RSBS_REFUSE_NONE);
     return RSBS_LOAD_OK;
 }
 
@@ -1187,7 +1191,7 @@ void SaveManager::DeleteSave(int slot) {
     // is legitimately empty and writable, and any refusal record is retired
     // with the evidence.
     mSlotArmed[slot] = true;
-    mSlotRefused[slot] = RSBS_REFUSE_NONE;
+    SetSlotRefused(slot, RSBS_REFUSE_NONE);
     mSlotSkew[slot] = 0;
     if (mOoTHalfAuthoritySlot == slot) {
         mOoTHalfAuthoritySlot = -1;
@@ -1210,7 +1214,7 @@ void SaveManager::ArmSlotOnCreate(int slot) {
         QuarantineSlotFile(slot, reason);
     }
     mSlotArmed[slot] = true;
-    mSlotRefused[slot] = RSBS_REFUSE_NONE;
+    SetSlotRefused(slot, RSBS_REFUSE_NONE);
     mSlotSkew[slot] = 0;
     if (mOoTHalfAuthoritySlot == slot) {
         // A brand-new file authors its own OoT half; nothing loaded can be
@@ -1236,7 +1240,7 @@ void SaveManager::RefuseSlotIdentity(int slot) {
     // next capture would freeze its un-paired world into the healthy pair's
     // Tier-3 under the pair's identity.
     mSlotArmed[slot] = false;
-    mSlotRefused[slot] = RSBS_REFUSE_IDENTITY;
+    SetSlotRefused(slot, RSBS_REFUSE_IDENTITY);
     std::fprintf(stderr,
                  "[RsbsSave] slot %d REFUSED (%s); slot latched against writes this session — the on-disk "
                  ".redsave is intact and untouched\n",
@@ -1255,7 +1259,7 @@ void SaveManager::RefuseSlotGeneration(int slot) {
     // The session falls back to an unpaired vanilla Termina, and the latch is
     // what keeps that world's captures out of the pair's .redsave.
     mSlotArmed[slot] = false;
-    mSlotRefused[slot] = RSBS_REFUSE_GENERATION;
+    SetSlotRefused(slot, RSBS_REFUSE_GENERATION);
     std::fprintf(stderr,
                  "[RsbsSave] slot %d REFUSED (%s); slot latched against writes this session — the on-disk "
                  ".redsave is intact and untouched\n",
@@ -1321,10 +1325,96 @@ bool SaveManager::HasQuarantine(int slot) const {
     return false;
 }
 
+RsbsRefuseReason SaveManager::QuarantineReason(int slot) const {
+    if (!SlotInRange(slot)) {
+        return RSBS_REFUSE_NONE;
+    }
+    std::error_code ec;
+    const std::filesystem::path path = SlotPath(slot);
+    const std::string prefix = path.filename().string() + ".refused-";
+    std::filesystem::directory_iterator it(path.parent_path(), ec);
+    if (ec) {
+        return RSBS_REFUSE_NONE;
+    }
+    // The newest evidence names the latest refusal: `<slot>.refused-<slug>.bak`
+    // or `<slot>.refused-<slug>-<N>.bak` (QuarantineSlotFile's dedupe).
+    RsbsRefuseReason newest = RSBS_REFUSE_NONE;
+    std::filesystem::file_time_type newestTime{};
+    bool any = false;
+    for (const auto& entry : it) {
+        const std::string name = entry.path().filename().string();
+        if (name.size() <= prefix.size() + 4 || name.compare(0, prefix.size(), prefix) != 0 ||
+            name.compare(name.size() - 4, 4, ".bak") != 0) {
+            continue;
+        }
+        std::string slug = name.substr(prefix.size(), name.size() - prefix.size() - 4);
+        const size_t dash = slug.find('-');
+        if (dash != std::string::npos) {
+            slug.resize(dash);
+        }
+        RsbsRefuseReason reason = RSBS_REFUSE_NONE;
+        for (int r = RSBS_REFUSE_UNREADABLE; r <= RSBS_REFUSE_CROSSINGS; r++) {
+            if (slug == RefuseReasonSlug(static_cast<RsbsRefuseReason>(r))) {
+                reason = static_cast<RsbsRefuseReason>(r);
+                break;
+            }
+        }
+        std::error_code timeEc;
+        const std::filesystem::file_time_type when = entry.last_write_time(timeEc);
+        if (!any || (!timeEc && when > newestTime)) {
+            newest = reason;
+            if (!timeEc) {
+                newestTime = when;
+            }
+            any = true;
+        }
+    }
+    return newest;
+}
+
+void SaveManager::SetSlotRefused(int slot, RsbsRefuseReason reason) {
+    if (!SlotInRange(slot)) {
+        return;
+    }
+    mSlotRefused[slot] = reason;
+    mSlotRefusedWords[slot][0] = '\0';
+    mSlotEpoch.fetch_add(1, std::memory_order_relaxed);
+}
+
+void SaveManager::NoteSlotRefusalWords(int slot, const char* words) {
+    if (!SlotInRange(slot) || mSlotRefused[slot] == RSBS_REFUSE_NONE || words == nullptr) {
+        return;
+    }
+    std::snprintf(mSlotRefusedWords[slot], sizeof(mSlotRefusedWords[slot]), "%s", words);
+    mSlotEpoch.fetch_add(1, std::memory_order_relaxed);
+}
+
+const char* SaveManager::GetSlotRefusalWords(int slot) const {
+    if (!SlotInRange(slot) || mSlotRefused[slot] == RSBS_REFUSE_NONE) {
+        return "";
+    }
+    return mSlotRefusedWords[slot];
+}
+
+uint32_t SaveManager::SlotStateEpoch() const {
+    return mSlotEpoch.load(std::memory_order_relaxed);
+}
+
+bool SaveManager::TryReadMetaAll(SlotMeta* out, int count) const {
+    std::unique_lock<std::mutex> writeLock(mWriteMtx, std::try_to_lock);
+    if (!writeLock.owns_lock()) {
+        return false;
+    }
+    for (int slot = 0; out != nullptr && slot < count; slot++) {
+        out[slot] = ReadMeta(slot);
+    }
+    return true;
+}
+
 void SaveManager::ResetSlotSessionState() {
     for (int i = 0; i < RSBS_SAVE_MAX_SLOTS; i++) {
         mSlotArmed[i] = false;
-        mSlotRefused[i] = RSBS_REFUSE_NONE;
+        SetSlotRefused(i, RSBS_REFUSE_NONE);
         mSlotSkew[i] = 0;
     }
     mOoTHalfAuthoritySlot = -1;
@@ -1429,10 +1519,12 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     // over whatever is (or is not) at the slot path: a quarantined slot's
     // path is empty, but the slot is REFUSED, not "[empty]" (#533).
     meta.hasQuarantine = HasQuarantine(slot);
+    meta.quarantineReason = meta.hasQuarantine ? QuarantineReason(slot) : RSBS_REFUSE_NONE;
     meta.commitSkew = mSlotSkew[slot];
     if (mSlotRefused[slot] != RSBS_REFUSE_NONE) {
         meta.state = RSBS_SLOT_REFUSED;
         meta.refuseReason = mSlotRefused[slot];
+        std::snprintf(meta.refuseWords, sizeof(meta.refuseWords), "%s", mSlotRefusedWords[slot]);
     }
 
     std::ifstream in(SlotPath(slot), std::ios::binary);
@@ -1461,11 +1553,12 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     // Read Tier-1 (ComboContext) and the game tiers at their STORED sizes to
     // pull the registered metadata bytes (offsets past a shorter legacy blob
     // simply read as "absent"). We deliberately do NOT CRC the file here:
-    // ReadMeta is called for every slot every menu frame, and CRC over ~200KB
-    // each time would dominate the file-select draw. Load() still CRC-checks
-    // when the user actually picks a slot.
+    // ReadMeta is a listing, not a load, and Load() still CRC-checks when the
+    // player actually picks the slot. It still reads both game tiers whole (a
+    // name decoder is handed the whole blob), so callers read on demand, never
+    // per frame (combo_save_files_view.cpp caches on SlotStateEpoch).
     // Same zero-filled staging + prefix-copy as Load: a legacy short Tier-1
-    // must still yield a readable sourceGame, or the file-select panel would
+    // must still yield a readable sourceGame, or the Save Files page would
     // label every pre-headroom slot as belonging to no game.
     std::vector<uint8_t> comboRecord(kComboSize, 0);
     in.read(reinterpret_cast<char*>(comboRecord.data()), header.comboSize);
@@ -1742,6 +1835,25 @@ void RsbsSave_ForceLoadRestoreVerifyFailForTest(int on) {
     rsbs::gForceLoadRestoreVerifyFail = on != 0;
 }
 
+const char* RsbsSave_LoadToastRefusalMessage(int kind) {
+    switch (kind) {
+        case RSBS_LOAD_TOAST_REFUSED_RULES:
+            return "Cross-game rules differ";
+        case RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD:
+            return "File made by another build";
+        case RSBS_LOAD_TOAST_REFUSED_DAMAGED:
+            return "Cross-game record is damaged";
+        case RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED:
+            return "Termina stays un-randomized";
+        default:
+            return nullptr;
+    }
+}
+
+void RsbsSave_NoteSlotRefusalWords(int slot, const char* words) {
+    rsbs::SaveManager::Instance().NoteSlotRefusalWords(slot, words);
+}
+
 void RsbsSave_EmitLoadToast(int kind, const char* names, int count) {
     // The copy, in one place: the load and the MM arrival post through here, and
     // so do the UI snapshot's toast/load-* pages.
@@ -1762,20 +1874,11 @@ void RsbsSave_EmitLoadToast(int kind, const char* names, int count) {
             message = "Majora's Mask options differ";
             break;
         case RSBS_LOAD_TOAST_REFUSED_RULES:
-            prefix = "Not paired:";
-            message = "Cross-game rules differ";
-            break;
         case RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD:
-            prefix = "Not paired:";
-            message = "File made by another build";
-            break;
         case RSBS_LOAD_TOAST_REFUSED_DAMAGED:
-            prefix = "Not paired:";
-            message = "Cross-game record is damaged";
-            break;
         case RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED:
             prefix = "Not paired:";
-            message = "Termina stays un-randomized";
+            message = RsbsSave_LoadToastRefusalMessage(kind);
             break;
         default:
             return;

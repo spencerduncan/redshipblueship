@@ -56,7 +56,7 @@
 #include "combo_mm_options_view.h"
 #include "gen_budget.h" // src/common — the #582 creation-progress channel
 // OoT_Notification_Emit — the shared toast overlay (#427 bridge): the arrival
-// refusal must be player-visible in-game, not only in the file panel.
+// refusal must be player-visible in-game, not only on the Combo > Save Files page.
 #include "notification_bridge.h"
 // The refusal toasts' copy, and MM's half of the bridge that queues them with
 // Notification::Options' defaults.
@@ -4518,7 +4518,7 @@ extern "C" void MM_Combo_RegisterFirstCycleOverrides(void) {
  *     high-score names (Inventory_SaveDekuPlaygroundHighScore) and seeds the
  *     night-sky star pattern from it (z_kankyo.c); no generator reads it.
  *   newf = 'ZELDA3'. THE file-select marker (#765). Every reader keyed on it —
- *     the .redsave slot panel's "started" flag (RsbsGameMetaDesc.validMarker),
+ *     the .redsave slot metadata's "started" flag (RsbsGameMetaDesc.validMarker),
  *     the Combo Tracker's MM presence gate (combo_tracker_view.c) — read the
  *     paired half as "no MM save". MM itself never stamps it later on this
  *     path: its only other writer is the owl-save delete, which assumes it.
@@ -4560,20 +4560,20 @@ extern "C" void MM_Creation_StampNewFileFields(const u8* playerName) {
 }
 
 /**
- * MM's slot-metadata descriptor for the unified file panel (#765).
+ * MM's slot-metadata descriptor for the Combo > Save Files page (#765).
  *
  * The descriptor used to be registered only from the excluded
  * 2s2h/SaveManager/SaveManager.cpp (RsbsRegisterMMMetaOnce, filtered out of the
  * single-exe link by games/mm/CMakeLists.txt), so in this binary MM's metadata
  * was never registered and every slot's MM half read "not started" whatever
  * its bytes held. Registered from the combo entry point (rsbs/src/main.cpp)
- * beside the tracker adapters, because the panel is drawn while OoT runs and
+ * beside the tracker adapters, because the page is drawn while OoT runs and
  * MM may never boot in the session.
  *
  * Same marker, name and play-time fields as RsbsRegisterMMMetaOnce. The name is
  * the one OoT's file select took, translated into MM's charset at creation
  * (#773, MM_Creation_StampNewFileFields); the descriptor decodes MM's charset
- * for the panel, which prints raw bytes otherwise. A paired half created before
+ * for the page, which prints raw bytes otherwise. A paired half created before
  * #773 holds eight MM spaces, which decode to an empty name.
  */
 static void MM_SlotMeta_DecodePlayerName(const uint8_t* blob, size_t blobSize, char outName[9]) {
@@ -4935,7 +4935,7 @@ int MM_Rando_GateCrossGameArrival(void) {
             RsbsSave_RefuseSlotIdentity(slot);
 
             // Player-visible, immediately, on the shared overlay — stderr is
-            // not a surface and the file panel is only seen later. One short
+            // not a surface and the Save Files page is only seen later. One short
             // line in SoH's toast shape (src/common/pairing_refusal_toast.h).
             MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MM_OPTIONS, nullptr);
             return 1;
@@ -5159,6 +5159,10 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
 void MM_Rando_EmitPairingRefusalToast(int kind, const char* detail) {
     char message[256];
     Combo_PairingRefusalToastMessage(kind, detail, message, sizeof(message));
+    // Every caller has just latched the active slot (RsbsSave_RefuseSlotIdentity /
+    // RsbsSave_RefuseSlotGeneration), so the Combo > Save Files page repeats this
+    // reason for it (a no-op when no slot is refused).
+    RsbsSave_NoteSlotRefusalWords(RsbsSave_GetActiveSlot(), message);
     Notification::MM_Notify_Emit({
         .prefix = Combo_PairingRefusalToastPrefix(kind),
         .message = message,

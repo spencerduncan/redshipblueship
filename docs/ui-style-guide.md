@@ -326,7 +326,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | Combo > MM Randomizer | Randomizer > General (the two-column option page) |
 | Combo > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |
-| Combo > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "" and "listed" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
+| Combo > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "", "listed" and "backup" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
 | Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
 | Creation overlay over the open menu | SoH's modal over the same menu page ("Clear Config@over-menu") |

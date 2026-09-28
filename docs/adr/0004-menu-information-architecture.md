@@ -758,15 +758,25 @@ buttons. The files, their two CMake entries and their lint-list line are deleted
 
 **What moved: a read-only page, Combo > Save Files** (`games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp`, contributed
 through `RegisterComboSectionPage`; model `src/common/combo_save_files_view.{h,cpp}`, ADR 0008 rule 1). One table
-row per file: the name line, which halves are started, the game it last saved in (Last Game), and a status (`Ready`, `Empty`,
-`Empty (backup kept)`, or `Not paired: <reason>` in the player's words, with a tooltip saying whether the original
-was set aside as a backup), under a gray note for the three situations (no file yet, every file pairs, one does not).
+row per file: the name line, the game it last saved in (Last Game), and a status (`Ready`, `No cross-game record`,
+`No cross-game record (backup kept)`, or `Not paired: <reason>`, with a tooltip saying whether the original was set
+aside as a backup), under a gray note for four situations (no record yet, every file pairs, one does not, a backup
+kept). A refusal that posted a toast shows the toast's own reason words, recorded on the slot where the toast is
+posted (`SaveManager::NoteSlotRefusalWords`); the others show the page's words for the reason code. The panel's
+`[MM v]` marker did not move: a paired creation stamps both halves' markers (#765), so it said nothing about play.
+The status names the cross-game record, not the file: a slot with no `.redsave` can still hold an Ocarina of Time
+file. The page reads the files once when it opens and again only when `SaveManager::SlotStateEpoch` moves, under
+the writer's lock (`TryReadMetaAll`), never per frame: `ReadMeta` reads each file whole.
 
-**Why a page is still worth having.** The load toasts (#781/#787) cover a refusal for the cross-game rules or a
-damaged cross-game record. A refusal for the file itself (header, version, tier size, slot, truncation, CRC,
-crossing block) and a commit-skew refusal post nothing a player sees (`SaveManager::LoadSlot` writes stderr only),
-and `ReadMeta` reports a structurally refused file before any load. The Combo Tracker reads the loaded session, not
-the files on disk. So nothing else shows a file's state before it is loaded.
+**Why a page is still worth having.** The load toasts (#781/#787) cover a refusal for the cross-game rules, a record
+from another build or a damaged cross-game record, and the arrival toasts cover a refusal at a crossing. A refusal
+for the file itself (header, version, tier size, slot, truncation, CRC, crossing block) and a commit-skew refusal
+post nothing a player sees (`SaveManager::LoadSlot` writes stderr only). Before any load, `ReadMeta` sees only the
+header, version, tier-size, slot and truncation refusals; the CRC, crossing-block and commit-skew refusals are found
+by a load and are shown from then on (a quarantining one also across a restart, from the reason in the backup's file
+name). The Combo Tracker reads the loaded session, not the files on disk. So the page is the one place that lists
+every file's cross-game state and names a refusal after its toast is gone. (Corrected 2026-09-28 in review: an
+earlier draft of this paragraph listed CRC and crossing block among the refusals visible before a load.)
 
 **Page, not window.** A file's state is read between sessions (which file to load, why one will not pair), so it is
 a page under Combo (the 2026-09-27 host amendment's rule; `docs/ui-style-guide.md` section 10).
@@ -779,8 +789,9 @@ of a `Ready` file whose last load resumed a newer commit.
 **§4's Combo row now:** Cross-Game Rules, Windows and Save Files are built (with the Majora's Mask pages); pairing
 status, entrance links and hot-swap are still unbuilt and unregistered (#640).
 
-**Locks:** `ComboSaveFilesView` (every refusal reason's words, each slot state's row, the test seam, the note) and
-`UiSnapshot` (Combo > Save Files beside Randomizer > Tricks/Glitches, states "" and "listed" authored through
-`Combo_SaveFiles_SetMetaForTest`). The deletion has no row of its own: `check-ui-parity-lint.py` fails on a listed
+**Locks:** `ComboSaveFilesView` (every refusal reason's words, each toast's words, each slot state's row, the cached
+view's read count, the test seam, the note), `PairedLoadRestore` legs 3 and 4 (a real arrival refusal's and a real
+load refusal's row repeats its toast) and `UiSnapshot` (Combo > Save Files beside Randomizer > Tricks/Glitches,
+states "", "listed" and "backup" authored through `Combo_SaveFiles_SetMetaForTest`). The deletion has no row of its own: `check-ui-parity-lint.py` fails on a listed
 path that does not exist and on any ImGui-drawing TU under `src/common` that is not listed (rule S0), and
 `SetMenuCount` holds the tree to its two `SetMenu(` call sites.

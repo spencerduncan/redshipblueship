@@ -669,8 +669,8 @@ int main(int argc, char** argv) {
     // tracker adapters (MM's shadow-offset descriptor, OoT's heap accessors).
     Combo_TrackerWindow_Init();
 
-    // MM's slot metadata for the unified file panel (#765). Same seam, same
-    // reason as the tracker: the panel is drawn while OoT runs, and its only
+    // MM's slot metadata for the Combo > Save Files page (#765). Same seam, same
+    // reason as the tracker: the page is drawn while OoT runs, and its only
     // other registrar (MM's SaveManager.cpp) is excluded from this link, so
     // without this every slot's MM half read "not started". Pure offsets; needs
     // nothing of MM's booted.

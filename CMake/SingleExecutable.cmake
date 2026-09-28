@@ -2195,8 +2195,9 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME ArrayReaderDispatch COMMAND redship --test array-reader-dispatch)
     # Lane W5: the Combo > Save Files page's model (each .redsave slot's state in
     # the player's words, which replaces the never-constructed ComboMenuBar
-    # panel): every refusal reason's words, one row per slot state, the test seam
-    # and the note. ROM-free, display-free and disk-free (default tier);
+    # panel): every refusal reason's words, a toast's words where one was posted,
+    # one row per slot state, the cached view's read count, the test seam and the
+    # note. ROM-free, display-free and disk-free (default tier);
     # src/common/tests/test_combo_save_files_view.c.
     redship_add_test(NAME ComboSaveFilesView COMMAND redship --test combo-save-files-view)
 
