@@ -43,6 +43,7 @@
 
 #include "soh/Notification/Notification.h"
 #include "soh/OTRGlobals.h"
+#include "soh/cvar_prefixes.h"
 #include <libultraship/libultraship.h>
 
 #include <imgui.h>
@@ -157,15 +158,14 @@ void SetScale(float scale) {
 
 } // namespace
 
-extern "C" int OoT_NotificationFit_RunHeadless(void) {
+extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
     printf("[TEST] pairing-refusal-toast-fit: every cross-game refusal toast fits an %dx%d window at "
            "Notifications.Size 1.8 and 1.0, drawn by SoH's own overlay in its default font\n",
            (int)kWindowWidth, (int)kWindowHeight);
 
-    const char* fontPath = getenv("RSBS_NOTIFICATION_FONT");
     if (fontPath == nullptr || fontPath[0] == '\0') {
-        return Fail("RSBS_NOTIFICATION_FONT is not set (CMake passes games/oot/assets/custom/fonts/"
-                    "Montserrat-Regular.ttf, the file soh.o2r packs as SoH's default font)");
+        return Fail("no font path: the runner resolves games/oot/assets/custom/fonts/Montserrat-Regular.ttf (the "
+                    "file soh.o2r packs as SoH's default font) under RSBS_SOURCE_DIR");
     }
 
     ImGuiContext* previous = ImGui::GetCurrentContext();
@@ -197,6 +197,10 @@ extern "C" int OoT_NotificationFit_RunHeadless(void) {
     run.overlay = &overlay;
     OoT_Notification_ClearForTest();
 
+    // Every toast is checked even after a failure, so a red run lists all of
+    // them (at most kMaxRulesFailures of the rules combinations).
+    constexpr int kMaxRulesFailures = 3;
+    int failures = 0;
     for (float scale : { 1.8f, 1.0f }) {
         if (rc != 0) {
             break;
@@ -215,61 +219,55 @@ extern "C" int OoT_NotificationFit_RunHeadless(void) {
         }
 
         MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MM_OPTIONS, nullptr);
-        if ((rc = CheckOne(run, "MM-options refusal", scale)) != 0) {
-            break;
-        }
+        failures += CheckOne(run, "MM-options refusal", scale);
         MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr);
-        if ((rc = CheckOne(run, "missing-half refusal", scale)) != 0) {
-            break;
-        }
+        failures += CheckOne(run, "missing-half refusal", scale);
         for (const char* term : { "sourceIsRando", "rsbsPairing", "sharedRandoSeed", "sharedRandoSettingsHash",
                                   "mmProfileDigest", "anUnknownTermTheCopyHasNoWordsFor" }) {
             MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_SPOILER, term);
             const std::string what = std::string("spoiler refusal (") + term + ")";
-            if ((rc = CheckOne(run, what.c_str(), scale)) != 0) {
-                break;
-            }
-        }
-        if (rc != 0) {
-            break;
+            failures += CheckOne(run, what.c_str(), scale);
         }
         {
-            char message[128];
+            char message[256];
             Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_OOT_SPOILER, nullptr, message, sizeof(message));
             Notification::Emit({
                 .prefix = Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_OOT_SPOILER),
                 .message = message,
                 .mute = true,
             });
-            if ((rc = CheckOne(run, "OoT paired-spoiler refusal", scale)) != 0) {
-                break;
-            }
+            failures += CheckOne(run, "OoT paired-spoiler refusal", scale);
         }
 
         // RULES: every non-empty combination of the divergence bits, drawn once
         // per distinct message.
         std::set<std::string> drawn;
-        for (uint32_t bits = 1; bits < (1u << kDivergenceBits) && rc == 0; bits++) {
+        int rulesFailures = 0;
+        for (uint32_t bits = 1; bits < (1u << kDivergenceBits) && rulesFailures < kMaxRulesFailures; bits++) {
             char fields[192];
             Combo_ComboSettingsDivergenceDescribe(bits, fields, sizeof(fields));
-            char message[128];
+            char message[512];
             const int named =
                 Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_RULES, fields, message, sizeof(message));
             if ((bits & (bits - 1)) == 0 && named != 1) {
-                rc = Fail("the one-field rules refusal for '%s' does not name it: '%s'", fields, message);
-                break;
+                rulesFailures += Fail("the one-field rules refusal for '%s' does not name it: '%s'", fields, message);
+                continue;
             }
             if (!drawn.insert(message).second) {
                 continue;
             }
             MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_RULES, fields);
             const std::string what = std::string("rules refusal (") + fields + ")";
-            rc = CheckOne(run, what.c_str(), scale);
+            rulesFailures += CheckOne(run, what.c_str(), scale);
         }
-        if (rc == 0) {
+        failures += rulesFailures;
+        if (rulesFailures == 0) {
             printf("[TEST] %.1fx: %zu distinct rules messages over %u field combinations fit\n", scale, drawn.size(),
                    (1u << kDivergenceBits) - 1u);
         }
+    }
+    if (rc == 0 && failures != 0) {
+        rc = Fail("%d refusal toast check(s) failed (listed above)", failures);
     }
 
     if (rc == 0) {

@@ -2112,8 +2112,7 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # file soh.o2r packs), at Notifications.Size 1.8 and 1.0, in the ui tier's
     # smallest window (832 px). The RULES refusal is drawn for every one of the
     # 8,191 divergence-field combinations. games/oot/soh/soh_notification_fit_test.cpp.
-    redship_add_test(NAME PairingRefusalToastFit COMMAND redship --test pairing-refusal-toast-fit
-        ENVIRONMENT "RSBS_NOTIFICATION_FONT=${CMAKE_SOURCE_DIR}/games/oot/assets/custom/fonts/Montserrat-Regular.ttf")
+    redship_add_test(NAME PairingRefusalToastFit COMMAND redship --test pairing-refusal-toast-fit)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

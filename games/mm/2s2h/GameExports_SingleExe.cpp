@@ -4782,7 +4782,7 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
  * lock draw the production toast rather than a copy of it.
  */
 void MM_Rando_EmitPairingRefusalToast(int kind, const char* detail) {
-    char message[128];
+    char message[256];
     Combo_PairingRefusalToastMessage(kind, detail, message, sizeof(message));
     Notification::MM_Notify_Emit({
         .prefix = Combo_PairingRefusalToastPrefix(kind),

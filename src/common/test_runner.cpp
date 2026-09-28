@@ -4383,20 +4383,26 @@ TestResult Test_ComboGameOverRevive(void) {
 // The cross-game refusal toasts fit the screen (games/oot/soh/soh_notification_fit_test.cpp).
 // Display-free: SoH's notification overlay draws into a private ImGui context. The
 // shared bring-up for the CVar store the overlay and Notification::Emit read.
-extern "C" int OoT_NotificationFit_RunHeadless(void);
+extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath);
 TestResult Test_PairingRefusalToastFit(void) {
+    // SoH's default font, from the file soh.o2r packs it from. Resolved from the
+    // source tree so the row also runs inside AllTests (`--test all`), which
+    // carries no per-row environment.
+#ifdef RSBS_SOURCE_DIR
+    const std::string fontPath = std::string(RSBS_SOURCE_DIR) + "/games/oot/assets/custom/fonts/Montserrat-Regular.ttf";
+#else
+    const std::string fontPath;
+#endif
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
-        printf("[TEST] FAIL: could not create Ship::Context singleton
-");
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
         return TEST_FAIL;
     }
     if (OoT_InitSharedContextSubsystems() != 0) {
-        printf("[TEST] FAIL: shared bring-up reported failure
-");
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
         return TEST_FAIL;
     }
-    return OoT_NotificationFit_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+    return OoT_NotificationFit_RunHeadless(fontPath.c_str()) == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
