@@ -633,19 +633,9 @@ void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path) {
                      count, kMaxOptionRows);
     }
 
-    // The page-wide warnings, in SoH's warning colour: properties of the paired
-    // generation pipeline, not of any one option.
-    menu.AddWidget(path, "MM Randomizer Lock Warning", WIDGET_TEXT)
-        .RaceDisable(false)
-        .HideInSearch(true)
-        .PreFunc([](WidgetInfo& info) {
-            const char* warning = Combo_MMOptionsPage_LockWarning();
-            info.isHidden = warning == nullptr;
-            if (warning != nullptr && info.name != warning) {
-                info.name = warning;
-            }
-        })
-        .Options(TextOptions().Color(Colors::Orange));
+    // The page-wide warning, in SoH's warning colour: a property of the paired
+    // generation pipeline, not of any one option. (The creation lock is the
+    // gray state note's sentence; an orange restatement of it was dropped.)
     menu.AddWidget(path, Combo_MMOptionsPage_FallbackWarning(), WIDGET_TEXT)
         .RaceDisable(false)
         .HideInSearch(true)

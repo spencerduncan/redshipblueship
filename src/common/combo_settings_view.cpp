@@ -16,7 +16,11 @@
 
 #include <cstdio>
 
+#include <string>
+
 #include <ship/Context.h>
+#include <ship/window/Window.h>
+#include <ship/window/gui/Gui.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #include "combo_mm_options_view.h" // Combo_CVarIsExplicitInt: the same unset probe the MM pane uses
@@ -276,6 +280,136 @@ const char* Combo_ComboDirectionName(uint8_t direction) {
         default:
             return "(unknown)";
     }
+}
+
+namespace {
+
+// The rules a key authors, in the page's order (Goal first, then the
+// crossing), so the notification reads the way the page does. Every other
+// divergence bit is either a field no key writes or damage to the stored
+// identity.
+struct Restorable {
+    uint32_t bit;
+    ComboSettingId id;
+};
+const Restorable kRestorable[] = {
+    { RSBS_COMBO_DIVERGE_GOAL, COMBO_SETTING_GOAL },
+    { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
+    { RSBS_COMBO_DIVERGE_POOL_SIZE_OOT, COMBO_SETTING_POOL_SIZE_OOT },
+    { RSBS_COMBO_DIVERGE_POOL_SIZE_MM, COMBO_SETTING_POOL_SIZE_MM },
+    { RSBS_COMBO_DIVERGE_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_OOT },
+    { RSBS_COMBO_DIVERGE_ITEM_CLASS_MM, COMBO_SETTING_ITEM_CLASS_MM },
+    { RSBS_COMBO_DIVERGE_SHARED_OCARINA, COMBO_SETTING_SHARED_OCARINA },
+};
+
+int32_t FrozenValue(const ComboSettingsRecord* frozen, ComboSettingId id) {
+    switch (id) {
+        case COMBO_SETTING_DIRECTION:
+            return (int32_t)frozen->direction;
+        case COMBO_SETTING_POOL_SIZE_OOT:
+            return (int32_t)frozen->poolSizeOoT;
+        case COMBO_SETTING_POOL_SIZE_MM:
+            return (int32_t)frozen->poolSizeMM;
+        case COMBO_SETTING_ITEM_CLASS_OOT:
+            return (int32_t)frozen->itemClassOoT;
+        case COMBO_SETTING_ITEM_CLASS_MM:
+            return (int32_t)frozen->itemClassMM;
+        case COMBO_SETTING_SHARED_OCARINA:
+            return (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u ? 1 : 0;
+        case COMBO_SETTING_GOAL:
+            return (int32_t)frozen->goal;
+        default:
+            return 0;
+    }
+}
+
+} // namespace
+
+uint32_t Combo_ComboSettingsRestorableMask(void) {
+    uint32_t mask = 0;
+    for (const Restorable& r : kRestorable) {
+        mask |= r.bit;
+    }
+    return mask;
+}
+
+int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits, char* names, size_t len,
+                                   ComboSettingsKeyUndo* undo) {
+    if (names != nullptr && len > 0) {
+        names[0] = '\0';
+    }
+    if (undo != nullptr) {
+        *undo = ComboSettingsKeyUndo{};
+    }
+    if (frozen == nullptr || divergedBits == 0) {
+        return 0;
+    }
+    if ((divergedBits & ~Combo_ComboSettingsRestorableMask()) != 0u) {
+        return 0; // a field no key authors, or damage: the caller refuses
+    }
+    if (!Combo_ComboSettingStoreAvailable()) {
+        return 0;
+    }
+    // All-or-nothing: validate every value before writing any, so a record
+    // carrying an out-of-space value leaves the store exactly as it was.
+    for (const Restorable& r : kRestorable) {
+        if ((divergedBits & r.bit) != 0u && !Combo_ComboSettingValueValid(r.id, FrozenValue(frozen, r.id))) {
+            return 0;
+        }
+    }
+
+    std::string restored;
+    for (const Restorable& r : kRestorable) {
+        if ((divergedBits & r.bit) == 0u) {
+            continue;
+        }
+        const char* key = kComboSettingDescs[r.id].key;
+        if (undo != nullptr) {
+            undo->written[r.id] = 1;
+            undo->wasSet[r.id] = Combo_CVarIsExplicitInt(key) ? 1 : 0;
+            undo->value[r.id] = CVarGetInteger(key, 0);
+        }
+        const int32_t value = FrozenValue(frozen, r.id);
+        CVarSetInteger(key, value);
+        if (!restored.empty()) {
+            restored += ", ";
+        }
+        restored += kComboSettingDescs[r.id].label;
+        std::fprintf(stderr, "[Combo] load: '%s' restored to the file's value %d (frozen wins at load, #781)\n", key,
+                     (int)value);
+    }
+    if (names != nullptr && len > 0) {
+        std::snprintf(names, len, "%s", restored.c_str());
+    }
+    return 1;
+}
+
+void Combo_ComboSettingsRestoreUndo(const ComboSettingsKeyUndo* undo) {
+    if (undo == nullptr || !Combo_ComboSettingStoreAvailable()) {
+        return;
+    }
+    for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+        if (undo->written[i] == 0) {
+            continue;
+        }
+        const char* key = kComboSettingDescs[i].key;
+        if (undo->wasSet[i] != 0) {
+            CVarSetInteger(key, undo->value[i]);
+            std::fprintf(stderr, "[Combo] load: '%s' put back to the session's %d (the restore did not take)\n", key,
+                         (int)undo->value[i]);
+        } else {
+            CVarClear(key);
+            std::fprintf(stderr, "[Combo] load: '%s' put back to unset (the restore did not take)\n", key);
+        }
+    }
+}
+
+void Combo_ComboSettingsPersistStore(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetWindow() == nullptr || ctx->GetWindow()->GetGui() == nullptr) {
+        return;
+    }
+    ctx->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
 }
 
 } // extern "C"

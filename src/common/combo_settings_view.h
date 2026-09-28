@@ -69,7 +69,10 @@
 #define RSBS_COMMON_COMBO_SETTINGS_VIEW_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+
+#include "context.h" // ComboSettingsRecord, for the load-time restore
 
 #ifdef __cplusplus
 extern "C" {
@@ -219,6 +222,62 @@ const char* Combo_ComboSettingSharedMarker(void);
 /** A short name for an RSBS_COMBO_DIR_* value ("off", "forward", "reverse",
  *  "both"); "(unknown)" otherwise. Never NULL. */
 const char* Combo_ComboDirectionName(uint8_t direction);
+
+/**
+ * What a load-time restore wrote, so it can be put back exactly (#781): for
+ * each rule, whether the restore wrote its key, and whether the key was SET
+ * before (and to what) or unset.
+ */
+typedef struct ComboSettingsKeyUndo {
+    uint8_t written[COMBO_SETTING_COUNT];
+    uint8_t wasSet[COMBO_SETTING_COUNT];
+    int32_t value[COMBO_SETTING_COUNT];
+} ComboSettingsKeyUndo;
+
+/**
+ * FROZEN WINS AT LOAD (#781; one-game semantics). A paired file's rules were
+ * decided when it was created; the live keys are staging for the NEXT file. So
+ * when a load meets live keys that walked away from the file's record, the
+ * load puts the file's values back into the keys rather than refusing the file
+ * (which used to leave the OoT file playing unpaired, silently), and the
+ * arrival compare, which reads the same keys, then agrees with the file.
+ *
+ * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
+ * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the two pool
+ * sizes, the two item-class masks, the shared ocarina), the CVar store exists,
+ * and every frozen value is inside its pinned space; otherwise it writes
+ * NOTHING and returns 0, and the caller refuses. A record field no key authors
+ * (the logic rung, an unallocated flag bit, the spare byte) cannot be restored
+ * through a key, and the damage bits (unreadable, fingerprint, triforce) never
+ * are.
+ *
+ * Writes the store DIRECTLY, bypassing Combo_ComboSettingSet's frozen gate: the
+ * gate refuses EDITS of a decided world, and this is the decided world's own
+ * value going back where the resolver reads it. @p names (may be NULL)
+ * receives the restored rows' labels in page order ("Goal, Crossing
+ * Direction"); "" when nothing was restored. @p undo (may be NULL) records
+ * what was written. A caller whose own after-check then fails passes it to
+ * Combo_ComboSettingsRestoreUndo, which puts every written key back as it was
+ * (its old value, or unset), so a refused load leaves the keys exactly as the
+ * player left them.
+ *
+ * @return 1 when every diverged rule was restored; 0 when nothing was written.
+ */
+int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits, char* names, size_t len,
+                                   ComboSettingsKeyUndo* undo);
+
+/** Undo a Combo_ComboSettingsRestoreLive: every key it wrote goes back to the
+ *  value it held, or back to unset. A NULL or all-unwritten @p undo is a no-op. */
+void Combo_ComboSettingsRestoreUndo(const ComboSettingsKeyUndo* undo);
+
+/** The RSBS_COMBO_DIVERGE_* bits a key authors, and so the only ones
+ *  Combo_ComboSettingsRestoreLive can answer. A divergence with any other bit
+ *  is damage, or a field only another build writes. */
+uint32_t Combo_ComboSettingsRestorableMask(void);
+
+/** Ask the host to write the CVar store to its config file on the next frame.
+ *  A no-op in a process with no window or GUI (every headless row). */
+void Combo_ComboSettingsPersistStore(void);
 
 #ifdef __cplusplus
 }

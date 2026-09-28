@@ -153,6 +153,7 @@
 #include "headless_crash.h"
 #include "notification_bridge.h"
 #include "rsbs_version.h"
+#include "save.h" // RsbsSave_EmitLoadToast: the paired-file load's toasts (#781)
 #include "ui_snapshot_image.h"
 
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
@@ -1819,7 +1820,8 @@ void Session::BuildPageList() {
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
-                p.stateText["unpaired"] = { "saved into the next paired world" };
+                p.stateText["unpaired"] = { "apply to the next paired world",
+                                            "Loading a paired file restores its own rules" };
                 p.stateText["paired-legacy"] = { "Your paired world predates these rules",
                                                  "Keep them at the defaults until you have crossed into it once" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
@@ -1880,7 +1882,7 @@ void Session::BuildPageList() {
                 // The model's state note in each state (combo_mm_options_page.c),
                 // and the suspended note, which only a non-MM running game shows.
                 p.states = { "unpaired", "frozen", "mm-suspended" };
-                p.stateText["unpaired"] = { "No paired world yet" };
+                p.stateText["unpaired"] = { "Loading a paired file restores its own options" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateText["mm-suspended"] = { "Majora's Mask is suspended" };
                 p.stateContrast = { { "unpaired", "frozen" },
@@ -1922,7 +1924,8 @@ void Session::BuildPageList() {
             } else if (sidebar == COMBO_MM_TRICKS_PAGE_NAME) {
                 // Unpaired: the model's headline; frozen: the freeze sentence.
                 p.states = { "unpaired", "frozen" };
-                p.stateText["unpaired"] = { "tricks are supported by the randomizer logic" };
+                p.stateText["unpaired"] = { "tricks are supported by the randomizer logic",
+                                            "Loading a paired file restores its own tricks" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateContrast = { { "unpaired", "frozen" }, { "frozen", "unpaired" } };
                 // Every trick row draws its name through the combo_ui seam, whose
@@ -2126,6 +2129,16 @@ void Session::BuildPageList() {
              { "toast/creation-shortfall", "Fewer cross-game items:" },
              { "toast/creation-failure", "Not created:" },
              { "toast/creation-goal-warning", "Not proven:" },
+             // The paired-file load's toasts (#781), each through the load's
+             // own emitter with the longest input a real load can pass it.
+             { "toast/load-rules-restored", "Restored from file:" },
+             { "toast/load-mm-restored-one", "Restored for Majora's Mask:" },
+             { "toast/load-mm-restored-many", "Restored for Majora's Mask:" },
+             { "toast/load-mm-not-restored", "Not restored:" },
+             { "toast/load-refused-rules", "Not paired:" },
+             { "toast/load-refused-other-build", "Not paired:" },
+             { "toast/load-refused-damaged", "Not paired:" },
+             { "toast/load-arrival-unpaired", "Not paired:" },
          }) {
         PageSpec p;
         p.id = id;
@@ -3967,6 +3980,61 @@ void Session::CaptureModalVariant(const PageSpec& p, const std::string& state) {
     Record(std::move(c));
 }
 
+/**
+ * The paired-file load's toasts (#781) through RsbsSave_EmitLoadToast, the one
+ * emitter the load and the MM arrival call, each with the longest input a real
+ * load can hand it: every Cross-Game Rule restored at once (their labels in the
+ * page's order), the settable MM trick with the longest label alone (the cut
+ * case), and every settable MM trick at once (the "+N" case).
+ */
+static void EmitLoadToastPage(const std::string& id) {
+    if (id == "toast/load-rules-restored") {
+        std::string rules;
+        for (ComboSettingId rule :
+             { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION, COMBO_SETTING_POOL_SIZE_OOT, COMBO_SETTING_POOL_SIZE_MM,
+               COMBO_SETTING_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_MM, COMBO_SETTING_SHARED_OCARINA }) {
+            rules += (rules.empty() ? "" : ", ") + std::string(Combo_ComboSettingLabel(rule));
+        }
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_RULES_RESTORED, rules.c_str(), 0);
+    } else if (id == "toast/load-mm-restored-one" || id == "toast/load-mm-restored-many") {
+        const bool many = id == "toast/load-mm-restored-many";
+        std::string longest;
+        std::string all;
+        int count = 0;
+        for (int i = 0; i < Combo_MMTrickCount(); i++) {
+            const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+            if (d == nullptr || !d->bound || d->reserved || d->label == nullptr) {
+                continue;
+            }
+            count++;
+            all += (all.empty() ? "" : ", ") + std::string(d->label);
+            if (std::strlen(d->label) > longest.size()) {
+                longest = d->label;
+            }
+        }
+        if (count == 0) {
+            // ROM-free with no MM trick table: an option label stands in.
+            longest = all = "Starting Hearts";
+            count = 1;
+        }
+        if (many) {
+            RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, all.c_str(), count);
+        } else {
+            RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, longest.c_str(), 1);
+        }
+    } else if (id == "toast/load-mm-not-restored") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_NOT_RESTORED, nullptr, 0);
+    } else if (id == "toast/load-refused-rules") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_RULES, nullptr, 0);
+    } else if (id == "toast/load-refused-other-build") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD, nullptr, 0);
+    } else if (id == "toast/load-refused-damaged") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_DAMAGED, nullptr, 0);
+    } else if (id == "toast/load-arrival-unpaired") {
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED, nullptr, 0);
+    }
+}
+
 void Session::CaptureToast(const PageSpec& p) {
     if (!Selected(p, "")) {
         return;
@@ -3996,6 +4064,8 @@ void Session::CaptureToast(const PageSpec& p) {
         // ADR 0010 section 1.2's creation warning, as a "Ganon" world raises it:
         // MM's half carries no proof. The longest of its three copies.
         OoT_Creation_EmitGoalWarningToast(RSBS_COMBO_HALF_MM);
+    } else if (p.id.rfind("toast/load-", 0) == 0) {
+        EmitLoadToastPage(p.id);
     }
     if (Settle(c, false, nullptr, nullptr)) {
         // The window is named "notification#<id>" and the id is the overlay's

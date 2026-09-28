@@ -188,7 +188,7 @@ moved the entire paired generation to the file-create seam, and the arrival in M
 Mask no longer generates anything: it hydrates the frozen MM half or refuses. Such a file
 loads and plays in Ocarina of Time under the Cross-Game Rules it was created with (a
 file whose unified save carries the combo record, written since PR #628 on 2026-08-06,
-is refused at load under changed rules, as the between-sessions entry below describes;
+has any changed rule restored at load, as the between-sessions entry below describes;
 an older file has no record to compare and is exempt).
 What happens at the crossing depends on whether the file entered Majora's Mask before
 #680:
@@ -200,9 +200,10 @@ What happens at the crossing depends on whether the file entered Majora's Mask b
 - **Crossed before #680:** it carries the MM half the old arrival generated, and the
   arrival hydrates whatever frozen half it finds. It either plays that old pre-#680 MM
   world, or, if its creation-time MM profile stamp no longer matches this build's MM
-  options, is refused at the crossing by the MM-options check (a different toast, the
-  one the between-sessions entry below describes). Which one a given file meets cannot
-  be decided by reading.
+  options, the load restores the options from that half when they reproduce the stamp,
+  and otherwise warns at load ("Not restored: Majora's Mask options differ") and the
+  crossing is refused by the MM-options check. Which one a given file meets cannot be
+  decided by reading.
 
 This project is pre-release — the operator has accepted invalidating existing saves
 rather than spending effort on migration. **Create a new file**; there is no recovery
@@ -314,32 +315,63 @@ DirectX 11. The 90 were compared with an OpenGL render made at `d928d67d` on the
 
 ## Save loss and corruption
 
-### A changed MM option or Cross-Game Rule breaks the pair for the session — [#564](https://github.com/spencerduncan/redshipblueship/issues/564)
+### ~~A changed MM option or Cross-Game Rule breaks the pair for the session~~ — RESOLVED ([#781](https://github.com/spencerduncan/redshipblueship/issues/781); [#564](https://github.com/spencerduncan/redshipblueship/issues/564))
 
-Open, and a trap between sessions. Combo → MM Randomizer and Combo → MM Tricks lock
-only while a creation stamp is resident (`Combo_MMProfileFrozen()` is
-`mmProfileDigest != 0`), and that stamp is zero on a fresh launch and after a return to the
-title screen, so both pages are editable exactly between sessions. Loading a paired file
-compares its Cross-Game Rules field by field against the live ones, but it does **not**
-recompute the MM profile: an edited MM option, trick, excluded
-check or starting item is accepted at load. The next crossing into Majora's Mask recomputes
-the profile, sees the difference and refuses: a 15-second "Cross-game pairing REFUSED"
-toast, an un-randomized Termina, and the slot latched against writes for the session
-(PR [#570](https://github.com/spencerduncan/redshipblueship/pull/570)). The file on disk is untouched.
+Fixed by the #781 change: **the file's own rules win at load.** The pages are still
+editable between sessions, and what they hold there is staging for the next file.
+Loading a paired file now compares both its Cross-Game Rules and its Majora's Mask
+profile (the same digest the crossing checks) and puts the file's own values back into
+the pages:
+- a changed Cross-Game Rule (Goal, Crossing Direction, pool sizes, item classes, Shared
+  Ocarina) is restored, and a toast reads "Restored from file:" with the rows it reset
+  (for example "Restored from file: Goal, Crossing Direction");
+- a changed MM option or trick is restored from the file's MM half, and a toast reads
+  "Restored for Majora's Mask:" with the rows it reset (for example "Restored for
+  Majora's Mask: Starting Hearts +1"; a long trick name is cut with "...", and rows
+  that do not fit are counted).
 
-Cross-Game Rules (including the Goal) unlock between sessions the same way
-(`Combo_ComboSettingsFrozen()` is `comboSettings.formatVersion != 0`). A changed rule *is*
-caught at load, but quietly: `LoadSlot` prints the diverged fields to stderr only and
-latches the slot, and OoT's caller ignores the result, so the OoT file opens and plays
-with nothing saved to the pair. By code reading (not run), the pairing identity is not
-restored either, so the next MM arrival skips pairing and plays an un-randomized Termina
-without a toast. No in-game surface shows the refusal (the `.redsave` file panel lives in
-the never-instantiated `ComboMenuBar`).
+The file loads paired, the slot stays writable, and the next crossing into Majora's Mask
+agrees with the file. The cases the file cannot answer stay visible instead of silent:
+- an MM identity input the file does not record (the excluded-check list or the
+  starting-item block, which no page in this build edits) loads the file paired but
+  posts "Not restored: Majora's Mask options differ", and the crossing is refused until
+  they match;
+- a Cross-Game record field no page authors (only a file from another build can differ
+  there) refuses the load with "Not paired: File made by another build" (a damaged
+  record: "Not paired: Cross-game record is damaged"). The field names are on stderr.
+  The OoT file still opens and plays without its Majora's Mask half, because the load
+  runs after OoT has opened the file; the next crossing into Majora's Mask says so
+  ("Not paired: Termina stays un-randomized") instead of skipping pairing
+  silently. Nothing is saved to the pair that session. This residual is reachable only
+  from another build's file or a damaged one (ADR 0011, 2026-09-28 amendment).
 
-**Workaround:** once a paired file exists, leave both MM pages and Cross-Game Rules alone;
-if you changed one, set it back exactly or recreate the file. **The fix to come** is the
-same MM-profile compare at load time, plus a load refusal the player can see; neither
-exists yet.
+The original report, kept only for matching old logs (historical; it describes the
+behaviour before the fix):
+
+> Open, and a trap between sessions. Combo → MM Randomizer and Combo → MM Tricks lock
+> only while a creation stamp is resident (`Combo_MMProfileFrozen()` is
+> `mmProfileDigest != 0`), and that stamp is zero on a fresh launch and after a return to the
+> title screen, so both pages are editable exactly between sessions. Loading a paired file
+> compares its Cross-Game Rules field by field against the live ones, but it does **not**
+> recompute the MM profile: an edited MM option, trick, excluded
+> check or starting item is accepted at load. The next crossing into Majora's Mask recomputes
+> the profile, sees the difference and refuses: a 15-second "Cross-game pairing REFUSED"
+> toast, an un-randomized Termina, and the slot latched against writes for the session
+> (PR [#570](https://github.com/spencerduncan/redshipblueship/pull/570)). The file on disk is untouched.
+>
+> Cross-Game Rules (including the Goal) unlock between sessions the same way
+> (`Combo_ComboSettingsFrozen()` is `comboSettings.formatVersion != 0`). A changed rule *is*
+> caught at load, but quietly: `LoadSlot` prints the diverged fields to stderr only and
+> latches the slot, and OoT's caller ignores the result, so the OoT file opens and plays
+> with nothing saved to the pair. By code reading (not run), the pairing identity is not
+> restored either, so the next MM arrival skips pairing and plays an un-randomized Termina
+> without a toast. No in-game surface shows the refusal (the `.redsave` file panel lives in
+> the never-instantiated `ComboMenuBar`).
+>
+> **Workaround:** once a paired file exists, leave both MM pages and Cross-Game Rules alone;
+> if you changed one, set it back exactly or recreate the file. **The fix to come** is the
+> same MM-profile compare at load time, plus a load refusal the player can see; neither
+> exists yet.
 
 ### ~~A flag set in the scene you leave through the portal can be lost~~ — RESOLVED ([#635](https://github.com/spencerduncan/redshipblueship/issues/635), community report; tracked in [#638](https://github.com/spencerduncan/redshipblueship/issues/638), PR [#650](https://github.com/spencerduncan/redshipblueship/pull/650))
 

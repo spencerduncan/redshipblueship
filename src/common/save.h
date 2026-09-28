@@ -770,6 +770,33 @@ int  RsbsSave_HasQuarantine(int slot);
 void RsbsSave_ResetSlotSessionState(void);
 
 /**
+ * The paired-file load's toasts (#781), in SoH's toast shape (default colours,
+ * the player's duration, one line; docs/ui-style-guide.md section 10b). One
+ * emitter holds the copy, so the load, the MM arrival and the UI snapshot's
+ * toast/load-* pages post exactly the same words.
+ *
+ * @p names is a ", "-joined list of row labels (RULES_RESTORED and
+ * MM_RESTORED only; NULL otherwise) and @p count the true number of rows,
+ * which may exceed the names the list carries (0: the list is complete). The
+ * message names as many rows as fit whole, cuts a first name that does not fit
+ * with "...", and counts the rest as "+N".
+ */
+enum {
+    RSBS_LOAD_TOAST_RULES_RESTORED = 0,  // "Restored from file: Goal, Crossing Direction"
+    RSBS_LOAD_TOAST_MM_RESTORED = 1,     // "Restored for Majora's Mask: Starting Hearts +1"
+    RSBS_LOAD_TOAST_MM_NOT_RESTORED = 2, // the file cannot restore its MM profile
+    RSBS_LOAD_TOAST_REFUSED_RULES = 3,   // refused: keyed rules differ and the store could not take them
+    RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD = 4, // refused: a record field no key authors (another build's file)
+    RSBS_LOAD_TOAST_REFUSED_DAMAGED = 5,     // refused: the stored cross-game identity is damaged
+    RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED = 6,    // an MM arrival while the loaded slot is refused
+};
+void RsbsSave_EmitLoadToast(int kind, const char* names, int count);
+
+/** Test hook (#781 paired-load-restore leg 5): force the load's post-restore
+ *  compare to fail, so the put-back is exercised. Never called in production. */
+void RsbsSave_ForceLoadRestoreVerifyFailForTest(int on);
+
+/**
  * Session-scoped "which slot is open" (see SaveManager::SetActiveSlot).
  * RsbsSave_GetActiveSlot returns -1 when no slot has been established, which
  * every caller must treat as "do not write" rather than as slot 0.

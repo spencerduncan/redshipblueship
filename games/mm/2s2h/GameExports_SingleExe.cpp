@@ -4685,6 +4685,18 @@ int MM_Rando_GateCrossGameArrival(void) {
                 "[MM] pairing: skipped-because-no-paired-oot-world "
                 "(sourceIsRando=%d settingsHash=%08X masterSeed=%u)\n",
                 gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash, gComboCtx.sharedRandoSeed);
+        // A paired file whose load was REFUSED (#781: a record from another
+        // build, or damage) plays its OoT half without the pair, because the
+        // OnLoadFile seam cannot un-open it. That crossing must not be silent:
+        // the player is told here, at the door, what the refusal means.
+        const int slot = RsbsSave_GetActiveSlot();
+        if (slot >= 0 && RsbsSave_GetSlotRefuseReason(slot) != 0) {
+            fprintf(stderr,
+                    "[MM] pairing: slot %d was REFUSED at load (reason %d); this arrival plays un-randomized and "
+                    "nothing is saved to the pair this session\n",
+                    slot, RsbsSave_GetSlotRefuseReason(slot));
+            RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED, nullptr, 0);
+        }
         return 0;
     }
 

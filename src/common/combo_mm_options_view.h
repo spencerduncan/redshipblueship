@@ -59,6 +59,7 @@
 #define RSBS_COMMON_COMBO_MM_OPTIONS_VIEW_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -283,6 +284,50 @@ void MM_Rando_PublishProfileGiveCaps(int fromSave);
  * may be NULL. DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
  */
 void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, uint16_t* outRequired);
+
+/** Outcomes of MM_Rando_RestoreProfileForLoad. */
+enum {
+    RSBS_MM_PROFILE_LOAD_MATCHES = 0,      // the live CVars already resolve the file's profile
+    RSBS_MM_PROFILE_LOAD_RESTORED = 1,     // the file's options/tricks were written back; now they do
+    RSBS_MM_PROFILE_LOAD_UNRESTORABLE = 2, // they differ and the file cannot say how (the keys are as they were)
+};
+
+/**
+ * FROZEN WINS AT LOAD, MM's half (#781; one-game semantics). The load-time
+ * twin of the arrival gate's profile compare: recomputes the SAME digest
+ * MM_Rando_ComputeProfileStamp computes (what MM_Rando_GateCrossGameArrival
+ * compares) and, when it differs from @p frozenDigest, puts the file's own
+ * option values and trick set back into the `gRando.Options.*` /
+ * `gRando.Tricks.*` CVars, read from the file's MM half (@p mmHalf, the raw
+ * Tier-3 SaveContext bytes the .redsave carries; its RANDO_SAVE_OPTIONS and
+ * randoSaveTricks are what creation resolved).
+ *
+ * Writes only when the half's options and tricks, folded with the LIVE
+ * excluded-check list and starting-item block, reproduce @p frozenDigest
+ * exactly — i.e. only when writing them is known to restore the file's
+ * identity. The excluded-check list and the starting-item block are identity
+ * inputs the file does not record (and no single-exe page authors), so a
+ * divergence there, an MM half that is not a randomizer save, or a half too
+ * short to read returns UNRESTORABLE with nothing written: the arrival gate
+ * stays the last line of defence for those. If the keys it did write still do
+ * not resolve @p frozenDigest (unreachable while the resolver and the save
+ * write agree), every one of them is put back as it was, set to its old value
+ * or unset, before UNRESTORABLE returns: UNRESTORABLE always leaves the keys
+ * as the player left them.
+ *
+ * @p names (may be NULL) receives as many of the restored rows' labels as fit
+ * WHOLE ("Starting Hearts, <trick>"; never a cut label), "" otherwise;
+ * @p outCount (may be NULL) the true number of rows restored, which is larger
+ * than the names shown when the list did not fit.
+ * DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp; call only with a CVar
+ * store (Combo_ComboSettingStoreAvailable).
+ */
+int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, char* names,
+                                   size_t namesLen, int* outCount);
+
+/** Test hook (#781 paired-load-restore leg 5): force the restore's after-check
+ *  to fail, so the put-back is exercised. Never called in production. */
+void MM_Rando_ForceProfileRestoreVerifyFailForTest(int on);
 
 /**
  * Pairing header for the pane: whether a paired world exists, its identity, and
