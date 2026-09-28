@@ -249,6 +249,17 @@ own on a pass.
 
 Extra assertions, all loud:
 
+- **boot (before generating):** "the shipped defaults" is checked, not assumed. Generation
+  reads the live CVar store, which is the build directory's persisted config, so every
+  setting it reads (OoT's options, tricks and exclusions, MM's options and tricks, the
+  combo settings) must be unset; the row fails naming the explicit keys otherwise.
+- **creation (right after `OoT_Sram_InitSave` returns, before the load):** the creation's
+  own `[OoT] creation event: single bag — N crossings stored (X ..., Y ...)` line and the
+  store's `[Crossings] captured A OoT-hosted and B MM-hosted crossings (digest D)` line must
+  equal the store it left (counts and digest). The identity is recorded HERE (masterSeed,
+  settingsHash, mmProfileDigest, comboFingerprint, the crossing counts and digest), and the
+  file loaded back from disk must match it, so a `.redsave` round trip that loses or reorders
+  a crossing fails instead of becoming the baseline. The creation runs at most once.
 - **mm-stabilize (every arrival):** the stderr lines
   `[MM] pairing: arrival profile matches the creation-frozen identity` and
   `[MM] pairing: HYDRATED from the frozen MM half`, read back through a tee of fd 2
@@ -257,7 +268,7 @@ Extra assertions, all loud:
   toast; `Combo_ForeignPairingActive()`; a frozen, non-empty crossing store whose counts
   the HYDRATED line prints; the MM seed of the creation's "armed" line = the HYDRATED line's
   = the live save's; MM's generation dispatch count unchanged since the creation; the
-  identity recorded after the load unchanged.
+  identity recorded at the creation unchanged.
 - **oot-return:** OoT's half is the created file, its world seed unchanged, a sentinel
   written before the Happy Mask Shop door (`deaths=777`) survived (restored from the frozen
   state, not reloaded or regenerated), and the identity unchanged.

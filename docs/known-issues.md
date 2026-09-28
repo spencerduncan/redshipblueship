@@ -269,9 +269,12 @@ Since PR [#790](https://github.com/spencerduncan/redshipblueship/pull/790) the
 (`redship --integration-test int-paired-first-crossing`). In one process, with the ROM
 archives mounted and a real OpenGL window, it takes the title to the file select (SoH's
 "Boot Sequence: File Select" path), generates the pinned world `RSBSSINGLEBAG1` on the
-shipped defaults, creates file 3 through OoT's own new-file seam (`OoT_Sram_InitSave`,
+shipped defaults (checked: it fails if the config sets any OoT, MM or combo setting),
+creates file 3 through OoT's own new-file seam (`OoT_Sram_InitSave`,
 which runs the production creation event and writes the slot), loads that file back the
-way the file select does, and plays it from the Market (0x01D1). It walks through the
+way the file select does, and plays it from the Market (0x01D1). The loaded file must carry
+the identity the creation recorded before the load (seed, settings digests, crossing counts
+and digest). It walks through the
 Happy Mask Shop (0x0530) into South Clock Town (0xD800), then back through the Clock
 Tower door (0xC010). It fails unless the MM arrival logs both lines §3 of the playtest
 guide asks you to look for, the pairing is live in MM, the crossing store is frozen and
