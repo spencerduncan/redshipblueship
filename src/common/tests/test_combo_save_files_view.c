@@ -16,8 +16,9 @@
  *      fallback. The three reasons a load toast also names use the toast's own
  *      words (RsbsSave_EmitLoadToast), so the page and the toast agree.
  *   B. One row per state: an empty slot; an empty slot with a set-aside backup;
- *      a ready file (its name is rsbs::SlotNameLine's, its last game spelled
- *      out, no tooltip); a ready file whose last load resumed a newer commit
+ *      a ready file (its name is rsbs::SlotNameLine's, its Started cell names
+ *      both halves even when the name line names one, its last game, no
+ *      tooltip); a ready file whose last load resumed a newer commit
  *      (a tooltip); a file refused for its header (no name: its bytes are not
  *      read); a healthy file this session refused (its name still shows) with
  *      and without a backup (the tooltip says which).

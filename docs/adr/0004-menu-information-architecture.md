@@ -758,7 +758,7 @@ buttons. The files, their two CMake entries and their lint-list line are deleted
 
 **What moved: a read-only page, Combo > Save Files** (`games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp`, contributed
 through `RegisterComboSectionPage`; model `src/common/combo_save_files_view.{h,cpp}`, ADR 0008 rule 1). One table
-row per file: the name line, which halves are started, the game it last saved in, and a status (`Ready`, `Empty`,
+row per file: the name line, which halves are started, the game it last saved in (Last Game), and a status (`Ready`, `Empty`,
 `Empty (backup kept)`, or `Not paired: <reason>` in the player's words, with a tooltip saying whether the original
 was set aside as a backup), under a gray note for the three situations (no file yet, every file pairs, one does not).
 

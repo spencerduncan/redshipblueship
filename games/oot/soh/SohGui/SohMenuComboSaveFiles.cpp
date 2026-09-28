@@ -65,11 +65,13 @@ void DrawSaveFileList(WidgetInfo& info) {
     static ImVec2 cellPadding(8.0f, 8.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
     if (ImGui::BeginTable("tableSaveFiles", 5, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
-        ImGui::TableSetupColumn("File", ImGuiTableColumnFlags_WidthStretch, 60.0f);
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 150.0f);
-        ImGui::TableSetupColumn("Started", ImGuiTableColumnFlags_WidthStretch, 90.0f);
-        ImGui::TableSetupColumn("Last Played", ImGuiTableColumnFlags_WidthStretch, 90.0f);
-        ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthStretch, 240.0f);
+        // Weights sized so no header is cut at the narrowest window (832 px): a
+        // header row does not wrap.
+        ImGui::TableSetupColumn("File", ImGuiTableColumnFlags_WidthStretch, 55.0f);
+        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 120.0f);
+        ImGui::TableSetupColumn("Started", ImGuiTableColumnFlags_WidthStretch, 85.0f);
+        ImGui::TableSetupColumn("Last Game", ImGuiTableColumnFlags_WidthStretch, 115.0f);
+        ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthStretch, 245.0f);
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
         ImGui::TableHeadersRow();
         ImGui::PopItemFlag();
