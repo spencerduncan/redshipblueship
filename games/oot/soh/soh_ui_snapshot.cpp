@@ -18,7 +18,8 @@
  *   ui-snapshots/compare/<ours>__vs__<ref>[@variant].png   reference over ours
  *   ui-snapshots/iter/<slug>.png, .diff.png  before over after, with a baseline
  *   ui-snapshots/manifest.json            what was drawn, how, and the verdicts
- *   ui-snapshots/runtime-lint.txt         the runtime copy lint (R1-R7)
+ *   ui-snapshots/runtime-lint.txt         the runtime copy lint (R1-R7, R9)
+ *   ui-snapshots/label-fit.txt            R9's measurements: every row that overruns its column
  *   ui-snapshots/soh-names.txt            SoH's own row names and tooltips (R8)
  *
  * WHAT IT ASSERTS IS STRUCTURE, NEVER APPEARANCE: the drawable is the profile
@@ -957,6 +958,13 @@ class Session {
     std::map<const WidgetInfo*, std::string> textRows;
     std::set<std::string> dynamicHits;
     void CollectDynamicLint();
+    // R9: every row of one of this project's pages fits its column at the run's
+    // profile (MeasureLabelFit). The report lists every overrun the run measured,
+    // SoH's reference pages included (report only, never a failure: SoH's pages
+    // are the reference, and some of their rows overrun a narrow column).
+    std::vector<std::string> labelFitReport;
+    int labelFitMeasured = 0;
+    void MeasureLabelFit(const PageSpec& p, const std::string& state);
 
     // The row-state probe (ADR 0004 section 6's four presentations on synthetic
     // rows): installed only while its own page is captured.
@@ -3004,7 +3012,13 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                 // its first views, and the manifest says the rest were not taken.
                 c.reason = "scroll sequence truncated at " + std::to_string(kMaxScrollSteps + 1) + " views";
             }
+            const bool measure = scrollIndex == 0;
             Record(std::move(c));
+            if (measure && captures.back().status == "pass") {
+                // R9, once per state, on the settled first view: the layout is
+                // horizontal, so the scroll position does not change the answer.
+                MeasureLabelFit(p, state);
+            }
             if (!more) {
                 break;
             }
@@ -4487,7 +4501,115 @@ bool Session::WriteManifest() {
     return WriteTextFile(out / "manifest.json", j);
 }
 
-// ---- runtime lint (R1-R7) and R8's dump ------------------------------------------------------
+// ---- runtime lint (R1-R7, R9) and R8's dump --------------------------------------------------
+
+bool IsInteractive(WidgetType t);
+
+/**
+ * R9: does every row of @p p fit its column at this run's profile? One frame of
+ * the page is drawn with every measurable row's postFunc wrapped (MenuDrawItem
+ * runs it right after the widget, the hover captures' mechanism), and each row
+ * reports the rectangle it drew and the clip rectangle of the column child it
+ * drew into. A row fits when its right edge is inside that clip rectangle:
+ *   - a checkbox's item rectangle ends where its label ends (UIWidgets::Checkbox
+ *     sizes total_bb to the label), and a slider's, combobox's or button's
+ *     group ends where its widest part ends (the label above, or the box). A
+ *     slider's label carries its value, so it is also measured at both ends of
+ *     its range: a row that fits at 5 minutes and not at 60 does not fit;
+ *   - a SEPARATOR_TEXT's rectangle always spans the column (ImGui's
+ *     SeparatorTextEx), and ImGui ELLIPSIZES a title that does not fit, so its
+ *     need is computed: the title's width plus the separator padding on both
+ *     sides, against the rectangle's own right edge as well as the clip;
+ *   - a TEXT row wraps at the column (TextWrapped), so it overruns only when one
+ *     word is wider than the column.
+ * Custom rows (a trick table, a mod list) are left out: their last item is
+ * whatever their function drew last, not the row, and their tables scroll
+ * horizontally as SoH's do.
+ *
+ * A row of this project's pages that does not fit is an R9 hit, which the
+ * runtime lint fails like any other hit outside the baseline. SoH's reference
+ * pages are measured the same way and only REPORTED (label-fit.txt): rule 0
+ * keeps them as SoH shipped them, and they do overrun a narrow column.
+ */
+void Session::MeasureLabelFit(const PageSpec& p, const std::string& state) {
+    auto& entries = MenuEntries(*menu);
+    if (!entries.contains(p.header) || !entries.at(p.header).sidebars.contains(p.sidebar)) {
+        return;
+    }
+    struct Drawn {
+        std::string name;
+        float needX = 0.0f;
+        float limitX = 0.0f;
+        float columnW = 0.0f;
+    };
+    auto drawn = std::make_shared<std::vector<Drawn>>();
+    std::vector<std::pair<WidgetInfo*, WidgetFunc>> saved;
+    for (auto& column : entries.at(p.header).sidebars.at(p.sidebar).columnWidgets) {
+        for (WidgetInfo& row : column) {
+            if (!IsInteractive(row.type) && row.type != WIDGET_SEPARATOR_TEXT && row.type != WIDGET_TEXT) {
+                continue;
+            }
+            saved.emplace_back(&row, row.postFunc);
+            WidgetFunc prev = row.postFunc;
+            row.postFunc = [drawn, prev](WidgetInfo& info) {
+                const ImGuiWindow* w = GImGui->CurrentWindow;
+                const ImRect item(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+                Drawn d;
+                d.name = info.name;
+                d.needX = item.Max.x;
+                d.limitX = w->InnerClipRect.Max.x;
+                d.columnW = w->InnerClipRect.GetWidth();
+                if (info.type == WIDGET_SEPARATOR_TEXT) {
+                    const float pad = GImGui->Style.SeparatorTextPadding.x;
+                    d.needX = item.Min.x + pad * 2.0f + ImGui::CalcTextSize(info.name.c_str(), nullptr, true).x;
+                    d.limitX = std::min(d.limitX, item.Max.x);
+                } else if ((info.type == WIDGET_SLIDER_INT || info.type == WIDGET_CVAR_SLIDER_INT) &&
+                           info.options != nullptr) {
+                    // A slider's label is printf'd with its value (UIWidgets::SliderInt:
+                    // ImGui::Text(label, *value)), so the value drawn now is not the
+                    // widest: the label must fit at either end of its range too.
+                    const auto opts = std::static_pointer_cast<UIWidgets::IntSliderOptions>(info.options);
+                    if (opts->labelPosition == UIWidgets::LabelPositions::Above &&
+                        opts->alignment == UIWidgets::ComponentAlignments::Left) {
+                        for (const int32_t v : { opts->min, opts->max }) {
+                            char text[256];
+                            ImFormatString(text, sizeof(text), info.name.c_str(), v);
+                            d.needX = std::max(d.needX, item.Min.x + ImGui::CalcTextSize(text).x);
+                        }
+                    }
+                }
+                drawn->push_back(d);
+                if (prev) {
+                    prev(info);
+                }
+            };
+        }
+    }
+    std::string why;
+    PumpFrame(nullptr, false, nullptr, why);
+    for (auto& [row, post] : saved) {
+        row->postFunc = post;
+    }
+
+    const bool ours = p.origin == Origin::RSBS;
+    const std::string where = p.header + "/" + p.sidebar;
+    for (const Drawn& d : *drawn) {
+        labelFitMeasured++;
+        const float over = d.needX - d.limitX;
+        if (over <= 0.5f) {
+            continue;
+        }
+        std::string name = d.name;
+        std::replace(name.begin(), name.end(), '\n', ' ');
+        char detail[96];
+        snprintf(detail, sizeof(detail), "over by %.0f px in a %.0f px column", over, d.columnW);
+        labelFitReport.push_back(std::string(ours ? "ours | " : "soh  | ") + where +
+                                 (state.empty() ? "" : "@" + state) + " | " + name + " | " + detail);
+        if (ours) {
+            dynamicHits.insert("R9 | " + where + " | " + name + " :: does not fit its column at " + profile.name);
+        }
+    }
+}
 
 bool IsInteractive(WidgetType t) {
     switch (t) {
@@ -4694,12 +4816,22 @@ int Session::RuntimeLint() {
         }
     }
 
-    std::string body = "# Runtime UI lint (R1-R7) over this project's rows. One hit per line: rule | where | row.\n"
+    std::string body = "# Runtime UI lint (R1-R7, R9) over this project's rows. One hit per line: rule | where | row.\n"
                        "# R2w/R4w are warnings and are reported, never baselined or failed.\n";
     for (const std::string& h : hits) {
         body += h + "\n";
     }
     WriteTextFile(out / "runtime-lint.txt", body);
+
+    // R9's measurements, SoH's reference pages included (report only for those).
+    std::string fit = "# Label fit at " + profile.name + " (R9): every row that overruns its column. " +
+                      std::to_string(labelFitMeasured) +
+                      " row draw(s) measured.\n"
+                      "# ours rows are R9 hits (runtime-lint.txt); soh rows are the reference, reported only.\n";
+    for (const std::string& line : labelFitReport) {
+        fit += line + "\n";
+    }
+    WriteTextFile(out / "label-fit.txt", fit);
 
     // Baseline comparison: only on a complete run (a partial run misses R5 hits
     // from states it did not drive), and only when the row names a baseline.
