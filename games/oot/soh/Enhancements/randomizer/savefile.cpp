@@ -81,6 +81,13 @@ extern "C" void Randomizer_TestClearOoTSave(void) {
     gSaveContext.fileNum = 0;
 }
 
+/** The name OoT's file select would have written before the creation seam
+ *  (Sram_InitSave): 8 bytes in the charset `filenameLanguage` names (#773). */
+extern "C" void Randomizer_TestSetOoTPlayerName(const uint8_t* name, uint8_t filenameLanguage) {
+    memcpy(gSaveContext.playerName, name, sizeof(gSaveContext.playerName));
+    gSaveContext.ship.filenameLanguage = filenameLanguage;
+}
+
 /** The i-th host Randomizer_InitSaveFile resolves a creation-time give from. */
 extern "C" int Randomizer_TestCreationGiveHost(int i) {
     static const RandomizerCheck kHosts[] = { RC_LINKS_POCKET, RC_SONG_FROM_IMPA, RC_TOT_MASTER_SWORD };

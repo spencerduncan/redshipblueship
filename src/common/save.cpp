@@ -1206,7 +1206,11 @@ void ExtractGameMeta(const RsbsGameMetaDesc& desc, const uint8_t* blob, size_t b
     if (nameLen > 8) {
         nameLen = 8;
     }
-    if (nameLen > 0 && static_cast<size_t>(desc.playerNameOffset) + nameLen <= blobSize) {
+    if (desc.decodePlayerName != nullptr) {
+        // The game's own charset (#773); the decoder bounds-checks its reads.
+        desc.decodePlayerName(blob, blobSize, outName);
+        outName[8] = '\0';
+    } else if (nameLen > 0 && static_cast<size_t>(desc.playerNameOffset) + nameLen <= blobSize) {
         for (uint32_t i = 0; i < nameLen; i++) {
             char c = static_cast<char>(blob[desc.playerNameOffset + i]);
             // Treat 0x00, the N64 0xDF "space", and stray high-bit bytes as
@@ -1431,6 +1435,32 @@ int RsbsSave_GetActiveSlot(void) {
 
 void RsbsSave_RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc) {
     rsbs::SaveManager::Instance().RegisterGameMeta(game, desc);
+}
+
+void RsbsSave_DecodeN64FilenameName(const uint8_t name[8], char outName[9]) {
+    int len = 0;
+    for (int i = 0; i < 8; i++) {
+        const uint8_t c = name[i];
+        char out = '?';
+        if (c <= 0x09) {
+            out = static_cast<char>('0' + c);
+        } else if (c <= 0x23) {
+            out = static_cast<char>('A' + (c - 0x0A));
+        } else if (c <= 0x3D) {
+            out = static_cast<char>('a' + (c - 0x24));
+        } else if (c == 0x3E) {
+            out = ' ';
+        } else if (c == 0x3F) {
+            out = '-';
+        } else if (c == 0x40) {
+            out = '.';
+        }
+        outName[i] = out;
+        if (out != ' ') {
+            len = i + 1;
+        }
+    }
+    outName[len] = '\0';
 }
 
 }  // extern "C"
