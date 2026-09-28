@@ -710,13 +710,13 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // check-registrar-elision.sh audits that archive as `required`, so leg 1 is
     // enforced on every CI build. Legs 2 and 3 are MMClockShuffleSongs'
     // registry-content probes.
-    { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Song of Double Time",
+    { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Double Time",
       "Lets the Song of Double Time pick any time of day instead of only the next dawn or dusk, and with Clock "
       "Shuffle on refuses a half-day this file does not own. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp:472",
       "gEnhancements.Songs.BetterSongOfDoubleTime", "ShouldVanillaBehavior[VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT]",
       MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
-    { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Song of Time Cutscenes",
+    { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Time Song Cutscenes",
       "Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes, and with Clock Shuffle on "
       "returns the Song of Time to the earliest half-day this file owns. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/SkipSoTCutscenes.cpp:101", "gEnhancements.Songs.SkipSoTCutscenes",

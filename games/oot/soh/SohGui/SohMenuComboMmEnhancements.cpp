@@ -290,20 +290,21 @@ void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
  */
 void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* rows, std::size_t count) {
     const RSBS::HostedMmEnhancement* const end = rows + count;
-    // THREE COLUMNS, TWO FILLED (UI parity M3): the column measure of the page's
-    // reference, Enhancements > Quality of Life, which registers three. The
-    // toggles take the first and the Autosave group the second; the third is
-    // left empty, so every row is exactly as wide as the Quality of Life row it
-    // is read beside. As one full-width column the interval slider ran the
-    // whole width of the page, three times as wide as any slider on Quality of
-    // Life, and as two columns it was still half again as wide. An empty
-    // trailing column is not #640: Menu::DrawElement takes the column path when
-    // ANY column holds widgets and draws only those. The split is by manifest
-    // ORDER: the first pointer row opens the second column and everything after
-    // it stays there, so a pointer row and the rows gated on it (which the
-    // manifest lists after it, MenuMmEnhancementRows leg 5) share a column.
+    // TWO COLUMNS: SoH's count for a MIXED page (Settings > General,
+    // docs/ui-style-guide.md section 1), and this page mixes toggles, a
+    // pointer note and a slider. It used to declare three, Quality of Life's
+    // count for a dense toggle page, so its rows had that page's width at
+    // 1280 px (UI parity M3). But the narrowest profile the harness renders
+    // is the contract for OUR rows (the style guide's width rule): at
+    // 832x600 a third of the page is 188 px, and every label here but
+    // "Autosave" ran past it (runtime lint R9). A half is 272 px. As one
+    // full-width column the interval slider ran the whole page, which is
+    // still why it is not one. The split is by manifest ORDER: the first
+    // pointer row opens the second column and everything after it stays
+    // there, so a pointer row and the rows gated on it (which the manifest
+    // lists after it, MenuMmEnhancementRows leg 5) share a column.
     path.column = SECTION_COLUMN_1;
-    menu.AddWidget(path, "Majora's Mask Enhancements", WIDGET_SEPARATOR_TEXT);
+    menu.AddWidget(path, "MM Enhancements", WIDGET_SEPARATOR_TEXT);
     AddGroupNote(menu, path, rows, HeadingGroupEnd(rows, end));
 
     for (std::size_t i = 0; i < count; i++) {
@@ -392,12 +393,12 @@ void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmE
  * function-local call would need a caller, and the only candidate is the TU this
  * seam exists to avoid editing.
  *
- * Three columns, Quality of Life's count, and the page holds seven widgets (the
- * heading separator and three checkboxes in the first; the pointer row's
- * separator + text and #693's interval slider right after it in the second; the
- * third empty, for the measure), so the page is not #640's empty page.
+ * Two columns, SoH's count for a mixed page, and the page holds seven widgets
+ * (the heading separator and three checkboxes in the first; the pointer row's
+ * separator + text and #693's interval slider right after it in the second), so
+ * the page is not #640's empty page.
  */
-static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 3, AddMmEnhancementWidgets);
+static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 2, AddMmEnhancementWidgets);
 
 /**
  * MM's randomizer options and tricks (SohMenuComboMmRandomizer.cpp), registered

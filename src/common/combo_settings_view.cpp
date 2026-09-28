@@ -40,11 +40,11 @@ struct ComboSettingDesc {
 // buffers and the locks' expectation tables are both indexed by the id.
 const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_DIRECTION, "Crossing Direction" },
-    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_OOT, "Max OoT Items on MM Checks" },
-    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_MM, "Max MM Items on OoT Checks" },
-    { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT, "OoT Item Classes" },
-    { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM, "MM Item Classes" },
-    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, "Shared Ocarina" },
+    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_OOT, "Max OoT Items" },
+    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_MM, "Max MM Items" },
+    { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT, "OoT Classes" },
+    { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM, "MM Classes" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, "One Ocarina" },
     { RSBS_CVAR_COMBO_RANDO_GOAL, "Goal" },
 };
 

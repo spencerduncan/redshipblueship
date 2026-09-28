@@ -42,7 +42,26 @@ and on ours (R-N4).
   - 2 for mixed pages (`SohMenuSettings.cpp:128`)
   - 1 for window-button and tracker pages (`SohMenuRandomizer.cpp:739`)
 
-  Below 800 px the columns collapse to 1 (`Menu.cpp:892`). Sidebar names are Title Case, 1-3 words, and fit the
+  Below 800 px the columns collapse to 1 (`Menu.cpp:892`).
+- **Width [project rule].** The narrowest profile the harness renders, `min-832x600`, is the contract for our rows:
+  every row of ours fits its column there, and therefore at every wider profile. At 832 px a page's section is about
+  588 px wide, so a column is 286 px on a two-column page and 188 px on a three-column one, 14 px less when the
+  column scrolls (272 and 174). A checkbox takes about 44 px before its label, a separator title 40 px of padding, and a slider's label
+  must fit at both ends of its range, because it prints its value. A three-column page therefore holds labels of about
+  14 characters, which is why our mixed pages use two columns, as SoH's mixed pages do. Where a label of ours is still
+  too long, shorten it to SoH's wording length with the same meaning (R-N2, R-N6) rather than changing a widget or a
+  font. SoH's own pages do not meet this, and rule 0 keeps them as shipped. At 832x600, 68 rows on SoH's pages overrun
+  their column (23 of them on Enhancements > Quality of Life, where "Containers Match Contents" is counted twice, its
+  separator and its checkbox). 63 are rows as SoH shipped them; 5 carry this project's ruled "[Both Games] " marker
+  (rule 3), which SoH shipped without: Dev Tools > General's Popout Menu and Debug Mode, and Settings > General's
+  Cursor Always Visible, Search In Sidebar and Search Input Autofocus. At 960x704 it is 36 (33 plus 3 marked), and at
+  1280x800 2 (none marked). All of them are reported in `label-fit.txt`, never failed.
+- **The contract is armed in CI by its own row.** The runtime lint's R9 (section 13) fails the `ui` tier on a row of
+  ours that overruns at the run's profile. `UiSnapshot` takes the largest profile the desktop allows (desk-1280x800 on
+  the Linux runner), where no row of ours overran even before this rule, so `UiSnapshotMin` runs the same harness
+  pinned to `min-832x600` (`RSBS_UI_SNAPSHOT_PROFILE`), with its output in `ui-snapshots/min-832x600/`. Our Combo
+  pages draw without ROM archives, so R9 measures them in CI as well.
+- **Sidebar names.** Sidebar names are Title Case, 1-3 words, and fit the
   200 px sidebar in Montserrat 24: about 16 characters, but measure it in the snapshot PNG, because the budget is
   pixels, not characters. SoH's widest entry, "Entrance Tracker" (16), is about 169 px; a selected entry's highlight
   needs about 10 px of padding each side, so keep a label under about 180 px. Our "Cross-Game Windows" (18) was cut on
@@ -292,9 +311,9 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   compares the toast the site queued with that copy, exactly. The long explanation belongs on the refusal's stderr
   line, not in the toast. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
   their record names (`poolSizeOoT`, `itemClassMM`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name
-  the field; the Cross-Game Rules page's own labels carry the same abbreviations ("Max OoT Items on MM Checks"); the
-  longest label alone overruns the budget; and six of the thirteen fields (`logicRung`, `comboFlags`, `spare1`,
-  `formatVersion`, `comboSettingsHash`, `triforceHunt`) have no row on that page to name.
+  the field; the Cross-Game Rules page's own labels carry the same abbreviations ("Max OoT Items", "MM Classes"); and
+  six of the thirteen fields (`logicRung`, `comboFlags`, `spare1`, `formatVersion`, `comboSettingsHash`,
+  `triforceHunt`) have no row on that page to name.
 
 ## 11. Anti-patterns
 
@@ -313,7 +332,7 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
 
 ## 12. Verification by pixels
 
-`redship --test ui-snapshot` (CTest row `UiSnapshot`, label `ui`) renders every page below into
+`redship --test ui-snapshot` (CTest rows `UiSnapshot` and, pinned to `min-832x600`, `UiSnapshotMin`; label `ui`) renders every page below into
 `<build>/ui-snapshots/`. It uses one process, one window, one backend and pinned settings: a fresh config file, default
 theme, scale and background opacity, multi-viewports off, and MSAA 1.
 
@@ -321,7 +340,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 |---|---|
 | Combo > Cross-Game Rules | Randomizer > General |
 | Combo > Windows | Randomizer > Item Tracker |
-| Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (same three-column measure) |
+| Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (its rows; ours is two columns, section 1's width rule) |
 | Combo > MM Row States (harness-only: the Majora's Mask page's builder over a synthetic non-live table, so its disabled rows and group notes are drawn) | Enhancements > Quality of Life |
 | Combo > MM Mods | Randomizer > Tricks/Glitches (the two-column Disabled/Enabled table; OoT's Settings > Mod Menu throws in the harness's fresh config) |
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
@@ -347,7 +366,8 @@ Compare within the same run, the same profile and the same backend. Check:
 | `compare/<ours>__vs__<ref>[@variant].png` | the SoH reference cropped to its content, over ours |
 | `iter/<slug>.png`, `iter/<slug>.diff.png` | before over after, and the difference x4 (only with `RSBS_UI_SNAPSHOT_BASELINE`) |
 | `manifest.json` | the run (backend, readback, profile, archives) and, per capture, the hashes, the content rectangle, the settle count and the verdicts |
-| `runtime-lint.txt` | the runtime copy lint R1-R7 over our rows |
+| `runtime-lint.txt` | the runtime copy lint R1-R7 and R9 over our rows |
+| `label-fit.txt` | R9's measurements: every row, ours and SoH's, that overruns its column at this profile |
 
 A `compare/` or `iter/` image that cannot be written is counted, not silent: the summary line reads "N composite(s)
 not written" and the manifest's run block holds `compositeWriteFailures`. On Windows the writer retries a path past
@@ -471,6 +491,7 @@ names what must fail. Run them after changing the harness itself.
 | `hover-first-line` | a hovered row draws only the first line of its tooltip | every hover whose tooltip has a second line ("does not show its row's tooltip") |
 | `no-menu-under` | the overlay's `over-menu` variant leaves the menu hidden | that capture ("the menu under the dim was not drawn") |
 | `no-dim` | the overlay's dim is drawn fully transparent | that capture ("... pixels outside the box are not the menu dimmed by ModalWindowDimBg") |
+| `no-label-fit` | R9's measuring frame records no row of our pages | each of our pages with measurable rows ("R9: measured no row of ...") |
 | `activate` | the no-activation hint is overridden to `"0"` before the window exists | on Windows with OpenGL only, the run ("focus: the harness window took keyboard focus ..."); `windowActivated` is a report on DirectX 11 (DXGI shows its window without consulting SDL's hint) and off Windows (Xvfb has no window manager) |
 
 **The original-page guard runs on a ROM-staged workstation only.** Hosted CI is ROM-free: SoH's own menu is not
@@ -512,5 +533,13 @@ A reworded entry counts as growth: fix the surface instead.
 - R5: an interactive row's name is never rewritten by its PreFunc
 - R6: TEXT notes are at most two sentences and 200 characters
 - R7: names are unique per page
+- R9: every row of our pages fits its column at the run's profile. The harness draws one frame of each page per
+  state with each row's postFunc wrapped and compares the row's rectangle with its column's clip rectangle; a
+  separator title is measured by its width (ImGui ellipsizes it), and a slider's label at both ends of its range.
+  Custom rows (trick tables, the mod list) are left out: the trick tables scroll sideways as SoH's Tricks/Glitches
+  table does, and the mod list clips a long name at its column as SoH's Mod Menu does (the same table flags). SoH's
+  pages are measured the same way and only reported, in `label-fit.txt`. R9 cannot pass by measuring nothing: a
+  measuring frame that fails fails the run, and so does a page of ours that has measurable rows and reports none
+  (sabotage `no-label-fit`, section 12)
 
 The baseline is `.github/scripts/ui-runtime-lint-baseline.txt`, enforced on complete runs only.

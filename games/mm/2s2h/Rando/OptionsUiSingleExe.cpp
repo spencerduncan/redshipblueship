@@ -201,18 +201,18 @@ const char* const kLogicLabels[] = {
 };
 
 const char* const kDungeonAccessLabels[] = {
-    "Requires Transformation & Song",  // RO_ACCESS_DUNGEONS_FORM_AND_SONG
-    "Requires Transformation or Song", // RO_ACCESS_DUNGEONS_FORM_OR_SONG
-    "Requires Only Transformation",    // RO_ACCESS_DUNGEONS_FORM_ONLY
-    "Requires Only Song",              // RO_ACCESS_DUNGEONS_SONG_ONLY
-    "Open",                            // RO_ACCESS_DUNGEONS_OPEN
+    "Transformation & Song",  // RO_ACCESS_DUNGEONS_FORM_AND_SONG
+    "Transformation or Song", // RO_ACCESS_DUNGEONS_FORM_OR_SONG
+    "Transformation Only",    // RO_ACCESS_DUNGEONS_FORM_ONLY
+    "Song Only",              // RO_ACCESS_DUNGEONS_SONG_ONLY
+    "Open",                   // RO_ACCESS_DUNGEONS_OPEN
 };
 
 const char* const kTrialsAccessLabels[] = {
-    "2-6-12-20 Masks",                    // RO_ACCESS_TRIALS_20_MASKS
-    "Requires Associated Remains",        // RO_ACCESS_TRIALS_REMAINS
-    "Requires Associated Transformation", // RO_ACCESS_TRIALS_FORMS
-    "Open",                               // RO_ACCESS_TRIALS_OPEN
+    "2-6-12-20 Masks",         // RO_ACCESS_TRIALS_20_MASKS
+    "Matching Remains",        // RO_ACCESS_TRIALS_REMAINS
+    "Matching Transformation", // RO_ACCESS_TRIALS_FORMS
+    "Open",                    // RO_ACCESS_TRIALS_OPEN
 };
 
 const char* const kClockProgressiveLabels[] = {
@@ -271,7 +271,7 @@ const OptionUi kOptionUi[] = {
       COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_TRIALS, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_COMBO,
       "Trials Access",
-      "What the Moon trials require. Mask counts, associated remains, associated transformation, or open.",
+      "What the Moon trials require. Mask counts, the matching remains, the matching transformation, or open.",
       0, 0, kTrialsAccessLabels, UI_COUNT(kTrialsAccessLabels),
       // Was PARTIAL on "trials read as Open regardless", which was true while
       // the gate was dead: EnJs.cpp's VB_JS_OVERRIDE_MASK_CHECK reports jsType
@@ -286,10 +286,10 @@ const OptionUi kOptionUi[] = {
       // sets is the gate the player gets.
       COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_MOON_MASKS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
-      "Moon Access: Masks Required", "How many masks are needed to enter the Moon.",
+      "Masks to Enter Moon", "How many masks are needed to enter the Moon.",
       0, 20, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_MOON_REMAINS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
-      "Moon Access: Remains Required", "How many boss remains are needed to enter the Moon.",
+      "Remains to Enter Moon", "How many boss remains are needed to enter the Moon.",
       0, 4, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     // Both Majora sliders were PARTIAL on "logic only: the gate needs
     // OnOpenText". They share one gate and it is live: EnJs.cpp's
@@ -300,10 +300,10 @@ const OptionUi kOptionUi[] = {
     // gates them, so "logic only" stopped being true when #512 dispatched
     // OnOpenText.
     { RO_ACCESS_MAJORA_MASKS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
-      "Majora Access: Masks Required", "How many masks are needed to reach Majora.",
+      "Masks to Reach Majora", "How many masks are needed to reach Majora.",
       0, 20, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_MAJORA_REMAINS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
-      "Majora Access: Remains Required", "How many boss remains are needed to reach Majora.",
+      "Remains to Reach Majora", "How many boss remains are needed to reach Majora.",
       0, 4, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_ACCESS_MAJORA_REMAINS, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_CHECKBOX,
       // Player-facing copy (UI parity M6): no ruling or ADR reference in the
@@ -350,10 +350,10 @@ const OptionUi kOptionUi[] = {
     // restore (AfterEndOfCycleSave copies skullTokenCount back under exactly
     // this option), and that now dispatches.
     { RO_SHUFFLE_GOLD_SKULLTULAS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
-      "Shuffle Gold Skulltula Tokens", "Adds the Spider House tokens to the check pool.",
+      "Shuffle Skulltula Tokens", "Adds the Spider House tokens to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_MINIMUM_SKULLTULA_TOKENS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_SLIDER,
-      "Minimum Gold Skulltula Tokens",
+      "Minimum Skulltula Tokens",
       "Tokens needed for the Spider House reward. Forced to the vanilla value when tokens are not shuffled.",
       1, SPIDER_HOUSE_TOKENS_REQUIRED, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_MINIMUM_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_SLIDER,
@@ -546,13 +546,13 @@ const OptionUi kOptionUi[] = {
       "Starting Hearts", "How many hearts a new file begins with.",
       1, 20, nullptr, 0, COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_STARTING_CONSUMABLES, COMBO_MM_GROUP_STARTING, COMBO_MM_WIDGET_CHECKBOX,
-      "Start With Full Consumables", "Begin with full Deku Sticks and Deku Nuts.",
+      "Start With Consumables", "Begin with full Deku Sticks and Deku Nuts.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_STARTING_RUPEES, COMBO_MM_GROUP_STARTING, COMBO_MM_WIDGET_CHECKBOX,
       "Start With Full Wallet", "Begin with a full wallet.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_STARTING_MAPS_AND_COMPASSES, COMBO_MM_GROUP_STARTING, COMBO_MM_WIDGET_CHECKBOX,
-      "Start With Maps & Compasses", "Begin with every dungeon map and compass.",
+      "Start With Map & Compass", "Begin with every dungeon map and compass.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
 
     // ---- Hints -------------------------------------------------------------

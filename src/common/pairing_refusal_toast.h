@@ -35,10 +35,10 @@
  * THE RULES REFUSAL NAMES FIELDS BY THEIR RECORD NAMES ("goal", "poolSizeOoT",
  * "triforceHunt"), a recorded exception to R-N8 (docs/ui-style-guide.md section
  * 10): ADR 0011 decision 4 requires the refusal to name the field, the Cross-Game
- * Rules rows' own labels carry the same abbreviations ("Max OoT Items on MM
- * Checks"), the longest label alone overruns the budget, and six of the thirteen
- * fields (logicRung, comboFlags, spare1, formatVersion, comboSettingsHash,
- * triforceHunt) have no row on that page to name.
+ * Rules rows' own labels carry the same abbreviations ("Max OoT Items", "MM
+ * Classes"), and six of the thirteen fields (logicRung, comboFlags, spare1,
+ * formatVersion, comboSettingsHash, triforceHunt) have no row on that page to
+ * name.
  *
  * Game-header-free C (ADR 0002): the spoiler refusal's detail is one of the
  * RSBS_SPOILER_REFUSAL_* route keys below, which the MM spoiler loader

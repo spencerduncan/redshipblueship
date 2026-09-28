@@ -1983,6 +1983,19 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy"
                     "RSBS_UI_LINT_BASELINE=${CMAKE_SOURCE_DIR}/.github/scripts/ui-runtime-lint-baseline.txt")
+    # The same harness pinned to the CONTRACT profile, min-832x600
+    # (docs/ui-style-guide.md section 1, the width rule). UiSnapshot takes the
+    # largest profile the desktop allows (desk-1280x800 on the Linux runner's
+    # 1920x1080 xvfb), and no row of ours overran there even before the rule, so
+    # R9 binds only where the profile is pinned. Our Combo pages are ROM-free, so
+    # R9 measures them in CI too. Its own output directory, inside the one CI uploads.
+    redship_add_test(NAME UiSnapshotMin COMMAND redship --test ui-snapshot
+        LABEL ui
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy"
+                    "RSBS_UI_SNAPSHOT_PROFILE=min-832x600"
+                    "RSBS_UI_SNAPSHOT_OUT=${CMAKE_BINARY_DIR}/ui-snapshots/min-832x600"
+                    "RSBS_UI_LINT_BASELINE=${CMAKE_SOURCE_DIR}/.github/scripts/ui-runtime-lint-baseline.txt")
     # ADR 0010 increment 3 (lane K11): THE SINGLE-BAG FILL AT THE CREATION EVENT,
     # over both real engines: a paired OoT generation stops at its general pass,
     # MM's creation-time half places the union bag over both games (GOAL proven,
