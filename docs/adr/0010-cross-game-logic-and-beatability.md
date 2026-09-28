@@ -2087,7 +2087,7 @@ that leaves it false plays no ending.
   is still there). Accepted: saves are pre-release.
 - **Not covered:** a half's own triforce hunt in a world whose combo goal
   is not triforce-hunt still ends that half's game through its own win arm
-  (#768).
+  (#768). Closed by the next amendment.
 
 Locked by `ComboGoalEnding`: the predicate for all five values; the
 decision for every goal in both orders; unpaired files; the record's
@@ -2098,3 +2098,53 @@ makes its call right after the upstream lines it follows under its guard,
 that the replicas replay the actors' lines, and that no other completion
 writer exists (with the counterfactuals run inside the row). The Goal
 row's tooltip now says "The paired game ends when the goal is met".
+
+### 2026-09-27 -- D1: a half's own triforce hunt is not a win condition (#768)
+
+In a paired world the frozen combo goal is the only win condition. OoTMM has
+one shared hunt and no per-game hunt (`packages/core/src/settings/data.ts`
+goals `triforce` / `triforce3`; `common/triggers.c` ends the seed on the
+shared hunt's last piece only under those goals), so it has nothing a half's
+own hunt could copy; this follows its rule that the goal alone ends the seed.
+
+- **Under a boss goal** (`beat-both`, `beat-either`, `beat-oot`, `beat-mm`)
+  a half's own hunt completing ends nothing: no "game complete" mark, no
+  save-and-credits, no `OnGameCompletion`, no ending transition, and no
+  final-boss bit is recorded. It keeps what it unlocks, which is the lock
+  each port already puts on its final boss under a hunt: OoT grants Ganon's
+  Boss Key, MM grants Majora's soul. The pieces stay items. Both piece-give
+  arms ask `Combo_GoalOnTriforceHuntCompleted` (`src/common/combo_goal.c`),
+  through `OoT_ComboGoal_TriforceHuntEnds` / `MM_ComboGoal_TriforceHuntEnds`.
+- **OoT's own "Win" mode is generated as "Ganon's Boss Key" under a boss
+  goal.** The engines disagreed: OoT's `goalReached` is "RG_TRIFORCE is
+  placed and reached", and in "Win" mode SoH places RG_TRIFORCE at
+  `RC_TRIFORCE_COMPLETED` and a blue rupee at `RC_GANON` (`item_pool.cpp`),
+  and adds Ganon's Boss Key to logic's starting inventory
+  (`starting_inventory.cpp`). A runtime that ends OoT's half only at Ganon
+  would then be proved against the hunt instead, and nothing would prove
+  Ganon reachable. In "Ganon's Boss Key" mode the same pieces and requirement
+  put the Boss Key at `RC_TRIFORCE_COMPLETED` and RG_TRIFORCE at `RC_GANON`,
+  so Ganon is OoT's win in the proof and in play. `Playthrough_Init` makes
+  that change right after `FinalizeSettings`, before the settings string is
+  hashed, so the settings hash, the seed, the spoiler and the save all
+  describe the world that is generated (`Combo_GoalKeepsOwnHuntWin`). MM
+  needs no such change: `MmGoalMajoraDefeated` already requires Majora's
+  soul, which the hunt grants.
+- **Under `triforce-hunt`** the arms were already right (O10): the half's
+  own requirement is an input and fires nothing, and the combo requirement
+  ends the game in whichever half reaches it. The decision reads the goal
+  predicate over the reaching count. Creation still refuses this goal
+  (increment 3's single bag does not carry a hunt yet), so no generated
+  world reaches this branch today.
+- **Fail direction** as for the final bosses: a frozen goal that cannot be
+  evaluated lets the half's own hunt end its own game, logged.
+- **Legacy pairs** generated before this change with OoT's own hunt in
+  "Win" keep that placement; once their first crossing freezes `beat-both`,
+  the hunt no longer ends OoT and Ganon is not proved reachable. Accepted:
+  saves are pre-release.
+
+Locked by `RandoTriforceHuntWin` (both ports' real piece-give arms under
+every goal value and unpaired, OoT in both modes, and the creation's "Win"
+to "Ganon's Boss Key" change over a real generation) and `ComboGoalEnding`
+(E9: the decision for every goal and both games; E7: both arms wired, under
+their guards, with main's arms as counterfactuals).

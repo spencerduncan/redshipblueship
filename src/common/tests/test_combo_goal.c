@@ -32,7 +32,8 @@
  *      split) marks OoT complete only when the paired game is over.
  *   E7 THE WIRING, from source (RSBS_SOURCE_DIR): each call site (BossGanon2's
  *      warp, Majora's warp, Majora's final blow, OoT's final-blow completion and
- *      its hook, Time Splits' completion) makes its call right after the
+ *      its hook, Time Splits' completion, and since #768 both triforce piece
+ *      give arms) makes its call right after the
  *      upstream lines it follows, inside `#ifdef RSBS_SINGLE_EXECUTABLE`; E5's
  *      replicas replay the actors' lines; and no writer of OoT's `gameComplete`
  *      or caller of MM's OnGameCompletion exists beyond the ones this row names.
@@ -41,6 +42,14 @@
  *      writer, must each fail the check.
  *   E8 FAIL OPEN: a paired world whose frozen goal cannot be evaluated ends
  *      each game as its own game (logged as an error), never "withhold forever".
+ *   E9 A HALF'S OWN TRIFORCE HUNT (#768): Combo_GoalOnTriforceHuntCompleted,
+ *      for every goal value and both games: unpaired is "own" (upstream); under
+ *      the four boss goals it is "withhold" (the hunt only unlocks its final
+ *      boss) and records nothing; under triforce-hunt it is the goal predicate
+ *      over the reaching count; an unevaluable goal fails open. And the
+ *      creation's rule (Combo_GoalKeepsOwnHuntWin): a half's own hunt may stay a
+ *      win condition only under triforce-hunt. E7 checks that both ports' piece
+ *      give arms call it, under their guards.
  *
  * On main (before #762) every final-boss defeat played its own game's ending
  * under every goal: E2's and E5's withheld expectations are the red half (see
@@ -354,6 +363,45 @@ std::string CgDropLine(const std::string& text, const std::string& after, const 
     return out;
 }
 
+/** The counterfactual source: `text` without the `#ifdef RSBS_SINGLE_EXECUTABLE`
+ *  line that opens `site`'s own guarded block (the line right after its
+ *  anchor), or `text` unchanged when the site cannot be located. Two sites can
+ *  share one function (MM's Rando::GiveItem), so "the first #ifdef after the
+ *  function" is not necessarily this site's. */
+std::string CgDropSiteGuard(const std::string& text, const CgSite& site) {
+    const std::vector<std::string> raw = CgLines(text);
+    size_t def = raw.size();
+    for (size_t i = 0; i < raw.size() && def == raw.size(); i++) {
+        if (raw[i].rfind(site.function, 0) == 0) {
+            def = i;
+        }
+    }
+    size_t guard = raw.size();
+    for (size_t i = def; i < raw.size() && guard == raw.size(); i++) {
+        bool match = i + site.anchor.size() < raw.size();
+        for (size_t k = 0; k < site.anchor.size() && match; k++) {
+            match = CgTrim(raw[i + k]) == site.anchor[k];
+        }
+        if (match && CgTrim(raw[i + site.anchor.size()]) == "#ifdef RSBS_SINGLE_EXECUTABLE") {
+            guard = i + site.anchor.size();
+        }
+    }
+    if (guard == raw.size()) {
+        return text;
+    }
+    std::string out;
+    for (size_t i = 0; i < raw.size(); i++) {
+        if (i == guard) {
+            continue;
+        }
+        out += raw[i];
+        if (i + 1 < raw.size()) {
+            out += "\n";
+        }
+    }
+    return out;
+}
+
 /** `text` with the first line equal (trimmed) to `line` replaced by `with`. */
 std::string CgReplaceLine(const std::string& text, const std::string& line, const std::string& with) {
     const std::vector<std::string> raw = CgLines(text);
@@ -535,6 +583,50 @@ TestResult Test_ComboGoalEnding(void) {
               "E8: goal byte 6: Majora must end MM as its own game, not withhold forever");
     printf("[TEST] E8: an unevaluable frozen goal fails open: each boss ends its own game, logged\n");
 
+    // ---- E9: a half's OWN triforce hunt under the frozen goal (#768) ---------
+    ComboContext_Init();
+    for (GameId game : kGames) {
+        CG_ASSERT(Combo_GoalOnTriforceHuntCompleted(game, 3) == RSBS_GOAL_ENDING_OWN,
+                  "E9: unpaired, %s's own triforce hunt must end its own game as upstream", CgGameName(game));
+    }
+    for (uint8_t goal : kGoals) {
+        CgFreezeWorld(goal);
+        for (GameId game : kGames) {
+            if (goal == hunt) {
+                CG_ASSERT(Combo_GoalOnTriforceHuntCompleted(game, (int)required) == RSBS_GOAL_ENDING_PLAY,
+                          "E9: triforce-hunt, the reaching give in %s's game must end the paired game",
+                          CgGameName(game));
+                CG_ASSERT(Combo_GoalOnTriforceHuntCompleted(game, (int)required - 1) == RSBS_GOAL_ENDING_WITHHOLD,
+                          "E9: triforce-hunt one piece short in %s's game must not end the paired game",
+                          CgGameName(game));
+            } else {
+                const int ending = Combo_GoalOnTriforceHuntCompleted(game, 99);
+                CG_ASSERT(ending == RSBS_GOAL_ENDING_WITHHOLD,
+                          "E9: %s, %s's OWN triforce hunt decided '%s', expected 'withhold': a half's own hunt is no "
+                          "term of a boss goal (#768)",
+                          CgGoalName(goal), CgGameName(game), Combo_GoalEndingName(ending));
+            }
+        }
+        CG_ASSERT(gComboCtx.sharedFlags[RSBS_SHARED_FLAGS_WORD_GOAL] == 0u,
+                  "E9: %s, a hunt's completion recorded a final-boss defeat (sharedFlags word 0 = 0x%08x)",
+                  CgGoalName(goal), (unsigned)gComboCtx.sharedFlags[RSBS_SHARED_FLAGS_WORD_GOAL]);
+        CG_ASSERT(Combo_GoalKeepsOwnHuntWin(goal) == (goal == hunt),
+                  "E9: %s: the creation's rule says a half's own hunt %s a win condition", CgGoalName(goal),
+                  Combo_GoalKeepsOwnHuntWin(goal) ? "stays" : "does not stay");
+    }
+    CG_ASSERT(Combo_GoalKeepsOwnHuntWin(0) && Combo_GoalKeepsOwnHuntWin(6),
+              "E9: a goal byte outside the pinned table must leave a half's own hunt as authored");
+    CgFreezeWorld(hunt);
+    gComboCtx.comboTriforce.requiredOoT = 0; // damaged: the hunt disarms, the requirement reads 0
+    CG_ASSERT(Combo_GoalOnTriforceHuntCompleted(GAME_OOT, 3) == RSBS_GOAL_ENDING_OWN,
+              "E9: triforce-hunt with a damaged record: OoT's own hunt must fail open to its own ending");
+    CgFreezeWorld((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH);
+    gComboCtx.comboSettings.goal = 6;
+    CG_ASSERT(Combo_GoalOnTriforceHuntCompleted(GAME_MM, 3) == RSBS_GOAL_ENDING_OWN,
+              "E9: goal byte 6: MM's own hunt must fail open to its own ending");
+    printf("[TEST] E9: a half's own triforce hunt ends its game only unpaired; under a boss goal it ends nothing and "
+           "records nothing; under triforce-hunt the shared count decides\n");
+
     // ---- E7: the wiring, from source ------------------------------------------
 #ifndef RSBS_SOURCE_DIR
     CG_ASSERT(false, "E7: RSBS_SOURCE_DIR is undefined: the call sites cannot be checked");
@@ -544,6 +636,30 @@ TestResult Test_ComboGoalEnding(void) {
         const char* kBoss07 = "games/mm/src/overlays/actors/ovl_Boss_07/z_boss_07.c";
         const char* kStamps = "games/oot/soh/Enhancements/GameplayStats/BossDefeatTimestamps.cpp";
         const char* kSplits = "games/oot/soh/Enhancements/timesplits/TimeSplits.cpp";
+        const char* kOoTGive = "games/oot/soh/Enhancements/randomizer/randomizer.cpp";
+        const char* kMMGive = "games/mm/2s2h/Rando/GiveItem.cpp";
+        // #768: the triforce piece's win arms. OoT's guarded block replaces
+        // upstream's threshold and its "Win" test (the #else keeps upstream's
+        // lines verbatim); MM's threshold is one block and its ending another.
+        const std::string kOoTHuntEnds = "if (OoT_ComboGoal_TriforceHuntEnds(OTRGlobals::Instance->gRandomizer->"
+                                         "GetRandoSettingValue(";
+        const std::string kMMHuntEnds = "if (!MM_ComboGoal_TriforceHuntEnds()) {";
+        const std::vector<std::string> kOoTArm = {
+            "if (Combo_TriforceHuntOnPieceGiven(",
+            "GAME_OOT, gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected,",
+            "(uint16_t)(OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(",
+            "RSK_TRIFORCE_HUNT_PIECES_REQUIRED) +",
+            "1)) != RSBS_TRIFORCE_WIN_NONE) {",
+            "Flags_SetRandomizerInf(RAND_INF_GRANT_GANONS_BOSSKEY);",
+            kOoTHuntEnds,
+            "RSK_TRIFORCE_HUNT) == RO_TRIFORCE_HUNT_WIN)) {",
+            "#else",
+            "if (gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected ==",
+            "(OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT_PIECES_REQUIRED) + 1)) {",
+            "Flags_SetRandomizerInf(RAND_INF_GRANT_GANONS_BOSSKEY);",
+            "if (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT) ==",
+            "RO_TRIFORCE_HUNT_WIN) {",
+        };
         const std::vector<std::string> kGanonWarp = {
             "play->nextEntranceIndex = ENTR_CHAMBER_OF_THE_SAGES_0;",
             "gSaveContext.nextCutsceneIndex = 0xFFF2;",
@@ -581,6 +697,25 @@ TestResult Test_ComboGoalEnding(void) {
                 "gSaveContext.ship.stats.itemTimestamp[TIMESTAMP_DEFEAT_GANON] = GAMEPLAYSTAT_TOTAL_TIME;" },
               { "if (!OoT_ComboGoal_GameMayComplete()) {", "return;", "}" },
               { "gSaveContext.ship.stats.gameComplete = true;", "}" } },
+            { "OoT's triforce piece win arm", kOoTGive,
+              "extern \"C\" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {",
+              { "gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected++;",
+                "GameInteractor_SetTriforceHuntPieceGiven(true);", "" },
+              kOoTArm,
+              { "gSaveContext.ship.stats.itemTimestamp[TIMESTAMP_TRIFORCE_COMPLETED] =",
+                "static_cast<u32>(GAMEPLAYSTAT_TOTAL_TIME);", "gSaveContext.ship.stats.gameComplete = 1;" } },
+            { "MM's triforce piece threshold", kMMGive, "void Rando::GiveItem(RandoItemId randoItemId) {",
+              { "gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces++;" },
+              { "if (Combo_TriforceHuntOnPieceGiven(GAME_MM, gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces,",
+                "(uint16_t)RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]) !=", "RSBS_TRIFORCE_WIN_NONE) {", "#else",
+                "if (gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces ==",
+                "RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]) {" },
+              {} },
+            { "MM's triforce piece win arm", kMMGive, "void Rando::GiveItem(RandoItemId randoItemId) {",
+              { "if (!Flags_GetRandoInf(RANDO_INF_OBTAINED_SOUL_OF_BOSS_MAJORA)) {",
+                "Rando::GiveItem(RI_SOUL_BOSS_MAJORA);", "}" },
+              { kMMHuntEnds, "break;", "}" },
+              { "GameInteractor_ExecuteOnGameCompletion();", "MM_GameEvents_Queue().emplace_back(" } },
         };
         int counterfactuals = 0;
         for (const CgSite& site : sites) {
@@ -595,12 +730,31 @@ TestResult Test_ComboGoalEnding(void) {
                       "E7: %s: the check still passes with '%s' removed (a vacuous check)", site.what, key.c_str());
             counterfactuals++;
             if (!site.guarded.empty()) {
-                const std::string noGuard = CgDropLine(text, site.function, "#ifdef RSBS_SINGLE_EXECUTABLE");
+                const std::string noGuard = CgDropSiteGuard(text, site);
                 CG_ASSERT(noGuard != text && !CgCheckSite(noGuard, site).empty(),
                           "E7: %s: the check still passes with its #ifdef RSBS_SINGLE_EXECUTABLE removed", site.what);
                 counterfactuals++;
             }
         }
+        // #768's red half, from source: each arm as main had it must fail.
+        {
+            std::string oot;
+            CG_ASSERT(CgReadFile(kOoTGive, &oot), "E7: cannot read %s", kOoTGive);
+            std::string mainOoT = CgReplaceLine(oot, kOoTHuntEnds, "if (Combo_TriforceHuntArmed() ||");
+            mainOoT = CgReplaceLine(mainOoT, "RSK_TRIFORCE_HUNT) == RO_TRIFORCE_HUNT_WIN)) {",
+                                    "OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT) == "
+                                    "RO_TRIFORCE_HUNT_WIN) {");
+            CG_ASSERT(mainOoT != oot && !CgCheckSite(mainOoT, sites[sites.size() - 3]).empty(),
+                      "E7: OoT's triforce arm as main had it (the \"Win\" test not asking the goal) still passes");
+            counterfactuals++;
+            std::string mm;
+            CG_ASSERT(CgReadFile(kMMGive, &mm), "E7: cannot read %s", kMMGive);
+            const std::string mainMM = CgDropLine(mm, "void Rando::GiveItem(", kMMHuntEnds);
+            CG_ASSERT(mainMM != mm && !CgCheckSite(mainMM, sites.back()).empty(),
+                      "E7: MM's triforce arm without its goal block still passes");
+            counterfactuals++;
+        }
+
         // E5's replicas replay the actors' own lines (the anchors above, which
         // the site checks just matched in the actors).
         struct Replica {
@@ -635,14 +789,15 @@ TestResult Test_ComboGoalEnding(void) {
             { kStamps, 1, "the final-blow completion, gated (E7)" },
             { kSplits, 1, "Time Splits' completion, gated (E7)" },
             { "games/oot/soh/Enhancements/randomizer/randomizer.cpp", 1,
-              "the triforce piece's win arm: paired, it fires on the combo requirement, which is the goal met; a "
-              "half's own hunt under a boss goal is #768" },
+              "the triforce piece's win arm, gated (E7): the combo hunt's requirement, or unpaired OoT's own "
+              "\"Win\"; never a half's own hunt under a boss goal (#768)" },
             { "games/oot/soh/Enhancements/boss-rush/BossRush.cpp", 1, "Boss Rush mode, never a paired world" },
         };
         const Writer kMMWriters[] = {
             { kBoss07, 1, "Majora's final blow, gated (E7)" },
             { "games/mm/2s2h/Rando/GiveItem.cpp", 1,
-              "the triforce piece's win arm: paired, it fires on the combo requirement; a half's own hunt is #768" },
+              "the triforce piece's win arm, gated (E7): the combo hunt's requirement, or unpaired MM's own hunt; "
+              "never a half's own hunt under a boss goal (#768)" },
             { "games/mm/2s2h/mm_hook_dispatch_test.cpp", 1, "a hook-dispatch test row" },
         };
         const char* kOoTNeedle = "stats.gameComplete = ";

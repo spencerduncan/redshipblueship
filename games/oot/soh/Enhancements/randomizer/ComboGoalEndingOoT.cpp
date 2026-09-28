@@ -27,7 +27,14 @@
  * gates that write with the same answer, read-only: not while the paired goal is
  * unmet.
  *
- * Unpaired (no frozen combo record) all three are no-ops and OoT ends as upstream.
+ * A fourth is the triforce piece's win arm (randomizer.cpp, RG_TRIFORCE_PIECE,
+ * #768). OoT_ComboGoal_TriforceHuntEnds says whether the give that reached a
+ * requirement may take the "Win" branch (game complete, save, credits): under
+ * the combo hunt when the goal is met, never under a boss goal (OoT's own hunt
+ * then only grants Ganon's Boss Key, which the arm does before asking), and
+ * unpaired exactly when OoT's own mode is "Win".
+ *
+ * Unpaired (no frozen combo record) all four are no-ops and OoT ends as upstream.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -60,6 +67,19 @@ extern "C" int OoT_ComboGoal_OnGanonDefeated(void) {
 
 extern "C" int OoT_ComboGoal_GameMayComplete(void) {
     return Combo_GoalAllowsCompletion(LiveTriforcePieces()) ? 1 : 0;
+}
+
+extern "C" int OoT_ComboGoal_TriforceHuntEnds(int ownModeIsWin) {
+    switch (Combo_GoalOnTriforceHuntCompleted(GAME_OOT, LiveTriforcePieces())) {
+        case RSBS_GOAL_ENDING_PLAY:
+            // The combo hunt's requirement: the win, whichever mode OoT's own
+            // setting named.
+            return 1;
+        case RSBS_GOAL_ENDING_WITHHOLD:
+            return 0;
+        default:
+            return ownModeIsWin ? 1 : 0;
+    }
 }
 
 extern "C" int OoT_ComboGoal_RedirectEndingIfWithheld(PlayState* play) {

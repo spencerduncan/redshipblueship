@@ -22,7 +22,14 @@
  *      plays as after the Song of Time. SkipSoTCutscenes lands a skipped Song of Time at the
  *      same entrance with the same day and time.
  *
- * Unpaired (no frozen combo record) both are no-ops and MM ends as upstream.
+ * A third is the triforce piece's win arm (Rando/GiveItem.cpp,
+ * RI_TRIFORCE_PIECE, #768): once the give reaches a requirement MM grants
+ * Majora's soul, dispatches OnGameCompletion and queues the same ending
+ * transition. MM_ComboGoal_TriforceHuntEnds says whether the last two may
+ * happen: under the combo hunt when the goal is met, never under a boss goal
+ * (MM's own hunt is then only the lock on Majora, its soul), unpaired always.
+ *
+ * Unpaired (no frozen combo record) all three are no-ops and MM ends as upstream.
  */
 
 #include "global.h"
@@ -43,6 +50,10 @@ int LiveTriforcePieces() {
 
 extern "C" int MM_ComboGoal_OnMajoraDefeated(void) {
     return Combo_GoalOnFinalBossDefeated(GAME_MM, LiveTriforcePieces()) != RSBS_GOAL_ENDING_WITHHOLD ? 1 : 0;
+}
+
+extern "C" int MM_ComboGoal_TriforceHuntEnds(void) {
+    return Combo_GoalOnTriforceHuntCompleted(GAME_MM, LiveTriforcePieces()) != RSBS_GOAL_ENDING_WITHHOLD ? 1 : 0;
 }
 
 extern "C" int MM_ComboGoal_RedirectEndingIfWithheld(PlayState* play) {

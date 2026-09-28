@@ -61,9 +61,18 @@
  * boss stays fightable and its defeat is withheld, never an ending (the ADR
  * amendment gives the reason).
  *
- * NOT COVERED: a half's OWN triforce hunt in a world whose combo goal is not
- * triforce-hunt still ends that half's game through its own win arm
- * (Combo_TriforceHuntOnPieceGiven's WIN_OWN), as it did before this file.
+ * A HALF'S OWN TRIFORCE HUNT (#768). OoTMM has one shared hunt and no per-game
+ * hunt, so under its boss goals no hunt ends anything. Here each half can still
+ * turn its own hunt on, and under a boss goal that hunt's completion is NOT a
+ * win condition: Combo_GoalOnTriforceHuntCompleted answers "withhold" and both
+ * piece-give arms keep only what the hunt unlocks (OoT grants Ganon's Boss Key,
+ * MM grants Majora's soul), so the half's own hunt is the lock on its final
+ * boss and the frozen goal stays the only way the paired game ends. OoT's own
+ * "Win" mode would take Ganon out of OoT's proved goal (SoH then puts the win
+ * at RC_TRIFORCE_COMPLETED and a blue rupee at RC_GANON), so a paired creation
+ * under a boss goal generates it as "Ganon's Boss Key" instead
+ * (Combo_GoalKeepsOwnHuntWin, read by OoT's Playthrough_Init right after its
+ * settings are finalized).
  *
  * Game-header-free, like triforce_hunt.c. THREADING: game thread only.
  */
@@ -151,6 +160,37 @@ bool Combo_GoalAllowsCompletion(int liveTriforcePieces);
  * answer for a damaged record that got past them.
  */
 int Combo_GoalOnFinalBossDefeated(GameId game, int liveTriforcePieces);
+
+/**
+ * THE DECISION both triforce piece-give arms call once their hunt fires (#768):
+ * the give reached a requirement (Combo_TriforceHuntOnPieceGiven answered
+ * RSBS_TRIFORCE_WIN_OWN or RSBS_TRIFORCE_WIN_COMBO); may `game` END now?
+ *
+ *   - not armed (no frozen combo record): RSBS_GOAL_ENDING_OWN. The half's own
+ *     hunt ends its own game exactly as upstream (OoT only in its "Win" mode).
+ *   - the combo hunt is armed (goal triforce-hunt with a valid record): the
+ *     shared count IS the goal, so this is the goal predicate over
+ *     `liveTriforcePieces` (the reaching give's counter): RSBS_GOAL_ENDING_PLAY
+ *     when met, RSBS_GOAL_ENDING_WITHHOLD when not.
+ *   - any other evaluable goal (the four boss goals): RSBS_GOAL_ENDING_WITHHOLD.
+ *     A half's own hunt is no term of the frozen goal; its completion keeps
+ *     what it unlocks and ends nothing, and the pieces stay items.
+ *   - a frozen goal that cannot be evaluated: RSBS_GOAL_ENDING_OWN, logged,
+ *     for the reason Combo_GoalOnFinalBossDefeated fails open.
+ *
+ * Records nothing: a hunt's completion is not a final-boss defeat.
+ */
+int Combo_GoalOnTriforceHuntCompleted(GameId game, int liveTriforcePieces);
+
+/**
+ * May a paired creation keep `game`'s OWN triforce hunt as a WIN condition of
+ * that half? False when `goal` (the combo goal the creation is about to freeze)
+ * is an evaluable boss goal: the half's hunt is then only the lock on its final
+ * boss. True for triforce-hunt (the combo hunt decides the win; its arms never
+ * take a half's own mode) and for a value outside the pinned table (the
+ * creation refuses that record elsewhere). Pure.
+ */
+bool Combo_GoalKeepsOwnHuntWin(uint8_t goal);
 
 #ifdef __cplusplus
 }
