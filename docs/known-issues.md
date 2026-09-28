@@ -410,12 +410,12 @@ from returning.
 
 ### ~~Timers are not neutralized on the MM side of a switch~~ — RESOLVED ([#373](https://github.com/spencerduncan/redshipblueship/issues/373), PR [#419](https://github.com/spencerduncan/redshipblueship/pull/419))
 
-### MM text that says the player's name shows blanks in a paired world — [#773](https://github.com/spencerduncan/redshipblueship/issues/773)
+### ~~MM text that says the player's name shows blanks in a paired world~~ — RESOLVED ([#773](https://github.com/spencerduncan/redshipblueship/issues/773), PR pending)
 
-The paired creation does not carry OoT's typed name into Majora's Mask's character set, so
-MM's half keeps the default all-space name, so an MM textbox that prints the player's name
-is expected to show blanks (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)). No such textbox has been looked at in a
-paired half ([#773](https://github.com/spencerduncan/redshipblueship/issues/773), "Not verified"). The file-select slot still shows OoT's name.
+The paired creation now translates the name typed on OoT's file select into Majora's Mask's
+character set (OoTMM's mapping; characters MM cannot draw become a space) and stamps it on MM's
+half, so an MM textbox that names Link prints the OoT name. Files created before the fix keep
+the all-space name. Not yet looked at in play.
 
 ### ~~MM hook dispatch is still partial~~ — RESOLVED ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), PR [#673](https://github.com/spencerduncan/redshipblueship/pull/673))
 
