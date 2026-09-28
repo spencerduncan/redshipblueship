@@ -2186,6 +2186,27 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         TIMEOUT ${REDSHIP_GAMEPLAY_SOAK_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=3")
 
+    # The FIRST CROSSING OF A PAIRED FILE with the archives mounted, in one
+    # process (hop 6 of the playtest path, which no row ran before: the rows
+    # above cross with a vanilla debug save, and ComboCreationEvent /
+    # MMPairSwitchEntry run creation and arrival with RSBS_DISABLE_OTR_INIT=1).
+    # The gameplay round trip's paired variant: generate the pinned world
+    # (RSBSSINGLEBAG1) on the shipped defaults, create file 3 through OoT's own
+    # new-file seam (the production creation event), load it back as the file
+    # select does, walk into MM through the Happy Mask Shop, and assert on the
+    # REAL arrival: the "[MM] pairing:" stderr lines (profile match, HYDRATED
+    # with the crossing store's counts), the pairing, the crossing store, and no
+    # refusal line or toast; then back to OoT, restored and not regenerated.
+    # RSBS_PFC_SKIP_CREATION=1 is the red half (debug save, no creation: fails on
+    # skipped-because-no-paired-oot-world). Same ROM/display needs as the round
+    # trip, so hosted CI cannot run it (workflow_dispatch only, like its
+    # siblings). games/oot/soh/GameExports_SingleExe.cpp (boot, return leg),
+    # games/mm/2s2h/GameExports_SingleExe.cpp (arrival).
+    redship_add_test(NAME IntPairedFirstCrossing
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
+
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.
     #

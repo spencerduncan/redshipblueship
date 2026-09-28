@@ -12,10 +12,23 @@
  */
 
 #include "integration_test_hooks.h"
+#include "context.h"        // gComboCtx: the paired identity's carriers
+#include "crossing_store.h" // the crossing store: the only truth for foreign placements
+#include "foreign_items.h"  // Combo_ForeignPairingActive
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <atomic>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 // Game switch request (to signal game to exit)
 extern "C" {
@@ -39,6 +52,77 @@ std::atomic<GameId> sBootedGame{GAME_NONE};
 std::atomic<GameplayPhase> sGameplayPhase{GP_PHASE_BOOT};
 std::atomic<int> sGameplayCyclesDone{0};
 GameplayTestConfig sGameplayConfig = {};
+std::atomic<int> sGameplayVariant{GP_VARIANT_ROUNDTRIP};
+
+// ---------------------------------------------------------------------------
+// stderr tee (int-paired-first-crossing). fd 2 is pointed at a pipe's write
+// end; a reader thread copies every byte to the ORIGINAL stderr (a dup of the
+// old fd 2) as it arrives, and keeps the lines the paired row asserts on. The
+// kept set is filtered so a long session costs a few kilobytes, not the whole
+// log: a line is kept when it names a pairing, a creation or a refusal.
+// ---------------------------------------------------------------------------
+std::mutex sCaptureMutex;
+std::vector<std::string> sCaptureLines;
+std::string sCapturePartial;
+std::thread sCaptureThread;
+std::atomic<bool> sCaptureActive{false};
+int sCaptureOrigFd = -1; // dup of the original fd 2
+int sCapturePipeRead = -1;
+int sCapturePipeWrite = -1;
+
+bool CaptureKeeps(const std::string& line) {
+    static const char* const kTags[] = { "pairing", "creation", "REFUSED", "Not paired", "Not saved", "[PFC" };
+    for (const char* tag : kTags) {
+        if (line.find(tag) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void CaptureAppend(const char* data, size_t len) {
+    std::lock_guard<std::mutex> lock(sCaptureMutex);
+    for (size_t i = 0; i < len; i++) {
+        const char c = data[i];
+        if (c == '\n') {
+            if (!sCapturePartial.empty() && sCapturePartial.back() == '\r') {
+                sCapturePartial.pop_back();
+            }
+            if (CaptureKeeps(sCapturePartial)) {
+                sCaptureLines.push_back(sCapturePartial);
+            }
+            sCapturePartial.clear();
+        } else if (sCapturePartial.size() < 4096) {
+            sCapturePartial.push_back(c);
+        }
+    }
+}
+
+void CaptureReaderMain() {
+    char buf[4096];
+    for (;;) {
+#ifdef _WIN32
+        const int n = _read(sCapturePipeRead, buf, (unsigned int)sizeof(buf));
+#else
+        const ssize_t n = read(sCapturePipeRead, buf, sizeof(buf));
+#endif
+        if (n <= 0) {
+            break; // write end closed (stop) or a broken pipe
+        }
+#ifdef _WIN32
+        _write(sCaptureOrigFd, buf, (unsigned int)n);
+#else
+        ssize_t ignored = write(sCaptureOrigFd, buf, (size_t)n);
+        (void)ignored;
+#endif
+        CaptureAppend(buf, (size_t)n);
+    }
+}
+
+// The recorded paired identity (int-paired-first-crossing).
+PairedIdentity sPairedIdentity = {};
+bool sPairedIdentityRecorded = false;
+uint32_t sPairedMMGenerationBaseline = 0;
 
 const char* GameplayPhaseName(GameplayPhase phase) {
     switch (phase) {
@@ -128,6 +212,7 @@ extern "C" {
 
 void IntegrationTest_SetMode(IntegrationTestMode mode) {
     sTestMode = mode;
+    sGameplayVariant = GP_VARIANT_ROUNDTRIP;
     sBootPassed = false;
     sExitRequested = false;
     sBootedGame = GAME_NONE;
@@ -269,6 +354,232 @@ void IntegrationTest_GameplayFail(const char* reason) {
     // Combo_RequestGameSwitch unblocks the main loop promptly (#263 pattern).
     IntegrationTest_RequestExit();
     Combo_RequestGameSwitch();
+}
+
+// ============================================================================
+// int-paired-first-crossing: the variant, the stderr capture, the identity
+// ============================================================================
+
+void IntegrationTest_SetGameplayVariant(GameplayVariant variant) {
+    sGameplayVariant = variant;
+    if (variant == GP_VARIANT_PAIRED_FIRST_CROSSING) {
+        // Before the first game boots, so the creation's own lines are kept.
+        if (!IntegrationTest_StderrCaptureStart()) {
+            fprintf(stderr, "[PFC] WARNING: the stderr capture could not start; every line assertion will fail\n");
+            fflush(stderr);
+        }
+        fprintf(stderr, "[PFC] variant: paired first crossing (creation %s)\n",
+                IntegrationTest_PairedSkipCreation() ? "SKIPPED by RSBS_PFC_SKIP_CREATION=1: the red half"
+                                                     : "through the production event");
+        fflush(stderr);
+    }
+}
+
+GameplayVariant IntegrationTest_GetGameplayVariant(void) {
+    return (GameplayVariant)sGameplayVariant.load();
+}
+
+bool IntegrationTest_PairedFirstCrossing(void) {
+    return sTestMode == INT_TEST_GAMEPLAY_ROUNDTRIP && sGameplayVariant == GP_VARIANT_PAIRED_FIRST_CROSSING;
+}
+
+bool IntegrationTest_PairedSkipCreation(void) {
+    const char* raw = std::getenv("RSBS_PFC_SKIP_CREATION");
+    return raw != nullptr && strcmp(raw, "1") == 0;
+}
+
+bool IntegrationTest_StderrCaptureStart(void) {
+    if (sCaptureActive.load()) {
+        return true;
+    }
+    fflush(stderr);
+    int fds[2] = { -1, -1 };
+#ifdef _WIN32
+    if (_pipe(fds, 1 << 16, _O_BINARY) != 0) {
+        return false;
+    }
+    sCaptureOrigFd = _dup(2);
+    if (sCaptureOrigFd < 0 || _dup2(fds[1], 2) != 0) {
+        _close(fds[0]);
+        _close(fds[1]);
+        return false;
+    }
+#else
+    if (pipe(fds) != 0) {
+        return false;
+    }
+    sCaptureOrigFd = dup(2);
+    if (sCaptureOrigFd < 0 || dup2(fds[1], 2) < 0) {
+        close(fds[0]);
+        close(fds[1]);
+        return false;
+    }
+#endif
+    sCapturePipeRead = fds[0];
+    sCapturePipeWrite = fds[1];
+    sCaptureActive = true;
+    sCaptureThread = std::thread(CaptureReaderMain);
+    return true;
+}
+
+void IntegrationTest_StderrCaptureStop(void) {
+    if (!sCaptureActive.exchange(false)) {
+        return;
+    }
+    fflush(stderr);
+    // Point fd 2 back at the original stderr, then close the pipe's write end
+    // (both references to it are then gone), so the reader drains what is left
+    // and sees EOF.
+#ifdef _WIN32
+    _dup2(sCaptureOrigFd, 2);
+    _close(sCapturePipeWrite);
+#else
+    dup2(sCaptureOrigFd, 2);
+    close(sCapturePipeWrite);
+#endif
+    if (sCaptureThread.joinable()) {
+        sCaptureThread.join();
+    }
+#ifdef _WIN32
+    _close(sCapturePipeRead);
+#else
+    close(sCapturePipeRead);
+#endif
+    sCapturePipeRead = -1;
+    sCapturePipeWrite = -1;
+}
+
+void IntegrationTest_StderrCaptureRestoreForCrash(void) {
+    if (!sCaptureActive.load() || sCaptureOrigFd < 0) {
+        return;
+    }
+#ifdef _WIN32
+    _dup2(sCaptureOrigFd, 2);
+#else
+    dup2(sCaptureOrigFd, 2);
+#endif
+}
+
+int IntegrationTest_StderrCaptureCount(const char* needle) {
+    if (needle == nullptr) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(sCaptureMutex);
+    int count = 0;
+    for (const std::string& line : sCaptureLines) {
+        if (line.find(needle) != std::string::npos) {
+            count++;
+        }
+    }
+    return count;
+}
+
+bool IntegrationTest_StderrCaptureLast(const char* needle, char* out, size_t cap) {
+    if (needle == nullptr || out == nullptr || cap == 0) {
+        return false;
+    }
+    out[0] = '\0';
+    std::lock_guard<std::mutex> lock(sCaptureMutex);
+    for (auto it = sCaptureLines.rbegin(); it != sCaptureLines.rend(); ++it) {
+        if (it->find(needle) != std::string::npos) {
+            snprintf(out, cap, "%s", it->c_str());
+            return true;
+        }
+    }
+    return false;
+}
+
+void IntegrationTest_PairedIdentityCapture(PairedIdentity* out) {
+    if (out == nullptr) {
+        return;
+    }
+    memset(out, 0, sizeof(*out));
+    out->masterSeed = gComboCtx.sharedRandoSeed;
+    out->settingsHash = gComboCtx.sharedRandoSettingsHash;
+    out->mmProfileDigest = gComboCtx.mmProfileDigest;
+    out->comboFingerprint = gComboCtx.comboSettingsHash;
+    out->crossingDigest = Combo_Crossings_Digest();
+    out->crossingsInHyrule = Combo_Crossings_Count(GAME_OOT);
+    out->crossingsInTermina = Combo_Crossings_Count(GAME_MM);
+    out->crossingsFrozen = Combo_Crossings_IsFrozen();
+    out->pairingActive = Combo_ForeignPairingActive();
+}
+
+void IntegrationTest_PairedIdentityRecord(void) {
+    IntegrationTest_PairedIdentityCapture(&sPairedIdentity);
+    sPairedIdentityRecorded = true;
+    char desc[256];
+    IntegrationTest_PairedIdentityDescribe(&sPairedIdentity, desc, sizeof(desc));
+    fprintf(stderr, "[PFC] identity recorded: %s\n", desc);
+    fflush(stderr);
+}
+
+void IntegrationTest_PairedSetMMGenerationBaseline(uint32_t dispatches) {
+    sPairedMMGenerationBaseline = dispatches;
+}
+
+uint32_t IntegrationTest_PairedMMGenerationBaseline(void) {
+    return sPairedMMGenerationBaseline;
+}
+
+const PairedIdentity* IntegrationTest_PairedIdentityRecorded(void) {
+    return sPairedIdentityRecorded ? &sPairedIdentity : nullptr;
+}
+
+void IntegrationTest_PairedIdentityDescribe(const PairedIdentity* id, char* out, size_t cap) {
+    if (out == nullptr || cap == 0) {
+        return;
+    }
+    if (id == nullptr) {
+        snprintf(out, cap, "(none)");
+        return;
+    }
+    snprintf(out, cap,
+             "paired=%d masterSeed=%u settingsHash=%08X mmProfileDigest=%08X comboFingerprint=%08X "
+             "crossingStore{frozen=%d inHyrule=%d inTermina=%d digest=%08X}",
+             id->pairingActive ? 1 : 0, (unsigned)id->masterSeed, (unsigned)id->settingsHash,
+             (unsigned)id->mmProfileDigest, (unsigned)id->comboFingerprint, id->crossingsFrozen ? 1 : 0,
+             id->crossingsInHyrule, id->crossingsInTermina, (unsigned)id->crossingDigest);
+}
+
+bool IntegrationTest_PairedIdentityMatches(char* msg, size_t cap) {
+    if (msg != nullptr && cap > 0) {
+        msg[0] = '\0';
+    }
+    if (!sPairedIdentityRecorded) {
+        if (msg != nullptr && cap > 0) {
+            snprintf(msg, cap, "no identity was recorded after the creation");
+        }
+        return false;
+    }
+    PairedIdentity live;
+    IntegrationTest_PairedIdentityCapture(&live);
+    std::string diff;
+    auto field = [&diff](const char* name, unsigned long long was, unsigned long long now) {
+        if (was != now) {
+            char part[96];
+            snprintf(part, sizeof(part), "%s%s %llX -> %llX", diff.empty() ? "" : ", ", name, was, now);
+            diff += part;
+        }
+    };
+    field("paired", sPairedIdentity.pairingActive, live.pairingActive);
+    field("masterSeed", sPairedIdentity.masterSeed, live.masterSeed);
+    field("settingsHash", sPairedIdentity.settingsHash, live.settingsHash);
+    field("mmProfileDigest", sPairedIdentity.mmProfileDigest, live.mmProfileDigest);
+    field("comboFingerprint", sPairedIdentity.comboFingerprint, live.comboFingerprint);
+    field("crossingDigest", sPairedIdentity.crossingDigest, live.crossingDigest);
+    field("crossingsInHyrule", (unsigned long long)sPairedIdentity.crossingsInHyrule,
+          (unsigned long long)live.crossingsInHyrule);
+    field("crossingsInTermina", (unsigned long long)sPairedIdentity.crossingsInTermina,
+          (unsigned long long)live.crossingsInTermina);
+    field("crossingsFrozen", sPairedIdentity.crossingsFrozen, live.crossingsFrozen);
+    if (diff.empty()) {
+        return true;
+    }
+    if (msg != nullptr && cap > 0) {
+        snprintf(msg, cap, "%s", diff.c_str());
+    }
+    return false;
 }
 
 } // extern "C"

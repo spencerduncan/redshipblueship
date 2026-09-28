@@ -163,6 +163,9 @@ void HeadlessSignalHandler(int sig, siginfo_t* info, void* /*ucontext*/) {
     // Re-arm as SIG_DFL first. If anything below faults a second time the
     // process dies on the spot rather than recursing through this handler.
     signal(sig, SIG_DFL);
+    // The paired integration row tees fd 2 through a pipe; write the report to
+    // the real stderr, since the tee's reader may never run again.
+    IntegrationTest_StderrCaptureRestoreForCrash();
 
     RawWrite("\n[CRASH] ");
     RawWrite(SignalName(sig));
@@ -257,6 +260,9 @@ int MapExceptionToSignal(DWORD code) {
 
 LONG WINAPI HeadlessExceptionFilter(EXCEPTION_POINTERS* exceptionInfo) {
     const DWORD code = exceptionInfo->ExceptionRecord->ExceptionCode;
+    // The paired integration row tees fd 2 through a pipe; write the report to
+    // the real stderr, since the tee's reader may never run again.
+    IntegrationTest_StderrCaptureRestoreForCrash();
 
     RawWrite("\n[CRASH] Windows exception: 0x");
     RawWriteNum((unsigned long long)code, 16);

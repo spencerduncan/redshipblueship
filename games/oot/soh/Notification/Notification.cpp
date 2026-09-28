@@ -13,6 +13,8 @@ namespace Notification {
 
 static uint32_t nextId = 0;
 static std::vector<Options> notifications = {};
+// Every toast ever queued, "<prefix> <message>" (OoT_Notification_EmittedAtForTest).
+static std::vector<std::string> emittedForTest = {};
 
 void Window::Draw() {
     auto vp = ImGui::GetMainViewport();
@@ -127,6 +129,8 @@ void Window::UpdateElement() {
 
 void Emit(Options notification) {
     notification.id = nextId++;
+    emittedForTest.push_back(notification.prefix.empty() ? notification.message
+                                                         : notification.prefix + " " + notification.message);
     if (notification.remainingTime == 0.0f) {
         notification.remainingTime = CVarGetFloat(CVAR_SETTING("Notifications.Duration"), 10.0f);
     }
@@ -233,6 +237,18 @@ extern "C" void OoT_Notification_EmitDefault(const char* prefix, const char* mes
 
 extern "C" void OoT_Notification_ClearForTest(void) {
     Notification::notifications.clear();
+}
+
+extern "C" int OoT_Notification_EmittedCountForTest(void) {
+    return (int)Notification::emittedForTest.size();
+}
+
+extern "C" int OoT_Notification_EmittedAtForTest(int index, char* out, size_t cap) {
+    if (index < 0 || index >= (int)Notification::emittedForTest.size() || out == nullptr || cap == 0) {
+        return 0;
+    }
+    snprintf(out, cap, "%s", Notification::emittedForTest[index].c_str());
+    return 1;
 }
 
 extern "C" int OoT_Notification_PeekLastForTest(ComboNotification* out) {

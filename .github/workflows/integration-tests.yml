@@ -366,6 +366,16 @@ jobs:
         GP_CYCLES: ${{ inputs.gp_cycles || '1' }}
         GP_WARP_ENTRANCES: ${{ inputs.gp_warp_entrances || '0x00B1' }}
 
+    # The first crossing of a PAIRED file (IntPairedFirstCrossing): the round
+    # trip's paired variant, which generates the pinned world, creates a file
+    # through the production creation event, and asserts the MM arrival
+    # hydrated it. Driven through ctest so the row's own TIMEOUT bounds it.
+    - name: Integration Test - Paired First Crossing
+      if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
+      run: ctest --test-dir build-cmake --output-on-failure -R "^IntPairedFirstCrossing$" --no-tests=error
+      env:
+        DISPLAY: :99
+
     # Multi-cycle soak of the same round trip (RSBS_GP_CYCLES=3, supplied by the
     # IntGameplayRoundtripSoak CTest row's ENVIRONMENT). The single-cycle step
     # above cannot reach the cycle-2/cycle-3 re-entry crash class that the MM

@@ -12,6 +12,8 @@
 
 #include "game.h"
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,11 +96,49 @@ typedef struct {
 } GameplayTestConfig;
 
 /**
+ * Variants of INT_TEST_GAMEPLAY_ROUNDTRIP. The variant rides the round trip's
+ * phase machine, drivers and watchdogs unchanged and changes only what the
+ * session plays and what each arrival asserts:
+ *
+ *   GP_VARIANT_ROUNDTRIP (int-gameplay-roundtrip): the OoT debug save, as the
+ *       repro has always run. Every MM arrival is vanilla
+ *       (`[MM] pairing: skipped-because-no-paired-oot-world`).
+ *   GP_VARIANT_PAIRED_FIRST_CROSSING (int-paired-first-crossing): the boot
+ *       generates the pinned paired world on the shipped defaults, creates a
+ *       file for it through OoT's own new-file seam (OoT_Sram_InitSave, which
+ *       runs the production creation event and writes the slot), loads that
+ *       file back the way the file select does (Sram_OpenSave + OnLoadGame),
+ *       and plays it. The MM arrival must hydrate the creation-frozen half with
+ *       the archives mounted; the return leg must restore OoT's half, not
+ *       regenerate it. RSBS_PFC_SKIP_CREATION=1 skips the generation and the
+ *       creation and boots the debug save instead (the red half: the arrival
+ *       must then fail on the skipped-because-no-paired-oot-world leg).
+ */
+typedef enum {
+    GP_VARIANT_ROUNDTRIP = 0,
+    GP_VARIANT_PAIRED_FIRST_CROSSING = 1
+} GameplayVariant;
+
+/**
  * Initialize integration test mode
  * Should be called before game initialization
  * @param mode The integration test mode to run
  */
 void IntegrationTest_SetMode(IntegrationTestMode mode);
+
+/**
+ * Select the gameplay round trip's variant (after IntegrationTest_SetMode,
+ * which resets it to GP_VARIANT_ROUNDTRIP). The paired variant starts the
+ * stderr capture below, so its first line is the variant's own.
+ */
+void IntegrationTest_SetGameplayVariant(GameplayVariant variant);
+GameplayVariant IntegrationTest_GetGameplayVariant(void);
+
+/** True when the running test is int-paired-first-crossing. */
+bool IntegrationTest_PairedFirstCrossing(void);
+
+/** True when RSBS_PFC_SKIP_CREATION=1: the paired row's red half (no creation). */
+bool IntegrationTest_PairedSkipCreation(void);
 
 /**
  * Get current integration test mode
@@ -205,6 +245,83 @@ int IntegrationTest_GameplayWatchdogBudgetSecs(void);
  * budget? A non-positive budget disables the watchdog (never expires).
  */
 bool IntegrationTest_GameplayWatchdogExpired(double elapsedSecs, int budgetSecs);
+
+// ----------------------------------------------------------------------------
+// stderr capture (int-paired-first-crossing)
+//
+// The crossing's verdicts are fprintf(stderr) lines in both ports (the MM
+// arrival's `[MM] pairing:` lines, the creation's `[MM] creation:` and
+// `[OoT] creation event:` lines). The paired row asserts on those lines rather
+// than on a parallel test-only channel, so what it checks is exactly what a
+// tester reads. The capture TEES fd 2 through a pipe: every byte still reaches
+// the original stderr (the CTest log) as it is written, and lines naming a
+// pairing, a creation or a refusal are kept for the assertions.
+// ----------------------------------------------------------------------------
+
+/** Start the tee (idempotent). Returns false when the pipe could not be set up. */
+bool IntegrationTest_StderrCaptureStart(void);
+
+/** Drain, restore fd 2 and join the reader (idempotent; safe when never started). */
+void IntegrationTest_StderrCaptureStop(void);
+
+/**
+ * Crash-path restore: point fd 2 back at the original stderr so the crash
+ * report is written directly, without joining anything. Async-signal-safe.
+ */
+void IntegrationTest_StderrCaptureRestoreForCrash(void);
+
+/** Number of kept lines containing `needle` (0 when the capture never started). */
+int IntegrationTest_StderrCaptureCount(const char* needle);
+
+/**
+ * Copy the LAST kept line containing `needle` into `out` (NUL-terminated,
+ * truncated to `cap`). Returns false when no kept line contains it.
+ */
+bool IntegrationTest_StderrCaptureLast(const char* needle, char* out, size_t cap);
+
+// ----------------------------------------------------------------------------
+// The paired world's identity, recorded after the file is created and loaded,
+// and compared at every later arrival (int-paired-first-crossing). Read from
+// the game-neutral carriers only (gComboCtx and the crossing store), so the
+// same comparison runs from either game's driver.
+// ----------------------------------------------------------------------------
+typedef struct {
+    uint32_t masterSeed;       // gComboCtx.sharedRandoSeed
+    uint32_t settingsHash;     // gComboCtx.sharedRandoSettingsHash
+    uint32_t mmProfileDigest;  // gComboCtx.mmProfileDigest
+    uint32_t comboFingerprint; // gComboCtx.comboSettingsHash
+    uint32_t crossingDigest;   // Combo_Crossings_Digest()
+    int crossingsInHyrule;     // Combo_Crossings_Count(GAME_OOT): MM items in OoT checks
+    int crossingsInTermina;    // Combo_Crossings_Count(GAME_MM): OoT items in MM checks
+    bool crossingsFrozen;      // Combo_Crossings_IsFrozen()
+    bool pairingActive;        // Combo_ForeignPairingActive()
+} PairedIdentity;
+
+void IntegrationTest_PairedIdentityCapture(PairedIdentity* out);
+
+/** Record the live identity as the one every later arrival must match. */
+void IntegrationTest_PairedIdentityRecord(void);
+
+/** The recorded identity, or NULL before IntegrationTest_PairedIdentityRecord. */
+const PairedIdentity* IntegrationTest_PairedIdentityRecorded(void);
+
+/**
+ * Compare the live identity against the recorded one. On a mismatch writes a
+ * description naming every differing field into `msg` and returns false.
+ */
+bool IntegrationTest_PairedIdentityMatches(char* msg, size_t cap);
+
+/**
+ * MM's generation-dispatch count (MM_Rando_OnSaveInitDispatchCount) right after
+ * the creation event, recorded by the OoT driver: the creation dispatches once,
+ * and no arrival may dispatch again. Plain storage, so the common layer names no
+ * MM symbol.
+ */
+void IntegrationTest_PairedSetMMGenerationBaseline(uint32_t dispatches);
+uint32_t IntegrationTest_PairedMMGenerationBaseline(void);
+
+/** One-line description of an identity, for the log. */
+void IntegrationTest_PairedIdentityDescribe(const PairedIdentity* id, char* out, size_t cap);
 
 #ifdef __cplusplus
 }

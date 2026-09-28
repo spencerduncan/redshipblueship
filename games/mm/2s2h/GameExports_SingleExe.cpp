@@ -50,6 +50,7 @@
 // Paired-world keying + placement-table accessors (#439 switch-entry
 // activation logs the placement count at the pairing decision point).
 #include "foreign_items.h"
+#include "crossing_store.h" // the arrival's crossing counts (the only truth for foreign placements)
 // MM_Rando_ComputeProfileStamp — the arrival's identity re-resolution
 // (#498/#564: compare against the creation-frozen mmProfileDigest).
 #include "combo_mm_options_view.h"
@@ -781,6 +782,147 @@ extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
 // Gameplay round-trip repro (INT_TEST_GAMEPLAY_ROUNDTRIP) — MM frame driver
 // ============================================================================
 
+// Defined further down beside the OnSaveInit dispatch it counts.
+extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
+
+/**
+ * int-paired-first-crossing: the MM arrival's verdict, taken once South Clock
+ * Town is stable (the arrival's gate, consume and hydrate ran during the scene
+ * load before it). `arrival` is 1-based. Everything asserted is what a tester
+ * would read or see: the `[MM] pairing:` stderr lines (captured by the row's
+ * tee), the pairing, the crossing store, and the toasts the overlay was asked
+ * to show. Returns false after failing the run with the reason.
+ */
+static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
+    char line[1024];
+    char msg[1400];
+
+    // The red half's leg, first: a vanilla arrival names itself in one line.
+    if (IntegrationTest_StderrCaptureLast("[MM] pairing: skipped-because-no-paired-oot-world", line, sizeof(line))) {
+        snprintf(msg, sizeof(msg),
+                 "the MM arrival was NOT paired; the arrival logged \"%s\" (no paired OoT world reached MM: the file "
+                 "was not created through the creation event, or its identity did not survive the load)",
+                 line);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    if (IntegrationTest_StderrCaptureLast("REFUSED", line, sizeof(line))) {
+        snprintf(msg, sizeof(msg), "a refusal was logged before the MM arrival settled: \"%s\"", line);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    const int toasts = OoT_Notification_EmittedCountForTest();
+    for (int i = 0; i < toasts; i++) {
+        char toast[256];
+        if (OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast)) &&
+            (strstr(toast, "Not paired") != nullptr || strstr(toast, "Not saved") != nullptr)) {
+            snprintf(msg, sizeof(msg), "a refusal toast was raised (toast %d of %d): \"%s\"", i + 1, toasts, toast);
+            IntegrationTest_GameplayFail(msg);
+            return false;
+        }
+    }
+
+    const int matched =
+        IntegrationTest_StderrCaptureCount("[MM] pairing: arrival profile matches the creation-frozen identity");
+    const int hydrated = IntegrationTest_StderrCaptureCount("[MM] pairing: HYDRATED from the frozen MM half");
+    if (matched < arrival || hydrated < arrival) {
+        snprintf(msg, sizeof(msg),
+                 "MM arrival %d: %d 'arrival profile matches the creation-frozen identity' and %d 'HYDRATED from the "
+                 "frozen MM half' line(s) were logged; each arrival must log both",
+                 arrival, matched, hydrated);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    char matchLine[512];
+    IntegrationTest_StderrCaptureLast("[MM] pairing: arrival profile matches the creation-frozen identity", matchLine,
+                                      sizeof(matchLine));
+    IntegrationTest_StderrCaptureLast("[MM] pairing: HYDRATED from the frozen MM half", line, sizeof(line));
+
+    // The HYDRATED line's own numbers: the half's seed and the crossing store's
+    // two counts, which the line must print (the retired table printed 0).
+    unsigned hydratedSeed = 0;
+    int inHyrule = -1;
+    int inTermina = -1;
+    const char* seedAt = strstr(line, "mmFinalSeed=");
+    const char* hyruleAt = strstr(line, "crossingsInHyrule=");
+    const char* terminaAt = strstr(line, "crossingsInTermina=");
+    if (seedAt == nullptr || hyruleAt == nullptr || terminaAt == nullptr ||
+        sscanf(seedAt, "mmFinalSeed=%X", &hydratedSeed) != 1 ||
+        sscanf(hyruleAt, "crossingsInHyrule=%d", &inHyrule) != 1 ||
+        sscanf(terminaAt, "crossingsInTermina=%d", &inTermina) != 1) {
+        snprintf(msg, sizeof(msg),
+                 "the HYDRATED line does not carry the half's seed and the crossing-store counts: \"%s\"", line);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    const int storeHyrule = Combo_Crossings_Count(GAME_OOT);
+    const int storeTermina = Combo_Crossings_Count(GAME_MM);
+    if (!Combo_Crossings_IsFrozen() || storeHyrule + storeTermina == 0 || inHyrule != storeHyrule ||
+        inTermina != storeTermina) {
+        snprintf(msg, sizeof(msg),
+                 "crossing store at the MM arrival: frozen=%d inHyrule=%d inTermina=%d; the HYDRATED line printed "
+                 "inHyrule=%d inTermina=%d. A paired world under the shipped defaults crosses items both ways, and the "
+                 "line must print the store's counts",
+                 Combo_Crossings_IsFrozen() ? 1 : 0, storeHyrule, storeTermina, inHyrule, inTermina);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    if (!Combo_ForeignPairingActive()) {
+        IntegrationTest_GameplayFail("Combo_ForeignPairingActive() is false in MM after a hydrated arrival");
+        return false;
+    }
+
+    // The half MM plays is the one the creation armed: same seed as the
+    // creation's own "armed" line, as the HYDRATED line, and as the live save.
+    char armedLine[512];
+    unsigned armedSeed = 0;
+    const char* armedAt = nullptr;
+    if (IntegrationTest_StderrCaptureLast("[MM] creation: MM half armed as the MM shadow", armedLine,
+                                          sizeof(armedLine))) {
+        armedAt = strstr(armedLine, "mmFinalSeed=");
+    }
+    const unsigned liveSeed = (unsigned)gSaveContext.save.shipSaveInfo.rando.finalSeed;
+    if (armedAt == nullptr || sscanf(armedAt, "mmFinalSeed=%X", &armedSeed) != 1 || armedSeed == 0 ||
+        armedSeed != hydratedSeed || armedSeed != liveSeed ||
+        gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        snprintf(msg, sizeof(msg),
+                 "the MM half at the arrival is not the one the creation armed: armed line \"%s\", hydrated seed "
+                 "%08X, live seed %08X, live saveType %d",
+                 armedAt != nullptr ? armedLine : "(none)", hydratedSeed, liveSeed,
+                 (int)gSaveContext.save.shipSaveInfo.saveType);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+
+    // Nothing generated MM's world at this arrival: the generation dispatch
+    // count has not moved since the creation event, and the identity recorded
+    // after the file was created and loaded is the live one.
+    const uint32_t dispatches = MM_Rando_OnSaveInitDispatchCount();
+    if (dispatches != IntegrationTest_PairedMMGenerationBaseline()) {
+        snprintf(msg, sizeof(msg), "MM's generation dispatch ran at the arrival (%u after the creation, %u now)",
+                 (unsigned)IntegrationTest_PairedMMGenerationBaseline(), (unsigned)dispatches);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    char diff[512];
+    if (!IntegrationTest_PairedIdentityMatches(diff, sizeof(diff))) {
+        snprintf(msg, sizeof(msg), "the paired identity changed between the creation and MM arrival %d: %s", arrival,
+                 diff);
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+
+    fprintf(stderr, "[PFC] MM arrival %d PASS: \"%s\"\n", arrival, matchLine);
+    fprintf(stderr, "[PFC] MM arrival %d PASS: \"%s\"\n", arrival, line);
+    fprintf(stderr,
+            "[PFC] MM arrival %d PASS: paired=1, crossing store frozen with %d MM items in Hyrule and %d OoT items in "
+            "Termina, mmFinalSeed %08X (creation armed = hydrated = live), generation dispatches %u (unchanged), %d "
+            "toast(s) raised and none a refusal\n",
+            arrival, storeHyrule, storeTermina, liveSeed, (unsigned)dispatches, toasts);
+    fflush(stderr);
+    return true;
+}
+
 /**
  * Per-frame MM driver for the gameplay round-trip. Called directly from MM's
  * graph loop (games/mm/src/code/graph.c, single-exe only) once per frame —
@@ -835,6 +977,9 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
         sGpMMStableFrames++;
         if (sGpMMStableFrames == 10) {
             sGpMMArrivalCount++;
+            if (IntegrationTest_PairedFirstCrossing() && !MM_PairedFirstCrossingCheckArrival(sGpMMArrivalCount)) {
+                return;
+            }
             // Save-continuity tripwire (see sGpMMArrivalCount): arrivals
             // after the first must carry the sentinel the previous MM leg
             // froze — proof the in-chain restore beat the boot-chain wipe.
@@ -4441,11 +4586,15 @@ extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPat
     // disagrees with save.time is a shadow somebody will read before that.
     gSaveContext.skyboxTime = gSaveContext.save.time;
 
+    // No crossing count here: the crossings are captured into the store by the
+    // OoT-side tail AFTER this returns (OoT_Creation_FinishPairedHalf), and its
+    // "single bag — N crossings stored" line reports them. This line used to
+    // print the retired pre-single-bag table's count, which is always 0.
     fprintf(stderr,
-            "[MM] creation: MM half authored for slot %d (mmFinalSeed=%08X foreignPlacements=%d ladderAttempt=%d; "
+            "[MM] creation: MM half authored for slot %d (mmFinalSeed=%08X ladderAttempt=%d; "
             "MM's post-fill stretch took %ums); NOT armed yet — the caller arms it last\n",
-            slot, gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements(),
-            MM_Rando_PairedGenLastAttempts(), Combo_GenProgress_ElapsedMs() - rsbsPostFillStartMs);
+            slot, gSaveContext.save.shipSaveInfo.rando.finalSeed, MM_Rando_PairedGenLastAttempts(),
+            Combo_GenProgress_ElapsedMs() - rsbsPostFillStartMs);
     fflush(stderr);
     return 0;
 }
@@ -4746,11 +4895,18 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
             fflush(stderr);
         }
 
+        // The crossing counts are the CROSSING STORE's (ADR 0010 O7), both
+        // directions: the single bag's crossings live there and nowhere else.
+        // (This line used to print the retired pre-single-bag table's count,
+        // foreignPlacements=0 on every paired world: the pre-playtest smoke's
+        // "reads like a bug" note.) inHyrule = MM items in OoT checks, inTermina
+        // = OoT items in MM checks.
         fprintf(stderr,
-                "[MM] pairing: HYDRATED from the frozen MM half (saveType=%s mmFinalSeed=%08X foreignPlacements=%d)"
-                " — nothing was generated at this arrival\n",
+                "[MM] pairing: HYDRATED from the frozen MM half (saveType=%s mmFinalSeed=%08X "
+                "crossingsInHyrule=%d crossingsInTermina=%d) — nothing was generated at this arrival\n",
                 (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) ? "rando" : "vanilla",
-                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
+                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_Crossings_Count(GAME_OOT),
+                Combo_Crossings_Count(GAME_MM));
 
         // The hydrated half's frozen option profile is this world's rules, so it
         // is what the values-publishing surface must carry in a process that
@@ -4767,8 +4923,11 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
         // Defensive: the bootstrap save the boot chain authored should always be
         // vanilla, and with no frozen blob consumed nothing can have made it
         // rando. Report rather than act.
-        fprintf(stderr, "[MM] pairing: already-rando save with no frozen half (mmFinalSeed=%08X placements=%d)\n",
-                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_CountForeignPlacements());
+        fprintf(stderr,
+                "[MM] pairing: already-rando save with no frozen half (mmFinalSeed=%08X crossingsInHyrule=%d "
+                "crossingsInTermina=%d)\n",
+                gSaveContext.save.shipSaveInfo.rando.finalSeed, Combo_Crossings_Count(GAME_OOT),
+                Combo_Crossings_Count(GAME_MM));
         fflush(stderr);
         return;
     }
