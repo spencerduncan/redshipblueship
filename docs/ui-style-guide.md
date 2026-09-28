@@ -459,6 +459,7 @@ names what must fail. Run them after changing the harness itself.
 | `hover-first-line` | a hovered row draws only the first line of its tooltip | every hover whose tooltip has a second line ("does not show its row's tooltip") |
 | `no-menu-under` | the overlay's `over-menu` variant leaves the menu hidden | that capture ("the menu under the dim was not drawn") |
 | `no-dim` | the overlay's dim is drawn fully transparent | that capture ("... pixels outside the box are not the menu dimmed by ModalWindowDimBg") |
+| `activate` | the no-activation hint is overridden to `"0"` before the window exists | on Windows with OpenGL only, the run ("focus: the harness window took keyboard focus ..."); `windowActivated` is a report on DirectX 11 (DXGI shows its window without consulting SDL's hint) and off Windows (Xvfb has no window manager) |
 
 **The original-page guard runs on a ROM-staged workstation only.** Hosted CI is ROM-free: SoH's own menu is not
 populated there (only Dev Tools/General registers), R8's `soh-names.txt` is not written, and CI has no base run to
