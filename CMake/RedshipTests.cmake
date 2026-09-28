@@ -66,14 +66,22 @@ function(redship_add_test)
     string(REPLACE "\\;" ";" _labels "${RSBS_T_LABEL}")
     string(REPLACE "\\;" ";" _environment "${RSBS_T_ENVIRONMENT}")
 
+    # Every row, whatever else it sets: a test window is shown WITHOUT activation,
+    # so a tier never takes the keyboard from the person at the workstation (lane
+    # F1, #310). SDL2 reads a hint from the environment variable of the same name.
+    # rsbs/src/main.cpp already sets it in code for every --test and
+    # --integration-test process; this carries it to a binary older than that
+    # change and to the redship children a -P script row (the golden rows,
+    # CheckHandRunDigest) launches. PREPENDED, so a row's own ENVIRONMENT is kept
+    # and, should a row ever name this variable itself, its later entry wins.
+    list(PREPEND _environment "SDL_WINDOW_NO_ACTIVATION_WHEN_SHOWN=1")
+
     add_test(NAME ${RSBS_T_NAME} COMMAND ${RSBS_T_COMMAND})
     set_tests_properties(${RSBS_T_NAME} PROPERTIES
         TIMEOUT "${RSBS_T_TIMEOUT}"
         LABELS "${_labels}"
+        ENVIRONMENT "${_environment}"
     )
-    if(RSBS_T_ENVIRONMENT)
-        set_tests_properties(${RSBS_T_NAME} PROPERTIES ENVIRONMENT "${_environment}")
-    endif()
 
     # Record which dispatch-table entry this row drives, for the completeness
     # guard below. The CTest row name is NOT the dispatch name: RandoGen,

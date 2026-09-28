@@ -38,6 +38,7 @@
 #include "integration_test_hooks.h"
 #include "archive_check.h"
 #include "headless_crash.h"
+#include "test_window_focus.h" // test windows never take focus (lane F1)
 
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
@@ -337,6 +338,13 @@ int main(int argc, char** argv) {
     // Check for unit test mode (--test)
     const char* testArg = TestRunner_ParseArgs(argc, argv);
     if (testArg != nullptr) {
+        // Before any row can create a window: a test window is shown WITHOUT
+        // activation, so a tier of ~180 processes never takes the keyboard from
+        // the person at the workstation. Runs before the UI snapshot harness's own
+        // SDL_SetHint (Session::BringUp), which it leaves in place. Normal play
+        // never reaches this, so a player's window still comes to the front.
+        // Locked by the test-window-no-activation row (test_window_focus.h).
+        TestWindowFocus_ArmForTestMode("--test");
         // Fast-exit with the verdict: the chimera process heap-corrupts during
         // normal CRT teardown (0xC0000374 in the onexit static-destructor
         // chain — reproducible with just `redship --version` on Windows),
@@ -357,6 +365,10 @@ int main(int argc, char** argv) {
         if (!TestRunner_SetupIntegrationTest(integrationTestArg)) {
             return 1; // Test not found
         }
+        // Same policy as --test above: the integration tier boots the real game in
+        // a window, and it must not take focus either. Set before the
+        // Ship::Context below can create one.
+        TestWindowFocus_ArmForTestMode("--integration-test");
         // Continue to game initialization - integration tests actually run the game
         printf("[INT-TEST] Integration test mode - will boot game with hooks\n");
     }
@@ -661,6 +673,10 @@ int main(int argc, char** argv) {
 
         // Integration test exit takes priority over game switching
         if (TestRunner_IsIntegrationTestMode() && IntegrationTest_ExitRequested()) {
+            // The integration run's [FOCUS] line (lane F1): the game window is
+            // still up here, so this reads whether it holds the keyboard after a
+            // real boot, and armed=1 shows main armed the hint on this path too.
+            TestWindowFocus_Probe(integrationTestArg);
             keepRunning = false;
             break;
         }
