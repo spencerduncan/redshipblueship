@@ -118,7 +118,7 @@ const char* Combo_MMOptionsPage_LockWarning(void) {
     // No longer "a crossing whose options differ is refused": the load restores
     // a file's own options (#781), so a player cannot reach that crossing
     // through this page.
-    return "Generating a paired world locks these options in for that world.";
+    return "Generating a paired world locks these options in.";
 }
 
 const char* Combo_MMOptionsPage_FallbackWarning(void) {
