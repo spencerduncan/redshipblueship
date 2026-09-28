@@ -4545,6 +4545,20 @@ TestResult Test_PairedLoadRestore(void) {
     return MM_PairedLoadRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// games/oot/soh/oot_departure_scene_exit_test.cpp (#770): the save writes the
+// windmill gear's and Lake Hylia's Destroys make on any scene exit reach the
+// frozen OoT half on both departure drivers. ROM-free and display-free.
+extern "C" int OoT_DepartureWindmillFlag_RunHeadless(void);
+extern "C" int OoT_DepartureLakeFlag_RunHeadless(void);
+
+TestResult Test_OoTDepartureWindmillFlag(void) {
+    return OoT_DepartureWindmillFlag_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+TestResult Test_OoTDepartureLakeFlag(void) {
+    return OoT_DepartureLakeFlag_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ============================================================================
 // Test registry
 // ============================================================================
@@ -5334,6 +5348,16 @@ const TestDescriptor gTests[] = {
      "A moon crash that restores a commit taken on OoT's side (the pool moved after MM's departure) leaves MM's "
      "rupees, health and ammo EQUAL to the restored pool, and a later spend is an exact delta (#785)",
      Test_MMMoonCrashPoolApplied},
+    {"oot-departure-windmill-flag",
+     "A cross-game departure (F10 or door) from the windmill with the gear live freezes the Song of Storms windmill "
+     "flag cleared, as the gear's Destroy leaves it on any non-cutscene exit; no gear, a cutscene, or no PlayState "
+     "writes nothing (#770)",
+     Test_OoTDepartureWindmillFlag},
+    {"oot-departure-lake-flag",
+     "A cross-game departure from Lake Hylia in rando after the Water Temple blue warp freezes the lake raised and "
+     "puts the river water box back, as the lake objects' Destroy does on any exit; vanilla, no blue warp, no lake "
+     "object or no PlayState keep the save as it is (#770)",
+     Test_OoTDepartureLakeFlag},
     {nullptr, nullptr, nullptr}  // Sentinel
 };
 
