@@ -212,6 +212,73 @@ Nothing stored in an existing save is recomputed, so existing files are unaffect
 
 ---
 
+## Pre-playtest smoke, 2026-09-27, `d928d67d`
+
+Before anyone plays, the build under test was run through the checks that hosted CI
+cannot run, because they need the ROMs. Code at `d928d67d` is the code at `d6c8f270`:
+the two commits after it changed documentation only.
+
+**How it was run.** A fresh Windows checkout at `d928d67d`, built from cold (Release,
+MSVC). `oot.o2r` and `mm.o2r` were extracted from the ROMs by that build's own
+extractor, and `soh.o2r`, `2ship.o2r` and `redship.o2r` were generated at the same commit.
+The config was OpenGL only, and windows opened without taking focus. There was no `Save/`
+folder from earlier play.
+
+| Check | Result |
+|---|---|
+| `redship` tier | 138 of 138 passed, none skipped |
+| `rando` tier | 40 of 40 passed, none skipped. All four golden-world rows passed with `tests/golden/` untouched, so the generated worlds are the pinned ones |
+| `ui` tier (OpenGL, 1280x800, ROM archives mounted) | passed: 105 captures, every one `pass` |
+| `integration` | 5 of 6 passed. `IntSwitchOoTHmsToMm` timed out at 120 s, which is [#544](https://github.com/spencerduncan/redshipblueship/issues/544) (known, see "CI and quality gates" below). `IntBootOoT`, `IntBootMM`, `IntSwitchMmClockTownSouthToOoT`, `IntArchiveHotswapCycle` (4 arrivals) and `IntGameplayRoundtrip` passed |
+| `integration-soak` | `IntGameplayRoundtripSoak` passed: "3 round trip(s), warp, and door transition survived 120 live frames per phase" (70.6 s) |
+| Creation time, shipped defaults | 10 real paired creations (`RSBS_CSB_SAMPLE_EVENT=10`: Generate, the creation event with the spoiler written, the arm, `Randomizer_InitSaveFile`). 10 of 10 created on the first attempt with no budget stop. Mean 8.5 s, best 6.2 s, worst 13.0 s (the one seed whose fill needed a second batch), against the 30 s budget. Every world's 50 heart pickups filled the bar with none wasted |
+| DX11 menus against OpenGL | See below: no visible difference |
+
+**What this does not cover: the first crossing into a paired Termina with the real game
+data loaded.** No automated row runs the whole path in one process: create a paired file
+through the creation event, then walk into MM with the ROM archives mounted. The
+integration rows cross with a vanilla debug save, and their log says so on every MM
+arrival: `[MM] pairing: skipped-because-no-paired-oot-world`. The rows that do run
+creation and then an MM arrival in one process (`ComboCreationEvent`, `MMPairSwitchEntry`)
+run display-free with the archives unmounted. Both passed, and their logs show the two
+lines §3 of the playtest guide asks you to look for:
+`[MM] pairing: arrival profile matches the creation-frozen identity` and
+`[MM] pairing: HYDRATED from the frozen MM half (saveType=rando ...`. `MMPairSwitchEntry`
+also passed its return leg ("restored, not regenerated") and its refusal leg. So the
+playtest's first crossing (guide §3, step 3) is the first time this path runs with the
+real game. That is why it comes first.
+
+**Reads like a bug, but is not one.** Every HYDRATED line ends with
+`foreignPlacements=0`, even when the file has dozens of crossings. That count is the
+retired item table from before the single-bag switch. Crossings are now kept in the
+crossing store, which the Combo Tracker and Cross-Game Spoiler read. A zero there does
+not mean nothing crossed.
+
+**Smaller notes.**
+- The test portal (`--test-entrance`, Mido's House to the Clock Tower) skips Closed
+  Forest. On the shipped defaults, the Happy Mask Shop opens only after the Deku Tree.
+- No row that ran loaded a `.redsave`. No load-refusal line (`RSBS_LOAD_REFUSED`,
+  `COMBO SETTINGS IDENTITY`) appeared in any log.
+
+**DirectX 11.** The Windows CI run on `d6c8f270` (run 36369933984) renders every menu
+page, window and toast through DirectX 11. Its 98 captures were compared with an OpenGL
+render made at `d928d67d` on the same 832x600 profile, also without the ROM archives.
+- **Text:** the text drawn is identical in all 98. Each capture's size, content
+  rectangle, scroll range and expected text match too.
+- **Pixels:** no capture is pixel-identical. At most 1.3% of a capture's pixels differ at
+  all, all by 32 levels or less. The only exceptions are 11 single corner pixels on the
+  MM Tricks page's filter and table frames.
+- **Pages checked by eye,** side by side and in a difference image: Cross-Game Rules
+  (including the Goal tooltip), Majora's Mask, Windows, MM Mods, MM Randomizer (live and
+  frozen), MM Tricks (live and frozen), the creation overlay, the Combo Tracker and the
+  Cross-Game Spoiler. No difference is visible.
+- **Both backends, not a DX11 issue:** at 832x600, the Combo > Majora's Mask page cuts
+  off its checkbox labels next to the Autosave note.
+
+**Findings.** None apart from #544, so no new issue was filed.
+
+---
+
 ## Save loss and corruption
 
 ### A changed MM option or Cross-Game Rule breaks the pair for the session — [#564](https://github.com/spencerduncan/redshipblueship/issues/564)
