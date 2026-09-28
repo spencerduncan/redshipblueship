@@ -261,7 +261,7 @@ agrees with the file. The cases the file cannot answer stay visible instead of s
   record: "Not paired: Cross-game record is damaged"). The field names are on stderr.
   The OoT file still opens and plays without its Majora's Mask half, because the load
   runs after OoT has opened the file; the next crossing into Majora's Mask says so
-  ("Not paired: Termina stays un-randomized this session") instead of skipping pairing
+  ("Not paired: Termina stays un-randomized") instead of skipping pairing
   silently. Nothing is saved to the pair that session. This residual is reachable only
   from another build's file or a damaged one (ADR 0011, 2026-09-28 amendment).
 

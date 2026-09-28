@@ -333,11 +333,12 @@ bool ToastNamesLabel(const std::string& message, const char* label) {
     return fragment.size() >= 8 && whole.compare(0, fragment.size(), fragment) == 0;
 }
 
-/** SoH's toast shape (docs/ui-style-guide.md section 10): the overlay draws the
- *  prefix and the message on ONE line and never wraps, so together they stay
- *  within about 53 characters. */
+/** SoH's toast shape (docs/ui-style-guide.md section 10b): the overlay draws the
+ *  prefix and the message on ONE line and never wraps. The load keeps to 48
+ *  characters (save.cpp's kLoadToastBudget); the pixels are the UI snapshot's
+ *  toast/load-* pages at the 832-px profile. */
 bool FitsOneLine(const Toast& toast) {
-    return toast.prefix.size() + 1 + toast.message.size() <= 53;
+    return toast.prefix.size() + 1 + toast.message.size() <= 48;
 }
 
 // ---------------------------------------------------------------------------

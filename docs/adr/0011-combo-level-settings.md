@@ -1438,8 +1438,8 @@ in this build can author. What the file cannot answer stays visible:
   session. It is reachable only from a file another build wrote or a damaged
   one, never from a page in this build, and it is no longer silent: the
   load's toast says the file is not paired, and every crossing into Majora's
-  Mask in that session posts "Not paired: Termina stays un-randomized this
-  session" (`MM_Rando_GateCrossGameArrival`'s no-pair leg, for a slot the
+  Mask in that session posts "Not paired: Termina stays un-randomized"
+  (`MM_Rando_GateCrossGameArrival`'s no-pair leg, for a slot the
   load refused). Recorded here for the operator's sign-off; the headless lock
   is `PairedLoadRestore` leg 4.
 - A restore whose own after-check fails (unreachable while the resolvers are

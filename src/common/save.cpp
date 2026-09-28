@@ -87,12 +87,14 @@ bool gForceLoadRestoreVerifyFail = false;
 // rules, or refused the pair, used to say so on stderr only, which no player
 // reads. Every toast here is SoH's shape (docs/ui-style-guide.md section 10b,
 // "Toasts"): default colours, the player's duration, a short prefix and one
-// short message. The overlay draws both on ONE line and never wraps, so prefix
-// and message together stay within about 53 characters (the UI snapshot's
-// toast/load-* pages measure the pixels); the long explanation, with every
-// field, stays on the stderr line beside each toast. Muted: the overlay's ding
-// is OoT's audio, and the load also runs in the display-free rows.
-constexpr std::size_t kLoadToastBudget = 53;
+// short message. The overlay draws both on ONE line and never wraps. The style
+// guide's "about 53 characters" is the 832-px window's width in average glyphs;
+// a 52-character toast measured 810 px there and ran off the left edge, so these
+// keep to 48 (the UI snapshot's toast/load-* pages measure the pixels at that
+// profile). The long explanation, with every field, stays on the stderr line
+// beside each toast. Muted: the overlay's ding is OoT's audio, and the load also
+// runs in the display-free rows.
+constexpr std::size_t kLoadToastBudget = 48;
 
 // The message budget left beside @p prefix and the space between them.
 std::size_t LoadToastRoom(const char* prefix) {
@@ -1617,7 +1619,7 @@ void RsbsSave_EmitLoadToast(int kind, const char* names, int count) {
             break;
         case RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED:
             prefix = "Not paired:";
-            message = "Termina stays un-randomized this session";
+            message = "Termina stays un-randomized";
             break;
         default:
             return;
