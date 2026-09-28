@@ -344,8 +344,9 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 **Variants:**
 - STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
   that draws an empty-set note), Majora's Mask's autosave,
-  Combo > MM Row States' default, race-lockout (the group note in both) and gate-on (the gated Partial row, disabled
-  under its own group's note), Combo > MM Randomizer's unpaired, frozen and mm-suspended (each shows its own note), and Combo > MM Tricks'
+  Combo > MM Row States' default (its gated group hidden), gate-on (the group's Dormant and Partial rows drawn disabled
+  under its gray note) and race-lockout (the note survives it), Combo > MM Randomizer's unpaired, frozen and
+  mm-suspended (each shows its own note), and Combo > MM Tricks'
   unpaired and frozen (the trick headline, then the freeze sentence).
   The Cross-Game Spoiler draws paired (no crossings), crossings (crossings both ways authored through the crossing
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state

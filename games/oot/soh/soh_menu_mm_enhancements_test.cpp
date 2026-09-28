@@ -102,6 +102,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #include <climits>
+#include <cstdarg>
 #include <cstddef>
 #include <cstdio>
 #include <string>
@@ -278,17 +279,36 @@ constexpr std::size_t kSyntheticManifestCount = sizeof(kSyntheticManifest) / siz
 struct GroupNoteCensus {
     std::size_t disabledRows = 0; ///< interactive rows drawn disabled
     std::size_t notesShown = 0;   ///< group notes drawn (not hidden)
+    std::size_t violations = 0;   ///< breaches of #747's rule, reported or not
 };
+
+/** One breach of #747's rule: counted always, printed as a FAIL only when the
+ *  caller is checking a page that must pass (the negative control counts a
+ *  page that must NOT pass, silently). */
+void NoteViolation(GroupNoteCensus& census, bool report, const char* fmt, ...) {
+    census.violations++;
+    if (!report) {
+        return;
+    }
+    char buf[512];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    printf("[TEST] FAIL(10): %s\n", buf);
+    gFailures++;
+}
 
 /**
  * #747's rule over a built page, as MenuDrawItem would draw it right now: every
  * interactive row drawn DISABLED sits in a group -- the rows after one
  * SEPARATOR_TEXT, within one column -- that shows exactly one group note, as the
- * group's first row under the separator; and a shown note sits over a group with
- * a disabled row in it (a note over nothing disabled is the same lie the other
- * way). Every row gets one draw pass first, so each PreFunc has run.
+ * group's first row under the separator, gray, .RaceDisable(false) and
+ * .HideInSearch(true); and a shown note sits over a group with a disabled row in
+ * it (a note over nothing disabled is the same lie the other way). Every row
+ * gets one draw pass first, so each PreFunc has run.
  */
-GroupNoteCensus CheckGroupNotes(SidebarEntry& page, const char* where) {
+GroupNoteCensus CheckGroupNotes(SidebarEntry& page, const char* where, bool report) {
     GroupNoteCensus census;
     const std::string note = SohGui::MmEnhancementsGroupNoteText();
     for (uint32_t column = 0; column < page.columnWidgets.size(); column++) {
@@ -300,16 +320,21 @@ GroupNoteCensus CheckGroupNotes(SidebarEntry& page, const char* where) {
         std::size_t indexInGroup = 0;
         std::size_t notes = 0;
         std::size_t disabled = 0;
-        const char* firstDisabled = nullptr;
+        std::string firstDisabled;
         auto closeGroup = [&]() {
-            MME_CHECK(disabled == 0 || notes == 1,
-                      "%s: group \"%s\" draws %zu row(s) disabled (first \"%s\") and shows %zu group note(s); a "
-                      "disabled row's state must be legible without hovering, in exactly one gray note",
-                      where, group.c_str(), disabled, firstDisabled != nullptr ? firstDisabled : "", notes);
-            MME_CHECK(notes == 0 || disabled > 0,
-                      "%s: group \"%s\" shows a group note over no disabled row; the note says \"Hover one\" over "
-                      "nothing",
-                      where, group.c_str());
+            if (disabled != 0 && notes != 1) {
+                NoteViolation(census, report,
+                              "%s: group \"%s\" draws %zu row(s) disabled (first \"%s\") and shows %zu group "
+                              "note(s); a disabled row's state must be legible without hovering, in exactly one gray "
+                              "note",
+                              where, group.c_str(), disabled, firstDisabled.c_str(), notes);
+            }
+            if (notes != 0 && disabled == 0) {
+                NoteViolation(census, report,
+                              "%s: group \"%s\" shows a group note over no disabled row; the note says \"Hover "
+                              "one\" over nothing",
+                              where, group.c_str());
+            }
             census.disabledRows += disabled;
             census.notesShown += notes;
         };
@@ -320,27 +345,32 @@ GroupNoteCensus CheckGroupNotes(SidebarEntry& page, const char* where) {
                 indexInGroup = 0;
                 notes = 0;
                 disabled = 0;
-                firstDisabled = nullptr;
+                firstDisabled.clear();
                 continue;
             }
             if (!row.isHidden && row.type == WIDGET_TEXT && row.name == note) {
                 notes++;
-                MME_CHECK(indexInGroup == 0,
-                          "%s: group \"%s\"'s note is its row %zu; it belongs directly under the separator, above "
-                          "the group (style guide R-S3)",
-                          where, group.c_str(), indexInGroup);
-                MME_CHECK(!row.raceDisable && row.hideInSearch,
-                          "%s: group \"%s\"'s note has RaceDisable %d and HideInSearch %d; a gray note is "
-                          ".RaceDisable(false) and .HideInSearch(true) (R-S3a)",
-                          where, group.c_str(), (int)row.raceDisable, (int)row.hideInSearch);
+                if (indexInGroup != 0) {
+                    NoteViolation(census, report,
+                                  "%s: group \"%s\"'s note is its row %zu; it belongs directly under the separator, "
+                                  "above the group (style guide R-S3)",
+                                  where, group.c_str(), indexInGroup);
+                }
+                if (row.raceDisable || !row.hideInSearch) {
+                    NoteViolation(census, report,
+                                  "%s: group \"%s\"'s note has RaceDisable %d and HideInSearch %d; a gray note is "
+                                  ".RaceDisable(false) and .HideInSearch(true) (R-S3a)",
+                                  where, group.c_str(), (int)row.raceDisable, (int)row.hideInSearch);
+                }
                 auto text =
                     row.options != nullptr ? std::static_pointer_cast<UIWidgets::TextOptions>(row.options) : nullptr;
-                MME_CHECK(text != nullptr && text->color == UIWidgets::Colors::Gray,
-                          "%s: group \"%s\"'s note is not drawn Gray", where, group.c_str());
+                if (text == nullptr || text->color != UIWidgets::Colors::Gray) {
+                    NoteViolation(census, report, "%s: group \"%s\"'s note is not drawn Gray", where, group.c_str());
+                }
             } else if (!row.isHidden && row.type != WIDGET_TEXT && IsDisabled(row)) {
                 disabled++;
-                if (firstDisabled == nullptr) {
-                    firstDisabled = row.name.c_str();
+                if (firstDisabled.empty()) {
+                    firstDisabled = row.name;
                 }
             }
             indexInGroup++;
@@ -779,11 +809,41 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                   "the honesty rule accepts a Live row that records an issue");
         printf("[TEST] leg 7a: the honesty rule requires an issue exactly on the non-live rows, both directions\n");
 
+        // 7-control. The check's own red half, observed on every run: a group
+        // whose row is drawn disabled with NO note under its separator -- what
+        // the page drew before #747 the day a row went non-live -- must be
+        // counted as a breach. Built the way leg 4's synthetic rows are (the
+        // presentation call, no builder), so no note is registered.
+        {
+            MmEnhancementMenuProbe controlProbe;
+            WidgetPath controlPath = { "Combo", "Synthetic Noteless Page", SECTION_COLUMN_1 };
+            controlProbe.AddMenuEntry("Combo", "gSettings.Menu.ComboSidebarSection");
+            controlProbe.AddSidebarEntry("Combo", controlPath.sidebarName, 1);
+            controlProbe.AddWidget(controlPath, "Noteless Group", WIDGET_SEPARATOR_TEXT);
+            controlProbe.AddWidget(controlPath, "Synthetic Noteless Row", WIDGET_CVAR_CHECKBOX)
+                .CVar("gEnhancements.MenuLockSyntheticRow")
+                .RaceDisable(false)
+                .Options(UIWidgets::CheckboxOptions().Tooltip("synthetic"))
+                .PreFunc([](WidgetInfo& i) {
+                    SohGui::SohMenu::ApplyPresentation(i, i.name, SohGui::SOH_MENU_PRESENT_CAPABILITY,
+                                                       kSyntheticDormantReason);
+                });
+            SidebarEntry& controlPage = controlProbe.Entries().at("Combo").sidebars.at(controlPath.sidebarName);
+            GroupNoteCensus control = CheckGroupNotes(controlPage, "noteless control page", false);
+            MME_CHECK(control.disabledRows == 1 && control.violations == 1,
+                      "the noteless control page counted %zu disabled row(s) and %zu breach(es), expected 1 and 1: "
+                      "the group-note check cannot see a disabled row with no note, so its green proves nothing",
+                      control.disabledRows, control.violations);
+            printf("[TEST] leg 7-control: the group-note check counts a disabled row with no note as a breach (red "
+                   "half: %zu breach)\n",
+                   control.violations);
+        }
+
         // 7b. The shipped page: every row Live, so no row is drawn disabled and
         // no group note is shown -- the page looks as it did before #747.
         {
             SidebarEntry& shipped = sidebars.at(pageName);
-            GroupNoteCensus census = CheckGroupNotes(shipped, pageName);
+            GroupNoteCensus census = CheckGroupNotes(shipped, pageName, true);
             MME_CHECK(census.disabledRows == 0 && census.notesShown == 0,
                       "the shipped page draws %zu disabled row(s) and %zu group note(s); every manifest row is Live, "
                       "so it draws neither",
@@ -805,7 +865,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         // Gate OFF: the Partial slider is hidden, so only the heading group has a
         // disabled row, and only its note shows.
         CVarSetInteger(kSynthParentKey, 0);
-        GroupNoteCensus off = CheckGroupNotes(notePage, "synthetic page, gate off");
+        GroupNoteCensus off = CheckGroupNotes(notePage, "synthetic page, gate off", true);
         MME_CHECK(off.disabledRows == 1 && off.notesShown == 1,
                   "gate off: %zu disabled row(s) and %zu note(s) shown, expected 1 and 1 (the Dormant row and its "
                   "group's note; the gated Partial row is hidden and its group's note with it)",
@@ -813,7 +873,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
 
         // Gate ON: the Partial slider draws disabled, and its group's note shows.
         CVarSetInteger(kSynthParentKey, 1);
-        GroupNoteCensus on = CheckGroupNotes(notePage, "synthetic page, gate on");
+        GroupNoteCensus on = CheckGroupNotes(notePage, "synthetic page, gate on", true);
         MME_CHECK(on.disabledRows == 2 && on.notesShown == 2,
                   "gate on: %zu disabled row(s) and %zu note(s) shown, expected 2 and 2 (one per group)",
                   on.disabledRows, on.notesShown);

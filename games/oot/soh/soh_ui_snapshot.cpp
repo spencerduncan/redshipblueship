@@ -873,11 +873,13 @@ bool gProbeDecided = false;
 // The MM note probe's sidebar and synthetic manifest (InstallMmNoteProbe, #747).
 // Combo > Majora's Mask's own builder over rows that are NOT all Live, because
 // every shipped row is, so its disabled rows and group notes never reach a pixel
-// on the shipped page. The shipped page's shape: a heading group with a Live and
-// a Dormant checkbox, then a pointer row opening a second group that holds a
-// Partial slider gated on the pointer's key (hidden, with its note, until the
-// "gate-on" state writes the key). Static storage: the page's PreFuncs keep
-// pointers into the table.
+// on the shipped page. The shipped page's shape: a heading group of Live rows
+// (which therefore gets no note), then a pointer row opening a second group that
+// holds a Dormant checkbox and a Partial slider, both gated on the pointer's key.
+// So the group note depends on authored state: hidden with its rows in "", drawn
+// over them once "gate-on" writes the key -- which also makes the harness's own
+// `no-state` sabotage turn the note's check red. Static storage: the page's
+// PreFuncs keep pointers into the table.
 constexpr const char* kMmNoteSidebar = "MM Row States";
 constexpr const char* kMmNoteLiveRow = "Live Enhancement";
 constexpr const char* kMmNoteDormantRow = "Dormant Enhancement";
@@ -886,12 +888,12 @@ constexpr const char* kMmNoteParentKey = "gRsbsUiSnapshot.MmNote.Parent";
 constexpr RSBS::HostedMmEnhancement kMmNoteManifest[] = {
     { "gRsbsUiSnapshot.MmNote.Live", kMmNoteLiveRow, "Toggles a setting that applies now. Majora's Mask only.",
       "harness", nullptr, "", RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Live, "" },
+    { kMmNoteParentKey, "Parent Setting", "Parent Setting is on another page and applies to both games.", "harness",
+      nullptr, "", RSBS::MmEnhancementHosting::HostedElsewhere, RSBS::MmEnhancementLiveness::Live, "" },
     { "gRsbsUiSnapshot.MmNote.Dormant", kMmNoteDormantRow,
       "Toggles a setting whose provider is not in this build. Majora's Mask only.", "harness", nullptr, "",
       RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Dormant, "Provider Not in This Build",
-      RSBS::MmEnhancementWidget::Checkbox, 0, 0, 0, nullptr, nullptr, 747 },
-    { kMmNoteParentKey, "Parent Setting", "Parent Setting is on another page and applies to both games.", "harness",
-      nullptr, "", RSBS::MmEnhancementHosting::HostedElsewhere, RSBS::MmEnhancementLiveness::Live, "" },
+      RSBS::MmEnhancementWidget::Checkbox, 0, 0, 0, nullptr, kMmNoteParentKey, 747 },
     { "gRsbsUiSnapshot.MmNote.Partial", "Partial Enhancement: %d minutes",
       "Sets a value whose draw is not wired yet. Majora's Mask only.", "harness", nullptr, "",
       RSBS::MmEnhancementHosting::OwnRow, RSBS::MmEnhancementLiveness::Partial, "Draw Not Wired in Majora's Mask",
@@ -1982,22 +1984,19 @@ void Session::BuildPageList() {
         p.kind = Kind::MENU_PAGE;
         p.mmNoteProbe = true;
         p.compareWith = "Enhancements/Quality of Life";
-        // "": the Dormant row's group shows its note; the gated Partial row and
-        // its group's note are hidden. "race-lockout": the note survives it.
-        // "gate-on": the Partial row draws, disabled, under its own group's note.
-        p.states = { "", "race-lockout", "gate-on" };
+        // "": the gate is off, so the second group's rows and its note are
+        // hidden and the page shows only its Live rows. "gate-on": both gated
+        // rows draw, disabled, under the group's note. "race-lockout": the same
+        // with the lockout on; the note survives it.
+        p.states = { "", "gate-on", "race-lockout" };
         const std::string note = SohGui::MmEnhancementsGroupNoteText();
-        p.stateText[""] = { note };
+        p.stateText["gate-on"] = { note, kMmNoteDormantRow, kMmNotePartialLabel };
         p.stateText["race-lockout"] = { note };
-        // The slider only: the note is in "" too (the heading group's), and the
-        // contrast requires a state's text to be absent from it. That the second
-        // group's note shows here is counted by MenuMmEnhancementRows leg 7c.
-        p.stateText["gate-on"] = { kMmNotePartialLabel };
-        p.stateContrast = { { "gate-on", "" } };
+        p.stateContrast = { { "gate-on", "" }, { "race-lockout", "" } };
         p.hovers = { "dormant" };
         p.hoverRows = { { "dormant", kMmNoteDormantRow } };
+        p.hoverRowState = { { "dormant", "gate-on" } };
         p.disabledHovers = { "dormant" };
-        p.hoverStates = { "" };
         p.bodyText = kMmNoteLiveRow;
         p.expectText = { p.bodyText };
         pages.push_back(p);
@@ -2470,7 +2469,7 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
         }
     } else if (p.rowStateProbe || p.mmNoteProbe) {
-        if (p.mmNoteProbe && state == "gate-on") {
+        if (p.mmNoteProbe && (state == "gate-on" || state == "race-lockout")) {
             CVarSetInteger(kMmNoteParentKey, 1);
         }
         if (state == "race-lockout") {
@@ -2523,7 +2522,7 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if ((p.rowStateProbe || p.mmNoteProbe) && state == "race-lockout") {
         CVarClear(CVAR_SETTING("DisableChanges"));
     }
-    if (p.mmNoteProbe && state == "gate-on") {
+    if (p.mmNoteProbe && (state == "gate-on" || state == "race-lockout")) {
         CVarClear(kMmNoteParentKey);
     }
     if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {
