@@ -45,8 +45,8 @@ and on ours (R-N4).
   Below 800 px the columns collapse to 1 (`Menu.cpp:892`).
 - **Width [project rule].** The narrowest profile the harness renders, `min-832x600`, is the contract for our rows:
   every row of ours fits its column there, and therefore at every wider profile. At 832 px a page's section is about
-  588 px wide, so a column is 272 px on a two-column page and 188 px on a three-column one (14 px less when the column
-  scrolls). A checkbox takes about 44 px before its label, a separator title 40 px of padding, and a slider's label
+  588 px wide, so a column is 286 px on a two-column page and 188 px on a three-column one, 14 px less when the
+  column scrolls (272 and 174). A checkbox takes about 44 px before its label, a separator title 40 px of padding, and a slider's label
   must fit at both ends of its range, because it prints its value. A three-column page therefore holds labels of about
   14 characters, which is why our mixed pages use two columns, as SoH's mixed pages do. Where a label of ours is still
   too long, shorten it to SoH's wording length with the same meaning (R-N2, R-N6) rather than changing a widget or a
