@@ -81,7 +81,7 @@ Run them in order; later groups assume a created world. "Expect" is what the mer
 ### E. Game over ([#753](https://github.com/spencerduncan/redshipblueship/pull/753))
 
 1. **MM death** reloads you at the area entrance with three hearts and no "Continue?" prompt. This is intentional ([#653](https://github.com/spencerduncan/redshipblueship/issues/653)).
-2. **MM's game-over prompt** (Combo > Majora's Mask): turn it on, die, and confirm the kaleido art draws correctly. This artwork has never been observed in this build ([#694](https://github.com/spencerduncan/redshipblueship/issues/694), open).
+2. **MM's game-over prompt** (Combo > Majora's Mask): turn it on, die, and confirm the kaleido art draws correctly. This artwork has never been observed in this build; play this one, because [#694](https://github.com/spencerduncan/redshipblueship/issues/694) stays open until someone has.
 3. **OoT F10 during game over,** Enhancements > Difficulty > "Spawn with Full Health" **off**, no bottled fairy: while "GAME OVER", the save prompt or "Continue playing?" shows, press F10. You arrive in MM with **three hearts**, not one; F10 back and Link is alive, not on the game-over screen. With "Spawn with Full Health" **on**: your **full** capacity.
 4. **Fairies and MM.** Die in OoT with a bottled fairy and press F10 before the bar starts filling: MM arrives at full capacity. Die in MM (default settings) and press F10 before the respawn fade: OoT (Market, outside the Happy Mask Shop) arrives with **three hearts**; with a bottled MM fairy, **ten hearts** or your capacity if lower. Control: die in OoT, choose "Continue", then F10: MM shows the hearts you had.
 
