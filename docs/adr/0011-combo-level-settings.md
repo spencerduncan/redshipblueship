@@ -1427,13 +1427,13 @@ in this build can author. What the file cannot answer stays visible:
 - A combo record field no key authors (`logicRung`, an unallocated flag bit,
   `spare1`), which only another build can have written, still refuses the
   load and latches the slot without quarantine, now with a
-  "Cross-game pairing REFUSED:" toast naming the field. Damage (unreadable
+  "Not saved: Cross-game rules differ (...)" toast naming the field. Damage (unreadable
   record, fingerprint, triforce) refuses and quarantines as before, with the
   same toast.
 - An MM identity input the file does not record (the excluded-check list,
   the starting-item block; no single-exe page edits either) cannot be
   restored. The load still commits the pair, so the session is never
-  silently unpaired, and posts "Cross-game pairing at risk:"; the arrival
+  silently unpaired, and posts "Not restored: Majora's Mask options differ"; the arrival
   gate stays the last line of defence and refuses at the crossing.
 
 Nothing about creation changes: the creation event resolves the keys at

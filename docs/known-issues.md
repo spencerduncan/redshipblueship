@@ -188,7 +188,7 @@ moved the entire paired generation to the file-create seam, and the arrival in M
 Mask no longer generates anything: it hydrates the frozen MM half or refuses. Such a file
 loads and plays in Ocarina of Time under the Cross-Game Rules it was created with (a
 file whose unified save carries the combo record, written since PR #628 on 2026-08-06,
-is refused at load under changed rules, as the between-sessions entry below describes;
+has any changed rule restored at load, as the between-sessions entry below describes;
 an older file has no record to compare and is exempt).
 What happens at the crossing depends on whether the file entered Majora's Mask before
 #680:
@@ -200,9 +200,10 @@ What happens at the crossing depends on whether the file entered Majora's Mask b
 - **Crossed before #680:** it carries the MM half the old arrival generated, and the
   arrival hydrates whatever frozen half it finds. It either plays that old pre-#680 MM
   world, or, if its creation-time MM profile stamp no longer matches this build's MM
-  options, is refused at the crossing by the MM-options check (a different toast, the
-  one the between-sessions entry below describes). Which one a given file meets cannot
-  be decided by reading.
+  options, the load restores the options from that half when they reproduce the stamp,
+  and otherwise warns at load ("Not restored: Majora's Mask options differ") and the
+  crossing is refused by the MM-options check. Which one a given file meets cannot be
+  decided by reading.
 
 This project is pre-release — the operator has accepted invalidating existing saves
 rather than spending effort on migration. **Create a new file**; there is no recovery
@@ -242,18 +243,19 @@ Loading a paired file now compares both its Cross-Game Rules and its Majora's Ma
 profile (the same digest the crossing checks) and puts the file's own values back into
 the pages:
 - a changed Cross-Game Rule (Goal, Crossing Direction, pool sizes, item classes, Shared
-  Ocarina) is restored, and a toast reads "Cross-Game Rules restored from this file:"
-  with the rows it reset;
+  Ocarina) is restored, and a toast reads "Restored from file:" with the rows it
+  reset (for example "Restored from file: Goal, Crossing Direction");
 - a changed MM option or trick is restored from the file's MM half, and a toast reads
-  "Majora's Mask options restored from this file:" with the rows it reset.
+  "Restored from file: Majora's Mask: ..." with the rows it reset.
 
 The file loads paired, the slot stays writable, and the next crossing into Majora's Mask
 agrees with the file. Two cases the file cannot answer stay visible instead of silent:
 an MM identity input the file does not record (the excluded-check list or the
 starting-item block, which no page in this build edits) loads the file paired but posts
-"Cross-game pairing at risk:", and the crossing is refused until they match; a Cross-Game
+"Not restored: Majora's Mask options differ", and the crossing is refused until they
+match; a Cross-Game
 record field no page authors (only a file from another build can differ there) refuses
-the load with a "Cross-game pairing REFUSED:" toast naming the field, and the OoT file
+the load with a "Not saved: Cross-game rules differ (...)" toast naming the field, and the OoT file
 plays without the pair. The original report, kept for matching old logs:
 
 Open, and a trap between sessions. Combo → MM Randomizer and Combo → MM Tricks lock

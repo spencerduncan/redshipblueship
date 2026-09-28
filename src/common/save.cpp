@@ -78,32 +78,56 @@ bool SaveLogFail(int slot, const char* reason) {
 
 // The load's player-visible surface (#781). A load that changed the session's
 // rules, or refused the pair, used to say so on stderr only, which no player
-// reads. Two shapes: an INFO toast in SoH's own notification colours (what the
-// load did for the player), and a REFUSAL toast in the colours of the arrival
-// gate's refusals (GameExports_SingleExe.cpp), so the two refusal surfaces read
-// as one. Muted like those: the overlay's ding is OoT's audio, and this runs in
-// the display-free rows too.
-void LoadToast(bool refusal, const char* prefix, const char* message) {
-    ComboNotification toast;
-    std::memset(&toast, 0, sizeof(toast));
-    toast.prefix = prefix;
-    toast.message = message;
-    if (refusal) {
-        const float prefixColor[4] = { 0.9f, 0.35f, 0.3f, 1.0f };
-        const float messageColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-        std::memcpy(toast.prefixColor, prefixColor, sizeof(prefixColor));
-        std::memcpy(toast.messageColor, messageColor, sizeof(messageColor));
-        toast.remainingTime = 15.0f;
-    } else {
-        // Notification::Options' own defaults (soh/Notification/Notification.h).
-        const float prefixColor[4] = { 0.5f, 0.5f, 1.0f, 1.0f };
-        const float messageColor[4] = { 0.7f, 0.7f, 0.7f, 1.0f };
-        std::memcpy(toast.prefixColor, prefixColor, sizeof(prefixColor));
-        std::memcpy(toast.messageColor, messageColor, sizeof(messageColor));
-        toast.remainingTime = 10.0f;
+// reads. Every toast here is SoH's shape (docs/ui-style-guide.md section 10):
+// default colours, the player's duration, a short prefix and one short message.
+// The overlay draws both on ONE line and never wraps, so prefix and message
+// together stay within about 53 characters; the long explanation, with every
+// field, stays on the stderr line beside each toast. Muted: the overlay's ding
+// is OoT's audio, and the load also runs in the display-free rows.
+constexpr std::size_t kLoadToastBudget = 53;
+
+void LoadToast(const char* prefix, const char* message) {
+    OoT_Notification_EmitDefault(prefix, message, /*mute=*/1);
+}
+
+// "A, B, C" cut to at most @p budget characters: as many leading names as fit,
+// then " +N" for the rest; when not even the first fits, "N <noun>".
+std::string FitNames(const std::string& list, std::size_t budget, const char* noun) {
+    std::vector<std::string> names;
+    std::size_t start = 0;
+    while (start <= list.size() && !list.empty()) {
+        const std::size_t comma = list.find(", ", start);
+        names.push_back(list.substr(start, comma == std::string::npos ? std::string::npos : comma - start));
+        if (comma == std::string::npos) {
+            break;
+        }
+        start = comma + 2;
     }
-    toast.mute = 1;
-    OoT_Notification_Emit(&toast);
+    std::string out;
+    std::size_t shown = 0;
+    for (const std::string& name : names) {
+        const std::size_t rest = names.size() - shown - 1;
+        const std::string suffix = rest > 0 ? " +" + std::to_string(rest) : "";
+        const std::string candidate = (out.empty() ? name : out + ", " + name);
+        if (candidate.size() + suffix.size() > budget) {
+            break;
+        }
+        out = candidate;
+        shown++;
+    }
+    if (shown == 0) {
+        return std::to_string(names.size()) + " " + noun;
+    }
+    if (shown < names.size()) {
+        out += " +" + std::to_string(names.size() - shown);
+    }
+    return out;
+}
+
+// The message budget left beside @p prefix and the space between them.
+std::size_t LoadToastRoom(const char* prefix) {
+    const std::size_t used = std::strlen(prefix) + 1;
+    return used < kLoadToastBudget ? kLoadToastBudget - used : 0;
 }
 
 // Filename-safe tag for the quarantine rename, so the renamed-aside evidence
@@ -879,29 +903,31 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     if (comboDiverged != 0) {
         char fields[192];
         Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
-        static char refusalMessage[320];
+        // "Not saved:" is the refusal's cost: the slot is latched, and the OoT
+        // file plays without its Majora's Mask half.
+        static const char* const kRefusedPrefix = "Not saved:";
+        std::string refusalMessage;
         if (Combo_ComboSettingsDivergenceIsDamage(comboDiverged)) {
             std::fprintf(stderr,
                          "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the stored cross-game identity is "
-                         "damaged (%s). Evidence quarantined; erase the slot to release it.\n",
+                         "damaged (%s). Evidence quarantined; erase the slot to release it. The OoT file plays "
+                         "without its Majora's Mask half and nothing is saved to the pair this session.\n",
                          slot, fields);
             QuarantineSlotFile(slot, RSBS_REFUSE_IDENTITY);
-            std::snprintf(refusalMessage, sizeof(refusalMessage),
-                          "This file's cross-game record is damaged (%s). It plays without Majora's Mask and "
-                          "progress will not be saved to the pair. Erase the file to release it.",
-                          fields);
+            refusalMessage = "Cross-game record is damaged";
         } else {
             std::fprintf(stderr,
                          "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
                          "created under do not match this session's and cannot be restored from it: %s. The "
-                         "on-disk .redsave is intact and untouched.\n",
+                         "on-disk .redsave is intact and untouched. The OoT file plays without its Majora's Mask "
+                         "half and nothing is saved to the pair this session.\n",
                          slot, fields);
-            std::snprintf(refusalMessage, sizeof(refusalMessage),
-                          "This file was made with cross-game rules this version cannot restore (%s). It plays "
-                          "without Majora's Mask and progress will not be saved to the pair.",
-                          fields);
+            const std::string lead = "Cross-game rules differ (";
+            const std::size_t room = LoadToastRoom(kRefusedPrefix);
+            const std::size_t frame = lead.size() + 1; // the closing parenthesis
+            refusalMessage = lead + FitNames(fields, room > frame ? room - frame : 0, "fields") + ")";
         }
-        LoadToast(/*refusal=*/true, "Cross-game pairing REFUSED:", refusalMessage);
+        LoadToast(kRefusedPrefix, refusalMessage.c_str());
         mSlotRefused[slot] = RSBS_REFUSE_IDENTITY;
         mSlotArmed[slot] = false;
         return RSBS_LOAD_REFUSED;
@@ -1055,19 +1081,25 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     if (restoredRules[0] != '\0' || mmProfileOutcome == RSBS_MM_PROFILE_LOAD_RESTORED) {
         Combo_ComboSettingsPersistStore();
     }
+    static const char* const kRestoredPrefix = "Restored from file:";
     if (restoredRules[0] != '\0') {
-        LoadToast(/*refusal=*/false, "Cross-Game Rules restored from this file:", restoredRules);
+        // The rows' own labels, as the page shows them ("Goal, Crossing
+        // Direction"); the full list is on the stderr line above.
+        const std::string message = FitNames(restoredRules, LoadToastRoom(kRestoredPrefix), "rules");
+        LoadToast(kRestoredPrefix, message.c_str());
     }
     if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_RESTORED) {
-        LoadToast(/*refusal=*/false, "Majora's Mask options restored from this file:", restoredMm);
+        const std::string lead = "Majora's Mask: ";
+        const std::size_t room = LoadToastRoom(kRestoredPrefix);
+        const std::string message =
+            lead + FitNames(restoredMm, room > lead.size() ? room - lead.size() : 0, "settings");
+        LoadToast(kRestoredPrefix, message.c_str());
     } else if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
         std::fprintf(stderr,
                      "[RsbsSave] slot %d: the live MM profile does not match the file's (%08X) and the file cannot "
                      "restore it; the next crossing into Majora's Mask will be refused until it does\n",
                      slot, (unsigned)combo.mmProfileDigest);
-        LoadToast(/*refusal=*/true, "Cross-game pairing at risk:",
-                  "Majora's Mask options differ from this file's and cannot be restored from it. Crossing into "
-                  "Termina will be refused until they match.");
+        LoadToast("Not restored:", "Majora's Mask options differ");
     }
 
     // A successful load is one of the three legitimate arming events, and it

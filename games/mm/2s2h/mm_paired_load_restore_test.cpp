@@ -49,12 +49,12 @@
  *           booted: nothing changed -> loads, pairs, no toast, no key written;
  *           the same with an EMPTY MM half (a file saved before MM ever ran)
  *           -> the same; and that empty-half file with a trick changed -> the
- *           file cannot restore it, so the load pairs, a refusal-coloured toast
+ *           file cannot restore it, so the load pairs, a toast
  *           warns now, nothing is written, and the arrival gate still refuses
  *           (the last line of defence)
  *   leg 4 - a record field no key authors (the logic rung, only another build
  *           can write it) -> REFUSED, not committed, not quarantined, and a
- *           REFUSED toast names "logicRung"
+ *           "Not saved:" toast names "logicRung"
  *
  * Every leg loads through Context_InvalidateSessionOnSlotLoad +
  * RsbsSave_SetActiveSlot + RsbsSave_LoadSlotChecked, the OnLoadFile seam's exact
@@ -242,6 +242,13 @@ bool Contains(const std::string& haystack, const char* needle) {
     return haystack.find(needle) != std::string::npos;
 }
 
+/** SoH's toast shape (docs/ui-style-guide.md section 10): the overlay draws the
+ *  prefix and the message on ONE line and never wraps, so together they stay
+ *  within about 53 characters. */
+bool FitsOneLine(const Toast& toast) {
+    return toast.prefix.size() + 1 + toast.message.size() <= 53;
+}
+
 // ---------------------------------------------------------------------------
 // Leg 1: Cross-Game Rules changed at the title screen.
 // ---------------------------------------------------------------------------
@@ -293,8 +300,8 @@ int LegCrossGameRules() {
     if (writable != 1 || RsbsSave_HasQuarantine(kSlot) != 0 || RsbsSave_HasSave(kSlot) != 1) {
         return Fail(15, "leg 1: the slot is latched, quarantined or gone after a restoring load");
     }
-    if (!toast.any || !Contains(toast.prefix, "Cross-Game Rules restored") || !Contains(toast.message, "Goal") ||
-        !Contains(toast.message, "Crossing Direction")) {
+    if (!toast.any || !Contains(toast.prefix, "Restored from file") || !Contains(toast.message, "Goal") ||
+        !Contains(toast.message, "Crossing Direction") || !FitsOneLine(toast)) {
         return Fail(16, "leg 1: no toast names what the load restored (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
@@ -358,8 +365,10 @@ int LegMmProfile() {
     if (writable != 1) {
         return Fail(26, "leg 2: a restoring load latched the slot");
     }
-    if (!toast.any || !Contains(toast.prefix, "Majora's Mask options restored") ||
-        !Contains(toast.message, "Starting Hearts") || !Contains(toast.message, trick->label)) {
+    // Options before tricks, and one short line: the first restored row by name,
+    // the trick counted ("+1"); stderr lists both.
+    if (!toast.any || !Contains(toast.prefix, "Restored from file") || !Contains(toast.message, "Majora's Mask") ||
+        !Contains(toast.message, "Starting Hearts") || !Contains(toast.message, "+1") || !FitsOneLine(toast)) {
         return Fail(27, "leg 2: no toast names what the load restored (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
@@ -434,7 +443,8 @@ int LegRoundTrip() {
     if (!trickOn) {
         return Fail(37, "leg 3: the load wrote a trick value the file does not record");
     }
-    if (!toast.any || !Contains(toast.prefix, "at risk") || !Contains(toast.message, "Majora's Mask options")) {
+    if (!toast.any || !Contains(toast.prefix, "Not restored") || !Contains(toast.message, "Majora's Mask options") ||
+        !FitsOneLine(toast)) {
         return Fail(38,
                     "leg 3: an MM profile the file cannot restore was not flagged at load (prefix '%s', "
                     "message '%s')",
@@ -476,7 +486,8 @@ int LegUnrestorableRule() {
     if (RsbsSave_HasQuarantine(kSlot) != 0 || RsbsSave_HasSave(kSlot) != 1) {
         return Fail(42, "leg 4: a healthy file was quarantined for a session divergence");
     }
-    if (!toast.any || !Contains(toast.prefix, "REFUSED") || !Contains(toast.message, "logicRung")) {
+    if (!toast.any || !Contains(toast.prefix, "Not saved") || !Contains(toast.message, "logicRung") ||
+        !FitsOneLine(toast)) {
         return Fail(43, "leg 4: the refusal is invisible — no toast names the rule (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
