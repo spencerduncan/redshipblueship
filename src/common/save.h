@@ -53,6 +53,7 @@
 #include "game.h"     // GameId, OOT_SAVE_CONTEXT_SIZE, MM_SAVE_CONTEXT_SIZE
 #include "context.h"  // ComboContext, gComboCtx, Context_* shadow API
 
+#include <stddef.h>
 #include <stdint.h>
 
 // On-disk constants (visible to both C and C++).
@@ -157,6 +158,13 @@ typedef struct RsbsGameMetaDesc {
     uint32_t validMarkerOffset;
     uint32_t validMarkerLen;    // 0 → treat as always-valid (skip the check)
     uint8_t  validMarker[8];    // expected bytes (e.g. "ZELDAZ", "ZELDA3")
+    // Optional (#773). A game's name bytes are in that game's own filename
+    // charset, never ASCII, so the panel cannot print them as they are. A
+    // registrar that knows its charset supplies this to turn them into
+    // printable text (NUL-terminated, at most 8 characters). It is handed the
+    // whole blob because a charset can depend on another field of the save
+    // (OoT's filename language). NULL keeps the raw-byte copy.
+    void (*decodePlayerName)(const uint8_t* blob, size_t blobSize, char outName[9]);
 } RsbsGameMetaDesc;
 
 #ifdef __cplusplus
@@ -212,6 +220,17 @@ struct SlotMeta {
     // reset by erase/create/reset.
     int commitSkew;
 };
+
+/**
+ * The unified file-select panel's name line for a slot that exists and passes
+ * its checks (ComboMenuBar::DrawFileSelect). Prefers OoT's name if OoT's half is
+ * started, else MM's. A paired world has one name -- its creation copies OoT's
+ * into MM's half (#773) -- so the line shows it once: both names only when both
+ * halves are started and really name different players. An empty MM name (a
+ * paired half created before #773 holds eight MM spaces) leaves the line to
+ * OoT's. Pure, so the mm-creation-new-file rows can lock it.
+ */
+std::string SlotNameLine(const SlotMeta& meta);
 
 #pragma pack(push, 1)
 /**
@@ -701,6 +720,15 @@ int  RsbsSave_GetActiveSlot(void);
  * z64save.h, so save.cpp never has to. Passing GAME_NONE or NULL is a no-op.
  */
 void RsbsSave_RegisterGameMeta(GameId game, const RsbsGameMetaDesc* desc);
+
+/**
+ * The N64 filename charset MM's names are written in (and OoT's PAL release's):
+ * 0x00-0x09 digits, 0x0A-0x23 'A'-'Z', 0x24-0x3D 'a'-'z', 0x3E space, 0x3F '-',
+ * 0x40 '.'. Decodes 8 name bytes into `outName` the way MM's textbox prints the
+ * name (z_message_nes.c's MESSAGE_NAME case): trailing spaces dropped, any byte
+ * outside the charset shown as '?'. Always NUL-terminates. (#773)
+ */
+void RsbsSave_DecodeN64FilenameName(const uint8_t name[8], char outName[9]);
 
 #ifdef __cplusplus
 }
