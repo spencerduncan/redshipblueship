@@ -18,6 +18,9 @@ message(STATUS "=== Single Executable Architecture Enabled ===")
 set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/game.c
     ${CMAKE_SOURCE_DIR}/src/common/archive_check.cpp
+    # #604: the boot-time output comparison of OoT's and MM's 'OARR' Array
+    # readers (called from rsbs/src/main.cpp before anything can draw)
+    ${CMAKE_SOURCE_DIR}/src/common/array_reader_agreement.cpp
     # Unattended-safe crash handling: replaces libultraship's modal crash
     # dialog with stderr + immediate non-zero exit on headless runs (#388)
     ${CMAKE_SOURCE_DIR}/src/common/headless_crash.cpp
@@ -2173,6 +2176,23 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME OoTDepartureWindmillFlag COMMAND redship --test oot-departure-windmill-flag)
     redship_add_test(NAME OoTDepartureLakeFlag COMMAND redship --test oot-departure-lake-flag)
 
+    # #604: both games ship an 'OARR' Array reader and one process holds both, so
+    # a vertex array parses with whichever owns the loader slot for its archive
+    # (OoT's for the curated cross-game archive). ArrayReaderAgreement runs the
+    # boot check (rsbs/src/main.cpp refuses to start on a divergence) and the
+    # synthetic comparison with its mutated-copy sensitivity controls: ROM-free,
+    # never skips. ArrayReaderAgreementMM repeats it over real MM vertex arrays
+    # and asserts the per-archive 'Array' slot hands mm.o2r to MM's reader (the
+    # Zora barrier's X8 alpha ramp); it SKIPs without mm.o2r.
+    # src/common/tests/test_array_reader_agreement.c.
+    redship_add_test(NAME ArrayReaderAgreement COMMAND redship --test array-reader-agreement)
+    redship_add_test(NAME ArrayReaderAgreementMM COMMAND redship --test array-reader-agreement-mm)
+    set_tests_properties(ArrayReaderAgreementMM PROPERTIES SKIP_RETURN_CODE 77)
+    # #604 (b) without a ROM: ArrayReaderAgreementMM SKIPs in CI, so this row
+    # stages two loose-folder archives (one recorded as MM's, one nobody's) and
+    # asserts the per-archive 'Array' slot routes each to the right reader. A
+    # removed Array dispatcher turns it red in CI. Never skips.
+    redship_add_test(NAME ArrayReaderDispatch COMMAND redship --test array-reader-dispatch)
     # Lane W5: the Combo > Save Files page's model (each .redsave slot's state in
     # the player's words, which replaces the never-constructed ComboMenuBar
     # panel): every refusal reason's words, one row per slot state, the test seam
