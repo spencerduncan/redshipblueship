@@ -1,9 +1,9 @@
 # Known issues
 
-**Applies to:** `main` at `0c8807b3` (2026-09-27, PR #743, the single-bag switch) and the GitHub
-Actions builds cut from it; the `v0.1.1-prealpha` tag (2026-07-03) is older than everything in the
-first section.
-**Last updated:** 2026-09-27 (the single-bag switch). **Playtesting this build?** Start with
+**Applies to:** `main` at `d6c8f270` (2026-09-28, PR [#776](https://github.com/spencerduncan/redshipblueship/pull/776): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
+plus the 19 PRs merged after it) and the GitHub Actions builds cut from it; the `v0.1.1-prealpha` tag
+(2026-07-03) is older than everything in the first section.
+**Last updated:** 2026-09-28 (the playtest refresh). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -36,7 +36,7 @@ classification table ([#725](https://github.com/spencerduncan/redshipblueship/pu
 crossings and the one spoiler ([#736](https://github.com/spencerduncan/redshipblueship/pull/736)), bag composition ([#738](https://github.com/spencerduncan/redshipblueship/pull/738)), one shared
 triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740)) and the shared-quantity trim ([#744](https://github.com/spencerduncan/redshipblueship/pull/744)).
 
-**What ships at `0c8807b3`:**
+**What ships at `d6c8f270`:**
 
 - **One seed, one paired world, one bag, items crossing in both directions.** Generating an
   OoT randomizer seed also generates the paired Majora's Mask world. OoT items are
@@ -82,7 +82,7 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   [#745](https://github.com/spencerduncan/redshipblueship/pull/745) from
   Randomizer → Cross-Game).
 - **The pair is generated with logic set to Glitchless** by default, and the fill proves
-  `beat-both` (the only goal a production world has today) over both games' logic.
+  the frozen goal (`beat-both`, Ganon & Majora, by default) over both games' logic.
   It runs behind a deterministic attempt ladder with a host-calibrated budget (~30 s
   floor, ~90 s ceiling; PRs [#680](https://github.com/spencerduncan/redshipblueship/pull/680), [#743](https://github.com/spencerduncan/redshipblueship/pull/743)). On the development
   workstation 30 real creations took 5.9-13.7 s, each on its first attempt. **A progress
@@ -95,18 +95,34 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   through is still the door to Termina (PR [#691](https://github.com/spencerduncan/redshipblueship/pull/691), [#661](https://github.com/spencerduncan/redshipblueship/issues/661)).
 - **Paired MM worlds can enable individual Majora's Mask logic tricks.** MM now
   has a per-trick vocabulary (86 trick keys, frozen into the world's identity
-  like OoT's), and **26** of them currently widen a real logic edge (PRs
-  [#686](https://github.com/spencerduncan/redshipblueship/pull/686), [#696](https://github.com/spencerduncan/redshipblueship/pull/696), [#703](https://github.com/spencerduncan/redshipblueship/pull/703), [#713](https://github.com/spencerduncan/redshipblueship/pull/713), [#729](https://github.com/spencerduncan/redshipblueship/pull/729); [#578](https://github.com/spencerduncan/redshipblueship/issues/578)). Every trick is off by default.
-  **One of the 26 is Deku-Stick combat** (PR [#729](https://github.com/spencerduncan/redshipblueship/pull/729), [#719](https://github.com/spencerduncan/redshipblueship/issues/719)). MM's logic used to assume you
+  like OoT's). **37** of them are bound to a real logic edge, 20 are reserved for an
+  Ocarina of Time item and 29 are recorded as not bindable (PRs
+  [#686](https://github.com/spencerduncan/redshipblueship/pull/686), [#696](https://github.com/spencerduncan/redshipblueship/pull/696), [#703](https://github.com/spencerduncan/redshipblueship/pull/703), [#713](https://github.com/spencerduncan/redshipblueship/pull/713), [#729](https://github.com/spencerduncan/redshipblueship/pull/729), [#763](https://github.com/spencerduncan/redshipblueship/pull/763); [#578](https://github.com/spencerduncan/redshipblueship/issues/578)). Every trick is off by default.
+  **One of them is Deku-Stick combat** (PR [#729](https://github.com/spencerduncan/redshipblueship/pull/729), [#719](https://github.com/spencerduncan/redshipblueship/issues/719)). MM's logic used to assume you
   could fight 17 kinds of enemy with a Deku Stick, even though the matching trick is off by default.
   Those enemies now need `Deku Stick Fighting` enabled, or another weapon. Using the stick as a fire
   source is unchanged. None of the pinned test worlds moved. A
-  trick whose edge is not bound yet draws disabled-with-reason on Combo → MM
-  Tricks rather than enabled-and-inert; the remaining bindings are [#697](https://github.com/spencerduncan/redshipblueship/issues/697).
+  trick whose edge is not bound draws disabled-with-reason on Combo → MM
+  Tricks rather than enabled-and-inert ([#697](https://github.com/spencerduncan/redshipblueship/issues/697) closed with PR [#763](https://github.com/spencerduncan/redshipblueship/pull/763)). PR #763 also
+  follows OoTMM on two tightenings, so with the tricks off logic kills Twinmold only with
+  the Giant's Mask, magic and a sword ("Twinmold with Bow (MM)" admits the Bow), and the
+  West Clock Town bank's heart piece needs the Giant's Wallet ("Bank Rewards Require One
+  Less Wallet" admits the Adult Wallet).
 - **You may opt into one shared Ocarina across both games** — off by default,
   frozen at file creation like every other combo rule: obtaining an ocarina in
   either game grants it in the other (PR
   [#675](https://github.com/spencerduncan/redshipblueship/pull/675)).
+- **You choose the goal, and meeting it ends the paired game.** Combo → Cross-Game
+  Rules → "[Both Games] Goal" offers OoTMM's goals: Ganon & Majora (the default), Any
+  Final Boss, Ganon and Majora. A goal that leaves a half unproved says so with a toast
+  at creation ("Not proven: Majora's Mask may be unfinishable."; PR [#760](https://github.com/spencerduncan/redshipblueship/pull/760)). The
+  ending plays only in the game whose final-boss defeat meets the goal; a final boss
+  beaten earlier is recorded and puts you back in its game, in Ganon's Tower or at a new
+  cycle in South Clock Town (PR [#769](https://github.com/spencerduncan/redshipblueship/pull/769)). A half's own triforce hunt no longer ends a
+  paired world under a boss goal, and OoT's own "Win" mode is generated as "Ganon's
+  Boss Key" there (PR [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
+- **Every randomizer file is a paired file.** Every OoT randomizer generation is a
+  paired creation, so a single-game OoT randomizer file cannot be created (PR [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
 
 **What does not ship yet:**
 
@@ -123,8 +139,8 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 - **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero
   or barren analysis. Crossing hosts are never hinted, and an OoT item that crossed is
   hinted as "Termina" (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
-- **No goal choice yet.** Every paired world is `beat-both`; a paired triforce hunt is
-  refused at generation (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+- **Triforce Hunt is not yet a paired goal.** The Goal row lists it, but generation
+  refuses it, and OoTMM's Triforce Quest is not offered (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#760](https://github.com/spencerduncan/redshipblueship/pull/760), [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
 - **Some settings re-seed the world without changing a rule.** The pool-size sliders and
   every item class other than Progression are read by no rule since the switch, but they
   are part of the world's fingerprint, so changing one gives a different world from the
@@ -138,11 +154,12 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   with a toast ("Not created: try a new seed or Majora's Mask options."). No creation in
   the 30-seed sample needed more than two fill batches, which bounds the failure rate
   below about 10%, not at zero. No partial or corrupt file is left behind.
-- **Some MM randomizer options are disabled-with-reason** on Combo → MM Randomizer:
-  their gameplay hooks are not yet dispatched in the single-executable build
-  ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), 14 of 23
-  hook types remain). The page says which and why; an option that is enabled and
-  does nothing is a bug worth reporting.
+- **One MM randomizer option is drawn disabled on purpose.** "Majora Access: Remains"
+  on Combo → MM Randomizer is retired ("Option is Retired"; ADR 0010 answer O1). No MM
+  game-hook type is registered but undispatched in the single-executable build since PR
+  [#673](https://github.com/spencerduncan/redshipblueship/pull/673) closed [#438](https://github.com/spencerduncan/redshipblueship/issues/438), so no
+  other row is disabled for a missing hook; an option that is enabled and does nothing
+  is a bug worth reporting.
 - **MM's enhancement toggles live on Combo → Majora's Mask** (named MM Enhancements until 2026-09-27). The curated MM
   enhancement toggles — the game-over prompt, `BetterSongOfDoubleTime`,
   `SkipSoTCutscenes`, a pointer to the shared `Autosave` checkbox on OoT's
@@ -180,9 +197,49 @@ overlay world, where a crossed item is also still in its home pool. They show no
 of the single-bag fill, and the same seed now generates a different world. Create a new
 file to play the current build.
 
+**Paired files created before PR #772 (2026-09-28) are NOT refused, and are safe to
+play.** Every arrival in MM now gives the session the cross-game slot number, so the
+moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)). What stays
+wrong on such a file is display only: the file-select slot shows `[MM _]`, and the Combo
+Tracker's Majora's Mask panel shows no MM data. A new file shows `[MM v]`.
+
+**A seed string does not make the world it made on an older build.** PR [#763](https://github.com/spencerduncan/redshipblueship/pull/763)'s two
+trick tightenings moved generated worlds, and since PR [#774](https://github.com/spencerduncan/redshipblueship/pull/774) the OoT half of every
+newly generated world differs from what a build before it made from the same seed string
+and settings (OoT's excluded locations now reach the settings fingerprint, in every
+environment). A non-default goal is a different world from the same seed (PR [#760](https://github.com/spencerduncan/redshipblueship/pull/760)).
+Nothing stored in an existing save is recomputed, so existing files are unaffected.
+
 ---
 
 ## Save loss and corruption
+
+### A changed MM option or Cross-Game Rule breaks the pair for the session — [#564](https://github.com/spencerduncan/redshipblueship/issues/564)
+
+Open, and a trap between sessions. Combo → MM Randomizer and Combo → MM Tricks lock
+only while a creation stamp is resident (`Combo_MMProfileFrozen()` is
+`mmProfileDigest != 0`), and that stamp is zero on a fresh launch and after a return to the
+title screen, so both pages are editable exactly between sessions. Loading a paired file
+compares its Cross-Game Rules field by field against the live ones, but it does **not**
+recompute the MM profile: an edited MM option, trick, excluded
+check or starting item is accepted at load. The next crossing into Majora's Mask recomputes
+the profile, sees the difference and refuses: a 15-second "Cross-game pairing REFUSED"
+toast, an un-randomized Termina, and the slot latched against writes for the session
+(PR [#570](https://github.com/spencerduncan/redshipblueship/pull/570)). The file on disk is untouched.
+
+Cross-Game Rules (including the Goal) unlock between sessions the same way
+(`Combo_ComboSettingsFrozen()` is `comboSettings.formatVersion != 0`). A changed rule *is*
+caught at load, but quietly: `LoadSlot` prints the diverged fields to stderr only and
+latches the slot, and OoT's caller ignores the result, so the OoT file opens and plays
+with nothing saved to the pair. By code reading (not run), the pairing identity is not
+restored either, so the next MM arrival skips pairing and plays an un-randomized Termina
+without a toast. No in-game surface shows the refusal (the `.redsave` file panel lives in
+the never-instantiated `ComboMenuBar`).
+
+**Workaround:** once a paired file exists, leave both MM pages and Cross-Game Rules alone;
+if you changed one, set it back exactly or recreate the file. **The fix to come** is the
+same MM-profile compare at load time, plus a load refusal the player can see; neither
+exists yet.
 
 ### ~~A flag set in the scene you leave through the portal can be lost~~ — RESOLVED ([#635](https://github.com/spencerduncan/redshipblueship/issues/635), community report; tracked in [#638](https://github.com/spencerduncan/redshipblueship/issues/638), PR [#650](https://github.com/spencerduncan/redshipblueship/pull/650))
 
@@ -213,6 +270,24 @@ normal game-over exit (choosing not to continue) already revives you on the way 
 route bypasses it.
 
 On builds older than PR #650, the workaround was not to press F10 on the game-over screen.
+
+### ~~F10 during OoT's game-over screen hands MM a one-heart bar~~ — RESOLVED ([#664](https://github.com/spencerduncan/redshipblueship/issues/664), PR [#753](https://github.com/spencerduncan/redshipblueship/pull/753))
+
+Fixed by PR #753 (2026-09-27), the OoT twin of #650's revive. A dead OoT bar is revived before
+the freeze to OoT's own continue value: three hearts, or full capacity with "Spawn with Full
+Health". If a bottled fairy was spent at the killing blow, both games give the fairy's refill
+instead (OoT 20 hearts, MM 10, clamped to capacity). Before the fix MM arrived with one heart,
+its arrival floor. A pre-release OoT half already frozen dead stays dead in its blob, and OoT's
+arrival floors it at one heart.
+
+### ~~MM's paired half could be wiped by the moon crash or an owl save~~ — RESOLVED ([#765](https://github.com/spencerduncan/redshipblueship/issues/765), PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772))
+
+Fixed by PR #772 (2026-09-28). The creation event left MM's half with slot number 0, a real
+flash slot, so the moon-crash reset and the owl save's readback copied an empty save buffer
+over the live one (observed in a headless row: day, rupees and inventory wiped). The half is
+now authored as MM's own new-file path authors it, and every arrival pins the cross-game slot
+number, which also covers older files (see "Back up your saves"). The fix is locked
+headlessly and has not been played; the playtest guide's scenario I4 checks it in game.
 
 ### ~~F10 hot-swap silently rolls back your progress~~ — RESOLVED ([#364](https://github.com/spencerduncan/redshipblueship/issues/364), PR [#400](https://github.com/spencerduncan/redshipblueship/pull/400))
 
@@ -335,11 +410,18 @@ from returning.
 
 ### ~~Timers are not neutralized on the MM side of a switch~~ — RESOLVED ([#373](https://github.com/spencerduncan/redshipblueship/issues/373), PR [#419](https://github.com/spencerduncan/redshipblueship/pull/419))
 
-### MM hook dispatch is still partial — [#438](https://github.com/spencerduncan/redshipblueship/issues/438)
+### MM text that says the player's name shows blanks in a paired world — [#773](https://github.com/spencerduncan/redshipblueship/issues/773)
 
-14 of MM's 23 game-hook types have no dispatch point in the single-exe build.
-Randomizer options and enhancements that depend on those hooks are shown
-disabled-with-reason on the MM randomizer page rather than silently doing nothing.
+The paired creation does not carry OoT's typed name into Majora's Mask's character set, so
+MM's half keeps the default all-space name, so an MM textbox that prints the player's name
+is expected to show blanks (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)). No such textbox has been looked at in a
+paired half ([#773](https://github.com/spencerduncan/redshipblueship/issues/773), "Not verified"). The file-select slot still shows OoT's name.
+
+### ~~MM hook dispatch is still partial~~ — RESOLVED ([#438](https://github.com/spencerduncan/redshipblueship/issues/438), PR [#673](https://github.com/spencerduncan/redshipblueship/pull/673))
+
+Fixed by PR #673 (2026-09-17), which wired the last fourteen dormant MM hook types and
+the guards their registrants needed. Before it, those hook types had no dispatch point
+in the single-exe build, and options that depended on them were shown disabled-with-reason.
 The actor-init, actor-draw and open-text hooks (PR
 [#512](https://github.com/spencerduncan/redshipblueship/pull/512)), the pause-menu
 and file-select hooks (PR [#547](https://github.com/spencerduncan/redshipblueship/pull/547))
@@ -366,6 +448,27 @@ stays a separate decision).
 Duplicate entrance-link registrations are rejected instead of silently shadowing.
 
 ### ~~An entrance bound is an unchecked literal~~ — RESOLVED ([#380](https://github.com/spencerduncan/redshipblueship/issues/380), PR [#417](https://github.com/spencerduncan/redshipblueship/pull/417))
+
+### ~~Leaving a game mid-session leaves its actors' state behind~~ — RESOLVED ([#666](https://github.com/spencerduncan/redshipblueship/issues/666) PR [#751](https://github.com/spencerduncan/redshipblueship/pull/751); [#750](https://github.com/spencerduncan/redshipblueship/issues/750) PR [#767](https://github.com/spencerduncan/redshipblueship/pull/767))
+
+A departure through the portal or with F10 retires the game's play state without running each
+live actor's teardown. Both games now retire that session at departure: every overlay that
+still had actors is reset once, and per-actor extension data (such as a rando pot's check
+identity) is dropped. Symptoms this fixes, from reading the code: MM's three-day clock actor
+killing itself on the next arrival (no night, dawn or moon crash until a scene change), a
+skipped "Dawn of the First Day" on a second file, and Romani Ranch's alien defense pointing at
+actors from the discarded session; in OoT, a missing Zora diving-game Zora, Spirit and Forest Temple lifts and water, and the Treasure
+Chest Shop keeper for the rest of the process. Each departure logs `[OoT] Abandoned session
+retired: ...` or `[MM] ...`.
+
+### OoT actor teardown writes to the save are skipped at a departure — [#770](https://github.com/spencerduncan/redshipblueship/issues/770)
+
+Still open. The teardowns PR #767 does not run also write the save: a running room or
+minigame timer's `timerState`, Sun's Song state,
+a magic effect's `magicState`, `linkAge`, and three flags (the windmill Song of Storms, Lake
+Hylia's raised water, a Light-Arrow sun switch). Whether re-entry already normalises each one
+is not checked. State cleared only by destroy hooks is not retired either: a remote bombchu's
+camera focus and the entrance-randomizer Epona state (PRs [#751](https://github.com/spencerduncan/redshipblueship/pull/751), [#767](https://github.com/spencerduncan/redshipblueship/pull/767)).
 
 ---
 
@@ -403,6 +506,12 @@ game. Layout and precedence are in `docs/MODDING.md`.
 Put OoT's loose files in `<mods>/loose` and MM's in `<mods>/mm/loose`. Each game mounts its loose
 folder after its packed mods, so a loose file wins over a packed one.
 
+**MM's mods have their own order and enabled set** (PR [#764](https://github.com/spencerduncan/redshipblueship/pull/764), [#706](https://github.com/spencerduncan/redshipblueship/issues/706)): Combo → MM Mods
+lists the archives under `mods/mm`, highest priority on top, with arrows to reorder, disable
+and enable, and a Rescan button. Changes are saved at once and apply when MM next mounts its
+mods: its first start in the session, or after a restart once it has loaded them (the page's
+note says which). A scan that cannot see the whole folder leaves the list read-only.
+
 Limits, all described in `docs/MODDING.md`:
 
 - Symlinked subfolders inside `loose/` are not followed.
@@ -430,8 +539,8 @@ install's config is not read.
 ### Some menu entries are stubs
 
 Settings entries backed by unimplemented functionality are grayed out or labeled
-where they were caught; the MM randomizer options page labels each row live,
-partial, dormant or generation-only with a reason. This pass was not exhaustive —
+where they were caught. Combo → MM Randomizer shows no per-row liveness label; its one
+disabled row is the retired "Majora Access: Remains". This pass was not exhaustive —
 an enabled-looking toggle that does nothing is a plausible bug, and worth reporting.
 
 ### The "Fipps" overlay font choice is gone
