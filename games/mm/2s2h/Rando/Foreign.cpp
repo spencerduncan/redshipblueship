@@ -662,16 +662,25 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
 // ============================================================================
 namespace {
 
+bool gForceProfileRestoreVerifyFail = false;
+
 std::string MMProfileRestoreLabel(const char* label, const char* fallback) {
     return label != nullptr && label[0] != '\0' ? std::string(label) : std::string(fallback);
 }
 
 } // namespace
 
+extern "C" void MM_Rando_ForceProfileRestoreVerifyFailForTest(int on) {
+    gForceProfileRestoreVerifyFail = on != 0;
+}
+
 extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, char* names,
-                                              size_t namesLen) {
+                                              size_t namesLen, int* outCount) {
     if (names != nullptr && namesLen > 0) {
         names[0] = '\0';
+    }
+    if (outCount != nullptr) {
+        *outCount = 0;
     }
     const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
     if (liveDigest == frozenDigest) {
@@ -722,11 +731,25 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     std::vector<uint8_t> liveTricks(MMRT_MAX, 0);
     Rando::Foreign::ResolveProfileTricks(liveTricks.data());
 
+    // Every key written is recorded first (set, and to what, or unset), so a
+    // restore whose after-check fails puts the keys back exactly as the player
+    // left them: UNRESTORABLE then means "nothing changed", as the header says.
+    struct Undo {
+        const char* cvar;
+        bool wasSet;
+        int32_t value;
+    };
+    std::vector<Undo> undo;
+    auto remember = [&undo](const char* cvar) {
+        undo.push_back({ cvar, Combo_CVarIsExplicitInt(cvar), CVarGetInteger(cvar, 0) });
+    };
+
     std::vector<std::string> restored;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         if (liveValues[randoOptionId] == fileValues[randoOptionId]) {
             continue;
         }
+        remember(randoStaticOption.cvar);
         CVarSetInteger(randoStaticOption.cvar, (int32_t)fileValues[randoOptionId]);
         const ComboMMOptionDesc* desc = Combo_MMOptionById((uint16_t)randoOptionId);
         restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, randoStaticOption.name));
@@ -737,6 +760,7 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
         if (liveTricks[mmRandoTrickId] == fileTricks[mmRandoTrickId]) {
             continue;
         }
+        remember(randoStaticTrick.cvar);
         CVarSetInteger(randoStaticTrick.cvar, fileTricks[mmRandoTrickId]);
         const ComboMMTrickDesc* desc = Combo_MMTrickById((uint16_t)mmRandoTrickId);
         restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, randoStaticTrick.cvar));
@@ -745,25 +769,45 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     }
 
     const uint32_t after = MM_Rando_ComputeProfileStamp();
-    if (after != frozenDigest) {
+    if (after != frozenDigest || gForceProfileRestoreVerifyFail) {
         // Unreachable while ResolveProfileValues and the save write agree; named
         // rather than trusted, because the arrival gate would refuse this file.
         fprintf(stderr,
                 "[MM] profile: load-time restore wrote the file's options but the live profile resolves %08X, not "
-                "%08X\n",
+                "%08X; every key it wrote is put back\n",
                 (unsigned)after, (unsigned)frozenDigest);
+        for (auto it = undo.rbegin(); it != undo.rend(); ++it) {
+            if (it->wasSet) {
+                CVarSetInteger(it->cvar, it->value);
+            } else {
+                CVarClear(it->cvar);
+            }
+        }
         return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
     }
 
+    // The whole list goes to stderr; @p names gets as many WHOLE labels as fit
+    // (never a cut one), and @p outCount the true number, so a caller's "+N"
+    // counts every restored row however long the list is.
     std::string joined;
+    std::string fitted;
+    bool full = false;
     for (const std::string& label : restored) {
-        if (!joined.empty()) {
-            joined += ", ";
+        joined += joined.empty() ? label : ", " + label;
+        if (!full) {
+            const std::string candidate = fitted.empty() ? label : fitted + ", " + label;
+            if (candidate.size() < namesLen) {
+                fitted = candidate;
+            } else {
+                full = true;
+            }
         }
-        joined += label;
     }
     if (names != nullptr && namesLen > 0) {
-        snprintf(names, namesLen, "%s", joined.c_str());
+        snprintf(names, namesLen, "%s", fitted.c_str());
+    }
+    if (outCount != nullptr) {
+        *outCount = (int)restored.size();
     }
     fprintf(stderr, "[MM] profile: load restored the file's MM profile (%08X): %s\n", (unsigned)frozenDigest,
             joined.c_str());

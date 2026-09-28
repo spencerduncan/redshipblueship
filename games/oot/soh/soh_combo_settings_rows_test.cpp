@@ -866,8 +866,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ComboContext_Init();
         RunPreFunc(*statusRow);
         ROWS_CHECK(statusRow->name.find("apply to the next paired world") != std::string::npos &&
-                       statusRow->name.find("Loading a paired file restores that file's own rules") !=
-                           std::string::npos,
+                       statusRow->name.find("Loading a paired file restores its own rules") != std::string::npos,
                    "the pre-creation status line does not say these author the next world and that a load restores "
                    "a file's own rules (#781): '%s'",
                    statusRow->name.c_str());

@@ -408,10 +408,12 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
     } else {
         // No paired file is loaded, so the rows author the NEXT world. Loading
         // an existing paired file puts that file's own rules back (#781), so an
-        // edit here never reaches a world that already exists.
+        // edit here never reaches a world that already exists. Two lines at the
+        // column's width, as Randomizer > General's note is; the freeze itself
+        // is the frozen state's own sentence.
         snprintf(buffer, sizeof(buffer),
-                 "These rules apply to the next paired world you create, and cannot be changed for it afterwards. "
-                 "Loading a paired file restores that file's own rules.");
+                 "These rules apply to the next paired world you create. Loading a paired file restores its own "
+                 "rules.");
     }
     comboRuleStatusText = buffer;
     info.name = comboRuleStatusText;

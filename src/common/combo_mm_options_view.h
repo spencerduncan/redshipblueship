@@ -289,7 +289,7 @@ void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, uint16_t* ou
 enum {
     RSBS_MM_PROFILE_LOAD_MATCHES = 0,      // the live CVars already resolve the file's profile
     RSBS_MM_PROFILE_LOAD_RESTORED = 1,     // the file's options/tricks were written back; now they do
-    RSBS_MM_PROFILE_LOAD_UNRESTORABLE = 2, // they differ and the file cannot say how (nothing written)
+    RSBS_MM_PROFILE_LOAD_UNRESTORABLE = 2, // they differ and the file cannot say how (the keys are as they were)
 };
 
 /**
@@ -309,13 +309,25 @@ enum {
  * inputs the file does not record (and no single-exe page authors), so a
  * divergence there, an MM half that is not a randomizer save, or a half too
  * short to read returns UNRESTORABLE with nothing written: the arrival gate
- * stays the last line of defence for those. @p names (may be NULL) receives
- * the restored rows' labels ("Starting Hearts, <trick>"), "" otherwise.
+ * stays the last line of defence for those. If the keys it did write still do
+ * not resolve @p frozenDigest (unreachable while the resolver and the save
+ * write agree), every one of them is put back as it was, set to its old value
+ * or unset, before UNRESTORABLE returns: UNRESTORABLE always leaves the keys
+ * as the player left them.
+ *
+ * @p names (may be NULL) receives as many of the restored rows' labels as fit
+ * WHOLE ("Starting Hearts, <trick>"; never a cut label), "" otherwise;
+ * @p outCount (may be NULL) the true number of rows restored, which is larger
+ * than the names shown when the list did not fit.
  * DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp; call only with a CVar
  * store (Combo_ComboSettingStoreAvailable).
  */
 int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, char* names,
-                                   size_t namesLen);
+                                   size_t namesLen, int* outCount);
+
+/** Test hook (#781 paired-load-restore leg 5): force the restore's after-check
+ *  to fail, so the put-back is exercised. Never called in production. */
+void MM_Rando_ForceProfileRestoreVerifyFailForTest(int on);
 
 /**
  * Pairing header for the pane: whether a paired world exists, its identity, and

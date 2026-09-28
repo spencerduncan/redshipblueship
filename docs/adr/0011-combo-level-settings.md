@@ -1426,10 +1426,26 @@ in this build can author. What the file cannot answer stays visible:
 
 - A combo record field no key authors (`logicRung`, an unallocated flag bit,
   `spare1`), which only another build can have written, still refuses the
-  load and latches the slot without quarantine, now with a
-  "Not saved: Cross-game rules differ (...)" toast naming the field. Damage (unreadable
-  record, fingerprint, triforce) refuses and quarantines as before, with the
-  same toast.
+  load and latches the slot without quarantine, now with a "Not paired: File
+  made by another build" toast (the field names stay on stderr). Damage
+  (unreadable record, fingerprint, triforce) refuses and quarantines as
+  before, with its own toast, "Not paired: Cross-game record is damaged".
+- **Accepted residual: a refused load still plays the OoT file unpaired.**
+  The load runs at the tail of OoT's own file load and cannot un-open the
+  file (the refuse-and-do-not-open option would need surgery on vendored
+  file-select code), so after either refusal above the OoT half plays with
+  the pairing identity dropped and nothing is saved to the pair that
+  session. It is reachable only from a file another build wrote or a damaged
+  one, never from a page in this build, and it is no longer silent: the
+  load's toast says the file is not paired, and every crossing into Majora's
+  Mask in that session posts "Not paired: Termina stays un-randomized this
+  session" (`MM_Rando_GateCrossGameArrival`'s no-pair leg, for a slot the
+  load refused). Recorded here for the operator's sign-off; the headless lock
+  is `PairedLoadRestore` leg 4.
+- A restore whose own after-check fails (unreachable while the resolvers are
+  straight overlays of the keys it writes) puts every key it wrote back as
+  it was, set or unset, before the load refuses (Cross-Game Rules) or flags
+  (MM profile): a load that does not take changes nothing.
 - An MM identity input the file does not record (the excluded-check list,
   the starting-item block; no single-exe page edits either) cannot be
   restored. The load still commits the pair, so the session is never

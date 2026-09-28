@@ -96,8 +96,8 @@ const char* Combo_MMOptionsPage_StatusNote(void) {
     }
     // No paired file is loaded, so the rows author the NEXT world; loading an
     // existing paired file puts that file's own options back (#781).
-    return "These options apply to the next paired world you create. Loading a paired file restores that file's "
-           "own options.";
+    return "These options apply to the next paired world you create. Loading a paired file restores its own "
+           "options.";
 }
 
 bool Combo_MMOptionsPage_Suspended(void) {
@@ -109,16 +109,6 @@ const char* Combo_MMOptionsPage_SuspendedNote(void) {
     // you return."): a randomizer option takes effect at generation, not when
     // Majora's Mask resumes, so that sentence would be false here.
     return "Majora's Mask is suspended; these options stay editable.";
-}
-
-const char* Combo_MMOptionsPage_LockWarning(void) {
-    if (Combo_MMProfileFrozen()) {
-        return NULL;
-    }
-    // No longer "a crossing whose options differ is refused": the load restores
-    // a file's own options (#781), so a player cannot reach that crossing
-    // through this page.
-    return "Generating a paired world locks these options in.";
 }
 
 const char* Combo_MMOptionsPage_FallbackWarning(void) {
@@ -149,11 +139,12 @@ const char* Combo_MMOptionsPage_TricksNote(char* buf, size_t size) {
         snprintf(buf, size, "Already decided when this world was created. Return to the title screen to choose "
                             "tricks for a new world.");
     } else {
-        // Two sentences at most (R-X1): the trick headline, then what a load
-        // does (#781).
+        // ONE line at the page's width (the reference page has no note at all
+        // above its filter): the trick headline, then what a load does (#781).
+        // A trick that cannot be turned on says why in its own disabled row.
         snprintf(buf, size,
-                 "%d of %d tricks are supported by the randomizer logic so far; the others cannot be turned on yet. "
-                 "Loading a paired file restores that file's own tricks.",
+                 "%d of %d tricks are supported by the randomizer logic so far. Loading a paired file restores its "
+                 "own tricks.",
                  Combo_MMOptionsPage_SettableTrickCount(), count);
     }
     return buf;

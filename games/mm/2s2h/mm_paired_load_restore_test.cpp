@@ -36,25 +36,40 @@
  * cross-game field no key authors) or flagged (an MM identity input the file
  * does not record), visibly.
  *
- *   leg 1 - Goal and Crossing Direction changed at the title screen, the file
- *           loaded through the production seam's own calls
- *                -> the pair is restored, the keys hold the file's values, one
- *                   toast names "Goal, Crossing Direction", the slot is
+ *   leg 1 - Goal, Crossing Direction, one pool size, one item-class mask and
+ *           Shared Ocarina changed at the title screen, the file loaded
+ *           through the production seam's own calls
+ *                -> the pair is restored, all five keys hold the file's values,
+ *                   one toast names "Goal, Crossing Direction +3", the slot is
  *                   writable, and the arrival gate does not refuse
  *   leg 2 - one MM trick and one MM option changed, same load
  *                -> the MM profile digest matches the file again, both keys hold
  *                   the file's values, a toast names both rows, and the arrival
  *                   gate does not refuse
+ *   leg 2b - ONE trick changed, the settable trick with the longest label
+ *                -> the toast names that trick (whole, or cut with "..."), never
+ *                   a bare count
+ *   leg 2c - EVERY settable trick changed
+ *                -> the toast's shown names plus its "+N" add up to the true
+ *                   number restored, however long the joined label list is
  *   leg 3 - the .redsave round trip in a process where Majora's Mask never
- *           booted: nothing changed -> loads, pairs, no toast, no key written;
+ *           booted: nothing changed -> loads, pairs, no toast, no key written
+ *           (Cross-Game Rules, MM options AND MM tricks);
  *           the same with an EMPTY MM half (a file saved before MM ever ran)
  *           -> the same; and that empty-half file with a trick changed -> the
  *           file cannot restore it, so the load pairs, a toast
  *           warns now, nothing is written, and the arrival gate still refuses
  *           (the last line of defence)
  *   leg 4 - a record field no key authors (the logic rung, only another build
- *           can write it) -> REFUSED, not committed, not quarantined, and a
- *           "Not saved:" toast names "logicRung"
+ *           can write it) -> REFUSED, not committed, not quarantined, a
+ *           "Not paired:" toast in player words (no field identifier), and the
+ *           next crossing into Majora's Mask says Termina stays un-randomized
+ *           instead of skipping pairing silently; an unrefused unpaired
+ *           arrival posts nothing (the control)
+ *   leg 5 - a restore whose after-check fails (forced through the test hooks;
+ *           unreachable by construction today) -> every key it wrote is put
+ *           back as it was, set or unset, on both the Cross-Game Rules and the
+ *           MM side
  *
  * Every leg loads through Context_InvalidateSessionOnSlotLoad +
  * RsbsSave_SetActiveSlot + RsbsSave_LoadSlotChecked, the OnLoadFile seam's exact
@@ -69,6 +84,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <cstdarg>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -242,6 +258,81 @@ bool PlrContains(const std::string& haystack, const char* needle) {
     return haystack.find(needle) != std::string::npos;
 }
 
+bool TrickSettable(const ComboMMTrickDesc* d) {
+    return d != nullptr && d->bound && !d->reserved;
+}
+
+/** The settable trick whose label is longest: the toast's hardest single name. */
+const ComboMMTrickDesc* LongestSettableTrick() {
+    const ComboMMTrickDesc* best = nullptr;
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (TrickSettable(d) && d->label != nullptr &&
+            (best == nullptr || std::strlen(d->label) > std::strlen(best->label))) {
+            best = d;
+        }
+    }
+    return best;
+}
+
+/** Any Cross-Game Rule, MM option or MM trick key the player could have set. */
+bool AnyAuthoredKeyExplicit() {
+    for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+        if (Combo_ComboSettingIsExplicit((ComboSettingId)i)) {
+            return true;
+        }
+    }
+    for (int i = 0; i < Combo_MMOptionCount(); i++) {
+        if (Combo_MMOptionIsExplicit(Combo_MMOptionAt(i))) {
+            return true;
+        }
+    }
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (d != nullptr && Combo_CVarIsExplicitInt(d->cvar)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** The "+N" a toast ends with, 0 without one. */
+int ToastPlusCount(const std::string& message) {
+    const std::size_t at = message.rfind(" +");
+    return at == std::string::npos ? 0 : std::atoi(message.c_str() + at + 2);
+}
+
+/** How many names a toast message shows before its "+N" (0 for a bare count). */
+int ToastShownNames(const std::string& message) {
+    const std::size_t at = message.rfind(" +");
+    const std::string names = at == std::string::npos ? message : message.substr(0, at);
+    if (names.empty() || (names[0] >= '0' && names[0] <= '9')) {
+        return 0;
+    }
+    int n = 1;
+    for (std::size_t i = names.find(", "); i != std::string::npos; i = names.find(", ", i + 2)) {
+        n++;
+    }
+    return n;
+}
+
+/** The toast names @p label: the whole label, or its first characters cut with
+ *  "..." (at least eight of them, so a fragment is still recognisable). */
+bool ToastNamesLabel(const std::string& message, const char* label) {
+    const std::string whole(label);
+    if (message.find(whole) != std::string::npos) {
+        return true;
+    }
+    const std::size_t dots = message.find("...");
+    if (dots == std::string::npos || dots < 8) {
+        return false;
+    }
+    const std::size_t start = message.rfind(", ", dots);
+    const std::size_t from = start == std::string::npos ? 0 : start + 2;
+    const std::string fragment = message.substr(from, dots - from);
+    return fragment.size() >= 8 && whole.compare(0, fragment.size(), fragment) == 0;
+}
+
 /** SoH's toast shape (docs/ui-style-guide.md section 10): the overlay draws the
  *  prefix and the message on ONE line and never wraps, so together they stay
  *  within about 53 characters. */
@@ -254,18 +345,31 @@ bool FitsOneLine(const Toast& toast) {
 // ---------------------------------------------------------------------------
 int LegCrossGameRules() {
     ClearAuthoredKeys();
+    // Three more rules through the same table: a pool size, a class mask and
+    // Shared Ocarina, each set to a legal value that is not the shipped one.
+    const int32_t filePool = Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_OOT) == 1 ? 2 : 1;
+    const int32_t fileClass =
+        Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_MM) == 0 ? (int32_t)RSBS_ITEMCLASS_PROGRESSION : 0;
+    const int32_t fileOcarina = Combo_ComboSettingDefault(COMBO_SETTING_SHARED_OCARINA) != 0 ? 0 : 1;
     if (Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER) != 1 ||
-        Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) != 1) {
-        return Fail(10, "leg 1 setup: could not author Goal and Crossing Direction for the file");
+        Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) != 1 ||
+        Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, filePool) != 1 ||
+        Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, fileClass) != 1 ||
+        Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, fileOcarina) != 1) {
+        return Fail(10, "leg 1 setup: could not author the five rules for the file");
     }
     if (int rc = CreatePairedFile(false, nullptr)) {
         return rc;
     }
 
-    // Back at the title screen the player picks the shipped rules again.
+    // Back at the title screen the player picks the shipped rules again: two
+    // keys set explicitly, three cleared back to unset.
     Relaunch();
     Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH);
     Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH);
+    Combo_ComboSettingClear(COMBO_SETTING_POOL_SIZE_OOT);
+    Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_MM);
+    Combo_ComboSettingClear(COMBO_SETTING_SHARED_OCARINA);
 
     const int rc = LoadThroughProductionSeam();
     const bool paired = Combo_ForeignPairingActive();
@@ -294,6 +398,14 @@ int LegCrossGameRules() {
                     "rules must win at load",
                     (int)goal, (int)direction);
     }
+    const int32_t pool = Combo_ComboSettingResolved(COMBO_SETTING_POOL_SIZE_OOT);
+    const int32_t klass = Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_MM);
+    const int32_t ocarina = Combo_ComboSettingResolved(COMBO_SETTING_SHARED_OCARINA);
+    printf("[TEST] leg 1 OBSERVED: poolSizeOoT=%d (file %d) itemClassMM=%d (file %d) sharedOcarina=%d (file %d)\n",
+           (int)pool, (int)filePool, (int)klass, (int)fileClass, (int)ocarina, (int)fileOcarina);
+    if (pool != filePool || klass != fileClass || ocarina != fileOcarina) {
+        return Fail(18, "leg 1: a pool size, class mask or Shared Ocarina key does not hold the file's value");
+    }
     if (Combo_ComboSettingsDivergence() != 0) {
         return Fail(14, "leg 1: the loaded pair still diverges from the live resolution");
     }
@@ -301,7 +413,8 @@ int LegCrossGameRules() {
         return Fail(15, "leg 1: the slot is latched, quarantined or gone after a restoring load");
     }
     if (!toast.any || !PlrContains(toast.prefix, "Restored from file") || !PlrContains(toast.message, "Goal") ||
-        !PlrContains(toast.message, "Crossing Direction") || !FitsOneLine(toast)) {
+        !PlrContains(toast.message, "Crossing Direction") ||
+        ToastShownNames(toast.message) + ToastPlusCount(toast.message) != 5 || !FitsOneLine(toast)) {
         return Fail(16, "leg 1: no toast names what the load restored (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
@@ -367,14 +480,98 @@ int LegMmProfile() {
     }
     // Options before tricks, and one short line: the first restored row by name,
     // the trick counted ("+1"); stderr lists both.
-    if (!toast.any || !PlrContains(toast.prefix, "Restored from file") ||
-        !PlrContains(toast.message, "Majora's Mask") || !PlrContains(toast.message, "Starting Hearts") ||
-        !PlrContains(toast.message, "+1") || !FitsOneLine(toast)) {
+    if (!toast.any || !PlrContains(toast.prefix + " " + toast.message, "Majora's Mask") ||
+        !PlrContains(toast.prefix, "Restored") || !PlrContains(toast.message, "Starting Hearts") ||
+        ToastPlusCount(toast.message) != 1 || !FitsOneLine(toast)) {
         return Fail(27, "leg 2: no toast names what the load restored (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
     if (gate != 0 || RsbsSave_IsSlotWritable(kSlot) != 1) {
         return Fail(28, "leg 2: the arrival gate refused a file that loaded");
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 2b: ONE trick changed, the one with the longest label.
+// ---------------------------------------------------------------------------
+int LegMmTrickOnly() {
+    const ComboMMTrickDesc* trick = LongestSettableTrick();
+    if (trick == nullptr) {
+        return Fail(50, "leg 2b setup: no settable MM trick");
+    }
+    ClearAuthoredKeys();
+    Combo_MMTrickSetValue(trick, true);
+    if (int rc = CreatePairedFile(false, nullptr)) {
+        return rc;
+    }
+    Relaunch();
+    Combo_MMTrickClear(trick);
+
+    const int rc = LoadThroughProductionSeam();
+    const bool paired = Combo_ForeignPairingActive();
+    const bool trickOn = Combo_MMTrickGetValue(trick);
+    const Toast toast = LastToast();
+    const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
+    printf("[TEST] leg 2b OBSERVED: trick '%s' (%zu chars) load rc=%d paired=%d trick=%d toast=%s%s%s%s "
+           "arrivalGate=%d\n",
+           trick->label, std::strlen(trick->label), rc, paired ? 1 : 0, trickOn ? 1 : 0, toast.any ? "'" : "(none)",
+           toast.any ? toast.prefix.c_str() : "", toast.any ? " " : "", toast.any ? toast.message.c_str() : "", gate);
+    if (!paired || !trickOn || gate != 0) {
+        return Fail(51, "leg 2b: a trick-only change did not restore, or the arrival refused it");
+    }
+    if (!toast.any || !PlrContains(toast.prefix + " " + toast.message, "Majora's Mask") ||
+        !ToastNamesLabel(toast.message, trick->label) || ToastPlusCount(toast.message) != 0 || !FitsOneLine(toast)) {
+        return Fail(52, "leg 2b: the toast does not name the one trick it restored (prefix '%s', message '%s')",
+                    toast.prefix.c_str(), toast.message.c_str());
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 2c: every settable trick changed: the "+N" must be the true count.
+// ---------------------------------------------------------------------------
+int LegMmManyTricks() {
+    ClearAuthoredKeys();
+    int settable = 0;
+    std::size_t joined = 0;
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (TrickSettable(d)) {
+            Combo_MMTrickSetValue(d, true);
+            settable++;
+            joined += std::strlen(d->label) + 2;
+        }
+    }
+    if (settable < 2) {
+        return Fail(55, "leg 2c setup: fewer than two settable MM tricks (%d)", settable);
+    }
+    if (int rc = CreatePairedFile(false, nullptr)) {
+        return rc;
+    }
+    Relaunch();
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (TrickSettable(d)) {
+            Combo_MMTrickClear(d);
+        }
+    }
+
+    const int rc = LoadThroughProductionSeam();
+    const bool paired = Combo_ForeignPairingActive();
+    const Toast toast = LastToast();
+    const int shown = ToastShownNames(toast.message);
+    const int plus = ToastPlusCount(toast.message);
+    printf("[TEST] leg 2c OBSERVED: %d settable tricks (joined labels ~%zu chars) load rc=%d paired=%d toast=%s%s%s%s "
+           "shown=%d plus=%d\n",
+           settable, joined, rc, paired ? 1 : 0, toast.any ? "'" : "(none)", toast.any ? toast.prefix.c_str() : "",
+           toast.any ? " " : "", toast.any ? toast.message.c_str() : "", shown, plus);
+    if (!paired) {
+        return Fail(56, "leg 2c: restoring every trick left the file unpaired");
+    }
+    if (!toast.any || shown < 1 || shown + plus != settable || !FitsOneLine(toast)) {
+        return Fail(57, "leg 2c: the toast's names (%d) and '+%d' do not add up to the %d tricks restored ('%s %s')",
+                    shown, plus, settable, toast.prefix.c_str(), toast.message.c_str());
     }
     return 0;
 }
@@ -394,13 +591,8 @@ int LegRoundTrip() {
         const int rc = LoadThroughProductionSeam();
         const bool paired = Combo_ForeignPairingActive();
         const Toast toast = LastToast();
-        bool anyKeyWritten = false;
-        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
-            anyKeyWritten = anyKeyWritten || Combo_ComboSettingIsExplicit((ComboSettingId)i);
-        }
-        for (int i = 0; i < Combo_MMOptionCount(); i++) {
-            anyKeyWritten = anyKeyWritten || Combo_MMOptionIsExplicit(Combo_MMOptionAt(i));
-        }
+        // Every key a page authors: Cross-Game Rules, MM options AND MM tricks.
+        const bool anyKeyWritten = AnyAuthoredKeyExplicit();
         const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
         printf("[TEST] leg 3 (%s MM half) OBSERVED: load rc=%d paired=%d toast=%s keyWritten=%d arrivalGate=%d\n",
                emptyHalf ? "empty" : "authored", rc, paired ? 1 : 0, toast.any ? toast.prefix.c_str() : "(none)",
@@ -462,6 +654,20 @@ int LegRoundTrip() {
 // ---------------------------------------------------------------------------
 int LegUnrestorableRule() {
     ClearAuthoredKeys();
+
+    // Control: an unpaired arrival with no refused slot (a vanilla file) says
+    // nothing; the toast below is about a REFUSED paired file only.
+    RsbsSave_SetActiveSlot(kSlot);
+    PlantSentinel();
+    const int controlGate = MM_Rando_GateCrossGameArrival();
+    const Toast controlToast = LastToast();
+    printf("[TEST] leg 4 control OBSERVED: unpaired arrival, no refused slot: gate=%d toast=%s%s%s%s\n", controlGate,
+           controlToast.any ? "'" : "(none)", controlToast.any ? controlToast.prefix.c_str() : "",
+           controlToast.any ? " " : "", controlToast.any ? controlToast.message.c_str() : "");
+    if (controlGate != 0 || controlToast.any) {
+        return Fail(44, "leg 4 control: an unpaired arrival with no refused slot posted a toast or refused");
+    }
+
     ComboSettingsRecord foreign;
     Combo_ResolveComboSettings(&foreign);
     foreign.logicRung = (uint8_t)(foreign.logicRung + 1u); // only a different build can have written this
@@ -487,12 +693,112 @@ int LegUnrestorableRule() {
     if (RsbsSave_HasQuarantine(kSlot) != 0 || RsbsSave_HasSave(kSlot) != 1) {
         return Fail(42, "leg 4: a healthy file was quarantined for a session divergence");
     }
-    if (!toast.any || !PlrContains(toast.prefix, "Not saved") || !PlrContains(toast.message, "logicRung") ||
-        !FitsOneLine(toast)) {
-        return Fail(43, "leg 4: the refusal is invisible — no toast names the rule (prefix '%s', message '%s')",
-                    toast.prefix.c_str(), toast.message.c_str());
+    // Player words, not the record's field identifier (that stays on stderr),
+    // and the consequence: the file is not paired. Recorded, not returned, so
+    // the arrival below is observed in the same run.
+    int legRc = 0;
+    if (!toast.any || !PlrContains(toast.prefix, "Not paired") || !PlrContains(toast.message, "another build") ||
+        PlrContains(toast.message, "logicRung") || !FitsOneLine(toast)) {
+        legRc = Fail(43,
+                     "leg 4: the refusal toast does not say, in player words, that the file is not paired "
+                     "(prefix '%s', message '%s')",
+                     toast.prefix.c_str(), toast.message.c_str());
     }
-    return 0;
+
+    // The OoT file plays on (the caller cannot un-open it). The next crossing
+    // into Majora's Mask must say what that means, not skip pairing silently.
+    PlantSentinel();
+    const int arrivalGate = MM_Rando_GateCrossGameArrival();
+    const Toast arrival = LastToast();
+    printf("[TEST] leg 4 arrival OBSERVED: gate=%d toast=%s%s%s%s\n", arrivalGate, arrival.any ? "'" : "(none)",
+           arrival.any ? arrival.prefix.c_str() : "", arrival.any ? " " : "",
+           arrival.any ? arrival.message.c_str() : "");
+    if (arrivalGate != 0) {
+        return Fail(45, "leg 4: the unpaired arrival refused (%d); it plays vanilla Termina", arrivalGate);
+    }
+    if (!arrival.any || !PlrContains(arrival.prefix, "Not paired") || !PlrContains(arrival.message, "Termina") ||
+        !FitsOneLine(arrival)) {
+        return Fail(46,
+                    "leg 4: the arrival after a refused load is silent — no toast says Termina plays "
+                    "un-randomized (prefix '%s', message '%s')",
+                    arrival.prefix.c_str(), arrival.message.c_str());
+    }
+    return legRc;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 5: a restore whose after-check fails leaves the keys as they were.
+// ---------------------------------------------------------------------------
+int LegRollback() {
+    // Cross-Game Rules: the file holds Goal BEAT_EITHER and Direction FORWARD;
+    // the session holds Goal BEAT_BOTH (set) and Direction unset.
+    ClearAuthoredKeys();
+    Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER);
+    Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD);
+    if (int rc = CreatePairedFile(false, nullptr)) {
+        return rc;
+    }
+    Relaunch();
+    Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH);
+    Combo_ComboSettingClear(COMBO_SETTING_DIRECTION);
+
+    RsbsSave_ForceLoadRestoreVerifyFailForTest(1);
+    const int rc = LoadThroughProductionSeam();
+    RsbsSave_ForceLoadRestoreVerifyFailForTest(0);
+    const int32_t goal = Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
+    const bool goalSet = Combo_ComboSettingIsExplicit(COMBO_SETTING_GOAL);
+    const bool directionSet = Combo_ComboSettingIsExplicit(COMBO_SETTING_DIRECTION);
+    const Toast toast = LastToast();
+    printf("[TEST] leg 5 (rules) OBSERVED: load rc=%d goal=%d goalSet=%d directionSet=%d toast=%s%s%s%s\n", rc,
+           (int)goal, goalSet ? 1 : 0, directionSet ? 1 : 0, toast.any ? "'" : "(none)",
+           toast.any ? toast.prefix.c_str() : "", toast.any ? " " : "", toast.any ? toast.message.c_str() : "");
+    // Recorded, not returned, so the MM half below is observed in the same run.
+    int legRc = 0;
+    if (rc != RSBS_LOAD_REFUSED) {
+        legRc = Fail(60, "leg 5: a restore whose after-check failed was not refused");
+    } else if (goal != (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH || !goalSet || directionSet) {
+        legRc = Fail(61,
+                     "leg 5: a refused restore left the file's rules in the keys (goal %d, goalSet %d, "
+                     "directionSet %d)",
+                     (int)goal, goalSet ? 1 : 0, directionSet ? 1 : 0);
+    } else if (!toast.any || !PlrContains(toast.prefix, "Not paired") || !FitsOneLine(toast)) {
+        legRc = Fail(62, "leg 5: the refused restore posted no refusal toast");
+    }
+
+    // MM: the file holds the trick on and Starting Hearts 5; the session holds
+    // the trick unset and Starting Hearts 3 (set).
+    const ComboMMTrickDesc* trick = FirstSettableTrick();
+    const ComboMMOptionDesc* hearts = Combo_MMOptionById((uint16_t)RO_STARTING_HEALTH);
+    if (trick == nullptr || hearts == nullptr) {
+        return Fail(63, "leg 5 setup: no settable MM trick, or no Starting Hearts row");
+    }
+    ClearAuthoredKeys();
+    Combo_MMTrickSetValue(trick, true);
+    Combo_MMOptionSetValue(hearts, 5);
+    if (int rc2 = CreatePairedFile(false, nullptr)) {
+        return rc2;
+    }
+    Relaunch();
+    Combo_MMTrickClear(trick);
+    Combo_MMOptionSetValue(hearts, 3);
+
+    MM_Rando_ForceProfileRestoreVerifyFailForTest(1);
+    const int mmRc = LoadThroughProductionSeam();
+    MM_Rando_ForceProfileRestoreVerifyFailForTest(0);
+    const bool trickSet = Combo_CVarIsExplicitInt(trick->cvar);
+    const int32_t heartsNow = Combo_MMOptionGetValue(hearts);
+    const Toast mmToast = LastToast();
+    printf("[TEST] leg 5 (MM) OBSERVED: load rc=%d trickSet=%d startingHearts=%d toast=%s%s%s%s\n", mmRc,
+           trickSet ? 1 : 0, (int)heartsNow, mmToast.any ? "'" : "(none)", mmToast.any ? mmToast.prefix.c_str() : "",
+           mmToast.any ? " " : "", mmToast.any ? mmToast.message.c_str() : "");
+    if (trickSet || heartsNow != 3) {
+        return Fail(64, "leg 5: a failed MM restore left the file's values in the keys (trickSet %d, hearts %d)",
+                    trickSet ? 1 : 0, (int)heartsNow);
+    }
+    if (!mmToast.any || !PlrContains(mmToast.prefix, "Not restored")) {
+        return Fail(65, "leg 5: the failed MM restore was not flagged");
+    }
+    return legRc;
 }
 
 } // namespace
@@ -514,7 +820,8 @@ extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
     // Every leg runs even after one fails, so a single run reports each leg's
     // observed state; the first failure is the row's result.
     int rc = 0;
-    int (*const legs[])() = { LegCrossGameRules, LegMmProfile, LegRoundTrip, LegUnrestorableRule };
+    int (*const legs[])() = { LegCrossGameRules, LegMmProfile,        LegMmTrickOnly, LegMmManyTricks,
+                              LegRoundTrip,      LegUnrestorableRule, LegRollback };
     for (auto leg : legs) {
         const int legRc = leg();
         if (rc == 0) {

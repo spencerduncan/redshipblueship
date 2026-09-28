@@ -32,8 +32,8 @@
  * 4. THE NOTES SAY WHICH STATE THE PAGE IS IN. Unpaired, legacy-paired and
  *    frozen each get their own sentence; the suspended note shows exactly when
  *    the profile is editable and Majora's Mask is not the running game; the
- *    creation-lock warning goes away once frozen; the tricks headline counts the
- *    settable tricks, and the freeze replaces it.
+ *    orange creation-lock warning is gone (the gray note says it); the tricks
+ *    headline counts the settable tricks, and the freeze replaces it.
  *
  * 5. RESET CLEARS OPTIONS AND TRICKS, and a frozen profile refuses it.
  *
@@ -217,7 +217,6 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
         Context_SetCurrentGame(GAME_OOT);
         CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_StatusNote(), "Loading a paired file restores"));
         CMOP_ASSERT(Combo_MMOptionsPage_Suspended());
-        CMOP_ASSERT(Combo_MMOptionsPage_LockWarning() != NULL);
         CMOP_ASSERT(Combo_MMOptionsPage_FallbackWarning() != NULL);
         char expected[64];
         snprintf(expected, sizeof(expected), "%d of %d tricks", Combo_MMOptionsPage_SettableTrickCount(), trickCount);
@@ -234,7 +233,6 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
         Context_SetCurrentGame(GAME_OOT);
         CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_StatusNote(), "Already decided when this world was created"));
         CMOP_ASSERT(!Combo_MMOptionsPage_Suspended());
-        CMOP_ASSERT(Combo_MMOptionsPage_LockWarning() == NULL);
         CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_TricksNote(tricks, sizeof(tricks)), "Already decided"));
         CMOP_ASSERT(!CmopContains(tricks, expected));
         ComboContext_Init();
@@ -365,7 +363,7 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
             char tricks[256];
             ComboContext_Init();
             const char* notes[] = { Combo_MMOptionsPage_StatusNote(), Combo_MMOptionsPage_SuspendedNote(),
-                                    Combo_MMOptionsPage_LockWarning(), Combo_MMOptionsPage_FallbackWarning(),
+                                    Combo_MMOptionsPage_FallbackWarning(),
                                     Combo_MMOptionsPage_TricksNote(tricks, sizeof(tricks)) };
             for (const char* note : notes) {
                 CMOP_ASSERT(!cites(note));
