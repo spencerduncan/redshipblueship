@@ -69,11 +69,13 @@
 // Combo_CVarIsExplicitInt — "did the player choose this, or is it just the
 // default", which is what the paired logic pin now turns on.
 #include "combo_mm_options_view.h"
+#include "combo_mm_tricks_view.h" // the trick labels the load-time restore names
 
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -637,6 +639,179 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     std::vector<uint8_t> tricks(MMRT_MAX, 0);
     Rando::Foreign::ResolveProfileTricks(tricks.data());
     return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(values.data(), tricks.data()));
+}
+
+// ============================================================================
+// The LOAD-TIME restore (#781; declared in src/common/combo_mm_options_view.h).
+//
+// One-game semantics: a paired file's MM profile was decided at its creation,
+// and the CVars are staging for the NEXT file. Before this, a player who
+// changed an MM option or trick at the title screen and then loaded an older
+// paired file loaded it without complaint and was refused at the Happy Mask
+// Shop, mid-play, with Termina left vanilla. The load now asks the same
+// question the arrival gate asks, through the same computation, and answers
+// it by putting the file's own values back, so the arrival agrees with a file
+// that loaded.
+//
+// The source is the file's MM half: creation resolved the profile into
+// RANDO_SAVE_OPTIONS and randoSaveTricks (ResolvePairedProfile), so those
+// arrays ARE the frozen options and tricks. The digest also folds the
+// excluded-check list and the starting-item block, which the half does not
+// record; the candidate is therefore checked against the frozen digest BEFORE
+// anything is written, and a mismatch there writes nothing.
+// ============================================================================
+namespace {
+
+bool gForceProfileRestoreVerifyFail = false;
+
+std::string MMProfileRestoreLabel(const char* label, const char* fallback) {
+    return label != nullptr && label[0] != '\0' ? std::string(label) : std::string(fallback);
+}
+
+} // namespace
+
+extern "C" void MM_Rando_ForceProfileRestoreVerifyFailForTest(int on) {
+    gForceProfileRestoreVerifyFail = on != 0;
+}
+
+extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, char* names,
+                                              size_t namesLen, int* outCount) {
+    if (names != nullptr && namesLen > 0) {
+        names[0] = '\0';
+    }
+    if (outCount != nullptr) {
+        *outCount = 0;
+    }
+    const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
+    if (liveDigest == frozenDigest) {
+        return RSBS_MM_PROFILE_LOAD_MATCHES;
+    }
+
+    if (mmHalf == nullptr || mmHalfSize < sizeof(SaveContext)) {
+        fprintf(stderr,
+                "[MM] profile: load-time restore impossible — the file's MM half is missing or short (%zu bytes); "
+                "live %08X, file %08X\n",
+                mmHalfSize, (unsigned)liveDigest, (unsigned)frozenDigest);
+        return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
+    }
+    // Copied out rather than read through a cast: the half is a byte buffer.
+    auto half = std::make_unique<SaveContext>();
+    memcpy(half.get(), mmHalf, sizeof(SaveContext));
+    if (half->save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr,
+                "[MM] profile: load-time restore impossible — the file's MM half is not a randomizer save "
+                "(saveType=%d), so it records no options; live %08X, file %08X\n",
+                (int)half->save.shipSaveInfo.saveType, (unsigned)liveDigest, (unsigned)frozenDigest);
+        return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
+    }
+
+    std::vector<uint32_t> fileValues(RO_MAX, 0);
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        fileValues[randoOptionId] = half->save.shipSaveInfo.rando.randoSaveOptions[randoOptionId];
+    }
+    std::vector<uint8_t> fileTricks(MMRT_MAX, 0);
+    for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
+        fileTricks[mmRandoTrickId] = half->save.shipSaveInfo.rando.randoSaveTricks[mmRandoTrickId] != 0 ? 1 : 0;
+    }
+    const uint32_t candidate =
+        Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(fileValues.data(), fileTricks.data()));
+    if (candidate != frozenDigest) {
+        fprintf(stderr,
+                "[MM] profile: load-time restore impossible — the file's own options and tricks give %08X, not the "
+                "frozen %08X, so what differs is an input the file does not record (the excluded-check list or the "
+                "starting-item block); nothing was written\n",
+                (unsigned)candidate, (unsigned)frozenDigest);
+        return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
+    }
+
+    // Write back only what the live resolution gets wrong, so a key the player
+    // never touched stays unset.
+    std::vector<uint32_t> liveValues(RO_MAX, 0);
+    Rando::Foreign::ResolveProfileValues(liveValues.data(), /*paired=*/true);
+    std::vector<uint8_t> liveTricks(MMRT_MAX, 0);
+    Rando::Foreign::ResolveProfileTricks(liveTricks.data());
+
+    // Every key written is recorded first (set, and to what, or unset), so a
+    // restore whose after-check fails puts the keys back exactly as the player
+    // left them: UNRESTORABLE then means "nothing changed", as the header says.
+    struct Undo {
+        const char* cvar;
+        bool wasSet;
+        int32_t value;
+    };
+    std::vector<Undo> undo;
+    auto remember = [&undo](const char* cvar) {
+        undo.push_back({ cvar, Combo_CVarIsExplicitInt(cvar), CVarGetInteger(cvar, 0) });
+    };
+
+    std::vector<std::string> restored;
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        if (liveValues[randoOptionId] == fileValues[randoOptionId]) {
+            continue;
+        }
+        remember(randoStaticOption.cvar);
+        CVarSetInteger(randoStaticOption.cvar, (int32_t)fileValues[randoOptionId]);
+        const ComboMMOptionDesc* desc = Combo_MMOptionById((uint16_t)randoOptionId);
+        restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, randoStaticOption.name));
+        fprintf(stderr, "[MM] profile: load restored option %s to the file's value %u (was %u)\n",
+                randoStaticOption.name, (unsigned)fileValues[randoOptionId], (unsigned)liveValues[randoOptionId]);
+    }
+    for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
+        if (liveTricks[mmRandoTrickId] == fileTricks[mmRandoTrickId]) {
+            continue;
+        }
+        remember(randoStaticTrick.cvar);
+        CVarSetInteger(randoStaticTrick.cvar, fileTricks[mmRandoTrickId]);
+        const ComboMMTrickDesc* desc = Combo_MMTrickById((uint16_t)mmRandoTrickId);
+        restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, randoStaticTrick.cvar));
+        fprintf(stderr, "[MM] profile: load restored trick %s to the file's value %d\n", randoStaticTrick.cvar,
+                (int)fileTricks[mmRandoTrickId]);
+    }
+
+    const uint32_t after = MM_Rando_ComputeProfileStamp();
+    if (after != frozenDigest || gForceProfileRestoreVerifyFail) {
+        // Unreachable while ResolveProfileValues and the save write agree; named
+        // rather than trusted, because the arrival gate would refuse this file.
+        fprintf(stderr,
+                "[MM] profile: load-time restore wrote the file's options but the live profile resolves %08X, not "
+                "%08X; every key it wrote is put back\n",
+                (unsigned)after, (unsigned)frozenDigest);
+        for (auto it = undo.rbegin(); it != undo.rend(); ++it) {
+            if (it->wasSet) {
+                CVarSetInteger(it->cvar, it->value);
+            } else {
+                CVarClear(it->cvar);
+            }
+        }
+        return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
+    }
+
+    // The whole list goes to stderr; @p names gets as many WHOLE labels as fit
+    // (never a cut one), and @p outCount the true number, so a caller's "+N"
+    // counts every restored row however long the list is.
+    std::string joined;
+    std::string fitted;
+    bool full = false;
+    for (const std::string& label : restored) {
+        joined += joined.empty() ? label : ", " + label;
+        if (!full) {
+            const std::string candidate = fitted.empty() ? label : fitted + ", " + label;
+            if (candidate.size() < namesLen) {
+                fitted = candidate;
+            } else {
+                full = true;
+            }
+        }
+    }
+    if (names != nullptr && namesLen > 0) {
+        snprintf(names, namesLen, "%s", fitted.c_str());
+    }
+    if (outCount != nullptr) {
+        *outCount = (int)restored.size();
+    }
+    fprintf(stderr, "[MM] profile: load restored the file's MM profile (%08X): %s\n", (unsigned)frozenDigest,
+            joined.c_str());
+    return RSBS_MM_PROFILE_LOAD_RESTORED;
 }
 
 // ============================================================================

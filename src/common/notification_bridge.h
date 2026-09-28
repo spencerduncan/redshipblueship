@@ -87,6 +87,14 @@ typedef struct ComboNotification {
 // carries no id field.
 void OoT_Notification_Emit(const ComboNotification* notification);
 
+// Queue one toast in SoH's own shape (docs/ui-style-guide.md section 10):
+// Notification::Options' default colours and the player's configured duration,
+// with an optional short prefix and one short message. For src/common callers,
+// which cannot name Options (ADR 0002). Implemented on the OoT side next to
+// OoT_Notification_Emit; safe in a process with no CVar store (the duration
+// then falls back to the setting's own default).
+void OoT_Notification_EmitDefault(const char* prefix, const char* message, int mute);
+
 // Test-only readback of the most recently queued toast, for the
 // mm-notification-binding lock. Returns 0 (leaving *out untouched) when the
 // overlay's store is empty, 1 otherwise. The returned string pointers alias the

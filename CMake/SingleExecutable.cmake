@@ -2113,6 +2113,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME ComboPlayerName COMMAND redship --test combo-player-name)
 
+    # #781: loading a paired file whose Cross-Game Rules or MM options changed at
+    # the title screen. The file's own values win at load (restored into the keys,
+    # named in a toast), what the file cannot restore is refused or flagged
+    # visibly, and the arrival gate agrees with a file that loaded. Loads through
+    # the OnLoadFile seam's own calls. games/mm/2s2h/mm_paired_load_restore_test.cpp.
+    redship_add_test(NAME PairedLoadRestore COMMAND redship --test paired-load-restore)
     # Lane F1 (wave 7g, #310): test windows never take keyboard focus from the
     # person at the workstation. main.cpp arms SDL's no-activation hint in code for
     # every --test / --integration-test process (src/common/test_window_focus.h),

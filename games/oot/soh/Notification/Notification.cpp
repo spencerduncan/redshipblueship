@@ -215,6 +215,22 @@ extern "C" void OoT_Notification_Emit(const ComboNotification* notification) {
     Notification::Emit(options);
 }
 
+extern "C" void OoT_Notification_EmitDefault(const char* prefix, const char* message, int mute) {
+    Notification::Options options;
+    options.prefix = prefix != nullptr ? prefix : "";
+    options.message = message != nullptr ? message : "";
+    options.mute = mute != 0;
+    // remainingTime 0 is "the player's configured duration", which Emit reads
+    // from the CVar store. A display-free row may have none, and the bridge
+    // dereferences the store unconditionally, so fall back to that setting's
+    // own default there.
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
+        options.remainingTime = 10.0f;
+    }
+    Notification::Emit(options);
+}
+
 extern "C" void OoT_Notification_ClearForTest(void) {
     Notification::notifications.clear();
 }
