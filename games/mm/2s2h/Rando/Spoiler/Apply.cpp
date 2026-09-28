@@ -16,7 +16,7 @@
 // (#610) — a divergent spoiler and a divergent arrival are the same class of
 // corruption and must not be surfaced two different ways.
 #include "save.h"
-#include "notification_bridge.h"
+#include "pairing_refusal_toast.h" // MM_Rando_EmitPairingRefusalToast — the refusal toast (#749 shape)
 #endif
 
 extern "C" {
@@ -115,10 +115,15 @@ static std::string IdentityMismatchDetail(const char* label, uint32_t spoilerVal
 /**
  * True when the spoiler's foreign section must NOT be committed. `outTerm`
  * receives the divergent term's NAME (the machine term, so the refusal points
- * at one thing rather than saying "something is different") and `outDetail` the
- * numbers behind it.
+ * at one thing rather than saying "something is different"), `outDetail` the
+ * numbers behind it, and `outRoute` which check refused
+ * (RSBS_SPOILER_REFUSAL_*, src/common/pairing_refusal_toast.h). The toast is
+ * keyed on the route, not the term: one term is reported by more than one
+ * route (a spoiler that names another seed and one that names none both report
+ * sharedRandoSeed), and only the route says which sentence is true.
  */
-static bool ForeignIdentityDiverges(const nlohmann::json& spoiler, std::string& outTerm, std::string& outDetail) {
+static bool ForeignIdentityDiverges(const nlohmann::json& spoiler, std::string& outTerm, std::string& outDetail,
+                                    const char*& outRoute) {
     // (1) There must be a live pairing at all. These are the two halves of
     //     Combo_ForeignPairingActive(), split apart so the refusal can name
     //     WHICH one is missing. Both-false is the issue's exact scenario: MM's
@@ -127,11 +132,13 @@ static bool ForeignIdentityDiverges(const nlohmann::json& spoiler, std::string& 
     if (!gComboCtx.sourceIsRando) {
         outTerm = "sourceIsRando";
         outDetail = "this session is not playing a generated cross-game world";
+        outRoute = RSBS_SPOILER_REFUSAL_NOT_PAIRED;
         return true;
     }
     if (gComboCtx.sharedRandoSettingsHash == 0) {
         outTerm = "sharedRandoSettingsHash";
         outDetail = "this session recorded no settings profile, so the worlds must not pair";
+        outRoute = RSBS_SPOILER_REFUSAL_SESSION_UNSETTLED;
         return true;
     }
 
@@ -144,6 +151,7 @@ static bool ForeignIdentityDiverges(const nlohmann::json& spoiler, std::string& 
     if (!spoiler.contains("rsbsPairing") || !spoiler["rsbsPairing"].is_object()) {
         outTerm = "rsbsPairing";
         outDetail = "the spoiler carries no cross-game identity, so it cannot be shown to name this world";
+        outRoute = RSBS_SPOILER_REFUSAL_NO_IDENTITY;
         return true;
     }
     const nlohmann::json& identity = spoiler["rsbsPairing"];
@@ -152,11 +160,13 @@ static bool ForeignIdentityDiverges(const nlohmann::json& spoiler, std::string& 
     if (!ReadIdentityTerm(identity, "sharedRandoSeed", spoilerSeed)) {
         outTerm = "sharedRandoSeed";
         outDetail = "the spoiler's identity omits the shared master seed";
+        outRoute = RSBS_SPOILER_REFUSAL_IDENTITY_INCOMPLETE;
         return true;
     }
     if (spoilerSeed != gComboCtx.sharedRandoSeed) {
         outTerm = "sharedRandoSeed";
         outDetail = IdentityMismatchDetail("shared master seed", spoilerSeed, gComboCtx.sharedRandoSeed);
+        outRoute = RSBS_SPOILER_REFUSAL_OTHER_SEED;
         return true;
     }
 
@@ -164,12 +174,14 @@ static bool ForeignIdentityDiverges(const nlohmann::json& spoiler, std::string& 
     if (!ReadIdentityTerm(identity, "sharedRandoSettingsHash", spoilerSettings)) {
         outTerm = "sharedRandoSettingsHash";
         outDetail = "the spoiler's identity omits the shared settings digest";
+        outRoute = RSBS_SPOILER_REFUSAL_IDENTITY_INCOMPLETE;
         return true;
     }
     if (spoilerSettings != gComboCtx.sharedRandoSettingsHash) {
         outTerm = "sharedRandoSettingsHash";
         outDetail =
             IdentityMismatchDetail("shared settings digest", spoilerSettings, gComboCtx.sharedRandoSettingsHash);
+        outRoute = RSBS_SPOILER_REFUSAL_OTHER_SETTINGS;
         return true;
     }
 
@@ -183,13 +195,14 @@ static bool ForeignIdentityDiverges(const nlohmann::json& spoiler, std::string& 
         gComboCtx.mmProfileDigest != 0 && spoilerProfile != gComboCtx.mmProfileDigest) {
         outTerm = "mmProfileDigest";
         outDetail = IdentityMismatchDetail("frozen MM option profile", spoilerProfile, gComboCtx.mmProfileDigest);
+        outRoute = RSBS_SPOILER_REFUSAL_OTHER_MM_OPTIONS;
         return true;
     }
 
     return false;
 }
 
-static void RefuseForeignReconstruction(const std::string& term, const std::string& detail) {
+static void RefuseForeignReconstruction(const std::string& term, const std::string& detail, const char* route) {
     const int slot = RsbsSave_GetActiveSlot();
     fprintf(stderr,
             "[MM] spoiler-load: REFUSED — this spoiler's cross-game section does not name the world this session is "
@@ -209,26 +222,12 @@ static void RefuseForeignReconstruction(const std::string& term, const std::stri
     // surface, and a refusal nobody sees reads as "the cross-game items just
     // silently did nothing" — #564 V7's silent vanilla revert wearing a fix's
     // clothes.
-    const std::string message = "This spoiler's cross-game items were placed for a different world (divergent term: " +
-                                term + "). They will not appear here, and this session will not be saved to the pair.";
-    ComboNotification refusalToast;
-    memset(&refusalToast, 0, sizeof(refusalToast));
-    refusalToast.prefix = "Cross-game pairing REFUSED:";
-    refusalToast.prefixColor[0] = 0.9f;
-    refusalToast.prefixColor[1] = 0.35f;
-    refusalToast.prefixColor[2] = 0.3f;
-    refusalToast.prefixColor[3] = 1.0f;
-    refusalToast.message = message.c_str();
-    refusalToast.messageColor[0] = 1.0f;
-    refusalToast.messageColor[1] = 1.0f;
-    refusalToast.messageColor[2] = 1.0f;
-    refusalToast.messageColor[3] = 1.0f;
-    refusalToast.remainingTime = 15.0f;
-    // Muted for the same reason #570's refusal toast is: the overlay's ding is
-    // OoT's Audio_PlaySoundGeneral, and this runs on MM's file-create seam (and
-    // in the display-free locks) where OoT's audio session is not a given.
-    refusalToast.mute = 1;
-    OoT_Notification_Emit(&refusalToast);
+    // One short line in SoH's toast shape (src/common/pairing_refusal_toast.h):
+    // "Not saved:" and what the refusing check found, in words, keyed on the
+    // ROUTE. The machine term and both values stay on the stderr line above.
+    // Muted, like every arrival refusal: this runs on MM's file-create seam and
+    // in the display-free locks.
+    MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_SPOILER, route);
 }
 
 int ReconstructForeignPlacements(const nlohmann::json& spoiler) {
@@ -262,8 +261,9 @@ int ReconstructForeignPlacements(const nlohmann::json& spoiler) {
     {
         std::string divergentTerm;
         std::string divergentDetail;
-        if (ForeignIdentityDiverges(spoiler, divergentTerm, divergentDetail)) {
-            RefuseForeignReconstruction(divergentTerm, divergentDetail);
+        const char* divergentRoute = nullptr;
+        if (ForeignIdentityDiverges(spoiler, divergentTerm, divergentDetail, divergentRoute)) {
+            RefuseForeignReconstruction(divergentTerm, divergentDetail, divergentRoute);
             return -2;
         }
     }

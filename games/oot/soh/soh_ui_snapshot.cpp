@@ -137,6 +137,7 @@
 #include "ComboSpoilerWindow.h"
 #include "ComboTrackerWindow.h"
 #include "combo_logic.h"           // RSBS_COMBO_HALF_* (the goal-warning toast page)
+#include "pairing_refusal_toast.h" // the cross-game refusal toast pages
 #include "combo_mm_options_page.h" // Combo > MM Randomizer / MM Tricks: page names, row suffix, reset title
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
@@ -2129,6 +2130,14 @@ void Session::BuildPageList() {
              { "toast/creation-shortfall", "Fewer cross-game items:" },
              { "toast/creation-failure", "Not created:" },
              { "toast/creation-goal-warning", "Not proven:" },
+             // The cross-game refusals (src/common/pairing_refusal_toast.h), each
+             // through its production emitter; the rules and spoiler pages draw
+             // their longest shapes.
+             { "toast/pairing-refused-mm-options", "Not saved:" },
+             { "toast/pairing-refused-rules", "Not saved:" },
+             { "toast/pairing-refused-missing-half", "Not saved:" },
+             { "toast/pairing-refused-spoiler", "Not saved:" },
+             { "toast/paired-spoiler-not-loaded", "Spoiler not loaded:" },
              // The paired-file load's toasts (#781), each through the load's
              // own emitter with the longest input a real load can pass it.
              { "toast/load-rules-restored", "Restored from file:" },
@@ -4064,6 +4073,23 @@ void Session::CaptureToast(const PageSpec& p) {
         // ADR 0010 section 1.2's creation warning, as a "Ganon" world raises it:
         // MM's half carries no proof. The longest of its three copies.
         OoT_Creation_EmitGoalWarningToast(RSBS_COMBO_HALF_MM);
+    } else if (p.id == "toast/pairing-refused-mm-options") {
+        MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MM_OPTIONS, nullptr);
+    } else if (p.id == "toast/pairing-refused-rules") {
+        // A goal changed on a triforce-hunt file: two fields, both named (the
+        // shape mm-combo-settings-gate leg 4 asserts).
+        char fields[192];
+        Combo_ComboSettingsDivergenceDescribe(RSBS_COMBO_DIVERGE_GOAL | RSBS_COMBO_DIVERGE_TRIFORCE, fields,
+                                              sizeof(fields));
+        MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_RULES, fields);
+    } else if (p.id == "toast/pairing-refused-missing-half") {
+        MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr);
+    } else if (p.id == "toast/pairing-refused-spoiler") {
+        // The longest of the spoiler routes' messages.
+        MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_SPOILER, RSBS_SPOILER_REFUSAL_OTHER_MM_OPTIONS);
+    } else if (p.id == "toast/paired-spoiler-not-loaded") {
+        // SeedContext.cpp's refusal emitter, muted as every harness toast is.
+        OoT_EmitPairedSpoilerRefusalToast(/*mute=*/1);
     } else if (p.id.rfind("toast/load-", 0) == 0) {
         EmitLoadToastPage(p.id);
     }

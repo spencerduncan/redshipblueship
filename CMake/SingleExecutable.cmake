@@ -137,6 +137,10 @@ set(REDSHIP_COMMON_SOURCES
     # the defeat record, the goal predicate and the decision both ports' ending
     # sites call. Game-header-free. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_goal.c
+    # The cross-game refusal toasts' one-line copy (#749's toast shape): the MM
+    # emitter, the ui tier's toast pages and the width lock read the same
+    # strings. Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/pairing_refusal_toast.c
     # Test windows never take keyboard focus (lane F1, #310): the SDL
     # no-activation hints main.cpp arms for --test / --integration-test, the
     # [FOCUS] probe each row prints, and the probe window its lock shows.
@@ -226,6 +230,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_goal.h
     # Header for mm_mod_set.cpp above (#706)
     ${CMAKE_SOURCE_DIR}/src/common/mm_mod_set.h
+    # Header for pairing_refusal_toast.c above
+    ${CMAKE_SOURCE_DIR}/src/common/pairing_refusal_toast.h
     # Header for test_window_focus.cpp above (lane F1)
     ${CMAKE_SOURCE_DIR}/src/common/test_window_focus.h
 )
@@ -2114,6 +2120,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME ComboPlayerName COMMAND redship --test combo-player-name)
 
+    # The cross-game refusal toasts fit the screen (#749's toast shape): every
+    # "Not saved:" refusal, through its production emitter, and OoT's
+    # paired-spoiler refusal, drawn by SoH's own Notification::Window in a private
+    # display-free ImGui context whose default font is SoH's (Montserrat 20, the
+    # file soh.o2r packs), at Notifications.Size 1.8 and 1.0, in the ui tier's
+    # smallest window (832 px). The RULES refusal is drawn for every one of the
+    # 8,191 divergence-field combinations. games/oot/soh/soh_notification_fit_test.cpp.
+    redship_add_test(NAME PairingRefusalToastFit COMMAND redship --test pairing-refusal-toast-fit)
     # #781: loading a paired file whose Cross-Game Rules or MM options changed at
     # the title screen. The file's own values win at load (restored into the keys,
     # named in a toast), what the file cannot restore is refused or flagged

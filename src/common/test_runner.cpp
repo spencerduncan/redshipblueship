@@ -2035,7 +2035,8 @@ uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 int MM_Rando_Logic_JoinOrderProbe(void);
 void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse, int* outIdentityOk);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
-int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded, int* outStrippedLoaded);
+int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded, int* outStrippedLoaded,
+                                  int* outRefusalToast);
 // #582's overlay leg. games/oot/soh/SohGui/CreationProgressOverlay.h documents
 // why the probe returns whether it could present rather than asserting it.
 int OoT_CreationProgressOverlay_TestPresentOnce(void);
@@ -2525,9 +2526,11 @@ TestResult Test_ComboCreationEvent(void) {
         int marked = 0;
         int pairedLoaded = -1;
         int strippedLoaded = -1;
-        const int reloadRc = Rando_TestReloadPairedSpoiler(absolute.c_str(), &marked, &pairedLoaded, &strippedLoaded);
-        printf("[TEST] spoiler reload: rc=%d marked=%d paired-loaded=%d stripped-loaded=%d (%s)\n", reloadRc, marked,
-               pairedLoaded, strippedLoaded, absolute.c_str());
+        int refusalToast = -1;
+        const int reloadRc = Rando_TestReloadPairedSpoiler(absolute.c_str(), &marked, &pairedLoaded, &strippedLoaded,
+                                                           &refusalToast);
+        printf("[TEST] spoiler reload: rc=%d marked=%d paired-loaded=%d stripped-loaded=%d refusal-toast=%d (%s)\n",
+               reloadRc, marked, pairedLoaded, strippedLoaded, refusalToast, absolute.c_str());
         if (reloadRc != 0 || marked != 1) {
             printf("[TEST] FAIL: the paired world's spoiler could not be read back or carries no paired-world "
                    "marker\n");
@@ -2541,6 +2544,15 @@ TestResult Test_ComboCreationEvent(void) {
         if (strippedLoaded != 1) {
             printf("[TEST] FAIL: the same document without its paired-world markers did not load, so the refusal "
                    "is not what refused it\n");
+            return TEST_FAIL;
+        }
+        if (refusalToast != 1) {
+            // The refusal SITE (Context::ParseSpoiler) must queue the emitter's
+            // copy (OoT_EmitPairedSpoilerRefusalToast): that copy is what
+            // pairing-refusal-toast-fit keeps on screen, and a site emitting its
+            // own text would pass that lock unseen.
+            printf("[TEST] FAIL: the paired-spoiler refusal did not queue the refusal emitter's toast (see the line "
+                   "above)\n");
             return TEST_FAIL;
         }
         printf("[TEST] spoiler reload: the paired world's spoiler is refused as a solo world; unmarked, it loads\n");
@@ -4489,6 +4501,31 @@ TestResult Test_ComboGameOverRevive(void) {
     return OoT_GameOverRevive_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The cross-game refusal toasts fit the screen (games/oot/soh/soh_notification_fit_test.cpp).
+// Display-free: SoH's notification overlay draws into a private ImGui context. The
+// shared bring-up for the CVar store the overlay and Notification::Emit read.
+extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath);
+TestResult Test_PairingRefusalToastFit(void) {
+    // SoH's default font, from the file soh.o2r packs it from. Resolved from the
+    // source tree so the row also runs inside AllTests (`--test all`), which
+    // carries no per-row environment.
+#ifdef RSBS_SOURCE_DIR
+    const std::string fontPath = std::string(RSBS_SOURCE_DIR) + "/games/oot/assets/custom/fonts/Montserrat-Regular.ttf";
+#else
+    const std::string fontPath;
+#endif
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return OoT_NotificationFit_RunHeadless(fontPath.c_str()) == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // games/mm/2s2h/mm_paired_load_restore_test.cpp (#781): loading a paired file
 // whose rules the session changed at the title screen. MM-side because the MM
 // half is authored the way creation authors it and the arrival gate is MM's.
@@ -5270,6 +5307,10 @@ const TestDescriptor gTests[] = {
      "naming the variable and the CTest rows that do; set, it resolves the exact path; every digest dispatch "
      "resolves through the one resolver (#710)",
      Test_DigestOutHandRun},
+    {"pairing-refusal-toast-fit",
+     "Every cross-game refusal toast fits an 832-px window at Notifications.Size 1.8 and 1.0, drawn by SoH's own "
+     "notification overlay in its default font (#749's toast shape)",
+     Test_PairingRefusalToastFit},
     {"paired-load-restore",
      "Loading a paired file whose Cross-Game Rules or MM options changed at the title screen restores the file's "
      "own values, names them in a toast, and never plays the file unpaired; what the file cannot restore is "

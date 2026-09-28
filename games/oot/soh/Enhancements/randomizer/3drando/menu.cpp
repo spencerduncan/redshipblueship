@@ -22,6 +22,8 @@
 #include <fstream>
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
 #include "crossing_store.h" // src/common — the paired world's hint checks (PR #743 review)
+#include "notification_bridge.h"   // src/common — the refusal toast the reload bridge reads back
+#include "pairing_refusal_toast.h" // src/common — that toast's copy
 
 namespace {
 bool seedChanged;
@@ -344,11 +346,16 @@ extern "C" int Rando_ValidatePairedWorldHints(void) {
  *                          refused).
  * @param outStrippedLoaded the same after parsing the stripped copy (must be 1: the
  *                          refusal keys on the markers, not on the document).
+ * @param outRefusalToast   1 when the toast the paired parse queued is, prefix and
+ *                          message, exactly OoT_EmitPairedSpoilerRefusalToast's copy
+ *                          (src/common/pairing_refusal_toast.h): what holds the
+ *                          refusal SITE to the copy pairing-refusal-toast-fit keeps
+ *                          on screen. 0 otherwise, and the queued text is printed.
  * @return 0 when both parses ran; nonzero when the file could not be read or the
  *         stripped copy could not be written.
  */
 extern "C" int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded,
-                                             int* outStrippedLoaded) {
+                                             int* outStrippedLoaded, int* outRefusalToast) {
     nlohmann::json doc;
     try {
         std::ifstream in(path);
@@ -360,8 +367,25 @@ extern "C" int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, i
     *outMarked = (doc.is_object() && doc.contains("combo") && doc.contains("rsbsSingleBagWorld")) ? 1 : 0;
 
     auto ctx = Rando::Context::GetInstance();
+    OoT_Notification_ClearForTest();
     ctx->ParseSpoiler(path);
     *outPairedLoaded = ctx->IsSpoilerLoaded() ? 1 : 0;
+    {
+        ComboNotification toast;
+        memset(&toast, 0, sizeof(toast));
+        char expected[128];
+        Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_OOT_SPOILER, nullptr, expected, sizeof(expected));
+        const char* expectedPrefix = Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_OOT_SPOILER);
+        const bool queued = OoT_Notification_PeekLastForTest(&toast) == 1;
+        const std::string prefix = queued && toast.prefix != nullptr ? toast.prefix : "";
+        const std::string message = queued && toast.message != nullptr ? toast.message : "";
+        *outRefusalToast = (queued && prefix == expectedPrefix && message == expected) ? 1 : 0;
+        if (*outRefusalToast == 0) {
+            printf("[TEST] spoiler reload: the refusal queued '%s %s' (queued=%d); the emitter's copy is '%s %s'\n",
+                   prefix.c_str(), message.c_str(), queued ? 1 : 0, expectedPrefix, expected);
+        }
+        OoT_Notification_ClearForTest();
+    }
 
     doc.erase("combo");
     doc.erase("rsbsSingleBagWorld");
