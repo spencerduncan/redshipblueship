@@ -5325,7 +5325,8 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
     {"int-boot-oot", "Boot OoT and verify title screen (integration)", INT_TEST_BOOT_OOT, GAME_OOT},
     {"int-boot-mm", "Boot MM and verify title screen (integration)", INT_TEST_BOOT_MM, GAME_MM},
     {"int-switch-oot-hms-to-mm",
-     "Boot OoT, trigger Happy Mask Shop entrance (0x0530), verify spawn at MM South Clock Town tower exit (0xD800)",
+     "Boot OoT into gameplay on a debug save, trigger Happy Mask Shop entrance (0x0530), verify spawn at MM South "
+     "Clock Town tower exit (0xD800) (#544)",
      INT_TEST_SWITCH_OOT_HMS_TO_MM, GAME_OOT},
     {"int-switch-mm-clocktown-south-to-oot",
      "Boot MM, trigger the Clock Tower door (0xC010), verify spawn at OoT Market from Mask Shop (0x01D1)",
