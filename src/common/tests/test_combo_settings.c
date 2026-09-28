@@ -347,11 +347,18 @@ TestResult Test_ComboSettingsFormat(void) {
     }
 
     // ---- The LOAD-side refusal (decision 4: "compare at every arrival AND
-    // load"). A slot whose stored rules are not this session's must refuse
-    // through the #533/#568 surface rather than commit its bytes over the
-    // resident context — the check runs on the record just READ, precisely
-    // because a check that read gComboCtx would be checking the world the load
-    // is about to replace.
+    // load"). A slot whose stored rules are not this session's and CANNOT be
+    // restored into it must refuse through the #533/#568 surface rather than
+    // commit its bytes over the resident context — the check runs on the record
+    // just READ, precisely because a check that read gComboCtx would be checking
+    // the world the load is about to replace.
+    //
+    // The diverged field is the logic rung, which no key authors: since #781 a
+    // divergence a key CAN author is restored into the key at load (frozen wins,
+    // ComboSettingsAuthoring leg 7 and paired-load-restore), and in the AllTests
+    // process a CVar store exists, so a direction divergence here would be
+    // restored rather than refused and would leave the key written for the rows
+    // after this one.
     {
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
         mgr.SetSaveDirectory(kComboSettingsTestDir);
@@ -362,7 +369,7 @@ TestResult Test_ComboSettingsFormat(void) {
         ComboSettingsArmPairing(0x51EED001u, 0x5E77A120u, 0x11FEDCBBu);
         ComboSettingsRecord divergent;
         Combo_ResolveComboSettings(&divergent);
-        divergent.direction = (uint8_t)RSBS_COMBO_DIR_FORWARD; // this session resolves BOTH
+        divergent.logicRung = (uint8_t)(divergent.logicRung + 1u); // no key authors it; the session resolves the default
         Combo_FreezeComboSettings(&divergent);
         CS_ASSERT(mgr.Save(0), "Save(0) failed for the divergent-record leg");
 
