@@ -288,9 +288,9 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
         printf("[curated-archive-generator] positive control (shipped manifest) rc=%d\n", rc);
         if (rc != 0) {
             fprintf(stderr,
-                    "[curated-archive-generator] FAIL: the generator refused the REAL shipped manifest (%s), which "
-                    "carries zero raw segmented references and only Vertex arrays both factories read with "
-                    "identical code -- a guard has a false positive\n",
+                    "[curated-archive-generator] FAIL: the generator refused the REAL shipped manifest (%s) -- its "
+                    "reason is printed above: either the manifest carries an unsafe entry or a guard has a false "
+                    "positive\n",
                     shippedManifest);
             failures++;
         }

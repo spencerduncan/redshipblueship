@@ -489,8 +489,9 @@ add_custom_target(
 # The generator hard-fails if a curated path also exists in any of its host's
 # base archives (oot.o2r/soh.o2r/oot-mq.o2r for OoT, mm.o2r/2ship.o2r for MM),
 # on Room/Cutscene/Path resources (whose loader slots single-exe builds resolve
-# by OWNING archive), on raw segmented textures and on arrays the two games'
-# readers parse differently; see scripts/make_redship_otr.py and
+# by OWNING archive), on raw segmented textures, on arrays the two games'
+# readers parse differently and on display lists that name a resource outside
+# their own half (#577 M6); see scripts/make_redship_otr.py and
 # assets/crossgame/manifest.txt (whose direction column picks the half).
 #
 # The runtime mounts each game's half right after that game's base archives:
