@@ -209,15 +209,14 @@ OoT's console commands `map`, `rupee`, `bottle`, `bItem`, `item`, `give_item` an
 crash), and so can toggling OoT's "Fix Broken Giant's Knife Bug" setting there. Use them in
 Hyrule only.
 
-**The Combo Tracker's Majora's Mask panel reads "No data yet" while you play Majora's Mask** ([#799](https://github.com/spencerduncan/redshipblueship/issues/799), pending).
-The panel reads Majora's Mask only from the copy kept while you are in the other game, and
-arriving in Termina uses that copy up. From arrival until your first save in Majora's Mask
-(an owl statue, the Song of Time or an autosave), or until you leave Termina again, the panel
-says "No data yet. Majora's Mask has not been played this session...", the crossings hosted
-in MM checks show a question-mark icon instead of a checked or empty box, and their list
-gives no collected count.
-Nothing is lost: the data comes back with that save or departure. Found by reading the code;
-not yet seen on screen.
+~~**The Combo Tracker's Majora's Mask panel reads "No data yet" while you play Majora's Mask**~~ — RESOLVED ([#799](https://github.com/spencerduncan/redshipblueship/issues/799)).
+The panel read Majora's Mask only from the copy kept while you are in the other game, and
+arriving in Termina uses that copy up, so from arrival until your first save in Majora's Mask
+or until you left Termina again the panel said "No data yet", the crossings hosted in MM
+checks showed a question-mark icon, and their list gave no collected count (seen on screen
+before the fix). Now, while you play Majora's Mask, the panel and the crossing list read its
+running save: the panel says "Updated live." and a collected check shows at once, with no
+save. In Hyrule it reads the copy, as of the last game switch or save.
 
 ### Back up your saves. Seriously.
 
