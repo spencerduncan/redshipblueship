@@ -486,7 +486,8 @@ add_custom_target(
 # the point of the archives is to carry ROM-derived models, and those only
 # exist post-extraction.
 #
-# The generator hard-fails if a curated path also exists in its host's archive,
+# The generator hard-fails if a curated path also exists in any of its host's
+# base archives (oot.o2r/soh.o2r/oot-mq.o2r for OoT, mm.o2r/2ship.o2r for MM),
 # on Room/Cutscene/Path resources (whose loader slots single-exe builds resolve
 # by OWNING archive), on raw segmented textures and on arrays the two games'
 # readers parse differently; see scripts/make_redship_otr.py and
@@ -513,6 +514,13 @@ add_custom_target(
             --oot-archive ${CMAKE_CURRENT_SOURCE_DIR}/games/oot/oot.o2r
             --mm-archive ${CMAKE_SOURCE_DIR}/mm.o2r
             --mm-archive ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/mm.o2r
+            # The hosts' other base archives, which Combo_EnsureGameArchivesLoaded
+            # also mounts before the curated half: the collision guard checks a
+            # curated path against every one (ExtractAssets / GenerateSohOtr and
+            # ExtractMMAssets / Generate2ShipOtr leave these at the source root).
+            --host-archive oot=${CMAKE_SOURCE_DIR}/soh.o2r
+            --optional-host-archive oot=${CMAKE_SOURCE_DIR}/oot-mq.o2r
+            --host-archive mm=${CMAKE_SOURCE_DIR}/2ship.o2r
             --manifest ${CMAKE_CURRENT_SOURCE_DIR}/assets/crossgame/manifest.txt
             --out-oot ${CMAKE_SOURCE_DIR}/redship-oot.o2r
             --out-mm ${CMAKE_SOURCE_DIR}/redship-mm.o2r

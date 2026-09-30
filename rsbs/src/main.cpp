@@ -98,7 +98,9 @@ static const char* CuratedArchiveName(GameId host) {
 //
 // Called right after the host's base archives and before its mods (see the
 // callers): the curated paths are absent from the host's base archives by
-// construction (the generator refuses a collision), so their relative order
+// construction (the generator refuses a collision with any of them --
+// oot.o2r, soh.o2r and, when extracted, oot-mq.o2r for OoT; mm.o2r and
+// 2ship.o2r for MM -- as they stood at generation time), so their relative order
 // does not matter, but a player's mod must still be able to restyle a foreign
 // model, so mods stay last. The source game's own base archive wins those
 // same paths back whenever the source game is the one arriving, because every

@@ -61,7 +61,7 @@ def archives(tmp_path):
     return oot, mm
 
 
-def _run(tmp_path, archives, manifest_text):
+def _run(tmp_path, archives, manifest_text, extra_args=()):
     oot, mm = archives
     manifest = tmp_path / "manifest.txt"
     manifest.write_text(manifest_text, encoding="utf-8")
@@ -76,6 +76,7 @@ def _run(tmp_path, archives, manifest_text):
             "--manifest", str(manifest),
             "--out-oot", str(out_oot),
             "--out-mm", str(out_mm),
+            *extra_args,
         ],
         capture_output=True,
         text=True,
@@ -143,6 +144,64 @@ def test_refusals_write_neither_half(tmp_path, archives, manifest_text, reason):
     # A refusal never leaves a half-written archive behind for a build step to copy.
     assert not out_oot.exists()
     assert not out_mm.exists()
+
+
+_SPLIT_MANIFEST = "mm->oot objects/object_mm_only/\noot->mm objects/object_oot_only/\n"
+
+
+def _port_archive(tmp_path, name, paths):
+    path = tmp_path / name
+    with zipfile.ZipFile(path, "w") as z:
+        for p in paths:
+            z.writestr(p, _resource("port:" + p))
+    return path
+
+
+@pytest.mark.parametrize(
+    "flag, game, name, curated",
+    [
+        # soh.o2r / oot-mq.o2r sit under OoT's half, 2ship.o2r under MM's
+        # (Combo_EnsureGameArchivesLoaded mounts them before the curated half).
+        ("--host-archive", "oot", "soh.o2r", MM_ONLY[0]),
+        ("--optional-host-archive", "oot", "oot-mq.o2r", MM_ONLY[1]),
+        ("--host-archive", "mm", "2ship.o2r", OOT_ONLY[0]),
+    ],
+)
+def test_collision_with_any_host_base_archive_is_refused(tmp_path, archives, flag, game, name, curated):
+    port = _port_archive(tmp_path, name, [curated])
+    proc, out_oot, out_mm = _run(tmp_path, archives, _SPLIT_MANIFEST, [flag, "%s=%s" % (game, port)])
+    assert proc.returncode != 0, "accepted a curated path the host's %s also ships" % name
+    assert "COLLISION" in proc.stdout + proc.stderr
+    assert name in proc.stderr
+    assert not out_oot.exists()
+    assert not out_mm.exists()
+
+
+def test_host_base_archive_on_the_other_side_is_not_a_collision(tmp_path, archives):
+    # MM's 2ship.o2r carrying an MM-origin path that lands in OoT's half is not
+    # a collision: OoT never mounts 2ship.o2r.
+    port = _port_archive(tmp_path, "2ship.o2r", [MM_ONLY[0]])
+    proc, out_oot, _out_mm = _run(tmp_path, archives, _SPLIT_MANIFEST, ["--host-archive", "mm=%s" % port])
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert _names(out_oot) == sorted(MM_ONLY)
+
+
+def test_missing_required_host_archive_is_refused(tmp_path, archives):
+    missing = tmp_path / "soh.o2r"
+    proc, out_oot, out_mm = _run(tmp_path, archives, _SPLIT_MANIFEST, ["--host-archive", "oot=%s" % missing])
+    assert proc.returncode != 0
+    assert "not present" in proc.stdout + proc.stderr
+    assert not out_oot.exists()
+    assert not out_mm.exists()
+
+
+def test_missing_optional_host_archive_is_noted_not_refused(tmp_path, archives):
+    missing = tmp_path / "oot-mq.o2r"
+    proc, out_oot, out_mm = _run(tmp_path, archives, _SPLIT_MANIFEST,
+                                 ["--optional-host-archive", "oot=%s" % missing])
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "not checked" in proc.stdout
+    assert out_oot.exists() and out_mm.exists()
 
 
 def test_same_output_path_is_refused(tmp_path, archives):

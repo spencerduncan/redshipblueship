@@ -44,6 +44,15 @@
  *         before mods, so a player's mod can restyle a foreign model); OoT's
  *         half is still not MM's;
  *       - back in OoT: neither half changed identity.
+ *     The override redirects the BASE-archive lookups too (a staged mm.o2r is
+ *     re-added under the app-bundle string, which is not the string MM
+ *     recorded as its own), so the leg ends by re-running the production
+ *     switch mounts (MM, then OoT) from the restored app dirs, and
+ *     CamMMBaseIdentityCheck -- after this leg and again at the end of the
+ *     row -- asserts that every mm.o2r path an mm.o2r owns is owned by the
+ *     recorded-MM one. Archives are never unmounted, so "restored" means the
+ *     base archives are back on top under production's strings, OoT last;
+ *     the stand-in archives stay mounted under their private marker paths.
  *
  *  2. ROM-staged (needs the extracted oot.o2r / mm.o2r AND the generated
  *     redship-oot.o2r / redship-mm.o2r beside the binary; SKIPs the leg
@@ -63,6 +72,13 @@
  * -- object_mask_truth by './mm.o2r' (MM identity) on arrival in OoT,
  * object_gi_hammer by './oot.o2r' (OoT identity) on arrival in MM -- with no
  * path served by a curated half. Leg 0's entry point did not exist.
+ * Without the end-of-leg-1 re-mount, CamMMBaseIdentityCheck fails with every
+ * mm.o2r path owned by the unrecorded "<exe dir>/mm.o2r".
+ *
+ * main()'s boot call is locked separately, by CuratedArchiveMount_VerifyBoot
+ * (below), which the int-boot-oot / int-boot-mm integration drives run at boot
+ * completion: leg 0 calls Combo_MountCuratedArchive directly and so cannot see
+ * whether main() calls it.
  *
  * Included at FILE SCOPE by test_runner.cpp (compiled as C++): it drives the
  * C++-linkage Ship::Context / ArchiveManager APIs directly. The wrapper
@@ -88,11 +104,20 @@
 
 extern "C" bool Combo_ArchivePathIsMM(const char* path);
 extern "C" int MM_MountArchiveHeadless(const char* path);
+extern "C" void MM_RecordArchivePath(const char* path);
 
 namespace {
 
 constexpr const char* kCamOoTHalf = "redship-oot.o2r";
 constexpr const char* kCamMMHalf = "redship-mm.o2r";
+
+// The appName rsbs/src/main.cpp's ArchiveAppName passes to every lookup it
+// makes for @p game, so the strings resolved here are the strings production
+// mounts and records (identity is recorded by path string). Identical to ""
+// on a portable build; not on a NON_PORTABLE one.
+const char* CamAppName(GameId game) {
+    return game == GAME_MM ? "2s2h" : "soh";
+}
 
 // Paths no real archive ships, so ownership of them is decided by the
 // stand-ins alone -- in `--test all` too, where every other row shares the
@@ -433,32 +458,47 @@ int CamSwitchLeg(Ship::ArchiveManager& am) {
     if (!stage.ok) {
         return 1;
     }
-    CamModRegistrySnapshot registry;
-    Combo_RegisterModArchive(GAME_MM, stage.modPath.c_str());
-    CamAppDirOverride appDir(stage.dir);
-    if (!CamLookupSeesStandIns(appDir, stage.dir)) {
-        return 1;
-    }
 
     int failures = 0;
+    {
+        CamModRegistrySnapshot registry;
+        Combo_RegisterModArchive(GAME_MM, stage.modPath.c_str());
+        CamAppDirOverride appDir(stage.dir);
+        if (!CamLookupSeesStandIns(appDir, stage.dir)) {
+            return 1;
+        }
 
-    // Arrival in OoT.
-    Combo_EnsureGameArchivesLoaded(GAME_OOT);
-    failures += !CamExpectOwner(am, "switch: arrive OoT", kCamOoTHalfPath, kCamOoTHalf, false);
-    failures += !CamExpectUnowned(am, "switch: arrive OoT", kCamMMHalfPath,
-                                  "MM's half must not be mounted by an arrival in OoT");
+        // Arrival in OoT.
+        Combo_EnsureGameArchivesLoaded(GAME_OOT);
+        failures += !CamExpectOwner(am, "switch: arrive OoT", kCamOoTHalfPath, kCamOoTHalf, false);
+        failures += !CamExpectUnowned(am, "switch: arrive OoT", kCamMMHalfPath,
+                                      "MM's half must not be mounted by an arrival in OoT");
 
-    // Arrival in MM.
+        // Arrival in MM.
+        Combo_EnsureGameArchivesLoaded(GAME_MM);
+        failures += !CamExpectOwner(am, "switch: arrive MM", kCamMMHalfPath, kCamMMHalf, true);
+        failures += !CamExpectOwner(am, "switch: arrive MM (mods after curated)", kCamModContestedPath,
+                                    "mm_mod_standin.o2r", false, /*checkIdentity=*/false);
+        failures += !CamExpectOwner(am, "switch: arrive MM", kCamOoTHalfPath, kCamOoTHalf, false);
+
+        // Back in OoT: neither half changes identity.
+        Combo_EnsureGameArchivesLoaded(GAME_OOT);
+        failures += !CamExpectOwner(am, "switch: back in OoT", kCamOoTHalfPath, kCamOoTHalf, false);
+        failures += !CamExpectOwner(am, "switch: back in OoT", kCamMMHalfPath, kCamMMHalf, true);
+    } // cwd, $SHIP_HOME and both mod registries restored here
+
+    // The override above redirected the BASE-archive lookups too, not only the
+    // curated ones: with the stage directory as the app dir, the arrive-MM step
+    // re-added a staged mm.o2r under the app-BUNDLE string ("<exe dir>/mm.o2r")
+    // rather than the "./mm.o2r" LoadMMArchives recorded as MM's, so every MM
+    // path was left owned by an archive the per-archive dispatcher treats as
+    // OoT's -- which every later row in `--test all` would inherit. Re-run the
+    // production switch mounts from the real app dirs (with the real mod
+    // registries) so the base archives are back under the strings production
+    // uses, OoT last, as the row found them. CamMMBaseIdentityCheck, run right
+    // after this leg, is the lock on that.
     Combo_EnsureGameArchivesLoaded(GAME_MM);
-    failures += !CamExpectOwner(am, "switch: arrive MM", kCamMMHalfPath, kCamMMHalf, true);
-    failures += !CamExpectOwner(am, "switch: arrive MM (mods after curated)", kCamModContestedPath,
-                                "mm_mod_standin.o2r", false, /*checkIdentity=*/false);
-    failures += !CamExpectOwner(am, "switch: arrive MM", kCamOoTHalfPath, kCamOoTHalf, false);
-
-    // Back in OoT: neither half changes identity.
     Combo_EnsureGameArchivesLoaded(GAME_OOT);
-    failures += !CamExpectOwner(am, "switch: back in OoT", kCamOoTHalfPath, kCamOoTHalf, false);
-    failures += !CamExpectOwner(am, "switch: back in OoT", kCamMMHalfPath, kCamMMHalf, true);
     return failures;
 }
 
@@ -490,12 +530,13 @@ std::vector<std::string> CamListArchive(const std::string& archivePath) {
 }
 
 int CamIdentityLeg(Ship::ArchiveManager& am) {
-    // Same lookups Combo_EnsureGameArchivesLoaded makes, so the strings match
-    // the archives it mounts (identity is recorded by path string).
-    const std::string ootBase = CamResolve("oot.o2r", "soh");
-    const std::string mmBase = CamResolve("mm.o2r", "2s2h");
-    const std::string ootHalf = CamResolve(kCamOoTHalf, "");
-    const std::string mmHalf = CamResolve(kCamMMHalf, "");
+    // Same lookups (file name and appName) Combo_EnsureGameArchivesLoaded and
+    // MountCuratedArchive make, so the strings match the archives they mount
+    // (identity is recorded by path string).
+    const std::string ootBase = CamResolve("oot.o2r", CamAppName(GAME_OOT));
+    const std::string mmBase = CamResolve("mm.o2r", CamAppName(GAME_MM));
+    const std::string ootHalf = CamResolve(kCamOoTHalf, CamAppName(GAME_OOT));
+    const std::string mmHalf = CamResolve(kCamMMHalf, CamAppName(GAME_MM));
     if (ootBase.empty() || mmBase.empty() || ootHalf.empty() || mmHalf.empty()) {
         printf("[curated-archive-mount] identity leg SKIPPED: needs oot.o2r '%s', mm.o2r '%s', %s '%s', %s '%s' "
                "(run ExtractAssets, ExtractMMAssets and GenerateRedshipOtr to arm it)\n",
@@ -565,7 +606,117 @@ int CamIdentityLeg(Ship::ArchiveManager& am) {
     return failures;
 }
 
+// ---------------------------------------------------------------------------
+// What the row leaves behind for later rows: every mm.o2r path still owned by
+// an archive NAMED mm.o2r must be owned by one recorded as MM's, and at least
+// one must be (MM-exclusive paths exist). Needs a staged mm.o2r; SKIPs
+// otherwise. The production string is recorded as MM's first -- exactly what
+// LoadMMArchives records on MM's first init -- so the check does not depend on
+// whether an earlier row (or leg 2) initialized MM.
+// ---------------------------------------------------------------------------
+
+int CamMMBaseIdentityCheck(Ship::ArchiveManager& am, const char* step) {
+    const std::string mmBase = CamResolve("mm.o2r", CamAppName(GAME_MM));
+    if (mmBase.empty()) {
+        printf("[curated-archive-mount] %s: MM base identity check SKIPPED (no mm.o2r staged)\n", step);
+        return 0;
+    }
+    static std::vector<std::string> sMMBasePaths;
+    if (sMMBasePaths.empty()) {
+        sMMBasePaths = CamListArchive(mmBase);
+    }
+    MM_RecordArchivePath(mmBase.c_str());
+
+    int ownedByRecordedMM = 0;
+    int ownedByUnrecordedMM = 0;
+    for (const std::string& path : sMMBasePaths) {
+        const CamOwner owner = CamOwnerOf(am, path);
+        if (!owner.present || CamFileName(owner.path) != "mm.o2r") {
+            continue;
+        }
+        if (owner.isMM) {
+            ownedByRecordedMM++;
+        } else {
+            if (ownedByUnrecordedMM < 3) {
+                fprintf(stderr,
+                        "[curated-archive-mount] FAIL (%s): MM path '%s' is owned by '%s', which is NOT recorded as "
+                        "MM's (production records '%s') -- MM content would parse with OoT's readers in every later "
+                        "row\n",
+                        step, path.c_str(), owner.path.c_str(), mmBase.c_str());
+            }
+            ownedByUnrecordedMM++;
+        }
+    }
+    printf("[curated-archive-mount] %s: %zu mm.o2r path(s); %d owned by a recorded-MM mm.o2r, %d by an "
+           "unrecorded one\n",
+           step, sMMBasePaths.size(), ownedByRecordedMM, ownedByUnrecordedMM);
+    if (ownedByRecordedMM == 0) {
+        fprintf(stderr, "[curated-archive-mount] FAIL (%s): no mm.o2r path is owned by '%s' with MM identity\n", step,
+                mmBase.c_str());
+        return 1;
+    }
+    return ownedByUnrecordedMM == 0 ? 0 : 1;
+}
+
 } // namespace
+
+// Boot-mount lock (#577 M1), run by the int-boot-oot / int-boot-mm drives at
+// boot completion (IntegrationTest_SignalBootComplete): main() must have
+// mounted the BOOTED game's curated half with that game's identity
+// (Combo_MountCuratedArchive right after GameRunner_StartGame). Every path the
+// half carries must be owned by an archive of the host's identity and at least
+// one by the half itself. SKIPs (returns 0) when the half is not staged.
+extern "C" int CuratedArchiveMount_VerifyBoot(GameId host) {
+    if (host != GAME_OOT && host != GAME_MM) {
+        return 0;
+    }
+    const char* halfName = host == GAME_MM ? kCamMMHalf : kCamOoTHalf;
+    const bool hostIsMM = host == GAME_MM;
+    const std::string half = CamResolve(halfName, CamAppName(host));
+    if (half.empty()) {
+        printf("[curated-archive-mount] boot check SKIPPED: %s is not staged\n", halfName);
+        fflush(stdout);
+        return 0;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
+        fprintf(stderr, "[curated-archive-mount] boot check FAIL: no resource manager\n");
+        return 1;
+    }
+    auto& am = *ctx->GetResourceManager()->GetArchiveManager();
+    const std::vector<std::string> paths = CamListArchive(half);
+    int servedByHalf = 0;
+    int wrong = 0;
+    for (const std::string& path : paths) {
+        const CamOwner owner = CamOwnerOf(am, path);
+        if (owner.present && CamFileName(owner.path) == halfName && owner.isMM == hostIsMM) {
+            servedByHalf++;
+        }
+        if (!owner.present || owner.isMM != hostIsMM) {
+            if (wrong < 5) {
+                fprintf(stderr,
+                        "[curated-archive-mount] boot check FAIL (%s): '%s' is owned by '%s' (%s identity) -- "
+                        "expected %s's identity, served by %s\n",
+                        Game_ToString(host), path.c_str(), owner.present ? owner.path.c_str() : "<nothing>",
+                        !owner.present ? "no" : (owner.isMM ? "MM" : "OoT"), Game_ToString(host), halfName);
+            }
+            wrong++;
+        }
+    }
+    printf("[curated-archive-mount] boot check (%s): %zu path(s) in %s, %d served by it, %d with the wrong identity\n",
+           Game_ToString(host), paths.size(), half.c_str(), servedByHalf, wrong);
+    fflush(stdout);
+    if (paths.empty() || servedByHalf == 0 || wrong > 0) {
+        fprintf(stderr, "[curated-archive-mount] boot check FAIL (%s): the booted game's curated half is not mounted "
+                        "with its identity -- main() must call Combo_MountCuratedArchive after the first game's "
+                        "Init\n",
+                Game_ToString(host));
+        fflush(stderr);
+        return 1;
+    }
+    return 0;
+}
 
 extern "C" int CuratedArchiveMount_RunHeadless(void) {
     auto ctx = Ship::Context::GetInstance();
@@ -580,7 +731,9 @@ extern "C" int CuratedArchiveMount_RunHeadless(void) {
     int failures = 0;
     failures += CamBootLeg(am);
     failures += CamSwitchLeg(am);
+    failures += CamMMBaseIdentityCheck(am, "after the switch leg");
     failures += CamIdentityLeg(am);
+    failures += CamMMBaseIdentityCheck(am, "end of row");
 
     if (failures == 0) {
         printf("[curated-archive-mount] PASS: each game's curated half is mounted on arrival with that game's "

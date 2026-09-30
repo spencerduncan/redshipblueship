@@ -70,8 +70,9 @@ void Rando::MiscBehavior::CheckQueue() {
             //
             // NO STAND-IN MODEL (yet). OoT's real model is drawable here — models
             // resolve by resource path, archives are never unmounted, and
-            // OoT-origin models MM draws are carried in redship-mm.o2r (#577 M1;
-            // drawing them in this cutscene is #577 M3). Until that lands, rather
+            // curated OoT-origin models are carried in redship-mm.o2r (#577 M1:
+            // today only the M1 seed, #577 M6 curates the set; drawing them in
+            // this cutscene is #577 M3). Until that lands, rather
             // than substituting a DIFFERENT item's model, we use MM's own
             // model-LESS pickup form: RI_NONE draws no model and falls through
             // to DrawSparkles, which is the

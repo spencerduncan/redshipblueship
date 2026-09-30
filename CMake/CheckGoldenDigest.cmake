@@ -158,7 +158,7 @@ set(_port_archive_names soh.o2r 2ship.o2r redship-oot.o2r redship-mm.o2r)
 # actually holds through out_dir / out_exe / out_ports, or leaves them empty and
 # explains why in out_reason.
 #
-# WHAT TRAVELS INTO THE SANDBOX, exhaustively: the binary, whichever of the three
+# WHAT TRAVELS INTO THE SANDBOX, exhaustively: the binary, whichever of the four
 # PORT archives the source environment actually has, and `shipofharkinian.json`.
 # WHAT DELIBERATELY DOES NOT: `mods/` (resolved through the same
 # LocateFileAcrossAppDirs probe list since #670/#704, so it IS load-bearing for the

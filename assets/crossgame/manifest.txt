@@ -15,7 +15,8 @@
 # factory dispatcher parses it as MM's.  Both halves must be non-empty.
 #
 # Paths are copied VERBATIM (see scripts/make_redship_otr.py for why), so every
-# entry here must be absent from its host's archive.  The generator hard-fails
+# entry here must be absent from every base archive its host mounts (oot.o2r,
+# soh.o2r and oot-mq.o2r for OoT; mm.o2r and 2ship.o2r for MM).  The generator hard-fails
 # on a collision rather than shipping an order-dependent archive.  Colliding
 # get-item objects are #577 M7's host-native mapping, not curated copies.
 #
@@ -62,7 +63,10 @@ mm->oot objects/object_mask_truth/
 # --- oot->mm: redship-mm.o2r (M1 seed) -----------------------------------------
 # One OoT-exclusive get-item model, so the MM half is a real archive the runtime
 # mounts and records as MM's: the Megaton Hammer, two resources (a display list
-# and its vertex array), no texture, no raw segmented reference.  All 36
-# OoT-exclusive `object_gi_*` directories pass every guard today (measured
-# 2026-09-30); M6 curates the set.
+# and its vertex array), no texture, no raw segmented reference.  Measured
+# 2026-09-30 against archives extracted from the ROMs that day (oot.o2r, mm.o2r,
+# soh.o2r, 2ship.o2r; no oot-mq.o2r): 36 of OoT's 77 `object_gi_*` directories
+# have no counterpart directory in mm.o2r, and each of the 36, run through
+# this generator as the only `oot->mm` entry, passed every guard.  Re-measure
+# before relying on it; M6 curates the set.
 oot->mm objects/object_gi_hammer/

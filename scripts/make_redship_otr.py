@@ -44,8 +44,12 @@ Design constraints, in the order they matter:
      ArchiveManager resolution is last-added-wins over one flat CRC64 map
      (ArchiveManager::AddArchive), curating a path that the HOST game also
      ships would make which bytes the host draws depend on mount order.  Every
-     entry is checked against its host's archive and the build FAILS on a
-     collision rather than shipping an order-dependent archive.  Byte-identical
+     entry is checked against EVERY base archive its host mounts before the
+     curated half -- the extracted oot.o2r / mm.o2r, plus each archive named
+     with --host-archive / --optional-host-archive (soh.o2r and oot-mq.o2r for
+     OoT, 2ship.o2r for MM: Combo_EnsureGameArchivesLoaded's list in
+     rsbs/src/main.cpp) -- and the build FAILS on a collision rather than
+     shipping an order-dependent archive.  Byte-identical
      duplicates are also rejected: identical today is not a contract.  (The
      colliding get-item objects are #577 M7's host-native mapping, not
      curated copies.)
@@ -509,6 +513,17 @@ def main():
                     help="path of the %s to write (the half OoT mounts: `mm->oot` entries)" % OUTPUT_NAMES["oot"])
     ap.add_argument("--out-mm", required=True,
                     help="path of the %s to write (the half MM mounts: `oot->mm` entries)" % OUTPUT_NAMES["mm"])
+    # The host's OTHER base archives (constraint 2).  The runtime mounts these
+    # before the curated half too (Combo_EnsureGameArchivesLoaded: oot.o2r,
+    # oot-mq.o2r, soh.o2r for OoT; mm.o2r, 2ship.o2r for MM), so a curated path
+    # colliding with one of them would silently win over it.  --host-archive
+    # must exist (a check against an absent archive would pass vacuously);
+    # --optional-host-archive is checked when present (oot-mq.o2r exists only
+    # when an MQ ROM was extracted, and the runtime skips it when absent too).
+    ap.add_argument("--host-archive", action="append", default=[], metavar="GAME=PATH",
+                    help="another base archive GAME (oot|mm) mounts before its curated half; must exist; repeatable")
+    ap.add_argument("--optional-host-archive", action="append", default=[], metavar="GAME=PATH",
+                    help="as --host-archive, but checked only when the file exists; repeatable")
     args = ap.parse_args()
     outputs = {"oot": args.out_oot, "mm": args.out_mm}
     if os.path.abspath(outputs["oot"]) == os.path.abspath(outputs["mm"]):
@@ -546,6 +561,29 @@ def main():
                      "against), which is not present at any of: %s"
                      % (args.manifest, game, ", ".join(candidates[game])))
 
+    # Every path each host's base archives carry: the extracted archive plus
+    # the host's other base archives (constraint 2).
+    host_names = {game: set(names[game]) for game in GAMES}
+    host_archives = {game: [sources[game]] for game in GAMES}
+    for spec, required in ([(s, True) for s in args.host_archive] +
+                           [(s, False) for s in args.optional_host_archive]):
+        game, sep, path = spec.partition("=")
+        if not sep or game not in GAMES or not path:
+            sys.exit("[curated-archives] %s %r: expected GAME=PATH with GAME one of %s"
+                     % ("--host-archive" if required else "--optional-host-archive", spec, ", ".join(GAMES)))
+        if not os.path.isfile(path):
+            if required:
+                sys.exit("[curated-archives] %s host archive %s is not present; the collision guard cannot check a "
+                         "curated path against an archive that is not there" % (game, path))
+            print("[curated-archives] note: optional %s host archive %s is not present, not checked" % (game, path))
+            continue
+        with zipfile.ZipFile(path, "r") as extra:
+            host_names[game].update(extra.namelist())
+        host_archives[game].append(path)
+    for game in GAMES:
+        print("[curated-archives] %s host archives checked for collisions: %s"
+              % (game, ", ".join(host_archives[game])))
+
     # (source, path) in manifest order, de-duplicated so two overlapping
     # prefixes cannot write one path twice.  The host is implied by the source:
     # a direction always crosses to the OTHER game.
@@ -562,16 +600,16 @@ def main():
                 selected.append((source, n))
 
     # Collision guard (constraint 2 above): a curated path must be absent from
-    # its HOST's archive.
+    # EVERY base archive its HOST mounts.
     collisions = []
     for game, path in selected:
-        if path in names[other[game]]:
+        if path in host_names[other[game]]:
             collisions.append((game, path))
     if collisions:
         for game, path in collisions:
-            print("[curated-archives] COLLISION: %s-owned %r also exists in the %s archive, its host's"
-                  % (game, path, other[game]), file=sys.stderr)
-        sys.exit("[curated-archives] refusing to build: %d curated path(s) collide with the host game's archive; "
+            print("[curated-archives] COLLISION: %s-owned %r also exists in a %s base archive, its host's (%s)"
+                  % (game, path, other[game], ", ".join(host_archives[other[game]])), file=sys.stderr)
+        sys.exit("[curated-archives] refusing to build: %d curated path(s) collide with the host game's archives; "
                  "curated paths are copied verbatim, so a collision makes the resolved bytes depend on mount "
                  "order (ArchiveManager is last-added-wins over one flat CRC64 map)." % len(collisions))
 
