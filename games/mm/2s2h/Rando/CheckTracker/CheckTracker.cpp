@@ -28,22 +28,18 @@ namespace BenGui {
 extern std::shared_ptr<Rando::CheckTracker::CheckTrackerWindow> mRandoCheckTrackerWindow;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
 // The item an obtained check's row names (#796), from that check's save row.
 static std::string ObtainedItemTrackerName(RandoCheckId randoCheckId, const RandoSaveCheck& randoSaveCheck) {
-#ifdef RSBS_SINGLE_EXECUTABLE
     // A check that hosts an OoT item holds RI_JUNK in MM's table, and the foreign
     // give never rewrites it (CheckQueue.cpp). What the player found is the OoT
     // item the give's textbox named, from the same lookup.
     if (const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId)) {
         return std::string(foreignName) + " (OoT)";
     }
-#else
-    (void)randoCheckId;
-#endif
     return Rando::StaticData::Items[randoSaveCheck.randoItemId].name;
 }
 
-#ifdef RSBS_SINGLE_EXECUTABLE
 // TEST BRIDGE (#796): the name the row for MM check `randoCheckId` prints once
 // obtained, read from the MM SaveContext at `mmSave` (the live one, or a frozen
 // MM world such as the armed shadow a paired creation leaves). Also reports the
@@ -412,7 +408,11 @@ void CheckTrackerDrawNonLogicalList() {
                     ImGui::Text("%s", Rando::StaticData::CheckNames[randoCheckId].c_str());
                     if (randoSaveCheck.obtained) {
                         ImGui::SameLine();
+#ifdef RSBS_SINGLE_EXECUTABLE
                         ImGui::Text("(%s)", ObtainedItemTrackerName(randoCheckId, randoSaveCheck).c_str());
+#else
+                        ImGui::Text("(%s)", Rando::StaticData::Items[randoSaveCheck.randoItemId].name);
+#endif
                     } else if (randoSaveCheck.skipped) {
                         ImGui::SameLine();
                         ImGui::Text("(Skipped)");
