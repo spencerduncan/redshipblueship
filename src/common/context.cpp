@@ -559,10 +559,10 @@ GameId Context_GetCurrentGame(void) {
 // Note: the legacy Context_ProcessSwitch() / Context_IsSwitchInProgress() API
 // is gone entirely. switch.cpp removed the implementations (zero callers, and
 // they referenced OoT_/MM_FreezeState symbols from TUs excluded from the
-// single-exe link), and ADR 0002 removed the dangling declarations from
-// context.h. switch.cpp itself IS part of the single-exe build — it holds the
-// live hot-swap freeze/consume policy (Switch_PrepareHotSwap /
-// Combo_ConsumeFrozenState).
+// single-exe link; those symbols are deleted too, by #598 and #427), and ADR
+// 0002 removed the dangling declarations from context.h. switch.cpp itself
+// IS part of the single-exe build — it holds the live hot-swap freeze/consume
+// policy (Switch_PrepareHotSwap / Combo_ConsumeFrozenState).
 
 // ============================================================================
 // C API implementation
