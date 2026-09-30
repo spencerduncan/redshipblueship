@@ -72,8 +72,11 @@ void Rando::MiscBehavior::CheckQueue() {
             // OoT'S OWN MODEL (#577 M3). The draw asks OoT (the origin) for the
             // item's get-item model and redraws it with MM's primitives
             // (2s2h/Rando/ForeignModelSingleExe.cpp). Models draw by resource
-            // path, and oot.o2r is mounted from OoT's first boot on. When there
-            // is no drawable model (no origin answer, a model in an object
+            // path and archives are never unmounted: oot.o2r is mounted from
+            // OoT's first boot on, and curated OoT-origin models are carried in
+            // redship-mm.o2r (#577 M1: today only the M1 seed, #577 M6 curates
+            // the set). When there is no drawable model (no origin answer, a
+            // model in an object
             // directory both archives carry that MM has no host-native row for
             // yet, or a path no mounted archive holds) it keeps MM's own
             // model-LESS pickup form: RI_NONE draws no model and falls through to

@@ -445,8 +445,8 @@ extern "C" int ArrayReaderAgreement_RunMM(const char* mmArchive) {
 //
 //   <root>/mm       mounted through MM_MountArchiveHeadless, which records it as
 //                   MM's (RecordMMArchivePath, the dispatcher's predicate)
-//   <root>/unowned  added to the shared ArchiveManager directly: nobody's, like
-//                   the curated cross-game redship.o2r
+//   <root>/unowned  added to the shared ArchiveManager directly: not recorded
+//                   as MM's, like OoT's own archives and redship-oot.o2r
 //
 // then registers OoT's factories and MM's over them, as production does, and
 // asserts through the global ResourceManager that the slot handed the MM-owned
