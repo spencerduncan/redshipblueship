@@ -16,7 +16,7 @@
  * and redship-oot.o2r carries the MM content #577 M6 curates for OoT; an MM
  * model none of them holds answers "no model" here. A HOST_NATIVE answer (a
  * colliding MM model OoT's host-native table maps to OoT's own draw row, #577
- * M7) draws nothing here yet: drawing that row on the shelf is a follow-up. In
+ * M7) draws nothing here yet: drawing that row on the shelf is a follow-up (#832). In
  * every "no model" case, and for HOST_NATIVE, the caller keeps its stand-in.
  *
  * HOW. Each layer, in the order both games' z_draw.c emit it: the setup list,

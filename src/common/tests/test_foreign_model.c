@@ -836,7 +836,7 @@ TestResult Test_ForeignModel(void) {
                   "M12 MM's Deku Mask is a DESCRIPTOR in OoT, Odolwa's Remains is no model");
         // MM's hookshot collides: "no model" until #577 M7 gives OoT's table a row
         // for it, HOST_NATIVE (OoT's own hookshot) after. This host draws neither
-        // yet; drawing a HOST_NATIVE answer on the shelf is a follow-up.
+        // yet; drawing a HOST_NATIVE answer on the shelf is a follow-up (#832).
         FM_ASSERT(hookshotKind == kNone || hookshotKind == (uint8_t)COMBO_MODEL_ANSWER_HOST_NATIVE,
                   "M12 MM's (colliding) hookshot is no model, or host-native once #577 M7 is in");
 
