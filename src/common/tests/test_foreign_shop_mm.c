@@ -108,10 +108,11 @@ TestResult Test_ForeignItemGiveShop(void) {
               "the Bomb Shop owner's hand item is a shop slot");
     printf("[TEST]   shop slot %u, hand slot %u\n", (unsigned)shopCheck, (unsigned)handCheck);
 
+    // Every leg runs before any leg's verdict, so a red run shows them all.
     // ---- S1 ----------------------------------------------------------------------
-    FS_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass(shopCheck) == 1, "S1 a shop slot is a foreign host class");
-    FS_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass(handCheck) == 1,
-              "S1 the Bomb Shop owner's hand slot is a foreign host class");
+    const int shopHost = MM_Rando_Foreign_TestIsForeignHostClass(shopCheck);
+    const int handHost = MM_Rando_Foreign_TestIsForeignHostClass(handCheck);
+    printf("[TEST]   S1 host class: shop slot %d, hand slot %d\n", shopHost, handHost);
 
     // ---- S2: paired --------------------------------------------------------------
     ComboContext_Init();
@@ -123,9 +124,7 @@ TestResult Test_ForeignItemGiveShop(void) {
     FS_ASSERT(Combo_SetForeignPlacement(shopCheck, hammer) >= 0, "S2 placement accepted");
     const int paired = MM_EnGirlA_TestForeignPurchase(shopCheck, 1);
     printf("[TEST]   S2 paired purchase: step code %d\n", paired);
-    FS_ASSERT(paired == 0, "S2 buying the OoT item hands it to the shared structure once and sells the slot out "
-                           "(see the S-line above; 2 = nothing crossed, 6 = restocked, 7 = sold twice)");
-    {
+    if (paired == 0) {
         ShopAwardCtx award;
         std::memset(&award, 0, sizeof(award));
         FS_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, ShopTestAward, &award) == 1,
@@ -143,8 +142,6 @@ TestResult Test_ForeignItemGiveShop(void) {
     FS_ASSERT(Combo_SetForeignPlacement(shopCheck, hammer) >= 0, "S3 placement accepted");
     const int unpaired = MM_EnGirlA_TestForeignPurchase(shopCheck, 0);
     printf("[TEST]   S3 unpaired purchase: step code %d\n", unpaired);
-    FS_ASSERT(unpaired == 0, "S3 with no live pairing the purchase authors no record and the slot stays sold (see the "
-                             "S-line above)");
 
     // ---- S4 / S5: the shelf and the owner's hand ---------------------------------
     ComboContext_Init();
@@ -165,6 +162,12 @@ TestResult Test_ForeignItemGiveShop(void) {
     MM_ForeignModel_TestSetMountOverride(-1);
     ComboContext_Init();
 
+    FS_ASSERT(shopHost == 1, "S1 a shop slot is a foreign host class");
+    FS_ASSERT(handHost == 1, "S1 the Bomb Shop owner's hand slot is a foreign host class");
+    FS_ASSERT(paired == 0, "S2 buying the OoT item hands it to the shared structure once and sells the slot out "
+                           "(see the S-line above; 2 = nothing crossed, 6 = restocked, 7 = sold twice)");
+    FS_ASSERT(unpaired == 0, "S3 with no live pairing the purchase authors no record and the slot stays sold (see the "
+                             "S-line above)");
     FS_ASSERT(shelfDrawn == 0, "S4 the shelf draws OoT's Hover Boots model (see the Q-line above)");
     FS_ASSERT(shelfStandIn == 0, "S4 with no drawable model the shelf keeps the model-less stand-in, never the cover");
     FS_ASSERT(handDrawn == 0, "S5 the owner's hand draws OoT's Hover Boots model (see the Q-line above)");
