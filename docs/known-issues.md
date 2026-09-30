@@ -189,7 +189,7 @@ the check with "(Blue Rupee)" and the MM Check Tracker (Combo > Windows) lists i
 got. The check is still counted and coloured as collected. The Combo Tracker's Crossings
 list (Combo > Windows > Toggle Combo Tracker) and the pickup message name the real item.
 
-**Do not open Ocarina of Time's Save Editor or Message Viewer while you are in Majora's Mask** ([#797](https://github.com/spencerduncan/redshipblueship/issues/797), pending; console commands [#798](https://github.com/spencerduncan/redshipblueship/issues/798), pending).
+**Do not open Ocarina of Time's Save Editor or Message Viewer while you are in Majora's Mask** ([#797](https://github.com/spencerduncan/redshipblueship/issues/797), pending).
 The two games share one save buffer, and OoT's windows do not yet check which game is
 running. In Termina, OoT's Save Editor rewrites health and magic values through OoT's save
 layout on every frame it draws, and those bytes are Majora's Mask's save. Opening its page in
@@ -197,10 +197,13 @@ the menu (Dev Tools > Save Editor) is enough, even with the window closed. The M
 Viewer's "Display Message" crashes the game there, and clicking the last split in Time
 Splits writes into MM's save too. OoT's Item Tracker, Gameplay Stats and Value Viewer show
 garbage in Termina, and its Check and Entrance Trackers show "Waiting for file load...".
+Use these windows in Hyrule only. MM's own Item and Check Trackers are not affected.
+
+**Do not use Ocarina of Time's console commands while you are in Majora's Mask** ([#798](https://github.com/spencerduncan/redshipblueship/issues/798), pending).
 OoT's console commands `map`, `rupee`, `bottle`, `bItem`, `item`, `give_item` and
-`entrance` do the same kind of damage in Termina (they write MM's save or crash), and so can
-toggling OoT's "Fix Broken Giant's Knife Bug" setting there. Use these tools in Hyrule
-only. MM's own Item and Check Trackers are not affected.
+`entrance` do the same kind of damage in Termina as its Save Editor (they write MM's save or
+crash), and so can toggling OoT's "Fix Broken Giant's Knife Bug" setting there. Use them in
+Hyrule only.
 
 **The Combo Tracker's Majora's Mask panel reads "No data yet" while you play Majora's Mask** ([#799](https://github.com/spencerduncan/redshipblueship/issues/799), pending).
 The panel reads Majora's Mask only from the copy kept while you are in the other game, and
