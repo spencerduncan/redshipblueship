@@ -13,17 +13,33 @@
  * WHAT TRAVELS. A host-neutral DESCRIPTOR: the origin's display lists by
  * resource path, plus the shape its own get-item draw function gives them (which
  * layer each list goes to, in which order, which setup list, the colours, the
- * texture scroll, the extra scale and rotation, the camera-facing parts). Both
- * games draw get-item models purely by path (the Fast3D interpreter resolves
- * "__OTR__..." strings; no object bank, no segment 6 DMA — see the epic), so a
- * path plus a shape is everything a host needs. The origin's draw FUNCTIONS are
- * never called by the other game: they take the origin's own PlayState layout
- * and bind scrolling textures through the origin's own graph allocator. The
- * host re-expresses the shape with its own primitives instead (M3 and M4 are
- * the first consumers; this header has none yet).
+ * texture scroll, the extra scale and rotation, the camera-facing parts). The
+ * display lists are named by path (the Fast3D interpreter resolves "__OTR__..."
+ * strings) and the descriptor carries nothing but paths and a shape. That is
+ * enough only as far as the lists never read segment 6: OoT's get-item cutscene
+ * still DMAs the gi object into `giObjectSegment` and binds segment 6 on both
+ * layers before it draws (ovl_player_actor/z_player.c, z_player_lib.c
+ * OoT_Player_DrawGetItemImpl), and 2S2H binds an empty scratch there. That the
+ * extracted gi lists never read segment 6 is UNVERIFIED for every list (the
+ * epic's Risks); the first consumer (M3 / M4) confirms it for what it draws.
+ * The origin's draw FUNCTIONS are never called by the other game: they take the
+ * origin's own PlayState layout and bind scrolling textures through the
+ * origin's own graph allocator. The host re-expresses the shape with its own
+ * primitives instead (M3 and M4 are the first consumers; this header has none
+ * yet).
  *
  * THREE ANSWERS (ComboModelAnswerKind), never an error:
- *  - DESCRIPTOR: draw `model`.
+ *  - DESCRIPTOR: the origin's model, drawable only IF its paths resolve. The
+ *    answer is a pure function of static tables and says nothing about which
+ *    archives are mounted: MM's archives are added only when MM is first
+ *    entered, OoT's from OoT's first boot (rsbs/src/main.cpp,
+ *    Combo_EnsureGameArchivesLoaded). An OoT session that has not entered MM in
+ *    this process therefore gets a DESCRIPTOR for an MM-exclusive model (the
+ *    Deku Mask) whose paths cannot resolve, and an MM-first session the same
+ *    for an OoT model. The CONSUMER owns that check: before it draws, every
+ *    part's path must resolve (ArchiveManager::HasFile, as
+ *    ForeignTextboxIconSingleExe.cpp does for the textbox icon); otherwise it
+ *    keeps today's stand-in, as for NONE.
  *  - HOST_NATIVE: a part of the origin's model lives in an object directory BOTH
  *    games' archives carry (`object_gi_hookshot`, `object_gi_rupy`, ...). The
  *    archives resolve one flat, last-added-wins path map and the resource cache
@@ -200,7 +216,8 @@ int Combo_ForeignModel_CollidingDirCount(void);
  * How `hostGame` draws a model its origin answered: DESCRIPTOR when no part
  * collides, HOST_NATIVE when one does and the host's mapper names an
  * equivalent, NONE otherwise (including a model that is not well-formed or a
- * non-game host). `out` is always written when non-NULL.
+ * non-game host). `out` is always written when non-NULL. DESCRIPTOR does not
+ * mean the origin's archive is mounted: the caller checks (THREE ANSWERS).
  */
 uint8_t Combo_ClassifyForeignModel(uint8_t hostGame, const ComboModel* model, ComboModelAnswer* out);
 

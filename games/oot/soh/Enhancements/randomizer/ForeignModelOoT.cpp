@@ -18,16 +18,23 @@
  * separate matrices).
  *
  * Randomizer items whose entry carries a CUSTOM draw function (SoH's draw.cpp):
- *  - the ones that draw the same model as their entry's `gid` row with SoH's
- *    cosmetic recolours (keys, key rings, maps, compasses, Double Defense, the
- *    Power Bracelet, the bronze scale, the bombchu bag) answer that row, the
- *    vanilla model, as the textbox icon does for the same items;
+ *  - some FALL BACK to their entry's `gid` row, the vanilla model, as the
+ *    textbox icon does for the same items. Two kinds, one rule:
+ *     - recolours of that row's model (small and boss keys, maps, compasses,
+ *       Double Defense, the Power Bracelet, the bronze scale);
+ *     - SUBSTITUTES that draw a different model (the key ring's gKeyring* lists
+ *       or five small keys, the overworld key's gHouseKeyDL, the bombchu bag's
+ *       gBombchuBag* lists): the vanilla row is a stand-in for them, not the
+ *       model OoT shows. Re-expressing them is #577 M7's to decide;
  *  - the Master Sword and Roc's Feather are re-expressed from their draw
  *    functions (one list each);
  *  - every other custom draw (boss and bean souls, ocarina buttons, jabber nuts,
  *    the action-shuffle abilities, the Triforce piece, the fishing pole, the
  *    skeleton key, the mystery item) answers no model: its `gid` is a
  *    placeholder that would draw the wrong thing.
+ * The ice trap has no custom draw, but OoT_Player_DrawGetItemImpl special-cases
+ * it (a growing ice fragment, not its entry's gold-rupee row), so it answers no
+ * model, as MM's source declines RI_TRAP.
  * Progressive rows have no static entry; they show their first tier, as the
  * textbox icon does.
  *
@@ -372,8 +379,10 @@ RandomizerGet FirstTier(RandomizerGet rg) {
     }
 }
 
-/** SoH custom draws that recolour the model their entry's `gid` row draws. */
-bool CustomDrawIsGidRecolour(CustomDrawFunc fn) {
+/** SoH custom draws that fall back to their entry's `gid` row: the recolours
+ *  of that row's model, and the substitutes (key ring, overworld key, bombchu
+ *  bag) that draw a different model the row stands in for (#577 M7). */
+bool CustomDrawFallsBackToGidRow(CustomDrawFunc fn) {
     return fn == Randomizer_DrawSmallKey || fn == Randomizer_DrawKeyRing || fn == Randomizer_DrawOverworldKey ||
            fn == Randomizer_DrawBossKey || fn == Randomizer_DrawMap || fn == Randomizer_DrawCompass ||
            fn == Randomizer_DrawDoubleDefense || fn == Randomizer_DrawPowerBracelet ||
@@ -395,7 +404,7 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
         return 0;
     }
     const CustomDrawFunc custom = entry->drawFunc;
-    if (custom != nullptr && !CustomDrawIsGidRecolour(custom)) {
+    if (custom != nullptr && !CustomDrawFallsBackToGidRow(custom)) {
         if (custom == Randomizer_DrawMasterSword) {
             // Randomizer_DrawMasterSword: the pedestal sword, scrolled, at 0.05
             // and turned 2.1 rad about Z.

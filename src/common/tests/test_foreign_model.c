@@ -580,6 +580,17 @@ TestResult Test_ForeignModel(void) {
         }
     }
     {
+        // OoT's ice trap: OoT_Player_DrawGetItemImpl special-cases it (a growing
+        // ice fragment), so its entry's gold-rupee row is not what OoT shows. The
+        // source declines it, as MM's declines RI_TRAP. Checked on the SOURCE:
+        // object_gi_rupy collides, so the classified answer is NONE either way.
+        SharedItem iceTrap;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Ice Trap", &iceTrap), "M5 named item");
+        ComboModel direct;
+        FM_ASSERT(OoT_ComboModel(iceTrap.id, &direct) == 0 && OoT_ComboModel_TestItemReason(iceTrap.id) != nullptr,
+                  "M5 OoT's ice trap answers no model (OoT does not draw its entry's gold-rupee row)");
+    }
+    {
         // The emerald carries its jewel shape: upright, two scrolls, both colours.
         SharedItem emerald;
         FM_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Kokiri's Emerald", &emerald), "M5 named item");
