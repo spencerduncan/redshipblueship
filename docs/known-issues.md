@@ -180,8 +180,8 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 checked in the code at `200adaea`; each links the issue that will fix it):
 
 **Majora's Mask shops sell only Majora's Mask items** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800), pending).
-~~No shop slot holds an item from the other game.~~ Since PR #800 S1, an Ocarina of Time
-shop can sell a Majora's Mask item: with OoT's "Shop Shuffle" on, a shelf that shop
+~~No shop slot holds an item from the other game.~~ Since #800's first pass on the OoT side, an
+Ocarina of Time shop can sell a Majora's Mask item: with OoT's "Shop Shuffle" on, a shelf that shop
 shuffle emptied can hold an MM item. The shelf shows the MM item's model (or the mystery
 item when Ocarina of Time cannot draw that model yet), the textbox names it at the
 shelf's price, and buying it sends the item to Majora's Mask like a cross-game chest. A
