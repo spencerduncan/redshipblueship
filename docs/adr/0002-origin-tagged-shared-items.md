@@ -201,3 +201,51 @@ silently weakened test.
 - **Deleting the dead fields and bumping `RSBS_SAVE_VERSION`.** Rejected: it
   orphans every existing `.redsave` (or demands a real migration path) to save
   68 bytes that the 1024-byte fixed record doesn't even give back.
+
+## Amendment 2026-09-30 — tracker rows: origin-tagged, status projected, no raw passthrough (#458)
+
+**Why an amendment.** The unified trackers (#458) show both games' checks and items in one common-owned
+window, so rows computed from each game's data cross into `src/common` for display. The Consequences rule
+above ("raw `RG_*`/`RI_*` integers must not cross a game boundary outside a `SharedItem`") was written for
+items that move between games; a tracker row does not move, it is drawn. This amendment says how the rule
+applies to rows. The operator took the #458 recommendation on 2026-09-30: amend before the item view
+(#458 U1) merges; raw passthrough stays deferred; rows are origin-tagged, never a merged id space.
+Nothing decided above changes.
+
+**1. Rows are origin-tagged by their source, never merged.** Each game registers its own tracker adapter
+from a TU where its layout and enums are in scope, and every read takes the `GameId`: the game argument is
+the tag. A row's game-local id (`ComboTrackerCheckRow.checkId`, an MM `RandoCheckId` or an OoT
+`RandomizerCheck`) is meaningful only in its own game's panel. It is never compared across games, stored
+across games, or used as a key outside that panel. An item row carries no game-local item id at all
+(no `ITEM_*`, `RG_*` or `RI_*`): what the row shows (group, name, icon key, have, count, max) is resolved by
+the adapter in its own TU. An icon key is an opaque string the adapter produced (OoT keys its icons by
+enum name, MM by resource path); common code hands it to the texture loader and never parses it. There is
+no common id space for checks or items and no table mapping one game's ids to the other's: the unified
+namespace rejected under "Alternatives considered" is rejected for checks and `ITEM_*` too. The shared
+resources (`Combo_GetSharedResource`, `src/common/shared_resources.h`) are origin-neutral by construction,
+keyed by a resource kind rather than a game's id, so a group of them is a third source with its own
+freshness label, not a merge of the two games' rows.
+
+**2. Status crosses as a projection that each adapter owns.** The common check-status vocabulary is
+`ComboTrackerCheckRow`'s `shuffled`, `obtained` and `skipped` (`src/common/combo_tracker_view.h`). Each
+adapter maps its own native status onto it in its own TU. MM reads the flags of `RandoSaveCheck`
+directly (`eligible` and `cycleObtained` are not projected). OoT projects its one ordered
+`RandomizerCheckStatus`: `RCSHOW_COLLECTED` and `RCSHOW_SAVED` are `obtained`, the heap skip flag is
+`skipped`, and `RCSHOW_UNCHECKED` and the UI-only states (`RCSHOW_SEEN`, `RCSHOW_IDENTIFIED`,
+`RCSHOW_SCUMMED`) are not `obtained` and have no common value of their own. The projection is lossy on purpose. It may gain a value when a consumer needs one
+(the Check Tracker's colours, #458 U4): the value is defined in common terms, each adapter derives it from
+its own data, and a game with no analogue never produces it. An item row's `have`, `count` and `max` are
+the same kind of projection, derived by the adapter from its own save layout.
+
+**3. Raw passthrough is deferred.** No common type carries a game's raw status enumerator or flag bits,
+beside the projection or instead of it. A consumer that needs a raw state reads it in that game's own TU,
+as the native trackers do, or proposes a new projected value under point 2. Adding raw passthrough later
+is a further amendment to this ADR, not an implementation detail, because every consumer and every future
+game would inherit the shape.
+
+**4. Freshness stays a field.** Every summary, and every group of rows, carries a `ComboTrackerFreshness`
+(`LIVE`, `STALE`, `UNAVAILABLE`) that the view sets, never the adapter. Which source may be read as live is
+ADR 0008 rule 5 and its amendments.
+
+**Locks:** `ComboTrackerView` (the check adapters, their projection and freshness, with MM's rows read at
+the offsets MM registers). The item view's lock arrives with the item view (#458 U1).

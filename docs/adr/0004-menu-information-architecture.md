@@ -795,3 +795,29 @@ load refusal's row repeats its toast) and `UiSnapshot` (Combo > Save Files besid
 states "", "listed" and "backup" authored through `Combo_SaveFiles_SetMetaForTest`). The deletion has no row of its own: `check-ui-parity-lint.py` fails on a listed
 path that does not exist and on any ImGui-drawing TU under `src/common` that is not listed (rule S0), and
 `SetMenuCount` holds the tree to its two `SetMenu(` call sites.
+
+## Amendment 2026-09-30 — the unified trackers supersede MM's tracker rows in Combo > Windows (#458)
+
+**What was there.** The 2026-09-27 host amendment left Combo > Windows with "the Cross-Game Spoiler, the Combo
+Tracker and MM's four tracker windows": Toggle MM Item Tracker, Popout MM Item Tracker Settings, Toggle MM Check
+Tracker and Popout MM Check Tracker Settings (`SohMenuCombo.cpp`).
+
+**The ruling.** The operator's ruling on #458 (2026-09-30): one Check Tracker window and one Item Tracker overlay
+cover both games, live data for the active game and the frozen snapshot for the other. Those two unified windows
+supersede the four MM rows as the Combo > Windows entries for tracking.
+
+1. **Check tracking is the Combo Tracker window**, already a Combo > Windows row, enriched with areas, placed items
+   and search by #458 U4. **Item tracking is a new common-owned overlay**, the Item Tracker overlay (#458 U2), with
+   its own Combo > Windows row. Its visibility key, `gCombo.Windows.ItemTracker`, is a Preference in
+   `RSBS::kComboKeys`, classified by #458 U0 ahead of the window, so the manifest now holds four window preferences.
+2. **The four MM rows leave Combo > Windows once both unified windows have landed** (#458 U6, after U2 and U4), not
+   before: until then those rows are the only menu route to MM's own item and check tracking.
+3. **MM's native tracker windows stay registered** on the shared Gui as fallbacks: their `gWindows.*` keys and the
+   `MMActiveGated` wrapper are unchanged; only the menu rows go. This amendment does not touch OoT's native tracker
+   rows on SoH's own Randomizer pages.
+4. **Windows for play, a page for settings.** The unified windows are live-play tools, so they sit under Combo >
+   Windows; their settings are a Combo page registered through `RegisterComboSectionPage` (#458 U7), by the
+   2026-09-27 host amendment's rule.
+
+`MenuComboSection` leg 3 counts the Combo > Windows buttons. The slice that adds or removes a row updates that
+count (U2 adds one, U6 removes four); this amendment changes no row.
