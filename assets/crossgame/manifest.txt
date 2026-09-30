@@ -1,5 +1,5 @@
 # Curated cross-game asset manifest -- the contents of redship-oot.o2r and
-# redship-mm.o2r (#577 M1).
+# redship-mm.o2r (#577 M1 split them, #577 M6 curates them).
 #
 # Format: <source>-><host> <archive-path-prefix>
 #   source = the archive the resources are carved OUT of (oot | mm)
@@ -28,9 +28,9 @@
 # with the wrong game's reader.  Models are unaffected -- no model resource type
 # is dispatched that way.
 #
-# Two further hard-fails guard the properties that make a model safe to draw
-# under the OTHER game.  Neither is a style rule; both refuse the build and
-# name the offending resource.
+# Three further hard-fails guard the properties that make a model safe to draw
+# under the OTHER game.  None is a style rule; each refuses the build and names
+# the offending resource.
 #
 #   * Raw segmented texture references (#605).  A display list whose stream
 #     carries a raw gsDPSetTextureImage resolves that texture against the HOST
@@ -44,29 +44,124 @@
 #     not: OoT's factory implements only S16/U16 and reads ZERO bytes for any
 #     other width, desyncing the rest of the resource.
 #
-# Collision-free headroom as measured against the current archives (#577
-# re-examination, 2026-07-31): 313 MM-exclusive object directories, 230
-# OoT-exclusive, including all 24 `object_mask_*`.  Headroom is NOT the same
-# as admissibility -- a collision-free object can still be refused by either
-# guard above.  Curating the real sets is #577 M6; the two entries below are
-# the seeds that make each half exist.
+#   * References that escape their half (#577 M6).  Every texture, vertex
+#     array, sub-display-list and matrix a curated display list names by path
+#     hash must be curated in the same half.  OoT's get-item lists name shared
+#     environment-map textures in gameplay_keep, so those textures are curated
+#     below as single-path entries next to the models that need them.
 #
-# --- mm->oot: redship-oot.o2r (spike scope, #577) ------------------------------
-# One MM-exclusive model, chosen because it is the smallest interesting case:
-# 5,016 bytes across three resources, and its display list is fully
-# self-contained -- every G_SETTIMG/G_VTX reference in
-# object_mask_truth_DL_0001A0 resolves to a path inside this same directory,
-# with zero references into gameplay_keep or any other shared segment.  That is
-# what makes it the right probe for the segment-0x04 divergence question.
+# Every run prints an admission report: per half, the manifest entries and
+# resources admitted, and how many of the HOST-EXCLUSIVE get-item directories
+# (`objects/object_gi_*` the source carries and none of the host's base
+# archives do) are covered.  The curated-archive-generator CTest row requires
+# full coverage in both directions.  When a re-extraction or a port update
+# changes that set, the row names the missing directory: curate it here, or
+# record why it cannot be.
+#
+# Measured 2026-09-30 against archives extracted from the ROMs (oot.o2r, mm.o2r,
+# soh.o2r, 2ship.o2r; no oot-mq.o2r): 36 of OoT's 77 `object_gi_*` directories
+# and 43 of MM's 84 are host-exclusive.  Every one passes every guard once the
+# five gameplay_keep textures below ride along.  The other 41 are shared by
+# directory name and belong to #577 M7.
+#
+# --- mm->oot: redship-oot.o2r --------------------------------------------------
+# The spike's probe (#577): 5,016 bytes across three resources, a display list
+# that is fully self-contained -- every G_SETTIMG/G_VTX reference in
+# object_mask_truth_DL_0001A0 resolves to a path inside this same directory.
 mm->oot objects/object_mask_truth/
 #
-# --- oot->mm: redship-mm.o2r (M1 seed) -----------------------------------------
-# One OoT-exclusive get-item model, so the MM half is a real archive the runtime
-# mounts and records as MM's: the Megaton Hammer, two resources (a display list
-# and its vertex array), no texture, no raw segmented reference.  Measured
-# 2026-09-30 against archives extracted from the ROMs that day (oot.o2r, mm.o2r,
-# soh.o2r, 2ship.o2r; no oot-mq.o2r): 36 of OoT's 77 `object_gi_*` directories
-# have no counterpart directory in mm.o2r, and each of the 36, run through
-# this generator as the only `oot->mm` entry, passed every guard.  Re-measure
-# before relying on it; M6 curates the set.
+# The 43 MM-exclusive get-item objects (#577 M6).  Every display list here
+# names only its own directory.
+mm->oot objects/object_gi_bigbomb/
+mm->oot objects/object_gi_bottle_04/
+mm->oot objects/object_gi_bottle_15/
+mm->oot objects/object_gi_bottle_16/
+mm->oot objects/object_gi_bottle_21/
+mm->oot objects/object_gi_bottle_22/
+mm->oot objects/object_gi_bottle_red/
+mm->oot objects/object_gi_camera/
+mm->oot objects/object_gi_fieldmap/
+mm->oot objects/object_gi_gold_dust/
+mm->oot objects/object_gi_loach/
+mm->oot objects/object_gi_magicmushroom/
+mm->oot objects/object_gi_mask03/
+mm->oot objects/object_gi_mask05/
+mm->oot objects/object_gi_mask06/
+mm->oot objects/object_gi_mask09/
+mm->oot objects/object_gi_mask10/
+mm->oot objects/object_gi_mask11/
+mm->oot objects/object_gi_mask12/
+mm->oot objects/object_gi_mask13/
+mm->oot objects/object_gi_mask14/
+mm->oot objects/object_gi_mask15/
+mm->oot objects/object_gi_mask16/
+mm->oot objects/object_gi_mask17/
+mm->oot objects/object_gi_mask18/
+mm->oot objects/object_gi_mask20/
+mm->oot objects/object_gi_mask21/
+mm->oot objects/object_gi_mask22/
+mm->oot objects/object_gi_mask23/
+mm->oot objects/object_gi_mssa/
+mm->oot objects/object_gi_nutsmask/
+mm->oot objects/object_gi_reserve00/
+mm->oot objects/object_gi_reserve01/
+mm->oot objects/object_gi_reserve_b_00/
+mm->oot objects/object_gi_reserve_b_01/
+mm->oot objects/object_gi_reserve_c_00/
+mm->oot objects/object_gi_reserve_c_01/
+mm->oot objects/object_gi_schedule/
+mm->oot objects/object_gi_seahorse/
+mm->oot objects/object_gi_stonemask/
+mm->oot objects/object_gi_sword_2/
+mm->oot objects/object_gi_sword_3/
+mm->oot objects/object_gi_sword_4/
+#
+# --- oot->mm: redship-mm.o2r ---------------------------------------------------
+# The 36 OoT-exclusive get-item objects (#577 M6; object_gi_hammer was M1's
+# seed).
+oot->mm objects/object_gi_boomerang/
+oot->mm objects/object_gi_boots_2/
+oot->mm objects/object_gi_bottle_letter/
+oot->mm objects/object_gi_bracelet/
+oot->mm objects/object_gi_brokensword/
+oot->mm objects/object_gi_butterfly/
+oot->mm objects/object_gi_clothes/
+oot->mm objects/object_gi_coin/
+oot->mm objects/object_gi_dekupouch/
+oot->mm objects/object_gi_egg/
+oot->mm objects/object_gi_eye_lotion/
+oot->mm objects/object_gi_fire/
+oot->mm objects/object_gi_frog/
+oot->mm objects/object_gi_gerudo/
+oot->mm objects/object_gi_gerudomask/
+oot->mm objects/object_gi_gloves/
+oot->mm objects/object_gi_goddess/
+oot->mm objects/object_gi_grass/
 oot->mm objects/object_gi_hammer/
+oot->mm objects/object_gi_hoverboots/
+oot->mm objects/object_gi_jewel/
+oot->mm objects/object_gi_letter/
+oot->mm objects/object_gi_medal/
+oot->mm objects/object_gi_mushroom/
+oot->mm objects/object_gi_niwatori/
+oot->mm objects/object_gi_ocarina_0/
+oot->mm objects/object_gi_pachinko/
+oot->mm objects/object_gi_powder/
+oot->mm objects/object_gi_prescription/
+oot->mm objects/object_gi_redead_mask/
+oot->mm objects/object_gi_saw/
+oot->mm objects/object_gi_scale/
+oot->mm objects/object_gi_seed/
+oot->mm objects/object_gi_shield_1/
+oot->mm objects/object_gi_skj_mask/
+oot->mm objects/object_gi_ticketstone/
+#
+# The OoT gameplay_keep textures the lists above name (the escaping-reference
+# guard's findings).  None exists in mm.o2r or 2ship.o2r.  Single paths, not
+# the directory: gameplay_keep is shared by name with MM's, and only these
+# five are needed.
+oot->mm objects/gameplay_keep/gEffFleckTex
+oot->mm objects/gameplay_keep/gEffUnknown10Tex
+oot->mm objects/gameplay_keep/gEffUnknown11Tex
+oot->mm objects/gameplay_keep/gEffUnknown12Tex
+oot->mm objects/gameplay_keep/gUnknownWoodBoardTex
