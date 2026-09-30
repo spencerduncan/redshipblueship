@@ -179,14 +179,17 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 **Open problems you may meet while playing** (found in or around the 2026-09 playtest and
 checked in the code at `200adaea`; each links the issue that will fix it):
 
-**Shops sell only their own game's items** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800), pending).
-No shop slot holds an item from the other game: an Ocarina of Time shop never sells a
-Majora's Mask item, and a Majora's Mask shop never sells an Ocarina of Time item. The same
-goes for OoT's Business Scrubs, merchants and Treasure Chest Game, and MM's Tingle. Shop
-shuffle is off by default in both games (OoT's "Shop Shuffle", MM's "Shuffle Shops"); with
-it on, each game's shop slots hold items from that game only. MM's shop stock does join the
-shared bag when MM's "Shuffle Shops" is on, so an MM shop item can turn up in an OoT chest;
-OoT's shop stock never leaves Hyrule. Cross-game shops are planned, plain shops first.
+**Ocarina of Time shops sell only their own game's items** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800), pending for OoT).
+An Ocarina of Time shop never sells a Majora's Mask item. The same goes for OoT's Business
+Scrubs, merchants and Treasure Chest Game, and MM's Tingle. Majora's Mask shops are
+cross-game since the MM half of #800's first pass: any MM shop slot (the shelves, the Bomb
+Shop owner's hand item, Gorman's milk and the Milk Bar) can hold an Ocarina of Time item,
+shown with its own model and name, sold once for the whole game and delivered on your next
+arrival in Hyrule. Two MM shop slots are shuffled in every world (the Curiosity Shop's
+special and the Bomb Shop's fourth item), so this can happen even with MM's "Shuffle Shops"
+off. Shop shuffle is off by default in both games (OoT's "Shop Shuffle", MM's "Shuffle
+Shops"). MM's shop stock joins the shared bag when MM's "Shuffle Shops" is on, so an MM shop
+item can turn up in an OoT chest; OoT's shop stock never leaves Hyrule.
 
 **~~The Check Trackers name "Blue Rupee" or "Junk" for a cross-game chest~~ — RESOLVED** ([#796](https://github.com/spencerduncan/redshipblueship/issues/796), PR [#813](https://github.com/spencerduncan/redshipblueship/pull/813)).
 Fixed by PR #813: once a cross-game chest is collected, Ocarina of Time's Check Tracker lists it
