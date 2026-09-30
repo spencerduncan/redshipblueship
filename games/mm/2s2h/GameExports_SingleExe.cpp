@@ -5054,8 +5054,8 @@ int MM_Rando_GateCrossGameArrival(void) {
 
 /**
  * The pair-membership check and its refusal (#564 V11), shared by the gate
- * (the armed half, before the consume) and the hydrate half (a live save that
- * already carries a world). Recomputes the derivation through
+ * (the armed half, before the consume) and the hydrate half's no-blob leg (a
+ * live save that already carries a world with nothing consumed). Recomputes the derivation through
  * Rando::Foreign::FinalSeedBelongsToPair; on a match logs it and returns 0. On
  * a mismatch it refuses through the existing surface — slot latched with
  * RSBS_REFUSE_IDENTITY, nothing quarantined (the .redsave on disk is healthy;
@@ -5134,18 +5134,17 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
         // it, re-reports "existing save", and MM plays vanilla forever with the
         // player's entire placement table still sitting intact underneath.
         //
-        // PAIR MEMBERSHIP FIRST (#564 V11). "A complete rando world" is only
-        // evidence of THIS pair's lost type byte if the world is this pair's:
-        // finalSeed != 0 alone re-stamped another pair's half and froze its
-        // identity back. The gate already refused such an armed half before the
-        // consume; this is the same check at the repair site itself, for every
-        // route that reaches the hydrate without it. A mismatch re-stamps
-        // nothing.
-        if ((alreadyRando || gSaveContext.save.shipSaveInfo.rando.finalSeed != 0) &&
-            MM_Rando_RefuseIfNotPairMember(RANDO_SAVE_OPTIONS, gSaveContext.save.shipSaveInfo.rando.finalSeed,
-                                           "the restored MM half")) {
-            return;
-        }
+        // PAIR MEMBERSHIP (#564 V11). "A complete rando world" is only evidence
+        // of THIS pair's lost type byte if the world is this pair's: finalSeed
+        // != 0 alone re-stamped another pair's half and froze its identity back.
+        // That check is NOT repeated here: MM_Rando_GateCrossGameArrival ran it
+        // on the very buffer this consume just applied (Context_GetMMSaveContext
+        // is the frozen MM shadow Combo_ConsumeFrozenState restores), under the
+        // same condition, and every caller skips the consume on its refusal. A
+        // half that reaches this point with hadFrozenState set is this pair's.
+        // A re-check here could only refuse AFTER the foreign world was already
+        // live in gSaveContext, the refused-but-hydrated state the gate exists
+        // to prevent.
         if (!alreadyRando && gSaveContext.save.shipSaveInfo.rando.finalSeed != 0) {
             gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
             fprintf(stderr,
