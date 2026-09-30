@@ -200,6 +200,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_item_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_page.h
@@ -558,6 +559,10 @@ if(BUILD_TESTING)
     # an ungated draw path aborts the process).
     redship_add_test(NAME ComboTrackerView COMMAND redship --test combo-tracker-view)
     redship_add_test(NAME ComboTrackerWindow COMMAND redship --test combo-tracker-window)
+    # Unified item view (#458 U1a). Display-free: OoT's item adapter reads
+    # SaveContext images the OoT TU authors, handed to it as the frozen shadow
+    # or a test live source; the shared group reads the resource pool.
+    redship_add_test(NAME ComboItemView COMMAND redship --test combo-item-view)
     # MM randomizer options (#497 step 4, #499). Display-free: the option table
     # is a static global in the WHOLE_ARCHIVE'd 2ship_rando, the profile resolver
     # runs over a zeroed MM SaveContext with no fill, and the page view model's
