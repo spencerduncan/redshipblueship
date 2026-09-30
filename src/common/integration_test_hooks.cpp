@@ -28,6 +28,14 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#include <process.h> // _exit
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h> // TerminateProcess: the watchdog's exit (#793)
 #else
 #include <fcntl.h>
 #include <unistd.h>
@@ -148,6 +156,147 @@ void CaptureReaderMain() {
     sCapture->doneCv.notify_all();
 }
 
+// ---------------------------------------------------------------------------
+// Progress word (#793): bumped by every frame either game starts and by every
+// stage main enters between frames. `sProgressStage` names where the run was
+// when it last made progress (string literals only).
+// ---------------------------------------------------------------------------
+std::atomic<uint64_t> sProgress{0};
+std::atomic<const char*> sProgressStage{"boot: first game init, before its first frame"};
+std::atomic<uint32_t> sProgressFrames[3] = {}; // indexed by GameId
+
+// RSBS_INT_WEDGE fault injection, parsed once.
+enum WedgeSite { WEDGE_NONE, WEDGE_OOT, WEDGE_MM, WEDGE_HANDOFF };
+struct WedgeConfig {
+    WedgeSite site;
+    uint32_t frame;
+    int secs;
+};
+
+int GameplayEnvInt(const char* name, int defaultValue, int minValue);
+const char* ModeName(IntegrationTestMode mode);
+void FormatGameplayState(char* out, size_t cap, const char* tag);
+
+const WedgeConfig& Wedge(void) {
+    static const WedgeConfig config = [] {
+        WedgeConfig c = { WEDGE_NONE, 30, 600 };
+        const char* raw = std::getenv("RSBS_INT_WEDGE");
+        if (raw == nullptr || raw[0] == '\0') {
+            return c;
+        }
+        if (strcmp(raw, "oot") == 0) {
+            c.site = WEDGE_OOT;
+        } else if (strcmp(raw, "mm") == 0) {
+            c.site = WEDGE_MM;
+        } else if (strcmp(raw, "handoff") == 0) {
+            c.site = WEDGE_HANDOFF;
+        } else {
+            fprintf(stderr, "[INT-WEDGE] WARNING: ignoring RSBS_INT_WEDGE='%s' (oot, mm or handoff)\n", raw);
+            fflush(stderr);
+            return c;
+        }
+        c.frame = (uint32_t)GameplayEnvInt("RSBS_INT_WEDGE_FRAME", 30, 1);
+        c.secs = GameplayEnvInt("RSBS_INT_WEDGE_SECS", 600, 1);
+        return c;
+    }();
+    return config;
+}
+
+void WedgeNow(const char* where, uint32_t frame) {
+    fprintf(stderr, "[INT-WEDGE] RSBS_INT_WEDGE: sleeping %d s inside %s (frame %u); no frame completes\n",
+            Wedge().secs, where, (unsigned)frame);
+    fflush(stderr);
+    std::this_thread::sleep_for(std::chrono::seconds(Wedge().secs));
+}
+
+// ---------------------------------------------------------------------------
+// Wall-clock watchdog thread (#793). Detached, never joined, never stopped:
+// every integration run ends in _Exit (main) or in the watchdog's own exit.
+// It writes with raw fd-2 writes, never through a FILE lock, because the
+// wedged thread may hold stderr's or stdout's lock.
+// ---------------------------------------------------------------------------
+constexpr int kIntWatchdogDefaultSecs = 60;
+constexpr int kIntWatchdogPollMs = 250;
+std::atomic<bool> sWatchdogStarted{false};
+int sWatchdogBudgetSecs = kIntWatchdogDefaultSecs;
+std::atomic<IntegrationTestStateDescriber> sWatchdogDescribers[3] = {};
+std::atomic<int64_t> sWatchdogLongestStallMs{0};
+std::atomic<const char*> sWatchdogLongestStallStage{"-"};
+
+void WatchdogWrite(const char* text) {
+    const size_t len = strlen(text);
+#ifdef _WIN32
+    _write(2, text, (unsigned int)len);
+#else
+    ssize_t ignored = write(2, text, len);
+    (void)ignored;
+#endif
+}
+
+[[noreturn]] void WatchdogFire(double stalledSecs) {
+    // The paired row tees fd 2 through a pipe whose reader may never run again
+    // before the exit below: write straight to the real stderr.
+    IntegrationTest_StderrCaptureRestoreForCrash();
+    char line[768];
+    snprintf(line, sizeof(line),
+             "\n[INT-WATCHDOG] FAIL (%s): no progress for %.1f s (budget %d s, RSBS_INT_WATCHDOG_SECS); "
+             "last stage: %s; frames: OoT %u, MM %u; current game: %s\n",
+             ModeName(sTestMode.load()), stalledSecs, sWatchdogBudgetSecs, sProgressStage.load(),
+             (unsigned)sProgressFrames[GAME_OOT].load(), (unsigned)sProgressFrames[GAME_MM].load(),
+             Game_ToString(Context_GetCurrentGame()));
+    WatchdogWrite(line);
+    const GameId games[2] = { GAME_OOT, GAME_MM };
+    for (GameId game : games) {
+        IntegrationTestStateDescriber describe = sWatchdogDescribers[game].load();
+        if (describe == nullptr) {
+            continue;
+        }
+        char state[384];
+        state[0] = '\0';
+        describe(state, sizeof(state));
+        snprintf(line, sizeof(line), "[INT-WATCHDOG] %s state: %s\n", Game_ToString(game), state);
+        WatchdogWrite(line);
+    }
+    if (sTestMode.load() == INT_TEST_GAMEPLAY_ROUNDTRIP) {
+        FormatGameplayState(line, sizeof(line), "watchdog");
+        WatchdogWrite(line);
+    }
+    snprintf(line, sizeof(line),
+             "[INT-WATCHDOG] ending the run with exit code %d: a wedged frame loop never returns to main\n",
+             INT_WATCHDOG_EXIT_CODE);
+    WatchdogWrite(line);
+#ifdef _WIN32
+    // Not ExitProcess (what _Exit reaches): it takes the loader lock and runs
+    // DLL detach, either of which a wedged thread can hold up.
+    TerminateProcess(GetCurrentProcess(), INT_WATCHDOG_EXIT_CODE);
+#endif
+    _exit(INT_WATCHDOG_EXIT_CODE);
+}
+
+void WatchdogMain() {
+    uint64_t lastProgress = sProgress.load();
+    std::chrono::steady_clock::time_point lastChange = std::chrono::steady_clock::now();
+    for (;;) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(kIntWatchdogPollMs));
+        const uint64_t progress = sProgress.load();
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        if (progress != lastProgress) {
+            lastProgress = progress;
+            lastChange = now;
+            continue;
+        }
+        const double stalledSecs = std::chrono::duration<double>(now - lastChange).count();
+        const int64_t stalledMs = (int64_t)(stalledSecs * 1000.0);
+        if (stalledMs > sWatchdogLongestStallMs.load()) {
+            sWatchdogLongestStallMs = stalledMs;
+            sWatchdogLongestStallStage = sProgressStage.load();
+        }
+        if (stalledSecs >= (double)sWatchdogBudgetSecs) {
+            WatchdogFire(stalledSecs);
+        }
+    }
+}
+
 // The recorded paired identity (int-paired-first-crossing).
 PairedIdentity sPairedIdentity = {};
 bool sPairedIdentityRecorded = false;
@@ -208,6 +357,30 @@ uint16_t GameplayEnvEntrance(const char* name, uint16_t defaultValue) {
     return (uint16_t)value;
 }
 
+const char* ModeName(IntegrationTestMode mode) {
+    switch (mode) {
+        case INT_TEST_NONE: return "none";
+        case INT_TEST_BOOT_OOT: return "boot-oot";
+        case INT_TEST_BOOT_MM: return "boot-mm";
+        case INT_TEST_SWITCH_OOT_HMS_TO_MM: return "switch-oot-hms-to-mm";
+        case INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT: return "switch-mm-clocktown-south-to-oot";
+        case INT_TEST_ARCHIVE_HOTSWAP_CYCLE: return "archive-hotswap-cycle";
+        case INT_TEST_GAMEPLAY_ROUNDTRIP: return "gameplay-roundtrip";
+    }
+    return "unknown";
+}
+
+// One line of the gameplay round trip's phase/config state (shared by the
+// fprintf logger and the watchdog thread, which must not take a FILE lock).
+void FormatGameplayState(char* out, size_t cap, const char* tag) {
+    snprintf(out, cap,
+             "[GP-TEST] state (%s): phase=%s cycles=%d/%d frames/phase=%d "
+             "boot=0x%04X warp=0x%04X exit=0x%04X\n",
+             tag ? tag : "-", GameplayPhaseName(sGameplayPhase.load()), sGameplayCyclesDone.load(),
+             sGameplayConfig.cycles, sGameplayConfig.framesPerPhase, sGameplayConfig.bootEntrance,
+             sGameplayConfig.warpEntrance, sGameplayConfig.exitEntrance);
+}
+
 void GameplayParseConfig(void) {
     sGameplayConfig.framesPerPhase = GameplayEnvInt("RSBS_GP_FRAMES", 120, 1);
     sGameplayConfig.cycles = GameplayEnvInt("RSBS_GP_CYCLES", 1, 1);
@@ -246,16 +419,7 @@ void IntegrationTest_SetMode(IntegrationTestMode mode) {
     sExitRequested = false;
     sBootedGame = GAME_NONE;
 
-    const char* modeName = "unknown";
-    switch (mode) {
-        case INT_TEST_NONE: modeName = "none"; break;
-        case INT_TEST_BOOT_OOT: modeName = "boot-oot"; break;
-        case INT_TEST_BOOT_MM: modeName = "boot-mm"; break;
-        case INT_TEST_SWITCH_OOT_HMS_TO_MM: modeName = "switch-oot-hms-to-mm"; break;
-        case INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT: modeName = "switch-mm-clocktown-south-to-oot"; break;
-        case INT_TEST_ARCHIVE_HOTSWAP_CYCLE: modeName = "archive-hotswap-cycle"; break;
-        case INT_TEST_GAMEPLAY_ROUNDTRIP: modeName = "gameplay-roundtrip"; break;
-    }
+    const char* modeName = ModeName(mode);
 
     // Gameplay round-trip: parse env parameters and reset the phase machine.
     if (mode == INT_TEST_GAMEPLAY_ROUNDTRIP) {
@@ -317,6 +481,78 @@ bool IntegrationTest_ExitRequested(void) {
     return sExitRequested.load();
 }
 
+void IntegrationTest_FrameProgress(GameId game) {
+    if (game != GAME_OOT && game != GAME_MM) {
+        return;
+    }
+    const uint32_t frame = ++sProgressFrames[game];
+    sProgressStage = (game == GAME_OOT) ? "OoT frame" : "MM frame";
+    sProgress++;
+    const WedgeConfig& wedge = Wedge();
+    if (frame == wedge.frame && ((game == GAME_OOT && wedge.site == WEDGE_OOT) ||
+                                 (game == GAME_MM && wedge.site == WEDGE_MM))) {
+        WedgeNow(game == GAME_OOT ? "an OoT frame" : "an MM frame", frame);
+    }
+}
+
+void IntegrationTest_StageProgress(const char* stage) {
+    sProgressStage = stage;
+    sProgress++;
+}
+
+void IntegrationTest_CreationProgress(void) {
+    IntegrationTest_StageProgress("paired world creation (a generation-progress report, inside one frame)");
+}
+
+uint64_t IntegrationTest_ProgressCount(void) {
+    return sProgress.load();
+}
+
+const char* IntegrationTest_ProgressStage(void) {
+    return sProgressStage.load();
+}
+
+void IntegrationTest_HandoffWedgeIfArmed(void) {
+    static bool sWedged = false;
+    if (Wedge().site == WEDGE_HANDOFF && !sWedged) {
+        sWedged = true;
+        WedgeNow("main's cross-game hand-off", 0);
+    }
+}
+
+void IntegrationTest_WatchdogStart(void) {
+    if (sWatchdogStarted.exchange(true)) {
+        return;
+    }
+    const char* raw = std::getenv("RSBS_INT_WATCHDOG_SECS");
+    sWatchdogBudgetSecs = GameplayEnvInt("RSBS_INT_WATCHDOG_SECS", kIntWatchdogDefaultSecs, 0);
+    if (sWatchdogBudgetSecs == 0) {
+        printf("[INT-WATCHDOG] disabled (RSBS_INT_WATCHDOG_SECS=%s)\n", raw);
+        fflush(stdout);
+        return;
+    }
+    printf("[INT-WATCHDOG] armed: the run fails after %d s with no frame or stage progress "
+           "(RSBS_INT_WATCHDOG_SECS; 0 disables)\n",
+           sWatchdogBudgetSecs);
+    fflush(stdout);
+    std::thread(WatchdogMain).detach();
+}
+
+void IntegrationTest_WatchdogSetDescriber(GameId game, IntegrationTestStateDescriber describer) {
+    if (game == GAME_OOT || game == GAME_MM) {
+        sWatchdogDescribers[game] = describer;
+    }
+}
+
+void IntegrationTest_WatchdogReport(void) {
+    if (!sWatchdogStarted.load() || sWatchdogBudgetSecs == 0) {
+        return;
+    }
+    printf("[INT-WATCHDOG] longest stall without progress: %.1f s (stage: %s) of a %d s budget\n",
+           (double)sWatchdogLongestStallMs.load() / 1000.0, sWatchdogLongestStallStage.load(), sWatchdogBudgetSecs);
+    fflush(stdout);
+}
+
 // ============================================================================
 // Gameplay round-trip repro (INT_TEST_GAMEPLAY_ROUNDTRIP)
 // ============================================================================
@@ -376,12 +612,9 @@ void IntegrationTest_GameplayRecordCycle(void) {
 }
 
 void IntegrationTest_LogGameplayState(const char* tag) {
-    fprintf(stderr,
-            "[GP-TEST] state (%s): phase=%s cycles=%d/%d frames/phase=%d "
-            "boot=0x%04X warp=0x%04X exit=0x%04X\n",
-            tag ? tag : "-", GameplayPhaseName(sGameplayPhase.load()), sGameplayCyclesDone.load(),
-            sGameplayConfig.cycles, sGameplayConfig.framesPerPhase, sGameplayConfig.bootEntrance,
-            sGameplayConfig.warpEntrance, sGameplayConfig.exitEntrance);
+    char line[256];
+    FormatGameplayState(line, sizeof(line), tag);
+    fputs(line, stderr);
     fflush(stderr);
 }
 

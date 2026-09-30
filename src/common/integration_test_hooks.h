@@ -247,6 +247,77 @@ int IntegrationTest_GameplayWatchdogBudgetSecs(void);
 bool IntegrationTest_GameplayWatchdogExpired(double elapsedSecs, int budgetSecs);
 
 // ----------------------------------------------------------------------------
+// Progress word for the int-* rows (#793)
+//
+// Every frame either game starts, and every step main takes between frames
+// (the first game's init, a cross-game hand-off, the final shutdown), bumps a
+// progress word and names the stage it is in. The stage pointer is stored, not
+// copied: pass string literals only.
+//
+// RSBS_INT_WEDGE=oot|mm|handoff is a test-only fault injection for the rows
+// that lock the wall-clock watchdog: it sleeps RSBS_INT_WEDGE_SECS (600) inside
+// that game's RSBS_INT_WEDGE_FRAME'th frame (30), or inside main's first
+// cross-game hand-off, so the process wedges with no frame completing.
+// ----------------------------------------------------------------------------
+
+/** One frame of `game` started (called from each game's per-frame integration hook). */
+void IntegrationTest_FrameProgress(GameId game);
+
+/** main entered `stage` (a string literal), outside any game's frame loop. */
+void IntegrationTest_StageProgress(const char* stage);
+
+/**
+ * A paired-world creation reported progress (gen_budget.c: Begin, every phase
+ * and fill-progress Report, End). The creation event blocks the game thread
+ * inside ONE frame for as long as its own wall-clock budget allows (up to 90 s
+ * per attempt on a slow host, gen_budget.h), so without this a healthy slow
+ * creation would read as a wedged frame. A creation that stops reporting still
+ * stalls the word, and the watchdog names it.
+ */
+void IntegrationTest_CreationProgress(void);
+
+/** The progress word's current value (read by the ROM-free gp-watchdog row). */
+uint64_t IntegrationTest_ProgressCount(void);
+
+/** The stage the run was in when it last made progress (a string literal). */
+const char* IntegrationTest_ProgressStage(void);
+
+/** The hand-off site of RSBS_INT_WEDGE=handoff (main, before the switch runs). */
+void IntegrationTest_HandoffWedgeIfArmed(void);
+
+// ----------------------------------------------------------------------------
+// Wall-clock watchdog thread (#793)
+//
+// Every other int-* watchdog runs from a per-frame hook, so a run that stops
+// completing frames (a wedge inside one frame, or in the cross-game hand-off
+// between two games' frame loops) used to reach the CTest wall with no line
+// saying where. This detached thread, started with the integration mode, polls
+// the progress word above. Once RSBS_INT_WATCHDOG_SECS (default 60; 0
+// disables, e.g. under a debugger) pass with no progress, it prints the last
+// stage, both games' frame counts and each game's state, then ends the process
+// with INT_WATCHDOG_EXIT_CODE itself: a wedged frame loop never returns to
+// main, so nothing else can.
+//
+// The default sits well above the longest healthy gap between two progress
+// bumps (reported by every run as "[INT-WATCHDOG] longest stall") and, for the
+// 120 s rows, far enough below the CTest TIMEOUT that a stall anywhere in a
+// healthy run's span fires first.
+// ----------------------------------------------------------------------------
+#define INT_WATCHDOG_EXIT_CODE 3
+
+/** Arm the watchdog thread (once; reads RSBS_INT_WATCHDOG_SECS). */
+void IntegrationTest_WatchdogStart(void);
+
+/** Writes one line of a game's state into `out` (no locks; runs on the watchdog thread). */
+typedef void (*IntegrationTestStateDescriber)(char* out, size_t cap);
+
+/** Each game registers its describer when its integration hooks are armed. */
+void IntegrationTest_WatchdogSetDescriber(GameId game, IntegrationTestStateDescriber describer);
+
+/** Print the longest stall seen this run and its stage (healthy-run margin evidence). */
+void IntegrationTest_WatchdogReport(void);
+
+// ----------------------------------------------------------------------------
 // stderr capture (int-paired-first-crossing)
 //
 // The crossing's verdicts are fprintf(stderr) lines in both ports (the MM

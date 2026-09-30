@@ -292,13 +292,14 @@ static void GpInjectDebugSaveAndEnterPlay(GameState* gameState, const char* from
 // fails with the stage it was stuck in on a per-stage wall-clock budget instead
 // of hitting the wall silently.
 //
-// What this does NOT cover: the budget is checked from OoT's
-// OnGameStateMainStart, not from a thread, so (a) a wedge inside one OoT frame
-// (e.g. a hang in Play_Init after the injection) never reaches the check, and
-// (b) once the row is T1_STAGE_TRIGGERED the check stops, and the OoT->MM
-// hand-off (suspend, archive swap, MM_Game_Init) and the MM half have only
-// MM's frame-counted scene-load watchdog. Those still end at the CTest
-// timeout; a wall-clock watchdog thread is the fix, not done here.
+// What this budget does NOT cover: it is checked from OoT's
+// OnGameStateMainStart, so (a) a wedge inside one OoT frame (e.g. a hang in
+// Play_Init after the injection) never reaches the check, and (b) once the row
+// is T1_STAGE_TRIGGERED the check stops, and the OoT->MM hand-off (suspend,
+// archive swap, MM_Game_Init) and the MM half have only MM's frame-counted
+// scene-load watchdog. Those stalls, where no frame completes, are the
+// wall-clock watchdog thread's (#793, src/common/integration_test_hooks.cpp):
+// it names the stage and ends the run before the CTest timeout.
 typedef enum {
     T1_STAGE_BOOT,          // waiting for the title screen (or file select) to inject the debug save
     T1_STAGE_ENTERING_PLAY, // debug save injected; waiting for OoT's scene init at kT1BootEntrance
@@ -316,8 +317,8 @@ static const int kT1GameplayFramesBeforeTrigger = 20;
 // Per stage, wall clock, checked once per OoT frame. One stalled stage fails
 // the row, so a stall is reported at about 30 s plus the time spent in earlier
 // stages (a healthy run spends under a second in each). It bounds only OoT
-// stages that keep ticking frames; see the block comment above for what still
-// reaches the 120 s REDSHIP_INTEGRATION_TEST_TIMEOUT.
+// stages that keep ticking frames; see the block comment above for the stalls
+// the wall-clock watchdog thread bounds instead.
 static const int kT1StageBudgetSecs = 30;
 
 static const char* T1StageName(T1Stage stage) {
@@ -1152,6 +1153,17 @@ static bool GpPairedCheckReturn(void) {
 // Integration Test Hooks
 // ============================================================================
 
+// OoT's line in the wall-clock watchdog's dump (#793). Runs on the watchdog
+// thread while OoT's own thread is wedged: plain reads, no dereference of the
+// play state (it may be mid-teardown), no FILE lock.
+static void OoT_IntegrationWatchdogDescribe(char* out, size_t cap) {
+    snprintf(out, cap, "gameMode=%d entranceIndex=0x%04X cutsceneIndex=0x%04X gGameState=%p gPlayState=%p%s%s",
+             (int)gSaveContext.gameMode, (uint16_t)gSaveContext.entranceIndex, (uint16_t)gSaveContext.cutsceneIndex,
+             (void*)OoT_gGameState, (void*)OoT_gPlayState,
+             IntegrationTest_GetMode() == INT_TEST_SWITCH_OOT_HMS_TO_MM ? " T1 stage=" : "",
+             IntegrationTest_GetMode() == INT_TEST_SWITCH_OOT_HMS_TO_MM ? T1StageName(sT1Stage) : "");
+}
+
 /**
  * Register integration test hooks for OoT.
  * Called after OoT is initialized when integration test mode is active.
@@ -1162,6 +1174,16 @@ static void OoT_RegisterIntegrationTestHooks(void) {
     }
 
     IntegrationTestMode mode = IntegrationTest_GetMode();
+
+    // Every mode: each OoT frame bumps the int-* rows' progress word, which the
+    // wall-clock watchdog thread reads (#793). Registered once, from OoT's first
+    // init; resumed OoT frames fire it too.
+    IntegrationTest_WatchdogSetDescriber(GAME_OOT, OoT_IntegrationWatchdogDescribe);
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+        if (Context_GetCurrentGame() == GAME_OOT) {
+            IntegrationTest_FrameProgress(GAME_OOT);
+        }
+    });
 
     if (mode == INT_TEST_BOOT_OOT) {
         fprintf(stderr, "[OoT] Registering integration test hooks for boot detection\n");
