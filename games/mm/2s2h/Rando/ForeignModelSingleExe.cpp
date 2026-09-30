@@ -360,17 +360,28 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
     return ModelForDrawId((int)it->second.drawId, out, reason);
 }
 
-// ---- Host-native mapping (#577 M7 fills this) --------------------------------
+// ---- Host-native mapping (#577 M7) --------------------------------------------
 //
 // When OoT hands MM a model whose paths live in a directory both archives carry,
 // MM draws its OWN equivalent: a row of MM_sDrawItemTable, keyed by the OoT
-// model's first list. The rows are M7's data, so none answers yet and every
-// colliding OoT model is "no model".
-struct MMHostNativeRow {
-    const char* foreignFirstList; // "__OTR__objects/<dir>/<name>" as OoT answers it
-    s16 hostDrawId;               // MM_sDrawItemTable row
-};
-constexpr std::array<MMHostNativeRow, 0> kHostNativeRows{};
+// model's whole part list (foreign_model.h, ComboHostNativeRow).
+const std::array<ComboHostNativeRow, 0> kHostNativeRows{};
+
+/** 1 and *hostKey: MM's own row. 0 and *reason (NULL: no row at all). */
+int MapHostNative(const ComboModel* foreign, uint16_t* hostKey, const char** reason, int* tableRow) {
+    *reason = nullptr;
+    *tableRow = Combo_HostNativeFind(kHostNativeRows.data(), (int)kHostNativeRows.size(), foreign);
+    if (*tableRow < 0) {
+        return 0;
+    }
+    const ComboHostNativeRow& row = kHostNativeRows[*tableRow];
+    if (row.hostDrawId < 0 || row.hostDrawId >= MM_GetItem_DrawTableCount()) {
+        *reason = row.noModelReason;
+        return 0;
+    }
+    *hostKey = (uint16_t)row.hostDrawId;
+    return 1;
+}
 
 } // namespace
 
@@ -392,20 +403,26 @@ extern "C" int MM_ComboModel(uint16_t id, ComboModel* out) {
 
 /** THE HOST-NATIVE MAPPER MM registers for itself as a host. */
 extern "C" int MM_ComboModelHostNative(const ComboModel* foreign, uint16_t* hostKey) {
-    if (foreign == nullptr || hostKey == nullptr || foreign->partCount == 0 || foreign->parts[0].dl == nullptr) {
+    if (foreign == nullptr || hostKey == nullptr) {
         return 0;
     }
-    for (const MMHostNativeRow& row : kHostNativeRows) {
-        if (std::strcmp(row.foreignFirstList, foreign->parts[0].dl) == 0 && row.hostDrawId >= 0 &&
-            row.hostDrawId < MM_GetItem_DrawTableCount()) {
-            *hostKey = (uint16_t)row.hostDrawId;
-            return 1;
-        }
-    }
-    return 0;
+    const char* reason = nullptr;
+    int tableRow = -1;
+    return MapHostNative(foreign, hostKey, &reason, &tableRow);
 }
 
 // ---- TEST BRIDGES (ForeignModel row, src/common/tests/test_foreign_model.c) ---
+
+/** MM's host-native answer for a foreign model: 1 and *hostKey, or 0 and
+ *  *reason (NULL when no row names the model). *tableRow: the row, or -1. */
+extern "C" int MM_ComboModelHostNative_TestAnswer(const ComboModel* foreign, uint16_t* hostKey, const char** reason,
+                                                  int* tableRow) {
+    return MapHostNative(foreign, hostKey, reason, tableRow);
+}
+
+extern "C" int MM_ComboModelHostNative_TestRowCount(void) {
+    return (int)kHostNativeRows.size();
+}
 
 extern "C" int MM_ComboModel_TestIdSpace(void) {
     return (int)RI_MAX;
