@@ -7,6 +7,9 @@
 #include <soh/Enhancements/enemyrandomizer.h>
 #include <soh/Enhancements/TimeDisplay/TimeDisplay.h>
 #include "soh/Enhancements/randomizer/randomizer.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "soh/SohGui/OoTActiveGated.h" // OoT_Gui_ShouldDraw
+#endif
 
 extern "C" {
 #include "functions.h"
@@ -144,7 +147,18 @@ static const std::map<int32_t, const char*> enemyRandomizerModes = {
 };
 
 // The "Fix Broken Giant's Knife Bug" toggle's callback, named so the OoTWindowsGate row can drive it (#798).
+// func_800849EC writes the save's equipment and B button and then dereferences the play state, so it runs only in
+// Play. The setting itself still toggles.
 void OnFixBrokenGiantsKnifeToggled() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // gSaveContext is Majora's Mask's save while MM runs (#798).
+    if (!OoT_Gui_ShouldDraw()) {
+        return;
+    }
+#endif
+    if (OoT_gPlayState == nullptr) {
+        return;
+    }
     bool hasGiantsKnife = CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BIGGORON);
     bool hasBrokenKnife = CHECK_OWNED_EQUIP_ALT(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BROKENGIANTKNIFE);
     bool knifeIsBroken = gSaveContext.swordHealth == 0.0f;

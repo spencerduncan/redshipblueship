@@ -188,8 +188,8 @@ struct ConsoleProbe {
     bool diesUngated;
 };
 const ConsoleProbe kSaveWriters[] = {
-    { "map", false },       { "bottle milk 1", false },      { "bItem 5", false },   { "item 0 3", false },
-    { "rupee 50", true },   { "give_item vanilla 1", true }, { "entrance 0", true },
+    { "map", false },     { "bottle milk 1", false },      { "bItem 5", false },   { "item 0 3", false },
+    { "rupee 50", true }, { "give_item vanilla 1", true }, { "entrance 0", true },
 };
 
 const char* GameName(GameId game) {

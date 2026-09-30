@@ -36,7 +36,35 @@ extern PlayState* OoT_gPlayState;
 #include <libultraship/bridge.h>
 #include <libultraship/libultraship.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "soh/SohGui/OoTActiveGated.h" // OoT_Gui_ShouldDraw
+
+// #798: OoT and Majora's Mask share one gSaveContext buffer and one Ship::Console, and MM registers no commands of
+// its own in the single executable, so every command below runs whichever game is active. With MM running they write
+// MM's save through OoT's layout (map, rupee, bottle, bItem, item) or dereference the NULL OoT_gPlayState (give_item,
+// entrance). Every command registers through this wrapper instead, which refuses before the handler unless OoT is the
+// running game (the same predicate as the OoT windows, #797). The refusal goes into the caller's output, not the
+// Console window, so it also holds for Ship::Console::Run callers with no window.
+static void OoT_AddGatedConsoleCommand(const std::string& command, Ship::CommandEntry entry) {
+    Ship::CommandHandler handler = entry.Handler;
+    entry.Handler = [handler, command](std::shared_ptr<Ship::Console> console, std::vector<std::string> args,
+                                       std::string* output) -> int32_t {
+        if (!OoT_Gui_ShouldDraw()) {
+            if (output != nullptr) {
+                *output = "[SOH] '" + command +
+                          "' is an Ocarina of Time command: it only runs while Ocarina of Time "
+                          "is the running game.";
+            }
+            return 1;
+        }
+        return handler(console, args, output);
+    };
+    Ship::Context::GetInstance()->GetConsole()->AddCommand(command, entry);
+}
+#define CMD_REGISTER OoT_AddGatedConsoleCommand
+#else
 #define CMD_REGISTER Ship::Context::GetInstance()->GetConsole()->AddCommand
+#endif
 // TODO: Commands should be using the output passed in.
 #define ERROR_MESSAGE                                                                 \
     std::reinterpret_pointer_cast<Ship::ConsoleWindow>(                               \
