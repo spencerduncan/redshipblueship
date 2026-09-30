@@ -2265,7 +2265,7 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME IntWatchdogWedgeOoTFrame
         COMMAND redship --integration-test int-switch-oot-hms-to-mm
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
-        ENVIRONMENT "RSBS_INT_WEDGE=oot;RSBS_INT_WEDGE_FRAME=30;RSBS_INT_WATCHDOG_SECS=15")
+        ENVIRONMENT "RSBS_INT_WEDGE=oot;RSBS_INT_WEDGE_FRAME=10;RSBS_INT_WATCHDOG_SECS=15")
     set_tests_properties(IntWatchdogWedgeOoTFrame PROPERTIES
         PASS_REGULAR_EXPRESSION "\\[INT-WATCHDOG\\] FAIL [^\n]*last stage: OoT frame")
     redship_add_test(NAME IntWatchdogWedgeHandoff
