@@ -957,6 +957,33 @@ extern "C" int RandoTest_CheckTrackerArrivalLock(void) {
     return failures;
 }
 
+// The item a check's row names once the check is found (#796). One function
+// for the three sites that print a placed item's name: the row's extra text for
+// a found check, the same text for an identified shop item, and the search
+// filter, so they cannot disagree.
+static std::string PlacedItemTrackerName(const Rando::ItemLocation* itemLoc, RandomizerCheck rc) {
+    (void)rc;
+    return itemLoc->GetPlacedItem().GetName().GetForLanguage(gSaveContext.language);
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// TEST BRIDGE (#796): the name the row for OoT check `rc` prints once found,
+// copied into `out`. Returns 1 when written, 0 when this process has no OoT
+// location table (a ROM-free row) or `out` cannot hold it.
+extern "C" int OoT_CheckTracker_TestItemName(uint16_t rc, char* out, int cap) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || rc >= RC_MAX || out == nullptr || cap <= 0) {
+        return 0;
+    }
+    const std::string name = PlacedItemTrackerName(ctx->GetItemLocation((RandomizerCheck)rc), (RandomizerCheck)rc);
+    if ((int)name.size() >= cap) {
+        return 0;
+    }
+    memcpy(out, name.c_str(), name.size() + 1);
+    return 1;
+}
+#endif
+
 void SaveTrackerData(SaveContext* saveContext, int sectionID, bool fullSave) {
     bool updateOrdering = false;
     std::vector<RandomizerCheck> checkCount;
@@ -1375,7 +1402,7 @@ bool ShouldShowCheck(RandomizerCheck check) {
     if (itemLoc->HasObtained() || itemLoc->GetCheckStatus() == RCSHOW_SCUMMED ||
         (!mystery && (itemLoc->GetCheckStatus() == RCSHOW_IDENTIFIED || itemLoc->GetCheckStatus() == RCSHOW_SEEN) &&
          itemLoc->GetPlacedRandomizerGet() != RG_ICE_TRAP)) {
-        search += " " + itemLoc->GetPlacedItemName().GetForLanguage(gSaveContext.language);
+        search += " " + PlacedItemTrackerName(itemLoc, check);
     } else if (itemLoc->GetCheckStatus() == RCSHOW_IDENTIFIED && !mystery) {
         search +=
             OTRGlobals::Instance->gRandoContext->overrides[check].GetTrickName().GetForLanguage(gSaveContext.language);
@@ -2000,7 +2027,7 @@ void DrawLocation(RandomizerCheck rc) {
             case RCSHOW_COLLECTED:
             case RCSHOW_SCUMMED:
                 if (IS_RANDO) {
-                    txt = itemLoc->GetPlacedItem().GetName().GetForLanguage(gSaveContext.language);
+                    txt = PlacedItemTrackerName(itemLoc, rc);
                 } else {
                     if (IsHeartPiece((GetItemID)Rando::StaticData::RetrieveItem(loc->GetVanillaItem()).GetItemID())) {
                         if (gSaveContext.language == LANGUAGE_ENG || gSaveContext.language == LANGUAGE_GER ||
@@ -2036,7 +2063,7 @@ void DrawLocation(RandomizerCheck rc) {
                                       .GetForLanguage(gSaveContext.language);
                         }
                     } else if (revealItemName) {
-                        txt = itemLoc->GetPlacedItem().GetName().GetForLanguage(gSaveContext.language);
+                        txt = PlacedItemTrackerName(itemLoc, rc);
                     }
                     if (IsVisibleInCheckTracker(rc) && status == RCSHOW_IDENTIFIED) {
                         auto price = OTRGlobals::Instance->gRandoContext->GetItemLocation(rc)->GetPrice();
