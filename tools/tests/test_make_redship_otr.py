@@ -248,13 +248,13 @@ def test_crc64_is_libultraships():
         assert make_redship_otr.crc64(path) == _crc64(path)
 
 
-def _display_list(*referenced_paths):
-    """A little-endian F3DEX2 ODLT resource naming each path with a
-    G_SETTIMG_OTR_HASH, then G_ENDDL."""
+def _display_list(*referenced_paths, opcode=0x20):
+    """A little-endian F3DEX2 ODLT resource naming each path with the expanded
+    hash command `opcode` (G_SETTIMG_OTR_HASH by default), then G_ENDDL."""
     body = bytes([4]) + bytes(7)  # ucode byte, padded to 8
     for path in referenced_paths:
         h = _crc64(path)
-        body += struct.pack("<II", 0x20 << 24, 0) + struct.pack("<II", h >> 32, h & 0xFFFFFFFF)
+        body += struct.pack("<II", opcode << 24, 0) + struct.pack("<II", h >> 32, h & 0xFFFFFFFF)
     body += struct.pack("<II", 0xDF << 24, 0)
     return bytes([0, 0, 0, 0]) + b"TLDO" + bytes(56) + body
 
@@ -289,6 +289,25 @@ def test_reference_escaping_its_half_is_refused(tmp_path, gi_archives):
     assert proc.returncode != 0, "accepted a display list whose texture is outside its curated half"
     assert "ESCAPING REFERENCE" in proc.stderr
     assert ESCAPING_DL in proc.stderr and SHARED_TEX in proc.stderr
+    assert not out_oot.exists()
+    assert not out_mm.exists()
+
+
+def test_movemem_light_reference_escaping_its_half_is_refused(tmp_path, gi_archives):
+    # G_MOVEMEM_OTR (0x42): libultraship's gfx_movemem_handler_otr loads the
+    # Lights resource its payload hash names, so it is a path reference too.
+    oot, mm = gi_archives
+    lights_dl = "objects/object_gi_mm_only/gGiMmOnlyLightsDL"
+    shared_lights = "objects/gameplay_keep/gSharedLights"
+    with zipfile.ZipFile(mm, "a") as z:
+        z.writestr(lights_dl, _display_list(shared_lights, opcode=0x42))
+        z.writestr(shared_lights, _resource("mm:lights"))
+    proc, out_oot, out_mm = _run(
+        tmp_path, gi_archives,
+        "mm->oot objects/object_gi_mm_only/\noot->mm objects/object_gi_oot_only/\noot->mm %s\n" % SHARED_TEX)
+    assert proc.returncode != 0, "accepted a display list whose G_MOVEMEM_OTR light is outside its curated half"
+    assert "G_MOVEMEM_OTR" in proc.stderr
+    assert lights_dl in proc.stderr and shared_lights in proc.stderr
     assert not out_oot.exists()
     assert not out_mm.exists()
 

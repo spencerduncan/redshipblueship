@@ -131,10 +131,11 @@ Design constraints, in the order they matter:
 
   7. EVERY HASHED REFERENCE STAYS INSIDE ITS HALF (#577 M6).  Besides the raw
      form constraint 5 refuses, a display list names each texture, vertex
-     array, sub-display-list and matrix it uses by the CRC64 of its path
-     (G_SETTIMG_OTR_HASH, G_VTX_OTR_HASH, G_DL_OTR_HASH, G_BRANCH_Z_OTR,
-     G_MTX_OTR).  Curating a directory copies only that directory, but a
-     model need not live in one: most of OoT's get-item display lists name
+     array, sub-display-list, matrix and light it uses by the CRC64 of its
+     path (G_SETTIMG_OTR_HASH, G_VTX_OTR_HASH, G_DL_OTR_HASH, G_BRANCH_Z_OTR,
+     G_MTX_OTR, G_MOVEMEM_OTR).  Curating a directory copies only that
+     directory, but a model need not live in one: most of OoT's get-item
+     display lists name
      shared environment-map textures in gameplay_keep
      (`objects/gameplay_keep/gEffUnknown10Tex` and friends).  Served from
      the curated half, such a reference resolves against whatever the host
@@ -350,13 +351,16 @@ def find_raw_segmented_texture_refs(data):
 # The expanded commands whose payload is the CRC64 of the resource path they
 # draw from (libultraship/src/fast/interpreter.cpp: each handler reads
 # `((uint64_t)w0 << 32) + w1` off the payload Gfx and resolves it through the
-# ResourceManager).  G_MARKER and G_MOVEMEM name no resource.
+# ResourceManager).  G_MOVEMEM_OTR is one of them: gfx_movemem_handler_otr
+# loads the Lights resource its payload hash names.  G_MARKER names no
+# resource.
 _HASH_REFERENCE_OPCODES = {
     _OTR_SETTIMG_HASH: "G_SETTIMG_OTR_HASH",
     _OTR_DL_HASH: "G_DL_OTR_HASH",
     _OTR_VTX_HASH: "G_VTX_OTR_HASH",
     _OTR_BRANCH_Z: "G_BRANCH_Z_OTR",
     _OTR_MTX: "G_MTX_OTR",
+    _OTR_MOVEMEM: "G_MOVEMEM_OTR",
 }
 
 _CRC64_POLY = 0x42F0E1EBA9EA3693

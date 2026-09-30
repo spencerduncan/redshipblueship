@@ -31,8 +31,9 @@
  *   - Negative control A (#605): a manifest curating
  *     `objects/object_slime/gChuchuEyesDL` -- the exact MM-exclusive display
  *     list the #577 spike's counterfactual 2 named as carrying 2 raw segmented
- *     references at segment 0x09. The generator must exit non-zero and must
- *     NOT write an output archive.
+ *     references at segment 0x09, together with the four resources it names
+ *     by path hash (so only the #605 guard can refuse it). The generator must
+ *     exit non-zero and must NOT write an output archive.
  *   - Negative control B (#604): a manifest curating
  *     `objects/object_link_zora/object_link_zora_U8_011710`, an MM ZSCALAR_X8
  *     scalar array. MM's factory consumes one byte per element there; OoT's
@@ -249,8 +250,19 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
     // #605/#577: 2 raw segmented texture references at segment 0x09. Curating
     // the single display list (not the whole object_slime/ directory) keeps
     // this leg from also tripping the #602 collision guard over an unrelated
-    // path, which would pass for the wrong reason.
-    expectRefusal("object_slime/gChuchuEyesDL", "mm->oot objects/object_slime/gChuchuEyesDL\n",
+    // path, which would pass for the wrong reason. #577 M6: the list also
+    // names two textures and two vertex arrays by path hash; they are curated
+    // next to it as single paths (all MM-exclusive, the arrays agree under
+    // both factories), or the escaping-reference guard (constraint 7) would
+    // refuse this manifest on its own and the leg would pass with the #605
+    // guard removed. Measured 2026-09-30: with the #605 guard disabled this
+    // manifest builds (rc=0).
+    expectRefusal("object_slime/gChuchuEyesDL",
+                  "mm->oot objects/object_slime/gChuchuEyesDL\n"
+                  "mm->oot objects/object_slime/gChuchuEyeSocketTex\n"
+                  "mm->oot objects/object_slime/gChuchuMouthTex\n"
+                  "mm->oot objects/object_slime/object_slimeVtx_000000\n"
+                  "mm->oot objects/object_slime/object_slimeVtx_000460\n",
                   "it carries raw segmented texture references, which resolve against the HOST game's segment table "
                   "at draw time (#605) -- the raw-segmented admission guard is not wired up");
 
