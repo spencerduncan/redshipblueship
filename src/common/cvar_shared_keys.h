@@ -164,6 +164,12 @@
 #define RSBS_CVAR_COMBO_WINDOW_SPOILER "gCombo.Windows.Spoiler"
 #define RSBS_CVAR_COMBO_WINDOW_TRACKER "gCombo.Windows.Tracker"
 #define RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS "gCombo.Windows.ComboSettings"
+/* #458 U0: the unified Item Tracker overlay's visibility (one overlay for both
+ * games, live for the active one and the frozen snapshot for the other). The
+ * window lands with #458 U2 and reads this define, as the Combo Settings pane
+ * reads its own; the key is spelled and classified first so the overlay cannot
+ * arrive with an unclassified key. */
+#define RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER "gCombo.Windows.ItemTracker"
 
 /* MM's four tracker windows' visibility toggles (#489, #535), MM's upstream
  * "gWindows.*" names. NOT tier-4 keys and not in kComboKeys: they are MM's own
