@@ -82,7 +82,7 @@ namespace {
 constexpr uint8_t kOpa = (uint8_t)COMBO_MODEL_LAYER_OPA;
 constexpr uint8_t kXlu = (uint8_t)COMBO_MODEL_LAYER_XLU;
 
-struct Step {
+struct MMModelStep {
     uint8_t list; // index into the row's drawResources
     uint8_t layer;
     uint8_t billboard;
@@ -107,8 +107,8 @@ ComboModelScroll TwoTileScroll(uint8_t segment, uint8_t layer, int16_t x1PerFram
 }
 
 /** Append the steps' lists from the row; 0 if a step names an empty list. */
-int AddSteps(ComboModel* out, void* const* res, std::initializer_list<Step> steps) {
-    for (const Step& step : steps) {
+int AddSteps(ComboModel* out, void* const* res, std::initializer_list<MMModelStep> steps) {
+    for (const MMModelStep& step : steps) {
         const char* dl = static_cast<const char*>(res[step.list]);
         if (dl == nullptr || Combo_ModelAddPart(out, dl, step.layer, step.billboard) != 1) {
             return 0;
@@ -328,11 +328,11 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
 // MM draws its OWN equivalent: a row of MM_sDrawItemTable, keyed by the OoT
 // model's first list. The rows are M7's data, so none answers yet and every
 // colliding OoT model is "no model".
-struct HostNativeRow {
+struct MMHostNativeRow {
     const char* foreignFirstList; // "__OTR__objects/<dir>/<name>" as OoT answers it
     s16 hostDrawId;               // MM_sDrawItemTable row
 };
-constexpr std::array<HostNativeRow, 0> kHostNativeRows{};
+constexpr std::array<MMHostNativeRow, 0> kHostNativeRows{};
 
 } // namespace
 
@@ -357,7 +357,7 @@ extern "C" int MM_ComboModelHostNative(const ComboModel* foreign, uint16_t* host
     if (foreign == nullptr || hostKey == nullptr || foreign->partCount == 0 || foreign->parts[0].dl == nullptr) {
         return 0;
     }
-    for (const HostNativeRow& row : kHostNativeRows) {
+    for (const MMHostNativeRow& row : kHostNativeRows) {
         if (std::strcmp(row.foreignFirstList, foreign->parts[0].dl) == 0 && row.hostDrawId >= 0 &&
             row.hostDrawId < MM_GetItem_DrawTableCount()) {
             *hostKey = (uint16_t)row.hostDrawId;
