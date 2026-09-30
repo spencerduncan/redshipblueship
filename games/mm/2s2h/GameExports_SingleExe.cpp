@@ -917,10 +917,12 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
         const int rulesMatched =
             IntegrationTest_StderrCaptureCount("[MM] pairing: arrival combo rules match the creation-frozen record");
         char keys[512];
-        const bool keysHold = IntegrationTest_PairedDivergeKeysHoldFile("after Majora's Mask's boot", keys, sizeof(keys));
+        const bool keysHold =
+            IntegrationTest_PairedDivergeKeysHoldFile("after Majora's Mask's boot", keys, sizeof(keys));
         if (rulesMatched < arrival || !keysHold) {
-            snprintf(msg, sizeof(msg), "MM arrival %d after a diverged load: %d 'arrival combo rules match' line(s); %s",
-                     arrival, rulesMatched, keys);
+            snprintf(msg, sizeof(msg),
+                     "MM arrival %d after a diverged load: %d 'arrival combo rules match' line(s); %s", arrival,
+                     rulesMatched, keys);
             IntegrationTest_GameplayFail(msg);
             return false;
         }
