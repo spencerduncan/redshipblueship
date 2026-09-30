@@ -57,7 +57,7 @@ class ItemTrackerSettingsWindow final : public Ship::GuiWindow {
     void UpdateElement() override{};
 };
 
-class ItemTrackerWindow final : public Ship::GuiWindow {
+class ItemTrackerWindow : public Ship::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
     void Draw() override;

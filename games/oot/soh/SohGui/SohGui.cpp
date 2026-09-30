@@ -34,6 +34,19 @@
 #include "soh/Enhancements/mod_menu.h"
 #include "soh/Network/Anchor/Anchor.h"
 
+#include "OoTActiveGated.h"
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "context.h" // src/common/context.h via redship_common's public include dir
+
+// #797: gSaveContext is shared with Majora's Mask, so the eight windows in
+// SetupGuiElements that read or write OoT save/play state are drawn only while
+// OoT is running. GAME_NONE is excluded, as in MM_TrackersGui_ShouldDraw.
+extern "C" bool OoT_Gui_ShouldDraw(void) {
+    return Context_GetCurrentGame() == GAME_OOT;
+}
+#endif
+
 namespace SohGui {
 
 // MARK: - Properties
@@ -154,7 +167,8 @@ void SetupGuiElements() {
     mColViewerWindow =
         std::make_shared<ColViewerWindow>(CVAR_WINDOW("CollisionViewer"), "Collision Viewer", ImVec2(520, 600));
     gui->AddGuiWindow(mColViewerWindow);
-    mSaveEditorWindow = std::make_shared<SaveEditorWindow>(CVAR_WINDOW("SaveEditor"), "Save Editor", ImVec2(520, 600));
+    mSaveEditorWindow =
+        std::make_shared<OoTActiveGated<SaveEditorWindow>>(CVAR_WINDOW("SaveEditor"), "Save Editor", ImVec2(520, 600));
     gui->AddGuiWindow(mSaveEditorWindow);
     mHookDebuggerWindow =
         std::make_shared<HookDebuggerWindow>(CVAR_WINDOW("HookDebugger"), "Hook Debugger", ImVec2(1250, 850));
@@ -162,34 +176,35 @@ void SetupGuiElements() {
     mDLViewerWindow =
         std::make_shared<DLViewerWindow>(CVAR_WINDOW("DisplayListViewer"), "Display List Viewer", ImVec2(520, 600));
     gui->AddGuiWindow(mDLViewerWindow);
-    mValueViewerWindow =
-        std::make_shared<ValueViewerWindow>(CVAR_WINDOW("ValueViewer"), "Value Viewer", ImVec2(520, 600));
+    mValueViewerWindow = std::make_shared<OoTActiveGated<ValueViewerWindow>>(CVAR_WINDOW("ValueViewer"), "Value Viewer",
+                                                                             ImVec2(520, 600));
     gui->AddGuiWindow(mValueViewerWindow);
-    mMessageViewerWindow =
-        std::make_shared<MessageViewer>(CVAR_WINDOW("MessageViewer"), "Message Viewer", ImVec2(520, 600));
+    mMessageViewerWindow = std::make_shared<OoTActiveGated<MessageViewer>>(CVAR_WINDOW("MessageViewer"),
+                                                                           "Message Viewer", ImVec2(520, 600));
     gui->AddGuiWindow(mMessageViewerWindow);
-    mGameplayStatsWindow =
-        std::make_shared<GameplayStatsWindow>(CVAR_WINDOW("GameplayStats"), "Gameplay Stats", ImVec2(480, 550));
+    mGameplayStatsWindow = std::make_shared<OoTActiveGated<GameplayStatsWindow>>(CVAR_WINDOW("GameplayStats"),
+                                                                                 "Gameplay Stats", ImVec2(480, 550));
     gui->AddGuiWindow(mGameplayStatsWindow);
-    mCheckTrackerWindow = std::make_shared<CheckTracker::CheckTrackerWindow>(CVAR_WINDOW("CheckTracker"),
-                                                                             "Check Tracker", ImVec2(400, 540));
+    mCheckTrackerWindow = std::make_shared<OoTActiveGated<CheckTracker::CheckTrackerWindow>>(
+        CVAR_WINDOW("CheckTracker"), "Check Tracker", ImVec2(400, 540));
     gui->AddGuiWindow(mCheckTrackerWindow);
     mCheckTrackerSettingsWindow = std::make_shared<CheckTracker::CheckTrackerSettingsWindow>(
         CVAR_WINDOW("CheckTrackerSettings"), "Check Tracker Settings", ImVec2(600, 375));
     gui->AddGuiWindow(mCheckTrackerSettingsWindow);
-    mEntranceTrackerWindow = std::make_shared<EntranceTracker::EntranceTrackerWindow>(
+    mEntranceTrackerWindow = std::make_shared<OoTActiveGated<EntranceTracker::EntranceTrackerWindow>>(
         CVAR_WINDOW("EntranceTracker"), "Entrance Tracker", ImVec2(500, 750));
     gui->AddGuiWindow(mEntranceTrackerWindow);
     mEntranceTrackerSettingsWindow = std::make_shared<EntranceTracker::EntranceTrackerSettingsWindow>(
         CVAR_WINDOW("EntranceTrackerSettings"), "Entrance Tracker Settings", ImVec2(600, 375));
     gui->AddGuiWindow(mEntranceTrackerSettingsWindow);
-    mItemTrackerWindow =
-        std::make_shared<ItemTrackerWindow>(CVAR_WINDOW("ItemTracker"), "Item Tracker", ImVec2(350, 600));
+    mItemTrackerWindow = std::make_shared<OoTActiveGated<ItemTrackerWindow>>(CVAR_WINDOW("ItemTracker"), "Item Tracker",
+                                                                             ImVec2(350, 600));
     gui->AddGuiWindow(mItemTrackerWindow);
     mItemTrackerSettingsWindow = std::make_shared<ItemTrackerSettingsWindow>(CVAR_WINDOW("ItemTrackerSettings"),
                                                                              "Item Tracker Settings", ImVec2(733, 472));
     gui->AddGuiWindow(mItemTrackerSettingsWindow);
-    mTimeSplitWindow = std::make_shared<TimeSplitWindow>(CVAR_WINDOW("TimeSplits"), "Time Splits", ImVec2(450, 660));
+    mTimeSplitWindow =
+        std::make_shared<OoTActiveGated<TimeSplitWindow>>(CVAR_WINDOW("TimeSplits"), "Time Splits", ImVec2(450, 660));
     gui->AddGuiWindow(mTimeSplitWindow);
     mPlandomizerWindow =
         std::make_shared<PlandomizerWindow>(CVAR_WINDOW("PlandomizerEditor"), "Plandomizer Editor", ImVec2(850, 760));

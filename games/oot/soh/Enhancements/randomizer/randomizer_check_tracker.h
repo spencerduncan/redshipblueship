@@ -20,7 +20,7 @@ class CheckTrackerSettingsWindow final : public Ship::GuiWindow {
     void UpdateElement() override{};
 };
 
-class CheckTrackerWindow final : public Ship::GuiWindow {
+class CheckTrackerWindow : public Ship::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
     void Draw() override;

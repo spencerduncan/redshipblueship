@@ -453,7 +453,7 @@ const std::vector<std::string> state3 = {
     "Travelling to Hook Target",
 };
 
-class SaveEditorWindow final : public Ship::GuiWindow {
+class SaveEditorWindow : public Ship::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
 

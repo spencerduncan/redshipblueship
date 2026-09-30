@@ -310,6 +310,11 @@ int MM_EntranceRegionCache_RunHeadless(void);
 // bring-up first (ConsoleVariables/Config/Console). Returns 0 on pass,
 // non-zero on fail.
 int MM_TrackersGui_RunHeadless(void);
+// OoT's twin (games/oot/soh/oot_windows_gate_test.cpp, #797): the eight SoH
+// windows that read or write OoT save/play state must run no Draw, Update or
+// menu-embed DrawElement body unless OoT is the running game. Same bring-up.
+// Returns 0 on pass, non-zero on fail.
+int OoT_WindowsGate_RunHeadless(void);
 // src/common/tests/test_combo_spoiler_window.c — same bridge shape: the
 // spoiler window's ctor reads ConsoleVariables off the Ship::Context
 // singleton, so its body needs the display-free shared bring-up below.
@@ -3769,6 +3774,166 @@ TestResult Test_MMTrackersGui(void) {
     return MM_TrackersGui_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #797, the source half of the OoTWindowsGate lock. The runtime half proves the
+// wrapper gates; this proves production uses it: SohGui::SetupGuiElements must
+// construct exactly the eight save/play-state windows through OoTActiveGated<>
+// and every other window it constructs must be on the exempt list, so a window
+// added upstream later has to be classified here before this row passes.
+static bool OoTWindowsGate_ScanSetupGuiElements(void) {
+    const std::string src = DigestOut_ReadSource("games/oot/soh/SohGui/SohGui.cpp");
+    if (src.empty()) {
+        printf("[TEST] FAIL: oot-windows-gate: cannot read games/oot/soh/SohGui/SohGui.cpp under RSBS_SOURCE_DIR\n");
+        return false;
+    }
+    const size_t begin = src.find("void SetupGuiElements() {");
+    const size_t end = begin == std::string::npos ? std::string::npos : src.find("\nvoid Destroy()", begin);
+    if (begin == std::string::npos || end == std::string::npos) {
+        printf("[TEST] FAIL: oot-windows-gate: SetupGuiElements() not found in SohGui.cpp\n");
+        return false;
+    }
+    const std::string body = src.substr(begin, end - begin);
+
+    static const char* const kGated[] = {
+        "SaveEditorWindow",
+        "ValueViewerWindow",
+        "MessageViewer",
+        "GameplayStatsWindow",
+        "CheckTracker::CheckTrackerWindow",
+        "EntranceTracker::EntranceTrackerWindow",
+        "ItemTrackerWindow",
+        "TimeSplitWindow",
+    };
+    // #797's census: no save/play-state reads (console, debuggers, input
+    // viewer, mod menu, plandomizer, notifications, the three tracker settings
+    // windows, which draw CVar rows only), already guarded (Additional Timers,
+    // Actor Viewer, Collision Viewer, Anchor Room), or reading fileCreatedAt
+    // only on a user action (Audio Editor, Cosmetics Editor).
+    static const char* const kExempt[] = {
+        "SohConsoleWindow",
+        "SohGfxDebuggerWindow",
+        "SohStatsWindow",
+        "ModMenuWindow",
+        "AudioEditor",
+        "InputViewer",
+        "InputViewerSettingsWindow",
+        "CosmeticsEditorWindow",
+        "ActorViewerWindow",
+        "ColViewerWindow",
+        "HookDebuggerWindow",
+        "DLViewerWindow",
+        "CheckTracker::CheckTrackerSettingsWindow",
+        "EntranceTracker::EntranceTrackerSettingsWindow",
+        "ItemTrackerSettingsWindow",
+        "PlandomizerWindow",
+        "Notification::Window",
+        "TimeDisplayWindow",
+        "AnchorRoomWindow",
+    };
+    int gatedSeen[sizeof(kGated) / sizeof(kGated[0])] = {};
+    int sites = 0;
+    int wrapped = 0;
+    bool ok = true;
+
+    static const std::string kOpen = "std::make_shared<";
+    static const std::string kWrap = "OoTActiveGated<";
+    for (size_t at = body.find(kOpen); at != std::string::npos; at = body.find(kOpen, at + kOpen.size())) {
+        const size_t typeBegin = at + kOpen.size();
+        const size_t typeEnd = body.find(">(", typeBegin);
+        if (typeEnd == std::string::npos) {
+            printf("[TEST] FAIL: oot-windows-gate: unterminated make_shared at SetupGuiElements offset %zu\n", at);
+            return false;
+        }
+        std::string type;
+        for (char c : body.substr(typeBegin, typeEnd - typeBegin)) {
+            if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
+                type += c;
+            }
+        }
+        sites++;
+        if (type.rfind(kWrap, 0) == 0) {
+            wrapped++;
+            const std::string inner = type.substr(kWrap.size(), type.size() - kWrap.size() - 1);
+            bool known = false;
+            for (size_t i = 0; i < sizeof(kGated) / sizeof(kGated[0]); i++) {
+                if (inner == kGated[i]) {
+                    gatedSeen[i]++;
+                    known = true;
+                }
+            }
+            if (!known || type.back() != '>') {
+                printf("[TEST] FAIL: oot-windows-gate: SetupGuiElements wraps %s, which is not on the gated list\n",
+                       type.c_str());
+                ok = false;
+            }
+            continue;
+        }
+        bool classified = false;
+        for (const char* exempt : kExempt) {
+            classified = classified || type == exempt;
+        }
+        for (size_t i = 0; i < sizeof(kGated) / sizeof(kGated[0]); i++) {
+            if (type == kGated[i]) {
+                printf("[TEST] FAIL: oot-windows-gate: SetupGuiElements constructs %s without OoTActiveGated<> "
+                       "(it reads or writes OoT save/play state, #797)\n",
+                       type.c_str());
+                ok = false;
+                classified = true;
+            }
+        }
+        if (!classified) {
+            printf("[TEST] FAIL: oot-windows-gate: SetupGuiElements constructs %s, which is on neither the gated nor "
+                   "the exempt list: classify it (#797)\n",
+                   type.c_str());
+            ok = false;
+        }
+    }
+    for (size_t i = 0; i < sizeof(kGated) / sizeof(kGated[0]); i++) {
+        if (gatedSeen[i] != 1) {
+            printf("[TEST] FAIL: oot-windows-gate: %s is wrapped in OoTActiveGated<> %d times in SetupGuiElements, "
+                   "want exactly 1\n",
+                   kGated[i], gatedSeen[i]);
+            ok = false;
+        }
+    }
+    const int expectedSites = (int)(sizeof(kGated) / sizeof(kGated[0]) + sizeof(kExempt) / sizeof(kExempt[0]));
+    if (wrapped != 8 || sites != expectedSites) {
+        printf("[TEST] FAIL: oot-windows-gate: SetupGuiElements has %d make_shared sites (%d OoTActiveGated<>), want "
+               "%d (8)\n",
+               sites, wrapped, expectedSites);
+        ok = false;
+    }
+    if (ok) {
+        printf("[TEST] oot-windows-gate: source scan: %d windows in SetupGuiElements, %d through OoTActiveGated<>, the "
+               "rest exempt\n",
+               sites, wrapped);
+    }
+    return ok;
+}
+
+// #797. Same display-free bring-up as mm-trackers-gui: the GuiWindow ctors read
+// ConsoleVariables. No ImGui context and no OTRGlobals::Instance, which is what
+// makes the runtime half's tripwire hard.
+TestResult Test_OoTWindowsGate(void) {
+    printf("[TEST] oot-windows-gate: OoT's save/play-state windows and their menu embeds gate on the active game "
+           "(#797)\n");
+
+    if (!OoTWindowsGate_ScanSetupGuiElements()) {
+        return TEST_FAIL;
+    }
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return OoT_WindowsGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #539/#614: a CVar change on the unified menu path must re-arm MM's
 // registrars, not only OoT's. Legs 1-5 (the original #539 lock) touch only
 // the two registrar maps and a synthetic probe, so they never needed a
@@ -4988,6 +5153,11 @@ const TestDescriptor gTests[] = {
      Test_MMPlaytimeSeed},
     {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
      Test_MMTrackersGui},
+    // #797: OoT's eight save/play-state windows (and the Port Menu's embeds of
+    // them) run only while OoT is the running game; source scan + ROM-free
+    // tripwire. Pure (no display, no ROM).
+    {"oot-windows-gate", "OoT save/play-state windows and their menu embeds gate on the active game (#797)",
+     Test_OoTWindowsGate},
     // Pre-freeze discipline (#638 / #626): both freeze drivers must fold the
     // live scene flags (and, on MM, a dead health bar) into gSaveContext before
     // capturing it. Each row publishes a calloc'd PlayState as the game's live

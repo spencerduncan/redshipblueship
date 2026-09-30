@@ -928,6 +928,13 @@ if(BUILD_TESTING)
     # gSaveContext storage means an ungated MM tracker reads OoT bytes through
     # MM's SaveContext layout.
     redship_add_test(NAME MMTrackersGui COMMAND redship --test mm-trackers-gui)
+    # OoT's twin (#797): the eight SoH windows that read or write OoT save/play
+    # state (Save Editor, Value/Message Viewer, Gameplay Stats, the three
+    # trackers, Time Splits) are built through OoTActiveGated<>, so their Draw,
+    # Update and Port Menu embed paths run only while OoT is the running game.
+    # Source scan of SohGui::SetupGuiElements + a ROM-free, display-free
+    # tripwire, so it runs in this redship tier.
+    redship_add_test(NAME OoTWindowsGate COMMAND redship --test oot-windows-gate)
     # Registrar coverage (#516): games/mm/2s2h/BenPort.cpp is excluded from the
     # single exe and was the SOLE caller of InitOTR's registration sequence, so
     # 2ship_enh (a plain STATIC archive) lost the TUs entirely -- CustomItem and
