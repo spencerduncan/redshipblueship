@@ -398,6 +398,12 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
         return 0;
     }
     const RandomizerGet rg = FirstTier((RandomizerGet)id);
+    if (rg == RG_ICE_TRAP) {
+        // OoT_Player_DrawGetItemImpl draws it by getItemId (Player_DrawGetItemIceTrap:
+        // a growing ice fragment), never through its entry's GID_RUPEE_GOLD row.
+        *reason = "ice trap: OoT special-cases its draw, not its entry's row";
+        return 0;
+    }
     const GetItemEntry* entry = Rando::StaticData::RetrieveItem(rg).GetStaticGIEntry();
     if (entry == nullptr) {
         *reason = "no static get-item entry";
