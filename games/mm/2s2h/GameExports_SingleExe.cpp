@@ -597,10 +597,17 @@ static void MM_RegisterIntegrationTestHooks(void) {
             // the Clock Tower from SCT — minus the freeze, which T3 covers.
             Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
 
+            // (#793) Every failure below pairs RequestExit with
+            // Combo_RequestGameSwitch: main reads the exit flag only after
+            // MM's frame loop returns, and that loop returns only on a switch
+            // request. With no switch registered (this first branch), the run
+            // would otherwise spin until the CTest timeout. RequestExit does
+            // not set the pass flag, and main checks it before any hand-off.
             if (!Combo_IsCrossGameSwitch()) {
                 fprintf(stderr, "[MM-INT-TEST] FAIL: Clock Tower door entrance did not register a cross-game switch\n");
                 fflush(stderr);
                 IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
                 return;
             }
 
@@ -611,6 +618,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
                 fprintf(stderr, "[MM-INT-TEST] FAIL: target should be 'oot', got '%s'\n", target ? target : "(null)");
                 fflush(stderr);
                 IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
                 return;
             }
 
@@ -620,6 +628,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
                         OOT_ENTR_MARKET_FROM_MASK_SHOP, targetEntrance);
                 fflush(stderr);
                 IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
                 return;
             }
 

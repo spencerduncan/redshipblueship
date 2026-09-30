@@ -145,10 +145,9 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   hinted as "Termina" (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
 - **Triforce Hunt is not yet a paired goal.** The Goal row lists it, but generation
   refuses it, and OoTMM's Triforce Quest is not offered (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#760](https://github.com/spencerduncan/redshipblueship/pull/760), [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
-- **Some settings re-seed the world without changing a rule.** The pool-size sliders and
-  every item class other than Progression are read by no rule since the switch, but they
-  are part of the world's fingerprint, so changing one gives a different world from the
-  same seed (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+- **Some settings re-seed the world without changing a rule.** Every item class other than
+  Progression is read by no rule since the switch, but the classes are part of the world's
+  fingerprint, so changing one gives a different world from the same seed (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
 - **Surplus filler can be dropped** when more MM items land in Hyrule than OoT items
   leave; only filler gives way (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
 - **Netplay and crossings share one 64-slot shared-item array.** Crossings alone cannot
@@ -185,23 +184,26 @@ it on, each game's shop slots hold items from that game only. MM's shop stock do
 shared bag when MM's "Shuffle Shops" is on, so an MM shop item can turn up in an OoT chest;
 OoT's shop stock never leaves Hyrule. Cross-game shops are planned, plain shops first.
 
-**The Check Trackers name "Blue Rupee" or "Junk" for a cross-game chest** ([#796](https://github.com/spencerduncan/redshipblueship/issues/796), pending).
-When a chest holds an item from the other game, the pickup message names the real item
-("You found the Bunny Hood"), but once it is collected Ocarina of Time's Check Tracker lists
-the check with "(Blue Rupee)" and the MM Check Tracker (Combo > Windows) lists it with
-"(Junk)". That is the placeholder the chest holds in its own game's tables, not what you
-got. The check is still counted and coloured as collected. The Combo Tracker's Crossings
-list (Combo > Windows > Toggle Combo Tracker) and the pickup message name the real item.
+**~~The Check Trackers name "Blue Rupee" or "Junk" for a cross-game chest~~ — RESOLVED** ([#796](https://github.com/spencerduncan/redshipblueship/issues/796), PR [#813](https://github.com/spencerduncan/redshipblueship/pull/813)).
+Fixed by PR #813: once a cross-game chest is collected, Ocarina of Time's Check Tracker lists it
+with the item found and "(MM)", for example "(Bunny Hood (MM))", and the MM Check Tracker with
+the item and "(OoT)". OoT's tracker search finds the chest by that name too. The original
+report: both trackers named the placeholder the chest holds in its own game's tables, "(Blue
+Rupee)" in OoT and "(Junk)" in MM, while the pickup message named the real item.
 
-**Do not open Ocarina of Time's Save Editor or Message Viewer while you are in Majora's Mask** ([#797](https://github.com/spencerduncan/redshipblueship/issues/797), pending).
-The two games share one save buffer, and OoT's windows do not yet check which game is
+**~~Do not open Ocarina of Time's Save Editor or Message Viewer while you are in Majora's Mask~~ — RESOLVED** ([#797](https://github.com/spencerduncan/redshipblueship/issues/797)).
+Fixed: OoT's Save Editor, Value Viewer, Message Viewer, Gameplay Stats, Check, Entrance and
+Item Trackers and Time Splits now draw only while Ocarina of Time is running, and so do
+their pages in the menu (Dev Tools > Save Editor and the others). In Termina they stay open
+but are not drawn; back in Hyrule they come back as they were. The original report:
+~~The two games share one save buffer, and OoT's windows do not yet check which game is
 running. In Termina, OoT's Save Editor rewrites health and magic values through OoT's save
 layout on every frame it draws, and those bytes are Majora's Mask's save. Opening its page in
 the menu (Dev Tools > Save Editor) is enough, even with the window closed. The Message
 Viewer's "Display Message" crashes the game there, and clicking the last split in Time
 Splits writes into MM's save too. OoT's Item Tracker, Gameplay Stats and Value Viewer show
 garbage in Termina, and its Check and Entrance Trackers show "Waiting for file load...".
-Use these windows in Hyrule only. MM's own Item and Check Trackers are not affected.
+Use these windows in Hyrule only. MM's own Item and Check Trackers are not affected.~~
 
 **Do not use Ocarina of Time's console commands while you are in Majora's Mask** ([#798](https://github.com/spencerduncan/redshipblueship/issues/798), pending).
 OoT's console commands `map`, `rupee`, `bottle`, `bItem`, `item`, `give_item` and
@@ -416,7 +418,7 @@ editable between sessions, and what they hold there is staging for the next file
 Loading a paired file now compares both its Cross-Game Rules and its Majora's Mask
 profile (the same digest the crossing checks) and puts the file's own values back into
 the pages:
-- a changed Cross-Game Rule (Goal, Crossing Direction, pool sizes, item classes, Shared
+- a changed Cross-Game Rule (Goal, Crossing Direction, item classes, Shared
   Ocarina) is restored, and a toast reads "Restored from file:" with the rows it reset
   (for example "Restored from file: Goal, Crossing Direction");
 - a changed MM option or trick is restored from the file's MM half, and a toast reads

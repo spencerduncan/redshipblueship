@@ -1864,7 +1864,8 @@ void Session::BuildPageList() {
                 // The goal row (ADR 0010 D1) is hovered too: its tooltip carries
                 // one "Value: effect" line per goal, all of which the oracle reads.
                 // frozen-goal: the goal row's disabled tooltip once the world is decided.
-                p.hovers = { "direction", "goal", "frozen-slider", "frozen-goal" };
+                // (frozen-slider hovered a pool-size slider until #801 retired both.)
+                p.hovers = { "direction", "goal", "frozen-goal" };
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
@@ -3134,9 +3135,7 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             if (byName) {
                 label = namedRow->second;
             } else {
-                ComboSettingId targetId = (hv == "direction")                     ? COMBO_SETTING_DIRECTION
-                                          : (hv == "goal" || hv == "frozen-goal") ? COMBO_SETTING_GOAL
-                                                                                  : COMBO_SETTING_POOL_SIZE_OOT;
+                ComboSettingId targetId = (hv == "direction") ? COMBO_SETTING_DIRECTION : COMBO_SETTING_GOAL;
                 label = Combo_ComboSettingLabel(targetId);
             }
             WidgetInfo* row = FindRow(*menu, p.header, p.sidebar, [&](const WidgetInfo& w) {
@@ -4092,9 +4091,8 @@ void Session::CaptureModalVariant(const PageSpec& p, const std::string& state) {
 static void EmitLoadToastPage(const std::string& id) {
     if (id == "toast/load-rules-restored") {
         std::string rules;
-        for (ComboSettingId rule :
-             { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION, COMBO_SETTING_POOL_SIZE_OOT, COMBO_SETTING_POOL_SIZE_MM,
-               COMBO_SETTING_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_MM, COMBO_SETTING_SHARED_OCARINA }) {
+        for (ComboSettingId rule : { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION, COMBO_SETTING_ITEM_CLASS_OOT,
+                                     COMBO_SETTING_ITEM_CLASS_MM, COMBO_SETTING_SHARED_OCARINA }) {
             rules += (rules.empty() ? "" : ", ") + std::string(Combo_ComboSettingLabel(rule));
         }
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_RULES_RESTORED, rules.c_str(), 0);

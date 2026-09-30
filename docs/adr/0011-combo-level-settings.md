@@ -1459,3 +1459,41 @@ Generate, exactly as before, and a restore only ever writes values a file
 already froze. The pages' pre-creation notes now say that a load restores a
 file's own rules. Locked by `PairedLoadRestore` (through the `OnLoadFile`
 seam's own calls) and by `ComboSettingsAuthoring` leg 7, inverted.
+
+### 2026-09-30 -- The two "Max Items" rows retired (#801)
+
+Operator ruling 2026-09-30 on the 2026-09-27 note's follow-up: the pool-size
+sliders go. The note's other option, dropping the inert bytes from the fill's
+seed, was not taken: it would move every golden and every future world for no
+player-visible gain.
+
+- **Removed:** the Cross-Game Rules rows "Max OoT Items" and "Max MM Items",
+  the keys `gCombo.Rando.PoolSize.OoT` / `.MM` (`RSBS::kComboKeys` is eight
+  entries, five of them tier-4 identity keys), and their `ComboSettingId`
+  entries (`COMBO_SETTING_POOL_SIZE_OOT` / `_MM`; nothing stores an id, so the
+  enum closes up rather than keeping two ids with no key). The unshown
+  `ComboSettingsWindow` pane loses its two slider rows too.
+- **Kept:** the record fields `poolSizeOoT` / `poolSizeMM` at bytes 2 and 3,
+  their value space, the canonical encoding, `comboSettingsHash`, and
+  `Combo_ComboPoolSizeFor`. They are format and identity.
+- **New worlds** always write the shipped default (`RSBS_FOREIGN_PLACEMENT_CAP`
+  in both bytes): `Combo_ResolveComboSettings` no longer reads a pool size from
+  anywhere, and a stale key left in a config file is ignored. With the default,
+  the canonical bytes, the fingerprint vectors and the `Golden*` digests are
+  unchanged.
+- **Existing worlds** keep their bytes and their identity. A world created
+  with a slider moved froze a non-default byte; no key can author one now, so
+  `Combo_ComboSettingsDivergenceFor` takes both pool bytes of its live side
+  from the frozen record: the session has no pool size that could diverge
+  from the file's. The fingerprint still pins the bytes, so one changed after
+  the stamp is still damage. The two `RSBS_COMBO_DIVERGE_POOL_SIZE_*` bits
+  stay allocated (`Combo_ComboSettingsDivergenceBetween` still reports them
+  between two records), but the load and the arrival never raise them, and
+  they left `Combo_ComboSettingsRestorableMask`.
+- **Older builds.** A world this build creates holds the default bytes, which
+  every older build resolves by default too, so it loads there unchanged.
+
+The `OoT Classes` / `MM Classes` rows are inert in the same way except for the
+PROGRESSION bit; their retirement awaits a separate ruling and is not part of
+this change. Locked by `ComboSettingsRows` leg 1c and `ComboSettingsAuthoring`
+leg 8.

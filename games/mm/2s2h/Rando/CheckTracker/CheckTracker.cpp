@@ -5,6 +5,9 @@
 #include "2s2h/BenGui/UIWidgets.hpp"
 #include "2s2h/Rando/StaticData/StaticData.h"
 #include <cstring>
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/Foreign.h" // ForeignNameForCheck: the item a crossing host yields (#796)
+#endif
 
 // Image Icons
 #include "assets/2s2h_assets.h"
@@ -24,6 +27,41 @@ s16 Play_GetOriginalSceneId(s16 sceneId);
 namespace BenGui {
 extern std::shared_ptr<Rando::CheckTracker::CheckTrackerWindow> mRandoCheckTrackerWindow;
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// The item an obtained check's row names (#796), from that check's save row.
+static std::string ObtainedItemTrackerName(RandoCheckId randoCheckId, const RandoSaveCheck& randoSaveCheck) {
+    // A check that hosts an OoT item holds RI_JUNK in MM's table, and the foreign
+    // give never rewrites it (CheckQueue.cpp). What the player found is the OoT
+    // item the give's textbox named, from the same lookup.
+    if (const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId)) {
+        return std::string(foreignName) + " (OoT)";
+    }
+    return Rando::StaticData::Items[randoSaveCheck.randoItemId].name;
+}
+
+// TEST BRIDGE (#796): the name the row for MM check `randoCheckId` prints once
+// obtained, read from the MM SaveContext at `mmSave` (the live one, or a frozen
+// MM world such as the armed shadow a paired creation leaves). Also reports the
+// item the MM table stores there. Returns 1 when written, 0 otherwise.
+extern "C" int MM_CheckTracker_TestItemName(const void* mmSave, uint16_t randoCheckId, char* out, int cap,
+                                            uint16_t* outStoredItem) {
+    if (mmSave == nullptr || out == nullptr || cap <= 0 || randoCheckId == RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return 0;
+    }
+    const RandoSaveCheck& row =
+        static_cast<const SaveContext*>(mmSave)->save.shipSaveInfo.rando.randoSaveChecks[randoCheckId];
+    if (outStoredItem != nullptr) {
+        *outStoredItem = (uint16_t)row.randoItemId;
+    }
+    const std::string name = ObtainedItemTrackerName((RandoCheckId)randoCheckId, row);
+    if ((int)name.size() >= cap) {
+        return 0;
+    }
+    memcpy(out, name.c_str(), name.size() + 1);
+    return 1;
+}
+#endif
 
 #define WIDGET_COLOR UIWidgets::Colors(CVarGetInteger("gSettings.Menu.Theme", 5))
 
@@ -370,7 +408,11 @@ void CheckTrackerDrawNonLogicalList() {
                     ImGui::Text("%s", Rando::StaticData::CheckNames[randoCheckId].c_str());
                     if (randoSaveCheck.obtained) {
                         ImGui::SameLine();
+#ifdef RSBS_SINGLE_EXECUTABLE
+                        ImGui::Text("(%s)", ObtainedItemTrackerName(randoCheckId, randoSaveCheck).c_str());
+#else
                         ImGui::Text("(%s)", Rando::StaticData::Items[randoSaveCheck.randoItemId].name);
+#endif
                     } else if (randoSaveCheck.skipped) {
                         ImGui::SameLine();
                         ImGui::Text("(Skipped)");
