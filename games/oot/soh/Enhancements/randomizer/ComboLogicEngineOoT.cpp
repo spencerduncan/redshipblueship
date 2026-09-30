@@ -1031,14 +1031,26 @@ void OoT_ComboLogic_EndQuery(void* self) {
  *
  * ONLY WHERE OoT'S GIVE PATH CAN DELIVER ONE. A foreign item in an OoT check is
  * delivered by the RC-queue drain (hook_handlers.cpp), which consults the
- * placement table (and, behind it, the crossing store) before OoT's own give —
- * and that drain is what OoT's TREASURE CHESTS go through. So the host class is
- * the static half of the retired reverse pass's OoT_Foreign_IsEligibleHostImpl:
- * an `ACTOR_EN_BOX` row, never a shop, scrub, merchant or chest-game slot, whose
- * give-and-price flows differ from the ordinary collect path. The fill-side half
- * of that predicate ("the fill put junk here") is the old overlay pass's and does
- * not apply: the coordinator only ever offers EMPTY hosts, and this engine's
- * `place` puts the junk cover there itself.
+ * placement table (and, behind it, the crossing store) before OoT's own give.
+ * Two host classes go through that drain:
+ *
+ *  - OoT's TREASURE CHESTS: an `ACTOR_EN_BOX` row that is not a scrub, merchant
+ *    or chest-game slot (the static half of the retired reverse pass's
+ *    OoT_Foreign_IsEligibleHostImpl);
+ *  - OoT's PLAIN SHOP SHELVES (#800 pass 1): an `RCTYPE_SHOP` row drawn by
+ *    `ACTOR_EN_GIRLA`. Buying one runs EnGirlA_ItemGive_Randomizer, which
+ *    charges the shelf's own price and sets the shelf's RandomizerInf flag; the
+ *    flag handler queues the check and the drain's foreign branch records the
+ *    crossing before OoT's own give (z_en_girla.c, hook_handlers.cpp). The
+ *    shelf draws the MM model and the textbox names the MM item (#800).
+ *
+ * Scrubs, merchants and the chest game keep their own give-and-price flows and
+ * stay refused (#800 pass 2 scopes each). The fill-side half of the old predicate
+ * ("the fill put junk here") is the old overlay pass's and does not apply: the
+ * coordinator only ever offers EMPTY hosts, and this engine's `place` puts the
+ * junk cover there itself. A shelf is empty only when shopsanity replaced its
+ * vanilla stock (fill.cpp): with shopsanity off every shelf keeps its RG_BUY_*
+ * item and is never offered.
  *
  * A pure function of the static location table: legal outside a round, no RNG.
  */
@@ -1049,10 +1061,13 @@ int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
         return 0;
     }
     Rando::Location* loc = Rando::StaticData::GetLocation(rc);
+    const RandomizerCheckType checkType = loc->GetRCType();
+    if (checkType == RCTYPE_SHOP && loc->GetActorID() == ACTOR_EN_GIRLA) {
+        return 1; // a plain shop shelf (#800 pass 1)
+    }
     if (loc->GetActorID() != ACTOR_EN_BOX) {
         return 0;
     }
-    const RandomizerCheckType checkType = loc->GetRCType();
     if (checkType == RCTYPE_SHOP || checkType == RCTYPE_SCRUB || checkType == RCTYPE_MERCHANT ||
         checkType == RCTYPE_CHEST_GAME || loc->IsShop()) {
         return 0;

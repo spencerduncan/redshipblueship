@@ -13,6 +13,15 @@
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED)
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #800 S1: an OoT shop shelf that hosts a Majora's Mask item. games/oot/src has
+// no src/common on its include path, so the three calls are declared here
+// (ForeignItemsSingleExe.cpp, ForeignModelHostOoT.cpp).
+s32 OoT_Rando_Foreign_HostsForeign(u16 rc);
+s32 OoT_Rando_Foreign_HostCrossingRecorded(u16 rc);
+s32 OoT_ForeignModel_DrawForOoTCheck(PlayState* play, u16 rc);
+#endif
+
 void OoT_EnGirlA_Init(Actor* thisx, PlayState* play);
 void OoT_EnGirlA_Destroy(Actor* thisx, PlayState* play);
 void OoT_EnGirlA_Update(Actor* thisx, PlayState* play);
@@ -387,7 +396,12 @@ s32 EnGirlA_TryChangeShopItemShip(EnGirlA* this, PlayState* play) {
         }
     } else if (this->actor.params == SI_RANDOMIZED_ITEM) {
         ShopItemIdentity shopItemIdentity = Randomizer_IdentifyShopItem(play->sceneNum, this->randoSlotIndex);
-        if (Flags_GetRandomizerInf(shopItemIdentity.identity.randomizerInf)) {
+        if (Flags_GetRandomizerInf(shopItemIdentity.identity.randomizerInf)
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #800 S1: a shelf whose MM item already crossed is sold out too.
+            || OoT_Rando_Foreign_HostCrossingRecorded(shopItemIdentity.identity.randomizerCheck)
+#endif
+        ) {
             this->actor.params = SI_SOLD_OUT;
             GetItemEntry getItemEntry = Randomizer_GetItemFromKnownCheckWithoutObtainabilityCheck(
                 shopItemIdentity.identity.randomizerCheck, shopItemIdentity.ogItemId);
@@ -867,6 +881,15 @@ s32 EnGirlA_CanBuy_Randomizer(PlayState* play, EnGirlA* this) {
         itemObtainability == CANT_OBTAIN_ALREADY_HAVE || itemObtainability == CANT_OBTAIN_MISC) {
         return CANBUY_RESULT_CANT_GET_NOW;
     }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 S1: the MM item this shelf hosts has already crossed (the drain marked
+    // the check collected), but the flag above was lost with an unsaved reload.
+    // Selling it again would charge for nothing: the drain delivers once per host.
+    if (OoT_Rando_Foreign_HostCrossingRecorded(shopItemIdentity.identity.randomizerCheck)) {
+        return CANBUY_RESULT_CANT_GET_NOW;
+    }
+#endif
 
     if (gSaveContext.rupees < shopItemIdentity.itemPrice) {
         return CANBUY_RESULT_NEED_RUPEES;
@@ -1437,6 +1460,23 @@ void OoT_EnGirlA_Draw(Actor* thisx, PlayState* play) {
         func_80A3C498(&this->actor, play, 0);
 
         ShopItemIdentity shopItemIdentity = Randomizer_IdentifyShopItem(play->sceneNum, this->randoSlotIndex);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #800 S1: a shelf hosting an MM item shows that item's model, drawn from
+        // MM's descriptor (ForeignModelHostOoT.cpp), and never the junk cover the
+        // OoT table holds there. Where OoT cannot draw the model (MM's archive
+        // not mounted yet, a colliding model with no host-native row, a model the
+        // descriptor cannot express), the mystery item stands in for it.
+        if (!CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0) &&
+            OoT_Rando_Foreign_HostsForeign(shopItemIdentity.identity.randomizerCheck)) {
+            if (OoT_ForeignModel_DrawForOoTCheck(play, shopItemIdentity.identity.randomizerCheck)) {
+                return;
+            }
+            GetItemEntry standIn = GetItemMystery();
+            EnItem00_CustomItemsParticles(&this->actor, play, standIn);
+            GetItemEntry_Draw(play, standIn);
+            return;
+        }
+#endif
         GetItemEntry getItemEntry = (CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0) &&
                                      this->actor.params == SI_RANDOMIZED_ITEM)
                                         ? GetItemMystery()

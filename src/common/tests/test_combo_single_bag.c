@@ -64,10 +64,12 @@
  *
  * PR #743 REVIEW LEGS, each with its red half observed when it was written:
  *
- *   A2. OoT's foreign-host rule, swept over every OoT location by category (shop,
- *       scrub, merchant, chest game, a shop-ish NAME, non-EN_BOX): all rejected,
- *       and some chests accepted. Leg A asks the same predicate the fill used, so
- *       it could not see the predicate itself loosen.
+ *   A2. OoT's foreign-host rule, swept over every OoT location by category: every
+ *       plain shop shelf accepted (#800 pass 1); scrub, merchant, chest game, a
+ *       shop-ish NAME that is not a shelf, and every other non-chest rejected; and
+ *       some chests accepted. Leg A asks the same predicate the fill used, so it
+ *       could not see the predicate itself loosen. Swept after leg A, asserted at
+ *       the end of the row (after leg G).
  *   C2. THE ITEM-CLASS GATE: OoT's frozen itemClass without PROGRESSION makes
  *       every OoT row HOME_ONLY — zero OoT items in Termina — while MM's rows
  *       still cross. Red with SingleBagOriginMayCross's class conjunct deleted.
@@ -103,6 +105,13 @@
  *       headless harness's creation (the same fill and the same two per-game
  *       passes, without the event's bracket, spoiler and arm) and can also compare
  *       against the coordinator's tables, which the event drops on commit.
+ *   G.  AN MM ITEM ON AN OoT SHOP SHELF (#800 pass 1): a paired creation on a
+ *       fixed seed with OoT's shopsanity (four emptied shelves per shop) and MM's
+ *       shop shuffle on places at least one MM item on an OoT RCTYPE_SHOP shelf;
+ *       the crossing store answers the shelf's check with it; the drain's
+ *       recording core records exactly one MM crossing for it; and once the check
+ *       is collected the shelf reads sold out and records nothing more. Red with
+ *       the shelf refused by OoT's foreign-host predicate: zero shelf crossings.
  *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
@@ -159,6 +168,9 @@ int MM_Rando_PairedGenLastExhausted(void);
 int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts);
 int OoT_ComboLogic_TestIsShopShelf(uint16_t hostCheck);
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
+int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
+int OoT_Rando_Foreign_HostsForeign(uint16_t rc);
+int OoT_Rando_Foreign_HostCrossingRecorded(uint16_t rc);
 int Rando_ValidatePairedWorldHints(void);
 int OoT_Creation_AuthorRandoFile(int slot);
 void Randomizer_TestResetStartingGiveLog(void);
@@ -995,9 +1007,19 @@ TestResult ComboSingleBag_Run(void) {
         CSB_ASSERT(stored != nullptr && stored->originGame == shelfItem.originGame && stored->id == shelfItem.id,
                    "the crossing store does not answer the shelf's check with its MM item");
         const int before = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
+        CSB_ASSERT(OoT_Rando_Foreign_HostsForeign(shelf) == 1, "the shelf's draw and textbox do not see its MM item");
+        CSB_ASSERT(OoT_Rando_Foreign_HostCrossingRecorded(shelf) == 0,
+                   "the shelf reads sold out before anything was bought");
         CSB_ASSERT(OoT_Rando_Foreign_RecordPickup(shelf) == 1, "buying the shelf recorded no MM crossing");
         CSB_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == before + 1,
                    "buying the shelf did not record exactly one MM crossing");
+        // The drain then marks the check collected; from then on the shelf is sold
+        // out even when its RandomizerInf flag was lost with an unsaved reload.
+        CSB_ASSERT(OoT_Rando_Foreign_TestSetObtained(shelf, 1) == 1, "the shelf's check could not be collected");
+        CSB_ASSERT(OoT_Rando_Foreign_HostCrossingRecorded(shelf) == 1,
+                   "a shelf whose MM item already crossed does not read sold out, so it would sell it again");
+        CSB_ASSERT(OoT_Rando_Foreign_RecordPickup(shelf) == 0, "a collected shelf recorded a second MM crossing");
+        OoT_Rando_Foreign_TestSetObtained(shelf, 0);
     }
     Combo_SingleBag_Forget();
     Combo_Crossings_Clear();

@@ -215,6 +215,32 @@ extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
 }
 
 /**
+ * #800 S1, the shop shelf (z_en_girla.c): 1 when OoT check `rc` hosts an MM item
+ * (the placement table, and behind it the crossing store), the fact the shelf
+ * draws and the textbox names from instead of the junk cover the OoT table holds.
+ */
+extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
+    return rc != 0 && Combo_GetForeignPlacementForOoTCheck(rc) != nullptr ? 1 : 0;
+}
+
+/**
+ * #800 S1, the shop shelf's sold-out and can-buy tests (z_en_girla.c): 1 when OoT
+ * check `rc` hosts an MM item that has already crossed, i.e. the drain collected
+ * the check (the once-per-host gate OoT_Foreign_RecordPickupImpl reads). A shelf
+ * whose RandomizerInf flag was lost with an unsaved reload would otherwise sell
+ * the item again and charge for nothing: the drain delivers once per host, and
+ * falls through to OoT's own give only for a check it has NOT collected.
+ */
+extern "C" int OoT_Rando_Foreign_HostCrossingRecorded(uint16_t rc) {
+    if (OoT_Rando_Foreign_HostsForeign(rc) == 0) {
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* il = (ctx != nullptr && rc < RC_MAX) ? ctx->GetItemLocation((RandomizerCheck)rc) : nullptr;
+    return il != nullptr && il->HasObtained() ? 1 : 0;
+}
+
+/**
  * Does the crossing store host OoT item `rg` on an MM check (the single-bag fill
  * put it in Termina)? Read by OoT's hint pass (3drando/hints.cpp), which runs in
  * OoT's remainder AFTER the creation captured the crossings, so an item hint whose

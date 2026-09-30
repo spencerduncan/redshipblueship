@@ -36,6 +36,12 @@
  *     colliding item with no host-native row, the same draw emits no model list
  *     (the model-less stand-in). Put Rando::DrawItem(RI_NONE) back in the draw,
  *     or let the give overwrite the check id the draw reads, and M10 goes red.
+ *  M11 OoT AS THE HOST (#800 S1): the OoT shop shelf's REAL model call
+ *     (OoT_ForeignModel_DrawForOoTCheck, what OoT_EnGirlA_Draw calls) for an OoT
+ *     check hosting an MM item, into a real OoT GraphicsContext: a mounted
+ *     MM-exclusive model (the Deku Mask) emits exactly MM's descriptor lists with
+ *     a matrix first; unmounted, colliding (MM's hookshot) or with no placement
+ *     it emits no model list and answers 0, so the shelf keeps its stand-in.
  *
  * Not lockable headless: the pixels. The M3 playtest shows the drawn model; M4
  * draws these descriptors in OoT.
@@ -80,6 +86,11 @@ void MM_ForeignModel_TestSetMountOverride(int value);
 int MM_ForeignModel_TestPathMountedReal(const char* dl);
 int MM_ForeignModel_TestCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want);
 uint16_t MM_ForeignTextboxIcon_TestSomeCheck(void);
+// #800 S1: OoT as the host (games/oot/soh/Enhancements/randomizer/ForeignModelHostOoT.cpp).
+int OoT_ForeignModel_ModelForOoTCheck(uint16_t rc, ComboModel* out);
+void OoT_ForeignModel_TestSetMountOverride(int value);
+int OoT_ForeignModel_TestPathMountedReal(const char* dl);
+int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* want);
 }
 
 #define FM_ASSERT(cond, msg)                                                \
@@ -796,6 +807,64 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(realNoPrefix == 0, "M10 the production mount test refuses a path without the __OTR__ prefix");
         FM_ASSERT(realMissing == 0, "M10 the production mount test refuses an __OTR__ path no archive holds");
         FM_ASSERT(realNull == 0, "M10 the production mount test refuses a null path");
+    }
+
+    // ---- M11 (#800 S1) -----------------------------------------------------------
+    // OoT as the host: the shop shelf's REAL draw call for an OoT check that hosts
+    // an MM item, into a real OoT GraphicsContext. A mounted MM-exclusive model
+    // emits exactly MM's descriptor; unmounted, colliding, or no placement at all,
+    // it emits no model list and answers 0 (the shelf keeps its stand-in).
+    {
+        SharedItem dekuMask;
+        SharedItem mmHookshot;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Deku Mask", &dekuMask) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Hookshot", &mmHookshot),
+                  "M11 named items");
+        ComboModelAnswer maskA;
+        ComboModelAnswer hookshotA;
+        FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, dekuMask, &maskA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, mmHookshot, &hookshotA) == kNone,
+                  "M11 MM's Deku Mask is a DESCRIPTOR in OoT, the (colliding) hookshot is no model");
+
+        ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+        const uint16_t shelf = 0x0123; // opaque to the table; the host draw keys on the placement alone
+
+        Combo_ClearForeignPlacementsOoT();
+        printf("[TEST]   M11 no placement on the OoT check:\n");
+        OoT_ForeignModel_TestSetMountOverride(1);
+        const int drawNone = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        const int placedMask = Combo_SetForeignPlacementOoT(shelf, dekuMask);
+        printf("[TEST]   M11 Deku Mask on an OoT shelf, archive mounted:\n");
+        const int drawMask = OoT_ForeignModel_TestShelfDraw(shelf, &maskA.model);
+        ComboModel answered;
+        const int modelMask = OoT_ForeignModel_ModelForOoTCheck(shelf, &answered);
+        OoT_ForeignModel_TestSetMountOverride(0);
+        printf("[TEST]   M11 Deku Mask, archive NOT mounted:\n");
+        const int drawUnmounted = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        OoT_ForeignModel_TestSetMountOverride(1);
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedHookshot = Combo_SetForeignPlacementOoT(shelf, mmHookshot);
+        printf("[TEST]   M11 MM Hookshot (colliding, no host-native row), archive mounted:\n");
+        const int drawHookshot = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        OoT_ForeignModel_TestSetMountOverride(-1);
+
+        const int realMissing = OoT_ForeignModel_TestPathMountedReal("__OTR__objects/rsbs_no_such_object/gRsbsNoSuchDL");
+        const int realNoPrefix = OoT_ForeignModel_TestPathMountedReal("objects/object_gi_nutsmask/gGiNutsMaskDL");
+        const int realNull = OoT_ForeignModel_TestPathMountedReal(nullptr);
+
+        std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+        FM_ASSERT(placedMask >= 0 && placedHookshot >= 0, "M11 placements accepted");
+        FM_ASSERT(drawNone == 0, "M11 an OoT check with no MM item draws no foreign model (see the M11 lines above)");
+        FM_ASSERT(drawMask == 0, "M11 the shelf draws MM's Deku Mask model (see the M11 lines above)");
+        FM_ASSERT(modelMask == 1 && FmModelEqual(answered, maskA.model),
+                  "M11 the shelf's model for the check is exactly MM's descriptor for the item it hosts");
+        FM_ASSERT(drawUnmounted == 0, "M11 unmounted, the shelf keeps its stand-in (see the M11 lines above)");
+        FM_ASSERT(drawHookshot == 0,
+                  "M11 a colliding model with no host-native row keeps the stand-in (see the M11 lines above)");
+        FM_ASSERT(realMissing == 0 && realNoPrefix == 0 && realNull == 0,
+                  "M11 the production mount test refuses a missing, unprefixed or null path");
     }
 
     printf("[TEST] ForeignModel: PASS\n");
