@@ -268,7 +268,7 @@ if(SINGLE_EXECUTABLE_BUILD)
 
     # #678 - the two Enhancements TUs that are the ONLY callers of
     # Rando::ClockShuffle's public API, carved into their own archive so they
-    # can be WHOLE_ARCHIVE'd without flipping 2ship_enh whole (#427 item 3).
+    # can be WHOLE_ARCHIVE'd without flipping 2ship_enh whole (#516).
     #
     # THE FAILURE. Rando::ClockShuffle::IsTimeOwnedForClockShuffle,
     # GetTimeDescriptionForMessage and SetTimeToHalfDayStart have their only
@@ -292,7 +292,7 @@ if(SINGLE_EXECUTABLE_BUILD)
     # because z_kaleido_*.c calls its one extern "C" accessor. WHOLE_ARCHIVE is
     # the contract; the archive boundary is what keeps it targeted.
     #
-    # WHY NOT ALL OF 2ship_enh (#427 item 3). Flipping the whole archive arms
+    # WHY NOT ALL OF 2ship_enh (#516). Flipping the whole archive arms
     # every enhancement PR #673 wired a dispatcher for, in one step, and
     # .github/scripts/check-registrar-elision.sh records why that answer has
     # twice been "no": most 2ship_enh members must legitimately stay dead in
@@ -470,8 +470,9 @@ if(SINGLE_EXECUTABLE_BUILD)
     # effect is a file-scope RegisterShipInitFunc, and which are the sole
     # callers of Rando::ClockShuffle's public API. Both were dropped by plain
     # archive semantics; see the carve-out block above for why this is a
-    # separate archive rather than an added reference or the #427 item-3 flip
-    # of 2ship_enh itself. check-registrar-elision.sh audits it as required.
+    # separate archive rather than an added reference or the whole-archive
+    # flip of 2ship_enh itself (#516). check-registrar-elision.sh audits it as
+    # required.
     set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_enh_clockshuffle>"
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_rando>"
