@@ -804,7 +804,11 @@ TestResult Test_ForeignHostGossipHint(void) {
     FI_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Megaton Hammer", &ootHammer));
     FI_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Lens of Truth", &mmLens));
     const char* hammerName = Combo_GetForeignItemName(ootHammer);
+    const char* hammerArticle = Combo_GetForeignItemArticle(ootHammer);
     FI_ASSERT(hammerName != NULL && hammerName[0] != '\0');
+    FI_ASSERT(hammerArticle != NULL);
+    // In the stone's voice: article + name, as it says a native item.
+    const std::string hammerSaid = std::string(hammerArticle) + hammerName;
     uint16_t riJunk = 0;
     MM_Rando_Foreign_TestItemSentinels(&riJunk, NULL, NULL);
 
@@ -850,7 +854,10 @@ TestResult Test_ForeignHostGossipHint(void) {
     char name[128];
     FI_ASSERT(MM_Rando_Hints_TestGossipCandidate(kNative, 0) == 1);
     FI_ASSERT(MM_Rando_Hints_TestGossipItemName(kNative, name, (int)sizeof(name)) > 0);
-    FI_ASSERT(strcmp(name, "Lens of Truth") == 0);
+    printf("[TEST] foreign-host-gossip-hint: native check %u holds MM id %u, stone says \"%s\"\n", (unsigned)kNative,
+           (unsigned)mmLens.id, name);
+    FI_ASSERT(strcmp(name, "the Lens of Truth") == 0); // MM's hint names an item with its article
+    FI_ASSERT(MM_Rando_Hints_TestGossipCandidate(kNative, 1) == 1);
     FI_ASSERT(MM_Rando_Hints_TestGossipCandidate(kJunk, 0) == 0);
     FI_ASSERT(MM_Rando_Hints_TestGossipCandidate(kJunk, 1) == 0);
 
@@ -860,10 +867,10 @@ TestResult Test_ForeignHostGossipHint(void) {
     const int nameLen = MM_Rando_Hints_TestGossipItemName(kHost, name, (int)sizeof(name));
     printf("[TEST] foreign-host-gossip-hint: host %u (holds the cover, hosts %s): candidate=%d purchasable=%d, "
            "stone says \"%s\"\n",
-           (unsigned)kHost, hammerName, hostCandidate, hostCandidatePurchasable, nameLen > 0 ? name : "");
+           (unsigned)kHost, hammerSaid.c_str(), hostCandidate, hostCandidatePurchasable, nameLen > 0 ? name : "");
     FI_ASSERT(hostCandidate == 1);
     FI_ASSERT(hostCandidatePurchasable == 1);
-    FI_ASSERT(nameLen > 0 && strcmp(name, hammerName) == 0);
+    FI_ASSERT(nameLen > 0 && hammerSaid == name);
 
     // The purchasable path still skips a collected host, like any other check.
     MM_Rando_Foreign_TestSetObtained(kHost, 1);
