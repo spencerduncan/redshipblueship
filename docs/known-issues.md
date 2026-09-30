@@ -209,11 +209,15 @@ Splits writes into MM's save too. OoT's Item Tracker, Gameplay Stats and Value V
 garbage in Termina, and its Check and Entrance Trackers show "Waiting for file load...".
 Use these windows in Hyrule only. MM's own Item and Check Trackers are not affected.~~
 
-**Do not use Ocarina of Time's console commands while you are in Majora's Mask** ([#798](https://github.com/spencerduncan/redshipblueship/issues/798), pending).
-OoT's console commands `map`, `rupee`, `bottle`, `bItem`, `item`, `give_item` and
+**~~Do not use Ocarina of Time's console commands while you are in Majora's Mask~~ — RESOLVED** ([#798](https://github.com/spencerduncan/redshipblueship/issues/798)).
+Fixed: every Ocarina of Time console command now runs only while Ocarina of Time is running.
+In Termina the console answers that the command is an Ocarina of Time command and changes
+nothing. Toggling "Fix Broken Giant's Knife Bug" in Termina, or anywhere outside gameplay,
+now only changes the setting. The original report:
+~~OoT's console commands `map`, `rupee`, `bottle`, `bItem`, `item`, `give_item` and
 `entrance` do the same kind of damage in Termina as its Save Editor (they write MM's save or
 crash), and so can toggling OoT's "Fix Broken Giant's Knife Bug" setting there. Use them in
-Hyrule only.
+Hyrule only.~~
 
 ~~**The Combo Tracker's Majora's Mask panel reads "No data yet" while you play Majora's Mask**~~ — RESOLVED ([#799](https://github.com/spencerduncan/redshipblueship/issues/799)).
 The panel read Majora's Mask only from the copy kept while you are in the other game, and
