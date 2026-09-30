@@ -806,6 +806,8 @@ extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
 
 // Defined further down beside the OnSaveInit dispatch it counts.
 extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
+// 2s2h/Rando/ForeignModelSingleExe.cpp: the #577 M3 playtest drive's arm.
+extern "C" int MM_ForeignModel_PlaytestArmGive(void);
 
 /**
  * int-paired-first-crossing: the MM arrival's verdict, taken once South Clock
@@ -1037,6 +1039,13 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
         return;
     }
     sGpMMPlayFrames++;
+    // #577 M3 playtest drive (opt-in, RSBS_GP_MM_FOREIGN_MODEL=1): once the
+    // player stands in South Clock Town and the arrival's own queued gives have
+    // played out, mark one MM check that hosts a drawable OoT item eligible, so
+    // CheckQueue plays its real get-item cutscene here.
+    if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
+        MM_ForeignModel_PlaytestArmGive();
+    }
     if (sGpMMPlayFrames < cfg->framesPerPhase) {
         return;
     }
