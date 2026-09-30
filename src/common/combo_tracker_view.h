@@ -25,9 +25,13 @@
  * FRESHNESS IS A FIELD, NOT A COMMENT. The tracker's whole point is showing
  * data that may be stale, so every summary carries an explicit freshness the
  * window must label:
- *   - MM reads the frozen shadow blob (Context_GetMMSaveContext), which is
- *     written at freeze/save time. That path is NEVER reported live, even
- *     while MM is the active game — the shadow lags the live save.
+ *   - MM reads its live save while MM is the active game AND its play state
+ *     is loaded (the descriptor's liveSave hook answers non-NULL) AND that
+ *     save carries the 'ZELDA3' marker: LIVE. Otherwise it reads the frozen
+ *     shadow blob (Context_GetMMSaveContext), written at freeze/save time:
+ *     STALE. The shadow path is never reported live — it lags the live save,
+ *     and on arrival in Termina it is consumed and zeroed until MM's first
+ *     save or the departure freeze refills it (#799).
  *   - OoT reads the heap Rando::Context, which is live while OoT runs and
  *     exactly as-of-suspend while MM runs (the suspend machinery is
  *     audio+graph only; the heap is not torn down).
@@ -50,8 +54,9 @@
 extern "C" {
 #endif
 
-/** How current a panel's data is. See the header comment: MM's shadow path is
- *  never LIVE, OoT's heap is LIVE only while OoT is the active game. */
+/** How current a panel's data is. See the header comment: MM is LIVE only
+ *  while MM is played (its live save, never the shadow), OoT's heap is LIVE
+ *  only while OoT is the active game. */
 typedef enum {
     COMBO_TRACKER_FRESH_UNAVAILABLE = 0, // nothing to read; NOT "zero progress"
     COMBO_TRACKER_FRESH_LIVE = 1,        // reading the running game's live state
@@ -128,7 +133,8 @@ typedef struct {
 // TU registers — the RsbsGameMetaDesc pattern — so this file never includes
 // z64save.h and a layout change on MM's side updates the descriptor and its
 // static_assert tripwires in the same TU (games/mm/2s2h/Rando/
-// TrackerAdapterSingleExe.cpp).
+// TrackerAdapterSingleExe.cpp). The live save is the same SaveContext layout,
+// so the same offsets walk it while MM is played (liveSave below, #799).
 
 typedef struct ComboMMTrackerDesc {
     // 'ZELDA3' new-file marker: mismatch means the shadow holds no MM save at
@@ -154,6 +160,15 @@ typedef struct ComboMMTrackerDesc {
     // through Rando::StaticData) so the id->name table never crosses into
     // common code. May itself be NULL.
     const char* (*checkName)(uint16_t checkId);
+    // MM's live save, laid out exactly like the shadow blob (every offset above
+    // applies to it), or NULL when it must not be read: the MM TU answers
+    // &gSaveContext only while MM's play state is loaded, which excludes the
+    // title screen (an unmarked bootstrap save) and file select (which scans
+    // slots through the live buffer). The view calls it only while MM is the
+    // active game (ADR 0008 rule 5's amendment) and uses the answer only when
+    // it carries the 'ZELDA3' marker; otherwise it falls back to the shadow
+    // (#799). May itself be NULL: the shadow is then the only source.
+    const void* (*liveSave)(void);
 } ComboMMTrackerDesc;
 
 /**
@@ -263,7 +278,8 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId);
 // per host, so two copies of one item on two hosts are counted apart; the
 // shared-item array cannot say that (its entries carry no host and are recycled
 // once redeemed). The host game's data carries the per-game panel's freshness:
-// MM's is the last game switch or save, OoT's is live while OoT runs. When the
+// each game's is live while that game is played; otherwise MM's is the last
+// game switch or save and OoT's the last game switch. When the
 // host game has nothing to read, found is UNKNOWN, never "not found".
 
 /** Whether a crossing's host check has been collected, per the host game's save. */
