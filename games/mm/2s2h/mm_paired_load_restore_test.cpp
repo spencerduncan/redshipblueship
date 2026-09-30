@@ -214,8 +214,11 @@ int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride
 
     if (!emptyMmHalf) {
         gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
-        gSaveContext.save.shipSaveInfo.rando.finalSeed = kSeed;
         Rando::Foreign::ResolvePairedProfile(/*paired=*/true);
+        // THIS pair's world: the seed the master seed derives from the options
+        // just resolved into the half (rung 0), as OnFileCreate stamps it. The
+        // arrival's pair-membership check (#564 V11) refuses any other seed.
+        gSaveContext.save.shipSaveInfo.rando.finalSeed = Rando::Foreign::MixPairedFinalSeedForAttempt(0);
         Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
     } else {
         // Written explicitly: the shadow buffers outlive a session reset, so an

@@ -4896,6 +4896,8 @@ extern "C" int MM_Rando_GenerateAtCreation(int slot, const char* ootSpoilerPath)
  * @return 1 when the arrival is REFUSED and the frozen MM half must NOT be
  *         consumed; 0 to proceed.
  */
+static int MM_Rando_RefuseIfNotPairMember(const uint32_t* options, uint32_t finalSeed, const char* what);
+
 int MM_Rando_GateCrossGameArrival(void) {
     if (!Combo_ForeignPairingActive()) {
         fprintf(stderr,
@@ -5032,8 +5034,80 @@ int MM_Rando_GateCrossGameArrival(void) {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // PAIR MEMBERSHIP of the armed MM half (#564 V11).
+    //
+    // The two gates above compare RULES; neither asks whether the half about to
+    // be hydrated is this pair's WORLD. A half from another pair (a mixed
+    // .redsave, a cross-slot copy) passed them, was consumed, and the hydrate
+    // half's lost-type-byte repair re-stamped it SAVETYPE_RANDO on the evidence
+    // of finalSeed != 0 alone — adopting and freezing back a foreign identity
+    // permanently. The derivation is fully recomputable here: the half's
+    // finalSeed must be what this pair's master seed derives from the half's
+    // OWN persisted options at the recorded ladder rung.
+    //
+    // Checked HERE, before the consume, for the reason the other refusals are:
+    // refusing means NOT hydrating — the blob stays armed and untouched, the
+    // slot is latched, and MM plays the boot chain's vanilla bootstrap. Only a
+    // half that carries a world is checked (rando type byte, or a nonzero
+    // finalSeed under a lost one); a vanilla half with no seed claims none.
+    // ------------------------------------------------------------------------
+    if (Context_HasFrozenState(GAME_MM)) {
+        const unsigned char* blob = static_cast<const unsigned char*>(Context_GetMMSaveContext());
+        if (blob != nullptr) {
+            SaveType blobType;
+            uint32_t blobFinalSeed = 0;
+            uint32_t blobOptions[RO_MAX];
+            memcpy(&blobType, blob + offsetof(SaveContext, save.shipSaveInfo.saveType), sizeof(blobType));
+            memcpy(&blobFinalSeed, blob + offsetof(SaveContext, save.shipSaveInfo.rando.finalSeed),
+                   sizeof(blobFinalSeed));
+            memcpy(blobOptions, blob + offsetof(SaveContext, save.shipSaveInfo.rando.randoSaveOptions),
+                   sizeof(blobOptions));
+            if (blobType == SAVETYPE_RANDO || blobFinalSeed != 0) {
+                if (MM_Rando_RefuseIfNotPairMember(blobOptions, blobFinalSeed, "the armed MM half")) {
+                    return 1;
+                }
+            }
+        }
+    }
+
     fflush(stderr);
     return 0;
+}
+
+/**
+ * The pair-membership check and its refusal (#564 V11), shared by the gate
+ * (the armed half, before the consume) and the hydrate half's no-blob leg (a
+ * live save that already carries a world with nothing consumed). Recomputes the derivation through
+ * Rando::Foreign::FinalSeedBelongsToPair; on a match logs it and returns 0. On
+ * a mismatch it refuses through the existing surface — slot latched with
+ * RSBS_REFUSE_IDENTITY, nothing quarantined (the .redsave on disk is healthy;
+ * the session holds a half that is not this pair's), the missing-half toast,
+ * because from the player's side this file's own Majora's Mask world is not
+ * here — re-stamps nothing, and returns 1.
+ */
+static int MM_Rando_RefuseIfNotPairMember(const uint32_t* options, uint32_t finalSeed, const char* what) {
+    uint32_t expected = 0;
+    int attempt = -1;
+    if (Rando::Foreign::FinalSeedBelongsToPair(options, finalSeed, &expected, &attempt)) {
+        fprintf(stderr,
+                "[MM] pairing: %s belongs to this pair (mmFinalSeed=%08X = masterSeed %u's derivation from its own "
+                "options at ladder rung %d)\n",
+                what, (unsigned)finalSeed, gComboCtx.sharedRandoSeed, attempt);
+        return 0;
+    }
+    const int slot = RsbsSave_GetActiveSlot();
+    fprintf(stderr,
+            "[MM] pairing: REFUSED — %s does not belong to this pair: its mmFinalSeed %08X is not what masterSeed %u "
+            "derives from the half's own persisted options (%08X at ladder rung %d; recorded mmPairedAttempt=%u). It "
+            "is another pair's world (a mixed or cross-slot unified save). It is NOT adopted and NOT re-stamped; "
+            "unified-save slot %d is latched against writes this session\n",
+            what, (unsigned)finalSeed, gComboCtx.sharedRandoSeed, (unsigned)expected, attempt >= 0 ? attempt : 0,
+            (unsigned)gComboCtx.mmPairedAttempt, slot);
+    fflush(stderr);
+    RsbsSave_RefuseSlotIdentity(slot);
+    MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr);
+    return 1;
 }
 
 /**
@@ -5082,6 +5156,18 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
         // save is frozen on the next switch-out, every later return leg restores
         // it, re-reports "existing save", and MM plays vanilla forever with the
         // player's entire placement table still sitting intact underneath.
+        //
+        // PAIR MEMBERSHIP (#564 V11). "A complete rando world" is only evidence
+        // of THIS pair's lost type byte if the world is this pair's: finalSeed
+        // != 0 alone re-stamped another pair's half and froze its identity back.
+        // That check is NOT repeated here: MM_Rando_GateCrossGameArrival ran it
+        // on the very buffer this consume just applied (Context_GetMMSaveContext
+        // is the frozen MM shadow Combo_ConsumeFrozenState restores), under the
+        // same condition, and every caller skips the consume on its refusal. A
+        // half that reaches this point with hadFrozenState set is this pair's.
+        // A re-check here could only refuse AFTER the foreign world was already
+        // live in gSaveContext, the refused-but-hydrated state the gate exists
+        // to prevent.
         if (!alreadyRando && gSaveContext.save.shipSaveInfo.rando.finalSeed != 0) {
             gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
             fprintf(stderr,
@@ -5118,7 +5204,12 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
     if (alreadyRando) {
         // Defensive: the bootstrap save the boot chain authored should always be
         // vanilla, and with no frozen blob consumed nothing can have made it
-        // rando. Report rather than act.
+        // rando. Report rather than act — once the world is shown to be this
+        // pair's (#564 V11): another pair's world is refused like an armed one.
+        if (MM_Rando_RefuseIfNotPairMember(RANDO_SAVE_OPTIONS, gSaveContext.save.shipSaveInfo.rando.finalSeed,
+                                           "the live already-rando MM save")) {
+            return;
+        }
         fprintf(stderr,
                 "[MM] pairing: already-rando save with no frozen half (mmFinalSeed=%08X crossingsInHyrule=%d "
                 "crossingsInTermina=%d)\n",
