@@ -1766,5 +1766,11 @@ void DebugConsole_Init(void) {
                               { "starting_region", Ship::ArgumentType::NUMBER, true },
                           } });
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // The OoTWindowsGate row registers these commands in a harness with no window (#798).
+    if (Ship::Context::GetInstance()->GetWindow() == nullptr) {
+        return;
+    }
+#endif
     Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
 }
