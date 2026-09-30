@@ -41,8 +41,8 @@
  * (packages/generator/src/common/text/text.c comboTextAppendHeader), because it
  * identifies the item by drawing its real 3D model. We do not draw OoT's model
  * in MM yet (the foreign pickup draws no model since #510; curated OoT models
- * are reachable by path from redship-mm.o2r since #577 M1 -- today only the M1
- * seed, #577 M6 curates the set -- and drawing them is #577 M3), and 2S2H's own
+ * are reachable by path from redship-mm.o2r since #577 M1 -- every OoT-exclusive
+ * get-item object since #577 M6 -- and drawing them is #577 M3), and 2S2H's own
  * rando textbox carries the icon for every
  * native pickup, so the icon is the identification surface that exists here;
  * with it a foreign pickup reads like a native one, which is #510's rule.
