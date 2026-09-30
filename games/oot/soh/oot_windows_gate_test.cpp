@@ -16,6 +16,11 @@
  * the calls with Majora's Mask (and with no game) running is the assertion. The calls run DrawElement() first, so an
  * ungated build dies on the embed path, the one that writes MM's save with the window closed.
  *
+ * That tripwire only locks paths whose body reaches ImGui, and it never runs a body under OoT. The real windows'
+ * UpdateElement bodies are empty or wait for a click, so the Update leg is locked by a counting spy base window instead
+ * (GateSpy below): through OoTActiveGated<GateSpy>, each of the three bodies must run exactly once under OoT and never
+ * under Majora's Mask or with no game running. Removing any one of the wrapper's three overrides fails that check.
+ *
  * The windows are constructed without Gui::AddGuiWindow on purpose: AddGuiWindow calls Init(), and the check
  * tracker's InitElement dereferences a null SaveManager::Instance here. The Message Viewer is leaked on purpose: its
  * InitElement allocates the buffers its destructor frees, and InitElement never runs.
@@ -28,6 +33,7 @@
 
 #include <cstdio>
 #include <memory>
+#include <string>
 
 #include <libultraship/libultraship.h>
 #include <ship/Context.h>
@@ -62,6 +68,70 @@ const char* kTrackerLayoutCVars[] = {
     CVAR_TRACKER_ITEM("WindowType"),      CVAR_TRACKER_ITEM("ShowOnlyPaused"), CVAR_TRACKER_CHECK("WindowType"),
     CVAR_TRACKER_CHECK("ShowOnlyPaused"), CVAR_TRACKER_ENTRANCE("WindowType"), CVAR_TRACKER_ENTRANCE("ShowOnlyPaused"),
 };
+
+#define OWG_SPY_CVAR CVAR_WINDOW("OoTWindowsGateSpy")
+
+// A base window that counts how often each of the three bodies runs and touches nothing else, so OoTActiveGated<> can
+// be driven under every game, OoT included. The eight real windows cannot lock the Update leg: their UpdateElement
+// bodies are empty or act only after a click, so an ungated Update() on them returns harmlessly. Nor can they show
+// pass-through, because under OoT their bodies reach ImGui, which this harness does not have. The spy overrides Draw()
+// itself (GuiWindow::Draw would reach ImGui), and that override is what OoTActiveGated<>::Draw forwards to.
+class GateSpy : public Ship::GuiWindow {
+  public:
+    GateSpy(const std::string& consoleVariable, const std::string& name) : Ship::GuiWindow(consoleVariable, name) {
+    }
+
+    int draws = 0;
+    int drawElements = 0;
+    int updateElements = 0;
+
+    void Draw() override {
+        draws++;
+    }
+    void DrawElement() override {
+        drawElements++;
+    }
+
+  protected:
+    void InitElement() override {
+    }
+    void UpdateElement() override {
+        updateElements++;
+    }
+};
+
+// Drives the three ways into a window through the wrapper under one game, through the GuiWindow pointer the Gui and the
+// Port Menu hold, and counts the failures: each body must run once when wantBodies, and never otherwise.
+int RunSpy(GameId game, const char* gameName, bool wantBodies) {
+    auto spy = std::make_shared<OoTActiveGated<GateSpy>>(OWG_SPY_CVAR, "OoTWindowsGate spy");
+    std::shared_ptr<Ship::GuiWindow> asWindow = spy;
+    Context_SetCurrentGame(game);
+    asWindow->DrawElement();
+    asWindow->Update();
+    asWindow->Draw();
+    printf("[TEST] oot-windows-gate: spy, %s running: DrawElement body ran %d, UpdateElement body ran %d, Draw body "
+           "ran %d\n",
+           gameName, spy->drawElements, spy->updateElements, spy->draws);
+    const int want = wantBodies ? 1 : 0;
+    int failures = 0;
+    if (spy->drawElements != want) {
+        printf("[TEST] FAIL: oot-windows-gate: %s running, the menu-embed DrawElement() body ran %d time(s), want %d\n",
+               gameName, spy->drawElements, want);
+        failures++;
+    }
+    if (spy->updateElements != want) {
+        printf("[TEST] FAIL: oot-windows-gate: %s running, the per-frame Update() body ran %d time(s), want %d\n",
+               gameName, spy->updateElements, want);
+        failures++;
+    }
+    if (spy->draws != want) {
+        printf("[TEST] FAIL: oot-windows-gate: %s running, the Draw() body ran %d time(s), want %d\n", gameName,
+               spy->draws, want);
+        failures++;
+    }
+    fflush(stdout);
+    return failures;
+}
 
 } // namespace
 
@@ -135,7 +205,18 @@ extern "C" int OoT_WindowsGate_RunHeadless(void) {
     OWG_ASSERT(!drawsUnderMM, "OoT_Gui_ShouldDraw() true while Majora's Mask is the running game");
     OWG_ASSERT(!drawsUnderNone, "OoT_Gui_ShouldDraw() true with no game running (GAME_NONE must be excluded)");
 
-    // ---- 2. The wired gate: all three paths, every window -----------------------------------------------------------
+    // ---- 2. The wrapper, on a counting spy: each path blocked unless OoT runs, each path passed through when it does
+    // -
+    int spyFailures = 0;
+    spyFailures += RunSpy(GAME_OOT, "Ocarina of Time", true);
+    spyFailures += RunSpy(GAME_MM, "Majora's Mask", false);
+    spyFailures += RunSpy(GAME_NONE, "no game", false);
+    Context_SetCurrentGame(prevGame);
+    CVarClear(OWG_SPY_CVAR);
+    OWG_ASSERT(spyFailures == 0,
+               "OoTActiveGated<> lets a body run under a non-OoT game or blocks one under OoT (above)");
+
+    // ---- 3. The wired gate on the eight real windows: all three paths, every window ---------------------------------
     const GameId inactiveGames[] = { GAME_MM, GAME_NONE };
     for (GameId game : inactiveGames) {
         Context_SetCurrentGame(game);
@@ -151,7 +232,7 @@ extern "C" int OoT_WindowsGate_RunHeadless(void) {
     }
     Context_SetCurrentGame(prevGame);
 
-    // ---- 3. Dormant, not hidden ------------------------------------------------------------------------------------
+    // ---- 4. Dormant, not hidden ------------------------------------------------------------------------------------
     // A gated window must come back when OoT resumes, so the gate may not Hide() it or touch its CVar.
     for (const GatedWindow& w : windows) {
         if (!w.window->IsVisible() || CVarGetInteger(w.visibilityCVar, 0) != 1) {
@@ -165,7 +246,8 @@ extern "C" int OoT_WindowsGate_RunHeadless(void) {
     }
 
     printf("[TEST] PASS: oot-windows-gate: the eight OoT save/play-state windows run no Draw, Update or menu-embed "
-           "DrawElement body unless OoT is the running game, and stay visible while gated\n");
+           "DrawElement body unless OoT is the running game, the wrapper passes all three through under OoT, and the "
+           "windows stay visible while gated\n");
     return 0;
 }
 
