@@ -594,8 +594,9 @@ TestResult ComboSingleBag_Run(void) {
     // ------------------------------------------------------------------
     int hostRuleCounts[7];
     const int hostRuleViolations = OoT_ComboLogic_TestSweepForeignHostRule(hostRuleCounts);
-    printf("[TEST] combo-single-bag: OoT host rule: %d shop shelves all accepted; scrub %d, merchant %d, chest game "
-           "%d, shop-ish non-shelf name %d, non-chest non-shelf %d rows all rejected; %d accepted; %d violation(s)\n",
+    printf("[TEST] combo-single-bag: OoT host rule: %d shop shelves (each must be accepted); scrub %d, merchant %d, "
+           "chest game %d, shop-ish non-shelf name %d, non-chest non-shelf %d rows (each must be rejected); %d "
+           "accepted; %d violation(s)\n",
            hostRuleCounts[0], hostRuleCounts[1], hostRuleCounts[2], hostRuleCounts[3], hostRuleCounts[4],
            hostRuleCounts[5], hostRuleCounts[6], hostRuleViolations);
 

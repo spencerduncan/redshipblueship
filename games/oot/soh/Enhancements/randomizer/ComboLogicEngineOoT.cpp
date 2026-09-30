@@ -2602,8 +2602,9 @@ extern "C" int OoT_ComboLogic_HintingPairedRemainder(void) {
  * asks the same predicate the fill filtered on, so it cannot see the predicate
  * itself loosen; this can. Categories:
  *   [0] RCTYPE_SHOP rows, the plain shop shelves (#800 pass 1): each must be
- *       ACCEPTED, and each must be an ACTOR_EN_GIRLA row in a shop scene
- *       (IsShop()), the two facts the shelf's draw and buy flow rely on;
+ *       ACCEPTED, and each must be an ACTOR_EN_GIRLA row, the actor whose draw
+ *       and buy flow the shelf relies on (not IsShop(): Kakariko's bazaar is
+ *       tabled under SCENE_TEST01, see Randomizer::IdentifyShopItem);
  * and each of these must be REJECTED:
  *   [1] RCTYPE_SCRUB rows,
  *   [2] RCTYPE_MERCHANT rows,
@@ -2637,12 +2638,11 @@ extern "C" int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts) {
         const bool shelf = type == RCTYPE_SHOP;
         if (shelf) {
             outCounts[0]++;
-            if (!accepted || loc->GetActorID() != ACTOR_EN_GIRLA || !loc->IsShop()) {
+            if (!accepted || loc->GetActorID() != ACTOR_EN_GIRLA) {
                 fprintf(stderr,
-                        "[OoT/ComboLogic] host-rule sweep: shop shelf '%s' (check %d) is %s (actor %d, shop scene %d); "
-                        "every plain shelf must be an accepted EN_GIRLA row in a shop scene (#800)\n",
-                        name.c_str(), c, accepted ? "accepted" : "REJECTED", (int)loc->GetActorID(),
-                        loc->IsShop() ? 1 : 0);
+                        "[OoT/ComboLogic] host-rule sweep: shop shelf '%s' (check %d) is %s (actor %d); every plain "
+                        "shelf must be an accepted EN_GIRLA row (#800)\n",
+                        name.c_str(), c, accepted ? "accepted" : "REJECTED", (int)loc->GetActorID());
                 violations++;
             }
         }
@@ -2669,7 +2669,8 @@ extern "C" int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts) {
         if (accepted) {
             outCounts[6]++;
             if (!shelf && loc->GetActorID() != ACTOR_EN_BOX) {
-                fprintf(stderr, "[OoT/ComboLogic] host-rule sweep: '%s' (check %d) is accepted but is neither a chest "
+                fprintf(stderr,
+                        "[OoT/ComboLogic] host-rule sweep: '%s' (check %d) is accepted but is neither a chest "
                         "nor a shelf\n",
                         name.c_str(), c);
                 violations++;

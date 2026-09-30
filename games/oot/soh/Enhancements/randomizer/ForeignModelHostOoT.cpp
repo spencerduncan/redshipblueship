@@ -49,6 +49,10 @@ extern "C" {
 #include "macros.h"
 #include "functions.h"
 #include "variables.h"
+// sys_matrix.c's stack (no header declares it): the test bridge below gives the
+// draw a private stack and puts these back.
+extern MtxF* OoT_sMatrixStack;
+extern MtxF* OoT_sCurrentMatrix;
 }
 
 #include "context.h"       // src/common — GameId
