@@ -134,7 +134,8 @@ void Rando::MiscBehavior::CheckQueue() {
                             // #577 M3: CUSTOM_ITEM_PARAM keeps the CHECK id after
                             // the give (the native branch swaps in an RI): the
                             // draw, which shows the item only from this point on,
-                            // finds the model through the check's placement.                        },
+                            // finds the model through the check's placement.
+                        },
                     .drawItem =
                         [](Actor* actor, PlayState* play) {
                             // The native branch's scale, then the origin's model
