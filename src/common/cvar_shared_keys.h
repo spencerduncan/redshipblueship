@@ -164,6 +164,12 @@
 #define RSBS_CVAR_COMBO_WINDOW_SPOILER "gCombo.Windows.Spoiler"
 #define RSBS_CVAR_COMBO_WINDOW_TRACKER "gCombo.Windows.Tracker"
 #define RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS "gCombo.Windows.ComboSettings"
+/* #458 U0: the unified Item Tracker overlay's visibility (one overlay for both
+ * games, live for the active one and the frozen snapshot for the other). The
+ * window lands with #458 U2 and reads this define, as the Combo Settings pane
+ * reads its own; the key is spelled and classified first so the overlay cannot
+ * arrive with an unclassified key. */
+#define RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER "gCombo.Windows.ItemTracker"
 
 /* MM's four tracker windows' visibility toggles (#489, #535), MM's upstream
  * "gWindows.*" names. NOT tier-4 keys and not in kComboKeys: they are MM's own
@@ -540,6 +546,8 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_WINDOW_TRACKER, ComboKeyClass::Preference, "combo tracker window visibility (#458)" },
     { RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS, ComboKeyClass::Preference,
       "combo settings pane visibility (ADR 0011 increment 2)" },
+    { RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER, ComboKeyClass::Preference,
+      "unified item tracker overlay visibility (#458; ADR 0004's 2026-09-30 amendment)" },
 };
 
 constexpr bool ComboKeyHasPrefix(const char* key, const char* prefix) {
@@ -926,12 +934,13 @@ static_assert(kDisputedClassificationKeyCount == 0,
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
 // Five identity keys (the five of ADR 0011 increment 2 less the two pool sizes
-// #801 retired, SharedOcarina (#668) and Goal (ADR 0010 D1)) + three
-// window-visibility preferences (the MM
-// randomizer options window's left with it on 2026-09-27, when the options
-// became Combo pages). Pinning the count makes a silently dropped row a compile
-// error; the lock's tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 8, "five gCombo.Rando.* identity keys + three gCombo.Windows.* preferences = 8");
+// #801 retired, SharedOcarina (#668) and Goal (ADR 0010 D1)) + four
+// window-visibility preferences (the MM randomizer options window's left with
+// it on 2026-09-27, when the options became Combo pages; #458 U0 added the
+// unified item tracker overlay's). Pinning the count makes a silently dropped
+// row a compile error; the lock's tree scan makes a silently ADDED key a red
+// test.
+static_assert(kComboKeyCount == 9, "five gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 9");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is
