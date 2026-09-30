@@ -76,9 +76,9 @@ using namespace UIWidgets;
 // ============================================================================
 // Cross-Game combo rules (#655; ADR 0011 increment 2, #498; #497 step 6)
 // ============================================================================
-// The seven tier-4 `gCombo.Rando.*` keys — direction, per-direction pool sizes,
-// per-direction item classes, the shared ocarina (#668) and the goal (ADR 0010
-// D1) — render as ROWS in
+// The five tier-4 `gCombo.Rando.*` keys — direction, per-direction item
+// classes, the shared ocarina (#668) and the goal (ADR 0010 D1); the two
+// pool-size rows were retired by #801 — render as ROWS in
 // the Cross-Game Rules page of the tier-4 Combo section below. #497 step 6
 // moved them there from the interim host, Randomizer → Cross-Game.
 // PR #652 shipped them as a common-owned pop-out pane
@@ -101,7 +101,6 @@ using namespace UIWidgets;
 // PreFunc overwrites the buffer with the model's value again — so the rows can
 // never disagree with the record about what this world's rules are.
 static int32_t comboRuleDirection;
-static int32_t comboRulePoolSize[2];  // [0] OoT items -> MM checks, [1] MM items -> OoT checks
 static bool comboRuleItemClass[2][6]; // [0] OoT pool, [1] MM pool; second index is comboRuleClassBits'
 static bool comboRuleSharedOcarina;   // #668: ComboSettingsRecord.comboFlags' shared-ocarina bit
 static int32_t comboRuleGoal;         // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
@@ -497,7 +496,7 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
  * swapped), which no compile catches.
  */
 void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
-    // Seven settings, rendered as rows rather than as the pop-out pane PR #652
+    // Five settings, rendered as rows rather than as the pop-out pane PR #652
     // shipped. See the block comment at the top of this file for why every row
     // is a pointer-based widget over a src/common writer rather than a
     // WIDGET_CVAR_* one, and for which value each row shows in which state.
@@ -552,39 +551,9 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                               "MM Items to OoT: Majora's Mask items may appear in Ocarina of Time.\n"
                               "Both Directions: Items may cross both ways."));
 
-    // Pool sizes. The label carries a %d because UIWidgets::SliderInt renders an
-    // Above-positioned label through ImGui::Text(label, *value), SoH's "Name: %d"
-    // slider shape. Bounds are the model's pinned space (1..RSBS_FOREIGN_PLACEMENT_CAP),
-    // not local numbers: a slider that can reach a value Combo_ComboSettingSet
-    // refuses is a control that lies.
-    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_POOL_SIZE_OOT) + ": %d", WIDGET_SLIDER_INT)
-        .ValuePointer(&comboRulePoolSize[0])
-        .PreFunc([](WidgetInfo& info) {
-            ComboSettingsRecord shown;
-            const bool decided = ComboRuleShownRecord(&shown);
-            comboRulePoolSize[0] = (int32_t)shown.poolSizeOoT;
-            ComboRuleApplyDecided(info, decided);
-        })
-        .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, comboRulePoolSize[0]); })
-        .Options(IntSliderOptions()
-                     .Min(1)
-                     .Max((int32_t)RSBS_FOREIGN_PLACEMENT_CAP)
-                     .DefaultValue(Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_OOT))
-                     .Tooltip("Sets the most Ocarina of Time items that may be placed on Majora's Mask checks."));
-    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_POOL_SIZE_MM) + ": %d", WIDGET_SLIDER_INT)
-        .ValuePointer(&comboRulePoolSize[1])
-        .PreFunc([](WidgetInfo& info) {
-            ComboSettingsRecord shown;
-            const bool decided = ComboRuleShownRecord(&shown);
-            comboRulePoolSize[1] = (int32_t)shown.poolSizeMM;
-            ComboRuleApplyDecided(info, decided);
-        })
-        .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_MM, comboRulePoolSize[1]); })
-        .Options(IntSliderOptions()
-                     .Min(1)
-                     .Max((int32_t)RSBS_FOREIGN_PLACEMENT_CAP)
-                     .DefaultValue(Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_MM))
-                     .Tooltip("Sets the most Majora's Mask items that may be placed on Ocarina of Time checks."));
+    // No pool-size rows (#801): under the single bag how many items cross is an
+    // outcome of the fill, not a setting, and the "Max OoT Items" / "Max MM
+    // Items" sliders only re-seeded the world.
 
     // The shared ocarina (#668). A comboFlags BIT rather than a field of its
     // own, so the row is a plain checkbox over the model's 0/1 space; everything

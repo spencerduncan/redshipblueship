@@ -1,6 +1,7 @@
 /**
  * @file ComboSettingsWindow.cpp
- * @brief Renders the five tier-4 combo settings (ADR 0011 increment 2).
+ * @brief Renders the tier-4 combo settings (ADR 0011 increment 2; the two
+ *        pool sizes retired by #801).
  *
  * See ComboSettingsWindow.h for the contract. Every value drawn here comes
  * from combo_settings_view.h (pre-creation) or Combo_ComboSettingsSummary
@@ -177,20 +178,6 @@ void DrawDirectionRow(uint8_t direction, bool decided) {
     }
 }
 
-void DrawPoolSizeRow(ComboSettingId id, uint8_t value, bool decided) {
-    int v = (int)value;
-    if (decided) {
-        ImGui::BeginDisabled();
-    }
-    if (ImGui::SliderInt(Combo_ComboSettingLabel(id), &v, 1, (int)RSBS_FOREIGN_PLACEMENT_CAP)) {
-        Combo_ComboSettingSet(id, (int32_t)v);
-    }
-    if (decided) {
-        ImGui::EndDisabled();
-        DecidedTag();
-    }
-}
-
 void DrawItemClassRows(ComboSettingId id, uint16_t mask, bool decided) {
     // The allocated bits, in bit order (foreign_items.h). Appending a class is
     // a new row here; re-pointing one is forbidden there.
@@ -279,8 +266,6 @@ void ComboSettingsWindow::DrawElement() {
     }
 
     DrawDirectionRow(shown.direction, decided);
-    DrawPoolSizeRow(COMBO_SETTING_POOL_SIZE_OOT, shown.poolSizeOoT, decided);
-    DrawPoolSizeRow(COMBO_SETTING_POOL_SIZE_MM, shown.poolSizeMM, decided);
     ImGui::Spacing();
     DrawItemClassRows(COMBO_SETTING_ITEM_CLASS_OOT, shown.itemClassOoT, decided);
     ImGui::Spacing();
