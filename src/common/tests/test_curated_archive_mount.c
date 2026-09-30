@@ -16,9 +16,17 @@
  * ResourceMgr_ListFilesForGame files a path under the game its owner belongs to.
  * The runtime side under test is rsbs/src/main.cpp: Combo_EnsureGameArchivesLoaded
  * (every switch) mounts the ARRIVING game's half right after that game's base
- * archives and before its mods, and the MM half is recorded as MM's.
+ * archives and before its mods, Combo_MountCuratedArchive does the same for the
+ * booted game once its own Init has mounted its base archives and mods, and the
+ * MM half is recorded as MM's.
  *
- * Two legs.
+ * Three legs.
+ *
+ *  0. ROM-free, the BOOT entry. Same stand-in scheme as leg 1 (below), its own
+ *     directory and marker paths: Combo_MountCuratedArchive(GAME_MM), as a
+ *     `--game mm` boot, mounts MM's half with MM identity under the MM mod and
+ *     leaves OoT's half unmounted; Combo_MountCuratedArchive(GAME_OOT) then
+ *     mounts OoT's half with OoT identity.
  *
  *  1. ROM-free (runs wherever soh.o2r is staged, CI included). Synthetic
  *     stand-ins named redship-oot.o2r / redship-mm.o2r, each holding paths no
@@ -48,9 +56,13 @@
  *     what LoadMMArchives does on MM's first init right after the switch mounts
  *     it; this row never initializes MM itself.
  *
- * RED before the fix: nothing in rsbs/ mounted a curated archive at all
- * (Combo_EnsureGameArchivesLoaded re-added base archives and mods only), so the
- * first ownership assertion of either leg finds no owner.
+ * RED before the fix (observed 2026-09-30): nothing in rsbs/ mounted a curated
+ * archive at all (Combo_EnsureGameArchivesLoaded re-added base archives and mods
+ * only), so leg 1 found no owner for either half's paths, and leg 2 found every
+ * foreign path owned by its SOURCE game's base archive while the other game ran
+ * -- object_mask_truth by './mm.o2r' (MM identity) on arrival in OoT,
+ * object_gi_hammer by './oot.o2r' (OoT identity) on arrival in MM -- with no
+ * path served by a curated half. Leg 0's entry point did not exist.
  *
  * Included at FILE SCOPE by test_runner.cpp (compiled as C++): it drives the
  * C++-linkage Ship::Context / ArchiveManager APIs directly. The wrapper
@@ -283,16 +295,19 @@ CamOwner CamOwnerOf(Ship::ArchiveManager& am, const std::string& resourcePath) {
 }
 
 // `resourcePath` must be owned by an archive whose FILE NAME is `expectedName`,
-// with MM identity == `expectMM`.
+// with MM identity == `expectMM` unless `checkIdentity` is false (the mod
+// stand-in: it is registered for MM's switch-time re-apply only, not recorded
+// as MM's the way MM's own mod mount records a real one, so its identity here
+// says nothing about production).
 bool CamExpectOwner(Ship::ArchiveManager& am, const char* step, const char* resourcePath, const char* expectedName,
-                    bool expectMM) {
+                    bool expectMM, bool checkIdentity = true) {
     const CamOwner owner = CamOwnerOf(am, resourcePath);
     if (!owner.present) {
         fprintf(stderr, "[curated-archive-mount] FAIL (%s): '%s' is in no mounted archive -- expected %s (%s)\n",
                 step, resourcePath, expectedName, expectMM ? "MM identity" : "OoT identity");
         return false;
     }
-    if (CamFileName(owner.path) != expectedName || owner.isMM != expectMM) {
+    if (CamFileName(owner.path) != expectedName || (checkIdentity && owner.isMM != expectMM)) {
         fprintf(stderr,
                 "[curated-archive-mount] FAIL (%s): '%s' is owned by '%s' (%s identity) -- expected %s with %s "
                 "identity\n",
@@ -317,46 +332,112 @@ bool CamExpectUnowned(Ship::ArchiveManager& am, const char* step, const char* re
 }
 
 // ---------------------------------------------------------------------------
-// Leg 1: synthetic stand-ins, production switch path.
+// Stand-in staging, shared by the boot and switch legs. Each leg stages its own
+// directory with its OWN marker paths, so the two never observe each other's
+// mounts (archives are never unmounted, in `--test all` least of all).
 // ---------------------------------------------------------------------------
 
-int CamSwitchLeg(Ship::ArchiveManager& am) {
+struct CamStage {
+    std::filesystem::path dir;
+    std::string modPath;
+    bool ok = false;
+};
+
+CamStage CamStageStandIns(const char* dirName, const char* ootHalfPath, const char* mmHalfPath,
+                          const char* contestedPath) {
+    CamStage stage;
     std::error_code ec;
-    const std::filesystem::path stage = std::filesystem::absolute("rsbs_test_577_m1_mount", ec);
+    stage.dir = std::filesystem::absolute(dirName, ec);
     // Best effort: a previous process's stand-ins are overwritten below either
     // way. (This process cannot delete them afterwards on Windows -- archives
     // are never unmounted, so their handles stay open.)
-    std::filesystem::remove_all(stage, ec);
-    std::filesystem::create_directories(stage, ec);
-    const std::string modPath = (stage / "mm_mod_standin.o2r").generic_string();
-    if (!CamWriteZip((stage / kCamOoTHalf).string(), { kCamOoTHalfPath }) ||
-        !CamWriteZip((stage / kCamMMHalf).string(), { kCamMMHalfPath, kCamModContestedPath }) ||
-        !CamWriteZip(modPath, { kCamModContestedPath })) {
+    std::filesystem::remove_all(stage.dir, ec);
+    std::filesystem::create_directories(stage.dir, ec);
+    stage.modPath = (stage.dir / "mm_mod_standin.o2r").generic_string();
+    stage.ok = CamWriteZip((stage.dir / kCamOoTHalf).string(), { ootHalfPath }) &&
+               CamWriteZip((stage.dir / kCamMMHalf).string(), { mmHalfPath, contestedPath }) &&
+               CamWriteZip(stage.modPath, { contestedPath });
+    if (!stage.ok) {
         fprintf(stderr, "[curated-archive-mount] FAIL: could not stage the stand-in archives in %s\n",
-                stage.generic_string().c_str());
-        return 1;
+                stage.dir.generic_string().c_str());
     }
+    return stage;
+}
 
-    CamModRegistrySnapshot registry;
-    Combo_RegisterModArchive(GAME_MM, modPath.c_str());
-
-    CamAppDirOverride appDir(stage);
+// Anti-vacuity: the production lookup must actually resolve the stand-ins, or
+// every assertion after it is about some other file.
+bool CamLookupSeesStandIns(const CamAppDirOverride& appDir, const std::filesystem::path& dir) {
     if (!appDir.Ok()) {
-        fprintf(stderr, "[curated-archive-mount] FAIL: could not enter %s\n", stage.generic_string().c_str());
-        return 1;
+        fprintf(stderr, "[curated-archive-mount] FAIL: could not enter %s\n", dir.generic_string().c_str());
+        return false;
     }
-    // Anti-vacuity: the production lookup must actually see the stand-ins,
-    // or every assertion below is about some other file.
     for (const char* name : { kCamOoTHalf, kCamMMHalf }) {
+        std::error_code ec;
         const std::string located = Ship::Context::LocateFileAcrossAppDirs(name);
-        if (!std::filesystem::exists(located) ||
-            !std::filesystem::equivalent(located, stage / name, ec)) {
+        if (!std::filesystem::exists(located) || !std::filesystem::equivalent(located, dir / name, ec)) {
             fprintf(stderr,
                     "[curated-archive-mount] FAIL: LocateFileAcrossAppDirs(\"%s\") resolved '%s', not the stand-in "
                     "in %s -- the leg would test the wrong file\n",
-                    name, located.c_str(), stage.generic_string().c_str());
-            return 1;
+                    name, located.c_str(), dir.generic_string().c_str());
+            return false;
         }
+    }
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 0: synthetic stand-ins, production BOOT path (Combo_MountCuratedArchive,
+// which main() calls once the booted game's own Init has mounted its base
+// archives and mods). MM first, as in `redship --game mm`: OoT's half is not
+// mounted by it; then OoT's entry, as in the default OoT-first boot.
+// ---------------------------------------------------------------------------
+
+constexpr const char* kCamBootOoTHalfPath = "rsbs_test_577_m1/boot/oot_half_only";
+constexpr const char* kCamBootMMHalfPath = "rsbs_test_577_m1/boot/mm_half_only";
+constexpr const char* kCamBootContestedPath = "rsbs_test_577_m1/boot/mm_half_and_mm_mod";
+
+int CamBootLeg(Ship::ArchiveManager& am) {
+    const CamStage stage =
+        CamStageStandIns("rsbs_test_577_m1_boot", kCamBootOoTHalfPath, kCamBootMMHalfPath, kCamBootContestedPath);
+    if (!stage.ok) {
+        return 1;
+    }
+    CamModRegistrySnapshot registry;
+    Combo_RegisterModArchive(GAME_MM, stage.modPath.c_str());
+    CamAppDirOverride appDir(stage.dir);
+    if (!CamLookupSeesStandIns(appDir, stage.dir)) {
+        return 1;
+    }
+
+    int failures = 0;
+    Combo_MountCuratedArchive(GAME_MM);
+    failures += !CamExpectOwner(am, "boot: MM", kCamBootMMHalfPath, kCamMMHalf, true);
+    failures += !CamExpectOwner(am, "boot: MM (mods after curated)", kCamBootContestedPath, "mm_mod_standin.o2r",
+                                false, /*checkIdentity=*/false);
+    failures += !CamExpectUnowned(am, "boot: MM", kCamBootOoTHalfPath,
+                                  "OoT's half must not be mounted by MM's boot");
+
+    Combo_MountCuratedArchive(GAME_OOT);
+    failures += !CamExpectOwner(am, "boot: OoT", kCamBootOoTHalfPath, kCamOoTHalf, false);
+    return failures;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 1: synthetic stand-ins, production SWITCH path
+// (Combo_EnsureGameArchivesLoaded, called before every GameRunner_SwitchTo).
+// ---------------------------------------------------------------------------
+
+int CamSwitchLeg(Ship::ArchiveManager& am) {
+    const CamStage stage =
+        CamStageStandIns("rsbs_test_577_m1_mount", kCamOoTHalfPath, kCamMMHalfPath, kCamModContestedPath);
+    if (!stage.ok) {
+        return 1;
+    }
+    CamModRegistrySnapshot registry;
+    Combo_RegisterModArchive(GAME_MM, stage.modPath.c_str());
+    CamAppDirOverride appDir(stage.dir);
+    if (!CamLookupSeesStandIns(appDir, stage.dir)) {
+        return 1;
     }
 
     int failures = 0;
@@ -371,7 +452,7 @@ int CamSwitchLeg(Ship::ArchiveManager& am) {
     Combo_EnsureGameArchivesLoaded(GAME_MM);
     failures += !CamExpectOwner(am, "switch: arrive MM", kCamMMHalfPath, kCamMMHalf, true);
     failures += !CamExpectOwner(am, "switch: arrive MM (mods after curated)", kCamModContestedPath,
-                                "mm_mod_standin.o2r", false);
+                                "mm_mod_standin.o2r", false, /*checkIdentity=*/false);
     failures += !CamExpectOwner(am, "switch: arrive MM", kCamOoTHalfPath, kCamOoTHalf, false);
 
     // Back in OoT: neither half changes identity.
@@ -497,6 +578,7 @@ extern "C" int CuratedArchiveMount_RunHeadless(void) {
     auto& am = *ctx->GetResourceManager()->GetArchiveManager();
 
     int failures = 0;
+    failures += CamBootLeg(am);
     failures += CamSwitchLeg(am);
     failures += CamIdentityLeg(am);
 

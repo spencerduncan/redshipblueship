@@ -346,6 +346,21 @@ void Combo_ClearModArchives(GameId game);
  */
 void Combo_EnsureGameArchivesLoaded(GameId targetGame);
 
+/**
+ * #577 M1: mount @p host's curated cross-game half — redship-oot.o2r for OoT
+ * (MM-origin models OoT draws), redship-mm.o2r for MM (OoT-origin models MM
+ * draws) — with @p host's identity (the MM half is recorded as MM's, which the
+ * per-archive factory dispatcher parses by), then re-apply @p host's registered
+ * mods on top of it.
+ *
+ * Combo_EnsureGameArchivesLoaded does the same for every ARRIVING game, between
+ * its base archives and its mods; this entry is the boot half, called once the
+ * first game's own Init has mounted its base archives and mods. Defined in
+ * rsbs/src/main.cpp. A missing curated archive is a silent no-op; no-op when
+ * there is no live Ship::Context.
+ */
+void Combo_MountCuratedArchive(GameId host);
+
 #ifdef __cplusplus
 }
 

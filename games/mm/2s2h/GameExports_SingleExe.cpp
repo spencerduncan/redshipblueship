@@ -275,6 +275,16 @@ extern "C" bool Combo_ArchivePathIsMM(const char* path) {
     return path != nullptr && IsMMArchivePath(path);
 }
 
+// #577 M1: record an archive MM does not mount itself as MM's. The one caller is
+// rsbs/src/main.cpp's curated-archive mount, which gives redship-mm.o2r (the
+// OoT-origin models MM draws) MM's identity, so the dispatchers below treat it
+// as MM's with no new mechanism. De-duplicating, like every other recording.
+extern "C" void MM_RecordArchivePath(const char* path) {
+    if (path != nullptr && path[0] != '\0') {
+        RecordMMArchivePath(path);
+    }
+}
+
 // ============================================================================
 // MM-owned GameInteractor shim (#395) — API in games/mm/include/mm_game_hooks.h
 // ============================================================================
