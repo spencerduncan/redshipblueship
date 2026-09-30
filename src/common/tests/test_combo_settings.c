@@ -1478,6 +1478,9 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         const std::string retiredMM = std::string(RSBS::kComboIdentityKeyPrefix) + "PoolSize.MM";
         const char* const kRetiredKeys[2] = { retiredOoT.c_str(), retiredMM.c_str() };
         static const char* const kRetiredLabels[2] = { "Max OoT Items", "Max MM Items" };
+        // Each part reports on its own and the leg fails at its end, so one run
+        // shows every part that is red rather than the first.
+        int retiredFailures = 0;
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             const ComboSettingId id = (ComboSettingId)i;
             for (int r = 0; r < 2; r++) {
@@ -1486,25 +1489,34 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
                     printf("[TEST] FAIL: setting %d is still the retired '%s' ('%s') -- #801 retires it: it changes "
                            "no rule and only re-seeds the world\n",
                            i, kRetiredKeys[r], kRetiredLabels[r]);
-                    return TEST_FAIL;
+                    retiredFailures++;
                 }
             }
         }
 
         // A config file written before #801 still holds the two keys. They
         // author nothing now: a NEW world gets the shipped bytes and the shipped
-        // fingerprint whatever they say.
+        // fingerprint whatever they say. Every live key is cleared first (leg 7's
+        // load restored FORWARD into the direction key), so only the stale pair
+        // could move the record.
         ComboContext_Init();
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            CS_ASSERT(Combo_ComboSettingClear((ComboSettingId)i) == 1, "clear leg 7's keys first");
+        }
         CVarSetInteger(kRetiredKeys[0], 3);
         CVarSetInteger(kRetiredKeys[1], 5);
         ComboSettingsRecord stale;
         Combo_ResolveComboSettings(&stale);
         CVarClear(kRetiredKeys[0]);
         CVarClear(kRetiredKeys[1]);
-        CS_ASSERT(ComboSettingsRecordsEqual(stale, defaults) &&
-                      Combo_ComputeComboSettingsHash(&stale, kSettingsHash, kProfileDigest) == kDefaultsFingerprint,
-                  "a stale gCombo.Rando.PoolSize.* key still reached the record -- a retired row keeps re-seeding "
-                  "every new world (#801)");
+        if (!ComboSettingsRecordsEqual(stale, defaults) ||
+            Combo_ComputeComboSettingsHash(&stale, kSettingsHash, kProfileDigest) != kDefaultsFingerprint) {
+            printf("[TEST] FAIL: a stale gCombo.Rando.PoolSize.* key still reached the record (pool bytes %u/%u, "
+                   "shipped %u/%u) -- a retired row keeps re-seeding every new world (#801)\n",
+                   (unsigned)stale.poolSizeOoT, (unsigned)stale.poolSizeMM, (unsigned)defaults.poolSizeOoT,
+                   (unsigned)defaults.poolSizeMM);
+            retiredFailures++;
+        }
 
         // A world created BEFORE #801 with the sliders moved keeps its bytes and
         // its identity, and still loads: no key authors a pool size any more, so
@@ -1524,8 +1536,9 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             printf("[TEST] FAIL: a world created with Max Items moved before #801 diverges (%s) from a session that "
                    "can no longer author a pool size -- it would be refused at load\n",
                    named);
-            return TEST_FAIL;
+            retiredFailures++;
         }
+        CS_ASSERT(retiredFailures == 0, "#801: see the FAIL line(s) above");
         CS_ASSERT(gComboCtx.comboSettings.poolSizeOoT == 3u && gComboCtx.comboSettings.poolSizeMM == 5u &&
                       Combo_ComboPoolSizeFor((uint8_t)GAME_OOT) == 3 && Combo_ComboPoolSizeFor((uint8_t)GAME_MM) == 5,
                   "the older world's record must keep its own pool bytes verbatim");
