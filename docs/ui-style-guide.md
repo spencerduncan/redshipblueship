@@ -309,10 +309,10 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   832-px window. Each refusal site's own row (`mm-combo-settings-gate`, `mm-spoiler-identity`, `combo-creation-event`)
   compares the toast the site queued with that copy, exactly. The long explanation belongs on the refusal's stderr
   line, not in the toast. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
-  their record names (`poolSizeOoT`, `itemClassMM`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name
-  the field; the Cross-Game Rules page's own labels carry the same abbreviations ("Max OoT Items", "MM Classes"); and
-  six of the thirteen fields (`logicRung`, `comboFlags`, `spare1`, `formatVersion`, `comboSettingsHash`,
-  `triforceHunt`) have no row on that page to name.
+  their record names (`goal`, `itemClassMM`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name the
+  field; the Cross-Game Rules page's own labels carry the same abbreviations ("OoT Classes", "MM Classes"); and eight
+  of the thirteen fields (`poolSizeOoT`, `poolSizeMM` since #801 retired their rows, `logicRung`, `comboFlags`,
+  `spare1`, `formatVersion`, `comboSettingsHash`, `triforceHunt`) have no row on that page to name.
 
 ## 11. Anti-patterns
 

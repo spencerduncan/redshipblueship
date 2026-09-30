@@ -36,12 +36,15 @@
  * cross-game field no key authors) or flagged (an MM identity input the file
  * does not record), visibly.
  *
- *   leg 1 - Goal, Crossing Direction, one pool size, one item-class mask and
- *           Shared Ocarina changed at the title screen, the file loaded
- *           through the production seam's own calls
- *                -> the pair is restored, all five keys hold the file's values,
- *                   one toast names "Goal, Crossing Direction +3", the slot is
- *                   writable, and the arrival gate does not refuse
+ *   leg 1 - Goal, Crossing Direction, one item-class mask and Shared Ocarina
+ *           changed at the title screen, in a file whose record also carries
+ *           a non-default pool size (a world created before #801 retired the
+ *           Max Items rows), the file loaded through the production seam's
+ *           own calls
+ *                -> the pair is restored, all four keys hold the file's values,
+ *                   the record keeps its own pool byte, one toast names "Goal,
+ *                   Crossing Direction +2", the slot is writable, and the
+ *                   arrival gate does not refuse
  *   leg 2 - one MM trick and one MM option changed, same load
  *                -> the MM profile digest matches the file again, both keys hold
  *                   the file's values, a toast names both rows, and the arrival
@@ -356,29 +359,33 @@ bool FitsOneLine(const Toast& toast) {
 // ---------------------------------------------------------------------------
 int LegCrossGameRules() {
     ClearAuthoredKeys();
-    // Three more rules through the same table: a pool size, a class mask and
-    // Shared Ocarina, each set to a legal value that is not the shipped one.
-    const int32_t filePool = Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_OOT) == 1 ? 2 : 1;
+    // Two more rules through the same table: a class mask and Shared Ocarina,
+    // each set to a legal value that is not the shipped one.
     const int32_t fileClass =
         Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_MM) == 0 ? (int32_t)RSBS_ITEMCLASS_PROGRESSION : 0;
     const int32_t fileOcarina = Combo_ComboSettingDefault(COMBO_SETTING_SHARED_OCARINA) != 0 ? 0 : 1;
     if (Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER) != 1 ||
         Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) != 1 ||
-        Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, filePool) != 1 ||
         Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, fileClass) != 1 ||
         Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, fileOcarina) != 1) {
-        return Fail(10, "leg 1 setup: could not author the five rules for the file");
+        return Fail(10, "leg 1 setup: could not author the four rules for the file");
     }
-    if (int rc = CreatePairedFile(false, nullptr)) {
+    // The record also carries a pool size nobody can author any more: the
+    // file was created before #801 with "Max OoT Items" moved. No key can
+    // restore it, and none has to: the session holds no pool size to diverge.
+    ComboSettingsRecord older;
+    Combo_ResolveComboSettings(&older);
+    const uint8_t filePool = older.poolSizeOoT == 3u ? 2u : 3u;
+    older.poolSizeOoT = filePool;
+    if (int rc = CreatePairedFile(false, &older)) {
         return rc;
     }
 
     // Back at the title screen the player picks the shipped rules again: two
-    // keys set explicitly, three cleared back to unset.
+    // keys set explicitly, two cleared back to unset.
     Relaunch();
     Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH);
     Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH);
-    Combo_ComboSettingClear(COMBO_SETTING_POOL_SIZE_OOT);
     Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_MM);
     Combo_ComboSettingClear(COMBO_SETTING_SHARED_OCARINA);
 
@@ -409,13 +416,14 @@ int LegCrossGameRules() {
                     "rules must win at load",
                     (int)goal, (int)direction);
     }
-    const int32_t pool = Combo_ComboSettingResolved(COMBO_SETTING_POOL_SIZE_OOT);
+    const int32_t pool = (int32_t)gComboCtx.comboSettings.poolSizeOoT;
     const int32_t klass = Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_MM);
     const int32_t ocarina = Combo_ComboSettingResolved(COMBO_SETTING_SHARED_OCARINA);
     printf("[TEST] leg 1 OBSERVED: poolSizeOoT=%d (file %d) itemClassMM=%d (file %d) sharedOcarina=%d (file %d)\n",
            (int)pool, (int)filePool, (int)klass, (int)fileClass, (int)ocarina, (int)fileOcarina);
     if (pool != filePool || klass != fileClass || ocarina != fileOcarina) {
-        return Fail(18, "leg 1: a pool size, class mask or Shared Ocarina key does not hold the file's value");
+        return Fail(18, "leg 1: the record's pool byte, a class mask or Shared Ocarina key does not hold the "
+                        "file's value");
     }
     if (Combo_ComboSettingsDivergence() != 0) {
         return Fail(14, "leg 1: the loaded pair still diverges from the live resolution");
@@ -425,7 +433,7 @@ int LegCrossGameRules() {
     }
     if (!toast.any || !PlrContains(toast.prefix, "Restored from file") || !PlrContains(toast.message, "Goal") ||
         !PlrContains(toast.message, "Crossing Direction") ||
-        ToastShownNames(toast.message) + ToastPlusCount(toast.message) != 5 || !FitsOneLine(toast)) {
+        ToastShownNames(toast.message) + ToastPlusCount(toast.message) != 4 || !FitsOneLine(toast)) {
         return Fail(16, "leg 1: no toast names what the load restored (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
