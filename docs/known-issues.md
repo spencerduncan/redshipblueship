@@ -185,13 +185,12 @@ it on, each game's shop slots hold items from that game only. MM's shop stock do
 shared bag when MM's "Shuffle Shops" is on, so an MM shop item can turn up in an OoT chest;
 OoT's shop stock never leaves Hyrule. Cross-game shops are planned, plain shops first.
 
-**The Check Trackers name "Blue Rupee" or "Junk" for a cross-game chest** ([#796](https://github.com/spencerduncan/redshipblueship/issues/796), pending).
-When a chest holds an item from the other game, the pickup message names the real item
-("You found the Bunny Hood"), but once it is collected Ocarina of Time's Check Tracker lists
-the check with "(Blue Rupee)" and the MM Check Tracker (Combo > Windows) lists it with
-"(Junk)". That is the placeholder the chest holds in its own game's tables, not what you
-got. The check is still counted and coloured as collected. The Combo Tracker's Crossings
-list (Combo > Windows > Toggle Combo Tracker) and the pickup message name the real item.
+**~~The Check Trackers name "Blue Rupee" or "Junk" for a cross-game chest~~ — RESOLVED** ([#796](https://github.com/spencerduncan/redshipblueship/issues/796), PR [#813](https://github.com/spencerduncan/redshipblueship/pull/813)).
+Fixed by PR #813: once a cross-game chest is collected, Ocarina of Time's Check Tracker lists it
+with the item found and "(MM)", for example "(Bunny Hood (MM))", and the MM Check Tracker with
+the item and "(OoT)". OoT's tracker search finds the chest by that name too. The original
+report: both trackers named the placeholder the chest holds in its own game's tables, "(Blue
+Rupee)" in OoT and "(Junk)" in MM, while the pickup message named the real item.
 
 **Do not open Ocarina of Time's Save Editor or Message Viewer while you are in Majora's Mask** ([#797](https://github.com/spencerduncan/redshipblueship/issues/797), pending).
 The two games share one save buffer, and OoT's windows do not yet check which game is
