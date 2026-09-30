@@ -873,7 +873,8 @@ static void GpPairedTrackerPlaytest(int frame) {
             }
             sHost = row.hostCheck;
             const char* item = Combo_GetForeignItemName(row.item);
-            fprintf(stderr, "[PT796] opening OoT check %u (%s), which hosts the MM item %s: scene %u treasure flag %u\n",
+            fprintf(stderr,
+                    "[PT796] opening OoT check %u (%s), which hosts the MM item %s: scene %u treasure flag %u\n",
                     (unsigned)row.hostCheck,
                     Rando::StaticData::GetLocation((RandomizerCheck)row.hostCheck)->GetShortName().c_str(),
                     item != NULL ? item : "?", (unsigned)cc.scene, (unsigned)cc.flag);

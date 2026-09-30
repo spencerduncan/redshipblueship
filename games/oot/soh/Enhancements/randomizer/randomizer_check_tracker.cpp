@@ -31,6 +31,11 @@
 #include "z64item.h"
 #include "fishsanity.h"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// src/common, outside the extern "C" block below: it manages its own linkage.
+#include "foreign_items.h" // Combo_GetForeignPlacementForOoTCheck, Combo_GetForeignItemName (#796)
+#endif
+
 extern "C" {
 #include "variables.h"
 #include "functions.h"
@@ -962,7 +967,23 @@ extern "C" int RandoTest_CheckTrackerArrivalLock(void) {
 // a found check, the same text for an identified shop item, and the search
 // filter, so they cannot disagree.
 static std::string PlacedItemTrackerName(const Rando::ItemLocation* itemLoc, RandomizerCheck rc) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // A check that hosts an MM item physically holds a cover (the Blue Rupee the
+    // single bag writes, ComboLogicEngineOoT.cpp), so its own item names the
+    // cover. What the player finds there is the crossed item, which the RC-queue
+    // drain presents instead (hook_handlers.cpp) -- in a paired session only:
+    // unpaired, the drain refuses the crossing and gives the cover, so the row
+    // names the cover too. The suffix names the item's game, as the spoiler marks a crossing.
+    if (Combo_ForeignPairingActive()) {
+        if (const SharedItem* crossed = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc)) {
+            if (const char* name = Combo_GetForeignItemName(*crossed)) {
+                return std::string(name) + " (MM)";
+            }
+        }
+    }
+#else
     (void)rc;
+#endif
     return itemLoc->GetPlacedItem().GetName().GetForLanguage(gSaveContext.language);
 }
 

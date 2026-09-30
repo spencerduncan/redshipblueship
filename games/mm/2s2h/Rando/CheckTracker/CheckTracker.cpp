@@ -5,6 +5,9 @@
 #include "2s2h/BenGui/UIWidgets.hpp"
 #include "2s2h/Rando/StaticData/StaticData.h"
 #include <cstring>
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/Foreign.h" // ForeignNameForCheck: the item a crossing host yields (#796)
+#endif
 
 // Image Icons
 #include "assets/2s2h_assets.h"
@@ -27,7 +30,16 @@ extern std::shared_ptr<Rando::CheckTracker::CheckTrackerWindow> mRandoCheckTrack
 
 // The item an obtained check's row names (#796), from that check's save row.
 static std::string ObtainedItemTrackerName(RandoCheckId randoCheckId, const RandoSaveCheck& randoSaveCheck) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // A check that hosts an OoT item holds RI_JUNK in MM's table, and the foreign
+    // give never rewrites it (CheckQueue.cpp). What the player found is the OoT
+    // item the give's textbox named, from the same lookup.
+    if (const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId)) {
+        return std::string(foreignName) + " (OoT)";
+    }
+#else
     (void)randoCheckId;
+#endif
     return Rando::StaticData::Items[randoSaveCheck.randoItemId].name;
 }
 
