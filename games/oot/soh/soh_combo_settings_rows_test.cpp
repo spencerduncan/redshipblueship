@@ -479,6 +479,29 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] leg 1b: the goal row offers the five pinned goals in OoTMM's words, default Ganon & Majora\n");
     }
 
+    // ---- Leg 1c: the two "Max Items" rows are retired (#801) ----------------
+    // Under the single bag no rule reads a pool size: how many items cross is an
+    // outcome of the fill, not a setting, and moving either slider only re-seeded
+    // the world (ADR 0011's 2026-09-27 note). Operator ruling 2026-09-30: the
+    // rows go. Matched by LABEL TEXT rather than by id, so the check does not
+    // depend on the ids the fix removes, and every slider counts, because those
+    // two rows were the page's only sliders.
+    {
+        int sliders = 0;
+        for (PageRow& pageRow : rows) {
+            const std::string& name = pageRow.first->name;
+            ROWS_CHECK(name.find("Max OoT Items") == std::string::npos && name.find("Max MM Items") == std::string::npos,
+                       "the Cross-Game Rules page still offers the retired row '%s' (#801): it changes no rule and "
+                       "only re-seeds the world",
+                       name.c_str());
+            sliders += pageRow.first->type == WIDGET_SLIDER_INT ? 1 : 0;
+        }
+        ROWS_CHECK(sliders == 0,
+                   "the Cross-Game Rules page has %d slider row(s); the only sliders were the retired pool sizes (#801)",
+                   sliders);
+        printf("[TEST] leg 1c: no \"Max OoT Items\" / \"Max MM Items\" row and no slider on the page (#801)\n");
+    }
+
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
     // The enforcement rule (ADR 0004 §6): the gate is on the src/common writers,
     // so no widget in this section may bind one of the six keys directly -- a

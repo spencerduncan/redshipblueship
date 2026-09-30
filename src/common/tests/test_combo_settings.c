@@ -1479,6 +1479,76 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         ComboContext_Init();
     }
 
+    // ---- (8) The two "Max Items" rules are retired (#801) ------------------
+    // Under the single bag no rule reads a pool size, but both bytes sit in the
+    // record and in comboSettingsHash, which seeds the fill: a slider moved the
+    // whole world and changed no rule. The keys go; the record fields stay,
+    // because they are format and identity. Literal key and label strings, so
+    // this leg compiles against the tree before the retirement and fails there.
+    {
+        static const char* const kRetiredKeys[2] = { "gCombo.Rando.PoolSize.OoT", "gCombo.Rando.PoolSize.MM" };
+        static const char* const kRetiredLabels[2] = { "Max OoT Items", "Max MM Items" };
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            const ComboSettingId id = (ComboSettingId)i;
+            for (int r = 0; r < 2; r++) {
+                if (strcmp(Combo_ComboSettingKey(id), kRetiredKeys[r]) == 0 ||
+                    strcmp(Combo_ComboSettingLabel(id), kRetiredLabels[r]) == 0) {
+                    printf("[TEST] FAIL: setting %d is still the retired '%s' ('%s') -- #801 retires it: it changes "
+                           "no rule and only re-seeds the world\n",
+                           i, kRetiredKeys[r], kRetiredLabels[r]);
+                    return TEST_FAIL;
+                }
+            }
+        }
+
+        // A config file written before #801 still holds the two keys. They
+        // author nothing now: a NEW world gets the shipped bytes and the shipped
+        // fingerprint whatever they say.
+        ComboContext_Init();
+        CVarSetInteger(kRetiredKeys[0], 3);
+        CVarSetInteger(kRetiredKeys[1], 5);
+        ComboSettingsRecord stale;
+        Combo_ResolveComboSettings(&stale);
+        CVarClear(kRetiredKeys[0]);
+        CVarClear(kRetiredKeys[1]);
+        CS_ASSERT(ComboSettingsRecordsEqual(stale, defaults) &&
+                      Combo_ComputeComboSettingsHash(&stale, kSettingsHash, kProfileDigest) == kDefaultsFingerprint,
+                  "a stale gCombo.Rando.PoolSize.* key still reached the record -- a retired row keeps re-seeding "
+                  "every new world (#801)");
+
+        // A world created BEFORE #801 with the sliders moved keeps its bytes and
+        // its identity, and still loads: no key authors a pool size any more, so
+        // the session has no value that could diverge from the file's.
+        ComboSettingsRecord older = defaults;
+        older.poolSizeOoT = 3u;
+        older.poolSizeMM = 5u;
+        ComboSettingsArmPairing(0xA07A0801u, kSettingsHash, kProfileDigest);
+        const uint32_t olderHash = Combo_FreezeComboSettings(&older);
+        CS_ASSERT(olderHash == Combo_ComputeComboSettingsHash(&older, kSettingsHash, kProfileDigest) &&
+                      olderHash != kDefaultsFingerprint,
+                  "the older world's pool bytes must stay in its identity");
+        const uint32_t olderBits = Combo_ComboSettingsDivergence();
+        if (olderBits != 0) {
+            char named[192];
+            Combo_ComboSettingsDivergenceDescribe(olderBits, named, sizeof(named));
+            printf("[TEST] FAIL: a world created with Max Items moved before #801 diverges (%s) from a session that "
+                   "can no longer author a pool size -- it would be refused at load\n",
+                   named);
+            return TEST_FAIL;
+        }
+        CS_ASSERT(gComboCtx.comboSettings.poolSizeOoT == 3u && gComboCtx.comboSettings.poolSizeMM == 5u &&
+                      Combo_ComboPoolSizeFor((uint8_t)GAME_OOT) == 3 && Combo_ComboPoolSizeFor((uint8_t)GAME_MM) == 5,
+                  "the older world's record must keep its own pool bytes verbatim");
+        // The fingerprint still pins the bytes: one changed after the stamp is
+        // damage, exactly as before.
+        gComboCtx.comboSettings.poolSizeMM = 6u;
+        CS_ASSERT((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_FINGERPRINT) != 0,
+                  "a pool byte changed after the stamp must still read as damage to the stored identity");
+        ComboContext_Init();
+        printf("[TEST] (8) #801: no setting is a pool size, stale keys author nothing, and an older world with its "
+               "own pool bytes still compares healthy\n");
+    }
+
     // ---- Cleanup: leave the process-global store and context clean ---------
     for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
         const ComboSettingId id = (ComboSettingId)i;
