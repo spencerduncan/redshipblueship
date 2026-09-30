@@ -800,15 +800,19 @@ TestResult Test_ForeignHostGossipHint(void) {
     printf("[TEST] foreign-host-gossip-hint: an MM gossip stone hints a crossing host by the crossed item (#575)\n");
 
     SharedItem ootHammer;
+    SharedItem ootLens;
     SharedItem mmLens;
     FI_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Megaton Hammer", &ootHammer));
+    FI_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &ootLens));
     FI_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Lens of Truth", &mmLens));
     const char* hammerName = Combo_GetForeignItemName(ootHammer);
     const char* hammerArticle = Combo_GetForeignItemArticle(ootHammer);
     FI_ASSERT(hammerName != NULL && hammerName[0] != '\0');
     FI_ASSERT(hammerArticle != NULL);
-    // In the stone's voice: article + name, as it says a native item.
-    const std::string hammerSaid = std::string(hammerArticle) + hammerName;
+    // In the stone's voice: article + name, as it says a native item, then the
+    // item's game: an MM host only ever holds an OoT item, and many names exist
+    // in both games. " (OoT)" is the check trackers' and OoTMM's marker.
+    const std::string hammerSaid = std::string(hammerArticle) + hammerName + " (OoT)";
     uint16_t riJunk = 0;
     MM_Rando_Foreign_TestItemSentinels(&riJunk, NULL, NULL);
 
@@ -870,6 +874,31 @@ TestResult Test_ForeignHostGossipHint(void) {
            (unsigned)kHost, hammerSaid.c_str(), hostCandidate, hostCandidatePurchasable, nameLen > 0 ? name : "");
     FI_ASSERT(hostCandidate == 1);
     FI_ASSERT(hostCandidatePurchasable == 1);
+
+    // A name both games use: OoT's Lens crossing into MM must not read like MM's
+    // own Lens on the native check, or two stones could name "the Lens of
+    // Truth" at two places with nothing saying which game's Lens each means.
+    {
+        // The store freezes on its first write (a world's crossings are its
+        // identity), so a different set goes in only after a clear.
+        ComboCrossing lensCrossing = crossing;
+        lensCrossing.item = ootLens;
+        Combo_Crossings_Clear();
+        FI_ASSERT(Combo_Crossings_Replace(NULL, 0, &lensCrossing, 1) == 1);
+        char nativeName[128];
+        char lensName[128];
+        FI_ASSERT(MM_Rando_Hints_TestGossipItemName(kNative, nativeName, (int)sizeof(nativeName)) > 0);
+        FI_ASSERT(MM_Rando_Hints_TestGossipItemName(kHost, lensName, (int)sizeof(lensName)) > 0);
+        printf("[TEST] foreign-host-gossip-hint: same-name pair: host %u (OoT's Lens) says \"%s\", native %u (MM's "
+               "Lens) says \"%s\"\n",
+               (unsigned)kHost, lensName, (unsigned)kNative, nativeName);
+        FI_ASSERT(strcmp(lensName, nativeName) != 0);
+        const std::string lensSaid =
+            std::string(Combo_GetForeignItemArticle(ootLens)) + Combo_GetForeignItemName(ootLens) + " (OoT)";
+        FI_ASSERT(lensSaid == lensName);
+        Combo_Crossings_Clear();
+        FI_ASSERT(Combo_Crossings_Replace(NULL, 0, &crossing, 1) == 1);
+    }
     FI_ASSERT(nameLen > 0 && hammerSaid == name);
 
     // The purchasable path still skips a collected host, like any other check.

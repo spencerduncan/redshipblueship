@@ -4,9 +4,9 @@
 #include "2s2h/CustomMessage/CustomMessage.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // ForeignNameForCheck: a crossing host's hint (#575 item 2)
+#include <cstdio>          // snprintf in the test bridge below
 #endif
 
-#include <cstdio>
 #include <vector>
 
 extern "C" {
@@ -43,22 +43,25 @@ s32 GetNormalizedCost() {
     return MAX(10, MIN(250, 10 + (obtainedChecks * (250 - 10)) / (maxChecks)));
 }
 
-// Which checks a gossip stone may hint, and the item name it says for one. The
-// stone picks among these when it is READ (GetRandomCheck below), not at
-// generation, so nothing here feeds a generated world.
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #575 item 2: which checks a gossip stone may hint, and the item name it says
+// for one. The stone picks among these when it is READ (GetRandomCheck below),
+// not at generation, so nothing here feeds a generated world. Upstream's
+// inline filter stays under GetRandomCheck's #else; the item-name call sites sit
+// inside COND_ID_HOOK macro arguments, where a preprocessor directive is
+// ill-formed (MSVC C2121), so they call GossipHintItemName in both builds and
+// the #else below defines it as upstream's exact expression.
 // excludeObtained: the purchasable-hint path skips checks already collected.
 static std::vector<RandoCheckId> GossipHintCandidates(bool excludeObtained) {
     std::vector<RandoCheckId> availableChecks;
     for (auto& [randoCheckId, _] : Rando::StaticData::Checks) {
         RandoSaveCheck saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
-        bool hintable = Rando::StaticData::Items[saveCheck.randoItemId].randoItemType != RITYPE_JUNK;
-#ifdef RSBS_SINGLE_EXECUTABLE
-        // #575 item 2: a crossing host holds MM's junk cover (the item itself
-        // is the other game's, in the crossing store), so the junk filter
-        // alone would never hint it. Only progression crosses, so a host is
-        // always worth a hint.
-        hintable = hintable || Rando::Foreign::ForeignNameForCheck(randoCheckId) != nullptr;
-#endif
+        // A crossing host holds MM's junk cover (the item itself is the other
+        // game's, in the crossing store), so the junk filter alone would never
+        // hint it. Every crossing item is progression (the single-bag composer
+        // puts only progression in the bag), so a host is always worth a hint.
+        bool hintable = Rando::StaticData::Items[saveCheck.randoItemId].randoItemType != RITYPE_JUNK ||
+                        Rando::Foreign::ForeignNameForCheck(randoCheckId) != nullptr;
         if (saveCheck.shuffled && hintable && (!excludeObtained || !saveCheck.obtained)) {
             availableChecks.push_back(randoCheckId);
         }
@@ -67,14 +70,20 @@ static std::vector<RandoCheckId> GossipHintCandidates(bool excludeObtained) {
 }
 
 static std::string GossipHintItemName(RandoCheckId randoCheckId) {
-#ifdef RSBS_SINGLE_EXECUTABLE
-    // Name the crossed item, never the cover, with its article like a native one.
+    // Name the crossed item, never the cover, with its article like a native
+    // one and its game after it: an MM host only ever holds an OoT item, and
+    // many names exist in both games ("the Lens of Truth"). " (OoT)" is the
+    // marker the check trackers use and OoTMM's in-game text uses.
     if (const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId)) {
-        return std::string(Rando::Foreign::ForeignArticleForCheck(randoCheckId)) + foreignName;
+        return std::string(Rando::Foreign::ForeignArticleForCheck(randoCheckId)) + foreignName + " (OoT)";
     }
-#endif
     return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
 }
+#else
+static std::string GossipHintItemName(RandoCheckId randoCheckId) {
+    return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
+}
+#endif // RSBS_SINGLE_EXECUTABLE
 
 RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
     Player* player = GET_PLAYER(MM_gPlayState);
@@ -83,7 +92,18 @@ RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
     }
     EnGs* enGs = (EnGs*)player->talkActor;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
     std::vector<RandoCheckId> availableChecks = GossipHintCandidates(repeatableOnlyObtained);
+#else
+    std::vector<RandoCheckId> availableChecks;
+    for (auto& [randoCheckId, _] : Rando::StaticData::Checks) {
+        RandoSaveCheck saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+        if (saveCheck.shuffled && Rando::StaticData::Items[saveCheck.randoItemId].randoItemType != RITYPE_JUNK &&
+            (!repeatableOnlyObtained || !saveCheck.obtained)) {
+            availableChecks.push_back(randoCheckId);
+        }
+    }
+#endif
 
     if (availableChecks.empty()) {
         return RC_UNKNOWN;

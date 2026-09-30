@@ -1811,8 +1811,10 @@ target crossed into MM names Termina (`RA_TERMINA`). *Amended 2026-09-30 (#575
 item 2, scheduled by the operator that day): "never hintable" now holds for
 OoT's hint pass only, whose hints would name the cover item. MM's gossip stones
 count an MM crossing host as a candidate and name the crossed item
-(`Rando::Foreign::ForeignNameForCheck`, `ActorBehavior/EnGs.cpp`), so the cover
-is never named. A stone picks its check when it is read, not at generation, so
+(`Rando::Foreign::ForeignNameForCheck`, `ActorBehavior/EnGs.cpp`) with an
+" (OoT)" marker, as the check trackers and OoTMM's in-game text mark an item a
+name both games use, so the cover is never named and "the Lens of Truth (OoT)"
+never reads as MM's own Lens. A stone picks its check when it is read, not at generation, so
 no generated world or digest moves; locked by the `ForeignHostGossipHint` row.*
 The pane's pool-size rows
 change no rule but re-seed the world. A paired world's OoT spoiler is refused
