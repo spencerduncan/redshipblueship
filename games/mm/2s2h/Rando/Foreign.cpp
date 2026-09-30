@@ -1519,6 +1519,23 @@ extern "C" int MM_Rando_Foreign_TestCheckClass(uint16_t randoCheckId, int* outIs
     return 1;
 }
 
+/** The shop half of a check row's static class (#800): whether it is a shop slot
+ *  (RCTYPE_SHOP) or a Tingle map slot (RCTYPE_TINGLE_SHOP). Returns 1 if the id
+ *  names a real row, 0 otherwise; either out pointer may be NULL. */
+extern "C" int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, int* outIsTingleShop) {
+    const auto it = Rando::StaticData::Checks.find((RandoCheckId)randoCheckId);
+    if (it == Rando::StaticData::Checks.end() || it->second.randoCheckId == RC_UNKNOWN) {
+        return 0;
+    }
+    if (outIsShop != nullptr) {
+        *outIsShop = (it->second.randoCheckType == RCTYPE_SHOP) ? 1 : 0;
+    }
+    if (outIsTingleShop != nullptr) {
+        *outIsTingleShop = (it->second.randoCheckType == RCTYPE_TINGLE_SHOP) ? 1 : 0;
+    }
+    return 1;
+}
+
 /** The three RandoItemId values the predicate treats specially: the legal junk
  *  filler, and the two sentinels that are RITYPE_JUNK but are not items. */
 extern "C" void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown) {

@@ -72,7 +72,14 @@
 extern "C" {
 #include "variables.h" // MM_gPlayState, MM_sMatrixStack, MM_sCurrentMatrix
 #include "functions.h"
+// Test bridges only (#800): the shop shelf actor the shelf-draw bridge stands up.
+#include "overlays/actors/ovl_En_GirlA/z_en_girla.h"
 }
+
+// Test bridges only (#800): the two shop draws the shelf-draw bridge drives
+// (ActorBehavior/EnGirlA.cpp, ActorBehavior/EnSob1.cpp).
+void EnGirlA_RandoDrawFunc(Actor* actor, PlayState* play);
+void EnSob1_DrawCustomItem(Actor* thisx, PlayState* play);
 
 // CustomMessage.cpp's file-scope message (the test bridge restores it).
 extern CustomMessage::Entry activeCustomMessage;
@@ -873,6 +880,51 @@ bool RunCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want) {
     return true;
 }
 
+/**
+ * A SHOP'S REAL SHELF DRAW (#800 pass 1): EnGirlA_RandoDrawFunc for a shelf item
+ * standing on `mmCheckId`, or, with `hand`, EnSob1_DrawCustomItem (the Bomb Shop
+ * owner's hand item, always RC_BOMB_SHOP_ITEM_01), into a real MM GraphicsContext,
+ * both layers read back. The slot holds MM's junk cover, as the paired fill leaves
+ * a crossing host. `want` null: the stand-in, which emits no model list at all
+ * (never the cover's model). The frame counter is even, so the stand-in's sparkle
+ * (DrawSparkles, odd frames only) spawns no effect into the fake play.
+ */
+bool RunShopDraw(uint16_t mmCheckId, bool hand, const ComboModel* want) {
+    struct Restore {
+        std::vector<RandoSaveCheck> checks;
+        GameState* gameState;
+        Restore() : checks(std::begin(RANDO_SAVE_CHECKS), std::end(RANDO_SAVE_CHECKS)), gameState(MM_gGameState) {
+        }
+        ~Restore() {
+            std::copy(checks.begin(), checks.end(), std::begin(RANDO_SAVE_CHECKS));
+            MM_gGameState = gameState;
+            sModelEmitUnresolved = false;
+        }
+    } restore;
+
+    RANDO_SAVE_CHECKS[mmCheckId].randoItemId = RI_JUNK;
+    RANDO_SAVE_CHECKS[mmCheckId].shuffled = true;
+
+    FakeDrawPlay fake;
+    fake.play->state.frames = 8;
+    MM_gGameState = &fake.play->state;
+    EnGirlA* shelf = (EnGirlA*)std::calloc(1, sizeof(EnGirlA));
+    shelf->actor.world.rot.z = (s16)mmCheckId;
+
+    sModelEmitUnresolved = true;
+    if (hand) {
+        EnSob1_DrawCustomItem(&shelf->actor, fake.play);
+    } else {
+        EnGirlA_RandoDrawFunc(&shelf->actor, fake.play);
+    }
+    sModelEmitUnresolved = false;
+    std::free(shelf);
+
+    const LayerRead opa = ReadLayer(fake.opa.data(), fake.gfxCtx->polyOpa.p, want != nullptr ? want->opaSetupDl : 0);
+    const LayerRead xlu = ReadLayer(fake.xlu.data(), fake.gfxCtx->polyXlu.p, want != nullptr ? want->xluSetupDl : 0);
+    return LayerMatches("OPA", opa, want, kOpa) && LayerMatches("XLU", xlu, want, kXlu);
+}
+
 #undef FMD_EXPECT
 
 } // namespace
@@ -914,6 +966,17 @@ extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
  *  success. */
 extern "C" int MM_ForeignModel_TestCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want) {
     return RunCheckQueueDraw(mmCheckId, want) ? 0 : 1;
+}
+
+/** A shop's real shelf draw (`hand` 0) or the Bomb Shop owner's hand item (`hand`
+ *  1), end to end (RunShopDraw): 0 on success. */
+extern "C" int MM_ForeignModel_TestShopDraw(uint16_t mmCheckId, int hand, const ComboModel* want) {
+    return RunShopDraw(mmCheckId, hand != 0, want) ? 0 : 1;
+}
+
+/** The check the Bomb Shop owner holds in his hand (EnSob1.cpp). */
+extern "C" uint16_t MM_ForeignModel_TestBombShopHandCheck(void) {
+    return (uint16_t)RC_BOMB_SHOP_ITEM_01;
 }
 
 namespace {

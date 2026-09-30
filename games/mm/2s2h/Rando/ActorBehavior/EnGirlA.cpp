@@ -450,3 +450,107 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
     // Zora Shop CANBUY_RESULT_CANNOT_GET_NOW (this text ID does not exist and just softlocks)
     COND_ID_HOOK(OnOpenText, 0x12E1, IS_RANDO, ReplaceCannotBuyMessage);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ============================================================================
+// TEST BRIDGE (ForeignItemGiveShop row, src/common/tests/test_foreign_shop_mm.c;
+// #800 pass 1). Drives the REAL shelf functions a shopkeeper calls, in the order
+// it calls them (EnOssan/EnTrt/EnFsn/EnSob1: canBuyFunc, then buyFunc on
+// CANBUY_RESULT_SUCCESS_2, then the restock on the next visit), against a shelf
+// actor standing on `randoCheckId`, which the caller has made a crossing host
+// (placement present; pairing live or not, per `paired`).
+//
+// What it reads back: whether the purchase authored the crossing (the shared
+// structure grew by one OoT-tagged CROSSING row) or, unpaired, authored nothing
+// (#610); that the price was charged; that the slot stays sold for good; and that
+// the counter refuses a second sale. Every piece of state it touches (the save
+// check, the rupee counters, MM_gPlayState) is restored. Returns 0 on success, a
+// step code otherwise, after printing the observation.
+// ============================================================================
+#include <cstdio>
+#include <cstdlib>
+#include "shared_items.h" // src/common: Combo_CountSharedItems, the crossing record
+
+extern "C" int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return 90;
+    }
+    const RandoSaveCheck priorCheck = RANDO_SAVE_CHECKS[randoCheckId];
+    const s16 priorRupees = gSaveContext.save.saveInfo.playerData.rupees;
+    const s16 priorAccumulator = gSaveContext.rupeeAccumulator;
+    PlayState* const priorPlay = MM_gPlayState;
+
+    PlayState* play = (PlayState*)calloc(1, sizeof(PlayState));
+    EnGirlA* shelf = (EnGirlA*)calloc(1, sizeof(EnGirlA));
+    const s16 kPrice = 37;
+    shelf->actor.world.rot.z = (s16)randoCheckId;
+    play->msgCtx.unk1206C = kPrice; // what the shopkeeper loads from the slot's price
+    MM_gPlayState = play;
+
+    // The slot as the paired fill leaves it: shuffled, holding MM's junk cover.
+    RandoSaveCheck& check = RANDO_SAVE_CHECKS[randoCheckId];
+    check.randoItemId = RI_JUNK;
+    check.shuffled = true;
+    check.obtained = false;
+    check.cycleObtained = false;
+    check.eligible = false;
+    check.price = kPrice;
+    gSaveContext.save.saveInfo.playerData.rupees = 100;
+    gSaveContext.rupeeAccumulator = 0;
+
+    int code = 0;
+    const int before = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true);
+    const s32 canBuy = EnGirlA_RandoCanBuyFunc(play, shelf);
+    int crossed = 0;
+    s32 canBuyAgain = -1;
+    bool restocked = false;
+    int lastOrigin = -1;
+    int lastFlags = -1;
+    if (canBuy != CANBUY_RESULT_SUCCESS_2) {
+        code = 1;
+    } else {
+        EnGirlA_RandoBuyFunc(play, shelf);
+        crossed = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true) - before;
+        for (uint32_t i = 0; crossed > 0 && i < RSBS_SHARED_ITEM_CAP; i++) {
+            const SharedItem& row = gComboCtx.sharedItemsTagged[i];
+            if (row.originGame != (uint8_t)GAME_NONE) {
+                lastOrigin = row.originGame; // the last written row
+                lastFlags = row.flags;
+            }
+        }
+        // The shopkeeper's boughtFunc, then a later visit's restock.
+        EnGirlA_RandoBought(play, shelf);
+        EnGirlA_RandoRestock(play, shelf);
+        restocked = !shelf->isOutOfStock || shelf->actor.draw != NULL;
+        canBuyAgain = EnGirlA_RandoCanBuyFunc(play, shelf);
+    }
+    printf("[TEST]   S shop check %u (%s): canBuy=%d; after the buy: crossings authored=%d (origin %d, flags %d), "
+           "obtained=%d, charged=%d; restock %s; canBuy again=%d\n",
+           (unsigned)randoCheckId, paired ? "paired" : "UNPAIRED", (int)canBuy, crossed, lastOrigin, lastFlags,
+           check.obtained ? 1 : 0, -(int)gSaveContext.rupeeAccumulator, restocked ? "RESTOCKED" : "kept it sold",
+           (int)canBuyAgain);
+    if (code == 0) {
+        if (paired && crossed != 1) {
+            code = 2; // the purchase did not hand the OoT item to the shared structure
+        } else if (paired && (lastOrigin != GAME_OOT || lastFlags != RSBS_SHARED_ITEM_CROSSING)) {
+            code = 3;
+        } else if (!paired && crossed != 0) {
+            code = 4; // #610: no live pairing, so no record may be authored
+        } else if (!check.obtained || gSaveContext.rupeeAccumulator != -kPrice) {
+            code = 5;
+        } else if (restocked) {
+            code = 6; // a foreign slot sells its item once for the whole game
+        } else if (canBuyAgain != CANBUY_RESULT_CANNOT_GET_NOW) {
+            code = 7;
+        }
+    }
+
+    check = priorCheck;
+    gSaveContext.save.saveInfo.playerData.rupees = priorRupees;
+    gSaveContext.rupeeAccumulator = priorAccumulator;
+    MM_gPlayState = priorPlay;
+    free(shelf);
+    free(play);
+    return code;
+}
+#endif // RSBS_SINGLE_EXECUTABLE

@@ -511,6 +511,10 @@ if(BUILD_TESTING)
     # gComboCtx.foreignPlacements round-trips through the .redsave record.
     redship_add_test(NAME ForeignItemGive COMMAND redship --test foreign-item-give)
     redship_add_test(NAME ForeignItemGiveReverse COMMAND redship --test foreign-item-give-reverse)
+    # #800 pass 1: an OoT item in an MM shop slot. The real shelf functions sell it
+    # once, hand it to the shared structure (or nothing, unpaired: #610), and draw
+    # the origin's model on the shelf and in the Bomb Shop owner's hand.
+    redship_add_test(NAME ForeignItemGiveShop COMMAND redship --test foreign-item-give-shop)
     # #488: a crossing may only be hosted by a check class the GAME arms.
     # CheckQueue's foreign branch is nested inside `if (eligible)`, so an
     # unarmed host strands the crossing and makes the paired world unwinnable
@@ -1690,6 +1694,14 @@ if(BUILD_TESTING)
     # rows at all and the lock would pass vacuously. Timeout is generous because
     # decoupled + mixed pools makes entrance shuffle retry more than stock.
     redship_add_test(NAME RandoEntrancePin COMMAND redship --test rando-entrance-pin
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #800 pass 1, MM side: a real paired creation (OoT generation + MM's creation
+    # half, as the determinism rows run them) with OoT shopsanity and MM Shuffle
+    # Shops set by the dispatch itself, pinned to a seed on which at least one OoT
+    # item crosses into an MM shop slot. Tier `rando` because it reads a fill.
+    redship_add_test(NAME RandoShopCrossingsMM COMMAND redship --test rando-shop-crossings-mm
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
