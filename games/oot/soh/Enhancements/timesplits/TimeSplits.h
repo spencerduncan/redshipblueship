@@ -6,7 +6,7 @@
 #include <libultraship/libultraship.h>
 
 #ifdef __cplusplus
-class TimeSplitWindow final : public Ship::GuiWindow {
+class TimeSplitWindow : public Ship::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
 
