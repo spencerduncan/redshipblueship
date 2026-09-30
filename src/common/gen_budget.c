@@ -6,6 +6,7 @@
  */
 
 #include "gen_budget.h"
+#include "integration_test_hooks.h" // #793: each report is progress for the int-* watchdog
 
 #include <stdio.h>
 #include <time.h>
@@ -222,6 +223,10 @@ uint32_t Combo_GenProgress_GenerationElapsedMs(void) {
 }
 
 void Combo_GenProgress_Begin(void) {
+    // #793: the creation blocks the game thread inside one frame for as long as
+    // its own budget allows; Begin, every Report and End are the progress the
+    // int-* wall-clock watchdog sees meanwhile (integration_test_hooks.h).
+    IntegrationTest_CreationProgress();
     sProgressStartMs = GenBudgetNowMs();
     sProgressRunning = true;
     sPresentationMs = 0;
@@ -254,6 +259,7 @@ void Combo_GenProgress_Begin(void) {
 }
 
 void Combo_GenProgress_Report(uint8_t phase, int attempt, const char* detail) {
+    IntegrationTest_CreationProgress();
     if (phase >= RSBS_GENPHASE_MAX) {
         phase = RSBS_GENPHASE_IDLE;
     }
@@ -285,6 +291,7 @@ void Combo_GenProgress_Report(uint8_t phase, int attempt, const char* detail) {
 }
 
 void Combo_GenProgress_End(bool ok) {
+    IntegrationTest_CreationProgress();
     sProgress.elapsedMs = Combo_GenProgress_ElapsedMs(); // read while still running
     sProgressRunning = false;
     sProgress.phase = ok ? (uint8_t)RSBS_GENPHASE_DONE : (uint8_t)RSBS_GENPHASE_FAILED;
