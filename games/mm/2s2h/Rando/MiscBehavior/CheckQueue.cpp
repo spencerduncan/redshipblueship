@@ -10,6 +10,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "2s2h/Rando/Foreign.h" // Lane C1 (#392): foreign-check lookup + shared-structure recording
 #include "2s2h/Rando/ForeignTextboxIcon.h" // #607: the origin game's icon inside the blue textbox
+#include "2s2h/Rando/ForeignModel.h"       // #577 M3: the origin game's get-item model
 // Lane 6 (#502): drain of the deferred cross-game give (ForeignItemsSingleExe.cpp).
 extern "C" int MM_ForeignItem_FlushPending(void);
 #endif
@@ -68,17 +69,20 @@ void Rando::MiscBehavior::CheckQueue() {
             // be awarded there. All three are gone. A foreign item now reads
             // exactly like any other check: "You found the Fairy Bow!".
             //
-            // NO STAND-IN MODEL (yet). OoT's real model is drawable here — models
-            // resolve by resource path, archives are never unmounted, and
-            // curated OoT-origin models are carried in redship-mm.o2r (#577 M1:
-            // today only the M1 seed, #577 M6 curates the set; drawing them in
-            // this cutscene is #577 M3). Until that lands, rather
-            // than substituting a DIFFERENT item's model, we use MM's own
-            // model-LESS pickup form: RI_NONE draws no model and falls through
-            // to DrawSparkles, which is the
-            // identical presentation MM already gives Magic Upgrades, the Swim
-            // ability and Progressive Time (DrawItem.cpp). Showing nothing is
-            // native; showing a rupee that is not a rupee was the placeholder.
+            // OoT'S OWN MODEL (#577 M3). The draw asks OoT (the origin) for the
+            // item's get-item model and redraws it with MM's primitives
+            // (2s2h/Rando/ForeignModelSingleExe.cpp). Models draw by resource
+            // path and archives are never unmounted: oot.o2r is mounted from
+            // OoT's first boot on, and curated OoT-origin models are carried in
+            // redship-mm.o2r (#577 M1: today only the M1 seed, #577 M6 curates
+            // the set). When there is no drawable model (no origin answer, a
+            // model in an object
+            // directory both archives carry that MM has no host-native row for
+            // yet, or a path no mounted archive holds) it keeps MM's own
+            // model-LESS pickup form: RI_NONE draws no model and falls through to
+            // DrawSparkles, the presentation MM gives Magic Upgrades, the Swim
+            // ability and Progressive Time (DrawItem.cpp). Never a DIFFERENT
+            // item's model: a rupee that is not a rupee was the old placeholder.
             if (Rando::Foreign::IsForeignCheck(randoCheckId)) {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                     // Always cutscene: a foreign item is progression by
@@ -130,18 +134,21 @@ void Rando::MiscBehavior::CheckQueue() {
                             randoSaveCheck.obtained = true;
                             randoSaveCheck.eligible = false;
                             queued = false;
-                            // Post-give, CUSTOM_ITEM_PARAM carries an RI for
-                            // the draw path (matching the normal branch).
-                            CUSTOM_ITEM_PARAM = RI_NONE;
+                            // #577 M3: CUSTOM_ITEM_PARAM keeps the CHECK id after
+                            // the give (the native branch swaps in an RI): the
+                            // draw, which shows the item only from this point on,
+                            // finds the model through the check's placement.
                         },
                     .drawItem =
                         [](Actor* actor, PlayState* play) {
-                            // Byte-for-byte the native branch's draw, with the
-                            // model-less item. No actor argument: passing it
-                            // adds hilites the native path does not, which would
-                            // itself be a cross-game tell.
+                            // The native branch's scale, then the origin's model
+                            // (or the model-less stand-in). No actor argument to
+                            // the stand-in: passing it adds hilites the native
+                            // path does not, which would itself be a tell.
                             MM_Matrix_Scale(30.0f, 30.0f, 30.0f, MTXMODE_APPLY);
-                            Rando::DrawItem(RI_NONE);
+                            if (!Rando::Foreign::DrawForeignModelForCheck((RandoCheckId)CUSTOM_ITEM_PARAM, play)) {
+                                Rando::DrawItem(RI_NONE);
+                            }
                         } });
                 return;
             }
