@@ -389,8 +389,7 @@ int AssertForeignHalfNotAdopted(int code, const char* leg, int refused, uint32_t
         return Fail(code + 2, "%s: the gate did not refuse another pair's half before the consume", leg);
     }
     if (!Context_HasFrozenState(GAME_MM)) {
-        return Fail(code + 3, "%s: the refused half was consumed — refusal means NOT hydrating (ADR 0010 inc. 2)",
-                    leg);
+        return Fail(code + 3, "%s: the refused half was consumed — refusal means NOT hydrating (ADR 0010 inc. 2)", leg);
     }
     return AssertMembershipRefusal(code + 4, leg);
 }
@@ -398,8 +397,7 @@ int AssertForeignHalfNotAdopted(int code, const char* leg, int refused, uint32_t
 /** This pair's half: hydrated, rando, carrying its own seed, slot writable. */
 int AssertOwnHalfHydrated(int code, const char* leg, int refused, int consumed, uint32_t ownSeed) {
     if (refused != 0 || consumed != 1) {
-        return Fail(code, "%s: this pair's own half was not hydrated (refused=%d consumed=%d)", leg, refused,
-                    consumed);
+        return Fail(code, "%s: this pair's own half was not hydrated (refused=%d consumed=%d)", leg, refused, consumed);
     }
     if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO ||
         gSaveContext.save.shipSaveInfo.rando.finalSeed != ownSeed) {
@@ -715,8 +713,8 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
         if (refused < 0) {
             return 99;
         }
-        if (int rc = AssertOwnHalfHydrated(101, "leg 9 (this pair's half, lost type byte)", refused, consumed,
-                                           ownSeed)) {
+        if (int rc =
+                AssertOwnHalfHydrated(101, "leg 9 (this pair's half, lost type byte)", refused, consumed, ownSeed)) {
             return rc;
         }
     }
@@ -737,8 +735,8 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
         if (refused < 0) {
             return 99;
         }
-        if (int rc = AssertOwnHalfHydrated(111, "leg 10 (this pair's half, no recorded rung)", refused, consumed,
-                                           ownSeed)) {
+        if (int rc =
+                AssertOwnHalfHydrated(111, "leg 10 (this pair's half, no recorded rung)", refused, consumed, ownSeed)) {
             return rc;
         }
     }
@@ -759,8 +757,7 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
         if (refused < 0) {
             return 99;
         }
-        if (int rc =
-                AssertForeignHalfNotAdopted(121, "leg 11 (not the recorded rung)", refused, otherRungSeed)) {
+        if (int rc = AssertForeignHalfNotAdopted(121, "leg 11 (not the recorded rung)", refused, otherRungSeed)) {
             return rc;
         }
     }
