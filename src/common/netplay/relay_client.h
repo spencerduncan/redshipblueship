@@ -33,7 +33,9 @@
  * SESSION SCOPE: the inbox is session-scoped RAM. Per the #440 guidance on
  * #460, it is cleared FROM Context_InvalidateSessionState (via
  * Relay_ClearSessionState) rather than at our own call sites, so there stays
- * one list of "things a dead session owns".
+ * one list of "things a dead session owns". The context layer owns no client,
+ * so it reaches the live one through Relay_SetSessionClient's binding: the
+ * owner of a live client binds it, and unbinds before the object dies.
  */
 
 #ifndef RSBS_COMMON_NETPLAY_RELAY_CLIENT_H
@@ -190,6 +192,16 @@ void Relay_OnResume(RelayClient* c);
  * same treatment Combo_ClearSharedItemOutbox() gets (#440 guidance on #460).
  */
 void Relay_ClearSessionState(RelayClient* c);
+
+/**
+ * Bind the process's live client (NULL unbinds) so Context_InvalidateSessionState
+ * can retire its session RAM: it calls Relay_ClearSessionState on
+ * Relay_GetSessionClient(), which is a no-op while nothing is bound. One client
+ * per process — a room is ONE source (ADR 0007 §3.1). The binding holds a raw
+ * pointer, so the owner MUST unbind before the client's storage ends.
+ */
+void Relay_SetSessionClient(RelayClient* c);
+RelayClient* Relay_GetSessionClient(void);
 
 /** True if the inbox overflowed or a grant was refused for capacity. */
 bool Relay_ReplayNeeded(const RelayClient* c);

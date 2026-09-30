@@ -7,6 +7,9 @@
 #include <soh/Enhancements/enemyrandomizer.h>
 #include <soh/Enhancements/TimeDisplay/TimeDisplay.h>
 #include "soh/Enhancements/randomizer/randomizer.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "soh/SohGui/OoTActiveGated.h" // OoT_Gui_ShouldDraw
+#endif
 
 extern "C" {
 #include "functions.h"
@@ -142,6 +145,28 @@ static const std::map<int32_t, const char*> enemyRandomizerModes = {
     { ENEMY_RANDOMIZER_RANDOM, "Random" },
     { ENEMY_RANDOMIZER_RANDOM_SEEDED, "Random (Seeded)" },
 };
+
+// The "Fix Broken Giant's Knife Bug" toggle's callback, named so the OoTWindowsGate row can drive it (#798).
+// func_800849EC writes the save's equipment and B button and then dereferences the play state, so it runs only in
+// Play. The setting itself still toggles. Both guards are single-exe only: the non-single-exe build is unchanged.
+void OnFixBrokenGiantsKnifeToggled() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // gSaveContext is Majora's Mask's save while MM runs (#798).
+    if (!OoT_Gui_ShouldDraw()) {
+        return;
+    }
+    if (OoT_gPlayState == nullptr) {
+        return;
+    }
+#endif
+    bool hasGiantsKnife = CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BIGGORON);
+    bool hasBrokenKnife = CHECK_OWNED_EQUIP_ALT(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BROKENGIANTKNIFE);
+    bool knifeIsBroken = gSaveContext.swordHealth == 0.0f;
+
+    if (hasGiantsKnife && (hasBrokenKnife != knifeIsBroken)) {
+        func_800849EC(OoT_gPlayState);
+    }
+}
 
 void SohMenu::AddMenuEnhancements() {
     // Add Enhancements Menu
@@ -1043,15 +1068,7 @@ void SohMenu::AddMenuEnhancements() {
             info.options->disabled = IS_RANDO && GameInteractor::IsSaveLoaded(true);
             info.options->disabledTooltip = "This setting is forcefully enabled when you are playing a Randomizer.";
         })
-        .Callback([](WidgetInfo& info) {
-            bool hasGiantsKnife = CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BIGGORON);
-            bool hasBrokenKnife = CHECK_OWNED_EQUIP_ALT(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BROKENGIANTKNIFE);
-            bool knifeIsBroken = gSaveContext.swordHealth == 0.0f;
-
-            if (hasGiantsKnife && (hasBrokenKnife != knifeIsBroken)) {
-                func_800849EC(OoT_gPlayState);
-            }
-        })
+        .Callback([](WidgetInfo& info) { OnFixBrokenGiantsKnifeToggled(); })
         .Options(
             CheckboxOptions().Tooltip("Fixes the Broken Giant's Knife flag not being reset when Medigoron fixes it."));
 

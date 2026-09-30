@@ -527,18 +527,32 @@ the reason it is called out here rather than left to implementation taste.
 
 ## 9. Consequences
 
-- **No server code enters this repository.** Self-hosting is documented by
-  pointing at upstream's `Dockerfile.prod`.
+- **No server code enters this repository.** Self-hosting is to be documented
+  by pointing at upstream's `Dockerfile.prod`. [corrected 2026-09-30, #460:
+  this read "Self-hosting is documented"; no such document exists in the tree.
+  Nothing yet needs one: the client has no socket implementation and no
+  production owner, so there is no build that can reach a server.]
 - **No submodule, no new dependency, no `reserved[]` carve.** All three of the
   collision/CI-cost hazards that bit prior attempts are avoided by needing
   nothing.
-- **ADR 0005's redemption tick gets wired**, satisfying the exact condition
-  its §4 named for doing so.
+- **ADR 0005's redemption tick is unblocked, not wired.** [corrected
+  2026-09-30, #460: this read "ADR 0005's redemption tick gets wired,
+  satisfying the exact condition its §4 named for doing so", and §5.1 says
+  the same.] The relay does supply that condition: `ApplyInbox` in
+  `src/common/netplay/relay_client.c` submits to `Combo_SubmitSourcedGrant`,
+  the first producer that can target the active game mid-session. But the
+  client landed (#478, `5cbbed7b`) without the tick: `Combo_RedeemSharedItemsForGame`
+  is still reached in production only from the two arrival points
+  (`OoT_ConsumeSharedItems`, `MM_ConsumeSharedItems`), and nothing outside
+  `src/common/tests/test_netplay_relay.c` constructs a `RelayClient` or calls
+  `Relay_Tick`. Wiring the tick is still open under #460 (gap 1).
 - **ADR 0006 stays correct and is not superseded** — its measurement of
   Archipelago stands; this ADR takes the "no" branch it defined and carries
   its §5 list forward.
-- **Blocked on PR #473.** The seam must land first; nothing here is buildable
-  against `main` until it does.
+- **Was blocked on PR #473, which has merged** (`bcc41646`); the client then
+  landed behind `RSBS_NETPLAY` (default OFF) as #478 (`5cbbed7b`). [corrected
+  2026-09-30, #460: this read "Blocked on PR #473. The seam must land first;
+  nothing here is buildable against `main` until it does."]
 - **Archipelago remains permanently out of scope** (#460 maintainer decision).
   Nothing in this design moves toward or away from it; a relay grant and an AP
   item are different objects with different authorities.
