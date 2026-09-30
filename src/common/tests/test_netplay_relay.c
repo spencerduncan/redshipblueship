@@ -787,8 +787,8 @@ TestResult Test_RelaySuspendLatch(void) {
 
     const uint32_t inboxAfter = a.inboxCount;
     const uint32_t nextSeqAfter = a.nextSeq;
-    printf("[TEST] after Context_InvalidateSessionState: relay inbox=%u nextSeq=%u cursor=%u\n",
-           (unsigned)inboxAfter, (unsigned)nextSeqAfter, (unsigned)Combo_GetGrantCursor(a.sourceKey));
+    printf("[TEST] after Context_InvalidateSessionState: relay inbox=%u nextSeq=%u cursor=%u\n", (unsigned)inboxAfter,
+           (unsigned)nextSeqAfter, (unsigned)Combo_GetGrantCursor(a.sourceKey));
     NR_ASSERT(Combo_GetGrantCursor(a.sourceKey) == 0); // the model half died with gComboCtx
     NR_ASSERT(inboxAfter == 0);                        // the relay half died with it
     // The dense counter restarts with the cursor, else seq 3 against a fresh
