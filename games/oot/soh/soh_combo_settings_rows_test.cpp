@@ -362,15 +362,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         WidgetType type;
         const char* suffix; // "": the bare name; ": %d": the slider's value format
     };
-    // The direction is a combobox over the four pinned enumerators, each pool
-    // size a slider over the pinned 1..CAP space, each item-class bitset a
-    // marked header over six checkboxes (a bitset is not expressible as either
-    // of the other two), and the shared ocarina (#668) a plain checkbox over
-    // the model's 0/1 space.
+    // The direction is a combobox over the four pinned enumerators, each
+    // item-class bitset a marked header over six checkboxes (a bitset is not
+    // expressible as a combobox), and the shared ocarina (#668) a plain
+    // checkbox over the model's 0/1 space. No pool-size sliders: #801.
     const ExpectedRow kExpected[] = {
         { COMBO_SETTING_DIRECTION, WIDGET_COMBOBOX, "" },
-        { COMBO_SETTING_POOL_SIZE_OOT, WIDGET_SLIDER_INT, ": %d" },
-        { COMBO_SETTING_POOL_SIZE_MM, WIDGET_SLIDER_INT, ": %d" },
         { COMBO_SETTING_ITEM_CLASS_OOT, WIDGET_SEPARATOR_TEXT, "" },
         { COMBO_SETTING_ITEM_CLASS_MM, WIDGET_SEPARATOR_TEXT, "" },
         { COMBO_SETTING_SHARED_OCARINA, WIDGET_CHECKBOX, "" },
@@ -415,7 +412,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] combo-settings-rows: %d failure(s) in leg 1; the later legs need the rows\n", gFailures);
         return gFailures;
     }
-    printf("[TEST] leg 1: all seven tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
+    printf("[TEST] leg 1: all five tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
            Combo_ComboSettingSharedMarker());
 
     // ---- Leg 1b: the goal row offers exactly OoTMM's goals, in its words ----
@@ -556,8 +553,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // ---- Leg 3: pre-creation the rows are editable and show the resolver ----
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
                "the writer refused a pre-creation direction");
-    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, 2) == 1, "the writer refused a pre-creation pool");
-    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_MM, 3) == 1, "the writer refused a pre-creation pool");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_SONGS) == 1,
                "the writer refused a pre-creation class mask");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, (int32_t)RSBS_ITEMCLASS_MASKS) == 1,
@@ -579,10 +574,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_DIRECTION]) == (int32_t)RSBS_COMBO_DIR_FORWARD,
                "the direction row staged %d, expected the authored %d", StagedInt(*settingRow[COMBO_SETTING_DIRECTION]),
                (int)RSBS_COMBO_DIR_FORWARD);
-    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_POOL_SIZE_OOT]) == 2, "the OoT pool row staged %d, expected 2",
-               StagedInt(*settingRow[COMBO_SETTING_POOL_SIZE_OOT]));
-    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_POOL_SIZE_MM]) == 3, "the MM pool row staged %d, expected 3",
-               StagedInt(*settingRow[COMBO_SETTING_POOL_SIZE_MM]));
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]) == 1,
                "the shared-ocarina row staged %d, expected the authored 1",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]));
@@ -611,17 +602,22 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // The Callback is the row's ONLY write path. Editing the staging buffer the
     // way the widget would and firing it must land in the store; if a future row
     // were rewired to a CVar widget this leg would still pass, which is why leg
-    // 2 exists as well.
+    // 2 exists as well. Driven on the direction row (the pool-size row it used
+    // was retired by #801), there and back, so the later legs still see the
+    // authored FORWARD.
     {
-        WidgetInfo& poolRow = *settingRow[COMBO_SETTING_POOL_SIZE_OOT];
-        *std::get<int32_t*>(poolRow.valuePointer) = 5;
-        ROWS_CHECK(poolRow.callback != nullptr, "the OoT pool row has no Callback");
-        if (poolRow.callback != nullptr) {
-            poolRow.callback(poolRow);
+        WidgetInfo& dirRow = *settingRow[COMBO_SETTING_DIRECTION];
+        ROWS_CHECK(dirRow.callback != nullptr, "the direction row has no Callback");
+        const int32_t kThere[2] = { (int32_t)RSBS_COMBO_DIR_REVERSE, (int32_t)RSBS_COMBO_DIR_FORWARD };
+        for (const int32_t value : kThere) {
+            *std::get<int32_t*>(dirRow.valuePointer) = value;
+            if (dirRow.callback != nullptr) {
+                dirRow.callback(dirRow);
+            }
+            int32_t stored = 0;
+            ROWS_CHECK(Combo_ComboSettingReadStore(COMBO_SETTING_DIRECTION, &stored) && stored == value,
+                       "a pre-creation edit to %d did not reach the store (read back %d)", (int)value, stored);
         }
-        int32_t stored = 0;
-        ROWS_CHECK(Combo_ComboSettingReadStore(COMBO_SETTING_POOL_SIZE_OOT, &stored) && stored == 5,
-                   "a pre-creation edit did not reach the store (read back %d)", stored);
     }
 
     // ---- Leg 5: frozen -> read-only, with the values FROM THE SAVE ----------
@@ -640,8 +636,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ComboSettingsRecord frozen;
     Combo_ComboSettingsDefaults(&frozen);
     frozen.direction = (uint8_t)RSBS_COMBO_DIR_REVERSE;                                  // authored: FORWARD
-    frozen.poolSizeOoT = 7;                                                              // authored: 5
-    frozen.poolSizeMM = 4;                                                               // authored: 3
     frozen.itemClassOoT = (uint16_t)(RSBS_ITEMCLASS_PROGRESSION | RSBS_ITEMCLASS_MASKS); // authored: SONGS
     frozen.itemClassMM = 0;                                                              // authored: MASKS
     frozen.comboFlags = 0;                                                               // authored: ON (#668)
@@ -652,18 +646,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
 
     RunAllPreFuncs(rows);
     ExpectDecided(*settingRow[COMBO_SETTING_DIRECTION], "the direction row");
-    ExpectDecided(*settingRow[COMBO_SETTING_POOL_SIZE_OOT], "the OoT pool row");
-    ExpectDecided(*settingRow[COMBO_SETTING_POOL_SIZE_MM], "the MM pool row");
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_DIRECTION]) == (int32_t)RSBS_COMBO_DIR_REVERSE,
                "the frozen direction row staged %d; it must show the SAVE's %d, not the CVar's %d",
                StagedInt(*settingRow[COMBO_SETTING_DIRECTION]), (int)RSBS_COMBO_DIR_REVERSE,
                (int)RSBS_COMBO_DIR_FORWARD);
-    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_POOL_SIZE_OOT]) == 7,
-               "the frozen OoT pool row staged %d; it must show the SAVE's 7, not the CVar's 5",
-               StagedInt(*settingRow[COMBO_SETTING_POOL_SIZE_OOT]));
-    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_POOL_SIZE_MM]) == 4,
-               "the frozen MM pool row staged %d; it must show the SAVE's 4, not the CVar's 3",
-               StagedInt(*settingRow[COMBO_SETTING_POOL_SIZE_MM]));
     ExpectDecided(*settingRow[COMBO_SETTING_SHARED_OCARINA], "the shared-ocarina row");
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]) == 0,
                "the frozen shared-ocarina row staged %d; it must show the SAVE's OFF, not the CVar's ON -- the "
@@ -903,8 +889,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     {
         ComboContext_Init();
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, 2) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_MM, 3) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_SONGS) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, (int32_t)RSBS_ITEMCLASS_MASKS) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1 &&
@@ -959,7 +943,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             }
         }
         gRecordedPopups.clear();
-        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all seven "
+        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all five "
                "rules\n");
     }
 
