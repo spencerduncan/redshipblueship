@@ -75,10 +75,12 @@ void Rando::MiscBehavior::CheckQueue() {
             // path and archives are never unmounted: oot.o2r is mounted from
             // OoT's first boot on, and curated OoT-origin models are carried in
             // redship-mm.o2r (#577 M1: today only the M1 seed, #577 M6 curates
-            // the set). When there is no drawable model (no origin answer, a
-            // model in an object
-            // directory both archives carry that MM has no host-native row for
-            // yet, or a path no mounted archive holds) it keeps MM's own
+            // the set). A model in an object directory both archives carry
+            // draws MM's OWN model for the same item instead (#577 M7's
+            // host-native table: OoT's hookshot shows MM's hookshot). When there
+            // is no drawable model (no origin answer, a colliding model the
+            // table answers "no model" for, or a path no mounted archive
+            // holds) it keeps MM's own
             // model-LESS pickup form: RI_NONE draws no model and falls through to
             // DrawSparkles, the presentation MM gives Magic Upgrades, the Swim
             // ability and Progressive Time (DrawItem.cpp). Never a DIFFERENT
