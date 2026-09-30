@@ -865,7 +865,9 @@ is accepted (listed here; deliberately not filed by this ADR):
 4. **Epic: hints v2 (cross-game hints).** MM area taxonomy (#500 work item
    4, including the dead `StaticData::RandoStaticRegion` decoy), foreign-host
    gossip-stone hints (today structurally impossible: the junk filter
-   excludes every host), OoT-side cross-game hint type + serialization,
+   excludes every host; *2026-09-30: the operator scheduled this item, #575
+   item 2, and it is delivered for MM's stones, see the note under the
+   2026-09-27 increment 3 entry*), OoT-side cross-game hint type + serialization,
    check-tracker surfacing of foreign hosts, and — strictly on top of the
    deterministic core — OoTMM-style probabilistic foolish analysis as hint
    refinement.
@@ -1805,7 +1807,14 @@ proves each half's pieces are bag rows the proof can count. Hints in a paired
 world carry no pair-level way-of-the-hero or barren analysis (no pair-level
 playthrough exists yet); what they do carry is checked against the paired
 world itself: a crossing host is never hintable, and an OoT item hint whose
-target crossed into MM names Termina (`RA_TERMINA`). The pane's pool-size rows
+target crossed into MM names Termina (`RA_TERMINA`). *Amended 2026-09-30 (#575
+item 2, scheduled by the operator that day): "never hintable" now holds for
+OoT's hint pass only, whose hints would name the cover item. MM's gossip stones
+count an MM crossing host as a candidate and name the crossed item
+(`Rando::Foreign::ForeignNameForCheck`, `ActorBehavior/EnGs.cpp`), so the cover
+is never named. A stone picks its check when it is read, not at generation, so
+no generated world or digest moves; locked by the `ForeignHostGossipHint` row.*
+The pane's pool-size rows
 change no rule but re-seed the world. A paired world's OoT spoiler is refused
 as a solo OoT world at file select: the pairing and its crossings are not
 rebuilt from a spoiler there. A netplay peer's sourced grants share the

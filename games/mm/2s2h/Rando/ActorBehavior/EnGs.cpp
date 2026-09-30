@@ -2,6 +2,9 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "2s2h/ShipUtils.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "Rando/Foreign.h" // ForeignNameForCheck: a crossing host's hint (#575 item 2)
+#endif
 
 #include <cstdio>
 #include <vector>
@@ -48,8 +51,15 @@ static std::vector<RandoCheckId> GossipHintCandidates(bool excludeObtained) {
     std::vector<RandoCheckId> availableChecks;
     for (auto& [randoCheckId, _] : Rando::StaticData::Checks) {
         RandoSaveCheck saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
-        if (saveCheck.shuffled && Rando::StaticData::Items[saveCheck.randoItemId].randoItemType != RITYPE_JUNK &&
-            (!excludeObtained || !saveCheck.obtained)) {
+        bool hintable = Rando::StaticData::Items[saveCheck.randoItemId].randoItemType != RITYPE_JUNK;
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #575 item 2: a crossing host holds MM's junk cover (the item itself
+        // is the other game's, in the crossing store), so the junk filter
+        // alone would never hint it. Only progression crosses, so a host is
+        // always worth a hint.
+        hintable = hintable || Rando::Foreign::ForeignNameForCheck(randoCheckId) != nullptr;
+#endif
+        if (saveCheck.shuffled && hintable && (!excludeObtained || !saveCheck.obtained)) {
             availableChecks.push_back(randoCheckId);
         }
     }
@@ -57,6 +67,12 @@ static std::vector<RandoCheckId> GossipHintCandidates(bool excludeObtained) {
 }
 
 static std::string GossipHintItemName(RandoCheckId randoCheckId) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // Name the crossed item, never the cover, with its article like a native one.
+    if (const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId)) {
+        return std::string(Rando::Foreign::ForeignArticleForCheck(randoCheckId)) + foreignName;
+    }
+#endif
     return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
 }
 
