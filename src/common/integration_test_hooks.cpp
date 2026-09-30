@@ -143,6 +143,57 @@ void CaptureReaderMain() {
     sCapture->doneCv.notify_all();
 }
 
+// ---------------------------------------------------------------------------
+// Progress word (#793): bumped by every frame either game starts and by every
+// stage main enters between frames. `sProgressStage` names where the run was
+// when it last made progress (string literals only).
+// ---------------------------------------------------------------------------
+std::atomic<uint64_t> sProgress{0};
+std::atomic<const char*> sProgressStage{"boot: first game init, before its first frame"};
+std::atomic<uint32_t> sProgressFrames[3] = {}; // indexed by GameId
+
+// RSBS_INT_WEDGE fault injection, parsed once.
+enum WedgeSite { WEDGE_NONE, WEDGE_OOT, WEDGE_MM, WEDGE_HANDOFF };
+struct WedgeConfig {
+    WedgeSite site;
+    uint32_t frame;
+    int secs;
+};
+
+int GameplayEnvInt(const char* name, int defaultValue, int minValue);
+
+const WedgeConfig& Wedge(void) {
+    static const WedgeConfig config = [] {
+        WedgeConfig c = { WEDGE_NONE, 30, 600 };
+        const char* raw = std::getenv("RSBS_INT_WEDGE");
+        if (raw == nullptr || raw[0] == '\0') {
+            return c;
+        }
+        if (strcmp(raw, "oot") == 0) {
+            c.site = WEDGE_OOT;
+        } else if (strcmp(raw, "mm") == 0) {
+            c.site = WEDGE_MM;
+        } else if (strcmp(raw, "handoff") == 0) {
+            c.site = WEDGE_HANDOFF;
+        } else {
+            fprintf(stderr, "[INT-WEDGE] WARNING: ignoring RSBS_INT_WEDGE='%s' (oot, mm or handoff)\n", raw);
+            fflush(stderr);
+            return c;
+        }
+        c.frame = (uint32_t)GameplayEnvInt("RSBS_INT_WEDGE_FRAME", 30, 1);
+        c.secs = GameplayEnvInt("RSBS_INT_WEDGE_SECS", 600, 1);
+        return c;
+    }();
+    return config;
+}
+
+void WedgeNow(const char* where, uint32_t frame) {
+    fprintf(stderr, "[INT-WEDGE] RSBS_INT_WEDGE: sleeping %d s inside %s (frame %u); no frame completes\n",
+            Wedge().secs, where, (unsigned)frame);
+    fflush(stderr);
+    std::this_thread::sleep_for(std::chrono::seconds(Wedge().secs));
+}
+
 // The recorded paired identity (int-paired-first-crossing).
 PairedIdentity sPairedIdentity = {};
 bool sPairedIdentityRecorded = false;
@@ -301,6 +352,33 @@ void IntegrationTest_RequestExit(void) {
 
 bool IntegrationTest_ExitRequested(void) {
     return sExitRequested.load();
+}
+
+void IntegrationTest_FrameProgress(GameId game) {
+    if (game != GAME_OOT && game != GAME_MM) {
+        return;
+    }
+    const uint32_t frame = ++sProgressFrames[game];
+    sProgressStage = (game == GAME_OOT) ? "OoT frame" : "MM frame";
+    sProgress++;
+    const WedgeConfig& wedge = Wedge();
+    if (frame == wedge.frame && ((game == GAME_OOT && wedge.site == WEDGE_OOT) ||
+                                 (game == GAME_MM && wedge.site == WEDGE_MM))) {
+        WedgeNow(game == GAME_OOT ? "an OoT frame" : "an MM frame", frame);
+    }
+}
+
+void IntegrationTest_StageProgress(const char* stage) {
+    sProgressStage = stage;
+    sProgress++;
+}
+
+void IntegrationTest_HandoffWedgeIfArmed(void) {
+    static bool sWedged = false;
+    if (Wedge().site == WEDGE_HANDOFF && !sWedged) {
+        sWedged = true;
+        WedgeNow("main's cross-game hand-off", 0);
+    }
 }
 
 // ============================================================================

@@ -831,6 +831,15 @@ int main(int argc, char** argv) {
                 Entrance_SetStartupEntrance(Context_GetFrozenReturnEntrance(nextGame), nextGame);
             }
 
+            // The integration rows' progress word (#793): no frame runs from
+            // here until the target game's first one, so name the stage.
+            if (TestRunner_IsIntegrationTestMode()) {
+                IntegrationTest_StageProgress(nextGame == GAME_MM
+                                                  ? "hand-off to MM (suspend OoT, archive swap, MM init/resume)"
+                                                  : "hand-off to OoT (suspend MM, archive swap, OoT init/resume)");
+                IntegrationTest_HandoffWedgeIfArmed();
+            }
+
             // Hot-swap resource archives before game init/resume
             Combo_EnsureGameArchivesLoaded(nextGame);
 
@@ -851,6 +860,9 @@ int main(int argc, char** argv) {
     }
 
     // Final cleanup — shutdown all games
+    if (TestRunner_IsIntegrationTestMode()) {
+        IntegrationTest_StageProgress("shutdown (GameRunner_ShutdownAll)");
+    }
     GameRunner_ShutdownAll(&runner);
 
     free(gameArgv);

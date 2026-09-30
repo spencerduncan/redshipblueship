@@ -1026,6 +1026,14 @@ static void OoT_RegisterIntegrationTestHooks(void) {
 
     IntegrationTestMode mode = IntegrationTest_GetMode();
 
+    // Every mode: each OoT frame bumps the int-* rows' progress word (#793).
+    // Registered once, from OoT's first init; resumed OoT frames fire it too.
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+        if (Context_GetCurrentGame() == GAME_OOT) {
+            IntegrationTest_FrameProgress(GAME_OOT);
+        }
+    });
+
     if (mode == INT_TEST_BOOT_OOT) {
         fprintf(stderr, "[OoT] Registering integration test hooks for boot detection\n");
         fflush(stderr);

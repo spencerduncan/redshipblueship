@@ -944,6 +944,10 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
  * No-op unless the gameplay round-trip mode is active.
  */
 extern "C" void MM_IntegrationGameplayFrameTick(void) {
+    // Every mode: each MM frame bumps the int-* rows' progress word (#793).
+    if (IntegrationTest_IsActive() && Context_GetCurrentGame() == GAME_MM) {
+        IntegrationTest_FrameProgress(GAME_MM);
+    }
     if (IntegrationTest_GetMode() != INT_TEST_GAMEPLAY_ROUNDTRIP) {
         return;
     }

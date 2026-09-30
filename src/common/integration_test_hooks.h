@@ -247,6 +247,29 @@ int IntegrationTest_GameplayWatchdogBudgetSecs(void);
 bool IntegrationTest_GameplayWatchdogExpired(double elapsedSecs, int budgetSecs);
 
 // ----------------------------------------------------------------------------
+// Progress word for the int-* rows (#793)
+//
+// Every frame either game starts, and every step main takes between frames
+// (the first game's init, a cross-game hand-off, the final shutdown), bumps a
+// progress word and names the stage it is in. The stage pointer is stored, not
+// copied: pass string literals only.
+//
+// RSBS_INT_WEDGE=oot|mm|handoff is a test-only fault injection for the rows
+// that lock the wall-clock watchdog: it sleeps RSBS_INT_WEDGE_SECS (600) inside
+// that game's RSBS_INT_WEDGE_FRAME'th frame (30), or inside main's first
+// cross-game hand-off, so the process wedges with no frame completing.
+// ----------------------------------------------------------------------------
+
+/** One frame of `game` started (called from each game's per-frame integration hook). */
+void IntegrationTest_FrameProgress(GameId game);
+
+/** main entered `stage` (a string literal), outside any game's frame loop. */
+void IntegrationTest_StageProgress(const char* stage);
+
+/** The hand-off site of RSBS_INT_WEDGE=handoff (main, before the switch runs). */
+void IntegrationTest_HandoffWedgeIfArmed(void);
+
+// ----------------------------------------------------------------------------
 // stderr capture (int-paired-first-crossing)
 //
 // The crossing's verdicts are fprintf(stderr) lines in both ports (the MM

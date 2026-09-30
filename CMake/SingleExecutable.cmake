@@ -2256,6 +2256,31 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         COMMAND redship --integration-test int-archive-hotswap-cycle
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
 
+    # #793: the wall-clock watchdog thread (src/common/integration_test_hooks.cpp).
+    # Each row wedges a real run with RSBS_INT_WEDGE (a 600 s sleep with no frame
+    # completing) at one of the three places the per-frame watchdogs cannot see:
+    # inside an OoT frame, inside main's OoT->MM hand-off, inside an MM frame.
+    # The row passes only when the watchdog names that stage and ends the run;
+    # without the thread the run reaches the 120 s CTest wall (the red half).
+    redship_add_test(NAME IntWatchdogWedgeOoTFrame
+        COMMAND redship --integration-test int-switch-oot-hms-to-mm
+        LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_INT_WEDGE=oot;RSBS_INT_WEDGE_FRAME=30;RSBS_INT_WATCHDOG_SECS=15")
+    set_tests_properties(IntWatchdogWedgeOoTFrame PROPERTIES
+        PASS_REGULAR_EXPRESSION "\\[INT-WATCHDOG\\] FAIL [^\n]*last stage: OoT frame")
+    redship_add_test(NAME IntWatchdogWedgeHandoff
+        COMMAND redship --integration-test int-switch-oot-hms-to-mm
+        LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_INT_WEDGE=handoff;RSBS_INT_WATCHDOG_SECS=15")
+    set_tests_properties(IntWatchdogWedgeHandoff PROPERTIES
+        PASS_REGULAR_EXPRESSION "\\[INT-WATCHDOG\\] FAIL [^\n]*last stage: hand-off to MM")
+    redship_add_test(NAME IntWatchdogWedgeMMFrame
+        COMMAND redship --integration-test int-boot-mm
+        LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_INT_WEDGE=mm;RSBS_INT_WEDGE_FRAME=5;RSBS_INT_WATCHDOG_SECS=15")
+    set_tests_properties(IntWatchdogWedgeMMFrame PROPERTIES
+        PASS_REGULAR_EXPRESSION "\\[INT-WATCHDOG\\] FAIL [^\n]*last stage: MM frame")
+
     # Gameplay round-trip crash repro (docs/ci-gameplay-repro-postmortem.md):
     # the programmatic version of the operator's manual repro — debug save,
     # live gameplay, production cross-game round trip (SaveContext
