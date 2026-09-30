@@ -640,7 +640,7 @@ if(BUILD_TESTING)
     # against the HOST game's segment table — the OoTMM kObjectPatches[] hazard,
     # and the one real objection to cross-game rendering).
     #
-    # SKIP_RETURN_CODE: redship.o2r only exists once GenerateRedshipOtr has run,
+    # SKIP_RETURN_CODE: redship-oot.o2r only exists once GenerateRedshipOtr has run,
     # which needs BOTH games extracted. A single-game or archive-less tree skips
     # instead of going red, same convention as ZipContention above.
     #
@@ -650,6 +650,16 @@ if(BUILD_TESTING)
     # it, watch the row go red. Unset in the shipped row, on purpose.
     redship_add_test(NAME CrossGameModel COMMAND redship --test crossgame-model)
     set_tests_properties(CrossGameModel PROPERTIES SKIP_RETURN_CODE 77)
+    # #577 M1 curated-archive mount lock: the curated archive is split per
+    # direction (redship-oot.o2r = MM content OoT draws, redship-mm.o2r = OoT
+    # content MM draws), and each half must be mounted on its game's arrival
+    # with that game's identity -- the per-archive factory dispatcher parses by
+    # it -- and under that game's mods. Drives the production
+    # Combo_EnsureGameArchivesLoaded over synthetic stand-ins (ROM-free), plus a
+    # leg over the real generated halves that skips itself when they are absent.
+    # Same SKIP_RETURN_CODE policy: needs soh.o2r for the shared bring-up.
+    redship_add_test(NAME CuratedArchiveMount COMMAND redship --test curated-archive-mount)
+    set_tests_properties(CuratedArchiveMount PROPERTIES SKIP_RETURN_CODE 77)
 
     # #595 curated-archive mount-order lock: soh.o2r and 2ship.o2r — the two
     # archives WE generate from in-tree custom assets — collided on 595 paths,
@@ -2318,7 +2328,7 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # of authorship, and a target that regenerated goldens as a side effect of a
     # build would turn the oracle back into the no-op #688 was filed about.
     #
-    # RUN IT WITH THE PORT ARCHIVES ONLY (soh.o2r / 2ship.o2r / redship.o2r) and
+    # RUN IT WITH THE PORT ARCHIVES ONLY (soh.o2r / 2ship.o2r / redship-*.o2r) and
     # a GL-capable display; on a headless Linux box, under xvfb-run. Move oot.o2r
     # and mm.o2r out of the build directory first: a re-pin records one run, and
     # the archive-free environment is the one CI reproduces. Until #702 a golden
