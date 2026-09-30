@@ -266,6 +266,22 @@ void IntegrationTest_FrameProgress(GameId game);
 /** main entered `stage` (a string literal), outside any game's frame loop. */
 void IntegrationTest_StageProgress(const char* stage);
 
+/**
+ * A paired-world creation reported progress (gen_budget.c: Begin, every phase
+ * and fill-progress Report, End). The creation event blocks the game thread
+ * inside ONE frame for as long as its own wall-clock budget allows (up to 90 s
+ * per attempt on a slow host, gen_budget.h), so without this a healthy slow
+ * creation would read as a wedged frame. A creation that stops reporting still
+ * stalls the word, and the watchdog names it.
+ */
+void IntegrationTest_CreationProgress(void);
+
+/** The progress word's current value (read by the ROM-free gp-watchdog row). */
+uint64_t IntegrationTest_ProgressCount(void);
+
+/** The stage the run was in when it last made progress (a string literal). */
+const char* IntegrationTest_ProgressStage(void);
+
 /** The hand-off site of RSBS_INT_WEDGE=handoff (main, before the switch runs). */
 void IntegrationTest_HandoffWedgeIfArmed(void);
 

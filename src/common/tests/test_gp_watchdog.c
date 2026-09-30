@@ -85,7 +85,33 @@ TestResult Test_GpWatchdog(void) {
     GPWD_CHECK(IntegrationTest_GameplayWatchdogParse("60s") == GPWD_DEFAULT_SECS, "trailing junk not defaulted");
     GPWD_CHECK(IntegrationTest_GameplayWatchdogParse("abc") == GPWD_DEFAULT_SECS, "non-numeric override not defaulted");
 
-    printf("[TEST] PASS: watchdog budget is wall-clock, bounded under the timeout, and validated\n");
+    // (5) #793: a paired-world creation blocks the game thread inside ONE frame
+    // for as long as its own wall-clock budget allows (gen_budget.h: up to 90 s
+    // per attempt on a slow host), which the int-* wall-clock watchdog thread's
+    // 60 s default would read as a wedged frame. Each creation-progress report
+    // (Begin, every Report, End) must therefore advance the progress word that
+    // thread polls, and name the creation as the stage. Observed without it: a
+    // healthy IntPairedFirstCrossing pinned to one core failed with
+    // "[INT-WATCHDOG] FAIL ... no progress for 60.1 s ... last stage: OoT frame"
+    // in the middle of the production creation.
+    Combo_GenBudget_SetHostScalePercentOverride(100);
+    uint64_t before = IntegrationTest_ProgressCount();
+    Combo_GenProgress_Begin();
+    uint64_t afterBegin = IntegrationTest_ProgressCount();
+    Combo_GenProgress_Report(RSBS_GENPHASE_MM_FILL, 1, "gp-watchdog: a fill-progress report");
+    uint64_t afterReport = IntegrationTest_ProgressCount();
+    const char* stage = IntegrationTest_ProgressStage();
+    Combo_GenProgress_End(true);
+    uint64_t afterEnd = IntegrationTest_ProgressCount();
+    Combo_GenBudget_SetHostScalePercentOverride(0);
+    GPWD_CHECK(afterBegin > before, "Combo_GenProgress_Begin did not advance the #793 progress word");
+    GPWD_CHECK(afterReport > afterBegin, "Combo_GenProgress_Report did not advance the #793 progress word");
+    GPWD_CHECK(afterEnd > afterReport, "Combo_GenProgress_End did not advance the #793 progress word");
+    GPWD_CHECK(stage != NULL && strstr(stage, "paired world creation") != NULL,
+               "a creation-progress report did not name the creation as the watchdog's stage");
+
+    printf("[TEST] PASS: watchdog budget is wall-clock, bounded under the timeout, and validated; "
+           "creation-progress reports are #793 watchdog progress\n");
     return TEST_PASS;
 }
 

@@ -500,6 +500,18 @@ void IntegrationTest_StageProgress(const char* stage) {
     sProgress++;
 }
 
+void IntegrationTest_CreationProgress(void) {
+    IntegrationTest_StageProgress("paired world creation (a generation-progress report, inside one frame)");
+}
+
+uint64_t IntegrationTest_ProgressCount(void) {
+    return sProgress.load();
+}
+
+const char* IntegrationTest_ProgressStage(void) {
+    return sProgressStage.load();
+}
+
 void IntegrationTest_HandoffWedgeIfArmed(void) {
     static bool sWedged = false;
     if (Wedge().site == WEDGE_HANDOFF && !sWedged) {
