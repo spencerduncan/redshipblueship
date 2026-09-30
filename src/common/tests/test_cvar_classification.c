@@ -688,9 +688,10 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 7,
-                            "exactly seven tier-4 identity keys (direction, two pool sizes, two item classes — ADR "
-                            "0011 increment 2 —, the shared ocarina, #668, and the goal, ADR 0010 D1)");
+            CVARCLASS_CHECK(identityKeys == 5,
+                            "exactly five tier-4 identity keys (direction and two item classes — ADR 0011 "
+                            "increment 2, whose two pool sizes #801 retired —, the shared ocarina, #668, and the "
+                            "goal, ADR 0010 D1)");
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",
                    literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);

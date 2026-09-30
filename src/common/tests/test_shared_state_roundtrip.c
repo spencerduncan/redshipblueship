@@ -9,12 +9,11 @@
  * MM". This is the shared-state contract Phase 3 (full rando) will rely on.
  *
  * Headless: this test only touches the shared ComboContext struct via its
- * public C API. It does NOT boot either game, allocate a SaveContext, or call
- * the game-port freeze/resume hooks (MM_FreezeState / MM_ResumeFromContext),
- * which are unavailable in the headless --test path. (OoT's counterparts used
- * to be named here too; they were deleted by #598 — never compiled, never
- * called, and a freeze-time writer of the seed stamp that the creation event
- * is now the sole author of.)
+ * public C API. It does NOT boot either game or allocate a SaveContext. (The
+ * legacy game-port freeze/resume hooks this used to disclaim, OoT_FreezeState /
+ * MM_FreezeState and their *_ResumeFromContext partners, are deleted: OoT's by
+ * #598, MM's by #427 — never compiled, never called, and freeze-time writers of
+ * the seed stamp that the creation event is now the sole author of.)
  *
  * Included into test_runner.cpp inside an extern "C" block (mirrors
  * test_game_lifecycle.c). Only C-linkage ComboContext_* symbols and gComboCtx

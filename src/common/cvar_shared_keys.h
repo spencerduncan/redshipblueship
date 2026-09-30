@@ -120,13 +120,13 @@
  * counterpart: ADR 0003 names them "new tier-4 keys, not converged MM keys",
  * so none of them is a ConvergedKey row and none has a legacy spelling.
  *
- * The six `gCombo.Rando.*` keys are WORLD IDENTITY (ADR 0004 §6 state 4):
+ * The five `gCombo.Rando.*` keys are WORLD IDENTITY (ADR 0004 §6 state 4):
  * they author a ComboSettingsRecord up to the creation event and no further.
  * Combo_ResolveComboSettings (foreign_items.h) is the ONE reader that turns
  * them into the record, through combo_settings_view.h, which also holds the
  * ONE writer surface — and that surface refuses once
  * Combo_ComboSettingsFrozen() is true. Values are the pinned RSBS_COMBO_DIR_*
- * / 1..RSBS_FOREIGN_PLACEMENT_CAP / RSBS_ITEMCLASS_* / 0-or-1 spaces; an
+ * / RSBS_ITEMCLASS_* / RSBS_COMBO_GOAL_* / 0-or-1 spaces; an
  * out-of-space value in the store resolves to the shipped default with a logged
  * reason, never to a new enumerator.
  *
@@ -138,8 +138,10 @@
  * 4 exists to prevent.
  * ========================================================================== */
 #define RSBS_CVAR_COMBO_RANDO_DIRECTION "gCombo.Rando.Direction"
-#define RSBS_CVAR_COMBO_RANDO_POOL_SIZE_OOT "gCombo.Rando.PoolSize.OoT"
-#define RSBS_CVAR_COMBO_RANDO_POOL_SIZE_MM "gCombo.Rando.PoolSize.MM"
+/* #801 retired the two pool-size keys (gCombo.Rando.PoolSize.OoT / .MM, the
+ * "Max OoT Items" / "Max MM Items" rows): under the single bag no rule reads a
+ * pool size, and a moved slider only re-seeded the world. The record fields
+ * stay (format and identity); every new world writes the shipped default. */
 #define RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT "gCombo.Rando.ItemClass.OoT"
 #define RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM "gCombo.Rando.ItemClass.MM"
 /* #668: one ocarina across both games. Boolean (0/1), DEFAULT 0, so every world
@@ -517,14 +519,11 @@ inline constexpr const char* kComboKeyPrefix = "gCombo.";
 inline constexpr const char* kComboIdentityKeyPrefix = "gCombo.Rando.";
 
 inline constexpr ComboKey kComboKeys[] = {
-    // ---- gCombo.Rando.*: the five authorable fields of ComboSettingsRecord
-    //      (ADR 0011 increment 2). All IDENTITY.
+    // ---- gCombo.Rando.*: the authorable fields of ComboSettingsRecord (ADR
+    //      0011 increment 2, less the two pool sizes #801 retired, plus #668's
+    //      shared ocarina and ADR 0010 D1's goal). All IDENTITY.
     { RSBS_CVAR_COMBO_RANDO_DIRECTION, ComboKeyClass::Identity,
       "ComboSettingsRecord.direction (RSBS_COMBO_DIR_*): which placement passes run" },
-    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_OOT, ComboKeyClass::Identity,
-      "ComboSettingsRecord.poolSizeOoT: max OoT-origin placements into MM checks" },
-    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_MM, ComboKeyClass::Identity,
-      "ComboSettingsRecord.poolSizeMM: max MM-origin placements into OoT checks" },
     { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT, ComboKeyClass::Identity,
       "ComboSettingsRecord.itemClassOoT (RSBS_ITEMCLASS_* mask): which OoT item classes may cross" },
     { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM, ComboKeyClass::Identity,
@@ -585,8 +584,9 @@ constexpr bool ComboIdentityKeysAreIdentity() {
  * SCOPE, deliberately narrow. Four keys, the four #682 names. Widening the
  * allowlist is a separate decision, because `2ship_enh` is a plain archive by
  * design (see `.github/scripts/check-registrar-elision.sh`: most of its members
- * must legitimately stay dead in single-exe) and #427 item 3 keeps
- * "WHOLE_ARCHIVE the lot" as its own call.
+ * must legitimately stay dead in single-exe) and "WHOLE_ARCHIVE the lot" is
+ * its own call. That script, citing #516, records why the archive stays
+ * plain and its registrar audit stays report-only.
  *
  * NOT world identity. Every key here is a PREFERENCE: it shapes how the game
  * plays for this player, never what the paired world contains, so none of them
@@ -925,17 +925,19 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Seven identity keys (the five of ADR 0011 increment 2, SharedOcarina (#668)
-// and Goal (ADR 0010 D1)) + three window-visibility preferences (the MM
+// Five identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// #801 retired, SharedOcarina (#668) and Goal (ADR 0010 D1)) + three
+// window-visibility preferences (the MM
 // randomizer options window's left with it on 2026-09-27, when the options
 // became Combo pages). Pinning the count makes a silently dropped row a compile
 // error; the lock's tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 10, "seven gCombo.Rando.* identity keys + three gCombo.Windows.* preferences = 10");
+static_assert(kComboKeyCount == 8, "five gCombo.Rando.* identity keys + three gCombo.Windows.* preferences = 8");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is
 // the same already-linked TU (SavingEnhancements.cpp), so it widens no archive
-// and is not #427 item 3's "WHOLE_ARCHIVE the lot" call. Pinning the count makes
+// and is not the "WHOLE_ARCHIVE the lot" call (2ship_enh stays a plain archive;
+// check-registrar-elision.sh and #516 record why). Pinning the count makes
 // both a silently dropped row and a quietly WIDENED allowlist a compile error.
 static_assert(kHostedMmEnhancementCount == 5,
               "the curated MM enhancement allowlist: #682's Kaleido.GameOver, Songs.BetterSongOfDoubleTime, "

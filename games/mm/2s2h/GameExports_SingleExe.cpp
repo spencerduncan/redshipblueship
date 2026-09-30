@@ -275,6 +275,16 @@ extern "C" bool Combo_ArchivePathIsMM(const char* path) {
     return path != nullptr && IsMMArchivePath(path);
 }
 
+// #577 M1: record an archive MM does not mount itself as MM's. The one caller is
+// rsbs/src/main.cpp's curated-archive mount, which gives redship-mm.o2r (the
+// OoT-origin models MM draws) MM's identity, so the dispatchers below treat it
+// as MM's with no new mechanism. De-duplicating, like every other recording.
+extern "C" void MM_RecordArchivePath(const char* path) {
+    if (path != nullptr && path[0] != '\0') {
+        RecordMMArchivePath(path);
+    }
+}
+
 // ============================================================================
 // MM-owned GameInteractor shim (#395) — API in games/mm/include/mm_game_hooks.h
 // ============================================================================
@@ -1440,9 +1450,10 @@ static void RegisterMMResourceFactories() {
     // bytes for any other width, desyncing the rest of the resource. MM's one
     // such array, object_link_zora_U8_011710 (ZSCALAR_X8), is the alpha ramp
     // Player_DrawZoraShield reads every frame of the Zora barrier. Arrays served
-    // by any archive not recorded as MM's (OoT's, and the curated cross-game
-    // redship.o2r) still parse with OoT's reader, which the agreement check
-    // covers on the Vertex path.
+    // by any archive not recorded as MM's (OoT's, and OoT's curated cross-game
+    // half redship-oot.o2r) still parse with OoT's reader; MM's curated half
+    // redship-mm.o2r is recorded as MM's (#577 M1), so its OoT-exported arrays
+    // parse with MM's. The agreement check covers both on the Vertex path.
     loader->RegisterResourceFactory(
         std::make_shared<RsbsMMArchiveFactoryDispatcher>(OoT_CreateArrayFactory(),
                                                          std::make_shared<S2H::ResourceFactoryBinaryArrayV0>()),
@@ -2938,7 +2949,10 @@ void MM_Game_Resume(void) {
     // a startup entrance for every switch into a frozen game (entrance-based
     // and hotkey alike — rsbs/src/main.cpp), so that path always runs when
     // there is something to restore. First boot of MM has no frozen state —
-    // in that case MM_InitFirstEntrySaveContext still handles bootstrap (#168).
+    // the restore is skipped and the entrance spawn proceeds on the boot
+    // chain's bootstrap save (MM_Play_ConsumeStartupEntrance, z_play.c). The
+    // MM_InitFirstEntrySaveContext this once named was never compiled and is
+    // deleted (#427).
     if (Context_HasFrozenState(GAME_MM)) {
         fprintf(stderr, "[MM] Restoring frozen SaveContext on resume\n");
         fflush(stderr);

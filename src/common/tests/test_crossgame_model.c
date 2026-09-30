@@ -36,7 +36,7 @@
  * did not finish checking.
  *
  * Falsifiability, and the counterfactuals that were actually run:
- *   - Remove redship.o2r from the build root: the wrapper SKIPs rather than
+ *   - Remove redship-oot.o2r from the build root: the wrapper SKIPs rather than
  *     letting an unstaged tree read as a pass, and with the mount removed but
  *     the archive present the model resolves to nothing at all.
  *   - RSBS_CROSSGAME_MODEL_PATH pointed at a curated object whose stream DOES
@@ -54,7 +54,7 @@
  * Included at FILE SCOPE by test_runner.cpp (compiled as C++): it drives the
  * C++-linkage Ship::Context / ResourceManager / ArchiveManager and Fast::
  * DisplayList APIs. The caller (Test_CrossGameModel) does the display-free
- * bring-up, the redship.o2r staging check and mount, and the factory
+ * bring-up, the redship-oot.o2r staging check and mount, and the factory
  * registration first.
  */
 
@@ -68,6 +68,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -88,9 +89,11 @@ const char* CgmDisplayListPath() {
     return (env != nullptr && env[0] != '\0') ? env : kCgmDefaultDisplayList;
 }
 
+// Compares the FILE NAME, not a suffix of the path: since #577 M1 the curated
+// half is called redship-oot.o2r, which a suffix test for "oot.o2r" would
+// classify as OoT's own base archive.
 bool CgmArchiveIsNamed(const std::string& archivePath, const char* name) {
-    const size_t len = std::string(name).size();
-    return archivePath.size() >= len && archivePath.compare(archivePath.size() - len, len, name) == 0;
+    return std::filesystem::path(archivePath).filename().string() == name;
 }
 
 // Archives whose bytes would mean the reference resolved to the WRONG game.
@@ -106,8 +109,9 @@ bool CgmIsOoTArchive(const std::string& archivePath) {
     return false;
 }
 
-// The curated cross-game archive itself. The model must come from HERE, not
-// merely from "some archive that is not OoT's".
+// OoT's curated cross-game half, redship-oot.o2r (#577 M1: the MM-origin
+// content OoT draws). The model must come from HERE, not merely from "some
+// archive that is not OoT's".
 //
 // This matters because the row also executes inside `--test all`, which runs
 // the whole dispatch table in ONE process — by the time it runs there, boot-mm
@@ -117,7 +121,7 @@ bool CgmIsOoTArchive(const std::string& archivePath) {
 // settings: the caller mounts it immediately beforehand and ArchiveManager is
 // last-added-wins, so it owns the path either way.
 bool CgmIsCuratedArchive(const std::string& archivePath) {
-    return CgmArchiveIsNamed(archivePath, "redship.o2r");
+    return CgmArchiveIsNamed(archivePath, "redship-oot.o2r");
 }
 
 // LUS custom opcodes (libultraship/include/fast/lus_gbi.h). Spelled out here

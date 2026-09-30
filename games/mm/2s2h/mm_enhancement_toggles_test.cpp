@@ -10,7 +10,8 @@
  * single exe, so MM's enhancement toggles had no widget anywhere in the binary.
  * The issue's own constraint is the one that matters here: "a toggle that does
  * nothing is worse than no toggle", because #673 wired MM's dispatchers while
- * most `2ship_enh` registrants stayed link-elided (#427 item 3). So a row is only
+ * most `2ship_enh` registrants stayed link-elided (#516: the archive stays plain
+ * by design, see .github/scripts/check-registrar-elision.sh). So a row is only
  * allowed onto the page with ADR 0004 section 5's three legs measured — the
  * provider TU links, its registrar runs, the hook type it rides has an MM
  * dispatch point — and this row is where two of the three are measured at

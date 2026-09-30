@@ -944,8 +944,6 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComputeComboSettingsHash(&live, kSettingsHash, kProfileDigest) == kDefaultsFingerprint,
               "the resolved defaults' fingerprint moved off its golden vector");
     CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_DIRECTION) == (int32_t)defaults.direction &&
-                  Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_OOT) == (int32_t)defaults.poolSizeOoT &&
-                  Combo_ComboSettingDefault(COMBO_SETTING_POOL_SIZE_MM) == (int32_t)defaults.poolSizeMM &&
                   Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_OOT) == (int32_t)defaults.itemClassOoT &&
                   Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_MM) == (int32_t)defaults.itemClassMM &&
                   Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)defaults.goal,
@@ -975,12 +973,6 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             { COMBO_SETTING_DIRECTION, 5, false }, // one past the table: never a new enumerator
             { COMBO_SETTING_DIRECTION, -1, false },
             { COMBO_SETTING_DIRECTION, 255, false },
-            { COMBO_SETTING_POOL_SIZE_OOT, 0, false }, // the direction byte says "off", not a zero pool
-            { COMBO_SETTING_POOL_SIZE_OOT, 1, true },
-            { COMBO_SETTING_POOL_SIZE_OOT, (int32_t)RSBS_FOREIGN_PLACEMENT_CAP, true },
-            { COMBO_SETTING_POOL_SIZE_OOT, (int32_t)RSBS_FOREIGN_PLACEMENT_CAP + 1, false }, // a count that lies
-            { COMBO_SETTING_POOL_SIZE_MM, -3, false },
-            { COMBO_SETTING_POOL_SIZE_MM, (int32_t)RSBS_FOREIGN_PLACEMENT_CAP, true },
             { COMBO_SETTING_ITEM_CLASS_OOT, 0, true }, // "no classes armed" is a legitimate world (decision 3.3)
             { COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_ALL_V1, true },
             { COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_PROGRESSION, true },
@@ -1103,12 +1095,10 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT,
                                     (int32_t)(RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS)) == 1,
               "an in-space class bitset must land while nothing is frozen");
-    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_MM, 3) == 1, "an in-space pool size must land");
     CS_ASSERT(Combo_ComboSettingIsExplicit(COMBO_SETTING_DIRECTION) &&
-                  Combo_ComboSettingIsExplicit(COMBO_SETTING_ITEM_CLASS_OOT) &&
-                  Combo_ComboSettingIsExplicit(COMBO_SETTING_POOL_SIZE_MM),
+                  Combo_ComboSettingIsExplicit(COMBO_SETTING_ITEM_CLASS_OOT),
               "a landed write must read as explicit");
-    CS_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_POOL_SIZE_OOT), "an untouched key stays unset");
+    CS_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_ITEM_CLASS_MM), "an untouched key stays unset");
     CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION) == (int32_t)RSBS_COMBO_DIR_FORWARD,
               "the reader must serve the authored direction");
 
@@ -1116,8 +1106,8 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(live.direction == RSBS_COMBO_DIR_FORWARD, "the resolver did not read the authored direction");
     CS_ASSERT(live.itemClassOoT == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS),
               "the resolver did not read the authored OoT class bitset");
-    CS_ASSERT(live.poolSizeMM == 3, "the resolver did not read the authored MM pool size");
-    CS_ASSERT(live.poolSizeOoT == defaults.poolSizeOoT && live.itemClassMM == defaults.itemClassMM &&
+    CS_ASSERT(live.poolSizeOoT == defaults.poolSizeOoT && live.poolSizeMM == defaults.poolSizeMM &&
+                  live.itemClassMM == defaults.itemClassMM &&
                   live.goal == defaults.goal && live.logicRung == defaults.logicRung && live.comboFlags == 0 &&
                   live.spare1 == 0 && live.formatVersion == defaults.formatVersion,
               "an unauthored field must keep its shipped default");
@@ -1263,7 +1253,7 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComboSettingsFrozen(), "the freeze must set the occupancy tag");
     CS_ASSERT(gComboCtx.comboSettings.direction == RSBS_COMBO_DIR_FORWARD &&
                   gComboCtx.comboSettings.itemClassOoT == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS) &&
-                  gComboCtx.comboSettings.poolSizeMM == 3,
+                  gComboCtx.comboSettings.poolSizeMM == (uint8_t)RSBS_FOREIGN_PLACEMENT_CAP,
               "the FROZEN record is not what the player authored — the keys were read after the freeze, or not "
               "at all");
     CS_ASSERT(frozenHash == authoredFingerprint && gComboCtx.comboSettingsHash == authoredFingerprint,
@@ -1275,7 +1265,8 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComboDirection() == RSBS_COMBO_DIR_FORWARD, "the gate reads the frozen direction");
     CS_ASSERT(Combo_ComboDirectionArms((uint8_t)GAME_OOT) && !Combo_ComboDirectionArms((uint8_t)GAME_MM),
               "FORWARD arms the forward pass only");
-    CS_ASSERT(Combo_ComboPoolSizeFor((uint8_t)GAME_MM) == 3, "the reverse pass reads the frozen MM pool size");
+    CS_ASSERT(Combo_ComboPoolSizeFor((uint8_t)GAME_MM) == (int)RSBS_FOREIGN_PLACEMENT_CAP,
+              "the frozen MM pool size is the shipped default: nothing authors it since #801");
     CS_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_OOT) == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS),
               "the forward pass reads the frozen OoT class bitset");
     // ...and THE CREATION GATE'S SECOND ACT (#657): the frozen record has to
@@ -1377,9 +1368,6 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, 0) == 0 &&
                   Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, 9) == 0,
               "an out-of-table direction must be refused at the writer");
-    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, 0) == 0 &&
-                  Combo_ComboSettingSet(COMBO_SETTING_POOL_SIZE_OOT, (int32_t)RSBS_FOREIGN_PLACEMENT_CAP + 1) == 0,
-              "an out-of-range pool size must be refused at the writer");
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, 0x0040) == 0 &&
                   Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, -1) == 0,
               "an unallocated class bit must be refused at the writer");
@@ -1391,11 +1379,9 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
                       stored == (int32_t)RSBS_COMBO_DIR_BOTH,
                   "refused writes must not touch the store");
     }
-    // ...so only an out-of-band write can plant one. Plant four, one per
+    // ...so only an out-of-band write can plant one. Plant three, one per
     // shape of wrongness, and resolve.
     CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_DIRECTION), 9);
-    CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_POOL_SIZE_OOT), 0);
-    CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_POOL_SIZE_MM), 99);
     CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_ITEM_CLASS_MM), 0x8000);
     CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_GOAL), 6);
     Combo_ResolveComboSettings(&live);
@@ -1403,8 +1389,6 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
               "an out-of-table goal must resolve to the SHIPPED DEFAULT, never to a goal nothing can evaluate");
     CS_ASSERT(live.direction == RSBS_COMBO_DIR_BOTH,
               "an out-of-table direction must resolve to the SHIPPED DEFAULT, never to a new enumerator");
-    CS_ASSERT(live.poolSizeOoT == RSBS_FOREIGN_PLACEMENT_CAP && live.poolSizeMM == RSBS_FOREIGN_PLACEMENT_CAP,
-              "an out-of-range pool size must resolve to the shipped default, not to a clamp");
     CS_ASSERT(live.itemClassMM == RSBS_ITEMCLASS_ALL_V1,
               "a mask with an unallocated bit must resolve to the shipped default, not to a masked-off value");
     CS_ASSERT(Combo_ComboDirection() == RSBS_COMBO_DIR_BOTH, "the gate sees the default, not the junk");
@@ -1477,6 +1461,95 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         mgr.DeleteSave(0);
         mgr.SetSaveDirectory(kComboSettingsTestDir);
         ComboContext_Init();
+    }
+
+    // ---- (8) The two "Max Items" rules are retired (#801) ------------------
+    // Under the single bag no rule reads a pool size, but both bytes sit in the
+    // record and in comboSettingsHash, which seeds the fill: a slider moved the
+    // whole world and changed no rule. The keys go; the record fields stay,
+    // because they are format and identity. Spelled strings rather than the
+    // removed ids, so this leg compiles against the tree before the retirement
+    // and fails there. The keys are assembled from the identity prefix, not
+    // written as one literal: CvarClassification refuses any whole tier-4
+    // literal in the tree that the manifest does not classify, and a retired
+    // key is exactly that.
+    {
+        const std::string retiredOoT = std::string(RSBS::kComboIdentityKeyPrefix) + "PoolSize.OoT";
+        const std::string retiredMM = std::string(RSBS::kComboIdentityKeyPrefix) + "PoolSize.MM";
+        const char* const kRetiredKeys[2] = { retiredOoT.c_str(), retiredMM.c_str() };
+        static const char* const kRetiredLabels[2] = { "Max OoT Items", "Max MM Items" };
+        // Each part reports on its own and the leg fails at its end, so one run
+        // shows every part that is red rather than the first.
+        int retiredFailures = 0;
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            const ComboSettingId id = (ComboSettingId)i;
+            for (int r = 0; r < 2; r++) {
+                if (strcmp(Combo_ComboSettingKey(id), kRetiredKeys[r]) == 0 ||
+                    strcmp(Combo_ComboSettingLabel(id), kRetiredLabels[r]) == 0) {
+                    printf("[TEST] FAIL: setting %d is still the retired '%s' ('%s') -- #801 retires it: it changes "
+                           "no rule and only re-seeds the world\n",
+                           i, kRetiredKeys[r], kRetiredLabels[r]);
+                    retiredFailures++;
+                }
+            }
+        }
+
+        // A config file written before #801 still holds the two keys. They
+        // author nothing now: a NEW world gets the shipped bytes and the shipped
+        // fingerprint whatever they say. Every live key is cleared first (leg 7's
+        // load restored FORWARD into the direction key), so only the stale pair
+        // could move the record.
+        ComboContext_Init();
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            CS_ASSERT(Combo_ComboSettingClear((ComboSettingId)i) == 1, "clear leg 7's keys first");
+        }
+        CVarSetInteger(kRetiredKeys[0], 3);
+        CVarSetInteger(kRetiredKeys[1], 5);
+        ComboSettingsRecord stale;
+        Combo_ResolveComboSettings(&stale);
+        CVarClear(kRetiredKeys[0]);
+        CVarClear(kRetiredKeys[1]);
+        if (!ComboSettingsRecordsEqual(stale, defaults) ||
+            Combo_ComputeComboSettingsHash(&stale, kSettingsHash, kProfileDigest) != kDefaultsFingerprint) {
+            printf("[TEST] FAIL: a stale gCombo.Rando.PoolSize.* key still reached the record (pool bytes %u/%u, "
+                   "shipped %u/%u) -- a retired row keeps re-seeding every new world (#801)\n",
+                   (unsigned)stale.poolSizeOoT, (unsigned)stale.poolSizeMM, (unsigned)defaults.poolSizeOoT,
+                   (unsigned)defaults.poolSizeMM);
+            retiredFailures++;
+        }
+
+        // A world created BEFORE #801 with the sliders moved keeps its bytes and
+        // its identity, and still loads: no key authors a pool size any more, so
+        // the session has no value that could diverge from the file's.
+        ComboSettingsRecord older = defaults;
+        older.poolSizeOoT = 3u;
+        older.poolSizeMM = 5u;
+        ComboSettingsArmPairing(0xA07A0801u, kSettingsHash, kProfileDigest);
+        const uint32_t olderHash = Combo_FreezeComboSettings(&older);
+        CS_ASSERT(olderHash == Combo_ComputeComboSettingsHash(&older, kSettingsHash, kProfileDigest) &&
+                      olderHash != kDefaultsFingerprint,
+                  "the older world's pool bytes must stay in its identity");
+        const uint32_t olderBits = Combo_ComboSettingsDivergence();
+        if (olderBits != 0) {
+            char named[192];
+            Combo_ComboSettingsDivergenceDescribe(olderBits, named, sizeof(named));
+            printf("[TEST] FAIL: a world created with Max Items moved before #801 diverges (%s) from a session that "
+                   "can no longer author a pool size -- it would be refused at load\n",
+                   named);
+            retiredFailures++;
+        }
+        CS_ASSERT(retiredFailures == 0, "#801: see the FAIL line(s) above");
+        CS_ASSERT(gComboCtx.comboSettings.poolSizeOoT == 3u && gComboCtx.comboSettings.poolSizeMM == 5u &&
+                      Combo_ComboPoolSizeFor((uint8_t)GAME_OOT) == 3 && Combo_ComboPoolSizeFor((uint8_t)GAME_MM) == 5,
+                  "the older world's record must keep its own pool bytes verbatim");
+        // The fingerprint still pins the bytes: one changed after the stamp is
+        // damage, exactly as before.
+        gComboCtx.comboSettings.poolSizeMM = 6u;
+        CS_ASSERT((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_FINGERPRINT) != 0,
+                  "a pool byte changed after the stamp must still read as damage to the stored identity");
+        ComboContext_Init();
+        printf("[TEST] (8) #801: no setting is a pool size, stale keys author nothing, and an older world with its "
+               "own pool bytes still compares healthy\n");
     }
 
     // ---- Cleanup: leave the process-global store and context clean ---------

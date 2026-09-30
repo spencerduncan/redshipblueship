@@ -646,6 +646,14 @@ extern "C" {
 // registers the DisplayList/Vertex/Texture factories first.
 #include "tests/test_crossgame_model.c"
 
+// #577 M1 curated-archive mount-and-identity lock. FILE SCOPE (compiled as
+// C++): it drives the production Combo_EnsureGameArchivesLoaded (rsbs/src/
+// main.cpp) against stand-in curated archives and asks the shared
+// ArchiveManager who owns each path, and with which game's identity
+// (Combo_ArchivePathIsMM). The wrapper (Test_CuratedArchiveMount below) does
+// the display-free OoT bring-up and SKIPs when soh.o2r is not staged.
+#include "tests/test_curated_archive_mount.c"
+
 // The combo-logic coordinator's locks (ADR 0010 increment 3, #645): the engine
 // contract, one round's fixpoint, and the single-bag fill — all three driven over
 // two synthetic stub engines the test authors and registers through
@@ -2911,13 +2919,14 @@ TestResult Test_CrossGameModel(void) {
         return TEST_FAIL;
     }
 
-    // The curated cross-game archive is produced by GenerateRedshipOtr, which
-    // needs BOTH games extracted. A tree that has not run it (or the tier's
-    // deliberate archive-less control run) skips rather than going red — the
-    // same convention as ZipContention.
-    const std::string crossGameArchive = Ship::Context::LocateFileAcrossAppDirs("redship.o2r");
+    // OoT's curated cross-game half (redship-oot.o2r: the MM-origin content OoT
+    // draws, #577 M1) is produced by GenerateRedshipOtr, which needs BOTH games
+    // extracted. A tree that has not run it (or the tier's deliberate
+    // archive-less control run) skips rather than going red — the same
+    // convention as ZipContention.
+    const std::string crossGameArchive = Ship::Context::LocateFileAcrossAppDirs("redship-oot.o2r");
     if (!std::filesystem::exists(crossGameArchive)) {
-        printf("[TEST] SKIP: no redship.o2r resolvable (tried '%s') — run the GenerateRedshipOtr target "
+        printf("[TEST] SKIP: no redship-oot.o2r resolvable (tried '%s') — run the GenerateRedshipOtr target "
                "(needs both oot.o2r and mm.o2r extracted) to arm this row (#577)\n",
                crossGameArchive.c_str());
         return TEST_SKIP;
@@ -2929,10 +2938,12 @@ TestResult Test_CrossGameModel(void) {
     }
 
     // ONLY OoT has been brought up at this point: the bring-up mounts soh.o2r
-    // and nothing else. Mounting the curated archive here is what makes an
-    // MM-exclusive path reachable, through the same
-    // ArchiveManager::AddArchive call a runtime mount would use — nothing in
-    // rsbs/ mounts redship.o2r yet, so this row is its only consumer. If this
+    // and nothing else. Mounting the curated half here is what makes an
+    // MM-exclusive path reachable. The runtime mounts it through
+    // Combo_EnsureGameArchivesLoaded / Combo_MountCuratedArchive (rsbs/src/
+    // main.cpp, whose mount and identity the curated-archive-mount row locks);
+    // this row mounts it with the same ArchiveManager::AddArchive call so that
+    // what it proves is the MODEL's drawability, independent of those. If this
     // row ever passes without this mount, the lock has gone vacuous.
     auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
     if (archiveManager == nullptr || archiveManager->AddArchive(crossGameArchive) == nullptr) {
@@ -2953,6 +2964,40 @@ TestResult Test_CrossGameModel(void) {
 
     int rc = CrossGameModel_RunHeadless();
     printf("[TEST] %s: cross-game model rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #577 M1: each game's curated cross-game half (redship-oot.o2r /
+// redship-mm.o2r) is mounted on that game's arrival with that game's identity,
+// under its mods. Body in src/common/tests/test_curated_archive_mount.c: a
+// ROM-free leg over synthetic stand-ins, and a ROM-staged leg over the real
+// generated halves that SKIPs itself when they are absent.
+//
+// Needs a live ArchiveManager, hence the display-free shared bring-up; SKIPs
+// when soh.o2r is unstaged, the same policy as CuratedArchiveOrder (the
+// netplay-relay job re-runs this label archive-less on purpose, #562).
+TestResult Test_CuratedArchiveMount(void) {
+    printf("[TEST] curated-archive-mount: each curated half mounts on arrival with its host's identity (#577)\n");
+
+    const std::string sohArchive = CaoResolveArchive("soh.o2r");
+    if (sohArchive.empty()) {
+        printf("[TEST] SKIP: soh.o2r not staged — the archive-less control run keeps this row skipped by design "
+               "(#562)\n");
+        return TEST_SKIP;
+    }
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = CuratedArchiveMount_RunHeadless();
+    printf("[TEST] %s: curated archive mount rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -4885,6 +4930,8 @@ const TestDescriptor gTests[] = {
     {"zip-contention", "Concurrent cold o2r loads return intact resources (#560)", Test_ZipContention},
     {"crossgame-model", "An MM-exclusive model resolves+draws from an OoT-only session (#577)",
      Test_CrossGameModel},
+    {"curated-archive-mount", "Each curated cross-game half mounts on arrival with its host's identity (#577)",
+     Test_CuratedArchiveMount},
     // #595/#593: archive-layer order locks. Display-free; both SKIP when the
     // curated archives are not staged.
     {"curated-archive-order", "soh.o2r/2ship.o2r resolve identically in either mount order (#595)",

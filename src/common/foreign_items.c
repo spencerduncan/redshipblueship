@@ -70,7 +70,7 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     if (out == NULL) {
         return;
     }
-    // THE SHIPPED DEFAULTS, OVERLAID WITH THE FIVE AUTHORED FIELDS (ADR 0011
+    // THE SHIPPED DEFAULTS, OVERLAID WITH THE AUTHORED FIELDS (ADR 0011
     // increment 2). This is the one resolver both the creation freeze and every
     // arrival/load compare go through (the same one-resolver discipline
     // Rando::Foreign::ResolveProfileValues holds for MM's profile), so the CVar
@@ -87,10 +87,14 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     // logicRung stays at its default: ADR 0010 owns its authoring. The goal is
     // authored since 2026-09-27 (ADR 0010 D1's value list, OoTMM's goals); its
     // default is beat-both, so an unset key reproduces the record exactly.
+    //
+    // poolSizeOoT / poolSizeMM keep their shipped defaults too: #801 retired
+    // their keys. Under the single bag no rule reads a pool size, and both
+    // bytes reach Combo_SingleBag_SeedFor through the fingerprint, so a key
+    // here would re-seed the world while changing no rule. A stale key left in
+    // a config file is ignored.
     Combo_ComboSettingsDefaults(out);
     out->direction = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION);
-    out->poolSizeOoT = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_POOL_SIZE_OOT);
-    out->poolSizeMM = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_POOL_SIZE_MM);
     out->itemClassOoT = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_OOT);
     out->itemClassMM = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_MM);
     out->goal = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
@@ -525,6 +529,13 @@ uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uin
     }
     ComboSettingsRecord live;
     Combo_ResolveComboSettings(&live);
+    // The two pool sizes are no longer authored by anything (#801), so the
+    // session holds no value that could diverge from the file's: its live side
+    // IS the file's. A world created before #801 with a slider moved keeps its
+    // bytes and its identity and still loads; the fingerprint check below
+    // still pins both bytes, so one changed after the stamp is damage.
+    live.poolSizeOoT = frozen->poolSizeOoT;
+    live.poolSizeMM = frozen->poolSizeMM;
     uint32_t bits = Combo_ComboSettingsDivergenceBetween(frozen, &live);
 
     // The fingerprint cross-check. Skipped for an UNREADABLE record, where a
