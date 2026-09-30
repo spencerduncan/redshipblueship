@@ -714,10 +714,10 @@ struct LayerRead {
     std::vector<const char*> parts; // G_DL targets that are "__OTR__" paths, in order
     bool setupSeen = false;         // the layer's setup list
     bool matrixBeforeFirstPart = false;
-    std::vector<int> segments;       // G_MW_SEGMENT indices
-    std::vector<uint32_t> primRgba;  // G_SETPRIMCOLOR colour words
-    std::vector<uint32_t> primLod;   // ... and their LOD fractions
-    std::vector<uint32_t> envRgba;   // G_SETENVCOLOR colour words
+    std::vector<int> segments;      // G_MW_SEGMENT indices
+    std::vector<uint32_t> primRgba; // G_SETPRIMCOLOR colour words
+    std::vector<uint32_t> primLod;  // ... and their LOD fractions
+    std::vector<uint32_t> envRgba;  // G_SETENVCOLOR colour words
 };
 
 LayerRead ReadLayer(const Gfx* begin, const Gfx* end, uint8_t setupDl) {

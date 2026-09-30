@@ -787,8 +787,7 @@ TestResult Test_ForeignModel(void) {
 
         std::memcpy(gComboCtx.foreignPlacements, saved, sizeof(saved));
         FM_ASSERT(placedBoots >= 0 && placedEmerald >= 0 && placedHookshot >= 0, "M10 placements accepted");
-        FM_ASSERT(drawBoots == 0,
-                  "M10 MM's get-item cutscene draws OoT's Hover Boots model (see the Q-line above)");
+        FM_ASSERT(drawBoots == 0, "M10 MM's get-item cutscene draws OoT's Hover Boots model (see the Q-line above)");
         FM_ASSERT(drawEmerald == 0, "M10 MM's get-item cutscene draws OoT's Kokiri's Emerald with its jewel shape "
                                     "(see the Q-line above)");
         FM_ASSERT(drawUnmounted == 0, "M10 unmounted, the draw keeps the model-less stand-in (see the Q-line above)");
