@@ -526,8 +526,8 @@ extern "C" int MM_Rando_HeadlessGenTest(void) {
 // @return 0 on success; a nonzero step code otherwise.
 // ============================================================================
 extern "C" int MM_Rando_Logic_JoinOrderProbe(void) {
-    using Rando::Logic::Regions;
     using Rando::Logic::RegionTimeState;
+    using Rando::Logic::Regions;
 
     if (Regions.empty()) {
         fprintf(stderr, "[MM-JOIN-PROBE] FAIL(1): region graph is empty (registrars did not run)\n");
@@ -790,11 +790,10 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
             "crossingsInOoT=%d\n"
             "crossingsInMM=%d\n",
             gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, digestReachable.size(), mmReachableHash,
-            (unsigned)gComboCtx.mmPairedAttempt, bag.seed, bag.bagCount, bag.trimmedOoT, bag.trimmedMM,
-            bag.homeOnlyRows, bag.fill.requiredPlaced, bag.fill.surplusPlaced, bag.fill.surplusDropped,
-            bag.fill.attempts, bag.fill.rounds, bag.fill.leftoverHostsOoT, bag.fill.leftoverHostsMM, coordinatorDigest,
-            ootFinalHash, ootFinalPlaced, Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT),
-            Combo_Crossings_Count(GAME_MM));
+            (unsigned)gComboCtx.mmPairedAttempt, bag.seed, bag.bagCount, bag.trimmedOoT, bag.trimmedMM, bag.homeOnlyRows, bag.fill.requiredPlaced,
+            bag.fill.surplusPlaced, bag.fill.surplusDropped, bag.fill.attempts, bag.fill.rounds,
+            bag.fill.leftoverHostsOoT, bag.fill.leftoverHostsMM, coordinatorDigest, ootFinalHash, ootFinalPlaced,
+            Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM));
     // Every crossing, row by row, so a golden diff names WHICH host moved:
     // host:origin:id, in the coordinator's order.
     for (const GameId host : { GAME_OOT, GAME_MM }) {
@@ -2067,7 +2066,7 @@ extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
     // depend on how busy the machine is.
     LadderClearOptionCVars();
     CVarSetInteger("gRando.SpoilerFileIndex", 0);
-    CVarSetInteger("gRando.GenerateSpoiler", 0);         // the digest is the artifact
+    CVarSetInteger("gRando.GenerateSpoiler", 0); // the digest is the artifact
     CVarSetString("gRando.InputSeed", "USERSEEDPOISON"); // the paired branch must ignore this
 
     // One paired creation for the pinned seed: since ADR 0010 increment 3 (lane
@@ -2195,10 +2194,10 @@ extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
     if (closeOut) {
         fclose(out);
     }
-    fprintf(stderr,
-            "[MM-ATTEMPT] PASS: pinned seed %s converged on ladder attempt %d (mmFinalSeed=%08X, "
-            "placementHash=%08X, %d crossings)\n",
-            kLadderSeed, attempts - 1, gSaveContext.save.shipSaveInfo.rando.finalSeed, placementHash, attemptCrossings);
+    fprintf(stderr, "[MM-ATTEMPT] PASS: pinned seed %s converged on ladder attempt %d (mmFinalSeed=%08X, "
+                    "placementHash=%08X, %d crossings)\n",
+            kLadderSeed, attempts - 1, gSaveContext.save.shipSaveInfo.rando.finalSeed, placementHash,
+            attemptCrossings);
 
     // Leave clean global state for later dispatches in the same process — the
     // pinned profile CVars included, since they are exactly the kind of
@@ -2341,9 +2340,8 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     }
     if (Combo_ForeignPairingActive() || gComboCtx.sharedRandoSeed != 0 || gComboCtx.mmProfileDigest != 0 ||
         Combo_ComboSettingsFrozen()) {
-        fprintf(stderr,
-                "[MM-EXHAUST] FAIL(19): the failed creation left a PARTIAL IDENTITY behind (sourceIsRando=%d "
-                "seed=%u digest=%08X comboFrozen=%d) — ADR 0010 increment 2 requires no partial identity\n",
+        fprintf(stderr, "[MM-EXHAUST] FAIL(19): the failed creation left a PARTIAL IDENTITY behind (sourceIsRando=%d "
+                        "seed=%u digest=%08X comboFrozen=%d) — ADR 0010 increment 2 requires no partial identity\n",
                 gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.mmProfileDigest,
                 Combo_ComboSettingsFrozen() ? 1 : 0);
         return 19;
@@ -2365,16 +2363,14 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
         return 5;
     }
     if (RsbsSave_GetSlotState(0) != (int)RSBS_SLOT_REFUSED) {
-        fprintf(stderr,
-                "[MM-EXHAUST] FAIL(6): the exhausted arrival did not surface REFUSED on the active slot "
-                "(state=%d) — the silent-vanilla-revert class, back again (#564 V7)\n",
+        fprintf(stderr, "[MM-EXHAUST] FAIL(6): the exhausted arrival did not surface REFUSED on the active slot "
+                        "(state=%d) — the silent-vanilla-revert class, back again (#564 V7)\n",
                 RsbsSave_GetSlotState(0));
         return 6;
     }
     if (RsbsSave_GetSlotRefuseReason(0) != (int)RSBS_REFUSE_GENERATION) {
-        fprintf(stderr,
-                "[MM-EXHAUST] FAIL(7): refusal reason is %d, expected RSBS_REFUSE_GENERATION — the file "
-                "panel would misname the failure\n",
+        fprintf(stderr, "[MM-EXHAUST] FAIL(7): refusal reason is %d, expected RSBS_REFUSE_GENERATION — the file "
+                        "panel would misname the failure\n",
                 RsbsSave_GetSlotRefuseReason(0));
         return 7;
     }
