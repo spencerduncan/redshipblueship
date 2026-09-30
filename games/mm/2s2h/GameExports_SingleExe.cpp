@@ -2911,7 +2911,10 @@ void MM_Game_Resume(void) {
     // a startup entrance for every switch into a frozen game (entrance-based
     // and hotkey alike — rsbs/src/main.cpp), so that path always runs when
     // there is something to restore. First boot of MM has no frozen state —
-    // in that case MM_InitFirstEntrySaveContext still handles bootstrap (#168).
+    // the restore is skipped and the entrance spawn proceeds on the boot
+    // chain's bootstrap save (MM_Play_ConsumeStartupEntrance, z_play.c). The
+    // MM_InitFirstEntrySaveContext this once named was never compiled and is
+    // deleted (#427).
     if (Context_HasFrozenState(GAME_MM)) {
         fprintf(stderr, "[MM] Restoring frozen SaveContext on resume\n");
         fflush(stderr);
