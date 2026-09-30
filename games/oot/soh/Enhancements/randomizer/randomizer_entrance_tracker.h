@@ -123,7 +123,7 @@ class EntranceTrackerSettingsWindow final : public Ship::GuiWindow {
     void UpdateElement() override{};
 };
 
-class EntranceTrackerWindow final : public Ship::GuiWindow {
+class EntranceTrackerWindow : public Ship::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
     void Draw() override;

@@ -64,6 +64,14 @@
  *   row, nothing found on the fresh world, and one host per direction marked
  *   collected in its own game's save turns exactly that row found.
  *
+ *   The same world row also locks the two NATIVE check trackers (#796). A
+ *   crossing host physically holds a cover (OoT: the Blue Rupee the single bag
+ *   writes; MM: RI_JUNK), so a tracker that prints its own table's item names the
+ *   cover. Every OoT-hosted crossing, marked collected in OoT's own location
+ *   table, must print "<item> (MM)"; every MM-hosted crossing of the armed MM
+ *   world must print "<item> (OoT)" while MM's table stores the cover there. With
+ *   the pairing gone OoT's give degrades to the cover, and so does its row.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++).
  */
 
@@ -95,6 +103,14 @@ int MM_Rando_WriteCrossingSpoilerSection(const char* path);
 int Rando_HeadlessSeedTest(const char* seedStr);
 int OoT_Creation_AuthorRandoFile(int slot);
 void Randomizer_TestClearOoTSave(void);
+// #796: the native check trackers' found-item names, and the collected write
+// the RC-queue drain makes on a crossing host.
+int OoT_CheckTracker_TestItemName(uint16_t rc, char* out, int cap);
+int OoT_CheckTracker_TestSearchShows(uint16_t rc, const char* text);
+int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
+int MM_CheckTracker_TestItemName(const void* mmSave, uint16_t randoCheckId, char* out, int cap,
+                                 uint16_t* outStoredItem);
+void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown);
 }
 
 namespace {
@@ -537,6 +553,88 @@ TestResult ComboCrossingViews_RunWorld(void) {
         CXV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_OOT, 0, &row) && row.found == COMBO_TRACKER_FOUND_YES);
         CXV_ASSERT(progress.found == 1 && progress.freshness == COMBO_TRACKER_FRESH_LIVE);
         CXV_ASSERT(OoT_TrackerAdapter_TestSetCollected(row.hostCheckId, 0) == 1);
+    }
+
+    // #796: the native trackers name the crossed item, never the cover.
+    {
+        char name[128];
+        const int ootRows = Combo_TrackerForeignCount((uint8_t)GAME_OOT);
+        int searchListed = 0;
+        for (int i = 0; i < ootRows; i++) {
+            ComboTrackerForeignRow row;
+            CXV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_OOT, i, &row));
+            // Found, the way the RC-queue drain marks a crossing host.
+            CXV_ASSERT(OoT_Rando_Foreign_TestSetObtained(row.hostCheckId, 1) == 1);
+            name[0] = '\0';
+            const int wrote = OoT_CheckTracker_TestItemName(row.hostCheckId, name, (int)sizeof(name));
+            // The tracker's search box, through the real ShouldShowCheck: a host
+            // the tracker lists with the box empty stays listed when the crossed
+            // item's name is typed; a string nothing carries hides it (the filter
+            // is live, not vacuously open). Which hosts are listed at all follows
+            // the tracker's own visibility rules for this process's save, so the
+            // search is compared against the empty box, not against 1.
+            const int listed = OoT_CheckTracker_TestSearchShows(row.hostCheckId, "");
+            const int byItem = OoT_CheckTracker_TestSearchShows(row.hostCheckId, row.itemName);
+            const int byNothing = OoT_CheckTracker_TestSearchShows(row.hostCheckId, "zqxj no such check");
+            OoT_Rando_Foreign_TestSetObtained(row.hostCheckId, 0);
+            CXV_ASSERT(wrote == 1);
+            const std::string expected = std::string(row.itemName) + " (MM)";
+            if (i < 3 || expected != name) {
+                printf("[TEST] combo-crossing-views-world: OoT check tracker row for %s reads (%s), expected (%s)\n",
+                       row.hostCheckName != nullptr ? row.hostCheckName : "?", name, expected.c_str());
+            }
+            CXV_ASSERT(expected == name);
+            if (i < 3 || byItem != listed || byNothing != 0) {
+                printf("[TEST] combo-crossing-views-world: OoT check tracker search \"%s\" lists %s: %d (empty box: %d, "
+                       "control: %d)\n",
+                       row.itemName, row.hostCheckName != nullptr ? row.hostCheckName : "?", byItem, listed, byNothing);
+            }
+            CXV_ASSERT(listed == 0 || listed == 1);
+            CXV_ASSERT(byItem == listed);
+            CXV_ASSERT(byNothing == 0);
+            searchListed += listed;
+        }
+        printf("[TEST] combo-crossing-views-world: %d of %d found OoT crossing hosts listed; each one is found by its "
+               "crossed item's name\n",
+               searchListed, ootRows);
+        CXV_ASSERT(searchListed > 0);
+        // Unpaired, OoT's pickup refuses the crossing and gives the cover the host
+        // holds (OoT_Rando_Foreign_RecordPickup), so the row names the cover.
+        {
+            ComboTrackerForeignRow row;
+            CXV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_OOT, 0, &row));
+            const std::string foreign = std::string(row.itemName) + " (MM)";
+            gComboCtx.sourceIsRando = false;
+            CXV_ASSERT(!Combo_ForeignPairingActive());
+            const int wrote = OoT_CheckTracker_TestItemName(row.hostCheckId, name, (int)sizeof(name));
+            gComboCtx.sourceIsRando = true;
+            CXV_ASSERT(Combo_ForeignPairingActive());
+            printf("[TEST] combo-crossing-views-world: unpaired, the same OoT row reads (%s)\n", name);
+            CXV_ASSERT(wrote == 1 && name[0] != '\0' && foreign != name);
+        }
+
+        const void* mmSave = Context_GetMMSaveContext();
+        CXV_ASSERT(mmSave != nullptr);
+        uint16_t mmJunk = 0, mmNone = 0, mmUnknown = 0;
+        MM_Rando_Foreign_TestItemSentinels(&mmJunk, &mmNone, &mmUnknown);
+        const int mmRows = Combo_TrackerForeignCount((uint8_t)GAME_MM);
+        for (int i = 0; i < mmRows; i++) {
+            ComboTrackerForeignRow row;
+            CXV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, i, &row));
+            uint16_t stored = 0;
+            name[0] = '\0';
+            CXV_ASSERT(MM_CheckTracker_TestItemName(mmSave, row.hostCheckId, name, (int)sizeof(name), &stored) == 1);
+            const std::string expected = std::string(row.itemName) + " (OoT)";
+            if (i < 3 || expected != name) {
+                printf("[TEST] combo-crossing-views-world: MM check tracker row for %s (MM table stores item %u) "
+                       "reads (%s), expected (%s)\n",
+                       row.hostCheckName != nullptr ? row.hostCheckName : "?", (unsigned)stored, name,
+                       expected.c_str());
+            }
+            // The premise: MM's own table holds the cover at a crossing host.
+            CXV_ASSERT(stored == mmJunk);
+            CXV_ASSERT(expected == name);
+        }
     }
 
     std::filesystem::remove(path, ec);

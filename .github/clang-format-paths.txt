@@ -105,6 +105,8 @@ games/mm/2s2h/mm_clock_shuffle_songs_test.cpp
 games/oot/soh/SohGui/SohMenuCombo.cpp
 games/oot/soh/soh_menu_capability_test.cpp
 games/oot/soh/soh_menu_combo_section_test.cpp
+games/oot/soh/oot_windows_gate_test.cpp
+games/oot/soh/SohGui/OoTActiveGated.h
 games/mm/2s2h/mm_entrance_region_cache_test.cpp
 games/mm/2s2h/mm_majora_goal_test.cpp
 games/mm/2s2h/Rando/StaticData/TrickIds.h
@@ -132,7 +134,9 @@ games/oot/soh/oot_gameover_revive_test.cpp
 games/mm/2s2h/mm_gameover_revive_test.cpp
 games/mm/2s2h/Rando/ForeignTextboxIcon.h
 games/mm/2s2h/Rando/ForeignTextboxIconSingleExe.cpp
+games/mm/2s2h/Rando/ForeignModelSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/ForeignTextboxIconOoT.cpp
+games/oot/soh/Enhancements/randomizer/ForeignModelOoT.cpp
 games/oot/soh/Enhancements/randomizer/ComboGoalEndingOoT.cpp
 games/mm/2s2h/Rando/ComboGoalEndingMM.cpp
 games/oot/soh/oot_combo_goal_test.cpp

@@ -134,6 +134,10 @@ set(REDSHIP_COMMON_SOURCES
     # registry each ORIGIN game answers through. Game-header-free. APPENDED,
     # never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.c
+    # A foreign item's get-item MODEL (#577 M2): the descriptor registry each
+    # ORIGIN game answers through, and the host-native mapping seam for object
+    # directories both archives carry. Game-header-free.
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_model.c
     # The Combo > Save Files page's model: each .redsave slot's state in the
     # player's words (lane W5, 2026-09-28; it replaces the never-constructed
     # ComboMenuBar panel). Game-header-free. APPENDED, never reordered.
@@ -192,6 +196,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/shared_resources.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.h
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_model.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
@@ -512,6 +517,11 @@ if(BUILD_TESTING)
     # with no error. Drives the real host-class predicate (the MM engine's
     # hostAcceptsForeign) over MM's real check table; prints the host supply.
     redship_add_test(NAME ForeignHostEligibility COMMAND redship --test foreign-host-eligibility)
+    # #575 item 2: a crossing host holds MM's junk cover, so the gossip-stone
+    # filter (which drops junk holders) could never hint it, and a forced hint
+    # named the cover. Drives the stone's real candidate filter and item-name
+    # substitution (EnGs.cpp) with the crossing in the crossing store.
+    redship_add_test(NAME ForeignHostGossipHint COMMAND redship --test foreign-host-gossip-hint)
     # #502: MM's award callback was still the Lane A1 logging stub, so the whole
     # consumer walk landed on a no-op. Drives the REAL MM_ConsumeSharedItems ->
     # MM_AwardSharedItem -> MM_ForeignItem_Give chain and asserts one award per
@@ -918,6 +928,13 @@ if(BUILD_TESTING)
     # gSaveContext storage means an ungated MM tracker reads OoT bytes through
     # MM's SaveContext layout.
     redship_add_test(NAME MMTrackersGui COMMAND redship --test mm-trackers-gui)
+    # OoT's twin (#797): the eight SoH windows that read or write OoT save/play
+    # state (Save Editor, Value/Message Viewer, Gameplay Stats, the three
+    # trackers, Time Splits) are built through OoTActiveGated<>, so their Draw,
+    # Update and Port Menu embed paths run only while OoT is the running game.
+    # Source scan of SohGui::SetupGuiElements + a ROM-free, display-free
+    # tripwire, so it runs in this redship tier.
+    redship_add_test(NAME OoTWindowsGate COMMAND redship --test oot-windows-gate)
     # Registrar coverage (#516): games/mm/2s2h/BenPort.cpp is excluded from the
     # single exe and was the SOLE caller of InitOTR's registration sequence, so
     # 2ship_enh (a plain STATIC archive) lost the TUs entirely -- CustomItem and
@@ -2063,6 +2080,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # vendored header decode and the icon draw put OoT's texture in MM's textbox at
     # its own format and size. Static tables and a heap PlayState: default tier.
     redship_add_test(NAME ForeignTextboxIcon COMMAND redship --test foreign-textbox-icon)
+    # A FOREIGN ITEM'S GET-ITEM MODEL (#577 M2): every draw row of both games'
+    # get-item tables and every progression item classifies to a descriptor of
+    # its own lists, a host-native answer or a named "no model"; descriptors
+    # round-trip through the registry; the collision table equals the asset
+    # trees' intersection; the registry includes no game header. Static tables
+    # and the checkout (RSBS_SOURCE_DIR): ROM-free, default tier.
+    redship_add_test(NAME ForeignModel COMMAND redship --test foreign-model)
 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
     # the two final-boss defeats recorded in sharedFlags, the decision for every
