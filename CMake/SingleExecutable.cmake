@@ -134,6 +134,10 @@ set(REDSHIP_COMMON_SOURCES
     # registry each ORIGIN game answers through. Game-header-free. APPENDED,
     # never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.c
+    # A foreign item's get-item MODEL (#577 M2): the descriptor registry each
+    # ORIGIN game answers through, and the host-native mapping seam for object
+    # directories both archives carry. Game-header-free.
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_model.c
     # The Combo > Save Files page's model: each .redsave slot's state in the
     # player's words (lane W5, 2026-09-28; it replaces the never-constructed
     # ComboMenuBar panel). Game-header-free. APPENDED, never reordered.
@@ -192,6 +196,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/shared_resources.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.h
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_model.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
@@ -2063,6 +2068,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # vendored header decode and the icon draw put OoT's texture in MM's textbox at
     # its own format and size. Static tables and a heap PlayState: default tier.
     redship_add_test(NAME ForeignTextboxIcon COMMAND redship --test foreign-textbox-icon)
+    # A FOREIGN ITEM'S GET-ITEM MODEL (#577 M2): every draw row of both games'
+    # get-item tables and every progression item classifies to a descriptor of
+    # its own lists, a host-native answer or a named "no model"; descriptors
+    # round-trip through the registry; the collision table equals the asset
+    # trees' intersection; the registry includes no game header. Static tables
+    # and the checkout (RSBS_SOURCE_DIR): ROM-free, default tier.
+    redship_add_test(NAME ForeignModel COMMAND redship --test foreign-model)
 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
     # the two final-boss defeats recorded in sharedFlags, the decision for every
