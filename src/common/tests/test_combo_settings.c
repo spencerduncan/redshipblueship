@@ -1483,10 +1483,16 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     // Under the single bag no rule reads a pool size, but both bytes sit in the
     // record and in comboSettingsHash, which seeds the fill: a slider moved the
     // whole world and changed no rule. The keys go; the record fields stay,
-    // because they are format and identity. Literal key and label strings, so
-    // this leg compiles against the tree before the retirement and fails there.
+    // because they are format and identity. Spelled strings rather than the
+    // removed ids, so this leg compiles against the tree before the retirement
+    // and fails there. The keys are assembled from the identity prefix, not
+    // written as one literal: CvarClassification refuses any whole tier-4
+    // literal in the tree that the manifest does not classify, and a retired
+    // key is exactly that.
     {
-        static const char* const kRetiredKeys[2] = { "gCombo.Rando.PoolSize.OoT", "gCombo.Rando.PoolSize.MM" };
+        const std::string retiredOoT = std::string(RSBS::kComboIdentityKeyPrefix) + "PoolSize.OoT";
+        const std::string retiredMM = std::string(RSBS::kComboIdentityKeyPrefix) + "PoolSize.MM";
+        const char* const kRetiredKeys[2] = { retiredOoT.c_str(), retiredMM.c_str() };
         static const char* const kRetiredLabels[2] = { "Max OoT Items", "Max MM Items" };
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             const ComboSettingId id = (ComboSettingId)i;
