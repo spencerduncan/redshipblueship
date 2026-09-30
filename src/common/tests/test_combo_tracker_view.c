@@ -53,6 +53,16 @@
  *    "shadow", "suspend", "heap"): the stale wording is "As of the last game
  *    switch", with MM adding "or save".
  *
+ * 8. MM READS LIVE WHILE MM IS PLAYED (#799). MM's arrival consumes the shadow
+ *    and zeroes it, so a shadow-only reader showed "No data yet" in Termina
+ *    until MM's first save. A test descriptor (the production one, liveSave
+ *    pointed at an authored buffer) drives the source pick: LIVE totals, found
+ *    state and note from a marked live save under GAME_MM with a zeroed
+ *    shadow; UNAVAILABLE for the same buffers under GAME_OOT; STALE from the
+ *    shadow when liveSave answers NULL (and the production adapter does answer
+ *    NULL with no MM play state); the refused-arrival bootstrap. See
+ *    CtvLiveLegsBody.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++), but every symbol it drives is extern-C. It needs the display-free
  * shared bring-up (the OoT-side authoring seam constructs Rando::Context),
@@ -84,6 +94,166 @@ extern "C" void OoT_TrackerAdapter_TestReleaseWorld(void);
             return TEST_FAIL;                                                                                          \
         }                                                                                                              \
     } while (0)
+
+// ---- #799: the live source ------------------------------------------------
+//
+// A test descriptor is the production one with liveSave pointed at an authored
+// buffer, so the legs below drive the view's source pick with MM's real
+// offsets and no MM play state. The buffer is whatever sCtvLive points at;
+// NULL is "MM's play state is not loaded".
+static const uint8_t* sCtvLive = NULL;
+
+static const void* CtvLiveSave(void) {
+    return sCtvLive;
+}
+
+static void CtvSetObtained(std::vector<uint8_t>& buf, const ComboMMTrackerDesc* desc, uint16_t check, bool obtained) {
+    buf[desc->checkTableOffset + (size_t)check * desc->checkStride + desc->obtainedOffset] = obtained ? 1 : 0;
+}
+
+/**
+ * The legs of #799's lock, against `desc` (the REAL registered descriptor) and
+ * `shadowWorld` (the marked rando shadow section 2 authored: seed 0x5EEDF00D,
+ * checks 3/5/7 shuffled, 5 obtained, 7 skipped).
+ *
+ *   A. zeroed shadow + marked live world under GAME_MM -> LIVE totals, LIVE
+ *      crossing found state (and it follows the live byte per call), LIVE note.
+ *      Before #799 every one of these read UNAVAILABLE / UNKNOWN.
+ *   B. the same buffers under GAME_OOT -> UNAVAILABLE: live is for the active
+ *      game only.
+ *   C. liveSave NULL (no MM play state) + marked shadow under GAME_MM -> STALE,
+ *      the shadow's values.
+ *   D. refused arrival: the shadow stays armed (never consumed) and MM plays
+ *      the boot chain's bootstrap. An unmarked bootstrap (Sram_InitNewSave's
+ *      empty newf, which is what the code authors) falls back to the armed
+ *      shadow, STALE, labelled "As of file creation"; a marked non-rando one
+ *      would read LIVE as "not a randomized world" with found UNKNOWN.
+ */
+static int CtvLiveLegsBody(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
+    const uint32_t kLiveSeed = 0x11FE0799u;
+    const uint16_t kLiveA = 11, kLiveHost = 13, kLiveC = 17;
+
+    // The live world: three shuffled checks, the crossing host collected.
+    std::vector<uint8_t> live((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    memcpy(live.data() + desc->newfOffset, desc->newf, desc->newfLen);
+    memcpy(live.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
+    memcpy(live.data() + desc->finalSeedOffset, &kLiveSeed, sizeof(uint32_t));
+    const uint64_t kCreatedAt = 1759190400ull; // MM loaded it: OnSaveLoad stamped it
+    memcpy(live.data() + desc->createdAtOffset, &kCreatedAt, sizeof(kCreatedAt));
+    for (uint16_t check : { kLiveA, kLiveHost, kLiveC }) {
+        live[desc->checkTableOffset + (size_t)check * desc->checkStride + desc->shuffledOffset] = 1;
+    }
+    CtvSetObtained(live, desc, kLiveHost, true);
+
+    // One crossing hosted by kLiveHost, so the found state and the note have
+    // something to read.
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = kLiveSeed;
+    gComboCtx.sharedRandoSettingsHash = 0x5EED0799u;
+    SharedItem ootItem;
+    CTV_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &ootItem));
+    CTV_ASSERT(Combo_SetForeignPlacement(kLiveHost, ootItem) >= 0);
+
+    ComboTrackerGameSummary summary;
+    ComboTrackerCheckRow row;
+    ComboTrackerForeignRow foreignRow;
+    ComboTrackerForeignProgress progress;
+
+    // ---- A. arrived in Termina: shadow consumed and zeroed, MM played -------
+    std::vector<uint8_t> zeros((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    Context_UpdateShadowCopy(GAME_MM, zeros.data(), zeros.size());
+    sCtvLive = live.data();
+    Context_SetCurrentGame(GAME_MM);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    printf("[TEST] combo-tracker-view #799 A (GAME_MM, zeroed shadow, marked live): freshness=%u hasWorld=%d "
+           "seed=0x%08X shuffled=%d obtained=%d\n",
+           (unsigned)summary.freshness, (int)summary.hasWorld, (unsigned)summary.seed, summary.shuffled,
+           summary.obtained);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE);
+    CTV_ASSERT(summary.hasWorld && summary.seed == kLiveSeed);
+    CTV_ASSERT(summary.totalChecks == (int)desc->checkCount);
+    CTV_ASSERT(summary.shuffled == 3 && summary.obtained == 1 && summary.skipped == 0);
+    CTV_ASSERT(Combo_TrackerCheckCount((uint8_t)GAME_MM) == (int)desc->checkCount);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kLiveHost, &row));
+    CTV_ASSERT(row.shuffled && row.obtained && !row.skipped);
+    CTV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, summary.freshness), "Updated live") == 0);
+    CTV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &foreignRow));
+    CTV_ASSERT(foreignRow.hostCheckId == kLiveHost && foreignRow.found == COMBO_TRACKER_FOUND_YES);
+    Combo_TrackerForeignProgress((uint8_t)GAME_MM, &progress);
+    printf("[TEST] combo-tracker-view #799 A crossing: found=%u progress total=%d found=%d freshness=%u\n",
+           (unsigned)foreignRow.found, progress.total, progress.found, (unsigned)progress.freshness);
+    CTV_ASSERT(progress.total == 1 && progress.found == 1 && progress.freshness == COMBO_TRACKER_FRESH_LIVE);
+    // Per call, no latch: the live byte flips and the row follows at once.
+    CtvSetObtained(live, desc, kLiveHost, false);
+    CTV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &foreignRow));
+    CTV_ASSERT(foreignRow.found == COMBO_TRACKER_FOUND_NO);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE && summary.obtained == 0);
+    CtvSetObtained(live, desc, kLiveHost, true);
+
+    // ---- B. the same buffers while OoT is the active game --------------------
+    Context_SetCurrentGame(GAME_OOT);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE);
+    CTV_ASSERT(Combo_TrackerCheckCount((uint8_t)GAME_MM) == 0);
+    CTV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &foreignRow));
+    CTV_ASSERT(foreignRow.found == COMBO_TRACKER_FOUND_UNKNOWN);
+    Combo_TrackerForeignProgress((uint8_t)GAME_MM, &progress);
+    CTV_ASSERT(progress.total == 1 && progress.found == 0 && progress.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE);
+
+    // ---- C. no MM play state (liveSave NULL) + marked shadow: STALE ---------
+    Context_SetCurrentGame(GAME_MM);
+    Context_UpdateShadowCopy(GAME_MM, shadowWorld.data(), shadowWorld.size());
+    sCtvLive = NULL;
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);
+    CTV_ASSERT(summary.seed == 0x5EEDF00Du && summary.shuffled == 3 && summary.obtained == 1);
+    Combo_TrackerForeignProgress((uint8_t)GAME_MM, &progress);
+    CTV_ASSERT(progress.freshness == COMBO_TRACKER_FRESH_STALE);
+
+    // ---- D. refused arrival: the armed shadow stays, MM plays the bootstrap --
+    // The armed half: marked, rando, never loaded by MM (creation stamp zero).
+    std::vector<uint8_t> armed = shadowWorld;
+    memset(armed.data() + desc->createdAtOffset, 0, sizeof(uint64_t));
+    Context_UpdateShadowCopy(GAME_MM, armed.data(), armed.size());
+    // D1. What the code authors: Sram_InitNewSave's bootstrap carries an empty
+    // newf and SAVETYPE_VANILLA, so the live read is refused and the armed
+    // shadow is shown, labelled as the file-creation snapshot it is.
+    std::vector<uint8_t> bootstrap((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    sCtvLive = bootstrap.data();
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);
+    CTV_ASSERT(summary.hasWorld && summary.seed == 0x5EEDF00Du && summary.shuffled == 3);
+    CTV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, summary.freshness), "As of file creation") == 0);
+    // D2. Were the bootstrap ever marked, it is MM's running save and is shown
+    // live as what it is: not a randomized world, crossings' found not known.
+    memcpy(bootstrap.data() + desc->newfOffset, desc->newf, desc->newfLen);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE);
+    CTV_ASSERT(!summary.hasWorld && summary.seed == 0 && summary.shuffled == 0);
+    CTV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &foreignRow));
+    CTV_ASSERT(foreignRow.found == COMBO_TRACKER_FOUND_UNKNOWN);
+    return TEST_PASS;
+}
+
+static int CtvLiveLegs(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
+    const ComboMMTrackerDesc real = *desc; // backup: the production descriptor
+    ComboMMTrackerDesc testDesc = real;
+    testDesc.liveSave = CtvLiveSave;
+    Combo_Tracker_RegisterMM(&testDesc);
+    const GameId prevGame = Context_GetCurrentGame();
+
+    const int result = CtvLiveLegsBody(Combo_Tracker_GetMMDesc(), shadowWorld);
+
+    // Always put back what the later sections expect: the production
+    // descriptor, an unpaired context, the authored shadow world.
+    sCtvLive = NULL;
+    Combo_Tracker_RegisterMM(&real);
+    ComboContext_Init();
+    Context_UpdateShadowCopy(GAME_MM, shadowWorld.data(), shadowWorld.size());
+    Context_SetCurrentGame(prevGame);
+    return result;
+}
 
 extern "C" int Combo_TrackerView_RunHeadless(void) {
     printf("[TEST] combo-tracker-view: per-game adapters recover authored shadow/heap worlds, staleness-labelled "
@@ -161,9 +331,13 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     Context_UpdateShadowCopy(GAME_MM, blob.data(), blob.size());
 
     Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
-    // Never LIVE — not even while MM is the active game (the shadow lags the
-    // live save; #458's staleness contract).
+    // The shadow is never LIVE — not even while MM is the active game, when
+    // the real adapter's liveSave answers NULL because no MM play state is
+    // loaded in this tier (the title/file-select case; #799's "liveSave NULL +
+    // marked shadow -> STALE" leg).
     Context_SetCurrentGame(GAME_MM);
+    CTV_ASSERT(desc->liveSave != NULL);   // the MM TU installs the live source
+    CTV_ASSERT(desc->liveSave() == NULL); // ...and withholds it with no play state
     ComboTrackerGameSummary summaryWhileMMActive;
     Combo_TrackerGameSummary((uint8_t)GAME_MM, &summaryWhileMMActive);
     CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);
@@ -187,6 +361,11 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     // ---- 4. MM check names resolve (the #489 class) -----------------------
     const char* mmName = Combo_TrackerCheckName((uint8_t)GAME_MM, kShuffledA);
     CTV_ASSERT(mmName != NULL && mmName[0] != '\0');
+
+    // ---- 4b. MM reads live while MM is played (#799) ----------------------
+    if (CtvLiveLegs(desc, blob) != TEST_PASS) {
+        return TEST_FAIL;
+    }
 
     // ---- 5. OoT adapter: never-booted, authored, suspend labelling --------
     OoT_TrackerAdapter_Register();

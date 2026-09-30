@@ -103,10 +103,11 @@ std::string PairedInputSeedString() {
     return "RSBSPAIR" + std::to_string(gComboCtx.sharedRandoSeed);
 }
 
-static std::string MMOptionsString() {
-    // The persisted options ARE the finalized MM settings profile — the loop
-    // below must run after OnFileCreate copied them into the save. std::map
-    // iteration gives a stable option order.
+static std::string MMOptionsString(const uint32_t* options) {
+    // The persisted options ARE the finalized MM settings profile: generation
+    // passes RANDO_SAVE_OPTIONS after OnFileCreate copied them into the save,
+    // and the pair-membership check (#564 V11) passes a restored half's own
+    // persisted array. std::map iteration gives a stable option order.
     //
     // SEED-DERIVATION INPUT ONLY, deliberately unchanged by the #498/#564
     // identity widening: MixPairedFinalSeed() hashes this exact string, so
@@ -114,7 +115,7 @@ static std::string MMOptionsString() {
     // IDENTITY string lives in ProfileIdentityString below.
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
-        s += std::to_string(RANDO_SAVE_OPTIONS[randoOptionId]);
+        s += std::to_string(options[randoOptionId]);
         s += ';';
     }
     return s;
@@ -379,6 +380,10 @@ uint32_t MixPairedFinalSeed() {
 }
 
 uint32_t MixPairedFinalSeedForAttempt(uint32_t attempt) {
+    return MixPairedFinalSeedFromOptions(RANDO_SAVE_OPTIONS, attempt);
+}
+
+uint32_t MixPairedFinalSeedFromOptions(const uint32_t* options, uint32_t attempt) {
     // The attempt ladder's derivation (recipe documented at the declaration,
     // Foreign.h). Attempt 0 hashes EXACTLY the string the shipped pre-ladder
     // derivation hashed — str(master) + MMOptionsString() — so every world
@@ -388,12 +393,53 @@ uint32_t MixPairedFinalSeedForAttempt(uint32_t attempt) {
     // beside it, which is what keeps the world a pure function of the frozen
     // identity (master seed + resolved profile) plus a bounded index the
     // spoiler and gComboCtx.mmPairedAttempt record.
-    std::string s = std::to_string(gComboCtx.sharedRandoSeed) + MMOptionsString();
+    std::string s = std::to_string(gComboCtx.sharedRandoSeed) + MMOptionsString(options);
     if (attempt > 0) {
         s += ":glitchless-attempt-";
         s += std::to_string(attempt);
     }
     return Ship_Hash(s);
+}
+
+bool FinalSeedBelongsToPair(const uint32_t* options, uint32_t finalSeed, uint32_t* outExpected, int* outAttempt) {
+    // The RECORDED rung, when there is one: the Tier-1 record names the attempt
+    // this pair's creation converged on, so the half must be that attempt's
+    // world and no other.
+    if (gComboCtx.mmPairedAttempt != 0) {
+        const uint32_t attempt = gComboCtx.mmPairedAttempt - 1u;
+        const uint32_t expected = MixPairedFinalSeedFromOptions(options, attempt);
+        if (outExpected != nullptr) {
+            *outExpected = expected;
+        }
+        if (outAttempt != nullptr) {
+            *outAttempt = (int)attempt;
+        }
+        return finalSeed == expected;
+    }
+    // No recorded rung (0 is the growth contract's "unset": a record written
+    // before the ladder existed, whose only rung was 0). Every rung of the
+    // bounded ladder is still THIS pair's derivation — its master seed and the
+    // half's own options — so any of them is accepted; another pair's half
+    // matches none of them.
+    if (outExpected != nullptr) {
+        *outExpected = MixPairedFinalSeedFromOptions(options, 0);
+    }
+    if (outAttempt != nullptr) {
+        *outAttempt = -1;
+    }
+    for (int attempt = 0; attempt < kPairedGenMaxAttempts; attempt++) {
+        const uint32_t expected = MixPairedFinalSeedFromOptions(options, (uint32_t)attempt);
+        if (finalSeed == expected) {
+            if (outExpected != nullptr) {
+                *outExpected = expected;
+            }
+            if (outAttempt != nullptr) {
+                *outAttempt = attempt;
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 // Most recent paired generation's ladder outcome (attempt-ladder

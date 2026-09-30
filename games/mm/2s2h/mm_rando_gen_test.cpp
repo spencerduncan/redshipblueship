@@ -1692,16 +1692,20 @@ extern "C" int MM_Rando_HeadlessMoonCrashArmState(void) {
         return 8;
     }
 
-    // The corrupted shape: live rando world, vanilla type byte.
-    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_VANILLA;
-    gSaveContext.save.shipSaveInfo.rando.finalSeed = 0xC0FFEE02;
-    RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled = true;
-
     // A paired OoT world exists (Lane B stamp), and this is a return leg: a
     // frozen MM session restored by the consume below.
     gComboCtx.sourceIsRando = 1;
     gComboCtx.sharedRandoSeed = 4170548651u;
     gComboCtx.sharedRandoSettingsHash = 0x5DAD32CEu;
+
+    // The corrupted shape: live rando world, vanilla type byte. The world is
+    // THIS pair's — its seed is what the master seed above derives from the
+    // half's own options (rung 0) — because the repair only re-stamps a world
+    // that belongs to the pair (#564 V11; mm-combo-settings-gate legs 7-12).
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_VANILLA;
+    const uint32_t kRepairedSeed = Rando::Foreign::MixPairedFinalSeedForAttempt(0);
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = kRepairedSeed;
+    RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled = true;
     Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
     Combo_SetStartupEntrance(kArrival);
 
@@ -1713,7 +1717,7 @@ extern "C" int MM_Rando_HeadlessMoonCrashArmState(void) {
                         "vanilla forever\n");
         return 9;
     }
-    if (gSaveContext.save.shipSaveInfo.rando.finalSeed != 0xC0FFEE02) {
+    if (gSaveContext.save.shipSaveInfo.rando.finalSeed != kRepairedSeed) {
         fprintf(stderr, "[MM-MOONCRASH] FAIL(10): the repair regenerated or clobbered the player's world "
                         "(finalSeed changed) — an existing file must never be regenerated\n");
         return 10;
