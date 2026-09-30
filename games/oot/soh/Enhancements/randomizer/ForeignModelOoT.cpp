@@ -27,7 +27,11 @@
  *       gBombchuBag* lists): the vanilla row is a stand-in for them, not the
  *       model OoT shows. #577 M7 keeps the stand-in: those rows (small key,
  *       bombchu) live in colliding directories, so MM draws its own small key
- *       or bombchu for them through its host-native table;
+ *       or bombchu for them through its host-native table. That is a
+ *       DIFFERENT item's model (a key ring or house key shows a small key, a
+ *       bombchu bag a bombchu), an open exception to CheckQueue.cpp's
+ *       "never a different item's model" rule awaiting the operator's call
+ *       (PR #829); answering no model here restores the stand-in;
  *  - the Master Sword and Roc's Feather are re-expressed from their draw
  *    functions (one list each);
  *  - every other custom draw (boss and bean souls, ocarina buttons, jabber nuts,

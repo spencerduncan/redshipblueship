@@ -85,6 +85,9 @@ void Rando::MiscBehavior::CheckQueue() {
             // DrawSparkles, the presentation MM gives Magic Upgrades, the Swim
             // ability and Progressive Time (DrawItem.cpp). Never a DIFFERENT
             // item's model: a rupee that is not a rupee was the old placeholder.
+            // Open exception (#577 M7, awaiting the operator's call): OoT's key
+            // ring, overworld keys and bombchu bag answer their vanilla stand-in
+            // row (ForeignModelOoT.cpp), so MM shows its small key or bombchu.
             if (Rando::Foreign::IsForeignCheck(randoCheckId)) {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                     // Always cutscene: a foreign item is progression by

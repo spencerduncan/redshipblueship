@@ -380,7 +380,8 @@ const ComboHostNativeRow kHostNativeRows[] = {
     { { "object_gi_bottle/gGiBottleStopperDL", "object_gi_bottle/gGiBottleDL" }, GID_BOTTLE, nullptr },
     // OoT GID_KEY_SMALL
     { { "object_gi_key/gGiSmallKeyDL" }, GID_KEY_SMALL, nullptr },
-    // OoT GID_SONG_MINUET
+    // OoT GID_SONG_MINUET. Minuet and Bolero diverge from OoTMM, which draws them
+    // as tinted notes in MM (#830).
     { { "object_gi_melody/gGiMinuetColorDL", "object_gi_melody/gGiSongNoteDL" },
       -1,
       "Minuet of Forest: MM's get-item table has no Minuet note row" },
@@ -595,10 +596,14 @@ const ComboHostNativeRow kHostNativeRows[] = {
     { { "object_gi_sword_1/gGiKokiriSwordDL" }, GID_SWORD_KOKIRI, nullptr },
     // OoT GID_SKULL_TOKEN_2
     { { "object_st/gSkulltulaTokenDL", "object_st/gSkulltulaTokenFlameDL" }, GID_SKULL_TOKEN_2, nullptr },
-    // OoT GID_SONG_GENERIC .. GID_SONG_STORM (one list, seven tints)
+    // OoT GID_SONG_GENERIC .. GID_SONG_STORM (one list, seven tints). A table
+    // limit, not a missing item: the key ignores the tint, and MM's same-item
+    // notes (Sun, Time, Storms, Epona: DrawItem.cpp DrawSong) are a 2S2H custom
+    // draw, not a row this table can target. OoTMM draws every song as a tinted
+    // note in both games; #830 tracks the tinted-note host recipe.
     { { "object_gi_melody/gGiSongNoteDL" },
       -1,
-      "tinted song note: MM draws its own songs with a 2S2H custom draw, not a get-item row" },
+      "tinted song note: the table cannot target MM's DrawSong custom draw or key the tint (#830)" },
 };
 constexpr int kHostNativeRowCount = (int)(sizeof(kHostNativeRows) / sizeof(kHostNativeRows[0]));
 
@@ -848,8 +853,9 @@ namespace {
 /** The drawable model of the foreign item `checkId` hosts: OoT's DESCRIPTOR, or,
  *  for a colliding OoT model MM's host-native table maps (#577 M7), MM's OWN
  *  row as MM's own recipe draws it; either way only when a mounted archive
- *  holds every path. */
-bool ForeignModelForCheck(RandoCheckId checkId, ComboModel* out) {
+ *  holds every path. `kindOut` (optional) receives which of the two it is
+ *  (COMBO_MODEL_ANSWER_DESCRIPTOR or _HOST_NATIVE) when it returns true. */
+bool ForeignModelForCheck(RandoCheckId checkId, ComboModel* out, uint8_t* kindOut = nullptr) {
     Combo_ModelInit(out);
     if (checkId == RC_UNKNOWN) {
         return false;
@@ -875,6 +881,9 @@ bool ForeignModelForCheck(RandoCheckId checkId, ComboModel* out) {
         return false;
     }
     *out = model;
+    if (kindOut != nullptr) {
+        *kindOut = kind;
+    }
     return true;
 }
 
@@ -1147,19 +1156,23 @@ bool RunCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want) {
  * The #577 M3 playtest drive (GameExports_SingleExe.cpp, gameplay round-trip,
  * RSBS_GP_MM_FOREIGN_MODEL=1, 100 live frames into the MM play window): the
  * first OoT item the paired world's crossing
- * store placed on an MM check, not yet obtained, whose model MM can draw right
- * now. Its check is marked eligible, exactly as walking up to it would, so
- * CheckQueue queues the real foreign give and the get-item cutscene follows.
- * Returns the check id, or 0 when the world has no such crossing.
+ * store placed on an MM check, not yet obtained, whose REAL OoT model MM can
+ * draw right now (a DESCRIPTOR answer: a colliding item that #577 M7 maps to
+ * MM's own row is skipped, so the capture always shows an OoT model). Its check
+ * is marked eligible, exactly as walking up to it would, so CheckQueue queues
+ * the real foreign give and the get-item cutscene follows. Returns the check
+ * id, or 0 when the world has no such crossing.
  */
 extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
     const int count = Combo_Crossings_Count(GAME_MM);
     for (int i = 0; i < count; i++) {
         ComboCrossing crossing;
         ComboModel model;
+        uint8_t kind = COMBO_MODEL_ANSWER_NONE;
         if (!Combo_Crossings_At(GAME_MM, i, &crossing) || crossing.hostCheck >= RC_MAX ||
             RANDO_SAVE_CHECKS[crossing.hostCheck].obtained ||
-            !ForeignModelForCheck((RandoCheckId)crossing.hostCheck, &model)) {
+            !ForeignModelForCheck((RandoCheckId)crossing.hostCheck, &model, &kind) ||
+            kind != COMBO_MODEL_ANSWER_DESCRIPTOR) {
             continue;
         }
         RANDO_SAVE_CHECKS[crossing.hostCheck].eligible = true;
