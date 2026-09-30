@@ -982,6 +982,19 @@ extern "C" int OoT_CheckTracker_TestItemName(uint16_t rc, char* out, int cap) {
     memcpy(out, name.c_str(), name.size() + 1);
     return 1;
 }
+
+// TEST BRIDGE (#796's playtest drive): type `text` into the tracker's search box,
+// as a player would, so an unattended capture shows one check's row.
+extern "C" int OoT_CheckTracker_TestSearch(const char* text) {
+    if (text == nullptr) {
+        return 0;
+    }
+    snprintf(checkSearch.InputBuf, sizeof(checkSearch.InputBuf), "%s", text);
+    checkSearch.Build();
+    UpdateFilters();
+    doAreaScroll = true;
+    return 1;
+}
 #endif
 
 void SaveTrackerData(SaveContext* saveContext, int sectionID, bool fullSave) {
