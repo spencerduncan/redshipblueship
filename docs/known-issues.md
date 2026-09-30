@@ -169,6 +169,49 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   Majora's Mask's interval only; Ocarina of Time's autosave interval is a fixed
   3 minutes.
 
+**Open problems you may meet while playing** (found in or around the 2026-09 playtest and
+checked in the code at `200adaea`; each links the issue that will fix it):
+
+**Shops sell only their own game's items** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800), pending).
+No shop slot holds an item from the other game: an Ocarina of Time shop never sells a
+Majora's Mask item, and a Majora's Mask shop never sells an Ocarina of Time item. The same
+goes for OoT's Business Scrubs, merchants and Treasure Chest Game, and MM's Tingle. Shop
+shuffle is off by default in both games (OoT's "Shop Shuffle", MM's "Shuffle Shops"); with
+it on, each game's shop slots hold items from that game only. MM's shop stock does join the
+shared bag when MM's "Shuffle Shops" is on, so an MM shop item can turn up in an OoT chest;
+OoT's shop stock never leaves Hyrule. Cross-game shops are planned, plain shops first.
+
+**The Check Trackers name "Blue Rupee" or "Junk" for a cross-game chest** ([#796](https://github.com/spencerduncan/redshipblueship/issues/796), pending).
+When a chest holds an item from the other game, the pickup message names the real item
+("You found the Bunny Hood"), but once it is collected Ocarina of Time's Check Tracker lists
+the check with "(Blue Rupee)" and the MM Check Tracker (Combo > Windows) lists it with
+"(Junk)". That is the placeholder the chest holds in its own game's tables, not what you
+got. The check is still counted and coloured as collected. The Combo Tracker's Crossings
+list (Combo > Windows > Toggle Combo Tracker) and the pickup message name the real item.
+
+**Do not open Ocarina of Time's Save Editor or Message Viewer while you are in Majora's Mask** ([#797](https://github.com/spencerduncan/redshipblueship/issues/797), pending; console commands [#798](https://github.com/spencerduncan/redshipblueship/issues/798), pending).
+The two games share one save buffer, and OoT's windows do not yet check which game is
+running. In Termina, OoT's Save Editor rewrites health and magic values through OoT's save
+layout on every frame it draws, and those bytes are Majora's Mask's save. Opening its page in
+the menu (Dev Tools > Save Editor) is enough, even with the window closed. The Message
+Viewer's "Display Message" crashes the game there, and clicking the last split in Time
+Splits writes into MM's save too. OoT's Item Tracker, Gameplay Stats and Value Viewer show
+garbage in Termina, and its Check and Entrance Trackers show "Waiting for file load...".
+OoT's console commands `map`, `rupee`, `bottle`, `bItem`, `item`, `give_item` and
+`entrance` do the same kind of damage in Termina (they write MM's save or crash), and so can
+toggling OoT's "Fix Broken Giant's Knife Bug" setting there. Use these tools in Hyrule
+only. MM's own Item and Check Trackers are not affected.
+
+**The Combo Tracker's Majora's Mask panel reads "No data yet" while you play Majora's Mask** ([#799](https://github.com/spencerduncan/redshipblueship/issues/799), pending).
+The panel reads Majora's Mask only from the copy kept while you are in the other game, and
+arriving in Termina uses that copy up. From arrival until your first save in Majora's Mask
+(an owl statue, the Song of Time or an autosave), or until you leave Termina again, the panel
+says "No data yet. Majora's Mask has not been played this session...", the crossings hosted
+in MM checks show a question-mark icon instead of a checked or empty box, and their list
+gives no collected count.
+Nothing is lost: the data comes back with that save or departure. Found by reading the code;
+not yet seen on screen.
+
 ### Back up your saves. Seriously.
 
 The cross-game save (`.redsave`) format **has been re-versioned** since the last
