@@ -39,11 +39,13 @@
  * OoTMM, for the record (the operator's reference for player-facing choices):
  * its MM get-item text header is 0xFE for EVERY item, native or foreign
  * (packages/generator/src/common/text/text.c comboTextAppendHeader), because it
- * identifies the item by drawing its real 3D model. We cannot draw OoT's model
- * in MM (docs/resource-namespace-audit.md; the foreign pickup draws no model
- * since #510), and 2S2H's own rando textbox carries the icon for every native
- * pickup, so the icon is the identification surface that exists here; with it
- * a foreign pickup reads like a native one, which is #510's rule.
+ * identifies the item by drawing its real 3D model. We do not draw OoT's model
+ * in MM yet (the foreign pickup draws no model since #510; curated OoT models
+ * are reachable by path from redship-mm.o2r since #577 M1 -- today only the M1
+ * seed, #577 M6 curates the set -- and drawing them is #577 M3), and 2S2H's own
+ * rando textbox carries the icon for every
+ * native pickup, so the icon is the identification surface that exists here;
+ * with it a foreign pickup reads like a native one, which is #510's rule.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 

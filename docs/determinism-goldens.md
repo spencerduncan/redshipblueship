@@ -109,7 +109,7 @@ with — all three come from the single `REDSHIP_GOLDEN_DIGESTS` table in
 profile, or in a different archive environment, than the row checks it under.
 
 It needs a GL-capable display and the **port archives only** (`soh.o2r`,
-`2ship.o2r`, `redship.o2r`). Move `oot.o2r` and `mm.o2r` out of the build directory
+`2ship.o2r`, `redship-oot.o2r`, `redship-mm.o2r`). Move `oot.o2r` and `mm.o2r` out of the build directory
 first — and if you forget, the target **stops with an error naming both files** rather
 than silently pinning a world CI cannot reproduce. Reason and override in "The archive
 set is part of the pin" below.
@@ -211,7 +211,7 @@ planted stale file untouched and create no file; set, the file appears).
 
 A golden pins a world **and the archive set that generated it**. The goldens are
 generated **archive-free**: the port archives (`soh.o2r`, `2ship.o2r`,
-`redship.o2r`) and no ROM-derived `oot.o2r`/`mm.o2r`, because that is the
+`redship-oot.o2r`, `redship-mm.o2r`) and no ROM-derived `oot.o2r`/`mm.o2r`, because that is the
 environment hosted CI has, and a runner can never have ROM-derived archives.
 
 **Since #702 (2026-09-27) the ROM-mounted world is the same world**, and every
@@ -312,7 +312,7 @@ with exclusions gets its own fingerprint.
   cwd, in a portable build) **and the executable's own directory** before falling
   back to `./`, so moving only the working directory would still find
   `build-cmake/oot.o2r`. The port set is an **allowlist** (`soh.o2r`, `2ship.o2r`,
-  `redship.o2r`), so a ROM-derived archive the checker has never heard of cannot
+  `redship-oot.o2r`, `redship-mm.o2r`), so a ROM-derived archive the checker has never heard of cannot
   leak in by not being named — and because that makes a re-scan of the sandbox for
   ROM names unfailable by construction, the two checks that *can* fail are the ones
   the code makes instead: the port archives are resolved from the build directory
