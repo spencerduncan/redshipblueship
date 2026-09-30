@@ -225,13 +225,16 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
 
 /**
  * #800 S1, the shop shelf's sold-out and can-buy tests (z_en_girla.c): 1 when OoT
- * check `rc` hosts an MM item that has already crossed, i.e. the drain collected
- * the check (the once-per-host gate OoT_Foreign_RecordPickupImpl reads). A shelf
- * whose RandomizerInf flag was lost with an unsaved reload would otherwise sell
- * the item again and charge for nothing: the drain delivers once per host, and
- * falls through to OoT's own give only for a check it has NOT collected.
+ * check `rc` hosts an MM item and the check is COLLECTED (the once-per-host gate
+ * OoT_Foreign_RecordPickupImpl and the drain read). That is usually "the MM item
+ * crossed", but not always: after a #610 pairing refusal the drain falls through
+ * to OoT's ordinary give, whose receive handler marks the check collected with
+ * no crossing recorded (the shelf sold its junk cover). Either way the shelf has
+ * been bought, and a shelf whose RandomizerInf flag was lost with an unsaved
+ * reload would otherwise sell again and charge for nothing: the drain delivers
+ * nothing for a check it has already collected.
  */
-extern "C" int OoT_Rando_Foreign_HostCrossingRecorded(uint16_t rc) {
+extern "C" int OoT_Rando_Foreign_HostCollected(uint16_t rc) {
     if (OoT_Rando_Foreign_HostsForeign(rc) == 0) {
         return 0;
     }

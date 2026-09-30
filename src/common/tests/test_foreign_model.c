@@ -36,15 +36,19 @@
  *     colliding item with no host-native row, the same draw emits no model list
  *     (the model-less stand-in). Put Rando::DrawItem(RI_NONE) back in the draw,
  *     or let the give overwrite the check id the draw reads, and M10 goes red.
- *  M11 OoT AS THE HOST (#800 S1): the OoT shop shelf's REAL model call
- *     (OoT_ForeignModel_DrawForOoTCheck, what OoT_EnGirlA_Draw calls) for an OoT
- *     check hosting an MM item, into a real OoT GraphicsContext: a mounted
- *     MM-exclusive model (the Deku Mask) emits exactly MM's descriptor lists with
- *     a matrix first; unmounted, colliding (MM's hookshot) or with no placement
- *     it emits no model list and answers 0, so the shelf keeps its stand-in.
  *
  * Not lockable headless: the pixels. The M3 playtest shows the drawn model; M4
  * draws these descriptors in OoT.
+ *
+ *  M12 OoT AS THE HOST (#800 S1): the model call the OoT shop shelf makes
+ *     (OoT_ForeignModel_DrawForOoTCheck, what OoT_EnGirlA_Draw calls; the actor
+ *     itself is not run here) for an OoT check hosting an MM item, into a real
+ *     OoT GraphicsContext: a mounted MM-exclusive model (the Deku Mask) emits
+ *     exactly MM's descriptor lists with a matrix first; unmounted, with no
+ *     placement, or for any answer other than a DESCRIPTOR (Odolwa's Remains:
+ *     no model; MM's hookshot: no model before #577 M7, HOST_NATIVE after it,
+ *     which this host does not draw yet) it emits no model list and answers 0,
+ *     so the shelf keeps its stand-in.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -809,45 +813,62 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(realNull == 0, "M10 the production mount test refuses a null path");
     }
 
-    // ---- M11 (#800 S1) -----------------------------------------------------------
-    // OoT as the host: the shop shelf's REAL draw call for an OoT check that hosts
-    // an MM item, into a real OoT GraphicsContext. A mounted MM-exclusive model
-    // emits exactly MM's descriptor; unmounted, colliding, or no placement at all,
-    // it emits no model list and answers 0 (the shelf keeps its stand-in).
+    // ---- M12 (#800 S1) -----------------------------------------------------------
+    // OoT as the host: the model call the shop shelf makes for an OoT check that
+    // hosts an MM item, into a real OoT GraphicsContext. A mounted MM-exclusive
+    // model emits exactly MM's descriptor; unmounted, no placement at all, or any
+    // answer other than a DESCRIPTOR, it emits no model list and answers 0 (the
+    // shelf keeps its stand-in).
     {
         SharedItem dekuMask;
         SharedItem mmHookshot;
+        SharedItem odolwa;
         FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Deku Mask", &dekuMask) &&
-                      TestNamedItem((uint8_t)GAME_MM, "Hookshot", &mmHookshot),
-                  "M11 named items");
+                      TestNamedItem((uint8_t)GAME_MM, "Hookshot", &mmHookshot) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Odolwa's Remains", &odolwa),
+                  "M12 named items");
         ComboModelAnswer maskA;
         ComboModelAnswer hookshotA;
+        ComboModelAnswer odolwaA;
+        const uint8_t hookshotKind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, mmHookshot, &hookshotA);
         FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, dekuMask, &maskA) == kDesc &&
-                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, mmHookshot, &hookshotA) == kNone,
-                  "M11 MM's Deku Mask is a DESCRIPTOR in OoT, the (colliding) hookshot is no model");
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &odolwaA) == kNone,
+                  "M12 MM's Deku Mask is a DESCRIPTOR in OoT, Odolwa's Remains is no model");
+        // MM's hookshot collides: "no model" until #577 M7 gives OoT's table a row
+        // for it, HOST_NATIVE (OoT's own hookshot) after. This host draws neither
+        // yet; drawing a HOST_NATIVE answer on the shelf is a follow-up.
+        FM_ASSERT(hookshotKind == kNone || hookshotKind == (uint8_t)COMBO_MODEL_ANSWER_HOST_NATIVE,
+                  "M12 MM's (colliding) hookshot is no model, or host-native once #577 M7 is in");
 
         ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
         std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
         const uint16_t shelf = 0x0123; // opaque to the table; the host draw keys on the placement alone
 
         Combo_ClearForeignPlacementsOoT();
-        printf("[TEST]   M11 no placement on the OoT check:\n");
+        printf("[TEST]   M12 no placement on the OoT check:\n");
         OoT_ForeignModel_TestSetMountOverride(1);
         const int drawNone = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
         const int placedMask = Combo_SetForeignPlacementOoT(shelf, dekuMask);
-        printf("[TEST]   M11 Deku Mask on an OoT shelf, archive mounted:\n");
+        printf("[TEST]   M12 Deku Mask on an OoT shelf, archive mounted:\n");
         const int drawMask = OoT_ForeignModel_TestShelfDraw(shelf, &maskA.model);
         ComboModel answered;
         const int modelMask = OoT_ForeignModel_ModelForOoTCheck(shelf, &answered);
         OoT_ForeignModel_TestSetMountOverride(0);
-        printf("[TEST]   M11 Deku Mask, archive NOT mounted:\n");
+        printf("[TEST]   M12 Deku Mask, archive NOT mounted:\n");
         const int drawUnmounted = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
         OoT_ForeignModel_TestSetMountOverride(1);
 
         Combo_ClearForeignPlacementsOoT();
         const int placedHookshot = Combo_SetForeignPlacementOoT(shelf, mmHookshot);
-        printf("[TEST]   M11 MM Hookshot (colliding, no host-native row), archive mounted:\n");
+        printf("[TEST]   M12 MM Hookshot (colliding, answer kind %u), archive mounted:\n", (unsigned)hookshotKind);
         const int drawHookshot = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        const int modelHookshot = OoT_ForeignModel_ModelForOoTCheck(shelf, nullptr);
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedOdolwa = Combo_SetForeignPlacementOoT(shelf, odolwa);
+        printf("[TEST]   M12 MM Odolwa's Remains (no model), archive mounted:\n");
+        const int drawOdolwa = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        const int modelOdolwa = OoT_ForeignModel_ModelForOoTCheck(shelf, nullptr);
         OoT_ForeignModel_TestSetMountOverride(-1);
 
         const int realMissing = OoT_ForeignModel_TestPathMountedReal("__OTR__objects/rsbs_no_such_object/gRsbsNoSuchDL");
@@ -855,16 +876,19 @@ TestResult Test_ForeignModel(void) {
         const int realNull = OoT_ForeignModel_TestPathMountedReal(nullptr);
 
         std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
-        FM_ASSERT(placedMask >= 0 && placedHookshot >= 0, "M11 placements accepted");
-        FM_ASSERT(drawNone == 0, "M11 an OoT check with no MM item draws no foreign model (see the M11 lines above)");
-        FM_ASSERT(drawMask == 0, "M11 the shelf draws MM's Deku Mask model (see the M11 lines above)");
+        FM_ASSERT(placedMask >= 0 && placedHookshot >= 0 && placedOdolwa >= 0, "M12 placements accepted");
+        FM_ASSERT(drawNone == 0, "M12 an OoT check with no MM item draws no foreign model (see the M12 lines above)");
+        FM_ASSERT(drawMask == 0, "M12 the shelf draws MM's Deku Mask model (see the M12 lines above)");
         FM_ASSERT(modelMask == 1 && FmModelEqual(answered, maskA.model),
-                  "M11 the shelf's model for the check is exactly MM's descriptor for the item it hosts");
-        FM_ASSERT(drawUnmounted == 0, "M11 unmounted, the shelf keeps its stand-in (see the M11 lines above)");
-        FM_ASSERT(drawHookshot == 0,
-                  "M11 a colliding model with no host-native row keeps the stand-in (see the M11 lines above)");
+                  "M12 the shelf's model for the check is exactly MM's descriptor for the item it hosts");
+        FM_ASSERT(drawUnmounted == 0, "M12 unmounted, the shelf keeps its stand-in (see the M12 lines above)");
+        FM_ASSERT(drawHookshot == 0 && modelHookshot == 0,
+                  "M12 a colliding model (no model, or host-native: not drawn by this host yet) keeps the stand-in "
+                  "(see the M12 lines above)");
+        FM_ASSERT(drawOdolwa == 0 && modelOdolwa == 0,
+                  "M12 a no-model answer keeps the stand-in (see the M12 lines above)");
         FM_ASSERT(realMissing == 0 && realNoPrefix == 0 && realNull == 0,
-                  "M11 the production mount test refuses a missing, unprefixed or null path");
+                  "M12 the production mount test refuses a missing, unprefixed or null path");
     }
 
     printf("[TEST] ForeignModel: PASS\n");

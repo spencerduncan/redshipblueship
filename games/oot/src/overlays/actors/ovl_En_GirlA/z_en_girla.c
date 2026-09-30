@@ -18,7 +18,7 @@
 // no src/common on its include path, so the three calls are declared here
 // (ForeignItemsSingleExe.cpp, ForeignModelHostOoT.cpp).
 s32 OoT_Rando_Foreign_HostsForeign(u16 rc);
-s32 OoT_Rando_Foreign_HostCrossingRecorded(u16 rc);
+s32 OoT_Rando_Foreign_HostCollected(u16 rc);
 s32 OoT_ForeignModel_DrawForOoTCheck(PlayState* play, u16 rc);
 #endif
 
@@ -398,8 +398,8 @@ s32 EnGirlA_TryChangeShopItemShip(EnGirlA* this, PlayState* play) {
         ShopItemIdentity shopItemIdentity = Randomizer_IdentifyShopItem(play->sceneNum, this->randoSlotIndex);
         if (Flags_GetRandomizerInf(shopItemIdentity.identity.randomizerInf)
 #ifdef RSBS_SINGLE_EXECUTABLE
-            // #800 S1: a shelf whose MM item already crossed is sold out too.
-            || OoT_Rando_Foreign_HostCrossingRecorded(shopItemIdentity.identity.randomizerCheck)
+            // #800 S1: a shelf hosting an MM item whose check is collected is sold out too.
+            || OoT_Rando_Foreign_HostCollected(shopItemIdentity.identity.randomizerCheck)
 #endif
         ) {
             this->actor.params = SI_SOLD_OUT;
@@ -883,10 +883,11 @@ s32 EnGirlA_CanBuy_Randomizer(PlayState* play, EnGirlA* this) {
     }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // #800 S1: the MM item this shelf hosts has already crossed (the drain marked
-    // the check collected), but the flag above was lost with an unsaved reload.
-    // Selling it again would charge for nothing: the drain delivers once per host.
-    if (OoT_Rando_Foreign_HostCrossingRecorded(shopItemIdentity.identity.randomizerCheck)) {
+    // #800 S1: this shelf hosts an MM item and its check is already collected
+    // (the drain recorded the crossing, or after a #610 refusal gave the junk
+    // cover), but the flag above was lost with an unsaved reload. Selling it
+    // again would charge for nothing: the drain delivers once per host.
+    if (OoT_Rando_Foreign_HostCollected(shopItemIdentity.identity.randomizerCheck)) {
         return CANBUY_RESULT_CANT_GET_NOW;
     }
 #endif
@@ -1464,7 +1465,7 @@ void OoT_EnGirlA_Draw(Actor* thisx, PlayState* play) {
         // #800 S1: a shelf hosting an MM item shows that item's model, drawn from
         // MM's descriptor (ForeignModelHostOoT.cpp), and never the junk cover the
         // OoT table holds there. Where OoT cannot draw the model (MM's archive
-        // not mounted yet, a colliding model with no host-native row, a model the
+        // not mounted yet, a colliding model, host-native or not, a model the
         // descriptor cannot express), the mystery item stands in for it.
         if (!CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0) &&
             OoT_Rando_Foreign_HostsForeign(shopItemIdentity.identity.randomizerCheck)) {

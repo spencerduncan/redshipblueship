@@ -170,7 +170,7 @@ int OoT_ComboLogic_TestIsShopShelf(uint16_t hostCheck);
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
 int OoT_Rando_Foreign_HostsForeign(uint16_t rc);
-int OoT_Rando_Foreign_HostCrossingRecorded(uint16_t rc);
+int OoT_Rando_Foreign_HostCollected(uint16_t rc);
 int Rando_ValidatePairedWorldHints(void);
 int OoT_Creation_AuthorRandoFile(int slot);
 void Randomizer_TestResetStartingGiveLog(void);
@@ -1009,7 +1009,7 @@ TestResult ComboSingleBag_Run(void) {
                    "the crossing store does not answer the shelf's check with its MM item");
         const int before = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
         CSB_ASSERT(OoT_Rando_Foreign_HostsForeign(shelf) == 1, "the shelf's draw and textbox do not see its MM item");
-        CSB_ASSERT(OoT_Rando_Foreign_HostCrossingRecorded(shelf) == 0,
+        CSB_ASSERT(OoT_Rando_Foreign_HostCollected(shelf) == 0,
                    "the shelf reads sold out before anything was bought");
         CSB_ASSERT(OoT_Rando_Foreign_RecordPickup(shelf) == 1, "buying the shelf recorded no MM crossing");
         CSB_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == before + 1,
@@ -1017,8 +1017,8 @@ TestResult ComboSingleBag_Run(void) {
         // The drain then marks the check collected; from then on the shelf is sold
         // out even when its RandomizerInf flag was lost with an unsaved reload.
         CSB_ASSERT(OoT_Rando_Foreign_TestSetObtained(shelf, 1) == 1, "the shelf's check could not be collected");
-        CSB_ASSERT(OoT_Rando_Foreign_HostCrossingRecorded(shelf) == 1,
-                   "a shelf whose MM item already crossed does not read sold out, so it would sell it again");
+        CSB_ASSERT(OoT_Rando_Foreign_HostCollected(shelf) == 1,
+                   "a shelf whose check is collected does not read sold out, so it would sell it again");
         CSB_ASSERT(OoT_Rando_Foreign_RecordPickup(shelf) == 0, "a collected shelf recorded a second MM crossing");
         OoT_Rando_Foreign_TestSetObtained(shelf, 0);
     }

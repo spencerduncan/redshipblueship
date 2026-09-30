@@ -14,9 +14,10 @@
  * mounts, the consumer checks). MM's archives are added the first time MM is
  * entered in this process (rsbs/src/main.cpp, Combo_EnsureGameArchivesLoaded),
  * and redship-oot.o2r carries the MM content #577 M6 curates for OoT; an MM
- * model none of them holds answers "no model" here. A HOST_NATIVE answer draws
- * nothing yet: OoT's host-native table is empty until #577 M7 adds its rows. In
- * every "no model" case the caller keeps its stand-in.
+ * model none of them holds answers "no model" here. A HOST_NATIVE answer (a
+ * colliding MM model OoT's host-native table maps to OoT's own draw row, #577
+ * M7) draws nothing here yet: drawing that row on the shelf is a follow-up. In
+ * every "no model" case, and for HOST_NATIVE, the caller keeps its stand-in.
  *
  * HOW. Each layer, in the order both games' z_draw.c emit it: the setup list,
  * the layer's scrolling segments, its colours (and the grayscale tint), the
@@ -233,7 +234,7 @@ extern "C" int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc) {
     return 1;
 }
 
-// ---- TEST BRIDGES (ForeignModel row M11, src/common/tests/test_foreign_model.c)
+// ---- TEST BRIDGES (ForeignModel row M12, src/common/tests/test_foreign_model.c)
 
 extern "C" void OoT_ForeignModel_TestSetMountOverride(int value) {
     sHostMountOverride = value;
@@ -335,7 +336,7 @@ std::vector<const char*> OoTHostReadParts(const Gfx* begin, const Gfx* end, bool
 } // namespace
 
 /**
- * TEST BRIDGE (ForeignModel row M11): the shelf's REAL draw call
+ * TEST BRIDGE (ForeignModel row M12): the shelf's REAL draw call
  * (OoT_ForeignModel_DrawForOoTCheck) for OoT check `rc` into a real OoT
  * GraphicsContext, both layers read back. `want` null: nothing drawn and no
  * model list emitted (the caller's stand-in). Returns 0 on success; prints the
@@ -347,7 +348,7 @@ extern "C" int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* wan
     const int drew = OoT_ForeignModel_DrawForOoTCheck(fake.play, rc);
     sHostEmitUnresolved = false;
     if (OoT_sCurrentMatrix != fake.stack) {
-        std::printf("[TEST]   M11 the draw left OoT's matrix stack unbalanced\n");
+        std::printf("[TEST]   M12 the draw left OoT's matrix stack unbalanced\n");
         return 1;
     }
     for (uint8_t layer : { kHostOpa, kHostXlu }) {
@@ -363,19 +364,19 @@ extern "C" int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* wan
                 }
             }
         }
-        std::printf("[TEST]   M11 %s: %zu model list(s) emitted, %zu expected%s%s\n", layer == kHostOpa ? "OPA" : "XLU",
+        std::printf("[TEST]   M12 %s: %zu model list(s) emitted, %zu expected%s%s\n", layer == kHostOpa ? "OPA" : "XLU",
                     parts.size(), expected.size(), parts.empty() ? "" : ", first ", parts.empty() ? "" : parts[0]);
         if (parts != expected) {
-            std::printf("[TEST]   M11 the shelf draw emitted the wrong model lists on this layer\n");
+            std::printf("[TEST]   M12 the shelf draw emitted the wrong model lists on this layer\n");
             return 1;
         }
         if (!expected.empty() && !matrixFirst) {
-            std::printf("[TEST]   M11 no matrix loaded before the first model list\n");
+            std::printf("[TEST]   M12 no matrix loaded before the first model list\n");
             return 1;
         }
     }
     if ((drew == 1) != (want != nullptr)) {
-        std::printf("[TEST]   M11 the draw answered %d, want %d\n", drew, want != nullptr ? 1 : 0);
+        std::printf("[TEST]   M12 the draw answered %d, want %d\n", drew, want != nullptr ? 1 : 0);
         return 1;
     }
     return 0;
