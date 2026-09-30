@@ -5883,6 +5883,10 @@ bool TestRunner_SetupIntegrationTest(const char* testName) {
             if (gIntegrationTests[i].mode == INT_TEST_GAMEPLAY_ROUNDTRIP) {
                 IntegrationTest_SetGameplayVariant(gIntegrationTests[i].gameplayVariant);
             }
+            // The wall-clock watchdog thread (#793): from here until the
+            // verdict, a stall with no frame or stage progress fails the run
+            // with its stage instead of reaching the CTest timeout.
+            IntegrationTest_WatchdogStart();
 
             printf("[INT-TEST] Setting up integration test: %s\n", testName);
             printf("[INT-TEST] Target game: %s\n", Game_ToString(sTargetGame));
@@ -5916,6 +5920,7 @@ int TestRunner_GetIntegrationTestResult(void) {
     // The paired row's stderr tee (a no-op for every other row): drain it and
     // put fd 2 back before the process _Exit()s, so no line is lost in the pipe.
     IntegrationTest_StderrCaptureStop();
+    IntegrationTest_WatchdogReport();
     printf("\n=== Integration Test Result ===\n");
     printf("Test: %s\n", sIntegrationTestName);
     printf("Result: %s\n", passed ? "PASS" : "FAIL");

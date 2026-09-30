@@ -880,10 +880,16 @@ Two rows to know about before you read a red or green as a signal:
   stalls while OoT keeps running frames (the #544 state), the row fails after
   30 s in that stage with a line naming it ("title screen / file select never
   presented", "gameplay never reached", ...) instead of hitting the CTest wall.
-  A wedge inside a single frame, or in the OoT-to-MM hand-off and MM half after
+  ~~A wedge inside a single frame, or in the OoT-to-MM hand-off and MM half after
   the trigger, still ends at the 120 s CTest timeout: the budget is checked once
-  per OoT frame, not from a watchdog thread. Either way a red run of this row is
-  a regression to read, not known noise.
+  per OoT frame, not from a watchdog thread.~~ RESOLVED
+  ([#793](https://github.com/spencerduncan/redshipblueship/issues/793)): a
+  wall-clock watchdog thread now ends every `int-*` run that goes 60 s with no
+  frame completing, with an `[INT-WATCHDOG] FAIL` line naming the last stage
+  (an OoT frame, an MM frame, the hand-off) and each game's state
+  (`RSBS_INT_WATCHDOG_SECS` changes the budget; 0 disables it, e.g. under a
+  debugger). Either way a red run of this row is a regression to read, not
+  known noise.
 - **`IntPairedFirstCrossing` is the only row that crosses with a paired file** (PR
   [#790](https://github.com/spencerduncan/redshipblueship/pull/790)). Like every
   `integration` row it needs the ROM archives, so hosted CI never runs it; run it locally

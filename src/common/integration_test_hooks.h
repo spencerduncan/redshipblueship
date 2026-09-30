@@ -270,6 +270,38 @@ void IntegrationTest_StageProgress(const char* stage);
 void IntegrationTest_HandoffWedgeIfArmed(void);
 
 // ----------------------------------------------------------------------------
+// Wall-clock watchdog thread (#793)
+//
+// Every other int-* watchdog runs from a per-frame hook, so a run that stops
+// completing frames (a wedge inside one frame, or in the cross-game hand-off
+// between two games' frame loops) used to reach the CTest wall with no line
+// saying where. This detached thread, started with the integration mode, polls
+// the progress word above. Once RSBS_INT_WATCHDOG_SECS (default 60; 0
+// disables, e.g. under a debugger) pass with no progress, it prints the last
+// stage, both games' frame counts and each game's state, then ends the process
+// with INT_WATCHDOG_EXIT_CODE itself: a wedged frame loop never returns to
+// main, so nothing else can.
+//
+// The default sits well above the longest healthy gap between two progress
+// bumps (reported by every run as "[INT-WATCHDOG] longest stall") and, for the
+// 120 s rows, far enough below the CTest TIMEOUT that a stall anywhere in a
+// healthy run's span fires first.
+// ----------------------------------------------------------------------------
+#define INT_WATCHDOG_EXIT_CODE 3
+
+/** Arm the watchdog thread (once; reads RSBS_INT_WATCHDOG_SECS). */
+void IntegrationTest_WatchdogStart(void);
+
+/** Writes one line of a game's state into `out` (no locks; runs on the watchdog thread). */
+typedef void (*IntegrationTestStateDescriber)(char* out, size_t cap);
+
+/** Each game registers its describer when its integration hooks are armed. */
+void IntegrationTest_WatchdogSetDescriber(GameId game, IntegrationTestStateDescriber describer);
+
+/** Print the longest stall seen this run and its stage (healthy-run margin evidence). */
+void IntegrationTest_WatchdogReport(void);
+
+// ----------------------------------------------------------------------------
 // stderr capture (int-paired-first-crossing)
 //
 // The crossing's verdicts are fprintf(stderr) lines in both ports (the MM
