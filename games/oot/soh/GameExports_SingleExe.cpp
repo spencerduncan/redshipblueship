@@ -845,6 +845,73 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
     IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_PRE);
 }
 
+// ---- PLAYTEST DRIVE (#796), off unless RSBS_PFC_TRACKER_CROSSING=1 ----------
+// The paired world's first MM item hosted in an OoT chest is opened through the
+// real scene-flag hook a chest fires (RandomizerOnSceneFlagSetHandler queues the
+// check, and the RC-queue drain gives it: the "You found" toast and the tracker's
+// collected write). The drive logs the MM-bound shared-item count before and
+// after, so the give is observed rather than inferred. The Check Tracker's search
+// box is then filled with that chest's name (frame 90) and later with the
+// crossed item's name (frame 600), so unattended window captures show its row
+// under each search.
+extern "C" int OoT_CheckTracker_TestSearch(const char* text);
+extern "C" int OoT_CheckTracker_TestItemName(uint16_t rc, char* out, int cap);
+extern "C" int OoT_CheckTracker_TestSearchShows(uint16_t rc, const char* text);
+
+static void GpPairedTrackerSearch(int host, const std::string& text) {
+    OoT_CheckTracker_TestSearch(text.c_str());
+    char name[128] = "";
+    OoT_CheckTracker_TestItemName((uint16_t)host, name, (int)sizeof(name));
+    fprintf(stderr, "[PT796] check tracker filtered to \"%s\": status %d, lists the host %d, row names (%s)\n",
+            text.c_str(),
+            (int)OTRGlobals::Instance->gRandoContext->GetItemLocation((RandomizerCheck)host)->GetCheckStatus(),
+            OoT_CheckTracker_TestSearchShows((uint16_t)host, text.c_str()), name);
+    fflush(stderr);
+}
+
+static void GpPairedTrackerPlaytest(int frame) {
+    static int sHost = -1;
+    static std::string sItemName;
+    static int sSharedBefore = -1;
+    const char* env = getenv("RSBS_PFC_TRACKER_CROSSING");
+    if (env == NULL || strcmp(env, "1") != 0) {
+        return;
+    }
+    if (frame == 30) {
+        for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+            ComboCrossing row;
+            if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
+                continue;
+            }
+            const Rando::SpoilerCollectionCheck cc =
+                Rando::StaticData::GetLocation((RandomizerCheck)row.hostCheck)->GetCollectionCheck();
+            if (cc.type != SPOILER_CHK_CHEST) {
+                continue;
+            }
+            sHost = row.hostCheck;
+            const char* item = Combo_GetForeignItemName(row.item);
+            sItemName = item != NULL ? item : "";
+            sSharedBefore = Combo_CountSharedItems(GAME_MM, true);
+            fprintf(stderr,
+                    "[PT796] opening OoT check %u (%s), which hosts the MM item %s: scene %u treasure flag %u\n",
+                    (unsigned)row.hostCheck,
+                    Rando::StaticData::GetLocation((RandomizerCheck)row.hostCheck)->GetShortName().c_str(),
+                    item != NULL ? item : "?", (unsigned)cc.scene, (unsigned)cc.flag);
+            fflush(stderr);
+            GameInteractor_ExecuteOnSceneFlagSet(cc.scene, FLAG_SCENE_TREASURE, cc.flag);
+            break;
+        }
+    }
+    if (frame == 90 && sHost >= 0) {
+        fprintf(stderr, "[PT796] MM-bound shared-item records: %d before the chest, %d after\n", sSharedBefore,
+                Combo_CountSharedItems(GAME_MM, true));
+        GpPairedTrackerSearch(sHost, Rando::StaticData::GetLocation((RandomizerCheck)sHost)->GetShortName());
+    }
+    if (frame == 600 && sHost >= 0 && !sItemName.empty()) {
+        GpPairedTrackerSearch(sHost, sItemName);
+    }
+}
+
 static bool sPfcTitleRedirected = false;
 
 /**
@@ -1356,6 +1423,9 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             const GameplayTestConfig* cfg = IntegrationTest_GetGameplayConfig();
             PlayState* play = OoT_gPlayState;
             sGpFramesInPhase++;
+            if (phase == GP_PHASE_OOT_PRE && IntegrationTest_PairedFirstCrossing()) {
+                GpPairedTrackerPlaytest(sGpFramesInPhase);
+            }
 
             // Door-actor presence (bug 1a): by frame 30 the arrival scene's
             // transition actors have spawned. Baseline in the boot phase;
