@@ -68,12 +68,12 @@ int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
 int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
 }
 
-#define FM_ASSERT(cond, msg)                                                      \
-    do {                                                                          \
-        if (!(cond)) {                                                            \
-            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__);        \
-            return TEST_FAIL;                                                     \
-        }                                                                         \
+#define FM_ASSERT(cond, msg)                                                \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            return TEST_FAIL;                                               \
+        }                                                                   \
     } while (0)
 
 namespace {
@@ -92,18 +92,18 @@ bool FmColorEqual(const ComboModelColor& a, const ComboModelColor& b) {
 }
 
 bool FmScrollEqual(const ComboModelScroll& a, const ComboModelScroll& b) {
-    return a.segment == b.segment && a.layer == b.layer && a.twoTiles == b.twoTiles && a.x1 == b.x1 &&
-           a.y1 == b.y1 && a.x1PerFrame == b.x1PerFrame && a.y1PerFrame == b.y1PerFrame && a.w1 == b.w1 &&
-           a.h1 == b.h1 && a.x2 == b.x2 && a.y2 == b.y2 && a.x2PerFrame == b.x2PerFrame &&
-           a.y2PerFrame == b.y2PerFrame && a.w2 == b.w2 && a.h2 == b.h2;
+    return a.segment == b.segment && a.layer == b.layer && a.twoTiles == b.twoTiles && a.x1 == b.x1 && a.y1 == b.y1 &&
+           a.x1PerFrame == b.x1PerFrame && a.y1PerFrame == b.y1PerFrame && a.w1 == b.w1 && a.h1 == b.h1 &&
+           a.x2 == b.x2 && a.y2 == b.y2 && a.x2PerFrame == b.x2PerFrame && a.y2PerFrame == b.y2PerFrame &&
+           a.w2 == b.w2 && a.h2 == b.h2;
 }
 
 /** Field-by-field (struct padding is not part of a model). Paths compare by
  *  pointer: a round-trip hands the host the origin's own static string. */
 bool FmModelEqual(const ComboModel& a, const ComboModel& b) {
     if (a.partCount != b.partCount || a.opaSetupDl != b.opaSetupDl || a.xluSetupDl != b.xluSetupDl ||
-        !FmColorEqual(a.opaColor, b.opaColor) || !FmColorEqual(a.xluColor, b.xluColor) ||
-        a.grayscale != b.grayscale || std::memcmp(a.grayscaleRgb, b.grayscaleRgb, 3) != 0 || a.scale != b.scale) {
+        !FmColorEqual(a.opaColor, b.opaColor) || !FmColorEqual(a.xluColor, b.xluColor) || a.grayscale != b.grayscale ||
+        std::memcmp(a.grayscaleRgb, b.grayscaleRgb, 3) != 0 || a.scale != b.scale) {
         return false;
     }
     for (int i = 0; i < 3; i++) {
@@ -263,8 +263,8 @@ TestResult FmWalkProgression(const FmGame& g) {
             sourceDeclined++;
             const char* reason = g.itemReason((uint16_t)id);
             if (kind != COMBO_MODEL_ANSWER_NONE || !FmAnswerZeroed(answer) || reason == nullptr) {
-                printf("[TEST]   %s %d \"%s\": the source declined without a reason, or a model leaked\n", g.name,
-                       id, name ? name : "?");
+                printf("[TEST]   %s %d \"%s\": the source declined without a reason, or a model leaked\n", g.name, id,
+                       name ? name : "?");
                 failures++;
             }
             continue;
@@ -318,8 +318,8 @@ TestResult FmCheckPin(const FmPin& pin) {
         ok = len >= tail && std::strcmp(dl + len - tail, pin.firstListTail) == 0 &&
              answer.model.partCount == pin.partCount && answer.model.parts[0].layer == pin.firstLayer;
     }
-    printf("[TEST]   pin: %-24s -> kind %u, %u parts, %s\n", pin.name, (unsigned)kind,
-           (unsigned)answer.model.partCount, answer.model.partCount > 0 ? answer.model.parts[0].dl : "-");
+    printf("[TEST]   pin: %-24s -> kind %u, %u parts, %s\n", pin.name, (unsigned)kind, (unsigned)answer.model.partCount,
+           answer.model.partCount > 0 ? answer.model.parts[0].dl : "-");
     if (!ok) {
         printf("[TEST] FAIL: \"%s\" wants kind %u, %u parts, first \"...%s\"\n", pin.name, (unsigned)pin.kind,
                (unsigned)pin.partCount, pin.firstListTail != nullptr ? pin.firstListTail : "-");
@@ -518,8 +518,8 @@ TestResult Test_ForeignModel(void) {
     {
         std::set<std::string> ootDirs;
         std::set<std::string> mmDirs;
-        FM_ASSERT(FmListDirs("games/oot/assets/objects", &ootDirs) && FmListDirs("games/oot/assets/custom/objects",
-                                                                                  &ootDirs) &&
+        FM_ASSERT(FmListDirs("games/oot/assets/objects", &ootDirs) &&
+                      FmListDirs("games/oot/assets/custom/objects", &ootDirs) &&
                       FmListDirs("games/mm/assets/objects", &mmDirs) &&
                       FmListDirs("games/mm/assets/custom/objects", &mmDirs),
                   "M3 both games' object trees are readable under RSBS_SOURCE_DIR");
@@ -545,8 +545,7 @@ TestResult Test_ForeignModel(void) {
                       Combo_ForeignModel_PathCollides("__OTR__objects/object_gi_hammer/gGiHammerDL") == 0 &&
                       Combo_ForeignModel_PathCollides("objects/object_gi_hookshot/gGiHookshotDL") == 0 &&
                       Combo_ForeignModel_PathCollides("__OTR__textures/object_gi_hookshot/x") == 0 &&
-                      Combo_ForeignModel_PathCollides(nullptr) == 0 &&
-                      Combo_ForeignModel_ObjectDirCollides("") == 0,
+                      Combo_ForeignModel_PathCollides(nullptr) == 0 && Combo_ForeignModel_ObjectDirCollides("") == 0,
                   "M3 path parsing: only __OTR__objects/<dir>/<name> names a directory");
     }
 
@@ -695,7 +694,7 @@ TestResult Test_ForeignModel(void) {
 
     // ---- M9 --------------------------------------------------------------------
     {
-        static const char* const kAllowed[] = { "stdint.h", "math.h", "stdlib.h", "string.h",
+        static const char* const kAllowed[] = { "stdint.h",  "math.h", "stdlib.h",       "string.h",
                                                 "context.h", "game.h", "foreign_model.h" };
         const char* const files[] = { "src/common/foreign_model.h", "src/common/foreign_model.c" };
         for (const char* file : files) {

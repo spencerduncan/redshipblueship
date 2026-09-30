@@ -843,3 +843,22 @@ void GetItem_DrawRemains(PlayState* play, s16 drawId) {
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// rsbs #577 M2: a read-only view of the (static) get-item draw table for
+// 2s2h/Rando/ForeignModelSingleExe.cpp, the foreign model source. It
+// re-expresses each row's shape for the OTHER game instead of calling the row's
+// draw function (which takes MM's PlayState).
+s32 MM_GetItem_DrawTableCount(void) {
+    return ARRAY_COUNT(MM_sDrawItemTable);
+}
+
+s32 MM_GetItem_DrawTableRow(s16 drawId, void (**drawFunc)(PlayState*, s16), void* const** drawResources) {
+    if (drawId < 0 || drawId >= ARRAY_COUNT(MM_sDrawItemTable) || drawFunc == NULL || drawResources == NULL) {
+        return 0;
+    }
+    *drawFunc = MM_sDrawItemTable[drawId].drawFunc;
+    *drawResources = MM_sDrawItemTable[drawId].drawResources;
+    return 1;
+}
+#endif

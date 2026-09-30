@@ -1077,3 +1077,24 @@ void GetItem_DrawFishingPole(PlayState* play, s16 drawId) {
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// rsbs #577 M2: a read-only view of the get-item draw table for
+// soh/Enhancements/randomizer/ForeignModelOoT.cpp, the foreign model source.
+// It re-expresses each row's shape for the OTHER game instead of calling the
+// row's draw function (which takes OoT's PlayState). Bounded: the enum has one
+// more GID than the table has rows (GID_FISHING_POLE; its items always carry a
+// custom draw function, so OoT_GetItem_Draw never indexes it).
+s32 OoT_GetItem_DrawTableCount(void) {
+    return ARRAY_COUNT(OoT_sDrawItemTable);
+}
+
+s32 OoT_GetItem_DrawTableRow(s16 drawId, void (**drawFunc)(PlayState*, s16), Gfx* const** dlists) {
+    if (drawId < 0 || drawId >= ARRAY_COUNT(OoT_sDrawItemTable) || drawFunc == NULL || dlists == NULL) {
+        return 0;
+    }
+    *drawFunc = OoT_sDrawItemTable[drawId].drawFunc;
+    *dlists = OoT_sDrawItemTable[drawId].dlists;
+    return 1;
+}
+#endif
