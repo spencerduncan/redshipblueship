@@ -4,6 +4,11 @@ extern "C" {
 #include "overlays/actors/ovl_En_Sob1/z_en_sob1.h"
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/Foreign.h"
+#include "2s2h/Rando/ForeignModel.h"
+#endif
+
 void EnSob1_DrawCustomItem(Actor* thisx, PlayState* play) {
     auto randoSaveCheck = RANDO_SAVE_CHECKS[RC_BOMB_SHOP_ITEM_01];
 
@@ -12,6 +17,18 @@ void EnSob1_DrawCustomItem(Actor* thisx, PlayState* play) {
 
     s16 rotX = (s16)((-90.0f / 180.0f) * 32768.0f);
     MM_Matrix_RotateZYX(rotX, 0, 0, MTXMODE_APPLY);
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 pass 1: the slot may host an OoT item while holding MM's junk cover.
+    // The owner holds the origin's own model, or, with no drawable model, MM's
+    // model-less form (RI_NONE), never the cover's model.
+    if (Rando::Foreign::IsForeignCheck(RC_BOMB_SHOP_ITEM_01)) {
+        if (!Rando::Foreign::DrawForeignModelForCheck(RC_BOMB_SHOP_ITEM_01, play)) {
+            Rando::DrawItem(RI_NONE);
+        }
+        return;
+    }
+#endif
 
     Rando::DrawItem(randoSaveCheck.randoItemId);
 }

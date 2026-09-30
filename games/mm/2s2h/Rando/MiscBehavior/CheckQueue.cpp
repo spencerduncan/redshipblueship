@@ -24,6 +24,22 @@ extern s16 D_801CFF94[250];
 
 static bool queued = false;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// THE FOREIGN GIVE (#800 pass 1; declared in Rando/Foreign.h). Factored out of
+// the foreign branch's giveItem lambda below so a shop's purchase
+// (ActorBehavior/EnGirlA.cpp) delivers through the same code: the record, with
+// its #610 refusal and once-per-host gate, then the host's delivered bits, set
+// whatever the record answered, as the lambda always set them.
+bool Rando::Foreign::GiveForeignCheck(RandoCheckId randoCheckId) {
+    const bool crossed = Rando::Foreign::RecordForeignPickup(randoCheckId);
+    auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+    randoSaveCheck.cycleObtained = true;
+    randoSaveCheck.obtained = true;
+    randoSaveCheck.eligible = false;
+    return crossed;
+}
+#endif
+
 // This function handles queuing up item gives that the player has been marked as eligible for. If you are looking for
 // the behavior of the actual giving itself, the heavy lifting is done by the GameInteractor queue. This function is
 // currently called every frame, and loops through the entire list of checks, this works for now but as the check list
@@ -93,14 +109,15 @@ void Rando::MiscBehavior::CheckQueue() {
                     .param = (int16_t)randoCheckId,
                     .giveItem =
                         [](Actor* actor, PlayState* play) {
-                            auto& randoSaveCheck = RANDO_SAVE_CHECKS[CUSTOM_ITEM_PARAM];
                             const RandoCheckId checkId = (RandoCheckId)CUSTOM_ITEM_PARAM;
                             const char* foreignName = Rando::Foreign::ForeignNameForCheck(checkId);
 
                             // Record into gComboCtx.sharedItemsTagged (origin-
-                            // tagged, durable immediately, de-duped). OoT's
-                            // consumer awards it on the next arrival there.
-                            Rando::Foreign::RecordForeignPickup(checkId);
+                            // tagged, durable immediately, de-duped) and mark the
+                            // host delivered. OoT's consumer awards it on the next
+                            // arrival there. The same give a shop's purchase makes
+                            // (#800), factored below.
+                            Rando::Foreign::GiveForeignCheck(checkId);
 
                             // Same sentence shape as the native branch below:
                             // "You found " + article + name + "!". The article
@@ -130,9 +147,6 @@ void Rando::MiscBehavior::CheckQueue() {
                                 CustomMessage::StartTextbox(entry.msg + "\x1C\x02\x10", entry);
                             }
 
-                            randoSaveCheck.cycleObtained = true;
-                            randoSaveCheck.obtained = true;
-                            randoSaveCheck.eligible = false;
                             queued = false;
                             // #577 M3: CUSTOM_ITEM_PARAM keeps the CHECK id after
                             // the give (the native branch swaps in an RI): the

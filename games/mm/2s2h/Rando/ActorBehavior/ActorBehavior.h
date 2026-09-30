@@ -2,6 +2,7 @@
 #define RANDO_ACTOR_BEHAVIOR_H
 
 #include "Rando/Rando.h"
+#include <string>
 
 namespace Rando {
 
@@ -12,6 +13,16 @@ void OnFileLoad();
 
 RandoCheckId GetObjectRandoCheckId(void* actor);
 void SetObjectRandoCheckId(const void* object, RandoCheckId rc);
+
+// #800: a shop slot may host a foreign (OoT) item while physically holding MM's
+// junk cover. Both defined in EnGirlA.cpp; outside a paired world they are the
+// native answers unchanged.
+// The name a shop line gives the item slot `rc` sells: the hosted foreign item's
+// (with its article when `withArticle`), else `nativeName`.
+std::string ShopOfferedItemName(RandoCheckId rc, const std::string& nativeName, bool withArticle);
+// A milk-counter slot (EnIn/EnTab) is sold for this cycle, or, hosting a foreign
+// item whose crossing was delivered, for the rest of the game.
+bool ShopCounterSlotSold(RandoCheckId rc);
 
 void InitDmChar01Behavior();
 void InitDmChar05Behavior();

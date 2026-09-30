@@ -26,6 +26,12 @@
  *  S5 THE BOMB SHOP OWNER'S HAND (EnSob1_DrawCustomItem): the same, for the one
  *     shop item drawn in an NPC's hand.
  *
+ * What S4/S5's stand-in legs do NOT prove: in this display-free process the
+ * cover's own draw (Rando::CurrentJunkItem with no live frame count) emits no
+ * model list either, so those two legs pass with or without #800. The model legs
+ * are the ones a revert turns red. The real cover model (a rupee on a shelf
+ * where the OoT item should be) is what the playtest shows.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
  */
