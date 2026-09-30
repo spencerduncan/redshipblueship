@@ -35,6 +35,7 @@
 
 #include "soh/SohGui/SohGui.hpp"
 #include "soh/SohGui/OoTActiveGated.h"
+#include "soh/Enhancements/debugger/MessageViewer.h"
 #include "soh/cvar_prefixes.h"
 #include "context.h"
 
