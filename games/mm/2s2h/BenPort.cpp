@@ -2233,8 +2233,9 @@ extern "C" bool Ship_HandleConsoleCrashAsReset() {
 // That is a CMake *option* name, never a compile definition (the single-exe
 // define is RSBS_SINGLE_EXECUTABLE), and this whole TU is excluded from every
 // target besides (the "THIS TU IS COMPILED BY NOTHING" note near the top of
-// this file), so the block was compiled in no configuration and had no callers. It was MM's mirror of OoT_FreezeState,
-// deleted from OTRGlobals.cpp by #598 for the same reason: the last remains of
+// this file), so the block was compiled in no configuration and had no
+// callers. It was MM's mirror of OoT_FreezeState, deleted from OTRGlobals.cpp
+// by #598 for the same reason: the last remains of
 // the legacy Context_ProcessSwitch() model. The live hot-swap freeze/consume
 // policy is Switch_PrepareHotSwap / Combo_ConsumeFrozenState in
 // src/common/switch.cpp, and MM's arrival restore is

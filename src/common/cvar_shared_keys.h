@@ -586,7 +586,8 @@ constexpr bool ComboIdentityKeysAreIdentity() {
  * allowlist is a separate decision, because `2ship_enh` is a plain archive by
  * design (see `.github/scripts/check-registrar-elision.sh`: most of its members
  * must legitimately stay dead in single-exe) and "WHOLE_ARCHIVE the lot" is
- * its own call, answered "no" under #516.
+ * its own call. That script, citing #516, records why the archive stays
+ * plain and its registrar audit stays report-only.
  *
  * NOT world identity. Every key here is a PREFERENCE: it shapes how the game
  * plays for this player, never what the paired world contains, so none of them
@@ -935,7 +936,8 @@ static_assert(kComboKeyCount == 10, "seven gCombo.Rando.* identity keys + three 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is
 // the same already-linked TU (SavingEnhancements.cpp), so it widens no archive
-// and is not the "WHOLE_ARCHIVE the lot" call #516 answered "no". Pinning the count makes
+// and is not the "WHOLE_ARCHIVE the lot" call (2ship_enh stays a plain archive;
+// check-registrar-elision.sh and #516 record why). Pinning the count makes
 // both a silently dropped row and a quietly WIDENED allowlist a compile error.
 static_assert(kHostedMmEnhancementCount == 5,
               "the curated MM enhancement allowlist: #682's Kaleido.GameOver, Songs.BetterSongOfDoubleTime, "
