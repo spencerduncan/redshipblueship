@@ -1021,9 +1021,10 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     }
     sGpMMPlayFrames++;
     // #577 M3 playtest drive (opt-in, RSBS_GP_MM_FOREIGN_MODEL=1): once the
-    // player stands in South Clock Town, mark one MM check that hosts a drawable
-    // OoT item eligible, so CheckQueue plays its real get-item cutscene here.
-    if (sGpMMPlayFrames == 20 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
+    // player stands in South Clock Town and the arrival's own queued gives have
+    // played out, mark one MM check that hosts a drawable OoT item eligible, so
+    // CheckQueue plays its real get-item cutscene here.
+    if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
         MM_ForeignModel_PlaytestArmGive();
     }
     if (sGpMMPlayFrames < cfg->framesPerPhase) {

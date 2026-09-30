@@ -879,7 +879,8 @@ bool RunCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want) {
 
 /**
  * The #577 M3 playtest drive (GameExports_SingleExe.cpp, gameplay round-trip,
- * RSBS_GP_MM_FOREIGN_MODEL=1): the first OoT item the paired world's crossing
+ * RSBS_GP_MM_FOREIGN_MODEL=1, 100 live frames into the MM play window): the
+ * first OoT item the paired world's crossing
  * store placed on an MM check, not yet obtained, whose model MM can draw right
  * now. Its check is marked eligible, exactly as walking up to it would, so
  * CheckQueue queues the real foreign give and the get-item cutscene follows.
