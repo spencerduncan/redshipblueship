@@ -1,9 +1,9 @@
 # Known issues
 
-**Applies to:** `main` at `d6c8f270` (2026-09-28, PR [#776](https://github.com/spencerduncan/redshipblueship/pull/776): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
-plus the 19 PRs merged after it) and the GitHub Actions builds cut from it; the `v0.1.1-prealpha` tag
+**Applies to:** `main` at `200adaea` (2026-09-28, PR [#794](https://github.com/spencerduncan/redshipblueship/pull/794): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
+plus the 35 PRs merged after it) and the GitHub Actions builds cut from it; the `v0.1.1-prealpha` tag
 (2026-07-03) is older than everything in the first section.
-**Last updated:** 2026-09-28 (the playtest refresh, then a corrections pass). **Playtesting this build?** Start with
+**Last updated:** 2026-09-30 (the open cross-game findings, then a corrections pass). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -36,7 +36,7 @@ classification table ([#725](https://github.com/spencerduncan/redshipblueship/pu
 crossings and the one spoiler ([#736](https://github.com/spencerduncan/redshipblueship/pull/736)), bag composition ([#738](https://github.com/spencerduncan/redshipblueship/pull/738)), one shared
 triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740)) and the shared-quantity trim ([#744](https://github.com/spencerduncan/redshipblueship/pull/744)).
 
-**What ships at `d6c8f270`:**
+**What ships at `200adaea`:**
 
 - **One seed, one paired world, one bag, items crossing in both directions.** Generating an
   OoT randomizer seed also generates the paired Majora's Mask world. OoT items are
@@ -72,9 +72,13 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   world's identity when the OoT file is created (ADR 0009, ADR 0011; PRs
   [#570](https://github.com/spencerduncan/redshipblueship/pull/570),
   [#628](https://github.com/spencerduncan/redshipblueship/pull/628)). Changing MM
-  options or combo settings afterwards does not change the world — the divergence
-  is **refused** when you next cross, and the save slot is marked refused rather
-  than silently overwritten (PR
+  options or combo settings afterwards does not change the world: loading the paired
+  file puts its own values back into the pages, a toast names what it reset, and the
+  next crossing agrees with the file (PR
+  [#787](https://github.com/spencerduncan/redshipblueship/pull/787); see the resolved
+  [#781](https://github.com/spencerduncan/redshipblueship/issues/781) entry under "Save
+  loss and corruption" for the cases the file cannot answer). A refused load or
+  crossing marks the save slot refused rather than silently overwriting it (PR
   [#568](https://github.com/spencerduncan/redshipblueship/pull/568)). Set MM's
   options *before* creating the file: `Combo → MM Randomizer` and `Combo → MM
   Tricks` (menu pages since 2026-09-27; before that a pop-out window opened from
@@ -270,9 +274,9 @@ moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https:
 crash restores the file's last save (PR [#789](https://github.com/spencerduncan/redshipblueship/pull/789); see the #785 entry below). What stays wrong on such a
 file is display only: the Combo Tracker's Majora's Mask panel reads "No data yet". A new
 file's panel reads "As of file creation." until MM is first entered. (#772 also describes
-an `[MM v]` / `[MM _]` file-select marker; it is printed only by `ComboMenuBar`, which this
-build never constructs, so no screen shows it. 2026-09-28: `ComboMenuBar` is deleted, and
-no screen carries the marker: a paired creation stamps both halves' markers at creation
+an `[MM v]` / `[MM _]` file-select marker; only `ComboMenuBar` printed it, and it was never
+constructed. PR [#794](https://github.com/spencerduncan/redshipblueship/pull/794) deleted
+`ComboMenuBar`, and no screen carries the marker: a paired creation stamps both halves' markers at creation
 (#765), so for any file made since then it says nothing about which half was played.)
 
 **A seed string does not make the world it made on an older build.** PR [#763](https://github.com/spencerduncan/redshipblueship/pull/763)'s two
@@ -736,14 +740,18 @@ actors from the discarded session; in OoT, a missing Zora diving-game Zora, Spir
 Chest Shop keeper for the rest of the process. Each departure logs `[OoT] Abandoned session
 retired: ...` or `[MM] ...`.
 
-### OoT actor teardown writes to the save are skipped at a departure — [#770](https://github.com/spencerduncan/redshipblueship/issues/770)
+### ~~OoT actor teardown writes to the save are skipped at a departure~~ — RESOLVED ([#770](https://github.com/spencerduncan/redshipblueship/issues/770), PR [#792](https://github.com/spencerduncan/redshipblueship/pull/792)); two residues in [#807](https://github.com/spencerduncan/redshipblueship/issues/807)
 
-Still open. The teardowns PR #767 does not run also write the save: a running room or
-minigame timer's `timerState`, Sun's Song state,
-a magic effect's `magicState`, `linkAge`, and three flags (the windmill Song of Storms, Lake
-Hylia's raised water, a Light-Arrow sun switch). Whether re-entry already normalises each one
-is not checked. State cleared only by destroy hooks is not retired either: a remote bombchu's
-camera focus and the entrance-randomizer Epona state (PRs [#751](https://github.com/spencerduncan/redshipblueship/pull/751), [#767](https://github.com/spencerduncan/redshipblueship/pull/767)).
+The teardowns PR #767 does not run also write the save. Fixed by PR #792 (2026-09-28): right
+before a departure freezes OoT's save, the windmill's Song of Storms flag is cleared and Lake
+Hylia's raised water is set again after the Water Temple (rando), as those actors' teardowns do
+on any exit, and the lake's river water box is put back. A running room or minigame timer's
+`timerState`, Sun's Song state and a magic effect's `magicState` are reset on the next OoT
+arrival or file load (read in code, #770). Still open in #807: a sun switch lit by a Light
+Arrow under SoH's Sunlight Arrows enhancement stays on after a departure, and an F10 between
+an age change and its scene reload freezes the old `linkAge`. State cleared only by destroy
+hooks is not retired either: a remote bombchu's camera focus and the entrance-randomizer Epona
+state (PRs [#751](https://github.com/spencerduncan/redshipblueship/pull/751), [#767](https://github.com/spencerduncan/redshipblueship/pull/767)).
 
 ---
 
