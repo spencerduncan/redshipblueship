@@ -88,11 +88,11 @@ void ApplyGraveyardGeometryPatches() {
         return;
     }
     // Re-fetch the collision header on every run instead of caching it in a static. The graveyard scene
-    // lives in oot.o2r, which is hot-swapped on cross-game switches (OoT archives are unloaded when
-    // switching to MM and re-added on the way back, see EnsureGameArchivesLoaded in rsbs/src/main.cpp).
-    // A cached pointer into the old resource dangles after that swap, so writing through it on the next
-    // ShipInit/CVar-change re-run was a use-after-free. LoadResource is a cache hit while the resource
-    // is loaded, so re-fetching is cheap, and it also re-applies the patch to a freshly reloaded scene.
+    // lives in oot.o2r, which is RE-ADDED on every switch back to OoT (EnsureGameArchivesLoaded in
+    // rsbs/src/main.cpp; nothing ever unmounts an archive, #577), and the resource can be reloaded
+    // across a switch. A cached pointer into the old resource dangles after that, so writing through it
+    // on the next ShipInit/CVar-change re-run was a use-after-free. LoadResource is a cache hit while the
+    // resource is loaded, so re-fetching is cheap, and it also re-applies the patch to a reloaded scene.
     CollisionHeader* graveyardColHeader = getGraveyardCollisionHeader();
     if (graveyardColHeader == nullptr) {
         return;

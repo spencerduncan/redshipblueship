@@ -68,14 +68,13 @@ void Rando::MiscBehavior::CheckQueue() {
             // be awarded there. All three are gone. A foreign item now reads
             // exactly like any other check: "You found the Fairy Bow!".
             //
-            // NO STAND-IN MODEL. We cannot draw OoT's real model — oot.o2r and
-            // mm.o2r share one flat ArchiveManager namespace with 151 documented
-            // object collisions (docs/resource-namespace-audit.md), 41 of them in
-            // exactly the object_gi_* class this would need, and oot.o2r is not
-            // even mounted until OoT has been entered (rsbs/src/main.cpp's
-            // EnsureGameArchivesLoaded). So instead of substituting a DIFFERENT
-            // item's model, we use MM's own model-LESS pickup form: RI_NONE
-            // draws no model and falls through to DrawSparkles, which is the
+            // NO STAND-IN MODEL (yet). OoT's real model is drawable here — models
+            // resolve by resource path, archives are never unmounted, and
+            // OoT-origin models MM draws are carried in redship-mm.o2r (#577 M1;
+            // drawing them in this cutscene is #577 M3). Until that lands, rather
+            // than substituting a DIFFERENT item's model, we use MM's own
+            // model-LESS pickup form: RI_NONE draws no model and falls through
+            // to DrawSparkles, which is the
             // identical presentation MM already gives Magic Upgrades, the Swim
             // ability and Progressive Time (DrawItem.cpp). Showing nothing is
             // native; showing a rupee that is not a rupee was the placeholder.

@@ -630,7 +630,7 @@ if(BUILD_TESTING)
     # against the HOST game's segment table — the OoTMM kObjectPatches[] hazard,
     # and the one real objection to cross-game rendering).
     #
-    # SKIP_RETURN_CODE: redship.o2r only exists once GenerateRedshipOtr has run,
+    # SKIP_RETURN_CODE: redship-oot.o2r only exists once GenerateRedshipOtr has run,
     # which needs BOTH games extracted. A single-game or archive-less tree skips
     # instead of going red, same convention as ZipContention above.
     #
@@ -2304,7 +2304,7 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # of authorship, and a target that regenerated goldens as a side effect of a
     # build would turn the oracle back into the no-op #688 was filed about.
     #
-    # RUN IT WITH THE PORT ARCHIVES ONLY (soh.o2r / 2ship.o2r / redship.o2r) and
+    # RUN IT WITH THE PORT ARCHIVES ONLY (soh.o2r / 2ship.o2r / redship-*.o2r) and
     # a GL-capable display; on a headless Linux box, under xvfb-run. Move oot.o2r
     # and mm.o2r out of the build directory first: a re-pin records one run, and
     # the archive-free environment is the one CI reproduces. Until #702 a golden

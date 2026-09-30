@@ -58,7 +58,8 @@
 # (the cwd, in a portable build), then THE EXECUTABLE'S OWN DIRECTORY, then "./",
 # so changing the working directory is not enough on its own: the executable has to
 # live in the sandbox too. `_archive_free_sandbox` below hard-links the binary and
-# an ALLOWLIST of port archives (soh.o2r / 2ship.o2r / redship.o2r) into
+# an ALLOWLIST of port archives (soh.o2r / 2ship.o2r / redship-oot.o2r /
+# redship-mm.o2r) into
 # ${WORK_DIR}/golden-archive-free/<NAME>/ and runs the dispatch there. An allowlist,
 # not a denylist, so a ROM-derived archive this file has never heard of cannot leak
 # in by being unlisted.
@@ -146,7 +147,7 @@ endif()
 # an archive-sensitive golden pins. Port archives ship with the build and are part
 # of every environment, hosted CI included.
 set(_rom_archive_names oot.o2r oot-mq.o2r mm.o2r mm.otr mm.zip)
-set(_port_archive_names soh.o2r 2ship.o2r redship.o2r)
+set(_port_archive_names soh.o2r 2ship.o2r redship-oot.o2r redship-mm.o2r)
 
 # ----------------------------------------------------------------------------
 # Build an archive-free sandbox: a directory holding the binary and the PORT

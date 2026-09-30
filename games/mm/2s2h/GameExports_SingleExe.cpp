@@ -1413,9 +1413,10 @@ static void RegisterMMResourceFactories() {
     // bytes for any other width, desyncing the rest of the resource. MM's one
     // such array, object_link_zora_U8_011710 (ZSCALAR_X8), is the alpha ramp
     // Player_DrawZoraShield reads every frame of the Zora barrier. Arrays served
-    // by any archive not recorded as MM's (OoT's, and the curated cross-game
-    // redship.o2r) still parse with OoT's reader, which the agreement check
-    // covers on the Vertex path.
+    // by any archive not recorded as MM's (OoT's, and OoT's curated cross-game
+    // half redship-oot.o2r) still parse with OoT's reader; MM's curated half
+    // redship-mm.o2r is recorded as MM's (#577 M1), so its OoT-exported arrays
+    // parse with MM's. The agreement check covers both on the Vertex path.
     loader->RegisterResourceFactory(
         std::make_shared<RsbsMMArchiveFactoryDispatcher>(OoT_CreateArrayFactory(),
                                                          std::make_shared<S2H::ResourceFactoryBinaryArrayV0>()),

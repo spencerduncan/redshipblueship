@@ -679,7 +679,7 @@ jobs:
     # and Windows CRT behavior had no automated coverage — the operator's
     # local ctest runs were the de facto Windows gate. The tier needs no
     # display, no ROM and no GPU (rows that need extracted archives or
-    # redship.o2r self-skip with exit 77, exactly as on Linux).
+    # the curated redship-*.o2r self-skip with exit 77, exactly as on Linux).
     #
     # ctest is resolved next to the cmake.exe the configure step already
     # used (same install, same version) rather than trusting a second PATH

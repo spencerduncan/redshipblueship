@@ -856,12 +856,17 @@ is accepted (listed here; deliberately not filed by this ADR):
    3.2. Builds on ADR 0006/0007 and #460's per-session identity handshake;
    a grant is acceptable only when sender identity == receiver creation
    identity (#564 V15).
-3. **Epic: cross-game asset rendering.** **Permanently blocked** as things
-   stand — 151 object-namespace collisions plus lazy archive mounting
-   (`docs/resource-namespace-audit.md`); the shipped answer is native
-   model-less presentation in both directions. The epic exists to hold the
-   "unless the namespace is reworked" line so nobody rediscovers the
-   blocker mid-increment; it is not scheduled work.
+3. **Epic: cross-game asset rendering** (#577). *Amended 2026-09-30:* this
+   line originally called the epic permanently blocked by the 151
+   object-namespace collisions and lazy archive mounting
+   (`docs/resource-namespace-audit.md`). Neither holds: models draw by
+   resource path, not object slot; archives are never unmounted; and a
+   curated per-direction archive carries only collision-free foreign models
+   (`redship-oot.o2r` / `redship-mm.o2r`, each mounted with the identity of
+   the game that draws it, #577 M1). The operator's 2026-09-30 ruling is that
+   foreign items get real 3D models in both games; the epic is scheduled
+   work, and native model-less presentation is the fallback for models not
+   yet carried.
 4. **Epic: hints v2 (cross-game hints).** MM area taxonomy (#500 work item
    4, including the dead `StaticData::RandoStaticRegion` decoy), foreign-host
    gossip-stone hints (today structurally impossible: the junk filter
