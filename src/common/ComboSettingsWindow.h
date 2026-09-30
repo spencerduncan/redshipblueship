@@ -1,16 +1,17 @@
 /**
  * @file ComboSettingsWindow.h
- * @brief The combo settings pane: the five tier-4 `gCombo.Rando.*` keys
- *        (ADR 0011 increment 2, #498; ADR 0003; ADR 0004 §6; ADR 0008).
+ * @brief The combo settings pane: the three tier-4 `gCombo.Rando.*` keys it
+ *        draws (ADR 0011 increment 2, #498; ADR 0003; ADR 0004 §6; ADR 0008;
+ *        the two pool sizes retired by #801).
  *
- * Renders src/common/combo_settings_view.h's model — direction, per-direction
- * pool sizes, per-direction item classes — and, once a creation event has
- * frozen them, the values FROM THE SAVE through Combo_ComboSettingsSummary.
+ * Renders src/common/combo_settings_view.h's model — direction and the
+ * per-direction item classes — and, once a creation event has frozen them,
+ * the values FROM THE SAVE through Combo_ComboSettingsSummary.
  *
  * SUPERSEDED AS THE LIVE SURFACE (2026-09-16, #655). Operator direction after
  * the 2026-09-11 nightly: "For the combo settings they should be built into the
  * menu itself like all the other combo settings instead of being pop out
- * panes." The five settings are SohMenu rows now, in the interim Cross-Game
+ * panes." Those settings are SohMenu rows now, in the interim Cross-Game
  * section of games/oot/soh/SohGui/SohMenuRandomizer.cpp, and the
  * WIDGET_WINDOW_BUTTON row that used to open this pane is gone — nothing in the
  * menu writes kComboSettingsVisibilityCVar, so this window no longer appears.

@@ -76,9 +76,9 @@ using namespace UIWidgets;
 // ============================================================================
 // Cross-Game combo rules (#655; ADR 0011 increment 2, #498; #497 step 6)
 // ============================================================================
-// The seven tier-4 `gCombo.Rando.*` keys — direction, per-direction pool sizes,
-// per-direction item classes, the shared ocarina (#668) and the goal (ADR 0010
-// D1) — render as ROWS in
+// The five tier-4 `gCombo.Rando.*` keys — direction, per-direction item
+// classes, the shared ocarina (#668) and the goal (ADR 0010 D1); the two
+// pool-size rows were retired by #801 — render as ROWS in
 // the Cross-Game Rules page of the tier-4 Combo section below. #497 step 6
 // moved them there from the interim host, Randomizer → Cross-Game.
 // PR #652 shipped them as a common-owned pop-out pane
