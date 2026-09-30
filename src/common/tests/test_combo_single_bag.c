@@ -157,6 +157,8 @@ int MM_Rando_Foreign_TestIsForeignHostClass(uint16_t randoCheckId);
 int MM_Rando_PairedGenLastAttempts(void);
 int MM_Rando_PairedGenLastExhausted(void);
 int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts);
+int OoT_ComboLogic_TestIsShopShelf(uint16_t hostCheck);
+int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 int Rando_ValidatePairedWorldHints(void);
 int OoT_Creation_AuthorRandoFile(int slot);
 void Randomizer_TestResetStartingGiveLog(void);
@@ -363,6 +365,13 @@ const char* const kCsbGiveCVars[][2] = {
     { "gRandoSettings.ShuffleMasterSword", "1" }, // the ToT pedestal is a general-pass host
 };
 
+/** Both games' shop shuffles, which leg G (#800) generates under (restored after). */
+const char* const kCsbShopCVars[][2] = {
+    { "gRandoSettings.Shopsanity", "1" },         // RO_SHOPSANITY_SPECIFIC_COUNT
+    { "gRandoSettings.ShopsanityCount", "4" },    // four emptied shelves per OoT shop
+    { "gRando.Options.RO_SHUFFLE_SHOPS", "1" },   // MM's shop stock enters the bag
+};
+
 /** RSBS_CSB_SAMPLE=N: N paired creations under the shipped budget, measured. */
 TestResult CsbSample(int n) {
     printf("[TEST] combo-single-bag SAMPLE: %d paired creations under the shipped per-attempt budget %ums "
@@ -566,20 +575,17 @@ TestResult ComboSingleBag_Run(void) {
     const uint32_t digestBoth = Combo_Logic_PlacementDigest();
 
     // ------------------------------------------------------------------
-    // A2. OoT's foreign-host rule, swept by category (PR #743 review).
+    // A2. OoT's foreign-host rule, swept by category (PR #743 review; #800
+    //     pass 1 admits the plain shop shelves). Swept here, ASSERTED at the
+    //     end of the row, after leg G: a red predicate then shows both its
+    //     sweep verdict and leg G's shop-crossing count in one run.
     // ------------------------------------------------------------------
-    {
-        int counts[7];
-        const int violations = OoT_ComboLogic_TestSweepForeignHostRule(counts);
-        printf("[TEST] combo-single-bag: OoT host rule: shop %d, scrub %d, merchant %d, chest game %d, shop-ish name "
-               "%d, non-EN_BOX %d rows all rejected; %d accepted; %d violation(s)\n",
-               counts[0], counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], violations);
-        CSB_ASSERT(violations == 0, "OoT's foreign-host predicate accepts a shop, scrub, merchant, chest-game or "
-                                    "non-chest location");
-        CSB_ASSERT(counts[0] > 0 && counts[1] > 0 && counts[2] > 0 && counts[3] > 0 && counts[4] > 0 && counts[5] > 0,
-                   "a category of the host-rule sweep is empty, so it proves nothing about that category");
-        CSB_ASSERT(counts[6] > 0, "OoT's predicate accepts no location at all");
-    }
+    int hostRuleCounts[7];
+    const int hostRuleViolations = OoT_ComboLogic_TestSweepForeignHostRule(hostRuleCounts);
+    printf("[TEST] combo-single-bag: OoT host rule: %d shop shelves all accepted; scrub %d, merchant %d, chest game "
+           "%d, shop-ish non-shelf name %d, non-chest non-shelf %d rows all rejected; %d accepted; %d violation(s)\n",
+           hostRuleCounts[0], hostRuleCounts[1], hostRuleCounts[2], hostRuleCounts[3], hostRuleCounts[4],
+           hostRuleCounts[5], hostRuleCounts[6], hostRuleViolations);
 
     // ------------------------------------------------------------------
     // B. D5, both directions, both halves observed.
@@ -929,6 +935,81 @@ TestResult ComboSingleBag_Run(void) {
     }
     Combo_SingleBag_Forget();
     Combo_Crossings_Clear();
+
+    // ------------------------------------------------------------------
+    // G. #800 pass 1: an MM item on an OoT shop shelf, from a real paired
+    //    creation with both games' shop shuffles on (a fixed seed).
+    // ------------------------------------------------------------------
+    {
+        std::vector<std::string> savedCVars;
+        for (const auto& cv : kCsbShopCVars) {
+            savedCVars.push_back(std::to_string(CVarGetInteger(cv[0], -1)));
+            CVarSetInteger(cv[0], atoi(cv[1]));
+        }
+        struct CVarRestore {
+            const std::vector<std::string>* saved;
+            ~CVarRestore() {
+                for (size_t i = 0; i < saved->size(); i++) {
+                    const int v = atoi((*saved)[i].c_str());
+                    if (v < 0) {
+                        CVarClear(kCsbShopCVars[i][0]);
+                    } else {
+                        CVarSetInteger(kCsbShopCVars[i][0], v);
+                    }
+                }
+            }
+        } restoreCVars{ &savedCVars };
+
+        CSB_ASSERT(Rando_HeadlessSeedTest("RSBSSINGLEBAGSHOPS") == 0,
+                   "the paired generation with both shop shuffles on failed");
+        CSB_ASSERT(MM_Rando_HeadlessPairedHalf() == 0, "MM's creation-time half failed with both shop shuffles on");
+        const ComboSingleBagReport shopBag = *Combo_SingleBag_LastReport();
+        CSB_ASSERT(shopBag.status == RSBS_COMBO_LOGIC_OK && shopBag.fill.goalProven,
+                   "the single-bag fill with both shop shuffles on did not prove the GOAL");
+        const CsbTables shopTables = CsbCopyTables();
+        int shelfCrossings = 0;
+        const ComboLogicPlacement* firstShelf = nullptr;
+        for (const ComboLogicPlacement& p : shopTables.oot) {
+            if (p.item.originGame == (uint8_t)GAME_MM && OoT_ComboLogic_TestIsShopShelf(p.hostCheck) == 1) {
+                shelfCrossings++;
+                firstShelf = firstShelf == nullptr ? &p : firstShelf;
+            }
+        }
+        printf("[TEST] combo-single-bag: G (#800): both shop shuffles on: %d crossings into MM, %d into OoT, %d of "
+               "them on OoT shop shelves\n",
+               shopBag.crossingsIntoMM, shopBag.crossingsIntoOoT, shelfCrossings);
+        CSB_ASSERT(shelfCrossings > 0, "no MM item landed on an OoT shop shelf with shopsanity on (#800 pass 1)");
+        const uint16_t shelf = firstShelf->hostCheck;
+        const SharedItem shelfItem = firstShelf->item;
+        const char* itemName = Combo_DescribeItemName(shelfItem);
+        const char* hostName = Combo_DescribeCheckName((uint8_t)GAME_OOT, shelf);
+        printf("[TEST] combo-single-bag: G (#800): MM %s (id %u) on OoT %s (check %u)\n",
+               itemName != nullptr ? itemName : "(unnamed)", (unsigned)shelfItem.id,
+               hostName != nullptr ? hostName : "(unnamed)", (unsigned)shelf);
+
+        // The store the drain reads, then the drain's own recording core, on the
+        // REAL shelf check: the placement is found by the check the shelf's
+        // RandomizerInf flag queues, and the purchase records one MM crossing.
+        CSB_ASSERT(OoT_Creation_FinishPairedHalf(0) >= 0, "OoT's remainder failed with both shop shuffles on");
+        const SharedItem* stored = Combo_GetForeignPlacementForOoTCheck(shelf);
+        CSB_ASSERT(stored != nullptr && stored->originGame == shelfItem.originGame && stored->id == shelfItem.id,
+                   "the crossing store does not answer the shelf's check with its MM item");
+        const int before = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
+        CSB_ASSERT(OoT_Rando_Foreign_RecordPickup(shelf) == 1, "buying the shelf recorded no MM crossing");
+        CSB_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == before + 1,
+                   "buying the shelf did not record exactly one MM crossing");
+    }
+    Combo_SingleBag_Forget();
+    Combo_Crossings_Clear();
+
+    // A2's verdict (swept above, before the worlds of legs B-G).
+    CSB_ASSERT(hostRuleViolations == 0,
+               "OoT's foreign-host predicate rejects a plain shop shelf, or accepts a scrub, merchant, chest-game or "
+               "other non-chest location");
+    CSB_ASSERT(hostRuleCounts[0] > 0 && hostRuleCounts[1] > 0 && hostRuleCounts[2] > 0 && hostRuleCounts[3] > 0 &&
+                   hostRuleCounts[4] > 0 && hostRuleCounts[5] > 0,
+               "a category of the host-rule sweep is empty, so it proves nothing about that category");
+    CSB_ASSERT(hostRuleCounts[6] > hostRuleCounts[0], "OoT's predicate accepts no treasure chest at all");
 
     printf("[TEST] PASS: combo-single-bag\n");
     return TEST_PASS;
