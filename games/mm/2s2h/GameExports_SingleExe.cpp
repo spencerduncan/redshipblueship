@@ -400,8 +400,10 @@ static int sSceneLoadWaitFrames = 0;
 static int sSceneLoadStableFrames = 0;
 
 // (#344) In-band watchdog: fail the test with diagnostics if the scene never
-// finishes loading. Frame-rate dependent, so this is a best-effort early-out;
-// the CTest 120s timeout remains the hard backstop.
+// finishes loading. Frame-rate dependent, so this is a best-effort early-out.
+// A wedge inside one MM frame never reaches it; the wall-clock watchdog thread
+// (#793, src/common/integration_test_hooks.cpp) catches that one, and the CTest
+// timeout stays the last backstop.
 static const int kSceneLoadWatchdogFrames = 1800;
 
 // ============================================================================
@@ -487,10 +489,22 @@ static int sGpMMWatchdogFrames = 0;
 static int sGpMMArrivalCount = 0;
 #define GP_MM_CONTINUITY_RUPEE_BASE 100
 
+// MM's line in the wall-clock watchdog's dump (#793). Runs on the watchdog
+// thread while MM's own thread is wedged: plain reads, no dereference of the
+// play state, no FILE lock.
+static void MM_IntegrationWatchdogDescribe(char* out, size_t cap) {
+    snprintf(out, cap, "gameMode=%d entrance=0x%04X gPlayState=%p", (int)gSaveContext.gameMode,
+             (unsigned)gSaveContext.save.entrance, (void*)MM_gPlayState);
+}
+
 static void MM_RegisterIntegrationTestHooks(void) {
     if (!IntegrationTest_IsActive()) {
         return;
     }
+
+    // Every mode (#793); MM's frames bump the progress word from
+    // MM_IntegrationGameplayFrameTick below.
+    IntegrationTest_WatchdogSetDescriber(GAME_MM, MM_IntegrationWatchdogDescribe);
 
     IntegrationTestMode mode = IntegrationTest_GetMode();
 
@@ -956,6 +970,10 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
  * No-op unless the gameplay round-trip mode is active.
  */
 extern "C" void MM_IntegrationGameplayFrameTick(void) {
+    // Every mode: each MM frame bumps the int-* rows' progress word (#793).
+    if (IntegrationTest_IsActive() && Context_GetCurrentGame() == GAME_MM) {
+        IntegrationTest_FrameProgress(GAME_MM);
+    }
     if (IntegrationTest_GetMode() != INT_TEST_GAMEPLAY_ROUNDTRIP) {
         return;
     }
