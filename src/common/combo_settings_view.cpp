@@ -40,8 +40,6 @@ struct ComboSettingDesc {
 // buffers and the locks' expectation tables are both indexed by the id.
 const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_DIRECTION, "Crossing Direction" },
-    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_OOT, "Max OoT Items" },
-    { RSBS_CVAR_COMBO_RANDO_POOL_SIZE_MM, "Max MM Items" },
     { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT, "OoT Classes" },
     { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM, "MM Classes" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, "One Ocarina" },
@@ -73,10 +71,6 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
     switch (id) {
         case COMBO_SETTING_DIRECTION:
             return (int32_t)defaults.direction;
-        case COMBO_SETTING_POOL_SIZE_OOT:
-            return (int32_t)defaults.poolSizeOoT;
-        case COMBO_SETTING_POOL_SIZE_MM:
-            return (int32_t)defaults.poolSizeMM;
         case COMBO_SETTING_ITEM_CLASS_OOT:
             return (int32_t)defaults.itemClassOoT;
         case COMBO_SETTING_ITEM_CLASS_MM:
@@ -102,12 +96,6 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
             // must never become.
             return value == (int32_t)RSBS_COMBO_DIR_OFF || value == (int32_t)RSBS_COMBO_DIR_FORWARD ||
                    value == (int32_t)RSBS_COMBO_DIR_REVERSE || value == (int32_t)RSBS_COMBO_DIR_BOTH;
-        case COMBO_SETTING_POOL_SIZE_OOT:
-        case COMBO_SETTING_POOL_SIZE_MM:
-            // Accepted answer O4: 1..CAP. A count that can exceed the table's
-            // capacity is a setting that lies; a count of 0 is not a pool size
-            // (the direction byte is what says "off").
-            return value >= 1 && value <= (int32_t)RSBS_FOREIGN_PLACEMENT_CAP;
         case COMBO_SETTING_ITEM_CLASS_OOT:
         case COMBO_SETTING_ITEM_CLASS_MM:
             // A uint16 mask over the ALLOCATED bits only: an unallocated bit
@@ -295,8 +283,6 @@ struct Restorable {
 const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_GOAL, COMBO_SETTING_GOAL },
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
-    { RSBS_COMBO_DIVERGE_POOL_SIZE_OOT, COMBO_SETTING_POOL_SIZE_OOT },
-    { RSBS_COMBO_DIVERGE_POOL_SIZE_MM, COMBO_SETTING_POOL_SIZE_MM },
     { RSBS_COMBO_DIVERGE_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_OOT },
     { RSBS_COMBO_DIVERGE_ITEM_CLASS_MM, COMBO_SETTING_ITEM_CLASS_MM },
     { RSBS_COMBO_DIVERGE_SHARED_OCARINA, COMBO_SETTING_SHARED_OCARINA },
@@ -306,10 +292,6 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, ComboSettingId id) {
     switch (id) {
         case COMBO_SETTING_DIRECTION:
             return (int32_t)frozen->direction;
-        case COMBO_SETTING_POOL_SIZE_OOT:
-            return (int32_t)frozen->poolSizeOoT;
-        case COMBO_SETTING_POOL_SIZE_MM:
-            return (int32_t)frozen->poolSizeMM;
         case COMBO_SETTING_ITEM_CLASS_OOT:
             return (int32_t)frozen->itemClassOoT;
         case COMBO_SETTING_ITEM_CLASS_MM:
