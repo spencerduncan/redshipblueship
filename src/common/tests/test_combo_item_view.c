@@ -62,12 +62,12 @@
 // (see the seam for what each holds). Returns 0 when `size` is too small.
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 
-#define CIV_ASSERT(cond)                                                                                               \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CIV_ASSERT(cond)                                                   \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 // ---- the test live source ---------------------------------------------------
@@ -233,8 +233,8 @@ static int CivOoTLegs(const ComboItemOps* ops) {
         CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Longshot", &row));
         CIV_ASSERT(row.have && row.freshness == COMBO_TRACKER_FRESH_STALE);
         CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Bow", &row) && row.have && row.count == 35);
-        printf("[TEST] combo-item-view: under %s liveSave calls=%d (must be 0)\n", g == GAME_MM ? "GAME_MM" : "GAME_NONE",
-               sCivLiveCalls);
+        printf("[TEST] combo-item-view: under %s liveSave calls=%d (must be 0)\n",
+               g == GAME_MM ? "GAME_MM" : "GAME_NONE", sCivLiveCalls);
         CIV_ASSERT(sCivLiveCalls == 0);
     }
 

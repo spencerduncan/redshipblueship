@@ -53,6 +53,7 @@ set(REDSHIP_COMMON_SOURCES
     # suspended heap via a registered accessor vtable — staleness-labelled,
     # plus the window that renders it
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.c
+    ${CMAKE_SOURCE_DIR}/src/common/combo_item_view.c
     ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.cpp
     # MM randomizer options: the registry + value accessors over the descriptor
     # table MM publishes (#497 step 4, #499), and the pane that draws it. The
