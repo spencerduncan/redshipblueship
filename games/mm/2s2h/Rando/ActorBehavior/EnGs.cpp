@@ -3,6 +3,7 @@
 #include "2s2h/ShipUtils.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
 
+#include <cstdio>
 #include <vector>
 
 extern "C" {
@@ -39,6 +40,26 @@ s32 GetNormalizedCost() {
     return MAX(10, MIN(250, 10 + (obtainedChecks * (250 - 10)) / (maxChecks)));
 }
 
+// Which checks a gossip stone may hint, and the item name it says for one. The
+// stone picks among these when it is READ (GetRandomCheck below), not at
+// generation, so nothing here feeds a generated world.
+// excludeObtained: the purchasable-hint path skips checks already collected.
+static std::vector<RandoCheckId> GossipHintCandidates(bool excludeObtained) {
+    std::vector<RandoCheckId> availableChecks;
+    for (auto& [randoCheckId, _] : Rando::StaticData::Checks) {
+        RandoSaveCheck saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+        if (saveCheck.shuffled && Rando::StaticData::Items[saveCheck.randoItemId].randoItemType != RITYPE_JUNK &&
+            (!excludeObtained || !saveCheck.obtained)) {
+            availableChecks.push_back(randoCheckId);
+        }
+    }
+    return availableChecks;
+}
+
+static std::string GossipHintItemName(RandoCheckId randoCheckId) {
+    return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
+}
+
 RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
     Player* player = GET_PLAYER(MM_gPlayState);
     if (player->talkActor == nullptr || player->talkActor->id != ACTOR_EN_GS) {
@@ -46,14 +67,7 @@ RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
     }
     EnGs* enGs = (EnGs*)player->talkActor;
 
-    std::vector<RandoCheckId> availableChecks;
-    for (auto& [randoCheckId, _] : Rando::StaticData::Checks) {
-        RandoSaveCheck saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
-        if (saveCheck.shuffled && Rando::StaticData::Items[saveCheck.randoItemId].randoItemType != RITYPE_JUNK &&
-            (!repeatableOnlyObtained || !saveCheck.obtained)) {
-            availableChecks.push_back(randoCheckId);
-        }
-    }
+    std::vector<RandoCheckId> availableChecks = GossipHintCandidates(repeatableOnlyObtained);
 
     if (availableChecks.empty()) {
         return RC_UNKNOWN;
@@ -90,11 +104,10 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
             }
 
             entry.autoFormat = false;
-            auto& saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
 
             entry.msg = "They say %g{{item}}%w is hidden at %y{{location}}%w.";
 
-            CustomMessage::Replace(&entry.msg, "{{item}}", Rando::StaticData::GetItemName(saveCheck.randoItemId));
+            CustomMessage::Replace(&entry.msg, "{{item}}", GossipHintItemName(randoCheckId));
             CustomMessage::Replace(&entry.msg, "{{location}}",
                                    Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
 
@@ -138,12 +151,9 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
                 } else if (randoCheckId == RC_UNKNOWN) {
                     entry.msg = "I have no more hints for you...";
                 } else {
-                    RandoSaveCheck saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
-
                     entry.msg = "Wise choice... They say %g{{item}}%w is hidden at %y{{location}}%w.";
 
-                    CustomMessage::Replace(&entry.msg, "{{item}}",
-                                           Rando::StaticData::GetItemName(saveCheck.randoItemId));
+                    CustomMessage::Replace(&entry.msg, "{{item}}", GossipHintItemName(randoCheckId));
                     CustomMessage::Replace(&entry.msg, "{{location}}",
                                            Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
 
@@ -176,3 +186,52 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
         refActor->parent = &player->actor;
     });
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ROM-free test bridge (redship tier; src/common/tests/test_foreign_items.c,
+// row foreign-host-gossip-hint, #575 item 2). Drives the SAME candidate filter
+// and item-name substitution the two gossip-stone text hooks above use.
+
+/** 1 when `randoCheckId` is in the stone's candidate list. */
+extern "C" int MM_Rando_Hints_TestGossipCandidate(uint16_t randoCheckId, int excludeObtained) {
+    for (RandoCheckId candidate : GossipHintCandidates(excludeObtained != 0)) {
+        if (candidate == (RandoCheckId)randoCheckId) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/** The item name a stone would say for `randoCheckId`, copied into `out`.
+ *  Returns the full length, or -1 for an id that is not a real check. */
+extern "C" int MM_Rando_Hints_TestGossipItemName(uint16_t randoCheckId, char* out, int cap) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
+        return -1;
+    }
+    const std::string name = GossipHintItemName((RandoCheckId)randoCheckId);
+    snprintf(out, (size_t)cap, "%s", name.c_str());
+    return (int)name.size();
+}
+
+/** Write one check's save row (item, shuffled, obtained) as MM's fill would,
+ *  reporting the prior values so the lock can put them back. */
+extern "C" void MM_Rando_Hints_TestSetCheck(uint16_t randoCheckId, uint16_t randoItemId, int shuffled, int obtained,
+                                            uint16_t* priorItemId, int* priorShuffled, int* priorObtained) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return;
+    }
+    RandoSaveCheck& saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+    if (priorItemId != nullptr) {
+        *priorItemId = (uint16_t)saveCheck.randoItemId;
+    }
+    if (priorShuffled != nullptr) {
+        *priorShuffled = saveCheck.shuffled ? 1 : 0;
+    }
+    if (priorObtained != nullptr) {
+        *priorObtained = saveCheck.obtained ? 1 : 0;
+    }
+    saveCheck.randoItemId = (RandoItemId)randoItemId;
+    saveCheck.shuffled = (shuffled != 0);
+    saveCheck.obtained = (obtained != 0);
+}
+#endif // RSBS_SINGLE_EXECUTABLE

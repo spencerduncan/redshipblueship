@@ -512,6 +512,11 @@ if(BUILD_TESTING)
     # with no error. Drives the real host-class predicate (the MM engine's
     # hostAcceptsForeign) over MM's real check table; prints the host supply.
     redship_add_test(NAME ForeignHostEligibility COMMAND redship --test foreign-host-eligibility)
+    # #575 item 2: a crossing host holds MM's junk cover, so the gossip-stone
+    # filter (which drops junk holders) could never hint it, and a forced hint
+    # named the cover. Drives the stone's real candidate filter and item-name
+    # substitution (EnGs.cpp) with the crossing in the crossing store.
+    redship_add_test(NAME ForeignHostGossipHint COMMAND redship --test foreign-host-gossip-hint)
     # #502: MM's award callback was still the Lane A1 logging stub, so the whole
     # consumer walk landed on a no-op. Drives the REAL MM_ConsumeSharedItems ->
     # MM_AwardSharedItem -> MM_ForeignItem_Give chain and asserts one award per

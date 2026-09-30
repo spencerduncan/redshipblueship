@@ -4750,6 +4750,9 @@ const TestDescriptor gTests[] = {
     // crossing and no error is ever raised.
     {"foreign-host-eligibility", "Crossing hosts limited to game-armed check classes (#488)",
      Test_ForeignHostEligibility},
+    // #575 item 2: MM gossip stones can hint a crossing host, by the crossed item.
+    {"foreign-host-gossip-hint", "MM gossip stones hint crossing hosts by the crossed item (#575)",
+     Test_ForeignHostGossipHint},
     // #502: MM's half of the crossing. The reverse row above deliberately stops
     // at a test award callback because MM_AwardSharedItem was a placeholder
     // fprintf; this one drives the real one and the real give behind it.
