@@ -4,6 +4,7 @@
  *
  * Everything here is a pure read: gComboCtx through the foreign_items.h
  * accessors, the crossing store through crossing_store.h, the MM shadow blob
+ * (or, while MM is played, the live save the MM adapter hands out, #799)
  * through the registered offset descriptor, and the OoT heap through the
  * registered vtable. No gSaveContext through either
  * game's layout, no ImGui, no game headers, no caching — the view is
@@ -132,16 +133,56 @@ static uint32_t MMBlobReadU32(const uint8_t* blob, uint32_t offset) {
  * A .redsave whose MM half was created before that stamp still reads as no
  * data here (pre-release saves; stated in the PR that removed the widening).
  */
-static const uint8_t* MMBlobIfPresent(void) {
+static bool MMBlobMarked(const uint8_t* blob) {
+    return blob != NULL &&
+           (sMMDesc.newfLen == 0 || memcmp(blob + sMMDesc.newfOffset, sMMDesc.newf, sMMDesc.newfLen) == 0);
+}
+
+static const uint8_t* MMShadowIfPresent(void) {
     if (!sMMRegistered) {
         return NULL;
     }
     const uint8_t* blob = (const uint8_t*)Context_GetMMSaveContext();
-    if (blob == NULL) {
-        return NULL;
+    return MMBlobMarked(blob) ? blob : NULL;
+}
+
+/**
+ * THE SOURCE PICK (#799): every MM read goes through here, so the summary, the
+ * check rows, the crossings' found state and their note all switch source
+ * together. Live for the active game, the snapshot for the other:
+ *
+ *   - LIVE: MM is the active game, its adapter hands out the live save (it
+ *     does only while MM's play state is loaded; ADR 0008 rule 5's amendment),
+ *     and that save carries the marker. This is the window the shadow cannot
+ *     cover: MM's arrival consumes the shadow into gSaveContext and zeroes it
+ *     (Combo_ConsumeFrozenState), and nothing refills it before MM's first save
+ *     or the departure freeze, so a shadow-only reader said "No data yet"
+ *     while MM was being played.
+ *   - STALE: otherwise, a marked shadow. A refused arrival never consumes the
+ *     shadow, and MM then plays the boot chain's unmarked bootstrap save, so
+ *     the pick lands here and still shows the armed world.
+ *   - UNAVAILABLE: neither (NULL returned).
+ *
+ * `outFreshness` may be NULL.
+ */
+static const uint8_t* MMBlobIfPresent(uint8_t* outFreshness) {
+    uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
+    const uint8_t* blob = NULL;
+    if (sMMRegistered) {
+        if (Context_GetCurrentGame() == GAME_MM && sMMDesc.liveSave != NULL) {
+            const uint8_t* live = (const uint8_t*)sMMDesc.liveSave();
+            if (MMBlobMarked(live)) {
+                blob = live;
+                freshness = COMBO_TRACKER_FRESH_LIVE;
+            }
+        }
+        if (blob == NULL) {
+            blob = MMShadowIfPresent();
+            freshness = (blob != NULL) ? COMBO_TRACKER_FRESH_STALE : COMBO_TRACKER_FRESH_UNAVAILABLE;
+        }
     }
-    if (sMMDesc.newfLen > 0 && memcmp(blob + sMMDesc.newfOffset, sMMDesc.newf, sMMDesc.newfLen) != 0) {
-        return NULL;
+    if (outFreshness != NULL) {
+        *outFreshness = freshness;
     }
     return blob;
 }
@@ -160,22 +201,24 @@ static uint64_t MMBlobReadU64(const uint8_t* blob, uint32_t offset) {
  * stamp is exactly the half the creation event armed and nothing has loaded
  * since. (#755 keyed this on the missing marker, which MM's arrival and
  * departure never restore, so after a first visit the label still said "As of
- * file creation".)
+ * file creation".) It is a question about the SHADOW, the only source a stale
+ * label describes, so it reads the shadow and never the live save (#799).
  */
 static bool MMShadowNeverEntered(void) {
-    const uint8_t* blob = MMBlobIfPresent();
+    const uint8_t* blob = MMShadowIfPresent();
     return blob != NULL && MMBlobReadU64(blob, sMMDesc.createdAtOffset) == 0;
 }
 
 static void MMSummary(ComboTrackerGameSummary* out) {
-    const uint8_t* blob = MMBlobIfPresent();
+    uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
+    const uint8_t* blob = MMBlobIfPresent(&freshness);
     if (blob == NULL) {
         return; // caller pre-zeroed: UNAVAILABLE
     }
 
-    // Never LIVE, even while MM is the active game: the shadow is written at
-    // freeze/save time and lags the live gSaveContext (see the header).
-    out->freshness = COMBO_TRACKER_FRESH_STALE;
+    // LIVE while MM is played (its live save), STALE from the shadow otherwise
+    // (MMBlobIfPresent's source pick; see the header).
+    out->freshness = freshness;
     out->hasWorld = MMBlobReadU32(blob, sMMDesc.saveTypeOffset) == sMMDesc.saveTypeRando;
     out->seed = out->hasWorld ? MMBlobReadU32(blob, sMMDesc.finalSeedOffset) : 0;
     out->totalChecks = (int)sMMDesc.checkCount;
@@ -224,7 +267,7 @@ void Combo_TrackerGameSummary(uint8_t game, ComboTrackerGameSummary* out) {
 
 int Combo_TrackerCheckCount(uint8_t game) {
     if (game == (uint8_t)GAME_MM) {
-        return (MMBlobIfPresent() != NULL) ? (int)sMMDesc.checkCount : 0;
+        return (MMBlobIfPresent(NULL) != NULL) ? (int)sMMDesc.checkCount : 0;
     }
     if (game == (uint8_t)GAME_OOT && sOoTOps != NULL) {
         return sOoTOps->checkCount();
@@ -237,7 +280,7 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out) {
         return false;
     }
     if (game == (uint8_t)GAME_MM) {
-        const uint8_t* blob = MMBlobIfPresent();
+        const uint8_t* blob = MMBlobIfPresent(NULL);
         if (blob == NULL || (uint32_t)index >= sMMDesc.checkCount) {
             return false;
         }
@@ -356,7 +399,7 @@ static int CrossingWalk(uint8_t hostGame, int index, uint16_t* outHost, SharedIt
  */
 static uint8_t HostCheckFound(uint8_t hostGame, uint16_t hostCheck) {
     if (hostGame == (uint8_t)GAME_MM) {
-        const uint8_t* blob = MMBlobIfPresent();
+        const uint8_t* blob = MMBlobIfPresent(NULL);
         if (blob == NULL || (uint32_t)hostCheck >= sMMDesc.checkCount ||
             MMBlobReadU32(blob, sMMDesc.saveTypeOffset) != sMMDesc.saveTypeRando) {
             return COMBO_TRACKER_FOUND_UNKNOWN;
@@ -429,10 +472,10 @@ void Combo_TrackerForeignProgress(uint8_t hostGame, ComboTrackerForeignProgress*
             out->found++;
         }
     }
-    // The host game's freshness, by the per-game panel's own rule: MM's data is
-    // never live, OoT's is live only while OoT runs.
+    // The host game's freshness, by the per-game panel's own rule: each game's
+    // data is live only while that game is played (MM: MMBlobIfPresent's pick).
     if (hostGame == (uint8_t)GAME_MM) {
-        out->freshness = (MMBlobIfPresent() != NULL) ? COMBO_TRACKER_FRESH_STALE : COMBO_TRACKER_FRESH_UNAVAILABLE;
+        (void)MMBlobIfPresent(&out->freshness);
     } else if (hostGame == (uint8_t)GAME_OOT && sOoTOps != NULL && sOoTOps->checkCount() > 0) {
         out->freshness = (Context_GetCurrentGame() == GAME_OOT) ? COMBO_TRACKER_FRESH_LIVE : COMBO_TRACKER_FRESH_STALE;
     } else {
