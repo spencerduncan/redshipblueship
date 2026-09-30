@@ -18,9 +18,12 @@ The synthetic resources carry a 64-byte OTR header whose type tag is none of
 the kinds the generator inspects (display list, array, dispatched Room/
 Cutscene/Path), so only the manifest parsing, the direction split, the
 collision guard and the empty-half refusal are exercised here.  The
-content-walking guards keep their ROM-staged lock.
+content-walking guards keep their ROM-staged lock, except the escaping-reference
+guard and the admission report (#577 M6), which are also locked below with
+synthetic display lists.
 """
 
+import struct
 import subprocess
 import sys
 import zipfile
@@ -215,6 +218,131 @@ def test_same_output_path_is_refused(tmp_path, archives):
         capture_output=True, text=True)
     assert proc.returncode != 0
     assert not same.exists()
+
+
+# ---------------------------------------------------------------------------
+# #577 M6: the escaping-reference guard (constraint 7) and the admission report.
+# ---------------------------------------------------------------------------
+
+def _crc64(path):
+    """libultraship's CRC64(const char*) (src/ship/utils/StrHash64.cpp),
+    bit by bit and independent of the generator's table: MSB first, ECMA-182
+    polynomial, all-ones initial value, no final XOR."""
+    crc = 0xFFFFFFFFFFFFFFFF
+    for byte in path.encode("utf-8"):
+        crc ^= byte << 56
+        for _ in range(8):
+            crc = ((crc << 1) ^ 0x42F0E1EBA9EA3693) if crc & (1 << 63) else (crc << 1)
+            crc &= 0xFFFFFFFFFFFFFFFF
+    return crc
+
+
+def test_crc64_is_libultraships():
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import make_redship_otr  # noqa: E402
+
+    # CRC-64/WE("123456789") is 0x62EC59E3F1A4F00A; libultraship's variant
+    # skips the final XOR.
+    assert _crc64("123456789") == 0x62EC59E3F1A4F00A ^ 0xFFFFFFFFFFFFFFFF
+    for path in ("", "123456789", "objects/gameplay_keep/gEffUnknown10Tex"):
+        assert make_redship_otr.crc64(path) == _crc64(path)
+
+
+def _display_list(*referenced_paths):
+    """A little-endian F3DEX2 ODLT resource naming each path with a
+    G_SETTIMG_OTR_HASH, then G_ENDDL."""
+    body = bytes([4]) + bytes(7)  # ucode byte, padded to 8
+    for path in referenced_paths:
+        h = _crc64(path)
+        body += struct.pack("<II", 0x20 << 24, 0) + struct.pack("<II", h >> 32, h & 0xFFFFFFFF)
+    body += struct.pack("<II", 0xDF << 24, 0)
+    return bytes([0, 0, 0, 0]) + b"TLDO" + bytes(56) + body
+
+
+SHARED_TEX = "objects/gameplay_keep/gSharedTex"
+ESCAPING_DL = "objects/object_gi_oot_only/gGiOotOnlyDL"
+
+
+@pytest.fixture
+def gi_archives(tmp_path):
+    """OoT carries two get-item directories, one of them also in MM (so only
+    one is host-exclusive for oot->mm), and a display list that names a
+    gameplay_keep texture outside its own directory; MM carries one
+    exclusive get-item directory."""
+    oot = tmp_path / "oot.o2r"
+    mm = tmp_path / "mm.o2r"
+    with zipfile.ZipFile(oot, "w") as z:
+        z.writestr(ESCAPING_DL, _display_list("objects/object_gi_oot_only/gGiOotOnlyTex", SHARED_TEX))
+        z.writestr("objects/object_gi_oot_only/gGiOotOnlyTex", _resource("oot:tex"))
+        z.writestr(SHARED_TEX, _resource("oot:keep"))
+        z.writestr("objects/object_gi_both/gGiBothDL", _resource("oot:both"))
+    with zipfile.ZipFile(mm, "w") as z:
+        z.writestr("objects/object_gi_mm_only/gGiMmOnlyDL", _display_list("objects/object_gi_mm_only/gGiMmOnlyTex"))
+        z.writestr("objects/object_gi_mm_only/gGiMmOnlyTex", _resource("mm:tex"))
+        z.writestr("objects/object_gi_both/gGiBothDL", _resource("mm:both"))
+    return oot, mm
+
+
+def test_reference_escaping_its_half_is_refused(tmp_path, gi_archives):
+    proc, out_oot, out_mm = _run(
+        tmp_path, gi_archives, "mm->oot objects/object_gi_mm_only/\noot->mm objects/object_gi_oot_only/\n")
+    assert proc.returncode != 0, "accepted a display list whose texture is outside its curated half"
+    assert "ESCAPING REFERENCE" in proc.stderr
+    assert ESCAPING_DL in proc.stderr and SHARED_TEX in proc.stderr
+    assert not out_oot.exists()
+    assert not out_mm.exists()
+
+
+def test_reference_to_a_host_owned_path_is_refused(tmp_path, gi_archives):
+    # MM carrying the texture's path itself: the host would draw ITS copy.
+    oot, mm = gi_archives
+    with zipfile.ZipFile(mm, "a") as z:
+        z.writestr(SHARED_TEX, _resource("mm:keep"))
+    proc, _out_oot, _out_mm = _run(
+        tmp_path, gi_archives, "mm->oot objects/object_gi_mm_only/\noot->mm objects/object_gi_oot_only/\n")
+    assert proc.returncode != 0
+    assert "host's own base archives also carry" in proc.stderr
+
+
+def test_curating_the_referenced_path_admits_the_model_and_reports_counts(tmp_path, gi_archives):
+    report = tmp_path / "report.txt"
+    proc, out_oot, out_mm = _run(
+        tmp_path, gi_archives,
+        "mm->oot objects/object_gi_mm_only/\noot->mm objects/object_gi_oot_only/\noot->mm %s\n" % SHARED_TEX,
+        ["--report", str(report)])
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert SHARED_TEX in _names(out_mm)
+    # object_gi_both is in both archives, so it is host-exclusive in neither
+    # direction; each direction's one exclusive directory is admitted.
+    assert report.read_text(encoding="utf-8").splitlines() == [
+        "direction mm->oot entries 1 resources 2 gi_exclusive 1 gi_admitted 1",
+        "direction oot->mm entries 2 resources 3 gi_exclusive 1 gi_admitted 1",
+    ]
+
+
+def test_report_names_an_uncovered_exclusive_directory(tmp_path, gi_archives):
+    oot, mm = gi_archives
+    with zipfile.ZipFile(mm, "a") as z:
+        z.writestr("objects/object_gi_mm_other/gGiMmOtherDL", _resource("mm:other"))
+    report = tmp_path / "report.txt"
+    proc, _out_oot, _out_mm = _run(
+        tmp_path, gi_archives,
+        "mm->oot objects/object_gi_mm_only/\noot->mm objects/object_gi_oot_only/\noot->mm %s\n" % SHARED_TEX,
+        ["--report", str(report)])
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    lines = report.read_text(encoding="utf-8").splitlines()
+    assert "direction mm->oot entries 1 resources 2 gi_exclusive 2 gi_admitted 1" in lines
+    assert "missing mm->oot objects/object_gi_mm_other/" in lines
+
+
+def test_refusal_leaves_no_report(tmp_path, gi_archives):
+    report = tmp_path / "report.txt"
+    report.write_text("stale\n", encoding="utf-8")
+    proc, _out_oot, _out_mm = _run(
+        tmp_path, gi_archives, "mm->oot objects/object_gi_mm_only/\noot->mm objects/object_gi_oot_only/\n",
+        ["--report", str(report)])
+    assert proc.returncode != 0
+    assert not report.exists()
 
 
 def test_shipped_manifest_fills_both_halves():

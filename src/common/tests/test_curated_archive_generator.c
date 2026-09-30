@@ -22,7 +22,10 @@
  * whichever game is RUNNING, and the two games' Array factories diverge on
  * scalar widths OoT never implemented.
  *
- * Three legs, mirroring the counterfactual/control pattern the neighboring
+ * And, since #577 M6, the escaping-reference guard (constraint 7) and the
+ * admission report: negative control C and the count check below.
+ *
+ * Legs, mirroring the counterfactual/control pattern the neighboring
  * #595/#593 lock uses (test_curated_archive_order.c):
  *
  *   - Negative control A (#605): a manifest curating
@@ -44,11 +47,17 @@
  *     `gLinkZoraHeadDL` carries four raw segmented references of its own.
  *     Measured over both full archives, it is the ONLY one of 8,047 array
  *     resources on which the two factories disagree.
+ *   - Negative control C (#577 M6): `oot->mm objects/object_gi_hammer/`
+ *     WITHOUT the two OoT gameplay_keep textures its display list names by
+ *     path hash. It clears every other guard (it was M1's shipped seed), so
+ *     only the escaping-reference guard can refuse it.
  *   - Positive control: the REAL shipped manifest (assets/crossgame/manifest.txt:
- *     `mm->oot` object_mask_truth and `oot->mm` object_gi_hammer -- zero raw
- *     segmented references, only Vertex arrays both factories read with
- *     identical code) must still build BOTH halves (#577 M1).
- *     Without this leg, a generator that refused EVERYTHING would pass both
+ *     every host-exclusive get-item directory in each direction, plus
+ *     object_mask_truth and the gameplay_keep textures OoT's get-item lists
+ *     name) must build BOTH halves (#577 M1), and its admission report must
+ *     show the whole host-exclusive `object_gi_*` set admitted in each
+ *     direction (#577 M6: 43 mm->oot, 36 oot->mm as measured 2026-09-30).
+ *     Without this leg, a generator that refused EVERYTHING would pass the
  *     negative controls vacuously.
  *
  * SKIPs (not fails) when the extracted archives or a Python interpreter are
@@ -61,6 +70,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -97,8 +107,11 @@ std::string CagOutPath(const std::string& outPrefix, const char* host) {
     return outPrefix + "-" + host + ".o2r";
 }
 
+// `reportPath`, when non-empty, is passed as --report (#577 M6) and removed
+// first like the outputs.
 int CagRunGenerator(const std::string& pythonExe, const std::string& script, const std::string& ootArchive,
-                    const std::string& mmArchive, const std::string& manifest, const std::string& outPrefix) {
+                    const std::string& mmArchive, const std::string& manifest, const std::string& outPrefix,
+                    const std::string& reportPath = "") {
     std::error_code ec;
     std::filesystem::remove(CagOutPath(outPrefix, "oot"), ec);
     std::filesystem::remove(CagOutPath(outPrefix, "mm"), ec);
@@ -115,6 +128,11 @@ int CagRunGenerator(const std::string& pythonExe, const std::string& script, con
                                             CagOutPath(outPrefix, "oot"),
                                             "--out-mm",
                                             CagOutPath(outPrefix, "mm") };
+    if (!reportPath.empty()) {
+        std::filesystem::remove(reportPath, ec);
+        argStorage.push_back("--report");
+        argStorage.push_back(reportPath);
+    }
     std::vector<const char*> argv;
     argv.reserve(argStorage.size());
     for (const auto& arg : argStorage) {
@@ -133,6 +151,46 @@ bool CagWriteFile(const std::string& path, const std::string& contents) {
     return !out.fail();
 }
 
+// One `direction` line of the generator's admission report (#577 M6).
+struct CagDirectionReport {
+    bool seen = false;
+    int entries = 0;
+    int resources = 0;
+    int giExclusive = 0;
+    int giAdmitted = 0;
+};
+
+// Parses the report the generator writes with --report: one
+// `direction <src>-><host> entries N resources N gi_exclusive N gi_admitted N`
+// line per half and one `missing <src>-><host> <dir>` line per host-exclusive
+// get-item directory the manifest does not cover. Returns false when the file
+// cannot be read.
+bool CagReadReport(const std::string& path, CagDirectionReport* mmToOoT, CagDirectionReport* ootToMM,
+                   std::vector<std::string>* missing) {
+    std::ifstream in(path);
+    if (!in) {
+        return false;
+    }
+    std::string line;
+    while (std::getline(in, line)) {
+        char direction[16] = { 0 };
+        char dir[256] = { 0 };
+        CagDirectionReport row;
+        if (sscanf(line.c_str(), "direction %15s entries %d resources %d gi_exclusive %d gi_admitted %d", direction,
+                   &row.entries, &row.resources, &row.giExclusive, &row.giAdmitted) == 5) {
+            row.seen = true;
+            if (strcmp(direction, "mm->oot") == 0) {
+                *mmToOoT = row;
+            } else if (strcmp(direction, "oot->mm") == 0) {
+                *ootToMM = row;
+            }
+        } else if (sscanf(line.c_str(), "missing %15s %255s", direction, dir) == 2) {
+            missing->push_back(std::string(direction) + " " + dir);
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const char* generatorScript,
@@ -142,14 +200,17 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
     const std::string badManifestPath = workDir + "/rsbs_test_605_bad_manifest.txt";
     const std::string badOutPrefix = workDir + "/rsbs_test_605_bad_out";
     const std::string goodOutPrefix = workDir + "/rsbs_test_605_good_out";
+    const std::string goodReportPath = workDir + "/rsbs_test_577_m6_report.txt";
 
     // #577 M1: every manifest must fill BOTH halves or the generator refuses it
     // as empty. Each negative control therefore carries this known-good
-    // `oot->mm` line (the shipped seed) next to its bad `mm->oot` one, so the
-    // only thing that can make it refuse is the guard under test -- a
-    // single-line manifest would be refused for the empty half and pass for
-    // the wrong reason.
-    static const char kCagGoodOoTToMMLine[] = "oot->mm objects/object_gi_hammer/\n";
+    // `oot->mm` line next to its bad one, so the only thing that can make it
+    // refuse is the guard under test -- a single-line manifest would be
+    // refused for the empty half and pass for the wrong reason. #577 M6: the
+    // Goron Tunic's directory, because every one of its display lists names
+    // only its own directory (M1's seed, object_gi_hammer, names two
+    // gameplay_keep textures and is now admitted only together with them).
+    static const char kCagGoodOoTToMMLine[] = "oot->mm objects/object_gi_clothes/\n";
 
     int failures = 0;
 
@@ -204,11 +265,26 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
                   "its HOST's factory, not the exporting game's (#604) -- the reader-agreement guard is not wired "
                   "up");
 
+    // ---- Negative control C (#577 M6): a reference escaping its half -------
+    // objects/object_gi_hammer/gGiHammerDL names two OoT gameplay_keep
+    // environment-map textures (gEffUnknown10Tex, gEffUnknown12Tex) by path
+    // hash. Curated without them, redship-mm.o2r would hand MM a model whose
+    // textures resolve only if oot.o2r happens to be mounted. The hammer
+    // passes the collision, dispatched-type, raw-segmented and Array guards
+    // (it was M1's shipped seed), so only the escaping-reference guard can
+    // refuse it. The leading `mm->oot` line is the shipped probe, known good.
+    expectRefusal("object_gi_hammer without its gameplay_keep textures",
+                  "mm->oot objects/object_mask_truth/\noot->mm objects/object_gi_hammer/\n",
+                  "its display list names gameplay_keep textures the curated half does not carry, so MM would "
+                  "resolve them against whatever it has mounted (#577 M6) -- the escaping-reference guard is not "
+                  "wired up");
+
     // ---- Positive control: the real shipped manifest must still succeed ----
     // Without this leg, a generator that refused every manifest unconditionally
-    // would pass both negative controls above for the wrong reason.
+    // would pass the negative controls above for the wrong reason.
     {
-        int rc = CagRunGenerator(pythonExe, generatorScript, ootArchive, mmArchive, shippedManifest, goodOutPrefix);
+        int rc = CagRunGenerator(pythonExe, generatorScript, ootArchive, mmArchive, shippedManifest, goodOutPrefix,
+                                 goodReportPath);
         printf("[curated-archive-generator] positive control (shipped manifest) rc=%d\n", rc);
         if (rc != 0) {
             fprintf(stderr,
@@ -228,10 +304,59 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
                 failures++;
             }
         }
+
+        // ---- Admitted-entry counts (#577 M6) --------------------------------
+        // The shipped manifest must admit the WHOLE host-exclusive get-item
+        // set in each direction: every `objects/object_gi_*` directory the
+        // source archive carries and the host's does not, which the generator
+        // derives from the archives themselves. Measured 2026-09-30: 43
+        // MM-exclusive (mm->oot) and 36 OoT-exclusive (oot->mm).
+        CagDirectionReport mmToOoT;
+        CagDirectionReport ootToMM;
+        std::vector<std::string> missing;
+        if (!CagReadReport(goodReportPath, &mmToOoT, &ootToMM, &missing)) {
+            fprintf(stderr,
+                    "[curated-archive-generator] FAIL: the shipped manifest's run wrote no admission report at %s\n",
+                    goodReportPath.c_str());
+            failures++;
+        } else {
+            const struct {
+                const char* name;
+                const CagDirectionReport* row;
+            } directions[] = { { "mm->oot", &mmToOoT }, { "oot->mm", &ootToMM } };
+            for (const auto& d : directions) {
+                if (!d.row->seen) {
+                    fprintf(stderr, "[curated-archive-generator] FAIL: the admission report has no %s line\n",
+                            d.name);
+                    failures++;
+                    continue;
+                }
+                printf("[curated-archive-generator] admitted %s: %d manifest entries, %d resources, %d of %d "
+                       "host-exclusive object_gi_* directories\n",
+                       d.name, d.row->entries, d.row->resources, d.row->giAdmitted, d.row->giExclusive);
+                if (d.row->giExclusive <= 0) {
+                    fprintf(stderr,
+                            "[curated-archive-generator] FAIL: %s: the generator found no host-exclusive get-item "
+                            "directory at all -- the coverage check below would be vacuous\n",
+                            d.name);
+                    failures++;
+                } else if (d.row->giAdmitted != d.row->giExclusive) {
+                    fprintf(stderr,
+                            "[curated-archive-generator] FAIL: %s: the shipped manifest admits %d of the %d "
+                            "host-exclusive object_gi_* directories (#577 M6 curates all of them)\n",
+                            d.name, d.row->giAdmitted, d.row->giExclusive);
+                    failures++;
+                }
+            }
+            for (const auto& m : missing) {
+                fprintf(stderr, "[curated-archive-generator]   not curated: %s\n", m.c_str());
+            }
+        }
     }
 
     // Leave no fixtures behind for a later row (or a later run) to trip over.
     std::error_code ec;
+    std::filesystem::remove(goodReportPath, ec);
     std::filesystem::remove(badManifestPath, ec);
     for (const char* host : { "oot", "mm" }) {
         std::filesystem::remove(CagOutPath(badOutPrefix, host), ec);
@@ -239,8 +364,9 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
     }
 
     if (failures == 0) {
-        printf("[curated-archive-generator] PASS: the raw-segmented-texture (#605) and Array reader-agreement (#604) "
-               "guards each refuse a known-bad resource, and the real shipped manifest still builds\n");
+        printf("[curated-archive-generator] PASS: the raw-segmented-texture (#605), Array reader-agreement (#604) "
+               "and escaping-reference (#577 M6) guards each refuse a known-bad resource, and the real shipped "
+               "manifest builds and admits every host-exclusive get-item directory in both directions\n");
     }
     return failures == 0 ? 0 : 1;
 }
