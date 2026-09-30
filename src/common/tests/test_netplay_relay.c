@@ -18,6 +18,7 @@
  *   - late-join catch-up delivers the whole backlog
  *   - self-echo is filtered (the sender does not award itself its own gift)
  *   - inbox overflow drops WITHOUT advancing the cursor, and is loud
+ *   - Context_InvalidateSessionState retires the bound client's inbox (#440)
  *   - a foreign/malformed ledger entry is skipped without desyncing
  *   - golden byte vectors pin the wire format
  *
@@ -766,6 +767,47 @@ TestResult Test_RelaySuspendLatch(void) {
     memset(&log, 0, sizeof(log));
     NR_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, RelayAward, &log) == 2);
     NR_ASSERT(log.ids[0] == 77 && log.ids[1] == 88); // order preserved
+
+    // --- SESSION INVALIDATION reaches the relay (#460 hygiene, #440 class).
+    // Two more grants arrive while suspended and sit undelivered in the inbox;
+    // then the session dies. Context_InvalidateSessionState is the ONE list of
+    // "things a dead session owns", so it must retire the bound client's inbox
+    // itself — nothing here calls Relay_ClearSessionState directly. Without
+    // that, the dead session's grants drain into the next one on resume.
+    Relay_OnSuspend(&a);
+    NR_ASSERT(Relay_SendGrant(&b, 1, GAME_OOT, 99));
+    NR_ASSERT(Relay_SendGrant(&b, 1, GAME_OOT, 111));
+    PumpAll(&gMockServer, all, 2, 4);
+    NR_ASSERT(a.inboxCount == 2);
+
+    Relay_SetSessionClient(&a);
+    Context_InvalidateSessionState(RSBS_SEED_STAMP_DROP);
+    // Unbind BEFORE any assertion can return: `a` is a stack object.
+    Relay_SetSessionClient(NULL);
+
+    const uint32_t inboxAfter = a.inboxCount;
+    const uint32_t nextSeqAfter = a.nextSeq;
+    printf("[TEST] after Context_InvalidateSessionState: relay inbox=%u nextSeq=%u cursor=%u\n", (unsigned)inboxAfter,
+           (unsigned)nextSeqAfter, (unsigned)Combo_GetGrantCursor(a.sourceKey));
+    NR_ASSERT(Combo_GetGrantCursor(a.sourceKey) == 0); // the model half died with gComboCtx
+    NR_ASSERT(inboxAfter == 0);                        // the relay half died with it
+    // The dense counter restarts with the cursor, else seq 3 against a fresh
+    // cursor of 0 wedges on GAP; and a replay is owed to re-derive the room.
+    NR_ASSERT(nextSeqAfter == 1u);
+    NR_ASSERT(Relay_ReplayNeeded(&a));
+
+    // Resuming in the next session applies nothing from the dead one.
+    Relay_OnResume(&a);
+    NR_ASSERT(Relay_Tick(&a) == 0);
+    NR_ASSERT(RelayOccupied() == 0);
+
+    // Unbound, invalidation leaves a client alone (the production default).
+    Relay_OnSuspend(&a);
+    NR_ASSERT(Relay_SendGrant(&b, 1, GAME_OOT, 123));
+    PumpAll(&gMockServer, all, 2, 4);
+    NR_ASSERT(a.inboxCount == 1);
+    Context_InvalidateSessionState(RSBS_SEED_STAMP_DROP);
+    NR_ASSERT(a.inboxCount == 1);
 
     printf("[TEST] PASS: suspend latch\n");
     return TEST_PASS;

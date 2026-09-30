@@ -445,6 +445,18 @@ void Relay_ClearSessionState(RelayClient* c) {
     c->replayNeeded = true;
 }
 
+// The client Context_InvalidateSessionState retires. No production owner binds
+// one yet (#460), so today this stays NULL and the invalidation call is inert.
+static RelayClient* sSessionClient = NULL;
+
+void Relay_SetSessionClient(RelayClient* c) {
+    sSessionClient = c;
+}
+
+RelayClient* Relay_GetSessionClient(void) {
+    return sSessionClient;
+}
+
 bool Relay_ReplayNeeded(const RelayClient* c) {
     return c != NULL && c->replayNeeded;
 }
