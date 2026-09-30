@@ -148,17 +148,17 @@ static const std::map<int32_t, const char*> enemyRandomizerModes = {
 
 // The "Fix Broken Giant's Knife Bug" toggle's callback, named so the OoTWindowsGate row can drive it (#798).
 // func_800849EC writes the save's equipment and B button and then dereferences the play state, so it runs only in
-// Play. The setting itself still toggles.
+// Play. The setting itself still toggles. Both guards are single-exe only: the non-single-exe build is unchanged.
 void OnFixBrokenGiantsKnifeToggled() {
 #ifdef RSBS_SINGLE_EXECUTABLE
     // gSaveContext is Majora's Mask's save while MM runs (#798).
     if (!OoT_Gui_ShouldDraw()) {
         return;
     }
-#endif
     if (OoT_gPlayState == nullptr) {
         return;
     }
+#endif
     bool hasGiantsKnife = CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BIGGORON);
     bool hasBrokenKnife = CHECK_OWNED_EQUIP_ALT(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BROKENGIANTKNIFE);
     bool knifeIsBroken = gSaveContext.swordHealth == 0.0f;
