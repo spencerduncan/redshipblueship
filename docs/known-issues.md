@@ -888,8 +888,8 @@ Two rows to know about before you read a red or green as a signal:
   ([#793](https://github.com/spencerduncan/redshipblueship/issues/793)): a
   wall-clock watchdog thread now ends every `int-*` run that goes 60 s with no
   frame completing, with an `[INT-WATCHDOG] FAIL` line naming the last stage
-  (an OoT frame, an MM frame, the hand-off) and each game's state
-  (`RSBS_INT_WATCHDOG_SECS` changes the budget; 0 disables it, e.g. under a
+  (an OoT frame, an MM frame, the hand-off) and each game's state, and exit
+  code 3 (`RSBS_INT_WATCHDOG_SECS` changes the budget; 0 disables it, e.g. under a
   debugger). Either way a red run of this row is a regression to read, not
   known noise.
 - **`IntPairedFirstCrossing` is the only row that crosses with a paired file** (PR
