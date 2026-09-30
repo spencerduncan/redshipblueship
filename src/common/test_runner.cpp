@@ -3959,8 +3959,8 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
 // ConsoleVariables. No ImGui context and no OTRGlobals::Instance, which is what
 // makes the runtime half's tripwire hard.
 TestResult Test_OoTWindowsGate(void) {
-    printf("[TEST] oot-windows-gate: OoT's save/play-state windows and their menu embeds gate on the active game "
-           "(#797)\n");
+    printf("[TEST] oot-windows-gate: OoT's save/play-state windows, their menu embeds, its console commands and the "
+           "Giant's Knife toggle gate on the active game (#797, #798)\n");
 
     if (!OoTWindowsGate_ScanSetupGuiElements()) {
         return TEST_FAIL;
@@ -5047,7 +5047,8 @@ const TestDescriptor gTests[] = {
      Test_RelayCatchup},
     {"relay-backpressure", "A full array backpressures the relay without losing the grant (ADR 0007)",
      Test_RelayBackpressure},
-    {"relay-suspend-latch", "Suspend stops applying but not polling; resume drains in order (ADR 0007)",
+    {"relay-suspend-latch", "Suspend stops applying but not polling; resume drains in order; session "
+     "invalidation retires the inbox (ADR 0007)",
      Test_RelaySuspendLatch},
 #endif
     {"context", "Test context/state management", Test_Context},
@@ -5201,8 +5202,11 @@ const TestDescriptor gTests[] = {
      Test_MMTrackersGui},
     // #797: OoT's eight save/play-state windows (and the Port Menu's embeds of
     // them) run only while OoT is the running game; source scan + ROM-free
-    // tripwire. Pure (no display, no ROM).
-    {"oot-windows-gate", "OoT save/play-state windows and their menu embeds gate on the active game (#797)",
+    // tripwire. Pure (no display, no ROM). #798 extends it to OoT's console
+    // commands and the Giant's Knife toggle (memcmp canary over gSaveContext).
+    {"oot-windows-gate",
+     "OoT save/play-state windows, menu embeds, console commands and the Giant's Knife toggle gate on the active game "
+     "(#797, #798)",
      Test_OoTWindowsGate},
     // Pre-freeze discipline (#638 / #626): both freeze drivers must fold the
     // live scene flags (and, on MM, a dead health bar) into gSaveContext before
