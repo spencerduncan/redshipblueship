@@ -10,14 +10,18 @@
  * RsbsGameMetaDesc pattern (src/common/save.h) — so common code never
  * includes z64save.h and never hardcodes an MM offset.
  *
- * WHY THE SHADOW BLOB AND NOT THE LIVE SAVE. The tracker's whole point is
- * showing the INACTIVE game's progress: while OoT runs there is no live MM
- * gSaveContext to read (unified storage holds OoT's bytes), but the frozen
- * shadow Context_GetMMSaveContext() hands out is a raw SaveContext image
- * written at freeze/save time. Reading it at these offsets is exactly as
- * valid as the freeze itself, and the view labels the result stale ("As of
- * the last game switch or save") — never live, even while MM is the active
- * game, because the shadow lags the live save (#458 design note).
+ * THE SHADOW BLOB WHILE MM IS NOT PLAYED, THE LIVE SAVE WHILE IT IS. While
+ * OoT runs there is no live MM gSaveContext to read (unified storage holds
+ * OoT's bytes), but the frozen shadow Context_GetMMSaveContext() hands out is
+ * a raw SaveContext image written at freeze/save time. Reading it at these
+ * offsets is exactly as valid as the freeze itself, and the view labels the
+ * result stale ("As of the last game switch or save"). While MM is played the
+ * shadow is useless: MM's arrival consumes it into gSaveContext and zeroes it,
+ * and nothing refills it before MM's first save or the departure freeze
+ * (#799). So the descriptor also carries MMTrackerLiveSave, which hands the
+ * view &gSaveContext — the same layout, the same offsets — only while MM's
+ * play state is loaded (ADR 0008 rule 5's amendment), and the view reports
+ * that read live.
  *
  * THE TRIPWIRES. The descriptor is built from offsetof/sizeof, so it cannot
  * drift from the struct — what CAN break silently is the geometry: the table
@@ -86,6 +90,19 @@ const char* MMTrackerCheckName(uint16_t checkId) {
     return name.empty() ? nullptr : name.c_str();
 }
 
+/**
+ * MM's live save for the view's LIVE read, or NULL (#799). Only while MM's play
+ * state is loaded: MM_gPlayState is set late in MM_Play_Init, after the
+ * arrival consumes the frozen half into gSaveContext (z_play.c), and nulled
+ * by MM_Play_Destroy and MM_Graph_ResetRunFrameContext (graph.c). That excludes the
+ * title screen, which authors an unmarked bootstrap save (Sram_InitNewSave),
+ * and file select, which reads each slot through the live buffer while it
+ * scans them — neither is the player's world.
+ */
+const void* MMTrackerLiveSave(void) {
+    return (MM_gPlayState != nullptr) ? static_cast<const void*>(&gSaveContext) : nullptr;
+}
+
 } // namespace
 
 extern "C" void MM_TrackerAdapter_Register(void) {
@@ -113,6 +130,7 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     desc.obtainedOffset = (uint32_t)offsetof(RandoSaveCheck, obtained);
     desc.skippedOffset = (uint32_t)offsetof(RandoSaveCheck, skipped);
     desc.checkName = MMTrackerCheckName;
+    desc.liveSave = MMTrackerLiveSave;
 
     Combo_Tracker_RegisterMM(&desc);
 }

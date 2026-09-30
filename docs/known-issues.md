@@ -129,13 +129,17 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 - **Nothing of the switch has been played yet.** Every claim above comes from tests,
   measurements and UI captures. The playtest is
   [`playtest-2026-09.md`](playtest-2026-09.md).
-- **The in-game crossing views lag Majora's Mask.** Combo > Windows > Toggle Cross-Game
-  Spoiler and the Combo Tracker list every crossing in both directions, by name, with
-  whether each host check was collected. That state comes from each game's own save, and
-  Majora's Mask's is read as of the last game switch or save (as of file creation until
-  Majora's Mask is first entered), so a crossing collected in
-  Majora's Mask shows as collected after the next save or switch (the note under each
-  list says so; #755, #757).
+- ~~**The in-game crossing views lag Majora's Mask.**~~ **Resolved** ([#799](https://github.com/spencerduncan/redshipblueship/issues/799)).
+  Combo > Windows > Toggle Cross-Game Spoiler and the Combo Tracker list every crossing
+  in both directions, by name, with whether each host check was collected. That state
+  comes from each game's own save. Before #799, Majora's Mask's was read only from the
+  copy written at the last game switch or save, and arriving in Termina empties that
+  copy, so while Majora's Mask was played the tracker's Majora's Mask panel read "No data
+  yet" and every crossing hosted there read "?" until Majora's Mask's first save or the
+  next switch. Now, while Majora's Mask is played, both windows read its running save
+  ("Updated live"), and a crossing collected there shows as collected at once. From
+  Hyrule, Majora's Mask's is as of the last game switch or save (as of file creation
+  until Majora's Mask is first entered), which the switch itself writes (#755, #757).
 - **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero
   or barren analysis. Crossing hosts are never hinted, and an OoT item that crossed is
   hinted as "Termina" (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
