@@ -141,8 +141,8 @@ extern "C" int OoT_WindowsGate_RunHeadless(void) {
         Context_SetCurrentGame(game);
         for (const GatedWindow& w : windows) {
             // One line per window before its calls, so a RED run names the window and path that faulted.
-            printf("[TEST] oot-windows-gate: game %d, %s: DrawElement() (menu embed), Update(), Draw()\n", (int)game,
-                   w.name);
+            printf("[TEST] oot-windows-gate: %s running, %s: DrawElement() (menu embed), Update(), Draw()\n",
+                   game == GAME_MM ? "Majora's Mask" : "no game", w.name);
             fflush(stdout);
             w.window->DrawElement();
             w.window->Update();
