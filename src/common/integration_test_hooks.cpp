@@ -41,6 +41,11 @@ extern "C" {
     // compiled into redship_common via test_runner.cpp). Reset the cycle counters
     // when the archive-hotswap integration test mode is selected (#263).
     void ArchiveHotswap_ResetCycle(void);
+
+    // #577 M1 boot-mount lock (src/common/tests/test_curated_archive_mount.c,
+    // compiled into redship_common via test_runner.cpp): 0 when the booted
+    // game's curated half is mounted with its identity, or is not staged.
+    int CuratedArchiveMount_VerifyBoot(GameId host);
 }
 
 namespace {
@@ -284,7 +289,16 @@ void IntegrationTest_SignalBootComplete(GameId game, const char* reason) {
     printf("[INT-TEST] Boot complete: %s (%s)\n",
            Game_ToString(game), reason);
     fflush(stdout);
-    sBootPassed = true;
+
+    // The boot rows also lock main()'s boot mount of the booted game's curated
+    // half (#577 M1): a boot that reached the title without it is a FAIL.
+    bool bootMountOk = true;
+    const IntegrationTestMode mode = sTestMode.load();
+    if (mode == INT_TEST_BOOT_OOT || mode == INT_TEST_BOOT_MM) {
+        bootMountOk = CuratedArchiveMount_VerifyBoot(game) == 0;
+    }
+
+    sBootPassed = bootMountOk;
     sBootedGame = game;
     sExitRequested = true;
 

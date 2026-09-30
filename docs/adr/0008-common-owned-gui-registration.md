@@ -66,6 +66,17 @@ makes them safe to draw under any active game, and it is why they need no
 equivalent of MM's `MMActiveGated` wrapper. A future common-owned window that
 *does* need per-game data must gate like MM's do rather than relax this.
 
+*Amendment (2026-09-30, #799).* A game-owned tracker adapter may hand the
+common view its own game's live save, and only when the view asks for LIVE
+data under that game's `GameId` (it is the active game) and that game's play
+state is loaded. The read still crosses only as the adapter's offset
+descriptor, so common code still never names either game's layout. The Combo
+Tracker's MM adapter is the first user: its `liveSave` answers `&gSaveContext`
+only while `MM_gPlayState` is set, because MM's arrival consumes and zeroes the
+frozen shadow, which the view otherwise reads, and nothing refills it before
+MM's first save. Under any other active game, and on MM's title screen and
+file select, the view reads the frozen shadow as before.
+
 ## Consequences
 
 - The cross-game spoiler view (#496) is reachable in an OoT-only session, which

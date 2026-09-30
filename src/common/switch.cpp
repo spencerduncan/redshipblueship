@@ -25,14 +25,14 @@
  * NOTE: the legacy `Context_ProcessSwitch` / `OoT_FreezeState` /
  * `MM_FreezeState` / `*_ResumeFromContext` path that used to live here has
  * been removed. It had zero callers, and two of the four symbols it referenced
- * (`MM_FreezeState`, `MM_ResumeFromContext`) live in games/mm/2s2h/BenPort.cpp,
+ * (`MM_FreezeState`, `MM_ResumeFromContext`) lived in games/mm/2s2h/BenPort.cpp,
  * which is excluded from the single-exe build — so this translation unit could
- * only stay linkable as long as nothing pulled it in. Its declarations in
- * context.h are now dangling; removing them is a context.h change and belongs
- * to whoever owns that file. `OoT_FreezeState` itself is gone as of #598 (it
- * was never compiled either: its `#ifdef SINGLE_EXECUTABLE_BUILD` guard names a
- * CMake option, not a compile definition), so the only remaining copy of that
- * shape is MM's, in the same never-compiled state.
+ * only stay linkable as long as nothing pulled it in. ADR 0002 removed its
+ * dangling declarations from context.h. None of the game-port symbols exists
+ * any more: `OoT_FreezeState` was deleted by #598 and MM's pair by #427, both
+ * never compiled (each sat behind `#ifdef SINGLE_EXECUTABLE_BUILD`, which names
+ * a CMake option, not a compile definition), so neither port keeps a copy of
+ * that freeze-time shape.
  */
 
 #include "context.h"
