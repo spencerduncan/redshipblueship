@@ -27,8 +27,18 @@
  *     that declines, or none, is "no model"; a non-colliding model never asks.
  *  M8 FALLBACKS: native, untagged, non-game and unknown ids answer no model.
  *  M9 ADR 0002: foreign_model.{h,c} include no game header.
+ *  M10 THE FIRST CONSUMER (#577 M3): CheckQueue's REAL foreign give-and-draw in
+ *     MM. An OoT item placed on an MM check is queued by CheckQueue, given, and
+ *     then drawn into a real MM GraphicsContext; the emitted OPA and XLU lists
+ *     are read back and must carry exactly the origin's descriptor (its lists in
+ *     order on their layers, its setup list, a matrix before the first list,
+ *     its scroll segments and colours). With the archive not mounted, and for a
+ *     colliding item with no host-native row, the same draw emits no model list
+ *     (the model-less stand-in). Put Rando::DrawItem(RI_NONE) back in the draw,
+ *     or let the give overwrite the check id the draw reads, and M10 goes red.
  *
- * Not lockable headless: the pixels. M3/M4 of the epic draw these descriptors.
+ * Not lockable headless: the pixels. The M3 playtest shows the drawn model; M4
+ * draws these descriptors in OoT.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -66,6 +76,10 @@ int MM_ComboModel_TestDrawRowLists(int drawId, const char* lists[COMBO_MODEL_MAX
 const char* MM_ComboModel_TestItemReason(uint16_t id);
 int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
 int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
+void MM_ForeignModel_TestSetMountOverride(int value);
+int MM_ForeignModel_TestPathMountedReal(const char* dl);
+int MM_ForeignModel_TestCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want);
+uint16_t MM_ForeignTextboxIcon_TestSomeCheck(void);
 }
 
 #define FM_ASSERT(cond, msg)                                                \
@@ -722,6 +736,67 @@ TestResult Test_ForeignModel(void) {
                 FM_ASSERT(allowed, "M9 ADR 0002: the registry includes no game header");
             }
         }
+    }
+
+    // ---- M10 (#577 M3) -----------------------------------------------------------
+    {
+        SharedItem boots;
+        SharedItem emerald;
+        SharedItem hookshot;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Hover Boots", &boots) &&
+                      TestNamedItem((uint8_t)GAME_OOT, "Kokiri's Emerald", &emerald) &&
+                      TestNamedItem((uint8_t)GAME_OOT, "Progressive Hookshot", &hookshot),
+                  "M10 named items");
+        ComboModelAnswer bootsA;
+        ComboModelAnswer emeraldA;
+        ComboModelAnswer hookshotA;
+        FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, boots, &bootsA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_MM, emerald, &emeraldA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_MM, hookshot, &hookshotA) == kNone,
+                  "M10 the boots and the emerald are DESCRIPTORs in MM, the (colliding) hookshot is no model");
+
+        ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(saved, gComboCtx.foreignPlacements, sizeof(saved));
+        const uint16_t check = MM_ForeignTextboxIcon_TestSomeCheck();
+
+        Combo_ClearForeignPlacements();
+        const int placedBoots = Combo_SetForeignPlacement(check, boots);
+        MM_ForeignModel_TestSetMountOverride(1);
+        printf("[TEST]   M10 Hover Boots on an MM check, archive mounted:\n");
+        const int drawBoots = MM_ForeignModel_TestCheckQueueDraw(check, &bootsA.model);
+        MM_ForeignModel_TestSetMountOverride(0);
+        printf("[TEST]   M10 Hover Boots, archive NOT mounted:\n");
+        const int drawUnmounted = MM_ForeignModel_TestCheckQueueDraw(check, nullptr);
+        MM_ForeignModel_TestSetMountOverride(1);
+
+        Combo_ClearForeignPlacements();
+        const int placedEmerald = Combo_SetForeignPlacement(check, emerald);
+        printf("[TEST]   M10 Kokiri's Emerald on an MM check, archive mounted:\n");
+        const int drawEmerald = MM_ForeignModel_TestCheckQueueDraw(check, &emeraldA.model);
+
+        Combo_ClearForeignPlacements();
+        const int placedHookshot = Combo_SetForeignPlacement(check, hookshot);
+        printf("[TEST]   M10 Progressive Hookshot (colliding, no host-native row), archive mounted:\n");
+        const int drawHookshot = MM_ForeignModel_TestCheckQueueDraw(check, nullptr);
+        MM_ForeignModel_TestSetMountOverride(-1);
+
+        // The production mount branch (no override): both answers are "no".
+        const int realNoPrefix = MM_ForeignModel_TestPathMountedReal("objects/object_gi_hoverboots/gGiHoverBootsDL");
+        const int realMissing = MM_ForeignModel_TestPathMountedReal("__OTR__objects/rsbs_no_such_object/gRsbsNoSuchDL");
+        const int realNull = MM_ForeignModel_TestPathMountedReal(nullptr);
+
+        std::memcpy(gComboCtx.foreignPlacements, saved, sizeof(saved));
+        FM_ASSERT(placedBoots >= 0 && placedEmerald >= 0 && placedHookshot >= 0, "M10 placements accepted");
+        FM_ASSERT(drawBoots == 0,
+                  "M10 MM's get-item cutscene draws OoT's Hover Boots model (see the Q-line above)");
+        FM_ASSERT(drawEmerald == 0, "M10 MM's get-item cutscene draws OoT's Kokiri's Emerald with its jewel shape "
+                                    "(see the Q-line above)");
+        FM_ASSERT(drawUnmounted == 0, "M10 unmounted, the draw keeps the model-less stand-in (see the Q-line above)");
+        FM_ASSERT(drawHookshot == 0,
+                  "M10 a colliding model with no host-native row keeps the stand-in (see the Q-line above)");
+        FM_ASSERT(realNoPrefix == 0, "M10 the production mount test refuses a path without the __OTR__ prefix");
+        FM_ASSERT(realMissing == 0, "M10 the production mount test refuses an __OTR__ path no archive holds");
+        FM_ASSERT(realNull == 0, "M10 the production mount test refuses a null path");
     }
 
     printf("[TEST] ForeignModel: PASS\n");
