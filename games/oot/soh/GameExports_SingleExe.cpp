@@ -759,6 +759,15 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
     }
     IntegrationTest_PairedIdentityRecord();
 
+    // ---- 2b. RSBS_PFC_DIVERGE=1 (#804): the player changes settings ----------
+    // Back at the title screen after the creation, one MM option, one MM trick
+    // and one Cross-Game Rule move to other values. The load below must put the
+    // file's values back (#781) before MM's first boot and its arrival gate.
+    if (IntegrationTest_PairedDiverge() && !IntegrationTest_PairedDivergeApply(msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return;
+    }
+
     // ---- 3. load it back, as the file select does -----------------------------
     gSaveContext.fileNum = kPfcSlot;
     gSaveContext.gameMode = GAMEMODE_NORMAL;
@@ -835,6 +844,20 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
     }
     fprintf(stderr, "[PFC] loaded identity = the creation's (masterSeed, settingsHash, mmProfileDigest, "
                     "comboFingerprint, crossing counts and digest)\n");
+    if (IntegrationTest_PairedDiverge()) {
+        // The load restored the file's values into the keys, and said so.
+        char toasts[512];
+        if (!IntegrationTest_PairedDivergeKeysHoldFile("after the load", msg, sizeof(msg))) {
+            IntegrationTest_GameplayFail(msg);
+            return;
+        }
+        if (!IntegrationTest_PairedDivergeLoadToasts(toasts, sizeof(toasts))) {
+            snprintf(msg, sizeof(msg), "the load did not say what it restored: %s", toasts);
+            IntegrationTest_GameplayFail(msg);
+            return;
+        }
+        fprintf(stderr, "[PFC] diverged load PASS: %s; %s\n", msg, toasts);
+    }
     sPfcOoTWorldSeed = Randomizer_GetCurrentWorldSeed();
     IntegrationTest_PairedSetMMGenerationBaseline(MM_Rando_OnSaveInitDispatchCount());
     fprintf(stderr,

@@ -2343,6 +2343,21 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         COMMAND redship --integration-test int-paired-first-crossing
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
+    # #804: the same crossing after the player CHANGED SETTINGS between the
+    # creation and the load (RSBS_PFC_DIVERGE=1): back at the title screen one MM
+    # option, one MM trick and one Cross-Game Rule move; the load must put the
+    # file's values back and toast it (#781, PR #787); then MM boots for real and
+    # its arrival must match the profile AND the combo rules, with the keys still
+    # holding the file's values. PairedLoadRestore calls the gate directly and
+    # never boots MM; this is the row where a boot-time write between the load
+    # and the gate would show. RSBS_PFC_MM_BOOT_WRITE_PROBE=1 is the red half (an
+    # IS_RANDO registrar writes one gRando.Options.* key during MM's boot: the
+    # arrival is REFUSED). The three keys are cleared when the verdict is taken.
+    redship_add_test(NAME IntPairedFirstCrossingDiverged
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_PFC_DIVERGE=1")
 
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.

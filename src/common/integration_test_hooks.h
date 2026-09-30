@@ -395,6 +395,39 @@ uint32_t IntegrationTest_PairedMMGenerationBaseline(void);
 /** One-line description of an identity, for the log. */
 void IntegrationTest_PairedIdentityDescribe(const PairedIdentity* id, char* out, size_t cap);
 
+// ----------------------------------------------------------------------------
+// RSBS_PFC_DIVERGE=1 (#804; CTest IntPairedFirstCrossingDiverged): settings
+// changed between the creation and the load. After the creation event returns
+// the driver takes the combo layer back to the title screen
+// (Context_InvalidateSessionOnReturnToTitle, the call title_setup.c makes) and
+// moves one MM option (Starting Hearts), one MM trick (the first settable one)
+// and one Cross-Game Rule (Goal) through the pages' own writers. The load must
+// put the file's values back (#781, PR #787) and toast it; MM then boots for
+// real, and its arrival must match with the keys still holding the file's
+// values. The three keys are cleared again when the run's verdict is taken
+// (IntegrationTest_PairedDivergeCleanup), so the build directory's config is
+// left as the shipped-defaults check found it.
+// ----------------------------------------------------------------------------
+
+/** True when RSBS_PFC_DIVERGE=1. */
+bool IntegrationTest_PairedDiverge(void);
+
+/** Record the file's values, go back to the title, change the three keys.
+ *  Returns false with the reason in `msg`. */
+bool IntegrationTest_PairedDivergeApply(char* msg, size_t cap);
+
+/** True when all three keys resolve to the file's values; otherwise names each
+ *  one that does not, prefixed by `when`, in `msg`. */
+bool IntegrationTest_PairedDivergeKeysHoldFile(const char* when, char* msg, size_t cap);
+
+/** True when the load's two restore toasts ("Restored from file:" naming Goal,
+ *  and "Restored for Majora's Mask:") were raised; `msg` quotes them or says
+ *  which is missing. */
+bool IntegrationTest_PairedDivergeLoadToasts(char* msg, size_t cap);
+
+/** Clear the three keys and save the config, when Apply wrote them. */
+void IntegrationTest_PairedDivergeCleanup(void);
+
 #ifdef __cplusplus
 }
 #endif

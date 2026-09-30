@@ -15,6 +15,11 @@
 #include "context.h"        // gComboCtx: the paired identity's carriers
 #include "crossing_store.h" // the crossing store: the only truth for foreign placements
 #include "foreign_items.h"  // Combo_ForeignPairingActive
+#include "combo_settings_view.h"   // RSBS_PFC_DIVERGE: the Cross-Game Rules writer
+#include "combo_mm_options_view.h" // RSBS_PFC_DIVERGE: the MM options writer, the live profile digest
+#include "combo_mm_tricks_view.h"  // RSBS_PFC_DIVERGE: the MM tricks writer
+#include "notification_bridge.h"   // RSBS_PFC_DIVERGE: the load's recorded toasts
+#include <libultraship/bridge/consolevariablebridge.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -880,6 +885,185 @@ bool IntegrationTest_PairedIdentityMatches(char* msg, size_t cap) {
         snprintf(msg, cap, "%s", diff.c_str());
     }
     return false;
+}
+
+} // extern "C"
+
+// ============================================================================
+// RSBS_PFC_DIVERGE=1 (#804): the paired file loaded with changed settings
+// ============================================================================
+
+namespace {
+
+// The three keys the divergence moves, and the values the file was created
+// with (resolved right after the creation event, before anything moved them).
+struct PairedDivergeKeys {
+    bool applied = false;
+    const ComboMMOptionDesc* option = nullptr;
+    int32_t optionFile = 0;
+    const ComboMMTrickDesc* trick = nullptr;
+    bool trickFile = false;
+    int32_t goalFile = 0;
+};
+PairedDivergeKeys sDiverge;
+
+// The MM option the #781 lock (PairedLoadRestore leg 2) moves too. Found by
+// its enumerator's name: src/common names no MM enum.
+const char* const kDivergeOptionName = "RO_STARTING_HEALTH";
+
+} // namespace
+
+extern "C" {
+
+bool IntegrationTest_PairedDiverge(void) {
+    const char* raw = std::getenv("RSBS_PFC_DIVERGE");
+    return raw != nullptr && strcmp(raw, "1") == 0;
+}
+
+bool IntegrationTest_PairedDivergeApply(char* msg, size_t cap) {
+    // Both descriptor tables (the shipped-defaults check registered them before
+    // the creation; registering again is silent).
+    if (Combo_MMOptionCount() == 0) {
+        MM_RandoOptionsUi_Register();
+    }
+    if (Combo_MMTrickCount() == 0) {
+        MM_RandoTricksUi_Register();
+    }
+    const ComboMMOptionDesc* option = nullptr;
+    for (int i = 0; i < Combo_MMOptionCount(); i++) {
+        const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+        if (d != nullptr && d->name != nullptr && strcmp(d->name, kDivergeOptionName) == 0) {
+            option = d;
+            break;
+        }
+    }
+    const ComboMMTrickDesc* trick = nullptr;
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (d != nullptr && d->bound && !d->reserved) {
+            trick = d;
+            break;
+        }
+    }
+    if (option == nullptr || trick == nullptr || option->maxValue <= option->minValue) {
+        snprintf(msg, cap, "divergence setup: no %s slider row (%s) or no settable MM trick (%s)", kDivergeOptionName,
+                 option != nullptr ? "found" : "missing", trick != nullptr ? trick->cvar : "none");
+        return false;
+    }
+
+    // What the file was created with, read while the creation's world is still
+    // resident: this is what the load must put back.
+    sDiverge.option = option;
+    sDiverge.trick = trick;
+    sDiverge.optionFile = Combo_MMOptionGetValue(option);
+    sDiverge.trickFile = Combo_MMTrickGetValue(trick);
+    sDiverge.goalFile = Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
+    const uint32_t fileDigest = gComboCtx.mmProfileDigest;
+
+    // Back at the title screen: the combo layer's half of the return to the
+    // title (the call title_setup.c makes) drops the resident identity, which
+    // is what un-freezes the three pages' writers between sessions.
+    if (Context_InvalidateSessionOnReturnToTitle() != 1 || Combo_MMProfileFrozen() || Combo_ComboSettingsFrozen()) {
+        snprintf(msg, cap,
+                 "divergence setup: the return to the title did not un-freeze the writers (MM profile frozen=%d, "
+                 "combo rules frozen=%d)",
+                 Combo_MMProfileFrozen() ? 1 : 0, Combo_ComboSettingsFrozen() ? 1 : 0);
+        return false;
+    }
+
+    const int32_t optionNew =
+        sDiverge.optionFile < option->maxValue ? sDiverge.optionFile + 1 : sDiverge.optionFile - 1;
+    int32_t goalNew = -1;
+    for (int32_t v = 0; v < 16; v++) {
+        if (v != sDiverge.goalFile && Combo_ComboSettingValueValid(COMBO_SETTING_GOAL, v)) {
+            goalNew = v;
+            break;
+        }
+    }
+    // Armed before the writes, so the cleanup runs whatever happens below.
+    sDiverge.applied = true;
+    Combo_MMOptionSetValue(option, optionNew);
+    Combo_MMTrickSetValue(trick, !sDiverge.trickFile);
+    const int goalRc = goalNew >= 0 ? Combo_ComboSettingSet(COMBO_SETTING_GOAL, goalNew) : 0;
+    const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
+    const int32_t optionNow = Combo_MMOptionGetValue(option);
+    const bool trickNow = Combo_MMTrickGetValue(trick);
+    const int32_t goalNow = Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
+    if (optionNow != optionNew || trickNow == sDiverge.trickFile || goalRc != 1 || goalNow == sDiverge.goalFile ||
+        liveDigest == fileDigest) {
+        snprintf(msg, cap,
+                 "divergence setup: a writer did not take (%s %d -> %d, now %d; %s %d -> now %d; %s %d -> %d rc %d, "
+                 "now %d; live MM profile %08X, the file's %08X)",
+                 option->cvar, (int)sDiverge.optionFile, (int)optionNew, (int)optionNow, trick->cvar,
+                 sDiverge.trickFile ? 1 : 0, trickNow ? 1 : 0, Combo_ComboSettingKey(COMBO_SETTING_GOAL),
+                 (int)sDiverge.goalFile, (int)goalNew, goalRc, (int)goalNow, (unsigned)liveDigest,
+                 (unsigned)fileDigest);
+        return false;
+    }
+    fprintf(stderr,
+            "[PFC] diverged at the title screen (#804): MM option %s %d -> %d, MM trick %s %d -> %d, Cross-Game "
+            "Rule %s %d -> %d; live MM profile %08X, the file's %08X\n",
+            option->cvar, (int)sDiverge.optionFile, (int)optionNow, trick->cvar, sDiverge.trickFile ? 1 : 0,
+            trickNow ? 1 : 0, Combo_ComboSettingKey(COMBO_SETTING_GOAL), (int)sDiverge.goalFile, (int)goalNow,
+            (unsigned)liveDigest, (unsigned)fileDigest);
+    fflush(stderr);
+    return true;
+}
+
+bool IntegrationTest_PairedDivergeKeysHoldFile(const char* when, char* msg, size_t cap) {
+    if (!sDiverge.applied) {
+        snprintf(msg, cap, "%s: the divergence was never applied", when);
+        return false;
+    }
+    const int32_t option = Combo_MMOptionGetValue(sDiverge.option);
+    const bool trick = Combo_MMTrickGetValue(sDiverge.trick);
+    const int32_t goal = Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
+    if (option == sDiverge.optionFile && trick == sDiverge.trickFile && goal == sDiverge.goalFile) {
+        snprintf(msg, cap, "%s: %s=%d, %s=%d, %s=%d (the file's values)", when, sDiverge.option->cvar, (int)option,
+                 sDiverge.trick->cvar, trick ? 1 : 0, Combo_ComboSettingKey(COMBO_SETTING_GOAL), (int)goal);
+        return true;
+    }
+    snprintf(msg, cap, "%s: the keys do not hold the file's values (%s=%d, file %d; %s=%d, file %d; %s=%d, file %d)",
+             when, sDiverge.option->cvar, (int)option, (int)sDiverge.optionFile, sDiverge.trick->cvar, trick ? 1 : 0,
+             sDiverge.trickFile ? 1 : 0, Combo_ComboSettingKey(COMBO_SETTING_GOAL), (int)goal, (int)sDiverge.goalFile);
+    return false;
+}
+
+bool IntegrationTest_PairedDivergeLoadToasts(char* msg, size_t cap) {
+    std::string rules;
+    std::string mm;
+    const char* goalLabel = Combo_ComboSettingLabel(COMBO_SETTING_GOAL);
+    for (int i = 0; i < OoT_Notification_EmittedCountForTest(); i++) {
+        char toast[256];
+        if (!OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast))) {
+            continue;
+        }
+        if (strncmp(toast, "Restored from file:", 19) == 0 && goalLabel != nullptr && strstr(toast, goalLabel)) {
+            rules = toast;
+        } else if (strncmp(toast, "Restored for Majora's Mask:", 27) == 0) {
+            mm = toast;
+        }
+    }
+    snprintf(msg, cap, "rules toast %s%s%s, MM toast %s%s%s", rules.empty() ? "MISSING" : "\"",
+             rules.empty() ? "" : rules.c_str(), rules.empty() ? "" : "\"", mm.empty() ? "MISSING" : "\"",
+             mm.empty() ? "" : mm.c_str(), mm.empty() ? "" : "\"");
+    return !rules.empty() && !mm.empty();
+}
+
+void IntegrationTest_PairedDivergeCleanup(void) {
+    if (!sDiverge.applied) {
+        return;
+    }
+    sDiverge.applied = false;
+    // All three were unset before the run (the shipped-defaults check refuses
+    // to generate otherwise), so unset is exactly what was found.
+    CVarClear(sDiverge.option->cvar);
+    CVarClear(sDiverge.trick->cvar);
+    CVarClear(Combo_ComboSettingKey(COMBO_SETTING_GOAL));
+    CVarSave();
+    fprintf(stderr, "[PFC] divergence cleanup: %s, %s and %s cleared and the config saved\n", sDiverge.option->cvar,
+            sDiverge.trick->cvar, Combo_ComboSettingKey(COMBO_SETTING_GOAL));
+    fflush(stderr);
 }
 
 } // extern "C"
