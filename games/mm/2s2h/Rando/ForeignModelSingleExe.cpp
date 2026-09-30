@@ -471,9 +471,11 @@ bool ModelPathMounted(const char* dl) {
     }
     auto archives = ctx->GetResourceManager()->GetArchiveManager();
     // oot.o2r is mounted from OoT's first boot on (rsbs/src/main.cpp,
-    // Combo_EnsureGameArchivesLoaded); an MM-first session that never entered
-    // OoT answers no here and keeps the stand-in rather than loading a path
-    // nothing resolves.
+    // Combo_EnsureGameArchivesLoaded), and redship-mm.o2r carries every
+    // OoT-exclusive get-item directory from MM's first arrival on (#577 M6).
+    // An MM-first session that never entered OoT therefore answers yes for
+    // those, and no for any other OoT path, keeping the stand-in rather than
+    // loading a path nothing resolves.
     return archives != nullptr && archives->HasFile(std::string(dl + sizeof(kOtr) - 1));
 }
 
