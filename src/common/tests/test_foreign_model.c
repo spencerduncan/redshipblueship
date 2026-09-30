@@ -37,8 +37,17 @@
  *     (the model-less stand-in). Put Rando::DrawItem(RI_NONE) back in the draw,
  *     or let the give overwrite the check id the draw reads, and M10 goes red.
  *
- * Not lockable headless: the pixels. The M3 playtest shows the drawn model; M4
- * draws these descriptors in OoT.
+ *  M11 THE SECOND CONSUMER (#577 M4): OoT's show-only get-item path. An MM item
+ *     placed on an OoT check gets the drain's show-only entry (the foreign
+ *     draw, a dummy valid object, the foreign message, a randomizer major item);
+ *     the give point's take claims it and refuses an ordinary custom-drawn
+ *     randomizer entry; the entry's own draw function emits exactly the
+ *     descriptor into a real OoT GraphicsContext; the message names the item.
+ *     Unmounted, colliding with no host-native row, or no placement: no entry,
+ *     and the drain keeps its toast.
+ *
+ * Not lockable headless: the pixels, and the drain and give point themselves
+ * (they need a live Player). The M3 and M4 playtests show the drawn models.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -80,6 +89,10 @@ void MM_ForeignModel_TestSetMountOverride(int value);
 int MM_ForeignModel_TestPathMountedReal(const char* dl);
 int MM_ForeignModel_TestCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want);
 uint16_t MM_ForeignTextboxIcon_TestSomeCheck(void);
+void OoT_ForeignModel_TestSetMountOverride(int value);
+int OoT_ForeignModel_TestPathMountedReal(const char* dl);
+uint16_t OoT_ForeignModel_TestSomeCheck(void);
+int OoT_ForeignModel_TestShowOnlyGetItem(uint16_t ootCheckId, const ComboModel* want, const char* wantName);
 }
 
 #define FM_ASSERT(cond, msg)                                                \
@@ -796,6 +809,69 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(realNoPrefix == 0, "M10 the production mount test refuses a path without the __OTR__ prefix");
         FM_ASSERT(realMissing == 0, "M10 the production mount test refuses an __OTR__ path no archive holds");
         FM_ASSERT(realNull == 0, "M10 the production mount test refuses a null path");
+    }
+
+    // ---- M11 (#577 M4) -----------------------------------------------------------
+    {
+        SharedItem mask;
+        SharedItem sword;
+        SharedItem mmHookshot;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Deku Mask", &mask) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Great Fairy's Sword", &sword) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Hookshot", &mmHookshot),
+                  "M11 named items");
+        ComboModelAnswer maskA;
+        ComboModelAnswer swordA;
+        ComboModelAnswer hookshotA;
+        FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, mask, &maskA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, sword, &swordA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, mmHookshot, &hookshotA) == kNone,
+                  "M11 the mask and the sword are DESCRIPTORs in OoT, the (colliding) hookshot is no model");
+        FM_ASSERT(swordA.model.scrolls[0].segment != 0, "M11 the sword's model carries a texture scroll");
+
+        ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+        const uint16_t check = OoT_ForeignModel_TestSomeCheck();
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedMask = Combo_SetForeignPlacementOoT(check, mask);
+        OoT_ForeignModel_TestSetMountOverride(1);
+        printf("[TEST]   M11 Deku Mask on an OoT check, archive mounted:\n");
+        const int showMask = OoT_ForeignModel_TestShowOnlyGetItem(check, &maskA.model, "Deku Mask");
+        OoT_ForeignModel_TestSetMountOverride(0);
+        printf("[TEST]   M11 Deku Mask, archive NOT mounted:\n");
+        const int showUnmounted = OoT_ForeignModel_TestShowOnlyGetItem(check, nullptr, nullptr);
+        OoT_ForeignModel_TestSetMountOverride(1);
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedSword = Combo_SetForeignPlacementOoT(check, sword);
+        printf("[TEST]   M11 Great Fairy's Sword on an OoT check, archive mounted:\n");
+        const int showSword = OoT_ForeignModel_TestShowOnlyGetItem(check, &swordA.model, "Great Fairy's Sword");
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedHookshot = Combo_SetForeignPlacementOoT(check, mmHookshot);
+        printf("[TEST]   M11 MM Hookshot (colliding, no host-native row), archive mounted:\n");
+        const int showHookshot = OoT_ForeignModel_TestShowOnlyGetItem(check, nullptr, nullptr);
+
+        Combo_ClearForeignPlacementsOoT();
+        printf("[TEST]   M11 an OoT check with no foreign placement:\n");
+        const int showNothing = OoT_ForeignModel_TestShowOnlyGetItem(check, nullptr, nullptr);
+        OoT_ForeignModel_TestSetMountOverride(-1);
+
+        const int realMissing = OoT_ForeignModel_TestPathMountedReal("__OTR__objects/rsbs_no_such_object/gRsbsNoSuchDL");
+        const int realNoPrefix = OoT_ForeignModel_TestPathMountedReal("objects/object_gi_nutsmask/gGiDekuMaskEmptyDL");
+
+        std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+        FM_ASSERT(placedMask >= 0 && placedSword >= 0 && placedHookshot >= 0, "M11 placements accepted");
+        FM_ASSERT(showMask == 0, "M11 OoT's get-item cutscene shows MM's Deku Mask model and gives nothing (see the "
+                                 "R-line above)");
+        FM_ASSERT(showSword == 0, "M11 OoT's get-item cutscene shows MM's Great Fairy's Sword with its scroll (see the "
+                                  "R-line above)");
+        FM_ASSERT(showUnmounted == 0, "M11 unmounted, no show-only entry: the drain keeps its toast");
+        FM_ASSERT(showHookshot == 0, "M11 a colliding model with no host-native row keeps the toast");
+        FM_ASSERT(showNothing == 0, "M11 a check with no foreign placement builds no show-only entry");
+        FM_ASSERT(realMissing == 0 && realNoPrefix == 0,
+                  "M11 the production mount test refuses an unheld path and a path without the prefix");
     }
 
     printf("[TEST] ForeignModel: PASS\n");
