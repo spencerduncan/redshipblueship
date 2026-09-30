@@ -749,6 +749,10 @@ extern "C" {
 // (its MM half is games/mm/2s2h/Rando/ForeignTextboxIconSingleExe.cpp). FILE
 // SCOPE (compiled as C++).
 #include "tests/test_foreign_textbox_icon.c"
+// The foreign get-item model descriptor registry (#577 M2): every draw row and
+// progression item of both games classifies, descriptors round-trip, and the
+// collision table matches the asset trees. FILE SCOPE (compiled as C++).
+#include "tests/test_foreign_model.c"
 // #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
 // read the crossing store in both directions, named, with found state per host
 // check from each game's save. combo-crossing-views is ROM-free (redship tier);
@@ -5346,6 +5350,11 @@ const TestDescriptor gTests[] = {
      "item answers a well-formed icon with an MM textbox branch, unknown ids fall back to the icon-less textbox, and "
      "the real load, header decode and draw carry it (#607)",
      Test_ForeignTextboxIcon},
+    {"foreign-model",
+     "A foreign item's get-item model is answered by its origin game: every draw row and progression item of both "
+     "games classifies to a descriptor of its own display lists, a host-native model or a named no-model, "
+     "descriptors round-trip, and the collision table matches both asset trees (#577 M2)",
+     Test_ForeignModel},
     {"combo-crossing-views",
      "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
      "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",
