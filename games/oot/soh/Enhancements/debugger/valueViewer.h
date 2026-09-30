@@ -33,7 +33,7 @@ typedef struct {
     uint32_t y;
 } ValueTableElement;
 
-class ValueViewerWindow final : public Ship::GuiWindow {
+class ValueViewerWindow : public Ship::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
 
