@@ -31,18 +31,56 @@
  *
  * WHAT IT NEVER DOES: read the save, a CVar or any live state. The answer is a
  * pure function of static tables (ForeignModel row).
+ *
+ * THE HOST SIDE (#577 M3), below the source: MM draws an OoT item's model in
+ * its own get-item cutscene. CheckQueue's foreign draw asks
+ * Rando::Foreign::DrawForeignModelForCheck (ForeignModel.h), which takes OoT's
+ * DESCRIPTOR for the item the check hosts and re-expresses its shape with MM's
+ * own primitives (setup list, texture scrolls, colours, matrices), naming each
+ * display list by its path. Anything else (no placement, no model, a colliding
+ * model MM has no host-native row for, a path no mounted archive holds) draws
+ * nothing and leaves CheckQueue's model-less stand-in.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <initializer_list>
+#include <iterator>
+#include <string>
+#include <variant>
+#include <vector>
+
+#include <ship/Context.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/ArchiveManager.h>
 
 #include "2s2h/Rando/Rando.h"
+#include "2s2h/Rando/ForeignModel.h"
+// C linkage for the frame-interpolation calls OPEN_DISPS / CLOSE_DISPS make.
+#include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
+// Test bridges only: the ForeignModel row drives CheckQueue's real foreign draw.
+#include "2s2h/CustomItem/CustomItem.h"
+#include "2s2h/CustomMessage/CustomMessage.h"
+#include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Rando/MiscBehavior/MiscBehavior.h"
+
+extern "C" {
+#include "variables.h" // MM_gPlayState, MM_sMatrixStack, MM_sCurrentMatrix
+#include "functions.h"
+}
+
+// CustomMessage.cpp's file-scope message (the test bridge restores it).
+extern CustomMessage::Entry activeCustomMessage;
 
 // src/common. Outside any extern "C" block: each header manages its own linkage.
 #include "context.h"
+#include "crossing_store.h"
+#include "foreign_items.h"
 #include "foreign_model.h"
 
 typedef void (*MMGetItemDrawFn)(PlayState*, s16);
@@ -405,6 +443,477 @@ extern "C" const char* MM_ComboModel_TestItemReason(uint16_t id) {
     ComboModel model;
     const char* reason = nullptr;
     return ModelForItem(id, &model, &reason) == 1 ? nullptr : reason;
+}
+
+// ============================================================================
+// THE HOST SIDE (#577 M3): an OoT item's model in MM's get-item cutscene
+// ============================================================================
+
+namespace {
+
+// TEST ONLY: -1 = ask the archive manager; 0 / 1 = answer that.
+int sModelMountOverride = -1;
+// TEST ONLY: emit each part's path as the display-list pointer without loading
+// it, so a ROM-free row can read the emitted lists back.
+bool sModelEmitUnresolved = false;
+
+bool ModelPathMounted(const char* dl) {
+    if (sModelMountOverride >= 0) {
+        return sModelMountOverride == 1;
+    }
+    static const char kOtr[] = "__OTR__";
+    if (dl == nullptr || std::strncmp(dl, kOtr, sizeof(kOtr) - 1) != 0) {
+        return false;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr) {
+        return false;
+    }
+    auto archives = ctx->GetResourceManager()->GetArchiveManager();
+    // oot.o2r is mounted from OoT's first boot on (rsbs/src/main.cpp,
+    // Combo_EnsureGameArchivesLoaded); an MM-first session that never entered
+    // OoT answers no here and keeps the stand-in rather than loading a path
+    // nothing resolves.
+    return archives != nullptr && archives->HasFile(std::string(dl + sizeof(kOtr) - 1));
+}
+
+bool ModelMounted(const ComboModel& model) {
+    for (uint8_t i = 0; i < model.partCount; i++) {
+        if (!ModelPathMounted(model.parts[i].dl)) {
+            return false;
+        }
+    }
+    return model.partCount > 0;
+}
+
+void EmitPart(Gfx* pkt, const char* dl) {
+    Gfx* list = reinterpret_cast<Gfx*>(const_cast<char*>(dl));
+    if (sModelEmitUnresolved) {
+        __gSPDisplayList(pkt, list);
+    } else {
+        MM_gSPDisplayList(pkt, list);
+    }
+}
+
+} // namespace
+
+// At global scope, not in the anonymous namespace: OPEN_DISPS / CLOSE_DISPS
+// re-declare the frame-interpolation calls at block scope, and inside a
+// namespace that declaration names a C++-linkage function of that namespace
+// instead of the extern "C" one FrameInterpolation.h declares.
+
+/**
+ * One layer of the descriptor, in the order both games' z_draw.c emit it: the
+ * setup list, the layer's scrolling segments, its colours (and the grayscale
+ * tint), the matrix, the plain parts, then the camera-facing parts under their
+ * offset and the billboard rotation.
+ */
+static void ForeignModel_DrawLayer(PlayState* play, const ComboModel& model, uint8_t layer) {
+    const uint8_t setup = layer == kOpa ? model.opaSetupDl : model.xluSetupDl;
+    if (setup == 0) {
+        return; // no part on this layer (Combo_ModelIsWellFormed)
+    }
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    const s32 frames = (s32)play->state.frames;
+    const ComboModelColor& color = layer == kOpa ? model.opaColor : model.xluColor;
+
+    OPEN_DISPS(gfxCtx);
+    Gfx*& disp = layer == kOpa ? POLY_OPA_DISP : POLY_XLU_DISP;
+
+    disp = MM_Gfx_SetupDL(disp, setup);
+    for (const ComboModelScroll& s : model.scrolls) {
+        if (s.segment == 0 || s.layer != layer) {
+            continue;
+        }
+        Gfx* tex = s.twoTiles ? MM_Gfx_TwoTexScroll(gfxCtx, G_TX_RENDERTILE, (u32)(s.x1 + s.x1PerFrame * frames),
+                                                    (u32)(s.y1 + s.y1PerFrame * frames), s.w1, s.h1, 1,
+                                                    (u32)(s.x2 + s.x2PerFrame * frames),
+                                                    (u32)(s.y2 + s.y2PerFrame * frames), s.w2, s.h2)
+                              : MM_Gfx_TexScroll(gfxCtx, (u32)(s.x1 + s.x1PerFrame * frames),
+                                                 (u32)(s.y1 + s.y1PerFrame * frames), s.w1, s.h1);
+        MM_gSPSegment(disp++, s.segment, (uintptr_t)tex);
+    }
+    if (color.set) {
+        gDPSetPrimColor(disp++, 0, color.primLodFrac, color.prim[0], color.prim[1], color.prim[2], 255);
+        gDPSetEnvColor(disp++, color.env[0], color.env[1], color.env[2], 255);
+    }
+    if (model.grayscale) {
+        gDPSetGrayscaleColor(disp++, model.grayscaleRgb[0], model.grayscaleRgb[1], model.grayscaleRgb[2], 255);
+        gSPGrayscale(disp++, true);
+    }
+
+    MATRIX_FINALIZE_AND_LOAD(disp++, gfxCtx);
+    bool anyBillboard = false;
+    for (uint8_t i = 0; i < model.partCount; i++) {
+        const ComboModelPart& part = model.parts[i];
+        if (part.layer != layer) {
+            continue;
+        }
+        if (part.billboard) {
+            anyBillboard = true;
+            continue;
+        }
+        EmitPart(disp++, part.dl);
+    }
+    if (anyBillboard) {
+        MM_Matrix_Push();
+        MM_Matrix_Translate(model.billboardOffset[0], model.billboardOffset[1], model.billboardOffset[2],
+                            MTXMODE_APPLY);
+        MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+        MATRIX_FINALIZE_AND_LOAD(disp++, gfxCtx);
+        for (uint8_t i = 0; i < model.partCount; i++) {
+            const ComboModelPart& part = model.parts[i];
+            if (part.layer == layer && part.billboard) {
+                EmitPart(disp++, part.dl);
+            }
+        }
+        MM_Matrix_Pop();
+    }
+    if (model.grayscale) {
+        gSPGrayscale(disp++, false);
+    }
+
+    CLOSE_DISPS(gfxCtx);
+}
+
+/** The descriptor under the current matrix: its own scale, then its rotation
+ *  (foreign_model.h), then both layers. */
+static void ForeignModel_Draw(PlayState* play, const ComboModel& model) {
+    MM_Matrix_Push();
+    if (model.scale != 1.0f) {
+        MM_Matrix_Scale(model.scale, model.scale, model.scale, MTXMODE_APPLY);
+    }
+    if (model.rotation[0] != 0 || model.rotation[1] != 0 || model.rotation[2] != 0) {
+        MM_Matrix_RotateZYX(model.rotation[0], model.rotation[1], model.rotation[2], MTXMODE_APPLY);
+    }
+    ForeignModel_DrawLayer(play, model, kOpa);
+    ForeignModel_DrawLayer(play, model, kXlu);
+    MM_Matrix_Pop();
+}
+
+namespace {
+
+/** The drawable model of the foreign item `checkId` hosts: a DESCRIPTOR whose
+ *  every path a mounted archive holds. HOST_NATIVE answers draw nothing here
+ *  yet: MM's host-native table is empty until #577 M7 adds its rows. */
+bool ForeignModelForCheck(RandoCheckId checkId, ComboModel* out) {
+    Combo_ModelInit(out);
+    if (checkId == RC_UNKNOWN) {
+        return false;
+    }
+    const SharedItem* item = Combo_GetForeignPlacementForCheck((uint16_t)checkId);
+    ComboModelAnswer answer;
+    if (item == nullptr ||
+        Combo_GetForeignItemModel((uint8_t)GAME_MM, *item, &answer) != COMBO_MODEL_ANSWER_DESCRIPTOR ||
+        !ModelMounted(answer.model)) {
+        return false;
+    }
+    *out = answer.model;
+    return true;
+}
+
+} // namespace
+
+namespace Rando {
+namespace Foreign {
+
+bool DrawForeignModelForCheck(RandoCheckId randoCheckId, PlayState* play) {
+    ComboModel model;
+    if (play == nullptr || !ForeignModelForCheck(randoCheckId, &model)) {
+        return false;
+    }
+    ForeignModel_Draw(play, model);
+    return true;
+}
+
+} // namespace Foreign
+} // namespace Rando
+
+// ---- TEST BRIDGES (ForeignModel row M10, src/common/tests/test_foreign_model.c)
+
+extern "C" void MM_ForeignModel_TestSetMountOverride(int value) {
+    sModelMountOverride = value;
+}
+
+/** ModelPathMounted with the override cleared: the PRODUCTION branch. */
+extern "C" int MM_ForeignModel_TestPathMountedReal(const char* dl) {
+    const int saved = sModelMountOverride;
+    sModelMountOverride = -1;
+    const bool mounted = ModelPathMounted(dl);
+    sModelMountOverride = saved;
+    return mounted ? 1 : 0;
+}
+
+namespace {
+
+#define FMD_EXPECT(cond, ...)                                         \
+    do {                                                              \
+        if (!(cond)) {                                                \
+            std::printf("[TEST] FAIL (%s:%d): ", __FILE__, __LINE__); \
+            std::printf(__VA_ARGS__);                                 \
+            std::printf("\n");                                        \
+            return false;                                             \
+        }                                                             \
+    } while (0)
+
+/** A PlayState with a real GraphicsContext (three arenas) and a real matrix
+ *  stack, so MM's own draw primitives run unmodified; everything it replaces
+ *  is restored on destruction. */
+struct FakeDrawPlay {
+    PlayState* play = nullptr;
+    GraphicsContext* gfxCtx = nullptr;
+    std::vector<Gfx> opa = std::vector<Gfx>(4096);
+    std::vector<Gfx> xlu = std::vector<Gfx>(1024);
+    std::vector<Gfx> overlay = std::vector<Gfx>(64);
+    MtxF stack[20];
+    PlayState* savedPlay = nullptr;
+    MtxF* savedStack = nullptr;
+    MtxF* savedCurrent = nullptr;
+
+    static void InitArena(TwoHeadGfxArena* arena, std::vector<Gfx>& buf) {
+        arena->size = buf.size() * sizeof(Gfx);
+        arena->start = buf.data();
+        arena->p = buf.data();
+        arena->d = buf.data() + buf.size();
+    }
+    static void Identity(MtxF* m) {
+        std::memset(m, 0, sizeof(*m));
+        for (int i = 0; i < 4; i++) {
+            m->mf[i][i] = 1.0f;
+        }
+    }
+
+    FakeDrawPlay() {
+        play = (PlayState*)std::calloc(1, sizeof(PlayState));
+        gfxCtx = (GraphicsContext*)std::calloc(1, sizeof(GraphicsContext));
+        InitArena(&gfxCtx->polyOpa, opa);
+        InitArena(&gfxCtx->polyXlu, xlu);
+        InitArena(&gfxCtx->overlay, overlay);
+        play->state.gfxCtx = gfxCtx;
+        play->state.frames = 7;
+        Identity(&play->billboardMtxF);
+        savedPlay = MM_gPlayState;
+        MM_gPlayState = play;
+        savedStack = MM_sMatrixStack;
+        savedCurrent = MM_sCurrentMatrix;
+        MM_sMatrixStack = stack;
+        MM_sCurrentMatrix = stack;
+        Identity(&stack[0]);
+    }
+    ~FakeDrawPlay() {
+        MM_sMatrixStack = savedStack;
+        MM_sCurrentMatrix = savedCurrent;
+        MM_gPlayState = savedPlay;
+        std::free(gfxCtx);
+        std::free(play);
+    }
+};
+
+/** What one layer's command list carries, read back word by word. */
+struct LayerRead {
+    std::vector<const char*> parts; // G_DL targets that are "__OTR__" paths, in order
+    bool setupSeen = false;         // the layer's setup list
+    bool matrixBeforeFirstPart = false;
+    std::vector<int> segments;      // G_MW_SEGMENT indices
+    std::vector<uint32_t> primRgba; // G_SETPRIMCOLOR colour words
+    std::vector<uint32_t> primLod;  // ... and their LOD fractions
+    std::vector<uint32_t> envRgba;  // G_SETENVCOLOR colour words
+};
+
+LayerRead ReadLayer(const Gfx* begin, const Gfx* end, uint8_t setupDl) {
+    LayerRead read;
+    uintptr_t setupTarget = 0;
+    if (setupDl != 0) {
+        Gfx ref[8] = {};
+        MM_Gfx_SetupDL(ref, setupDl);
+        setupTarget = (uintptr_t)ref[0].words.w1;
+    }
+    bool matrixSeen = false;
+    for (const Gfx* g = begin; g < end; g++) {
+        const uint32_t w0 = (uint32_t)g->words.w0;
+        const uintptr_t w1 = (uintptr_t)g->words.w1;
+        const uint32_t op = (w0 >> 24) & 0xFF;
+        if (op == (uint32_t)(uint8_t)G_DL && w1 != 0) {
+            if (setupTarget != 0 && w1 == setupTarget) {
+                read.setupSeen = true;
+            } else if (std::memcmp((const void*)w1, "__OTR__", 7) == 0) {
+                if (read.parts.empty()) {
+                    read.matrixBeforeFirstPart = matrixSeen;
+                }
+                read.parts.push_back((const char*)w1);
+            }
+        } else if (op == (uint32_t)(uint8_t)G_MTX) {
+            matrixSeen = true;
+        } else if (op == (uint32_t)(uint8_t)G_MOVEWORD && ((w0 >> 16) & 0xFF) == G_MW_SEGMENT) {
+            read.segments.push_back((int)((w0 & 0xFFFF) / 4));
+        } else if (op == (uint32_t)(uint8_t)G_SETPRIMCOLOR) {
+            read.primRgba.push_back((uint32_t)w1);
+            read.primLod.push_back(w0 & 0xFF);
+        } else if (op == (uint32_t)(uint8_t)G_SETENVCOLOR) {
+            read.envRgba.push_back((uint32_t)w1);
+        }
+    }
+    return read;
+}
+
+uint32_t Rgba(const uint8_t rgb[3]) {
+    return ((uint32_t)rgb[0] << 24) | ((uint32_t)rgb[1] << 16) | ((uint32_t)rgb[2] << 8) | 0xFF;
+}
+
+bool LayerMatches(const char* name, const LayerRead& read, const ComboModel* want, uint8_t layer) {
+    std::vector<const char*> expected;
+    if (want != nullptr) {
+        for (uint8_t i = 0; i < want->partCount; i++) {
+            if (want->parts[i].layer == layer) {
+                expected.push_back(want->parts[i].dl);
+            }
+        }
+    }
+    std::printf("[TEST]   %s: %zu model list(s) emitted, %zu expected%s%s\n", name, read.parts.size(), expected.size(),
+                read.parts.empty() ? "" : ", first ", read.parts.empty() ? "" : read.parts[0]);
+    FMD_EXPECT(read.parts == expected, "Q3 %s: the draw emitted %zu model list(s), want %zu (in the model's order)",
+               name, read.parts.size(), expected.size());
+    if (expected.empty()) {
+        return true;
+    }
+    const uint8_t setup = layer == kOpa ? want->opaSetupDl : want->xluSetupDl;
+    FMD_EXPECT(read.setupSeen, "Q3 %s: setup list %d not emitted", name, (int)setup);
+    FMD_EXPECT(read.matrixBeforeFirstPart, "Q3 %s: no matrix loaded before the first model list", name);
+    for (const ComboModelScroll& s : want->scrolls) {
+        if (s.segment != 0 && s.layer == layer) {
+            FMD_EXPECT(std::find(read.segments.begin(), read.segments.end(), (int)s.segment) != read.segments.end(),
+                       "Q3 %s: the scroll on segment %d is not bound", name, (int)s.segment);
+        }
+    }
+    const ComboModelColor& c = layer == kOpa ? want->opaColor : want->xluColor;
+    if (c.set) {
+        bool prim = false;
+        for (size_t i = 0; i < read.primRgba.size(); i++) {
+            prim |= read.primRgba[i] == Rgba(c.prim) && read.primLod[i] == c.primLodFrac;
+        }
+        FMD_EXPECT(prim, "Q3 %s: prim colour %d,%d,%d (lod %d) not set", name, c.prim[0], c.prim[1], c.prim[2],
+                   c.primLodFrac);
+        FMD_EXPECT(std::find(read.envRgba.begin(), read.envRgba.end(), Rgba(c.env)) != read.envRgba.end(),
+                   "Q3 %s: env colour %d,%d,%d not set", name, c.env[0], c.env[1], c.env[2]);
+    }
+    return true;
+}
+
+/**
+ * CheckQueue's REAL foreign give-and-draw. Marks `mmCheckId` eligible, lets
+ * Rando::MiscBehavior::CheckQueue() queue its GIEventGiveItem, runs the event's
+ * giveItem against a fake item00 actor exactly as CustomItem does (the give
+ * fires before the item is shown), then the event's drawItem into a real MM
+ * GraphicsContext, and reads both layers back. `want` null: the stand-in, which
+ * emits no model list at all.
+ */
+bool RunCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want) {
+    struct Restore {
+        std::vector<RandoSaveCheck> checks;
+        std::vector<GIEvent> queue;
+        GIEvent current;
+        CustomMessage::Entry active;
+        Restore()
+            : checks(std::begin(RANDO_SAVE_CHECKS), std::end(RANDO_SAVE_CHECKS)), queue(MM_GameEvents_Queue()),
+              current(MM_GameEvents_Current()), active(activeCustomMessage) {
+        }
+        ~Restore() {
+            Rando::MiscBehavior::CheckQueueReset();
+            std::copy(checks.begin(), checks.end(), std::begin(RANDO_SAVE_CHECKS));
+            MM_GameEvents_Queue() = queue;
+            MM_GameEvents_Current() = current;
+            activeCustomMessage = active;
+            sModelEmitUnresolved = false;
+        }
+    } restore;
+
+    for (RandoSaveCheck& check : RANDO_SAVE_CHECKS) {
+        check.eligible = false;
+    }
+    RANDO_SAVE_CHECKS[mmCheckId].eligible = true;
+    // Pre-set on the host so RecordForeignPickup authors no durable record.
+    RANDO_SAVE_CHECKS[mmCheckId].obtained = true;
+    Rando::MiscBehavior::CheckQueueReset();
+
+    Rando::MiscBehavior::CheckQueue();
+    std::vector<GIEvent>& queue = MM_GameEvents_Queue();
+    FMD_EXPECT(queue.size() == 1, "Q1 CheckQueue queued %zu events for the eligible foreign host, want 1",
+               queue.size());
+    GIEventGiveItem* give = std::get_if<GIEventGiveItem>(&queue.back());
+    FMD_EXPECT(give != nullptr && give->giveItem != nullptr && give->drawItem != nullptr,
+               "Q1 the queued event is not a GIEventGiveItem with a give and a draw");
+    FMD_EXPECT(give->param == (s16)mmCheckId && give->showGetItemCutscene,
+               "Q1 the event is not the foreign branch's (param %d, cutscene %d)", (int)give->param,
+               (int)give->showGetItemCutscene);
+
+    FakeDrawPlay fake;
+    Actor item00;
+    std::memset(&item00, 0, sizeof(item00));
+    {
+        Actor* actor = &item00; // the CUSTOM_ITEM_* macros name `actor`
+        CUSTOM_ITEM_PARAM = (s16)mmCheckId;
+        CUSTOM_ITEM_FLAGS = CustomItem::GIVE_ITEM_CUTSCENE;
+    }
+    give->giveItem(&item00, fake.play);
+    {
+        Actor* actor = &item00;
+        CUSTOM_ITEM_FLAGS |= CustomItem::CALLED_ACTION; // what CustomItem00_Update sets after the give
+    }
+
+    sModelEmitUnresolved = true;
+    give->drawItem(&item00, fake.play);
+    sModelEmitUnresolved = false;
+
+    FMD_EXPECT(MM_sCurrentMatrix == fake.stack, "Q2 the draw left the matrix stack unbalanced");
+    const LayerRead opa = ReadLayer(fake.opa.data(), fake.gfxCtx->polyOpa.p, want != nullptr ? want->opaSetupDl : 0);
+    const LayerRead xlu = ReadLayer(fake.xlu.data(), fake.gfxCtx->polyXlu.p, want != nullptr ? want->xluSetupDl : 0);
+    if (!LayerMatches("OPA", opa, want, kOpa) || !LayerMatches("XLU", xlu, want, kXlu)) {
+        return false;
+    }
+    return true;
+}
+
+#undef FMD_EXPECT
+
+} // namespace
+
+/**
+ * The #577 M3 playtest drive (GameExports_SingleExe.cpp, gameplay round-trip,
+ * RSBS_GP_MM_FOREIGN_MODEL=1, 100 live frames into the MM play window): the
+ * first OoT item the paired world's crossing
+ * store placed on an MM check, not yet obtained, whose model MM can draw right
+ * now. Its check is marked eligible, exactly as walking up to it would, so
+ * CheckQueue queues the real foreign give and the get-item cutscene follows.
+ * Returns the check id, or 0 when the world has no such crossing.
+ */
+extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
+    const int count = Combo_Crossings_Count(GAME_MM);
+    for (int i = 0; i < count; i++) {
+        ComboCrossing crossing;
+        ComboModel model;
+        if (!Combo_Crossings_At(GAME_MM, i, &crossing) || crossing.hostCheck >= RC_MAX ||
+            RANDO_SAVE_CHECKS[crossing.hostCheck].obtained ||
+            !ForeignModelForCheck((RandoCheckId)crossing.hostCheck, &model)) {
+            continue;
+        }
+        RANDO_SAVE_CHECKS[crossing.hostCheck].eligible = true;
+        std::fprintf(stderr,
+                     "[M3-PLAYTEST] armed MM check %u (%s) hosting OoT item %u: %u part(s), first %s (crossing %d of "
+                     "%d)\n",
+                     (unsigned)crossing.hostCheck, Rando::StaticData::CheckNames[crossing.hostCheck].c_str(),
+                     (unsigned)crossing.item.id, (unsigned)model.partCount, model.parts[0].dl, i + 1, count);
+        std::fflush(stderr);
+        return crossing.hostCheck;
+    }
+    std::fprintf(stderr, "[M3-PLAYTEST] no MM-hosted crossing of %d has a drawable OoT model\n", count);
+    std::fflush(stderr);
+    return 0;
+}
+
+/** CheckQueue's real foreign give and draw, end to end (RunCheckQueueDraw): 0 on
+ *  success. */
+extern "C" int MM_ForeignModel_TestCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want) {
+    return RunCheckQueueDraw(mmCheckId, want) ? 0 : 1;
 }
 
 namespace {

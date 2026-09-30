@@ -212,11 +212,21 @@ The nearest MM-side prior art, [MMRecompRando][mmrr], is **GPL-3.0** and was
 - **No build option is declared.** `RSBS_NETPLAY` is not introduced;
   `BUILD_REMOTE_CONTROL` remains undeclared. The default build is unaffected in
   the strongest available sense — no new sources, no new symbols, no new
-  submodules, docs only.
+  submodules, docs only. [corrected 2026-09-30, #460: true of this ADR's own
+  change, but no longer of the tree. ADR 0007 introduced
+  `option(RSBS_NETPLAY ... OFF)` (`CMakeLists.txt`) with #478 (`5cbbed7b`).
+  `BUILD_REMOTE_CONTROL` is still not declared as an `option()`, but the CI
+  build configures in `generate-builds.yml`, `link-check.yml`,
+  `test-builds-on-distros.yml` and `integration-tests.yml` pass
+  `-DBUILD_REMOTE_CONTROL=1`, so it is set in those builds.]
 - **No `.redsave` format change.** §3's carve is discarded; ADR 0005's stands
   alone.
 - **#460 stays open** for 1b, now blocked on a stated question (§4) rather than
-  on unstated ones.
+  on unstated ones. [corrected 2026-09-30, #460: the §4 question has been
+  answered *no*: Archipelago is a non-goal (maintainer decision on #460). ADR
+  0007 (`fd2d5802`, #474) took this ADR's "no" branch, and its relay client
+  landed behind `RSBS_NETPLAY` as #478. #460 stays open for the redemption
+  tick and a production owner for the client, not for this question.]
 - **ADR 0005 is unaffected** and remains the right thing to land: it is
   transport-agnostic, and every property it locks is needed under any answer to
   §4.

@@ -5047,7 +5047,8 @@ const TestDescriptor gTests[] = {
      Test_RelayCatchup},
     {"relay-backpressure", "A full array backpressures the relay without losing the grant (ADR 0007)",
      Test_RelayBackpressure},
-    {"relay-suspend-latch", "Suspend stops applying but not polling; resume drains in order (ADR 0007)",
+    {"relay-suspend-latch", "Suspend stops applying but not polling; resume drains in order; session "
+     "invalidation retires the inbox (ADR 0007)",
      Test_RelaySuspendLatch},
 #endif
     {"context", "Test context/state management", Test_Context},

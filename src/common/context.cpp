@@ -20,6 +20,11 @@
 // Combo_HasStartupEntrance() — the discriminator that keeps the return-to-title
 // hook from eating a cross-game arrival's blob.
 #include "entrance.h"
+#ifdef RSBS_NETPLAY
+// Relay_ClearSessionState / Relay_GetSessionClient — the relay's inbox is
+// session RAM and is retired from the one invalidation list below (#460).
+#include "netplay/relay_client.h"
+#endif
 
 // The unified save's session-scoped active slot. Declared rather than pulled in
 // via save.h so the context layer keeps no compile-time dependency on the save
@@ -397,6 +402,15 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // outbox is RAM-only and would otherwise drain into the NEXT session's
     // array at its first suspend.
     Combo_ClearSharedItemOutbox();
+
+#ifdef RSBS_NETPLAY
+    // The netplay relay's inbox is the same kind of RAM (ADR 0007 §5.2): grants
+    // received for the dead session but not yet submitted would otherwise be
+    // submitted into the next one. The dead session's cursor goes with the
+    // ComboContext_Init below, and this restarts the client's dense seq to
+    // match. No-op while no client is bound (Relay_SetSessionClient).
+    Relay_ClearSessionState(Relay_GetSessionClient());
+#endif
 
     // Same reasoning for the shared-resource watermarks (#525): RAM-only, they
     // describe how much of the dead session's pool was materialized in its live
