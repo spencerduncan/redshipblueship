@@ -2270,26 +2270,33 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # Each row wedges a real run with RSBS_INT_WEDGE (a 600 s sleep with no frame
     # completing) at one of the three places the per-frame watchdogs cannot see:
     # inside an OoT frame, inside main's OoT->MM hand-off, inside an MM frame.
-    # The row passes only when the watchdog names that stage and ends the run;
-    # without the thread the run reaches the 120 s CTest wall (the red half).
-    redship_add_test(NAME IntWatchdogWedgeOoTFrame
-        COMMAND redship --integration-test int-switch-oot-hms-to-mm
-        LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
-        ENVIRONMENT "RSBS_INT_WEDGE=oot;RSBS_INT_WEDGE_FRAME=10;RSBS_INT_WATCHDOG_SECS=15")
-    set_tests_properties(IntWatchdogWedgeOoTFrame PROPERTIES
-        PASS_REGULAR_EXPRESSION "\\[INT-WATCHDOG\\] FAIL [^\n]*last stage: OoT frame")
-    redship_add_test(NAME IntWatchdogWedgeHandoff
-        COMMAND redship --integration-test int-switch-oot-hms-to-mm
-        LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
-        ENVIRONMENT "RSBS_INT_WEDGE=handoff;RSBS_INT_WATCHDOG_SECS=15")
-    set_tests_properties(IntWatchdogWedgeHandoff PROPERTIES
-        PASS_REGULAR_EXPRESSION "\\[INT-WATCHDOG\\] FAIL [^\n]*last stage: hand-off to MM")
-    redship_add_test(NAME IntWatchdogWedgeMMFrame
-        COMMAND redship --integration-test int-boot-mm
-        LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
-        ENVIRONMENT "RSBS_INT_WEDGE=mm;RSBS_INT_WEDGE_FRAME=5;RSBS_INT_WATCHDOG_SECS=15")
-    set_tests_properties(IntWatchdogWedgeMMFrame PROPERTIES
-        PASS_REGULAR_EXPRESSION "\\[INT-WATCHDOG\\] FAIL [^\n]*last stage: MM frame")
+    # The row passes only when the watchdog names that stage AND ends the run with
+    # INT_WATCHDOG_EXIT_CODE (3): CMake/CheckIntWatchdogExit.cmake asserts both,
+    # because a PASS_REGULAR_EXPRESSION alone would ignore the exit code and a
+    # watchdog exiting 0 would turn a real wedge in a plain row into a pass.
+    # Without the thread the run reaches the CTest wall (the red half).
+    math(EXPR _int_watchdog_run_timeout "${REDSHIP_INTEGRATION_TEST_TIMEOUT} - 10")
+    foreach(_wedge
+            "IntWatchdogWedgeOoTFrame|int-switch-oot-hms-to-mm|OoT frame|RSBS_INT_WEDGE=oot;RSBS_INT_WEDGE_FRAME=10"
+            "IntWatchdogWedgeHandoff|int-switch-oot-hms-to-mm|hand-off to MM|RSBS_INT_WEDGE=handoff"
+            "IntWatchdogWedgeMMFrame|int-boot-mm|MM frame|RSBS_INT_WEDGE=mm;RSBS_INT_WEDGE_FRAME=5")
+        string(REPLACE "|" ";" _wedge_fields "${_wedge}")
+        list(GET _wedge_fields 0 _wedge_name)
+        list(GET _wedge_fields 1 _wedge_mode)
+        list(GET _wedge_fields 2 _wedge_stage)
+        list(SUBLIST _wedge_fields 3 -1 _wedge_env)
+        redship_add_test(NAME ${_wedge_name}
+            COMMAND ${CMAKE_COMMAND}
+                    -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                    -DWORK_DIR=${CMAKE_BINARY_DIR}
+                    -DMODE=${_wedge_mode}
+                    "-DEXPECT_STAGE=${_wedge_stage}"
+                    -DEXPECT_RC=3
+                    -DRUN_TIMEOUT=${_int_watchdog_run_timeout}
+                    -P ${CMAKE_CURRENT_LIST_DIR}/CheckIntWatchdogExit.cmake
+            LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT}
+            ENVIRONMENT ${_wedge_env} "RSBS_INT_WATCHDOG_SECS=15")
+    endforeach()
 
     # Gameplay round-trip crash repro (docs/ci-gameplay-repro-postmortem.md):
     # the programmatic version of the operator's manual repro — debug save,
