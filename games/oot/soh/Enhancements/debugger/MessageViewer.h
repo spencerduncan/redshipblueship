@@ -25,7 +25,7 @@ void MessageDebug_DisplayCustomMessage(const char* customMessage);
 #ifdef __cplusplus
 }
 
-class MessageViewer final : public Ship::GuiWindow {
+class MessageViewer : public Ship::GuiWindow {
   public:
     static inline const char* TABLE_ID = "MessageViewer";
     using GuiWindow::GuiWindow;

@@ -99,8 +99,15 @@ one; netplay is much closer than "nothing exists."**
   window instantiation is stranded in `BenGui.cpp`, whose only caller is the excluded
   `BenPort.cpp`.
 - **Across a switch nothing touches the Gui**: suspend/resume is audio+graph only. An
-  open SohMenu and OoT's tracker windows persist over MM and go *dormant* (not wrong)
-  because every tracker gates on `IsSaveLoaded`.
+  open SohMenu and OoT's windows persist over MM. They were *not* all dormant: only
+  paths behind `IsSaveLoaded` were, and several were not behind it. The Save Editor's
+  Info tab wrote MM's live save (health clamp, `magicCapacity`/magic clamp) on every
+  drawn frame, including through the Port Menu's embed of a closed window; the Message
+  Viewer dereferenced a null play state; Time Splits wrote its stats block; the item
+  tracker, Gameplay Stats and Value Viewer showed MM's bytes through OoT's layout.
+  Since #797 those eight windows are built through `OoTActiveGated<>`
+  (`SohGui/OoTActiveGated.h`): their Draw, Update and menu-embed paths run only while
+  OoT is the running game, and they stay open-but-undrawn over MM.
 - **CVar store is shared, and collides.** One `shipofharkinian.json`, overlapping
   upstream prefixes, with exact key collisions — `gCheats.{InfiniteHealth, InfiniteMagic,
   MoonJumpOnL, NoClip, EasyFrameAdvance}` are used by *both* games. This is defused
