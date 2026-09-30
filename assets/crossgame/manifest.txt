@@ -1,20 +1,31 @@
-# Curated cross-game asset manifest -- the contents of redship.o2r (#577).
+# Curated cross-game asset manifest -- the contents of redship-oot.o2r and
+# redship-mm.o2r (#577 M1).
 #
-# Format: <game> <archive-path-prefix>
-#   game   = the archive the resources are carved OUT of (oot | mm)
-#   prefix = a path prefix in that archive; end it with '/' to take a whole
-#            object directory
+# Format: <source>-><host> <archive-path-prefix>
+#   source = the archive the resources are carved OUT of (oot | mm)
+#   host   = the game that DRAWS them, which names the half they land in:
+#              mm->oot  ->  redship-oot.o2r  (MM content OoT draws)
+#              oot->mm  ->  redship-mm.o2r   (OoT content MM draws)
+#   prefix = a path prefix in the source archive; end it with '/' to take a
+#            whole object directory
+#
+# Each half carries its HOST's identity at runtime: rsbs/src/main.cpp mounts the
+# host's half right after the host's base archives (and before its mods), and
+# records redship-mm.o2r through MM's RecordMMArchivePath, so the per-archive
+# factory dispatcher parses it as MM's.  Both halves must be non-empty.
 #
 # Paths are copied VERBATIM (see scripts/make_redship_otr.py for why), so every
-# entry here must be absent from the other game's archive.  The generator hard
-# -fails on a collision rather than shipping an order-dependent archive.
+# entry here must be absent from its host's archive.  The generator hard-fails
+# on a collision rather than shipping an order-dependent archive.  Colliding
+# get-item objects are #577 M7's host-native mapping, not curated copies.
 #
 # It also hard-fails on Room/scene, Cutscene and Path resources.  Those three
 # loader slots are resolved by OWNING ARCHIVE in single-exe builds
 # (RsbsMMArchiveFactoryDispatcher, games/mm/2s2h/GameExports_SingleExe.cpp) and
-# redship.o2r is registered as neither game's archive, so anything of those
-# types carried here would be parsed with the wrong game's reader.  Models are
-# unaffected -- no model resource type is dispatched that way.
+# each half is registered as its HOST's archive while its content was exported
+# by the other game, so anything of those types carried here would be parsed
+# with the wrong game's reader.  Models are unaffected -- no model resource type
+# is dispatched that way.
 #
 # Two further hard-fails guard the properties that make a model safe to draw
 # under the OTHER game.  Neither is a style rule; both refuse the build and
@@ -36,13 +47,22 @@
 # re-examination, 2026-07-31): 313 MM-exclusive object directories, 230
 # OoT-exclusive, including all 24 `object_mask_*`.  Headroom is NOT the same
 # as admissibility -- a collision-free object can still be refused by either
-# guard above.
+# guard above.  Curating the real sets is #577 M6; the two entries below are
+# the seeds that make each half exist.
 #
-# --- spike scope (#577) -------------------------------------------------------
+# --- mm->oot: redship-oot.o2r (spike scope, #577) ------------------------------
 # One MM-exclusive model, chosen because it is the smallest interesting case:
 # 5,016 bytes across three resources, and its display list is fully
 # self-contained -- every G_SETTIMG/G_VTX reference in
 # object_mask_truth_DL_0001A0 resolves to a path inside this same directory,
 # with zero references into gameplay_keep or any other shared segment.  That is
 # what makes it the right probe for the segment-0x04 divergence question.
-mm objects/object_mask_truth/
+mm->oot objects/object_mask_truth/
+#
+# --- oot->mm: redship-mm.o2r (M1 seed) -----------------------------------------
+# One OoT-exclusive get-item model, so the MM half is a real archive the runtime
+# mounts and records as MM's: the Megaton Hammer, two resources (a display list
+# and its vertex array), no texture, no raw segmented reference.  All 36
+# OoT-exclusive `object_gi_*` directories pass every guard today (measured
+# 2026-09-30); M6 curates the set.
+oot->mm objects/object_gi_hammer/

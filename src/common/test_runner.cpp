@@ -2902,13 +2902,14 @@ TestResult Test_CrossGameModel(void) {
         return TEST_FAIL;
     }
 
-    // The curated cross-game archive is produced by GenerateRedshipOtr, which
-    // needs BOTH games extracted. A tree that has not run it (or the tier's
-    // deliberate archive-less control run) skips rather than going red — the
-    // same convention as ZipContention.
-    const std::string crossGameArchive = Ship::Context::LocateFileAcrossAppDirs("redship.o2r");
+    // OoT's curated cross-game half (redship-oot.o2r: the MM-origin content OoT
+    // draws, #577 M1) is produced by GenerateRedshipOtr, which needs BOTH games
+    // extracted. A tree that has not run it (or the tier's deliberate
+    // archive-less control run) skips rather than going red — the same
+    // convention as ZipContention.
+    const std::string crossGameArchive = Ship::Context::LocateFileAcrossAppDirs("redship-oot.o2r");
     if (!std::filesystem::exists(crossGameArchive)) {
-        printf("[TEST] SKIP: no redship.o2r resolvable (tried '%s') — run the GenerateRedshipOtr target "
+        printf("[TEST] SKIP: no redship-oot.o2r resolvable (tried '%s') — run the GenerateRedshipOtr target "
                "(needs both oot.o2r and mm.o2r extracted) to arm this row (#577)\n",
                crossGameArchive.c_str());
         return TEST_SKIP;
@@ -2920,10 +2921,12 @@ TestResult Test_CrossGameModel(void) {
     }
 
     // ONLY OoT has been brought up at this point: the bring-up mounts soh.o2r
-    // and nothing else. Mounting the curated archive here is what makes an
-    // MM-exclusive path reachable, through the same
-    // ArchiveManager::AddArchive call a runtime mount would use — nothing in
-    // rsbs/ mounts redship.o2r yet, so this row is its only consumer. If this
+    // and nothing else. Mounting the curated half here is what makes an
+    // MM-exclusive path reachable. The runtime mounts it through
+    // Combo_EnsureGameArchivesLoaded / Combo_MountCuratedArchive (rsbs/src/
+    // main.cpp, whose mount and identity the curated-archive-mount row locks);
+    // this row mounts it with the same ArchiveManager::AddArchive call so that
+    // what it proves is the MODEL's drawability, independent of those. If this
     // row ever passes without this mount, the lock has gone vacuous.
     auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
     if (archiveManager == nullptr || archiveManager->AddArchive(crossGameArchive) == nullptr) {

@@ -44,9 +44,10 @@
  *     `gLinkZoraHeadDL` carries four raw segmented references of its own.
  *     Measured over both full archives, it is the ONLY one of 8,047 array
  *     resources on which the two factories disagree.
- *   - Positive control: the REAL shipped manifest (assets/crossgame/manifest.txt,
- *     object_mask_truth -- zero raw segmented references, one Vertex array both
- *     factories read with identical code) must still build successfully.
+ *   - Positive control: the REAL shipped manifest (assets/crossgame/manifest.txt:
+ *     `mm->oot` object_mask_truth and `oot->mm` object_gi_hammer -- zero raw
+ *     segmented references, only Vertex arrays both factories read with
+ *     identical code) must still build BOTH halves (#577 M1).
  *     Without this leg, a generator that refused EVERYTHING would pass both
  *     negative controls vacuously.
  *
@@ -72,7 +73,7 @@
 namespace {
 
 // Same resolution convention as CaoResolveArchive (test_curated_archive_order.c)
-// and CrossGameModel's redship.o2r lookup: try the app-dir search first, then
+// and CrossGameModel's redship-oot.o2r lookup: try the app-dir search first, then
 // the app-bundle-relative path, and treat anything that does not exist on disk
 // as absent.
 std::string CagResolveArchive(const char* filename) {
@@ -88,16 +89,32 @@ std::string CagResolveArchive(const char* filename) {
 }
 
 // Runs `pythonExe script --oot-archive ootArchive --mm-archive mmArchive
-// --manifest manifest --out outArchive` and returns its exit code (or -1 if
-// it could not be spawned). outArchive is removed first so a leftover from a
-// previous run cannot be mistaken for this run's output.
-int CagRunGenerator(const std::string& pythonExe, const std::string& script, const std::string& ootArchive,
-                    const std::string& mmArchive, const std::string& manifest, const std::string& outArchive) {
-    std::error_code ec;
-    std::filesystem::remove(outArchive, ec);
+// --manifest manifest --out-oot <outPrefix>-oot.o2r --out-mm <outPrefix>-mm.o2r`
+// (#577 M1: the generator writes the two per-direction halves) and returns its
+// exit code (or -1 if it could not be spawned). Both outputs are removed first
+// so a leftover from a previous run cannot be mistaken for this run's output.
+std::string CagOutPath(const std::string& outPrefix, const char* host) {
+    return outPrefix + "-" + host + ".o2r";
+}
 
-    std::vector<std::string> argStorage = { pythonExe, script,     "--oot-archive", ootArchive, "--mm-archive",
-                                            mmArchive,  "--manifest", manifest,      "--out",     outArchive };
+int CagRunGenerator(const std::string& pythonExe, const std::string& script, const std::string& ootArchive,
+                    const std::string& mmArchive, const std::string& manifest, const std::string& outPrefix) {
+    std::error_code ec;
+    std::filesystem::remove(CagOutPath(outPrefix, "oot"), ec);
+    std::filesystem::remove(CagOutPath(outPrefix, "mm"), ec);
+
+    std::vector<std::string> argStorage = { pythonExe,
+                                            script,
+                                            "--oot-archive",
+                                            ootArchive,
+                                            "--mm-archive",
+                                            mmArchive,
+                                            "--manifest",
+                                            manifest,
+                                            "--out-oot",
+                                            CagOutPath(outPrefix, "oot"),
+                                            "--out-mm",
+                                            CagOutPath(outPrefix, "mm") };
     std::vector<const char*> argv;
     argv.reserve(argStorage.size());
     for (const auto& arg : argStorage) {
@@ -123,8 +140,16 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
                                                     const char* mmArchive) {
     const std::string workDir = std::filesystem::current_path().generic_string();
     const std::string badManifestPath = workDir + "/rsbs_test_605_bad_manifest.txt";
-    const std::string badOutPath = workDir + "/rsbs_test_605_bad_out.o2r";
-    const std::string goodOutPath = workDir + "/rsbs_test_605_good_out.o2r";
+    const std::string badOutPrefix = workDir + "/rsbs_test_605_bad_out";
+    const std::string goodOutPrefix = workDir + "/rsbs_test_605_good_out";
+
+    // #577 M1: every manifest must fill BOTH halves or the generator refuses it
+    // as empty. Each negative control therefore carries this known-good
+    // `oot->mm` line (the shipped seed) next to its bad `mm->oot` one, so the
+    // only thing that can make it refuse is the guard under test -- a
+    // single-line manifest would be refused for the empty half and pass for
+    // the wrong reason.
+    static const char kCagGoodOoTToMMLine[] = "oot->mm objects/object_gi_hammer/\n";
 
     int failures = 0;
 
@@ -132,26 +157,29 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
     // generator on it, and require BOTH that it refuses and that it leaves no
     // output archive behind. `whatItProves` names the guard for the log.
     auto expectRefusal = [&](const char* label, const char* manifestLine, const char* whatItProves) {
-        if (!CagWriteFile(badManifestPath, manifestLine)) {
+        if (!CagWriteFile(badManifestPath, std::string(manifestLine) + kCagGoodOoTToMMLine)) {
             fprintf(stderr, "[curated-archive-generator] FAIL: could not write %s\n", badManifestPath.c_str());
             failures++;
             return;
         }
-        int rc = CagRunGenerator(pythonExe, generatorScript, ootArchive, mmArchive, badManifestPath, badOutPath);
+        int rc = CagRunGenerator(pythonExe, generatorScript, ootArchive, mmArchive, badManifestPath, badOutPrefix);
         printf("[curated-archive-generator] negative control (%s) rc=%d\n", label, rc);
         if (rc == 0) {
             fprintf(stderr, "[curated-archive-generator] FAIL: the generator ACCEPTED %s -- %s\n", label,
                     whatItProves);
             failures++;
         }
-        std::error_code ec;
-        if (std::filesystem::exists(badOutPath, ec)) {
-            fprintf(stderr,
-                    "[curated-archive-generator] FAIL: the generator wrote %s despite refusing -- a refusal must "
-                    "never leave a half-written archive behind\n",
-                    badOutPath.c_str());
-            failures++;
-            std::filesystem::remove(badOutPath, ec);
+        for (const char* host : { "oot", "mm" }) {
+            const std::string badOutPath = CagOutPath(badOutPrefix, host);
+            std::error_code ec;
+            if (std::filesystem::exists(badOutPath, ec)) {
+                fprintf(stderr,
+                        "[curated-archive-generator] FAIL: the generator wrote %s despite refusing -- a refusal must "
+                        "never leave a half-written archive behind\n",
+                        badOutPath.c_str());
+                failures++;
+                std::filesystem::remove(badOutPath, ec);
+            }
         }
     };
 
@@ -161,7 +189,7 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
     // the single display list (not the whole object_slime/ directory) keeps
     // this leg from also tripping the #602 collision guard over an unrelated
     // path, which would pass for the wrong reason.
-    expectRefusal("object_slime/gChuchuEyesDL", "mm objects/object_slime/gChuchuEyesDL\n",
+    expectRefusal("object_slime/gChuchuEyesDL", "mm->oot objects/object_slime/gChuchuEyesDL\n",
                   "it carries raw segmented texture references, which resolve against the HOST game's segment table "
                   "at draw time (#605) -- the raw-segmented admission guard is not wired up");
 
@@ -171,37 +199,44 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
     // has no X8 case and consumes zero. See the file comment for why a
     // refusal here can only be the #604 guard's doing.
     expectRefusal("object_link_zora/object_link_zora_U8_011710",
-                  "mm objects/object_link_zora/object_link_zora_U8_011710\n",
-                  "the two games' Array factories do not consume it identically, and the curated archive is in "
-                  "neither game's factory registry (#604) -- the reader-agreement guard is not wired up");
+                  "mm->oot objects/object_link_zora/object_link_zora_U8_011710\n",
+                  "the two games' Array factories do not consume it identically, and the curated half is parsed by "
+                  "its HOST's factory, not the exporting game's (#604) -- the reader-agreement guard is not wired "
+                  "up");
 
     // ---- Positive control: the real shipped manifest must still succeed ----
     // Without this leg, a generator that refused every manifest unconditionally
     // would pass both negative controls above for the wrong reason.
     {
-        int rc = CagRunGenerator(pythonExe, generatorScript, ootArchive, mmArchive, shippedManifest, goodOutPath);
+        int rc = CagRunGenerator(pythonExe, generatorScript, ootArchive, mmArchive, shippedManifest, goodOutPrefix);
         printf("[curated-archive-generator] positive control (shipped manifest) rc=%d\n", rc);
         if (rc != 0) {
             fprintf(stderr,
                     "[curated-archive-generator] FAIL: the generator refused the REAL shipped manifest (%s), which "
-                    "carries zero raw segmented references and one Vertex array both factories read with identical "
-                    "code -- a guard has a false positive\n",
+                    "carries zero raw segmented references and only Vertex arrays both factories read with "
+                    "identical code -- a guard has a false positive\n",
                     shippedManifest);
             failures++;
         }
-        std::error_code ec;
-        if (!std::filesystem::exists(goodOutPath, ec) || std::filesystem::file_size(goodOutPath, ec) == 0) {
-            fprintf(stderr, "[curated-archive-generator] FAIL: the positive control did not produce a non-empty %s\n",
-                    goodOutPath.c_str());
-            failures++;
+        for (const char* host : { "oot", "mm" }) {
+            const std::string goodOutPath = CagOutPath(goodOutPrefix, host);
+            std::error_code ec;
+            if (!std::filesystem::exists(goodOutPath, ec) || std::filesystem::file_size(goodOutPath, ec) == 0) {
+                fprintf(stderr,
+                        "[curated-archive-generator] FAIL: the positive control did not produce a non-empty %s\n",
+                        goodOutPath.c_str());
+                failures++;
+            }
         }
     }
 
     // Leave no fixtures behind for a later row (or a later run) to trip over.
     std::error_code ec;
     std::filesystem::remove(badManifestPath, ec);
-    std::filesystem::remove(badOutPath, ec);
-    std::filesystem::remove(goodOutPath, ec);
+    for (const char* host : { "oot", "mm" }) {
+        std::filesystem::remove(CagOutPath(badOutPrefix, host), ec);
+        std::filesystem::remove(CagOutPath(goodOutPrefix, host), ec);
+    }
 
     if (failures == 0) {
         printf("[curated-archive-generator] PASS: the raw-segmented-texture (#605) and Array reader-agreement (#604) "

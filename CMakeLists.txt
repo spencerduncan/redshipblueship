@@ -432,7 +432,10 @@ add_custom_target(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/games/mm
     COMMENT "Running MM asset extraction..."
     DEPENDS ZAPD_MM
-    BYPRODUCTS mm.o2r ${CMAKE_SOURCE_DIR}/mm.o2r 2ship.o2r ${CMAKE_SOURCE_DIR}/2ship.o2r
+    # No ${CMAKE_SOURCE_DIR}/mm.o2r here: nothing copies mm.o2r out of
+    # WORKING_DIRECTORY (only 2ship.o2r is lifted above), so declaring it was
+    # stale (#577).
+    BYPRODUCTS mm.o2r 2ship.o2r ${CMAKE_SOURCE_DIR}/2ship.o2r
 )
 
 add_custom_target(
@@ -471,23 +474,27 @@ add_custom_target(
     # follows the same convention for soh.o2r).
 )
 
-# Curated cross-game asset archive (#577).
+# Curated cross-game asset archives (#577 M1).
 #
-# redship.o2r holds the foreign models one game draws while the OTHER game is
-# the one that booted. It is carved out of the already-extracted oot.o2r /
-# mm.o2r (paths verbatim -- an extracted display list references its own
-# textures by CRC64-of-path, so renaming would break every reference), which is
-# why this target consumes archives rather than a --custom-assets-path XML tree
-# the way GenerateSohOtr / Generate2ShipOtr do: the point of the archive is to
-# carry ROM-derived models, and those only exist post-extraction.
+# redship-oot.o2r holds the MM-origin models OoT draws, redship-mm.o2r the
+# OoT-origin models MM draws; each carries the identity of the game that draws
+# it (the 2026-09-30 ruling on #577). They are carved out of the
+# already-extracted oot.o2r / mm.o2r (paths verbatim -- an extracted display
+# list references its own textures by CRC64-of-path, so renaming would break
+# every reference), which is why this target consumes archives rather than a
+# --custom-assets-path XML tree the way GenerateSohOtr / Generate2ShipOtr do:
+# the point of the archives is to carry ROM-derived models, and those only
+# exist post-extraction.
 #
-# The generator hard-fails if a curated path also exists in the other game's
-# archive, and on Room/Cutscene/Path resources (whose loader slots single-exe
-# builds resolve by OWNING archive, which this one is registered as neither of);
-# see scripts/make_redship_otr.py and assets/crossgame/manifest.txt.
+# The generator hard-fails if a curated path also exists in its host's archive,
+# on Room/Cutscene/Path resources (whose loader slots single-exe builds resolve
+# by OWNING archive), on raw segmented textures and on arrays the two games'
+# readers parse differently; see scripts/make_redship_otr.py and
+# assets/crossgame/manifest.txt (whose direction column picks the half).
 #
-# Nothing in the runtime mounts redship.o2r yet — its consumer today is the
-# `crossgame-model` CTest row, which mounts it in-process (#577).
+# The runtime mounts each game's half right after that game's base archives:
+# Combo_EnsureGameArchivesLoaded on every switch, Combo_MountCuratedArchive
+# once the booted game is up (rsbs/src/main.cpp).
 #
 # Run AFTER ExtractAssets and ExtractMMAssets. Deliberately no add_dependencies
 # on them: both are always-out-of-date custom targets, so chaining would
@@ -495,27 +502,28 @@ add_custom_target(
 # from the generator, not a silent empty archive.
 add_custom_target(
     GenerateRedshipOtr
-    COMMAND ${CMAKE_COMMAND} -E rm -f redship.o2r
+    COMMAND ${CMAKE_COMMAND} -E rm -f redship-oot.o2r redship-mm.o2r
     # Two candidate locations per game, first existing wins. The two extraction
     # targets do NOT agree on where they leave their archive: ExtractAssets
     # runs copy-existing-otrs.cmake, which lifts oot.o2r to ${CMAKE_SOURCE_DIR},
     # while ExtractMMAssets copies only 2ship.o2r and leaves mm.o2r in its
-    # WORKING_DIRECTORY (games/mm). Its BYPRODUCTS entry for
-    # ${CMAKE_SOURCE_DIR}/mm.o2r is stale — nothing writes that path.
+    # WORKING_DIRECTORY (games/mm).
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/make_redship_otr.py
             --oot-archive ${CMAKE_SOURCE_DIR}/oot.o2r
             --oot-archive ${CMAKE_CURRENT_SOURCE_DIR}/games/oot/oot.o2r
             --mm-archive ${CMAKE_SOURCE_DIR}/mm.o2r
             --mm-archive ${CMAKE_CURRENT_SOURCE_DIR}/games/mm/mm.o2r
             --manifest ${CMAKE_CURRENT_SOURCE_DIR}/assets/crossgame/manifest.txt
-            --out ${CMAKE_SOURCE_DIR}/redship.o2r
-    # Land it where a CTest row can see it: the rows run with cwd =
-    # ${CMAKE_BINARY_DIR} and the binary lives there too, so
+            --out-oot ${CMAKE_SOURCE_DIR}/redship-oot.o2r
+            --out-mm ${CMAKE_SOURCE_DIR}/redship-mm.o2r
+    # Land them where a CTest row and the runtime can see them: the rows run
+    # with cwd = ${CMAKE_BINARY_DIR} and the binary lives there too, so
     # Ship::Context::LocateFileAcrossAppDirs / GetPathRelativeToAppBundle only
     # ever find an archive sitting directly in the build root (#560/#562).
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/redship.o2r ${CMAKE_BINARY_DIR}/
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/redship-oot.o2r ${CMAKE_BINARY_DIR}/
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/redship-mm.o2r ${CMAKE_BINARY_DIR}/
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "Generating redship.o2r (curated cross-game assets)..."
+    COMMENT "Generating redship-oot.o2r and redship-mm.o2r (curated cross-game assets)..."
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
