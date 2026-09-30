@@ -61,6 +61,8 @@
 
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/ForeignModel.h"
+// C linkage for the frame-interpolation calls OPEN_DISPS / CLOSE_DISPS make.
+#include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 // Test bridges only: the ForeignModel row drives CheckQueue's real foreign draw.
 #include "2s2h/CustomItem/CustomItem.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
@@ -77,6 +79,7 @@ extern CustomMessage::Entry activeCustomMessage;
 
 // src/common. Outside any extern "C" block: each header manages its own linkage.
 #include "context.h"
+#include "crossing_store.h"
 #include "foreign_items.h"
 #include "foreign_model.h"
 
@@ -492,13 +495,20 @@ void EmitPart(Gfx* pkt, const char* dl) {
     }
 }
 
+} // namespace
+
+// At global scope, not in the anonymous namespace: OPEN_DISPS / CLOSE_DISPS
+// re-declare the frame-interpolation calls at block scope, and inside a
+// namespace that declaration names a C++-linkage function of that namespace
+// instead of the extern "C" one FrameInterpolation.h declares.
+
 /**
  * One layer of the descriptor, in the order both games' z_draw.c emit it: the
  * setup list, the layer's scrolling segments, its colours (and the grayscale
  * tint), the matrix, the plain parts, then the camera-facing parts under their
  * offset and the billboard rotation.
  */
-void DrawModelLayer(PlayState* play, const ComboModel& model, uint8_t layer) {
+static void ForeignModel_DrawLayer(PlayState* play, const ComboModel& model, uint8_t layer) {
     const uint8_t setup = layer == kOpa ? model.opaSetupDl : model.xluSetupDl;
     if (setup == 0) {
         return; // no part on this layer (Combo_ModelIsWellFormed)
@@ -568,7 +578,7 @@ void DrawModelLayer(PlayState* play, const ComboModel& model, uint8_t layer) {
 
 /** The descriptor under the current matrix: its own scale, then its rotation
  *  (foreign_model.h), then both layers. */
-void DrawModel(PlayState* play, const ComboModel& model) {
+static void ForeignModel_Draw(PlayState* play, const ComboModel& model) {
     MM_Matrix_Push();
     if (model.scale != 1.0f) {
         MM_Matrix_Scale(model.scale, model.scale, model.scale, MTXMODE_APPLY);
@@ -576,10 +586,12 @@ void DrawModel(PlayState* play, const ComboModel& model) {
     if (model.rotation[0] != 0 || model.rotation[1] != 0 || model.rotation[2] != 0) {
         MM_Matrix_RotateZYX(model.rotation[0], model.rotation[1], model.rotation[2], MTXMODE_APPLY);
     }
-    DrawModelLayer(play, model, kOpa);
-    DrawModelLayer(play, model, kXlu);
+    ForeignModel_DrawLayer(play, model, kOpa);
+    ForeignModel_DrawLayer(play, model, kXlu);
     MM_Matrix_Pop();
 }
+
+namespace {
 
 /** The drawable model of the foreign item `checkId` hosts: a DESCRIPTOR whose
  *  every path a mounted archive holds. HOST_NATIVE answers draw nothing here
@@ -610,7 +622,7 @@ bool DrawForeignModelForCheck(RandoCheckId randoCheckId, PlayState* play) {
     if (play == nullptr || !ForeignModelForCheck(randoCheckId, &model)) {
         return false;
     }
-    DrawModel(play, model);
+    ForeignModel_Draw(play, model);
     return true;
 }
 
@@ -864,6 +876,38 @@ bool RunCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want) {
 #undef FMD_EXPECT
 
 } // namespace
+
+/**
+ * The #577 M3 playtest drive (GameExports_SingleExe.cpp, gameplay round-trip,
+ * RSBS_GP_MM_FOREIGN_MODEL=1): the first OoT item the paired world's crossing
+ * store placed on an MM check, not yet obtained, whose model MM can draw right
+ * now. Its check is marked eligible, exactly as walking up to it would, so
+ * CheckQueue queues the real foreign give and the get-item cutscene follows.
+ * Returns the check id, or 0 when the world has no such crossing.
+ */
+extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
+    const int count = Combo_Crossings_Count(GAME_MM);
+    for (int i = 0; i < count; i++) {
+        ComboCrossing crossing;
+        ComboModel model;
+        if (!Combo_Crossings_At(GAME_MM, i, &crossing) || crossing.hostCheck >= RC_MAX ||
+            RANDO_SAVE_CHECKS[crossing.hostCheck].obtained ||
+            !ForeignModelForCheck((RandoCheckId)crossing.hostCheck, &model)) {
+            continue;
+        }
+        RANDO_SAVE_CHECKS[crossing.hostCheck].eligible = true;
+        std::fprintf(stderr,
+                     "[M3-PLAYTEST] armed MM check %u (%s) hosting OoT item %u: %u part(s), first %s (crossing %d of "
+                     "%d)\n",
+                     (unsigned)crossing.hostCheck, Rando::StaticData::CheckNames[crossing.hostCheck].c_str(),
+                     (unsigned)crossing.item.id, (unsigned)model.partCount, model.parts[0].dl, i + 1, count);
+        std::fflush(stderr);
+        return crossing.hostCheck;
+    }
+    std::fprintf(stderr, "[M3-PLAYTEST] no MM-hosted crossing of %d has a drawable OoT model\n", count);
+    std::fflush(stderr);
+    return 0;
+}
 
 /** CheckQueue's real foreign give and draw, end to end (RunCheckQueueDraw): 0 on
  *  success. */
