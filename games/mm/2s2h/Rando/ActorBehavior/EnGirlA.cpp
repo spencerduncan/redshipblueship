@@ -649,4 +649,62 @@ extern "C" int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired)
     free(play);
     return code;
 }
+
+// ============================================================================
+// #800 PLAYTEST DRIVE (GameExports_SingleExe.cpp, gameplay round trip,
+// RSBS_GP_MM_SHOP=1, 100 live frames into the MM play window). Picks the first
+// OoT item the paired world's crossing store put on a shelf of the Bomb Shop or
+// the Trading Post (the two Clock Town shops whose shelves stand every day), sets
+// the clock to noon so both are open, and walks the player in through the shop's
+// front door. Test-only: nothing reaches it unless the env var is set.
+// Returns the host check id, 0 when the world has no such crossing, or -1 when
+// a textbox is up (an arrival's own get-item), so the caller retries next frame.
+// ============================================================================
+#include "crossing_store.h" // src/common: the paired world's crossings
+
+extern "C" int MM_Shop_PlaytestWarp(void) {
+    struct ShopDoor {
+        RandoCheckId first;
+        RandoCheckId last;
+        u16 entrance;
+        const char* name;
+    };
+    static const ShopDoor kDoors[] = {
+        { RC_BOMB_SHOP_ITEM_01, RC_BOMB_SHOP_ITEM_03, ENTRANCE(BOMB_SHOP, 0), "the Bomb Shop" },
+        { RC_TRADING_POST_SHOP_ITEM_01, RC_TRADING_POST_SHOP_ITEM_08, ENTRANCE(TRADING_POST, 0), "the Trading Post" },
+    };
+    if (MM_gPlayState == nullptr || MM_gPlayState->msgCtx.msgMode != MSGMODE_NONE) {
+        return -1;
+    }
+    const int count = Combo_Crossings_Count(GAME_MM);
+    for (const ShopDoor& door : kDoors) {
+        for (int i = 0; i < count; i++) {
+            ComboCrossing crossing;
+            if (!Combo_Crossings_At(GAME_MM, i, &crossing)) {
+                continue;
+            }
+            const RandoCheckId host = (RandoCheckId)crossing.hostCheck;
+            if (host < door.first || host > door.last) {
+                continue;
+            }
+            const char* foreign = Rando::Foreign::ForeignNameForCheck(host);
+            fprintf(stderr,
+                    "[S2-PLAYTEST] MM shop slot %u (%s) hosts OoT item %u (%s), price %u; walking into %s at noon "
+                    "(crossing %d of %d)\n",
+                    (unsigned)host, Rando::StaticData::Checks[host].name, (unsigned)crossing.item.id,
+                    foreign != nullptr ? foreign : "?", (unsigned)RANDO_SAVE_CHECKS[host].price, door.name, i + 1,
+                    count);
+            fflush(stderr);
+            gSaveContext.save.time = CLOCK_TIME(12, 0);
+            MM_gPlayState->nextEntrance = door.entrance;
+            MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+            MM_gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
+            gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+            return host;
+        }
+    }
+    fprintf(stderr, "[S2-PLAYTEST] no MM-hosted crossing of %d is on a Bomb Shop or Trading Post shelf\n", count);
+    fflush(stderr);
+    return 0;
+}
 #endif // RSBS_SINGLE_EXECUTABLE

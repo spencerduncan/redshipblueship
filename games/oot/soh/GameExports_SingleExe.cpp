@@ -687,7 +687,12 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
     // "The shipped defaults" is checked, not assumed: generation reads the live
     // CVar store, which here is the build directory's persisted config.
     const int explicitSettings = PfcExplicitWorldSettings(msg, sizeof(msg));
-    if (explicitSettings != 0) {
+    // Playtest knob (#800): RSBS_PFC_ALLOW_SETTINGS=1 generates the pinned seed
+    // under the config's explicit settings instead of refusing them (a shop-
+    // shuffle playtest needs shops on). No CTest row sets it.
+    if (explicitSettings != 0 && getenv("RSBS_PFC_ALLOW_SETTINGS") != NULL) {
+        fprintf(stderr, "[PFC] RSBS_PFC_ALLOW_SETTINGS: generating under the config's explicit settings: %s\n", msg);
+    } else if (explicitSettings != 0) {
         char reason[640];
         snprintf(reason, sizeof(reason),
                  "the world would not be generated on the shipped defaults: %s (run the row with a config that "
@@ -695,8 +700,9 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
                  msg);
         IntegrationTest_GameplayFail(reason);
         return;
+    } else {
+        fprintf(stderr, "[PFC] shipped defaults verified: %s\n", msg);
     }
-    fprintf(stderr, "[PFC] shipped defaults verified: %s\n", msg);
     fprintf(stderr, "[PFC] generating the pinned paired world %s on the shipped defaults at %s\n", kPfcSeed, from);
     fflush(stderr);
     if (Rando_HeadlessSeedTest(kPfcSeed) != 0) {

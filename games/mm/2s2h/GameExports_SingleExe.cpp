@@ -822,6 +822,7 @@ extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
 extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 // 2s2h/Rando/ForeignModelSingleExe.cpp: the #577 M3 playtest drive's arm.
 extern "C" int MM_ForeignModel_PlaytestArmGive(void);
+extern "C" int MM_Shop_PlaytestWarp(void); // #800 playtest drive (Rando/ActorBehavior/EnGirlA.cpp)
 
 /**
  * int-paired-first-crossing: the MM arrival's verdict, taken once South Clock
@@ -1063,6 +1064,13 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     // CheckQueue plays its real get-item cutscene here.
     if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
         MM_ForeignModel_PlaytestArmGive();
+    }
+    // #800 playtest drive (opt-in, RSBS_GP_MM_SHOP=1): walk into the Clock Town
+    // shop whose shelf holds an OoT item (ActorBehavior/EnGirlA.cpp), once no
+    // textbox is up.
+    static bool sGpMMShopWalked = false;
+    if (!sGpMMShopWalked && sGpMMPlayFrames >= 100 && std::getenv("RSBS_GP_MM_SHOP") != nullptr) {
+        sGpMMShopWalked = MM_Shop_PlaytestWarp() >= 0;
     }
     if (sGpMMPlayFrames < cfg->framesPerPhase) {
         return;
