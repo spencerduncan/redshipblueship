@@ -4091,9 +4091,8 @@ void Session::CaptureModalVariant(const PageSpec& p, const std::string& state) {
 static void EmitLoadToastPage(const std::string& id) {
     if (id == "toast/load-rules-restored") {
         std::string rules;
-        for (ComboSettingId rule :
-             { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION, COMBO_SETTING_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_MM,
-               COMBO_SETTING_SHARED_OCARINA }) {
+        for (ComboSettingId rule : { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION, COMBO_SETTING_ITEM_CLASS_OOT,
+                                     COMBO_SETTING_ITEM_CLASS_MM, COMBO_SETTING_SHARED_OCARINA }) {
             rules += (rules.empty() ? "" : ", ") + std::string(Combo_ComboSettingLabel(rule));
         }
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_RULES_RESTORED, rules.c_str(), 0);

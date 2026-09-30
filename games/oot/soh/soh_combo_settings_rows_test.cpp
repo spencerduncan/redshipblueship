@@ -487,15 +487,17 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         int sliders = 0;
         for (PageRow& pageRow : rows) {
             const std::string& name = pageRow.first->name;
-            ROWS_CHECK(name.find("Max OoT Items") == std::string::npos && name.find("Max MM Items") == std::string::npos,
+            ROWS_CHECK(name.find("Max OoT Items") == std::string::npos &&
+                           name.find("Max MM Items") == std::string::npos,
                        "the Cross-Game Rules page still offers the retired row '%s' (#801): it changes no rule and "
                        "only re-seeds the world",
                        name.c_str());
             sliders += pageRow.first->type == WIDGET_SLIDER_INT ? 1 : 0;
         }
-        ROWS_CHECK(sliders == 0,
-                   "the Cross-Game Rules page has %d slider row(s); the only sliders were the retired pool sizes (#801)",
-                   sliders);
+        ROWS_CHECK(
+            sliders == 0,
+            "the Cross-Game Rules page has %d slider row(s); the only sliders were the retired pool sizes (#801)",
+            sliders);
         printf("[TEST] leg 1c: no \"Max OoT Items\" / \"Max MM Items\" row and no slider on the page (#801)\n");
     }
 
