@@ -226,22 +226,36 @@ resources (`Combo_GetSharedResource`, `src/common/shared_resources.h`) are origi
 keyed by a resource kind rather than a game's id, so a group of them is a third source with its own
 freshness label, not a merge of the two games' rows.
 
-**2. Status crosses as a projection that each adapter owns.** The common check-status vocabulary is
-`ComboTrackerCheckRow`'s `shuffled`, `obtained` and `skipped` (`src/common/combo_tracker_view.h`). Each
-adapter maps its own native status onto it in its own TU. MM reads the flags of `RandoSaveCheck`
-directly (`eligible` and `cycleObtained` are not projected). OoT projects its one ordered
-`RandomizerCheckStatus`: `RCSHOW_COLLECTED` and `RCSHOW_SAVED` are `obtained`, the heap skip flag is
-`skipped`, and `RCSHOW_UNCHECKED` and the UI-only states (`RCSHOW_SEEN`, `RCSHOW_IDENTIFIED`,
-`RCSHOW_SCUMMED`) are not `obtained` and have no common value of their own. The projection is lossy on purpose. It may gain a value when a consumer needs one
-(the Check Tracker's colours, #458 U4): the value is defined in common terms, each adapter derives it from
-its own data, and a game with no analogue never produces it. An item row's `have`, `count` and `max` are
-the same kind of projection, derived by the adapter from its own save layout.
+**2. Status crosses as a projection that each game defines.** The common check-status vocabulary is
+`ComboTrackerCheckRow`'s `shuffled`, `obtained` and `skipped` (`src/common/combo_tracker_view.h`). The two
+adapters have different shapes, and each game defines its projection differently:
 
-**3. Raw passthrough is deferred.** No common type carries a game's raw status enumerator or flag bits,
-beside the projection or instead of it. A consumer that needs a raw state reads it in that game's own TU,
-as the native trackers do, or proposes a new projected value under point 2. Adding raw passthrough later
-is a further amendment to this ADR, not an implementation detail, because every consumer and every future
-game would inherit the shape.
+- **OoT** registers an accessor vtable (`ComboOoTTrackerOps`) and maps its native status onto the
+  projection in its own TU. It projects its one ordered `RandomizerCheckStatus`: `RCSHOW_COLLECTED` and
+  `RCSHOW_SAVED` are `obtained`, the heap skip flag is `skipped`, and `RCSHOW_UNCHECKED` and the UI-only
+  states (`RCSHOW_SEEN`, `RCSHOW_IDENTIFIED`, `RCSHOW_SCUMMED`) are not `obtained` and have no common value
+  of their own.
+- **MM** registers an offset descriptor (`ComboMMTrackerDesc`) and runs no code of its own on the read
+  path. Its projection is the three one-byte `RandoSaveCheck` flags `shuffled`, `obtained` and `skipped`,
+  at offsets the MM TU registers and pins with `static_assert`s
+  (`games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp`). The view reads each byte as zero or non-zero and
+  interprets nothing else. MM's `eligible` and `cycleObtained` have no registered offset, so they are not
+  projected.
+
+The projection is lossy on purpose. It may gain a value when a consumer needs one (the Check Tracker's
+colours, #458 U4): the value is defined in common terms, and a game with no analogue never produces it.
+OoT derives it in its own TU, behind a new vtable member. MM supplies it through a new descriptor member
+that the MM TU fills: an offset to a flag that already means the common value, or a callback, defined in
+the MM TU, that derives it. Common code never derives a new value by interpreting MM's bytes on its own.
+An item row's `have`, `count` and `max` are the same kind of projection, derived from each game's save
+layout inside that game's TU.
+
+**3. Raw passthrough is deferred.** No common type carries a game's raw status enumerator, and common code
+interprets no game's status bits beyond the projection above: MM's descriptor locates only the flags that
+are the projection, never a raw status field to be decoded. A consumer that needs a raw state reads it in
+that game's own TU, as the native trackers do, or proposes a new projected value under point 2. Adding raw
+passthrough later is a further amendment to this ADR, not an implementation detail, because every consumer
+and every future game would inherit the shape.
 
 **4. Freshness stays a field.** Every summary, and every group of rows, carries a `ComboTrackerFreshness`
 (`LIVE`, `STALE`, `UNAVAILABLE`) that the view sets, never the adapter. Which source may be read as live is
