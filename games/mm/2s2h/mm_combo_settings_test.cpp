@@ -48,6 +48,23 @@
  *                                     -> the slot latched and the toast the
  *                                        missing-half SITE queued is the
  *                                        emitter's copy, exactly
+ *   legs 7-12 — PAIR MEMBERSHIP of the MM half (#564 V11), driven through a
+ *           REAL armed blob and the real consume, in z_play.c's order. A half
+ *           belongs to this pair when its finalSeed is the one this pair's
+ *           master seed derives from the half's OWN persisted options
+ *           (Rando::Foreign::MixPairedFinalSeedForAttempt's recipe) at the
+ *           ladder rung the pair recorded:
+ *             7  another pair's half under a vanilla type byte (the self-heal's
+ *                input shape) -> REFUSED, never adopted, never re-stamped
+ *             8  another pair's half already SAVETYPE_RANDO -> REFUSED
+ *             9  this pair's half under a lost type byte, recorded rung 2
+ *                -> REPAIRED as before, slot writable (non-vacuity)
+ *            10  this pair's half, no recorded rung, converged on rung 4
+ *                -> hydrated, slot writable
+ *            11  this pair's options and seed but NOT the recorded rung
+ *                -> REFUSED
+ *            12  no blob, the live save already rando: another pair's world
+ *                -> REFUSED; this pair's world -> reported, slot writable
  *
  * THE TOAST COPY. Every refusal leg also compares the toast its production site
  * queued with MM_Rando_EmitPairingRefusalToast's copy
@@ -82,6 +99,7 @@
 
 #include "Rando/Rando.h"
 #include "Rando/StaticData/StaticData.h"
+#include "Rando/Foreign.h" // MixPairedFinalSeedForAttempt — how legs 7-12 author a pair's half
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -106,6 +124,9 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused);
 // generation from the arrival outright, and this is the observable that keeps it
 // deleted: every leg below asserts it did not move.
 uint32_t MM_Rando_OnSaveInitDispatchCount(void);
+// src/common/switch.cpp — the consume z_play.c runs between gate and hydrate;
+// legs 7-12 drive it for real, so "adopted" is observed rather than assumed.
+int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 }
 
 namespace {
@@ -260,6 +281,137 @@ int AssertRulesToastIs(int code, const char* leg, uint32_t bits) {
     char fields[256];
     Combo_ComboSettingsDivergenceDescribe(bits, fields, sizeof(fields));
     return AssertToastIs(code, leg, RSBS_PAIRING_REFUSAL_RULES, fields);
+}
+
+// ----------------------------------------------------------------------------
+// Pair membership (#564 V11) — legs 7-12.
+// ----------------------------------------------------------------------------
+
+// Another pair: the same MM options, a different master seed. The realistic
+// shape of a mixed .redsave or a cross-slot copy.
+constexpr uint32_t kOtherPairSeed = kSeed ^ 0x00F0F0F0u;
+// The armed half's return entrance (South Clock Town, entrance.h's
+// MM_ENTR_SOUTH_CLOCK_TOWN_0); recorded verbatim, not read by these legs.
+constexpr uint16_t kHalfReturnEntrance = 0xD800;
+
+/** The live MM save's options at every row's shipped default: the persisted
+ *  options every half these legs author carries. */
+void SetHalfOptionsToDefaults() {
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        RANDO_SAVE_OPTIONS[randoOptionId] = (uint32_t)randoStaticOption.defaultValue;
+    }
+}
+
+/** The finalSeed @p masterSeed's pair derives at ladder rung @p attempt from the
+ *  half options above — the production recipe, not a copy of it. */
+uint32_t DeriveHalfSeed(uint32_t masterSeed, uint32_t attempt) {
+    SetHalfOptionsToDefaults();
+    const uint32_t resident = gComboCtx.sharedRandoSeed;
+    gComboCtx.sharedRandoSeed = masterSeed;
+    const uint32_t seed = Rando::Foreign::MixPairedFinalSeedForAttempt(attempt);
+    gComboCtx.sharedRandoSeed = resident;
+    return seed;
+}
+
+/** Author an MM half in the live buffer, shadow it and ARM it the way
+ *  MM_Rando_ArmCreatedHalf does, then put the boot chain's vanilla bootstrap
+ *  back in the live save — the state z_play.c's arrival starts from. */
+int ArmHalf(SaveType type, uint32_t finalSeed) {
+    Context_ClearFrozenState(GAME_MM);
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    SetHalfOptionsToDefaults();
+    gSaveContext.save.shipSaveInfo.saveType = type;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = finalSeed;
+    Context_UpdateShadowCopy(GAME_MM, &gSaveContext, sizeof(gSaveContext));
+    const int armed = Context_ArmShadowAsFrozen(GAME_MM, kHalfReturnEntrance);
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    ArmVanillaBootstrapSave();
+    return armed;
+}
+
+/** An arrival in z_play.c's order with the REAL consume between gate and
+ *  hydrate. @return 1 refused / 0 not / -1 on a generation dispatch. */
+int RunConsumingArrival(int* outConsumed) {
+    const uint32_t beforeDispatches = MM_Rando_OnSaveInitDispatchCount();
+    const int refused = MM_Rando_GateCrossGameArrival();
+    int consumed = 0;
+    if (!refused) {
+        consumed = Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext));
+    }
+    MM_Rando_HydrateCrossGameArrival(consumed, refused);
+    if (MM_Rando_OnSaveInitDispatchCount() != beforeDispatches) {
+        Fail(99, "the arrival DISPATCHED GENERATION (OnSaveInit) — ADR 0010 increment 2 deletes that dispatch");
+        return -1;
+    }
+    if (outConsumed != nullptr) {
+        *outConsumed = consumed;
+    }
+    return refused;
+}
+
+/** The identity refusal surface: slot latched with RSBS_REFUSE_IDENTITY,
+ *  nothing quarantined (the .redsave is healthy; the SESSION holds a half that
+ *  is not this pair's), and the missing-half toast — from the player's side this
+ *  file's own Majora's Mask world is not here. */
+int AssertMembershipRefusal(int code, const char* leg) {
+    if (RsbsSave_IsSlotWritable(kSlot) != 0) {
+        return Fail(code,
+                    "%s: the active slot is still writable — a session holding another pair's MM half can capture "
+                    "it into this pair's .redsave, laundering the foreign identity permanently",
+                    leg);
+    }
+    if (RsbsSave_GetSlotRefuseReason(kSlot) != (int)RSBS_REFUSE_IDENTITY) {
+        return Fail(code + 1, "%s: refusal reason is %d, expected RSBS_REFUSE_IDENTITY", leg,
+                    RsbsSave_GetSlotRefuseReason(kSlot));
+    }
+    if (RsbsSave_HasQuarantine(kSlot) != 0) {
+        return Fail(code + 2, "%s: a membership refusal quarantined the slot file — the file is healthy", leg);
+    }
+    return AssertToastIs(code + 3, leg, RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr);
+}
+
+/** Another pair's ARMED half: refused before the consume, so it is neither
+ *  adopted into the live save nor re-stamped, and stays armed and untouched. */
+int AssertForeignHalfNotAdopted(int code, const char* leg, int refused, uint32_t foreignSeed) {
+    if (gSaveContext.save.shipSaveInfo.rando.finalSeed == foreignSeed) {
+        return Fail(code,
+                    "%s: another pair's MM half was ADOPTED into the live save (finalSeed %08X, saveType=%s) — "
+                    "nothing checked that its finalSeed is the one this pair's master seed derives from its own "
+                    "options (#564 V11)",
+                    leg, (unsigned)foreignSeed,
+                    gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO ? "rando (re-stamped or already rando)"
+                                                                              : "vanilla");
+    }
+    if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
+        return Fail(code + 1, "%s: the live save was stamped SAVETYPE_RANDO under a refused half", leg);
+    }
+    if (refused != 1) {
+        return Fail(code + 2, "%s: the gate did not refuse another pair's half before the consume", leg);
+    }
+    if (!Context_HasFrozenState(GAME_MM)) {
+        return Fail(code + 3, "%s: the refused half was consumed — refusal means NOT hydrating (ADR 0010 inc. 2)",
+                    leg);
+    }
+    return AssertMembershipRefusal(code + 4, leg);
+}
+
+/** This pair's half: hydrated, rando, carrying its own seed, slot writable. */
+int AssertOwnHalfHydrated(int code, const char* leg, int refused, int consumed, uint32_t ownSeed) {
+    if (refused != 0 || consumed != 1) {
+        return Fail(code, "%s: this pair's own half was not hydrated (refused=%d consumed=%d)", leg, refused,
+                    consumed);
+    }
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO ||
+        gSaveContext.save.shipSaveInfo.rando.finalSeed != ownSeed) {
+        return Fail(code + 1, "%s: the hydrated save is saveType=%d finalSeed=%08X, expected rando / %08X", leg,
+                    (int)gSaveContext.save.shipSaveInfo.saveType,
+                    (unsigned)gSaveContext.save.shipSaveInfo.rando.finalSeed, (unsigned)ownSeed);
+    }
+    if (RsbsSave_IsSlotWritable(kSlot) != 1) {
+        return Fail(code + 2, "%s: this pair's own half latched the slot (reason %d)", leg,
+                    RsbsSave_GetSlotRefuseReason(kSlot));
+    }
+    return 0;
 }
 
 } // namespace
@@ -499,10 +651,160 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // Legs 7-12 — PAIR MEMBERSHIP of the MM half (#564 V11).
+    // ------------------------------------------------------------------------
+    // Leg 7 — another pair's half under a VANILLA type byte: exactly the input
+    // the lost-type-byte self-heal re-stamps when it checks only finalSeed != 0.
+    {
+        ComboContext_Init();
+        ArmPairing();
+        gComboCtx.mmPairedAttempt = 1; // rung 0 recorded
+        const uint32_t foreignSeed = DeriveHalfSeed(kOtherPairSeed, 0);
+        if (!ArmHalf(SAVETYPE_VANILLA, foreignSeed)) {
+            return Fail(80, "leg 7 setup: the authored half did not arm");
+        }
+        ResetRefusalSurface();
+        int consumed = 0;
+        const int refused = RunConsumingArrival(&consumed);
+        if (refused < 0) {
+            return 99;
+        }
+        if (int rc = AssertForeignHalfNotAdopted(81, "leg 7 (another pair's half, vanilla type byte)", refused,
+                                                 foreignSeed)) {
+            return rc;
+        }
+    }
+
+    // Leg 8 — another pair's half already SAVETYPE_RANDO: the leg that checked
+    // nothing at all.
+    {
+        ComboContext_Init();
+        ArmPairing();
+        gComboCtx.mmPairedAttempt = 1;
+        const uint32_t foreignSeed = DeriveHalfSeed(kOtherPairSeed, 0);
+        if (!ArmHalf(SAVETYPE_RANDO, foreignSeed)) {
+            return Fail(90, "leg 8 setup: the authored half did not arm");
+        }
+        ResetRefusalSurface();
+        int consumed = 0;
+        const int refused = RunConsumingArrival(&consumed);
+        if (refused < 0) {
+            return 99;
+        }
+        if (int rc =
+                AssertForeignHalfNotAdopted(91, "leg 8 (another pair's half, already rando)", refused, foreignSeed)) {
+            return rc;
+        }
+    }
+
+    // Leg 9 — THIS pair's half under a lost type byte, recorded rung 2: the
+    // repair still runs (non-vacuity: a check that refused every half would
+    // pass legs 7 and 8).
+    {
+        ComboContext_Init();
+        ArmPairing();
+        gComboCtx.mmPairedAttempt = 3; // rung 2
+        const uint32_t ownSeed = DeriveHalfSeed(kSeed, 2);
+        if (!ArmHalf(SAVETYPE_VANILLA, ownSeed)) {
+            return Fail(100, "leg 9 setup: the authored half did not arm");
+        }
+        ResetRefusalSurface();
+        int consumed = 0;
+        const int refused = RunConsumingArrival(&consumed);
+        if (refused < 0) {
+            return 99;
+        }
+        if (int rc = AssertOwnHalfHydrated(101, "leg 9 (this pair's half, lost type byte)", refused, consumed,
+                                           ownSeed)) {
+            return rc;
+        }
+    }
+
+    // Leg 10 — THIS pair's half with NO recorded rung (a pre-ladder record) that
+    // converged on rung 4: any rung of the bounded ladder is this pair's own.
+    {
+        ComboContext_Init();
+        ArmPairing();
+        gComboCtx.mmPairedAttempt = 0;
+        const uint32_t ownSeed = DeriveHalfSeed(kSeed, 4);
+        if (!ArmHalf(SAVETYPE_RANDO, ownSeed)) {
+            return Fail(110, "leg 10 setup: the authored half did not arm");
+        }
+        ResetRefusalSurface();
+        int consumed = 0;
+        const int refused = RunConsumingArrival(&consumed);
+        if (refused < 0) {
+            return 99;
+        }
+        if (int rc = AssertOwnHalfHydrated(111, "leg 10 (this pair's half, no recorded rung)", refused, consumed,
+                                           ownSeed)) {
+            return rc;
+        }
+    }
+
+    // Leg 11 — this pair's seed and options, but NOT the rung the pair recorded:
+    // the record names which world the creation converged on.
+    {
+        ComboContext_Init();
+        ArmPairing();
+        gComboCtx.mmPairedAttempt = 2; // rung 1 recorded
+        const uint32_t otherRungSeed = DeriveHalfSeed(kSeed, 3);
+        if (!ArmHalf(SAVETYPE_RANDO, otherRungSeed)) {
+            return Fail(120, "leg 11 setup: the authored half did not arm");
+        }
+        ResetRefusalSurface();
+        int consumed = 0;
+        const int refused = RunConsumingArrival(&consumed);
+        if (refused < 0) {
+            return 99;
+        }
+        if (int rc =
+                AssertForeignHalfNotAdopted(121, "leg 11 (not the recorded rung)", refused, otherRungSeed)) {
+            return rc;
+        }
+    }
+
+    // Leg 12 — no blob, the LIVE save already rando (the hydrate half's
+    // alreadyRando report leg): another pair's world is refused; this pair's is
+    // reported and the slot stays writable.
+    for (int own = 0; own <= 1; own++) {
+        ComboContext_Init();
+        ArmPairing();
+        gComboCtx.mmPairedAttempt = 1;
+        Context_ClearFrozenState(GAME_MM);
+        const uint32_t seed = DeriveHalfSeed(own != 0 ? kSeed : kOtherPairSeed, 0);
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        SetHalfOptionsToDefaults();
+        gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+        gSaveContext.save.shipSaveInfo.rando.finalSeed = seed;
+        ResetRefusalSurface();
+        int consumed = 0;
+        const int refused = RunConsumingArrival(&consumed);
+        if (refused < 0) {
+            return 99;
+        }
+        if (refused != 0 || consumed != 0) {
+            return Fail(130, "leg 12 setup: expected the gate to pass and no blob to consume (refused=%d consumed=%d)",
+                        refused, consumed);
+        }
+        if (own != 0) {
+            if (RsbsSave_IsSlotWritable(kSlot) != 1) {
+                return Fail(131, "leg 12 (this pair's live rando world): the slot was latched (reason %d)",
+                            RsbsSave_GetSlotRefuseReason(kSlot));
+            }
+        } else if (int rc = AssertMembershipRefusal(132, "leg 12 (another pair's live rando world)")) {
+            return rc;
+        }
+    }
+
+    Context_ClearFrozenState(GAME_MM);
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
     ComboContext_Init();
     RsbsSave_ResetSlotSessionState();
     printf("[TEST] PASS: the arrival gate refuses a divergent combo record by name and freezes a legacy pair's "
-           "shipped defaults; the profile, rules and missing-half refusal sites queue the refusal emitter's copy\n");
+           "shipped defaults; the profile, rules and missing-half refusal sites queue the refusal emitter's copy; an "
+           "MM half from another pair is refused, never adopted or re-stamped, while this pair's half hydrates\n");
     return 0;
 }
 
