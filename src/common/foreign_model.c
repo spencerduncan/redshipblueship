@@ -369,6 +369,39 @@ int Combo_ModelIsWellFormed(const ComboModel* model) {
     return 1;
 }
 
+// ---- Host-native tables (#577 M7) -------------------------------------------
+
+static int HostNativeRowMatches(const ComboHostNativeRow* row, const ComboModel* foreign) {
+    static const char kPartPrefix[] = "__OTR__objects/";
+    int keyParts = 0;
+    while (keyParts < COMBO_MODEL_MAX_PARTS && row->foreignParts[keyParts] != NULL) {
+        keyParts++;
+    }
+    if (keyParts == 0 || keyParts != (int)foreign->partCount) {
+        return 0;
+    }
+    for (int i = 0; i < keyParts; i++) {
+        const char* dl = foreign->parts[i].dl;
+        if (dl == NULL || strncmp(dl, kPartPrefix, sizeof(kPartPrefix) - 1) != 0 ||
+            strcmp(dl + sizeof(kPartPrefix) - 1, row->foreignParts[i]) != 0) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int Combo_HostNativeFind(const ComboHostNativeRow* rows, int count, const ComboModel* foreign) {
+    if (rows == NULL || foreign == NULL || foreign->partCount == 0 || foreign->partCount > COMBO_MODEL_MAX_PARTS) {
+        return -1;
+    }
+    for (int i = 0; i < count; i++) {
+        if (HostNativeRowMatches(&rows[i], foreign)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 // ---- Classification ---------------------------------------------------------
 
 static void AnswerNone(ComboModelAnswer* out) {
