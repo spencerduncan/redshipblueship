@@ -1552,6 +1552,96 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
                "own pool bytes still compares healthy\n");
     }
 
+    // ---- (9) The "OoT Classes" / "MM Classes" rules are retired (#834) ------
+    // Leg 8's shape, over the two item-class masks. Under the single bag every
+    // bag row is progression by construction, so no rule reads the other class
+    // bits, and the PROGRESSION bit only repeats what the direction already
+    // says. But both masks sit in the record and in comboSettingsHash, which
+    // seeds the fill: ticking a box re-seeded the world while changing no rule.
+    // Operator ruling 2026-10-01: the rows go; the record fields stay (format
+    // and identity). Spelled strings rather than the removed ids, and the keys
+    // assembled from the identity prefix, for leg 8's two reasons.
+    {
+        const std::string retiredOoT = std::string(RSBS::kComboIdentityKeyPrefix) + "ItemClass.OoT";
+        const std::string retiredMM = std::string(RSBS::kComboIdentityKeyPrefix) + "ItemClass.MM";
+        const char* const kRetiredKeys[2] = { retiredOoT.c_str(), retiredMM.c_str() };
+        static const char* const kRetiredLabels[2] = { "OoT Classes", "MM Classes" };
+        int retiredFailures = 0;
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            const ComboSettingId id = (ComboSettingId)i;
+            for (int r = 0; r < 2; r++) {
+                if (strcmp(Combo_ComboSettingKey(id), kRetiredKeys[r]) == 0 ||
+                    strcmp(Combo_ComboSettingLabel(id), kRetiredLabels[r]) == 0) {
+                    printf("[TEST] FAIL: setting %d is still the retired '%s' ('%s') -- #834 retires it: it changes "
+                           "no rule and only re-seeds the world\n",
+                           i, kRetiredKeys[r], kRetiredLabels[r]);
+                    retiredFailures++;
+                }
+            }
+        }
+
+        // A config file written before #834 still holds the two keys. They
+        // author nothing now: a NEW world gets the shipped masks and the
+        // shipped fingerprint whatever they say.
+        ComboContext_Init();
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            CS_ASSERT(Combo_ComboSettingClear((ComboSettingId)i) == 1, "clear every live key first");
+        }
+        CVarSetInteger(kRetiredKeys[0], (int32_t)RSBS_ITEMCLASS_SONGS);
+        CVarSetInteger(kRetiredKeys[1], 0);
+        ComboSettingsRecord stale;
+        Combo_ResolveComboSettings(&stale);
+        CVarClear(kRetiredKeys[0]);
+        CVarClear(kRetiredKeys[1]);
+        if (!ComboSettingsRecordsEqual(stale, defaults) ||
+            Combo_ComputeComboSettingsHash(&stale, kSettingsHash, kProfileDigest) != kDefaultsFingerprint) {
+            printf("[TEST] FAIL: a stale gCombo.Rando.ItemClass.* key still reached the record (masks %04X/%04X, "
+                   "shipped %04X/%04X) -- a retired row keeps re-seeding every new world (#834)\n",
+                   (unsigned)stale.itemClassOoT, (unsigned)stale.itemClassMM, (unsigned)defaults.itemClassOoT,
+                   (unsigned)defaults.itemClassMM);
+            retiredFailures++;
+        }
+
+        // A world created BEFORE #834 with boxes changed keeps its masks and
+        // its identity, and still loads: no key authors a mask any more, so the
+        // session has no value that could diverge from the file's. MM's mask is
+        // EMPTY on purpose: a frozen zero is honoured verbatim (decision 3.3),
+        // so an older world that turned MM's crossings off that way keeps them
+        // off.
+        ComboSettingsRecord older = defaults;
+        older.itemClassOoT = (uint16_t)(RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS);
+        older.itemClassMM = 0u;
+        ComboSettingsArmPairing(0xA07A0834u, kSettingsHash, kProfileDigest);
+        const uint32_t olderHash = Combo_FreezeComboSettings(&older);
+        CS_ASSERT(olderHash == Combo_ComputeComboSettingsHash(&older, kSettingsHash, kProfileDigest) &&
+                      olderHash != kDefaultsFingerprint,
+                  "the older world's class masks must stay in its identity");
+        const uint32_t olderBits = Combo_ComboSettingsDivergence();
+        if (olderBits != 0) {
+            char named[192];
+            Combo_ComboSettingsDivergenceDescribe(olderBits, named, sizeof(named));
+            printf("[TEST] FAIL: a world created with its item classes changed before #834 diverges (%s) from a "
+                   "session that can no longer author a class mask -- it would be refused at load\n",
+                   named);
+            retiredFailures++;
+        }
+        CS_ASSERT(retiredFailures == 0, "#834: see the FAIL line(s) above");
+        CS_ASSERT(gComboCtx.comboSettings.itemClassOoT == (uint16_t)(RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS) &&
+                      gComboCtx.comboSettings.itemClassMM == 0u &&
+                      Combo_ComboItemClassFor((uint8_t)GAME_OOT) ==
+                          (uint16_t)(RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS) &&
+                      Combo_ComboItemClassFor((uint8_t)GAME_MM) == 0u,
+                  "the older world's record must keep its own class masks verbatim");
+        // The fingerprint still pins the masks: one changed after the stamp is
+        // damage, exactly as before.
+        gComboCtx.comboSettings.itemClassMM = (uint16_t)RSBS_ITEMCLASS_PROGRESSION;
+        CS_ASSERT((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_FINGERPRINT) != 0,
+                  "a class mask changed after the stamp must still read as damage to the stored identity");
+        ComboContext_Init();
+        printf("[TEST] (9) #834: no setting is an item-class mask, stale keys author nothing, and an older world "
+               "with its own masks still compares healthy\n");
+    }
+
     // ---- Cleanup: leave the process-global store and context clean ---------
     for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
         const ComboSettingId id = (ComboSettingId)i;

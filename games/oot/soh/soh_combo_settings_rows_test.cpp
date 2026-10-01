@@ -501,6 +501,33 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] leg 1c: no \"Max OoT Items\" / \"Max MM Items\" row and no slider on the page (#801)\n");
     }
 
+    // ---- Leg 1d: the "OoT Classes" / "MM Classes" rows are retired (#834) ---
+    // Under the single bag every bag row is progression by construction, so no
+    // rule reads the other class bits and the PROGRESSION bit only repeats the
+    // direction; ticking a box only re-seeded the world. Operator ruling
+    // 2026-10-01: the rows go, with their twelve checkboxes and the two "No ...
+    // items will cross." notes. Matched by NAME TEXT, as leg 1c is, so the check
+    // does not depend on the ids the fix removes.
+    {
+        static const char* const kRetiredParts[] = { "OoT Classes", "MM Classes", "##OoTClass", "##MMClass",
+                                                     "items will cross" };
+        int classRows = 0;
+        for (PageRow& pageRow : rows) {
+            const std::string& name = pageRow.first->name;
+            bool retired = false;
+            for (const char* part : kRetiredParts) {
+                retired = retired || name.find(part) != std::string::npos;
+            }
+            ROWS_CHECK(!retired,
+                       "the Cross-Game Rules page still offers the retired item-class row '%s' (#834): it changes "
+                       "no rule and only re-seeds the world",
+                       name.c_str());
+            classRows += retired ? 1 : 0;
+        }
+        printf("[TEST] leg 1d: %d \"OoT Classes\" / \"MM Classes\" row(s) on the page, expected none (#834)\n",
+               classRows);
+    }
+
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
     // The enforcement rule (ADR 0004 §6): the gate is on the src/common writers,
     // so no widget in this section may bind one of the six keys directly -- a
