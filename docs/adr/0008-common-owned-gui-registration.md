@@ -77,6 +77,21 @@ frozen shadow, which the view otherwise reads, and nothing refills it before
 MM's first save. Under any other active game, and on MM's title screen and
 file select, the view reads the frozen shadow as before.
 
+*Amendment (2026-09-30, #458 U0), for the item view.* The #799 text above
+names the offset descriptor because that is the shape of the check adapter.
+The unified item view (#458 U1) uses the other shape: an adapter that reads a
+source buffer through its own layout, in its own game's TU. The view picks the
+buffer and hands it over: the active game's live save, from that game's
+adapter under the conditions above, or otherwise that game's frozen shadow
+(`Context_GetOoTSaveContext` / `Context_GetMMSaveContext`). The rule is
+unchanged in substance. Common code names neither game's layout: it walks
+offsets a game registered, or hands a buffer to that game's own accessor. The
+view never asks for a live save under a `GameId` that is not the active game,
+so the inactive game's rows always come from its shadow and are never `LIVE`.
+An adapter reads only the buffer it is handed, never the global save of a game
+that is not active. What may cross from an adapter is ADR 0002's 2026-09-30
+amendment: origin-tagged rows and projected status, never a raw id or status.
+
 ## Consequences
 
 - The cross-game spoiler view (#496) is reachable in an OoT-only session, which

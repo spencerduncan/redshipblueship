@@ -74,8 +74,8 @@ void Rando::MiscBehavior::CheckQueue() {
             // (2s2h/Rando/ForeignModelSingleExe.cpp). Models draw by resource
             // path and archives are never unmounted: oot.o2r is mounted from
             // OoT's first boot on, and curated OoT-origin models are carried in
-            // redship-mm.o2r (#577 M1: today only the M1 seed, #577 M6 curates
-            // the set). A model in an object directory both archives carry
+            // redship-mm.o2r (#577 M1; every OoT-exclusive get-item object since
+            // #577 M6). A model in an object directory both archives carry
             // draws MM's OWN model for the same item instead (#577 M7's
             // host-native table: OoT's hookshot shows MM's hookshot). When there
             // is no drawable model (no origin answer, a colliding model the

@@ -33,10 +33,13 @@
  *    answer is a pure function of static tables and says nothing about which
  *    archives are mounted: MM's archives are added only when MM is first
  *    entered, OoT's from OoT's first boot (rsbs/src/main.cpp,
- *    Combo_EnsureGameArchivesLoaded). An OoT session that has not entered MM in
- *    this process therefore gets a DESCRIPTOR for an MM-exclusive model (the
- *    Deku Mask) whose paths cannot resolve, and an MM-first session the same
- *    for an OoT model. The CONSUMER owns that check: before it draws, every
+ *    Combo_EnsureGameArchivesLoaded). The host-exclusive get-item directories
+ *    (the Deku Mask's `object_gi_nutsmask`, ...) are also carried by the
+ *    host's curated half (#577 M6: redship-oot.o2r / redship-mm.o2r, mounted
+ *    with the host), so those resolve either way; a path outside that set
+ *    (the colliding M7 directories, anything not a get-item model) resolves
+ *    only once its source game has been entered in this process. The
+ *    CONSUMER owns that check: before it draws, every
  *    part's path must resolve (ArchiveManager::HasFile, as
  *    ForeignTextboxIconSingleExe.cpp does for the textbox icon); otherwise it
  *    keeps today's stand-in, as for NONE.

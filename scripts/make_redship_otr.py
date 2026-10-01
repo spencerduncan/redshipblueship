@@ -90,9 +90,8 @@ Design constraints, in the order they matter:
      that row, this walk does not follow sub-display-list edges into other
      resources: every curated resource is scanned independently, so a raw
      reference inside a sub-display-list is caught when THAT resource is itself
-     scanned (manifest entries are whole-directory prefixes), and a sub-DL
-     reference that escapes the curated set entirely is already refused by the
-     unresolved/OoT-served checks the CTest row performs at load time.
+     scanned (manifest entries are whole-directory prefixes), and a reference
+     that escapes the curated half entirely is refused by constraint 7.
 
   6. ONLY ARRAY RESOURCES BOTH READERS PARSE IDENTICALLY (#604).  Every
      extracted object's vertex data (`*Vtx_*`) is an 'OARR' Array resource, and
@@ -129,6 +128,29 @@ Design constraints, in the order they matter:
      contained half of #604 -- it cannot lock the VERTEX path against a future
      upstream change to either port's reader, which is a code-equality property
      no archive walk can see.  See the #604 discussion for that residual.
+
+  7. EVERY HASHED REFERENCE STAYS INSIDE ITS HALF (#577 M6).  Besides the raw
+     form constraint 5 refuses, a display list names each texture, vertex
+     array, sub-display-list, matrix and light it uses by the CRC64 of its
+     path (G_SETTIMG_OTR_HASH, G_VTX_OTR_HASH, G_DL_OTR_HASH, G_BRANCH_Z_OTR,
+     G_MTX_OTR, G_MOVEMEM_OTR).  Curating a directory copies only that
+     directory, but a model need not live in one: most of OoT's get-item
+     display lists name
+     shared environment-map textures in gameplay_keep
+     (`objects/gameplay_keep/gEffUnknown10Tex` and friends).  Served from
+     the curated half, such a reference resolves against whatever the host
+     has mounted: nothing, in a session that has not mounted the source game
+     yet (the half exists for exactly that session), or the HOST's own copy
+     if the host carries that path.  So every hashed reference of every
+     curated display list must name a path curated in the SAME half, and the
+     build fails naming the reference and its target otherwise.  The fix is a
+     single-path manifest entry for the target, which the collision guard
+     then vets like any other.  Raw segmented G_DL / G_VTX / G_MTX operands
+     are NOT refused: a get-item draw function binds those segments (OoT's
+     jewels and blue fire, MM's Moon's Tear), and the #577 M2 descriptor
+     either carries that binding as its scroll list for the host to
+     re-express or answers "no model" for a draw it cannot express
+     (src/common/foreign_model.h).
 
 The manifest is a text file of `<source>-><host> <path-prefix>` lines -- the
 direction column is `mm->oot` or `oot->mm` -- with `#` comments and blank lines
@@ -246,11 +268,11 @@ def is_display_list(data):
     return tag == DISPLAY_LIST_TYPE or tag[::-1] == DISPLAY_LIST_TYPE
 
 
-def find_raw_segmented_texture_refs(data):
-    """Walk an ODLT resource's own command stream and return a list of
-    (instruction_index, segment) for every raw segmented G_SETTIMG it
-    contains directly (see constraint 5 in the module docstring for why this
-    does not follow sub-display-list edges into other resources).
+def _walk_display_list(data):
+    """Yield (instruction_index, opcode, w1, payload) for every command of an
+    ODLT resource's own stream, up to and including its G_ENDDL.  `payload`
+    is the (w0, w1) of the Gfx an expanded (128-bit) command carries after it,
+    or None for a plain command.
 
     Raises MalformedDisplayList if the stream cannot be parsed to its
     G_ENDDL.
@@ -272,7 +294,6 @@ def find_raw_segmented_texture_refs(data):
     while pos % 8 != 0:
         pos += 1
 
-    findings = []
     index = 0
     n = len(body)
     while True:
@@ -283,6 +304,36 @@ def find_raw_segmented_texture_refs(data):
         pos += 8
         opcode = (w0 >> 24) & 0xFF
 
+        if opcode not in _EXPANDED_OPCODES:
+            yield index, opcode, w1, None
+            index += 1
+            if opcode == end_opcode:
+                break
+            continue
+
+        # Expanded (128-bit) command: the payload Gfx follows.
+        if pos + 8 > n:
+            raise MalformedDisplayList("expanded command 0x%02X truncated before its payload (at body offset %d)" %
+                                       (opcode, pos))
+        payload = (int.from_bytes(body[pos:pos + 4], byte_order), int.from_bytes(body[pos + 4:pos + 8], byte_order))
+        pos += 8
+        yield index, opcode, w1, payload
+        index += 2
+        if opcode == end_opcode:
+            break
+
+
+def find_raw_segmented_texture_refs(data):
+    """Walk an ODLT resource's own command stream and return a list of
+    (instruction_index, segment) for every raw segmented G_SETTIMG it
+    contains directly (see constraint 5 in the module docstring for why this
+    does not follow sub-display-list edges into other resources).
+
+    Raises MalformedDisplayList if the stream cannot be parsed to its
+    G_ENDDL.
+    """
+    findings = []
+    for index, opcode, w1, _payload in _walk_display_list(data):
         if opcode == _RAW_SETTIMG:
             # Segment 0 is a plain physical address, not the shared-segment
             # hazard -- matches the runtime walk's
@@ -290,27 +341,91 @@ def find_raw_segmented_texture_refs(data):
             segment = (w1 >> 24) & 0x0F
             if w1 != 0 and segment != 0:
                 findings.append((index, segment))
-            index += 1
-            if opcode == end_opcode:
-                break
-            continue
-
-        if opcode not in _EXPANDED_OPCODES:
-            index += 1
-            if opcode == end_opcode:
-                break
-            continue
-
-        # Expanded (128-bit) command: skip the payload Gfx that follows.
-        if pos + 8 > n:
-            raise MalformedDisplayList("expanded command 0x%02X truncated before its payload (at body offset %d)" %
-                                       (opcode, pos))
-        pos += 8
-        index += 2
-        if opcode == end_opcode:
-            break
-
     return findings
+
+
+# ------------------------------------------------------------------------
+# Escaping-reference guard (constraint 7).
+# ------------------------------------------------------------------------
+
+# The expanded commands whose payload is the CRC64 of the resource path they
+# draw from (libultraship/src/fast/interpreter.cpp: each handler reads
+# `((uint64_t)w0 << 32) + w1` off the payload Gfx and resolves it through the
+# ResourceManager).  G_MOVEMEM_OTR is one of them: gfx_movemem_handler_otr
+# loads the Lights resource its payload hash names.  G_MARKER names no
+# resource.
+_HASH_REFERENCE_OPCODES = {
+    _OTR_SETTIMG_HASH: "G_SETTIMG_OTR_HASH",
+    _OTR_DL_HASH: "G_DL_OTR_HASH",
+    _OTR_VTX_HASH: "G_VTX_OTR_HASH",
+    _OTR_BRANCH_Z: "G_BRANCH_Z_OTR",
+    _OTR_MTX: "G_MTX_OTR",
+    _OTR_MOVEMEM: "G_MOVEMEM_OTR",
+}
+
+_CRC64_POLY = 0x42F0E1EBA9EA3693
+_CRC64_MASK = (1 << 64) - 1
+
+
+def _make_crc64_table():
+    table = []
+    for i in range(256):
+        crc = i << 56
+        for _ in range(8):
+            crc = ((crc << 1) ^ _CRC64_POLY) if crc & (1 << 63) else (crc << 1)
+            crc &= _CRC64_MASK
+        table.append(crc)
+    return table
+
+
+_CRC64_TABLE = _make_crc64_table()
+
+
+def crc64(path):
+    """libultraship's CRC64(const char*) (src/ship/utils/StrHash64.cpp): the
+    hash an archive files a path under and a display list names it by.  MSB
+    first, ECMA-182 polynomial, all-ones initial value, no final XOR."""
+    crc = _CRC64_MASK
+    for byte in path.encode("utf-8"):
+        crc = _CRC64_TABLE[((crc >> 56) ^ byte) & 0xFF] ^ ((crc << 8) & _CRC64_MASK)
+    return crc
+
+
+def find_hash_references(data):
+    """Return (instruction_index, command_name, hash) for every resource an
+    ODLT resource's own stream names by path hash.
+
+    Raises MalformedDisplayList if the stream cannot be parsed to its
+    G_ENDDL.
+    """
+    refs = []
+    for index, opcode, _w1, payload in _walk_display_list(data):
+        name = _HASH_REFERENCE_OPCODES.get(opcode)
+        if name is not None and payload is not None:
+            refs.append((index, name, (payload[0] << 32) + payload[1]))
+    return refs
+
+
+# ------------------------------------------------------------------------
+# Admission report (#577 M6).
+# ------------------------------------------------------------------------
+
+# The get-item object directories: the class #577 M6 curates.  A directory of
+# this class that the SOURCE archive carries and none of the HOST's base
+# archives do is "host-exclusive": the host has no model of its own there, so
+# a foreign get-item of it can only be drawn from the curated half.
+GI_DIR_PREFIX = "objects/object_gi_"
+
+
+def object_dirs(names, prefix):
+    """The `objects/<dir>/` prefixes of every path in `names` under `prefix`."""
+    dirs = set()
+    for n in names:
+        if n.startswith(prefix):
+            parts = n.split("/")
+            if len(parts) >= 3:
+                dirs.add("objects/%s/" % parts[1])
+    return dirs
 
 
 # ------------------------------------------------------------------------
@@ -524,11 +639,22 @@ def main():
                     help="another base archive GAME (oot|mm) mounts before its curated half; must exist; repeatable")
     ap.add_argument("--optional-host-archive", action="append", default=[], metavar="GAME=PATH",
                     help="as --host-archive, but checked only when the file exists; repeatable")
+    # The admission report (#577 M6): per direction, how many manifest
+    # entries and resources were admitted and how much of the host-exclusive
+    # get-item set they cover.  Always printed; also written here, one
+    # `direction` line per half plus one `missing` line per uncovered
+    # directory, so the curated-archive-generator CTest row can lock it.
+    ap.add_argument("--report", metavar="PATH",
+                    help="also write the admission report to PATH (only when both halves were written)")
     args = ap.parse_args()
     outputs = {"oot": args.out_oot, "mm": args.out_mm}
     if os.path.abspath(outputs["oot"]) == os.path.abspath(outputs["mm"]):
         sys.exit("[curated-archives] --out-oot and --out-mm name the same file (%s); the two halves carry "
                  "different game identities and must be separate archives" % outputs["oot"])
+    if args.report and os.path.exists(args.report):
+        # A refusal below must never leave an earlier run's report behind to
+        # be read as this run's.
+        os.remove(args.report)
 
     candidates = {"oot": args.oot_archive, "mm": args.mm_archive}
     sources = {}
@@ -711,6 +837,69 @@ def main():
                  % (len(array_disagreements),
                     ", ".join("%s:%s" % (g, p) for g, p, _i, _s, _o, _m in array_disagreements)))
 
+    # Escaping-reference guard (constraint 7 above).  Every resource a
+    # curated display list names by path hash must be curated in the SAME
+    # half, or the host resolves it against whatever else happens to be
+    # mounted: nothing (the source game's archives are not mounted yet), or
+    # the host's own copy of that path.  Every display list was already
+    # walked to its G_ENDDL by the raw-segmented guard, so none raises here.
+    curated_by_hash = {host: {} for host in GAMES}
+    for game, path in selected:
+        curated_by_hash[other[game]][crc64(path)] = path
+    escaping = []  # (game, path, index, command, hash)
+    for game, path in selected:
+        data = payloads[(game, path)]
+        if not is_display_list(data):
+            continue
+        for index, command, ref_hash in find_hash_references(data):
+            if ref_hash not in curated_by_hash[other[game]]:
+                escaping.append((game, path, index, command, ref_hash))
+    if escaping:
+        # Name each target: hash the source archive's paths (only on this
+        # failure path -- it is the one place the generator needs them).
+        source_by_hash = {}
+        for game in sorted({e[0] for e in escaping}):
+            source_by_hash[game] = {crc64(n): n for n in names[game]}
+        targets = set()
+        for game, path, index, command, ref_hash in escaping:
+            host = other[game]
+            target = source_by_hash[game].get(ref_hash)
+            if target is None:
+                why = "hash 0x%016X, which names no path in the %s archive" % (ref_hash, game)
+            elif target in host_names[host]:
+                why = ("%r, which the host's own base archives also carry -- %s would draw ITS copy"
+                       % (target, host))
+            else:
+                why = ("%r, which is not curated in %s (the host does not carry it: curate it with the model)"
+                       % (target, OUTPUT_NAMES[host]))
+            targets.add(target or "0x%016X" % ref_hash)
+            print("[curated-archives] ESCAPING REFERENCE: %s-owned %r instruction %d (%s) names %s"
+                  % (game, path, index, command, why), file=sys.stderr)
+        sys.exit("[curated-archives] refusing to build: %d reference(s) in curated display lists name %d resource(s) "
+                 "outside their curated half (%s). A curated half must be self-contained: a reference that escapes "
+                 "it resolves against the host's mounts, not the model's own (see constraint 7 in this script's "
+                 "docstring). Curate the named resource in the same direction, or drop the model."
+                 % (len(escaping), len(targets), ", ".join(sorted(targets))))
+
+    # Admission report (#577 M6): per half, the admitted manifest entries and
+    # resources, and how much of the host-exclusive get-item set is covered.
+    selected_by_host = {host: set() for host in GAMES}
+    for game, path in selected:
+        selected_by_host[other[game]].add(path)
+    report = []
+    for host in GAMES:
+        source = DIRECTIONS_BY_HOST[host]
+        exclusive = sorted(object_dirs(names[source], GI_DIR_PREFIX) - object_dirs(host_names[host], GI_DIR_PREFIX))
+        missing = [d for d in exclusive
+                   if not all(n in selected_by_host[host] for n in names[source] if n.startswith(d))]
+        entry_count = sum(1 for _s, h, _p, _l in entries if h == host)
+        report.append("direction %s->%s entries %d resources %d gi_exclusive %d gi_admitted %d"
+                      % (source, host, entry_count, len(selected_by_host[host]), len(exclusive),
+                         len(exclusive) - len(missing)))
+        report.extend("missing %s->%s %s" % (source, host, d) for d in missing)
+    for line in report:
+        print("[curated-archives] %s" % line)
+
     # Every guard passed: write both halves.  A resource lands in the half its
     # HOST mounts -- the other game from the one it was carved out of.
     for host in GAMES:
@@ -734,6 +923,10 @@ def main():
 
         print("[curated-archives] wrote %s (%s->%s, mounted by %s): %d curated resource(s), %d bytes uncompressed"
               % (out_path, other[host], host, host, count, total))
+
+    if args.report:
+        with open(args.report, "w", encoding="utf-8") as handle:
+            handle.write("".join(line + "\n" for line in report))
 
     for z in zips.values():
         z.close()
