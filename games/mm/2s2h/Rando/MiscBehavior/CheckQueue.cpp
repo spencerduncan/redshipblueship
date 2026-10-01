@@ -75,14 +75,19 @@ void Rando::MiscBehavior::CheckQueue() {
             // path and archives are never unmounted: oot.o2r is mounted from
             // OoT's first boot on, and curated OoT-origin models are carried in
             // redship-mm.o2r (#577 M1; every OoT-exclusive get-item object since
-            // #577 M6). When there is no drawable model (no origin answer, a
-            // model in an object
-            // directory both archives carry that MM has no host-native row for
-            // yet, or a path no mounted archive holds) it keeps MM's own
+            // #577 M6). A model in an object directory both archives carry
+            // draws MM's OWN model for the same item instead (#577 M7's
+            // host-native table: OoT's hookshot shows MM's hookshot). When there
+            // is no drawable model (no origin answer, a colliding model the
+            // table answers "no model" for, or a path no mounted archive
+            // holds) it keeps MM's own
             // model-LESS pickup form: RI_NONE draws no model and falls through to
             // DrawSparkles, the presentation MM gives Magic Upgrades, the Swim
             // ability and Progressive Time (DrawItem.cpp). Never a DIFFERENT
             // item's model: a rupee that is not a rupee was the old placeholder.
+            // Open exception (#577 M7, awaiting the operator's call): OoT's key
+            // ring, overworld keys and bombchu bag answer their vanilla stand-in
+            // row (ForeignModelOoT.cpp), so MM shows its small key or bombchu.
             if (Rando::Foreign::IsForeignCheck(randoCheckId)) {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                     // Always cutscene: a foreign item is progression by
