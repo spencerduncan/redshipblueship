@@ -822,7 +822,8 @@ extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
 extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 // 2s2h/Rando/ForeignModelSingleExe.cpp: the #577 M3 playtest drive's arm.
 extern "C" int MM_ForeignModel_PlaytestArmGive(void);
-extern "C" int MM_Shop_PlaytestWarp(void); // #800 playtest drive (Rando/ActorBehavior/EnGirlA.cpp)
+extern "C" int MM_Shop_PlaytestWarp(void);       // #800 playtest drive (Rando/ActorBehavior/EnGirlA.cpp)
+extern "C" void MM_Shop_PlaytestShopFrame(void); // its in-shop half, same file
 
 /**
  * int-paired-first-crossing: the MM arrival's verdict, taken once South Clock
@@ -1071,6 +1072,8 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     static bool sGpMMShopWalked = false;
     if (!sGpMMShopWalked && sGpMMPlayFrames >= 100 && std::getenv("RSBS_GP_MM_SHOP") != nullptr) {
         sGpMMShopWalked = MM_Shop_PlaytestWarp() >= 0;
+    } else if (sGpMMShopWalked) {
+        MM_Shop_PlaytestShopFrame();
     }
     if (sGpMMPlayFrames < cfg->framesPerPhase) {
         return;
