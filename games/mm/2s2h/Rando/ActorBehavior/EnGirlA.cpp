@@ -665,6 +665,8 @@ extern "C" int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired)
 
 static RandoCheckId sShopPlaytestHost = RC_UNKNOWN;
 static SharedItem sShopPlaytestItem;
+// GameExports_SingleExe.cpp: the game framebuffer as a PNG (RSBS_GP_SHOT_DIR).
+extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag);
 
 extern "C" int MM_Shop_PlaytestWarp(void) {
     struct ShopDoor {
@@ -677,7 +679,19 @@ extern "C" int MM_Shop_PlaytestWarp(void) {
         { RC_BOMB_SHOP_ITEM_01, RC_BOMB_SHOP_ITEM_03, ENTRANCE(BOMB_SHOP, 0), "the Bomb Shop" },
         { RC_TRADING_POST_SHOP_ITEM_01, RC_TRADING_POST_SHOP_ITEM_08, ENTRANCE(TRADING_POST, 0), "the Trading Post" },
     };
-    if (MM_gPlayState == nullptr || MM_gPlayState->msgCtx.msgMode != MSGMODE_NONE) {
+    static int sWaited = 0;
+    if (MM_gPlayState == nullptr) {
+        return -1;
+    }
+    if (MM_gPlayState->msgCtx.msgMode != MSGMODE_NONE) {
+        // Nobody is at the keyboard: a textbox still up after 300 frames is
+        // waiting for a press that will not come, so the drive closes it.
+        if (++sWaited % 300 == 0) {
+            fprintf(stderr, "[S2-PLAYTEST] closing textbox 0x%04X (msgMode %d), up for %d frames\n",
+                    (unsigned)MM_gPlayState->msgCtx.currentTextId, (int)MM_gPlayState->msgCtx.msgMode, sWaited);
+            fflush(stderr);
+            MM_Message_CloseTextbox(MM_gPlayState);
+        }
         return -1;
     }
     const int count = Combo_Crossings_Count(GAME_MM);
@@ -744,6 +758,20 @@ extern "C" void MM_Shop_PlaytestShopFrame(void) {
         return;
     }
     sFrame++;
+    if (sFrame == 20) {
+        // Stand the player at the counter, facing the shelf, so the screenshots
+        // show it close up (the shopkeeper is behind the counter, the shelf on it).
+        Player* player = GET_PLAYER(play);
+        f32 dx = shelf->actor.world.pos.x - keeper->world.pos.x;
+        f32 dz = shelf->actor.world.pos.z - keeper->world.pos.z;
+        const f32 len = sqrtf(dx * dx + dz * dz);
+        if (player != nullptr && len > 1.0f) {
+            player->actor.world.pos.x = shelf->actor.world.pos.x + dx / len * 90.0f;
+            player->actor.world.pos.z = shelf->actor.world.pos.z + dz / len * 90.0f;
+            player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw =
+                MM_Math_Vec3f_Yaw(&player->actor.world.pos, &shelf->actor.world.pos);
+        }
+    }
     if (sFrame == 40) {
         ComboModelAnswer answer;
         const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_MM, sShopPlaytestItem, &answer);
@@ -771,7 +799,17 @@ extern "C" void MM_Shop_PlaytestShopFrame(void) {
         fprintf(stderr, "[S2-PLAYTEST] opening the shelf's description textbox 0x%04X (cursor %u)\n",
                 (unsigned)RANDO_DESC_TEXT_ID, (unsigned)*cursor);
         fflush(stderr);
+        // In play the player is already talking to the shopkeeper when the shelf's
+        // text opens; Message_OpenText runs the text hook before StartTextbox sets
+        // the talk actor, so set it first, as the conversation would have.
+        play->msgCtx.talkActor = keeper;
         MM_Message_StartTextbox(play, RANDO_DESC_TEXT_ID, keeper);
+    }
+    if (sFrame == 60) {
+        MM_Playtest_DumpGameFramebuffer("w8-S2-play-shelf");
+    }
+    if (sFrame == 400) {
+        MM_Playtest_DumpGameFramebuffer("w8-S2-play-textbox");
     }
     if (sFrame == 700) {
         MM_Message_CloseTextbox(play);
@@ -794,6 +832,7 @@ extern "C" void MM_Shop_PlaytestShopFrame(void) {
         }
     }
     if (sFrame == 900) {
+        MM_Playtest_DumpGameFramebuffer("w8-S2-play-sold");
         fprintf(stderr,
                 "[S2-PLAYTEST] OoT-bound shared-item records: %d before the purchase, %d after; slot obtained=%d; "
                 "sold out for good=%d; outOfStock=%d\n",
