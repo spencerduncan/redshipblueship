@@ -439,6 +439,8 @@ int Rando_HeadlessSeedTest(const char* seedStr);
 uint32_t Randomizer_GetCurrentWorldSeed(void);
 // games/mm/2s2h/GameExports_SingleExe.cpp: MM's generation dispatch count.
 uint32_t MM_Rando_OnSaveInitDispatchCount(void);
+// soh/SaveManager.cpp: the file select's gate (#836).
+int OoT_FileSelect_ProbeSlotForOpen(int fileNum, char* words, size_t wordsLen);
 }
 
 // The slot the paired row writes: the THIRD file (fileNum 2), named "RSBSTEST"
@@ -785,6 +787,19 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
     }
 
     // ---- 3. load it back, as the file select does -----------------------------
+    // The file select's gate first (#836): the player's A press on this file
+    // runs it, so a healthy file (and, under RSBS_PFC_DIVERGE, a file whose
+    // changed settings it can restore) must be accepted here.
+    {
+        char words[96];
+        if (OoT_FileSelect_ProbeSlotForOpen(kPfcSlot, words, sizeof(words)) == 0) {
+            snprintf(msg, sizeof(msg), "the file select's gate refused the paired file this row just created: \"%s\"",
+                     words);
+            IntegrationTest_GameplayFail(msg);
+            return;
+        }
+        fprintf(stderr, "[PFC] the file select's gate accepted file %d (#836)\n", kPfcSlot + 1);
+    }
     gSaveContext.fileNum = kPfcSlot;
     gSaveContext.gameMode = GAMEMODE_NORMAL;
     OoT_Sram_OpenSave();
@@ -2233,6 +2248,11 @@ extern "C" void OoT_Combo_FlushSceneFlagsForFreeze(void) {
 extern "C" s32 OoT_Flags_GetEventChkInf(s32 flag);
 extern "C" void OoT_Flags_SetEventChkInf(s32 flag);
 extern "C" void Flags_UnsetEventChkInf(s32 flag);
+// #807: what OoT_ObjLightswitch_Destroy and Play_Destroy call (z_actor.c,
+// z_parameter.c), and SoH's Sunlight Arrows static (z_obj_lightswitch.c).
+extern "C" void OoT_Flags_UnsetSwitch(PlayState* play, s32 flag);
+extern "C" void Inventory_SwapAgeEquipment(void);
+extern "C" bool sunSwitchActivatedByLightArrow;
 
 /**
  * OoT's half of the pre-freeze discipline for actor Destroys whose writes are
@@ -2276,25 +2296,51 @@ extern "C" void Flags_UnsetEventChkInf(s32 flag);
  * freeze seam calls. Idempotent (an unset, a set and an assignment). NULL-safe
  * on OoT_gPlayState like the scene-flag flush: no live PlayState, nothing to do.
  *
- * NOT HERE: Obj_Lightswitch's Destroy unsets a scene switch flag only when
- * SoH's Sunlight Arrows static says a Light Arrow lit the switch (not
- * unconditional scene-exit semantics; #767 already resets that static), and the
- * session-only rows of #770 are normalised on re-entry (see that issue).
+ * #807 adds the two residues PR #792 recorded:
+ *
+ *  - Obj_Lightswitch (z_obj_lightswitch.c, OoT_ObjLightswitch_Destroy): with
+ *    SoH's Sunlight Arrows, a sun switch lit by a Light Arrow sets the overlay
+ *    static sunSwitchActivatedByLightArrow, and the Destroy then unsets that
+ *    switch's flag on any exit (the enhancement makes the activation last one
+ *    visit). Only the first non-BURN switch destroyed acts: it unsets its flag
+ *    unless it is in room 25 (the Spirit Temple chain platform stays down) and
+ *    clears the static; a BURN switch writes nothing and keeps the static. The
+ *    walk below is Actor_CleanupContext's destroy order (categories ascending,
+ *    each list from its head), so the same switch acts. The unset lands on the
+ *    live play flags; Combo_FlushLiveStateForFreeze therefore runs this seam
+ *    BEFORE the #638 scene-flag flush, the order Actor_CleanupContext uses
+ *    (every Destroy, then Play_SaveSceneFlags).
+ *  - Player (z_player.c, OoT_Player_Destroy): gSaveContext.linkAge =
+ *    play->linkAgeOnLoad. Play_Destroy, just before it destroys the actors,
+ *    swaps the age equipment when the two differ (Inventory_SwapAgeEquipment
+ *    archives the CURRENT age's equips, so it must run before the write). They
+ *    differ only between a linkAgeOnLoad write (the Temple of Time age change
+ *    in z_demo.c, SoH's switch-age mod) and the reload it triggers. Without the
+ *    swap the frozen save would wear the old age's equipment, and the arrival's
+ *    force-child guard (z_play.c) skips its own swap when linkAge already reads
+ *    child. Both writes are applied only while a Player with a destroy function
+ *    is live: no Player, no Destroy, and the swap never runs without the write.
+ *
+ * The session-only rows of #770 are normalised on re-entry (see that issue).
  */
 extern "C" void OoT_Combo_ApplySceneExitWritesForFreeze(void) {
     PlayState* play = OoT_gPlayState;
     if (play == NULL) {
         return;
     }
-    // Values private to the two overlays' .c files: WindmillSetpiecesMode's
+    // Values private to the overlays' .c files: WindmillSetpiecesMode's
     // WINDMILL_ROTATING_GEAR, LakeHyliaWaterBoxIndices'
-    // LHWB_GERUDO_VALLEY_RIVER_LOWER, and WATER_LEVEL_RIVER_LOWER_Z.
+    // LHWB_GERUDO_VALLEY_RIVER_LOWER, WATER_LEVEL_RIVER_LOWER_Z, and
+    // ObjLightswitch_Type's OBJLIGHTSWITCH_TYPE_BURN.
     const s16 kWindmillRotatingGear = 0;
     const s32 kRiverLowerWaterBox = 1;
     const s16 kRiverLowerZMin = 2203;
+    const s16 kSunSwitchTypeBurn = 3;
+    const s8 kSunSwitchChainPlatformRoom = 25;
 
     bool windmillGear = false;
     bool lakeObjects = false;
+    bool player = false;
     for (s32 category = 0; category < ACTORCAT_MAX; category++) {
         for (Actor* actor = play->actorCtx.actorLists[category].head; actor != NULL; actor = actor->next) {
             if (actor->destroy == NULL) {
@@ -2304,8 +2350,27 @@ extern "C" void OoT_Combo_ApplySceneExitWritesForFreeze(void) {
                 windmillGear = true;
             } else if (actor->id == ACTOR_BG_SPOT06_OBJECTS) {
                 lakeObjects = true;
+            } else if (actor->id == ACTOR_PLAYER) {
+                player = true;
+            } else if (actor->id == ACTOR_OBJ_LIGHTSWITCH && sunSwitchActivatedByLightArrow &&
+                       ((actor->params >> 4) & 3) != kSunSwitchTypeBurn) {
+                if (actor->room != kSunSwitchChainPlatformRoom) {
+                    OoT_Flags_UnsetSwitch(play, (actor->params >> 8) & 0x3F);
+                    fprintf(stderr,
+                            "[OoT] pre-freeze: sun switch lit by a Light Arrow turned off, switch 0x%02X (#807)\n",
+                            (actor->params >> 8) & 0x3F);
+                }
+                sunSwitchActivatedByLightArrow = false;
             }
         }
+    }
+
+    if (player && gSaveContext.linkAge != play->linkAgeOnLoad) {
+        const s32 frozenAge = gSaveContext.linkAge;
+        Inventory_SwapAgeEquipment();
+        gSaveContext.linkAge = play->linkAgeOnLoad;
+        fprintf(stderr, "[OoT] pre-freeze: pending age change applied, linkAge %d -> %d (#807)\n", (int)frozenAge,
+                (int)gSaveContext.linkAge);
     }
 
     if (windmillGear && gSaveContext.cutsceneIndex < 0xFFF0 &&

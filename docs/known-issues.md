@@ -261,16 +261,19 @@ an older file has no record to compare and is exempt).
 What happens at the crossing depends on whether the file entered Majora's Mask before
 #680:
 
-- **Never crossed:** it has no frozen MM half. The **first crossing into Majora's Mask**
-  is refused with a toast saying the file has no paired Majora's Mask world, rather than
-  silently re-generating the world: Termina stays un-randomized and the slot is latched
-  against writes to the pair for the rest of the session.
+- **Never crossed:** it has no frozen MM half. ~~The first crossing into Majora's Mask
+  is refused with a toast saying the file has no paired Majora's Mask world: Termina
+  stays un-randomized and the slot is latched against writes to the pair for the rest
+  of the session.~~ **RESOLVED (#836):** the file is not opened. Pressing A on it in the
+  Ocarina of Time file select plays the error sound, posts "Not paired: This file has no
+  Majora's Mask world", and keeps you on the file list. Nothing is written.
 - **Crossed before #680:** it carries the MM half the old arrival generated, and the
   arrival hydrates whatever frozen half it finds. It either plays that old pre-#680 MM
   world, or, if its creation-time MM profile stamp no longer matches this build's MM
-  options, the load restores the options from that half when they reproduce the stamp,
-  and otherwise warns at load ("Not restored: Majora's Mask options differ") and the
-  crossing is refused by the MM-options check. Which one a given file meets cannot be
+  options, the load restores the options from that half when they reproduce the stamp.
+  ~~Otherwise it warns at load ("Not restored: Majora's Mask options differ") and the
+  crossing is refused by the MM-options check.~~ **RESOLVED (#836):** otherwise the file
+  is not opened ("Not paired: Majora's Mask options differ" at the file select). Which one a given file meets cannot be
   decided by reading.
 
 This project is pre-release — the operator has accepted invalidating existing saves
@@ -444,18 +447,28 @@ the pages:
 
 The file loads paired, the slot stays writable, and the next crossing into Majora's Mask
 agrees with the file. The cases the file cannot answer stay visible instead of silent:
-- an MM identity input the file does not record (the excluded-check list or the
+- ~~an MM identity input the file does not record (the excluded-check list or the
   starting-item block, which no page in this build edits) loads the file paired but
   posts "Not restored: Majora's Mask options differ", and the crossing is refused until
-  they match;
+  they match;~~ **RESOLVED (#836):** such a file is not opened ("Not paired: Majora's
+  Mask options differ" at the file select);
 - a Cross-Game record field no page authors (only a file from another build can differ
-  there) refuses the load with "Not paired: File made by another build" (a damaged
-  record: "Not paired: Cross-game record is damaged"). The field names are on stderr.
-  The OoT file still opens and plays without its Majora's Mask half, because the load
-  runs after OoT has opened the file; the next crossing into Majora's Mask says so
-  ("Not paired: Termina stays un-randomized") instead of skipping pairing
-  silently. Nothing is saved to the pair that session. This residual is reachable only
-  from another build's file or a damaged one (ADR 0011, 2026-09-28 amendment).
+  there) is refused with "Not paired: File made by another build" (a damaged record:
+  "Not paired: Cross-game record is damaged"). The field names are on stderr. ~~The OoT
+  file still opens and plays without its Majora's Mask half, because the load runs after
+  OoT has opened the file; the next crossing into Majora's Mask says so ("Not paired:
+  Termina stays un-randomized") instead of skipping pairing silently. Nothing is saved
+  to the pair that session.~~ **RESOLVED (#836, operator ruling 2026-10-01: "unpaired is
+  not an acceptable scenario"):** a refused file is not opened. Pressing A on it in the
+  Ocarina of Time file select plays the error sound, posts the refusal toast, and keeps
+  you on the file list; Combo > Save Files shows the same words. The same applies to a
+  randomizer file whose cross-game record is missing ("Cross-game record is missing":
+  a deleted record, or a file made with the file select's Copy, which copies Ocarina of
+  Time's file only) and to every damaged record. Nothing is written, renamed or deleted.
+  Two ways out: put a good copy of `Save/redship_slot<N>.redsave` back (N = file
+  number - 1) and open the file again, or erase the file in the file select. A
+  `.refused-*.bak` left by an earlier build is worth renaming back only when its
+  refusal was not damage; "File made by another build" opens in that build.
 
 The original report, kept only for matching old logs (historical; it describes the
 behaviour before the fix):
@@ -758,16 +771,17 @@ actors from the discarded session; in OoT, a missing Zora diving-game Zora, Spir
 Chest Shop keeper for the rest of the process. Each departure logs `[OoT] Abandoned session
 retired: ...` or `[MM] ...`.
 
-### ~~OoT actor teardown writes to the save are skipped at a departure~~ — RESOLVED ([#770](https://github.com/spencerduncan/redshipblueship/issues/770), PR [#792](https://github.com/spencerduncan/redshipblueship/pull/792)); two residues in [#807](https://github.com/spencerduncan/redshipblueship/issues/807)
+### ~~OoT actor teardown writes to the save are skipped at a departure~~ — RESOLVED ([#770](https://github.com/spencerduncan/redshipblueship/issues/770), PR [#792](https://github.com/spencerduncan/redshipblueship/pull/792); [#807](https://github.com/spencerduncan/redshipblueship/issues/807))
 
 The teardowns PR #767 does not run also write the save. Fixed by PR #792 (2026-09-28): right
 before a departure freezes OoT's save, the windmill's Song of Storms flag is cleared and Lake
 Hylia's raised water is set again after the Water Temple (rando), as those actors' teardowns do
 on any exit, and the lake's river water box is put back. A running room or minigame timer's
 `timerState`, Sun's Song state and a magic effect's `magicState` are reset on the next OoT
-arrival or file load (read in code, #770). Still open in #807: a sun switch lit by a Light
-Arrow under SoH's Sunlight Arrows enhancement stays on after a departure, and an F10 between
-an age change and its scene reload freezes the old `linkAge`. State cleared only by destroy
+arrival or file load (read in code, #770). ~~A sun switch lit by a Light Arrow under SoH's
+Sunlight Arrows enhancement stays on after a departure, and an F10 between an age change and
+its scene reload freezes the old `linkAge`~~ — RESOLVED (#807): the departure now turns that
+sun switch off and applies the pending age with its equipment swap, as those teardowns do. State cleared only by destroy
 hooks is not retired either: a remote bombchu's camera focus and the entrance-randomizer Epona
 state (PRs [#751](https://github.com/spencerduncan/redshipblueship/pull/751), [#767](https://github.com/spencerduncan/redshipblueship/pull/767)).
 
