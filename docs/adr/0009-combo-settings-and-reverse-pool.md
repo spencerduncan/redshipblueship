@@ -686,10 +686,15 @@ fixed here.
 check-tracker status lives in the `.sav`'s tracker section, which a crossing
 does not write, and the despawn test for heart pieces, small keys, heart
 containers and shuffled freestanding items reads that status, not the
-collectible flag in the half. A reload of a crossing commit can therefore
-respawn such an item collected before the crossing and give it again
-([#849](https://github.com/spencerduncan/redshipblueship/issues/849)). Chests
-read the treasure flag, which is in the half.
+collectible flag in the half. A reload of a crossing commit therefore
+respawned such an item collected before the crossing
+([#849](https://github.com/spencerduncan/redshipblueship/issues/849)).
+Resolved without a format change: when a load applies the `.redsave`'s OoT
+half, every check whose own collection flag differs between the `.sav`'s base
+section and the loaded half takes the loaded half's answer (found: `SAVED`;
+not found: `SCUMMED`); checks whose flag both agree on keep their status
+(`games/oot/soh/Enhancements/randomizer/CheckStateLoadSingleExe.cpp`, lock
+`oot-check-state-load`).
 
 **What it overturns.** Decision 4b's "Autosave off" sentences, for the switch
 (noted in place above); the moon-crash restore no longer rolls OoT back,

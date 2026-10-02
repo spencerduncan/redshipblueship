@@ -392,6 +392,10 @@ int MM_DeathDeclineAutosave_RunHeadless(void);
 // Combo_FreezeActiveGameForHotSwap). Return 0 on pass.
 int MM_SceneFlagFreeze_RunHeadless(void);
 int OoT_SceneFlagFreeze_RunHeadless(void);
+// #849 / #803's load leg: after a load, OoT's check statuses follow the save
+// half that was loaded, not the .sav's tracker section. Drives OoT's OnLoadFile
+// seam over a real .redsave; games/oot/soh/oot_check_state_load_test.cpp.
+int OoT_CheckStateLoad_RunHeadless(void);
 // #661: the Happy Mask Shop interior pair is the OoT<->MM crossing and must
 // never enter OoT's own entrance-shuffle pools. Both bodies live in
 // games/oot/soh/oot_entrance_pin_test.cpp. The pool probe is ROM-free and
@@ -4270,6 +4274,22 @@ TestResult Test_ComboTrackerView(void) {
     return Combo_TrackerView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// OoT's check state follows the loaded half (#849, #803). The same display-free
+// bring-up as the tracker view above: the row authors a real Rando::Context.
+TestResult Test_OoTCheckStateLoad(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return OoT_CheckStateLoad_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Combo tracker window (#458, ADR 0008). Same bring-up as the Gui bridges
 // above and for the same reason (GuiWindow ctors read ConsoleVariables off
 // the Ship::Context singleton).
@@ -5791,6 +5811,11 @@ const TestDescriptor gTests[] = {
      "resume: a kill after the crossing reloads it; a latched, slot-less, freeze-less or not-live departure "
      "writes nothing (#837)",
      Test_CrossingCommit},
+    {"oot-check-state-load",
+     "After a load, OoT's check statuses follow the save half that was loaded: a heart piece the newer .redsave "
+     "half holds reads found, a chest that half has closed gives its item again, and a check whose flag both "
+     "halves agree on keeps its status (#849, #803)",
+     Test_OoTCheckStateLoad},
     {"combo-player-name",
      "The paired world has one name: OoT's typed name, in each OoT filename charset, translates into MM's charset "
      "as OoTMM's copyName does (no-glyph bytes to MM's space), every typable character prints in MM as in OoT, "

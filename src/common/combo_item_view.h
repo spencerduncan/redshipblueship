@@ -110,6 +110,13 @@ const ComboItemOps* Combo_Item_GetOps(uint8_t game);
  */
 void OoT_ItemAdapter_Register(void);
 
+/**
+ * Register MM's item adapter. DEFINED MM-SIDE
+ * (games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp), declared here for the same
+ * reason (#458 U1b).
+ */
+void MM_ItemAdapter_Register(void);
+
 // ============================================================================
 // Per-game reads (all null-safe; game is GAME_OOT or GAME_MM)
 // ============================================================================
