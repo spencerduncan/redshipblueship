@@ -9,6 +9,9 @@
 #include <soh/OTRGlobals.h>
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "foreign_items.h" // src/common — Combo_GetForeignPlacementForOoTCheck, Combo_GetForeignItemName (#800)
+#endif
 
 extern "C" {
 extern PlayState* OoT_gPlayState;
@@ -178,6 +181,23 @@ void BuildShopMessage(uint16_t* textId, bool* loadFromMessageTable) {
     } else {
         return;
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 S1: a shelf hosting a Majora's Mask item names that item, not the junk
+    // cover the OoT table holds there, at the shelf's own price. The name comes
+    // from MM's describer (the same one the drain's pickup toast reads), in
+    // English only, and with OoT's default item colour.
+    const SharedItem* foreignItem = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
+    if (foreignItem != nullptr && !CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0)) {
+        const char* foreignName = Combo_GetForeignItemName(*foreignItem);
+        msg.Replace("[[color]]", "%g");
+        msg.InsertNames({ CustomMessage(std::string(foreignName != nullptr ? foreignName : "Majora's Mask item")),
+                          CustomMessage(std::to_string(RAND_GET_ITEM(rc)->GetPrice())) });
+        msg.AutoFormat();
+        msg.LoadIntoFont();
+        *loadFromMessageTable = false;
+        return;
+    }
+#endif
     BuildMerchantMessage(msg, rc, CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0));
     msg.AutoFormat();
     msg.LoadIntoFont();
