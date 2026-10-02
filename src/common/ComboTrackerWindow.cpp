@@ -3,8 +3,11 @@
  * @brief Renders the combo tracker model in-game (#458; ADR 0008).
  *
  * See ComboTrackerWindow.h for the contract. Every value drawn here comes
- * from combo_tracker_view.h; this file holds no state of its own and caches
- * nothing, so progress made mid-session updates on the next frame.
+ * from combo_tracker_view.h and is read again every frame, so progress made
+ * mid-session updates on the next frame. The file's only state is the Checks
+ * lists' search text (DrawCheckList's per-game buffers), which persists across
+ * frames, a closed and reopened pane and file loads within one process, as
+ * SoH's checkSearch does.
  *
  * It is drawn the way SoH draws its own tracker and editor panes
  * (docs/ui-style-guide.md section 10): the title bar's close button, themed
@@ -26,6 +29,11 @@
 
 #include <cfloat>
 #include <cstdio>
+#include <cstring>
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <imgui.h>
 #include <ship/Context.h>
@@ -68,33 +76,194 @@ const char* FoundGlyph(uint8_t found) {
     return found == COMBO_TRACKER_FOUND_NO ? ICON_FA_SQUARE_O : ICON_FA_QUESTION_CIRCLE_O;
 }
 
+float ImGuiTextWidth(void*, const char* begin, const char* end) {
+    return ImGui::CalcTextSize(begin, end).x;
+}
+
+float ImGuiTextHeight(void*, const char* text, float wrapWidth) {
+    return ImGui::CalcTextSize(text, nullptr, false, wrapWidth).y;
+}
+
+const ComboTextMeasure kImGuiMeasure = { ImGuiTextWidth, ImGuiTextHeight, nullptr };
+
 /**
- * Wrapped text with balanced lines: the narrowest wrap width that still takes
- * no more lines than the cell's full width does. A long name then breaks into
- * even lines instead of leaving its last word alone on one ("Stone Tower
- * Temple Entrance Small Crate" over "02"). Text that fits is drawn as is.
+ * Wrapped text with balanced lines (ComboBalancedWrapWidth): a long name breaks
+ * into even lines instead of leaving its last word alone on one ("Stone Tower
+ * Temple Entrance Small Crate" over "02"), and never inside a word. Text that
+ * fits is drawn as is.
  */
 void TextBalanced(const char* text) {
-    const float avail = ImGui::GetContentRegionAvail().x;
-    const float full = ImGui::CalcTextSize(text).x;
-    float wrap = avail;
-    if (avail > 0.0f && full > avail) {
-        const float height = ImGui::CalcTextSize(text, nullptr, false, avail).y;
-        float lo = 1.0f;
-        float hi = avail;
-        for (int i = 0; i < 12 && hi - lo > 1.0f; i++) {
-            const float mid = (lo + hi) * 0.5f;
-            if (ImGui::CalcTextSize(text, nullptr, false, mid).y <= height) {
-                hi = mid;
-            } else {
-                lo = mid;
-            }
-        }
-        wrap = hi;
-    }
+    const float wrap = ComboBalancedWrapWidth(text, ImGui::GetContentRegionAvail().x, kImGuiMeasure);
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + wrap);
     ImGui::TextUnformatted(text);
     ImGui::PopTextWrapPos();
+}
+
+// ---- SoH's Check Tracker colours (#458 U4) ----------------------------------
+//
+// The Checks lists colour each check, and each area header, the way SoH's Check
+// Tracker does (randomizer_check_tracker.cpp, CheckTrackerWindow::DrawElement and
+// DrawLocation): a main colour for the name and an extra colour for the text
+// after it, per status, read from the player's own Check Tracker settings
+// (CVAR_TRACKER_CHECK("<State>.MainColor" / ".ExtraColor"), which expands to the
+// "gTrackers.CheckTracker." keys below; src/common has no cvar_prefixes.h) with
+// SoH's defaults. Both games' lists use them: one window, one colour scheme.
+
+constexpr Color_RGBA8 kSohMainDefault = { 255, 255, 255, 255 }; // Color_Main_Default
+
+struct SohStatusColourKey {
+    const char* state;        // the CVar's state segment
+    Color_RGBA8 extraDefault; // SoH's Color_<State>_Extra_Default
+};
+
+// Indexed by ComboTrackerCheckStatus.
+const SohStatusColourKey kSohStatusColours[COMBO_TRACKER_CHECK_STATUS_COUNT] = {
+    { "Unchecked", { 255, 255, 255, 255 } }, // COMBO_TRACKER_CHECK_UNCHECKED
+    { "Seen", { 255, 255, 255, 255 } },      // COMBO_TRACKER_CHECK_SEEN
+    { "Scummed", { 0, 174, 239, 255 } },     // COMBO_TRACKER_CHECK_SCUMMED
+    { "Skipped", { 160, 160, 160, 255 } },   // COMBO_TRACKER_CHECK_SKIPPED
+    { "Collected", { 242, 101, 34, 255 } },  // COMBO_TRACKER_CHECK_COLLECTED
+    { "Saved", { 0, 185, 0, 255 } },         // COMBO_TRACKER_CHECK_SAVED
+};
+
+struct TextColours {
+    ImVec4 main;
+    ImVec4 extra;
+};
+
+ImVec4 SohTrackerColour(const char* state, const char* which, Color_RGBA8 fallback) {
+    char key[96];
+    snprintf(key, sizeof(key), "gTrackers.CheckTracker.%s.%s.Value", state, which);
+    const Color_RGBA8 c = CVarGetColor(key, fallback);
+    return ImVec4(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f);
+}
+
+TextColours SohColours(const char* state, Color_RGBA8 extraDefault) {
+    return { SohTrackerColour(state, "MainColor", kSohMainDefault),
+             SohTrackerColour(state, "ExtraColor", extraDefault) };
+}
+
+/** Every colour one Checks list draws with, read once per frame. */
+struct CheckListColours {
+    TextColours status[COMBO_TRACKER_CHECK_STATUS_COUNT];
+    TextColours areaComplete;
+    TextColours areaIncomplete;
+};
+
+CheckListColours ReadCheckListColours() {
+    CheckListColours c;
+    for (int i = 0; i < (int)COMBO_TRACKER_CHECK_STATUS_COUNT; i++) {
+        c.status[i] = SohColours(kSohStatusColours[i].state, kSohStatusColours[i].extraDefault);
+    }
+    c.areaComplete = SohColours("AreaComplete", kSohMainDefault);
+    c.areaIncomplete = SohColours("AreaIncomplete", kSohMainDefault);
+    return c;
+}
+
+/**
+ * One check: its status glyph and name in the status's main colour, then, in its
+ * extra colour, what SoH's tracker prints after a name: the found item, with the
+ * other game's item marked " (MM)" / " (OoT)" as both native trackers mark a
+ * crossing (#796), or "Skipped" for a skipped check that names none. The item
+ * follows the name on its line when it fits there, and starts the next line under
+ * the name when it does not.
+ */
+void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckListColours& colours) {
+    const TextColours& c = colours.status[row.status < (uint8_t)COMBO_TRACKER_CHECK_STATUS_COUNT ? row.status : 0];
+    char idLabel[24];
+    const char* name = ComboCheckListName(row);
+    if (name == nullptr) {
+        // No name table loaded (e.g. OoT static data before OoT's first boot):
+        // the game-local id is still an honest label.
+        snprintf(idLabel, sizeof(idLabel), "Check 0x%04X", (unsigned)row.checkId);
+        name = idLabel;
+    }
+    char extra[160] = "";
+    const std::string item = ComboCheckRowItemText(game, row);
+    if (!item.empty()) {
+        snprintf(extra, sizeof(extra), "(%s)", item.c_str());
+    } else if (row.skipped) {
+        snprintf(extra, sizeof(extra), "(Skipped)");
+    }
+
+    ImGui::PushStyleColor(ImGuiCol_Text, c.main);
+    ImGui::TextUnformatted(CheckGlyph(row));
+    ImGui::SameLine();
+    const float nameX = ImGui::GetCursorPosX();
+    TextBalanced(name);
+    ImGui::PopStyleColor();
+    if (extra[0] == '\0') {
+        return;
+    }
+    const bool nameWrapped = ImGui::GetItemRectSize().y > ImGui::GetTextLineHeight() + 0.5f;
+    const float right = ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x;
+    const float limit = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+    if (!nameWrapped && right + ImGui::CalcTextSize(extra).x <= limit) {
+        ImGui::SameLine();
+    } else {
+        ImGui::SetCursorPosX(nameX);
+    }
+    ImGui::PushStyleColor(ImGuiCol_Text, c.extra);
+    TextBalanced(extra);
+    ImGui::PopStyleColor();
+}
+
+/**
+ * One game's Checks list (#458 U4), shaped like SoH's Check Tracker: its search
+ * box, then the checks under their areas, each area a tree node in SoH's
+ * complete or incomplete colour with its "(checked / total)" beside it, open
+ * while it has checks left (SoH's own default), and a padded separator after an
+ * open area.
+ */
+void DrawCheckList(uint8_t game) {
+    // One search per game panel, kept across frames like SoH's checkSearch.
+    static char sSearch[3][128];
+    char* search = sSearch[game < 3 ? game : 0];
+    Ui().SearchInput("##checkSearch", search, (int)sizeof(sSearch[0]));
+
+    std::vector<ComboTrackerAreaRows> areas;
+    ComboCollectCheckAreas(game, search, areas);
+    if (areas.empty()) {
+        Ui().NoteText(search[0] != '\0' ? "No check matches the search." : "No checks.");
+        return;
+    }
+
+    const CheckListColours colours = ReadCheckListColours();
+    bool previousOpen = false;
+    // SoH draws its whole area loop under FramePadding (4, 3)
+    // (randomizer_check_tracker.cpp, DrawElement), which puts an area's tree
+    // arrow level with its checks; the theme's larger padding would push the
+    // header to the right of its own rows.
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 3.0f));
+    for (const ComboTrackerAreaRows& area : areas) {
+        if (previousOpen) {
+            // SoH's UIWidgets::PaddedSeparator, through the seam's spacer.
+            Ui().Spacer(0.0f);
+            ImGui::Separator();
+            Ui().Spacer(0.0f);
+        }
+        const bool complete = area.done == area.total;
+        const TextColours& c = complete ? colours.areaComplete : colours.areaIncomplete;
+        ImGui::PushID((int)area.key);
+        ImGui::PushStyleColor(ImGuiCol_Text, c.main);
+        ImGui::SetNextItemOpen(!complete, ImGuiCond_Once);
+        const bool open =
+            ImGui::TreeNodeEx(area.name != nullptr ? area.name : "Other Checks", ImGuiTreeNodeFlags_NoTreePushOnOpen);
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, c.extra);
+        ImGui::Text("(%d / %d)", area.done, area.total);
+        ImGui::PopStyleColor();
+        Ui().Tooltip("Checked / Total");
+        if (open) {
+            for (const ComboTrackerCheckRow& row : area.rows) {
+                DrawCheckRow(game, row, colours);
+            }
+        }
+        ImGui::PopID();
+        previousOpen = open;
+    }
+    ImGui::PopStyleVar();
 }
 
 /**
@@ -135,10 +304,9 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     snprintf(note, sizeof(note), "%s.", Combo_TrackerFreshnessLabel(game, summary.freshness));
     Ui().NoteText(note);
 
-    // The pane's top line already prints the paired seed; a game whose own
-    // seed is that same number would only repeat it (MM's final seed IS the
-    // paired seed), so the panel prints its seed only when it says something new.
-    if (!identity.paired || summary.seed != identity.sharedRandoSeed) {
+    // ComboPanelShowsOwnSeed (#816): a paired file's pane prints the paired seed
+    // on its top line, and its panels print no seed of their own.
+    if (ComboPanelShowsOwnSeed(identity, summary)) {
         ImGui::Text("Seed: %u", (unsigned)summary.seed);
     }
     ImGui::Text("Checks: %d / %d", summary.obtained, summary.shuffled);
@@ -148,23 +316,7 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
 
     // Default-closed so the (potentially long) walk only runs when asked for.
     if (ImGui::TreeNode("Checks")) {
-        const int count = Combo_TrackerCheckCount(game);
-        for (int i = 0; i < count; i++) {
-            ComboTrackerCheckRow row;
-            if (!Combo_TrackerCheckAt(game, i, &row)) {
-                break;
-            }
-            if (!row.shuffled) {
-                continue;
-            }
-            if (row.name != nullptr) {
-                ImGui::Text("%s %s", CheckGlyph(row), row.name);
-            } else {
-                // No name table loaded (e.g. OoT static data before OoT's
-                // first boot): the game-local id is still an honest label.
-                ImGui::Text("%s Check 0x%04X", CheckGlyph(row), (unsigned)row.checkId);
-            }
-        }
+        DrawCheckList(game);
         ImGui::TreePop();
     }
 
@@ -172,6 +324,143 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
 }
 
 } // namespace
+
+float ComboWidestWordWidth(const char* text, const ComboTextMeasure& measure) {
+    float widest = 0.0f;
+    if (text == nullptr) {
+        return widest;
+    }
+    const char* p = text;
+    while (*p != '\0') {
+        while (*p == ' ') {
+            p++;
+        }
+        const char* end = p;
+        while (*end != '\0' && *end != ' ') {
+            end++;
+        }
+        if (end > p) {
+            const float w = measure.width(measure.user, p, end);
+            widest = w > widest ? w : widest;
+        }
+        p = end;
+    }
+    return widest;
+}
+
+float ComboBalancedWrapWidth(const char* text, float avail, const ComboTextMeasure& measure) {
+    if (text == nullptr || avail <= 0.0f) {
+        return avail;
+    }
+    if (measure.width(measure.user, text, text + strlen(text)) <= avail) {
+        return avail; // fits on one line
+    }
+    // The search's floor is the widest word, not 1 px (#815): below it ImGui breaks
+    // that word inside itself, and such a wrap can take no more lines than the
+    // cell's full width does ("Progressiv" / "e Slingshot"), so a search for the
+    // narrowest width with that many lines used to land on it. A word wider than
+    // the whole cell cannot be kept whole here at all; the crossing table's Item
+    // column is sized so that does not happen (ComboCrossingItemColumnWidth).
+    const float widest = ComboWidestWordWidth(text, measure);
+    if (widest >= avail) {
+        return avail;
+    }
+    const float height = measure.height(measure.user, text, avail);
+    float lo = widest;
+    float hi = avail;
+    for (int i = 0; i < 12 && hi - lo > 1.0f; i++) {
+        const float mid = (lo + hi) * 0.5f;
+        if (measure.height(measure.user, text, mid) <= height) {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    return hi;
+}
+
+float ComboCrossingItemColumnWidth(float contentWidth, float widestItemWord) {
+    const float share = contentWidth * 2.0f / 5.0f;
+    const float cap = contentWidth * 3.0f / 5.0f;
+    const float width = widestItemWord > share ? widestItemWord : share;
+    return width < cap ? width : cap;
+}
+
+bool ComboPanelShowsOwnSeed(const ComboTrackerIdentity& identity, const ComboTrackerGameSummary& summary) {
+    // A paired file's own seeds are not a second fact: OoT's is the paired seed
+    // and MM's final seed is a hash of it and the options
+    // (Rando::Foreign::MixPairedFinalSeedForAttempt), so printing either beside
+    // the "Paired Seed" line reads as two seeds for one world (#816).
+    (void)summary;
+    return !identity.paired;
+}
+
+const char* ComboCheckListName(const ComboTrackerCheckRow& row) {
+    // SoH's DrawLocation prints GetShortName() under the area header ("Kokiri
+    // Sword Chest" under "Kokiri Forest"); MM's tracker prints the full name.
+    return row.shortName != nullptr ? row.shortName : row.name;
+}
+
+std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row) {
+    if (row.placedItemName == nullptr) {
+        return std::string();
+    }
+    std::string text = row.placedItemName;
+    if (row.placedItemGame != game) {
+        text += (row.placedItemGame == (uint8_t)GAME_MM) ? " (MM)" : " (OoT)";
+    }
+    return text;
+}
+
+void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboTrackerAreaRows>& out) {
+    out.clear();
+    const ImGuiTextFilter filter(search != nullptr ? search : "");
+    std::map<uint16_t, ComboTrackerAreaRows> byKey; // ascending key: each game's own tracker order
+    std::string haystack;
+    const int count = Combo_TrackerCheckCount(game);
+    for (int i = 0; i < count; i++) {
+        ComboTrackerCheckRow row;
+        if (!Combo_TrackerCheckAt(game, i, &row)) {
+            break;
+        }
+        if (!row.shuffled) {
+            continue;
+        }
+        ComboTrackerAreaRows& area = byKey[row.areaKey];
+        area.key = row.areaKey;
+        if (area.name == nullptr) {
+            area.name = row.areaName;
+        }
+        area.total++;
+        if (row.obtained || row.skipped) {
+            area.done++;
+        }
+        if (filter.IsActive()) {
+            // What SoH's ShouldShowCheck searches: the check's short and full
+            // names, its area, and the item only once the row reveals it, spelled
+            // as the row prints it (PlacedItemTrackerName's " (MM)" included).
+            haystack = row.shortName != nullptr ? row.shortName : "";
+            haystack += ' ';
+            haystack += row.name != nullptr ? row.name : "";
+            haystack += ' ';
+            haystack += row.areaName != nullptr ? row.areaName : "";
+            const std::string item = ComboCheckRowItemText(game, row);
+            if (!item.empty()) {
+                haystack += ' ';
+                haystack += item;
+            }
+            if (!filter.PassFilter(haystack.c_str())) {
+                continue;
+            }
+        }
+        area.rows.push_back(row);
+    }
+    for (auto& [key, area] : byKey) {
+        if (!area.rows.empty()) {
+            out.push_back(std::move(area));
+        }
+    }
+}
 
 /**
  * One direction's crossing table (declared in ComboTrackerWindow.h). The
@@ -219,14 +508,28 @@ void DrawCrossingList(uint8_t hostGame) {
     Ui().NoteText(note);
     ImGui::PushID((int)hostGame);
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f));
+    // The Item column's width (#815): its share of the table, widened to the
+    // widest word of any item name here so every word fits whole. The columns'
+    // content is the table's width less both cells' padding and the three
+    // vertical borders.
+    float widestItemWord = 0.0f;
+    for (int i = 0; i < count; i++) {
+        ComboTrackerForeignRow row;
+        if (Combo_TrackerForeignRowAt(hostGame, i, &row)) {
+            const float w = ComboWidestWordWidth(row.itemName, kImGuiMeasure);
+            widestItemWord = w > widestItemWord ? w : widestItemWord;
+        }
+    }
+    const float columnsWidth = ImGui::GetContentRegionAvail().x - 4.0f * 8.0f - 3.0f;
+    const float itemWidth = ComboCrossingItemColumnWidth(columnsWidth, widestItemWord);
     if (ImGui::BeginTable("##Crossings", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
         // Check names run longer than item names ("Stone Tower Temple ..."), so the
         // check column takes the larger share; both wrap in balanced lines rather
-        // than clip or orphan a word. There is no third column for the collected state: the
+        // than clip, orphan a word or break one. There is no third column for the collected state: the
         // found state is the glyph leading the check's name, the one notation
         // the per-game Checks lists above use for the same fact.
-        ImGui::TableSetupColumn("Check", ImGuiTableColumnFlags_WidthStretch, 3.0f);
-        ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+        ImGui::TableSetupColumn("Check", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthFixed, itemWidth);
         ImGui::TableHeadersRow();
         for (int i = 0; i < count; i++) {
             ComboTrackerForeignRow row;

@@ -247,6 +247,25 @@ colours, #458 U4): the value is defined in common terms, and a game with no anal
 OoT derives it in its own TU, behind a new vtable member. MM supplies it through a new descriptor member
 that the MM TU fills: an offset to a flag that already means the common value, or a callback, defined in
 the MM TU, that derives it. Common code never derives a new value by interpreting MM's bytes on its own.
+
+*As built by #458 U4 (2026-10-01).* The Check Tracker's colours needed a status, and three things landed
+that the paragraph above does not describe; this note is the binding text for them.
+
+- **The vocabulary.** `ComboTrackerCheckRow.status` holds a `ComboTrackerCheckStatus`, six values in SoH's
+  check-tracker terms, the vocabulary its colour settings are written in: `UNCHECKED`, `SEEN`, `SCUMMED`,
+  `SKIPPED`, `COLLECTED`, `SAVED`. So `RCSHOW_SEEN` / `RCSHOW_IDENTIFIED` (as `SEEN`), `RCSHOW_SCUMMED` and
+  `RCSHOW_SAVED` now have common values of their own, for this field only; `obtained` stays exactly
+  `COLLECTED` or `SAVED`, so the three-flag projection above is unchanged. It is still a projection, not raw
+  passthrough (point 3): no common type carries `RandomizerCheckStatus`, and two OoT states share `SEEN`.
+- **OoT fills it through the existing `checkAt`**, not a new vtable member: `checkAt` already fills the
+  whole row in OoT's TU (`TrackerAdapterSingleExe.cpp`, `ProjectStatus`, with SoH's own precedence), and
+  the view zeroes the row before calling it, so a field an adapter leaves alone reads as "none". The same
+  member fills the row's area, short name and found item.
+- **MM's status is mapped in common code from the flags already projected** (`Combo_TrackerCheckAt`):
+  `obtained` is `COLLECTED`, else `skipped` is `SKIPPED`, else `UNCHECKED`. No new MM byte is read or
+  interpreted for it; it re-labels two values the descriptor already locates, and MM never produces
+  `SEEN`, `SCUMMED` or `SAVED`. MM's area name and found item come through the new descriptor callbacks
+  `areaName` and `placedItemName`, defined in the MM TU, as the paragraph above describes.
 An item row's `have`, `count` and `max` are the same kind of projection, derived from each game's save
 layout inside that game's TU.
 
