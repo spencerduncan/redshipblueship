@@ -1426,13 +1426,16 @@ commits:
 So an arrival never refuses a file that loaded, for every divergence a page
 in this build can author. What the file cannot answer stays visible:
 
-- A combo record field no key authors (`logicRung`, an unallocated flag bit,
+- *(Superseded 2026-10-01 by #836, see below: the file is no longer opened.)*
+  A combo record field no key authors (`logicRung`, an unallocated flag bit,
   `spare1`), which only another build can have written, still refuses the
   load and latches the slot without quarantine, now with a "Not paired: File
   made by another build" toast (the field names stay on stderr). Damage
   (unreadable record, fingerprint, triforce) refuses and quarantines as
   before, with its own toast, "Not paired: Cross-game record is damaged".
-- **Accepted residual: a refused load still plays the OoT file unpaired.**
+- *(Superseded 2026-10-01 by #836, see below: the operator refused this
+  residual, and a refused file is not opened.)*
+  **Accepted residual: a refused load still plays the OoT file unpaired.**
   The load runs at the tail of OoT's own file load and cannot un-open the
   file (the refuse-and-do-not-open option would need surgery on vendored
   file-select code), so after either refusal above the OoT half plays with
@@ -1448,7 +1451,8 @@ in this build can author. What the file cannot answer stays visible:
   straight overlays of the keys it writes) puts every key it wrote back as
   it was, set or unset, before the load refuses (Cross-Game Rules) or flags
   (MM profile): a load that does not take changes nothing.
-- An MM identity input the file does not record (the excluded-check list,
+- *(Superseded 2026-10-01 by #836, see below: this now refuses at the file
+  select.)* An MM identity input the file does not record (the excluded-check list,
   the starting-item block; no single-exe page edits either) cannot be
   restored. The load still commits the pair, so the session is never
   silently unpaired, and posts "Not restored: Majora's Mask options differ"; the arrival
@@ -1550,3 +1554,61 @@ two item-class rows go, in the same shape as #801.
 Locked by `ComboSettingsRows` leg 1d, `ComboSettingsAuthoring` leg 9,
 `PairedLoadRestore` leg 1 (a file carrying a non-default MM mask loads, and the
 record keeps it) and `CVarClassification` (three identity keys).
+
+### 2026-10-01 -- A refused paired file is never opened (#836)
+
+Operator ruling 2026-10-01 on the residual the 2026-09-28 note recorded for
+sign-off: **"Unpaired is not an acceptable scenario."** The residual (a refused
+load still plays the OoT file unpaired) is refused, and so is every other path
+that put a randomizer file into Play without a live pairing.
+
+- **The premise the residual rested on did not hold.** Refusing to open a file
+  needs no surgery on the vendored file select: `FileChoose_Main` dispatches
+  `OnFileChooseMain` before its mode update reads the A / START press, so a
+  handler can consume the press, which is how SoH itself refuses a file it
+  cannot open (`FileChoose_IsSaveCompatible`: the error sound, and the player
+  stays on the file list).
+- **The gate.** The SoH `SaveManager` registers that handler. On the main menu,
+  A or START on an occupied file runs `SaveManager::ProbeSlotForOpen` with the
+  file's kind (`fileMetaInfo[slot].randoSave`) and the `.sav`'s mirrored commit
+  generation (read from disk, 0 when unreadable). A refusal clears the press,
+  plays `NA_SE_SY_FSEL_ERROR` when OoT's audio is up, and posts one muted toast
+  in the words the Combo > Save Files page shows for the slot. The probe writes
+  nothing (no disk write, rename, key, `gComboCtx` or active slot); it records
+  only the session's refusal (the reason, the write latch, the words). The
+  handler acts only while `Context_GetCurrentGame() == GAME_OOT`.
+- **One verdict, two callers.** `LoadSlot`'s checks are split into a pure
+  evaluation (`EvaluateSlot`) and the commit. The probe and the open path's load
+  (`LoadSlotForOpen`, the `OnLoadFile` seam's call) run the same evaluation,
+  which refuses everything the load refused, plus: a randomizer file whose slot
+  has no `.redsave` or whose record carries no pairing (`RSBS_REFUSE_MISSING`,
+  "Cross-game record is missing": a lost record, SoH's Copy, which copies the
+  `.sav` only, and the permanent unpaired state a lost write latch used to
+  leave after a restart); a paired record whose MM half is all zero ("This file
+  has no Majora's Mask world"); and an MM option profile the file cannot restore
+  ("Majora's Mask options differ"; `MM_Rando_RestoreProfileForLoad`'s
+  classification is now its own pure function). A divergence the file can
+  restore is accepted, and the load restores it (frozen wins, unchanged).
+- **The backstop.** A load that refuses after the probe accepted (a file
+  changed on disk in between, or a restore whose after-check failed) is
+  recorded by the seam, and an `OnLoadGame` handler returns the player to the
+  file select (`GAMEMODE_FILE_SELECT`, `FileChoose_Init`, `running = false`,
+  the console `file_select` sequence) instead of entering Play. Never by
+  throwing from `OnLoadFile`, whose catch renames the player's `.sav` aside.
+  The load's own quarantine is unchanged and runs only on this path.
+- **Creation.** A randomizer world with no pairing identity (a solo OoT
+  spoiler) is now a creation failure ("Not created:"), so no file is written
+  that the gate would refuse.
+- **The files.** A refused `.redsave` is left where it is (the probe renames
+  nothing, so its reason survives a restart), and OoT's `.sav` is untouched.
+  The player's two options: put a good copy of `Save/redship_slot<N>.redsave`
+  back (N = file number - 1), or erase the file.
+- **Retired:** the arrival's "Not paired: Termina stays un-randomized" leg (no
+  arrival can follow a refused load), its toast kind and its UI snapshot page.
+  The `skipped-because-no-paired-oot-world` stderr line stays.
+
+`RsbsSave_LoadSlotChecked` (the format-level locks' entry) keeps its contract;
+the three added refusals are the file-open path's. Locked by
+`OoTFileSelectRefusal` (the gate and the backstop through the hooks a fresh SoH
+`SaveManager` registers), `PairedLoadRestore` legs 3 to 7 and
+`ComboCreationEvent` leg 12.

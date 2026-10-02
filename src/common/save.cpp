@@ -9,6 +9,7 @@
 #include "save.h"
 
 #include "combo_mm_options_view.h" // MM_Rando_RestoreProfileForLoad: the load-time MM profile compare (#781)
+#include "combo_save_files_view.h"  // Combo_SaveFiles_RefuseText: the player's words for a refusal (#836)
 #include "combo_settings_view.h"   // Combo_ComboSettingsRestoreLive: frozen wins at load (#781)
 #include "context.h"
 #include "crossing_store.h" // the v3 Tier-4 crossing block (ADR 0010 O7)
@@ -193,6 +194,10 @@ const char* RefuseReasonSlug(RsbsRefuseReason reason) {
             return "generation";
         case RSBS_REFUSE_CROSSINGS:
             return "crossings";
+        case RSBS_REFUSE_MISSING:
+            // Never quarantined (there is nothing to set aside); named anyway so
+            // every reason has a slug QuarantineReason can read back.
+            return "missing";
         case RSBS_REFUSE_NONE:
         default:
             return "unknown";
@@ -234,6 +239,8 @@ const char* SaveManager::RefuseReasonLabel(RsbsRefuseReason reason) {
             return "the paired Termina world could not be generated";
         case RSBS_REFUSE_CROSSINGS:
             return "cross-game placement record damaged";
+        case RSBS_REFUSE_MISSING:
+            return "a randomizer file without its paired cross-game record";
         case RSBS_REFUSE_NONE:
         default:
             return "";
@@ -761,107 +768,333 @@ int SaveManager::CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t o
     return redsaveGeneration > ootSavGeneration ? 1 : -1;
 }
 
+// What a load of the slot decides, before anything moves (#836). EvaluateSlot
+// fills it; ProbeSlotForOpen stops there, and LoadSlotImpl carries out the
+// decision. One evaluation for both is what makes "the probe accepted, the load
+// refused" reachable only through a file that changed on disk in between, or a
+// restore whose after-check failed.
+struct SaveManager::SlotVerdict {
+    RsbsLoadOutcome outcome = RSBS_LOAD_OK;
+    RsbsRefuseReason reason = RSBS_REFUSE_NONE;
+    // ABSENT, but this session already refused the slot: the refusal stands and
+    // its record (reason and words) is left exactly as it is.
+    bool sticky = false;
+    // The load renames the refused file aside as evidence (the probe never does).
+    bool quarantine = false;
+    // RSBS_LOAD_TOAST_REFUSED_* for an identity refusal, -1 otherwise.
+    int identityToast = -1;
+    // The player's words for a refusal (the Combo > Save Files page and the
+    // file-select toast say the same thing).
+    std::string words;
+    // RSBS_LOAD_OK only.
+    ComboContext combo{};
+    int skew = 0;
+    uint32_t comboDiverged = 0; // a divergence the file restores; the load writes it back
+    bool mmProfileChecked = false;
+    int mmProfile = RSBS_MM_PROFILE_LOAD_MATCHES;
+};
+
+namespace {
+
+// Which caller is evaluating (#836). LEGACY is LoadSlot / RsbsSave_LoadSlotChecked
+// (the format-level locks); the two OPEN kinds are the file-open path (the
+// file-select probe and OoT's OnLoadFile seam), which knows what kind of OoT
+// file is being opened and refuses what that file cannot be opened without.
+constexpr int kOpenLegacy = 0;
+constexpr int kOpenVanillaFile = 1;
+constexpr int kOpenRandoFile = 2;
+
+// The open path's words for the refusals #836 adds.
+constexpr const char* kWordsMissing = "Cross-game record is missing";
+constexpr const char* kWordsNoMMWorld = "This file has no Majora's Mask world";
+constexpr const char* kWordsMMOptions = "Majora's Mask options differ";
+
+bool RecordIsPaired(const ComboContext& combo) {
+    return combo.sourceIsRando && combo.sharedRandoSettingsHash != 0;
+}
+
+} // namespace
+
+void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind, SlotFileData& data,
+                               SlotVerdict& v) const {
+    v = SlotVerdict{};
+    RsbsRefuseReason reason = RSBS_REFUSE_NONE;
+    const SlotReadResult result = ReadSlotFile(slot, data, reason, /*verbose=*/true);
+
+    if (result == SlotReadResult::Absent) {
+        if (mSlotRefused[slot] != RSBS_REFUSE_NONE) {
+            // Sticky refusal: this session already refused this slot. The
+            // now-empty slot path must NOT quietly become writable: the refusal
+            // stands until the player explicitly erases the slot or a load
+            // actually succeeds.
+            v.outcome = RSBS_LOAD_REFUSED;
+            v.reason = mSlotRefused[slot];
+            v.sticky = true;
+            v.words = mSlotRefusedWords[slot][0] != '\0' ? std::string(mSlotRefusedWords[slot])
+                                                         : std::string(Combo_SaveFiles_RefuseText(v.reason));
+            return;
+        }
+        if (openKind == kOpenRandoFile) {
+            // #836 P3 / #564 V12 gap 2: a randomizer .sav with no .redsave (a
+            // lost or deleted record, one quarantined in an earlier session, or
+            // SoH's Copy, which copies the .sav only). Opening it used to ARM the
+            // slot, so the first base save wrote a .redsave from the dropped
+            // session and the file was unpaired for good.
+            v.outcome = RSBS_LOAD_REFUSED;
+            v.reason = RSBS_REFUSE_MISSING;
+            v.words = kWordsMissing;
+            return;
+        }
+        v.outcome = RSBS_LOAD_ABSENT;
+        return;
+    }
+
+    if (result == SlotReadResult::Refused) {
+        // REFUSED, first-class (#533). The load quarantines the evidence; the
+        // probe leaves it where it is.
+        v.outcome = RSBS_LOAD_REFUSED;
+        v.reason = reason;
+        v.quarantine = true;
+        v.words = Combo_SaveFiles_RefuseText(reason);
+        return;
+    }
+
+    // Structurally valid. Compare the two durable artifacts' freshness stamps
+    // (#531/#564 V16): the commit choke point authors the same monotonic
+    // generation into the .redsave's Tier-1 and (mirrored) into OoT's .sav, so
+    // a torn PAIR becomes detectable here.
+    std::memcpy(&v.combo, data.comboRecord.data(), sizeof(ComboContext));
+    const ComboContext& combo = v.combo;
+    v.skew = CompareCommitGenerations(combo.commitGeneration, ootSavGeneration);
+    if (v.skew < 0) {
+        // OoT's .sav carries a NEWER generation: at least one durable .redsave
+        // commit is missing. Committing the rolled-back Tier-1 would resurrect
+        // consumed shared-item records and roll MM's only persistence back:
+        // corruption to refuse, not freshness to arbitrate.
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d REFUSED: COMMIT SKEW — OoT's .sav mirrors commit generation %u "
+                     "but the .redsave carries %u (a .redsave commit is missing). Loading it would roll "
+                     "back the cross-game records and the MM world.\n",
+                     slot, ootSavGeneration, combo.commitGeneration);
+        v.outcome = RSBS_LOAD_REFUSED;
+        v.reason = RSBS_REFUSE_COMMIT_SKEW;
+        v.quarantine = true;
+        v.words = Combo_SaveFiles_RefuseText(v.reason);
+        return;
+    }
+
+    if (openKind == kOpenRandoFile && !RecordIsPaired(combo)) {
+        // #836 P3: a randomizer file whose record carries no pairing (the
+        // permanent state the lost write latch used to leave behind). Every
+        // randomizer file in this build is a paired file.
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d REFUSED: the randomizer file's cross-game record carries no pairing "
+                     "identity (sourceIsRando=%d settingsHash=%08X); the file is not opened\n",
+                     slot, combo.sourceIsRando ? 1 : 0, (unsigned)combo.sharedRandoSettingsHash);
+        v.outcome = RSBS_LOAD_REFUSED;
+        v.reason = RSBS_REFUSE_MISSING;
+        v.words = kWordsMissing;
+        return;
+    }
+
+    // The COMBO-LEVEL IDENTITY check (ADR 0011 decision 4), over the record just
+    // READ (a check that read gComboCtx would be checking the world this load is
+    // about to replace). A legacy record (formatVersion 0) is exempt. Damage is
+    // evidence and is quarantined by the load; a field-only divergence is a
+    // healthy file met by a session that walked away from it: FROZEN WINS AT
+    // LOAD (#781), so a divergence every bit of which a key authors is accepted
+    // here and restored by the load; what no key can restore refuses.
+    uint32_t comboDiverged =
+        Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash, combo.sharedRandoSettingsHash,
+                                         combo.mmProfileDigest) |
+        Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
+    if (comboDiverged != 0) {
+        char fields[192];
+        Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
+        if (Combo_ComboSettingsDivergenceIsDamage(comboDiverged)) {
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the stored cross-game identity is "
+                         "damaged (%s).\n",
+                         slot, fields);
+            v.outcome = RSBS_LOAD_REFUSED;
+            v.reason = RSBS_REFUSE_IDENTITY;
+            v.quarantine = true;
+            v.identityToast = RSBS_LOAD_TOAST_REFUSED_DAMAGED;
+            v.words = RsbsSave_LoadToastRefusalMessage(v.identityToast);
+            return;
+        }
+        if (Combo_ComboSettingsCanRestoreLive(&combo.comboSettings, comboDiverged) == 0) {
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
+                         "created under do not match this session's and cannot be restored from it: %s. The "
+                         "on-disk .redsave is intact and untouched.\n",
+                         slot, fields);
+            v.outcome = RSBS_LOAD_REFUSED;
+            v.reason = RSBS_REFUSE_IDENTITY;
+            // A field no key authors (logicRung, an unallocated comboFlags bit,
+            // spare1) is one only another build writes; a divergence of keyed
+            // rules alone reaches here only when the store could not take them.
+            v.identityToast = (comboDiverged & ~Combo_ComboSettingsRestorableMask()) != 0u
+                                  ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
+                                  : RSBS_LOAD_TOAST_REFUSED_RULES;
+            v.words = RsbsSave_LoadToastRefusalMessage(v.identityToast);
+            return;
+        }
+        v.comboDiverged = comboDiverged;
+    }
+
+    if (openKind != kOpenLegacy && RecordIsPaired(combo)) {
+        // #836 P5: a paired record whose MM half is all zero (a pre-#680 file
+        // that never crossed). The load cannot arm such a half, so the first
+        // crossing used to be refused mid-play and Termina played vanilla.
+        bool mmEmpty = true;
+        for (uint8_t b : data.mmBlob) {
+            if (b != 0) {
+                mmEmpty = false;
+                break;
+            }
+        }
+        if (mmEmpty) {
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: the paired record's Majora's Mask half is empty; the file has "
+                         "no paired Termina world and is not opened\n",
+                         slot);
+            v.outcome = RSBS_LOAD_REFUSED;
+            v.reason = RSBS_REFUSE_GENERATION;
+            v.words = kWordsNoMMWorld;
+            return;
+        }
+    }
+
+    // The MM half of the same rule (#781): the profile digest the arrival gate
+    // recomputes, classified here without writing anything. Only for a stamped
+    // pair, and only with a CVar store to compare.
+    if (combo.sourceIsRando && combo.sharedRandoSettingsHash != 0 && combo.mmProfileDigest != 0 &&
+        Combo_ComboSettingStoreAvailable()) {
+        v.mmProfileChecked = true;
+        v.mmProfile = MM_Rando_ClassifyProfileForLoad(data.mmBlob.data(), data.mmBlob.size(), combo.mmProfileDigest);
+        if (openKind != kOpenLegacy && v.mmProfile == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
+            // #836 P4: an MM profile the file cannot restore used to load with a
+            // "Not restored" warning, and the first crossing was then refused.
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: the live MM profile does not match the file's (%08X) and the "
+                         "file cannot restore it; the file is not opened\n",
+                         slot, (unsigned)combo.mmProfileDigest);
+            v.outcome = RSBS_LOAD_REFUSED;
+            v.reason = RSBS_REFUSE_IDENTITY;
+            v.words = kWordsMMOptions;
+            return;
+        }
+    }
+
+    v.outcome = RSBS_LOAD_OK;
+}
+
+RsbsLoadOutcome SaveManager::ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile,
+                                              std::string* outWords) {
+    if (outWords != nullptr) {
+        outWords->clear();
+    }
+    if (!SlotInRange(slot)) {
+        return RSBS_LOAD_REFUSED;
+    }
+    SlotFileData data;
+    SlotVerdict v;
+    EvaluateSlot(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile, data, v);
+    if (v.outcome != RSBS_LOAD_REFUSED) {
+        std::fprintf(stderr, "[RsbsSave] slot %d: file-select probe ACCEPTED (%s file, %s)\n", slot,
+                     isRandoFile ? "randomizer" : "vanilla", v.outcome == RSBS_LOAD_OK ? "record valid" : "no record");
+        return v.outcome;
+    }
+    // The session's refusal record only: no rename, no write, no key, no
+    // gComboCtx, no active slot. The latch keeps any later write off the file.
+    if (!v.sticky) {
+        SetSlotRefused(slot, v.reason);
+        NoteSlotRefusalWords(slot, v.words.c_str());
+    }
+    mSlotArmed[slot] = false;
+    std::fprintf(stderr,
+                 "[RsbsSave] slot %d: file-select probe REFUSED (%s): \"%s\"; the file is not opened, and nothing was "
+                 "written, renamed or deleted\n",
+                 slot, RefuseReasonLabel(v.reason), v.words.c_str());
+    if (outWords != nullptr) {
+        *outWords = v.words;
+    }
+    return RSBS_LOAD_REFUSED;
+}
+
 RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
+    return LoadSlotImpl(slot, ootSavGeneration, kOpenLegacy);
+}
+
+RsbsLoadOutcome SaveManager::LoadSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile) {
+    return LoadSlotImpl(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile);
+}
+
+RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, int openKind) {
     if (!SlotInRange(slot)) {
         return RSBS_LOAD_REFUSED;
     }
     // The skew record describes what THIS load attempt observed; stale
     // observations from an earlier load of the slot do not carry over. The
     // whole-file authority signal (#589) is dropped for the same reason, and
-    // for a second one: it is dropped BEFORE the read, so every early return
-    // below — absent, refused, sticky-refused, commit-skew — leaves no
-    // authority claim behind. A refused slot has no authoritative half.
+    // BEFORE the read, so every refusal leaves no authority claim behind.
     mSlotSkew[slot] = 0;
     mOoTHalfAuthoritySlot = -1;
 
     SlotFileData data;
-    RsbsRefuseReason reason = RSBS_REFUSE_NONE;
-    const SlotReadResult result = ReadSlotFile(slot, data, reason, /*verbose=*/true);
+    SlotVerdict v;
+    EvaluateSlot(slot, ootSavGeneration, openKind, data, v);
 
-    if (result == SlotReadResult::Absent) {
-        if (mSlotRefused[slot] != RSBS_REFUSE_NONE) {
-            // Sticky refusal: this session already refused (and quarantined)
-            // this slot's file. The now-empty slot path must NOT quietly
-            // become writable — the refusal stands until the player
-            // explicitly erases the slot or a load actually succeeds.
-            std::fprintf(stderr, "[RsbsSave] slot %d still REFUSED this session (%s); writes stay latched\n",
-                         slot, RefuseReasonLabel(mSlotRefused[slot]));
-            return RSBS_LOAD_REFUSED;
+    // A refusal the load carries out. @p restoreUndo, when given, puts back the
+    // rules this load wrote before it refused, so a refused load changes nothing.
+    auto refuse = [&](RsbsRefuseReason reason, bool quarantine, int identityToast, const std::string& words) {
+        if (quarantine) {
+            QuarantineSlotFile(slot, reason);
         }
-        // Opening an empty slot IS the create path: the session legitimately
-        // established the slot and there is nothing on disk to destroy, so
-        // the first write is armed.
+        SetSlotRefused(slot, reason);
+        if (openKind == kOpenLegacy) {
+            // The legacy entry keeps its #781 surface: an identity refusal posts
+            // its toast and the page repeats it.
+            if (identityToast >= 0) {
+                RsbsSave_EmitLoadToast(identityToast, nullptr, 0);
+                NoteSlotRefusalWords(slot, RsbsSave_LoadToastRefusalMessage(identityToast));
+            }
+        } else {
+            // The open path records the words; the backstop that returns the
+            // player to the file select posts the one toast (#836).
+            NoteSlotRefusalWords(slot, words.c_str());
+        }
+        mSlotArmed[slot] = false;
+        std::fprintf(stderr, "[RsbsSave] slot %d REFUSED (%s); slot latched against writes this session\n", slot,
+                     RefuseReasonLabel(reason));
+        return RSBS_LOAD_REFUSED;
+    };
+
+    if (v.outcome == RSBS_LOAD_ABSENT) {
+        // Opening an empty slot of a VANILLA file IS the create path: the
+        // session legitimately established the slot and there is nothing on
+        // disk to destroy, so the first write is armed.
         mSlotArmed[slot] = true;
         std::fprintf(stderr, "[RsbsSave] slot %d has no .redsave; armed for first write\n", slot);
         return RSBS_LOAD_ABSENT;
     }
-
-    if (result == SlotReadResult::Refused) {
-        // REFUSED, first-class (#533): quarantine the evidence aside, record
-        // why, and latch the slot so no later autosave/capture can destroy
-        // what is left. Every refusal path used to fall through to a state
-        // indistinguishable from "no save at all".
-        QuarantineSlotFile(slot, reason);
-        SetSlotRefused(slot, reason);
-        mSlotArmed[slot] = false;
-        std::fprintf(stderr, "[RsbsSave] slot %d REFUSED (%s); slot latched against writes this session\n",
-                     slot, RefuseReasonLabel(reason));
-        return RSBS_LOAD_REFUSED;
+    if (v.outcome == RSBS_LOAD_REFUSED) {
+        if (v.sticky) {
+            std::fprintf(stderr, "[RsbsSave] slot %d still REFUSED this session (%s); writes stay latched\n", slot,
+                         RefuseReasonLabel(v.reason));
+            mSlotArmed[slot] = false;
+            return RSBS_LOAD_REFUSED;
+        }
+        return refuse(v.reason, v.quarantine, v.identityToast, v.words);
     }
 
-    // Structurally valid. Before committing, compare the two durable
-    // artifacts' freshness stamps (#531/#564 V16 interim): the commit choke
-    // point authors the same monotonic generation into the .redsave Tier-1
-    // and (mirrored) into OoT's .sav JSON, so load is where a torn PAIR —
-    // both files individually valid, describing different instants of the
-    // ONE save — becomes detectable.
-    ComboContext combo;
-    std::memcpy(&combo, data.comboRecord.data(), sizeof(ComboContext));
-    const int skew = CompareCommitGenerations(combo.commitGeneration, ootSavGeneration);
-    if (skew < 0) {
-        // OoT's .sav carries a NEWER commit generation than this .redsave: at
-        // least one durable .redsave commit is missing (a write failed, or an
-        // older copy was swapped in from cloud sync / a manual restore).
-        // Committing the rolled-back Tier-1 would resurrect shared-item
-        // records the newer commits already consumed (cross-game duplication)
-        // and roll MM's ONLY persistence back — under the one-game ruling
-        // that is corruption to refuse, not freshness to arbitrate. #533
-        // machinery, full strength: quarantine the stale file as evidence,
-        // latch the slot, surface the reason. Nothing was committed: live
-        // state is untouched, exactly like every other refusal.
-        std::fprintf(stderr,
-                     "[RsbsSave] slot %d REFUSED: COMMIT SKEW — OoT's .sav mirrors commit generation %u "
-                     "but the .redsave carries %u (a .redsave commit is missing). Loading it would roll "
-                     "back the cross-game records and the MM world. Evidence quarantined; erase the slot "
-                     "to release it.\n",
-                     slot, ootSavGeneration, combo.commitGeneration);
-        QuarantineSlotFile(slot, RSBS_REFUSE_COMMIT_SKEW);
-        SetSlotRefused(slot, RSBS_REFUSE_COMMIT_SKEW);
-        mSlotArmed[slot] = false;
-        return RSBS_LOAD_REFUSED;
-    }
-    if (skew > 0) {
-        // The .redsave carries a whole commit OoT's own file does not: a
-        // commit landed after OoT's .sav was last written (an MM-side owl
-        // save / new cycle / autosave, or OoT's own exit-time snapshot). An
-        // MM-side commit cannot rewrite OoT's file, so this is the designed
-        // post-commit state and refusing it would refuse every ordinary MM
-        // session's reload.
-        //
-        // WHOLE-FILE COMMIT (#589, 2026-08-04): this used to be a warning and
-        // nothing more — the load proceeded, Tier-2 was left unarmed, and OoT
-        // resumed from its older .sav while Tier-1's RSBS_SHARED_ITEM_REDEEMED
-        // records (which the same commit made durable) stood. That is #531
-        // exactly: the record outlives the item it accounts for, the redeem
-        // loop skips the entry forever, and a progression item is gone.
-        //
-        // Under the ruling the detection becomes AUTHORITY. The commit that
-        // stamped this generation captured OoT's half in Tier-2 at the same
-        // instant — the frozen shadow, i.e. OoT's true state as of when it was
-        // last live — so the newest whole commit's Tier-2 IS OoT's half. Arm
-        // it, record the authority, and let OoT's load seam deliver it over
-        // the .sav the engine just applied. Record and world travel together;
-        // the loss becomes unrepresentable rather than merely visible.
+    const ComboContext& combo = v.combo;
+    if (v.skew > 0) {
+        // The .redsave carries a whole commit OoT's own file does not (an
+        // MM-side save, or OoT's exit-time snapshot). WHOLE-FILE COMMIT (#589):
+        // its Tier-2 IS OoT's half at that commit; armed below and delivered by
+        // OoT's load seam over the .sav the engine just applied.
         std::fprintf(stderr,
                      "[RsbsSave] slot %d WHOLE-FILE COMMIT: .redsave generation %u is NEWER than OoT's .sav "
                      "generation %u — the .redsave's OoT half is the authority for this load (#531/#589).\n",
@@ -869,126 +1102,68 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
         mSlotSkew[slot] = 1;
     }
 
-    // The COMBO-LEVEL IDENTITY check (ADR 0011 decision 4: "compare at every
-    // arrival and load; refuse on divergence"). Run over the record just READ
-    // and BEFORE the commit below, because a check that read gComboCtx would be
-    // checking the world this load is about to replace.
-    //
-    // A legacy .redsave written before this carve zero-extends to
-    // formatVersion == 0 and is EXEMPT — it is repaired by the O5 transitional
-    // writer at its first crossing, never refused (refusing would orphan every
-    // already-written paired file to detect a divergence that cannot have
-    // happened).
-    //
-    // TWO KINDS OF DIVERGENCE, HANDLED DIFFERENTLY (ADR 0011 increment 2). A
-    // record this build cannot read, or a fingerprint its own record and
-    // half-digests do not produce, is DAMAGE to the stored identity: evidence,
-    // quarantined like every other refused file. A field-only divergence is a
-    // healthy file met by a SESSION that walked away from it — since the tier-4
-    // keys became authorable, the ordinary case: the player changed a rule at
-    // the title screen and then loaded an older paired file. That is
-    // RefuseSlotIdentity's situation exactly (save.h: "the slot FILE is
-    // healthy … without quarantining anything"), and it is handled the same
-    // way — latched, surfaced by name, and the on-disk file left precisely
-    // where it is, because renaming a healthy save away for a settings change
-    // is data loss wearing a refusal's clothes.
-    // The O10 triforce record (ADR 0010) is checked over the SAME just-read
-    // bytes: a record contradicting the goal beside it is damage to the stored
-    // identity, quarantined like a fingerprint mismatch.
-    //
-    // FROZEN WINS AT LOAD (#781, one-game semantics). A field-only divergence
-    // used to refuse here, and the refusal was invisible: the only production
-    // caller (OoT's OnLoadFile seam) cannot un-open the OoT file it is loading,
-    // so the .sav played on with the pairing identity already dropped by
-    // Context_InvalidateSessionOnSlotLoad, and the next MM arrival silently took
-    // the no-paired-world leg. Under the ruling the file's rules ARE the rules;
-    // the live keys are staging for the next file. So a divergence every bit of
-    // which a key authors is answered by putting the file's values back into
-    // the keys (Combo_ComboSettingsRestoreLive), after which the resolver, this
-    // compare and every arrival compare agree with the file, and the load
-    // commits. What cannot be restored through a key (damage, or a field no key
-    // authors, which only a different build can have written) still refuses,
-    // now with a toast.
-    uint32_t comboDiverged =
-        Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash, combo.sharedRandoSettingsHash,
-                                         combo.mmProfileDigest) |
-        Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
+    // FROZEN WINS AT LOAD (#781): the file's rules go back into the keys, then
+    // the same compare runs again. The after-check cannot fail while the
+    // resolver is a straight overlay of these keys; when it does (forced by the
+    // test hook), the keys go back exactly as the player left them and the load
+    // refuses. On the open path that is the backstop's trigger (#836).
     char restoredRules[192] = { 0 };
     ComboSettingsKeyUndo rulesUndo;
-    if (comboDiverged != 0 && !Combo_ComboSettingsDivergenceIsDamage(comboDiverged) &&
-        Combo_ComboSettingsRestoreLive(&combo.comboSettings, comboDiverged, restoredRules, sizeof(restoredRules),
-                                       &rulesUndo) == 1) {
-        const uint32_t afterRestore =
-            Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash,
-                                             combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
-            Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
-            (gForceLoadRestoreVerifyFail ? comboDiverged : 0u);
-        std::fprintf(stderr,
-                     "[RsbsSave] slot %d: the cross-game rules this session held differed from the file's; the "
-                     "file's own values were restored (%s) — frozen wins at load (#781)\n",
-                     slot, restoredRules);
-        comboDiverged = afterRestore;
-        if (comboDiverged != 0) {
-            // The restore did not take (unreachable while the resolver is a
-            // straight overlay of these keys). The load refuses below, so the
-            // keys go back exactly as the player left them: a refused load
-            // changes nothing.
-            Combo_ComboSettingsRestoreUndo(&rulesUndo);
-            restoredRules[0] = '\0';
+    bool rulesWritten = false;
+    if (v.comboDiverged != 0) {
+        uint32_t afterRestore = v.comboDiverged;
+        if (Combo_ComboSettingsRestoreLive(&combo.comboSettings, v.comboDiverged, restoredRules, sizeof(restoredRules),
+                                           &rulesUndo) == 1) {
+            rulesWritten = true;
+            afterRestore = Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash,
+                                                            combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
+                           Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
+                           (gForceLoadRestoreVerifyFail ? v.comboDiverged : 0u);
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d: the cross-game rules this session held differed from the file's; the "
+                         "file's own values were restored (%s) — frozen wins at load (#781)\n",
+                         slot, restoredRules);
         }
-    }
-    if (comboDiverged != 0) {
-        char fields[192];
-        Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
-        // The toast says what the player gets (the file is not paired) in the
-        // player's words; the record's field identifiers stay on stderr.
-        int refusalToast = RSBS_LOAD_TOAST_REFUSED_RULES;
-        if (Combo_ComboSettingsDivergenceIsDamage(comboDiverged)) {
-            std::fprintf(stderr,
-                         "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the stored cross-game identity is "
-                         "damaged (%s). Evidence quarantined; erase the slot to release it. The OoT file plays "
-                         "without its Majora's Mask half and nothing is saved to the pair this session.\n",
-                         slot, fields);
-            QuarantineSlotFile(slot, RSBS_REFUSE_IDENTITY);
-            refusalToast = RSBS_LOAD_TOAST_REFUSED_DAMAGED;
-        } else {
-            std::fprintf(stderr,
-                         "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
-                         "created under do not match this session's and cannot be restored from it: %s. The "
-                         "on-disk .redsave is intact and untouched. The OoT file plays without its Majora's Mask "
-                         "half and nothing is saved to the pair this session.\n",
-                         slot, fields);
-            // A field no key authors (logicRung, an unallocated comboFlags bit,
-            // spare1) is one only another build writes; a divergence of keyed
-            // rules alone reaches here only when the store could not take them.
-            if ((comboDiverged & ~Combo_ComboSettingsRestorableMask()) != 0u) {
-                refusalToast = RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD;
+        if (afterRestore != 0) {
+            if (rulesWritten) {
+                Combo_ComboSettingsRestoreUndo(&rulesUndo);
             }
+            char fields[192];
+            Combo_ComboSettingsDivergenceDescribe(afterRestore, fields, sizeof(fields));
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the restore of the file's rules did "
+                         "not take (%s); every key it wrote was put back. The on-disk .redsave is intact.\n",
+                         slot, fields);
+            const int toast = (afterRestore & ~Combo_ComboSettingsRestorableMask()) != 0u
+                                  ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
+                                  : RSBS_LOAD_TOAST_REFUSED_RULES;
+            return refuse(RSBS_REFUSE_IDENTITY, false, toast, RsbsSave_LoadToastRefusalMessage(toast));
         }
-        RsbsSave_EmitLoadToast(refusalToast, nullptr, 0);
-        SetSlotRefused(slot, RSBS_REFUSE_IDENTITY);
-        // The Save Files page repeats the toast's reason (combo_save_files_view.h).
-        NoteSlotRefusalWords(slot, RsbsSave_LoadToastRefusalMessage(refusalToast));
-        mSlotArmed[slot] = false;
-        return RSBS_LOAD_REFUSED;
     }
 
-    // The MM half of the same rule (#781): the profile digest the arrival gate
-    // recomputes (MM_Rando_GateCrossGameArrival) is recomputed HERE too, and a
-    // divergence the file can answer is answered by writing the file's own
-    // options and tricks back, so an arrival never refuses a file that loaded.
-    // What the file cannot answer (an input it does not record) does not refuse
-    // the load: the pair is restored below, the player is told now rather than
-    // at the Happy Mask Shop, and the arrival gate remains the last line of
-    // defence. Only for a stamped pair, and only with a CVar store to compare.
+    // The MM half (#781): a divergence the file can answer is answered by
+    // writing the file's own options and tricks back, so an arrival never
+    // refuses a file that loaded.
     char restoredMm[256] = { 0 };
     int restoredMmCount = 0;
     int mmProfileOutcome = RSBS_MM_PROFILE_LOAD_MATCHES;
-    if (combo.sourceIsRando && combo.sharedRandoSettingsHash != 0 && combo.mmProfileDigest != 0 &&
-        Combo_ComboSettingStoreAvailable()) {
+    if (v.mmProfileChecked && v.mmProfile != RSBS_MM_PROFILE_LOAD_MATCHES) {
         mmProfileOutcome = MM_Rando_RestoreProfileForLoad(data.mmBlob.data(), data.mmBlob.size(),
                                                           combo.mmProfileDigest, restoredMm, sizeof(restoredMm),
                                                           &restoredMmCount);
+        if (openKind != kOpenLegacy && mmProfileOutcome != RSBS_MM_PROFILE_LOAD_RESTORED) {
+            // The probe found the profile restorable and the restore did not
+            // take (its own after-check put its keys back): the backstop's
+            // trigger. The rules this load restored go back too.
+            if (rulesWritten) {
+                Combo_ComboSettingsRestoreUndo(&rulesUndo);
+            }
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: the file's MM profile (%08X) could not be restored into the "
+                         "live options; every key the load wrote was put back\n",
+                         slot, (unsigned)combo.mmProfileDigest);
+            return refuse(RSBS_REFUSE_IDENTITY, false, -1, kWordsMMOptions);
+        }
     }
 
     // All checks passed — commit. gComboCtx and both shadows are updated.
@@ -996,10 +1171,8 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
 
     // The crossing store travels with Tier-1 (ADR 0010 O7): the slot's own
     // record is authoritative, so it OVERWRITES. A v1/v2 file carries no block
-    // and loads as "no crossings", which is the truth for every world a pre-v3
-    // build could author. Already validated by ReadSlotFile, so this cannot
-    // refuse; it is checked anyway because a silent miss here would be a load
-    // that kept the previous session's crossings.
+    // and loads as "no crossings". Already validated by ReadSlotFile; checked
+    // anyway because a silent miss here would keep the previous session's.
     const int crossingsRc = data.crossings.empty()
                                 ? Combo_Crossings_LoadBlock(nullptr, 0)
                                 : Combo_Crossings_LoadBlock(data.crossings.data(), data.crossings.size());
@@ -1013,90 +1186,24 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     const std::vector<uint8_t>& mmBlob = data.mmBlob;
 
     // The shared-resource watermarks (#525) are RAM-only and describe the
-    // PREVIOUS session's live save; the pool we just loaded belongs to a
-    // different one. Dropping them is what arms the first-harvest seed: an
-    // occupied slot now seeds at the loaded game's live balance (delta zero)
-    // instead of contributing money this pool already counted, which is the
-    // difference between "rupees load correctly" and "rupees double on the
-    // first switch after a load". See shared_resources.h.
+    // PREVIOUS session's live save; dropping them arms the first-harvest seed
+    // (see shared_resources.h).
     Combo_ResetSharedResourceWatermarks();
     Context_UpdateShadowCopy(GAME_OOT, ootBlob.data(), kOoTSize);
     Context_UpdateShadowCopy(GAME_MM, mmBlob.data(), kMMSize);
 
-    // ARM the MM half so it is actually reachable.
-    //
-    // UpdateShadowCopy writes bytes without setting hasBeenFrozen, and every
-    // consumer that can move a blob into a live gSaveContext gates on that flag
-    // — so before this, a faithfully loaded MM save sat in memory byte-exact
-    // and structurally unreachable, then got overwritten by the bootstrap file
-    // the next crossing produced. That is the read-side half of "MM will be
-    // reset after game restart".
-    //
-    // MM ALWAYS; OoT only when the whole commit is newer than OoT's own file.
-    //
-    // RENEGOTIATED by the 2026-08-04 whole-file-commit ruling (#589). The
-    // original rule here was "MM only, deliberately: OoT's own file{N+1}.sav
-    // is the authority for OoT state, arming Tier-2 too would race a second,
-    // staler copy of OoT's world against it". The staleness argument is
-    // exactly right for the case it was written for and exactly backwards for
-    // the case below it:
-    //
-    //   - generations AGREE (or either artifact predates the stamp): Tier-2
-    //     and the .sav were authored by the same commit, or the .redsave makes
-    //     no authority claim at all. Arming would at best duplicate the .sav
-    //     and at worst race a legacy copy. Stay unarmed — unchanged.
-    //   - the .redsave is NEWER: there is no second, staler copy to race. The
-    //     .sav is the stale one, by a generation the same commit stamped into
-    //     both artifacts, and Tier-2 is the only record of OoT's half at that
-    //     commit. Arming it is what makes the file whole again.
-    //
-    // The safety property the second case rests on, stated because it is an
-    // invariant of OTHER code and would break silently: the OoT shadow is
-    // refreshed at every point where OoT stops being live (both crossing paths
-    // and the F10 hot swap freeze it) AND at every OoT save (SaveSection
-    // refreshes it in the same breath as writing the .sav). So a committed
-    // Tier-2 is never OLDER than the .sav it is being compared against, and
-    // "newer generation" cannot deliver a rolled-back OoT world. A future
-    // commit route that stages without refreshing OoT's shadow first would
-    // violate that and must not exist.
-    //
-    // MM has no per-game file in single-exe at all — the unified slot is its
-    // only persistence — so Tier-3 is delivered unconditionally, as before.
-    //
-    // Arming is refused for an all-zero tier (see Context_ArmShadowAsFrozen),
-    // which is exactly a slot saved before the player ever entered MM: that
-    // must keep cold-booting MM's own bootstrap rather than restoring a zeroed
-    // SaveContext over it.
-    //
-    // The return entrance is NOT a free placeholder. An earlier revision passed
-    // 0 and called it inert; that was wrong the moment arming made this blob
-    // reachable. rsbs/src/main.cpp's hot-swap path sets the arriving game's
-    // startup entrance from Context_GetFrozenReturnEntrance, entrance presence
-    // is tracked by a separate flag so 0 is a real consumable value, and
-    // ENTR_SCENE_MAYORS_RESIDENCE is 0 — so F10 into a freshly loaded MM half
-    // spawned Link inside the Mayor's Residence. Use the same safe arrival
-    // entrance the real hot-swap freeze records (Switch_GetHotSwapReturnEntrance),
-    // so the two armers agree. A slot-resume that wants MM's own owl /
-    // new-cycle spawn policy overrides this later; this is the floor, not the
-    // policy.
+    // ARM the MM half so it is actually reachable (UpdateShadowCopy does not set
+    // hasBeenFrozen, and every consumer gates on it). MM ALWAYS; OoT only when
+    // the whole commit is newer than OoT's own file (#589). Arming refuses an
+    // all-zero tier (Context_ArmShadowAsFrozen). The return entrance is the
+    // same safe arrival entrance the real hot-swap freeze records, never 0
+    // (ENTR_SCENE_MAYORS_RESIDENCE is 0).
     const int armed = Context_ArmShadowAsFrozen(GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0);
     std::fprintf(stderr, "[RsbsSave] slot %d loaded; MM half %s\n", slot,
                  armed ? "armed for restore" : "empty (MM will cold-boot)");
 
-    // The OoT half of the newest whole commit (#589). Same machinery, same
-    // all-zero refusal (a slot that never held an OoT world has nothing to
-    // deliver, and restoring a zeroed SaveContext over the file the engine
-    // just loaded would be strictly worse than the .sav it replaces).
-    //
-    // The return entrance is the OoT-side twin of the MM arming's floor: the
-    // .redsave does not serialize either game's frozen return entrance, so use
-    // the same cross-game arrival entrance the real freeze records for this
-    // direction (out of the Happy Mask Shop). It is a floor, not a policy —
-    // the seam below consumes this blob immediately, before any consumer of
-    // the return entrance runs, and a slot-resume that wants its own spawn
-    // policy overrides it later. What it must NOT be is 0: entrance presence
-    // is tracked by a separate flag, so 0 is a real consumable id (see the MM
-    // arming above, where 0 spawned Link inside the Mayor's Residence).
+    // The OoT half of the newest whole commit (#589), with the OoT-side twin of
+    // the MM arming's entrance floor (out of the Happy Mask Shop).
     if (mSlotSkew[slot] > 0) {
         if (Context_ArmShadowAsFrozen(GAME_OOT, OOT_ENTR_MARKET_FROM_MASK_SHOP)) {
             mOoTHalfAuthoritySlot = slot;
@@ -1105,12 +1212,6 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
                          ".redsave is newer than OoT's own .sav, so its Tier-2 is the authority (#531/#589)\n",
                          slot);
         } else {
-            // An all-zero Tier-2 with a newer generation is not a state any
-            // commit this build authors can produce (StageCommit copies the
-            // OoT shadow whole, and a slot only reaches a non-zero generation
-            // through a commit). Name it rather than silently falling back:
-            // the .sav delivers OoT's half, which is the pre-ruling behaviour
-            // and still safe.
             std::fprintf(stderr,
                          "[RsbsSave] slot %d has a newer whole commit but an EMPTY OoT half; falling back to "
                          "OoT's own .sav for this load (#589)\n",
@@ -1124,13 +1225,12 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
         Combo_ComboSettingsPersistStore();
     }
     if (restoredRules[0] != '\0') {
-        // The rows' own labels, as the page shows them ("Goal, Crossing
-        // Direction"); the full list is on the stderr line above.
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_RULES_RESTORED, restoredRules, 0);
     }
     if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_RESTORED) {
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, restoredMm, restoredMmCount);
     } else if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
+        // The legacy entry only: the open path refused this file above.
         std::fprintf(stderr,
                      "[RsbsSave] slot %d: the live MM profile does not match the file's (%08X) and the file cannot "
                      "restore it; the next crossing into Majora's Mask will be refused until it does\n",
@@ -1139,9 +1239,7 @@ RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
     }
 
     // A successful load is one of the three legitimate arming events, and it
-    // retires any earlier refusal record — if a loadable file is back at the
-    // slot path (say, the player restored the quarantined .bak by hand), the
-    // slot is theirs again.
+    // retires any earlier refusal record.
     mSlotArmed[slot] = true;
     SetSlotRefused(slot, RSBS_REFUSE_NONE);
     return RSBS_LOAD_OK;
@@ -1353,7 +1451,7 @@ RsbsRefuseReason SaveManager::QuarantineReason(int slot) const {
             slug.resize(dash);
         }
         RsbsRefuseReason reason = RSBS_REFUSE_NONE;
-        for (int r = RSBS_REFUSE_UNREADABLE; r <= RSBS_REFUSE_CROSSINGS; r++) {
+        for (int r = RSBS_REFUSE_UNREADABLE; r <= RSBS_REFUSE_MISSING; r++) {
             if (slug == RefuseReasonSlug(static_cast<RsbsRefuseReason>(r))) {
                 reason = static_cast<RsbsRefuseReason>(r);
                 break;
@@ -1779,6 +1877,39 @@ int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration) {
     return static_cast<int>(rsbs::SaveManager::Instance().LoadSlot(slot, ootSavGeneration));
 }
 
+int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile, char* words, size_t wordsLen) {
+    std::string out;
+    const RsbsLoadOutcome outcome =
+        rsbs::SaveManager::Instance().ProbeSlotForOpen(slot, ootSavGeneration, isRandoFile != 0, &out);
+    if (words != nullptr && wordsLen > 0) {
+        std::snprintf(words, wordsLen, "%s", out.c_str());
+    }
+    return static_cast<int>(outcome);
+}
+
+int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile) {
+    return static_cast<int>(rsbs::SaveManager::Instance().LoadSlotForOpen(slot, ootSavGeneration, isRandoFile != 0));
+}
+
+const char* RsbsSave_SlotRefusalWords(int slot) {
+    const rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    const char* words = mgr.GetSlotRefusalWords(slot);
+    if (words[0] != '\0') {
+        return words;
+    }
+    const RsbsRefuseReason reason = mgr.GetSlotRefuseReason(slot);
+    return reason == RSBS_REFUSE_NONE ? "" : Combo_SaveFiles_RefuseText(reason);
+}
+
+void RsbsSave_EmitFileSelectRefusalToast(const char* words) {
+    // The load's refusal prefix and the page's words (#836), muted like every
+    // load toast (the gate also runs in the display-free rows).
+    if (words == nullptr || words[0] == '\0') {
+        return;
+    }
+    OoT_Notification_EmitDefault("Not paired:", words, /*mute=*/1);
+}
+
 int RsbsSave_GetSlotCommitSkew(int slot) {
     return rsbs::SaveManager::Instance().GetSlotCommitSkew(slot);
 }
@@ -1843,8 +1974,6 @@ const char* RsbsSave_LoadToastRefusalMessage(int kind) {
             return "File made by another build";
         case RSBS_LOAD_TOAST_REFUSED_DAMAGED:
             return "Cross-game record is damaged";
-        case RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED:
-            return "Termina stays un-randomized";
         default:
             return nullptr;
     }
@@ -1876,7 +2005,6 @@ void RsbsSave_EmitLoadToast(int kind, const char* names, int count) {
         case RSBS_LOAD_TOAST_REFUSED_RULES:
         case RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD:
         case RSBS_LOAD_TOAST_REFUSED_DAMAGED:
-        case RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED:
             prefix = "Not paired:";
             message = RsbsSave_LoadToastRefusalMessage(kind);
             break;

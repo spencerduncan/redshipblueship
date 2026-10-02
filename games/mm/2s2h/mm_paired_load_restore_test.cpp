@@ -56,31 +56,38 @@
  *                -> the toast's shown names plus its "+N" add up to the true
  *                   number restored, however long the joined label list is
  *   leg 3 - the .redsave round trip in a process where Majora's Mask never
- *           booted: nothing changed -> loads, pairs, no toast, no key written
- *           (Cross-Game Rules, MM options AND MM tricks);
- *           the same with an EMPTY MM half (a file saved before MM ever ran)
- *           -> the same; and that empty-half file with a trick changed -> the
- *           file cannot restore it, so the load pairs, a toast
- *           warns now, nothing is written, and the arrival gate still refuses
- *           (the last line of defence), and the Combo > Save Files page's row
- *           for the slot repeats that refusal's toast words
+ *           booted: nothing changed -> the file select accepts, the load
+ *           pairs, no toast, no key written (Cross-Game Rules, MM options AND
+ *           MM tricks); the same with an EMPTY MM half (a file saved before MM
+ *           ever ran), unchanged and with a trick changed -> REFUSED at the
+ *           file select ("This file has no Majora's Mask world", #836), the
+ *           Save Files page says the same, and the open path's load refuses too
  *   leg 4 - a record field no key authors (the logic rung, only another build
- *           can write it) -> REFUSED, not committed, not quarantined, a
- *           "Not paired:" toast in player words (no field identifier), and the
- *           next crossing into Majora's Mask says Termina stays un-randomized
- *           instead of skipping pairing silently; an unrefused unpaired
- *           arrival posts nothing (the control). The Combo > Save Files page's
- *           row for the slot reads exactly the load toast ("Not paired: <its
- *           words>") after the load, and still does after the arrival
+ *           can write it) -> REFUSED at the file select in player words ("File
+ *           made by another build"), the page says the same, the open path's
+ *           load refuses, nothing is committed or quarantined; an unpaired
+ *           arrival with no refused slot posts nothing (the control). The old
+ *           arrival half ("Termina stays un-randomized" after a refused load)
+ *           is gone with the leg it checked: a refused file is never opened
  *   leg 5 - a restore whose after-check fails (forced through the test hooks;
- *           unreachable by construction today) -> every key it wrote is put
- *           back as it was, set or unset, on both the Cross-Game Rules and the
- *           MM side
+ *           unreachable by construction today) -> the file select ACCEPTED it
+ *           and the load refuses (the backstop's trigger, #836): every key it
+ *           wrote is put back as it was, set or unset, on both the Cross-Game
+ *           Rules and the MM side, and the slot records the refusal's words
+ *   leg 6 - #836: the file select's probe, one leg per refusal the open path
+ *           makes (every structural reason, commit skew, identity damage, a
+ *           missing or unpaired record on a randomizer file, an MM profile the
+ *           file cannot restore): the reason, the words, and NOTHING MOVED (the
+ *           slot file's bytes, no .tmp or .bak, gComboCtx byte-identical, every
+ *           Cross-Game Rule / MM option / MM trick key, the active slot)
+ *   leg 7 - #836: what the probe accepts: a healthy file; a restorable rules
+ *           divergence plus an MM-profile divergence (the probe writes no key
+ *           and the load that follows restores both); a vanilla file with no
+ *           record
  *
  * Every leg loads through Context_InvalidateSessionOnSlotLoad +
- * RsbsSave_SetActiveSlot + RsbsSave_LoadSlotChecked, the OnLoadFile seam's exact
- * sequence, and asserts STATE, never the return value alone: the production
- * caller discards it, which is the whole reason the old refusal was invisible.
+ * RsbsSave_SetActiveSlot + RsbsSave_LoadSlotForOpen, the OnLoadFile seam's exact
+ * sequence, and asserts STATE.
  *
  * MM-side because the MM half is authored the way creation authors it
  * (Rando::Foreign::ResolvePairedProfile writes the options and tricks into the
@@ -90,9 +97,11 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <cstdarg>
+#include <cstddef>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -251,13 +260,157 @@ int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride
     return 0;
 }
 
-/** games/oot/soh/SaveManager.cpp's OnLoadFile seam, call for call. It discards
- *  the return; so does every assertion below except the report. */
+/** games/oot/soh/SaveManager.cpp's OnLoadFile seam, call for call: the open
+ *  path's load of a randomizer file (#836). A refusal here is the backstop's
+ *  trigger; the seam records it rather than acting on the return. */
 int LoadThroughProductionSeam() {
     PlantSentinel();
     Context_InvalidateSessionOnSlotLoad();
     RsbsSave_SetActiveSlot(kSlot);
-    return RsbsSave_LoadSlotChecked(kSlot, 0);
+    return RsbsSave_LoadSlotForOpen(kSlot, 0, /*isRandoFile=*/1);
+}
+
+// ---------------------------------------------------------------------------
+// #836: the file select's probe, and "nothing moved".
+// ---------------------------------------------------------------------------
+
+/** Everything the probe must leave alone: the slot file's bytes, the scratch
+ *  directory's other files (a .tmp or .bak is a write or a rename), gComboCtx,
+ *  every Cross-Game Rule / MM option / MM trick key (set or unset, and its
+ *  value), and the active slot. */
+struct World {
+    bool slotExists = false;
+    std::vector<uint8_t> slotBytes;
+    int otherFiles = 0;
+    std::vector<uint8_t> combo;
+    std::vector<int32_t> keys;
+    int activeSlot = -1;
+};
+
+std::vector<uint8_t> PlrReadAll(const std::string& path) {
+    std::vector<uint8_t> out;
+    FILE* f = fopen(path.c_str(), "rb");
+    if (f == nullptr) {
+        return out;
+    }
+    uint8_t buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        out.insert(out.end(), buf, buf + n);
+    }
+    fclose(f);
+    return out;
+}
+
+void PlrWriteAll(const std::string& path, const std::vector<uint8_t>& bytes) {
+    FILE* f = fopen(path.c_str(), "wb");
+    if (f != nullptr) {
+        fwrite(bytes.data(), 1, bytes.size(), f);
+        fclose(f);
+    }
+}
+
+World Snap() {
+    World w;
+    const std::string path = rsbs::SaveManager::Instance().SlotPath(kSlot);
+    std::error_code ec;
+    w.slotExists = std::filesystem::is_regular_file(path, ec);
+    if (w.slotExists) {
+        w.slotBytes = PlrReadAll(path);
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(kScratchSaveDir, ec)) {
+        const std::string name = entry.path().filename().string();
+        if (name.size() < 8 || name.compare(name.size() - 8, 8, ".redsave") != 0) {
+            w.otherFiles++;
+        }
+    }
+    w.combo.assign(reinterpret_cast<const uint8_t*>(&gComboCtx),
+                   reinterpret_cast<const uint8_t*>(&gComboCtx) + sizeof(ComboContext));
+    for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+        w.keys.push_back(Combo_ComboSettingIsExplicit((ComboSettingId)i) ? 1 : 0);
+        w.keys.push_back(Combo_ComboSettingResolved((ComboSettingId)i));
+    }
+    for (int i = 0; i < Combo_MMOptionCount(); i++) {
+        const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+        w.keys.push_back(Combo_MMOptionIsExplicit(d) ? 1 : 0);
+        w.keys.push_back(Combo_MMOptionGetValue(d));
+    }
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        w.keys.push_back(d != nullptr && Combo_CVarIsExplicitInt(d->cvar) ? 1 : 0);
+        w.keys.push_back(d != nullptr && Combo_MMTrickGetValue(d) ? 1 : 0);
+    }
+    w.activeSlot = RsbsSave_GetActiveSlot();
+    return w;
+}
+
+/** "" when nothing moved, else what did. */
+std::string WhatMoved(const World& a, const World& b) {
+    if (a.slotExists != b.slotExists || a.slotBytes != b.slotBytes) {
+        return "the slot file";
+    }
+    if (a.otherFiles != b.otherFiles) {
+        return "a .tmp or .bak beside the slot file";
+    }
+    if (a.combo != b.combo) {
+        return "gComboCtx";
+    }
+    if (a.keys != b.keys) {
+        return "a Cross-Game Rule, MM option or MM trick key";
+    }
+    if (a.activeSlot != b.activeSlot) {
+        return "the active slot";
+    }
+    return "";
+}
+
+struct ProbeResult {
+    int outcome = -1;
+    std::string words;
+    std::string moved;
+};
+
+/** The file select's probe of the test slot, with the world snapshotted around
+ *  it. A non-zero @p ootSavGeneration stands in for the .sav's mirrored stamp. */
+ProbeResult Probe(int isRandoFile, uint32_t ootSavGeneration = 0) {
+    const World before = Snap();
+    char words[96] = { 0 };
+    ProbeResult r;
+    r.outcome = RsbsSave_ProbeSlotForOpen(kSlot, ootSavGeneration, isRandoFile, words, sizeof(words));
+    r.words = words;
+    r.moved = WhatMoved(before, Snap());
+    return r;
+}
+
+// The .redsave's byte layout, for the refusal legs (save.h): a 32-byte header,
+// then Tier-1 (comboSize), Tier-2 (ootSize), Tier-3 (mmSize), Tier-4; the CRC at
+// header offset 28 covers everything after the header.
+constexpr size_t kHdrVersion = 8;
+constexpr size_t kHdrSlot = 13;
+constexpr size_t kHdrComboSize = 16;
+constexpr size_t kHdrCrc = 28;
+constexpr size_t kTier1 = 32;
+
+uint32_t PlrU32At(const std::vector<uint8_t>& f, size_t at) {
+    uint32_t v = 0;
+    memcpy(&v, f.data() + at, sizeof(v));
+    return v;
+}
+
+void PlrPutU32(std::vector<uint8_t>& f, size_t at, uint32_t v) {
+    memcpy(f.data() + at, &v, sizeof(v));
+}
+
+void PlrRecrc(std::vector<uint8_t>& f) {
+    PlrPutU32(f, kHdrCrc, rsbs::SaveManager::Crc32(f.data() + 32, f.size() - 32));
+}
+
+size_t Tier3Offset(const std::vector<uint8_t>& f) {
+    return kTier1 + PlrU32At(f, kHdrComboSize) + PlrU32At(f, kHdrComboSize + 4);
+}
+
+size_t Tier4Offset(const std::vector<uint8_t>& f) {
+    return Tier3Offset(f) + PlrU32At(f, kHdrComboSize + 8);
 }
 
 const ComboMMTrickDesc* FirstSettableTrick() {
@@ -602,25 +755,28 @@ int LegMmManyTricks() {
 // Leg 3: the round trip with Majora's Mask never booted.
 // ---------------------------------------------------------------------------
 int LegRoundTrip() {
-    for (int emptyHalf = 0; emptyHalf <= 1; emptyHalf++) {
+    // An authored MM half: loads, pairs, says nothing, writes no key.
+    {
         ClearAuthoredKeys();
-        if (int rc = CreatePairedFile(emptyHalf != 0, nullptr)) {
+        if (int rc = CreatePairedFile(false, nullptr)) {
             return rc;
         }
         const uint32_t fileDigest = gComboCtx.mmProfileDigest;
         Relaunch();
 
+        const ProbeResult probe = Probe(1);
         const int rc = LoadThroughProductionSeam();
         const bool paired = Combo_ForeignPairingActive();
         const Toast toast = LastToast();
         // Every key a page authors: Cross-Game Rules, MM options AND MM tricks.
         const bool anyKeyWritten = AnyAuthoredKeyExplicit();
         const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
-        printf("[TEST] leg 3 (%s MM half) OBSERVED: load rc=%d paired=%d toast=%s keyWritten=%d arrivalGate=%d\n",
-               emptyHalf ? "empty" : "authored", rc, paired ? 1 : 0, toast.any ? toast.prefix.c_str() : "(none)",
-               anyKeyWritten ? 1 : 0, gate);
-        if (rc != RSBS_LOAD_OK || !paired || gComboCtx.mmProfileDigest != fileDigest) {
-            return Fail(30 + emptyHalf, "leg 3: an unchanged paired file did not round-trip into a paired session");
+        printf("[TEST] leg 3 (authored MM half) OBSERVED: probe=%d load rc=%d paired=%d toast=%s keyWritten=%d "
+               "arrivalGate=%d\n",
+               probe.outcome, rc, paired ? 1 : 0, toast.any ? toast.prefix.c_str() : "(none)", anyKeyWritten ? 1 : 0,
+               gate);
+        if (probe.outcome != RSBS_LOAD_OK || rc != RSBS_LOAD_OK || !paired || gComboCtx.mmProfileDigest != fileDigest) {
+            return Fail(30, "leg 3: an unchanged paired file did not round-trip into a paired session");
         }
         if (toast.any) {
             return Fail(32, "leg 3: a load that changed nothing posted a toast ('%s %s')", toast.prefix.c_str(),
@@ -634,52 +790,45 @@ int LegRoundTrip() {
         }
     }
 
-    // The empty-half file once more, with a trick changed. The file records no
-    // options, so it cannot say what the trick was: the load pairs and warns
-    // now; nothing is written; the arrival gate still refuses.
+    // An EMPTY MM half (a pre-#680 file that never crossed), unchanged and then
+    // with a trick changed: the file has no paired Termina world, so it is
+    // refused at the file select and by the open path's load (#836). It used to
+    // load, pair, and be refused at the first crossing (Termina vanilla).
     const ComboMMTrickDesc* trick = FirstSettableTrick();
     if (trick == nullptr) {
         return Fail(35, "leg 3 setup: no settable MM trick");
     }
-    Relaunch();
-    Combo_MMTrickSetValue(trick, true);
-    const int rc = LoadThroughProductionSeam();
-    const bool paired = Combo_ForeignPairingActive();
-    const Toast toast = LastToast();
-    const bool trickOn = Combo_MMTrickGetValue(trick);
-    const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
-    printf("[TEST] leg 3 (empty MM half, trick changed) OBSERVED: load rc=%d paired=%d trick=%d toast=%s%s%s%s "
-           "arrivalGate=%d\n",
-           rc, paired ? 1 : 0, trickOn ? 1 : 0, toast.any ? "'" : "(none)", toast.any ? toast.prefix.c_str() : "",
-           toast.any ? " " : "", toast.any ? toast.message.c_str() : "", gate);
-    if (rc != RSBS_LOAD_OK || !paired) {
-        return Fail(36, "leg 3: an unrestorable MM profile refused the load or left it unpaired");
-    }
-    if (!trickOn) {
-        return Fail(37, "leg 3: the load wrote a trick value the file does not record");
-    }
-    if (!toast.any || !PlrContains(toast.prefix, "Not restored") ||
-        !PlrContains(toast.message, "Majora's Mask options") || !FitsOneLine(toast)) {
-        return Fail(38,
-                    "leg 3: an MM profile the file cannot restore was not flagged at load (prefix '%s', "
-                    "message '%s')",
-                    toast.prefix.c_str(), toast.message.c_str());
-    }
-    if (gate != 1) {
-        return Fail(39, "leg 3: the arrival gate, the last line of defence, did not refuse a diverged profile");
-    }
-    // The arrival's refusal toast, and the Save Files page's row for the slot:
-    // the page repeats the toast's reason (lane W5; recorded by the toast's
-    // emitter, MM_Rando_EmitPairingRefusalToast).
-    const Toast arrivalToast = LastToast();
-    const std::string pageStatus = SaveFilesStatus();
-    const std::string pageWant = std::string("Not paired: ") + Combo_SaveFiles_ToastWords(arrivalToast.message.c_str());
-    printf("[TEST] leg 3 page OBSERVED: arrival toast=%s%s%s%s page status='%s'\n", arrivalToast.any ? "'" : "(none)",
-           arrivalToast.any ? arrivalToast.prefix.c_str() : "", arrivalToast.any ? " " : "",
-           arrivalToast.any ? arrivalToast.message.c_str() : "", pageStatus.c_str());
-    if (!arrivalToast.any || arrivalToast.message.empty() || pageStatus != pageWant) {
-        return Fail(70, "leg 3: the Save Files page reads '%s' after the arrival refused with the toast '%s %s'",
-                    pageStatus.c_str(), arrivalToast.prefix.c_str(), arrivalToast.message.c_str());
+    for (int changed = 0; changed <= 1; changed++) {
+        ClearAuthoredKeys();
+        if (int rc = CreatePairedFile(true, nullptr)) {
+            return rc;
+        }
+        Relaunch();
+        if (changed) {
+            Combo_MMTrickSetValue(trick, true);
+        }
+        const ProbeResult probe = Probe(1);
+        const int reason = RsbsSave_GetSlotRefuseReason(kSlot);
+        const std::string page = SaveFilesStatus();
+        const int rc = LoadThroughProductionSeam();
+        const bool paired = Combo_ForeignPairingActive();
+        printf("[TEST] leg 3 (empty MM half%s) OBSERVED: probe=%d words='%s' reason=%d moved='%s' page='%s' load "
+               "rc=%d paired=%d\n",
+               changed ? ", trick changed" : "", probe.outcome, probe.words.c_str(), reason, probe.moved.c_str(),
+               page.c_str(), rc, paired ? 1 : 0);
+        if (probe.outcome != RSBS_LOAD_REFUSED || reason != (int)RSBS_REFUSE_GENERATION ||
+            probe.words != "This file has no Majora's Mask world" || !probe.moved.empty()) {
+            return Fail(36 + changed,
+                        "leg 3: a paired file with an empty MM half was not refused at the file select, or the probe "
+                        "moved %s",
+                        probe.moved.empty() ? "nothing" : probe.moved.c_str());
+        }
+        if (page != "Not paired: " + probe.words) {
+            return Fail(38, "leg 3: the Save Files page reads '%s', not the probe's words", page.c_str());
+        }
+        if (rc != RSBS_LOAD_REFUSED || paired || RsbsSave_IsSlotWritable(kSlot) != 0) {
+            return Fail(39, "leg 3: the open path's load committed a paired file with an empty MM half");
+        }
     }
     return 0;
 }
@@ -691,7 +840,7 @@ int LegUnrestorableRule() {
     ClearAuthoredKeys();
 
     // Control: an unpaired arrival with no refused slot (a vanilla file) says
-    // nothing; the toast below is about a REFUSED paired file only.
+    // nothing and refuses nothing.
     RsbsSave_SetActiveSlot(kSlot);
     PlantSentinel();
     const int controlGate = MM_Rando_GateCrossGameArrival();
@@ -711,76 +860,42 @@ int LegUnrestorableRule() {
     }
     Relaunch();
 
-    const int rc = LoadThroughProductionSeam();
-    const bool paired = Combo_ForeignPairingActive();
-    const Toast toast = LastToast();
-    printf("[TEST] leg 4 OBSERVED: load rc=%d paired=%d refuseReason=%d quarantined=%d toast=%s%s%s%s\n", rc,
-           paired ? 1 : 0, RsbsSave_GetSlotRefuseReason(kSlot), RsbsSave_HasQuarantine(kSlot),
-           toast.any ? "'" : "(none)", toast.any ? toast.prefix.c_str() : "", toast.any ? " " : "",
-           toast.any ? toast.message.c_str() : "");
-    if (rc != RSBS_LOAD_REFUSED || RsbsSave_GetSlotRefuseReason(kSlot) != (int)RSBS_REFUSE_IDENTITY ||
+    // The file select refuses it (#836): the file is not opened.
+    const ProbeResult probe = Probe(1);
+    const std::string page = SaveFilesStatus();
+    printf("[TEST] leg 4 OBSERVED: probe=%d words='%s' reason=%d moved='%s' quarantined=%d page='%s'\n", probe.outcome,
+           probe.words.c_str(), RsbsSave_GetSlotRefuseReason(kSlot), probe.moved.c_str(), RsbsSave_HasQuarantine(kSlot),
+           page.c_str());
+    if (probe.outcome != RSBS_LOAD_REFUSED || RsbsSave_GetSlotRefuseReason(kSlot) != (int)RSBS_REFUSE_IDENTITY ||
         RsbsSave_IsSlotWritable(kSlot) != 0) {
-        return Fail(40, "leg 4: a rule no key can restore was not refused and latched");
+        return Fail(40, "leg 4: a rule no key can restore was not refused and latched at the file select");
     }
-    if (Combo_ComboSettingsFrozen()) {
-        return Fail(41, "leg 4: a refused load committed the record");
+    if (probe.words != "File made by another build" || PlrContains(probe.words, "logicRung") || !probe.moved.empty()) {
+        return Fail(43, "leg 4: the refusal's words are '%s' (want player words), or the probe moved %s",
+                    probe.words.c_str(), probe.moved.empty() ? "nothing" : probe.moved.c_str());
+    }
+    if (page != "Not paired: " + probe.words) {
+        return Fail(71, "leg 4: the Save Files page reads '%s' but the file select said '%s'", page.c_str(),
+                    probe.words.c_str());
+    }
+
+    // The open path's load refuses it too, commits nothing and quarantines
+    // nothing: a healthy file is never renamed for a session divergence.
+    const int rc = LoadThroughProductionSeam();
+    printf("[TEST] leg 4 OBSERVED: open-path load rc=%d paired=%d frozen=%d quarantined=%d\n", rc,
+           Combo_ForeignPairingActive() ? 1 : 0, Combo_ComboSettingsFrozen() ? 1 : 0, RsbsSave_HasQuarantine(kSlot));
+    if (rc != RSBS_LOAD_REFUSED || Combo_ComboSettingsFrozen() || Combo_ForeignPairingActive()) {
+        return Fail(41, "leg 4: the open path's load committed the record");
     }
     if (RsbsSave_HasQuarantine(kSlot) != 0 || RsbsSave_HasSave(kSlot) != 1) {
         return Fail(42, "leg 4: a healthy file was quarantined for a session divergence");
     }
-    // Player words, not the record's field identifier (that stays on stderr),
-    // and the consequence: the file is not paired. Recorded, not returned, so
-    // the arrival below is observed in the same run.
-    int legRc = 0;
-    if (!toast.any || !PlrContains(toast.prefix, "Not paired") || !PlrContains(toast.message, "another build") ||
-        PlrContains(toast.message, "logicRung") || !FitsOneLine(toast)) {
-        legRc = Fail(43,
-                     "leg 4: the refusal toast does not say, in player words, that the file is not paired "
-                     "(prefix '%s', message '%s')",
-                     toast.prefix.c_str(), toast.message.c_str());
-    }
-    // The Combo > Save Files page says what the toast said (lane W5): the load
-    // toast is "Not paired:" + its words, and so is the page's status cell.
-    const std::string toastLine = toast.prefix + " " + toast.message;
-    const std::string pageAfterLoad = SaveFilesStatus();
-    printf("[TEST] leg 4 page OBSERVED: after the load, page status='%s' toast='%s'\n", pageAfterLoad.c_str(),
-           toastLine.c_str());
-    if (legRc == 0 && pageAfterLoad != toastLine) {
-        legRc = Fail(71, "leg 4: the Save Files page reads '%s' but the load toast said '%s'", pageAfterLoad.c_str(),
-                     toastLine.c_str());
-    }
-
-    // The OoT file plays on (the caller cannot un-open it). The next crossing
-    // into Majora's Mask must say what that means, not skip pairing silently.
-    PlantSentinel();
-    const int arrivalGate = MM_Rando_GateCrossGameArrival();
-    const Toast arrival = LastToast();
-    printf("[TEST] leg 4 arrival OBSERVED: gate=%d toast=%s%s%s%s\n", arrivalGate, arrival.any ? "'" : "(none)",
-           arrival.any ? arrival.prefix.c_str() : "", arrival.any ? " " : "",
-           arrival.any ? arrival.message.c_str() : "");
-    if (arrivalGate != 0) {
-        return Fail(45, "leg 4: the unpaired arrival refused (%d); it plays vanilla Termina", arrivalGate);
-    }
-    if (!arrival.any || !PlrContains(arrival.prefix, "Not paired") || !PlrContains(arrival.message, "Termina") ||
-        !FitsOneLine(arrival)) {
-        return Fail(46,
-                    "leg 4: the arrival after a refused load is silent — no toast says Termina plays "
-                    "un-randomized (prefix '%s', message '%s')",
-                    arrival.prefix.c_str(), arrival.message.c_str());
-    }
-    // The arrival's toast is about the crossing, not the file: the page keeps the
-    // load's reason.
-    const std::string pageAfterArrival = SaveFilesStatus();
-    printf("[TEST] leg 4 page OBSERVED: after the arrival, page status='%s'\n", pageAfterArrival.c_str());
-    if (legRc == 0 && pageAfterArrival != pageAfterLoad) {
-        legRc = Fail(72, "leg 4: the arrival changed the Save Files page's reason from '%s' to '%s'",
-                     pageAfterLoad.c_str(), pageAfterArrival.c_str());
-    }
-    return legRc;
+    return 0;
 }
 
 // ---------------------------------------------------------------------------
-// Leg 5: a restore whose after-check fails leaves the keys as they were.
+// Leg 5: the probe accepts and the load refuses (the backstop's trigger): a
+// restore whose after-check fails leaves the keys as they were.
 // ---------------------------------------------------------------------------
 int LegRollback() {
     // Cross-Game Rules: the file holds Goal BEAT_EITHER and Direction FORWARD;
@@ -796,26 +911,30 @@ int LegRollback() {
     Combo_ComboSettingClear(COMBO_SETTING_DIRECTION);
 
     RsbsSave_ForceLoadRestoreVerifyFailForTest(1);
+    const ProbeResult probe = Probe(1);
     const int rc = LoadThroughProductionSeam();
     RsbsSave_ForceLoadRestoreVerifyFailForTest(0);
     const int32_t goal = Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
     const bool goalSet = Combo_ComboSettingIsExplicit(COMBO_SETTING_GOAL);
     const bool directionSet = Combo_ComboSettingIsExplicit(COMBO_SETTING_DIRECTION);
-    const Toast toast = LastToast();
-    printf("[TEST] leg 5 (rules) OBSERVED: load rc=%d goal=%d goalSet=%d directionSet=%d toast=%s%s%s%s\n", rc,
-           (int)goal, goalSet ? 1 : 0, directionSet ? 1 : 0, toast.any ? "'" : "(none)",
-           toast.any ? toast.prefix.c_str() : "", toast.any ? " " : "", toast.any ? toast.message.c_str() : "");
+    const std::string words = RsbsSave_SlotRefusalWords(kSlot);
+    printf("[TEST] leg 5 (rules) OBSERVED: probe=%d moved='%s' load rc=%d goal=%d goalSet=%d directionSet=%d "
+           "words='%s'\n",
+           probe.outcome, probe.moved.c_str(), rc, (int)goal, goalSet ? 1 : 0, directionSet ? 1 : 0, words.c_str());
     // Recorded, not returned, so the MM half below is observed in the same run.
     int legRc = 0;
-    if (rc != RSBS_LOAD_REFUSED) {
+    if (probe.outcome != RSBS_LOAD_OK || !probe.moved.empty()) {
+        legRc = Fail(66, "leg 5: the probe did not accept a restorable divergence, or it moved %s",
+                     probe.moved.empty() ? "nothing" : probe.moved.c_str());
+    } else if (rc != RSBS_LOAD_REFUSED) {
         legRc = Fail(60, "leg 5: a restore whose after-check failed was not refused");
     } else if (goal != (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH || !goalSet || directionSet) {
         legRc = Fail(61,
                      "leg 5: a refused restore left the file's rules in the keys (goal %d, goalSet %d, "
                      "directionSet %d)",
                      (int)goal, goalSet ? 1 : 0, directionSet ? 1 : 0);
-    } else if (!toast.any || !PlrContains(toast.prefix, "Not paired") || !FitsOneLine(toast)) {
-        legRc = Fail(62, "leg 5: the refused restore posted no refusal toast");
+    } else if (words != "Cross-game rules differ" || Combo_ForeignPairingActive()) {
+        legRc = Fail(62, "leg 5: the refused load recorded the words '%s', or committed the pair", words.c_str());
     }
 
     // MM: the file holds the trick on and Starting Hearts 5; the session holds
@@ -836,22 +955,247 @@ int LegRollback() {
     Combo_MMOptionSetValue(hearts, 3);
 
     MM_Rando_ForceProfileRestoreVerifyFailForTest(1);
+    const ProbeResult mmProbe = Probe(1);
     const int mmRc = LoadThroughProductionSeam();
     MM_Rando_ForceProfileRestoreVerifyFailForTest(0);
     const bool trickSet = Combo_CVarIsExplicitInt(trick->cvar);
     const int32_t heartsNow = Combo_MMOptionGetValue(hearts);
-    const Toast mmToast = LastToast();
-    printf("[TEST] leg 5 (MM) OBSERVED: load rc=%d trickSet=%d startingHearts=%d toast=%s%s%s%s\n", mmRc,
-           trickSet ? 1 : 0, (int)heartsNow, mmToast.any ? "'" : "(none)", mmToast.any ? mmToast.prefix.c_str() : "",
-           mmToast.any ? " " : "", mmToast.any ? mmToast.message.c_str() : "");
+    const std::string mmWords = RsbsSave_SlotRefusalWords(kSlot);
+    printf("[TEST] leg 5 (MM) OBSERVED: probe=%d moved='%s' load rc=%d trickSet=%d startingHearts=%d words='%s'\n",
+           mmProbe.outcome, mmProbe.moved.c_str(), mmRc, trickSet ? 1 : 0, (int)heartsNow, mmWords.c_str());
+    if (mmProbe.outcome != RSBS_LOAD_OK || !mmProbe.moved.empty()) {
+        return Fail(67, "leg 5: the probe did not accept a restorable MM divergence, or it moved %s",
+                    mmProbe.moved.empty() ? "nothing" : mmProbe.moved.c_str());
+    }
     if (trickSet || heartsNow != 3) {
         return Fail(64, "leg 5: a failed MM restore left the file's values in the keys (trickSet %d, hearts %d)",
                     trickSet ? 1 : 0, (int)heartsNow);
     }
-    if (!mmToast.any || !PlrContains(mmToast.prefix, "Not restored")) {
-        return Fail(65, "leg 5: the failed MM restore was not flagged");
+    if (mmRc != RSBS_LOAD_REFUSED || mmWords != "Majora's Mask options differ" || Combo_ForeignPairingActive()) {
+        return Fail(65, "leg 5: the failed MM restore did not refuse the load (rc %d, words '%s')", mmRc,
+                    mmWords.c_str());
     }
     return legRc;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 6 (#836): one probe leg per refusal the open path makes. Each asserts the
+// reason and the words, and that the probe moved nothing.
+// ---------------------------------------------------------------------------
+int ExpectRefused(int code, const char* what, const ProbeResult& probe, RsbsRefuseReason reason, const char* words) {
+    const int got = RsbsSave_GetSlotRefuseReason(kSlot);
+    printf("[TEST] leg 6 (%s) OBSERVED: probe=%d reason=%d words='%s' moved='%s' writable=%d\n", what, probe.outcome,
+           got, probe.words.c_str(), probe.moved.c_str(), RsbsSave_IsSlotWritable(kSlot));
+    if (probe.outcome != RSBS_LOAD_REFUSED || got != (int)reason || probe.words != words ||
+        RsbsSave_IsSlotWritable(kSlot) != 0) {
+        return Fail(code, "leg 6 (%s): want REFUSED, reason %d, words '%s'", what, (int)reason, words);
+    }
+    if (!probe.moved.empty()) {
+        return Fail(code, "leg 6 (%s): the probe moved %s", what, probe.moved.c_str());
+    }
+    return 0;
+}
+
+/** A healthy paired file, then @p mutate on its bytes (the CRC recomputed when
+ *  @p recrc), then a fresh launch. */
+template <typename F> int PairedFileThen(bool recrc, F mutate) {
+    ClearAuthoredKeys();
+    if (int rc = CreatePairedFile(false, nullptr)) {
+        return rc;
+    }
+    const std::string path = rsbs::SaveManager::Instance().SlotPath(kSlot);
+    std::vector<uint8_t> bytes = PlrReadAll(path);
+    mutate(bytes);
+    if (recrc) {
+        PlrRecrc(bytes);
+    }
+    PlrWriteAll(path, bytes);
+    Relaunch();
+    return 0;
+}
+
+int LegProbeRefusals() {
+    int rc = 0;
+    auto note = [&rc](int legRc) {
+        if (rc == 0) {
+            rc = legRc;
+        }
+    };
+    const std::string path = rsbs::SaveManager::Instance().SlotPath(kSlot);
+    struct Structural {
+        const char* what;
+        RsbsRefuseReason reason;
+        bool recrc;
+        void (*mutate)(std::vector<uint8_t>&);
+    };
+    const Structural structural[] = {
+        { "header", RSBS_REFUSE_HEADER, false, [](std::vector<uint8_t>& f) { f[0] ^= 0xFF; } },
+        { "version", RSBS_REFUSE_VERSION, false, [](std::vector<uint8_t>& f) { PlrPutU32(f, kHdrVersion, 99u); } },
+        { "tier size", RSBS_REFUSE_TIER_SIZE, false,
+          [](std::vector<uint8_t>& f) { PlrPutU32(f, kHdrComboSize, 0x00FFFFFFu); } },
+        { "wrong slot", RSBS_REFUSE_WRONG_SLOT, false, [](std::vector<uint8_t>& f) { f[kHdrSlot] = 2; } },
+        { "truncated", RSBS_REFUSE_TRUNCATED, false, [](std::vector<uint8_t>& f) { f.resize(kTier1 + 16); } },
+        { "crc", RSBS_REFUSE_CRC, false, [](std::vector<uint8_t>& f) { f[Tier3Offset(f) - 7] ^= 0x5A; } },
+        { "combo magic", RSBS_REFUSE_COMBO_MAGIC, true,
+          [](std::vector<uint8_t>& f) { f[kTier1 + offsetof(ComboContext, magic)] ^= 0x20; } },
+        { "crossings", RSBS_REFUSE_CROSSINGS, true, [](std::vector<uint8_t>& f) { f[Tier4Offset(f)] ^= 0xFF; } },
+    };
+    int code = 80;
+    for (const Structural& s : structural) {
+        if (int setup = PairedFileThen(s.recrc, s.mutate)) {
+            return setup;
+        }
+        note(ExpectRefused(code++, s.what, Probe(1), s.reason, Combo_SaveFiles_RefuseText(s.reason)));
+    }
+
+    // Unreadable: something that exists at the slot path and cannot be opened.
+    {
+        ClearAuthoredKeys();
+        Relaunch();
+        RsbsSave_DeleteSave(kSlot);
+        RsbsSave_ResetSlotSessionState();
+        std::error_code ec;
+        std::filesystem::create_directory(path, ec);
+        // A directory at the slot path: MSVC's ifstream cannot open it
+        // (UNREADABLE); libstdc++ opens it and the first read fails (HEADER).
+        // Either way it is a refusal with the page's words and nothing moved.
+        const ProbeResult probe = Probe(1);
+        const RsbsRefuseReason got = static_cast<RsbsRefuseReason>(RsbsSave_GetSlotRefuseReason(kSlot));
+        const RsbsRefuseReason want = got == RSBS_REFUSE_HEADER ? RSBS_REFUSE_HEADER : RSBS_REFUSE_UNREADABLE;
+        note(ExpectRefused(code++, "unreadable", probe, want, Combo_SaveFiles_RefuseText(want)));
+        std::filesystem::remove(path, ec);
+    }
+
+    // Commit skew: the .sav mirrors a newer generation than the record.
+    {
+        if (int setup = PairedFileThen(false, [](std::vector<uint8_t>&) {})) {
+            return setup;
+        }
+        const std::vector<uint8_t> bytes = PlrReadAll(path);
+        const uint32_t fileGen = PlrU32At(bytes, kTier1 + offsetof(ComboContext, commitGeneration));
+        note(ExpectRefused(code++, "commit skew", Probe(1, fileGen + 5u), RSBS_REFUSE_COMMIT_SKEW,
+                           Combo_SaveFiles_RefuseText(RSBS_REFUSE_COMMIT_SKEW)));
+    }
+
+    // Identity damage: a fingerprint the record does not produce.
+    {
+        if (int setup = PairedFileThen(true, [](std::vector<uint8_t>& f) {
+                const size_t at = kTier1 + offsetof(ComboContext, comboSettingsHash);
+                PlrPutU32(f, at, PlrU32At(f, at) ^ 0x00010000u);
+            })) {
+            return setup;
+        }
+        note(ExpectRefused(code++, "identity damage", Probe(1), RSBS_REFUSE_IDENTITY,
+                           RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_DAMAGED)));
+    }
+
+    // Missing: no .redsave at all, and a record with no pairing, on a
+    // randomizer .sav (SoH's Copy, a lost record, the permanent unpaired state).
+    {
+        ClearAuthoredKeys();
+        Relaunch();
+        RsbsSave_DeleteSave(kSlot);
+        RsbsSave_ResetSlotSessionState();
+        note(ExpectRefused(code++, "no record, randomizer file", Probe(1), RSBS_REFUSE_MISSING,
+                           "Cross-game record is missing"));
+        if (int setup = PairedFileThen(true, [](std::vector<uint8_t>& f) {
+                f[kTier1 + offsetof(ComboContext, sourceIsRando)] = 0;
+                PlrPutU32(f, kTier1 + offsetof(ComboContext, sharedRandoSettingsHash), 0u);
+            })) {
+            return setup;
+        }
+        note(ExpectRefused(code++, "unpaired record, randomizer file", Probe(1), RSBS_REFUSE_MISSING,
+                           "Cross-game record is missing"));
+    }
+
+    // An MM profile the file cannot restore: its MM half is not a randomizer
+    // save, so it records no options, and the session changed a trick.
+    {
+        const ComboMMTrickDesc* trick = FirstSettableTrick();
+        if (trick == nullptr) {
+            return Fail(98, "leg 6 setup: no settable MM trick");
+        }
+        if (int setup = PairedFileThen(true, [](std::vector<uint8_t>& f) {
+                const size_t at = Tier3Offset(f) + offsetof(SaveContext, save.shipSaveInfo.saveType);
+                f[at] = (uint8_t)SAVETYPE_VANILLA;
+            })) {
+            return setup;
+        }
+        Combo_MMTrickSetValue(trick, true);
+        note(ExpectRefused(code++, "MM profile unrestorable", Probe(1), RSBS_REFUSE_IDENTITY,
+                           "Majora's Mask options differ"));
+    }
+    return rc;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 7 (#836): what the probe accepts. A healthy file; a restorable
+// Cross-Game Rules divergence plus an MM-profile divergence (the probe writes
+// no key, and the load that follows restores both); a vanilla file with no
+// record.
+// ---------------------------------------------------------------------------
+int LegProbeAccepts() {
+    // Healthy.
+    ClearAuthoredKeys();
+    if (int rc = CreatePairedFile(false, nullptr)) {
+        return rc;
+    }
+    Relaunch();
+    const ProbeResult healthy = Probe(1);
+    printf("[TEST] leg 7 (healthy) OBSERVED: probe=%d moved='%s'\n", healthy.outcome, healthy.moved.c_str());
+    if (healthy.outcome != RSBS_LOAD_OK || !healthy.moved.empty()) {
+        return Fail(110, "leg 7: the probe refused a healthy paired file, or moved %s",
+                    healthy.moved.empty() ? "nothing" : healthy.moved.c_str());
+    }
+
+    // Both divergences.
+    const ComboMMTrickDesc* trick = FirstSettableTrick();
+    const ComboMMOptionDesc* hearts = Combo_MMOptionById((uint16_t)RO_STARTING_HEALTH);
+    if (trick == nullptr || hearts == nullptr) {
+        return Fail(111, "leg 7 setup: no settable MM trick, or no Starting Hearts row");
+    }
+    ClearAuthoredKeys();
+    Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER);
+    Combo_MMTrickSetValue(trick, true);
+    Combo_MMOptionSetValue(hearts, 5);
+    if (int rc = CreatePairedFile(false, nullptr)) {
+        return rc;
+    }
+    Relaunch();
+    Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH);
+    Combo_MMTrickClear(trick);
+    Combo_MMOptionSetValue(hearts, 3);
+    const ProbeResult diverged = Probe(1);
+    const int rc = LoadThroughProductionSeam();
+    const int32_t goal = Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
+    const bool trickOn = Combo_MMTrickGetValue(trick);
+    const int32_t heartsNow = Combo_MMOptionGetValue(hearts);
+    printf("[TEST] leg 7 (diverged) OBSERVED: probe=%d moved='%s' load rc=%d paired=%d goal=%d trick=%d "
+           "startingHearts=%d\n",
+           diverged.outcome, diverged.moved.c_str(), rc, Combo_ForeignPairingActive() ? 1 : 0, (int)goal,
+           trickOn ? 1 : 0, (int)heartsNow);
+    if (diverged.outcome != RSBS_LOAD_OK || !diverged.moved.empty()) {
+        return Fail(112,
+                    "leg 7: the probe refused a divergence the file can restore, or moved %s (it must write "
+                    "no key)",
+                    diverged.moved.empty() ? "nothing" : diverged.moved.c_str());
+    }
+    if (rc != RSBS_LOAD_OK || !Combo_ForeignPairingActive() || goal != (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER ||
+        !trickOn || heartsNow != 5) {
+        return Fail(113, "leg 7: the load after the probe did not restore the file's rules and MM profile");
+    }
+
+    // A vanilla file with no record opens (and the load arms its first write).
+    ClearAuthoredKeys();
+    Relaunch();
+    RsbsSave_DeleteSave(kSlot);
+    RsbsSave_ResetSlotSessionState();
+    const ProbeResult vanilla = Probe(0);
+    printf("[TEST] leg 7 (vanilla, no record) OBSERVED: probe=%d moved='%s'\n", vanilla.outcome, vanilla.moved.c_str());
+    if (vanilla.outcome != RSBS_LOAD_ABSENT || !vanilla.moved.empty()) {
+        return Fail(114, "leg 7: the probe refused a vanilla file with no cross-game record");
+    }
+    return 0;
 }
 
 } // namespace
@@ -873,8 +1217,8 @@ extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
     // Every leg runs even after one fails, so a single run reports each leg's
     // observed state; the first failure is the row's result.
     int rc = 0;
-    int (*const legs[])() = { LegCrossGameRules, LegMmProfile,        LegMmTrickOnly, LegMmManyTricks,
-                              LegRoundTrip,      LegUnrestorableRule, LegRollback };
+    int (*const legs[])() = { LegCrossGameRules,   LegMmProfile, LegMmTrickOnly,   LegMmManyTricks, LegRoundTrip,
+                              LegUnrestorableRule, LegRollback,  LegProbeRefusals, LegProbeAccepts };
     for (auto leg : legs) {
         const int legRc = leg();
         if (rc == 0) {

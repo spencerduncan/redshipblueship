@@ -825,6 +825,8 @@ extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
 extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 // 2s2h/Rando/ForeignModelSingleExe.cpp: the #577 M3 playtest drive's arm.
 extern "C" int MM_ForeignModel_PlaytestArmGive(void);
+// ... and its per-frame half (#830), same file.
+extern "C" void MM_ForeignModel_PlaytestFrame(int playFrames);
 extern "C" int MM_Shop_PlaytestWarp(void);       // #800 playtest drive (Rando/ForeignShopSingleExe.cpp)
 extern "C" void MM_Shop_PlaytestShopFrame(void); // its in-shop half, same file
 
@@ -1189,6 +1191,11 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     // CheckQueue plays its real get-item cutscene here.
     if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
         MM_ForeignModel_PlaytestArmGive();
+    }
+    // #830: its per-frame half (closes textboxes nobody will press past, and
+    // captures the framebuffer; Rando/ForeignModelSingleExe.cpp).
+    if (std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
+        MM_ForeignModel_PlaytestFrame(sGpMMPlayFrames);
     }
     // #800 playtest drive (opt-in, RSBS_GP_MM_SHOP=1): warp into the Clock Town
     // shop whose shelf holds an OoT item (Rando/ForeignShopSingleExe.cpp), once no
@@ -5079,18 +5086,10 @@ int MM_Rando_GateCrossGameArrival(void) {
                 "[MM] pairing: skipped-because-no-paired-oot-world "
                 "(sourceIsRando=%d settingsHash=%08X masterSeed=%u)\n",
                 gComboCtx.sourceIsRando ? 1 : 0, gComboCtx.sharedRandoSettingsHash, gComboCtx.sharedRandoSeed);
-        // A paired file whose load was REFUSED (#781: a record from another
-        // build, or damage) plays its OoT half without the pair, because the
-        // OnLoadFile seam cannot un-open it. That crossing must not be silent:
-        // the player is told here, at the door, what the refusal means.
-        const int slot = RsbsSave_GetActiveSlot();
-        if (slot >= 0 && RsbsSave_GetSlotRefuseReason(slot) != 0) {
-            fprintf(stderr,
-                    "[MM] pairing: slot %d was REFUSED at load (reason %d); this arrival plays un-randomized and "
-                    "nothing is saved to the pair this session\n",
-                    slot, RsbsSave_GetSlotRefuseReason(slot));
-            RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED, nullptr, 0);
-        }
+        // No "refused load" leg here any more (#836): a paired file whose load
+        // would be refused is never opened (the file select's gate, and the
+        // backstop that returns a refused load to the file select), so no
+        // arrival can follow one.
         return 0;
     }
 
