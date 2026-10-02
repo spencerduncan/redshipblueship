@@ -38,6 +38,19 @@
  * happens: that half of the Destroy is unconditional); an actor whose destroy
  * is NULL is skipped as OoT_Actor_Destroy skips it; and no PlayState at all
  * leaves the save as it was. Every other eventChkInf word is compared whole.
+ *
+ * #807 ADDS TWO ROWS ON THE SAME SEAM, the residues PR #792 recorded:
+ *  - OoTDepartureSunSwitchFlag ("oot-departure-sun-switch-flag"): with SoH's
+ *    Sunlight Arrows, OoT_ObjLightswitch_Destroy unsets the switch flag of a
+ *    sun switch a Light Arrow lit, so the activation lasts one visit. A
+ *    departure froze it set for good: the #638 scene-flag flush copied the
+ *    still-set live flag. The seam now applies the Destroy's unset BEFORE the
+ *    flush, the order Actor_CleanupContext uses (Destroys, then
+ *    Play_SaveSceneFlags).
+ *  - OoTDepartureLinkAge ("oot-departure-link-age"): between an age-change
+ *    write to play->linkAgeOnLoad and the reload it triggers, a departure froze
+ *    the old age. The seam now applies Play_Destroy's equipment swap and the
+ *    Player Destroy's linkAge write.
  */
 
 #include <z64.h>
@@ -58,6 +71,10 @@ extern "C" PlayState* OoT_gPlayState;
 // The two REAL freeze drivers (games/oot/soh/GameExports_SingleExe.cpp).
 extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
 extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing);
+// z_obj_lightswitch.c (RSBS_SINGLE_EXECUTABLE): seed / read SoH's Sunlight
+// Arrows static, sunSwitchActivatedByLightArrow.
+extern "C" void OoT_ObjLightswitch_SetDestroyStaticsForTest(s32 dirty);
+extern "C" s32 OoT_ObjLightswitch_DestroyStaticsDirtyForTest(void);
 
 namespace {
 
@@ -377,6 +394,288 @@ int RunLake(Scene* scene) {
     return rc;
 }
 
+// ============================================================================
+// #807 (1): Obj_Lightswitch under SoH's Sunlight Arrows
+// ============================================================================
+//
+// OoT_ObjLightswitch_Destroy (z_obj_lightswitch.c): while the overlay static
+// sunSwitchActivatedByLightArrow is set, the first sun switch destroyed whose
+// type is not BURN unsets its own switch flag (unless it sits in room 25, the
+// Spirit Temple chain platform) and clears the static; a BURN switch writes
+// nothing and leaves the static set. Actor_CleanupContext destroys every actor
+// before Play_SaveSceneFlags copies the live flags into the save, so the unset
+// is what reaches gSaveContext.sceneFlags on any exit.
+
+const s16 kSunStayOn = 0; // OBJLIGHTSWITCH_TYPE_STAY_ON
+const s16 kSunType1 = 1;  // OBJLIGHTSWITCH_TYPE_1
+const s16 kSunType2 = 2;  // OBJLIGHTSWITCH_TYPE_2
+const s16 kSunBurn = 3;   // OBJLIGHTSWITCH_TYPE_BURN
+const s32 kSunFlag = 0x0A;
+const s32 kSunFlag2 = 0x0B;
+const s32 kSunFlag3 = 0x0C;
+const s32 kOtherSwitch = 0x03; // an unrelated switch set during the visit
+const u32 kLiveChest = 0x11;
+const u32 kLiveClear = 0x22;
+const u32 kLiveCollect = 0x44;
+const s8 kSunRoom = 3;
+const s8 kChainPlatformRoom = 25;
+
+constexpr size_t kSceneCount = sizeof(gSaveContext.sceneFlags) / sizeof(gSaveContext.sceneFlags[0]);
+SavedSceneFlags sSceneBefore[kSceneCount];
+
+Actor* AddSunSwitch(Scene* scene, s32 flag, s16 type, s8 room, bool hasDestroy) {
+    Actor* actor = AddActor(scene, ACTOR_OBJ_LIGHTSWITCH, (s16)((flag << 8) | (type << 4)), ACTORCAT_SWITCH, hasDestroy);
+    if (actor != NULL) {
+        actor->room = room;
+    }
+    return actor;
+}
+
+// A Spirit Temple visit: the live switch flags hold the lit sun switch(es) and
+// one unrelated switch; the save still holds the previous visit (all clear).
+void ArmSunSwitch(Scene* scene, bool litByLightArrow, u32 liveSwitches) {
+    ArmLiveOoTSession();
+    ClearActors(scene);
+    scene->play->sceneNum = SCENE_SPIRIT_TEMPLE;
+    scene->play->actorCtx.flags.swch = liveSwitches | (1u << kOtherSwitch);
+    scene->play->actorCtx.flags.chest = kLiveChest;
+    scene->play->actorCtx.flags.clear = kLiveClear;
+    scene->play->actorCtx.flags.collect = kLiveCollect;
+    OoT_ObjLightswitch_SetDestroyStaticsForTest(litByLightArrow ? 1 : 0);
+    Snapshot();
+    memcpy(sSceneBefore, gSaveContext.sceneFlags, sizeof(sSceneBefore));
+}
+
+// The blob's Spirit Temple flags are the live visit's (the #638 flush) with
+// switch word @p expectedSwch, every other scene is untouched, and no
+// eventChkInf bit moved.
+bool SunSceneFlagsAre(const SaveContext* save, u32 expectedSwch) {
+    const SavedSceneFlags* got = &save->sceneFlags[SCENE_SPIRIT_TEMPLE];
+    if (got->swch != expectedSwch || got->chest != kLiveChest || got->clear != kLiveClear ||
+        got->collect != kLiveCollect) {
+        printf("[TEST] Spirit Temple flags: swch=0x%08X (want 0x%08X) chest=0x%X clear=0x%X collect=0x%X\n",
+               (unsigned)got->swch, (unsigned)expectedSwch, (unsigned)got->chest, (unsigned)got->clear,
+               (unsigned)got->collect);
+        return false;
+    }
+    for (size_t i = 0; i < kSceneCount; i++) {
+        if (i != (size_t)SCENE_SPIRIT_TEMPLE &&
+            memcmp(&save->sceneFlags[i], &sSceneBefore[i], sizeof(sSceneBefore[i])) != 0) {
+            printf("[TEST] sceneFlags[%zu] moved\n", i);
+            return false;
+        }
+    }
+    return OnlyFlagMoved(save, -1, true);
+}
+
+bool SunStaticSet(void) {
+    return OoT_ObjLightswitch_DestroyStaticsDirtyForTest() != 0;
+}
+
+int RunSunSwitch(Scene* scene) {
+    const u32 lit = 1u << kSunFlag;
+    const u32 other = 1u << kOtherSwitch;
+
+    // ---- 1. F10 out of the Spirit Temple: a STAY_ON switch lit by a Light
+    //         Arrow is unset before the scene flags are frozen ----------------
+    ArmSunSwitch(scene, true, lit);
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag, kSunStayOn, kSunRoom, true) != NULL, "setup: sun switch");
+    ODSE_ASSERT(SunStaticSet() && (scene->play->actorCtx.flags.swch & lit),
+                "non-vacuity: the switch flag and the Sunlight Arrows static must be SET before the departure");
+    ODSE_ASSERT(DepartF10(), "the hot-swap driver must record and read back a fresh OoT blob");
+    ODSE_ASSERT(SunSceneFlagsAre(&sScratch, other),
+                "an F10 out of the Spirit Temple must freeze a sun switch lit by a Light Arrow UNSET, as its Destroy "
+                "leaves it on any exit with Sunlight Arrows on, and keep every other scene flag the visit set (#807)");
+    ODSE_ASSERT(!SunStaticSet(), "the seam must clear the Sunlight Arrows static, as the Destroy does");
+
+    // ---- 2. The door driver, a TYPE_1 switch -----------------------------
+    ArmSunSwitch(scene, true, lit);
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag, kSunType1, kSunRoom, true) != NULL, "setup: sun switch");
+    ODSE_ASSERT(DepartDoor(), "the entrance driver must record and read back a fresh OoT blob");
+    ODSE_ASSERT(SunSceneFlagsAre(&sScratch, other),
+                "a cross-game door departure with a Light-Arrow-lit TYPE_1 sun switch must freeze it unset (#807)");
+
+    // ---- 3. TYPE_2 takes the same case -----------------------------------
+    ArmSunSwitch(scene, true, lit);
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag, kSunType2, kSunRoom, true) != NULL, "setup: sun switch");
+    ODSE_ASSERT(DepartF10(), "leg 3: blob");
+    ODSE_ASSERT(SunSceneFlagsAre(&sScratch, other), "a Light-Arrow-lit TYPE_2 sun switch must freeze unset (#807)");
+
+    // ---- 4. Controls: the Destroy's own condition decides -----------------
+    // (a) lit by sunlight (or Sunlight Arrows off): the static is clear.
+    ArmSunSwitch(scene, false, lit);
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag, kSunStayOn, kSunRoom, true) != NULL, "setup: sun switch");
+    ODSE_ASSERT(DepartF10(), "control (a): blob");
+    ODSE_ASSERT(SunSceneFlagsAre(&sScratch, lit | other),
+                "control (a): a sun switch not lit by a Light Arrow keeps its flag, as the Destroy leaves it");
+    // (b) a BURN switch: the Destroy writes nothing and keeps the static.
+    ArmSunSwitch(scene, true, lit);
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag, kSunBurn, kSunRoom, true) != NULL, "setup: burn switch");
+    ODSE_ASSERT(DepartF10(), "control (b): blob");
+    ODSE_ASSERT(SunSceneFlagsAre(&sScratch, lit | other) && SunStaticSet(),
+                "control (b): a BURN sun switch's Destroy keeps the flag and the static");
+    // (c) room 25 (the chain platform stays down): flag kept, static cleared.
+    ArmSunSwitch(scene, true, lit);
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag, kSunStayOn, kChainPlatformRoom, true) != NULL, "setup: sun switch");
+    ODSE_ASSERT(DepartF10(), "control (c): blob");
+    ODSE_ASSERT(SunSceneFlagsAre(&sScratch, lit | other) && !SunStaticSet(),
+                "control (c): the room-25 sun switch keeps its flag but its Destroy still clears the static");
+    // (d) destroy order: a BURN head is skipped with the static kept, the next
+    //     switch unsets its flag and clears the static, so the third keeps its.
+    //     AddActor links at the head: the last added is destroyed first.
+    ArmSunSwitch(scene, true, lit | (1u << kSunFlag2) | (1u << kSunFlag3));
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag2, kSunStayOn, kSunRoom, true) != NULL, "setup: third switch");
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag, kSunStayOn, kSunRoom, true) != NULL, "setup: second switch");
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag3, kSunBurn, kSunRoom, true) != NULL, "setup: head burn switch");
+    ODSE_ASSERT(DepartF10(), "control (d): blob");
+    ODSE_ASSERT(SunSceneFlagsAre(&sScratch, (1u << kSunFlag2) | (1u << kSunFlag3) | other) && !SunStaticSet(),
+                "control (d): only the first non-BURN sun switch in destroy order unsets its flag");
+    // (e) an actor OoT_Actor_Destroy would not call.
+    ArmSunSwitch(scene, true, lit);
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag, kSunStayOn, kSunRoom, false) != NULL, "setup: sun switch");
+    ODSE_ASSERT(DepartF10(), "control (e): blob");
+    ODSE_ASSERT(SunSceneFlagsAre(&sScratch, lit | other) && SunStaticSet(),
+                "control (e): a sun switch with no destroy function writes nothing");
+    // (f) no PlayState: nothing is dereferenced or written; the blob carries
+    //     whatever the save held (there is no flush either).
+    ArmSunSwitch(scene, true, lit);
+    ODSE_ASSERT(AddSunSwitch(scene, kSunFlag, kSunStayOn, kSunRoom, true) != NULL, "setup: sun switch");
+    OoT_gPlayState = NULL;
+    const bool departed = DepartF10();
+    OoT_gPlayState = scene->play;
+    ODSE_ASSERT(departed, "control (f): a freeze with no PlayState must still record a blob");
+    ODSE_ASSERT(memcmp(sScratch.sceneFlags, sSceneBefore, sizeof(sSceneBefore)) == 0 && SunStaticSet() &&
+                    (scene->play->actorCtx.flags.swch & lit),
+                "control (f): with no PlayState nothing may be written");
+    return 0;
+}
+
+// ============================================================================
+// #807 (2): linkAge between an age-change write and its scene reload
+// ============================================================================
+//
+// OoT_Player_Destroy writes gSaveContext.linkAge = play->linkAgeOnLoad, and
+// Play_Destroy, just before it destroys the actors, swaps the age equipment
+// when the two differ (Inventory_SwapAgeEquipment keys off the CURRENT age).
+// They differ only between a linkAgeOnLoad write (the Temple of Time
+// age-change cutscene, SoH's switch-age mod) and the reload it triggers.
+
+const u8 kAdult = LINK_AGE_ADULT;
+const u8 kChild = LINK_AGE_CHILD;
+
+void SetBucket(ItemEquips* bucket, u8 sword, u16 swordValue) {
+    memset(bucket, 0, sizeof(*bucket));
+    memset(bucket->buttonItems, ITEM_NONE, sizeof(bucket->buttonItems));
+    memset(bucket->cButtonSlots, SLOT_NONE, sizeof(bucket->cButtonSlots));
+    bucket->buttonItems[0] = sword;
+    bucket->equipment = (u16)((swordValue << (EQUIP_TYPE_SWORD * 4)) |
+                              (EQUIP_VALUE_TUNIC_KOKIRI << (EQUIP_TYPE_TUNIC * 4)) |
+                              (EQUIP_VALUE_BOOTS_KOKIRI << (EQUIP_TYPE_BOOTS * 4)));
+}
+
+ItemEquips sEquipsBefore[3];
+
+// A vanilla Temple of Time visit in @p age with linkAgeOnLoad = @p onLoad. The
+// live equips are @p age's; the child bucket holds the Kokiri Sword and the
+// adult bucket the Biggoron Sword, so every swap direction is visible.
+void ArmAge(Scene* scene, u8 age, u8 onLoad, bool player, bool playerHasDestroy) {
+    ArmLiveOoTSession();
+    ClearActors(scene);
+    gSaveContext.ship.quest.id = QUEST_NORMAL;
+    scene->play->sceneNum = SCENE_TEMPLE_OF_TIME;
+    gSaveContext.linkAge = age;
+    scene->play->linkAgeOnLoad = onLoad;
+    if (age == kAdult) {
+        SetBucket(&gSaveContext.equips, ITEM_SWORD_MASTER, EQUIP_VALUE_SWORD_MASTER);
+    } else {
+        SetBucket(&gSaveContext.equips, ITEM_SWORD_KOKIRI, EQUIP_VALUE_SWORD_KOKIRI);
+    }
+    SetBucket(&gSaveContext.childEquips, ITEM_SWORD_KOKIRI, EQUIP_VALUE_SWORD_KOKIRI);
+    SetBucket(&gSaveContext.adultEquips, ITEM_SWORD_BGS, EQUIP_VALUE_SWORD_BIGGORON);
+    if (player) {
+        (void)AddActor(scene, ACTOR_PLAYER, 0, ACTORCAT_PLAYER, playerHasDestroy);
+    }
+    Snapshot();
+    sEquipsBefore[0] = gSaveContext.equips;
+    sEquipsBefore[1] = gSaveContext.childEquips;
+    sEquipsBefore[2] = gSaveContext.adultEquips;
+}
+
+int SwordValue(const ItemEquips* equips) {
+    return (equips->equipment >> (EQUIP_TYPE_SWORD * 4)) & 0xF;
+}
+
+// The age and every equipment bucket are exactly as armed.
+bool AgeUntouched(const SaveContext* save, u8 age) {
+    if (save->linkAge != age || memcmp(&save->equips, &sEquipsBefore[0], sizeof(ItemEquips)) != 0 ||
+        memcmp(&save->childEquips, &sEquipsBefore[1], sizeof(ItemEquips)) != 0 ||
+        memcmp(&save->adultEquips, &sEquipsBefore[2], sizeof(ItemEquips)) != 0) {
+        printf("[TEST] linkAge=%d (want %d) B=0x%02X sword=%d\n", (int)save->linkAge, (int)age,
+               save->equips.buttonItems[0], SwordValue(&save->equips));
+        return false;
+    }
+    return OnlyFlagMoved(save, -1, true);
+}
+
+// Adult -> child (the Master Sword put back): the frozen save is a child
+// wearing the child bucket, with the adult's equips archived.
+bool BecameChild(const SaveContext* save) {
+    if (save->linkAge != kChild || save->equips.buttonItems[0] != ITEM_SWORD_KOKIRI ||
+        SwordValue(&save->equips) != EQUIP_VALUE_SWORD_KOKIRI || save->adultEquips.buttonItems[0] != ITEM_SWORD_MASTER ||
+        SwordValue(&save->adultEquips) != EQUIP_VALUE_SWORD_MASTER) {
+        printf("[TEST] linkAge=%d B=0x%02X sword=%d adultB=0x%02X adultSword=%d\n", (int)save->linkAge,
+               save->equips.buttonItems[0], SwordValue(&save->equips), save->adultEquips.buttonItems[0],
+               SwordValue(&save->adultEquips));
+        return false;
+    }
+    return OnlyFlagMoved(save, -1, true);
+}
+
+int RunLinkAge(Scene* scene) {
+    // ---- 1. F10 between the Master Sword cutscene and its reload ----------
+    ArmAge(scene, kAdult, kChild, true, true);
+    ODSE_ASSERT(gSaveContext.linkAge != scene->play->linkAgeOnLoad,
+                "non-vacuity: linkAge and linkAgeOnLoad must differ before the departure");
+    ODSE_ASSERT(DepartF10(), "the hot-swap driver must record and read back a fresh OoT blob");
+    ODSE_ASSERT(BecameChild(&sScratch),
+                "an F10 after the age-change write must freeze linkAge = linkAgeOnLoad (CHILD), as the Player "
+                "Destroy leaves it, wearing the child equipment Play_Destroy's swap loads (#807)");
+    ODSE_ASSERT(gSaveContext.linkAge == kChild, "the live gSaveContext must carry the new age too");
+
+    // ---- 2. The door driver ---------------------------------------------
+    ArmAge(scene, kAdult, kChild, true, true);
+    ODSE_ASSERT(DepartDoor(), "the entrance driver must record and read back a fresh OoT blob");
+    ODSE_ASSERT(BecameChild(&sScratch), "a cross-game door departure in the same window must freeze it child (#807)");
+
+    // ---- 3. Child -> adult (the Master Sword drawn) -----------------------
+    ArmAge(scene, kChild, kAdult, true, true);
+    ODSE_ASSERT(DepartF10(), "leg 3: blob");
+    ODSE_ASSERT(sScratch.linkAge == kAdult && sScratch.equips.buttonItems[0] == ITEM_SWORD_BGS &&
+                    SwordValue(&sScratch.equips) == EQUIP_VALUE_SWORD_BIGGORON &&
+                    sScratch.childEquips.buttonItems[0] == ITEM_SWORD_KOKIRI && OnlyFlagMoved(&sScratch, -1, true),
+                "child -> adult: the frozen save must be adult wearing the adult bucket, the child's archived (#807)");
+
+    // ---- 4. Controls ------------------------------------------------------
+    // (a) no age change pending: nothing moves.
+    ArmAge(scene, kAdult, kAdult, true, true);
+    ODSE_ASSERT(DepartF10() && AgeUntouched(&sScratch, kAdult),
+                "control (a): with linkAge == linkAgeOnLoad the age and every equipment bucket stay as they are");
+    // (b) no Player actor live: no Player Destroy, so no age write either.
+    ArmAge(scene, kAdult, kChild, false, true);
+    ODSE_ASSERT(DepartF10() && AgeUntouched(&sScratch, kAdult), "control (b): with no Player live nothing is written");
+    // (c) a Player with no destroy function.
+    ArmAge(scene, kAdult, kChild, true, false);
+    ODSE_ASSERT(DepartF10() && AgeUntouched(&sScratch, kAdult),
+                "control (c): a Player OoT_Actor_Destroy would not call writes nothing");
+    // (d) no PlayState.
+    ArmAge(scene, kAdult, kChild, true, true);
+    OoT_gPlayState = NULL;
+    const bool departed = DepartF10();
+    OoT_gPlayState = scene->play;
+    ODSE_ASSERT(departed && AgeUntouched(&sScratch, kAdult), "control (d): with no PlayState nothing is written");
+    return 0;
+}
+
 int RunRow(int (*body)(Scene*), const char* name) {
     Context_InitFrozenStates();
     Context_ClearAllFrozenStates();
@@ -411,6 +710,7 @@ int RunRow(int (*body)(Scene*), const char* name) {
         free(scene.play);
     }
     memset(&gSaveContext, 0, sizeof(SaveContext));
+    OoT_ObjLightswitch_SetDestroyStaticsForTest(0);
     Context_ClearAllFrozenStates();
     ComboContext_Init();
     (void)ResetEntranceTable();
@@ -430,4 +730,12 @@ extern "C" int OoT_DepartureWindmillFlag_RunHeadless(void) {
 
 extern "C" int OoT_DepartureLakeFlag_RunHeadless(void) {
     return RunRow(RunLake, "oot-departure-lake-flag");
+}
+
+extern "C" int OoT_DepartureSunSwitchFlag_RunHeadless(void) {
+    return RunRow(RunSunSwitch, "oot-departure-sun-switch-flag");
+}
+
+extern "C" int OoT_DepartureLinkAge_RunHeadless(void) {
+    return RunRow(RunLinkAge, "oot-departure-link-age");
 }

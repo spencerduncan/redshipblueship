@@ -4926,6 +4926,19 @@ TestResult Test_OoTDepartureLakeFlag(void) {
     return OoT_DepartureLakeFlag_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Same source (#807): a Sunlight-Arrows-lit sun switch's unset and the Player
+// Destroy's linkAge write (with Play_Destroy's equipment swap) reach the blob.
+extern "C" int OoT_DepartureSunSwitchFlag_RunHeadless(void);
+extern "C" int OoT_DepartureLinkAge_RunHeadless(void);
+
+TestResult Test_OoTDepartureSunSwitchFlag(void) {
+    return OoT_DepartureSunSwitchFlag_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+TestResult Test_OoTDepartureLinkAge(void) {
+    return OoT_DepartureLinkAge_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // ============================================================================
 // Test registry
 // ============================================================================
@@ -5755,6 +5768,16 @@ const TestDescriptor gTests[] = {
      "puts the river water box back, as the lake objects' Destroy does on any exit; vanilla, no blue warp, no lake "
      "object or no PlayState keep the save as it is (#770)",
      Test_OoTDepartureLakeFlag},
+    {"oot-departure-sun-switch-flag",
+     "With SoH's Sunlight Arrows, a cross-game departure (F10 or door) freezes a sun switch a Light Arrow lit "
+     "unset, as its Destroy leaves it on any exit; sunlight, BURN, room 25, destroy order, no destroy or no "
+     "PlayState keep it as the Destroy would (#807)",
+     Test_OoTDepartureSunSwitchFlag},
+    {"oot-departure-link-age",
+     "A cross-game departure between an age-change write and its reload freezes linkAge = linkAgeOnLoad wearing "
+     "the new age's equipment, as Play_Destroy's swap and the Player Destroy leave it; no pending change, no Player "
+     "or no PlayState write nothing (#807)",
+     Test_OoTDepartureLinkAge},
     {"array-reader-agreement",
      "OoT's and MM's 'OARR' Array readers fill vertices identically: the boot check, then a synthetic payload whose "
      "one-line reader mutations are each detected (#604)",

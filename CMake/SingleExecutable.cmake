@@ -2240,6 +2240,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # games/oot/soh/oot_departure_scene_exit_test.cpp.
     redship_add_test(NAME OoTDepartureWindmillFlag COMMAND redship --test oot-departure-windmill-flag)
     redship_add_test(NAME OoTDepartureLakeFlag COMMAND redship --test oot-departure-lake-flag)
+    # #807: the two residues of the same seam. A sun switch a Light Arrow lit
+    # under SoH's Sunlight Arrows is unset by its Destroy on any exit; the
+    # Player Destroy writes linkAge = play->linkAgeOnLoad after Play_Destroy's
+    # equipment swap. Same test source.
+    redship_add_test(NAME OoTDepartureSunSwitchFlag COMMAND redship --test oot-departure-sun-switch-flag)
+    redship_add_test(NAME OoTDepartureLinkAge COMMAND redship --test oot-departure-link-age)
 
     # #604: both games ship an 'OARR' Array reader and one process holds both, so
     # a vertex array parses with whichever owns the loader slot for its archive
