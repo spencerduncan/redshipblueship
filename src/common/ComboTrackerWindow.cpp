@@ -168,7 +168,7 @@ CheckListColours ReadCheckListColours() {
 void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckListColours& colours) {
     const TextColours& c = colours.status[row.status < (uint8_t)COMBO_TRACKER_CHECK_STATUS_COUNT ? row.status : 0];
     char idLabel[24];
-    const char* name = row.name;
+    const char* name = ComboCheckListName(row);
     if (name == nullptr) {
         // No name table loaded (e.g. OoT static data before OoT's first boot):
         // the game-local id is still an honest label.
@@ -176,12 +176,9 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
         name = idLabel;
     }
     char extra[160] = "";
-    if (row.placedItemName != nullptr) {
-        const char* mark = "";
-        if (row.placedItemGame != game) {
-            mark = (row.placedItemGame == (uint8_t)GAME_MM) ? " (MM)" : " (OoT)";
-        }
-        snprintf(extra, sizeof(extra), "(%s%s)", row.placedItemName, mark);
+    const std::string item = ComboCheckRowItemText(game, row);
+    if (!item.empty()) {
+        snprintf(extra, sizeof(extra), "(%s)", item.c_str());
     } else if (row.skipped) {
         snprintf(extra, sizeof(extra), "(Skipped)");
     }
@@ -387,6 +384,21 @@ bool ComboPanelShowsOwnSeed(const ComboTrackerIdentity& identity, const ComboTra
     // the "Paired Seed" line reads as two seeds for one world (#816).
     (void)summary;
     return !identity.paired;
+}
+
+const char* ComboCheckListName(const ComboTrackerCheckRow& row) {
+    return row.name;
+}
+
+std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row) {
+    if (row.placedItemName == nullptr) {
+        return std::string();
+    }
+    std::string text = row.placedItemName;
+    if (row.placedItemGame != game) {
+        text += (row.placedItemGame == (uint8_t)GAME_MM) ? " (MM)" : " (OoT)";
+    }
+    return text;
 }
 
 void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboTrackerAreaRows>& out) {

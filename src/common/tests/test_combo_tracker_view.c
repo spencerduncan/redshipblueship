@@ -289,6 +289,8 @@ static int CtvMMRowsU4(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& blo
     CTV_ASSERT(row.areaName != NULL && row.areaName[0] != '\0' && strcmp(row.areaName, "Unknown") != 0);
     CTV_ASSERT(row.placedItemName != NULL && strcmp(row.placedItemName, "Lens of Truth") == 0);
     CTV_ASSERT(row.placedItemGame == (uint8_t)GAME_MM);
+    // MM's tracker prints the full check name under its scene headers.
+    CTV_ASSERT(row.shortName == NULL);
     // Agrees with MM's own check tracker, reading the same save.
     char native[96];
     uint16_t stored = 0;
@@ -336,6 +338,13 @@ static int CtvOoTRowsU4(const uint16_t ootIds[3]) {
     CTV_ASSERT(saved.areaName != NULL && strcmp(saved.areaName, "Kokiri Forest") == 0);
     CTV_ASSERT(open.areaName != NULL && strcmp(open.areaName, "Kokiri Forest") == 0);
     CTV_ASSERT(saved.areaKey == open.areaKey && open.areaKey == skipped.areaKey);
+    // The name SoH's tracker prints under the area header: the location's short
+    // name (DrawLocation, GetShortName(); location_list.cpp's RC_KF_KOKIRI_SWORD_CHEST
+    // entry), beside the full name the row keeps for the crossing table.
+    printf("[TEST] combo-tracker-view U4 OoT saved row: name=%s shortName=%s\n",
+           saved.name != NULL ? saved.name : "(null)", saved.shortName != NULL ? saved.shortName : "(null)");
+    CTV_ASSERT(saved.name != NULL && strcmp(saved.name, "KF Kokiri Sword Chest") == 0);
+    CTV_ASSERT(saved.shortName != NULL && strcmp(saved.shortName, "Kokiri Sword Chest") == 0);
     CTV_ASSERT(saved.placedItemName != NULL && saved.placedItemGame == (uint8_t)GAME_OOT);
     CTV_ASSERT(open.placedItemName == NULL && skipped.placedItemName == NULL);
     char native[96];

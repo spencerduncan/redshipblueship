@@ -33,6 +33,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 #include <ship/window/gui/GuiWindow.h>
 
@@ -161,6 +162,23 @@ float ComboCrossingItemColumnWidth(float contentWidth, float widestItemWord);
  * panel prints its game's seed, since nothing else on the pane does.
  */
 bool ComboPanelShowsOwnSeed(const ComboTrackerIdentity& identity, const ComboTrackerGameSummary& summary);
+
+/**
+ * The name a Checks-list row prints under its area header (#458 U4): the
+ * check's short name when its game's own tracker prints one there (OoT, SoH's
+ * DrawLocation), else its full name. NULL when the row has neither (no name
+ * table loaded): the caller prints the game-local id then.
+ */
+const char* ComboCheckListName(const ComboTrackerCheckRow& row);
+
+/**
+ * The item a Checks-list row names, spelled as the game's own check tracker
+ * spells it (#796): the placed item's name, with " (MM)" / " (OoT)" when the
+ * item is the other game's (a crossing host). "" when the row names no item.
+ * The row draws it in parentheses, and the search matches it, as SoH's
+ * ShouldShowCheck matches PlacedItemTrackerName.
+ */
+std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row);
 
 /**
  * One area of a game panel's Checks list (#458 U4): the area's game-local key

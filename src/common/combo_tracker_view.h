@@ -157,6 +157,13 @@ typedef enum {
  * a crossing, and then the name is the crossed item's real name (#796), not the
  * cover item the host physically holds. The renderer marks the other game's
  * items with the suffix the native trackers print (" (MM)" / " (OoT)").
+ *
+ * SHORT NAME (#458 U4). `shortName` is the name the game's own check tracker
+ * prints for the check under its area header, when that differs from `name`:
+ * OoT's location short name (SoH's DrawLocation prints GetShortName(), so
+ * "Kokiri Sword Chest" under "Kokiri Forest", where `name` is "KF Kokiri Sword
+ * Chest"). NULL when the tracker prints the full name there, as MM's does under
+ * its scene headers; the grouped list then draws `name`.
  */
 typedef struct {
     uint16_t checkId;
@@ -169,6 +176,7 @@ typedef struct {
     const char* areaName;       // may be NULL; storage is the owning game's
     const char* placedItemName; // NULL unless the status reveals it; storage is the owning game's
     uint8_t placedItemGame;     // GameId of placedItemName's item; GAME_NONE when it is NULL
+    const char* shortName;      // name under the area header, or NULL for `name`; see SHORT NAME above
 } ComboTrackerCheckRow;
 
 // ============================================================================

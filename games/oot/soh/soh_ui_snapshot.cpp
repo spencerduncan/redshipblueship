@@ -1527,7 +1527,8 @@ void RestoreMMShadow() {
 struct SnapshotCheck {
     uint16_t id;
     const char* name;
-    uint8_t status; // ComboTrackerCheckStatus
+    const char* shortName; // location_list.cpp's short name, which SoH prints under the area header
+    uint8_t status;        // ComboTrackerCheckStatus
     uint16_t areaKey;
     const char* areaName;
     const char* item; // the item the row reveals, or NULL
@@ -1537,12 +1538,14 @@ struct SnapshotCheck {
 // check collected and saved (a crossing host, so it names the crossed MM item as
 // SoH's check tracker does), one skipped, two open.
 constexpr SnapshotCheck kSnapshotOoTChecks[] = {
-    { 0x0101, "KF Kokiri Sword Chest", COMBO_TRACKER_CHECK_SAVED, 0, "Kokiri Forest", "Lens of Truth",
-      (uint8_t)GAME_MM },
-    { 0x0102, "KF Mido Top Left Chest", COMBO_TRACKER_CHECK_SKIPPED, 0, "Kokiri Forest", nullptr, (uint8_t)GAME_NONE },
-    { 0x0103, "KF Mido Top Right Chest", COMBO_TRACKER_CHECK_UNCHECKED, 0, "Kokiri Forest", nullptr,
+    { 0x0101, "KF Kokiri Sword Chest", "Kokiri Sword Chest", COMBO_TRACKER_CHECK_SAVED, 0, "Kokiri Forest",
+      "Lens of Truth", (uint8_t)GAME_MM },
+    { 0x0102, "KF Mido Top Left Chest", "Mido Top Left Chest", COMBO_TRACKER_CHECK_SKIPPED, 0, "Kokiri Forest", nullptr,
       (uint8_t)GAME_NONE },
-    { 0x0104, "Deku Tree Map Chest", COMBO_TRACKER_CHECK_UNCHECKED, 20, "Deku Tree", nullptr, (uint8_t)GAME_NONE },
+    { 0x0103, "KF Mido Top Right Chest", "Mido Top Right Chest", COMBO_TRACKER_CHECK_UNCHECKED, 0, "Kokiri Forest",
+      nullptr, (uint8_t)GAME_NONE },
+    { 0x0104, "Deku Tree Map Chest", "Map Chest", COMBO_TRACKER_CHECK_UNCHECKED, 20, "Deku Tree", nullptr,
+      (uint8_t)GAME_NONE },
 };
 constexpr int kSnapshotOoTCheckCount = (int)(sizeof(kSnapshotOoTChecks) / sizeof(kSnapshotOoTChecks[0]));
 
@@ -1565,6 +1568,7 @@ bool SnapshotOoTCheckAt(int index, ComboTrackerCheckRow* out) {
     const SnapshotCheck& c = kSnapshotOoTChecks[index];
     out->checkId = c.id;
     out->name = c.name;
+    out->shortName = c.shortName;
     out->shuffled = true;
     out->status = c.status;
     out->obtained = c.status == COMBO_TRACKER_CHECK_SAVED || c.status == COMBO_TRACKER_CHECK_COLLECTED;
@@ -3403,6 +3407,30 @@ struct TrickCensusRow {
     bool enabledColumn = false;
 };
 
+/**
+ * The combo_ui rect recorder's sink for the Combo Tracker's search boxes (#458
+ * U4): how many times one frame reported the "##checkSearch" field and its
+ * eraser, with a non-empty rect. Each game panel's open Checks list draws one
+ * of each, so a seam widget that stops reporting (and so cannot be found or
+ * hovered by the harness) turns the progress capture red.
+ */
+struct SearchRectCensus {
+    int fields = 0;
+    int erasers = 0;
+};
+
+void SearchRectRecord(void* user, const char* label, const char*, float minX, float minY, float maxX, float maxY) {
+    SearchRectCensus* census = static_cast<SearchRectCensus*>(user);
+    if (label == nullptr || maxX <= minX || maxY <= minY) {
+        return;
+    }
+    if (std::strcmp(label, "##checkSearch") == 0) {
+        census->fields++;
+    } else if (std::strcmp(label, "##checkSearch##eraser") == 0) {
+        census->erasers++;
+    }
+}
+
 void TrickCensusRecord(void* user, const char* label, const char* tooltip, float, float, float, float) {
     const ImGuiWindow* w = GImGui->CurrentWindow;
     const char* name = w != nullptr && w->Name != nullptr ? w->Name : "";
@@ -3707,6 +3735,24 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             const float step = std::max(64.0f, w->InnerRect.GetHeight() - 48.0f);
             ImGui::SetScrollY(w, std::min(w->ScrollMax.y, w->Scroll.y + step));
             scrollIndex++;
+        }
+
+        if (checksOpen) {
+            // Every seam widget reports its rectangle (docs/ui-style-guide.md
+            // section 10), the search box and its eraser included: one frame with
+            // both Checks lists open must report one of each per game panel.
+            SearchRectCensus census;
+            ComboUi_SetRectRecorder(SearchRectRecord, &census);
+            std::string why;
+            PumpFrame(nullptr, false, nullptr, why);
+            ComboUi_SetRectRecorder(nullptr, nullptr);
+            printf("[UI-SNAPSHOT] search census %s (%s): %d search fields, %d eraser buttons reported\n", p.id.c_str(),
+                   state.c_str(), census.fields, census.erasers);
+            if (census.fields != 2 || census.erasers != 2) {
+                Fail(p.id + " (" + state + "): the Checks lists' search boxes reported " +
+                     std::to_string(census.fields) + " fields and " + std::to_string(census.erasers) +
+                     " eraser buttons to the combo_ui rect recorder; each game panel draws one of each");
+            }
         }
 
         CapturePaneHovers(p, state);

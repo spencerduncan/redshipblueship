@@ -235,22 +235,28 @@ const ComboGui::ComboTextMeasure kCtwFont = { CtwWidth, CtwHeight, nullptr };
 
 // A synthetic OoT world for the grouping lock: two areas, keyed out of table
 // order, one complete (a collected and a skipped check) and one not, plus an
-// unshuffled row that must never be listed.
+// unshuffled row that must never be listed. The collected row has a short name,
+// as an OoT row does ("KF Kokiri Sword Chest" / "Kokiri Sword Chest"), and hosts
+// the other game's item, as a crossing host does.
 struct CtwRow {
     uint16_t id;
     const char* name;
+    const char* shortName; // or NULL
     uint16_t areaKey;
     const char* areaName;
     uint8_t status;
     const char* item; // revealed item, or NULL
+    uint8_t itemGame;
     bool shuffled;
 };
 const CtwRow kCtwRows[] = {
-    { 0x10, "Tower Chest", 7, "Area Seven", COMBO_TRACKER_CHECK_COLLECTED, "Fairy Bow", true },
-    { 0x11, "Pond Chest", 3, "Area Three", COMBO_TRACKER_CHECK_UNCHECKED, nullptr, true },
-    { 0x12, "Roof Chest", 7, "Area Seven", COMBO_TRACKER_CHECK_SKIPPED, nullptr, true },
-    { 0x13, "Well Chest", 3, "Area Three", COMBO_TRACKER_CHECK_SEEN, nullptr, true },
-    { 0x14, "Hidden Chest", 3, "Area Three", COMBO_TRACKER_CHECK_UNCHECKED, nullptr, false },
+    { 0x10, "A7 Tower Chest", "Tower Chest", 7, "Area Seven", COMBO_TRACKER_CHECK_COLLECTED, "Fairy Bow",
+      (uint8_t)GAME_MM, true },
+    { 0x11, "Pond Chest", nullptr, 3, "Area Three", COMBO_TRACKER_CHECK_UNCHECKED, nullptr, (uint8_t)GAME_NONE, true },
+    { 0x12, "Roof Chest", nullptr, 7, "Area Seven", COMBO_TRACKER_CHECK_SKIPPED, nullptr, (uint8_t)GAME_NONE, true },
+    { 0x13, "Well Chest", nullptr, 3, "Area Three", COMBO_TRACKER_CHECK_SEEN, nullptr, (uint8_t)GAME_NONE, true },
+    { 0x14, "Hidden Chest", nullptr, 3, "Area Three", COMBO_TRACKER_CHECK_UNCHECKED, nullptr, (uint8_t)GAME_NONE,
+      false },
 };
 constexpr int kCtwRowCount = (int)(sizeof(kCtwRows) / sizeof(kCtwRows[0]));
 
@@ -270,6 +276,7 @@ bool CtwCheckAt(int index, ComboTrackerCheckRow* out) {
     const CtwRow& r = kCtwRows[index];
     out->checkId = r.id;
     out->name = r.name;
+    out->shortName = r.shortName;
     out->shuffled = r.shuffled;
     out->status = r.status;
     out->obtained = r.status == COMBO_TRACKER_CHECK_COLLECTED;
@@ -277,7 +284,7 @@ bool CtwCheckAt(int index, ComboTrackerCheckRow* out) {
     out->areaKey = r.areaKey;
     out->areaName = r.areaName;
     out->placedItemName = r.item;
-    out->placedItemGame = r.item != nullptr ? (uint8_t)GAME_OOT : (uint8_t)GAME_NONE;
+    out->placedItemGame = r.itemGame;
     return true;
 }
 const char* CtwCheckName(uint16_t id) {
@@ -367,6 +374,26 @@ int LockAreasBody(void) {
     // Search by a revealed item: one row, its area's totals unchanged.
     ComboCollectCheckAreas((uint8_t)GAME_OOT, "fairy bow", areas);
     CTW_ASSERT(areas.size() == 1 && areas[0].key == 7 && CtwIds(areas[0]) == "10" && areas[0].total == 2);
+    // The row prints the other game's item with its game's suffix, and the
+    // search matches that same string, as SoH's ShouldShowCheck matches
+    // PlacedItemTrackerName ("... (MM)"): typing "MM" finds the crossing host.
+    ComboTrackerCheckRow host;
+    CTW_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, 0, &host));
+    CTW_ASSERT(ComboCheckRowItemText((uint8_t)GAME_OOT, host) == "Fairy Bow (MM)");
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "MM", areas);
+    printf("[TEST] combo-tracker-window U4: search \"MM\" leaves %d areas (%s)\n", (int)areas.size(),
+           areas.empty() ? "" : CtwIds(areas[0]).c_str());
+    CTW_ASSERT(areas.size() == 1 && CtwIds(areas[0]) == "10");
+    // Under its area header a row prints its short name when its game's tracker
+    // has one (SoH's DrawLocation: GetShortName()), else its full name.
+    printf("[TEST] combo-tracker-window U4: list name of \"%s\" is \"%s\"\n", host.name,
+           ComboCheckListName(host) != nullptr ? ComboCheckListName(host) : "(null)");
+    CTW_ASSERT(ComboCheckListName(host) != nullptr && strcmp(ComboCheckListName(host), "Tower Chest") == 0);
+    ComboTrackerCheckRow plain;
+    CTW_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, 1, &plain));
+    CTW_ASSERT(ComboCheckListName(plain) != nullptr && strcmp(ComboCheckListName(plain), "Pond Chest") == 0);
+    plain.name = nullptr;
+    CTW_ASSERT(ComboCheckListName(plain) == nullptr);
     // By area name: the whole area.
     ComboCollectCheckAreas((uint8_t)GAME_OOT, "three", areas);
     CTW_ASSERT(areas.size() == 1 && CtwIds(areas[0]) == "11,13");
@@ -568,6 +595,14 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         // through ComboCollectCheckAreas and SoH's search box through the seam.
         CTW_ASSERT(text.find("ComboCollectCheckAreas(game, search, areas)") != std::string::npos);
         CTW_ASSERT(text.find("Ui().SearchInput(") != std::string::npos);
+        // SoH's area loop runs under FramePadding (4, 3)
+        // (randomizer_check_tracker.cpp, DrawElement), which puts an area's
+        // tree arrow level with its rows; the theme's larger padding pushes the
+        // header past its own rows.
+        if (text.find("PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 3.0f))") == std::string::npos) {
+            printf("[TEST] FAIL: ComboTrackerWindow.cpp draws its area loop without SoH's FramePadding (4, 3)\n");
+            return TEST_FAIL;
+        }
         // The crossing table sizes its Item column and wraps through the locked
         // decisions (#815).
         CTW_ASSERT(text.find("ComboCrossingItemColumnWidth(columnsWidth, widestItemWord)") != std::string::npos);
