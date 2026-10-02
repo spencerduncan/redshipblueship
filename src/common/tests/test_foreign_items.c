@@ -780,28 +780,29 @@ TestResult Test_ForeignHostEligibility(void) {
            acceptedCount, chestRowCount, shopRowCount, shopRowsAccepted, tingleRowsAccepted, tingleRowCount,
            checkIdMax - 1);
 
-    // Tier A (chests) and Tier S (#800 pass 1: RCTYPE_SHOP, whose purchase
-    // delivers through the foreign give) and nothing else. Tingle's map slots
-    // are pass 2 and stay out; the sweep must actually have met a row of every
-    // category it asserts about.
+    // Tier A (chests), Tier S (#800 pass 1: RCTYPE_SHOP, whose purchase
+    // delivers through the foreign give) and Tier T (#800 pass 2: Tingle's map
+    // slots, whose purchase arms `.eligible` for CheckQueue's foreign branch) and
+    // nothing else; the sweep must actually have met a row of every category it
+    // asserts about.
     FI_ASSERT(firstOtherAcceptedId == 0);
     FI_ASSERT(firstRejectedOtherId != 0);
     FI_ASSERT(shopRowCount > 0);
     FI_ASSERT(shopRowsAccepted == shopRowCount);
     FI_ASSERT(tingleRowCount > 0);
-    FI_ASSERT(tingleRowsAccepted == 0);
+    FI_ASSERT(tingleRowsAccepted == tingleRowCount);
     // Static-table invariant: every chest row carries FLAG_CYCL_SCENE_CHEST. A
     // FLAG_NONE chest row would have no vanilla setter and would strand.
     FI_ASSERT(chestRowCount > 0);
     FI_ASSERT(chestRowsMissingFlag == 0);
-    // Acceptance is exactly the chest rows plus the shop rows: an inequality
-    // means the class rule and the table have drifted apart.
-    FI_ASSERT(acceptedCount == chestRowCount + shopRowCount);
+    // Acceptance is exactly the chest, shop and Tingle rows: an inequality means
+    // the class rule and the table have drifted apart.
+    FI_ASSERT(acceptedCount == chestRowCount + shopRowCount + tingleRowCount);
     // RC_UNKNOWN and an out-of-range id are never hosts.
     FI_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass(0) == 0);
     FI_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass((uint16_t)checkIdMax) == 0);
 
-    printf("[TEST] PASS: only chest-class and shop-slot checks can host a crossing\n");
+    printf("[TEST] PASS: only chest-class, shop-slot and Tingle map checks can host a crossing\n");
     return TEST_PASS;
 }
 

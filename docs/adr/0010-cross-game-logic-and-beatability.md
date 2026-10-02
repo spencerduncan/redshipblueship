@@ -1766,6 +1766,11 @@ and `Combo_ComboSettingsFrozen`):
   *Amended 2026-10-02 (#800 pass 2):* OoT also admits an `RCTYPE_SCRUB` row
   drawn by `ACTOR_EN_DNS` (a Business Scrub, PR #854); merchants and the chest
   game stay refused.
+  *Amended 2026-10-02 (#800 pass 2, MM):* MM's `IsForeignHostClass` also
+  admits Tingle's map slots (`RCTYPE_TINGLE_SHOP`, Tier T): his purchase arms
+  `.eligible` (`VB_TINGLE_GIVE_MAP_UNLOCK`), so CheckQueue's foreign branch
+  delivers them like a chest; his offer names the OoT item and a delivered slot
+  refuses a second sale for the rest of the game.
 - MM's engine grants the fixed contents of reached checks outside the host pool
   during expansion (#737), without which beat-both was unprovable on the
   shipped profile.

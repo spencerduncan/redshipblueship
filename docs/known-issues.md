@@ -181,7 +181,7 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 **Open problems you may meet while playing** (found in or around the 2026-09 playtest and
 checked in the code at `200adaea`; each links the issue that will fix it):
 
-**~~Shops sell only their own game's items~~ — plain shops and Business Scrubs RESOLVED; merchants, the Treasure Chest Game and Tingle pending** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800)).
+**~~Shops sell only their own game's items~~ — plain shops, Business Scrubs and Tingle RESOLVED; merchants and the Treasure Chest Game pending** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800)).
 #800's first pass makes plain shops cross-game in both directions. An Ocarina of Time shop
 can sell a Majora's Mask item: with OoT's "Shop Shuffle" on, a shelf that shop shuffle
 emptied can hold an MM item. The shelf shows the MM item's model (or the mystery item when
@@ -194,9 +194,12 @@ Curiosity Shop's special and the Bomb Shop's fourth item), so this can happen ev
 "Shuffle Shops" off. #800's second pass adds OoT's Business Scrubs: with OoT's "Scrubs
 Shuffle" on, a scrub can sell a Majora's Mask item at its own price, its offer names the item
 (unless "Merchant Hint Text" is off or Mysterious Shuffle is on, as for its own items), and buying it sends the item
-to Majora's Mask like a cross-game chest. Still pending: OoT's merchants and Treasure Chest
-Game, and MM's Tingle, hold only their own game's items. Shop shuffle and scrub shuffle are off
-by default (OoT's "Shop Shuffle" and "Scrubs Shuffle", MM's "Shuffle Shops"). MM's shop stock joins
+to Majora's Mask like a cross-game chest. It also adds MM's Tingle: with MM's "Shuffle Tingle
+Maps" on, either or both of his two offers can be an Ocarina of Time item at its own price; his
+offer names it, he sells it once for the whole game, and it is delivered on your next arrival in
+Hyrule. Still pending: OoT's merchants and Treasure Chest Game hold only their own game's
+items. Shop shuffle, scrub shuffle and Tingle map shuffle are off by default (OoT's "Shop
+Shuffle" and "Scrubs Shuffle", MM's "Shuffle Shops" and "Shuffle Tingle Maps"). MM's shop stock joins
 the shared bag when MM's "Shuffle Shops" is on, so an MM shop item can turn up in an OoT
 chest or on an OoT shelf; OoT's shop stock never leaves Hyrule.
 

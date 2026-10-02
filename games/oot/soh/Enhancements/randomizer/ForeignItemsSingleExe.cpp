@@ -224,6 +224,34 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
 }
 
 /**
+ * #577 M5, the chest's appearance (z_en_box.c, OoT_EnBox_Init): the item category
+ * "Chest Size & Texture Matches Contents" dresses OoT chest `rc` by, given the
+ * category of the item the OoT table holds there (`coverCategory`).
+ *
+ * A crossing host holds OoT's junk cover (RG_BLUE_RUPEE, ComboLogicEngineOoT.cpp)
+ * and would be dressed as junk whatever MM item it hides. It presents as a major
+ * chest instead, MM's rule for an OoT item in an MM chest (EnBox.cpp: a foreign
+ * chest is an ornate chest, like any chest holding something worth opening).
+ * ADR 0002 keeps MM's item table out of this TU: the one game-neutral grade OoT
+ * can read for an MM item is its fill class (Combo_ItemClassOf), and every
+ * crossing item is PROGRESSION (Combo_ItemClassMayCrossUnder), so major is the
+ * finest answer the boundary carries. OoTMM grades finer, by the item's type
+ * (keys, tokens, fairies ...); doing that in both games is #862. Every other
+ * chest keeps its own item's category.
+ */
+extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
+    return OoT_Rando_Foreign_HostsForeign(rc) != 0 ? (int)ITEM_CATEGORY_MAJOR : coverCategory;
+}
+
+/** TEST BRIDGE (ForeignModel row M14): what OoT chest `rc` presents when the OoT
+ *  table holds the junk cover there: 1 a major chest, 0 the cover's junk chest,
+ *  -1 anything else. */
+extern "C" int OoT_Rando_Foreign_TestChestShowsMajor(uint16_t rc) {
+    const int shown = OoT_Rando_Foreign_ChestCategory(rc, (int)ITEM_CATEGORY_JUNK);
+    return shown == (int)ITEM_CATEGORY_MAJOR ? 1 : shown == (int)ITEM_CATEGORY_JUNK ? 0 : -1;
+}
+
+/**
  * #800 S1, the shop shelf's sold-out and can-buy tests (z_en_girla.c), and since
  * #800 pass 2 the Business Scrub's (hook_handlers.cpp: its can-buy test and its
  * despawn): 1 when OoT
