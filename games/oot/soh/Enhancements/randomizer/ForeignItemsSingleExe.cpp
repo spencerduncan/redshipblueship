@@ -232,8 +232,12 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
  * and would be dressed as junk whatever MM item it hides. It presents as a major
  * chest instead, MM's rule for an OoT item in an MM chest (EnBox.cpp: a foreign
  * chest is an ornate chest, like any chest holding something worth opening).
- * OoT has no table of MM item ids to grade it finer (ADR 0002). Every other chest
- * keeps its own item's category.
+ * ADR 0002 keeps MM's item table out of this TU: the one game-neutral grade OoT
+ * can read for an MM item is its fill class (Combo_ItemClassOf), and every
+ * crossing item is PROGRESSION (Combo_ItemClassMayCrossUnder), so major is the
+ * finest answer the boundary carries. OoTMM grades finer, by the item's type
+ * (keys, tokens, fairies ...); doing that in both games is #862. Every other
+ * chest keeps its own item's category.
  */
 extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
     return OoT_Rando_Foreign_HostsForeign(rc) != 0 ? (int)ITEM_CATEGORY_MAJOR : coverCategory;
