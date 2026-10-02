@@ -309,10 +309,10 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   832-px window. Each refusal site's own row (`mm-combo-settings-gate`, `mm-spoiler-identity`, `combo-creation-event`)
   compares the toast the site queued with that copy, exactly. The long explanation belongs on the refusal's stderr
   line, not in the toast. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
-  their record names (`goal`, `itemClassMM`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name the
-  field; the Cross-Game Rules page's own labels carry the same abbreviations ("OoT Classes", "MM Classes"); and eight
-  of the thirteen fields (`poolSizeOoT`, `poolSizeMM` since #801 retired their rows, `logicRung`, `comboFlags`,
-  `spare1`, `formatVersion`, `comboSettingsHash`, `triforceHunt`) have no row on that page to name.
+  their record names (`goal`, `direction`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name the
+  field, and ten of the thirteen fields (`poolSizeOoT`, `poolSizeMM` since #801 retired their rows, `itemClassOoT`,
+  `itemClassMM` since #834 retired theirs, `logicRung`, `comboFlags`, `spare1`, `formatVersion`, `comboSettingsHash`,
+  `triforceHunt`) have no row on that page to name.
 
 ## 11. Anti-patterns
 
@@ -375,8 +375,8 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 | `soh-names.txt` | SoH's own row names and tooltips (ROM-rich runs only; R8) |
 
 **Variants:**
-- STATE: the five Cross-Game Rules states (unpaired, paired-legacy, frozen, corrupt, and empty-oot-classes, the one
-  that draws an empty-set note), Majora's Mask's autosave,
+- STATE: the four Cross-Game Rules states (unpaired, paired-legacy, frozen and corrupt; the fifth, empty-oot-classes,
+  went with the item-class rows in #834), Majora's Mask's autosave,
   Combo > MM Row States' default (every gated row and both notes hidden), heading-on (the heading group's Dormant row
   drawn disabled under the note right under the heading) and gate-on (the pointer group's Dormant and Partial rows
   drawn disabled under the note below the pointer's sentence; no race-lockout state, because every row that page
