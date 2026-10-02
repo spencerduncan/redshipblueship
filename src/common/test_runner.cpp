@@ -330,6 +330,9 @@ int Combo_MMOptionsPage_RunHeadless(void);
 // window's lock — same bridge shape as the spoiler window above.
 int Combo_TrackerView_RunHeadless(void);
 int Combo_TrackerWindow_RunHeadless(void);
+// src/common/tests/test_combo_item_view.c (#458 U1a) - the unified item view
+// over OoT's item adapter and the shared-resource pool. Same bridge shape.
+int Combo_ItemView_RunHeadless(void);
 // games/mm/2s2h/mm_rando_options_test.cpp (#497 step 4, #499): the option TABLE
 // and the paired PROFILE. Both bodies live in an MM TU because they drive
 // Rando::StaticData::Options and Rando::Foreign::ResolvePairedProfile, which
@@ -523,6 +526,9 @@ extern "C" {
 // ComboGui::RegisterComboTrackerWindow.
 #include "tests/test_combo_tracker_view.c"
 #include "tests/test_combo_tracker_window.c"
+// Unified item view (#458 U1a): FILE SCOPE (compiled as C++) for the authored
+// std::vector buffers; every symbol it drives is extern-C.
+#include "tests/test_combo_item_view.c"
 
 // Sourced-grant model locks (ADR 0005, netplay 1a #460): per-source cursor
 // idempotency, switch-free received-order redemption, loud overflow with
@@ -4247,6 +4253,23 @@ TestResult Test_ComboTrackerWindow(void) {
     return Combo_TrackerWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Unified item view (#458 U1a). No Gui; the display-free bring-up because the
+// shared group reads the ocarina kind's arming, which resolves a CVar before a
+// world exists.
+TestResult Test_ComboItemView(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return Combo_ItemView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM option TABLE lock (#497 step 4, #499 step 5). No Gui, but it reads and
 // writes the option CVars through the real ConsoleVariables store, so it needs
 // the same display-free bring-up.
@@ -5069,6 +5092,9 @@ const TestDescriptor gTests[] = {
     {"combo-tracker-window",
      "Combo tracker window registers de-collided; inert under every active game and absent adapters (#458)",
      Test_ComboTrackerWindow},
+    {"combo-item-view",
+     "Item rows from OoT's live save or frozen shadow, never live for the inactive game; shared group label (#458)",
+     Test_ComboItemView},
     // MM randomizer options surface (#497 step 4, #499). Three locks, split by
     // what they can see: the table needs MM's headers, the profile needs MM's
     // SaveContext, the window needs a Gui.
