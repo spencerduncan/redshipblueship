@@ -63,6 +63,15 @@
  *    NULL with no MM play state); the refused-arrival bootstrap. See
  *    CtvLiveLegsBody.
  *
+ * 9. ROWS CARRY STATUS, AREA AND THE FOUND ITEM (#458 U4). Each game's rows
+ *    carry the projected status the window colours by, the area its own check
+ *    tracker lists the check under, and, once found, the item that tracker
+ *    names there: MM's from the save the view picked (2b), OoT's from the heap
+ *    (5b). A crossing host names the crossed item, not its cover, and the
+ *    spelling is held to the native trackers' own test bridges (#796), so the
+ *    window and the native trackers cannot disagree. See CtvMMRowsU4 and
+ *    CtvOoTRowsU4.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++), but every symbol it drives is extern-C. It needs the display-free
  * shared bring-up (the OoT-side authoring seam constructs Rando::Context),
@@ -79,6 +88,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <vector>
 
 // The OoT-side authoring seam (games/oot/soh/Enhancements/randomizer/
@@ -236,6 +246,118 @@ static int CtvLiveLegsBody(const ComboMMTrackerDesc* desc, std::vector<uint8_t>&
     return TEST_PASS;
 }
 
+// ---- #458 U4: what a row carries beyond the three flags ----------------------
+//
+// The native trackers' own item-name functions (#796's test bridges): what MM's
+// and OoT's check trackers print beside a found check, so the lock can hold the
+// combo row to agreeing with them rather than to a copy of their rule.
+extern "C" int MM_CheckTracker_TestItemName(const void* mmSave, uint16_t randoCheckId, char* out, int cap,
+                                            uint16_t* outStoredItem);
+extern "C" int OoT_CheckTracker_TestItemName(uint16_t rc, char* out, int cap);
+// MM-side authoring: store the MM item whose display name is `name` at `checkId`
+// of the SaveContext image `save` (games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp).
+extern "C" int MM_TrackerAdapter_TestSetStoredItem(void* save, uint16_t checkId, const char* name);
+
+/** The suffix the native trackers put on the other game's item (" (MM)" / " (OoT)"). */
+static std::string CtvNativeSpelling(const ComboTrackerCheckRow& row, uint8_t rowGame) {
+    std::string s = row.placedItemName != NULL ? row.placedItemName : "";
+    if (row.placedItemGame != rowGame) {
+        s += (row.placedItemGame == (uint8_t)GAME_MM) ? " (MM)" : " (OoT)";
+    }
+    return s;
+}
+
+/**
+ * MM rows over the authored shadow (`blob`, already committed: 3 shuffled, 5
+ * obtained, 7 skipped). Status is the flags' projection; every row has a real
+ * scene name; only the obtained row names its item, which is the item MM's table
+ * stores in THIS save, spelled as MM's own check tracker spells it.
+ */
+static int CtvMMRowsU4(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& blob, uint16_t shuffledA,
+                       uint16_t obtainedB, uint16_t skippedC) {
+    CTV_ASSERT(desc->areaName != NULL);       // the MM TU names areas
+    CTV_ASSERT(desc->placedItemName != NULL); // ...and placed items
+    CTV_ASSERT(MM_TrackerAdapter_TestSetStoredItem(blob.data(), obtainedB, "Lens of Truth") == 1);
+    Context_UpdateShadowCopy(GAME_MM, blob.data(), blob.size());
+
+    ComboTrackerCheckRow row;
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)obtainedB, &row));
+    printf("[TEST] combo-tracker-view U4 MM obtained row: status=%u area=%s key=%u item=%s game=%u\n",
+           (unsigned)row.status, row.areaName != NULL ? row.areaName : "(null)", (unsigned)row.areaKey,
+           row.placedItemName != NULL ? row.placedItemName : "(null)", (unsigned)row.placedItemGame);
+    CTV_ASSERT(row.status == COMBO_TRACKER_CHECK_COLLECTED);
+    CTV_ASSERT(row.areaName != NULL && row.areaName[0] != '\0' && strcmp(row.areaName, "Unknown") != 0);
+    CTV_ASSERT(row.placedItemName != NULL && strcmp(row.placedItemName, "Lens of Truth") == 0);
+    CTV_ASSERT(row.placedItemGame == (uint8_t)GAME_MM);
+    // Agrees with MM's own check tracker, reading the same save.
+    char native[96];
+    uint16_t stored = 0;
+    CTV_ASSERT(MM_CheckTracker_TestItemName(Context_GetMMSaveContext(), obtainedB, native, (int)sizeof(native),
+                                            &stored) == 1);
+    CTV_ASSERT(CtvNativeSpelling(row, (uint8_t)GAME_MM) == native);
+    // The area is a property of the check, the same on every read.
+    ComboTrackerCheckRow again;
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)obtainedB, &again));
+    CTV_ASSERT(again.areaKey == row.areaKey && strcmp(again.areaName, row.areaName) == 0);
+
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)skippedC, &row));
+    CTV_ASSERT(row.status == COMBO_TRACKER_CHECK_SKIPPED);
+    CTV_ASSERT(row.areaName != NULL && row.areaName[0] != '\0');
+    // Not found: nothing revealed, as MM's tracker prints no item there.
+    CTV_ASSERT(row.placedItemName == NULL && row.placedItemGame == (uint8_t)GAME_NONE);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)shuffledA, &row));
+    CTV_ASSERT(row.status == COMBO_TRACKER_CHECK_UNCHECKED);
+    CTV_ASSERT(row.placedItemName == NULL);
+    return TEST_PASS;
+}
+
+/**
+ * OoT rows over the seam's authored heap world (ootIds: saved, untouched,
+ * skipped). The seam brings OoT's location and item tables up, so names and
+ * areas are real here whatever the tier. Status follows SoH's precedence; the
+ * three Kokiri Forest chests share one area; only the saved row names its item,
+ * spelled as SoH's check tracker spells it, and a crossing host names the
+ * crossed MM item rather than the cover it holds (#796). Leaves the context
+ * paired: the caller resets it.
+ */
+static int CtvOoTRowsU4(const uint16_t ootIds[3]) {
+    ComboTrackerCheckRow saved;
+    ComboTrackerCheckRow open;
+    ComboTrackerCheckRow skipped;
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[0], &saved));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &open));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[2], &skipped));
+    printf("[TEST] combo-tracker-view U4 OoT saved row: status=%u area=%s key=%u item=%s game=%u\n",
+           (unsigned)saved.status, saved.areaName != NULL ? saved.areaName : "(null)", (unsigned)saved.areaKey,
+           saved.placedItemName != NULL ? saved.placedItemName : "(null)", (unsigned)saved.placedItemGame);
+    CTV_ASSERT(saved.status == COMBO_TRACKER_CHECK_SAVED);
+    CTV_ASSERT(open.status == COMBO_TRACKER_CHECK_UNCHECKED);
+    CTV_ASSERT(skipped.status == COMBO_TRACKER_CHECK_SKIPPED);
+    CTV_ASSERT(saved.areaName != NULL && strcmp(saved.areaName, "Kokiri Forest") == 0);
+    CTV_ASSERT(open.areaName != NULL && strcmp(open.areaName, "Kokiri Forest") == 0);
+    CTV_ASSERT(saved.areaKey == open.areaKey && open.areaKey == skipped.areaKey);
+    CTV_ASSERT(saved.placedItemName != NULL && saved.placedItemGame == (uint8_t)GAME_OOT);
+    CTV_ASSERT(open.placedItemName == NULL && skipped.placedItemName == NULL);
+    char native[96];
+    CTV_ASSERT(OoT_CheckTracker_TestItemName(ootIds[0], native, (int)sizeof(native)) == 1);
+    CTV_ASSERT(CtvNativeSpelling(saved, (uint8_t)GAME_OOT) == native);
+
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0xC0FFEE97u;
+    gComboCtx.sharedRandoSettingsHash = 0x5EED0497u;
+    SharedItem crossed;
+    CTV_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Lens of Truth", &crossed));
+    CTV_ASSERT(Combo_SetForeignPlacementOoT(ootIds[0], crossed) >= 0);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[0], &saved));
+    printf("[TEST] combo-tracker-view U4 OoT crossing host: item=%s game=%u\n",
+           saved.placedItemName != NULL ? saved.placedItemName : "(null)", (unsigned)saved.placedItemGame);
+    CTV_ASSERT(saved.placedItemName != NULL && strcmp(saved.placedItemName, "Lens of Truth") == 0);
+    CTV_ASSERT(saved.placedItemGame == (uint8_t)GAME_MM);
+    CTV_ASSERT(OoT_CheckTracker_TestItemName(ootIds[0], native, (int)sizeof(native)) == 1);
+    CTV_ASSERT(CtvNativeSpelling(saved, (uint8_t)GAME_OOT) == native);
+    return TEST_PASS;
+}
+
 static int CtvLiveLegs(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
     const ComboMMTrackerDesc real = *desc; // backup: the production descriptor
     ComboMMTrackerDesc testDesc = real;
@@ -358,6 +480,14 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(!row.shuffled); // id 4 was never authored
     CTV_ASSERT(!Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)desc->checkCount, &row)); // out of range
 
+    // ---- 2b. #458 U4: status, area and placed item on MM rows ----------------
+    // Recorded rather than returned on, so the OoT half (5b) still runs and
+    // reports: the row fails at the end either way.
+    int u4Failures = 0;
+    if (CtvMMRowsU4(desc, blob, kShuffledA, kObtainedB, kSkippedC) != TEST_PASS) {
+        u4Failures++;
+    }
+
     // ---- 4. MM check names resolve (the #489 class) -----------------------
     const char* mmName = Combo_TrackerCheckName((uint8_t)GAME_MM, kShuffledA);
     CTV_ASSERT(mmName != NULL && mmName[0] != '\0');
@@ -404,6 +534,12 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[2], &row));
     CTV_ASSERT(row.shuffled && !row.obtained && row.skipped);
     (void)Combo_TrackerCheckName((uint8_t)GAME_OOT, ootIds[0]);
+
+    // ---- 5b. #458 U4: status, area and placed item on OoT rows --------------
+    if (CtvOoTRowsU4(ootIds) != TEST_PASS) {
+        u4Failures++;
+    }
+    ComboContext_Init(); // unpaired again, as section 6 expects
 
     // Releasing the world must return the adapter to UNAVAILABLE — liveness
     // is a per-call check on the weak singleton, not a latched flag.
@@ -513,6 +649,10 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     Context_UpdateShadowCopy(GAME_MM, shadowBackup.data(), shadowBackup.size());
     Context_SetCurrentGame(prevGame);
 
+    if (u4Failures != 0) {
+        printf("[TEST] FAIL: %d of the two #458 U4 row sections (MM 2b, OoT 5b) failed\n", u4Failures);
+        return TEST_FAIL;
+    }
     printf("[TEST] PASS: adapters recover authored MM shadow + OoT heap worlds, label staleness honestly, and "
            "answer unavailable states without dereferencing (#458)\n");
     return TEST_PASS;

@@ -26,6 +26,7 @@
 
 #include <cfloat>
 #include <cstdio>
+#include <cstring>
 
 #include <imgui.h>
 #include <ship/Context.h>
@@ -74,24 +75,18 @@ const char* FoundGlyph(uint8_t found) {
  * even lines instead of leaving its last word alone on one ("Stone Tower
  * Temple Entrance Small Crate" over "02"). Text that fits is drawn as is.
  */
+float ImGuiTextWidth(void*, const char* begin, const char* end) {
+    return ImGui::CalcTextSize(begin, end).x;
+}
+
+float ImGuiTextHeight(void*, const char* text, float wrapWidth) {
+    return ImGui::CalcTextSize(text, nullptr, false, wrapWidth).y;
+}
+
+const ComboTextMeasure kImGuiMeasure = { ImGuiTextWidth, ImGuiTextHeight, nullptr };
+
 void TextBalanced(const char* text) {
-    const float avail = ImGui::GetContentRegionAvail().x;
-    const float full = ImGui::CalcTextSize(text).x;
-    float wrap = avail;
-    if (avail > 0.0f && full > avail) {
-        const float height = ImGui::CalcTextSize(text, nullptr, false, avail).y;
-        float lo = 1.0f;
-        float hi = avail;
-        for (int i = 0; i < 12 && hi - lo > 1.0f; i++) {
-            const float mid = (lo + hi) * 0.5f;
-            if (ImGui::CalcTextSize(text, nullptr, false, mid).y <= height) {
-                hi = mid;
-            } else {
-                lo = mid;
-            }
-        }
-        wrap = hi;
-    }
+    const float wrap = ComboBalancedWrapWidth(text, ImGui::GetContentRegionAvail().x, kImGuiMeasure);
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + wrap);
     ImGui::TextUnformatted(text);
     ImGui::PopTextWrapPos();
@@ -138,7 +133,7 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     // The pane's top line already prints the paired seed; a game whose own
     // seed is that same number would only repeat it (MM's final seed IS the
     // paired seed), so the panel prints its seed only when it says something new.
-    if (!identity.paired || summary.seed != identity.sharedRandoSeed) {
+    if (ComboPanelShowsOwnSeed(identity, summary)) {
         ImGui::Text("Seed: %u", (unsigned)summary.seed);
     }
     ImGui::Text("Checks: %d / %d", summary.obtained, summary.shuffled);
@@ -172,6 +167,66 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
 }
 
 } // namespace
+
+// PHASE A (lock first): the pre-#458-U4 logic, extracted unchanged.
+float ComboWidestWordWidth(const char* text, const ComboTextMeasure& measure) {
+    float widest = 0.0f;
+    if (text == nullptr) {
+        return widest;
+    }
+    const char* p = text;
+    while (*p != '\0') {
+        while (*p == ' ') {
+            p++;
+        }
+        const char* end = p;
+        while (*end != '\0' && *end != ' ') {
+            end++;
+        }
+        if (end > p) {
+            const float w = measure.width(measure.user, p, end);
+            widest = w > widest ? w : widest;
+        }
+        p = end;
+    }
+    return widest;
+}
+
+float ComboBalancedWrapWidth(const char* text, float avail, const ComboTextMeasure& measure) {
+    const char* end = text + strlen(text);
+    const float full = measure.width(measure.user, text, end);
+    float wrap = avail;
+    if (avail > 0.0f && full > avail) {
+        const float height = measure.height(measure.user, text, avail);
+        float lo = 1.0f;
+        float hi = avail;
+        for (int i = 0; i < 12 && hi - lo > 1.0f; i++) {
+            const float mid = (lo + hi) * 0.5f;
+            if (measure.height(measure.user, text, mid) <= height) {
+                hi = mid;
+            } else {
+                lo = mid;
+            }
+        }
+        wrap = hi;
+    }
+    return wrap;
+}
+
+float ComboCrossingItemColumnWidth(float contentWidth, float widestItemWord) {
+    (void)widestItemWord;
+    return contentWidth * 2.0f / 5.0f;
+}
+
+bool ComboPanelShowsOwnSeed(const ComboTrackerIdentity& identity, const ComboTrackerGameSummary& summary) {
+    return !identity.paired || summary.seed != identity.sharedRandoSeed;
+}
+
+void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboTrackerAreaRows>& out) {
+    (void)game;
+    (void)search;
+    out.clear();
+}
 
 /**
  * One direction's crossing table (declared in ComboTrackerWindow.h). The

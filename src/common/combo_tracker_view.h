@@ -110,10 +110,53 @@ typedef struct {
 } ComboTrackerGameSummary;
 
 /**
+ * A check's status in common terms: the value the Check Tracker's colours key on
+ * (#458 U4; ADR 0002's 2026-09-30 amendment, point 2). The values are SoH's
+ * check-tracker states, the vocabulary its colour settings are written in. Each
+ * game produces only the values it has an analogue for:
+ *
+ *   - OoT projects its RandomizerCheckStatus in its own TU, with SoH's own
+ *     precedence (DrawLocation): RCSHOW_COLLECTED is COLLECTED, RCSHOW_SAVED is
+ *     SAVED, then the heap skip flag is SKIPPED, RCSHOW_SEEN and
+ *     RCSHOW_IDENTIFIED are SEEN, RCSHOW_SCUMMED is SCUMMED, RCSHOW_UNCHECKED
+ *     is UNCHECKED.
+ *   - MM has only its obtained and skipped flags, so the view maps them:
+ *     obtained is COLLECTED, skipped is SKIPPED, anything else UNCHECKED. MM
+ *     never produces SEEN, SCUMMED or SAVED.
+ *
+ * `obtained` on the row is exactly COLLECTED or SAVED, so the older projection
+ * and this one never disagree.
+ */
+typedef enum {
+    COMBO_TRACKER_CHECK_UNCHECKED = 0,
+    COMBO_TRACKER_CHECK_SEEN = 1,      // the item there is known, not collected (OoT only)
+    COMBO_TRACKER_CHECK_SCUMMED = 2,   // collected, then the game reloaded without saving (OoT only)
+    COMBO_TRACKER_CHECK_SKIPPED = 3,   // the player marked it skipped
+    COMBO_TRACKER_CHECK_COLLECTED = 4, // obtained (OoT: not saved yet; MM: its obtained flag)
+    COMBO_TRACKER_CHECK_SAVED = 5,     // obtained and saved (OoT only)
+    COMBO_TRACKER_CHECK_STATUS_COUNT
+} ComboTrackerCheckStatus;
+
+/**
  * One check, as its own game's panel renders it. `checkId` is GAME-LOCAL
  * (MM RandoCheckId / OoT RandomizerCheck) and must never cross panels — see
  * the header comment. `name` may be NULL when the game has no name table
  * loaded (e.g. OoT static data before OoT's first boot); render the id then.
+ *
+ * AREA (#458 U4). The panel groups its rows the way each game's own check
+ * tracker does: OoT by its randomizer area (GetRCAreaName), MM by scene (the
+ * native tracker's scene headers, grottos under the scene they open from).
+ * `areaKey` is as game-local as `checkId`: rows of one game with equal keys
+ * share an area, and the panel draws its areas in ascending key order (each
+ * game's own tracker order). It is never compared across games.
+ *
+ * PLACED ITEM (#458 U4). `placedItemName` is the item the game's own check
+ * tracker names beside a found check, or NULL while the status does not reveal
+ * it (the panel never shows more than that tracker does). `placedItemGame` is
+ * that item's game: the row's own game, or the other game when the check hosts
+ * a crossing, and then the name is the crossed item's real name (#796), not the
+ * cover item the host physically holds. The renderer marks the other game's
+ * items with the suffix the native trackers print (" (MM)" / " (OoT)").
  */
 typedef struct {
     uint16_t checkId;
@@ -121,6 +164,11 @@ typedef struct {
     bool shuffled;
     bool obtained;
     bool skipped;
+    uint8_t status;             // ComboTrackerCheckStatus
+    uint16_t areaKey;           // game-local area id; see AREA above
+    const char* areaName;       // may be NULL; storage is the owning game's
+    const char* placedItemName; // NULL unless the status reveals it; storage is the owning game's
+    uint8_t placedItemGame;     // GameId of placedItemName's item; GAME_NONE when it is NULL
 } ComboTrackerCheckRow;
 
 // ============================================================================
@@ -160,6 +208,18 @@ typedef struct ComboMMTrackerDesc {
     // through Rando::StaticData) so the id->name table never crosses into
     // common code. May itself be NULL.
     const char* (*checkName)(uint16_t checkId);
+    // The area a check is listed under (#458 U4): its scene's name, as MM's
+    // check tracker heads it, or NULL; `*outKey` receives the game-local area
+    // key (ComboTrackerCheckRow.areaKey). Defined in the MM TU, which owns the
+    // scene table. May itself be NULL: rows then carry no area.
+    const char* (*areaName)(uint16_t checkId, uint16_t* outKey);
+    // The item an obtained check's row names (#458 U4), read from `save` (the
+    // live save or the shadow, whichever the view picked; same layout), with
+    // its game in `*outGame`: the crossed OoT item for a check that hosts one,
+    // as MM's own check tracker names it (#796), else the item MM's table
+    // stores there. NULL when there is nothing to name. The view calls it only
+    // for obtained rows. May itself be NULL: rows then name no item.
+    const char* (*placedItemName)(const void* save, uint16_t checkId, uint8_t* outGame);
     // MM's live save, laid out exactly like the shadow blob (every offset above
     // applies to it), or NULL when it must not be read: the MM TU answers
     // &gSaveContext only while MM's play state is loaded, which excludes the
@@ -211,7 +271,10 @@ typedef struct ComboOoTTrackerOps {
     bool (*summary)(ComboTrackerGameSummary* out);
     // Walkable row indices; 0 when no heap context exists.
     int (*checkCount)(void);
-    // Row `index`; false when out of range or no heap context exists.
+    // Row `index`; false when out of range or no heap context exists. Fills
+    // every field of the row, the U4 ones included (status, area, placed item:
+    // OoT derives them in its own TU, ADR 0002's amendment point 2); the view
+    // zeroes the row first, so a field left alone reads as "none".
     bool (*checkAt)(int index, ComboTrackerCheckRow* out);
     // Display name for a check id, or NULL (never-initialized static data).
     const char* (*checkName)(uint16_t checkId);

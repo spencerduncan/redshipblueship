@@ -279,6 +279,7 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out) {
     if (out == NULL || index < 0) {
         return false;
     }
+    memset(out, 0, sizeof(*out));
     if (game == (uint8_t)GAME_MM) {
         const uint8_t* blob = MMBlobIfPresent(NULL);
         if (blob == NULL || (uint32_t)index >= sMMDesc.checkCount) {

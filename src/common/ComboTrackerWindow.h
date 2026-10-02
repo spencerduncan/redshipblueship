@@ -33,7 +33,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 #include <ship/window/gui/GuiWindow.h>
+
+#include "combo_tracker_view.h"
 
 namespace Ship {
 class Gui;
@@ -111,6 +114,78 @@ void RegisterComboTrackerWindow(std::shared_ptr<Ship::Gui> gui);
  * window, between the seam's PushTheme/PopTheme or not.
  */
 void DrawCrossingList(uint8_t hostGame);
+
+// ============================================================================
+// The window's layout and grouping decisions, as pure functions (#458 U4,
+// #815, #816), so the ROM-free ComboTrackerWindow lock can hold them without
+// an ImGui context. The draw code calls exactly these.
+// ============================================================================
+
+/**
+ * How text is measured: production passes ImGui::CalcTextSize, the lock a fake
+ * font that wraps the way ImGui does (a word wider than the wrap width is broken
+ * inside itself).
+ */
+struct ComboTextMeasure {
+    float (*width)(void* user, const char* begin, const char* end); // one line, unwrapped
+    float (*height)(void* user, const char* text, float wrapWidth); // wrapped at wrapWidth
+    void* user;
+};
+
+/** The width of the widest space-separated word of `text` (0 for NULL or ""). */
+float ComboWidestWordWidth(const char* text, const ComboTextMeasure& measure);
+
+/**
+ * The wrap width a table cell draws `text` at, given `avail` pixels: the
+ * narrowest width that takes no more lines than `avail` does (a long name breaks
+ * into even lines rather than leaving its last word alone), but never narrower
+ * than the text's widest word, so no word is broken inside itself
+ * ("Progressiv" / "e Slingshot", #815). Text that fits is drawn at `avail`.
+ */
+float ComboBalancedWrapWidth(const char* text, float avail, const ComboTextMeasure& measure);
+
+/**
+ * The crossing table's Item column width for a table `contentWidth` wide (the
+ * columns' content, padding excluded): its two-fifths share, widened to the
+ * widest word of any item name in the table (`widestItemWord`) so the column can
+ * hold every word whole (#815), but never past three fifths, so the Check column
+ * keeps the larger share.
+ */
+float ComboCrossingItemColumnWidth(float contentWidth, float widestItemWord);
+
+/**
+ * Whether a game panel prints its own "Seed:" line (#816). The pane's top line
+ * prints the paired seed on a paired file, and a game's own final seed there is
+ * not a second fact a player needs (MM's is a hash of the paired seed, OoT's is
+ * the paired seed), so a paired file's panels print none; an unpaired world's
+ * panel prints its game's seed, since nothing else on the pane does.
+ */
+bool ComboPanelShowsOwnSeed(const ComboTrackerIdentity& identity, const ComboTrackerGameSummary& summary);
+
+/**
+ * One area of a game panel's Checks list (#458 U4): the area's game-local key
+ * and name, its shuffled-check count and how many of them are done (collected
+ * or skipped: SoH's and MM's trackers both count a skipped check as checked),
+ * and the rows the search leaves, in table order. `total` and `done` count the
+ * whole area, whatever the search hides, as SoH's area totals do.
+ */
+struct ComboTrackerAreaRows {
+    uint16_t key = 0;
+    const char* name = nullptr; // NULL when the game's adapter names no area
+    int total = 0;
+    int done = 0;
+    std::vector<ComboTrackerCheckRow> rows;
+};
+
+/**
+ * `game`'s shuffled checks grouped by area, areas in ascending key order (each
+ * game's own tracker order), keeping only the rows `search` matches (ImGui's
+ * text-filter syntax, SoH's search box: comma-separated terms, a leading '-'
+ * excludes). A row is matched on its check name, its area name and the item it
+ * names when its status reveals one, never on an item it does not reveal. An
+ * area the search leaves empty is omitted. `search` NULL or "" keeps every row.
+ */
+void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboTrackerAreaRows>& out);
 
 } // namespace ComboGui
 

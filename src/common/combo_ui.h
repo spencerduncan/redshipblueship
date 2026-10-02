@@ -109,6 +109,14 @@ typedef struct {
                       const ComboUiWidgetOpts* opts);
     /** Themed button; `width` is COMBO_UI_WIDTH_FILL or a pixel width. True when clicked. */
     bool (*Button)(const char* label, float width, const ComboUiWidgetOpts* opts);
+    /**
+     * SoH's check-tracker search box (randomizer_check_tracker.cpp): a themed
+     * text field across the line, editing the NUL-terminated `buf` (`bufSize`
+     * bytes), a "Search..." placeholder while it is empty, and an eraser button
+     * beside it that clears it. `id` scopes its ImGui ids. True when the text
+     * changed this frame (typed or erased).
+     */
+    bool (*SearchInput)(const char* id, char* buf, int bufSize);
     /** A section header (ImGui::SeparatorText), SoH's WIDGET_SEPARATOR_TEXT. */
     void (*SeparatorText)(const char* text);
     /** A gray note, wrapped: SoH's `TextOptions().Color(Colors::Gray)` TEXT row. */

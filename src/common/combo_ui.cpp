@@ -117,6 +117,14 @@ bool FallbackButton(const char* label, float width, const ComboUiWidgetOpts* opt
     return clicked;
 }
 
+bool FallbackSearchInput(const char* id, char* buf, int bufSize) {
+    ImGui::PushID(id);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    const bool changed = ImGui::InputTextWithHint("##search", "Search...", buf, (size_t)bufSize);
+    ImGui::PopID();
+    return changed;
+}
+
 void FallbackSeparatorText(const char* text) {
     ImGui::SeparatorText(text);
 }
@@ -179,7 +187,7 @@ void FallbackRowText(const char* text, const ComboUiWidgetOpts* opts) {
 }
 
 const ComboUiTable kFallback = {
-    FallbackCheckbox,  FallbackCombobox,    FallbackSliderInt, FallbackButton,  FallbackSeparatorText,
+    FallbackCheckbox,  FallbackCombobox,    FallbackSliderInt, FallbackButton,  FallbackSearchInput, FallbackSeparatorText,
     FallbackNoteText,  FallbackWarningText, FallbackTooltip,   FallbackTagChip, FallbackConfirm,
     FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText,
 };

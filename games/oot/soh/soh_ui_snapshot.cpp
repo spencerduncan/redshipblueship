@@ -1428,6 +1428,8 @@ constexpr const char* kSnapshotOoTItemB = "Megaton Hammer";
 // MM checks hosting the OoT items; the first is collected in the authored MM save.
 constexpr uint16_t kSnapshotOoTToMMCheckA = 0x0401;
 constexpr uint16_t kSnapshotOoTToMMCheckB = 0x0402;
+constexpr const char* kSnapshotOoTItemC = "Progressive Slingshot";
+constexpr uint16_t kSnapshotOoTToMMCheckC = 0x0403;
 // The OoT check hosting the MM item: the synthetic OoT world's collected
 // "KF Kokiri Sword Chest" (kSnapshotOoTChecks[0] below).
 constexpr uint16_t kSnapshotMMToOoTCheckId = 0x0101;
@@ -1456,6 +1458,11 @@ void AuthorCrossings() {
     }
     if (SnapshotNamedItem((uint8_t)GAME_OOT, kSnapshotOoTItemB, &item)) {
         mmHosted.push_back({ kSnapshotOoTToMMCheckB, 0x0001, item });
+    }
+    // The name #815 was found on: one word nearly as wide as the 480-px pane's
+    // Item column, which a balanced wrap used to break inside itself.
+    if (SnapshotNamedItem((uint8_t)GAME_OOT, kSnapshotOoTItemC, &item)) {
+        mmHosted.push_back({ kSnapshotOoTToMMCheckC, 0x0001, item });
     }
     // MM's describer reads static data, so this lookup needs no ROM-free
     // fallback; if it ever fails, the row is missing and the states'
@@ -1487,11 +1494,14 @@ void AuthorMMShadow() {
     }
     gSnapshotMMShadowBackup.assign((const uint8_t*)resident, (const uint8_t*)resident + MM_SAVE_CONTEXT_SIZE);
     std::vector<uint8_t> blob((size_t)MM_SAVE_CONTEXT_SIZE, 0);
-    const uint32_t seed = gComboCtx.sharedRandoSeed; // MM's final seed IS the paired seed
+    // A paired file's MM final seed is a hash of the paired seed and the options
+    // (Rando::Foreign::MixPairedFinalSeedForAttempt), never the paired seed itself
+    // (#816), so the authored half carries a different number, as a real one does.
+    const uint32_t seed = gComboCtx.sharedRandoSeed ^ 0x8DDF1DEEu;
     std::memcpy(blob.data() + desc->newfOffset, desc->newf, desc->newfLen);
     std::memcpy(blob.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
     std::memcpy(blob.data() + desc->finalSeedOffset, &seed, sizeof(uint32_t));
-    for (const uint16_t check : { kSnapshotOoTToMMCheckA, kSnapshotOoTToMMCheckB }) {
+    for (const uint16_t check : { kSnapshotOoTToMMCheckA, kSnapshotOoTToMMCheckB, kSnapshotOoTToMMCheckC }) {
         uint8_t* row = blob.data() + desc->checkTableOffset + (size_t)check * desc->checkStride;
         row[desc->shuffledOffset] = 1;
         row[desc->obtainedOffset] = (check == kSnapshotOoTToMMCheckA) ? 1 : 0;
@@ -1517,14 +1527,22 @@ void RestoreMMShadow() {
 struct SnapshotCheck {
     uint16_t id;
     const char* name;
-    bool obtained;
-    bool skipped;
+    uint8_t status; // ComboTrackerCheckStatus
+    uint16_t areaKey;
+    const char* areaName;
+    const char* item; // the item the row reveals, or NULL
+    uint8_t itemGame;
 };
+// Rows as OoT's adapter fills them (#458 U4): two areas, Kokiri Forest's first
+// check collected and saved (a crossing host, so it names the crossed MM item as
+// SoH's check tracker does), one skipped, two open.
 constexpr SnapshotCheck kSnapshotOoTChecks[] = {
-    { 0x0101, "KF Kokiri Sword Chest", true, false },
-    { 0x0102, "KF Mido Top Left Chest", false, true },
-    { 0x0103, "KF Mido Top Right Chest", false, false },
-    { 0x0104, "Deku Tree Map Chest", false, false },
+    { 0x0101, "KF Kokiri Sword Chest", COMBO_TRACKER_CHECK_SAVED, 0, "Kokiri Forest", "Lens of Truth",
+      (uint8_t)GAME_MM },
+    { 0x0102, "KF Mido Top Left Chest", COMBO_TRACKER_CHECK_SKIPPED, 0, "Kokiri Forest", nullptr, (uint8_t)GAME_NONE },
+    { 0x0103, "KF Mido Top Right Chest", COMBO_TRACKER_CHECK_UNCHECKED, 0, "Kokiri Forest", nullptr,
+      (uint8_t)GAME_NONE },
+    { 0x0104, "Deku Tree Map Chest", COMBO_TRACKER_CHECK_UNCHECKED, 20, "Deku Tree", nullptr, (uint8_t)GAME_NONE },
 };
 constexpr int kSnapshotOoTCheckCount = (int)(sizeof(kSnapshotOoTChecks) / sizeof(kSnapshotOoTChecks[0]));
 
@@ -1548,8 +1566,13 @@ bool SnapshotOoTCheckAt(int index, ComboTrackerCheckRow* out) {
     out->checkId = c.id;
     out->name = c.name;
     out->shuffled = true;
-    out->obtained = c.obtained;
-    out->skipped = c.skipped;
+    out->status = c.status;
+    out->obtained = c.status == COMBO_TRACKER_CHECK_SAVED || c.status == COMBO_TRACKER_CHECK_COLLECTED;
+    out->skipped = c.status == COMBO_TRACKER_CHECK_SKIPPED;
+    out->areaKey = c.areaKey;
+    out->areaName = c.areaName;
+    out->placedItemName = c.item;
+    out->placedItemGame = c.itemGame;
     return true;
 }
 const char* SnapshotOoTCheckName(uint16_t checkId) {
@@ -1563,10 +1586,9 @@ const char* SnapshotOoTCheckName(uint16_t checkId) {
 const ComboOoTTrackerOps kSnapshotOoTOps = { SnapshotOoTSummary, SnapshotOoTCheckCount, SnapshotOoTCheckAt,
                                              SnapshotOoTCheckName };
 
-/** The id of the OoT panel's "Checks" tree node, as ComboTrackerWindow.cpp forms it
- *  inside the pane's Begin: PushID((int)GAME_OOT), then TreeNode("Checks"). */
-ImGuiID TrackerOoTChecksId(ImGuiWindow* w) {
-    const int game = (int)GAME_OOT;
+/** The id of a game panel's "Checks" tree node, as ComboTrackerWindow.cpp forms it
+ *  inside the pane's Begin: PushID((int)game), then TreeNode("Checks"). */
+ImGuiID TrackerChecksId(ImGuiWindow* w, int game) {
     return ImHashStr("Checks", 0, ImHashData(&game, sizeof(game), w->ID));
 }
 
@@ -3648,7 +3670,11 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 if (checksOpen) {
                     ImGuiWindow* tw = ImGui::FindWindowByName(p.window.c_str());
                     if (tw != nullptr) {
-                        tw->StateStorage.SetInt(TrackerOoTChecksId(tw), 1);
+                        // Both games' Checks lists: OoT's synthetic world and
+                        // MM's authored save, whose collected crossing host names
+                        // the crossed OoT item (#458 U4).
+                        tw->StateStorage.SetInt(TrackerChecksId(tw, (int)GAME_OOT), 1);
+                        tw->StateStorage.SetInt(TrackerChecksId(tw, (int)GAME_MM), 1);
                     }
                 }
                 if (scrollIndex == 0) {

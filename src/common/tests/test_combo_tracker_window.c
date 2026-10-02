@@ -40,6 +40,14 @@
  *    through the combo_ui seam, with SoH's close-button chrome, no settings
  *    digest, and check statuses as FontAwesome glyphs rather than "[x]".
  *
+ * 5. THE LAYOUT AND GROUPING DECISIONS, as the pure functions the draw code
+ *    calls (#458 U4, #815, #816): a balanced wrap never breaks a word inside
+ *    itself and the crossing table's Item column holds its widest word (under
+ *    a fake font that wraps the way ImGui does, which reproduces #815's
+ *    "Progressiv" / "e Slingshot"); a paired file's panels print no seed of
+ *    their own; the Checks list groups by area in key order with SoH's area
+ *    totals, and its search matches check, area and revealed item names.
+ *
  * Appearance itself is judged from the UiSnapshot row's captures (Combo
  * Tracker @paired, @unpaired and @progress), not here.
  *
@@ -156,6 +164,244 @@ bool TrackerDriveModelReads(void) {
     return true;
 }
 
+// ---- 5. The layout and grouping decisions (#458 U4, #815, #816) -------------
+//
+// A fake font that wraps the way ImGui's CalcWordWrapPositionA does: greedy
+// word fill, and a word wider than the wrap width broken inside itself at a
+// character. Capitals 10 px, everything else 7 px, a space 4 px, lines 10 px.
+
+float CtwCharWidth(char ch) {
+    if (ch == ' ') {
+        return 4.0f;
+    }
+    return (ch >= 'A' && ch <= 'Z') ? 10.0f : 7.0f;
+}
+
+float CtwWidth(void*, const char* begin, const char* end) {
+    float w = 0.0f;
+    for (const char* p = begin; p < end; p++) {
+        w += CtwCharWidth(*p);
+    }
+    return w;
+}
+
+int CtwLines(const char* text, float wrap) {
+    int lines = 1;
+    float lineW = 0.0f;
+    const char* p = text;
+    while (*p != '\0') {
+        while (*p == ' ') {
+            p++;
+        }
+        const char* wordEnd = p;
+        while (*wordEnd != '\0' && *wordEnd != ' ') {
+            wordEnd++;
+        }
+        if (p == wordEnd) {
+            break;
+        }
+        const float word = CtwWidth(nullptr, p, wordEnd);
+        const float lead = lineW > 0.0f ? CtwCharWidth(' ') : 0.0f;
+        if (lineW + lead + word <= wrap) {
+            lineW += lead + word;
+        } else if (word <= wrap) {
+            lines++;
+            lineW = word;
+        } else {
+            // Wider than a whole line: ImGui starts it on a fresh line and
+            // breaks it at the character that no longer fits.
+            if (lineW > 0.0f) {
+                lines++;
+            }
+            lineW = 0.0f;
+            for (const char* c = p; c < wordEnd; c++) {
+                if (lineW > 0.0f && lineW + CtwCharWidth(*c) > wrap) {
+                    lines++;
+                    lineW = 0.0f;
+                }
+                lineW += CtwCharWidth(*c);
+            }
+        }
+        p = wordEnd;
+    }
+    return lines;
+}
+
+float CtwHeight(void*, const char* text, float wrap) {
+    return 10.0f * (float)CtwLines(text, wrap);
+}
+
+const ComboGui::ComboTextMeasure kCtwFont = { CtwWidth, CtwHeight, nullptr };
+
+// A synthetic OoT world for the grouping lock: two areas, keyed out of table
+// order, one complete (a collected and a skipped check) and one not, plus an
+// unshuffled row that must never be listed.
+struct CtwRow {
+    uint16_t id;
+    const char* name;
+    uint16_t areaKey;
+    const char* areaName;
+    uint8_t status;
+    const char* item; // revealed item, or NULL
+    bool shuffled;
+};
+const CtwRow kCtwRows[] = {
+    { 0x10, "Tower Chest", 7, "Area Seven", COMBO_TRACKER_CHECK_COLLECTED, "Fairy Bow", true },
+    { 0x11, "Pond Chest", 3, "Area Three", COMBO_TRACKER_CHECK_UNCHECKED, nullptr, true },
+    { 0x12, "Roof Chest", 7, "Area Seven", COMBO_TRACKER_CHECK_SKIPPED, nullptr, true },
+    { 0x13, "Well Chest", 3, "Area Three", COMBO_TRACKER_CHECK_SEEN, nullptr, true },
+    { 0x14, "Hidden Chest", 3, "Area Three", COMBO_TRACKER_CHECK_UNCHECKED, nullptr, false },
+};
+constexpr int kCtwRowCount = (int)(sizeof(kCtwRows) / sizeof(kCtwRows[0]));
+
+bool CtwSummary(ComboTrackerGameSummary* out) {
+    out->hasWorld = true;
+    out->totalChecks = kCtwRowCount;
+    out->shuffled = 4;
+    return true;
+}
+int CtwCount(void) {
+    return kCtwRowCount;
+}
+bool CtwCheckAt(int index, ComboTrackerCheckRow* out) {
+    if (index < 0 || index >= kCtwRowCount) {
+        return false;
+    }
+    const CtwRow& r = kCtwRows[index];
+    out->checkId = r.id;
+    out->name = r.name;
+    out->shuffled = r.shuffled;
+    out->status = r.status;
+    out->obtained = r.status == COMBO_TRACKER_CHECK_COLLECTED;
+    out->skipped = r.status == COMBO_TRACKER_CHECK_SKIPPED;
+    out->areaKey = r.areaKey;
+    out->areaName = r.areaName;
+    out->placedItemName = r.item;
+    out->placedItemGame = r.item != nullptr ? (uint8_t)GAME_OOT : (uint8_t)GAME_NONE;
+    return true;
+}
+const char* CtwCheckName(uint16_t id) {
+    for (const CtwRow& r : kCtwRows) {
+        if (r.id == id) {
+            return r.name;
+        }
+    }
+    return nullptr;
+}
+const ComboOoTTrackerOps kCtwOps = { CtwSummary, CtwCount, CtwCheckAt, CtwCheckName };
+
+/** Row ids of `area`, in order, as one string ("10,12"). */
+std::string CtwIds(const ComboGui::ComboTrackerAreaRows& area) {
+    std::string s;
+    for (const ComboTrackerCheckRow& row : area.rows) {
+        char id[8];
+        snprintf(id, sizeof(id), "%s%X", s.empty() ? "" : ",", (unsigned)row.checkId);
+        s += id;
+    }
+    return s;
+}
+
+int Lock815(void) {
+    using namespace ComboGui;
+
+    // #815: no word broken inside itself. "Progressive Slingshot" in a 120 px
+    // cell takes two lines; a 77 px wrap also takes two ("Progressiv" /
+    // "e Slingshot"), and a search for the narrowest two-line width lands there.
+    const char* item = "Progressive Slingshot";
+    const float widest = ComboWidestWordWidth(item, kCtwFont);
+    const float wrap = ComboBalancedWrapWidth(item, 120.0f, kCtwFont);
+    printf("[TEST] combo-tracker-window #815: widest word %.1f px, balanced wrap %.1f px in a 120 px cell\n", widest,
+           wrap);
+    CTW_ASSERT(widest == 80.0f); // "Progressive"
+    CTW_ASSERT(wrap >= widest);  // never inside a word
+    CTW_ASSERT(wrap <= 120.0f);
+    CTW_ASSERT(CtwLines(item, wrap) == 2);
+    // Balancing still happens where words allow it.
+    const char* check = "Stone Tower Temple Entrance Small Crate";
+    const float checkWrap = ComboBalancedWrapWidth(check, 230.0f, kCtwFont);
+    CTW_ASSERT(checkWrap < 230.0f && CtwLines(check, checkWrap) == CtwLines(check, 230.0f));
+    CTW_ASSERT(checkWrap >= ComboWidestWordWidth(check, kCtwFont));
+    // Text that fits is drawn at the cell width.
+    CTW_ASSERT(ComboBalancedWrapWidth("Bow", 120.0f, kCtwFont) == 120.0f);
+    // The Item column holds the widest item word whole, within its bounds.
+    const float itemCol = ComboCrossingItemColumnWidth(160.0f, widest);
+    printf("[TEST] combo-tracker-window #815: Item column %.1f px of 160 px for an 80 px word\n", itemCol);
+    CTW_ASSERT(itemCol >= widest);
+    CTW_ASSERT(ComboCrossingItemColumnWidth(400.0f, widest) == 160.0f);  // the 2/5 share when it fits
+    CTW_ASSERT(ComboCrossingItemColumnWidth(100.0f, widest) <= 60.0f);   // never past 3/5
+    CTW_ASSERT(ComboCrossingItemColumnWidth(100.0f, widest) >= 40.0f);
+    return TEST_PASS;
+}
+
+int Lock816(void) {
+    using namespace ComboGui;
+
+    // #816: a paired file's panels print no seed of their own; an unpaired
+    // world's panel does.
+    ComboTrackerIdentity identity = {};
+    ComboTrackerGameSummary summary = {};
+    identity.paired = true;
+    identity.sharedRandoSeed = 2852956488u;
+    summary.seed = 2380209646u; // MM's final seed on that file (the #811 playtest)
+    printf("[TEST] combo-tracker-window #816: paired file, own seed differs: shows own seed = %d\n",
+           (int)ComboPanelShowsOwnSeed(identity, summary));
+    CTW_ASSERT(!ComboPanelShowsOwnSeed(identity, summary));
+    summary.seed = identity.sharedRandoSeed;
+    CTW_ASSERT(!ComboPanelShowsOwnSeed(identity, summary));
+    identity.paired = false;
+    CTW_ASSERT(ComboPanelShowsOwnSeed(identity, summary));
+    return TEST_PASS;
+}
+
+int LockAreasBody(void) {
+    using namespace ComboGui;
+
+    // #458 U4: area grouping, SoH's area totals, and search.
+    std::vector<ComboTrackerAreaRows> areas;
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "", areas);
+    printf("[TEST] combo-tracker-window U4: %d areas\n", (int)areas.size());
+    CTW_ASSERT(areas.size() == 2);
+    CTW_ASSERT(areas[0].key == 3 && strcmp(areas[0].name, "Area Three") == 0); // ascending key, not table order
+    CTW_ASSERT(areas[0].total == 2 && areas[0].done == 0 && CtwIds(areas[0]) == "11,13"); // unshuffled 14 never listed
+    CTW_ASSERT(areas[1].key == 7 && areas[1].total == 2 && areas[1].done == 2 && CtwIds(areas[1]) == "10,12");
+    // Search by a revealed item: one row, its area's totals unchanged.
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "fairy bow", areas);
+    CTW_ASSERT(areas.size() == 1 && areas[0].key == 7 && CtwIds(areas[0]) == "10" && areas[0].total == 2);
+    // By area name: the whole area.
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "three", areas);
+    CTW_ASSERT(areas.size() == 1 && CtwIds(areas[0]) == "11,13");
+    // By check name, case-insensitively, and an exclusion term.
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "ROOF", areas);
+    CTW_ASSERT(areas.size() == 1 && CtwIds(areas[0]) == "12");
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "chest,-tower", areas);
+    CTW_ASSERT(areas.size() == 2 && CtwIds(areas[0]) == "11,13" && CtwIds(areas[1]) == "12");
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "nothing matches this", areas);
+    CTW_ASSERT(areas.empty());
+    // No data: no areas, not an empty-but-present list.
+    Combo_Tracker_RegisterOoT(NULL);
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "", areas);
+    CTW_ASSERT(areas.empty());
+    return TEST_PASS;
+}
+
+int LockAreas(void) {
+    Combo_Tracker_RegisterOoT(&kCtwOps);
+    const int result = LockAreasBody();
+    OoT_TrackerAdapter_Register(); // the production adapter, whatever the result
+    return result;
+}
+
+/** Every section runs, so one red section does not hide another's state. */
+int TrackerLayoutLocks(void) {
+    const int r815 = Lock815();
+    const int r816 = Lock816();
+    const int rAreas = LockAreas();
+    printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s\n",
+           r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
+           rAreas == TEST_PASS ? "PASS" : "FAIL");
+    return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS) ? TEST_PASS : TEST_FAIL;
+}
+
 } // namespace
 
 extern "C" int Combo_TrackerWindow_RunHeadless(void) {
@@ -246,6 +492,11 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             // reads its open draw path would make (header point 3).
             CTW_ASSERT(TrackerDriveModelReads());
         }
+    }
+
+    // ---- 5. Layout and grouping decisions (#458 U4, #815, #816) ------------
+    if (TrackerLayoutLocks() != TEST_PASS) {
+        return TEST_FAIL;
     }
 
 #ifdef RSBS_SOURCE_DIR

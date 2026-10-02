@@ -170,6 +170,18 @@ extern "C" int OoT_TrackerAdapter_TestAuthorWorld(uint32_t seed, uint16_t outIds
     sTrackerTestWorld = Rando::Context::CreateInstance();
     sTrackerTestWorld->SetSeed(seed);
 
+    // The rows' names, areas and placed-item names (#458 U4) come from OoT's
+    // static location and item tables, which only OoT's bring-up fills; a
+    // ROM-free tier never ran it. Fill whichever is still empty (both are static
+    // tables that a fill overwrites with the same contents, and InitItemTable
+    // reads the Context created above).
+    if (Rando::StaticData::GetLocation(RC_KF_KOKIRI_SWORD_CHEST)->GetName().empty()) {
+        Rando::StaticData::InitLocationTable();
+    }
+    if (Rando::StaticData::RetrieveItem(RG_KOKIRI_SWORD).GetName().GetEnglish().empty()) {
+        Rando::StaticData::InitItemTable();
+    }
+
     struct {
         RandomizerCheck rc;
         RandomizerCheckStatus status;

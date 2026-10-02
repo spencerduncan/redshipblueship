@@ -135,4 +135,24 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     Combo_Tracker_RegisterMM(&desc);
 }
 
+/**
+ * TEST BRIDGE (redship --test combo-tracker-view, #458 U4): store the MM item
+ * whose display name is `name` at check `checkId` of the SaveContext image
+ * `save`, as a generated world would, so the ROM-free lock can author a placed
+ * item without seeing RandoItemId. Returns 1 when written, 0 for a bad argument
+ * or a name no MM item carries.
+ */
+extern "C" int MM_TrackerAdapter_TestSetStoredItem(void* save, uint16_t checkId, const char* name) {
+    if (save == nullptr || name == nullptr || checkId >= (uint16_t)RC_MAX) {
+        return 0;
+    }
+    for (const auto& [randoItemId, item] : Rando::StaticData::Items) {
+        if (item.name != nullptr && std::strcmp(item.name, name) == 0) {
+            static_cast<SaveContext*>(save)->save.shipSaveInfo.rando.randoSaveChecks[checkId].randoItemId = randoItemId;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE
