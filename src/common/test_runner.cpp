@@ -1438,6 +1438,8 @@ TestResult Test_RandoEntrancePin(void) {
 // the profile travels with the lock. Before #800 MM's host rule refused every
 // shop slot, so the MM-hosted crossings could only ever land in chests. Prints
 // both directions' crossing counts; the OoT-shop half is #800's OoT-side change.
+// #800 pass 2 turns MM's "Shuffle Tingle Maps" on too and requires a crossing in
+// one of Tingle's map slots as well.
 extern "C" int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, int* outIsTingleShop);
 
 TestResult Test_RandoShopCrossingsMM(void) {
@@ -1454,10 +1456,12 @@ TestResult Test_RandoShopCrossingsMM(void) {
     InitOTRForMMFirstBoot(1, fakeArgv);
 
     static const char* const kShopCvars[] = { "gRandoSettings.Shopsanity", "gRandoSettings.ShopsanityCount",
-                                              "gRando.Options.RO_SHUFFLE_SHOPS" };
+                                              "gRando.Options.RO_SHUFFLE_SHOPS",
+                                              "gRando.Options.RO_SHUFFLE_TINGLE_SHOPS" };
     CVarSetInteger(kShopCvars[0], 1); // "Specific Count"
     CVarSetInteger(kShopCvars[1], 4);
     CVarSetInteger(kShopCvars[2], 1);
+    CVarSetInteger(kShopCvars[3], 1); // #800 pass 2: Tingle's map slots host crossings too
     // RSBS_SHOP_CROSSING_SEED overrides the pinned seed, for re-pinning by scan.
     const char* seedEnv = std::getenv("RSBS_SHOP_CROSSING_SEED");
     const char* seed = (seedEnv != nullptr && seedEnv[0] != '\0') ? seedEnv : "RSBSSHOPS1";
@@ -1475,23 +1479,35 @@ TestResult Test_RandoShopCrossingsMM(void) {
 
     const int mmHosted = Combo_Crossings_Count(GAME_MM);
     int mmShopHosted = 0;
+    int mmTingleHosted = 0;
     for (int i = 0; i < mmHosted; i++) {
         ComboCrossing row;
         int isShop = 0;
-        if (Combo_Crossings_At(GAME_MM, i, &row) && MM_Rando_Foreign_TestCheckShopClass(row.hostCheck, &isShop, nullptr) &&
-            isShop) {
-            mmShopHosted++;
-            printf("[TEST]   MM shop slot %u hosts OoT item %u\n", (unsigned)row.hostCheck, (unsigned)row.item.id);
+        int isTingle = 0;
+        if (Combo_Crossings_At(GAME_MM, i, &row) &&
+            MM_Rando_Foreign_TestCheckShopClass(row.hostCheck, &isShop, &isTingle)) {
+            if (isShop) {
+                mmShopHosted++;
+                printf("[TEST]   MM shop slot %u hosts OoT item %u\n", (unsigned)row.hostCheck, (unsigned)row.item.id);
+            } else if (isTingle) {
+                mmTingleHosted++;
+                printf("[TEST]   MM Tingle map slot %u hosts OoT item %u\n", (unsigned)row.hostCheck,
+                       (unsigned)row.item.id);
+            }
         }
     }
     printf("[TEST] rando-shop-crossings-mm: seed %s: %d crossings hosted in OoT, %d in MM, %d of them in MM shop "
-           "slots\n",
-           seed, Combo_Crossings_Count(GAME_OOT), mmHosted, mmShopHosted);
+           "slots, %d in Tingle map slots\n",
+           seed, Combo_Crossings_Count(GAME_OOT), mmHosted, mmShopHosted, mmTingleHosted);
     if (mmShopHosted < 1) {
         printf("[TEST] FAIL: no OoT item crossed into an MM shop slot\n");
         return TEST_FAIL;
     }
-    printf("[TEST] PASS: an OoT item crossed into an MM shop slot\n");
+    if (mmTingleHosted < 1) {
+        printf("[TEST] FAIL: no OoT item crossed into a Tingle map slot\n");
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: an OoT item crossed into an MM shop slot and into a Tingle map slot\n");
     return TEST_PASS;
 }
 

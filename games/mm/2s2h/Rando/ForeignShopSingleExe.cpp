@@ -10,6 +10,8 @@
  *  - MM_EnGirlA_TestForeignPurchase: the ForeignItemGiveShop row's purchase legs
  *    (src/common/tests/test_foreign_shop_mm.c);
  *  - MM_EnGirlA_TestHagsMushroomRearm: the same row's re-armed Hags leg;
+ *  - MM_EnBal_TestForeignPurchase: the same row's Tingle map legs (#800 pass 2),
+ *    through the functions EnBal.cpp's hooks answer with;
  *  - MM_Shop_PlaytestWarp / MM_Shop_PlaytestShopFrame: the env-gated playtest
  *    drive (RSBS_GP_MM_SHOP=1), called from the gameplay round trip's MM frame
  *    tick in GameExports_SingleExe.cpp.
@@ -193,6 +195,82 @@ extern "C" void MM_EnGirlA_TestHagsMushroomRearm(int* outFirstArm, int* outCross
            (unsigned)rc, Rando::Foreign::IsForeignCheck(rc) ? "foreign host" : "native", *outFirstArm, *outCrossed,
            *outLaterArm);
     check = priorCheck;
+}
+
+/** A Tingle map slot (EnBal.cpp's tingleMap: North Clock Town's first map). */
+extern "C" uint16_t MM_EnBal_TestTingleMapCheck(void) {
+    return (uint16_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01;
+}
+
+// ============================================================================
+// TEST BRIDGE (ForeignItemGiveShop row, the Tingle legs; #800 pass 2). Tingle's
+// purchase (z_en_bal.c, the map-choice branch) runs three rando hooks
+// (ActorBehavior/EnBal.cpp), in this order:
+//   - VB_NOT_AFFORD_TINGLE_MAP loads the slot's own price; the vanilla branch
+//     then charges it (MM_Rupees_ChangeBy(-price));
+//   - VB_ALREADY_HAVE_TINGLE_MAP refuses the sale when TingleMapSlotSold says so;
+//   - VB_TINGLE_GIVE_MAP_UNLOCK arms the slot's `.eligible`, and CheckQueue
+//     gives it: its foreign branch (gated on IsForeignCheck) calls
+//     GiveForeignCheck, the same give a chest's pickup makes.
+// His offer (texts 0x1D11-0x1D16) names each slot by TingleOfferedItemName.
+//
+// Here, on slot `randoCheckId` as the caller placed it (a placement present;
+// pairing live or not, per `paired`), as the paired fill leaves it (shuffled,
+// holding MM's junk cover): the offer's name must be `wantName`; the first sale
+// is allowed; the arm and CheckQueue's foreign give; then a second visit's
+// "already have", also after the three-day reset clears `cycleObtained`
+// (OnCycleSave.cpp). Prints the observation; returns 0 on success, a step code
+// otherwise. The save check is restored.
+// ============================================================================
+extern "C" int MM_EnBal_TestForeignPurchase(uint16_t randoCheckId, int paired, const char* wantName) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return 90;
+    }
+    const RandoCheckId rc = (RandoCheckId)randoCheckId;
+    const RandoSaveCheck priorCheck = RANDO_SAVE_CHECKS[rc];
+    RandoSaveCheck& check = RANDO_SAVE_CHECKS[rc];
+    check.randoItemId = RI_JUNK;
+    check.shuffled = true;
+    check.obtained = false;
+    check.cycleObtained = false;
+    check.eligible = false;
+    check.price = 41;
+
+    const std::string offered = Rando::ActorBehavior::TingleOfferedItemName(rc);
+    const bool soldBefore = Rando::ActorBehavior::TingleMapSlotSold(rc);
+    const int before = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true);
+    check.eligible = true; // VB_TINGLE_GIVE_MAP_UNLOCK's arm
+    const bool queueTakesForeignBranch = Rando::Foreign::IsForeignCheck(rc);
+    if (queueTakesForeignBranch) {
+        Rando::Foreign::GiveForeignCheck(rc);
+    }
+    const int crossed = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true) - before;
+    const bool soldAfter = Rando::ActorBehavior::TingleMapSlotSold(rc);
+    check.cycleObtained = false; // OnCycleSave.cpp's three-day reset
+    const bool soldNextCycle = Rando::ActorBehavior::TingleMapSlotSold(rc);
+    printf("[TEST]   T Tingle map slot %u (%s): offer names \"%s\" (want \"%s\"); first sale refused=%d; CheckQueue "
+           "foreign branch=%d; crossings authored=%d; obtained=%d; second sale refused=%d, after the three-day "
+           "reset=%d\n",
+           (unsigned)rc, paired ? "paired" : "UNPAIRED", offered.c_str(), wantName != nullptr ? wantName : "?",
+           soldBefore ? 1 : 0, queueTakesForeignBranch ? 1 : 0, crossed, check.obtained ? 1 : 0, soldAfter ? 1 : 0,
+           soldNextCycle ? 1 : 0);
+
+    int code = 0;
+    if (wantName == nullptr || offered != wantName) {
+        code = 1; // the offer does not name the hosted OoT item
+    } else if (soldBefore) {
+        code = 2;
+    } else if (!queueTakesForeignBranch) {
+        code = 3;
+    } else if (paired && crossed != 1) {
+        code = 4; // the purchase did not hand the OoT item to the shared structure
+    } else if (!paired && crossed != 0) {
+        code = 5; // #610: no live pairing, so no record may be authored
+    } else if (!soldAfter || !soldNextCycle) {
+        code = 6; // a delivered foreign slot must refuse a second sale for the whole game
+    }
+    check = priorCheck;
+    return code;
 }
 
 // ============================================================================

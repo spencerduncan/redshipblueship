@@ -166,8 +166,10 @@ bool ConsumeForcedLadderRung();
 /** Is this check of a class MM's foreign give path delivers from? Tier A: a
  *  cycle-reset chest, whose `.eligible` bit game code arms on the ordinary
  *  CheckQueue path. Tier S (#800 pass 1): a shop slot (RCTYPE_SHOP), whose
- *  purchase delivers through GiveForeignCheck below. Never a Tingle map slot
- *  (#800 pass 2). The host-class half of the retired forward pass's
+ *  purchase delivers through GiveForeignCheck below. Tier T (#800 pass 2): a
+ *  Tingle map slot (RCTYPE_TINGLE_SHOP), whose sale arms `.eligible`, so the
+ *  CheckQueue foreign branch delivers it as it does a Tier A chest. The
+ *  host-class half of the retired forward pass's
  *  IsEligibleHost (#488).
  *  No save state is read, so it answers for a host the fill has not filled yet —
  *  which is the question the single-bag coordinator asks before it draws a

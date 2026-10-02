@@ -991,8 +991,9 @@ void ClearPlacements(void* self) {
  * the host class MM's foreign give path delivers from — the class the forward
  * overlay pass always used (Rando::Foreign::IsForeignHostClass, Foreign.cpp):
  * a check whose `.eligible` bit game code arms on the ordinary CheckQueue path,
- * or (#800 pass 1) a shop slot, whose purchase delivers through the same foreign
- * give; never a Tingle map slot. A crossing anywhere else would leave the player
+ * (#800 pass 1) a shop slot, whose purchase delivers through the same foreign
+ * give, or (#800 pass 2) a Tingle map slot, whose sale arms `.eligible` for the
+ * CheckQueue path. A crossing anywhere else would leave the player
  * holding the RI_JUNK cover instead of the item.
  */
 int HostAcceptsForeign(void* self, uint16_t hostCheck) {

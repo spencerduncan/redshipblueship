@@ -31,6 +31,10 @@ bool ShopShelfSlotSold(RandoCheckId rc);
 // CheckQueue's give: shuffled, not armed yet, and not a foreign host whose
 // crossing was already delivered on an earlier cycle.
 bool HagsMushroomSlotArmable();
+// Tingle's map slots (EnBal.cpp): the name his offer gives slot `rc`'s item, and
+// whether a purchase of it is refused as "already have".
+std::string TingleOfferedItemName(RandoCheckId rc);
+bool TingleMapSlotSold(RandoCheckId rc);
 
 void InitDmChar01Behavior();
 void InitDmChar05Behavior();
