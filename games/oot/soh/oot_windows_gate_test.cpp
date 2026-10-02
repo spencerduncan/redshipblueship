@@ -60,6 +60,7 @@
 #include "soh/SohGui/OoTActiveGated.h"
 #include "soh/Enhancements/debugconsole.h"
 #include "soh/Enhancements/debugger/MessageViewer.h"
+#include "soh/Enhancements/item-tables/ItemTableManager.h"
 #include "soh/cvar_prefixes.h"
 #include "context.h"
 
@@ -315,9 +316,24 @@ int RunConsoleAndKnifeGate() {
         FillSaveCanary(canary);
 
         // #826: OoT running but not in Play (its title screen or file select), so the gate opens and OoT_gPlayState is
-        // still NULL. entrance and give_item must refuse in their handlers instead of dereferencing it. entrance runs
-        // first: it touches nothing before the play state, while give_item's item-table lookup also has no instance in
-        // this harness (no OTRGlobals), so the guard has to come before that lookup.
+        // still NULL. entrance and give_item must refuse in their handlers instead of dereferencing it. This harness
+        // does not run OTRGlobals, which is what creates ItemTableManager::Instance, so give_item's vanilla item-table
+        // lookup would fault on that NULL instance before it reached the play state. A harness-local instance stands in
+        // for it (an empty MOD_NONE table: the lookup returns GET_ITEM_NONE) and the lookup is exercised directly
+        // first, so an unguarded give_item gets past it and faults in GiveItemEntryWithoutActor on the NULL play state
+        // instead.
+        ItemTableManager* const savedItemTables = ItemTableManager::Instance;
+        std::unique_ptr<ItemTableManager> harnessItemTables;
+        if (ItemTableManager::Instance == nullptr) {
+            harnessItemTables = std::make_unique<ItemTableManager>();
+            harnessItemTables->AddItemTable(MOD_NONE);
+            ItemTableManager::Instance = harnessItemTables.get();
+        }
+        const GetItemEntry lookedUp = ItemTableManager::Instance->RetrieveItemEntry(MOD_NONE, 1);
+        printf(
+            "[TEST] oot-windows-gate: item-table lookup (MOD_NONE, 1) returned getItemId %d through the %s instance\n",
+            (int)lookedUp.getItemId, harnessItemTables != nullptr ? "harness" : "real");
+        fflush(stdout);
         const char* const kPlayStateCommands[] = { "entrance 0", "give_item vanilla 1" };
         for (const char* line : kPlayStateCommands) {
             printf("[TEST] oot-windows-gate: Ocarina of Time running, no play state, console `%s`\n", line);
@@ -335,6 +351,7 @@ int RunConsoleAndKnifeGate() {
                 memcpy(&gSaveContext, canary.data(), canary.size());
             }
         }
+        ItemTableManager::Instance = savedItemTables;
         fflush(stdout);
     }
 
