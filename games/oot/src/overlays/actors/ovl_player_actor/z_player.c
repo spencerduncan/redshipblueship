@@ -33,6 +33,9 @@
 #include "soh/frame_interpolation.h"
 #include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "soh/Enhancements/randomizer/ForeignModelHostOoT.h" // the show-only get-item entry (#577 M4)
+#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -14239,9 +14242,18 @@ s32 func_8084DFF4(PlayState* play, Player* this) {
                    equipItem >= ITEM_SWORD_KOKIRI && equipItem <= ITEM_TUNIC_ZORA && CHECK_AGE_REQ_ITEM(equipItem);
 
         OoT_Message_StartTextbox(play, giEntry.textId, &this->actor);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #577 M4: a Majora's Mask item on an OoT check is shown here and given
+        // nothing: its crossing is already recorded, and MM gives it on arrival.
+        const s32 showOnly = OoT_Rando_Foreign_TakeShowOnlyGetItem(&giEntry);
+#else
+        const s32 showOnly = false;
+#endif
         // RANDOTODO: Macro this boolean check.
         if (!(giEntry.modIndex == MOD_RANDOMIZER && giEntry.itemId == RG_ICE_TRAP)) {
-            if (giEntry.modIndex == MOD_NONE) {
+            if (showOnly) {
+                // Nothing to give.
+            } else if (giEntry.modIndex == MOD_NONE) {
                 // RANDOTOD: Move this into OoT_Item_Give() or some other more central location
                 if (giEntry.getItemId == GI_SWORD_BGS) {
                     gSaveContext.bgsFlag = true;
