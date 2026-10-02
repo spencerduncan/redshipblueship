@@ -1056,8 +1056,13 @@ int LegProbeRefusals() {
         RsbsSave_ResetSlotSessionState();
         std::error_code ec;
         std::filesystem::create_directory(path, ec);
-        note(ExpectRefused(code++, "unreadable", Probe(1), RSBS_REFUSE_UNREADABLE,
-                           Combo_SaveFiles_RefuseText(RSBS_REFUSE_UNREADABLE)));
+        // A directory at the slot path: MSVC's ifstream cannot open it
+        // (UNREADABLE); libstdc++ opens it and the first read fails (HEADER).
+        // Either way it is a refusal with the page's words and nothing moved.
+        const ProbeResult probe = Probe(1);
+        const RsbsRefuseReason got = static_cast<RsbsRefuseReason>(RsbsSave_GetSlotRefuseReason(kSlot));
+        const RsbsRefuseReason want = got == RSBS_REFUSE_HEADER ? RSBS_REFUSE_HEADER : RSBS_REFUSE_UNREADABLE;
+        note(ExpectRefused(code++, "unreadable", probe, want, Combo_SaveFiles_RefuseText(want)));
         std::filesystem::remove(path, ec);
     }
 
