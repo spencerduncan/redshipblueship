@@ -1,6 +1,6 @@
 /**
  * CheckStateLoadSingleExe.cpp — OoT's check state follows the save half that
- * was loaded (#849, and the load leg of #803).
+ * was loaded (#849, and the load leg of #803, which runs the same way).
  *
  * WHERE THE STATE LIVES. Whether an OoT check is obtained is
  * Rando::ItemLocation::status on the heap Rando::Context (HasObtained() is
@@ -16,16 +16,21 @@
  * .sav has it, so the statuses describe the .sav's base and not the half that
  * is now live:
  *
- *   - forward (#849): a heart piece, small key, heart container or shuffled
+ *   - forward (#849, and #803's load leg): a heart piece, small key, heart container or shuffled
  *     freestanding item collected before the crossing has its flag set in the
  *     loaded half but reads SCUMMED. Their despawn tests read the status
  *     (hook_handlers.cpp VB_ITEM00_DESPAWN / VB_ITEM_B_HEART_DESPAWN,
  *     ShuffleFreestanding.cpp), so the item is back in the world, and the
  *     check trackers show the check as not found.
- *   - backward (#803's load leg): a check the .sav holds as SAVED whose flag
- *     the loaded half does not have (a half that went back). Opening the chest
- *     again fires the flag-set hook, which queues nothing for an obtained
- *     location (RandomizerOnSceneFlagSetHandler), so the item is never given.
+ *   - reverse: a check the .sav holds as SAVED whose flag the loaded half
+ *     does not have (a half that went back). Opening the chest again fires the
+ *     flag-set hook, which queues nothing for an obtained location
+ *     (RandomizerOnSceneFlagSetHandler), so the item is never given. No
+ *     production load is known to produce this: the half is only applied when
+ *     the .redsave's commit is newer than the .sav's (a .sav-newer pair is
+ *     refused, save.cpp EvaluateSlot), and save flags only get set in play.
+ *     The rule covers it anyway, so a half that does go back cannot strand an
+ *     item.
  *
  * THE RULE. In a rando file every give is queued when its location's
  * collection flag goes from unset to set (RandomizerOnFlagSetHandler and
@@ -167,7 +172,8 @@ bool HooksResolveTo(RandomizerCheck rc, const CollectionFlag& f) {
  * where it differs from `described`, the half the statuses were loaded beside
  * (the .sav's base section). See the file comment for the rule. Rando files
  * only: a vanilla file's tracker marks checks through its own maps
- * (CheckTrackerFlagSet) and gives nothing through these statuses.
+ * (CheckTrackerFlagSet) and gives nothing through these statuses, so on a
+ * vanilla file the tracker's display can still lag the loaded half.
  *
  * @return the number of checks changed; *outFound / *outNotFound (either may
  *         be NULL) split it. 0 with no heap Rando::Context.

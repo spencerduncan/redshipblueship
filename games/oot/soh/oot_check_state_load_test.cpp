@@ -1,6 +1,7 @@
 /**
  * @file oot_check_state_load_test.cpp
- * ROM-free, display-free lock for #849 and the load leg of #803: after a load,
+ * ROM-free, display-free lock for #849 and the load leg of #803 (the same
+ * direction), plus the reverse direction: after a load,
  * OoT's check state follows the save half that was actually loaded. CTest
  * label "redship", row OoTCheckStateLoad in CMake/SingleExecutable.cmake,
  * dispatch "oot-check-state-load" in src/common/test_runner.cpp.
@@ -11,16 +12,18 @@
  * (every reload after a crossing, since #846) applies the .redsave's OoT half
  * over the .sav's base section, and the statuses stay as the .sav has them:
  *
- *   Leg A (#849): a heart piece collected before the crossing is in the loaded
+ *   Leg A (#849, #803's load leg): a heart piece collected before the crossing is in the loaded
  *   half (its collectible flag is set) but reads SCUMMED, the status a
  *   section-only tracker save writes. VB_ITEM00_DESPAWN despawns it on
  *   HasObtained() alone (hook_handlers.cpp), so it is back in the world. The
  *   same leg carries a shuffled freestanding rupee, whose flag is a
  *   RandomizerInf and whose despawn test is ShuffleFreestanding.cpp's.
- *   Leg B (#803's load leg): a chest the .sav saved as SAVED is closed again in
- *   the loaded half (a half that went back). Opening it fires the real
- *   scene-flag hook, which queues nothing for an obtained check: the item is
- *   never given.
+ *   Leg B (reverse): a chest the .sav saved as SAVED is closed again in the
+ *   loaded half (a half that went back). Opening it fires the real scene-flag
+ *   hook, which queues nothing for an obtained check: the item is never given.
+ *   No production load is known to produce this state (a .sav-newer pair is
+ *   refused, and the half is only applied when it is newer); the leg locks
+ *   the rule's other direction.
  *
  * THE SEAM UNDER TEST. OoT_Combo_OnLoadFileSeam (games/oot/soh/SaveManager.cpp),
  * the body of OoT's OnLoadFile hook, driven exactly as LoadFile drives it: the
@@ -280,7 +283,7 @@ int RunLegs(void) {
     CheckControls("leg A");
 
     // ======================================================================
-    // Leg B (#803's load leg): rolled back, reopened.
+    // Leg B (reverse): rolled back, reopened.
     // ======================================================================
     // The last OoT save holds the Kokiri Sword chest open and the .sav saved
     // its check SAVED. A newer commit carries an OoT half from before it was
@@ -311,7 +314,7 @@ int RunLegs(void) {
         OCSL_CHECK(closed, "leg B setup: the .redsave's newer OoT half, the one without the chest, is the one that "
                            "loaded");
         OCSL_CHECK(n == 1 && queued[0] == (uint16_t)RC_KF_KOKIRI_SWORD_CHEST,
-                   "#803: a chest the loaded half has closed gives its item when opened again (the .sav's SAVED "
+                   "reverse: a chest the loaded half has closed gives its item when opened again (the .sav's SAVED "
                    "status made the scene-flag hook queue nothing)");
         OCSL_CHECK(Loc(RC_LH_FREESTANDING_POH)->GetCheckStatus() == RCSHOW_UNCHECKED,
                    "leg B: a check neither half has collected stays as the .sav has it");

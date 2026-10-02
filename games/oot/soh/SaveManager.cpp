@@ -161,9 +161,11 @@ extern "C" void OoT_SlotMeta_Register(void) {
     RsbsSave_RegisterGameMeta(GAME_OOT, &desc);
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
 // CheckStateLoadSingleExe.cpp (#849): OoT's check statuses follow the loaded half.
 extern "C" int OoT_Combo_ReconcileCheckStateToLoadedHalf(const SaveContext* described, const SaveContext* loaded,
                                                          int* outFound, int* outNotFound);
+#endif
 
 /**
  * OoT's .redsave load seam, the body of the OnLoadFile hook SaveManager's
@@ -248,14 +250,18 @@ extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration
     // tracker section and describe the .sav's base section, which the half
     // has just replaced. They are made to follow the half that loaded
     // (#849, #803's load leg; CheckStateLoadSingleExe.cpp), against a copy of
-    // the base taken before the consume.
+    // the base taken before the consume. Single-exe only, as that file is.
     if (RsbsSave_TakeOoTHalfAuthority()) {
         const int32_t openedFileNum = gSaveContext.fileNum;
+#ifdef RSBS_SINGLE_EXECUTABLE
         const auto savBase = std::make_unique<SaveContext>(gSaveContext);
+#endif
         Combo_ConsumeFrozenState("oot", &gSaveContext, sizeof(gSaveContext));
         gSaveContext.fileNum = openedFileNum;
         SPDLOG_INFO("RSBS: applied the .redsave's OoT half over file{}.sav (newer whole commit, #589)", fileNum + 1);
+#ifdef RSBS_SINGLE_EXECUTABLE
         OoT_Combo_ReconcileCheckStateToLoadedHalf(savBase.get(), &gSaveContext, nullptr, nullptr);
+#endif
     }
 }
 
