@@ -431,6 +431,11 @@ void IntegrationTest_SetMode(IntegrationTestMode mode) {
         GameplayParseConfig();
     }
 
+    // #843: the capture lock may only be satisfied by this run's files.
+    if (mode != INT_TEST_NONE) {
+        FrameCapture_ResetForVerify();
+    }
+
     // Archive hot-swap cycle keeps a running arrival count / RSS baseline across
     // multiple OoT<->MM switches; reset it whenever this mode is (re)selected (#263).
     if (mode == INT_TEST_ARCHIVE_HOTSWAP_CYCLE) {
