@@ -315,8 +315,10 @@ int RunConsoleAndKnifeGate() {
         FillSaveCanary(canary);
 
         // #826: OoT running but not in Play (its title screen or file select), so the gate opens and OoT_gPlayState is
-        // still NULL. give_item and entrance must refuse in their handlers instead of dereferencing it.
-        const char* const kPlayStateCommands[] = { "give_item vanilla 1", "entrance 0" };
+        // still NULL. entrance and give_item must refuse in their handlers instead of dereferencing it. entrance runs
+        // first: it touches nothing before the play state, while give_item's item-table lookup also has no instance in
+        // this harness (no OTRGlobals), so the guard has to come before that lookup.
+        const char* const kPlayStateCommands[] = { "entrance 0", "give_item vanilla 1" };
         for (const char* line : kPlayStateCommands) {
             printf("[TEST] oot-windows-gate: Ocarina of Time running, no play state, console `%s`\n", line);
             fflush(stdout);
