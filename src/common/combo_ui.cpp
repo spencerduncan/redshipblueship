@@ -190,6 +190,10 @@ void FallbackRowText(const char* text, const ComboUiWidgetOpts* opts) {
 bool FallbackIconButton(const char* id, const char* icon, const ComboUiWidgetOpts* opts) {
     const ComboUiWidgetOpts& o = OptsOrDefault(opts);
     const float sz = ImGui::GetFrameHeight();
+    if (icon == nullptr) {
+        ImGui::Dummy(ImVec2(sz, sz));
+        return false;
+    }
     ImGui::PushID(id);
     ImGui::BeginDisabled(o.disabled);
     const bool clicked = ImGui::Button(icon, ImVec2(sz, sz));

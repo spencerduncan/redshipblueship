@@ -166,7 +166,10 @@ typedef struct {
      * line: SoH's check-tracker skip button (randomizer_check_tracker.cpp,
      * DrawLocation: UIWidgets::StateButton with ICON_FA_TIMES / ICON_FA_PLUS at
      * GetFrameHeight()). `id` is its ImGui id and the label it reports its rect
-     * under; `icon` is the glyph drawn. True when clicked.
+     * under; `icon` is the glyph drawn. True when clicked. A NULL `icon` draws
+     * DrawLocation's placeholder instead, an empty square of the same size (its
+     * ImGui::Dummy on a row with no button), so the rows' names stay in one
+     * column; it reports nothing and returns false.
      */
     bool (*IconButton)(const char* id, const char* icon, const ComboUiWidgetOpts* opts);
 } ComboUiTable;

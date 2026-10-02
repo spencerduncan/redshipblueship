@@ -2,7 +2,9 @@
  * @file combo_tracker_view.c
  * @brief The combo tracker's view model (#458). See combo_tracker_view.h.
  *
- * Everything here is a pure read: gComboCtx through the foreign_items.h
+ * Everything here is a read but one: the skip toggle (#458 U5), which writes
+ * one check's skip flag in the ACTIVE game's live state and nowhere else (see
+ * Combo_TrackerSetSkipped). The reads: gComboCtx through the foreign_items.h
  * accessors, the crossing store through crossing_store.h, the MM shadow blob
  * (or, while MM is played, the live save the MM adapter hands out, #799)
  * through the registered offset descriptor, and the OoT heap through the
@@ -329,21 +331,61 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
 // The skip toggle (#458 U5)
 // ============================================================================
 
+/**
+ * MM's skip write target: the live save, exactly when MMBlobIfPresent's pick
+ * reads it LIVE (MM active, play state loaded, marked) and it holds a
+ * randomized world; NULL otherwise. The shadow is never returned: a STALE
+ * panel has no write target at all.
+ */
+static uint8_t* MMLiveWriteTarget(void) {
+    if (!sMMRegistered || sMMDesc.liveSave == NULL || Context_GetCurrentGame() != GAME_MM) {
+        return NULL;
+    }
+    uint8_t* live = (uint8_t*)sMMDesc.liveSave();
+    if (!MMBlobMarked(live) || MMBlobReadU32(live, sMMDesc.saveTypeOffset) != sMMDesc.saveTypeRando) {
+        return NULL;
+    }
+    return live;
+}
+
+/** OoT takes skip writes only through a vtable that has them, while OoT is played. */
+static bool OoTSkipWritable(void) {
+    return sOoTOps != NULL && sOoTOps->skipWritable != NULL && Context_GetCurrentGame() == GAME_OOT &&
+           sOoTOps->skipWritable();
+}
+
 bool Combo_TrackerSkipWritable(uint8_t game) {
-    (void)game;
+    if (game == (uint8_t)GAME_MM) {
+        return MMLiveWriteTarget() != NULL;
+    }
+    if (game == (uint8_t)GAME_OOT) {
+        return OoTSkipWritable();
+    }
     return false;
 }
 
 bool Combo_TrackerRowSkippable(uint8_t game, const ComboTrackerCheckRow* row) {
-    (void)game;
-    (void)row;
-    return false;
+    return row != NULL && row->shuffled && !row->obtained && Combo_TrackerSkipWritable(game);
 }
 
 bool Combo_TrackerSetSkipped(uint8_t game, uint16_t checkId, bool skipped) {
-    (void)game;
-    (void)checkId;
-    (void)skipped;
+    if (game == (uint8_t)GAME_MM) {
+        uint8_t* live = MMLiveWriteTarget();
+        if (live == NULL || (uint32_t)checkId >= sMMDesc.checkCount) {
+            return false;
+        }
+        uint8_t* row = live + sMMDesc.checkTableOffset + (size_t)checkId * sMMDesc.checkStride;
+        if (row[sMMDesc.shuffledOffset] == 0 || row[sMMDesc.obtainedOffset] != 0) {
+            return false; // not part of the seed, or found: no toggle (the header's WHICH CHECKS)
+        }
+        // MM's own tracker flips this byte in the live save and its next save
+        // persists it; the departure freeze carries it into the shadow.
+        row[sMMDesc.skippedOffset] = skipped ? 1 : 0;
+        return true;
+    }
+    if (game == (uint8_t)GAME_OOT) {
+        return OoTSkipWritable() && sOoTOps->setSkipped(checkId, skipped);
+    }
     return false;
 }
 

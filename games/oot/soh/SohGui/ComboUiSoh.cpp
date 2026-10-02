@@ -282,6 +282,10 @@ bool SohIconButton(const char* id, const char* icon, const ComboUiWidgetOpts* op
     // DrawLocation's skip button (randomizer_check_tracker.cpp), statement for
     // statement: a StateButton one frame high and square, in the theme colour.
     const float sz = ImGui::GetFrameHeight();
+    if (icon == nullptr) {
+        ImGui::Dummy(ImVec2(sz, sz)); // DrawLocation's row without a button
+        return false;
+    }
     const bool disabled = opts != nullptr && opts->disabled;
     ImGui::BeginDisabled(disabled);
     const bool clicked =

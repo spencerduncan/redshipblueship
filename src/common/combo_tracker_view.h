@@ -9,8 +9,9 @@
  * game's progress, even though the data is resident the whole time — OoT is
  * suspended (not shut down) during MM so its heap survives, and MM's check
  * completion travels inside the frozen shadow blob as in-save POD. This model
- * is the read-only projection of both, plus the cross-game identity and
- * placements already in gComboCtx.
+ * is the projection of both, plus the cross-game identity and placements
+ * already in gComboCtx. It is read-only but for one write, the skip toggle
+ * (#458 U5), which only the LIVE panel takes.
  *
  * PER-GAME ADAPTERS, NEVER A MERGED ID SPACE (ADR 0002). The two check models
  * are irreconcilable by construction: MM keys an in-save POD table by
