@@ -165,11 +165,14 @@ int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size
 void Combo_FlushLiveStateForFreeze(GameId departing) {
     switch (departing) {
         case GAME_OOT:
+            // #770 / #807: the save writes actor Destroys make on any scene
+            // exit (windmill gear, Lake Hylia, a Light-Arrow-lit sun switch,
+            // Player's linkAge); the departure runs no Destroy. First, as in
+            // Actor_CleanupContext: a sun switch's Destroy unsets a live switch
+            // flag that the scene-flag flush below must then copy.
+            OoT_Combo_ApplySceneExitWritesForFreeze();
             OoT_Combo_FlushSceneFlagsForFreeze();
             OoT_Combo_ReviveDeadHealthForFreeze();
-            // #770: the save writes the windmill gear's and Lake Hylia's
-            // Destroys make on any scene exit; the departure runs no Destroy.
-            OoT_Combo_ApplySceneExitWritesForFreeze();
             break;
         case GAME_MM:
             MM_Combo_FlushSceneFlagsForFreeze();

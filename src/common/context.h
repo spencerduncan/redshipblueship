@@ -1518,11 +1518,14 @@ void Context_InvalidateSessionOnSlotLoad(void);
  *     continue value, healthAccumulator cleared) so an F10 during the
  *     game-over screen freezes a resumable half and hands the other game a
  *     live shared bar (MM #626, OoT #664);
- *   - OoT applies the save writes two actor Destroys make on ANY exit from
- *     their scene (the windmill gear clears the Song of Storms windmill flag;
- *     in rando after the Water Temple blue warp, the Lake Hylia objects raise
- *     the lake again), which the departure skips with every other Destroy
- *     (#770).
+ *   - OoT applies the save writes actor Destroys make on ANY exit from their
+ *     scene (the windmill gear clears the Song of Storms windmill flag; in
+ *     rando after the Water Temple blue warp, the Lake Hylia objects raise the
+ *     lake again; with SoH's Sunlight Arrows, a sun switch a Light Arrow lit
+ *     unsets its switch flag; Player writes linkAge = linkAgeOnLoad after
+ *     Play_Destroy's equipment swap), which the departure skips with every
+ *     other Destroy (#770, #807). OoT applies them BEFORE its scene-flag copy,
+ *     as Actor_CleanupContext does.
  *
  * Every production freeze driver calls this immediately before its freeze:
  * Combo_CheckEntranceSwitch before Combo_FreezeState, and

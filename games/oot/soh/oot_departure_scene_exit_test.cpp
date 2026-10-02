@@ -424,7 +424,8 @@ constexpr size_t kSceneCount = sizeof(gSaveContext.sceneFlags) / sizeof(gSaveCon
 SavedSceneFlags sSceneBefore[kSceneCount];
 
 Actor* AddSunSwitch(Scene* scene, s32 flag, s16 type, s8 room, bool hasDestroy) {
-    Actor* actor = AddActor(scene, ACTOR_OBJ_LIGHTSWITCH, (s16)((flag << 8) | (type << 4)), ACTORCAT_SWITCH, hasDestroy);
+    Actor* actor =
+        AddActor(scene, ACTOR_OBJ_LIGHTSWITCH, (s16)((flag << 8) | (type << 4)), ACTORCAT_SWITCH, hasDestroy);
     if (actor != NULL) {
         actor->room = room;
     }
@@ -568,9 +569,9 @@ void SetBucket(ItemEquips* bucket, u8 sword, u16 swordValue) {
     memset(bucket->buttonItems, ITEM_NONE, sizeof(bucket->buttonItems));
     memset(bucket->cButtonSlots, SLOT_NONE, sizeof(bucket->cButtonSlots));
     bucket->buttonItems[0] = sword;
-    bucket->equipment = (u16)((swordValue << (EQUIP_TYPE_SWORD * 4)) |
-                              (EQUIP_VALUE_TUNIC_KOKIRI << (EQUIP_TYPE_TUNIC * 4)) |
-                              (EQUIP_VALUE_BOOTS_KOKIRI << (EQUIP_TYPE_BOOTS * 4)));
+    bucket->equipment =
+        (u16)((swordValue << (EQUIP_TYPE_SWORD * 4)) | (EQUIP_VALUE_TUNIC_KOKIRI << (EQUIP_TYPE_TUNIC * 4)) |
+              (EQUIP_VALUE_BOOTS_KOKIRI << (EQUIP_TYPE_BOOTS * 4)));
 }
 
 ItemEquips sEquipsBefore[3];
@@ -621,7 +622,8 @@ bool AgeUntouched(const SaveContext* save, u8 age) {
 // wearing the child bucket, with the adult's equips archived.
 bool BecameChild(const SaveContext* save) {
     if (save->linkAge != kChild || save->equips.buttonItems[0] != ITEM_SWORD_KOKIRI ||
-        SwordValue(&save->equips) != EQUIP_VALUE_SWORD_KOKIRI || save->adultEquips.buttonItems[0] != ITEM_SWORD_MASTER ||
+        SwordValue(&save->equips) != EQUIP_VALUE_SWORD_KOKIRI ||
+        save->adultEquips.buttonItems[0] != ITEM_SWORD_MASTER ||
         SwordValue(&save->adultEquips) != EQUIP_VALUE_SWORD_MASTER) {
         printf("[TEST] linkAge=%d B=0x%02X sword=%d adultB=0x%02X adultSword=%d\n", (int)save->linkAge,
                save->equips.buttonItems[0], SwordValue(&save->equips), save->adultEquips.buttonItems[0],
