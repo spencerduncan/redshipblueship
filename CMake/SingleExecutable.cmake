@@ -2218,6 +2218,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # latched, slot-less, freeze-less or not-live departure writes nothing.
     # ROM-free. src/common/tests/test_crossing_commit.c.
     redship_add_test(NAME CrossingCommit COMMAND redship --test crossing-commit)
+    # #849 / #803's load leg: a load whose .redsave holds a newer OoT half than
+    # the .sav makes OoT's check statuses follow that half (a check whose own
+    # collection flag differs between the two halves takes the loaded half's
+    # answer). Drives the real OnLoadFile seam over a real .redsave and an
+    # authored Rando::Context; ROM-free. games/oot/soh/oot_check_state_load_test.cpp.
+    redship_add_test(NAME OoTCheckStateLoad COMMAND redship --test oot-check-state-load)
     # Lane F1 (wave 7g, #310): test windows never take keyboard focus from the
     # person at the workstation. main.cpp arms SDL's no-activation hint in code for
     # every --test / --integration-test process (src/common/test_window_focus.h),

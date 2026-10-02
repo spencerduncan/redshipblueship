@@ -78,6 +78,7 @@ games/mm/src/code/z_visfbuf.c
 games/mm/src/overlays/gamestates/ovl_title/z_title.c
 games/oot/soh/Enhancements/cosmetics/CustomLogoTitle.cpp
 games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
+games/oot/soh/Enhancements/randomizer/CheckStateLoadSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/ItemAdapterSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp
 games/oot/soh/GameExports_SingleExe.cpp
@@ -94,6 +95,7 @@ games/oot/soh/soh_menu_registrar_test.cpp
 games/oot/soh/soh_shipinit_driver_test.cpp
 games/oot/soh/z_scene_otr.cpp
 games/oot/soh/oot_scene_flag_freeze_test.cpp
+games/oot/soh/oot_check_state_load_test.cpp
 games/oot/src/code/audio_load.c
 games/oot/src/code/code_800E4FE0.c
 games/oot/src/code/code_800F9280.c
