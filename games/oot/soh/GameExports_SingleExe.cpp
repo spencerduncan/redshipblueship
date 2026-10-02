@@ -1085,8 +1085,8 @@ static void PfcChestPlaytestLogHosts(void) {
             continue;
         }
         const char* item = Combo_GetForeignItemName(row.item);
-        fprintf(stderr, "[M5-PLAYTEST] created: MM %s in OoT chest %s (check %u, scene %d)\n", item != NULL ? item : "?",
-                loc->GetName().c_str(), (unsigned)row.hostCheck, (int)loc->GetScene());
+        fprintf(stderr, "[M5-PLAYTEST] created: MM %s in OoT chest %s (check %u, scene %d)\n",
+                item != NULL ? item : "?", loc->GetName().c_str(), (unsigned)row.hostCheck, (int)loc->GetScene());
         shown++;
     }
     fprintf(stderr, "[M5-PLAYTEST] created: %d MM item(s) in OoT chests\n", shown);
@@ -1122,7 +1122,8 @@ static void PfcChestPlaytestWarpFrame(PlayState* play, int frame) {
                                                                                   : "other");
         chests++;
     }
-    fprintf(stderr, "[M5-PLAYTEST] warp arrival: %d chest actor(s) in scene %d, CSMC on\n", chests, (int)play->sceneNum);
+    fprintf(stderr, "[M5-PLAYTEST] warp arrival: %d chest actor(s) in scene %d, CSMC on\n", chests,
+            (int)play->sceneNum);
     fflush(stderr);
 }
 
