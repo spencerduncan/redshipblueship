@@ -1464,9 +1464,11 @@ void OoT_EnGirlA_Draw(Actor* thisx, PlayState* play) {
 #ifdef RSBS_SINGLE_EXECUTABLE
         // #800 S1: a shelf hosting an MM item shows that item's model, drawn from
         // MM's descriptor (ForeignModelHostOoT.cpp), and never the junk cover the
-        // OoT table holds there. Where OoT cannot draw the model (MM's archive
-        // not mounted yet, a colliding model, host-native or not, a model the
-        // descriptor cannot express), the mystery item stands in for it.
+        // OoT table holds there; a colliding MM model OoT's host-native table
+        // maps shows OoT's own model for it (#832). Where OoT cannot draw the
+        // model (MM's archive not mounted yet, a colliding model with no
+        // host-native row, a model the descriptor cannot express), the mystery
+        // item stands in for it.
         if (!CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0) &&
             OoT_Rando_Foreign_HostsForeign(shopItemIdentity.identity.randomizerCheck)) {
             if (OoT_ForeignModel_DrawForOoTCheck(play, shopItemIdentity.identity.randomizerCheck)) {

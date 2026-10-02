@@ -61,11 +61,11 @@
  *     (OoT_ForeignModel_DrawForOoTCheck, what OoT_EnGirlA_Draw calls; the actor
  *     itself is not run here) for an OoT check hosting an MM item, into a real
  *     OoT GraphicsContext: a mounted MM-exclusive model (the Deku Mask) emits
- *     exactly MM's descriptor lists with a matrix first; unmounted, with no
- *     placement, or for any answer other than a DESCRIPTOR (Odolwa's Remains:
- *     no model; MM's hookshot: no model before #577 M7, HOST_NATIVE after it,
- *     which this host does not draw yet) it emits no model list and answers 0,
- *     so the shelf keeps its stand-in.
+ *     exactly MM's descriptor lists with a matrix first; a colliding MM model
+ *     OoT's host-native table maps (MM's hookshot, #577 M7) emits OoT's OWN row
+ *     for it, the lists OoT's own recipe gives that row (#832); unmounted, with
+ *     no placement, or for a no-model answer (Odolwa's Remains) it emits no
+ *     model list and answers 0, so the shelf keeps its stand-in.
  *  M13 OoT'S GET-ITEM CUTSCENE (#577 M4): the display-without-grant path for
  *     an OoT check hosting an MM item. The drain's REAL queueing takes the queue
  *     slot with a show-only entry (the show-only draw, a valid object, a draw
@@ -79,6 +79,13 @@
  *     when unmounted or for a no-model answer (Odolwa's Remains). No placement:
  *     nothing queued. The give point itself (func_8084DFF4) needs a live
  *     Player: the playtest shows it.
+ *  M14 OoT'S CHEST APPEARANCE (#577 M5): with "Chest Size & Texture Matches
+ *     Contents" on, an OoT chest takes its look from the item the OoT table holds
+ *     there, which for a crossing host is the junk cover. The category the chest
+ *     presents (OoT_Rando_Foreign_ChestCategory, what z_en_box.c's init asks) is
+ *     major for any MM item, as MM's chests present any OoT item (EnBox.cpp), and
+ *     the chest's own for a check with no MM item. The actor's texture swap
+ *     itself loads resources: the playtest shows it.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -134,6 +141,8 @@ int OoT_ForeignModel_TestPathMountedReal(const char* dl);
 int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* want);
 // #577 M4: OoT's get-item cutscene (ForeignModelHostOoT.cpp).
 int OoT_ForeignModel_TestShowOnlyGetItem(uint16_t rc, int wantEntry, const ComboModel* want, const char* wantName);
+// #577 M5: OoT's chest appearance for a crossing host (ForeignItemsSingleExe.cpp).
+int OoT_Rando_Foreign_TestChestShowsMajor(uint16_t rc);
 }
 
 #define FM_ASSERT(cond, msg)                                                \
@@ -1217,11 +1226,20 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, dekuMask, &maskA) == kDesc &&
                       Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &odolwaA) == kNone,
                   "M12 MM's Deku Mask is a DESCRIPTOR in OoT, Odolwa's Remains is no model");
-        // MM's hookshot collides: "no model" until #577 M7 gives OoT's table a row
-        // for it, HOST_NATIVE (OoT's own hookshot) after. This host draws neither
-        // yet; drawing a HOST_NATIVE answer on the shelf is a follow-up (#832).
-        FM_ASSERT(hookshotKind == kNone || hookshotKind == (uint8_t)COMBO_MODEL_ANSWER_HOST_NATIVE,
-                  "M12 MM's (colliding) hookshot is no model, or host-native once #577 M7 is in");
+        // MM's hookshot collides, and OoT's host-native table (#577 M7) maps it to
+        // OoT's own hookshot row. #832: the shelf draws that row, as OoT's own
+        // recipe gives it (the lists the get-item cutscene draws for it, M13).
+        FM_ASSERT(hookshotKind == kHost, "M12 MM's (colliding) hookshot is HOST_NATIVE in OoT (#577 M7)");
+        ComboModel ootHookshot;
+        const char* ootHookshotReason = nullptr;
+        FM_ASSERT(OoT_ComboModel_TestForDrawRow(hookshotA.hostKey, &ootHookshot, &ootHookshotReason) == 1,
+                  "M12 OoT draws the hookshot's host-native row with its own recipe");
+        bool ootHookshotList = false;
+        for (uint8_t i = 0; i < ootHookshot.partCount; i++) {
+            ootHookshotList |=
+                std::strcmp(ootHookshot.parts[i].dl, "__OTR__objects/object_gi_hookshot/gGiHookshotDL") == 0;
+        }
+        FM_ASSERT(ootHookshotList, "M12 OoT's own hookshot row draws /object_gi_hookshot/gGiHookshotDL");
 
         ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
         std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
@@ -1243,9 +1261,14 @@ TestResult Test_ForeignModel(void) {
 
         Combo_ClearForeignPlacementsOoT();
         const int placedHookshot = Combo_SetForeignPlacementOoT(shelf, mmHookshot);
-        printf("[TEST]   M12 MM Hookshot (colliding, answer kind %u), archive mounted:\n", (unsigned)hookshotKind);
-        const int drawHookshot = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
-        const int modelHookshot = OoT_ForeignModel_ModelForOoTCheck(shelf, nullptr);
+        printf("[TEST]   M12 MM Hookshot (colliding, host-native row: OoT's own hookshot), archive mounted:\n");
+        const int drawHookshot = OoT_ForeignModel_TestShelfDraw(shelf, &ootHookshot);
+        ComboModel answeredHookshot;
+        const int modelHookshot = OoT_ForeignModel_ModelForOoTCheck(shelf, &answeredHookshot);
+        OoT_ForeignModel_TestSetMountOverride(0);
+        printf("[TEST]   M12 MM Hookshot, archive NOT mounted:\n");
+        const int drawHookshotUnmounted = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        OoT_ForeignModel_TestSetMountOverride(1);
 
         Combo_ClearForeignPlacementsOoT();
         const int placedOdolwa = Combo_SetForeignPlacementOoT(shelf, odolwa);
@@ -1265,9 +1288,13 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(modelMask == 1 && FmModelEqual(answered, maskA.model),
                   "M12 the shelf's model for the check is exactly MM's descriptor for the item it hosts");
         FM_ASSERT(drawUnmounted == 0, "M12 unmounted, the shelf keeps its stand-in (see the M12 lines above)");
-        FM_ASSERT(drawHookshot == 0 && modelHookshot == 0,
-                  "M12 a colliding model (no model, or host-native: not drawn by this host yet) keeps the stand-in "
-                  "(see the M12 lines above)");
+        FM_ASSERT(drawHookshot == 0, "M12 a colliding MM model with a host-native row draws OoT's OWN model for that "
+                                     "row on the shelf, not the stand-in (#832; see the M12 lines above)");
+        FM_ASSERT(modelHookshot == 1 && FmModelEqual(answeredHookshot, ootHookshot),
+                  "M12 the shelf's model for a host-native answer is exactly OoT's own row (#832)");
+        FM_ASSERT(drawHookshotUnmounted == 0,
+                  "M12 a host-native row whose lists no mounted archive holds keeps the stand-in (see the M12 lines "
+                  "above)");
         FM_ASSERT(drawOdolwa == 0 && modelOdolwa == 0,
                   "M12 a no-model answer keeps the stand-in (see the M12 lines above)");
         FM_ASSERT(realMissing == 0 && realNoPrefix == 0 && realNull == 0,
@@ -1349,6 +1376,38 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(showUnmounted == 0 && showOdolwa == 0,
                   "M13 unmounted, or no model: the cutscene shows the mystery stand-in and still gives nothing (see "
                   "the M13 lines above)");
+    }
+
+    // ---- M14 (#577 M5) -----------------------------------------------------------
+    // OoT's chest appearance ("Chest Size & Texture Matches Contents") for a chest
+    // that hosts an MM item: the category the chest presents, asked with the junk
+    // cover's category the OoT table holds there (RG_BLUE_RUPEE).
+    {
+        SharedItem mmHookshot;
+        SharedItem odolwa;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Hookshot", &mmHookshot) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Odolwa's Remains", &odolwa),
+                  "M14 named items");
+        ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+        const uint16_t chest = 0x0125; // opaque to the table; the answer keys on the placement alone
+
+        Combo_ClearForeignPlacementsOoT();
+        const int nativeShows = OoT_Rando_Foreign_TestChestShowsMajor(chest);
+        const int placedHookshot = Combo_SetForeignPlacementOoT(chest, mmHookshot);
+        const int hookshotShows = OoT_Rando_Foreign_TestChestShowsMajor(chest);
+        Combo_ClearForeignPlacementsOoT();
+        const int placedOdolwa = Combo_SetForeignPlacementOoT(chest, odolwa);
+        const int odolwaShows = OoT_Rando_Foreign_TestChestShowsMajor(chest);
+        std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+        printf("[TEST]   M14 junk-cover chest presents (1 major, 0 the cover's junk, -1 other): no MM item %d, MM "
+               "Hookshot %d, MM Odolwa's Remains %d\n",
+               nativeShows, hookshotShows, odolwaShows);
+        FM_ASSERT(placedHookshot >= 0 && placedOdolwa >= 0, "M14 placements accepted");
+        FM_ASSERT(nativeShows == 0, "M14 a chest with no MM item keeps its own item's appearance");
+        FM_ASSERT(hookshotShows == 1 && odolwaShows == 1,
+                  "M14 a chest hosting an MM item presents as a major chest, never as its junk cover (the MM side's "
+                  "rule for an OoT item, EnBox.cpp; see the M14 line above)");
     }
 
     printf("[TEST] ForeignModel: PASS\n");
