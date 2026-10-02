@@ -82,6 +82,9 @@ extern void Player_SetupActionPreserveAnimMovement(PlayState* play, Player* play
 extern s32 OoT_Player_SetupWaitForPutAway(PlayState* play, Player* player, AfterPutAwayFunc func);
 extern void OoT_Play_InitEnvironment(PlayState* play, s16 skyboxId);
 extern void EnMk_Wait(EnMk* enMk, PlayState* play);
+#ifdef RSBS_SINGLE_EXECUTABLE
+int OoT_Rando_Foreign_HostCollected(uint16_t rc); // ForeignItemsSingleExe.cpp (#800)
+#endif
 extern void func_80ABA778(EnNiwLady* enNiwLady, PlayState* play);
 extern void EnGe1_Wait_Archery(EnGe1* enGe1, PlayState* play);
 extern void EnGe1_SetAnimationIdle(EnGe1* enGe1);
@@ -1549,6 +1552,13 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
 
             if (scrubIdentity.identity.randomizerCheck != RC_UNKNOWN_CHECK) {
                 *should = Flags_GetRandomizerInf(scrubIdentity.identity.randomizerInf);
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #800 pass 2: a scrub whose MM item was already bought stays gone
+                // even when its flag was lost with an unsaved reload (the shelf's
+                // sold-out rule, z_en_girla.c).
+                *should = *should ||
+                          OoT_Rando_Foreign_HostCollected((uint16_t)scrubIdentity.identity.randomizerCheck) != 0;
+#endif
             }
             break;
         }
@@ -2141,6 +2151,16 @@ u32 EnDns_RandomizerPurchaseableCheck(EnDns* enDns) {
     if (checkIdentity != nullptr && Flags_GetRandomizerInf(checkIdentity->identity.randomizerInf)) {
         return DNS_CANBUY_RESULT_CANT_GET_NOW;
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 pass 2, the shelf's rule (z_en_girla.c): this scrub hosts an MM item
+    // and its check is already collected, but the flag above was lost with an
+    // unsaved reload. Selling again would charge for nothing: the drain delivers
+    // once per host.
+    if (checkIdentity != nullptr &&
+        OoT_Rando_Foreign_HostCollected((uint16_t)checkIdentity->identity.randomizerCheck)) {
+        return DNS_CANBUY_RESULT_CANT_GET_NOW;
+    }
+#endif
     if (gSaveContext.rupees < enDns->dnsItemEntry->itemPrice) {
         return DNS_CANBUY_RESULT_NEED_RUPEES;
     }
