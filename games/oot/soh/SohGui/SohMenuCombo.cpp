@@ -180,14 +180,19 @@ static std::string ComboRuleRowName(ComboSettingId id) {
  * (docs/ui-style-guide.md section 2). At min-832x600, the width contract
  * (section 1), "[Both Games] Shared Ocarina" on one line overruns its column
  * and runtime lint R9 fails the page. The operator ruled the name (2026-10-01),
- * so the row is not shortened; it wraps the way Ship of Harkinian's own
- * checkbox rows wrap: Menu::MenuDrawItem passes every checkbox name through
- * UIWidgets::WrappedText (90 / columns characters), so a long SoH label is a
- * two-line label beside its box, with the box at the top. The break is placed
- * at the marker rather than by character count, so it lands between the badge
- * and the setting's name at every profile. WrappedText keeps an authored
- * newline (it restarts its count there), and the label stays right of the box,
- * as the style guide requires.
+ * so the row is not shortened; the marker goes on a line of its own instead.
+ *
+ * The break is an AUTHORED newline, a project choice with no SoH precedent: no
+ * SoH row authors a newline in its name. SoH's own wrap (Menu::MenuDrawItem
+ * passes a checkbox name through UIWidgets::WrappedText at 90 / columns
+ * characters, 45 on this two-column page) would leave this 27-character name
+ * on one line, so the row is two lines at EVERY profile, desk-1280x800
+ * included, not only where it would overrun. Only the shape matches SoH's
+ * wrapped checkbox rows: the box at the top, the label beside it, right of
+ * the box as the style guide requires. WrappedText keeps the authored newline
+ * (it restarts its count there). The newline is also part of the search key
+ * (Menu.cpp keeps it), so a search across the marker into the label does not
+ * match this row; "shared ocarina" does.
  */
 static std::string ComboRuleCheckboxRowName(ComboSettingId id) {
     return std::string(Combo_ComboSettingSharedMarker()) + "\n" + Combo_ComboSettingLabel(id);

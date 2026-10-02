@@ -45,18 +45,22 @@ and on ours (R-N4).
 - **Width [project rule].** The narrowest profile the harness renders, `min-832x600`, is the contract for our rows:
   every row of ours fits its column there, and therefore at every wider profile. At 832 px a page's section is about
   588 px wide, so a column is 286 px on a two-column page and 188 px on a three-column one, 14 px less when the
-  column scrolls (272 and 174). A checkbox takes about 44 px before its label, a separator title 40 px of padding, and a slider's label
-  must fit at both ends of its range, because it prints its value. A three-column page therefore holds labels of about
-  14 characters, which is why our mixed pages use two columns, as SoH's mixed pages do. Where a label of ours is still
-  too long, shorten it to SoH's wording length with the same meaning (R-N2, R-N6) rather than changing a widget or a
-  font. A name the operator ruled cannot be shortened: a marked checkbox puts the marker on its own line instead, the
-  two-line label SoH's own long checkbox rows get from `WrappedText` ("[Both Games]" over "Shared Ocarina",
-  `ComboRuleCheckboxRowName` in `SohMenuCombo.cpp`). SoH's own pages do not meet this, and rule 0 keeps them as shipped. At 832x600, 68 rows on SoH's pages overrun
-  their column (23 of them on Enhancements > Quality of Life, where "Containers Match Contents" is counted twice, its
-  separator and its checkbox). 63 are rows as SoH shipped them; 5 carry this project's ruled "[Both Games] " marker
-  (rule 3), which SoH shipped without: Dev Tools > General's Popout Menu and Debug Mode, and Settings > General's
-  Cursor Always Visible, Search In Sidebar and Search Input Autofocus. At 960x704 it is 36 (33 plus 3 marked), and at
-  1280x800 2 (none marked). All of them are reported in `label-fit.txt`, never failed.
+  column scrolls (272 and 174). A checkbox takes about 44 px before its label, a separator title 40 px of padding,
+  and a slider's label must fit at both ends of its range, because it prints its value. A three-column page therefore
+  holds labels of about 14 characters, which is why our mixed pages use two columns, as SoH's mixed pages do. Where a
+  label of ours is still too long, shorten it to SoH's wording length with the same meaning (R-N2, R-N6) rather than
+  changing a widget or a font. A name the operator ruled cannot be shortened: a marked checkbox puts the marker on its
+  own line instead ("[Both Games]" over "Shared Ocarina", `ComboRuleCheckboxRowName` in `SohMenuCombo.cpp`). That
+  break is an authored newline, a project choice with no SoH precedent: no SoH row authors a newline in its name, and
+  SoH's own wrap (`WrappedText` at 90 / columns characters, 45 on a two-column page) would not wrap a 27-character
+  name, so the row is two lines at every profile, desk-1280x800 included. Only its shape, the box at the top and the
+  label beside it, matches SoH's wrapped rows. SoH's own pages do not meet the width rule, and rule 0 keeps them as
+  shipped. At 832x600, 68 rows on SoH's pages overrun their column (23 of them on Enhancements > Quality of Life,
+  where "Containers Match Contents" is counted twice, its separator and its checkbox). 63 are rows as SoH shipped
+  them; 5 carry this project's ruled "[Both Games] " marker (rule 3), which SoH shipped without: Dev Tools >
+  General's Popout Menu and Debug Mode, and Settings > General's Cursor Always Visible, Search In Sidebar and Search
+  Input Autofocus. At 960x704 it is 36 (33 plus 3 marked), and at 1280x800 2 (none marked). All of them are reported
+  in `label-fit.txt`, never failed.
 - **The contract is armed in CI by its own row.** The runtime lint's R9 (section 13) fails the `ui` tier on a row of
   ours that overruns at the run's profile. `UiSnapshot` takes the largest profile the desktop allows (desk-1280x800 on
   the Linux runner), where no row of ours overran even before this rule, so `UiSnapshotMin` runs the same harness
@@ -154,7 +158,10 @@ and on ours (R-N4).
   rows (ADR 0004 section 4.2; `combo_settings_view.cpp:252`). It is applied by the marker pass
   (`SohMenu.cpp:113-117`) and never hand-typed.
 - **R-N5.** Names are unique IDs and search keys (`UIWidgets.cpp:301`, `Menu.cpp:212-216`). Disambiguate with a
-  `##suffix` ("Enable##CrowdControl", `SohMenuNetwork.cpp:143`), never with a visible prefix.
+  `##suffix` ("Enable##CrowdControl", `SohMenuNetwork.cpp:143`), never with a visible prefix. The search key is the
+  name plus the tooltip, lowercased with spaces removed and newlines kept. The Shared Ocarina checkbox carries its
+  marker followed by a newline, not a space (section 1, width rule), so "shared ocarina" finds it, and a search that
+  runs across the marker into the label ("games shared", or the full row name) does not.
 - **R-N6.** Combobox values are short Title Case, at most 30 characters. A parenthetical is only a qualifier
   ("(Seeded)", `SohMenuEnhancements.cpp:38-144`). Explanations go in the tooltip as "Value: effect" lines
   (`SohMenuSettings.cpp:198-203`).
