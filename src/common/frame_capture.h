@@ -49,8 +49,11 @@
 extern "C" {
 #endif
 
-/** One live frame of `game` is about to draw (both graph.c frame updates). */
+/** One live frame of `game` is about to draw. */
 void FrameCapture_OnGameFrame(GameId game);
+/** The same, for the two graph.c frame updates (vendored C that includes no common header). */
+void FrameCapture_OnOoTFrame(void);
+void FrameCapture_OnMMFrame(void);
 
 /** Capture the next frame that draws as <dir>/<name>.png. A no-op while the capture is off. */
 void IntegrationTest_CaptureFrame(const char* name);

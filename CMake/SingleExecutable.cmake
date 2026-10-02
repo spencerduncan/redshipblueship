@@ -2361,15 +2361,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
     # #843: the same round trip with the in-process frame capture on
-    # (src/common/frame_capture.h). Frame 400 of each game is written to
-    # build-cmake/frame-capture/<game>-frame-400.png, and the PASS requires both
-    # files on disk, at least one per game not uniform (RSBS_CAPTURE_VERIFY).
+    # (src/common/frame_capture.h). Frames 100 and 200 of each game (both
+    # inside a single round trip: MM's leg runs about 310 frames) are written to
+    # build-cmake/frame-capture/<game>-frame-<n>.png, and the PASS requires all
+    # four on disk, at least one per game not uniform (RSBS_CAPTURE_VERIFY).
     # Without the capture no file is written and the run fails at its PASS.
     redship_add_test(NAME IntGameplayRoundtripCapture
         COMMAND redship --integration-test int-gameplay-roundtrip
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
-        ENVIRONMENT "RSBS_CAPTURE_FRAMES=400" "RSBS_CAPTURE_OUT=${CMAKE_BINARY_DIR}/frame-capture"
+        ENVIRONMENT "RSBS_CAPTURE_FRAMES=100,200" "RSBS_CAPTURE_OUT=${CMAKE_BINARY_DIR}/frame-capture"
                     "RSBS_CAPTURE_VERIFY=1")
     redship_add_test(NAME IntGameplayRoundtripSoak
         COMMAND redship --integration-test int-gameplay-roundtrip

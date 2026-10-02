@@ -416,6 +416,13 @@ void MM_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
             fflush(stderr);
         }
     }
+
+    // RSBS_CAPTURE_FRAMES (#843): count this MM frame and, on a listed one,
+    // capture the window at the end of the frame (src/common/frame_capture.h).
+    {
+        extern void FrameCapture_OnMMFrame(void);
+        FrameCapture_OnMMFrame();
+    }
 #endif
 
     Graph_ExecuteAndDraw(gfxCtx, gameState);

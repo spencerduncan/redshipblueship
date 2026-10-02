@@ -289,6 +289,14 @@ void FrameCapture_OnGameFrame(GameId game) {
     }
 }
 
+void FrameCapture_OnOoTFrame(void) {
+    FrameCapture_OnGameFrame(GAME_OOT);
+}
+
+void FrameCapture_OnMMFrame(void) {
+    FrameCapture_OnGameFrame(GAME_MM);
+}
+
 void IntegrationTest_CaptureFrame(const char* name) {
     if (!Config().active || name == nullptr || name[0] == '\0') {
         return;
