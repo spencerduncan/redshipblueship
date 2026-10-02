@@ -27,6 +27,8 @@
 #include "soh/SohGui/SohGui.hpp"
 #include "soh/SohGui/UIWidgets.hpp"
 
+#include <ship/window/gui/IconsFontAwesome4.h>
+
 #include <cstdio>
 #include <map>
 #include <string>
@@ -142,6 +144,41 @@ bool SohButton(const char* label, float width, const ComboUiWidgetOpts* opts) {
     return clicked;
 }
 
+/**
+ * The Check Tracker's search box, statement for statement
+ * (randomizer_check_tracker.cpp, CheckTrackerWindow::DrawElement): the field in
+ * PushStyleCombobox, 42 px short of the line for the eraser button, and the
+ * "Search..." placeholder drawn over the empty field at 40% white, 12 px in (SoH
+ * draws it at window x 20 over a field that starts at the 8 px padding).
+ */
+bool SohSearchInput(const char* id, char* buf, int bufSize) {
+    ImGui::PushID(id);
+    UIWidgets::PushStyleCombobox(Theme());
+    const float startX = ImGui::GetCursorPosX();
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 42);
+    bool changed = ImGui::InputText("##search", buf, (size_t)bufSize);
+    // Both parts report their rects like every seam widget (no tooltip: SoH's
+    // search box has none). The eraser goes under "<id>##eraser".
+    Report(id, nullptr);
+    ImGui::SameLine();
+    const bool erase = UIWidgets::Button(
+        ICON_FA_ERASER,
+        UIWidgets::ButtonOptions().Size(UIWidgets::Sizes::Inline).Color(Theme()).Padding(ImVec2(10.f, 6.f)));
+    const std::string eraserLabel = std::string(id) + "##eraser";
+    Report(eraserLabel.c_str(), nullptr);
+    if (erase) {
+        changed = changed || buf[0] != '\0';
+        buf[0] = '\0';
+    }
+    if (buf[0] == '\0') {
+        ImGui::SameLine(startX + 12.0f);
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 0.4f), "Search...");
+    }
+    UIWidgets::PopStyleCombobox();
+    ImGui::PopID();
+    return changed;
+}
+
 void SohSeparatorText(const char* text) {
     // WIDGET_SEPARATOR_TEXT with no colour (Menu.cpp).
     ImGui::SeparatorText(text);
@@ -242,8 +279,8 @@ void SohRowText(const char* text, const ComboUiWidgetOpts* opts) {
 }
 
 const ComboUiTable kSohTable = {
-    SohCheckbox, SohCombobox, SohSliderInt, SohButton,    SohSeparatorText, SohNoteText, SohWarningText,
-    SohTooltip,  SohTagChip,  SohConfirm,   SohPushTheme, SohPopTheme,      SohSpacer,   SohRowText,
+    SohCheckbox, SohCombobox, SohSliderInt, SohButton,    SohSearchInput, SohSeparatorText, SohNoteText, SohWarningText,
+    SohTooltip,  SohTagChip,  SohConfirm,   SohPushTheme, SohPopTheme,    SohSpacer,        SohRowText,
 };
 
 struct InstallSohComboUi {

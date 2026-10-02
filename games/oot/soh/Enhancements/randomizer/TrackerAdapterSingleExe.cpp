@@ -29,8 +29,19 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
+
+#include <libultraship/bridge/consolevariablebridge.h>
+
+extern "C" {
+#include <z64.h>
+#include "variables.h" // gSaveContext.language, read only while OoT is the active game
+}
+
+#include "soh/cvar_prefixes.h"
+#include "soh/Enhancements/randomizer/randomizer_check_objects.h"
 
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
@@ -110,6 +121,82 @@ const char* OoTTrackerCheckName(uint16_t checkId) {
     return name.empty() ? nullptr : name.c_str();
 }
 
+/**
+ * The common status (#458 U4; combo_tracker_view.h, ComboTrackerCheckStatus),
+ * in the order SoH's check tracker tests them (DrawLocation): collected, saved,
+ * then the skip flag, then seen/identified, scummed, unchecked.
+ */
+uint8_t ProjectStatus(RandomizerCheckStatus status, bool skipped) {
+    if (status == RCSHOW_COLLECTED) {
+        return COMBO_TRACKER_CHECK_COLLECTED;
+    }
+    if (status == RCSHOW_SAVED) {
+        return COMBO_TRACKER_CHECK_SAVED;
+    }
+    if (skipped) {
+        return COMBO_TRACKER_CHECK_SKIPPED;
+    }
+    if (status == RCSHOW_SEEN || status == RCSHOW_IDENTIFIED) {
+        return COMBO_TRACKER_CHECK_SEEN;
+    }
+    if (status == RCSHOW_SCUMMED) {
+        return COMBO_TRACKER_CHECK_SCUMMED;
+    }
+    return COMBO_TRACKER_CHECK_UNCHECKED;
+}
+
+/**
+ * An area's name, as SoH's check tracker heads it (GetRCAreaName). That returns
+ * a copy, so each name is kept here once, in node-stable storage the row can
+ * point into.
+ */
+const char* OoTAreaName(RandomizerCheckArea area) {
+    static std::map<int, std::string> sNames;
+    auto it = sNames.find((int)area);
+    if (it == sNames.end()) {
+        it = sNames.emplace((int)area, RandomizerCheckObjects::GetRCAreaName(area)).first;
+    }
+    return it->second.empty() ? nullptr : it->second.c_str();
+}
+
+/**
+ * The language SoH's check tracker names items in. It reads gSaveContext.language,
+ * which is OoT's only while OoT is the active game (both ports overlay one live
+ * save, unified_save.c); otherwise the language setting OoT copies it from at
+ * load (SaveManager.cpp).
+ */
+uint8_t OoTTrackerLanguage(void) {
+    if (Context_GetCurrentGame() == GAME_OOT) {
+        return gSaveContext.language;
+    }
+    return (uint8_t)CVarGetInteger(CVAR_SETTING("Languages"), LANGUAGE_ENG);
+}
+
+/**
+ * The item a found check's row names: SoH's check tracker's rule
+ * (randomizer_check_tracker.cpp, PlacedItemTrackerName, #796) without its
+ * " (MM)" suffix, which the window adds from `*outGame`. A paired check that hosts
+ * an MM item physically holds a cover, so the crossed item comes first; otherwise
+ * the item placed there. The storage is static (the foreign describer's names, the
+ * item table's Text), so the pointer outlives the row.
+ */
+const char* OoTPlacedItemName(Rando::ItemLocation* loc, RandomizerCheck rc, uint8_t* outGame) {
+    if (Combo_ForeignPairingActive()) {
+        if (const SharedItem* crossed = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc)) {
+            if (const char* name = Combo_GetForeignItemName(*crossed)) {
+                *outGame = (uint8_t)GAME_MM;
+                return name;
+            }
+        }
+    }
+    const std::string& name = loc->GetPlacedItem().GetName().GetForLanguage(OoTTrackerLanguage());
+    if (name.empty()) {
+        return nullptr;
+    }
+    *outGame = (uint8_t)GAME_OOT;
+    return name.c_str();
+}
+
 bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
     auto ctx = Rando::Context::GetInstance();
     if (ctx == nullptr || out == nullptr || index < 0 || index >= (int)RC_MAX) {
@@ -121,6 +208,32 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
     out->shuffled = loc->GetPlacedRandomizerGet() != RG_NONE;
     out->obtained = StatusObtained(loc->GetCheckStatus());
     out->skipped = loc->GetIsSkipped();
+
+    // #458 U4: status, area and the found item, each as SoH's tracker has it.
+    out->status = ProjectStatus(loc->GetCheckStatus(), out->skipped);
+    if (out->name != nullptr) { // a filled location table, so the area is real
+        const Rando::Location* staticLoc = Rando::StaticData::GetLocation((RandomizerCheck)index);
+        const RandomizerCheckArea area = staticLoc->GetArea();
+        out->areaKey = (uint16_t)area;
+        out->areaName = OoTAreaName(area);
+        // Under its area header SoH's tracker prints the short name (DrawLocation:
+        // GetShortName()); locationTable is static storage, so c_str() stays valid.
+        const std::string& shortName = staticLoc->GetShortName();
+        out->shortName = shortName.empty() ? nullptr : shortName.c_str();
+    }
+    // The name shows once the check is found: SoH prints the placed item for a
+    // collected, saved or scummed check, whatever its skip flag. A seen or
+    // identified check's item SoH reveals only under hint settings this window
+    // does not read, so it stays unnamed here: the window never shows more than
+    // SoH's tracker.
+    out->placedItemName = nullptr;
+    out->placedItemGame = (uint8_t)GAME_NONE;
+    const RandomizerCheckStatus status = loc->GetCheckStatus();
+    if (status == RCSHOW_COLLECTED || status == RCSHOW_SAVED || status == RCSHOW_SCUMMED) {
+        uint8_t game = (uint8_t)GAME_NONE;
+        out->placedItemName = OoTPlacedItemName(loc, (RandomizerCheck)index, &game);
+        out->placedItemGame = out->placedItemName != nullptr ? game : (uint8_t)GAME_NONE;
+    }
     return true;
 }
 
@@ -169,6 +282,18 @@ extern "C" int OoT_TrackerAdapter_TestAuthorWorld(uint32_t seed, uint16_t outIds
 
     sTrackerTestWorld = Rando::Context::CreateInstance();
     sTrackerTestWorld->SetSeed(seed);
+
+    // The rows' names, areas and placed-item names (#458 U4) come from OoT's
+    // static location and item tables, which only OoT's bring-up fills; a
+    // ROM-free tier never ran it. Fill whichever is still empty (both are static
+    // tables that a fill overwrites with the same contents, and InitItemTable
+    // reads the Context created above).
+    if (Rando::StaticData::GetLocation(RC_KF_KOKIRI_SWORD_CHEST)->GetName().empty()) {
+        Rando::StaticData::InitLocationTable();
+    }
+    if (Rando::StaticData::RetrieveItem(RG_KOKIRI_SWORD).GetName().GetEnglish().empty()) {
+        Rando::StaticData::InitItemTable();
+    }
 
     struct {
         RandomizerCheck rc;
