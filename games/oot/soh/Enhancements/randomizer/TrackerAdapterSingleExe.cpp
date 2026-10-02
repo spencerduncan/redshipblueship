@@ -302,8 +302,8 @@ bool OoTTrackerSetSkipped(uint16_t checkId, bool skipped) {
 
 extern "C" void OoT_TrackerAdapter_Register(void) {
     static const ComboOoTTrackerOps kOps = {
-        OoTTrackerSummary,    OoTTrackerCheckCount,   OoTTrackerCheckAt,
-        OoTTrackerCheckName,  OoTTrackerSkipWritable, OoTTrackerSetSkipped,
+        OoTTrackerSummary,   OoTTrackerCheckCount,   OoTTrackerCheckAt,
+        OoTTrackerCheckName, OoTTrackerSkipWritable, OoTTrackerSetSkipped,
     };
     Combo_Tracker_RegisterOoT(&kOps);
 }
