@@ -110,6 +110,22 @@ def test_each_direction_lands_in_its_hosts_half(tmp_path, archives):
     assert _payload(out_mm, OOT_ONLY[0]) == _resource("oot:" + OOT_ONLY[0])
 
 
+def test_both_halves_carry_the_manifest_stamp(tmp_path, archives):
+    # #806: the game regenerates a half whose archive comment does not name the
+    # manifest compiled into it, so the comment must be exactly this --
+    # src/common/curated_archives.cpp spells the same format, and the
+    # curated-archive-inapp CTest row compares the two generators' output.
+    manifest_text = "mm->oot objects/object_mm_only/\r\noot->mm objects/object_oot_only/\r\n"
+    proc, out_oot, out_mm = _run(tmp_path, archives, manifest_text)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    want = "redship-curated v1 manifest-crc64=%016x" % _crc64(manifest_text.replace("\r", ""))
+    for out in (out_oot, out_mm):
+        with zipfile.ZipFile(out) as z:
+            assert z.comment.decode("ascii") == want
+    # The stamp lives in the comment, not in an entry: the path sets are unchanged.
+    assert _names(out_oot) == sorted(MM_ONLY)
+
+
 def test_single_path_entries_and_overlapping_prefixes(tmp_path, archives):
     # One exact path plus a whole-directory prefix that also covers it: the
     # path is written once, not twice.
