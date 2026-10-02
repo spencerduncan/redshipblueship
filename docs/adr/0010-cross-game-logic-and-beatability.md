@@ -1763,6 +1763,9 @@ and `Combo_ComboSettingsFrozen`):
   the shelves, the Bomb Shop owner's hand item, the Hags' mushroom slot,
   Gorman's milk and the Milk Bar; PR #840). Tingle's map slots
   (`RCTYPE_TINGLE_SHOP`) stay refused (#800 pass 2).
+  *Amended 2026-10-02 (#800 pass 2):* OoT also admits an `RCTYPE_SCRUB` row
+  drawn by `ACTOR_EN_DNS` (a Business Scrub, PR #854); merchants and the chest
+  game stay refused.
 - MM's engine grants the fixed contents of reached checks outside the host pool
   during expansion (#737), without which beat-both was unprovable on the
   shipped profile.
