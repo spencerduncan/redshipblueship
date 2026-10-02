@@ -27,6 +27,9 @@
 #include "soh/SohGui/SohGui.hpp"
 #include "soh/SohGui/UIWidgets.hpp"
 
+#include <ship/Context.h>
+#include <ship/window/Window.h>
+#include <ship/window/gui/Gui.h>
 #include <ship/window/gui/IconsFontAwesome4.h>
 
 #include <cstdio>
@@ -278,9 +281,26 @@ void SohRowText(const char* text, const ComboUiWidgetOpts* opts) {
     Report(text, opts);
 }
 
+bool SohImage(const char* textureKey, float width, float height) {
+    // The native Item Tracker's icon draw (randomizer_item_tracker.cpp,
+    // DrawItem): ImGui::Image of the Gui texture registered under the key. A key
+    // with no texture draws nothing, so the caller can fall back to text.
+    if (textureKey == nullptr || textureKey[0] == '\0') {
+        return false;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    auto window = ctx != nullptr ? ctx->GetWindow() : nullptr;
+    auto gui = window != nullptr ? window->GetGui() : nullptr;
+    if (gui == nullptr || !gui->HasTextureByName(textureKey)) {
+        return false;
+    }
+    ImGui::Image(gui->GetTextureByName(textureKey), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1));
+    return true;
+}
+
 const ComboUiTable kSohTable = {
     SohCheckbox, SohCombobox, SohSliderInt, SohButton,    SohSearchInput, SohSeparatorText, SohNoteText, SohWarningText,
-    SohTooltip,  SohTagChip,  SohConfirm,   SohPushTheme, SohPopTheme,    SohSpacer,        SohRowText,
+    SohTooltip,  SohTagChip,  SohConfirm,   SohPushTheme, SohPopTheme,    SohSpacer,        SohRowText,  SohImage,
 };
 
 struct InstallSohComboUi {

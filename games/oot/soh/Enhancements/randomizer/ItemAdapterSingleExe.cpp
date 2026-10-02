@@ -79,6 +79,12 @@ const void* OoTItemLiveSave(void) {
     return static_cast<const void*>(&gSaveContext);
 }
 
+/** OoT's pause menu is open: the native Item Tracker's ShowOnlyPaused test
+ *  (randomizer_item_tracker.cpp, ItemTrackerWindow::DrawElement), #458 U2. */
+bool OoTItemPaused(void) {
+    return OoT_gPlayState != nullptr && OoT_gPlayState->pauseCtx.state > 0;
+}
+
 } // namespace
 
 // ============================================================================
@@ -472,6 +478,7 @@ extern "C" void OoT_ItemAdapter_Register(void) {
         OoTItemRowAt,
         OoTItemHasSave,
         OoTItemLiveSave,
+        OoTItemPaused,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, &kOps);
 }

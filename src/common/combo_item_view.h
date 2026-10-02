@@ -89,6 +89,10 @@ typedef struct ComboItemOps {
     // file select: no play state loaded). May itself be NULL: the shadow is then
     // the only source. The view calls it only while this game is active.
     const void* (*liveSave)(void);
+    // Is this game's pause menu open right now (#458 U2: the overlay's "show
+    // only while paused" option, SoH's ShowOnlyPaused)? May be NULL: the game is
+    // then never paused. The view calls it only while this game is active.
+    bool (*paused)(void);
 } ComboItemOps;
 
 /**
@@ -130,6 +134,11 @@ int Combo_ItemCount(uint8_t game);
 /** Fill `out` with `game`'s row `index`, read from the source the view picks for
  *  this call. False for a NULL `out`, an out-of-range index, or no data. */
 bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out);
+
+/** Is the ACTIVE game's pause menu open (its adapter's `paused`)? False under
+ *  GAME_NONE, for an unregistered adapter, and for one with no `paused`. The
+ *  inactive game is never asked (#458 U2). */
+bool Combo_ItemActiveGamePaused(void);
 
 /** Player wording for a per-game freshness, no closing period: "Updated live",
  *  "As of the last game switch or save" (MM's reads "As of file creation" in

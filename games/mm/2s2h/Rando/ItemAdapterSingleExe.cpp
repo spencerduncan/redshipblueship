@@ -86,6 +86,11 @@ const void* MMItemLiveSave(void) {
     return (MM_gPlayState != nullptr) ? static_cast<const void*>(&gSaveContext) : nullptr;
 }
 
+/** MM's pause menu is open (#458 U2: the overlay's "show only while paused"). */
+bool MMItemPaused(void) {
+    return MM_gPlayState != nullptr && MM_gPlayState->pauseCtx.state != PAUSE_STATE_OFF;
+}
+
 } // namespace
 
 // ============================================================================
@@ -403,6 +408,7 @@ extern "C" void MM_ItemAdapter_Register(void) {
         MMItemRowAt,
         MMItemHasSave,
         MMItemLiveSave,
+        MMItemPaused,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_MM, &kOps);
 }

@@ -187,10 +187,15 @@ void FallbackRowText(const char* text, const ComboUiWidgetOpts* opts) {
     FinishItem(text, o);
 }
 
+/** No texture lookup without SoH's table: every icon falls back to its text. */
+bool FallbackImage(const char*, float, float) {
+    return false;
+}
+
 const ComboUiTable kFallback = {
     FallbackCheckbox,  FallbackCombobox,    FallbackSliderInt, FallbackButton,  FallbackSearchInput, FallbackSeparatorText,
     FallbackNoteText,  FallbackWarningText, FallbackTooltip,   FallbackTagChip, FallbackConfirm,
-    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText,
+    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText, FallbackImage,
 };
 
 } // namespace

@@ -299,6 +299,10 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
           "Toggles the Cross-Game Spoiler." },
         { "Toggle Combo Tracker", "gCombo.Windows.Tracker", "Combo Tracker", "Combo Tracker",
           "Toggles the Combo Tracker." },
+        // The unified Item Tracker overlay (#458 U2; ADR 0004's 2026-09-30
+        // amendment: U2 adds this row, U6 removes the four MM rows below).
+        { "Toggle Combo Item Tracker", "gCombo.Windows.ItemTracker", "Combo Item Tracker", "Combo Item Tracker",
+          "Toggles the Combo Item Tracker." },
         { "Toggle MM Item Tracker", "gWindows.ItemTracker", "MM Item Tracker", "MM Item Tracker",
           "Toggles the MM Item Tracker. Majora's Mask only." },
         { "Popout MM Item Tracker Settings", "gWindows.ItemTrackerSettings", "MM Item Tracker Settings",
@@ -309,7 +313,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
           "MM Check Tracker Settings", "Enables the separate MM Check Tracker Settings Window. Majora's Mask only." },
     };
     if (!combo.sidebars.contains("Windows")) {
-        printf("[TEST] FAIL(3): the Combo section has no \"Windows\" page, so none of its six window rows can be "
+        printf("[TEST] FAIL(3): the Combo section has no \"Windows\" page, so none of its seven window rows can be "
                "checked\n");
         gFailures++;
     } else {

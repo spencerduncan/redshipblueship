@@ -22,6 +22,7 @@ MENU games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp
 
 PANES src/common/ComboSpoilerWindow.cpp
 PANES src/common/ComboTrackerWindow.cpp
+PANES src/common/ComboItemTrackerWindow.cpp
 PANES games/oot/soh/SohGui/CreationProgressOverlay.cpp
 
 TOASTS games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
