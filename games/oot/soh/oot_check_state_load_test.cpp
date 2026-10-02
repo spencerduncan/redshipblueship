@@ -187,6 +187,15 @@ uint32_t WriteCommits(const SaveContext& savBase, const SaveContext& committed) 
     mgr.ArmSlotOnCreate(kSlot);
     mgr.SetActiveSlot(kSlot);
 
+    // A paired file, as the open path requires of a randomizer file (#836): a
+    // record with a pairing identity, and a Majora's Mask half that exists.
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSettingsHash = 0x849u;
+    static uint8_t sMMHalf[64];
+    memset(sMMHalf, 0, sizeof(sMMHalf));
+    sMMHalf[0] = 1;
+    Context_UpdateShadowCopy(GAME_MM, sMMHalf, sizeof(sMMHalf));
+
     Context_UpdateShadowCopy(GAME_OOT, &savBase, sizeof(SaveContext));
     gComboCtx.sourceGame = GAME_OOT;
     if (RsbsSave_Save(kSlot) != 1) {
