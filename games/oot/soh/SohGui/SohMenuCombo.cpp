@@ -172,6 +172,33 @@ static std::string ComboRuleRowName(ComboSettingId id) {
 }
 
 /**
+ * The CHECKBOX row's name: the same marker and label, with the marker on a line
+ * of its own above the label ("[Both Games]" then "Shared Ocarina").
+ *
+ * WHY TWO LINES. A combobox draws its label ABOVE the box, so its name has the
+ * whole column; a checkbox draws its label to the RIGHT of a ~44 px box
+ * (docs/ui-style-guide.md section 2). At min-832x600, the width contract
+ * (section 1), "[Both Games] Shared Ocarina" on one line overruns its column
+ * and runtime lint R9 fails the page. The operator ruled the name (2026-10-01),
+ * so the row is not shortened; the marker goes on a line of its own instead.
+ *
+ * The break is an AUTHORED newline, a project choice with no SoH precedent: no
+ * SoH row authors a newline in its name. SoH's own wrap (Menu::MenuDrawItem
+ * passes a checkbox name through UIWidgets::WrappedText at 90 / columns
+ * characters, 45 on this two-column page) would leave this 27-character name
+ * on one line, so the row is two lines at EVERY profile, desk-1280x800
+ * included, not only where it would overrun. Only the shape matches SoH's
+ * wrapped checkbox rows: the box at the top, the label beside it, right of
+ * the box as the style guide requires. WrappedText keeps the authored newline
+ * (it restarts its count there). The newline is also part of the search key
+ * (Menu.cpp keeps it), so a search across the marker into the label does not
+ * match this row; "shared ocarina" does.
+ */
+static std::string ComboRuleCheckboxRowName(ComboSettingId id) {
+    return std::string(Combo_ComboSettingSharedMarker()) + "\n" + Combo_ComboSettingLabel(id);
+}
+
+/**
  * WHICH values the rows show, and whether they are still a choice (ADR 0004 §6
  * state 4).
  *
@@ -523,8 +550,9 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     // own, so the row is a plain checkbox over the model's 0/1 space; everything
     // else about it is the other rows' pattern verbatim: the staging buffer, the
     // PreFunc that refreshes from the record, the Callback that offers the edit
-    // to src/common's writer, and the marker in the name.
-    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_OCARINA), WIDGET_CHECKBOX)
+    // to src/common's writer, and the marker in the name. The name is the
+    // two-line checkbox form (ComboRuleCheckboxRowName says why).
+    menu.AddWidget(path, ComboRuleCheckboxRowName(COMBO_SETTING_SHARED_OCARINA), WIDGET_CHECKBOX)
         .ValuePointer(&comboRuleSharedOcarina)
         .PreFunc([](WidgetInfo& info) {
             ComboSettingsRecord shown;
