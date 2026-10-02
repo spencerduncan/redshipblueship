@@ -8,6 +8,10 @@ extern "C" {
 void EnBal_SetupTalk(EnBal* enBal);
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/Foreign.h" // #800 pass 2: a Tingle map slot may host a foreign (OoT) item
+#endif
+
 std::map<int16_t, std::vector<RandoCheckId>> tingleMap = {
     { SCENE_BACKTOWN, { RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01, RC_CLOCK_TOWN_NORTH_TINGLE_MAP_02 } },
     { SCENE_24KEMONOMITI, { RC_ROAD_TO_SOUTHERN_SWAMP_TINGLE_MAP_01, RC_ROAD_TO_SOUTHERN_SWAMP_TINGLE_MAP_02 } },
@@ -18,11 +22,22 @@ std::map<int16_t, std::vector<RandoCheckId>> tingleMap = {
     { SCENE_IKANA, { RC_IKANA_CANYON_TINGLE_MAP_01, RC_IKANA_CANYON_TINGLE_MAP_02 } }
 };
 
+// #800 pass 2: a Tingle map slot may host a foreign (OoT) item while holding MM's
+// junk cover. His offer names the OoT item (ShopOfferedItemName, as the shops
+// do), and the cover's "always obtainable" must not re-offer an OoT item whose
+// crossing was delivered: CheckQueue's foreign branch would show it as found
+// again while RecordForeignPickup refuses the second crossing.
 std::string Rando::ActorBehavior::TingleOfferedItemName(RandoCheckId rc) {
-    return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[rc].randoItemId, false);
+    return Rando::ActorBehavior::ShopOfferedItemName(
+        rc, Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[rc].randoItemId, false), false);
 }
 
 bool Rando::ActorBehavior::TingleMapSlotSold(RandoCheckId rc) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (Rando::Foreign::IsForeignCheck(rc)) {
+        return Rando::Foreign::IsDeliveredForeignHost(rc);
+    }
+#endif
     return !Rando::IsItemObtainable(RANDO_SAVE_CHECKS[rc].randoItemId, rc);
 }
 

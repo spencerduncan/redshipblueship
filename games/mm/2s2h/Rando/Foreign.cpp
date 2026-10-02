@@ -467,7 +467,7 @@ void NotePairedGenerationOutcome(int attemptsTried, bool exhausted) {
 // nothing errors, and the paired world is unwinnable by construction.
 //
 // So it is an ALLOWLIST now: a check class is a legal host only once someone
-// has traced its arming chain. Tier A and Tier S (below) ship.
+// has traced its arming chain. Tiers A, S and T (below) ship.
 //
 // TIER A — RCTYPE_CHEST carrying FLAG_CYCL_SCENE_CHEST. The arming chain,
 // traced end to end: z_en_box.c:488-495 (MM_EnBox_WaitOpen) calls
@@ -510,11 +510,24 @@ void NotePairedGenerationOutcome(int attemptsTried, bool exhausted) {
 //    branch delivers them like a chest.
 // The price is the slot's own (`randoSaveCheck.price`); MM's logic already
 // gates every shop row on CAN_AFFORD, so a crossing there is priced by the same
-// rule a native item is. Tingle's map slots (RCTYPE_TINGLE_SHOP) are #800 pass 2
-// and stay refused, explicitly, until their give and price flow is traced.
+// rule a native item is.
+//
+// TIER T — RCTYPE_TINGLE_SHOP (#800 pass 2): Tingle's 12 map slots, two per
+// Tingle (ActorBehavior/EnBal.cpp's tingleMap). Traced through z_en_bal.c's
+// map-choice branch: VB_NOT_AFFORD_TINGLE_MAP loads the slot's own price
+// (`randoSaveCheck.price`, CAN_AFFORD-gated in MM's logic); VB_ALREADY_HAVE_
+// TINGLE_MAP refuses the sale when TingleMapSlotSold says so (a foreign host:
+// once its crossing was delivered, for the rest of the game); the vanilla branch
+// charges the price; VB_TINGLE_GIVE_MAP_UNLOCK arms `.eligible`, so CheckQueue's
+// foreign branch delivers the slot like a chest, with the get-item textbox and
+// model. Tingle draws no item of his own: his offer (texts 0x1D11-0x1D16) is the
+// only other surface, and it names the OoT item (TingleOfferedItemName). The
+// hooks register under "Shuffle Tingle Maps", the same option without which
+// GeneratePools leaves these rows out of the host pool.
 static bool IsAllowedHostClass(const Rando::StaticData::RandoStaticCheck& randoStaticCheck) {
+    // Tier T.
     if (randoStaticCheck.randoCheckType == RCTYPE_TINGLE_SHOP) {
-        return false;
+        return true;
     }
 
     // Tier A.
