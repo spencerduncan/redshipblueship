@@ -236,7 +236,12 @@ typedef struct ComboMMTrackerDesc {
     // active game (ADR 0008 rule 5's amendment) and uses the answer only when
     // it carries the 'ZELDA3' marker; otherwise it falls back to the shadow
     // (#799). May itself be NULL: the shadow is then the only source.
-    const void* (*liveSave)(void);
+    //
+    // Not const: it is also the skip toggle's write target (#458 U5). The view
+    // writes exactly one byte through it, a check row's skipped flag, and only
+    // when this same pick reads LIVE, the flag MM's own check tracker flips in
+    // the same save. Every other use is a read.
+    void* (*liveSave)(void);
 } ComboMMTrackerDesc;
 
 /**
@@ -286,13 +291,28 @@ typedef struct ComboOoTTrackerOps {
     bool (*checkAt)(int index, ComboTrackerCheckRow* out);
     // Display name for a check id, or NULL (never-initialized static data).
     const char* (*checkName)(uint16_t checkId);
+    // ---- The skip toggle (#458 U5): the one write, LIVE panel only ----------
+    // Both NULL (a read-only registrant: the panel then offers no toggle) or
+    // both set. The view calls them only while OoT is the active game.
+    //
+    // Whether OoT takes a skip write now: a save is loaded, so the heap belongs
+    // to the file being played and SoH's own Check Tracker would show its skip
+    // buttons (it draws no list before a file loads).
+    bool (*skipWritable)(void);
+    // Set check `checkId`'s skip flag on the heap and persist it, as SoH's Check
+    // Tracker's skip button does (randomizer_check_tracker.cpp, DrawLocation):
+    // its tracker-data save section is written and its own area counts follow.
+    // False, with nothing written, for a check its button is not drawn on (not
+    // part of the seed, or found) or when skipWritable answers false.
+    bool (*setSkipped)(uint16_t checkId, bool skipped);
 } ComboOoTTrackerOps;
 
 /**
  * Install OoT's accessor vtable (the pointer is retained; the OoT TU passes a
- * static). Passing NULL un-registers. A vtable with any NULL member is
- * rejected with a stderr complaint — a half-registered adapter would turn
- * "unavailable" into a null call through the window's draw path.
+ * static). Passing NULL un-registers. A vtable with a NULL read member, or with
+ * exactly one of the two skip members, is rejected with a stderr complaint — a
+ * half-registered adapter would turn "unavailable" into a null call through
+ * the window's draw path.
  */
 void Combo_Tracker_RegisterOoT(const ComboOoTTrackerOps* ops);
 
@@ -321,6 +341,41 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out);
 
 /** Display name for `game`'s check `checkId`, or NULL. */
 const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId);
+
+// ============================================================================
+// The skip toggle (#458 U5): the view's only write
+// ============================================================================
+//
+// LIVE PANEL ONLY. A check is marked skipped in the game's own live state, the
+// same flag that game's own check tracker toggles: OoT's heap ItemLocation
+// (persisted to its tracker-data save section, as SoH's skip button does), MM's
+// RANDO_SAVE_CHECKS[].skipped in the live save (persisted by MM's next save, as
+// MM's tracker's row click is). The other game's panel is a snapshot (MM's
+// frozen shadow, OoT's suspended heap) and is never written: the next arrival
+// replaces a shadow edit, and a suspended heap edit would land behind the back
+// of the save it belongs to.
+//
+// WHICH CHECKS. SoH's rule (DrawLocation draws the button only on a check that
+// is not found): a check of the seed, not collected. MM's own tracker also
+// flips a found check's flag, with no visible effect there; one window keeps
+// one rule.
+
+/** Whether `game`'s panel takes skip writes now: its data is LIVE and its
+ *  adapter takes the write (MM: its live save; OoT: a loaded save). */
+bool Combo_TrackerSkipWritable(uint8_t game);
+
+/** Whether the window offers the skip toggle on `row` of `game`'s panel: the
+ *  panel takes writes, and the check is part of the seed and not found. */
+bool Combo_TrackerRowSkippable(uint8_t game, const ComboTrackerCheckRow* row);
+
+/**
+ * Set `game`'s check `checkId` skipped (or not) in that game's live state.
+ * True when the flag now holds `skipped` (written by this call, or already
+ * so); false, with nothing written anywhere, when the panel does not take
+ * writes (a snapshot, no adapter, no loaded save) or the check is not
+ * skippable.
+ */
+bool Combo_TrackerSetSkipped(uint8_t game, uint16_t checkId, bool skipped);
 
 // ============================================================================
 // Cross-game crossings: the rows both panes draw (#755, #757)

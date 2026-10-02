@@ -68,7 +68,8 @@ void Combo_Tracker_RegisterOoT(const ComboOoTTrackerOps* ops) {
         sOoTOps = NULL;
         return;
     }
-    if (ops->summary == NULL || ops->checkCount == NULL || ops->checkAt == NULL || ops->checkName == NULL) {
+    if (ops->summary == NULL || ops->checkCount == NULL || ops->checkAt == NULL || ops->checkName == NULL ||
+        (ops->skipWritable == NULL) != (ops->setSkipped == NULL)) {
         fprintf(stderr, "[ComboTracker] REJECTED OoT tracker vtable: NULL member\n");
         return;
     }
@@ -322,6 +323,28 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
         return sOoTOps->checkName(checkId);
     }
     return NULL;
+}
+
+// ============================================================================
+// The skip toggle (#458 U5)
+// ============================================================================
+
+bool Combo_TrackerSkipWritable(uint8_t game) {
+    (void)game;
+    return false;
+}
+
+bool Combo_TrackerRowSkippable(uint8_t game, const ComboTrackerCheckRow* row) {
+    (void)game;
+    (void)row;
+    return false;
+}
+
+bool Combo_TrackerSetSkipped(uint8_t game, uint16_t checkId, bool skipped) {
+    (void)game;
+    (void)checkId;
+    (void)skipped;
+    return false;
 }
 
 // ============================================================================

@@ -187,10 +187,22 @@ void FallbackRowText(const char* text, const ComboUiWidgetOpts* opts) {
     FinishItem(text, o);
 }
 
+bool FallbackIconButton(const char* id, const char* icon, const ComboUiWidgetOpts* opts) {
+    const ComboUiWidgetOpts& o = OptsOrDefault(opts);
+    const float sz = ImGui::GetFrameHeight();
+    ImGui::PushID(id);
+    ImGui::BeginDisabled(o.disabled);
+    const bool clicked = ImGui::Button(icon, ImVec2(sz, sz));
+    ImGui::EndDisabled();
+    ImGui::PopID();
+    FinishItem(id, o);
+    return clicked;
+}
+
 const ComboUiTable kFallback = {
     FallbackCheckbox,  FallbackCombobox,    FallbackSliderInt, FallbackButton,  FallbackSearchInput, FallbackSeparatorText,
     FallbackNoteText,  FallbackWarningText, FallbackTooltip,   FallbackTagChip, FallbackConfirm,
-    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText,
+    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText, FallbackIconButton,
 };
 
 } // namespace

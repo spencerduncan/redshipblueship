@@ -240,9 +240,13 @@ const char* MMTrackerPlacedItemName(const void* save, uint16_t checkId, uint8_t*
  * title screen, which authors an unmarked bootstrap save (Sram_InitNewSave),
  * and file select, which reads each slot through the live buffer while it
  * scans them — neither is the player's world.
+ *
+ * Writable because the view's skip toggle writes RANDO_SAVE_CHECKS[id].skipped
+ * through it (#458 U5), the byte MM's own check tracker flips on a row click
+ * (CheckTracker.cpp) and MM's next save persists.
  */
-const void* MMTrackerLiveSave(void) {
-    return (MM_gPlayState != nullptr) ? static_cast<const void*>(&gSaveContext) : nullptr;
+void* MMTrackerLiveSave(void) {
+    return (MM_gPlayState != nullptr) ? static_cast<void*>(&gSaveContext) : nullptr;
 }
 
 } // namespace

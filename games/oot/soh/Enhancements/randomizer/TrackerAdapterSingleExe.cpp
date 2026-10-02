@@ -49,7 +49,9 @@ extern "C" {
 // SeedContext.h only FORWARD-declares Rando::Logic, and the test seam below has
 // to call Logic::SetContext to cut the Context<->Logic ownership cycle.
 #include "soh/Enhancements/randomizer/logic.h"
+#include "soh/Enhancements/randomizer/randomizer_check_tracker.h" // the skip toggle's native-tracker refresh (#458 U5)
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
+#include "soh/SaveManager.h" // the skip toggle's tracker-data save (#458 U5)
 
 // src/common. Included outside any extern "C" block: the header manages its
 // own linkage (matching ForeignItemsSingleExe.cpp).
@@ -237,14 +239,71 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
     return true;
 }
 
+// ---- #458 U5: the skip toggle ------------------------------------------------
+
+// The ROM-free lock's stand-ins for the two things it cannot have: a loaded save
+// (GameInteractor::IsSaveLoaded needs a play state and a player) and a save
+// folder to write. -1 is production; 0 or 1 is the lock's answer to "is a save
+// loaded", and then the persist step is counted instead of run.
+int sSkipTestSaveLoaded = -1;
+int sSkipTestPersists = 0;
+
+/**
+ * A skip write needs OoT running a loaded file: the heap then belongs to the save
+ * being played, gSaveContext is OoT's (both ports overlay one live save, so it is
+ * MM's while MM runs), and SoH's Check Tracker itself draws its list, and with it
+ * the skip buttons, only then (DrawElement: "Waiting for file load..." before).
+ * The current game is asked first, because IsSaveLoaded reads gSaveContext.
+ */
+bool OoTTrackerSkipWritable(void) {
+    if (Context_GetCurrentGame() != GAME_OOT || Rando::Context::GetInstance() == nullptr) {
+        return false;
+    }
+    if (sSkipTestSaveLoaded >= 0) {
+        return sSkipTestSaveLoaded != 0;
+    }
+    return GameInteractor::IsSaveLoaded() && IS_RANDO;
+}
+
+/**
+ * What SoH's skip button does after flipping the flag (DrawLocation): its own
+ * area counts and order follow, and its tracker-data section is saved. The order
+ * pass also recalculates every area's totals (UpdateOrdering), which is what the
+ * button's hand-adjusted counters amount to; hook_handlers.cpp's foreign pickup
+ * persists the same section the same way.
+ */
+void OoTTrackerPersistSkip(void) {
+    CheckTracker::UpdateAllOrdering();
+    if (sSkipTestSaveLoaded >= 0) {
+        sSkipTestPersists++;
+        return;
+    }
+    SaveManager::Instance->SaveSection(gSaveContext.fileNum, SECTION_ID_TRACKER_DATA, true);
+}
+
+bool OoTTrackerSetSkipped(uint16_t checkId, bool skipped) {
+    if (!OoTTrackerSkipWritable() || checkId == 0 || checkId >= (uint16_t)RC_MAX) {
+        return false;
+    }
+    Rando::ItemLocation* loc = Rando::Context::GetInstance()->GetItemLocation((size_t)checkId);
+    // The checks SoH's button is drawn on: part of the seed, and not found.
+    if (loc->GetPlacedRandomizerGet() == RG_NONE || StatusObtained(loc->GetCheckStatus())) {
+        return false;
+    }
+    if (loc->GetIsSkipped() == skipped) {
+        return true;
+    }
+    loc->SetIsSkipped(skipped);
+    OoTTrackerPersistSkip();
+    return true;
+}
+
 } // namespace
 
 extern "C" void OoT_TrackerAdapter_Register(void) {
     static const ComboOoTTrackerOps kOps = {
-        OoTTrackerSummary,
-        OoTTrackerCheckCount,
-        OoTTrackerCheckAt,
-        OoTTrackerCheckName,
+        OoTTrackerSummary,    OoTTrackerCheckCount,   OoTTrackerCheckAt,
+        OoTTrackerCheckName,  OoTTrackerSkipWritable, OoTTrackerSetSkipped,
     };
     Combo_Tracker_RegisterOoT(&kOps);
 }
@@ -351,6 +410,20 @@ extern "C" int OoT_TrackerAdapter_TestSetCollected(uint16_t rc, int collected) {
     const int was = StatusObtained(loc->GetCheckStatus()) ? 1 : 0;
     loc->SetCheckStatus(collected != 0 ? RCSHOW_COLLECTED : RCSHOW_UNCHECKED);
     return was;
+}
+
+/**
+ * The skip toggle's lock seam (#458 U5): @p saveLoaded -1 restores production;
+ * 0 or 1 answers "is a save loaded" for OoTTrackerSkipWritable (the current game
+ * and the heap context are still checked for real), and each persist is then
+ * counted rather than written to a save folder. @return the persists counted
+ * since the previous call, which resets the count.
+ */
+extern "C" int OoT_TrackerAdapter_TestSkipSeam(int saveLoaded) {
+    sSkipTestSaveLoaded = saveLoaded < 0 ? -1 : (saveLoaded != 0 ? 1 : 0);
+    const int persists = sSkipTestPersists;
+    sSkipTestPersists = 0;
+    return persists;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE
