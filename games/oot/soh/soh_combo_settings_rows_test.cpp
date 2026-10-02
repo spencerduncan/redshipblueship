@@ -155,6 +155,13 @@ std::string RowName(ComboSettingId id) {
     return std::string(Combo_ComboSettingSharedMarker()) + " " + Combo_ComboSettingLabel(id);
 }
 
+// A checkbox row carries the marker on its own line above the label, so the
+// label fits beside the box at min-832x600 (SohMenuCombo.cpp,
+// ComboRuleCheckboxRowName).
+std::string CheckboxRowName(ComboSettingId id) {
+    return std::string(Combo_ComboSettingSharedMarker()) + "\n" + Combo_ComboSettingLabel(id);
+}
+
 // Every widget of one sidebar page, flattened across its columns, each paired
 // with the column it landed in. Pointers into the page's own vectors, which is
 // safe because nothing is registered after the flatten.
@@ -351,7 +358,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
 
     WidgetInfo* settingRow[COMBO_SETTING_COUNT] = {};
     for (const ExpectedRow& expected : kExpected) {
-        const std::string name = RowName(expected.id) + expected.suffix;
+        const std::string name =
+            (expected.type == WIDGET_CHECKBOX ? CheckboxRowName(expected.id) : RowName(expected.id)) + expected.suffix;
         uint32_t column = 0;
         WidgetInfo* row = FindRow(rows, name, &column);
         ROWS_CHECK(row != nullptr, "no Cross-Game Rules row named '%s' -- the setting '%s' is unreachable in the menu",

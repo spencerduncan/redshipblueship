@@ -49,7 +49,9 @@ and on ours (R-N4).
   must fit at both ends of its range, because it prints its value. A three-column page therefore holds labels of about
   14 characters, which is why our mixed pages use two columns, as SoH's mixed pages do. Where a label of ours is still
   too long, shorten it to SoH's wording length with the same meaning (R-N2, R-N6) rather than changing a widget or a
-  font. SoH's own pages do not meet this, and rule 0 keeps them as shipped. At 832x600, 68 rows on SoH's pages overrun
+  font. A name the operator ruled cannot be shortened: a marked checkbox puts the marker on its own line instead, the
+  two-line label SoH's own long checkbox rows get from `WrappedText` ("[Both Games]" over "Shared Ocarina",
+  `ComboRuleCheckboxRowName` in `SohMenuCombo.cpp`). SoH's own pages do not meet this, and rule 0 keeps them as shipped. At 832x600, 68 rows on SoH's pages overrun
   their column (23 of them on Enhancements > Quality of Life, where "Containers Match Contents" is counted twice, its
   separator and its checkbox). 63 are rows as SoH shipped them; 5 carry this project's ruled "[Both Games] " marker
   (rule 3), which SoH shipped without: Dev Tools > General's Popout Menu and Debug Mode, and Settings > General's
