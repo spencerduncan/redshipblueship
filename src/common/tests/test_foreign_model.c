@@ -597,12 +597,13 @@ TestResult FmWalkOoTSongsInMM(void) {
             ok = ok && want != nullptr && FmIsTintedNote(host, want->env);
         }
         printf("[TEST]   OoT song row %3d %-40s tint %3d,%3d,%3d -> MM %s, table row %d, key %u: %u part(s), env "
-               "%3d,%3d,%3d%s\n",
+               "%3d,%3d,%3d%s%s\n",
                row, model.parts[0].dl + 15, model.grayscale ? model.grayscaleRgb[0] : -1,
                model.grayscale ? model.grayscaleRgb[1] : -1, model.grayscale ? model.grayscaleRgb[2] : -1,
                got == 1 ? "draws" : "NO MODEL", tableRow, (unsigned)key, (unsigned)host.partCount,
                host.xluColor.set ? host.xluColor.env[0] : -1, host.xluColor.set ? host.xluColor.env[1] : -1,
-               host.xluColor.set ? host.xluColor.env[2] : -1, ok ? "" : got == 1 ? "  <- wrong note" : why ? why : "");
+               host.xluColor.set ? host.xluColor.env[2] : -1, ok ? "" : "  <- ",
+               ok ? "" : got == 1 ? "wrong note" : why ? why : "no table row");
         failures += ok ? 0 : 1;
     }
     printf("[TEST]   OoT song rows in MM: %d rows (%d tinted, on %zu MM table rows); %d failures\n", songRows, tinted,

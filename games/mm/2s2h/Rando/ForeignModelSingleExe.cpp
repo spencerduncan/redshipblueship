@@ -39,7 +39,8 @@
  * own primitives (setup list, texture scrolls, colours, matrices), naming each
  * display list by its path. A colliding OoT model that MM's host-native table
  * maps (#577 M7) draws MM's OWN row instead, through the same primitives and
- * MM's own recipe for that row. Anything else (no placement, no model, a
+ * MM's own recipe for that row, or, for an OoT song MM has no row for, MM's
+ * host-side tinted note (#830, DrawSong's shape). Anything else (no placement, no model, a
  * colliding model the table answers "no model" for, a path no mounted archive
  * holds) draws nothing and leaves CheckQueue's model-less stand-in.
  */
@@ -74,6 +75,7 @@
 extern "C" {
 #include "variables.h" // MM_gPlayState, MM_sMatrixStack, MM_sCurrentMatrix
 #include "functions.h"
+#include "objects/object_gi_melody/object_gi_melody.h" // gGiSongNoteDL (#830)
 // Test bridges only (#800): the shop shelf actor the shelf-draw bridge stands up.
 #include "overlays/actors/ovl_En_GirlA/z_en_girla.h"
 }
@@ -369,6 +371,88 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
     return ModelForDrawId((int)it->second.drawId, out, reason);
 }
 
+// ---- Host-side tinted song notes (#830) ---------------------------------------
+//
+// MM's get-item draw table has no row for most of OoT's songs, but MM draws a
+// song itself: Rando::DrawItem's DrawSong (DrawItem.cpp) emits setup list 25 on
+// XLU, the matrix, an env colour per song, then gGiSongNoteDL. The note list
+// sets its own prim colour (255,255,255, LOD 0x80) before any triangle, so the
+// env colour is the whole tint. These recipes are that draw, numbered in MM's
+// own draw space from kNoteKeyFirst up (far past MM_GetItem_DrawTableCount, so
+// a note key never names a draw row): a host-native row answers one of them for
+// an OoT song MM has no row for. OoTMM, the reference for player-facing
+// choices, draws every song as a tinted note in both games. Where MM has the
+// same song (Sun, Time, Storms, Epona) the note takes DrawSong's colour; the
+// others take OoT's own tint: GetItem_DrawGenericMusicNote's grayscale colour,
+// or for Minuet and Bolero the env colour their colour list sets
+// (object_gi_melody gGiMinuetColorDL / gGiBoleroColorDL, the same bytes in both
+// games' archives).
+enum : int16_t {
+    kNoteKeyFirst = 0x4000,
+    kNoteGeneric = kNoteKeyFirst,
+    kNoteLullaby,
+    kNoteEpona,
+    kNoteSaria,
+    kNoteSun,
+    kNoteTime,
+    kNoteStorms,
+    kNoteMinuet,
+    kNoteBolero,
+    kNoteKeyEnd,
+};
+
+struct MMNoteRecipe {
+    int16_t key;
+    uint8_t env[3];
+};
+
+const MMNoteRecipe kNoteRecipes[] = {
+    { kNoteGeneric, { 255, 255, 255 } }, // OoT's generic note tint
+    { kNoteLullaby, { 109, 73, 143 } },  // OoT's Zelda's Lullaby tint (MM's Lullaby is Goron)
+    { kNoteEpona, { 146, 87, 49 } },     // DrawSong, RI_SONG_EPONA
+    { kNoteSaria, { 62, 109, 23 } },     // OoT's Saria's Song tint
+    { kNoteSun, { 237, 231, 62 } },      // DrawSong, RI_SONG_SUN
+    { kNoteTime, { 98, 177, 211 } },     // DrawSong, RI_SONG_TIME
+    { kNoteStorms, { 146, 146, 146 } },  // DrawSong, RI_SONG_STORMS
+    { kNoteMinuet, { 0, 200, 0 } },      // gGiMinuetColorDL's gsDPSetEnvColor
+    { kNoteBolero, { 255, 50, 0 } },     // gGiBoleroColorDL's gsDPSetEnvColor
+};
+static_assert(sizeof(kNoteRecipes) / sizeof(kNoteRecipes[0]) == (size_t)(kNoteKeyEnd - kNoteKeyFirst),
+              "one recipe per note key");
+
+/** A note key's tinted note: 1 and *out, or 0 and *reason. */
+int ModelForNoteKey(int key, ComboModel* out, const char** reason) {
+    Combo_ModelInit(out);
+    *reason = nullptr;
+    if (key < kNoteKeyFirst || key >= kNoteKeyEnd || kNoteRecipes[key - kNoteKeyFirst].key != key) {
+        *reason = "no such note recipe";
+        return 0;
+    }
+    const MMNoteRecipe& recipe = kNoteRecipes[key - kNoteKeyFirst];
+    if (Combo_ModelAddPart(out, gGiSongNoteDL, kXlu, 0) != 1) {
+        *reason = "note list path malformed";
+        return 0;
+    }
+    out->xluSetupDl = 25;
+    out->xluColor.set = 1;
+    out->xluColor.primLodFrac = 0x80; // what gGiSongNoteDL sets itself
+    out->xluColor.prim[0] = out->xluColor.prim[1] = out->xluColor.prim[2] = 255;
+    std::memcpy(out->xluColor.env, recipe.env, sizeof(recipe.env));
+    if (!Combo_ModelIsWellFormed(out)) {
+        *reason = "recipe produced a malformed model";
+        return 0;
+    }
+    return 1;
+}
+
+/** Any key of MM's draw space: a draw row, or a host-side note recipe. */
+int ModelForHostKey(int key, ComboModel* out, const char** reason) {
+    if (key >= kNoteKeyFirst) {
+        return ModelForNoteKey(key, out, reason);
+    }
+    return ModelForDrawId(key, out, reason);
+}
+
 // ---- Host-native mapping (#577 M7) --------------------------------------------
 //
 // When OoT hands MM a model whose paths live in a directory both archives carry,
@@ -378,7 +462,8 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
 // Each OoT get-item model whose lists live in a colliding directory has a row:
 // MM's own model for the same item (OoT's hookshot and longshot draw MM's
 // hookshot, OoT's Hylian Shield MM's Hero's Shield, OoT's gold rupee MM's huge
-// rupee), or "no model" with its reason where MM has no such item. The
+// rupee), a host-side tinted note for a song (#830, keyed by its tint as well),
+// or "no model" with its reason where MM has no such item. The
 // ForeignModel row (M11) walks every OoT draw row and item against this table,
 // so a colliding OoT model without a row, and a row no OoT model reaches, both
 // fail.
@@ -387,15 +472,11 @@ const ComboHostNativeRow kHostNativeRows[] = {
     { { "object_gi_bottle/gGiBottleStopperDL", "object_gi_bottle/gGiBottleDL" }, GID_BOTTLE, nullptr },
     // OoT GID_KEY_SMALL
     { { "object_gi_key/gGiSmallKeyDL" }, GID_KEY_SMALL, nullptr },
-    // OoT GID_SONG_MINUET. Minuet and Bolero diverge from OoTMM, which draws them
-    // as tinted notes in MM (#830).
-    { { "object_gi_melody/gGiMinuetColorDL", "object_gi_melody/gGiSongNoteDL" },
-      -1,
-      "Minuet of Forest: MM's get-item table has no Minuet note row" },
-    // OoT GID_SONG_BOLERO
-    { { "object_gi_melody/gGiBoleroColorDL", "object_gi_melody/gGiSongNoteDL" },
-      -1,
-      "Bolero of Fire: MM's get-item table has no Bolero note row" },
+    // OoT GID_SONG_MINUET: MM's get-item table has no Minuet note row, so its
+    // host-side tinted note in OoT's colour (#830).
+    { { "object_gi_melody/gGiMinuetColorDL", "object_gi_melody/gGiSongNoteDL" }, kNoteMinuet, nullptr },
+    // OoT GID_SONG_BOLERO: likewise.
+    { { "object_gi_melody/gGiBoleroColorDL", "object_gi_melody/gGiSongNoteDL" }, kNoteBolero, nullptr },
     // OoT GID_SONG_SERENADE
     { { "object_gi_melody/gGiSerenadeColorDL", "object_gi_melody/gGiSongNoteDL" }, GID_04, nullptr },
     // OoT GID_SONG_REQUIEM
@@ -603,14 +684,16 @@ const ComboHostNativeRow kHostNativeRows[] = {
     { { "object_gi_sword_1/gGiKokiriSwordDL" }, GID_SWORD_KOKIRI, nullptr },
     // OoT GID_SKULL_TOKEN_2
     { { "object_st/gSkulltulaTokenDL", "object_st/gSkulltulaTokenFlameDL" }, GID_SKULL_TOKEN_2, nullptr },
-    // OoT GID_SONG_GENERIC .. GID_SONG_STORM (one list, seven tints). A table
-    // limit, not a missing item: the key ignores the tint, and MM's same-item
-    // notes (Sun, Time, Storms, Epona: DrawItem.cpp DrawSong) are a 2S2H custom
-    // draw, not a row this table can target. OoTMM draws every song as a tinted
-    // note in both games; #830 tracks the tinted-note host recipe.
-    { { "object_gi_melody/gGiSongNoteDL" },
-      -1,
-      "tinted song note: the table cannot target MM's DrawSong custom draw or key the tint (#830)" },
+    // OoT GID_SONG_GENERIC .. GID_SONG_STORM: one list under seven grayscale
+    // tints, so these rows key the tint too (#830), each answering MM's
+    // host-side tinted note (DrawSong's colour where MM has the song).
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteGeneric, nullptr, 1, { 255, 255, 255 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteLullaby, nullptr, 1, { 109, 73, 143 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteEpona, nullptr, 1, { 217, 110, 48 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteSaria, nullptr, 1, { 62, 109, 23 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteSun, nullptr, 1, { 237, 231, 62 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteTime, nullptr, 1, { 98, 177, 211 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteStorms, nullptr, 1, { 146, 146, 146 } },
 };
 constexpr int kHostNativeRowCount = (int)(sizeof(kHostNativeRows) / sizeof(kHostNativeRows[0]));
 
@@ -622,7 +705,9 @@ int MapHostNative(const ComboModel* foreign, uint16_t* hostKey, const char** rea
         return 0;
     }
     const ComboHostNativeRow& row = kHostNativeRows[*tableRow];
-    if (row.hostDrawId < 0 || row.hostDrawId >= MM_GetItem_DrawTableCount()) {
+    const bool drawRow = row.hostDrawId >= 0 && row.hostDrawId < MM_GetItem_DrawTableCount();
+    const bool noteRecipe = row.hostDrawId >= kNoteKeyFirst && row.hostDrawId < kNoteKeyEnd;
+    if (!drawRow && !noteRecipe) {
         *reason = row.noModelReason;
         return 0;
     }
@@ -689,11 +774,11 @@ extern "C" int MM_ComboModel_TestForDrawRow(int drawId, ComboModel* out, const c
     return answered;
 }
 
-/** The model MM draws, as a host, for one of its own host keys: 1 and *out, or
- *  0 and *reason. */
+/** The model MM draws, as a host, for one of its own host keys (a draw row, or a
+ *  host-side note recipe, #830): 1 and *out, or 0 and *reason. */
 extern "C" int MM_ComboModel_TestForHostKey(int hostKey, ComboModel* out, const char** reason) {
     const char* why = nullptr;
-    const int answered = ModelForDrawId(hostKey, out, &why);
+    const int answered = ModelForHostKey(hostKey, out, &why);
     if (reason != nullptr) {
         *reason = why;
     }
@@ -891,7 +976,7 @@ bool ForeignModelForCheck(RandoCheckId checkId, ComboModel* out, uint8_t* kindOu
         model = answer.model;
     } else if (kind == COMBO_MODEL_ANSWER_HOST_NATIVE) {
         const char* reason = nullptr;
-        if (ModelForDrawId((int)answer.hostKey, &model, &reason) != 1) {
+        if (ModelForHostKey((int)answer.hostKey, &model, &reason) != 1) {
             return false;
         }
     } else {
@@ -1227,8 +1312,14 @@ bool RunShopDraw(uint16_t mmCheckId, bool hand, const ComboModel* want) {
  * is marked eligible, exactly as walking up to it would, so CheckQueue queues
  * the real foreign give and the get-item cutscene follows. Returns the check
  * id, or 0 when the world has no such crossing.
+ *
+ * #830: RSBS_GP_MM_FOREIGN_MODEL=song arms the first OoT SONG instead (any
+ * drawable answer whose model draws the song note: MM's own note row or its
+ * host-side tinted note), so the capture shows an OoT song's note in MM.
  */
 extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
+    const char* mode = std::getenv("RSBS_GP_MM_FOREIGN_MODEL");
+    const bool wantSong = mode != nullptr && std::strcmp(mode, "song") == 0;
     const int count = Combo_Crossings_Count(GAME_MM);
     for (int i = 0; i < count; i++) {
         ComboCrossing crossing;
@@ -1236,20 +1327,32 @@ extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
         uint8_t kind = COMBO_MODEL_ANSWER_NONE;
         if (!Combo_Crossings_At(GAME_MM, i, &crossing) || crossing.hostCheck >= RC_MAX ||
             RANDO_SAVE_CHECKS[crossing.hostCheck].obtained ||
-            !ForeignModelForCheck((RandoCheckId)crossing.hostCheck, &model, &kind) ||
-            kind != COMBO_MODEL_ANSWER_DESCRIPTOR) {
+            !ForeignModelForCheck((RandoCheckId)crossing.hostCheck, &model, &kind)) {
+            continue;
+        }
+        bool drawsNote = false;
+        for (uint8_t p = 0; p < model.partCount; p++) {
+            drawsNote |= std::strcmp(model.parts[p].dl, gGiSongNoteDL) == 0;
+        }
+        if (wantSong ? !drawsNote : kind != COMBO_MODEL_ANSWER_DESCRIPTOR) {
             continue;
         }
         RANDO_SAVE_CHECKS[crossing.hostCheck].eligible = true;
+        const char* name = Combo_GetForeignItemName(crossing.item);
         std::fprintf(stderr,
-                     "[M3-PLAYTEST] armed MM check %u (%s) hosting OoT item %u: %u part(s), first %s (crossing %d of "
-                     "%d)\n",
+                     "[M3-PLAYTEST] armed MM check %u (%s) hosting OoT item %u (%s, %s): %u part(s), first %s, XLU env "
+                     "%d,%d,%d (crossing %d of %d)\n",
                      (unsigned)crossing.hostCheck, Rando::StaticData::CheckNames[crossing.hostCheck].c_str(),
-                     (unsigned)crossing.item.id, (unsigned)model.partCount, model.parts[0].dl, i + 1, count);
+                     (unsigned)crossing.item.id, name != nullptr ? name : "?",
+                     kind == COMBO_MODEL_ANSWER_DESCRIPTOR ? "DESCRIPTOR" : "HOST_NATIVE", (unsigned)model.partCount,
+                     model.parts[0].dl, model.xluColor.set ? model.xluColor.env[0] : -1,
+                     model.xluColor.set ? model.xluColor.env[1] : -1, model.xluColor.set ? model.xluColor.env[2] : -1,
+                     i + 1, count);
         std::fflush(stderr);
         return crossing.hostCheck;
     }
-    std::fprintf(stderr, "[M3-PLAYTEST] no MM-hosted crossing of %d has a drawable OoT model\n", count);
+    std::fprintf(stderr, "[M3-PLAYTEST] no MM-hosted crossing of %d has a drawable OoT %s\n", count,
+                 wantSong ? "song" : "model");
     std::fflush(stderr);
     return 0;
 }

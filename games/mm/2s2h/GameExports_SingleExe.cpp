@@ -1190,6 +1190,14 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
         MM_ForeignModel_PlaytestArmGive();
     }
+    // #830: in-process framebuffer captures of that get-item cutscene (a no-op
+    // unless RSBS_GP_SHOT_DIR is set; run with RSBS_GP_FRAMES past 400).
+    if (std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr &&
+        (sGpMMPlayFrames == 160 || sGpMMPlayFrames == 220 || sGpMMPlayFrames == 400)) {
+        char tag[48];
+        snprintf(tag, sizeof(tag), "mm-foreign-model-%03d", sGpMMPlayFrames);
+        MM_Playtest_DumpGameFramebuffer(tag);
+    }
     // #800 playtest drive (opt-in, RSBS_GP_MM_SHOP=1): warp into the Clock Town
     // shop whose shelf holds an OoT item (Rando/ForeignShopSingleExe.cpp), once no
     // textbox is up, then drive the purchase there.
