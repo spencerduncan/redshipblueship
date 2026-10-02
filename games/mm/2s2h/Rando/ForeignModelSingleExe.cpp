@@ -689,6 +689,17 @@ extern "C" int MM_ComboModel_TestForDrawRow(int drawId, ComboModel* out, const c
     return answered;
 }
 
+/** The model MM draws, as a host, for one of its own host keys: 1 and *out, or
+ *  0 and *reason. */
+extern "C" int MM_ComboModel_TestForHostKey(int hostKey, ComboModel* out, const char** reason) {
+    const char* why = nullptr;
+    const int answered = ModelForDrawId(hostKey, out, &why);
+    if (reason != nullptr) {
+        *reason = why;
+    }
+    return answered;
+}
+
 /** A draw row's lists (NULL where the row has none): 1, or 0 past the table. */
 extern "C" int MM_ComboModel_TestDrawRowLists(int drawId, const char* lists[COMBO_MODEL_MAX_PARTS]) {
     MMGetItemDrawFn fn = nullptr;
