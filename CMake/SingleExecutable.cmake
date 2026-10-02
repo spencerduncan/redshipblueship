@@ -2361,8 +2361,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
     # #843: the same round trip with the in-process frame capture on
-    # (src/common/frame_capture.h). Frames 100 and 200 of each game (both
-    # inside a single round trip: MM's leg runs about 310 frames) are written to
+    # (src/common/frame_capture.h). Frames 100 and 200 of each game are
+    # inside one round trip. Measured (RSBS_CAPTURE_FRAMES=every:10, three runs,
+    # identical frame by frame): MM's leg ends between its frames 270 and 279
+    # (frames 1-149 are the Dawn of the First Day card and the scene load,
+    # 150 on are South Clock Town), so MM frame 200 has a margin of about 70
+    # frames; OoT reaches past frame 540. A shorter MM load than this would
+    # fail the row with "no mm frame 200". The frames are written to
     # build-cmake/frame-capture/<game>-frame-<n>.png, and the PASS requires all
     # four on disk, at least one per game not uniform (RSBS_CAPTURE_VERIFY).
     # Without the capture no file is written and the run fails at its PASS.
