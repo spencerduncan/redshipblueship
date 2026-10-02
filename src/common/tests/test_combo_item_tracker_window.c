@@ -150,8 +150,8 @@ bool CitwSectionHasText(const ComboGui::ComboItemTrackerSection& section, const 
  * crash would not catch: a note that is a sentence, no rows without data, every
  * row labelled and carrying its section's freshness.
  */
-bool CitwDriveSections(ComboGui::ComboItemTrackerSection out[COMBO_ITEM_SECTION_COUNT]) {
-    for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
+bool CitwDriveSections(ComboGui::ComboItemTrackerSection out[ComboGui::COMBO_ITEM_SECTION_COUNT]) {
+    for (int s = 0; s < ComboGui::COMBO_ITEM_SECTION_COUNT; s++) {
         ComboGui::ComboItemTrackerCollectSection(s, out[s]);
         const ComboGui::ComboItemTrackerSection& section = out[s];
         if (section.id != s || section.title == nullptr || section.title[0] == '\0') {
@@ -181,16 +181,16 @@ int CitwLockDecisions(void) {
     const int floating = base | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoTitleBar |
                          ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
     const int fixedInputs = ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove;
-    CITW_ASSERT(ComboItemTrackerWindowFlags(COMBO_ITEM_TRACKER_FLOATING, false) == (floating | fixedInputs));
-    CITW_ASSERT(ComboItemTrackerWindowFlags(COMBO_ITEM_TRACKER_FLOATING, true) == floating);
-    CITW_ASSERT(ComboItemTrackerWindowFlags(COMBO_ITEM_TRACKER_WINDOW, false) == base);
-    CITW_ASSERT(ComboItemTrackerWindowFlags(COMBO_ITEM_TRACKER_WINDOW, true) == base);
+    CITW_ASSERT(ComboItemTrackerWindowFlags(ComboGui::COMBO_ITEM_TRACKER_FLOATING, false) == (floating | fixedInputs));
+    CITW_ASSERT(ComboItemTrackerWindowFlags(ComboGui::COMBO_ITEM_TRACKER_FLOATING, true) == floating);
+    CITW_ASSERT(ComboItemTrackerWindowFlags(ComboGui::COMBO_ITEM_TRACKER_WINDOW, false) == base);
+    CITW_ASSERT(ComboItemTrackerWindowFlags(ComboGui::COMBO_ITEM_TRACKER_WINDOW, true) == base);
 
     // SoH's show rule: a window always; floating unless only-paused and unpaused.
-    CITW_ASSERT(ComboItemTrackerShows(COMBO_ITEM_TRACKER_FLOATING, false, false));
-    CITW_ASSERT(!ComboItemTrackerShows(COMBO_ITEM_TRACKER_FLOATING, true, false));
-    CITW_ASSERT(ComboItemTrackerShows(COMBO_ITEM_TRACKER_FLOATING, true, true));
-    CITW_ASSERT(ComboItemTrackerShows(COMBO_ITEM_TRACKER_WINDOW, true, false));
+    CITW_ASSERT(ComboItemTrackerShows(ComboGui::COMBO_ITEM_TRACKER_FLOATING, false, false));
+    CITW_ASSERT(!ComboItemTrackerShows(ComboGui::COMBO_ITEM_TRACKER_FLOATING, true, false));
+    CITW_ASSERT(ComboItemTrackerShows(ComboGui::COMBO_ITEM_TRACKER_FLOATING, true, true));
+    CITW_ASSERT(ComboItemTrackerShows(ComboGui::COMBO_ITEM_TRACKER_WINDOW, true, false));
 
     // Row text.
     ComboItemRow row = {};
@@ -230,14 +230,14 @@ int CitwLockDecisions(void) {
     CITW_ASSERT(cells.size() == rows.size() && cells.back().line == 6 && cells.back().column == 0);
 
     // Section keys: shown by default, hidden when cleared to 0.
-    for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
+    for (int s = 0; s < ComboGui::COMBO_ITEM_SECTION_COUNT; s++) {
         CITW_ASSERT(ComboItemTrackerSectionShown(s));
     }
     CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_SECTION_MM, 0);
-    CITW_ASSERT(!ComboItemTrackerSectionShown(COMBO_ITEM_SECTION_MM));
-    CITW_ASSERT(ComboItemTrackerSectionShown(COMBO_ITEM_SECTION_OOT));
+    CITW_ASSERT(!ComboItemTrackerSectionShown(ComboGui::COMBO_ITEM_SECTION_MM));
+    CITW_ASSERT(ComboItemTrackerSectionShown(ComboGui::COMBO_ITEM_SECTION_OOT));
     CVarClear(RSBS_CVAR_COMBO_ITEMS_SECTION_MM);
-    CITW_ASSERT(!ComboItemTrackerSectionShown(COMBO_ITEM_SECTION_COUNT));
+    CITW_ASSERT(!ComboItemTrackerSectionShown(ComboGui::COMBO_ITEM_SECTION_COUNT));
     printf("[TEST] combo-item-tracker-window: chrome flags, show rule, row text, grid and section keys PASS\n");
     return TEST_PASS;
 }
@@ -271,7 +271,7 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, &sOoT);
     Combo_Item_RegisterOps((uint8_t)GAME_MM, &sMM);
 
-    ComboItemTrackerSection sections[COMBO_ITEM_SECTION_COUNT];
+    ComboItemTrackerSection sections[ComboGui::COMBO_ITEM_SECTION_COUNT];
 
     // ---- 2. inert while shut, no data and authored -----------------------
     for (int authored = 0; authored < 2; authored++) {
@@ -301,7 +301,7 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     // Visible, floating, only-paused, and no game paused: Draw() must stop
     // before ImGui under every GameId, and ask only the active game's probe.
     CVarSetInteger(kComboItemTrackerVisibilityCVar, 1);
-    CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, COMBO_ITEM_TRACKER_FLOATING);
+    CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_FLOATING);
     CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED, 1);
     for (GameId game : allGames) {
         Context_SetCurrentGame(game);
@@ -343,9 +343,9 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     sCitwMMLive = mmLive.data();
     Context_SetCurrentGame(GAME_OOT);
     CITW_ASSERT(CitwDriveSections(sections));
-    const ComboItemTrackerSection& ootLiveSection = sections[COMBO_ITEM_SECTION_OOT];
-    const ComboItemTrackerSection& mmSnap = sections[COMBO_ITEM_SECTION_MM];
-    const ComboItemTrackerSection& shared = sections[COMBO_ITEM_SECTION_SHARED];
+    const ComboItemTrackerSection& ootLiveSection = sections[ComboGui::COMBO_ITEM_SECTION_OOT];
+    const ComboItemTrackerSection& mmSnap = sections[ComboGui::COMBO_ITEM_SECTION_MM];
+    const ComboItemTrackerSection& shared = sections[ComboGui::COMBO_ITEM_SECTION_SHARED];
     printf("[TEST] combo-item-tracker-window: under GAME_OOT: \"%s\" %zu rows \"%s\"; \"%s\" %zu rows \"%s\"; \"%s\" "
            "%zu rows \"%s\"\n",
            ootLiveSection.title, ootLiveSection.rows.size(), ootLiveSection.note.c_str(), mmSnap.title,
@@ -372,18 +372,18 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     // MM played live: OoT is never live, its rows are its snapshot's.
     Context_SetCurrentGame(GAME_MM);
     CITW_ASSERT(CitwDriveSections(sections));
-    CITW_ASSERT(sections[COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
-    CITW_ASSERT(sections[COMBO_ITEM_SECTION_OOT].note == "As of the last game switch or save.");
-    CITW_ASSERT(CitwSectionHasText(sections[COMBO_ITEM_SECTION_OOT], "Longshot", true));
-    CITW_ASSERT(CitwSectionHasText(sections[COMBO_ITEM_SECTION_OOT], "Fairy Bow 35/40", true));
-    CITW_ASSERT(sections[COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_LIVE);
-    CITW_ASSERT(CitwSectionHasText(sections[COMBO_ITEM_SECTION_MM], "Zora Mask", true));
+    CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
+    CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].note == "As of the last game switch or save.");
+    CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Longshot", true));
+    CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Fairy Bow 35/40", true));
+    CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_LIVE);
+    CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_MM], "Zora Mask", true));
 
     // No game: both snapshots.
     Context_SetCurrentGame(GAME_NONE);
     CITW_ASSERT(CitwDriveSections(sections));
-    CITW_ASSERT(sections[COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
-    CITW_ASSERT(sections[COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_STALE);
+    CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
+    CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_STALE);
     printf("[TEST] combo-item-tracker-window: model reads PASS (OoT live / MM live / no game)\n");
     return TEST_PASS;
 }
