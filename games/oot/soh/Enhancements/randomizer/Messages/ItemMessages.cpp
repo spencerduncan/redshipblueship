@@ -12,6 +12,9 @@
 #include "soh/Enhancements/randomizer/randomizer.h"
 #include "soh/ShipInit.hpp"
 #include <soh/ResourceManagerHelpers.h>
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "soh/Enhancements/randomizer/ForeignModelHostOoT.h" // the show-only get-item entry (#577 M4)
+#endif
 
 extern "C" {
 #include <variables.h>
@@ -397,8 +400,26 @@ void BuildCustomItemMessage(Player* player, CustomMessage& msg) {
 void BuildItemMessage(u16* textId, bool* loadFromMessageTable) {
     Player* player = GET_PLAYER(OoT_gPlayState);
     CustomMessage msg;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #577 M4: OoT's get-item cutscene holding up a Majora's Mask item names
+    // that item (MM's describer, the name the pickup toast used), in OoT's
+    // default item colour, not the junk cover its entry carries.
+    const char* foreignArticle = nullptr;
+    const char* foreignName = nullptr;
+    const bool foreign =
+        OoT_Rando_Foreign_ShowOnlyItemText(&player->getItemEntry, &foreignArticle, &foreignName) == 1;
+#else
+    const bool foreign = false;
+#endif
 
-    if (player->getItemEntry.getItemId == RG_ICE_TRAP) {
+    if (foreign) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        msg = CustomMessage("You found [[article]]%g[[name]]%w!", TEXTBOX_TYPE_BLUE);
+        msg.Replace("[[article]]", std::string(foreignArticle));
+        msg.Replace("[[name]]", std::string(foreignName));
+        msg.AutoFormat();
+#endif
+    } else if (player->getItemEntry.getItemId == RG_ICE_TRAP) {
         BuildIceTrapMessage(msg);
     } else if (player->getItemEntry.getItemId == RG_TRIFORCE_PIECE) {
         BuildTriforcePieceMessage(msg);

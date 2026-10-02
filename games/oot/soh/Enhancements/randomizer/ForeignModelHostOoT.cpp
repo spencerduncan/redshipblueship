@@ -44,6 +44,10 @@
 
 #include "soh/OTRGlobals.h"
 #include "soh/frame_interpolation.h"
+#include "soh/Enhancements/custom-message/CustomMessageTypes.h" // TEXT_RANDOMIZER_CUSTOM_ITEM
+#include "soh/Enhancements/randomizer/randomizerTypes.h"        // MOD_RANDOMIZER, RG_BLUE_RUPEE
+#include "soh/Enhancements/randomizer/draw.h"                   // Randomizer_DrawRocsFeather (the M13 refusal)
+#include "ForeignModelHostOoT.h"
 
 extern "C" {
 #include <z64.h>
@@ -234,6 +238,155 @@ extern "C" int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc) {
     return 1;
 }
 
+// ============================================================================
+// #577 M4: OoT'S GET-ITEM CUTSCENE SHOWS THE MM ITEM AND GIVES NOTHING
+// ============================================================================
+//
+// THE COUPLING. OoT's get-item cutscene grants on its first frame what it holds
+// up: func_8084DFF4 (z_player.c) calls OoT_Item_Give or Randomizer_Item_Give on
+// the very entry it shows. An MM item on an OoT check is MM's to give: the
+// RC-queue drain records its crossing (OoT_Rando_Foreign_RecordPickup) and MM
+// redeems it on the next arrival in Termina. So until now the drain skipped the
+// cutscene and showed a toast (hook_handlers.cpp).
+//
+// THE DISPLAY-WITHOUT-GRANT PATH: one entry, built once, taken once.
+//   1. BUILD (the drain, after the crossing is recorded): a GetItemEntry whose
+//      drawFunc is ShowOnlyDraw, armed for one take. It carries a valid object
+//      (the get-item DMA still reads OoT_gObjectTable[objectId]), a draw id so
+//      the cutscene draws at all, the custom-item text id, the MAJOR category
+//      (so "skip junk get-item animations" does not drop it as a collectible)
+//      and MOD_RANDOMIZER (so the cutscene plays the item fanfare). Its item id
+//      is OoT's foreign junk cover, the item the OoT table holds at every
+//      crossing host (ComboLogicEngineOoT.cpp, kOoTForeignJunkCover): it never
+//      reaches a give, and if a future give point forgot to ask (2), it would
+//      give nothing of the MM item's identity.
+//   2. TAKE (the give point, func_8084DFF4): asked before every give. Only the
+//      armed entry, recognised by its draw function and its item ids, answers 1;
+//      the give is then skipped, the arm is spent, and the drain's queue slot is
+//      released (Randomizer_ReleaseQueuedShowOnly), which is what the
+//      item-receive hook does for an entry that IS given. Every other entry,
+//      custom-drawn or not, answers 0 and is given as before.
+//   3. DRAW (the cutscene, OoT_Player_DrawGetItemImpl calls the entry's
+//      drawFunc under its own 0.2-scale matrix): the MM model, as the shelf draws
+//      it (a mounted DESCRIPTOR), or for a colliding MM model OoT's host-native
+//      table maps (#577 M7), OoT's OWN row for it, re-expressed by path the same
+//      way. Neither: the mystery item, the stand-in the shelf uses too.
+//   4. TEXT (Messages/ItemMessages.cpp): "You found <article><name>!" from MM's
+//      describer, the name the toast used.
+//
+// ONE ARMED ENTRY AT A TIME is all the drain can produce: it builds only when
+// its queue slot is free and the player is in no item cutscene, and the slot is
+// released only by the take.
+
+// hook_handlers.cpp: release the RC queue's slot held by show-only check `rc`.
+void Randomizer_ReleaseQueuedShowOnly(uint16_t rc);
+
+// ForeignModelOoT.cpp: OoT's own draw row for a HOST_NATIVE answer, as a
+// descriptor of the lists OoT's own recipe draws for it.
+extern "C" int OoT_ComboModel_DrawRowModel(int drawId, ComboModel* out);
+
+static void ShowOnlyDraw(PlayState* play, GetItemEntry* entry);
+
+namespace {
+
+struct ShowOnlyState {
+    bool armed = false;    // built, not yet taken
+    uint16_t rc = 0;       // the OoT check it was built for
+    SharedItem item = {};  // the MM item it shows
+    bool hasModel = false; // false: the mystery stand-in
+    ComboModel model = {};
+    GetItemEntry entry = {};
+};
+ShowOnlyState sShowOnly;
+
+/** The model the get-item cutscene draws for `item`: a mounted DESCRIPTOR, or a
+ *  HOST_NATIVE answer's own OoT row (mounted: oot.o2r is, from boot). */
+bool ShowOnlyModelFor(const SharedItem& item, ComboModel* out) {
+    Combo_ModelInit(out);
+    ComboModelAnswer answer;
+    ComboModel model;
+    const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, item, &answer);
+    if (kind == COMBO_MODEL_ANSWER_DESCRIPTOR) {
+        model = answer.model;
+    } else if (kind == COMBO_MODEL_ANSWER_HOST_NATIVE) {
+        if (OoT_ComboModel_DrawRowModel((int)answer.hostKey, &model) != 1) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    if (!HostModelMounted(model)) {
+        return false;
+    }
+    *out = model;
+    return true;
+}
+
+bool IsShowOnlyEntry(const GetItemEntry* entry) {
+    return entry != nullptr && entry->drawFunc == ShowOnlyDraw && entry->modIndex == sShowOnly.entry.modIndex &&
+           entry->itemId == sShowOnly.entry.itemId && entry->getItemId == sShowOnly.entry.getItemId;
+}
+
+} // namespace
+
+/** The cutscene's draw (see the section header, 3). */
+static void ShowOnlyDraw(PlayState* play, GetItemEntry* entry) {
+    (void)entry;
+    if (play == nullptr) {
+        return;
+    }
+    if (sShowOnly.hasModel) {
+        OoTHostModel_Draw(play, sShowOnly.model);
+        return;
+    }
+    GetItemEntry_Draw(play, GetItemMystery());
+}
+
+extern "C" int OoT_Rando_Foreign_BuildShowOnlyGetItem(uint16_t rc, GetItemEntry* out) {
+    const SharedItem* item = rc != 0 ? Combo_GetForeignPlacementForOoTCheck(rc) : nullptr;
+    if (item == nullptr || out == nullptr) {
+        return 0;
+    }
+    GetItemEntry entry = GET_ITEM(RG_BLUE_RUPEE, OBJECT_GI_RUPY, GID_RUPEE_BLUE, TEXT_RANDOMIZER_CUSTOM_ITEM, 0x80,
+                                  CHEST_ANIM_LONG, ITEM_CATEGORY_MAJOR, MOD_RANDOMIZER, RG_BLUE_RUPEE);
+    entry.drawFunc = ShowOnlyDraw;
+    sShowOnly.armed = true;
+    sShowOnly.rc = rc;
+    sShowOnly.item = *item;
+    sShowOnly.hasModel = ShowOnlyModelFor(*item, &sShowOnly.model);
+    sShowOnly.entry = entry;
+    *out = entry;
+    return 1;
+}
+
+extern "C" int OoT_Rando_Foreign_TakeShowOnlyGetItem(const GetItemEntry* entry) {
+    if (!sShowOnly.armed || !IsShowOnlyEntry(entry)) {
+        return 0;
+    }
+    sShowOnly.armed = false;
+    Randomizer_ReleaseQueuedShowOnly(sShowOnly.rc);
+    const char* name = Combo_GetForeignItemName(sShowOnly.item);
+    std::fprintf(stderr, "[OoT] get-item cutscene shows the MM item %s from check %u and gives nothing (#577 M4)\n",
+                 name != nullptr ? name : "?", (unsigned)sShowOnly.rc);
+    std::fflush(stderr);
+    return 1;
+}
+
+extern "C" int OoT_Rando_Foreign_ShowOnlyItemText(const GetItemEntry* entry, const char** article, const char** name) {
+    if (!IsShowOnlyEntry(entry)) {
+        return 0;
+    }
+    const char* a = Combo_GetForeignItemArticle(sShowOnly.item);
+    const char* n = Combo_GetForeignItemName(sShowOnly.item);
+    if (article != nullptr) {
+        *article = a != nullptr ? a : "";
+    }
+    if (name != nullptr) {
+        *name = n != nullptr ? n : "a Majora's Mask item";
+    }
+    return 1;
+}
+
 // ---- TEST BRIDGES (ForeignModel row M12, src/common/tests/test_foreign_model.c)
 
 extern "C" void OoT_ForeignModel_TestSetMountOverride(int value) {
@@ -378,6 +531,132 @@ extern "C" int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* wan
     if ((drew == 1) != (want != nullptr)) {
         std::printf("[TEST]   M12 the draw answered %d, want %d\n", drew, want != nullptr ? 1 : 0);
         return 1;
+    }
+    return 0;
+}
+
+// hook_handlers.cpp: the drain's show-only queueing and its queue slot.
+extern "C" int OoT_Rando_Foreign_TestQueueShowOnly(uint16_t rc, GetItemEntry* queued);
+extern "C" int OoT_Rando_Foreign_TestQueuedCheck(void);
+
+/**
+ * TEST BRIDGE (ForeignModel row M13, #577 M4): OoT's show-only get-item path for
+ * OoT check `rc`, end to end short of a live Player.
+ *   1. The DRAIN's queueing (RandomizerQueueForeignShowOnly, hook_handlers.cpp)
+ *      takes the queue slot with the built entry, or, `wantEntry` 0, does not.
+ *   2. The entry is one OoT's get-item cutscene shows: the show-only draw, a
+ *      valid object, a draw id, the custom-item text, MOD_RANDOMIZER, MAJOR.
+ *   3. The TEXT names `wantName`.
+ *   4. The GIVE POINT's take refuses an ordinary custom-drawn randomizer entry
+ *      (Roc's Feather's draw on the same ids) and the entry with its draw
+ *      cleared, claims the entry once, releases the queue slot, and refuses it
+ *      a second time.
+ *   5. The entry's own draw function, into a real OoT GraphicsContext, emits
+ *      exactly `want`'s lists (a matrix first); `want` null: the entry draws the
+ *      mystery stand-in (not run here: it loads its resources), checked as "no
+ *      model armed".
+ * Returns 0 on success; prints the failing observation.
+ */
+extern "C" int OoT_ForeignModel_TestShowOnlyGetItem(uint16_t rc, int wantEntry, const ComboModel* want,
+                                                    const char* wantName) {
+    GetItemEntry entry = {};
+    const int queued = OoT_Rando_Foreign_TestQueueShowOnly(rc, &entry);
+    const int slot = OoT_Rando_Foreign_TestQueuedCheck();
+    std::printf("[TEST]   M13 drain: show-only entry %s, queue slot holds check %d\n", queued ? "QUEUED" : "not queued",
+                slot);
+    if (!wantEntry) {
+        if (queued != 0 || slot == (int)rc) {
+            std::printf("[TEST]   M13 a check with no MM item queued a show-only entry\n");
+            return 1;
+        }
+        return 0;
+    }
+    if (queued != 1 || slot != (int)rc) {
+        std::printf("[TEST]   M13 the drain queued no show-only entry for an OoT check hosting an MM item (the "
+                    "toast-only presentation)\n");
+        return 1;
+    }
+    std::printf("[TEST]   M13 entry: draw %s, object %u, gi %d, text 0x%04X, mod %u, category %u, item %u/%d\n",
+                entry.drawFunc == ShowOnlyDraw ? "show-only" : "OTHER", (unsigned)entry.objectId, (int)entry.gi,
+                (unsigned)entry.textId, (unsigned)entry.modIndex, (unsigned)entry.getItemCategory,
+                (unsigned)entry.itemId, (int)entry.getItemId);
+    if (entry.drawFunc != ShowOnlyDraw || entry.objectId == OBJECT_INVALID || entry.objectId >= OBJECT_ID_MAX ||
+        entry.gi == 0 || !entry.collectable || entry.textId != TEXT_RANDOMIZER_CUSTOM_ITEM ||
+        entry.modIndex != MOD_RANDOMIZER || entry.getItemCategory != ITEM_CATEGORY_MAJOR || entry.getItemId <= 0 ||
+        entry.getItemId >= RG_MAX) {
+        std::printf("[TEST]   M13 the entry is not one OoT's get-item cutscene shows as a major item\n");
+        return 1;
+    }
+
+    const char* article = nullptr;
+    const char* name = nullptr;
+    if (OoT_Rando_Foreign_ShowOnlyItemText(&entry, &article, &name) != 1 || name == nullptr ||
+        std::strcmp(name, wantName) != 0) {
+        std::printf("[TEST]   M13 the textbox names \"%s\", want \"%s\"\n", name != nullptr ? name : "(none)", wantName);
+        return 1;
+    }
+    std::printf("[TEST]   M13 textbox: You found %s%s!\n", article != nullptr ? article : "", name);
+
+    GetItemEntry feather = entry;
+    feather.drawFunc = Randomizer_DrawRocsFeather;
+    GetItemEntry plain = entry;
+    plain.drawFunc = nullptr;
+    const int takeFeather = OoT_Rando_Foreign_TakeShowOnlyGetItem(&feather);
+    const int takePlain = OoT_Rando_Foreign_TakeShowOnlyGetItem(&plain);
+    const int takeNull = OoT_Rando_Foreign_TakeShowOnlyGetItem(nullptr);
+    const int slotBeforeTake = OoT_Rando_Foreign_TestQueuedCheck();
+    const int take = OoT_Rando_Foreign_TakeShowOnlyGetItem(&entry);
+    const int slotAfterTake = OoT_Rando_Foreign_TestQueuedCheck();
+    const int takeAgain = OoT_Rando_Foreign_TakeShowOnlyGetItem(&entry);
+    std::printf("[TEST]   M13 give point: feather %d, no draw %d, null %d, the entry %d (slot %d -> %d), again %d\n",
+                takeFeather, takePlain, takeNull, take, slotBeforeTake, slotAfterTake, takeAgain);
+    if (takeFeather != 0 || takePlain != 0 || takeNull != 0) {
+        std::printf("[TEST]   M13 the give point's take claimed an entry that is not the show-only one\n");
+        return 1;
+    }
+    if (take != 1 || slotBeforeTake != (int)rc || slotAfterTake != (int)RC_UNKNOWN_CHECK || takeAgain != 0) {
+        std::printf("[TEST]   M13 the take did not claim the entry once and release the drain's slot\n");
+        return 1;
+    }
+
+    if (want == nullptr) {
+        if (sShowOnly.hasModel) {
+            std::printf("[TEST]   M13 a model was armed where the stand-in is due\n");
+            return 1;
+        }
+        std::printf("[TEST]   M13 draw: the mystery stand-in\n");
+        return 0;
+    }
+    OoTFakeDrawPlay fake;
+    sHostEmitUnresolved = true;
+    entry.drawFunc(fake.play, &entry);
+    sHostEmitUnresolved = false;
+    if (OoT_sCurrentMatrix != fake.stack) {
+        std::printf("[TEST]   M13 the draw left OoT's matrix stack unbalanced\n");
+        return 1;
+    }
+    for (uint8_t layer : { kHostOpa, kHostXlu }) {
+        const Gfx* begin = layer == kHostOpa ? fake.opa.data() : fake.xlu.data();
+        const Gfx* end = layer == kHostOpa ? fake.gfxCtx->polyOpa.p : fake.gfxCtx->polyXlu.p;
+        bool matrixFirst = false;
+        const std::vector<const char*> parts = OoTHostReadParts(begin, end, &matrixFirst);
+        std::vector<const char*> expected;
+        for (uint8_t i = 0; i < want->partCount; i++) {
+            if (want->parts[i].layer == layer) {
+                expected.push_back(want->parts[i].dl);
+            }
+        }
+        std::printf("[TEST]   M13 draw %s: %zu model list(s) emitted, %zu expected%s%s\n",
+                    layer == kHostOpa ? "OPA" : "XLU", parts.size(), expected.size(), parts.empty() ? "" : ", first ",
+                    parts.empty() ? "" : parts[0]);
+        if (parts != expected) {
+            std::printf("[TEST]   M13 the get-item cutscene's draw emitted the wrong model lists on this layer\n");
+            return 1;
+        }
+        if (!expected.empty() && !matrixFirst) {
+            std::printf("[TEST]   M13 no matrix loaded before the first model list\n");
+            return 1;
+        }
     }
     return 0;
 }
