@@ -9,7 +9,13 @@
  *    UNAVAILABLE / 0 / false and the labels say "No data"; a half-filled vtable
  *    and a non-game id are refused at registration.
  *
- * 2. THE OoT ADAPTER READS ONLY THE BUFFER IT IS HANDED. An OoT SaveContext
+ * 2. THE PRODUCTION ENTRY POINT REGISTERS OoT's ADAPTER. With the registry
+ *    cleared, Combo_TrackerWindow_Init (what rsbs main calls; headless-safe,
+ *    it also registers the check-tracker adapters, as production does) must
+ *    leave OoT's item adapter registered. Without that call the view would read
+ *    OoT as UNAVAILABLE forever while every other leg still passed.
+ *
+ *    THE OoT ADAPTER READS ONLY THE BUFFER IT IS HANDED. An OoT SaveContext
  *    image authored in the OoT TU (the layout never crosses into this file) is
  *    committed as OoT's frozen shadow through the production
  *    Context_UpdateShadowCopy, and the rows recover exactly the authored world:
@@ -35,17 +41,24 @@
  *    zero rows. After production harvests (rupees, the quiver tier and arrows,
  *    the heart quantity) the group is STALE, labelled "As of the last switch or
  *    save", and its rows carry the pooled values; the ocarina row exists exactly
- *    when that kind is armed. Labels are player wording.
+ *    when that kind is armed. Hearts count whole hearts (pieces truncated); the
+ *    wallet row is held at every tier, tier 0 being the child's wallet. Labels
+ *    are player wording.
  *
- * 6. BUFFERS RESTORED. The OoT shadow goes back to the bytes this row inherited
- *    (asserted byte-equal), with the context, the pool watermarks, the active
- *    game and the adapter registry.
+ * 6. STATE PUT BACK. The OoT shadow goes back to the bytes this row inherited
+ *    (asserted byte-equal; a shadow that was absent comes back all-zero, which
+ *    reads as absent by the zero-means-no-data rule), the context, the active
+ *    game and the item-adapter registry are restored. The shared-pool
+ *    watermarks are RESET to zero, not restored: shared_resources.c has no
+ *    accessor to snapshot them. The check-tracker adapters stay registered, as
+ *    the production bring-up leaves them.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is extern-C. The entry point is a plain function the
  * Test_ComboItemView wrapper calls after the display-free shared bring-up.
  */
 
+#include "../ComboTrackerWindow.h" // Combo_TrackerWindow_Init: the production registration
 #include "../combo_item_view.h"
 #include "../context.h"
 #include "../game.h"
@@ -295,7 +308,16 @@ static int CivSharedLegs(void) {
     printf("[TEST] combo-item-view: shared Arrows have=%d count=%d max=%d\n", (int)row.have, row.count, row.max);
     CIV_ASSERT(row.have && row.count == 33 && row.max == 40);
     CIV_ASSERT(CivFindSharedRow("Hearts", &row));
-    CIV_ASSERT(row.have && row.count == 5 && row.max == 20);
+    CIV_ASSERT(row.have && row.count == 5 && row.max == 20); // whole hearts: the 2 pieces are truncated
+    // The wallet's tier 0 is the child's wallet every file holds: held, count =
+    // the tier, never "0 of 3 not held" beside OoT's own (held) wallet row.
+    CIV_ASSERT(CivFindSharedRow("Wallet", &row));
+    printf("[TEST] combo-item-view: shared Wallet (tier 0) have=%d count=%d max=%d\n", (int)row.have, row.count,
+           row.max);
+    CIV_ASSERT(row.have && row.count == 0 && row.max == 3);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_WALLET_TIER, 1);
+    CIV_ASSERT(CivFindSharedRow("Wallet", &row));
+    CIV_ASSERT(row.have && row.count == 1 && row.max == 3);
     CIV_ASSERT(CivFindSharedRow("Bombs", &row));
     CIV_ASSERT(!row.have && row.count == 0); // never shared: nothing held
     CIV_ASSERT(CivFindSharedRow("Ocarina", &row) == Combo_SharedResourceKindArmed(RSBS_SHARED_RES_OCARINA_TIER));
@@ -355,10 +377,19 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
         }
 
         // ---- 2-4. OoT's production adapter -------------------------------
-        OoT_ItemAdapter_Register();
+        // Registered through the PRODUCTION bring-up (rsbs main ->
+        // Combo_TrackerWindow_Init, headless-safe here), never a direct
+        // OoT_ItemAdapter_Register: the registry was cleared just above, so
+        // a non-NULL vtable now can only have come from that entry point.
+        Combo_TrackerWindow_Init();
         const ComboItemOps* ops = Combo_Item_GetOps((uint8_t)GAME_OOT);
-        if (ops == NULL || ops->count() < 55 || ops->count() > 75) {
-            printf("[TEST] FAIL: OoT item adapter not registered, or its row count is not the curated ~60\n");
+        if (ops == NULL) {
+            printf("[TEST] FAIL: Combo_TrackerWindow_Init did not register OoT's item adapter\n");
+            result = TEST_FAIL;
+            break;
+        }
+        if (ops->count() < 55 || ops->count() > 75) {
+            printf("[TEST] FAIL: OoT item adapter row count %d is not the curated ~60\n", ops->count());
             result = TEST_FAIL;
             break;
         }
@@ -375,7 +406,7 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
         }
     } while (0);
 
-    // ---- 6. restore every buffer ------------------------------------------
+    // ---- 6. put state back (watermarks: reset, not restored; see header) ---
     sCivLive = NULL;
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, prevOoT);
     Combo_Item_RegisterOps((uint8_t)GAME_MM, prevMM);

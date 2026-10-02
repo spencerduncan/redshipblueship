@@ -180,7 +180,9 @@ static const uint16_t kNutCap[4] = { 0, 20, 30, 40 };
  * One shared row. `countKind` is the quantity shown; `tierKind` (optional)
  * decides `have` and, through `tierCaps`, `max`; otherwise `fixedMax` is the
  * ceiling and `have` is a non-zero count. `unitsPerCount` converts pool units
- * to what the player counts (health is 0x10 per heart).
+ * to what the player counts (health is 0x10 per heart). `heldAtZero` marks a
+ * row whose tier 0 is itself an item every file holds, so `have` is always true
+ * and `count` is the tier.
  */
 typedef struct {
     const char* name;
@@ -189,26 +191,35 @@ typedef struct {
     const uint16_t* tierCaps;
     uint16_t fixedMax;
     uint16_t unitsPerCount;
+    bool heldAtZero;
 } SharedRowDef;
 
 static const SharedRowDef kSharedRows[] = {
-    { "Rupees", RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_NONE, NULL, 0, 1 },
+    { "Rupees", RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
     // The wallets' capacities differ per game (MM's largest holds 500, OoT's
     // 999), so the tier shows with its own ceiling rather than as a rupee max.
-    { "Wallet", RSBS_SHARED_RES_WALLET_TIER, RSBS_SHARED_RES_NONE, NULL, 3, 1 },
+    // Tier 0 is the child's wallet every file starts with, so the row is held
+    // at every tier (count = the tier, 0..3), agreeing with OoT's own wallet
+    // row outside wallet shuffle. The pool carries no "no wallet yet" state
+    // (wallet shuffle's flag is per game, not pooled), so under wallet shuffle
+    // the per-game row is the authority for whether a wallet is held.
+    { "Wallet", RSBS_SHARED_RES_WALLET_TIER, RSBS_SHARED_RES_NONE, NULL, 3, 1, true },
+    // Whole hearts only: the pieces toward the next heart are truncated (5
+    // hearts and 2 pieces reads 5). The per-game "Pieces of Heart" row carries
+    // the pieces.
     { "Hearts", RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_NONE, NULL,
-      (uint16_t)(RSBS_SHARED_RES_MAX_HEALTH_QUARTERS / 16u), 16 },
-    { "Double Defense", RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_NONE, NULL, 0, 1 },
-    { "Magic", RSBS_SHARED_RES_MAGIC_LEVEL, RSBS_SHARED_RES_NONE, NULL, 2, 1 },
-    { "Arrows", RSBS_SHARED_RES_ARROW_COUNT, RSBS_SHARED_RES_QUIVER_TIER, kQuiverCap, 0, 1 },
-    { "Bombs", RSBS_SHARED_RES_BOMB_COUNT, RSBS_SHARED_RES_BOMB_BAG_TIER, kBombBagCap, 0, 1 },
+      (uint16_t)(RSBS_SHARED_RES_MAX_HEALTH_QUARTERS / 16u), 16, false },
+    { "Double Defense", RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
+    { "Magic", RSBS_SHARED_RES_MAGIC_LEVEL, RSBS_SHARED_RES_NONE, NULL, 2, 1, false },
+    { "Arrows", RSBS_SHARED_RES_ARROW_COUNT, RSBS_SHARED_RES_QUIVER_TIER, kQuiverCap, 0, 1, false },
+    { "Bombs", RSBS_SHARED_RES_BOMB_COUNT, RSBS_SHARED_RES_BOMB_BAG_TIER, kBombBagCap, 0, 1, false },
     // The bombchu cap is per game (see the shims), not a shared kind.
-    { "Bombchus", RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_NONE, NULL, 0, 1 },
-    { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1 },
-    { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1 },
-    { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1 },
-    { "Ocarina", RSBS_SHARED_RES_OCARINA_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1 },
-    { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1 },
+    { "Bombchus", RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
+    { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false },
+    { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false },
+    { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false },
+    { "Ocarina", RSBS_SHARED_RES_OCARINA_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false },
+    { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
 };
 #define SHARED_ROW_DEF_COUNT ((int)(sizeof(kSharedRows) / sizeof(kSharedRows[0])))
 
@@ -284,7 +295,7 @@ bool Combo_ItemSharedRowAt(int index, ComboItemRow* out) {
         out->have = tier > 0;
         out->max = (int)def->tierCaps[tier];
     } else {
-        out->have = out->count > 0;
+        out->have = def->heldAtZero || out->count > 0;
         out->max = (int)def->fixedMax;
     }
     out->freshness = COMBO_TRACKER_FRESH_STALE;

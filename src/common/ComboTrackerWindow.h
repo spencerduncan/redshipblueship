@@ -118,8 +118,9 @@ extern "C" {
 #endif // __cplusplus
 
 /**
- * Production entry point. Registers both games' tracker adapters (so the
- * model is populated even for tests that never construct a Gui), then the
+ * Production entry point. Registers both games' tracker adapters and OoT's
+ * item adapter (#458 U1a) (so the models are populated even for tests that
+ * never construct a Gui), then the
  * window on the shared Ship::Context Gui. Safe no-op past the adapter step
  * when the context has no window/Gui — the state every ROM-free harness runs
  * in.
