@@ -72,6 +72,8 @@ const char* Combo_SaveFiles_RefuseText(RsbsRefuseReason reason) {
             return "Termina could not be generated";
         case RSBS_REFUSE_CROSSINGS:
             return "Cross-game items are damaged";
+        case RSBS_REFUSE_MISSING:
+            return "Cross-game record is missing";
         case RSBS_REFUSE_NONE:
         default:
             return "File could not be checked";
@@ -159,12 +161,11 @@ std::string Combo_SaveFiles_Note(const ComboSaveFileRow* rows, int count) {
     // see. None claims there are no save files: a slot with no cross-game record
     // can still hold an Ocarina of Time file.
     if (anyRefused) {
-        // Every refusal ends the same way for the session, whether the load or a
-        // crossing refused it: the OoT half plays on, nothing is saved to the
-        // pair, and Majora's Mask starts un-randomized (z_play.c's arrival gate;
-        // the "Termina stays un-randomized" toast).
-        return "A file that is not paired saves nothing to its pair this session, and Termina plays "
-               "un-randomized. Erase it in the file select to free the slot.";
+        // A refused file is never opened (#836, operator ruling 2026-10-01): the
+        // file select keeps the player on the file list. The two ways out are a
+        // good copy of the record put back, or the player's own erase.
+        return "A refused file does not open. Put a good copy of its cross-game record back, or erase it in the "
+               "file select to free the slot.";
     }
     if (anyReady) {
         return "Each file holds both games. Load, create and erase files from the Ocarina of Time file select.";

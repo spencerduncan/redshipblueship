@@ -2210,7 +2210,9 @@ void Session::BuildPageList() {
              { "toast/load-refused-rules", "Not paired:" },
              { "toast/load-refused-other-build", "Not paired:" },
              { "toast/load-refused-damaged", "Not paired:" },
-             { "toast/load-arrival-unpaired", "Not paired:" },
+             // The file select's refusal (#836), with the longest words it
+             // can show ("This file has no Majora's Mask world").
+             { "toast/load-refused-file-select", "Not paired:" },
          }) {
         PageSpec p;
         p.id = id;
@@ -4121,8 +4123,8 @@ static void EmitLoadToastPage(const std::string& id) {
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD, nullptr, 0);
     } else if (id == "toast/load-refused-damaged") {
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_DAMAGED, nullptr, 0);
-    } else if (id == "toast/load-arrival-unpaired") {
-        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED, nullptr, 0);
+    } else if (id == "toast/load-refused-file-select") {
+        RsbsSave_EmitFileSelectRefusalToast("This file has no Majora's Mask world");
     }
 }
 

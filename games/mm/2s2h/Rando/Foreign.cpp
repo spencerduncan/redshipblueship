@@ -720,14 +720,16 @@ extern "C" void MM_Rando_ForceProfileRestoreVerifyFailForTest(int on) {
     gForceProfileRestoreVerifyFail = on != 0;
 }
 
-extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, char* names,
-                                              size_t namesLen, int* outCount) {
-    if (names != nullptr && namesLen > 0) {
-        names[0] = '\0';
-    }
-    if (outCount != nullptr) {
-        *outCount = 0;
-    }
+namespace {
+
+/**
+ * The classification both MM_Rando_ClassifyProfileForLoad (the file-select
+ * probe, #836) and MM_Rando_RestoreProfileForLoad (the load) run, so the two
+ * cannot disagree. Writes nothing. On RESTORABLE, @p fileValues / @p fileTricks
+ * (sized RO_MAX / MMRT_MAX) hold the file's own options and tricks.
+ */
+int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
+                           std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks) {
     const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
     if (liveDigest == frozenDigest) {
         return RSBS_MM_PROFILE_LOAD_MATCHES;
@@ -751,11 +753,11 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
         return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
     }
 
-    std::vector<uint32_t> fileValues(RO_MAX, 0);
+    fileValues.assign(RO_MAX, 0);
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         fileValues[randoOptionId] = half->save.shipSaveInfo.rando.randoSaveOptions[randoOptionId];
     }
-    std::vector<uint8_t> fileTricks(MMRT_MAX, 0);
+    fileTricks.assign(MMRT_MAX, 0);
     for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
         fileTricks[mmRandoTrickId] = half->save.shipSaveInfo.rando.randoSaveTricks[mmRandoTrickId] != 0 ? 1 : 0;
     }
@@ -768,6 +770,31 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
                 "starting-item block); nothing was written\n",
                 (unsigned)candidate, (unsigned)frozenDigest);
         return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
+    }
+    return RSBS_MM_PROFILE_LOAD_RESTORABLE;
+}
+
+} // namespace
+
+extern "C" int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest) {
+    std::vector<uint32_t> fileValues;
+    std::vector<uint8_t> fileTricks;
+    return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks);
+}
+
+extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, char* names,
+                                              size_t namesLen, int* outCount) {
+    if (names != nullptr && namesLen > 0) {
+        names[0] = '\0';
+    }
+    if (outCount != nullptr) {
+        *outCount = 0;
+    }
+    std::vector<uint32_t> fileValues;
+    std::vector<uint8_t> fileTricks;
+    const int classified = ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks);
+    if (classified != RSBS_MM_PROFILE_LOAD_RESTORABLE) {
+        return classified;
     }
 
     // Write back only what the live resolution gets wrong, so a key the player

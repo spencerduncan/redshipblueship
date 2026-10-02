@@ -134,6 +134,12 @@ typedef enum RsbsRefuseReason {
     // CRC failure: loading it would hand the give path a world that is not the
     // one generated, and truncating it would drop crossings silently.
     RSBS_REFUSE_CROSSINGS,
+    // #836: a randomizer file whose cross-game record is not there, or carries
+    // no pairing identity. Every randomizer file in this build is a paired file,
+    // so OoT's half alone is not a file this build can open: refused at the file
+    // select (SaveManager::ProbeSlotForOpen) and by the open path's load, never
+    // quarantined (there is nothing, or nothing damaged, to set aside).
+    RSBS_REFUSE_MISSING,
 } RsbsRefuseReason;
 
 // What a load attempt actually did — richer than the old bool, because ABSENT
@@ -396,6 +402,40 @@ public:
     RsbsLoadOutcome LoadSlot(int slot, uint32_t ootSavGeneration = 0);
 
     /**
+     * A REFUSED FILE IS NEVER OPENED (#836, operator ruling 2026-10-01:
+     * "unpaired is not an acceptable scenario"). The file select's gate asks
+     * this when the player presses A on an OoT file, before the file is opened.
+     * It runs the SAME evaluation the open path's load runs (LoadSlotForOpen),
+     * so the two cannot reach different verdicts, and it writes nothing: no
+     * disk write, no rename, no CVar write, no gComboCtx write, no active slot.
+     * On a refusal it records only the session's refusal (SetSlotRefused, the
+     * write latch, and the player's words for the Combo > Save Files page and
+     * the toast), and the caller keeps the player on the file list.
+     *
+     * Beyond everything LoadSlot refuses, the open path refuses:
+     *   - a randomizer file (@p isRandoFile) whose slot has no .redsave, or whose
+     *     record carries no pairing identity (RSBS_REFUSE_MISSING);
+     *   - a paired record whose MM half is all zero (RSBS_REFUSE_GENERATION:
+     *     the paired Termina world was never authored into the file);
+     *   - an MM option profile the file cannot restore (RSBS_REFUSE_IDENTITY).
+     * A divergence the file CAN restore is accepted; the load restores it.
+     *
+     * Returns OK, ABSENT (a vanilla file with no record) or REFUSED; @p outWords
+     * (may be null) receives the player's words for a refusal.
+     */
+    RsbsLoadOutcome ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile, std::string* outWords);
+
+    /**
+     * The open path's load (OoT's OnLoadFile seam): LoadSlot plus the open
+     * checks ProbeSlotForOpen documents, through the same evaluation. A refusal
+     * here is the backstop's trigger (the probe accepted, the load did not: a
+     * file changed on disk in between, or a restore whose after-check failed);
+     * it records the player's words on the slot and posts no toast (the
+     * backstop that returns the player to the file select posts it).
+     */
+    RsbsLoadOutcome LoadSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile);
+
+    /**
      * Whole-file commit, read side (#589/#531). True iff the load that just
      * ran found the .redsave's whole commit NEWER than OoT's .sav and
      * therefore armed Tier-2 — i.e. OoT's half must come from the .redsave,
@@ -641,6 +681,13 @@ private:
     // Everything ReadSlotFile stages before any commit decision is made.
     struct SlotFileData;
 
+    // What a load of the slot would decide, before anything moves (#836). One
+    // evaluation serves the file-select probe and both loads.
+    struct SlotVerdict;
+    void EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind, SlotFileData& data,
+                      SlotVerdict& out) const;
+    RsbsLoadOutcome LoadSlotImpl(int slot, uint32_t ootSavGeneration, int openKind);
+
     enum class SlotReadResult { Absent, Ok, Refused };
 
     // Validates magic / version / endian / headerSize / slot and that all
@@ -795,6 +842,27 @@ int      RsbsSave_WriteStagedCommit(int slot);
  * the pure comparison, exposed for the headless locks.
  */
 int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration);
+
+/**
+ * The file-open path (#836; see SaveManager::ProbeSlotForOpen and
+ * LoadSlotForOpen). The probe returns the RsbsLoadOutcome the open path's load
+ * would reach and writes nothing but the session's refusal record; @p words
+ * (may be NULL) receives the player's words for a refusal ("" otherwise). The
+ * load is OoT's OnLoadFile seam's call.
+ */
+int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile, char* words, size_t wordsLen);
+int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile);
+
+/** The file select's refusal toast (#836): the load's refusal prefix and the
+ *  player's words for the refused file, muted (the same words the Combo > Save
+ *  Files page shows for the slot). */
+void RsbsSave_EmitFileSelectRefusalToast(const char* words);
+
+/** The player's words for a slot refused this session: the words its refusal
+ *  recorded, else the Combo > Save Files page's words for its reason; "" when
+ *  the slot is not refused. */
+const char* RsbsSave_SlotRefusalWords(int slot);
+
 int RsbsSave_GetSlotCommitSkew(int slot);
 int RsbsSave_CompareCommitGenerations(uint32_t redsaveGeneration, uint32_t ootSavGeneration);
 
@@ -848,14 +916,16 @@ enum {
     RSBS_LOAD_TOAST_REFUSED_RULES = 3,   // refused: keyed rules differ and the store could not take them
     RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD = 4, // refused: a record field no key authors (another build's file)
     RSBS_LOAD_TOAST_REFUSED_DAMAGED = 5,     // refused: the stored cross-game identity is damaged
-    RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED = 6,    // an MM arrival while the loaded slot is refused
+    // 6 was RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED (an MM arrival while the loaded
+    // slot was refused). Retired by #836: a refused file is never opened, so no
+    // arrival can follow a refused load.
 };
 void RsbsSave_EmitLoadToast(int kind, const char* names, int count);
 
 /** The message a refusal kind of RsbsSave_EmitLoadToast posts (REFUSED_RULES,
- *  REFUSED_OTHER_BUILD, REFUSED_DAMAGED, ARRIVAL_UNPAIRED), NULL for any other
- *  kind. The emitter posts exactly these words and the load records them on
- *  the refused slot (NoteSlotRefusalWords). */
+ *  REFUSED_OTHER_BUILD, REFUSED_DAMAGED), NULL for any other kind. The emitter
+ *  posts exactly these words and the load records them on the refused slot
+ *  (NoteSlotRefusalWords). */
 const char* RsbsSave_LoadToastRefusalMessage(int kind);
 
 /** SaveManager::NoteSlotRefusalWords for C callers (the arrival's refusal

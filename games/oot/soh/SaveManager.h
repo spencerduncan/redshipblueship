@@ -115,6 +115,15 @@ class SaveManager {
     // .redsave's Tier-1 stamp (#531/#537).
     uint32_t GetLoadedCommitGeneration();
 
+    // #836: the same stamp read from file{N+1}.sav on disk, before the file is
+    // opened (the file select's gate). 0 (exempt) when absent or unreadable.
+    uint32_t ReadSavCommitGeneration(int fileNum);
+
+    // #836: the file select's gate. True when the file may be opened; false when
+    // the open path would refuse it (@p words, may be null, gets the player's
+    // words). Writes nothing but the session's refusal record.
+    bool ProbeFileForOpen(int fileNum, std::string* words);
+
     // Test hook (#441): drive the REAL randomizer section through a
     // save -> context-reset -> reload cycle, in memory, exactly as loading a
     // saved file does (Save_LoadFile resets the Rando::Context, then

@@ -265,6 +265,11 @@ typedef struct ComboSettingsKeyUndo {
 int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits, char* names, size_t len,
                                    ComboSettingsKeyUndo* undo);
 
+/** 1 iff Combo_ComboSettingsRestoreLive would restore @p divergedBits from
+ *  @p frozen (every bit restorable, the store present, every value in its
+ *  space), WITHOUT writing anything: the file-select probe's question (#836). */
+int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits);
+
 /** Undo a Combo_ComboSettingsRestoreLive: every key it wrote goes back to the
  *  value it held, or back to unset. A NULL or all-unwritten @p undo is a no-op. */
 void Combo_ComboSettingsRestoreUndo(const ComboSettingsKeyUndo* undo);

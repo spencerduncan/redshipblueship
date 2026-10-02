@@ -49,6 +49,16 @@ extern "C" void OoT_HarvestSharedResources(void);
 // same narrow-surface reason as the harvest above; z_play.c declares it the
 // same way.
 extern "C" int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #836: the file select's gate reads the main menu's mode, cursor and input.
+extern "C" {
+#include "src/overlays/gamestates/ovl_file_choose/file_choose.h"
+}
+// #836 backstop: the slot whose open-path load refused, set by the OnLoadFile
+// seam and consumed by the next OnLoadGame, which returns the player to the file
+// select instead of entering Play. -1 for none.
+static int sRsbsRefusedLoadSlot = -1;
+#endif
 using namespace std::string_literals;
 
 /**
@@ -336,7 +346,21 @@ SaveManager::SaveManager() {
         // consumed shared-item records; a .redsave-newer mismatch means the
         // .redsave holds a WHOLE commit this .sav does not, and the newest
         // whole commit wins (#589).
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #836: the open path's load, which refuses what the file select's gate
+        // refuses (same evaluation). The gate ran when the player pressed A, so
+        // a refusal here means the file changed on disk in between, or a restore
+        // whose after-check failed: the backstop below returns the player to the
+        // file select at OnLoadGame. NEVER by throwing from here: LoadFile's
+        // catch renames the player's .sav aside.
+        sRsbsRefusedLoadSlot = -1;
+        if (RsbsSave_LoadSlotForOpen(fileNum, this->GetLoadedCommitGeneration(), IS_RANDO ? 1 : 0) ==
+            RSBS_LOAD_REFUSED) {
+            sRsbsRefusedLoadSlot = fileNum;
+        }
+#else
         RsbsSave_LoadSlotChecked(fileNum, this->GetLoadedCommitGeneration());
+#endif
 
         // WHOLE-FILE COMMIT, delivery seam (#589/#531, operator ruling
         // 2026-08-04). This hook fires at the TAIL of LoadFile — every section
@@ -384,6 +408,73 @@ SaveManager::SaveManager() {
         }
         RsbsSave_DeleteSave(fileNum);
     });
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // A REFUSED FILE IS NEVER OPENED (#836, operator ruling 2026-10-01:
+    // "unpaired is not an acceptable scenario"). The gate runs where SoH itself
+    // refuses a file it cannot open (FileChoose_IsSaveCompatible): on the main
+    // menu, when A or START is pressed on an occupied file. FileChoose_Main
+    // dispatches OnFileChooseMain before its mode update reads the press, so
+    // clearing the press here keeps the player on the file list without an
+    // edit to the vendored file select. The probe writes nothing but the
+    // session's refusal record; the toast says why, in the words the Combo >
+    // Save Files page shows for the slot.
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnFileChooseMain>([this](void* gameState) {
+        if (Context_GetCurrentGame() != GAME_OOT || gameState == nullptr) {
+            return; // shared hook storage guard (#344): OoT's file select only
+        }
+        FileChooseContext* fileChoose = (FileChooseContext*)gameState;
+        Input* input = &fileChoose->state.input[0];
+        if (fileChoose->menuMode != FS_MENU_MODE_CONFIG || fileChoose->configMode != CM_MAIN_MENU ||
+            fileChoose->buttonIndex > FS_BTN_MAIN_FILE_3 ||
+            !(CHECK_BTN_ALL(input->press.button, BTN_START) || CHECK_BTN_ALL(input->press.button, BTN_A))) {
+            return;
+        }
+        const int fileNum = fileChoose->buttonIndex;
+        if (!fileMetaInfo[fileNum].valid) {
+            return; // an empty file: A starts the naming screen
+        }
+        std::string words;
+        if (this->ProbeFileForOpen(fileNum, &words)) {
+            return;
+        }
+        input->press.button &= ~(BTN_A | BTN_START);
+        if (gAudioContextInitalized) {
+            // SoH's own "this file cannot be opened" sound; only with OoT's audio
+            // up (the gate also runs in the display-free rows).
+            Audio_PlaySoundGeneral(NA_SE_SY_FSEL_ERROR, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
+                                   &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
+        }
+        RsbsSave_EmitFileSelectRefusalToast(words.c_str());
+    });
+
+    // THE BACKSTOP (#836). A load the gate accepted and the OnLoadFile seam then
+    // refused (a file changed on disk in between, or a restore whose after-check
+    // failed) must not enter Play either: the player goes back to the file
+    // select, the sequence SoH's console `file_select` command uses. The Play
+    // transition is already set when OnLoadGame fires; this replaces it.
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnLoadGame>([](int32_t fileNum) {
+        if (Context_GetCurrentGame() != GAME_OOT || sRsbsRefusedLoadSlot < 0) {
+            return;
+        }
+        const int slot = sRsbsRefusedLoadSlot;
+        sRsbsRefusedLoadSlot = -1;
+        if (slot != fileNum || OoT_gGameState == nullptr) {
+            SPDLOG_ERROR("RSBS: the refused load of file {} could not be returned to the file select (load game for "
+                         "file {}, game state {})",
+                         slot + 1, fileNum + 1, OoT_gGameState != nullptr ? "present" : "missing");
+            return;
+        }
+        fprintf(stderr,
+                "[RsbsSave] slot %d: the load REFUSED the file after the file select accepted it; returning to the "
+                "file select instead of entering Play (#836)\n",
+                slot);
+        gSaveContext.gameMode = GAMEMODE_FILE_SELECT;
+        SET_NEXT_GAMESTATE(OoT_gGameState, FileChoose_Init, FileChooseContext);
+        OoT_gGameState->running = false;
+        RsbsSave_EmitFileSelectRefusalToast(RsbsSave_SlotRefusalWords(slot));
+    });
+#endif
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnExitGame>([](int32_t fileNum) {
         // Snapshot on quit so unsaved cross-game flags (shared items, last
@@ -1734,12 +1825,11 @@ void SaveManager::SaveGlobal() {
     output << std::setw(1) << globalBlock << std::endl;
 }
 
-uint32_t SaveManager::GetLoadedCommitGeneration() {
-    // Called from the OnLoadFile hook, which LoadFile executes AFTER saveBlock
-    // is populated (and while saveMtx is held by that same thread). Absent key
-    // == a .sav from before the stamp existed == 0, the exempt value.
+// The .sav's mirrored commit generation, validated one way for both readers
+// (the load seam's in-memory saveBlock and the file select's on-disk read).
+static uint32_t CommitGenerationOf(const nlohmann::json& block) {
     try {
-        if (saveBlock.is_object() && saveBlock.contains("rsbsCommitGeneration")) {
+        if (block.is_object() && block.contains("rsbsCommitGeneration")) {
             // is_number_unsigned(), not just get<uint32_t>(): nlohmann happily
             // converts a NEGATIVE or floating-point value into a uint32_t
             // instead of throwing, and a wrapped-around huge generation would
@@ -1747,7 +1837,7 @@ uint32_t SaveManager::GetLoadedCommitGeneration() {
             // perfectly healthy .redsave. #533's premise is that detection
             // must never become data loss, so anything that is not the
             // unsigned integer this code wrote reads as "absent" (0, exempt).
-            const nlohmann::json& stamp = saveBlock["rsbsCommitGeneration"];
+            const nlohmann::json& stamp = block["rsbsCommitGeneration"];
             if (stamp.is_number_unsigned()) {
                 return stamp.get<uint32_t>();
             }
@@ -1756,6 +1846,62 @@ uint32_t SaveManager::GetLoadedCommitGeneration() {
         // A malformed stamp reads as "absent" rather than killing the load.
     }
     return 0;
+}
+
+uint32_t SaveManager::GetLoadedCommitGeneration() {
+    // Called from the OnLoadFile hook, which LoadFile executes AFTER saveBlock
+    // is populated (and while saveMtx is held by that same thread). Absent key
+    // == a .sav from before the stamp existed == 0, the exempt value.
+    return CommitGenerationOf(saveBlock);
+}
+
+uint32_t SaveManager::ReadSavCommitGeneration(int fileNum) {
+    // The file select's gate (#836) asks before the file is opened. Anything
+    // that cannot be read is 0, the exempt value, exactly as at load.
+    try {
+        const std::filesystem::path fileName = GetFileName(fileNum);
+        std::lock_guard<std::mutex> lock(saveMtx);
+        std::ifstream input(fileName);
+        if (!input) {
+            return 0;
+        }
+        nlohmann::json block = nlohmann::json::object();
+        input >> block;
+        return CommitGenerationOf(block);
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
+bool SaveManager::ProbeFileForOpen(int fileNum, std::string* words) {
+    if (words != nullptr) {
+        words->clear();
+    }
+    if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS || fileNum >= MaxFiles) {
+        return true; // not a unified slot: nothing to gate
+    }
+    char buffer[96];
+    const int outcome = RsbsSave_ProbeSlotForOpen(fileNum, ReadSavCommitGeneration(fileNum),
+                                                  fileMetaInfo[fileNum].randoSave ? 1 : 0, buffer, sizeof(buffer));
+    if (outcome != RSBS_LOAD_REFUSED) {
+        return true;
+    }
+    if (words != nullptr) {
+        *words = buffer;
+    }
+    return false;
+}
+
+/** #836: the file select's gate for callers outside the file select (the
+ *  int-paired-first-crossing drive opens its file the way the file select
+ *  does, and asks the gate first). 1 = the file may be opened. */
+extern "C" int OoT_FileSelect_ProbeSlotForOpen(int fileNum, char* words, size_t wordsLen) {
+    std::string out;
+    const bool open = SaveManager::Instance->ProbeFileForOpen(fileNum, &out);
+    if (words != nullptr && wordsLen > 0) {
+        snprintf(words, wordsLen, "%s", out.c_str());
+    }
+    return open ? 1 : 0;
 }
 
 void SaveManager::LoadFile(int fileNum) {
