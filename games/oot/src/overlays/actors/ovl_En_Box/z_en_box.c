@@ -8,6 +8,12 @@
 
 #define FLAGS 0
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #577 M5 (ForeignItemsSingleExe.cpp). games/oot/src has no src/common on its
+// include path, so the call is declared here, as z_en_girla.c does.
+s32 OoT_Rando_Foreign_ChestCategory(u16 rc, s32 coverCategory);
+#endif
+
 // movement flags
 
 /*
@@ -194,6 +200,15 @@ void OoT_EnBox_Init(Actor* thisx, PlayState* play2) {
         RandomizerCheck rc = Randomizer_GetCheckFromActor(this->dyna.actor.id, play->sceneNum, this->dyna.actor.params);
         if (rc != RC_UNKNOWN_CHECK) {
             this->getItemEntry = Randomizer_GetItemFromKnownCheck(rc, this->dyna.actor.params >> 5 & 0x7F);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #577 M5: a chest hosting a Majora's Mask item holds OoT's junk
+            // cover in the table; the category "Chest Size & Texture Matches
+            // Contents" dresses it by comes from the MM item instead. Only
+            // EnBox_UpdateTexture reads this field: in rando the chest never
+            // gives its entry (VB_GIVE_ITEM_FROM_CHEST, hook_handlers.cpp).
+            this->getItemEntry.getItemCategory =
+                (GetItemCategory)OoT_Rando_Foreign_ChestCategory(rc, this->getItemEntry.getItemCategory);
+#endif
         }
     }
 
