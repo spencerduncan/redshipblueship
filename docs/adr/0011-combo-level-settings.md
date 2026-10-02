@@ -1537,6 +1537,13 @@ two item-class rows go, in the same shape as #801.
   still pins the masks. The two `RSBS_COMBO_DIVERGE_ITEM_CLASS_*` bits stay
   allocated, but the load and the arrival never raise them, and they left
   `Combo_ComboSettingsRestorableMask`.
+- **Not shown any more.** Such a world still plays with its masks, but the
+  frozen Cross-Game Rules page no longer shows them: the class rows were the
+  only surface that displayed them. A world created with "Both Directions"
+  and OoT PROGRESSION cleared shows a greyed "Both Directions" while only MM
+  items cross. The spoiler log still records both masks (`itemClassOoT` /
+  `itemClassMM` in its combo settings block). Only pre-release worlds created
+  with a class box changed are affected.
 - **Older builds.** A world this build creates holds the default masks, which
   every older build resolves by default too, so it loads there unchanged.
 
