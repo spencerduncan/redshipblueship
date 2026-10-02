@@ -825,7 +825,8 @@ extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
 extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 // 2s2h/Rando/ForeignModelSingleExe.cpp: the #577 M3 playtest drive's arm.
 extern "C" int MM_ForeignModel_PlaytestArmGive(void);
-extern "C" void MM_ForeignModel_PlaytestFrame(int playFrames); // its per-frame half (#830)
+// ... and its per-frame half (#830), same file.
+extern "C" void MM_ForeignModel_PlaytestFrame(int playFrames);
 extern "C" int MM_Shop_PlaytestWarp(void);       // #800 playtest drive (Rando/ForeignShopSingleExe.cpp)
 extern "C" void MM_Shop_PlaytestShopFrame(void); // its in-shop half, same file
 
