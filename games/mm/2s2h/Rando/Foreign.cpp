@@ -467,7 +467,7 @@ void NotePairedGenerationOutcome(int attemptsTried, bool exhausted) {
 // nothing errors, and the paired world is unwinnable by construction.
 //
 // So it is an ALLOWLIST now: a check class is a legal host only once someone
-// has traced its arming chain. Ship Tier A only.
+// has traced its arming chain. Tier A and Tier S (below) ship.
 //
 // TIER A — RCTYPE_CHEST carrying FLAG_CYCL_SCENE_CHEST. The arming chain,
 // traced end to end: z_en_box.c:488-495 (MM_EnBox_WaitOpen) calls
@@ -498,17 +498,32 @@ void NotePairedGenerationOutcome(int attemptsTried, bool exhausted) {
 // rando VB hook that replaces the NPC's give AND suppresses the vanilla flag
 // write, which is exactly the failure this whole predicate exists to prevent.
 // Do not define RSBS_FOREIGN_HOST_TIER_B until that audit lands (#488).
+//
+// TIER S — RCTYPE_SHOP (#800 pass 1; operator ruling 2026-09-30: cross-game
+// shops, plain shops first). All 25 rows, traced by give path:
+//  - the 22 shelf rows (Trading Post, Bomb Shop, Curiosity Shop, Goron, Zora,
+//    Hags) sell through EnGirlA's rando shelf functions, whose buy func hands a
+//    hosted foreign item to GiveForeignCheck (ActorBehavior/EnGirlA.cpp) instead
+//    of MM's give; the slot is sold for the rest of the game once delivered;
+//  - Gorman's milk (EnIn: VB_BUY_GORMAN_MILK) and the two Milk Bar rows (EnTab:
+//    VB_GIVE_ITEM_FROM_OFFER) arm `.eligible` on purchase, so CheckQueue's foreign
+//    branch delivers them like a chest.
+// The price is the slot's own (`randoSaveCheck.price`); MM's logic already
+// gates every shop row on CAN_AFFORD, so a crossing there is priced by the same
+// rule a native item is. Tingle's map slots (RCTYPE_TINGLE_SHOP) are #800 pass 2
+// and stay refused, explicitly, until their give and price flow is traced.
 static bool IsAllowedHostClass(const Rando::StaticData::RandoStaticCheck& randoStaticCheck) {
-    // Kept explicit even though the allowlist below already excludes them: the
-    // shop give/price flow and spoiler shape differ from the ordinary
-    // eligible->CheckQueue path the generic foreign presentation targets, so
-    // this exclusion must survive any future widening of the tiers.
-    if (randoStaticCheck.randoCheckType == RCTYPE_SHOP || randoStaticCheck.randoCheckType == RCTYPE_TINGLE_SHOP) {
+    if (randoStaticCheck.randoCheckType == RCTYPE_TINGLE_SHOP) {
         return false;
     }
 
     // Tier A.
     if (randoStaticCheck.randoCheckType == RCTYPE_CHEST && randoStaticCheck.flagType == FLAG_CYCL_SCENE_CHEST) {
+        return true;
+    }
+
+    // Tier S.
+    if (randoStaticCheck.randoCheckType == RCTYPE_SHOP) {
         return true;
     }
 
@@ -656,6 +671,13 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
         return false;
     }
     return Combo_RecordSharedItemCrossing((GameId)item->originGame, item->id) >= 0;
+}
+
+bool IsDeliveredForeignHost(RandoCheckId randoCheckId) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return false;
+    }
+    return IsForeignCheck(randoCheckId) && RANDO_SAVE_CHECKS[randoCheckId].obtained;
 }
 
 } // namespace Foreign
@@ -1515,6 +1537,23 @@ extern "C" int MM_Rando_Foreign_TestCheckClass(uint16_t randoCheckId, int* outIs
     }
     if (outHasChestFlag != nullptr) {
         *outHasChestFlag = (it->second.flagType == FLAG_CYCL_SCENE_CHEST) ? 1 : 0;
+    }
+    return 1;
+}
+
+/** The shop half of a check row's static class (#800): whether it is a shop slot
+ *  (RCTYPE_SHOP) or a Tingle map slot (RCTYPE_TINGLE_SHOP). Returns 1 if the id
+ *  names a real row, 0 otherwise; either out pointer may be NULL. */
+extern "C" int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, int* outIsTingleShop) {
+    const auto it = Rando::StaticData::Checks.find((RandoCheckId)randoCheckId);
+    if (it == Rando::StaticData::Checks.end() || it->second.randoCheckId == RC_UNKNOWN) {
+        return 0;
+    }
+    if (outIsShop != nullptr) {
+        *outIsShop = (it->second.randoCheckType == RCTYPE_SHOP) ? 1 : 0;
+    }
+    if (outIsTingleShop != nullptr) {
+        *outIsTingleShop = (it->second.randoCheckType == RCTYPE_TINGLE_SHOP) ? 1 : 0;
     }
     return 1;
 }

@@ -163,10 +163,12 @@ int ForcedShortForeignPlacementsRemaining();
  *  consumer: the forward overlay pass that used to throw here is retired. */
 bool ConsumeForcedLadderRung();
 
-/** Is this check of a class MM's foreign give path delivers from (Tier A: a
+/** Is this check of a class MM's foreign give path delivers from? Tier A: a
  *  cycle-reset chest, whose `.eligible` bit game code arms on the ordinary
- *  CheckQueue path; never a shop or Tingle slot)? The host-class half of the
- *  retired forward pass's IsEligibleHost (#488).
+ *  CheckQueue path. Tier S (#800 pass 1): a shop slot (RCTYPE_SHOP), whose
+ *  purchase delivers through GiveForeignCheck below. Never a Tingle map slot
+ *  (#800 pass 2). The host-class half of the retired forward pass's
+ *  IsEligibleHost (#488).
  *  No save state is read, so it answers for a host the fill has not filled yet —
  *  which is the question the single-bag coordinator asks before it draws a
  *  crossing onto an MM host (combo_logic.h `hostAcceptsForeign`, ABI 4). */
@@ -233,6 +235,29 @@ const char* ForeignArticleForCheck(RandoCheckId randoCheckId);
  *  paired world arrives next, so a record authored with no live pairing is an
  *  item injected into a world that never placed it. */
 bool RecordForeignPickup(RandoCheckId randoCheckId);
+
+/** THE FOREIGN GIVE, factored out of CheckQueue's foreign lambda (#800 pass 1) so
+ *  a shop's purchase delivers through the same code as a chest's pickup. Records
+ *  the crossing (RecordForeignPickup, with its #610 refusal) and marks the host
+ *  delivered (`cycleObtained` and `obtained` set, `eligible` cleared) whatever the
+ *  record answered, exactly as the lambda always has.
+ *
+ *  Returns RecordForeignPickup's answer. false means nothing crossed: the check
+ *  hosts nothing, it already delivered on an earlier cycle, or there is no live
+ *  pairing (#610); a caller with a give of its own (the shop) then degrades to the
+ *  MM cover the host physically holds.
+ *
+ *  Presentation stays with the caller: CheckQueue shows its "You found" textbox,
+ *  and a shop keeps its own purchase dialogue, as for a native purchase (MM's
+ *  shelves hand a bought item over with no textbox of their own).
+ *  Defined in MiscBehavior/CheckQueue.cpp, beside the lambda it came from. */
+bool GiveForeignCheck(RandoCheckId randoCheckId);
+
+/** A check hosting a foreign item whose crossing was already delivered: its
+ *  `obtained` bit, which survives the three-day reset (RecordForeignPickup's
+ *  once-per-host gate). A shop slot like this is sold for the rest of the game
+ *  (#800), where a native slot restocks. */
+bool IsDeliveredForeignHost(RandoCheckId randoCheckId);
 
 } // namespace Foreign
 } // namespace Rando

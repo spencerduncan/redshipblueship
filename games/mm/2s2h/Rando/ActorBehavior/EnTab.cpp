@@ -35,15 +35,18 @@ void EnTab_OnOpenShopText(u16* textId, bool* loadFromMessageTable) {
 
     std::string itemName1 = "Milk";
     std::string itemPrice1 = "20";
-    if (!milkPurchaseCheck.cycleObtained) {
-        itemName1 = Rando::StaticData::Items[riMilkPurchase].name;
+    // #800: a slot hosting a foreign item names it, and is sold for good once delivered.
+    if (!Rando::ActorBehavior::ShopCounterSlotSold(RC_MILK_BAR_PURCHASE_MILK)) {
+        itemName1 = Rando::ActorBehavior::ShopOfferedItemName(RC_MILK_BAR_PURCHASE_MILK,
+                                                              Rando::StaticData::Items[riMilkPurchase].name, false);
         itemPrice1 = std::to_string(milkPurchaseCheck.price);
     }
 
     std::string itemName2 = "Chateau Romani";
     std::string itemPrice2 = "200";
-    if (!chateauPurchaseCheck.cycleObtained) {
-        itemName2 = Rando::StaticData::Items[riChateauPurchase].name;
+    if (!Rando::ActorBehavior::ShopCounterSlotSold(RC_MILK_BAR_PURCHASE_CHATEAU)) {
+        itemName2 = Rando::ActorBehavior::ShopOfferedItemName(
+            RC_MILK_BAR_PURCHASE_CHATEAU, Rando::StaticData::Items[riChateauPurchase].name, false);
         itemPrice2 = std::to_string(chateauPurchaseCheck.price);
     }
 
@@ -67,7 +70,7 @@ void Rando::ActorBehavior::InitEnTabBehavior() {
             RandoCheckId checkId =
                 MM_gPlayState->msgCtx.choiceIndex == 0 ? RC_MILK_BAR_PURCHASE_MILK : RC_MILK_BAR_PURCHASE_CHATEAU;
 
-            if (!RANDO_SAVE_CHECKS[checkId].cycleObtained) {
+            if (!Rando::ActorBehavior::ShopCounterSlotSold(checkId)) {
                 RANDO_SAVE_CHECKS[checkId].eligible = true;
                 *should = false;
             } else if (!MM_Inventory_HasEmptyBottle()) {
@@ -99,7 +102,7 @@ void Rando::ActorBehavior::InitEnTabBehavior() {
             RandoCheckId checkId =
                 MM_gPlayState->msgCtx.choiceIndex == 0 ? RC_MILK_BAR_PURCHASE_MILK : RC_MILK_BAR_PURCHASE_CHATEAU;
 
-            if (RANDO_SAVE_CHECKS[checkId].cycleObtained && isInitialGiveItemMscriptCommandExecution &&
+            if (Rando::ActorBehavior::ShopCounterSlotSold(checkId) && isInitialGiveItemMscriptCommandExecution &&
                 !MM_Inventory_HasEmptyBottle()) {
                 // Make sure that skip branch is taken in Mscript handler by setting actor parent to player
                 Player* player = GET_PLAYER(MM_gPlayState);
@@ -137,13 +140,13 @@ void Rando::ActorBehavior::InitEnTabBehavior() {
             if (MM_gPlayState->msgCtx.choiceIndex == 0) {
                 checkPrice = 20;
 
-                if (!RANDO_SAVE_CHECKS[RC_MILK_BAR_PURCHASE_MILK].cycleObtained) {
+                if (!Rando::ActorBehavior::ShopCounterSlotSold(RC_MILK_BAR_PURCHASE_MILK)) {
                     checkPrice = RANDO_SAVE_CHECKS[RC_MILK_BAR_PURCHASE_MILK].price;
                 }
             } else {
                 checkPrice = 200;
 
-                if (!RANDO_SAVE_CHECKS[RC_MILK_BAR_PURCHASE_CHATEAU].cycleObtained) {
+                if (!Rando::ActorBehavior::ShopCounterSlotSold(RC_MILK_BAR_PURCHASE_CHATEAU)) {
                     checkPrice = RANDO_SAVE_CHECKS[RC_MILK_BAR_PURCHASE_CHATEAU].price;
                 }
             }
@@ -171,7 +174,7 @@ void Rando::ActorBehavior::InitEnTabBehavior() {
                 MM_gPlayState->msgCtx.choiceIndex == 0 ? RC_MILK_BAR_PURCHASE_MILK : RC_MILK_BAR_PURCHASE_CHATEAU;
             s16 rupeeChangeAmt = MM_gPlayState->msgCtx.choiceIndex == 0 ? -20 : -200;
 
-            if (!RANDO_SAVE_CHECKS[checkId].cycleObtained) {
+            if (!Rando::ActorBehavior::ShopCounterSlotSold(checkId)) {
                 rupeeChangeAmt = -RANDO_SAVE_CHECKS[checkId].price;
             } else if (!MM_Inventory_HasEmptyBottle()) {
                 rupeeChangeAmt = 0;
