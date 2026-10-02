@@ -182,7 +182,7 @@ const ItemKey kItemKeys[] = {
 
 #undef IK
 
-const ItemKey* KeyFor(uint32_t id) {
+const ItemKey* ItemKeyFor(uint32_t id) {
     for (const ItemKey& k : kItemKeys) {
         if (k.id == id) {
             return &k;
@@ -328,7 +328,7 @@ constexpr int kRowCount = (int)(sizeof(kRows) / sizeof(kRows[0]));
 
 /** Name and icon keys from item `id`'s entry; the empty-slot name overrides. */
 void FillFromItem(ComboItemRow* out, uint32_t id, const char* nameOverride) {
-    const ItemKey* k = KeyFor(id);
+    const ItemKey* k = ItemKeyFor(id);
     out->name = (nameOverride != nullptr) ? nameOverride : (k != nullptr ? k->name : "Unknown Item");
     out->iconKey = (k != nullptr) ? k->key : nullptr;
     out->iconKeyFaded = (k != nullptr) ? k->faded : nullptr;
@@ -338,7 +338,7 @@ void FillFromItem(ComboItemRow* out, uint32_t id, const char* nameOverride) {
  *  falls back to the base item. */
 void FillSlot(ComboItemRow* out, uint32_t content, const RowDef& def) {
     out->have = content != ITEM_NONE;
-    if (out->have && KeyFor(content) != nullptr) {
+    if (out->have && ItemKeyFor(content) != nullptr) {
         FillFromItem(out, content, nullptr);
     } else {
         FillFromItem(out, def.item, def.name);
