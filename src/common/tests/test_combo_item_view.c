@@ -1,7 +1,17 @@
 /**
  * @file test_combo_item_view.c
- * @brief ROM-free lock for the unified item view and OoT's item adapter
- *        (#458 U1a). U1b adds the MM legs.
+ * @brief ROM-free lock for the unified item view and both games' item
+ *        adapters (#458 U1a: the view, OoT, the shared group; U1b: MM).
+ *
+ * The MM legs (U1b, CivMMLegs) repeat legs 2-4 over MM's REAL adapter, also
+ * registered by Combo_TrackerWindow_Init: an MM SaveContext image authored in
+ * MM's TU, committed as MM's shadow, read while OoT is active (bow ammo against
+ * the quiver, beans, the bottle count, masks, songs with the progressive
+ * lullaby naming its tier, remains, sword/shield tiers, the wallet's rupees
+ * against its capacity); the shadow unchanged; a misaligned image refused; the
+ * live-vs-shadow pick with BOTH games' live sources counted, so under GAME_MM
+ * OoT's live source is never asked, under GAME_OOT MM's is never asked, and
+ * under GAME_NONE neither is; the MM shadow restored byte-exact afterwards.
  *
  * What this proves, and how each claim would fail without the code under test:
  *
@@ -74,6 +84,8 @@
 // OoT's own layout. Variant 0 is the "shadow" world, variant 1 the "live" one
 // (see the seam for what each holds). Returns 0 when `size` is too small.
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
+// The MM-side twin (games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp), #458 U1b.
+extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 
 #define CIV_ASSERT(cond)                                                   \
     do {                                                                   \
@@ -90,6 +102,15 @@ static int sCivLiveCalls = 0;
 static const void* CivLiveSave(void) {
     sCivLiveCalls++;
     return sCivLive;
+}
+
+// MM's (#458 U1b): its own counter, so a leg can tell which game was asked.
+static const void* sCivMMLive = NULL;
+static int sCivMMLiveCalls = 0;
+
+static const void* CivMMLiveSave(void) {
+    sCivMMLiveCalls++;
+    return sCivMMLive;
 }
 
 /** Find `game`'s row named `name`; false when absent. */
@@ -268,6 +289,180 @@ static int CivOoTLegs(const ComboItemOps* ops) {
     return TEST_PASS;
 }
 
+/** Legs 2-4 for MM (#458 U1b), over MM's REAL registered adapter `ops`, with
+ *  OoT's real adapter `ootOps` alongside so one leg shows both games at once. */
+static int CivMMLegs(const ComboItemOps* ops, const ComboItemOps* ootOps) {
+    ComboItemRow row;
+
+    // ---- 3. all-zero shadow: no data ------------------------------------
+    std::vector<uint8_t> zeros((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    Context_UpdateShadowCopy(GAME_MM, zeros.data(), zeros.size());
+    for (GameId g : { GAME_OOT, GAME_MM, GAME_NONE }) {
+        Context_SetCurrentGame(g);
+        CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_UNAVAILABLE);
+        CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == 0);
+        CIV_ASSERT(!Combo_ItemRowAt((uint8_t)GAME_MM, 0, &row));
+    }
+
+    // ---- 2. the authored shadow world, read while OoT is active -----------
+    std::vector<uint8_t> shadow((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(shadow.data(), shadow.size(), 0) == 1);
+    CIV_ASSERT(ops->hasSave(shadow.data()));
+    CIV_ASSERT(!ops->hasSave(zeros.data()));
+    Context_UpdateShadowCopy(GAME_MM, shadow.data(), shadow.size());
+    const std::vector<uint8_t> shadowAuthored(shadow);
+
+    Context_SetCurrentGame(GAME_OOT);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_STALE);
+    const int rows = Combo_ItemCount((uint8_t)GAME_MM);
+    printf("[TEST] combo-item-view: MM rows=%d freshness=%u under GAME_OOT\n", rows,
+           (unsigned)Combo_ItemFreshness((uint8_t)GAME_MM));
+    CIV_ASSERT(rows == ops->count());
+    for (int i = 0; i < rows; i++) {
+        CIV_ASSERT(Combo_ItemRowAt((uint8_t)GAME_MM, i, &row));
+        CIV_ASSERT(row.group != NULL && row.group[0] != '\0');
+        if (row.name == NULL || row.name[0] == '\0' || strcmp(row.name, "Unknown Item") == 0) {
+            printf("[TEST] combo-item-view: MM row %d (%s) has no name\n", i, row.group);
+        }
+        CIV_ASSERT(row.name != NULL && row.name[0] != '\0' && strcmp(row.name, "Unknown Item") != 0);
+        CIV_ASSERT(row.iconKey != NULL && row.iconKeyFaded != NULL); // every MM row has an icon path
+        CIV_ASSERT(row.freshness == COMBO_TRACKER_FRESH_STALE);
+        CIV_ASSERT(row.count >= 0 && row.max >= 0);
+    }
+    CIV_ASSERT(!Combo_ItemRowAt((uint8_t)GAME_MM, rows, &row));
+    CIV_ASSERT(!Combo_ItemRowAt((uint8_t)GAME_MM, -1, &row));
+
+    // Row content: exactly the authored world (the seam's variant 0).
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row));
+    printf("[TEST] combo-item-view: MM shadow Bow have=%d count=%d max=%d group=%s\n", (int)row.have, row.count,
+           row.max, row.group);
+    CIV_ASSERT(row.have && row.count == 25 && row.max == 40 && strcmp(row.group, "Inventory") == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Magic Bean", &row));
+    CIV_ASSERT(row.have && row.count == 7 && row.max == 20);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Hookshot", &row));
+    CIV_ASSERT(!row.have && row.count == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bottles", &row));
+    CIV_ASSERT(row.have && row.count == 2 && row.max == 6);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Deku Mask", &row));
+    CIV_ASSERT(row.have && strcmp(row.group, "Masks") == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bunny Hood", &row) && row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Zora Mask", &row) && !row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Song of Healing", &row));
+    CIV_ASSERT(row.have && strcmp(row.group, "Songs") == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Song of Soaring", &row) && !row.have);
+    // The progressive lullaby names the tier held: the intro, not the full song.
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Goron Lullaby Intro", &row) && row.have);
+    CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, "Goron Lullaby", &row));
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Odolwa's Remains", &row));
+    CIV_ASSERT(row.have && strcmp(row.group, "Quest") == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Goht's Remains", &row) && !row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Razor Sword", &row) && row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Hero's Shield", &row) && row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Double Defense", &row) && !row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Adult's Wallet", &row));
+    printf("[TEST] combo-item-view: MM shadow Adult's Wallet have=%d count=%d max=%d\n", (int)row.have, row.count,
+           row.max);
+    CIV_ASSERT(row.have && row.count == 150 && row.max == 200);
+
+    // Read-only: the adapter wrote nothing into the shadow it was handed.
+    const uint8_t* resident = (const uint8_t*)Context_GetMMSaveContext();
+    CIV_ASSERT(resident != NULL && memcmp(resident, shadowAuthored.data(), shadowAuthored.size()) == 0);
+
+    // The alignof contract: a misaligned image is refused, never read.
+    CIV_ASSERT(!ops->rowAt(shadow.data() + 1, 0, &row));
+    CIV_ASSERT(!ops->hasSave(shadow.data() + 1));
+
+    // Under GAME_MM with the PRODUCTION live source: no MM play state in this
+    // tier, so it answers NULL and the view shows the shadow, STALE.
+    Context_SetCurrentGame(GAME_MM);
+    CIV_ASSERT(ops->liveSave != NULL);
+    CIV_ASSERT(ops->liveSave() == NULL);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Razor Sword", &row) && row.freshness == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivLabelIsPlayerWording(Combo_ItemFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE)));
+
+    // ---- 4. the live-vs-shadow pick, both games registered -----------------
+    std::vector<uint8_t> live((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(live.data(), live.size(), 1) == 1);
+    static ComboItemOps sTestMMOps;
+    sTestMMOps = *ops;
+    sTestMMOps.liveSave = CivMMLiveSave;
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, &sTestMMOps);
+    CIV_ASSERT(Combo_Item_GetOps((uint8_t)GAME_MM) == &sTestMMOps);
+    sCivMMLive = live.data();
+    // OoT beside it, with its own counted live source and an authored shadow,
+    // so the leg can see which game the view asked.
+    std::vector<uint8_t> ootShadow((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> ootLive((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorSave(ootShadow.data(), ootShadow.size(), 0) == 1);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorSave(ootLive.data(), ootLive.size(), 1) == 1);
+    Context_UpdateShadowCopy(GAME_OOT, ootShadow.data(), ootShadow.size());
+    static ComboItemOps sTestOoTOps;
+    sTestOoTOps = *ootOps;
+    sTestOoTOps.liveSave = CivLiveSave;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, &sTestOoTOps);
+    sCivLive = ootLive.data();
+
+    // A. MM active, its live save marked: MM LIVE with the live world's rows;
+    // OoT, inactive, is read from its shadow and its live source never asked.
+    Context_SetCurrentGame(GAME_MM);
+    sCivMMLiveCalls = 0;
+    sCivLiveCalls = 0;
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_LIVE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Hookshot", &row));
+    printf("[TEST] combo-item-view: GAME_MM live Hookshot have=%d freshness=%u\n", (int)row.have,
+           (unsigned)row.freshness);
+    CIV_ASSERT(row.have && row.freshness == COMBO_TRACKER_FRESH_LIVE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Zora Mask", &row) && row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Kokiri Sword", &row) && row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row) && !row.have);
+    CIV_ASSERT(sCivMMLiveCalls > 0);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Longshot", &row) && row.freshness == COMBO_TRACKER_FRESH_STALE);
+    printf("[TEST] combo-item-view: under GAME_MM OoT liveSave calls=%d (must be 0)\n", sCivLiveCalls);
+    CIV_ASSERT(sCivLiveCalls == 0);
+
+    // B. OoT active: the mirror image. MM's live source is never asked and its
+    // shadow's rows are STALE; OoT reads LIVE.
+    Context_SetCurrentGame(GAME_OOT);
+    sCivMMLiveCalls = 0;
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Razor Sword", &row) && row.have);
+    CIV_ASSERT(row.freshness == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row) && row.have && row.count == 25);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_LIVE);
+    printf("[TEST] combo-item-view: under GAME_OOT MM liveSave calls=%d (must be 0)\n", sCivMMLiveCalls);
+    CIV_ASSERT(sCivMMLiveCalls == 0);
+
+    // C. No game active: neither live source is asked; both STALE.
+    Context_SetCurrentGame(GAME_NONE);
+    sCivMMLiveCalls = 0;
+    sCivLiveCalls = 0;
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Razor Sword", &row) && row.freshness == COMBO_TRACKER_FRESH_STALE);
+    printf("[TEST] combo-item-view: under GAME_NONE MM liveSave calls=%d OoT liveSave calls=%d (must be 0)\n",
+           sCivMMLiveCalls, sCivLiveCalls);
+    CIV_ASSERT(sCivMMLiveCalls == 0 && sCivLiveCalls == 0);
+
+    // D. MM active but its live save carries no marker: the shadow, STALE.
+    Context_SetCurrentGame(GAME_MM);
+    sCivMMLive = zeros.data();
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Razor Sword", &row) && row.freshness == COMBO_TRACKER_FRESH_STALE);
+
+    // E. No live save and an empty shadow: UNAVAILABLE.
+    sCivMMLive = NULL;
+    Context_UpdateShadowCopy(GAME_MM, zeros.data(), zeros.size());
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_UNAVAILABLE);
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == 0);
+
+    sCivLive = NULL;
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, ops);
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, ootOps);
+    return TEST_PASS;
+}
+
 /** Leg 5: the Shared group, over a freshly initialized context. */
 static int CivSharedLegs(void) {
     ComboContext_Init();
@@ -337,7 +532,7 @@ static int CivSharedLegs(void) {
 }
 
 extern "C" int Combo_ItemView_RunHeadless(void) {
-    printf("[TEST] combo-item-view: per-game item adapters over live/shadow buffers, the shared group (#458 U1a)\n");
+    printf("[TEST] combo-item-view: per-game item adapters over live/shadow buffers, the shared group (#458 U1)\n");
 
     // ---- snapshot everything this row touches (restored at the end) --------
     const GameId prevGame = Context_GetCurrentGame();
@@ -346,6 +541,10 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
     std::vector<uint8_t> ootShadowBackup((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
     if (const uint8_t* p = (const uint8_t*)Context_GetOoTSaveContext()) {
         memcpy(ootShadowBackup.data(), p, ootShadowBackup.size());
+    }
+    std::vector<uint8_t> mmShadowBackup((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    if (const uint8_t* p = (const uint8_t*)Context_GetMMSaveContext()) {
+        memcpy(mmShadowBackup.data(), p, mmShadowBackup.size());
     }
     static ComboContext sCtxBackup;
     sCtxBackup = gComboCtx;
@@ -399,6 +598,24 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
             break;
         }
 
+        // ---- 2-4 for MM (#458 U1b), from the same production bring-up ------
+        const ComboItemOps* mmOps = Combo_Item_GetOps((uint8_t)GAME_MM);
+        if (mmOps == NULL) {
+            printf("[TEST] FAIL: Combo_TrackerWindow_Init did not register MM's item adapter\n");
+            result = TEST_FAIL;
+            break;
+        }
+        if (mmOps->count() < 35 || mmOps->count() > 65) {
+            printf("[TEST] FAIL: MM item adapter row count %d is not the curated set\n", mmOps->count());
+            result = TEST_FAIL;
+            break;
+        }
+        printf("[TEST] combo-item-view: MM adapter registered with %d curated rows\n", mmOps->count());
+        if (CivMMLegs(mmOps, ops) != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
         // ---- 5. the Shared group -----------------------------------------
         if (CivSharedLegs() != TEST_PASS) {
             result = TEST_FAIL;
@@ -408,9 +625,11 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
 
     // ---- 6. put state back (watermarks: reset, not restored; see header) ---
     sCivLive = NULL;
+    sCivMMLive = NULL;
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, prevOoT);
     Combo_Item_RegisterOps((uint8_t)GAME_MM, prevMM);
     Context_UpdateShadowCopy(GAME_OOT, ootShadowBackup.data(), ootShadowBackup.size());
+    Context_UpdateShadowCopy(GAME_MM, mmShadowBackup.data(), mmShadowBackup.size());
     gComboCtx = sCtxBackup;
     Combo_ResetSharedResourceWatermarks();
     Context_SetCurrentGame(prevGame);
@@ -419,11 +638,16 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
         printf("[TEST] FAIL: the OoT shadow was not restored byte-exact\n");
         return TEST_FAIL;
     }
+    const uint8_t* restoredMM = (const uint8_t*)Context_GetMMSaveContext();
+    if (restoredMM == NULL || memcmp(restoredMM, mmShadowBackup.data(), mmShadowBackup.size()) != 0) {
+        printf("[TEST] FAIL: the MM shadow was not restored byte-exact\n");
+        return TEST_FAIL;
+    }
     if (result != TEST_PASS) {
         return result;
     }
 
-    printf("[TEST] PASS: item rows recover authored OoT live/shadow saves with honest freshness, never LIVE for the "
-           "inactive game, and the shared group carries the pool and its label (#458 U1a)\n");
+    printf("[TEST] PASS: item rows recover authored OoT and MM live/shadow saves with honest freshness, never LIVE "
+           "for the inactive game, and the shared group carries the pool and its label (#458 U1)\n");
     return TEST_PASS;
 }

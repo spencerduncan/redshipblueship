@@ -42,7 +42,7 @@
 #include <ship/window/gui/IconsFontAwesome4.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
-#include "combo_item_view.h" // OoT_ItemAdapter_Register (#458 U1a)
+#include "combo_item_view.h" // {OoT,MM}_ItemAdapter_Register (#458 U1)
 #include "combo_tracker_view.h"
 #include "combo_ui.h"
 #include "context.h" // GameId
@@ -666,9 +666,10 @@ extern "C" void Combo_TrackerWindow_Init(void) {
     // the way an unreferenced registrar can (#516's dead-registrar class).
     MM_TrackerAdapter_Register();
     OoT_TrackerAdapter_Register();
-    // The unified item view's OoT adapter (#458 U1a), registered with the check
-    // adapters so the view has it from the same bring-up.
+    // The unified item view's adapters (#458 U1a OoT, U1b MM), registered with
+    // the check adapters so the view has them from the same bring-up.
     OoT_ItemAdapter_Register();
+    MM_ItemAdapter_Register();
 
     auto ctx = Ship::Context::GetInstance();
     if (ctx == nullptr || ctx->GetWindow() == nullptr) {
