@@ -62,6 +62,7 @@ void MM_EnGirlA_TestHagsMushroomRearm(int* outFirstArm, int* outCrossed, int* ou
 void MM_ForeignModel_TestSetMountOverride(int value);
 int MM_ForeignModel_TestShopDraw(uint16_t mmCheckId, int hand, const ComboModel* want);
 uint16_t MM_ForeignModel_TestBombShopHandCheck(void);
+int MM_ComboModel_TestForDrawRow(int drawId, ComboModel* out, const char** reason);
 }
 
 #define FS_ASSERT(cond, msg)                                                \
@@ -98,11 +99,23 @@ TestResult Test_ForeignItemGiveShop(void) {
 
     SharedItem hammer;
     SharedItem boots;
+    SharedItem hookshot;
     FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Megaton Hammer", &hammer), "named item Megaton Hammer");
     FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Hover Boots", &boots), "named item Hover Boots");
+    FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Progressive Hookshot", &hookshot), "named item Progressive Hookshot");
     ComboModelAnswer bootsA;
     FS_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, boots, &bootsA) == COMBO_MODEL_ANSWER_DESCRIPTOR,
               "the Hover Boots are a DESCRIPTOR in MM");
+    // #577 M5: OoT's hookshot collides, and MM's host-native table (#577 M7) maps
+    // it to MM's own hookshot row; the shelf and the hand draw that row as MM's
+    // own recipe gives it.
+    ComboModelAnswer hookshotA;
+    FS_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, hookshot, &hookshotA) == COMBO_MODEL_ANSWER_HOST_NATIVE,
+              "OoT's (colliding) hookshot is HOST_NATIVE in MM");
+    ComboModel mmHookshot;
+    const char* mmHookshotReason = nullptr;
+    FS_ASSERT(MM_ComboModel_TestForDrawRow(hookshotA.hostKey, &mmHookshot, &mmHookshotReason) == 1,
+              "MM draws the hookshot's host-native row with its own recipe");
 
     // A real shop slot of MM's check table (not the owner's hand item, which S5
     // covers on its own).
@@ -173,6 +186,15 @@ TestResult Test_ForeignItemGiveShop(void) {
     MM_ForeignModel_TestSetMountOverride(0);
     printf("[TEST]   S5 Hover Boots in the owner's hand, archive NOT mounted:\n");
     const int handStandIn = MM_ForeignModel_TestShopDraw(handCheck, 1, nullptr);
+    MM_ForeignModel_TestSetMountOverride(1);
+    // #577 M5: a colliding OoT model with a host-native row, on both surfaces.
+    Combo_ClearForeignPlacements();
+    FS_ASSERT(Combo_SetForeignPlacement(shopCheck, hookshot) >= 0, "S4 hookshot placement accepted");
+    printf("[TEST]   S4 Progressive Hookshot (colliding, host-native row: MM's own hookshot) on a shop shelf:\n");
+    const int shelfNative = MM_ForeignModel_TestShopDraw(shopCheck, 0, &mmHookshot);
+    FS_ASSERT(Combo_SetForeignPlacement(handCheck, hookshot) >= 0, "S5 hookshot placement accepted");
+    printf("[TEST]   S5 Progressive Hookshot (colliding, host-native row) in the owner's hand:\n");
+    const int handNative = MM_ForeignModel_TestShopDraw(handCheck, 1, &mmHookshot);
     MM_ForeignModel_TestSetMountOverride(-1);
     ComboContext_Init();
 
@@ -203,6 +225,10 @@ TestResult Test_ForeignItemGiveShop(void) {
     FS_ASSERT(shelfStandIn == 0, "S4 with no drawable model the shelf keeps the model-less stand-in, never the cover");
     FS_ASSERT(handDrawn == 0, "S5 the owner's hand draws OoT's Hover Boots model (see the Q-line above)");
     FS_ASSERT(handStandIn == 0, "S5 with no drawable model the hand keeps the model-less stand-in, never the cover");
+    FS_ASSERT(shelfNative == 0, "S4 a colliding OoT model with a host-native row draws MM's OWN model for that row on "
+                                "the shelf (#577 M5; see the Q-line above)");
+    FS_ASSERT(handNative == 0, "S5 a colliding OoT model with a host-native row draws MM's OWN model for that row in "
+                               "the owner's hand (#577 M5; see the Q-line above)");
     FS_ASSERT(hagsFirst == 1 && hagsCrossed == 1, "S6 the first cycle's mushroom arms the Hags' slot and its OoT item "
                                                   "crosses (see the S6 lines above)");
     FS_ASSERT(hagsLater == 0, "S6 a later cycle's mushroom does not re-arm a Hags' slot whose OoT item was delivered "

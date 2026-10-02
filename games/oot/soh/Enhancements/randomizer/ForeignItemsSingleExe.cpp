@@ -224,6 +224,24 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
 }
 
 /**
+ * #577 M5, the chest's appearance (z_en_box.c, OoT_EnBox_Init): the item category
+ * "Chest Size & Texture Matches Contents" dresses OoT chest `rc` by, given the
+ * category of the item the OoT table holds there (`coverCategory`).
+ */
+extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
+    (void)rc;
+    return coverCategory;
+}
+
+/** TEST BRIDGE (ForeignModel row M14): what OoT chest `rc` presents when the OoT
+ *  table holds the junk cover there: 1 a major chest, 0 the cover's junk chest,
+ *  -1 anything else. */
+extern "C" int OoT_Rando_Foreign_TestChestShowsMajor(uint16_t rc) {
+    const int shown = OoT_Rando_Foreign_ChestCategory(rc, (int)ITEM_CATEGORY_JUNK);
+    return shown == (int)ITEM_CATEGORY_MAJOR ? 1 : shown == (int)ITEM_CATEGORY_JUNK ? 0 : -1;
+}
+
+/**
  * #800 S1, the shop shelf's sold-out and can-buy tests (z_en_girla.c): 1 when OoT
  * check `rc` hosts an MM item and the check is COLLECTED (the once-per-host gate
  * OoT_Foreign_RecordPickupImpl and the drain read). That is usually "the MM item
