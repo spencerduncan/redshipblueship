@@ -144,8 +144,10 @@ const char* MMItemIcon(uint32_t itemId) {
 
 /** The icon resource path MM's tracker draws for a Rando item. */
 const char* MMItemRandoIcon(RandoItemId randoItemId) {
-    return (Rando::StaticData::Items.count(randoItemId) != 0) ? Rando::StaticData::GetIconTexturePath(randoItemId)
-                                                               : nullptr;
+    if (Rando::StaticData::Items.count(randoItemId) == 0) {
+        return nullptr;
+    }
+    return Rando::StaticData::GetIconTexturePath(randoItemId);
 }
 
 void MMItemFillVanilla(ComboItemRow* out, uint32_t itemId) {
