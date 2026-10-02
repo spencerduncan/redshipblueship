@@ -174,11 +174,16 @@ void Combo_FlushLiveStateForFreeze(GameId departing) {
     switch (departing) {
         case GAME_OOT:
             Context_NoteDepartureLiveFile(GAME_OOT, OoT_Combo_DepartureIsLiveFile());
+            // #770 / #807: the save writes actor Destroys make on any scene
+            // exit (windmill gear, Lake Hylia, a Light-Arrow-lit sun switch,
+            // Player's linkAge); the departure runs no Destroy. Before the
+            // flush, as in Actor_CleanupContext: a sun switch's Destroy unsets
+            // a live switch flag that the scene-flag flush below must then
+            // copy. (The live-file note above reads only gameMode, which no
+            // Destroy writes, so its place relative to this seam is free.)
+            OoT_Combo_ApplySceneExitWritesForFreeze();
             OoT_Combo_FlushSceneFlagsForFreeze();
             OoT_Combo_ReviveDeadHealthForFreeze();
-            // #770: the save writes the windmill gear's and Lake Hylia's
-            // Destroys make on any scene exit; the departure runs no Destroy.
-            OoT_Combo_ApplySceneExitWritesForFreeze();
             break;
         case GAME_MM:
             Context_NoteDepartureLiveFile(GAME_MM, MM_Combo_DepartureIsLiveFile());

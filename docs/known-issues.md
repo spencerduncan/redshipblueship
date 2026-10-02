@@ -771,16 +771,17 @@ actors from the discarded session; in OoT, a missing Zora diving-game Zora, Spir
 Chest Shop keeper for the rest of the process. Each departure logs `[OoT] Abandoned session
 retired: ...` or `[MM] ...`.
 
-### ~~OoT actor teardown writes to the save are skipped at a departure~~ — RESOLVED ([#770](https://github.com/spencerduncan/redshipblueship/issues/770), PR [#792](https://github.com/spencerduncan/redshipblueship/pull/792)); two residues in [#807](https://github.com/spencerduncan/redshipblueship/issues/807)
+### ~~OoT actor teardown writes to the save are skipped at a departure~~ — RESOLVED ([#770](https://github.com/spencerduncan/redshipblueship/issues/770), PR [#792](https://github.com/spencerduncan/redshipblueship/pull/792); [#807](https://github.com/spencerduncan/redshipblueship/issues/807))
 
 The teardowns PR #767 does not run also write the save. Fixed by PR #792 (2026-09-28): right
 before a departure freezes OoT's save, the windmill's Song of Storms flag is cleared and Lake
 Hylia's raised water is set again after the Water Temple (rando), as those actors' teardowns do
 on any exit, and the lake's river water box is put back. A running room or minigame timer's
 `timerState`, Sun's Song state and a magic effect's `magicState` are reset on the next OoT
-arrival or file load (read in code, #770). Still open in #807: a sun switch lit by a Light
-Arrow under SoH's Sunlight Arrows enhancement stays on after a departure, and an F10 between
-an age change and its scene reload freezes the old `linkAge`. State cleared only by destroy
+arrival or file load (read in code, #770). ~~A sun switch lit by a Light Arrow under SoH's
+Sunlight Arrows enhancement stays on after a departure, and an F10 between an age change and
+its scene reload freezes the old `linkAge`~~ — RESOLVED (#807): the departure now turns that
+sun switch off and applies the pending age with its equipment swap, as those teardowns do. State cleared only by destroy
 hooks is not retired either: a remote bombchu's camera focus and the entrance-randomizer Epona
 state (PRs [#751](https://github.com/spencerduncan/redshipblueship/pull/751), [#767](https://github.com/spencerduncan/redshipblueship/pull/767)).
 
