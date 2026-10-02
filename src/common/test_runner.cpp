@@ -4252,13 +4252,11 @@ TestResult Test_ComboTrackerView(void) {
 TestResult Test_OoTCheckStateLoad(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
-        printf("[TEST] FAIL: could not create Ship::Context singleton
-");
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
         return TEST_FAIL;
     }
     if (OoT_InitSharedContextSubsystems() != 0) {
-        printf("[TEST] FAIL: shared bring-up reported failure
-");
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
         return TEST_FAIL;
     }
 

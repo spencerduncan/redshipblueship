@@ -14,7 +14,9 @@
  *   Leg A (#849): a heart piece collected before the crossing is in the loaded
  *   half (its collectible flag is set) but reads SCUMMED, the status a
  *   section-only tracker save writes. VB_ITEM00_DESPAWN despawns it on
- *   HasObtained() alone (hook_handlers.cpp), so it is back in the world.
+ *   HasObtained() alone (hook_handlers.cpp), so it is back in the world. The
+ *   same leg carries a shuffled freestanding rupee, whose flag is a
+ *   RandomizerInf and whose despawn test is ShuffleFreestanding.cpp's.
  *   Leg B (#803's load leg): a chest the .sav saved as SAVED is closed again in
  *   the loaded half (a half that went back). Opening it fires the real
  *   scene-flag hook, which queues nothing for an obtained check: the item is
@@ -66,6 +68,14 @@ constexpr int kSlot = 0;
 constexpr uint32_t kSwordChestBit = 1u << 0x00; // RC_KF_KOKIRI_SWORD_CHEST, SCENE_KOKIRI_FOREST
 constexpr uint32_t kHeartPieceBit = 1u << 0x1E; // RC_LH_FREESTANDING_POH, SCENE_LAKE_HYLIA
 constexpr uint32_t kMidoRightBit = 1u << 0x01;  // RC_KF_MIDOS_TOP_RIGHT_CHEST, SCENE_MIDOS_HOUSE
+// RC_KF_BRIDGE_RUPEE, a shuffled freestanding item: its flag is a RandomizerInf
+// (ShuffleFreestanding.cpp), set in the half's ship.randomizerInf.
+void SetRandoInf(SaveContext* s, RandomizerInf flag) {
+    s->ship.randomizerInf[flag >> 4] |= (uint16_t)(1u << (flag & 0xF));
+}
+bool HasRandoInf(const SaveContext* s, RandomizerInf flag) {
+    return (s->ship.randomizerInf[flag >> 4] & (1u << (flag & 0xF))) != 0;
+}
 
 // File-static: SoH's runtime SaveContext is over 100 KB.
 SaveContext sSavBase;
@@ -122,7 +132,7 @@ bool AuthorWorld(void) {
         Rando::StaticData::InitItemTable();
     }
     for (RandomizerCheck rc : { RC_KF_KOKIRI_SWORD_CHEST, RC_LH_FREESTANDING_POH, RC_KF_MIDOS_TOP_LEFT_CHEST,
-                                RC_KF_MIDOS_TOP_RIGHT_CHEST, RC_TOT_MASTER_SWORD }) {
+                                RC_KF_MIDOS_TOP_RIGHT_CHEST, RC_TOT_MASTER_SWORD, RC_KF_BRIDGE_RUPEE }) {
         Loc(rc)->SetPlacedItem(RG_PIECE_OF_HEART);
         Loc(rc)->SetCheckStatus(RCSHOW_UNCHECKED);
     }
@@ -152,9 +162,11 @@ void ArmControls(SaveContext* s) {
     // RC_TOT_MASTER_SWORD: given at creation, EVENTCHKINF_PULLED_MASTER_SWORD_FROM_PEDESTAL never set.
 }
 
-void SetTrackerStatuses(RandomizerCheckStatus sword, RandomizerCheckStatus heartPiece) {
+void SetTrackerStatuses(RandomizerCheckStatus sword, RandomizerCheckStatus heartPiece,
+                        RandomizerCheckStatus bridgeRupee) {
     Loc(RC_KF_KOKIRI_SWORD_CHEST)->SetCheckStatus(sword);
     Loc(RC_LH_FREESTANDING_POH)->SetCheckStatus(heartPiece);
+    Loc(RC_KF_BRIDGE_RUPEE)->SetCheckStatus(bridgeRupee);
     Loc(RC_KF_MIDOS_TOP_LEFT_CHEST)->SetCheckStatus(RCSHOW_SCUMMED);
     Loc(RC_KF_MIDOS_TOP_RIGHT_CHEST)->SetCheckStatus(RCSHOW_SAVED);
     Loc(RC_TOT_MASTER_SWORD)->SetCheckStatus(RCSHOW_SAVED);
@@ -197,9 +209,9 @@ uint32_t WriteCommits(const SaveContext& savBase, const SaveContext& committed) 
 // LoadFile as OoT's file select runs it: the .sav's sections (base, tracker)
 // are in memory, then the OnLoadFile seam runs.
 void LoadAsFileSelect(const SaveContext& savBase, uint32_t savGeneration, RandomizerCheckStatus sword,
-                      RandomizerCheckStatus heartPiece) {
+                      RandomizerCheckStatus heartPiece, RandomizerCheckStatus bridgeRupee) {
     memcpy(&gSaveContext, &savBase, sizeof(SaveContext));
-    SetTrackerStatuses(sword, heartPiece);
+    SetTrackerStatuses(sword, heartPiece, bridgeRupee);
     OoT_Combo_OnLoadFileSeam(kSlot, savGeneration);
 }
 
@@ -227,12 +239,22 @@ int RunLegs(void) {
     ArmControls(&sSavBase);
     memcpy(&sCommitted, &sSavBase, sizeof(SaveContext));
     sCommitted.sceneFlags[SCENE_LAKE_HYLIA].collect |= kHeartPieceBit;
+    SetRandoInf(&sCommitted, RAND_INF_KF_BRIDGE_RUPEE); // a shuffled freestanding item, taken too
     uint32_t savGeneration = WriteCommits(sSavBase, sCommitted);
     OCSL_CHECK(savGeneration != 0, "leg A setup: the two commits are written");
     if (savGeneration == 0) {
         return 1;
     }
-    LoadAsFileSelect(sSavBase, savGeneration, RCSHOW_UNCHECKED, RCSHOW_SCUMMED);
+    LoadAsFileSelect(sSavBase, savGeneration, RCSHOW_UNCHECKED, RCSHOW_SCUMMED, RCSHOW_SCUMMED);
+    {
+        const bool rupeeApplied = HasRandoInf(&gSaveContext, RAND_INF_KF_BRIDGE_RUPEE);
+        printf("[TEST] oot-check-state-load: leg A: the loaded half %s the shuffled bridge rupee; its check reads %s\n",
+               rupeeApplied ? "holds" : "does NOT hold", StatusName(Loc(RC_KF_BRIDGE_RUPEE)->GetCheckStatus()));
+        OCSL_CHECK(rupeeApplied, "leg A setup: the loaded half holds the bridge rupee's RandomizerInf");
+        OCSL_CHECK(Loc(RC_KF_BRIDGE_RUPEE)->HasObtained(),
+                   "#849: a shuffled freestanding item the loaded half holds reads obtained, so ShuffleFreestanding's "
+                   "VB_ITEM00_DESPAWN keeps it out of the world");
+    }
     {
         const bool halfApplied = (gSaveContext.sceneFlags[SCENE_LAKE_HYLIA].collect & kHeartPieceBit) != 0;
         const RandomizerCheckStatus s = Loc(RC_LH_FREESTANDING_POH)->GetCheckStatus();
@@ -265,7 +287,7 @@ int RunLegs(void) {
         return 1;
     }
     (void)OoT_Rando_TestTakeQueuedChecks(nullptr, 0);
-    LoadAsFileSelect(sSavBase, savGeneration, RCSHOW_SAVED, RCSHOW_UNCHECKED);
+    LoadAsFileSelect(sSavBase, savGeneration, RCSHOW_SAVED, RCSHOW_UNCHECKED, RCSHOW_UNCHECKED);
     {
         const bool closed = (gSaveContext.sceneFlags[SCENE_KOKIRI_FOREST].chest & kSwordChestBit) == 0;
         const RandomizerCheckStatus s = Loc(RC_KF_KOKIRI_SWORD_CHEST)->GetCheckStatus();
