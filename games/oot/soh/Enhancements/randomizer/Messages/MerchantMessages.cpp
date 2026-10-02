@@ -47,6 +47,24 @@ void BuildMerchantMessage(CustomMessage& msg, RandomizerCheck rc, bool mysteriou
     msg.InsertNames({ itemName, CustomMessage(std::to_string(price)) });
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #800: when OoT check `rc` hosts a Majora's Mask item, name that item, not the
+// junk cover the OoT table holds there, at the host's own price. The name comes
+// from MM's describer (the same one the drain's pickup toast reads), in English
+// only, and with OoT's default item colour. false: no MM item at `rc`.
+static bool BuildForeignHostMessage(CustomMessage& msg, RandomizerCheck rc) {
+    const SharedItem* foreignItem = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
+    if (foreignItem == nullptr) {
+        return false;
+    }
+    const char* foreignName = Combo_GetForeignItemName(*foreignItem);
+    msg.Replace("[[color]]", "%g");
+    msg.InsertNames({ CustomMessage(std::string(foreignName != nullptr ? foreignName : "Majora's Mask item")),
+                      CustomMessage(std::to_string(RAND_GET_ITEM(rc)->GetPrice())) });
+    return true;
+}
+#endif
+
 void BuildBeanGuyMessage(uint16_t* textId, bool* loadFromMessageTable) {
     CustomMessage msg;
     if (*textId == TEXT_BEAN_SALESMAN_BUY_FOR_100) {
@@ -151,9 +169,17 @@ void BuildScrubMessage(uint16_t* textId, bool* loadFromMessageTable) {
             "\x12\x38\x82"
             "J'abandonne! Tu veux bien m'acheter un [[color]][[1]]%w? Ça fera %y[[2]] Rubis%w!\x07\x10\xA3");
     }
-    BuildMerchantMessage(msg, rc,
-                         RAND_GET_OPTION(RSK_MERCHANT_TEXT_HINT).Is(RO_GENERIC_OFF) ||
-                             CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0));
+    const bool mysterious = RAND_GET_OPTION(RSK_MERCHANT_TEXT_HINT).Is(RO_GENERIC_OFF) ||
+                            CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0);
+    bool named = false;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 pass 2: a scrub hosting an MM item names that item where it would name
+    // its own (merchant text hints on, Mysterious Shuffle off), not the junk cover.
+    named = !mysterious && BuildForeignHostMessage(msg, rc);
+#endif
+    if (!named) {
+        BuildMerchantMessage(msg, rc, mysterious);
+    }
     msg.AutoFormat();
     msg.LoadIntoFont();
     *loadFromMessageTable = false;
@@ -182,16 +208,8 @@ void BuildShopMessage(uint16_t* textId, bool* loadFromMessageTable) {
         return;
     }
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // #800 S1: a shelf hosting a Majora's Mask item names that item, not the junk
-    // cover the OoT table holds there, at the shelf's own price. The name comes
-    // from MM's describer (the same one the drain's pickup toast reads), in
-    // English only, and with OoT's default item colour.
-    const SharedItem* foreignItem = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
-    if (foreignItem != nullptr && !CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0)) {
-        const char* foreignName = Combo_GetForeignItemName(*foreignItem);
-        msg.Replace("[[color]]", "%g");
-        msg.InsertNames({ CustomMessage(std::string(foreignName != nullptr ? foreignName : "Majora's Mask item")),
-                          CustomMessage(std::to_string(RAND_GET_ITEM(rc)->GetPrice())) });
+    // #800 S1: a shelf hosting a Majora's Mask item names that item.
+    if (!CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0) && BuildForeignHostMessage(msg, rc)) {
         msg.AutoFormat();
         msg.LoadIntoFont();
         *loadFromMessageTable = false;

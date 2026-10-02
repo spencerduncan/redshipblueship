@@ -1043,14 +1043,24 @@ void OoT_ComboLogic_EndQuery(void* self) {
  *    flag handler queues the check and the drain's foreign branch records the
  *    crossing before OoT's own give (z_en_girla.c, hook_handlers.cpp). The
  *    shelf draws the MM model and the textbox names the MM item (#800).
+ *  - OoT's BUSINESS SCRUBS (#800 pass 2): an `RCTYPE_SCRUB` row drawn by
+ *    `ACTOR_EN_DNS`. The sale runs EnDns_RandomizerPurchase (hook_handlers.cpp),
+ *    which charges the scrub's own price and sets its RandomizerInf flag; the
+ *    scrub's native give is already suppressed under rando
+ *    (VB_GIVE_ITEM_FROM_BUSINESS_SCRUB), so the flag handler queues the check
+ *    and the drain's foreign branch records the crossing, exactly as for a
+ *    shelf. The scrub draws no item of its own; its sale textbox names the MM
+ *    item (MerchantMessages.cpp).
  *
- * Scrubs, merchants and the chest game keep their own give-and-price flows and
- * stay refused (#800 pass 2 scopes each). The fill-side half of the old predicate
+ * Merchants and the chest game keep their own give-and-price flows and stay
+ * refused (#800 pass 2 scopes each). The fill-side half of the old predicate
  * ("the fill put junk here") is the old overlay pass's and does not apply: the
  * coordinator only ever offers EMPTY hosts, and this engine's `place` puts the
  * junk cover there itself. A shelf is empty only when shopsanity replaced its
  * vanilla stock (fill.cpp): with shopsanity off every shelf keeps its RG_BUY_*
- * item and is never offered.
+ * item and is never offered. A scrub is a location at all only under scrub
+ * shuffle (Context::GenerateLocationPool): all 46 under "All", the three
+ * upgrade scrubs under "One-Time Only", none when it is off (the default).
  *
  * A pure function of the static location table: legal outside a round, no RNG.
  */
@@ -1064,6 +1074,9 @@ int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
     const RandomizerCheckType checkType = loc->GetRCType();
     if (checkType == RCTYPE_SHOP && loc->GetActorID() == ACTOR_EN_GIRLA) {
         return 1; // a plain shop shelf (#800 pass 1)
+    }
+    if (checkType == RCTYPE_SCRUB && loc->GetActorID() == ACTOR_EN_DNS) {
+        return 1; // a Business Scrub (#800 pass 2)
     }
     if (loc->GetActorID() != ACTOR_EN_BOX) {
         return 0;
