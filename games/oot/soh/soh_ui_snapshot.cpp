@@ -138,10 +138,7 @@
 // src/common (on soh's include path). All game-header-free.
 #include "ComboSpoilerWindow.h"
 #include "ComboTrackerWindow.h"
-#include "ComboItemTrackerWindow.h" // the unified Item Tracker overlay (#458 U2)
-#include "combo_item_view.h"        // its states' test live sources
-#include "shared_resources.h"       // its states' shared pool
-#include "combo_logic.h"            // RSBS_COMBO_HALF_* (the goal-warning toast page)
+#include "combo_logic.h"           // RSBS_COMBO_HALF_* (the goal-warning toast page)
 #include "pairing_refusal_toast.h" // the cross-game refusal toast pages
 #include "combo_mm_options_page.h" // Combo > MM Randomizer / MM Tricks: page names, row suffix, reset title
 #include "combo_mm_options_view.h"
@@ -162,6 +159,12 @@
 #include "rsbs_version.h"
 #include "save.h" // RsbsSave_EmitLoadToast: the paired-file load's toasts (#781)
 #include "ui_snapshot_image.h"
+
+// The unified Item Tracker overlay (#458 U2), its states' item adapters and
+// shared pool.
+#include "ComboItemTrackerWindow.h"
+#include "combo_item_view.h"
+#include "shared_resources.h"
 
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 extern "C" int OoT_InitSharedContextSubsystems(void);

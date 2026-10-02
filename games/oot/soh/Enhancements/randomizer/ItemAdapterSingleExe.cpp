@@ -474,11 +474,7 @@ bool OoTItemRowAt(const void* buf, int index, ComboItemRow* out) {
 
 extern "C" void OoT_ItemAdapter_Register(void) {
     static const ComboItemOps kOps = {
-        OoTItemCount,
-        OoTItemRowAt,
-        OoTItemHasSave,
-        OoTItemLiveSave,
-        OoTItemPaused,
+        OoTItemCount, OoTItemRowAt, OoTItemHasSave, OoTItemLiveSave, OoTItemPaused,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, &kOps);
 }

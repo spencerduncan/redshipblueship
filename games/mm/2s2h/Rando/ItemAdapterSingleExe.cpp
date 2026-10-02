@@ -404,11 +404,7 @@ bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
 
 extern "C" void MM_ItemAdapter_Register(void) {
     static const ComboItemOps kOps = {
-        MMItemCount,
-        MMItemRowAt,
-        MMItemHasSave,
-        MMItemLiveSave,
-        MMItemPaused,
+        MMItemCount, MMItemRowAt, MMItemHasSave, MMItemLiveSave, MMItemPaused,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_MM, &kOps);
 }
