@@ -1868,9 +1868,7 @@ uint32_t SaveManager::ReadSavCommitGeneration(int fileNum) {
         nlohmann::json block = nlohmann::json::object();
         input >> block;
         return CommitGenerationOf(block);
-    } catch (const std::exception&) {
-        return 0;
-    }
+    } catch (const std::exception&) { return 0; }
 }
 
 bool SaveManager::ProbeFileForOpen(int fileNum, std::string* words) {

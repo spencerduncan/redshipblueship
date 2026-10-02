@@ -192,7 +192,7 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
         out.write(junk, sizeof(junk));
     }
     const std::vector<uint8_t> garbageBytes = FileBytes(garbagePath);
-    RsbsSave_SetActiveSlot(kVanilla); // a slot from an earlier session; the gate must not move it
+    RsbsSave_SetActiveSlot(kVanilla);    // a slot from an earlier session; the gate must not move it
     gComboCtx.sharedRandoSeed = 0x0836u; // a recognisable resident record
     ComboContext comboBefore;
     memcpy(&comboBefore, &gComboCtx, sizeof(ComboContext));
@@ -208,8 +208,9 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
         printf("[TEST] leg 1 OBSERVED: press left %04X, %d toast(s) \"%s\", slot state %d reason %d words \"%s\", "
                "slot file %s, extra files %d, active slot %d\n",
                left, toasts, toast.c_str(), RsbsSave_GetSlotState(kAbsent), RsbsSave_GetSlotRefuseReason(kAbsent),
-               RsbsSave_SlotRefusalWords(kAbsent), std::filesystem::exists(rsbsSave.SlotPath(kAbsent)) ? "present" : "absent",
-               ExtraFiles(dir), RsbsSave_GetActiveSlot());
+               RsbsSave_SlotRefusalWords(kAbsent),
+               std::filesystem::exists(rsbsSave.SlotPath(kAbsent)) ? "present" : "absent", ExtraFiles(dir),
+               RsbsSave_GetActiveSlot());
         FSR_ASSERT((left & (BTN_A | BTN_START)) == 0,
                    "leg 1: the A press on a randomizer file with no cross-game record was not consumed: the file opens "
                    "and plays unpaired");

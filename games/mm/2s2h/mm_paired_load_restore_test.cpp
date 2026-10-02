@@ -775,8 +775,7 @@ int LegRoundTrip() {
                "arrivalGate=%d\n",
                probe.outcome, rc, paired ? 1 : 0, toast.any ? toast.prefix.c_str() : "(none)", anyKeyWritten ? 1 : 0,
                gate);
-        if (probe.outcome != RSBS_LOAD_OK || rc != RSBS_LOAD_OK || !paired ||
-            gComboCtx.mmProfileDigest != fileDigest) {
+        if (probe.outcome != RSBS_LOAD_OK || rc != RSBS_LOAD_OK || !paired || gComboCtx.mmProfileDigest != fileDigest) {
             return Fail(30, "leg 3: an unchanged paired file did not round-trip into a paired session");
         }
         if (toast.any) {
@@ -1171,8 +1170,9 @@ int LegProbeAccepts() {
            diverged.outcome, diverged.moved.c_str(), rc, Combo_ForeignPairingActive() ? 1 : 0, (int)goal,
            trickOn ? 1 : 0, (int)heartsNow);
     if (diverged.outcome != RSBS_LOAD_OK || !diverged.moved.empty()) {
-        return Fail(112, "leg 7: the probe refused a divergence the file can restore, or moved %s (it must write "
-                         "no key)",
+        return Fail(112,
+                    "leg 7: the probe refused a divergence the file can restore, or moved %s (it must write "
+                    "no key)",
                     diverged.moved.empty() ? "nothing" : diverged.moved.c_str());
     }
     if (rc != RSBS_LOAD_OK || !Combo_ForeignPairingActive() || goal != (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER ||
@@ -1186,8 +1186,7 @@ int LegProbeAccepts() {
     RsbsSave_DeleteSave(kSlot);
     RsbsSave_ResetSlotSessionState();
     const ProbeResult vanilla = Probe(0);
-    printf("[TEST] leg 7 (vanilla, no record) OBSERVED: probe=%d moved='%s'\n", vanilla.outcome,
-           vanilla.moved.c_str());
+    printf("[TEST] leg 7 (vanilla, no record) OBSERVED: probe=%d moved='%s'\n", vanilla.outcome, vanilla.moved.c_str());
     if (vanilla.outcome != RSBS_LOAD_ABSENT || !vanilla.moved.empty()) {
         return Fail(114, "leg 7: the probe refused a vanilla file with no cross-game record");
     }
