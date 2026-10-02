@@ -34,13 +34,25 @@
  *   4. the backstop: OnLoadFile for the garbage file refuses, then OnLoadGame
  *      sets the next state to FileChoose_Init, running false, gameMode
  *      GAMEMODE_FILE_SELECT, posts one toast; a second OnLoadGame (no refused
- *      load) leaves the Play transition alone.
+ *      load) leaves the Play transition alone;
+ *   5. commit skew read from DISK: a structurally valid .redsave at commit
+ *      generation g, and OoT's Save/file<N+1>.sav carrying
+ *      "rsbsCommitGeneration": g + 4. The gate's only source for that number
+ *      is SaveManager::ReadSavCommitGeneration, so a reader that returned 0
+ *      (wrong path, wrong key, a swallowed parse failure) would not see the
+ *      skew: this record (it carries no pairing) would then refuse for the
+ *      missing pairing instead, and a paired one would open. The press is
+ *      consumed, the toast and the record carry the commit-skew reason and
+ *      words, and neither file moves. Control: the same record with the .sav
+ *      at g is not a commit-skew refusal. The .sav that was at that path
+ *      before the row (if any) is put back.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "SaveManager.h"
 #include "Enhancements/game-interactor/GameInteractor.h"
+#include <libultraship/libultraship.h>
 
 #include "context.h"
 #include "notification_bridge.h"
@@ -300,6 +312,86 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
                state->init == OoT_Play_Init ? "OoT_Play_Init" : "CHANGED");
         FSR_ASSERT(state->init == OoT_Play_Init && state->running == 1,
                    "leg 4: the backstop fired again on a load nothing refused");
+    }
+
+    // ---- 5. commit skew, read from the .sav on disk -------------------------
+    {
+        const int kSkew = kAbsent;
+        RsbsSave_ResetSlotSessionState();
+        RsbsSave_DeleteSave(kSkew);
+        ComboContext_Init();
+        const bool authored = rsbsSave.Save(kSkew);
+        const uint32_t gen = gComboCtx.commitGeneration;
+        FSR_ASSERT(authored && gen != 0, "leg 5: authoring the slot's .redsave failed (saved %d, generation %u)",
+                   authored ? 1 : 0, (unsigned)gen);
+        RsbsSave_ResetSlotSessionState();
+        RsbsSave_SetActiveSlot(kVanilla);
+
+        // SoH's own .sav location (SaveManager::GetFileName): <app dir>/Save/file<N+1>.sav.
+        const std::filesystem::path savPath =
+            std::filesystem::path(Ship::Context::GetPathRelativeToAppDirectory("Save")) /
+            ("file" + std::to_string(kSkew + 1) + ".sav");
+        const bool savExisted = std::filesystem::exists(savPath);
+        const std::vector<uint8_t> savOriginal = savExisted ? FileBytes(savPath.string()) : std::vector<uint8_t>();
+        std::filesystem::create_directories(savPath.parent_path(), ec);
+        auto writeSav = [&](uint32_t savGen) {
+            std::ofstream out(savPath, std::ios::binary | std::ios::trunc);
+            out << "{\"version\":1,\"rsbsCommitGeneration\":" << savGen << "}\n";
+        };
+
+        writeSav(gen + 4u);
+        const std::vector<uint8_t> redsaveBytes = FileBytes(rsbsSave.SlotPath(kSkew));
+        const std::vector<uint8_t> savBytes = FileBytes(savPath.string());
+        const int extraBefore = ExtraFiles(dir); // what authoring the record left beside it
+        ComboContext comboSnap;
+        memcpy(&comboSnap, &gComboCtx, sizeof(ComboContext));
+        const int toastsBefore = OoT_Notification_EmittedCountForTest();
+        press(kSkew, BTN_A);
+        dispatchChoose(fc);
+        const u16 left = fc->state.input[0].press.button;
+        const int toasts = OoT_Notification_EmittedCountForTest() - toastsBefore;
+        const std::string toast = LastToast();
+        const bool redsaveSame = FileBytes(rsbsSave.SlotPath(kSkew)) == redsaveBytes;
+        const bool savSame = FileBytes(savPath.string()) == savBytes;
+        printf("[TEST] leg 5 OBSERVED: .redsave generation %u, .sav generation %u: press left %04X, %d toast(s) "
+               "\"%s\", reason %d words \"%s\", .redsave %s, .sav %s, extra files %d (before %d), active slot %d\n",
+               (unsigned)gen, (unsigned)(gen + 4u), left, toasts, toast.c_str(), RsbsSave_GetSlotRefuseReason(kSkew),
+               RsbsSave_SlotRefusalWords(kSkew), redsaveSame ? "unchanged" : "CHANGED",
+               savSame ? "unchanged" : "CHANGED", ExtraFiles(dir), extraBefore, RsbsSave_GetActiveSlot());
+        FSR_ASSERT((left & (BTN_A | BTN_START)) == 0,
+                   "leg 5: the A press on a file whose .sav is newer than its .redsave was not consumed");
+        FSR_ASSERT(
+            RsbsSave_GetSlotRefuseReason(kSkew) == (int)RSBS_REFUSE_COMMIT_SKEW &&
+                std::string(RsbsSave_SlotRefusalWords(kSkew)) == "Older than the Ocarina of Time save",
+            "leg 5: the refusal record is reason %d words \"%s\" (want the commit skew, \"Older than the Ocarina "
+            "of Time save\")",
+            RsbsSave_GetSlotRefuseReason(kSkew), RsbsSave_SlotRefusalWords(kSkew));
+        FSR_ASSERT(toasts == 1 && toast == "Not paired: Older than the Ocarina of Time save",
+                   "leg 5: %d toast(s), last \"%s\" (want one: \"Not paired: Older than the Ocarina of Time save\")",
+                   toasts, toast.c_str());
+        FSR_ASSERT(redsaveSame && savSame && std::filesystem::exists(rsbsSave.SlotPath(kSkew)) &&
+                       ExtraFiles(dir) == extraBefore,
+                   "leg 5: the gate moved, renamed or changed a file");
+        FSR_ASSERT(memcmp(&comboSnap, &gComboCtx, sizeof(ComboContext)) == 0, "leg 5: the gate changed gComboCtx");
+        FSR_ASSERT(RsbsSave_GetActiveSlot() == kVanilla, "leg 5: the gate moved the active slot");
+
+        // Control: the same record with the .sav at its own generation is no skew.
+        RsbsSave_ResetSlotSessionState();
+        writeSav(gen);
+        press(kSkew, BTN_A);
+        dispatchChoose(fc);
+        printf("[TEST] leg 5 OBSERVED: control, .sav generation %u: reason %d words \"%s\"\n", (unsigned)gen,
+               RsbsSave_GetSlotRefuseReason(kSkew), RsbsSave_SlotRefusalWords(kSkew));
+        FSR_ASSERT(RsbsSave_GetSlotRefuseReason(kSkew) != (int)RSBS_REFUSE_COMMIT_SKEW,
+                   "leg 5: control: a .sav at the record's own generation was refused as a commit skew");
+
+        if (savExisted) {
+            std::ofstream out(savPath, std::ios::binary | std::ios::trunc);
+            out.write(reinterpret_cast<const char*>(savOriginal.data()), (std::streamsize)savOriginal.size());
+        } else {
+            std::filesystem::remove(savPath, ec);
+        }
+        RsbsSave_DeleteSave(kSkew);
     }
 
     // Put back everything this row touched.

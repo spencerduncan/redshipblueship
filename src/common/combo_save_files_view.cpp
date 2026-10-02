@@ -65,7 +65,7 @@ const char* Combo_SaveFiles_RefuseText(RsbsRefuseReason reason) {
         case RSBS_REFUSE_COMBO_MAGIC:
             return "Cross-game record is damaged";
         case RSBS_REFUSE_COMMIT_SKEW:
-            return "Older than the OoT save";
+            return "Older than the Ocarina of Time save";
         case RSBS_REFUSE_IDENTITY:
             return "Settings differ from its creation";
         case RSBS_REFUSE_GENERATION:
