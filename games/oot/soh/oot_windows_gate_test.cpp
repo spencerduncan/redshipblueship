@@ -325,8 +325,7 @@ int RunConsoleAndKnifeGate() {
             std::string playOutput;
             const int32_t rc = console->Run(line, &playOutput);
             const long diff = FirstSaveDiff(canary);
-            printf("[TEST] oot-windows-gate: `%s` returned %d with output \"%s\"\n", line, (int)rc,
-                   playOutput.c_str());
+            printf("[TEST] oot-windows-gate: `%s` returned %d with output \"%s\"\n", line, (int)rc, playOutput.c_str());
             if (rc == 0 || playOutput.find("OoT_gPlayState == nullptr") == std::string::npos || diff >= 0) {
                 printf("[TEST] FAIL: oot-windows-gate: `%s` with Ocarina of Time running and no play state did not "
                        "refuse with \"OoT_gPlayState == nullptr\" and an unchanged gSaveContext (first differing "
