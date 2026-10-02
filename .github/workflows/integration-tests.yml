@@ -371,9 +371,11 @@ jobs:
     # trip's paired variant, which generates the pinned world, creates a file
     # through the production creation event, and asserts the MM arrival
     # hydrated it. Driven through ctest so the row's own TIMEOUT bounds it.
+    # IntPairedFirstCrossingDiverged (#804) is the same crossing after settings
+    # changed between the creation and the load.
     - name: Integration Test - Paired First Crossing
       if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
-      run: ctest --test-dir build-cmake --output-on-failure -R "^IntPairedFirstCrossing$" --no-tests=error
+      run: ctest --test-dir build-cmake --output-on-failure -R "^IntPairedFirstCrossing(Diverged)?$" --no-tests=error
       env:
         DISPLAY: :99
 
