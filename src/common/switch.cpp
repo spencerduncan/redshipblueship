@@ -37,6 +37,8 @@
 
 #include "context.h"
 #include "entrance.h"
+#include "save.h"
+#include <chrono>
 #include <cstdio>
 #include <cstddef>
 
@@ -50,6 +52,10 @@ void MM_Combo_FlushSceneFlagsForFreeze(void);
 void MM_Combo_ReviveDeadHealthForFreeze(void);
 void OoT_Combo_ReviveDeadHealthForFreeze(void);
 void OoT_Combo_ApplySceneExitWritesForFreeze(void);
+// #837: whether the departing gSaveContext is a live file (Combo_SaveIsLiveFile
+// on that game's gameMode), read in the game's own TU for the same reason.
+int OoT_Combo_DepartureIsLiveFile(void);
+int MM_Combo_DepartureIsLiveFile(void);
 
 /**
  * Where a hot-swapped game should spawn when the player comes back to it.
@@ -158,29 +164,105 @@ int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size
  * Idempotent: each hook re-copies the same words, so a second call (the
  * game-over exit revives, then the launcher freeze revives again) is a no-op.
  * A game with no live PlayState (owl-save / game-over exits, headless tests)
- * flushes nothing and does not dereference anything. Does not touch the
- * .redsave commit path: the blob it corrects is the one Context_FreezeState
- * captures; the durable write of that blob is unchanged.
+ * flushes nothing and does not dereference anything. Writes no file itself:
+ * the blob it corrects is the one Context_FreezeState captures, and since #837
+ * that blob reaches disk at the crossing (Switch_CommitCrossing, below). The
+ * flush's last job serves that commit: it notes whether the half about to be
+ * frozen is a live file, which only a game TU can read.
  */
 void Combo_FlushLiveStateForFreeze(GameId departing) {
     switch (departing) {
         case GAME_OOT:
+            Context_NoteDepartureLiveFile(GAME_OOT, OoT_Combo_DepartureIsLiveFile());
             // #770 / #807: the save writes actor Destroys make on any scene
             // exit (windmill gear, Lake Hylia, a Light-Arrow-lit sun switch,
-            // Player's linkAge); the departure runs no Destroy. First, as in
-            // Actor_CleanupContext: a sun switch's Destroy unsets a live switch
-            // flag that the scene-flag flush below must then copy.
+            // Player's linkAge); the departure runs no Destroy. Before the
+            // flush, as in Actor_CleanupContext: a sun switch's Destroy unsets
+            // a live switch flag that the scene-flag flush below must then
+            // copy. (The live-file note above reads only gameMode, which no
+            // Destroy writes, so its place relative to this seam is free.)
             OoT_Combo_ApplySceneExitWritesForFreeze();
             OoT_Combo_FlushSceneFlagsForFreeze();
             OoT_Combo_ReviveDeadHealthForFreeze();
             break;
         case GAME_MM:
+            Context_NoteDepartureLiveFile(GAME_MM, MM_Combo_DepartureIsLiveFile());
             MM_Combo_FlushSceneFlagsForFreeze();
             MM_Combo_ReviveDeadHealthForFreeze();
             break;
         default:
             break;
     }
+}
+
+/**
+ * Every cross-game crossing is a whole-file commit (#837; ADR 0009 decision 4c).
+ * The contract is in context.h; the points that are easy to get wrong:
+ *
+ *   - WHERE. GameRunner_SwitchTo calls this between the departing suspend and
+ *     the target's resume/init. Inside each Game_Suspend would be two call
+ *     sites and no ROM-free row could reach it; main.cpp sees suspend and
+ *     resume as one call. Before the suspend, Tier-1 would miss the staged
+ *     pickups and the harvest; after the target's Play_Init, the target's
+ *     shadow would already be consumed (zeroed) and its items redeemed.
+ *   - WHAT. No harvest (the suspend just did it) and no shadow refresh: the
+ *     departing half is the freeze, which is what that game resumes from, taken
+ *     at the instant nextEntrance was set (the entrance path) or at F10.
+ *     Nothing is stamped into it either; where Link wakes after a reload of this
+ *     commit is OoT_Sram_OpenSave's savedSceneNum rule, the path an MM owl
+ *     save's reload already takes.
+ *   - THE SKIP LINES never say "REFUSED": IntPairedFirstCrossing fails on that
+ *     word in stderr, and its sibling rows cross with no file at all. The latch
+ *     is checked here, before RsbsSave_Save, for the same reason: Save's own
+ *     latch message names a refused slot in those words.
+ */
+int Switch_CommitCrossing(GameId departing, GameId target) {
+    if ((departing != GAME_OOT && departing != GAME_MM) || (target != GAME_OOT && target != GAME_MM) ||
+        departing == target) {
+        return 0;
+    }
+    const char* from = Game_ToString(departing);
+    const char* to = Game_ToString(target);
+    if (!Context_HasFrozenState(departing)) {
+        fprintf(stderr, "[Switch] crossing commit skipped (%s -> %s): %s has no departure freeze for this trip\n", from,
+                to, from);
+        return 0;
+    }
+    if (!Context_FrozenStateIsLiveFile(departing)) {
+        fprintf(stderr,
+                "[Switch] crossing commit skipped (%s -> %s): %s's frozen half is not a live file (title screen or "
+                "file select)\n",
+                from, to, from);
+        return 0;
+    }
+    const int slot = RsbsSave_GetActiveSlot();
+    if (slot < 0) {
+        fprintf(stderr, "[Switch] crossing commit skipped (%s -> %s): no active slot (no file loaded, or a debug save)\n",
+                from, to);
+        return 0;
+    }
+    if (!RsbsSave_IsSlotWritable(slot)) {
+        fprintf(stderr,
+                "[Switch] crossing commit skipped (%s -> %s): slot %d is not writable this session (latched: not "
+                "loaded, created or erased here, or not paired)\n",
+                from, to, slot);
+        return 0;
+    }
+
+    gComboCtx.sourceGame = target;
+    const auto start = std::chrono::steady_clock::now();
+    const int written = RsbsSave_Save(slot);
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    if (!written) {
+        fprintf(stderr,
+                "[Switch] crossing commit FAILED (%s -> %s): slot %d was not written (see above); the crossing "
+                "proceeds, %.2f ms\n",
+                from, to, slot, ms);
+        return 0;
+    }
+    fprintf(stderr, "[Switch] crossing commit: %s -> %s, slot %d, generation %u, %.2f ms\n", from, to, slot,
+            (unsigned)gComboCtx.commitGeneration, ms);
+    return 1;
 }
 
 /**

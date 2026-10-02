@@ -4,6 +4,7 @@
  */
 
 #include "game_lifecycle.h"
+#include "context.h" /* Switch_CommitCrossing (#837) */
 #include <stdio.h>
 #include <string.h>
 
@@ -63,6 +64,13 @@ int GameRunner_SwitchTo(GameRunner* runner, GameId target, int argc, char** argv
             activeOps->suspend();
         }
         runner->states[activeIdx] = GAME_LIFECYCLE_STATE_SUSPENDED;
+
+        /* Every crossing is a whole-file commit (#837, ADR 0009 decision 4c).
+         * HERE and nowhere else: after the suspend (staged pickups committed,
+         * pool harvested) and before the target exists (its Play_Init would
+         * consume its shadow and redeem). Synchronous; it writes nothing for a
+         * latched, slot-less, freeze-less or not-live departure. */
+        Switch_CommitCrossing(runner->activeGame, target);
     }
 
     /* Start or resume the target game */

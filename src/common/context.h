@@ -69,6 +69,23 @@ int Context_RestoreState(GameId game, void* saveContext, size_t size);
 int Context_HasFrozenState(GameId game);
 
 /**
+ * #837: note whether the half the NEXT freeze of @p game captures is a live
+ * file (Combo_SaveIsLiveFile on that game's gameMode). Only a game TU can read
+ * gameMode, so the freeze drivers' flush (Combo_FlushLiveStateForFreeze) calls
+ * this immediately before they freeze. The next Context_FreezeState of that
+ * game takes the note and spends it; a freeze with no note is live.
+ */
+void Context_NoteDepartureLiveFile(GameId game, int isLiveFile);
+
+/**
+ * #837: 0 iff the current frozen blob of @p game was noted as not a live file
+ * when it was frozen (MM's title-screen bootstrap, OoT's title or file select).
+ * A blob armed by a load or the creation, a cleared blob, and a freeze taken
+ * without a note all read 1.
+ */
+int Context_FrozenStateIsLiveFile(GameId game);
+
+/**
  * Get return entrance for a frozen game
  */
 uint16_t Context_GetFrozenReturnEntrance(GameId game);
@@ -1531,8 +1548,38 @@ void Context_InvalidateSessionOnSlotLoad(void);
  * Combo_CheckEntranceSwitch before Combo_FreezeState, and
  * Combo_FreezeActiveGameForHotSwap before Switch_PrepareHotSwap. Idempotent;
  * a game with no live PlayState flushes nothing. GAME_NONE is a no-op.
+ *
+ * It also notes whether the half about to be frozen is a live file
+ * (Context_NoteDepartureLiveFile), which the crossing commit reads (#837).
  */
 void Combo_FlushLiveStateForFreeze(GameId departing);
+
+/**
+ * EVERY CROSS-GAME CROSSING IS A WHOLE-FILE COMMIT (#837; ADR 0009 decision
+ * 4c, operator ruling 2026-10-01 on decision 16, as OoTMM's comboGameSwitch
+ * saves at every game switch). Implemented in switch.cpp.
+ *
+ * Called by GameRunner_SwitchTo between the departing game's suspend and the
+ * target's resume/init: after the suspend has moved the staged pickups into
+ * Tier-1 and harvested the pool, and before the target's Play_Init consumes its
+ * shadow and redeems. Both shadows are whole there: the departing one is its
+ * departure freeze, which IS the half (no harvest, no shadow refresh); the
+ * target's holds its own last departure or the half a load/creation armed.
+ *
+ * Commits through RsbsSave_Save on the calling thread, with
+ * gComboCtx.sourceGame = @p target (#564 V22: one stamp per direction change),
+ * and logs the generation and the elapsed milliseconds. A failed write is
+ * logged and the crossing proceeds (a full disk must not trap the player).
+ *
+ * WRITES NOTHING, with one stderr line saying why, when the departing game has
+ * no freeze for this trip, when its frozen half is not a live file
+ * (Context_FrozenStateIsLiveFile), when there is no active slot, or when the
+ * slot is not writable this session (latched or refused). None of those lines
+ * contains the word "REFUSED" (IntPairedFirstCrossing's stderr check).
+ *
+ * @return 1 if the commit was written, 0 otherwise.
+ */
+int Switch_CommitCrossing(GameId departing, GameId target);
 
 /**
  * Set the current game (used during initialization)

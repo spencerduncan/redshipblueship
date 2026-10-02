@@ -11,8 +11,11 @@
  * session, that exit is an autosave point iff the MM Autosave enhancement is
  * on: a whole-file commit through the #569 choke point, taken AFTER the #625
  * revive so the committed health bar is resumable, and it resets the autosave
- * timer. With Autosave off it writes NOTHING at the death moment; the revived
- * MM half rides in RAM until OoT's next commit (the behaviour #625 shipped).
+ * timer. With Autosave off it writes NOTHING at the death moment; #625 shipped
+ * "the revived MM half rides in RAM until OoT's next commit", and since #837
+ * (ADR 0009 decision 4c) the switch the exit requests is a crossing whose
+ * commit makes the half durable. This row drives the exit, not the launcher's
+ * switch, so the death moment itself is what it locks.
  * It is explicitly NOT a rollback of MM's half.
  *
  * WHY THIS IS ITS OWN ROW rather than a check 14 in mm_unified_save_test.cpp,

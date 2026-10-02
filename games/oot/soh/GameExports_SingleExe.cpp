@@ -452,7 +452,11 @@ static const char* const kPfcSeed = "RSBSSINGLEBAG1";
 // OoT-only sentinel written into the live OoT half just before the Happy Mask
 // Shop door; the return leg must find it (the half was RESTORED from the frozen
 // state, not reloaded from the slot or regenerated). OoT's death counter is not
-// a shared cross-game resource, and the slot on disk holds 0.
+// a shared cross-game resource, and OoT's .sav on disk holds 0. Since #837 the
+// .redsave does NOT: the crossing commit at the door writes the frozen half,
+// sentinel included, so the sentinel no longer tells the frozen half apart
+// from the .redsave's bytes; it still tells it apart from the .sav and from a
+// regenerated half.
 static const u16 kPfcDeathsSentinel = 777;
 static uint32_t sPfcOoTWorldSeed = 0;
 // The #800 S1 shop playtest drive (defined below, beside the #796 drive).
@@ -2904,6 +2908,13 @@ static_assert(GAMEMODE_END_CREDITS == RSBS_GAMEMODE_END_CREDITS,
  */
 static bool OoT_SaveIsLiveFile(void) {
     return Combo_SaveIsLiveFile(GAME_OOT, (int32_t)gSaveContext.gameMode);
+}
+
+// #837: Combo_FlushLiveStateForFreeze notes this before every OoT freeze, so
+// the crossing commit (Switch_CommitCrossing) never writes a title or
+// file-select half into the player's slot. Same gate as the harvest.
+extern "C" int OoT_Combo_DepartureIsLiveFile(void) {
+    return OoT_SaveIsLiveFile() ? 1 : 0;
 }
 
 /**

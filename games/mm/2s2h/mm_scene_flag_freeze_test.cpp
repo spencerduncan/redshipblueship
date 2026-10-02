@@ -56,6 +56,13 @@
  *   4. No PlayState (owl-save / game-over exits reach the launcher freeze with
  *      none; so do the headless rows): both drivers still freeze, nothing is
  *      dereferenced, and the cycle flags the last transition left are kept.
+ *   5. (#837) The flush also notes whether the half it is about to freeze is a
+ *      live file, through the production MM_Combo_DepartureIsLiveFile; the
+ *      crossing commit (Switch_CommitCrossing) skips a frozen half that reads
+ *      not live. 3b (NORMAL) must freeze live, 3c (TITLE_SCREEN, the bootstrap
+ *      #837 point 6 names) must freeze NOT live. Delete the flush's MM note, or
+ *      make MM_Combo_DepartureIsLiveFile answer 1, and 3c goes red; make it
+ *      answer 0 and 3b goes red.
  *
  * COUNTERFACTUALS, run before landing: remove the Combo_FlushLiveStateForFreeze
  * call from either driver and its leg of 1/2 goes red; make
@@ -245,6 +252,9 @@ int RunChecks(PlayState* play) {
                "the revive must not demote a bar that is already alive (#626)");
     SFF_ASSERT(sScratch.healthAccumulator == -4,
                "a live bar's pending accumulator belongs to the player, not to the revive");
+    SFF_ASSERT(Context_FrozenStateIsLiveFile(GAME_MM) == 1,
+               "#837: a GAMEMODE_NORMAL departure must freeze as a live file, or the crossing commit would skip "
+               "every real MM crossing");
     Context_ClearFrozenState(GAME_MM);
 
     // 3c. The gate is gameMode, NOT fileNum. Leg 3 already revived under the
@@ -259,6 +269,9 @@ int RunChecks(PlayState* play) {
     SFF_ASSERT(sScratch.save.saveInfo.playerData.health == 0,
                "the revive is gated on gameMode: a non-live save is not a session to make resumable, and "
                "editing it would be the harvest/apply gate-asymmetry class in a new coat");
+    SFF_ASSERT(Context_FrozenStateIsLiveFile(GAME_MM) == 0,
+               "#837: a TITLE_SCREEN departure (MM's bootstrap) must freeze as NOT a live file, or the crossing "
+               "commit writes the attract demo's save into the player's armed slot");
     Context_ClearFrozenState(GAME_MM);
 
     // ---- 4. No PlayState: both drivers still freeze, nothing is dereferenced

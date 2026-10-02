@@ -52,6 +52,10 @@ struct FrozenGameState {
     uint16_t returnEntrance = 0;
     std::vector<uint8_t> saveContext;
     bool hasBeenFrozen = false;
+    // #837: false only when the freeze driver's flush noted, just before this
+    // freeze, that the departing half was not a live file (title screen, file
+    // select). Every other freeze, and every armed or cleared blob, is live.
+    bool liveFile = true;
 
     FrozenGameState() = default;
 
@@ -104,6 +108,25 @@ public:
         std::memset(state.saveContext.data() + size, 0, expectedSize - size);
         state.returnEntrance = returnEntrance;
         state.hasBeenFrozen = true;
+        // The liveness noted for THIS freeze (if any) belongs to it from now
+        // on; the note itself is spent, so a later freeze without a flush
+        // reads live.
+        state.liveFile = !mPendingNotLive[GameIndex(game)];
+        mPendingNotLive[GameIndex(game)] = false;
+    }
+
+    void NoteDepartureLiveFile(GameId game, bool isLiveFile) {
+        if (game != GAME_OOT && game != GAME_MM) {
+            return;
+        }
+        mPendingNotLive[GameIndex(game)] = !isLiveFile;
+    }
+
+    bool FrozenStateIsLiveFile(GameId game) const {
+        if (!mInitialized || (game != GAME_OOT && game != GAME_MM)) {
+            return true;
+        }
+        return GetState(game).liveFile;
     }
 
     bool RestoreState(GameId game, void* saveContextData, size_t size) {
@@ -140,6 +163,7 @@ public:
         FrozenGameState& state = GetState(game);
         state.hasBeenFrozen = false;
         state.returnEntrance = 0;
+        state.liveFile = true;
         std::memset(state.saveContext.data(), 0, state.saveContext.size());
     }
 
@@ -223,10 +247,19 @@ public:
 
         state.returnEntrance = returnEntrance;
         state.hasBeenFrozen = true;
+        state.liveFile = true; // a loaded or created half is a file
         return true;
     }
 
 private:
+    static size_t GameIndex(GameId game) {
+        return game == GAME_MM ? 1u : 0u;
+    }
+
+    // #837: "the next freeze of this game is of a half that is not a live
+    // file", set by the freeze driver's flush and spent by that freeze.
+    bool mPendingNotLive[2] = { false, false };
+
     FrozenGameState& GetState(GameId game) {
         if (game == GAME_OOT) {
             return mOoTState;
@@ -583,6 +616,14 @@ int Context_RestoreState(GameId game, void* saveContext, size_t size) {
 
 int Context_HasFrozenState(GameId game) {
     return gFrozenStates.HasFrozenState(game) ? 1 : 0;
+}
+
+void Context_NoteDepartureLiveFile(GameId game, int isLiveFile) {
+    gFrozenStates.NoteDepartureLiveFile(game, isLiveFile != 0);
+}
+
+int Context_FrozenStateIsLiveFile(GameId game) {
+    return gFrozenStates.FrozenStateIsLiveFile(game) ? 1 : 0;
 }
 
 uint16_t Context_GetFrozenReturnEntrance(GameId game) {
