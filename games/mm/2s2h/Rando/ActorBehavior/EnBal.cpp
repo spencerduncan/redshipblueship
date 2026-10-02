@@ -18,6 +18,14 @@ std::map<int16_t, std::vector<RandoCheckId>> tingleMap = {
     { SCENE_IKANA, { RC_IKANA_CANYON_TINGLE_MAP_01, RC_IKANA_CANYON_TINGLE_MAP_02 } }
 };
 
+std::string Rando::ActorBehavior::TingleOfferedItemName(RandoCheckId rc) {
+    return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[rc].randoItemId, false);
+}
+
+bool Rando::ActorBehavior::TingleMapSlotSold(RandoCheckId rc) {
+    return !Rando::IsItemObtainable(RANDO_SAVE_CHECKS[rc].randoItemId, rc);
+}
+
 void OnOpenShopText(u16* textId, bool* loadFromMessageTable) {
     RandoCheckId randoCheckId1 = tingleMap[MM_gPlayState->sceneId][0];
     RandoCheckId randoCheckId2 = tingleMap[MM_gPlayState->sceneId][1];
@@ -29,10 +37,8 @@ void OnOpenShopText(u16* textId, bool* loadFromMessageTable) {
                 "\x02{item2}\x01 {price2} Rupees\x11"
                 "\x02No thanks";
 
-    CustomMessage::Replace(&entry.msg, "{item1}",
-                           Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId1].randoItemId, false));
-    CustomMessage::Replace(&entry.msg, "{item2}",
-                           Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId2].randoItemId, false));
+    CustomMessage::Replace(&entry.msg, "{item1}", Rando::ActorBehavior::TingleOfferedItemName(randoCheckId1));
+    CustomMessage::Replace(&entry.msg, "{item2}", Rando::ActorBehavior::TingleOfferedItemName(randoCheckId2));
     CustomMessage::Replace(&entry.msg, "{price1}", std::to_string(RANDO_SAVE_CHECKS[randoCheckId1].price));
     CustomMessage::Replace(&entry.msg, "{price2}", std::to_string(RANDO_SAVE_CHECKS[randoCheckId2].price));
     CustomMessage::EnsureMessageEnd(&entry.msg);
@@ -65,11 +71,7 @@ void Rando::ActorBehavior::InitEnBalBehavior() {
 
         auto randoCheckId = tingleMap[MM_gPlayState->sceneId][MM_gPlayState->msgCtx.choiceIndex];
 
-        if (Rando::IsItemObtainable(RANDO_SAVE_CHECKS[randoCheckId].randoItemId, randoCheckId)) {
-            *should = false;
-        } else {
-            *should = true;
-        }
+        *should = Rando::ActorBehavior::TingleMapSlotSold(randoCheckId);
     });
 
     COND_VB_SHOULD(VB_TINGLE_GIVE_MAP_UNLOCK, shouldRegister, {
