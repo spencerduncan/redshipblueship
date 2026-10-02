@@ -477,6 +477,13 @@ extern "C" {
 // reason as above.
 #include "tests/test_whole_file_commit.c"
 
+// EVERY CROSSING IS A COMMIT (#837, decision 16 ruled 2026-10-01): the real
+// GameRunner_SwitchTo with mock games writes a whole-file commit between the
+// departing suspend and the target's resume, and writes nothing for a latched,
+// slot-less, freeze-less or not-live departure. FILE SCOPE (compiled as C++),
+// same reason as above.
+#include "tests/test_crossing_commit.c"
+
 // The frozen COMBO-LEVEL rule record (ADR 0011 increment 1, #498): the 16-byte
 // carve at 880/884 as .redsave format, the byte-pinned canonical() encoder and
 // its golden-vector fingerprint, the field-level divergence diff behind the
@@ -5766,6 +5773,11 @@ const TestDescriptor gTests[] = {
      "A file the open path would refuse is not opened at the OoT file select (A/START consumed, one toast, nothing "
      "written), and a load refused after the gate returns to the file select instead of Play (#836)",
      Test_OoTFileSelectRefusal},
+    {"crossing-commit",
+     "Every cross-game crossing is a whole-file commit taken between the departing suspend and the target's "
+     "resume: a kill after the crossing reloads it; a latched, slot-less, freeze-less or not-live departure "
+     "writes nothing (#837)",
+     Test_CrossingCommit},
     {"combo-player-name",
      "The paired world has one name: OoT's typed name, in each OoT filename charset, translates into MM's charset "
      "as OoTMM's copyName does (no-glyph bytes to MM's space), every typable character prints in MM as in OoT, "

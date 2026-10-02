@@ -2814,7 +2814,7 @@ extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
 
     fprintf(stderr, "[MM] moon crash: restored the last commit from slot %d (day %d, time 0x%04X)%s\n", slot,
             (int)gSaveContext.save.day, (unsigned)gSaveContext.save.time,
-            ootMoved ? "; OoT's half was rolled back to it too" : "");
+            ootMoved ? "; OoT's half was rolled back to it too" : "; OoT's half unchanged");
     fflush(stderr);
     return 1;
 }
@@ -2952,8 +2952,9 @@ extern "C" int MM_Combo_OwlSaveExitToOoT(void) {
  * after this function the combo does not quit -- the OoT session is still live
  * behind the player -- so decision 4a's "quit-to-title is a durable commit" did
  * not settle it, and durability already rides seams that exist (the launcher
- * freeze publishes the revived state into MM's shadow; OoT's next commit
- * carries it as MM's half of one whole-file generation). What was left to
+ * freeze publishes the revived state into MM's shadow; since #837 the crossing
+ * commit that follows carries it as MM's half of one whole-file generation, and
+ * before #837 OoT's next commit did). What was left to
  * decide was only WHEN the revived half becomes durable, and the ruling ties
  * that to the same switch that already answers it for MM's periodic save:
  *
@@ -2969,9 +2970,12 @@ extern "C" int MM_Combo_OwlSaveExitToOoT(void) {
  *     write latch BEFORE its harvest (#591), so a refused commit moves neither
  *     the file nor the shared-resource pool, and the clock is reset only when
  *     the commit actually landed: a refused commit is not an autosave.
- *   - Autosave OFF: NOTHING is written at the death moment, vanilla-style. The
- *     revived half rides in RAM until OoT's next commit -- the behavior #625
- *     shipped, now chosen rather than deferred.
+ *   - Autosave OFF: NOTHING is written at the death moment, vanilla-style.
+ *     #625 shipped "the revived half rides in RAM until OoT's next commit";
+ *     since #837 (ADR 0009 decision 4c) the switch this exit requests is a
+ *     crossing, and the crossing commit makes the revived half durable
+ *     whatever the Autosave setting. With Autosave ON the two commits land
+ *     back to back, which is harmless.
  *
  * Two boundaries the ruling draws. It is NOT a rollback of MM's half: vanilla's
  * decline reloads the last save, but that is a whole-world reload, and the
@@ -4100,6 +4104,13 @@ static bool MM_SaveIsLiveFile(void) {
     return Combo_SaveIsLiveFile(GAME_MM, (int32_t)gSaveContext.gameMode);
 }
 
+// #837: Combo_FlushLiveStateForFreeze notes this before every MM freeze, so
+// the crossing commit (Switch_CommitCrossing) skips a departure from MM's
+// title-screen bootstrap exactly as the harvest and the revive do.
+extern "C" int MM_Combo_DepartureIsLiveFile(void) {
+    return MM_SaveIsLiveFile() ? 1 : 0;
+}
+
 /**
  * HARVEST (#525), the twin of OoT_HarvestSharedResources.
  *
@@ -4244,7 +4255,9 @@ extern "C" void MM_Combo_FlushSceneFlagsForFreeze(void) {
  * WHY REVIVE RATHER THAN REFUSE. #625 already decided that leaving MM from a
  * game-over in a cross-game session is a SWITCH, not a quit (ADR 0009
  * decision 4a rules on quit-to-title; a switch back to the live OoT session is
- * neither a quit nor a commit), and that a switch taken with Link dead owes a
+ * not a quit, and since #837 it is a whole-file commit like every crossing,
+ * which is one more reason the half it writes must be resumable), and that a
+ * switch taken with Link dead owes a
  * RESUMABLE MM half. F10 from the same screen is the same departure by a
  * different button; refusing it would make the two exits from one state behave
  * differently and leave the player unable to hot-swap out of a game-over at

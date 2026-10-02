@@ -557,7 +557,8 @@ rolls the cycle back when `Sram_ResetSaveFromMoonCrash` reloads the file from fl
 cross-game session has no flash slot, so that reload was skipped and the half stayed on
 day 4 (Final Hours clock, no Dawn of the First Day, no second crash). Now the reload is the
 file's **last save**: the last whole `.redsave` commit (an owl save, the autosave, the Song
-of Time, a save in OoT, or the file's creation), with both halves and the cross-game records
+of Time, a save in OoT, your last crossing between the games, or the file's creation), with
+both halves and the cross-game records
 restored together. This is what vanilla's reload does and what OoTMM's default
 ("Last Save") moon crash does. What to expect:
 
@@ -566,16 +567,17 @@ restored together. This is what vanilla's reload does and what OoTMM's default
   last save was a Song of Time or the file's creation (a file never saved restarts as
   created). A save taken within about ten in-game minutes of the crash is pulled back to
   05:49 on the final day, OoTMM's grace period, so the moon cannot fall again at once.
-- **OoT is part of the same file.** If you played OoT after your last save and crossed into
-  MM without saving, the crash takes OoT's half back to that save too. Save before you cross
-  if that matters to you.
+- **A crash no longer rolls OoT back** ([#837](https://github.com/spencerduncan/redshipblueship/issues/837)).
+  Every crossing into Termina is itself a save of the whole file, so OoT's half in the
+  commit the crash restores is OoT as you left it. Without a save in Termina since you
+  entered, MM comes back as you last left Termina (or as created, if you never left it).
 - Shared rupees, health, magic and ammo come back at the shared pool's value as of that
   save, applied to MM as an arrival applies them. They do not come back at MM's own
   balance from its last departure. After a save in OoT these two differ, and without the
   apply MM would have refunded what OoT spent (fixed in the same PR; row
   `mm-moon-crash-pool-applied`).
 - A cross-game item that reached MM after the save is not lost: it is delivered again at
-  your next arrival in MM, or, if OoT's half went back too, it waits at its check again.
+  your next arrival in MM.
 - Where you wake (traced in source, not played): the crash cutscene ends in the Clock
   Tower interior with the Happy Mask Salesman's scene (the same destination the Skip Moon
   Crash enhancement sets, `ENTRANCE(CLOCK_TOWER_INTERIOR, 3)`), then you walk out into
@@ -586,12 +588,13 @@ restored together. This is what vanilla's reload does and what OoTMM's default
   path: cycle events (`weekEventReg`) and the rest of the half keep their pre-crash
   values, apart from what vanilla's own tail clears (event flags, cycle scene flags from
   the permanent ones, timers).
-- **Pending the operator's ruling (decision 16):** rolling OoT's half back with MM's, and
-  resuming mid-cycle after an owl save or autosave (vanilla deletes the owl save and
-  reloads the last Song of Time save). Both follow OoTMM's default. OoTMM also commits at
-  every game switch (`comboGameSwitch` saves with `SF_OWL`), so its last save never
-  predates the crossing and a crash there cannot take back unsaved OoT play. This build
-  does not commit at a crossing.
+- **Decision 16, ruled 2026-10-01 (option (b)):** every cross-game crossing is a save
+  commit, as OoTMM's `comboGameSwitch` saves at every game switch. This build commits the
+  whole file at every crossing, door or F10, in both directions (#837), so the last save
+  never predates the crossing and a crash cannot take back unsaved OoT play. A crash
+  therefore usually resumes mid-cycle, from the crossing into Termina; OoTMM does the same.
+  Resuming mid-cycle after an owl save or autosave (vanilla deletes the owl save and
+  reloads the last Song of Time save) follows OoTMM's default too.
 
 Locked headlessly (`mm-creation-new-file`, `mm-creation-new-file-world`,
 `mm-moon-crash-never-saved`, `mm-moon-crash-pool-applied`); not played. The playtest guide's scenario I4 checks it in game.
