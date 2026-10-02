@@ -62,6 +62,7 @@ int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size)
 int MM_Rando_Foreign_TestIsForeignHostClass(uint16_t randoCheckId);
 int MM_Rando_Foreign_TestCheckIdMax(void);
 int MM_Rando_Foreign_TestCheckClass(uint16_t randoCheckId, int* outIsChestType, int* outHasChestFlag);
+int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, int* outIsTingleShop);
 void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown);
 
 // MM's give id predicate (games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp): the
@@ -739,49 +740,68 @@ TestResult Test_ForeignHostEligibility(void) {
     int acceptedCount = 0;
     int chestRowCount = 0;
     int chestRowsMissingFlag = 0;
-    int firstNonChestAcceptedId = 0;
-    int firstRejectedNonChestId = 0;
+    int shopRowCount = 0;
+    int shopRowsAccepted = 0;
+    int tingleRowCount = 0;
+    int tingleRowsAccepted = 0;
+    int firstOtherAcceptedId = 0;
+    int firstRejectedOtherId = 0;
     for (int id = 1; id < checkIdMax; id++) {
         int isChestType = 0;
         int hasChestFlag = 0;
+        int isShop = 0;
+        int isTingleShop = 0;
         if (MM_Rando_Foreign_TestCheckClass((uint16_t)id, &isChestType, &hasChestFlag) == 0) {
             FI_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass((uint16_t)id) == 0); // not a real row
             continue;
         }
+        FI_ASSERT(MM_Rando_Foreign_TestCheckShopClass((uint16_t)id, &isShop, &isTingleShop) == 1);
+        const int accepted = MM_Rando_Foreign_TestIsForeignHostClass((uint16_t)id) ? 1 : 0;
+        acceptedCount += accepted;
         if (isChestType) {
             chestRowCount++;
             if (!hasChestFlag) {
                 chestRowsMissingFlag++;
             }
-        } else if (firstRejectedNonChestId == 0) {
-            firstRejectedNonChestId = id;
-        }
-        if (MM_Rando_Foreign_TestIsForeignHostClass((uint16_t)id)) {
-            acceptedCount++;
-            if (!isChestType && firstNonChestAcceptedId == 0) {
-                firstNonChestAcceptedId = id;
-            }
+        } else if (isShop) {
+            shopRowCount++;
+            shopRowsAccepted += accepted;
+        } else if (isTingleShop) {
+            tingleRowCount++;
+            tingleRowsAccepted += accepted;
+        } else if (accepted && firstOtherAcceptedId == 0) {
+            firstOtherAcceptedId = id;
+        } else if (!accepted && firstRejectedOtherId == 0) {
+            firstRejectedOtherId = id;
         }
     }
-    printf("[TEST] foreign-host-eligibility: %d host-class checks over %d chest rows (table has %d check ids)\n",
-           acceptedCount, chestRowCount, checkIdMax - 1);
+    printf("[TEST] foreign-host-eligibility: %d host-class checks over %d chest rows + %d shop rows (%d shop rows "
+           "accepted; %d of %d Tingle map rows accepted; table has %d check ids)\n",
+           acceptedCount, chestRowCount, shopRowCount, shopRowsAccepted, tingleRowsAccepted, tingleRowCount,
+           checkIdMax - 1);
 
-    // Tier A ships alone: nothing outside RCTYPE_CHEST may be accepted, and the
-    // sweep must actually have met a non-chest row to reject.
-    FI_ASSERT(firstNonChestAcceptedId == 0);
-    FI_ASSERT(firstRejectedNonChestId != 0);
+    // Tier A (chests) and Tier S (#800 pass 1: RCTYPE_SHOP, whose purchase
+    // delivers through the foreign give) and nothing else. Tingle's map slots
+    // are pass 2 and stay out; the sweep must actually have met a row of every
+    // category it asserts about.
+    FI_ASSERT(firstOtherAcceptedId == 0);
+    FI_ASSERT(firstRejectedOtherId != 0);
+    FI_ASSERT(shopRowCount > 0);
+    FI_ASSERT(shopRowsAccepted == shopRowCount);
+    FI_ASSERT(tingleRowCount > 0);
+    FI_ASSERT(tingleRowsAccepted == 0);
     // Static-table invariant: every chest row carries FLAG_CYCL_SCENE_CHEST. A
     // FLAG_NONE chest row would have no vanilla setter and would strand.
     FI_ASSERT(chestRowCount > 0);
     FI_ASSERT(chestRowsMissingFlag == 0);
-    // Acceptance is exactly the chest rows: an inequality means the class rule
-    // and the table have drifted apart.
-    FI_ASSERT(acceptedCount == chestRowCount);
+    // Acceptance is exactly the chest rows plus the shop rows: an inequality
+    // means the class rule and the table have drifted apart.
+    FI_ASSERT(acceptedCount == chestRowCount + shopRowCount);
     // RC_UNKNOWN and an out-of-range id are never hosts.
     FI_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass(0) == 0);
     FI_ASSERT(MM_Rando_Foreign_TestIsForeignHostClass((uint16_t)checkIdMax) == 0);
 
-    printf("[TEST] PASS: only chest-class checks can host a crossing\n");
+    printf("[TEST] PASS: only chest-class and shop-slot checks can host a crossing\n");
     return TEST_PASS;
 }
 
