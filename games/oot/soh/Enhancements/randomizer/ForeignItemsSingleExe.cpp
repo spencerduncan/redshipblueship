@@ -215,6 +215,35 @@ extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
 }
 
 /**
+ * #800 S1, the shop shelf (z_en_girla.c): 1 when OoT check `rc` hosts an MM item
+ * (the placement table, and behind it the crossing store), the fact the shelf
+ * draws and the textbox names from instead of the junk cover the OoT table holds.
+ */
+extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
+    return rc != 0 && Combo_GetForeignPlacementForOoTCheck(rc) != nullptr ? 1 : 0;
+}
+
+/**
+ * #800 S1, the shop shelf's sold-out and can-buy tests (z_en_girla.c): 1 when OoT
+ * check `rc` hosts an MM item and the check is COLLECTED (the once-per-host gate
+ * OoT_Foreign_RecordPickupImpl and the drain read). That is usually "the MM item
+ * crossed", but not always: after a #610 pairing refusal the drain falls through
+ * to OoT's ordinary give, whose receive handler marks the check collected with
+ * no crossing recorded (the shelf sold its junk cover). Either way the shelf has
+ * been bought, and a shelf whose RandomizerInf flag was lost with an unsaved
+ * reload would otherwise sell again and charge for nothing: the drain delivers
+ * nothing for a check it has already collected.
+ */
+extern "C" int OoT_Rando_Foreign_HostCollected(uint16_t rc) {
+    if (OoT_Rando_Foreign_HostsForeign(rc) == 0) {
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* il = (ctx != nullptr && rc < RC_MAX) ? ctx->GetItemLocation((RandomizerCheck)rc) : nullptr;
+    return il != nullptr && il->HasObtained() ? 1 : 0;
+}
+
+/**
  * Does the crossing store host OoT item `rg` on an MM check (the single-bag fill
  * put it in Termina)? Read by OoT's hint pass (3drando/hints.cpp), which runs in
  * OoT's remainder AFTER the creation captured the crossings, so an item hint whose

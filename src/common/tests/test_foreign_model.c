@@ -25,6 +25,16 @@
  *  M6 HALF-ANSWERS (a synthetic source) never reach a host.
  *  M7 HOST-NATIVE: a colliding model answers the host mapper's key; a mapper
  *     that declines, or none, is "no model"; a non-colliding model never asks.
+ *  M11 THE HOST-NATIVE TABLES (#577 M7; run right after M3, whose collision
+ *     table they rest on). Every draw row of each game whose model touches a
+ *     directory both archives carry answers, in the other game, EITHER a
+ *     host-native model (a row of the host's own draw table that the host's own
+ *     recipe draws, and the registry hands out as HOST_NATIVE with that key) OR
+ *     "no model" from an explicit table row that names its reason. A colliding
+ *     row the table does not name, a table row no colliding model uses, and a
+ *     mapping onto a host row the host cannot draw all fail. Every item id of
+ *     both games is walked the same way, so items that reach a row through a
+ *     SoH custom draw's fallback are covered too.
  *  M8 FALLBACKS: native, untagged, non-game and unknown ids answer no model.
  *  M9 ADR 0002: foreign_model.{h,c} include no game header.
  *  M10 THE FIRST CONSUMER (#577 M3): CheckQueue's REAL foreign give-and-draw in
@@ -36,9 +46,22 @@
  *     colliding item with no host-native row, the same draw emits no model list
  *     (the model-less stand-in). Put Rando::DrawItem(RI_NONE) back in the draw,
  *     or let the give overwrite the check id the draw reads, and M10 goes red.
+ *     #577 M7: a colliding OoT item with a host-native row (the hookshot) draws
+ *     MM's OWN model for that row, exactly the lists MM's recipe gives it; one
+ *     the table answers "no model" for (Minuet of Forest) keeps the stand-in.
  *
  * Not lockable headless: the pixels. The M3 playtest shows the drawn model; M4
  * draws these descriptors in OoT.
+ *
+ *  M12 OoT AS THE HOST (#800 S1): the model call the OoT shop shelf makes
+ *     (OoT_ForeignModel_DrawForOoTCheck, what OoT_EnGirlA_Draw calls; the actor
+ *     itself is not run here) for an OoT check hosting an MM item, into a real
+ *     OoT GraphicsContext: a mounted MM-exclusive model (the Deku Mask) emits
+ *     exactly MM's descriptor lists with a matrix first; unmounted, with no
+ *     placement, or for any answer other than a DESCRIPTOR (Odolwa's Remains:
+ *     no model; MM's hookshot: no model before #577 M7, HOST_NATIVE after it,
+ *     which this host does not draw yet) it emits no model list and answers 0,
+ *     so the shelf keeps its stand-in.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -79,7 +102,18 @@ int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
 void MM_ForeignModel_TestSetMountOverride(int value);
 int MM_ForeignModel_TestPathMountedReal(const char* dl);
 int MM_ForeignModel_TestCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want);
+int OoT_ComboModelHostNative_TestAnswer(const ComboModel* foreign, uint16_t* hostKey, const char** reason,
+                                        int* tableRow);
+int OoT_ComboModelHostNative_TestRowCount(void);
+int MM_ComboModelHostNative_TestAnswer(const ComboModel* foreign, uint16_t* hostKey, const char** reason,
+                                       int* tableRow);
+int MM_ComboModelHostNative_TestRowCount(void);
 uint16_t MM_ForeignTextboxIcon_TestSomeCheck(void);
+// #800 S1: OoT as the host (games/oot/soh/Enhancements/randomizer/ForeignModelHostOoT.cpp).
+int OoT_ForeignModel_ModelForOoTCheck(uint16_t rc, ComboModel* out);
+void OoT_ForeignModel_TestSetMountOverride(int value);
+int OoT_ForeignModel_TestPathMountedReal(const char* dl);
+int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* want);
 }
 
 #define FM_ASSERT(cond, msg)                                                \
@@ -164,6 +198,9 @@ struct FmGame {
     int (*classify)(uint16_t, ComboItemClassRow*);
     const char* (*itemReason)(uint16_t);
     int expectedNoModelRows;
+    /** This game's host-native table, as a HOST (M11). */
+    int (*hostNativeAnswer)(const ComboModel*, uint16_t*, const char**, int*);
+    int (*hostNativeRowCount)(void);
 };
 
 /** M2 for one game. */
@@ -234,7 +271,7 @@ TestResult FmWalkDrawRows(const FmGame& g) {
         byKind[kind]++;
     }
     printf("[TEST]   %s: %d draw rows: %d descriptors (%d draw as-is in the other game, %d host-native, %d collide "
-           "with no mapping yet), %d no model; %d failures\n",
+           "and draw no model there), %d no model; %d failures\n",
            g.name, rows, answered, byKind[COMBO_MODEL_ANSWER_DESCRIPTOR], byKind[COMBO_MODEL_ANSWER_HOST_NATIVE],
            byKind[COMBO_MODEL_ANSWER_NONE], noModel, failures);
     FM_ASSERT(failures == 0, "M2 every draw row classifies to a descriptor of its own lists or a named no-model");
@@ -300,8 +337,101 @@ TestResult FmWalkProgression(const FmGame& g) {
     FM_ASSERT(progression > 50, "M4 the walk saw the game's progression items");
     FM_ASSERT(failures == 0, "M4 every progression item classifies and every descriptor round-trips");
     FM_ASSERT(byKind[COMBO_MODEL_ANSWER_DESCRIPTOR] > 0, "M4 some progression items draw their own model");
-    FM_ASSERT(byKind[COMBO_MODEL_ANSWER_HOST_NATIVE] == 0,
-              "M4 no production host-native mapping exists before #577 M7 (its table is empty)");
+    FM_ASSERT(byKind[COMBO_MODEL_ANSWER_HOST_NATIVE] > 0,
+              "M4 some progression items draw the other game's own model (#577 M7 host-native rows)");
+    return TEST_PASS;
+}
+
+/**
+ * M11 for one direction: every colliding draw row and item of `origin` answers,
+ * in `host`, a host-native model or a named "no model". `used` marks the host
+ * table rows that some colliding origin model reached.
+ */
+TestResult FmWalkHostNative(const FmGame& origin, const FmGame& host, std::set<int>* used) {
+    const int hostRows = host.rowCount();
+    const int tableRows = host.hostNativeRowCount();
+    int colliding = 0;
+    int mapped = 0;
+    int declined = 0;
+    int failures = 0;
+
+    // One colliding origin model: 1 mapped, 0 declined with a reason, -1 failed.
+    auto answerOne = [&](const char* what, int n, const ComboModel& model, bool print) -> int {
+        uint16_t key = 0xFFFF;
+        const char* reason = nullptr;
+        int tableRow = -1;
+        const int got = host.hostNativeAnswer(&model, &key, &reason, &tableRow);
+        ComboModelAnswer a;
+        const uint8_t kind = Combo_ClassifyForeignModel(host.game, &model, &a);
+        if (got == 1) {
+            ComboModel hostModel;
+            const char* hostReason = nullptr;
+            const bool drawable = key < hostRows && host.forRow((int)key, &hostModel, &hostReason) == 1 &&
+                                  Combo_ModelIsWellFormed(&hostModel);
+            if (!drawable || tableRow < 0 || kind != COMBO_MODEL_ANSWER_HOST_NATIVE || a.hostKey != key) {
+                printf("[TEST]   %s %s %d (%s): mapped to %s row %u, which %s\n", origin.name, what, n,
+                       model.parts[0].dl, host.name, (unsigned)key,
+                       !drawable ? "the host's own recipe does not draw" : "the registry does not hand out");
+                return -1;
+            }
+            used->insert(tableRow);
+            if (print) {
+                printf("[TEST]   %s %s %3d %-58s -> %s row %3u (%s)\n", origin.name, what, n, model.parts[0].dl + 15,
+                       host.name, (unsigned)key, hostModel.parts[0].dl + 15);
+            }
+            return 1;
+        }
+        if (got != 0 || reason == nullptr || reason[0] == '\0' || tableRow < 0 || kind != COMBO_MODEL_ANSWER_NONE) {
+            printf("[TEST]   %s %s %d (%s, %d part(s)) collides and the %s host answers neither a model nor a "
+                   "named no-model\n",
+                   origin.name, what, n, model.parts[0].dl, (int)model.partCount, host.name);
+            return -1;
+        }
+        used->insert(tableRow);
+        if (print) {
+            printf("[TEST]   %s %s %3d %-58s -> no model in %s (%s)\n", origin.name, what, n, model.parts[0].dl + 15,
+                   host.name, reason);
+        }
+        return 0;
+    };
+
+    const int rows = origin.rowCount();
+    for (int row = 0; row < rows; row++) {
+        ComboModel model;
+        const char* reason = nullptr;
+        if (origin.forRow(row, &model, &reason) != 1 || !FmModelCollides(model)) {
+            continue;
+        }
+        colliding++;
+        const int r = answerOne("row", row, model, true);
+        mapped += r == 1 ? 1 : 0;
+        declined += r == 0 ? 1 : 0;
+        failures += r < 0 ? 1 : 0;
+    }
+
+    int items = 0;
+    const int idSpace = origin.idSpace();
+    for (int id = 1; id < idSpace; id++) {
+        ComboModel model;
+        if (Combo_GetModelSource(origin.game)((uint16_t)id, &model) != 1 || !FmModelCollides(model)) {
+            continue;
+        }
+        items++;
+        const int r = answerOne("item", id, model, false);
+        ComboModelAnswer a;
+        const uint8_t kind = Combo_GetForeignItemModel(host.game, FmItem(origin.game, (uint16_t)id), &a);
+        if (r < 0 || kind != (r == 1 ? COMBO_MODEL_ANSWER_HOST_NATIVE : COMBO_MODEL_ANSWER_NONE)) {
+            printf("[TEST]   %s item %d: the registry's answer (%u) disagrees with the host's table\n", origin.name,
+                   id, (unsigned)kind);
+            failures++;
+        }
+    }
+    printf("[TEST]   %s models in %s: %d colliding draw rows (%d host-native, %d named no-model), %d colliding "
+           "items; %s table has %d rows; %d failures\n",
+           origin.name, host.name, colliding, mapped, declined, items, host.name, tableRows, failures);
+    FM_ASSERT(colliding > 30, "M11 the walk saw the colliding draw rows");
+    FM_ASSERT(failures == 0, "M11 every colliding model answers a host-native model or a named no-model");
+    FM_ASSERT(mapped > 0, "M11 the host draws its own model for some colliding foreign models");
     return TEST_PASS;
 }
 
@@ -313,7 +443,15 @@ struct FmPin {
     const char* firstListTail; // nullptr: no model
     uint8_t partCount;
     uint8_t firstLayer;
+    /** HOST_NATIVE only: the tail of a list the HOST row it maps to draws. */
+    const char* hostListTail;
 };
+
+bool FmTailIs(const char* dl, const char* tail) {
+    const size_t len = dl != nullptr ? std::strlen(dl) : 0;
+    const size_t n = std::strlen(tail);
+    return len >= n && std::strcmp(dl + len - n, tail) == 0;
+}
 
 TestResult FmCheckPin(const FmPin& pin) {
     SharedItem item;
@@ -332,8 +470,24 @@ TestResult FmCheckPin(const FmPin& pin) {
         ok = len >= tail && std::strcmp(dl + len - tail, pin.firstListTail) == 0 &&
              answer.model.partCount == pin.partCount && answer.model.parts[0].layer == pin.firstLayer;
     }
-    printf("[TEST]   pin: %-24s -> kind %u, %u parts, %s\n", pin.name, (unsigned)kind, (unsigned)answer.model.partCount,
-           answer.model.partCount > 0 ? answer.model.parts[0].dl : "-");
+    const char* hostFirst = "-";
+    if (ok && pin.kind == COMBO_MODEL_ANSWER_HOST_NATIVE) {
+        // The host's own row, as the host's own recipe draws it.
+        ComboModel hostModel;
+        const char* reason = nullptr;
+        const int drawn = host == (uint8_t)GAME_MM ? MM_ComboModel_TestForDrawRow(answer.hostKey, &hostModel, &reason)
+                                                    : OoT_ComboModel_TestForDrawRow(answer.hostKey, &hostModel, &reason);
+        hostFirst = drawn == 1 ? hostModel.parts[0].dl : "(host row not drawable)";
+        bool hasList = false;
+        for (int i = 0; drawn == 1 && pin.hostListTail != nullptr && i < hostModel.partCount; i++) {
+            hasList |= FmTailIs(hostModel.parts[i].dl, pin.hostListTail);
+        }
+        ok = drawn == 1 && hasList;
+    }
+    printf("[TEST]   pin: %-24s -> kind %u, %u parts, %s%s%s\n", pin.name, (unsigned)kind,
+           (unsigned)answer.model.partCount, answer.model.partCount > 0 ? answer.model.parts[0].dl : "-",
+           kind == COMBO_MODEL_ANSWER_HOST_NATIVE ? " => host row first " : "",
+           kind == COMBO_MODEL_ANSWER_HOST_NATIVE ? hostFirst : "");
     if (!ok) {
         printf("[TEST] FAIL: \"%s\" wants kind %u, %u parts, first \"...%s\"\n", pin.name, (unsigned)pin.kind,
                (unsigned)pin.partCount, pin.firstListTail != nullptr ? pin.firstListTail : "-");
@@ -505,7 +659,9 @@ TestResult Test_ForeignModel(void) {
                          OoT_ComboModel_TestIdSpace,
                          OoT_ComboLogic_ClassifyItem,
                          OoT_ComboModel_TestItemReason,
-                         2 };
+                         2,
+                         OoT_ComboModelHostNative_TestAnswer,
+                         OoT_ComboModelHostNative_TestRowCount };
     const FmGame mm = { "MM",
                         (uint8_t)GAME_MM,
                         (uint8_t)GAME_OOT,
@@ -515,7 +671,9 @@ TestResult Test_ForeignModel(void) {
                         MM_ComboModel_TestIdSpace,
                         MM_ComboLogic_ClassifyItem,
                         MM_ComboModel_TestItemReason,
-                        10 };
+                        10,
+                        MM_ComboModelHostNative_TestAnswer,
+                        MM_ComboModelHostNative_TestRowCount };
     if (FmWalkDrawRows(oot) != TEST_PASS || FmWalkDrawRows(mm) != TEST_PASS) {
         return TEST_FAIL;
     }
@@ -563,6 +721,23 @@ TestResult Test_ForeignModel(void) {
                   "M3 path parsing: only __OTR__objects/<dir>/<name> names a directory");
     }
 
+    // ---- M11 (#577 M7), right after the collision table it rests on ------------
+    {
+        std::set<int> usedByOoTModels; // rows of MM's table
+        std::set<int> usedByMMModels;  // rows of OoT's table
+        if (FmWalkHostNative(oot, mm, &usedByOoTModels) != TEST_PASS ||
+            FmWalkHostNative(mm, oot, &usedByMMModels) != TEST_PASS) {
+            return TEST_FAIL;
+        }
+        printf("[TEST]   host-native tables: MM %d rows (%zu used), OoT %d rows (%zu used)\n",
+               MM_ComboModelHostNative_TestRowCount(), usedByOoTModels.size(), OoT_ComboModelHostNative_TestRowCount(),
+               usedByMMModels.size());
+        FM_ASSERT((int)usedByOoTModels.size() == MM_ComboModelHostNative_TestRowCount(),
+                  "M11 every row of MM's host-native table names a colliding OoT model (no dead or misspelt key)");
+        FM_ASSERT((int)usedByMMModels.size() == OoT_ComboModelHostNative_TestRowCount(),
+                  "M11 every row of OoT's host-native table names a colliding MM model (no dead or misspelt key)");
+    }
+
     // ---- M4 --------------------------------------------------------------------
     if (FmWalkProgression(oot) != TEST_PASS || FmWalkProgression(mm) != TEST_PASS) {
         return TEST_FAIL;
@@ -571,22 +746,40 @@ TestResult Test_ForeignModel(void) {
     // ---- M5 --------------------------------------------------------------------
     const uint8_t kDesc = COMBO_MODEL_ANSWER_DESCRIPTOR;
     const uint8_t kNone = COMBO_MODEL_ANSWER_NONE;
+    const uint8_t kHost = COMBO_MODEL_ANSWER_HOST_NATIVE;
     const uint8_t kOpa = COMBO_MODEL_LAYER_OPA;
     const uint8_t kXlu = COMBO_MODEL_LAYER_XLU;
     const FmPin pins[] = {
-        { (uint8_t)GAME_OOT, "Megaton Hammer", kDesc, "/object_gi_hammer/gGiHammerDL", 1, kOpa },
-        { (uint8_t)GAME_OOT, "Hover Boots", kDesc, "/object_gi_hoverboots/gGiHoverBootsDL", 1, kOpa },
-        { (uint8_t)GAME_OOT, "Kokiri's Emerald", kDesc, "/object_gi_jewel/gGiKokiriEmeraldGemDL", 2, kXlu },
-        { (uint8_t)GAME_OOT, "Forest Medallion", kDesc, "/object_gi_medal/gGiForestMedallionFaceDL", 2, kOpa },
-        { (uint8_t)GAME_OOT, "Master Sword", kDesc, "/object_toki_objects/object_toki_objects_DL_001BD0", 1, kOpa },
-        { (uint8_t)GAME_OOT, "Roc's Feather", kDesc, "/object_rocs_feather/gGiRocsFeatherDL", 1, kXlu },
-        // object_gi_hookshot and object_gi_key are in both archives: no mapping yet.
-        { (uint8_t)GAME_OOT, "Progressive Hookshot", kNone, nullptr, 0, 0 },
-        { (uint8_t)GAME_OOT, "Forest Temple Small Key", kNone, nullptr, 0, 0 },
-        { (uint8_t)GAME_OOT, "Gohma's Soul", kNone, nullptr, 0, 0 },
-        { (uint8_t)GAME_MM, "Deku Mask", kDesc, "/object_gi_nutsmask/gGiDekuMaskEmptyDL", 2, kOpa },
-        { (uint8_t)GAME_MM, "Hookshot", kNone, nullptr, 0, 0 },
-        { (uint8_t)GAME_MM, "Odolwa's Remains", kNone, nullptr, 0, 0 },
+        { (uint8_t)GAME_OOT, "Megaton Hammer", kDesc, "/object_gi_hammer/gGiHammerDL", 1, kOpa, nullptr },
+        { (uint8_t)GAME_OOT, "Hover Boots", kDesc, "/object_gi_hoverboots/gGiHoverBootsDL", 1, kOpa, nullptr },
+        { (uint8_t)GAME_OOT, "Kokiri's Emerald", kDesc, "/object_gi_jewel/gGiKokiriEmeraldGemDL", 2, kXlu, nullptr },
+        { (uint8_t)GAME_OOT, "Forest Medallion", kDesc, "/object_gi_medal/gGiForestMedallionFaceDL", 2, kOpa, nullptr },
+        { (uint8_t)GAME_OOT, "Master Sword", kDesc, "/object_toki_objects/object_toki_objects_DL_001BD0", 1, kOpa,
+          nullptr },
+        { (uint8_t)GAME_OOT, "Roc's Feather", kDesc, "/object_rocs_feather/gGiRocsFeatherDL", 1, kXlu, nullptr },
+        // object_gi_hookshot, object_gi_key, object_gi_hearts, object_gi_golonmask
+        // are in both archives: the host draws its OWN model (#577 M7).
+        { (uint8_t)GAME_OOT, "Progressive Hookshot", kHost, "/object_gi_hookshot/gGiHookshotDL", 1, kOpa,
+          "/object_gi_hookshot/gGiHookshotEmptyDL" },
+        { (uint8_t)GAME_OOT, "Longshot", kHost, "/object_gi_hookshot/gGiLongshotDL", 1, kOpa,
+          "/object_gi_hookshot/gGiHookshotEmptyDL" },
+        { (uint8_t)GAME_OOT, "Forest Temple Small Key", kHost, "/object_gi_key/gGiSmallKeyDL", 1, kOpa,
+          "/object_gi_key/gGiSmallKeyDL" },
+        // Shares its first list with the heart container: the whole-part key tells them apart.
+        { (uint8_t)GAME_OOT, "Piece of Heart", kHost, "/object_gi_hearts/gGiHeartBorderDL", 2, kXlu,
+          "/object_gi_hearts/gGiHeartPieceDL" },
+        // ... or a named "no model": MM has no Minuet note row.
+        { (uint8_t)GAME_OOT, "Minuet of Forest", kNone, nullptr, 0, 0, nullptr },
+        { (uint8_t)GAME_OOT, "Gohma's Soul", kNone, nullptr, 0, 0, nullptr },
+        { (uint8_t)GAME_MM, "Deku Mask", kDesc, "/object_gi_nutsmask/gGiDekuMaskEmptyDL", 2, kOpa, nullptr },
+        { (uint8_t)GAME_MM, "Hookshot", kHost, "/object_gi_hookshot/gGiHookshotEmptyDL", 2, kOpa,
+          "/object_gi_hookshot/gGiHookshotDL" },
+        { (uint8_t)GAME_MM, "Goron Mask", kHost, "/object_gi_golonmask/gGiGoronMaskEmptyDL", 2, kOpa,
+          "/object_gi_golonmask/gGiGoronMaskDL" },
+        { (uint8_t)GAME_MM, "Hero's Shield", kHost, "/object_gi_shield_2/gGiHerosShieldEmblemDL", 2, kOpa,
+          "/object_gi_shield_2/gGiHylianShieldDL" },
+        { (uint8_t)GAME_MM, "Silver Rupee", kNone, nullptr, 0, 0, nullptr },
+        { (uint8_t)GAME_MM, "Odolwa's Remains", kNone, nullptr, 0, 0, nullptr },
     };
     for (const FmPin& pin : pins) {
         if (FmCheckPin(pin) != TEST_PASS) {
@@ -681,9 +874,11 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(declinedKind == kNone && FmAnswerZeroed(declined), "M7 a mapper that declines is no model");
         FM_ASSERT(unmappedKind == kNone && FmAnswerZeroed(unmapped), "M7 no mapper is no model");
         uint16_t key = 0;
-        FM_ASSERT(OoT_ComboModelHostNative(&direct, &key) == 0 && MM_ComboModelHostNative(&direct, &key) == 0 &&
-                      OoT_ComboModelHostNative(nullptr, &key) == 0,
-                  "M7 the production mappers are empty until #577 M7 adds rows");
+        FM_ASSERT(MM_ComboModelHostNative(&direct, &key) == 1,
+                  "M7 MM's production mapper names its own model for OoT's hookshot (#577 M7)");
+        FM_ASSERT(OoT_ComboModelHostNative(&direct, &key) == 0 && OoT_ComboModelHostNative(nullptr, &key) == 0 &&
+                      MM_ComboModelHostNative(&direct, nullptr) == 0,
+                  "M7 OoT's table keys MM's models, not OoT's own; null arguments map nothing");
     }
 
     // ---- M8 --------------------------------------------------------------------
@@ -743,17 +938,27 @@ TestResult Test_ForeignModel(void) {
         SharedItem boots;
         SharedItem emerald;
         SharedItem hookshot;
+        SharedItem minuet;
         FM_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Hover Boots", &boots) &&
                       TestNamedItem((uint8_t)GAME_OOT, "Kokiri's Emerald", &emerald) &&
-                      TestNamedItem((uint8_t)GAME_OOT, "Progressive Hookshot", &hookshot),
+                      TestNamedItem((uint8_t)GAME_OOT, "Progressive Hookshot", &hookshot) &&
+                      TestNamedItem((uint8_t)GAME_OOT, "Minuet of Forest", &minuet),
                   "M10 named items");
         ComboModelAnswer bootsA;
         ComboModelAnswer emeraldA;
         ComboModelAnswer hookshotA;
+        ComboModelAnswer minuetA;
         FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, boots, &bootsA) == kDesc &&
                       Combo_GetForeignItemModel((uint8_t)GAME_MM, emerald, &emeraldA) == kDesc &&
-                      Combo_GetForeignItemModel((uint8_t)GAME_MM, hookshot, &hookshotA) == kNone,
-                  "M10 the boots and the emerald are DESCRIPTORs in MM, the (colliding) hookshot is no model");
+                      Combo_GetForeignItemModel((uint8_t)GAME_MM, hookshot, &hookshotA) == kHost &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_MM, minuet, &minuetA) == kNone,
+                  "M10 the boots and the emerald are DESCRIPTORs in MM, the (colliding) hookshot is MM's own "
+                  "model, the (colliding) Minuet is no model");
+        // What MM draws for the hookshot: its own row, as its own recipe gives it.
+        ComboModel mmHookshot;
+        const char* mmHookshotReason = nullptr;
+        FM_ASSERT(MM_ComboModel_TestForDrawRow(hookshotA.hostKey, &mmHookshot, &mmHookshotReason) == 1,
+                  "M10 MM draws the hookshot's host-native row with its own recipe");
 
         ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
         std::memcpy(saved, gComboCtx.foreignPlacements, sizeof(saved));
@@ -776,8 +981,13 @@ TestResult Test_ForeignModel(void) {
 
         Combo_ClearForeignPlacements();
         const int placedHookshot = Combo_SetForeignPlacement(check, hookshot);
-        printf("[TEST]   M10 Progressive Hookshot (colliding, no host-native row), archive mounted:\n");
-        const int drawHookshot = MM_ForeignModel_TestCheckQueueDraw(check, nullptr);
+        printf("[TEST]   M10 Progressive Hookshot (colliding, host-native row: MM's own hookshot), archive mounted:\n");
+        const int drawHookshot = MM_ForeignModel_TestCheckQueueDraw(check, &mmHookshot);
+
+        Combo_ClearForeignPlacements();
+        const int placedMinuet = Combo_SetForeignPlacement(check, minuet);
+        printf("[TEST]   M10 Minuet of Forest (colliding, named no-model row), archive mounted:\n");
+        const int drawMinuet = MM_ForeignModel_TestCheckQueueDraw(check, nullptr);
         MM_ForeignModel_TestSetMountOverride(-1);
 
         // The production mount branch (no override): both answers are "no".
@@ -786,16 +996,97 @@ TestResult Test_ForeignModel(void) {
         const int realNull = MM_ForeignModel_TestPathMountedReal(nullptr);
 
         std::memcpy(gComboCtx.foreignPlacements, saved, sizeof(saved));
-        FM_ASSERT(placedBoots >= 0 && placedEmerald >= 0 && placedHookshot >= 0, "M10 placements accepted");
+        FM_ASSERT(placedBoots >= 0 && placedEmerald >= 0 && placedHookshot >= 0 && placedMinuet >= 0,
+                  "M10 placements accepted");
         FM_ASSERT(drawBoots == 0, "M10 MM's get-item cutscene draws OoT's Hover Boots model (see the Q-line above)");
         FM_ASSERT(drawEmerald == 0, "M10 MM's get-item cutscene draws OoT's Kokiri's Emerald with its jewel shape "
                                     "(see the Q-line above)");
         FM_ASSERT(drawUnmounted == 0, "M10 unmounted, the draw keeps the model-less stand-in (see the Q-line above)");
-        FM_ASSERT(drawHookshot == 0,
-                  "M10 a colliding model with no host-native row keeps the stand-in (see the Q-line above)");
+        FM_ASSERT(drawHookshot == 0, "M10 a colliding model with a host-native row draws MM's OWN model for that row "
+                                     "(see the Q-line above)");
+        FM_ASSERT(drawMinuet == 0,
+                  "M10 a colliding model the table answers no model for keeps the stand-in (see the Q-line above)");
         FM_ASSERT(realNoPrefix == 0, "M10 the production mount test refuses a path without the __OTR__ prefix");
         FM_ASSERT(realMissing == 0, "M10 the production mount test refuses an __OTR__ path no archive holds");
         FM_ASSERT(realNull == 0, "M10 the production mount test refuses a null path");
+    }
+
+    // ---- M12 (#800 S1) -----------------------------------------------------------
+    // OoT as the host: the model call the shop shelf makes for an OoT check that
+    // hosts an MM item, into a real OoT GraphicsContext. A mounted MM-exclusive
+    // model emits exactly MM's descriptor; unmounted, no placement at all, or any
+    // answer other than a DESCRIPTOR, it emits no model list and answers 0 (the
+    // shelf keeps its stand-in).
+    {
+        SharedItem dekuMask;
+        SharedItem mmHookshot;
+        SharedItem odolwa;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Deku Mask", &dekuMask) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Hookshot", &mmHookshot) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Odolwa's Remains", &odolwa),
+                  "M12 named items");
+        ComboModelAnswer maskA;
+        ComboModelAnswer hookshotA;
+        ComboModelAnswer odolwaA;
+        const uint8_t hookshotKind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, mmHookshot, &hookshotA);
+        FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, dekuMask, &maskA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &odolwaA) == kNone,
+                  "M12 MM's Deku Mask is a DESCRIPTOR in OoT, Odolwa's Remains is no model");
+        // MM's hookshot collides: "no model" until #577 M7 gives OoT's table a row
+        // for it, HOST_NATIVE (OoT's own hookshot) after. This host draws neither
+        // yet; drawing a HOST_NATIVE answer on the shelf is a follow-up (#832).
+        FM_ASSERT(hookshotKind == kNone || hookshotKind == (uint8_t)COMBO_MODEL_ANSWER_HOST_NATIVE,
+                  "M12 MM's (colliding) hookshot is no model, or host-native once #577 M7 is in");
+
+        ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+        const uint16_t shelf = 0x0123; // opaque to the table; the host draw keys on the placement alone
+
+        Combo_ClearForeignPlacementsOoT();
+        printf("[TEST]   M12 no placement on the OoT check:\n");
+        OoT_ForeignModel_TestSetMountOverride(1);
+        const int drawNone = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        const int placedMask = Combo_SetForeignPlacementOoT(shelf, dekuMask);
+        printf("[TEST]   M12 Deku Mask on an OoT shelf, archive mounted:\n");
+        const int drawMask = OoT_ForeignModel_TestShelfDraw(shelf, &maskA.model);
+        ComboModel answered;
+        const int modelMask = OoT_ForeignModel_ModelForOoTCheck(shelf, &answered);
+        OoT_ForeignModel_TestSetMountOverride(0);
+        printf("[TEST]   M12 Deku Mask, archive NOT mounted:\n");
+        const int drawUnmounted = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        OoT_ForeignModel_TestSetMountOverride(1);
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedHookshot = Combo_SetForeignPlacementOoT(shelf, mmHookshot);
+        printf("[TEST]   M12 MM Hookshot (colliding, answer kind %u), archive mounted:\n", (unsigned)hookshotKind);
+        const int drawHookshot = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        const int modelHookshot = OoT_ForeignModel_ModelForOoTCheck(shelf, nullptr);
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedOdolwa = Combo_SetForeignPlacementOoT(shelf, odolwa);
+        printf("[TEST]   M12 MM Odolwa's Remains (no model), archive mounted:\n");
+        const int drawOdolwa = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        const int modelOdolwa = OoT_ForeignModel_ModelForOoTCheck(shelf, nullptr);
+        OoT_ForeignModel_TestSetMountOverride(-1);
+
+        const int realMissing = OoT_ForeignModel_TestPathMountedReal("__OTR__objects/rsbs_no_such_object/gRsbsNoSuchDL");
+        const int realNoPrefix = OoT_ForeignModel_TestPathMountedReal("objects/object_gi_nutsmask/gGiNutsMaskDL");
+        const int realNull = OoT_ForeignModel_TestPathMountedReal(nullptr);
+
+        std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+        FM_ASSERT(placedMask >= 0 && placedHookshot >= 0 && placedOdolwa >= 0, "M12 placements accepted");
+        FM_ASSERT(drawNone == 0, "M12 an OoT check with no MM item draws no foreign model (see the M12 lines above)");
+        FM_ASSERT(drawMask == 0, "M12 the shelf draws MM's Deku Mask model (see the M12 lines above)");
+        FM_ASSERT(modelMask == 1 && FmModelEqual(answered, maskA.model),
+                  "M12 the shelf's model for the check is exactly MM's descriptor for the item it hosts");
+        FM_ASSERT(drawUnmounted == 0, "M12 unmounted, the shelf keeps its stand-in (see the M12 lines above)");
+        FM_ASSERT(drawHookshot == 0 && modelHookshot == 0,
+                  "M12 a colliding model (no model, or host-native: not drawn by this host yet) keeps the stand-in "
+                  "(see the M12 lines above)");
+        FM_ASSERT(drawOdolwa == 0 && modelOdolwa == 0,
+                  "M12 a no-model answer keeps the stand-in (see the M12 lines above)");
+        FM_ASSERT(realMissing == 0 && realNoPrefix == 0 && realNull == 0,
+                  "M12 the production mount test refuses a missing, unprefixed or null path");
     }
 
     printf("[TEST] ForeignModel: PASS\n");
