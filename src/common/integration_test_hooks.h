@@ -395,6 +395,54 @@ uint32_t IntegrationTest_PairedMMGenerationBaseline(void);
 /** One-line description of an identity, for the log. */
 void IntegrationTest_PairedIdentityDescribe(const PairedIdentity* id, char* out, size_t cap);
 
+// ----------------------------------------------------------------------------
+// RSBS_PFC_DIVERGE=1 (#804; CTest IntPairedFirstCrossingDiverged): settings
+// changed between the creation and the load. After the creation event returns
+// the driver takes the combo layer back to the title screen
+// (Context_InvalidateSessionOnReturnToTitle, the call title_setup.c makes) and
+// moves one MM option (Starting Hearts), one MM trick (the first settable one)
+// and one Cross-Game Rule (Goal) through the pages' own writers. The load must
+// put the file's values back (#781, PR #787) and toast it; MM then boots for
+// real, and its arrival must match with the keys still holding the file's
+// values. The three keys are cleared again when the run's verdict is taken
+// (IntegrationTest_PairedDivergeCleanup), so the build directory's config is
+// left as the shipped-defaults check found it.
+//
+// Two controls, each off unless its variable is set:
+// - RSBS_PFC_MM_BOOT_WRITE_PROBE=1 (games/mm/2s2h/GameExports_SingleExe.cpp):
+//   an IS_RANDO registrar re-applies the pre-load MM option value during MM's
+//   boot (IntegrationTest_PairedDivergeStaleOption). It writes nothing on a
+//   run without the divergence, so IntPairedFirstCrossing stays green with it
+//   armed and only this row's arrival is refused.
+// - RSBS_PFC_SUPPRESS_MM_RESTORE=1: the load's MM profile restore undoes its
+//   writes (MM_Rando_ForceProfileRestoreVerifyFailForTest), so the post-load
+//   key check goes red.
+// ----------------------------------------------------------------------------
+
+/** True when RSBS_PFC_DIVERGE=1. */
+bool IntegrationTest_PairedDiverge(void);
+
+/** Record the file's values, go back to the title, change the three keys.
+ *  Returns false with the reason in `msg`. */
+bool IntegrationTest_PairedDivergeApply(char* msg, size_t cap);
+
+/** When the divergence was applied: the MM option's key, the value the player
+ *  set before the load (`stale`) and the value it resolves to now (`now`).
+ *  False (outputs untouched) on a run without the divergence. */
+bool IntegrationTest_PairedDivergeStaleOption(const char** cvar, int32_t* stale, int32_t* now);
+
+/** True when all three keys resolve to the file's values; otherwise names each
+ *  one that does not, prefixed by `when`, in `msg`. */
+bool IntegrationTest_PairedDivergeKeysHoldFile(const char* when, char* msg, size_t cap);
+
+/** True when the load's two restore toasts ("Restored from file:" naming Goal,
+ *  and "Restored for Majora's Mask:") were raised; `msg` quotes them or says
+ *  which is missing. */
+bool IntegrationTest_PairedDivergeLoadToasts(char* msg, size_t cap);
+
+/** Clear the three keys and save the config, when Apply wrote them. */
+void IntegrationTest_PairedDivergeCleanup(void);
+
 #ifdef __cplusplus
 }
 #endif
