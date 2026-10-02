@@ -2349,10 +2349,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # file's values back and toast it (#781, PR #787); then MM boots for real and
     # its arrival must match the profile AND the combo rules, with the keys still
     # holding the file's values. PairedLoadRestore calls the gate directly and
-    # never boots MM; this is the row where a boot-time write between the load
-    # and the gate would show. RSBS_PFC_MM_BOOT_WRITE_PROBE=1 is the red half (an
-    # IS_RANDO registrar writes one gRando.Options.* key during MM's boot: the
-    # arrival is REFUSED). The three keys are cleared when the verdict is taken.
+    # never boots MM; this is the row where a boot-time registrar re-applying the
+    # player's pre-load value after the restore would show.
+    # RSBS_PFC_MM_BOOT_WRITE_PROBE=1 is that control (an IS_RANDO registrar
+    # writes the pre-load MM option value back during MM's boot: this row's
+    # arrival is REFUSED, while IntPairedFirstCrossing, which has no pre-load
+    # value, stays green). RSBS_PFC_SUPPRESS_MM_RESTORE=1 is the second control
+    # (the load's MM restore undoes itself: the post-load key check fails). The
+    # three keys are cleared when the verdict is taken.
     redship_add_test(NAME IntPairedFirstCrossingDiverged
         COMMAND redship --integration-test int-paired-first-crossing
         LABEL integration

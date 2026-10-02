@@ -901,6 +901,7 @@ struct PairedDivergeKeys {
     bool applied = false;
     const ComboMMOptionDesc* option = nullptr;
     int32_t optionFile = 0;
+    int32_t optionStale = 0; // what the player set before the load (the probe's write-back value)
     const ComboMMTrickDesc* trick = nullptr;
     bool trickFile = false;
     int32_t goalFile = 0;
@@ -982,6 +983,7 @@ bool IntegrationTest_PairedDivergeApply(char* msg, size_t cap) {
     }
     // Armed before the writes, so the cleanup runs whatever happens below.
     sDiverge.applied = true;
+    sDiverge.optionStale = optionNew;
     Combo_MMOptionSetValue(option, optionNew);
     Combo_MMTrickSetValue(trick, !sDiverge.trickFile);
     const int goalRc = goalNew >= 0 ? Combo_ComboSettingSet(COMBO_SETTING_GOAL, goalNew) : 0;
@@ -1006,7 +1008,26 @@ bool IntegrationTest_PairedDivergeApply(char* msg, size_t cap) {
             option->cvar, (int)sDiverge.optionFile, (int)optionNow, trick->cvar, sDiverge.trickFile ? 1 : 0,
             trickNow ? 1 : 0, Combo_ComboSettingKey(COMBO_SETTING_GOAL), (int)sDiverge.goalFile, (int)goalNow,
             (unsigned)liveDigest, (unsigned)fileDigest);
+    // The second control (RSBS_PFC_SUPPRESS_MM_RESTORE=1): the load's MM
+    // profile restore writes the file's options and tricks, then puts every key
+    // back as the player left it (the after-check seam PairedLoadRestore leg 5
+    // uses), so the post-load key check must go red.
+    const char* suppress = std::getenv("RSBS_PFC_SUPPRESS_MM_RESTORE");
+    if (suppress != nullptr && strcmp(suppress, "1") == 0) {
+        MM_Rando_ForceProfileRestoreVerifyFailForTest(1);
+        fprintf(stderr, "[PFC] RSBS_PFC_SUPPRESS_MM_RESTORE=1: the load's MM profile restore will undo its writes\n");
+    }
     fflush(stderr);
+    return true;
+}
+
+bool IntegrationTest_PairedDivergeStaleOption(const char** cvar, int32_t* stale, int32_t* now) {
+    if (!sDiverge.applied || sDiverge.option == nullptr) {
+        return false;
+    }
+    *cvar = sDiverge.option->cvar;
+    *stale = sDiverge.optionStale;
+    *now = Combo_MMOptionGetValue(sDiverge.option);
     return true;
 }
 
@@ -1055,6 +1076,7 @@ void IntegrationTest_PairedDivergeCleanup(void) {
         return;
     }
     sDiverge.applied = false;
+    MM_Rando_ForceProfileRestoreVerifyFailForTest(0);
     // All three were unset before the run (the shipped-defaults check refuses
     // to generate otherwise), so unset is exactly what was found.
     CVarClear(sDiverge.option->cvar);

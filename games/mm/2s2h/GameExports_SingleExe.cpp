@@ -824,16 +824,21 @@ extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 extern "C" int MM_ForeignModel_PlaytestArmGive(void);
 
 /**
- * #804's lock control: RSBS_PFC_MM_BOOT_WRITE_PROBE=1 plants a registrar that
- * writes one gRando.Options.* key during Majora's Mask's boot, the class the
- * diverged paired row (IntPairedFirstCrossingDiverged) exists to see: a write
- * between the load's restore and the arrival gate. It rides MM's own registrar
- * map under "IS_RANDO", like the #539 probes in mm_shipinit_driver_test.cpp;
- * on a cross-game arrival that key runs from the boot chain's OnSaveLoad
- * (TitleSetup_SetupTitleScreen -> Rando.cpp OnSaveLoadHandler), before
- * MM_Play_ConsumeStartupEntrance's gate. Fires once, and only with MM the
- * current game (the creation event's InitAll runs it under OoT). Off unless the
- * variable is set; nothing in a shipping path sets it.
+ * #804's lock control: RSBS_PFC_MM_BOOT_WRITE_PROBE=1 plants a registrar that,
+ * during Majora's Mask's boot, writes BACK the stale value the player had set
+ * before the load (the value RSBS_PFC_DIVERGE=1 moved the MM option to, which
+ * the load's restore then replaced with the file's): a registrar re-applying a
+ * pre-load value after the restore, the class the diverged paired row
+ * (IntPairedFirstCrossingDiverged) exists to see. With no divergence on the run
+ * (IntPairedFirstCrossing) there is no stale value and the probe writes
+ * nothing, so the plain row stays green with the probe armed and only the
+ * diverged row goes red. It rides MM's own registrar map under "IS_RANDO", like
+ * the #539 probes in mm_shipinit_driver_test.cpp; on a cross-game arrival that
+ * key runs from the boot chain's OnSaveLoad (TitleSetup_SetupTitleScreen ->
+ * Rando.cpp OnSaveLoadHandler), before MM_Play_ConsumeStartupEntrance's gate.
+ * Fires once, and only with MM the current game (the creation event's InitAll
+ * runs it under OoT). Off unless the variable is set; nothing in a shipping
+ * path sets it.
  */
 static void MM_PfcBootWriteProbe(void) {
     static bool sFired = false;
@@ -841,18 +846,29 @@ static void MM_PfcBootWriteProbe(void) {
     if (sFired || env == nullptr || strcmp(env, "1") != 0 || Context_GetCurrentGame() != GAME_MM) {
         return;
     }
-    const ComboMMOptionDesc* hearts = Combo_MMOptionById((uint16_t)RO_STARTING_HEALTH);
-    if (hearts == nullptr) {
+    sFired = true;
+    const char* cvar = nullptr;
+    int32_t stale = 0;
+    int32_t now = 0;
+    if (!IntegrationTest_PairedDivergeStaleOption(&cvar, &stale, &now)) {
+        fprintf(stderr, "[PFC] MM boot write probe (RSBS_PFC_MM_BOOT_WRITE_PROBE=1): ran during Majora's Mask's "
+                        "boot; no pre-load value to re-apply on this run (no divergence), nothing written\n");
+        fflush(stderr);
         return;
     }
-    sFired = true;
-    const int32_t was = Combo_MMOptionGetValue(hearts);
-    const int32_t now = was < hearts->maxValue ? was + 1 : was - 1;
-    CVarSetInteger(hearts->cvar, now);
+    if (now == stale) {
+        fprintf(stderr,
+                "[PFC] MM boot write probe (RSBS_PFC_MM_BOOT_WRITE_PROBE=1): ran during Majora's Mask's boot; %s "
+                "already holds the pre-load value %d, nothing written\n",
+                cvar, (int)stale);
+        fflush(stderr);
+        return;
+    }
+    CVarSetInteger(cvar, stale);
     fprintf(stderr,
-            "[PFC] MM boot write probe (RSBS_PFC_MM_BOOT_WRITE_PROBE=1): an IS_RANDO registrar wrote %s = %d (was %d) "
-            "during Majora's Mask's boot\n",
-            hearts->cvar, (int)now, (int)was);
+            "[PFC] MM boot write probe (RSBS_PFC_MM_BOOT_WRITE_PROBE=1): an IS_RANDO registrar re-applied the "
+            "pre-load value %s = %d (the load had restored %d) during Majora's Mask's boot\n",
+            cvar, (int)stale, (int)now);
     fflush(stderr);
 }
 static RegisterShipInitFunc sPfcBootWriteProbe(MM_PfcBootWriteProbe, { "IS_RANDO" });
