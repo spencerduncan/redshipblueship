@@ -183,6 +183,31 @@ typedef int (*ComboModelSourceFn)(uint16_t id, ComboModel* out);
  *  and *hostKey its own equivalent, or 0 (no mapping: no model). Pure, static. */
 typedef int (*ComboHostNativeModelFn)(const ComboModel* foreign, uint16_t* hostKey);
 
+/**
+ * One row of a HOST's host-native table (#577 M7): a colliding foreign model,
+ * named by its parts, and what the host draws for it instead. Each game keeps
+ * its own table beside its mapper; this type and Combo_HostNativeFind are the
+ * shared lookup, so both games key their rows the same way.
+ *
+ * The key is the foreign model's WHOLE part list, in the origin's emission
+ * order, each part written "<objectDir>/<name>" (the "__OTR__objects/" prefix
+ * every part carries is implied). A first list alone does not identify a
+ * model: both games' heart container and heart piece start with the same
+ * border list, and their magic arrows with the same shaft.
+ */
+typedef struct {
+    /** The foreign parts; unused slots are NULL, and a key has at least one. */
+    const char* foreignParts[COMBO_MODEL_MAX_PARTS];
+    /** >= 0: the HOST's own get-item draw row (its hostKey). -1: no model. */
+    int16_t hostDrawId;
+    /** hostDrawId -1: why the host draws no model. NULL otherwise. */
+    const char* noModelReason;
+} ComboHostNativeRow;
+
+/** The index of the row of `rows` whose key is exactly `foreign`'s part list,
+ *  or -1 (no row, or a NULL / empty argument). */
+int Combo_HostNativeFind(const ComboHostNativeRow* rows, int count, const ComboModel* foreign);
+
 /** Register (or, with NULL, un-register) `game`'s source. A non-game is ignored. */
 void Combo_RegisterModelSource(uint8_t game, ComboModelSourceFn source);
 /** The registered source of `game`, or NULL (test observability). */
