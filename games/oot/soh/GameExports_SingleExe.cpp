@@ -54,9 +54,11 @@
 // GameInteractor.h (-> z64.h): macros.h declares `extern GraphicsContext*`
 // and needs the type defined first.
 #include "macros.h"
-// The #577 M5 chest playtest reads a chest actor's entry.
+// The #577 M5 chest playtest reads a chest actor's entry; the #800 S1 shop
+// playtest restocks a bought shelf the way the shopkeeper does.
 extern "C" {
 #include "src/overlays/actors/ovl_En_Box/z_en_box.h"
+#include "src/overlays/actors/ovl_En_GirlA/z_en_girla.h"
 }
 
 // External declarations from main.c and other C sources
@@ -991,6 +993,11 @@ static void GpPairedTrackerPlaytest(int frame) {
 // and at frame 760 buys the first such shelf the way
 // EnGirlA_ItemGive_Randomizer does (the shelf's RandomizerInf flag, minus the
 // charge), so the drain's pickup toast and the MM-bound record are observed.
+// The flag write bypasses the shopkeeper, so at frame 920 the drive does to the
+// bought shelf what z_en_ossan.c does after a real purchase: setOutOfStockFunc
+// when the purchase goes through (OoT_EnOssan_HandleCanBuyItem), then updateStockedItemFunc
+// when shopping continues (EnOssan_State_ContinueShoppingPrompt), whose
+// EnGirlA_TryChangeShopItemShip decides SOLD OUT. Frame 990 logs and captures it.
 extern "C" int OoT_ForeignModel_ModelForOoTCheck(uint16_t rc, ComboModel* out);
 extern "C" int OoT_Rando_Foreign_HostCollected(uint16_t rc);
 extern "C" void Flags_SetRandomizerInf(RandomizerInf flag); // z_actor.c
@@ -1067,6 +1074,7 @@ static uint16_t PfcShopPlaytestLogShelves(int scene, const char* when) {
 // on its entry, the one the texture swap reads.
 // OTRGlobals.cpp; OTRGlobals.h declares it for C translation units only.
 extern "C" RandomizerCheck Randomizer_GetCheckFromActor(s16 actorId, s16 sceneNum, s16 actorParams);
+extern "C" ShopItemIdentity Randomizer_IdentifyShopItem(s32 sceneNum, u8 slotIndex);
 
 static bool PfcChestPlaytest(void) {
     const char* env = getenv("RSBS_PFC_OOT_CHEST");
@@ -1075,10 +1083,19 @@ static bool PfcChestPlaytest(void) {
 
 static void PfcChestPlaytestLogHosts(void) {
     int shown = 0;
+    int notProgression = 0;
     for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
         ComboCrossing row;
         if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
             continue;
+        }
+        // The one game-neutral grade OoT can read for an MM item (shared_items.h);
+        // the chest's major presentation rests on every crossing being PROGRESSION.
+        if (Combo_ItemClassOf(row.item) != RSBS_FILL_CLASS_PROGRESSION) {
+            const char* odd = Combo_GetForeignItemName(row.item);
+            fprintf(stderr, "[M5-PLAYTEST] created: crossing MM %s on OoT check %u has fill class %s\n",
+                    odd != NULL ? odd : "?", (unsigned)row.hostCheck, Combo_ItemClassName(Combo_ItemClassOf(row.item)));
+            notProgression++;
         }
         Rando::Location* loc = Rando::StaticData::GetLocation((RandomizerCheck)row.hostCheck);
         if (loc == nullptr || loc->GetCollectionCheck().type != SPOILER_CHK_CHEST) {
@@ -1089,7 +1106,9 @@ static void PfcChestPlaytestLogHosts(void) {
                 item != NULL ? item : "?", loc->GetName().c_str(), (unsigned)row.hostCheck, (int)loc->GetScene());
         shown++;
     }
-    fprintf(stderr, "[M5-PLAYTEST] created: %d MM item(s) in OoT chests\n", shown);
+    fprintf(stderr,
+            "[M5-PLAYTEST] created: %d MM item(s) in OoT chests; %d of %d OoT-hosted crossing(s) not PROGRESSION\n",
+            shown, notProgression, Combo_Crossings_Count(GAME_OOT));
     fflush(stderr);
 }
 
@@ -1133,11 +1152,38 @@ static void PfcChestPlaytestWarpFrame(PlayState* play, int frame) {
 // window capture is black while the desktop is locked (#843).
 extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag);
 
+// The shelf actor of the scene that sells OoT check `rc` (NULL when none).
+static EnGirlA* PfcShopPlaytestFindShelf(PlayState* play, uint16_t rc) {
+    for (Actor* a = play->actorCtx.actorLists[ACTORCAT_PROP].head; a != NULL; a = a->next) {
+        if (a->id != ACTOR_EN_GIRLA) {
+            continue;
+        }
+        EnGirlA* shelf = (EnGirlA*)a;
+        if (Randomizer_IdentifyShopItem(play->sceneNum, shelf->randoSlotIndex).identity.randomizerCheck ==
+            (RandomizerCheck)rc) {
+            return shelf;
+        }
+    }
+    return NULL;
+}
+
+static void PfcShopPlaytestLogShelfState(PlayState* play, uint16_t rc, const char* when) {
+    EnGirlA* shelf = PfcShopPlaytestFindShelf(play, rc);
+    if (shelf == NULL) {
+        fprintf(stderr, "[S1-PLAYTEST] %s: no shelf actor sells check %u\n", when, (unsigned)rc);
+    } else {
+        fprintf(stderr, "[S1-PLAYTEST] %s: shelf of check %u: params %d (%s), drawn %d, text 0x%04X\n", when,
+                (unsigned)rc, (int)shelf->actor.params, shelf->actor.params == SI_SOLD_OUT ? "SOLD OUT" : "stocked",
+                shelf->actor.draw != NULL ? 1 : 0, (unsigned)shelf->actor.textId);
+    }
+    fflush(stderr);
+}
+
 static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
     static uint16_t sShelf = 0;
     static int sSharedBefore = -1;
     PfcChestPlaytestWarpFrame(play, frame);
-    if ((PfcShopPlaytest() || PfcChestPlaytest()) && (frame == 60 || frame == 400 || frame == 900)) {
+    if ((PfcShopPlaytest() || PfcChestPlaytest()) && (frame == 60 || frame == 400 || frame == 900 || frame == 990)) {
         char tag[48];
         snprintf(tag, sizeof(tag), "oot-warp-scene%d-frame%d", (int)play->sceneNum, frame);
         MM_Playtest_DumpGameFramebuffer(tag);
@@ -1180,6 +1226,21 @@ static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
                 "%d\n",
                 sSharedBefore, Combo_CountSharedItems(GAME_MM, true), OoT_Rando_Foreign_HostCollected(sShelf));
         fflush(stderr);
+        PfcShopPlaytestLogShelfState(play, sShelf, "after the flag write");
+    }
+    if (frame == 920 && sShelf != 0) {
+        EnGirlA* shelf = PfcShopPlaytestFindShelf(play, sShelf);
+        if (shelf != NULL) {
+            fprintf(stderr, "[S1-PLAYTEST] restocking check %u's shelf as z_en_ossan.c does after a purchase\n",
+                    (unsigned)sShelf);
+            fflush(stderr);
+            shelf->setOutOfStockFunc(play, shelf);
+            shelf->updateStockedItemFunc(play, shelf);
+        }
+        PfcShopPlaytestLogShelfState(play, sShelf, "after the restock");
+    }
+    if (frame == 990 && sShelf != 0) {
+        PfcShopPlaytestLogShelfState(play, sShelf, "frame 990");
     }
 }
 
