@@ -76,9 +76,9 @@ using namespace UIWidgets;
 // ============================================================================
 // Cross-Game combo rules (#655; ADR 0011 increment 2, #498; #497 step 6)
 // ============================================================================
-// The five tier-4 `gCombo.Rando.*` keys — direction, per-direction item
-// classes, the shared ocarina (#668) and the goal (ADR 0010 D1); the two
-// pool-size rows were retired by #801 — render as ROWS in
+// The three tier-4 `gCombo.Rando.*` keys — direction, the shared ocarina
+// (#668) and the goal (ADR 0010 D1); the two pool-size rows were retired by
+// #801 and the two item-class groups by #834 — render as ROWS in
 // the Cross-Game Rules page of the tier-4 Combo section below. #497 step 6
 // moved them there from the interim host, Randomizer → Cross-Game.
 // PR #652 shipped them as a common-owned pop-out pane
@@ -101,17 +101,8 @@ using namespace UIWidgets;
 // PreFunc overwrites the buffer with the model's value again — so the rows can
 // never disagree with the record about what this world's rules are.
 static int32_t comboRuleDirection;
-static bool comboRuleItemClass[2][6]; // [0] OoT pool, [1] MM pool; second index is comboRuleClassBits'
-static bool comboRuleSharedOcarina;   // #668: ComboSettingsRecord.comboFlags' shared-ocarina bit
-static int32_t comboRuleGoal;         // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
-
-// The allocated RSBS_ITEMCLASS_* bits in bit order (foreign_items.h). Appending
-// a class is a new checkbox here; re-pointing an existing bit is forbidden
-// there, because these are .redsave format.
-static const uint16_t comboRuleClassBits[6] = {
-    (uint16_t)RSBS_ITEMCLASS_PROGRESSION,   (uint16_t)RSBS_ITEMCLASS_SONGS,          (uint16_t)RSBS_ITEMCLASS_MASKS,
-    (uint16_t)RSBS_ITEMCLASS_DUNGEON_ITEMS, (uint16_t)RSBS_ITEMCLASS_DUNGEON_REWARD, (uint16_t)RSBS_ITEMCLASS_SIDEQUEST,
-};
+static bool comboRuleSharedOcarina; // #668: ComboSettingsRecord.comboFlags' shared-ocarina bit
+static int32_t comboRuleGoal;       // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -141,25 +132,6 @@ static const std::map<int32_t, const char*> comboRuleGoalOptions = {
     { (int32_t)RSBS_COMBO_GOAL_BEAT_OOT, "Ganon" },
     { (int32_t)RSBS_COMBO_GOAL_BEAT_MM, "Majora" },
 };
-
-// The six item classes' player-facing names and tooltips, in comboRuleClassBits'
-// order. Menu-local on purpose: Combo_ForeignItemClassName keeps its lowercase
-// log identifiers ("dungeon-items"), which are what the placement log and the
-// spoiler print. The checkbox names carry a "##" suffix per direction because the
-// same six names appear twice on the page and a name is the widget's ID (the
-// "Customize Behavior##Frogs" idiom, SohMenuEnhancements.cpp).
-static const char* const comboRuleClassNames[6] = {
-    "Progression", "Songs", "Masks", "Dungeon Items", "Dungeon Rewards", "Sidequest Items",
-};
-static const char* const comboRuleClassTooltips[6] = {
-    "Allows major items and their upgrades to cross.",
-    "Allows ocarina songs to cross.",
-    "Allows masks to cross.",
-    "Allows small keys, boss keys, maps and compasses to cross.",
-    "Allows medallions, spiritual stones and boss remains to cross.",
-    "Allows sidequest rewards that are not needed to finish the game to cross.",
-};
-static const char* const comboRuleClassIdSuffix[2] = { "##OoTClass", "##MMClass" };
 
 // The disabled tooltip of every rule row once the world is frozen, rebuilt by
 // ComboRuleDecidedTooltip. Storage for the const char* WidgetOptions holds.
@@ -282,16 +254,6 @@ static void ComboRuleResetAll() {
     }
 }
 
-/** The item-class staging index for @p id: 0 for the OoT pool, 1 for MM's. */
-static int ComboRuleClassIndex(ComboSettingId id) {
-    return (id == COMBO_SETTING_ITEM_CLASS_OOT) ? 0 : 1;
-}
-
-/** The class mask @p record holds for staging index @p which. */
-static uint16_t ComboRuleClassMask(const ComboSettingsRecord& record, int which) {
-    return (which == 0) ? record.itemClassOoT : record.itemClassMM;
-}
-
 /**
  * The direction row's per-frame refresh.
  *
@@ -392,7 +354,7 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
         // may be in (ADR 0011 decision 4.2). Combo_ComboSettingsSummary
         // deliberately reports an ABSENT record for it rather than presenting
         // gComboCtx's zeros as rules, so the rows below show zeros: say so,
-        // instead of letting a player read "no classes armed" as their world.
+        // instead of letting a player read them as their world's rules.
         snprintf(buffer, sizeof(buffer),
                  "Session state is corrupt: these rules are frozen but no paired world is loaded, so the values "
                  "below are not in effect. Return to the title screen.");
@@ -496,7 +458,7 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
  * swapped), which no compile catches.
  */
 void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
-    // Five settings, rendered as rows rather than as the pop-out pane PR #652
+    // Three settings, rendered as rows rather than as the pop-out pane PR #652
     // shipped. See the block comment at the top of this file for why every row
     // is a pointer-based widget over a src/common writer rather than a
     // WIDGET_CVAR_* one, and for which value each row shows in which state.
@@ -504,8 +466,10 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     // The layout is SoH's Randomizer > General (SohMenuRandomizer.cpp), the page
     // docs/ui-style-guide.md section 12 compares this one with: two columns, the
     // first opened by one gray note, then SeparatorText groups, and the primary
-    // button at 250 px. Column 1 holds the crossing itself, column 2 the two
-    // item-class sets.
+    // button at 250 px. Column 1 holds every rule. Column 2 held the two
+    // item-class sets until #834 retired them; it is left empty rather than the
+    // page dropping to one column, so the rows keep the two-column measure the
+    // reference page is compared at.
 
     // ---- Column 1: the state note, the crossing, Reset ---------------------
     path.column = SECTION_COLUMN_1;
@@ -592,52 +556,10 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                      .Size(ImVec2(250.f, 0.f))
                      .Tooltip("Resets every cross-game rule to the value RedShipBlueShip ships with."));
 
-    // ---- Column 2: the two item-class sets ---------------------------------
-    // One setting each, six checkboxes each: the marker and the model's label
-    // ride on the group's separator, and the Callback rebuilds the WHOLE mask
-    // from the six staging bits so the store never holds a half-applied one.
-    path.column = SECTION_COLUMN_2;
-    for (const ComboSettingId classId : { COMBO_SETTING_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_MM }) {
-        const int which = ComboRuleClassIndex(classId);
-
-        menu.AddWidget(path, ComboRuleRowName(classId), WIDGET_SEPARATOR_TEXT);
-        // An empty mask is legal (ADR 0011 decision 3.3) but worth naming: the
-        // placement pass logs "no crossings" and places nothing, and a player
-        // who did not mean that would read it as a broken pool. A state that
-        // must be legible without hovering is one gray note row ABOVE its group
-        // (docs/ui-style-guide.md R-S3), under the separator, the way SoH's
-        // Randomizer > General opens its Enhancements group with a gray note.
-        menu.AddWidget(path, which == 0 ? "No Ocarina of Time items will cross." : "No Majora's Mask items will cross.",
-                       WIDGET_TEXT)
-            .RaceDisable(false)
-            .HideInSearch(true)
-            .PreFunc([which](WidgetInfo& info) {
-                ComboSettingsRecord shown;
-                ComboRuleShownRecord(&shown);
-                info.isHidden = ComboRuleClassMask(shown, which) != 0;
-            })
-            .Options(TextOptions().Color(UIWidgets::Colors::Gray));
-        for (int bit = 0; bit < 6; bit++) {
-            menu.AddWidget(path, std::string(comboRuleClassNames[bit]) + comboRuleClassIdSuffix[which], WIDGET_CHECKBOX)
-                .ValuePointer(&comboRuleItemClass[which][bit])
-                .PreFunc([which, bit](WidgetInfo& info) {
-                    ComboSettingsRecord shown;
-                    const bool decided = ComboRuleShownRecord(&shown);
-                    comboRuleItemClass[which][bit] = (ComboRuleClassMask(shown, which) & comboRuleClassBits[bit]) != 0;
-                    ComboRuleApplyDecided(info, decided);
-                })
-                .Callback([classId, which](WidgetInfo& info) {
-                    uint16_t next = 0;
-                    for (int b = 0; b < 6; b++) {
-                        if (comboRuleItemClass[which][b]) {
-                            next |= comboRuleClassBits[b];
-                        }
-                    }
-                    Combo_ComboSettingSet(classId, (int32_t)next);
-                })
-                .Options(CheckboxOptions().Tooltip(comboRuleClassTooltips[bit]));
-        }
-    }
+    // No item-class groups (#834): under the single bag every bag row is
+    // progression, so no rule read the other class bits and the Progression
+    // box only repeated what Crossing Direction says; the "OoT Classes" / "MM
+    // Classes" checkboxes only re-seeded the world.
 }
 
 /**
@@ -854,8 +776,9 @@ void SohMenu::AddMenuCombo() {
     // PIN THE COLUMN on every page. A row parked in a column past the page's
     // count is registered and never drawn - Menu::DrawElement iterates
     // columnCount columns, not every column a caller left behind. Cross-Game
-    // Rules declares two (its registrar pins each column itself); every other
-    // page one.
+    // Rules declares two (its registrar pins its column itself; the second has
+    // been empty since #834 retired the item-class groups); every other page
+    // one.
     WidgetPath path = { "Combo", "Cross-Game Rules", SECTION_COLUMN_1 };
     AddSidebarEntry("Combo", path.sidebarName, 2);
     AddComboRulesWidgets(*this, path);

@@ -37,9 +37,11 @@
  * Rando::Foreign::DrawForeignModelForCheck (ForeignModel.h), which takes OoT's
  * DESCRIPTOR for the item the check hosts and re-expresses its shape with MM's
  * own primitives (setup list, texture scrolls, colours, matrices), naming each
- * display list by its path. Anything else (no placement, no model, a colliding
- * model MM has no host-native row for, a path no mounted archive holds) draws
- * nothing and leaves CheckQueue's model-less stand-in.
+ * display list by its path. A colliding OoT model that MM's host-native table
+ * maps (#577 M7) draws MM's OWN row instead, through the same primitives and
+ * MM's own recipe for that row. Anything else (no placement, no model, a
+ * colliding model the table answers "no model" for, a path no mounted archive
+ * holds) draws nothing and leaves CheckQueue's model-less stand-in.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -360,17 +362,266 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
     return ModelForDrawId((int)it->second.drawId, out, reason);
 }
 
-// ---- Host-native mapping (#577 M7 fills this) --------------------------------
+// ---- Host-native mapping (#577 M7) --------------------------------------------
 //
 // When OoT hands MM a model whose paths live in a directory both archives carry,
 // MM draws its OWN equivalent: a row of MM_sDrawItemTable, keyed by the OoT
-// model's first list. The rows are M7's data, so none answers yet and every
-// colliding OoT model is "no model".
-struct MMHostNativeRow {
-    const char* foreignFirstList; // "__OTR__objects/<dir>/<name>" as OoT answers it
-    s16 hostDrawId;               // MM_sDrawItemTable row
+// model's whole part list (foreign_model.h, ComboHostNativeRow).
+//
+// Each OoT get-item model whose lists live in a colliding directory has a row:
+// MM's own model for the same item (OoT's hookshot and longshot draw MM's
+// hookshot, OoT's Hylian Shield MM's Hero's Shield, OoT's gold rupee MM's huge
+// rupee), or "no model" with its reason where MM has no such item. The
+// ForeignModel row (M11) walks every OoT draw row and item against this table,
+// so a colliding OoT model without a row, and a row no OoT model reaches, both
+// fail.
+const ComboHostNativeRow kHostNativeRows[] = {
+    // OoT GID_BOTTLE
+    { { "object_gi_bottle/gGiBottleStopperDL", "object_gi_bottle/gGiBottleDL" }, GID_BOTTLE, nullptr },
+    // OoT GID_KEY_SMALL
+    { { "object_gi_key/gGiSmallKeyDL" }, GID_KEY_SMALL, nullptr },
+    // OoT GID_SONG_MINUET. Minuet and Bolero diverge from OoTMM, which draws them
+    // as tinted notes in MM (#830).
+    { { "object_gi_melody/gGiMinuetColorDL", "object_gi_melody/gGiSongNoteDL" },
+      -1,
+      "Minuet of Forest: MM's get-item table has no Minuet note row" },
+    // OoT GID_SONG_BOLERO
+    { { "object_gi_melody/gGiBoleroColorDL", "object_gi_melody/gGiSongNoteDL" },
+      -1,
+      "Bolero of Fire: MM's get-item table has no Bolero note row" },
+    // OoT GID_SONG_SERENADE
+    { { "object_gi_melody/gGiSerenadeColorDL", "object_gi_melody/gGiSongNoteDL" }, GID_04, nullptr },
+    // OoT GID_SONG_REQUIEM
+    { { "object_gi_melody/gGiRequiemColorDL", "object_gi_melody/gGiSongNoteDL" }, GID_05, nullptr },
+    // OoT GID_SONG_NOCTURNE
+    { { "object_gi_melody/gGiNocturneColorDL", "object_gi_melody/gGiSongNoteDL" }, GID_06, nullptr },
+    // OoT GID_SONG_PRELUDE
+    { { "object_gi_melody/gGiPreludeColorDL", "object_gi_melody/gGiSongNoteDL" }, GID_07, nullptr },
+    // OoT GID_HEART
+    { { "object_gi_heart/gGiRecoveryHeartDL" }, GID_RECOVERY_HEART, nullptr },
+    // OoT GID_KEY_BOSS
+    { { "object_gi_bosskey/gGiBossKeyDL", "object_gi_bosskey/gGiBossKeyGemDL" }, GID_KEY_BOSS, nullptr },
+    // OoT GID_COMPASS
+    { { "object_gi_compass/gGiCompassDL", "object_gi_compass/gGiCompassGlassDL" }, GID_COMPASS, nullptr },
+    // OoT GID_NUTS
+    { { "object_gi_nuts/gGiNutDL" }, GID_DEKU_NUTS, nullptr },
+    // OoT GID_HEART_CONTAINER
+    { { "object_gi_hearts/gGiHeartBorderDL", "object_gi_hearts/gGiHeartContainerDL" }, GID_HEART_CONTAINER, nullptr },
+    // OoT GID_HEART_PIECE
+    { { "object_gi_hearts/gGiHeartBorderDL", "object_gi_hearts/gGiHeartPieceDL" }, GID_HEART_PIECE, nullptr },
+    // OoT GID_QUIVER_30
+    { { "object_gi_arrowcase/gGiQuiver30InnerColorDL", "object_gi_arrowcase/gGiQuiverInnerDL",
+        "object_gi_arrowcase/gGiQuiver30OuterColorDL", "object_gi_arrowcase/gGiQuiverOuterDL" },
+      GID_QUIVER_30,
+      nullptr },
+    // OoT GID_QUIVER_40
+    { { "object_gi_arrowcase/gGiQuiver40InnerColorDL", "object_gi_arrowcase/gGiQuiverInnerDL",
+        "object_gi_arrowcase/gGiQuiver40OuterColorDL", "object_gi_arrowcase/gGiQuiverOuterDL" },
+      GID_QUIVER_40,
+      nullptr },
+    // OoT GID_QUIVER_50
+    { { "object_gi_arrowcase/gGiQuiver50InnerColorDL", "object_gi_arrowcase/gGiQuiverInnerDL",
+        "object_gi_arrowcase/gGiQuiver50OuterColorDL", "object_gi_arrowcase/gGiQuiverOuterDL" },
+      GID_QUIVER_50,
+      nullptr },
+    // OoT GID_BOMB_BAG_20
+    { { "object_gi_bombpouch/gGiBombBag20BagColorDL", "object_gi_bombpouch/gGiBombBagDL",
+        "object_gi_bombpouch/gGiBombBag20RingColorDL", "object_gi_bombpouch/gGiBombBagRingDL" },
+      GID_BOMB_BAG_20,
+      nullptr },
+    // OoT GID_BOMB_BAG_30
+    { { "object_gi_bombpouch/gGiBombBag30BagColorDL", "object_gi_bombpouch/gGiBombBagDL",
+        "object_gi_bombpouch/gGiBombBag30RingColorDL", "object_gi_bombpouch/gGiBombBagRingDL" },
+      GID_BOMB_BAG_30,
+      nullptr },
+    // OoT GID_BOMB_BAG_40
+    { { "object_gi_bombpouch/gGiBombBag40BagColorDL", "object_gi_bombpouch/gGiBombBagDL",
+        "object_gi_bombpouch/gGiBombBag40RingColorDL", "object_gi_bombpouch/gGiBombBagRingDL" },
+      GID_BOMB_BAG_40,
+      nullptr },
+    // OoT GID_STICK
+    { { "object_gi_stick/gGiStickDL" }, GID_DEKU_STICK, nullptr },
+    // OoT GID_DUNGEON_MAP
+    { { "object_gi_map/gGiDungeonMapDL" }, GID_DUNGEON_MAP, nullptr },
+    // OoT GID_MAGIC_SMALL
+    { { "object_gi_magicpot/gGiMagicJarSmallDL" }, GID_MAGIC_JAR_SMALL, nullptr },
+    // OoT GID_MAGIC_LARGE
+    { { "object_gi_magicpot/gGiMagicJarLargeDL" }, GID_MAGIC_JAR_BIG, nullptr },
+    // OoT GID_BOMB
+    { { "object_gi_bomb_1/gGiBombDL" }, GID_BOMB, nullptr },
+    // OoT GID_STONE_OF_AGONY
+    { { "object_gi_map/gGiStoneOfAgonyDL" }, GID_STONE_OF_AGONY, nullptr },
+    // OoT GID_WALLET_ADULT
+    { { "object_gi_purse/gGiAdultWalletColorDL", "object_gi_purse/gGiWalletDL",
+        "object_gi_purse/gGiAdultWalletRupeeOuterColorDL", "object_gi_purse/gGiWalletRupeeOuterDL",
+        "object_gi_purse/gGiAdultWalletStringColorDL", "object_gi_purse/gGiWalletStringDL",
+        "object_gi_purse/gGiAdultWalletRupeeInnerColorDL", "object_gi_purse/gGiWalletRupeeInnerDL" },
+      GID_WALLET_ADULT,
+      nullptr },
+    // OoT GID_WALLET_GIANT
+    { { "object_gi_purse/gGiGiantsWalletColorDL", "object_gi_purse/gGiWalletDL",
+        "object_gi_purse/gGiGiantsWalletRupeeOuterColorDL", "object_gi_purse/gGiWalletRupeeOuterDL",
+        "object_gi_purse/gGiGiantsWalletStringColorDL", "object_gi_purse/gGiWalletStringDL",
+        "object_gi_purse/gGiGiantsWalletRupeeInnerColorDL", "object_gi_purse/gGiWalletRupeeInnerDL" },
+      GID_WALLET_GIANT,
+      nullptr },
+    // OoT GID_ARROWS_SMALL
+    { { "object_gi_arrow/gGiArrowSmallDL" }, GID_ARROWS_SMALL, nullptr },
+    // OoT GID_ARROWS_MEDIUM
+    { { "object_gi_arrow/gGiArrowMediumDL" }, GID_ARROWS_MEDIUM, nullptr },
+    // OoT GID_ARROWS_LARGE
+    { { "object_gi_arrow/gGiArrowLargeDL" }, GID_ARROWS_LARGE, nullptr },
+    // OoT GID_BOMBCHU
+    { { "object_gi_bomb_2/gGiBombchuDL" }, GID_BOMBCHU, nullptr },
+    // OoT GID_SHIELD_HYLIAN
+    { { "object_gi_shield_2/gGiHylianShieldDL" }, GID_SHIELD_HERO, nullptr },
+    // OoT GID_HOOKSHOT
+    { { "object_gi_hookshot/gGiHookshotDL" }, GID_HOOKSHOT, nullptr },
+    // OoT GID_LONGSHOT: MM has one hookshot
+    { { "object_gi_hookshot/gGiLongshotDL" }, GID_HOOKSHOT, nullptr },
+    // OoT GID_OCARINA_TIME
+    { { "object_gi_ocarina/gGiOcarinaTimeDL", "object_gi_ocarina/gGiOcarinaTimeHolesDL" }, GID_OCARINA, nullptr },
+    // OoT GID_MILK
+    { { "object_gi_milk/gGiMilkBottleContentsDL", "object_gi_milk/gGiMilkBottleDL" }, GID_MILK, nullptr },
+    // OoT GID_MASK_KEATON
+    { { "object_gi_ki_tan_mask/gGiKeatonMaskDL", "object_gi_ki_tan_mask/gGiKeatonMaskEyesDL" },
+      GID_MASK_KEATON,
+      nullptr },
+    // OoT GID_BOW
+    { { "object_gi_bow/gGiBowDL" }, GID_BOW, nullptr },
+    // OoT GID_LENS
+    { { "object_gi_glasses/gGiLensDL", "object_gi_glasses/gGiLensGlassDL" }, GID_LENS, nullptr },
+    // OoT GID_POTION_GREEN
+    { { "object_gi_liquid/gGiGreenPotColorDL", "object_gi_liquid/gGiPotionPotDL",
+        "object_gi_liquid/gGiGreenLiquidColorDL", "object_gi_liquid/gGiPotionLiquidDL",
+        "object_gi_liquid/gGiGreenPatternColorDL", "object_gi_liquid/gGiPotionPatternDL" },
+      GID_POTION_GREEN,
+      nullptr },
+    // OoT GID_POTION_RED
+    { { "object_gi_liquid/gGiRedPotColorDL", "object_gi_liquid/gGiPotionPotDL", "object_gi_liquid/gGiRedLiquidColorDL",
+        "object_gi_liquid/gGiPotionLiquidDL", "object_gi_liquid/gGiRedPatternColorDL",
+        "object_gi_liquid/gGiPotionPatternDL" },
+      GID_POTION_RED,
+      nullptr },
+    // OoT GID_POTION_BLUE
+    { { "object_gi_liquid/gGiBluePotColorDL", "object_gi_liquid/gGiPotionPotDL",
+        "object_gi_liquid/gGiBlueLiquidColorDL", "object_gi_liquid/gGiPotionLiquidDL",
+        "object_gi_liquid/gGiBluePatternColorDL", "object_gi_liquid/gGiPotionPatternDL" },
+      GID_POTION_BLUE,
+      nullptr },
+    // OoT GID_SHIELD_MIRROR
+    { { "object_gi_shield_3/gGiMirrorShieldDL", "object_gi_shield_3/gGiMirrorShieldSymbolDL" },
+      GID_SHIELD_MIRROR,
+      nullptr },
+    // OoT GID_BEAN
+    { { "object_gi_bean/gGiBeanDL" }, GID_MAGIC_BEANS, nullptr },
+    // OoT GID_FISH
+    { { "object_gi_fish/gGiFishDL" }, GID_FISH, nullptr },
+    // OoT GID_SWORD_BGS
+    { { "object_gi_longsword/gGiBiggoronSwordDL" }, GID_SWORD_BGS, nullptr },
+    // OoT GID_MASK_BUNNY
+    { { "object_gi_rabit_mask/gGiBunnyHoodDL", "object_gi_rabit_mask/gGiBunnyHoodEyesDL" }, GID_MASK_BUNNY, nullptr },
+    // OoT GID_MASK_TRUTH
+    { { "object_gi_truth_mask/gGiMaskOfTruthDL", "object_gi_truth_mask/gGiMaskOfTruthAccentsDL" },
+      GID_MASK_TRUTH,
+      nullptr },
+    // OoT GID_SOLDOUT
+    { { "object_gi_soldout/gGiSoldOutDL" }, -1, "sold-out sign: MM's get-item table has no sold-out row" },
+    // OoT GID_MASK_GORON
+    { { "object_gi_golonmask/gGiGoronMaskDL" }, GID_MASK_GORON, nullptr },
+    // OoT GID_MASK_ZORA
+    { { "object_gi_zoramask/gGiZoraMaskDL" }, GID_MASK_ZORA, nullptr },
+    // OoT GID_ARROW_FIRE
+    { { "object_gi_m_arrow/gGiMagicArrowDL", "object_gi_m_arrow/gGiFireArrowColorDL",
+        "object_gi_m_arrow/gGiArrowMagicDL" },
+      GID_ARROW_FIRE,
+      nullptr },
+    // OoT GID_ARROW_ICE
+    { { "object_gi_m_arrow/gGiMagicArrowDL", "object_gi_m_arrow/gGiIceArrowColorDL",
+        "object_gi_m_arrow/gGiArrowMagicDL" },
+      GID_ARROW_ICE,
+      nullptr },
+    // OoT GID_ARROW_LIGHT
+    { { "object_gi_m_arrow/gGiMagicArrowDL", "object_gi_m_arrow/gGiLightArrowColorDL",
+        "object_gi_m_arrow/gGiArrowMagicDL" },
+      GID_ARROW_LIGHT,
+      nullptr },
+    // OoT GID_SKULL_TOKEN
+    { { "object_gi_sutaru/gGiSkulltulaTokenDL", "object_gi_sutaru/gGiSkulltulaTokenFlameDL" },
+      GID_SKULL_TOKEN,
+      nullptr },
+    // OoT GID_BUG
+    { { "object_gi_insect/gGiBugsContainerDL", "object_gi_insect/gGiBugsGlassDL" }, GID_BUG, nullptr },
+    // OoT GID_POE
+    { { "object_gi_ghost/gGiGhostContainerLidDL", "object_gi_ghost/gGiGhostContainerGlassDL",
+        "object_gi_ghost/gGiPoeColorDL", "object_gi_ghost/gGiGhostContainerContentsDL" },
+      GID_POE,
+      nullptr },
+    // OoT GID_FAIRY
+    { { "object_gi_soul/gGiFairyContainerBaseCapDL", "object_gi_soul/gGiFairyContainerGlassDL",
+        "object_gi_soul/gGiFairyContainerContentsDL" },
+      GID_FAIRY_2,
+      nullptr },
+    // OoT GID_RUPEE_GREEN
+    { { "object_gi_rupy/gGiGreenRupeeInnerColorDL", "object_gi_rupy/gGiRupeeInnerDL",
+        "object_gi_rupy/gGiGreenRupeeOuterColorDL", "object_gi_rupy/gGiRupeeOuterDL" },
+      GID_RUPEE_GREEN,
+      nullptr },
+    // OoT GID_RUPEE_BLUE
+    { { "object_gi_rupy/gGiBlueRupeeInnerColorDL", "object_gi_rupy/gGiRupeeInnerDL",
+        "object_gi_rupy/gGiBlueRupeeOuterColorDL", "object_gi_rupy/gGiRupeeOuterDL" },
+      GID_RUPEE_BLUE,
+      nullptr },
+    // OoT GID_RUPEE_RED
+    { { "object_gi_rupy/gGiRedRupeeInnerColorDL", "object_gi_rupy/gGiRupeeInnerDL",
+        "object_gi_rupy/gGiRedRupeeOuterColorDL", "object_gi_rupy/gGiRupeeOuterDL" },
+      GID_RUPEE_RED,
+      nullptr },
+    // OoT GID_BIG_POE
+    { { "object_gi_ghost/gGiGhostContainerLidDL", "object_gi_ghost/gGiGhostContainerGlassDL",
+        "object_gi_ghost/gGiBigPoeColorDL", "object_gi_ghost/gGiGhostContainerContentsDL" },
+      GID_BIG_POE,
+      nullptr },
+    // OoT GID_RUPEE_PURPLE
+    { { "object_gi_rupy/gGiPurpleRupeeInnerColorDL", "object_gi_rupy/gGiRupeeInnerDL",
+        "object_gi_rupy/gGiPurpleRupeeOuterColorDL", "object_gi_rupy/gGiRupeeOuterDL" },
+      GID_RUPEE_PURPLE,
+      nullptr },
+    // OoT GID_RUPEE_GOLD
+    { { "object_gi_rupy/gGiGoldRupeeInnerColorDL", "object_gi_rupy/gGiRupeeInnerDL",
+        "object_gi_rupy/gGiGoldRupeeOuterColorDL", "object_gi_rupy/gGiRupeeOuterDL" },
+      GID_RUPEE_HUGE,
+      nullptr },
+    // OoT GID_SWORD_KOKIRI
+    { { "object_gi_sword_1/gGiKokiriSwordDL" }, GID_SWORD_KOKIRI, nullptr },
+    // OoT GID_SKULL_TOKEN_2
+    { { "object_st/gSkulltulaTokenDL", "object_st/gSkulltulaTokenFlameDL" }, GID_SKULL_TOKEN_2, nullptr },
+    // OoT GID_SONG_GENERIC .. GID_SONG_STORM (one list, seven tints). A table
+    // limit, not a missing item: the key ignores the tint, and MM's same-item
+    // notes (Sun, Time, Storms, Epona: DrawItem.cpp DrawSong) are a 2S2H custom
+    // draw, not a row this table can target. OoTMM draws every song as a tinted
+    // note in both games; #830 tracks the tinted-note host recipe.
+    { { "object_gi_melody/gGiSongNoteDL" },
+      -1,
+      "tinted song note: the table cannot target MM's DrawSong custom draw or key the tint (#830)" },
 };
-constexpr std::array<MMHostNativeRow, 0> kHostNativeRows{};
+constexpr int kHostNativeRowCount = (int)(sizeof(kHostNativeRows) / sizeof(kHostNativeRows[0]));
+
+/** 1 and *hostKey: MM's own row. 0 and *reason (NULL: no row at all). */
+int MapHostNative(const ComboModel* foreign, uint16_t* hostKey, const char** reason, int* tableRow) {
+    *reason = nullptr;
+    *tableRow = Combo_HostNativeFind(kHostNativeRows, kHostNativeRowCount, foreign);
+    if (*tableRow < 0) {
+        return 0;
+    }
+    const ComboHostNativeRow& row = kHostNativeRows[*tableRow];
+    if (row.hostDrawId < 0 || row.hostDrawId >= MM_GetItem_DrawTableCount()) {
+        *reason = row.noModelReason;
+        return 0;
+    }
+    *hostKey = (uint16_t)row.hostDrawId;
+    return 1;
+}
 
 } // namespace
 
@@ -392,20 +643,26 @@ extern "C" int MM_ComboModel(uint16_t id, ComboModel* out) {
 
 /** THE HOST-NATIVE MAPPER MM registers for itself as a host. */
 extern "C" int MM_ComboModelHostNative(const ComboModel* foreign, uint16_t* hostKey) {
-    if (foreign == nullptr || hostKey == nullptr || foreign->partCount == 0 || foreign->parts[0].dl == nullptr) {
+    if (foreign == nullptr || hostKey == nullptr) {
         return 0;
     }
-    for (const MMHostNativeRow& row : kHostNativeRows) {
-        if (std::strcmp(row.foreignFirstList, foreign->parts[0].dl) == 0 && row.hostDrawId >= 0 &&
-            row.hostDrawId < MM_GetItem_DrawTableCount()) {
-            *hostKey = (uint16_t)row.hostDrawId;
-            return 1;
-        }
-    }
-    return 0;
+    const char* reason = nullptr;
+    int tableRow = -1;
+    return MapHostNative(foreign, hostKey, &reason, &tableRow);
 }
 
 // ---- TEST BRIDGES (ForeignModel row, src/common/tests/test_foreign_model.c) ---
+
+/** MM's host-native answer for a foreign model: 1 and *hostKey, or 0 and
+ *  *reason (NULL when no row names the model). *tableRow: the row, or -1. */
+extern "C" int MM_ComboModelHostNative_TestAnswer(const ComboModel* foreign, uint16_t* hostKey, const char** reason,
+                                                  int* tableRow) {
+    return MapHostNative(foreign, hostKey, reason, tableRow);
+}
+
+extern "C" int MM_ComboModelHostNative_TestRowCount(void) {
+    return kHostNativeRowCount;
+}
 
 extern "C" int MM_ComboModel_TestIdSpace(void) {
     return (int)RI_MAX;
@@ -595,22 +852,40 @@ static void ForeignModel_Draw(PlayState* play, const ComboModel& model) {
 
 namespace {
 
-/** The drawable model of the foreign item `checkId` hosts: a DESCRIPTOR whose
- *  every path a mounted archive holds. HOST_NATIVE answers draw nothing here
- *  yet: MM's host-native table is empty until #577 M7 adds its rows. */
-bool ForeignModelForCheck(RandoCheckId checkId, ComboModel* out) {
+/** The drawable model of the foreign item `checkId` hosts: OoT's DESCRIPTOR, or,
+ *  for a colliding OoT model MM's host-native table maps (#577 M7), MM's OWN
+ *  row as MM's own recipe draws it; either way only when a mounted archive
+ *  holds every path. `kindOut` (optional) receives which of the two it is
+ *  (COMBO_MODEL_ANSWER_DESCRIPTOR or _HOST_NATIVE) when it returns true. */
+bool ForeignModelForCheck(RandoCheckId checkId, ComboModel* out, uint8_t* kindOut = nullptr) {
     Combo_ModelInit(out);
     if (checkId == RC_UNKNOWN) {
         return false;
     }
     const SharedItem* item = Combo_GetForeignPlacementForCheck((uint16_t)checkId);
-    ComboModelAnswer answer;
-    if (item == nullptr ||
-        Combo_GetForeignItemModel((uint8_t)GAME_MM, *item, &answer) != COMBO_MODEL_ANSWER_DESCRIPTOR ||
-        !ModelMounted(answer.model)) {
+    if (item == nullptr) {
         return false;
     }
-    *out = answer.model;
+    ComboModelAnswer answer;
+    ComboModel model;
+    const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_MM, *item, &answer);
+    if (kind == COMBO_MODEL_ANSWER_DESCRIPTOR) {
+        model = answer.model;
+    } else if (kind == COMBO_MODEL_ANSWER_HOST_NATIVE) {
+        const char* reason = nullptr;
+        if (ModelForDrawId((int)answer.hostKey, &model, &reason) != 1) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    if (!ModelMounted(model)) {
+        return false;
+    }
+    *out = model;
+    if (kindOut != nullptr) {
+        *kindOut = kind;
+    }
     return true;
 }
 
@@ -883,19 +1158,23 @@ bool RunCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want) {
  * The #577 M3 playtest drive (GameExports_SingleExe.cpp, gameplay round-trip,
  * RSBS_GP_MM_FOREIGN_MODEL=1, 100 live frames into the MM play window): the
  * first OoT item the paired world's crossing
- * store placed on an MM check, not yet obtained, whose model MM can draw right
- * now. Its check is marked eligible, exactly as walking up to it would, so
- * CheckQueue queues the real foreign give and the get-item cutscene follows.
- * Returns the check id, or 0 when the world has no such crossing.
+ * store placed on an MM check, not yet obtained, whose REAL OoT model MM can
+ * draw right now (a DESCRIPTOR answer: a colliding item that #577 M7 maps to
+ * MM's own row is skipped, so the capture always shows an OoT model). Its check
+ * is marked eligible, exactly as walking up to it would, so CheckQueue queues
+ * the real foreign give and the get-item cutscene follows. Returns the check
+ * id, or 0 when the world has no such crossing.
  */
 extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
     const int count = Combo_Crossings_Count(GAME_MM);
     for (int i = 0; i < count; i++) {
         ComboCrossing crossing;
         ComboModel model;
+        uint8_t kind = COMBO_MODEL_ANSWER_NONE;
         if (!Combo_Crossings_At(GAME_MM, i, &crossing) || crossing.hostCheck >= RC_MAX ||
             RANDO_SAVE_CHECKS[crossing.hostCheck].obtained ||
-            !ForeignModelForCheck((RandoCheckId)crossing.hostCheck, &model)) {
+            !ForeignModelForCheck((RandoCheckId)crossing.hostCheck, &model, &kind) ||
+            kind != COMBO_MODEL_ANSWER_DESCRIPTOR) {
             continue;
         }
         RANDO_SAVE_CHECKS[crossing.hostCheck].eligible = true;

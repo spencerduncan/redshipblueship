@@ -36,15 +36,15 @@
  * cross-game field no key authors) or flagged (an MM identity input the file
  * does not record), visibly.
  *
- *   leg 1 - Goal, Crossing Direction, one item-class mask and Shared Ocarina
- *           changed at the title screen, in a file whose record also carries
- *           a non-default pool size (a world created before #801 retired the
- *           Max Items rows), the file loaded through the production seam's
- *           own calls
- *                -> the pair is restored, all four keys hold the file's values,
- *                   the record keeps its own pool byte, one toast names "Goal,
- *                   Crossing Direction +2", the slot is writable, and the
- *                   arrival gate does not refuse
+ *   leg 1 - Goal, Crossing Direction and Shared Ocarina changed at the title
+ *           screen, in a file whose record also carries a non-default pool
+ *           size and a non-default MM item-class mask (a world created before
+ *           #801 and #834 retired those rows), the file loaded through the
+ *           production seam's own calls
+ *                -> the pair is restored, all three keys hold the file's
+ *                   values, the record keeps its own pool byte and class mask,
+ *                   one toast names "Goal, Crossing Direction +1", the slot is
+ *                   writable, and the arrival gate does not refuse
  *   leg 2 - one MM trick and one MM option changed, same load
  *                -> the MM profile digest matches the file again, both keys hold
  *                   the file's values, a toast names both rows, and the arrival
@@ -362,34 +362,34 @@ bool FitsOneLine(const Toast& toast) {
 // ---------------------------------------------------------------------------
 int LegCrossGameRules() {
     ClearAuthoredKeys();
-    // Two more rules through the same table: a class mask and Shared Ocarina,
-    // each set to a legal value that is not the shipped one.
-    const int32_t fileClass =
-        Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_MM) == 0 ? (int32_t)RSBS_ITEMCLASS_PROGRESSION : 0;
+    // One more rule through the same table: Shared Ocarina, set to a legal
+    // value that is not the shipped one.
     const int32_t fileOcarina = Combo_ComboSettingDefault(COMBO_SETTING_SHARED_OCARINA) != 0 ? 0 : 1;
     if (Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER) != 1 ||
         Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) != 1 ||
-        Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, fileClass) != 1 ||
         Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, fileOcarina) != 1) {
-        return Fail(10, "leg 1 setup: could not author the four rules for the file");
+        return Fail(10, "leg 1 setup: could not author the three rules for the file");
     }
-    // The record also carries a pool size nobody can author any more: the
-    // file was created before #801 with "Max OoT Items" moved. No key can
-    // restore it, and none has to: the session holds no pool size to diverge.
+    // The record also carries a pool size and an item-class mask nobody can
+    // author any more: the file was created before #801 with "Max OoT Items"
+    // moved and before #834 with "MM Classes" changed. No key can restore
+    // either, and none has to: the session holds no value to diverge.
     ComboSettingsRecord older;
     Combo_ResolveComboSettings(&older);
     const uint8_t filePool = older.poolSizeOoT == 3u ? 2u : 3u;
     older.poolSizeOoT = filePool;
+    const uint16_t fileClass =
+        older.itemClassMM == (uint16_t)RSBS_ITEMCLASS_PROGRESSION ? 0u : (uint16_t)RSBS_ITEMCLASS_PROGRESSION;
+    older.itemClassMM = fileClass;
     if (int rc = CreatePairedFile(false, &older)) {
         return rc;
     }
 
     // Back at the title screen the player picks the shipped rules again: two
-    // keys set explicitly, two cleared back to unset.
+    // keys set explicitly, one cleared back to unset.
     Relaunch();
     Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH);
     Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_BOTH);
-    Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_MM);
     Combo_ComboSettingClear(COMBO_SETTING_SHARED_OCARINA);
 
     const int rc = LoadThroughProductionSeam();
@@ -420,13 +420,13 @@ int LegCrossGameRules() {
                     (int)goal, (int)direction);
     }
     const int32_t pool = (int32_t)gComboCtx.comboSettings.poolSizeOoT;
-    const int32_t klass = Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_MM);
+    const int32_t klass = (int32_t)gComboCtx.comboSettings.itemClassMM;
     const int32_t ocarina = Combo_ComboSettingResolved(COMBO_SETTING_SHARED_OCARINA);
     printf("[TEST] leg 1 OBSERVED: poolSizeOoT=%d (file %d) itemClassMM=%d (file %d) sharedOcarina=%d (file %d)\n",
            (int)pool, (int)filePool, (int)klass, (int)fileClass, (int)ocarina, (int)fileOcarina);
-    if (pool != filePool || klass != fileClass || ocarina != fileOcarina) {
-        return Fail(18, "leg 1: the record's pool byte, a class mask or Shared Ocarina key does not hold the "
-                        "file's value");
+    if (pool != filePool || klass != (int32_t)fileClass || ocarina != fileOcarina) {
+        return Fail(18, "leg 1: the record's pool byte or class mask, or the Shared Ocarina key, does not hold "
+                        "the file's value");
     }
     if (Combo_ComboSettingsDivergence() != 0) {
         return Fail(14, "leg 1: the loaded pair still diverges from the live resolution");
@@ -436,7 +436,7 @@ int LegCrossGameRules() {
     }
     if (!toast.any || !PlrContains(toast.prefix, "Restored from file") || !PlrContains(toast.message, "Goal") ||
         !PlrContains(toast.message, "Crossing Direction") ||
-        ToastShownNames(toast.message) + ToastPlusCount(toast.message) != 4 || !FitsOneLine(toast)) {
+        ToastShownNames(toast.message) + ToastPlusCount(toast.message) != 3 || !FitsOneLine(toast)) {
         return Fail(16, "leg 1: no toast names what the load restored (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }

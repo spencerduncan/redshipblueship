@@ -93,10 +93,13 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     // bytes reach Combo_SingleBag_SeedFor through the fingerprint, so a key
     // here would re-seed the world while changing no rule. A stale key left in
     // a config file is ignored.
+    //
+    // itemClassOoT / itemClassMM keep their shipped defaults (every allocated
+    // bit, PROGRESSION included) for the same reason: #834 retired their keys.
+    // Under the single bag every bag row is progression, so no rule reads the
+    // other bits, and the PROGRESSION bit only repeats what the direction says.
     Combo_ComboSettingsDefaults(out);
     out->direction = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION);
-    out->itemClassOoT = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_OOT);
-    out->itemClassMM = (uint16_t)Combo_ComboSettingResolved(COMBO_SETTING_ITEM_CLASS_MM);
     out->goal = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
     // comboFlags is ASSEMBLED from its flag keys, never overlaid: the byte is a
     // bitset and each bit has its own key, so writing the whole byte from the
@@ -536,6 +539,12 @@ uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uin
     // still pins both bytes, so one changed after the stamp is damage.
     live.poolSizeOoT = frozen->poolSizeOoT;
     live.poolSizeMM = frozen->poolSizeMM;
+    // The same for the two item-class masks since #834: nothing authors them,
+    // so a world created with a box changed keeps its masks, its identity and
+    // its crossings (a cleared PROGRESSION bit still keeps that origin home),
+    // and the fingerprint still pins them.
+    live.itemClassOoT = frozen->itemClassOoT;
+    live.itemClassMM = frozen->itemClassMM;
     uint32_t bits = Combo_ComboSettingsDivergenceBetween(frozen, &live);
 
     // The fingerprint cross-check. Skipped for an UNREADABLE record, where a

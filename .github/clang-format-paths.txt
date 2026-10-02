@@ -77,6 +77,7 @@ games/mm/src/code/z_visfbuf.c
 games/mm/src/overlays/gamestates/ovl_title/z_title.c
 games/oot/soh/Enhancements/cosmetics/CustomLogoTitle.cpp
 games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
+games/oot/soh/Enhancements/randomizer/ItemAdapterSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp
 games/oot/soh/GameExports_SingleExe.cpp
 games/oot/soh/OTRGlobals.cpp
@@ -138,6 +139,7 @@ games/mm/2s2h/Rando/ForeignModel.h
 games/mm/2s2h/Rando/ForeignModelSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/ForeignTextboxIconOoT.cpp
 games/oot/soh/Enhancements/randomizer/ForeignModelOoT.cpp
+games/oot/soh/Enhancements/randomizer/ForeignModelHostOoT.cpp
 games/oot/soh/Enhancements/randomizer/ComboGoalEndingOoT.cpp
 games/mm/2s2h/Rando/ComboGoalEndingMM.cpp
 games/oot/soh/oot_combo_goal_test.cpp

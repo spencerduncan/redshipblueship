@@ -1,12 +1,12 @@
 /**
  * @file ComboSettingsWindow.h
- * @brief The combo settings pane: the three tier-4 `gCombo.Rando.*` keys it
+ * @brief The combo settings pane: the one tier-4 `gCombo.Rando.*` key it
  *        draws (ADR 0011 increment 2, #498; ADR 0003; ADR 0004 §6; ADR 0008;
- *        the two pool sizes retired by #801).
+ *        the two pool sizes retired by #801, the two item classes by #834).
  *
- * Renders src/common/combo_settings_view.h's model — direction and the
- * per-direction item classes — and, once a creation event has frozen them,
- * the values FROM THE SAVE through Combo_ComboSettingsSummary.
+ * Renders src/common/combo_settings_view.h's model — the direction — and,
+ * once a creation event has frozen it, the value FROM THE SAVE through
+ * Combo_ComboSettingsSummary.
  *
  * SUPERSEDED AS THE LIVE SURFACE (2026-09-16, #655). Operator direction after
  * the 2026-09-11 nightly: "For the combo settings they should be built into the
