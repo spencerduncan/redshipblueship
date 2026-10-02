@@ -489,6 +489,84 @@ def test_titlesetup_guard_cannot_be_satisfied_by_a_comment():
         assert _guard_is_wired_above(guarded_call, 3), f"{guard} must count as a real guard"
 
 
+def _function_body(path, name):
+    """The comment-stripped body of the C/C++ function `name` defined in `path`,
+    brace-matched from its definition (`name(` followed by `{` before any `;`)."""
+    text = _strip_comments(path.read_text(encoding="utf-8", errors="replace"))
+    for match in re.finditer(r"\b%s\s*\(" % re.escape(name), text):
+        brace = text.find("{", match.end())
+        semi = text.find(";", match.end())
+        if brace == -1 or (semi != -1 and semi < brace):
+            continue  # a call or a prototype, not the definition
+        depth = 0
+        for i in range(brace, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[brace:i + 1]
+    pytest.fail(f"could not find the definition of {name} in {path.relative_to(REPO_ROOT).as_posix()}")
+
+
+def _block_after(body, opener):
+    """The brace-matched block that follows the first match of regex `opener`."""
+    match = re.search(opener, body)
+    assert match, f"no match for {opener!r}"
+    start = body.index("{", match.start())
+    depth = 0
+    for i in range(start, len(body)):
+        depth += {"{": 1, "}": -1}.get(body[i], 0)
+        if depth == 0:
+            return body[start:i + 1]
+    pytest.fail(f"unbalanced block after {opener!r}")
+
+
+OOT_RANDO = REPO_ROOT / "games" / "oot" / "soh" / "Enhancements" / "randomizer"
+OOT_PLAYER = REPO_ROOT / "games" / "oot" / "src" / "overlays" / "actors" / "ovl_player_actor" / "z_player.c"
+
+
+def test_oot_show_only_get_item_call_sites_are_wired():
+    """#577 M4: the three call sites of OoT's display-without-grant path.
+
+    The ForeignModel row's check M13 drives the helpers (the drain's queueing,
+    the textbox name, the give point's take, the draw) ROM-free, but not the
+    places that call them: the RC-queue drain, BuildItemMessage and the give
+    point in func_8084DFF4 need a live Player. A revert of any one call site
+    leaves M13 green, so this pins each of them in code (comments stripped).
+    """
+    drain = _function_body(OOT_RANDO / "hook_handlers.cpp", "RandomizerOnPlayerUpdateForRCQueueHandler")
+    record = drain.find("OoT_Rando_Foreign_RecordPickup(")
+    assert record != -1, "the drain no longer records a foreign pickup"
+    foreign_branch = drain[record:drain.index("randomizerQueuedChecks.pop()", record)]
+    gate = r"if\s*\(\s*RandomizerSkipForeignGetItemAnimation\(rc\)\s*\|\|\s*!RandomizerQueueForeignShowOnly\(rc\)\s*\)"
+    assert re.search(gate, foreign_branch), (
+        "#577 M4: the drain's foreign branch must queue the show-only get-item entry, toasting only when the "
+        "player skips every get-item animation or nothing could be queued")
+    assert "Notification::Emit(" in _block_after(foreign_branch, gate), "the skip-all toast left the show-only gate"
+    assert foreign_branch.count("Notification::Emit(") == 1, (
+        "#577 M4: the drain's foreign branch toasts unconditionally again (an Emit outside the show-only gate)")
+
+    message = _function_body(OOT_RANDO / "Messages" / "ItemMessages.cpp", "BuildItemMessage")
+    assert re.search(
+        r"const bool foreign\s*=\s*OoT_Rando_Foreign_ShowOnlyItemText\(\s*&player->getItemEntry,\s*&foreignArticle,"
+        r"\s*&foreignName\s*\)\s*==\s*1\s*;", message), (
+        "#577 M4: BuildItemMessage must ask whether the held entry is the show-only one")
+    foreign_text = re.search(r"if\s*\(\s*foreign\s*\)\s*\{", message)
+    ice_trap = message.find("RG_ICE_TRAP")
+    assert foreign_text and ice_trap != -1 and foreign_text.start() < ice_trap, (
+        "#577 M4: BuildItemMessage's show-only branch must come first in the item-message chain")
+    assert "msg = CustomMessage(" in _block_after(message, r"if\s*\(\s*foreign\s*\)\s*\{"), (
+        "#577 M4: the show-only branch must build the textbox naming the MM item")
+
+    give = _function_body(OOT_PLAYER, "func_8084DFF4")
+    take = re.search(r"const s32 showOnly\s*=\s*OoT_Rando_Foreign_TakeShowOnlyGetItem\(\s*&giEntry\s*\)\s*;", give)
+    skip = re.search(r"if\s*\(\s*showOnly\s*\)\s*\{\s*\}\s*else if\s*\(\s*giEntry\.modIndex\s*==\s*MOD_NONE\s*\)",
+                     give)
+    assert take and skip and take.start() < skip.start(), (
+        "#577 M4: func_8084DFF4 must take the show-only entry and skip the whole give chain for it")
+
+
 def test_mm_2s2h_glob_is_configure_depends():
     """Without CONFIGURE_DEPENDS an existing build dir never re-globs, so a pull
     that adds a 2s2h/ TU links the stale file list and fails with an
