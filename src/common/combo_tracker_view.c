@@ -291,6 +291,21 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out) {
         out->shuffled = row[sMMDesc.shuffledOffset] != 0;
         out->obtained = row[sMMDesc.obtainedOffset] != 0;
         out->skipped = row[sMMDesc.skippedOffset] != 0;
+        // #458 U4. MM's status is its two flags and nothing more (the header's
+        // ComboTrackerCheckStatus): obtained wins, as in MM's own tracker.
+        out->status = out->obtained  ? (uint8_t)COMBO_TRACKER_CHECK_COLLECTED
+                      : out->skipped ? (uint8_t)COMBO_TRACKER_CHECK_SKIPPED
+                                     : (uint8_t)COMBO_TRACKER_CHECK_UNCHECKED;
+        if (sMMDesc.areaName != NULL) {
+            out->areaName = sMMDesc.areaName((uint16_t)index, &out->areaKey);
+        }
+        // Only a found check names its item, as MM's tracker prints one only
+        // beside an obtained check; the MM TU reads it from this same save.
+        if (out->obtained && sMMDesc.placedItemName != NULL) {
+            uint8_t itemGame = (uint8_t)GAME_NONE;
+            out->placedItemName = sMMDesc.placedItemName(blob, (uint16_t)index, &itemGame);
+            out->placedItemGame = (out->placedItemName != NULL) ? itemGame : (uint8_t)GAME_NONE;
+        }
         return true;
     }
     if (game == (uint8_t)GAME_OOT && sOoTOps != NULL) {

@@ -525,8 +525,8 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(summary.shuffled == 3 && summary.obtained == 1 && summary.skipped == 1);
 
     // Row content at the flat ids the seam returned (collected / untouched /
-    // skipped, in that order). Names may be NULL (static data never
-    // initialized in this tier) — the call must simply not crash.
+    // skipped, in that order). The seam fills OoT's static tables when this tier
+    // never did (#458 U4), so the names resolve; 5b asserts what they say.
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[0], &row));
     CTV_ASSERT(row.shuffled && row.obtained && !row.skipped);
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row));

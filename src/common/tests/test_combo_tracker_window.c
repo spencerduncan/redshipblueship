@@ -370,10 +370,11 @@ int LockAreasBody(void) {
     // By area name: the whole area.
     ComboCollectCheckAreas((uint8_t)GAME_OOT, "three", areas);
     CTW_ASSERT(areas.size() == 1 && CtwIds(areas[0]) == "11,13");
-    // By check name, case-insensitively, and an exclusion term.
+    // By check name, case-insensitively, and an exclusion term (ImGui's filter
+    // tests terms in order, so the exclusion goes first, as in SoH's box).
     ComboCollectCheckAreas((uint8_t)GAME_OOT, "ROOF", areas);
     CTW_ASSERT(areas.size() == 1 && CtwIds(areas[0]) == "12");
-    ComboCollectCheckAreas((uint8_t)GAME_OOT, "chest,-tower", areas);
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "-tower,chest", areas);
     CTW_ASSERT(areas.size() == 2 && CtwIds(areas[0]) == "11,13" && CtwIds(areas[1]) == "12");
     ComboCollectCheckAreas((uint8_t)GAME_OOT, "nothing matches this", areas);
     CTW_ASSERT(areas.empty());
@@ -545,7 +546,8 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         // check name with the same glyph, with no Yes/No "Collected" column, and
         // the section says "Crossings" as the notes and the spoiler JSON do.
         CTW_ASSERT(text.find("FoundGlyph(row.found)") != std::string::npos);
-        CTW_ASSERT(text.find("\"Collected\"") == std::string::npos);
+        // (SoH's "Collected" colour key, which the Checks lists read, is not a column.)
+        CTW_ASSERT(text.find("TableSetupColumn(\"Collected\"") == std::string::npos);
         CTW_ASSERT(text.find("\"Cross-Game Placements\"") == std::string::npos);
         CTW_ASSERT(text.find("[x]") == std::string::npos);
         CTW_ASSERT(text.find("[s]") == std::string::npos);
@@ -557,10 +559,19 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         CTW_ASSERT(text.find("TableHeadersRow()") != std::string::npos);
         CTW_ASSERT(text.find("ImGuiTableFlags_ScrollY") == std::string::npos);
         // Section headers carry no count (R-N4), and the pane's paired seed is
-        // told apart from a game's own seed, which it does not repeat.
+        // told apart from a game's own seed, which a paired file's panels do not
+        // print (#816; the decision itself is section 5's ComboPanelShowsOwnSeed).
         CTW_ASSERT(text.find("(%d)") == std::string::npos);
         CTW_ASSERT(text.find("\"Paired Seed: %u\"") != std::string::npos);
-        CTW_ASSERT(text.find("summary.seed != identity.sharedRandoSeed") != std::string::npos);
+        CTW_ASSERT(text.find("if (ComboPanelShowsOwnSeed(identity, summary))") != std::string::npos);
+        // The Checks list draws what section 5 locks (#458 U4): the grouping
+        // through ComboCollectCheckAreas and SoH's search box through the seam.
+        CTW_ASSERT(text.find("ComboCollectCheckAreas(game, search, areas)") != std::string::npos);
+        CTW_ASSERT(text.find("Ui().SearchInput(") != std::string::npos);
+        // The crossing table sizes its Item column and wraps through the locked
+        // decisions (#815).
+        CTW_ASSERT(text.find("ComboCrossingItemColumnWidth(columnsWidth, widestItemWord)") != std::string::npos);
+        CTW_ASSERT(text.find("ComboBalancedWrapWidth(text, ImGui::GetContentRegionAvail().x") != std::string::npos);
     }
 #endif
 
