@@ -362,13 +362,13 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
                    "leg 5: the A press on a file whose .sav is newer than its .redsave was not consumed");
         FSR_ASSERT(
             RsbsSave_GetSlotRefuseReason(kSkew) == (int)RSBS_REFUSE_COMMIT_SKEW &&
-                std::string(RsbsSave_SlotRefusalWords(kSkew)) == "Older than the Ocarina of Time save",
-            "leg 5: the refusal record is reason %d words \"%s\" (want the commit skew, \"Older than the Ocarina "
-            "of Time save\")",
+                std::string(RsbsSave_SlotRefusalWords(kSkew)) == "Ocarina of Time save is newer",
+            "leg 5: the refusal record is reason %d words \"%s\" (want the commit skew, \"Ocarina of Time save is "
+            "newer\")",
             RsbsSave_GetSlotRefuseReason(kSkew), RsbsSave_SlotRefusalWords(kSkew));
-        FSR_ASSERT(toasts == 1 && toast == "Not paired: Older than the Ocarina of Time save",
-                   "leg 5: %d toast(s), last \"%s\" (want one: \"Not paired: Older than the Ocarina of Time save\")",
-                   toasts, toast.c_str());
+        FSR_ASSERT(toasts == 1 && toast == "Not paired: Ocarina of Time save is newer",
+                   "leg 5: %d toast(s), last \"%s\" (want one: \"Not paired: Ocarina of Time save is newer\")", toasts,
+                   toast.c_str());
         FSR_ASSERT(redsaveSame && savSame && std::filesystem::exists(rsbsSave.SlotPath(kSkew)) &&
                        ExtraFiles(dir) == extraBefore,
                    "leg 5: the gate moved, renamed or changed a file");
