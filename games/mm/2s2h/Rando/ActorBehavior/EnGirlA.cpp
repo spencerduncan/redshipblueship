@@ -59,15 +59,29 @@ bool Rando::ActorBehavior::ShopCounterSlotSold(RandoCheckId rc) {
     return RANDO_SAVE_CHECKS[rc].cycleObtained;
 }
 
-// A shelf slot is sold out: a native one once its item is no longer obtainable,
-// a foreign-hosting one once its crossing was delivered (it never restocks).
-static bool EnGirlA_RandoSoldOut(RandoCheckId rc) {
+bool Rando::ActorBehavior::ShopShelfSlotSold(RandoCheckId rc) {
 #ifdef RSBS_SINGLE_EXECUTABLE
     if (Rando::Foreign::IsForeignCheck(rc)) {
         return Rando::Foreign::IsDeliveredForeignHost(rc);
     }
 #endif
     return !Rando::IsItemObtainable(RANDO_SAVE_CHECKS[rc].randoItemId, rc) && RANDO_SAVE_CHECKS[rc].obtained;
+}
+
+bool Rando::ActorBehavior::HagsMushroomSlotArmable() {
+    const RandoSaveCheck& randoSaveCheck = RANDO_SAVE_CHECKS[RC_HAGS_POTION_SHOP_ITEM_01];
+    if (!randoSaveCheck.shuffled || randoSaveCheck.eligible) {
+        return false;
+    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800: the line's weekly flags reset every cycle, so a later cycle's
+    // mushroom reaches it again; a foreign item it already delivered is not
+    // offered twice (RecordForeignPickup refuses the second crossing).
+    if (Rando::Foreign::IsDeliveredForeignHost(RC_HAGS_POTION_SHOP_ITEM_01)) {
+        return false;
+    }
+#endif
+    return true;
 }
 
 // The name the shelf lines give slot `rc`'s item (no article, as the native lines).
@@ -111,7 +125,7 @@ void EnGirlA_RandoRestock(PlayState* play, EnGirlA* enGirlA) {
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #800: a foreign item is sold once; the cover it holds must not restock.
     if (Rando::Foreign::IsForeignCheck((RandoCheckId)enGirlA->actor.world.rot.z)) {
-        if (!EnGirlA_RandoSoldOut((RandoCheckId)enGirlA->actor.world.rot.z)) {
+        if (!Rando::ActorBehavior::ShopShelfSlotSold((RandoCheckId)enGirlA->actor.world.rot.z)) {
             enGirlA->isOutOfStock = false;
             enGirlA->actor.draw = EnGirlA_RandoDrawFunc;
         }
@@ -136,8 +150,9 @@ s32 EnGirlA_RandoCanBuyFunc(PlayState* play, EnGirlA* enGirlA) {
     // #800: the cover is always "obtainable"; the foreign item is not, once it
     // crossed.
     if (Rando::Foreign::IsForeignCheck((RandoCheckId)enGirlA->actor.world.rot.z)) {
-        return EnGirlA_RandoSoldOut((RandoCheckId)enGirlA->actor.world.rot.z) ? CANBUY_RESULT_CANNOT_GET_NOW
-                                                                                : CANBUY_RESULT_SUCCESS_2;
+        return Rando::ActorBehavior::ShopShelfSlotSold((RandoCheckId)enGirlA->actor.world.rot.z)
+                   ? CANBUY_RESULT_CANNOT_GET_NOW
+                   : CANBUY_RESULT_SUCCESS_2;
     }
 #endif
 
@@ -202,7 +217,7 @@ void EnGirlA_RandoInit(EnGirlA* enGirlA, PlayState* play) {
     enGirlA->rotY = 0;
     enGirlA->initialRotY = enGirlA->actor.shape.rot.y;
 
-    if (EnGirlA_RandoSoldOut((RandoCheckId)enGirlA->actor.world.rot.z)) {
+    if (Rando::ActorBehavior::ShopShelfSlotSold((RandoCheckId)enGirlA->actor.world.rot.z)) {
         enGirlA->isOutOfStock = true;
         enGirlA->actor.draw = NULL;
     } else {
@@ -388,7 +403,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         CustomMessage::Replace(&entry.msg, "{{itemName}}", EnGirlA_RandoItemName(randoCheckId));
         CustomMessage::Replace(&entry.msg, "{{rupees}}", std::to_string(randoSaveCheck.price));
 
-        if (EnGirlA_RandoSoldOut(randoCheckId)) {
+        if (Rando::ActorBehavior::ShopShelfSlotSold(randoCheckId)) {
             entry.msg += "Out of Stock";
         } else {
             entry.msg += flavorTexts[Ship_Random(0, flavorTexts.size())];
@@ -449,7 +464,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         RandoCheckId randoCheckId = RC_HAGS_POTION_SHOP_ITEM_01;
         auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
 
-        if (!randoSaveCheck.shuffled || randoSaveCheck.eligible) {
+        if (!Rando::ActorBehavior::HagsMushroomSlotArmable()) {
             return;
         }
 
@@ -546,300 +561,3 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
     // Zora Shop CANBUY_RESULT_CANNOT_GET_NOW (this text ID does not exist and just softlocks)
     COND_ID_HOOK(OnOpenText, 0x12E1, IS_RANDO, ReplaceCannotBuyMessage);
 }
-
-#ifdef RSBS_SINGLE_EXECUTABLE
-// ============================================================================
-// TEST BRIDGE (ForeignItemGiveShop row, src/common/tests/test_foreign_shop_mm.c;
-// #800 pass 1). Drives the REAL shelf functions a shopkeeper calls, in the order
-// it calls them (EnOssan/EnTrt/EnFsn/EnSob1: canBuyFunc, then buyFunc on
-// CANBUY_RESULT_SUCCESS_2, then the restock on the next visit), against a shelf
-// actor standing on `randoCheckId`, which the caller has made a crossing host
-// (placement present; pairing live or not, per `paired`).
-//
-// What it reads back: whether the purchase authored the crossing (the shared
-// structure grew by one OoT-tagged CROSSING row) or, unpaired, authored nothing
-// (#610); that the price was charged; that the slot stays sold for good; and that
-// the counter refuses a second sale. Every piece of state it touches (the save
-// check, the rupee counters, MM_gPlayState) is restored. Returns 0 on success, a
-// step code otherwise, after printing the observation.
-// ============================================================================
-#include <cstdio>
-#include <cstdlib>
-#include "shared_items.h" // src/common: Combo_CountSharedItems, the crossing record
-
-extern "C" int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired) {
-    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
-        return 90;
-    }
-    const RandoSaveCheck priorCheck = RANDO_SAVE_CHECKS[randoCheckId];
-    const s16 priorRupees = gSaveContext.save.saveInfo.playerData.rupees;
-    const s16 priorAccumulator = gSaveContext.rupeeAccumulator;
-    PlayState* const priorPlay = MM_gPlayState;
-
-    PlayState* play = (PlayState*)calloc(1, sizeof(PlayState));
-    EnGirlA* shelf = (EnGirlA*)calloc(1, sizeof(EnGirlA));
-    const s16 kPrice = 37;
-    shelf->actor.world.rot.z = (s16)randoCheckId;
-    play->msgCtx.unk1206C = kPrice; // what the shopkeeper loads from the slot's price
-    MM_gPlayState = play;
-
-    // The slot as the paired fill leaves it: shuffled, holding MM's junk cover.
-    RandoSaveCheck& check = RANDO_SAVE_CHECKS[randoCheckId];
-    check.randoItemId = RI_JUNK;
-    check.shuffled = true;
-    check.obtained = false;
-    check.cycleObtained = false;
-    check.eligible = false;
-    check.price = kPrice;
-    gSaveContext.save.saveInfo.playerData.rupees = 100;
-    gSaveContext.rupeeAccumulator = 0;
-
-    int code = 0;
-    const int before = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true);
-    const s32 canBuy = EnGirlA_RandoCanBuyFunc(play, shelf);
-    int crossed = 0;
-    s32 canBuyAgain = -1;
-    bool restocked = false;
-    int lastOrigin = -1;
-    int lastFlags = -1;
-    if (canBuy != CANBUY_RESULT_SUCCESS_2) {
-        code = 1;
-    } else {
-        EnGirlA_RandoBuyFunc(play, shelf);
-        crossed = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true) - before;
-        for (uint32_t i = 0; crossed > 0 && i < RSBS_SHARED_ITEM_CAP; i++) {
-            const SharedItem& row = gComboCtx.sharedItemsTagged[i];
-            if (row.originGame != (uint8_t)GAME_NONE) {
-                lastOrigin = row.originGame; // the last written row
-                lastFlags = row.flags;
-            }
-        }
-        // The shopkeeper's boughtFunc, then a later visit's restock.
-        EnGirlA_RandoBought(play, shelf);
-        EnGirlA_RandoRestock(play, shelf);
-        restocked = !shelf->isOutOfStock || shelf->actor.draw != NULL;
-        canBuyAgain = EnGirlA_RandoCanBuyFunc(play, shelf);
-    }
-    printf("[TEST]   S shop check %u (%s): canBuy=%d; after the buy: crossings authored=%d (origin %d, flags %d), "
-           "obtained=%d, charged=%d; restock %s; canBuy again=%d\n",
-           (unsigned)randoCheckId, paired ? "paired" : "UNPAIRED", (int)canBuy, crossed, lastOrigin, lastFlags,
-           check.obtained ? 1 : 0, -(int)gSaveContext.rupeeAccumulator, restocked ? "RESTOCKED" : "kept it sold",
-           (int)canBuyAgain);
-    if (code == 0) {
-        if (paired && crossed != 1) {
-            code = 2; // the purchase did not hand the OoT item to the shared structure
-        } else if (paired && (lastOrigin != GAME_OOT || lastFlags != RSBS_SHARED_ITEM_CROSSING)) {
-            code = 3;
-        } else if (!paired && crossed != 0) {
-            code = 4; // #610: no live pairing, so no record may be authored
-        } else if (!check.obtained || gSaveContext.rupeeAccumulator != -kPrice) {
-            code = 5;
-        } else if (restocked) {
-            code = 6; // a foreign slot sells its item once for the whole game
-        } else if (canBuyAgain != CANBUY_RESULT_CANNOT_GET_NOW) {
-            code = 7;
-        }
-    }
-
-    check = priorCheck;
-    gSaveContext.save.saveInfo.playerData.rupees = priorRupees;
-    gSaveContext.rupeeAccumulator = priorAccumulator;
-    MM_gPlayState = priorPlay;
-    free(shelf);
-    free(play);
-    return code;
-}
-
-// ============================================================================
-// #800 PLAYTEST DRIVE (GameExports_SingleExe.cpp, gameplay round trip,
-// RSBS_GP_MM_SHOP=1, 100 live frames into the MM play window). Picks the first
-// OoT item the paired world's crossing store put on a shelf of the Bomb Shop or
-// the Trading Post (the two Clock Town shops whose shelves stand every day), sets
-// the clock to noon so both are open, and walks the player in through the shop's
-// front door. Test-only: nothing reaches it unless the env var is set.
-// Returns the host check id, 0 when the world has no such crossing, or -1 when
-// a textbox is up (an arrival's own get-item), so the caller retries next frame.
-// ============================================================================
-#include "crossing_store.h" // src/common: the paired world's crossings
-#include "foreign_model.h"  // src/common: the model answer the drive logs
-
-static RandoCheckId sShopPlaytestHost = RC_UNKNOWN;
-static SharedItem sShopPlaytestItem;
-// GameExports_SingleExe.cpp: the game framebuffer as a PNG (RSBS_GP_SHOT_DIR).
-extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag);
-
-extern "C" int MM_Shop_PlaytestWarp(void) {
-    struct ShopDoor {
-        RandoCheckId first;
-        RandoCheckId last;
-        u16 entrance;
-        const char* name;
-    };
-    static const ShopDoor kDoors[] = {
-        { RC_BOMB_SHOP_ITEM_01, RC_BOMB_SHOP_ITEM_03, ENTRANCE(BOMB_SHOP, 0), "the Bomb Shop" },
-        { RC_TRADING_POST_SHOP_ITEM_01, RC_TRADING_POST_SHOP_ITEM_08, ENTRANCE(TRADING_POST, 0), "the Trading Post" },
-    };
-    static int sWaited = 0;
-    if (MM_gPlayState == nullptr) {
-        return -1;
-    }
-    if (MM_gPlayState->msgCtx.msgMode != MSGMODE_NONE) {
-        // Nobody is at the keyboard: a textbox still up after 300 frames is
-        // waiting for a press that will not come, so the drive closes it.
-        if (++sWaited % 300 == 0) {
-            fprintf(stderr, "[S2-PLAYTEST] closing textbox 0x%04X (msgMode %d), up for %d frames\n",
-                    (unsigned)MM_gPlayState->msgCtx.currentTextId, (int)MM_gPlayState->msgCtx.msgMode, sWaited);
-            fflush(stderr);
-            MM_Message_CloseTextbox(MM_gPlayState);
-        }
-        return -1;
-    }
-    const int count = Combo_Crossings_Count(GAME_MM);
-    for (const ShopDoor& door : kDoors) {
-        for (int i = 0; i < count; i++) {
-            ComboCrossing crossing;
-            if (!Combo_Crossings_At(GAME_MM, i, &crossing)) {
-                continue;
-            }
-            const RandoCheckId host = (RandoCheckId)crossing.hostCheck;
-            if (host < door.first || host > door.last) {
-                continue;
-            }
-            const char* foreign = Rando::Foreign::ForeignNameForCheck(host);
-            fprintf(stderr,
-                    "[S2-PLAYTEST] MM shop slot %u (%s) hosts OoT item %u (%s), price %u; walking into %s at noon "
-                    "(crossing %d of %d)\n",
-                    (unsigned)host, Rando::StaticData::Checks[host].name, (unsigned)crossing.item.id,
-                    foreign != nullptr ? foreign : "?", (unsigned)RANDO_SAVE_CHECKS[host].price, door.name, i + 1,
-                    count);
-            fflush(stderr);
-            gSaveContext.save.time = CLOCK_TIME(12, 0);
-            MM_gPlayState->nextEntrance = door.entrance;
-            MM_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-            MM_gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
-            gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
-            sShopPlaytestHost = host;
-            sShopPlaytestItem = crossing.item;
-            return host;
-        }
-    }
-    fprintf(stderr, "[S2-PLAYTEST] no MM-hosted crossing of %d is on a Bomb Shop or Trading Post shelf\n", count);
-    fflush(stderr);
-    return 0;
-}
-
-// Inside the shop (called every live MM frame after the walk, same opt-in): at
-// shop frame 40 log the shelf standing on the host (stock, draw, model answer);
-// at 100 open its own description textbox through the shopkeeper with the cursor
-// on it (the RANDO_DESC_TEXT_ID hook above builds the text); close it at 700; at
-// 760 buy it through the shelf's real canBuy/buy/bought functions, as the
-// shopkeeper does on "I'll buy it"; at 900 log the OoT-bound record and the
-// sold-out state.
-extern "C" void MM_Shop_PlaytestShopFrame(void) {
-    static int sFrame = 0;
-    static int sSharedBefore = -1;
-    PlayState* play = MM_gPlayState;
-    if (sShopPlaytestHost == RC_UNKNOWN || play == nullptr ||
-        (play->sceneId != SCENE_BOMYA && play->sceneId != SCENE_8ITEMSHOP)) {
-        return;
-    }
-    EnGirlA* shelf = nullptr;
-    Actor* keeper = nullptr;
-    for (int cat = 0; cat < ACTORCAT_MAX; cat++) {
-        for (Actor* a = play->actorCtx.actorLists[cat].first; a != nullptr; a = a->next) {
-            if (a->id == ACTOR_EN_GIRLA && a->world.rot.z == (s16)sShopPlaytestHost) {
-                shelf = (EnGirlA*)a;
-            } else if (a->id == ACTOR_EN_OSSAN) {
-                keeper = a;
-            }
-        }
-    }
-    if (shelf == nullptr || keeper == nullptr) {
-        return;
-    }
-    sFrame++;
-    if (sFrame == 20) {
-        // Stand the player at the counter, facing the shelf, so the screenshots
-        // show it close up (the shopkeeper is behind the counter, the shelf on it).
-        Player* player = GET_PLAYER(play);
-        f32 dx = shelf->actor.world.pos.x - keeper->world.pos.x;
-        f32 dz = shelf->actor.world.pos.z - keeper->world.pos.z;
-        const f32 len = sqrtf(dx * dx + dz * dz);
-        if (player != nullptr && len > 1.0f) {
-            player->actor.world.pos.x = shelf->actor.world.pos.x + dx / len * 90.0f;
-            player->actor.world.pos.z = shelf->actor.world.pos.z + dz / len * 90.0f;
-            player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw =
-                MM_Math_Vec3f_Yaw(&player->actor.world.pos, &shelf->actor.world.pos);
-        }
-    }
-    if (sFrame == 40) {
-        ComboModelAnswer answer;
-        const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_MM, sShopPlaytestItem, &answer);
-        fprintf(stderr, "[S2-PLAYTEST] shelf on check %u: foreign=%d outOfStock=%d drawFunc=%s; model answer %s%s\n",
-                (unsigned)sShopPlaytestHost, Rando::Foreign::IsForeignCheck(sShopPlaytestHost) ? 1 : 0,
-                shelf->isOutOfStock ? 1 : 0,
-                shelf->actor.draw == EnGirlA_RandoDrawFunc ? "EnGirlA_RandoDrawFunc" : "other",
-                kind == COMBO_MODEL_ANSWER_DESCRIPTOR    ? "DESCRIPTOR, first list "
-                : kind == COMBO_MODEL_ANSWER_HOST_NATIVE ? "HOST_NATIVE"
-                                                         : "NONE (the model-less stand-in)",
-                kind == COMBO_MODEL_ANSWER_DESCRIPTOR ? answer.model.parts[0].dl : "");
-        fflush(stderr);
-    }
-    // The cursor lives in the shopkeeper's own struct: EnOssan (the Trading
-    // Post, params 0/1) or EnSob1 (the Bomb Shop), as IdentifyActiveShopItem reads it.
-    const bool isOssan = keeper->params <= 1;
-    EnGirlA** items = isOssan ? ((EnOssan*)keeper)->items : ((EnSob1*)keeper)->items;
-    u8* cursor = isOssan ? &((EnOssan*)keeper)->cursorIndex : &((EnSob1*)keeper)->cursorIndex;
-    if (sFrame == 100) {
-        for (u8 i = 0; i < (isOssan ? 8 : 3); i++) {
-            if (items[i] == shelf) {
-                *cursor = i;
-            }
-        }
-        fprintf(stderr, "[S2-PLAYTEST] opening the shelf's description textbox 0x%04X (cursor %u)\n",
-                (unsigned)RANDO_DESC_TEXT_ID, (unsigned)*cursor);
-        fflush(stderr);
-        // In play the player is already talking to the shopkeeper when the shelf's
-        // text opens; Message_OpenText runs the text hook before StartTextbox sets
-        // the talk actor, so set it first, as the conversation would have.
-        play->msgCtx.talkActor = keeper;
-        MM_Message_StartTextbox(play, RANDO_DESC_TEXT_ID, keeper);
-    }
-    if (sFrame == 60) {
-        MM_Playtest_DumpGameFramebuffer("w8-S2-play-shelf");
-    }
-    if (sFrame == 400) {
-        MM_Playtest_DumpGameFramebuffer("w8-S2-play-textbox");
-    }
-    if (sFrame == 700) {
-        MM_Message_CloseTextbox(play);
-    }
-    if (sFrame == 760) {
-        const RandoSaveCheck& check = RANDO_SAVE_CHECKS[sShopPlaytestHost];
-        if (gSaveContext.save.saveInfo.playerData.rupees < (s16)check.price) {
-            gSaveContext.save.saveInfo.playerData.rupees = (s16)check.price;
-        }
-        play->msgCtx.unk1206C = (s16)check.price;
-        sSharedBefore = Combo_CountSharedItems(GAME_OOT, true);
-        const s32 canBuy = shelf->canBuyFunc(play, shelf);
-        fprintf(stderr, "[S2-PLAYTEST] buying check %u at %u rupees (have %d): canBuy=%d\n",
-                (unsigned)sShopPlaytestHost, (unsigned)check.price,
-                (int)gSaveContext.save.saveInfo.playerData.rupees, (int)canBuy);
-        fflush(stderr);
-        if (canBuy == CANBUY_RESULT_SUCCESS_2) {
-            shelf->buyFunc(play, shelf);
-            shelf->boughtFunc(play, shelf);
-        }
-    }
-    if (sFrame == 900) {
-        MM_Playtest_DumpGameFramebuffer("w8-S2-play-sold");
-        fprintf(stderr,
-                "[S2-PLAYTEST] OoT-bound shared-item records: %d before the purchase, %d after; slot obtained=%d; "
-                "sold out for good=%d; outOfStock=%d\n",
-                sSharedBefore, Combo_CountSharedItems(GAME_OOT, true),
-                RANDO_SAVE_CHECKS[sShopPlaytestHost].obtained ? 1 : 0,
-                EnGirlA_RandoSoldOut(sShopPlaytestHost) ? 1 : 0, shelf->isOutOfStock ? 1 : 0);
-        fflush(stderr);
-    }
-}
-#endif // RSBS_SINGLE_EXECUTABLE

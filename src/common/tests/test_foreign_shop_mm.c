@@ -25,6 +25,12 @@
  *     model-less stand-in, never the cover's model.
  *  S5 THE BOMB SHOP OWNER'S HAND (EnSob1_DrawCustomItem): the same, for the one
  *     shop item drawn in an NPC's hand.
+ *  S6 THE HAGS' MUSHROOM SLOT, RE-ARMED: its line (text 0x884) arms the slot
+ *     for CheckQueue's give, and its weekly flags reset every cycle, so a later
+ *     cycle's mushroom reaches it again. Hosting an OoT item already delivered,
+ *     the line must not arm it again (it would offer and "find" the OoT item a
+ *     second time while RecordForeignPickup refuses the crossing). A native slot
+ *     still re-arms every cycle, as in 2Ship.
  *
  * What S4/S5's stand-in legs do NOT prove: in this display-free process the
  * cover's own draw (Rando::CurrentJunkItem with no live frame count) emits no
@@ -51,6 +57,8 @@ int MM_Rando_Foreign_TestIsForeignHostClass(uint16_t randoCheckId);
 int MM_Rando_Foreign_TestCheckIdMax(void);
 int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, int* outIsTingleShop);
 int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired);
+uint16_t MM_EnGirlA_TestHagsMushroomCheck(void);
+void MM_EnGirlA_TestHagsMushroomRearm(int* outFirstArm, int* outCrossed, int* outLaterArm);
 void MM_ForeignModel_TestSetMountOverride(int value);
 int MM_ForeignModel_TestShopDraw(uint16_t mmCheckId, int hand, const ComboModel* want);
 uint16_t MM_ForeignModel_TestBombShopHandCheck(void);
@@ -168,6 +176,23 @@ TestResult Test_ForeignItemGiveShop(void) {
     MM_ForeignModel_TestSetMountOverride(-1);
     ComboContext_Init();
 
+    // ---- S6: the Hags' mushroom slot on a later cycle -------------------------------
+    const uint16_t hagsCheck = MM_EnGirlA_TestHagsMushroomCheck();
+    Combo_ClearSharedItemOutbox();
+    ShopTestPair();
+    FS_ASSERT(Combo_SetForeignPlacement(hagsCheck, hammer) >= 0, "S6 placement accepted");
+    int hagsFirst = -1;
+    int hagsCrossed = -1;
+    int hagsLater = -1;
+    MM_EnGirlA_TestHagsMushroomRearm(&hagsFirst, &hagsCrossed, &hagsLater);
+    ComboContext_Init();
+    Combo_ClearSharedItemOutbox();
+    int nativeFirst = -1;
+    int nativeCrossed = -1;
+    int nativeLater = -1;
+    MM_EnGirlA_TestHagsMushroomRearm(&nativeFirst, &nativeCrossed, &nativeLater);
+    ComboContext_Init();
+
     FS_ASSERT(shopHost == 1, "S1 a shop slot is a foreign host class");
     FS_ASSERT(handHost == 1, "S1 the Bomb Shop owner's hand slot is a foreign host class");
     FS_ASSERT(paired == 0, "S2 buying the OoT item hands it to the shared structure once and sells the slot out "
@@ -178,6 +203,12 @@ TestResult Test_ForeignItemGiveShop(void) {
     FS_ASSERT(shelfStandIn == 0, "S4 with no drawable model the shelf keeps the model-less stand-in, never the cover");
     FS_ASSERT(handDrawn == 0, "S5 the owner's hand draws OoT's Hover Boots model (see the Q-line above)");
     FS_ASSERT(handStandIn == 0, "S5 with no drawable model the hand keeps the model-less stand-in, never the cover");
+    FS_ASSERT(hagsFirst == 1 && hagsCrossed == 1, "S6 the first cycle's mushroom arms the Hags' slot and its OoT item "
+                                                  "crosses (see the S6 lines above)");
+    FS_ASSERT(hagsLater == 0, "S6 a later cycle's mushroom does not re-arm a Hags' slot whose OoT item was delivered "
+                              "(see the S6 lines above)");
+    FS_ASSERT(nativeFirst == 1 && nativeCrossed == 0 && nativeLater == 1,
+              "S6 a native Hags' slot still re-arms every cycle (see the S6 lines above)");
 
     Context_ClearAllFrozenStates();
     Combo_ClearSharedItemOutbox();

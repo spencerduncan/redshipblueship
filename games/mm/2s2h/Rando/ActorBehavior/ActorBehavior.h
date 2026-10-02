@@ -23,6 +23,14 @@ std::string ShopOfferedItemName(RandoCheckId rc, const std::string& nativeName, 
 // A milk-counter slot (EnIn/EnTab) is sold for this cycle, or, hosting a foreign
 // item whose crossing was delivered, for the rest of the game.
 bool ShopCounterSlotSold(RandoCheckId rc);
+// A shelf slot (EnGirlA) is sold out: a native one once its item is no longer
+// obtainable, a foreign-hosting one once its crossing was delivered (it never
+// restocks).
+bool ShopShelfSlotSold(RandoCheckId rc);
+// The Hags' mushroom line (text 0x884) may arm RC_HAGS_POTION_SHOP_ITEM_01 for
+// CheckQueue's give: shuffled, not armed yet, and not a foreign host whose
+// crossing was already delivered on an earlier cycle.
+bool HagsMushroomSlotArmable();
 
 void InitDmChar01Behavior();
 void InitDmChar05Behavior();

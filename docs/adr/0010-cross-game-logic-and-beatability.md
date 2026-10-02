@@ -1756,6 +1756,13 @@ and `Combo_ComboSettingsFrozen`):
 - Crossings go only to hosts whose give path delivers them: the ABI-5 vtable
   entry `hostAcceptsForeign` (OoT: `ACTOR_EN_BOX` chests that are not shops,
   scrubs, merchants or the chest game; MM: `IsForeignHostClass`, Tier-A chests).
+  *Amended 2026-10-01 (#800 pass 1):* plain shop slots host crossings on both
+  sides. OoT also admits an `RCTYPE_SHOP` row drawn by `ACTOR_EN_GIRLA` (a
+  shelf, PR #831); scrubs, merchants and the chest game stay refused. MM's
+  `IsForeignHostClass` is Tier-A chests plus Tier-S shop slots (`RCTYPE_SHOP`:
+  the shelves, the Bomb Shop owner's hand item, the Hags' mushroom slot,
+  Gorman's milk and the Milk Bar; PR #840). Tingle's map slots
+  (`RCTYPE_TINGLE_SHOP`) stay refused (#800 pass 2).
 - MM's engine grants the fixed contents of reached checks outside the host pool
   during expansion (#737), without which beat-both was unprovable on the
   shipped profile.
