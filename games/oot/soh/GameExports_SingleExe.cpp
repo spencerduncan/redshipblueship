@@ -1126,10 +1126,21 @@ static void PfcChestPlaytestWarpFrame(PlayState* play, int frame) {
     fflush(stderr);
 }
 
+// The game framebuffer as a PNG in RSBS_GP_SHOT_DIR (a no-op without it). The
+// function lives in MM's export TU but reads only the shared window's Fast3D
+// interpreter, so it captures whichever game is drawing: OoT here. An outside
+// window capture is black while the desktop is locked (#843).
+extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag);
+
 static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
     static uint16_t sShelf = 0;
     static int sSharedBefore = -1;
     PfcChestPlaytestWarpFrame(play, frame);
+    if ((PfcShopPlaytest() || PfcChestPlaytest()) && (frame == 60 || frame == 400 || frame == 900)) {
+        char tag[48];
+        snprintf(tag, sizeof(tag), "oot-warp-scene%d-frame%d", (int)play->sceneNum, frame);
+        MM_Playtest_DumpGameFramebuffer(tag);
+    }
     if (!PfcShopPlaytest()) {
         return;
     }
