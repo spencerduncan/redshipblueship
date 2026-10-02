@@ -35,9 +35,14 @@
  *      names OoT.
  *   3. Writes nothing (file bytes and commitGeneration unchanged) when the slot
  *      is latched (never armed this session, and refused for identity), when
- *      there is no active slot, and when the departing game has no freeze for
- *      this trip. These legs are green without the fix and go red if a guard is
- *      removed.
+ *      there is no active slot, when the departing game has no freeze for this
+ *      trip, and when the departing half is not a live file (the flush's note,
+ *      Context_NoteDepartureLiveFile). These legs are green without the fix and
+ *      go red if a guard is removed. A control shows the not-live note is spent
+ *      by its own freeze: the next departure commits.
+ *   4. (test_game_lifecycle.c) the lifecycle rows run with no active slot and
+ *      no frozen state, so in an AllTests process their mock switches never
+ *      write an earlier row's armed slot.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++)
  * like test_whole_file_commit.c, so it can use rsbs::SaveManager directly.
@@ -248,6 +253,18 @@ void XcArrangeNoFreezeOoT() {
     mgr.SetActiveSlot(0);
     Context_ClearFrozenState(GAME_OOT);
 }
+// MM's title-screen bootstrap departing: the flush notes "not a live file"
+// (what MM_Combo_DepartureIsLiveFile answers under GAMEMODE_TITLE_SCREEN) and
+// the freeze that follows takes the note.
+void XcArrangeNotLiveMM() {
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.ResetSlotSessionState();
+    mgr.ArmSlotOnCreate(0);
+    mgr.SetActiveSlot(0);
+    XcBlob bootstrap(MM_SAVE_CONTEXT_SIZE, 0x5D);
+    Context_NoteDepartureLiveFile(GAME_MM, 0);
+    Switch_PrepareHotSwap(GAME_MM, bootstrap.data(), bootstrap.size());
+}
 
 }  // namespace
 
@@ -370,6 +387,36 @@ TestResult Test_CrossingCommit(void) {
     }
     if (XcExpectNoWrite("no freeze for this trip", GAME_OOT, XcArrangeNoFreezeOoT) != TEST_PASS) {
         return TEST_FAIL;
+    }
+    if (XcExpectNoWrite("a departing half that is not a live file", GAME_MM, XcArrangeNotLiveMM) != TEST_PASS) {
+        return TEST_FAIL;
+    }
+
+    // Control: the not-live note belongs to ONE freeze. A later freeze of the
+    // same game without a note (the next departure from gameplay) is live, so
+    // the crossing commits; a sticky note would silently stop every later save.
+    {
+        mgr.ResetSlotSessionState();
+        mgr.ArmSlotOnCreate(0);
+        mgr.SetActiveSlot(0);
+        XcBlob bootstrap(MM_SAVE_CONTEXT_SIZE, 0x5D);
+        Context_NoteDepartureLiveFile(GAME_MM, 0);
+        XC_ASSERT(Switch_PrepareHotSwap(GAME_MM, bootstrap.data(), bootstrap.size()) == 1, "control: freeze");
+        XC_ASSERT(Context_FrozenStateIsLiveFile(GAME_MM) == 0, "control: the noted freeze reads not live");
+        XcBlob played(MM_SAVE_CONTEXT_SIZE, 0x5E);
+        XC_ASSERT(Switch_PrepareHotSwap(GAME_MM, played.data(), played.size()) == 1, "control: the next freeze");
+        XC_ASSERT(Context_FrozenStateIsLiveFile(GAME_MM) == 1, "control: a freeze without a note is live");
+        GameRunner rc;
+        GameRunner_Init(&rc);
+        GameRunner_RegisterGame(&rc, GAME_OOT, &sXcOoTQuiet);
+        GameRunner_RegisterGame(&rc, GAME_MM, &sXcMMQuiet);
+        GameRunner_StartGame(&rc, GAME_MM, 0, nullptr);
+        const uint32_t genBefore = gComboCtx.commitGeneration;
+        XC_ASSERT(GameRunner_SwitchTo(&rc, GAME_OOT, 0, nullptr) == 0, "control: the switch");
+        XC_ASSERT(gComboCtx.commitGeneration == genBefore + 1,
+                  "control: the not-live note is spent by its freeze; the next live departure commits");
+        XC_ASSERT(Switch_CommitCrossing(GAME_MM, GAME_MM) == 0 && Switch_CommitCrossing(GAME_NONE, GAME_OOT) == 0,
+                  "a crossing needs two different real games");
     }
 
     XcCleanup();

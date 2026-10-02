@@ -45,7 +45,13 @@
   autosave point if and only if the MM Autosave enhancement is on — a
   whole-file commit after the revive, with the enhancement's own interval
   clock reset — and writes nothing at the death moment with it off. Also
-  carves no bytes.
+  carves no bytes. *(2026-10-01: the "writes nothing" half no longer holds
+  for the switch that follows the exit — decision 4c below makes every
+  crossing a commit. The death moment itself is still unwritten with
+  Autosave off.)*
+  **Decision 4c (ruled 2026-10-01, [#837](https://github.com/spencerduncan/redshipblueship/issues/837))**:
+  every cross-game crossing (door or F10, either direction) is a whole-file
+  commit, as OoTMM saves at every game switch. Carves no bytes.
 - Depends on:
   - **[ADR 0002](0002-origin-tagged-shared-items.md)** (Accepted) — the origin-tag
     invariant and the `ComboContext` growth contract every carve below obeys.
@@ -390,6 +396,9 @@ at load, rendered as `[STALE: cross-game progress is newer than the OoT save]`
 staging) and the other half from its frozen shadow, which is that half's true
 state as of when it was last live. One monotonic generation, one instant, one
 choke point (`rsbs::SaveManager::StageCommit`). No route commits a half.
+*(2026-10-01, decision 4c: at a CROSSING commit no half is live — the
+departing half is its departure freeze, which is exactly what that game will
+resume from, and the target's half is its own frozen shadow.)*
 
 The generation this decision turns into an authority is `commitGeneration`,
 already carved by #569 — **row 8 of the budget table below**, which the
@@ -498,6 +507,12 @@ not a teardown.
 > next commit (the behaviour PR #625 shipped). This is explicitly NOT a
 > rollback of MM's half; an independent half-rollback is the #531 loss
 > mechanism.*
+>
+> *2026-10-01 note (decision 4c): "rides in RAM until OoT's next commit" is
+> overturned for the switch. The exit is a crossing, and every crossing now
+> commits the whole file, so the revived half becomes durable at the switch
+> that follows the exit, whatever the Autosave setting. The sentences are kept
+> for the trail.*
 
 **The question.** #590 was the death-path twin of #532: the game-over
 "don't continue" leg in `z_kaleido_scope_NES.c` entered MM's TitleSetup, which
@@ -515,7 +530,9 @@ decline is not a quit — the OoT session is still live behind the player, and
 the revived half already reaches durability through seams that exist: the
 launcher freeze publishes it into MM's shadow, and OoT's next commit
 (autosave, save point, or the `OnExitGame` quit that *is* a 4a commit) carries
-it as MM's half of one whole-file generation. Committing at the seam would
+it as MM's half of one whole-file generation. *(2026-10-01, decision 4c: the
+crossing commit that follows the exit now carries it, before OoT runs a
+frame.)* Committing at the seam would
 therefore not create durability; it would decide *when* the revived half
 becomes durable — and, because MM's commit body harvests, that dying and
 declining fires the shared-resource harvest. That is a semantics call, which
@@ -538,7 +555,11 @@ so the periodic save does not fire again seconds later for no new state.
 *Autosave off.* Nothing is written at the death moment. The revived half rides
 in RAM until OoT's next commit — #625's shipped behaviour, now chosen rather
 than deferred. This is the vanilla-style answer: a player who turned Autosave
-off has asked that state become durable only when they save.
+off has asked that state become durable only when they save. *(2026-10-01,
+overturned for the switch by decision 4c: the death moment still writes
+nothing, but the switch the exit requests is a crossing, and a crossing is
+durable whatever the Autosave setting. With Autosave on, the exit's own commit
+and the crossing commit land back to back, which is harmless.)*
 
 **Why the enhancement is the switch.** "How often does state become durable
 without the player asking for it" is exactly the question the Autosave
@@ -586,6 +607,71 @@ movement — and it never commits a half. Anyone touching
 `mm-death-decline-autosave` (`games/mm/2s2h/mm_death_decline_autosave_test.cpp`,
 CTest label `redship`), which drives the real exit both ways and asserts the
 committed Tier-3 carries the revived bar.
+
+### Decision 4c — every cross-game crossing is a WHOLE-FILE COMMIT
+
+> **2026-10-01, operator ruling on decision 16 (the moon-crash scope PR #789
+> and [#803](https://github.com/spencerduncan/redshipblueship/issues/803) left
+> open), scoped by [#837](https://github.com/spencerduncan/redshipblueship/issues/837).**
+> *Option (b): every cross-game crossing is a save commit, as OoTMM's
+> `comboGameSwitch` saves at every game switch. The F10 hot swap is a
+> crossing.*
+
+**What was true before.** A crossing froze the departing half into its shadow
+and signalled the launcher; nothing reached disk. The `.redsave` held the last
+*save*, so a process kill after a crossing reloaded a world in which the
+crossing never happened, and a moon crash in MM restored the last commit,
+which rolled OoT's half back to it (#803). Decision 4b's "Autosave off" answer
+relied on that: the revived half "rides in RAM until OoT's next commit".
+
+**The decision.** `Switch_CommitCrossing` (`src/common/switch.cpp`) commits the
+whole file at every crossing. `GameRunner_SwitchTo` calls it between the
+departing game's `suspend` and the target's `resume`/`init` — the one point
+on both triggers (door and F10, and the MM owl-save and game-over exits that
+ask the launcher for a switch) that comes after the suspend has moved the
+staged pickups into Tier-1 and harvested the pool, and before the target's
+`Play_Init` consumes its shadow and redeems. At that instant both shadows are
+whole: the departing one is its departure freeze, the target's still holds its
+own last departure (or the half a load or the creation armed).
+
+- *The departing half is the freeze*, not a fresh copy of the live
+  `gSaveContext`: the freeze is what that game resumes from. No harvest (the
+  suspend did it) and no shadow refresh.
+- *`sourceGame` = the target* (#564 V22): one stamp per direction change, so
+  the Save Files page's "Last played" names the game the player went to. No
+  load reads the field.
+- *Synchronous*, as MM's capture already is: the target starts only after the
+  rename. A failed write is logged and the crossing proceeds — refusing a door
+  because the disk is full would trap the player; the generation then runs
+  ahead of the file, which the moon-crash restore already reads as "nothing
+  restored".
+- *No `.sav` write.* OoTMM's `Save_Write` writes both games, but here SoH writes
+  the `.sav` before the `.redsave`, so a kill between the two would leave a
+  `.sav`-newer pair that the next load refuses; and the `.sav` would serialize
+  the live `gSaveContext`, not the freeze. A crossing commit is therefore always
+  `.redsave`-newer, which decision 4's read rule already handles (Tier-2 is the
+  authority).
+
+**What writes nothing** (one stderr line says why; none contains the word the
+integration rows' refusal check looks for): the departing game has no freeze
+for this trip; the departing half is not a live file (`Combo_SaveIsLiveFile` on
+its `gameMode`, decided by the freeze driver beside the flush — MM's title
+screen bootstrap is the case); there is no active slot (debug saves, an
+invalidated session); the slot is not writable this session (latched, or
+refused — a refused paired file is never played paired, #836).
+
+**Where Link wakes on reload.** Nothing is stamped into the frozen half. OoT's
+`Sram_OpenSave` places Link by `savedSceneNum`, which only a save writes: the
+dungeon entrance when the last OoT save was in a dungeon, otherwise Link's
+House (child) or the Temple of Time (adult). That is the path an MM owl save's
+reload already takes; `crossing-commit` asserts the committed OoT half is the
+freeze byte for byte.
+
+**What it overturns.** Decision 4b's "Autosave off" sentences, for the switch
+(noted in place above); the moon-crash restore no longer rolls OoT back,
+because every commit it can accept now carries OoT's half as it is. Lock:
+`crossing-commit` (`src/common/tests/test_crossing_commit.c`, CTest label
+`redship`), plus the #803 tripwire in `mm-creation-new-file`.
 
 ---
 
