@@ -65,6 +65,9 @@
  *                -> REFUSED
  *            12  no blob, the live save already rando: another pair's world
  *                -> REFUSED; this pair's world -> reported, slot writable
+ *   leg 13 — a VANILLA half (no seed) armed under a live pairing (#564 V7,
+ *           #836 PR 2) -> REFUSED before the consume, the slot latched with
+ *           RSBS_REFUSE_GENERATION, the missing-half toast
  *
  * THE TOAST COPY. Every refusal leg also compares the toast its production site
  * queued with MM_Rando_EmitPairingRefusalToast's copy
@@ -795,11 +798,49 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
         }
     }
 
+    // Leg 13 — a VANILLA half (no seed, vanilla type byte) armed under a live
+    // pairing (#564 V7, #836 PR 2): this file has no Majora's Mask world, so the
+    // gate refuses before the consume. It used to be hydrated (the repair leg
+    // needs a seed) and Termina played vanilla under a live pairing, unlatched,
+    // so MM's captures committed the vanilla half back.
+    {
+        ComboContext_Init();
+        ArmPairing();
+        gComboCtx.mmPairedAttempt = 1;
+        if (!ArmHalf(SAVETYPE_VANILLA, 0u)) {
+            return Fail(140, "leg 13 setup: the authored half did not arm");
+        }
+        ResetRefusalSurface();
+        int consumed = 0;
+        const int refused = RunConsumingArrival(&consumed);
+        if (refused < 0) {
+            return 99;
+        }
+        printf("[TEST] leg 13 OBSERVED: vanilla MM half under a live pairing: refused=%d consumed=%d writable=%d "
+               "reason=%d stillArmed=%d\n",
+               refused, consumed, RsbsSave_IsSlotWritable(kSlot), RsbsSave_GetSlotRefuseReason(kSlot),
+               Context_HasFrozenState(GAME_MM) ? 1 : 0);
+        if (refused != 1 || consumed != 0 || !Context_HasFrozenState(GAME_MM)) {
+            return Fail(141,
+                        "leg 13: a vanilla MM half under a live pairing was hydrated (refused=%d consumed=%d) — "
+                        "Termina plays vanilla under the pairing and the half is committed back (#564 V7)",
+                        refused, consumed);
+        }
+        if (RsbsSave_IsSlotWritable(kSlot) != 0 ||
+            RsbsSave_GetSlotRefuseReason(kSlot) != (int)RSBS_REFUSE_GENERATION) {
+            return Fail(142, "leg 13: the slot is writable or its reason is %d, expected RSBS_REFUSE_GENERATION",
+                        RsbsSave_GetSlotRefuseReason(kSlot));
+        }
+        if (int rc = AssertToastIs(143, "leg 13 (vanilla MM half)", RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr)) {
+            return rc;
+        }
+    }
+
     Context_ClearFrozenState(GAME_MM);
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     ComboContext_Init();
     RsbsSave_ResetSlotSessionState();
-    printf("[TEST] PASS: the arrival gate refuses a divergent combo record by name and freezes a legacy pair's "
+    printf("[TEST] PASS:the arrival gate refuses a divergent combo record by name and freezes a legacy pair's "
            "shipped defaults; the profile, rules and missing-half refusal sites queue the refusal emitter's copy; an "
            "MM half from another pair is refused, never adopted or re-stamped, while this pair's half hydrates\n");
     return 0;

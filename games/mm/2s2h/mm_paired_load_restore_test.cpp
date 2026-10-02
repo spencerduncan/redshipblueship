@@ -84,6 +84,12 @@
  *           divergence plus an MM-profile divergence (the probe writes no key
  *           and the load that follows restores both); a vanilla file with no
  *           record
+ *   leg 8 - #836 PR 2 (#564 V7, V11): a paired record whose MM half is vanilla
+ *           (no seed) or another pair's world (a seed this pair's master seed
+ *           does not derive) -> REFUSED at the file select ("This file has no
+ *           Majora's Mask world"), nothing moved, the page says the same, the
+ *           open path's load refuses; this pair's half under a lost type byte
+ *           is still accepted (the arrival repairs it)
  *
  * Every leg loads through Context_InvalidateSessionOnSlotLoad +
  * RsbsSave_SetActiveSlot + RsbsSave_LoadSlotForOpen, the OnLoadFile seam's exact
@@ -1198,6 +1204,90 @@ int LegProbeAccepts() {
     return 0;
 }
 
+// ---------------------------------------------------------------------------
+// Leg 8 (#836 PR 2, #564 V7 and V11): a paired record whose MM half is not
+// this pair's world. A VANILLA half (no seed, a vanilla type byte: what a
+// pre-#680 arrival whose generation failed and reverted left behind) and
+// ANOTHER PAIR's half (a randomizer half whose seed this pair's master seed
+// does not derive from its options: a hand-mixed .redsave) are refused at the
+// file select in the all-zero half's words. This pair's half under a lost type
+// byte (the moon-crash shape the arrival repairs) is still accepted.
+// ---------------------------------------------------------------------------
+size_t HalfFieldOffset(const std::vector<uint8_t>& f, size_t field) {
+    return Tier3Offset(f) + field;
+}
+
+int LegProbeMmHalfNotThisPairs() {
+    int rc = 0;
+    auto note = [&rc](int legRc) {
+        if (rc == 0) {
+            rc = legRc;
+        }
+    };
+    struct Half {
+        const char* what;
+        RsbsRefuseReason reason;
+        void (*mutate)(std::vector<uint8_t>&);
+    };
+    const Half refused[] = {
+        { "vanilla MM half", RSBS_REFUSE_GENERATION,
+          [](std::vector<uint8_t>& f) {
+              f[HalfFieldOffset(f, offsetof(SaveContext, save.shipSaveInfo.saveType))] = (uint8_t)SAVETYPE_VANILLA;
+              PlrPutU32(f, HalfFieldOffset(f, offsetof(SaveContext, save.shipSaveInfo.rando.finalSeed)), 0u);
+          } },
+        { "another pair's MM half", RSBS_REFUSE_IDENTITY,
+          [](std::vector<uint8_t>& f) {
+              const size_t at = HalfFieldOffset(f, offsetof(SaveContext, save.shipSaveInfo.rando.finalSeed));
+              PlrPutU32(f, at, PlrU32At(f, at) ^ 0x00F0F0F0u);
+          } },
+    };
+    int code = 120;
+    for (const Half& h : refused) {
+        if (int setup = PairedFileThen(true, h.mutate)) {
+            return setup;
+        }
+        const ProbeResult probe = Probe(1);
+        const int reason = RsbsSave_GetSlotRefuseReason(kSlot);
+        const std::string page = SaveFilesStatus();
+        const int load = LoadThroughProductionSeam();
+        const bool paired = Combo_ForeignPairingActive();
+        printf("[TEST] leg 8 (%s) OBSERVED: probe=%d reason=%d words='%s' moved='%s' page='%s' load rc=%d "
+               "paired=%d writable=%d\n",
+               h.what, probe.outcome, reason, probe.words.c_str(), probe.moved.c_str(), page.c_str(), load,
+               paired ? 1 : 0, RsbsSave_IsSlotWritable(kSlot));
+        if (probe.outcome != RSBS_LOAD_REFUSED || reason != (int)h.reason ||
+            probe.words != "This file has no Majora's Mask world") {
+            note(Fail(code,
+                      "leg 8 (%s): a paired record whose MM half is not this pair's world was not refused at the "
+                      "file select with the no-world words (#564 %s)",
+                      h.what, h.reason == RSBS_REFUSE_GENERATION ? "V7" : "V11"));
+        } else if (!probe.moved.empty()) {
+            note(Fail(code + 1, "leg 8 (%s): the probe moved %s", h.what, probe.moved.c_str()));
+        } else if (page != "Not paired: " + probe.words) {
+            note(Fail(code + 2, "leg 8 (%s): the Save Files page reads '%s', not the probe's words", h.what,
+                      page.c_str()));
+        } else if (load != RSBS_LOAD_REFUSED || paired || RsbsSave_IsSlotWritable(kSlot) != 0) {
+            note(Fail(code + 3, "leg 8 (%s): the open path's load committed the pair", h.what));
+        }
+        code += 5;
+    }
+
+    // Control: this pair's half under a lost type byte is this pair's world.
+    if (int setup = PairedFileThen(true, [](std::vector<uint8_t>& f) {
+            f[HalfFieldOffset(f, offsetof(SaveContext, save.shipSaveInfo.saveType))] = (uint8_t)SAVETYPE_VANILLA;
+        })) {
+        return setup;
+    }
+    const ProbeResult own = Probe(1);
+    const int load = LoadThroughProductionSeam();
+    printf("[TEST] leg 8 (this pair's half, lost type byte) OBSERVED: probe=%d moved='%s' load rc=%d paired=%d\n",
+           own.outcome, own.moved.c_str(), load, Combo_ForeignPairingActive() ? 1 : 0);
+    if (own.outcome != RSBS_LOAD_OK || !own.moved.empty() || load != RSBS_LOAD_OK || !Combo_ForeignPairingActive()) {
+        note(Fail(130, "leg 8: this pair's own half under a lost type byte was refused (the arrival repairs it)"));
+    }
+    return rc;
+}
+
 } // namespace
 
 extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
@@ -1218,7 +1308,8 @@ extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
     // observed state; the first failure is the row's result.
     int rc = 0;
     int (*const legs[])() = { LegCrossGameRules,   LegMmProfile, LegMmTrickOnly,   LegMmManyTricks, LegRoundTrip,
-                              LegUnrestorableRule, LegRollback,  LegProbeRefusals, LegProbeAccepts };
+                              LegUnrestorableRule, LegRollback,  LegProbeRefusals, LegProbeAccepts,
+                              LegProbeMmHalfNotThisPairs };
     for (auto leg : legs) {
         const int legRc = leg();
         if (rc == 0) {
