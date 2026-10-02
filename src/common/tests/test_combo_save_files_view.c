@@ -42,8 +42,9 @@
  *   D. The note: one case per situation (no record anywhere, every file pairs,
  *      one does not, a backup kept), each opening with different words, each
  *      within the note budget (R-X1: two sentences, 200 characters), none
- *      claiming there are no save files, and the not-paired note saying what a
- *      refused session does (nothing saved to the pair, Termina un-randomized).
+ *      claiming there are no save files, and the refused note saying what a
+ *      refused file does (it does not open, #836) and the two ways out (a good
+ *      copy of its record put back, or the erase).
  *
  * Included at FILE SCOPE by test_runner.cpp (compiled as C++).
  */
@@ -123,7 +124,7 @@ TestResult Test_ComboSaveFilesView(void) {
     int failures = 0;
 
     // ---- A. Every refusal reason has the page's own words ----------------------
-    for (int r = RSBS_REFUSE_UNREADABLE; r <= RSBS_REFUSE_CROSSINGS; r++) {
+    for (int r = RSBS_REFUSE_UNREADABLE; r <= RSBS_REFUSE_MISSING; r++) {
         const RsbsRefuseReason reason = static_cast<RsbsRefuseReason>(r);
         const char* text = Combo_SaveFiles_RefuseText(reason);
         CSF_ASSERT(text != nullptr && text[0] != '\0', "refusal reason %d has no player words", r);
@@ -421,13 +422,14 @@ TestResult Test_ComboSaveFilesView(void) {
                    notes[0].c_str());
         CSF_ASSERT(notes[1].rfind("Each file holds both games", 0) == 0, "the all-ready note is \"%s\"",
                    notes[1].c_str());
-        CSF_ASSERT(notes[2].find("not paired") != std::string::npos, "the refused note is \"%s\"", notes[2].c_str());
-        // What every refusal does to the session: nothing saved to the pair,
-        // Majora's Mask un-randomized. Never "without its Majora's Mask half".
-        CSF_ASSERT(notes[2].find("saves nothing") != std::string::npos &&
-                       notes[2].find("un-randomized") != std::string::npos &&
-                       notes[2].find("without its") == std::string::npos,
-                   "the refused note does not say what a refused session does: \"%s\"", notes[2].c_str());
+        // What a refusal does (#836, operator ruling 2026-10-01): the file does
+        // not open. Never the retired unpaired-play words.
+        CSF_ASSERT(notes[2].rfind("A refused file does not open", 0) == 0, "the refused note is \"%s\"",
+                   notes[2].c_str());
+        CSF_ASSERT(notes[2].find("good copy") != std::string::npos && notes[2].find("erase") != std::string::npos &&
+                       notes[2].find("un-randomized") == std::string::npos &&
+                       notes[2].find("saves nothing") == std::string::npos,
+                   "the refused note does not name the two ways out of a refused file: \"%s\"", notes[2].c_str());
         CSF_ASSERT(notes[3].find("backup") != std::string::npos, "the backup note is \"%s\"", notes[3].c_str());
         for (int i = 0; i < 4; i++) {
             CSF_ASSERT(!notes[i].empty() && notes[i].size() <= 200, "note %d is %zu characters", i, notes[i].size());

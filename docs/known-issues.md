@@ -264,16 +264,19 @@ an older file has no record to compare and is exempt).
 What happens at the crossing depends on whether the file entered Majora's Mask before
 #680:
 
-- **Never crossed:** it has no frozen MM half. The **first crossing into Majora's Mask**
-  is refused with a toast saying the file has no paired Majora's Mask world, rather than
-  silently re-generating the world: Termina stays un-randomized and the slot is latched
-  against writes to the pair for the rest of the session.
+- **Never crossed:** it has no frozen MM half. ~~The first crossing into Majora's Mask
+  is refused with a toast saying the file has no paired Majora's Mask world: Termina
+  stays un-randomized and the slot is latched against writes to the pair for the rest
+  of the session.~~ **RESOLVED (#836):** the file is not opened. Pressing A on it in the
+  Ocarina of Time file select plays the error sound, posts "Not paired: This file has no
+  Majora's Mask world", and keeps you on the file list. Nothing is written.
 - **Crossed before #680:** it carries the MM half the old arrival generated, and the
   arrival hydrates whatever frozen half it finds. It either plays that old pre-#680 MM
   world, or, if its creation-time MM profile stamp no longer matches this build's MM
-  options, the load restores the options from that half when they reproduce the stamp,
-  and otherwise warns at load ("Not restored: Majora's Mask options differ") and the
-  crossing is refused by the MM-options check. Which one a given file meets cannot be
+  options, the load restores the options from that half when they reproduce the stamp.
+  ~~Otherwise it warns at load ("Not restored: Majora's Mask options differ") and the
+  crossing is refused by the MM-options check.~~ **RESOLVED (#836):** otherwise the file
+  is not opened ("Not paired: Majora's Mask options differ" at the file select). Which one a given file meets cannot be
   decided by reading.
 
 This project is pre-release — the operator has accepted invalidating existing saves
@@ -447,18 +450,28 @@ the pages:
 
 The file loads paired, the slot stays writable, and the next crossing into Majora's Mask
 agrees with the file. The cases the file cannot answer stay visible instead of silent:
-- an MM identity input the file does not record (the excluded-check list or the
+- ~~an MM identity input the file does not record (the excluded-check list or the
   starting-item block, which no page in this build edits) loads the file paired but
   posts "Not restored: Majora's Mask options differ", and the crossing is refused until
-  they match;
+  they match;~~ **RESOLVED (#836):** such a file is not opened ("Not paired: Majora's
+  Mask options differ" at the file select);
 - a Cross-Game record field no page authors (only a file from another build can differ
-  there) refuses the load with "Not paired: File made by another build" (a damaged
-  record: "Not paired: Cross-game record is damaged"). The field names are on stderr.
-  The OoT file still opens and plays without its Majora's Mask half, because the load
-  runs after OoT has opened the file; the next crossing into Majora's Mask says so
-  ("Not paired: Termina stays un-randomized") instead of skipping pairing
-  silently. Nothing is saved to the pair that session. This residual is reachable only
-  from another build's file or a damaged one (ADR 0011, 2026-09-28 amendment).
+  there) is refused with "Not paired: File made by another build" (a damaged record:
+  "Not paired: Cross-game record is damaged"). The field names are on stderr. ~~The OoT
+  file still opens and plays without its Majora's Mask half, because the load runs after
+  OoT has opened the file; the next crossing into Majora's Mask says so ("Not paired:
+  Termina stays un-randomized") instead of skipping pairing silently. Nothing is saved
+  to the pair that session.~~ **RESOLVED (#836, operator ruling 2026-10-01: "unpaired is
+  not an acceptable scenario"):** a refused file is not opened. Pressing A on it in the
+  Ocarina of Time file select plays the error sound, posts the refusal toast, and keeps
+  you on the file list; Combo > Save Files shows the same words. The same applies to a
+  randomizer file whose cross-game record is missing ("Cross-game record is missing":
+  a deleted record, or a file made with the file select's Copy, which copies Ocarina of
+  Time's file only) and to every damaged record. Nothing is written, renamed or deleted.
+  Two ways out: put a good copy of `Save/redship_slot<N>.redsave` back (N = file
+  number - 1) and open the file again, or erase the file in the file select. A
+  `.refused-*.bak` left by an earlier build is worth renaming back only when its
+  refusal was not damage; "File made by another build" opens in that build.
 
 The original report, kept only for matching old logs (historical; it describes the
 behaviour before the fix):

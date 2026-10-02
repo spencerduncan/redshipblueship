@@ -644,25 +644,35 @@ static void RetractFailedPairedCreation(int slot) {
 
 extern "C" int OoT_RunPairedCreationEvent(int slot) {
     if (!Combo_ForeignPairingActive()) {
-        // A vanilla file, or a rando file whose stamp the KEEP identity check
-        // discarded (#597). Nothing to author; not a failure — UNLESS OoT's world
-        // is a paired generation's, waiting at its general pass for a single-bag
-        // fill that can now never run (the pairing it was generated for is gone:
-        // a creation that failed and retracted it, or a stamp discarded since).
-        // That world has no general pass at all, so a file created from it would
-        // be missing most of OoT's items. Refused, the same way a failed creation
-        // is (ADR 0010 increment 3, lane K11): the player generates again.
+        // A randomizer file with no pairing identity: a world loaded from a solo
+        // OoT spoiler (no "combo" section), or one whose stamp the KEEP identity
+        // check discarded (#597). Every randomizer file in this build is a
+        // paired file, and the file select refuses to open one without its
+        // pairing (#836), so creating it would write a file nobody can open.
+        // Refused as a creation failure instead: nothing is written, the player
+        // generates again or loads a paired spoiler. (Only randomizer files
+        // reach this seam: OoT_Sram_InitSave calls it for isRandoFile only.)
+        // A world generated for a paired creation and left waiting at its
+        // general pass lands here too, and names its own cause.
         if (OoT_ComboLogic_GeneralPassDeferred() != 0) {
             fprintf(stderr,
                     "[OoT] creation event: slot %d REFUSED — OoT's world was generated for a paired creation that no "
                     "longer has an identity, and its general pass was never placed; generate the seed again\n",
                     slot);
-            fflush(stderr);
-            RsbsSave_RefuseSlotGeneration(slot);
-            OoT_Creation_ReportFailureAtFileSelect(slot, 0);
-            return 0;
+        } else {
+            fprintf(stderr,
+                    "[OoT] creation event: slot %d REFUSED — the randomizer world has no cross-game pairing identity "
+                    "(a solo spoiler, or a discarded stamp); a file created from it could not be opened (#836)\n",
+                    slot);
         }
-        return 1;
+        fflush(stderr);
+        // RetractFailedPairedCreation's player surface (the #533 slot latch and
+        // the "Not created:" toast). There is no identity to retract and no
+        // progress session was opened, so the rest of the retraction has nothing
+        // to undo.
+        RsbsSave_RefuseSlotGeneration(slot);
+        OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+        return 0;
     }
 
     // The pre-Fill gate's answer, read HERE FROM THE FROZEN RECORD rather than
