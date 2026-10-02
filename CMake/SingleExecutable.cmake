@@ -139,6 +139,11 @@ set(REDSHIP_COMMON_SOURCES
     # ORIGIN game answers through, and the host-native mapping seam for object
     # directories both archives carry. Game-header-free.
     ${CMAKE_SOURCE_DIR}/src/common/foreign_model.c
+    # The curated cross-game archives those models are drawn from, generated on
+    # the player's machine (#806): a C++ port of scripts/make_redship_otr.py's
+    # rules over the embedded assets/crossgame/manifest.txt, run at boot.
+    # Game-header-free.
+    ${CMAKE_SOURCE_DIR}/src/common/curated_archives.cpp
     # The Combo > Save Files page's model: each .redsave slot's state in the
     # player's words (lane W5, 2026-09-28; it replaces the never-constructed
     # ComboMenuBar panel). Game-header-free. APPENDED, never reordered.
@@ -198,6 +203,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_model.h
+    ${CMAKE_SOURCE_DIR}/src/common/curated_archives.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
@@ -282,6 +288,28 @@ target_link_libraries(redship_common PUBLIC
 # THIRD_PARTY_NOTICES.md) and decodes them through libultraship's `stb` target
 # (stb_image). PRIVATE: nothing else in redship_common needs either.
 target_link_libraries(redship_common PRIVATE PNG::PNG stb)
+
+# curated_archives.cpp (#806) reads the extracted game archives and writes the
+# two curated halves through libzip -- the library libultraship already
+# requires on every platform (libultraship/src/CMakeLists.txt), found again
+# here because that find_package's imported target is scoped to its own
+# directory. PRIVATE: nothing else in redship_common needs it.
+find_package(libzip REQUIRED)
+target_link_libraries(redship_common PRIVATE libzip::zip)
+
+# The manifest ships INSIDE the binary (#806): the in-app generator needs it on
+# a player's machine, where no source tree exists, and embedding it keeps
+# assets/crossgame/manifest.txt the one source both generators read. Re-embedded
+# whenever the manifest changes (CMAKE_CONFIGURE_DEPENDS); file(CONFIGURE)
+# rewrites the header only when its content changed.
+set(RSBS_CURATED_MANIFEST ${CMAKE_SOURCE_DIR}/assets/crossgame/manifest.txt)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${RSBS_CURATED_MANIFEST})
+file(READ ${RSBS_CURATED_MANIFEST} _rsbs_manifest_hex HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," _rsbs_manifest_bytes "${_rsbs_manifest_hex}")
+file(CONFIGURE OUTPUT ${CMAKE_BINARY_DIR}/generated/rsbs_curated_manifest.h
+     CONTENT "// Generated from assets/crossgame/manifest.txt by CMake/SingleExecutable.cmake (#806). Do not edit.\n#pragma once\nstatic const unsigned char kRsbsCuratedManifest[] = { ${_rsbs_manifest_bytes} };\n"
+     @ONLY)
+target_include_directories(redship_common PRIVATE ${CMAKE_BINARY_DIR}/generated)
 
 # Define COMBO_BUILDING_DLL so SharedGraphics exports symbols with __declspec(dllexport)
 target_compile_definitions(redship_common PRIVATE COMBO_BUILDING_DLL)
@@ -703,6 +731,15 @@ if(BUILD_TESTING)
     # and a configured Python interpreter.
     redship_add_test(NAME CuratedArchiveGenerator COMMAND redship --test curated-archive-generator)
     set_tests_properties(CuratedArchiveGenerator PROPERTIES SKIP_RETURN_CODE 77)
+    # #806 in-app curated-archive lock: packaged builds have no GenerateRedshipOtr,
+    # so the game itself generates both halves after extraction
+    # (src/common/curated_archives.cpp). ROM-free: over synthetic archives the
+    # C++ generator must write the same entries, payloads and stamp as
+    # make_redship_otr.py for the same manifest, refuse what it refuses (writing
+    # nothing), and regenerate a missing or stale-stamped half while leaving a
+    # current one untouched. A further leg compares both generators over the real
+    # extracted archives and reports itself skipped when they are not staged.
+    redship_add_test(NAME CuratedArchiveInApp COMMAND redship --test curated-archive-inapp)
     # Unified save (.redsave) headless tests — Phase 2 T6 (#35)
     redship_add_test(NAME SaveRoundtripTiers COMMAND redship --test save-roundtrip-tiers)
     redship_add_test(NAME SaveHeader COMMAND redship --test save-header)
