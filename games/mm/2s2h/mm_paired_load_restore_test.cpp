@@ -287,7 +287,7 @@ struct World {
     int activeSlot = -1;
 };
 
-std::vector<uint8_t> ReadAll(const std::string& path) {
+std::vector<uint8_t> PlrReadAll(const std::string& path) {
     std::vector<uint8_t> out;
     FILE* f = fopen(path.c_str(), "rb");
     if (f == nullptr) {
@@ -302,7 +302,7 @@ std::vector<uint8_t> ReadAll(const std::string& path) {
     return out;
 }
 
-void WriteAll(const std::string& path, const std::vector<uint8_t>& bytes) {
+void PlrWriteAll(const std::string& path, const std::vector<uint8_t>& bytes) {
     FILE* f = fopen(path.c_str(), "wb");
     if (f != nullptr) {
         fwrite(bytes.data(), 1, bytes.size(), f);
@@ -316,7 +316,7 @@ World Snap() {
     std::error_code ec;
     w.slotExists = std::filesystem::is_regular_file(path, ec);
     if (w.slotExists) {
-        w.slotBytes = ReadAll(path);
+        w.slotBytes = PlrReadAll(path);
     }
     for (const auto& entry : std::filesystem::directory_iterator(kScratchSaveDir, ec)) {
         const std::string name = entry.path().filename().string();
@@ -391,26 +391,26 @@ constexpr size_t kHdrComboSize = 16;
 constexpr size_t kHdrCrc = 28;
 constexpr size_t kTier1 = 32;
 
-uint32_t U32At(const std::vector<uint8_t>& f, size_t at) {
+uint32_t PlrU32At(const std::vector<uint8_t>& f, size_t at) {
     uint32_t v = 0;
     memcpy(&v, f.data() + at, sizeof(v));
     return v;
 }
 
-void PutU32(std::vector<uint8_t>& f, size_t at, uint32_t v) {
+void PlrPutU32(std::vector<uint8_t>& f, size_t at, uint32_t v) {
     memcpy(f.data() + at, &v, sizeof(v));
 }
 
-void Recrc(std::vector<uint8_t>& f) {
-    PutU32(f, kHdrCrc, rsbs::SaveManager::Crc32(f.data() + 32, f.size() - 32));
+void PlrRecrc(std::vector<uint8_t>& f) {
+    PlrPutU32(f, kHdrCrc, rsbs::SaveManager::Crc32(f.data() + 32, f.size() - 32));
 }
 
 size_t Tier3Offset(const std::vector<uint8_t>& f) {
-    return kTier1 + U32At(f, kHdrComboSize) + U32At(f, kHdrComboSize + 4);
+    return kTier1 + PlrU32At(f, kHdrComboSize) + PlrU32At(f, kHdrComboSize + 4);
 }
 
 size_t Tier4Offset(const std::vector<uint8_t>& f) {
-    return Tier3Offset(f) + U32At(f, kHdrComboSize + 8);
+    return Tier3Offset(f) + PlrU32At(f, kHdrComboSize + 8);
 }
 
 const ComboMMTrickDesc* FirstSettableTrick() {
@@ -1004,12 +1004,12 @@ template <typename F> int PairedFileThen(bool recrc, F mutate) {
         return rc;
     }
     const std::string path = rsbs::SaveManager::Instance().SlotPath(kSlot);
-    std::vector<uint8_t> bytes = ReadAll(path);
+    std::vector<uint8_t> bytes = PlrReadAll(path);
     mutate(bytes);
     if (recrc) {
-        Recrc(bytes);
+        PlrRecrc(bytes);
     }
-    WriteAll(path, bytes);
+    PlrWriteAll(path, bytes);
     Relaunch();
     return 0;
 }
@@ -1030,9 +1030,9 @@ int LegProbeRefusals() {
     };
     const Structural structural[] = {
         { "header", RSBS_REFUSE_HEADER, false, [](std::vector<uint8_t>& f) { f[0] ^= 0xFF; } },
-        { "version", RSBS_REFUSE_VERSION, false, [](std::vector<uint8_t>& f) { PutU32(f, kHdrVersion, 99u); } },
+        { "version", RSBS_REFUSE_VERSION, false, [](std::vector<uint8_t>& f) { PlrPutU32(f, kHdrVersion, 99u); } },
         { "tier size", RSBS_REFUSE_TIER_SIZE, false,
-          [](std::vector<uint8_t>& f) { PutU32(f, kHdrComboSize, 0x00FFFFFFu); } },
+          [](std::vector<uint8_t>& f) { PlrPutU32(f, kHdrComboSize, 0x00FFFFFFu); } },
         { "wrong slot", RSBS_REFUSE_WRONG_SLOT, false, [](std::vector<uint8_t>& f) { f[kHdrSlot] = 2; } },
         { "truncated", RSBS_REFUSE_TRUNCATED, false, [](std::vector<uint8_t>& f) { f.resize(kTier1 + 16); } },
         { "crc", RSBS_REFUSE_CRC, false, [](std::vector<uint8_t>& f) { f[Tier3Offset(f) - 7] ^= 0x5A; } },
@@ -1066,8 +1066,8 @@ int LegProbeRefusals() {
         if (int setup = PairedFileThen(false, [](std::vector<uint8_t>&) {})) {
             return setup;
         }
-        const std::vector<uint8_t> bytes = ReadAll(path);
-        const uint32_t fileGen = U32At(bytes, kTier1 + offsetof(ComboContext, commitGeneration));
+        const std::vector<uint8_t> bytes = PlrReadAll(path);
+        const uint32_t fileGen = PlrU32At(bytes, kTier1 + offsetof(ComboContext, commitGeneration));
         note(ExpectRefused(code++, "commit skew", Probe(1, fileGen + 5u), RSBS_REFUSE_COMMIT_SKEW,
                            Combo_SaveFiles_RefuseText(RSBS_REFUSE_COMMIT_SKEW)));
     }
@@ -1076,7 +1076,7 @@ int LegProbeRefusals() {
     {
         if (int setup = PairedFileThen(true, [](std::vector<uint8_t>& f) {
                 const size_t at = kTier1 + offsetof(ComboContext, comboSettingsHash);
-                PutU32(f, at, U32At(f, at) ^ 0x00010000u);
+                PlrPutU32(f, at, PlrU32At(f, at) ^ 0x00010000u);
             })) {
             return setup;
         }
@@ -1095,7 +1095,7 @@ int LegProbeRefusals() {
                            "Cross-game record is missing"));
         if (int setup = PairedFileThen(true, [](std::vector<uint8_t>& f) {
                 f[kTier1 + offsetof(ComboContext, sourceIsRando)] = 0;
-                PutU32(f, kTier1 + offsetof(ComboContext, sharedRandoSettingsHash), 0u);
+                PlrPutU32(f, kTier1 + offsetof(ComboContext, sharedRandoSettingsHash), 0u);
             })) {
             return setup;
         }
