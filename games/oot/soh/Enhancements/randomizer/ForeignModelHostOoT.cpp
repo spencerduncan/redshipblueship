@@ -9,15 +9,17 @@
  * OoT_EnGirlA_Draw). The twin of MM's host side (ForeignModelSingleExe.cpp,
  * #577 M3) and written to be reused by OoT's get-item cutscene (#577 M4).
  *
- * WHAT IS DRAWN. Only a DESCRIPTOR whose every display-list path a mounted
- * archive holds (foreign_model.h, THREE ANSWERS: the answer says nothing about
- * mounts, the consumer checks). MM's archives are added the first time MM is
- * entered in this process (rsbs/src/main.cpp, Combo_EnsureGameArchivesLoaded),
- * and redship-oot.o2r carries the MM content #577 M6 curates for OoT; an MM
- * model none of them holds answers "no model" here. A HOST_NATIVE answer (a
- * colliding MM model OoT's host-native table maps to OoT's own draw row, #577
- * M7) draws nothing here yet: drawing that row on the shelf is a follow-up (#832). In
- * every "no model" case, and for HOST_NATIVE, the caller keeps its stand-in.
+ * WHAT IS DRAWN (HostModelForItem, the one answer both consumers draw). A
+ * DESCRIPTOR whose every display-list path a mounted archive holds
+ * (foreign_model.h, THREE ANSWERS: the answer says nothing about mounts, the
+ * consumer checks). MM's archives are added the first time MM is entered in
+ * this process (rsbs/src/main.cpp, Combo_EnsureGameArchivesLoaded), and
+ * redship-oot.o2r carries the MM content #577 M6 curates for OoT; an MM model
+ * none of them holds answers "no model" here. A HOST_NATIVE answer (a colliding
+ * MM model OoT's host-native table maps to OoT's own draw row, #577 M7) draws
+ * that row, re-expressed by path from OoT's own recipe for it
+ * (OoT_ComboModel_DrawRowModel; #832), under the same mount check. In every
+ * "no model" case the caller keeps its stand-in.
  *
  * HOW. Each layer, in the order both games' z_draw.c emit it: the setup list,
  * the layer's scrolling segments, its colours (and the grayscale tint), the
@@ -66,6 +68,10 @@ GetItemEntry GetItemMystery();
 #include "foreign_items.h" // src/common — Combo_GetForeignPlacementForOoTCheck
 #include "foreign_model.h" // src/common — the registry
 
+// ForeignModelOoT.cpp: OoT's own draw row for a HOST_NATIVE answer, as a
+// descriptor of the lists OoT's own recipe draws for it.
+extern "C" int OoT_ComboModel_DrawRowModel(int drawId, ComboModel* out);
+
 namespace {
 
 constexpr uint8_t kHostOpa = (uint8_t)COMBO_MODEL_LAYER_OPA;
@@ -100,6 +106,31 @@ bool HostModelMounted(const ComboModel& model) {
         }
     }
     return model.partCount > 0;
+}
+
+/** The model OoT draws, as the host, for MM item `item`: MM's DESCRIPTOR, or for
+ *  a colliding MM model OoT's host-native table maps (#577 M7), OoT's OWN row as
+ *  OoT's own recipe draws it (#832); either way only when a mounted archive holds
+ *  every path. 0 and a zeroed *out otherwise (the caller's stand-in). */
+bool HostModelForItem(const SharedItem& item, ComboModel* out) {
+    Combo_ModelInit(out);
+    ComboModelAnswer answer;
+    ComboModel model;
+    const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, item, &answer);
+    if (kind == COMBO_MODEL_ANSWER_DESCRIPTOR) {
+        model = answer.model;
+    } else if (kind == COMBO_MODEL_ANSWER_HOST_NATIVE) {
+        if (OoT_ComboModel_DrawRowModel((int)answer.hostKey, &model) != 1) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    if (!HostModelMounted(model)) {
+        return false;
+    }
+    *out = model;
+    return true;
 }
 
 void HostEmitPart(Gfx* pkt, const char* dl) {
@@ -205,8 +236,9 @@ static void OoTHostModel_Draw(PlayState* play, const ComboModel& model) {
 /**
  * The drawable model of the MM item OoT check `rc` hosts: 1 and *out when the
  * check hosts an MM item (the placement table, and behind it the crossing store)
- * whose origin answers a DESCRIPTOR for OoT and whose every path a mounted
- * archive holds; 0 and a zeroed *out otherwise (the caller's stand-in).
+ * that HostModelForItem can draw (MM's DESCRIPTOR, or OoT's own row for a
+ * HOST_NATIVE answer, every path mounted); 0 and a zeroed *out otherwise (the
+ * caller's stand-in).
  */
 extern "C" int OoT_ForeignModel_ModelForOoTCheck(uint16_t rc, ComboModel* out) {
     ComboModel scratch;
@@ -216,14 +248,7 @@ extern "C" int OoT_ForeignModel_ModelForOoTCheck(uint16_t rc, ComboModel* out) {
         return 0;
     }
     const SharedItem* item = Combo_GetForeignPlacementForOoTCheck(rc);
-    ComboModelAnswer answer;
-    if (item == nullptr ||
-        Combo_GetForeignItemModel((uint8_t)GAME_OOT, *item, &answer) != COMBO_MODEL_ANSWER_DESCRIPTOR ||
-        !HostModelMounted(answer.model)) {
-        return 0;
-    }
-    *model = answer.model;
-    return 1;
+    return item != nullptr && HostModelForItem(*item, model) ? 1 : 0;
 }
 
 /**
@@ -269,10 +294,11 @@ extern "C" int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc) {
 //      item-receive hook does for an entry that IS given. Every other entry,
 //      custom-drawn or not, answers 0 and is given as before.
 //   3. DRAW (the cutscene, OoT_Player_DrawGetItemImpl calls the entry's
-//      drawFunc under its own 0.2-scale matrix): the MM model, as the shelf draws
-//      it (a mounted DESCRIPTOR), or for a colliding MM model OoT's host-native
-//      table maps (#577 M7), OoT's OWN row for it, re-expressed by path the same
-//      way. Neither: the mystery item, the stand-in the shelf uses too.
+//      drawFunc under its own 0.2-scale matrix): what the shelf draws too
+//      (HostModelForItem): the MM model (a mounted DESCRIPTOR), or for a
+//      colliding MM model OoT's host-native table maps (#577 M7), OoT's OWN row
+//      for it, re-expressed by path the same way. Neither: the mystery item,
+//      the stand-in the shelf uses too.
 //   4. TEXT (Messages/ItemMessages.cpp): "You found <article><name>!" from MM's
 //      describer, the name the toast used.
 //
@@ -282,10 +308,6 @@ extern "C" int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc) {
 
 // hook_handlers.cpp: release the RC queue's slot held by show-only check `rc`.
 void Randomizer_ReleaseQueuedShowOnly(uint16_t rc);
-
-// ForeignModelOoT.cpp: OoT's own draw row for a HOST_NATIVE answer, as a
-// descriptor of the lists OoT's own recipe draws for it.
-extern "C" int OoT_ComboModel_DrawRowModel(int drawId, ComboModel* out);
 
 static void ShowOnlyDraw(PlayState* play, GetItemEntry* entry);
 
@@ -300,29 +322,6 @@ struct ShowOnlyState {
     GetItemEntry entry = {};
 };
 ShowOnlyState sShowOnly;
-
-/** The model the get-item cutscene draws for `item`: a mounted DESCRIPTOR, or a
- *  HOST_NATIVE answer's own OoT row (mounted: oot.o2r is, from boot). */
-bool ShowOnlyModelFor(const SharedItem& item, ComboModel* out) {
-    Combo_ModelInit(out);
-    ComboModelAnswer answer;
-    ComboModel model;
-    const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, item, &answer);
-    if (kind == COMBO_MODEL_ANSWER_DESCRIPTOR) {
-        model = answer.model;
-    } else if (kind == COMBO_MODEL_ANSWER_HOST_NATIVE) {
-        if (OoT_ComboModel_DrawRowModel((int)answer.hostKey, &model) != 1) {
-            return false;
-        }
-    } else {
-        return false;
-    }
-    if (!HostModelMounted(model)) {
-        return false;
-    }
-    *out = model;
-    return true;
-}
 
 bool IsShowOnlyEntry(const GetItemEntry* entry) {
     return entry != nullptr && entry->drawFunc == ShowOnlyDraw && entry->modIndex == sShowOnly.entry.modIndex &&
@@ -355,7 +354,7 @@ extern "C" int OoT_Rando_Foreign_BuildShowOnlyGetItem(uint16_t rc, GetItemEntry*
     sShowOnly.armed = true;
     sShowOnly.rc = rc;
     sShowOnly.item = *item;
-    sShowOnly.hasModel = ShowOnlyModelFor(*item, &sShowOnly.model);
+    sShowOnly.hasModel = HostModelForItem(*item, &sShowOnly.model);
     sShowOnly.entry = entry;
     *out = entry;
     return 1;

@@ -54,6 +54,12 @@
 // GameInteractor.h (-> z64.h): macros.h declares `extern GraphicsContext*`
 // and needs the type defined first.
 #include "macros.h"
+// The #577 M5 chest playtest reads a chest actor's entry; the #800 S1 shop
+// playtest restocks a bought shelf the way the shopkeeper does.
+extern "C" {
+#include "src/overlays/actors/ovl_En_Box/z_en_box.h"
+#include "src/overlays/actors/ovl_En_GirlA/z_en_girla.h"
+}
 
 // External declarations from main.c and other C sources
 extern "C" {
@@ -465,6 +471,9 @@ static uint32_t sPfcOoTWorldSeed = 0;
 static bool PfcShopPlaytest(void);
 static void PfcShopPlaytestSetCVars(bool on);
 static uint16_t PfcShopPlaytestLogShelves(int scene, const char* when);
+// The #577 M5 chest playtest drive (defined beside the shop drive).
+static bool PfcChestPlaytest(void);
+static void PfcChestPlaytestLogHosts(void);
 
 static bool PfcNoRefusalToast(char* msg, size_t cap) {
     const int toasts = OoT_Notification_EmittedCountForTest();
@@ -755,6 +764,9 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
         PfcShopPlaytestSetCVars(false);
         PfcShopPlaytestLogShelves(-1, "created");
     }
+    if (PfcChestPlaytest()) {
+        PfcChestPlaytestLogHosts();
+    }
 
     // ---- the identity AS CREATED, before anything is loaded back ---------------
     // The baseline every later check compares against is the creation's, not
@@ -981,6 +993,11 @@ static void GpPairedTrackerPlaytest(int frame) {
 // and at frame 760 buys the first such shelf the way
 // EnGirlA_ItemGive_Randomizer does (the shelf's RandomizerInf flag, minus the
 // charge), so the drain's pickup toast and the MM-bound record are observed.
+// The flag write bypasses the shopkeeper, so at frame 920 the drive does to the
+// bought shelf what z_en_ossan.c does after a real purchase: setOutOfStockFunc
+// when the purchase goes through (OoT_EnOssan_HandleCanBuyItem), then updateStockedItemFunc
+// when shopping continues (EnOssan_State_ContinueShoppingPrompt), whose
+// EnGirlA_TryChangeShopItemShip decides SOLD OUT. Frame 990 logs and captures it.
 extern "C" int OoT_ForeignModel_ModelForOoTCheck(uint16_t rc, ComboModel* out);
 extern "C" int OoT_Rando_Foreign_HostCollected(uint16_t rc);
 extern "C" void Flags_SetRandomizerInf(RandomizerInf flag); // z_actor.c
@@ -1038,7 +1055,7 @@ static uint16_t PfcShopPlaytestLogShelves(int scene, const char* when) {
             kind == COMBO_MODEL_ANSWER_DESCRIPTOR    ? "DESCRIPTOR"
             : kind == COMBO_MODEL_ANSWER_HOST_NATIVE ? "HOST_NATIVE"
                                                      : "NONE",
-            drawable ? "the MM model, first list " : "the stand-in (mystery item)", drawable ? model.parts[0].dl : "");
+            drawable ? "a model, first list " : "the stand-in (mystery item)", drawable ? model.parts[0].dl : "");
         first = first == 0 ? row.hostCheck : first;
         shown++;
     }
@@ -1048,9 +1065,129 @@ static uint16_t PfcShopPlaytestLogShelves(int scene, const char* when) {
     return first;
 }
 
+// ---- PLAYTEST DRIVE (#577 M5), off unless RSBS_PFC_OOT_CHEST=1 --------------
+// After the creation it logs every OoT chest that hosts an MM item (its scene),
+// so a run can point RSBS_GP_WARP_ENTRANCE at one. In the post-return warp it
+// turns "Chest Size & Texture Matches Contents" on in-process (the staged config
+// is rewritten after a run) and at frame 40 logs every chest actor of the scene:
+// its check, whether it hosts an MM item, and the category OoT_EnBox_Init left
+// on its entry, the one the texture swap reads.
+// OTRGlobals.cpp; OTRGlobals.h declares it for C translation units only.
+extern "C" RandomizerCheck Randomizer_GetCheckFromActor(s16 actorId, s16 sceneNum, s16 actorParams);
+extern "C" ShopItemIdentity Randomizer_IdentifyShopItem(s32 sceneNum, u8 slotIndex);
+
+static bool PfcChestPlaytest(void) {
+    const char* env = getenv("RSBS_PFC_OOT_CHEST");
+    return env != NULL && strcmp(env, "1") == 0;
+}
+
+static void PfcChestPlaytestLogHosts(void) {
+    int shown = 0;
+    int notProgression = 0;
+    for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+        ComboCrossing row;
+        if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
+            continue;
+        }
+        // The one game-neutral grade OoT can read for an MM item (shared_items.h);
+        // the chest's major presentation rests on every crossing being PROGRESSION.
+        if (Combo_ItemClassOf(row.item) != RSBS_FILL_CLASS_PROGRESSION) {
+            const char* odd = Combo_GetForeignItemName(row.item);
+            fprintf(stderr, "[M5-PLAYTEST] created: crossing MM %s on OoT check %u has fill class %s\n",
+                    odd != NULL ? odd : "?", (unsigned)row.hostCheck, Combo_ItemClassName(Combo_ItemClassOf(row.item)));
+            notProgression++;
+        }
+        Rando::Location* loc = Rando::StaticData::GetLocation((RandomizerCheck)row.hostCheck);
+        if (loc == nullptr || loc->GetCollectionCheck().type != SPOILER_CHK_CHEST) {
+            continue;
+        }
+        const char* item = Combo_GetForeignItemName(row.item);
+        fprintf(stderr, "[M5-PLAYTEST] created: MM %s in OoT chest %s (check %u, scene %d)\n",
+                item != NULL ? item : "?", loc->GetName().c_str(), (unsigned)row.hostCheck, (int)loc->GetScene());
+        shown++;
+    }
+    fprintf(stderr,
+            "[M5-PLAYTEST] created: %d MM item(s) in OoT chests; %d of %d OoT-hosted crossing(s) not PROGRESSION\n",
+            shown, notProgression, Combo_Crossings_Count(GAME_OOT));
+    fflush(stderr);
+}
+
+static void PfcChestPlaytestWarpFrame(PlayState* play, int frame) {
+    if (!PfcChestPlaytest()) {
+        return;
+    }
+    if (frame == 1) {
+        CVarSetInteger(CVAR_ENHANCEMENT("ChestSizeAndTextureMatchContents"), 1);
+    }
+    if (frame != 40) {
+        return;
+    }
+    int chests = 0;
+    for (Actor* a = play->actorCtx.actorLists[ACTORCAT_CHEST].head; a != NULL; a = a->next) {
+        if (a->id != ACTOR_EN_BOX) {
+            continue;
+        }
+        const RandomizerCheck rc = Randomizer_GetCheckFromActor(a->id, play->sceneNum, a->params);
+        const SharedItem* hosted = rc != RC_UNKNOWN_CHECK ? Combo_GetForeignPlacementForOoTCheck((uint16_t)rc) : NULL;
+        const char* item = hosted != NULL ? Combo_GetForeignItemName(*hosted) : NULL;
+        fprintf(stderr,
+                "[M5-PLAYTEST] chest actor at (%.0f, %.0f, %.0f): check %d (%s), hosts %s%s; entry category %d (%s)\n",
+                a->world.pos.x, a->world.pos.y, a->world.pos.z, (int)rc,
+                rc != RC_UNKNOWN_CHECK ? Rando::StaticData::GetLocation(rc)->GetName().c_str() : "?",
+                hosted != NULL ? "the MM item " : "no MM item", item != NULL ? item : "",
+                (int)((EnBox*)a)->getItemEntry.getItemCategory,
+                ((EnBox*)a)->getItemEntry.getItemCategory == ITEM_CATEGORY_MAJOR  ? "major"
+                : ((EnBox*)a)->getItemEntry.getItemCategory == ITEM_CATEGORY_JUNK ? "junk"
+                                                                                  : "other");
+        chests++;
+    }
+    fprintf(stderr, "[M5-PLAYTEST] warp arrival: %d chest actor(s) in scene %d, CSMC on\n", chests,
+            (int)play->sceneNum);
+    fflush(stderr);
+}
+
+// The game framebuffer as a PNG in RSBS_GP_SHOT_DIR (a no-op without it). The
+// function lives in MM's export TU but reads only the shared window's Fast3D
+// interpreter, so it captures whichever game is drawing: OoT here. An outside
+// window capture is black while the desktop is locked (#843).
+extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag);
+
+// The shelf actor of the scene that sells OoT check `rc` (NULL when none).
+static EnGirlA* PfcShopPlaytestFindShelf(PlayState* play, uint16_t rc) {
+    for (Actor* a = play->actorCtx.actorLists[ACTORCAT_PROP].head; a != NULL; a = a->next) {
+        if (a->id != ACTOR_EN_GIRLA) {
+            continue;
+        }
+        EnGirlA* shelf = (EnGirlA*)a;
+        if (Randomizer_IdentifyShopItem(play->sceneNum, shelf->randoSlotIndex).identity.randomizerCheck ==
+            (RandomizerCheck)rc) {
+            return shelf;
+        }
+    }
+    return NULL;
+}
+
+static void PfcShopPlaytestLogShelfState(PlayState* play, uint16_t rc, const char* when) {
+    EnGirlA* shelf = PfcShopPlaytestFindShelf(play, rc);
+    if (shelf == NULL) {
+        fprintf(stderr, "[S1-PLAYTEST] %s: no shelf actor sells check %u\n", when, (unsigned)rc);
+    } else {
+        fprintf(stderr, "[S1-PLAYTEST] %s: shelf of check %u: params %d (%s), drawn %d, text 0x%04X\n", when,
+                (unsigned)rc, (int)shelf->actor.params, shelf->actor.params == SI_SOLD_OUT ? "SOLD OUT" : "stocked",
+                shelf->actor.draw != NULL ? 1 : 0, (unsigned)shelf->actor.textId);
+    }
+    fflush(stderr);
+}
+
 static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
     static uint16_t sShelf = 0;
     static int sSharedBefore = -1;
+    PfcChestPlaytestWarpFrame(play, frame);
+    if ((PfcShopPlaytest() || PfcChestPlaytest()) && (frame == 60 || frame == 400 || frame == 900 || frame == 990)) {
+        char tag[48];
+        snprintf(tag, sizeof(tag), "oot-warp-scene%d-frame%d", (int)play->sceneNum, frame);
+        MM_Playtest_DumpGameFramebuffer(tag);
+    }
     if (!PfcShopPlaytest()) {
         return;
     }
@@ -1089,14 +1226,30 @@ static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
                 "%d\n",
                 sSharedBefore, Combo_CountSharedItems(GAME_MM, true), OoT_Rando_Foreign_HostCollected(sShelf));
         fflush(stderr);
+        PfcShopPlaytestLogShelfState(play, sShelf, "after the flag write");
+    }
+    if (frame == 920 && sShelf != 0) {
+        EnGirlA* shelf = PfcShopPlaytestFindShelf(play, sShelf);
+        if (shelf != NULL) {
+            fprintf(stderr, "[S1-PLAYTEST] restocking check %u's shelf as z_en_ossan.c does after a purchase\n",
+                    (unsigned)sShelf);
+            fflush(stderr);
+            shelf->setOutOfStockFunc(play, shelf);
+            shelf->updateStockedItemFunc(play, shelf);
+        }
+        PfcShopPlaytestLogShelfState(play, sShelf, "after the restock");
+    }
+    if (frame == 990 && sShelf != 0) {
+        PfcShopPlaytestLogShelfState(play, sShelf, "frame 990");
     }
 }
 
 // ---- PLAYTEST DRIVE (#577 M4), off unless RSBS_PFC_OOT_FOREIGN_MODEL=1 -------
 // In the post-return warp (the OoT play window after the round trip, whose frames
-// the unattended captures show), the first OoT check hosting an MM item whose MM
-// model OoT can draw right now (OoT_ForeignModel_ModelForOoTCheck: a DESCRIPTOR
-// every part of which a mounted archive holds) is queued into the RC queue at frame 100,
+// the unattended captures show), the first OoT check hosting an MM item whose
+// model OoT can draw right now (OoT_ForeignModel_ModelForOoTCheck: MM's
+// DESCRIPTOR, or since #832 OoT's own row for a HOST_NATIVE answer, every part
+// of which a mounted archive holds) is queued into the RC queue at frame 100,
 // exactly as the scene-flag and RandomizerInf hooks queue a check the player
 // opens. The drain records the crossing and OoT's get-item cutscene shows the MM
 // model; nothing is at the keyboard, so the textbox is closed at frame 500 (or 40
@@ -1823,6 +1976,18 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                     IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_EXIT);
                     break;
                 case GP_PHASE_OOT_EXIT:
+                    // #843 (IntGameplayRoundtripCapture): both games' captured
+                    // frames must be on disk, and not all uniform, before PASS.
+                    if (FrameCapture_VerifyRequested()) {
+                        char capMsg[1024];
+                        if (!FrameCapture_Verify(capMsg, sizeof(capMsg))) {
+                            fprintf(stderr, "[FRAME-CAPTURE] FAIL: %s\n", capMsg);
+                            fflush(stderr);
+                            IntegrationTest_GameplayFail("frame capture lock");
+                            return;
+                        }
+                        fprintf(stderr, "[FRAME-CAPTURE] PASS: %s\n", capMsg);
+                    }
                     fprintf(stderr,
                             "[GP-TEST] PASS: %d round trip(s), warp, and door transition survived "
                             "%d live frames per phase\n",

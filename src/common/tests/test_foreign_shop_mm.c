@@ -32,6 +32,15 @@
  *     second time while RecordForeignPickup refuses the crossing). A native slot
  *     still re-arms every cycle, as in 2Ship.
  *
+ * #800 pass 2, Tingle's map slots (RCTYPE_TINGLE_SHOP):
+ *  T1 THE HOST CLASS: a Tingle map slot is a foreign host.
+ *  T2 THE PURCHASE, PAIRED: his offer names the OoT item; the sale is allowed
+ *     once; the give his hook arms takes CheckQueue's foreign branch and authors
+ *     one crossing; a second sale is refused, also on a later cycle. Before pass 2
+ *     the slot's "already have" asked IsItemObtainable of the junk cover, which
+ *     is always obtainable, so the OoT item was offered (and "found") again.
+ *  T3 THE PURCHASE, UNPAIRED (#610): no record is authored; the slot stays sold.
+ *
  * What S4/S5's stand-in legs do NOT prove: in this display-free process the
  * cover's own draw (Rando::CurrentJunkItem with no live frame count) emits no
  * model list either, so those two legs pass with or without #800. The model legs
@@ -59,9 +68,12 @@ int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, i
 int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired);
 uint16_t MM_EnGirlA_TestHagsMushroomCheck(void);
 void MM_EnGirlA_TestHagsMushroomRearm(int* outFirstArm, int* outCrossed, int* outLaterArm);
+uint16_t MM_EnBal_TestTingleMapCheck(void);
+int MM_EnBal_TestForeignPurchase(uint16_t randoCheckId, int paired, const char* wantName);
 void MM_ForeignModel_TestSetMountOverride(int value);
 int MM_ForeignModel_TestShopDraw(uint16_t mmCheckId, int hand, const ComboModel* want);
 uint16_t MM_ForeignModel_TestBombShopHandCheck(void);
+int MM_ComboModel_TestForDrawRow(int drawId, ComboModel* out, const char** reason);
 }
 
 #define FS_ASSERT(cond, msg)                                                \
@@ -98,11 +110,23 @@ TestResult Test_ForeignItemGiveShop(void) {
 
     SharedItem hammer;
     SharedItem boots;
+    SharedItem hookshot;
     FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Megaton Hammer", &hammer), "named item Megaton Hammer");
     FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Hover Boots", &boots), "named item Hover Boots");
+    FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Progressive Hookshot", &hookshot), "named item Progressive Hookshot");
     ComboModelAnswer bootsA;
     FS_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, boots, &bootsA) == COMBO_MODEL_ANSWER_DESCRIPTOR,
               "the Hover Boots are a DESCRIPTOR in MM");
+    // #577 M5: OoT's hookshot collides, and MM's host-native table (#577 M7) maps
+    // it to MM's own hookshot row; the shelf and the hand draw that row as MM's
+    // own recipe gives it.
+    ComboModelAnswer hookshotA;
+    FS_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, hookshot, &hookshotA) == COMBO_MODEL_ANSWER_HOST_NATIVE,
+              "OoT's (colliding) hookshot is HOST_NATIVE in MM");
+    ComboModel mmHookshot;
+    const char* mmHookshotReason = nullptr;
+    FS_ASSERT(MM_ComboModel_TestForDrawRow(hookshotA.hostKey, &mmHookshot, &mmHookshotReason) == 1,
+              "MM draws the hookshot's host-native row with its own recipe");
 
     // A real shop slot of MM's check table (not the owner's hand item, which S5
     // covers on its own).
@@ -173,6 +197,15 @@ TestResult Test_ForeignItemGiveShop(void) {
     MM_ForeignModel_TestSetMountOverride(0);
     printf("[TEST]   S5 Hover Boots in the owner's hand, archive NOT mounted:\n");
     const int handStandIn = MM_ForeignModel_TestShopDraw(handCheck, 1, nullptr);
+    MM_ForeignModel_TestSetMountOverride(1);
+    // #577 M5: a colliding OoT model with a host-native row, on both surfaces.
+    Combo_ClearForeignPlacements();
+    FS_ASSERT(Combo_SetForeignPlacement(shopCheck, hookshot) >= 0, "S4 hookshot placement accepted");
+    printf("[TEST]   S4 Progressive Hookshot (colliding, host-native row: MM's own hookshot) on a shop shelf:\n");
+    const int shelfNative = MM_ForeignModel_TestShopDraw(shopCheck, 0, &mmHookshot);
+    FS_ASSERT(Combo_SetForeignPlacement(handCheck, hookshot) >= 0, "S5 hookshot placement accepted");
+    printf("[TEST]   S5 Progressive Hookshot (colliding, host-native row) in the owner's hand:\n");
+    const int handNative = MM_ForeignModel_TestShopDraw(handCheck, 1, &mmHookshot);
     MM_ForeignModel_TestSetMountOverride(-1);
     ComboContext_Init();
 
@@ -193,6 +226,35 @@ TestResult Test_ForeignItemGiveShop(void) {
     MM_EnGirlA_TestHagsMushroomRearm(&nativeFirst, &nativeCrossed, &nativeLater);
     ComboContext_Init();
 
+    // ---- T1-T3: Tingle's map slots (#800 pass 2) -------------------------------------
+    const uint16_t tingleCheck = MM_EnBal_TestTingleMapCheck();
+    int tingleIsShop = -1;
+    int tingleIsTingle = 0;
+    FS_ASSERT(MM_Rando_Foreign_TestCheckShopClass(tingleCheck, &tingleIsShop, &tingleIsTingle) == 1 && tingleIsTingle,
+              "T the bridge's Tingle check is a Tingle map slot");
+    const int tingleHost = MM_Rando_Foreign_TestIsForeignHostClass(tingleCheck);
+    printf("[TEST]   T1 host class: Tingle map slot %u -> %d\n", (unsigned)tingleCheck, tingleHost);
+    const char* hammerName = Combo_GetForeignItemName(hammer);
+    Combo_ClearSharedItemOutbox();
+    ShopTestPair();
+    FS_ASSERT(Combo_SetForeignPlacement(tingleCheck, hammer) >= 0, "T2 placement accepted");
+    const int tinglePaired = MM_EnBal_TestForeignPurchase(tingleCheck, 1, hammerName);
+    printf("[TEST]   T2 paired Tingle purchase: step code %d\n", tinglePaired);
+    if (tinglePaired == 0) {
+        ShopAwardCtx award;
+        std::memset(&award, 0, sizeof(award));
+        FS_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, ShopTestAward, &award) == 1 && award.awardCount == 1 &&
+                      award.lastId == hammer.id,
+                  "T2 OoT's redeem walk awards the Megaton Hammer bought from Tingle, once");
+    }
+    ComboContext_Init();
+    Combo_ClearSharedItemOutbox();
+    FS_ASSERT(!Combo_ForeignPairingActive(), "T3 no pairing");
+    FS_ASSERT(Combo_SetForeignPlacement(tingleCheck, hammer) >= 0, "T3 placement accepted");
+    const int tingleUnpaired = MM_EnBal_TestForeignPurchase(tingleCheck, 0, hammerName);
+    printf("[TEST]   T3 unpaired Tingle purchase: step code %d\n", tingleUnpaired);
+    ComboContext_Init();
+
     FS_ASSERT(shopHost == 1, "S1 a shop slot is a foreign host class");
     FS_ASSERT(handHost == 1, "S1 the Bomb Shop owner's hand slot is a foreign host class");
     FS_ASSERT(paired == 0, "S2 buying the OoT item hands it to the shared structure once and sells the slot out "
@@ -203,17 +265,28 @@ TestResult Test_ForeignItemGiveShop(void) {
     FS_ASSERT(shelfStandIn == 0, "S4 with no drawable model the shelf keeps the model-less stand-in, never the cover");
     FS_ASSERT(handDrawn == 0, "S5 the owner's hand draws OoT's Hover Boots model (see the Q-line above)");
     FS_ASSERT(handStandIn == 0, "S5 with no drawable model the hand keeps the model-less stand-in, never the cover");
+    FS_ASSERT(shelfNative == 0, "S4 a colliding OoT model with a host-native row draws MM's OWN model for that row on "
+                                "the shelf (#577 M5; see the Q-line above)");
+    FS_ASSERT(handNative == 0, "S5 a colliding OoT model with a host-native row draws MM's OWN model for that row in "
+                               "the owner's hand (#577 M5; see the Q-line above)");
     FS_ASSERT(hagsFirst == 1 && hagsCrossed == 1, "S6 the first cycle's mushroom arms the Hags' slot and its OoT item "
                                                   "crosses (see the S6 lines above)");
     FS_ASSERT(hagsLater == 0, "S6 a later cycle's mushroom does not re-arm a Hags' slot whose OoT item was delivered "
                               "(see the S6 lines above)");
     FS_ASSERT(nativeFirst == 1 && nativeCrossed == 0 && nativeLater == 1,
               "S6 a native Hags' slot still re-arms every cycle (see the S6 lines above)");
+    FS_ASSERT(tingleHost == 1, "T1 a Tingle map slot is a foreign host class");
+    FS_ASSERT(tinglePaired == 0, "T2 Tingle's offer names the OoT item, sells it once and hands it to the shared "
+                                 "structure (see the T-line above; 1 = offer names the cover, 4 = nothing crossed, "
+                                 "6 = sold twice)");
+    FS_ASSERT(tingleUnpaired == 0, "T3 with no live pairing a Tingle purchase authors no record and the slot stays "
+                                   "sold (see the T-line above)");
 
     Context_ClearAllFrozenStates();
     Combo_ClearSharedItemOutbox();
     ComboContext_Init();
-    printf("[TEST] PASS: an OoT item in an MM shop slot is sold once, crosses once, and is drawn as itself\n");
+    printf("[TEST] PASS: an OoT item in an MM shop slot or a Tingle map slot is sold once, crosses once, and is "
+           "presented as itself\n");
     return TEST_PASS;
 }
 
