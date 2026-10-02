@@ -321,6 +321,9 @@ static int CivMMLegs(const ComboItemOps* ops, const ComboItemOps* ootOps) {
     for (int i = 0; i < rows; i++) {
         CIV_ASSERT(Combo_ItemRowAt((uint8_t)GAME_MM, i, &row));
         CIV_ASSERT(row.group != NULL && row.group[0] != '\0');
+        if (row.name == NULL || row.name[0] == '\0' || strcmp(row.name, "Unknown Item") == 0) {
+            printf("[TEST] combo-item-view: MM row %d (%s) has no name\n", i, row.group);
+        }
         CIV_ASSERT(row.name != NULL && row.name[0] != '\0' && strcmp(row.name, "Unknown Item") != 0);
         CIV_ASSERT(row.iconKey != NULL && row.iconKeyFaded != NULL); // every MM row has an icon path
         CIV_ASSERT(row.freshness == COMBO_TRACKER_FRESH_STALE);
@@ -529,7 +532,7 @@ static int CivSharedLegs(void) {
 }
 
 extern "C" int Combo_ItemView_RunHeadless(void) {
-    printf("[TEST] combo-item-view: per-game item adapters over live/shadow buffers, the shared group (#458 U1a)\n");
+    printf("[TEST] combo-item-view: per-game item adapters over live/shadow buffers, the shared group (#458 U1)\n");
 
     // ---- snapshot everything this row touches (restored at the end) --------
     const GameId prevGame = Context_GetCurrentGame();

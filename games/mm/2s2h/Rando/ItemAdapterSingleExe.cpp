@@ -115,6 +115,16 @@ const char* MMItemVanillaName(uint32_t itemId) {
                 sNames[vanilla] = item.name;
             }
         }
+        // No Rando item carries the bare bomb or bombchu slot item (MM's table
+        // gives bombs and bombchus by quantity: ITEM_BOMBS_5, ITEM_BOMBCHUS_1,
+        // ...), so MM's own tooltip resolves these two slots to RI_UNKNOWN.
+        // Name them plainly instead.
+        if (sNames[ITEM_BOMB] == nullptr) {
+            sNames[ITEM_BOMB] = "Bombs";
+        }
+        if (sNames[ITEM_BOMBCHU] == nullptr) {
+            sNames[ITEM_BOMBCHU] = "Bombchus";
+        }
         sBuilt = true;
     }
     return (itemId < sNames.size() && sNames[itemId] != nullptr) ? sNames[itemId] : "Unknown Item";
