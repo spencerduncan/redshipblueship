@@ -124,6 +124,7 @@
 #include "context.h"
 #include "crossing_store.h"
 #include "game.h"
+#include "game_lifecycle.h"
 #include "save.h"
 #include "shared_items.h"
 #include "shared_resources.h"
@@ -146,6 +147,8 @@ void Combo_Crossings_Clear(void);
 int MM_Combo_CaptureSaveToUnifiedSlot(void);
 void MM_HarvestSharedResources(void);
 void MM_ApplySharedResources(void);
+int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size);
+uint16_t Switch_GetHotSwapReturnEntrance(GameId departing);
 }
 
 namespace {
@@ -442,8 +445,10 @@ int CheckMoonCrashRestoresLastCommit(uint32_t expectSeed) {
     CNF_ASSERT(memcmp(sCommittedItems, gComboCtx.sharedItemsTagged, sizeof(sCommittedItems)) != 0,
                "Tier-1 moved past the commit (premise)");
     {
-        // OoT's half moved past the commit too: the case where the commit
-        // predates an OoT leg that was never saved.
+        // OoT's shadow moved past the commit too. Since #837 the session no
+        // longer produces this state (OoT's shadow changes only at a departure,
+        // and every departure is now a commit); the leg keeps locking the
+        // restore's contract for it: the commit's OoT half wins, whole.
         std::vector<uint8_t> ootLater = ootCommitted;
         ootLater[0x100] ^= 0x5A;
         Context_UpdateShadowCopy(GAME_OOT, ootLater.data(), ootSize);
@@ -475,7 +480,8 @@ int CheckMoonCrashRestoresLastCommit(uint32_t expectSeed) {
     CNF_ASSERT(memcmp(sCommittedItems, gComboCtx.sharedItemsTagged, sizeof(sCommittedItems)) == 0,
                "Tier-1's shared-item records are the commit's: the post-commit pickup is gone with its check");
     CNF_ASSERT(memcmp(Context_GetOoTSaveContext(), ootCommitted.data(), ootSize) == 0,
-               "OoT's half is the commit's too (one file, one reload)");
+               "OoT's half is the commit's too (one file, one reload; the restore's contract for a shadow that "
+               "moved after the commit, a state no crossing leaves since #837)");
     CNF_ASSERT(Combo_Crossings_Digest() == committedCrossings && gComboCtx.comboSettingsHash == committedSettingsHash,
                "the crossing set and the frozen rules are untouched");
     CNF_ASSERT(gComboCtx.commitGeneration == committedGeneration, "the commit generation does not move");
@@ -486,6 +492,77 @@ int CheckMoonCrashRestoresLastCommit(uint32_t expectSeed) {
     MM_HarvestSharedResources();
     CNF_ASSERT(PoolRupees() == (uint16_t)(committedPool - 20),
                "a spend after the reset is an ordinary delta against the restored balance");
+
+    CloseScratchSlot();
+    return 0;
+}
+
+// The launcher's games, as mocks: GameRunner_SwitchTo is what takes the
+// crossing commit (#837), and its suspend/resume/init are not under test here.
+int XcMockInit(int, char**) {
+    return 0;
+}
+void XcMockNop(void) {
+}
+GameOps sXcMockOoT = { "oot", "Mock OoT", XcMockInit, XcMockNop, XcMockNop, XcMockNop, XcMockNop };
+GameOps sXcMockMM = { "mm", "Mock MM", XcMockInit, XcMockNop, XcMockNop, XcMockNop, XcMockNop };
+
+/**
+ * #803's tripwire (#837). The last save is an OoT save; OoT plays on without
+ * saving and crosses into Termina through the launcher's GameRunner_SwitchTo;
+ * the moon falls. The crash restores the last commit, and since every crossing
+ * is a commit that commit carries OoT's half as it crossed: OoT is unchanged.
+ * Red before #837: the crossing wrote nothing, the restore took the OoT save's
+ * commit and rolled OoT's half back to it.
+ */
+int CheckMoonCrashKeepsOoTAcrossCrossing() {
+    OpenScratchSlot();
+    if (memcmp(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic)) != 0) {
+        memcpy(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic));
+    }
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.save.day = 1;
+    gSaveContext.save.eventDayCount = 1;
+    gSaveContext.save.time = (u16)CLOCK_TIME(12, 0);
+    // MM's half sits in its shadow as MM's last departure left it.
+    Context_FreezeState(GAME_MM, Switch_GetHotSwapReturnEntrance(GAME_MM), &gSaveContext, sizeof(gSaveContext));
+
+    // ---- the last save: an OoT save ---------------------------------------
+    const size_t ootSize = (size_t)OOT_SAVE_CONTEXT_SIZE;
+    std::vector<uint8_t> ootSaved(ootSize, 0);
+    memcpy(ootSaved.data(), Context_GetOoTSaveContext(), ootSize);
+    ootSaved[0x180] = 0x11;
+    Context_UpdateShadowCopy(GAME_OOT, ootSaved.data(), ootSize);
+    gComboCtx.sourceGame = GAME_OOT;
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    CNF_ASSERT(mgr.Save(0), "the last save, an OoT save, commits (premise)");
+    const uint32_t savedGeneration = gComboCtx.commitGeneration;
+
+    // ---- OoT plays on, unsaved, and crosses into Termina --------------------
+    std::vector<uint8_t> ootCrossed = ootSaved;
+    ootCrossed[0x180] ^= 0x5A;
+    CNF_ASSERT(Switch_PrepareHotSwap(GAME_OOT, ootCrossed.data(), ootSize) == 1, "OoT's departure freezes (premise)");
+    GameRunner runner;
+    GameRunner_Init(&runner);
+    GameRunner_RegisterGame(&runner, GAME_OOT, &sXcMockOoT);
+    GameRunner_RegisterGame(&runner, GAME_MM, &sXcMockMM);
+    GameRunner_StartGame(&runner, GAME_OOT, 0, nullptr);
+    CNF_ASSERT(GameRunner_SwitchTo(&runner, GAME_MM, 0, nullptr) == 0, "the launcher switches to MM");
+    printf("[TEST] %s: #803 tripwire: last save generation %u, after the crossing %u\n", sRow,
+           (unsigned)savedGeneration, (unsigned)gComboCtx.commitGeneration);
+    CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
+               "MM's arrival consumes its half (premise)");
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    const bool ootKept = memcmp(Context_GetOoTSaveContext(), ootCrossed.data(), ootSize) == 0;
+    const bool ootRolledBack = memcmp(Context_GetOoTSaveContext(), ootSaved.data(), ootSize) == 0;
+    printf("[TEST] %s: #803 tripwire: after the crash OoT's shadow is %s\n", sRow,
+           ootKept ? "the crossed half (unchanged)" : (ootRolledBack ? "ROLLED BACK to the last OoT save" : "other"));
+    CNF_ASSERT(ootKept, "#803: a moon crash after an unsaved crossing keeps OoT's half as it crossed (the crossing "
+                        "is a commit), and does not roll it back to the last OoT save");
 
     CloseScratchSlot();
     return 0;
@@ -548,6 +625,9 @@ extern "C" int MM_CreationNewFile_RunSynthetic(void) {
     if (CheckMoonCrashRestoresLastCommit(kSeed) != 0) {
         return 1;
     }
+    if (CheckMoonCrashKeepsOoTAcrossCrossing() != 0) {
+        return 1;
+    }
 
     Context_ClearAllFrozenStates();
     ComboContext_Init();
@@ -579,6 +659,9 @@ extern "C" int MM_CreationNewFile_RunWorld(void) {
         return 1;
     }
     if (CheckMoonCrashRestoresLastCommit(seed) != 0) {
+        return 1;
+    }
+    if (CheckMoonCrashKeepsOoTAcrossCrossing() != 0) {
         return 1;
     }
 
