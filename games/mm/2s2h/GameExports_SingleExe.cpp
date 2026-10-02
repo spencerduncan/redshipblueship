@@ -4236,13 +4236,37 @@ extern "C" void MM_HarvestSharedResources(void) {
  * NULL-safe on purpose: the owl-save and game-over exits and the headless rows
  * reach the launcher freeze with no PlayState, and MM_gPlayState is nulled by
  * Play_Destroy and MM_Graph_ResetRunFrameContext, so non-NULL means live.
+ *
+ * THE PERMANENT FLAGS (#837 PR 2). Since #837 every crossing is a whole-file
+ * commit, so the MM half a moon crash restores is usually a departure freeze.
+ * The crash restores the committed Save and vanilla's tail then rebuilds the
+ * cycle flags from permanentSceneFlags (Sram_ResetSaveFromMoonCrash), which
+ * only a save marshal (func_8014546C / func_80145698) or a new day
+ * (Interface_NewDay) refreshed. A chest opened since then came back closed
+ * while the restored inventory kept its item, and MM's rando gives a shuffled
+ * chest's item again on every open (OnSceneFlagSet sets `eligible` without
+ * reading `obtained`, CheckQueue gives without reading it either). So a live
+ * departure copies the five cycle words into the permanent ones for every
+ * scene, exactly as those marshals do and as OoTMM's switch does (its MM
+ * Save_DoSave runs the same marshal). Gated on the live file, not the
+ * PlayState: the owl-save and game-over exits freeze with none, and MM's
+ * title-screen bootstrap is not a save.
  */
 extern "C" void MM_Combo_FlushSceneFlagsForFreeze(void) {
     PlayState* play = MM_gPlayState;
-    if (play == NULL) {
+    if (play != NULL) {
+        Play_SaveCycleSceneFlags(play);
+    }
+    if (!MM_SaveIsLiveFile()) {
         return;
     }
-    Play_SaveCycleSceneFlags(play);
+    for (s32 i = 0; i < ARRAY_COUNT(gSaveContext.cycleSceneFlags); i++) {
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].chest = gSaveContext.cycleSceneFlags[i].chest;
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].switch0 = gSaveContext.cycleSceneFlags[i].switch0;
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].switch1 = gSaveContext.cycleSceneFlags[i].switch1;
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].clearedRoom = gSaveContext.cycleSceneFlags[i].clearedRoom;
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].collectible = gSaveContext.cycleSceneFlags[i].collectible;
+    }
 }
 
 /**

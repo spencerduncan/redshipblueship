@@ -574,6 +574,11 @@ restored together. This is what vanilla's reload does and what OoTMM's default
   Every crossing into Termina is itself a save of the whole file, so OoT's half in the
   commit the crash restores is OoT as you left it. Without a save in Termina since you
   entered, MM comes back as you last left Termina (or as created, if you never left it).
+- **A chest you opened in Termina before you left stays open** ([#837](https://github.com/spencerduncan/redshipblueship/issues/837)).
+  Leaving Termina keeps the scene flags (chests, switches, collected items, cleared rooms)
+  the way an owl save does, so a crash that restores that crossing's save does not close
+  a chest whose item you kept. Before this fix such a chest came back closed and opening it
+  again gave its item a second time.
 - Shared rupees, health, magic and ammo come back at the shared pool's value as of that
   save, applied to MM as an arrival applies them. They do not come back at MM's own
   balance from its last departure. After a save in OoT these two differ, and without the
