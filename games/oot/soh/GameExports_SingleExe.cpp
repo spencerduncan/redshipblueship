@@ -54,6 +54,10 @@
 // GameInteractor.h (-> z64.h): macros.h declares `extern GraphicsContext*`
 // and needs the type defined first.
 #include "macros.h"
+// The #577 M5 chest playtest reads a chest actor's entry.
+extern "C" {
+#include "src/overlays/actors/ovl_En_Box/z_en_box.h"
+}
 
 // External declarations from main.c and other C sources
 extern "C" {
@@ -465,6 +469,9 @@ static uint32_t sPfcOoTWorldSeed = 0;
 static bool PfcShopPlaytest(void);
 static void PfcShopPlaytestSetCVars(bool on);
 static uint16_t PfcShopPlaytestLogShelves(int scene, const char* when);
+// The #577 M5 chest playtest drive (defined beside the shop drive).
+static bool PfcChestPlaytest(void);
+static void PfcChestPlaytestLogHosts(void);
 
 static bool PfcNoRefusalToast(char* msg, size_t cap) {
     const int toasts = OoT_Notification_EmittedCountForTest();
@@ -755,6 +762,9 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
         PfcShopPlaytestSetCVars(false);
         PfcShopPlaytestLogShelves(-1, "created");
     }
+    if (PfcChestPlaytest()) {
+        PfcChestPlaytestLogHosts();
+    }
 
     // ---- the identity AS CREATED, before anything is loaded back ---------------
     // The baseline every later check compares against is the creation's, not
@@ -1038,7 +1048,7 @@ static uint16_t PfcShopPlaytestLogShelves(int scene, const char* when) {
             kind == COMBO_MODEL_ANSWER_DESCRIPTOR    ? "DESCRIPTOR"
             : kind == COMBO_MODEL_ANSWER_HOST_NATIVE ? "HOST_NATIVE"
                                                      : "NONE",
-            drawable ? "the MM model, first list " : "the stand-in (mystery item)", drawable ? model.parts[0].dl : "");
+            drawable ? "a model, first list " : "the stand-in (mystery item)", drawable ? model.parts[0].dl : "");
         first = first == 0 ? row.hostCheck : first;
         shown++;
     }
@@ -1048,9 +1058,78 @@ static uint16_t PfcShopPlaytestLogShelves(int scene, const char* when) {
     return first;
 }
 
+// ---- PLAYTEST DRIVE (#577 M5), off unless RSBS_PFC_OOT_CHEST=1 --------------
+// After the creation it logs every OoT chest that hosts an MM item (its scene),
+// so a run can point RSBS_GP_WARP_ENTRANCE at one. In the post-return warp it
+// turns "Chest Size & Texture Matches Contents" on in-process (the staged config
+// is rewritten after a run) and at frame 40 logs every chest actor of the scene:
+// its check, whether it hosts an MM item, and the category OoT_EnBox_Init left
+// on its entry, the one the texture swap reads.
+// OTRGlobals.cpp; OTRGlobals.h declares it for C translation units only.
+extern "C" RandomizerCheck Randomizer_GetCheckFromActor(s16 actorId, s16 sceneNum, s16 actorParams);
+
+static bool PfcChestPlaytest(void) {
+    const char* env = getenv("RSBS_PFC_OOT_CHEST");
+    return env != NULL && strcmp(env, "1") == 0;
+}
+
+static void PfcChestPlaytestLogHosts(void) {
+    int shown = 0;
+    for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+        ComboCrossing row;
+        if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
+            continue;
+        }
+        Rando::Location* loc = Rando::StaticData::GetLocation((RandomizerCheck)row.hostCheck);
+        if (loc == nullptr || loc->GetCollectionCheck().type != SPOILER_CHK_CHEST) {
+            continue;
+        }
+        const char* item = Combo_GetForeignItemName(row.item);
+        fprintf(stderr, "[M5-PLAYTEST] created: MM %s in OoT chest %s (check %u, scene %d)\n", item != NULL ? item : "?",
+                loc->GetName().c_str(), (unsigned)row.hostCheck, (int)loc->GetScene());
+        shown++;
+    }
+    fprintf(stderr, "[M5-PLAYTEST] created: %d MM item(s) in OoT chests\n", shown);
+    fflush(stderr);
+}
+
+static void PfcChestPlaytestWarpFrame(PlayState* play, int frame) {
+    if (!PfcChestPlaytest()) {
+        return;
+    }
+    if (frame == 1) {
+        CVarSetInteger(CVAR_ENHANCEMENT("ChestSizeAndTextureMatchContents"), 1);
+    }
+    if (frame != 40) {
+        return;
+    }
+    int chests = 0;
+    for (Actor* a = play->actorCtx.actorLists[ACTORCAT_CHEST].head; a != NULL; a = a->next) {
+        if (a->id != ACTOR_EN_BOX) {
+            continue;
+        }
+        const RandomizerCheck rc = Randomizer_GetCheckFromActor(a->id, play->sceneNum, a->params);
+        const SharedItem* hosted = rc != RC_UNKNOWN_CHECK ? Combo_GetForeignPlacementForOoTCheck((uint16_t)rc) : NULL;
+        const char* item = hosted != NULL ? Combo_GetForeignItemName(*hosted) : NULL;
+        fprintf(stderr,
+                "[M5-PLAYTEST] chest actor at (%.0f, %.0f, %.0f): check %d (%s), hosts %s%s; entry category %d (%s)\n",
+                a->world.pos.x, a->world.pos.y, a->world.pos.z, (int)rc,
+                rc != RC_UNKNOWN_CHECK ? Rando::StaticData::GetLocation(rc)->GetName().c_str() : "?",
+                hosted != NULL ? "the MM item " : "no MM item", item != NULL ? item : "",
+                (int)((EnBox*)a)->getItemEntry.getItemCategory,
+                ((EnBox*)a)->getItemEntry.getItemCategory == ITEM_CATEGORY_MAJOR  ? "major"
+                : ((EnBox*)a)->getItemEntry.getItemCategory == ITEM_CATEGORY_JUNK ? "junk"
+                                                                                  : "other");
+        chests++;
+    }
+    fprintf(stderr, "[M5-PLAYTEST] warp arrival: %d chest actor(s) in scene %d, CSMC on\n", chests, (int)play->sceneNum);
+    fflush(stderr);
+}
+
 static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
     static uint16_t sShelf = 0;
     static int sSharedBefore = -1;
+    PfcChestPlaytestWarpFrame(play, frame);
     if (!PfcShopPlaytest()) {
         return;
     }
@@ -1094,9 +1173,10 @@ static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
 
 // ---- PLAYTEST DRIVE (#577 M4), off unless RSBS_PFC_OOT_FOREIGN_MODEL=1 -------
 // In the post-return warp (the OoT play window after the round trip, whose frames
-// the unattended captures show), the first OoT check hosting an MM item whose MM
-// model OoT can draw right now (OoT_ForeignModel_ModelForOoTCheck: a DESCRIPTOR
-// every part of which a mounted archive holds) is queued into the RC queue at frame 100,
+// the unattended captures show), the first OoT check hosting an MM item whose
+// model OoT can draw right now (OoT_ForeignModel_ModelForOoTCheck: MM's
+// DESCRIPTOR, or since #832 OoT's own row for a HOST_NATIVE answer, every part
+// of which a mounted archive holds) is queued into the RC queue at frame 100,
 // exactly as the scene-flag and RandomizerInf hooks queue a check the player
 // opens. The drain records the crossing and OoT's get-item cutscene shows the MM
 // model; nothing is at the keyboard, so the textbox is closed at frame 500 (or 40
