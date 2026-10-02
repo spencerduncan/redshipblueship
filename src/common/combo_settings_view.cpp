@@ -40,7 +40,7 @@ struct ComboSettingDesc {
 // buffers and the locks' expectation tables are both indexed by the id.
 const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_DIRECTION, "Crossing Direction" },
-    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, "One Ocarina" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, "Shared Ocarina" },
     { RSBS_CVAR_COMBO_RANDO_GOAL, "Goal" },
 };
 
