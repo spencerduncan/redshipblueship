@@ -151,6 +151,10 @@ extern "C" void OoT_SlotMeta_Register(void) {
     RsbsSave_RegisterGameMeta(GAME_OOT, &desc);
 }
 
+// CheckStateLoadSingleExe.cpp (#849): OoT's check statuses follow the loaded half.
+extern "C" int OoT_Combo_ReconcileCheckStateToLoadedHalf(const SaveContext* described, const SaveContext* loaded,
+                                                         int* outFound, int* outNotFound);
+
 /**
  * OoT's .redsave load seam, the body of the OnLoadFile hook SaveManager's
  * constructor registers (it fires at the TAIL of LoadFile, with every section
@@ -216,11 +220,19 @@ extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration
     // every later save addresses the file through this field. Re-asserting
     // the slot the player actually opened costs two lines and removes the
     // inference.
+    //
+    // OoT's check statuses are not in that half: they came from the .sav's
+    // tracker section and describe the .sav's base section, which the half
+    // has just replaced. They are made to follow the half that loaded
+    // (#849, #803's load leg; CheckStateLoadSingleExe.cpp), against a copy of
+    // the base taken before the consume.
     if (RsbsSave_TakeOoTHalfAuthority()) {
         const int32_t openedFileNum = gSaveContext.fileNum;
+        const auto savBase = std::make_unique<SaveContext>(gSaveContext);
         Combo_ConsumeFrozenState("oot", &gSaveContext, sizeof(gSaveContext));
         gSaveContext.fileNum = openedFileNum;
         SPDLOG_INFO("RSBS: applied the .redsave's OoT half over file{}.sav (newer whole commit, #589)", fileNum + 1);
+        OoT_Combo_ReconcileCheckStateToLoadedHalf(savBase.get(), &gSaveContext, nullptr, nullptr);
     }
 }
 
