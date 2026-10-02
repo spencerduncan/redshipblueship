@@ -151,6 +151,79 @@ extern "C" void OoT_SlotMeta_Register(void) {
     RsbsSave_RegisterGameMeta(GAME_OOT, &desc);
 }
 
+/**
+ * OoT's .redsave load seam, the body of the OnLoadFile hook SaveManager's
+ * constructor registers (it fires at the TAIL of LoadFile, with every section
+ * of file{fileNum+1}.sav applied to gSaveContext). `savGeneration` is the
+ * commit generation the .sav mirrors (GetLoadedCommitGeneration). extern "C"
+ * so the oot-check-state-load row drives this exact seam.
+ */
+extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration) {
+    // Order matters: the clear runs FIRST, then the new slot is
+    // established. Session invalidation now also drops the active slot
+    // (it is session state that used to outlive its session), so
+    // publishing before the clear would wipe what we just set.
+    //
+    // Establishing it here — rather than only when a companion .redsave
+    // exists — is deliberate: a slot the player opened is the session's
+    // slot even when no cross-game state exists for it yet, which is
+    // exactly the case where MM is entered for the first time and needs
+    // somewhere to save.
+    Context_InvalidateSessionOnSlotLoad();
+    RsbsSave_SetActiveSlot(fileNum);
+    // ALWAYS attempt the load — no HasSave gate (#533). HasSave is
+    // header-only, so a header-refused file (future version, bad magic,
+    // wrong slot) made the gate report "no save": the load never ran, the
+    // refusal never registered, and the next autosave rename-overwrote
+    // the mostly-intact file — including the only copy of the MM half —
+    // with a blank Tier-1 and an all-zero Tier-3. LoadSlot distinguishes
+    // the three outcomes itself: OK commits and arms the slot for writes,
+    // ABSENT arms it for its first write, REFUSED quarantines the file
+    // aside and latches the slot so no later save can destroy the
+    // evidence.
+    //
+    // The Checked form carries the .sav's mirrored commit generation
+    // (#531/#537/#564 V16 interim). This hook fires from LoadFile after
+    // saveBlock is populated, so the mirror is readable here; the load
+    // compares it against the .redsave's Tier-1 stamp BEFORE committing.
+    // A .sav-newer mismatch (a .redsave commit is missing) refuses
+    // through the full #533 machinery — quarantine, write latch, file
+    // panel — because committing the rolled-back Tier-1 would resurrect
+    // consumed shared-item records; a .redsave-newer mismatch means the
+    // .redsave holds a WHOLE commit this .sav does not, and the newest
+    // whole commit wins (#589).
+    RsbsSave_LoadSlotChecked(fileNum, savGeneration);
+
+    // WHOLE-FILE COMMIT, delivery seam (#589/#531, operator ruling
+    // 2026-08-04). This hook fires at the TAIL of LoadFile — every section
+    // has already been applied to the live gSaveContext — so it is the one
+    // point that is both after the .sav is fully in memory and before
+    // Sram_OpenSave interprets it (entrance fixups, health floor, spoiling
+    // items). If the load found a newer whole commit in the .redsave, its
+    // Tier-2 is OoT's half at that commit and is now armed; consume it
+    // here so the file resumes from the newest whole commit rather than
+    // from a .sav that predates it.
+    //
+    // Without this, the load is the #531 machine: Tier-1's REDEEMED
+    // shared-item records commit (they ride the same Tier-1 the choke
+    // point just restored) while the OoT world they were redeemed INTO
+    // does not, the redeem loop skips those entries forever, and the item
+    // is permanently gone.
+    //
+    // fileNum is carried across the restore deliberately. The blob is
+    // OoT's own SaveContext from this same slot, so its fileNum agrees —
+    // but "agrees" is an inference about how the blob was captured, and
+    // every later save addresses the file through this field. Re-asserting
+    // the slot the player actually opened costs two lines and removes the
+    // inference.
+    if (RsbsSave_TakeOoTHalfAuthority()) {
+        const int32_t openedFileNum = gSaveContext.fileNum;
+        Combo_ConsumeFrozenState("oot", &gSaveContext, sizeof(gSaveContext));
+        gSaveContext.fileNum = openedFileNum;
+        SPDLOG_INFO("RSBS: applied the .redsave's OoT half over file{}.sav (newer whole commit, #589)", fileNum + 1);
+    }
+}
+
 void SaveManager::WriteSaveFile(const std::filesystem::path& savePath, const uintptr_t addr, void* dramAddr,
                                 const size_t size) {
     std::ofstream saveFile = std::ofstream(savePath, std::fstream::in | std::fstream::out | std::fstream::binary);
@@ -303,70 +376,7 @@ SaveManager::SaveManager() {
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
-        // Order matters: the clear runs FIRST, then the new slot is
-        // established. Session invalidation now also drops the active slot
-        // (it is session state that used to outlive its session), so
-        // publishing before the clear would wipe what we just set.
-        //
-        // Establishing it here — rather than only when a companion .redsave
-        // exists — is deliberate: a slot the player opened is the session's
-        // slot even when no cross-game state exists for it yet, which is
-        // exactly the case where MM is entered for the first time and needs
-        // somewhere to save.
-        Context_InvalidateSessionOnSlotLoad();
-        RsbsSave_SetActiveSlot(fileNum);
-        // ALWAYS attempt the load — no HasSave gate (#533). HasSave is
-        // header-only, so a header-refused file (future version, bad magic,
-        // wrong slot) made the gate report "no save": the load never ran, the
-        // refusal never registered, and the next autosave rename-overwrote
-        // the mostly-intact file — including the only copy of the MM half —
-        // with a blank Tier-1 and an all-zero Tier-3. LoadSlot distinguishes
-        // the three outcomes itself: OK commits and arms the slot for writes,
-        // ABSENT arms it for its first write, REFUSED quarantines the file
-        // aside and latches the slot so no later save can destroy the
-        // evidence.
-        //
-        // The Checked form carries the .sav's mirrored commit generation
-        // (#531/#537/#564 V16 interim). This hook fires from LoadFile after
-        // saveBlock is populated, so the mirror is readable here; the load
-        // compares it against the .redsave's Tier-1 stamp BEFORE committing.
-        // A .sav-newer mismatch (a .redsave commit is missing) refuses
-        // through the full #533 machinery — quarantine, write latch, file
-        // panel — because committing the rolled-back Tier-1 would resurrect
-        // consumed shared-item records; a .redsave-newer mismatch means the
-        // .redsave holds a WHOLE commit this .sav does not, and the newest
-        // whole commit wins (#589).
-        RsbsSave_LoadSlotChecked(fileNum, this->GetLoadedCommitGeneration());
-
-        // WHOLE-FILE COMMIT, delivery seam (#589/#531, operator ruling
-        // 2026-08-04). This hook fires at the TAIL of LoadFile — every section
-        // has already been applied to the live gSaveContext — so it is the one
-        // point that is both after the .sav is fully in memory and before
-        // Sram_OpenSave interprets it (entrance fixups, health floor, spoiling
-        // items). If the load found a newer whole commit in the .redsave, its
-        // Tier-2 is OoT's half at that commit and is now armed; consume it
-        // here so the file resumes from the newest whole commit rather than
-        // from a .sav that predates it.
-        //
-        // Without this, the load is the #531 machine: Tier-1's REDEEMED
-        // shared-item records commit (they ride the same Tier-1 the choke
-        // point just restored) while the OoT world they were redeemed INTO
-        // does not, the redeem loop skips those entries forever, and the item
-        // is permanently gone.
-        //
-        // fileNum is carried across the restore deliberately. The blob is
-        // OoT's own SaveContext from this same slot, so its fileNum agrees —
-        // but "agrees" is an inference about how the blob was captured, and
-        // every later save addresses the file through this field. Re-asserting
-        // the slot the player actually opened costs two lines and removes the
-        // inference.
-        if (RsbsSave_TakeOoTHalfAuthority()) {
-            const int32_t openedFileNum = gSaveContext.fileNum;
-            Combo_ConsumeFrozenState("oot", &gSaveContext, sizeof(gSaveContext));
-            gSaveContext.fileNum = openedFileNum;
-            SPDLOG_INFO("RSBS: applied the .redsave's OoT half over file{}.sav (newer whole commit, #589)",
-                        fileNum + 1);
-        }
+        OoT_Combo_OnLoadFileSeam(fileNum, this->GetLoadedCommitGeneration());
     });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnDeleteFile>([](int32_t fileNum) {

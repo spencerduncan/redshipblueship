@@ -415,6 +415,21 @@ extern "C" int OoT_Rando_Foreign_PlaytestQueueCheck(uint16_t rc) {
     randomizerQueuedChecks.push((RandomizerCheck)rc);
     return 1;
 }
+
+// TEST BRIDGE (oot-check-state-load, #849/#803): empty the queue the flag-set
+// hooks above feed, writing up to `cap` of its checks to `out` in queue order.
+// Returns how many were queued.
+extern "C" int OoT_Rando_TestTakeQueuedChecks(uint16_t* out, int cap) {
+    int n = 0;
+    while (!randomizerQueuedChecks.empty()) {
+        if (out != nullptr && n < cap) {
+            out[n] = (uint16_t)randomizerQueuedChecks.front();
+        }
+        randomizerQueuedChecks.pop();
+        n++;
+    }
+    return n;
+}
 #endif
 
 void RandomizerOnPlayerUpdateForRCQueueHandler() {
