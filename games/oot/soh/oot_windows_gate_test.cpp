@@ -36,6 +36,10 @@
  * and with no game; under OoT, `item` and `map` must reach their handlers. The Giant's Knife toggle's callback
  * (SohGui::OnFixBrokenGiantsKnifeToggled) must not write the save or dereference the NULL play state with Majora's Mask
  * running, nor with OoT running outside Play (its file select).
+ *
+ * #826 adds to the pass-through leg: with OoT running outside Play the gate opens, and `give_item` and `entrance` must
+ * refuse on the NULL OoT_gPlayState in their handlers (non-zero, the refusal in their output, the save unchanged)
+ * instead of dereferencing it.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -56,6 +60,7 @@
 #include "soh/SohGui/OoTActiveGated.h"
 #include "soh/Enhancements/debugconsole.h"
 #include "soh/Enhancements/debugger/MessageViewer.h"
+#include "soh/Enhancements/item-tables/ItemTableManager.h"
 #include "soh/cvar_prefixes.h"
 #include "context.h"
 
@@ -309,6 +314,45 @@ int RunConsoleAndKnifeGate() {
             failures++;
         }
         FillSaveCanary(canary);
+
+        // #826: OoT running but not in Play (its title screen or file select), so the gate opens and OoT_gPlayState is
+        // still NULL. entrance and give_item must refuse in their handlers instead of dereferencing it. This harness
+        // does not run OTRGlobals, which is what creates ItemTableManager::Instance, so give_item's vanilla item-table
+        // lookup would fault on that NULL instance before it reached the play state. A harness-local instance stands in
+        // for it (an empty MOD_NONE table: the lookup returns GET_ITEM_NONE) and the lookup is exercised directly
+        // first, so an unguarded give_item gets past it and faults in GiveItemEntryWithoutActor on the NULL play state
+        // instead.
+        ItemTableManager* const savedItemTables = ItemTableManager::Instance;
+        std::unique_ptr<ItemTableManager> harnessItemTables;
+        if (ItemTableManager::Instance == nullptr) {
+            harnessItemTables = std::make_unique<ItemTableManager>();
+            harnessItemTables->AddItemTable(MOD_NONE);
+            ItemTableManager::Instance = harnessItemTables.get();
+        }
+        const GetItemEntry lookedUp = ItemTableManager::Instance->RetrieveItemEntry(MOD_NONE, 1);
+        printf(
+            "[TEST] oot-windows-gate: item-table lookup (MOD_NONE, 1) returned getItemId %d through the %s instance\n",
+            (int)lookedUp.getItemId, harnessItemTables != nullptr ? "harness" : "real");
+        fflush(stdout);
+        const char* const kPlayStateCommands[] = { "entrance 0", "give_item vanilla 1" };
+        for (const char* line : kPlayStateCommands) {
+            printf("[TEST] oot-windows-gate: Ocarina of Time running, no play state, console `%s`\n", line);
+            fflush(stdout);
+            std::string playOutput;
+            const int32_t rc = console->Run(line, &playOutput);
+            const long diff = FirstSaveDiff(canary);
+            printf("[TEST] oot-windows-gate: `%s` returned %d with output \"%s\"\n", line, (int)rc, playOutput.c_str());
+            if (rc == 0 || playOutput.find("OoT_gPlayState == nullptr") == std::string::npos || diff >= 0) {
+                printf("[TEST] FAIL: oot-windows-gate: `%s` with Ocarina of Time running and no play state did not "
+                       "refuse with \"OoT_gPlayState == nullptr\" and an unchanged gSaveContext (first differing "
+                       "byte %ld) (#826)\n",
+                       line, diff);
+                failures++;
+                memcpy(&gSaveContext, canary.data(), canary.size());
+            }
+        }
+        ItemTableManager::Instance = savedItemTables;
+        fflush(stdout);
     }
 
     // ---- 8. The Giant's Knife toggle: no write and no NULL-play dereference unless OoT is in play -------------------
