@@ -112,8 +112,9 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   the Giant's Mask, magic and a sword ("Twinmold with Bow (MM)" admits the Bow), and the
   West Clock Town bank's heart piece needs the Giant's Wallet ("Bank Rewards Require One
   Less Wallet" admits the Adult Wallet).
-- **You may opt into one shared Ocarina across both games** — off by default,
-  frozen at file creation like every other combo rule: obtaining an ocarina in
+- **You may opt into one shared Ocarina across both games** (Combo → Cross-Game
+  Rules → "[Both Games] Shared Ocarina") — off by default, frozen at file creation
+  like every other combo rule: obtaining an ocarina in
   either game grants it in the other (PR
   [#675](https://github.com/spencerduncan/redshipblueship/pull/675)).
 - **You choose the goal, and meeting it ends the paired game.** Combo → Cross-Game

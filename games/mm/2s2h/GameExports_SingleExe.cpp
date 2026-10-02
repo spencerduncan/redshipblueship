@@ -877,6 +877,56 @@ extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag) {
 }
 
 /**
+ * #804's lock control: RSBS_PFC_MM_BOOT_WRITE_PROBE=1 plants a registrar that,
+ * during Majora's Mask's boot, writes BACK the stale value the player had set
+ * before the load (the value RSBS_PFC_DIVERGE=1 moved the MM option to, which
+ * the load's restore then replaced with the file's): a registrar re-applying a
+ * pre-load value after the restore, the class the diverged paired row
+ * (IntPairedFirstCrossingDiverged) exists to see. With no divergence on the run
+ * (IntPairedFirstCrossing) there is no stale value and the probe writes
+ * nothing, so the plain row stays green with the probe armed and only the
+ * diverged row goes red. It rides MM's own registrar map under "IS_RANDO", like
+ * the #539 probes in mm_shipinit_driver_test.cpp; on a cross-game arrival that
+ * key runs from the boot chain's OnSaveLoad (TitleSetup_SetupTitleScreen ->
+ * Rando.cpp OnSaveLoadHandler), before MM_Play_ConsumeStartupEntrance's gate.
+ * Fires once, and only with MM the current game (the creation event's InitAll
+ * runs it under OoT). Off unless the variable is set; nothing in a shipping
+ * path sets it.
+ */
+static void MM_PfcBootWriteProbe(void) {
+    static bool sFired = false;
+    const char* env = getenv("RSBS_PFC_MM_BOOT_WRITE_PROBE");
+    if (sFired || env == nullptr || strcmp(env, "1") != 0 || Context_GetCurrentGame() != GAME_MM) {
+        return;
+    }
+    sFired = true;
+    const char* cvar = nullptr;
+    int32_t stale = 0;
+    int32_t now = 0;
+    if (!IntegrationTest_PairedDivergeStaleOption(&cvar, &stale, &now)) {
+        fprintf(stderr, "[PFC] MM boot write probe (RSBS_PFC_MM_BOOT_WRITE_PROBE=1): ran during Majora's Mask's "
+                        "boot; no pre-load value to re-apply on this run (no divergence), nothing written\n");
+        fflush(stderr);
+        return;
+    }
+    if (now == stale) {
+        fprintf(stderr,
+                "[PFC] MM boot write probe (RSBS_PFC_MM_BOOT_WRITE_PROBE=1): ran during Majora's Mask's boot; %s "
+                "already holds the pre-load value %d, nothing written\n",
+                cvar, (int)stale);
+        fflush(stderr);
+        return;
+    }
+    CVarSetInteger(cvar, stale);
+    fprintf(stderr,
+            "[PFC] MM boot write probe (RSBS_PFC_MM_BOOT_WRITE_PROBE=1): an IS_RANDO registrar re-applied the "
+            "pre-load value %s = %d (the load had restored %d) during Majora's Mask's boot\n",
+            cvar, (int)stale, (int)now);
+    fflush(stderr);
+}
+static RegisterShipInitFunc sPfcBootWriteProbe(MM_PfcBootWriteProbe, { "IS_RANDO" });
+
+/**
  * int-paired-first-crossing: the MM arrival's verdict, taken once South Clock
  * Town is stable (the arrival's gate, consume and hydrate ran during the scene
  * load before it). `arrival` is 1-based. Everything asserted is what a tester
@@ -927,6 +977,29 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
     char matchLine[512];
     IntegrationTest_StderrCaptureLast("[MM] pairing: arrival profile matches the creation-frozen identity", matchLine,
                                       sizeof(matchLine));
+
+    // RSBS_PFC_DIVERGE=1 (#804): the settings changed before the load, the load
+    // restored them, and MM's first boot ran between that load and the gate.
+    // The gate must have matched the combo rules too, and the keys must still
+    // hold the file's values now that MM has booted.
+    if (IntegrationTest_PairedDiverge()) {
+        const int rulesMatched =
+            IntegrationTest_StderrCaptureCount("[MM] pairing: arrival combo rules match the creation-frozen record");
+        char keys[512];
+        const bool keysHold =
+            IntegrationTest_PairedDivergeKeysHoldFile("after Majora's Mask's boot", keys, sizeof(keys));
+        if (rulesMatched < arrival || !keysHold) {
+            snprintf(msg, sizeof(msg),
+                     "MM arrival %d after a diverged load: %d 'arrival combo rules match' line(s); %s", arrival,
+                     rulesMatched, keys);
+            IntegrationTest_GameplayFail(msg);
+            return false;
+        }
+        char rulesLine[512];
+        IntegrationTest_StderrCaptureLast("[MM] pairing: arrival combo rules match the creation-frozen record",
+                                          rulesLine, sizeof(rulesLine));
+        fprintf(stderr, "[PFC] MM arrival %d PASS (diverged load): \"%s\"; %s\n", arrival, rulesLine, keys);
+    }
     IntegrationTest_StderrCaptureLast("[MM] pairing: HYDRATED from the frozen MM half", line, sizeof(line));
 
     // The HYDRATED line's own numbers: the half's seed and the crossing store's
