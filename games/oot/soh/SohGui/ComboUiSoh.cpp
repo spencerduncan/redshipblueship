@@ -158,10 +158,9 @@ bool SohSearchInput(const char* id, char* buf, int bufSize) {
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 42);
     bool changed = ImGui::InputText("##search", buf, (size_t)bufSize);
     ImGui::SameLine();
-    if (UIWidgets::Button(ICON_FA_ERASER, UIWidgets::ButtonOptions()
-                                              .Size(UIWidgets::Sizes::Inline)
-                                              .Color(Theme())
-                                              .Padding(ImVec2(10.f, 6.f)))) {
+    if (UIWidgets::Button(
+            ICON_FA_ERASER,
+            UIWidgets::ButtonOptions().Size(UIWidgets::Sizes::Inline).Color(Theme()).Padding(ImVec2(10.f, 6.f)))) {
         changed = changed || buf[0] != '\0';
         buf[0] = '\0';
     }
@@ -274,8 +273,8 @@ void SohRowText(const char* text, const ComboUiWidgetOpts* opts) {
 }
 
 const ComboUiTable kSohTable = {
-    SohCheckbox, SohCombobox, SohSliderInt, SohButton, SohSearchInput, SohSeparatorText, SohNoteText, SohWarningText,
-    SohTooltip,  SohTagChip,  SohConfirm,   SohPushTheme, SohPopTheme,      SohSpacer,   SohRowText,
+    SohCheckbox, SohCombobox, SohSliderInt, SohButton,    SohSearchInput, SohSeparatorText, SohNoteText, SohWarningText,
+    SohTooltip,  SohTagChip,  SohConfirm,   SohPushTheme, SohPopTheme,    SohSpacer,        SohRowText,
 };
 
 struct InstallSohComboUi {

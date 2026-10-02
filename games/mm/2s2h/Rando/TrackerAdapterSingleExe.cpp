@@ -43,7 +43,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "Rando/Rando.h" // SaveContext (via variables.h), RC_MAX, SAVETYPE_RANDO, StaticData
+#include "Rando/Rando.h"            // SaveContext (via variables.h), RC_MAX, SAVETYPE_RANDO, StaticData
 #include "2s2h/Rando/Foreign.h"     // ForeignNameForCheck: a crossing host's item (#796)
 #include "2s2h/Rando/Logic/Logic.h" // Regions: the native tracker's grotto/enemy-drop grouping
 #include "2s2h/ShipUtils.h"         // Ship_GetSceneName
@@ -221,8 +221,7 @@ const char* MMTrackerPlacedItemName(const void* save, uint16_t checkId, uint8_t*
         }
         return foreignName;
     }
-    const RandoSaveCheck& row =
-        static_cast<const SaveContext*>(save)->save.shipSaveInfo.rando.randoSaveChecks[checkId];
+    const RandoSaveCheck& row = static_cast<const SaveContext*>(save)->save.shipSaveInfo.rando.randoSaveChecks[checkId];
     const auto item = Rando::StaticData::Items.find(row.randoItemId);
     if (item == Rando::StaticData::Items.end() || item->second.name == nullptr) {
         return nullptr;
