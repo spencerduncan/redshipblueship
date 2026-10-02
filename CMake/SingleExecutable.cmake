@@ -2193,6 +2193,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # visibly, and the arrival gate agrees with a file that loaded. Loads through
     # the OnLoadFile seam's own calls. games/mm/2s2h/mm_paired_load_restore_test.cpp.
     redship_add_test(NAME PairedLoadRestore COMMAND redship --test paired-load-restore)
+    # #836: a refused paired file is never opened. The SoH SaveManager's file
+    # select gate (OnFileChooseMain) keeps A/START on the file list for a file the
+    # open path would refuse, writing nothing; its backstop (OnLoadGame) returns a
+    # load the OnLoadFile seam refused to the file select instead of Play.
+    # Display-free and ROM-free. games/oot/soh/oot_file_select_refusal_test.cpp.
+    redship_add_test(NAME OoTFileSelectRefusal COMMAND redship --test oot-file-select-refusal)
     # Lane F1 (wave 7g, #310): test windows never take keyboard focus from the
     # person at the workstation. main.cpp arms SDL's no-activation hint in code for
     # every --test / --integration-test process (src/common/test_window_focus.h),
