@@ -141,6 +141,7 @@ games/mm/2s2h/Rando/ForeignModel.h
 games/mm/2s2h/Rando/ForeignModelSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/ForeignTextboxIconOoT.cpp
 games/oot/soh/Enhancements/randomizer/ForeignModelOoT.cpp
+games/oot/soh/Enhancements/randomizer/ForeignModelHostOoT.h
 games/oot/soh/Enhancements/randomizer/ForeignModelHostOoT.cpp
 games/oot/soh/Enhancements/randomizer/ComboGoalEndingOoT.cpp
 games/mm/2s2h/Rando/ComboGoalEndingMM.cpp
