@@ -63,6 +63,12 @@
  *      #837 point 6 names) must freeze NOT live. Delete the flush's MM note, or
  *      make MM_Combo_DepartureIsLiveFile answer 1, and 3c goes red; make it
  *      answer 0 and 3b goes red.
+ *   6. (#837 PR 2) A live departure also copies the cycle scene flags into
+ *      the permanent ones, as MM's save marshals and Interface_NewDay do: 3b's
+ *      frozen half carries the chest in permanentSceneFlags. The copy is gated
+ *      on the live file, not the PlayState: 3c (TITLE_SCREEN) keeps its
+ *      permanent flags. The moon-crash consequence is locked in
+ *      mm-creation-new-file (CheckMoonCrashKeepsDepartureChest).
  *
  * COUNTERFACTUALS, run before landing: remove the Combo_FlushLiveStateForFreeze
  * call from either driver and its leg of 1/2 goes red; make
@@ -246,6 +252,7 @@ int RunChecks(PlayState* play) {
     //     the revive is conditional, never a blanket assignment.
     ArmLiveMMSession(0x50);
     gSaveContext.healthAccumulator = -4; // a hit landing, Link alive
+    play->actorCtx.sceneFlags.chest = kChestBit;
     SFF_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_MM) == 1, "a live-bar hot swap must still freeze");
     SFF_ASSERT(ReadFrozenMM(), "the live-bar frozen MM half must read back");
     SFF_ASSERT(sScratch.save.saveInfo.playerData.health == 0x50,
@@ -255,6 +262,9 @@ int RunChecks(PlayState* play) {
     SFF_ASSERT(Context_FrozenStateIsLiveFile(GAME_MM) == 1,
                "#837: a GAMEMODE_NORMAL departure must freeze as a live file, or the crossing commit would skip "
                "every real MM crossing");
+    SFF_ASSERT((sScratch.save.saveInfo.permanentSceneFlags[SCENE_CLOCKTOWER].chest & kChestBit) != 0,
+               "#837 PR 2: a live departure copies the cycle scene flags into the permanent ones, as MM's save "
+               "marshal does, or a moon crash restoring this half closes the chest again");
     Context_ClearFrozenState(GAME_MM);
 
     // 3c. The gate is gameMode, NOT fileNum. Leg 3 already revived under the
@@ -272,6 +282,11 @@ int RunChecks(PlayState* play) {
     SFF_ASSERT(Context_FrozenStateIsLiveFile(GAME_MM) == 0,
                "#837: a TITLE_SCREEN departure (MM's bootstrap) must freeze as NOT a live file, or the crossing "
                "commit writes the attract demo's save into the player's armed slot");
+    SFF_ASSERT((sScratch.cycleSceneFlags[SCENE_CLOCKTOWER].chest & kChestBit) != 0 &&
+                   sScratch.save.saveInfo.permanentSceneFlags[SCENE_CLOCKTOWER].chest == 0,
+               "#837 PR 2: the permanent-flag copy is gated on a live file: a TITLE_SCREEN departure (MM's "
+               "bootstrap) is not a save, and its permanent flags stay as they are");
+    play->actorCtx.sceneFlags.chest = 0;
     Context_ClearFrozenState(GAME_MM);
 
     // ---- 4. No PlayState: both drivers still freeze, nothing is dereferenced

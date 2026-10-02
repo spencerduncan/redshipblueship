@@ -149,6 +149,7 @@ void MM_HarvestSharedResources(void);
 void MM_ApplySharedResources(void);
 int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size);
 uint16_t Switch_GetHotSwapReturnEntrance(GameId departing);
+int Combo_FreezeActiveGameForHotSwap(GameId departing);
 }
 
 namespace {
@@ -568,6 +569,68 @@ int CheckMoonCrashKeepsOoTAcrossCrossing() {
     return 0;
 }
 
+/**
+ * #837 PR 2: MM's departure keeps its scene flags, as a save does. A chest
+ * opened in Termina after the last new day or save sits in the cycle flags
+ * only; MM departs through the real F10 driver (Combo_FreezeActiveGameForHotSwap,
+ * which runs the pre-freeze flush) with no PlayState, as the owl-save and
+ * game-over exits do; a commit then writes MM's shadow (an OoT save here, a
+ * crossing commit in play); MM arrives and the moon falls. The restore copies
+ * the committed Save and vanilla's tail rebuilds the cycle flags from the
+ * PERMANENT ones, so the chest must still be open: the committed Save keeps
+ * what the chest gave. Red before the fix: the departure left the permanent
+ * flag stale and the crash closed the chest.
+ */
+int CheckMoonCrashKeepsDepartureChest() {
+    // South Clock Town's chest bit (the bit mm-scene-flag-freeze uses).
+    const int kScene = SCENE_CLOCKTOWER;
+    const u32 kChestBit = 1u << 20;
+    OpenScratchSlot();
+    if (memcmp(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic)) != 0) {
+        memcpy(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic));
+    }
+    CNF_ASSERT(MM_gPlayState == nullptr,
+               "no PlayState: the departure's gate is the live file, not the PlayState (premise)");
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.save.day = 2;
+    gSaveContext.save.eventDayCount = 2;
+    gSaveContext.save.time = (u16)CLOCK_TIME(12, 0);
+    // The chest opened on day 2: in the cycle flags, not yet in the permanent ones.
+    gSaveContext.cycleSceneFlags[kScene].chest |= kChestBit;
+    gSaveContext.save.saveInfo.permanentSceneFlags[kScene].chest &= ~kChestBit;
+
+    // ---- MM departs (F10), then a commit writes its shadow -----------------
+    Context_SetCurrentGame(GAME_MM);
+    CNF_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_MM) == 1, "MM's departure freezes (premise)");
+    Context_SetCurrentGame(GAME_OOT);
+    {
+        const SaveContext* frozen = reinterpret_cast<const SaveContext*>(Context_GetMMSaveContext());
+        printf("[TEST] %s: departure chest: cycle=%d permanent=%d\n", sRow,
+               (frozen->cycleSceneFlags[kScene].chest & kChestBit) ? 1 : 0,
+               (frozen->save.saveInfo.permanentSceneFlags[kScene].chest & kChestBit) ? 1 : 0);
+        CNF_ASSERT((frozen->cycleSceneFlags[kScene].chest & kChestBit) != 0,
+                   "the departure froze the opened chest in the cycle flags (premise)");
+    }
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    CNF_ASSERT(mgr.Save(0), "a commit writes MM's departure shadow (premise)");
+
+    // ---- MM arrives, and the moon falls -------------------------------------
+    CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
+               "MM's arrival consumes its half (premise)");
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    const bool chestOpen = (gSaveContext.cycleSceneFlags[kScene].chest & kChestBit) != 0;
+    printf("[TEST] %s: after the crash the departure's chest is %s\n", sRow, chestOpen ? "open" : "CLOSED");
+    CNF_ASSERT(chestOpen, "#837 PR 2: a chest opened in Termina before a departure stays open after a moon crash "
+                          "that restores that departure's commit (the departure keeps its scene flags, as a save "
+                          "does), so its item cannot be given twice");
+
+    CloseScratchSlot();
+    return 0;
+}
+
 } // namespace
 
 extern "C" int MM_CreationNewFile_RunSynthetic(void) {
@@ -628,6 +691,9 @@ extern "C" int MM_CreationNewFile_RunSynthetic(void) {
     if (CheckMoonCrashKeepsOoTAcrossCrossing() != 0) {
         return 1;
     }
+    if (CheckMoonCrashKeepsDepartureChest() != 0) {
+        return 1;
+    }
 
     Context_ClearAllFrozenStates();
     ComboContext_Init();
@@ -662,6 +728,9 @@ extern "C" int MM_CreationNewFile_RunWorld(void) {
         return 1;
     }
     if (CheckMoonCrashKeepsOoTAcrossCrossing() != 0) {
+        return 1;
+    }
+    if (CheckMoonCrashKeepsDepartureChest() != 0) {
         return 1;
     }
 
