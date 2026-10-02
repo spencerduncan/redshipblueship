@@ -312,7 +312,10 @@ public:
      *      ACTIVE game's shadow (Context_UpdateShadowCopy from the live
      *      gSaveContext) and set gComboCtx.sourceGame on the same thread,
      *      immediately before staging — that is what makes the snapshot
-     *      single-instant. Returns the stamped generation, or 0 on refusal
+     *      single-instant. The one exception is the crossing commit
+     *      (Switch_CommitCrossing, #837): at a crossing no game is live, the
+     *      departing half IS its departure freeze, so nothing is refreshed
+     *      and sourceGame names the target. Returns the stamped generation, or 0 on refusal
      *      (shadows absent) — a refused stage also INVALIDATES whatever was
      *      staged before it, so a save whose own marshalling failed can never
      *      publish an earlier commit's snapshot (possibly into a different

@@ -11,6 +11,13 @@
 #include <string.h>
 #include <assert.h>
 
+/* Declared rather than included: test_runner.cpp includes this file inside an
+ * extern "C" block, where save.h's and context.h's C++ halves cannot go. */
+void RsbsSave_SetActiveSlot(int slot);
+int RsbsSave_GetActiveSlot(void);
+void Context_InitFrozenStates(void);
+void Context_ClearAllFrozenStates(void);
+
 /* ========================================================================
  * Mock game ops with call counters
  * ======================================================================== */
@@ -249,6 +256,17 @@ int TestLifecycle_RunAll(void) {
     int pass = 0, fail = 0;
     printf("[TEST] === Game Lifecycle Unit Tests ===\n\n");
 
+    /* GameRunner_SwitchTo commits the whole file at every crossing (#837).
+     * These rows switch mock games; in a process shared with other rows
+     * (AllTests) an earlier row may have left a slot armed and active and a
+     * frozen half resident, and a mock switch must never write that slot. No
+     * active slot and no frozen state: every switch below prints a skip line
+     * and writes nothing. The previous active slot is put back afterwards. */
+    const int prevSlot = RsbsSave_GetActiveSlot();
+    RsbsSave_SetActiveSlot(-1);
+    Context_InitFrozenStates();
+    Context_ClearAllFrozenStates();
+
     for (int i = 0; sLifecycleTests[i].name; i++) {
         printf("[TEST] %s... ", sLifecycleTests[i].name);
         int rc = sLifecycleTests[i].func();
@@ -260,6 +278,7 @@ int TestLifecycle_RunAll(void) {
         }
     }
 
+    RsbsSave_SetActiveSlot(prevSlot);
     printf("\n[TEST] Lifecycle tests: %d passed, %d failed\n", pass, fail);
     return fail;
 }
