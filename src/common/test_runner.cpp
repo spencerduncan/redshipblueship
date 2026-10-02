@@ -5994,6 +5994,9 @@ int TestRunner_GetIntegrationTestResult(void) {
     }
 
     bool passed = IntegrationTest_BootPassed();
+    // RSBS_PFC_DIVERGE=1 (#804): put the three keys it moved back to unset, pass
+    // or fail, so the config stays as the shipped-defaults check found it.
+    IntegrationTest_PairedDivergeCleanup();
     // The paired row's stderr tee (a no-op for every other row): drain it and
     // put fd 2 back before the process _Exit()s, so no line is lost in the pipe.
     IntegrationTest_StderrCaptureStop();
