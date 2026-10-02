@@ -439,6 +439,8 @@ int Rando_HeadlessSeedTest(const char* seedStr);
 uint32_t Randomizer_GetCurrentWorldSeed(void);
 // games/mm/2s2h/GameExports_SingleExe.cpp: MM's generation dispatch count.
 uint32_t MM_Rando_OnSaveInitDispatchCount(void);
+// soh/SaveManager.cpp: the file select's gate (#836).
+int OoT_FileSelect_ProbeSlotForOpen(int fileNum, char* words, size_t wordsLen);
 }
 
 // The slot the paired row writes: the THIRD file (fileNum 2), named "RSBSTEST"
@@ -785,6 +787,19 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
     }
 
     // ---- 3. load it back, as the file select does -----------------------------
+    // The file select's gate first (#836): the player's A press on this file
+    // runs it, so a healthy file (and, under RSBS_PFC_DIVERGE, a file whose
+    // changed settings it can restore) must be accepted here.
+    {
+        char words[96];
+        if (OoT_FileSelect_ProbeSlotForOpen(kPfcSlot, words, sizeof(words)) == 0) {
+            snprintf(msg, sizeof(msg), "the file select's gate refused the paired file this row just created: \"%s\"",
+                     words);
+            IntegrationTest_GameplayFail(msg);
+            return;
+        }
+        fprintf(stderr, "[PFC] the file select's gate accepted file %d (#836)\n", kPfcSlot + 1);
+    }
     gSaveContext.fileNum = kPfcSlot;
     gSaveContext.gameMode = GAMEMODE_NORMAL;
     OoT_Sram_OpenSave();

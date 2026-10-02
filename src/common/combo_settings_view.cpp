@@ -297,14 +297,7 @@ uint32_t Combo_ComboSettingsRestorableMask(void) {
     return mask;
 }
 
-int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits, char* names, size_t len,
-                                   ComboSettingsKeyUndo* undo) {
-    if (names != nullptr && len > 0) {
-        names[0] = '\0';
-    }
-    if (undo != nullptr) {
-        *undo = ComboSettingsKeyUndo{};
-    }
+int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits) {
     if (frozen == nullptr || divergedBits == 0) {
         return 0;
     }
@@ -314,12 +307,28 @@ int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t d
     if (!Combo_ComboSettingStoreAvailable()) {
         return 0;
     }
-    // All-or-nothing: validate every value before writing any, so a record
-    // carrying an out-of-space value leaves the store exactly as it was.
+    // All-or-nothing: every value is validated before any is written, so a
+    // record carrying an out-of-space value leaves the store exactly as it was.
     for (const Restorable& r : kRestorable) {
         if ((divergedBits & r.bit) != 0u && !Combo_ComboSettingValueValid(r.id, FrozenValue(frozen, r.id))) {
             return 0;
         }
+    }
+    return 1;
+}
+
+int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits, char* names, size_t len,
+                                   ComboSettingsKeyUndo* undo) {
+    if (names != nullptr && len > 0) {
+        names[0] = '\0';
+    }
+    if (undo != nullptr) {
+        *undo = ComboSettingsKeyUndo{};
+    }
+    // The same answer the file-select probe got (#836), so the probe and the
+    // load cannot disagree about whether the file can restore its rules.
+    if (Combo_ComboSettingsCanRestoreLive(frozen, divergedBits) == 0) {
+        return 0;
     }
 
     std::string restored;

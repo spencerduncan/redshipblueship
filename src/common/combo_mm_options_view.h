@@ -290,7 +290,18 @@ enum {
     RSBS_MM_PROFILE_LOAD_MATCHES = 0,      // the live CVars already resolve the file's profile
     RSBS_MM_PROFILE_LOAD_RESTORED = 1,     // the file's options/tricks were written back; now they do
     RSBS_MM_PROFILE_LOAD_UNRESTORABLE = 2, // they differ and the file cannot say how (the keys are as they were)
+    RSBS_MM_PROFILE_LOAD_RESTORABLE = 3,   // MM_Rando_ClassifyProfileForLoad only: they differ and the file's own
+                                           // options and tricks restore them (nothing was written)
 };
+
+/**
+ * The pure half of MM_Rando_RestoreProfileForLoad (#836): the same
+ * classification, with NOTHING written. MATCHES, RESTORABLE (the restore below
+ * would write the file's options and tricks back) or UNRESTORABLE. The
+ * file-select probe asks this, so it refuses exactly the files whose MM profile
+ * the load could not restore. DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
+ */
+int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest);
 
 /**
  * FROZEN WINS AT LOAD, MM's half (#781; one-game semantics). The load-time
