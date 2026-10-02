@@ -1957,7 +1957,7 @@ void Session::BuildPageList() {
                 // (Combo_SaveFiles_SetMetaForTest).
                 p.states = { "", "listed", "backup" };
                 p.stateText[""] = { "No cross-game record yet" };
-                p.stateText["listed"] = { "A file that is not paired",
+                p.stateText["listed"] = { "A refused file does not open",
                                           std::string("Not paired: ") + Combo_SaveFiles_RefuseText(RSBS_REFUSE_CRC),
                                           std::string("Not paired: ") +
                                               RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_RULES) };
