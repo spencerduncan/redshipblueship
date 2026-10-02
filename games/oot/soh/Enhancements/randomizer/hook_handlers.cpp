@@ -405,6 +405,14 @@ extern "C" int OoT_Rando_Foreign_TestQueueShowOnly(uint16_t rc, GetItemEntry* qu
 extern "C" int OoT_Rando_Foreign_TestQueuedCheck(void) {
     return (int)randomizerQueuedCheck;
 }
+
+// PLAYTEST DRIVE (#577 M4, GameExports_SingleExe.cpp, RSBS_PFC_OOT_FOREIGN_MODEL=1):
+// queue check `rc` as the scene-flag and RandomizerInf hooks do when the player
+// opens it; the drain below then handles it.
+extern "C" int OoT_Rando_Foreign_PlaytestQueueCheck(uint16_t rc) {
+    randomizerQueuedChecks.push((RandomizerCheck)rc);
+    return 1;
+}
 #endif
 
 void RandomizerOnPlayerUpdateForRCQueueHandler() {

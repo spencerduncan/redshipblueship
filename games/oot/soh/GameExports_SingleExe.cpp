@@ -1050,6 +1050,71 @@ static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
     }
 }
 
+// ---- PLAYTEST DRIVE (#577 M4), off unless RSBS_PFC_OOT_FOREIGN_MODEL=1 -------
+// In the paired world's first OoT play window, the first OoT check hosting an MM
+// item whose MM model OoT can draw right now (OoT_ForeignModel_ModelForOoTCheck:
+// a DESCRIPTOR every part of which a mounted archive holds; before the first
+// crossing that is redship-oot.o2r) is queued into the RC queue at frame 40,
+// exactly as the scene-flag and RandomizerInf hooks queue a check the player
+// opens. The drain records the crossing and OoT's get-item cutscene shows the MM
+// model; nothing is at the keyboard, so the textbox is closed at frame 400 (or 40
+// frames before the phase ends). Logged: the MM-bound shared-item records and the
+// rupee count before and after (the give point gives nothing).
+extern "C" int OoT_Rando_Foreign_PlaytestQueueCheck(uint16_t rc); // hook_handlers.cpp
+
+static void PfcForeignModelPlaytestFrame(PlayState* play, int frame, int phaseFrames) {
+    static uint16_t sHost = 0;
+    static int sSharedBefore = -1;
+    static int sRupeesBefore = -1;
+    const char* env = getenv("RSBS_PFC_OOT_FOREIGN_MODEL");
+    if (env == NULL || strcmp(env, "1") != 0) {
+        return;
+    }
+    if (frame == 40) {
+        for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+            ComboCrossing row;
+            ComboModel model;
+            if (!Combo_Crossings_At(GAME_OOT, i, &row) || OoT_Rando_Foreign_HostCollected(row.hostCheck) ||
+                OoT_ForeignModel_ModelForOoTCheck(row.hostCheck, &model) != 1) {
+                continue;
+            }
+            sHost = row.hostCheck;
+            sSharedBefore = Combo_CountSharedItems(GAME_MM, true);
+            sRupeesBefore = gSaveContext.rupees;
+            const char* item = Combo_GetForeignItemName(row.item);
+            fprintf(stderr,
+                    "[M4-PLAYTEST] queuing OoT check %u (%s), which hosts the MM item %s: %u part(s), first %s "
+                    "(crossing %d of %d)\n",
+                    (unsigned)row.hostCheck,
+                    Rando::StaticData::GetLocation((RandomizerCheck)row.hostCheck)->GetName().c_str(),
+                    item != NULL ? item : "?", (unsigned)model.partCount, model.parts[0].dl, i + 1,
+                    Combo_Crossings_Count(GAME_OOT));
+            fflush(stderr);
+            OoT_Rando_Foreign_PlaytestQueueCheck(row.hostCheck);
+            break;
+        }
+        if (sHost == 0) {
+            fprintf(stderr, "[M4-PLAYTEST] no OoT-hosted crossing of %d has a drawable MM model\n",
+                    Combo_Crossings_Count(GAME_OOT));
+            fflush(stderr);
+        }
+    }
+    const int closeAt = phaseFrames - 40 < 400 ? phaseFrames - 40 : 400;
+    if (frame == closeAt && sHost != 0) {
+        fprintf(stderr, "[M4-PLAYTEST] closing the get-item textbox (frame %d)\n", frame);
+        fflush(stderr);
+        OoT_Message_CloseTextbox(play);
+    }
+    if (frame == closeAt + 20 && sHost != 0) {
+        fprintf(stderr,
+                "[M4-PLAYTEST] MM-bound shared-item records: %d before, %d after; rupees %d before, %d after; check "
+                "collected %d\n",
+                sSharedBefore, Combo_CountSharedItems(GAME_MM, true), sRupeesBefore, (int)gSaveContext.rupees,
+                OoT_Rando_Foreign_HostCollected(sHost));
+        fflush(stderr);
+    }
+}
+
 static bool sPfcTitleRedirected = false;
 
 /**
@@ -1584,6 +1649,7 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             sGpFramesInPhase++;
             if (phase == GP_PHASE_OOT_PRE && IntegrationTest_PairedFirstCrossing()) {
                 GpPairedTrackerPlaytest(sGpFramesInPhase);
+                PfcForeignModelPlaytestFrame(play, sGpFramesInPhase, cfg->framesPerPhase);
             }
             if (phase == GP_PHASE_OOT_WARP && IntegrationTest_PairedFirstCrossing()) {
                 PfcShopPlaytestWarpFrame(play, sGpFramesInPhase);

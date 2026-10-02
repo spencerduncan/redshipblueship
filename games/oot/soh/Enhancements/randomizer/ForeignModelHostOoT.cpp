@@ -592,7 +592,8 @@ extern "C" int OoT_ForeignModel_TestShowOnlyGetItem(uint16_t rc, int wantEntry, 
     const char* name = nullptr;
     if (OoT_Rando_Foreign_ShowOnlyItemText(&entry, &article, &name) != 1 || name == nullptr ||
         std::strcmp(name, wantName) != 0) {
-        std::printf("[TEST]   M13 the textbox names \"%s\", want \"%s\"\n", name != nullptr ? name : "(none)", wantName);
+        std::printf("[TEST]   M13 the textbox names \"%s\", want \"%s\"\n", name != nullptr ? name : "(none)",
+                    wantName);
         return 1;
     }
     std::printf("[TEST]   M13 textbox: You found %s%s!\n", article != nullptr ? article : "", name);
