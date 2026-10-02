@@ -37,6 +37,7 @@
 #include "soh/SaveManager.h"     // SaveFileMetaInfo: the paired row's slot ownership mark
 #include "notification_bridge.h" // the paired row's "no refusal toast" check
 #include "crossing_store.h"      // the paired row's crossing-store check
+#include "foreign_model.h"       // the #800 S1 shop playtest's model answer
 // The paired row's "shipped defaults" check: every setting the generation
 // reads, per surface (OoT's options/tricks/exclusions, MM's options/tricks, the
 // combo settings), must be unset in the CVar store.
@@ -454,6 +455,10 @@ static const char* const kPfcSeed = "RSBSSINGLEBAG1";
 // a shared cross-game resource, and the slot on disk holds 0.
 static const u16 kPfcDeathsSentinel = 777;
 static uint32_t sPfcOoTWorldSeed = 0;
+// The #800 S1 shop playtest drive (defined below, beside the #796 drive).
+static bool PfcShopPlaytest(void);
+static void PfcShopPlaytestSetCVars(bool on);
+static uint16_t PfcShopPlaytestLogShelves(int scene, const char* when);
 
 static bool PfcNoRefusalToast(char* msg, size_t cap) {
     const int toasts = OoT_Notification_EmittedCountForTest();
@@ -697,6 +702,9 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
         return;
     }
     fprintf(stderr, "[PFC] shipped defaults verified: %s\n", msg);
+    if (PfcShopPlaytest()) {
+        PfcShopPlaytestSetCVars(true);
+    }
     fprintf(stderr, "[PFC] generating the pinned paired world %s on the shipped defaults at %s\n", kPfcSeed, from);
     fflush(stderr);
     if (Rando_HeadlessSeedTest(kPfcSeed) != 0) {
@@ -737,6 +745,10 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
         return;
     }
     fprintf(stderr, "[PFC] created: \"%s\"\n", line);
+    if (PfcShopPlaytest()) {
+        PfcShopPlaytestSetCVars(false);
+        PfcShopPlaytestLogShelves(-1, "created");
+    }
 
     // ---- the identity AS CREATED, before anything is loaded back ---------------
     // The baseline every later check compares against is the creation's, not
@@ -910,6 +922,131 @@ static void GpPairedTrackerPlaytest(int frame) {
     }
     if (frame == 600 && sHost >= 0 && !sItemName.empty()) {
         GpPairedTrackerSearch(sHost, sItemName);
+    }
+}
+
+// ---- PLAYTEST DRIVE (#800 S1), off unless RSBS_PFC_OOT_SHOP=1 ---------------
+// The paired world is generated with OoT's shopsanity (four emptied shelves per
+// shop) and MM's shop shuffle on, set in-process for the generation and the
+// creation and cleared again. Loading the file then restores MM's shop shuffle
+// into the live CVars (the MM profile's load-time restore, Foreign.cpp), and the
+// config saved at exit carries it: rewrite the build directory's config after a
+// run (the PFC row refuses any explicit world setting).
+// After the creation it logs every MM item the single bag put on an OoT shop
+// shelf. In the post-return warp (point RSBS_GP_WARP_ENTRANCE at that shelf's
+// shop) it logs, per shelf of the scene, whether OoT draws the MM model or the
+// stand-in, opens that shelf's description textbox at frame 100 (closed at 700),
+// and at frame 760 buys the first such shelf the way
+// EnGirlA_ItemGive_Randomizer does (the shelf's RandomizerInf flag, minus the
+// charge), so the drain's pickup toast and the MM-bound record are observed.
+extern "C" int OoT_ForeignModel_ModelForOoTCheck(uint16_t rc, ComboModel* out);
+extern "C" int OoT_Rando_Foreign_HostCollected(uint16_t rc);
+extern "C" void Flags_SetRandomizerInf(RandomizerInf flag); // z_actor.c
+extern "C" void OoT_Message_StartTextbox(PlayState* play, u16 textId, Actor* actor);
+extern "C" void OoT_Message_CloseTextbox(PlayState* play);
+
+static const char* const kPfcShopCVars[][2] = {
+    { CVAR_RANDOMIZER_SETTING("Shopsanity"), "1" },      // RO_SHOPSANITY_SPECIFIC_COUNT
+    { CVAR_RANDOMIZER_SETTING("ShopsanityCount"), "4" }, // four emptied shelves per shop
+    { "gRando.Options.RO_SHUFFLE_SHOPS", "1" },          // MM's shop stock joins the bag
+};
+
+static bool PfcShopPlaytest(void) {
+    const char* env = getenv("RSBS_PFC_OOT_SHOP");
+    return env != NULL && strcmp(env, "1") == 0;
+}
+
+static void PfcShopPlaytestSetCVars(bool on) {
+    for (const auto& cv : kPfcShopCVars) {
+        if (on) {
+            CVarSetInteger(cv[0], atoi(cv[1]));
+        } else {
+            CVarClear(cv[0]);
+        }
+    }
+    fprintf(stderr, "[S1-PLAYTEST] shop shuffles %s in-process (OoT shopsanity 4 per shop, MM shop shuffle)\n",
+            on ? "SET" : "cleared");
+    fflush(stderr);
+}
+
+/** Every MM item on an OoT shop shelf; `scene` < 0 for all scenes. Returns the
+ *  first such check in the scene (0 for none). */
+static uint16_t PfcShopPlaytestLogShelves(int scene, const char* when) {
+    uint16_t first = 0;
+    int shown = 0;
+    for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+        ComboCrossing row;
+        if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
+            continue;
+        }
+        Rando::Location* loc = Rando::StaticData::GetLocation((RandomizerCheck)row.hostCheck);
+        if (loc == nullptr || loc->GetRCType() != RCTYPE_SHOP || (scene >= 0 && loc->GetScene() != scene)) {
+            continue;
+        }
+        ComboModel model;
+        const int drawable = OoT_ForeignModel_ModelForOoTCheck(row.hostCheck, &model);
+        ComboModelAnswer answer;
+        const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, row.item, &answer);
+        const char* item = Combo_GetForeignItemName(row.item);
+        fprintf(
+            stderr,
+            "[S1-PLAYTEST] %s: MM %s on OoT %s (check %u, scene %d, price %u): model answer %s, shelf draws %s%s\n",
+            when, item != NULL ? item : "?", loc->GetName().c_str(), (unsigned)row.hostCheck, (int)loc->GetScene(),
+            (unsigned)OTRGlobals::Instance->gRandoContext->GetItemLocation((RandomizerCheck)row.hostCheck)->GetPrice(),
+            kind == COMBO_MODEL_ANSWER_DESCRIPTOR    ? "DESCRIPTOR"
+            : kind == COMBO_MODEL_ANSWER_HOST_NATIVE ? "HOST_NATIVE"
+                                                     : "NONE",
+            drawable ? "the MM model, first list " : "the stand-in (mystery item)", drawable ? model.parts[0].dl : "");
+        first = first == 0 ? row.hostCheck : first;
+        shown++;
+    }
+    fprintf(stderr, "[S1-PLAYTEST] %s: %d MM item(s) on OoT shop shelves%s\n", when, shown,
+            scene >= 0 ? " in this scene" : "");
+    fflush(stderr);
+    return first;
+}
+
+static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
+    static uint16_t sShelf = 0;
+    static int sSharedBefore = -1;
+    if (!PfcShopPlaytest()) {
+        return;
+    }
+    if (frame == 40) {
+        sShelf = PfcShopPlaytestLogShelves(play->sceneNum, "warp arrival");
+    }
+    if (frame == 100 && sShelf != 0) {
+        // The shelf's own description textbox: the id z_en_girla.c gives a
+        // randomized shelf (TEXT_SHOP_ITEM_RANDOM + its shop-item index), which
+        // BuildShopMessage (MerchantMessages.cpp) builds.
+        const Rando::SpoilerCollectionCheck cc =
+            Rando::StaticData::GetLocation((RandomizerCheck)sShelf)->GetCollectionCheck();
+        const u16 textId = (u16)(0x9100 + ((int)cc.flag - (int)RAND_INF_SHOP_ITEMS_KF_SHOP_ITEM_1));
+        fprintf(stderr, "[S1-PLAYTEST] opening the shelf's description textbox 0x%04X (check %u)\n", (unsigned)textId,
+                (unsigned)sShelf);
+        fflush(stderr);
+        OoT_Message_StartTextbox(play, textId, NULL);
+    }
+    if (frame == 700 && sShelf != 0) {
+        OoT_Message_CloseTextbox(play);
+    }
+    if (frame == 760 && sShelf != 0) {
+        const Rando::SpoilerCollectionCheck cc =
+            Rando::StaticData::GetLocation((RandomizerCheck)sShelf)->GetCollectionCheck();
+        sSharedBefore = Combo_CountSharedItems(GAME_MM, true);
+        fprintf(stderr,
+                "[S1-PLAYTEST] buying OoT check %u: setting its RandomizerInf flag %u as EnGirlA_ItemGive_Randomizer "
+                "does (sold out before: %d)\n",
+                (unsigned)sShelf, (unsigned)cc.flag, OoT_Rando_Foreign_HostCollected(sShelf));
+        fflush(stderr);
+        Flags_SetRandomizerInf((RandomizerInf)cc.flag);
+    }
+    if (frame == 900 && sShelf != 0) {
+        fprintf(stderr,
+                "[S1-PLAYTEST] MM-bound shared-item records: %d before the purchase, %d after; sold out now: "
+                "%d\n",
+                sSharedBefore, Combo_CountSharedItems(GAME_MM, true), OoT_Rando_Foreign_HostCollected(sShelf));
+        fflush(stderr);
     }
 }
 
@@ -1447,6 +1584,9 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             sGpFramesInPhase++;
             if (phase == GP_PHASE_OOT_PRE && IntegrationTest_PairedFirstCrossing()) {
                 GpPairedTrackerPlaytest(sGpFramesInPhase);
+            }
+            if (phase == GP_PHASE_OOT_WARP && IntegrationTest_PairedFirstCrossing()) {
+                PfcShopPlaytestWarpFrame(play, sGpFramesInPhase);
             }
 
             // Door-actor presence (bug 1a): by frame 30 the arrival scene's
