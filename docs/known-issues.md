@@ -195,8 +195,8 @@ Curiosity Shop's special and the Bomb Shop's fourth item), so this can happen ev
 Shuffle" on, a scrub can sell a Majora's Mask item at its own price, its offer names the item
 (unless "Merchant Hint Text" is off or Mysterious Shuffle is on, as for its own items), and buying it sends the item
 to Majora's Mask like a cross-game chest. It also adds MM's Tingle: with MM's "Shuffle Tingle
-Maps" on, one of his two offers can be an Ocarina of Time item at its own price; his offer
-names it, he sells it once for the whole game, and it is delivered on your next arrival in
+Maps" on, either or both of his two offers can be an Ocarina of Time item at its own price; his
+offer names it, he sells it once for the whole game, and it is delivered on your next arrival in
 Hyrule. Still pending: OoT's merchants and Treasure Chest Game hold only their own game's
 items. Shop shuffle, scrub shuffle and Tingle map shuffle are off by default (OoT's "Shop
 Shuffle" and "Scrubs Shuffle", MM's "Shuffle Shops" and "Shuffle Tingle Maps"). MM's shop stock joins
