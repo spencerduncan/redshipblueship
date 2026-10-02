@@ -61,6 +61,20 @@ static void OoT_AddGatedConsoleCommand(const std::string& command, Ship::Command
     };
     Ship::Context::GetInstance()->GetConsole()->AddCommand(command, entry);
 }
+
+// #826: the gate above stays open while OoT runs outside Play (title screen, file select), where OoT_gPlayState is
+// NULL. give_item and entrance dereference it, so they refuse here first. Like the gate, the refusal goes into the
+// caller's output (the Console window prints it as the command's error), not through ERROR_MESSAGE, which needs the
+// Console window to exist.
+static bool OoT_RefuseWithoutPlayState(std::string* output) {
+    if (OoT_gPlayState != nullptr) {
+        return false;
+    }
+    if (output != nullptr) {
+        *output = "OoT_gPlayState == nullptr";
+    }
+    return true;
+}
 #define CMD_REGISTER OoT_AddGatedConsoleCommand
 #else
 #define CMD_REGISTER Ship::Context::GetInstance()->GetConsole()->AddCommand
@@ -418,6 +432,11 @@ static bool GiveItemHandler(std::shared_ptr<Ship::Console> Console, const std::v
         ERROR_MESSAGE("[SOH] Unexpected arguments passed");
         return 1;
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (OoT_RefuseWithoutPlayState(output)) {
+        return 1;
+    }
+#endif
     GetItemEntry getItemEntry = GET_ITEM_NONE;
 
     if (args[1].compare("vanilla") == 0) {
@@ -449,6 +468,12 @@ static bool EntranceHandler(std::shared_ptr<Ship::Console> Console, const std::v
         ERROR_MESSAGE("[SOH] Entrance value must be a Hex number.");
         return 1;
     }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (OoT_RefuseWithoutPlayState(output)) {
+        return 1;
+    }
+#endif
 
     OoT_gPlayState->nextEntranceIndex = entrance;
     OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
