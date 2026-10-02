@@ -224,7 +224,9 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
 }
 
 /**
- * #800 S1, the shop shelf's sold-out and can-buy tests (z_en_girla.c): 1 when OoT
+ * #800 S1, the shop shelf's sold-out and can-buy tests (z_en_girla.c), and since
+ * #800 pass 2 the Business Scrub's (hook_handlers.cpp: its can-buy test and its
+ * despawn): 1 when OoT
  * check `rc` hosts an MM item and the check is COLLECTED (the once-per-host gate
  * OoT_Foreign_RecordPickupImpl and the drain read). That is usually "the MM item
  * crossed", but not always: after a #610 pairing refusal the drain falls through
