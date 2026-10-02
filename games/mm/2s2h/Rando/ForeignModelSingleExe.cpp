@@ -1315,12 +1315,88 @@ bool RunShopDraw(uint16_t mmCheckId, bool hand, const ComboModel* want) {
  *
  * #830: RSBS_GP_MM_FOREIGN_MODEL=song arms the first OoT SONG instead (any
  * drawable answer whose model draws the song note: MM's own note row or its
- * host-side tinted note), so the capture shows an OoT song's note in MM.
+ * host-side tinted note), so the capture shows an OoT song's note in MM. When
+ * no crossing of the world hosts a song, the drive places OoT's Song of Time on
+ * the first unobtained crossing's host check (a pinned placement, which answers
+ * before the crossing store) and arms that: the issue's playtest step "place an
+ * OoT song on an MM check". Test-only; nothing in a shipping path sets the
+ * variable.
  */
+static int ArmFirst(bool wantSong, int count);
+
 extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
     const char* mode = std::getenv("RSBS_GP_MM_FOREIGN_MODEL");
     const bool wantSong = mode != nullptr && std::strcmp(mode, "song") == 0;
     const int count = Combo_Crossings_Count(GAME_MM);
+    for (int pass = 0; pass < (wantSong ? 2 : 1); pass++) {
+        if (pass == 1) {
+            SharedItem song;
+            ComboCrossing first;
+            bool placed = false;
+            for (int i = 0; !placed && i < count; i++) {
+                placed = Combo_Crossings_At(GAME_MM, i, &first) && first.hostCheck < RC_MAX &&
+                         !RANDO_SAVE_CHECKS[first.hostCheck].obtained &&
+                         Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, "Song of Time", &song) &&
+                         Combo_SetForeignPlacement(first.hostCheck, song) >= 0;
+            }
+            std::fprintf(stderr, "[M3-PLAYTEST] no crossing hosts an OoT song: %s\n",
+                         placed ? "placed OoT's Song of Time on the first unobtained crossing's MM check"
+                                : "could not place one");
+            std::fflush(stderr);
+            if (!placed) {
+                break;
+            }
+        }
+        if (int armed = ArmFirst(wantSong, count); armed != 0) {
+            return armed;
+        }
+    }
+    std::fprintf(stderr, "[M3-PLAYTEST] no MM-hosted crossing of %d has a drawable OoT %s\n", count,
+                 wantSong ? "song" : "model");
+    std::fflush(stderr);
+    return 0;
+}
+
+// GameExports_SingleExe.cpp: the game framebuffer as a PNG (RSBS_GP_SHOT_DIR).
+extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag);
+
+/**
+ * The drive's per-frame half (#830, same opt-in), every live MM play frame.
+ * Nobody is at the keyboard: a textbox up for 150 frames waits for a press that
+ * will not come (the arrival's own gives queue ahead of the armed one), so the
+ * drive closes it. From frame 160 to 1000 it captures the game framebuffer
+ * every 60 frames (mm-foreign-model-<frame>.png in RSBS_GP_SHOT_DIR; a no-op
+ * without it), logging the open textbox's id beside each capture.
+ */
+extern "C" void MM_ForeignModel_PlaytestFrame(int playFrames) {
+    static int sTextboxFrames = 0;
+    PlayState* play = MM_gPlayState;
+    if (play == nullptr) {
+        return;
+    }
+    if (play->msgCtx.msgMode != MSGMODE_NONE) {
+        if (++sTextboxFrames >= 150) {
+            std::fprintf(stderr, "[M3-PLAYTEST] frame %d: closing textbox 0x%04X, up for %d frames\n", playFrames,
+                         (unsigned)play->msgCtx.currentTextId, sTextboxFrames);
+            std::fflush(stderr);
+            MM_Message_CloseTextbox(play);
+            sTextboxFrames = 0;
+        }
+    } else {
+        sTextboxFrames = 0;
+    }
+    if (playFrames >= 160 && playFrames <= 1000 && playFrames % 60 == 40) {
+        char tag[48];
+        std::snprintf(tag, sizeof(tag), "mm-foreign-model-%04d", playFrames);
+        std::fprintf(stderr, "[M3-PLAYTEST] frame %d: capture %s (textbox 0x%04X, msgMode %d)\n", playFrames, tag,
+                     (unsigned)play->msgCtx.currentTextId, (int)play->msgCtx.msgMode);
+        std::fflush(stderr);
+        MM_Playtest_DumpGameFramebuffer(tag);
+    }
+}
+
+/** The arming loop of MM_ForeignModel_PlaytestArmGive: the check id, or 0. */
+static int ArmFirst(bool wantSong, int count) {
     for (int i = 0; i < count; i++) {
         ComboCrossing crossing;
         ComboModel model;
@@ -1338,12 +1414,13 @@ extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
             continue;
         }
         RANDO_SAVE_CHECKS[crossing.hostCheck].eligible = true;
-        const char* name = Combo_GetForeignItemName(crossing.item);
+        const SharedItem hosted = *Combo_GetForeignPlacementForCheck(crossing.hostCheck);
+        const char* name = Combo_GetForeignItemName(hosted);
         std::fprintf(stderr,
                      "[M3-PLAYTEST] armed MM check %u (%s) hosting OoT item %u (%s, %s): %u part(s), first %s, XLU env "
                      "%d,%d,%d (crossing %d of %d)\n",
                      (unsigned)crossing.hostCheck, Rando::StaticData::CheckNames[crossing.hostCheck].c_str(),
-                     (unsigned)crossing.item.id, name != nullptr ? name : "?",
+                     (unsigned)hosted.id, name != nullptr ? name : "?",
                      kind == COMBO_MODEL_ANSWER_DESCRIPTOR ? "DESCRIPTOR" : "HOST_NATIVE", (unsigned)model.partCount,
                      model.parts[0].dl, model.xluColor.set ? model.xluColor.env[0] : -1,
                      model.xluColor.set ? model.xluColor.env[1] : -1, model.xluColor.set ? model.xluColor.env[2] : -1,
@@ -1351,9 +1428,6 @@ extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
         std::fflush(stderr);
         return crossing.hostCheck;
     }
-    std::fprintf(stderr, "[M3-PLAYTEST] no MM-hosted crossing of %d has a drawable OoT %s\n", count,
-                 wantSong ? "song" : "model");
-    std::fflush(stderr);
     return 0;
 }
 
