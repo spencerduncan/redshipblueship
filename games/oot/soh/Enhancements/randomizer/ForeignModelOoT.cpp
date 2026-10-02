@@ -718,6 +718,19 @@ extern "C" int OoT_ComboModelHostNative(const ComboModel* foreign, uint16_t* hos
     return MapHostNative(foreign, hostKey, &reason, &tableRow);
 }
 
+/** OoT's own draw row `drawId` (a HOST_NATIVE answer's key) as the descriptor of
+ *  the lists OoT's own recipe draws for it: 1 and *out, or 0 (#577 M4: the
+ *  get-item cutscene draws it, ForeignModelHostOoT.cpp). */
+extern "C" int OoT_ComboModel_DrawRowModel(int drawId, ComboModel* out) {
+    ComboModel model;
+    const char* reason = nullptr;
+    if (out == nullptr || ModelForDrawId(drawId, &model, &reason) != 1) {
+        return 0;
+    }
+    *out = model;
+    return 1;
+}
+
 // ---- TEST BRIDGES (ForeignModel row, src/common/tests/test_foreign_model.c) ---
 
 /** OoT's host-native answer for a foreign model: 1 and *hostKey, or 0 and

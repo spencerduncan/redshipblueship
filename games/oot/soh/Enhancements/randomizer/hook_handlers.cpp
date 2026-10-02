@@ -21,6 +21,7 @@
 // linkage and pull in context.h, whose <type_traits> include must not be wrapped
 // in C linkage (see context.h's header comment).
 #include "foreign_items.h" // Combo_GetForeignPlacementForOoTCheck, OoT_Rando_Foreign_RecordPickup (#510/#493)
+#include "soh/Enhancements/randomizer/ForeignModelHostOoT.h" // the show-only get-item entry (#577 M4)
 #endif
 
 extern "C" {
@@ -349,6 +350,73 @@ void RandomizerOnSceneFlagSetHandler(int16_t sceneNum, int16_t flagType, int16_t
 
 static Vec3f spawnPos = { 0.0f, -999.0f, 0.0f };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// The four checks whose native give never skips its animation (the drain below):
+// each needs its textbox closed to finish.
+static bool RandomizerCheckNeedsGetItemTextbox(RandomizerCheck rc) {
+    return rc == RC_HF_OCARINA_OF_TIME_ITEM || rc == RC_SPIRIT_TEMPLE_SILVER_GAUNTLETS_CHEST ||
+           rc == RC_MARKET_BOMBCHU_BOWLING_FIRST_PRIZE || rc == RC_MARKET_BOMBCHU_BOWLING_SECOND_PRIZE;
+}
+
+// #577 M4: does the player skip the get-item animation of an MM item found at
+// OoT check `rc`? Only when every get-item animation is skipped (an ordinary
+// pickup gets none either; the MM item is a major item, which "skip junk" keeps),
+// and never at the four checks above.
+static bool RandomizerSkipForeignGetItemAnimation(RandomizerCheck rc) {
+    return CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("TimeSavers.SkipGetItemAnimation"), SGIA_JUNK) == SGIA_ALL &&
+           !RandomizerCheckNeedsGetItemTextbox(rc);
+}
+
+// #577 M4: queue the show-only get-item entry for OoT check `rc`, which hosts an
+// MM item whose crossing the drain has just recorded, exactly as the drain queues
+// an ordinary entry; the item queue handler then hands it to the player and OoT's
+// get-item cutscene shows it. Its give point gives nothing and releases this slot
+// (Randomizer_ReleaseQueuedShowOnly). false: nothing queued (no MM item there).
+static bool RandomizerQueueForeignShowOnly(RandomizerCheck rc) {
+    GetItemEntry entry;
+    if (OoT_Rando_Foreign_BuildShowOnlyGetItem((uint16_t)rc, &entry) != 1) {
+        return false;
+    }
+    iceTrapScale = 0.0f;
+    randomizerQueuedCheck = rc;
+    randomizerQueuedItemEntry = entry;
+    return true;
+}
+
+// The receive hook's slot release (RandomizerOnItemReceiveHandler) for a
+// show-only entry, which is never given and so never reaches that hook. Called by
+// its take (ForeignModelHostOoT.cpp).
+void Randomizer_ReleaseQueuedShowOnly(uint16_t rc) {
+    if (randomizerQueuedCheck == (RandomizerCheck)rc) {
+        randomizerQueuedCheck = RC_UNKNOWN_CHECK;
+        randomizerQueuedItemEntry = GET_ITEM_NONE;
+    }
+}
+
+// TEST BRIDGES (ForeignModel row M13): the drain's show-only queueing for check
+// `rc` (*queued: the slot's entry), and the slot's check (RC_UNKNOWN_CHECK when
+// free).
+extern "C" int OoT_Rando_Foreign_TestQueueShowOnly(uint16_t rc, GetItemEntry* queued) {
+    const bool ok = RandomizerQueueForeignShowOnly((RandomizerCheck)rc);
+    if (queued != nullptr) {
+        *queued = randomizerQueuedItemEntry;
+    }
+    return ok ? 1 : 0;
+}
+
+extern "C" int OoT_Rando_Foreign_TestQueuedCheck(void) {
+    return (int)randomizerQueuedCheck;
+}
+
+// PLAYTEST DRIVE (#577 M4, GameExports_SingleExe.cpp, RSBS_PFC_OOT_FOREIGN_MODEL=1):
+// queue check `rc` as the scene-flag and RandomizerInf hooks do when the player
+// opens it; the drain below then handles it.
+extern "C" int OoT_Rando_Foreign_PlaytestQueueCheck(uint16_t rc) {
+    randomizerQueuedChecks.push((RandomizerCheck)rc);
+    return 1;
+}
+#endif
+
 void RandomizerOnPlayerUpdateForRCQueueHandler() {
     // If we're already queued, don't queue again
     if (randomizerQueuedCheck != RC_UNKNOWN_CHECK)
@@ -394,32 +462,29 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
     const SharedItem* foreignItem = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
     if (foreignItem != nullptr && !loc->HasObtained() && OoT_Rando_Foreign_RecordPickup((uint16_t)rc) != 0) {
         // Presented as an ORDINARY OoT pickup (#510): "You found the Bunny
-        // Hood" — no mention of Termina, no "will be awarded there", no
-        // stand-in model. The item is not given locally (it belongs to MM's
-        // id-space), so nothing is dropped or held overhead; the toast is the
-        // whole presentation.
+        // Hood" — no mention of Termina, no "will be awarded there". The item
+        // is not given locally (it belongs to MM's id-space).
         //
-        // A toast rather than a blue textbox is a SCOPE choice, not a technical
-        // one: OoT's item-get pipeline couples "show this item" to "grant this
-        // item", and there is no display-without-grant path, so routing a
-        // foreign item through it would also give it to OoT. Notification::Emit
-        // is the surface the OoT ARRIVAL half already uses for this exact item
-        // class (#494/#507, OoT_AwardSharedItem), it takes an arbitrary string,
-        // and it cannot interfere with the item-get queue. A fully native
-        // textbox is a follow-up that needs that display-only path first.
-        //
-        // FIELD ARRANGEMENT (#494): verb in `.message`, item name in `.suffix`,
-        // matching the native rando pickup toasts further down this file.
-        // Options colours each field differently, so the earlier `.prefix` +
-        // `.message` form rendered this pickup in blue-then-grey where every
-        // ordinary one is grey-then-red.
-        const char* foreignName = Combo_GetForeignItemName(*foreignItem);
-        const char* foreignArticle = Combo_GetForeignItemArticle(*foreignItem);
-        Notification::Emit({
-            .message = "You found ",
-            .suffix = std::string(foreignArticle != nullptr ? foreignArticle : "") +
-                      (foreignName != nullptr ? foreignName : "a foreign item"),
-        });
+        // #577 M4: through OoT's own get-item cutscene, which now has a
+        // display-without-grant path (ForeignModelHostOoT.cpp): Link holds up
+        // the MM model (or OoT's own model for a colliding one, or the mystery
+        // stand-in), the blue textbox names the item, and the give point gives
+        // nothing. The toast stays for the player who skips every get-item
+        // animation, where an ordinary pickup gets no cutscene either.
+        if (RandomizerSkipForeignGetItemAnimation(rc) || !RandomizerQueueForeignShowOnly(rc)) {
+            // FIELD ARRANGEMENT (#494): verb in `.message`, item name in
+            // `.suffix`, matching the native rando pickup toasts further down
+            // this file. Options colours each field differently, so the earlier
+            // `.prefix` + `.message` form rendered this pickup in
+            // blue-then-grey where every ordinary one is grey-then-red.
+            const char* foreignName = Combo_GetForeignItemName(*foreignItem);
+            const char* foreignArticle = Combo_GetForeignItemArticle(*foreignItem);
+            Notification::Emit({
+                .message = "You found ",
+                .suffix = std::string(foreignArticle != nullptr ? foreignArticle : "") +
+                          (foreignName != nullptr ? foreignName : "a foreign item"),
+            });
+        }
 
         // RCSHOW_COLLECTED is what HasObtained() reads (status == RCSHOW_COLLECTED
         // || RCSHOW_SAVED), so this alone marks it obtained — there is no separate

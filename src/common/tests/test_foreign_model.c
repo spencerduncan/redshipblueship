@@ -62,6 +62,19 @@
  *     no model; MM's hookshot: no model before #577 M7, HOST_NATIVE after it,
  *     which this host does not draw yet) it emits no model list and answers 0,
  *     so the shelf keeps its stand-in.
+ *  M13 OoT'S GET-ITEM CUTSCENE (#577 M4): the display-without-grant path for
+ *     an OoT check hosting an MM item. The drain's REAL queueing takes the queue
+ *     slot with a show-only entry (the show-only draw, a valid object, a draw
+ *     id, the custom-item text, a randomizer major item); the textbox names the
+ *     MM item; the give point's take refuses an ordinary custom-drawn entry,
+ *     claims the show-only one once and releases the slot (the give is
+ *     skipped); the entry's own draw function emits, into a real OoT
+ *     GraphicsContext, MM's descriptor for an MM-exclusive model (Deku Mask,
+ *     Great Fairy's Sword), OoT's OWN row for a colliding model
+ *     OoT's host-native table maps (MM's Hookshot), and the mystery stand-in
+ *     when unmounted or for a no-model answer (Odolwa's Remains). No placement:
+ *     nothing queued. The give point itself (func_8084DFF4) needs a live
+ *     Player: the playtest shows it.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -114,6 +127,8 @@ int OoT_ForeignModel_ModelForOoTCheck(uint16_t rc, ComboModel* out);
 void OoT_ForeignModel_TestSetMountOverride(int value);
 int OoT_ForeignModel_TestPathMountedReal(const char* dl);
 int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* want);
+// #577 M4: OoT's get-item cutscene (ForeignModelHostOoT.cpp).
+int OoT_ForeignModel_TestShowOnlyGetItem(uint16_t rc, int wantEntry, const ComboModel* want, const char* wantName);
 }
 
 #define FM_ASSERT(cond, msg)                                                \
@@ -1087,6 +1102,83 @@ TestResult Test_ForeignModel(void) {
                   "M12 a no-model answer keeps the stand-in (see the M12 lines above)");
         FM_ASSERT(realMissing == 0 && realNoPrefix == 0 && realNull == 0,
                   "M12 the production mount test refuses a missing, unprefixed or null path");
+    }
+
+    // ---- M13 (#577 M4) -----------------------------------------------------------
+    // OoT's get-item cutscene shows an MM item and gives nothing.
+    {
+        SharedItem dekuMask;
+        SharedItem sword;
+        SharedItem mmHookshot;
+        SharedItem odolwa;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Deku Mask", &dekuMask) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Great Fairy's Sword", &sword) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Hookshot", &mmHookshot) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Odolwa's Remains", &odolwa),
+                  "M13 named items");
+        ComboModelAnswer maskA;
+        ComboModelAnswer swordA;
+        ComboModelAnswer hookshotA;
+        ComboModelAnswer odolwaA;
+        FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, dekuMask, &maskA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, sword, &swordA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, mmHookshot, &hookshotA) == kHost &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &odolwaA) == kNone,
+                  "M13 in OoT: the mask and the sword are DESCRIPTORs, MM's (colliding) hookshot is OoT's own row, "
+                  "Odolwa's Remains is no model");
+        // What OoT draws for MM's hookshot: its own row, as its own recipe gives it.
+        ComboModel ootHookshot;
+        const char* ootHookshotReason = nullptr;
+        FM_ASSERT(OoT_ComboModel_TestForDrawRow(hookshotA.hostKey, &ootHookshot, &ootHookshotReason) == 1,
+                  "M13 OoT draws the hookshot's host-native row with its own recipe");
+
+        ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+        const uint16_t host = 0x0124; // opaque to the table; the path keys on the placement alone
+
+        Combo_ClearForeignPlacementsOoT();
+        OoT_ForeignModel_TestSetMountOverride(1);
+        printf("[TEST]   M13 an OoT check with no MM item:\n");
+        const int showNothing = OoT_ForeignModel_TestShowOnlyGetItem(host, 0, nullptr, nullptr);
+
+        const int placedMask = Combo_SetForeignPlacementOoT(host, dekuMask);
+        printf("[TEST]   M13 Deku Mask on an OoT check, archive mounted:\n");
+        const int showMask = OoT_ForeignModel_TestShowOnlyGetItem(host, 1, &maskA.model, "Deku Mask");
+        OoT_ForeignModel_TestSetMountOverride(0);
+        printf("[TEST]   M13 Deku Mask, archive NOT mounted:\n");
+        const int showUnmounted = OoT_ForeignModel_TestShowOnlyGetItem(host, 1, nullptr, "Deku Mask");
+        OoT_ForeignModel_TestSetMountOverride(1);
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedSword = Combo_SetForeignPlacementOoT(host, sword);
+        printf("[TEST]   M13 Great Fairy's Sword on an OoT check, archive mounted:\n");
+        const int showSword = OoT_ForeignModel_TestShowOnlyGetItem(host, 1, &swordA.model, "Great Fairy's Sword");
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedHookshot = Combo_SetForeignPlacementOoT(host, mmHookshot);
+        printf("[TEST]   M13 MM Hookshot (colliding, host-native row: OoT's own hookshot), archive mounted:\n");
+        const int showHookshot = OoT_ForeignModel_TestShowOnlyGetItem(host, 1, &ootHookshot, "Hookshot");
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedOdolwa = Combo_SetForeignPlacementOoT(host, odolwa);
+        printf("[TEST]   M13 Odolwa's Remains (no model), archive mounted:\n");
+        const int showOdolwa = OoT_ForeignModel_TestShowOnlyGetItem(host, 1, nullptr, "Odolwa's Remains");
+        OoT_ForeignModel_TestSetMountOverride(-1);
+
+        std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+        FM_ASSERT(placedMask >= 0 && placedSword >= 0 && placedHookshot >= 0 && placedOdolwa >= 0,
+                  "M13 placements accepted");
+        FM_ASSERT(showNothing == 0, "M13 an OoT check with no MM item queues no show-only entry (see the M13 lines "
+                                    "above)");
+        FM_ASSERT(showMask == 0, "M13 OoT's get-item cutscene shows MM's Deku Mask model and gives nothing (see the "
+                                 "M13 lines above)");
+        FM_ASSERT(showSword == 0, "M13 OoT's get-item cutscene shows MM's Great Fairy's Sword model (see the M13 "
+                                  "lines above)");
+        FM_ASSERT(showHookshot == 0, "M13 a colliding MM model with a host-native row shows OoT's OWN model for "
+                                     "that row (see the M13 lines above)");
+        FM_ASSERT(showUnmounted == 0 && showOdolwa == 0,
+                  "M13 unmounted, or no model: the cutscene shows the mystery stand-in and still gives nothing (see "
+                  "the M13 lines above)");
     }
 
     printf("[TEST] ForeignModel: PASS\n");
