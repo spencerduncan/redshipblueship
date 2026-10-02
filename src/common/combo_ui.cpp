@@ -122,6 +122,7 @@ bool FallbackSearchInput(const char* id, char* buf, int bufSize) {
     ImGui::SetNextItemWidth(-FLT_MIN);
     const bool changed = ImGui::InputTextWithHint("##search", "Search...", buf, (size_t)bufSize);
     ImGui::PopID();
+    FinishItem(id, OptsOrDefault(nullptr)); // the field; the fallback draws no eraser
     return changed;
 }
 

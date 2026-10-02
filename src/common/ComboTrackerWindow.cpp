@@ -3,8 +3,11 @@
  * @brief Renders the combo tracker model in-game (#458; ADR 0008).
  *
  * See ComboTrackerWindow.h for the contract. Every value drawn here comes
- * from combo_tracker_view.h; this file holds no state of its own and caches
- * nothing, so progress made mid-session updates on the next frame.
+ * from combo_tracker_view.h and is read again every frame, so progress made
+ * mid-session updates on the next frame. The file's only state is the Checks
+ * lists' search text (DrawCheckList's per-game buffers), which persists across
+ * frames, a closed and reopened pane and file loads within one process, as
+ * SoH's checkSearch does.
  *
  * It is drawn the way SoH draws its own tracker and editor panes
  * (docs/ui-style-guide.md section 10): the title bar's close button, themed
@@ -227,6 +230,11 @@ void DrawCheckList(uint8_t game) {
 
     const CheckListColours colours = ReadCheckListColours();
     bool previousOpen = false;
+    // SoH draws its whole area loop under FramePadding (4, 3)
+    // (randomizer_check_tracker.cpp, DrawElement), which puts an area's tree
+    // arrow level with its checks; the theme's larger padding would push the
+    // header to the right of its own rows.
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 3.0f));
     for (const ComboTrackerAreaRows& area : areas) {
         if (previousOpen) {
             // SoH's UIWidgets::PaddedSeparator, through the seam's spacer.
@@ -255,6 +263,7 @@ void DrawCheckList(uint8_t game) {
         ImGui::PopID();
         previousOpen = open;
     }
+    ImGui::PopStyleVar();
 }
 
 /**
@@ -387,7 +396,9 @@ bool ComboPanelShowsOwnSeed(const ComboTrackerIdentity& identity, const ComboTra
 }
 
 const char* ComboCheckListName(const ComboTrackerCheckRow& row) {
-    return row.name;
+    // SoH's DrawLocation prints GetShortName() under the area header ("Kokiri
+    // Sword Chest" under "Kokiri Forest"); MM's tracker prints the full name.
+    return row.shortName != nullptr ? row.shortName : row.name;
 }
 
 std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row) {
@@ -425,14 +436,18 @@ void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboT
             area.done++;
         }
         if (filter.IsActive()) {
-            // What SoH's ShouldShowCheck searches: the check's names, its area,
-            // and the item only once the row reveals it.
-            haystack = row.name != nullptr ? row.name : "";
+            // What SoH's ShouldShowCheck searches: the check's short and full
+            // names, its area, and the item only once the row reveals it, spelled
+            // as the row prints it (PlacedItemTrackerName's " (MM)" included).
+            haystack = row.shortName != nullptr ? row.shortName : "";
+            haystack += ' ';
+            haystack += row.name != nullptr ? row.name : "";
             haystack += ' ';
             haystack += row.areaName != nullptr ? row.areaName : "";
-            if (row.placedItemName != nullptr) {
+            const std::string item = ComboCheckRowItemText(game, row);
+            if (!item.empty()) {
                 haystack += ' ';
-                haystack += row.placedItemName;
+                haystack += item;
             }
             if (!filter.PassFilter(haystack.c_str())) {
                 continue;

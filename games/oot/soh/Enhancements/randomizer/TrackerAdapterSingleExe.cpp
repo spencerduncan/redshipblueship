@@ -212,9 +212,14 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
     // #458 U4: status, area and the found item, each as SoH's tracker has it.
     out->status = ProjectStatus(loc->GetCheckStatus(), out->skipped);
     if (out->name != nullptr) { // a filled location table, so the area is real
-        const RandomizerCheckArea area = Rando::StaticData::GetLocation((RandomizerCheck)index)->GetArea();
+        const Rando::Location* staticLoc = Rando::StaticData::GetLocation((RandomizerCheck)index);
+        const RandomizerCheckArea area = staticLoc->GetArea();
         out->areaKey = (uint16_t)area;
         out->areaName = OoTAreaName(area);
+        // Under its area header SoH's tracker prints the short name (DrawLocation:
+        // GetShortName()); locationTable is static storage, so c_str() stays valid.
+        const std::string& shortName = staticLoc->GetShortName();
+        out->shortName = shortName.empty() ? nullptr : shortName.c_str();
     }
     // The name shows once the check is found: SoH prints the placed item for a
     // collected, saved or scummed check, whatever its skip flag. A seen or

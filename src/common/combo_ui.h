@@ -114,7 +114,9 @@ typedef struct {
      * text field across the line, editing the NUL-terminated `buf` (`bufSize`
      * bytes), a "Search..." placeholder while it is empty, and an eraser button
      * beside it that clears it. `id` scopes its ImGui ids. True when the text
-     * changed this frame (typed or erased).
+     * changed this frame (typed or erased). It takes no options (SoH's box has
+     * no tooltip and is never disabled); it reports the field's rect under `id`
+     * and the eraser's under "<id>##eraser".
      */
     bool (*SearchInput)(const char* id, char* buf, int bufSize);
     /** A section header (ImGui::SeparatorText), SoH's WIDGET_SEPARATOR_TEXT. */

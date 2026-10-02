@@ -157,10 +157,16 @@ bool SohSearchInput(const char* id, char* buf, int bufSize) {
     const float startX = ImGui::GetCursorPosX();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 42);
     bool changed = ImGui::InputText("##search", buf, (size_t)bufSize);
+    // Both parts report their rects like every seam widget (no tooltip: SoH's
+    // search box has none). The eraser goes under "<id>##eraser".
+    Report(id, nullptr);
     ImGui::SameLine();
-    if (UIWidgets::Button(
-            ICON_FA_ERASER,
-            UIWidgets::ButtonOptions().Size(UIWidgets::Sizes::Inline).Color(Theme()).Padding(ImVec2(10.f, 6.f)))) {
+    const bool erase = UIWidgets::Button(
+        ICON_FA_ERASER,
+        UIWidgets::ButtonOptions().Size(UIWidgets::Sizes::Inline).Color(Theme()).Padding(ImVec2(10.f, 6.f)));
+    const std::string eraserLabel = std::string(id) + "##eraser";
+    Report(eraserLabel.c_str(), nullptr);
+    if (erase) {
         changed = changed || buf[0] != '\0';
         buf[0] = '\0';
     }
