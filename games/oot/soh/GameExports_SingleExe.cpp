@@ -38,13 +38,6 @@
 #include "notification_bridge.h" // the paired row's "no refusal toast" check
 #include "crossing_store.h"      // the paired row's crossing-store check
 #include "foreign_model.h"       // the #800 S1 shop playtest's model answer
-#include "ui_snapshot_image.h"   // the #577 M4 playtest's framebuffer PNGs
-#include <ship/window/Window.h>
-#ifdef __APPLE__
-#include <SDL.h>
-#else
-#include <SDL2/SDL.h>
-#endif
 // The paired row's "shipped defaults" check: every setting the generation
 // reads, per surface (OoT's options/tricks/exclusions, MM's options/tricks, the
 // combo settings), must be unset in the CVar store.
@@ -1088,93 +1081,14 @@ static void PfcShopPlaytestWarpFrame(PlayState* play, int frame) {
 // exactly as the scene-flag and RandomizerInf hooks queue a check the player
 // opens. The drain records the crossing and OoT's get-item cutscene shows the MM
 // model; nothing is at the keyboard, so the textbox is closed at frame 500 (or 40
-// frames before the phase ends). Logged: the MM-bound shared-item records and the
-// rupee count before and after (the give point gives nothing).
+// frames before the phase ends). Logged: the MM-bound shared-item records before
+// and after (written by the drain) and whether the check is collected; the give
+// point's own log line ("... gives nothing (#577 M4)") is what shows its take.
 extern "C" int OoT_Rando_Foreign_PlaytestQueueCheck(uint16_t rc); // hook_handlers.cpp
-
-// RSBS_PFC_OOT_FOREIGN_MODEL_SHOTS=<path prefix>: the drive also writes the game's
-// last rendered frame (the texture the GUI draws the game from, or, when the game
-// draws straight into the window, the window's back buffer) to
-// <prefix>-fNNN.png every 30 frames of the cutscene window. A window capture
-// comes back black when nothing presents the window to a screen; this readback
-// does not depend on presentation. OpenGL only.
-#define PFC_GL_TEXTURE_2D 0x0DE1
-#define PFC_GL_TEXTURE_BINDING_2D 0x8069
-#define PFC_GL_TEXTURE_WIDTH 0x1000
-#define PFC_GL_TEXTURE_HEIGHT 0x1001
-#define PFC_GL_RGBA 0x1908
-#define PFC_GL_UNSIGNED_BYTE 0x1401
-#define PFC_GL_PACK_ALIGNMENT 0x0D05
-#define PFC_GL_BACK 0x0405
-#ifdef _WIN32
-#define PFC_GLAPI __stdcall
-#else
-#define PFC_GLAPI
-#endif
-
-static void PfcForeignModelPlaytestShot(int frame) {
-    const char* prefix = getenv("RSBS_PFC_OOT_FOREIGN_MODEL_SHOTS");
-    auto ctx = Ship::Context::GetInstance();
-    if (prefix == NULL || prefix[0] == '\0' || ctx == nullptr || ctx->GetWindow() == nullptr) {
-        return;
-    }
-    const unsigned tex = (unsigned)ctx->GetWindow()->GetGfxFrameBuffer();
-    auto bind = (void(PFC_GLAPI*)(unsigned, unsigned))SDL_GL_GetProcAddress("glBindTexture");
-    auto getInt = (void(PFC_GLAPI*)(unsigned, int*))SDL_GL_GetProcAddress("glGetIntegerv");
-    auto level = (void(PFC_GLAPI*)(unsigned, int, unsigned, int*))SDL_GL_GetProcAddress("glGetTexLevelParameteriv");
-    auto image = (void(PFC_GLAPI*)(unsigned, int, unsigned, unsigned, void*))SDL_GL_GetProcAddress("glGetTexImage");
-    auto store = (void(PFC_GLAPI*)(unsigned, int))SDL_GL_GetProcAddress("glPixelStorei");
-    auto readBuffer = (void(PFC_GLAPI*)(unsigned))SDL_GL_GetProcAddress("glReadBuffer");
-    auto readPixels =
-        (void(PFC_GLAPI*)(int, int, int, int, unsigned, unsigned, void*))SDL_GL_GetProcAddress("glReadPixels");
-    SDL_Window* window = SDL_GL_GetCurrentWindow();
-    if (bind == NULL || getInt == NULL || level == NULL || image == NULL || store == NULL || readBuffer == NULL ||
-        readPixels == NULL || (tex == 0 && window == NULL)) {
-        fprintf(stderr, "[M4-PLAYTEST] frame %d: nothing to read the game's image from\n", frame);
-        return;
-    }
-    int saved = 0;
-    int w = 0;
-    int h = 0;
-    if (tex != 0) {
-        getInt(PFC_GL_TEXTURE_BINDING_2D, &saved);
-        bind(PFC_GL_TEXTURE_2D, tex);
-        level(PFC_GL_TEXTURE_2D, 0, PFC_GL_TEXTURE_WIDTH, &w);
-        level(PFC_GL_TEXTURE_2D, 0, PFC_GL_TEXTURE_HEIGHT, &h);
-    } else {
-        // No separate game framebuffer: the game draws straight into the window's
-        // back buffer, which still holds a rendered frame between two frames.
-        SDL_GL_GetDrawableSize(window, &w, &h);
-    }
-    UiImage img = {};
-    if (w > 0 && h > 0 && UiImage_Alloc(&img, w, h) == 0) {
-        store(PFC_GL_PACK_ALIGNMENT, 1);
-        if (tex != 0) {
-            image(PFC_GL_TEXTURE_2D, 0, PFC_GL_RGBA, PFC_GL_UNSIGNED_BYTE, img.rgba);
-        } else {
-            readBuffer(PFC_GL_BACK);
-            readPixels(0, 0, w, h, PFC_GL_RGBA, PFC_GL_UNSIGNED_BYTE, img.rgba);
-        }
-        UiImage_FlipRows(&img);
-        for (int i = 0; i < w * h; i++) {
-            img.rgba[i * 4 + 3] = 255;
-        }
-        char path[512];
-        snprintf(path, sizeof(path), "%s-f%03d.png", prefix, frame);
-        fprintf(stderr, "[M4-PLAYTEST] frame %d: game framebuffer %dx%d -> %s (%s)\n", frame, w, h, path,
-                UiImage_WritePng(&img, path) == 0 ? "written" : "WRITE FAILED");
-        UiImage_Free(&img);
-    }
-    if (tex != 0) {
-        bind(PFC_GL_TEXTURE_2D, (unsigned)saved);
-    }
-    fflush(stderr);
-}
 
 static void PfcForeignModelPlaytestFrame(PlayState* play, int frame, int phaseFrames) {
     static uint16_t sHost = 0;
     static int sSharedBefore = -1;
-    static int sRupeesBefore = -1;
     const char* env = getenv("RSBS_PFC_OOT_FOREIGN_MODEL");
     if (env == NULL || strcmp(env, "1") != 0) {
         return;
@@ -1189,7 +1103,6 @@ static void PfcForeignModelPlaytestFrame(PlayState* play, int frame, int phaseFr
             }
             sHost = row.hostCheck;
             sSharedBefore = Combo_CountSharedItems(GAME_MM, true);
-            sRupeesBefore = gSaveContext.rupees;
             const char* item = Combo_GetForeignItemName(row.item);
             fprintf(stderr,
                     "[M4-PLAYTEST] queuing OoT check %u (%s), which hosts the MM item %s: %u part(s), first %s "
@@ -1209,20 +1122,14 @@ static void PfcForeignModelPlaytestFrame(PlayState* play, int frame, int phaseFr
         }
     }
     const int closeAt = phaseFrames - 40 < 500 ? phaseFrames - 40 : 500;
-    if (sHost != 0 && frame > 100 && frame <= closeAt + 30 && frame % 30 == 0) {
-        PfcForeignModelPlaytestShot(frame);
-    }
     if (frame == closeAt && sHost != 0) {
         fprintf(stderr, "[M4-PLAYTEST] closing the get-item textbox (frame %d)\n", frame);
         fflush(stderr);
         OoT_Message_CloseTextbox(play);
     }
     if (frame == closeAt + 20 && sHost != 0) {
-        fprintf(stderr,
-                "[M4-PLAYTEST] MM-bound shared-item records: %d before, %d after; rupees %d before, %d after; check "
-                "collected %d\n",
-                sSharedBefore, Combo_CountSharedItems(GAME_MM, true), sRupeesBefore, (int)gSaveContext.rupees,
-                OoT_Rando_Foreign_HostCollected(sHost));
+        fprintf(stderr, "[M4-PLAYTEST] MM-bound shared-item records: %d before, %d after; check collected %d\n",
+                sSharedBefore, Combo_CountSharedItems(GAME_MM, true), OoT_Rando_Foreign_HostCollected(sHost));
         fflush(stderr);
     }
 }
