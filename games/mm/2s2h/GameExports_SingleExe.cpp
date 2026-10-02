@@ -34,6 +34,9 @@
 
 #include <ship/Context.h>
 #include <ship/window/Window.h>
+#include <fast/Fast3dWindow.h> // the #800 playtest drive's framebuffer screenshot
+#include <fast/interpreter.h>  // (MM_Playtest_DumpGameFramebuffer)
+#include "ui_snapshot_image.h" // src/common: RGBA8 image + PNG writer
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
@@ -822,6 +825,56 @@ extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
 extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 // 2s2h/Rando/ForeignModelSingleExe.cpp: the #577 M3 playtest drive's arm.
 extern "C" int MM_ForeignModel_PlaytestArmGive(void);
+extern "C" int MM_Shop_PlaytestWarp(void);       // #800 playtest drive (Rando/ForeignShopSingleExe.cpp)
+extern "C" void MM_Shop_PlaytestShopFrame(void); // its in-shop half, same file
+
+/**
+ * Playtest screenshots from inside the process (#800 drive; test-only, a no-op
+ * unless RSBS_GP_SHOT_DIR names a directory): the game's own framebuffer, as
+ * last rendered, read back to RGBA8 and written as <dir>/<tag>.png. An unattended
+ * run cannot rely on capturing the desktop window (a locked or sleeping display
+ * hands PrintWindow a black frame); the game framebuffer is offscreen and drawn
+ * either way. ImGui overlays (toasts) are not in it; the N64 frame, textboxes
+ * included, is.
+ */
+extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag) {
+    const char* dir = std::getenv("RSBS_GP_SHOT_DIR");
+    if (dir == nullptr || dir[0] == '\0') {
+        return;
+    }
+    auto fast = std::dynamic_pointer_cast<Fast::Fast3dWindow>(Ship::Context::GetInstance()->GetWindow());
+    auto interp = fast != nullptr ? fast->GetInterpreterWeak().lock() : nullptr;
+    if (interp == nullptr || interp->mRapi == nullptr) {
+        fprintf(stderr, "[PLAYTEST-SHOT] %s: no Fast3D interpreter\n", tag);
+        return;
+    }
+    const int fb = interp->mRendersToFb ? interp->mGameFb : 0;
+    const int w =
+        (int)(interp->mRendersToFb ? interp->mCurDimensions.width : interp->mGfxCurrentWindowDimensions.width);
+    const int h =
+        (int)(interp->mRendersToFb ? interp->mCurDimensions.height : interp->mGfxCurrentWindowDimensions.height);
+    std::vector<uint16_t> px((size_t)w * h);
+    UiImage img = {};
+    if (w <= 0 || h <= 0 || UiImage_Alloc(&img, w, h) != 0) {
+        fprintf(stderr, "[PLAYTEST-SHOT] %s: bad framebuffer size %dx%d\n", tag, w, h);
+        return;
+    }
+    interp->mRapi->ReadFramebufferToCPU(fb, (uint32_t)w, (uint32_t)h, px.data());
+    for (size_t i = 0; i < px.size(); i++) { // GL_UNSIGNED_SHORT_5_5_5_1: R G B in the top 15 bits
+        const uint16_t p = px[i];
+        img.rgba[i * 4 + 0] = (uint8_t)(((p >> 11) & 0x1F) * 255 / 31);
+        img.rgba[i * 4 + 1] = (uint8_t)(((p >> 6) & 0x1F) * 255 / 31);
+        img.rgba[i * 4 + 2] = (uint8_t)(((p >> 1) & 0x1F) * 255 / 31);
+        img.rgba[i * 4 + 3] = 255;
+    }
+    UiImage_FlipRows(&img);
+    const std::string path = std::string(dir) + "/" + tag + ".png";
+    const int rc = UiImage_WritePng(&img, path.c_str());
+    fprintf(stderr, "[PLAYTEST-SHOT] %s: framebuffer %d (%dx%d) -> %s (%s)\n", tag, fb, w, h, path.c_str(),
+            rc == 0 ? "written" : "write FAILED");
+    fflush(stderr);
+    UiImage_Free(&img);
+}
 
 /**
  * #804's lock control: RSBS_PFC_MM_BOOT_WRITE_PROBE=1 plants a registrar that,
@@ -1136,6 +1189,15 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     // CheckQueue plays its real get-item cutscene here.
     if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
         MM_ForeignModel_PlaytestArmGive();
+    }
+    // #800 playtest drive (opt-in, RSBS_GP_MM_SHOP=1): warp into the Clock Town
+    // shop whose shelf holds an OoT item (Rando/ForeignShopSingleExe.cpp), once no
+    // textbox is up, then drive the purchase there.
+    static bool sGpMMShopWalked = false;
+    if (!sGpMMShopWalked && sGpMMPlayFrames >= 100 && std::getenv("RSBS_GP_MM_SHOP") != nullptr) {
+        sGpMMShopWalked = MM_Shop_PlaytestWarp() >= 0;
+    } else if (sGpMMShopWalked) {
+        MM_Shop_PlaytestShopFrame();
     }
     if (sGpMMPlayFrames < cfg->framesPerPhase) {
         return;
