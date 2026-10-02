@@ -1497,3 +1497,56 @@ The `OoT Classes` / `MM Classes` rows are inert in the same way except for the
 PROGRESSION bit; their retirement awaits a separate ruling and is not part of
 this change. Locked by `ComboSettingsRows` leg 1c and `ComboSettingsAuthoring`
 leg 8.
+
+### 2026-10-01 -- The "OoT Classes" / "MM Classes" rows retired (#834)
+
+Operator ruling 2026-10-01 on the open question the 2026-09-30 note left: the
+two item-class rows go, in the same shape as #801.
+
+- **Why they were inert.** Under one bag every bag row is progression by
+  construction (the 2026-09-27 note), so the five bits other than PROGRESSION
+  select among no rows, and the PROGRESSION bit only says, per origin, "this
+  game's items stay home". The `direction` rule already says that: `FORWARD`,
+  `REVERSE` and `OFF` keep an origin home exactly as a cleared PROGRESSION bit
+  did. Both masks still reach `Combo_SingleBag_SeedFor` through the
+  fingerprint, so ticking a box drew a different world while changing no rule
+  beyond what the direction can already say.
+- **Removed:** the Cross-Game Rules rows "OoT Classes" and "MM Classes" with
+  their twelve checkboxes and the two "No ... items will cross." notes (the
+  page's second column is empty now), the keys `gCombo.Rando.ItemClass.OoT` /
+  `.MM` (`RSBS::kComboKeys` is seven entries, three of them tier-4 identity
+  keys: direction, the shared ocarina and the goal), and their
+  `ComboSettingId` entries (`COMBO_SETTING_ITEM_CLASS_OOT` / `_MM`; the enum
+  closes up, as #801's did). The unshown `ComboSettingsWindow` pane loses its
+  two class groups too.
+- **Kept:** the record fields `itemClassOoT` / `itemClassMM` at bytes 4 to 7,
+  their value space, the canonical encoding, `comboSettingsHash`,
+  `Combo_ComboItemClassFor`, and the fill's PROGRESSION read
+  (`SingleBagOriginMayCross`). They are format and identity.
+- **New worlds** always write the shipped default (`RSBS_ITEMCLASS_ALL_V1` in
+  both masks, PROGRESSION included), so the direction alone decides which
+  origins cross. `Combo_ResolveComboSettings` no longer reads a class mask, and
+  a stale key left in a config file is ignored. With the default, the
+  canonical bytes, the fingerprint vectors and the `Golden*` digests are
+  unchanged.
+- **Existing worlds** keep their masks and their identity. A world created
+  with a box changed froze a non-default mask, and one created with
+  PROGRESSION cleared keeps that origin home, as it was generated.
+  `Combo_ComboSettingsDivergenceFor` takes both masks of its live side from
+  the frozen record, as it takes the pool bytes since #801. The fingerprint
+  still pins the masks. The two `RSBS_COMBO_DIVERGE_ITEM_CLASS_*` bits stay
+  allocated, but the load and the arrival never raise them, and they left
+  `Combo_ComboSettingsRestorableMask`.
+- **Not shown any more.** Such a world still plays with its masks, but the
+  frozen Cross-Game Rules page no longer shows them: the class rows were the
+  only surface that displayed them. A world created with "Both Directions"
+  and OoT PROGRESSION cleared shows a greyed "Both Directions" while only MM
+  items cross. The spoiler log still records both masks (`itemClassOoT` /
+  `itemClassMM` in its combo settings block). Only pre-release worlds created
+  with a class box changed are affected.
+- **Older builds.** A world this build creates holds the default masks, which
+  every older build resolves by default too, so it loads there unchanged.
+
+Locked by `ComboSettingsRows` leg 1d, `ComboSettingsAuthoring` leg 9,
+`PairedLoadRestore` leg 1 (a file carrying a non-default MM mask loads, and the
+record keeps it) and `CVarClassification` (three identity keys).

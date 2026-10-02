@@ -1860,7 +1860,9 @@ void Session::BuildPageList() {
                 p.compareDefaulted = true;
             }
             if (sidebar == "Cross-Game Rules") {
-                p.states = { "unpaired", "paired-legacy", "frozen", "corrupt", "empty-oot-classes" };
+                // (empty-oot-classes drew the empty-set note until #834 retired
+                // the item-class rows.)
+                p.states = { "unpaired", "paired-legacy", "frozen", "corrupt" };
                 // The goal row (ADR 0010 D1) is hovered too: its tooltip carries
                 // one "Value: effect" line per goal, all of which the oracle reads.
                 // frozen-goal: the goal row's disabled tooltip once the world is decided.
@@ -1875,14 +1877,10 @@ void Session::BuildPageList() {
                                                  "Keep them at the defaults until you have crossed into it once" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateText["corrupt"] = { "Session state is corrupt" };
-                // An empty OoT class mask: the one state that draws the
-                // empty-set note (SohMenuCombo.cpp's class loop).
-                p.stateText["empty-oot-classes"] = { "No Ocarina of Time items will cross." };
                 p.stateContrast = { { "unpaired", "paired-legacy" },
                                     { "paired-legacy", "unpaired" },
                                     { "frozen", "unpaired" },
-                                    { "corrupt", "unpaired" },
-                                    { "empty-oot-classes", "unpaired" } };
+                                    { "corrupt", "unpaired" } };
             } else if (sidebar == "Majora's Mask") {
                 p.states = { "", "autosave" };
                 // The row gated on gEnhancements.Autosave (the table's
@@ -2562,9 +2560,6 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
                 gComboCtx.sourceIsRando = false;
                 gComboCtx.sharedRandoSettingsHash = 0;
             }
-        } else if (state == "empty-oot-classes") {
-            // Unpaired, so the writer takes it; LeaveState clears the key.
-            Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, 0);
         }
     } else if (p.id == "Combo/Majora's Mask") {
         if (state == "autosave") {
@@ -2671,9 +2666,6 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     if (p.mmNoteProbe && state == "gate-on") {
         CVarClear(kMmNoteParentKey);
-    }
-    if (p.id == "Combo/Cross-Game Rules" && state == "empty-oot-classes") {
-        Combo_ComboSettingClear(COMBO_SETTING_ITEM_CLASS_OOT);
     }
     if (p.kind == Kind::WINDOW && (state == "progress" || state == "crossings")) {
         OoT_TrackerAdapter_Register();
@@ -4091,8 +4083,7 @@ void Session::CaptureModalVariant(const PageSpec& p, const std::string& state) {
 static void EmitLoadToastPage(const std::string& id) {
     if (id == "toast/load-rules-restored") {
         std::string rules;
-        for (ComboSettingId rule : { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION, COMBO_SETTING_ITEM_CLASS_OOT,
-                                     COMBO_SETTING_ITEM_CLASS_MM, COMBO_SETTING_SHARED_OCARINA }) {
+        for (ComboSettingId rule : { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION, COMBO_SETTING_SHARED_OCARINA }) {
             rules += (rules.empty() ? "" : ", ") + std::string(Combo_ComboSettingLabel(rule));
         }
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_RULES_RESTORED, rules.c_str(), 0);

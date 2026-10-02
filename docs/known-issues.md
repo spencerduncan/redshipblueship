@@ -149,9 +149,10 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   hinted as "Termina" (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
 - **Triforce Hunt is not yet a paired goal.** The Goal row lists it, but generation
   refuses it, and OoTMM's Triforce Quest is not offered (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#760](https://github.com/spencerduncan/redshipblueship/pull/760), [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
-- **Some settings re-seed the world without changing a rule.** Every item class other than
-  Progression is read by no rule since the switch, but the classes are part of the world's
-  fingerprint, so changing one gives a different world from the same seed (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+- ~~**Some settings re-seed the world without changing a rule.**~~ RESOLVED: the pool-size
+  sliders ([#801](https://github.com/spencerduncan/redshipblueship/issues/801)) and the
+  "OoT Classes" / "MM Classes" rows ([#834](https://github.com/spencerduncan/redshipblueship/issues/834))
+  are retired, so every Cross-Game Rule left changes a rule (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
 - **Surplus filler can be dropped** when more MM items land in Hyrule than OoT items
   leave; only filler gives way (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
 - **Netplay and crossings share one 64-slot shared-item array.** Crossings alone cannot
@@ -428,8 +429,8 @@ editable between sessions, and what they hold there is staging for the next file
 Loading a paired file now compares both its Cross-Game Rules and its Majora's Mask
 profile (the same digest the crossing checks) and puts the file's own values back into
 the pages:
-- a changed Cross-Game Rule (Goal, Crossing Direction, item classes, Shared
-  Ocarina) is restored, and a toast reads "Restored from file:" with the rows it reset
+- a changed Cross-Game Rule (Goal, Crossing Direction, Shared Ocarina) is
+  restored, and a toast reads "Restored from file:" with the rows it reset
   (for example "Restored from file: Goal, Crossing Direction");
 - a changed MM option or trick is restored from the file's MM half, and a toast reads
   "Restored for Majora's Mask:" with the rows it reset (for example "Restored for
