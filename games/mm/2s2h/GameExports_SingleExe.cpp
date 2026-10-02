@@ -825,6 +825,8 @@ extern "C" void* MM_GI_OnSceneInitUnregQueueAddr(void) {
 extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 // 2s2h/Rando/ForeignModelSingleExe.cpp: the #577 M3 playtest drive's arm.
 extern "C" int MM_ForeignModel_PlaytestArmGive(void);
+// ... and its per-frame half (#830), same file.
+extern "C" void MM_ForeignModel_PlaytestFrame(int playFrames);
 extern "C" int MM_Shop_PlaytestWarp(void);       // #800 playtest drive (Rando/ForeignShopSingleExe.cpp)
 extern "C" void MM_Shop_PlaytestShopFrame(void); // its in-shop half, same file
 
@@ -1189,6 +1191,11 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     // CheckQueue plays its real get-item cutscene here.
     if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
         MM_ForeignModel_PlaytestArmGive();
+    }
+    // #830: its per-frame half (closes textboxes nobody will press past, and
+    // captures the framebuffer; Rando/ForeignModelSingleExe.cpp).
+    if (std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
+        MM_ForeignModel_PlaytestFrame(sGpMMPlayFrames);
     }
     // #800 playtest drive (opt-in, RSBS_GP_MM_SHOP=1): warp into the Clock Town
     // shop whose shelf holds an OoT item (Rando/ForeignShopSingleExe.cpp), once no

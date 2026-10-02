@@ -380,6 +380,12 @@ static int HostNativeRowMatches(const ComboHostNativeRow* row, const ComboModel*
     if (keyParts == 0 || keyParts != (int)foreign->partCount) {
         return 0;
     }
+    // The tint half (#830): an untinted row never matches a tinted model, and a
+    // tinted row only the one tint it names.
+    if ((row->keyTinted != 0) != (foreign->grayscale != 0) ||
+        (row->keyTinted != 0 && memcmp(row->tintRgb, foreign->grayscaleRgb, sizeof(row->tintRgb)) != 0)) {
+        return 0;
+    }
     for (int i = 0; i < keyParts; i++) {
         const char* dl = foreign->parts[i].dl;
         if (dl == NULL || strncmp(dl, kPartPrefix, sizeof(kPartPrefix) - 1) != 0 ||

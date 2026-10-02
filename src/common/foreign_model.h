@@ -191,21 +191,29 @@ typedef int (*ComboHostNativeModelFn)(const ComboModel* foreign, uint16_t* hostK
  *
  * The key is the foreign model's WHOLE part list, in the origin's emission
  * order, each part written "<objectDir>/<name>" (the "__OTR__objects/" prefix
- * every part carries is implied). A first list alone does not identify a
- * model: both games' heart container and heart piece start with the same
- * border list, and their magic arrows with the same shaft.
+ * every part carries is implied), AND its tint. A first list alone does not
+ * identify a model: both games' heart container and heart piece start with the
+ * same border list, and their magic arrows with the same shaft. Nor does the
+ * part list alone: OoT's seven tinted song notes are one list drawn under seven
+ * grayscale tints (#830), so a row keys the tint too.
  */
 typedef struct {
     /** The foreign parts; unused slots are NULL, and a key has at least one. */
     const char* foreignParts[COMBO_MODEL_MAX_PARTS];
-    /** >= 0: the HOST's own get-item draw row (its hostKey). -1: no model. */
+    /** >= 0: the HOST's own key in its own draw space (its hostKey): a row of
+     *  its get-item draw table, or a host-side recipe the host numbers itself
+     *  (MM's tinted song notes, #830). -1: no model. */
     int16_t hostDrawId;
     /** hostDrawId -1: why the host draws no model. NULL otherwise. */
     const char* noModelReason;
+    /** The tint half of the key: 1 keys a model drawn tinted (`grayscale` 1) by
+     *  exactly `tintRgb`; 0 (a row that leaves them out) keys an untinted one. */
+    uint8_t keyTinted;
+    uint8_t tintRgb[3];
 } ComboHostNativeRow;
 
-/** The index of the row of `rows` whose key is exactly `foreign`'s part list,
- *  or -1 (no row, or a NULL / empty argument). */
+/** The index of the row of `rows` whose key is exactly `foreign`'s part list
+ *  and tint, or -1 (no row, or a NULL / empty argument). */
 int Combo_HostNativeFind(const ComboHostNativeRow* rows, int count, const ComboModel* foreign);
 
 /** Register (or, with NULL, un-register) `game`'s source. A non-game is ignored. */

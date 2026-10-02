@@ -34,7 +34,10 @@
  *     row the table does not name, a table row no colliding model uses, and a
  *     mapping onto a host row the host cannot draw all fail. Every item id of
  *     both games is walked the same way, so items that reach a row through a
- *     SoH custom draw's fallback are covered too.
+ *     SoH custom draw's fallback are covered too. #830: each of OoT's thirteen
+ *     song-note rows and twelve song items answers a drawable MM note (a host
+ *     key may name a host-side recipe as well as a draw row), and the seven
+ *     tinted notes are seven table rows keyed by their tint.
  *  M8 FALLBACKS: native, untagged, non-game and unknown ids answer no model.
  *  M9 ADR 0002: foreign_model.{h,c} include no game header.
  *  M10 THE FIRST CONSUMER (#577 M3): CheckQueue's REAL foreign give-and-draw in
@@ -47,8 +50,9 @@
  *     (the model-less stand-in). Put Rando::DrawItem(RI_NONE) back in the draw,
  *     or let the give overwrite the check id the draw reads, and M10 goes red.
  *     #577 M7: a colliding OoT item with a host-native row (the hookshot) draws
- *     MM's OWN model for that row, exactly the lists MM's recipe gives it; one
- *     the table answers "no model" for (Minuet of Forest) keeps the stand-in.
+ *     MM's OWN model for that row, exactly the lists MM's recipe gives it. #830:
+ *     Song of Time draws MM's host-side tinted note, one XLU list and its env
+ *     colour; a foreign item with no model (Gohma's Soul) keeps the stand-in.
  *
  * Not lockable headless: the pixels. The M3 playtest shows the drawn model; M4
  * draws these descriptors in OoT.
@@ -108,6 +112,7 @@ int MM_ComboModelHostNative(const ComboModel* foreign, uint16_t* hostKey);
 int MM_ComboModel_TestIdSpace(void);
 int MM_ComboModel_TestDrawRowCount(void);
 int MM_ComboModel_TestForDrawRow(int drawId, ComboModel* out, const char** reason);
+int MM_ComboModel_TestForHostKey(int hostKey, ComboModel* out, const char** reason);
 int MM_ComboModel_TestDrawRowLists(int drawId, const char* lists[COMBO_MODEL_MAX_PARTS]);
 const char* MM_ComboModel_TestItemReason(uint16_t id);
 int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
@@ -216,6 +221,9 @@ struct FmGame {
     /** This game's host-native table, as a HOST (M11). */
     int (*hostNativeAnswer)(const ComboModel*, uint16_t*, const char**, int*);
     int (*hostNativeRowCount)(void);
+    /** The model this game draws, as a HOST, for one of its own host keys: a
+     *  draw row, or (MM, #830) a host-side recipe it numbers itself. */
+    int (*forHostKey)(int, ComboModel*, const char**);
 };
 
 /** M2 for one game. */
@@ -363,7 +371,6 @@ TestResult FmWalkProgression(const FmGame& g) {
  * table rows that some colliding origin model reached.
  */
 TestResult FmWalkHostNative(const FmGame& origin, const FmGame& host, std::set<int>* used) {
-    const int hostRows = host.rowCount();
     const int tableRows = host.hostNativeRowCount();
     int colliding = 0;
     int mapped = 0;
@@ -381,8 +388,8 @@ TestResult FmWalkHostNative(const FmGame& origin, const FmGame& host, std::set<i
         if (got == 1) {
             ComboModel hostModel;
             const char* hostReason = nullptr;
-            const bool drawable = key < hostRows && host.forRow((int)key, &hostModel, &hostReason) == 1 &&
-                                  Combo_ModelIsWellFormed(&hostModel);
+            const bool drawable =
+                host.forHostKey((int)key, &hostModel, &hostReason) == 1 && Combo_ModelIsWellFormed(&hostModel);
             if (!drawable || tableRow < 0 || kind != COMBO_MODEL_ANSWER_HOST_NATIVE || a.hostKey != key) {
                 printf("[TEST]   %s %s %d (%s): mapped to %s row %u, which %s\n", origin.name, what, n,
                        model.parts[0].dl, host.name, (unsigned)key,
@@ -391,7 +398,7 @@ TestResult FmWalkHostNative(const FmGame& origin, const FmGame& host, std::set<i
             }
             used->insert(tableRow);
             if (print) {
-                printf("[TEST]   %s %s %3d %-58s -> %s row %3u (%s)\n", origin.name, what, n, model.parts[0].dl + 15,
+                printf("[TEST]   %s %s %3d %-58s -> %s key %3u (%s)\n", origin.name, what, n, model.parts[0].dl + 15,
                        host.name, (unsigned)key, hostModel.parts[0].dl + 15);
             }
             return 1;
@@ -490,7 +497,7 @@ TestResult FmCheckPin(const FmPin& pin) {
         // The host's own row, as the host's own recipe draws it.
         ComboModel hostModel;
         const char* reason = nullptr;
-        const int drawn = host == (uint8_t)GAME_MM ? MM_ComboModel_TestForDrawRow(answer.hostKey, &hostModel, &reason)
+        const int drawn = host == (uint8_t)GAME_MM ? MM_ComboModel_TestForHostKey(answer.hostKey, &hostModel, &reason)
                                                     : OoT_ComboModel_TestForDrawRow(answer.hostKey, &hostModel, &reason);
         hostFirst = drawn == 1 ? hostModel.parts[0].dl : "(host row not drawable)";
         bool hasList = false;
@@ -507,6 +514,145 @@ TestResult FmCheckPin(const FmPin& pin) {
         printf("[TEST] FAIL: \"%s\" wants kind %u, %u parts, first \"...%s\"\n", pin.name, (unsigned)pin.kind,
                (unsigned)pin.partCount, pin.firstListTail != nullptr ? pin.firstListTail : "-");
         return TEST_FAIL;
+    }
+    return TEST_PASS;
+}
+
+// ---- M11 songs (#830) --------------------------------------------------------
+const char kFmNoteTail[] = "/object_gi_melody/gGiSongNoteDL";
+
+/** `m` has a part ending in `tail` on `layer`. */
+bool FmHasPart(const ComboModel& m, const char* tail, uint8_t layer) {
+    for (int i = 0; i < m.partCount; i++) {
+        if (m.parts[i].layer == layer && FmTailIs(m.parts[i].dl, tail)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** The tinted note MM's DrawSong draws (DrawItem.cpp): exactly gGiSongNoteDL on
+ *  XLU under setup list 25, no OPA layer, tinted by the env colour `rgb`. */
+bool FmIsTintedNote(const ComboModel& m, const uint8_t rgb[3]) {
+    return m.partCount == 1 && m.parts[0].layer == COMBO_MODEL_LAYER_XLU && FmTailIs(m.parts[0].dl, kFmNoteTail) &&
+           m.opaSetupDl == 0 && m.xluSetupDl == 25 && m.xluColor.set == 1 && std::memcmp(m.xluColor.env, rgb, 3) == 0 &&
+           m.grayscale == 0;
+}
+
+/**
+ * M11 for OoT's songs in MM (#830). Every OoT draw row that draws the song note
+ * (six coloured notes, seven tinted ones) answers a drawable MM note, and the
+ * seven tinted notes are seven rows of MM's table, keyed by their tint. Each of
+ * OoT's twelve song items answers a HOST_NATIVE note; where MM has a same-item
+ * note (DrawSong: Sun, Time, Storms, Epona) it carries DrawSong's env colour,
+ * otherwise OoT's own tint (Lullaby, Saria) or the env colour OoT's colour list
+ * sets (Minuet, Bolero), as OoTMM draws every song as a tinted note.
+ */
+TestResult FmWalkOoTSongsInMM(void) {
+    struct TintToEnv {
+        uint8_t tint[3];
+        uint8_t env[3];
+    };
+    // OoT's GetItem_DrawGenericMusicNote tint -> the env colour MM draws.
+    static const TintToEnv kTints[] = {
+        { { 255, 255, 255 }, { 255, 255, 255 } }, // the generic note: OoT's tint
+        { { 109, 73, 143 }, { 109, 73, 143 } },   // Zelda's Lullaby: OoT's tint
+        { { 217, 110, 48 }, { 146, 87, 49 } },    // Epona's Song: DrawSong's RI_SONG_EPONA
+        { { 62, 109, 23 }, { 62, 109, 23 } },     // Saria's Song: OoT's tint
+        { { 237, 231, 62 }, { 237, 231, 62 } },   // Sun's Song: DrawSong's RI_SONG_SUN
+        { { 98, 177, 211 }, { 98, 177, 211 } },   // Song of Time: DrawSong's RI_SONG_TIME
+        { { 146, 146, 146 }, { 146, 146, 146 } }, // Song of Storms: DrawSong's RI_SONG_STORMS
+    };
+    const uint8_t kXluLayer = COMBO_MODEL_LAYER_XLU;
+    int songRows = 0;
+    int tinted = 0;
+    int failures = 0;
+    std::set<int> tintedTableRows;
+    const int rows = OoT_ComboModel_TestDrawRowCount();
+    for (int row = 0; row < rows; row++) {
+        ComboModel model;
+        const char* reason = nullptr;
+        if (OoT_ComboModel_TestForDrawRow(row, &model, &reason) != 1 || !FmHasPart(model, kFmNoteTail, kXluLayer)) {
+            continue;
+        }
+        songRows++;
+        uint16_t key = 0xFFFF;
+        const char* why = nullptr;
+        int tableRow = -1;
+        const int got = MM_ComboModelHostNative_TestAnswer(&model, &key, &why, &tableRow);
+        ComboModel host;
+        Combo_ModelInit(&host);
+        const char* hostWhy = nullptr;
+        bool ok = got == 1 && MM_ComboModel_TestForHostKey(key, &host, &hostWhy) == 1 &&
+                  Combo_ModelIsWellFormed(&host) && FmHasPart(host, kFmNoteTail, kXluLayer) && host.opaSetupDl == 0;
+        if (model.grayscale) {
+            tinted++;
+            if (tableRow >= 0) {
+                tintedTableRows.insert(tableRow);
+            }
+            const TintToEnv* want = nullptr;
+            for (const TintToEnv& t : kTints) {
+                want = std::memcmp(t.tint, model.grayscaleRgb, 3) == 0 ? &t : want;
+            }
+            ok = ok && want != nullptr && FmIsTintedNote(host, want->env);
+        }
+        printf("[TEST]   OoT song row %3d %-40s tint %3d,%3d,%3d -> MM %s, table row %d, key %u: %u part(s), env "
+               "%3d,%3d,%3d%s%s\n",
+               row, model.parts[0].dl + 15, model.grayscale ? model.grayscaleRgb[0] : -1,
+               model.grayscale ? model.grayscaleRgb[1] : -1, model.grayscale ? model.grayscaleRgb[2] : -1,
+               got == 1 ? "draws" : "NO MODEL", tableRow, (unsigned)key, (unsigned)host.partCount,
+               host.xluColor.set ? host.xluColor.env[0] : -1, host.xluColor.set ? host.xluColor.env[1] : -1,
+               host.xluColor.set ? host.xluColor.env[2] : -1, ok ? "" : "  <- ",
+               ok ? "" : got == 1 ? "wrong note" : why ? why : "no table row");
+        failures += ok ? 0 : 1;
+    }
+    printf("[TEST]   OoT song rows in MM: %d rows (%d tinted, on %zu MM table rows); %d failures\n", songRows, tinted,
+           tintedTableRows.size(), failures);
+    FM_ASSERT(songRows == 13, "M11 #830: OoT's get-item table has thirteen song-note rows");
+    FM_ASSERT(failures == 0, "M11 #830: every OoT song row answers a drawable MM note (see the lines above)");
+    FM_ASSERT(tinted == 7 && tintedTableRows.size() == 7,
+              "M11 #830: the seven tinted notes are seven rows of MM's table, keyed by their tint");
+
+    struct SongPin {
+        const char* name;
+        bool tintedNote; // false: MM's own GID_04..GID_07 row (colour list + note)
+        uint8_t env[3];
+    };
+    static const SongPin kSongs[] = {
+        { "Minuet of Forest", true, { 0, 200, 0 } }, // gGiMinuetColorDL's env colour
+        { "Bolero of Fire", true, { 255, 50, 0 } },  // gGiBoleroColorDL's env colour
+        { "Serenade of Water", false, {} },
+        { "Requiem of Spirit", false, {} },
+        { "Nocturne of Shadow", false, {} },
+        { "Prelude of Light", false, {} },
+        { "Zelda's Lullaby", true, { 109, 73, 143 } },
+        { "Epona's Song", true, { 146, 87, 49 } },
+        { "Saria's Song", true, { 62, 109, 23 } },
+        { "Sun's Song", true, { 237, 231, 62 } },
+        { "Song of Time", true, { 98, 177, 211 } },
+        { "Song of Storms", true, { 146, 146, 146 } },
+    };
+    for (const SongPin& song : kSongs) {
+        SharedItem item;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_OOT, song.name, &item), "M11 #830: named OoT song");
+        ComboModelAnswer a;
+        const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_MM, item, &a);
+        ComboModel host;
+        Combo_ModelInit(&host);
+        const char* why = nullptr;
+        const bool drawn = kind == COMBO_MODEL_ANSWER_HOST_NATIVE &&
+                           MM_ComboModel_TestForHostKey(a.hostKey, &host, &why) == 1 && Combo_ModelIsWellFormed(&host);
+        const bool ok = drawn && (song.tintedNote ? FmIsTintedNote(host, song.env)
+                                                  : host.partCount == 2 && FmHasPart(host, kFmNoteTail, kXluLayer) &&
+                                                        host.parts[0].layer == kXluLayer);
+        printf("[TEST]   %-20s -> kind %u, MM key %u: %u part(s), env %d,%d,%d\n", song.name, (unsigned)kind,
+               (unsigned)a.hostKey, (unsigned)host.partCount, host.xluColor.set ? host.xluColor.env[0] : -1,
+               host.xluColor.set ? host.xluColor.env[1] : -1, host.xluColor.set ? host.xluColor.env[2] : -1);
+        if (!ok) {
+            printf("[TEST] FAIL: %s wants %s in MM\n", song.name,
+                   song.tintedNote ? "a tinted note (gGiSongNoteDL on XLU, its env colour)" : "MM's own note row");
+            return TEST_FAIL;
+        }
     }
     return TEST_PASS;
 }
@@ -676,7 +822,8 @@ TestResult Test_ForeignModel(void) {
                          OoT_ComboModel_TestItemReason,
                          2,
                          OoT_ComboModelHostNative_TestAnswer,
-                         OoT_ComboModelHostNative_TestRowCount };
+                         OoT_ComboModelHostNative_TestRowCount,
+                         OoT_ComboModel_TestForDrawRow };
     const FmGame mm = { "MM",
                         (uint8_t)GAME_MM,
                         (uint8_t)GAME_OOT,
@@ -688,7 +835,8 @@ TestResult Test_ForeignModel(void) {
                         MM_ComboModel_TestItemReason,
                         10,
                         MM_ComboModelHostNative_TestAnswer,
-                        MM_ComboModelHostNative_TestRowCount };
+                        MM_ComboModelHostNative_TestRowCount,
+                        MM_ComboModel_TestForHostKey };
     if (FmWalkDrawRows(oot) != TEST_PASS || FmWalkDrawRows(mm) != TEST_PASS) {
         return TEST_FAIL;
     }
@@ -751,6 +899,9 @@ TestResult Test_ForeignModel(void) {
                   "M11 every row of MM's host-native table names a colliding OoT model (no dead or misspelt key)");
         FM_ASSERT((int)usedByMMModels.size() == OoT_ComboModelHostNative_TestRowCount(),
                   "M11 every row of OoT's host-native table names a colliding MM model (no dead or misspelt key)");
+        if (FmWalkOoTSongsInMM() != TEST_PASS) {
+            return TEST_FAIL;
+        }
     }
 
     // ---- M4 --------------------------------------------------------------------
@@ -783,8 +934,9 @@ TestResult Test_ForeignModel(void) {
         // Shares its first list with the heart container: the whole-part key tells them apart.
         { (uint8_t)GAME_OOT, "Piece of Heart", kHost, "/object_gi_hearts/gGiHeartBorderDL", 2, kXlu,
           "/object_gi_hearts/gGiHeartPieceDL" },
-        // ... or a named "no model": MM has no Minuet note row.
-        { (uint8_t)GAME_OOT, "Minuet of Forest", kNone, nullptr, 0, 0, nullptr },
+        // MM has no Minuet note row: its host-side tinted note draws it (#830).
+        { (uint8_t)GAME_OOT, "Minuet of Forest", kHost, "/object_gi_melody/gGiMinuetColorDL", 2, kXlu,
+          "/object_gi_melody/gGiSongNoteDL" },
         { (uint8_t)GAME_OOT, "Gohma's Soul", kNone, nullptr, 0, 0, nullptr },
         { (uint8_t)GAME_MM, "Deku Mask", kDesc, "/object_gi_nutsmask/gGiDekuMaskEmptyDL", 2, kOpa, nullptr },
         { (uint8_t)GAME_MM, "Hookshot", kHost, "/object_gi_hookshot/gGiHookshotEmptyDL", 2, kOpa,
@@ -953,27 +1105,39 @@ TestResult Test_ForeignModel(void) {
         SharedItem boots;
         SharedItem emerald;
         SharedItem hookshot;
-        SharedItem minuet;
+        SharedItem songOfTime;
+        SharedItem gohmaSoul;
         FM_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Hover Boots", &boots) &&
                       TestNamedItem((uint8_t)GAME_OOT, "Kokiri's Emerald", &emerald) &&
                       TestNamedItem((uint8_t)GAME_OOT, "Progressive Hookshot", &hookshot) &&
-                      TestNamedItem((uint8_t)GAME_OOT, "Minuet of Forest", &minuet),
+                      TestNamedItem((uint8_t)GAME_OOT, "Song of Time", &songOfTime) &&
+                      TestNamedItem((uint8_t)GAME_OOT, "Gohma's Soul", &gohmaSoul),
                   "M10 named items");
         ComboModelAnswer bootsA;
         ComboModelAnswer emeraldA;
         ComboModelAnswer hookshotA;
-        ComboModelAnswer minuetA;
+        ComboModelAnswer songOfTimeA;
+        ComboModelAnswer gohmaSoulA;
         FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, boots, &bootsA) == kDesc &&
                       Combo_GetForeignItemModel((uint8_t)GAME_MM, emerald, &emeraldA) == kDesc &&
                       Combo_GetForeignItemModel((uint8_t)GAME_MM, hookshot, &hookshotA) == kHost &&
-                      Combo_GetForeignItemModel((uint8_t)GAME_MM, minuet, &minuetA) == kNone,
-                  "M10 the boots and the emerald are DESCRIPTORs in MM, the (colliding) hookshot is MM's own "
-                  "model, the (colliding) Minuet is no model");
+                      Combo_GetForeignItemModel((uint8_t)GAME_MM, songOfTime, &songOfTimeA) == kHost &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_MM, gohmaSoul, &gohmaSoulA) == kNone,
+                  "M10 the boots and the emerald are DESCRIPTORs in MM, the (colliding) hookshot and Song of Time "
+                  "are MM's own models, Gohma's Soul is no model");
         // What MM draws for the hookshot: its own row, as its own recipe gives it.
         ComboModel mmHookshot;
         const char* mmHookshotReason = nullptr;
         FM_ASSERT(MM_ComboModel_TestForDrawRow(hookshotA.hostKey, &mmHookshot, &mmHookshotReason) == 1,
                   "M10 MM draws the hookshot's host-native row with its own recipe");
+        // ... and for Song of Time (#830): its host-side tinted note, one XLU list
+        // (gGiSongNoteDL) and DrawSong's env colour for RI_SONG_TIME.
+        ComboModel mmTimeNote;
+        const char* mmTimeNoteReason = nullptr;
+        static const uint8_t kTimeEnv[3] = { 98, 177, 211 };
+        FM_ASSERT(MM_ComboModel_TestForHostKey(songOfTimeA.hostKey, &mmTimeNote, &mmTimeNoteReason) == 1 &&
+                      FmIsTintedNote(mmTimeNote, kTimeEnv),
+                  "M10 MM's model for Song of Time is its tinted note: one XLU list, env colour 98,177,211");
 
         ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
         std::memcpy(saved, gComboCtx.foreignPlacements, sizeof(saved));
@@ -1000,9 +1164,14 @@ TestResult Test_ForeignModel(void) {
         const int drawHookshot = MM_ForeignModel_TestCheckQueueDraw(check, &mmHookshot);
 
         Combo_ClearForeignPlacements();
-        const int placedMinuet = Combo_SetForeignPlacement(check, minuet);
-        printf("[TEST]   M10 Minuet of Forest (colliding, named no-model row), archive mounted:\n");
-        const int drawMinuet = MM_ForeignModel_TestCheckQueueDraw(check, nullptr);
+        const int placedTime = Combo_SetForeignPlacement(check, songOfTime);
+        printf("[TEST]   M10 Song of Time (colliding, host-side tinted note, #830), archive mounted:\n");
+        const int drawTime = MM_ForeignModel_TestCheckQueueDraw(check, &mmTimeNote);
+
+        Combo_ClearForeignPlacements();
+        const int placedSoul = Combo_SetForeignPlacement(check, gohmaSoul);
+        printf("[TEST]   M10 Gohma's Soul (no model), archive mounted:\n");
+        const int drawSoul = MM_ForeignModel_TestCheckQueueDraw(check, nullptr);
         MM_ForeignModel_TestSetMountOverride(-1);
 
         // The production mount branch (no override): both answers are "no".
@@ -1011,7 +1180,7 @@ TestResult Test_ForeignModel(void) {
         const int realNull = MM_ForeignModel_TestPathMountedReal(nullptr);
 
         std::memcpy(gComboCtx.foreignPlacements, saved, sizeof(saved));
-        FM_ASSERT(placedBoots >= 0 && placedEmerald >= 0 && placedHookshot >= 0 && placedMinuet >= 0,
+        FM_ASSERT(placedBoots >= 0 && placedEmerald >= 0 && placedHookshot >= 0 && placedTime >= 0 && placedSoul >= 0,
                   "M10 placements accepted");
         FM_ASSERT(drawBoots == 0, "M10 MM's get-item cutscene draws OoT's Hover Boots model (see the Q-line above)");
         FM_ASSERT(drawEmerald == 0, "M10 MM's get-item cutscene draws OoT's Kokiri's Emerald with its jewel shape "
@@ -1019,8 +1188,9 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(drawUnmounted == 0, "M10 unmounted, the draw keeps the model-less stand-in (see the Q-line above)");
         FM_ASSERT(drawHookshot == 0, "M10 a colliding model with a host-native row draws MM's OWN model for that row "
                                      "(see the Q-line above)");
-        FM_ASSERT(drawMinuet == 0,
-                  "M10 a colliding model the table answers no model for keeps the stand-in (see the Q-line above)");
+        FM_ASSERT(drawTime == 0, "M10 Song of Time draws MM's tinted note: one XLU list and its env colour (see the "
+                                 "Q-line above)");
+        FM_ASSERT(drawSoul == 0, "M10 a foreign item with no model keeps the stand-in (see the Q-line above)");
         FM_ASSERT(realNoPrefix == 0, "M10 the production mount test refuses a path without the __OTR__ prefix");
         FM_ASSERT(realMissing == 0, "M10 the production mount test refuses an __OTR__ path no archive holds");
         FM_ASSERT(realNull == 0, "M10 the production mount test refuses a null path");
