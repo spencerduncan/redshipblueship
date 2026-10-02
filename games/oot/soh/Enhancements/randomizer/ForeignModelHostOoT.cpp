@@ -58,6 +58,8 @@ extern "C" {
 // draw a private stack and puts these back.
 extern MtxF* OoT_sMatrixStack;
 extern MtxF* OoT_sCurrentMatrix;
+// OTRGlobals.cpp; OTRGlobals.h declares it for C translation units only.
+GetItemEntry GetItemMystery();
 }
 
 #include "context.h"       // src/common — GameId
@@ -627,6 +629,11 @@ extern "C" int OoT_ForeignModel_TestShowOnlyGetItem(uint16_t rc, int wantEntry, 
         }
         std::printf("[TEST]   M13 draw: the mystery stand-in\n");
         return 0;
+    }
+    if (!sShowOnly.hasModel) {
+        // Checked before drawing: the stand-in's draw loads its resources.
+        std::printf("[TEST]   M13 the entry would draw the mystery stand-in where a model is due\n");
+        return 1;
     }
     OoTFakeDrawPlay fake;
     sHostEmitUnresolved = true;

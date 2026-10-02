@@ -358,18 +358,21 @@ static bool RandomizerCheckNeedsGetItemTextbox(RandomizerCheck rc) {
            rc == RC_MARKET_BOMBCHU_BOWLING_FIRST_PRIZE || rc == RC_MARKET_BOMBCHU_BOWLING_SECOND_PRIZE;
 }
 
+// #577 M4: does the player skip the get-item animation of an MM item found at
+// OoT check `rc`? Only when every get-item animation is skipped (an ordinary
+// pickup gets none either; the MM item is a major item, which "skip junk" keeps),
+// and never at the four checks above.
+static bool RandomizerSkipForeignGetItemAnimation(RandomizerCheck rc) {
+    return CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("TimeSavers.SkipGetItemAnimation"), SGIA_JUNK) == SGIA_ALL &&
+           !RandomizerCheckNeedsGetItemTextbox(rc);
+}
+
 // #577 M4: queue the show-only get-item entry for OoT check `rc`, which hosts an
 // MM item whose crossing the drain has just recorded, exactly as the drain queues
 // an ordinary entry; the item queue handler then hands it to the player and OoT's
 // get-item cutscene shows it. Its give point gives nothing and releases this slot
-// (Randomizer_ReleaseQueuedShowOnly). false: nothing queued, because the player
-// skips every get-item animation (an ordinary pickup gets none either), and the
-// caller shows the toast.
+// (Randomizer_ReleaseQueuedShowOnly). false: nothing queued (no MM item there).
 static bool RandomizerQueueForeignShowOnly(RandomizerCheck rc) {
-    if (CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("TimeSavers.SkipGetItemAnimation"), SGIA_JUNK) == SGIA_ALL &&
-        !RandomizerCheckNeedsGetItemTextbox(rc)) {
-        return false;
-    }
     GetItemEntry entry;
     if (OoT_Rando_Foreign_BuildShowOnlyGetItem((uint16_t)rc, &entry) != 1) {
         return false;
@@ -377,7 +380,6 @@ static bool RandomizerQueueForeignShowOnly(RandomizerCheck rc) {
     iceTrapScale = 0.0f;
     randomizerQueuedCheck = rc;
     randomizerQueuedItemEntry = entry;
-    SPDLOG_INFO("Queuing the show-only entry for the Foreign (MM) item from RC {}", static_cast<uint32_t>(rc));
     return true;
 }
 
@@ -469,7 +471,7 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
         // stand-in), the blue textbox names the item, and the give point gives
         // nothing. The toast stays for the player who skips every get-item
         // animation, where an ordinary pickup gets no cutscene either.
-        if (!RandomizerQueueForeignShowOnly(rc)) {
+        if (RandomizerSkipForeignGetItemAnimation(rc) || !RandomizerQueueForeignShowOnly(rc)) {
             // FIELD ARRANGEMENT (#494): verb in `.message`, item name in
             // `.suffix`, matching the native rando pickup toasts further down
             // this file. Options colours each field differently, so the earlier

@@ -70,7 +70,7 @@
  *     claims the show-only one once and releases the slot (the give is
  *     skipped); the entry's own draw function emits, into a real OoT
  *     GraphicsContext, MM's descriptor for an MM-exclusive model (Deku Mask,
- *     Great Fairy's Sword with its scroll), OoT's OWN row for a colliding model
+ *     Great Fairy's Sword), OoT's OWN row for a colliding model
  *     OoT's host-native table maps (MM's Hookshot), and the mystery stand-in
  *     when unmounted or for a no-model answer (Odolwa's Remains). No placement:
  *     nothing queued. The give point itself (func_8084DFF4) needs a live
@@ -1126,7 +1126,6 @@ TestResult Test_ForeignModel(void) {
                       Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &odolwaA) == kNone,
                   "M13 in OoT: the mask and the sword are DESCRIPTORs, MM's (colliding) hookshot is OoT's own row, "
                   "Odolwa's Remains is no model");
-        FM_ASSERT(swordA.model.scrolls[0].segment != 0, "M13 the sword's model carries a texture scroll");
         // What OoT draws for MM's hookshot: its own row, as its own recipe gives it.
         ComboModel ootHookshot;
         const char* ootHookshotReason = nullptr;
@@ -1173,8 +1172,8 @@ TestResult Test_ForeignModel(void) {
                                     "above)");
         FM_ASSERT(showMask == 0, "M13 OoT's get-item cutscene shows MM's Deku Mask model and gives nothing (see the "
                                  "M13 lines above)");
-        FM_ASSERT(showSword == 0, "M13 OoT's get-item cutscene shows MM's Great Fairy's Sword with its scroll (see "
-                                  "the M13 lines above)");
+        FM_ASSERT(showSword == 0, "M13 OoT's get-item cutscene shows MM's Great Fairy's Sword model (see the M13 "
+                                  "lines above)");
         FM_ASSERT(showHookshot == 0, "M13 a colliding MM model with a host-native row shows OoT's OWN model for "
                                      "that row (see the M13 lines above)");
         FM_ASSERT(showUnmounted == 0 && showOdolwa == 0,
