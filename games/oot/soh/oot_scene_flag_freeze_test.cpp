@@ -209,6 +209,24 @@ int RunChecks(PlayState* play) {
     OSFF_ASSERT(sScratch.sceneFlags[SCENE_MARKET_DAY].collect == kCollectBit,
                 "the collectible taken in the departure scene must be in the F10 blob -- the hot swap breaks the "
                 "graph loop with the flags still only in the PlayState (#638)");
+    OSFF_ASSERT(Context_FrozenStateIsLiveFile(GAME_OOT) == 1,
+                "#837: a GAMEMODE_NORMAL departure must freeze as a live file, or the crossing commit would skip "
+                "every real OoT crossing");
+    Context_ClearFrozenState(GAME_OOT);
+
+    // ---- 2b. (#837) The flush notes liveness for the crossing commit --------
+    // F10 is polled ungated, so a title-screen or file-select OoT can depart.
+    // The production OoT_Combo_DepartureIsLiveFile, reached through the real
+    // driver's flush, must mark that freeze NOT live so Switch_CommitCrossing
+    // never writes it into the player's slot. Delete the flush's OoT note, or
+    // make OoT_Combo_DepartureIsLiveFile answer 1, and this goes red; make it
+    // answer 0 and leg 2's live assertion goes red.
+    ArmLiveOoTSession();
+    gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
+    OSFF_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_OOT) == 1, "a title-screen hot swap must still freeze");
+    OSFF_ASSERT(Context_FrozenStateIsLiveFile(GAME_OOT) == 0,
+                "#837: a TITLE_SCREEN departure must freeze as NOT a live file, or the crossing commit writes the "
+                "title screen's save into the player's armed slot");
     Context_ClearFrozenState(GAME_OOT);
 
     // ---- 3. No PlayState: both drivers still freeze, nothing is dereferenced

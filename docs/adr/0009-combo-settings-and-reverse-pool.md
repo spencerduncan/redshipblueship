@@ -667,6 +667,30 @@ House (child) or the Temple of Time (adult). That is the path an MM owl save's
 reload already takes; `crossing-commit` asserts the committed OoT half is the
 freeze byte for byte.
 
+*Remember Save Location is the exception* (traced in source, not played). With
+that enhancement on, `Sram_OpenSave`'s default case keeps the frozen
+`entranceIndex` (where Link last entered a scene) unless `savedSceneNum` is
+`SCENE_FAIRYS_FOUNTAIN` or `SCENE_GROTTOS`, and the dungeon, boss and Ganon's
+collapse cases above it key on `savedSceneNum` too. Every one of those
+exclusions reads the scene of the last *save*, which a freeze never writes, not
+the scene Link stood in at the crossing. So an F10 crossing taken inside a
+grotto, a fairy fountain, a boss room or the collapse, reloaded with Remember
+Save Location on, wakes Link at that interior's entrance, which SoH's own save
+would never do. A door crossing is always at the Happy Mask Shop, which none of
+the exclusions name. OoTMM stamps the save's scene at an OoT switch; #837
+records that stamp as not in this issue, so the case is reported
+([#850](https://github.com/spencerduncan/redshipblueship/issues/850)), not
+fixed here.
+
+*Check status is not in the commit* (traced in source, not played). OoT's
+check-tracker status lives in the `.sav`'s tracker section, which a crossing
+does not write, and the despawn test for heart pieces, small keys, heart
+containers and shuffled freestanding items reads that status, not the
+collectible flag in the half. A reload of a crossing commit can therefore
+respawn such an item collected before the crossing and give it again
+([#849](https://github.com/spencerduncan/redshipblueship/issues/849)). Chests
+read the treasure flag, which is in the half.
+
 **What it overturns.** Decision 4b's "Autosave off" sentences, for the switch
 (noted in place above); the moon-crash restore no longer rolls OoT back,
 because every commit it can accept now carries OoT's half as it is. Lock:

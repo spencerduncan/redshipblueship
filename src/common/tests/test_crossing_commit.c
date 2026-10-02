@@ -33,13 +33,23 @@
  *      (unredeemed) and the pool; sourceGame names MM.
  *   2. MM -> OoT, the reverse: Tier-3 is MM's departure freeze and sourceGame
  *      names OoT.
- *   3. Writes nothing (file bytes and commitGeneration unchanged) when the slot
- *      is latched (never armed this session, and refused for identity), when
- *      there is no active slot, when the departing game has no freeze for this
- *      trip, and when the departing half is not a live file (the flush's note,
- *      Context_NoteDepartureLiveFile). These legs are green without the fix and
- *      go red if a guard is removed. A control shows the not-live note is spent
- *      by its own freeze: the next departure commits.
+ *   3. Writes nothing (file bytes and commitGeneration unchanged) and stamps
+ *      nothing (sourceGame unchanged) when the slot is latched (never armed
+ *      this session, and refused for identity), when there is no active slot,
+ *      when the departing game has no freeze for this trip, and when the
+ *      departing half is not a live file (the flush's note,
+ *      Context_NoteDepartureLiveFile). The file and the generation alone
+ *      cannot lock the first three guards: RsbsSave_Save refuses an
+ *      out-of-range or unarmed slot itself, so with Switch_CommitCrossing's
+ *      `slot < 0` or `!RsbsSave_IsSlotWritable` guard deleted nothing is
+ *      written either. What does move is sourceGame, which the commit stamps
+ *      before calling Save; that is what turns those three legs red (observed
+ *      with both guards deleted). The no-freeze and not-live legs go red on the
+ *      file itself. All five legs run before the row reports, so one run shows
+ *      every failing guard. A control shows the not-live note is spent by its
+ *      own freeze: the next departure commits. The production wiring of the
+ *      note (the flush calling OoT_/MM_Combo_DepartureIsLiveFile) is locked in
+ *      mm-scene-flag-freeze and oot-scene-flag-freeze.
  *   4. (test_game_lifecycle.c) the lifecycle rows run with no active slot and
  *      no frozen state, so in an AllTests process their mock switches never
  *      write an earlier row's armed slot.
@@ -212,17 +222,29 @@ TestResult XcExpectNoWrite(const char* what, GameId departing, void (*arrange)(v
         return TEST_FAIL;
     }
     arrange();
+    // The game the player is in. A skipped crossing must not stamp the
+    // target: the commit stamps sourceGame = target just before RsbsSave_Save,
+    // so a stamp here means a guard in Switch_CommitCrossing was passed and
+    // only Save's own refusal kept the file still.
+    gComboCtx.sourceGame = departing;
     const uint32_t genBefore = gComboCtx.commitGeneration;
     if (GameRunner_SwitchTo(&r, departing == GAME_OOT ? GAME_MM : GAME_OOT, 0, nullptr) != 0) {
         printf("[TEST] FAIL (crossing-commit): %s: the switch itself failed\n", what);
         return TEST_FAIL;
     }
     const XcBlob after = XcReadFile(mgr.SlotPath(0));
-    printf("[TEST] crossing-commit: %s: generation %u -> %u, file %s\n", what, (unsigned)genBefore,
-           (unsigned)gComboCtx.commitGeneration, after == before ? "unchanged" : "CHANGED");
+    printf("[TEST] crossing-commit: %s: generation %u -> %u, file %s, sourceGame %d -> %d\n", what,
+           (unsigned)genBefore, (unsigned)gComboCtx.commitGeneration, after == before ? "unchanged" : "CHANGED",
+           (int)departing, (int)gComboCtx.sourceGame);
     if (gComboCtx.commitGeneration != genBefore || after != before) {
         printf("[TEST] FAIL (crossing-commit): %s: a crossing that must write nothing moved the file or the "
                "generation\n",
+               what);
+        return TEST_FAIL;
+    }
+    if (gComboCtx.sourceGame != departing) {
+        printf("[TEST] FAIL (crossing-commit): %s: a crossing that must be skipped reached the commit (sourceGame "
+               "was stamped with the target); only RsbsSave_Save's own refusal kept the file still\n",
                what);
         return TEST_FAIL;
     }
@@ -376,21 +398,16 @@ TestResult Test_CrossingCommit(void) {
     }
     gComboCtx.sourceGame = GAME_OOT;
     XC_ASSERT(mgr.Save(0), "setup: the skip legs' baseline commit");
-    if (XcExpectNoWrite("a slot not armed this session", GAME_OOT, XcArrangeUnarmed) != TEST_PASS) {
-        return TEST_FAIL;
-    }
-    if (XcExpectNoWrite("a slot refused for identity", GAME_MM, XcArrangeIdentityRefused) != TEST_PASS) {
-        return TEST_FAIL;
-    }
-    if (XcExpectNoWrite("no active slot", GAME_OOT, XcArrangeNoActiveSlot) != TEST_PASS) {
-        return TEST_FAIL;
-    }
-    if (XcExpectNoWrite("no freeze for this trip", GAME_OOT, XcArrangeNoFreezeOoT) != TEST_PASS) {
-        return TEST_FAIL;
-    }
-    if (XcExpectNoWrite("a departing half that is not a live file", GAME_MM, XcArrangeNotLiveMM) != TEST_PASS) {
-        return TEST_FAIL;
-    }
+    // Every skip leg runs even after one fails, so a single run names every
+    // guard that is missing.
+    int skipFailures = 0;
+    skipFailures += XcExpectNoWrite("a slot not armed this session", GAME_OOT, XcArrangeUnarmed) != TEST_PASS;
+    skipFailures += XcExpectNoWrite("a slot refused for identity", GAME_MM, XcArrangeIdentityRefused) != TEST_PASS;
+    skipFailures += XcExpectNoWrite("no active slot", GAME_OOT, XcArrangeNoActiveSlot) != TEST_PASS;
+    skipFailures += XcExpectNoWrite("no freeze for this trip", GAME_OOT, XcArrangeNoFreezeOoT) != TEST_PASS;
+    skipFailures +=
+        XcExpectNoWrite("a departing half that is not a live file", GAME_MM, XcArrangeNotLiveMM) != TEST_PASS;
+    XC_ASSERT(skipFailures == 0, "every crossing that must write nothing writes nothing and stamps nothing");
 
     // Control: the not-live note belongs to ONE freeze. A later freeze of the
     // same game without a note (the next departure from gameplay) is live, so
