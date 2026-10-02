@@ -901,7 +901,7 @@ TestResult Test_ComboSettingsLegacyFreeze(void) {
 // is the same fallback this row's first leg re-proves with a store present.
 
 extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
-    printf("[TEST] combo-settings-authoring: the five tier-4 keys author the record before the freeze, move the "
+    printf("[TEST] combo-settings-authoring: the three tier-4 keys author the record before the freeze, move the "
            "fingerprint, and are refused once frozen (ADR 0011 increment 2)\n");
 
     CS_ASSERT(Combo_ComboSettingStoreAvailable(),
@@ -944,8 +944,6 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComputeComboSettingsHash(&live, kSettingsHash, kProfileDigest) == kDefaultsFingerprint,
               "the resolved defaults' fingerprint moved off its golden vector");
     CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_DIRECTION) == (int32_t)defaults.direction &&
-                  Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_OOT) == (int32_t)defaults.itemClassOoT &&
-                  Combo_ComboSettingDefault(COMBO_SETTING_ITEM_CLASS_MM) == (int32_t)defaults.itemClassMM &&
                   Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)defaults.goal,
               "each key's default must be the defaults record's own field — one definition of 'what ships'");
     CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH,
@@ -973,14 +971,6 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             { COMBO_SETTING_DIRECTION, 5, false }, // one past the table: never a new enumerator
             { COMBO_SETTING_DIRECTION, -1, false },
             { COMBO_SETTING_DIRECTION, 255, false },
-            { COMBO_SETTING_ITEM_CLASS_OOT, 0, true }, // "no classes armed" is a legitimate world (decision 3.3)
-            { COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_ALL_V1, true },
-            { COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_PROGRESSION, true },
-            { COMBO_SETTING_ITEM_CLASS_OOT, 0x0040, false }, // the first UNALLOCATED bit must read 0
-            { COMBO_SETTING_ITEM_CLASS_MM, (int32_t)(RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_SIDEQUEST), true },
-            { COMBO_SETTING_ITEM_CLASS_MM, 0x8000, false },
-            { COMBO_SETTING_ITEM_CLASS_MM, 0x10000, false }, // past uint16
-            { COMBO_SETTING_ITEM_CLASS_MM, -1, false },
             // A comboFlags BIT is EXACTLY 0 or 1 (#668), never "nonzero is
             // true": the record stores one bit, so a coercion would make two
             // different stored values produce the same world — the very thing
@@ -1092,30 +1082,23 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     // ---- (3) Authored values reach the record BEFORE the freeze ------------
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
               "an in-space write must land while nothing is frozen");
-    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT,
-                                    (int32_t)(RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS)) == 1,
-              "an in-space class bitset must land while nothing is frozen");
-    CS_ASSERT(Combo_ComboSettingIsExplicit(COMBO_SETTING_DIRECTION) &&
-                  Combo_ComboSettingIsExplicit(COMBO_SETTING_ITEM_CLASS_OOT),
-              "a landed write must read as explicit");
-    CS_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_ITEM_CLASS_MM), "an untouched key stays unset");
+    CS_ASSERT(Combo_ComboSettingIsExplicit(COMBO_SETTING_DIRECTION), "a landed write must read as explicit");
+    CS_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_GOAL), "an untouched key stays unset");
     CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION) == (int32_t)RSBS_COMBO_DIR_FORWARD,
               "the reader must serve the authored direction");
 
     Combo_ResolveComboSettings(&live);
     CS_ASSERT(live.direction == RSBS_COMBO_DIR_FORWARD, "the resolver did not read the authored direction");
-    CS_ASSERT(live.itemClassOoT == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS),
-              "the resolver did not read the authored OoT class bitset");
     CS_ASSERT(live.poolSizeOoT == defaults.poolSizeOoT && live.poolSizeMM == defaults.poolSizeMM &&
-                  live.itemClassMM == defaults.itemClassMM &&
+                  live.itemClassOoT == defaults.itemClassOoT && live.itemClassMM == defaults.itemClassMM &&
                   live.goal == defaults.goal && live.logicRung == defaults.logicRung && live.comboFlags == 0 &&
                   live.spare1 == 0 && live.formatVersion == defaults.formatVersion,
               "an unauthored field must keep its shipped default");
     CS_ASSERT(!ComboSettingsRecordsEqual(live, defaults), "an authored record must differ from the defaults");
     const uint32_t authoredFingerprint = Combo_ComputeComboSettingsHash(&live, kSettingsHash, kProfileDigest);
     CS_ASSERT(authoredFingerprint != kDefaultsFingerprint,
-              "a different direction and class bitset must change comboSettingsHash — the whole point of folding "
-              "the record into the fingerprint");
+              "a different direction must change comboSettingsHash — the whole point of folding the record into "
+              "the fingerprint");
 
     // ---- (3b) The goal is authored the same way (ADR 0010 D1) --------------
     // Each of the two appended values reaches record byte 8 and moves the
@@ -1252,7 +1235,7 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     const uint32_t frozenHash = Combo_FreezeComboSettings(&toFreeze);
     CS_ASSERT(Combo_ComboSettingsFrozen(), "the freeze must set the occupancy tag");
     CS_ASSERT(gComboCtx.comboSettings.direction == RSBS_COMBO_DIR_FORWARD &&
-                  gComboCtx.comboSettings.itemClassOoT == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS) &&
+                  gComboCtx.comboSettings.itemClassOoT == (uint16_t)RSBS_ITEMCLASS_ALL_V1 &&
                   gComboCtx.comboSettings.poolSizeMM == (uint8_t)RSBS_FOREIGN_PLACEMENT_CAP,
               "the FROZEN record is not what the player authored — the keys were read after the freeze, or not "
               "at all");
@@ -1267,8 +1250,8 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
               "FORWARD arms the forward pass only");
     CS_ASSERT(Combo_ComboPoolSizeFor((uint8_t)GAME_MM) == (int)RSBS_FOREIGN_PLACEMENT_CAP,
               "the frozen MM pool size is the shipped default: nothing authors it since #801");
-    CS_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_OOT) == (RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS),
-              "the forward pass reads the frozen OoT class bitset");
+    CS_ASSERT(Combo_ComboItemClassFor((uint8_t)GAME_OOT) == (uint16_t)RSBS_ITEMCLASS_ALL_V1,
+              "the frozen OoT class bitset is the shipped default: nothing authors it since #834");
     // ...and THE CREATION GATE'S SECOND ACT (#657): the frozen record has to
     // reproduce the answer the CVars gave before Fill(). FORWARD authors
     // crossings, so the gate holds for `true` and REFUSES `false` — the shape of
@@ -1368,9 +1351,6 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, 0) == 0 &&
                   Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, 9) == 0,
               "an out-of-table direction must be refused at the writer");
-    CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, 0x0040) == 0 &&
-                  Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, -1) == 0,
-              "an unallocated class bit must be refused at the writer");
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_GOAL, 0) == 0 && Combo_ComboSettingSet(COMBO_SETTING_GOAL, 6) == 0,
               "an out-of-table goal must be refused at the writer");
     {
@@ -1379,18 +1359,15 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
                       stored == (int32_t)RSBS_COMBO_DIR_BOTH,
                   "refused writes must not touch the store");
     }
-    // ...so only an out-of-band write can plant one. Plant three, one per
+    // ...so only an out-of-band write can plant one. Plant two, one per
     // shape of wrongness, and resolve.
     CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_DIRECTION), 9);
-    CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_ITEM_CLASS_MM), 0x8000);
     CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_GOAL), 6);
     Combo_ResolveComboSettings(&live);
     CS_ASSERT(live.goal == RSBS_COMBO_GOAL_BEAT_BOTH,
               "an out-of-table goal must resolve to the SHIPPED DEFAULT, never to a goal nothing can evaluate");
     CS_ASSERT(live.direction == RSBS_COMBO_DIR_BOTH,
               "an out-of-table direction must resolve to the SHIPPED DEFAULT, never to a new enumerator");
-    CS_ASSERT(live.itemClassMM == RSBS_ITEMCLASS_ALL_V1,
-              "a mask with an unallocated bit must resolve to the shipped default, not to a masked-off value");
     CS_ASSERT(Combo_ComboDirection() == RSBS_COMBO_DIR_BOTH, "the gate sees the default, not the junk");
     {
         int32_t stored = 0;

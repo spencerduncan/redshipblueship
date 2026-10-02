@@ -40,8 +40,6 @@ struct ComboSettingDesc {
 // buffers and the locks' expectation tables are both indexed by the id.
 const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_DIRECTION, "Crossing Direction" },
-    { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_OOT, "OoT Classes" },
-    { RSBS_CVAR_COMBO_RANDO_ITEM_CLASS_MM, "MM Classes" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, "One Ocarina" },
     { RSBS_CVAR_COMBO_RANDO_GOAL, "Goal" },
 };
@@ -71,10 +69,6 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
     switch (id) {
         case COMBO_SETTING_DIRECTION:
             return (int32_t)defaults.direction;
-        case COMBO_SETTING_ITEM_CLASS_OOT:
-            return (int32_t)defaults.itemClassOoT;
-        case COMBO_SETTING_ITEM_CLASS_MM:
-            return (int32_t)defaults.itemClassMM;
         case COMBO_SETTING_SHARED_OCARINA:
             // A BIT of the defaults record, read the same way its siblings read
             // their fields: one definition of "what ships", even when the field
@@ -96,12 +90,6 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
             // must never become.
             return value == (int32_t)RSBS_COMBO_DIR_OFF || value == (int32_t)RSBS_COMBO_DIR_FORWARD ||
                    value == (int32_t)RSBS_COMBO_DIR_REVERSE || value == (int32_t)RSBS_COMBO_DIR_BOTH;
-        case COMBO_SETTING_ITEM_CLASS_OOT:
-        case COMBO_SETTING_ITEM_CLASS_MM:
-            // A uint16 mask over the ALLOCATED bits only: an unallocated bit
-            // must read 0 in a formatVersion-1 record (decision 1.2.1), so it
-            // must not be authorable. Zero is legal (decision 3.3).
-            return value >= 0 && value <= 0xFFFF && (((uint32_t)value & ~(uint32_t)RSBS_ITEMCLASS_ALL_V1) == 0u);
         case COMBO_SETTING_SHARED_OCARINA:
             // EXACTLY 0 or 1, not "nonzero is true" (#668). A flag key holding 2
             // is a value nobody chose, and this file's rule for those is the
@@ -283,8 +271,6 @@ struct Restorable {
 const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_GOAL, COMBO_SETTING_GOAL },
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
-    { RSBS_COMBO_DIVERGE_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_OOT },
-    { RSBS_COMBO_DIVERGE_ITEM_CLASS_MM, COMBO_SETTING_ITEM_CLASS_MM },
     { RSBS_COMBO_DIVERGE_SHARED_OCARINA, COMBO_SETTING_SHARED_OCARINA },
 };
 
@@ -292,10 +278,6 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, ComboSettingId id) {
     switch (id) {
         case COMBO_SETTING_DIRECTION:
             return (int32_t)frozen->direction;
-        case COMBO_SETTING_ITEM_CLASS_OOT:
-            return (int32_t)frozen->itemClassOoT;
-        case COMBO_SETTING_ITEM_CLASS_MM:
-            return (int32_t)frozen->itemClassMM;
         case COMBO_SETTING_SHARED_OCARINA:
             return (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u ? 1 : 0;
         case COMBO_SETTING_GOAL:

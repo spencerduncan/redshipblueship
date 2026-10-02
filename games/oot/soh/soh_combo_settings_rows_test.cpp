@@ -150,27 +150,6 @@ class ComboRulesMenuProbe final : public SohGui::SohMenu {
     }
 };
 
-// The six allocated RSBS_ITEMCLASS_* bits in bit order, restated here rather
-// than shared with the menu file: the point is that both agree, and a shared
-// array would make them agree by construction instead of by assertion.
-const uint16_t kClassBits[6] = {
-    (uint16_t)RSBS_ITEMCLASS_PROGRESSION,   (uint16_t)RSBS_ITEMCLASS_SONGS,          (uint16_t)RSBS_ITEMCLASS_MASKS,
-    (uint16_t)RSBS_ITEMCLASS_DUNGEON_ITEMS, (uint16_t)RSBS_ITEMCLASS_DUNGEON_REWARD, (uint16_t)RSBS_ITEMCLASS_SIDEQUEST,
-};
-
-// The class checkboxes' names, restated for the same reason: each is the
-// class's display name plus a per-direction "##" ID suffix, because the same six
-// names appear under both directions and a name is the widget's ID.
-const char* const kClassNames[6] = {
-    "Progression", "Songs", "Masks", "Dungeon Items", "Dungeon Rewards", "Sidequest Items",
-};
-const char* const kClassIdSuffix[2] = { "##OoTClass", "##MMClass" };
-
-/** The checkbox name for class @p bit of direction @p which (0 OoT, 1 MM). */
-std::string ClassRowName(int which, int bit) {
-    return std::string(kClassNames[bit]) + kClassIdSuffix[which];
-}
-
 /** The row name the menu builds for @p id: §4.2's marker, then the model's label. */
 std::string RowName(ComboSettingId id) {
     return std::string(Combo_ComboSettingSharedMarker()) + " " + Combo_ComboSettingLabel(id);
@@ -287,20 +266,10 @@ void RecordPopup(std::string title, std::string message, std::string button1, st
                                              std::move(onButton1), std::move(onButton2) });
 }
 
-/** The index of the row named @p name in the flattened page, or -1. */
-int RowIndex(std::vector<PageRow>& rows, const std::string& name) {
-    for (std::size_t i = 0; i < rows.size(); i++) {
-        if (rows.at(i).first->name == name) {
-            return (int)i;
-        }
-    }
-    return -1;
-}
-
 } // namespace
 
 extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
-    printf("[TEST] combo-settings-rows: the six tier-4 combo settings are SohMenu rows in the Combo section's "
+    printf("[TEST] combo-settings-rows: the three tier-4 combo settings are SohMenu rows in the Combo section's "
            "Cross-Game Rules page, marked per ADR 0004 §4.2, and read-only from the save once frozen (#655, #668, "
            "#497 step 6)\n");
 
@@ -320,7 +289,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ComboRulesMenuProbe probe;
     probe.AddMenuCombo();
 
-    // ---- Leg 1: the section and the six rows exist --------------------------
+    // ---- Leg 1: the section and the three rows exist --------------------------
     auto& entries = probe.Entries();
     if (!entries.contains("Combo")) {
         printf("[TEST] FAIL(1): AddMenuCombo registered no \"Combo\" menu entry -- ADR 0004 §4's tier-4 section "
@@ -341,7 +310,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     }
     std::vector<PageRow> rows = FlattenPage(columns);
 
-    // Leg 2 asserts a property of the WHOLE section (no pop-out for the six keys
+    // Leg 2 asserts a property of the WHOLE section (no pop-out for the three keys
     // survives anywhere in it), because the window rows moved to a sibling page:
     // checking only the rules page would make that assertion vacuous.
     std::vector<PageRow> sectionRows = rows;
@@ -362,14 +331,11 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         WidgetType type;
         const char* suffix; // "": the bare name; ": %d": the slider's value format
     };
-    // The direction is a combobox over the four pinned enumerators, each
-    // item-class bitset a marked header over six checkboxes (a bitset is not
-    // expressible as a combobox), and the shared ocarina (#668) a plain
-    // checkbox over the model's 0/1 space. No pool-size sliders: #801.
+    // The direction is a combobox over the four pinned enumerators and the
+    // shared ocarina (#668) a plain checkbox over the model's 0/1 space. No
+    // pool-size sliders (#801) and no item-class groups (#834).
     const ExpectedRow kExpected[] = {
         { COMBO_SETTING_DIRECTION, WIDGET_COMBOBOX, "" },
-        { COMBO_SETTING_ITEM_CLASS_OOT, WIDGET_SEPARATOR_TEXT, "" },
-        { COMBO_SETTING_ITEM_CLASS_MM, WIDGET_SEPARATOR_TEXT, "" },
         { COMBO_SETTING_SHARED_OCARINA, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
@@ -412,7 +378,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] combo-settings-rows: %d failure(s) in leg 1; the later legs need the rows\n", gFailures);
         return gFailures;
     }
-    printf("[TEST] leg 1: all five tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
+    printf("[TEST] leg 1: all three tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
            Combo_ComboSettingSharedMarker());
 
     // ---- Leg 1b: the goal row offers exactly OoTMM's goals, in its words ----
@@ -530,10 +496,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
 
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
     // The enforcement rule (ADR 0004 §6): the gate is on the src/common writers,
-    // so no widget in this section may bind one of the six keys directly -- a
+    // so no widget in this section may bind one of the three keys directly -- a
     // WIDGET_CVAR_* row would write the store itself and never reach the freeze
     // check.
-    int classCheckboxes = 0;
     for (PageRow& pageRow : rows) {
         WidgetInfo& row = *pageRow.first;
         if (row.cVar != nullptr) {
@@ -543,13 +508,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                            "bypasses Combo_ComboSettingSet's freeze gate",
                            row.name.c_str(), row.cVar);
             }
-        }
-        // The shared-ocarina row (#668) is a checkbox too, so the item-class
-        // count below excludes it BY NAME rather than by type: the count is
-        // what makes an appended RSBS_ITEMCLASS_* bit with no row red, and a
-        // floor would not.
-        if (row.type == WIDGET_CHECKBOX && row.name != RowName(COMBO_SETTING_SHARED_OCARINA)) {
-            classCheckboxes++;
         }
     }
     // Over the WHOLE section, not just the rules page: the window buttons live on
@@ -563,29 +521,11 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                    "the rows above",
                    row.name.c_str());
     }
-    // Twelve: six allocated classes per direction. A count rather than a floor,
-    // so an appended RSBS_ITEMCLASS_* bit without a row here is red.
-    ROWS_CHECK(classCheckboxes == 12,
-               "%d item-class checkboxes in the Cross-Game Rules page, expected 12 (6 classes x 2 "
-               "directions); an allocated RSBS_ITEMCLASS_* bit has no row",
-               classCheckboxes);
-    for (int which = 0; which < 2; which++) {
-        for (int bit = 0; bit < 6; bit++) {
-            const std::string name = ClassRowName(which, bit);
-            ROWS_CHECK(FindRow(rows, name) != nullptr, "no checkbox row named '%s'", name.c_str());
-        }
-    }
-    printf("[TEST] leg 2: no row binds a gCombo.Rando.* key directly, %d class checkboxes present, no combo-settings "
-           "pop-out row\n",
-           classCheckboxes);
+    printf("[TEST] leg 2: no row binds a gCombo.Rando.* key directly, no combo-settings pop-out row\n");
 
     // ---- Leg 3: pre-creation the rows are editable and show the resolver ----
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
                "the writer refused a pre-creation direction");
-    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_SONGS) == 1,
-               "the writer refused a pre-creation class mask");
-    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, (int32_t)RSBS_ITEMCLASS_MASKS) == 1,
-               "the writer refused a pre-creation class mask");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1,
                "the writer refused a pre-creation shared-ocarina flag");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_OOT) == 1,
@@ -609,22 +549,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_GOAL]) == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT,
                "the goal row staged %d, expected the authored %d (Ganon)", StagedInt(*settingRow[COMBO_SETTING_GOAL]),
                (int)RSBS_COMBO_GOAL_BEAT_OOT);
-    {
-        // The OoT set is SONGS alone, so exactly one of its six boxes is ticked.
-        int ticked = 0;
-        for (int bit = 0; bit < 6; bit++) {
-            WidgetInfo* box = FindRow(rows, ClassRowName(0, bit));
-            if (box == nullptr) {
-                continue;
-            }
-            const bool on = *std::get<bool*>(box->valuePointer);
-            const bool expectOn = (kClassBits[bit] == (uint16_t)RSBS_ITEMCLASS_SONGS);
-            ROWS_CHECK(on == expectOn, "OoT class '%s' staged %d, expected %d",
-                       Combo_ForeignItemClassName(kClassBits[bit]), (int)on, (int)expectOn);
-            ticked += on ? 1 : 0;
-        }
-        ROWS_CHECK(ticked == 1, "%d OoT class boxes ticked, expected 1", ticked);
-    }
     printf("[TEST] leg 3: before the creation event every row is editable and stages the resolver's value\n");
 
     // ---- Leg 4: a pre-creation edit reaches the store through the model -----
@@ -664,11 +588,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // that showed the CVar would be red rather than accidentally right.
     ComboSettingsRecord frozen;
     Combo_ComboSettingsDefaults(&frozen);
-    frozen.direction = (uint8_t)RSBS_COMBO_DIR_REVERSE;                                  // authored: FORWARD
-    frozen.itemClassOoT = (uint16_t)(RSBS_ITEMCLASS_PROGRESSION | RSBS_ITEMCLASS_MASKS); // authored: SONGS
-    frozen.itemClassMM = 0;                                                              // authored: MASKS
-    frozen.comboFlags = 0;                                                               // authored: ON (#668)
-    frozen.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_MM;                                      // authored: BEAT_OOT
+    frozen.direction = (uint8_t)RSBS_COMBO_DIR_REVERSE; // authored: FORWARD
+    frozen.comboFlags = 0;                              // authored: ON (#668)
+    frozen.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_MM;     // authored: BEAT_OOT
     Combo_FreezeComboSettings(&frozen);
     ROWS_CHECK(Combo_ComboSettingsFrozen(), "Combo_FreezeComboSettings left the record unfrozen");
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() != nullptr, "the model reports no read-only reason once frozen");
@@ -689,45 +611,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the frozen goal row staged %d; it must show the SAVE's %d (Majora), not the CVar's %d (Ganon) -- the "
                "world was proved against the frozen goal",
                StagedInt(*settingRow[COMBO_SETTING_GOAL]), (int)RSBS_COMBO_GOAL_BEAT_MM, (int)RSBS_COMBO_GOAL_BEAT_OOT);
-    for (int which = 0; which < 2; which++) {
-        const uint16_t mask = (which == 0) ? frozen.itemClassOoT : frozen.itemClassMM;
-        for (int bit = 0; bit < 6; bit++) {
-            WidgetInfo* box = FindRow(rows, ClassRowName(which, bit));
-            if (box == nullptr) {
-                continue;
-            }
-            ExpectDecided(*box, box->name.c_str());
-            const bool on = *std::get<bool*>(box->valuePointer);
-            ROWS_CHECK(on == ((mask & kClassBits[bit]) != 0),
-                       "frozen class row '%s' staged %d; the SAVE's mask is %04X", box->name.c_str(), (int)on,
-                       (unsigned)mask);
-        }
-    }
-    // The empty-set note: MM's frozen mask is 0, OoT's is not, so exactly one of
-    // the two "places nothing" lines is shown. A note that never hides would
-    // report an empty pool for a world that has one.
-    {
-        WidgetInfo* ootNote = FindRow(rows, "No Ocarina of Time items will cross.");
-        WidgetInfo* mmNote = FindRow(rows, "No Majora's Mask items will cross.");
-        ROWS_CHECK(ootNote != nullptr && ootNote->isHidden, "the OoT empty-set note is shown for a non-empty mask");
-        ROWS_CHECK(mmNote != nullptr && !mmNote->isHidden, "the MM empty-set note is hidden for an empty mask");
-
-        // Where each note sits: directly under its group's separator, ABOVE the
-        // six checkboxes (docs/ui-style-guide.md R-S3: a state that must be
-        // legible without hovering is one gray note row above the group). A
-        // note after the six boxes reads as a footnote to the last one.
-        const char* notes[2] = { "No Ocarina of Time items will cross.", "No Majora's Mask items will cross." };
-        const ComboSettingId groups[2] = { COMBO_SETTING_ITEM_CLASS_OOT, COMBO_SETTING_ITEM_CLASS_MM };
-        for (int which = 0; which < 2; which++) {
-            const int header = RowIndex(rows, RowName(groups[which]));
-            const int note = RowIndex(rows, notes[which]);
-            const int firstBox = RowIndex(rows, ClassRowName(which, 0));
-            ROWS_CHECK(header >= 0 && note == header + 1 && firstBox == note + 1,
-                       "the empty-set note '%s' is at row %d; it must sit directly under its separator (row %d) and "
-                       "above the group's first checkbox (row %d)",
-                       notes[which], note, header, firstBox);
-        }
-    }
     printf("[TEST] leg 5: once frozen every row is read-only with the model's reason and shows the save's record\n");
 
     // ---- Leg 6: a frozen row's Callback cannot move the store ---------------
@@ -918,8 +801,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     {
         ComboContext_Init();
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_OOT, (int32_t)RSBS_ITEMCLASS_SONGS) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_ITEM_CLASS_MM, (int32_t)RSBS_ITEMCLASS_MASKS) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
@@ -972,11 +853,11 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             }
         }
         gRecordedPopups.clear();
-        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all five "
+        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all three "
                "rules\n");
     }
 
-    // Leave the process clean: this row writes the six tier-4 keys and freezes
+    // Leave the process clean: this row writes the three tier-4 keys and freezes
     // gComboCtx, and AllTests runs every dispatch entry in ONE process.
     ComboContext_Init();
     for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {

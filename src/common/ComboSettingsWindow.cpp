@@ -1,7 +1,7 @@
 /**
  * @file ComboSettingsWindow.cpp
  * @brief Renders the tier-4 combo settings (ADR 0011 increment 2; the two
- *        pool sizes retired by #801).
+ *        pool sizes retired by #801 and the two item-class masks by #834).
  *
  * See ComboSettingsWindow.h for the contract. Every value drawn here comes
  * from combo_settings_view.h (pre-creation) or Combo_ComboSettingsSummary
@@ -178,43 +178,6 @@ void DrawDirectionRow(uint8_t direction, bool decided) {
     }
 }
 
-void DrawItemClassRows(ComboSettingId id, uint16_t mask, bool decided) {
-    // The allocated bits, in bit order (foreign_items.h). Appending a class is
-    // a new row here; re-pointing one is forbidden there.
-    static const uint16_t kClassBits[] = {
-        (uint16_t)RSBS_ITEMCLASS_PROGRESSION,    (uint16_t)RSBS_ITEMCLASS_SONGS,
-        (uint16_t)RSBS_ITEMCLASS_MASKS,          (uint16_t)RSBS_ITEMCLASS_DUNGEON_ITEMS,
-        (uint16_t)RSBS_ITEMCLASS_DUNGEON_REWARD, (uint16_t)RSBS_ITEMCLASS_SIDEQUEST,
-    };
-
-    ImGui::TextUnformatted(Combo_ComboSettingLabel(id));
-    if (decided) {
-        DecidedTag();
-        ImGui::BeginDisabled();
-    }
-    // Two directions draw the same six labels; the ID scope keeps ImGui from
-    // conflating the OoT "songs" box with the MM one.
-    ImGui::PushID((int)id);
-    for (uint16_t bit : kClassBits) {
-        bool on = (mask & bit) != 0;
-        if (ImGui::Checkbox(Combo_ForeignItemClassName(bit), &on)) {
-            const uint16_t next = on ? (uint16_t)(mask | bit) : (uint16_t)(mask & (uint16_t)~bit);
-            Combo_ComboSettingSet(id, (int32_t)next);
-        }
-    }
-    ImGui::PopID();
-    if (decided) {
-        ImGui::EndDisabled();
-    }
-    if (mask == 0) {
-        // A legitimate world (ADR 0011 decision 3.3), but one worth naming: the
-        // pass logs "no crossings" and places nothing, and a player who did
-        // not mean that would otherwise read it as a broken pool.
-        ImGui::TextDisabled("No classes armed: this direction places nothing (the same world as that direction "
-                            "being off).");
-    }
-}
-
 } // namespace
 
 void ComboSettingsWindow::Draw() {
@@ -266,10 +229,6 @@ void ComboSettingsWindow::DrawElement() {
     }
 
     DrawDirectionRow(shown.direction, decided);
-    ImGui::Spacing();
-    DrawItemClassRows(COMBO_SETTING_ITEM_CLASS_OOT, shown.itemClassOoT, decided);
-    ImGui::Spacing();
-    DrawItemClassRows(COMBO_SETTING_ITEM_CLASS_MM, shown.itemClassMM, decided);
 
     ImGui::Separator();
     if (decided) {
