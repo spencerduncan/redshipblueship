@@ -40,7 +40,17 @@
 #include <cstring>
 #include <string>
 
-#include "Rando/Rando.h" // SaveContext (via variables.h), RC_MAX, SAVETYPE_RANDO, StaticData
+#include <unordered_map>
+#include <vector>
+
+#include "Rando/Rando.h"            // SaveContext (via variables.h), RC_MAX, SAVETYPE_RANDO, StaticData
+#include "2s2h/Rando/Foreign.h"     // ForeignNameForCheck: a crossing host's item (#796)
+#include "2s2h/Rando/Logic/Logic.h" // Regions: the native tracker's grotto/enemy-drop grouping
+#include "2s2h/ShipUtils.h"         // Ship_GetSceneName
+
+extern "C" {
+s16 Play_GetOriginalSceneId(s16 sceneId);
+}
 
 // src/common. Included OUTSIDE any extern "C" block: the header manages its
 // own linkage and pulls context.h, whose <type_traits> include must not be
@@ -90,6 +100,138 @@ const char* MMTrackerCheckName(uint16_t checkId) {
     return name.empty() ? nullptr : name.c_str();
 }
 
+// ---- #458 U4: areas and placed items --------------------------------------
+
+// MM's scene order (scene_table.h's betterMapSelectIndex): the order MM's own
+// check tracker sorts its scene headers in (CheckTracker.cpp's betterSceneIndex).
+#define DEFINE_SCENE(_name, enumValue, _textId, _drawConfig, _restrictionFlags, _persistentCycleFlags, \
+                     _entranceSceneId, betterMapSelectIndex, _humanName)                               \
+    { enumValue, betterMapSelectIndex },
+#define DEFINE_SCENE_UNSET(_enumValue)
+const std::unordered_map<s32, s32> kMMSceneOrder = {
+#include "tables/scene_table.h"
+};
+#undef DEFINE_SCENE
+#undef DEFINE_SCENE_UNSET
+
+/**
+ * The scene each check is listed under, by the rule MM's check tracker groups
+ * its rows with (CheckTracker.cpp, initializeSceneChecks): the check's own scene
+ * through Play_GetOriginalSceneId, except a grotto check, which goes under the
+ * scene of the region its grotto connects to, and an enemy drop, which goes under
+ * the first region (in region order) that lists it. The native tracker may list
+ * one enemy drop under several scenes; a row has one area, so this keeps the
+ * first. A check neither rule places (a grotto with no connection, which the
+ * native tracker leaves out) keeps its own scene rather than vanishing.
+ *
+ * Built from Rando::Logic::Regions, which registration fills during bring-up, so
+ * the table is rebuilt whenever the region count changes (the #659 entrance
+ * cache's rule) instead of freezing a half-registered graph.
+ */
+const std::vector<s16>& MMCheckScenes(void) {
+    static std::vector<s16> sScenes;
+    static size_t sBuiltAt = (size_t)-1;
+    if (sBuiltAt == Rando::Logic::Regions.size() && !sScenes.empty()) {
+        return sScenes;
+    }
+    sScenes.assign((size_t)RC_MAX, (s16)SCENE_MAX);
+    for (const auto& [_, check] : Rando::StaticData::Checks) {
+        if (check.sceneId == SCENE_KAKUSIANA || check.randoCheckType == RCTYPE_ENEMY_DROP) {
+            continue;
+        }
+        sScenes[check.randoCheckId] = Play_GetOriginalSceneId(check.sceneId);
+    }
+    for (const auto& [regionId, region] : Rando::Logic::Regions) {
+        if (region.sceneId == SCENE_KAKUSIANA) {
+            RandoRegionId connected = RR_MAX;
+            if (regionId == RR_LONE_PEAK_SHRINE) {
+                connected = RR_LONE_PEAK_SHRINE;
+            } else {
+                for (const auto& [entrance, _] : region.exits) {
+                    connected = Rando::Logic::GetRegionIdFromEntrance(entrance);
+                }
+                for (const auto& [connectedId, _] : region.connections) {
+                    connected = connectedId;
+                }
+            }
+            const auto target = Rando::Logic::Regions.find(connected);
+            if (target == Rando::Logic::Regions.end()) {
+                continue;
+            }
+            for (const auto& [checkId, _] : region.checks) {
+                if (sScenes[checkId] == (s16)SCENE_MAX) {
+                    sScenes[checkId] = target->second.sceneId;
+                }
+            }
+        } else {
+            for (const auto& [checkId, _] : region.checks) {
+                const auto check = Rando::StaticData::Checks.find(checkId);
+                if (check != Rando::StaticData::Checks.end() && check->second.randoCheckType == RCTYPE_ENEMY_DROP &&
+                    sScenes[checkId] == (s16)SCENE_MAX) {
+                    sScenes[checkId] = Play_GetOriginalSceneId(region.sceneId);
+                }
+            }
+        }
+    }
+    for (const auto& [_, check] : Rando::StaticData::Checks) {
+        if (sScenes[check.randoCheckId] == (s16)SCENE_MAX) {
+            sScenes[check.randoCheckId] = Play_GetOriginalSceneId(check.sceneId);
+        }
+    }
+    sBuiltAt = Rando::Logic::Regions.size();
+    return sScenes;
+}
+
+/**
+ * The area a check's row is listed under: its scene's name, as MM's tracker
+ * heads the scene (Ship_GetSceneName). The key orders scenes the way that
+ * tracker does (scene order in the high byte) and keeps two scenes of one order
+ * apart (the scene id in the low byte; MM has fewer than 256 scenes).
+ */
+const char* MMTrackerAreaName(uint16_t checkId, uint16_t* outKey) {
+    if (checkId >= (uint16_t)RC_MAX) {
+        return nullptr;
+    }
+    const s16 scene = MMCheckScenes()[checkId];
+    if (scene < 0 || scene >= (s16)SCENE_MAX) {
+        return nullptr; // not a check MM's static data knows
+    }
+    const auto order = kMMSceneOrder.find(scene);
+    const uint16_t rank = (order != kMMSceneOrder.end()) ? (uint16_t)(order->second & 0xFF) : 0xFF;
+    if (outKey != nullptr) {
+        *outKey = (uint16_t)((rank << 8) | ((uint16_t)scene & 0xFF));
+    }
+    return Ship_GetSceneName(scene);
+}
+
+/**
+ * The item an obtained check's row names, from the SaveContext image `save`:
+ * MM's own check tracker's rule (CheckTracker.cpp, ObtainedItemTrackerName,
+ * #796) without its " (OoT)" suffix, which the window adds from `*outGame`. A
+ * check that hosts an OoT item holds RI_JUNK in MM's table, so the crossed item
+ * comes first; otherwise the item MM's table stores in this save.
+ */
+const char* MMTrackerPlacedItemName(const void* save, uint16_t checkId, uint8_t* outGame) {
+    if (save == nullptr || checkId == (uint16_t)RC_UNKNOWN || checkId >= (uint16_t)RC_MAX) {
+        return nullptr;
+    }
+    if (const char* foreignName = Rando::Foreign::ForeignNameForCheck((RandoCheckId)checkId)) {
+        if (outGame != nullptr) {
+            *outGame = (uint8_t)GAME_OOT;
+        }
+        return foreignName;
+    }
+    const RandoSaveCheck& row = static_cast<const SaveContext*>(save)->save.shipSaveInfo.rando.randoSaveChecks[checkId];
+    const auto item = Rando::StaticData::Items.find(row.randoItemId);
+    if (item == Rando::StaticData::Items.end() || item->second.name == nullptr) {
+        return nullptr;
+    }
+    if (outGame != nullptr) {
+        *outGame = (uint8_t)GAME_MM;
+    }
+    return item->second.name;
+}
+
 /**
  * MM's live save for the view's LIVE read, or NULL (#799). Only while MM's play
  * state is loaded: MM_gPlayState is set late in MM_Play_Init, after the
@@ -130,9 +272,31 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     desc.obtainedOffset = (uint32_t)offsetof(RandoSaveCheck, obtained);
     desc.skippedOffset = (uint32_t)offsetof(RandoSaveCheck, skipped);
     desc.checkName = MMTrackerCheckName;
+    desc.areaName = MMTrackerAreaName;
+    desc.placedItemName = MMTrackerPlacedItemName;
     desc.liveSave = MMTrackerLiveSave;
 
     Combo_Tracker_RegisterMM(&desc);
+}
+
+/**
+ * TEST BRIDGE (redship --test combo-tracker-view, #458 U4): store the MM item
+ * whose display name is `name` at check `checkId` of the SaveContext image
+ * `save`, as a generated world would, so the ROM-free lock can author a placed
+ * item without seeing RandoItemId. Returns 1 when written, 0 for a bad argument
+ * or a name no MM item carries.
+ */
+extern "C" int MM_TrackerAdapter_TestSetStoredItem(void* save, uint16_t checkId, const char* name) {
+    if (save == nullptr || name == nullptr || checkId >= (uint16_t)RC_MAX) {
+        return 0;
+    }
+    for (const auto& [randoItemId, item] : Rando::StaticData::Items) {
+        if (item.name != nullptr && std::strcmp(item.name, name) == 0) {
+            static_cast<SaveContext*>(save)->save.shipSaveInfo.rando.randoSaveChecks[checkId].randoItemId = randoItemId;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

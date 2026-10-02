@@ -12,7 +12,8 @@ void EnIn_OnOpenPurchaseText(u16* textId, bool* loadFromMessageTable) {
     RandoSaveCheck milkPurchaseCheck = RANDO_SAVE_CHECKS[RC_GORMAN_MILK_PURCHASE];
     RandoItemId riMilkPurchase = Rando::ConvertItem(milkPurchaseCheck.randoItemId, RC_GORMAN_MILK_PURCHASE);
 
-    if (milkPurchaseCheck.cycleObtained) {
+    // #800: a slot hosting a foreign item is sold for good once delivered.
+    if (Rando::ActorBehavior::ShopCounterSlotSold(RC_GORMAN_MILK_PURCHASE)) {
         return;
     }
 
@@ -22,7 +23,8 @@ void EnIn_OnOpenPurchaseText(u16* textId, bool* loadFromMessageTable) {
                 "\xC2%gYes\x11"
                 "No";
 
-    std::string itemName = Rando::StaticData::Items[riMilkPurchase].name;
+    std::string itemName = Rando::ActorBehavior::ShopOfferedItemName(
+        RC_GORMAN_MILK_PURCHASE, Rando::StaticData::Items[riMilkPurchase].name, false);
     std::string itemPrice = std::to_string(milkPurchaseCheck.price);
 
     CustomMessage::ReplaceColorChars(&entry.msg);
@@ -69,7 +71,7 @@ void Rando::ActorBehavior::InitEnInBehavior() {
     COND_VB_SHOULD(VB_BUY_GORMAN_MILK, IS_RANDO && RANDO_SAVE_OPTIONS[RO_SHUFFLE_SHOPS], {
         s32* ret = va_arg(args, s32*);
         EnIn* enIn = va_arg(args, EnIn*);
-        if (RANDO_SAVE_CHECKS[RC_GORMAN_MILK_PURCHASE].cycleObtained) {
+        if (Rando::ActorBehavior::ShopCounterSlotSold(RC_GORMAN_MILK_PURCHASE)) {
             return;
         }
         *should = true;

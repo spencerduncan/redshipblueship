@@ -496,6 +496,7 @@ extern "C" {
 // serialization. FILE SCOPE (compiled as C++) for rsbs::SaveManager; the
 // pipeline symbols it drives are C-linkage and declared in the file.
 #include "tests/test_foreign_items.c"
+#include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
 
 // Lane C1 in-game spoiler VIEW model (#496): the read-only projection of
@@ -1424,6 +1425,70 @@ TestResult Test_RandoEntrancePin(void) {
     int rc = RandoTest_EntrancePinGenerated();
     printf("[TEST] %s: entrance-pin generation rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #800 pass 1, MM side: a REAL paired creation with both shop shuffles on puts at
+// least one OoT item in an MM shop slot on a fixed seed. The OoT generation and
+// MM's creation-time half are the ones the determinism rows run, with OoT's
+// shopsanity (4 slots per shop) and MM's Shuffle Shops set by this dispatch, so
+// the profile travels with the lock. Before #800 MM's host rule refused every
+// shop slot, so the MM-hosted crossings could only ever land in chests. Prints
+// both directions' crossing counts; the OoT-shop half is #800's OoT-side change.
+extern "C" int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, int* outIsTingleShop);
+
+TestResult Test_RandoShopCrossingsMM(void) {
+    printf("[TEST] rando-shop-crossings-mm: a paired creation with both shop shuffles on crosses an OoT item into an "
+           "MM shop slot (#800)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    static const char* const kShopCvars[] = { "gRandoSettings.Shopsanity", "gRandoSettings.ShopsanityCount",
+                                              "gRando.Options.RO_SHUFFLE_SHOPS" };
+    CVarSetInteger(kShopCvars[0], 1); // "Specific Count"
+    CVarSetInteger(kShopCvars[1], 4);
+    CVarSetInteger(kShopCvars[2], 1);
+    // RSBS_SHOP_CROSSING_SEED overrides the pinned seed, for re-pinning by scan.
+    const char* seedEnv = std::getenv("RSBS_SHOP_CROSSING_SEED");
+    const char* seed = (seedEnv != nullptr && seedEnv[0] != '\0') ? seedEnv : "RSBSSHOPS1";
+    const char* digestPath = "rsbs_shop_crossings_digest.txt";
+    std::remove(digestPath);
+    const int ootRc = Rando_HeadlessSeedDeterminismDigest(seed, digestPath);
+    const int mmRc = ootRc == 0 ? MM_Rando_HeadlessForeignDigest(digestPath) : -1;
+    for (const char* cvar : kShopCvars) {
+        CVarClear(cvar);
+    }
+    if (ootRc != 0 || mmRc != 0) {
+        printf("[TEST] FAIL: the paired creation for seed %s failed (OoT rc=%d, MM rc=%d)\n", seed, ootRc, mmRc);
+        return TEST_FAIL;
+    }
+
+    const int mmHosted = Combo_Crossings_Count(GAME_MM);
+    int mmShopHosted = 0;
+    for (int i = 0; i < mmHosted; i++) {
+        ComboCrossing row;
+        int isShop = 0;
+        if (Combo_Crossings_At(GAME_MM, i, &row) && MM_Rando_Foreign_TestCheckShopClass(row.hostCheck, &isShop, nullptr) &&
+            isShop) {
+            mmShopHosted++;
+            printf("[TEST]   MM shop slot %u hosts OoT item %u\n", (unsigned)row.hostCheck, (unsigned)row.item.id);
+        }
+    }
+    printf("[TEST] rando-shop-crossings-mm: seed %s: %d crossings hosted in OoT, %d in MM, %d of them in MM shop "
+           "slots\n",
+           seed, Combo_Crossings_Count(GAME_OOT), mmHosted, mmShopHosted);
+    if (mmShopHosted < 1) {
+        printf("[TEST] FAIL: no OoT item crossed into an MM shop slot\n");
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: an OoT item crossed into an MM shop slot\n");
+    return TEST_PASS;
 }
 
 // #710: WHERE A DIGEST DISPATCH WRITES, AND SAYING SO WHEN IT WRITES NOWHERE.
@@ -4991,6 +5056,10 @@ const TestDescriptor gTests[] = {
     {"foreign-item-give-reverse",
      "Reverse (MM->OoT) placement carve: separate key space, serializes, redeems once (#493)",
      Test_ForeignItemGiveReverse},
+    // #800 pass 1: an OoT item in an MM shop slot is sold once, crosses once, and is
+    // drawn as itself on the shelf and in the Bomb Shop owner's hand.
+    {"foreign-item-give-shop", "An OoT item in an MM shop slot: sold once, crosses once, drawn as itself (#800)",
+     Test_ForeignItemGiveShop},
     // #488: host selection must reject any check class the game does not arm —
     // the give path is gated on `.eligible`, so an unarmed host strands a
     // crossing and no error is ever raised.
@@ -5396,6 +5465,10 @@ const TestDescriptor gTests[] = {
      Test_MenuMmRandomizerPages},
     {"rando-entrance-pin", "A generated seed with interior shuffle ON keeps the mask-shop door vanilla (#661)",
      Test_RandoEntrancePin},
+    // #800 pass 1, MM side: a real paired creation with both shop shuffles on
+    // crosses an OoT item into an MM shop slot.
+    {"rando-shop-crossings-mm", "A paired creation with both shop shuffles on crosses an OoT item into an MM shop slot (#800)",
+     Test_RandoShopCrossingsMM},
     // #578 part 2: the trick BINDINGS. Appended at the end of the block rather
     // than next to its part-1 siblings above, because those sit before
     // archive-hotswap-logic's "keep LAST" row and this one runs a real generation
@@ -5822,6 +5895,7 @@ int TestRunner_Run(const char* testName) {
                 // run inside a suite whose result is a pass/fail count.
                 strcmp(gTests[i].name, "combo-logic-give-probe") == 0 ||
                 strcmp(gTests[i].name, "rando-entrance-pin") == 0 ||
+                strcmp(gTests[i].name, "rando-shop-crossings-mm") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-export") == 0 ||
                 strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.

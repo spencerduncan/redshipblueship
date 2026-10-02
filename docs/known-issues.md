@@ -181,17 +181,21 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 **Open problems you may meet while playing** (found in or around the 2026-09 playtest and
 checked in the code at `200adaea`; each links the issue that will fix it):
 
-**Majora's Mask shops sell only Majora's Mask items** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800), pending).
-~~No shop slot holds an item from the other game.~~ Since #800's first pass on the OoT side, an
-Ocarina of Time shop can sell a Majora's Mask item: with OoT's "Shop Shuffle" on, a shelf that shop
-shuffle emptied can hold an MM item. The shelf shows the MM item's model (or the mystery
-item when Ocarina of Time cannot draw that model yet), the textbox names it at the
-shelf's price, and buying it sends the item to Majora's Mask like a cross-game chest. A
-Majora's Mask shop still never sells an Ocarina of Time item. OoT's Business Scrubs,
-merchants and Treasure Chest Game, and MM's Tingle, still hold their own game's items.
-Shop shuffle is off by default in both games (OoT's "Shop Shuffle", MM's "Shuffle Shops").
-MM's shop stock joins the shared bag when MM's "Shuffle Shops" is on, so an MM shop item
-can turn up in an OoT chest or on an OoT shelf; OoT's shop stock never leaves Hyrule.
+**~~Shops sell only their own game's items~~ — plain shops RESOLVED; Business Scrubs, merchants, the Treasure Chest Game and Tingle pending** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800)).
+#800's first pass makes plain shops cross-game in both directions. An Ocarina of Time shop
+can sell a Majora's Mask item: with OoT's "Shop Shuffle" on, a shelf that shop shuffle
+emptied can hold an MM item. The shelf shows the MM item's model (or the mystery item when
+Ocarina of Time cannot draw that model yet), the textbox names it at the shelf's price, and
+buying it sends the item to Majora's Mask like a cross-game chest. A Majora's Mask shop slot
+(the shelves, the Bomb Shop owner's hand item, Gorman's milk and the Milk Bar) can hold an
+Ocarina of Time item, shown with its own model and name, sold once for the whole game and
+delivered on your next arrival in Hyrule. Two MM shop slots are shuffled in every world (the
+Curiosity Shop's special and the Bomb Shop's fourth item), so this can happen even with MM's
+"Shuffle Shops" off. Still pending (#800's second pass): OoT's Business Scrubs, merchants and
+Treasure Chest Game, and MM's Tingle, hold only their own game's items. Shop shuffle is off
+by default in both games (OoT's "Shop Shuffle", MM's "Shuffle Shops"). MM's shop stock joins
+the shared bag when MM's "Shuffle Shops" is on, so an MM shop item can turn up in an OoT
+chest or on an OoT shelf; OoT's shop stock never leaves Hyrule.
 
 **~~The Check Trackers name "Blue Rupee" or "Junk" for a cross-game chest~~ — RESOLVED** ([#796](https://github.com/spencerduncan/redshipblueship/issues/796), PR [#813](https://github.com/spencerduncan/redshipblueship/pull/813)).
 Fixed by PR #813: once a cross-game chest is collected, Ocarina of Time's Check Tracker lists it
