@@ -227,10 +227,16 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
  * #577 M5, the chest's appearance (z_en_box.c, OoT_EnBox_Init): the item category
  * "Chest Size & Texture Matches Contents" dresses OoT chest `rc` by, given the
  * category of the item the OoT table holds there (`coverCategory`).
+ *
+ * A crossing host holds OoT's junk cover (RG_BLUE_RUPEE, ComboLogicEngineOoT.cpp)
+ * and would be dressed as junk whatever MM item it hides. It presents as a major
+ * chest instead, MM's rule for an OoT item in an MM chest (EnBox.cpp: a foreign
+ * chest is an ornate chest, like any chest holding something worth opening).
+ * OoT has no table of MM item ids to grade it finer (ADR 0002). Every other chest
+ * keeps its own item's category.
  */
 extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
-    (void)rc;
-    return coverCategory;
+    return OoT_Rando_Foreign_HostsForeign(rc) != 0 ? (int)ITEM_CATEGORY_MAJOR : coverCategory;
 }
 
 /** TEST BRIDGE (ForeignModel row M14): what OoT chest `rc` presents when the OoT
