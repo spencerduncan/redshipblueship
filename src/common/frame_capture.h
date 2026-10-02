@@ -4,16 +4,17 @@
  *        env-gated, OpenGL only; a no-op unless a knob below is set.
  *
  * WHY IT EXISTS. Agent-driven playtests used to screenshot the game window from
- * outside the process (PrintWindow). That returns an all-black image whenever
- * the desktop is locked or the display is off, which is exactly when the work
- * runs unattended. This capture reads the window's own back buffer from inside
- * the frame, after the game AND ImGui have drawn and before the swap, so it
- * sees what a player would see whatever the desktop is doing.
+ * outside the process (PrintWindow). Since 2026-10-01 that returns an all-black
+ * image on the unattended workstation; the likeliest cause (not confirmed) is a
+ * locked desktop or a display that is off. This capture reads the window's own
+ * back buffer from inside the frame, after the game AND ImGui have drawn and
+ * before the swap, so it does not depend on what the desktop compositor shows.
  *
  * KNOBS (read once, at the first call into this file):
  *   RSBS_CAPTURE_FRAMES=<n>[,<n>...] | every:<k>
  *       Live frames to capture, counted per game from that game's first frame
- *       (each graph.c's frame update calls FrameCapture_OnGameFrame). Frame n is
+ *       (OoT_Graph_Update calls FrameCapture_OnOoTFrame and MM_Graph_Update
+ *       calls FrameCapture_OnMMFrame, in their single-exe blocks). Frame n is
  *       written as <dir>/<game>-frame-<n>.png, game = "oot" or "mm". A frame the
  *       renderer drops is captured on the next frame that draws.
  *   RSBS_CAPTURE_OUT=<dir>
@@ -57,9 +58,6 @@ void FrameCapture_OnMMFrame(void);
 
 /** Capture the next frame that draws as <dir>/<name>.png. A no-op while the capture is off. */
 void IntegrationTest_CaptureFrame(const char* name);
-
-/** True when any capture knob is set. */
-bool FrameCapture_IsActive(void);
 
 /** True when RSBS_CAPTURE_VERIFY=1 (the lock row). */
 bool FrameCapture_VerifyRequested(void);

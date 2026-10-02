@@ -414,8 +414,8 @@ session; the window will flash through the phases.)
   contains spaces (`logs/RedShipBlueShip v… (…).log`), quote it.
 - In CI: the failed run's `integration-crash-logs` artifact contains that log;
   the step log has the last 300 lines inline.
-- **Screenshots (#843):** capture from inside the process, never the desktop window (a locked desktop hands
-  `PrintWindow` a black frame). `RSBS_CAPTURE_FRAMES=<n>[,<n>...]|every:<k>` plus `RSBS_CAPTURE_OUT=<dir>` write
+- **Screenshots (#843):** capture from inside the process, never the desktop window (`PrintWindow` has returned
+  black frames on the unattended workstation since 2026-10-01; a locked desktop is the likeliest, unconfirmed, cause). `RSBS_CAPTURE_FRAMES=<n>[,<n>...]|every:<k>` plus `RSBS_CAPTURE_OUT=<dir>` write
   `<dir>/<oot|mm>-frame-<n>.png` (live frames counted per game, game and ImGui drawn, OpenGL only); a drive calls
   `IntegrationTest_CaptureFrame("<name>")` for `<dir>/<name>.png` at the moment it chooses (`src/common/frame_capture.h`).
 

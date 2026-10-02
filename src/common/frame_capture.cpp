@@ -267,10 +267,6 @@ bool ImageIsUniform(const UiImage& img, double* nonModal, int* distinct) {
 
 extern "C" {
 
-bool FrameCapture_IsActive(void) {
-    return Config().active;
-}
-
 bool FrameCapture_VerifyRequested(void) {
     return Config().active && Config().verify;
 }
