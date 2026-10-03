@@ -1611,7 +1611,10 @@ void ExtractGameMeta(const RsbsGameMetaDesc& desc, const uint8_t* blob, size_t b
         outPlayTime = pt;
     }
 
-    if (desc.validMarkerLen == 0) {
+    if (desc.isStarted != nullptr) {
+        // The game's own test (#873): OoT's saves carry no marker bytes.
+        outStarted = desc.isStarted(blob, blobSize) != 0;
+    } else if (desc.validMarkerLen == 0) {
         // No marker registered → assume any slot is "started" for this game.
         outStarted = true;
     } else if (desc.validMarkerLen <= sizeof(desc.validMarker) &&

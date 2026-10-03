@@ -87,10 +87,12 @@
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 // The MM-side twin (games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp), #458 U1b.
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
-// #873, the combo-item-view-new-file row: the save Ship of Harkinian's own
-// new-file path (Save_InitFile(false)) authors, copied into `buf`. Needs the
-// full OoT bring-up. `outNewfMarked` receives whether it carries "ZELDAZ".
-extern "C" int OoT_ItemAdapter_TestAuthorNewFile(void* buf, size_t size, int* outNewfMarked);
+// #873, the combo-item-view-new-file row: a save Ship of Harkinian's own init
+// path authors, copied into `buf`. Variant 0 is the player's new file
+// (Save_InitFile(false)), 1 the title screen's attract save, 2 that debug save
+// in a played session. Needs the full OoT bring-up. `outNewfMarked` receives
+// whether the save carries "ZELDAZ".
+extern "C" int OoT_ItemAdapter_TestAuthorNewFile(void* buf, size_t size, int variant, int* outNewfMarked);
 // OoT's .redsave slot descriptor, as OoT's SaveManager constructor registers it.
 extern "C" void OoT_SlotMeta_Register(void);
 
@@ -674,9 +676,10 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
 //   B. as OoT's frozen shadow while MM is played, every row reads, STALE, and
 //      the rows are a new file's (nothing found, a child's wallet of 0/99);
 //   C. as OoT's live save while OoT is played, LIVE;
-//   D. a freeze noted as not a live file (#837: OoT's title or file select,
-//      whose save is a started-looking debug or menu save) is not the player's
-//      file: UNAVAILABLE, while the same bytes committed as a file read STALE;
+//   D. the title screen's attract save (the debug save under fileNum 0xFF and
+//      GAMEMODE_TITLE_SCREEN, which F10 there freezes, #837) is not the
+//      player's file: UNAVAILABLE; the same debug save in a played session
+//      (GAMEMODE_NORMAL) reads STALE;
 //   E. an all-zero shadow (OoT never frozen) is still "No data";
 //   F. the .redsave slot panel reads a slot whose OoT half is this save as
 //      OoT-started, and an all-zero OoT half as not started.
@@ -756,18 +759,28 @@ static int CivNewFileLegs(const ComboItemOps* ops, const std::vector<uint8_t>& n
     sCivLive = NULL;
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, ops);
 
-    // ---- D. a freeze noted as not a live file -------------------------------
+    // ---- D. the title screen's attract save is not the player's file ---------
+    // F10 on OoT's title freezes the debug save the attract demo plays (#837);
+    // it has hearts and every item, and must not read as the player's rows.
+    // The same debug save in a played session (fileNum 0xFF, GAMEMODE_NORMAL,
+    // as the integration drives play it) is a file and reads.
     Context_SetCurrentGame(GAME_MM);
-    Context_NoteDepartureLiveFile(GAME_OOT, 0);
-    Context_FreezeState(GAME_OOT, 0, newFile.data(), newFile.size());
-    CIV_ASSERT(Context_FrozenStateIsLiveFile(GAME_OOT) == 0);
-    const uint8_t notLiveFreshness = Combo_ItemFreshness((uint8_t)GAME_OOT);
-    printf("[TEST] combo-item-view-new-file: a freeze noted not-a-live-file reads freshness=%u (UNAVAILABLE=%u)\n",
-           (unsigned)notLiveFreshness, (unsigned)COMBO_TRACKER_FRESH_UNAVAILABLE);
-    CIV_ASSERT(notLiveFreshness == COMBO_TRACKER_FRESH_UNAVAILABLE);
+    std::vector<uint8_t> attract((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> debugPlayed((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorNewFile(attract.data(), attract.size(), 1, NULL) == 1);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorNewFile(debugPlayed.data(), debugPlayed.size(), 2, NULL) == 1);
+    Context_UpdateShadowCopy(GAME_OOT, attract.data(), attract.size());
+    const uint8_t attractFreshness = Combo_ItemFreshness((uint8_t)GAME_OOT);
+    printf("[TEST] combo-item-view-new-file: the title's attract save as the shadow: hasSave=%d freshness=%u "
+           "(UNAVAILABLE=%u)\n",
+           (int)ops->hasSave(attract.data()), (unsigned)attractFreshness, (unsigned)COMBO_TRACKER_FRESH_UNAVAILABLE);
+    CIV_ASSERT(!ops->hasSave(attract.data()));
+    CIV_ASSERT(attractFreshness == COMBO_TRACKER_FRESH_UNAVAILABLE);
     CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_OOT) == 0);
-    Context_UpdateShadowCopy(GAME_OOT, newFile.data(), newFile.size()); // a load or a creation: a file
+    Context_UpdateShadowCopy(GAME_OOT, debugPlayed.data(), debugPlayed.size());
+    CIV_ASSERT(ops->hasSave(debugPlayed.data()));
     CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Slingshot", &row) && row.have); // the debug save's
 
     // ---- E. an all-zero shadow is still no data ------------------------------
     Context_UpdateShadowCopy(GAME_OOT, zeros.data(), zeros.size());
@@ -806,7 +819,7 @@ extern "C" int Combo_ItemView_NewFileRunHeadless(void) {
 
         std::vector<uint8_t> newFile((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
         int newfMarked = -1;
-        if (OoT_ItemAdapter_TestAuthorNewFile(newFile.data(), newFile.size(), &newfMarked) != 1) {
+        if (OoT_ItemAdapter_TestAuthorNewFile(newFile.data(), newFile.size(), 0, &newfMarked) != 1) {
             printf("[TEST] FAIL: the OoT seam could not run Save_InitFile(false) (bring-up missing?)\n");
             result = TEST_FAIL;
             break;
@@ -834,7 +847,7 @@ extern "C" int Combo_ItemView_NewFileRunHeadless(void) {
         return result;
     }
     printf("[TEST] PASS: a save made by Ship of Harkinian's new-file path reads as a save: rows from the shadow "
-           "(STALE) and the live save (LIVE), the slot panel reads it started; a not-live freeze and an all-zero "
-           "half read no data (#873)\n");
+           "(STALE) and the live save (LIVE), the slot panel reads it started; the title's attract save and an "
+           "all-zero half read no data (#873)\n");
     return TEST_PASS;
 }

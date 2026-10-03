@@ -135,6 +135,50 @@ extern "C" void OoT_SlotMeta_DecodePlayerName(const uint8_t* blob, size_t blobSi
 }
 
 /**
+ * Whether an OoT SaveContext blob holds a created file (#873). It is NOT the
+ * 'ZELDAZ' newf bytes the N64 game wrote: Ship of Harkinian never writes newf
+ * (InitFileNormal, LoadFile), so a test on it read every real save as absent.
+ * Two conditions instead:
+ *
+ *   - nonzero heart capacity. Every path that makes a save writes it
+ *     (InitFileNormal's STARTING_HEALTH, InitFileDebug's 0xE0, InitFileMaxed's
+ *     MAX_HEALTH), LoadFile reads it back, and a played file never has zero; an
+ *     all-zero blob (OoT never frozen, an empty .redsave half) has zero.
+ *   - not a menu's save: the title screen's attract demo plays the debug save
+ *     (Opening_SetupTitleScreen: fileNum 0xFF, GAMEMODE_TITLE_SCREEN), and the
+ *     file select keeps it (GAMEMODE_FILE_SELECT) until a file is chosen or
+ *     created, which sets fileNum to that file. F10 there freezes it (#837),
+ *     and it has a capacity. A cross-game session at fileNum 0xFF in
+ *     GAMEMODE_NORMAL is a file being played and passes.
+ *
+ * One test for every reader that asks "is there an OoT file in these bytes":
+ * the .redsave slot panel (registered below) and the unified item view's OoT
+ * adapter (ItemAdapterSingleExe.cpp).
+ */
+extern "C" int OoT_SaveBlobIsStarted(const uint8_t* blob, size_t blobSize) {
+    using Capacity = decltype(SaveContext::healthCapacity);
+    using FileNum = decltype(SaveContext::fileNum);
+    using GameMode = decltype(SaveContext::gameMode);
+    if (blob == nullptr || offsetof(SaveContext, healthCapacity) + sizeof(Capacity) > blobSize ||
+        offsetof(SaveContext, fileNum) + sizeof(FileNum) > blobSize ||
+        offsetof(SaveContext, gameMode) + sizeof(GameMode) > blobSize) {
+        return 0;
+    }
+    Capacity capacity;
+    FileNum fileNum;
+    GameMode gameMode;
+    std::memcpy(&capacity, blob + offsetof(SaveContext, healthCapacity), sizeof(capacity));
+    std::memcpy(&fileNum, blob + offsetof(SaveContext, fileNum), sizeof(fileNum));
+    std::memcpy(&gameMode, blob + offsetof(SaveContext, gameMode), sizeof(gameMode));
+    if (capacity <= 0) {
+        return 0;
+    }
+    const bool menuSave =
+        fileNum == 0xFF && (gameMode == GAMEMODE_TITLE_SCREEN || gameMode == GAMEMODE_FILE_SELECT);
+    return menuSave ? 0 : 1;
+}
+
+/**
  * Register OoT's metadata-offset descriptor so the Combo > Save Files page
  * can render slot names / play-time / "started" without src/common ever
  * including z64save.h. Offsets are byte positions within the OoT SaveContext
@@ -152,11 +196,10 @@ extern "C" void OoT_SlotMeta_Register(void) {
     // OoT has no continuous play-time counter; totalDays is the closest
     // game-progress proxy we can show without parsing rando state.
     desc.playTimeOffset = static_cast<uint32_t>(offsetof(SaveContext, totalDays));
-    desc.validMarkerOffset = static_cast<uint32_t>(offsetof(SaveContext, newf));
-    desc.validMarkerLen = 6;
-    // OoT's "newf" sentinel — file is started iff these bytes match.
-    const char kOoTNewf[6] = { 'Z', 'E', 'L', 'D', 'A', 'Z' };
-    std::memcpy(desc.validMarker, kOoTNewf, sizeof(kOoTNewf));
+    // "Started" is OoT's own test, not marker bytes (#873): Ship of Harkinian
+    // never writes the N64 'ZELDAZ' newf sentinel, so a marker compare read
+    // every real OoT half as not started.
+    desc.isStarted = OoT_SaveBlobIsStarted;
     desc.decodePlayerName = OoT_SlotMeta_DecodePlayerName; // OoT's charset, not ASCII (#773)
     RsbsSave_RegisterGameMeta(GAME_OOT, &desc);
 }

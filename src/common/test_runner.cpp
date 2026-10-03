@@ -5272,7 +5272,7 @@ const TestDescriptor gTests[] = {
      Test_ComboItemView},
     {"combo-item-view-new-file",
      "The OoT item adapter and the .redsave slot panel read the save Ship of Harkinian's own new-file path authors "
-     "(Save_InitFile, no 'ZELDAZ') as a save, live and as the shadow; a not-live freeze stays no data (#873)",
+     "(Save_InitFile, no 'ZELDAZ') as a save, live and as the shadow; the title's attract save stays no data (#873)",
      Test_ComboItemViewNewFile},
     {"combo-item-tracker-window",
      "Item Tracker overlay registers de-collided; inert under every game and while unpaused; draws the view (#458)",
