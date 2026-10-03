@@ -380,10 +380,10 @@ uint32_t MixPairedFinalSeed() {
 }
 
 uint32_t MixPairedFinalSeedForAttempt(uint32_t attempt) {
-    return MixPairedFinalSeedFromOptions(RANDO_SAVE_OPTIONS, attempt);
+    return MixPairedFinalSeedFromOptions(gComboCtx.sharedRandoSeed, RANDO_SAVE_OPTIONS, attempt);
 }
 
-uint32_t MixPairedFinalSeedFromOptions(const uint32_t* options, uint32_t attempt) {
+uint32_t MixPairedFinalSeedFromOptions(uint32_t masterSeed, const uint32_t* options, uint32_t attempt) {
     // The attempt ladder's derivation (recipe documented at the declaration,
     // Foreign.h). Attempt 0 hashes EXACTLY the string the shipped pre-ladder
     // derivation hashed — str(master) + MMOptionsString() — so every world
@@ -393,7 +393,7 @@ uint32_t MixPairedFinalSeedFromOptions(const uint32_t* options, uint32_t attempt
     // beside it, which is what keeps the world a pure function of the frozen
     // identity (master seed + resolved profile) plus a bounded index the
     // spoiler and gComboCtx.mmPairedAttempt record.
-    std::string s = std::to_string(gComboCtx.sharedRandoSeed) + MMOptionsString(options);
+    std::string s = std::to_string(masterSeed) + MMOptionsString(options);
     if (attempt > 0) {
         s += ":glitchless-attempt-";
         s += std::to_string(attempt);
@@ -401,13 +401,14 @@ uint32_t MixPairedFinalSeedFromOptions(const uint32_t* options, uint32_t attempt
     return Ship_Hash(s);
 }
 
-bool FinalSeedBelongsToPair(const uint32_t* options, uint32_t finalSeed, uint32_t* outExpected, int* outAttempt) {
+bool FinalSeedBelongsToPair(uint32_t masterSeed, uint32_t pairedAttempt, const uint32_t* options, uint32_t finalSeed,
+                            uint32_t* outExpected, int* outAttempt) {
     // The RECORDED rung, when there is one: the Tier-1 record names the attempt
     // this pair's creation converged on, so the half must be that attempt's
     // world and no other.
-    if (gComboCtx.mmPairedAttempt != 0) {
-        const uint32_t attempt = gComboCtx.mmPairedAttempt - 1u;
-        const uint32_t expected = MixPairedFinalSeedFromOptions(options, attempt);
+    if (pairedAttempt != 0) {
+        const uint32_t attempt = pairedAttempt - 1u;
+        const uint32_t expected = MixPairedFinalSeedFromOptions(masterSeed, options, attempt);
         if (outExpected != nullptr) {
             *outExpected = expected;
         }
@@ -422,13 +423,13 @@ bool FinalSeedBelongsToPair(const uint32_t* options, uint32_t finalSeed, uint32_
     // half's own options — so any of them is accepted; another pair's half
     // matches none of them.
     if (outExpected != nullptr) {
-        *outExpected = MixPairedFinalSeedFromOptions(options, 0);
+        *outExpected = MixPairedFinalSeedFromOptions(masterSeed, options, 0);
     }
     if (outAttempt != nullptr) {
         *outAttempt = -1;
     }
     for (int attempt = 0; attempt < kPairedGenMaxAttempts; attempt++) {
-        const uint32_t expected = MixPairedFinalSeedFromOptions(options, (uint32_t)attempt);
+        const uint32_t expected = MixPairedFinalSeedFromOptions(masterSeed, options, (uint32_t)attempt);
         if (finalSeed == expected) {
             if (outExpected != nullptr) {
                 *outExpected = expected;
@@ -815,6 +816,50 @@ extern "C" int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalf
     std::vector<uint32_t> fileValues;
     std::vector<uint8_t> fileTricks;
     return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks);
+}
+
+extern "C" int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSize, uint32_t masterSeed,
+                                            uint32_t pairedAttempt) {
+    if (mmHalf == nullptr || mmHalfSize < sizeof(SaveContext)) {
+        return RSBS_MM_HALF_VANILLA;
+    }
+    // Read field by field: the half is a byte buffer, and only three of its
+    // fields decide this.
+    const unsigned char* bytes = static_cast<const unsigned char*>(mmHalf);
+    SaveType type;
+    uint32_t finalSeed = 0;
+    std::vector<uint32_t> options(RO_MAX, 0);
+    memcpy(&type, bytes + offsetof(SaveContext, save.shipSaveInfo.saveType), sizeof(type));
+    memcpy(&finalSeed, bytes + offsetof(SaveContext, save.shipSaveInfo.rando.finalSeed), sizeof(finalSeed));
+    memcpy(options.data(), bytes + offsetof(SaveContext, save.shipSaveInfo.rando.randoSaveOptions),
+           sizeof(uint32_t) * RO_MAX);
+    // A vanilla type byte with no seed claims no world (#564 V7). A seed under
+    // a vanilla type byte is a world whose type byte was lost (the arrival
+    // repairs it once it is shown to be this pair's), so it is checked below.
+    if (type != SAVETYPE_RANDO && finalSeed == 0) {
+        return RSBS_MM_HALF_VANILLA;
+    }
+    return Rando::Foreign::FinalSeedBelongsToPair(masterSeed, pairedAttempt, options.data(), finalSeed, nullptr,
+                                                  nullptr)
+               ? RSBS_MM_HALF_PAIR_WORLD
+               : RSBS_MM_HALF_FOREIGN;
+}
+
+extern "C" int MM_Rando_AuthorPairHalfForTest(void* mmHalf, size_t mmHalfSize, uint32_t masterSeed) {
+    if (mmHalf == nullptr || mmHalfSize < sizeof(SaveContext)) {
+        return 0;
+    }
+    auto half = std::make_unique<SaveContext>();
+    memset(half.get(), 0, sizeof(SaveContext));
+    half->save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        half->save.shipSaveInfo.rando.randoSaveOptions[randoOptionId] = (uint32_t)randoStaticOption.defaultValue;
+    }
+    half->save.shipSaveInfo.rando.finalSeed =
+        Rando::Foreign::MixPairedFinalSeedFromOptions(masterSeed, half->save.shipSaveInfo.rando.randoSaveOptions, 0);
+    memset(mmHalf, 0, mmHalfSize);
+    memcpy(mmHalf, half.get(), sizeof(SaveContext));
+    return 1;
 }
 
 extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, char* names,

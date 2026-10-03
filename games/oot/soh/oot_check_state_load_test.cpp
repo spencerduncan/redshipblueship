@@ -53,6 +53,7 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <vector>
 
 extern "C" SaveContext gSaveContext;
 // The seam (games/oot/soh/SaveManager.cpp).
@@ -61,11 +62,15 @@ extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration
 // bridge that empties the queue it feeds.
 void RandomizerOnSceneFlagSetHandler(int16_t sceneNum, int16_t flagType, int16_t flag);
 extern "C" int OoT_Rando_TestTakeQueuedChecks(uint16_t* out, int cap);
+// games/mm/2s2h/Rando/Foreign.cpp (declared in src/common/combo_mm_options_view.h):
+// an MM half that is the given pair's world.
+extern "C" int MM_Rando_AuthorPairHalfForTest(void* mmHalf, size_t mmHalfSize, uint32_t masterSeed);
 
 namespace {
 
 const char* const kSaveDir = "rsbs_test_oot_check_state_load";
 constexpr int kSlot = 0;
+constexpr uint32_t kMasterSeed = 0x0849C0DEu;
 
 // Flags of the checks this row uses (location_list.cpp).
 constexpr uint32_t kSwordChestBit = 1u << 0x00; // RC_KF_KOKIRI_SWORD_CHEST, SCENE_KOKIRI_FOREST
@@ -191,13 +196,16 @@ uint32_t WriteCommits(const SaveContext& savBase, const SaveContext& committed) 
     mgr.SetActiveSlot(kSlot);
 
     // A paired file, as the open path requires of a randomizer file (#836): a
-    // record with a pairing identity, and a Majora's Mask half that exists.
+    // record with a pairing identity, and a Majora's Mask half that is this
+    // pair's world (#836 PR 2 refuses a vanilla or another pair's half).
     gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = kMasterSeed;
     gComboCtx.sharedRandoSettingsHash = 0x849u;
-    static uint8_t sMMHalf[64];
-    memset(sMMHalf, 0, sizeof(sMMHalf));
-    sMMHalf[0] = 1;
-    Context_UpdateShadowCopy(GAME_MM, sMMHalf, sizeof(sMMHalf));
+    static std::vector<uint8_t> sMMHalf(MM_SAVE_CONTEXT_SIZE, 0);
+    if (MM_Rando_AuthorPairHalfForTest(sMMHalf.data(), sMMHalf.size(), kMasterSeed) != 1) {
+        return 0;
+    }
+    Context_UpdateShadowCopy(GAME_MM, sMMHalf.data(), sMMHalf.size());
 
     Context_UpdateShadowCopy(GAME_OOT, &savBase, sizeof(SaveContext));
     gComboCtx.sourceGame = GAME_OOT;
