@@ -365,7 +365,7 @@ void SohPopCountFont() {
 const ComboUiTable kSohTable = {
     SohCheckbox,    SohCombobox,   SohSliderInt, SohButton,   SohSearchInput, SohSeparatorText, SohNoteText,
     SohWarningText, SohTooltip,    SohTagChip,   SohConfirm,  SohPushTheme,   SohPopTheme,      SohSpacer,
-    SohRowText,     SohIconButton, SohImage,     SohHasImage, SohToneText,      SohPushCountFont, SohPopCountFont,
+    SohRowText,     SohIconButton, SohImage,     SohHasImage, SohToneText,    SohPushCountFont, SohPopCountFont,
 };
 
 struct InstallSohComboUi {

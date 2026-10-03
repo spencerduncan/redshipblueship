@@ -2322,9 +2322,10 @@ void Session::BuildPageList() {
         p.scroll = false;
         p.expectText = { "Ocarina of Time", "Majora's Mask", "Shared" };
         // Since #458 U3 the sections draw the games' own icons, not text: OoT's
-        // section and the pool (OoT's icons, which SoH loads at boot) are
-        // pictures, held by ImageOracle (OoT's 66 cells and the pool's on
-        // dozens of textures; U2's text rows drew none). MM's icons load only
+        // section and the pool (OoT's icons, which SoH loads at boot from the
+        // staged archives) are pictures, held by ImageOracle in a ROM-rich run
+        // (OoT's 66 cells and the pool's on dozens of textures; U2's text rows
+        // drew none). ROM-free, every section is the text fallback. MM's icons load only
         // once MM has booted, which this harness never does, so MM's section
         // is the text fallback here: its snapshot bow in "live", its live
         // mask in "snapshot".
@@ -3967,8 +3968,12 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 // the game window.
                 FitOracle(w, c);
             }
+            // The icons are textures from the staged archives: a ROM-free run
+            // (CI) has none and draws the text fallback, so only a ROM-rich
+            // capture is held to its icons.
             const auto minImages = p.stateImages.find(state);
-            if (scrollIndex == 0 && w != nullptr && c.status == "pass" && minImages != p.stateImages.end()) {
+            if (scrollIndex == 0 && w != nullptr && c.status == "pass" && !romFree &&
+                minImages != p.stateImages.end()) {
                 ImageOracle(w, minImages->second, c);
             }
             const bool unfinished = p.scroll && w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
