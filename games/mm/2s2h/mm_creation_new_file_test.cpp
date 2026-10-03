@@ -613,6 +613,7 @@ int CheckMoonCrashKeepsDepartureChest() {
     }
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     CNF_ASSERT(mgr.Save(0), "a commit writes MM's departure shadow (premise)");
+    const uint32_t committedGeneration = gComboCtx.commitGeneration;
 
     // ---- MM arrives, and the moon falls -------------------------------------
     CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
@@ -621,6 +622,15 @@ int CheckMoonCrashKeepsDepartureChest() {
     if (CrashTheMoon() != 0) {
         return 1;
     }
+    PrintClock("after the departure leg's moon crash");
+    // The crash took the restore path, not the clock-only fallback (day 0,
+    // 05:59): the departure commit's day 2 / 12:00 came back and the commit
+    // generation did not move. Without this the chest bit below could not tell
+    // a restore of that commit from a fallback over the consumed half.
+    CNF_ASSERT(gSaveContext.save.day == 2 && gSaveContext.save.eventDayCount == 2 &&
+                   gSaveContext.save.time == (u16)CLOCK_TIME(12, 0),
+               "the moon crash restored the departure's commit (day 2 / 12:00), not the clock-only fallback");
+    CNF_ASSERT(gComboCtx.commitGeneration == committedGeneration, "the commit generation does not move");
     const bool chestOpen = (gSaveContext.cycleSceneFlags[kScene].chest & kChestBit) != 0;
     printf("[TEST] %s: after the crash the departure's chest is %s\n", sRow, chestOpen ? "open" : "CLOSED");
     CNF_ASSERT(chestOpen, "#837 PR 2: a chest opened in Termina before a departure stays open after a moon crash "
