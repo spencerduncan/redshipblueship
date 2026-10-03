@@ -2,9 +2,10 @@
  * @file combo_tracker_view.c
  * @brief The combo tracker's view model (#458). See combo_tracker_view.h.
  *
- * Everything here is a read but one: the skip toggle (#458 U5), which writes
- * one check's skip flag in the ACTIVE game's live state and nowhere else (see
- * Combo_TrackerSetSkipped). The reads: gComboCtx through the foreign_items.h
+ * Everything here is a pure read. The one write, the skip toggle (#458 U5), is
+ * made by the ACTIVE game's adapter in its own TU, on that game's live state
+ * only; this file only decides when to ask (see Combo_TrackerSetSkipped). The
+ * reads: gComboCtx through the foreign_items.h
  * accessors, the crossing store through crossing_store.h, the MM shadow blob
  * (or, while MM is played, the live save the MM adapter hands out, #799)
  * through the registered offset descriptor, and the OoT heap through the
@@ -332,20 +333,19 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
 // ============================================================================
 
 /**
- * MM's skip write target: the live save, exactly when MMBlobIfPresent's pick
- * reads it LIVE (MM active, play state loaded, marked) and it holds a
- * randomized world; NULL otherwise. The shadow is never returned: a STALE
- * panel has no write target at all.
+ * Whether MM takes a skip write now: its adapter has the op, and
+ * MMBlobIfPresent's pick reads the live save LIVE (MM active, play state
+ * loaded, marked) and it holds a randomized world. This only reads; the write
+ * is the MM TU's own op (setLiveSkipped), which checks the same conditions in
+ * MM's layout. A STALE panel (the shadow) has no write at all.
  */
-static uint8_t* MMLiveWriteTarget(void) {
-    if (!sMMRegistered || sMMDesc.liveSave == NULL || Context_GetCurrentGame() != GAME_MM) {
-        return NULL;
+static bool MMSkipWritable(void) {
+    if (!sMMRegistered || sMMDesc.setLiveSkipped == NULL || sMMDesc.liveSave == NULL ||
+        Context_GetCurrentGame() != GAME_MM) {
+        return false;
     }
-    uint8_t* live = (uint8_t*)sMMDesc.liveSave();
-    if (!MMBlobMarked(live) || MMBlobReadU32(live, sMMDesc.saveTypeOffset) != sMMDesc.saveTypeRando) {
-        return NULL;
-    }
-    return live;
+    const uint8_t* live = (const uint8_t*)sMMDesc.liveSave();
+    return MMBlobMarked(live) && MMBlobReadU32(live, sMMDesc.saveTypeOffset) == sMMDesc.saveTypeRando;
 }
 
 /** OoT takes skip writes only through a vtable that has them, while OoT is played. */
@@ -356,7 +356,7 @@ static bool OoTSkipWritable(void) {
 
 bool Combo_TrackerSkipWritable(uint8_t game) {
     if (game == (uint8_t)GAME_MM) {
-        return MMLiveWriteTarget() != NULL;
+        return MMSkipWritable();
     }
     if (game == (uint8_t)GAME_OOT) {
         return OoTSkipWritable();
@@ -370,18 +370,10 @@ bool Combo_TrackerRowSkippable(uint8_t game, const ComboTrackerCheckRow* row) {
 
 bool Combo_TrackerSetSkipped(uint8_t game, uint16_t checkId, bool skipped) {
     if (game == (uint8_t)GAME_MM) {
-        uint8_t* live = MMLiveWriteTarget();
-        if (live == NULL || (uint32_t)checkId >= sMMDesc.checkCount) {
-            return false;
-        }
-        uint8_t* row = live + sMMDesc.checkTableOffset + (size_t)checkId * sMMDesc.checkStride;
-        if (row[sMMDesc.shuffledOffset] == 0 || row[sMMDesc.obtainedOffset] != 0) {
-            return false; // not part of the seed, or found: no toggle (the header's WHICH CHECKS)
-        }
-        // MM's own tracker flips this byte in the live save and its next save
-        // persists it; the departure freeze carries it into the shadow.
-        row[sMMDesc.skippedOffset] = skipped ? 1 : 0;
-        return true;
+        // MM's TU writes the byte MM's own tracker flips (ADR 0008 rule 5: common
+        // code only reads MM's save); MM's next save persists it and the
+        // departure freeze carries it into the shadow.
+        return MMSkipWritable() && (uint32_t)checkId < sMMDesc.checkCount && sMMDesc.setLiveSkipped(checkId, skipped);
     }
     if (game == (uint8_t)GAME_OOT) {
         return OoTSkipWritable() && sOoTOps->setSkipped(checkId, skipped);

@@ -249,11 +249,18 @@ int sSkipTestSaveLoaded = -1;
 int sSkipTestPersists = 0;
 
 /**
- * A skip write needs OoT running a loaded file: the heap then belongs to the save
- * being played, gSaveContext is OoT's (both ports overlay one live save, so it is
- * MM's while MM runs), and SoH's Check Tracker itself draws its list, and with it
- * the skip buttons, only then (DrawElement: "Waiting for file load..." before).
- * The current game is asked first, because IsSaveLoaded reads gSaveContext.
+ * A skip write needs OoT running a loaded rando file: the heap then belongs to
+ * the save being played, and gSaveContext is OoT's (both ports overlay one live
+ * save, so it is MM's while MM runs). The current game is asked first, because
+ * IsSaveLoaded reads gSaveContext.
+ *
+ * This is NOT SoH's own Check Tracker draw condition, which is
+ * `GameInteractor::IsSaveLoaded() && initialized` (DrawElement; "Waiting for
+ * file load..." otherwise). The predicate here has no `initialized` test (that
+ * flag is file-local to randomizer_check_tracker.cpp, and Teardown clears it on
+ * OnExitGame), and it adds IS_RANDO. A write while the native tracker is torn
+ * down still lands: UpdateAllOrdering then sorts an empty area table, and
+ * SaveSection persists the heap flag, which LoadFile reads back on the next load.
  */
 bool OoTTrackerSkipWritable(void) {
     if (Context_GetCurrentGame() != GAME_OOT || Rando::Context::GetInstance() == nullptr) {

@@ -237,12 +237,18 @@ typedef struct ComboMMTrackerDesc {
     // active game (ADR 0008 rule 5's amendment) and uses the answer only when
     // it carries the 'ZELDA3' marker; otherwise it falls back to the shadow
     // (#799). May itself be NULL: the shadow is then the only source.
-    //
-    // Not const: it is also the skip toggle's write target (#458 U5). The view
-    // writes exactly one byte through it, a check row's skipped flag, and only
-    // when this same pick reads LIVE, the flag MM's own check tracker flips in
-    // the same save. Every other use is a read.
-    void* (*liveSave)(void);
+    const void* (*liveSave)(void);
+    // The skip toggle's write (#458 U5), MM's own op: set check `checkId`'s
+    // RANDO_SAVE_CHECKS[].skipped in MM's live save, the byte MM's own check
+    // tracker flips on a row click (CheckTracker.cpp) and MM's next save
+    // persists. The MM TU makes the write itself, under the LIVE read's
+    // conditions (MM is the active game, its play state is loaded, the save is
+    // a marked rando save), so common code never writes MM's save (ADR 0008
+    // rule 5). False, with nothing written, outside those conditions or for a
+    // check its tracker's button is not drawn on (not part of the seed, or
+    // found). The view calls it only when its own source pick reads LIVE, never
+    // for the shadow. May itself be NULL: MM's panel then offers no toggle.
+    bool (*setLiveSkipped)(uint16_t checkId, bool skipped);
 } ComboMMTrackerDesc;
 
 /**
@@ -296,9 +302,9 @@ typedef struct ComboOoTTrackerOps {
     // Both NULL (a read-only registrant: the panel then offers no toggle) or
     // both set. The view calls them only while OoT is the active game.
     //
-    // Whether OoT takes a skip write now: a save is loaded, so the heap belongs
-    // to the file being played and SoH's own Check Tracker would show its skip
-    // buttons (it draws no list before a file loads).
+    // Whether OoT takes a skip write now: a rando save is loaded, so the heap
+    // belongs to the file being played. (Close to, not the same as, SoH's own
+    // Check Tracker draw condition; the OoT TU states the difference.)
     bool (*skipWritable)(void);
     // Set check `checkId`'s skip flag on the heap and persist it, as SoH's Check
     // Tracker's skip button does (randomizer_check_tracker.cpp, DrawLocation):
@@ -344,11 +350,13 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out);
 const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId);
 
 // ============================================================================
-// The skip toggle (#458 U5): the view's only write
+// The skip toggle (#458 U5): the view's only write, made by the game's adapter
 // ============================================================================
 //
 // LIVE PANEL ONLY. A check is marked skipped in the game's own live state, the
-// same flag that game's own check tracker toggles: OoT's heap ItemLocation
+// same flag that game's own check tracker toggles. The view writes nothing
+// itself: it asks the active game's adapter, whose TU makes the write
+// (ComboOoTTrackerOps.setSkipped, ComboMMTrackerDesc.setLiveSkipped): OoT's heap ItemLocation
 // (persisted to its tracker-data save section, as SoH's skip button does), MM's
 // RANDO_SAVE_CHECKS[].skipped in the live save (persisted by MM's next save, as
 // MM's tracker's row click is). The other game's panel is a snapshot (MM's

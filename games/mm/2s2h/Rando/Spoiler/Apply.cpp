@@ -359,9 +359,11 @@ int ReconstructForeignPlacements(const nlohmann::json& spoiler) {
         //    pre-normalization value is RI_UNKNOWN for every legitimate host.
         //  - The `.skipped` half also asserts nothing here. ApplyToSaveContext
         //    writes only randoItemId/shuffled/price, and the only writers of
-        //    `.skipped` anywhere are Logic/GeneratePools.cpp (generate path)
-        //    and CheckTracker.cpp (a user toggle on a live save), so on a load
-        //    it is uniformly false.
+        //    `.skipped` anywhere are Logic/GeneratePools.cpp and
+        //    ComboLogicEngineSingleExe.cpp's ClearPlacements restore (generate
+        //    path), CheckTracker.cpp and TrackerAdapterSingleExe.cpp (the native and
+        //    the combo Check Tracker's user toggle on a live save, #458 U5), so
+        //    on a load it is uniformly false.
         //  - The half that DOES bite is the check-class allowlist — which is
         //    the one that matters, because it is the half that decides whether
         //    the host can ever be armed.

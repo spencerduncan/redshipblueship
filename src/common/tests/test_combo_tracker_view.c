@@ -119,8 +119,16 @@ extern "C" void OoT_TrackerAdapter_TestReleaseWorld(void);
 // NULL is "MM's play state is not loaded".
 static uint8_t* sCtvLive = NULL;
 
-static void* CtvLiveSave(void) {
+static const void* CtvLiveSave(void) {
     return sCtvLive;
+}
+
+// MM's skip write (#458 U5), the code the production setLiveSkipped runs on
+// &gSaveContext, here run on the same authored buffer liveSave answers.
+extern "C" int MM_TrackerAdapter_TestSetSkippedIn(void* save, uint16_t checkId, int skipped);
+
+static bool CtvSetLiveSkipped(uint16_t checkId, bool skipped) {
+    return sCtvLive != NULL && MM_TrackerAdapter_TestSetSkippedIn(sCtvLive, checkId, skipped ? 1 : 0) != 0;
 }
 
 static void CtvSetObtained(std::vector<uint8_t>& buf, const ComboMMTrackerDesc* desc, uint16_t check, bool obtained) {
@@ -384,8 +392,10 @@ static uint8_t CtvSkipByte(const uint8_t* save, const ComboMMTrackerDesc* desc, 
 
 /**
  * MM's half of the toggle (#458 U5), against the test descriptor (the production
- * one, liveSave pointed at sCtvLive) and the marked shadow world section 2
- * authored (check 3 shuffled and open there).
+ * one, liveSave pointed at sCtvLive and setLiveSkipped at MM's own write code run
+ * on that buffer) and the marked shadow world section 2 authored (check 3
+ * shuffled and open there). The production setLiveSkipped's refusal with no MM
+ * play state is section 8's.
  *
  *   A. LIVE (MM played, marked live save): an open check is skippable; the write
  *      lands in the LIVE save's skipped byte, the row and the summary follow, the
@@ -558,6 +568,7 @@ static int CtvLiveLegs(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& sha
     const ComboMMTrackerDesc real = *desc; // backup: the production descriptor
     ComboMMTrackerDesc testDesc = real;
     testDesc.liveSave = CtvLiveSave;
+    testDesc.setLiveSkipped = CtvSetLiveSkipped;
     Combo_Tracker_RegisterMM(&testDesc);
     const GameId prevGame = Context_GetCurrentGame();
 
@@ -662,6 +673,13 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     Context_SetCurrentGame(GAME_MM);
     CTV_ASSERT(desc->liveSave != NULL);   // the MM TU installs the live source
     CTV_ASSERT(desc->liveSave() == NULL); // ...and withholds it with no play state
+    // #458 U5: the MM TU installs its own skip write, and with no MM play state
+    // it refuses: nothing reaches MM's live save, and the shadow is untouched.
+    CTV_ASSERT(desc->setLiveSkipped != NULL);
+    CTV_ASSERT(!desc->setLiveSkipped(kShuffledA, true));
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_MM));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShuffledA, true));
+    CTV_ASSERT(CtvSkipByte((const uint8_t*)Context_GetMMSaveContext(), desc, kShuffledA) == 0);
     ComboTrackerGameSummary summaryWhileMMActive;
     Combo_TrackerGameSummary((uint8_t)GAME_MM, &summaryWhileMMActive);
     CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);

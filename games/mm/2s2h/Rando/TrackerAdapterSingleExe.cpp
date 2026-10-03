@@ -1,7 +1,8 @@
 /**
  * TrackerAdapterSingleExe.cpp — MM's combo-tracker adapter: the offset
  * descriptor over the frozen MM shadow blob, plus the check-name resolver
- * (#458; ADR 0002).
+ * (#458; ADR 0002), and the skip toggle's write into MM's live save (#458 U5),
+ * which is made here because common code only reads MM's save (ADR 0008).
  *
  * This is the ONE translation unit where the combo tracker's MM half may see
  * MM's layout: the byte offsets of ShipSaveInfo's rando check table inside
@@ -240,13 +241,50 @@ const char* MMTrackerPlacedItemName(const void* save, uint16_t checkId, uint8_t*
  * title screen, which authors an unmarked bootstrap save (Sram_InitNewSave),
  * and file select, which reads each slot through the live buffer while it
  * scans them — neither is the player's world.
- *
- * Writable because the view's skip toggle writes RANDO_SAVE_CHECKS[id].skipped
- * through it (#458 U5), the byte MM's own check tracker flips on a row click
- * (CheckTracker.cpp) and MM's next save persists.
  */
-void* MMTrackerLiveSave(void) {
-    return (MM_gPlayState != nullptr) ? static_cast<void*>(&gSaveContext) : nullptr;
+const void* MMTrackerLiveSave(void) {
+    return (MM_gPlayState != nullptr) ? static_cast<const void*>(&gSaveContext) : nullptr;
+}
+
+// MM's "newf" sentinel, mirroring SaveManager.cpp's RsbsRegisterMMMetaOnce.
+const char kMMNewf[6] = { 'Z', 'E', 'L', 'D', 'A', '3' };
+
+// ---- #458 U5: the skip toggle ------------------------------------------------
+
+/**
+ * The skip write against the SaveContext image `save`: the byte MM's own check
+ * tracker flips on a row click (CheckTracker.cpp), which MM's next save persists.
+ * Only in a marked rando save, and only on a check SoH's skip button is drawn on
+ * (part of the seed, not found), the one rule the combo window keeps for both
+ * games. MM's native tracker also flips a found check's flag, with no visible
+ * effect there. False, with nothing written, otherwise.
+ */
+bool MMTrackerSetSkippedIn(SaveContext* save, uint16_t checkId, bool skipped) {
+    if (save == nullptr || checkId >= (uint16_t)RC_MAX ||
+        std::memcmp(save->save.saveInfo.playerData.newf, kMMNewf, sizeof(kMMNewf)) != 0 ||
+        save->save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        return false;
+    }
+    RandoSaveCheck& row = save->save.shipSaveInfo.rando.randoSaveChecks[checkId];
+    if (!row.shuffled || row.obtained) {
+        return false;
+    }
+    row.skipped = skipped;
+    return true;
+}
+
+/**
+ * The descriptor's setLiveSkipped (#458 U5): the write lands in MM's live save
+ * under the conditions the view's LIVE read has (MM is the active game and its
+ * play state is loaded, MMTrackerLiveSave's rule), never in the frozen shadow.
+ * It is made here, in MM's TU, because common code only reads MM's save
+ * (ADR 0008 rule 5).
+ */
+bool MMTrackerSetLiveSkipped(uint16_t checkId, bool skipped) {
+    if (Context_GetCurrentGame() != GAME_MM || MM_gPlayState == nullptr) {
+        return false;
+    }
+    return MMTrackerSetSkippedIn(&gSaveContext, checkId, skipped);
 }
 
 } // namespace
@@ -260,10 +298,9 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     ComboMMTrackerDesc desc = {};
     desc.newfOffset = (uint32_t)offsetof(SaveContext, save.saveInfo.playerData.newf);
     desc.newfLen = 6;
-    // MM's "newf" sentinel, mirroring SaveManager.cpp's RsbsRegisterMMMetaOnce:
-    // an all-zero shadow (MM never entered) fails this compare and reads as
-    // "no data" instead of as a vanilla save with zero progress.
-    const char kMMNewf[6] = { 'Z', 'E', 'L', 'D', 'A', '3' };
+    // MM's "newf" sentinel: an all-zero shadow (MM never entered) fails this
+    // compare and reads as "no data" instead of as a vanilla save with zero
+    // progress.
     std::memcpy(desc.newf, kMMNewf, sizeof(kMMNewf));
     desc.saveTypeOffset = (uint32_t)offsetof(SaveContext, save.shipSaveInfo.saveType);
     desc.saveTypeRando = (uint32_t)SAVETYPE_RANDO;
@@ -279,6 +316,7 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     desc.areaName = MMTrackerAreaName;
     desc.placedItemName = MMTrackerPlacedItemName;
     desc.liveSave = MMTrackerLiveSave;
+    desc.setLiveSkipped = MMTrackerSetLiveSkipped;
 
     Combo_Tracker_RegisterMM(&desc);
 }
@@ -301,6 +339,18 @@ extern "C" int MM_TrackerAdapter_TestSetStoredItem(void* save, uint16_t checkId,
         }
     }
     return 0;
+}
+
+/**
+ * TEST BRIDGE (redship --test combo-tracker-view, #458 U5): the skip toggle's
+ * write against the SaveContext image `save`, the same code the descriptor's
+ * setLiveSkipped runs on &gSaveContext. The ROM-free lock has no MM play state,
+ * so its test descriptor points setLiveSkipped here with its authored live
+ * buffer (as it points liveSave at that buffer). Returns 1 when the flag now
+ * holds `skipped`, 0 when refused with nothing written.
+ */
+extern "C" int MM_TrackerAdapter_TestSetSkippedIn(void* save, uint16_t checkId, int skipped) {
+    return MMTrackerSetSkippedIn(static_cast<SaveContext*>(save), checkId, skipped != 0) ? 1 : 0;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE
