@@ -2455,8 +2455,8 @@ extern "C" void OoT_Combo_StampSavedSceneForFreeze(void) {
     }
     s16 scene = play->sceneNum;
     const char* why = "the scene Link departs from";
-    if (!play->state.running && play->state.init == (GameStateFunc)OoT_Play_Init &&
-        gSaveContext.entranceIndex >= 0 && gSaveContext.entranceIndex < ENTR_MAX) {
+    if (!play->state.running && play->state.init == (GameStateFunc)OoT_Play_Init && gSaveContext.entranceIndex >= 0 &&
+        gSaveContext.entranceIndex < ENTR_MAX) {
         scene = gEntranceTable[gSaveContext.entranceIndex].scene;
         why = "the scene of the transition committed this frame";
     }
