@@ -577,9 +577,13 @@ void ComboItemTrackerWindow::DrawElement() {
             }
             boxes[s] = ComboItemTextBox(section, plan.textWidths, metrics, header);
         }
-        // A column is never narrower than its title (an empty "No data." section).
-        const float title = ImGui::CalcTextSize(section.title).x;
-        boxes[s].width = boxes[s].width > title ? boxes[s].width : title;
+        // A column is never narrower than its header: the title between two
+        // padded rules (SeparatorText), and the freshness note on one line, so
+        // the header's height does not change with the column's width.
+        const float title = ImGui::CalcTextSize(section.title).x + style.SeparatorTextPadding.x * 2.0f;
+        const float note = ImGui::CalcTextSize(section.note.c_str()).x + 1.0f;
+        const float headerWidth = title > note ? title : note;
+        boxes[s].width = boxes[s].width > headerWidth ? boxes[s].width : headerWidth;
         plan.box = boxes[s];
     }
 
@@ -611,7 +615,10 @@ void ComboItemTrackerWindow::DrawElement() {
         return;
     }
     for (size_t s = 0; s < sections.size(); s++) {
-        ImGui::TableSetupColumn(sections[s].title, ImGuiTableColumnFlags_WidthFixed, plans[s].box.width * fit.scale);
+        // The scaled contents plus the parts that do not scale, less the
+        // table's own cell padding (ImGui adds that around the column).
+        const float columnWidth = plans[s].box.width * fit.scale + plans[s].box.fixedWidth - metrics.cellPadding;
+        ImGui::TableSetupColumn(sections[s].title, ImGuiTableColumnFlags_WidthFixed, columnWidth);
     }
     ImGui::TableNextRow();
     for (size_t s = 0; s < sections.size(); s++) {

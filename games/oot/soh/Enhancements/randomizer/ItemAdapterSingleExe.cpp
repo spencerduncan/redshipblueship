@@ -481,7 +481,8 @@ namespace {
  * OoT's own icon for a shared-pool row (#458 U3): the native tracker's texture
  * names (ImGuiUtils.cpp itemMapping, gregMapping's green rupee and
  * customItemsMapping's triforce piece), loaded under these names at OoT's boot.
- * Double defense has no icon in OoT's tracker, so that row stays text.
+ * Double defense has no icon in OoT's tracker; it takes the heart container,
+ * the icon MM's own Rando table draws for it (GetIconTexturePath).
  */
 void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     const char* key = nullptr;
@@ -501,6 +502,7 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             }
             break;
         case RSBS_SHARED_RES_HEALTH_QUARTERS:
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE: // OoT's tracker has no icon for it: MM's Rando shows a heart container
             OOT_SHARED_ICON("ITEM_HEART_CONTAINER");
             break;
         case RSBS_SHARED_RES_MAGIC_LEVEL:

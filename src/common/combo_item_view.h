@@ -218,8 +218,8 @@ bool Combo_ItemSharedRowAt(int index, ComboItemRow* out);
  *  An unregistered adapter, or one without `sharedIcon`, leaves the keys NULL. */
 bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* out);
 
-/** The Shared section's grid: SoH's icons, two a line, so the pool stands as a
- *  narrow column beside the two games' grids (#458 U3). */
+/** The Shared section's grid: SoH's icons, four a line, so the pool stands as a
+ *  column beside the two games' grids (#458 U3). */
 extern const ComboItemGridStyle kComboItemSharedGrid;
 
 #ifdef __cplusplus

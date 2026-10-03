@@ -26,7 +26,7 @@
  * icons; MM's one table per group, 46 px cells), faded the way that tracker
  * fades (SoH's _Faded textures; MM's 40% alpha), with that tracker's count on
  * the icon, and the row's text as the icon's tooltip. The Shared section draws
- * the active game's own icons for the pool, two a line. The sections stand side
+ * the active game's own icons for the pool, four a line. The sections stand side
  * by side, as three columns of one table, so the overlay is as tall as one
  * game's grid. The gCombo.Tracker.Items.IconSize key sizes every grid.
  *

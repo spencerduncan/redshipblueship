@@ -64,9 +64,9 @@ const ComboItemOps* Combo_Item_GetOps(uint8_t game) {
 // IconSpacing 12, six a line, every section flowing on into the next.
 const ComboItemGridStyle kComboItemSohGrid = { 36.0f, 12.0f, 6, false, NULL, (uint8_t)COMBO_ITEM_COUNT_SOH };
 
-// The pool: SoH's icons and counts, two a line, a narrow column beside the
-// two games' six-wide grids.
-const ComboItemGridStyle kComboItemSharedGrid = { 36.0f, 12.0f, 2, false, NULL, (uint8_t)COMBO_ITEM_COUNT_SOH };
+// The pool: SoH's icons and counts, four a line, a column beside the two
+// games' six-wide grids about as wide as its own freshness note.
+const ComboItemGridStyle kComboItemSharedGrid = { 36.0f, 12.0f, 4, false, NULL, (uint8_t)COMBO_ITEM_COUNT_SOH };
 
 const ComboItemGridStyle* Combo_ItemGridStyle(uint8_t game) {
     const ComboItemOps* ops = Combo_Item_GetOps(game);

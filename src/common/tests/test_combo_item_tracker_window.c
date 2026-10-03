@@ -347,11 +347,11 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     }
     CITW_ASSERT(cells.back().line == 10);
     CITW_ASSERT(mm.grid->cellPx == 46.0f && mm.grid->countStyle == COMBO_ITEM_COUNT_MM);
-    // The pool: SoH's icons two a line.
+    // The pool: SoH's icons four a line.
     ComboItemIconLayout(shared.rows, *shared.grid, cells);
-    CITW_ASSERT(!cells.empty() && cells.back().line == (int)(shared.rows.size() - 1) / 2);
+    CITW_ASSERT(!cells.empty() && cells.back().line == (int)(shared.rows.size() - 1) / 4);
     printf("[TEST] combo-item-tracker-window: grids: OoT %zu icons in 11 lines of 6 (SoH's main window), MM %zu in "
-           "its 4 tables (11 lines), the pool %zu two a line\n",
+           "its 4 tables (11 lines), the pool %zu four a line\n",
            oot.rows.size(), mm.rows.size(), shared.rows.size());
 
     // ---- picks: the texture and alpha each cell draws ------------------------
