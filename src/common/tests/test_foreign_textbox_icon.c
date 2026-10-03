@@ -42,6 +42,11 @@
  *     the OnOpenText load of that Entry plus the real decode puts the texture in
  *     the icon segment. Unmounted, the same lambda leaves the icon-less textbox.
  *     Build the Entry in CheckQueue without the two #607 fields and Q2 goes red.
+ *     Q2 also compares the WHOLE sentence: "You found <article><name> (OoT)!"
+ *     (#865).
+ *  I8 THE WORDS (#865): every OoT item that may cross reads "You found
+ *     <article><name> (OoT)!" through the production sentence builder, and MM's
+ *     own line breaker keeps each on one page of the textbox.
  *
  * Not lockable headless: the pixels. Whether OoT's texture actually rasterizes in
  * MM's textbox is the playtest paragraph of the PR.
@@ -60,6 +65,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 extern "C" {
 int OoT_ComboTextboxIcon(uint16_t id, ComboTextboxIcon* out);
@@ -74,6 +80,8 @@ uint16_t MM_ForeignTextboxIcon_TestOtherCheck(void);
 int MM_ForeignTextboxIcon_TestTextureMountedReal(const char* texture);
 int MM_ForeignTextboxIcon_TestCheckQueueGive(uint16_t mmCheckId, const char* wantTexture, uint8_t wantItemId);
 int MM_ForeignTextboxIcon_RunHeadless(void);
+int MM_ForeignTextboxIcon_TestPickupLayout(const char* article, const char* name, char* out, int cap, int* lines,
+                                           int* pages);
 }
 
 #define FTI_ASSERT(cond, msg)                                                     \
@@ -381,6 +389,78 @@ TestResult Test_ForeignTextboxIcon(void) {
                    "I7 CheckQueue's real give lambda hands the textbox the OoT icon (see the Q-line above)");
         FTI_ASSERT(giveUnmounted == 0,
                    "I7 unmounted, CheckQueue's real give lambda leaves the icon-less textbox (see the Q-line above)");
+    }
+
+    // ---- I8 (#865) ---------------------------------------------------------------
+    // The textbox's words mark the item's game, for EVERY OoT item that may cross
+    // onto an MM check, through the production sentence builder, and MM's own line
+    // breaker keeps each marked sentence on one page. The names both games use
+    // (the Song of Time, the Hookshot, the Lens of Truth, ...) are the reason: the
+    // icon alone cannot tell the two Songs of Time apart (both are music notes).
+    {
+        int swept = 0;
+        int shared = 0;
+        int failures8 = 0;
+        bool songOfTimeShared = false;
+        std::string longestShared;
+        std::string longestSharedText;
+        int longestSharedLines = 0;
+        int mostLines = 0;
+        std::string mostLinesText;
+        for (int id = 1; id < idSpace; id++) {
+            ComboItemClassRow row;
+            if (OoT_ComboLogic_ClassifyItem((uint16_t)id, &row) != 1 ||
+                row.fillClass != RSBS_FILL_CLASS_PROGRESSION) {
+                continue;
+            }
+            const SharedItem item = FtiItem((uint8_t)GAME_OOT, (uint16_t)id);
+            const char* name = Combo_GetForeignItemName(item);
+            const char* article = Combo_GetForeignItemArticle(item);
+            if (name == nullptr || article == nullptr) {
+                printf("[TEST]   I8 RG %d has no name or article\n", id);
+                failures8++;
+                continue;
+            }
+            char text[256];
+            int lines = 0;
+            int pages = 0;
+            MM_ForeignTextboxIcon_TestPickupLayout(article, name, text, (int)sizeof(text), &lines, &pages);
+            const std::string want = std::string("You found ") + article + name + " (OoT)!";
+            if (want != text) {
+                if (failures8 < 5) {
+                    printf("[TEST]   I8 RG %d's textbox reads \"%s\", want \"%s\"\n", id, text, want.c_str());
+                }
+                failures8++;
+                continue;
+            }
+            if (pages != 1) {
+                printf("[TEST]   I8 RG %d's sentence \"%s\" runs to %d pages of MM's textbox\n", id, text, pages);
+                failures8++;
+            }
+            swept++;
+            if (lines > mostLines) {
+                mostLines = lines;
+                mostLinesText = text;
+            }
+            if (Combo_GetForeignItemByNameFor((uint8_t)GAME_MM, name, nullptr)) {
+                shared++;
+                songOfTimeShared = songOfTimeShared || std::strcmp(name, "Song of Time") == 0;
+                if (std::strlen(name) > longestShared.size()) {
+                    longestShared = name;
+                    longestSharedText = text;
+                    longestSharedLines = lines;
+                }
+            }
+        }
+        printf("[TEST]   I8 %d OoT progression sentences marked \" (OoT)\", each on one page of MM's textbox (most "
+               "lines: %d, \"%s\"); %d share a name with an MM item, the longest \"%s\": \"%s\" on %d line(s); %d "
+               "failures\n",
+               swept, mostLines, mostLinesText.c_str(), shared, longestShared.c_str(), longestSharedText.c_str(),
+               longestSharedLines, failures8);
+        FTI_ASSERT(failures8 == 0, "I8 every OoT item's MM textbox sentence is marked \" (OoT)\" and fits one page "
+                                   "(see the I8 lines above)");
+        FTI_ASSERT(swept > 100, "I8 the sweep saw OoT's progression items");
+        FTI_ASSERT(songOfTimeShared && shared > 1, "I8 the shared-name set is real (the Song of Time is in it)");
     }
 
     // ---- I6 --------------------------------------------------------------------

@@ -260,6 +260,11 @@ bool RecordForeignPickup(RandoCheckId randoCheckId);
  *  Defined in MiscBehavior/CheckQueue.cpp, beside the lambda it came from. */
 bool GiveForeignCheck(RandoCheckId randoCheckId);
 
+/** The sentence CheckQueue's textbox shows for a foreign item: "You found " +
+ *  `article` + `name` + "!" (null article: none; null name: "a foreign item").
+ *  Defined in MiscBehavior/CheckQueue.cpp (#865). */
+std::string ForeignPickupMessage(const char* article, const char* name);
+
 /** A check hosting a foreign item whose crossing was already delivered: its
  *  `obtained` bit, which survives the three-day reset (RecordForeignPickup's
  *  once-per-host gate). A shop slot like this is sold for the rest of the game

@@ -38,6 +38,14 @@ bool Rando::Foreign::GiveForeignCheck(RandoCheckId randoCheckId) {
     randoSaveCheck.eligible = false;
     return crossed;
 }
+
+// THE PICKUP SENTENCE (#865; declared in Rando/Foreign.h): the words the
+// foreign branch's textbox shows, factored out so the ForeignTextboxIcon row can
+// lay out every OoT item's sentence through MM's own line breaker.
+std::string Rando::Foreign::ForeignPickupMessage(const char* article, const char* name) {
+    return std::string("You found ") + (article != nullptr ? article : "") +
+           (name != nullptr ? name : "a foreign item") + "!";
+}
 #endif
 
 // This function handles queuing up item gives that the player has been marked as eligible for. If you are looking for
@@ -140,9 +148,8 @@ void Rando::MiscBehavior::CheckQueue() {
                             CustomMessage::Entry entry = {
                                 .textboxType = 2,
                                 .icon = Rando::StaticData::GetIconForZMessage(RI_NONE),
-                                .msg = std::string("You found ") +
-                                       Rando::Foreign::ForeignArticleForCheck(checkId) +
-                                       (foreignName != nullptr ? foreignName : "a foreign item") + "!",
+                                .msg = Rando::Foreign::ForeignPickupMessage(
+                                    Rando::Foreign::ForeignArticleForCheck(checkId), foreignName),
                                 .foreignIconTexture = iconTexture,
                                 .foreignIconItemId = iconItemId,
                             };

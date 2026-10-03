@@ -397,6 +397,37 @@ void BuildCustomItemMessage(Player* player, CustomMessage& msg) {
     msg.AutoFormat();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #577 M4 / #865: the get-item cutscene's words for a Majora's Mask item, before
+// OoT's AutoFormat lays them out. Factored out of BuildItemMessage below so the
+// ForeignModel row reads the very text the cutscene shows.
+static CustomMessage BuildForeignItemText(const char* article, const char* name) {
+    CustomMessage msg = CustomMessage("You found [[article]]%g[[name]]%w!", TEXTBOX_TYPE_BLUE);
+    msg.Replace("[[article]]", std::string(article != nullptr ? article : ""));
+    msg.Replace("[[name]]", std::string(name != nullptr ? name : ""));
+    return msg;
+}
+
+/**
+ * TEST BRIDGE (ForeignModel row M13, #865): the English text, colour codes
+ * removed, that the get-item cutscene shows for show-only entry `entry`, written
+ * to `out`. Returns its length, or -1 when `entry` is not the armed show-only
+ * entry.
+ */
+extern "C" int OoT_Rando_Foreign_TestShowOnlyMessage(const GetItemEntry* entry, char* out, int cap) {
+    const char* article = nullptr;
+    const char* name = nullptr;
+    if (OoT_Rando_Foreign_ShowOnlyItemText(entry, &article, &name) != 1) {
+        return -1;
+    }
+    const std::string text = BuildForeignItemText(article, name).GetEnglish(MF_CLEAN);
+    if (out != nullptr && cap > 0) {
+        snprintf(out, (size_t)cap, "%s", text.c_str());
+    }
+    return (int)text.size();
+}
+#endif
+
 void BuildItemMessage(u16* textId, bool* loadFromMessageTable) {
     Player* player = GET_PLAYER(OoT_gPlayState);
     CustomMessage msg;
@@ -414,9 +445,7 @@ void BuildItemMessage(u16* textId, bool* loadFromMessageTable) {
 
     if (foreign) {
 #ifdef RSBS_SINGLE_EXECUTABLE
-        msg = CustomMessage("You found [[article]]%g[[name]]%w!", TEXTBOX_TYPE_BLUE);
-        msg.Replace("[[article]]", std::string(foreignArticle));
-        msg.Replace("[[name]]", std::string(foreignName));
+        msg = BuildForeignItemText(foreignArticle, foreignName);
         msg.AutoFormat();
 #endif
     } else if (player->getItemEntry.getItemId == RG_ICE_TRAP) {

@@ -600,6 +600,8 @@ extern "C" int OoT_ForeignModel_TestChestGamePrizeDraw(const ComboModel* want) {
 // hook_handlers.cpp: the drain's show-only queueing and its queue slot.
 extern "C" int OoT_Rando_Foreign_TestQueueShowOnly(uint16_t rc, GetItemEntry* queued);
 extern "C" int OoT_Rando_Foreign_TestQueuedCheck(void);
+// Messages/ItemMessages.cpp: the get-item cutscene's text for the show-only entry (#865).
+extern "C" int OoT_Rando_Foreign_TestShowOnlyMessage(const GetItemEntry* entry, char* out, int cap);
 
 /**
  * TEST BRIDGE (ForeignModel row M13, #577 M4): OoT's show-only get-item path for
@@ -608,7 +610,8 @@ extern "C" int OoT_Rando_Foreign_TestQueuedCheck(void);
  *      takes the queue slot with the built entry, or, `wantEntry` 0, does not.
  *   2. The entry is one OoT's get-item cutscene shows: the show-only draw, a
  *      valid object, a draw id, the custom-item text, MOD_RANDOMIZER, MAJOR.
- *   3. The TEXT names `wantName`.
+ *   3. The TEXT names `wantName`, and the cutscene's words are exactly "You
+ *      found <article><wantName> (MM)!" (#865).
  *   4. The GIVE POINT's take refuses an ordinary custom-drawn randomizer entry
  *      (Roc's Feather's draw on the same ids) and the entry with its draw
  *      cleared, claims the entry once, releases the queue slot, and refuses it
@@ -658,7 +661,16 @@ extern "C" int OoT_ForeignModel_TestShowOnlyGetItem(uint16_t rc, int wantEntry, 
                     wantName);
         return 1;
     }
-    std::printf("[TEST]   M13 textbox: You found %s%s!\n", article != nullptr ? article : "", name);
+    // #865: the words the cutscene shows (Messages/ItemMessages.cpp), whole, with
+    // the item's game marked the way OoT's check tracker marks it.
+    char text[256] = "";
+    const int textLen = OoT_Rando_Foreign_TestShowOnlyMessage(&entry, text, (int)sizeof(text));
+    const std::string wantText = std::string("You found ") + (article != nullptr ? article : "") + wantName + " (MM)!";
+    std::printf("[TEST]   M13 textbox: %s\n", text);
+    if (textLen < 0 || wantText != text) {
+        std::printf("[TEST]   M13 the get-item textbox reads \"%s\", want \"%s\"\n", text, wantText.c_str());
+        return 1;
+    }
 
     GetItemEntry feather = entry;
     feather.drawFunc = Randomizer_DrawRocsFeather;
