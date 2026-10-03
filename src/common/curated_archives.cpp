@@ -121,6 +121,19 @@ class ZipReader {
         zip_fclose(file);
         return got == (zip_int64_t)st.size;
     }
+    // The CRC32 and uncompressed size the zip directory records for @p name
+    // (Python's ZipInfo.CRC / file_size): nothing is decompressed.
+    bool Stat(const std::string& name, uint32_t* crc, uint64_t* size) const {
+        zip_stat_t st;
+        zip_stat_init(&st);
+        if (zip_stat(mZip, name.c_str(), ZIP_FL_ENC_RAW, &st) != 0 || (st.valid & ZIP_STAT_CRC) == 0 ||
+            (st.valid & ZIP_STAT_SIZE) == 0) {
+            return false;
+        }
+        *crc = st.crc;
+        *size = st.size;
+        return true;
+    }
 
   private:
     zip_t* mZip = nullptr;
@@ -527,6 +540,80 @@ GenerateResult Refuse(GenerateResult result, std::string error) {
     return result;
 }
 
+using Selection = std::vector<std::pair<int, std::string>>;
+
+// The two source archives, the manifest, and the (source, path) list it
+// selects: everything a stamp is computed from, and the start of Generate.
+struct Sources {
+    std::string paths[kGameCount];
+    ZipReader zips[kGameCount];
+    std::vector<std::string> names[kGameCount];
+    std::vector<ManifestEntry> entries;
+    Selection selected;
+};
+
+// Opens both source archives (both are required: each is a source AND the
+// other direction's host, whose collision check must not pass vacuously) and
+// reads the manifest. Returns "" or the refusal.
+std::string OpenSources(const GenerateInputs& inputs, Sources* src) {
+    src->paths[kOoT] = inputs.ootArchive;
+    src->paths[kMM] = inputs.mmArchive;
+    for (int game = 0; game < kGameCount; game++) {
+        if (!FileExists(src->paths[game]) || !src->zips[game].Open(src->paths[game])) {
+            return Format("the manifest needs the %s archive (as a source and as a host to check collisions "
+                          "against), which is not present at %s",
+                          kGameNames[game], src->paths[game].c_str());
+        }
+        src->names[game] = src->zips[game].Names();
+    }
+    return ReadManifest(inputs.manifestText, &src->entries);
+}
+
+// (source, path) in manifest order, sorted within a prefix, de-duplicated.
+std::string SelectEntries(Sources* src) {
+    std::set<std::pair<int, std::string>> seen;
+    for (const ManifestEntry& e : src->entries) {
+        std::vector<std::string> matches;
+        for (const std::string& n : src->names[e.source]) {
+            if (n.compare(0, e.prefix.size(), e.prefix) == 0) {
+                matches.push_back(n);
+            }
+        }
+        if (matches.empty()) {
+            return Format("manifest:%d: prefix '%s' matched nothing in %s", e.lineno, e.prefix.c_str(),
+                          src->paths[e.source].c_str());
+        }
+        std::sort(matches.begin(), matches.end());
+        for (std::string& n : matches) {
+            if (seen.insert({ e.source, n }).second) {
+                src->selected.emplace_back(e.source, std::move(n));
+            }
+        }
+    }
+    return "";
+}
+
+// The identity of every curated resource's SOURCE entry, so a re-extraction
+// (a newer port version's oot.o2r, another ROM revision) regenerates the
+// halves carved out of the old one: libultraship's CRC64 over one line per
+// selected (game, path), in selection order,
+// "<game>\t<path>\t<crc32 as 8 hex>\t<uncompressed size>\n", from the zip
+// directory. make_redship_otr.py's sources_hash() spells the same text.
+std::string SourcesHash(const Sources& src, uint64_t* out) {
+    std::string text;
+    for (const auto& [game, path] : src.selected) {
+        uint32_t crc = 0;
+        uint64_t size = 0;
+        if (!src.zips[game].Stat(path, &crc, &size)) {
+            return Format("could not read the directory entry of '%s' in %s", path.c_str(),
+                          src.paths[game].c_str());
+        }
+        text += Format("%s\t%s\t%08x\t%llu\n", kGameNames[game], path.c_str(), crc, (unsigned long long)size);
+    }
+    *out = CRC64(text.c_str());
+    return "";
+}
+
 } // namespace
 
 uint64_t ManifestHash(std::string_view manifestText) {
@@ -540,9 +627,31 @@ uint64_t ManifestHash(std::string_view manifestText) {
     return CRC64(normalized.c_str());
 }
 
-std::string Stamp(std::string_view manifestText) {
-    return Format("redship-curated v%d manifest-crc64=%016llx", kStampVersion,
-                  (unsigned long long)ManifestHash(manifestText));
+std::string Stamp(std::string_view manifestText, uint64_t sourcesHash) {
+    return Format("redship-curated v%d manifest-crc64=%016llx sources-crc64=%016llx", kStampVersion,
+                  (unsigned long long)ManifestHash(manifestText), (unsigned long long)sourcesHash);
+}
+
+bool CurrentStamp(const GenerateInputs& inputs, std::string* stamp, std::string* error) {
+    Sources src;
+    std::string err = OpenSources(inputs, &src);
+    if (err.empty()) {
+        err = SelectEntries(&src);
+    }
+    uint64_t hash = 0;
+    if (err.empty()) {
+        err = SourcesHash(src, &hash);
+    }
+    if (!err.empty()) {
+        if (error != nullptr) {
+            *error = err;
+        }
+        return false;
+    }
+    if (stamp != nullptr) {
+        *stamp = Stamp(inputs.manifestText, hash);
+    }
+    return true;
 }
 
 std::string_view EmbeddedManifest() {
@@ -577,24 +686,13 @@ GenerateResult Generate(const GenerateInputs& inputs) {
         }
     }
 
-    // The source archives: both are required (each is a source AND the
-    // other direction's host, whose collision check must not pass vacuously).
-    const std::string sources[kGameCount] = { inputs.ootArchive, inputs.mmArchive };
-    ZipReader zips[kGameCount];
-    std::vector<std::string> names[kGameCount];
-    for (int game = 0; game < kGameCount; game++) {
-        if (!FileExists(sources[game]) || !zips[game].Open(sources[game])) {
-            return Refuse(result, Format("the manifest needs the %s archive (as a source and as a host to check "
-                                         "collisions against), which is not present at %s",
-                                         kGameNames[game], sources[game].c_str()));
-        }
-        names[game] = zips[game].Names();
-    }
-
-    std::vector<ManifestEntry> entries;
-    if (std::string err = ReadManifest(inputs.manifestText, &entries); !err.empty()) {
+    Sources src;
+    if (std::string err = OpenSources(inputs, &src); !err.empty()) {
         return Refuse(result, err);
     }
+    const std::string(&sources)[kGameCount] = src.paths;
+    const ZipReader(&zips)[kGameCount] = src.zips;
+    const std::vector<std::string>(&names)[kGameCount] = src.names;
 
     // Constraint 2's host path sets: the extracted archive plus every other
     // base archive the host mounts before its curated half.
@@ -625,27 +723,10 @@ GenerateResult Generate(const GenerateInputs& inputs) {
         hostArchiveList[game] += ", " + extra.path;
     }
 
-    // (source, path) in manifest order, sorted within a prefix, de-duplicated.
-    std::vector<std::pair<int, std::string>> selected;
-    std::set<std::pair<int, std::string>> seen;
-    for (const ManifestEntry& e : entries) {
-        std::vector<std::string> matches;
-        for (const std::string& n : names[e.source]) {
-            if (n.compare(0, e.prefix.size(), e.prefix) == 0) {
-                matches.push_back(n);
-            }
-        }
-        if (matches.empty()) {
-            return Refuse(result, Format("manifest:%d: prefix '%s' matched nothing in %s", e.lineno, e.prefix.c_str(),
-                                         sources[e.source].c_str()));
-        }
-        std::sort(matches.begin(), matches.end());
-        for (std::string& n : matches) {
-            if (seen.insert({ e.source, n }).second) {
-                selected.emplace_back(e.source, std::move(n));
-            }
-        }
+    if (std::string err = SelectEntries(&src); !err.empty()) {
+        return Refuse(result, err);
     }
+    const Selection& selected = src.selected;
 
     // Constraint 2: no curated path may exist in any base archive its host mounts.
     for (const auto& [game, path] : selected) {
@@ -792,8 +873,16 @@ GenerateResult Generate(const GenerateInputs& inputs) {
     }
 
     // Every guard passed: write both halves to temp files, then move them into
-    // place, so a failure part-way leaves what was on disk untouched.
-    const std::string stamp = Stamp(inputs.manifestText);
+    // place. A failure while WRITING leaves what was on disk untouched; the two
+    // moves are not one atomic step, so a failed second move (its target held
+    // open by another process, say) leaves the first half new and the other
+    // as it was. That pair carries different stamps, so the next boot sees the
+    // stale half and regenerates both.
+    uint64_t sourcesHash = 0;
+    if (std::string err = SourcesHash(src, &sourcesHash); !err.empty()) {
+        return Refuse(result, err);
+    }
+    const std::string stamp = Stamp(inputs.manifestText, sourcesHash);
     std::string temps[kGameCount];
     for (int host = 0; host < kGameCount; host++) {
         HalfEntries half;
@@ -855,8 +944,12 @@ EnsureOutcome Ensure(const GenerateInputs& inputs, std::string* log) {
                           FileExists(inputs.ootArchive) ? "present" : "absent",
                           FileExists(inputs.mmArchive) ? "present" : "absent");
             outcome = EnsureOutcome::Skipped;
+        } else if (std::string want, err; !CurrentStamp(inputs, &want, &err)) {
+            // The manifest selects nothing these sources can supply, or a
+            // source cannot be read: Generate would refuse the same way.
+            note = "refused: " + err;
+            outcome = EnsureOutcome::Failed;
         } else {
-            const std::string want = Stamp(inputs.manifestText);
             const std::string outs[kGameCount] = { inputs.outOoT, inputs.outMM };
             std::string why;
             for (int host = 0; host < kGameCount; host++) {

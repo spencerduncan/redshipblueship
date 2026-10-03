@@ -2351,6 +2351,23 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME IntArchiveHotswapCycle
         COMMAND redship --integration-test int-archive-hotswap-cycle
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
+    # #806 on the real boot path: with the staged redship-oot.o2r replaced by an
+    # unstamped zip and redship-mm.o2r removed, an OoT boot must regenerate both
+    # (Combo_EnsureCuratedArchives, rsbs/src/main.cpp) BEFORE it mounts the
+    # curated half, and a second boot must find them up to date. Deleting the
+    # boot call, or moving it after Combo_MountCuratedArchive, turns it red.
+    # The staged halves are set aside and restored. Two boots, hence two walls.
+    # CMake/CheckCuratedBootRegen.cmake.
+    math(EXPR _curated_boot_row_timeout "2 * ${REDSHIP_INTEGRATION_TEST_TIMEOUT} + 10")
+    math(EXPR _curated_boot_run_timeout "${REDSHIP_INTEGRATION_TEST_TIMEOUT} - 5")
+    redship_add_test(NAME IntCuratedArchiveBootRegen
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -DMODE=int-boot-oot
+                -DRUN_TIMEOUT=${_curated_boot_run_timeout}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckCuratedBootRegen.cmake
+        LABEL integration TIMEOUT ${_curated_boot_row_timeout})
 
     # #793: the wall-clock watchdog thread (src/common/integration_test_hooks.cpp).
     # Each row wedges a real run with RSBS_INT_WEDGE (a 600 s sleep with no frame

@@ -17,18 +17,24 @@
  *      configured, make_redship_otr.py runs on the same inputs and the two
  *      outputs must hold the same path set, the same payload bytes and the same
  *      stamp (the zip archive comment).
- *   B. Refusals, ROM-free. One manifest per admission rule (collision with the
+ *   B. Refusals, ROM-free. One manifest per content rule (collision with the
  *      other game's archive, collision with a host's port archive, a dispatched
- *      Room resource, a raw segmented G_SETTIMG, an X8 scalar array, a
- *      reference escaping its half, a prefix matching nothing, an empty half,
- *      the pre-split form). The C++ generator must refuse each, name the rule,
- *      and write neither half; make_redship_otr.py must refuse each too.
+ *      Room resource, a raw segmented G_SETTIMG, a display list truncated
+ *      before its G_ENDDL, an X8 scalar array, a vertex array shorter than its
+ *      count, a reference escaping its half, a prefix matching nothing, an
+ *      empty half, the pre-split form, an unknown direction), plus one input
+ *      per input rule (both halves named the same file, a required host
+ *      archive absent, a source archive absent). The C++ generator must refuse
+ *      each, name the rule, and write neither half; make_redship_otr.py must
+ *      refuse each too.
  *   C. Staleness, ROM-free: what the boot path does. A packaged layout with no
  *      halves generates both; a second run is up to date and rewrites nothing;
- *      a pre-#806 (unstamped) half and a changed manifest each regenerate; a
- *      refused manifest leaves the stale halves byte-identical (boot is never
- *      refused); an absent mm.o2r skips without writing; CRLF and LF manifests
- *      stamp the same.
+ *      a pre-#806 (unstamped) half, a changed manifest and a re-extracted
+ *      source whose curated entry changed each regenerate, while a source
+ *      whose only change is an entry the manifest does not select stays up to
+ *      date; a refused manifest leaves the stale halves byte-identical (boot
+ *      is never refused); an absent mm.o2r skips without writing; CRLF and LF
+ *      manifests stamp the same.
  *   D. Staged: the real extracted archives and the shipped manifest through
  *      both generators, compared like A -- the issue's "byte-equivalent to
  *      GenerateRedshipOtr" lock. Also checks the embedded manifest is the
@@ -42,6 +48,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -227,6 +234,42 @@ struct CaiFixture {
     std::string oot, mm, soh, twoShip;
 };
 
+// A display list whose stream ends before its G_ENDDL (one G_NOOP, then nothing).
+std::string CaiTruncatedDisplayList() {
+    std::string d = CaiHeader("ODLT");
+    d.push_back(4); // ucode_f3dex2
+    d.append(7, '\0');
+    CaiPut32(d, 0);
+    CaiPut32(d, 0);
+    return d;
+}
+
+// A vertex array declaring two elements over four bytes of payload.
+std::string CaiShortVertexArray() {
+    std::string a = CaiHeader("OARR");
+    CaiPut32(a, 25); // ArrayResourceType::Vertex
+    CaiPut32(a, 2);
+    CaiPut32(a, 0);
+    return a;
+}
+
+// mm.o2r; @p texLabel is a curated entry's payload, @p sharedLabel one the
+// manifest never selects (leg C re-extracts with each changed in turn).
+bool CaiWriteMM(const std::string& path, const std::string& texLabel = "mm:tex",
+                const std::string& sharedLabel = "mm:shared") {
+    return CaiWriteZip(path, {
+                                 { kCaiMmDL, CaiDisplayList({ kCaiMmTex, kCaiMmVtx }, 0x20) },
+                                 { kCaiMmTex, CaiTexture(texLabel) },
+                                 { kCaiMmVtx, CaiVertexArray() },
+                                 { kCaiShared, CaiTexture(sharedLabel) },
+                                 { "objects/object_mm_bad/gX8Array", CaiX8Array() },
+                                 { "objects/object_mm_bad/gShortVtx", CaiShortVertexArray() },
+                                 { "objects/object_mm_bad/gEscDL", CaiDisplayList({ "objects/object_mm_bad/gLoose" }) },
+                                 { "objects/object_mm_bad/gLoose", CaiTexture("mm:loose") },
+                                 { "objects/object_mm_collide/gTex", CaiTexture("mm:collide") },
+                             });
+}
+
 bool CaiWriteFixture(const std::string& dir, CaiFixture* fx) {
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
@@ -244,18 +287,9 @@ bool CaiWriteFixture(const std::string& dir, CaiFixture* fx) {
                            { kCaiShared, CaiTexture("oot:shared") },
                            { "objects/object_oot_bad/gRoom", CaiHeader("OROM") + "room" },
                            { "objects/object_oot_bad/gRawDL", CaiDisplayList({}, 0x20, true) },
+                           { "objects/object_oot_bad/gTruncDL", CaiTruncatedDisplayList() },
                        }) &&
-           CaiWriteZip(fx->mm,
-                       {
-                           { kCaiMmDL, CaiDisplayList({ kCaiMmTex, kCaiMmVtx }, 0x20) },
-                           { kCaiMmTex, CaiTexture("mm:tex") },
-                           { kCaiMmVtx, CaiVertexArray() },
-                           { kCaiShared, CaiTexture("mm:shared") },
-                           { "objects/object_mm_bad/gX8Array", CaiX8Array() },
-                           { "objects/object_mm_bad/gEscDL", CaiDisplayList({ "objects/object_mm_bad/gLoose" }) },
-                           { "objects/object_mm_bad/gLoose", CaiTexture("mm:loose") },
-                           { "objects/object_mm_collide/gTex", CaiTexture("mm:collide") },
-                       }) &&
+           CaiWriteMM(fx->mm) &&
            CaiWriteZip(fx->soh, { { "textures/soh_only/gPortTex", CaiTexture("soh:port") },
                                   { "objects/object_mm_collide/gTex", CaiTexture("soh:collide") } }) &&
            CaiWriteZip(fx->twoShip, { { "textures/2ship_only/gPortTex", CaiTexture("2ship:port") } });
@@ -270,6 +304,13 @@ rsbs::curated::GenerateInputs CaiInputs(const CaiFixture& fx, const std::string&
     in.outOoT = outDir + "/redship-oot.o2r";
     in.outMM = outDir + "/redship-mm.o2r";
     return in;
+}
+
+// The stamp the in-app generator would write for @p in right now.
+std::string CaiWant(const rsbs::curated::GenerateInputs& in) {
+    std::string stamp;
+    std::string err;
+    return rsbs::curated::CurrentStamp(in, &stamp, &err) ? stamp : "<no current stamp: " + err + ">";
 }
 
 bool CaiWriteText(const std::string& path, const std::string& text) {
@@ -397,7 +438,7 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
                 fprintf(stderr, "[curated-archive-inapp] FAIL: A: a curated payload is not the source's bytes\n");
                 failures++;
             }
-            const std::string stamp = cur::Stamp(kCaiGoodManifest);
+            const std::string stamp = CaiWant(in);
             if (oot.comment != stamp || mm.comment != stamp) {
                 fprintf(stderr, "[curated-archive-inapp] FAIL: A: stamps '%s' / '%s', want '%s'\n",
                         oot.comment.c_str(), mm.comment.c_str(), stamp.c_str());
@@ -432,7 +473,9 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
             { "COLLISION", kCaiGoodManifest + "mm->oot objects/object_mm_collide/\n" },
             { "DISPATCHED TYPE", kCaiGoodManifest + "oot->mm objects/object_oot_bad/gRoom\n" },
             { "RAW SEGMENTED TEXTURE", kCaiGoodManifest + "oot->mm objects/object_oot_bad/gRawDL\n" },
+            { "UNPARSABLE DISPLAY LIST", kCaiGoodManifest + "oot->mm objects/object_oot_bad/gTruncDL\n" },
             { "ARRAY READER DISAGREEMENT", kCaiGoodManifest + "mm->oot objects/object_mm_bad/gX8Array\n" },
+            { "UNPARSABLE ARRAY", kCaiGoodManifest + "mm->oot objects/object_mm_bad/gShortVtx\n" },
             { "ESCAPING REFERENCE", kCaiGoodManifest + "mm->oot objects/object_mm_bad/gEscDL\n" },
             { "ESCAPING REFERENCE", mmLine + "oot->mm objects/object_gi_oot_only/\n" },
             { "matched nothing", kCaiGoodManifest + "mm->oot objects/object_missing/\n" },
@@ -475,6 +518,50 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
                 }
             }
         }
+
+        // The input rules: a valid manifest, an input the generator must refuse.
+        struct InputRefusal {
+            const char* rule;
+            std::function<void(cur::GenerateInputs&)> mutate;
+        };
+        const InputRefusal inputRefusals[] = {
+            { "same output file", [](cur::GenerateInputs& in) { in.outMM = in.outOoT; } },
+            { "host archive", [&](cur::GenerateInputs& in) { in.hostArchives[0].path = fx.dir + "/absent-soh.o2r"; } },
+            { "needs the mm archive", [&](cur::GenerateInputs& in) { in.mmArchive = fx.dir + "/absent-mm.o2r"; } },
+        };
+        for (const InputRefusal& r : inputRefusals) {
+            cur::GenerateInputs in = CaiInputs(fx, kCaiGoodManifest, root + "/refused");
+            CaiRemove(in.outOoT);
+            CaiRemove(in.outMM);
+            r.mutate(in);
+            const cur::GenerateResult res = cur::Generate(in);
+            const bool named = res.error.find(r.rule) != std::string::npos;
+            const bool wrote = CaiExists(in.outOoT) || CaiExists(in.outMM);
+            printf("[curated-archive-inapp] B (%s): in-app ok=%d named=%d wrote=%d -- %s\n", r.rule, res.ok, named,
+                   wrote, res.error.c_str());
+            if (res.ok || !named || wrote) {
+                fprintf(stderr,
+                        "[curated-archive-inapp] FAIL: B: the in-app generator must refuse (%s), say so, and write "
+                        "neither half\n",
+                        r.rule);
+                failures++;
+            }
+            if (havePython) {
+                CaiWriteText(manifestPath, kCaiGoodManifest);
+                cur::GenerateInputs py = CaiInputs(fx, kCaiGoodManifest, root + "/refused-py");
+                CaiRemove(py.outOoT);
+                CaiRemove(py.outMM);
+                r.mutate(py);
+                const int rc = CaiRunPython(pythonExe, generatorScript, py, manifestPath);
+                if (rc == 0 || CaiExists(py.outOoT) || CaiExists(py.outMM)) {
+                    fprintf(stderr,
+                            "[curated-archive-inapp] FAIL: B: make_redship_otr.py accepted (%s) -- the two generators "
+                            "disagree\n",
+                            r.rule);
+                    failures++;
+                }
+            }
+        }
     }
 
     // ---- C. What the boot path does: missing, current, stale, refused, skipped ----
@@ -500,7 +587,7 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
 
         // 1. A packaged build after extraction: both sources, no halves.
         expect("no halves yet", cur::Ensure(in, &log), cur::EnsureOutcome::Generated);
-        if (stampOf(in.outOoT) != cur::Stamp(kCaiGoodManifest) || stampOf(in.outMM) != cur::Stamp(kCaiGoodManifest)) {
+        if (stampOf(in.outOoT) != CaiWant(in) || stampOf(in.outMM) != CaiWant(in)) {
             fprintf(stderr, "[curated-archive-inapp] FAIL: C: the generated halves do not carry the manifest's stamp\n");
             failures++;
         }
@@ -517,7 +604,7 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
         // 3. A pre-#806 half (no stamp) is stale.
         CaiWriteZip(in.outMM, { { kCaiOotDL, "old" } });
         expect("unstamped half", cur::Ensure(in, &log), cur::EnsureOutcome::Generated);
-        if (stampOf(in.outMM) != cur::Stamp(kCaiGoodManifest) || CaiReadZip(in.outMM).entries.size() != 4) {
+        if (stampOf(in.outMM) != CaiWant(in) || CaiReadZip(in.outMM).entries.size() != 4) {
             fprintf(stderr, "[curated-archive-inapp] FAIL: C: the unstamped half was not regenerated\n");
             failures++;
         }
@@ -526,8 +613,34 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
         const std::string newManifest = kCaiGoodManifest + "oot->mm objects/object_gi_oot_only/gGiOotTex\n";
         in.manifestText = newManifest;
         expect("manifest changed", cur::Ensure(in, &log), cur::EnsureOutcome::Generated);
-        if (stampOf(in.outOoT) != cur::Stamp(newManifest) || stampOf(in.outMM) != cur::Stamp(newManifest)) {
+        if (stampOf(in.outOoT) != CaiWant(in) || stampOf(in.outMM) != CaiWant(in)) {
             fprintf(stderr, "[curated-archive-inapp] FAIL: C: a changed manifest did not restamp both halves\n");
+            failures++;
+        }
+
+        // 4b. mm.o2r re-extracted (SoH deletes an archive an incompatible
+        // version made and re-extracts it; a player may re-extract from another
+        // ROM revision) and a curated entry changed: the halves carved out of
+        // the old archive are stale, though the manifest is the same.
+        CaiWriteMM(pk.mm, "mm:tex:re-extracted");
+        expect("curated source entry changed", cur::Ensure(in, &log), cur::EnsureOutcome::Generated);
+        {
+            const CaiArchive oot = CaiReadZip(in.outOoT);
+            if (oot.entries.count(kCaiMmTex) == 0 || oot.entries.at(kCaiMmTex) != CaiTexture("mm:tex:re-extracted") ||
+                oot.comment != CaiWant(in)) {
+                fprintf(stderr, "[curated-archive-inapp] FAIL: C: a re-extracted source's changed curated entry was "
+                                "not carried into the regenerated half\n");
+                failures++;
+            }
+        }
+
+        // 4c. Re-extracted again, and only an entry the manifest does not
+        // select changed: still current, nothing rewritten.
+        const std::string currentOoT = CaiReadFile(in.outOoT);
+        CaiWriteMM(pk.mm, "mm:tex:re-extracted", "mm:shared:re-extracted");
+        expect("uncurated source entry changed", cur::Ensure(in, &log), cur::EnsureOutcome::UpToDate);
+        if (CaiReadFile(in.outOoT) != currentOoT) {
+            fprintf(stderr, "[curated-archive-inapp] FAIL: C: an uncurated source change rewrote a half\n");
             failures++;
         }
 
@@ -560,7 +673,7 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
             }
             crlf.push_back(c);
         }
-        if (cur::Stamp(crlf) != cur::Stamp(kCaiGoodManifest)) {
+        if (cur::Stamp(crlf, 0) != cur::Stamp(kCaiGoodManifest, 0)) {
             fprintf(stderr, "[curated-archive-inapp] FAIL: C: a CRLF manifest stamps differently from its LF form\n");
             failures++;
         }
@@ -625,7 +738,8 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
     }
     if (failures == 0) {
         printf("[curated-archive-inapp] PASS: the in-app generator writes what make_redship_otr.py writes, refuses "
-               "what it refuses, and regenerates exactly the missing or stale halves\n");
+               "what it refuses (every rule above), and regenerates a missing half, an unstamped half, a changed "
+               "manifest and a changed curated source entry\n");
     }
     return failures == 0 ? 0 : 1;
 }

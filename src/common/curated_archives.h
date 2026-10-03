@@ -17,19 +17,26 @@
  * each exists): verbatim paths; no collision with any base archive the host
  * mounts; no Room/Cutscene/Path resource; no raw segmented G_SETTIMG; no Array
  * resource the two games' readers consume differently; every path-hash
- * reference of a curated display list stays inside its half. Both halves are
- * written only after every guard passed, or neither is.
+ * reference of a curated display list stays inside its half. Nothing is
+ * written unless every guard passed; both halves are then written to temp
+ * files before either is moved into place (the two moves are not atomic
+ * together: see Generate).
  *
  * Each half carries a STAMP in its zip archive comment naming the manifest it
- * was made from (Stamp below). The Python generator writes the same stamp, so
- * a dev tree's GenerateRedshipOtr output is current; a half whose stamp
- * differs (an older build's manifest, or a pre-#806 archive with no stamp) is
- * regenerated. The stamp lives in the comment, not in an entry, so the path
- * set stays exactly the manifest's.
+ * was made from AND the source entries it was carved out of (Stamp below). The
+ * Python generator writes the same stamp, so a dev tree's GenerateRedshipOtr
+ * output is current; a half whose stamp differs is regenerated: an older
+ * build's manifest, a pre-#806 archive with no stamp, or a re-extracted
+ * oot.o2r / mm.o2r whose curated entries changed (SoH deletes an oot.o2r made
+ * by an incompatible version and re-extracts it; a player may re-extract from
+ * another ROM revision). The stamp lives in the comment, not in an entry, so
+ * the path set stays exactly the manifest's.
  *
  * Nothing here ever refuses boot: a missing source archive, a guard refusal or
- * an I/O failure is logged, the halves on disk are left as they were, and
- * foreign models fall back to their stand-ins exactly as before.
+ * an I/O failure is logged and the halves on disk are left as they were. The
+ * mount then takes whatever half is on disk: none (foreign models fall back to
+ * their stand-ins exactly as before), or the stale one Ensure could not
+ * replace.
  *
  * Game-header-free (ADR 0002): it reads archives through libzip and hashes
  * paths with libultraship's CRC64, nothing else.
@@ -85,15 +92,26 @@ struct GenerateResult {
 
 /** The generator format revision. Bump together with STAMP_VERSION in
  *  scripts/make_redship_otr.py whenever an admission rule changes what a
- *  manifest produces, so archives made under the old rules are regenerated. */
-inline constexpr int kStampVersion = 1;
+ *  manifest produces, so archives made under the old rules are regenerated.
+ *  2: the stamp also names the source entries (sources-crc64). */
+inline constexpr int kStampVersion = 2;
 
 /** libultraship's CRC64 of the manifest text with every CR byte removed, so a
  *  CRLF checkout and an LF one stamp the same manifest identically. */
 uint64_t ManifestHash(std::string_view manifestText);
 
-/** The archive comment each half carries: "redship-curated v<N> manifest-crc64=<16 hex>". */
-std::string Stamp(std::string_view manifestText);
+/** The archive comment each half carries:
+ *  "redship-curated v<N> manifest-crc64=<16 hex> sources-crc64=<16 hex>".
+ *  @p sourcesHash is libultraship's CRC64 over one line per curated resource,
+ *  in selection order, "<game>\t<path>\t<crc32 as 8 hex>\t<uncompressed size>\n",
+ *  read from the source archive's zip directory. */
+std::string Stamp(std::string_view manifestText, uint64_t sourcesHash);
+
+/** The stamp Generate would write for @p inputs right now: opens both source
+ *  archives, selects the manifest's entries and hashes their directory
+ *  records (nothing is decompressed). False, with @p error set, when a source
+ *  cannot be opened or the manifest cannot be applied to them. */
+bool CurrentStamp(const GenerateInputs& inputs, std::string* stamp, std::string* error = nullptr);
 
 /** The manifest compiled into this binary (assets/crossgame/manifest.txt at
  *  build time). */
@@ -113,7 +131,8 @@ enum class EnsureOutcome {
     Generated,
     /** A source archive is absent (a game not extracted yet): nothing to do. */
     Skipped,
-    /** Generation was refused or failed; what was on disk is untouched. */
+    /** Generation was refused (nothing written) or a move into place failed
+     *  part-way (see Generate); the next boot tries again. */
     Failed,
 };
 
@@ -121,7 +140,7 @@ const char* EnsureOutcomeName(EnsureOutcome outcome);
 
 /**
  * Regenerate both halves when either is absent or its stamp differs from
- * Stamp(inputs.manifestText). inputs.outOoT / inputs.outMM name where each half
+ * CurrentStamp(inputs). inputs.outOoT / inputs.outMM name where each half
  * lives (or will). Skipped when either source archive is absent; never throws.
  * @p log, when non-null, receives a one-line account of what happened.
  */
