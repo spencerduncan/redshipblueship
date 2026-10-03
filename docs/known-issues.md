@@ -447,6 +447,59 @@ DirectX 11. The 90 were compared with an OpenGL render made at `d928d67d` on the
 
 ---
 
+## Smoke, 2026-10-03, `82d05d0d`
+
+The closing run of the work merged between `200adaea` and `82d05d0d`: 49 pull requests,
+[#802](https://github.com/spencerduncan/redshipblueship/pull/802) to
+[#876](https://github.com/spencerduncan/redshipblueship/pull/876). Like the run above, it
+covers the checks hosted CI cannot run, because they need the ROMs.
+
+**How it was run.** The workstation's main Windows checkout. Its object directories were
+cleared and the tree was rebuilt (Release, MSVC, through sccache) at the merge of the last
+pull request's branch ([#872](https://github.com/spencerduncan/redshipblueship/pull/872))
+onto `c36ca898`. That merge has the same tree as `82d05d0d` (`d23e4b5c`), the squash commit
+that landed right after the run. `soh.o2r`, `2ship.o2r` and the two curated archives
+`redship-oot.o2r` and `redship-mm.o2r` were regenerated at that tree. `oot.o2r` and `mm.o2r`
+were not re-extracted: they are the ROM extractions earlier builds made. The config was
+OpenGL only, and windows opened without taking focus.
+
+| Check | Result |
+|---|---|
+| `redship` tier | 163 of 163 passed, none skipped (138 in the run above) |
+| `rando` tier | 42 of 42 passed, none skipped (40 in the run above). All four golden-world rows passed (`GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest`, `GoldenSeedDigestArmedCaps`) with `tests/golden/` as it stands at this commit |
+| `ui` tier (OpenGL, ROM archives mounted) | 2 of 2 rows passed. The parity lint passed plain (0 gated hits) and no-grow (neither baseline gained an entry) |
+| `integration` | 13 of 13 passed (6 rows in the run above, one of them red): `IntBootOoT`, `IntBootMM`, `IntSwitchOoTHmsToMm`, `IntSwitchMmClockTownSouthToOoT`, `IntArchiveHotswapCycle`, `IntCuratedArchiveBootRegen`, `IntWatchdogWedgeOoTFrame`, `IntWatchdogWedgeHandoff`, `IntWatchdogWedgeMMFrame`, `IntGameplayRoundtrip`, `IntGameplayRoundtripCapture`, `IntPairedFirstCrossing`, `IntPairedFirstCrossingDiverged` |
+| `integration-soak` | `IntGameplayRoundtripSoak` passed (71.2 s) |
+
+**Generated worlds moved during this work.** Two pull requests each re-pinned three of the
+four golden files (`seed-digest-default`, `seed-digest-profile-v1`, `paired-attempt-digest`):
+[#840](https://github.com/spencerduncan/redshipblueship/pull/840) (MM shops host OoT items) and
+[#874](https://github.com/spencerduncan/redshipblueship/pull/874) (OoT's treasure chest game
+hosts MM items). A seed string and settings that made one world at `200adaea` make a different
+one now. Nothing stored in an existing save is recomputed.
+
+**What this run did not cover.**
+- Nobody has played this build. The rows drive door transitions and item gives directly; they
+  do not see what a person sees.
+- DirectX 11 was not compared with OpenGL.
+- The creation-time sample (10 real paired creations against the 30 s budget) was not re-run.
+- `ForeignItemGiveReverse` passed here. It ended once without a verdict in an earlier gate run
+  and has not done so again ([#824](https://github.com/spencerduncan/redshipblueship/issues/824)).
+
+**Findings.** None in this run. Known and open at this commit, each with its own issue: get-item
+text does not say which game a crossed item belongs to
+([#865](https://github.com/spencerduncan/redshipblueship/issues/865)); a chest that hosts the
+other game's item always looks like a major chest
+([#862](https://github.com/spencerduncan/redshipblueship/issues/862)); MM's spoiler omits the
+price of an OoT item in an MM shop or Tingle slot
+([#863](https://github.com/spencerduncan/redshipblueship/issues/863)); on a vanilla paired file,
+OoT's Check Tracker can show checks from before a crossing commit after a reload
+([#861](https://github.com/spencerduncan/redshipblueship/issues/861)); OoT's threaded save worker
+can land an older generation over a crossing commit
+([#851](https://github.com/spencerduncan/redshipblueship/issues/851)).
+
+---
+
 ## Save loss and corruption
 
 ### ~~A changed MM option or Cross-Game Rule breaks the pair for the session~~ — RESOLVED ([#781](https://github.com/spencerduncan/redshipblueship/issues/781); [#564](https://github.com/spencerduncan/redshipblueship/issues/564))
