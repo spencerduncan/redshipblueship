@@ -303,6 +303,26 @@ enum {
  */
 int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest);
 
+/** Outcomes of MM_Rando_ClassifyHalfForPair. */
+enum {
+    RSBS_MM_HALF_PAIR_WORLD = 0, // this pair's world (also under a lost type byte, which the arrival repairs)
+    RSBS_MM_HALF_VANILLA = 1,    // no world: a vanilla type byte and no seed, or a half too short to read
+    RSBS_MM_HALF_FOREIGN = 2,    // a world, but not one this pair's master seed derives (another pair's)
+};
+
+/**
+ * Which world an MM half carries, for the pair whose master seed is
+ * @p masterSeed and whose recorded ladder rung is @p pairedAttempt (the
+ * record's mmPairedAttempt, 0 = none recorded) (#836 PR 2, #564 V7 and V11).
+ * Reads only the half's type byte, its finalSeed and its persisted options
+ * (@p mmHalf is the raw Tier-3 SaveContext bytes) and writes nothing; the
+ * membership rule is Rando::Foreign::FinalSeedBelongsToPair. The file select's
+ * probe passes the record it read; the arrival gate passes the live pairing.
+ * A paired file whose half is VANILLA or FOREIGN has no Majora's Mask world of
+ * its own. DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
+ */
+int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSize, uint32_t masterSeed, uint32_t pairedAttempt);
+
 /**
  * FROZEN WINS AT LOAD, MM's half (#781; one-game semantics). The load-time
  * twin of the arrival gate's profile compare: recomputes the SAME digest

@@ -280,7 +280,12 @@ What happens at the crossing depends on whether the file entered Majora's Mask b
   ~~Otherwise it warns at load ("Not restored: Majora's Mask options differ") and the
   crossing is refused by the MM-options check.~~ **RESOLVED (#836):** otherwise the file
   is not opened ("Not paired: Majora's Mask options differ" at the file select). Which one a given file meets cannot be
-  decided by reading.
+  decided by reading. ~~If that old arrival's generation failed, it reverted to a vanilla
+  MM half, which the arrival hydrated under the pairing: Termina played vanilla and the
+  vanilla half was saved back (#564 V7).~~ **RESOLVED (#836 PR 2):** a paired file whose
+  MM half is vanilla, or is another pair's world (#564 V11), is not opened ("Not paired:
+  This file has no Majora's Mask world" at the file select), and the arrival refuses such
+  a half too.
 
 This project is pre-release — the operator has accepted invalidating existing saves
 rather than spending effort on migration. **Create a new file**; there is no recovery

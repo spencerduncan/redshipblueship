@@ -1607,8 +1607,19 @@ that put a randomizer file into Play without a live pairing.
   arrival can follow a refused load), its toast kind and its UI snapshot page.
   The `skipped-because-no-paired-oot-world` stderr line stays.
 
+- **PR 2: a half that is not this pair's world** (#564 V7 and V11). The open
+  path also refuses a paired record whose MM half is vanilla (no seed) or
+  another pair's world (a seed the record's master seed does not derive from
+  the half's own options at the recorded rung), in the all-zero half's words
+  ("This file has no Majora's Mask world"). `MM_Rando_ClassifyHalfForPair`
+  answers it from the Tier-3 bytes, through `FinalSeedBelongsToPair`, which now
+  takes the master seed and the recorded rung as parameters so the probe can
+  pass the record it read. The arrival gate runs the same classification over
+  the armed half and refuses a vanilla half before the consume, so V7 is
+  closed at both points.
+
 `RsbsSave_LoadSlotChecked` (the format-level locks' entry) keeps its contract;
-the three added refusals are the file-open path's. Locked by
+the added refusals are the file-open path's. Locked by
 `OoTFileSelectRefusal` (the gate and the backstop through the hooks a fresh SoH
-`SaveManager` registers), `PairedLoadRestore` legs 3 to 7 and
-`ComboCreationEvent` leg 12.
+`SaveManager` registers), `PairedLoadRestore` legs 3 to 8,
+`ComboCreationEvent` leg 12 and `MMComboSettingsGate` leg 13.

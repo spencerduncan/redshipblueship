@@ -93,26 +93,31 @@ uint32_t MixPairedFinalSeed();
  *  Same ordering contract as MixPairedFinalSeed: resolve the profile first. */
 uint32_t MixPairedFinalSeedForAttempt(uint32_t attempt);
 
-/** The same recipe over an explicit options array (RO_MAX entries) instead of
- *  the live RANDO_SAVE_OPTIONS — so a half that is not live yet (the armed MM
- *  blob the arrival gate inspects before the consume) can be re-derived from
- *  its OWN persisted options. MixPairedFinalSeedForAttempt(n) is exactly
- *  MixPairedFinalSeedFromOptions(RANDO_SAVE_OPTIONS, n). */
-uint32_t MixPairedFinalSeedFromOptions(const uint32_t* options, uint32_t attempt);
+/** The same recipe over an explicit master seed and options array (RO_MAX
+ *  entries) instead of gComboCtx.sharedRandoSeed and the live
+ *  RANDO_SAVE_OPTIONS — so a half that is not live yet (the armed MM blob the
+ *  arrival gate inspects before the consume, or the Tier-3 bytes the file
+ *  select's probe reads with the record's own master seed, #836) can be
+ *  re-derived from its OWN persisted options. MixPairedFinalSeedForAttempt(n)
+ *  is exactly MixPairedFinalSeedFromOptions(gComboCtx.sharedRandoSeed,
+ *  RANDO_SAVE_OPTIONS, n). */
+uint32_t MixPairedFinalSeedFromOptions(uint32_t masterSeed, const uint32_t* options, uint32_t attempt);
 
 /** PAIR MEMBERSHIP of an MM half (#564 V11): true when @p finalSeed is the seed
- *  THIS pair (gComboCtx.sharedRandoSeed) derives from the half's own persisted
- *  @p options at the ladder rung the pair recorded (gComboCtx.mmPairedAttempt,
- *  displaced by one). With no recorded rung (0: a pre-ladder record) any rung
- *  below kPairedGenMaxAttempts is accepted, since each is this pair's own
- *  derivation. A half from another pair (a mixed .redsave, a cross-slot copy)
- *  matches none: under one-game semantics it is corruption to refuse, never a
- *  world to adopt.
+ *  the pair whose master seed is @p masterSeed derives from the half's own
+ *  persisted @p options at the ladder rung the pair recorded (@p pairedAttempt,
+ *  the record's mmPairedAttempt, displaced by one). With no recorded rung (0: a
+ *  pre-ladder record) any rung below kPairedGenMaxAttempts is accepted, since
+ *  each is this pair's own derivation. A half from another pair (a mixed
+ *  .redsave, a cross-slot copy) matches none: under one-game semantics it is
+ *  corruption to refuse, never a world to adopt. The arrival passes the live
+ *  gComboCtx's pair; the file select's probe passes the record it read (#836).
  *  @param outExpected the seed the recorded rung derives (rung 0 when none is
  *         recorded and nothing matched); may be NULL.
  *  @param outAttempt  the matching or recorded rung, -1 when none is recorded
  *         and nothing matched; may be NULL. */
-bool FinalSeedBelongsToPair(const uint32_t* options, uint32_t finalSeed, uint32_t* outExpected, int* outAttempt);
+bool FinalSeedBelongsToPair(uint32_t masterSeed, uint32_t pairedAttempt, const uint32_t* options, uint32_t finalSeed,
+                            uint32_t* outExpected, int* outAttempt);
 
 /** Attempt-ladder bound (ADR 0010 increment 1.2: "bounded attempts"). Ten is
  *  a product budget, not a tuning knob: each Glitchless attempt is capped by
