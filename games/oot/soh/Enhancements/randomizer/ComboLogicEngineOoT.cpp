@@ -2621,18 +2621,24 @@ extern "C" int OoT_ComboLogic_HintingPairedRemainder(void) {
  *   [1] RCTYPE_SCRUB rows, the Business Scrubs (#800 pass 2): each must be
  *       ACCEPTED, and each must be an ACTOR_EN_DNS row, the actor whose sale
  *       sets the RandomizerInf flag the drain's foreign branch is queued by;
+ *   [2] RCTYPE_MERCHANT rows, the merchants (#800 pass 2): each must be
+ *       ACCEPTED, and each must be collected by a RandomizerInf flag, the flag
+ *       its sale sets and the drain's foreign branch is queued by (a merchant
+ *       the predicate does not name, such as a new upstream row whose give
+ *       path nobody traced, fails here);
  * and each of these must be REJECTED:
- *   [2] RCTYPE_MERCHANT rows,
  *   [3] RCTYPE_CHEST_GAME rows,
  *   [4] every location whose NAME says shop, bazaar or chest game and whose
- *       actor is not ACTOR_EN_GIRLA (a shop-ish check that is not a shelf, told
- *       apart by name and actor rather than by the type tag),
+ *       actor is not ACTOR_EN_GIRLA and which is not a merchant of [2] (a
+ *       shop-ish check that is not a shelf, told apart by name and actor
+ *       rather than by the type tag; "Granny's Shop" is a merchant),
  *   [5] every location whose actor is not ACTOR_EN_BOX and which is not a shelf
- *       of [0] or a scrub of [1], and every location in a shop scene (IsShop())
- *       that is not a shelf.
+ *       of [0], a scrub of [1] or a merchant of [2], and every location in a
+ *       shop scene (IsShop()) that is not a shelf.
  * [6] counts the ACCEPTED rows, which must all be ACTOR_EN_BOX chests, shelves
- * of [0] or scrubs of [1]; the chests among them are the non-vacuity half of
- * [2]-[5] (the caller asserts more rows are accepted than [0] and [1] hold).
+ * of [0], scrubs of [1] or merchants of [2]; the chests among them are the
+ * non-vacuity half of [3]-[5] (the caller asserts more rows are accepted than
+ * [0], [1] and [2] hold).
  *
  * @param outCounts 7 ints: the rows seen per category.
  * @return the number of rows the predicate answered against its category.
@@ -2673,31 +2679,41 @@ extern "C" int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts) {
                 violations++;
             }
         }
-        const bool rejectedCategories[4] = {
-            type == RCTYPE_MERCHANT,
+        const bool merchant = type == RCTYPE_MERCHANT;
+        if (merchant) {
+            outCounts[2]++;
+            if (!accepted || loc->GetCollectionCheck().type != SPOILER_CHK_RANDOMIZER_INF) {
+                fprintf(stderr,
+                        "[OoT/ComboLogic] host-rule sweep: merchant '%s' (check %d) is %s (collection type %d); "
+                        "every merchant must be an accepted row collected by a RandomizerInf flag (#800 pass 2)\n",
+                        name.c_str(), c, accepted ? "accepted" : "REJECTED", (int)loc->GetCollectionCheck().type);
+                violations++;
+            }
+        }
+        const bool rejectedCategories[3] = {
             type == RCTYPE_CHEST_GAME,
             (name.find("Shop") != std::string::npos || name.find("Bazaar") != std::string::npos ||
              name.find("Chest Game") != std::string::npos) &&
-                loc->GetActorID() != ACTOR_EN_GIRLA,
-            !shelf && ((!scrub && loc->GetActorID() != ACTOR_EN_BOX) || loc->IsShop()),
+                loc->GetActorID() != ACTOR_EN_GIRLA && !merchant,
+            !shelf && ((!scrub && !merchant && loc->GetActorID() != ACTOR_EN_BOX) || loc->IsShop()),
         };
-        for (int k = 0; k < 4; ++k) {
+        for (int k = 0; k < 3; ++k) {
             if (!rejectedCategories[k]) {
                 continue;
             }
-            outCounts[k + 2]++;
+            outCounts[k + 3]++;
             if (accepted) {
                 fprintf(stderr, "[OoT/ComboLogic] host-rule sweep: '%s' (check %d) is accepted but is category %d\n",
-                        name.c_str(), c, k + 2);
+                        name.c_str(), c, k + 3);
                 violations++;
             }
         }
         if (accepted) {
             outCounts[6]++;
-            if (!shelf && !scrub && loc->GetActorID() != ACTOR_EN_BOX) {
+            if (!shelf && !scrub && !merchant && loc->GetActorID() != ACTOR_EN_BOX) {
                 fprintf(stderr,
                         "[OoT/ComboLogic] host-rule sweep: '%s' (check %d) is accepted but is neither a chest, "
-                        "a shelf nor a scrub\n",
+                        "a shelf, a scrub nor a merchant\n",
                         name.c_str(), c);
                 violations++;
             }
@@ -2725,6 +2741,17 @@ extern "C" int OoT_ComboLogic_TestIsScrub(uint16_t hostCheck) {
         return 0;
     }
     return Rando::StaticData::GetLocation(rc)->GetRCType() == RCTYPE_SCRUB ? 1 : 0;
+}
+
+/** TEST BRIDGE (combo-single-bag leg G, #800 pass 2): 1 when `hostCheck` is a
+ *  merchant (an RCTYPE_MERCHANT row: the bean salesman, Medigoron, Granny's
+ *  Shop, the carpet salesman), read off the static table, not the predicate. */
+extern "C" int OoT_ComboLogic_TestIsMerchant(uint16_t hostCheck) {
+    const RandomizerCheck rc = (RandomizerCheck)hostCheck;
+    if (!OoTComboLogicIsRealCheck(rc)) {
+        return 0;
+    }
+    return Rando::StaticData::GetLocation(rc)->GetRCType() == RCTYPE_MERCHANT ? 1 : 0;
 }
 
 /** TEST BRIDGE (combo-single-bag): OoT hosts the fill considers that hold nothing. */

@@ -65,9 +65,9 @@
  * PR #743 REVIEW LEGS, each with its red half observed when it was written:
  *
  *   A2. OoT's foreign-host rule, swept over every OoT location by category: every
- *       plain shop shelf (#800 pass 1) and every Business Scrub (#800 pass 2)
- *       accepted; merchant, chest game, a shop-ish NAME that is not a shelf, and
- *       every other non-chest rejected; and
+ *       plain shop shelf (#800 pass 1), every Business Scrub and every merchant
+ *       (#800 pass 2) accepted; chest game, a shop-ish NAME that is neither a
+ *       shelf nor a merchant, and every other non-chest rejected; and
  *       some chests accepted. Leg A asks the same predicate the fill used, so it
  *       could not see the predicate itself loosen. Swept after leg A, asserted at
  *       the end of the row (after leg G).
@@ -116,6 +116,14 @@
  *       #800 pass 2: the same creation also has OoT's scrub shuffle on (All), and
  *       the same assertions hold for an MM item on an OoT Business Scrub. Red
  *       with the scrub refused by the predicate: zero scrub crossings.
+ *       #800 pass 2, merchants: the same creation also has OoT's merchant
+ *       shuffle on (All), the same assertions hold for an MM item on a merchant
+ *       (the bean salesman, Medigoron, Granny's Shop, the carpet salesman), and
+ *       every merchant hosting an MM item stops selling its randomized item once
+ *       its check is collected, read from the merchant's own gate (at least one
+ *       of them sold it before). Red with merchants refused by the predicate:
+ *       zero merchant crossings; red with the gates unchanged: a collected
+ *       merchant still sells.
  *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
@@ -172,6 +180,8 @@ int MM_Rando_PairedGenLastExhausted(void);
 int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts);
 int OoT_ComboLogic_TestIsShopShelf(uint16_t hostCheck);
 int OoT_ComboLogic_TestIsScrub(uint16_t hostCheck);
+int OoT_ComboLogic_TestIsMerchant(uint16_t hostCheck);
+int OoT_Rando_Foreign_TestMerchantSells(uint16_t rc);
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
 int OoT_Rando_Foreign_HostsForeign(uint16_t rc);
@@ -388,6 +398,7 @@ const char* const kCsbShopCVars[][2] = {
     { "gRandoSettings.ShopsanityCount", "4" },    // four emptied shelves per OoT shop
     { "gRando.Options.RO_SHUFFLE_SHOPS", "1" },   // MM's shop stock enters the bag
     { "gRandoSettings.ShuffleScrubs", "2" },      // RO_SCRUBS_ALL: every Business Scrub is a host (#800 pass 2)
+    { "gRandoSettings.ShuffleMerchants", "3" },   // RO_SHUFFLE_MERCHANTS_ALL: all four merchants are hosts (#800 pass 2)
 };
 
 /** RSBS_CSB_SAMPLE=N: N paired creations under the shipped budget, measured. */
@@ -600,9 +611,9 @@ TestResult ComboSingleBag_Run(void) {
     // ------------------------------------------------------------------
     int hostRuleCounts[7];
     const int hostRuleViolations = OoT_ComboLogic_TestSweepForeignHostRule(hostRuleCounts);
-    printf("[TEST] combo-single-bag: OoT host rule: %d shop shelves, %d Business Scrubs (each must be accepted); "
-           "merchant %d, chest game %d, shop-ish non-shelf name %d, non-chest non-shelf non-scrub %d rows (each must "
-           "be rejected); %d accepted; %d violation(s)\n",
+    printf("[TEST] combo-single-bag: OoT host rule: %d shop shelves, %d Business Scrubs, %d merchants (each must be "
+           "accepted); chest game %d, shop-ish non-shelf non-merchant name %d, non-chest non-shelf non-scrub "
+           "non-merchant %d rows (each must be rejected); %d accepted; %d violation(s)\n",
            hostRuleCounts[0], hostRuleCounts[1], hostRuleCounts[2], hostRuleCounts[3], hostRuleCounts[4],
            hostRuleCounts[5], hostRuleCounts[6], hostRuleViolations);
 
@@ -988,8 +999,11 @@ TestResult ComboSingleBag_Run(void) {
         const CsbTables shopTables = CsbCopyTables();
         int shelfCrossings = 0;
         int scrubCrossings = 0;
+        int merchantCrossings = 0;
         const ComboLogicPlacement* firstShelf = nullptr;
         const ComboLogicPlacement* firstScrub = nullptr;
+        const ComboLogicPlacement* firstMerchant = nullptr;
+        std::vector<uint16_t> merchantHosts;
         for (const ComboLogicPlacement& p : shopTables.oot) {
             if (p.item.originGame == (uint8_t)GAME_MM && OoT_ComboLogic_TestIsShopShelf(p.hostCheck) == 1) {
                 shelfCrossings++;
@@ -999,22 +1013,30 @@ TestResult ComboSingleBag_Run(void) {
                 scrubCrossings++;
                 firstScrub = firstScrub == nullptr ? &p : firstScrub;
             }
+            if (p.item.originGame == (uint8_t)GAME_MM && OoT_ComboLogic_TestIsMerchant(p.hostCheck) == 1) {
+                merchantCrossings++;
+                firstMerchant = firstMerchant == nullptr ? &p : firstMerchant;
+                merchantHosts.push_back(p.hostCheck);
+            }
         }
-        printf("[TEST] combo-single-bag: G (#800): both shop shuffles and scrub shuffle on: %d crossings into MM, %d "
-               "into OoT, %d of them on OoT shop shelves, %d on OoT Business Scrubs\n",
-               shopBag.crossingsIntoMM, shopBag.crossingsIntoOoT, shelfCrossings, scrubCrossings);
+        printf("[TEST] combo-single-bag: G (#800): both shop shuffles, scrub shuffle and merchant shuffle on: %d "
+               "crossings into MM, %d into OoT, %d of them on OoT shop shelves, %d on OoT Business Scrubs, %d on OoT "
+               "merchants\n",
+               shopBag.crossingsIntoMM, shopBag.crossingsIntoOoT, shelfCrossings, scrubCrossings, merchantCrossings);
         CSB_ASSERT(shelfCrossings > 0, "no MM item landed on an OoT shop shelf with shopsanity on (#800 pass 1)");
         CSB_ASSERT(scrubCrossings > 0,
                    "no MM item landed on an OoT Business Scrub with scrub shuffle on (#800 pass 2)");
+        CSB_ASSERT(merchantCrossings > 0,
+                   "no MM item landed on an OoT merchant with merchant shuffle on (#800 pass 2)");
 
         // The store the drain reads, then the drain's own recording core, on each
         // REAL host check: the placement is found by the check the host's
-        // RandomizerInf flag queues (the shelf's purchase, the scrub's sale), and
-        // the purchase records one MM crossing.
+        // RandomizerInf flag queues (the shelf's purchase, the scrub's or the
+        // merchant's sale), and the purchase records one MM crossing.
         CSB_ASSERT(OoT_Creation_FinishPairedHalf(0) >= 0, "OoT's remainder failed with both shop shuffles on");
-        const ComboLogicPlacement* const hosts[2] = { firstShelf, firstScrub };
-        const char* const kinds[2] = { "shelf", "scrub" };
-        for (int h = 0; h < 2; h++) {
+        const ComboLogicPlacement* const hosts[3] = { firstShelf, firstScrub, firstMerchant };
+        const char* const kinds[3] = { "shelf", "scrub", "merchant" };
+        for (int h = 0; h < 3; h++) {
             const uint16_t host = hosts[h]->hostCheck;
             const SharedItem hostItem = hosts[h]->item;
             const char* itemName = Combo_DescribeItemName(hostItem);
@@ -1042,18 +1064,43 @@ TestResult ComboSingleBag_Run(void) {
             CSB_ASSERT(OoT_Rando_Foreign_RecordPickup(host) == 0, "a collected host recorded a second MM crossing");
             OoT_Rando_Foreign_TestSetObtained(host, 0);
         }
+
+        // Every merchant hosting an MM item stops selling its randomized item once
+        // the host's check is collected, even with its RandomizerInf flag unset (an
+        // unsaved reload): its own gate, the one its offer and its sale consult,
+        // falls back to the merchant's vanilla behavior instead of charging again
+        // for a crossing the drain will not record twice. At least one of them
+        // sold it before, or this proves nothing (Granny also needs the claim
+        // check or the odd mushroom trade).
+        int merchantsSellingBefore = 0;
+        for (const uint16_t host : merchantHosts) {
+            const int before = OoT_Rando_Foreign_TestMerchantSells(host);
+            CSB_ASSERT(OoT_Rando_Foreign_TestSetObtained(host, 1) == 1, "the merchant's check could not be collected");
+            const int after = OoT_Rando_Foreign_TestMerchantSells(host);
+            OoT_Rando_Foreign_TestSetObtained(host, 0);
+            const char* hostName = Combo_DescribeCheckName((uint8_t)GAME_OOT, host);
+            printf("[TEST] combo-single-bag: G (#800): merchant %s (check %u) sells its randomized item: %d before "
+                   "its check is collected, %d after\n",
+                   hostName != nullptr ? hostName : "(unnamed)", (unsigned)host, before, after);
+            CSB_ASSERT(before >= 0 && after >= 0, "a merchant host is not one of the four traced merchants");
+            merchantsSellingBefore += before;
+            CSB_ASSERT(after == 0, "a merchant whose MM item's check is collected still sells it, so it would charge "
+                                   "again for nothing");
+        }
+        CSB_ASSERT(merchantsSellingBefore > 0,
+                   "no merchant hosting an MM item sold it before collection, so the sold-out check proves nothing");
     }
     Combo_SingleBag_Forget();
     Combo_Crossings_Clear();
 
     // A2's verdict (swept above, before the worlds of legs B-G).
     CSB_ASSERT(hostRuleViolations == 0,
-               "OoT's foreign-host predicate rejects a plain shop shelf or a Business Scrub, or accepts a merchant, "
+               "OoT's foreign-host predicate rejects a plain shop shelf, a Business Scrub or a merchant, or accepts a "
                "chest-game or other non-chest location");
     CSB_ASSERT(hostRuleCounts[0] > 0 && hostRuleCounts[1] > 0 && hostRuleCounts[2] > 0 && hostRuleCounts[3] > 0 &&
                    hostRuleCounts[4] > 0 && hostRuleCounts[5] > 0,
                "a category of the host-rule sweep is empty, so it proves nothing about that category");
-    CSB_ASSERT(hostRuleCounts[6] > hostRuleCounts[0] + hostRuleCounts[1],
+    CSB_ASSERT(hostRuleCounts[6] > hostRuleCounts[0] + hostRuleCounts[1] + hostRuleCounts[2],
                "OoT's predicate accepts no treasure chest at all");
 
     printf("[TEST] PASS: combo-single-bag\n");

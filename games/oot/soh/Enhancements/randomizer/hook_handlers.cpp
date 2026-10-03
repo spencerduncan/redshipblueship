@@ -793,6 +793,30 @@ u8 EnGm_RandoCanGetMedigoronItem() {
            !Flags_GetRandomizerInf(RAND_INF_MERCHANTS_MEDIGORON);
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// TEST BRIDGE (combo-single-bag leg G, #800 pass 2): 1 while merchant check `rc`
+// would still sell its randomized item, read from the merchant's REAL gate (the
+// one its sale and its offer consult); 0 once it would fall back to its vanilla
+// behavior; -1 when `rc` is not one of the four merchants.
+extern "C" int OoT_Rando_Foreign_TestMerchantSells(uint16_t rc) {
+    switch ((RandomizerCheck)rc) {
+        case RC_KAK_GRANNYS_SHOP:
+            return EnDs_RandoCanGetGrannyItem() ? 1 : 0;
+        case RC_WASTELAND_BOMBCHU_SALESMAN:
+            return EnJs_RandoCanGetCarpetMerchantItem() ? 1 : 0;
+        case RC_GC_MEDIGORON:
+            return EnGm_RandoCanGetMedigoronItem() ? 1 : 0;
+        case RC_ZR_MAGIC_BEAN_SALESMAN:
+            return (RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_BEANS_ONLY ||
+                    RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL)
+                       ? 1
+                       : 0;
+        default:
+            return -1;
+    }
+}
+#endif
+
 void RandomizerSetChestGameRandomizerInf(RandomizerCheck rc) {
     switch (rc) {
         case RC_MARKET_TREASURE_CHEST_GAME_ITEM_1:
