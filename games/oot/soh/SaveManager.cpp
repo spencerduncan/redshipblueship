@@ -173,8 +173,7 @@ extern "C" int OoT_SaveBlobIsStarted(const uint8_t* blob, size_t blobSize) {
     if (capacity <= 0) {
         return 0;
     }
-    const bool menuSave =
-        fileNum == 0xFF && (gameMode == GAMEMODE_TITLE_SCREEN || gameMode == GAMEMODE_FILE_SELECT);
+    const bool menuSave = fileNum == 0xFF && (gameMode == GAMEMODE_TITLE_SCREEN || gameMode == GAMEMODE_FILE_SELECT);
     return menuSave ? 0 : 1;
 }
 

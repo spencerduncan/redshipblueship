@@ -570,8 +570,8 @@ struct ArchiveVersionAccess : Ship::ArchiveManager {
 
 extern "C" int OoT_ItemAdapter_TestAuthorNewFile(void* buf, size_t size, int variant, int* outNewfMarked) {
     if (buf == nullptr || size < sizeof(SaveContext) || !Aligned(buf) || variant < 0 || variant > 2 ||
-        SaveManager::Instance == nullptr ||
-        Ship::Context::GetInstance() == nullptr || Ship::Context::GetInstance()->GetResourceManager() == nullptr) {
+        SaveManager::Instance == nullptr || Ship::Context::GetInstance() == nullptr ||
+        Ship::Context::GetInstance()->GetResourceManager() == nullptr) {
         return 0;
     }
     auto archives = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager();
