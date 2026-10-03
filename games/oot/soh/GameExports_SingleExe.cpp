@@ -2407,6 +2407,46 @@ extern "C" void OoT_Combo_FlushSceneFlagsForFreeze(void) {
     Play_SaveSceneFlags(play);
 }
 
+/**
+ * OoT's half of the resume position a crossing commit carries (#850): record
+ * the scene Link departs from as the save's scene, as a save made there would.
+ *
+ * Since #837 every crossing commits the departure freeze to the .redsave, and a
+ * reload boots OoT through OoT_Sram_OpenSave, which places Link by
+ * gSaveContext.savedSceneNum (z_sram.c): a dungeon or boss scene -> that
+ * dungeon's entrance, Ganon's Tower collapse -> the tower, a grotto or fairy
+ * fountain -> Link's House / the Temple of Time even with Remember Save Location
+ * on, any other scene -> Link's House / the Temple of Time, or with Remember
+ * Save Location the frozen entranceIndex. Under entrance shuffle the
+ * randomizer's OnLoadGame handler (Entrance_SetSavewarpEntrance) keys on the
+ * same field after it. Only a save writes it (Play_PerformSave, the kaleido
+ * save prompt), so without this the freeze carried the scene of the LAST SAVE:
+ * an F10 crossing taken inside a grotto, a fountain, a boss room or the
+ * collapse, reloaded with Remember Save Location, woke Link inside that
+ * interior, which SoH's own save never does. OoTMM's comboGameSwitch does the
+ * same at an OoT switch (its Save_DoSave sets the save's scene to the current
+ * one).
+ *
+ * The guard is Play_PerformSave's own: a live PlayState and a real file
+ * (fileNum != 0xFF; a debug save is never saved). No PlayState (the headless
+ * rows, a switch requested outside gameplay): nothing to read, the last save's
+ * scene is kept. A cross-game ARRIVAL never reads the field: it is placed by its
+ * startup entrance (z_play.c), and OnLoadGame is dispatched only by the file
+ * select's load (z_file_choose.c), SoH's boot-to-warp-point debug save and the
+ * integration drives. Idempotent: the launcher's re-freeze stamps the same scene.
+ */
+extern "C" void OoT_Combo_StampSavedSceneForFreeze(void) {
+    PlayState* play = OoT_gPlayState;
+    if (play == NULL || gSaveContext.fileNum == 0xFF) {
+        return;
+    }
+    if (gSaveContext.savedSceneNum != play->sceneNum) {
+        fprintf(stderr, "[OoT] pre-freeze: savedSceneNum %d -> %d, the scene Link departs from (#850)\n",
+                (int)gSaveContext.savedSceneNum, (int)play->sceneNum);
+    }
+    gSaveContext.savedSceneNum = play->sceneNum;
+}
+
 // z_actor.c. functions.h is not included here (see Play_SaveSceneFlags above);
 // these are the exact entry points the two Destroys below call, so the flag
 // hooks (check tracker, network sync) see the same dispatch a scene exit gives.

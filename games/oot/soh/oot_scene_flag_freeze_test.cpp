@@ -323,7 +323,7 @@ int RunChecks(PlayState* play) {
     // ---- 3. No PlayState: both drivers still freeze, nothing is dereferenced
     OoT_gPlayState = NULL;
     ArmLiveOoTSession();
-    gSaveContext.savedSceneNum = SCENE_KOKIRI_FOREST; // the last save's scene
+    gSaveContext.savedSceneNum = SCENE_KOKIRI_FOREST;                // the last save's scene
     gSaveContext.sceneFlags[SCENE_MARKET_DAY].collect = kCollectBit; // what the last transition left
     OSFF_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_OOT) == 1,
                 "a hot-swap freeze with no PlayState must not crash and must still record a blob");
