@@ -190,6 +190,11 @@ typedef struct RsbsGameMetaDesc {
     // whole blob because a charset can depend on another field of the save
     // (OoT's filename language). NULL keeps the raw-byte copy.
     void (*decodePlayerName)(const uint8_t* blob, size_t blobSize, char outName[9]);
+    // Optional (#873). A game whose saves carry no fixed marker bytes supplies
+    // its own "this half is a created file" test; nonzero means started. When
+    // set it replaces the validMarker compare. Ship of Harkinian never writes
+    // OoT's 'ZELDAZ' newf bytes, so OoT registers one. NULL keeps the marker.
+    int (*isStarted)(const uint8_t* blob, size_t blobSize);
 } RsbsGameMetaDesc;
 
 #ifdef __cplusplus
@@ -224,7 +229,7 @@ struct SlotMeta {
     char     mmName[9];    // NUL-terminated player name from the MM blob
     uint32_t ootPlayTime;  // raw u32 at the registered OoT play-time offset
     uint32_t mmPlayTime;   // raw u32 at the registered MM play-time offset
-    bool     ootStarted;   // OoT validMarker bytes match (file has been started)
+    bool     ootStarted;   // OoT's isStarted test passes (file has been started)
     bool     mmStarted;    // MM  validMarker bytes match
 
     // #533: REFUSED distinct from ABSENT. `state` folds together what is on
