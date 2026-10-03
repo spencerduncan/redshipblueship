@@ -65,9 +65,11 @@
  * PR #743 REVIEW LEGS, each with its red half observed when it was written:
  *
  *   A2. OoT's foreign-host rule, swept over every OoT location by category: every
- *       plain shop shelf (#800 pass 1), every Business Scrub and every merchant
- *       (#800 pass 2) accepted; chest game, a shop-ish NAME that is neither a
- *       shelf nor a merchant, and every other non-chest rejected; and
+ *       plain shop shelf (#800 pass 1), every Business Scrub, every merchant and
+ *       the treasure chest game's reward (#800 pass 2) accepted, the reward
+ *       collected by an ItemGetInf flag the room never resets; the chest game's
+ *       room chests (RCTYPE_CHEST_GAME), a shop-ish NAME that is neither a shelf,
+ *       a merchant nor the reward, and every other non-chest rejected; and
  *       some chests accepted. Leg A asks the same predicate the fill used, so it
  *       could not see the predicate itself loosen. Swept after leg A, asserted at
  *       the end of the row (after leg G).
@@ -130,6 +132,16 @@
  *       the gates and the bean salesman's sale-hook branch unchanged: every
  *       collected merchant still sells; red with only his eligibility term
  *       unchanged: his row reads 2.
+ *       #800 pass 2, the treasure chest game: its reward, given an MM item that
+ *       OoT draws from MM's descriptor (the store re-hydrated as for the
+ *       merchants), is the check the game's own resolvers name for the final
+ *       chest, for the ItemGetInf flag its opening sets and for the Lens of Truth
+ *       display above it, and none of them names it once the prize is won (the
+ *       room resets its chests every play); the flag-set hook queues it for the
+ *       drain, which records exactly one MM crossing and nothing once it is
+ *       collected; and the Lens display's REAL draw emits exactly MM's model.
+ *       Red with the reward refused by the predicate: the A2 sweep; red with the
+ *       display's draw unchanged: the junk cover's lists instead of MM's.
  *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
@@ -157,10 +169,12 @@
 #include "../context.h"
 #include "../crossing_store.h"
 #include "../foreign_items.h"
+#include "../foreign_model.h"
 #include "../shared_items.h"
 #include "../shared_resources.h"
 #include "../test_runner.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -189,6 +203,9 @@ int OoT_ComboLogic_TestIsScrub(uint16_t hostCheck);
 int OoT_ComboLogic_TestIsMerchant(uint16_t hostCheck);
 int OoT_Rando_Foreign_TestMerchantSells(uint16_t rc);
 int OoT_ComboLogic_TestMerchantChecks(uint16_t* out, int cap);
+int OoT_Rando_Foreign_TestChestGamePrizeCheck(int which);
+int OoT_Rando_Foreign_TestChestGameRewardQueued(void);
+int OoT_ForeignModel_TestChestGamePrizeDraw(const ComboModel* want);
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
 int OoT_Rando_Foreign_HostsForeign(uint16_t rc);
@@ -616,13 +633,14 @@ TestResult ComboSingleBag_Run(void) {
     //     end of the row, after leg G: a red predicate then shows both its
     //     sweep verdict and leg G's shop-crossing count in one run.
     // ------------------------------------------------------------------
-    int hostRuleCounts[7];
+    int hostRuleCounts[8];
     const int hostRuleViolations = OoT_ComboLogic_TestSweepForeignHostRule(hostRuleCounts);
-    printf("[TEST] combo-single-bag: OoT host rule: %d shop shelves, %d Business Scrubs, %d merchants (each must be "
-           "accepted); chest game %d, shop-ish non-shelf non-merchant name %d, non-chest non-shelf non-scrub "
-           "non-merchant %d rows (each must be rejected); %d accepted; %d violation(s)\n",
-           hostRuleCounts[0], hostRuleCounts[1], hostRuleCounts[2], hostRuleCounts[3], hostRuleCounts[4],
-           hostRuleCounts[5], hostRuleCounts[6], hostRuleViolations);
+    printf("[TEST] combo-single-bag: OoT host rule: %d shop shelves, %d Business Scrubs, %d merchants, %d chest-game "
+           "reward (each must be accepted); chest-game room chests %d, shop-ish non-shelf non-merchant non-reward "
+           "name %d, non-chest non-shelf non-scrub non-merchant %d rows (each must be rejected); %d accepted; %d "
+           "violation(s)\n",
+           hostRuleCounts[0], hostRuleCounts[1], hostRuleCounts[2], hostRuleCounts[7], hostRuleCounts[3],
+           hostRuleCounts[4], hostRuleCounts[5], hostRuleCounts[6], hostRuleViolations);
 
     // ------------------------------------------------------------------
     // B. D5, both directions, both halves observed.
@@ -1108,9 +1126,35 @@ TestResult ComboSingleBag_Run(void) {
                 ootRows.push_back(extra);
             }
         }
+        // The treasure chest game's reward (#800 pass 2), named by the check the
+        // room's final chest resolves to, gets an MM item of this world whose
+        // model OoT draws from MM's descriptor, whatever this seed put there.
+        const int chestGameReward = OoT_Rando_Foreign_TestChestGamePrizeCheck(1);
+        CSB_ASSERT(chestGameReward > 0, "the treasure chest game's final chest resolves to no OoT check");
+        int rewardCrossings = 0;
+        for (const ComboLogicPlacement& p : shopTables.oot) {
+            rewardCrossings += (p.item.originGame == (uint8_t)GAME_MM && p.hostCheck == chestGameReward) ? 1 : 0;
+        }
+        ComboCrossing rewardRow{};
+        ComboModelAnswer rewardModel{};
+        for (const ComboCrossing& row : ootRows) {
+            if (row.hostCheck != (uint16_t)chestGameReward &&
+                Combo_GetForeignItemModel((uint8_t)GAME_OOT, row.item, &rewardModel) ==
+                    (uint8_t)COMBO_MODEL_ANSWER_DESCRIPTOR) {
+                rewardRow = row;
+                break;
+            }
+        }
+        CSB_ASSERT(rewardRow.hostCheck != 0, "no MM item of this world is drawn in OoT from MM's descriptor");
+        rewardRow.hostCheck = (uint16_t)chestGameReward;
+        ootRows.erase(std::remove_if(ootRows.begin(), ootRows.end(),
+                                     [&](const ComboCrossing& row) { return row.hostCheck == rewardRow.hostCheck; }),
+                      ootRows.end());
+        ootRows.push_back(rewardRow);
         Combo_Crossings_Clear();
         CSB_ASSERT(Combo_Crossings_Replace(ootRows.data(), (int)ootRows.size(), mmRows.data(), (int)mmRows.size()) >= 0,
-                   "the crossing store refused this world's crossings plus an MM item on every merchant");
+                   "the crossing store refused this world's crossings plus an MM item on every merchant and on the "
+                   "chest game's reward");
         int merchantsNotSellingBefore = 0;
         int merchantsNotSoldOutAfter = 0;
         for (int m = 0; m < merchantCount; m++) {
@@ -1131,18 +1175,66 @@ TestResult ComboSingleBag_Run(void) {
         CSB_ASSERT(merchantsNotSoldOutAfter == 0, "a merchant whose MM item's check is collected still sells it (or, "
                                                   "the bean salesman, refuses it as 'not enough rupees'), so it would "
                                                   "charge again for nothing");
+
+        // The treasure chest game's reward (#800 pass 2). The game's own
+        // resolvers name it for every path of the prize: the ItemGetInf flag the
+        // final chest's opening sets (the flag the drain is queued by), the final
+        // chest, and the Lens of Truth display above it; once the prize is won
+        // the room spawns its final chest and display with other params, which
+        // name no check, so the room's per-play reset of its chests never gives
+        // the reward twice. The flag-set hook queues the reward for the drain,
+        // whose recording core records one MM crossing and nothing once the
+        // check is collected. The display's REAL draw shows the MM model.
+        {
+            const char* rewardName = Combo_DescribeCheckName((uint8_t)GAME_OOT, (uint16_t)chestGameReward);
+            const char* rewardItem = Combo_DescribeItemName(rewardRow.item);
+            const int prizeFlag = OoT_Rando_Foreign_TestChestGamePrizeCheck(0);
+            const int prizeChestWon = OoT_Rando_Foreign_TestChestGamePrizeCheck(2);
+            const int prizeDisplay = OoT_Rando_Foreign_TestChestGamePrizeCheck(3);
+            const int prizeDisplayWon = OoT_Rando_Foreign_TestChestGamePrizeCheck(4);
+            printf("[TEST] combo-single-bag: G (#800): chest game: %d MM item(s) placed on its reward by this seed; "
+                   "MM %s (id %u) on OoT %s (check %d); the reward's flag names check %d, the final chest %d before "
+                   "the prize is won and %d after, its Lens display %d before and %d after\n",
+                   rewardCrossings, rewardItem != nullptr ? rewardItem : "(unnamed)", (unsigned)rewardRow.item.id,
+                   rewardName != nullptr ? rewardName : "(unnamed)", chestGameReward, prizeFlag, chestGameReward,
+                   prizeChestWon, prizeDisplay, prizeDisplayWon);
+            const int drawVerdict = OoT_ForeignModel_TestChestGamePrizeDraw(&rewardModel.model);
+            CSB_ASSERT(prizeFlag == chestGameReward && prizeDisplay == chestGameReward,
+                       "the chest game's reward flag or its Lens display names another check than its final chest");
+            CSB_ASSERT(prizeChestWon == 0 && prizeDisplayWon == 0,
+                       "once the chest game's prize is won its final chest or Lens display still names a check, so the "
+                       "room's per-play reset could give the reward again");
+            CSB_ASSERT(OoT_Rando_Foreign_HostsForeign((uint16_t)chestGameReward) == 1,
+                       "the chest game's reward does not see its MM item");
+            CSB_ASSERT(OoT_Rando_Foreign_TestChestGameRewardQueued() == chestGameReward,
+                       "opening the chest game's final chest does not queue the reward's check for the drain");
+            const int before = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
+            CSB_ASSERT(OoT_Rando_Foreign_RecordPickup((uint16_t)chestGameReward) == 1,
+                       "opening the chest game's final chest recorded no MM crossing");
+            CSB_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true) == before + 1,
+                       "opening the chest game's final chest did not record exactly one MM crossing");
+            CSB_ASSERT(OoT_Rando_Foreign_TestSetObtained((uint16_t)chestGameReward, 1) == 1,
+                       "the chest game's reward could not be collected");
+            const int queuedAfter = OoT_Rando_Foreign_TestChestGameRewardQueued();
+            const int recordedAfter = OoT_Rando_Foreign_RecordPickup((uint16_t)chestGameReward);
+            OoT_Rando_Foreign_TestSetObtained((uint16_t)chestGameReward, 0);
+            CSB_ASSERT(queuedAfter == 0 && recordedAfter == 0,
+                       "a collected chest-game reward queued or recorded a second MM crossing");
+            CSB_ASSERT(drawVerdict == 0, "the chest game's Lens display does not draw the MM item its reward holds "
+                                         "(see the chest-game prize lines above)");
+        }
     }
     Combo_SingleBag_Forget();
     Combo_Crossings_Clear();
 
     // A2's verdict (swept above, before the worlds of legs B-G).
     CSB_ASSERT(hostRuleViolations == 0,
-               "OoT's foreign-host predicate rejects a plain shop shelf, a Business Scrub or a merchant, or accepts a "
-               "chest-game or other non-chest location");
+               "OoT's foreign-host predicate rejects a plain shop shelf, a Business Scrub, a merchant or the chest "
+               "game's reward, or accepts a chest-game room chest or other non-chest location");
     CSB_ASSERT(hostRuleCounts[0] > 0 && hostRuleCounts[1] > 0 && hostRuleCounts[2] > 0 && hostRuleCounts[3] > 0 &&
-                   hostRuleCounts[4] > 0 && hostRuleCounts[5] > 0,
+                   hostRuleCounts[4] > 0 && hostRuleCounts[5] > 0 && hostRuleCounts[7] > 0,
                "a category of the host-rule sweep is empty, so it proves nothing about that category");
-    CSB_ASSERT(hostRuleCounts[6] > hostRuleCounts[0] + hostRuleCounts[1] + hostRuleCounts[2],
+    CSB_ASSERT(hostRuleCounts[6] > hostRuleCounts[0] + hostRuleCounts[1] + hostRuleCounts[2] + hostRuleCounts[7],
                "OoT's predicate accepts no treasure chest at all");
 
     printf("[TEST] PASS: combo-single-bag\n");

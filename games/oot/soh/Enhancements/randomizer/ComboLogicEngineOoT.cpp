@@ -2644,25 +2644,32 @@ extern "C" int OoT_ComboLogic_HintingPairedRemainder(void) {
  *       its sale sets and the drain's foreign branch is queued by (a merchant
  *       the predicate does not name, such as a new upstream row whose give
  *       path nobody traced, fails here);
+ *   [7] the treasure chest game's REWARD (#800 pass 2): every row of the
+ *       chest-game room (SCENE_TREASURE_BOX_SHOP) that is an ACTOR_EN_BOX chest
+ *       and not an RCTYPE_CHEST_GAME row must be ACCEPTED, and must be collected
+ *       by an ItemGetInf flag, a save flag the room never resets (on every play
+ *       it clears only its chests' scene flags and the RCTYPE_CHEST_GAME rows'
+ *       RandomizerInf flags);
  * and each of these must be REJECTED:
  *   [3] RCTYPE_CHEST_GAME rows,
  *   [4] every location whose NAME says shop, bazaar or chest game and whose
- *       actor is not ACTOR_EN_GIRLA and which is not a merchant of [2] (a
- *       shop-ish check that is not a shelf, told apart by name and actor
- *       rather than by the type tag; "Granny's Shop" is a merchant),
+ *       actor is not ACTOR_EN_GIRLA and which is not a merchant of [2] or the
+ *       reward of [7] (a shop-ish check that is not a shelf, told apart by
+ *       name and actor rather than by the type tag; "Granny's Shop" is a
+ *       merchant, "Treasure Chest Game Reward" the reward),
  *   [5] every location whose actor is not ACTOR_EN_BOX and which is not a shelf
  *       of [0], a scrub of [1] or a merchant of [2], and every location in a
  *       shop scene (IsShop()) that is not a shelf.
  * [6] counts the ACCEPTED rows, which must all be ACTOR_EN_BOX chests, shelves
  * of [0], scrubs of [1] or merchants of [2]; the chests among them are the
  * non-vacuity half of [3]-[5] (the caller asserts more rows are accepted than
- * [0], [1] and [2] hold).
+ * [0], [1], [2] and [7] hold).
  *
- * @param outCounts 7 ints: the rows seen per category.
+ * @param outCounts 8 ints: the rows seen per category.
  * @return the number of rows the predicate answered against its category.
  */
 extern "C" int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts) {
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 8; ++i) {
         outCounts[i] = 0;
     }
     int violations = 0;
@@ -2708,11 +2715,24 @@ extern "C" int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts) {
                 violations++;
             }
         }
+        const bool chestGameReward = loc->GetScene() == SCENE_TREASURE_BOX_SHOP && type != RCTYPE_CHEST_GAME &&
+                                     loc->GetActorID() == ACTOR_EN_BOX;
+        if (chestGameReward) {
+            outCounts[7]++;
+            if (!accepted || loc->GetCollectionCheck().type != SPOILER_CHK_ITEM_GET_INF) {
+                fprintf(stderr,
+                        "[OoT/ComboLogic] host-rule sweep: chest-game reward '%s' (check %d) is %s (collection type "
+                        "%d); the treasure chest game's reward must be an accepted row collected by an ItemGetInf "
+                        "flag (#800 pass 2)\n",
+                        name.c_str(), c, accepted ? "accepted" : "REJECTED", (int)loc->GetCollectionCheck().type);
+                violations++;
+            }
+        }
         const bool rejectedCategories[3] = {
             type == RCTYPE_CHEST_GAME,
             (name.find("Shop") != std::string::npos || name.find("Bazaar") != std::string::npos ||
              name.find("Chest Game") != std::string::npos) &&
-                loc->GetActorID() != ACTOR_EN_GIRLA && !merchant,
+                loc->GetActorID() != ACTOR_EN_GIRLA && !merchant && !chestGameReward,
             !shelf && ((!scrub && !merchant && loc->GetActorID() != ACTOR_EN_BOX) || loc->IsShop()),
         };
         for (int k = 0; k < 3; ++k) {

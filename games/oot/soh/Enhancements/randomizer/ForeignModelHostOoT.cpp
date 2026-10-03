@@ -49,6 +49,7 @@
 #include "soh/Enhancements/custom-message/CustomMessageTypes.h" // TEXT_RANDOMIZER_CUSTOM_ITEM
 #include "soh/Enhancements/randomizer/randomizerTypes.h"        // MOD_RANDOMIZER, RG_BLUE_RUPEE
 #include "soh/Enhancements/randomizer/draw.h"                   // Randomizer_DrawRocsFeather (the M13 refusal)
+#include "soh/Enhancements/randomizer/static_data.h"            // RetrieveItem (the chest-game prize bridge)
 #include "ForeignModelHostOoT.h"
 
 extern "C" {
@@ -56,6 +57,7 @@ extern "C" {
 #include "macros.h"
 #include "functions.h"
 #include "variables.h"
+#include "src/overlays/actors/ovl_Item_Etcetera/z_item_etcetera.h" // the chest-game prize bridge
 // sys_matrix.c's stack (no header declares it): the test bridge below gives the
 // draw a private stack and puts these back.
 extern MtxF* OoT_sMatrixStack;
@@ -534,6 +536,65 @@ extern "C" int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* wan
         return 1;
     }
     return 0;
+}
+
+// hook_handlers.cpp: the treasure chest game's prize display, seen through the
+// Lens of Truth (the drawFunc the actor-init hook gives it).
+void ItemEtcetera_DrawRandomizedItemThroughLens(ItemEtcetera* itemEtcetera, PlayState* play);
+
+/**
+ * TEST BRIDGE (combo-single-bag leg G, #800 pass 2): the treasure chest game's
+ * prize display as EnChanger spawns it above the final chest (ACTOR_ITEM_ETCETERA,
+ * params (0x0A << 8) + ITEM_ETC_HEART_PIECE_CHEST_GAME, in SCENE_TREASURE_BOX_SHOP),
+ * seen through the Lens of Truth: its REAL randomized draw into a real OoT
+ * GraphicsContext, holding the entry the actor-init hook gives a display whose
+ * check holds OoT's junk cover (RG_BLUE_RUPEE, what every crossing host holds),
+ * with every path mounted (test override). Both layers must emit exactly
+ * `want`'s lists. Returns 0 on success; prints the failing observation.
+ */
+extern "C" int OoT_ForeignModel_TestChestGamePrizeDraw(const ComboModel* want) {
+    if (want == nullptr) {
+        return 1;
+    }
+    OoTFakeDrawPlay fake;
+    fake.play->sceneNum = SCENE_TREASURE_BOX_SHOP;
+    fake.play->actorCtx.lensActive = 1;
+    ItemEtcetera* prize = (ItemEtcetera*)std::calloc(1, sizeof(ItemEtcetera));
+    prize->actor.id = ACTOR_ITEM_ETCETERA;
+    prize->actor.params = (0x0A << 8) + ITEM_ETC_HEART_PIECE_CHEST_GAME;
+    prize->sohItemEntry = Rando::StaticData::RetrieveItem(RG_BLUE_RUPEE).GetGIEntry_Copy();
+    const int savedMount = sHostMountOverride;
+    sHostMountOverride = 1;
+    sHostEmitUnresolved = true;
+    ItemEtcetera_DrawRandomizedItemThroughLens(prize, fake.play);
+    sHostEmitUnresolved = false;
+    sHostMountOverride = savedMount;
+    std::free(prize);
+    if (OoT_sCurrentMatrix != fake.stack) {
+        std::printf("[TEST]   chest-game prize: the draw left OoT's matrix stack unbalanced\n");
+        return 1;
+    }
+    int result = 0;
+    for (uint8_t layer : { kHostOpa, kHostXlu }) {
+        const Gfx* begin = layer == kHostOpa ? fake.opa.data() : fake.xlu.data();
+        const Gfx* end = layer == kHostOpa ? fake.gfxCtx->polyOpa.p : fake.gfxCtx->polyXlu.p;
+        bool matrixFirst = false;
+        const std::vector<const char*> parts = OoTHostReadParts(begin, end, &matrixFirst);
+        std::vector<const char*> expected;
+        for (uint8_t i = 0; i < want->partCount; i++) {
+            if (want->parts[i].layer == layer) {
+                expected.push_back(want->parts[i].dl);
+            }
+        }
+        std::printf("[TEST]   chest-game prize %s: %zu model list(s) emitted, %zu expected%s%s\n",
+                    layer == kHostOpa ? "OPA" : "XLU", parts.size(), expected.size(), parts.empty() ? "" : ", first ",
+                    parts.empty() ? "" : parts[0]);
+        if (parts != expected) {
+            std::printf("[TEST]   chest-game prize: the Lens display emitted the wrong model lists on this layer\n");
+            result = 1;
+        }
+    }
+    return result;
 }
 
 // hook_handlers.cpp: the drain's show-only queueing and its queue slot.

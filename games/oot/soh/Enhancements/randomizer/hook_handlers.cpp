@@ -854,6 +854,64 @@ extern "C" int OoT_Rando_Foreign_TestMerchantSells(uint16_t rc) {
             return -1;
     }
 }
+
+// The treasure chest game's prize as EnChanger (z_en_changer.c) spawns it in the
+// final room: the reward chest is ACTOR_EN_BOX on treasure flag 0x0A, params
+// 0x4EC0 | 0x0A until the prize is won and 0x4EA0 | 0x0A once ITEMGETINF_1B is
+// set; above it, the Lens of Truth display is ACTOR_ITEM_ETCETERA
+// (0x0A << 8) + ITEM_ETC_HEART_PIECE_CHEST_GAME, or + ITEM_ETC_RUPEE_PURPLE_CHEST_GAME
+// once won.
+static constexpr s16 kChestGameRewardChestParams = 0x4EC0 | 0x0A;
+static constexpr s16 kChestGameWonChestParams = 0x4EA0 | 0x0A;
+static constexpr s16 kChestGamePrizeDisplayParams = (0x0A << 8) + ITEM_ETC_HEART_PIECE_CHEST_GAME;
+static constexpr s16 kChestGameWonDisplayParams = (0x0A << 8) + ITEM_ETC_RUPEE_PURPLE_CHEST_GAME;
+
+// TEST BRIDGE (combo-single-bag leg G, #800 pass 2): the check OoT's REAL
+// resolvers name for each path of the treasure chest game's prize. `which`:
+// 0 the check the reward's flag queues (EnChanger_SetHeartPieceFlag sets
+// ITEMGETINF_1B when the final chest opens; GetRandomizerCheckFromFlag), 1 the
+// final chest before the prize is won, 2 the final chest after, 3 the prize's
+// Lens display before, 4 after (GetCheckFromActor in the room). 0 is
+// RC_UNKNOWN_CHECK (no check); -1 for any other `which`.
+extern "C" int OoT_Rando_Foreign_TestChestGamePrizeCheck(int which) {
+    Randomizer* randomizer = OTRGlobals::Instance->gRandomizer.get();
+    switch (which) {
+        case 0:
+            return (int)GetRandomizerCheckFromFlag(FLAG_ITEM_GET_INF, ITEMGETINF_1B);
+        case 1:
+            return (int)randomizer->GetCheckFromActor(ACTOR_EN_BOX, SCENE_TREASURE_BOX_SHOP,
+                                                      kChestGameRewardChestParams);
+        case 2:
+            return (int)randomizer->GetCheckFromActor(ACTOR_EN_BOX, SCENE_TREASURE_BOX_SHOP, kChestGameWonChestParams);
+        case 3:
+            return (int)randomizer->GetCheckFromActor(ACTOR_ITEM_ETCETERA, SCENE_TREASURE_BOX_SHOP,
+                                                      kChestGamePrizeDisplayParams);
+        case 4:
+            return (int)randomizer->GetCheckFromActor(ACTOR_ITEM_ETCETERA, SCENE_TREASURE_BOX_SHOP,
+                                                      kChestGameWonDisplayParams);
+        default:
+            return -1;
+    }
+}
+
+// TEST BRIDGE (combo-single-bag leg G, #800 pass 2): the REAL flag-set hook as
+// the final chest's opening drives it (EnChanger_SetHeartPieceFlag ->
+// Flags_SetItemGetInf(ITEMGETINF_1B) -> OnFlagSet): the check it queued for the
+// RC-queue drain, whose foreign branch records the crossing; 0 when it queued
+// nothing, -1 when it queued more than one. The queue is restored.
+extern "C" int OoT_Rando_Foreign_TestChestGameRewardQueued(void) {
+    std::queue<RandomizerCheck> saved;
+    saved.swap(randomizerQueuedChecks);
+    RandomizerOnFlagSetHandler(FLAG_ITEM_GET_INF, ITEMGETINF_1B);
+    int queued = 0;
+    if (randomizerQueuedChecks.size() == 1) {
+        queued = (int)randomizerQueuedChecks.front();
+    } else if (randomizerQueuedChecks.size() > 1) {
+        queued = -1;
+    }
+    randomizerQueuedChecks.swap(saved);
+    return queued;
+}
 #endif
 
 void RandomizerSetChestGameRandomizerInf(RandomizerCheck rc) {
