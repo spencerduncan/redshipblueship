@@ -248,6 +248,154 @@ int CitwLockDecisions(void) {
     return TEST_PASS;
 }
 
+/** The grid's height and width as the fit models them (DrawElement draws exactly this grid). */
+float CitwFitHeight(const std::vector<ComboGui::ComboItemTrackerSection>& sections, const ComboGui::ComboItemTrackerFit& fit,
+                    const ComboGui::ComboItemTrackerMetrics& m) {
+    int lines = 0;
+    for (const ComboGui::ComboItemTrackerSection& section : sections) {
+        lines += ComboGui::ComboItemGridLines(section.rows, fit.columns);
+    }
+    return m.overhead + (float)lines * (m.textHeight * fit.scale + m.linePadding);
+}
+
+float CitwFitWidth(const ComboGui::ComboItemTrackerFit& fit, const ComboGui::ComboItemTrackerMetrics& m) {
+    float w = (float)(fit.columns - 1) * m.columnGap;
+    for (float c : fit.columnWidths) {
+        w += c * fit.scale;
+    }
+    return w;
+}
+
+/**
+ * The floating overlay's fit (the #458 U2 review: at 832x600 the three-column
+ * grid ran 824 px past the game window's bottom edge, where a player can never
+ * scroll). Over the real rows, with widths of 11 px a character and the
+ * profile metrics the UiSnapshot captures measure (20 px text, 4 px spacing).
+ */
+int CitwLockFit(const std::vector<ComboGui::ComboItemTrackerSection>& sections) {
+    using namespace ComboGui;
+    std::vector<std::vector<float>> widths(sections.size());
+    for (size_t s = 0; s < sections.size(); s++) {
+        CITW_ASSERT(!sections[s].rows.empty());
+        for (const ComboItemRow& row : sections[s].rows) {
+            widths[s].push_back(11.0f * (float)ComboItemRowText(row).size());
+        }
+    }
+
+    // Shared column widths: column c is the widest row ANY section puts there.
+    {
+        std::vector<ComboItemTrackerSection> two(2);
+        const float a[] = { 10.0f, 50.0f, 20.0f };
+        const float b[] = { 40.0f, 5.0f, 30.0f };
+        std::vector<std::vector<float>> w(2);
+        for (int i = 0; i < 3; i++) {
+            ComboItemRow r = {};
+            r.group = "g";
+            r.name = "x";
+            two[0].rows.push_back(r);
+            two[1].rows.push_back(r);
+            w[0].push_back(a[i]);
+            w[1].push_back(b[i]);
+        }
+        const std::vector<float> cols = ComboItemGridColumnWidths(two, w, 3);
+        CITW_ASSERT(cols.size() == 3 && cols[0] == 40.0f && cols[1] == 50.0f && cols[2] == 30.0f);
+        const std::vector<float> one = ComboItemGridColumnWidths(two, w, 1);
+        CITW_ASSERT(one.size() == 1 && one[0] == 50.0f);
+    }
+
+    ComboItemTrackerMetrics m;
+    m.textHeight = 20.0f;
+    m.linePadding = 4.0f;
+    m.columnGap = 16.0f;
+    m.overhead = 200.0f;
+
+    // Room to spare: the window type's three columns at full size.
+    m.availWidth = 10000.0f;
+    m.availHeight = 10000.0f;
+    ComboItemTrackerFit fit = ComboItemTrackerFitGrid(sections, widths, m);
+    CITW_ASSERT(fit.columns == kComboItemTrackerColumns && fit.scale == 1.0f);
+    CITW_ASSERT(fit.columnWidths == ComboItemGridColumnWidths(sections, widths, kComboItemTrackerColumns));
+
+    // The two capture profiles' room (832x600 and 1280x800, less the overlay's
+    // 60 px position, its padding and the margin): three columns at full size
+    // do not fit (the defect), the fit does, inside both edges.
+    const float rooms[2][2] = { { 748.0f, 520.0f }, { 1196.0f, 720.0f } };
+    for (const auto& room : rooms) {
+        m.availWidth = room[0];
+        m.availHeight = room[1];
+        ComboItemTrackerFit three;
+        three.columns = kComboItemTrackerColumns;
+        three.columnWidths = ComboItemGridColumnWidths(sections, widths, three.columns);
+        CITW_ASSERT(CitwFitHeight(sections, three, m) > m.availHeight);
+        fit = ComboItemTrackerFitGrid(sections, widths, m);
+        const float h = CitwFitHeight(sections, fit, m);
+        const float w = CitwFitWidth(fit, m);
+        printf("[TEST] combo-item-tracker-window: fit in %.0fx%.0f: %d columns at scale %.2f, grid %.0fx%.0f "
+               "(three columns at full size: %.0f px tall)\n",
+               room[0], room[1], fit.columns, fit.scale, w, h, CitwFitHeight(sections, three, m));
+        CITW_ASSERT(fit.scale > kComboItemTrackerMinScale && fit.scale < 1.0f);
+        CITW_ASSERT(fit.columns > kComboItemTrackerColumns && fit.columns <= kComboItemTrackerMaxColumns);
+        CITW_ASSERT(h <= m.availHeight + 0.01f);
+        CITW_ASSERT(w <= m.availWidth + 0.01f);
+        // Whole steps, and the largest whole step that fits: one more does not.
+        const float steps = fit.scale / kComboItemTrackerScaleStep;
+        CITW_ASSERT(steps == (float)(int)steps);
+        ComboItemTrackerFit bigger = fit;
+        bigger.scale += kComboItemTrackerScaleStep;
+        CITW_ASSERT(CitwFitHeight(sections, bigger, m) > m.availHeight || CitwFitWidth(bigger, m) > m.availWidth);
+
+        // Hysteresis. The fit drawn last frame is kept as it is.
+        ComboItemTrackerFit again = ComboItemTrackerFitGrid(sections, widths, m, &fit);
+        CITW_ASSERT(again.columns == fit.columns && again.scale == fit.scale);
+        // A grid two steps smaller last frame grows back to the fit.
+        ComboItemTrackerFit smaller = fit;
+        smaller.scale -= 2.0f * kComboItemTrackerScaleStep;
+        again = ComboItemTrackerFitGrid(sections, widths, m, &smaller);
+        CITW_ASSERT(again.columns == fit.columns && again.scale == fit.scale);
+        // A step down is taken at once: a grid too large last frame shrinks to fit.
+        again = ComboItemTrackerFitGrid(sections, widths, m, &bigger);
+        CITW_ASSERT(again.columns == fit.columns && again.scale == fit.scale);
+        // A column count that no longer fits at all is dropped.
+        ComboItemTrackerFit narrow;
+        narrow.columns = 1;
+        narrow.scale = 1.0f;
+        again = ComboItemTrackerFitGrid(sections, widths, m, &narrow);
+        CITW_ASSERT(again.columns == fit.columns && again.scale == fit.scale);
+    }
+
+    // A step up waits until it fits by half a step more. One 100 px row in a
+    // room that fits it at 0.5 and a quarter step: the fit is 0.5; with 0.5
+    // less a step last frame it stays there (the quarter step is inside the
+    // hysteresis), and with the room for three quarters more it steps up.
+    {
+        std::vector<ComboItemTrackerSection> one(1);
+        ComboItemRow r = {};
+        r.group = "g";
+        r.name = "x";
+        one[0].rows.push_back(r);
+        const std::vector<std::vector<float>> w = { { 100.0f } };
+        ComboItemTrackerMetrics flat;
+        flat.textHeight = 20.0f;
+        flat.availHeight = 10000.0f;
+        flat.availWidth = 100.0f * (0.5f + 0.25f * kComboItemTrackerScaleStep);
+        ComboItemTrackerFit lower;
+        lower.columns = kComboItemTrackerColumns;
+        lower.scale = 0.5f - kComboItemTrackerScaleStep;
+        CITW_ASSERT(ComboItemTrackerFitGrid(one, w, flat).scale == 0.5f);
+        CITW_ASSERT(ComboItemTrackerFitGrid(one, w, flat, &lower).scale == lower.scale);
+        flat.availWidth = 100.0f * (0.5f + 0.75f * kComboItemTrackerScaleStep);
+        CITW_ASSERT(ComboItemTrackerFitGrid(one, w, flat, &lower).scale == 0.5f);
+    }
+
+    // No room at all: the floor, never below it.
+    m.availWidth = 100.0f;
+    m.availHeight = 100.0f;
+    fit = ComboItemTrackerFitGrid(sections, widths, m);
+    CITW_ASSERT(fit.scale == kComboItemTrackerMinScale);
+    printf("[TEST] combo-item-tracker-window: shared column widths and the floating fit PASS\n");
+    return TEST_PASS;
+}
+
 /** Points 2-4 over the registered production adapters `oot` / `mm`. */
 int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps* oot, const ComboItemOps* mm) {
     using namespace ComboGui;
@@ -391,7 +539,10 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_STALE);
     printf("[TEST] combo-item-tracker-window: model reads PASS (OoT live / MM live / no game)\n");
-    return TEST_PASS;
+
+    // ---- 5b. the fit, over the real rows ----------------------------------
+    std::vector<ComboItemTrackerSection> shown(sections, sections + ComboGui::COMBO_ITEM_SECTION_COUNT);
+    return CitwLockFit(shown);
 }
 
 } // namespace
@@ -479,9 +630,12 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         const std::string text = slurp("/src/common/ComboItemTrackerWindow.cpp");
         CITW_ASSERT(!text.empty());
         // The draw reads exactly what point 4 drove, and lays out what point 5 holds.
-        CITW_ASSERT(text.find("ComboItemTrackerCollectSection(s, section)") != std::string::npos);
-        CITW_ASSERT(text.find("ComboItemGridLayout(section.rows, kComboItemTrackerColumns, cells)") !=
+        CITW_ASSERT(text.find("ComboItemTrackerCollectSection(s, sections.back())") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemGridLayout(section.rows, fit.columns, cells)") != std::string::npos);
+        // The floating overlay is fitted, and drawn at the fit's scale.
+        CITW_ASSERT(text.find("fit = ComboItemTrackerFitGrid(sections, widths, metrics, &previous)") !=
                     std::string::npos);
+        CITW_ASSERT(text.find("ImGui::SetWindowFontScale(fit.scale)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemRowText(row)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemTrackerWindowFlags(windowType, draggable)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemTrackerShows(windowType, showOnlyPaused,") != std::string::npos);

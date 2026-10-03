@@ -21,8 +21,12 @@
  *
  * ROWS. Text in this slice (icons are #458 U3): each item's name, with its count
  * and ceiling when it has them ("Fairy Bow 35/40"), dimmed while not held (the
- * text twin of SoH's faded icon), in a grid of kComboItemTrackerColumns columns
- * where each item group starts a new line.
+ * text twin of SoH's faded icon), in a grid where each item group starts a new
+ * line and every section shares one set of column widths. The window type uses
+ * kComboItemTrackerColumns columns at full size. The floating overlay cannot
+ * scroll, so it is fitted to the game window every frame
+ * (ComboItemTrackerFitGrid): up to SoH's six per line, and its text scaled
+ * down when even that would run past the edge.
  *
  * Openability: Draw() reads the visibility CVar live, as the Combo Tracker does
  * (#489 cause 1).
@@ -77,8 +81,21 @@ enum ComboItemTrackerSectionId : int {
     COMBO_ITEM_SECTION_COUNT = 3,
 };
 
-/** Text rows per grid line. */
+/** Text rows per grid line in the window type, and the floating grid's preferred width. */
 inline constexpr int kComboItemTrackerColumns = 3;
+
+/** The floating grid's widest line: SoH's DrawItemsInRows puts six icons on a line. */
+inline constexpr int kComboItemTrackerMaxColumns = 6;
+
+/**
+ * The smallest text scale the floating overlay shrinks to so that it fits the
+ * game window. Both games and the pool in text need about 0.45 at the 832x600
+ * contract profile (the lock prints the figure), so the floor sits below that.
+ */
+inline constexpr float kComboItemTrackerMinScale = 0.4f;
+
+/** The fitted scale moves in whole steps of this size, so the overlay does not shimmer frame to frame. */
+inline constexpr float kComboItemTrackerScaleStep = 1.0f / 32.0f;
 
 class ComboItemTrackerWindow final : public Ship::GuiWindow {
   public:
@@ -157,6 +174,55 @@ struct ComboItemGridCell {
  * sections starts its own row of icons.
  */
 void ComboItemGridLayout(const std::vector<ComboItemRow>& rows, int columns, std::vector<ComboItemGridCell>& out);
+
+/** How many grid lines `rows` take in `columns` columns (ComboItemGridLayout's last line + 1; 0 for no rows). */
+int ComboItemGridLines(const std::vector<ComboItemRow>& rows, int columns);
+
+/**
+ * The grid's column widths, shared by every section so the columns line up
+ * down the whole overlay the way SoH's fixed-pitch icon grid does: column c is
+ * as wide as the widest row any section puts in column c. `widths[i][r]` is
+ * row r of sections[i]'s text width at scale 1.
+ */
+std::vector<float> ComboItemGridColumnWidths(const std::vector<ComboItemTrackerSection>& sections,
+                                             const std::vector<std::vector<float>>& widths, int columns);
+
+/** What the fit is measured against, all in pixels at text scale 1. */
+struct ComboItemTrackerMetrics {
+    float textHeight = 0.0f;  // a line of text (ImGui::GetFontSize at scale 1); scales
+    float linePadding = 0.0f; // a grid line's height beyond its text (ItemSpacing.y); never scales
+    float columnGap = 0.0f;   // between two columns; never scales
+    float overhead = 0.0f;    // every section's header, note and spacer, as measured last frame
+    float availWidth = 0.0f;  // the room the game window leaves the overlay's contents
+    float availHeight = 0.0f;
+};
+
+/** The grid the overlay draws: columns per line, the text scale, and the shared column widths at scale 1. */
+struct ComboItemTrackerFit {
+    int columns = kComboItemTrackerColumns;
+    float scale = 1.0f;
+    std::vector<float> columnWidths;
+};
+
+/**
+ * The floating overlay's fit (#458 U2 review): the floating overlay has no
+ * scrollbar and takes no input, so whatever runs past the game window's edge
+ * could never be seen. Of 1..kComboItemTrackerMaxColumns columns per line, the
+ * one that lets the text stay largest while every section fits inside
+ * availWidth x availHeight; the scale is at most 1 (a grid that fits is never
+ * enlarged), rounded down to a whole kComboItemTrackerScaleStep, and at least
+ * kComboItemTrackerMinScale. Ties go to the column count nearest
+ * kComboItemTrackerColumns, then to the wider grid. With `previous` (the fit
+ * drawn last frame) the choice has hysteresis: the previous column count stays
+ * unless another beats it by half a step, and the scale steps up only once it
+ * fits by half a step more (it steps down at once). SoH scales its own
+ * overlays' text the same way (SetWindowFontScale in randomizer_item_tracker.cpp
+ * and MM's ItemTracker.cpp).
+ */
+ComboItemTrackerFit ComboItemTrackerFitGrid(const std::vector<ComboItemTrackerSection>& sections,
+                                            const std::vector<std::vector<float>>& widths,
+                                            const ComboItemTrackerMetrics& metrics,
+                                            const ComboItemTrackerFit* previous = nullptr);
 
 } // namespace ComboGui
 

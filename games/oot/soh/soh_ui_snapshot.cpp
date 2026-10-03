@@ -2291,19 +2291,29 @@ void Session::BuildPageList() {
         // its snapshot; "snapshot": the mirror image; both floating, as SoH's
         // default is (no title bar). "no-data": nothing to read, drawn as the
         // window type (title bar), the overlay's other chrome
-        // (AuthorItemTrackerState). A floating overlay taller than the window
-        // scrolls past its first section, so no string is in every view: the
-        // per-state text below is the oracle (union over the views).
+        // (AuthorItemTrackerState). The floating overlay has no scrollbar and
+        // takes no input, so a player sees its first view and nothing else: it
+        // is captured unscrolled, and FitOracle fails it if anything is clipped
+        // at its edge or the window runs past the game window's. Every state's
+        // one view must hold the three section headers (expectText) and each
+        // section's freshness note and a row from the last section (stateText).
         PageSpec p;
         p.id = std::string("window/") + ComboGui::kComboItemTrackerWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboItemTrackerWindowName;
         p.states = { "no-data", "live", "snapshot" };
         p.compareWith = kSohItemTrackerReference;
+        p.scroll = false;
+        p.expectText = { "Ocarina of Time", "Majora's Mask", "Shared" };
         // Row text as the overlay prints it: MM's snapshot bow and OoT's live
-        // song in "live"; OoT's snapshot bow and MM's live mask in "snapshot".
-        p.stateText["live"] = { "Updated live.", "Bow 25/40", "Arrows 33/40" };
-        p.stateText["snapshot"] = { "Updated live.", "Fairy Bow 35/40", "Gold Skulltula Tokens 17/100" };
+        // song in "live"; OoT's snapshot bow and MM's live mask in "snapshot";
+        // the shared pool's arrows (the last section) in both.
+        p.stateText["live"] = { "Updated live.", "As of file creation.", "As of the last switch or save.",
+                                "Bow 25/40",     "Song of Time",         "Arrows 33/40" };
+        p.stateText["snapshot"] = {
+            "Updated live.",   "As of the last game switch or save.", "As of the last switch or save.",
+            "Fairy Bow 35/40", "Gold Skulltula Tokens 17/100",        "Arrows 33/40"
+        };
         p.stateText["no-data"] = { "No data.", ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         pages.push_back(p);
@@ -3800,6 +3810,32 @@ void Session::CheckTrickCensus(const PageSpec& p, const std::string& state) {
            where.c_str(), count, drawn.size(), enabledRows, drawn.size() - (size_t)enabledRows, problems);
 }
 
+/**
+ * The no-scroll pane's oracle: every pixel of its contents is in its one view.
+ * Fails the capture when the window clips its own contents (ScrollMax > 0 in
+ * either direction: a size constraint held it smaller than what it drew) or
+ * when the window runs past the game window's edge.
+ */
+void FitOracle(const ImGuiWindow* w, Capture& c) {
+    char why[256];
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const float right = viewport->WorkPos.x + viewport->WorkSize.x;
+    const float bottom = viewport->WorkPos.y + viewport->WorkSize.y;
+    if (w->ScrollMax.y > 0.5f || w->ScrollMax.x > 0.5f) {
+        snprintf(why, sizeof(why),
+                 "the pane does not scroll, and %.0f px of its contents below (%.0f px to the right of) its edge "
+                 "cannot be seen",
+                 w->ScrollMax.y, w->ScrollMax.x);
+    } else if (w->Pos.x + w->Size.x > right + 0.5f || w->Pos.y + w->Size.y > bottom + 0.5f) {
+        snprintf(why, sizeof(why), "the pane (%.0f,%.0f %.0fx%.0f) runs past the game window's edge (%.0fx%.0f)",
+                 w->Pos.x, w->Pos.y, w->Size.x, w->Size.y, right, bottom);
+    } else {
+        return;
+    }
+    c.status = "fail";
+    c.reason = why;
+}
+
 void Session::CaptureWindowPage(const PageSpec& p) {
     // Ours read their visibility CVar LIVE in Draw() (they override it), so
     // setting the CVar is what opens them; Show() would do nothing. An SoH pane
@@ -3878,7 +3914,15 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 c.scrollMax = w->ScrollMax.y;
             }
             Finish(c, p);
-            const bool unfinished = w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
+            if (!p.scroll && w != nullptr && c.status == "pass") {
+                // A pane that does not scroll for its player (p.scroll false: a
+                // floating overlay has no scrollbar and takes no input) is seen
+                // in its first view only, so that view must hold all of it:
+                // nothing clipped at the window's edge, and the window inside
+                // the game window.
+                FitOracle(w, c);
+            }
+            const bool unfinished = p.scroll && w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
             const bool more = unfinished && scrollIndex < kMaxScrollSteps && !opt.Sabotaged("no-scroll");
             if (unfinished && !more) {
                 c.reason = opt.Sabotaged("no-scroll")
