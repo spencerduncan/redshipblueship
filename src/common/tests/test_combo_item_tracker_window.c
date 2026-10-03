@@ -197,14 +197,20 @@ int CitwLockDecisions(void) {
     row.group = "Inventory";
     row.name = "Fairy Bow";
     CITW_ASSERT(ComboItemRowText(row) == "Fairy Bow");
-    row.count = 35;
+    row.max = 8; // neither held nor counted: the name alone, whatever the ceiling
+    CITW_ASSERT(ComboItemRowText(row) == "Fairy Bow");
+    row.count = 35; // counted though not held (a pool of pieces): the amount shows
     row.max = 40;
+    CITW_ASSERT(ComboItemRowText(row) == "Fairy Bow 35/40");
+    row.have = true;
     CITW_ASSERT(ComboItemRowText(row) == "Fairy Bow 35/40");
     row.max = 0;
     CITW_ASSERT(ComboItemRowText(row) == "Fairy Bow 35");
     row.count = 0;
     row.max = 3;
-    CITW_ASSERT(ComboItemRowText(row) == "Fairy Bow 0/3");
+    CITW_ASSERT(ComboItemRowText(row) == "Fairy Bow 0/3"); // held at tier 0 (the shared wallet)
+    row.max = 0;
+    CITW_ASSERT(ComboItemRowText(row) == "Fairy Bow");
 
     // The grid: three columns, a new group starts a new line.
     std::vector<ComboItemRow> rows;

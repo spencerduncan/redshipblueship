@@ -10,6 +10,7 @@
 
 #include "ComboItemTrackerWindow.h"
 
+#include <cfloat>
 #include <cstdio>
 #include <cstring>
 
@@ -63,6 +64,24 @@ void BeginOverlay(int windowType) {
     const Color_RGBA8 bg = CVarGetColor(RSBS_CVAR_COMBO_ITEMS_BG_COLOR ".Value", kBgDefault);
     ImVec4 color(bg.r / 255.0f, bg.g / 255.0f, bg.b / 255.0f, bg.a / 255.0f);
     ImGuiWindow* window = ImGui::FindWindowByName(kComboItemTrackerWindowName);
+    // The two additions to SoH's chrome, both for text rows. The floating
+    // overlay runs taller than SoH's icon grid, so it is held to the game
+    // window's bottom edge rather than drawn past it. The window type's title
+    // bar is kept whole: ImGui's auto-fit sizes to the contents alone, and a
+    // short state ("No data.") would cut the title.
+    ImVec2 minSize(0.0f, 0.0f);
+    ImVec2 maxSize(FLT_MAX, FLT_MAX);
+    if (windowType == COMBO_ITEM_TRACKER_FLOATING) {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        if (window != nullptr && viewport->WorkPos.y + viewport->WorkSize.y - window->Pos.y > 0.0f) {
+            maxSize.y = viewport->WorkPos.y + viewport->WorkSize.y - window->Pos.y;
+        }
+    } else {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        minSize.x = ImGui::CalcTextSize(kComboItemTrackerWindowName).x + ImGui::GetFontSize() +
+                    style.ItemInnerSpacing.x + style.FramePadding.x * 2.0f + style.WindowPadding.x * 2.0f;
+    }
+    ImGui::SetNextWindowSizeConstraints(minSize, maxSize);
     if (window != nullptr && window->DockTabIsVisible && window->ParentWindow != nullptr &&
         strncmp(window->ParentWindow->Name, "Main - Deck", strlen("Main - Deck")) == 0) {
         color.w = 1.0f;
@@ -132,6 +151,9 @@ int ComboItemTrackerWindowFlags(int windowType, bool draggable) {
 std::string ComboItemRowText(const ComboItemRow& row) {
     std::string text = row.name != nullptr ? row.name : "";
     char amount[32];
+    if (!row.have && row.count == 0) {
+        return text; // nothing held, nothing counted: the dimmed name says it
+    }
     if (row.max > 0) {
         snprintf(amount, sizeof(amount), " %d/%d", row.count, row.max);
         text += amount;

@@ -122,7 +122,9 @@ bool ComboItemTrackerShows(int windowType, bool showOnlyPaused, bool paused);
 int ComboItemTrackerWindowFlags(int windowType, bool draggable);
 
 /** A row as the overlay prints it: the name, then " count/max" when the row has
- *  a ceiling, else " count" when it has a count, else nothing more. */
+ *  a ceiling, else " count" when it has a count, else nothing more. A row
+ *  neither held nor counted prints its name alone ("Heart Containers", not
+ *  "Heart Containers 0/8"), as SoH's faded icon carries no number. */
 std::string ComboItemRowText(const ComboItemRow& row);
 
 /** One section as the overlay draws it. */

@@ -1577,6 +1577,7 @@ void AuthorItemTrackerState(const std::string& state) {
         Context_UpdateShadowCopy(GAME_OOT, ootShadow.data(), ootShadow.size());
         Combo_ResetSharedResourceWatermarks();
         Context_SetCurrentGame(GAME_OOT);
+        CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
         return;
     }
     AuthorMMShadow(true);
@@ -1617,6 +1618,7 @@ void RestoreItemTrackerState() {
     }
     RestoreMMShadow();
     Combo_ResetSharedResourceWatermarks();
+    CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
 }
 
 /**
@@ -2285,22 +2287,24 @@ void Session::BuildPageList() {
     }
     {
         // The unified Item Tracker overlay (#458 U2), read against SoH's own
-        // Item Tracker overlay (window/Item Tracker). Floating, as SoH's default
-        // is: no title bar, so its body's first section header is its text.
-        // "live": OoT live, MM from its snapshot; "snapshot": the mirror image;
-        // "no-data": nothing to read (AuthorItemTrackerState).
+        // Item Tracker overlay (window/Item Tracker). "live": OoT live, MM from
+        // its snapshot; "snapshot": the mirror image; both floating, as SoH's
+        // default is (no title bar). "no-data": nothing to read, drawn as the
+        // window type (title bar), the overlay's other chrome
+        // (AuthorItemTrackerState). A floating overlay taller than the window
+        // scrolls past its first section, so no string is in every view: the
+        // per-state text below is the oracle (union over the views).
         PageSpec p;
         p.id = std::string("window/") + ComboGui::kComboItemTrackerWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboItemTrackerWindowName;
         p.states = { "no-data", "live", "snapshot" };
         p.compareWith = kSohItemTrackerReference;
-        p.expectText = { "Ocarina of Time", "Majora's Mask" };
         // Row text as the overlay prints it: MM's snapshot bow and OoT's live
         // song in "live"; OoT's snapshot bow and MM's live mask in "snapshot".
         p.stateText["live"] = { "Updated live.", "Bow 25/40", "Arrows 33/40" };
         p.stateText["snapshot"] = { "Updated live.", "Fairy Bow 35/40", "Gold Skulltula Tokens 17/100" };
-        p.stateText["no-data"] = { "No data." };
+        p.stateText["no-data"] = { "No data.", ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         pages.push_back(p);
     }
