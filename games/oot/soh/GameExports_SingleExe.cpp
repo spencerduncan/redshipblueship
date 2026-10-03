@@ -2434,17 +2434,37 @@ extern "C" void OoT_Combo_FlushSceneFlagsForFreeze(void) {
  * startup entrance (z_play.c), and OnLoadGame is dispatched only by the file
  * select's load (z_file_choose.c), SoH's boot-to-warp-point debug save and the
  * integration drives. Idempotent: the launcher's re-freeze stamps the same scene.
+ *
+ * The committed-transition frame. Play_Update commits an in-OoT scene change by
+ * clearing state.running, SET_NEXT_GAMESTATE(OoT_Play_Init) and writing
+ * gSaveContext.entranceIndex = nextEntranceIndex (z_play.c, all four sites);
+ * the PlayState is destroyed only by the NEXT OoT_RunFrame, and
+ * OoT_Graph_ThreadEntry polls Combo_CheckHotSwap first (graph.c). An F10 on
+ * that one poll freezes a PlayState whose sceneNum is the scene Link is
+ * LEAVING against an entranceIndex that already points into the next one, so
+ * the stamp records the scene that entranceIndex resumes in. The cross-game
+ * door is not this case: it freezes before SET_NEXT_GAMESTATE, with
+ * entranceIndex still the departure scene's (z_play.c), so init is not
+ * OoT_Play_Init there.
  */
+extern "C" EntranceInfo gEntranceTable[ENTR_MAX]; // games/oot/include/variables.h
 extern "C" void OoT_Combo_StampSavedSceneForFreeze(void) {
     PlayState* play = OoT_gPlayState;
     if (play == NULL || gSaveContext.fileNum == 0xFF) {
         return;
     }
-    if (gSaveContext.savedSceneNum != play->sceneNum) {
-        fprintf(stderr, "[OoT] pre-freeze: savedSceneNum %d -> %d, the scene Link departs from (#850)\n",
-                (int)gSaveContext.savedSceneNum, (int)play->sceneNum);
+    s16 scene = play->sceneNum;
+    const char* why = "the scene Link departs from";
+    if (!play->state.running && play->state.init == (GameStateFunc)OoT_Play_Init &&
+        gSaveContext.entranceIndex >= 0 && gSaveContext.entranceIndex < ENTR_MAX) {
+        scene = gEntranceTable[gSaveContext.entranceIndex].scene;
+        why = "the scene of the transition committed this frame";
     }
-    gSaveContext.savedSceneNum = play->sceneNum;
+    if (gSaveContext.savedSceneNum != scene) {
+        fprintf(stderr, "[OoT] pre-freeze: savedSceneNum %d -> %d, %s (#850)\n", (int)gSaveContext.savedSceneNum,
+                (int)scene, why);
+    }
+    gSaveContext.savedSceneNum = scene;
 }
 
 // z_actor.c. functions.h is not included here (see Play_SaveSceneFlags above);

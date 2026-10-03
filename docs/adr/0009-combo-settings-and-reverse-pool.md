@@ -683,8 +683,14 @@ sets `savedSceneNum` to the departure scene under `Play_PerformSave`'s own guard
 (a live PlayState and `fileNum != 0xFF`), as OoTMM's `Save_DoSave` sets the
 save's scene at an OoT switch. A reload of a crossing commit therefore wakes
 Link where a save made at the crossing would. For a door crossing that scene is
-the Market, so the reload no longer follows an older save into a dungeon. The
-stamp is never read at a cross-game arrival: the arrival is placed by its
+the Market, so the reload no longer follows an older save into a dungeon. One
+frame needs the other scene: when `Play_Update` has already committed an
+in-OoT scene change (`state.running` cleared, the next gamestate set to
+`OoT_Play_Init`, `entranceIndex` moved to the next entrance) the PlayState lives
+until the next `OoT_RunFrame`, and `OoT_Graph_ThreadEntry` polls F10 first. An
+F10 on that poll records the scene `entranceIndex` resumes in, not the one Link
+is leaving, so entering a grotto on that frame still reloads to a safe place.
+The stamp is never read at a cross-game arrival: the arrival is placed by its
 startup entrance, and `OnLoadGame` is dispatched only by the file select's load,
 SoH's boot-to-warp-point debug save and the integration drives. OoTMM's other
 half, resetting OoT's spawn to the Temple of Time at an MM save, is not copied:
