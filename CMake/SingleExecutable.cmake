@@ -123,6 +123,10 @@ set(REDSHIP_COMMON_SOURCES
     # decoder, FNV-1a 64 and the composites. Game-header-free C; the capture half
     # is games/oot/soh/soh_ui_snapshot.cpp. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/ui_snapshot_image.c
+    # In-process frame capture for playtest evidence (#843): env-gated, OpenGL
+    # only; reads the window's back buffer inside the frame and writes it with
+    # ui_snapshot_image.c's PNG writer. Reached from both games' graph.c.
+    ${CMAKE_SOURCE_DIR}/src/common/frame_capture.cpp
     # The single-bag fill AT THE CREATION EVENT (ADR 0010 increment 3, D3/D5;
     # #645 lane K11): the coordinator's one production caller. Game-header-free.
     # APPENDED, never reordered.
@@ -223,6 +227,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
     ${CMAKE_SOURCE_DIR}/src/common/test_runner.h
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
+    # Header for frame_capture.cpp above (#843)
+    ${CMAKE_SOURCE_DIR}/src/common/frame_capture.h
     ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.h
     ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.h
     ${CMAKE_SOURCE_DIR}/src/common/save.h
@@ -2397,6 +2403,23 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         COMMAND redship --integration-test int-gameplay-roundtrip
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
+    # #843: the same round trip with the in-process frame capture on
+    # (src/common/frame_capture.h). Frames 100 and 200 of each game are
+    # inside one round trip. Measured (RSBS_CAPTURE_FRAMES=every:10, three runs,
+    # identical frame by frame): MM's leg ends between its frames 270 and 279
+    # (frames 1-149 are the Dawn of the First Day card and the scene load,
+    # 150 on are South Clock Town), so MM frame 200 has a margin of about 70
+    # frames; OoT reaches past frame 540. A shorter MM load than this would
+    # fail the row with "no mm frame 200". The frames are written to
+    # build-cmake/frame-capture/<game>-frame-<n>.png, and the PASS requires all
+    # four on disk, at least one per game not uniform (RSBS_CAPTURE_VERIFY).
+    # Without the capture no file is written and the run fails at its PASS.
+    redship_add_test(NAME IntGameplayRoundtripCapture
+        COMMAND redship --integration-test int-gameplay-roundtrip
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_CAPTURE_FRAMES=100,200" "RSBS_CAPTURE_OUT=${CMAKE_BINARY_DIR}/frame-capture"
+                    "RSBS_CAPTURE_VERIFY=1")
     redship_add_test(NAME IntGameplayRoundtripSoak
         COMMAND redship --integration-test int-gameplay-roundtrip
         LABEL integration-soak

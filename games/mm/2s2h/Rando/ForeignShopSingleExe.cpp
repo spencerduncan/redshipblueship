@@ -291,7 +291,8 @@ extern "C" int MM_EnBal_TestForeignPurchase(uint16_t randoCheckId, int paired, c
 // ============================================================================
 static RandoCheckId sShopPlaytestHost = RC_UNKNOWN;
 static SharedItem sShopPlaytestItem;
-// GameExports_SingleExe.cpp: the game framebuffer as a PNG (RSBS_GP_SHOT_DIR).
+// GameExports_SingleExe.cpp: the window (game and ImGui) as a PNG, through the
+// shared in-process capture (#843, src/common/frame_capture.h).
 extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag);
 
 // Returns the host check id, 0 when the world has no such crossing, or -1 when a

@@ -325,6 +325,13 @@ void OoT_Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
             fflush(stderr);
         }
     }
+
+    // RSBS_CAPTURE_FRAMES (#843): count this OoT frame and, on a listed one,
+    // capture the window at the end of the frame (src/common/frame_capture.h).
+    {
+        extern void FrameCapture_OnOoTFrame(void);
+        FrameCapture_OnOoTFrame();
+    }
 #endif
 
     OPEN_DISPS(gfxCtx);

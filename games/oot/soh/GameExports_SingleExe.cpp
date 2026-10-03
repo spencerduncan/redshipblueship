@@ -1976,6 +1976,18 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                     IntegrationTest_SetGameplayPhase(GP_PHASE_OOT_EXIT);
                     break;
                 case GP_PHASE_OOT_EXIT:
+                    // #843 (IntGameplayRoundtripCapture): both games' captured
+                    // frames must be on disk, and not all uniform, before PASS.
+                    if (FrameCapture_VerifyRequested()) {
+                        char capMsg[1024];
+                        if (!FrameCapture_Verify(capMsg, sizeof(capMsg))) {
+                            fprintf(stderr, "[FRAME-CAPTURE] FAIL: %s\n", capMsg);
+                            fflush(stderr);
+                            IntegrationTest_GameplayFail("frame capture lock");
+                            return;
+                        }
+                        fprintf(stderr, "[FRAME-CAPTURE] PASS: %s\n", capMsg);
+                    }
                     fprintf(stderr,
                             "[GP-TEST] PASS: %d round trip(s), warp, and door transition survived "
                             "%d live frames per phase\n",
