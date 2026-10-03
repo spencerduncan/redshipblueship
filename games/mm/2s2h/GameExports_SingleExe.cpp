@@ -5207,25 +5207,43 @@ int MM_Rando_GateCrossGameArrival(void) {
     //
     // Checked HERE, before the consume, for the reason the other refusals are:
     // refusing means NOT hydrating — the blob stays armed and untouched, the
-    // slot is latched, and MM plays the boot chain's vanilla bootstrap. Only a
-    // half that carries a world is checked (rando type byte, or a nonzero
-    // finalSeed under a lost one); a vanilla half with no seed claims none.
+    // slot is latched, and MM plays the boot chain's vanilla bootstrap.
+    //
+    // The classification is the one the file select's probe runs over the
+    // .redsave's Tier-3 bytes (MM_Rando_ClassifyHalfForPair, #836 PR 2), here
+    // over the armed blob with the live pairing. A VANILLA half (no seed, a
+    // vanilla type byte) claims no world at all (#564 V7): it used to be
+    // hydrated under the pairing, unlatched, so Termina played vanilla and MM's
+    // captures committed the vanilla half back. It is now this file's missing
+    // Majora's Mask world, refused like the hydrate half's missing-half leg.
     // ------------------------------------------------------------------------
     if (Context_HasFrozenState(GAME_MM)) {
         const unsigned char* blob = static_cast<const unsigned char*>(Context_GetMMSaveContext());
         if (blob != nullptr) {
-            SaveType blobType;
+            const int half = MM_Rando_ClassifyHalfForPair(blob, sizeof(SaveContext), gComboCtx.sharedRandoSeed,
+                                                          gComboCtx.mmPairedAttempt);
+            if (half == RSBS_MM_HALF_VANILLA) {
+                const int slot = RsbsSave_GetActiveSlot();
+                fprintf(stderr,
+                        "[MM] pairing: REFUSED — the armed MM half is vanilla (no world: saveType=vanilla "
+                        "mmFinalSeed=0) under a live pairing (masterSeed=%u). This file has no Majora's Mask world "
+                        "of its own; the half is NOT hydrated; unified-save slot %d is latched against writes this "
+                        "session\n",
+                        gComboCtx.sharedRandoSeed, slot);
+                fflush(stderr);
+                RsbsSave_RefuseSlotGeneration(slot);
+                MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MISSING_HALF, nullptr);
+                return 1;
+            }
+            // A world: this pair's, or another pair's, which is refused.
             uint32_t blobFinalSeed = 0;
             uint32_t blobOptions[RO_MAX];
-            memcpy(&blobType, blob + offsetof(SaveContext, save.shipSaveInfo.saveType), sizeof(blobType));
             memcpy(&blobFinalSeed, blob + offsetof(SaveContext, save.shipSaveInfo.rando.finalSeed),
                    sizeof(blobFinalSeed));
             memcpy(blobOptions, blob + offsetof(SaveContext, save.shipSaveInfo.rando.randoSaveOptions),
                    sizeof(blobOptions));
-            if (blobType == SAVETYPE_RANDO || blobFinalSeed != 0) {
-                if (MM_Rando_RefuseIfNotPairMember(blobOptions, blobFinalSeed, "the armed MM half")) {
-                    return 1;
-                }
+            if (MM_Rando_RefuseIfNotPairMember(blobOptions, blobFinalSeed, "the armed MM half")) {
+                return 1;
             }
         }
     }
@@ -5248,7 +5266,8 @@ int MM_Rando_GateCrossGameArrival(void) {
 static int MM_Rando_RefuseIfNotPairMember(const uint32_t* options, uint32_t finalSeed, const char* what) {
     uint32_t expected = 0;
     int attempt = -1;
-    if (Rando::Foreign::FinalSeedBelongsToPair(options, finalSeed, &expected, &attempt)) {
+    if (Rando::Foreign::FinalSeedBelongsToPair(gComboCtx.sharedRandoSeed, gComboCtx.mmPairedAttempt, options, finalSeed,
+                                               &expected, &attempt)) {
         fprintf(stderr,
                 "[MM] pairing: %s belongs to this pair (mmFinalSeed=%08X = masterSeed %u's derivation from its own "
                 "options at ladder rung %d)\n",

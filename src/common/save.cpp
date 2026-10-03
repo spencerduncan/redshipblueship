@@ -964,6 +964,27 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
             v.words = kWordsNoMMWorld;
             return;
         }
+
+        // #836 PR 2: a half that is not THIS pair's world, judged against the
+        // record just read (its master seed and recorded ladder rung), never
+        // the live pairing this load is about to replace. A vanilla half (no
+        // seed; #564 V7) used to be hydrated under the pairing, unlatched, so
+        // Termina played vanilla and the half was committed back; another
+        // pair's half (#564 V11) was refused only at the first crossing.
+        const int half = MM_Rando_ClassifyHalfForPair(data.mmBlob.data(), data.mmBlob.size(), combo.sharedRandoSeed,
+                                                      combo.mmPairedAttempt);
+        if (half != RSBS_MM_HALF_PAIR_WORLD) {
+            const bool vanilla = half == RSBS_MM_HALF_VANILLA;
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: the paired record's Majora's Mask half is %s (master seed %u, "
+                         "recorded rung %u); the file has no Majora's Mask world of its own and is not opened\n",
+                         slot, vanilla ? "vanilla (no world)" : "another pair's world", (unsigned)combo.sharedRandoSeed,
+                         (unsigned)combo.mmPairedAttempt);
+            v.outcome = RSBS_LOAD_REFUSED;
+            v.reason = vanilla ? RSBS_REFUSE_GENERATION : RSBS_REFUSE_IDENTITY;
+            v.words = kWordsNoMMWorld;
+            return;
+        }
     }
 
     // The MM half of the same rule (#781): the profile digest the arrival gate
