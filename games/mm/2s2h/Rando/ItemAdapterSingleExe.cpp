@@ -425,11 +425,12 @@ int MMItemGroupColumns(const char* group) {
 
 /**
  * MM's grid (ItemTracker.cpp DrawItemTrackerGroup): one table per group, its
- * 46 px cells (ITEM_TEXTURE_SIZE at Scale 1) a few pixels apart, the count
- * bottom right inside the cell (DrawItemCounts).
+ * 46 px cells (ITEM_TEXTURE_SIZE at Scale 1) spaced by the table's default
+ * cell padding, 8 px across and 4 px down (measured on MM's own window, 54 and
+ * 50 px pitch), the count bottom right inside the cell (DrawItemCounts).
  */
 const ComboItemGridStyle kMMItemGrid = {
-    46.0f, 4.0f, 6, true, MMItemGroupColumns, (uint8_t)COMBO_ITEM_COUNT_MM,
+    46.0f, 8.0f, 6, true, MMItemGroupColumns, (uint8_t)COMBO_ITEM_COUNT_MM, 4.0f,
 };
 
 /**

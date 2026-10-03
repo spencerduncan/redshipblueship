@@ -28,8 +28,8 @@
  * the icon (SoH's in its tracker's own mono font), and the item's name as the
  * icon's tooltip. The Shared section draws the active game's own icons for the
  * pool, four a line, tinted and numbered as that game draws them. The sections
- * stand side by side, as three columns of one table two item spacings apart,
- * so the overlay is as tall as one game's grid. The
+ * stand side by side, as three columns of one table, each at least as wide as
+ * its ruled header, so the overlay is as tall as one game's grid. The
  * gCombo.Tracker.Items.IconSize key sizes every grid.
  *
  * TEXT FALLBACK. A section none of whose icons is loaded (MM's load only once
@@ -290,6 +290,9 @@ struct ComboItemTrackerMetrics {
     float columnGap = 0.0f;                            // between two text columns
     float cellPadding = 0.0f;                          // a table column's padding, both sides together
 };
+
+/** The gap between two lines of a grid style's cells: its lineGapPx, or its gapPx when it names none. */
+float ComboItemGridLineGap(const ComboItemGridStyle& grid);
 
 /** The factor a grid style's pixel sizes (given at IconSize 36) take at `iconSize`. */
 float ComboItemIconUnit(float iconSize);

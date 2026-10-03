@@ -99,12 +99,13 @@ typedef enum {
  */
 typedef struct ComboItemGridStyle {
     float cellPx;    // an icon cell's edge (SoH's IconSize 36; MM's ITEM_TEXTURE_SIZE 46)
-    float gapPx;     // between two cells (SoH's IconSpacing 12; MM's table cell padding)
+    float gapPx;     // between two cells of a line (SoH's IconSpacing 12; MM's table: two CellPadding.x, 8)
     int columns;     // icons per line
     bool groupLines; // each group starts its own line (MM: one table per group); false: rows flow on (SoH)
     // Optional: a group's own icons per line (MM's Songs and Quest tables are 5 wide). NULL: `columns`.
     int (*groupColumns)(const char* group);
     uint8_t countStyle; // ComboItemCountStyle
+    float lineGapPx;    // between two lines; 0: gapPx (SoH's grid is square; MM's table rows: two CellPadding.y, 4)
 } ComboItemGridStyle;
 
 /** SoH's main Item Tracker grid (randomizer_item_tracker.cpp DrawItemsInRows: six 36 px icons a line,

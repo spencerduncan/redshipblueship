@@ -183,11 +183,12 @@ void DrawIconGrid(const ComboItemTrackerSection& section, const SectionPlan& pla
     const float unit = ComboItemIconUnit(iconSize) * scale;
     const float cell = grid.cellPx * unit;
     const float pitch = (grid.cellPx + grid.gapPx) * unit;
+    const float linePitch = (grid.cellPx + ComboItemGridLineGap(grid)) * unit;
     const float baseAlpha = ImGui::GetStyle().Alpha;
     for (size_t i = 0; i < section.rows.size() && i < plan.cells.size(); i++) {
         const ComboItemRow& row = section.rows[i];
         const ImVec2 cellMin(origin.x + (float)plan.cells[i].column * pitch,
-                             origin.y + (float)plan.cells[i].line * pitch);
+                             origin.y + (float)plan.cells[i].line * linePitch);
         const ComboItemIconPick pick = ComboItemPickIcon(row);
         const float iconWidth = row.iconAspect > 0.0f ? cell * row.iconAspect : cell;
         ImGui::SetCursorScreenPos(ImVec2(cellMin.x + (cell - iconWidth) * 0.5f, cellMin.y));
@@ -446,6 +447,10 @@ bool ComboItemSectionDrawsIcons(const std::vector<ComboItemRow>& rows, bool (*ha
 // The fit
 // ============================================================================
 
+float ComboItemGridLineGap(const ComboItemGridStyle& grid) {
+    return grid.lineGapPx > 0.0f ? grid.lineGapPx : grid.gapPx;
+}
+
 float ComboItemIconUnit(float iconSize) {
     return iconSize / (float)kComboItemTrackerIconSize;
 }
@@ -465,7 +470,7 @@ ComboItemSectionBox ComboItemIconBox(const std::vector<ComboItemGridCell>& cells
     const float unit = ComboItemIconUnit(metrics.iconSize);
     const float pitch = (grid.cellPx + grid.gapPx) * unit;
     box.width = (float)(columns - 1) * pitch + grid.cellPx * unit;
-    box.height = (float)(cells.back().line + 1) * pitch;
+    box.height = (float)(cells.back().line + 1) * (grid.cellPx + ComboItemGridLineGap(grid)) * unit;
     return box;
 }
 
@@ -552,12 +557,8 @@ void ComboItemTrackerWindow::DrawElement() {
         return;
     }
 
-    // Measured at scale 1, for the boxes and the fit. The columns stand two
-    // item spacings apart, so one section's header rule never runs into the
-    // next one's.
+    // Measured at scale 1, for the boxes and the fit.
     ImGui::SetWindowFontScale(1.0f);
-    const ImVec2 cellPadding(ImGui::GetStyle().ItemSpacing.x, ImGui::GetStyle().CellPadding.y);
-    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
     const ImGuiStyle& style = ImGui::GetStyle();
     ImGuiStorage* storage = ImGui::GetStateStorage();
     ComboItemTrackerMetrics metrics;
@@ -636,7 +637,6 @@ void ComboItemTrackerWindow::DrawElement() {
     ImGui::SetWindowFontScale(fit.scale);
     const ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoSavedSettings;
     if (!ImGui::BeginTable("##sections", (int)sections.size(), tableFlags)) {
-        ImGui::PopStyleVar();
         return;
     }
     for (size_t s = 0; s < sections.size(); s++) {
@@ -665,7 +665,6 @@ void ComboItemTrackerWindow::DrawElement() {
         }
     }
     ImGui::EndTable();
-    ImGui::PopStyleVar();
 }
 
 void RegisterComboItemTrackerWindow(std::shared_ptr<Ship::Gui> gui) {

@@ -347,6 +347,9 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     }
     CITW_ASSERT(cells.back().line == 10);
     CITW_ASSERT(mm.grid->cellPx == 46.0f && mm.grid->countStyle == COMBO_ITEM_COUNT_MM);
+    // MM's own window, captured in play (#458 U3 review): 54 px across, 50 down.
+    CITW_ASSERT(mm.grid->gapPx == 8.0f && ComboItemGridLineGap(*mm.grid) == 4.0f);
+    CITW_ASSERT(ComboItemGridLineGap(*oot.grid) == 12.0f); // SoH's grid is square
     // The pool: SoH's icons four a line.
     ComboItemIconLayout(shared.rows, *shared.grid, cells);
     CITW_ASSERT(!cells.empty() && cells.back().line == (int)(shared.rows.size() - 1) / 4);
