@@ -121,10 +121,15 @@
  *       (the bean salesman, Medigoron, Granny's Shop, the carpet salesman), and
  *       each of the four, given an MM item (the crossing store re-hydrated with
  *       one on every merchant), sells its randomized item until its check is
- *       collected and not after, read from the merchant's own gate. Red with
- *       merchants refused by the predicate:
- *       zero merchant crossings; red with the gates unchanged: a collected
- *       merchant still sells.
+ *       collected and not after, read from the merchant's own gate (the bean
+ *       salesman has none: his two real sale hooks are driven, and "sells" is
+ *       his sale charging his price and setting his flag; "not after" is no
+ *       charge, no flag, and his eligibility hook letting a broke "Yes" reach
+ *       the sold-out answer). All four rows print before the verdict. Red with
+ *       merchants refused by the predicate: zero merchant crossings; red with
+ *       the gates and the bean salesman's sale-hook branch unchanged: every
+ *       collected merchant still sells; red with only his eligibility term
+ *       unchanged: his row reads 2.
  *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
@@ -1106,6 +1111,8 @@ TestResult ComboSingleBag_Run(void) {
         Combo_Crossings_Clear();
         CSB_ASSERT(Combo_Crossings_Replace(ootRows.data(), (int)ootRows.size(), mmRows.data(), (int)mmRows.size()) >= 0,
                    "the crossing store refused this world's crossings plus an MM item on every merchant");
+        int merchantsNotSellingBefore = 0;
+        int merchantsNotSoldOutAfter = 0;
         for (int m = 0; m < merchantCount; m++) {
             const uint16_t host = merchantChecks[m];
             const int before = OoT_Rando_Foreign_TestMerchantSells(host);
@@ -1116,11 +1123,14 @@ TestResult ComboSingleBag_Run(void) {
             printf("[TEST] combo-single-bag: G (#800): merchant %s (check %u) hosting an MM item sells its randomized "
                    "item: %d before its check is collected, %d after\n",
                    hostName != nullptr ? hostName : "(unnamed)", (unsigned)host, before, after);
-            CSB_ASSERT(before == 1, "a merchant hosting an MM item does not sell it before its check is collected, so "
-                                    "the sold-out check proves nothing");
-            CSB_ASSERT(after == 0, "a merchant whose MM item's check is collected still sells it, so it would charge "
-                                   "again for nothing");
+            merchantsNotSellingBefore += before != 1 ? 1 : 0;
+            merchantsNotSoldOutAfter += after != 0 ? 1 : 0;
         }
+        CSB_ASSERT(merchantsNotSellingBefore == 0, "a merchant hosting an MM item does not sell it before its check is "
+                                                   "collected, so the sold-out check proves nothing");
+        CSB_ASSERT(merchantsNotSoldOutAfter == 0, "a merchant whose MM item's check is collected still sells it (or, "
+                                                  "the bean salesman, refuses it as 'not enough rupees'), so it would "
+                                                  "charge again for nothing");
     }
     Combo_SingleBag_Forget();
     Combo_Crossings_Clear();

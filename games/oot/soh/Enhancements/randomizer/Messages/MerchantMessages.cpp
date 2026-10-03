@@ -82,6 +82,16 @@ static bool BuildForeignHostMessage(CustomMessage& msg, RandomizerCheck rc) {
 #endif
 
 void BuildBeanGuyMessage(uint16_t* textId, bool* loadFromMessageTable) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 pass 2: his MM item was already bought (his sale hook refuses the
+    // sale and says he is sold out), but BEANS_BOUGHT was lost with an unsaved
+    // reload, so he offers again: his vanilla sold-out text instead, as once
+    // BEANS_BOUGHT is 10. It has no choice, so his talk ends as it does then.
+    if (*textId == TEXT_BEAN_SALESMAN_BUY_FOR_10 && OoT_Rando_Foreign_HostCollected(RC_ZR_MAGIC_BEAN_SALESMAN)) {
+        *textId = TEXT_BEAN_SALESMAN_SOLD_OUT;
+        return;
+    }
+#endif
     CustomMessage msg;
     if (*textId == TEXT_BEAN_SALESMAN_BUY_FOR_100) {
         msg = CustomMessage(
