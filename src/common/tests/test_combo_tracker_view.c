@@ -72,6 +72,12 @@
  *    window and the native trackers cannot disagree. See CtvMMRowsU4 and
  *    CtvOoTRowsU4.
  *
+ * 10. THE SKIP TOGGLE WRITES THE LIVE PANEL ONLY (#458 U5). MM: the skipped
+ *    byte of the live save, never the shadow, and nothing at all while the panel
+ *    is a snapshot. OoT: the heap flag, persisted once per change, only while OoT
+ *    is played with a loaded save. Neither writes a found check or one outside
+ *    the seed. See CtvSkipLegsMM and CtvSkipLegsOoT.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++), but every symbol it drives is extern-C. It needs the display-free
  * shared bring-up (the OoT-side authoring seam constructs Rando::Context),
@@ -111,10 +117,18 @@ extern "C" void OoT_TrackerAdapter_TestReleaseWorld(void);
 // buffer, so the legs below drive the view's source pick with MM's real
 // offsets and no MM play state. The buffer is whatever sCtvLive points at;
 // NULL is "MM's play state is not loaded".
-static const uint8_t* sCtvLive = NULL;
+static uint8_t* sCtvLive = NULL;
 
 static const void* CtvLiveSave(void) {
     return sCtvLive;
+}
+
+// MM's skip write (#458 U5), the code the production setLiveSkipped runs on
+// &gSaveContext, here run on the same authored buffer liveSave answers.
+extern "C" int MM_TrackerAdapter_TestSetSkippedIn(void* save, uint16_t checkId, int skipped);
+
+static bool CtvSetLiveSkipped(uint16_t checkId, bool skipped) {
+    return sCtvLive != NULL && MM_TrackerAdapter_TestSetSkippedIn(sCtvLive, checkId, skipped ? 1 : 0) != 0;
 }
 
 static void CtvSetObtained(std::vector<uint8_t>& buf, const ComboMMTrackerDesc* desc, uint16_t check, bool obtained) {
@@ -367,14 +381,203 @@ static int CtvOoTRowsU4(const uint16_t ootIds[3]) {
     return TEST_PASS;
 }
 
+// ---- #458 U5: the skip toggle, live panel only --------------------------------
+
+// Failed U5 halves (MM, OoT), reported together at the end of the row.
+static int sCtvU5Failures = 0;
+
+static uint8_t CtvSkipByte(const uint8_t* save, const ComboMMTrackerDesc* desc, uint16_t check) {
+    return save[desc->checkTableOffset + (size_t)check * desc->checkStride + desc->skippedOffset];
+}
+
+/**
+ * MM's half of the toggle (#458 U5), against the test descriptor (the production
+ * one, liveSave pointed at sCtvLive and setLiveSkipped at MM's own write code run
+ * on that buffer) and the marked shadow world section 2 authored (check 3
+ * shuffled and open there). The production setLiveSkipped's refusal with no MM
+ * play state is section 8's.
+ *
+ *   A. LIVE (MM played, marked live save): an open check is skippable; the write
+ *      lands in the LIVE save's skipped byte, the row and the summary follow, the
+ *      shadow is untouched; unskip clears it. A found check, a check outside the
+ *      seed and an out-of-range id are refused with nothing written.
+ *   B. STALE (no MM play state: the shadow): nothing is skippable and nothing is
+ *      written: the snapshot panel never writes.
+ *   C. The same live buffer while OoT is the active game: MM's panel is not
+ *      live, so refused, and the live buffer is untouched.
+ */
+static int CtvSkipLegsMM(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
+    const uint16_t kOpen = 21, kFound = 23, kOutside = 25, kShadowOpen = 3;
+    std::vector<uint8_t> live((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    memcpy(live.data() + desc->newfOffset, desc->newf, desc->newfLen);
+    memcpy(live.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
+    const uint64_t kCreatedAt = 1759190400ull;
+    memcpy(live.data() + desc->createdAtOffset, &kCreatedAt, sizeof(kCreatedAt));
+    for (uint16_t check : { kOpen, kFound }) {
+        live[desc->checkTableOffset + (size_t)check * desc->checkStride + desc->shuffledOffset] = 1;
+    }
+    CtvSetObtained(live, desc, kFound, true);
+    Context_UpdateShadowCopy(GAME_MM, shadowWorld.data(), shadowWorld.size());
+
+    ComboTrackerCheckRow row;
+    ComboTrackerGameSummary summary;
+
+    // ---- A. LIVE ---------------------------------------------------------------
+    sCtvLive = live.data();
+    Context_SetCurrentGame(GAME_MM);
+    CTV_ASSERT(Combo_TrackerSkipWritable((uint8_t)GAME_MM));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kOpen, &row));
+    CTV_ASSERT(Combo_TrackerRowSkippable((uint8_t)GAME_MM, &row));
+    const bool wrote = Combo_TrackerSetSkipped((uint8_t)GAME_MM, kOpen, true);
+    printf("[TEST] combo-tracker-view U5 MM live skip: returned=%d liveByte=%u shadowByte=%u\n", (int)wrote,
+           (unsigned)CtvSkipByte(live.data(), desc, kOpen),
+           (unsigned)CtvSkipByte((const uint8_t*)Context_GetMMSaveContext(), desc, kOpen));
+    CTV_ASSERT(wrote);
+    CTV_ASSERT(CtvSkipByte(live.data(), desc, kOpen) == 1);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kOpen, &row));
+    CTV_ASSERT(row.skipped && row.status == COMBO_TRACKER_CHECK_SKIPPED);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE && summary.skipped == 1);
+    // The write went to the live save only: the shadow is byte-for-byte what was committed.
+    CTV_ASSERT(memcmp(Context_GetMMSaveContext(), shadowWorld.data(), shadowWorld.size()) == 0);
+    // Setting what is already set succeeds and changes nothing; unskip clears it.
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_MM, kOpen, true));
+    CTV_ASSERT(CtvSkipByte(live.data(), desc, kOpen) == 1);
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_MM, kOpen, false));
+    CTV_ASSERT(CtvSkipByte(live.data(), desc, kOpen) == 0);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kOpen, &row));
+    CTV_ASSERT(!row.skipped && row.status == COMBO_TRACKER_CHECK_UNCHECKED);
+    // A found check and a check outside the seed are not offered and not written.
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kFound, &row));
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_MM, &row));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kFound, true));
+    CTV_ASSERT(CtvSkipByte(live.data(), desc, kFound) == 0);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kOutside, &row));
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_MM, &row));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kOutside, true));
+    CTV_ASSERT(CtvSkipByte(live.data(), desc, kOutside) == 0);
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, (uint16_t)desc->checkCount, true));
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_MM, NULL));
+
+    // ---- B. STALE: the shadow panel never writes --------------------------------
+    sCtvLive = NULL;
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_MM));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kShadowOpen, &row));
+    CTV_ASSERT(row.shuffled && !row.obtained && !row.skipped); // a check the live panel would offer
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_MM, &row));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, true));
+    CTV_ASSERT(memcmp(Context_GetMMSaveContext(), shadowWorld.data(), shadowWorld.size()) == 0);
+
+    // ---- C. MM's live buffer while OoT is played: not MM's live panel -----------
+    sCtvLive = live.data();
+    Context_SetCurrentGame(GAME_OOT);
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_MM));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kOpen, true));
+    CTV_ASSERT(CtvSkipByte(live.data(), desc, kOpen) == 0);
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_NONE));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_NONE, kOpen, true));
+    sCtvLive = NULL;
+    return TEST_PASS;
+}
+
+// The OoT-side skip seam (TrackerAdapterSingleExe.cpp): -1 production, 0/1 the
+// answer to "is a save loaded" with persists counted; returns the count since the
+// previous call.
+extern "C" int OoT_TrackerAdapter_TestSkipSeam(int saveLoaded);
+
+/**
+ * OoT's half of the toggle (#458 U5), over the seam's authored heap world
+ * (ootIds: saved, untouched, skipped).
+ *
+ *   A. MM played: OoT's panel is the suspended heap. Refused, heap unchanged,
+ *      even when the seam says a save is loaded.
+ *   B. OoT played with no loaded save (the production predicate: this tier has
+ *      no play state): the panel is LIVE but refused, as SoH's tracker shows no
+ *      list before a file loads.
+ *   C. OoT played with a loaded save: the untouched check is skipped on the heap,
+ *      the row and summary follow, and the tracker-data section is persisted
+ *      once per change (not for a no-op); the skipped check unskips. The saved
+ *      check and a check outside the seed are refused with nothing persisted.
+ */
+static int CtvSkipLegsOoT(const uint16_t ootIds[3]) {
+    ComboTrackerCheckRow row;
+    ComboTrackerGameSummary summary;
+    const uint16_t kOutside = (uint16_t)(ootIds[2] + 1); // not placed by the seam
+
+    // ---- A. MM played ---------------------------------------------------------
+    Context_SetCurrentGame(GAME_MM);
+    (void)OoT_TrackerAdapter_TestSkipSeam(1);
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_OOT));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row));
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_OOT, &row));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && !row.skipped);
+    CTV_ASSERT(OoT_TrackerAdapter_TestSkipSeam(-1) == 0);
+
+    // ---- B. OoT played, no loaded save -----------------------------------------
+    Context_SetCurrentGame(GAME_OOT);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE);
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_OOT));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && !row.skipped);
+
+    // ---- C. OoT played, a loaded save ---------------------------------------------
+    (void)OoT_TrackerAdapter_TestSkipSeam(1);
+    CTV_ASSERT(Combo_TrackerSkipWritable((uint8_t)GAME_OOT));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row));
+    CTV_ASSERT(Combo_TrackerRowSkippable((uint8_t)GAME_OOT, &row));
+    const bool wrote = Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row));
+    int persists = OoT_TrackerAdapter_TestSkipSeam(1);
+    printf("[TEST] combo-tracker-view U5 OoT live skip: returned=%d heapSkipped=%d status=%u persists=%d\n",
+           (int)wrote, (int)row.skipped, (unsigned)row.status, persists);
+    CTV_ASSERT(wrote);
+    CTV_ASSERT(row.skipped && row.status == COMBO_TRACKER_CHECK_SKIPPED);
+    CTV_ASSERT(persists == 1);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.skipped == 2);
+    // A no-op write succeeds without persisting.
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true));
+    CTV_ASSERT(OoT_TrackerAdapter_TestSkipSeam(1) == 0);
+    // The authored skipped check unskips (the button's other face) and back.
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[2], false));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[2], &row) && !row.skipped);
+    CTV_ASSERT(row.status == COMBO_TRACKER_CHECK_UNCHECKED);
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[2], true));
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], false));
+    CTV_ASSERT(OoT_TrackerAdapter_TestSkipSeam(1) == 3);
+    // The saved check and a check outside the seed: no button, no write.
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[0], &row));
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_OOT, &row));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[0], true));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[0], &row) && !row.skipped);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)kOutside, &row) && !row.shuffled);
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_OOT, &row));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_OOT, kOutside, true));
+    CTV_ASSERT(OoT_TrackerAdapter_TestSkipSeam(-1) == 0);
+    // Back to the authored world: one skipped, one untouched.
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.skipped == 1 && summary.obtained == 1);
+    return TEST_PASS;
+}
+
 static int CtvLiveLegs(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
     const ComboMMTrackerDesc real = *desc; // backup: the production descriptor
     ComboMMTrackerDesc testDesc = real;
     testDesc.liveSave = CtvLiveSave;
+    testDesc.setLiveSkipped = CtvSetLiveSkipped;
     Combo_Tracker_RegisterMM(&testDesc);
     const GameId prevGame = Context_GetCurrentGame();
 
     const int result = CtvLiveLegsBody(Combo_Tracker_GetMMDesc(), shadowWorld);
+    // #458 U5's MM half rides the same test descriptor. Recorded rather than
+    // returned on, so the OoT half (5c) still runs and reports.
+    if (result == TEST_PASS && CtvSkipLegsMM(Combo_Tracker_GetMMDesc(), shadowWorld) != TEST_PASS) {
+        sCtvU5Failures++;
+    }
 
     // Always put back what the later sections expect: the production
     // descriptor, an unpaired context, the authored shadow world.
@@ -392,6 +595,7 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
 
     const GameId prevGame = Context_GetCurrentGame();
     ComboContext_Init();
+    sCtvU5Failures = 0;
 
     // ---- 1. Unregistered: every read is inert -----------------------------
     Combo_Tracker_RegisterMM(NULL);
@@ -469,6 +673,13 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     Context_SetCurrentGame(GAME_MM);
     CTV_ASSERT(desc->liveSave != NULL);   // the MM TU installs the live source
     CTV_ASSERT(desc->liveSave() == NULL); // ...and withholds it with no play state
+    // #458 U5: the MM TU installs its own skip write, and with no MM play state
+    // it refuses: nothing reaches MM's live save, and the shadow is untouched.
+    CTV_ASSERT(desc->setLiveSkipped != NULL);
+    CTV_ASSERT(!desc->setLiveSkipped(kShuffledA, true));
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_MM));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShuffledA, true));
+    CTV_ASSERT(CtvSkipByte((const uint8_t*)Context_GetMMSaveContext(), desc, kShuffledA) == 0);
     ComboTrackerGameSummary summaryWhileMMActive;
     Combo_TrackerGameSummary((uint8_t)GAME_MM, &summaryWhileMMActive);
     CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);
@@ -549,6 +760,13 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
         u4Failures++;
     }
     ComboContext_Init(); // unpaired again, as section 6 expects
+
+    // ---- 5c. #458 U5: OoT's skip toggle, live panel only --------------------
+    const int ootSkip = CtvSkipLegsOoT(ootIds);
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1); // production again, whatever the legs did
+    if (ootSkip != TEST_PASS) {
+        sCtvU5Failures++;
+    }
 
     // Releasing the world must return the adapter to UNAVAILABLE — liveness
     // is a per-call check on the weak singleton, not a latched flag.
@@ -660,6 +878,10 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
 
     if (u4Failures != 0) {
         printf("[TEST] FAIL: %d of the two #458 U4 row sections (MM 2b, OoT 5b) failed\n", u4Failures);
+        return TEST_FAIL;
+    }
+    if (sCtvU5Failures != 0) {
+        printf("[TEST] FAIL: %d of the two #458 U5 skip-toggle halves (MM, OoT 5c) failed\n", sCtvU5Failures);
         return TEST_FAIL;
     }
     printf("[TEST] PASS: adapters recover authored MM shadow + OoT heap worlds, label staleness honestly, and "

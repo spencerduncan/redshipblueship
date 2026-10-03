@@ -281,6 +281,27 @@ void SohRowText(const char* text, const ComboUiWidgetOpts* opts) {
     Report(text, opts);
 }
 
+bool SohIconButton(const char* id, const char* icon, const ComboUiWidgetOpts* opts) {
+    // DrawLocation's skip button (randomizer_check_tracker.cpp), statement for
+    // statement: a StateButton one frame high and square, in the theme colour.
+    const float sz = ImGui::GetFrameHeight();
+    if (icon == nullptr) {
+        ImGui::Dummy(ImVec2(sz, sz)); // DrawLocation's row without a button
+        return false;
+    }
+    const bool disabled = opts != nullptr && opts->disabled;
+    ImGui::BeginDisabled(disabled);
+    const bool clicked =
+        UIWidgets::StateButton(id, icon, ImVec2(sz, sz), UIWidgets::ButtonOptions().Color(Theme())) && !disabled;
+    ImGui::EndDisabled();
+    const char* shown = ComboUi_ShownTooltip(opts);
+    if (shown != nullptr && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        UIWidgets::Tooltip(shown);
+    }
+    Report(id, opts);
+    return clicked;
+}
+
 bool SohImage(const char* textureKey, float width, float height) {
     // The native Item Tracker's icon draw (randomizer_item_tracker.cpp,
     // DrawItem): ImGui::Image of the Gui texture registered under the key. A key
@@ -299,8 +320,9 @@ bool SohImage(const char* textureKey, float width, float height) {
 }
 
 const ComboUiTable kSohTable = {
-    SohCheckbox, SohCombobox, SohSliderInt, SohButton,    SohSearchInput, SohSeparatorText, SohNoteText, SohWarningText,
-    SohTooltip,  SohTagChip,  SohConfirm,   SohPushTheme, SohPopTheme,    SohSpacer,        SohRowText,  SohImage,
+    SohCheckbox, SohCombobox,    SohSliderInt, SohButton,     SohSearchInput, SohSeparatorText,
+    SohNoteText, SohWarningText, SohTooltip,   SohTagChip,    SohConfirm,     SohPushTheme,
+    SohPopTheme, SohSpacer,      SohRowText,   SohIconButton, SohImage,
 };
 
 struct InstallSohComboUi {

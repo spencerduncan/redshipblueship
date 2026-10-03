@@ -1692,8 +1692,20 @@ const char* SnapshotOoTCheckName(uint16_t checkId) {
     }
     return nullptr;
 }
-const ComboOoTTrackerOps kSnapshotOoTOps = { SnapshotOoTSummary, SnapshotOoTCheckCount, SnapshotOoTCheckAt,
-                                             SnapshotOoTCheckName };
+// OoT is the active game in "progress", with its world loaded: its panel is the
+// LIVE one and takes skip writes, so it draws the skip buttons (#458 U5). The
+// synthetic world is fixed, so a write changes nothing; the harness never clicks.
+bool SnapshotOoTSkipWritable(void) {
+    return true;
+}
+bool SnapshotOoTSetSkipped(uint16_t, bool) {
+    return false;
+}
+const ComboOoTTrackerOps kSnapshotOoTOps = { SnapshotOoTSummary,   SnapshotOoTCheckCount,   SnapshotOoTCheckAt,
+                                             SnapshotOoTCheckName, SnapshotOoTSkipWritable, SnapshotOoTSetSkipped };
+// The skip buttons that synthetic world draws: one per check of the seed not yet
+// found (the skipped one and the two open ones), none on the saved one.
+constexpr int kSnapshotOoTSkipButtons = 3;
 
 /** The id of a game panel's "Checks" tree node, as ComboTrackerWindow.cpp forms it
  *  inside the pane's Begin: PushID((int)game), then TreeNode("Checks"). */
@@ -3581,6 +3593,7 @@ struct TrickCensusRow {
 struct SearchRectCensus {
     int fields = 0;
     int erasers = 0;
+    int skipButtons = 0; // "##skip<id>" (#458 U5): drawn on the LIVE panel only
 };
 
 void SearchRectRecord(void* user, const char* label, const char*, float minX, float minY, float maxX, float maxY) {
@@ -3592,6 +3605,8 @@ void SearchRectRecord(void* user, const char* label, const char*, float minX, fl
         census->fields++;
     } else if (std::strcmp(label, "##checkSearch##eraser") == 0) {
         census->erasers++;
+    } else if (std::strncmp(label, "##skip", 6) == 0) {
+        census->skipButtons++;
     }
 }
 
@@ -3953,6 +3968,16 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 Fail(p.id + " (" + state + "): the Checks lists' search boxes reported " +
                      std::to_string(census.fields) + " fields and " + std::to_string(census.erasers) +
                      " eraser buttons to the combo_ui rect recorder; each game panel draws one of each");
+            }
+            // The skip toggle (#458 U5): OoT's LIVE panel draws one button per
+            // check of the seed not yet found; MM's panel, the frozen shadow in
+            // this state, draws none although its authored save has open checks.
+            printf("[UI-SNAPSHOT] skip census %s (%s): %d skip buttons reported (want %d, all OoT's live panel)\n",
+                   p.id.c_str(), state.c_str(), census.skipButtons, kSnapshotOoTSkipButtons);
+            if (census.skipButtons != kSnapshotOoTSkipButtons) {
+                Fail(p.id + " (" + state + "): the Checks lists reported " + std::to_string(census.skipButtons) +
+                     " skip buttons; OoT's live panel draws " + std::to_string(kSnapshotOoTSkipButtons) +
+                     " and MM's snapshot panel none");
             }
         }
 

@@ -187,6 +187,22 @@ void FallbackRowText(const char* text, const ComboUiWidgetOpts* opts) {
     FinishItem(text, o);
 }
 
+bool FallbackIconButton(const char* id, const char* icon, const ComboUiWidgetOpts* opts) {
+    const ComboUiWidgetOpts& o = OptsOrDefault(opts);
+    const float sz = ImGui::GetFrameHeight();
+    if (icon == nullptr) {
+        ImGui::Dummy(ImVec2(sz, sz));
+        return false;
+    }
+    ImGui::PushID(id);
+    ImGui::BeginDisabled(o.disabled);
+    const bool clicked = ImGui::Button(icon, ImVec2(sz, sz));
+    ImGui::EndDisabled();
+    ImGui::PopID();
+    FinishItem(id, o);
+    return clicked;
+}
+
 /** No texture lookup without SoH's table: every icon falls back to its text. */
 bool FallbackImage(const char*, float, float) {
     return false;
@@ -195,7 +211,7 @@ bool FallbackImage(const char*, float, float) {
 const ComboUiTable kFallback = {
     FallbackCheckbox,  FallbackCombobox,    FallbackSliderInt, FallbackButton,  FallbackSearchInput, FallbackSeparatorText,
     FallbackNoteText,  FallbackWarningText, FallbackTooltip,   FallbackTagChip, FallbackConfirm,
-    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText, FallbackImage,
+    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText, FallbackIconButton, FallbackImage,
 };
 
 } // namespace
