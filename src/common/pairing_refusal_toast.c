@@ -7,15 +7,13 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Every "Not saved:" refusal latches the active unified-save slot for the
- * session (RsbsSave_RefuseSlotIdentity / RsbsSave_RefuseSlotGeneration), so the
- * outcome the player must not miss is that nothing this session is saved to the
- * pair. The OoT spoiler refusal latches nothing: it refuses the document, and
- * keeps the prefix SoH-side code already used for it. */
-#define PREFIX_NOT_SAVED "Not saved:"
+/* The arrival's and the MM spoiler's refusals are in the refusal class and take
+ * its one prefix (RSBS_REFUSAL_TOAST_PREFIX, #836). The OoT spoiler refusal is
+ * not: it refuses a dropped document and latches nothing, and keeps the prefix
+ * SoH-side code already used for it. */
 #define PREFIX_SPOILER_NOT_LOADED "Spoiler not loaded:"
 
-#define RULES_HEAD "rules changed"
+#define RULES_HEAD "Rules changed"
 
 /* The refused file's words (RsbsRefusalWords), capitalized and with no trailing
  * period, as every message after RSBS_REFUSAL_TOAST_PREFIX is. */
@@ -52,7 +50,7 @@ const char* Combo_PairingRefusalToastPrefix(int kind) {
         case RSBS_PAIRING_REFUSAL_RULES:
         case RSBS_PAIRING_REFUSAL_MISSING_HALF:
         case RSBS_PAIRING_REFUSAL_SPOILER:
-            return PREFIX_NOT_SAVED;
+            return RSBS_REFUSAL_TOAST_PREFIX;
         case RSBS_PAIRING_REFUSAL_OOT_SPOILER:
             return PREFIX_SPOILER_NOT_LOADED;
         default:
@@ -100,7 +98,7 @@ static int SplitFields(const char* detail, FieldSpan* fields) {
     return count;
 }
 
-/* "rules changed (<first k names>[ +<rest>])." into buf; returns its length. */
+/* "Rules changed (<first k names>[ +<rest>])" into buf; returns its length. */
 static size_t ComposeRules(const FieldSpan* fields, int count, int named, char* buf, size_t len) {
     size_t used = (size_t)snprintf(buf, len, RULES_HEAD " (");
     for (int i = 0; i < named && used < len; i++) {
@@ -111,7 +109,7 @@ static size_t ComposeRules(const FieldSpan* fields, int count, int named, char* 
         used += (size_t)snprintf(buf + used, len - used, " +%d", count - named);
     }
     if (used < len) {
-        used += (size_t)snprintf(buf + used, len - used, ").");
+        used += (size_t)snprintf(buf + used, len - used, ")");
     }
     return used;
 }
@@ -120,7 +118,7 @@ static int RulesMessage(const char* detail, char* out, size_t len) {
     FieldSpan fields[MAX_FIELDS];
     const int count = SplitFields(detail, fields);
     if (count == 0) {
-        CopyOut(out, len, RULES_HEAD ".");
+        CopyOut(out, len, RULES_HEAD);
         return 0;
     }
     // Name as many fields as fit, in the order the describer lists them (bit
@@ -134,7 +132,7 @@ static int RulesMessage(const char* detail, char* out, size_t len) {
             return named;
         }
     }
-    snprintf(candidate, sizeof(candidate), RULES_HEAD " (%d rules).", count);
+    snprintf(candidate, sizeof(candidate), RULES_HEAD " (%d rules)", count);
     CopyOut(out, len, candidate);
     return 0;
 }
@@ -149,13 +147,13 @@ typedef struct SpoilerRouteCopy {
 } SpoilerRouteCopy;
 
 static const SpoilerRouteCopy kSpoilerRoutes[] = {
-    { RSBS_SPOILER_REFUSAL_NOT_PAIRED, "this spoiler needs a paired file." },
-    { RSBS_SPOILER_REFUSAL_SESSION_UNSETTLED, "spoiler does not match this world." },
-    { RSBS_SPOILER_REFUSAL_NO_IDENTITY, "spoiler has no cross-game identity." },
-    { RSBS_SPOILER_REFUSAL_IDENTITY_INCOMPLETE, "spoiler has an incomplete identity." },
-    { RSBS_SPOILER_REFUSAL_OTHER_SEED, "spoiler is for another seed." },
-    { RSBS_SPOILER_REFUSAL_OTHER_SETTINGS, "spoiler is for other settings." },
-    { RSBS_SPOILER_REFUSAL_OTHER_MM_OPTIONS, "spoiler has other Majora's Mask options." },
+    { RSBS_SPOILER_REFUSAL_NOT_PAIRED, "This spoiler needs a paired file" },
+    { RSBS_SPOILER_REFUSAL_SESSION_UNSETTLED, "Spoiler does not match this world" },
+    { RSBS_SPOILER_REFUSAL_NO_IDENTITY, "Spoiler has no cross-game identity" },
+    { RSBS_SPOILER_REFUSAL_IDENTITY_INCOMPLETE, "Spoiler has an incomplete identity" },
+    { RSBS_SPOILER_REFUSAL_OTHER_SEED, "Spoiler is for another seed" },
+    { RSBS_SPOILER_REFUSAL_OTHER_SETTINGS, "Spoiler is for other settings" },
+    { RSBS_SPOILER_REFUSAL_OTHER_MM_OPTIONS, "Spoiler has other Majora's Mask options" },
 };
 
 static int SpoilerMessage(const char* detail, char* out, size_t len) {
@@ -167,7 +165,7 @@ static int SpoilerMessage(const char* detail, char* out, size_t len) {
             }
         }
     }
-    CopyOut(out, len, "spoiler does not match this world.");
+    CopyOut(out, len, "Spoiler does not match this world");
     return 0;
 }
 
@@ -177,7 +175,7 @@ int Combo_PairingRefusalToastMessage(int kind, const char* detail, char* out, si
     }
     switch (kind) {
         case RSBS_PAIRING_REFUSAL_MM_OPTIONS:
-            CopyOut(out, len, "Majora's Mask options changed.");
+            CopyOut(out, len, "Majora's Mask options changed");
             return 0;
         case RSBS_PAIRING_REFUSAL_RULES:
             return RulesMessage(detail, out, len);
@@ -187,7 +185,7 @@ int Combo_PairingRefusalToastMessage(int kind, const char* detail, char* out, si
             // .redsave (GameExports_SingleExe.cpp), and "re-create the file"
             // would throw away progress a backup could restore. The routes and
             // their remedies stay on the stderr line and in the playtest guide.
-            CopyOut(out, len, "this file has no Majora's Mask world.");
+            // The same words the file select refuses an empty half with.
             return 0;
         case RSBS_PAIRING_REFUSAL_SPOILER:
             return SpoilerMessage(detail, out, len);

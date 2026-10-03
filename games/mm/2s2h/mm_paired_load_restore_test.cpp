@@ -119,6 +119,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #include "foreign_items.h"
+#include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX: the Save Files status (#836)
 #include "save.h"
 #include "notification_bridge.h"
 #include "combo_settings_view.h"
@@ -829,7 +830,7 @@ int LegRoundTrip() {
                         "moved %s",
                         probe.moved.empty() ? "nothing" : probe.moved.c_str());
         }
-        if (page != "Not paired: " + probe.words) {
+        if (page != std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + probe.words) {
             return Fail(38, "leg 3: the Save Files page reads '%s', not the probe's words", page.c_str());
         }
         if (rc != RSBS_LOAD_REFUSED || paired || RsbsSave_IsSlotWritable(kSlot) != 0) {
@@ -880,7 +881,7 @@ int LegUnrestorableRule() {
         return Fail(43, "leg 4: the refusal's words are '%s' (want player words), or the probe moved %s",
                     probe.words.c_str(), probe.moved.empty() ? "nothing" : probe.moved.c_str());
     }
-    if (page != "Not paired: " + probe.words) {
+    if (page != std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + probe.words) {
         return Fail(71, "leg 4: the Save Files page reads '%s' but the file select said '%s'", page.c_str(),
                     probe.words.c_str());
     }
@@ -1263,7 +1264,7 @@ int LegProbeMmHalfNotThisPairs() {
                       h.what, h.reason == RSBS_REFUSE_GENERATION ? "V7" : "V11"));
         } else if (!probe.moved.empty()) {
             note(Fail(code + 1, "leg 8 (%s): the probe moved %s", h.what, probe.moved.c_str()));
-        } else if (page != "Not paired: " + probe.words) {
+        } else if (page != std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + probe.words) {
             note(Fail(code + 2, "leg 8 (%s): the Save Files page reads '%s', not the probe's words", h.what,
                       page.c_str()));
         } else if (load != RSBS_LOAD_REFUSED || paired || RsbsSave_IsSlotWritable(kSlot) != 0) {

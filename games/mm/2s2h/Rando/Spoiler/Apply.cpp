@@ -223,7 +223,7 @@ static void RefuseForeignReconstruction(const std::string& term, const std::stri
     // silently did nothing" — #564 V7's silent vanilla revert wearing a fix's
     // clothes.
     // One short line in SoH's toast shape (src/common/pairing_refusal_toast.h):
-    // "Not saved:" and what the refusing check found, in words, keyed on the
+    // "Refused:" and what the refusing check found, in words, keyed on the
     // ROUTE. The machine term and both values stay on the stderr line above.
     // Muted, like every arrival refusal: this runs on MM's file-create seam and
     // in the display-free locks.

@@ -12,16 +12,16 @@
  * WHAT IT ASSERTS:
  *   A. Every refusal reason has the page's own words: non-empty, no issue
  *      number, no trailing period, distinct from the developer label on stderr,
- *      and short enough that "Not paired: <reason>" stays one table cell's line
+ *      and short enough that "Refused: <reason>" stays one table cell's line
  *      or two (at most 45 characters). NONE and an out-of-range value read the
  *      fallback.
  *   A2. A refusal that posted a toast shows the TOAST's words, keyed to what
  *      the toast said, not to the reason code: each of the load's three
  *      IDENTITY toasts (rules differ, another build, damaged record) gives a
- *      status equal to the toast line itself ("Not paired: " + its message),
- *      so three toasts on one reason code give three statuses; each of the
- *      arrival's and the MM spoiler's "Not saved:" toasts gives "Not paired: "
- *      + its reason, capitalized, without the period. (paired-load-restore legs
+ *      status equal to the toast line itself (RSBS_REFUSAL_TOAST_PREFIX + its
+ *      message), so three toasts on one reason code give three statuses; each of
+ *      the arrival's and the MM spoiler's toasts gives its own toast line too:
+ *      one prefix, and every message capitalized without a period (#836). (paired-load-restore legs
  *      3 and 4 lock the recording itself on a real load and a real arrival.)
  *   A3. The SaveManager's record of those words: kept only while the slot is
  *      refused, cleared by every change of the refusal record, and each change
@@ -131,7 +131,7 @@ TestResult Test_ComboSaveFilesView(void) {
         if (text == nullptr || text[0] == '\0') {
             continue;
         }
-        const std::string cell = std::string("Not paired: ") + text;
+        const std::string cell = std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + text;
         CSF_ASSERT(!CsfHasDigitOrHash(text), "reason %d's words carry a number or '#': \"%s\"", r, text);
         CSF_ASSERT(text[std::strlen(text) - 1] != '.', "reason %d's words end in a period: \"%s\"", r, text);
         CSF_ASSERT(cell.size() <= 45, "reason %d's cell is %zu characters (at most 45): \"%s\"", r, cell.size(),
@@ -160,9 +160,9 @@ TestResult Test_ComboSaveFilesView(void) {
             if (message == nullptr) {
                 continue;
             }
-            // The toast line as the overlay draws it: "Not paired:" + " " + message
+            // The toast line as the overlay draws it: the prefix + " " + message
             // (RsbsSave_EmitLoadToast's prefix for every refusal kind).
-            const std::string toastLine = std::string("Not paired: ") + message;
+            const std::string toastLine = std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + message;
             const ComboSaveFileRow row = Combo_SaveFiles_RowFor(1, CsfRefusedWith(message));
             statuses[i] = row.status;
             CSF_ASSERT(row.kind == ComboSaveFileKind::Refused && row.status == toastLine,
@@ -173,8 +173,9 @@ TestResult Test_ComboSaveFilesView(void) {
         CSF_ASSERT(RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_RULES_RESTORED) == nullptr,
                    "a restore toast has refusal words");
 
-        // The arrival's and the MM spoiler's "Not saved:" toasts, through the
-        // production copy (Combo_PairingRefusalToastMessage).
+        // The arrival's and the MM spoiler's toasts, through the production copy
+        // (Combo_PairingRefusalToastMessage): the page repeats the toast's own
+        // line, prefix and message, with nothing trimmed (#836).
         const int pairingKinds[4] = { RSBS_PAIRING_REFUSAL_MM_OPTIONS, RSBS_PAIRING_REFUSAL_RULES,
                                       RSBS_PAIRING_REFUSAL_MISSING_HALF, RSBS_PAIRING_REFUSAL_SPOILER };
         const char* details[4] = { nullptr, "Goal", nullptr, RSBS_SPOILER_REFUSAL_OTHER_SEED };
@@ -183,28 +184,16 @@ TestResult Test_ComboSaveFilesView(void) {
             Combo_PairingRefusalToastMessage(pairingKinds[i], details[i], message, sizeof(message));
             CSF_ASSERT(message[0] != '\0', "pairing toast kind %d has no message", pairingKinds[i]);
             const ComboSaveFileRow row = Combo_SaveFiles_RowFor(1, CsfRefusedWith(message));
-            // The toast's reason, capitalized, without its period.
-            std::string reason = message;
-            if (!reason.empty() && reason.back() == '.') {
-                reason.pop_back();
-            }
-            const std::string want = std::string("Not paired: ") + Combo_SaveFiles_ToastWords(message);
-            CSF_ASSERT(row.status == want, "the pairing toast \"%s\" gives the page status \"%s\"", message,
-                       row.status.c_str());
-            CSF_ASSERT(row.status.size() == std::string("Not paired: ").size() + reason.size() &&
-                           row.status.compare(std::string("Not paired: ").size() + 1, std::string::npos,
-                                              reason.substr(1)) == 0,
-                       "the page status \"%s\" is not the toast's reason \"%s\"", row.status.c_str(),
-                       reason.c_str());
+            const std::string want = std::string(Combo_PairingRefusalToastPrefix(pairingKinds[i])) + " " + message;
+            CSF_ASSERT(row.status == want, "the pairing toast \"%s\" gives the page status \"%s\" (want \"%s\")",
+                       message, row.status.c_str(), want.c_str());
+            CSF_ASSERT(message[std::strlen(message) - 1] != '.' && !(message[0] >= 'a' && message[0] <= 'z'),
+                       "the pairing toast \"%s\" is not capitalized without a trailing period", message);
         }
-        CSF_ASSERT(Combo_SaveFiles_ToastWords("rules changed (Goal).") == "Rules changed (Goal)",
-                   "ToastWords gives \"%s\"", Combo_SaveFiles_ToastWords("rules changed (Goal).").c_str());
-        CSF_ASSERT(Combo_SaveFiles_ToastWords(nullptr).empty() && Combo_SaveFiles_ToastWords("").empty(),
-                   "ToastWords of nothing is not empty");
 
         // No words recorded (a refusal with no toast): the page's own words.
         const ComboSaveFileRow bare = Combo_SaveFiles_RowFor(1, CsfRefusedWith(""));
-        CSF_ASSERT(bare.status == std::string("Not paired: ") + Combo_SaveFiles_RefuseText(RSBS_REFUSE_IDENTITY),
+        CSF_ASSERT(bare.status == std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_SaveFiles_RefuseText(RSBS_REFUSE_IDENTITY),
                    "a refusal with no recorded words reads \"%s\"", bare.status.c_str());
     }
 
@@ -231,7 +220,7 @@ TestResult Test_ComboSaveFilesView(void) {
         mgr.RefuseSlotGeneration(slot);
         CSF_ASSERT(std::strcmp(mgr.GetSlotRefusalWords(slot), "") == 0,
                    "a new refusal kept the previous refusal's words \"%s\"", mgr.GetSlotRefusalWords(slot));
-        mgr.NoteSlotRefusalWords(slot, "this file has no Majora's Mask world.");
+        mgr.NoteSlotRefusalWords(slot, Combo_RefusalWords(RSBS_REFUSAL_WORDS_NO_MM_WORLD));
         epoch = mgr.SlotStateEpoch();
         mgr.ResetSlotSessionState();
         CSF_ASSERT(std::strcmp(mgr.GetSlotRefusalWords(slot), "") == 0,
@@ -302,7 +291,7 @@ TestResult Test_ComboSaveFilesView(void) {
         m.ootStarted = true;
         const ComboSaveFileRow row = Combo_SaveFiles_RowFor(0, m);
         CSF_ASSERT(row.kind == ComboSaveFileKind::Refused, "a file refused for its header is not Refused");
-        CSF_ASSERT(row.status == std::string("Not paired: ") + Combo_SaveFiles_RefuseText(RSBS_REFUSE_HEADER),
+        CSF_ASSERT(row.status == std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_SaveFiles_RefuseText(RSBS_REFUSE_HEADER),
                    "a header refusal reads \"%s\"", row.status.c_str());
         CSF_ASSERT(row.name.empty() && row.lastPlayed.empty(),
                    "a file refused for its header shows the name \"%s\" or last game \"%s\"", row.name.c_str(),
@@ -321,8 +310,8 @@ TestResult Test_ComboSaveFilesView(void) {
         CSF_ASSERT(row.kind == ComboSaveFileKind::Refused, "a session-refused valid file is not Refused");
         CSF_ASSERT(row.name == rsbs::SlotNameLine(m), "a session-refused valid file lost its name: \"%s\"",
                    row.name.c_str());
-        CSF_ASSERT(row.status.rfind("Not paired: ", 0) == 0, "a refusal's status \"%s\" does not open \"Not paired: \"",
-                   row.status.c_str());
+        CSF_ASSERT(row.status.rfind(std::string(RSBS_REFUSAL_TOAST_PREFIX) + " ", 0) == 0,
+                   "a refusal's status \"%s\" does not open \"%s \"", row.status.c_str(), RSBS_REFUSAL_TOAST_PREFIX);
         CSF_ASSERT(row.tooltip.find("backup") != std::string::npos,
                    "a refusal with a backup does not name the backup: \"%s\"", row.tooltip.c_str());
     }

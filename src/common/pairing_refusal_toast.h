@@ -1,9 +1,10 @@
 /**
  * @file pairing_refusal_toast.h
- * @brief The player-visible copy of the cross-game refusal toasts: the four
- *        "this session is not saved to the pair" refusals and OoT's paired-spoiler
- *        refusal, in ONE place, so their production emitters, the ui tier's toast
- *        pages and the width lock all read the same strings.
+ * @brief The player-visible copy of the cross-game refusal toasts: the class's
+ *        one prefix, the refused file's words, the arrival's and the MM spoiler's
+ *        refusals, and OoT's paired-spoiler refusal, in ONE place, so their
+ *        production emitters, the ui tier's toast pages and the width lock all
+ *        read the same strings.
  *
  * WHY THE COPY LIVES HERE. Every one of these toasts used to be a hand-written
  * sentence pair at its call site, 99 to 155 characters behind a 27-character
@@ -17,9 +18,10 @@
  * player's configured duration, a short prefix and one short message that fits
  * the 832-px window the ui tier renders. These follow it.
  *
- * WHAT THE COPY KEEPS. The outcome in the prefix ("Not saved:": each refusal
- * latches the unified-save slot against writes for the session) and the reason
- * in the message. A reason that NAMES something keeps naming it: the combo-record
+ * WHAT THE COPY KEEPS. The class in the prefix (RSBS_REFUSAL_TOAST_PREFIX,
+ * "Refused:": each refusal latches the unified-save slot against writes for the
+ * session, and the file, half or document is not applied) and the reason in the
+ * message. A reason that NAMES something keeps naming it: the combo-record
  * refusal names the diverged fields while they fit (ADR 0011 decision 4,
  * Combo_ComboSettingsDivergenceDescribe) and counts the rest; the spoiler refusal
  * names which identity term diverged in words. The long explanation stays on each
@@ -162,7 +164,7 @@ const char* Combo_PairingRefusalToastPrefix(int kind);
 int Combo_PairingRefusalToastMessage(int kind, const char* detail, char* out, size_t len);
 
 /**
- * THE MM EMITTER for the four "Not saved:" kinds (games/mm/2s2h/GameExports_SingleExe.cpp):
+ * THE MM EMITTER for the four refusal-class kinds (games/mm/2s2h/GameExports_SingleExe.cpp):
  * builds the copy above and queues it through MM's half of the notification
  * bridge with Notification::Options' defaults (SoH's colours, the player's
  * configured duration), muted because every caller can run without OoT's audio

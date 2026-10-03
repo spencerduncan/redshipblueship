@@ -312,9 +312,11 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   The overlay draws every field on ONE line at 1.8x and never wraps, so a toast is about 53 characters at most (the
   width of the 832-px window the ui tier renders); the UI snapshot's toast pages fail when a toast leaves the window.
   R-N8 still applies: spell out "Majora's Mask" and "Ocarina of Time" in a toast's sentence. Mute it when the call
-  site can run without audio. The cross-game refusals follow this shape: "Not saved:" plus a short reason, their copy
-  in `src/common/pairing_refusal_toast.c`, emitted through `MM_Rando_EmitPairingRefusalToast` and
-  `OoT_EmitPairedSpoilerRefusalToast`. The redship-tier row `PairingRefusalToastFit` draws every one through SoH's own
+  site can run without audio. The cross-game refusals follow this shape: ONE prefix for the class, "Refused:"
+  (`RSBS_REFUSAL_TOAST_PREFIX`, #836), plus a short capitalized reason with no period, their copy in
+  `src/common/pairing_refusal_toast.c`, emitted through `MM_Rando_EmitPairingRefusalToast`,
+  `RsbsSave_EmitFileSelectRefusalToast` and `RsbsSave_EmitLoadToast` (OoT's paired-spoiler refusal,
+  `OoT_EmitPairedSpoilerRefusalToast`, refuses a document and keeps "Spoiler not loaded:"). The redship-tier row `PairingRefusalToastFit` draws every one through SoH's own
   overlay at sizes 1.8 and 1.0, in an 832-px window and in a 4K window at the X-Large menu scale, and requires each to
   keep the overlay's 30-px margin on the left as well as the right, as SoH's own toasts do: at most 772 px in the
   832-px window. Each refusal site's own row (`mm-combo-settings-gate`, `mm-spoiler-identity`, `combo-creation-event`)

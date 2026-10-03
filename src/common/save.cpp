@@ -804,10 +804,17 @@ constexpr int kOpenLegacy = 0;
 constexpr int kOpenVanillaFile = 1;
 constexpr int kOpenRandoFile = 2;
 
-// The open path's words for the refusals #836 adds.
-constexpr const char* kWordsMissing = "Cross-game record is missing";
-constexpr const char* kWordsNoMMWorld = "This file has no Majora's Mask world";
-constexpr const char* kWordsMMOptions = "Majora's Mask options differ";
+// The open path's words for the refusals #836 adds (the one table,
+// pairing_refusal_toast.c).
+const char* WordsMissing() {
+    return Combo_RefusalWords(RSBS_REFUSAL_WORDS_RECORD_MISSING);
+}
+const char* WordsNoMMWorld() {
+    return Combo_RefusalWords(RSBS_REFUSAL_WORDS_NO_MM_WORLD);
+}
+const char* WordsMMOptions() {
+    return Combo_RefusalWords(RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER);
+}
 
 bool RecordIsPaired(const ComboContext& combo) {
     return combo.sourceIsRando && combo.sharedRandoSettingsHash != 0;
@@ -842,7 +849,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
             // session and the file was unpaired for good.
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = RSBS_REFUSE_MISSING;
-            v.words = kWordsMissing;
+            v.words = WordsMissing();
             return;
         }
         v.outcome = RSBS_LOAD_ABSENT;
@@ -893,7 +900,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
                      slot, combo.sourceIsRando ? 1 : 0, (unsigned)combo.sharedRandoSettingsHash);
         v.outcome = RSBS_LOAD_REFUSED;
         v.reason = RSBS_REFUSE_MISSING;
-        v.words = kWordsMissing;
+        v.words = WordsMissing();
         return;
     }
 
@@ -961,7 +968,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
                          slot);
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = RSBS_REFUSE_GENERATION;
-            v.words = kWordsNoMMWorld;
+            v.words = WordsNoMMWorld();
             return;
         }
 
@@ -982,7 +989,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
                          (unsigned)combo.mmPairedAttempt);
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = vanilla ? RSBS_REFUSE_GENERATION : RSBS_REFUSE_IDENTITY;
-            v.words = kWordsNoMMWorld;
+            v.words = WordsNoMMWorld();
             return;
         }
     }
@@ -996,14 +1003,14 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
         v.mmProfile = MM_Rando_ClassifyProfileForLoad(data.mmBlob.data(), data.mmBlob.size(), combo.mmProfileDigest);
         if (openKind != kOpenLegacy && v.mmProfile == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
             // #836 P4: an MM profile the file cannot restore used to load with a
-            // "Not restored" warning, and the first crossing was then refused.
+            // warning toast, and the first crossing was then refused.
             std::fprintf(stderr,
                          "[RsbsSave] slot %d REFUSED: the live MM profile does not match the file's (%08X) and the "
                          "file cannot restore it; the file is not opened\n",
                          slot, (unsigned)combo.mmProfileDigest);
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = RSBS_REFUSE_IDENTITY;
-            v.words = kWordsMMOptions;
+            v.words = WordsMMOptions();
             return;
         }
     }
@@ -1183,7 +1190,7 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
                          "[RsbsSave] slot %d REFUSED: the file's MM profile (%08X) could not be restored into the "
                          "live options; every key the load wrote was put back\n",
                          slot, (unsigned)combo.mmProfileDigest);
-            return refuse(RSBS_REFUSE_IDENTITY, false, -1, kWordsMMOptions);
+            return refuse(RSBS_REFUSE_IDENTITY, false, -1, WordsMMOptions());
         }
     }
 
@@ -1923,12 +1930,12 @@ const char* RsbsSave_SlotRefusalWords(int slot) {
 }
 
 void RsbsSave_EmitFileSelectRefusalToast(const char* words) {
-    // The load's refusal prefix and the page's words (#836), muted like every
-    // load toast (the gate also runs in the display-free rows).
+    // The refusal class's one prefix and the page's words (#836), muted like
+    // every load toast (the gate also runs in the display-free rows).
     if (words == nullptr || words[0] == '\0') {
         return;
     }
-    OoT_Notification_EmitDefault("Not paired:", words, /*mute=*/1);
+    OoT_Notification_EmitDefault(RSBS_REFUSAL_TOAST_PREFIX, words, /*mute=*/1);
 }
 
 int RsbsSave_GetSlotCommitSkew(int slot) {
@@ -1990,11 +1997,11 @@ void RsbsSave_ForceLoadRestoreVerifyFailForTest(int on) {
 const char* RsbsSave_LoadToastRefusalMessage(int kind) {
     switch (kind) {
         case RSBS_LOAD_TOAST_REFUSED_RULES:
-            return "Cross-game rules differ";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_RULES_DIFFER);
         case RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD:
-            return "File made by another build";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_OTHER_BUILD);
         case RSBS_LOAD_TOAST_REFUSED_DAMAGED:
-            return "Cross-game record is damaged";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_RECORD_DAMAGED);
         default:
             return nullptr;
     }
@@ -2020,13 +2027,15 @@ void RsbsSave_EmitLoadToast(int kind, const char* names, int count) {
                                      "settings");
             break;
         case RSBS_LOAD_TOAST_MM_NOT_RESTORED:
-            prefix = "Not restored:";
-            message = "Majora's Mask options differ";
+            // The legacy entry's warning; the open path refuses this file at the
+            // file select in the same words (#836).
+            prefix = RSBS_REFUSAL_TOAST_PREFIX;
+            message = Combo_RefusalWords(RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER);
             break;
         case RSBS_LOAD_TOAST_REFUSED_RULES:
         case RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD:
         case RSBS_LOAD_TOAST_REFUSED_DAMAGED:
-            prefix = "Not paired:";
+            prefix = RSBS_REFUSAL_TOAST_PREFIX;
             message = RsbsSave_LoadToastRefusalMessage(kind);
             break;
         default:

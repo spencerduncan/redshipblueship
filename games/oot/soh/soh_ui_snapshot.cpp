@@ -2091,8 +2091,8 @@ void Session::BuildPageList() {
                 p.states = { "", "listed", "backup" };
                 p.stateText[""] = { "No cross-game record yet" };
                 p.stateText["listed"] = { "A refused file does not open",
-                                          std::string("Not paired: ") + Combo_SaveFiles_RefuseText(RSBS_REFUSE_CRC),
-                                          std::string("Not paired: ") +
+                                          std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_SaveFiles_RefuseText(RSBS_REFUSE_CRC),
+                                          std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " +
                                               RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_RULES) };
                 p.stateText["backup"] = { "was kept as a backup", "No cross-game record (backup kept)" };
                 p.stateContrast = { { "", "listed" }, { "listed", "" }, { "backup", "" } };
@@ -2388,23 +2388,23 @@ void Session::BuildPageList() {
              // The cross-game refusals (src/common/pairing_refusal_toast.h), each
              // through its production emitter; the rules and spoiler pages draw
              // their longest shapes.
-             { "toast/pairing-refused-mm-options", "Not saved:" },
-             { "toast/pairing-refused-rules", "Not saved:" },
-             { "toast/pairing-refused-missing-half", "Not saved:" },
-             { "toast/pairing-refused-spoiler", "Not saved:" },
+             { "toast/pairing-refused-mm-options", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/pairing-refused-rules", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/pairing-refused-missing-half", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/pairing-refused-spoiler", RSBS_REFUSAL_TOAST_PREFIX },
              { "toast/paired-spoiler-not-loaded", "Spoiler not loaded:" },
              // The paired-file load's toasts (#781), each through the load's
              // own emitter with the longest input a real load can pass it.
              { "toast/load-rules-restored", "Restored from file:" },
              { "toast/load-mm-restored-one", "Restored for Majora's Mask:" },
              { "toast/load-mm-restored-many", "Restored for Majora's Mask:" },
-             { "toast/load-mm-not-restored", "Not restored:" },
-             { "toast/load-refused-rules", "Not paired:" },
-             { "toast/load-refused-other-build", "Not paired:" },
-             { "toast/load-refused-damaged", "Not paired:" },
+             { "toast/load-mm-not-restored", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/load-refused-rules", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/load-refused-other-build", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/load-refused-damaged", RSBS_REFUSAL_TOAST_PREFIX },
              // The file select's refusal (#836), with the longest words it
              // can show ("This file has no Majora's Mask world").
-             { "toast/load-refused-file-select", "Not paired:" },
+             { "toast/load-refused-file-select", RSBS_REFUSAL_TOAST_PREFIX },
          }) {
         PageSpec p;
         p.id = id;
@@ -4420,7 +4420,7 @@ static void EmitLoadToastPage(const std::string& id) {
     } else if (id == "toast/load-refused-damaged") {
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_DAMAGED, nullptr, 0);
     } else if (id == "toast/load-refused-file-select") {
-        RsbsSave_EmitFileSelectRefusalToast("This file has no Majora's Mask world");
+        RsbsSave_EmitFileSelectRefusalToast(Combo_RefusalWords(RSBS_REFUSAL_WORDS_NO_MM_WORLD));
     }
 }
 

@@ -1623,3 +1623,22 @@ the added refusals are the file-open path's. Locked by
 `OoTFileSelectRefusal` (the gate and the backstop through the hooks a fresh SoH
 `SaveManager` registers), `PairedLoadRestore` legs 3 to 8,
 `ComboCreationEvent` leg 12 and `MMComboSettingsGate` leg 13.
+
+- **PR 3: one prefix for the refusal toasts** (operator ruling 2026-10-01).
+  Every refusal in the class opens with `RSBS_REFUSAL_TOAST_PREFIX`,
+  "Refused:" (`src/common/pairing_refusal_toast.h`): the file select's and the
+  load's refusals of a file (formerly "Not paired:" and "Not restored:"), the
+  arrival's refusals of an MM half and the MM spoiler's refusal of a document
+  (formerly "Not saved:"). It is the class's own name and true at every site,
+  and at 8 characters it is shorter than each prefix it replaces. Every message
+  after it is capitalized with no trailing period, and the refused file's
+  words live in one table (`Combo_RefusalWords`), so the Combo > Save Files
+  status cell is the toast's own line ("Refused: <words>"). The commit-skew
+  words became "Older than the Ocarina of Time save". The confirmations
+  ("Restored from file:", "Restored for Majora's Mask:") and the toasts outside
+  the class ("Spoiler not loaded:", "Not created:", "Not proven:") keep their
+  wording. Locked by `PairingRefusalToastFit`, which draws every refusal
+  through its production emitter and checks the prefix and the copy's shape,
+  and by `tools/tests/test_repo_invariants.py`, which fails on a string literal
+  opening with a retired prefix. The integration drives' toast matchers read
+  the constant.

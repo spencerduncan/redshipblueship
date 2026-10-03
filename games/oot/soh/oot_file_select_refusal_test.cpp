@@ -56,6 +56,7 @@
 
 #include "context.h"
 #include "notification_bridge.h"
+#include "pairing_refusal_toast.h"
 #include "save.h"
 
 #include <algorithm>
@@ -250,7 +251,7 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
                left, toasts, toast.c_str(), RsbsSave_GetSlotRefuseReason(kGarbage),
                FileBytes(garbagePath) == garbageBytes ? "unchanged" : "CHANGED", ExtraFiles(dir));
         FSR_ASSERT((left & (BTN_A | BTN_START)) == 0, "leg 2: the START press on a garbage record was not consumed");
-        FSR_ASSERT(toasts == 1 && toast.rfind("Not paired:", 0) == 0 &&
+        FSR_ASSERT(toasts == 1 && toast.rfind(RSBS_REFUSAL_TOAST_PREFIX, 0) == 0 &&
                        toast.find(RsbsSave_SlotRefusalWords(kGarbage)) != std::string::npos,
                    "leg 2: %d toast(s), last \"%s\" (want one with the page's words \"%s\")", toasts, toast.c_str(),
                    RsbsSave_SlotRefusalWords(kGarbage));
@@ -362,13 +363,14 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
                    "leg 5: the A press on a file whose .sav is newer than its .redsave was not consumed");
         FSR_ASSERT(
             RsbsSave_GetSlotRefuseReason(kSkew) == (int)RSBS_REFUSE_COMMIT_SKEW &&
-                std::string(RsbsSave_SlotRefusalWords(kSkew)) == "Ocarina of Time save is newer",
-            "leg 5: the refusal record is reason %d words \"%s\" (want the commit skew, \"Ocarina of Time save is "
-            "newer\")",
-            RsbsSave_GetSlotRefuseReason(kSkew), RsbsSave_SlotRefusalWords(kSkew));
-        FSR_ASSERT(toasts == 1 && toast == "Not paired: Ocarina of Time save is newer",
-                   "leg 5: %d toast(s), last \"%s\" (want one: \"Not paired: Ocarina of Time save is newer\")", toasts,
-                   toast.c_str());
+                std::string(RsbsSave_SlotRefusalWords(kSkew)) == Combo_RefusalWords(RSBS_REFUSAL_WORDS_OLDER_THAN_OOT),
+            "leg 5: the refusal record is reason %d words \"%s\" (want the commit skew, \"%s\")",
+            RsbsSave_GetSlotRefuseReason(kSkew), RsbsSave_SlotRefusalWords(kSkew),
+            Combo_RefusalWords(RSBS_REFUSAL_WORDS_OLDER_THAN_OOT));
+        const std::string skewToast =
+            std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_RefusalWords(RSBS_REFUSAL_WORDS_OLDER_THAN_OOT);
+        FSR_ASSERT(toasts == 1 && toast == skewToast, "leg 5: %d toast(s), last \"%s\" (want one: \"%s\")", toasts,
+                   toast.c_str(), skewToast.c_str());
         FSR_ASSERT(redsaveSame && savSame && std::filesystem::exists(rsbsSave.SlotPath(kSkew)) &&
                        ExtraFiles(dir) == extraBefore,
                    "leg 5: the gate moved, renamed or changed a file");

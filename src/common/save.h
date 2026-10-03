@@ -242,8 +242,8 @@ struct SlotMeta {
     // RSBS_REFUSE_NONE without evidence or with an unknown slug.
     RsbsRefuseReason quarantineReason;
     // The reason words the refusal's toast showed the player, recorded by
-    // NoteSlotRefusalWords while the slot is REFUSED this session (the load's
-    // "Not paired:" toasts, the arrival's "Not saved:" toasts). Empty when the
+    // NoteSlotRefusalWords while the slot is REFUSED this session (the file
+    // select's, the load's and the arrival's "Refused:" toasts). Empty when the
     // refusal posted no toast. The Save Files page shows these before its own
     // per-reason words, so the page and the toast agree.
     char refuseWords[64];
@@ -856,7 +856,7 @@ int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration);
 int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile, char* words, size_t wordsLen);
 int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile);
 
-/** The file select's refusal toast (#836): the load's refusal prefix and the
+/** The file select's refusal toast (#836): RSBS_REFUSAL_TOAST_PREFIX and the
  *  player's words for the refused file, muted (the same words the Combo > Save
  *  Files page shows for the slot). */
 void RsbsSave_EmitFileSelectRefusalToast(const char* words);
@@ -915,7 +915,7 @@ void RsbsSave_ResetSlotSessionState(void);
 enum {
     RSBS_LOAD_TOAST_RULES_RESTORED = 0,  // "Restored from file: Goal, Crossing Direction"
     RSBS_LOAD_TOAST_MM_RESTORED = 1,     // "Restored for Majora's Mask: Starting Hearts +1"
-    RSBS_LOAD_TOAST_MM_NOT_RESTORED = 2, // the file cannot restore its MM profile
+    RSBS_LOAD_TOAST_MM_NOT_RESTORED = 2, // refused: the file cannot restore its MM profile (legacy entry only)
     RSBS_LOAD_TOAST_REFUSED_RULES = 3,   // refused: keyed rules differ and the store could not take them
     RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD = 4, // refused: a record field no key authors (another build's file)
     RSBS_LOAD_TOAST_REFUSED_DAMAGED = 5,     // refused: the stored cross-game identity is damaged
