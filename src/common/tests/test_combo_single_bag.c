@@ -141,7 +141,9 @@
  *       drain, which records exactly one MM crossing and nothing once it is
  *       collected; and the Lens display's REAL draw emits exactly MM's model.
  *       Red with the reward refused by the predicate: the A2 sweep; red with the
- *       display's draw unchanged: the junk cover's lists instead of MM's.
+ *       display's draw unchanged: none of MM's model lists (0 emitted; the
+ *       reader counts only path-named "__OTR__" lists, and the junk cover's
+ *       draw emits none of them).
  *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
