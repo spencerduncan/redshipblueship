@@ -660,27 +660,42 @@ screen bootstrap is the case); there is no active slot (debug saves, an
 invalidated session); the slot is not writable this session (latched, or
 refused — a refused paired file is never played paired, #836).
 
-**Where Link wakes on reload.** Nothing is stamped into the frozen half. OoT's
-`Sram_OpenSave` places Link by `savedSceneNum`, which only a save writes: the
-dungeon entrance when the last OoT save was in a dungeon, otherwise Link's
-House (child) or the Temple of Time (adult). That is the path an MM owl save's
-reload already takes; `crossing-commit` asserts the committed OoT half is the
-freeze byte for byte.
+**Where Link wakes on reload.** The commit adds nothing to the frozen half
+(`crossing-commit` asserts the committed OoT half is the freeze byte for byte).
+OoT's `Sram_OpenSave` places Link by `savedSceneNum`: a dungeon or boss scene
+sends him to that dungeon's entrance, Ganon's Tower collapse to the tower, a
+grotto or fairy fountain to Link's House (child) or the Temple of Time (adult)
+even with Remember Save Location on, and any other scene to Link's House or the
+Temple of Time, or with Remember Save Location to the frozen `entranceIndex`
+(where Link last entered a scene). Under entrance shuffle the randomizer's
+`OnLoadGame` handler (`Entrance_SetSavewarpEntrance`) then keys on the same
+field.
 
-*Remember Save Location is the exception* (traced in source, not played). With
-that enhancement on, `Sram_OpenSave`'s default case keeps the frozen
-`entranceIndex` (where Link last entered a scene) unless `savedSceneNum` is
-`SCENE_FAIRYS_FOUNTAIN` or `SCENE_GROTTOS`, and the dungeon, boss and Ganon's
-collapse cases above it key on `savedSceneNum` too. Every one of those
-exclusions reads the scene of the last *save*, which a freeze never writes, not
-the scene Link stood in at the crossing. So an F10 crossing taken inside a
-grotto, a fairy fountain, a boss room or the collapse, reloaded with Remember
-Save Location on, wakes Link at that interior's entrance, which SoH's own save
-would never do. A door crossing is always at the Happy Mask Shop, which none of
-the exclusions name. OoTMM stamps the save's scene at an OoT switch; #837
-records that stamp as not in this issue, so the case is reported
-([#850](https://github.com/spencerduncan/redshipblueship/issues/850)), not
-fixed here.
+*The departure records its scene*
+([#850](https://github.com/spencerduncan/redshipblueship/issues/850)). Only a
+save wrote `savedSceneNum` (`Play_PerformSave`, the kaleido save prompt), so the
+freeze carried the scene of the last *save*, not the one Link stood in at the
+crossing: an F10 crossing taken inside a grotto, a fairy fountain, a boss room
+or the collapse, reloaded with Remember Save Location on, woke Link inside that
+interior, which SoH's own save never does. OoT's pre-freeze flush
+(`Combo_FlushLiveStateForFreeze` → `OoT_Combo_StampSavedSceneForFreeze`) now
+sets `savedSceneNum` to the departure scene under `Play_PerformSave`'s own guard
+(a live PlayState and `fileNum != 0xFF`), as OoTMM's `Save_DoSave` sets the
+save's scene at an OoT switch. A reload of a crossing commit therefore wakes
+Link where a save made at the crossing would. For a door crossing that scene is
+the Market, so the reload no longer follows an older save into a dungeon. One
+frame needs the other scene: when `Play_Update` has already committed an
+in-OoT scene change (`state.running` cleared, the next gamestate set to
+`OoT_Play_Init`, `entranceIndex` moved to the next entrance) the PlayState lives
+until the next `OoT_RunFrame`, and `OoT_Graph_ThreadEntry` polls F10 first. An
+F10 on that poll records the scene `entranceIndex` resumes in, not the one Link
+is leaving, so entering a grotto on that frame still reloads to a safe place.
+The stamp is never read at a cross-game arrival: the arrival is placed by its
+startup entrance, and `OnLoadGame` is dispatched only by the file select's load,
+SoH's boot-to-warp-point debug save and the integration drives. OoTMM's other
+half, resetting OoT's spawn to the Temple of Time at an MM save, is not copied:
+here an MM-side commit carries OoT's half as OoT's own last departure or save
+left it, already stamped. Lock: `oot-scene-flag-freeze` leg 2c.
 
 *Check status is not in the commit* (traced in source, not played). OoT's
 check-tracker status lives in the `.sav`'s tracker section, which a crossing
