@@ -867,7 +867,9 @@ extern "C" int MM_Rando_HeadlessPairedHalf(void) {
  *  3. return leg with an EXISTING VANILLA MM save -> left strictly alone.
  *     This is the "never silently modify the player's file" contract: a
  *     paired OoT world does not entitle anything to rewrite a save that
- *     already exists.
+ *     already exists. Under the pairing that half is the file's missing
+ *     Majora's Mask world, so the arrival refuses it before the consume
+ *     (#564 V7, #836 PR 2): it stays armed and untouched.
  *
  * Returns 0 on success, a distinct nonzero step code otherwise.
  */
@@ -1151,10 +1153,23 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
                         "on arrival — existing files must be skipped with a logged reason\n");
         return 16;
     }
-    if (gSaveContext.save.saveInfo.playerData.rupees != 77 || gSaveContext.save.day != 2) {
-        fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(17): existing vanilla save was modified (rupees=%d day=%d)\n",
-                gSaveContext.save.saveInfo.playerData.rupees, gSaveContext.save.day);
-        return 17;
+    // Under a live pairing a vanilla half is this file's MISSING Majora's Mask
+    // world (#564 V7, #836 PR 2): the arrival gate refuses it before the
+    // consume, so it is neither converted nor hydrated, and it stays armed and
+    // byte-for-byte the player's (rupees 77, day 2). It used to be hydrated
+    // under the pairing, unlatched, and committed back.
+    {
+        const SaveContext* half = static_cast<const SaveContext*>(Context_GetMMSaveContext());
+        if (!Context_HasFrozenState(GAME_MM) || half == nullptr || half->save.saveInfo.playerData.rupees != 77 ||
+            half->save.day != 2 || half->save.shipSaveInfo.saveType != SAVETYPE_VANILLA) {
+            fprintf(stderr,
+                    "[MM-PAIR-SWITCH] FAIL(17): the existing vanilla half was consumed or modified under a live "
+                    "pairing (still armed=%d; live rupees=%d day=%d) — the arrival must refuse it before the "
+                    "consume and leave it untouched\n",
+                    Context_HasFrozenState(GAME_MM) ? 1 : 0, gSaveContext.save.saveInfo.playerData.rupees,
+                    gSaveContext.save.day);
+            return 17;
+        }
     }
     if (memcmp(beforeVanilla, gComboCtx.foreignPlacements, sizeof(beforeVanilla)) != 0) {
         fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(18): skipping a vanilla save still disturbed the placement table\n");
@@ -1171,7 +1186,7 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
                         "rando behavior leaked onto a non-rando file\n");
         return 21;
     }
-    fprintf(stderr, "[MM-PAIR-SWITCH] existing vanilla save left untouched (skip path)\n");
+    fprintf(stderr, "[MM-PAIR-SWITCH] existing vanilla half refused before the consume and left untouched\n");
 
     // ----------------------------------------------------------------------
     // Phase 4 — the arrival identity gate (#498 decision 1 per #564, phase 2

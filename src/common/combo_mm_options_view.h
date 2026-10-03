@@ -360,6 +360,16 @@ int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32
  *  to fail, so the put-back is exercised. Never called in production. */
 void MM_Rando_ForceProfileRestoreVerifyFailForTest(int on);
 
+/** Test fixture bridge (#836 PR 2): author, into @p mmHalf (at least
+ *  sizeof(MM's SaveContext), MM_SAVE_CONTEXT_SIZE fits), an MM half that
+ *  MM_Rando_ClassifyHalfForPair reads as the world of the pair whose master seed
+ *  is @p masterSeed: zeroed, SAVETYPE_RANDO, every option at its shipped
+ *  default, and the rung-0 finalSeed that seed derives from those options. For
+ *  OoT-side rows that commit a paired record and cannot name MM's types.
+ *  @return 1 when authored, 0 when @p mmHalfSize is too small. Never called in
+ *  production. */
+int MM_Rando_AuthorPairHalfForTest(void* mmHalf, size_t mmHalfSize, uint32_t masterSeed);
+
 /**
  * Pairing header for the pane: whether a paired world exists, its identity, and
  * the MM profile digest it was generated under.

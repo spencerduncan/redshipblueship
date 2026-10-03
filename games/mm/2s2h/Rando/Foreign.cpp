@@ -845,6 +845,23 @@ extern "C" int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSiz
                : RSBS_MM_HALF_FOREIGN;
 }
 
+extern "C" int MM_Rando_AuthorPairHalfForTest(void* mmHalf, size_t mmHalfSize, uint32_t masterSeed) {
+    if (mmHalf == nullptr || mmHalfSize < sizeof(SaveContext)) {
+        return 0;
+    }
+    auto half = std::make_unique<SaveContext>();
+    memset(half.get(), 0, sizeof(SaveContext));
+    half->save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        half->save.shipSaveInfo.rando.randoSaveOptions[randoOptionId] = (uint32_t)randoStaticOption.defaultValue;
+    }
+    half->save.shipSaveInfo.rando.finalSeed =
+        Rando::Foreign::MixPairedFinalSeedFromOptions(masterSeed, half->save.shipSaveInfo.rando.randoSaveOptions, 0);
+    memset(mmHalf, 0, mmHalfSize);
+    memcpy(mmHalf, half.get(), sizeof(SaveContext));
+    return 1;
+}
+
 extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, char* names,
                                               size_t namesLen, int* outCount) {
     if (names != nullptr && namesLen > 0) {
