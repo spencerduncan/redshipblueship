@@ -4391,6 +4391,21 @@ TestResult Test_ComboItemView(void) {
     return Combo_ItemView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The same view over the save Ship of Harkinian's own new-file path authors
+// (#873). Save_InitFile reads OTRGlobals and SaveManager::Instance, which only
+// the full OoT bring-up constructs, so the rando tier's bring-up (display).
+TestResult Test_ComboItemViewNewFile(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char civArg0[] = "redship";
+    static char* civArgv[] = { civArg0, nullptr };
+    InitOTRForMMFirstBoot(1, civArgv);
+    return Combo_ItemView_NewFileRunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Unified Item Tracker overlay (#458 U2). The Gui bridges' bring-up (GuiWindow
 // ctors read ConsoleVariables off the Ship::Context singleton).
 TestResult Test_ComboItemTrackerWindow(void) {
@@ -5255,6 +5270,10 @@ const TestDescriptor gTests[] = {
     {"combo-item-view",
      "Item rows from OoT's live save or frozen shadow, never live for the inactive game; shared group label (#458)",
      Test_ComboItemView},
+    {"combo-item-view-new-file",
+     "The OoT item adapter and the .redsave slot panel read the save Ship of Harkinian's own new-file path authors "
+     "(Save_InitFile, no 'ZELDAZ') as a save, live and as the shadow; a not-live freeze stays no data (#873)",
+     Test_ComboItemViewNewFile},
     {"combo-item-tracker-window",
      "Item Tracker overlay registers de-collided; inert under every game and while unpaused; draws the view (#458)",
      Test_ComboItemTrackerWindow},
@@ -6064,6 +6083,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
+                strcmp(gTests[i].name, "combo-item-view-new-file") == 0 ||
                 strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never

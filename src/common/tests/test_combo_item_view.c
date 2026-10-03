@@ -72,6 +72,7 @@
 #include "../combo_item_view.h"
 #include "../context.h"
 #include "../game.h"
+#include "../save.h" // rsbs::SaveManager, SlotMeta: the new-file row's slot-panel leg (#873)
 #include "../shared_resources.h"
 #include "../test_runner.h"
 
@@ -86,6 +87,12 @@
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 // The MM-side twin (games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp), #458 U1b.
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
+// #873, the combo-item-view-new-file row: the save Ship of Harkinian's own
+// new-file path (Save_InitFile(false)) authors, copied into `buf`. Needs the
+// full OoT bring-up. `outNewfMarked` receives whether it carries "ZELDAZ".
+extern "C" int OoT_ItemAdapter_TestAuthorNewFile(void* buf, size_t size, int* outNewfMarked);
+// OoT's .redsave slot descriptor, as OoT's SaveManager constructor registers it.
+extern "C" void OoT_SlotMeta_Register(void);
 
 #define CIV_ASSERT(cond)                                                   \
     do {                                                                   \
@@ -649,5 +656,185 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
 
     printf("[TEST] PASS: item rows recover authored OoT and MM live/shadow saves with honest freshness, never LIVE "
            "for the inactive game, and the shared group carries the pool and its label (#458 U1)\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// combo-item-view-new-file (#873): a save Ship of Harkinian itself made
+// ============================================================================
+//
+// Every leg above reads saves the OoT seam authors by hand, and that seam used
+// to stamp the 'ZELDAZ' new-file marker, which Ship of Harkinian never writes:
+// its new-file path (SaveManager::InitFileNormal, behind Save_InitFile) and its
+// load path leave `newf` alone. So these legs passed while the overlay read
+// "No data." for OoT in every real session. This row reads the save the
+// production new-file path authors, unmarked, through the registered adapter:
+//
+//   A. the adapter accepts it as a save;
+//   B. as OoT's frozen shadow while MM is played, every row reads, STALE, and
+//      the rows are a new file's (nothing found, a child's wallet of 0/99);
+//   C. as OoT's live save while OoT is played, LIVE;
+//   D. a freeze noted as not a live file (#837: OoT's title or file select,
+//      whose save is a started-looking debug or menu save) is not the player's
+//      file: UNAVAILABLE, while the same bytes committed as a file read STALE;
+//   E. an all-zero shadow (OoT never frozen) is still "No data";
+//   F. the .redsave slot panel reads a slot whose OoT half is this save as
+//      OoT-started, and an all-zero OoT half as not started.
+//
+// Rando tier: Save_InitFile reads OTRGlobals and SaveManager::Instance, which
+// only the full OoT bring-up constructs.
+
+static const char* const kCivNewFileSaveDir = "rsbs_test_saves_item_view_new_file";
+static bool sCivNewFileSaveDirSet = false; // the entry point puts "Save" back when set
+
+static int CivNewFileSlotPanel(const std::vector<uint8_t>& newFile) {
+    const std::vector<uint8_t> zeros((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    OoT_SlotMeta_Register();
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kCivNewFileSaveDir);
+    sCivNewFileSaveDirSet = true;
+    mgr.ResetSlotSessionState();
+
+    mgr.DeleteSave(0); // an erase is what unlatches the slot for this session's write
+    Context_UpdateShadowCopy(GAME_OOT, newFile.data(), newFile.size());
+    CIV_ASSERT(mgr.Save(0));
+    rsbs::SlotMeta meta = mgr.ReadMeta(0);
+    printf("[TEST] combo-item-view-new-file: slot panel over the new file: valid=%d ootStarted=%d line=\"%s\"\n",
+           (int)meta.valid, (int)meta.ootStarted, rsbs::SlotNameLine(meta).c_str());
+    CIV_ASSERT(meta.valid && meta.ootStarted);
+
+    mgr.DeleteSave(0);
+    Context_UpdateShadowCopy(GAME_OOT, zeros.data(), zeros.size());
+    CIV_ASSERT(mgr.Save(0));
+    meta = mgr.ReadMeta(0);
+    printf("[TEST] combo-item-view-new-file: slot panel over an all-zero OoT half: valid=%d ootStarted=%d\n",
+           (int)meta.valid, (int)meta.ootStarted);
+    CIV_ASSERT(meta.valid && !meta.ootStarted);
+    return TEST_PASS;
+}
+
+static int CivNewFileLegs(const ComboItemOps* ops, const std::vector<uint8_t>& newFile) {
+    ComboItemRow row;
+    const std::vector<uint8_t> zeros((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+
+    // ---- A. the adapter accepts a save SoH made -----------------------------
+    const bool accepted = ops->hasSave(newFile.data());
+    printf("[TEST] combo-item-view-new-file: OoT adapter hasSave(Save_InitFile(false) save)=%d\n", (int)accepted);
+    CIV_ASSERT(accepted);
+    CIV_ASSERT(!ops->hasSave(zeros.data()));
+
+    // ---- B. the frozen shadow, read while MM is played ----------------------
+    Context_UpdateShadowCopy(GAME_OOT, newFile.data(), newFile.size());
+    Context_SetCurrentGame(GAME_MM);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_STALE);
+    const int rows = Combo_ItemCount((uint8_t)GAME_OOT);
+    printf("[TEST] combo-item-view-new-file: OoT rows=%d freshness=%u under GAME_MM\n", rows,
+           (unsigned)Combo_ItemFreshness((uint8_t)GAME_OOT));
+    CIV_ASSERT(rows == ops->count());
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Kokiri Sword", &row) && !row.have);
+    CIV_ASSERT(row.freshness == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Slingshot", &row) && !row.have && row.count == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Song of Time", &row) && !row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Child's Wallet", &row));
+    printf("[TEST] combo-item-view-new-file: shadow Child's Wallet have=%d count=%d max=%d\n", (int)row.have,
+           row.count, row.max);
+    CIV_ASSERT(row.have && row.count == 0 && row.max == 99);
+
+    // ---- C. the live save, read while OoT is played -------------------------
+    static ComboItemOps sNewFileOps;
+    sNewFileOps = *ops;
+    sNewFileOps.liveSave = CivLiveSave;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, &sNewFileOps);
+    sCivLive = newFile.data();
+    Context_UpdateShadowCopy(GAME_OOT, zeros.data(), zeros.size());
+    Context_SetCurrentGame(GAME_OOT);
+    const uint8_t liveFreshness = Combo_ItemFreshness((uint8_t)GAME_OOT);
+    printf("[TEST] combo-item-view-new-file: GAME_OOT live freshness=%u (LIVE=%u)\n", (unsigned)liveFreshness,
+           (unsigned)COMBO_TRACKER_FRESH_LIVE);
+    CIV_ASSERT(liveFreshness == COMBO_TRACKER_FRESH_LIVE);
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_OOT) == ops->count());
+    sCivLive = NULL;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, ops);
+
+    // ---- D. a freeze noted as not a live file -------------------------------
+    Context_SetCurrentGame(GAME_MM);
+    Context_NoteDepartureLiveFile(GAME_OOT, 0);
+    Context_FreezeState(GAME_OOT, 0, newFile.data(), newFile.size());
+    CIV_ASSERT(Context_FrozenStateIsLiveFile(GAME_OOT) == 0);
+    const uint8_t notLiveFreshness = Combo_ItemFreshness((uint8_t)GAME_OOT);
+    printf("[TEST] combo-item-view-new-file: a freeze noted not-a-live-file reads freshness=%u (UNAVAILABLE=%u)\n",
+           (unsigned)notLiveFreshness, (unsigned)COMBO_TRACKER_FRESH_UNAVAILABLE);
+    CIV_ASSERT(notLiveFreshness == COMBO_TRACKER_FRESH_UNAVAILABLE);
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_OOT) == 0);
+    Context_UpdateShadowCopy(GAME_OOT, newFile.data(), newFile.size()); // a load or a creation: a file
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_STALE);
+
+    // ---- E. an all-zero shadow is still no data ------------------------------
+    Context_UpdateShadowCopy(GAME_OOT, zeros.data(), zeros.size());
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_UNAVAILABLE);
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_OOT) == 0);
+
+    // ---- F. the .redsave slot panel ---------------------------------------------
+    return CivNewFileSlotPanel(newFile);
+}
+
+extern "C" int Combo_ItemView_NewFileRunHeadless(void) {
+    printf("[TEST] combo-item-view-new-file: the OoT item adapter and the slot panel accept the save Ship of "
+           "Harkinian's own new-file path authors (#873)\n");
+
+    const GameId prevGame = Context_GetCurrentGame();
+    const ComboItemOps* prevOoT = Combo_Item_GetOps((uint8_t)GAME_OOT);
+    const ComboItemOps* prevMM = Combo_Item_GetOps((uint8_t)GAME_MM);
+    std::vector<uint8_t> ootShadowBackup((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    if (const uint8_t* p = (const uint8_t*)Context_GetOoTSaveContext()) {
+        memcpy(ootShadowBackup.data(), p, ootShadowBackup.size());
+    }
+    static ComboContext sNewFileCtxBackup;
+    sNewFileCtxBackup = gComboCtx;
+
+    int result = TEST_PASS;
+    do {
+        // The production registration, as the display-free row does it.
+        Combo_Item_RegisterOps((uint8_t)GAME_OOT, NULL);
+        Combo_TrackerWindow_Init();
+        const ComboItemOps* ops = Combo_Item_GetOps((uint8_t)GAME_OOT);
+        if (ops == NULL) {
+            printf("[TEST] FAIL: Combo_TrackerWindow_Init did not register OoT's item adapter\n");
+            result = TEST_FAIL;
+            break;
+        }
+
+        std::vector<uint8_t> newFile((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+        int newfMarked = -1;
+        if (OoT_ItemAdapter_TestAuthorNewFile(newFile.data(), newFile.size(), &newfMarked) != 1) {
+            printf("[TEST] FAIL: the OoT seam could not run Save_InitFile(false) (bring-up missing?)\n");
+            result = TEST_FAIL;
+            break;
+        }
+        printf("[TEST] combo-item-view-new-file: Save_InitFile(false) authored the save; its newf carries "
+               "'ZELDAZ'=%d\n",
+               newfMarked);
+        result = CivNewFileLegs(ops, newFile);
+    } while (0);
+
+    sCivLive = NULL;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, prevOoT);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, prevMM);
+    Context_UpdateShadowCopy(GAME_OOT, ootShadowBackup.data(), ootShadowBackup.size());
+    gComboCtx = sNewFileCtxBackup;
+    Context_SetCurrentGame(prevGame);
+    if (sCivNewFileSaveDirSet) {
+        rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+        mgr.DeleteSave(0);
+        mgr.ResetSlotSessionState();
+        mgr.SetSaveDirectory("Save");
+        sCivNewFileSaveDirSet = false;
+    }
+    if (result != TEST_PASS) {
+        return result;
+    }
+    printf("[TEST] PASS: a save made by Ship of Harkinian's new-file path reads as a save: rows from the shadow "
+           "(STALE) and the live save (LIVE), the slot panel reads it started; a not-live freeze and an all-zero "
+           "half read no data (#873)\n");
     return TEST_PASS;
 }

@@ -37,6 +37,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <new>
 
 #include <libultraship/libultraship.h>
@@ -47,6 +48,11 @@ extern "C" {
 #include "macros.h"
 extern PlayState* OoT_gPlayState;
 }
+
+#include "soh/GameVersions.h"
+#include "soh/SaveManager.h" // SaveManager::Instance, for the new-file lock's seam (#873)
+// Declared only in SaveManager.h's C branch (#ifndef __cplusplus).
+extern "C" void Save_InitFile(int isDebug);
 
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
@@ -522,6 +528,63 @@ extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int varian
     } else {
         s->inventory.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
         s->inventory.questItems |= (1u << QUEST_SONG_TIME);
+    }
+    return 1;
+}
+
+/**
+ * Write into `buf` (zeroed first) the save Ship of Harkinian's own new-file
+ * path authors: Save_InitFile(false), which OoT_Sram_InitNewSave runs when the
+ * player creates a file, over a zeroed gSaveContext so nothing but that path's
+ * writes is in it (#873). The live gSaveContext is put back afterwards.
+ *
+ * Needs the full OoT bring-up (the init reads OTRGlobals and dispatches
+ * SaveManager::Instance's init functions), so the rando-tier row
+ * combo-item-view-new-file calls it. InitFileNormal picks the name fill by the
+ * first mounted game version; a ROM-free tier mounts none, so an NTSC version
+ * is added for the call and the archive manager is rebuilt from its archives
+ * afterwards, which drops the added version again. Returns 1, or 0 when the
+ * bring-up is missing, `size` cannot hold a SaveContext or `buf` is misaligned.
+ * `outNewfMarked`, when non-NULL, receives whether the authored save carries
+ * the "ZELDAZ" bytes in `newf`.
+ */
+namespace {
+// AddGameVersion and ResetVirtualFileSystem are protected. A using-declaration
+// in a derived class makes them nameable, and the pointer-to-member formed
+// through it has the base's type, so it is called on the real ArchiveManager
+// without a cast to a type the object is not.
+struct ArchiveVersionAccess : Ship::ArchiveManager {
+    using Ship::ArchiveManager::AddGameVersion;
+    using Ship::ArchiveManager::ResetVirtualFileSystem;
+};
+} // namespace
+
+extern "C" int OoT_ItemAdapter_TestAuthorNewFile(void* buf, size_t size, int* outNewfMarked) {
+    if (buf == nullptr || size < sizeof(SaveContext) || !Aligned(buf) || SaveManager::Instance == nullptr ||
+        Ship::Context::GetInstance() == nullptr || Ship::Context::GetInstance()->GetResourceManager() == nullptr) {
+        return 0;
+    }
+    auto archives = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager();
+    const bool addedVersion = archives->GetGameVersions().empty();
+    if (addedVersion) {
+        void (Ship::ArchiveManager::*add)(uint32_t) = &ArchiveVersionAccess::AddGameVersion;
+        ((*archives).*add)(OOT_NTSC_US_10);
+    }
+
+    const auto saved = std::make_unique<SaveContext>(gSaveContext);
+    std::memset(&gSaveContext, 0, sizeof(SaveContext));
+    Save_InitFile(0);
+    std::memset(buf, 0, size);
+    std::memcpy(buf, &gSaveContext, sizeof(SaveContext));
+    gSaveContext = *saved;
+
+    if (addedVersion) {
+        void (Ship::ArchiveManager::*reset)() = &ArchiveVersionAccess::ResetVirtualFileSystem;
+        ((*archives).*reset)();
+    }
+    if (outNewfMarked != nullptr) {
+        static const char kNewf[6] = { 'Z', 'E', 'L', 'D', 'A', 'Z' };
+        *outNewfMarked = std::memcmp(static_cast<const SaveContext*>(buf)->newf, kNewf, sizeof(kNewf)) == 0 ? 1 : 0;
     }
     return 1;
 }

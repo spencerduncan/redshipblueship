@@ -605,6 +605,14 @@ if(BUILD_TESTING)
     # SaveContext images the OoT TU authors, handed to it as the frozen shadow
     # or a test live source; the shared group reads the resource pool.
     redship_add_test(NAME ComboItemView COMMAND redship --test combo-item-view)
+    # #873: the same view and the .redsave slot panel over the save Ship of
+    # Harkinian's own new-file path authors (Save_InitFile, which never writes
+    # the 'ZELDAZ' marker). Rando tier: Save_InitFile reads OTRGlobals and
+    # SaveManager::Instance, which only the full OoT bring-up constructs.
+    redship_add_test(NAME ComboItemViewNewFile COMMAND redship --test combo-item-view-new-file
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # The unified Item Tracker overlay (#458 U2): the ADR 0008 inertness
     # tripwire again (no ImGui context, so an ungated draw aborts the process),
     # the ShowOnlyPaused gate, the model reads its draw makes over authored
