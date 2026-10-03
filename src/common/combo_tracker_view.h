@@ -9,8 +9,9 @@
  * game's progress, even though the data is resident the whole time — OoT is
  * suspended (not shut down) during MM so its heap survives, and MM's check
  * completion travels inside the frozen shadow blob as in-save POD. This model
- * is the read-only projection of both, plus the cross-game identity and
- * placements already in gComboCtx.
+ * is the projection of both, plus the cross-game identity and placements
+ * already in gComboCtx. It is read-only but for one write, the skip toggle
+ * (#458 U5), which only the LIVE panel takes.
  *
  * PER-GAME ADAPTERS, NEVER A MERGED ID SPACE (ADR 0002). The two check models
  * are irreconcilable by construction: MM keys an in-save POD table by
@@ -237,6 +238,17 @@ typedef struct ComboMMTrackerDesc {
     // it carries the 'ZELDA3' marker; otherwise it falls back to the shadow
     // (#799). May itself be NULL: the shadow is then the only source.
     const void* (*liveSave)(void);
+    // The skip toggle's write (#458 U5), MM's own op: set check `checkId`'s
+    // RANDO_SAVE_CHECKS[].skipped in MM's live save, the byte MM's own check
+    // tracker flips on a row click (CheckTracker.cpp) and MM's next save
+    // persists. The MM TU makes the write itself, under the LIVE read's
+    // conditions (MM is the active game, its play state is loaded, the save is
+    // a marked rando save), so common code never writes MM's save (ADR 0008
+    // rule 5). False, with nothing written, outside those conditions or for a
+    // check its tracker's button is not drawn on (not part of the seed, or
+    // found). The view calls it only when its own source pick reads LIVE, never
+    // for the shadow. May itself be NULL: MM's panel then offers no toggle.
+    bool (*setLiveSkipped)(uint16_t checkId, bool skipped);
 } ComboMMTrackerDesc;
 
 /**
@@ -286,13 +298,28 @@ typedef struct ComboOoTTrackerOps {
     bool (*checkAt)(int index, ComboTrackerCheckRow* out);
     // Display name for a check id, or NULL (never-initialized static data).
     const char* (*checkName)(uint16_t checkId);
+    // ---- The skip toggle (#458 U5): the one write, LIVE panel only ----------
+    // Both NULL (a read-only registrant: the panel then offers no toggle) or
+    // both set. The view calls them only while OoT is the active game.
+    //
+    // Whether OoT takes a skip write now: a rando save is loaded, so the heap
+    // belongs to the file being played. (Close to, not the same as, SoH's own
+    // Check Tracker draw condition; the OoT TU states the difference.)
+    bool (*skipWritable)(void);
+    // Set check `checkId`'s skip flag on the heap and persist it, as SoH's Check
+    // Tracker's skip button does (randomizer_check_tracker.cpp, DrawLocation):
+    // its tracker-data save section is written and its own area counts follow.
+    // False, with nothing written, for a check its button is not drawn on (not
+    // part of the seed, or found) or when skipWritable answers false.
+    bool (*setSkipped)(uint16_t checkId, bool skipped);
 } ComboOoTTrackerOps;
 
 /**
  * Install OoT's accessor vtable (the pointer is retained; the OoT TU passes a
- * static). Passing NULL un-registers. A vtable with any NULL member is
- * rejected with a stderr complaint — a half-registered adapter would turn
- * "unavailable" into a null call through the window's draw path.
+ * static). Passing NULL un-registers. A vtable with a NULL read member, or with
+ * exactly one of the two skip members, is rejected with a stderr complaint — a
+ * half-registered adapter would turn "unavailable" into a null call through
+ * the window's draw path.
  */
 void Combo_Tracker_RegisterOoT(const ComboOoTTrackerOps* ops);
 
@@ -321,6 +348,43 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out);
 
 /** Display name for `game`'s check `checkId`, or NULL. */
 const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId);
+
+// ============================================================================
+// The skip toggle (#458 U5): the view's only write, made by the game's adapter
+// ============================================================================
+//
+// LIVE PANEL ONLY. A check is marked skipped in the game's own live state, the
+// same flag that game's own check tracker toggles. The view writes nothing
+// itself: it asks the active game's adapter, whose TU makes the write
+// (ComboOoTTrackerOps.setSkipped, ComboMMTrackerDesc.setLiveSkipped): OoT's heap ItemLocation
+// (persisted to its tracker-data save section, as SoH's skip button does), MM's
+// RANDO_SAVE_CHECKS[].skipped in the live save (persisted by MM's next save, as
+// MM's tracker's row click is). The other game's panel is a snapshot (MM's
+// frozen shadow, OoT's suspended heap) and is never written: the next arrival
+// replaces a shadow edit, and a suspended heap edit would land behind the back
+// of the save it belongs to.
+//
+// WHICH CHECKS. SoH's rule (DrawLocation draws the button only on a check that
+// is not found): a check of the seed, not collected. MM's own tracker also
+// flips a found check's flag, with no visible effect there; one window keeps
+// one rule.
+
+/** Whether `game`'s panel takes skip writes now: its data is LIVE and its
+ *  adapter takes the write (MM: its live save; OoT: a loaded save). */
+bool Combo_TrackerSkipWritable(uint8_t game);
+
+/** Whether the window offers the skip toggle on `row` of `game`'s panel: the
+ *  panel takes writes, and the check is part of the seed and not found. */
+bool Combo_TrackerRowSkippable(uint8_t game, const ComboTrackerCheckRow* row);
+
+/**
+ * Set `game`'s check `checkId` skipped (or not) in that game's live state.
+ * True when the flag now holds `skipped` (written by this call, or already
+ * so); false, with nothing written anywhere, when the panel does not take
+ * writes (a snapshot, no adapter, no loaded save) or the check is not
+ * skippable.
+ */
+bool Combo_TrackerSetSkipped(uint8_t game, uint16_t checkId, bool skipped);
 
 // ============================================================================
 // Cross-game crossings: the rows both panes draw (#755, #757)
