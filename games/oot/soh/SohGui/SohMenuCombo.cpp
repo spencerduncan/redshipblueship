@@ -59,6 +59,7 @@
 // CVars, from the constants the windows themselves are built with.
 #include "ComboSpoilerWindow.h"
 #include "ComboTrackerWindow.h"
+#include "ComboItemTrackerWindow.h"
 #include "cvar_shared_keys.h"
 
 #include <cctype>  // toupper, for the disabled reason's Title Case
@@ -608,7 +609,8 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
  * own ToggleVisibility (UIWidgets.cpp:198), so .CVar MUST equal the window's ctor
  * visibility CVar and .WindowName its registered name. Both come from the
  * constants the windows are built with: ComboGui::kComboSpoiler* /
- * kComboTracker* (src/common/ComboSpoilerWindow.h, ComboTrackerWindow.h) and
+ * kComboTracker* / kComboItemTracker* (src/common/ComboSpoilerWindow.h,
+ * ComboTrackerWindow.h, ComboItemTrackerWindow.h) and
  * the RSBS_CVAR_MM_WINDOW_*
  * macros in src/common/cvar_shared_keys.h, which
  * games/mm/2s2h/TrackersGuiSingleExe.cpp static_asserts its own ctor CVars
@@ -669,6 +671,16 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .WindowName(ComboGui::kComboTrackerWindowName)
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Toggles the Combo Tracker.").EmbedWindow(false));
+    // The unified Item Tracker overlay (#458 U2): both games' items, the
+    // inactive game's from its snapshot. Not race-disabled, as SoH's own Toggle
+    // Item Tracker row is not: it shows only what the player holds.
+    menu.AddWidget(path, "Combo Item Tracker", WIDGET_SEPARATOR_TEXT);
+    menu.AddWidget(path, "Toggle Combo Item Tracker", WIDGET_WINDOW_BUTTON)
+        .CVar(ComboGui::kComboItemTrackerVisibilityCVar)
+        .RaceDisable(false)
+        .WindowName(ComboGui::kComboItemTrackerWindowName)
+        .HideInSearch(true)
+        .Options(WindowButtonOptions().Tooltip("Toggles the Combo Item Tracker.").EmbedWindow(false));
 
     // MM's four tracker windows had the same unreachability bug as the two
     // windows above. #489 made them openable and correctly named (they register

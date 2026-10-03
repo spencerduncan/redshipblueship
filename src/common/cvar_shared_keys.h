@@ -172,6 +172,26 @@
  * reads its own; the key is spelled and classified first so the overlay cannot
  * arrive with an unclassified key. */
 #define RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER "gCombo.Windows.ItemTracker"
+/* #458 U2: the unified Item Tracker overlay's own settings, SoH's
+ * gTrackers.ItemTracker.* in the combo namespace (the Combo > Tracker Settings
+ * page, #458 U7, writes them; until then the console does). PREFERENCE keys.
+ *   WindowType      0 floating (SoH's default: no title bar, input-less unless
+ *                   Draggable), 1 a normal window
+ *   Draggable       0/1, floating only
+ *   ShowOnlyPaused  0/1, floating only: drawn only while the active game's
+ *                   pause menu is open
+ *   Opacity         float 0.1..1, the whole overlay's alpha
+ *   BgColor         colour picker base name; the value is "<key>.Value"
+ *                   (UIWidgets::CVarColorPicker), SoH's default clear black
+ *   Section.*       0/1 each, default 1: which sections the overlay draws */
+#define RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE "gCombo.Tracker.Items.WindowType"
+#define RSBS_CVAR_COMBO_ITEMS_DRAGGABLE "gCombo.Tracker.Items.Draggable"
+#define RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED "gCombo.Tracker.Items.ShowOnlyPaused"
+#define RSBS_CVAR_COMBO_ITEMS_OPACITY "gCombo.Tracker.Items.Opacity"
+#define RSBS_CVAR_COMBO_ITEMS_BG_COLOR "gCombo.Tracker.Items.BgColor"
+#define RSBS_CVAR_COMBO_ITEMS_SECTION_OOT "gCombo.Tracker.Items.Section.OoT"
+#define RSBS_CVAR_COMBO_ITEMS_SECTION_MM "gCombo.Tracker.Items.Section.MM"
+#define RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED "gCombo.Tracker.Items.Section.Shared"
 
 /* MM's four tracker windows' visibility toggles (#489, #535), MM's upstream
  * "gWindows.*" names. NOT tier-4 keys and not in kComboKeys: they are MM's own
@@ -547,6 +567,20 @@ inline constexpr ComboKey kComboKeys[] = {
       "combo settings pane visibility (ADR 0011 increment 2)" },
     { RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER, ComboKeyClass::Preference,
       "unified item tracker overlay visibility (#458; ADR 0004's 2026-09-30 amendment)" },
+    // ---- gCombo.Tracker.Items.*: the unified Item Tracker overlay's look
+    //      (#458 U2). All PREFERENCE: how the overlay draws says nothing about
+    //      a world.
+    { RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboKeyClass::Preference, "item tracker overlay: floating or window" },
+    { RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, ComboKeyClass::Preference, "item tracker overlay: floating overlay moves" },
+    { RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED, ComboKeyClass::Preference,
+      "item tracker overlay: floating overlay drawn only while paused" },
+    { RSBS_CVAR_COMBO_ITEMS_OPACITY, ComboKeyClass::Preference, "item tracker overlay: alpha" },
+    { RSBS_CVAR_COMBO_ITEMS_BG_COLOR, ComboKeyClass::Preference,
+      "item tracker overlay: background colour (the picker stores <key>.Value)" },
+    { RSBS_CVAR_COMBO_ITEMS_SECTION_OOT, ComboKeyClass::Preference, "item tracker overlay: draws the OoT section" },
+    { RSBS_CVAR_COMBO_ITEMS_SECTION_MM, ComboKeyClass::Preference, "item tracker overlay: draws the MM section" },
+    { RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED, ComboKeyClass::Preference,
+      "item tracker overlay: draws the shared section" },
 };
 
 constexpr bool ComboKeyHasPrefix(const char* key, const char* prefix) {
@@ -937,10 +971,12 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // (ADR 0010 D1)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
-// unified item tracker overlay's). Pinning the count makes a silently dropped
+// unified item tracker overlay's) + eight gCombo.Tracker.Items.* preferences
+// (#458 U2, the overlay's look). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 7, "three gCombo.Rando.* identity keys + four gCombo.Windows.* preferences = 7");
+static_assert(kComboKeyCount == 15, "three gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + eight "
+                                    "gCombo.Tracker.Items.* preferences = 15");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

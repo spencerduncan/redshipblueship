@@ -172,6 +172,16 @@ typedef struct {
      * column; it reports nothing and returns false.
      */
     bool (*IconButton)(const char* id, const char* icon, const ComboUiWidgetOpts* opts);
+    /**
+     * An icon from the Gui's texture map, `width` x `height` pixels, on the
+     * current line: SoH's item-tracker icon (randomizer_item_tracker.cpp, an
+     * ImGui::Image of Gui::GetTextureByName). `textureKey` is the opaque key an
+     * item adapter produced (ComboItemRow.iconKey). False, drawing nothing, when
+     * the key is NULL or no texture is loaded under it (MM's icons before MM's
+     * first boot): the caller then draws the item's name as text (#458 U2; the
+     * unified overlay draws text in U2 and icons from U3).
+     */
+    bool (*Image)(const char* textureKey, float width, float height);
 } ComboUiTable;
 
 /** Install the table the panes draw through. NULL uninstalls (back to the fallback). */
