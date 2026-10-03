@@ -98,6 +98,53 @@ typedef enum RsbsPairingRefusal {
 /** The spoiler names another frozen Majora's Mask option profile. */
 #define RSBS_SPOILER_REFUSAL_OTHER_MM_OPTIONS "otherMmOptions"
 
+/**
+ * THE ONE PREFIX of every cross-game refusal toast (#836, operator ruling
+ * 2026-10-01): the file select's and the load's refusals of a file, the MM
+ * arrival's refusals of a half and the MM spoiler's refusal of a document. It
+ * is the class's own name, and it is true at every site. Every message after it
+ * is capitalized and has no trailing period, so the Combo > Save Files page's
+ * status cell is this prefix and the toast's own words. The confirmations
+ * ("Restored from file:", "Restored for Majora's Mask:") and the toasts outside
+ * the class ("Spoiler not loaded:", "Not created:", "Not proven:", "Fewer
+ * cross-game items:") keep their own prefixes. The integration drives' toast
+ * matchers read this constant, so they cannot go vacuous when the copy moves.
+ */
+#define RSBS_REFUSAL_TOAST_PREFIX "Refused:"
+
+/**
+ * The words a refused FILE is refused with (the file select's toast, the load's
+ * toast and the Combo > Save Files status cell): one entry per distinct reason a
+ * player reads, in one table (pairing_refusal_toast.c), so a page, a toast and
+ * the width lock cannot drift apart. save.cpp maps its RsbsRefuseReason codes
+ * and identity outcomes onto these.
+ */
+typedef enum RsbsRefusalWords {
+    RSBS_REFUSAL_WORDS_UNREADABLE = 0,    // "File could not be read"
+    RSBS_REFUSAL_WORDS_NOT_A_SAVE,        // "Not a save file"
+    RSBS_REFUSAL_WORDS_OTHER_BUILD,       // "File made by another build" (version, tier size, other-build field)
+    RSBS_REFUSAL_WORDS_WRONG_SLOT,        // "File belongs to another slot"
+    RSBS_REFUSAL_WORDS_INCOMPLETE,        // "File is incomplete"
+    RSBS_REFUSAL_WORDS_DAMAGED,           // "File is damaged"
+    RSBS_REFUSAL_WORDS_RECORD_DAMAGED,    // "Cross-game record is damaged" (combo magic, identity damage)
+    RSBS_REFUSAL_WORDS_OLDER_THAN_OOT,    // "Older than the Ocarina of Time save" (commit skew)
+    RSBS_REFUSAL_WORDS_RULES_DIFFER,      // "Cross-game rules differ"
+    RSBS_REFUSAL_WORDS_ITEMS_DAMAGED,     // "Cross-game items are damaged"
+    RSBS_REFUSAL_WORDS_RECORD_MISSING,    // "Cross-game record is missing"
+    RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER, // "Majora's Mask options differ"
+    RSBS_REFUSAL_WORDS_NO_MM_WORLD,       // "This file has no Majora's Mask world"
+    // The page's fallbacks for a refusal whose words were not recorded (every
+    // refusal the file select posts records its words; these are reached only
+    // through the session's record of a refusal that posted none).
+    RSBS_REFUSAL_WORDS_SETTINGS_DIFFER, // "Settings differ from its creation" (identity)
+    RSBS_REFUSAL_WORDS_NOT_GENERATED,   // "Termina could not be generated" (generation)
+    RSBS_REFUSAL_WORDS_UNCHECKED,       // "File could not be checked" (no reason recorded)
+    RSBS_REFUSAL_WORDS_COUNT
+} RsbsRefusalWords;
+
+/** The words for @p which (an RsbsRefusalWords); never NULL, "" past the table. */
+const char* Combo_RefusalWords(int which);
+
 /** The toast's prefix for @p kind; never NULL ("" for an unknown kind). */
 const char* Combo_PairingRefusalToastPrefix(int kind);
 

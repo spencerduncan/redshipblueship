@@ -17,6 +17,35 @@
 
 #define RULES_HEAD "rules changed"
 
+/* The refused file's words (RsbsRefusalWords), capitalized and with no trailing
+ * period, as every message after RSBS_REFUSAL_TOAST_PREFIX is. */
+static const char* const kRefusalWords[RSBS_REFUSAL_WORDS_COUNT] = {
+    [RSBS_REFUSAL_WORDS_UNREADABLE] = "File could not be read",
+    [RSBS_REFUSAL_WORDS_NOT_A_SAVE] = "Not a save file",
+    [RSBS_REFUSAL_WORDS_OTHER_BUILD] = "File made by another build",
+    [RSBS_REFUSAL_WORDS_WRONG_SLOT] = "File belongs to another slot",
+    [RSBS_REFUSAL_WORDS_INCOMPLETE] = "File is incomplete",
+    [RSBS_REFUSAL_WORDS_DAMAGED] = "File is damaged",
+    [RSBS_REFUSAL_WORDS_RECORD_DAMAGED] = "Cross-game record is damaged",
+    /* R-N8: a toast spells the game's name out. */
+    [RSBS_REFUSAL_WORDS_OLDER_THAN_OOT] = "Older than the Ocarina of Time save",
+    [RSBS_REFUSAL_WORDS_RULES_DIFFER] = "Cross-game rules differ",
+    [RSBS_REFUSAL_WORDS_ITEMS_DAMAGED] = "Cross-game items are damaged",
+    [RSBS_REFUSAL_WORDS_RECORD_MISSING] = "Cross-game record is missing",
+    [RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER] = "Majora's Mask options differ",
+    [RSBS_REFUSAL_WORDS_NO_MM_WORLD] = "This file has no Majora's Mask world",
+    [RSBS_REFUSAL_WORDS_SETTINGS_DIFFER] = "Settings differ from its creation",
+    [RSBS_REFUSAL_WORDS_NOT_GENERATED] = "Termina could not be generated",
+    [RSBS_REFUSAL_WORDS_UNCHECKED] = "File could not be checked",
+};
+
+const char* Combo_RefusalWords(int which) {
+    if (which < 0 || which >= RSBS_REFUSAL_WORDS_COUNT || kRefusalWords[which] == NULL) {
+        return "";
+    }
+    return kRefusalWords[which];
+}
+
 const char* Combo_PairingRefusalToastPrefix(int kind) {
     switch (kind) {
         case RSBS_PAIRING_REFUSAL_MM_OPTIONS:
