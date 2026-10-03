@@ -42,7 +42,8 @@
 #include <ship/window/gui/IconsFontAwesome4.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
-#include "combo_item_view.h" // {OoT,MM}_ItemAdapter_Register (#458 U1)
+#include "ComboItemTrackerWindow.h" // RegisterComboItemTrackerWindow (#458 U2)
+#include "combo_item_view.h"        // {OoT,MM}_ItemAdapter_Register (#458 U1)
 #include "combo_tracker_view.h"
 #include "combo_ui.h"
 #include "context.h" // GameId
@@ -702,4 +703,8 @@ extern "C" void Combo_TrackerWindow_Init(void) {
         return;
     }
     ComboGui::RegisterComboTrackerWindow(gui);
+    // The unified Item Tracker overlay (#458 U2), over the item adapters
+    // registered above: registered from common code with its sibling, never
+    // from either game's boot.
+    ComboGui::RegisterComboItemTrackerWindow(gui);
 }

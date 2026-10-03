@@ -214,7 +214,8 @@ extern "C" {
  * Production entry point. Registers both games' tracker adapters and both
  * games' item adapters (#458 U1) (so the models are populated even for tests that
  * never construct a Gui), then the
- * window on the shared Ship::Context Gui. Safe no-op past the adapter step
+ * window and the unified Item Tracker overlay (#458 U2, ComboItemTrackerWindow.h)
+ * on the shared Ship::Context Gui. Safe no-op past the adapter step
  * when the context has no window/Gui — the state every ROM-free harness runs
  * in.
  */

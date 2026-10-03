@@ -146,6 +146,15 @@ bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
     return true;
 }
 
+bool Combo_ItemActiveGamePaused(void) {
+    const GameId active = Context_GetCurrentGame();
+    if (active != GAME_OOT && active != GAME_MM) {
+        return false;
+    }
+    const ComboItemOps* ops = Combo_Item_GetOps((uint8_t)active);
+    return ops != NULL && ops->paused != NULL && ops->paused();
+}
+
 const char* Combo_ItemFreshnessLabel(uint8_t game, uint8_t freshness) {
     switch (freshness) {
         case COMBO_TRACKER_FRESH_LIVE:

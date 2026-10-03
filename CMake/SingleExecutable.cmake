@@ -55,6 +55,8 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.c
     ${CMAKE_SOURCE_DIR}/src/common/combo_item_view.c
     ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.cpp
+    # The unified Item Tracker overlay over combo_item_view (#458 U2)
+    ${CMAKE_SOURCE_DIR}/src/common/ComboItemTrackerWindow.cpp
     # MM randomizer options: the registry + value accessors over the descriptor
     # table MM publishes (#497 step 4, #499), and the pane that draws it. The
     # pane is common-owned because it must be reachable while OoT is running —
@@ -213,6 +215,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_item_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.h
+    ${CMAKE_SOURCE_DIR}/src/common/ComboItemTrackerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_view.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_page.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.h
@@ -602,6 +605,11 @@ if(BUILD_TESTING)
     # SaveContext images the OoT TU authors, handed to it as the frozen shadow
     # or a test live source; the shared group reads the resource pool.
     redship_add_test(NAME ComboItemView COMMAND redship --test combo-item-view)
+    # The unified Item Tracker overlay (#458 U2): the ADR 0008 inertness
+    # tripwire again (no ImGui context, so an ungated draw aborts the process),
+    # the ShowOnlyPaused gate, the model reads its draw makes over authored
+    # shadows and a test live source, and its chrome and grid decisions.
+    redship_add_test(NAME ComboItemTrackerWindow COMMAND redship --test combo-item-tracker-window)
     # MM randomizer options (#497 step 4, #499). Display-free: the option table
     # is a static global in the WHOLE_ARCHIVE'd 2ship_rando, the profile resolver
     # runs over a zeroed MM SaveContext with no fill, and the page view model's

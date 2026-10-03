@@ -160,6 +160,12 @@
 #include "save.h" // RsbsSave_EmitLoadToast: the paired-file load's toasts (#781)
 #include "ui_snapshot_image.h"
 
+// The unified Item Tracker overlay (#458 U2), its states' item adapters and
+// shared pool.
+#include "ComboItemTrackerWindow.h"
+#include "combo_item_view.h"
+#include "shared_resources.h"
+
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
 extern "C" int OoT_InitSharedContextSubsystems(void);
 extern "C" void MM_TrackersGui_Init(void);
@@ -170,6 +176,10 @@ extern "C" const char OoT_gGitCommitHash[];
 extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested);
 extern "C" void OoT_Creation_EmitGoalWarningToast(uint32_t unprovedHalves);
 extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
+// The item adapters' authoring seams (#458 U1): a started save written through
+// each game's own layout, variant 0 the "shadow" world and 1 the "live" one.
+extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
+extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 
 namespace SohGui {
 // Defined in SohMenuRandomizer.cpp and declared in no header (the combo section
@@ -1424,6 +1434,7 @@ std::vector<std::string> TooltipLinePrefixes(const std::string& tip) {
 constexpr const char* kSnapshotOoTItemA = "Lens of Truth";
 // The SoH pane our tracker and spoiler panes are read against (compareWith).
 constexpr const char* kSohPaneReference = "window/Check Tracker Settings";
+constexpr const char* kSohItemTrackerReference = "window/Item Tracker";
 constexpr const char* kSnapshotOoTItemB = "Megaton Hammer";
 // MM checks hosting the OoT items; the first is collected in the authored MM save.
 constexpr uint16_t kSnapshotOoTToMMCheckA = 0x0401;
@@ -1483,7 +1494,7 @@ void AuthorCrossings() {
  */
 std::vector<uint8_t> gSnapshotMMShadowBackup;
 
-void AuthorMMShadow() {
+void AuthorMMShadow(bool withItems = false) {
     const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
     // The shadow storage exists only once the frozen-state manager is
     // initialized (idempotent); before that GetMMSaveContext answers NULL.
@@ -1494,6 +1505,12 @@ void AuthorMMShadow() {
     }
     gSnapshotMMShadowBackup.assign((const uint8_t*)resident, (const uint8_t*)resident + MM_SAVE_CONTEXT_SIZE);
     std::vector<uint8_t> blob((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    if (withItems) {
+        // The Item Tracker overlay's states (#458 U2): MM's item adapter's own
+        // "shadow" world (a bow with 25 arrows, beans, masks, a song, remains),
+        // written through MM's layout; the tracker fields below go on top.
+        MM_ItemAdapter_TestAuthorSave(blob.data(), blob.size(), 0);
+    }
     // A paired file's MM final seed is a hash of the paired seed and the options
     // (Rando::Foreign::MixPairedFinalSeedForAttempt), never the paired seed itself
     // (#816), so the authored half carries a different number, as a real one does.
@@ -1514,6 +1531,94 @@ void RestoreMMShadow() {
         Context_UpdateShadowCopy(GAME_MM, gSnapshotMMShadowBackup.data(), gSnapshotMMShadowBackup.size());
         gSnapshotMMShadowBackup.clear();
     }
+}
+
+/**
+ * The unified Item Tracker overlay's states (#458 U2). "live": Ocarina of Time
+ * played live (its item adapter wrapped with a live source holding the adapter's
+ * "live" world: the Hookshot and the Song of Time), Majora's Mask from the
+ * snapshot AuthorMMShadow writes, and a shared pool as a departing game leaves
+ * it. "snapshot": the mirror image, Majora's Mask live (its "live" world: the
+ * Hookshot, the Zora Mask, the Song of Soaring, the Kokiri Sword) and Ocarina of
+ * Time from its snapshot (the adapter's "shadow" world: the Longshot, a bow with
+ * 35 arrows, a medallion, tokens). "no-data": both snapshots empty, no live
+ * source, an empty pool. Every adapter, both shadows and the pool are put back
+ * in LeaveState.
+ */
+std::vector<uint8_t> gSnapshotOoTShadowBackup;
+std::vector<uint8_t> gSnapshotItemOoTLive;
+std::vector<uint8_t> gSnapshotItemMMLive;
+const ComboItemOps* gSnapshotItemOoTOps = nullptr;
+const ComboItemOps* gSnapshotItemMMOps = nullptr;
+ComboItemOps gSnapshotItemOoTWrapped;
+ComboItemOps gSnapshotItemMMWrapped;
+
+const void* SnapshotItemOoTLive(void) {
+    return gSnapshotItemOoTLive.empty() ? nullptr : gSnapshotItemOoTLive.data();
+}
+const void* SnapshotItemMMLive(void) {
+    return gSnapshotItemMMLive.empty() ? nullptr : gSnapshotItemMMLive.data();
+}
+
+void AuthorItemTrackerState(const std::string& state) {
+    Context_InitFrozenStates();
+    gSnapshotItemOoTOps = Combo_Item_GetOps((uint8_t)GAME_OOT);
+    gSnapshotItemMMOps = Combo_Item_GetOps((uint8_t)GAME_MM);
+    if (const void* resident = Context_GetOoTSaveContext()) {
+        gSnapshotOoTShadowBackup.assign((const uint8_t*)resident, (const uint8_t*)resident + OOT_SAVE_CONTEXT_SIZE);
+    }
+    std::vector<uint8_t> ootShadow((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    if (state == "no-data") {
+        if (const void* resident = Context_GetMMSaveContext()) {
+            gSnapshotMMShadowBackup.assign((const uint8_t*)resident, (const uint8_t*)resident + MM_SAVE_CONTEXT_SIZE);
+        }
+        std::vector<uint8_t> mmZeros((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+        Context_UpdateShadowCopy(GAME_MM, mmZeros.data(), mmZeros.size());
+        Context_UpdateShadowCopy(GAME_OOT, ootShadow.data(), ootShadow.size());
+        Combo_ResetSharedResourceWatermarks();
+        Context_SetCurrentGame(GAME_OOT);
+        CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
+        return;
+    }
+    AuthorMMShadow(true);
+    OoT_ItemAdapter_TestAuthorSave(ootShadow.data(), ootShadow.size(), 0);
+    Context_UpdateShadowCopy(GAME_OOT, ootShadow.data(), ootShadow.size());
+    // The pool a departing game leaves: 250 rupees, a tier-2 quiver holding 33
+    // arrows, five hearts and two pieces.
+    Combo_ResetSharedResourceWatermarks();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 250);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 2);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 33);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x50, 2));
+    const bool ootLive = state == "live";
+    std::vector<uint8_t>& live = ootLive ? gSnapshotItemOoTLive : gSnapshotItemMMLive;
+    live.assign(ootLive ? (size_t)OOT_SAVE_CONTEXT_SIZE : (size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    if (ootLive && gSnapshotItemOoTOps != nullptr) {
+        OoT_ItemAdapter_TestAuthorSave(live.data(), live.size(), 1);
+        gSnapshotItemOoTWrapped = *gSnapshotItemOoTOps;
+        gSnapshotItemOoTWrapped.liveSave = SnapshotItemOoTLive;
+        Combo_Item_RegisterOps((uint8_t)GAME_OOT, &gSnapshotItemOoTWrapped);
+    } else if (!ootLive && gSnapshotItemMMOps != nullptr) {
+        MM_ItemAdapter_TestAuthorSave(live.data(), live.size(), 1);
+        gSnapshotItemMMWrapped = *gSnapshotItemMMOps;
+        gSnapshotItemMMWrapped.liveSave = SnapshotItemMMLive;
+        Combo_Item_RegisterOps((uint8_t)GAME_MM, &gSnapshotItemMMWrapped);
+    }
+    Context_SetCurrentGame(ootLive ? GAME_OOT : GAME_MM);
+}
+
+void RestoreItemTrackerState() {
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, gSnapshotItemOoTOps);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, gSnapshotItemMMOps);
+    gSnapshotItemOoTLive.clear();
+    gSnapshotItemMMLive.clear();
+    if (!gSnapshotOoTShadowBackup.empty()) {
+        Context_UpdateShadowCopy(GAME_OOT, gSnapshotOoTShadowBackup.data(), gSnapshotOoTShadowBackup.size());
+        gSnapshotOoTShadowBackup.clear();
+    }
+    RestoreMMShadow();
+    Combo_ResetSharedResourceWatermarks();
+    CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
 }
 
 /**
@@ -1851,6 +1956,22 @@ void Session::BuildPageList() {
         p.needsRom = true;
         pages.push_back(p);
     }
+    {
+        // SoH's own Item Tracker overlay, the reference for the unified Item
+        // Tracker overlay (#458 U2): floating, as SoH ships it, with no save
+        // loaded, so every icon is drawn faded. It draws icons and no text, so
+        // there is no text to expect; the window being drawn and not blank is
+        // the oracle. OoT is made the active game for it (its window is
+        // OoT-gated, #797).
+        PageSpec p;
+        p.id = kSohItemTrackerReference;
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::WINDOW;
+        p.window = "Item Tracker";
+        p.states = { "" };
+        p.needsRom = true;
+        pages.push_back(p);
+    }
 
     // Ours. Every Combo sidebar the live menu registered, in its own order, so a
     // page added later cannot escape the harness: an unlisted page compares with
@@ -2174,6 +2295,39 @@ void Session::BuildPageList() {
         p.stateText["progress"] = { kSnapshotOoTChecks[0].name, kSnapshotOoTItemA, kSnapshotMMToOoTNote };
         p.stateText["unpaired"] = { "No paired world" };
         p.stateContrast = { { "progress", "paired" }, { "unpaired", "paired" } };
+        pages.push_back(p);
+    }
+    {
+        // The unified Item Tracker overlay (#458 U2), read against SoH's own
+        // Item Tracker overlay (window/Item Tracker). "live": OoT live, MM from
+        // its snapshot; "snapshot": the mirror image; both floating, as SoH's
+        // default is (no title bar). "no-data": nothing to read, drawn as the
+        // window type (title bar), the overlay's other chrome
+        // (AuthorItemTrackerState). The floating overlay has no scrollbar and
+        // takes no input, so a player sees its first view and nothing else: it
+        // is captured unscrolled, and FitOracle fails it if anything is clipped
+        // at its edge or the window runs past the game window's. Every state's
+        // one view must hold the three section headers (expectText) and each
+        // section's freshness note and a row from the last section (stateText).
+        PageSpec p;
+        p.id = std::string("window/") + ComboGui::kComboItemTrackerWindowName;
+        p.kind = Kind::WINDOW;
+        p.window = ComboGui::kComboItemTrackerWindowName;
+        p.states = { "no-data", "live", "snapshot" };
+        p.compareWith = kSohItemTrackerReference;
+        p.scroll = false;
+        p.expectText = { "Ocarina of Time", "Majora's Mask", "Shared" };
+        // Row text as the overlay prints it: MM's snapshot bow and OoT's live
+        // song in "live"; OoT's snapshot bow and MM's live mask in "snapshot";
+        // the shared pool's arrows (the last section) in both.
+        p.stateText["live"] = { "Updated live.", "As of file creation.", "As of the last switch or save.",
+                                "Bow 25/40",     "Song of Time",         "Arrows 33/40" };
+        p.stateText["snapshot"] = {
+            "Updated live.",   "As of the last game switch or save.", "As of the last switch or save.",
+            "Fairy Bow 35/40", "Gold Skulltula Tokens 17/100",        "Arrows 33/40"
+        };
+        p.stateText["no-data"] = { "No data.", ComboGui::kComboItemTrackerWindowName };
+        p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         pages.push_back(p);
     }
     // Ours: the Cross-Game Rules Reset confirm, opened through the row's own
@@ -2671,6 +2825,11 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             gComboCtx.mmProfileDigest = 0x4D4D0001u;
         }
     } else if (p.kind == Kind::WINDOW) {
+        if (p.window == ComboGui::kComboItemTrackerWindowName) {
+            AuthorItemTrackerState(state);
+        } else if (p.id == kSohItemTrackerReference) {
+            Context_SetCurrentGame(GAME_OOT); // SoH's tracker draws only while OoT is the active game (#797)
+        }
         if (state == "paired") {
             AuthorPairing();
         } else if (state == "crossings" || state == "progress") {
@@ -2710,6 +2869,9 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.kind == Kind::WINDOW && (state == "progress" || state == "crossings")) {
         OoT_TrackerAdapter_Register();
         RestoreMMShadow();
+    }
+    if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboItemTrackerWindowName) {
+        RestoreItemTrackerState();
     }
     ComboContext_Init();
     Combo_Crossings_Clear();
@@ -3466,6 +3628,9 @@ const char* PaneCvar(const std::string& window) {
     if (window == ComboGui::kComboTrackerWindowName) {
         return ComboGui::kComboTrackerVisibilityCVar;
     }
+    if (window == ComboGui::kComboItemTrackerWindowName) {
+        return ComboGui::kComboItemTrackerVisibilityCVar;
+    }
     return nullptr;
 }
 
@@ -3660,6 +3825,32 @@ void Session::CheckTrickCensus(const PageSpec& p, const std::string& state) {
            where.c_str(), count, drawn.size(), enabledRows, drawn.size() - (size_t)enabledRows, problems);
 }
 
+/**
+ * The no-scroll pane's oracle: every pixel of its contents is in its one view.
+ * Fails the capture when the window clips its own contents (ScrollMax > 0 in
+ * either direction: a size constraint held it smaller than what it drew) or
+ * when the window runs past the game window's edge.
+ */
+void FitOracle(const ImGuiWindow* w, Capture& c) {
+    char why[256];
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const float right = viewport->WorkPos.x + viewport->WorkSize.x;
+    const float bottom = viewport->WorkPos.y + viewport->WorkSize.y;
+    if (w->ScrollMax.y > 0.5f || w->ScrollMax.x > 0.5f) {
+        snprintf(why, sizeof(why),
+                 "the pane does not scroll, and %.0f px of its contents below (%.0f px to the right of) its edge "
+                 "cannot be seen",
+                 w->ScrollMax.y, w->ScrollMax.x);
+    } else if (w->Pos.x + w->Size.x > right + 0.5f || w->Pos.y + w->Size.y > bottom + 0.5f) {
+        snprintf(why, sizeof(why), "the pane (%.0f,%.0f %.0fx%.0f) runs past the game window's edge (%.0fx%.0f)",
+                 w->Pos.x, w->Pos.y, w->Size.x, w->Size.y, right, bottom);
+    } else {
+        return;
+    }
+    c.status = "fail";
+    c.reason = why;
+}
+
 void Session::CaptureWindowPage(const PageSpec& p) {
     // Ours read their visibility CVar LIVE in Draw() (they override it), so
     // setting the CVar is what opens them; Show() would do nothing. An SoH pane
@@ -3738,7 +3929,15 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 c.scrollMax = w->ScrollMax.y;
             }
             Finish(c, p);
-            const bool unfinished = w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
+            if (!p.scroll && w != nullptr && c.status == "pass") {
+                // A pane that does not scroll for its player (p.scroll false: a
+                // floating overlay has no scrollbar and takes no input) is seen
+                // in its first view only, so that view must hold all of it:
+                // nothing clipped at the window's edge, and the window inside
+                // the game window.
+                FitOracle(w, c);
+            }
+            const bool unfinished = p.scroll && w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
             const bool more = unfinished && scrollIndex < kMaxScrollSteps && !opt.Sabotaged("no-scroll");
             if (unfinished && !more) {
                 c.reason = opt.Sabotaged("no-scroll")

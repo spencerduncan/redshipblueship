@@ -1771,6 +1771,11 @@ and `Combo_ComboSettingsFrozen`):
   `.eligible` (`VB_TINGLE_GIVE_MAP_UNLOCK`), so CheckQueue's foreign branch
   delivers them like a chest; his offer names the OoT item and a delivered slot
   refuses a second sale for the rest of the game.
+  *Amended 2026-10-02 (#800 pass 2, merchants):* OoT also admits its four
+  `RCTYPE_MERCHANT` rows, named one by one (the bean salesman, Medigoron,
+  Granny's Shop, the carpet salesman): each sale sets the merchant's
+  RandomizerInf flag with the native give suppressed, so the RC-queue drain's
+  foreign branch delivers them like a shelf. The chest game stays refused.
 - MM's engine grants the fixed contents of reached checks outside the host pool
   during expansion (#737), without which beat-both was unprovable on the
   shipped profile.
