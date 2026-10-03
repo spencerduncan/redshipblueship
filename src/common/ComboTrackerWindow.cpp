@@ -167,8 +167,27 @@ CheckListColours ReadCheckListColours() {
  * crossing (#796), or "Skipped" for a skipped check that names none. The item
  * follows the name on its line when it fits there, and starts the next line under
  * the name when it does not.
+ *
+ * On a panel that takes skip writes (`skipColumn`: the LIVE panel, #458 U5) the
+ * row starts with SoH's skip button (DrawLocation): a times to skip, a plus to
+ * unskip, on a check of the seed not yet found, and an empty square of the same
+ * size on every other row so the names stay in one column. A snapshot panel
+ * draws neither.
  */
-void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckListColours& colours) {
+void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckListColours& colours, bool skipColumn) {
+    if (skipColumn) {
+        char buttonId[24];
+        snprintf(buttonId, sizeof(buttonId), "##skip%u", (unsigned)row.checkId);
+        if (Combo_TrackerRowSkippable(game, &row)) {
+            if (Ui().IconButton(buttonId, row.skipped ? ICON_FA_PLUS : ICON_FA_TIMES, nullptr)) {
+                // The flag changes on the next read: the view is recomputed per frame.
+                (void)Combo_TrackerSetSkipped(game, row.checkId, !row.skipped);
+            }
+        } else {
+            (void)Ui().IconButton(buttonId, nullptr, nullptr); // the seam's empty square, never a button
+        }
+        ImGui::SameLine();
+    }
     const TextColours& c = colours.status[row.status < (uint8_t)COMBO_TRACKER_CHECK_STATUS_COUNT ? row.status : 0];
     char idLabel[24];
     const char* name = ComboCheckListName(row);
@@ -229,6 +248,8 @@ void DrawCheckList(uint8_t game) {
     }
 
     const CheckListColours colours = ReadCheckListColours();
+    // Asked once per frame: the panel takes skip writes only while it is LIVE (#458 U5).
+    const bool skipColumn = Combo_TrackerSkipWritable(game);
     bool previousOpen = false;
     // SoH draws its whole area loop under FramePadding (4, 3)
     // (randomizer_check_tracker.cpp, DrawElement), which puts an area's tree
@@ -257,7 +278,7 @@ void DrawCheckList(uint8_t game) {
         Ui().Tooltip("Checked / Total");
         if (open) {
             for (const ComboTrackerCheckRow& row : area.rows) {
-                DrawCheckRow(game, row, colours);
+                DrawCheckRow(game, row, colours, skipColumn);
             }
         }
         ImGui::PopID();
