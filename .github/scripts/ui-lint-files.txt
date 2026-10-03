@@ -40,4 +40,5 @@ STRINGS src/common/combo_mm_options_page.c
 STRINGS src/common/combo_save_files_view.cpp
 
 EXCLUDED src/common/ComboSettingsWindow.cpp   retired from the menu; console-only, kept with its lock
+EXCLUDED src/common/frame_capture.cpp         test-only frame capture (#843): an ImGui context hook and a draw callback that reads the frame back, no widget or string the player sees
 EXCLUDED src/common/combo_ui.cpp              raw-ImGui fallback for a link without SohGui/ComboUiSoh.cpp; the shipped binary installs SoH's table (ComboMMOptionsPage asserts it)

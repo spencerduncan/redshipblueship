@@ -11,6 +11,7 @@
 #define RSBS_INTEGRATION_TEST_HOOKS_H
 
 #include "game.h"
+#include "frame_capture.h" // IntegrationTest_CaptureFrame: in-process screenshots for drives (#843)
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

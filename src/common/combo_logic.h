@@ -801,8 +801,9 @@ typedef struct ComboLogicEngine {
      * WHY IT EXISTS. A crossing only exists for the player if the host's own give
      * path can deliver a foreign item when the check is collected. Neither port
      * delivers from every check: OoT's foreign delivery rides the RC-queue drain
-     * that its chests use, and MM's rides the ordinary eligible->CheckQueue path,
-     * which its shop and Tingle flows do not take (Foreign.cpp's host classes).
+     * that its chests use, and MM's rides the ordinary eligible->CheckQueue path
+     * (which a Tingle map sale also arms) or a shop purchase's own foreign give
+     * (Foreign.cpp's host classes).
      * A crossing placed anywhere else would be a progression item the player can
      * never receive — they would pick up the junk cover — so the proof would be
      * about a world that does not exist. Each engine therefore answers for its
