@@ -797,11 +797,22 @@ u8 EnGm_RandoCanGetMedigoronItem() {
 // TEST BRIDGE (combo-single-bag leg G, #800 pass 2): 1 while merchant check `rc`
 // would still sell its randomized item, read from the merchant's REAL gate (the
 // one its sale and its offer consult); 0 once it would fall back to its vanilla
-// behavior; -1 when `rc` is not one of the four merchants.
+// behavior; -1 when `rc` is not one of the four merchants. Granny's own
+// trade-quest precondition (the claim check, or the odd mushroom traded under
+// adult trade shuffle) is met for the duration of the call and restored after,
+// so her verdict reads her sale gate rather than how far the save got.
 extern "C" int OoT_Rando_Foreign_TestMerchantSells(uint16_t rc) {
     switch ((RandomizerCheck)rc) {
-        case RC_KAK_GRANNYS_SHOP:
-            return EnDs_RandoCanGetGrannyItem() ? 1 : 0;
+        case RC_KAK_GRANNYS_SHOP: {
+            const u8 claimCheckSlot = INV_CONTENT(ITEM_CLAIM_CHECK);
+            const u16 tradeWord = gSaveContext.itemGetInf[ITEMGETINF_30 >> 4];
+            INV_CONTENT(ITEM_CLAIM_CHECK) = ITEM_CLAIM_CHECK;
+            gSaveContext.itemGetInf[ITEMGETINF_30 >> 4] |= (u16)(1 << (ITEMGETINF_30 & 0xF));
+            const int sells = EnDs_RandoCanGetGrannyItem() ? 1 : 0;
+            INV_CONTENT(ITEM_CLAIM_CHECK) = claimCheckSlot;
+            gSaveContext.itemGetInf[ITEMGETINF_30 >> 4] = tradeWord;
+            return sells;
+        }
         case RC_WASTELAND_BOMBCHU_SALESMAN:
             return EnJs_RandoCanGetCarpetMerchantItem() ? 1 : 0;
         case RC_GC_MEDIGORON:

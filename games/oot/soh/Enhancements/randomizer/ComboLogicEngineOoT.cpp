@@ -2754,6 +2754,17 @@ extern "C" int OoT_ComboLogic_TestIsMerchant(uint16_t hostCheck) {
     return Rando::StaticData::GetLocation(rc)->GetRCType() == RCTYPE_MERCHANT ? 1 : 0;
 }
 
+/** TEST BRIDGE (combo-single-bag leg G, #800 pass 2): OoT's merchant checks (the
+ *  RCTYPE_MERCHANT rows of the static table), up to `cap` of them into `out`.
+ *  Returns how many there are. */
+extern "C" int OoT_ComboLogic_TestMerchantChecks(uint16_t* out, int cap) {
+    const std::vector<RandomizerCheck> merchants = Rando::StaticData::GetMerchantLocations();
+    for (int i = 0; i < (int)merchants.size() && i < cap; i++) {
+        out[i] = (uint16_t)merchants[i];
+    }
+    return (int)merchants.size();
+}
+
 /** TEST BRIDGE (combo-single-bag): OoT hosts the fill considers that hold nothing. */
 extern "C" int OoT_ComboLogic_TestEmptyHostCount(void) {
     return OoTComboLogicReady() ? (int)GetAllEmptyLocations().size() : -1;

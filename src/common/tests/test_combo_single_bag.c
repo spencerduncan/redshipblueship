@@ -119,9 +119,10 @@
  *       #800 pass 2, merchants: the same creation also has OoT's merchant
  *       shuffle on (All), the same assertions hold for an MM item on a merchant
  *       (the bean salesman, Medigoron, Granny's Shop, the carpet salesman), and
- *       every merchant hosting an MM item stops selling its randomized item once
- *       its check is collected, read from the merchant's own gate (at least one
- *       of them sold it before). Red with merchants refused by the predicate:
+ *       each of the four, given an MM item (the crossing store re-hydrated with
+ *       one on every merchant), sells its randomized item until its check is
+ *       collected and not after, read from the merchant's own gate. Red with
+ *       merchants refused by the predicate:
  *       zero merchant crossings; red with the gates unchanged: a collected
  *       merchant still sells.
  *
@@ -182,6 +183,7 @@ int OoT_ComboLogic_TestIsShopShelf(uint16_t hostCheck);
 int OoT_ComboLogic_TestIsScrub(uint16_t hostCheck);
 int OoT_ComboLogic_TestIsMerchant(uint16_t hostCheck);
 int OoT_Rando_Foreign_TestMerchantSells(uint16_t rc);
+int OoT_ComboLogic_TestMerchantChecks(uint16_t* out, int cap);
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
 int OoT_Rando_Foreign_HostsForeign(uint16_t rc);
@@ -1003,7 +1005,6 @@ TestResult ComboSingleBag_Run(void) {
         const ComboLogicPlacement* firstShelf = nullptr;
         const ComboLogicPlacement* firstScrub = nullptr;
         const ComboLogicPlacement* firstMerchant = nullptr;
-        std::vector<uint16_t> merchantHosts;
         for (const ComboLogicPlacement& p : shopTables.oot) {
             if (p.item.originGame == (uint8_t)GAME_MM && OoT_ComboLogic_TestIsShopShelf(p.hostCheck) == 1) {
                 shelfCrossings++;
@@ -1016,7 +1017,6 @@ TestResult ComboSingleBag_Run(void) {
             if (p.item.originGame == (uint8_t)GAME_MM && OoT_ComboLogic_TestIsMerchant(p.hostCheck) == 1) {
                 merchantCrossings++;
                 firstMerchant = firstMerchant == nullptr ? &p : firstMerchant;
-                merchantHosts.push_back(p.hostCheck);
             }
         }
         printf("[TEST] combo-single-bag: G (#800): both shop shuffles, scrub shuffle and merchant shuffle on: %d "
@@ -1065,30 +1065,62 @@ TestResult ComboSingleBag_Run(void) {
             OoT_Rando_Foreign_TestSetObtained(host, 0);
         }
 
-        // Every merchant hosting an MM item stops selling its randomized item once
-        // the host's check is collected, even with its RandomizerInf flag unset (an
-        // unsaved reload): its own gate, the one its offer and its sale consult,
-        // falls back to the merchant's vanilla behavior instead of charging again
-        // for a crossing the drain will not record twice. At least one of them
-        // sold it before, or this proves nothing (Granny also needs the claim
-        // check or the odd mushroom trade).
-        int merchantsSellingBefore = 0;
-        for (const uint16_t host : merchantHosts) {
+        // The sold-out rule (the shelf's and the scrub's): a merchant whose MM
+        // item's check is collected stops selling its randomized item even with
+        // its RandomizerInf flag unset. Its own gate, the one its offer and its
+        // sale consult, falls back to the merchant's vanilla behavior instead of
+        // charging again for a crossing the drain will not record twice. All four
+        // merchants, not only the ones this seed gave an MM item: the crossing
+        // store is re-hydrated with this world's crossings plus the leg's MM item
+        // on every merchant that does not already host one. Each must sell before
+        // its check is collected (the bridge meets Granny's own trade-quest
+        // precondition for the call), or the "after" proves nothing.
+        std::vector<ComboCrossing> ootRows;
+        std::vector<ComboCrossing> mmRows;
+        ComboCrossing merchantRow{};
+        for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+            ComboCrossing row;
+            CSB_ASSERT(Combo_Crossings_At(GAME_OOT, i, &row), "an OoT-hosted crossing could not be read back");
+            ootRows.push_back(row);
+            if (row.hostCheck == firstMerchant->hostCheck) {
+                merchantRow = row;
+            }
+        }
+        for (int i = 0; i < Combo_Crossings_Count(GAME_MM); i++) {
+            ComboCrossing row;
+            CSB_ASSERT(Combo_Crossings_At(GAME_MM, i, &row), "an MM-hosted crossing could not be read back");
+            mmRows.push_back(row);
+        }
+        CSB_ASSERT(merchantRow.hostCheck == firstMerchant->hostCheck,
+                   "the crossing store does not hold the merchant's crossing");
+        uint16_t merchantChecks[8];
+        const int merchantCount = OoT_ComboLogic_TestMerchantChecks(merchantChecks, 8);
+        CSB_ASSERT(merchantCount == 4, "OoT's static table does not hold the four traced merchants");
+        for (int m = 0; m < merchantCount; m++) {
+            if (Combo_Crossings_Lookup(GAME_OOT, merchantChecks[m]) == nullptr) {
+                ComboCrossing extra = merchantRow;
+                extra.hostCheck = merchantChecks[m];
+                ootRows.push_back(extra);
+            }
+        }
+        Combo_Crossings_Clear();
+        CSB_ASSERT(Combo_Crossings_Replace(ootRows.data(), (int)ootRows.size(), mmRows.data(), (int)mmRows.size()) >= 0,
+                   "the crossing store refused this world's crossings plus an MM item on every merchant");
+        for (int m = 0; m < merchantCount; m++) {
+            const uint16_t host = merchantChecks[m];
             const int before = OoT_Rando_Foreign_TestMerchantSells(host);
             CSB_ASSERT(OoT_Rando_Foreign_TestSetObtained(host, 1) == 1, "the merchant's check could not be collected");
             const int after = OoT_Rando_Foreign_TestMerchantSells(host);
             OoT_Rando_Foreign_TestSetObtained(host, 0);
             const char* hostName = Combo_DescribeCheckName((uint8_t)GAME_OOT, host);
-            printf("[TEST] combo-single-bag: G (#800): merchant %s (check %u) sells its randomized item: %d before "
-                   "its check is collected, %d after\n",
+            printf("[TEST] combo-single-bag: G (#800): merchant %s (check %u) hosting an MM item sells its randomized "
+                   "item: %d before its check is collected, %d after\n",
                    hostName != nullptr ? hostName : "(unnamed)", (unsigned)host, before, after);
-            CSB_ASSERT(before >= 0 && after >= 0, "a merchant host is not one of the four traced merchants");
-            merchantsSellingBefore += before;
+            CSB_ASSERT(before == 1, "a merchant hosting an MM item does not sell it before its check is collected, so "
+                                    "the sold-out check proves nothing");
             CSB_ASSERT(after == 0, "a merchant whose MM item's check is collected still sells it, so it would charge "
                                    "again for nothing");
         }
-        CSB_ASSERT(merchantsSellingBefore > 0,
-                   "no merchant hosting an MM item sold it before collection, so the sold-out check proves nothing");
     }
     Combo_SingleBag_Forget();
     Combo_Crossings_Clear();
