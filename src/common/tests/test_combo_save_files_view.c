@@ -193,7 +193,8 @@ TestResult Test_ComboSaveFilesView(void) {
 
         // No words recorded (a refusal with no toast): the page's own words.
         const ComboSaveFileRow bare = Combo_SaveFiles_RowFor(1, CsfRefusedWith(""));
-        CSF_ASSERT(bare.status == std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_SaveFiles_RefuseText(RSBS_REFUSE_IDENTITY),
+        CSF_ASSERT(bare.status ==
+                       std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_SaveFiles_RefuseText(RSBS_REFUSE_IDENTITY),
                    "a refusal with no recorded words reads \"%s\"", bare.status.c_str());
     }
 
@@ -291,7 +292,8 @@ TestResult Test_ComboSaveFilesView(void) {
         m.ootStarted = true;
         const ComboSaveFileRow row = Combo_SaveFiles_RowFor(0, m);
         CSF_ASSERT(row.kind == ComboSaveFileKind::Refused, "a file refused for its header is not Refused");
-        CSF_ASSERT(row.status == std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_SaveFiles_RefuseText(RSBS_REFUSE_HEADER),
+        CSF_ASSERT(row.status ==
+                       std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_SaveFiles_RefuseText(RSBS_REFUSE_HEADER),
                    "a header refusal reads \"%s\"", row.status.c_str());
         CSF_ASSERT(row.name.empty() && row.lastPlayed.empty(),
                    "a file refused for its header shows the name \"%s\" or last game \"%s\"", row.name.c_str(),

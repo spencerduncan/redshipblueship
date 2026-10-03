@@ -104,7 +104,8 @@ ComboSaveFileRow Combo_SaveFiles_RowFor(int slot, const rsbs::SlotMeta& meta) {
         // The toast's own line where the refusal posted one (every refusal
         // message is capitalized with no trailing period, #836), so the page and
         // the toast say the same thing; the page's own words otherwise.
-        const char* words = meta.refuseWords[0] != '\0' ? meta.refuseWords : Combo_SaveFiles_RefuseText(meta.refuseReason);
+        const char* words =
+            meta.refuseWords[0] != '\0' ? meta.refuseWords : Combo_SaveFiles_RefuseText(meta.refuseReason);
         row.status = std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + words;
         row.tooltip = meta.hasQuarantine ? "The original file is kept beside the save as a backup. Erasing this "
                                            "file in the file select frees the slot and discards the backup."

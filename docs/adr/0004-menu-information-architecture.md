@@ -759,10 +759,11 @@ buttons. The files, their two CMake entries and their lint-list line are deleted
 **What moved: a read-only page, Combo > Save Files** (`games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp`, contributed
 through `RegisterComboSectionPage`; model `src/common/combo_save_files_view.{h,cpp}`, ADR 0008 rule 1). One table
 row per file: the name line, the game it last saved in (Last Game), and a status (`Ready`, `No cross-game record`,
-`No cross-game record (backup kept)`, or `Refused: <reason>` (`Not paired: <reason>` before #836), with a tooltip saying whether the original was set
-aside as a backup), under a gray note for four situations (no record yet, every file pairs, one does not, a backup
-kept). A refusal that posted a toast shows the toast's own reason words, recorded on the slot where the toast is
-posted (`SaveManager::NoteSlotRefusalWords`); the others show the page's words for the reason code. The panel's
+`No cross-game record (backup kept)`, or `Refused: <reason>` (`Not paired: <reason>` before #836), with a tooltip
+saying whether the original was set aside as a backup), under a gray note for four situations (no record yet, every
+file pairs, one does not, a backup kept). A refusal that posted a toast shows the toast's own reason words, recorded
+on the slot where the toast is posted (`SaveManager::NoteSlotRefusalWords`); the others show the page's words for the
+reason code. The panel's
 `[MM v]` marker did not move: a paired creation stamps both halves' markers (#765), so it said nothing about play.
 The status names the cross-game record, not the file: a slot with no `.redsave` can still hold an Ocarina of Time
 file. The page reads the files once when it opens and again only when `SaveManager::SlotStateEpoch` moves, under

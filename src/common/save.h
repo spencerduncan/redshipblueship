@@ -913,10 +913,13 @@ void RsbsSave_ResetSlotSessionState(void);
  * with "...", and counts the rest as "+N".
  */
 enum {
-    RSBS_LOAD_TOAST_RULES_RESTORED = 0,  // "Restored from file: Goal, Crossing Direction"
-    RSBS_LOAD_TOAST_MM_RESTORED = 1,     // "Restored for Majora's Mask: Starting Hearts +1"
-    RSBS_LOAD_TOAST_MM_NOT_RESTORED = 2, // refused: the file cannot restore its MM profile (legacy entry only)
-    RSBS_LOAD_TOAST_REFUSED_RULES = 3,   // refused: keyed rules differ and the store could not take them
+    RSBS_LOAD_TOAST_RULES_RESTORED = 0, // "Restored from file: Goal, Crossing Direction"
+    RSBS_LOAD_TOAST_MM_RESTORED = 1,    // "Restored for Majora's Mask: Starting Hearts +1"
+    // 2 was RSBS_LOAD_TOAST_MM_NOT_RESTORED ("Not restored: Majora's Mask
+    // options differ"). Retired by #836: the open path refuses that file at the
+    // file select ("Refused: Majora's Mask options differ"), and the legacy
+    // entry, which accepts it, posts nothing (stderr only).
+    RSBS_LOAD_TOAST_REFUSED_RULES = 3,       // refused: keyed rules differ and the store could not take them
     RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD = 4, // refused: a record field no key authors (another build's file)
     RSBS_LOAD_TOAST_REFUSED_DAMAGED = 5,     // refused: the stored cross-game identity is damaged
     // 6 was RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED (an MM arrival while the loaded

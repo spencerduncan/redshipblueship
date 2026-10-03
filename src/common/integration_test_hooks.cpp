@@ -110,7 +110,8 @@ constexpr int kCaptureDrainBoundMs = 2000;
 
 bool CaptureKeeps(const std::string& line) {
     // RSBS_REFUSAL_TOAST_PREFIX: a refusal toast's line, whatever its copy says (#836).
-    static const char* const kTags[] = { "pairing", "creation", "[Crossings]", "REFUSED", RSBS_REFUSAL_TOAST_PREFIX, "[PFC" };
+    static const char* const kTags[] = { "pairing", "creation", "[Crossings]", "REFUSED", RSBS_REFUSAL_TOAST_PREFIX,
+                                         "[PFC" };
     for (const char* tag : kTags) {
         if (line.find(tag) != std::string::npos) {
             return true;

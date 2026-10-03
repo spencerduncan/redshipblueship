@@ -2399,7 +2399,6 @@ void Session::BuildPageList() {
              { "toast/load-rules-restored", "Restored from file:" },
              { "toast/load-mm-restored-one", "Restored for Majora's Mask:" },
              { "toast/load-mm-restored-many", "Restored for Majora's Mask:" },
-             { "toast/load-mm-not-restored", RSBS_REFUSAL_TOAST_PREFIX },
              { "toast/load-refused-rules", RSBS_REFUSAL_TOAST_PREFIX },
              { "toast/load-refused-other-build", RSBS_REFUSAL_TOAST_PREFIX },
              { "toast/load-refused-damaged", RSBS_REFUSAL_TOAST_PREFIX },
@@ -4412,8 +4411,6 @@ static void EmitLoadToastPage(const std::string& id) {
         } else {
             RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, longest.c_str(), 1);
         }
-    } else if (id == "toast/load-mm-not-restored") {
-        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_NOT_RESTORED, nullptr, 0);
     } else if (id == "toast/load-refused-rules") {
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_RULES, nullptr, 0);
     } else if (id == "toast/load-refused-other-build") {

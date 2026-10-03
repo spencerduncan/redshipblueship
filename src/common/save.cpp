@@ -1259,12 +1259,14 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
     if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_RESTORED) {
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, restoredMm, restoredMmCount);
     } else if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
-        // The legacy entry only: the open path refused this file above.
+        // The legacy entry only: the open path refused this file above. The
+        // legacy load ACCEPTS the file, so it posts no toast: a "Refused:" toast
+        // would be false here, and the old "Not restored:" warning is retired
+        // (#836). The stderr line stays.
         std::fprintf(stderr,
                      "[RsbsSave] slot %d: the live MM profile does not match the file's (%08X) and the file cannot "
                      "restore it; the next crossing into Majora's Mask will be refused until it does\n",
                      slot, (unsigned)combo.mmProfileDigest);
-        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_NOT_RESTORED, nullptr, 0);
     }
 
     // A successful load is one of the three legitimate arming events, and it
@@ -2026,12 +2028,6 @@ void RsbsSave_EmitLoadToast(int kind, const char* names, int count) {
             prefix = "Restored for Majora's Mask:";
             message = rsbs::FitNames(names != nullptr ? names : "", count, rsbs::LoadToastRoom(prefix), "setting",
                                      "settings");
-            break;
-        case RSBS_LOAD_TOAST_MM_NOT_RESTORED:
-            // The legacy entry's warning; the open path refuses this file at the
-            // file select in the same words (#836).
-            prefix = RSBS_REFUSAL_TOAST_PREFIX;
-            message = Combo_RefusalWords(RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER);
             break;
         case RSBS_LOAD_TOAST_REFUSED_RULES:
         case RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD:
