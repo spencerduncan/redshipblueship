@@ -186,6 +186,7 @@ int Combo_PairingRefusalToastMessage(int kind, const char* detail, char* out, si
             // would throw away progress a backup could restore. The routes and
             // their remedies stay on the stderr line and in the playtest guide.
             // The same words the file select refuses an empty half with.
+            CopyOut(out, len, Combo_RefusalWords(RSBS_REFUSAL_WORDS_NO_MM_WORLD));
             return 0;
         case RSBS_PAIRING_REFUSAL_SPOILER:
             return SpoilerMessage(detail, out, len);
