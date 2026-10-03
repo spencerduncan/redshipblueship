@@ -769,7 +769,22 @@ void ItemEtcetera_UpdateRandomizedFireArrow(ItemEtcetera* itemEtcetera, PlayStat
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #800 pass 2, the shelf's and the scrub's sold-out rule for OoT's merchants:
+// merchant check `rc` hosts an MM item and its check is already collected, but
+// its RandomizerInf flag is unset. Selling again would charge for nothing (the
+// drain delivers once per host), so the merchant behaves as after its sale.
+static bool RandomizerMerchantForeignSoldOut(RandomizerCheck rc) {
+    return OoT_Rando_Foreign_HostCollected((uint16_t)rc) != 0;
+}
+#endif
+
 u8 EnDs_RandoCanGetGrannyItem() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (RandomizerMerchantForeignSoldOut(RC_KAK_GRANNYS_SHOP)) {
+        return false; // #800 pass 2
+    }
+#endif
     return (RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL_BUT_BEANS ||
             RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL) &&
            !Flags_GetRandomizerInf(RAND_INF_MERCHANTS_GRANNYS_SHOP) &&
@@ -780,6 +795,11 @@ u8 EnDs_RandoCanGetGrannyItem() {
 }
 
 u8 EnJs_RandoCanGetCarpetMerchantItem() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (RandomizerMerchantForeignSoldOut(RC_WASTELAND_BOMBCHU_SALESMAN)) {
+        return false; // #800 pass 2
+    }
+#endif
     return (RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL ||
             RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL_BUT_BEANS) &&
            // If the rando check has already been awarded, use vanilla behavior.
@@ -787,6 +807,11 @@ u8 EnJs_RandoCanGetCarpetMerchantItem() {
 }
 
 u8 EnGm_RandoCanGetMedigoronItem() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (RandomizerMerchantForeignSoldOut(RC_GC_MEDIGORON)) {
+        return false; // #800 pass 2
+    }
+#endif
     return (RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL ||
             RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL_BUT_BEANS) &&
            // If the rando check has already been awarded, use vanilla behavior.
@@ -796,11 +821,13 @@ u8 EnGm_RandoCanGetMedigoronItem() {
 #ifdef RSBS_SINGLE_EXECUTABLE
 // TEST BRIDGE (combo-single-bag leg G, #800 pass 2): 1 while merchant check `rc`
 // would still sell its randomized item, read from the merchant's REAL gate (the
-// one its sale and its offer consult); 0 once it would fall back to its vanilla
-// behavior; -1 when `rc` is not one of the four merchants. Granny's own
-// trade-quest precondition (the claim check, or the odd mushroom traded under
-// adult trade shuffle) is met for the duration of the call and restored after,
-// so her verdict reads her sale gate rather than how far the save got.
+// one its sale and its offer consult; for the bean salesman, which has none, the
+// option test and the sold-out rule its two sale hooks consult); 0 once it
+// would fall back to its vanilla behavior; -1 when `rc` is not one of the four
+// merchants. Granny's own trade-quest precondition (the claim check, or the odd
+// mushroom traded under adult trade shuffle) is met for the duration of the
+// call and restored after, so her verdict reads her sale gate rather than how
+// far the save got.
 extern "C" int OoT_Rando_Foreign_TestMerchantSells(uint16_t rc) {
     switch ((RandomizerCheck)rc) {
         case RC_KAK_GRANNYS_SHOP: {
@@ -819,7 +846,8 @@ extern "C" int OoT_Rando_Foreign_TestMerchantSells(uint16_t rc) {
             return EnGm_RandoCanGetMedigoronItem() ? 1 : 0;
         case RC_ZR_MAGIC_BEAN_SALESMAN:
             return (RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_BEANS_ONLY ||
-                    RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL)
+                    RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL) &&
+                           !RandomizerMerchantForeignSoldOut(RC_ZR_MAGIC_BEAN_SALESMAN)
                        ? 1
                        : 0;
         default:
@@ -1162,6 +1190,11 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
                 RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL) {
                 *should = gSaveContext.rupees >=
                           OTRGlobals::Instance->gRandoContext->GetItemLocation(RC_ZR_MAGIC_BEAN_SALESMAN)->GetPrice();
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #800 pass 2: a sold-out MM item reaches the sale hook below,
+                // which says so, rather than "not enough rupees".
+                *should = *should || RandomizerMerchantForeignSoldOut(RC_ZR_MAGIC_BEAN_SALESMAN);
+#endif
             } else if (RAND_GET_OPTION(RSK_SKIP_PLANTING_BEANS)) {
                 *should = gSaveContext.rupees >= 60;
             }
@@ -1474,6 +1507,18 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
             EnMs* enMs = va_arg(args, EnMs*);
             if (RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_BEANS_ONLY ||
                 RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS) == RO_SHUFFLE_MERCHANTS_ALL) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #800 pass 2: the MM item was already bought (the bean
+                // salesman's sold-out state is BEANS_BOUGHT, kept in the same
+                // save half as the flag): no charge, sold out again, and the
+                // salesman says so.
+                if (RandomizerMerchantForeignSoldOut(RC_ZR_MAGIC_BEAN_SALESMAN)) {
+                    BEANS_BOUGHT = 10;
+                    OoT_Message_ContinueTextbox(OoT_gPlayState, TEXT_BEAN_SALESMAN_SOLD_OUT);
+                    *should = false;
+                    break;
+                }
+#endif
                 OoT_Rupees_ChangeBy(
                     OTRGlobals::Instance->gRandoContext->GetItemLocation(RC_ZR_MAGIC_BEAN_SALESMAN)->GetPrice() * -1);
                 BEANS_BOUGHT = 10;

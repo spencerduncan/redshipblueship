@@ -11,6 +11,8 @@
 #include "soh/Enhancements/randomizer/randomizer.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "foreign_items.h" // src/common — Combo_GetForeignPlacementForOoTCheck, Combo_GetForeignItemName (#800)
+extern "C" int OoT_Rando_Foreign_HostCollected(uint16_t rc); // ForeignItemsSingleExe.cpp (#800)
+static bool BuildForeignHostMessage(CustomMessage& msg, RandomizerCheck rc);
 #endif
 
 extern "C" {
@@ -29,6 +31,15 @@ extern PlayState* OoT_gPlayState;
      RAND_GET_OPTION(RSK_SHUFFLE_MERCHANTS).Is(RO_SHUFFLE_MERCHANTS_ALL))
 
 void BuildMerchantMessage(CustomMessage& msg, RandomizerCheck rc, bool mysterious = true) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 pass 2: a merchant (the bean salesman, Medigoron, Granny, the carpet
+    // salesman) hosting an MM item names that item where it would name its own
+    // (Merchant Hint Text on, Mysterious Shuffle off), not the junk cover. The
+    // shelf and the scrub take the same branch before they get here.
+    if (!mysterious && BuildForeignHostMessage(msg, rc)) {
+        return;
+    }
+#endif
     RandomizerGet rgid = RAND_GET_ITEM(rc)->GetPlacedRandomizerGet();
     uint16_t price = RAND_GET_ITEM(rc)->GetPrice();
     CustomMessage itemName;
@@ -94,6 +105,13 @@ void BuildBeanGuyMessage(uint16_t* textId, bool* loadFromMessageTable) {
 }
 
 void BuildMedigoronMessage(uint16_t* textId, bool* loadFromMessageTable) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 pass 2: his MM item was already bought (EnGm_RandoCanGetMedigoronItem
+    // refuses the sale, so he sells his vanilla Giant's Knife): his vanilla offer.
+    if (OoT_Rando_Foreign_HostCollected(RC_GC_MEDIGORON)) {
+        return;
+    }
+#endif
     CustomMessage msg = CustomMessage("Want to buy [[color]][[1]]%w for %y[[2]] Rupees%w?\x1B%gYes&No%w",
                                       "Möchten Sie [[color]][[1]]%w für %y[[2]] Rubin%w kaufen?\x1B%gJa&Nein%w",
                                       "Voulez-vous acheter [[color]][[1]]%w pour %y[[2]] Rubis%w?\x1B%gOui&Non%w");
@@ -106,6 +124,13 @@ void BuildMedigoronMessage(uint16_t* textId, bool* loadFromMessageTable) {
 }
 
 void BuildGrannyMessage(uint16_t* textId, bool* loadFromMessageTable) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 pass 2: her MM item was already bought (EnDs_RandoCanGetGrannyItem
+    // refuses the sale): her vanilla offer, as once the flag is set.
+    if (OoT_Rando_Foreign_HostCollected(RC_KAK_GRANNYS_SHOP)) {
+        return;
+    }
+#endif
     if (!Flags_GetRandomizerInf(RAND_INF_MERCHANTS_GRANNYS_SHOP) &&
         (RAND_GET_OPTION(RSK_SHUFFLE_ADULT_TRADE).Is(RO_GENERIC_ON) ||
          INV_CONTENT(ITEM_CLAIM_CHECK) == ITEM_CLAIM_CHECK)) {
@@ -122,6 +147,14 @@ void BuildGrannyMessage(uint16_t* textId, bool* loadFromMessageTable) {
 }
 
 void BuildCarpetGuyMessage(uint16_t* textId, bool* loadFromMessageTable) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #800 pass 2: his MM item was already bought (EnJs_RandoCanGetCarpetMerchantItem
+    // refuses the sale, so he sells his vanilla Bombchus): his vanilla offer.
+    if (*textId != TEXT_CARPET_SALESMAN_ARMS_DEALER &&
+        OoT_Rando_Foreign_HostCollected(RC_WASTELAND_BOMBCHU_SALESMAN)) {
+        return;
+    }
+#endif
     CustomMessage msg;
     if (*textId == TEXT_CARPET_SALESMAN_ARMS_DEALER) {
         msg = CustomMessage("Finally! Now I can go back to being an %rarms dealer%w!",
