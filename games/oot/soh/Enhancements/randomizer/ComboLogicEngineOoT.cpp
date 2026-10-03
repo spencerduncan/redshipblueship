@@ -1051,16 +1051,30 @@ void OoT_ComboLogic_EndQuery(void* self) {
  *    and the drain's foreign branch records the crossing, exactly as for a
  *    shelf. The scrub draws no item of its own; its sale textbox names the MM
  *    item (MerchantMessages.cpp).
+ *  - OoT's MERCHANTS (#800 pass 2): the four `RCTYPE_MERCHANT` rows, the bean
+ *    salesman, Medigoron, Granny's Shop and the carpet salesman. Each sale is a
+ *    vanilla-behavior hook (VB_GIVE_ITEM_FROM_MAGIC_BEAN_SALESMAN,
+ *    VB_GIVE_ITEM_FROM_MEDIGORON, VB_GRANNY_TAKE_MONEY + VB_GIVE_ITEM_FROM_GRANNYS_SHOP,
+ *    VB_GIVE_ITEM_FROM_CARPET_SALESMAN, hook_handlers.cpp) that charges the
+ *    merchant's own price, suppresses the native give and sets the merchant's
+ *    RandomizerInf flag; the flag handler queues the check and the drain's
+ *    foreign branch records the crossing, exactly as for a shelf. A merchant
+ *    draws no item; its offer names the MM item (MerchantMessages.cpp). Named
+ *    one by one: a merchant row nobody traced is refused.
  *
- * Merchants and the chest game keep their own give-and-price flows and stay
- * refused (#800 pass 2 scopes each). The fill-side half of the old predicate
+ * The chest game keeps its own give flow and stays refused (#800 pass 2 scopes
+ * it). The fill-side half of the old predicate
  * ("the fill put junk here") is the old overlay pass's and does not apply: the
  * coordinator only ever offers EMPTY hosts, and this engine's `place` puts the
  * junk cover there itself. A shelf is empty only when shopsanity replaced its
  * vanilla stock (fill.cpp): with shopsanity off every shelf keeps its RG_BUY_*
  * item and is never offered. A scrub is a location at all only under scrub
  * shuffle (Context::GenerateLocationPool): all 46 under "All", the three
- * upgrade scrubs under "One-Time Only", none when it is off (the default).
+ * upgrade scrubs under "One-Time Only", none when it is off (the default). A
+ * merchant is always a location, but with merchant shuffle off (the default)
+ * the item pool places its vanilla item there before the fill (item_pool.cpp),
+ * so it is never offered; "Bean Merchant Only" empties the bean salesman, "All
+ * But Beans" the other three, "All" all four.
  *
  * A pure function of the static location table: legal outside a round, no RNG.
  */
@@ -1077,6 +1091,11 @@ int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
     }
     if (checkType == RCTYPE_SCRUB && loc->GetActorID() == ACTOR_EN_DNS) {
         return 1; // a Business Scrub (#800 pass 2)
+    }
+    if (checkType == RCTYPE_MERCHANT &&
+        (rc == RC_ZR_MAGIC_BEAN_SALESMAN || rc == RC_GC_MEDIGORON || rc == RC_KAK_GRANNYS_SHOP ||
+         rc == RC_WASTELAND_BOMBCHU_SALESMAN)) {
+        return 1; // a merchant whose sale was traced (#800 pass 2)
     }
     if (loc->GetActorID() != ACTOR_EN_BOX) {
         return 0;
