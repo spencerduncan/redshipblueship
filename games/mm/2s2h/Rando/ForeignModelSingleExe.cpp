@@ -1357,16 +1357,18 @@ extern "C" int MM_ForeignModel_PlaytestArmGive(void) {
     return 0;
 }
 
-// GameExports_SingleExe.cpp: the game framebuffer as a PNG (RSBS_GP_SHOT_DIR).
+// GameExports_SingleExe.cpp: the window (game and ImGui) as a PNG, through the
+// shared in-process capture (#843, src/common/frame_capture.h).
 extern "C" void MM_Playtest_DumpGameFramebuffer(const char* tag);
 
 /**
  * The drive's per-frame half (#830, same opt-in), every live MM play frame.
  * Nobody is at the keyboard: a textbox up for 150 frames waits for a press that
  * will not come (the arrival's own gives queue ahead of the armed one), so the
- * drive closes it. From frame 160 to 1000 it captures the game framebuffer
- * every 60 frames (mm-foreign-model-<frame>.png in RSBS_GP_SHOT_DIR; a no-op
- * without it), logging the open textbox's id beside each capture.
+ * drive closes it. From frame 160 to 1000 it captures the window every 60
+ * frames (mm-foreign-model-<frame>.png in RSBS_CAPTURE_OUT, else
+ * RSBS_GP_SHOT_DIR; a no-op without a capture knob), logging the open
+ * textbox's id beside each capture.
  */
 extern "C" void MM_ForeignModel_PlaytestFrame(int playFrames) {
     static int sTextboxFrames = 0;
