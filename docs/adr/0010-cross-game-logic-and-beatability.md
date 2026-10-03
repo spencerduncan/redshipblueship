@@ -1776,6 +1776,16 @@ and `Combo_ComboSettingsFrozen`):
   Granny's Shop, the carpet salesman): each sale sets the merchant's
   RandomizerInf flag with the native give suppressed, so the RC-queue drain's
   foreign branch delivers them like a shelf. The chest game stays refused.
+  *Amended 2026-10-02 (#800 pass 2, treasure chest game):* OoT also admits the
+  treasure chest game's reward (`RC_MARKET_TREASURE_CHEST_GAME_REWARD`, the
+  final chest), which is a location in every world, so default worlds can now
+  place an MM item there. It is delivered as a chest: its opening sets
+  `ITEMGETINF_1B`, a save flag the room's per-play reset never clears, and once
+  that flag is set the room spawns its final chest and the Lens of Truth display
+  above it with params that resolve to no check. The display gives nothing and
+  draws the MM model. The room's other chests (`RCTYPE_CHEST_GAME`) stay
+  refused: they are never locations (upstream skips the type and forces "Shuffle
+  Chest Minigame" off), and the room clears their flags on every play.
 - MM's engine grants the fixed contents of reached checks outside the host pool
   during expansion (#737), without which beat-both was unprovable on the
   shipped profile.

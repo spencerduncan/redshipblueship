@@ -1061,9 +1061,13 @@ void OoT_ComboLogic_EndQuery(void* self) {
  *    foreign branch records the crossing, exactly as for a shelf. A merchant
  *    draws no item; its offer names the MM item (MerchantMessages.cpp). Named
  *    one by one: a merchant row nobody traced is refused.
+ *  - The TREASURE CHEST GAME'S REWARD (#800 pass 2): the final chest of the
+ *    chest-game room, RC_MARKET_TREASURE_CHEST_GAME_REWARD, delivered as a
+ *    chest is (see the room's comment below); the Lens of Truth display above
+ *    it draws the MM model (ItemEtcetera_DrawRandomizedItem, hook_handlers.cpp).
  *
- * The chest game keeps its own give flow and stays refused (#800 pass 2 scopes
- * it). The fill-side half of the old predicate
+ * The chest game's room chests (RCTYPE_CHEST_GAME) stay refused: they are never
+ * locations (see the room's comment below). The fill-side half of the old predicate
  * ("the fill put junk here") is the old overlay pass's and does not apply: the
  * coordinator only ever offers EMPTY hosts, and this engine's `place` puts the
  * junk cover there itself. A shelf is empty only when shopsanity replaced its
@@ -1103,12 +1107,31 @@ int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
         checkType == RCTYPE_CHEST_GAME || loc->IsShop()) {
         return 0;
     }
-    // THE WHOLE CHEST-GAME ROOM, not only its RCTYPE_CHEST_GAME rows (PR #743
-    // review; found by the category sweep below). The game's reward is tagged
-    // RCTYPE_STANDARD and sits on an ACTOR_EN_BOX, but Randomizer::GetCheckObjectFromActor
-    // also resolves it from the ACTOR_ITEM_ETCETERA prize, a give path that is not
-    // the chest's; and the room resets its chests' flags on every play.
-    if (loc->GetScene() == SCENE_TREASURE_BOX_SHOP) {
+    // THE CHEST-GAME ROOM ADMITS ITS REWARD ONLY (#800 pass 2; the room was
+    // refused whole since PR #743's review, found by the category sweep below).
+    // The reward, RC_MARKET_TREASURE_CHEST_GAME_REWARD (RCTYPE_STANDARD on an
+    // ACTOR_EN_BOX), is delivered as any chest is: its opening suppresses the
+    // native give (VB_GIVE_ITEM_FROM_CHEST) and EnChanger_SetHeartPieceFlag
+    // (z_en_changer.c) sets ITEMGETINF_1B, the reward's collection flag, which
+    // the flag handler queues for the RC-queue drain's foreign branch. The two
+    // reasons the room was refused do not reach it:
+    //  - the room's per-play reset clears its chests' scene flags
+    //    (EnTakaraMan_Init) and the RCTYPE_CHEST_GAME rows' RandomizerInf flags
+    //    and check status (RandomizerOnSceneInitHandler), never ITEMGETINF_1B; and
+    //    once that flag is set EnChanger spawns the final chest (0x4EAA) and the
+    //    display above it (0x0A0B) with params Randomizer::GetCheckObjectFromActor
+    //    resolves to no check, so a later play never gives the reward again;
+    //  - the ACTOR_ITEM_ETCETERA "prize" GetCheckObjectFromActor also resolves to
+    //    the reward is the Lens of Truth display above the final chest, not a
+    //    give path: ItemEtcetera_Init gives it func_80B85B28, which only kills it
+    //    once the chest is open, and under rando it draws the item the check
+    //    holds, now the MM model (ItemEtcetera_DrawRandomizedItem).
+    // The room's other chests, the RCTYPE_CHEST_GAME rows, stay refused (above):
+    // they are never locations (Context::GenerateLocationPool skips the type, and
+    // Settings forces RSK_SHUFFLE_CHEST_MINIGAME off), and the room clears their
+    // flags and check status on every play, so a crossing there would be offered
+    // again. A row the room gains upstream is refused until someone traces it.
+    if (loc->GetScene() == SCENE_TREASURE_BOX_SHOP && rc != RC_MARKET_TREASURE_CHEST_GAME_REWARD) {
         return 0;
     }
     return 1;
@@ -2644,25 +2667,32 @@ extern "C" int OoT_ComboLogic_HintingPairedRemainder(void) {
  *       its sale sets and the drain's foreign branch is queued by (a merchant
  *       the predicate does not name, such as a new upstream row whose give
  *       path nobody traced, fails here);
+ *   [7] the treasure chest game's REWARD (#800 pass 2): every row of the
+ *       chest-game room (SCENE_TREASURE_BOX_SHOP) that is an ACTOR_EN_BOX chest
+ *       and not an RCTYPE_CHEST_GAME row must be ACCEPTED, and must be collected
+ *       by an ItemGetInf flag, a save flag the room never resets (on every play
+ *       it clears only its chests' scene flags and the RCTYPE_CHEST_GAME rows'
+ *       RandomizerInf flags);
  * and each of these must be REJECTED:
  *   [3] RCTYPE_CHEST_GAME rows,
  *   [4] every location whose NAME says shop, bazaar or chest game and whose
- *       actor is not ACTOR_EN_GIRLA and which is not a merchant of [2] (a
- *       shop-ish check that is not a shelf, told apart by name and actor
- *       rather than by the type tag; "Granny's Shop" is a merchant),
+ *       actor is not ACTOR_EN_GIRLA and which is not a merchant of [2] or the
+ *       reward of [7] (a shop-ish check that is not a shelf, told apart by
+ *       name and actor rather than by the type tag; "Granny's Shop" is a
+ *       merchant, "Treasure Chest Game Reward" the reward),
  *   [5] every location whose actor is not ACTOR_EN_BOX and which is not a shelf
  *       of [0], a scrub of [1] or a merchant of [2], and every location in a
  *       shop scene (IsShop()) that is not a shelf.
  * [6] counts the ACCEPTED rows, which must all be ACTOR_EN_BOX chests, shelves
  * of [0], scrubs of [1] or merchants of [2]; the chests among them are the
  * non-vacuity half of [3]-[5] (the caller asserts more rows are accepted than
- * [0], [1] and [2] hold).
+ * [0], [1], [2] and [7] hold).
  *
- * @param outCounts 7 ints: the rows seen per category.
+ * @param outCounts 8 ints: the rows seen per category.
  * @return the number of rows the predicate answered against its category.
  */
 extern "C" int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts) {
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 8; ++i) {
         outCounts[i] = 0;
     }
     int violations = 0;
@@ -2708,11 +2738,24 @@ extern "C" int OoT_ComboLogic_TestSweepForeignHostRule(int* outCounts) {
                 violations++;
             }
         }
+        const bool chestGameReward = loc->GetScene() == SCENE_TREASURE_BOX_SHOP && type != RCTYPE_CHEST_GAME &&
+                                     loc->GetActorID() == ACTOR_EN_BOX;
+        if (chestGameReward) {
+            outCounts[7]++;
+            if (!accepted || loc->GetCollectionCheck().type != SPOILER_CHK_ITEM_GET_INF) {
+                fprintf(stderr,
+                        "[OoT/ComboLogic] host-rule sweep: chest-game reward '%s' (check %d) is %s (collection type "
+                        "%d); the treasure chest game's reward must be an accepted row collected by an ItemGetInf "
+                        "flag (#800 pass 2)\n",
+                        name.c_str(), c, accepted ? "accepted" : "REJECTED", (int)loc->GetCollectionCheck().type);
+                violations++;
+            }
+        }
         const bool rejectedCategories[3] = {
             type == RCTYPE_CHEST_GAME,
             (name.find("Shop") != std::string::npos || name.find("Bazaar") != std::string::npos ||
              name.find("Chest Game") != std::string::npos) &&
-                loc->GetActorID() != ACTOR_EN_GIRLA && !merchant,
+                loc->GetActorID() != ACTOR_EN_GIRLA && !merchant && !chestGameReward,
             !shelf && ((!scrub && !merchant && loc->GetActorID() != ACTOR_EN_BOX) || loc->IsShop()),
         };
         for (int k = 0; k < 3; ++k) {
