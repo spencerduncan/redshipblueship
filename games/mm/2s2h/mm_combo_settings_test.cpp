@@ -826,8 +826,7 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
                         "Termina plays vanilla under the pairing and the half is committed back (#564 V7)",
                         refused, consumed);
         }
-        if (RsbsSave_IsSlotWritable(kSlot) != 0 ||
-            RsbsSave_GetSlotRefuseReason(kSlot) != (int)RSBS_REFUSE_GENERATION) {
+        if (RsbsSave_IsSlotWritable(kSlot) != 0 || RsbsSave_GetSlotRefuseReason(kSlot) != (int)RSBS_REFUSE_GENERATION) {
             return Fail(142, "leg 13: the slot is writable or its reason is %d, expected RSBS_REFUSE_GENERATION",
                         RsbsSave_GetSlotRefuseReason(kSlot));
         }

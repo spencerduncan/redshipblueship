@@ -5196,9 +5196,8 @@ int MM_Rando_GateCrossGameArrival(void) {
     if (Context_HasFrozenState(GAME_MM)) {
         const unsigned char* blob = static_cast<const unsigned char*>(Context_GetMMSaveContext());
         if (blob != nullptr) {
-            const int half =
-                MM_Rando_ClassifyHalfForPair(blob, sizeof(SaveContext), gComboCtx.sharedRandoSeed,
-                                             gComboCtx.mmPairedAttempt);
+            const int half = MM_Rando_ClassifyHalfForPair(blob, sizeof(SaveContext), gComboCtx.sharedRandoSeed,
+                                                          gComboCtx.mmPairedAttempt);
             if (half == RSBS_MM_HALF_VANILLA) {
                 const int slot = RsbsSave_GetActiveSlot();
                 fprintf(stderr,

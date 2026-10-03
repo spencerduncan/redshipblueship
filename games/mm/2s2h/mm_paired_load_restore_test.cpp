@@ -1307,9 +1307,10 @@ extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
     // Every leg runs even after one fails, so a single run reports each leg's
     // observed state; the first failure is the row's result.
     int rc = 0;
-    int (*const legs[])() = { LegCrossGameRules,   LegMmProfile, LegMmTrickOnly,   LegMmManyTricks, LegRoundTrip,
-                              LegUnrestorableRule, LegRollback,  LegProbeRefusals, LegProbeAccepts,
-                              LegProbeMmHalfNotThisPairs };
+    int (*const legs[])() = {
+        LegCrossGameRules,   LegMmProfile, LegMmTrickOnly,   LegMmManyTricks, LegRoundTrip,
+        LegUnrestorableRule, LegRollback,  LegProbeRefusals, LegProbeAccepts, LegProbeMmHalfNotThisPairs
+    };
     for (auto leg : legs) {
         const int legRc = leg();
         if (rc == 0) {
