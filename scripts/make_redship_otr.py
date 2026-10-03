@@ -152,6 +152,17 @@ Design constraints, in the order they matter:
      re-express or answers "no model" for a draw it cannot express
      (src/common/foreign_model.h).
 
+Packaged builds cannot run this script (#806): the halves are ROM-derived, so
+the game generates them itself after extraction with a C++ port of these
+rules (src/common/curated_archives.cpp) over the manifest compiled into the
+binary.  Both generators STAMP each half with the manifest it was made from
+and the source entries it was carved out of, in the zip archive comment
+(stamp() below; the comment rather than an entry, so the path set stays the
+manifest's), and the game regenerates a half whose stamp differs -- a changed
+manifest, or a re-extracted oot.o2r / mm.o2r whose curated entries changed.  The curated-archive-inapp CTest row runs both over the same
+inputs and requires the same entries, payloads and stamp: change a rule here
+and there together.
+
 The manifest is a text file of `<source>-><host> <path-prefix>` lines -- the
 direction column is `mm->oot` or `oot->mm` -- with `#` comments and blank lines
 ignored.  The source names the archive the resources are carved out of, the
@@ -389,6 +400,38 @@ def crc64(path):
     for byte in path.encode("utf-8"):
         crc = _CRC64_TABLE[((crc >> 56) ^ byte) & 0xFF] ^ ((crc << 8) & _CRC64_MASK)
     return crc
+
+
+# The generator format revision; src/common/curated_archives.h's kStampVersion
+# is the same number.  Bump both when a rule changes what a manifest produces.
+# 2: the stamp also names the source entries (sources-crc64).
+STAMP_VERSION = 2
+
+
+def sources_hash(zips, selected):
+    """CRC64 of one line per curated resource, in selection order:
+    "<game>\\t<path>\\t<crc32 as 8 hex>\\t<uncompressed size>\\n", from the
+    source archive's zip directory (nothing is decompressed).  A re-extracted
+    source whose curated entries changed (a newer port version's oot.o2r,
+    another ROM revision) therefore stamps differently and is regenerated.
+    src/common/curated_archives.cpp's SourcesHash spells the same text."""
+    text = ""
+    for game, path in selected:
+        info = zips[game].getinfo(path)
+        text += "%s\t%s\t%08x\t%d\n" % (game, path, info.CRC, info.file_size)
+    return crc64(text)
+
+
+def stamp(manifest_path, source_digest):
+    """The archive comment both halves carry (#806): the format revision,
+    CRC64 of the manifest's text with every CR byte removed (so a CRLF
+    checkout stamps the same as an LF one), and sources_hash().  The game
+    computes the same stamp from the manifest compiled into it and the
+    extracted archives on disk, and regenerates on a mismatch."""
+    with open(manifest_path, "rb") as handle:
+        text = handle.read().replace(b"\r", b"").decode("utf-8")
+    return "redship-curated v%d manifest-crc64=%016x sources-crc64=%016x" % (STAMP_VERSION, crc64(text),
+                                                                             source_digest)
 
 
 def find_hash_references(data):
@@ -902,6 +945,7 @@ def main():
 
     # Every guard passed: write both halves.  A resource lands in the half its
     # HOST mounts -- the other game from the one it was carved out of.
+    archive_stamp = stamp(args.manifest, sources_hash(zips, selected)).encode("ascii")
     for host in GAMES:
         out_path = outputs[host]
         out_dir = os.path.dirname(os.path.abspath(out_path))
@@ -913,6 +957,7 @@ def main():
         count = 0
         total = 0
         with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as out:
+            out.comment = archive_stamp
             for game, path in selected:
                 if other[game] != host:
                     continue

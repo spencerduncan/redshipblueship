@@ -498,6 +498,13 @@ add_custom_target(
 # Combo_EnsureGameArchivesLoaded on every switch, Combo_MountCuratedArchive
 # once the booted game is up (rsbs/src/main.cpp).
 #
+# This target is the DEV-TREE producer. A packaged build cannot run it (the
+# halves are ROM-derived, so the package cannot ship them either): there the
+# game generates both halves itself at boot with a C++ port of the same rules
+# over the manifest compiled into it (src/common/curated_archives.cpp, #806),
+# and regenerates a half whose archive-comment stamp names another manifest.
+# The script writes the same stamp, so this target's output counts as current.
+#
 # Run AFTER ExtractAssets and ExtractMMAssets. Deliberately no add_dependencies
 # on them: both are always-out-of-date custom targets, so chaining would
 # re-extract both ROMs every time this ran. Missing inputs are a clear error

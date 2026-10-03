@@ -110,6 +110,69 @@ def test_each_direction_lands_in_its_hosts_half(tmp_path, archives):
     assert _payload(out_mm, OOT_ONLY[0]) == _resource("oot:" + OOT_ONLY[0])
 
 
+def _sources_line(archive, game, name):
+    with zipfile.ZipFile(archive) as z:
+        info = z.getinfo(name)
+    return "%s\t%s\t%08x\t%d\n" % (game, name, info.CRC, info.file_size)
+
+
+def _stamp_of(path):
+    with zipfile.ZipFile(path) as z:
+        return z.comment.decode("ascii")
+
+
+def test_both_halves_carry_the_manifest_stamp(tmp_path, archives):
+    # #806: the game regenerates a half whose archive comment does not name the
+    # manifest compiled into it AND the source entries on disk, so the comment
+    # must be exactly this -- src/common/curated_archives.cpp spells the same
+    # format, and the curated-archive-inapp CTest row compares the two
+    # generators' output.
+    oot, mm = archives
+    manifest_text = "mm->oot objects/object_mm_only/\r\noot->mm objects/object_oot_only/\r\n"
+    proc, out_oot, out_mm = _run(tmp_path, archives, manifest_text)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    # Selection order: manifest order, sorted within a prefix.
+    sources = "".join([_sources_line(mm, "mm", n) for n in sorted(MM_ONLY)] +
+                      [_sources_line(oot, "oot", n) for n in OOT_ONLY])
+    want = "redship-curated v2 manifest-crc64=%016x sources-crc64=%016x" % (
+        _crc64(manifest_text.replace("\r", "")), _crc64(sources))
+    for out in (out_oot, out_mm):
+        assert _stamp_of(out) == want
+    # The stamp lives in the comment, not in an entry: the path sets are unchanged.
+    assert _names(out_oot) == sorted(MM_ONLY)
+
+
+def test_a_re_extracted_source_changes_the_stamp_only_when_a_curated_entry_changed(tmp_path, archives):
+    # #806 review: SoH deletes an oot.o2r made by an incompatible version and
+    # re-extracts it; a player may re-extract from another ROM revision. The
+    # halves carved out of the old archive must then stamp differently.
+    oot, mm = archives
+    manifest_text = "mm->oot objects/object_mm_only/\noot->mm objects/object_oot_only/\n"
+    proc, out_oot, _ = _run(tmp_path, archives, manifest_text)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    first = _stamp_of(out_oot)
+
+    # An entry the manifest does not select changes: same stamp.
+    with zipfile.ZipFile(mm, "w") as z:
+        for name in MM_ONLY:
+            z.writestr(name, _resource("mm:" + name))
+        z.writestr(SHARED, _resource("mm:re-extracted:" + SHARED))
+    proc, out_oot, _ = _run(tmp_path, archives, manifest_text)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert _stamp_of(out_oot) == first
+
+    # A curated entry changes: a different stamp.
+    with zipfile.ZipFile(mm, "w") as z:
+        z.writestr(MM_ONLY[0], _resource("mm:re-extracted:" + MM_ONLY[0]))
+        z.writestr(MM_ONLY[1], _resource("mm:" + MM_ONLY[1]))
+        z.writestr(SHARED, _resource("mm:" + SHARED))
+    proc, out_oot, _ = _run(tmp_path, archives, manifest_text)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert _stamp_of(out_oot) != first
+    assert _stamp_of(out_oot).split(" manifest-crc64=")[1].split(" ")[0] == \
+        first.split(" manifest-crc64=")[1].split(" ")[0]
+
+
 def test_single_path_entries_and_overlapping_prefixes(tmp_path, archives):
     # One exact path plus a whole-directory prefix that also covers it: the
     # path is written once, not twice.
