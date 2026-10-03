@@ -491,7 +491,9 @@ static int CivSharedLegs(void) {
         CIV_ASSERT(Combo_ItemSharedRowAt(i, &row));
         CIV_ASSERT(strcmp(row.group, COMBO_ITEM_SHARED_GROUP) == 0);
         CIV_ASSERT(row.name != NULL && row.name[0] != '\0');
-        CIV_ASSERT(row.iconKey == NULL && row.iconKeyFaded == NULL); // text until U3
+        // The icon game's own icon and its faded twin come together, or neither
+        // (#458 U3; the keys themselves are held by combo-item-tracker-window).
+        CIV_ASSERT((row.iconKey == NULL) == (row.iconKeyFaded == NULL));
         CIV_ASSERT(row.freshness == COMBO_TRACKER_FRESH_STALE);
     }
     CIV_ASSERT(!Combo_ItemSharedRowAt(n, &row));

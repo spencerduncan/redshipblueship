@@ -386,9 +386,15 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             out->iconKey = def.key;
             out->iconKeyFaded = def.keyFaded;
             out->have = CHECK_QUEST_ITEM(def.data) != 0;
+            if (std::strcmp(def.group, "Songs") == 0) {
+                out->iconAspect = 1.0f / 1.5f; // DrawSong: a note iconSize / 1.5 wide, centred
+            }
             if (def.kind == RK_TOKENS) {
                 out->count = gSaveContext.inventory.gsTokens;
                 out->max = 100;
+                // DrawItemCount: QUEST_SKULL_TOKEN's ceiling, and its amount once
+                // full, are IM_COL_RED where every other row's are green.
+                out->countAccent = (uint8_t)COMBO_ITEM_ACCENT_RED;
             }
             return true;
         case RK_STRENGTH: {
@@ -472,9 +478,110 @@ bool OoTItemRowAt(const void* buf, int index, ComboItemRow* out) {
 // Below: the real global again (nothing here reads a save).
 // ============================================================================
 
+namespace {
+
+/**
+ * OoT's own icon for a shared-pool row (#458 U3): the native tracker's texture
+ * names (ImGuiUtils.cpp itemMapping, gregMapping's green rupee and
+ * customItemsMapping's triforce piece), loaded under these names at OoT's boot.
+ * Double defense has no icon in OoT's tracker; it takes the heart container,
+ * the icon MM's own Rando table draws for it (GetIconTexturePath). The wallet
+ * prints its capacity, as SoH's DrawItemCount does in its default mode
+ * (GetItemCurrentAndMax: CUR_CAPACITY(UPG_WALLET)), and is drawn held at every
+ * tier, as DrawItem draws it outside wallet shuffle.
+ */
+void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
+    const char* key = nullptr;
+    const char* faded = nullptr;
+#define OOT_SHARED_ICON(name) \
+    key = name;               \
+    faded = name "_Faded"
+    switch (kind) {
+        case RSBS_SHARED_RES_RUPEES:
+            OOT_SHARED_ICON("ITEM_RUPEE_GREEN");
+            break;
+        case RSBS_SHARED_RES_WALLET_TIER:
+            if (tier >= 2) {
+                OOT_SHARED_ICON("ITEM_WALLET_GIANT");
+            } else {
+                OOT_SHARED_ICON("ITEM_WALLET_ADULT");
+            }
+            row->iconNumber = (int)CAPACITY(UPG_WALLET, tier > 3 ? 3 : tier);
+            break;
+        case RSBS_SHARED_RES_HEALTH_QUARTERS:
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE: // OoT's tracker has no icon for it: MM's Rando shows a heart container
+            OOT_SHARED_ICON("ITEM_HEART_CONTAINER");
+            break;
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
+            if (tier >= 2) {
+                OOT_SHARED_ICON("ITEM_MAGIC_LARGE");
+            } else {
+                OOT_SHARED_ICON("ITEM_MAGIC_SMALL");
+            }
+            break;
+        case RSBS_SHARED_RES_ARROW_COUNT:
+            if (tier >= 3) {
+                OOT_SHARED_ICON("ITEM_QUIVER_50");
+            } else if (tier == 2) {
+                OOT_SHARED_ICON("ITEM_QUIVER_40");
+            } else {
+                OOT_SHARED_ICON("ITEM_QUIVER_30");
+            }
+            break;
+        case RSBS_SHARED_RES_BOMB_COUNT:
+            if (tier >= 3) {
+                OOT_SHARED_ICON("ITEM_BOMB_BAG_40");
+            } else if (tier == 2) {
+                OOT_SHARED_ICON("ITEM_BOMB_BAG_30");
+            } else {
+                OOT_SHARED_ICON("ITEM_BOMB_BAG_20");
+            }
+            break;
+        case RSBS_SHARED_RES_BOMBCHU_COUNT:
+            OOT_SHARED_ICON("ITEM_BOMBCHU");
+            break;
+        case RSBS_SHARED_RES_STICK_COUNT:
+            OOT_SHARED_ICON("ITEM_STICK");
+            break;
+        case RSBS_SHARED_RES_NUT_COUNT:
+            OOT_SHARED_ICON("ITEM_NUT");
+            break;
+        case RSBS_SHARED_RES_HOOKSHOT_TIER:
+            if (tier >= 2) {
+                OOT_SHARED_ICON("ITEM_LONGSHOT");
+            } else {
+                OOT_SHARED_ICON("ITEM_HOOKSHOT");
+            }
+            break;
+        case RSBS_SHARED_RES_OCARINA_TIER:
+            if (tier >= 2) {
+                OOT_SHARED_ICON("ITEM_OCARINA_TIME");
+            } else {
+                OOT_SHARED_ICON("ITEM_OCARINA_FAIRY");
+            }
+            break;
+        case RSBS_SHARED_RES_TRIFORCE_PIECES:
+            OOT_SHARED_ICON("RG_TRIFORCE_PIECE");
+            break;
+        default:
+            break;
+    }
+#undef OOT_SHARED_ICON
+    row->iconKey = key;
+    row->iconKeyFaded = faded;
+    row->iconAspect = 0.0f;
+    row->fadedAlpha = 0.0f; // SoH's faded textures carry their own alpha
+    row->iconTint = 0;
+}
+
+} // namespace
+
 extern "C" void OoT_ItemAdapter_Register(void) {
+    // SoH's main window grid (kComboItemSohGrid): the 66 rows flow six a line,
+    // 11 lines, exactly DrawItemsInRows(mainWindowItems, 6).
     static const ComboItemOps kOps = {
-        OoTItemCount, OoTItemRowAt, OoTItemHasSave, OoTItemLiveSave, OoTItemPaused,
+        OoTItemCount,  OoTItemRowAt,       OoTItemHasSave,    OoTItemLiveSave,
+        OoTItemPaused, &kComboItemSohGrid, OoTItemSharedIcon,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, &kOps);
 }

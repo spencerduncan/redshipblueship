@@ -60,6 +60,19 @@ const ComboItemOps* Combo_Item_GetOps(uint8_t game) {
     return (slot != NULL) ? *slot : NULL;
 }
 
+// SoH's DrawItemsInRows defaults (randomizer_item_tracker.cpp): IconSize 36,
+// IconSpacing 12, six a line, every section flowing on into the next.
+const ComboItemGridStyle kComboItemSohGrid = { 36.0f, 12.0f, 6, false, NULL, (uint8_t)COMBO_ITEM_COUNT_SOH, 0.0f };
+
+// The pool: SoH's icons and counts, four a line, a column beside the two
+// games' six-wide grids about as wide as its own freshness note.
+const ComboItemGridStyle kComboItemSharedGrid = { 36.0f, 12.0f, 4, false, NULL, (uint8_t)COMBO_ITEM_COUNT_SOH, 0.0f };
+
+const ComboItemGridStyle* Combo_ItemGridStyle(uint8_t game) {
+    const ComboItemOps* ops = Combo_Item_GetOps(game);
+    return (ops != NULL && ops->grid != NULL) ? ops->grid : &kComboItemSohGrid;
+}
+
 // ============================================================================
 // The source pick (ADR 0008 rule 5, amended 2026-09-30)
 // ============================================================================
@@ -201,10 +214,15 @@ typedef struct {
     uint16_t fixedMax;
     uint16_t unitsPerCount;
     bool heldAtZero;
+    // The count is a tier the icon itself shows (the magic jar, the longshot,
+    // the ocarina, the wallet): neither native tracker prints a number on it
+    // (#458 U3). The text and the tooltip keep "n/max"; the icon game's
+    // sharedIcon may still name a number of its own (the wallet's capacity).
+    bool tierIcon;
 } SharedRowDef;
 
 static const SharedRowDef kSharedRows[] = {
-    { "Rupees", RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
+    { "Rupees", RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
     // The wallets' capacities differ per game (MM's largest holds 500, OoT's
     // 999), so the tier shows with its own ceiling rather than as a rupee max.
     // Tier 0 is the child's wallet every file starts with, so the row is held
@@ -212,23 +230,23 @@ static const SharedRowDef kSharedRows[] = {
     // row outside wallet shuffle. The pool carries no "no wallet yet" state
     // (wallet shuffle's flag is per game, not pooled), so under wallet shuffle
     // the per-game row is the authority for whether a wallet is held.
-    { "Wallet", RSBS_SHARED_RES_WALLET_TIER, RSBS_SHARED_RES_NONE, NULL, 3, 1, true },
+    { "Wallet", RSBS_SHARED_RES_WALLET_TIER, RSBS_SHARED_RES_NONE, NULL, 3, 1, true, true },
     // Whole hearts only: the pieces toward the next heart are truncated (5
     // hearts and 2 pieces reads 5). The per-game "Pieces of Heart" row carries
     // the pieces.
     { "Hearts", RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_NONE, NULL,
-      (uint16_t)(RSBS_SHARED_RES_MAX_HEALTH_QUARTERS / 16u), 16, false },
-    { "Double Defense", RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
-    { "Magic", RSBS_SHARED_RES_MAGIC_LEVEL, RSBS_SHARED_RES_NONE, NULL, 2, 1, false },
-    { "Arrows", RSBS_SHARED_RES_ARROW_COUNT, RSBS_SHARED_RES_QUIVER_TIER, kQuiverCap, 0, 1, false },
-    { "Bombs", RSBS_SHARED_RES_BOMB_COUNT, RSBS_SHARED_RES_BOMB_BAG_TIER, kBombBagCap, 0, 1, false },
+      (uint16_t)(RSBS_SHARED_RES_MAX_HEALTH_QUARTERS / 16u), 16, false, false },
+    { "Double Defense", RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
+    { "Magic", RSBS_SHARED_RES_MAGIC_LEVEL, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    { "Arrows", RSBS_SHARED_RES_ARROW_COUNT, RSBS_SHARED_RES_QUIVER_TIER, kQuiverCap, 0, 1, false, false },
+    { "Bombs", RSBS_SHARED_RES_BOMB_COUNT, RSBS_SHARED_RES_BOMB_BAG_TIER, kBombBagCap, 0, 1, false, false },
     // The bombchu cap is per game (see the shims), not a shared kind.
-    { "Bombchus", RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
-    { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false },
-    { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false },
-    { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false },
-    { "Ocarina", RSBS_SHARED_RES_OCARINA_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false },
-    { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
+    { "Bombchus", RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
+    { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false, false },
+    { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false, false },
+    { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    { "Ocarina", RSBS_SHARED_RES_OCARINA_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
 };
 #define SHARED_ROW_DEF_COUNT ((int)(sizeof(kSharedRows) / sizeof(kSharedRows[0])))
 
@@ -283,6 +301,12 @@ int Combo_ItemSharedCount(void) {
 }
 
 bool Combo_ItemSharedRowAt(int index, ComboItemRow* out) {
+    // The active game's own icons: its textures are the ones certainly loaded.
+    const uint8_t iconGame = (Context_GetCurrentGame() == GAME_MM) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+    return Combo_ItemSharedRowAtWithIcons(index, iconGame, out);
+}
+
+bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* out) {
     if (out == NULL || index < 0 || Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE) {
         return false;
     }
@@ -293,9 +317,10 @@ bool Combo_ItemSharedRowAt(int index, ComboItemRow* out) {
     memset(out, 0, sizeof(*out));
     out->group = COMBO_ITEM_SHARED_GROUP;
     out->name = def->name;
-    out->iconKey = NULL; // text until the icon slice (#458 U3)
+    out->iconKey = NULL; // the icon game's own, below; NULL draws the row as text
     out->iconKeyFaded = NULL;
     out->count = (int)(SharedValue(def->countKind) / def->unitsPerCount);
+    uint16_t iconTier = (uint16_t)out->count;
     if (def->tierKind != RSBS_SHARED_RES_NONE) {
         uint16_t tier = SharedValue(def->tierKind);
         if (tier > 3) {
@@ -303,9 +328,15 @@ bool Combo_ItemSharedRowAt(int index, ComboItemRow* out) {
         }
         out->have = tier > 0;
         out->max = (int)def->tierCaps[tier];
+        iconTier = tier;
     } else {
         out->have = def->heldAtZero || out->count > 0;
         out->max = (int)def->fixedMax;
+    }
+    out->iconNumber = def->tierIcon ? -1 : 0;
+    const ComboItemOps* ops = Combo_Item_GetOps(iconGame);
+    if (ops != NULL && ops->sharedIcon != NULL) {
+        ops->sharedIcon(def->countKind, iconTier, out);
     }
     out->freshness = COMBO_TRACKER_FRESH_STALE;
     return true;

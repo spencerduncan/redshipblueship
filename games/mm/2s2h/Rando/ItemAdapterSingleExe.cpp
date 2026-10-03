@@ -57,6 +57,7 @@
 extern "C" {
 #include <macros.h> // CUR_CAPACITY
 }
+#include "assets/interface/parameter_static/parameter_static.h" // dgRupeeCounterIconTex
 
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
@@ -155,16 +156,22 @@ const char* MMItemRandoIcon(RandoItemId randoItemId) {
     return Rando::StaticData::GetIconTexturePath(randoItemId);
 }
 
+// MM's tracker draws an item not held as the same icon at 40% alpha
+// (ItemTracker.cpp GetImageObject: textureColor.w = 0.4f), #458 U3.
+constexpr float kMMItemFadedAlpha = 0.4f;
+
 void MMItemFillVanilla(ComboItemRow* out, uint32_t itemId) {
     out->name = MMItemVanillaName(itemId);
     out->iconKey = MMItemIcon(itemId);
     out->iconKeyFaded = out->iconKey; // MM fades by alpha, not by texture
+    out->fadedAlpha = kMMItemFadedAlpha;
 }
 
 void MMItemFillRando(ComboItemRow* out, RandoItemId randoItemId) {
     out->name = MMItemRandoName(randoItemId);
     out->iconKey = MMItemRandoIcon(randoItemId);
     out->iconKeyFaded = out->iconKey;
+    out->fadedAlpha = kMMItemFadedAlpha;
 }
 
 // ---- the curated rows --------------------------------------------------------
@@ -288,6 +295,9 @@ void MMItemFillSlot(const SaveContext* src, const MMItemRowDef& def, ComboItemRo
 
 bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow* out) {
     out->group = def.group;
+    if (std::strcmp(def.group, "Songs") == 0) {
+        out->iconAspect = 32.0f / 46.0f; // GetImageObject: a song's texture is 32 wide in the 46 px cell
+    }
     switch (def.kind) {
         case MMRK_SLOT:
             MMItemFillSlot(src, def, out);
@@ -402,9 +412,102 @@ bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
 // Below: the real global again (nothing here reads a save).
 // ============================================================================
 
+namespace {
+
+/** MM's own tracker tables (ItemTrackerSettings.cpp LoadAvailableWindows): the
+ *  Inventory and Masks tables are 6 wide, Songs and Quest 5. */
+int MMItemGroupColumns(const char* group) {
+    if (group != nullptr && (std::strcmp(group, "Songs") == 0 || std::strcmp(group, "Quest") == 0)) {
+        return 5;
+    }
+    return 6;
+}
+
+/**
+ * MM's grid (ItemTracker.cpp DrawItemTrackerGroup): one table per group, its
+ * 46 px cells (ITEM_TEXTURE_SIZE at Scale 1) spaced by the table's default
+ * cell padding, 8 px across and 4 px down (measured on MM's own window, 54 and
+ * 50 px pitch), the count bottom right inside the cell (DrawItemCounts).
+ */
+const ComboItemGridStyle kMMItemGrid = {
+    46.0f, 8.0f, 6, true, MMItemGroupColumns, (uint8_t)COMBO_ITEM_COUNT_MM, 4.0f,
+};
+
+/**
+ * The tint MM's own UI draws its grayscale rupee counter icon in
+ * (CheckTracker.cpp: a freestanding rupee check, ImVec4(0.78f, 1, 0.39f, 1)).
+ */
+constexpr uint32_t kMMRupeeTint = 0xC7FF63FFu;
+
+/**
+ * MM's own icon for a shared-pool row (#458 U3): the textures MM's
+ * LoadGuiTextures registers under their resource paths (MM_gItemIcons, and
+ * the rupee counter icon among its miscellaneous textures), the ones MM's
+ * tracker and its Rando item table draw. The wallet prints its capacity at
+ * every tier, as MM's tracker does (GetItemCounts: CUR_CAPACITY(UPG_WALLET)).
+ * It stays held at tier 0, the child's wallet every file holds (the pool's
+ * rule, combo_item_view.c), where MM's own tracker fades it.
+ */
+void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
+    const char* key = nullptr;
+    uint32_t tint = 0;
+    switch (kind) {
+        case RSBS_SHARED_RES_RUPEES:
+            key = dgRupeeCounterIconTex;
+            tint = kMMRupeeTint;
+            break;
+        case RSBS_SHARED_RES_WALLET_TIER:
+            key = MMItemIcon(tier >= 2 ? ITEM_WALLET_GIANT : ITEM_WALLET_ADULT);
+            row->iconNumber = (int)CAPACITY(UPG_WALLET, tier > 3 ? 3 : tier);
+            break;
+        case RSBS_SHARED_RES_HEALTH_QUARTERS:
+            key = MMItemIcon(ITEM_HEART_CONTAINER);
+            break;
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+            key = MMItemRandoIcon(RI_DOUBLE_DEFENSE);
+            break;
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
+            key = MMItemIcon(tier >= 2 ? ITEM_MAGIC_JAR_BIG : ITEM_MAGIC_JAR_SMALL);
+            break;
+        case RSBS_SHARED_RES_ARROW_COUNT:
+            key = MMItemIcon(tier >= 3 ? ITEM_QUIVER_50 : (tier == 2 ? ITEM_QUIVER_40 : ITEM_QUIVER_30));
+            break;
+        case RSBS_SHARED_RES_BOMB_COUNT:
+            key = MMItemIcon(tier >= 3 ? ITEM_BOMB_BAG_40 : (tier == 2 ? ITEM_BOMB_BAG_30 : ITEM_BOMB_BAG_20));
+            break;
+        case RSBS_SHARED_RES_BOMBCHU_COUNT:
+            key = MMItemIcon(ITEM_BOMBCHU);
+            break;
+        case RSBS_SHARED_RES_STICK_COUNT:
+            key = MMItemIcon(ITEM_DEKU_STICK);
+            break;
+        case RSBS_SHARED_RES_NUT_COUNT:
+            key = MMItemIcon(ITEM_DEKU_NUT);
+            break;
+        case RSBS_SHARED_RES_HOOKSHOT_TIER:
+            key = MMItemIcon(ITEM_HOOKSHOT);
+            break;
+        case RSBS_SHARED_RES_OCARINA_TIER:
+            key = MMItemIcon(ITEM_OCARINA_OF_TIME);
+            break;
+        case RSBS_SHARED_RES_TRIFORCE_PIECES:
+            key = MMItemRandoIcon(RI_TRIFORCE_PIECE);
+            break;
+        default:
+            break;
+    }
+    row->iconKey = key;
+    row->iconKeyFaded = key;
+    row->iconAspect = 0.0f;
+    row->fadedAlpha = kMMItemFadedAlpha;
+    row->iconTint = tint;
+}
+
+} // namespace
+
 extern "C" void MM_ItemAdapter_Register(void) {
     static const ComboItemOps kOps = {
-        MMItemCount, MMItemRowAt, MMItemHasSave, MMItemLiveSave, MMItemPaused,
+        MMItemCount, MMItemRowAt, MMItemHasSave, MMItemLiveSave, MMItemPaused, &kMMItemGrid, MMItemSharedIcon,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_MM, &kOps);
 }

@@ -24,6 +24,7 @@
 
 #include "combo_ui.h"
 
+#include "soh/OTRGlobals.h"
 #include "soh/SohGui/SohGui.hpp"
 #include "soh/SohGui/UIWidgets.hpp"
 
@@ -302,27 +303,69 @@ bool SohIconButton(const char* id, const char* icon, const ComboUiWidgetOpts* op
     return clicked;
 }
 
-bool SohImage(const char* textureKey, float width, float height) {
-    // The native Item Tracker's icon draw (randomizer_item_tracker.cpp,
-    // DrawItem): ImGui::Image of the Gui texture registered under the key. A key
-    // with no texture draws nothing, so the caller can fall back to text.
+/** The shared Gui when a texture is loaded under `textureKey`, else null. */
+std::shared_ptr<Ship::Gui> GuiWithTexture(const char* textureKey) {
     if (textureKey == nullptr || textureKey[0] == '\0') {
-        return false;
+        return nullptr;
     }
     auto ctx = Ship::Context::GetInstance();
     auto window = ctx != nullptr ? ctx->GetWindow() : nullptr;
     auto gui = window != nullptr ? window->GetGui() : nullptr;
     if (gui == nullptr || !gui->HasTextureByName(textureKey)) {
+        return nullptr;
+    }
+    return gui;
+}
+
+bool SohImage(const char* textureKey, float width, float height, uint32_t tint) {
+    // The native Item Tracker's icon draw (randomizer_item_tracker.cpp,
+    // DrawItem): ImGui::Image of the Gui texture registered under the key. A key
+    // with no texture draws nothing, so the caller can fall back to text. A
+    // tint is ImageWithBg's tint colour, as MM's check tracker draws its rupee.
+    auto gui = GuiWithTexture(textureKey);
+    if (gui == nullptr) {
         return false;
     }
-    ImGui::Image(gui->GetTextureByName(textureKey), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1));
+    if (tint == 0) {
+        ImGui::Image(gui->GetTextureByName(textureKey), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1));
+        return true;
+    }
+    const ImVec4 color(((tint >> 24) & 0xFF) / 255.0f, ((tint >> 16) & 0xFF) / 255.0f, ((tint >> 8) & 0xFF) / 255.0f,
+                       (tint & 0xFF) / 255.0f);
+    ImGui::ImageWithBg(gui->GetTextureByName(textureKey), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1),
+                       ImVec4(0, 0, 0, 0), color);
     return true;
 }
 
+bool SohHasImage(const char* textureKey) {
+    return GuiWithTexture(textureKey) != nullptr;
+}
+
+void SohToneText(const char* text, ComboUiTone tone) {
+    // DrawItemCount's PushStyleColor / Text / PopStyleColor, in SoH's palette.
+    ImGui::PushStyleColor(ImGuiCol_Text, UIWidgets::ColorValues.at(ToneColor(tone)));
+    ImGui::TextUnformatted(text != nullptr ? text : "");
+    ImGui::PopStyleColor();
+}
+
+bool SohPushCountFont() {
+    // ItemTrackerWindow::Draw: ImGui::PushFont(OTRGlobals::Instance->fontMono).
+    ImFont* font = OTRGlobals::Instance != nullptr ? OTRGlobals::Instance->fontMono : nullptr;
+    if (font == nullptr) {
+        return false;
+    }
+    ImGui::PushFont(font);
+    return true;
+}
+
+void SohPopCountFont() {
+    ImGui::PopFont();
+}
+
 const ComboUiTable kSohTable = {
-    SohCheckbox, SohCombobox,    SohSliderInt, SohButton,     SohSearchInput, SohSeparatorText,
-    SohNoteText, SohWarningText, SohTooltip,   SohTagChip,    SohConfirm,     SohPushTheme,
-    SohPopTheme, SohSpacer,      SohRowText,   SohIconButton, SohImage,
+    SohCheckbox,    SohCombobox,   SohSliderInt, SohButton,   SohSearchInput, SohSeparatorText, SohNoteText,
+    SohWarningText, SohTooltip,    SohTagChip,   SohConfirm,  SohPushTheme,   SohPopTheme,      SohSpacer,
+    SohRowText,     SohIconButton, SohImage,     SohHasImage, SohToneText,    SohPushCountFont, SohPopCountFont,
 };
 
 struct InstallSohComboUi {

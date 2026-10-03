@@ -179,9 +179,33 @@ typedef struct {
      * item adapter produced (ComboItemRow.iconKey). False, drawing nothing, when
      * the key is NULL or no texture is loaded under it (MM's icons before MM's
      * first boot): the caller then draws the item's name as text (#458 U2; the
-     * unified overlay draws text in U2 and icons from U3).
+     * unified overlay draws text in U2 and icons from U3). `tint` multiplies
+     * the texture, 0xRRGGBBAA; 0 draws it as it is (#458 U3: MM's own UI tints
+     * its grayscale rupee icon green).
      */
-    bool (*Image)(const char* textureKey, float width, float height);
+    bool (*Image)(const char* textureKey, float width, float height, uint32_t tint);
+    /**
+     * Whether Image would draw `textureKey` (a texture is loaded under it),
+     * drawing nothing: the unified overlay decides per section whether its
+     * cells are icons or text before it lays them out (#458 U3).
+     */
+    bool (*HasImage)(const char* textureKey);
+    /**
+     * One unwrapped line of `text` in the SoH palette colour `tone`, at the
+     * cursor: SoH's item-tracker counts (randomizer_item_tracker.cpp,
+     * DrawItemCount: the amount and its slash in white, green or gray, the
+     * ceiling in green, or both in red for the skulltula tokens), #458 U3.
+     */
+    void (*ToneText)(const char* text, ComboUiTone tone);
+    /**
+     * Push the font SoH's Item Tracker draws in (ItemTrackerWindow::Draw pushes
+     * OTRGlobals' 16 px mono font around the whole tracker), so the counts on
+     * the icons are in SoH's own face and size. False, pushing nothing, when no
+     * such font is loaded; the caller pops only what was pushed (#458 U3).
+     */
+    bool (*PushCountFont)(void);
+    /** Pop the font PushCountFont pushed. */
+    void (*PopCountFont)(void);
 } ComboUiTable;
 
 /** Install the table the panes draw through. NULL uninstalls (back to the fallback). */
