@@ -182,6 +182,19 @@ typedef struct {
      * unified overlay draws text in U2 and icons from U3).
      */
     bool (*Image)(const char* textureKey, float width, float height);
+    /**
+     * Whether Image would draw `textureKey` (a texture is loaded under it),
+     * drawing nothing: the unified overlay decides per section whether its
+     * cells are icons or text before it lays them out (#458 U3).
+     */
+    bool (*HasImage)(const char* textureKey);
+    /**
+     * One unwrapped line of `text` in the SoH palette colour `tone`, at the
+     * cursor: SoH's item-tracker counts (randomizer_item_tracker.cpp,
+     * DrawItemCount: the amount in white, green or gray, the ceiling in green),
+     * #458 U3.
+     */
+    void (*ToneText)(const char* text, ComboUiTone tone);
 } ComboUiTable;
 
 /** Install the table the panes draw through. NULL uninstalls (back to the fallback). */

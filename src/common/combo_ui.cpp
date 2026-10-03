@@ -208,10 +208,20 @@ bool FallbackImage(const char*, float, float) {
     return false;
 }
 
+bool FallbackHasImage(const char*) {
+    return false;
+}
+
+/** No palette without SoH's table: the text in the style's text colour. */
+void FallbackToneText(const char* text, ComboUiTone) {
+    ImGui::TextUnformatted(text != nullptr ? text : "");
+}
+
 const ComboUiTable kFallback = {
     FallbackCheckbox,  FallbackCombobox,    FallbackSliderInt, FallbackButton,  FallbackSearchInput, FallbackSeparatorText,
     FallbackNoteText,  FallbackWarningText, FallbackTooltip,   FallbackTagChip, FallbackConfirm,
     FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText, FallbackIconButton, FallbackImage,
+    FallbackHasImage,  FallbackToneText,
 };
 
 } // namespace

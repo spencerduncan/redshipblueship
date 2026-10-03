@@ -302,27 +302,48 @@ bool SohIconButton(const char* id, const char* icon, const ComboUiWidgetOpts* op
     return clicked;
 }
 
-bool SohImage(const char* textureKey, float width, float height) {
-    // The native Item Tracker's icon draw (randomizer_item_tracker.cpp,
-    // DrawItem): ImGui::Image of the Gui texture registered under the key. A key
-    // with no texture draws nothing, so the caller can fall back to text.
+/** The shared Gui when a texture is loaded under `textureKey`, else null. */
+std::shared_ptr<Ship::Gui> GuiWithTexture(const char* textureKey) {
     if (textureKey == nullptr || textureKey[0] == '\0') {
-        return false;
+        return nullptr;
     }
     auto ctx = Ship::Context::GetInstance();
     auto window = ctx != nullptr ? ctx->GetWindow() : nullptr;
     auto gui = window != nullptr ? window->GetGui() : nullptr;
     if (gui == nullptr || !gui->HasTextureByName(textureKey)) {
+        return nullptr;
+    }
+    return gui;
+}
+
+bool SohImage(const char* textureKey, float width, float height) {
+    // The native Item Tracker's icon draw (randomizer_item_tracker.cpp,
+    // DrawItem): ImGui::Image of the Gui texture registered under the key. A key
+    // with no texture draws nothing, so the caller can fall back to text.
+    auto gui = GuiWithTexture(textureKey);
+    if (gui == nullptr) {
         return false;
     }
     ImGui::Image(gui->GetTextureByName(textureKey), ImVec2(width, height), ImVec2(0, 0), ImVec2(1, 1));
     return true;
 }
 
+bool SohHasImage(const char* textureKey) {
+    return GuiWithTexture(textureKey) != nullptr;
+}
+
+void SohToneText(const char* text, ComboUiTone tone) {
+    // DrawItemCount's PushStyleColor / Text / PopStyleColor, in SoH's palette.
+    ImGui::PushStyleColor(ImGuiCol_Text, UIWidgets::ColorValues.at(ToneColor(tone)));
+    ImGui::TextUnformatted(text != nullptr ? text : "");
+    ImGui::PopStyleColor();
+}
+
 const ComboUiTable kSohTable = {
     SohCheckbox, SohCombobox,    SohSliderInt, SohButton,     SohSearchInput, SohSeparatorText,
     SohNoteText, SohWarningText, SohTooltip,   SohTagChip,    SohConfirm,     SohPushTheme,
-    SohPopTheme, SohSpacer,      SohRowText,   SohIconButton, SohImage,
+    SohPopTheme, SohSpacer,      SohRowText,   SohIconButton, SohImage,       SohHasImage,
+    SohToneText,
 };
 
 struct InstallSohComboUi {

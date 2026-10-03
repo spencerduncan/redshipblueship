@@ -19,14 +19,27 @@
  * pause menu opens. Like SoH's overlay it has no close button: the Combo >
  * Windows row toggles it.
  *
- * ROWS. Text in this slice (icons are #458 U3): each item's name, with its count
- * and ceiling when it has them ("Fairy Bow 35/40"), dimmed while not held (the
- * text twin of SoH's faded icon), in a grid where each item group starts a new
- * line and every section shares one set of column widths. The window type uses
- * kComboItemTrackerColumns columns at full size. The floating overlay cannot
- * scroll, so it is fitted to the game window every frame
- * (ComboItemTrackerFitGrid): up to SoH's six per line, and its text scaled
- * down when even that would run past the edge.
+ * ICONS (#458 U3). Each game's section is that game's own tracker: its icons
+ * (OoT's keyed by texture name, MM's by resource path, both straight from the
+ * adapters), laid out as that tracker lays them out (the adapter's
+ * ComboItemGridStyle: SoH's six-wide main window flowing on, 11 lines of 36 px
+ * icons; MM's one table per group, 46 px cells), faded the way that tracker
+ * fades (SoH's _Faded textures; MM's 40% alpha), with that tracker's count on
+ * the icon, and the row's text as the icon's tooltip. The Shared section draws
+ * the active game's own icons for the pool, two a line. The sections stand side
+ * by side, as three columns of one table, so the overlay is as tall as one
+ * game's grid. The gCombo.Tracker.Items.IconSize key sizes every grid.
+ *
+ * TEXT FALLBACK. A section none of whose icons is loaded (MM's load only once
+ * MM has booted) is U2's text grid: each item's name, with its count and
+ * ceiling when it has them ("Fairy Bow 35/40"), dimmed while not held, in
+ * kComboItemTrackerColumns columns, each group on a new line. In a section of
+ * icons, a single cell whose texture is missing draws its name in the cell.
+ * "No data." is a note with no rows.
+ *
+ * FIT. The floating overlay cannot scroll, so it is fitted to the game window
+ * every frame (ComboItemTrackerFitBoxes): every icon, gap and line of text
+ * scales down together when the columns would run past the edge.
  *
  * Openability: Draw() reads the visibility CVar live, as the Combo Tracker does
  * (#489 cause 1).
@@ -50,6 +63,7 @@
 #include <ship/window/gui/GuiWindow.h>
 
 #include "combo_item_view.h"
+#include "combo_ui.h" // ComboUiTone
 #include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER, RSBS_CVAR_COMBO_ITEMS_*
 
 namespace Ship {
@@ -81,16 +95,20 @@ enum ComboItemTrackerSectionId : int {
     COMBO_ITEM_SECTION_COUNT = 3,
 };
 
-/** Text rows per grid line in the window type, and the floating grid's preferred width. */
+/** Text rows per grid line in a text-fallback section. */
 inline constexpr int kComboItemTrackerColumns = 3;
 
-/** The floating grid's widest line: SoH's DrawItemsInRows puts six icons on a line. */
-inline constexpr int kComboItemTrackerMaxColumns = 6;
+/** The IconSize key's default and range: SoH's IconSize default (36) and slider bounds. */
+inline constexpr int kComboItemTrackerIconSize = 36;
+inline constexpr int kComboItemTrackerIconSizeMin = 25;
+inline constexpr int kComboItemTrackerIconSizeMax = 128;
+
+/** A count's text height at scale 1: SoH's item-tracker counts are its 16 px mono font. */
+inline constexpr float kComboItemTrackerCountPx = 16.0f;
 
 /**
- * The smallest text scale the floating overlay shrinks to so that it fits the
- * game window. Both games and the pool in text need about 0.45 at the 832x600
- * contract profile (the lock prints the figure), so the floor sits below that.
+ * The smallest scale the floating overlay shrinks to so that it fits the game
+ * window. Below it the bottom-edge clamp is the backstop.
  */
 inline constexpr float kComboItemTrackerMinScale = 0.4f;
 
@@ -151,13 +169,16 @@ struct ComboItemTrackerSection {
     uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
     std::string note; // the freshness label as a sentence ("Updated live.")
     std::vector<ComboItemRow> rows;
+    const ComboItemGridStyle* grid = &kComboItemSohGrid; // the game's own tracker grid (#458 U3)
 };
 
 /**
- * Section `section`'s title, freshness, note and rows, read through the item
- * view exactly as the draw reads them: no rows while its data is UNAVAILABLE.
+ * Section `section`'s title, freshness, note, rows and grid, read through the
+ * item view exactly as the draw reads them: no rows while its data is
+ * UNAVAILABLE. `sharedIconGame` (GAME_OOT or GAME_MM) draws the Shared rows
+ * with that game's icons instead of the active game's.
  */
-void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out);
+void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out, int sharedIconGame = -1);
 
 /** Whether the player's Section.* key shows `section` (default yes). */
 bool ComboItemTrackerSectionShown(int section);
@@ -187,42 +208,114 @@ int ComboItemGridLines(const std::vector<ComboItemRow>& rows, int columns);
 std::vector<float> ComboItemGridColumnWidths(const std::vector<ComboItemTrackerSection>& sections,
                                              const std::vector<std::vector<float>>& widths, int columns);
 
-/** What the fit is measured against, all in pixels at text scale 1. */
-struct ComboItemTrackerMetrics {
-    float textHeight = 0.0f;  // a line of text (ImGui::GetFontSize at scale 1); scales
-    float linePadding = 0.0f; // a grid line's height beyond its text (ItemSpacing.y); never scales
-    float columnGap = 0.0f;   // between two columns; never scales
-    float overhead = 0.0f;    // every section's header, note and spacer, as measured last frame
-    float availWidth = 0.0f;  // the room the game window leaves the overlay's contents
-    float availHeight = 0.0f;
-};
+// ============================================================================
+// Icons (#458 U3)
+// ============================================================================
 
-/** The grid the overlay draws: columns per line, the text scale, and the shared column widths at scale 1. */
-struct ComboItemTrackerFit {
-    int columns = kComboItemTrackerColumns;
-    float scale = 1.0f;
-    std::vector<float> columnWidths;
+/**
+ * The icon grid: rows fill the style's columns left to right (a group's own
+ * count when the style names one); with `groupLines` each group starts a new
+ * line (MM's one table per group), without it the rows flow on (SoH's main
+ * window: its 66 rows are exactly 11 lines of six).
+ */
+void ComboItemIconLayout(const std::vector<ComboItemRow>& rows, const ComboItemGridStyle& grid,
+                         std::vector<ComboItemGridCell>& out);
+
+/** The texture a cell draws and the alpha it draws it at. */
+struct ComboItemIconPick {
+    const char* key = nullptr;
+    float alpha = 1.0f;
 };
 
 /**
- * The floating overlay's fit (#458 U2 review): the floating overlay has no
- * scrollbar and takes no input, so whatever runs past the game window's edge
- * could never be seen. Of 1..kComboItemTrackerMaxColumns columns per line, the
- * one that lets the text stay largest while every section fits inside
- * availWidth x availHeight; the scale is at most 1 (a grid that fits is never
- * enlarged), rounded down to a whole kComboItemTrackerScaleStep, and at least
- * kComboItemTrackerMinScale. Ties go to the column count nearest
- * kComboItemTrackerColumns, then to the wider grid. With `previous` (the fit
- * drawn last frame) the choice has hysteresis: the previous column count stays
- * unless another beats it by half a step, and the scale steps up only once it
- * fits by half a step more (it steps down at once). SoH scales its own
- * overlays' text the same way (SetWindowFontScale in randomizer_item_tracker.cpp
- * and MM's ItemTracker.cpp).
+ * Held: iconKey, opaque. Not held: iconKeyFaded, at fadedAlpha when the row
+ * names one (MM draws its own icon at 0.4) and opaque otherwise (SoH's _Faded
+ * textures are faded already).
  */
-ComboItemTrackerFit ComboItemTrackerFitGrid(const std::vector<ComboItemTrackerSection>& sections,
-                                            const std::vector<std::vector<float>>& widths,
-                                            const ComboItemTrackerMetrics& metrics,
-                                            const ComboItemTrackerFit* previous = nullptr);
+ComboItemIconPick ComboItemPickIcon(const ComboItemRow& row);
+
+/** A count as the icon shows it: the amount, then the ceiling, each in its SoH palette tone. */
+struct ComboItemCount {
+    std::string amount;
+    std::string ceiling;
+    ComboUiTone amountTone = COMBO_UI_TONE_WHITE;
+    ComboUiTone ceilingTone = COMBO_UI_TONE_GREEN;
+};
+
+/**
+ * The count drawn on a row's icon, or false for none. A row neither held nor
+ * counted has none (a faded icon carries no number). COMBO_ITEM_COUNT_SOH is
+ * SoH's DrawItemCount with the ammo shown ("35" then "/40"): the amount green
+ * once it reaches the ceiling, gray at 0, white otherwise, the ceiling green;
+ * a row with no ceiling shows its amount alone in white. COMBO_ITEM_COUNT_MM
+ * is MM's DrawItemCounts: the amount alone, in white, while it is above 0.
+ */
+bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCount& out);
+
+/**
+ * Whether a section draws icons: some row's picked texture is loaded
+ * (`hasImage`, the seam's HasImage). Otherwise it is U2's text grid, the
+ * fallback while a game's icons are not loaded (MM's before MM's first boot).
+ */
+bool ComboItemSectionDrawsIcons(const std::vector<ComboItemRow>& rows, bool (*hasImage)(const char*));
+
+// ============================================================================
+// The fit
+// ============================================================================
+
+/**
+ * A section's column of the overlay, in pixels at scale 1: `width` and
+ * `height` scale with the fit (icons, gaps, text), `fixedWidth` and
+ * `fixedHeight` do not (the table's cell padding, the header and note as
+ * measured last frame, the text lines' spacing).
+ */
+struct ComboItemSectionBox {
+    float width = 0.0f;
+    float height = 0.0f;
+    float fixedWidth = 0.0f;
+    float fixedHeight = 0.0f;
+};
+
+/** What a box is measured with: the icon size and, for text, the font's metrics, at scale 1. */
+struct ComboItemTrackerMetrics {
+    float iconSize = (float)kComboItemTrackerIconSize; // the IconSize key
+    float textHeight = 0.0f;                           // a line of text (ImGui::GetFontSize at scale 1)
+    float linePadding = 0.0f;                          // a text grid line's height beyond its text (ItemSpacing.y)
+    float columnGap = 0.0f;                            // between two text columns
+    float cellPadding = 0.0f;                          // a table column's padding, both sides together
+};
+
+/** The factor a grid style's pixel sizes (given at IconSize 36) take at `iconSize`. */
+float ComboItemIconUnit(float iconSize);
+
+/** An icon section's box: its cells' extent plus one gap below the last line (for SoH's counts). */
+ComboItemSectionBox ComboItemIconBox(const std::vector<ComboItemGridCell>& cells, const ComboItemGridStyle& grid,
+                                     const ComboItemTrackerMetrics& metrics, float header);
+
+/** A text-fallback section's box: U2's text grid in kComboItemTrackerColumns columns. `widths[r]` is row r's
+ *  text width at scale 1. */
+ComboItemSectionBox ComboItemTextBox(const ComboItemTrackerSection& section, const std::vector<float>& widths,
+                                     const ComboItemTrackerMetrics& metrics, float header);
+
+/** The scale the overlay draws at. */
+struct ComboItemTrackerFit {
+    float scale = 1.0f;
+};
+
+/**
+ * The floating overlay's fit (#458 U2 review; U3 for icons): the floating
+ * overlay has no scrollbar and takes no input, so whatever runs past the game
+ * window's edge could never be seen. The boxes stand side by side: the largest
+ * scale, at most 1 (a grid that fits is never enlarged), at which their widths
+ * together and each one's height fit availWidth x availHeight, rounded down to
+ * a whole kComboItemTrackerScaleStep, and at least kComboItemTrackerMinScale.
+ * With `previous` (the fit drawn last frame) it has hysteresis: the scale steps
+ * up only once it fits by half a step more (it steps down at once). SoH scales
+ * its own overlays the same way (SetWindowFontScale in randomizer_item_tracker.cpp,
+ * MM's ItemTracker.cpp Scale).
+ */
+ComboItemTrackerFit ComboItemTrackerFitBoxes(const std::vector<ComboItemSectionBox>& boxes, float availWidth,
+                                             float availHeight, const ComboItemTrackerFit* previous = nullptr);
 
 } // namespace ComboGui
 

@@ -1,13 +1,14 @@
 /**
  * @file ComboItemTrackerWindow.cpp
- * @brief Renders the unified item view as SoH's Item Tracker overlay (#458 U2).
+ * @brief Renders the unified item view as SoH's Item Tracker overlay (#458 U2),
+ *        each game's section as that game's own icon grid (#458 U3).
  *
  * See ComboItemTrackerWindow.h for the contract. The file keeps no state of its
  * own: every section is collected from combo_item_view.h on every frame, so a
- * game switch, a save or a load shows on the next frame; the one number carried
- * between frames (the headers' measured height, for the fit) lives in the
- * overlay window's ImGui state storage. src/common cannot include UIWidgets, so
- * the section headers and notes go through the combo_ui seam.
+ * game switch, a save or a load shows on the next frame; the numbers carried
+ * between frames (each section's measured header height, the fit last drawn)
+ * live in the overlay window's ImGui state storage. src/common cannot include
+ * UIWidgets, so the headers, notes, icons and counts go through the combo_ui seam.
  */
 
 #include "ComboItemTrackerWindow.h"
@@ -33,7 +34,7 @@ const ComboUiTable& Ui() {
 }
 
 // SoH's default overlay background (BeginFloatingWindows: CVarGetColor of
-// BgColor.Value with { 0, 0, 0, 0 }): clear, so only the rows show over the game.
+// BgColor.Value with { 0, 0, 0, 0 }): clear, so only the icons show over the game.
 constexpr Color_RGBA8 kBgDefault = { 0, 0, 0, 0 };
 
 const char* const kSectionKeys[COMBO_ITEM_SECTION_COUNT] = {
@@ -48,6 +49,14 @@ float OverlayOpacity() {
         opacity = 0.1f;
     }
     return opacity > 1.0f ? 1.0f : opacity;
+}
+
+float IconSizeSetting() {
+    int size = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_ICON_SIZE, kComboItemTrackerIconSize);
+    if (size < kComboItemTrackerIconSizeMin) {
+        size = kComboItemTrackerIconSizeMin;
+    }
+    return (float)(size > kComboItemTrackerIconSizeMax ? kComboItemTrackerIconSizeMax : size);
 }
 
 /**
@@ -66,12 +75,12 @@ void BeginOverlay(int windowType) {
     const Color_RGBA8 bg = CVarGetColor(RSBS_CVAR_COMBO_ITEMS_BG_COLOR ".Value", kBgDefault);
     ImVec4 color(bg.r / 255.0f, bg.g / 255.0f, bg.b / 255.0f, bg.a / 255.0f);
     ImGuiWindow* window = ImGui::FindWindowByName(kComboItemTrackerWindowName);
-    // The two additions to SoH's chrome, both for text rows. The floating
-    // overlay is fitted to the game window (ComboItemTrackerFitGrid); should
-    // even the smallest scale not fit, it is held to the game window's bottom
-    // edge rather than drawn past it. The window type's title
-    // bar is kept whole: ImGui's auto-fit sizes to the contents alone, and a
-    // short state ("No data.") would cut the title.
+    // The two additions to SoH's chrome. The floating overlay is fitted to the
+    // game window (ComboItemTrackerFitBoxes); should even the smallest scale
+    // not fit, it is held to the game window's bottom edge rather than drawn
+    // past it. The window type's title bar is kept whole: ImGui's auto-fit
+    // sizes to the contents alone, and a short state ("No data.") would cut
+    // the title.
     ImVec2 minSize(0.0f, 0.0f);
     ImVec2 maxSize(FLT_MAX, FLT_MAX);
     if (windowType == COMBO_ITEM_TRACKER_FLOATING) {
@@ -104,34 +113,105 @@ void EndOverlay() {
     ImGui::PopStyleColor(2);
 }
 
+/** One section's layout for this frame: icons or text, its cells, its box. */
+struct SectionPlan {
+    bool icons = false;
+    std::vector<ComboItemGridCell> cells;
+    std::vector<float> textWidths; // text fallback: each row's width at scale 1
+    ComboItemSectionBox box;
+};
+
+/** The window-local x of screen x, for PushTextWrapPos. */
+float LocalX(float screenX) {
+    return screenX - ImGui::GetWindowPos().x + ImGui::GetScrollX();
+}
+
 /**
- * One section: its header, its freshness note, and its grid of rows, each
- * column starting at the same x in every section (the fit's shared widths).
- * Returns the height the header and note took, for the next frame's fit.
+ * A cell's count, at kComboItemTrackerCountPx: SoH's DrawItemCount centres it
+ * on the icon's bottom edge (its text starts 14 px above the line under the
+ * icon), MM's DrawItemCounts puts it in the cell's bottom-right corner, 2 px
+ * in. `cellMin` and `cell` are the cell's screen position and edge.
  */
-float DrawSection(const ComboItemTrackerSection& section, const ComboItemTrackerFit& fit, float columnGap) {
-    const ImGuiWindow* window = ImGui::GetCurrentWindow();
-    const float top = window->DC.CursorPos.y;
-    Ui().SeparatorText(section.title);
-    Ui().NoteText(section.note.c_str());
-    const float header = window->DC.CursorPos.y - top;
-    if (section.rows.empty()) {
-        return header;
+void DrawCount(const ComboItemRow& row, uint8_t countStyle, ImVec2 cellMin, float cell, float scale, float countScale) {
+    ComboItemCount count;
+    if (!ComboItemCountFor(row, countStyle, count)) {
+        return;
+    }
+    ImGui::SetWindowFontScale(countScale);
+    const float amountWidth = ImGui::CalcTextSize(count.amount.c_str()).x;
+    const float width = amountWidth + ImGui::CalcTextSize(count.ceiling.c_str()).x;
+    const float height = ImGui::GetFontSize();
+    ImVec2 at;
+    if (countStyle == COMBO_ITEM_COUNT_MM) {
+        at = ImVec2(cellMin.x + cell - width - 2.0f * scale, cellMin.y + cell - height - 2.0f * scale);
+    } else {
+        at = ImVec2(cellMin.x + (cell - width) * 0.5f, cellMin.y + cell - height * 0.6f);
+    }
+    ImGui::SetCursorScreenPos(at);
+    Ui().ToneText(count.amount.c_str(), count.amountTone);
+    if (!count.ceiling.empty()) {
+        ImGui::SetCursorScreenPos(ImVec2(at.x + amountWidth, at.y));
+        Ui().ToneText(count.ceiling.c_str(), count.ceilingTone);
+    }
+    ImGui::SetWindowFontScale(scale);
+}
+
+/** A cell of an icon section whose own texture is missing: its name, wrapped and clipped to the cell. */
+void DrawCellText(const ComboItemRow& row, ImVec2 cellMin, float cell) {
+    const ImVec2 cellMax(cellMin.x + cell, cellMin.y + cell);
+    ImGui::PushClipRect(cellMin, cellMax, true);
+    ImGui::SetCursorScreenPos(cellMin);
+    ImGui::PushTextWrapPos(LocalX(cellMax.x));
+    ImGui::BeginDisabled(!row.have);
+    ImGui::TextUnformatted(row.name);
+    ImGui::EndDisabled();
+    ImGui::PopTextWrapPos();
+    ImGui::PopClipRect();
+}
+
+/** An icon section's grid at `origin`, as its game's own tracker draws it. */
+void DrawIconGrid(const ComboItemTrackerSection& section, const SectionPlan& plan, ImVec2 origin, float iconSize,
+                  float scale, float countScale) {
+    const ComboItemGridStyle& grid = *section.grid;
+    const float unit = ComboItemIconUnit(iconSize) * scale;
+    const float cell = grid.cellPx * unit;
+    const float pitch = (grid.cellPx + grid.gapPx) * unit;
+    const float baseAlpha = ImGui::GetStyle().Alpha;
+    for (size_t i = 0; i < section.rows.size() && i < plan.cells.size(); i++) {
+        const ComboItemRow& row = section.rows[i];
+        const ImVec2 cellMin(origin.x + (float)plan.cells[i].column * pitch, origin.y + (float)plan.cells[i].line * pitch);
+        const ComboItemIconPick pick = ComboItemPickIcon(row);
+        const float iconWidth = row.iconAspect > 0.0f ? cell * row.iconAspect : cell;
+        ImGui::SetCursorScreenPos(ImVec2(cellMin.x + (cell - iconWidth) * 0.5f, cellMin.y));
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, baseAlpha * pick.alpha);
+        const bool drawn = Ui().Image(pick.key, iconWidth, cell);
+        ImGui::PopStyleVar();
+        if (!drawn) {
+            DrawCellText(row, cellMin, cell);
+        }
+        // The item's name (and its count) on hover, as both native trackers do.
+        Ui().Tooltip(ComboItemRowText(row).c_str());
+        DrawCount(row, grid.countStyle, cellMin, cell, scale, countScale);
+    }
+}
+
+/** A text-fallback section at `origin`: U2's grid, each row dimmed while not held. */
+void DrawTextGrid(const ComboItemTrackerSection& section, const SectionPlan& plan, ImVec2 origin, float scale,
+                  const ComboItemTrackerMetrics& metrics) {
+    std::vector<ComboItemTrackerSection> one(1, section);
+    const std::vector<std::vector<float>> widths(1, plan.textWidths);
+    const std::vector<float> columnWidths = ComboItemGridColumnWidths(one, widths, kComboItemTrackerColumns);
+    std::vector<float> columnX(columnWidths.size(), 0.0f);
+    for (size_t c = 1; c < columnX.size(); c++) {
+        columnX[c] = columnX[c - 1] + columnWidths[c - 1] * scale + metrics.columnGap;
     }
     std::vector<ComboItemGridCell> cells;
-    ComboItemGridLayout(section.rows, fit.columns, cells);
-    std::vector<float> columnX(fit.columnWidths.size(), 0.0f);
-    for (size_t c = 1; c < columnX.size(); c++) {
-        columnX[c] = columnX[c - 1] + fit.columnWidths[c - 1] * fit.scale + columnGap;
-    }
-    // Each cell placed at its column and line, as SoH's DrawItemsInRows places
-    // each icon (SetCursorPos at column * pitch, row * pitch).
-    const ImVec2 start = ImGui::GetCursorPos();
-    const float pitch = ImGui::GetFontSize() + ImGui::GetStyle().ItemSpacing.y;
+    ComboItemGridLayout(section.rows, kComboItemTrackerColumns, cells);
+    const float pitch = metrics.textHeight * scale + metrics.linePadding;
     for (size_t i = 0; i < section.rows.size(); i++) {
         const ComboItemRow& row = section.rows[i];
         const size_t column = (size_t)cells[i].column < columnX.size() ? (size_t)cells[i].column : 0;
-        ImGui::SetCursorPos(ImVec2(start.x + columnX[column], start.y + (float)cells[i].line * pitch));
+        ImGui::SetCursorScreenPos(ImVec2(origin.x + columnX[column], origin.y + (float)cells[i].line * pitch));
         // A row not held is dimmed the way a disabled row is: the text twin
         // of SoH's faded icon, with no colour of its own.
         const std::string text = ComboItemRowText(row);
@@ -139,13 +219,12 @@ float DrawSection(const ComboItemTrackerSection& section, const ComboItemTracker
         ImGui::TextUnformatted(text.c_str());
         ImGui::EndDisabled();
     }
-    return header;
 }
 
-// Keys in the overlay window's ImGui state storage: the headers' measured
-// height and the fit last drawn (the fit's hysteresis).
-constexpr const char* kOverheadKey = "##fitOverhead";
-constexpr const char* kColumnsKey = "##fitColumns";
+// Keys in the overlay window's ImGui state storage: each section's measured
+// header height, and the scale last drawn (the fit's hysteresis).
+constexpr const char* kHeaderKeys[COMBO_ITEM_SECTION_COUNT] = { "##fitHeaderOoT", "##fitHeaderMM",
+                                                                "##fitHeaderShared" };
 constexpr const char* kScaleKey = "##fitScale";
 
 } // namespace
@@ -182,7 +261,7 @@ std::string ComboItemRowText(const ComboItemRow& row) {
     return text;
 }
 
-void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out) {
+void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out, int sharedIconGame) {
     out = ComboItemTrackerSection();
     out.id = section;
     ComboItemRow row;
@@ -190,8 +269,15 @@ void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out) {
         out.title = COMBO_ITEM_SHARED_GROUP;
         out.freshness = Combo_ItemSharedFreshness();
         out.note = std::string(Combo_ItemSharedLabel()) + ".";
+        out.grid = &kComboItemSharedGrid;
         const int count = Combo_ItemSharedCount();
-        for (int i = 0; i < count && Combo_ItemSharedRowAt(i, &row); i++) {
+        for (int i = 0; i < count; i++) {
+            const bool ok = (sharedIconGame == (int)GAME_OOT || sharedIconGame == (int)GAME_MM)
+                                ? Combo_ItemSharedRowAtWithIcons(i, (uint8_t)sharedIconGame, &row)
+                                : Combo_ItemSharedRowAt(i, &row);
+            if (!ok) {
+                break;
+            }
             out.rows.push_back(row);
         }
         return;
@@ -200,6 +286,7 @@ void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out) {
     out.title = game == (uint8_t)GAME_MM ? "Majora's Mask" : "Ocarina of Time";
     out.freshness = Combo_ItemFreshness(game);
     out.note = std::string(Combo_ItemFreshnessLabel(game, out.freshness)) + ".";
+    out.grid = Combo_ItemGridStyle(game);
     const int count = Combo_ItemCount(game);
     for (int i = 0; i < count && Combo_ItemRowAt(game, i, &row); i++) {
         out.rows.push_back(row);
@@ -257,83 +344,165 @@ std::vector<float> ComboItemGridColumnWidths(const std::vector<ComboItemTrackerS
     return out;
 }
 
-namespace {
+// ============================================================================
+// Icons (#458 U3)
+// ============================================================================
 
-/** The largest scale (at most 1, unquantized) at which `columns` columns fit. */
-float FitScaleFor(const std::vector<ComboItemTrackerSection>& sections, const std::vector<std::vector<float>>& widths,
-                  const ComboItemTrackerMetrics& metrics, int columns, std::vector<float>& columnWidths) {
-    columnWidths = ComboItemGridColumnWidths(sections, widths, columns);
-    float textWidth = 0.0f;
-    for (float w : columnWidths) {
-        textWidth += w;
+void ComboItemIconLayout(const std::vector<ComboItemRow>& rows, const ComboItemGridStyle& grid,
+                         std::vector<ComboItemGridCell>& out) {
+    out.clear();
+    int line = -1;
+    int column = 0;
+    int columns = 0;
+    const char* group = nullptr;
+    for (const ComboItemRow& row : rows) {
+        const bool newGroup = group == nullptr || row.group == nullptr || strcmp(row.group, group) != 0;
+        if (line < 0 || (grid.groupLines && newGroup)) {
+            // A new line, at the group's own width.
+            columns = (grid.groupColumns != nullptr) ? grid.groupColumns(row.group) : grid.columns;
+            columns = columns < 1 ? 1 : columns;
+            line++;
+            column = 0;
+        } else if (column >= columns) {
+            line++;
+            column = 0;
+        }
+        out.push_back({ line, column });
+        column++;
+        group = row.group;
     }
-    int lines = 0;
-    for (const ComboItemTrackerSection& section : sections) {
-        lines += ComboItemGridLines(section.rows, columns);
-    }
-    // Width: the text scales, the gaps do not. Height: each line is its text
-    // (scales) plus its spacing (does not), under the headers.
-    float scale = 1.0f;
-    if (textWidth > 0.0f) {
-        const float byWidth = (metrics.availWidth - (float)(columns - 1) * metrics.columnGap) / textWidth;
-        scale = byWidth < scale ? byWidth : scale;
-    }
-    if (lines > 0 && metrics.textHeight > 0.0f) {
-        const float byHeight = (metrics.availHeight - metrics.overhead - (float)lines * metrics.linePadding) /
-                               ((float)lines * metrics.textHeight);
-        scale = byHeight < scale ? byHeight : scale;
-    }
-    return scale;
 }
 
-int ColumnDistance(int columns) {
-    return columns > kComboItemTrackerColumns ? columns - kComboItemTrackerColumns
-                                              : kComboItemTrackerColumns - columns;
+ComboItemIconPick ComboItemPickIcon(const ComboItemRow& row) {
+    ComboItemIconPick pick;
+    if (row.have) {
+        pick.key = row.iconKey;
+        return pick;
+    }
+    pick.key = row.iconKeyFaded;
+    pick.alpha = row.fadedAlpha > 0.0f ? row.fadedAlpha : 1.0f;
+    return pick;
 }
 
-} // namespace
+bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCount& out) {
+    out = ComboItemCount();
+    if (!row.have && row.count == 0) {
+        return false; // a faded icon carries no number
+    }
+    if (countStyle == COMBO_ITEM_COUNT_MM) {
+        if (row.count <= 0) {
+            return false;
+        }
+        out.amount = std::to_string(row.count);
+        return true;
+    }
+    if (row.max > 0) {
+        out.amount = std::to_string(row.count);
+        out.ceiling = "/" + std::to_string(row.max);
+        out.amountTone = row.count >= row.max ? COMBO_UI_TONE_GREEN
+                         : row.count <= 0     ? COMBO_UI_TONE_GRAY
+                                              : COMBO_UI_TONE_WHITE;
+        return true;
+    }
+    if (row.count > 0) {
+        out.amount = std::to_string(row.count);
+        return true;
+    }
+    return false;
+}
 
-ComboItemTrackerFit ComboItemTrackerFitGrid(const std::vector<ComboItemTrackerSection>& sections,
-                                            const std::vector<std::vector<float>>& widths,
-                                            const ComboItemTrackerMetrics& metrics,
-                                            const ComboItemTrackerFit* previous) {
-    ComboItemTrackerFit best;
-    best.scale = -FLT_MAX;
-    std::vector<float> columnWidths;
-    for (int columns = 1; columns <= kComboItemTrackerMaxColumns; columns++) {
-        const float scale = FitScaleFor(sections, widths, metrics, columns, columnWidths);
-        const bool larger = scale > best.scale + 1e-4f;
-        const bool tie = !larger && scale > best.scale - 1e-4f;
-        if (larger || (tie && ColumnDistance(columns) <= ColumnDistance(best.columns))) {
-            best.columns = columns;
-            best.scale = scale;
-            best.columnWidths = columnWidths;
+bool ComboItemSectionDrawsIcons(const std::vector<ComboItemRow>& rows, bool (*hasImage)(const char*)) {
+    if (hasImage == nullptr) {
+        return false;
+    }
+    for (const ComboItemRow& row : rows) {
+        const ComboItemIconPick pick = ComboItemPickIcon(row);
+        if (pick.key != nullptr && hasImage(pick.key)) {
+            return true;
         }
     }
-    // Hysteresis: the grid last drawn stays while it fits about as well (its
-    // headers' height is measured from the frame before, so the best choice
-    // can wobble by a pixel from frame to frame).
-    const bool hold = previous != nullptr && previous->columns >= 1 && previous->columns <= kComboItemTrackerMaxColumns;
-    if (hold && previous->columns != best.columns) {
-        const float held = FitScaleFor(sections, widths, metrics, previous->columns, columnWidths);
-        if (held + kComboItemTrackerScaleStep * 0.5f >= best.scale) {
-            best.columns = previous->columns;
-            best.scale = held;
-            best.columnWidths = columnWidths;
+    return false;
+}
+
+// ============================================================================
+// The fit
+// ============================================================================
+
+float ComboItemIconUnit(float iconSize) {
+    return iconSize / (float)kComboItemTrackerIconSize;
+}
+
+ComboItemSectionBox ComboItemIconBox(const std::vector<ComboItemGridCell>& cells, const ComboItemGridStyle& grid,
+                                     const ComboItemTrackerMetrics& metrics, float header) {
+    ComboItemSectionBox box;
+    box.fixedWidth = metrics.cellPadding;
+    box.fixedHeight = header;
+    if (cells.empty()) {
+        return box;
+    }
+    int columns = 0;
+    for (const ComboItemGridCell& c : cells) {
+        columns = c.column + 1 > columns ? c.column + 1 : columns;
+    }
+    const float unit = ComboItemIconUnit(metrics.iconSize);
+    const float pitch = (grid.cellPx + grid.gapPx) * unit;
+    box.width = (float)(columns - 1) * pitch + grid.cellPx * unit;
+    box.height = (float)(cells.back().line + 1) * pitch;
+    return box;
+}
+
+ComboItemSectionBox ComboItemTextBox(const ComboItemTrackerSection& section, const std::vector<float>& widths,
+                                     const ComboItemTrackerMetrics& metrics, float header) {
+    ComboItemSectionBox box;
+    box.fixedWidth = metrics.cellPadding;
+    box.fixedHeight = header;
+    if (section.rows.empty()) {
+        return box;
+    }
+    const std::vector<ComboItemTrackerSection> one(1, section);
+    const std::vector<std::vector<float>> w(1, widths);
+    const std::vector<float> columnWidths = ComboItemGridColumnWidths(one, w, kComboItemTrackerColumns);
+    int used = 0;
+    for (size_t c = 0; c < columnWidths.size(); c++) {
+        box.width += columnWidths[c];
+        used += columnWidths[c] > 0.0f ? 1 : 0;
+    }
+    box.fixedWidth += (float)(used > 1 ? used - 1 : 0) * metrics.columnGap;
+    const int lines = ComboItemGridLines(section.rows, kComboItemTrackerColumns);
+    box.height = (float)lines * metrics.textHeight;
+    box.fixedHeight += (float)lines * metrics.linePadding;
+    return box;
+}
+
+ComboItemTrackerFit ComboItemTrackerFitBoxes(const std::vector<ComboItemSectionBox>& boxes, float availWidth,
+                                             float availHeight, const ComboItemTrackerFit* previous) {
+    float raw = 1.0f;
+    float scalableWidth = 0.0f;
+    float fixedWidth = 0.0f;
+    for (const ComboItemSectionBox& box : boxes) {
+        scalableWidth += box.width;
+        fixedWidth += box.fixedWidth;
+        if (box.height > 0.0f) {
+            const float byHeight = (availHeight - box.fixedHeight) / box.height;
+            raw = byHeight < raw ? byHeight : raw;
         }
     }
-    // Whole steps, down: the text never grows past what fits.
-    const float raw = best.scale;
-    best.scale = raw >= 1.0f ? 1.0f : (float)(int)(raw / kComboItemTrackerScaleStep) * kComboItemTrackerScaleStep;
+    if (scalableWidth > 0.0f) {
+        const float byWidth = (availWidth - fixedWidth) / scalableWidth;
+        raw = byWidth < raw ? byWidth : raw;
+    }
+    ComboItemTrackerFit fit;
+    // Whole steps, down: the overlay never grows past what fits.
+    fit.scale = raw >= 1.0f ? 1.0f : (float)(int)(raw / kComboItemTrackerScaleStep) * kComboItemTrackerScaleStep;
     // A step up waits until it fits by half a step more; a step down is taken at once.
-    if (hold && previous->columns == best.columns && best.scale > previous->scale &&
+    if (previous != nullptr && fit.scale > previous->scale &&
         raw < previous->scale + kComboItemTrackerScaleStep * 1.5f) {
-        best.scale = previous->scale;
+        fit.scale = previous->scale;
     }
-    if (best.scale < kComboItemTrackerMinScale) {
-        best.scale = kComboItemTrackerMinScale;
+    if (fit.scale < kComboItemTrackerMinScale) {
+        fit.scale = kComboItemTrackerMinScale;
     }
-    return best;
+    return fit;
 }
 
 void ComboItemTrackerWindow::Draw() {
@@ -361,62 +530,108 @@ void ComboItemTrackerWindow::DrawElement() {
         sections.emplace_back();
         ComboItemTrackerCollectSection(s, sections.back());
     }
-
-    // Every row's width at scale 1, for the shared column widths and the fit.
-    ImGui::SetWindowFontScale(1.0f);
-    std::vector<std::vector<float>> widths(sections.size());
-    for (size_t s = 0; s < sections.size(); s++) {
-        for (const ComboItemRow& row : sections[s].rows) {
-            widths[s].push_back(ImGui::CalcTextSize(ComboItemRowText(row).c_str()).x);
-        }
+    if (sections.empty()) {
+        return;
     }
+
+    // Measured at scale 1, for the boxes and the fit.
+    ImGui::SetWindowFontScale(1.0f);
     const ImGuiStyle& style = ImGui::GetStyle();
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImGuiStorage* storage = ImGui::GetStateStorage();
-    const ImGuiID overheadId = ImGui::GetID(kOverheadKey);
     ComboItemTrackerMetrics metrics;
+    metrics.iconSize = IconSizeSetting();
     metrics.textHeight = ImGui::GetFontSize();
     metrics.linePadding = style.ItemSpacing.y;
     metrics.columnGap = style.ItemSpacing.x * 2.0f;
+    metrics.cellPadding = style.CellPadding.x * 2.0f;
+    const float countScale = kComboItemTrackerCountPx / metrics.textHeight;
+
+    std::vector<SectionPlan> plans(sections.size());
+    std::vector<ComboItemSectionBox> boxes(sections.size());
+    for (size_t s = 0; s < sections.size(); s++) {
+        ComboItemTrackerSection& section = sections[s];
+        SectionPlan& plan = plans[s];
+        plan.icons = ComboItemSectionDrawsIcons(section.rows, Ui().HasImage);
+        if (!plan.icons && section.id == COMBO_ITEM_SECTION_SHARED && !section.rows.empty()) {
+            // The active game's icons are not loaded (MM's, before MM has
+            // booted): the pool takes the other game's.
+            const int other = Context_GetCurrentGame() == GAME_MM ? (int)GAME_OOT : (int)GAME_MM;
+            ComboItemTrackerSection again;
+            ComboItemTrackerCollectSection(section.id, again, other);
+            if (ComboItemSectionDrawsIcons(again.rows, Ui().HasImage)) {
+                section = again;
+                plan.icons = true;
+            }
+        }
+        // The header and note, as measured last frame; before the first, a
+        // generous three padded lines.
+        const float guess = 3.0f * (metrics.textHeight + style.FramePadding.y * 2.0f + style.ItemSpacing.y);
+        const float header = storage->GetFloat(ImGui::GetID(kHeaderKeys[section.id]), guess);
+        if (plan.icons) {
+            ComboItemIconLayout(section.rows, *section.grid, plan.cells);
+            boxes[s] = ComboItemIconBox(plan.cells, *section.grid, metrics, header);
+        } else {
+            for (const ComboItemRow& row : section.rows) {
+                plan.textWidths.push_back(ImGui::CalcTextSize(ComboItemRowText(row).c_str()).x);
+            }
+            boxes[s] = ComboItemTextBox(section, plan.textWidths, metrics, header);
+        }
+        // A column is never narrower than its title (an empty "No data." section).
+        const float title = ImGui::CalcTextSize(section.title).x;
+        boxes[s].width = boxes[s].width > title ? boxes[s].width : title;
+        plan.box = boxes[s];
+    }
+
     ComboItemTrackerFit fit;
     const int windowType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, COMBO_ITEM_TRACKER_FLOATING);
     if (windowType == COMBO_ITEM_TRACKER_FLOATING) {
-        // The headers and notes are measured from the last frame drawn (their
-        // padding does not scale with the text); before the first, a generous
-        // three padded lines per section.
-        const float guess =
-            (float)sections.size() * 3.0f * (metrics.textHeight + style.FramePadding.y * 2.0f + style.ItemSpacing.y);
-        metrics.overhead = storage->GetFloat(overheadId, guess);
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         // One item spacing of margin each way absorbs ImGui's pixel rounding.
-        metrics.availWidth = viewport->WorkPos.x + viewport->WorkSize.x - window->Pos.x -
-                             style.WindowPadding.x * 2.0f - style.ItemSpacing.x;
-        metrics.availHeight = viewport->WorkPos.y + viewport->WorkSize.y - window->Pos.y -
-                              style.WindowPadding.y * 2.0f - style.ItemSpacing.y;
+        const float availWidth = viewport->WorkPos.x + viewport->WorkSize.x - window->Pos.x -
+                                 style.WindowPadding.x * 2.0f - style.ItemSpacing.x;
+        const float availHeight = viewport->WorkPos.y + viewport->WorkSize.y - window->Pos.y -
+                                  style.WindowPadding.y * 2.0f - style.ItemSpacing.y;
         ComboItemTrackerFit previous;
-        previous.columns = storage->GetInt(ImGui::GetID(kColumnsKey), 0);
         previous.scale = storage->GetFloat(ImGui::GetID(kScaleKey), 1.0f);
-        fit = ComboItemTrackerFitGrid(sections, widths, metrics, &previous);
-        storage->SetInt(ImGui::GetID(kColumnsKey), fit.columns);
+        fit = ComboItemTrackerFitBoxes(boxes, availWidth, availHeight, &previous);
         storage->SetFloat(ImGui::GetID(kScaleKey), fit.scale);
-    } else {
-        fit.columnWidths = ComboItemGridColumnWidths(sections, widths, fit.columns);
     }
 
-    ImGui::SetWindowFontScale(fit.scale);
-    // What the spacers, headers and notes take, measured as drawn (a grid
-    // line is placed at exactly its text plus ItemSpacing.y, the fit's own
-    // model). The next frame's fit reads it.
-    float overhead = 0.0f;
-    for (size_t s = 0; s < sections.size(); s++) {
-        if (s > 0) {
-            const float top = window->DC.CursorPos.y;
-            Ui().Spacer(0.0f);
-            overhead += window->DC.CursorPos.y - top;
-        }
-        overhead += DrawSection(sections[s], fit, metrics.columnGap);
+    // The sections side by side, one table column each, so a section's header
+    // and its wrapped note keep to its own column.
+    std::vector<ImGuiID> headerIds;
+    for (const ComboItemTrackerSection& section : sections) {
+        headerIds.push_back(ImGui::GetID(kHeaderKeys[section.id]));
     }
-    storage->SetFloat(overheadId, overhead);
+    ImGui::SetWindowFontScale(fit.scale);
+    const ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoSavedSettings;
+    if (!ImGui::BeginTable("##sections", (int)sections.size(), tableFlags)) {
+        return;
+    }
+    for (size_t s = 0; s < sections.size(); s++) {
+        ImGui::TableSetupColumn(sections[s].title, ImGuiTableColumnFlags_WidthFixed, plans[s].box.width * fit.scale);
+    }
+    ImGui::TableNextRow();
+    for (size_t s = 0; s < sections.size(); s++) {
+        const ComboItemTrackerSection& section = sections[s];
+        ImGui::TableNextColumn();
+        const float top = ImGui::GetCursorScreenPos().y;
+        Ui().SeparatorText(section.title);
+        Ui().NoteText(section.note.c_str());
+        const ImVec2 origin = ImGui::GetCursorScreenPos();
+        // The next frame's fit reads the header's height as drawn.
+        storage->SetFloat(headerIds[s], origin.y - top);
+        if (section.rows.empty()) {
+            continue;
+        }
+        if (plans[s].icons) {
+            DrawIconGrid(section, plans[s], origin, metrics.iconSize, fit.scale, countScale * fit.scale);
+        } else {
+            DrawTextGrid(section, plans[s], origin, fit.scale, metrics);
+        }
+    }
+    ImGui::EndTable();
 }
 
 void RegisterComboItemTrackerWindow(std::shared_ptr<Ship::Gui> gui) {

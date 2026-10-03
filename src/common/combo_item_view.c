@@ -60,6 +60,19 @@ const ComboItemOps* Combo_Item_GetOps(uint8_t game) {
     return (slot != NULL) ? *slot : NULL;
 }
 
+// SoH's DrawItemsInRows defaults (randomizer_item_tracker.cpp): IconSize 36,
+// IconSpacing 12, six a line, every section flowing on into the next.
+const ComboItemGridStyle kComboItemSohGrid = { 36.0f, 12.0f, 6, false, NULL, (uint8_t)COMBO_ITEM_COUNT_SOH };
+
+// The pool: SoH's icons and counts, two a line, a narrow column beside the
+// two games' six-wide grids.
+const ComboItemGridStyle kComboItemSharedGrid = { 36.0f, 12.0f, 2, false, NULL, (uint8_t)COMBO_ITEM_COUNT_SOH };
+
+const ComboItemGridStyle* Combo_ItemGridStyle(uint8_t game) {
+    const ComboItemOps* ops = Combo_Item_GetOps(game);
+    return (ops != NULL && ops->grid != NULL) ? ops->grid : &kComboItemSohGrid;
+}
+
 // ============================================================================
 // The source pick (ADR 0008 rule 5, amended 2026-09-30)
 // ============================================================================
@@ -283,6 +296,12 @@ int Combo_ItemSharedCount(void) {
 }
 
 bool Combo_ItemSharedRowAt(int index, ComboItemRow* out) {
+    // The active game's own icons: its textures are the ones certainly loaded.
+    const uint8_t iconGame = (Context_GetCurrentGame() == GAME_MM) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+    return Combo_ItemSharedRowAtWithIcons(index, iconGame, out);
+}
+
+bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* out) {
     if (out == NULL || index < 0 || Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE) {
         return false;
     }
@@ -293,9 +312,10 @@ bool Combo_ItemSharedRowAt(int index, ComboItemRow* out) {
     memset(out, 0, sizeof(*out));
     out->group = COMBO_ITEM_SHARED_GROUP;
     out->name = def->name;
-    out->iconKey = NULL; // text until the icon slice (#458 U3)
+    out->iconKey = NULL; // the icon game's own, below; NULL draws the row as text
     out->iconKeyFaded = NULL;
     out->count = (int)(SharedValue(def->countKind) / def->unitsPerCount);
+    uint16_t iconTier = (uint16_t)out->count;
     if (def->tierKind != RSBS_SHARED_RES_NONE) {
         uint16_t tier = SharedValue(def->tierKind);
         if (tier > 3) {
@@ -303,9 +323,14 @@ bool Combo_ItemSharedRowAt(int index, ComboItemRow* out) {
         }
         out->have = tier > 0;
         out->max = (int)def->tierCaps[tier];
+        iconTier = tier;
     } else {
         out->have = def->heldAtZero || out->count > 0;
         out->max = (int)def->fixedMax;
+    }
+    const ComboItemOps* ops = Combo_Item_GetOps(iconGame);
+    if (ops != NULL && ops->sharedIcon != NULL) {
+        ops->sharedIcon(def->countKind, iconTier, out);
     }
     out->freshness = COMBO_TRACKER_FRESH_STALE;
     return true;
