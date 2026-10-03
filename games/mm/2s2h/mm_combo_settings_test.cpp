@@ -839,9 +839,10 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     ComboContext_Init();
     RsbsSave_ResetSlotSessionState();
-    printf("[TEST] PASS:the arrival gate refuses a divergent combo record by name and freezes a legacy pair's "
+    printf("[TEST] PASS: the arrival gate refuses a divergent combo record by name and freezes a legacy pair's "
            "shipped defaults; the profile, rules and missing-half refusal sites queue the refusal emitter's copy; an "
-           "MM half from another pair is refused, never adopted or re-stamped, while this pair's half hydrates\n");
+           "MM half from another pair is refused, never adopted or re-stamped, while this pair's half hydrates; a "
+           "vanilla MM half under a live pairing is refused before the consume\n");
     return 0;
 }
 
