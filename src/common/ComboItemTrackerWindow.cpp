@@ -179,7 +179,8 @@ void DrawIconGrid(const ComboItemTrackerSection& section, const SectionPlan& pla
     const float baseAlpha = ImGui::GetStyle().Alpha;
     for (size_t i = 0; i < section.rows.size() && i < plan.cells.size(); i++) {
         const ComboItemRow& row = section.rows[i];
-        const ImVec2 cellMin(origin.x + (float)plan.cells[i].column * pitch, origin.y + (float)plan.cells[i].line * pitch);
+        const ImVec2 cellMin(origin.x + (float)plan.cells[i].column * pitch,
+                             origin.y + (float)plan.cells[i].line * pitch);
         const ComboItemIconPick pick = ComboItemPickIcon(row);
         const float iconWidth = row.iconAspect > 0.0f ? cell * row.iconAspect : cell;
         ImGui::SetCursorScreenPos(ImVec2(cellMin.x + (cell - iconWidth) * 0.5f, cellMin.y));

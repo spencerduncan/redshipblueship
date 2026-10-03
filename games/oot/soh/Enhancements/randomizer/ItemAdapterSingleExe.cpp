@@ -486,7 +486,9 @@ namespace {
 void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     const char* key = nullptr;
     const char* faded = nullptr;
-#define OOT_SHARED_ICON(name)     key = name;                   faded = name "_Faded"
+#define OOT_SHARED_ICON(name) \
+    key = name;               \
+    faded = name "_Faded"
     switch (kind) {
         case RSBS_SHARED_RES_RUPEES:
             OOT_SHARED_ICON("ITEM_RUPEE_GREEN");
@@ -568,8 +570,8 @@ extern "C" void OoT_ItemAdapter_Register(void) {
     // SoH's main window grid (kComboItemSohGrid): the 66 rows flow six a line,
     // 11 lines, exactly DrawItemsInRows(mainWindowItems, 6).
     static const ComboItemOps kOps = {
-        OoTItemCount,  OoTItemRowAt,       OoTItemHasSave, OoTItemLiveSave, OoTItemPaused,
-        &kComboItemSohGrid, OoTItemSharedIcon,
+        OoTItemCount,  OoTItemRowAt,       OoTItemHasSave,    OoTItemLiveSave,
+        OoTItemPaused, &kComboItemSohGrid, OoTItemSharedIcon,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, &kOps);
 }

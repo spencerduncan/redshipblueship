@@ -218,10 +218,10 @@ void FallbackToneText(const char* text, ComboUiTone) {
 }
 
 const ComboUiTable kFallback = {
-    FallbackCheckbox,  FallbackCombobox,    FallbackSliderInt, FallbackButton,  FallbackSearchInput, FallbackSeparatorText,
-    FallbackNoteText,  FallbackWarningText, FallbackTooltip,   FallbackTagChip, FallbackConfirm,
-    FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,    FallbackRowText, FallbackIconButton, FallbackImage,
-    FallbackHasImage,  FallbackToneText,
+    FallbackCheckbox,      FallbackCombobox,  FallbackSliderInt,   FallbackButton,   FallbackSearchInput,
+    FallbackSeparatorText, FallbackNoteText,  FallbackWarningText, FallbackTooltip,  FallbackTagChip,
+    FallbackConfirm,       FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,   FallbackRowText,
+    FallbackIconButton,    FallbackImage,     FallbackHasImage,    FallbackToneText,
 };
 
 } // namespace

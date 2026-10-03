@@ -340,10 +340,9 @@ void SohToneText(const char* text, ComboUiTone tone) {
 }
 
 const ComboUiTable kSohTable = {
-    SohCheckbox, SohCombobox,    SohSliderInt, SohButton,     SohSearchInput, SohSeparatorText,
-    SohNoteText, SohWarningText, SohTooltip,   SohTagChip,    SohConfirm,     SohPushTheme,
-    SohPopTheme, SohSpacer,      SohRowText,   SohIconButton, SohImage,       SohHasImage,
-    SohToneText,
+    SohCheckbox,    SohCombobox,   SohSliderInt, SohButton,   SohSearchInput, SohSeparatorText, SohNoteText,
+    SohWarningText, SohTooltip,    SohTagChip,   SohConfirm,  SohPushTheme,   SohPopTheme,      SohSpacer,
+    SohRowText,     SohIconButton, SohImage,     SohHasImage, SohToneText,
 };
 
 struct InstallSohComboUi {

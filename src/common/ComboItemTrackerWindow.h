@@ -63,7 +63,7 @@
 #include <ship/window/gui/GuiWindow.h>
 
 #include "combo_item_view.h"
-#include "combo_ui.h" // ComboUiTone
+#include "combo_ui.h"         // ComboUiTone
 #include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER, RSBS_CVAR_COMBO_ITEMS_*
 
 namespace Ship {
