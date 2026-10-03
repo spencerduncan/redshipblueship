@@ -1092,9 +1092,8 @@ int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
     if (checkType == RCTYPE_SCRUB && loc->GetActorID() == ACTOR_EN_DNS) {
         return 1; // a Business Scrub (#800 pass 2)
     }
-    if (checkType == RCTYPE_MERCHANT &&
-        (rc == RC_ZR_MAGIC_BEAN_SALESMAN || rc == RC_GC_MEDIGORON || rc == RC_KAK_GRANNYS_SHOP ||
-         rc == RC_WASTELAND_BOMBCHU_SALESMAN)) {
+    if (checkType == RCTYPE_MERCHANT && (rc == RC_ZR_MAGIC_BEAN_SALESMAN || rc == RC_GC_MEDIGORON ||
+                                         rc == RC_KAK_GRANNYS_SHOP || rc == RC_WASTELAND_BOMBCHU_SALESMAN)) {
         return 1; // a merchant whose sale was traced (#800 pass 2)
     }
     if (loc->GetActorID() != ACTOR_EN_BOX) {
