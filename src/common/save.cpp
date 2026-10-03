@@ -19,6 +19,7 @@
 #include "foreign_items.h"
 #include "game.h"
 #include "notification_bridge.h" // the load's player-visible surface (#781): stderr is not one
+#include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX and the refused file's words (#836)
 #include "shared_resources.h"
 #include "triforce_hunt.h" // ADR 0010 O10: the triforce record joins the load-time identity check
 
