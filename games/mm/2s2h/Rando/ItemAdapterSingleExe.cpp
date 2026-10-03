@@ -433,19 +433,31 @@ const ComboItemGridStyle kMMItemGrid = {
 };
 
 /**
+ * The tint MM's own UI draws its grayscale rupee counter icon in
+ * (CheckTracker.cpp: a freestanding rupee check, ImVec4(0.78f, 1, 0.39f, 1)).
+ */
+constexpr uint32_t kMMRupeeTint = 0xC7FF63FFu;
+
+/**
  * MM's own icon for a shared-pool row (#458 U3): the textures MM's
  * LoadGuiTextures registers under their resource paths (MM_gItemIcons, and
  * the rupee counter icon among its miscellaneous textures), the ones MM's
- * tracker and its Rando item table draw.
+ * tracker and its Rando item table draw. The wallet prints its capacity at
+ * every tier, as MM's tracker does (GetItemCounts: CUR_CAPACITY(UPG_WALLET)).
+ * It stays held at tier 0, the child's wallet every file holds (the pool's
+ * rule, combo_item_view.c), where MM's own tracker fades it.
  */
 void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     const char* key = nullptr;
+    uint32_t tint = 0;
     switch (kind) {
         case RSBS_SHARED_RES_RUPEES:
             key = dgRupeeCounterIconTex;
+            tint = kMMRupeeTint;
             break;
         case RSBS_SHARED_RES_WALLET_TIER:
             key = MMItemIcon(tier >= 2 ? ITEM_WALLET_GIANT : ITEM_WALLET_ADULT);
+            row->iconNumber = (int)CAPACITY(UPG_WALLET, tier > 3 ? 3 : tier);
             break;
         case RSBS_SHARED_RES_HEALTH_QUARTERS:
             key = MMItemIcon(ITEM_HEART_CONTAINER);
@@ -487,6 +499,7 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     row->iconKeyFaded = key;
     row->iconAspect = 0.0f;
     row->fadedAlpha = kMMItemFadedAlpha;
+    row->iconTint = tint;
 }
 
 } // namespace

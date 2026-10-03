@@ -204,7 +204,7 @@ bool FallbackIconButton(const char* id, const char* icon, const ComboUiWidgetOpt
 }
 
 /** No texture lookup without SoH's table: every icon falls back to its text. */
-bool FallbackImage(const char*, float, float) {
+bool FallbackImage(const char*, float, float, uint32_t) {
     return false;
 }
 
@@ -217,11 +217,20 @@ void FallbackToneText(const char* text, ComboUiTone) {
     ImGui::TextUnformatted(text != nullptr ? text : "");
 }
 
+/** No SoH font without SoH's table: the counts stay in the window's font. */
+bool FallbackPushCountFont(void) {
+    return false;
+}
+
+void FallbackPopCountFont(void) {
+}
+
 const ComboUiTable kFallback = {
     FallbackCheckbox,      FallbackCombobox,  FallbackSliderInt,   FallbackButton,   FallbackSearchInput,
     FallbackSeparatorText, FallbackNoteText,  FallbackWarningText, FallbackTooltip,  FallbackTagChip,
     FallbackConfirm,       FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,   FallbackRowText,
-    FallbackIconButton,    FallbackImage,     FallbackHasImage,    FallbackToneText,
+    FallbackIconButton,    FallbackImage,     FallbackHasImage,    FallbackToneText, FallbackPushCountFont,
+    FallbackPopCountFont,
 };
 
 } // namespace

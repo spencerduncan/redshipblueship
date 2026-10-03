@@ -392,6 +392,9 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             if (def.kind == RK_TOKENS) {
                 out->count = gSaveContext.inventory.gsTokens;
                 out->max = 100;
+                // DrawItemCount: QUEST_SKULL_TOKEN's ceiling, and its amount once
+                // full, are IM_COL_RED where every other row's are green.
+                out->countAccent = (uint8_t)COMBO_ITEM_ACCENT_RED;
             }
             return true;
         case RK_STRENGTH: {
@@ -482,7 +485,10 @@ namespace {
  * names (ImGuiUtils.cpp itemMapping, gregMapping's green rupee and
  * customItemsMapping's triforce piece), loaded under these names at OoT's boot.
  * Double defense has no icon in OoT's tracker; it takes the heart container,
- * the icon MM's own Rando table draws for it (GetIconTexturePath).
+ * the icon MM's own Rando table draws for it (GetIconTexturePath). The wallet
+ * prints its capacity, as SoH's DrawItemCount does in its default mode
+ * (GetItemCurrentAndMax: CUR_CAPACITY(UPG_WALLET)), and is drawn held at every
+ * tier, as DrawItem draws it outside wallet shuffle.
  */
 void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     const char* key = nullptr;
@@ -500,6 +506,7 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             } else {
                 OOT_SHARED_ICON("ITEM_WALLET_ADULT");
             }
+            row->iconNumber = (int)CAPACITY(UPG_WALLET, tier > 3 ? 3 : tier);
             break;
         case RSBS_SHARED_RES_HEALTH_QUARTERS:
         case RSBS_SHARED_RES_DOUBLE_DEFENSE: // OoT's tracker has no icon for it: MM's Rando shows a heart container
@@ -564,6 +571,7 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     row->iconKeyFaded = faded;
     row->iconAspect = 0.0f;
     row->fadedAlpha = 0.0f; // SoH's faded textures carry their own alpha
+    row->iconTint = 0;
 }
 
 } // namespace

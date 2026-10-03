@@ -127,9 +127,12 @@ float LocalX(float screenX) {
 }
 
 /**
- * A cell's count, at kComboItemTrackerCountPx: SoH's DrawItemCount centres it
- * on the icon's bottom edge (its text starts 14 px above the line under the
- * icon), MM's DrawItemCounts puts it in the cell's bottom-right corner, 2 px
+ * A cell's count. SoH's DrawItemCount draws it in the Item Tracker's own font
+ * (the seam's PushCountFont: SoH's 16 px mono face, at TextSize 13's scale 1),
+ * centred on the icon's bottom edge (its text starts 14 px above the line
+ * under the icon); without that font it is the window's font at
+ * kComboItemTrackerCountPx (`countScale`). MM's DrawItemCounts draws it in the
+ * window's font at the tracker's scale, in the cell's bottom-right corner, 2 px
  * in. `cellMin` and `cell` are the cell's screen position and edge.
  */
 void DrawCount(const ComboItemRow& row, uint8_t countStyle, ImVec2 cellMin, float cell, float scale, float countScale) {
@@ -137,7 +140,8 @@ void DrawCount(const ComboItemRow& row, uint8_t countStyle, ImVec2 cellMin, floa
     if (!ComboItemCountFor(row, countStyle, count)) {
         return;
     }
-    ImGui::SetWindowFontScale(countScale);
+    const bool sohFont = countStyle != COMBO_ITEM_COUNT_MM && Ui().PushCountFont();
+    ImGui::SetWindowFontScale((sohFont || countStyle == COMBO_ITEM_COUNT_MM) ? scale : countScale);
     const float amountWidth = ImGui::CalcTextSize(count.amount.c_str()).x;
     const float width = amountWidth + ImGui::CalcTextSize(count.ceiling.c_str()).x;
     const float height = ImGui::GetFontSize();
@@ -152,6 +156,9 @@ void DrawCount(const ComboItemRow& row, uint8_t countStyle, ImVec2 cellMin, floa
     if (!count.ceiling.empty()) {
         ImGui::SetCursorScreenPos(ImVec2(at.x + amountWidth, at.y));
         Ui().ToneText(count.ceiling.c_str(), count.ceilingTone);
+    }
+    if (sohFont) {
+        Ui().PopCountFont();
     }
     ImGui::SetWindowFontScale(scale);
 }
@@ -185,13 +192,14 @@ void DrawIconGrid(const ComboItemTrackerSection& section, const SectionPlan& pla
         const float iconWidth = row.iconAspect > 0.0f ? cell * row.iconAspect : cell;
         ImGui::SetCursorScreenPos(ImVec2(cellMin.x + (cell - iconWidth) * 0.5f, cellMin.y));
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, baseAlpha * pick.alpha);
-        const bool drawn = Ui().Image(pick.key, iconWidth, cell);
+        const bool drawn = Ui().Image(pick.key, iconWidth, cell, row.iconTint);
         ImGui::PopStyleVar();
         if (!drawn) {
             DrawCellText(row, cellMin, cell);
         }
-        // The item's name (and its count) on hover, as both native trackers do.
-        Ui().Tooltip(ComboItemRowText(row).c_str());
+        // The item's name on hover, as both native trackers do (SoH's
+        // Tooltip(SohUtils::GetItemName(item.id)); MM's GetItemTrackerItemName).
+        Ui().Tooltip(row.name);
         DrawCount(row, grid.countStyle, cellMin, cell, scale, countScale);
     }
 }
@@ -387,6 +395,13 @@ ComboItemIconPick ComboItemPickIcon(const ComboItemRow& row) {
 
 bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCount& out) {
     out = ComboItemCount();
+    if (row.iconNumber < 0) {
+        return false; // the icon itself shows the tier
+    }
+    if (row.iconNumber > 0) {
+        out.amount = std::to_string(row.iconNumber); // a wallet's capacity, faded or not
+        return true;
+    }
     if (!row.have && row.count == 0) {
         return false; // a faded icon carries no number
     }
@@ -398,11 +413,13 @@ bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCou
         return true;
     }
     if (row.max > 0) {
-        out.amount = std::to_string(row.count);
-        out.ceiling = "/" + std::to_string(row.max);
-        out.amountTone = row.count >= row.max ? COMBO_UI_TONE_GREEN
-                         : row.count <= 0     ? COMBO_UI_TONE_GRAY
-                                              : COMBO_UI_TONE_WHITE;
+        // DrawItemCount's ammo display: the slash belongs to the amount and
+        // takes its tone; the ceiling and a full amount take the row's accent.
+        const ComboUiTone accent = row.countAccent == COMBO_ITEM_ACCENT_RED ? COMBO_UI_TONE_RED : COMBO_UI_TONE_GREEN;
+        out.amount = std::to_string(row.count) + "/";
+        out.ceiling = std::to_string(row.max);
+        out.amountTone = row.count <= 0 ? COMBO_UI_TONE_GRAY : row.count >= row.max ? accent : COMBO_UI_TONE_WHITE;
+        out.ceilingTone = accent;
         return true;
     }
     if (row.count > 0) {
@@ -535,8 +552,12 @@ void ComboItemTrackerWindow::DrawElement() {
         return;
     }
 
-    // Measured at scale 1, for the boxes and the fit.
+    // Measured at scale 1, for the boxes and the fit. The columns stand two
+    // item spacings apart, so one section's header rule never runs into the
+    // next one's.
     ImGui::SetWindowFontScale(1.0f);
+    const ImVec2 cellPadding(ImGui::GetStyle().ItemSpacing.x, ImGui::GetStyle().CellPadding.y);
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
     const ImGuiStyle& style = ImGui::GetStyle();
     ImGuiStorage* storage = ImGui::GetStateStorage();
     ComboItemTrackerMetrics metrics;
@@ -578,9 +599,12 @@ void ComboItemTrackerWindow::DrawElement() {
             boxes[s] = ComboItemTextBox(section, plan.textWidths, metrics, header);
         }
         // A column is never narrower than its header: the title between two
-        // padded rules (SeparatorText), and the freshness note on one line, so
-        // the header's height does not change with the column's width.
-        const float title = ImGui::CalcTextSize(section.title).x + style.SeparatorTextPadding.x * 2.0f;
+        // padded rules (SeparatorText) with at least two lines' height of rule
+        // after it, so a section with no rows still reads as SoH's ruled
+        // header, and the freshness note on one line, so the header's height
+        // does not change with the column's width.
+        const float title = ImGui::CalcTextSize(section.title).x + style.SeparatorTextPadding.x * 2.0f +
+                            metrics.textHeight * 2.0f;
         const float note = ImGui::CalcTextSize(section.note.c_str()).x + 1.0f;
         const float headerWidth = title > note ? title : note;
         boxes[s].width = boxes[s].width > headerWidth ? boxes[s].width : headerWidth;
@@ -612,6 +636,7 @@ void ComboItemTrackerWindow::DrawElement() {
     ImGui::SetWindowFontScale(fit.scale);
     const ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoSavedSettings;
     if (!ImGui::BeginTable("##sections", (int)sections.size(), tableFlags)) {
+        ImGui::PopStyleVar();
         return;
     }
     for (size_t s = 0; s < sections.size(); s++) {
@@ -640,6 +665,7 @@ void ComboItemTrackerWindow::DrawElement() {
         }
     }
     ImGui::EndTable();
+    ImGui::PopStyleVar();
 }
 
 void RegisterComboItemTrackerWindow(std::shared_ptr<Ship::Gui> gui) {

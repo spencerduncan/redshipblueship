@@ -214,10 +214,15 @@ typedef struct {
     uint16_t fixedMax;
     uint16_t unitsPerCount;
     bool heldAtZero;
+    // The count is a tier the icon itself shows (the magic jar, the longshot,
+    // the ocarina, the wallet): neither native tracker prints a number on it
+    // (#458 U3). The text and the tooltip keep "n/max"; the icon game's
+    // sharedIcon may still name a number of its own (the wallet's capacity).
+    bool tierIcon;
 } SharedRowDef;
 
 static const SharedRowDef kSharedRows[] = {
-    { "Rupees", RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
+    { "Rupees", RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
     // The wallets' capacities differ per game (MM's largest holds 500, OoT's
     // 999), so the tier shows with its own ceiling rather than as a rupee max.
     // Tier 0 is the child's wallet every file starts with, so the row is held
@@ -225,23 +230,23 @@ static const SharedRowDef kSharedRows[] = {
     // row outside wallet shuffle. The pool carries no "no wallet yet" state
     // (wallet shuffle's flag is per game, not pooled), so under wallet shuffle
     // the per-game row is the authority for whether a wallet is held.
-    { "Wallet", RSBS_SHARED_RES_WALLET_TIER, RSBS_SHARED_RES_NONE, NULL, 3, 1, true },
+    { "Wallet", RSBS_SHARED_RES_WALLET_TIER, RSBS_SHARED_RES_NONE, NULL, 3, 1, true, true },
     // Whole hearts only: the pieces toward the next heart are truncated (5
     // hearts and 2 pieces reads 5). The per-game "Pieces of Heart" row carries
     // the pieces.
     { "Hearts", RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_NONE, NULL,
-      (uint16_t)(RSBS_SHARED_RES_MAX_HEALTH_QUARTERS / 16u), 16, false },
-    { "Double Defense", RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
-    { "Magic", RSBS_SHARED_RES_MAGIC_LEVEL, RSBS_SHARED_RES_NONE, NULL, 2, 1, false },
-    { "Arrows", RSBS_SHARED_RES_ARROW_COUNT, RSBS_SHARED_RES_QUIVER_TIER, kQuiverCap, 0, 1, false },
-    { "Bombs", RSBS_SHARED_RES_BOMB_COUNT, RSBS_SHARED_RES_BOMB_BAG_TIER, kBombBagCap, 0, 1, false },
+      (uint16_t)(RSBS_SHARED_RES_MAX_HEALTH_QUARTERS / 16u), 16, false, false },
+    { "Double Defense", RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
+    { "Magic", RSBS_SHARED_RES_MAGIC_LEVEL, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    { "Arrows", RSBS_SHARED_RES_ARROW_COUNT, RSBS_SHARED_RES_QUIVER_TIER, kQuiverCap, 0, 1, false, false },
+    { "Bombs", RSBS_SHARED_RES_BOMB_COUNT, RSBS_SHARED_RES_BOMB_BAG_TIER, kBombBagCap, 0, 1, false, false },
     // The bombchu cap is per game (see the shims), not a shared kind.
-    { "Bombchus", RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
-    { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false },
-    { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false },
-    { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false },
-    { "Ocarina", RSBS_SHARED_RES_OCARINA_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false },
-    { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false },
+    { "Bombchus", RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
+    { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false, false },
+    { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false, false },
+    { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    { "Ocarina", RSBS_SHARED_RES_OCARINA_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
 };
 #define SHARED_ROW_DEF_COUNT ((int)(sizeof(kSharedRows) / sizeof(kSharedRows[0])))
 
@@ -328,6 +333,7 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
         out->have = def->heldAtZero || out->count > 0;
         out->max = (int)def->fixedMax;
     }
+    out->iconNumber = def->tierIcon ? -1 : 0;
     const ComboItemOps* ops = Combo_Item_GetOps(iconGame);
     if (ops != NULL && ops->sharedIcon != NULL) {
         ops->sharedIcon(def->countKind, iconTier, out);

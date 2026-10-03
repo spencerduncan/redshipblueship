@@ -379,28 +379,52 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     ComboItemCount count;
     const ComboItemRow* ootSnapBow = CitwFindRow(ootSnap, "Fairy Bow");
     CITW_ASSERT(ootSnapBow != nullptr && ootSnapBow->have);
+    // SoH's DrawItemCount: the slash is the amount's ("35/" in the amount's
+    // tone), the ceiling alone takes the accent (#458 U3 review).
     CITW_ASSERT(ComboItemCountFor(*ootSnapBow, COMBO_ITEM_COUNT_SOH, count));
-    CITW_ASSERT(count.amount == "35" && count.ceiling == "/40" && count.amountTone == COMBO_UI_TONE_WHITE &&
+    CITW_ASSERT(count.amount == "35/" && count.ceiling == "40" && count.amountTone == COMBO_UI_TONE_WHITE &&
                 count.ceilingTone == COMBO_UI_TONE_GREEN);
     ComboItemRow full = *ootSnapBow;
     full.count = 40;
-    CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GREEN);
+    CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GREEN &&
+                count.amount == "40/");
     full.count = 0;
     CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GRAY);
     CITW_ASSERT(!ComboItemCountFor(*bow, COMBO_ITEM_COUNT_SOH, count)); // faded, uncounted: no number
     CITW_ASSERT(!ComboItemCountFor(*hookshot, COMBO_ITEM_COUNT_SOH, count)); // held, uncounted
+    // QUEST_SKULL_TOKEN: the ceiling red (maxColor IM_COL_RED), the amount red once full.
     const ComboItemRow* tokens = CitwFindRow(ootSnap, "Gold Skulltula Tokens");
-    CITW_ASSERT(tokens != nullptr && ComboItemCountFor(*tokens, COMBO_ITEM_COUNT_SOH, count) &&
-                count.amount == "17" && count.ceiling == "/100");
+    CITW_ASSERT(tokens != nullptr && tokens->countAccent == COMBO_ITEM_ACCENT_RED);
+    CITW_ASSERT(ComboItemCountFor(*tokens, COMBO_ITEM_COUNT_SOH, count) && count.amount == "17/" &&
+                count.ceiling == "100" && count.amountTone == COMBO_UI_TONE_WHITE &&
+                count.ceilingTone == COMBO_UI_TONE_RED);
+    ComboItemRow allTokens = *tokens;
+    allTokens.count = 100;
+    CITW_ASSERT(ComboItemCountFor(allTokens, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_RED);
+    CITW_ASSERT(ootSnapBow->countAccent == COMBO_ITEM_ACCENT_GREEN);
     CITW_ASSERT(ComboItemCountFor(*mmBow, COMBO_ITEM_COUNT_MM, count) && count.amount == "25" &&
                 count.ceiling.empty()); // MM prints the ammo alone
     const ComboItemRow* rupees = CitwFindRow(shared, "Rupees");
     const ComboItemRow* arrows = CitwFindRow(shared, "Arrows");
     CITW_ASSERT(arrows != nullptr && ComboItemCountFor(*arrows, COMBO_ITEM_COUNT_SOH, count) &&
-                count.amount == "33" && count.ceiling == "/40");
+                count.amount == "33/" && count.ceiling == "40");
     if (rupees != nullptr && rupees->count > 0) {
         CITW_ASSERT(ComboItemCountFor(*rupees, COMBO_ITEM_COUNT_SOH, count) && count.ceiling.empty());
     }
+    // The pool's tier rows print no tier counter on the icon (the icon shows
+    // the tier), and the wallet prints its capacity, as both native trackers
+    // do; the text keeps "n/max".
+    for (const char* tierRow : { "Magic", "Hookshot" }) {
+        const ComboItemRow* row = CitwFindRow(shared, tierRow);
+        CITW_ASSERT(row != nullptr && row->iconNumber < 0);
+        CITW_ASSERT(!ComboItemCountFor(*row, COMBO_ITEM_COUNT_SOH, count));
+        CITW_ASSERT(!ComboItemCountFor(*row, COMBO_ITEM_COUNT_MM, count));
+    }
+    const ComboItemRow* wallet = CitwFindRow(shared, "Wallet");
+    CITW_ASSERT(wallet != nullptr && wallet->iconNumber == 99); // tier 0 under OoT's icons: the child's 99
+    CITW_ASSERT(ComboItemCountFor(*wallet, COMBO_ITEM_COUNT_SOH, count) && count.amount == "99" &&
+                count.ceiling.empty() && count.amountTone == COMBO_UI_TONE_WHITE);
+    CITW_ASSERT(ComboItemRowText(*wallet) == "Wallet 0/3");
 
     // ---- icons or text, per section --------------------------------------------
     CITW_ASSERT(ComboItemSectionDrawsIcons(oot.rows, CitwOoTLoaded));
@@ -556,6 +580,30 @@ int CitwLockKeySpaces(const ComboItemOps* oot, const ComboItemOps* mm) {
         }
     }
     CITW_ASSERT(oot->sharedIcon != nullptr && mm->sharedIcon != nullptr);
+    // Each game draws a pool row the way its own tracker does (#458 U3 review):
+    // the wallet's capacity printed per tier (OoT's tycoon tier holds 999, MM's
+    // largest 500) and held at every tier (the pool's rule), MM's grayscale
+    // rupee tinted MM's green, OoT's icons untinted.
+    const int ootWallet[4] = { 99, 200, 500, 999 };
+    const int mmWallet[4] = { 99, 200, 500, 500 };
+    for (uint16_t tier = 0; tier <= 3; tier++) {
+        ComboItemRow row = {};
+        row.have = true;
+        oot->sharedIcon((uint8_t)RSBS_SHARED_RES_WALLET_TIER, tier, &row);
+        CITW_ASSERT(row.iconNumber == ootWallet[tier] && row.have && row.iconTint == 0);
+        row = {};
+        row.have = true;
+        mm->sharedIcon((uint8_t)RSBS_SHARED_RES_WALLET_TIER, tier, &row);
+        CITW_ASSERT(row.iconNumber == mmWallet[tier] && row.have && row.iconTint == 0);
+    }
+    {
+        ComboItemRow row = {};
+        mm->sharedIcon((uint8_t)RSBS_SHARED_RES_RUPEES, 0, &row);
+        CITW_ASSERT(row.iconTint == 0xC7FF63FFu); // CheckTracker.cpp's ImVec4(0.78f, 1, 0.39f, 1)
+        row = {};
+        oot->sharedIcon((uint8_t)RSBS_SHARED_RES_RUPEES, 0, &row);
+        CITW_ASSERT(row.iconTint == 0 && row.iconKey != nullptr && strcmp(row.iconKey, "ITEM_RUPEE_GREEN") == 0);
+    }
     int ootShared = 0;
     int mmShared = 0;
     for (unsigned kind = 1; kind < RSBS_SHARED_RES_KIND_COUNT; kind++) {
@@ -910,10 +958,11 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
     // falls back to the row's text.
     CITW_ASSERT(ComboUi_IsInstalled());
     CITW_ASSERT(ComboUi_Get()->Image != nullptr);
-    CITW_ASSERT(!ComboUi_Get()->Image("ITEM_LONGSHOT", 32.0f, 32.0f));
-    CITW_ASSERT(!ComboUi_Get()->Image(nullptr, 32.0f, 32.0f));
+    CITW_ASSERT(!ComboUi_Get()->Image("ITEM_LONGSHOT", 32.0f, 32.0f, 0));
+    CITW_ASSERT(!ComboUi_Get()->Image(nullptr, 32.0f, 32.0f, 0xC7FF63FFu));
     CITW_ASSERT(ComboUi_Get()->HasImage != nullptr && ComboUi_Get()->ToneText != nullptr);
     CITW_ASSERT(!ComboUi_Get()->HasImage("ITEM_LONGSHOT") && !ComboUi_Get()->HasImage(nullptr));
+    CITW_ASSERT(ComboUi_Get()->PushCountFont != nullptr && ComboUi_Get()->PopCountFont != nullptr);
 
     // ---- 8. OoT's LoadGuiTexture keys -------------------------------------------
     if (CitwLockLoadGuiTextureScan() != TEST_PASS) {
@@ -928,6 +977,30 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         };
         const std::string text = slurp("/src/common/ComboItemTrackerWindow.cpp");
         CITW_ASSERT(!text.empty());
+        // Whitespace-free, for the statement sequences below.
+        auto squash = [](const std::string& s) {
+            std::string out;
+            for (char ch : s) {
+                if (!isspace((unsigned char)ch)) {
+                    out += ch;
+                }
+            }
+            return out;
+        };
+        const std::string flat = squash(text);
+        // Each cell's draw, statement for statement (#458 U3 review): the
+        // picked texture at the pick's alpha (MM's 40% fade; deleting the push
+        // draws MM's unheld icons opaque), tinted as its game tints it, and a
+        // cell whose texture is missing falls back to its name in the cell.
+        CITW_ASSERT(flat.find(squash("ImGui::PushStyleVar(ImGuiStyleVar_Alpha, baseAlpha * pick.alpha);\n"
+                                     "const bool drawn = Ui().Image(pick.key, iconWidth, cell, row.iconTint);\n"
+                                     "ImGui::PopStyleVar();\n"
+                                     "if (!drawn) { DrawCellText(row, cellMin, cell); }")) != std::string::npos);
+        CITW_ASSERT(flat.find(squash("const float baseAlpha = ImGui::GetStyle().Alpha;")) != std::string::npos);
+        // SoH's counts in SoH's tracker font, popped as pushed.
+        CITW_ASSERT(flat.find(squash("const bool sohFont = countStyle != COMBO_ITEM_COUNT_MM && Ui().PushCountFont();")) !=
+                    std::string::npos);
+        CITW_ASSERT(flat.find(squash("if (sohFont) { Ui().PopCountFont(); }")) != std::string::npos);
         // The draw reads exactly what point 4 drove, and lays out what point 5 holds.
         CITW_ASSERT(text.find("ComboItemTrackerCollectSection(s, sections.back())") != std::string::npos);
         // Icons or text per section, each game's grid, the picked texture
@@ -935,9 +1008,10 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         CITW_ASSERT(text.find("ComboItemSectionDrawsIcons(section.rows, Ui().HasImage)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemIconLayout(section.rows, *section.grid, plan.cells)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemPickIcon(row)") != std::string::npos);
-        CITW_ASSERT(text.find("Ui().Image(pick.key, iconWidth, cell)") != std::string::npos);
+        CITW_ASSERT(text.find("Ui().Image(pick.key, iconWidth, cell, row.iconTint)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemCountFor(row, countStyle, count)") != std::string::npos);
-        CITW_ASSERT(text.find("Ui().Tooltip(ComboItemRowText(row).c_str())") != std::string::npos);
+        CITW_ASSERT(text.find("Ui().Tooltip(row.name)") != std::string::npos); // the item's name alone, as SoH's
+        CITW_ASSERT(text.find("Ui().Tooltip(ComboItemRowText") == std::string::npos);
         CITW_ASSERT(text.find("ComboItemGridLayout(section.rows, kComboItemTrackerColumns, cells)") != std::string::npos);
         // The floating overlay is fitted, and drawn at the fit's scale.
         CITW_ASSERT(text.find("fit = ComboItemTrackerFitBoxes(boxes, availWidth, availHeight, &previous)") !=

@@ -73,7 +73,18 @@ typedef struct {
     float iconAspect; // the icon's width over its height; 0 is square (a song's note is narrower)
     float fadedAlpha; // not held: 0 draws iconKeyFaded as it is (SoH's own faded textures); otherwise
                       // iconKeyFaded is drawn at this alpha (MM's tracker: the same icon at 0.4)
+    uint32_t iconTint; // 0xRRGGBBAA the icon is multiplied by; 0 draws it as it is (MM tints its rupee green)
+    // How the number on the icon is drawn (#458 U3), set by whoever produced the row:
+    uint8_t countAccent; // ComboItemCountAccent: the tone of the ceiling, and of the amount once it is full
+    int iconNumber;      // 0: count (and max) as usual; > 0: this number alone (a wallet's capacity, as
+                         // both native trackers print it); < 0: no number (the icon itself shows the tier)
 } ComboItemRow;
+
+/** The tone SoH's DrawItemCount gives a row's ceiling and its full amount (#458 U3). */
+typedef enum {
+    COMBO_ITEM_ACCENT_GREEN = 0, // every row but one
+    COMBO_ITEM_ACCENT_RED = 1,   // the Gold Skulltula Tokens (QUEST_SKULL_TOKEN's IM_COL_RED)
+} ComboItemCountAccent;
 
 /** Where a section's count is drawn on its icon (#458 U3): each game's own tracker's rule. */
 typedef enum {
@@ -126,10 +137,12 @@ typedef struct ComboItemOps {
     // kComboItemSohGrid.
     const ComboItemGridStyle* grid;
     // This game's own icon for a shared-pool row (#458 U3): fill `row`'s
-    // iconKey, iconKeyFaded, iconAspect and fadedAlpha for shared resource
-    // `kind` (RSBS_SHARED_RES_*) at `tier` (the row's tier, or its count for a
-    // tier kind), leaving the rest alone. May be NULL, and may leave the keys
-    // NULL for a kind the game has no icon for: the row is then text.
+    // iconKey, iconKeyFaded, iconAspect, fadedAlpha and iconTint for shared
+    // resource `kind` (RSBS_SHARED_RES_*) at `tier` (the row's tier, or its
+    // count for a tier kind), and `iconNumber` for the number this game's own
+    // tracker prints on it (the wallet's capacity). Leaves the rest alone. May
+    // be NULL, and may leave the keys NULL for a kind the game has no icon for:
+    // the row is then text.
     void (*sharedIcon)(uint8_t kind, uint16_t tier, ComboItemRow* row);
 } ComboItemOps;
 

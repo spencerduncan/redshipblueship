@@ -25,10 +25,12 @@
  * ComboItemGridStyle: SoH's six-wide main window flowing on, 11 lines of 36 px
  * icons; MM's one table per group, 46 px cells), faded the way that tracker
  * fades (SoH's _Faded textures; MM's 40% alpha), with that tracker's count on
- * the icon, and the row's text as the icon's tooltip. The Shared section draws
- * the active game's own icons for the pool, four a line. The sections stand side
- * by side, as three columns of one table, so the overlay is as tall as one
- * game's grid. The gCombo.Tracker.Items.IconSize key sizes every grid.
+ * the icon (SoH's in its tracker's own mono font), and the item's name as the
+ * icon's tooltip. The Shared section draws the active game's own icons for the
+ * pool, four a line, tinted and numbered as that game draws them. The sections
+ * stand side by side, as three columns of one table two item spacings apart,
+ * so the overlay is as tall as one game's grid. The
+ * gCombo.Tracker.Items.IconSize key sizes every grid.
  *
  * TEXT FALLBACK. A section none of whose icons is loaded (MM's load only once
  * MM has booted) is U2's text grid: each item's name, with its count and
@@ -103,7 +105,7 @@ inline constexpr int kComboItemTrackerIconSize = 36;
 inline constexpr int kComboItemTrackerIconSizeMin = 25;
 inline constexpr int kComboItemTrackerIconSizeMax = 128;
 
-/** A count's text height at scale 1: SoH's item-tracker counts are its 16 px mono font. */
+/** A count's text height at scale 1 when SoH's own tracker font is not loaded (its mono font is 16 px). */
 inline constexpr float kComboItemTrackerCountPx = 16.0f;
 
 /**
@@ -234,7 +236,7 @@ struct ComboItemIconPick {
  */
 ComboItemIconPick ComboItemPickIcon(const ComboItemRow& row);
 
-/** A count as the icon shows it: the amount, then the ceiling, each in its SoH palette tone. */
+/** A count as the icon shows it: the amount (with its slash), then the ceiling, each in its SoH palette tone. */
 struct ComboItemCount {
     std::string amount;
     std::string ceiling;
@@ -243,12 +245,16 @@ struct ComboItemCount {
 };
 
 /**
- * The count drawn on a row's icon, or false for none. A row neither held nor
+ * The count drawn on a row's icon, or false for none. A row whose iconNumber
+ * is below 0 has none (its icon shows the tier); one above 0 shows that number
+ * alone, in white (a wallet's capacity). Otherwise a row neither held nor
  * counted has none (a faded icon carries no number). COMBO_ITEM_COUNT_SOH is
- * SoH's DrawItemCount with the ammo shown ("35" then "/40"): the amount green
- * once it reaches the ceiling, gray at 0, white otherwise, the ceiling green;
- * a row with no ceiling shows its amount alone in white. COMBO_ITEM_COUNT_MM
- * is MM's DrawItemCounts: the amount alone, in white, while it is above 0.
+ * SoH's DrawItemCount with the ammo shown ("35/" then "40"): the amount and
+ * its slash in the row's accent once the amount reaches the ceiling, gray at
+ * 0, white otherwise, the ceiling in the accent (green, or red for the
+ * skulltula tokens); a row with no ceiling shows its amount alone in white.
+ * COMBO_ITEM_COUNT_MM is MM's DrawItemCounts: the amount alone, in white,
+ * while it is above 0.
  */
 bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCount& out);
 
