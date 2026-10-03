@@ -181,7 +181,7 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 **Open problems you may meet while playing** (found in or around the 2026-09 playtest and
 checked in the code at `200adaea`; each links the issue that will fix it):
 
-**~~Shops sell only their own game's items~~ — plain shops, Business Scrubs, Tingle and OoT's merchants RESOLVED; the Treasure Chest Game pending** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800)).
+**~~Shops sell only their own game's items~~ — plain shops, Business Scrubs, Tingle, OoT's merchants and the Treasure Chest Game RESOLVED** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800)).
 #800's first pass makes plain shops cross-game in both directions. An Ocarina of Time shop
 can sell a Majora's Mask item: with OoT's "Shop Shuffle" on, a shelf that shop shuffle
 emptied can hold an MM item. The shelf shows the MM item's model (or the mystery item when
@@ -201,7 +201,10 @@ Hyrule. It also adds OoT's merchants (the Magic Bean Salesman, Medigoron, Granny
 carpet salesman): with OoT's "Shuffle Merchants" on, a merchant it shuffles can sell a Majora's
 Mask item at its own price, its offer names the item (unless "Merchant Hint Text" is off or
 Mysterious Shuffle is on), and buying it sends the item to Majora's Mask like a cross-game
-chest. Still pending: OoT's Treasure Chest Game holds only its own game's items. Shop
+chest. It also adds the Treasure Chest Game's prize: the final chest can hold a Majora's Mask
+item in any world (no setting needed), the Lens of Truth shows that item's model above the
+chest, and opening it sends the item to Majora's Mask like a cross-game chest. The game's other
+chests stay its own: Ship of Harkinian never shuffles them. Shop
 shuffle, scrub shuffle, merchant shuffle and Tingle map shuffle are off by default (OoT's
 "Shop Shuffle", "Scrubs Shuffle" and "Shuffle Merchants", MM's "Shuffle Shops" and "Shuffle
 Tingle Maps"). MM's shop stock joins

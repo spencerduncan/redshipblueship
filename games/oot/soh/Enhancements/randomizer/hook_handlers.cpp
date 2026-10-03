@@ -84,6 +84,9 @@ extern void OoT_Play_InitEnvironment(PlayState* play, s16 skyboxId);
 extern void EnMk_Wait(EnMk* enMk, PlayState* play);
 #ifdef RSBS_SINGLE_EXECUTABLE
 int OoT_Rando_Foreign_HostCollected(uint16_t rc); // ForeignItemsSingleExe.cpp (#800)
+int OoT_Rando_Foreign_HostsForeign(uint16_t rc);  // ForeignItemsSingleExe.cpp (#800)
+// ForeignModelHostOoT.cpp (#800): the MM model OoT check `rc` hosts, drawn.
+int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc);
 #endif
 extern void func_80ABA778(EnNiwLady* enNiwLady, PlayState* play);
 extern void EnGe1_Wait_Archery(EnGe1* enGe1, PlayState* play);
@@ -700,7 +703,42 @@ void ItemBHeart_UpdateRandomizedItem(Actor* actor, PlayState* play) {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #800 pass 2: an ITEM_ETCETERA whose check hosts an MM item (the treasure chest
+// game's Lens of Truth display above its final chest, whose reward is the only
+// ITEM_ETCETERA check OoT admits as a crossing host) shows that item's model,
+// drawn from MM's descriptor (ForeignModelHostOoT.cpp) or, for a colliding one,
+// OoT's own row for it, and never the junk cover the OoT table holds there.
+// Where OoT cannot draw the model, the mystery item stands in, as on a shop
+// shelf. false: no MM item there (or Mysterious Shuffle draws the mystery item
+// for every display), and the caller draws as before.
+static bool ItemEtcetera_DrawForeignItem(ItemEtcetera* itemEtcetera, PlayState* play) {
+    if (CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0)) {
+        return false;
+    }
+    const RandomizerCheck rc = OTRGlobals::Instance->gRandomizer->GetCheckFromActor(
+        itemEtcetera->actor.id, play->sceneNum, itemEtcetera->actor.params);
+    if (!OoT_Rando_Foreign_HostsForeign((uint16_t)rc)) {
+        return false;
+    }
+    func_8002EBCC(&itemEtcetera->actor, play, 0);
+    func_8002ED80(&itemEtcetera->actor, play, 0);
+    if (OoT_ForeignModel_DrawForOoTCheck(play, (uint16_t)rc)) {
+        return true;
+    }
+    GetItemEntry standIn = GET_ITEM_MYSTERY;
+    EnItem00_CustomItemsParticles(&itemEtcetera->actor, play, standIn);
+    GetItemEntry_Draw(play, standIn);
+    return true;
+}
+#endif
+
 void ItemEtcetera_DrawRandomizedItem(ItemEtcetera* itemEtcetera, PlayState* play) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (ItemEtcetera_DrawForeignItem(itemEtcetera, play)) {
+        return;
+    }
+#endif
     GetItemEntry randoItem = itemEtcetera->sohItemEntry;
     if (CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0)) {
         randoItem = GET_ITEM_MYSTERY;
@@ -853,6 +891,64 @@ extern "C" int OoT_Rando_Foreign_TestMerchantSells(uint16_t rc) {
         default:
             return -1;
     }
+}
+
+// The treasure chest game's prize as EnChanger (z_en_changer.c) spawns it in the
+// final room: the reward chest is ACTOR_EN_BOX on treasure flag 0x0A, params
+// 0x4EC0 | 0x0A until the prize is won and 0x4EA0 | 0x0A once ITEMGETINF_1B is
+// set; above it, the Lens of Truth display is ACTOR_ITEM_ETCETERA
+// (0x0A << 8) + ITEM_ETC_HEART_PIECE_CHEST_GAME, or + ITEM_ETC_RUPEE_PURPLE_CHEST_GAME
+// once won.
+static constexpr s16 kChestGameRewardChestParams = 0x4EC0 | 0x0A;
+static constexpr s16 kChestGameWonChestParams = 0x4EA0 | 0x0A;
+static constexpr s16 kChestGamePrizeDisplayParams = (0x0A << 8) + ITEM_ETC_HEART_PIECE_CHEST_GAME;
+static constexpr s16 kChestGameWonDisplayParams = (0x0A << 8) + ITEM_ETC_RUPEE_PURPLE_CHEST_GAME;
+
+// TEST BRIDGE (combo-single-bag leg G, #800 pass 2): the check OoT's REAL
+// resolvers name for each path of the treasure chest game's prize. `which`:
+// 0 the check the reward's flag queues (EnChanger_SetHeartPieceFlag sets
+// ITEMGETINF_1B when the final chest opens; GetRandomizerCheckFromFlag), 1 the
+// final chest before the prize is won, 2 the final chest after, 3 the prize's
+// Lens display before, 4 after (GetCheckFromActor in the room). 0 is
+// RC_UNKNOWN_CHECK (no check); -1 for any other `which`.
+extern "C" int OoT_Rando_Foreign_TestChestGamePrizeCheck(int which) {
+    Randomizer* randomizer = OTRGlobals::Instance->gRandomizer.get();
+    switch (which) {
+        case 0:
+            return (int)GetRandomizerCheckFromFlag(FLAG_ITEM_GET_INF, ITEMGETINF_1B);
+        case 1:
+            return (int)randomizer->GetCheckFromActor(ACTOR_EN_BOX, SCENE_TREASURE_BOX_SHOP,
+                                                      kChestGameRewardChestParams);
+        case 2:
+            return (int)randomizer->GetCheckFromActor(ACTOR_EN_BOX, SCENE_TREASURE_BOX_SHOP, kChestGameWonChestParams);
+        case 3:
+            return (int)randomizer->GetCheckFromActor(ACTOR_ITEM_ETCETERA, SCENE_TREASURE_BOX_SHOP,
+                                                      kChestGamePrizeDisplayParams);
+        case 4:
+            return (int)randomizer->GetCheckFromActor(ACTOR_ITEM_ETCETERA, SCENE_TREASURE_BOX_SHOP,
+                                                      kChestGameWonDisplayParams);
+        default:
+            return -1;
+    }
+}
+
+// TEST BRIDGE (combo-single-bag leg G, #800 pass 2): the REAL flag-set hook as
+// the final chest's opening drives it (EnChanger_SetHeartPieceFlag ->
+// Flags_SetItemGetInf(ITEMGETINF_1B) -> OnFlagSet): the check it queued for the
+// RC-queue drain, whose foreign branch records the crossing; 0 when it queued
+// nothing, -1 when it queued more than one. The queue is restored.
+extern "C" int OoT_Rando_Foreign_TestChestGameRewardQueued(void) {
+    std::queue<RandomizerCheck> saved;
+    saved.swap(randomizerQueuedChecks);
+    RandomizerOnFlagSetHandler(FLAG_ITEM_GET_INF, ITEMGETINF_1B);
+    int queued = 0;
+    if (randomizerQueuedChecks.size() == 1) {
+        queued = (int)randomizerQueuedChecks.front();
+    } else if (randomizerQueuedChecks.size() > 1) {
+        queued = -1;
+    }
+    randomizerQueuedChecks.swap(saved);
+    return queued;
 }
 #endif
 
