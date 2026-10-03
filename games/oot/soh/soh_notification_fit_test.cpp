@@ -39,12 +39,20 @@
  * Each at Notifications.Size 1.8 (the default and the playtest scale) and 1.0.
  *
  * WHAT IT COVERS, in every profile and size:
- *   - the four "Not saved:" refusals through MM_Rando_EmitPairingRefusalToast:
- *     the RULES refusal over EVERY non-empty combination of the divergence bits
- *     (their count is DERIVED from Combo_ComboSettingsDivergenceFieldName, so a
- *     new bit is covered the day it is named), and the SPOILER refusal over every
- *     route the MM loader reports plus an unknown one;
- *   - OoT's paired-spoiler refusal through OoT_EmitPairedSpoilerRefusalToast;
+ *   - the arrival's and the MM spoiler's refusals through
+ *     MM_Rando_EmitPairingRefusalToast: the RULES refusal over EVERY non-empty
+ *     combination of the divergence bits (their count is DERIVED from
+ *     Combo_ComboSettingsDivergenceFieldName, so a new bit is covered the day it
+ *     is named), and the SPOILER refusal over every route the MM loader reports
+ *     plus an unknown one;
+ *   - the refused file's toasts (#836): the file select's refusal through
+ *     RsbsSave_EmitFileSelectRefusalToast over every entry of the words table
+ *     (Combo_RefusalWords), and the load's refusals through RsbsSave_EmitLoadToast;
+ *   - that every one of those refusals opens with the class's ONE prefix,
+ *     RSBS_REFUSAL_TOAST_PREFIX, and that its message is capitalized and has no
+ *     trailing period (#836, operator ruling 2026-10-01);
+ *   - OoT's paired-spoiler refusal through OoT_EmitPairedSpoilerRefusalToast
+ *     (outside the class: "Spoiler not loaded:", width only);
  *   - that a one-field RULES refusal names its field, and that the two-field
  *     refusal mm-combo-settings-gate leg 4 depends on names both;
  *   - the creation-failure toast (PR #749) as the calibration: #749 measured it
@@ -76,6 +84,10 @@
 #include "foreign_items.h" // Combo_ComboSettingsDivergenceDescribe / FieldName, RSBS_COMBO_DIVERGE_*
 #include "notification_bridge.h"
 #include "pairing_refusal_toast.h"
+#include "save.h" // RsbsSave_EmitLoadToast, RsbsSave_EmitFileSelectRefusalToast
+
+#include <cctype>
+#include <utility>
 
 extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
 
@@ -155,13 +167,29 @@ struct FitRun {
     std::string widestText;
 };
 
+/** Whether a toast belongs to the refusal class, whose prefix and copy shape are checked too. */
+enum class Class { REFUSAL, OTHER };
+
 /** One toast, already emitted, at the current Notifications.Size. */
-int CheckOne(FitRun& run, const char* what, float scale) {
+int CheckOne(FitRun& run, const char* what, float scale, Class cls = Class::REFUSAL) {
     const Measured m = DrawAndMeasure(*run.overlay);
     OoT_Notification_ClearForTest();
     const Profile& p = *run.profile;
     if (m.windows != 1) {
         return Fail("%s at %.1fx, %s: %d toast window(s) drawn, expected exactly one", what, scale, p.name, m.windows);
+    }
+    if (cls == Class::REFUSAL) {
+        // #836 (operator ruling 2026-10-01): ONE prefix for the whole class, and
+        // a message that is capitalized and has no trailing period, so the Combo
+        // > Save Files status cell is the toast's own line.
+        if (m.prefix != RSBS_REFUSAL_TOAST_PREFIX) {
+            return Fail("%s: the toast's prefix is '%s', not the refusal class's one prefix '%s' (message '%s')", what,
+                        m.prefix.c_str(), RSBS_REFUSAL_TOAST_PREFIX, m.message.c_str());
+        }
+        if (m.message.empty() || std::islower(static_cast<unsigned char>(m.message.front())) ||
+            m.message.back() == '.') {
+            return Fail("%s: the message '%s' is not capitalized without a trailing period", what, m.message.c_str());
+        }
     }
     if (m.message.find('\n') != std::string::npos || m.prefix.find('\n') != std::string::npos) {
         return Fail("%s: the toast carries a line break ('%s %s'); SoH's toasts are one line", what, m.prefix.c_str(),
@@ -305,8 +333,26 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
                 const std::string what = std::string("spoiler refusal (") + route + ")";
                 failures += CheckOne(run, what.c_str(), scale);
             }
+            // Outside the refusal class (it refuses a document and latches
+            // nothing): width only, under its own "Spoiler not loaded:".
             OoT_EmitPairedSpoilerRefusalToast(/*mute=*/1);
-            failures += CheckOne(run, "OoT paired-spoiler refusal", scale);
+            failures += CheckOne(run, "OoT paired-spoiler refusal", scale, Class::OTHER);
+
+            // The refused FILE (#836): the file select's toast over every words
+            // entry, and the load's own refusal toasts, each through its
+            // production emitter.
+            for (int words = 0; words < RSBS_REFUSAL_WORDS_COUNT; words++) {
+                RsbsSave_EmitFileSelectRefusalToast(Combo_RefusalWords(words));
+                const std::string what = std::string("file-select refusal (") + Combo_RefusalWords(words) + ")";
+                failures += CheckOne(run, what.c_str(), scale);
+            }
+            for (const auto& [kind, name] :
+                 { std::pair<int, const char*>{ RSBS_LOAD_TOAST_REFUSED_RULES, "load refusal (rules)" },
+                   { RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD, "load refusal (other build)" },
+                   { RSBS_LOAD_TOAST_REFUSED_DAMAGED, "load refusal (damaged)" } }) {
+                RsbsSave_EmitLoadToast(kind, nullptr, 0);
+                failures += CheckOne(run, name, scale);
+            }
 
             // RULES: every non-empty combination of the divergence bits, drawn once
             // per distinct message.

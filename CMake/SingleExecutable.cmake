@@ -2251,7 +2251,7 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME ComboPlayerName COMMAND redship --test combo-player-name)
 
     # The cross-game refusal toasts fit the screen (#749's toast shape): every
-    # "Not saved:" refusal, through its production emitter, and OoT's
+    # refusal (one prefix, "Refused:", #836), through its production emitter, and OoT's
     # paired-spoiler refusal, drawn by SoH's own Notification::Window in a private
     # display-free ImGui context whose default font is SoH's (Montserrat 20, the
     # file soh.o2r packs), at Notifications.Size 1.8 and 1.0, in the ui tier's

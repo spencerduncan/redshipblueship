@@ -567,6 +567,44 @@ def test_oot_show_only_get_item_call_sites_are_wired():
         "#577 M4: func_8084DFF4 must take the show-only entry and skip the whole give chain for it")
 
 
+REFUSAL_TOAST_HEADER = REPO_ROOT / "src" / "common" / "pairing_refusal_toast.h"
+# The three prefixes the refusal toasts used before #836's ruling (2026-10-01:
+# "the refusal toasts use ONE prefix"), as the opening of a string literal.
+RETIRED_REFUSAL_PREFIXES = ('"Not paired:', '"Not saved:', '"Not restored:')
+SOURCE_SUFFIXES = {".c", ".cc", ".cpp", ".h", ".hpp", ".inc"}
+
+
+def test_refusal_toasts_use_one_prefix():
+    """#836 PR 3: every cross-game refusal toast opens with RSBS_REFUSAL_TOAST_PREFIX.
+
+    PairingRefusalToastFit draws every refusal through its production emitter
+    and checks the prefix, but only the emitters it knows; a new site that
+    writes one of the retired prefixes by hand would pass it. No string literal
+    under src/ or games/ may open with one (comments are stripped: prose that
+    quotes an old prefix is not a toast).
+    """
+    header = REFUSAL_TOAST_HEADER.read_text(encoding="utf-8")
+    assert re.search(r'#define\s+RSBS_REFUSAL_TOAST_PREFIX\s+"Refused:"', header), (
+        "RSBS_REFUSAL_TOAST_PREFIX is no longer \"Refused:\" in src/common/pairing_refusal_toast.h")
+    offenders = []
+    scanned = 0
+    for root in (REPO_ROOT / "src", REPO_ROOT / "games"):
+        for path in root.rglob("*"):
+            if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
+                continue
+            scanned += 1
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if not any(prefix in text for prefix in RETIRED_REFUSAL_PREFIXES):
+                continue
+            for lineno, line in enumerate(_strip_comments(text).splitlines(), start=1):
+                for prefix in RETIRED_REFUSAL_PREFIXES:
+                    if prefix in line:
+                        offenders.append(f"{path.relative_to(REPO_ROOT).as_posix()}:{lineno}: {line.strip()}")
+    assert scanned > 1000, f"the scan saw only {scanned} source files under src/ and games/"
+    assert not offenders, (
+        "a refusal toast uses a retired prefix; use RSBS_REFUSAL_TOAST_PREFIX (#836):\n  " + "\n  ".join(offenders))
+
+
 def test_mm_2s2h_glob_is_configure_depends():
     """Without CONFIGURE_DEPENDS an existing build dir never re-globs, so a pull
     that adds a 2s2h/ TU links the stale file list and fails with an

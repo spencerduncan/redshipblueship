@@ -34,10 +34,11 @@
 // OTRGlobals.h only forward-declares Rando::Context, which is enough to hold
 // the shared_ptr but not to call through it.
 #include "soh/Enhancements/randomizer/SeedContext.h"
-#include "soh/SaveManager.h"     // SaveFileMetaInfo: the paired row's slot ownership mark
-#include "notification_bridge.h" // the paired row's "no refusal toast" check
-#include "crossing_store.h"      // the paired row's crossing-store check
-#include "foreign_model.h"       // the #800 S1 shop playtest's model answer
+#include "soh/SaveManager.h"       // SaveFileMetaInfo: the paired row's slot ownership mark
+#include "notification_bridge.h"   // the paired row's "no refusal toast" check
+#include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX: that check's matcher (#836)
+#include "crossing_store.h"        // the paired row's crossing-store check
+#include "foreign_model.h"         // the #800 S1 shop playtest's model answer
 // The paired row's "shipped defaults" check: every setting the generation
 // reads, per surface (OoT's options/tricks/exclusions, MM's options/tricks, the
 // combo settings), must be unset in the CVar store.
@@ -480,7 +481,7 @@ static bool PfcNoRefusalToast(char* msg, size_t cap) {
     for (int i = 0; i < toasts; i++) {
         char toast[256];
         if (OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast)) &&
-            (strstr(toast, "Not paired") != nullptr || strstr(toast, "Not saved") != nullptr)) {
+            strncmp(toast, RSBS_REFUSAL_TOAST_PREFIX, sizeof(RSBS_REFUSAL_TOAST_PREFIX) - 1) == 0) {
             snprintf(msg, cap, "a refusal toast was raised (toast %d of %d): \"%s\"", i + 1, toasts, toast);
             return false;
         }

@@ -279,7 +279,7 @@ What happens at the crossing depends on whether the file entered Majora's Mask b
   is refused with a toast saying the file has no paired Majora's Mask world: Termina
   stays un-randomized and the slot is latched against writes to the pair for the rest
   of the session.~~ **RESOLVED (#836):** the file is not opened. Pressing A on it in the
-  Ocarina of Time file select plays the error sound, posts "Not paired: This file has no
+  Ocarina of Time file select plays the error sound, posts "Refused: This file has no
   Majora's Mask world", and keeps you on the file list. Nothing is written.
 - **Crossed before #680:** it carries the MM half the old arrival generated, and the
   arrival hydrates whatever frozen half it finds. It either plays that old pre-#680 MM
@@ -287,11 +287,11 @@ What happens at the crossing depends on whether the file entered Majora's Mask b
   options, the load restores the options from that half when they reproduce the stamp.
   ~~Otherwise it warns at load ("Not restored: Majora's Mask options differ") and the
   crossing is refused by the MM-options check.~~ **RESOLVED (#836):** otherwise the file
-  is not opened ("Not paired: Majora's Mask options differ" at the file select). Which one a given file meets cannot be
+  is not opened ("Refused: Majora's Mask options differ" at the file select). Which one a given file meets cannot be
   decided by reading. ~~If that old arrival's generation failed, it reverted to a vanilla
   MM half, which the arrival hydrated under the pairing: Termina played vanilla and the
   vanilla half was saved back (#564 V7).~~ **RESOLVED (#836 PR 2):** a paired file whose
-  MM half is vanilla, or is another pair's world (#564 V11), is not opened ("Not paired:
+  MM half is vanilla, or is another pair's world (#564 V11), is not opened ("Refused:
   This file has no Majora's Mask world" at the file select), and the arrival refuses such
   a half too.
 
@@ -469,11 +469,11 @@ agrees with the file. The cases the file cannot answer stay visible instead of s
 - ~~an MM identity input the file does not record (the excluded-check list or the
   starting-item block, which no page in this build edits) loads the file paired but
   posts "Not restored: Majora's Mask options differ", and the crossing is refused until
-  they match;~~ **RESOLVED (#836):** such a file is not opened ("Not paired: Majora's
+  they match;~~ **RESOLVED (#836):** such a file is not opened ("Refused: Majora's
   Mask options differ" at the file select);
 - a Cross-Game record field no page authors (only a file from another build can differ
-  there) is refused with "Not paired: File made by another build" (a damaged record:
-  "Not paired: Cross-game record is damaged"). The field names are on stderr. ~~The OoT
+  there) is refused with "Refused: File made by another build" (a damaged record:
+  "Refused: Cross-game record is damaged"). The field names are on stderr. ~~The OoT
   file still opens and plays without its Majora's Mask half, because the load runs after
   OoT has opened the file; the next crossing into Majora's Mask says so ("Not paired:
   Termina stays un-randomized") instead of skipping pairing silently. Nothing is saved

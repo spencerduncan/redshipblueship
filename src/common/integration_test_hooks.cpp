@@ -19,6 +19,7 @@
 #include "combo_mm_options_view.h" // RSBS_PFC_DIVERGE: the MM options writer, the live profile digest
 #include "combo_mm_tricks_view.h"  // RSBS_PFC_DIVERGE: the MM tricks writer
 #include "notification_bridge.h"   // RSBS_PFC_DIVERGE: the load's recorded toasts
+#include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX: the capture keeps refusal toast lines
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <cstdio>
 #include <cstdlib>
@@ -108,8 +109,9 @@ int sCapturePipeWrite = -1;
 constexpr int kCaptureDrainBoundMs = 2000;
 
 bool CaptureKeeps(const std::string& line) {
-    static const char* const kTags[] = { "pairing", "creation", "[Crossings]", "REFUSED",
-                                         "Not paired", "Not saved", "[PFC" };
+    // RSBS_REFUSAL_TOAST_PREFIX: a refusal toast's line, whatever its copy says (#836).
+    static const char* const kTags[] = { "pairing", "creation", "[Crossings]", "REFUSED", RSBS_REFUSAL_TOAST_PREFIX,
+                                         "[PFC" };
     for (const char* tag : kTags) {
         if (line.find(tag) != std::string::npos) {
             return true;
