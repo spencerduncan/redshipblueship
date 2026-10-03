@@ -263,7 +263,7 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
 - Inside a pane, use the same helpers with `THEME_COLOR` (`randomizer_check_tracker.cpp:2223-2283`). From `src/common`,
   which cannot include UIWidgets, go through the `combo_ui` seam (`src/common/combo_ui.h`): a C function table
   (Checkbox, Combobox, SliderInt, Button, SearchInput, SeparatorText, NoteText, WarningText, Tooltip, TagChip, Confirm,
-  PushTheme/PopTheme, Spacer, RowText) that `SohGui/ComboUiSoh.cpp` implements with those helpers and installs from a file-scope
+  PushTheme/PopTheme, Spacer, RowText, IconButton) that `SohGui/ComboUiSoh.cpp` implements with those helpers and installs from a file-scope
   initializer. Pass each widget its tooltip and, when disabled, a disabled tooltip from `ComboUi_DisabledTooltip`
   (shape (a) of R-S2). Every widget reports its rectangle and shown tooltip to an optional recorder, which is how the
   snapshot harness finds and hovers a pane row. `SearchInput` takes no options, since SoH's check-tracker search box

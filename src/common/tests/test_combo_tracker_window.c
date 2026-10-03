@@ -603,6 +603,16 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             printf("[TEST] FAIL: ComboTrackerWindow.cpp draws its area loop without SoH's FramePadding (4, 3)\n");
             return TEST_FAIL;
         }
+        // The skip toggle (#458 U5): SoH's skip button through the seam, offered
+        // only where the view says the row is skippable (the LIVE panel, a check
+        // of the seed not found), flipping the row's own flag through the view's
+        // one write, and with SoH's glyphs (DrawLocation: plus to unskip, times
+        // to skip). ComboTrackerView locks what those calls do.
+        CTW_ASSERT(text.find("Combo_TrackerSkipWritable(game)") != std::string::npos);
+        CTW_ASSERT(text.find("Combo_TrackerRowSkippable(game, &row)") != std::string::npos);
+        CTW_ASSERT(text.find("Combo_TrackerSetSkipped(game, row.checkId, !row.skipped)") != std::string::npos);
+        CTW_ASSERT(text.find("Ui().IconButton(") != std::string::npos);
+        CTW_ASSERT(text.find("row.skipped ? ICON_FA_PLUS : ICON_FA_TIMES") != std::string::npos);
         // The crossing table sizes its Item column and wraps through the locked
         // decisions (#815).
         CTW_ASSERT(text.find("ComboCrossingItemColumnWidth(columnsWidth, widestItemWord)") != std::string::npos);
