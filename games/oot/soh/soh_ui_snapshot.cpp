@@ -835,6 +835,10 @@ struct PageSpec {
     // the capture the row would produce if EnterState stopped authoring.
     std::map<std::string, std::vector<std::string>> stateText;
     std::map<std::string, std::string> stateContrast;
+    // WINDOW: per state, the fewest icons (draw commands on a texture other than
+    // the font atlas) its first view must draw (ImageOracle). A pane that draws
+    // icons, not text, has little text to expect.
+    std::map<std::string, int> stateImages;
     bool scroll = true;
     bool needsRom = false;
     // When non-empty, hover variants are taken in these states only. A race
@@ -2317,15 +2321,19 @@ void Session::BuildPageList() {
         p.compareWith = kSohItemTrackerReference;
         p.scroll = false;
         p.expectText = { "Ocarina of Time", "Majora's Mask", "Shared" };
-        // Row text as the overlay prints it: MM's snapshot bow and OoT's live
-        // song in "live"; OoT's snapshot bow and MM's live mask in "snapshot";
-        // the shared pool's arrows (the last section) in both.
+        // Since #458 U3 the sections draw the games' own icons, not text: OoT's
+        // section and the pool (OoT's icons, which SoH loads at boot) are
+        // pictures, held by ImageOracle (OoT's 66 cells and the pool's on
+        // dozens of textures; U2's text rows drew none). MM's icons load only
+        // once MM has booted, which this harness never does, so MM's section
+        // is the text fallback here: its snapshot bow in "live", its live
+        // mask in "snapshot".
         p.stateText["live"] = { "Updated live.", "As of file creation.", "As of the last switch or save.",
-                                "Bow 25/40",     "Song of Time",         "Arrows 33/40" };
-        p.stateText["snapshot"] = {
-            "Updated live.",   "As of the last game switch or save.", "As of the last switch or save.",
-            "Fairy Bow 35/40", "Gold Skulltula Tokens 17/100",        "Arrows 33/40"
-        };
+                                "Bow 25/40" };
+        p.stateText["snapshot"] = { "Updated live.", "As of the last game switch or save.",
+                                    "As of the last switch or save.", "Zora Mask" };
+        p.stateImages["live"] = 40;
+        p.stateImages["snapshot"] = 40;
         p.stateText["no-data"] = { "No data.", ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         pages.push_back(p);
@@ -3851,6 +3859,28 @@ void FitOracle(const ImGuiWindow* w, Capture& c) {
     c.reason = why;
 }
 
+/**
+ * The icon pane's oracle (#458 U3): the window's last frame drew at least
+ * `minImages` draw commands on a texture other than the font atlas, so its
+ * icons are pictures and not text. Two neighbouring icons on one texture merge
+ * into one command, so `minImages` is a floor, not a count of cells.
+ */
+void ImageOracle(const ImGuiWindow* w, int minImages, Capture& c) {
+    const ImTextureID font = ImGui::GetIO().Fonts->TexID;
+    int images = 0;
+    for (const ImDrawCmd& cmd : w->DrawList->CmdBuffer) {
+        if (cmd.ElemCount > 0 && cmd.UserCallback == nullptr && cmd.GetTexID() != font) {
+            images++;
+        }
+    }
+    if (images >= minImages) {
+        return;
+    }
+    c.status = "fail";
+    c.reason = "the pane drew " + std::to_string(images) + " icon draw commands, expected at least " +
+               std::to_string(minImages);
+}
+
 void Session::CaptureWindowPage(const PageSpec& p) {
     // Ours read their visibility CVar LIVE in Draw() (they override it), so
     // setting the CVar is what opens them; Show() would do nothing. An SoH pane
@@ -3936,6 +3966,10 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 // nothing clipped at the window's edge, and the window inside
                 // the game window.
                 FitOracle(w, c);
+            }
+            const auto minImages = p.stateImages.find(state);
+            if (scrollIndex == 0 && w != nullptr && c.status == "pass" && minImages != p.stateImages.end()) {
+                ImageOracle(w, minImages->second, c);
             }
             const bool unfinished = p.scroll && w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
             const bool more = unfinished && scrollIndex < kMaxScrollSteps && !opt.Sabotaged("no-scroll");
