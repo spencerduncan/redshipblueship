@@ -1061,9 +1061,13 @@ void OoT_ComboLogic_EndQuery(void* self) {
  *    foreign branch records the crossing, exactly as for a shelf. A merchant
  *    draws no item; its offer names the MM item (MerchantMessages.cpp). Named
  *    one by one: a merchant row nobody traced is refused.
+ *  - The TREASURE CHEST GAME'S REWARD (#800 pass 2): the final chest of the
+ *    chest-game room, RC_MARKET_TREASURE_CHEST_GAME_REWARD, delivered as a
+ *    chest is (see the room's comment below); the Lens of Truth display above
+ *    it draws the MM model (ItemEtcetera_DrawRandomizedItem, hook_handlers.cpp).
  *
- * The chest game keeps its own give flow and stays refused (#800 pass 2 scopes
- * it). The fill-side half of the old predicate
+ * The chest game's room chests (RCTYPE_CHEST_GAME) stay refused: they are never
+ * locations (see the room's comment below). The fill-side half of the old predicate
  * ("the fill put junk here") is the old overlay pass's and does not apply: the
  * coordinator only ever offers EMPTY hosts, and this engine's `place` puts the
  * junk cover there itself. A shelf is empty only when shopsanity replaced its
@@ -1103,12 +1107,31 @@ int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
         checkType == RCTYPE_CHEST_GAME || loc->IsShop()) {
         return 0;
     }
-    // THE WHOLE CHEST-GAME ROOM, not only its RCTYPE_CHEST_GAME rows (PR #743
-    // review; found by the category sweep below). The game's reward is tagged
-    // RCTYPE_STANDARD and sits on an ACTOR_EN_BOX, but Randomizer::GetCheckObjectFromActor
-    // also resolves it from the ACTOR_ITEM_ETCETERA prize, a give path that is not
-    // the chest's; and the room resets its chests' flags on every play.
-    if (loc->GetScene() == SCENE_TREASURE_BOX_SHOP) {
+    // THE CHEST-GAME ROOM ADMITS ITS REWARD ONLY (#800 pass 2; the room was
+    // refused whole since PR #743's review, found by the category sweep below).
+    // The reward, RC_MARKET_TREASURE_CHEST_GAME_REWARD (RCTYPE_STANDARD on an
+    // ACTOR_EN_BOX), is delivered as any chest is: its opening suppresses the
+    // native give (VB_GIVE_ITEM_FROM_CHEST) and EnChanger_SetHeartPieceFlag
+    // (z_en_changer.c) sets ITEMGETINF_1B, the reward's collection flag, which
+    // the flag handler queues for the RC-queue drain's foreign branch. The two
+    // reasons the room was refused do not reach it:
+    //  - the room's per-play reset clears its chests' scene flags
+    //    (EnTakaraMan_Init) and the RCTYPE_CHEST_GAME rows' RandomizerInf flags
+    //    and check status (RandomizerOnSceneInitHandler), never ITEMGETINF_1B; and
+    //    once that flag is set EnChanger spawns the final chest (0x4EAA) and the
+    //    display above it (0x0A0B) with params Randomizer::GetCheckObjectFromActor
+    //    resolves to no check, so a later play never gives the reward again;
+    //  - the ACTOR_ITEM_ETCETERA "prize" GetCheckObjectFromActor also resolves to
+    //    the reward is the Lens of Truth display above the final chest, not a
+    //    give path: ItemEtcetera_Init gives it func_80B85B28, which only kills it
+    //    once the chest is open, and under rando it draws the item the check
+    //    holds, now the MM model (ItemEtcetera_DrawRandomizedItem).
+    // The room's other chests, the RCTYPE_CHEST_GAME rows, stay refused (above):
+    // they are never locations (Context::GenerateLocationPool skips the type, and
+    // Settings forces RSK_SHUFFLE_CHEST_MINIGAME off), and the room clears their
+    // flags and check status on every play, so a crossing there would be offered
+    // again. A row the room gains upstream is refused until someone traces it.
+    if (loc->GetScene() == SCENE_TREASURE_BOX_SHOP && rc != RC_MARKET_TREASURE_CHEST_GAME_REWARD) {
         return 0;
     }
     return 1;

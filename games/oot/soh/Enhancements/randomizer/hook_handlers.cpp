@@ -84,6 +84,8 @@ extern void OoT_Play_InitEnvironment(PlayState* play, s16 skyboxId);
 extern void EnMk_Wait(EnMk* enMk, PlayState* play);
 #ifdef RSBS_SINGLE_EXECUTABLE
 int OoT_Rando_Foreign_HostCollected(uint16_t rc); // ForeignItemsSingleExe.cpp (#800)
+int OoT_Rando_Foreign_HostsForeign(uint16_t rc);  // ForeignItemsSingleExe.cpp (#800)
+int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc); // ForeignModelHostOoT.cpp (#800)
 #endif
 extern void func_80ABA778(EnNiwLady* enNiwLady, PlayState* play);
 extern void EnGe1_Wait_Archery(EnGe1* enGe1, PlayState* play);
@@ -700,7 +702,42 @@ void ItemBHeart_UpdateRandomizedItem(Actor* actor, PlayState* play) {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #800 pass 2: an ITEM_ETCETERA whose check hosts an MM item (the treasure chest
+// game's Lens of Truth display above its final chest, whose reward is the only
+// ITEM_ETCETERA check OoT admits as a crossing host) shows that item's model,
+// drawn from MM's descriptor (ForeignModelHostOoT.cpp) or, for a colliding one,
+// OoT's own row for it, and never the junk cover the OoT table holds there.
+// Where OoT cannot draw the model, the mystery item stands in, as on a shop
+// shelf. false: no MM item there (or Mysterious Shuffle draws the mystery item
+// for every display), and the caller draws as before.
+static bool ItemEtcetera_DrawForeignItem(ItemEtcetera* itemEtcetera, PlayState* play) {
+    if (CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0)) {
+        return false;
+    }
+    const RandomizerCheck rc = OTRGlobals::Instance->gRandomizer->GetCheckFromActor(
+        itemEtcetera->actor.id, play->sceneNum, itemEtcetera->actor.params);
+    if (!OoT_Rando_Foreign_HostsForeign((uint16_t)rc)) {
+        return false;
+    }
+    func_8002EBCC(&itemEtcetera->actor, play, 0);
+    func_8002ED80(&itemEtcetera->actor, play, 0);
+    if (OoT_ForeignModel_DrawForOoTCheck(play, (uint16_t)rc)) {
+        return true;
+    }
+    GetItemEntry standIn = GET_ITEM_MYSTERY;
+    EnItem00_CustomItemsParticles(&itemEtcetera->actor, play, standIn);
+    GetItemEntry_Draw(play, standIn);
+    return true;
+}
+#endif
+
 void ItemEtcetera_DrawRandomizedItem(ItemEtcetera* itemEtcetera, PlayState* play) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (ItemEtcetera_DrawForeignItem(itemEtcetera, play)) {
+        return;
+    }
+#endif
     GetItemEntry randoItem = itemEtcetera->sohItemEntry;
     if (CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0)) {
         randoItem = GET_ITEM_MYSTERY;
