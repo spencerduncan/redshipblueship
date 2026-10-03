@@ -34,11 +34,11 @@
 // OTRGlobals.h only forward-declares Rando::Context, which is enough to hold
 // the shared_ptr but not to call through it.
 #include "soh/Enhancements/randomizer/SeedContext.h"
-#include "soh/SaveManager.h"     // SaveFileMetaInfo: the paired row's slot ownership mark
-#include "notification_bridge.h" // the paired row's "no refusal toast" check
+#include "soh/SaveManager.h"       // SaveFileMetaInfo: the paired row's slot ownership mark
+#include "notification_bridge.h"   // the paired row's "no refusal toast" check
 #include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX: that check's matcher (#836)
-#include "crossing_store.h"      // the paired row's crossing-store check
-#include "foreign_model.h"       // the #800 S1 shop playtest's model answer
+#include "crossing_store.h"        // the paired row's crossing-store check
+#include "foreign_model.h"         // the #800 S1 shop playtest's model answer
 // The paired row's "shipped defaults" check: every setting the generation
 // reads, per surface (OoT's options/tricks/exclusions, MM's options/tricks, the
 // combo settings), must be unset in the CVar store.

@@ -361,12 +361,12 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
                savSame ? "unchanged" : "CHANGED", ExtraFiles(dir), extraBefore, RsbsSave_GetActiveSlot());
         FSR_ASSERT((left & (BTN_A | BTN_START)) == 0,
                    "leg 5: the A press on a file whose .sav is newer than its .redsave was not consumed");
-        FSR_ASSERT(
-            RsbsSave_GetSlotRefuseReason(kSkew) == (int)RSBS_REFUSE_COMMIT_SKEW &&
-                std::string(RsbsSave_SlotRefusalWords(kSkew)) == Combo_RefusalWords(RSBS_REFUSAL_WORDS_OLDER_THAN_OOT),
-            "leg 5: the refusal record is reason %d words \"%s\" (want the commit skew, \"%s\")",
-            RsbsSave_GetSlotRefuseReason(kSkew), RsbsSave_SlotRefusalWords(kSkew),
-            Combo_RefusalWords(RSBS_REFUSAL_WORDS_OLDER_THAN_OOT));
+        FSR_ASSERT(RsbsSave_GetSlotRefuseReason(kSkew) == (int)RSBS_REFUSE_COMMIT_SKEW &&
+                       std::string(RsbsSave_SlotRefusalWords(kSkew)) ==
+                           Combo_RefusalWords(RSBS_REFUSAL_WORDS_OLDER_THAN_OOT),
+                   "leg 5: the refusal record is reason %d words \"%s\" (want the commit skew, \"%s\")",
+                   RsbsSave_GetSlotRefuseReason(kSkew), RsbsSave_SlotRefusalWords(kSkew),
+                   Combo_RefusalWords(RSBS_REFUSAL_WORDS_OLDER_THAN_OOT));
         const std::string skewToast =
             std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_RefusalWords(RSBS_REFUSAL_WORDS_OLDER_THAN_OOT);
         FSR_ASSERT(toasts == 1 && toast == skewToast, "leg 5: %d toast(s), last \"%s\" (want one: \"%s\")", toasts,

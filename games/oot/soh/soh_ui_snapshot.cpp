@@ -2091,7 +2091,8 @@ void Session::BuildPageList() {
                 p.states = { "", "listed", "backup" };
                 p.stateText[""] = { "No cross-game record yet" };
                 p.stateText["listed"] = { "A refused file does not open",
-                                          std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + Combo_SaveFiles_RefuseText(RSBS_REFUSE_CRC),
+                                          std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " +
+                                              Combo_SaveFiles_RefuseText(RSBS_REFUSE_CRC),
                                           std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " +
                                               RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_RULES) };
                 p.stateText["backup"] = { "was kept as a backup", "No cross-game record (backup kept)" };

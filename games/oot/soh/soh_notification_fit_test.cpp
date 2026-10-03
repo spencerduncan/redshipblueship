@@ -346,11 +346,11 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
                 const std::string what = std::string("file-select refusal (") + Combo_RefusalWords(words) + ")";
                 failures += CheckOne(run, what.c_str(), scale);
             }
-            for (const auto& [kind, name] : { std::pair<int, const char*>{ RSBS_LOAD_TOAST_MM_NOT_RESTORED,
-                                                                           "load refusal (MM profile)" },
-                                              { RSBS_LOAD_TOAST_REFUSED_RULES, "load refusal (rules)" },
-                                              { RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD, "load refusal (other build)" },
-                                              { RSBS_LOAD_TOAST_REFUSED_DAMAGED, "load refusal (damaged)" } }) {
+            for (const auto& [kind, name] :
+                 { std::pair<int, const char*>{ RSBS_LOAD_TOAST_MM_NOT_RESTORED, "load refusal (MM profile)" },
+                   { RSBS_LOAD_TOAST_REFUSED_RULES, "load refusal (rules)" },
+                   { RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD, "load refusal (other build)" },
+                   { RSBS_LOAD_TOAST_REFUSED_DAMAGED, "load refusal (damaged)" } }) {
                 RsbsSave_EmitLoadToast(kind, nullptr, 0);
                 failures += CheckOne(run, name, scale);
             }
