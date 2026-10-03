@@ -85,7 +85,8 @@ extern void EnMk_Wait(EnMk* enMk, PlayState* play);
 #ifdef RSBS_SINGLE_EXECUTABLE
 int OoT_Rando_Foreign_HostCollected(uint16_t rc); // ForeignItemsSingleExe.cpp (#800)
 int OoT_Rando_Foreign_HostsForeign(uint16_t rc);  // ForeignItemsSingleExe.cpp (#800)
-int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc); // ForeignModelHostOoT.cpp (#800)
+// ForeignModelHostOoT.cpp (#800): the MM model OoT check `rc` hosts, drawn.
+int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc);
 #endif
 extern void func_80ABA778(EnNiwLady* enNiwLady, PlayState* play);
 extern void EnGe1_Wait_Archery(EnGe1* enGe1, PlayState* play);
