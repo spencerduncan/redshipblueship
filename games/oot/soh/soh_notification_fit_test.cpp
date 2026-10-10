@@ -371,7 +371,8 @@ std::vector<LoadInput> LoadInputs() {
         rules += (rules.empty() ? "" : ", ") + std::string(label);
     }
     inputs.push_back({ RSBS_LOAD_TOAST_RULES_RESTORED, rules, 0, "rules restored (every rule)" });
-    inputs.push_back({ RSBS_LOAD_TOAST_MM_RESTORED, "Starting Hearts", 2, "MM restored (#881's 'Starting Hearts +1')" });
+    inputs.push_back(
+        { RSBS_LOAD_TOAST_MM_RESTORED, "Starting Hearts", 2, "MM restored (#881's 'Starting Hearts +1')" });
     // The descriptor tables the MM options and tricks pages publish (both
     // registrars are idempotent; GameExports_SingleExe.cpp brings them up the same way).
     if (Combo_MMOptionCount() == 0) {
@@ -446,8 +447,8 @@ int CheckLoadToasts(Notification::Window& overlay, const ImGuiStyle& baseStyle, 
             }
         }
         checked += run.checked;
-        printf("[TEST] %s: %zu load toast inputs checked; widest at 1.8x %.0f px ('%s')\n", profile.name,
-               inputs.size(), run.widest, run.widestText.c_str());
+        printf("[TEST] %s: %zu load toast inputs checked; widest at 1.8x %.0f px ('%s')\n", profile.name, inputs.size(),
+               run.widest, run.widestText.c_str());
     }
     return failures;
 }
