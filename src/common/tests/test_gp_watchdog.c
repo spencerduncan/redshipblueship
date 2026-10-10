@@ -110,8 +110,93 @@ TestResult Test_GpWatchdog(void) {
     GPWD_CHECK(stage != NULL && strstr(stage, "paired world creation") != NULL,
                "a creation-progress report did not name the creation as the watchdog's stage");
 
+    // (6) #882: the timer measures a STALL, not a phase's length. Observed: a
+    // 700-frame warp phase on a loaded host (about 11.6 frames per second) failed
+    // with "[GP-TEST] OoT watchdog: no progress for 60.0 s (budget 60 s) in
+    // phase 5 (... gameplayFrames=683)" while its frames were still completing,
+    // because the timer re-based only when the phase changed. Each gameplay frame
+    // of the phase is progress; a phase with no frames still fails at the budget,
+    // and a phase that keeps advancing still meets a hard ceiling.
+    {
+        const int warp = (int)GP_PHASE_OOT_WARP;
+        GameplayWatchdogTimer t;
+
+        // (6a) The #882 run: 700 frames at 11.6 fps (about 60.3 s, past the
+        // budget), ticked every frame, must never trip.
+        IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 1000.0);
+        for (int f = 1; f <= 700; f++) {
+            double now = 1000.0 + (double)f / 11.6;
+            GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, f, now, budget) == GP_WATCHDOG_OK,
+                       "a phase still completing frames (#882: 700 frames at 11.6 fps) tripped the watchdog");
+        }
+        // (6b) Slower still: one frame every (budget - 1) s, three gaps (177 s
+        // of wall clock at the default budget, under the ceiling), each gap
+        // under the budget: never trips.
+        IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 2000.0);
+        for (int f = 1; f <= 3; f++) {
+            double now = 2000.0 + (double)f * (double)(budget - 1);
+            GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, f, now, budget) == GP_WATCHDOG_OK,
+                       "a phase advancing one frame per (budget - 1) s tripped the watchdog");
+        }
+
+        // (6c) A phase with NO frames (a wedged scene load) still fails at the
+        // budget, measured from the phase's start.
+        IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 3000.0);
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 3000.0 + budget - 0.1, budget) == GP_WATCHDOG_OK,
+                   "a frameless phase tripped before its budget");
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 3000.0 + budget, budget) ==
+                       GP_WATCHDOG_STALLED,
+                   "a phase with no frames did not trip the watchdog at its budget");
+
+        // (6d) Frames that stop: the budget runs from the LAST frame.
+        IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 4000.0);
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 50, 4030.0, budget) == GP_WATCHDOG_OK,
+                   "a phase completing frames tripped the watchdog");
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 50, 4030.0 + budget - 0.1, budget) ==
+                       GP_WATCHDOG_OK,
+                   "a phase tripped before a budget had passed since its last frame");
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 50, 4030.0 + budget, budget) ==
+                       GP_WATCHDOG_STALLED,
+                   "a phase whose frames stopped did not trip a budget after its last frame");
+
+        // (6e) A phase change is progress too, with no frame counted yet. The
+        // tick lands past a whole budget since the previous phase's last
+        // progress with the frame count unchanged, so only the phase-change
+        // re-base keeps it OK.
+        IntegrationTest_GameplayWatchdogRebase(&t, (int)GP_PHASE_OOT_RETURN, 0, 5000.0);
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 5000.0 + budget + 1.0, budget) ==
+                       GP_WATCHDOG_OK,
+                   "a phase change did not re-base the watchdog");
+
+        // (6f) The hard ceiling: a phase that keeps completing frames forever
+        // still fails, at the ceiling and not before, with its own verdict. The
+        // ceiling bounds ONE phase, counted from that phase's start; the CTest
+        // TIMEOUT counts from process start. So the ceiling sitting under the
+        // TIMEOUT is necessary for its dump to beat the kill, not sufficient: a
+        // phase entered late in the run is killed before its ceiling.
+        int ceiling = IntegrationTest_GameplayWatchdogCeilingSecs(budget);
+        GPWD_CHECK(ceiling > budget, "the phase ceiling is not above the stall budget");
+        GPWD_CHECK(ceiling < GPWD_INTEGRATION_TIMEOUT_SECS,
+                   "one phase's ceiling is not even under the whole row's TIMEOUT at the default budget");
+        IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 6000.0);
+        GameplayWatchdogVerdict v = GP_WATCHDOG_OK;
+        int f = 0;
+        for (; v == GP_WATCHDOG_OK && f < 100000; f++) {
+            v = IntegrationTest_GameplayWatchdogTick(&t, warp, f + 1, 6000.0 + (double)(f + 1) * 0.5, budget);
+        }
+        GPWD_CHECK(v == GP_WATCHDOG_CEILING, "a phase advancing forever never met the hard ceiling");
+        GPWD_CHECK((double)f * 0.5 >= (double)ceiling && (double)(f - 1) * 0.5 < (double)ceiling,
+                   "the hard ceiling did not fire exactly at the ceiling");
+
+        // (6g) A non-positive budget disables both.
+        IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 7000.0);
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 1.0e6, 0) == GP_WATCHDOG_OK,
+                   "a zero budget tripped the watchdog");
+    }
+
     printf("[TEST] PASS: watchdog budget is wall-clock, bounded under the timeout, and validated; "
-           "creation-progress reports are #793 watchdog progress\n");
+           "creation-progress reports are #793 watchdog progress; the stall timer re-bases on each gameplay "
+           "frame and a hard ceiling still bounds the phase (#882)\n");
     return TEST_PASS;
 }
 
