@@ -436,16 +436,16 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
             out << "{\"version\":1,\"rsbsCommitGeneration\":" << gen << ",\"rsbsPairSettingsHash\":" << digest
                 << ",\"sections\":{\"randomizer\":{\"version\":1,\"data\":{\"finalSeed\":" << seed << "}}}}\n";
         };
-        struct Case {
+        struct OtherWorldSav {
             const char* what;
             uint32_t seed;
             uint32_t digest;
         };
-        const Case cases[] = {
+        const OtherWorldSav cases[] = {
             { "another seed", kSeed ^ 0x0F0F0F0Fu, kDigest },
             { "other settings", kSeed, kDigest ^ 0x00F00000u },
         };
-        for (const Case& c : cases) {
+        for (const OtherWorldSav& c : cases) {
             RsbsSave_ResetSlotSessionState();
             RsbsSave_SetActiveSlot(kVanilla);
             writeSav(c.seed, c.digest);
