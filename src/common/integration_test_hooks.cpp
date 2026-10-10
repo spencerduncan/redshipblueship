@@ -334,6 +334,10 @@ constexpr unsigned long kOoTEntranceMax = 0x0614;
 // genuine wedge and always before the hard kill. Restated by the gp-watchdog
 // test as the contract.
 constexpr int kGpWatchdogDefaultSecs = 60;
+// The hard ceiling on one phase's wall clock, in stall budgets (#882): 240 s
+// at the default, counted from the phase's start (it bounds one phase, not the
+// run; the 300 s gameplay-row TIMEOUT counts from process start).
+constexpr int kGpWatchdogCeilingBudgets = 4;
 
 int GameplayEnvInt(const char* name, int defaultValue, int minValue) {
     const char* raw = std::getenv(name);
@@ -611,6 +615,42 @@ bool IntegrationTest_GameplayWatchdogExpired(double elapsedSecs, int budgetSecs)
         return false;
     }
     return elapsedSecs >= (double)budgetSecs;
+}
+
+int IntegrationTest_GameplayWatchdogCeilingSecs(int budgetSecs) {
+    if (budgetSecs <= 0) {
+        return 0;
+    }
+    return budgetSecs * kGpWatchdogCeilingBudgets;
+}
+
+void IntegrationTest_GameplayWatchdogRebase(GameplayWatchdogTimer* timer, int phase, int frames, double nowSecs) {
+    timer->phase = phase;
+    timer->frames = frames;
+    timer->phaseStartSecs = nowSecs;
+    timer->progressSecs = nowSecs;
+}
+
+GameplayWatchdogVerdict IntegrationTest_GameplayWatchdogTick(GameplayWatchdogTimer* timer, int phase,
+                                                             int framesInPhase, double nowSecs, int budgetSecs) {
+    if (phase != timer->phase) {
+        // The phase advanced: progress. Re-base both timers.
+        IntegrationTest_GameplayWatchdogRebase(timer, phase, framesInPhase, nowSecs);
+    } else if (framesInPhase != timer->frames) {
+        // A gameplay frame of the phase completed: progress (#882). Re-base the
+        // stall timer only, so the budget measures a stall, not the phase's
+        // length; the phase's own clock keeps running toward the ceiling.
+        timer->frames = framesInPhase;
+        timer->progressSecs = nowSecs;
+    }
+    if (IntegrationTest_GameplayWatchdogExpired(nowSecs - timer->progressSecs, budgetSecs)) {
+        return GP_WATCHDOG_STALLED;
+    }
+    if (IntegrationTest_GameplayWatchdogExpired(nowSecs - timer->phaseStartSecs,
+                                                IntegrationTest_GameplayWatchdogCeilingSecs(budgetSecs))) {
+        return GP_WATCHDOG_CEILING;
+    }
+    return GP_WATCHDOG_OK;
 }
 
 int IntegrationTest_GameplayCyclesDone(void) {
