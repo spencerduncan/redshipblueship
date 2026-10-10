@@ -1521,10 +1521,10 @@ two item-class rows go, in the same shape as #801.
   beyond what the direction can already say.
 - **Removed:** the Cross-Game Rules rows "OoT Classes" and "MM Classes" with
   their twelve checkboxes and the two "No ... items will cross." notes (the
-  page's second column is empty now), the keys `gCombo.Rando.ItemClass.OoT` /
-  `.MM` (`RSBS::kComboKeys` is seven entries, three of them tier-4 identity
-  keys: direction, the shared ocarina and the goal; #879 later retired the
-  shared ocarina's), and their
+  page's second column was left empty; #844 made the page one column), the
+  keys `gCombo.Rando.ItemClass.OoT` / `.MM` (`RSBS::kComboKeys` is seven
+  entries, three of them tier-4 identity keys: direction, the shared ocarina
+  and the goal; #879 later retired the shared ocarina's), and their
   `ComboSettingId` entries (`COMBO_SETTING_ITEM_CLASS_OOT` / `_MM`; the enum
   closes up, as #801's did). The unshown `ComboSettingsWindow` pane loses its
   two class groups too.

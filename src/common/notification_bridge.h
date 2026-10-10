@@ -97,6 +97,13 @@ void OoT_Notification_Emit(const ComboNotification* notification);
 // then falls back to the setting's own default).
 void OoT_Notification_EmitDefault(const char* prefix, const char* message, int mute);
 
+// Whether a toast in that shape keeps the overlay's margin on both sides of the
+// window it would be drawn in now (#881): 1 fits, 0 does not, -1 nothing to
+// measure against (no ImGui context, font or display size; a display-free row).
+// Measured in SoH's default font at the player's Notifications.Size, as
+// Notification::Window::Draw lays the toast out. Implemented on the OoT side.
+int OoT_Notification_FitsWindow(const char* prefix, const char* message);
+
 // Test-only readback of the most recently queued toast, for the
 // mm-notification-binding lock. Returns 0 (leaving *out untouched) when the
 // overlay's store is empty, 1 otherwise. The returned string pointers alias the

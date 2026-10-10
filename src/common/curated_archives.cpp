@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include <spdlog/spdlog.h>
 #include <zip.h>
 
 #include <ship/Context.h>
@@ -993,6 +994,32 @@ EnsureOutcome Ensure(const GenerateInputs& inputs, std::string* log) {
     return outcome;
 }
 
+void ReportEnsure(EnsureOutcome outcome, const std::string& log) {
+    const bool failed = outcome == EnsureOutcome::Failed;
+    // Concatenated, not Format: a refusal's account carries one line per
+    // finding and has no length limit, and Format's buffer would cut it.
+    const std::string result =
+        std::string("[RSBS] Curated cross-game archives ") + EnsureOutcomeName(outcome) + ": " + log;
+    const char* const fallback =
+        "[RSBS] Foreign models keep their model-less stand-ins where no curated half is current";
+    FILE* stream = failed ? stderr : stdout;
+    fprintf(stream, "%s\n", result.c_str());
+    if (failed) {
+        fprintf(stream, "%s\n", fallback);
+    }
+    fflush(stream);
+    // #883: the console is not what a player attaches to a report; the game's
+    // logger is (its file sink writes logs/*.log). Same words, so a player's
+    // log shows whether the halves were generated, current, refused or never
+    // attempted.
+    if (failed) {
+        SPDLOG_ERROR("{}", result);
+        SPDLOG_ERROR("{}", fallback);
+    } else {
+        SPDLOG_INFO("{}", result);
+    }
+}
+
 } // namespace rsbs::curated
 
 namespace {
@@ -1039,10 +1066,5 @@ extern "C" void Combo_EnsureCuratedArchives(void) {
 
     std::string log;
     const cur::EnsureOutcome outcome = cur::Ensure(in, &log);
-    FILE* stream = outcome == cur::EnsureOutcome::Failed ? stderr : stdout;
-    fprintf(stream, "[RSBS] Curated cross-game archives %s: %s\n", cur::EnsureOutcomeName(outcome), log.c_str());
-    if (outcome == cur::EnsureOutcome::Failed) {
-        fprintf(stream, "[RSBS] Foreign models keep their model-less stand-ins where no curated half is current\n");
-    }
-    fflush(stream);
+    cur::ReportEnsure(outcome, log);
 }
