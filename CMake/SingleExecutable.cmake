@@ -1446,6 +1446,18 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # #879 (operator ruling 2026-10-09): the combo owns MM's paired start. A real
+    # paired creation, with a 2Ship `CVars.gRando.StartingItems` block present
+    # that names a different list, grants MM exactly the Ocarina of Time and the
+    # Song of Time; the creation stamp is the same with and without the block;
+    # the Kokiri Sword and the Hero's Shield are in MM's pool and placed in the
+    # world. Same display requirement as MMPairSwitchEntry, hence the same
+    # label/env; the timeout covers one OoT generation plus MM's half.
+    redship_add_test(NAME MMPairedStart COMMAND redship --test mm-paired-start
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # ADR 0010 increment 1.2, lock (b), single-run half: a paired generation
     # whose first ladder attempt fails DETERMINISTICALLY climbs one rung,
     # converges through the real OnSaveInit chain, reports its winning

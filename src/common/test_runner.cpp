@@ -2854,6 +2854,28 @@ TestResult Test_MMPairSwitchEntry(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The combo owns MM's paired start (#879): a paired creation grants MM exactly
+// the Ocarina of Time and the Song of Time whatever 2Ship's StartingItems config
+// block says, the identity ignores that block, and the Kokiri Sword and the
+// Hero's Shield are MM pool items the bag places. Body in
+// games/mm/2s2h/mm_paired_start_test.cpp. Needs a generation, like
+// mm-pair-switch-entry, so `--test all` skips it.
+extern "C" int MM_PairedStart_RunHeadless(void);
+
+TestResult Test_MMPairedStart(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    return MM_PairedStart_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Attempt-ladder convergence + determinism digest (ADR 0010 increment 1.2
 // lock (b)). Single-run assertions here; the two-process byte-diff runs via
 // the MMPairedAttemptDeterminism row (CMake/CheckPairedAttemptDeterminism
@@ -5205,6 +5227,12 @@ const TestDescriptor gTests[] = {
     // Same display requirement as mm-rando-gen, so `--test all` skips it.
     {"mm-pair-switch-entry", "Paired MM world activates via switch-entry; existing saves untouched (#439)",
      Test_MMPairSwitchEntry},
+    // #879: the combo owns MM's paired start; sword and shield are pool items.
+    // Same display requirement as mm-pair-switch-entry, so `--test all` skips it.
+    {"mm-paired-start",
+     "A paired MM half starts with exactly the Ocarina and the Song of Time, never 2Ship's StartingItems block; "
+     "the Kokiri Sword and the Hero's Shield are MM pool items (#879)",
+     Test_MMPairedStart},
     // ADR 0010 increment 1.2 lock (b): a pinned master seed that NEEDS the
     // attempt ladder converges, records its winning attempt, and digests the
     // world for the two-process MMPairedAttemptDeterminism diff. Same display
@@ -6120,6 +6148,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-start") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||

@@ -790,8 +790,8 @@ typedef struct {
     // MM_Rando_ComputeProfileStamp at the same moment it stamps
     // sharedRandoSeed/sharedRandoSettingsHash — and carried through file-create
     // invalidation by the KEEP policy. The digest is WIDER than the option
-    // table alone: it also folds gRando.ExcludedChecks, the StartingItems
-    // config block, and the RESOLVED RO_LOGIC value (#564 V4), because those
+    // table alone: it also folds gRando.ExcludedChecks, the paired start (the
+    // combo's own list since #879), and the RESOLVED RO_LOGIC value (#564 V4), because those
     // shape the generated world just as the 47 options do. Every MM arrival
     // that would generate re-resolves the same identity and COMPARES: mismatch
     // refuses the pairing through the #533 REFUSED machinery — divergence is
