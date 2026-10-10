@@ -10,7 +10,8 @@ The test is pixels. Render the SoH reference and ours with `redship --test ui-sn
 
 **Scope (ours):**
 - `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp`, `SohGui/SohMenuComboMmMods.cpp`,
-  `SohGui/SohMenuComboMmRandomizer.cpp` and `SohGui/SohMenuComboSaveFiles.cpp`
+  `SohGui/SohMenuComboMmRandomizer.cpp`, `SohGui/SohMenuComboSaveFiles.cpp` and
+  `SohGui/SohMenuComboTrackerSettings.cpp`
 - `AddCrossGamePointerWidgets` (`SohMenuRandomizer.cpp:823-846`)
 - the capability and presentation code in `SohMenu.cpp:199-600`
 - `SohGui/CreationProgressOverlay.cpp`
@@ -252,7 +253,9 @@ SoH decides by WHEN a surface is used, not by how big it is. Ours follow the sam
 
 Ours: MM's randomizer options and tricks freeze at the creation event, so they are pages (Combo > MM Randomizer
 and Combo > MM Tricks, `SohMenuComboMmRandomizer.cpp`, since 2026-09-27; ADR 0004's host amendment of that date).
-Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker and MM's trackers. A new
+Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker, the Combo Item Tracker and
+MM's trackers. The unified trackers' settings are a page, Combo > Tracker Settings (`SohMenuComboTrackerSettings.cpp`),
+which embeds SoH's own Check Tracker Settings because the Combo Tracker draws in its colours. A new
 surface that freezes at creation, or that feeds generation, is never a pop-out.
 
 ## 10b. Panes (GuiWindow)
@@ -360,6 +363,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | Combo > MM Randomizer | Randomizer > General (the two-column option page) |
 | Combo > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |
+| Combo > Tracker Settings | Randomizer > Item Tracker (SoH's tracker page; its states "" and "window" show and hide the two floating-only rows) |
 | Combo > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "", "listed" and "backup" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
 | Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
