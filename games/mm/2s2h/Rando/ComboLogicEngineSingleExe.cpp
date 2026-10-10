@@ -2133,6 +2133,34 @@ uint8_t MMFillClassSharedKind(RandoItemId ri) {
 }
 } // namespace
 
+/** The chest grade (#862) of an MM item: the RandoItemType MM's own chests are
+ *  dressed by when they hold it (Items.cpp's randoItemType, what EnBox.cpp's
+ *  EnBox_RandoPostLimbDraw switches on), in the neutral vocabulary. */
+static uint8_t MMChestGradeOf(RandoItemType type) {
+    switch (type) {
+        case RITYPE_MAJOR:
+            return RSBS_CHEST_GRADE_MAJOR;
+        case RITYPE_LESSER:
+            return RSBS_CHEST_GRADE_LESSER;
+        case RITYPE_JUNK:
+            return RSBS_CHEST_GRADE_JUNK;
+        case RITYPE_HEALTH:
+            return RSBS_CHEST_GRADE_HEALTH;
+        case RITYPE_BOSS_KEY:
+            return RSBS_CHEST_GRADE_BOSS_KEY;
+        case RITYPE_SMALL_KEY:
+            return RSBS_CHEST_GRADE_SMALL_KEY;
+        case RITYPE_SKULLTULA_TOKEN:
+            return RSBS_CHEST_GRADE_TOKEN;
+        case RITYPE_STRAY_FAIRY:
+            return RSBS_CHEST_GRADE_FAIRY;
+        case RITYPE_MASK:
+            return RSBS_CHEST_GRADE_MASK;
+        default:
+            return RSBS_CHEST_GRADE_NONE;
+    }
+}
+
 /**
  * Classify one MM item id (ComboItemClassifyFn). The precedence is the owner's
  * (shared_items.h): TRAP, then PROGRESSION by MM's OWN fill predicate, then
@@ -2172,7 +2200,7 @@ uint8_t MMFillClassSharedKind(RandoItemId ri) {
  * exists to express).
  */
 extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u, RSBS_CHEST_GRADE_NONE };
     if (out != nullptr) {
         *out = row;
     }
@@ -2218,6 +2246,8 @@ extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
     row.sharedUnits = (row.sharedKind == 0u)       ? 0u
                       : (ri == RI_HEART_CONTAINER) ? (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER
                                                    : (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
+    // How an OoT chest hosting this item is dressed (#862): MM's own grade for it.
+    row.chestGrade = MMChestGradeOf(type);
     if (out != nullptr) {
         *out = row;
     }

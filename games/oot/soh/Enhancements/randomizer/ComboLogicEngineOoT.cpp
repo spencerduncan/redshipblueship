@@ -2121,6 +2121,30 @@ uint8_t OoTFillClassSharedKind(RandomizerGet rg) {
 
 } // namespace
 
+/** The chest grade (#862) of an OoT item: the category OoT's own chests are
+ *  dressed by when they hold it (Item::GetCategory, what z_en_box.c's
+ *  EnBox_UpdateTexture switches on), in the neutral vocabulary. */
+static uint8_t OoTChestGradeOf(GetItemCategory category) {
+    switch (category) {
+        case ITEM_CATEGORY_MAJOR:
+            return RSBS_CHEST_GRADE_MAJOR;
+        case ITEM_CATEGORY_LESSER:
+            return RSBS_CHEST_GRADE_LESSER;
+        case ITEM_CATEGORY_JUNK:
+            return RSBS_CHEST_GRADE_JUNK;
+        case ITEM_CATEGORY_HEALTH:
+            return RSBS_CHEST_GRADE_HEALTH;
+        case ITEM_CATEGORY_BOSS_KEY:
+            return RSBS_CHEST_GRADE_BOSS_KEY;
+        case ITEM_CATEGORY_SMALL_KEY:
+            return RSBS_CHEST_GRADE_SMALL_KEY;
+        case ITEM_CATEGORY_SKULLTULA_TOKEN:
+            return RSBS_CHEST_GRADE_TOKEN;
+        default:
+            return RSBS_CHEST_GRADE_NONE;
+    }
+}
+
 /**
  * Classify one OoT item id (ComboItemClassifyFn). The precedence is the owner's
  * (shared_items.h): TRAP, then PROGRESSION by OoT's own `IsAdvancement()`, then
@@ -2142,7 +2166,7 @@ uint8_t OoTFillClassSharedKind(RandomizerGet rg) {
  * are sold in shops and the Deku shield burns.
  */
 extern "C" int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
-    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
+    ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u, RSBS_CHEST_GRADE_NONE };
     if (out != nullptr) {
         *out = row;
     }
@@ -2183,6 +2207,8 @@ extern "C" int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) 
     row.sharedUnits = (row.sharedKind == 0u)       ? 0u
                       : (rg == RG_HEART_CONTAINER) ? (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER
                                                    : (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
+    // How an MM chest hosting this item is dressed (#862): OoT's own grade for it.
+    row.chestGrade = OoTChestGradeOf(item.GetCategory());
     if (out != nullptr) {
         *out = row;
     }
