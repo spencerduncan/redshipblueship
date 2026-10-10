@@ -17,17 +17,22 @@
  * every toast the overlay is asked to show between the crossing's record and
  * the end of the arrival:
  *
- *   OoT -> MM   Combo_RecordSharedItem(GAME_MM, id)     the real producer
+ *   OoT -> MM   Combo_RecordSharedItemCrossing(GAME_MM, id)  the real pickup producer
  *                 -> MM_ConsumeSharedItems()            MM's real arrival hook
  *                 -> MM_ForeignItem_FlushPending()      the real first-frame drain, where
  *                                                       the give and its presentation run
  *                                                       (over a stand-in PlayState: see
  *                                                       MM_ForeignItem_TestFlushWithStandInPlay)
- *   MM -> OoT   Combo_RecordSharedItem(GAME_OOT, id)
+ *   MM -> OoT   Combo_RecordSharedItemCrossing(GAME_OOT, id)
  *                 -> OoT_ConsumeSharedItems()           OoT's real arrival hook
  *
  * Each leg must redeem its crossing and run its give (not vacuous) and must
  * emit zero toasts. Before #878 each leg emitted one ("You got ...").
+ *
+ * A SOURCED grant (Combo_SubmitSourcedGrant: the netplay relay's seam) was never
+ * presented at a pickup in this player's game, so its arrival toast is its only
+ * presentation and stays (#878's addendum): the same two arrivals, fed by a
+ * sourced grant of the same items, must each toast exactly once.
  *
  * The record is OoT's test-only toast record (soh/Notification/Notification.cpp),
  * the one overlay both games draw into. The row mutes the overlay so no unmuted
@@ -95,26 +100,42 @@ static TestResult CrossingArrivalToasts_Run(void) {
 
     // ---- Leg 1: an MM item taken in Hyrule, then the arrival in Termina. ----
     int mark = OoT_Notification_EmittedCountForTest();
-    CAT_ASSERT(Combo_RecordSharedItem(GAME_MM, mmId) >= 0);
+    CAT_ASSERT(Combo_RecordSharedItemCrossing(GAME_MM, mmId) >= 0);
     CAT_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 1);
     MM_ConsumeSharedItems();
     CAT_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 0); // redeemed at the arrival
     CAT_ASSERT(MM_ForeignItem_TestPendingCount() == 1);                          // the give waits for play
-    const int drained = MM_ForeignItem_TestFlushWithStandInPlay();
-    CAT_ASSERT(drained == 1); // the first gameplay frame's drain ran the give
+    CAT_ASSERT(MM_ForeignItem_TestFlushWithStandInPlay() == 1); // the first gameplay frame's drain ran the give
     const int mmToasts = CrossingToastsSince(mark, "Majora's Mask");
 
     // ---- Leg 2: an OoT item taken in Termina, then the arrival in Hyrule. ----
     mark = OoT_Notification_EmittedCountForTest();
-    CAT_ASSERT(Combo_RecordSharedItem(GAME_OOT, lens.id) >= 0);
+    CAT_ASSERT(Combo_RecordSharedItemCrossing(GAME_OOT, lens.id) >= 0);
     CAT_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == 1);
     OoT_ConsumeSharedItems();
     CAT_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == 0); // redeemed at the arrival
     const int ootToasts = CrossingToastsSince(mark, "Ocarina of Time");
 
-    printf("[TEST] crossing-arrival-toasts: the arrival in Majora's Mask emitted %d toast(s), the arrival in Ocarina "
-           "of Time %d; each crossing's item was announced at its pickup, so each must be 0\n",
-           mmToasts, ootToasts);
+    // ---- Legs 3 and 4: the same items as a peer's sourced grant, never picked
+    // up in this player's game: each arrival toasts it once. ----
+    const uint32_t kSource = 0x878u;
+    mark = OoT_Notification_EmittedCountForTest();
+    CAT_ASSERT(Combo_SubmitSourcedGrant(kSource, 1, GAME_MM, mmId) == RSBS_GRANT_ACCEPTED);
+    MM_ConsumeSharedItems();
+    CAT_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 0);
+    CAT_ASSERT(MM_ForeignItem_TestFlushWithStandInPlay() == 1);
+    const int mmSourcedToasts = CrossingToastsSince(mark, "Majora's Mask (sourced grant)");
+
+    mark = OoT_Notification_EmittedCountForTest();
+    CAT_ASSERT(Combo_SubmitSourcedGrant(kSource, 2, GAME_OOT, lens.id) == RSBS_GRANT_ACCEPTED);
+    OoT_ConsumeSharedItems();
+    CAT_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == 0);
+    const int ootSourcedToasts = CrossingToastsSince(mark, "Ocarina of Time (sourced grant)");
+
+    printf("[TEST] crossing-arrival-toasts: crossing pickups: the arrival in Majora's Mask emitted %d toast(s), the "
+           "arrival in Ocarina of Time %d (each was announced at its pickup, so each must be 0); sourced grants: %d "
+           "and %d (never picked up here, so each must be 1)\n",
+           mmToasts, ootToasts, mmSourcedToasts, ootSourcedToasts);
 
     OoT_Notification_RecordForTest(0);
     MM_ForeignItem_TestResetPending();
@@ -123,6 +144,8 @@ static TestResult CrossingArrivalToasts_Run(void) {
 
     CAT_ASSERT(mmToasts == 0);
     CAT_ASSERT(ootToasts == 0);
-    printf("[TEST] PASS: both arrivals redeemed their crossing and toasted nothing\n");
+    CAT_ASSERT(mmSourcedToasts == 1);
+    CAT_ASSERT(ootSourcedToasts == 1);
+    printf("[TEST] PASS: both arrivals redeemed their crossing and toasted nothing; a sourced grant toasts once\n");
     return TEST_PASS;
 }
