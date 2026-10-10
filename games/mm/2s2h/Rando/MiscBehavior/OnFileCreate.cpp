@@ -158,13 +158,14 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                 int rsbsLadderAttempt = 0;
 #endif
                 auto runGenerationOnce = [&]() {
-                    // Persist StartingItems to the save
 #ifdef RSBS_SINGLE_EXECUTABLE
-                    // #879: a paired world's start is the combo's frozen decision
-                    // (Ocarina + Song of Time), never 2Ship's config block.
+                    // Persist StartingItems to the save. #879: a paired world's start
+                    // is the combo's frozen decision (Ocarina + Song of Time), never
+                    // 2Ship's config block.
                     auto startingItems =
                         rsbsPaired ? Rando::Foreign::PairedStartingItems() : Rando::GetStartingItemsFromConfig();
 #else
+                    // Persist StartingItems to the save
                     auto startingItems = Rando::GetStartingItemsFromConfig();
 #endif
                     Rando::SetStartingItemsInSave(gSaveContext.save.shipSaveInfo.rando, startingItems);
