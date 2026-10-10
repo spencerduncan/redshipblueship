@@ -126,7 +126,9 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
     menu.AddWidget(path, "Tracker Opacity", WIDGET_CVAR_SLIDER_FLOAT)
         .CVar(RSBS_CVAR_COMBO_ITEMS_OPACITY)
         .RaceDisable(false)
-        .Options(FloatSliderOptions().Min(0.1f).Max(1.0f).DefaultValue(1.0f).IsPercentage().Tooltip(
+        // IsPercentage() first: it resets the range to 0..1, and the overlay
+        // clamps at 0.1 (ComboItemTrackerWindow.cpp, OverlayOpacity).
+        .Options(FloatSliderOptions().IsPercentage().Min(0.1f).Max(1.0f).DefaultValue(1.0f).Tooltip(
             "Sets the opacity of the whole Combo Item Tracker, its icons included."));
 
     menu.AddWidget(path, "Item Tracker Sections", WIDGET_SEPARATOR_TEXT);
