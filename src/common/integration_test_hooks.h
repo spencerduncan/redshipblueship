@@ -76,12 +76,16 @@ typedef enum {
  *                                  camera-follow assert (forced player march +
  *                                  camera displacement check, bug 1b)
  *   RSBS_GP_WATCHDOG_SECS (60)     wall-clock seconds a single OoT-owned phase
- *                                  may run WITHOUT advancing before the watchdog
- *                                  dumps state and fails the run. Must stay well
- *                                  under the CTest TIMEOUT so the diagnostic
- *                                  beats the hard wall-clock kill (#376 item 4).
- *                                  Raise it in lockstep if you raise
- *                                  RSBS_GP_WARP_FRAMES for a long in-scene soak.
+ *                                  may run WITHOUT progress (neither a phase
+ *                                  change nor a completed gameplay frame, #882)
+ *                                  before the watchdog dumps state and fails the
+ *                                  run. Must stay well under the CTest TIMEOUT
+ *                                  so the diagnostic beats the hard wall-clock
+ *                                  kill (#376 item 4). A phase that keeps
+ *                                  advancing still fails at a hard ceiling of
+ *                                  four budgets (240 s at the default): raise
+ *                                  this knob if RSBS_GP_WARP_FRAMES asks for an
+ *                                  in-scene soak longer than that.
  * Entrance values accept hex (0x...) or decimal and must be < OoT's ENTR_MAX.
  */
 typedef struct {

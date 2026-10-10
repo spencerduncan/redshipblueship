@@ -633,12 +633,21 @@ void IntegrationTest_GameplayWatchdogRebase(GameplayWatchdogTimer* timer, int ph
 GameplayWatchdogVerdict IntegrationTest_GameplayWatchdogTick(GameplayWatchdogTimer* timer, int phase,
                                                              int framesInPhase, double nowSecs, int budgetSecs) {
     if (phase != timer->phase) {
-        // The phase advanced: progress. Re-base the stall timer.
+        // The phase advanced: progress. Re-base both timers.
         IntegrationTest_GameplayWatchdogRebase(timer, phase, framesInPhase, nowSecs);
+    } else if (framesInPhase != timer->frames) {
+        // A gameplay frame of the phase completed: progress (#882). Re-base the
+        // stall timer only, so the budget measures a stall, not the phase's
+        // length; the phase's own clock keeps running toward the ceiling.
+        timer->frames = framesInPhase;
+        timer->progressSecs = nowSecs;
     }
-    timer->frames = framesInPhase;
     if (IntegrationTest_GameplayWatchdogExpired(nowSecs - timer->progressSecs, budgetSecs)) {
         return GP_WATCHDOG_STALLED;
+    }
+    if (IntegrationTest_GameplayWatchdogExpired(nowSecs - timer->phaseStartSecs,
+                                                IntegrationTest_GameplayWatchdogCeilingSecs(budgetSecs))) {
+        return GP_WATCHDOG_CEILING;
     }
     return GP_WATCHDOG_OK;
 }
