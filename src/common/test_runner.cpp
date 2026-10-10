@@ -1075,7 +1075,7 @@ static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void) {
 #else
     setenv("SHIP_HOME", kBootTestHome, 1);
 #endif
-    auto ctx = Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE, "soh", "shipofharkinian.json");
+    auto ctx = Ship::Context::CreateUninitializedInstance(RsbsVersion_WindowTitle(), "soh", "shipofharkinian.json");
 
     // Take crash handling before any bring-up runs (#388). A unit test is
     // unattended by definition even though it runs under a live DISPLAY
@@ -1899,6 +1899,84 @@ TestResult Test_TestWindowNoActivation(void) {
     }
 #undef TWNA_ASSERT
     printf("[TEST] %s: test-window-no-activation, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #880 lock: the version a person sees names the commit it was built from.
+// Every build between two release tags used to read the same
+// "RedShipBlueShip v0.1.1-prealpha (Morpheus Bravo)", so a stale build could not
+// be told from a current one. The expected identity comes from configure through
+// the row's environment (CMake/SingleExecutable.cmake), not from the string
+// under test:
+//   V1 RsbsVersion_Display() == RSBS_VERSION_STRING "+<short>" ["-dirty"], or the
+//      bare RSBS_VERSION_STRING when configure saw no git ("none");
+//   V2 RsbsVersion_WindowTitle() (the context name: the window title, and the
+//      first line of --version) == RSBS_APP_NAME " " <V1> " (" codename ")";
+//   V3 the release part is RSBS_VERSION_STRING unchanged (the tag rule) and the
+//      build part is empty or "+" and 7 lowercase hex digits, then "-dirty" or
+//      nothing.
+// Without RSBS_EXPECT_SHORT_COMMIT (a run outside CTest, `--test all`) only V3
+// is checked.
+TestResult Test_VersionShortCommit(void) {
+    printf("[TEST] version-short-commit: the window title and --version carry the configured short commit\n");
+    int failures = 0;
+    const std::string display = RsbsVersion_Display();
+    const std::string title = RsbsVersion_WindowTitle();
+    printf("[TEST] display: '%s'\n", display.c_str());
+    printf("[TEST] window title: '%s'\n", title.c_str());
+
+    const std::string release = RSBS_VERSION_STRING;
+    if (display.compare(0, release.size(), release) != 0) {
+        printf("[TEST] FAIL V3: display does not start with RSBS_VERSION_STRING '%s'\n", release.c_str());
+        failures++;
+    } else {
+        const std::string build = display.substr(release.size());
+        bool shapeOk = build.empty();
+        if (!shapeOk && build.size() >= 8 && build[0] == '+') {
+            shapeOk = true;
+            for (size_t i = 1; i < 8; i++) {
+                const char c = build[i];
+                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
+                    shapeOk = false;
+                }
+            }
+            const std::string rest = build.substr(8);
+            if (!rest.empty() && rest != "-dirty") {
+                shapeOk = false;
+            }
+        }
+        if (!shapeOk) {
+            printf("[TEST] FAIL V3: build part '%s' is neither empty nor +<7 hex>[-dirty]\n", build.c_str());
+            failures++;
+        }
+    }
+
+    const char* expectShort = getenv("RSBS_EXPECT_SHORT_COMMIT");
+    const char* expectDirty = getenv("RSBS_EXPECT_DIRTY");
+    if (expectShort == nullptr || expectShort[0] == '\0') {
+        printf("[TEST] RSBS_EXPECT_SHORT_COMMIT not set (not run by CTest): V1/V2 not checked\n");
+    } else {
+        std::string expectedDisplay = release;
+        if (strcmp(expectShort, "none") != 0) {
+            expectedDisplay += std::string("+") + expectShort;
+            if (expectDirty != nullptr && strcmp(expectDirty, "1") == 0) {
+                expectedDisplay += "-dirty";
+            }
+        }
+        printf("[TEST] configured: short='%s' dirty='%s' -> expected display '%s'\n", expectShort,
+               expectDirty != nullptr ? expectDirty : "(unset)", expectedDisplay.c_str());
+        if (display != expectedDisplay) {
+            printf("[TEST] FAIL V1: display '%s' != expected '%s'\n", display.c_str(), expectedDisplay.c_str());
+            failures++;
+        }
+        const std::string expectedTitle =
+            std::string(RSBS_APP_NAME) + " " + expectedDisplay + " (" + RSBS_VERSION_CODENAME + ")";
+        if (title != expectedTitle) {
+            printf("[TEST] FAIL V2: window title '%s' != expected '%s'\n", title.c_str(), expectedTitle.c_str());
+            failures++;
+        }
+    }
+    printf("[TEST] %s: version-short-commit, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -2852,6 +2930,28 @@ TestResult Test_MMPairSwitchEntry(void) {
     int rc = MM_Rando_HeadlessPairSwitchEntry();
     printf("[TEST] %s: switch-entry pairing rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The combo owns MM's paired start (#879): a paired creation grants MM exactly
+// the Ocarina of Time and the Song of Time whatever 2Ship's StartingItems config
+// block says, the identity ignores that block, and the Kokiri Sword and the
+// Hero's Shield are MM pool items the bag places. Body in
+// games/mm/2s2h/mm_paired_start_test.cpp. Needs a generation, like
+// mm-pair-switch-entry, so `--test all` skips it.
+extern "C" int MM_PairedStart_RunHeadless(void);
+
+TestResult Test_MMPairedStart(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    return MM_PairedStart_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // Attempt-ladder convergence + determinism digest (ADR 0010 increment 1.2
@@ -5205,6 +5305,12 @@ const TestDescriptor gTests[] = {
     // Same display requirement as mm-rando-gen, so `--test all` skips it.
     {"mm-pair-switch-entry", "Paired MM world activates via switch-entry; existing saves untouched (#439)",
      Test_MMPairSwitchEntry},
+    // #879: the combo owns MM's paired start; sword and shield are pool items.
+    // Same display requirement as mm-pair-switch-entry, so `--test all` skips it.
+    {"mm-paired-start",
+     "A paired MM half starts with exactly the Ocarina and the Song of Time, never 2Ship's StartingItems block; "
+     "the Kokiri Sword and the Hero's Shield are MM pool items (#879)",
+     Test_MMPairedStart},
     // ADR 0010 increment 1.2 lock (b): a pinned master seed that NEEDS the
     // attempt ladder converges, records its winning attempt, and digests the
     // world for the two-process MMPairedAttemptDeterminism diff. Same display
@@ -5987,6 +6093,10 @@ const TestDescriptor gTests[] = {
      "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
      "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
      Test_TestWindowNoActivation},
+    {"version-short-commit",
+     "The window title and --version read the release version plus the configured short commit (and -dirty), so "
+     "a build says which commit it is; the release part stays RSBS_VERSION_STRING (#880)",
+     Test_VersionShortCommit},
     {"mm-moon-crash-never-saved",
      "A moon crash in a paired MM half created and never saved restores the half as created (its only commit is "
      "the creation's, vanilla's new-file flash write): day 0, 05:59, not day 4; a session with no commit at all "
@@ -6121,6 +6231,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-start") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||

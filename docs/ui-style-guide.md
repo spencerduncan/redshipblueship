@@ -372,6 +372,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > Tracker Settings | Randomizer > Item Tracker (SoH's tracker page; its states "" and "window" show and hide the two floating-only rows) |
 | Combo > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "", "listed" and "backup" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
 | Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |
+| Combo Item Tracker overlay | SoH's Item Tracker overlay ("window/Item Tracker": floating, as SoH ships it, with no save loaded, so every icon is drawn faded; Ocarina of Time is made the running game for it, because #797 gates that window on it) |
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
 | Creation overlay over the open menu | SoH's modal over the same menu page ("Clear Config@over-menu") |
 | Cross-Game Rules Reset confirm, MM Randomizer Reset confirm | the SoH modal ("Clear Config") |
@@ -412,7 +413,12 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
   glyphs) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
   adapter, with one collected, one skipped and two open OoT checks and its Checks list open, so the status glyphs and
-  both crossing tables are drawn).
+  both crossing tables are drawn). The Combo Item Tracker draws no-data (nothing to read: each section's header over
+  "No data.", drawn as the Window type so its title bar is captured), live (Ocarina of Time "Updated live.", Majora's
+  Mask from its snapshot, "As of file creation.", and an authored pool) and snapshot (the mirror image: Majora's Mask
+  live, Ocarina of Time "As of the last game switch or save."), the last two floating. It is captured unscrolled,
+  because the floating overlay has no scrollbar. Majora's Mask's section is the text fallback wherever it has rows,
+  because its icons load only once Majora's Mask has booted and the harness never boots it.
 - SoH PANE: SoH's Check Tracker Settings pane, the reference both of those panes compare with (`compare/`). It is
   opened through its own `GuiWindow::Show` and closed with `Hide`, because an SoH pane latches its visibility CVar at
   construction and never re-reads it (ours read theirs live). A run where the pane is not registered skips it ROM-free
@@ -421,15 +427,15 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
   direction and goal comboboxes and (frozen) its first slider and its goal row; Majora's Mask hovers its first row and
-  Windows its Combo Item Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state unless
-  `PageSpec::hoverRowState` names another). Combo > MM Randomizer hovers its first row unpaired and frozen and its
-  first capability-blocked row (named rows; the frozen and blocked ones are in `PageSpec::disabledHovers`). Combo > MM
-  Tricks hovers a live, an unbound and a reserved trick unpaired and the live one frozen (`PageSpec::paneHovers`,
-  found through the `combo_ui` rect recorder, because the trick list is one custom row; the harness scrolls the
-  table's own child to reach a row). A disabled row's hover must show SoH's disabled shape with no tracker number.
-  The trick hovers are composited against Settings > Graphics' Current FPS hover (`PageSpec::hoverCompareWith`),
-  SoH's one captured tooltip: SoH's Tricks page draws its trick names as plain text with no item id, so no hover can
-  be injected there.
+  Windows its Combo Item Tracker toggle and Tracker Settings its Window Type row (`PageSpec::hoverRows`, a named row,
+  captured in the page's first state unless `PageSpec::hoverRowState` names another). Combo > MM Randomizer hovers its
+  first row unpaired and frozen and its first capability-blocked row (named rows; the frozen and blocked ones are in
+  `PageSpec::disabledHovers`). Combo > MM Tricks hovers a live, an unbound and a reserved trick unpaired and the live
+  one frozen (`PageSpec::paneHovers`, found through the `combo_ui` rect recorder, because the trick list is one custom
+  row; the harness scrolls the table's own child to reach a row). A disabled row's hover must show SoH's disabled
+  shape with no tracker number. The trick hovers are composited against Settings > Graphics' Current FPS hover
+  (`PageSpec::hoverCompareWith`), SoH's one captured tooltip: SoH's Tricks page draws its trick names as plain text
+  with no item id, so no hover can be injected there.
 - MODAL: SoH's "Clear Config" reference, and the Cross-Game Rules and MM Randomizer Reset confirms (each queued
   through its Reset row's own Callback, the call the player's click makes).
 - `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open
@@ -490,6 +496,11 @@ fresh directory to keep that path exercised.
   tooltip, and no other name may appear. The hovers read four rows; the census reads all of them. Observed red
   2026-09-27 with a trick dropped, one drawn twice and one misfiled into the other column: three problems per state,
   each named
+- a pane captured unscrolled (the Combo Item Tracker, in every state) has nothing beyond its edge and ends inside the
+  game window (`FitOracle`): its player sees that one view and nothing else
+- in a ROM-rich run, the Combo Item Tracker's live and snapshot captures draw at least 40 draw commands on a texture
+  other than the font atlas (`ImageOracle`, `PageSpec::stateImages`), so their icons are pictures, not text. A
+  ROM-free run (CI) has no icon textures and draws the text fallback, so the check is skipped there
 - the frame converged
 - no popup leaked
 - no game framebuffer was composited

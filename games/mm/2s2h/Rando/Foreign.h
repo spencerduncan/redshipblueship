@@ -29,6 +29,21 @@ bool PairingActive();
  *  world (and one spoiler file). */
 std::string PairedInputSeedString();
 
+/** THE PAIRED MM START (#879, operator ruling 2026-10-09): the starting items a
+ *  paired world's MM half is created with, the combo's own decision and never
+ *  2Ship's `CVars.gRando.StartingItems` config block (StartingItems.cpp), which
+ *  only a solo MM rando file still reads. Exactly the Ocarina of Time and the
+ *  Song of Time: 2Ship's logic has no time-reset term, so a world that does not
+ *  start able to reset time cannot be proven (the one stated deviation from
+ *  OoTMM, which starts MM empty). The Kokiri Sword and the Hero's Shield are not
+ *  in it: GeneratePools adds both to MM's pool, as OoTMM does, and the single
+ *  bag places them. A constant, so it is part of the world identity frozen at
+ *  creation (ProfileIdentityString folds it) and nothing after creation can
+ *  move it. Every paired consumer reads it here: OnFileCreate's paired
+ *  generation, the identity term, and the measurement bridges that stand in for
+ *  that generation (ComboLogicEngineSingleExe.cpp). */
+std::vector<RandoItemId> PairedStartingItems();
+
 /** Resolve MM's randomizer option profile into RANDO_SAVE_OPTIONS and, for a
  *  paired world, CHECK it against the creation-frozen identity
  *  (#499 steps 2-4; ADR 0009 claim 3; #498/#564 phase 2).

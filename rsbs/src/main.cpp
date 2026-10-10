@@ -401,13 +401,15 @@ bool HasVersionFlag(int argc, char** argv) {
 void PrintVersion(void) {
     // Base-port versions come from the linked game libraries so they can't
     // drift from what the archive/save compatibility checks actually enforce.
-    printf("%s %s (%s)\n", RSBS_APP_NAME, RSBS_VERSION_STRING, RSBS_VERSION_CODENAME);
+    // The first line is the context name: the window title less the backend
+    // libultraship appends (#880).
+    printf("%s\n", RsbsVersion_WindowTitle());
     printf("Base ports: Ship of Harkinian %s (OoT), 2 Ship 2 Harkinian %s (MM)\n",
            (const char*)OoT_gBuildVersion, (const char*)MM_gBuildVersion);
 }
 
 void PrintUsage(const char* progName) {
-    printf("%s %s - Unified OoT+MM Executable\n\n", RSBS_APP_NAME, RSBS_VERSION_STRING);
+    printf("%s %s - Unified OoT+MM Executable\n\n", RSBS_APP_NAME, RsbsVersion_Display());
     printf("Usage: %s [OPTIONS]\n\n", progName);
     printf("Options:\n");
     printf("  --game oot            Run Ocarina of Time\n");
@@ -551,7 +553,7 @@ int main(int argc, char** argv) {
     fprintf(stderr, "[RSBS] About to create Ship::Context singleton...\n");
     fflush(stderr);
     auto shipContext = Ship::Context::CreateUninitializedInstance(
-        RSBS_WINDOW_TITLE, "soh", "shipofharkinian.json");
+        RsbsVersion_WindowTitle(), "soh", "shipofharkinian.json");
     fprintf(stderr, "[RSBS] CreateUninitializedInstance returned: %p\n", (void*)shipContext.get());
     fflush(stderr);
     if (!shipContext) {
@@ -560,6 +562,23 @@ int main(int argc, char** argv) {
     }
     fprintf(stderr, "[RSBS] Ship::Context singleton created successfully at %p\n", (void*)shipContext.get());
     fflush(stderr);
+
+    // The context's display name is what a person sees as the window title
+    // (libultraship appends the backend), in the crash dialog and in the log file
+    // name: RsbsVersion_WindowTitle(), with the build's commit (#880). Printed so
+    // every log says which build ran. RSBS_INT_EXIT_AFTER_CONTEXT=1 (integration
+    // mode only) stops here with no archive read and no window: the
+    // VersionIdentity row reads this line to lock the call above
+    // (CMake/CheckVersionIdentity.cmake).
+    fprintf(stderr, "[RSBS] Ship::Context name: %s\n", shipContext->GetName().c_str());
+    fflush(stderr);
+    if (TestRunner_IsIntegrationTestMode()) {
+        const char* exitAfterContext = getenv("RSBS_INT_EXIT_AFTER_CONTEXT");
+        if (exitAfterContext != nullptr && strcmp(exitAfterContext, "1") == 0) {
+            fflush(stdout);
+            _Exit(0);
+        }
+    }
 
     // Point the unified .redsave at the SAME directory the games write their own
     // per-game saves to. save.h documents this as the injection point where "the

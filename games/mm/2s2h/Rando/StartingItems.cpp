@@ -135,11 +135,11 @@ void SetStartingItemsInSave(RandoSaveInfo& randoSaveInfo, std::vector<RandoItemI
 std::vector<RandoItemId> GetStartingItemsFromConfig() {
     std::vector<RandoItemId> startingItems = { RI_PROGRESSIVE_SWORD, RI_SHIELD_HERO, RI_OCARINA, RI_SONG_TIME };
 
-    // Null-guarded for the display-free harness (#498/#564): the profile
-    // identity folds this list (Foreign.cpp's ProfileIdentityString), and the
-    // ROM-free tier runs without a Ship::Context. An absent context yields the
-    // same defaults an absent config block does, so the identity term is one
-    // computation with one default in one place.
+    // Null-guarded for the display-free harness (#498/#564): the ROM-free tier
+    // runs without a Ship::Context, and an absent context yields the same
+    // defaults an absent config block does. (A paired world never reads this
+    // list since #879: its start and its identity term are the combo's own,
+    // Rando::Foreign::PairedStartingItems.)
     auto shipContext = Ship::Context::GetInstance();
     if (shipContext == nullptr || shipContext->GetConfig() == nullptr) {
         return startingItems;
