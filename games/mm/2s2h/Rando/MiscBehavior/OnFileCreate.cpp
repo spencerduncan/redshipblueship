@@ -159,7 +159,14 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
 #endif
                 auto runGenerationOnce = [&]() {
                     // Persist StartingItems to the save
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    // #879: a paired world's start is the combo's frozen decision
+                    // (Ocarina + Song of Time), never 2Ship's config block.
+                    auto startingItems =
+                        rsbsPaired ? Rando::Foreign::PairedStartingItems() : Rando::GetStartingItemsFromConfig();
+#else
                     auto startingItems = Rando::GetStartingItemsFromConfig();
+#endif
                     Rando::SetStartingItemsInSave(gSaveContext.save.shipSaveInfo.rando, startingItems);
 
                     std::vector<RandoCheckId> checkPool;

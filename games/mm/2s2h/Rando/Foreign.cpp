@@ -204,11 +204,11 @@ static void ResolveProfileTricks(uint8_t* tricks) {
 
 /** The canonical identity string the profile digest hashes (#564 V4's widened
  *  term). Wider than MMOptionsString on purpose: gRando.ExcludedChecks and the
- *  StartingItems config block shape the generated world exactly as the 47
- *  options do (Logic/GeneratePools.cpp:32, StartingItems.cpp:135), so a digest
- *  that omits them is a vacuous guard — same seed + same digest could still
- *  yield different MM worlds. OoT's own settings hash is the precedent: it
- *  folds excludes and tricks. */
+ *  paired start shape the generated world exactly as the 47 options do
+ *  (Logic/GeneratePools.cpp:32, PairedStartingItems), so a digest that omits
+ *  them is a vacuous guard — same seed + same digest could still yield
+ *  different MM worlds. OoT's own settings hash is the precedent: it folds
+ *  excludes and tricks. */
 static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks) {
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
@@ -244,12 +244,16 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     // to catch.
     s += "|excluded:";
     s += CVarGetString("gRando.ExcludedChecks", "");
-    // The StartingItems config block, folded as the resolved item-id list —
-    // the SAME accessor generation consumes (unknown names dropped both
-    // places, defaults on an absent config/context both places), so the
-    // identity term and the generation input are one computation.
+    // The paired start, folded as its item-id list — the SAME accessor the
+    // paired generation consumes, so the identity term and the generation input
+    // are one computation. Since #879 that is the combo's own constant
+    // (PairedStartingItems), never 2Ship's StartingItems config block: a config
+    // change after creation changes neither the world nor this term, so it can
+    // never refuse an arrival. Folding the constant still records which start
+    // the world was created with: a pair created under 2Ship's list (sword,
+    // shield, Ocarina, Song of Time, before #879) does not match it.
     s += "|starting:";
-    for (RandoItemId randoItemId : Rando::GetStartingItemsFromConfig()) {
+    for (RandoItemId randoItemId : PairedStartingItems()) {
         s += std::to_string((int)randoItemId);
         s += ',';
     }
@@ -279,6 +283,10 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     //    the instant it generated.
     // ------------------------------------------------------------------------
     return s;
+}
+
+std::vector<RandoItemId> PairedStartingItems() {
+    return { RI_OCARINA, RI_SONG_TIME };
 }
 
 /** Hash the identity string, displacing 0: zero is the growth contract's
@@ -738,9 +746,10 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
 // The source is the file's MM half: creation resolved the profile into
 // RANDO_SAVE_OPTIONS and randoSaveTricks (ResolvePairedProfile), so those
 // arrays ARE the frozen options and tricks. The digest also folds the
-// excluded-check list and the starting-item block, which the half does not
-// record; the candidate is therefore checked against the frozen digest BEFORE
-// anything is written, and a mismatch there writes nothing.
+// excluded-check list, which the half does not record, and the paired start,
+// a constant since #879 (a file created before #879 folded 2Ship's list and
+// cannot match it); the candidate is therefore checked against the frozen
+// digest BEFORE anything is written, and a mismatch there writes nothing.
 // ============================================================================
 namespace {
 
@@ -802,8 +811,8 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
     if (candidate != frozenDigest) {
         fprintf(stderr,
                 "[MM] profile: load-time restore impossible — the file's own options and tricks give %08X, not the "
-                "frozen %08X, so what differs is an input the file does not record (the excluded-check list or the "
-                "starting-item block); nothing was written\n",
+                "frozen %08X, so what differs is an input the file does not record (the excluded-check list, or the "
+                "paired start of a file created before #879); nothing was written\n",
                 (unsigned)candidate, (unsigned)frozenDigest);
         return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
     }

@@ -249,8 +249,9 @@ bool Combo_MMProfileFrozen(void);
  *
  * The identity covers every generation input the digest guards: the 47
  * resolved option values (including the paired RO_LOGIC default pin),
- * gRando.ExcludedChecks, and the StartingItems config block (#564 V4 — a
- * digest narrower than the generator's input set is vacuous).
+ * gRando.ExcludedChecks, and the paired start (#564 V4 — a digest narrower
+ * than the generator's input set is vacuous; since #879 the paired start is the
+ * combo's own constant, never 2Ship's StartingItems config block).
  */
 uint32_t MM_Rando_ComputeProfileStamp(void);
 

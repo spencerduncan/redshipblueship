@@ -836,7 +836,8 @@ retired by #879).
 never affected on either count: `OnFileCreate`'s rando block authors the start
 state and `GrantStartingItems()` grants the default starting set, which is
 `{ RI_PROGRESSIVE_SWORD, RI_SHIELD_HERO, RI_OCARINA, RI_SONG_TIME }`
-(`Rando/StartingItems.cpp:136`), *and* the `IS_RANDO` override answers false
+(`Rando/StartingItems.cpp:136`; since #879 a paired half starts with the combo's own
+`{ RI_OCARINA, RI_SONG_TIME }`, `Rando::Foreign::PairedStartingItems`), *and* the `IS_RANDO` override answers false
 anyway. The affected halves are the ones whose save stays `SAVETYPE_VANILLA` past
 the arrival dispatch: a **vanilla OoT file crossing** (`pairing:
 skipped-because-no-paired-oot-world`), a pairing **REFUSED** on identity or combo
