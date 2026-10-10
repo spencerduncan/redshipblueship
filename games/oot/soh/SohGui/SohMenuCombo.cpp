@@ -77,9 +77,9 @@ using namespace UIWidgets;
 // ============================================================================
 // Cross-Game combo rules (#655; ADR 0011 increment 2, #498; #497 step 6)
 // ============================================================================
-// The three tier-4 `gCombo.Rando.*` keys — direction, the shared ocarina
-// (#668) and the goal (ADR 0010 D1); the two pool-size rows were retired by
-// #801 and the two item-class groups by #834 — render as ROWS in
+// The two tier-4 `gCombo.Rando.*` keys — direction and the goal (ADR 0010
+// D1); the two pool-size rows were retired by #801, the two item-class groups
+// by #834 and the Shared Ocarina checkbox (#668) by #879 — render as ROWS in
 // the Cross-Game Rules page of the tier-4 Combo section below. #497 step 6
 // moved them there from the interim host, Randomizer → Cross-Game.
 // PR #652 shipped them as a common-owned pop-out pane
@@ -102,8 +102,7 @@ using namespace UIWidgets;
 // PreFunc overwrites the buffer with the model's value again — so the rows can
 // never disagree with the record about what this world's rules are.
 static int32_t comboRuleDirection;
-static bool comboRuleSharedOcarina; // #668: ComboSettingsRecord.comboFlags' shared-ocarina bit
-static int32_t comboRuleGoal;       // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
+static int32_t comboRuleGoal; // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -170,33 +169,6 @@ static std::string comboRuleStatusText;
  */
 static std::string ComboRuleRowName(ComboSettingId id) {
     return std::string(Combo_ComboSettingSharedMarker()) + " " + Combo_ComboSettingLabel(id);
-}
-
-/**
- * The CHECKBOX row's name: the same marker and label, with the marker on a line
- * of its own above the label ("[Both Games]" then "Shared Ocarina").
- *
- * WHY TWO LINES. A combobox draws its label ABOVE the box, so its name has the
- * whole column; a checkbox draws its label to the RIGHT of a ~44 px box
- * (docs/ui-style-guide.md section 2). At min-832x600, the width contract
- * (section 1), "[Both Games] Shared Ocarina" on one line overruns its column
- * and runtime lint R9 fails the page. The operator ruled the name (2026-10-01),
- * so the row is not shortened; the marker goes on a line of its own instead.
- *
- * The break is an AUTHORED newline, a project choice with no SoH precedent: no
- * SoH row authors a newline in its name. SoH's own wrap (Menu::MenuDrawItem
- * passes a checkbox name through UIWidgets::WrappedText at 90 / columns
- * characters, 45 on this two-column page) would leave this 27-character name
- * on one line, so the row is two lines at EVERY profile, desk-1280x800
- * included, not only where it would overrun. Only the shape matches SoH's
- * wrapped checkbox rows: the box at the top, the label beside it, right of
- * the box as the style guide requires. WrappedText keeps the authored newline
- * (it restarts its count there). The newline is also part of the search key
- * (Menu.cpp keeps it), so a search across the marker into the label does not
- * match this row; "shared ocarina" does.
- */
-static std::string ComboRuleCheckboxRowName(ComboSettingId id) {
-    return std::string(Combo_ComboSettingSharedMarker()) + "\n" + Combo_ComboSettingLabel(id);
 }
 
 /**
@@ -486,7 +458,7 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
  * swapped), which no compile catches.
  */
 void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
-    // Three settings, rendered as rows rather than as the pop-out pane PR #652
+    // Two settings, rendered as rows rather than as the pop-out pane PR #652
     // shipped. See the block comment at the top of this file for why every row
     // is a pointer-based widget over a src/common writer rather than a
     // WIDGET_CVAR_* one, and for which value each row shows in which state.
@@ -547,26 +519,9 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     // outcome of the fill, not a setting, and the "Max OoT Items" / "Max MM
     // Items" sliders only re-seeded the world.
 
-    // The shared ocarina (#668). A comboFlags BIT rather than a field of its
-    // own, so the row is a plain checkbox over the model's 0/1 space; everything
-    // else about it is the other rows' pattern verbatim: the staging buffer, the
-    // PreFunc that refreshes from the record, the Callback that offers the edit
-    // to src/common's writer, and the marker in the name. The name is the
-    // two-line checkbox form (ComboRuleCheckboxRowName says why).
-    menu.AddWidget(path, ComboRuleCheckboxRowName(COMBO_SETTING_SHARED_OCARINA), WIDGET_CHECKBOX)
-        .ValuePointer(&comboRuleSharedOcarina)
-        .PreFunc([](WidgetInfo& info) {
-            ComboSettingsRecord shown;
-            const bool decided = ComboRuleShownRecord(&shown);
-            comboRuleSharedOcarina = (shown.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0;
-            ComboRuleApplyDecided(info, decided);
-        })
-        .Callback([](WidgetInfo& info) {
-            Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, comboRuleSharedOcarina ? 1 : 0);
-        })
-        .Options(CheckboxOptions().Tooltip(
-            "Makes the ocarina one item across both games: finding an ocarina in either game gives you one in the "
-            "other. Majora's Mask's ocarina gives the Fairy Ocarina in Ocarina of Time."));
+    // No Shared Ocarina row (#879, operator ruling 2026-10-09): MM starts every
+    // paired world holding its Ocarina of Time, so the rule's only effect was
+    // to hand OoT a free Fairy Ocarina at the first return.
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.

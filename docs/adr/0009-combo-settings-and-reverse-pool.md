@@ -829,7 +829,8 @@ the fill, the pools and the starting-items defaults, and would re-pin the
 determinism digests — so it belongs to **ADR 0010 increments 2-3**, where the
 single generation event and the single bag live, and it is deliberately excluded
 from the #654 fix. A separate option to **share one ocarina between both games**
-is filed alongside and is not decided by this ruling.
+is filed alongside and is not decided by this ruling (it landed as #668 and was
+retired by #879).
 
 **Which pairing kinds were affected, proven in code.** A paired **rando** half was
 never affected on either count: `OnFileCreate`'s rando block authors the start

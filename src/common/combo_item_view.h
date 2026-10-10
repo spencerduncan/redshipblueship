@@ -218,8 +218,8 @@ uint8_t Combo_ItemSharedFreshness(void);
 /** COMBO_ITEM_SHARED_LABEL, or "No data" while the pool is empty. Never NULL. */
 const char* Combo_ItemSharedLabel(void);
 
-/** Shared rows: one per resource this world shares (the ocarina and the
- *  triforce pieces only when armed); 0 while the pool is empty. */
+/** Shared rows: one per resource this world shares (the triforce pieces only
+ *  when armed); 0 while the pool is empty. */
 int Combo_ItemSharedCount(void);
 
 /** Fill `out` with shared row `index`, its icon the active game's own (OoT's
