@@ -11,7 +11,7 @@
  * area is `{game, area}`: `game` is GAME_OOT or GAME_MM and `area` indexes that
  * game's HALF (1..Combo_Area_Count(game)). The two halves never share a value
  * in meaning: no OoT area equals an MM area, and no table maps one game's area
- * to the other's (ADR 0002 amendment of 2026-10-02).
+ * to the other's (ADR 0002, amendment of 2026-10-10).
  *
  *  - The OoT half mirrors SoH's RandomizerArea 1:1 (RA_KOKIRI_FOREST ..
  *    RA_GANONS_CASTLE, 35 areas), and each name is OoT's own English clear text,
@@ -19,7 +19,9 @@
  *  - The MM half is OoTMM's 46 Majora's Mask regions, in OoTMM's order
  *    (data/defs/regions.yml), named from OoTMM's in-game table with its article
  *    and preposition (packages/generator/src/common/text/text.c), spelled the way
- *    MM's own text spells them ("Pirates' Fortress", "Ikana Graveyard").
+ *    MM's own text spells them ("Pirates' Fortress", "Ikana Graveyard"). Which
+ *    MM check sits in which region is MM's own table, in MM's own TU
+ *    (games/mm/2s2h/Rando/HintAreaSingleExe.cpp).
  *  - Two specials are valid in either half: COMBO_AREA_NONE ("nowhere", never
  *    hinted) and COMBO_AREA_POCKET (an item the player starts with).
  *
