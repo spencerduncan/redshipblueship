@@ -13,14 +13,13 @@
 
 #include <cstring>
 
-extern "C" {
+// At file scope, not inside an extern "C" block: z64.h includes <memory> under
+// C++ and GCC refuses C++ templates with C linkage (MSVC accepted it). Both
+// z64.h and variables.h give their own declarations C linkage.
 #include <z64.h>
 #include "variables.h"
-}
-// OWNED_EQUIP_FLAG / CHECK_OWNED_EQUIP. Outside the extern "C" block and after
-// z64.h, as the other OoT TUs include it: it pulls in C++ headers, which may
-// not be given C linkage (GCC refuses), and it declares an
-// `extern GraphicsContext*` that needs the type first.
+// OWNED_EQUIP_FLAG / CHECK_OWNED_EQUIP. After z64.h, as the other OoT TUs
+// include it: it declares an `extern GraphicsContext*` that needs the type.
 #include "macros.h"
 
 /** OoT's live save as a real loaded file: GAMEMODE_NORMAL is what
