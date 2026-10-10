@@ -112,7 +112,8 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   the Giant's Mask, magic and a sword ("Twinmold with Bow (MM)" admits the Bow), and the
   West Clock Town bank's heart piece needs the Giant's Wallet ("Bank Rewards Require One
   Less Wallet" admits the Adult Wallet).
-- **You may opt into one shared Ocarina across both games** (Combo → Cross-Game
+- ~~**You may opt into one shared Ocarina across both games**~~ RETIRED by
+  [#879](https://github.com/spencerduncan/redshipblueship/issues/879): the row is gone, and a world created with it on loads with it ignored. Was: (Combo → Cross-Game
   Rules → "[Both Games] Shared Ocarina") — off by default, frozen at file creation
   like every other combo rule: obtaining an ocarina in
   either game grants it in the other (PR
@@ -436,7 +437,7 @@ DirectX 11. The 90 were compared with an OpenGL render made at `d928d67d` on the
   carry this project's ruled "[Both Games] " marker, which SoH shipped without (Dev Tools >
   General, Settings > General); the other 63 and 33 are SoH's rows as shipped. Ours overran 25 at 832x600 and 10 at
   960x704, not only on the Majora's Mask page: Cross-Game Rules (the pool-size sliders, the
-  class headers, Shared Ocarina), MM Randomizer (two access comboboxes and seven long
+  class headers, Shared Ocarina, all three rows since retired), MM Randomizer (two access comboboxes and seven long
   labels) and the harness's MM Row States probe. The Majora's Mask page now has two columns,
   SoH's count for a mixed page, and the long labels are shorter (the renames are listed in
   the lane's pull request), so no row of ours overruns at any of the three profiles. R9 fails
@@ -509,7 +510,7 @@ editable between sessions, and what they hold there is staging for the next file
 Loading a paired file now compares both its Cross-Game Rules and its Majora's Mask
 profile (the same digest the crossing checks) and puts the file's own values back into
 the pages:
-- a changed Cross-Game Rule (Goal, Crossing Direction, Shared Ocarina) is
+- a changed Cross-Game Rule (Goal, Crossing Direction; Shared Ocarina until #879 retired it) is
   restored, and a toast reads "Restored from file:" with the rows it reset
   (for example "Restored from file: Goal, Crossing Direction");
 - a changed MM option or trick is restored from the file's MM half, and a toast reads

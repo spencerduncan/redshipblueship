@@ -1,8 +1,8 @@
 /**
  * @file combo_settings_view.cpp
  * @brief The tier-4 combo-level settings authoring surface (ADR 0011
- *        increment 2, plus the shared ocarina #668). See
- *        combo_settings_view.h for the contract.
+ *        increment 2, plus the goal; #879 retired #668's shared ocarina).
+ *        See combo_settings_view.h for the contract.
  *
  * C++ rather than C for exactly one reason: the CVar store hangs off the
  * Ship::Context singleton and libultraship's C bridge dereferences that
@@ -40,7 +40,6 @@ struct ComboSettingDesc {
 // buffers and the locks' expectation tables are both indexed by the id.
 const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_DIRECTION, "Crossing Direction" },
-    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, "Shared Ocarina" },
     { RSBS_CVAR_COMBO_RANDO_GOAL, "Goal" },
 };
 
@@ -69,11 +68,6 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
     switch (id) {
         case COMBO_SETTING_DIRECTION:
             return (int32_t)defaults.direction;
-        case COMBO_SETTING_SHARED_OCARINA:
-            // A BIT of the defaults record, read the same way its siblings read
-            // their fields: one definition of "what ships", even when the field
-            // is a bitset and the key is one of its bits (#668).
-            return (defaults.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u ? 1 : 0;
         case COMBO_SETTING_GOAL:
             return (int32_t)defaults.goal;
         default:
@@ -90,15 +84,6 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
             // must never become.
             return value == (int32_t)RSBS_COMBO_DIR_OFF || value == (int32_t)RSBS_COMBO_DIR_FORWARD ||
                    value == (int32_t)RSBS_COMBO_DIR_REVERSE || value == (int32_t)RSBS_COMBO_DIR_BOTH;
-        case COMBO_SETTING_SHARED_OCARINA:
-            // EXACTLY 0 or 1, not "nonzero is true" (#668). A flag key holding 2
-            // is a value nobody chose, and this file's rule for those is the
-            // shipped default with a logged reason -- not a coercion that
-            // silently turns a typo into "on". The record stores it as one bit,
-            // so a coercion here would also make two different stored values
-            // produce the same world, which is precisely what the pinned value
-            // spaces exist to prevent.
-            return value == 0 || value == 1;
         case COMBO_SETTING_GOAL:
             // The pinned enumerators and nothing else, the direction's rule. 0
             // is a legacy record's "unset" (ADR 0010 D1's growth contract: it
@@ -271,15 +256,12 @@ struct Restorable {
 const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_GOAL, COMBO_SETTING_GOAL },
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
-    { RSBS_COMBO_DIVERGE_SHARED_OCARINA, COMBO_SETTING_SHARED_OCARINA },
 };
 
 int32_t FrozenValue(const ComboSettingsRecord* frozen, ComboSettingId id) {
     switch (id) {
         case COMBO_SETTING_DIRECTION:
             return (int32_t)frozen->direction;
-        case COMBO_SETTING_SHARED_OCARINA:
-            return (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u ? 1 : 0;
         case COMBO_SETTING_GOAL:
             return (int32_t)frozen->goal;
         default:
