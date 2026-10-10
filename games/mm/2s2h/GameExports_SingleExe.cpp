@@ -925,6 +925,13 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
             return false;
         }
     }
+    // #878: the OoT chest's MM item was announced at its pickup; this arrival
+    // must not toast it again, and no text repeats in the leg.
+    if (!IntegrationTest_PairedLegToastsCheck("Majora's Mask", msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    fprintf(stderr, "[PFC] MM arrival %d toasts PASS: %s\n", arrival, msg);
 
     const int matched =
         IntegrationTest_StderrCaptureCount("[MM] pairing: arrival profile matches the creation-frozen identity");
@@ -1153,6 +1160,27 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
         MM_ForeignModel_PlaytestArmGive();
     }
+    // #878: the paired row takes one OoT item from an MM check before the Clock
+    // Tower door (the #577 M3 drive above takes its own instead), through the
+    // foreign give CheckQueue's pickup and a shop's purchase make, so the return
+    // leg's arrival has an item it could announce a second time.
+    if (sGpMMPlayFrames == 30 && IntegrationTest_PairedFirstCrossing() &&
+        std::getenv("RSBS_GP_MM_FOREIGN_MODEL") == nullptr) {
+        for (int i = 0; i < Combo_Crossings_Count(GAME_MM); i++) {
+            ComboCrossing row;
+            if (!Combo_Crossings_At(GAME_MM, i, &row) || row.hostCheck >= RC_MAX ||
+                RANDO_SAVE_CHECKS[row.hostCheck].obtained) {
+                continue;
+            }
+            const char* item = Combo_GetForeignItemName(row.item);
+            const bool crossed = Rando::Foreign::GiveForeignCheck((RandoCheckId)row.hostCheck);
+            fprintf(stderr, "[PFC] MM pickup before the Clock Tower door: check %u hosts the OoT item %s; %s\n",
+                    (unsigned)row.hostCheck, item != nullptr ? item : "?",
+                    crossed ? "crossed" : "NOT crossed");
+            fflush(stderr);
+            break;
+        }
+    }
     // #830: its per-frame half (closes textboxes nobody will press past, and
     // captures the framebuffer; Rando/ForeignModelSingleExe.cpp).
     if (std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
@@ -1180,6 +1208,9 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
             "(continuity sentinel: %d rupees)\n",
             MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames, GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
     fflush(stderr);
+    if (IntegrationTest_PairedFirstCrossing()) {
+        IntegrationTest_PairedMarkCrossing("Ocarina of Time");
+    }
     play->nextEntrance = MM_ENTR_CLOCK_TOWER_INTERIOR_1;
     play->transitionTrigger = TRANS_TRIGGER_START;
     play->transitionType = TRANS_TYPE_FADE_BLACK;

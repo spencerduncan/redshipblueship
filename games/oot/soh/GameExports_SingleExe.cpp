@@ -922,6 +922,11 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
 // box is then filled with that chest's name (frame 90) and later with the
 // crossed item's name (frame 600), so unattended window captures show its row
 // under each search.
+//
+// #878: the chest itself is opened on EVERY paired run, not only under the
+// variable, so the first crossing always carries a pickup and the leg's toast
+// check (IntegrationTest_PairedLegToastsCheck) has an item the arrival could
+// announce a second time. The tracker searches stay opt-in.
 extern "C" int OoT_CheckTracker_TestSearch(const char* text);
 extern "C" int OoT_CheckTracker_TestItemName(uint16_t rc, char* out, int cap);
 extern "C" int OoT_CheckTracker_TestSearchShows(uint16_t rc, const char* text);
@@ -942,9 +947,7 @@ static void GpPairedTrackerPlaytest(int frame) {
     static std::string sItemName;
     static int sSharedBefore = -1;
     const char* env = getenv("RSBS_PFC_TRACKER_CROSSING");
-    if (env == NULL || strcmp(env, "1") != 0) {
-        return;
-    }
+    const bool trackerDrive = env != NULL && strcmp(env, "1") == 0;
     if (frame == 30) {
         for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
             ComboCrossing row;
@@ -969,6 +972,9 @@ static void GpPairedTrackerPlaytest(int frame) {
             GameInteractor_ExecuteOnSceneFlagSet(cc.scene, FLAG_SCENE_TREASURE, cc.flag);
             break;
         }
+    }
+    if (!trackerDrive) {
+        return;
     }
     if (frame == 90 && sHost >= 0) {
         fprintf(stderr, "[PT796] MM-bound shared-item records: %d before the chest, %d after\n", sSharedBefore,
@@ -1396,6 +1402,13 @@ static bool GpPairedCheckReturn(void) {
         IntegrationTest_GameplayFail(msg);
         return false;
     }
+    // #878: the MM pickup before the Clock Tower door was announced there; the
+    // arrival here must not toast it again, and no text repeats in the leg.
+    if (!IntegrationTest_PairedLegToastsCheck("Ocarina of Time", msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    fprintf(stderr, "[PFC] return leg toasts PASS: %s\n", msg);
     char desc[256];
     IntegrationTest_PairedIdentityDescribe(IntegrationTest_PairedIdentityRecorded(), desc, sizeof(desc));
     fprintf(stderr,
@@ -1958,6 +1971,7 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                         gSaveContext.deaths = kPfcDeathsSentinel;
                         fprintf(stderr, "[PFC] OoT-half sentinel armed before the door: deaths=%u\n",
                                 (unsigned)kPfcDeathsSentinel);
+                        IntegrationTest_PairedMarkCrossing("Majora's Mask");
                     }
                     GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door");
                     IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
@@ -1965,6 +1979,9 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                 case GP_PHASE_OOT_RETURN:
                     IntegrationTest_GameplayRecordCycle();
                     if (IntegrationTest_GameplayCyclesDone() < cfg->cycles) {
+                        if (IntegrationTest_PairedFirstCrossing()) {
+                            IntegrationTest_PairedMarkCrossing("Majora's Mask");
+                        }
                         GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door (next round trip)");
                         IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
                     } else {

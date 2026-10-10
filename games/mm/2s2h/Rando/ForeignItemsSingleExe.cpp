@@ -406,4 +406,43 @@ extern "C" const char* MM_ForeignItem_TestArrivalIcon(uint16_t riId) {
     return BuildArrivalToast((RandoItemId)riId).itemIcon;
 }
 
+// ============================================================================
+// #878 ROM-free lock (src/common/tests/test_crossing_toasts.c, CTest
+// CrossingArrivalToasts): the arrival's first-frame drain, run for real.
+//
+// Every redemption defers its give to the first gameplay frame
+// (MM_ForeignItem_FlushPending, above), and a display-free process never has
+// one, so foreign-award-mm stops at the queue and whatever the drain presents
+// on that frame is invisible to the ROM-free tier. This runs the REAL drain
+// once over a zeroed stand-in PlayState, for a queue holding only the one id
+// whose give is known not to read `play`: RI_GREAT_SPIN_ATTACK, which
+// Rando::GiveItem answers by setting a single week-event bit
+// (Rando/GiveItem.cpp). The week events and MM_gPlayState are put back.
+// ============================================================================
+
+/** The one id MM_ForeignItem_TestFlushWithStandInPlay will drain. */
+extern "C" uint16_t MM_ForeignItem_TestStandInItemId(void) {
+    return (uint16_t)RI_GREAT_SPIN_ATTACK;
+}
+
+/** The drain over a stand-in PlayState: its count, or -1 (nothing drained) when
+ *  the queue holds any other id. */
+extern "C" int MM_ForeignItem_TestFlushWithStandInPlay(void) {
+    for (int i = 0; i < sPendingCount; i++) {
+        if (sPendingGives[i] != (uint16_t)RI_GREAT_SPIN_ATTACK) {
+            return -1;
+        }
+    }
+    static PlayState sStandIn;
+    memset(&sStandIn, 0, sizeof(sStandIn));
+    u8 weekEvents[sizeof(gSaveContext.save.saveInfo.weekEventReg)];
+    memcpy(weekEvents, gSaveContext.save.saveInfo.weekEventReg, sizeof(weekEvents));
+    PlayState* const previous = MM_gPlayState;
+    MM_gPlayState = &sStandIn;
+    const int given = MM_ForeignItem_FlushPending();
+    MM_gPlayState = previous;
+    memcpy(gSaveContext.save.saveInfo.weekEventReg, weekEvents, sizeof(weekEvents));
+    return given;
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE
