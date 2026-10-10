@@ -86,6 +86,16 @@
  *     major for any MM item, as MM's chests present any OoT item (EnBox.cpp), and
  *     the chest's own for a check with no MM item. The actor's texture swap
  *     itself loads resources: the playtest shows it.
+ *  M15 A CROSSING CHEST IS GRADED BY THE CROSSED ITEM'S TYPE (#862, OoTMM's
+ *     csmcFromItem): every crossing-eligible id of each game, placed on a chest
+ *     of the other game, dresses that chest as the item's OWN game dresses a
+ *     chest holding it natively (OoT's Item::GetCategory, MM's randoItemType):
+ *     a small key shows the host's key chest, a token its token chest, a heart
+ *     its heart chest. Where the host has no chest for the class (OoT has no
+ *     fairy or mask chest) it shows major, the pre-#862 answer. The answer comes
+ *     from the hosts' real chest functions (OoT_Rando_Foreign_ChestCategory,
+ *     Rando::Foreign::ChestItemTypeForCheck); the expectation from each game's
+ *     own table, read directly.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -103,6 +113,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <map>
 #include <set>
 #include <string>
 
@@ -143,6 +154,13 @@ int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* want);
 int OoT_ForeignModel_TestShowOnlyGetItem(uint16_t rc, int wantEntry, const ComboModel* want, const char* wantName);
 // #577 M5: OoT's chest appearance for a crossing host (ForeignItemsSingleExe.cpp).
 int OoT_Rando_Foreign_TestChestShowsMajor(uint16_t rc);
+// #862: both hosts' chest grade for a crossing (ForeignItemsSingleExe.cpp; MM's Foreign.cpp).
+int OoT_Rando_Foreign_TestChestCategory(uint16_t rc);
+int OoT_Rando_Foreign_TestOwnChestCategory(uint16_t rg);
+const char* OoT_Rando_Foreign_TestChestCategoryName(int category);
+int MM_Rando_Foreign_TestChestType(uint16_t randoCheckId);
+int MM_Rando_Foreign_TestOwnChestType(uint16_t randoItemId);
+const char* MM_Rando_Foreign_TestChestTypeName(int type);
 }
 
 #define FM_ASSERT(cond, msg)                                                \
@@ -1408,6 +1426,111 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(hookshotShows == 1 && odolwaShows == 1,
                   "M14 a chest hosting an MM item presents as a major chest, never as its junk cover (the MM side's "
                   "rule for an OoT item, EnBox.cpp; see the M14 line above)");
+    }
+
+    // ---- M15 (#862) -----------------------------------------------------------
+    // Every crossing-eligible id of each game (progression under the most
+    // permissive frozen arming), placed alone on a chest of the other game: the
+    // host's chest presents the class the item's OWN game gives it.
+    {
+        ComboForeignPlacement savedMM[RSBS_FOREIGN_PLACEMENT_CAP];
+        ComboForeignPlacement savedOoT[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(savedMM, gComboCtx.foreignPlacements, sizeof(savedMM));
+        std::memcpy(savedOoT, gComboCtx.foreignPlacementsOoT, sizeof(savedOoT));
+        const uint16_t chest = 0x0125; // opaque to both tables; the answer keys on the placement alone
+        const uint32_t armed = ~(uint32_t)RSBS_FILL_ARM_WORLD_EVENT;
+
+        struct Leg {
+            uint8_t origin;
+            const char* name;
+            int (*own)(uint16_t);
+            const char* (*ownName)(int);
+            int (*shown)(uint16_t);
+            const char* (*shownName)(int);
+        };
+        const Leg legs[2] = {
+            { (uint8_t)GAME_OOT, "OoT item in an MM chest", OoT_Rando_Foreign_TestOwnChestCategory,
+              OoT_Rando_Foreign_TestChestCategoryName, MM_Rando_Foreign_TestChestType,
+              MM_Rando_Foreign_TestChestTypeName },
+            { (uint8_t)GAME_MM, "MM item in an OoT chest", MM_Rando_Foreign_TestOwnChestType,
+              MM_Rando_Foreign_TestChestTypeName, OoT_Rando_Foreign_TestChestCategory,
+              OoT_Rando_Foreign_TestChestCategoryName },
+        };
+        int failures = 0;
+        int placeFailures = 0;
+        int smallKeys[2] = {};
+        int smallKeysMajor[2] = {};
+        std::set<std::string> shownClasses[2];
+        for (int l = 0; l < 2; l++) {
+            const Leg& leg = legs[l];
+            const ComboItemClassSource* src = Combo_GetItemClassSource(leg.origin);
+            FM_ASSERT(src != nullptr && Combo_ItemClassBuild(leg.origin) > 0, "M15 the item class table builds");
+            int eligible = 0;
+            std::map<std::string, int> tally;
+            for (uint32_t id = 1; id < src->idSpace; id++) {
+                const SharedItem item = FmItem(leg.origin, (uint16_t)id);
+                if (!Combo_ItemClassMayCrossUnder(item, armed)) {
+                    continue;
+                }
+                eligible++;
+                const char* own = leg.ownName(leg.own((uint16_t)id));
+                // A host with no chest for the class shows major (OoT has no fairy
+                // or mask chest).
+                const bool hostHasClass = !(leg.origin == (uint8_t)GAME_MM &&
+                                            (std::strcmp(own, "fairy") == 0 || std::strcmp(own, "mask") == 0));
+                const char* want = hostHasClass ? own : "major";
+                int placed;
+                if (leg.origin == (uint8_t)GAME_OOT) {
+                    Combo_ClearForeignPlacements();
+                    placed = Combo_SetForeignPlacement(chest, item);
+                } else {
+                    Combo_ClearForeignPlacementsOoT();
+                    placed = Combo_SetForeignPlacementOoT(chest, item);
+                }
+                if (placed < 0) {
+                    placeFailures++;
+                    continue;
+                }
+                const char* shown = leg.shownName(leg.shown(chest));
+                tally[shown]++;
+                shownClasses[l].insert(shown);
+                if (std::strcmp(own, "small key") == 0) {
+                    smallKeys[l]++;
+                    if (std::strcmp(shown, "major") == 0) {
+                        smallKeysMajor[l]++;
+                    }
+                }
+                if (std::strcmp(shown, want) != 0) {
+                    if (failures < 12) {
+                        const char* nm = Combo_GetForeignItemName(item);
+                        printf("[TEST]   M15 %s: id %u \"%s\" is \"%s\" in its own game, its host chest shows "
+                               "\"%s\" (want \"%s\")\n",
+                               leg.name, (unsigned)id, nm ? nm : "?", own, shown, want);
+                    }
+                    failures++;
+                }
+            }
+            std::string line;
+            for (const auto& kv : tally) {
+                line += " " + kv.first + "=" + std::to_string(kv.second);
+            }
+            printf("[TEST]   M15 %s: %d crossing-eligible ids, host chest shows:%s; small keys %d (%d shown as "
+                   "major); %d mismatches so far\n",
+                   leg.name, eligible, line.c_str(), smallKeys[l], smallKeysMajor[l], failures);
+        }
+        Combo_ClearForeignPlacements();
+        Combo_ClearForeignPlacementsOoT();
+        std::memcpy(gComboCtx.foreignPlacements, savedMM, sizeof(savedMM));
+        std::memcpy(gComboCtx.foreignPlacementsOoT, savedOoT, sizeof(savedOoT));
+        FM_ASSERT(placeFailures == 0, "M15 every crossing-eligible id places on a chest of the other game");
+        FM_ASSERT(smallKeys[0] > 0 && smallKeys[1] > 0, "M15 both games have crossing-eligible small keys");
+        FM_ASSERT(smallKeysMajor[0] == 0 && smallKeysMajor[1] == 0,
+                  "M15 a crossing small key never presents as a major chest (see the M15 lines above)");
+        FM_ASSERT(failures == 0, "M15 a crossing chest presents the crossed item's own class, as OoTMM grades it "
+                                 "(see the M15 lines above)");
+        FM_ASSERT(shownClasses[0].count("token") == 1 && shownClasses[0].count("boss key") == 1 &&
+                      shownClasses[1].count("token") == 1 && shownClasses[1].count("boss key") == 1,
+                  "M15 the key and token classes are populated in both directions");
     }
 
     printf("[TEST] ForeignModel: PASS\n");

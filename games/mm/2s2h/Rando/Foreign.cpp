@@ -610,6 +610,14 @@ const char* ForeignNameForCheck(RandoCheckId randoCheckId) {
     return Combo_GetForeignItemName(*item);
 }
 
+RandoItemType ChestItemTypeForCheck(RandoCheckId randoCheckId, RandoItemType native) {
+    // RITYPE_MAJOR rather than a bespoke texture set: the ornate corner/lock
+    // already means "worth opening", which a cross-game progression item is, and
+    // inventing a foreign-specific chest texture is the per-item asset tier #494
+    // puts out of scope.
+    return PlacementFor(randoCheckId) != nullptr ? RITYPE_MAJOR : native;
+}
+
 static const SharedItem* PinnedPlacementFor(RandoCheckId randoCheckId) {
     if (randoCheckId == RC_UNKNOWN) {
         return nullptr;
@@ -1654,6 +1662,48 @@ extern "C" void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* 
     }
     if (outUnknown != nullptr) {
         *outUnknown = (uint16_t)RI_UNKNOWN;
+    }
+}
+
+/** TEST BRIDGE (ForeignModel row M15, #862): the RandoItemType MM chest
+ *  @p randoCheckId is dressed by when the save table holds the junk cover there
+ *  (what EnBox_RandoPostLimbDraw asks). */
+extern "C" int MM_Rando_Foreign_TestChestType(uint16_t randoCheckId) {
+    return (int)Rando::Foreign::ChestItemTypeForCheck((RandoCheckId)randoCheckId, RITYPE_JUNK);
+}
+
+/** TEST BRIDGE (M15): MM's OWN chest type for MM item @p randoItemId, read
+ *  straight off Rando::StaticData::Items (the type MM's chest is dressed by when
+ *  it holds that item natively). -1 when the id has no Items row. */
+extern "C" int MM_Rando_Foreign_TestOwnChestType(uint16_t randoItemId) {
+    const auto it = Rando::StaticData::Items.find((RandoItemId)randoItemId);
+    return it == Rando::StaticData::Items.end() ? -1 : (int)it->second.randoItemType;
+}
+
+/** TEST BRIDGE (M15): a RandoItemType's name in the vocabulary both games' chest
+ *  bridges share ("major", "small key", ...), "?" past the enum. */
+extern "C" const char* MM_Rando_Foreign_TestChestTypeName(int type) {
+    switch (type) {
+        case RITYPE_BOSS_KEY:
+            return "boss key";
+        case RITYPE_HEALTH:
+            return "health";
+        case RITYPE_JUNK:
+            return "junk";
+        case RITYPE_LESSER:
+            return "lesser";
+        case RITYPE_MAJOR:
+            return "major";
+        case RITYPE_MASK:
+            return "mask";
+        case RITYPE_SKULLTULA_TOKEN:
+            return "token";
+        case RITYPE_SMALL_KEY:
+            return "small key";
+        case RITYPE_STRAY_FAIRY:
+            return "fairy";
+        default:
+            return "?";
     }
 }
 

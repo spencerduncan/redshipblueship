@@ -251,6 +251,46 @@ extern "C" int OoT_Rando_Foreign_TestChestShowsMajor(uint16_t rc) {
     return shown == (int)ITEM_CATEGORY_MAJOR ? 1 : shown == (int)ITEM_CATEGORY_JUNK ? 0 : -1;
 }
 
+/** TEST BRIDGE (ForeignModel row M15, #862): the category OoT chest `rc` is
+ *  dressed by when the OoT table holds the junk cover there (what z_en_box.c's
+ *  init asks), as an ITEM_CATEGORY_* value. */
+extern "C" int OoT_Rando_Foreign_TestChestCategory(uint16_t rc) {
+    return OoT_Rando_Foreign_ChestCategory(rc, (int)ITEM_CATEGORY_JUNK);
+}
+
+/** TEST BRIDGE (M15): OoT's OWN chest category for OoT item `rg`, read straight
+ *  off the item table (Item::GetCategory, the category an OoT chest holding that
+ *  item natively is dressed by). -1 past RG_MAX. */
+extern "C" int OoT_Rando_Foreign_TestOwnChestCategory(uint16_t rg) {
+    if (rg >= (uint16_t)RG_MAX) {
+        return -1;
+    }
+    return (int)Rando::StaticData::RetrieveItem((RandomizerGet)rg).GetCategory();
+}
+
+/** TEST BRIDGE (M15): an ITEM_CATEGORY_* value's name in the vocabulary both
+ *  games' chest bridges share ("major", "small key", ...), "?" past the enum. */
+extern "C" const char* OoT_Rando_Foreign_TestChestCategoryName(int category) {
+    switch (category) {
+        case ITEM_CATEGORY_JUNK:
+            return "junk";
+        case ITEM_CATEGORY_LESSER:
+            return "lesser";
+        case ITEM_CATEGORY_HEALTH:
+            return "health";
+        case ITEM_CATEGORY_BOSS_KEY:
+            return "boss key";
+        case ITEM_CATEGORY_SMALL_KEY:
+            return "small key";
+        case ITEM_CATEGORY_SKULLTULA_TOKEN:
+            return "token";
+        case ITEM_CATEGORY_MAJOR:
+            return "major";
+        default:
+            return "?";
+    }
+}
+
 /**
  * #800 S1, the shop shelf's sold-out and can-buy tests (z_en_girla.c), and since
  * #800 pass 2 the Business Scrub's (hook_handlers.cpp: its can-buy test and its
