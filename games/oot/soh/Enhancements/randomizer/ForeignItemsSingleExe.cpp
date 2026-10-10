@@ -229,18 +229,39 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
  * category of the item the OoT table holds there (`coverCategory`).
  *
  * A crossing host holds OoT's junk cover (RG_BLUE_RUPEE, ComboLogicEngineOoT.cpp)
- * and would be dressed as junk whatever MM item it hides. It presents as a major
- * chest instead, MM's rule for an OoT item in an MM chest (EnBox.cpp: a foreign
- * chest is an ornate chest, like any chest holding something worth opening).
- * ADR 0002 keeps MM's item table out of this TU: the one game-neutral grade OoT
- * can read for an MM item is its fill class (Combo_ItemClassOf), and every
- * crossing item is PROGRESSION (Combo_ItemClassMayCrossUnder), so major is the
- * finest answer the boundary carries. OoTMM grades finer, by the item's type
- * (keys, tokens, fairies ...); doing that in both games is #862. Every other
- * chest keeps its own item's category.
+ * and would be dressed as junk whatever MM item it hides. It is dressed by the MM
+ * item's class instead, as OoTMM grades a chest (#862): the chest grade MM
+ * publishes for its own item (MM's randoItemType, through the item class owner,
+ * shared_items.h "THE CHEST GRADE"; ADR 0002 keeps MM's item table out of this
+ * TU), mapped onto OoT's own categories, so an MM small key shows OoT's key chest
+ * and an MM heart piece OoT's heart chest. OoT has no fairy or mask chest: a stray
+ * fairy, a mask, or an item with no grade presents as major, the answer every
+ * crossing chest gave before #862. Every other chest keeps its own item's category.
  */
 extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
-    return OoT_Rando_Foreign_HostsForeign(rc) != 0 ? (int)ITEM_CATEGORY_MAJOR : coverCategory;
+    const SharedItem* item = rc != 0 ? Combo_GetForeignPlacementForOoTCheck(rc) : nullptr;
+    if (item == nullptr) {
+        return coverCategory;
+    }
+    switch (Combo_ItemChestGrade(*item)) {
+        case RSBS_CHEST_GRADE_LESSER:
+            return (int)ITEM_CATEGORY_LESSER;
+        case RSBS_CHEST_GRADE_JUNK:
+            return (int)ITEM_CATEGORY_JUNK;
+        case RSBS_CHEST_GRADE_HEALTH:
+            return (int)ITEM_CATEGORY_HEALTH;
+        case RSBS_CHEST_GRADE_BOSS_KEY:
+            return (int)ITEM_CATEGORY_BOSS_KEY;
+        case RSBS_CHEST_GRADE_SMALL_KEY:
+            return (int)ITEM_CATEGORY_SMALL_KEY;
+        case RSBS_CHEST_GRADE_TOKEN:
+            return (int)ITEM_CATEGORY_SKULLTULA_TOKEN;
+        case RSBS_CHEST_GRADE_MAJOR:
+        case RSBS_CHEST_GRADE_FAIRY:
+        case RSBS_CHEST_GRADE_MASK:
+        default:
+            return (int)ITEM_CATEGORY_MAJOR;
+    }
 }
 
 /** TEST BRIDGE (ForeignModel row M14): what OoT chest `rc` presents when the OoT

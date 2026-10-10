@@ -83,8 +83,8 @@
  *     Contents" on, an OoT chest takes its look from the item the OoT table holds
  *     there, which for a crossing host is the junk cover. The category the chest
  *     presents (OoT_Rando_Foreign_ChestCategory, what z_en_box.c's init asks) is
- *     major for any MM item, as MM's chests present any OoT item (EnBox.cpp), and
- *     the chest's own for a check with no MM item. The actor's texture swap
+ *     major for MM's Hookshot and Odolwa's Remains (MM grades both major; M15
+ *     covers every other class), and the chest's own for a check with no MM item. The actor's texture swap
  *     itself loads resources: the playtest shows it.
  *  M15 A CROSSING CHEST IS GRADED BY THE CROSSED ITEM'S TYPE (#862, OoTMM's
  *     csmcFromItem): every crossing-eligible id of each game, placed on a chest
@@ -1458,6 +1458,7 @@ TestResult Test_ForeignModel(void) {
         };
         int failures = 0;
         int placeFailures = 0;
+        int gradeFailures = 0;
         int smallKeys[2] = {};
         int smallKeysMajor[2] = {};
         std::set<std::string> shownClasses[2];
@@ -1491,6 +1492,16 @@ TestResult Test_ForeignModel(void) {
                     placeFailures++;
                     continue;
                 }
+                // The grade the item's own game publishes through the owner
+                // (shared_items.h, THE CHEST GRADE) names the same class.
+                const char* graded = Combo_ChestGradeName(Combo_ItemChestGrade(item));
+                if (std::strcmp(graded, own) != 0) {
+                    if (gradeFailures < 6) {
+                        printf("[TEST]   M15 %s: id %u is \"%s\" in its own game, its published grade is \"%s\"\n",
+                               leg.name, (unsigned)id, own, graded);
+                    }
+                    gradeFailures++;
+                }
                 const char* shown = leg.shownName(leg.shown(chest));
                 tally[shown]++;
                 shownClasses[l].insert(shown);
@@ -1523,6 +1534,8 @@ TestResult Test_ForeignModel(void) {
         std::memcpy(gComboCtx.foreignPlacements, savedMM, sizeof(savedMM));
         std::memcpy(gComboCtx.foreignPlacementsOoT, savedOoT, sizeof(savedOoT));
         FM_ASSERT(placeFailures == 0, "M15 every crossing-eligible id places on a chest of the other game");
+        FM_ASSERT(gradeFailures == 0, "M15 each game publishes its own chest class as the item's grade (see the M15 "
+                                      "lines above)");
         FM_ASSERT(smallKeys[0] > 0 && smallKeys[1] > 0, "M15 both games have crossing-eligible small keys");
         FM_ASSERT(smallKeysMajor[0] == 0 && smallKeysMajor[1] == 0,
                   "M15 a crossing small key never presents as a major chest (see the M15 lines above)");

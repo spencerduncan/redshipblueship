@@ -611,11 +611,37 @@ const char* ForeignNameForCheck(RandoCheckId randoCheckId) {
 }
 
 RandoItemType ChestItemTypeForCheck(RandoCheckId randoCheckId, RandoItemType native) {
-    // RITYPE_MAJOR rather than a bespoke texture set: the ornate corner/lock
-    // already means "worth opening", which a cross-game progression item is, and
-    // inventing a foreign-specific chest texture is the per-item asset tier #494
-    // puts out of scope.
-    return PlacementFor(randoCheckId) != nullptr ? RITYPE_MAJOR : native;
+    const SharedItem* item = PlacementFor(randoCheckId);
+    if (item == nullptr) {
+        return native;
+    }
+    // Dressed by the OoT item's class, as OoTMM grades a chest (#862): the chest
+    // grade OoT publishes for its own item (Item::GetCategory, through the item
+    // class owner, shared_items.h "THE CHEST GRADE"), mapped onto MM's own chest
+    // set, so an OoT small key shows MM's key chest and a Gold Skulltula Token its
+    // token chest. An item with no grade presents as major, the answer every
+    // crossing chest gave before #862. No new texture set: these are MM's own.
+    switch (Combo_ItemChestGrade(*item)) {
+        case RSBS_CHEST_GRADE_LESSER:
+            return RITYPE_LESSER;
+        case RSBS_CHEST_GRADE_JUNK:
+            return RITYPE_JUNK;
+        case RSBS_CHEST_GRADE_HEALTH:
+            return RITYPE_HEALTH;
+        case RSBS_CHEST_GRADE_BOSS_KEY:
+            return RITYPE_BOSS_KEY;
+        case RSBS_CHEST_GRADE_SMALL_KEY:
+            return RITYPE_SMALL_KEY;
+        case RSBS_CHEST_GRADE_TOKEN:
+            return RITYPE_SKULLTULA_TOKEN;
+        case RSBS_CHEST_GRADE_FAIRY:
+            return RITYPE_STRAY_FAIRY;
+        case RSBS_CHEST_GRADE_MASK:
+            return RITYPE_MASK;
+        case RSBS_CHEST_GRADE_MAJOR:
+        default:
+            return RITYPE_MAJOR;
+    }
 }
 
 static const SharedItem* PinnedPlacementFor(RandoCheckId randoCheckId) {
