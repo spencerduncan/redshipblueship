@@ -1472,7 +1472,12 @@ TestResult Test_RandoEntrancePin(void) {
 // both directions' crossing counts; the OoT-shop half is #800's OoT-side change.
 // #800 pass 2 turns MM's "Shuffle Tingle Maps" on too and requires a crossing in
 // one of Tingle's map slots as well.
+// #863: each shop or Tingle host is also read back through MM's real spoiler
+// writer, which must list it with the slot's price, as it lists a native item.
 extern "C" int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, int* outIsTingleShop);
+// #863: the same crossings, read back through MM's real spoiler writer.
+extern "C" int MM_Rando_Foreign_TestSpoilerEntry(uint16_t randoCheckId, int* outHasPrice, int* outSpoilerPrice,
+                                                 int* outSlotPrice, int* outNamesForeign);
 
 TestResult Test_RandoShopCrossingsMM(void) {
     printf("[TEST] rando-shop-crossings-mm: a paired creation with both shop shuffles on crosses an OoT item into an "
@@ -1512,6 +1517,7 @@ TestResult Test_RandoShopCrossingsMM(void) {
     const int mmHosted = Combo_Crossings_Count(GAME_MM);
     int mmShopHosted = 0;
     int mmTingleHosted = 0;
+    int spoilerFailures = 0;
     for (int i = 0; i < mmHosted; i++) {
         ComboCrossing row;
         int isShop = 0;
@@ -1526,6 +1532,29 @@ TestResult Test_RandoShopCrossingsMM(void) {
                 printf("[TEST]   MM Tingle map slot %u hosts OoT item %u\n", (unsigned)row.hostCheck,
                        (unsigned)row.item.id);
             }
+            // #863: the MM spoiler lists a shop or Tingle host with the slot's
+            // price, as it does a native item on the same shelf, and still
+            // names the OoT item it hosts.
+            if (isShop || isTingle) {
+                int hasPrice = 0;
+                int spoilerPrice = -1;
+                int slotPrice = -1;
+                int namesForeign = 0;
+                if (!MM_Rando_Foreign_TestSpoilerEntry(row.hostCheck, &hasPrice, &spoilerPrice, &slotPrice,
+                                                       &namesForeign)) {
+                    printf("[TEST] FAIL: the MM spoiler does not list host check %u\n", (unsigned)row.hostCheck);
+                    spoilerFailures++;
+                } else if (!hasPrice || spoilerPrice != slotPrice || !namesForeign) {
+                    printf("[TEST] FAIL: the MM spoiler entry for host check %u: price %s (spoiler %d, slot %d), "
+                           "names the OoT item: %s\n",
+                           (unsigned)row.hostCheck, hasPrice ? "present" : "MISSING", spoilerPrice, slotPrice,
+                           namesForeign ? "yes" : "NO");
+                    spoilerFailures++;
+                } else {
+                    printf("[TEST]     spoiler lists host check %u with price %d (slot price %d)\n",
+                           (unsigned)row.hostCheck, spoilerPrice, slotPrice);
+                }
+            }
         }
     }
     printf("[TEST] rando-shop-crossings-mm: seed %s: %d crossings hosted in OoT, %d in MM, %d of them in MM shop "
@@ -1539,7 +1568,13 @@ TestResult Test_RandoShopCrossingsMM(void) {
         printf("[TEST] FAIL: no OoT item crossed into a Tingle map slot\n");
         return TEST_FAIL;
     }
-    printf("[TEST] PASS: an OoT item crossed into an MM shop slot and into a Tingle map slot\n");
+    if (spoilerFailures > 0) {
+        printf("[TEST] FAIL: %d shop/Tingle host(s) listed in the MM spoiler without the slot's price (#863)\n",
+               spoilerFailures);
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: an OoT item crossed into an MM shop slot and into a Tingle map slot, and the MM spoiler "
+           "lists each with its price\n");
     return TEST_PASS;
 }
 
