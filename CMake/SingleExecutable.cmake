@@ -582,16 +582,15 @@ if(BUILD_TESTING)
     # and the canonical heart quantity with its 20-heart clamp. Display-free,
     # ROM-free and save-free, so it runs in this redship tier.
     redship_add_test(NAME SharedResources COMMAND redship --test shared-resources)
-    # The shared OCARINA (#668): one instrument across both games, and the FIRST
-    # shared kind whose existence a player chooses — armed by the
-    # gCombo.Rando.SharedOcarina bit frozen into ComboSettingsRecord.comboFlags
-    # at file creation. Locks the two claims the row above cannot make: with the
-    # option OFF nothing is harvested, applied or even slotted (so an existing
-    # world's .redsave is byte-identical to one written before the option
-    # existed), and the arming gate is consulted by BOTH the harvest and the
-    # apply, because a one-sided gate on a pair that is not inverse leaks rather
-    # than under-shares. Display-free, ROM-free and save-free.
-    redship_add_test(NAME SharedOcarina COMMAND redship --test shared-ocarina)
+    # The RETIRED shared ocarina (#879; #668's SharedOcarina row stood here). MM
+    # starts every paired world with its Ocarina of Time, so the rule only ever
+    # carried that free instrument to Hyrule; the operator removed it
+    # (2026-10-09). Locks that the ocarina kind is never armed whatever the
+    # frozen RSBS_COMBO_FLAG_SHARED_OCARINA bit says, that a world created with
+    # the bit set loads without refusal (the bit stays reserved and pinned by
+    # the fingerprint), and that it harvests and applies nothing, an older
+    # save's slot included. Display-free, ROM-free and save-free.
+    redship_add_test(NAME SharedOcarinaRetired COMMAND redship --test shared-ocarina-retired)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an

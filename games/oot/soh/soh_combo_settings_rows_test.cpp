@@ -502,6 +502,34 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                classRows);
     }
 
+    // ---- Leg 1e: the "Shared Ocarina" row is retired (#879) -----------------
+    // MM starts every paired world holding its Ocarina of Time, so the rule's
+    // only effect was to carry that free instrument back to Hyrule. Operator
+    // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
+    // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
+    // fix removes; the page then has no checkbox at all, because that row was
+    // its only one.
+    {
+        int ocarinaRows = 0;
+        int checkboxes = 0;
+        for (PageRow& pageRow : rows) {
+            const std::string& name = pageRow.first->name;
+            const bool retired = name.find("Shared Ocarina") != std::string::npos;
+            ROWS_CHECK(!retired,
+                       "the Cross-Game Rules page still offers the retired row '%s' (#879): MM already starts with "
+                       "its ocarina, so the rule only hands OoT a free one",
+                       name.c_str());
+            ocarinaRows += retired ? 1 : 0;
+            checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
+        }
+        ROWS_CHECK(checkboxes == 0,
+                   "the Cross-Game Rules page has %d checkbox row(s); the only one left after #834 was the retired "
+                   "Shared Ocarina (#879)",
+                   checkboxes);
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected none (#879)\n",
+               ocarinaRows, checkboxes);
+    }
+
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
     // The enforcement rule (ADR 0004 §6): the gate is on the src/common writers,
     // so no widget in this section may bind one of the three keys directly -- a

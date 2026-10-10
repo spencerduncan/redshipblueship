@@ -563,14 +563,10 @@ extern "C" {
 // via shared_resources.h.
 #include "tests/test_shared_resources.c"
 
-// The SHARED OCARINA tier (#668): the first RSBS_SHARED_RES_* kind whose
-// existence is a per-world choice, armed by ComboSettingsRecord.comboFlags. Its
-// own row rather than a leg of the file above, because the two claims it owns
-// are meaningless for the other eighteen kinds — that with the option OFF
-// nothing is harvested, applied or even slotted, and that the arming gate is
-// consulted by BOTH halves so it cannot be applied one-sidedly. FILE SCOPE for
-// the same reason as its neighbour.
-#include "tests/test_shared_ocarina.c"
+// The RETIRED Shared Ocarina rule (#879; it replaced #668's row): the ocarina
+// kind is never armed, and a world whose frozen record carries the bit loads
+// healthy and shares nothing. FILE SCOPE for the same reason as its neighbour.
+#include "tests/test_shared_ocarina_retired.c"
 
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
@@ -5248,13 +5244,12 @@ const TestDescriptor gTests[] = {
     // everything under test is gComboCtx plus a RAM watermark table.
     {"shared-resources", "One quantity across both games: watermark, disciplines, seed, heart clamp (#525)",
      Test_SharedResources},
-    // #668: the ocarina as ONE instrument, and the first shared kind a player
-    // can decline. Same display-free, ROM-free, save-free shape as the row
-    // above — gComboCtx, the RAM watermark table, and the frozen record.
-    {"shared-ocarina",
-     "One ocarina across both games when the frozen combo setting arms it, and nothing at all when it does not "
-     "(#668)",
-     Test_SharedOcarina},
+    // #879: the Shared Ocarina rule (#668) is retired. Same display-free,
+    // ROM-free, save-free shape as the row above — gComboCtx, the RAM watermark
+    // table, and the frozen record.
+    {"shared-ocarina-retired",
+     "The retired Shared Ocarina rule: the ocarina is never shared, and an older world's bit loads healthy (#879)",
+     Test_SharedOcarinaRetired},
     {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",

@@ -1619,6 +1619,82 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
                "with its own masks still compares healthy\n");
     }
 
+    // ---- (10) The "Shared Ocarina" rule is retired (#879) -------------------
+    // Legs 8 and 9's shape, over the one comboFlags bit. MM starts every paired
+    // world holding its Ocarina of Time, so the rule's only effect was to carry
+    // that free instrument to Hyrule. Operator ruling 2026-10-09: the row, its
+    // key and its effect go; RSBS_COMBO_FLAG_SHARED_OCARINA stays RESERVED in
+    // the record (older worlds carry it) and in the fingerprint. Spelled
+    // strings rather than the removed id, and the key assembled from the
+    // identity prefix, for leg 8's two reasons.
+    {
+        const std::string retiredKey = std::string(RSBS::kComboIdentityKeyPrefix) + "SharedOcarina";
+        int retiredFailures = 0;
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            const ComboSettingId id = (ComboSettingId)i;
+            if (strcmp(Combo_ComboSettingKey(id), retiredKey.c_str()) == 0 ||
+                strcmp(Combo_ComboSettingLabel(id), "Shared Ocarina") == 0) {
+                printf("[TEST] FAIL: setting %d is still the retired '%s' ('Shared Ocarina') -- #879 retires it: MM "
+                       "already starts with its ocarina, so the rule only hands OoT a free one\n",
+                       i, retiredKey.c_str());
+                retiredFailures++;
+            }
+        }
+
+        // A config file written before #879 still holds the key. It authors
+        // nothing now: a NEW world gets a clear comboFlags byte and the shipped
+        // fingerprint whatever it says.
+        ComboContext_Init();
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            CS_ASSERT(Combo_ComboSettingClear((ComboSettingId)i) == 1, "clear every live key first");
+        }
+        CVarSetInteger(retiredKey.c_str(), 1);
+        ComboSettingsRecord stale;
+        Combo_ResolveComboSettings(&stale);
+        if (!ComboSettingsRecordsEqual(stale, defaults) ||
+            Combo_ComputeComboSettingsHash(&stale, kSettingsHash, kProfileDigest) != kDefaultsFingerprint) {
+            printf("[TEST] FAIL: a stale gCombo.Rando.SharedOcarina key still reached the record (comboFlags %02X, "
+                   "shipped %02X) -- the retired rule keeps changing new worlds (#879)\n",
+                   (unsigned)stale.comboFlags, (unsigned)defaults.comboFlags);
+            retiredFailures++;
+        }
+
+        // A world created BEFORE #879 with the rule on keeps its bit and its
+        // identity, and still loads: no key authors the bit any more, so the
+        // session has no value that could diverge from the file's. The stale
+        // key stays in the store for this compare, the case a player who had
+        // ticked the box before updating actually brings.
+        ComboSettingsRecord older = defaults;
+        older.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
+        ComboSettingsArmPairing(0xA07A0879u, kSettingsHash, kProfileDigest);
+        const uint32_t olderHash = Combo_FreezeComboSettings(&older);
+        CS_ASSERT(olderHash == Combo_ComputeComboSettingsHash(&older, kSettingsHash, kProfileDigest) &&
+                      olderHash != kDefaultsFingerprint,
+                  "the older world's comboFlags bit must stay in its identity");
+        uint32_t olderBits = Combo_ComboSettingsDivergence();
+        CVarClear(retiredKey.c_str());
+        olderBits |= Combo_ComboSettingsDivergence();
+        if (olderBits != 0) {
+            char named[192];
+            Combo_ComboSettingsDivergenceDescribe(olderBits, named, sizeof(named));
+            printf("[TEST] FAIL: a world created with Shared Ocarina on before #879 diverges (%s) from a session that "
+                   "can no longer author it -- it would be refused at load\n",
+                   named);
+            retiredFailures++;
+        }
+        CS_ASSERT(retiredFailures == 0, "#879: see the FAIL line(s) above");
+        CS_ASSERT(gComboCtx.comboSettings.comboFlags == (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA,
+                  "the older world's record must keep its own comboFlags byte verbatim");
+        // The fingerprint still pins the bit: one cleared after the stamp is
+        // damage, exactly as before.
+        gComboCtx.comboSettings.comboFlags = 0u;
+        CS_ASSERT((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_FINGERPRINT) != 0,
+                  "a comboFlags bit changed after the stamp must still read as damage to the stored identity");
+        ComboContext_Init();
+        printf("[TEST] (10) #879: no setting is the shared ocarina, a stale key authors nothing, and an older world "
+               "with the bit set still compares healthy\n");
+    }
+
     // ---- Cleanup: leave the process-global store and context clean ---------
     for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
         const ComboSettingId id = (ComboSettingId)i;
