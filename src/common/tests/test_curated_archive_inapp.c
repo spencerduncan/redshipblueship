@@ -39,7 +39,8 @@
  *      installed as the default spdlog logger, and the logger must receive the
  *      console's line word for word, at info (error when Failed, plus the
  *      stand-in line): that logger's file sink is logs/*.log, the file a
- *      player attaches to a report (#883).
+ *      player attaches to a report (#883). A refusal account longer than
+ *      1 KiB must arrive whole.
  *   D. Staged: the real extracted archives and the shipped manifest through
  *      both generators, compared like A -- the issue's "byte-equivalent to
  *      GenerateRedshipOtr" lock. Also checks the embedded manifest is the
@@ -753,6 +754,20 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
             fprintf(stderr, "[curated-archive-inapp] FAIL: C: a CRLF manifest stamps differently from its LF form\n");
             failures++;
         }
+
+        // 8. A refusal with many findings runs past 1 KiB, and the logger
+        // still receives it whole: a refusal is the result a player's log
+        // needs most, and a fixed-size format buffer would cut its findings.
+        log = "redship-oot.o2r stale (stamp 'curated-v1:0123456789abcdef'); redship-mm.o2r stale (stamp "
+              "'curated-v1:fedcba9876543210'); refused: 24 findings";
+        for (int i = 0; i < 24; i++) {
+            char finding[160];
+            snprintf(finding, sizeof(finding),
+                     "\n    COLLISION: objects/object_gi_finding_%02d/gGiFindingDL is also a path in the host archive", i);
+            log += finding;
+        }
+        printf("[curated-archive-inapp] C: the long refusal's account is %zu bytes\n", log.size());
+        expect("refusal longer than 1 KiB", cur::EnsureOutcome::Failed, cur::EnsureOutcome::Failed);
     }
 
     // ---- D. Staged: the real archives through both generators ---------------------
