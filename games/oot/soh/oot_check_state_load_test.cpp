@@ -24,6 +24,13 @@
  *   No production load is known to produce this state (a .sav-newer pair is
  *   refused, and the half is only applied when it is newer); the leg locks
  *   the rule's other direction.
+ *   Leg C (#861, a vanilla paired file): the same reload on a file that is not
+ *   a randomizer file. Its Check Tracker reads the same statuses, marks them
+ *   through its own flag maps (CheckTrackerFlagSet, CheckTrackerSceneFlagSet)
+ *   and saves and reloads them through the same tracker section, so a heart
+ *   piece and the horseback-archery prize collected before the crossing read
+ *   SCUMMED, and a chest the loaded half has closed reads SAVED. Display only:
+ *   a vanilla file gives nothing through these statuses.
  *
  * THE SEAM UNDER TEST. OoT_Combo_OnLoadFileSeam (games/oot/soh/SaveManager.cpp),
  * the body of OoT's OnLoadFile hook, driven exactly as LoadFile drives it: the
@@ -34,7 +41,11 @@
  * SCUMMED chest still closed, a SAVED chest still open, and the Master Sword a
  * file creation marks SAVED without its flag (StartingItemGive on an adult
  * start). A rule that set every status from the flag alone would turn that last
- * one not-found, and pulling the sword would give it a second time.
+ * one not-found, and pulling the sword would give it a second time. Leg C adds
+ * a check the vanilla tracker never marks (a Mido chest is not a vanilla
+ * completion check): its flag differs between the halves and its status stays
+ * as the .sav has it, so the vanilla leg resolves flags through the tracker's
+ * own maps and not through "any check with that flag".
  */
 
 #include <z64.h>
@@ -50,6 +61,7 @@
 #include "soh/Enhancements/randomizer/logic.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -76,6 +88,12 @@ constexpr uint32_t kMasterSeed = 0x0849C0DEu;
 constexpr uint32_t kSwordChestBit = 1u << 0x00; // RC_KF_KOKIRI_SWORD_CHEST, SCENE_KOKIRI_FOREST
 constexpr uint32_t kHeartPieceBit = 1u << 0x1E; // RC_LH_FREESTANDING_POH, SCENE_LAKE_HYLIA
 constexpr uint32_t kMidoRightBit = 1u << 0x01;  // RC_KF_MIDOS_TOP_RIGHT_CHEST, SCENE_MIDOS_HOUSE
+constexpr uint32_t kMidoLeftBit = 1u << 0x00;   // RC_KF_MIDOS_TOP_LEFT_CHEST, SCENE_MIDOS_HOUSE
+// RC_GF_HBA_1000_POINTS: SpoilerCollectionCheck::InfTable(INFTABLE_190), the
+// flag CheckTrackerFlagSet's own special case maps to it.
+void SetInfTable(SaveContext* s, uint32_t flag) {
+    s->infTable[flag >> 4] |= (uint16_t)(1u << (flag & 0xF));
+}
 // RC_KF_BRIDGE_RUPEE, a shuffled freestanding item: its flag is a RandomizerInf
 // (ShuffleFreestanding.cpp), set in the half's ship.randomizerInf.
 void SetRandoInf(SaveContext* s, RandomizerInf flag) {
@@ -140,7 +158,8 @@ bool AuthorWorld(void) {
         Rando::StaticData::InitItemTable();
     }
     for (RandomizerCheck rc : { RC_KF_KOKIRI_SWORD_CHEST, RC_LH_FREESTANDING_POH, RC_KF_MIDOS_TOP_LEFT_CHEST,
-                                RC_KF_MIDOS_TOP_RIGHT_CHEST, RC_TOT_MASTER_SWORD, RC_KF_BRIDGE_RUPEE }) {
+                                RC_KF_MIDOS_TOP_RIGHT_CHEST, RC_TOT_MASTER_SWORD, RC_KF_BRIDGE_RUPEE,
+                                RC_GF_HBA_1000_POINTS }) {
         Loc(rc)->SetPlacedItem(RG_PIECE_OF_HEART);
         Loc(rc)->SetCheckStatus(RCSHOW_UNCHECKED);
     }
@@ -160,6 +179,13 @@ void ReleaseWorld(void) {
 void BlankRandoHalf(SaveContext* s) {
     memset(s, 0, sizeof(SaveContext));
     s->ship.quest.id = QUEST_RANDOMIZER;
+    s->fileNum = kSlot;
+}
+
+// A vanilla (not randomizer) OoT half with nothing collected (#861).
+void BlankVanillaHalf(SaveContext* s) {
+    memset(s, 0, sizeof(SaveContext));
+    s->ship.quest.id = QUEST_NORMAL;
     s->fileNum = kSlot;
 }
 
@@ -183,8 +209,9 @@ void SetTrackerStatuses(RandomizerCheckStatus sword, RandomizerCheckStatus heart
 // Two commits on disk: the one the .sav's last save matches (its OoT half is
 // `savBase`), then a newer one whose OoT half is `committed` (the crossing
 // commit, or a commit written after the half went back). Returns the .sav's
-// mirrored generation, or 0 on failure.
-uint32_t WriteCommits(const SaveContext& savBase, const SaveContext& committed) {
+// mirrored generation, or 0 on failure. `rando` false writes a vanilla file's
+// record: no pairing identity and a blank Majora's Mask half (#861).
+uint32_t WriteCommits(const SaveContext& savBase, const SaveContext& committed, bool rando = true) {
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     mgr.SetSaveDirectory(kSaveDir);
     Context_InitFrozenStates();
@@ -198,12 +225,15 @@ uint32_t WriteCommits(const SaveContext& savBase, const SaveContext& committed) 
     // A paired file, as the open path requires of a randomizer file (#836): a
     // record with a pairing identity, and a Majora's Mask half that is this
     // pair's world (#836 PR 2 refuses a vanilla or another pair's half).
-    gComboCtx.sourceIsRando = true;
-    gComboCtx.sharedRandoSeed = kMasterSeed;
-    gComboCtx.sharedRandoSettingsHash = 0x849u;
     static std::vector<uint8_t> sMMHalf(MM_SAVE_CONTEXT_SIZE, 0);
-    if (MM_Rando_AuthorPairHalfForTest(sMMHalf.data(), sMMHalf.size(), kMasterSeed) != 1) {
-        return 0;
+    std::fill(sMMHalf.begin(), sMMHalf.end(), (uint8_t)0);
+    if (rando) {
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = kMasterSeed;
+        gComboCtx.sharedRandoSettingsHash = 0x849u;
+        if (MM_Rando_AuthorPairHalfForTest(sMMHalf.data(), sMMHalf.size(), kMasterSeed) != 1) {
+            return 0;
+        }
     }
     Context_UpdateShadowCopy(GAME_MM, sMMHalf.data(), sMMHalf.size());
 
@@ -328,6 +358,66 @@ int RunLegs(void) {
                    "leg B: a check neither half has collected stays as the .sav has it");
     }
     CheckControls("leg B");
+
+    // ======================================================================
+    // Leg C (#861): a vanilla paired file, collected, crossed, reloaded.
+    // ======================================================================
+    // The last OoT save: the Kokiri Sword chest open (the .sav saved its check
+    // SAVED), the heart piece and the archery prize not yet taken. Then both
+    // are taken (a section-only tracker save writes them SCUMMED) and the
+    // player crosses: the crossing commit's OoT half holds them. That half is
+    // also one where the Kokiri Sword chest is closed (the reverse direction,
+    // as in leg B), and where a Mido chest the vanilla tracker never marks was
+    // opened (control).
+    BlankVanillaHalf(&sSavBase);
+    ArmControls(&sSavBase);
+    sSavBase.sceneFlags[SCENE_KOKIRI_FOREST].chest |= kSwordChestBit;
+    BlankVanillaHalf(&sCommitted);
+    ArmControls(&sCommitted);
+    sCommitted.sceneFlags[SCENE_LAKE_HYLIA].collect |= kHeartPieceBit;
+    SetInfTable(&sCommitted, INFTABLE_190);
+    sCommitted.sceneFlags[SCENE_MIDOS_HOUSE].chest |= kMidoLeftBit;
+    savGeneration = WriteCommits(sSavBase, sCommitted, /*rando=*/false);
+    OCSL_CHECK(savGeneration != 0, "leg C setup: the two commits of a vanilla file are written");
+    if (savGeneration == 0) {
+        return 1;
+    }
+    memcpy(&gSaveContext, &sSavBase, sizeof(SaveContext));
+    SetTrackerStatuses(RCSHOW_SAVED, RCSHOW_SCUMMED, RCSHOW_UNCHECKED);
+    Loc(RC_GF_HBA_1000_POINTS)->SetCheckStatus(RCSHOW_SCUMMED);
+    Loc(RC_KF_MIDOS_TOP_LEFT_CHEST)->SetCheckStatus(RCSHOW_UNCHECKED);
+    OoT_Combo_OnLoadFileSeam(kSlot, savGeneration);
+    {
+        const bool vanilla = gSaveContext.ship.quest.id == QUEST_NORMAL;
+        const bool halfApplied = (gSaveContext.sceneFlags[SCENE_LAKE_HYLIA].collect & kHeartPieceBit) != 0;
+        const RandomizerCheckStatus poh = Loc(RC_LH_FREESTANDING_POH)->GetCheckStatus();
+        const RandomizerCheckStatus hba = Loc(RC_GF_HBA_1000_POINTS)->GetCheckStatus();
+        const RandomizerCheckStatus sword = Loc(RC_KF_KOKIRI_SWORD_CHEST)->GetCheckStatus();
+        const RandomizerCheckStatus left = Loc(RC_KF_MIDOS_TOP_LEFT_CHEST)->GetCheckStatus();
+        const RandomizerCheckStatus right = Loc(RC_KF_MIDOS_TOP_RIGHT_CHEST)->GetCheckStatus();
+        const RandomizerCheckStatus master = Loc(RC_TOT_MASTER_SWORD)->GetCheckStatus();
+        printf("[TEST] oot-check-state-load: leg C (vanilla): the loaded half %s the heart piece; heart piece %s, "
+               "archery prize %s, Kokiri Sword chest %s\n",
+               halfApplied ? "holds" : "does NOT hold", StatusName(poh), StatusName(hba), StatusName(sword));
+        printf("[TEST] oot-check-state-load: leg C (vanilla) controls: Mido left %s, Mido right %s, Master Sword "
+               "%s\n",
+               StatusName(left), StatusName(right), StatusName(master));
+        OCSL_CHECK(vanilla && halfApplied, "leg C setup: the .redsave's newer OoT half of a vanilla file loaded");
+        OCSL_CHECK(Loc(RC_LH_FREESTANDING_POH)->HasObtained(),
+                   "#861: on a vanilla paired file, a heart piece the loaded half holds reads found in the Check "
+                   "Tracker (it read SCUMMED from the .sav's tracker section)");
+        OCSL_CHECK(Loc(RC_GF_HBA_1000_POINTS)->HasObtained(),
+                   "#861: on a vanilla paired file, the archery prize (an InfTable flag the tracker's own special "
+                   "case maps) the loaded half holds reads found");
+        OCSL_CHECK(sword == RCSHOW_SCUMMED,
+                   "#861 reverse: on a vanilla paired file, a chest the loaded half has closed reads not found");
+        OCSL_CHECK(left == RCSHOW_UNCHECKED,
+                   "#861 control: a check the vanilla tracker never marks keeps its status though its flag differs");
+        OCSL_CHECK(right == RCSHOW_SAVED, "#861 control: a check whose flag is set in both halves keeps SAVED");
+        OCSL_CHECK(master == RCSHOW_SAVED,
+                   "#861 control: the Master Sword marked SAVED without its flag stays found (flag unset in both "
+                   "halves)");
+    }
     return 0;
 }
 
