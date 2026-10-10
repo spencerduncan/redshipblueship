@@ -947,6 +947,13 @@ void RsbsSave_NoteSlotRefusalWords(int slot, const char* words);
  *  compare to fail, so the put-back is exercised. Never called in production. */
 void RsbsSave_ForceLoadRestoreVerifyFailForTest(int on);
 
+/** Test hook (#851 commit-generation-order): `hook(ctx)` runs on the writing
+ *  thread between RsbsSave_WriteStagedCommit's copy of the staged snapshot and
+ *  its file write, so a test can hold OoT's save worker there while the game
+ *  thread commits a newer generation. NULL clears it. Never called in
+ *  production. */
+void RsbsSave_SetStagedCopyHookForTest(void (*hook)(void* ctx), void* ctx);
+
 /**
  * Session-scoped "which slot is open" (see SaveManager::SetActiveSlot).
  * RsbsSave_GetActiveSlot returns -1 when no slot has been established, which

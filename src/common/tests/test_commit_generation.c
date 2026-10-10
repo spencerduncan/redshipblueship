@@ -2,7 +2,7 @@
  * @file test_commit_generation.c
  * @brief Headless locks for the .redsave commit choke point (#537/#531).
  *
- * Three locks:
+ * Four locks:
  *
  *   commit-generation-monotonic — every commit staged through the choke point
  *   stamps a strictly-increasing generation into Tier-1, the stamp survives a
@@ -18,6 +18,16 @@
  *   i.e. make WriteStagedCommit (or the OnSaveFile hook it serves) read the
  *   live gComboCtx/shadows again — and this test goes red, because the
  *   post-stage mutations would then be serialized.
+ *
+ *   commit-generation-order — an older generation never replaces a newer
+ *   commit (#851). OoT's save worker copies generation G out of the stage, a
+ *   crossing on the game thread stages and writes G+1, and only then does the
+ *   worker write G: the file must still hold G+1. The rule lives in the one
+ *   writer, so a synchronous commit (MM's capture, the crossing) that is
+ *   behind the file is refused the same way; an equal generation still writes;
+ *   and a file created over another world's .redsave starts its own sequence.
+ *   COUNTERFACTUAL: drop the generation check from WriteSlotFile and the
+ *   worker's G lands last, which the reload below reads as generation G.
  *
  *   commit-generation-skew — the load-time freshness comparison between the
  *   two durable artifacts: agreement and the pre-stamp (0) exemptions load
@@ -49,9 +59,11 @@
 #include "../test_runner.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -243,6 +255,141 @@ TestResult Test_CommitTornWrite(void) {
     ComboContext_Init();
     CommitGenFillShadows(0x00);
     printf("[TEST] PASS: the artifact is the staged instant, whole; the tear is unrepresentable\n");
+    return TEST_PASS;
+}
+
+namespace {
+
+// The save worker's half of the #851 interleave: WriteStagedCommit has copied
+// the staged snapshot (generation G) and is held here until the game thread
+// has committed G+1.
+struct CommitOrderGate {
+    std::mutex m;
+    std::condition_variable cv;
+    bool copied = false;
+    bool go = false;
+};
+
+void CommitOrderHoldWorker(void* ctx) {
+    CommitOrderGate* gate = static_cast<CommitOrderGate*>(ctx);
+    std::unique_lock<std::mutex> lock(gate->m);
+    gate->copied = true;
+    gate->cv.notify_all();
+    gate->cv.wait(lock, [gate]() { return gate->go; });
+}
+
+// What the slot file holds now, read the way the next session would.
+bool CommitOrderReload(uint32_t* outGeneration) {
+    ComboContext_Init();
+    CommitGenFillShadows(0x00);
+    if (!rsbs::SaveManager::Instance().Load(0)) {
+        return false;
+    }
+    *outGeneration = gComboCtx.commitGeneration;
+    return true;
+}
+
+}  // namespace
+
+TestResult Test_CommitGenerationOrder(void) {
+    printf("[TEST] commit-generation-order: an older generation never replaces a newer commit (#851)\n");
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kCommitGenTestDir);
+
+    Context_InitFrozenStates();
+    ComboContext_Init();
+    mgr.ResetSlotSessionState();
+    mgr.DeleteSave(0);
+
+    CommitGenFillShadows(0x11);
+    CG_ASSERT(mgr.Save(0), "authoring the generation-1 artifact failed");
+
+    // ---- Leg 1: the #851 interleave, with real threads ---------------------
+    // OoT's save stages generation G on the game thread and hands the write to
+    // its worker. The worker copies G out of the stage and is held before it
+    // writes. The game thread then crosses: the crossing stages G+1 and writes
+    // it synchronously. Only then does the worker write G.
+    CommitGenFillShadows(0x2A);
+    const uint32_t workerGeneration = RsbsSave_StageCommit();
+    CG_ASSERT(workerGeneration == 2, "staging the save worker's generation failed");
+
+    CommitOrderGate gate;
+    RsbsSave_SetStagedCopyHookForTest(CommitOrderHoldWorker, &gate);
+    std::atomic<int> workerWrote{ -1 };
+    std::thread worker([&workerWrote]() { workerWrote.store(RsbsSave_WriteStagedCommit(0)); });
+    {
+        std::unique_lock<std::mutex> lock(gate.m);
+        gate.cv.wait(lock, [&gate]() { return gate.copied; });
+    }
+    // The crossing's own write must not stop at the hook.
+    RsbsSave_SetStagedCopyHookForTest(nullptr, nullptr);
+
+    CommitGenFillShadows(0xB2);
+    const bool crossingWrote = mgr.Save(0);
+    const uint32_t crossingGeneration = gComboCtx.commitGeneration;
+    {
+        std::lock_guard<std::mutex> lock(gate.m);
+        gate.go = true;
+    }
+    gate.cv.notify_all();
+    worker.join();
+    CG_ASSERT(crossingWrote, "the crossing's synchronous commit failed");
+    CG_ASSERT(crossingGeneration == workerGeneration + 1, "the crossing must have staged G+1");
+
+    uint32_t onDisk = 0;
+    CG_ASSERT(CommitOrderReload(&onDisk), "reloading after the interleave failed");
+    printf("[TEST] interleave: worker staged generation %u, crossing committed %u, worker write rc=%d, the file "
+           "holds generation %u\n",
+           (unsigned)workerGeneration, (unsigned)crossingGeneration, workerWrote.load(), (unsigned)onDisk);
+    CG_ASSERT(onDisk == crossingGeneration,
+              "OUT OF ORDER: the save worker's older generation replaced the crossing's newer commit (#851)");
+    CG_ASSERT(CommitGenShadowsAreUniform(0xB2), "the file's world tiers are not the crossing's commit");
+    CG_ASSERT(workerWrote.load() == 0, "the superseded write must report that it wrote nothing");
+
+    // ---- Leg 2: the rule is the writer's, so it binds every caller ---------
+    // MM's capture and the crossing commit write through RsbsSave_Save, not the
+    // worker. A synchronous commit whose generation is behind the file's is
+    // refused the same way; the file keeps the newer commit.
+    gComboCtx.commitGeneration = crossingGeneration - 2;
+    CommitGenFillShadows(0x5C);
+    CG_ASSERT(!mgr.Save(0), "a synchronous commit older than the file's must be refused");
+    CG_ASSERT(CommitOrderReload(&onDisk), "reloading after the older synchronous commit failed");
+    CG_ASSERT(onDisk == crossingGeneration && CommitGenShadowsAreUniform(0xB2),
+              "an older synchronous commit replaced the newer one");
+
+    // ---- Leg 3: an equal generation is not older ---------------------------
+    // The same staged snapshot written twice (both writers reach the file with
+    // one stage between them) writes both times.
+    CommitGenFillShadows(0x6D);
+    const uint32_t sameGeneration = RsbsSave_StageCommit();
+    CG_ASSERT(RsbsSave_WriteStagedCommit(0) == 1, "the first write of a staged generation failed");
+    CG_ASSERT(RsbsSave_WriteStagedCommit(0) == 1, "a second write of the same generation must not be refused");
+    CG_ASSERT(CommitOrderReload(&onDisk), "reloading after the equal-generation writes failed");
+    CG_ASSERT(onDisk == sameGeneration && CommitGenShadowsAreUniform(0x6D),
+              "the equal-generation write did not land");
+
+    // ---- Leg 4: a created file starts its own sequence ---------------------
+    // Creating a new file over a slot whose .redsave belongs to another world
+    // resets the live counter (Context_InvalidateSessionOnNewGame). That
+    // world's generation does not order the new one: the new file's first
+    // commit replaces it, and from then on the new file's own commits order.
+    ComboContext_Init();
+    CommitGenFillShadows(0x7E);
+    mgr.ArmSlotOnCreate(0);
+    CG_ASSERT(mgr.Save(0), "the first commit of a file created over another world's .redsave was refused");
+    CG_ASSERT(CommitOrderReload(&onDisk), "reloading the created file failed");
+    CG_ASSERT(onDisk == 1 && CommitGenShadowsAreUniform(0x7E), "the created file's first commit did not land");
+    CG_ASSERT(mgr.Save(0), "the created file's second commit failed");
+    gComboCtx.commitGeneration = 0;
+    CommitGenFillShadows(0x7F);
+    CG_ASSERT(!mgr.Save(0), "once the created file has committed, an older commit of it must be refused");
+
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    ComboContext_Init();
+    CommitGenFillShadows(0x00);
+    printf("[TEST] PASS: the file always holds the newest commit; an older generation is refused by every writer\n");
     return TEST_PASS;
 }
 

@@ -5386,6 +5386,8 @@ const TestDescriptor gTests[] = {
      Test_CommitGenerationMonotonic},
     {"commit-torn-write", "Post-stage mutation cannot reach the .redsave; the #537 tear is unrepresentable",
      Test_CommitTornWrite},
+    {"commit-generation-order", "An older generation never replaces a newer .redsave commit (#851)",
+     Test_CommitGenerationOrder},
     {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#589)",
      Test_CommitGenerationSkew},
     // Whole-file commit (#589): a durable save in either half commits BOTH

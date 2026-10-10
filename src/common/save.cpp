@@ -85,6 +85,14 @@ bool SaveLogFail(int slot, const char* reason) {
 // overlay of the keys the restore writes).
 bool gForceLoadRestoreVerifyFail = false;
 
+// Test hook (#851): runs on the writing thread after WriteStagedCommit has
+// copied the staged snapshot out and before it writes it. That is the window in
+// which OoT's save worker holds generation G while the game thread can stage
+// and write G+1, so a test can hold the worker there and run a crossing commit.
+// Null in production.
+void (*gStagedCopyHookForTest)(void*) = nullptr;
+void* gStagedCopyHookCtxForTest = nullptr;
+
 // The load's player-visible surface (#781). A load that changed the session's
 // rules, or refused the pair, used to say so on stderr only, which no player
 // reads. Every toast here is SoH's shape (docs/ui-style-guide.md section 10b,
@@ -399,6 +407,9 @@ bool SaveManager::WriteStagedCommit(int slot) {
         ootBlob = mStaged.oot;
         mmBlob = mStaged.mm;
         crossings = mStaged.crossings;
+    }
+    if (gStagedCopyHookForTest != nullptr) {
+        gStagedCopyHookForTest(gStagedCopyHookCtxForTest);
     }
     return WriteSlotFile(slot, combo, ootBlob.data(), mmBlob.data(), crossings);
 }
@@ -1998,6 +2009,11 @@ int RsbsSave_HasQuarantine(int slot) {
 
 void RsbsSave_ForceLoadRestoreVerifyFailForTest(int on) {
     rsbs::gForceLoadRestoreVerifyFail = on != 0;
+}
+
+void RsbsSave_SetStagedCopyHookForTest(void (*hook)(void* ctx), void* ctx) {
+    rsbs::gStagedCopyHookCtxForTest = ctx;
+    rsbs::gStagedCopyHookForTest = hook;
 }
 
 const char* RsbsSave_LoadToastRefusalMessage(int kind) {
