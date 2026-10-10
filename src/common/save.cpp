@@ -28,6 +28,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -441,6 +442,27 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
     // never taken here).
     std::lock_guard<std::mutex> writeLock(mWriteMtx);
 
+    // An older generation never replaces a newer commit (#851). The worker
+    // copies its staged generation G before it gets here, so a crossing that
+    // stages and writes G+1 in between can take this lock first; without this
+    // check the worker then renames G over G+1, the session is at G+1 while
+    // the file holds G, a moon-crash reset refuses the file as stale, and a
+    // kill reloads without the crossing. The file's own Tier-1 generation is
+    // the order, read under the lock that serializes the renames, so the rule
+    // binds every writer (the worker, the crossing, MM's capture). An equal
+    // generation is the same commit written again and goes ahead. A file that
+    // does not validate orders nothing, and neither does the file a create or
+    // an erase found at the slot: that is another world's sequence.
+    uint32_t fileGeneration = 0;
+    if (!mSlotStartsOver[slot] && ReadCommittedGeneration(slot, &fileGeneration) &&
+        fileGeneration > combo.commitGeneration) {
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d NOT saved: commit generation %u is older than the generation %u the file "
+                     "already holds; the newer commit stays (#851)\n",
+                     slot, (unsigned)combo.commitGeneration, (unsigned)fileGeneration);
+        return false;
+    }
+
     // Assemble Tiers 1..3 contiguously so the CRC covers exactly the bytes we
     // write, in write order: ComboContext, OoT blob, MM blob.
     std::vector<uint8_t> payload;
@@ -502,8 +524,43 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
         std::filesystem::remove(tmpPath, ec);
         return false;
     }
+    mSlotStartsOver[slot] = false;
     mSlotEpoch.fetch_add(1, std::memory_order_relaxed);
     return true;
+}
+
+bool SaveManager::ReadCommittedGeneration(int slot, uint32_t* outGeneration) const {
+    // Header, CRC and the inner ComboContext magic only. The full validator
+    // (ReadSlotFile) also parses the crossing block through the crossing
+    // store's static scratch, which the game thread uses at load; this runs on
+    // the save worker, so it checks the CRC over the stored payload instead.
+    std::ifstream in(SlotPath(slot), std::ios::binary);
+    if (!in) {
+        return false;
+    }
+    RsbsSaveHeader header;
+    if (!DeserializeHeader(in, slot, header, /*verbose=*/false, nullptr)) {
+        return false;
+    }
+    // Every writer puts exactly the CRC-covered payload after the header.
+    std::vector<uint8_t> payload((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (payload.size() < header.comboSize || Crc32(payload.data(), payload.size()) != header.crc32) {
+        return false;
+    }
+    std::vector<uint8_t> record(kComboSize, 0);
+    std::memcpy(record.data(), payload.data(), header.comboSize);
+    ComboContext combo;
+    std::memcpy(&combo, record.data(), sizeof(ComboContext));
+    if (std::memcmp(combo.magic, COMBO_CONTEXT_MAGIC, sizeof(combo.magic)) != 0) {
+        return false;
+    }
+    *outGeneration = combo.commitGeneration;
+    return true;
+}
+
+void SaveManager::SetSlotStartsOver(int slot, bool startsOver) {
+    std::lock_guard<std::mutex> writeLock(mWriteMtx);
+    mSlotStartsOver[slot] = startsOver;
 }
 
 bool SaveManager::DeserializeHeader(std::istream& in, int expectedSlot, RsbsSaveHeader& outHeader,
@@ -1281,8 +1338,10 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
     }
 
     // A successful load is one of the three legitimate arming events, and it
-    // retires any earlier refusal record.
+    // retires any earlier refusal record. The file's generation is now the
+    // session's, so it orders the writes that follow (#851).
     mSlotArmed[slot] = true;
+    SetSlotStartsOver(slot, false);
     SetSlotRefused(slot, RSBS_REFUSE_NONE);
     return RSBS_LOAD_OK;
 }
@@ -1333,6 +1392,8 @@ void SaveManager::DeleteSave(int slot) {
     mSlotArmed[slot] = true;
     SetSlotRefused(slot, RSBS_REFUSE_NONE);
     mSlotSkew[slot] = 0;
+    // An erase, like a create, starts the slot's commit sequence over (#851).
+    SetSlotStartsOver(slot, true);
     if (mOoTHalfAuthoritySlot == slot) {
         mOoTHalfAuthoritySlot = -1;
     }
@@ -1356,6 +1417,10 @@ void SaveManager::ArmSlotOnCreate(int slot) {
     mSlotArmed[slot] = true;
     SetSlotRefused(slot, RSBS_REFUSE_NONE);
     mSlotSkew[slot] = 0;
+    // The new file's counter starts at 0 (Context_InvalidateSessionOnNewGame),
+    // so a valid .redsave left at the slot by another world must not order its
+    // first commit (#851).
+    SetSlotStartsOver(slot, true);
     if (mOoTHalfAuthoritySlot == slot) {
         // A brand-new file authors its own OoT half; nothing loaded can be
         // authoritative over it (#589).
@@ -1556,6 +1621,7 @@ void SaveManager::ResetSlotSessionState() {
         mSlotArmed[i] = false;
         SetSlotRefused(i, RSBS_REFUSE_NONE);
         mSlotSkew[i] = 0;
+        SetSlotStartsOver(i, false);
     }
     mOoTHalfAuthoritySlot = -1;
 }
