@@ -349,6 +349,9 @@ struct RoundState {
     // Hosts whose own-origin placement `expand` has already harvested this round
     // (A6): ONE grant per placed host per round, however many passes run.
     std::set<uint16_t> harvestedHosts;
+    // Hosts this round WITHHOLDS (combo_logic.h ABI 6, `withholdHost`): reached as
+    // ever, never harvested by A6 or granted by A7.
+    std::set<uint16_t> withheldHosts;
     // Copies granted this round, by either path. APPEND-ONLY: nothing but
     // `beginQuery` resets it, and nothing takes a grant back out of the save
     // before the round's `restore` — this engine's half of the contract's "no
@@ -674,6 +677,7 @@ int BeginQuery(void* self) {
     sRound.checks.clear();
     sRound.regionTimeStates.clear();
     sRound.harvestedHosts.clear();
+    sRound.withheldHosts.clear();
     sRound.copiesGranted = 0;
     sRound.expands = 0;
     return 1;
@@ -783,6 +787,9 @@ int Expand(void* self) {
             if (!IsGiveableItemId(entry.second.item.id)) {
                 continue;
             }
+            if (sRound.withheldHosts.count(entry.first) != 0) {
+                continue; // ABI 6: a withheld host yields nothing this round
+            }
             if (!sRound.harvestedHosts.insert(entry.first).second) {
                 continue;
             }
@@ -818,6 +825,9 @@ int Expand(void* self) {
                 const RandoSaveCheck& fixedCheck = RANDO_SAVE_CHECKS[randoCheckId];
                 if (fixedCheck.skipped || !IsGiveableItemId((uint16_t)fixedCheck.randoItemId)) {
                     continue;
+                }
+                if (sRound.withheldHosts.count(check) != 0) {
+                    continue; // ABI 6: a withheld host yields nothing this round
                 }
                 if (!sRound.harvestedHosts.insert(check).second) {
                     continue;
@@ -1020,7 +1030,23 @@ void EndQuery(void* self) {
     sRound.checks.clear();
     sRound.regionTimeStates.clear();
     sRound.harvestedHosts.clear();
+    sRound.withheldHosts.clear();
     sRound.copiesGranted = 0;
+}
+
+/**
+ * `withholdHost` (combo_logic.h ABI 6): for the rest of this round, `hostCheck`
+ * yields nothing — neither its coordinator placement (A6) nor, outside the host
+ * pool, its fixed content (A7). The host stays in the round's reached set; only
+ * the grant is skipped. Only inside a round: `beginQuery` and `endQuery` both
+ * clear the set.
+ */
+void WithholdHost(void* self, uint16_t hostCheck) {
+    (void)self;
+    if (!sRound.inRound) {
+        return;
+    }
+    sRound.withheldHosts.insert(hostCheck);
 }
 
 const ComboLogicEngine kMmEngine = {
@@ -1041,6 +1067,7 @@ const ComboLogicEngine kMmEngine = {
     /* restore           */ Restore,
     /* triforcePieces    */ TriforcePieces,
     /* hostAcceptsForeign*/ HostAcceptsForeign,
+    /* withholdHost      */ WithholdHost,
 };
 
 /**

@@ -118,6 +118,7 @@
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -210,6 +211,12 @@ bool sPriorWasLiveSave = false;
  *  is this engine's half of the contract's "nothing ever removes a copy within a
  *  round" (combo_logic.h, `assumeOwnItem`). */
 std::vector<uint16_t> sGrantedOrder;
+
+/** The hosts THIS round withholds (combo_logic.h ABI 6, `withholdHost`): their
+ *  contents are lifted out around every `ReachabilitySearch` of the round, so
+ *  the search reaches them and harvests nothing. Cleared by `beginQuery` and by
+ *  `endQuery`; ascending insertion is not needed, the set is tiny. */
+std::vector<RandomizerCheck> sWithheld;
 
 /** Closure size at this round's previous `expand`, for the `changed` answer. */
 int sPrevReachedChecks = -1;
@@ -538,6 +545,7 @@ int OoT_ComboLogic_BeginQuery(void* self) {
     ctx->LocationReset();
 
     sGrantedOrder.clear();
+    sWithheld.clear();
     sPrevReachedChecks = -1;
     sPrevReachedRegions = -1;
     sInQuery = true;
@@ -679,12 +687,42 @@ int OoT_ComboLogic_Expand(void* self) {
         Rando::StaticData::RetrieveItem((RandomizerGet)granted).ApplyEffect();
     }
 
+    // THE WITHHELD HOSTS (ABI 6). The search harvests every placed item it
+    // reaches, so a withheld host's item is lifted out for exactly the length of
+    // the search and put back before anything else reads the location — the same
+    // copy-out / RG_NONE / put-back that OoT's own `IsBeatableWithout`
+    // (`fill.cpp`) does. The host is still reached (its `addedToPool` mark is set
+    // by the search as for any empty location); it just yields nothing. The price
+    // `SetPlacedItem` rewrites is put back too, so a lifted shop slot keeps its
+    // price.
+    struct OoTLifted {
+        Rando::ItemLocation* il;
+        RandomizerGet item;
+        uint16_t price;
+    };
+    std::vector<OoTLifted> lifted;
+    for (const RandomizerCheck rc : sWithheld) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        if (il == nullptr || il->GetPlacedRandomizerGet() == RG_NONE) {
+            continue;
+        }
+        lifted.push_back({ il, il->GetPlacedRandomizerGet(), il->GetPrice() });
+        il->SetPlacedItem(RG_NONE);
+    }
+
     // The return value is deliberately unused: with placed items everywhere and
     // calculatingAvailableChecks false the returned vector holds only the EMPTY
     // reachable locations, while the `addedToPool` marks the search set along the
     // way are the complete closure — and those marks are what `checkReached`,
     // `reachedEmptyHosts` and `goalReached` read.
     ReachabilitySearch(ctx->allLocations);
+
+    for (auto it = lifted.rbegin(); it != lifted.rend(); ++it) {
+        it->il->SetPlacedItem(it->item);
+        if (!it->il->HasCustomPrice()) {
+            it->il->SetPrice(it->price);
+        }
+    }
 
     const int checks = OoTComboLogicReachedCheckCount();
     const int regions = OoTComboLogicReachedRegionCount();
@@ -819,7 +857,10 @@ int OoT_ComboLogic_GoalReached(void* self) {
             continue;
         }
         Rando::ItemLocation* il = ctx->GetItemLocation(rc);
-        if (il != nullptr && il->GetPlacedRandomizerGet() == RG_TRIFORCE && il->IsAddedToPool()) {
+        if (il != nullptr && il->GetPlacedRandomizerGet() == RG_TRIFORCE && il->IsAddedToPool() &&
+            std::find(sWithheld.begin(), sWithheld.end(), rc) == sWithheld.end()) {
+            // A withheld host (ABI 6) is reached but yields nothing, the Triforce
+            // included: the round was asked about a world without it.
             return 1;
         }
     }
@@ -998,6 +1039,7 @@ void OoT_ComboLogic_EndQuery(void* self) {
         return;
     }
     sInQuery = false;
+    sWithheld.clear();
     ++sEndQueryCount;
     // The clamp is a property of the ROUND. Off again before anything else, so no
     // later OoT evaluation — its own fill, CheckBeatable, gameplay — runs with it.
@@ -1149,6 +1191,28 @@ int OoT_ComboLogic_HostAcceptsForeign(void* self, uint16_t hostCheck) {
 //
 // snapshot/restore are BOTH NULL: OoT's queries are pure once detached.
 
+/**
+ * `withholdHost` (combo_logic.h ABI 6): for the rest of this round, `hostCheck`
+ * yields nothing. Recorded here and applied by `expand`, which lifts the host's
+ * item out around each search (see there). Only inside a round; an id that is
+ * not a real OoT check is ignored with a log line, never applied to a
+ * neighbouring row.
+ */
+void OoT_ComboLogic_WithholdHost(void* self, uint16_t hostCheck) {
+    (void)self;
+    if (!sInQuery) {
+        return;
+    }
+    const RandomizerCheck rc = (RandomizerCheck)hostCheck;
+    if (!OoTComboLogicIsRealCheck(rc)) {
+        fprintf(stderr, "[OoT/ComboLogic] withholdHost ignored: %u is not a real OoT check\n", (unsigned)hostCheck);
+        return;
+    }
+    if (std::find(sWithheld.begin(), sWithheld.end(), rc) == sWithheld.end()) {
+        sWithheld.push_back(rc);
+    }
+}
+
 const ComboLogicEngine kOoTComboLogicEngine = {
     /* abiVersion        */ RSBS_COMBO_LOGIC_ENGINE_ABI,
     /* self              */ nullptr,
@@ -1167,6 +1231,7 @@ const ComboLogicEngine kOoTComboLogicEngine = {
     /* restore           */ nullptr,
     /* triforcePieces    */ OoT_ComboLogic_TriforcePieces,
     /* hostAcceptsForeign*/ OoT_ComboLogic_HostAcceptsForeign,
+    /* withholdHost      */ OoT_ComboLogic_WithholdHost,
 };
 
 struct OoTComboLogicRegistrar {
