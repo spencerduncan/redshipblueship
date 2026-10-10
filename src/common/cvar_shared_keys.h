@@ -173,8 +173,8 @@
  * arrive with an unclassified key. */
 #define RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER "gCombo.Windows.ItemTracker"
 /* #458 U2: the unified Item Tracker overlay's own settings, SoH's
- * gTrackers.ItemTracker.* in the combo namespace (the Combo > Tracker Settings
- * page, #458 U7, writes them; until then the console does). PREFERENCE keys.
+ * gTrackers.ItemTracker.* in the combo namespace, written by the Combo > Tracker
+ * Settings page (#458 U7, SohMenuComboTrackerSettings.cpp). PREFERENCE keys.
  *   WindowType      0 floating (SoH's default: no title bar, input-less unless
  *                   Draggable), 1 a normal window
  *   Draggable       0/1, floating only
