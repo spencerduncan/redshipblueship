@@ -2017,11 +2017,14 @@ int ClRunForbidden(const ComboLogicHostRef* forbidden, int count, ComboLogicRoun
 }
 
 void ClPrintForbiddenRound(const char* tag, int rc, const ComboLogicRoundResult& r) {
+    // OoT's stub keeps its round state after `endQuery` (no snapshot pair), so its
+    // Lens count is the round's own; MM's is restored by its snapshot and is not
+    // printed. MM's Ocarina assumes are cumulative across rounds.
     printf("[TEST]   %s: rc=%s goalOoT=%d goalMM=%d expr=%d exchanged=%d allHostsReached=%d | OoT Lens copies %d, MM "
-           "Ocarina assumes %d, MM Remains copies %d | withhold calls OoT %d MM %d\n",
+           "Ocarina assumes %d (cumulative) | withhold calls OoT %d MM %d\n",
            tag, Combo_Logic_StatusName(rc), r.goalOoT, r.goalMM, r.goalExpression, r.exchanged, r.allHostsReached,
            gClOoT.haveCount[ClBitIndex(&gClOoT, kOotLens)], gClMM.assumeCalls[ClBitIndex(&gClMM, kMmOcarina)],
-           gClMM.haveCount[ClBitIndex(&gClMM, kMmRemains)], gClOoT.withholdCalls, gClMM.withholdCalls);
+           gClOoT.withholdCalls, gClMM.withholdCalls);
 }
 
 } // namespace
@@ -2099,7 +2102,8 @@ TestResult Test_ComboLogicForbiddenHost(void) {
         ClPrintForbiddenRound("forbid MM 21 (own: MM's Remains)", rc, r);
         CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK && r.goalMM == 0 && r.goalOoT == 1,
                   "4: MM's Remains on a forbidden MM host was HARVESTED anyway");
-        CL_ASSERT(gClMM.haveCount[ClBitIndex(&gClMM, kMmRemains)] == 0, "4: the round ended holding Remains");
+        CL_ASSERT(r.exchanged == 2 && r.allHostsReached == 1,
+                  "4: both crossings still exchange and the withheld host is still reached");
     }
 
     // --- 5. an EMPTY forbidden set, and a forbidden EMPTY host, change nothing

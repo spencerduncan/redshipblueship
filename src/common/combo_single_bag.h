@@ -162,6 +162,24 @@ uint32_t Combo_SingleBag_SeedFor(int ladderAttempt);
  *  frozen identity: its own domain tag, no ladder attempt (see rule 3 above). */
 uint32_t Combo_SingleBag_TrimSeed(void);
 
+/** The pair-level FOOLISH analysis's seed (epic #575 H4: OoTMM's probabilistic
+ *  zig-zag, `analysis-foolish.ts`) under the frozen identity: its own domain tag,
+ *  no ladder attempt, so the analysis can never alias the fill's or the trim's
+ *  stream. Nothing in production draws from it yet: H4 only MEASURES the
+ *  analysis (combo-single-bag's RSBS_CSB_FOOLISH mode). */
+uint32_t Combo_SingleBag_FoolishSeed(void);
+
+/**
+ * TEST ONLY (epic #575 H4's measurement). A probe Combo_SingleBag_Run calls right
+ * after Combo_Logic_RunFill SUCCEEDS, with both engines live and the coordinator's
+ * tables holding the proven world, and before either game's own pass. NULL (the
+ * default, and the only value production ever has) calls nothing. The probe may
+ * run rounds (Combo_Logic_RunRound leaves the tables and both engines as it found
+ * them) and must not place, reset or fill.
+ */
+typedef void (*ComboSingleBagPostFillProbe)(void* ctx);
+void Combo_SingleBag_TestSetPostFillProbe(ComboSingleBagPostFillProbe probe, void* ctx);
+
 /**
  * COMMIT: the world is decided, so drop every record of HOW it was decided without
  * undoing it: the coordinator's tables (Combo_Logic_HydrateTables with no rows,

@@ -137,6 +137,12 @@ static uint8_t sOccupied[RSBS_FOREIGN_POOL_ORIGIN_COUNT][COMBO_LOGIC_OCCUPANCY_B
  *  foreign item handed across the crossing this round. Reset per round, not per
  *  fill — an exchange is a fact about one round's granted set. */
 static uint8_t sExchanged[RSBS_FOREIGN_POOL_ORIGIN_COUNT][RSBS_COMBO_LOGIC_PLACEMENT_CAP / 8];
+/** THE ROUND'S FORBIDDEN HOSTS (ABI 6), as an occupancy-shaped bitmap per host
+ *  game, so the exchange asks "is this host forbidden" in O(1). Set at the start
+ *  of a round from the request and cleared bit by bit at its end (the request's
+ *  own list says which), so a round never pays for clearing 16 KB it did not
+ *  touch, and no bit outlives its round. */
+static uint8_t sForbidden[RSBS_FOREIGN_POOL_ORIGIN_COUNT][COMBO_LOGIC_OCCUPANCY_BYTES];
 /** The SURPLUS rows the last fill attempt dropped, as bag indices, in the order
  *  they were dropped (bag order — THE BAG MODEL, shape 3). Reset with the tables,
  *  because a drop is a fact about the attempt that built them. */
@@ -588,6 +594,10 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap) {
  * OoT's `ReachabilitySearch` already does), and doing it here too would grant
  * items the engine has its own authored reasons not to.
  *
+ * A FORBIDDEN host (ABI 6) is skipped too: the round was asked about a world in
+ * which that host holds nothing, so its foreign item never crosses. (Its
+ * own-origin counterpart is the engine's `withholdHost`.)
+ *
  * @return nonzero if anything was granted (the round must iterate again).
  */
 static int ComboLogicExchangeFrom(uint8_t hostGame, int gateOpen, int* exchanged) {
@@ -604,6 +614,9 @@ static int ComboLogicExchangeFrom(uint8_t hostGame, int gateOpen, int* exchanged
             continue;
         }
         if (p->item.originGame == hostGame || !ComboLogicIsGame(p->item.originGame)) {
+            continue;
+        }
+        if (ComboLogicBitGet(sForbidden[hostGame], p->hostCheck)) {
             continue;
         }
         if (!host->checkReached(host->self, p->hostCheck)) {
@@ -636,8 +649,55 @@ static void ComboLogicResetRoundResult(ComboLogicRoundResult* res) {
  * Run one round. On return the engines have been torn down, so every fact the
  * caller needs is in `res` and in sCandidates[].
  */
+/** Set (`on`) or clear the forbidden bits a round's request names. The request
+ *  was validated first (ComboLogicForbiddenValid), so every row names a game. */
+static void ComboLogicMarkForbidden(const ComboLogicHostRef* forbidden, int forbiddenCount, bool on) {
+    for (int i = 0; i < forbiddenCount; ++i) {
+        uint8_t* bits = sForbidden[forbidden[i].hostGame];
+        const int index = forbidden[i].hostCheck;
+        if (on) {
+            ComboLogicBitSet(bits, index);
+        } else {
+            bits[index >> 3] &= (uint8_t)~(1u << (index & 7));
+        }
+    }
+}
+
+/**
+ * Is a round's forbidden set well formed? A negative count, a NULL array with a
+ * positive count, a row naming no game, and a row whose game's engine has no
+ * `withholdHost` are refused (combo_logic.h, `forbidden`). The last one matters:
+ * the coordinator can withhold a cross-origin item itself, but an own-origin item
+ * on that host would be harvested inside the engine's `expand` anyway, so the
+ * round would silently answer a different question than it was asked.
+ */
+static bool ComboLogicForbiddenValid(const ComboLogicHostRef* forbidden, int forbiddenCount) {
+    if (forbiddenCount < 0 || (forbiddenCount > 0 && forbidden == NULL)) {
+        fprintf(stderr, "[ComboLogic] round refused: forbidden set of %d host(s) with %s array\n", forbiddenCount,
+                forbidden == NULL ? "a NULL" : "an");
+        return false;
+    }
+    for (int i = 0; i < forbiddenCount; ++i) {
+        const uint8_t g = forbidden[i].hostGame;
+        if (!ComboLogicIsGame(g)) {
+            fprintf(stderr, "[ComboLogic] round refused: forbidden host %u names game %u\n",
+                    (unsigned)forbidden[i].hostCheck, (unsigned)g);
+            return false;
+        }
+        const ComboLogicEngine* e = sEngines[g];
+        if (e != NULL && e->withholdHost == NULL) {
+            fprintf(stderr,
+                    "[ComboLogic] round refused: forbidden %s host %u, but the %s engine has no withholdHost (ABI 6)\n",
+                    Game_ToString((GameId)g), (unsigned)forbidden[i].hostCheck, Game_ToString((GameId)g));
+            return false;
+        }
+    }
+    return true;
+}
+
 static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount, uint8_t goal,
-                              uint16_t triforceRequired, ComboLogicRoundResult* res) {
+                              uint16_t triforceRequired, const ComboLogicHostRef* forbidden, int forbiddenCount,
+                              ComboLogicRoundResult* res) {
     const uint8_t order[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
     /** `beginQuery` was CALLED on this side — not "it succeeded". The teardown
      *  owes `endQuery` from the call, not from the return: see the bracket
@@ -657,6 +717,13 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
         res->status = RSBS_COMBO_LOGIC_ERR_NO_ENGINE;
         return res->status;
     }
+    // Refused BEFORE any bracket opens, so a malformed forbidden set costs no
+    // engine call and leaves nothing to tear down.
+    if (!ComboLogicForbiddenValid(forbidden, forbiddenCount)) {
+        res->status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        return res->status;
+    }
+    ComboLogicMarkForbidden(forbidden, forbiddenCount, true);
 
     // --- open the bracket -------------------------------------------------
     // snapshot BEFORE beginQuery on purpose: the restore has to undo whatever
@@ -685,6 +752,18 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
             fprintf(stderr, "[ComboLogic] %s engine refused beginQuery\n", Game_ToString((GameId)g));
             status = RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED;
             break;
+        }
+    }
+
+    // --- withhold the forbidden hosts (ABI 6) ------------------------------
+    // Each host goes to ITS OWN game's engine, after both brackets are open and
+    // before anything is granted, so not even the first `expand` harvests it.
+    // The coordinator's own half (no exchange from a forbidden host) is the
+    // bitmap ComboLogicExchangeFrom reads.
+    if (status == RSBS_COMBO_LOGIC_OK) {
+        for (int i = 0; i < forbiddenCount; ++i) {
+            const ComboLogicEngine* e = sEngines[forbidden[i].hostGame];
+            e->withholdHost(e->self, forbidden[i].hostCheck);
         }
     }
 
@@ -879,6 +958,7 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
         }
     }
 
+    ComboLogicMarkForbidden(forbidden, forbiddenCount, false);
     res->status = status;
     return status;
 }
@@ -895,7 +975,8 @@ int Combo_Logic_RunRound(const ComboLogicRoundRequest* req, ComboLogicRoundResul
         return RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
     }
 
-    status = ComboLogicRoundRun(req->assumed, req->assumedCount, req->goal, req->triforceRequired, &local);
+    status = ComboLogicRoundRun(req->assumed, req->assumedCount, req->goal, req->triforceRequired, req->forbidden,
+                                req->forbiddenCount, &local);
     if (out != NULL) {
         *out = local;
     }
@@ -1388,7 +1469,8 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
                 status = RSBS_COMBO_LOGIC_ERR_ABORTED;
                 goto finish;
             }
-            const int st = ComboLogicRoundRun(sAssumedBuf, assumedCount, req->goal, req->triforceRequired, &round);
+            const int st =
+                ComboLogicRoundRun(sAssumedBuf, assumedCount, req->goal, req->triforceRequired, NULL, 0, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 // An engine-contract failure is not a dead end and retrying it
@@ -1426,7 +1508,7 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
             goto finish;
         }
         {
-            const int st = ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, &round);
+            const int st = ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, NULL, 0, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 status = st;
@@ -1465,7 +1547,7 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
             // reached host or not; this measures it instead of assuming it. A
             // failure here is an engine whose reachability SHRANK when an item
             // was added — refused, never worked around (ADR 0010 §2.3).
-            const int st = ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, &round);
+            const int st = ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, NULL, 0, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 status = st;
