@@ -645,8 +645,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                     if (row.cVar != nullptr && std::string(row.cVar) == key) {
                         rows++;
                         const char* tip = row.options != nullptr ? row.options->tooltip : nullptr;
-                        COMBO_CHECK(tip != nullptr && tip[0] != '\0', "row '%s' (%s) has no tooltip",
-                                    row.name.c_str(), key);
+                        COMBO_CHECK(tip != nullptr && tip[0] != '\0', "row '%s' (%s) has no tooltip", row.name.c_str(),
+                                    key);
                         COMBO_CHECK(!row.raceDisable, "row '%s' is race-disabled; the overlay's look is cosmetic",
                                     row.name.c_str());
                     }
@@ -736,8 +736,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         // hosts SoH's own Check Tracker Settings as SoH's Check Tracker page does:
         // embedded, under its pop-out row.
         WidgetInfo* check = FindRow(page, "Popout Check Tracker Settings");
-        COMBO_CHECK(check != nullptr, "Combo / %s has no \"Popout Check Tracker Settings\" row",
-                    kTrackerSettingsPage);
+        COMBO_CHECK(check != nullptr, "Combo / %s has no \"Popout Check Tracker Settings\" row", kTrackerSettingsPage);
         if (check != nullptr) {
             auto o = std::static_pointer_cast<UIWidgets::WindowButtonOptions>(check->options);
             COMBO_CHECK(check->type == WIDGET_WINDOW_BUTTON && check->cVar != nullptr &&
