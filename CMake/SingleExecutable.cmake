@@ -808,6 +808,7 @@ if(BUILD_TESTING)
     # stamps to detect freshness divergence.
     redship_add_test(NAME CommitGenerationMonotonic COMMAND redship --test commit-generation-monotonic)
     redship_add_test(NAME CommitTornWrite COMMAND redship --test commit-torn-write)
+    redship_add_test(NAME CommitGenerationOrder COMMAND redship --test commit-generation-order)
     redship_add_test(NAME CommitGenerationSkew COMMAND redship --test commit-generation-skew)
     # Whole-file commit (#589, operator ruling 2026-08-04) — the read half of
     # the same machinery. A durable save-and-quit in EITHER half commits BOTH

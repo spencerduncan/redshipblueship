@@ -822,3 +822,9 @@ supersede the four MM rows as the Combo > Windows entries for tracking.
 
 `MenuComboSection` leg 3 counts the Combo > Windows buttons. The slice that adds or removes a row updates that
 count (U2 adds one, U6 removes four); this amendment changes no row.
+
+**Delivered (#458 U6).** The four MM rows are gone: Combo > Windows holds three buttons, Toggle Cross-Game Spoiler,
+Toggle Combo Tracker and Toggle Combo Item Tracker. `MenuComboSection` leg 3 pins that count and fails on any button
+that names one of MM's four tracker windows or binds one of their `gWindows.*` keys. The `RSBS_CVAR_MM_WINDOW_*`
+spellings in `cvar_shared_keys.h` went with the rows, their only writer; the keys themselves are MM's own
+(`TrackersGuiSingleExe.h`), and `MMTrackersGui` still locks that they open the registered windows.

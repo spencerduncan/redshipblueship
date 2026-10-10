@@ -29,15 +29,16 @@
  *  4. A WINDOW BUTTON'S CVar OR NAME DRIFTS. `WIDGET_WINDOW_BUTTON` reads `.CVar`
  *     only for its open/close label and calls the window's own
  *     `ToggleVisibility` by `.WindowName` — so a mismatched pair produces a
- *     button that looks right and opens nothing. Leg 3 pins all six pairs, and
- *     `EmbedWindow(false)` with them: the embed path calls `DrawElement()`
- *     directly and bypasses MM's `MMActiveGated` wrapper, the only thing keeping
- *     MM tracker UI from drawing while OoT is the running game. It also pins the
- *     page's SoH shape (UI parity M5, the shape of Randomizer > Item Tracker):
- *     each button sits directly under its own separator and carries SoH's
- *     "Toggles the <Window>." / "Enables the separate <Window> Settings Window."
- *     tooltip, and every MM tracker row says it shows only while Majora's Mask is
- *     running.
+ *     button that looks right and opens nothing. Leg 3 pins all three pairs,
+ *     and `EmbedWindow(false)` with them, as SoH's own tracker toggles are. It
+ *     also pins the page's SoH shape (UI parity M5, the shape of Randomizer >
+ *     Item Tracker): each button sits directly under its own separator and
+ *     carries SoH's "Toggles the <Window>." tooltip. And it pins what LEFT the
+ *     page (#458 U6, ADR 0004's 2026-09-30 amendment): the unified Combo Tracker
+ *     and Combo Item Tracker supersede MM's four tracker rows, so no button on
+ *     the page names an MM tracker window or binds an MM `gWindows.*` key. The
+ *     native MM windows stay registered as fallbacks; that their keys still
+ *     open them is MMTrackersGui's lock, not this row's.
  *
  *  5. THE PLAYER'S SIDEBAR SELECTION IS STRANDED. Sidebar selection persists BY
  *     DISPLAY-NAME STRING into `gSettings.Menu.RandomizerSidebarSection`, so
@@ -304,10 +305,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         const char* separator; // the SEPARATOR_TEXT directly above the button
         const char* tooltip;
     };
-    // The authoritative constants are ComboGui::kComboSpoiler*/kComboTracker*
-    // (src/common/ComboSpoilerWindow.h, ComboTrackerWindow.h) and
-    // kCheckTracker*/kItemTracker*
-    // (games/mm/2s2h/TrackersGuiSingleExe.h). Restated as literals here on
+    // The authoritative constants are ComboGui::kComboSpoiler*/kComboTracker*/
+    // kComboItemTracker* (src/common/ComboSpoilerWindow.h, ComboTrackerWindow.h,
+    // ComboItemTrackerWindow.h). Restated as literals here on
     // purpose: the point is that the menu's spelling and the window's agree, and
     // sharing a constant would make them agree by construction instead.
     // The separators and tooltips are SoH's own tracker-page copy
@@ -319,20 +319,27 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         { "Toggle Combo Tracker", "gCombo.Windows.Tracker", "Combo Tracker", "Combo Tracker",
           "Toggles the Combo Tracker." },
         // The unified Item Tracker overlay (#458 U2; ADR 0004's 2026-09-30
-        // amendment: U2 adds this row, U6 removes the four MM rows below).
+        // amendment: U2 added this row, U6 removed MM's four tracker rows).
         { "Toggle Combo Item Tracker", "gCombo.Windows.ItemTracker", "Combo Item Tracker", "Combo Item Tracker",
           "Toggles the Combo Item Tracker." },
-        { "Toggle MM Item Tracker", "gWindows.ItemTracker", "MM Item Tracker", "MM Item Tracker",
-          "Toggles the MM Item Tracker. Majora's Mask only." },
-        { "Popout MM Item Tracker Settings", "gWindows.ItemTrackerSettings", "MM Item Tracker Settings",
-          "MM Item Tracker Settings", "Enables the separate MM Item Tracker Settings Window. Majora's Mask only." },
-        { "Toggle MM Check Tracker", "gWindows.CheckTracker", "MM Check Tracker", "MM Check Tracker",
-          "Toggles the MM Check Tracker. Majora's Mask only." },
-        { "Popout MM Check Tracker Settings", "gWindows.CheckTrackerSettings", "MM Check Tracker Settings",
-          "MM Check Tracker Settings", "Enables the separate MM Check Tracker Settings Window. Majora's Mask only." },
+    };
+    // MM's four tracker rows, retired by #458 U6: the Combo Tracker and the
+    // Combo Item Tracker above cover both games. Their windows stay registered
+    // and their gWindows.* keys still open them (MMTrackersGui), but no menu row
+    // writes those keys any more. Restated as literals, like the rows above.
+    struct RetiredRow {
+        const char* rowName;
+        const char* cVar;
+        const char* windowName;
+    };
+    const RetiredRow kRetiredRows[] = {
+        { "Toggle MM Item Tracker", "gWindows.ItemTracker", "MM Item Tracker" },
+        { "Popout MM Item Tracker Settings", "gWindows.ItemTrackerSettings", "MM Item Tracker Settings" },
+        { "Toggle MM Check Tracker", "gWindows.CheckTracker", "MM Check Tracker" },
+        { "Popout MM Check Tracker Settings", "gWindows.CheckTrackerSettings", "MM Check Tracker Settings" },
     };
     if (!combo.sidebars.contains("Windows")) {
-        printf("[TEST] FAIL(3): the Combo section has no \"Windows\" page, so none of its seven window rows can be "
+        printf("[TEST] FAIL(3): the Combo section has no \"Windows\" page, so none of its three window rows can be "
                "checked\n");
         gFailures++;
     } else {
@@ -359,9 +366,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         expected.rowName, row->windowName != nullptr ? row->windowName : "(null)", expected.windowName);
             auto options = std::static_pointer_cast<UIWidgets::WindowButtonOptions>(row->options);
             COMBO_CHECK(options != nullptr && !options->embedWindow,
-                        "row '%s' embeds its window; the embed path calls DrawElement() directly and bypasses MM's "
-                        "MMActiveGated Draw wrapper, which is the only thing keeping MM tracker UI from drawing while "
-                        "Ocarina of Time is the running game",
+                        "row '%s' embeds its window; SoH's own tracker toggles pop their windows out, and the embed "
+                        "path calls DrawElement() directly, past the window's own Draw",
                         expected.rowName);
             // The SoH tracker-page shape: this button's own separator directly
             // above it, and SoH's tooltip voice.
@@ -389,6 +395,27 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         COMBO_CHECK(FindRow(windows, "Toggle MM Randomizer Options") == nullptr,
                     "the Windows page still offers \"Toggle MM Randomizer Options\"; MM's randomizer options are "
                     "the Combo > MM Randomizer and Combo > MM Tricks pages, not a window");
+        // MM's tracker rows are gone by name, by window and by key: a renamed
+        // row that still opens an MM tracker window is the same row.
+        for (const RetiredRow& retired : kRetiredRows) {
+            COMBO_CHECK(FindRow(windows, retired.rowName) == nullptr,
+                        "the Windows page still offers \"%s\"; the unified Combo Tracker and Combo Item Tracker "
+                        "supersede MM's tracker rows (#458 U6)",
+                        retired.rowName);
+            for (auto& column : windows.columnWidgets) {
+                for (WidgetInfo& row : column) {
+                    if (row.type != WIDGET_WINDOW_BUTTON) {
+                        continue;
+                    }
+                    COMBO_CHECK(row.windowName == nullptr || std::string(row.windowName) != retired.windowName,
+                                "row '%s' still opens MM's \"%s\" window from the Windows page (#458 U6)",
+                                row.name.c_str(), retired.windowName);
+                    COMBO_CHECK(row.cVar == nullptr || std::string(row.cVar) != retired.cVar,
+                                "row '%s' still binds MM's '%s' key on the Windows page (#458 U6)", row.name.c_str(),
+                                retired.cVar);
+                }
+            }
+        }
         int windowButtons = 0;
         for (auto& column : windows.columnWidgets) {
             for (WidgetInfo& row : column) {
@@ -401,8 +428,10 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                     "the Windows page holds %d window buttons, expected exactly the %d live-play tools above",
                     windowButtons, (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])));
         printf("[TEST] leg 3: all %d cross-game window rows carry a matching CVar/WindowName pair, stay pop-out, and "
-               "sit under their own separator with SoH's tooltip, and the page holds no other window button\n",
-               (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])));
+               "sit under their own separator with SoH's tooltip, and the page holds no other window button and none "
+               "of MM's %d retired tracker rows\n",
+               (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])),
+               (int)(sizeof(kRetiredRows) / sizeof(kRetiredRows[0])));
     }
 
     // ---- Leg 4: the interim host survives, and points somewhere ------------
