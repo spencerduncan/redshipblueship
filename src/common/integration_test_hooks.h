@@ -247,6 +247,46 @@ int IntegrationTest_GameplayWatchdogBudgetSecs(void);
  */
 bool IntegrationTest_GameplayWatchdogExpired(double elapsedSecs, int budgetSecs);
 
+/**
+ * The OoT watchdog's timers for the phase it is watching (#882). `phase` is
+ * the last phase a tick saw (-1 before the first), `frames` that phase's last
+ * observed gameplay-frame count, `phaseStartSecs` the wall clock (seconds, any
+ * monotonic base) at which the phase was entered and `progressSecs` the wall
+ * clock of the phase's last progress.
+ */
+typedef struct {
+    int phase;
+    int frames;
+    double phaseStartSecs;
+    double progressSecs;
+} GameplayWatchdogTimer;
+
+typedef enum {
+    GP_WATCHDOG_OK = 0,
+    /** No progress for the budget: the phase is wedged. */
+    GP_WATCHDOG_STALLED = 1,
+    /** Still advancing, but the phase has outlived its hard ceiling. */
+    GP_WATCHDOG_CEILING = 2
+} GameplayWatchdogVerdict;
+
+/**
+ * The hard ceiling (seconds) on one OoT-owned phase's wall clock, derived from
+ * the stall budget: four budgets (240 s at the default 60), under the 300 s
+ * IntGameplayRoundtrip TIMEOUT. A non-positive budget disables it.
+ */
+int IntegrationTest_GameplayWatchdogCeilingSecs(int budgetSecs);
+
+/** Start timing `phase` (with `frames` gameplay frames already counted) at `nowSecs`. */
+void IntegrationTest_GameplayWatchdogRebase(GameplayWatchdogTimer* timer, int phase, int frames, double nowSecs);
+
+/**
+ * One watchdog tick of an OoT-owned phase whose gameplay-frame count is now
+ * `framesInPhase`. Pure, so the decision is locked ROM-free (test
+ * `gp-watchdog`).
+ */
+GameplayWatchdogVerdict IntegrationTest_GameplayWatchdogTick(GameplayWatchdogTimer* timer, int phase,
+                                                             int framesInPhase, double nowSecs, int budgetSecs);
+
 // ----------------------------------------------------------------------------
 // Progress word for the int-* rows (#793)
 //

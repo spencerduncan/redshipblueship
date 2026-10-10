@@ -334,6 +334,9 @@ constexpr unsigned long kOoTEntranceMax = 0x0614;
 // genuine wedge and always before the hard kill. Restated by the gp-watchdog
 // test as the contract.
 constexpr int kGpWatchdogDefaultSecs = 60;
+// The hard ceiling on one phase's wall clock, in stall budgets (#882): 240 s
+// at the default, under the 300 s IntGameplayRoundtrip TIMEOUT.
+constexpr int kGpWatchdogCeilingBudgets = 4;
 
 int GameplayEnvInt(const char* name, int defaultValue, int minValue) {
     const char* raw = std::getenv(name);
@@ -611,6 +614,33 @@ bool IntegrationTest_GameplayWatchdogExpired(double elapsedSecs, int budgetSecs)
         return false;
     }
     return elapsedSecs >= (double)budgetSecs;
+}
+
+int IntegrationTest_GameplayWatchdogCeilingSecs(int budgetSecs) {
+    if (budgetSecs <= 0) {
+        return 0;
+    }
+    return budgetSecs * kGpWatchdogCeilingBudgets;
+}
+
+void IntegrationTest_GameplayWatchdogRebase(GameplayWatchdogTimer* timer, int phase, int frames, double nowSecs) {
+    timer->phase = phase;
+    timer->frames = frames;
+    timer->phaseStartSecs = nowSecs;
+    timer->progressSecs = nowSecs;
+}
+
+GameplayWatchdogVerdict IntegrationTest_GameplayWatchdogTick(GameplayWatchdogTimer* timer, int phase,
+                                                             int framesInPhase, double nowSecs, int budgetSecs) {
+    if (phase != timer->phase) {
+        // The phase advanced: progress. Re-base the stall timer.
+        IntegrationTest_GameplayWatchdogRebase(timer, phase, framesInPhase, nowSecs);
+    }
+    timer->frames = framesInPhase;
+    if (IntegrationTest_GameplayWatchdogExpired(nowSecs - timer->progressSecs, budgetSecs)) {
+        return GP_WATCHDOG_STALLED;
+    }
+    return GP_WATCHDOG_OK;
 }
 
 int IntegrationTest_GameplayCyclesDone(void) {

@@ -150,16 +150,19 @@ bool OoT_Camera_RegsSeeded(void);
 // firing a door and pre-arrival frames never count.
 static GameplayPhase sGpArrivalPhase = GP_PHASE_DONE;
 static GameplayPhase sGpPlayerLastPhase = GP_PHASE_DONE;
-static GameplayPhase sGpWatchdogLastPhase = GP_PHASE_DONE;
 static int sGpFramesInPhase = 0;
 static int sGpSceneInits = 0;
 // Wall-clock phase watchdog (#376 item 4). The budget is seconds, not frames:
 // a frame budget could not fire before the CTest/`timeout` wall clock under
-// llvmpipe, so the diagnostic dump never emitted. sGpWatchdogPhaseStart is
-// re-based whenever the OoT-owned phase advances; a phase that makes no
-// progress for sGpWatchdogBudgetSecs fails the run with state.
-static std::chrono::steady_clock::time_point sGpWatchdogPhaseStart{};
+// llvmpipe, so the diagnostic dump never emitted. The timer's decision is
+// IntegrationTest_GameplayWatchdogTick (#882); a phase that makes no progress
+// for sGpWatchdogBudgetSecs fails the run with state.
+static GameplayWatchdogTimer sGpWatchdogTimer = { (int)GP_PHASE_DONE, 0, 0.0, 0.0 };
 static int sGpWatchdogBudgetSecs = 0;
+
+static double GpWatchdogNowSecs(void) {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 static bool sGpWatchdogFired = false;
 // Door-actor presence check (bug 1a): baseline door count captured in the
 // boot-phase scene, compared on the return leg when the scene matches. -1 =
@@ -1663,14 +1666,13 @@ static void OoT_RegisterIntegrationTestHooks(void) {
 
         sGpArrivalPhase = GP_PHASE_DONE;
         sGpPlayerLastPhase = GP_PHASE_DONE;
-        sGpWatchdogLastPhase = GP_PHASE_DONE;
         sGpFramesInPhase = 0;
         sGpSceneInits = 0;
         // Wall-clock budget per OoT-owned phase, sized well under the CTest
         // TIMEOUT so the watchdog's diagnostic dump fires BEFORE the hard kill
         // (#376 item 4). The timer is re-based below whenever the phase
         // advances, so only a genuinely wedged phase reaches the budget.
-        sGpWatchdogPhaseStart = std::chrono::steady_clock::now();
+        IntegrationTest_GameplayWatchdogRebase(&sGpWatchdogTimer, (int)GP_PHASE_DONE, 0, GpWatchdogNowSecs());
         sGpWatchdogBudgetSecs = IntegrationTest_GetGameplayConfig()->watchdogSecs;
         sGpWatchdogFired = false;
 
@@ -2047,24 +2049,23 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                     // Not an OoT-owned phase (MM is driving, or the run is
                     // done): re-base so the timer only measures the current
                     // OoT phase's stall, never the MM leg.
-                    sGpWatchdogPhaseStart = std::chrono::steady_clock::now();
-                    sGpWatchdogLastPhase = phase;
+                    IntegrationTest_GameplayWatchdogRebase(&sGpWatchdogTimer, (int)phase, sGpFramesInPhase,
+                                                           GpWatchdogNowSecs());
                     return;
             }
-            std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-            if (phase != sGpWatchdogLastPhase) {
-                // The phase advanced — progress. Re-base the stall timer.
-                sGpWatchdogLastPhase = phase;
-                sGpWatchdogPhaseStart = now;
-            }
-            double elapsedSecs = std::chrono::duration<double>(now - sGpWatchdogPhaseStart).count();
-            if (!sGpWatchdogFired && IntegrationTest_GameplayWatchdogExpired(elapsedSecs, sGpWatchdogBudgetSecs)) {
+            double now = GpWatchdogNowSecs();
+            GameplayWatchdogVerdict verdict = IntegrationTest_GameplayWatchdogTick(
+                &sGpWatchdogTimer, (int)phase, sGpFramesInPhase, now, sGpWatchdogBudgetSecs);
+            if (!sGpWatchdogFired && verdict != GP_WATCHDOG_OK) {
                 sGpWatchdogFired = true;
                 PlayState* play = OoT_gPlayState;
                 fprintf(stderr,
-                        "[GP-TEST] OoT watchdog: no progress for %.1f s (budget %d s) in phase %d "
+                        "[GP-TEST] OoT watchdog: %s for %.1f s (budget %d s) in phase %d "
                         "(play=%p scene=%d entrance=0x%04X arrivedPhase=%d sceneInits=%d gameplayFrames=%d)\n",
-                        elapsedSecs, sGpWatchdogBudgetSecs, (int)phase, (void*)play, play ? play->sceneNum : -1,
+                        verdict == GP_WATCHDOG_STALLED ? "no progress" : "phase still running past its ceiling",
+                        verdict == GP_WATCHDOG_STALLED ? now - sGpWatchdogTimer.progressSecs
+                                                       : now - sGpWatchdogTimer.phaseStartSecs,
+                        sGpWatchdogBudgetSecs, (int)phase, (void*)play, play ? play->sceneNum : -1,
                         (uint16_t)gSaveContext.entranceIndex, (int)sGpArrivalPhase, sGpSceneInits, sGpFramesInPhase);
                 fflush(stderr);
                 IntegrationTest_GameplayFail("OoT-side phase watchdog expired");
