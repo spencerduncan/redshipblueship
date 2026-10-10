@@ -124,6 +124,23 @@ string(SUBSTRING "${GIT_COMMIT_HASH}" 0 7 SHORT_COMMIT_HASH)
 
 set(CMAKE_PROJECT_GIT_COMMIT_HASH "${SHORT_COMMIT_HASH}" CACHE STRING "Git commit hash" FORCE)
 
+# The build identity a person sees (#880): the window title and --version read
+# RSBS_VERSION_STRING plus "+<short commit>", and "-dirty" when tracked files
+# differ from that commit at configure time (CMake/RsbsBuildIdentity.cmake, the
+# rules and the files it ignores; the BuildIdentityDirty row locks them). A tree
+# without git (an exported source archive) keeps the bare version.
+include(CMake/RsbsBuildIdentity.cmake)
+set(RSBS_BUILD_DIRTY 0)
+set(RSBS_BUILD_SUFFIX "")
+if(SHORT_COMMIT_HASH)
+    rsbs_git_tree_dirty("${CMAKE_SOURCE_DIR}" RSBS_BUILD_DIRTY)
+    set(RSBS_BUILD_SUFFIX "+${SHORT_COMMIT_HASH}")
+    if(RSBS_BUILD_DIRTY)
+        string(APPEND RSBS_BUILD_SUFFIX "-dirty")
+    endif()
+endif()
+message(STATUS "RedShipBlueShip build identity: '${RSBS_BUILD_SUFFIX}'")
+
 execute_process(
     COMMAND git describe --tags --abbrev=0 --exact-match HEAD
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
