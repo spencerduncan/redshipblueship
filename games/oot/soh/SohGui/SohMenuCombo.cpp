@@ -79,8 +79,7 @@ using namespace UIWidgets;
 // The three tier-4 `gCombo.Rando.*` keys — direction, the goal (ADR 0010 D1)
 // and the Shared Kokiri Sword (#886); the two pool-size rows were retired by
 // #801, the two item-class groups by #834 and the Shared Ocarina checkbox
-// (#668) by #879 — render as ROWS in
-// the Cross-Game Rules page of the tier-4 Combo section below. #497 step 6
+// (#668) by #879 — render as ROWS in the Cross-Game Rules page of the tier-4 Combo section below. #497 step 6
 // moved them there from the interim host, Randomizer → Cross-Game.
 // PR #652 shipped them as a common-owned pop-out pane
 // (src/common/ComboSettingsWindow.cpp); operator direction after the 2026-09-11
@@ -170,26 +169,6 @@ static std::string comboRuleStatusText;
  */
 static std::string ComboRuleRowName(ComboSettingId id) {
     return std::string(Combo_ComboSettingSharedMarker()) + " " + Combo_ComboSettingLabel(id);
-}
-
-/**
- * The CHECKBOX row's name: the same marker and label, with the marker on a line
- * of its own above the label ("[Both Games]" then "Shared Kokiri Sword"),
- * the shape the retired Shared Ocarina row had (#841).
- *
- * WHY TWO LINES. A combobox draws its label ABOVE the box, so its name has the
- * whole column; a checkbox draws its label to the RIGHT of a ~44 px box
- * (docs/ui-style-guide.md section 2). At min-832x600, the width contract
- * (section 1), a marker and a label on one line overran the column of the
- * two-column page (runtime lint R9), so the marker goes on a line of its own.
- * The break is an AUTHORED newline, a project choice with no SoH precedent;
- * WrappedText keeps it (it restarts its count there), and the box stays at the
- * top with the label beside it, the shape of SoH's wrapped checkbox rows. The
- * newline is part of the search key too (Menu.cpp keeps it), so "shared kokiri"
- * finds the row.
- */
-static std::string ComboRuleCheckboxRowName(ComboSettingId id) {
-    return std::string(Combo_ComboSettingSharedMarker()) + "\n" + Combo_ComboSettingLabel(id);
 }
 
 /**
@@ -546,12 +525,15 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     // to hand OoT a free Fairy Ocarina at the first return.
 
     // The Shared Kokiri Sword (#886; operator ruling 2026-10-09 on #879: an
-    // option, default off), where the Shared Ocarina row was and in its shape.
+    // option, default off), where the Shared Ocarina row was. One line: the
+    // page is one column since #844, so "[Both Games] Shared Kokiri Sword"
+    // fits beside the box at min-832x600 (the retired row needed a two-line
+    // name on the old two-column page).
     // A comboFlags BIT rather than a field of its own, so the row is a plain
     // checkbox over the model's 0/1 space; everything else is the other rows'
     // pattern: the staging buffer, the PreFunc that refreshes it from the record,
     // the Callback that offers the edit to src/common's writer, and the marker.
-    menu.AddWidget(path, ComboRuleCheckboxRowName(COMBO_SETTING_SHARED_KOKIRI_SWORD), WIDGET_CHECKBOX)
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_KOKIRI_SWORD), WIDGET_CHECKBOX)
         .ValuePointer(&comboRuleSharedKokiriSword)
         .PreFunc([](WidgetInfo& info) {
             ComboSettingsRecord shown;
