@@ -364,7 +364,7 @@ std::vector<LoadInput> LoadInputs() {
     std::string rules;
     for (int i = 0; i < COMBO_SETTING_COUNT; i++) {
         const char* label = Combo_ComboSettingLabel(static_cast<ComboSettingId>(i));
-        if (label == nullptr || label[0] == ' ') {
+        if (label == nullptr || label[0] == '\0') {
             continue;
         }
         inputs.push_back({ RSBS_LOAD_TOAST_RULES_RESTORED, label, 0, std::string("rules restored (") + label + ")" });
@@ -375,7 +375,7 @@ std::vector<LoadInput> LoadInputs() {
     std::string all;
     int count = 0;
     auto add = [&](const char* label) {
-        if (label == nullptr || label[0] == ' ') {
+        if (label == nullptr || label[0] == '\0') {
             return;
         }
         inputs.push_back({ RSBS_LOAD_TOAST_MM_RESTORED, label, 1, std::string("MM restored (") + label + ")" });
@@ -431,16 +431,14 @@ int CheckLoadToasts(Notification::Window& overlay, const ImGuiStyle& baseStyle, 
                 }
                 failures += CheckOne(run, in.what.c_str(), scale, Class::OTHER);
             }
-            printf("[TEST] %s, %.1fx: the #881 toast reads '%s'
-", profile.name, scale, issueText.c_str());
+            printf("[TEST] %s, %.1fx: the #881 toast reads '%s'\n", profile.name, scale, issueText.c_str());
             if (profile.width >= 832.0f && issueText != "Restored for Majora's Mask: Starting Hearts +1") {
                 failures += Fail("%s at %.1fx: the #881 toast reads '%s'; it fits whole here, so it must not be cut",
                                  profile.name, scale, issueText.c_str());
             }
         }
         checked += run.checked;
-        printf("[TEST] %s: %zu load toast inputs checked; widest at 1.8x %.0f px ('%s')
-", profile.name,
+        printf("[TEST] %s: %zu load toast inputs checked; widest at 1.8x %.0f px ('%s')\n", profile.name,
                inputs.size(), run.widest, run.widestText.c_str());
     }
     return failures;
