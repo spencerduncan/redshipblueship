@@ -6,7 +6,7 @@
 #include "assets/2s2h_assets.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "2s2h/Rando/Rando.h"    // Rando::DrawForeignCheckAura
-#include "2s2h/Rando/Foreign.h"  // Lane 6 (#494 slice 6): IsForeignCheck
+#include "2s2h/Rando/Foreign.h"  // #862: ChestItemTypeForCheck
 #endif
 
 extern "C" {
@@ -72,18 +72,14 @@ void EnBox_RandoPostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s*
     // path. If Tier A widens, the new classes need the same treatment —
     // Rando::DrawItemForCheck is the generic form for those.
     //
-    // RITYPE_MAJOR rather than a bespoke texture set: the ornate corner/lock
-    // already means "worth opening", which a pinned progression item is, and
-    // inventing a foreign-specific chest texture is the per-item asset tier
-    // #494 puts out of scope.
+    // How that chest is dressed is Rando::Foreign::ChestItemTypeForCheck's
+    // answer (Foreign.cpp), one named function the ROM-free lock drives.
     //
     // #510 removed the particle aura that used to accompany this. The aura was
     // a deliberate "this one is from the other game" tell, and the cross-game
-    // item class is now presented as ordinary treasure — a foreign chest is an
-    // ornate chest, exactly like any other chest holding something good.
-    if (Rando::Foreign::IsForeignCheck((RandoCheckId)ENBOX_RC)) {
-        randoItemType = RITYPE_MAJOR;
-    }
+    // item class is now presented as ordinary treasure — a foreign chest is
+    // dressed like any other chest holding the same kind of thing.
+    randoItemType = Rando::Foreign::ChestItemTypeForCheck((RandoCheckId)ENBOX_RC, randoItemType);
 #endif
     if (enBox->unk_1EC != 0 && actor->home.rot.z == 0) {
         actor->home.rot.z = randoItemType + 1;
