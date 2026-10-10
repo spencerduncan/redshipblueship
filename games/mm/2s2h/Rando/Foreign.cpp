@@ -1677,6 +1677,48 @@ extern "C" int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* o
     return 1;
 }
 
+/** What MM's REAL spoiler writer (GenerateFromSaveContext, run on the live save)
+ *  says about one check (#863). Returns 1 when the spoiler lists the check, 0
+ *  otherwise. `outHasPrice`: the entry is an object carrying "price";
+ *  `outSpoilerPrice`: that price (-1 when absent); `outSlotPrice`: the slot's own
+ *  price in the save table; `outNamesForeign`: the entry's item name (the string,
+ *  or the object's "randoItemId") is the crossing's "<OoT item> (Ocarina of
+ *  Time)". Any out pointer may be NULL. */
+extern "C" int MM_Rando_Foreign_TestSpoilerEntry(uint16_t randoCheckId, int* outHasPrice, int* outSpoilerPrice,
+                                                 int* outSlotPrice, int* outNamesForeign) {
+    const auto it = Rando::StaticData::Checks.find((RandoCheckId)randoCheckId);
+    if (it == Rando::StaticData::Checks.end() || it->second.randoCheckId == RC_UNKNOWN) {
+        return 0;
+    }
+    const nlohmann::json spoiler = Rando::Spoiler::GenerateFromSaveContext();
+    if (!spoiler.contains("checks") || !spoiler["checks"].contains(it->second.name)) {
+        return 0;
+    }
+    const nlohmann::json& entry = spoiler["checks"][it->second.name];
+    const bool hasPrice = entry.is_object() && entry.contains("price") && entry["price"].is_number_integer();
+    std::string itemName;
+    if (entry.is_string()) {
+        itemName = entry.get<std::string>();
+    } else if (entry.is_object() && entry.contains("randoItemId") && entry["randoItemId"].is_string()) {
+        itemName = entry["randoItemId"].get<std::string>();
+    }
+    const char* foreignName = Rando::Foreign::ForeignNameForCheck((RandoCheckId)randoCheckId);
+    if (outHasPrice != nullptr) {
+        *outHasPrice = hasPrice ? 1 : 0;
+    }
+    if (outSpoilerPrice != nullptr) {
+        *outSpoilerPrice = hasPrice ? entry["price"].get<int>() : -1;
+    }
+    if (outSlotPrice != nullptr) {
+        *outSlotPrice = (int)RANDO_SAVE_CHECKS[(RandoCheckId)randoCheckId].price;
+    }
+    if (outNamesForeign != nullptr) {
+        *outNamesForeign =
+            (foreignName != nullptr && itemName == std::string(foreignName) + " (Ocarina of Time)") ? 1 : 0;
+    }
+    return 1;
+}
+
 /** The three RandoItemId values the predicate treats specially: the legal junk
  *  filler, and the two sentinels that are RITYPE_JUNK but are not items. */
 extern "C" void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown) {
