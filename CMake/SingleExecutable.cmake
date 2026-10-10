@@ -808,6 +808,7 @@ if(BUILD_TESTING)
     # stamps to detect freshness divergence.
     redship_add_test(NAME CommitGenerationMonotonic COMMAND redship --test commit-generation-monotonic)
     redship_add_test(NAME CommitTornWrite COMMAND redship --test commit-torn-write)
+    redship_add_test(NAME CommitGenerationOrder COMMAND redship --test commit-generation-order)
     redship_add_test(NAME CommitGenerationSkew COMMAND redship --test commit-generation-skew)
     # Whole-file commit (#589, operator ruling 2026-08-04) — the read half of
     # the same machinery. A durable save-and-quit in EITHER half commits BOTH
@@ -1443,6 +1444,18 @@ if(BUILD_TESTING)
     redship_add_test(NAME MMPairSwitchEntry COMMAND redship --test mm-pair-switch-entry
         LABEL rando
         TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # #879 (operator ruling 2026-10-09): the combo owns MM's paired start. A real
+    # paired creation, with a 2Ship `CVars.gRando.StartingItems` block present
+    # that names a different list, grants MM exactly the Ocarina of Time and the
+    # Song of Time; the creation stamp is the same with and without the block;
+    # the Kokiri Sword and the Hero's Shield are in MM's pool and placed in the
+    # world. Same display requirement as MMPairSwitchEntry, hence the same
+    # label/env; the timeout covers one OoT generation plus MM's half.
+    redship_add_test(NAME MMPairedStart COMMAND redship --test mm-paired-start
+        LABEL rando
+        TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ADR 0010 increment 1.2, lock (b), single-run half: a paired generation

@@ -1520,11 +1520,12 @@ extern "C" int MM_ComboLogic_ProbeGives(const uint16_t* ids, int count, int star
  *      the profile a fill runs under. SOLO (`paired == false`) deliberately: that
  *      path returns before touching `gComboCtx.mmProfileDigest`, so a measurement
  *      cannot stamp or trip a cross-game identity.
- *   4. `Rando::SetStartingItemsInSave(..., GetStartingItemsFromConfig())`, then
+ *   4. `Rando::SetStartingItemsInSave(..., Foreign::PairedStartingItems())`, then
  *      `Rando::GrantStartingItems()` — A1's "at file creation the live save holds
  *      exactly the world's starting inventory", in the creation seam's own order
- *      (OnFileCreate.cpp persists the configured list into the save, and only
- *      then grants it). Without the first half the grant reads a fresh save's
+ *      (OnFileCreate.cpp persists the paired start into the save, and only then
+ *      grants it; the paired start is the combo's own list since #879, never
+ *      2Ship's config block). Without the first half the grant reads a fresh save's
  *      EMPTY starting-item list and grants nothing: until lane K9 this bridge did
  *      exactly that, so every measured MM world started without the default
  *      sword, shield, Ocarina and Song of Time. That stayed invisible while the
@@ -1591,7 +1592,7 @@ extern "C" int MM_ComboLogic_ApplyShippedProfile(void) {
     MM_Sram_InitNewSave();
     gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
     Rando::Foreign::ResolvePairedProfile(false);
-    auto startingItems = Rando::GetStartingItemsFromConfig();
+    auto startingItems = Rando::Foreign::PairedStartingItems();
     Rando::SetStartingItemsInSave(gSaveContext.save.shipSaveInfo.rando, startingItems);
     Rando::GrantStartingItems();
     return (int)RANDO_SAVE_OPTIONS[RO_LOGIC];
@@ -1659,8 +1660,8 @@ namespace {
 /**
  * The one body behind MM_ComboLogic_TestGeneratePool and
  * MM_ComboLogic_TestAuthorCheckTable: ONE `GeneratePools` call over a heap copy
- * of the save's rando info (configured starting items persisted into the copy
- * first, exactly as OnFileCreate does), its item pool (with plentiful marks) and
+ * of the save's rando info (the paired start persisted into the copy first,
+ * exactly as OnFileCreate does), its item pool (with plentiful marks) and
  * check pool written out under the enumerators' truncation contract, and — only
  * when `authorCheckTable` — the copy's `randoSaveChecks` copied back into the
  * live save. Nothing else in the save is written either way.
@@ -1672,7 +1673,7 @@ int GeneratePoolBridge(bool authorCheckTable, uint16_t* outItems, uint16_t* outF
     }
     std::unique_ptr<RandoSaveInfo> info = std::make_unique<RandoSaveInfo>();
     memcpy(info.get(), &gSaveContext.save.shipSaveInfo.rando, sizeof(RandoSaveInfo));
-    auto startingItems = Rando::GetStartingItemsFromConfig();
+    auto startingItems = Rando::Foreign::PairedStartingItems();
     Rando::SetStartingItemsInSave(*info, startingItems);
     std::vector<RandoCheckId> checkPool;
     std::vector<RandoItemId> itemPool;

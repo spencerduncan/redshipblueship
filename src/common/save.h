@@ -736,8 +736,21 @@ private:
     // flight), and both use the same `.tmp` staging path — unserialized, the
     // interleaved temp writes produce a CRC-invalid file that the next load
     // refuses.
+    //
+    // It refuses (false) to replace a file whose committed generation is newer
+    // than the one it is writing (#851), unless mSlotStartsOver says the file
+    // belongs to another world's sequence.
     bool WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob, const uint8_t* mmBlob,
                        const std::vector<uint8_t>& crossings);
+
+    // The Tier-1 commit generation of the slot's file, when the file is a
+    // whole .redsave of this slot (header, CRC, ComboContext magic). False for
+    // an absent or invalid file. Touches no live state; safe on the worker.
+    bool ReadCommittedGeneration(int slot, uint32_t* outGeneration) const;
+
+    // mSlotStartsOver's setter: takes mWriteMtx, so it is ordered against a
+    // write in flight on the save worker.
+    void SetSlotStartsOver(int slot, bool startsOver);
 
     std::string mSaveDir = "Save";
 
@@ -775,6 +788,13 @@ private:
     // together with mStageMtx: WriteStagedCommit copies the snapshot out under
     // mStageMtx, releases it, and only then enters WriteSlotFile.
     mutable std::mutex mWriteMtx;
+
+    // #851: true when the file at the slot (if any) is not part of this
+    // session's commit sequence, so its generation does not order the next
+    // write. Set by a create (ArmSlotOnCreate) and an erase (DeleteSave);
+    // cleared by a successful load and by the first successful write. Guarded
+    // by mWriteMtx.
+    bool mSlotStartsOver[RSBS_SAVE_MAX_SLOTS]{};
 
     // #533 armed-session latch. A slot becomes writable ONLY via this
     // session's own successful Load, an explicit erase, or the file-create
@@ -946,6 +966,13 @@ void RsbsSave_NoteSlotRefusalWords(int slot, const char* words);
 /** Test hook (#781 paired-load-restore leg 5): force the load's post-restore
  *  compare to fail, so the put-back is exercised. Never called in production. */
 void RsbsSave_ForceLoadRestoreVerifyFailForTest(int on);
+
+/** Test hook (#851 commit-generation-order): `hook(ctx)` runs on the writing
+ *  thread between RsbsSave_WriteStagedCommit's copy of the staged snapshot and
+ *  its file write, so a test can hold OoT's save worker there while the game
+ *  thread commits a newer generation. NULL clears it. Never called in
+ *  production. */
+void RsbsSave_SetStagedCopyHookForTest(void (*hook)(void* ctx), void* ctx);
 
 /**
  * Session-scoped "which slot is open" (see SaveManager::SetActiveSlot).
