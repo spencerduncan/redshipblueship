@@ -296,7 +296,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         }
         COMBO_CHECK(found, "Combo / %s is in `sidebars` but not in `sidebarOrder`", pageName);
     }
-    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and both shipped pages hold widgets\n");
+    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and both shipped pages hold widgets in "
+           "every column they declare\n");
 
     // ---- Leg 2: the rules page hosts the tier-4 rows -----------------------
     // Which rows, and how they behave, is ComboSettingsRows. What this leg owns is
