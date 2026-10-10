@@ -60,7 +60,6 @@
 #include "ComboSpoilerWindow.h"
 #include "ComboTrackerWindow.h"
 #include "ComboItemTrackerWindow.h"
-#include "cvar_shared_keys.h"
 
 #include <cctype>  // toupper, for the disabled reason's Title Case
 #include <cstdio>  // snprintf, for the combo-rule status line and fingerprint
