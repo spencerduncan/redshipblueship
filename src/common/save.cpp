@@ -101,9 +101,11 @@ void* gStagedCopyHookCtxForTest = nullptr;
 // guide's "about 53 characters" is the 832-px window's width in average glyphs;
 // a 52-character toast measured 810 px there and ran off the left edge, so these
 // keep to 48 (the UI snapshot's toast/load-* pages measure the pixels at that
-// profile). The long explanation, with every field, stays on the stderr line
-// beside each toast. Muted: the overlay's ding is OoT's audio, and the load also
-// runs in the display-free rows.
+// profile). That is the CAP: a narrower window gets fewer names (#881: the
+// 640-px window a config with no size opens cut a 46-character toast at both
+// edges), see FitLoadToast. The long explanation, with every field, stays on the
+// stderr line beside each toast. Muted: the overlay's ding is OoT's audio, and
+// the load also runs in the display-free rows.
 constexpr std::size_t kLoadToastBudget = 48;
 
 // The message budget left beside @p prefix and the space between them.
@@ -166,6 +168,23 @@ std::string FitNames(const std::string& list, int total, std::size_t budget, con
         return std::to_string(count) + " " + (count == 1 ? singular : plural);
     }
     return out + plusFor(shown);
+}
+
+// The "Restored ..." message for @p prefix (#881): the longest FitNames cut, at
+// most the 48-character cap, whose toast the overlay draws inside the window it
+// is drawn in, measured in pixels by the overlay itself
+// (OoT_Notification_FitsWindow). Each step down drops a name to "+N", or cuts the
+// first name, and at the bottom the toast is a bare count ("2 settings"). With
+// nothing to measure against (a display-free row) the cap stands.
+std::string FitLoadToast(const char* prefix, const char* names, int count, const char* singular,
+                         const char* plural) {
+    const std::string list = names != nullptr ? names : "";
+    for (std::size_t budget = LoadToastRoom(prefix);; budget--) {
+        std::string message = FitNames(list, count, budget, singular, plural);
+        if (budget == 0 || OoT_Notification_FitsWindow(prefix, message.c_str()) != 0) {
+            return message;
+        }
+    }
 }
 
 // Filename-safe tag for the quarantine rename, so the renamed-aside evidence
@@ -2158,12 +2177,11 @@ void RsbsSave_EmitLoadToast(int kind, const char* names, int count) {
     switch (kind) {
         case RSBS_LOAD_TOAST_RULES_RESTORED:
             prefix = "Restored from file:";
-            message = rsbs::FitNames(names != nullptr ? names : "", count, rsbs::LoadToastRoom(prefix), "rule", "rules");
+            message = rsbs::FitLoadToast(prefix, names, count, "rule", "rules");
             break;
         case RSBS_LOAD_TOAST_MM_RESTORED:
             prefix = "Restored for Majora's Mask:";
-            message = rsbs::FitNames(names != nullptr ? names : "", count, rsbs::LoadToastRoom(prefix), "setting",
-                                     "settings");
+            message = rsbs::FitLoadToast(prefix, names, count, "setting", "settings");
             break;
         case RSBS_LOAD_TOAST_REFUSED_RULES:
         case RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD:

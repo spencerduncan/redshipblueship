@@ -61,6 +61,12 @@
  *     toast of every name OoT also uses fits like a refusal toast;
  *   - the creation-failure toast (PR #749) as the calibration: #749 measured it
  *     at 800 px in the ui tier's 832-px window, and this row prints its own width.
+ *   - #881: the paired-file load's "Restored from file:" and "Restored for
+ *     Majora's Mask:" toasts through RsbsSave_EmitLoadToast, at 640 x 480 (the
+ *     window a config with no size opens: libultraship's default) and 832 x 600,
+ *     both at menu scale 1.0, over every rule and MM option or trick label a real
+ *     load names, alone and all at once: each keeps the margin on both sides, and
+ *     the #881 case ("Starting Hearts +1") is not cut where it fits whole.
  * That the production refusal SITES call these emitters is locked where each
  * site is driven: mm-combo-settings-gate (MM options, rules, missing half),
  * mm-spoiler-identity (spoiler) and combo-creation-event (OoT spoiler) compare
@@ -84,8 +90,12 @@
 #include <cstring>
 #include <set>
 #include <string>
+#include <vector>
 
-#include "foreign_items.h" // Combo_ComboSettingsDivergenceDescribe / FieldName, RSBS_COMBO_DIVERGE_*
+#include "combo_mm_options_view.h" // Combo_MMOptionAt: the labels the load's MM toast names (#881)
+#include "combo_mm_tricks_view.h"
+#include "combo_settings_view.h" // Combo_ComboSettingLabel: the labels the load's rules toast names
+#include "foreign_items.h"       // Combo_ComboSettingsDivergenceDescribe / FieldName, RSBS_COMBO_DIVERGE_*
 #include "notification_bridge.h"
 #include "pairing_refusal_toast.h"
 #include "save.h"         // RsbsSave_EmitLoadToast, RsbsSave_EmitFileSelectRefusalToast
@@ -325,6 +335,128 @@ void SetScale(float scale) {
     CVarSetFloat(CVAR_SETTING("Notifications.Size"), scale);
 }
 
+// #881: the profiles the paired-file load's "Restored ..." toasts are checked
+// at. A config with no window size opens libultraship's default 640 x 480
+// (gfx_sdl2.cpp, Window.Width 640), which nothing in rsbs/ or src/ overrides; the
+// ui tier's smallest profile is 832 x 600.
+constexpr Profile kLoadProfiles[] = {
+    { "640x480 at menu scale 1.0", 640.0f, 480.0f, 1.0f },
+    { "832x600 at menu scale 1.0", 832.0f, 600.0f, 1.0f },
+};
+
+/** One "Restored ..." toast: its kind, the names a real load hands it, the true count (0: the list is complete). */
+struct LoadInput {
+    int kind;
+    std::string names;
+    int count;
+    std::string what;
+};
+
+/**
+ * #881: the load's "Restored from file:" and "Restored for Majora's Mask:" toasts,
+ * through RsbsSave_EmitLoadToast, with the inputs a real load hands it: every
+ * Cross-Game Rule alone and all of them at once; the playtest's MM case (one
+ * option named, a second counted: "Starting Hearts +1", the #881 frame); every
+ * MM option and settable trick label alone; and all of them at once.
+ */
+std::vector<LoadInput> LoadInputs() {
+    std::vector<LoadInput> inputs;
+    std::string rules;
+    for (int i = 0; i < COMBO_SETTING_COUNT; i++) {
+        const char* label = Combo_ComboSettingLabel(static_cast<ComboSettingId>(i));
+        if (label == nullptr || label[0] == '\0') {
+            continue;
+        }
+        inputs.push_back({ RSBS_LOAD_TOAST_RULES_RESTORED, label, 0, std::string("rules restored (") + label + ")" });
+        rules += (rules.empty() ? "" : ", ") + std::string(label);
+    }
+    inputs.push_back({ RSBS_LOAD_TOAST_RULES_RESTORED, rules, 0, "rules restored (every rule)" });
+    inputs.push_back(
+        { RSBS_LOAD_TOAST_MM_RESTORED, "Starting Hearts", 2, "MM restored (#881's 'Starting Hearts +1')" });
+    // The descriptor tables the MM options and tricks pages publish (both
+    // registrars are idempotent; GameExports_SingleExe.cpp brings them up the same way).
+    if (Combo_MMOptionCount() == 0) {
+        MM_RandoOptionsUi_Register();
+    }
+    if (Combo_MMTrickCount() == 0) {
+        MM_RandoTricksUi_Register();
+    }
+    std::string all;
+    int count = 0;
+    auto add = [&](const char* label) {
+        if (label == nullptr || label[0] == '\0') {
+            return;
+        }
+        inputs.push_back({ RSBS_LOAD_TOAST_MM_RESTORED, label, 1, std::string("MM restored (") + label + ")" });
+        all += (all.empty() ? "" : ", ") + std::string(label);
+        count++;
+    };
+    for (int i = 0; i < Combo_MMOptionCount(); i++) {
+        const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+        add(d != nullptr ? d->label : nullptr);
+    }
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        add(d != nullptr && d->bound && !d->reserved ? d->label : nullptr);
+    }
+    if (count > 1) {
+        inputs.push_back({ RSBS_LOAD_TOAST_MM_RESTORED, all, count, "MM restored (every option and trick)" });
+    }
+    return inputs;
+}
+
+/**
+ * #881: every "Restored ..." toast keeps the overlay's margin on both sides of a
+ * 640-px and an 832-px window, at Notifications.Size 1.8 and 1.0. And where the
+ * whole #881 toast fits (the 832-px window, and the 640-px one at size 1.0), it
+ * is not cut: the fit shortens a toast only for a window it does not fit.
+ */
+int CheckLoadToasts(Notification::Window& overlay, const ImGuiStyle& baseStyle, int& checked) {
+    ImGuiIO& io = ImGui::GetIO();
+    const std::vector<LoadInput> inputs = LoadInputs();
+    int failures = 0;
+    for (const Profile& profile : kLoadProfiles) {
+        ImGui::GetStyle() = baseStyle;
+        ImGui::GetStyle().ScaleAllSizes(profile.menuScale);
+        io.FontGlobalScale = profile.menuScale;
+        io.DisplaySize = ImVec2(profile.width, profile.height);
+        FitRun run;
+        run.overlay = &overlay;
+        run.profile = &profile;
+        for (float scale : { 1.8f, 1.0f }) {
+            SetScale(scale);
+            std::string issueText;
+            for (const LoadInput& in : inputs) {
+                RsbsSave_EmitLoadToast(in.kind, in.names.c_str(), in.count);
+                ComboNotification last;
+                memset(&last, 0, sizeof(last));
+                std::string text;
+                if (OoT_Notification_PeekLastForTest(&last) == 1) {
+                    text = std::string(last.prefix != nullptr ? last.prefix : "") + " " +
+                           (last.message != nullptr ? last.message : "");
+                }
+                if (in.what.find("#881") != std::string::npos) {
+                    issueText = text;
+                }
+                failures += CheckOne(run, in.what.c_str(), scale, Class::OTHER);
+            }
+            printf("[TEST] %s, %.1fx: the #881 toast reads '%s'\n", profile.name, scale, issueText.c_str());
+            // Where the whole #881 toast fits it must read whole: the 832-px
+            // window at both sizes, and the 640-px window at size 1.0. Only
+            // 640 px at 1.8 may shorten it.
+            const bool fitsWhole = profile.width >= 832.0f || scale == 1.0f;
+            if (fitsWhole && issueText != "Restored for Majora's Mask: Starting Hearts +1") {
+                failures += Fail("%s at %.1fx: the #881 toast reads '%s'; it fits whole here, so it must not be cut",
+                                 profile.name, scale, issueText.c_str());
+            }
+        }
+        checked += run.checked;
+        printf("[TEST] %s: %zu load toast inputs checked; widest at 1.8x %.0f px ('%s')\n", profile.name, inputs.size(),
+               run.widest, run.widestText.c_str());
+    }
+    return failures;
+}
+
 /**
  * How many RSBS_COMBO_DIVERGE_* bits exist, DERIVED from the describer's own
  * name table: the bits are allocated from bit 0 upwards, so the count is the
@@ -495,10 +627,14 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
                    run.widestText.c_str());
         }
     }
+    if (rc == 0) {
+        // #881: the load's "Restored ..." toasts, at the default 640-px window too.
+        failures += CheckLoadToasts(overlay, baseStyle, checked);
+    }
     ImGui::GetStyle() = baseStyle;
     io.FontGlobalScale = 1.0f;
     if (rc == 0 && failures != 0) {
-        rc = Fail("%d refusal toast check(s) failed (listed above)", failures);
+        rc = Fail("%d toast check(s) failed (listed above)", failures);
     }
 
     if (rc == 0) {
@@ -522,7 +658,7 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
     if (rc != 0) {
         return rc;
     }
-    printf("[TEST] PASS: %d refusal toasts drawn by SoH's overlay, every one keeping the overlay's margin on both "
+    printf("[TEST] PASS: %d toasts drawn by SoH's overlay, every one keeping the overlay's margin on both "
            "sides\n",
            checked);
     return 0;

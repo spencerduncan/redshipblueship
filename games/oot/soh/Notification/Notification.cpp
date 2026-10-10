@@ -262,6 +262,48 @@ extern "C" void OoT_Notification_EmitDefault(const char* prefix, const char* mes
     Notification::Emit(options);
 }
 
+// #881: whether a toast in SoH's own shape (OoT_Notification_EmitDefault's: no
+// icon, no suffix) keeps Window::Draw's 30-px margin on both sides of the window
+// it is drawn in, measured the way Draw lays it out: the default font at the
+// player's Notifications.Size (SetWindowFontScale), the prefix, SameLine's item
+// spacing, the message, and the window padding on both sides of an
+// AlwaysAutoResize window. -1 when there is nothing to measure against (no ImGui
+// context, no built font, no display size: the display-free rows); the caller
+// keeps its character budget then. The pixels are locked by
+// pairing-refusal-toast-fit, which draws the toast through Draw itself.
+extern "C" int OoT_Notification_FitsWindow(const char* prefix, const char* message) {
+    if (ImGui::GetCurrentContext() == nullptr) {
+        return -1;
+    }
+    const ImGuiIO& io = ImGui::GetIO();
+    ImFont* font = io.FontDefault;
+    if (font == nullptr && io.Fonts != nullptr && !io.Fonts->Fonts.empty()) {
+        font = io.Fonts->Fonts[0];
+    }
+    if (font == nullptr || io.Fonts == nullptr || !io.Fonts->IsBuilt() || io.DisplaySize.x <= 0.0f) {
+        return -1;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    const float size = (ctx != nullptr && ctx->GetConsoleVariables() != nullptr)
+                           ? CVarGetFloat(CVAR_SETTING("Notifications.Size"), 1.8f)
+                           : 1.8f;
+    // ImGui's FontBaseSize, times the window's font scale.
+    const float base = io.FontGlobalScale * font->FontSize * font->Scale;
+    const float pixels = (base > 1.0f ? base : 1.0f) * size;
+    const ImGuiStyle& style = ImGui::GetStyle();
+    // ImGui::CalcTextSize rounds each text item's width up to a whole pixel.
+    auto textWidth = [&](const char* text) {
+        const float w = font->CalcTextSizeA(pixels, FLT_MAX, 0.0f, text).x;
+        return (float)(int)(w + 0.99999f);
+    };
+    float width = 2.0f * style.WindowPadding.x + textWidth(message != nullptr ? message : "");
+    if (prefix != nullptr && prefix[0] != '\0') {
+        width += textWidth(prefix) + style.ItemSpacing.x;
+    }
+    const float margin = 30.0f; // Window::Draw's
+    return width <= io.DisplaySize.x - 2.0f * margin ? 1 : 0;
+}
+
 extern "C" void OoT_Notification_ClearForTest(void) {
     Notification::notifications.clear();
 }
