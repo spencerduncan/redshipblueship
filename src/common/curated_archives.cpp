@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include <spdlog/spdlog.h>
 #include <zip.h>
 
 #include <ship/Context.h>
@@ -1005,6 +1006,16 @@ void ReportEnsure(EnsureOutcome outcome, const std::string& log) {
         fprintf(stream, "%s\n", fallback);
     }
     fflush(stream);
+    // #883: the console is not what a player attaches to a report; the game's
+    // logger is (its file sink writes logs/*.log). Same words, so a player's
+    // log shows whether the halves were generated, current, refused or never
+    // attempted.
+    if (failed) {
+        SPDLOG_ERROR("{}", result);
+        SPDLOG_ERROR("{}", fallback);
+    } else {
+        SPDLOG_INFO("{}", result);
+    }
 }
 
 } // namespace rsbs::curated
