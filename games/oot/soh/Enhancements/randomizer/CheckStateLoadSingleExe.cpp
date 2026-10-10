@@ -55,6 +55,24 @@
  * checks the flag-set hooks do not resolve to (a flag two locations share
  * resolves to the one the dungeon's quest selects) and locations outside the
  * seed (nothing placed) are not touched either.
+ *
+ * A VANILLA FILE (#861). A paired file that is not a randomizer file reloads
+ * the same way, and its Check Tracker reads, saves and reloads the same
+ * statuses (randomizer_check_tracker.cpp: SaveTrackerData, LoadFile). It marks
+ * them through its own flag maps, not the randomizer's: CheckTrackerFlagSet and
+ * CheckTrackerSceneFlagSet, which return at once on a randomizer file. So on a
+ * vanilla file the same rule runs with "the check the hooks resolve that flag
+ * to" read from the tracker's maps (OoT_CheckTracker_VanillaCheckForFlag), and
+ * without the placed-item filter (a vanilla file places nothing). That
+ * includes the dungeon rewards and songs whose collection flag is an
+ * EventChkInf (Queen Gohma's blue warp, Saria's Song): the tracker marks them
+ * in play on the item receive, but its generic EventChkInf loop resolves their
+ * flags to them too, so they follow the loaded half like any other check. A
+ * check those maps never resolve to (a chest the tracker does not show, which
+ * its scene-flag loop skips, such as a Mido chest) is not touched; in a
+ * process with no Randomizer (the ROM-free rows) a RandomizerInf flag resolves
+ * to nothing. Display only: a vanilla file gives nothing through these
+ * statuses.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -80,6 +98,9 @@ extern "C" {
 // through (C++ linkage there; no header of their own).
 RandomizerCheck GetRandomizerCheckFromFlag(int16_t flagType, int16_t flag);
 RandomizerCheck GetRandomizerCheckFromSceneFlag(int16_t sceneNum, int16_t flagType, int16_t flag);
+// randomizer_check_tracker.cpp: the check a vanilla file's tracker marks for a
+// flag (#861).
+extern "C" uint16_t OoT_CheckTracker_VanillaCheckForFlag(int16_t flagType, int16_t sceneNum, int32_t flag);
 
 namespace {
 
@@ -165,15 +186,20 @@ bool HooksResolveTo(RandomizerCheck rc, const CollectionFlag& f) {
     return GetRandomizerCheckFromFlag(f.type, f.flag) == rc;
 }
 
+// Would a vanilla file's tracker mark THIS check when that flag is set (#861)?
+bool TrackerResolvesTo(RandomizerCheck rc, const CollectionFlag& f) {
+    return OoT_CheckTracker_VanillaCheckForFlag(f.type, f.scene, f.flag) == (uint16_t)rc;
+}
+
 } // namespace
 
 /**
  * Make OoT's check statuses follow `loaded`, the save half that is now live,
  * where it differs from `described`, the half the statuses were loaded beside
- * (the .sav's base section). See the file comment for the rule. Rando files
- * only: a vanilla file's tracker marks checks through its own maps
- * (CheckTrackerFlagSet) and gives nothing through these statuses, so on a
- * vanilla file the tracker's display can still lag the loaded half.
+ * (the .sav's base section). See the file comment for the rule. A randomizer
+ * file resolves flags through the flag-set hooks' maps; any other file through
+ * its Check Tracker's own maps (#861), which read the live gSaveContext, so
+ * `loaded` is gSaveContext there (it is at the one call site, SaveManager.cpp).
  *
  * @return the number of checks changed; *outFound / *outNotFound (either may
  *         be NULL) split it. 0 with no heap Rando::Context.
@@ -183,19 +209,21 @@ extern "C" int OoT_Combo_ReconcileCheckStateToLoadedHalf(const SaveContext* desc
     int found = 0;
     int notFound = 0;
     auto ctx = Rando::Context::GetInstance();
-    if (ctx != nullptr && described != nullptr && loaded != nullptr && loaded->ship.quest.id == QUEST_RANDOMIZER) {
+    if (ctx != nullptr && described != nullptr && loaded != nullptr) {
+        const bool rando = loaded->ship.quest.id == QUEST_RANDOMIZER;
         for (size_t i = 1; i < (size_t)RC_MAX; i++) { // 0 == RC_UNKNOWN_CHECK
             const RandomizerCheck rc = (RandomizerCheck)i;
             Rando::ItemLocation* itemLoc = ctx->GetItemLocation(rc);
             const Rando::Location* loc = Rando::StaticData::GetLocation(rc);
-            if (itemLoc == nullptr || loc == nullptr || itemLoc->GetPlacedRandomizerGet() == RG_NONE) {
+            if (itemLoc == nullptr || loc == nullptr || (rando && itemLoc->GetPlacedRandomizerGet() == RG_NONE)) {
                 continue;
             }
             CollectionFlag f{};
             bool wasSet = false;
             bool isSet = false;
             if (!CollectionFlagIn(*described, *loc, &f, &wasSet) || !CollectionFlagIn(*loaded, *loc, &f, &isSet) ||
-                wasSet == isSet || isSet == itemLoc->HasObtained() || !HooksResolveTo(rc, f)) {
+                wasSet == isSet || isSet == itemLoc->HasObtained() ||
+                !(rando ? HooksResolveTo(rc, f) : TrackerResolvesTo(rc, f))) {
                 continue;
             }
             if (isSet) {
@@ -208,7 +236,8 @@ extern "C" int OoT_Combo_ReconcileCheckStateToLoadedHalf(const SaveContext* desc
         }
     }
     if (found + notFound > 0) {
-        SPDLOG_INFO("RSBS: OoT's check state follows the loaded half: {} marked found, {} marked not found (#849)",
+        SPDLOG_INFO("RSBS: OoT's check state follows the loaded half: {} marked found, {} marked not found (#849, "
+                    "#861)",
                     found, notFound);
     }
     if (outFound != nullptr) {

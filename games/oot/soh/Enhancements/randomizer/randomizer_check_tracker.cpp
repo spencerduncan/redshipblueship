@@ -381,7 +381,19 @@ void RecalculateAllAreaTotals() {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// OoT_CheckTracker_VanillaCheckForFlag (#861): while set, the flag-set handlers
+// below only name the check they would mark, here, and change nothing.
+static RandomizerCheck* sRsbsResolveOnly = nullptr;
+#endif
+
 void SetCheckCollected(RandomizerCheck rc) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (sRsbsResolveOnly != nullptr) {
+        *sRsbsResolveOnly = rc;
+        return;
+    }
+#endif
     OTRGlobals::Instance->gRandoContext->GetItemLocation(rc)->SetCheckStatus(RCSHOW_COLLECTED);
     Rando::Location* loc = Rando::StaticData::GetLocation(rc);
     if (IsVisibleInCheckTracker(rc)) {
@@ -1030,6 +1042,32 @@ extern "C" int OoT_CheckTracker_TestSearchShows(uint16_t rc, const char* text) {
     memcpy(checkSearch.InputBuf, saved, sizeof(saved));
     checkSearch.Build();
     return shown ? 1 : 0;
+}
+
+// The check a vanilla file's tracker marks when this flag is set (#861): the
+// real CheckTrackerSceneFlagSet / CheckTrackerFlagSet, run with
+// SetCheckCollected only naming the check. They read the live gSaveContext
+// (IS_RANDO, IS_MASTER_QUEST, the carpenters' flags), so the answer is for the
+// half that is live. RC_UNKNOWN_CHECK when they mark nothing, on a randomizer
+// file (they return at once there), and for a RandomizerInf flag in a process
+// with no Randomizer to map it.
+extern "C" uint16_t OoT_CheckTracker_VanillaCheckForFlag(int16_t flagType, int16_t sceneNum, int32_t flag) {
+    if (IS_RANDO) {
+        return RC_UNKNOWN_CHECK;
+    }
+    if (flagType == FLAG_RANDOMIZER_INF &&
+        (OTRGlobals::Instance == nullptr || OTRGlobals::Instance->gRandomizer == nullptr)) {
+        return RC_UNKNOWN_CHECK;
+    }
+    RandomizerCheck rc = RC_UNKNOWN_CHECK;
+    sRsbsResolveOnly = &rc;
+    if (flagType == FLAG_SCENE_TREASURE || flagType == FLAG_SCENE_COLLECTIBLE) {
+        CheckTrackerSceneFlagSet(sceneNum, flagType, flag);
+    } else {
+        CheckTrackerFlagSet(flagType, flag);
+    }
+    sRsbsResolveOnly = nullptr;
+    return (uint16_t)rc;
 }
 #endif
 

@@ -759,10 +759,11 @@ buttons. The files, their two CMake entries and their lint-list line are deleted
 **What moved: a read-only page, Combo > Save Files** (`games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp`, contributed
 through `RegisterComboSectionPage`; model `src/common/combo_save_files_view.{h,cpp}`, ADR 0008 rule 1). One table
 row per file: the name line, the game it last saved in (Last Game), and a status (`Ready`, `No cross-game record`,
-`No cross-game record (backup kept)`, or `Not paired: <reason>`, with a tooltip saying whether the original was set
-aside as a backup), under a gray note for four situations (no record yet, every file pairs, one does not, a backup
-kept). A refusal that posted a toast shows the toast's own reason words, recorded on the slot where the toast is
-posted (`SaveManager::NoteSlotRefusalWords`); the others show the page's words for the reason code. The panel's
+`No cross-game record (backup kept)`, or `Refused: <reason>` (`Not paired: <reason>` before #836), with a tooltip
+saying whether the original was set aside as a backup), under a gray note for four situations (no record yet, every
+file pairs, one does not, a backup kept). A refusal that posted a toast shows the toast's own reason words, recorded
+on the slot where the toast is posted (`SaveManager::NoteSlotRefusalWords`); the others show the page's words for the
+reason code. The panel's
 `[MM v]` marker did not move: a paired creation stamps both halves' markers (#765), so it said nothing about play.
 The status names the cross-game record, not the file: a slot with no `.redsave` can still hold an Ocarina of Time
 file. The page reads the files once when it opens and again only when `SaveManager::SlotStateEpoch` moves, under
@@ -821,3 +822,9 @@ supersede the four MM rows as the Combo > Windows entries for tracking.
 
 `MenuComboSection` leg 3 counts the Combo > Windows buttons. The slice that adds or removes a row updates that
 count (U2 adds one, U6 removes four); this amendment changes no row.
+
+**Delivered (#458 U6).** The four MM rows are gone: Combo > Windows holds three buttons, Toggle Cross-Game Spoiler,
+Toggle Combo Tracker and Toggle Combo Item Tracker. `MenuComboSection` leg 3 pins that count and fails on any button
+that names one of MM's four tracker windows or binds one of their `gWindows.*` keys. The `RSBS_CVAR_MM_WINDOW_*`
+spellings in `cvar_shared_keys.h` went with the rows, their only writer; the keys themselves are MM's own
+(`TrackersGuiSingleExe.h`), and `MMTrackersGui` still locks that they open the registered windows.

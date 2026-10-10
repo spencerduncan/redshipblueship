@@ -34,10 +34,11 @@
 // OTRGlobals.h only forward-declares Rando::Context, which is enough to hold
 // the shared_ptr but not to call through it.
 #include "soh/Enhancements/randomizer/SeedContext.h"
-#include "soh/SaveManager.h"     // SaveFileMetaInfo: the paired row's slot ownership mark
-#include "notification_bridge.h" // the paired row's "no refusal toast" check
-#include "crossing_store.h"      // the paired row's crossing-store check
-#include "foreign_model.h"       // the #800 S1 shop playtest's model answer
+#include "soh/SaveManager.h"       // SaveFileMetaInfo: the paired row's slot ownership mark
+#include "notification_bridge.h"   // the paired row's "no refusal toast" check
+#include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX: that check's matcher (#836)
+#include "crossing_store.h"        // the paired row's crossing-store check
+#include "foreign_model.h"         // the #800 S1 shop playtest's model answer
 // The paired row's "shipped defaults" check: every setting the generation
 // reads, per surface (OoT's options/tricks/exclusions, MM's options/tricks, the
 // combo settings), must be unset in the CVar store.
@@ -480,7 +481,7 @@ static bool PfcNoRefusalToast(char* msg, size_t cap) {
     for (int i = 0; i < toasts; i++) {
         char toast[256];
         if (OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast)) &&
-            (strstr(toast, "Not paired") != nullptr || strstr(toast, "Not saved") != nullptr)) {
+            strncmp(toast, RSBS_REFUSAL_TOAST_PREFIX, sizeof(RSBS_REFUSAL_TOAST_PREFIX) - 1) == 0) {
             snprintf(msg, cap, "a refusal toast was raised (toast %d of %d): \"%s\"", i + 1, toasts, toast);
             return false;
         }
@@ -921,6 +922,11 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
 // box is then filled with that chest's name (frame 90) and later with the
 // crossed item's name (frame 600), so unattended window captures show its row
 // under each search.
+//
+// #878: the chest itself is opened on EVERY paired run, not only under the
+// variable, so the first crossing always carries a pickup and the leg's toast
+// check (IntegrationTest_PairedLegToastsCheck) has an item the arrival could
+// announce a second time. The tracker searches stay opt-in.
 extern "C" int OoT_CheckTracker_TestSearch(const char* text);
 extern "C" int OoT_CheckTracker_TestItemName(uint16_t rc, char* out, int cap);
 extern "C" int OoT_CheckTracker_TestSearchShows(uint16_t rc, const char* text);
@@ -941,9 +947,7 @@ static void GpPairedTrackerPlaytest(int frame) {
     static std::string sItemName;
     static int sSharedBefore = -1;
     const char* env = getenv("RSBS_PFC_TRACKER_CROSSING");
-    if (env == NULL || strcmp(env, "1") != 0) {
-        return;
-    }
+    const bool trackerDrive = env != NULL && strcmp(env, "1") == 0;
     if (frame == 30) {
         for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
             ComboCrossing row;
@@ -968,6 +972,9 @@ static void GpPairedTrackerPlaytest(int frame) {
             GameInteractor_ExecuteOnSceneFlagSet(cc.scene, FLAG_SCENE_TREASURE, cc.flag);
             break;
         }
+    }
+    if (!trackerDrive) {
+        return;
     }
     if (frame == 90 && sHost >= 0) {
         fprintf(stderr, "[PT796] MM-bound shared-item records: %d before the chest, %d after\n", sSharedBefore,
@@ -1395,6 +1402,13 @@ static bool GpPairedCheckReturn(void) {
         IntegrationTest_GameplayFail(msg);
         return false;
     }
+    // #878: the MM pickup before the Clock Tower door was announced there; the
+    // arrival here must not toast it again, and no text repeats in the leg.
+    if (!IntegrationTest_PairedLegToastsCheck("Ocarina of Time", msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    fprintf(stderr, "[PFC] return leg toasts PASS: %s\n", msg);
     char desc[256];
     IntegrationTest_PairedIdentityDescribe(IntegrationTest_PairedIdentityRecorded(), desc, sizeof(desc));
     fprintf(stderr,
@@ -1957,6 +1971,7 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                         gSaveContext.deaths = kPfcDeathsSentinel;
                         fprintf(stderr, "[PFC] OoT-half sentinel armed before the door: deaths=%u\n",
                                 (unsigned)kPfcDeathsSentinel);
+                        IntegrationTest_PairedMarkCrossing("Majora's Mask");
                     }
                     GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door");
                     IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
@@ -1964,6 +1979,9 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                 case GP_PHASE_OOT_RETURN:
                     IntegrationTest_GameplayRecordCycle();
                     if (IntegrationTest_GameplayCyclesDone() < cfg->cycles) {
+                        if (IntegrationTest_PairedFirstCrossing()) {
+                            IntegrationTest_PairedMarkCrossing("Majora's Mask");
+                        }
                         GpFireOoTDoor(OOT_ENTR_HAPPY_MASK_SHOP, "Happy Mask Shop door (next round trip)");
                         IntegrationTest_SetGameplayPhase(GP_PHASE_MM_STABILIZE);
                     } else {
@@ -2663,12 +2681,28 @@ extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
  * logged but still consumes the redemption — by the time this callback can
  * run, OoT is at its presence-gated arrival point and the guarded
  * prerequisites are live, so that path is defensive, not expected.
+ *
+ * ONE ANNOUNCEMENT PER ITEM (#878). A crossing pickup (RSBS_SHARED_ITEM_CROSSING:
+ * an OoT item taken from a Majora's Mask check) was presented when the player
+ * took it, by MM's get-item textbox or a shop's own purchase dialogue, so this
+ * arrival gives it silently: toasting it here announced the same item a second
+ * time at the next crossing into OoT, the operator's "duplicate toasts when you
+ * cross over". The paired world is one game, and OoTMM (the reference for
+ * player-facing choices) presents an item once, at its pickup, and announces
+ * nothing at a game switch. Only a SOURCED grant (RSBS_SHARED_ITEM_SOURCED, the
+ * netplay relay's Combo_SubmitSourcedGrant) keeps its toast: it was never picked
+ * up in this player's game, so the toast is its only presentation. The redeem
+ * and its log line are the same for both. Locked by CrossingArrivalToasts and by
+ * IntPairedFirstCrossing's per-leg toast check.
  */
 static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
     int given = OoT_ForeignItem_Give(item->id);
     fprintf(stderr, "[OoT] shared-item redeem: RG id=%u %s (Lane C1 foreign give)\n", (unsigned)item->id,
             given ? "awarded" : "NOT awarded — give path unavailable");
+    if ((item->flags & RSBS_SHARED_ITEM_SOURCED) == 0) {
+        return; // #878: presented at its pickup (see above)
+    }
 
     // #494: tell the player. Until this, a cross-game item arrived in OoT with
     // NO in-game signal at all — the item simply appeared in the inventory, an

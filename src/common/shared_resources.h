@@ -156,11 +156,12 @@ extern "C" {
  * Seventeen of the nineteen kinds are unconditional: #525 decided that both
  * games share one wallet, one health bar, one magic meter, one set of ammo and
  * one hookshot, and no save can turn that off. RSBS_SHARED_RES_OCARINA_TIER
- * (#668) is the first that a PLAYER chooses, through the tier-4
- * `gCombo.Rando.SharedOcarina` key frozen into ComboSettingsRecord.comboFlags
- * at file creation. RSBS_SHARED_RES_TRIFORCE_PIECES (ADR 0010 O10) is the
- * second: armed only while the FROZEN combo goal is triforce-hunt with a valid
- * frozen triforce record (Combo_TriforceHuntArmed, triforce_hunt.h).
+ * (#668) was the first that a PLAYER chose, through a tier-4 key frozen into
+ * ComboSettingsRecord.comboFlags; #879 retired that rule, and the kind is
+ * NEVER armed now, whatever an older record's bit says.
+ * RSBS_SHARED_RES_TRIFORCE_PIECES (ADR 0010 O10) is armed only while the
+ * FROZEN combo goal is triforce-hunt with a valid frozen triforce record
+ * (Combo_TriforceHuntArmed, triforce_hunt.h).
  *
  * THE GATE LIVES HERE, ONCE, AND BOTH ENTRY POINTS CONSULT IT. A gate written
  * into the four per-game call sites instead would be four chances to gate one
@@ -169,10 +170,9 @@ extern "C" {
  * merely under-sharing. Exposed rather than static so the lock can drive the
  * predicate directly.
  *
- * Reads the FROZEN record once a world exists and the live resolution before
- * then, exactly as Combo_ComboDirection does: after creation the rules are
- * identity, and a session that resolved differently is refused at the arrival
- * gate, never honoured here.
+ * Reads the FROZEN record (through Combo_TriforceHuntArmed): after creation
+ * the rules are identity, and a session that resolved differently is refused
+ * at the arrival gate, never honoured here.
  */
 bool Combo_SharedResourceKindArmed(uint8_t kind);
 

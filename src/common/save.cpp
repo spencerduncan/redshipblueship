@@ -19,6 +19,7 @@
 #include "foreign_items.h"
 #include "game.h"
 #include "notification_bridge.h" // the load's player-visible surface (#781): stderr is not one
+#include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX and the refused file's words (#836)
 #include "shared_resources.h"
 #include "triforce_hunt.h" // ADR 0010 O10: the triforce record joins the load-time identity check
 
@@ -83,6 +84,14 @@ bool SaveLogFail(int slot, const char* reason) {
 // Unreachable by construction in production (the resolver is a straight
 // overlay of the keys the restore writes).
 bool gForceLoadRestoreVerifyFail = false;
+
+// Test hook (#851): runs on the writing thread after WriteStagedCommit has
+// copied the staged snapshot out and before it writes it. That is the window in
+// which OoT's save worker holds generation G while the game thread can stage
+// and write G+1, so a test can hold the worker there and run a crossing commit.
+// Null in production.
+void (*gStagedCopyHookForTest)(void*) = nullptr;
+void* gStagedCopyHookCtxForTest = nullptr;
 
 // The load's player-visible surface (#781). A load that changed the session's
 // rules, or refused the pair, used to say so on stderr only, which no player
@@ -399,6 +408,9 @@ bool SaveManager::WriteStagedCommit(int slot) {
         mmBlob = mStaged.mm;
         crossings = mStaged.crossings;
     }
+    if (gStagedCopyHookForTest != nullptr) {
+        gStagedCopyHookForTest(gStagedCopyHookCtxForTest);
+    }
     return WriteSlotFile(slot, combo, ootBlob.data(), mmBlob.data(), crossings);
 }
 
@@ -428,6 +440,27 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
     // holding the lock across serialization stays deadlock-free (mStageMtx is
     // never taken here).
     std::lock_guard<std::mutex> writeLock(mWriteMtx);
+
+    // An older generation never replaces a newer commit (#851). The worker
+    // copies its staged generation G before it gets here, so a crossing that
+    // stages and writes G+1 in between can take this lock first; without this
+    // check the worker then renames G over G+1, the session is at G+1 while
+    // the file holds G, a moon-crash reset refuses the file as stale, and a
+    // kill reloads without the crossing. The file's own Tier-1 generation is
+    // the order, read under the lock that serializes the renames, so the rule
+    // binds every writer (the worker, the crossing, MM's capture). An equal
+    // generation is the same commit written again and goes ahead. A file that
+    // does not validate orders nothing, and neither does the file a create or
+    // an erase found at the slot: that is another world's sequence.
+    uint32_t fileGeneration = 0;
+    if (!mSlotStartsOver[slot] && ReadCommittedGeneration(slot, &fileGeneration) &&
+        fileGeneration > combo.commitGeneration) {
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d NOT saved: commit generation %u is older than the generation %u the file "
+                     "already holds; the newer commit stays (#851)\n",
+                     slot, (unsigned)combo.commitGeneration, (unsigned)fileGeneration);
+        return false;
+    }
 
     // Assemble Tiers 1..3 contiguously so the CRC covers exactly the bytes we
     // write, in write order: ComboContext, OoT blob, MM blob.
@@ -490,8 +523,53 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
         std::filesystem::remove(tmpPath, ec);
         return false;
     }
+    mSlotStartsOver[slot] = false;
     mSlotEpoch.fetch_add(1, std::memory_order_relaxed);
     return true;
+}
+
+bool SaveManager::ReadCommittedGeneration(int slot, uint32_t* outGeneration) const {
+    // Header, CRC and the inner ComboContext magic only. The full validator
+    // (ReadSlotFile) also parses the crossing block through the crossing
+    // store's static scratch, which the game thread uses at load; this runs on
+    // the save worker, so it checks the CRC over the stored payload instead.
+    // The CRC is what keeps a damaged file whose Tier-1 happens to read high
+    // from refusing every later write; it costs about 2 ms per commit.
+    std::ifstream in(SlotPath(slot), std::ios::binary);
+    if (!in) {
+        return false;
+    }
+    RsbsSaveHeader header;
+    if (!DeserializeHeader(in, slot, header, /*verbose=*/false, nullptr)) {
+        return false;
+    }
+    // Every writer puts exactly the CRC-covered payload after the header.
+    const std::streamoff start = in.tellg();
+    in.seekg(0, std::ios::end);
+    const std::streamoff end = in.tellg();
+    in.seekg(start);
+    if (!in || start < 0 || end < start) {
+        return false;
+    }
+    std::vector<uint8_t> payload(static_cast<size_t>(end - start));
+    in.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
+    if (!in || payload.size() < header.comboSize || Crc32(payload.data(), payload.size()) != header.crc32) {
+        return false;
+    }
+    std::vector<uint8_t> record(kComboSize, 0);
+    std::memcpy(record.data(), payload.data(), header.comboSize);
+    ComboContext combo;
+    std::memcpy(&combo, record.data(), sizeof(ComboContext));
+    if (std::memcmp(combo.magic, COMBO_CONTEXT_MAGIC, sizeof(combo.magic)) != 0) {
+        return false;
+    }
+    *outGeneration = combo.commitGeneration;
+    return true;
+}
+
+void SaveManager::SetSlotStartsOver(int slot, bool startsOver) {
+    std::lock_guard<std::mutex> writeLock(mWriteMtx);
+    mSlotStartsOver[slot] = startsOver;
 }
 
 bool SaveManager::DeserializeHeader(std::istream& in, int expectedSlot, RsbsSaveHeader& outHeader,
@@ -804,10 +882,17 @@ constexpr int kOpenLegacy = 0;
 constexpr int kOpenVanillaFile = 1;
 constexpr int kOpenRandoFile = 2;
 
-// The open path's words for the refusals #836 adds.
-constexpr const char* kWordsMissing = "Cross-game record is missing";
-constexpr const char* kWordsNoMMWorld = "This file has no Majora's Mask world";
-constexpr const char* kWordsMMOptions = "Majora's Mask options differ";
+// The open path's words for the refusals #836 adds (the one table,
+// pairing_refusal_toast.c).
+const char* WordsMissing() {
+    return Combo_RefusalWords(RSBS_REFUSAL_WORDS_RECORD_MISSING);
+}
+const char* WordsNoMMWorld() {
+    return Combo_RefusalWords(RSBS_REFUSAL_WORDS_NO_MM_WORLD);
+}
+const char* WordsMMOptions() {
+    return Combo_RefusalWords(RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER);
+}
 
 bool RecordIsPaired(const ComboContext& combo) {
     return combo.sourceIsRando && combo.sharedRandoSettingsHash != 0;
@@ -842,7 +927,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
             // session and the file was unpaired for good.
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = RSBS_REFUSE_MISSING;
-            v.words = kWordsMissing;
+            v.words = WordsMissing();
             return;
         }
         v.outcome = RSBS_LOAD_ABSENT;
@@ -893,7 +978,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
                      slot, combo.sourceIsRando ? 1 : 0, (unsigned)combo.sharedRandoSettingsHash);
         v.outcome = RSBS_LOAD_REFUSED;
         v.reason = RSBS_REFUSE_MISSING;
-        v.words = kWordsMissing;
+        v.words = WordsMissing();
         return;
     }
 
@@ -961,7 +1046,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
                          slot);
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = RSBS_REFUSE_GENERATION;
-            v.words = kWordsNoMMWorld;
+            v.words = WordsNoMMWorld();
             return;
         }
 
@@ -982,7 +1067,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
                          (unsigned)combo.mmPairedAttempt);
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = vanilla ? RSBS_REFUSE_GENERATION : RSBS_REFUSE_IDENTITY;
-            v.words = kWordsNoMMWorld;
+            v.words = WordsNoMMWorld();
             return;
         }
     }
@@ -996,14 +1081,14 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
         v.mmProfile = MM_Rando_ClassifyProfileForLoad(data.mmBlob.data(), data.mmBlob.size(), combo.mmProfileDigest);
         if (openKind != kOpenLegacy && v.mmProfile == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
             // #836 P4: an MM profile the file cannot restore used to load with a
-            // "Not restored" warning, and the first crossing was then refused.
+            // warning toast, and the first crossing was then refused.
             std::fprintf(stderr,
                          "[RsbsSave] slot %d REFUSED: the live MM profile does not match the file's (%08X) and the "
                          "file cannot restore it; the file is not opened\n",
                          slot, (unsigned)combo.mmProfileDigest);
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = RSBS_REFUSE_IDENTITY;
-            v.words = kWordsMMOptions;
+            v.words = WordsMMOptions();
             return;
         }
     }
@@ -1183,7 +1268,7 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
                          "[RsbsSave] slot %d REFUSED: the file's MM profile (%08X) could not be restored into the "
                          "live options; every key the load wrote was put back\n",
                          slot, (unsigned)combo.mmProfileDigest);
-            return refuse(RSBS_REFUSE_IDENTITY, false, -1, kWordsMMOptions);
+            return refuse(RSBS_REFUSE_IDENTITY, false, -1, WordsMMOptions());
         }
     }
 
@@ -1251,17 +1336,21 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
     if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_RESTORED) {
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, restoredMm, restoredMmCount);
     } else if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
-        // The legacy entry only: the open path refused this file above.
+        // The legacy entry only: the open path refused this file above. The
+        // legacy load ACCEPTS the file, so it posts no toast: a "Refused:" toast
+        // would be false here, and the old "Not restored:" warning is retired
+        // (#836). The stderr line stays.
         std::fprintf(stderr,
                      "[RsbsSave] slot %d: the live MM profile does not match the file's (%08X) and the file cannot "
                      "restore it; the next crossing into Majora's Mask will be refused until it does\n",
                      slot, (unsigned)combo.mmProfileDigest);
-        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_NOT_RESTORED, nullptr, 0);
     }
 
     // A successful load is one of the three legitimate arming events, and it
-    // retires any earlier refusal record.
+    // retires any earlier refusal record. The file's generation is now the
+    // session's, so it orders the writes that follow (#851).
     mSlotArmed[slot] = true;
+    SetSlotStartsOver(slot, false);
     SetSlotRefused(slot, RSBS_REFUSE_NONE);
     return RSBS_LOAD_OK;
 }
@@ -1312,6 +1401,8 @@ void SaveManager::DeleteSave(int slot) {
     mSlotArmed[slot] = true;
     SetSlotRefused(slot, RSBS_REFUSE_NONE);
     mSlotSkew[slot] = 0;
+    // An erase, like a create, starts the slot's commit sequence over (#851).
+    SetSlotStartsOver(slot, true);
     if (mOoTHalfAuthoritySlot == slot) {
         mOoTHalfAuthoritySlot = -1;
     }
@@ -1335,6 +1426,10 @@ void SaveManager::ArmSlotOnCreate(int slot) {
     mSlotArmed[slot] = true;
     SetSlotRefused(slot, RSBS_REFUSE_NONE);
     mSlotSkew[slot] = 0;
+    // The new file's counter starts at 0 (Context_InvalidateSessionOnNewGame),
+    // so a valid .redsave left at the slot by another world must not order its
+    // first commit (#851).
+    SetSlotStartsOver(slot, true);
     if (mOoTHalfAuthoritySlot == slot) {
         // A brand-new file authors its own OoT half; nothing loaded can be
         // authoritative over it (#589).
@@ -1535,6 +1630,7 @@ void SaveManager::ResetSlotSessionState() {
         mSlotArmed[i] = false;
         SetSlotRefused(i, RSBS_REFUSE_NONE);
         mSlotSkew[i] = 0;
+        SetSlotStartsOver(i, false);
     }
     mOoTHalfAuthoritySlot = -1;
 }
@@ -1611,7 +1707,10 @@ void ExtractGameMeta(const RsbsGameMetaDesc& desc, const uint8_t* blob, size_t b
         outPlayTime = pt;
     }
 
-    if (desc.validMarkerLen == 0) {
+    if (desc.isStarted != nullptr) {
+        // The game's own test (#873): OoT's saves carry no marker bytes.
+        outStarted = desc.isStarted(blob, blobSize) != 0;
+    } else if (desc.validMarkerLen == 0) {
         // No marker registered → assume any slot is "started" for this game.
         outStarted = true;
     } else if (desc.validMarkerLen <= sizeof(desc.validMarker) &&
@@ -1923,12 +2022,12 @@ const char* RsbsSave_SlotRefusalWords(int slot) {
 }
 
 void RsbsSave_EmitFileSelectRefusalToast(const char* words) {
-    // The load's refusal prefix and the page's words (#836), muted like every
-    // load toast (the gate also runs in the display-free rows).
+    // The refusal class's one prefix and the page's words (#836), muted like
+    // every load toast (the gate also runs in the display-free rows).
     if (words == nullptr || words[0] == '\0') {
         return;
     }
-    OoT_Notification_EmitDefault("Not paired:", words, /*mute=*/1);
+    OoT_Notification_EmitDefault(RSBS_REFUSAL_TOAST_PREFIX, words, /*mute=*/1);
 }
 
 int RsbsSave_GetSlotCommitSkew(int slot) {
@@ -1987,14 +2086,19 @@ void RsbsSave_ForceLoadRestoreVerifyFailForTest(int on) {
     rsbs::gForceLoadRestoreVerifyFail = on != 0;
 }
 
+void RsbsSave_SetStagedCopyHookForTest(void (*hook)(void* ctx), void* ctx) {
+    rsbs::gStagedCopyHookCtxForTest = ctx;
+    rsbs::gStagedCopyHookForTest = hook;
+}
+
 const char* RsbsSave_LoadToastRefusalMessage(int kind) {
     switch (kind) {
         case RSBS_LOAD_TOAST_REFUSED_RULES:
-            return "Cross-game rules differ";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_RULES_DIFFER);
         case RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD:
-            return "File made by another build";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_OTHER_BUILD);
         case RSBS_LOAD_TOAST_REFUSED_DAMAGED:
-            return "Cross-game record is damaged";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_RECORD_DAMAGED);
         default:
             return nullptr;
     }
@@ -2019,14 +2123,10 @@ void RsbsSave_EmitLoadToast(int kind, const char* names, int count) {
             message = rsbs::FitNames(names != nullptr ? names : "", count, rsbs::LoadToastRoom(prefix), "setting",
                                      "settings");
             break;
-        case RSBS_LOAD_TOAST_MM_NOT_RESTORED:
-            prefix = "Not restored:";
-            message = "Majora's Mask options differ";
-            break;
         case RSBS_LOAD_TOAST_REFUSED_RULES:
         case RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD:
         case RSBS_LOAD_TOAST_REFUSED_DAMAGED:
-            prefix = "Not paired:";
+            prefix = RSBS_REFUSAL_TOAST_PREFIX;
             message = RsbsSave_LoadToastRefusalMessage(kind);
             break;
         default:

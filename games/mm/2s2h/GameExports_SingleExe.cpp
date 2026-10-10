@@ -488,6 +488,20 @@ static int sGpMMWatchdogFrames = 0;
 // (z_play.c) ever regresses.
 static int sGpMMArrivalCount = 0;
 #define GP_MM_CONTINUITY_RUPEE_BASE 100
+// The PAIRED drive's sentinel (#888): an MM-local save field, because rupees
+// are not stable on a paired file between the door frame and the freeze. They
+// are a shared resource, the paired file's base wallet (99) clamps 100 + n, and
+// the world's own pickups move them (RSBSSINGLEBAG1 hands the Purple Rupee on
+// RC_STARTING_ITEM_DEKU_MASK through the check queue at MM play frame 87, so
+// 17 rupees are still draining from rupeeAccumulator when the door fires).
+// dekuPlaygroundHighScores[0] is written only by the Deku Playground's own
+// record (z_inventory.c) and the high-score resets (Sram_ClearHighscores: file
+// creation and the end-of-cycle save), never by the shared-resource model, a
+// pickup or an arrival's apply. A new file holds SECONDS_TO_TIMER(75) = 7500,
+// so 7000 + n also tells a second arrival that re-hydrated the creation-frozen
+// half (#885) from one that carried the departure's save. The vanilla debug
+// save keeps the rupee sentinel (IntGameplayRoundtripSoak).
+#define GP_MM_CONTINUITY_DEKU_SCORE_BASE 7000u
 
 // MM's line in the wall-clock watchdog's dump (#793). Runs on the watchdog
 // thread while MM's own thread is wedged: plain reads, no dereference of the
@@ -890,6 +904,51 @@ static void MM_PfcBootWriteProbe(void) {
 static RegisterShipInitFunc sPfcBootWriteProbe(MM_PfcBootWriteProbe, { "IS_RANDO" });
 
 /**
+ * int-paired-first-crossing, first arrival only (#879): what MM Link holds when
+ * he first stands in Termina. The combo owns the paired start: the half's
+ * creation-frozen start list is exactly the Ocarina of Time and the Song of Time,
+ * and both are held; the Kokiri Sword and the Hero's Shield are MM pool items, so
+ * neither is held unless one of the two free starting checks the arrival pays out
+ * (RC_STARTING_ITEM_DEKU_MASK, RC_STARTING_ITEM_SONG_OF_HEALING) carries it.
+ * Writes the observed inventory into @p msg either way.
+ */
+static bool MM_PairedFirstCrossingCheckStart(char* msg, size_t cap) {
+    const std::vector<RandoItemId> start = Rando::GetStartingItemsFromSave(gSaveContext.save.shipSaveInfo.rando);
+    std::string list;
+    int ocarinas = 0;
+    int songs = 0;
+    for (RandoItemId id : start) {
+        list += (list.empty() ? "" : ",") + std::to_string((int)id);
+        ocarinas += id == RI_OCARINA ? 1 : 0;
+        songs += id == RI_SONG_TIME ? 1 : 0;
+    }
+    auto freeCheckHolds = [](RandoItemId a, RandoItemId b) {
+        for (RandoCheckId rc : { RC_STARTING_ITEM_DEKU_MASK, RC_STARTING_ITEM_SONG_OF_HEALING }) {
+            const RandoItemId held = RANDO_SAVE_CHECKS[rc].randoItemId;
+            if (held == a || held == b) {
+                return true;
+            }
+        }
+        return false;
+    };
+    const bool ocarina = INV_CONTENT(ITEM_OCARINA_OF_TIME) == ITEM_OCARINA_OF_TIME;
+    const bool songOfTime = CHECK_QUEST_ITEM(QUEST_SONG_TIME) != 0;
+    const int sword = (int)GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD);
+    const int shield = (int)GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
+    const int bButton = (int)BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) & 0xFF;
+    const bool swordFree = freeCheckHolds(RI_PROGRESSIVE_SWORD, RI_SWORD_KOKIRI);
+    const bool shieldFree = freeCheckHolds(RI_SHIELD_HERO, RI_SHIELD_HERO);
+    snprintf(msg, cap,
+             "start list [%s] (RI_OCARINA=%d, RI_SONG_TIME=%d); ocarina=%d songOfTime=%d sword=%d shield=%d B=0x%02X; "
+             "a free starting check holds a sword=%d, the Hero's Shield=%d",
+             list.c_str(), (int)RI_OCARINA, (int)RI_SONG_TIME, ocarina ? 1 : 0, songOfTime ? 1 : 0, sword, shield,
+             bButton, swordFree ? 1 : 0, shieldFree ? 1 : 0);
+    return start.size() == 2 && ocarinas == 1 && songs == 1 && ocarina && songOfTime &&
+           (swordFree || (sword == EQUIP_VALUE_SWORD_NONE && bButton == (ITEM_NONE & 0xFF))) &&
+           (shieldFree || shield == EQUIP_VALUE_SHIELD_NONE);
+}
+
+/**
  * int-paired-first-crossing: the MM arrival's verdict, taken once South Clock
  * Town is stable (the arrival's gate, consume and hydrate ran during the scene
  * load before it). `arrival` is 1-based. Everything asserted is what a tester
@@ -919,12 +978,19 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
     for (int i = 0; i < toasts; i++) {
         char toast[256];
         if (OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast)) &&
-            (strstr(toast, "Not paired") != nullptr || strstr(toast, "Not saved") != nullptr)) {
+            strncmp(toast, RSBS_REFUSAL_TOAST_PREFIX, sizeof(RSBS_REFUSAL_TOAST_PREFIX) - 1) == 0) {
             snprintf(msg, sizeof(msg), "a refusal toast was raised (toast %d of %d): \"%s\"", i + 1, toasts, toast);
             IntegrationTest_GameplayFail(msg);
             return false;
         }
     }
+    // #878: the OoT chest's MM item was announced at its pickup; this arrival
+    // must not toast it again, and no text repeats in the leg.
+    if (!IntegrationTest_PairedLegToastsCheck("Majora's Mask", msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    fprintf(stderr, "[PFC] MM arrival %d toasts PASS: %s\n", arrival, msg);
 
     const int matched =
         IntegrationTest_StderrCaptureCount("[MM] pairing: arrival profile matches the creation-frozen identity");
@@ -1039,6 +1105,20 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
         return false;
     }
 
+    // #879: the first arrival holds the combo's paired start and nothing of the
+    // pool (no sword, no shield) unless a free starting check paid it out.
+    if (arrival == 1) {
+        char start[512];
+        if (!MM_PairedFirstCrossingCheckStart(start, sizeof(start))) {
+            snprintf(msg, sizeof(msg),
+                     "MM arrival 1 does not hold the combo's paired start (exactly the Ocarina of Time and the Song "
+                     "of Time; the Kokiri Sword and the Hero's Shield are pool items, #879): %s",
+                     start);
+            IntegrationTest_GameplayFail(msg);
+            return false;
+        }
+        fprintf(stderr, "[PFC] MM arrival 1 start PASS: %s\n", start);
+    }
     fprintf(stderr, "[PFC] MM arrival %d PASS: \"%s\"\n", arrival, matchLine);
     fprintf(stderr, "[PFC] MM arrival %d PASS: \"%s\"\n", arrival, line);
     fprintf(stderr,
@@ -1114,7 +1194,27 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
             // Save-continuity tripwire (see sGpMMArrivalCount): arrivals
             // after the first must carry the sentinel the previous MM leg
             // froze — proof the in-chain restore beat the boot-chain wipe.
-            if (sGpMMArrivalCount > 1) {
+            if (sGpMMArrivalCount > 1 && IntegrationTest_PairedFirstCrossing()) {
+                // #888: the paired file's MM-local sentinel (see
+                // GP_MM_CONTINUITY_DEKU_SCORE_BASE).
+                u32 expected = GP_MM_CONTINUITY_DEKU_SCORE_BASE + (u32)(sGpMMArrivalCount - 1);
+                u32 actual = gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0];
+                if (actual != expected) {
+                    fprintf(stderr,
+                            "[GP-TEST] FAIL: MM save continuity lost across round trip "
+                            "(arrival %d: dekuPlaygroundHighScores[0]=%u, expected sentinel %u — the "
+                            "departure's MM save did not reach this arrival)\n",
+                            sGpMMArrivalCount, (unsigned)actual, (unsigned)expected);
+                    fflush(stderr);
+                    IntegrationTest_GameplayFail("MM frozen-save continuity lost");
+                    return;
+                }
+                fprintf(stderr,
+                        "[GP-TEST] MM save continuity verified (arrival %d: MM-local sentinel "
+                        "dekuPlaygroundHighScores[0]=%u; rupees=%d)\n",
+                        sGpMMArrivalCount, (unsigned)actual, (int)gSaveContext.save.saveInfo.playerData.rupees);
+                fflush(stderr);
+            } else if (sGpMMArrivalCount > 1) {
                 s16 expected = (s16)(GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount - 1);
                 s16 actual = gSaveContext.save.saveInfo.playerData.rupees;
                 if (actual != expected) {
@@ -1153,6 +1253,26 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
         MM_ForeignModel_PlaytestArmGive();
     }
+    // #878: the paired row takes one OoT item from an MM check before the Clock
+    // Tower door (the #577 M3 drive above takes its own instead), through the
+    // foreign give CheckQueue's pickup and a shop's purchase make, so the return
+    // leg's arrival has an item it could announce a second time.
+    if (sGpMMPlayFrames == 30 && IntegrationTest_PairedFirstCrossing() &&
+        std::getenv("RSBS_GP_MM_FOREIGN_MODEL") == nullptr) {
+        for (int i = 0; i < Combo_Crossings_Count(GAME_MM); i++) {
+            ComboCrossing row;
+            if (!Combo_Crossings_At(GAME_MM, i, &row) || row.hostCheck >= RC_MAX ||
+                RANDO_SAVE_CHECKS[row.hostCheck].obtained) {
+                continue;
+            }
+            const char* item = Combo_GetForeignItemName(row.item);
+            const bool crossed = Rando::Foreign::GiveForeignCheck((RandoCheckId)row.hostCheck);
+            fprintf(stderr, "[PFC] MM pickup before the Clock Tower door: check %u hosts the OoT item %s; %s\n",
+                    (unsigned)row.hostCheck, item != nullptr ? item : "?", crossed ? "crossed" : "NOT crossed");
+            fflush(stderr);
+            break;
+        }
+    }
     // #830: its per-frame half (closes textboxes nobody will press past, and
     // captures the framebuffer; Rando/ForeignModelSingleExe.cpp).
     if (std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
@@ -1174,12 +1294,26 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     // Arm the continuity sentinel for the next arrival BEFORE firing the
     // door: the transition's Combo_CheckEntranceSwitch freezes the live
     // SaveContext, sentinel included.
-    gSaveContext.save.saveInfo.playerData.rupees = (s16)(GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
-    fprintf(stderr,
-            "[GP-TEST] firing Clock Tower door: entrance 0x%04X after %d live MM frames "
-            "(continuity sentinel: %d rupees)\n",
-            MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames, GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
+    if (IntegrationTest_PairedFirstCrossing()) {
+        // #888: MM-local on a paired file; rupees stay the player's.
+        gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0] =
+            GP_MM_CONTINUITY_DEKU_SCORE_BASE + (u32)sGpMMArrivalCount;
+        fprintf(stderr,
+                "[GP-TEST] firing Clock Tower door: entrance 0x%04X after %d live MM frames "
+                "(continuity sentinel: dekuPlaygroundHighScores[0]=%u)\n",
+                MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames,
+                (unsigned)gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0]);
+    } else {
+        gSaveContext.save.saveInfo.playerData.rupees = (s16)(GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
+        fprintf(stderr,
+                "[GP-TEST] firing Clock Tower door: entrance 0x%04X after %d live MM frames "
+                "(continuity sentinel: %d rupees)\n",
+                MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames, GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
+    }
     fflush(stderr);
+    if (IntegrationTest_PairedFirstCrossing()) {
+        IntegrationTest_PairedMarkCrossing("Ocarina of Time");
+    }
     play->nextEntrance = MM_ENTR_CLOCK_TOWER_INTERIOR_1;
     play->transitionTrigger = TRANS_TRIGGER_START;
     play->transitionType = TRANS_TYPE_FADE_BLACK;
@@ -3800,7 +3934,7 @@ extern "C" bool MM_GameHooks_ExecuteShouldItemGive(u8 item) {
 // rather than in src/common/foreign_items.h — which is where its OoT twin is
 // declared — because that header is Lane 1's and the MM pool surface lands in
 // it with the reverse-direction pool, not with this give. Fold this in then.
-extern "C" int MM_ForeignItem_Give(uint16_t riId);
+extern "C" int MM_ForeignItem_Give(uint16_t riId, int announce);
 
 /**
  * Award a single MM-origin shared item (ADR 0002 / Lane A1 consumer callback),
@@ -3827,10 +3961,17 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId);
  * `MM_gPlayState = this`, and the ROM-free rows drive it headlessly with no Gui
  * (src/common/tests/test_foreign_award.c). A Notification::Emit added back here
  * would fire before the item exists and on a display-free CI path.
+ *
+ * ONE ANNOUNCEMENT PER ITEM (#878): only a SOURCED grant asks the give to toast.
+ * A crossing pickup (an MM item taken from an OoT check) was presented when the
+ * player took it, by OoT's get-item textbox or its "You found" toast, and the
+ * arrival toast announced it a second time at the next crossing into Majora's
+ * Mask. A sourced grant (RSBS_SHARED_ITEM_SOURCED, the netplay relay) was never
+ * picked up in this player's game, so its toast is its only presentation.
  */
 static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    int given = MM_ForeignItem_Give(item->id);
+    int given = MM_ForeignItem_Give(item->id, (item->flags & RSBS_SHARED_ITEM_SOURCED) != 0 ? 1 : 0);
     fprintf(stderr, "[MM] shared-item redeem: RI id=%u %s (Lane 6 foreign give)\n", (unsigned)item->id,
             given ? "awarded or queued for the next gameplay frame" : "NOT awarded — no such MM item");
 }
@@ -5434,8 +5575,8 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
 /**
  * THE REFUSAL TOAST (src/common/pairing_refusal_toast.h): one short line in SoH's
  * toast shape, as PR #749 set it for our toasts — Notification::Options' default
- * colours, the player's configured duration (Notifications.Duration), a short
- * prefix saying what the refusal costs ("Not saved:") and a short reason. The
+ * colours, the player's configured duration (Notifications.Duration), the
+ * refusal class's one prefix (RSBS_REFUSAL_TOAST_PREFIX, #836) and a short reason. The
  * overlay draws prefix and message on ONE line at Notifications.Size (1.8 by
  * default) and never wraps, and the sentence pairs these toasts used to carry
  * drew up to about 2,480 px wide (#749's playtest notes: off-screen). The long

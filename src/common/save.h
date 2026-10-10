@@ -190,6 +190,11 @@ typedef struct RsbsGameMetaDesc {
     // whole blob because a charset can depend on another field of the save
     // (OoT's filename language). NULL keeps the raw-byte copy.
     void (*decodePlayerName)(const uint8_t* blob, size_t blobSize, char outName[9]);
+    // Optional (#873). A game whose saves carry no fixed marker bytes supplies
+    // its own "this half is a created file" test; nonzero means started. When
+    // set it replaces the validMarker compare. Ship of Harkinian never writes
+    // OoT's 'ZELDAZ' newf bytes, so OoT registers one. NULL keeps the marker.
+    int (*isStarted)(const uint8_t* blob, size_t blobSize);
 } RsbsGameMetaDesc;
 
 #ifdef __cplusplus
@@ -224,7 +229,7 @@ struct SlotMeta {
     char     mmName[9];    // NUL-terminated player name from the MM blob
     uint32_t ootPlayTime;  // raw u32 at the registered OoT play-time offset
     uint32_t mmPlayTime;   // raw u32 at the registered MM play-time offset
-    bool     ootStarted;   // OoT validMarker bytes match (file has been started)
+    bool     ootStarted;   // OoT's isStarted test passes (file has been started)
     bool     mmStarted;    // MM  validMarker bytes match
 
     // #533: REFUSED distinct from ABSENT. `state` folds together what is on
@@ -242,8 +247,8 @@ struct SlotMeta {
     // RSBS_REFUSE_NONE without evidence or with an unknown slug.
     RsbsRefuseReason quarantineReason;
     // The reason words the refusal's toast showed the player, recorded by
-    // NoteSlotRefusalWords while the slot is REFUSED this session (the load's
-    // "Not paired:" toasts, the arrival's "Not saved:" toasts). Empty when the
+    // NoteSlotRefusalWords while the slot is REFUSED this session (the file
+    // select's, the load's and the arrival's "Refused:" toasts). Empty when the
     // refusal posted no toast. The Save Files page shows these before its own
     // per-reason words, so the page and the toast agree.
     char refuseWords[64];
@@ -731,8 +736,21 @@ private:
     // flight), and both use the same `.tmp` staging path — unserialized, the
     // interleaved temp writes produce a CRC-invalid file that the next load
     // refuses.
+    //
+    // It refuses (false) to replace a file whose committed generation is newer
+    // than the one it is writing (#851), unless mSlotStartsOver says the file
+    // belongs to another world's sequence.
     bool WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob, const uint8_t* mmBlob,
                        const std::vector<uint8_t>& crossings);
+
+    // The Tier-1 commit generation of the slot's file, when the file is a
+    // whole .redsave of this slot (header, CRC, ComboContext magic). False for
+    // an absent or invalid file. Touches no live state; safe on the worker.
+    bool ReadCommittedGeneration(int slot, uint32_t* outGeneration) const;
+
+    // mSlotStartsOver's setter: takes mWriteMtx, so it is ordered against a
+    // write in flight on the save worker.
+    void SetSlotStartsOver(int slot, bool startsOver);
 
     std::string mSaveDir = "Save";
 
@@ -770,6 +788,13 @@ private:
     // together with mStageMtx: WriteStagedCommit copies the snapshot out under
     // mStageMtx, releases it, and only then enters WriteSlotFile.
     mutable std::mutex mWriteMtx;
+
+    // #851: true when the file at the slot (if any) is not part of this
+    // session's commit sequence, so its generation does not order the next
+    // write. Set by a create (ArmSlotOnCreate) and an erase (DeleteSave);
+    // cleared by a successful load and by the first successful write. Guarded
+    // by mWriteMtx.
+    bool mSlotStartsOver[RSBS_SAVE_MAX_SLOTS]{};
 
     // #533 armed-session latch. A slot becomes writable ONLY via this
     // session's own successful Load, an explicit erase, or the file-create
@@ -856,7 +881,7 @@ int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration);
 int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile, char* words, size_t wordsLen);
 int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile);
 
-/** The file select's refusal toast (#836): the load's refusal prefix and the
+/** The file select's refusal toast (#836): RSBS_REFUSAL_TOAST_PREFIX and the
  *  player's words for the refused file, muted (the same words the Combo > Save
  *  Files page shows for the slot). */
 void RsbsSave_EmitFileSelectRefusalToast(const char* words);
@@ -913,10 +938,13 @@ void RsbsSave_ResetSlotSessionState(void);
  * with "...", and counts the rest as "+N".
  */
 enum {
-    RSBS_LOAD_TOAST_RULES_RESTORED = 0,  // "Restored from file: Goal, Crossing Direction"
-    RSBS_LOAD_TOAST_MM_RESTORED = 1,     // "Restored for Majora's Mask: Starting Hearts +1"
-    RSBS_LOAD_TOAST_MM_NOT_RESTORED = 2, // the file cannot restore its MM profile
-    RSBS_LOAD_TOAST_REFUSED_RULES = 3,   // refused: keyed rules differ and the store could not take them
+    RSBS_LOAD_TOAST_RULES_RESTORED = 0, // "Restored from file: Goal, Crossing Direction"
+    RSBS_LOAD_TOAST_MM_RESTORED = 1,    // "Restored for Majora's Mask: Starting Hearts +1"
+    // 2 was RSBS_LOAD_TOAST_MM_NOT_RESTORED ("Not restored: Majora's Mask
+    // options differ"). Retired by #836: the open path refuses that file at the
+    // file select ("Refused: Majora's Mask options differ"), and the legacy
+    // entry, which accepts it, posts nothing (stderr only).
+    RSBS_LOAD_TOAST_REFUSED_RULES = 3,       // refused: keyed rules differ and the store could not take them
     RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD = 4, // refused: a record field no key authors (another build's file)
     RSBS_LOAD_TOAST_REFUSED_DAMAGED = 5,     // refused: the stored cross-game identity is damaged
     // 6 was RSBS_LOAD_TOAST_ARRIVAL_UNPAIRED (an MM arrival while the loaded
@@ -938,6 +966,13 @@ void RsbsSave_NoteSlotRefusalWords(int slot, const char* words);
 /** Test hook (#781 paired-load-restore leg 5): force the load's post-restore
  *  compare to fail, so the put-back is exercised. Never called in production. */
 void RsbsSave_ForceLoadRestoreVerifyFailForTest(int on);
+
+/** Test hook (#851 commit-generation-order): `hook(ctx)` runs on the writing
+ *  thread between RsbsSave_WriteStagedCommit's copy of the staged snapshot and
+ *  its file write, so a test can hold OoT's save worker there while the game
+ *  thread commits a newer generation. NULL clears it. Never called in
+ *  production. */
+void RsbsSave_SetStagedCopyHookForTest(void (*hook)(void* ctx), void* ctx);
 
 /**
  * Session-scoped "which slot is open" (see SaveManager::SetActiveSlot).

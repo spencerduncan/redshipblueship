@@ -29,6 +29,21 @@ bool PairingActive();
  *  world (and one spoiler file). */
 std::string PairedInputSeedString();
 
+/** THE PAIRED MM START (#879, operator ruling 2026-10-09): the starting items a
+ *  paired world's MM half is created with, the combo's own decision and never
+ *  2Ship's `CVars.gRando.StartingItems` config block (StartingItems.cpp), which
+ *  only a solo MM rando file still reads. Exactly the Ocarina of Time and the
+ *  Song of Time: 2Ship's logic has no time-reset term, so a world that does not
+ *  start able to reset time cannot be proven (the one stated deviation from
+ *  OoTMM, which starts MM empty). The Kokiri Sword and the Hero's Shield are not
+ *  in it: GeneratePools adds both to MM's pool, as OoTMM does, and the single
+ *  bag places them. A constant, so it is part of the world identity frozen at
+ *  creation (ProfileIdentityString folds it) and nothing after creation can
+ *  move it. Every paired consumer reads it here: OnFileCreate's paired
+ *  generation, the identity term, and the measurement bridges that stand in for
+ *  that generation (ComboLogicEngineSingleExe.cpp). */
+std::vector<RandoItemId> PairedStartingItems();
+
 /** Resolve MM's randomizer option profile into RANDO_SAVE_OPTIONS and, for a
  *  paired world, CHECK it against the creation-frozen identity
  *  (#499 steps 2-4; ADR 0009 claim 3; #498/#564 phase 2).
@@ -212,6 +227,14 @@ bool IsForeignCheck(RandoCheckId randoCheckId);
 /** Display name for the foreign item hosted by this check, or nullptr. */
 const char* ForeignNameForCheck(RandoCheckId randoCheckId);
 
+/** "Chest Size & Texture Matches Contents" (EnBox.cpp, EnBox_RandoPostLimbDraw):
+ *  the RandoItemType an MM chest at @p randoCheckId is dressed by, given the type
+ *  of the MM item the save table holds there (@p native). A chest hosting a
+ *  cross-game item holds MM's junk-class cover in RANDO_SAVE_CHECKS, so its look
+ *  comes from the crossed item instead (#494 slice 6, #862); every other chest
+ *  keeps @p native. */
+RandoItemType ChestItemTypeForCheck(RandoCheckId randoCheckId, RandoItemType native);
+
 /** PINNED-table-only twins of IsForeignCheck / ForeignNameForCheck (ADR 0010
  *  O7). The two above read through Combo_GetForeignPlacementForCheck, which
  *  falls back to the crossing store; the spoiler's "foreign" section is the
@@ -259,6 +282,12 @@ bool RecordForeignPickup(RandoCheckId randoCheckId);
  *  shelves hand a bought item over with no textbox of their own).
  *  Defined in MiscBehavior/CheckQueue.cpp, beside the lambda it came from. */
 bool GiveForeignCheck(RandoCheckId randoCheckId);
+
+/** The sentence CheckQueue's textbox shows for a foreign item: "You found " +
+ *  `article` + `name` + " (OoT)!", the item's game marked as the trackers mark it
+ *  (null article: none; null name: "a foreign item"). Defined in
+ *  MiscBehavior/CheckQueue.cpp (#865). */
+std::string ForeignPickupMessage(const char* article, const char* name);
 
 /** A check hosting a foreign item whose crossing was already delivered: its
  *  `obtained` bit, which survives the three-day reset (RecordForeignPickup's

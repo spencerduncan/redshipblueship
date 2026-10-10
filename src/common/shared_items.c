@@ -362,6 +362,7 @@ typedef struct {
     uint32_t armedBy[RSBS_ITEM_CLASS_ID_CAP];
     uint8_t sharedKind[RSBS_ITEM_CLASS_ID_CAP];
     uint8_t sharedUnits[RSBS_ITEM_CLASS_ID_CAP]; // normalized: >= 1 where sharedKind != 0, else 0
+    uint8_t chestGrade[RSBS_ITEM_CLASS_ID_CAP];  // normalized: a fill item's in-range grade, else NONE
 } ItemClassTable;
 
 static ItemClassTable sItemClass[ITEM_CLASS_ORIGINS];
@@ -403,6 +404,16 @@ static uint8_t ItemClassNormalizedUnits(const ComboItemClassRow* row) {
         return 0u;
     }
     return (row->sharedUnits == 0u) ? 1u : row->sharedUnits;
+}
+
+// A row's chest grade as stored (#862): a fill item's grade when it is in range,
+// NONE otherwise (a non-fill id has no chest to dress; a value past the enum is a
+// source bug the host would otherwise index with).
+static uint8_t ItemClassNormalizedGrade(const ComboItemClassRow* row) {
+    if (row->fillClass == RSBS_FILL_CLASS_NONE || row->chestGrade >= RSBS_CHEST_GRADE_COUNT) {
+        return RSBS_CHEST_GRADE_NONE;
+    }
+    return row->chestGrade;
 }
 
 // The reconciliation rank: PROGRESSION > RENEWABLE > JUNK. NONE and TRAP rank 0
@@ -497,7 +508,7 @@ int Combo_ItemClassBuild(uint8_t originGame) {
     const ComboItemClassSource* src = t->source;
     int fillItems = 0;
     for (uint32_t id = 0; id < src->idSpace; id++) {
-        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
+        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u, RSBS_CHEST_GRADE_NONE };
         const int rv = src->classify((uint16_t)id, &row);
         if (rv < 0) {
             // Not ready: keep NOTHING. A half-built table would be cached as the
@@ -506,6 +517,7 @@ int Combo_ItemClassBuild(uint8_t originGame) {
             memset(t->armedBy, 0, sizeof(t->armedBy));
             memset(t->sharedKind, 0, sizeof(t->sharedKind));
             memset(t->sharedUnits, 0, sizeof(t->sharedUnits));
+            memset(t->chestGrade, 0, sizeof(t->chestGrade));
             return -1;
         }
         if (!ItemClassRowValid(rv, &row)) {
@@ -524,6 +536,7 @@ int Combo_ItemClassBuild(uint8_t originGame) {
         t->armedBy[id] = row.armedBy;
         t->sharedKind[id] = row.sharedKind;
         t->sharedUnits[id] = ItemClassNormalizedUnits(&row);
+        t->chestGrade[id] = ItemClassNormalizedGrade(&row);
         if (row.fillClass != RSBS_FILL_CLASS_NONE) {
             fillItems++;
         }
@@ -655,7 +668,7 @@ int Combo_ItemClassVerify(uint8_t originGame) {
     }
     int diverging = 0;
     for (uint32_t id = 0; id < t->source->idSpace; id++) {
-        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
+        ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u, RSBS_CHEST_GRADE_NONE };
         const int rv = t->source->classify((uint16_t)id, &row);
         if (rv < 0) {
             return -1;
@@ -666,16 +679,54 @@ int Combo_ItemClassVerify(uint8_t originGame) {
             row.sharedKind = 0u;
         }
         if (row.fillClass != t->fillClass[id] || row.armedBy != t->armedBy[id] ||
-            row.sharedKind != t->sharedKind[id] || ItemClassNormalizedUnits(&row) != t->sharedUnits[id]) {
+            row.sharedKind != t->sharedKind[id] || ItemClassNormalizedUnits(&row) != t->sharedUnits[id] ||
+            ItemClassNormalizedGrade(&row) != t->chestGrade[id]) {
             if (diverging < 8) {
-                fprintf(stderr, "[ItemClass] %s id %u DIVERGES: owner=(%s, 0x%08X) source=(%s, 0x%08X)\n",
+                fprintf(stderr, "[ItemClass] %s id %u DIVERGES: owner=(%s, 0x%08X, %s) source=(%s, 0x%08X, %s)\n",
                         Game_ToString((GameId)originGame), (unsigned)id, Combo_ItemClassName(t->fillClass[id]),
-                        (unsigned)t->armedBy[id], Combo_ItemClassName(row.fillClass), (unsigned)row.armedBy);
+                        (unsigned)t->armedBy[id], Combo_ChestGradeName(t->chestGrade[id]),
+                        Combo_ItemClassName(row.fillClass), (unsigned)row.armedBy,
+                        Combo_ChestGradeName(ItemClassNormalizedGrade(&row)));
             }
             diverging++;
         }
     }
     return diverging;
+}
+
+uint8_t Combo_ItemChestGrade(SharedItem item) {
+    ItemClassTable* t = ItemClassTableFor(item.originGame);
+    if (t == NULL || Combo_ItemClassBuild(item.originGame) < 0 || item.id >= t->source->idSpace) {
+        return RSBS_CHEST_GRADE_NONE;
+    }
+    return t->chestGrade[item.id];
+}
+
+const char* Combo_ChestGradeName(uint8_t grade) {
+    switch (grade) {
+        case RSBS_CHEST_GRADE_NONE:
+            return "(none)";
+        case RSBS_CHEST_GRADE_MAJOR:
+            return "major";
+        case RSBS_CHEST_GRADE_LESSER:
+            return "lesser";
+        case RSBS_CHEST_GRADE_JUNK:
+            return "junk";
+        case RSBS_CHEST_GRADE_HEALTH:
+            return "health";
+        case RSBS_CHEST_GRADE_BOSS_KEY:
+            return "boss key";
+        case RSBS_CHEST_GRADE_SMALL_KEY:
+            return "small key";
+        case RSBS_CHEST_GRADE_TOKEN:
+            return "token";
+        case RSBS_CHEST_GRADE_FAIRY:
+            return "fairy";
+        case RSBS_CHEST_GRADE_MASK:
+            return "mask";
+        default:
+            return "(unknown)";
+    }
 }
 
 const char* Combo_ItemClassName(uint8_t fillClass) {

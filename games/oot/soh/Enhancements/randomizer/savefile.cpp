@@ -88,22 +88,24 @@ extern "C" void Randomizer_TestSetOoTPlayerName(const uint8_t* name, uint8_t fil
     gSaveContext.ship.filenameLanguage = filenameLanguage;
 }
 
-/** A started OoT half as a .redsave blob holds it (#773): 'ZELDAZ', `name` in
- *  the charset `filenameLanguage` names, and that language, written at the
- *  real SaveContext offsets into `blob` (every other byte left as it is).
- *  Returns 0 when `blob` is too small for any of the three fields. For the
+/** A started OoT half as a .redsave blob holds it (#773): a created file's
+ *  heart capacity (what OoT_SaveBlobIsStarted reads, #873; Ship of Harkinian
+ *  never writes the 'ZELDAZ' newf bytes), `name` in the charset
+ *  `filenameLanguage` names, and that language, written at the real
+ *  SaveContext offsets into `blob` (every other byte left as it is). Returns 0
+ *  when `blob` is too small for any of the three fields. For the
  *  mm-creation-new-file rows, which commit a slot and read it back through the
  *  REGISTERED OoT descriptor (OoT_SlotMeta_Register); an MM TU cannot compute
  *  OoT's offsets. */
 extern "C" int Randomizer_TestAuthorStartedOoTBlob(uint8_t* blob, size_t blobSize, const uint8_t* name,
                                                    uint8_t filenameLanguage) {
-    static const char kNewf[6] = { 'Z', 'E', 'L', 'D', 'A', 'Z' };
-    if (offsetof(SaveContext, newf) + sizeof(kNewf) > blobSize ||
+    const s16 kCreatedCapacity = 0x30; // the new-file path's STARTING_HEALTH
+    if (offsetof(SaveContext, healthCapacity) + sizeof(kCreatedCapacity) > blobSize ||
         offsetof(SaveContext, playerName) + sizeof(gSaveContext.playerName) > blobSize ||
         offsetof(SaveContext, ship.filenameLanguage) + 1 > blobSize) {
         return 0;
     }
-    memcpy(blob + offsetof(SaveContext, newf), kNewf, sizeof(kNewf));
+    memcpy(blob + offsetof(SaveContext, healthCapacity), &kCreatedCapacity, sizeof(kCreatedCapacity));
     memcpy(blob + offsetof(SaveContext, playerName), name, sizeof(gSaveContext.playerName));
     blob[offsetof(SaveContext, ship.filenameLanguage)] = filenameLanguage;
     return 1;

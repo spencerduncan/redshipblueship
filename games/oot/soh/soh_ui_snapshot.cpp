@@ -835,6 +835,10 @@ struct PageSpec {
     // the capture the row would produce if EnterState stopped authoring.
     std::map<std::string, std::vector<std::string>> stateText;
     std::map<std::string, std::string> stateContrast;
+    // WINDOW: per state, the fewest icons (draw commands on a texture other than
+    // the font atlas) its first view must draw (ImageOracle). A pane that draws
+    // icons, not text, has little text to expect.
+    std::map<std::string, int> stateImages;
     bool scroll = true;
     bool needsRom = false;
     // When non-empty, hover variants are taken in these states only. A race
@@ -1994,6 +1998,9 @@ void Session::BuildPageList() {
         // Each save file's cross-game state (lane W5): SoH's captured bordered
         // table page (DrawLocationsMenu's table, whose own page is not captured).
         { "Save Files", "Randomizer/Tricks/Glitches" },
+        // The unified trackers' settings (#458 U7): SoH's tracker page, whose
+        // embedded Item Tracker Settings hold the rows this page takes.
+        { "Tracker Settings", "Randomizer/Item Tracker" },
     };
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {
@@ -2091,16 +2098,27 @@ void Session::BuildPageList() {
                 p.states = { "", "listed", "backup" };
                 p.stateText[""] = { "No cross-game record yet" };
                 p.stateText["listed"] = { "A refused file does not open",
-                                          std::string("Not paired: ") + Combo_SaveFiles_RefuseText(RSBS_REFUSE_CRC),
-                                          std::string("Not paired: ") +
+                                          std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " +
+                                              Combo_SaveFiles_RefuseText(RSBS_REFUSE_CRC),
+                                          std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " +
                                               RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_RULES) };
                 p.stateText["backup"] = { "was kept as a backup", "No cross-game record (backup kept)" };
                 p.stateContrast = { { "", "listed" }, { "listed", "" }, { "backup", "" } };
+            } else if (sidebar == "Tracker Settings") {
+                // "": the overlay floats (its default), so the two floating-only
+                // rows show. "window": the overlay is a window, so they hide
+                // (their PreFunc; SoH's Item Tracker Settings hides them too).
+                p.states = { "", "window" };
+                p.stateText[""] = { "Enable Dragging", "Only Enable While Paused" };
+                p.stateContrast = { { "", "window" } };
+                // The Window Type row: its tooltip's "Value: effect" lines.
+                p.hovers = { "window-type" };
+                p.hoverRows["window-type"] = "Window Type##ComboItemTracker";
             } else if (sidebar == "Windows") {
-                // An MM tracker toggle: SoH's "Toggles the <Window>." plus the
-                // sentence that explains its blank window under Ocarina of Time.
-                p.hovers = { "mm-item-tracker" };
-                p.hoverRows["mm-item-tracker"] = "Toggle MM Item Tracker";
+                // A tracker toggle: SoH's "Toggles the <Window>." (the unified
+                // Item Tracker's, since MM's tracker rows left the page, #458 U6).
+                p.hovers = { "item-tracker" };
+                p.hoverRows["item-tracker"] = "Toggle Combo Item Tracker";
             } else if (sidebar == COMBO_MM_OPTIONS_PAGE_NAME) {
                 // The model's state note in each state (combo_mm_options_page.c),
                 // and the suspended note, which only a non-MM running game shows.
@@ -2317,15 +2335,20 @@ void Session::BuildPageList() {
         p.compareWith = kSohItemTrackerReference;
         p.scroll = false;
         p.expectText = { "Ocarina of Time", "Majora's Mask", "Shared" };
-        // Row text as the overlay prints it: MM's snapshot bow and OoT's live
-        // song in "live"; OoT's snapshot bow and MM's live mask in "snapshot";
-        // the shared pool's arrows (the last section) in both.
+        // Since #458 U3 the sections draw the games' own icons, not text: OoT's
+        // section and the pool (OoT's icons, which SoH loads at boot from the
+        // staged archives) are pictures, held by ImageOracle in a ROM-rich run
+        // (OoT's 66 cells and the pool's on dozens of textures; U2's text rows
+        // drew none). ROM-free, every section is the text fallback. MM's icons load only
+        // once MM has booted, which this harness never does, so MM's section
+        // is the text fallback here: its snapshot bow in "live", its live
+        // mask in "snapshot".
         p.stateText["live"] = { "Updated live.", "As of file creation.", "As of the last switch or save.",
-                                "Bow 25/40",     "Song of Time",         "Arrows 33/40" };
-        p.stateText["snapshot"] = {
-            "Updated live.",   "As of the last game switch or save.", "As of the last switch or save.",
-            "Fairy Bow 35/40", "Gold Skulltula Tokens 17/100",        "Arrows 33/40"
-        };
+                                "Bow 25/40" };
+        p.stateText["snapshot"] = { "Updated live.", "As of the last game switch or save.",
+                                    "As of the last switch or save.", "Zora Mask" };
+        p.stateImages["live"] = 40;
+        p.stateImages["snapshot"] = 40;
         p.stateText["no-data"] = { "No data.", ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         pages.push_back(p);
@@ -2388,23 +2411,22 @@ void Session::BuildPageList() {
              // The cross-game refusals (src/common/pairing_refusal_toast.h), each
              // through its production emitter; the rules and spoiler pages draw
              // their longest shapes.
-             { "toast/pairing-refused-mm-options", "Not saved:" },
-             { "toast/pairing-refused-rules", "Not saved:" },
-             { "toast/pairing-refused-missing-half", "Not saved:" },
-             { "toast/pairing-refused-spoiler", "Not saved:" },
+             { "toast/pairing-refused-mm-options", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/pairing-refused-rules", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/pairing-refused-missing-half", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/pairing-refused-spoiler", RSBS_REFUSAL_TOAST_PREFIX },
              { "toast/paired-spoiler-not-loaded", "Spoiler not loaded:" },
              // The paired-file load's toasts (#781), each through the load's
              // own emitter with the longest input a real load can pass it.
              { "toast/load-rules-restored", "Restored from file:" },
              { "toast/load-mm-restored-one", "Restored for Majora's Mask:" },
              { "toast/load-mm-restored-many", "Restored for Majora's Mask:" },
-             { "toast/load-mm-not-restored", "Not restored:" },
-             { "toast/load-refused-rules", "Not paired:" },
-             { "toast/load-refused-other-build", "Not paired:" },
-             { "toast/load-refused-damaged", "Not paired:" },
+             { "toast/load-refused-rules", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/load-refused-other-build", RSBS_REFUSAL_TOAST_PREFIX },
+             { "toast/load-refused-damaged", RSBS_REFUSAL_TOAST_PREFIX },
              // The file select's refusal (#836), with the longest words it
              // can show ("This file has no Majora's Mask world").
-             { "toast/load-refused-file-select", "Not paired:" },
+             { "toast/load-refused-file-select", RSBS_REFUSAL_TOAST_PREFIX },
          }) {
         PageSpec p;
         p.id = id;
@@ -2771,6 +2793,10 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         } else {
             Combo_MMModSet_LoadForTest(nullptr, 0, true);
         }
+    } else if (p.id == "Combo/Tracker Settings") {
+        if (state == "window") {
+            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
+        }
     } else if (p.id == "Combo/Save Files") {
         // Every state reads the seam's table, never the disk.
         if (state == "listed") {
@@ -2853,6 +2879,9 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     if (p.id == "Combo/Majora's Mask" && state == "autosave") {
         CVarClear("gEnhancements.Autosave");
+    }
+    if (p.id == "Combo/Tracker Settings" && state == "window") {
+        CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
     }
     if (p.id == "Settings/Graphics" && state == "match-refresh-rate") {
         CVarClear(CVAR_SETTING("MatchRefreshRate"));
@@ -3851,6 +3880,28 @@ void FitOracle(const ImGuiWindow* w, Capture& c) {
     c.reason = why;
 }
 
+/**
+ * The icon pane's oracle (#458 U3): the window's last frame drew at least
+ * `minImages` draw commands on a texture other than the font atlas, so its
+ * icons are pictures and not text. Two neighbouring icons on one texture merge
+ * into one command, so `minImages` is a floor, not a count of cells.
+ */
+void ImageOracle(const ImGuiWindow* w, int minImages, Capture& c) {
+    const ImTextureID font = ImGui::GetIO().Fonts->TexID;
+    int images = 0;
+    for (const ImDrawCmd& cmd : w->DrawList->CmdBuffer) {
+        if (cmd.ElemCount > 0 && cmd.UserCallback == nullptr && cmd.GetTexID() != font) {
+            images++;
+        }
+    }
+    if (images >= minImages) {
+        return;
+    }
+    c.status = "fail";
+    c.reason = "the pane drew " + std::to_string(images) + " icon draw commands, expected at least " +
+               std::to_string(minImages);
+}
+
 void Session::CaptureWindowPage(const PageSpec& p) {
     // Ours read their visibility CVar LIVE in Draw() (they override it), so
     // setting the CVar is what opens them; Show() would do nothing. An SoH pane
@@ -3936,6 +3987,14 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 // nothing clipped at the window's edge, and the window inside
                 // the game window.
                 FitOracle(w, c);
+            }
+            // The icons are textures from the staged archives: a ROM-free run
+            // (CI) has none and draws the text fallback, so only a ROM-rich
+            // capture is held to its icons.
+            const auto minImages = p.stateImages.find(state);
+            if (scrollIndex == 0 && w != nullptr && c.status == "pass" && !romFree &&
+                minImages != p.stateImages.end()) {
+                ImageOracle(w, minImages->second, c);
             }
             const bool unfinished = p.scroll && w != nullptr && c.status == "pass" && c.scrollY + 0.5f < c.scrollMax;
             const bool more = unfinished && scrollIndex < kMaxScrollSteps && !opt.Sabotaged("no-scroll");
@@ -4381,7 +4440,7 @@ void Session::CaptureModalVariant(const PageSpec& p, const std::string& state) {
 static void EmitLoadToastPage(const std::string& id) {
     if (id == "toast/load-rules-restored") {
         std::string rules;
-        for (ComboSettingId rule : { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION, COMBO_SETTING_SHARED_OCARINA }) {
+        for (ComboSettingId rule : { COMBO_SETTING_GOAL, COMBO_SETTING_DIRECTION }) {
             rules += (rules.empty() ? "" : ", ") + std::string(Combo_ComboSettingLabel(rule));
         }
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_RULES_RESTORED, rules.c_str(), 0);
@@ -4411,8 +4470,6 @@ static void EmitLoadToastPage(const std::string& id) {
         } else {
             RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, longest.c_str(), 1);
         }
-    } else if (id == "toast/load-mm-not-restored") {
-        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_NOT_RESTORED, nullptr, 0);
     } else if (id == "toast/load-refused-rules") {
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_RULES, nullptr, 0);
     } else if (id == "toast/load-refused-other-build") {
@@ -4420,7 +4477,7 @@ static void EmitLoadToastPage(const std::string& id) {
     } else if (id == "toast/load-refused-damaged") {
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_REFUSED_DAMAGED, nullptr, 0);
     } else if (id == "toast/load-refused-file-select") {
-        RsbsSave_EmitFileSelectRefusalToast("This file has no Majora's Mask world");
+        RsbsSave_EmitFileSelectRefusalToast(Combo_RefusalWords(RSBS_REFUSAL_WORDS_NO_MM_WORLD));
     }
 }
 

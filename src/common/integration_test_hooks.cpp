@@ -19,6 +19,7 @@
 #include "combo_mm_options_view.h" // RSBS_PFC_DIVERGE: the MM options writer, the live profile digest
 #include "combo_mm_tricks_view.h"  // RSBS_PFC_DIVERGE: the MM tricks writer
 #include "notification_bridge.h"   // RSBS_PFC_DIVERGE: the load's recorded toasts
+#include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX: the capture keeps refusal toast lines
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <cstdio>
 #include <cstdlib>
@@ -108,8 +109,9 @@ int sCapturePipeWrite = -1;
 constexpr int kCaptureDrainBoundMs = 2000;
 
 bool CaptureKeeps(const std::string& line) {
-    static const char* const kTags[] = { "pairing", "creation", "[Crossings]", "REFUSED",
-                                         "Not paired", "Not saved", "[PFC" };
+    // RSBS_REFUSAL_TOAST_PREFIX: a refusal toast's line, whatever its copy says (#836).
+    static const char* const kTags[] = { "pairing", "creation", "[Crossings]", "REFUSED", RSBS_REFUSAL_TOAST_PREFIX,
+                                         "[PFC" };
     for (const char* tag : kTags) {
         if (line.find(tag) != std::string::npos) {
             return true;
@@ -1074,6 +1076,61 @@ bool IntegrationTest_PairedDivergeLoadToasts(char* msg, size_t cap) {
              rules.empty() ? "" : rules.c_str(), rules.empty() ? "" : "\"", mm.empty() ? "MISSING" : "\"",
              mm.empty() ? "" : mm.c_str(), mm.empty() ? "" : "\"");
     return !rules.empty() && !mm.empty();
+}
+
+// #878: one toast per event across a crossing (see the header).
+static int sPfcLegToastStart = 0;
+static int sPfcCrossingToastMark = -1;
+
+void IntegrationTest_PairedMarkCrossing(const char* game) {
+    sPfcCrossingToastMark = OoT_Notification_EmittedCountForTest();
+    fprintf(stderr, "[PFC] departure toward %s: %d toast(s) recorded so far\n", game, sPfcCrossingToastMark);
+    fflush(stderr);
+}
+
+bool IntegrationTest_PairedLegToastsCheck(const char* game, char* msg, size_t cap) {
+    const int total = OoT_Notification_EmittedCountForTest();
+    std::vector<std::string> texts;
+    for (int i = sPfcLegToastStart; i < total; i++) {
+        char toast[256] = { 0 };
+        OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast));
+        texts.emplace_back(toast);
+        fprintf(stderr, "[PFC] leg into %s, toast %d%s: \"%s\"\n", game, i + 1,
+                (sPfcCrossingToastMark >= 0 && i >= sPfcCrossingToastMark) ? " (after the departure)" : "", toast);
+    }
+    fflush(stderr);
+    const int legStart = sPfcLegToastStart;
+    const int mark = sPfcCrossingToastMark;
+    sPfcLegToastStart = total;
+    sPfcCrossingToastMark = -1;
+    for (size_t i = 0; i < texts.size(); i++) {
+        int seen = 0;
+        for (size_t j = 0; j < texts.size(); j++) {
+            seen += texts[j] == texts[i] ? 1 : 0;
+        }
+        if (seen > 1) {
+            snprintf(msg, cap, "the leg into %s toasted \"%s\" %d times; each text must appear once per leg", game,
+                     texts[i].c_str(), seen);
+            return false;
+        }
+    }
+    if (mark < 0) {
+        snprintf(msg, cap, "the leg into %s has no departure mark (IntegrationTest_PairedMarkCrossing never ran)",
+                 game);
+        return false;
+    }
+    if (total > mark) {
+        char first[256] = { 0 };
+        OoT_Notification_EmittedAtForTest(mark, first, sizeof(first));
+        snprintf(msg, cap,
+                 "the crossing into %s toasted %d time(s) (first: \"%s\"); an arrival announces nothing the pickup "
+                 "already did (#878)",
+                 game, total - mark, first);
+        return false;
+    }
+    snprintf(msg, cap, "the leg into %s: %d toast(s), each text once; the crossing toasted nothing", game,
+             total - legStart);
+    return true;
 }
 
 void IntegrationTest_PairedDivergeCleanup(void) {

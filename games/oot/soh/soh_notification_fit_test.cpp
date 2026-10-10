@@ -39,14 +39,26 @@
  * Each at Notifications.Size 1.8 (the default and the playtest scale) and 1.0.
  *
  * WHAT IT COVERS, in every profile and size:
- *   - the four "Not saved:" refusals through MM_Rando_EmitPairingRefusalToast:
- *     the RULES refusal over EVERY non-empty combination of the divergence bits
- *     (their count is DERIVED from Combo_ComboSettingsDivergenceFieldName, so a
- *     new bit is covered the day it is named), and the SPOILER refusal over every
- *     route the MM loader reports plus an unknown one;
- *   - OoT's paired-spoiler refusal through OoT_EmitPairedSpoilerRefusalToast;
+ *   - the arrival's and the MM spoiler's refusals through
+ *     MM_Rando_EmitPairingRefusalToast: the RULES refusal over EVERY non-empty
+ *     combination of the divergence bits (their count is DERIVED from
+ *     Combo_ComboSettingsDivergenceFieldName, so a new bit is covered the day it
+ *     is named), and the SPOILER refusal over every route the MM loader reports
+ *     plus an unknown one;
+ *   - the refused file's toasts (#836): the file select's refusal through
+ *     RsbsSave_EmitFileSelectRefusalToast over every entry of the words table
+ *     (Combo_RefusalWords), and the load's refusals through RsbsSave_EmitLoadToast;
+ *   - that every one of those refusals opens with the class's ONE prefix,
+ *     RSBS_REFUSAL_TOAST_PREFIX, and that its message is capitalized and has no
+ *     trailing period (#836, operator ruling 2026-10-01);
+ *   - OoT's paired-spoiler refusal through OoT_EmitPairedSpoilerRefusalToast
+ *     (outside the class: "Spoiler not loaded:", width only);
  *   - that a one-field RULES refusal names its field, and that the two-field
  *     refusal mm-combo-settings-gate leg 4 depends on names both;
+ *   - #865: the pickup toast OoT shows for an MM item found at an OoT check, through
+ *     its production emitter (OoT_Rando_Foreign_EmitPickupToast), for EVERY MM
+ *     item that may cross: it reads "You found <article><name> (MM)", and the
+ *     toast of every name OoT also uses fits like a refusal toast;
  *   - the creation-failure toast (PR #749) as the calibration: #749 measured it
  *     at 800 px in the ui tier's 832-px window, and this row prints its own width.
  * That the production refusal SITES call these emitters is locked where each
@@ -76,8 +88,22 @@
 #include "foreign_items.h" // Combo_ComboSettingsDivergenceDescribe / FieldName, RSBS_COMBO_DIVERGE_*
 #include "notification_bridge.h"
 #include "pairing_refusal_toast.h"
+#include "save.h"         // RsbsSave_EmitLoadToast, RsbsSave_EmitFileSelectRefusalToast
+#include "shared_items.h" // ComboItemClassRow, RSBS_FILL_CLASS_PROGRESSION (#865's pickup toasts)
+
+#include <cctype>
+#include <utility>
 
 extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
+// #865: the pickup toast for an MM item found at an OoT check (hook_handlers.cpp),
+// and the MM items that may cross (MM's classification and its id space).
+extern "C" void OoT_Rando_Foreign_EmitPickupToast(SharedItem item);
+extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
+extern "C" int MM_ForeignItem_TestItemIdMax(void);
+// OoT's item table, for the names OoT also uses (ComboLogicEngineOoT.cpp): this
+// row never runs the OTR bring-up that fills it, and the transient form leaves no
+// Rando::Context behind for the rows after it under `--test all`.
+extern "C" int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 
 namespace {
 
@@ -115,6 +141,7 @@ struct Measured {
     float x1 = 0.0f;
     std::string prefix;
     std::string message;
+    std::string suffix;
 };
 
 /** Draw the queued toasts through SoH's own overlay and read the windows back. */
@@ -143,6 +170,7 @@ Measured DrawAndMeasure(Notification::Window& overlay) {
     if (OoT_Notification_PeekLastForTest(&last) == 1) {
         m.prefix = last.prefix != nullptr ? last.prefix : "";
         m.message = last.message != nullptr ? last.message : "";
+        m.suffix = last.suffix != nullptr ? last.suffix : "";
     }
     return m;
 }
@@ -155,13 +183,29 @@ struct FitRun {
     std::string widestText;
 };
 
+/** Whether a toast belongs to the refusal class, whose prefix and copy shape are checked too. */
+enum class Class { REFUSAL, OTHER };
+
 /** One toast, already emitted, at the current Notifications.Size. */
-int CheckOne(FitRun& run, const char* what, float scale) {
+int CheckOne(FitRun& run, const char* what, float scale, Class cls = Class::REFUSAL) {
     const Measured m = DrawAndMeasure(*run.overlay);
     OoT_Notification_ClearForTest();
     const Profile& p = *run.profile;
     if (m.windows != 1) {
         return Fail("%s at %.1fx, %s: %d toast window(s) drawn, expected exactly one", what, scale, p.name, m.windows);
+    }
+    if (cls == Class::REFUSAL) {
+        // #836 (operator ruling 2026-10-01): ONE prefix for the whole class, and
+        // a message that is capitalized and has no trailing period, so the Combo
+        // > Save Files status cell is the toast's own line.
+        if (m.prefix != RSBS_REFUSAL_TOAST_PREFIX) {
+            return Fail("%s: the toast's prefix is '%s', not the refusal class's one prefix '%s' (message '%s')", what,
+                        m.prefix.c_str(), RSBS_REFUSAL_TOAST_PREFIX, m.message.c_str());
+        }
+        if (m.message.empty() || std::islower(static_cast<unsigned char>(m.message.front())) ||
+            m.message.back() == '.') {
+            return Fail("%s: the message '%s' is not capitalized without a trailing period", what, m.message.c_str());
+        }
     }
     if (m.message.find('\n') != std::string::npos || m.prefix.find('\n') != std::string::npos) {
         return Fail("%s: the toast carries a line break ('%s %s'); SoH's toasts are one line", what, m.prefix.c_str(),
@@ -187,6 +231,94 @@ int CheckOne(FitRun& run, const char* what, float scale) {
         run.widestText = m.prefix + " " + m.message;
     }
     return 0;
+}
+
+/**
+ * #865: the pickup toast OoT shows for an MM item found at an OoT check, drawn
+ * through its production emitter for EVERY MM item that may cross (MM's
+ * PROGRESSION class): its words name the item marked " (MM)", and the toast of
+ * every name both games use (the Hookshot, the Song of Time, ...), which is what
+ * the marker is for, keeps the overlay's margin on both sides.
+ */
+int CheckPickupToasts(FitRun& run, float scale) {
+    const Profile& p = *run.profile;
+    const int idMax = MM_ForeignItem_TestItemIdMax();
+    int failures = 0;
+    if (OoT_ComboLogic_TestEnsureItemTableTransient() != 0) {
+        return Fail("OoT's item table could not be brought up, so no name can be compared with OoT's");
+    }
+    int swept = 0;
+    int shared = 0;
+    int otherOverflows = 0;
+    float widestShared = 0.0f;
+    std::string widestSharedText;
+    float widest = 0.0f;
+    std::string widestText;
+    for (int id = 1; id < idMax; id++) {
+        ComboItemClassRow row;
+        if (MM_ComboLogic_ClassifyItem((uint16_t)id, &row) != 1 || row.fillClass != RSBS_FILL_CLASS_PROGRESSION) {
+            continue;
+        }
+        SharedItem item;
+        item.originGame = (uint8_t)GAME_MM;
+        item.flags = 0;
+        item.id = (uint16_t)id;
+        const char* name = Combo_GetForeignItemName(item);
+        const char* article = Combo_GetForeignItemArticle(item);
+        if (name == nullptr || article == nullptr) {
+            failures += Fail("MM item %d has no name or article for its pickup toast", id);
+            continue;
+        }
+        OoT_Rando_Foreign_EmitPickupToast(item);
+        const Measured m = DrawAndMeasure(*run.overlay);
+        OoT_Notification_ClearForTest();
+        const std::string text = m.prefix + m.message + m.suffix;
+        const std::string want = std::string("You found ") + article + name + " (MM)";
+        if (text != want) {
+            failures += Fail("the pickup toast for MM item %d reads '%s', want '%s'", id, text.c_str(), want.c_str());
+            continue;
+        }
+        if (m.windows != 1) {
+            failures += Fail("the pickup toast '%s' drew %d windows, expected exactly one", text.c_str(), m.windows);
+            continue;
+        }
+        swept++;
+        const float width = m.x1 - m.x0;
+        const float margin = p.width - m.x1;
+        const bool fits = margin > 0.0f && m.x0 >= margin;
+        const bool isShared = Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, name, nullptr);
+        if (width > widest) {
+            widest = width;
+            widestText = text;
+        }
+        if (isShared) {
+            shared++;
+            if (width > widestShared) {
+                widestShared = width;
+                widestSharedText = text;
+            }
+            if (!fits) {
+                failures += Fail("the pickup toast '%s' at %.1fx, %s: x %.0f to %.0f (%.0f px) against the overlay's "
+                                 "%.0f-px margin",
+                                 text.c_str(), scale, p.name, m.x0, m.x1, width, margin);
+                continue;
+            }
+            run.checked++;
+        } else if (!fits) {
+            printf("[TEST]   note: pickup toast '%s' at %.1fx, %s: x %.0f to %.0f (%.0f px), past the overlay's "
+                   "%.0f-px margin (no OoT item shares this name)\n",
+                   text.c_str(), scale, p.name, m.x0, m.x1, width, margin);
+            otherOverflows++;
+        }
+    }
+    if (shared == 0) {
+        failures += Fail("no MM item that may cross shares a name with an OoT item; the shared-name sweep is vacuous");
+    }
+    printf("[TEST] %s, %.1fx: %d MM pickup toasts read 'You found <item> (MM)'; the %d names OoT also uses fit, the "
+           "widest '%s' at %.0f px; widest of all '%s' at %.0f px; %d other(s) past the margin\n",
+           p.name, scale, swept, shared, widestSharedText.c_str(), widestShared, widestText.c_str(), widest,
+           otherOverflows);
+    return failures;
 }
 
 void SetScale(float scale) {
@@ -305,8 +437,26 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
                 const std::string what = std::string("spoiler refusal (") + route + ")";
                 failures += CheckOne(run, what.c_str(), scale);
             }
+            // Outside the refusal class (it refuses a document and latches
+            // nothing): width only, under its own "Spoiler not loaded:".
             OoT_EmitPairedSpoilerRefusalToast(/*mute=*/1);
-            failures += CheckOne(run, "OoT paired-spoiler refusal", scale);
+            failures += CheckOne(run, "OoT paired-spoiler refusal", scale, Class::OTHER);
+
+            // The refused FILE (#836): the file select's toast over every words
+            // entry, and the load's own refusal toasts, each through its
+            // production emitter.
+            for (int words = 0; words < RSBS_REFUSAL_WORDS_COUNT; words++) {
+                RsbsSave_EmitFileSelectRefusalToast(Combo_RefusalWords(words));
+                const std::string what = std::string("file-select refusal (") + Combo_RefusalWords(words) + ")";
+                failures += CheckOne(run, what.c_str(), scale);
+            }
+            for (const auto& [kind, name] :
+                 { std::pair<int, const char*>{ RSBS_LOAD_TOAST_REFUSED_RULES, "load refusal (rules)" },
+                   { RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD, "load refusal (other build)" },
+                   { RSBS_LOAD_TOAST_REFUSED_DAMAGED, "load refusal (damaged)" } }) {
+                RsbsSave_EmitLoadToast(kind, nullptr, 0);
+                failures += CheckOne(run, name, scale);
+            }
 
             // RULES: every non-empty combination of the divergence bits, drawn once
             // per distinct message.
@@ -335,6 +485,9 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
                 printf("[TEST] %s, %.1fx: %zu distinct rules messages over %u field combinations (%d bits) fit\n",
                        profile.name, scale, drawn.size(), combinations, divergenceBits);
             }
+
+            // #865: the pickup toast of an MM item found at an OoT check.
+            failures += CheckPickupToasts(run, scale);
         }
         checked += run.checked;
         if (failures == failuresBefore) {

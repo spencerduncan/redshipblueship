@@ -10,7 +10,8 @@ The test is pixels. Render the SoH reference and ours with `redship --test ui-sn
 
 **Scope (ours):**
 - `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp`, `SohGui/SohMenuComboMmMods.cpp`,
-  `SohGui/SohMenuComboMmRandomizer.cpp` and `SohGui/SohMenuComboSaveFiles.cpp`
+  `SohGui/SohMenuComboMmRandomizer.cpp`, `SohGui/SohMenuComboSaveFiles.cpp` and
+  `SohGui/SohMenuComboTrackerSettings.cpp`
 - `AddCrossGamePointerWidgets` (`SohMenuRandomizer.cpp:823-846`)
 - the capability and presentation code in `SohMenu.cpp:199-600`
 - `SohGui/CreationProgressOverlay.cpp`
@@ -53,7 +54,8 @@ and on ours (R-N4).
   own line instead ("[Both Games]" over "Shared Ocarina", `ComboRuleCheckboxRowName` in `SohMenuCombo.cpp`). That
   break is an authored newline, a project choice with no SoH precedent: no SoH row authors a newline in its name, and
   SoH's own wrap (`WrappedText` at 90 / columns characters, 45 on a two-column page) would not wrap a 27-character
-  name, so the row is two lines at every profile, desk-1280x800 included. Only its shape, the box at the top and the
+  name, so the row is two lines at every profile, desk-1280x800 included (#879 retired that row, so no row carries
+  the authored newline now). Only its shape, the box at the top and the
   label beside it, matches SoH's wrapped rows. SoH's own pages do not meet the width rule, and rule 0 keeps them as
   shipped. At 832x600, 68 rows on SoH's pages overrun their column (23 of them on Enhancements > Quality of Life,
   where "Containers Match Contents" is counted twice, its separator and its checkbox). 63 are rows as SoH shipped
@@ -161,7 +163,8 @@ and on ours (R-N4).
   `##suffix` ("Enable##CrowdControl", `SohMenuNetwork.cpp:143`), never with a visible prefix. The search key is the
   name plus the tooltip, lowercased with spaces removed and newlines kept. The Shared Ocarina checkbox carries its
   marker followed by a newline, not a space (section 1, width rule), so "shared ocarina" finds it, and a search that
-  runs across the marker into the label ("games shared", or the full row name) does not.
+  runs across the marker into the label ("games shared", or the full row name) does not. (That checkbox was retired by
+  #879.)
 - **R-N6.** Combobox values are short Title Case, at most 30 characters. A parenthetical is only a qualifier
   ("(Seeded)", `SohMenuEnhancements.cpp:38-144`). Explanations go in the tooltip as "Value: effect" lines
   (`SohMenuSettings.cpp:198-203`).
@@ -250,7 +253,10 @@ SoH decides by WHEN a surface is used, not by how big it is. Ours follow the sam
 
 Ours: MM's randomizer options and tricks freeze at the creation event, so they are pages (Combo > MM Randomizer
 and Combo > MM Tricks, `SohMenuComboMmRandomizer.cpp`, since 2026-09-27; ADR 0004's host amendment of that date).
-Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker and MM's trackers. A new
+Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker and the Combo Item Tracker.
+MM's native trackers have no row since #458 U6 (the unified trackers cover both games); they stay registered as
+fallbacks that their `gWindows.*` keys still open. The unified trackers' settings are a page, Combo > Tracker Settings (`SohMenuComboTrackerSettings.cpp`),
+which embeds SoH's own Check Tracker Settings because the Combo Tracker draws in its colours. A new
 surface that freezes at creation, or that feeds generation, is never a pop-out.
 
 ## 10b. Panes (GuiWindow)
@@ -312,14 +318,16 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   The overlay draws every field on ONE line at 1.8x and never wraps, so a toast is about 53 characters at most (the
   width of the 832-px window the ui tier renders); the UI snapshot's toast pages fail when a toast leaves the window.
   R-N8 still applies: spell out "Majora's Mask" and "Ocarina of Time" in a toast's sentence. Mute it when the call
-  site can run without audio. The cross-game refusals follow this shape: "Not saved:" plus a short reason, their copy
-  in `src/common/pairing_refusal_toast.c`, emitted through `MM_Rando_EmitPairingRefusalToast` and
-  `OoT_EmitPairedSpoilerRefusalToast`. The redship-tier row `PairingRefusalToastFit` draws every one through SoH's own
-  overlay at sizes 1.8 and 1.0, in an 832-px window and in a 4K window at the X-Large menu scale, and requires each to
-  keep the overlay's 30-px margin on the left as well as the right, as SoH's own toasts do: at most 772 px in the
-  832-px window. Each refusal site's own row (`mm-combo-settings-gate`, `mm-spoiler-identity`, `combo-creation-event`)
-  compares the toast the site queued with that copy, exactly. The long explanation belongs on the refusal's stderr
-  line, not in the toast. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
+  site can run without audio. The cross-game refusals follow this shape: ONE prefix for the class, "Refused:"
+  (`RSBS_REFUSAL_TOAST_PREFIX`, #836), plus a short capitalized reason with no period, their copy in
+  `src/common/pairing_refusal_toast.c`, emitted through `MM_Rando_EmitPairingRefusalToast`,
+  `RsbsSave_EmitFileSelectRefusalToast` and `RsbsSave_EmitLoadToast` (OoT's paired-spoiler refusal,
+  `OoT_EmitPairedSpoilerRefusalToast`, refuses a document and keeps "Spoiler not loaded:"). The redship-tier row
+  `PairingRefusalToastFit` draws every one through SoH's own overlay at sizes 1.8 and 1.0, in an 832-px window and in
+  a 4K window at the X-Large menu scale, and requires each to keep the overlay's 30-px margin on the left as well as
+  the right, as SoH's own toasts do: at most 772 px in the 832-px window. Each refusal site's own row
+  (`mm-combo-settings-gate`, `mm-spoiler-identity`, `combo-creation-event`) compares the toast the site queued with
+  that copy, exactly. The long explanation belongs on the refusal's stderr line, not in the toast. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
   their record names (`goal`, `direction`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name the
   field, and ten of the thirteen fields (`poolSizeOoT`, `poolSizeMM` since #801 retired their rows, `itemClassOoT`,
   `itemClassMM` since #834 retired theirs, `logicRung`, `comboFlags`, `spare1`, `formatVersion`, `comboSettingsHash`,
@@ -356,8 +364,10 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
 | Combo > MM Randomizer | Randomizer > General (the two-column option page) |
 | Combo > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |
+| Combo > Tracker Settings | Randomizer > Item Tracker (SoH's tracker page; its states "" and "window" show and hide the two floating-only rows) |
 | Combo > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "", "listed" and "backup" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
 | Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |
+| Combo Item Tracker overlay | SoH's Item Tracker overlay ("window/Item Tracker": floating, as SoH ships it, with no save loaded, so every icon is drawn faded; Ocarina of Time is made the running game for it, because #797 gates that window on it) |
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
 | Creation overlay over the open menu | SoH's modal over the same menu page ("Clear Config@over-menu") |
 | Cross-Game Rules Reset confirm, MM Randomizer Reset confirm | the SoH modal ("Clear Config") |
@@ -398,7 +408,12 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
   glyphs) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
   adapter, with one collected, one skipped and two open OoT checks and its Checks list open, so the status glyphs and
-  both crossing tables are drawn).
+  both crossing tables are drawn). The Combo Item Tracker draws no-data (nothing to read: each section's header over
+  "No data.", drawn as the Window type so its title bar is captured), live (Ocarina of Time "Updated live.", Majora's
+  Mask from its snapshot, "As of file creation.", and an authored pool) and snapshot (the mirror image: Majora's Mask
+  live, Ocarina of Time "As of the last game switch or save."), the last two floating. It is captured unscrolled,
+  because the floating overlay has no scrollbar. Majora's Mask's section is the text fallback wherever it has rows,
+  because its icons load only once Majora's Mask has booted and the harness never boots it.
 - SoH PANE: SoH's Check Tracker Settings pane, the reference both of those panes compare with (`compare/`). It is
   opened through its own `GuiWindow::Show` and closed with `Hide`, because an SoH pane latches its visibility CVar at
   construction and never re-reads it (ours read theirs live). A run where the pane is not registered skips it ROM-free
@@ -407,15 +422,15 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
   direction and goal comboboxes and (frozen) its first slider and its goal row; Majora's Mask hovers its first row and
-  Windows its MM Item Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state unless
-  `PageSpec::hoverRowState` names another). Combo > MM Randomizer hovers its first row unpaired and frozen and its
-  first capability-blocked row (named rows; the frozen and blocked ones are in `PageSpec::disabledHovers`). Combo > MM
-  Tricks hovers a live, an unbound and a reserved trick unpaired and the live one frozen (`PageSpec::paneHovers`,
-  found through the `combo_ui` rect recorder, because the trick list is one custom row; the harness scrolls the
-  table's own child to reach a row). A disabled row's hover must show SoH's disabled shape with no tracker number.
-  The trick hovers are composited against Settings > Graphics' Current FPS hover (`PageSpec::hoverCompareWith`),
-  SoH's one captured tooltip: SoH's Tricks page draws its trick names as plain text with no item id, so no hover can
-  be injected there.
+  Windows its Combo Item Tracker toggle and Tracker Settings its Window Type row (`PageSpec::hoverRows`, a named row,
+  captured in the page's first state unless `PageSpec::hoverRowState` names another). Combo > MM Randomizer hovers its
+  first row unpaired and frozen and its first capability-blocked row (named rows; the frozen and blocked ones are in
+  `PageSpec::disabledHovers`). Combo > MM Tricks hovers a live, an unbound and a reserved trick unpaired and the live
+  one frozen (`PageSpec::paneHovers`, found through the `combo_ui` rect recorder, because the trick list is one custom
+  row; the harness scrolls the table's own child to reach a row). A disabled row's hover must show SoH's disabled
+  shape with no tracker number. The trick hovers are composited against Settings > Graphics' Current FPS hover
+  (`PageSpec::hoverCompareWith`), SoH's one captured tooltip: SoH's Tricks page draws its trick names as plain text
+  with no item id, so no hover can be injected there.
 - MODAL: SoH's "Clear Config" reference, and the Cross-Game Rules and MM Randomizer Reset confirms (each queued
   through its Reset row's own Callback, the call the player's click makes).
 - `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open
@@ -476,6 +491,11 @@ fresh directory to keep that path exercised.
   tooltip, and no other name may appear. The hovers read four rows; the census reads all of them. Observed red
   2026-09-27 with a trick dropped, one drawn twice and one misfiled into the other column: three problems per state,
   each named
+- a pane captured unscrolled (the Combo Item Tracker, in every state) has nothing beyond its edge and ends inside the
+  game window (`FitOracle`): its player sees that one view and nothing else
+- in a ROM-rich run, the Combo Item Tracker's live and snapshot captures draw at least 40 draw commands on a texture
+  other than the font atlas (`ImageOracle`, `PageSpec::stateImages`), so their icons are pictures, not text. A
+  ROM-free run (CI) has no icon textures and draws the text fallback, so the check is skipped there
 - the frame converged
 - no popup leaked
 - no game framebuffer was composited

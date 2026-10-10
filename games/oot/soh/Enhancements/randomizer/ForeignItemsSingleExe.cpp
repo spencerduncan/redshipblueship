@@ -229,18 +229,39 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
  * category of the item the OoT table holds there (`coverCategory`).
  *
  * A crossing host holds OoT's junk cover (RG_BLUE_RUPEE, ComboLogicEngineOoT.cpp)
- * and would be dressed as junk whatever MM item it hides. It presents as a major
- * chest instead, MM's rule for an OoT item in an MM chest (EnBox.cpp: a foreign
- * chest is an ornate chest, like any chest holding something worth opening).
- * ADR 0002 keeps MM's item table out of this TU: the one game-neutral grade OoT
- * can read for an MM item is its fill class (Combo_ItemClassOf), and every
- * crossing item is PROGRESSION (Combo_ItemClassMayCrossUnder), so major is the
- * finest answer the boundary carries. OoTMM grades finer, by the item's type
- * (keys, tokens, fairies ...); doing that in both games is #862. Every other
- * chest keeps its own item's category.
+ * and would be dressed as junk whatever MM item it hides. It is dressed by the MM
+ * item's class instead, as OoTMM grades a chest (#862): the chest grade MM
+ * publishes for its own item (MM's randoItemType, through the item class owner,
+ * shared_items.h "THE CHEST GRADE"; ADR 0002 keeps MM's item table out of this
+ * TU), mapped onto OoT's own categories, so an MM small key shows OoT's key chest
+ * and an MM heart piece OoT's heart chest. OoT has no fairy or mask chest: a stray
+ * fairy, a mask, or an item with no grade presents as major, the answer every
+ * crossing chest gave before #862. Every other chest keeps its own item's category.
  */
 extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
-    return OoT_Rando_Foreign_HostsForeign(rc) != 0 ? (int)ITEM_CATEGORY_MAJOR : coverCategory;
+    const SharedItem* item = rc != 0 ? Combo_GetForeignPlacementForOoTCheck(rc) : nullptr;
+    if (item == nullptr) {
+        return coverCategory;
+    }
+    switch (Combo_ItemChestGrade(*item)) {
+        case RSBS_CHEST_GRADE_LESSER:
+            return (int)ITEM_CATEGORY_LESSER;
+        case RSBS_CHEST_GRADE_JUNK:
+            return (int)ITEM_CATEGORY_JUNK;
+        case RSBS_CHEST_GRADE_HEALTH:
+            return (int)ITEM_CATEGORY_HEALTH;
+        case RSBS_CHEST_GRADE_BOSS_KEY:
+            return (int)ITEM_CATEGORY_BOSS_KEY;
+        case RSBS_CHEST_GRADE_SMALL_KEY:
+            return (int)ITEM_CATEGORY_SMALL_KEY;
+        case RSBS_CHEST_GRADE_TOKEN:
+            return (int)ITEM_CATEGORY_SKULLTULA_TOKEN;
+        case RSBS_CHEST_GRADE_MAJOR:
+        case RSBS_CHEST_GRADE_FAIRY:
+        case RSBS_CHEST_GRADE_MASK:
+        default:
+            return (int)ITEM_CATEGORY_MAJOR;
+    }
 }
 
 /** TEST BRIDGE (ForeignModel row M14): what OoT chest `rc` presents when the OoT
@@ -249,6 +270,46 @@ extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
 extern "C" int OoT_Rando_Foreign_TestChestShowsMajor(uint16_t rc) {
     const int shown = OoT_Rando_Foreign_ChestCategory(rc, (int)ITEM_CATEGORY_JUNK);
     return shown == (int)ITEM_CATEGORY_MAJOR ? 1 : shown == (int)ITEM_CATEGORY_JUNK ? 0 : -1;
+}
+
+/** TEST BRIDGE (ForeignModel row M15, #862): the category OoT chest `rc` is
+ *  dressed by when the OoT table holds the junk cover there (what z_en_box.c's
+ *  init asks), as an ITEM_CATEGORY_* value. */
+extern "C" int OoT_Rando_Foreign_TestChestCategory(uint16_t rc) {
+    return OoT_Rando_Foreign_ChestCategory(rc, (int)ITEM_CATEGORY_JUNK);
+}
+
+/** TEST BRIDGE (M15): OoT's OWN chest category for OoT item `rg`, read straight
+ *  off the item table (Item::GetCategory, the category an OoT chest holding that
+ *  item natively is dressed by). -1 past RG_MAX. */
+extern "C" int OoT_Rando_Foreign_TestOwnChestCategory(uint16_t rg) {
+    if (rg >= (uint16_t)RG_MAX) {
+        return -1;
+    }
+    return (int)Rando::StaticData::RetrieveItem((RandomizerGet)rg).GetCategory();
+}
+
+/** TEST BRIDGE (M15): an ITEM_CATEGORY_* value's name in the vocabulary both
+ *  games' chest bridges share ("major", "small key", ...), "?" past the enum. */
+extern "C" const char* OoT_Rando_Foreign_TestChestCategoryName(int category) {
+    switch (category) {
+        case ITEM_CATEGORY_JUNK:
+            return "junk";
+        case ITEM_CATEGORY_LESSER:
+            return "lesser";
+        case ITEM_CATEGORY_HEALTH:
+            return "health";
+        case ITEM_CATEGORY_BOSS_KEY:
+            return "boss key";
+        case ITEM_CATEGORY_SMALL_KEY:
+            return "small key";
+        case ITEM_CATEGORY_SKULLTULA_TOKEN:
+            return "token";
+        case ITEM_CATEGORY_MAJOR:
+            return "major";
+        default:
+            return "?";
+    }
 }
 
 /**

@@ -543,9 +543,14 @@ def test_oot_show_only_get_item_call_sites_are_wired():
     assert re.search(gate, foreign_branch), (
         "#577 M4: the drain's foreign branch must queue the show-only get-item entry, toasting only when the "
         "player skips every get-item animation or nothing could be queued")
-    assert "Notification::Emit(" in _block_after(foreign_branch, gate), "the skip-all toast left the show-only gate"
-    assert foreign_branch.count("Notification::Emit(") == 1, (
+    # #865: the toast is emitted through OoT_Rando_Foreign_EmitPickupToast, the
+    # emitter PairingRefusalToastFit draws every MM item's toast through.
+    toast = "OoT_Rando_Foreign_EmitPickupToast("
+    assert toast in _block_after(foreign_branch, gate), "the skip-all toast left the show-only gate"
+    assert foreign_branch.count(toast) == 1 and "Notification::Emit(" not in foreign_branch, (
         "#577 M4: the drain's foreign branch toasts unconditionally again (an Emit outside the show-only gate)")
+    emitter = _function_body(OOT_RANDO / "hook_handlers.cpp", "OoT_Rando_Foreign_EmitPickupToast")
+    assert "Notification::Emit(" in emitter, "#865: the pickup toast's emitter no longer emits the toast"
 
     message = _function_body(OOT_RANDO / "Messages" / "ItemMessages.cpp", "BuildItemMessage")
     assert re.search(
@@ -556,7 +561,7 @@ def test_oot_show_only_get_item_call_sites_are_wired():
     ice_trap = message.find("RG_ICE_TRAP")
     assert foreign_text and ice_trap != -1 and foreign_text.start() < ice_trap, (
         "#577 M4: BuildItemMessage's show-only branch must come first in the item-message chain")
-    assert "msg = CustomMessage(" in _block_after(message, r"if\s*\(\s*foreign\s*\)\s*\{"), (
+    assert "msg = BuildForeignItemText(" in _block_after(message, r"if\s*\(\s*foreign\s*\)\s*\{"), (
         "#577 M4: the show-only branch must build the textbox naming the MM item")
 
     give = _function_body(OOT_PLAYER, "func_8084DFF4")
@@ -565,6 +570,44 @@ def test_oot_show_only_get_item_call_sites_are_wired():
                      give)
     assert take and skip and take.start() < skip.start(), (
         "#577 M4: func_8084DFF4 must take the show-only entry and skip the whole give chain for it")
+
+
+REFUSAL_TOAST_HEADER = REPO_ROOT / "src" / "common" / "pairing_refusal_toast.h"
+# The three prefixes the refusal toasts used before #836's ruling (2026-10-01:
+# "the refusal toasts use ONE prefix"), as the opening of a string literal.
+RETIRED_REFUSAL_PREFIXES = ('"Not paired:', '"Not saved:', '"Not restored:')
+SOURCE_SUFFIXES = {".c", ".cc", ".cpp", ".h", ".hpp", ".inc"}
+
+
+def test_refusal_toasts_use_one_prefix():
+    """#836 PR 3: every cross-game refusal toast opens with RSBS_REFUSAL_TOAST_PREFIX.
+
+    PairingRefusalToastFit draws every refusal through its production emitter
+    and checks the prefix, but only the emitters it knows; a new site that
+    writes one of the retired prefixes by hand would pass it. No string literal
+    under src/ or games/ may open with one (comments are stripped: prose that
+    quotes an old prefix is not a toast).
+    """
+    header = REFUSAL_TOAST_HEADER.read_text(encoding="utf-8")
+    assert re.search(r'#define\s+RSBS_REFUSAL_TOAST_PREFIX\s+"Refused:"', header), (
+        "RSBS_REFUSAL_TOAST_PREFIX is no longer \"Refused:\" in src/common/pairing_refusal_toast.h")
+    offenders = []
+    scanned = 0
+    for root in (REPO_ROOT / "src", REPO_ROOT / "games"):
+        for path in root.rglob("*"):
+            if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
+                continue
+            scanned += 1
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if not any(prefix in text for prefix in RETIRED_REFUSAL_PREFIXES):
+                continue
+            for lineno, line in enumerate(_strip_comments(text).splitlines(), start=1):
+                for prefix in RETIRED_REFUSAL_PREFIXES:
+                    if prefix in line:
+                        offenders.append(f"{path.relative_to(REPO_ROOT).as_posix()}:{lineno}: {line.strip()}")
+    assert scanned > 1000, f"the scan saw only {scanned} source files under src/ and games/"
+    assert not offenders, (
+        "a refusal toast uses a retired prefix; use RSBS_REFUSAL_TOAST_PREFIX (#836):\n  " + "\n  ".join(offenders))
 
 
 def test_mm_2s2h_glob_is_configure_depends():

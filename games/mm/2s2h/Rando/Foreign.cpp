@@ -204,11 +204,11 @@ static void ResolveProfileTricks(uint8_t* tricks) {
 
 /** The canonical identity string the profile digest hashes (#564 V4's widened
  *  term). Wider than MMOptionsString on purpose: gRando.ExcludedChecks and the
- *  StartingItems config block shape the generated world exactly as the 47
- *  options do (Logic/GeneratePools.cpp:32, StartingItems.cpp:135), so a digest
- *  that omits them is a vacuous guard — same seed + same digest could still
- *  yield different MM worlds. OoT's own settings hash is the precedent: it
- *  folds excludes and tricks. */
+ *  paired start shape the generated world exactly as the 47 options do
+ *  (Logic/GeneratePools.cpp:32, PairedStartingItems), so a digest that omits
+ *  them is a vacuous guard — same seed + same digest could still yield
+ *  different MM worlds. OoT's own settings hash is the precedent: it folds
+ *  excludes and tricks. */
 static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks) {
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
@@ -244,12 +244,16 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     // to catch.
     s += "|excluded:";
     s += CVarGetString("gRando.ExcludedChecks", "");
-    // The StartingItems config block, folded as the resolved item-id list —
-    // the SAME accessor generation consumes (unknown names dropped both
-    // places, defaults on an absent config/context both places), so the
-    // identity term and the generation input are one computation.
+    // The paired start, folded as its item-id list — the SAME accessor the
+    // paired generation consumes, so the identity term and the generation input
+    // are one computation. Since #879 that is the combo's own constant
+    // (PairedStartingItems), never 2Ship's StartingItems config block: a config
+    // change after creation changes neither the world nor this term, so it can
+    // never refuse an arrival. Folding the constant still records which start
+    // the world was created with: a pair created under 2Ship's list (sword,
+    // shield, Ocarina, Song of Time, before #879) does not match it.
     s += "|starting:";
-    for (RandoItemId randoItemId : Rando::GetStartingItemsFromConfig()) {
+    for (RandoItemId randoItemId : PairedStartingItems()) {
         s += std::to_string((int)randoItemId);
         s += ',';
     }
@@ -279,6 +283,10 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     //    the instant it generated.
     // ------------------------------------------------------------------------
     return s;
+}
+
+std::vector<RandoItemId> PairedStartingItems() {
+    return { RI_OCARINA, RI_SONG_TIME };
 }
 
 /** Hash the identity string, displacing 0: zero is the growth contract's
@@ -610,6 +618,40 @@ const char* ForeignNameForCheck(RandoCheckId randoCheckId) {
     return Combo_GetForeignItemName(*item);
 }
 
+RandoItemType ChestItemTypeForCheck(RandoCheckId randoCheckId, RandoItemType native) {
+    const SharedItem* item = PlacementFor(randoCheckId);
+    if (item == nullptr) {
+        return native;
+    }
+    // Dressed by the OoT item's class, as OoTMM grades a chest (#862): the chest
+    // grade OoT publishes for its own item (Item::GetCategory, through the item
+    // class owner, shared_items.h "THE CHEST GRADE"), mapped onto MM's own chest
+    // set, so an OoT small key shows MM's key chest and a Gold Skulltula Token its
+    // token chest. An item with no grade presents as major, the answer every
+    // crossing chest gave before #862. No new texture set: these are MM's own.
+    switch (Combo_ItemChestGrade(*item)) {
+        case RSBS_CHEST_GRADE_LESSER:
+            return RITYPE_LESSER;
+        case RSBS_CHEST_GRADE_JUNK:
+            return RITYPE_JUNK;
+        case RSBS_CHEST_GRADE_HEALTH:
+            return RITYPE_HEALTH;
+        case RSBS_CHEST_GRADE_BOSS_KEY:
+            return RITYPE_BOSS_KEY;
+        case RSBS_CHEST_GRADE_SMALL_KEY:
+            return RITYPE_SMALL_KEY;
+        case RSBS_CHEST_GRADE_TOKEN:
+            return RITYPE_SKULLTULA_TOKEN;
+        case RSBS_CHEST_GRADE_FAIRY:
+            return RITYPE_STRAY_FAIRY;
+        case RSBS_CHEST_GRADE_MASK:
+            return RITYPE_MASK;
+        case RSBS_CHEST_GRADE_MAJOR:
+        default:
+            return RITYPE_MAJOR;
+    }
+}
+
 static const SharedItem* PinnedPlacementFor(RandoCheckId randoCheckId) {
     if (randoCheckId == RC_UNKNOWN) {
         return nullptr;
@@ -738,9 +780,10 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
 // The source is the file's MM half: creation resolved the profile into
 // RANDO_SAVE_OPTIONS and randoSaveTricks (ResolvePairedProfile), so those
 // arrays ARE the frozen options and tricks. The digest also folds the
-// excluded-check list and the starting-item block, which the half does not
-// record; the candidate is therefore checked against the frozen digest BEFORE
-// anything is written, and a mismatch there writes nothing.
+// excluded-check list, which the half does not record, and the paired start,
+// a constant since #879 (a file created before #879 folded 2Ship's list and
+// cannot match it); the candidate is therefore checked against the frozen
+// digest BEFORE anything is written, and a mismatch there writes nothing.
 // ============================================================================
 namespace {
 
@@ -802,8 +845,8 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
     if (candidate != frozenDigest) {
         fprintf(stderr,
                 "[MM] profile: load-time restore impossible — the file's own options and tricks give %08X, not the "
-                "frozen %08X, so what differs is an input the file does not record (the excluded-check list or the "
-                "starting-item block); nothing was written\n",
+                "frozen %08X, so what differs is an input the file does not record (the excluded-check list, or the "
+                "paired start of a file created before #879); nothing was written\n",
                 (unsigned)candidate, (unsigned)frozenDigest);
         return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
     }
@@ -1643,6 +1686,48 @@ extern "C" int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* o
     return 1;
 }
 
+/** What MM's REAL spoiler writer (GenerateFromSaveContext, run on the live save)
+ *  says about one check (#863). Returns 1 when the spoiler lists the check, 0
+ *  otherwise. `outHasPrice`: the entry is an object carrying "price";
+ *  `outSpoilerPrice`: that price (-1 when absent); `outSlotPrice`: the slot's own
+ *  price in the save table; `outNamesForeign`: the entry's item name (the string,
+ *  or the object's "randoItemId") is the crossing's "<OoT item> (Ocarina of
+ *  Time)". Any out pointer may be NULL. */
+extern "C" int MM_Rando_Foreign_TestSpoilerEntry(uint16_t randoCheckId, int* outHasPrice, int* outSpoilerPrice,
+                                                 int* outSlotPrice, int* outNamesForeign) {
+    const auto it = Rando::StaticData::Checks.find((RandoCheckId)randoCheckId);
+    if (it == Rando::StaticData::Checks.end() || it->second.randoCheckId == RC_UNKNOWN) {
+        return 0;
+    }
+    const nlohmann::json spoiler = Rando::Spoiler::GenerateFromSaveContext();
+    if (!spoiler.contains("checks") || !spoiler["checks"].contains(it->second.name)) {
+        return 0;
+    }
+    const nlohmann::json& entry = spoiler["checks"][it->second.name];
+    const bool hasPrice = entry.is_object() && entry.contains("price") && entry["price"].is_number_integer();
+    std::string itemName;
+    if (entry.is_string()) {
+        itemName = entry.get<std::string>();
+    } else if (entry.is_object() && entry.contains("randoItemId") && entry["randoItemId"].is_string()) {
+        itemName = entry["randoItemId"].get<std::string>();
+    }
+    const char* foreignName = Rando::Foreign::ForeignNameForCheck((RandoCheckId)randoCheckId);
+    if (outHasPrice != nullptr) {
+        *outHasPrice = hasPrice ? 1 : 0;
+    }
+    if (outSpoilerPrice != nullptr) {
+        *outSpoilerPrice = hasPrice ? entry["price"].get<int>() : -1;
+    }
+    if (outSlotPrice != nullptr) {
+        *outSlotPrice = (int)RANDO_SAVE_CHECKS[(RandoCheckId)randoCheckId].price;
+    }
+    if (outNamesForeign != nullptr) {
+        *outNamesForeign =
+            (foreignName != nullptr && itemName == std::string(foreignName) + " (Ocarina of Time)") ? 1 : 0;
+    }
+    return 1;
+}
+
 /** The three RandoItemId values the predicate treats specially: the legal junk
  *  filler, and the two sentinels that are RITYPE_JUNK but are not items. */
 extern "C" void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, uint16_t* outUnknown) {
@@ -1654,6 +1739,48 @@ extern "C" void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* 
     }
     if (outUnknown != nullptr) {
         *outUnknown = (uint16_t)RI_UNKNOWN;
+    }
+}
+
+/** TEST BRIDGE (ForeignModel row M15, #862): the RandoItemType MM chest
+ *  @p randoCheckId is dressed by when the save table holds the junk cover there
+ *  (what EnBox_RandoPostLimbDraw asks). */
+extern "C" int MM_Rando_Foreign_TestChestType(uint16_t randoCheckId) {
+    return (int)Rando::Foreign::ChestItemTypeForCheck((RandoCheckId)randoCheckId, RITYPE_JUNK);
+}
+
+/** TEST BRIDGE (M15): MM's OWN chest type for MM item @p randoItemId, read
+ *  straight off Rando::StaticData::Items (the type MM's chest is dressed by when
+ *  it holds that item natively). -1 when the id has no Items row. */
+extern "C" int MM_Rando_Foreign_TestOwnChestType(uint16_t randoItemId) {
+    const auto it = Rando::StaticData::Items.find((RandoItemId)randoItemId);
+    return it == Rando::StaticData::Items.end() ? -1 : (int)it->second.randoItemType;
+}
+
+/** TEST BRIDGE (M15): a RandoItemType's name in the vocabulary both games' chest
+ *  bridges share ("major", "small key", ...), "?" past the enum. */
+extern "C" const char* MM_Rando_Foreign_TestChestTypeName(int type) {
+    switch (type) {
+        case RITYPE_BOSS_KEY:
+            return "boss key";
+        case RITYPE_HEALTH:
+            return "health";
+        case RITYPE_JUNK:
+            return "junk";
+        case RITYPE_LESSER:
+            return "lesser";
+        case RITYPE_MAJOR:
+            return "major";
+        case RITYPE_MASK:
+            return "mask";
+        case RITYPE_SKULLTULA_TOKEN:
+            return "token";
+        case RITYPE_SMALL_KEY:
+            return "small key";
+        case RITYPE_STRAY_FAIRY:
+            return "fairy";
+        default:
+            return "?";
     }
 }
 

@@ -18,8 +18,10 @@
  *     CRC, crossing-block and commit-skew refusals (which post no toast), and
  *     the refusals that do post one. For those the row repeats the toast's own
  *     reason words (SlotMeta.refuseWords, recorded where the toast is posted:
- *     the load's "Not paired:" toasts in save.cpp, the arrival's and the MM
- *     spoiler's "Not saved:" toasts in MM_Rando_EmitPairingRefusalToast).
+ *     the file select's and the load's refusals in save.cpp, the arrival's and
+ *     the MM spoiler's in MM_Rando_EmitPairingRefusalToast). Every one opens
+ *     with the class's one prefix, RSBS_REFUSAL_TOAST_PREFIX (#836), so the
+ *     status cell is the toast's own line.
  *   - AFTER A RESTART, a refusal that quarantined its file is gone from the
  *     session record but its evidence is not: the row says a backup was kept
  *     and names the reason its file name carries (SlotMeta.quarantineReason).
@@ -63,21 +65,16 @@ struct ComboSaveFileRow {
     std::string file;        // "File 1"
     std::string name;        // rsbs::SlotNameLine for a record whose header passes, else empty
     std::string lastPlayed;  // "OoT" / "MM" for such a record, else empty
-    std::string status;      // "Ready", "No cross-game record", "Not paired: <reason>", ...
+    std::string status;      // "Ready", "No cross-game record", "Refused: <reason>", ...
     std::string tooltip;     // one or two sentences for the status cell, empty for none
 };
 
-/** The page's own words for a refusal reason: a short fragment that follows
- *  "Not paired: ". Used when the refusal posted no toast (the structural, CRC,
+/** The page's own words for a refusal reason (pairing_refusal_toast.c's table):
+ *  a short fragment that follows RSBS_REFUSAL_TOAST_PREFIX. Used when the refusal posted no toast (the structural, CRC,
  *  crossing-block and commit-skew refusals) or its words were not recorded.
  *  Never empty and never an issue number; RSBS_REFUSE_NONE and an unknown value
  *  read "File could not be checked". */
 const char* Combo_SaveFiles_RefuseText(RsbsRefuseReason reason);
-
-/** A toast's reason words as a status fragment: the first letter capitalized
- *  and a trailing period dropped ("rules changed (Goal)." -> "Rules changed
- *  (Goal)"). */
-std::string Combo_SaveFiles_ToastWords(const char* words);
 
 /** The row for one slot's metadata. Pure: the lock drives it directly. */
 ComboSaveFileRow Combo_SaveFiles_RowFor(int slot, const rsbs::SlotMeta& meta);

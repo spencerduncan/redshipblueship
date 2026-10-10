@@ -66,6 +66,7 @@ games/mm/2s2h/z_scene_2SH.cpp
 games/mm/2s2h/mm_death_decline_autosave_test.cpp
 games/mm/2s2h/mm_scene_flag_freeze_test.cpp
 games/mm/2s2h/mm_combo_first_cycle_test.cpp
+games/mm/2s2h/mm_paired_start_test.cpp
 games/mm/src/audio/lib/dcache.c
 games/mm/src/audio/lib/load.c
 games/mm/src/audio/lib/thread.c
@@ -136,6 +137,7 @@ games/oot/soh/oot_triforce_hunt_test.cpp
 games/oot/soh/soh_ui_snapshot.cpp
 games/oot/soh/SohGui/ComboUiSoh.cpp
 games/oot/soh/SohGui/SohMenuComboMmMods.cpp
+games/oot/soh/SohGui/SohMenuComboTrackerSettings.cpp
 games/oot/soh/oot_gameover_revive_test.cpp
 games/mm/2s2h/mm_gameover_revive_test.cpp
 games/mm/2s2h/Rando/ForeignTextboxIcon.h

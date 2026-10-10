@@ -223,7 +223,7 @@ static void RefuseForeignReconstruction(const std::string& term, const std::stri
     // silently did nothing" — #564 V7's silent vanilla revert wearing a fix's
     // clothes.
     // One short line in SoH's toast shape (src/common/pairing_refusal_toast.h):
-    // "Not saved:" and what the refusing check found, in words, keyed on the
+    // "Refused:" and what the refusing check found, in words, keyed on the
     // ROUTE. The machine term and both values stay on the stderr line above.
     // Muted, like every arrival refusal: this runs on MM's file-create seam and
     // in the display-free locks.
@@ -321,7 +321,8 @@ int ReconstructForeignPlacements(const nlohmann::json& spoiler) {
         // ADR 0002 host invariant, restored on load: the MM save table must
         // keep a LEGAL junk-class MM item at a foreign host check (never a
         // raw RG_*). The spoiler's human-readable "checks" map stored this
-        // check as "<item> (Ocarina of Time)", which GetItemIdFromName
+        // check as "<item> (Ocarina of Time)" (for a shop or Tingle host, as
+        // the object's "randoItemId" beside its price, #863), which GetItemIdFromName
         // cannot resolve, so ApplyToSaveContext just left RI_UNKNOWN there;
         // the underlying junk item is not recoverable from the spoiler, so
         // normalize to the canonical junk sentinel. Inert while the

@@ -39,11 +39,28 @@
  *    new line. Section keys default to shown.
  *
  * 6. DRAWN THROUGH THE SEAM, as far as a source scan holds it, and the seam's
- *    new Image entry is installed and falls back (draws nothing) without a
- *    texture.
+ *    Image, HasImage and ToneText entries are installed and fall back (draw
+ *    nothing, say no texture) without one.
+ *
+ * 7. THE ICONS (#458 U3), over the real rows of both production adapters:
+ *    each game's own grid (OoT: SoH's main window, 66 icons in exactly 11
+ *    lines of six, flowing on; MM: one table per group, Songs and Quest five
+ *    wide), the texture and alpha each cell draws (SoH's _Faded textures, MM's
+ *    own icon at 0.4), the songs' narrow notes, the counts each tracker prints,
+ *    the per-section text fallback, the Shared section's icons from the active
+ *    game, and the side-by-side fit at both capture profiles.
+ *
+ * 8. THE KEY SPACES DO NOT MEET (#458 U3's scan lock). Both games' icons sit in
+ *    one Gui texture map, so an OoT key equal to an MM key would draw one
+ *    game's icon for the other's. OoT keys its icons by texture NAME and MM by
+ *    resource PATH: every key either adapter hands out is checked to be of its
+ *    game's kind, and a scan of every OoT LoadGuiTexture call holds that OoT
+ *    registers names (the one path-keyed call, the seed-hash icons that key a
+ *    texture by its own OoT path, is named and held to that shape).
  *
  * Appearance is judged from the UiSnapshot captures (window/Combo Item Tracker
- * @no-data, @live and @snapshot beside SoH's window/Item Tracker).
+ * @no-data, @live and @snapshot beside SoH's window/Item Tracker); ImageOracle
+ * there holds that the live and snapshot states draw icons.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * it drives the C++-linkage ComboGui functions.
@@ -58,8 +75,10 @@
 #include "../shared_resources.h"
 #include "../test_runner.h"
 
+#include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -248,151 +267,450 @@ int CitwLockDecisions(void) {
     return TEST_PASS;
 }
 
-/** The grid's height and width as the fit models them (DrawElement draws exactly this grid). */
-float CitwFitHeight(const std::vector<ComboGui::ComboItemTrackerSection>& sections, const ComboGui::ComboItemTrackerFit& fit,
-                    const ComboGui::ComboItemTrackerMetrics& m) {
-    int lines = 0;
-    for (const ComboGui::ComboItemTrackerSection& section : sections) {
-        lines += ComboGui::ComboItemGridLines(section.rows, fit.columns);
-    }
-    return m.overhead + (float)lines * (m.textHeight * fit.scale + m.linePadding);
+bool CitwIsPath(const char* key) {
+    return key != nullptr && strchr(key, '/') != nullptr;
 }
 
-float CitwFitWidth(const ComboGui::ComboItemTrackerFit& fit, const ComboGui::ComboItemTrackerMetrics& m) {
-    float w = (float)(fit.columns - 1) * m.columnGap;
-    for (float c : fit.columnWidths) {
-        w += c * fit.scale;
+/** A Gui texture map holding OoT's icons only (the harness and OoT-first play before MM boots). */
+bool CitwOoTLoaded(const char* key) {
+    return key != nullptr && key[0] != '\0' && !CitwIsPath(key);
+}
+
+/** A Gui texture map holding both games' icons (after MM's first boot). */
+bool CitwBothLoaded(const char* key) {
+    return key != nullptr && key[0] != '\0';
+}
+
+bool CitwNoneLoaded(const char*) {
+    return false;
+}
+
+const ComboItemRow* CitwFindRow(const ComboGui::ComboItemTrackerSection& section, const char* name) {
+    for (const ComboItemRow& row : section.rows) {
+        if (row.name != nullptr && strcmp(row.name, name) == 0) {
+            return &row;
+        }
     }
-    return w;
+    return nullptr;
 }
 
 /**
- * The floating overlay's fit (the #458 U2 review: at 832x600 the three-column
- * grid ran 824 px past the game window's bottom edge, where a player can never
- * scroll). Over the real rows, with widths of 11 px a character and the
- * profile metrics the UiSnapshot captures measure (20 px text, 4 px spacing).
+ * Point 7's grids, picks and counts, over the real sections of the "OoT live,
+ * MM snapshot" model read: OoT's live world, MM's snapshot world, the pool.
  */
-int CitwLockFit(const std::vector<ComboGui::ComboItemTrackerSection>& sections) {
+int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::ComboItemTrackerSection& mm,
+                  const ComboGui::ComboItemTrackerSection& shared, const ComboGui::ComboItemTrackerSection& ootSnap) {
     using namespace ComboGui;
-    std::vector<std::vector<float>> widths(sections.size());
-    for (size_t s = 0; s < sections.size(); s++) {
-        CITW_ASSERT(!sections[s].rows.empty());
-        for (const ComboItemRow& row : sections[s].rows) {
-            widths[s].push_back(11.0f * (float)ComboItemRowText(row).size());
+
+    // ---- each game's own grid -----------------------------------------------
+    CITW_ASSERT(oot.grid != nullptr && mm.grid != nullptr && shared.grid != nullptr);
+    std::vector<ComboItemGridCell> cells;
+    // OoT: DrawItemsInRows(mainWindowItems, 6) over SoH's 66 default rows: row
+    // i at line i / 6, column i % 6, 11 lines, no group starting a line.
+    ComboItemIconLayout(oot.rows, *oot.grid, cells);
+    CITW_ASSERT(cells.size() == 66 && oot.rows.size() == 66);
+    for (size_t i = 0; i < cells.size(); i++) {
+        if (cells[i].line != (int)(i / 6) || cells[i].column != (int)(i % 6)) {
+            printf("[TEST] FAIL: OoT icon %zu (%s) at line %d column %d, SoH draws it at line %d column %d\n", i,
+                   oot.rows[i].name, cells[i].line, cells[i].column, (int)(i / 6), (int)(i % 6));
+            return TEST_FAIL;
         }
     }
-
-    // Shared column widths: column c is the widest row ANY section puts there.
-    {
-        std::vector<ComboItemTrackerSection> two(2);
-        const float a[] = { 10.0f, 50.0f, 20.0f };
-        const float b[] = { 40.0f, 5.0f, 30.0f };
-        std::vector<std::vector<float>> w(2);
-        for (int i = 0; i < 3; i++) {
-            ComboItemRow r = {};
-            r.group = "g";
-            r.name = "x";
-            two[0].rows.push_back(r);
-            two[1].rows.push_back(r);
-            w[0].push_back(a[i]);
-            w[1].push_back(b[i]);
+    CITW_ASSERT(oot.grid->cellPx == 36.0f && oot.grid->gapPx == 12.0f && oot.grid->countStyle == COMBO_ITEM_COUNT_SOH);
+    // MM: one table per group (Inventory 16 and Masks 24 six wide, Songs 10
+    // and Quest 10 five wide): lines 0-2, 3-6, 7-8, 9-10.
+    ComboItemIconLayout(mm.rows, *mm.grid, cells);
+    CITW_ASSERT(cells.size() == mm.rows.size() && cells.size() == 60);
+    struct Expect {
+        const char* group;
+        int firstLine;
+        int columns;
+    };
+    const Expect mmGroups[] = { { "Inventory", 0, 6 }, { "Masks", 3, 6 }, { "Songs", 7, 5 }, { "Quest", 9, 5 } };
+    for (const Expect& e : mmGroups) {
+        int index = 0;
+        for (size_t i = 0; i < cells.size(); i++) {
+            if (strcmp(mm.rows[i].group, e.group) != 0) {
+                continue;
+            }
+            const int line = e.firstLine + index / e.columns;
+            const int column = index % e.columns;
+            if (cells[i].line != line || cells[i].column != column) {
+                printf("[TEST] FAIL: MM %s icon %d (%s) at line %d column %d, MM's table puts it at line %d column "
+                       "%d\n",
+                       e.group, index, mm.rows[i].name, cells[i].line, cells[i].column, line, column);
+                return TEST_FAIL;
+            }
+            index++;
         }
-        const std::vector<float> cols = ComboItemGridColumnWidths(two, w, 3);
-        CITW_ASSERT(cols.size() == 3 && cols[0] == 40.0f && cols[1] == 50.0f && cols[2] == 30.0f);
-        const std::vector<float> one = ComboItemGridColumnWidths(two, w, 1);
-        CITW_ASSERT(one.size() == 1 && one[0] == 50.0f);
+        CITW_ASSERT(index > 0);
     }
+    CITW_ASSERT(cells.back().line == 10);
+    CITW_ASSERT(mm.grid->cellPx == 46.0f && mm.grid->countStyle == COMBO_ITEM_COUNT_MM);
+    // MM's own window, captured in play (#458 U3 review): 54 px across, 50 down.
+    CITW_ASSERT(mm.grid->gapPx == 8.0f && ComboItemGridLineGap(*mm.grid) == 4.0f);
+    CITW_ASSERT(ComboItemGridLineGap(*oot.grid) == 12.0f); // SoH's grid is square
+    // The pool: SoH's icons four a line.
+    ComboItemIconLayout(shared.rows, *shared.grid, cells);
+    CITW_ASSERT(!cells.empty() && cells.back().line == (int)(shared.rows.size() - 1) / 4);
+    printf("[TEST] combo-item-tracker-window: grids: OoT %zu icons in 11 lines of 6 (SoH's main window), MM %zu in "
+           "its 4 tables (11 lines), the pool %zu four a line\n",
+           oot.rows.size(), mm.rows.size(), shared.rows.size());
 
+    // ---- picks: the texture and alpha each cell draws ------------------------
+    const ComboItemRow* hookshot = CitwFindRow(oot, "Hookshot"); // held in OoT's live world
+    const ComboItemRow* bow = CitwFindRow(oot, "Fairy Bow");     // not held there
+    CITW_ASSERT(hookshot != nullptr && hookshot->have && bow != nullptr && !bow->have);
+    ComboItemIconPick pick = ComboItemPickIcon(*hookshot);
+    CITW_ASSERT(pick.key != nullptr && strcmp(pick.key, "ITEM_HOOKSHOT") == 0 && pick.alpha == 1.0f);
+    pick = ComboItemPickIcon(*bow);
+    CITW_ASSERT(pick.key != nullptr && strcmp(pick.key, "ITEM_BOW_Faded") == 0 && pick.alpha == 1.0f);
+    const ComboItemRow* ootSong = CitwFindRow(oot, "Song of Time");
+    CITW_ASSERT(ootSong != nullptr && ootSong->iconAspect > 0.66f && ootSong->iconAspect < 0.67f); // iconSize / 1.5
+    CITW_ASSERT(hookshot->iconAspect == 0.0f);
+    const ComboItemRow* mmBow = CitwFindRow(mm, "Bow");             // held in MM's snapshot world
+    const ComboItemRow* mmZora = CitwFindRow(mm, "Zora Mask");      // not held there
+    const ComboItemRow* mmSong = CitwFindRow(mm, "Song of Healing"); // held
+    CITW_ASSERT(mmBow != nullptr && mmBow->have && mmZora != nullptr && !mmZora->have && mmSong != nullptr);
+    pick = ComboItemPickIcon(*mmBow);
+    CITW_ASSERT(CitwIsPath(pick.key) && pick.alpha == 1.0f);
+    pick = ComboItemPickIcon(*mmZora);
+    CITW_ASSERT(CitwIsPath(pick.key) && pick.key == mmZora->iconKey && pick.alpha == 0.4f); // MM's 40%
+    CITW_ASSERT(mmSong->iconAspect > 0.69f && mmSong->iconAspect < 0.70f); // 32 / 46
+
+    // ---- counts ---------------------------------------------------------------
+    ComboItemCount count;
+    const ComboItemRow* ootSnapBow = CitwFindRow(ootSnap, "Fairy Bow");
+    CITW_ASSERT(ootSnapBow != nullptr && ootSnapBow->have);
+    // SoH's DrawItemCount: the slash is the amount's ("35/" in the amount's
+    // tone), the ceiling alone takes the accent (#458 U3 review).
+    CITW_ASSERT(ComboItemCountFor(*ootSnapBow, COMBO_ITEM_COUNT_SOH, count));
+    CITW_ASSERT(count.amount == "35/" && count.ceiling == "40" && count.amountTone == COMBO_UI_TONE_WHITE &&
+                count.ceilingTone == COMBO_UI_TONE_GREEN);
+    ComboItemRow full = *ootSnapBow;
+    full.count = 40;
+    CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GREEN &&
+                count.amount == "40/");
+    full.count = 0;
+    CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GRAY);
+    CITW_ASSERT(!ComboItemCountFor(*bow, COMBO_ITEM_COUNT_SOH, count)); // faded, uncounted: no number
+    CITW_ASSERT(!ComboItemCountFor(*hookshot, COMBO_ITEM_COUNT_SOH, count)); // held, uncounted
+    // QUEST_SKULL_TOKEN: the ceiling red (maxColor IM_COL_RED), the amount red once full.
+    const ComboItemRow* tokens = CitwFindRow(ootSnap, "Gold Skulltula Tokens");
+    CITW_ASSERT(tokens != nullptr && tokens->countAccent == COMBO_ITEM_ACCENT_RED);
+    CITW_ASSERT(ComboItemCountFor(*tokens, COMBO_ITEM_COUNT_SOH, count) && count.amount == "17/" &&
+                count.ceiling == "100" && count.amountTone == COMBO_UI_TONE_WHITE &&
+                count.ceilingTone == COMBO_UI_TONE_RED);
+    ComboItemRow allTokens = *tokens;
+    allTokens.count = 100;
+    CITW_ASSERT(ComboItemCountFor(allTokens, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_RED);
+    CITW_ASSERT(ootSnapBow->countAccent == COMBO_ITEM_ACCENT_GREEN);
+    CITW_ASSERT(ComboItemCountFor(*mmBow, COMBO_ITEM_COUNT_MM, count) && count.amount == "25" &&
+                count.ceiling.empty()); // MM prints the ammo alone
+    const ComboItemRow* rupees = CitwFindRow(shared, "Rupees");
+    const ComboItemRow* arrows = CitwFindRow(shared, "Arrows");
+    CITW_ASSERT(arrows != nullptr && ComboItemCountFor(*arrows, COMBO_ITEM_COUNT_SOH, count) &&
+                count.amount == "33/" && count.ceiling == "40");
+    if (rupees != nullptr && rupees->count > 0) {
+        CITW_ASSERT(ComboItemCountFor(*rupees, COMBO_ITEM_COUNT_SOH, count) && count.ceiling.empty());
+    }
+    // The pool's tier rows print no tier counter on the icon (the icon shows
+    // the tier), and the wallet prints its capacity, as both native trackers
+    // do; the text keeps "n/max".
+    for (const char* tierRow : { "Magic", "Hookshot" }) {
+        const ComboItemRow* row = CitwFindRow(shared, tierRow);
+        CITW_ASSERT(row != nullptr && row->iconNumber < 0);
+        CITW_ASSERT(!ComboItemCountFor(*row, COMBO_ITEM_COUNT_SOH, count));
+        CITW_ASSERT(!ComboItemCountFor(*row, COMBO_ITEM_COUNT_MM, count));
+    }
+    const ComboItemRow* wallet = CitwFindRow(shared, "Wallet");
+    CITW_ASSERT(wallet != nullptr && wallet->iconNumber == 99); // tier 0 under OoT's icons: the child's 99
+    CITW_ASSERT(ComboItemCountFor(*wallet, COMBO_ITEM_COUNT_SOH, count) && count.amount == "99" &&
+                count.ceiling.empty() && count.amountTone == COMBO_UI_TONE_WHITE);
+    CITW_ASSERT(ComboItemRowText(*wallet) == "Wallet 0/3");
+
+    // ---- icons or text, per section --------------------------------------------
+    CITW_ASSERT(ComboItemSectionDrawsIcons(oot.rows, CitwOoTLoaded));
+    CITW_ASSERT(!ComboItemSectionDrawsIcons(mm.rows, CitwOoTLoaded)); // before MM's first boot: the text grid
+    CITW_ASSERT(ComboItemSectionDrawsIcons(mm.rows, CitwBothLoaded));
+    CITW_ASSERT(!ComboItemSectionDrawsIcons(oot.rows, CitwNoneLoaded));
+    CITW_ASSERT(!ComboItemSectionDrawsIcons(oot.rows, nullptr));
+    printf("[TEST] combo-item-tracker-window: picks, song notes, counts and the per-section text fallback PASS\n");
+    return TEST_PASS;
+}
+
+/**
+ * The floating overlay's fit (#458 U2 review; U3's icons): the three columns
+ * stand side by side and every pixel of them scales together. Over the real
+ * sections at the two capture profiles' room (832x600 and 1280x800, less the
+ * overlay's 60 px position, its padding and the margin), with a 70 px header.
+ */
+int CitwLockFit(const ComboGui::ComboItemTrackerSection (&sections)[ComboGui::COMBO_ITEM_SECTION_COUNT]) {
+    using namespace ComboGui;
     ComboItemTrackerMetrics m;
     m.textHeight = 20.0f;
     m.linePadding = 4.0f;
     m.columnGap = 16.0f;
-    m.overhead = 200.0f;
+    m.cellPadding = 8.0f;
+    const float header = 70.0f;
 
-    // Room to spare: the window type's three columns at full size.
-    m.availWidth = 10000.0f;
-    m.availHeight = 10000.0f;
-    ComboItemTrackerFit fit = ComboItemTrackerFitGrid(sections, widths, m);
-    CITW_ASSERT(fit.columns == kComboItemTrackerColumns && fit.scale == 1.0f);
-    CITW_ASSERT(fit.columnWidths == ComboItemGridColumnWidths(sections, widths, kComboItemTrackerColumns));
+    // Both games' icons loaded (play after MM's first boot), and MM as text (OoT-first play before it).
+    for (int mmText = 0; mmText < 2; mmText++) {
+        std::vector<ComboItemSectionBox> boxes;
+        for (const ComboItemTrackerSection& section : sections) {
+            CITW_ASSERT(!section.rows.empty());
+            if (mmText && section.id == COMBO_ITEM_SECTION_MM) {
+                std::vector<float> widths;
+                for (const ComboItemRow& row : section.rows) {
+                    widths.push_back(11.0f * (float)ComboItemRowText(row).size());
+                }
+                boxes.push_back(ComboItemTextBox(section, widths, m, header));
+                continue;
+            }
+            std::vector<ComboItemGridCell> cells;
+            ComboItemIconLayout(section.rows, *section.grid, cells);
+            boxes.push_back(ComboItemIconBox(cells, *section.grid, m, header));
+        }
+        // OoT's column is SoH's own overlay grid: six 36 px icons 48 px apart,
+        // 11 lines.
+        CITW_ASSERT(boxes[0].width == 5.0f * 48.0f + 36.0f && boxes[0].height == 11.0f * 48.0f);
 
-    // The two capture profiles' room (832x600 and 1280x800, less the overlay's
-    // 60 px position, its padding and the margin): three columns at full size
-    // do not fit (the defect), the fit does, inside both edges.
-    const float rooms[2][2] = { { 748.0f, 520.0f }, { 1196.0f, 720.0f } };
-    for (const auto& room : rooms) {
-        m.availWidth = room[0];
-        m.availHeight = room[1];
-        ComboItemTrackerFit three;
-        three.columns = kComboItemTrackerColumns;
-        three.columnWidths = ComboItemGridColumnWidths(sections, widths, three.columns);
-        CITW_ASSERT(CitwFitHeight(sections, three, m) > m.availHeight);
-        fit = ComboItemTrackerFitGrid(sections, widths, m);
-        const float h = CitwFitHeight(sections, fit, m);
-        const float w = CitwFitWidth(fit, m);
-        printf("[TEST] combo-item-tracker-window: fit in %.0fx%.0f: %d columns at scale %.2f, grid %.0fx%.0f "
-               "(three columns at full size: %.0f px tall)\n",
-               room[0], room[1], fit.columns, fit.scale, w, h, CitwFitHeight(sections, three, m));
-        CITW_ASSERT(fit.scale > kComboItemTrackerMinScale && fit.scale < 1.0f);
-        CITW_ASSERT(fit.columns > kComboItemTrackerColumns && fit.columns <= kComboItemTrackerMaxColumns);
-        CITW_ASSERT(h <= m.availHeight + 0.01f);
-        CITW_ASSERT(w <= m.availWidth + 0.01f);
-        // Whole steps, and the largest whole step that fits: one more does not.
-        const float steps = fit.scale / kComboItemTrackerScaleStep;
-        CITW_ASSERT(steps == (float)(int)steps);
-        ComboItemTrackerFit bigger = fit;
-        bigger.scale += kComboItemTrackerScaleStep;
-        CITW_ASSERT(CitwFitHeight(sections, bigger, m) > m.availHeight || CitwFitWidth(bigger, m) > m.availWidth);
-
-        // Hysteresis. The fit drawn last frame is kept as it is.
-        ComboItemTrackerFit again = ComboItemTrackerFitGrid(sections, widths, m, &fit);
-        CITW_ASSERT(again.columns == fit.columns && again.scale == fit.scale);
-        // A grid two steps smaller last frame grows back to the fit.
-        ComboItemTrackerFit smaller = fit;
-        smaller.scale -= 2.0f * kComboItemTrackerScaleStep;
-        again = ComboItemTrackerFitGrid(sections, widths, m, &smaller);
-        CITW_ASSERT(again.columns == fit.columns && again.scale == fit.scale);
-        // A step down is taken at once: a grid too large last frame shrinks to fit.
-        again = ComboItemTrackerFitGrid(sections, widths, m, &bigger);
-        CITW_ASSERT(again.columns == fit.columns && again.scale == fit.scale);
-        // A column count that no longer fits at all is dropped.
-        ComboItemTrackerFit narrow;
-        narrow.columns = 1;
-        narrow.scale = 1.0f;
-        again = ComboItemTrackerFitGrid(sections, widths, m, &narrow);
-        CITW_ASSERT(again.columns == fit.columns && again.scale == fit.scale);
+        const float rooms[2][2] = { { 748.0f, 520.0f }, { 1196.0f, 720.0f } };
+        for (const auto& room : rooms) {
+            const ComboItemTrackerFit fit = ComboItemTrackerFitBoxes(boxes, room[0], room[1]);
+            float width = 0.0f;
+            float height = 0.0f;
+            for (const ComboItemSectionBox& b : boxes) {
+                width += b.width * fit.scale + b.fixedWidth;
+                const float h = b.height * fit.scale + b.fixedHeight;
+                height = h > height ? h : height;
+            }
+            printf("[TEST] combo-item-tracker-window: fit in %.0fx%.0f (MM %s): scale %.3f, columns %.0fx%.0f\n",
+                   room[0], room[1], mmText ? "as text" : "as icons", fit.scale, width, height);
+            CITW_ASSERT(fit.scale >= kComboItemTrackerMinScale && fit.scale <= 1.0f);
+            CITW_ASSERT(width <= room[0] + 0.01f && height <= room[1] + 0.01f);
+            const float steps = fit.scale / kComboItemTrackerScaleStep;
+            CITW_ASSERT(steps == (float)(int)steps);
+            if (fit.scale < 1.0f) {
+                // The largest whole step that fits: one more does not.
+                const float bigger = fit.scale + kComboItemTrackerScaleStep;
+                float w2 = 0.0f;
+                float h2 = 0.0f;
+                for (const ComboItemSectionBox& b : boxes) {
+                    w2 += b.width * bigger + b.fixedWidth;
+                    const float h = b.height * bigger + b.fixedHeight;
+                    h2 = h > h2 ? h : h2;
+                }
+                CITW_ASSERT(w2 > room[0] || h2 > room[1]);
+            }
+            if (!mmText && room[1] == 720.0f) {
+                CITW_ASSERT(fit.scale == 1.0f); // 1280x800 holds both games' grids at SoH's own size
+            }
+            // Hysteresis: the fit drawn last frame is kept as it is; a step
+            // down is taken at once; a smaller scale last frame grows back.
+            ComboItemTrackerFit same = ComboItemTrackerFitBoxes(boxes, room[0], room[1], &fit);
+            CITW_ASSERT(same.scale == fit.scale);
+            ComboItemTrackerFit tooBig;
+            tooBig.scale = fit.scale + 4.0f * kComboItemTrackerScaleStep;
+            CITW_ASSERT(ComboItemTrackerFitBoxes(boxes, room[0], room[1], &tooBig).scale == fit.scale);
+            ComboItemTrackerFit smaller;
+            smaller.scale = fit.scale - 2.0f * kComboItemTrackerScaleStep;
+            if (smaller.scale >= kComboItemTrackerMinScale) {
+                CITW_ASSERT(ComboItemTrackerFitBoxes(boxes, room[0], room[1], &smaller).scale == fit.scale);
+            }
+        }
+        // No room at all: the floor, never below it.
+        CITW_ASSERT(ComboItemTrackerFitBoxes(boxes, 100.0f, 100.0f).scale == kComboItemTrackerMinScale);
     }
 
-    // A step up waits until it fits by half a step more. One 100 px row in a
-    // room that fits it at 0.5 and a quarter step: the fit is 0.5; with 0.5
-    // less a step last frame it stays there (the quarter step is inside the
-    // hysteresis), and with the room for three quarters more it steps up.
+    // A step up waits until it fits by half a step more. One box 100 px wide in
+    // a room that fits it at 0.5 and a quarter step: 0.5; with 0.5 less a step
+    // last frame it stays there; with room for three quarters more it steps up.
     {
-        std::vector<ComboItemTrackerSection> one(1);
-        ComboItemRow r = {};
-        r.group = "g";
-        r.name = "x";
-        one[0].rows.push_back(r);
-        const std::vector<std::vector<float>> w = { { 100.0f } };
-        ComboItemTrackerMetrics flat;
-        flat.textHeight = 20.0f;
-        flat.availHeight = 10000.0f;
-        flat.availWidth = 100.0f * (0.5f + 0.25f * kComboItemTrackerScaleStep);
+        std::vector<ComboItemSectionBox> one(1);
+        one[0].width = 100.0f;
+        one[0].height = 10.0f;
         ComboItemTrackerFit lower;
-        lower.columns = kComboItemTrackerColumns;
         lower.scale = 0.5f - kComboItemTrackerScaleStep;
-        CITW_ASSERT(ComboItemTrackerFitGrid(one, w, flat).scale == 0.5f);
-        CITW_ASSERT(ComboItemTrackerFitGrid(one, w, flat, &lower).scale == lower.scale);
-        flat.availWidth = 100.0f * (0.5f + 0.75f * kComboItemTrackerScaleStep);
-        CITW_ASSERT(ComboItemTrackerFitGrid(one, w, flat, &lower).scale == 0.5f);
+        const float quarter = 100.0f * (0.5f + 0.25f * kComboItemTrackerScaleStep);
+        CITW_ASSERT(ComboItemTrackerFitBoxes(one, quarter, 10000.0f).scale == 0.5f);
+        CITW_ASSERT(ComboItemTrackerFitBoxes(one, quarter, 10000.0f, &lower).scale == lower.scale);
+        const float threeQuarters = 100.0f * (0.5f + 0.75f * kComboItemTrackerScaleStep);
+        CITW_ASSERT(ComboItemTrackerFitBoxes(one, threeQuarters, 10000.0f, &lower).scale == 0.5f);
     }
+    printf("[TEST] combo-item-tracker-window: the side-by-side fit PASS\n");
+    return TEST_PASS;
+}
 
-    // No room at all: the floor, never below it.
-    m.availWidth = 100.0f;
-    m.availHeight = 100.0f;
-    fit = ComboItemTrackerFitGrid(sections, widths, m);
-    CITW_ASSERT(fit.scale == kComboItemTrackerMinScale);
-    printf("[TEST] combo-item-tracker-window: shared column widths and the floating fit PASS\n");
+/**
+ * Point 8, the runtime half: every icon key either adapter hands out, for
+ * every row of both authored worlds and of an empty save, and for every
+ * shared kind at every tier, is of its own game's kind: OoT's a texture name
+ * (never a path), MM's a resource path.
+ */
+int CitwLockKeySpaces(const ComboItemOps* oot, const ComboItemOps* mm) {
+    int ootKeys = 0;
+    int mmKeys = 0;
+    std::vector<uint8_t> buf((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> mmBuf((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    for (int variant = 0; variant < 2; variant++) {
+        CITW_ASSERT(OoT_ItemAdapter_TestAuthorSave(buf.data(), buf.size(), variant) == 1);
+        CITW_ASSERT(MM_ItemAdapter_TestAuthorSave(mmBuf.data(), mmBuf.size(), variant) == 1);
+        ComboItemRow row;
+        for (int i = 0; i < oot->count(); i++) {
+            CITW_ASSERT(oot->rowAt(buf.data(), i, &row));
+            for (const char* key : { row.iconKey, row.iconKeyFaded }) {
+                if (key != nullptr) {
+                    if (CitwIsPath(key)) {
+                        printf("[TEST] FAIL: OoT row \"%s\" keys its icon by a path: %s\n", row.name, key);
+                        return TEST_FAIL;
+                    }
+                    ootKeys++;
+                }
+            }
+        }
+        for (int i = 0; i < mm->count(); i++) {
+            CITW_ASSERT(mm->rowAt(mmBuf.data(), i, &row));
+            for (const char* key : { row.iconKey, row.iconKeyFaded }) {
+                if (key != nullptr) {
+                    if (!CitwIsPath(key)) {
+                        printf("[TEST] FAIL: MM row \"%s\" keys its icon by a name: %s\n", row.name, key);
+                        return TEST_FAIL;
+                    }
+                    mmKeys++;
+                }
+            }
+        }
+    }
+    CITW_ASSERT(oot->sharedIcon != nullptr && mm->sharedIcon != nullptr);
+    // Each game draws a pool row the way its own tracker does (#458 U3 review):
+    // the wallet's capacity printed per tier (OoT's tycoon tier holds 999, MM's
+    // largest 500) and held at every tier (the pool's rule), MM's grayscale
+    // rupee tinted MM's green, OoT's icons untinted.
+    const int ootWallet[4] = { 99, 200, 500, 999 };
+    const int mmWallet[4] = { 99, 200, 500, 500 };
+    for (uint16_t tier = 0; tier <= 3; tier++) {
+        ComboItemRow row = {};
+        row.have = true;
+        oot->sharedIcon((uint8_t)RSBS_SHARED_RES_WALLET_TIER, tier, &row);
+        CITW_ASSERT(row.iconNumber == ootWallet[tier] && row.have && row.iconTint == 0);
+        row = {};
+        row.have = true;
+        mm->sharedIcon((uint8_t)RSBS_SHARED_RES_WALLET_TIER, tier, &row);
+        CITW_ASSERT(row.iconNumber == mmWallet[tier] && row.have && row.iconTint == 0);
+    }
+    {
+        ComboItemRow row = {};
+        mm->sharedIcon((uint8_t)RSBS_SHARED_RES_RUPEES, 0, &row);
+        CITW_ASSERT(row.iconTint == 0xC7FF63FFu); // CheckTracker.cpp's ImVec4(0.78f, 1, 0.39f, 1)
+        row = {};
+        oot->sharedIcon((uint8_t)RSBS_SHARED_RES_RUPEES, 0, &row);
+        CITW_ASSERT(row.iconTint == 0 && row.iconKey != nullptr && strcmp(row.iconKey, "ITEM_RUPEE_GREEN") == 0);
+    }
+    int ootShared = 0;
+    int mmShared = 0;
+    for (unsigned kind = 1; kind < RSBS_SHARED_RES_KIND_COUNT; kind++) {
+        for (uint16_t tier = 0; tier <= 3; tier++) {
+            ComboItemRow row = {};
+            oot->sharedIcon((uint8_t)kind, tier, &row);
+            CITW_ASSERT(row.iconKey == nullptr || !CitwIsPath(row.iconKey));
+            CITW_ASSERT(row.iconKeyFaded == nullptr || !CitwIsPath(row.iconKeyFaded));
+            ootShared += row.iconKey != nullptr ? 1 : 0;
+            row = {};
+            mm->sharedIcon((uint8_t)kind, tier, &row);
+            CITW_ASSERT(row.iconKey == nullptr || CitwIsPath(row.iconKey));
+            mmShared += row.iconKey != nullptr ? 1 : 0;
+        }
+    }
+    // The rupees, the hearts and the bow's quiver each have an icon in both games.
+    for (const ComboItemOps* ops : { oot, mm }) {
+        for (uint8_t kind : { (uint8_t)RSBS_SHARED_RES_RUPEES, (uint8_t)RSBS_SHARED_RES_HEALTH_QUARTERS,
+                              (uint8_t)RSBS_SHARED_RES_ARROW_COUNT }) {
+            ComboItemRow row = {};
+            ops->sharedIcon(kind, 2, &row);
+            CITW_ASSERT(row.iconKey != nullptr && row.iconKeyFaded != nullptr);
+        }
+    }
+    printf("[TEST] combo-item-tracker-window: key spaces: %d OoT row keys and %d shared are names, %d MM row keys and "
+           "%d shared are paths\n",
+           ootKeys, ootShared, mmKeys, mmShared);
+    CITW_ASSERT(ootKeys > 100 && mmKeys > 100 && ootShared > 0 && mmShared > 0);
+    return TEST_PASS;
+}
+
+/**
+ * Point 8, the source half: every LoadGuiTexture call in OoT's tree keys its
+ * texture by a NAME. A key is a name when it is a string literal with no '/'
+ * or one of the name members SoH's tables carry (entry.second.name, .nameFaded;
+ * the song tables' entry.name, entry.nameFaded; the time display's
+ * load.first). One call is path-keyed today and is held to its shape: the
+ * seed-hash icons (ImGuiUtils.cpp, `entry.tex, entry.tex`), which key a texture
+ * by its own OoT path ("__OTR__textures/..."), a string no MM path equals.
+ */
+int CitwLockLoadGuiTextureScan(void) {
+#ifdef RSBS_SOURCE_DIR
+    namespace fs = std::filesystem;
+    const fs::path root = fs::path(RSBS_SOURCE_DIR) / "games" / "oot" / "soh";
+    const char* const kNameKeys[] = { "entry.second.name", "entry.second.nameFaded", "entry.name", "entry.nameFaded",
+                                      "load.first.c_str()" };
+    int calls = 0;
+    int selfKeyed = 0;
+    std::error_code ec;
+    for (fs::recursive_directory_iterator it(root, ec), end; it != end && !ec; it.increment(ec)) {
+        const fs::path& file = it->path();
+        const std::string ext = file.extension().string();
+        if (!it->is_regular_file() || (ext != ".cpp" && ext != ".c" && ext != ".h" && ext != ".hpp")) {
+            continue;
+        }
+        std::ifstream in(file, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        const std::string call = "LoadGuiTexture(";
+        for (size_t at = text.find(call); at != std::string::npos; at = text.find(call, at + 1)) {
+            if (at > 0 && (isalnum((unsigned char)text[at - 1]) || text[at - 1] == '_')) {
+                continue; // LoadGuiTextures, a declaration of another function
+            }
+            // A call, not a declaration or a comment: "->LoadGuiTexture(".
+            if (at < 2 || text.compare(at - 2, 2, "->") != 0) {
+                continue;
+            }
+            size_t a = at + call.size();
+            const size_t comma = text.find(',', a);
+            CITW_ASSERT(comma != std::string::npos);
+            std::string key = text.substr(a, comma - a);
+            const size_t comma2 = text.find_first_of(",)", comma + 1);
+            std::string second = text.substr(comma + 1, comma2 - comma - 1);
+            auto trim = [](std::string& v) {
+                const size_t b = v.find_first_not_of(" \t\r\n");
+                const size_t e = v.find_last_not_of(" \t\r\n");
+                v = (b == std::string::npos) ? std::string() : v.substr(b, e - b + 1);
+            };
+            trim(key);
+            trim(second);
+            calls++;
+            bool name = key.size() >= 2 && key.front() == '"' && key.back() == '"' && key.find('/') == std::string::npos;
+            for (const char* member : kNameKeys) {
+                name = name || key == member;
+            }
+            if (name) {
+                continue;
+            }
+            const bool seedHash = key == "entry.tex" && second == "entry.tex" &&
+                                  file.filename().string() == "ImGuiUtils.cpp";
+            if (seedHash) {
+                selfKeyed++;
+                continue;
+            }
+            printf("[TEST] FAIL: %s: LoadGuiTexture keyed by \"%s\", not a texture name: OoT keys its icons by "
+                   "name and MM by path, so an OoT path key could meet one of MM's\n",
+                   file.string().c_str(), key.c_str());
+            return TEST_FAIL;
+        }
+    }
+    printf("[TEST] combo-item-tracker-window: OoT's %d LoadGuiTexture calls key by name (%d seed-hash call keyed by "
+           "its own OoT path)\n",
+           calls, selfKeyed);
+    CITW_ASSERT(!ec && calls >= 20 && selfKeyed == 1);
+#endif
     return TEST_PASS;
 }
 
@@ -522,10 +840,28 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(strcmp(shared.title, "Shared") == 0);
     CITW_ASSERT(shared.freshness == COMBO_TRACKER_FRESH_STALE && shared.note == "As of the last switch or save.");
     CITW_ASSERT(CitwSectionHasText(shared, "Arrows 33/40", true));
+    // Each section carries its own game's grid (#458 U3); the pool's icons are
+    // the active game's own: OoT's tier-2 quiver under GAME_OOT.
+    CITW_ASSERT(ootLiveSection.grid == oot->grid && mmSnap.grid == mm->grid && shared.grid == &kComboItemSharedGrid);
+    const ComboItemRow* arrowsOoT = CitwFindRow(shared, "Arrows");
+    CITW_ASSERT(arrowsOoT != nullptr && arrowsOoT->iconKey != nullptr &&
+                strcmp(arrowsOoT->iconKey, "ITEM_QUIVER_40") == 0);
+    // The fallback read the draw makes when the active game's icons are not
+    // loaded: MM's own, a resource path.
+    ComboItemTrackerSection sharedMM;
+    ComboItemTrackerCollectSection(ComboGui::COMBO_ITEM_SECTION_SHARED, sharedMM, (int)GAME_MM);
+    const ComboItemRow* arrowsMM = CitwFindRow(sharedMM, "Arrows");
+    CITW_ASSERT(arrowsMM != nullptr && CitwIsPath(arrowsMM->iconKey) && arrowsMM->fadedAlpha == 0.4f);
+    const ComboItemTrackerSection ootLiveCopy = ootLiveSection;
+    const ComboItemTrackerSection mmSnapCopy = mmSnap;
+    const ComboItemTrackerSection sharedCopy = shared;
 
     // MM played live: OoT is never live, its rows are its snapshot's.
     Context_SetCurrentGame(GAME_MM);
     CITW_ASSERT(CitwDriveSections(sections));
+    const ComboItemRow* arrowsActiveMM = CitwFindRow(sections[ComboGui::COMBO_ITEM_SECTION_SHARED], "Arrows");
+    CITW_ASSERT(arrowsActiveMM != nullptr && CitwIsPath(arrowsActiveMM->iconKey)); // MM active: MM's icons
+    const ComboItemTrackerSection ootSnapCopy = sections[ComboGui::COMBO_ITEM_SECTION_OOT];
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].note == "As of the last game switch or save.");
     CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Longshot", true));
@@ -540,9 +876,16 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_STALE);
     printf("[TEST] combo-item-tracker-window: model reads PASS (OoT live / MM live / no game)\n");
 
-    // ---- 5b. the fit, over the real rows ----------------------------------
-    std::vector<ComboItemTrackerSection> shown(sections, sections + ComboGui::COMBO_ITEM_SECTION_COUNT);
-    return CitwLockFit(shown);
+    // ---- 7. the icons and the fit, over the real rows -----------------------
+    if (CitwLockIcons(ootLiveCopy, mmSnapCopy, sharedCopy, ootSnapCopy) != TEST_PASS) {
+        return TEST_FAIL;
+    }
+    const ComboItemTrackerSection live[ComboGui::COMBO_ITEM_SECTION_COUNT] = { ootLiveCopy, mmSnapCopy, sharedCopy };
+    if (CitwLockFit(live) != TEST_PASS) {
+        return TEST_FAIL;
+    }
+    // ---- 8. the key spaces ----------------------------------------------------
+    return CitwLockKeySpaces(oot, mm);
 }
 
 } // namespace
@@ -618,8 +961,16 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
     // falls back to the row's text.
     CITW_ASSERT(ComboUi_IsInstalled());
     CITW_ASSERT(ComboUi_Get()->Image != nullptr);
-    CITW_ASSERT(!ComboUi_Get()->Image("ITEM_LONGSHOT", 32.0f, 32.0f));
-    CITW_ASSERT(!ComboUi_Get()->Image(nullptr, 32.0f, 32.0f));
+    CITW_ASSERT(!ComboUi_Get()->Image("ITEM_LONGSHOT", 32.0f, 32.0f, 0));
+    CITW_ASSERT(!ComboUi_Get()->Image(nullptr, 32.0f, 32.0f, 0xC7FF63FFu));
+    CITW_ASSERT(ComboUi_Get()->HasImage != nullptr && ComboUi_Get()->ToneText != nullptr);
+    CITW_ASSERT(!ComboUi_Get()->HasImage("ITEM_LONGSHOT") && !ComboUi_Get()->HasImage(nullptr));
+    CITW_ASSERT(ComboUi_Get()->PushCountFont != nullptr && ComboUi_Get()->PopCountFont != nullptr);
+
+    // ---- 8. OoT's LoadGuiTexture keys -------------------------------------------
+    if (CitwLockLoadGuiTextureScan() != TEST_PASS) {
+        return TEST_FAIL;
+    }
 
 #ifdef RSBS_SOURCE_DIR
     {
@@ -629,11 +980,44 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         };
         const std::string text = slurp("/src/common/ComboItemTrackerWindow.cpp");
         CITW_ASSERT(!text.empty());
+        // Whitespace-free, for the statement sequences below.
+        auto squash = [](const std::string& s) {
+            std::string out;
+            for (char ch : s) {
+                if (!isspace((unsigned char)ch)) {
+                    out += ch;
+                }
+            }
+            return out;
+        };
+        const std::string flat = squash(text);
+        // Each cell's draw, statement for statement (#458 U3 review): the
+        // picked texture at the pick's alpha (MM's 40% fade; deleting the push
+        // draws MM's unheld icons opaque), tinted as its game tints it, and a
+        // cell whose texture is missing falls back to its name in the cell.
+        CITW_ASSERT(flat.find(squash("ImGui::PushStyleVar(ImGuiStyleVar_Alpha, baseAlpha * pick.alpha);\n"
+                                     "const bool drawn = Ui().Image(pick.key, iconWidth, cell, row.iconTint);\n"
+                                     "ImGui::PopStyleVar();\n"
+                                     "if (!drawn) { DrawCellText(row, cellMin, cell); }")) != std::string::npos);
+        CITW_ASSERT(flat.find(squash("const float baseAlpha = ImGui::GetStyle().Alpha;")) != std::string::npos);
+        // SoH's counts in SoH's tracker font, popped as pushed.
+        CITW_ASSERT(flat.find(squash("const bool sohFont = countStyle != COMBO_ITEM_COUNT_MM && Ui().PushCountFont();")) !=
+                    std::string::npos);
+        CITW_ASSERT(flat.find(squash("if (sohFont) { Ui().PopCountFont(); }")) != std::string::npos);
         // The draw reads exactly what point 4 drove, and lays out what point 5 holds.
         CITW_ASSERT(text.find("ComboItemTrackerCollectSection(s, sections.back())") != std::string::npos);
-        CITW_ASSERT(text.find("ComboItemGridLayout(section.rows, fit.columns, cells)") != std::string::npos);
+        // Icons or text per section, each game's grid, the picked texture
+        // through the seam, the count and the name as its tooltip (#458 U3).
+        CITW_ASSERT(text.find("ComboItemSectionDrawsIcons(section.rows, Ui().HasImage)") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemIconLayout(section.rows, *section.grid, plan.cells)") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemPickIcon(row)") != std::string::npos);
+        CITW_ASSERT(text.find("Ui().Image(pick.key, iconWidth, cell, row.iconTint)") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemCountFor(row, countStyle, count)") != std::string::npos);
+        CITW_ASSERT(text.find("Ui().Tooltip(row.name)") != std::string::npos); // the item's name alone, as SoH's
+        CITW_ASSERT(text.find("Ui().Tooltip(ComboItemRowText") == std::string::npos);
+        CITW_ASSERT(text.find("ComboItemGridLayout(section.rows, kComboItemTrackerColumns, cells)") != std::string::npos);
         // The floating overlay is fitted, and drawn at the fit's scale.
-        CITW_ASSERT(text.find("fit = ComboItemTrackerFitGrid(sections, widths, metrics, &previous)") !=
+        CITW_ASSERT(text.find("fit = ComboItemTrackerFitBoxes(boxes, availWidth, availHeight, &previous)") !=
                     std::string::npos);
         CITW_ASSERT(text.find("ImGui::SetWindowFontScale(fit.scale)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemRowText(row)") != std::string::npos);

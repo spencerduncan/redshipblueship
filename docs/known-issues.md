@@ -112,7 +112,8 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   the Giant's Mask, magic and a sword ("Twinmold with Bow (MM)" admits the Bow), and the
   West Clock Town bank's heart piece needs the Giant's Wallet ("Bank Rewards Require One
   Less Wallet" admits the Adult Wallet).
-- **You may opt into one shared Ocarina across both games** (Combo → Cross-Game
+- ~~**You may opt into one shared Ocarina across both games**~~ RETIRED by
+  [#879](https://github.com/spencerduncan/redshipblueship/issues/879): the row is gone, and a world created with it on loads with it ignored. Was: (Combo → Cross-Game
   Rules → "[Both Games] Shared Ocarina") — off by default, frozen at file creation
   like every other combo rule: obtaining an ocarina in
   either game grants it in the other (PR
@@ -251,6 +252,15 @@ before the fix). Now, while you play Majora's Mask, the panel and the crossing l
 running save: the panel says "Updated live." and a collected check shows at once, with no
 save. In Hyrule it reads the copy, as of the last game switch or save.
 
+**The Combo Item Tracker lists Majora's Mask's items by name until Majora's Mask has started** ([#458](https://github.com/spencerduncan/redshipblueship/issues/458)).
+Majora's Mask's item icons come from its own archive and are loaded the first time Majora's
+Mask starts in a session. Until then (in a session that begins in Ocarina of Time, until your
+first crossing into Termina) the overlay's Majora's Mask section shows each item's name
+instead of its icon, dimmed while you do not hold it, with its count where it has one. The
+items are the same ones the icons would show. Once Majora's Mask has started, its icons stay
+loaded until you quit. Ocarina of Time's icons load at launch, so its section and the Shared
+section always have icons.
+
 ### Back up your saves. Seriously.
 
 The cross-game save (`.redsave`) format **has been re-versioned** since the last
@@ -279,7 +289,7 @@ What happens at the crossing depends on whether the file entered Majora's Mask b
   is refused with a toast saying the file has no paired Majora's Mask world: Termina
   stays un-randomized and the slot is latched against writes to the pair for the rest
   of the session.~~ **RESOLVED (#836):** the file is not opened. Pressing A on it in the
-  Ocarina of Time file select plays the error sound, posts "Not paired: This file has no
+  Ocarina of Time file select plays the error sound, posts "Refused: This file has no
   Majora's Mask world", and keeps you on the file list. Nothing is written.
 - **Crossed before #680:** it carries the MM half the old arrival generated, and the
   arrival hydrates whatever frozen half it finds. It either plays that old pre-#680 MM
@@ -287,11 +297,11 @@ What happens at the crossing depends on whether the file entered Majora's Mask b
   options, the load restores the options from that half when they reproduce the stamp.
   ~~Otherwise it warns at load ("Not restored: Majora's Mask options differ") and the
   crossing is refused by the MM-options check.~~ **RESOLVED (#836):** otherwise the file
-  is not opened ("Not paired: Majora's Mask options differ" at the file select). Which one a given file meets cannot be
+  is not opened ("Refused: Majora's Mask options differ" at the file select). Which one a given file meets cannot be
   decided by reading. ~~If that old arrival's generation failed, it reverted to a vanilla
   MM half, which the arrival hydrated under the pairing: Termina played vanilla and the
   vanilla half was saved back (#564 V7).~~ **RESOLVED (#836 PR 2):** a paired file whose
-  MM half is vanilla, or is another pair's world (#564 V11), is not opened ("Not paired:
+  MM half is vanilla, or is another pair's world (#564 V11), is not opened ("Refused:
   This file has no Majora's Mask world" at the file select), and the arrival refuses such
   a half too.
 
@@ -436,7 +446,7 @@ DirectX 11. The 90 were compared with an OpenGL render made at `d928d67d` on the
   carry this project's ruled "[Both Games] " marker, which SoH shipped without (Dev Tools >
   General, Settings > General); the other 63 and 33 are SoH's rows as shipped. Ours overran 25 at 832x600 and 10 at
   960x704, not only on the Majora's Mask page: Cross-Game Rules (the pool-size sliders, the
-  class headers, Shared Ocarina), MM Randomizer (two access comboboxes and seven long
+  class headers, Shared Ocarina, all three rows since retired), MM Randomizer (two access comboboxes and seven long
   labels) and the harness's MM Row States probe. The Majora's Mask page now has two columns,
   SoH's count for a mixed page, and the long labels are shorter (the renames are listed in
   the lane's pull request), so no row of ours overruns at any of the three profiles. R9 fails
@@ -444,6 +454,59 @@ DirectX 11. The 90 were compared with an OpenGL render made at `d928d67d` on the
   profile to 832x600 in CI (docs/ui-style-guide.md section 1, the width rule).
 
 **Findings.** None apart from #544, so no new issue was filed.
+
+---
+
+## Smoke, 2026-10-03, `82d05d0d`
+
+The closing run of the work merged between `200adaea` and `82d05d0d`: 49 pull requests,
+[#802](https://github.com/spencerduncan/redshipblueship/pull/802) to
+[#876](https://github.com/spencerduncan/redshipblueship/pull/876). Like the run above, it
+covers the checks hosted CI cannot run, because they need the ROMs.
+
+**How it was run.** The workstation's main Windows checkout. Its object directories were
+cleared and the tree was rebuilt (Release, MSVC, through sccache) at the merge of the last
+pull request's branch ([#872](https://github.com/spencerduncan/redshipblueship/pull/872))
+onto `c36ca898`. That merge has the same tree as `82d05d0d` (`d23e4b5c`), the squash commit
+that landed right after the run. `soh.o2r`, `2ship.o2r` and the two curated archives
+`redship-oot.o2r` and `redship-mm.o2r` were regenerated at that tree. `oot.o2r` and `mm.o2r`
+were not re-extracted: they are the ROM extractions earlier builds made. The config was
+OpenGL only, and windows opened without taking focus.
+
+| Check | Result |
+|---|---|
+| `redship` tier | 163 of 163 passed, none skipped (138 in the run above) |
+| `rando` tier | 42 of 42 passed, none skipped (40 in the run above). All four golden-world rows passed (`GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest`, `GoldenSeedDigestArmedCaps`) with `tests/golden/` as it stands at this commit |
+| `ui` tier (OpenGL, ROM archives mounted) | 2 of 2 rows passed. The parity lint passed plain (0 gated hits) and no-grow (neither baseline gained an entry) |
+| `integration` | 13 of 13 passed (6 rows in the run above, one of them red): `IntBootOoT`, `IntBootMM`, `IntSwitchOoTHmsToMm`, `IntSwitchMmClockTownSouthToOoT`, `IntArchiveHotswapCycle`, `IntCuratedArchiveBootRegen`, `IntWatchdogWedgeOoTFrame`, `IntWatchdogWedgeHandoff`, `IntWatchdogWedgeMMFrame`, `IntGameplayRoundtrip`, `IntGameplayRoundtripCapture`, `IntPairedFirstCrossing`, `IntPairedFirstCrossingDiverged` |
+| `integration-soak` | `IntGameplayRoundtripSoak` passed (71.2 s) |
+
+**Generated worlds moved during this work.** Two pull requests each re-pinned three of the
+four golden files (`seed-digest-default`, `seed-digest-profile-v1`, `paired-attempt-digest`):
+[#840](https://github.com/spencerduncan/redshipblueship/pull/840) (MM shops host OoT items) and
+[#874](https://github.com/spencerduncan/redshipblueship/pull/874) (OoT's treasure chest game
+hosts MM items). A seed string and settings that made one world at `200adaea` make a different
+one now. Nothing stored in an existing save is recomputed.
+
+**What this run did not cover.**
+- Nobody has played this build. The rows drive door transitions and item gives directly; they
+  do not see what a person sees.
+- DirectX 11 was not compared with OpenGL.
+- The creation-time sample (10 real paired creations against the 30 s budget) was not re-run.
+- `ForeignItemGiveReverse` passed here. It ended once without a verdict in an earlier gate run
+  and has not done so again ([#824](https://github.com/spencerduncan/redshipblueship/issues/824)).
+
+**Findings.** None in this run. Known and open at this commit, each with its own issue: get-item
+text does not say which game a crossed item belongs to
+([#865](https://github.com/spencerduncan/redshipblueship/issues/865)); a chest that hosts the
+other game's item always looks like a major chest
+([#862](https://github.com/spencerduncan/redshipblueship/issues/862)); MM's spoiler omits the
+price of an OoT item in an MM shop or Tingle slot
+([#863](https://github.com/spencerduncan/redshipblueship/issues/863)); on a vanilla paired file,
+OoT's Check Tracker can show checks from before a crossing commit after a reload
+([#861](https://github.com/spencerduncan/redshipblueship/issues/861)); OoT's threaded save worker
+can land an older generation over a crossing commit
+([#851](https://github.com/spencerduncan/redshipblueship/issues/851)).
 
 ---
 
@@ -456,7 +519,7 @@ editable between sessions, and what they hold there is staging for the next file
 Loading a paired file now compares both its Cross-Game Rules and its Majora's Mask
 profile (the same digest the crossing checks) and puts the file's own values back into
 the pages:
-- a changed Cross-Game Rule (Goal, Crossing Direction, Shared Ocarina) is
+- a changed Cross-Game Rule (Goal, Crossing Direction; Shared Ocarina until #879 retired it) is
   restored, and a toast reads "Restored from file:" with the rows it reset
   (for example "Restored from file: Goal, Crossing Direction");
 - a changed MM option or trick is restored from the file's MM half, and a toast reads
@@ -469,11 +532,11 @@ agrees with the file. The cases the file cannot answer stay visible instead of s
 - ~~an MM identity input the file does not record (the excluded-check list or the
   starting-item block, which no page in this build edits) loads the file paired but
   posts "Not restored: Majora's Mask options differ", and the crossing is refused until
-  they match;~~ **RESOLVED (#836):** such a file is not opened ("Not paired: Majora's
+  they match;~~ **RESOLVED (#836):** such a file is not opened ("Refused: Majora's
   Mask options differ" at the file select);
 - a Cross-Game record field no page authors (only a file from another build can differ
-  there) is refused with "Not paired: File made by another build" (a damaged record:
-  "Not paired: Cross-game record is damaged"). The field names are on stderr. ~~The OoT
+  there) is refused with "Refused: File made by another build" (a damaged record:
+  "Refused: Cross-game record is damaged"). The field names are on stderr. ~~The OoT
   file still opens and plays without its Majora's Mask half, because the load runs after
   OoT has opened the file; the next crossing into Majora's Mask says so ("Not paired:
   Termina stays un-randomized") instead of skipping pairing silently. Nothing is saved

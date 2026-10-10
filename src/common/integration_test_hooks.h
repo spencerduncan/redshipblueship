@@ -444,6 +444,24 @@ bool IntegrationTest_PairedDivergeLoadToasts(char* msg, size_t cap);
 /** Clear the three keys and save the config, when Apply wrote them. */
 void IntegrationTest_PairedDivergeCleanup(void);
 
+// ----------------------------------------------------------------------------
+// One toast per event across a crossing (#878). The paired drive picks up one
+// cross-game item before each crossing (an MM item from an OoT chest before the
+// Happy Mask Shop door, an OoT item from an MM check before the Clock Tower
+// door); the pickup announces it, and the crossing must not announce it again.
+// The departure marks the toast record (MarkCrossing); the arrival's verdict
+// (LegToastsCheck) lists every toast of the leg (from the previous verdict on)
+// and fails when one text appears twice in the leg or when anything was toasted
+// since the departure's mark.
+// ----------------------------------------------------------------------------
+
+/** The departure toward `game`: remember where the toast record stands. */
+void IntegrationTest_PairedMarkCrossing(const char* game);
+
+/** The arrival's verdict for the leg into `game`: true when each toast text of
+ *  the leg appears once and the crossing toasted nothing; `msg` says why not. */
+bool IntegrationTest_PairedLegToastsCheck(const char* game, char* msg, size_t cap);
+
 #ifdef __cplusplus
 }
 #endif

@@ -505,6 +505,7 @@ extern "C" {
 #include "tests/test_foreign_items.c"
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
+#include "tests/test_crossing_toasts.c" // #878: a crossing toasts nothing its pickup announced
 
 // Lane C1 in-game spoiler VIEW model (#496): the read-only projection of
 // gComboCtx.foreignPlacements the combo spoiler window renders — named
@@ -563,14 +564,10 @@ extern "C" {
 // via shared_resources.h.
 #include "tests/test_shared_resources.c"
 
-// The SHARED OCARINA tier (#668): the first RSBS_SHARED_RES_* kind whose
-// existence is a per-world choice, armed by ComboSettingsRecord.comboFlags. Its
-// own row rather than a leg of the file above, because the two claims it owns
-// are meaningless for the other eighteen kinds — that with the option OFF
-// nothing is harvested, applied or even slotted, and that the arming gate is
-// consulted by BOTH halves so it cannot be applied one-sidedly. FILE SCOPE for
-// the same reason as its neighbour.
-#include "tests/test_shared_ocarina.c"
+// The RETIRED Shared Ocarina rule (#879; it replaced #668's row): the ocarina
+// kind is never armed, and a world whose frozen record carries the bit loads
+// healthy and shares nothing. FILE SCOPE for the same reason as its neighbour.
+#include "tests/test_shared_ocarina_retired.c"
 
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
@@ -1078,7 +1075,7 @@ static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void) {
 #else
     setenv("SHIP_HOME", kBootTestHome, 1);
 #endif
-    auto ctx = Ship::Context::CreateUninitializedInstance(RSBS_WINDOW_TITLE, "soh", "shipofharkinian.json");
+    auto ctx = Ship::Context::CreateUninitializedInstance(RsbsVersion_WindowTitle(), "soh", "shipofharkinian.json");
 
     // Take crash handling before any bring-up runs (#388). A unit test is
     // unattended by definition even though it runs under a live DISPLAY
@@ -1192,6 +1189,22 @@ TestResult Test_BootOoT(void) {
 
     printf("[TEST] PASS: display-free shared subsystems all initialized\n");
     return TEST_PASS;
+}
+
+// #878 crossing-arrival-toasts (body: tests/test_crossing_toasts.c, included
+// beside test_foreign_award.c). The overlay's Emit reads the CVar store, so the
+// row needs the display-free shared Context bring-up first; it mutes the
+// overlay so no unmuted toast reaches OoT's audio.
+static TestResult Test_CrossingArrivalToasts(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    CVarSetInteger("gSettings.Notifications.Mute", 1);
+    const TestResult result = CrossingArrivalToasts_Run();
+    CVarClear("gSettings.Notifications.Mute");
+    return result;
 }
 
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
@@ -1455,7 +1468,12 @@ TestResult Test_RandoEntrancePin(void) {
 // both directions' crossing counts; the OoT-shop half is #800's OoT-side change.
 // #800 pass 2 turns MM's "Shuffle Tingle Maps" on too and requires a crossing in
 // one of Tingle's map slots as well.
+// #863: each shop or Tingle host is also read back through MM's real spoiler
+// writer, which must list it with the slot's price, as it lists a native item.
 extern "C" int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, int* outIsTingleShop);
+// #863: the same crossings, read back through MM's real spoiler writer.
+extern "C" int MM_Rando_Foreign_TestSpoilerEntry(uint16_t randoCheckId, int* outHasPrice, int* outSpoilerPrice,
+                                                 int* outSlotPrice, int* outNamesForeign);
 
 TestResult Test_RandoShopCrossingsMM(void) {
     printf("[TEST] rando-shop-crossings-mm: a paired creation with both shop shuffles on crosses an OoT item into an "
@@ -1495,6 +1513,7 @@ TestResult Test_RandoShopCrossingsMM(void) {
     const int mmHosted = Combo_Crossings_Count(GAME_MM);
     int mmShopHosted = 0;
     int mmTingleHosted = 0;
+    int spoilerFailures = 0;
     for (int i = 0; i < mmHosted; i++) {
         ComboCrossing row;
         int isShop = 0;
@@ -1509,6 +1528,29 @@ TestResult Test_RandoShopCrossingsMM(void) {
                 printf("[TEST]   MM Tingle map slot %u hosts OoT item %u\n", (unsigned)row.hostCheck,
                        (unsigned)row.item.id);
             }
+            // #863: the MM spoiler lists a shop or Tingle host with the slot's
+            // price, as it does a native item on the same shelf, and still
+            // names the OoT item it hosts.
+            if (isShop || isTingle) {
+                int hasPrice = 0;
+                int spoilerPrice = -1;
+                int slotPrice = -1;
+                int namesForeign = 0;
+                if (!MM_Rando_Foreign_TestSpoilerEntry(row.hostCheck, &hasPrice, &spoilerPrice, &slotPrice,
+                                                       &namesForeign)) {
+                    printf("[TEST] FAIL: the MM spoiler does not list host check %u\n", (unsigned)row.hostCheck);
+                    spoilerFailures++;
+                } else if (!hasPrice || spoilerPrice != slotPrice || !namesForeign) {
+                    printf("[TEST] FAIL: the MM spoiler entry for host check %u: price %s (spoiler %d, slot %d), "
+                           "names the OoT item: %s\n",
+                           (unsigned)row.hostCheck, hasPrice ? "present" : "MISSING", spoilerPrice, slotPrice,
+                           namesForeign ? "yes" : "NO");
+                    spoilerFailures++;
+                } else {
+                    printf("[TEST]     spoiler lists host check %u with price %d (slot price %d)\n",
+                           (unsigned)row.hostCheck, spoilerPrice, slotPrice);
+                }
+            }
         }
     }
     printf("[TEST] rando-shop-crossings-mm: seed %s: %d crossings hosted in OoT, %d in MM, %d of them in MM shop "
@@ -1522,7 +1564,13 @@ TestResult Test_RandoShopCrossingsMM(void) {
         printf("[TEST] FAIL: no OoT item crossed into a Tingle map slot\n");
         return TEST_FAIL;
     }
-    printf("[TEST] PASS: an OoT item crossed into an MM shop slot and into a Tingle map slot\n");
+    if (spoilerFailures > 0) {
+        printf("[TEST] FAIL: %d shop/Tingle host(s) listed in the MM spoiler without the slot's price (#863)\n",
+               spoilerFailures);
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: an OoT item crossed into an MM shop slot and into a Tingle map slot, and the MM spoiler "
+           "lists each with its price\n");
     return TEST_PASS;
 }
 
@@ -1851,6 +1899,84 @@ TestResult Test_TestWindowNoActivation(void) {
     }
 #undef TWNA_ASSERT
     printf("[TEST] %s: test-window-no-activation, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #880 lock: the version a person sees names the commit it was built from.
+// Every build between two release tags used to read the same
+// "RedShipBlueShip v0.1.1-prealpha (Morpheus Bravo)", so a stale build could not
+// be told from a current one. The expected identity comes from configure through
+// the row's environment (CMake/SingleExecutable.cmake), not from the string
+// under test:
+//   V1 RsbsVersion_Display() == RSBS_VERSION_STRING "+<short>" ["-dirty"], or the
+//      bare RSBS_VERSION_STRING when configure saw no git ("none");
+//   V2 RsbsVersion_WindowTitle() (the context name: the window title, and the
+//      first line of --version) == RSBS_APP_NAME " " <V1> " (" codename ")";
+//   V3 the release part is RSBS_VERSION_STRING unchanged (the tag rule) and the
+//      build part is empty or "+" and 7 lowercase hex digits, then "-dirty" or
+//      nothing.
+// Without RSBS_EXPECT_SHORT_COMMIT (a run outside CTest, `--test all`) only V3
+// is checked.
+TestResult Test_VersionShortCommit(void) {
+    printf("[TEST] version-short-commit: the window title and --version carry the configured short commit\n");
+    int failures = 0;
+    const std::string display = RsbsVersion_Display();
+    const std::string title = RsbsVersion_WindowTitle();
+    printf("[TEST] display: '%s'\n", display.c_str());
+    printf("[TEST] window title: '%s'\n", title.c_str());
+
+    const std::string release = RSBS_VERSION_STRING;
+    if (display.compare(0, release.size(), release) != 0) {
+        printf("[TEST] FAIL V3: display does not start with RSBS_VERSION_STRING '%s'\n", release.c_str());
+        failures++;
+    } else {
+        const std::string build = display.substr(release.size());
+        bool shapeOk = build.empty();
+        if (!shapeOk && build.size() >= 8 && build[0] == '+') {
+            shapeOk = true;
+            for (size_t i = 1; i < 8; i++) {
+                const char c = build[i];
+                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
+                    shapeOk = false;
+                }
+            }
+            const std::string rest = build.substr(8);
+            if (!rest.empty() && rest != "-dirty") {
+                shapeOk = false;
+            }
+        }
+        if (!shapeOk) {
+            printf("[TEST] FAIL V3: build part '%s' is neither empty nor +<7 hex>[-dirty]\n", build.c_str());
+            failures++;
+        }
+    }
+
+    const char* expectShort = getenv("RSBS_EXPECT_SHORT_COMMIT");
+    const char* expectDirty = getenv("RSBS_EXPECT_DIRTY");
+    if (expectShort == nullptr || expectShort[0] == '\0') {
+        printf("[TEST] RSBS_EXPECT_SHORT_COMMIT not set (not run by CTest): V1/V2 not checked\n");
+    } else {
+        std::string expectedDisplay = release;
+        if (strcmp(expectShort, "none") != 0) {
+            expectedDisplay += std::string("+") + expectShort;
+            if (expectDirty != nullptr && strcmp(expectDirty, "1") == 0) {
+                expectedDisplay += "-dirty";
+            }
+        }
+        printf("[TEST] configured: short='%s' dirty='%s' -> expected display '%s'\n", expectShort,
+               expectDirty != nullptr ? expectDirty : "(unset)", expectedDisplay.c_str());
+        if (display != expectedDisplay) {
+            printf("[TEST] FAIL V1: display '%s' != expected '%s'\n", display.c_str(), expectedDisplay.c_str());
+            failures++;
+        }
+        const std::string expectedTitle =
+            std::string(RSBS_APP_NAME) + " " + expectedDisplay + " (" + RSBS_VERSION_CODENAME + ")";
+        if (title != expectedTitle) {
+            printf("[TEST] FAIL V2: window title '%s' != expected '%s'\n", title.c_str(), expectedTitle.c_str());
+            failures++;
+        }
+    }
+    printf("[TEST] %s: version-short-commit, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -2804,6 +2930,28 @@ TestResult Test_MMPairSwitchEntry(void) {
     int rc = MM_Rando_HeadlessPairSwitchEntry();
     printf("[TEST] %s: switch-entry pairing rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The combo owns MM's paired start (#879): a paired creation grants MM exactly
+// the Ocarina of Time and the Song of Time whatever 2Ship's StartingItems config
+// block says, the identity ignores that block, and the Kokiri Sword and the
+// Hero's Shield are MM pool items the bag places. Body in
+// games/mm/2s2h/mm_paired_start_test.cpp. Needs a generation, like
+// mm-pair-switch-entry, so `--test all` skips it.
+extern "C" int MM_PairedStart_RunHeadless(void);
+
+TestResult Test_MMPairedStart(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    return MM_PairedStart_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // Attempt-ladder convergence + determinism digest (ADR 0010 increment 1.2
@@ -4391,6 +4539,21 @@ TestResult Test_ComboItemView(void) {
     return Combo_ItemView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The same view over the save Ship of Harkinian's own new-file path authors
+// (#873). Save_InitFile reads OTRGlobals and SaveManager::Instance, which only
+// the full OoT bring-up constructs, so the rando tier's bring-up (display).
+TestResult Test_ComboItemViewNewFile(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char civArg0[] = "redship";
+    static char* civArgv[] = { civArg0, nullptr };
+    InitOTRForMMFirstBoot(1, civArgv);
+    return Combo_ItemView_NewFileRunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Unified Item Tracker overlay (#458 U2). The Gui bridges' bring-up (GuiWindow
 // ctors read ConsoleVariables off the Ship::Context singleton).
 TestResult Test_ComboItemTrackerWindow(void) {
@@ -5142,6 +5305,12 @@ const TestDescriptor gTests[] = {
     // Same display requirement as mm-rando-gen, so `--test all` skips it.
     {"mm-pair-switch-entry", "Paired MM world activates via switch-entry; existing saves untouched (#439)",
      Test_MMPairSwitchEntry},
+    // #879: the combo owns MM's paired start; sword and shield are pool items.
+    // Same display requirement as mm-pair-switch-entry, so `--test all` skips it.
+    {"mm-paired-start",
+     "A paired MM half starts with exactly the Ocarina and the Song of Time, never 2Ship's StartingItems block; "
+     "the Kokiri Sword and the Hero's Shield are MM pool items (#879)",
+     Test_MMPairedStart},
     // ADR 0010 increment 1.2 lock (b): a pinned master seed that NEEDS the
     // attempt ladder converges, records its winning attempt, and digests the
     // world for the two-process MMPairedAttemptDeterminism diff. Same display
@@ -5226,6 +5395,10 @@ const TestDescriptor gTests[] = {
     // fprintf; this one drives the real one and the real give behind it.
     {"foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
      Test_ForeignAwardMM},
+    // #878: both arrivals' real consumers redeem a crossing and toast nothing:
+    // the item was announced at its pickup.
+    {"crossing-arrival-toasts", "A crossing toasts nothing its pickup already announced, on both legs (#878)",
+     Test_CrossingArrivalToasts},
     // #510's foreign-pool-mm and #495's foreign-item-class rows are RETIRED with
     // the pinned pools (ADR 0010 increment 3, D3); see the note at the end of
     // tests/test_foreign_items.c for where each claim is locked now.
@@ -5233,13 +5406,12 @@ const TestDescriptor gTests[] = {
     // everything under test is gComboCtx plus a RAM watermark table.
     {"shared-resources", "One quantity across both games: watermark, disciplines, seed, heart clamp (#525)",
      Test_SharedResources},
-    // #668: the ocarina as ONE instrument, and the first shared kind a player
-    // can decline. Same display-free, ROM-free, save-free shape as the row
-    // above — gComboCtx, the RAM watermark table, and the frozen record.
-    {"shared-ocarina",
-     "One ocarina across both games when the frozen combo setting arms it, and nothing at all when it does not "
-     "(#668)",
-     Test_SharedOcarina},
+    // #879: the Shared Ocarina rule (#668) is retired. Same display-free,
+    // ROM-free, save-free shape as the row above — gComboCtx, the RAM watermark
+    // table, and the frozen record.
+    {"shared-ocarina-retired",
+     "The retired Shared Ocarina rule: the ocarina is never shared, and an older world's bit loads healthy (#879)",
+     Test_SharedOcarinaRetired},
     {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
@@ -5255,6 +5427,10 @@ const TestDescriptor gTests[] = {
     {"combo-item-view",
      "Item rows from OoT's live save or frozen shadow, never live for the inactive game; shared group label (#458)",
      Test_ComboItemView},
+    {"combo-item-view-new-file",
+     "The OoT item adapter and the .redsave slot panel read the save Ship of Harkinian's own new-file path authors "
+     "(Save_InitFile, no 'ZELDAZ') as a save, live and as the shadow; the title's attract save stays no data (#873)",
+     Test_ComboItemViewNewFile},
     {"combo-item-tracker-window",
      "Item Tracker overlay registers de-collided; inert under every game and while unpaused; draws the view (#458)",
      Test_ComboItemTrackerWindow},
@@ -5351,6 +5527,8 @@ const TestDescriptor gTests[] = {
      Test_CommitGenerationMonotonic},
     {"commit-torn-write", "Post-stage mutation cannot reach the .redsave; the #537 tear is unrepresentable",
      Test_CommitTornWrite},
+    {"commit-generation-order", "An older generation never replaces a newer .redsave commit (#851)",
+     Test_CommitGenerationOrder},
     {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#589)",
      Test_CommitGenerationSkew},
     // Whole-file commit (#589): a durable save in either half commits BOTH
@@ -5883,7 +6061,8 @@ const TestDescriptor gTests[] = {
      Test_DigestOutHandRun},
     {"pairing-refusal-toast-fit",
      "Every cross-game refusal toast fits an 832-px window at Notifications.Size 1.8 and 1.0, drawn by SoH's own "
-     "notification overlay in its default font (#749's toast shape)",
+     "notification overlay in its default font (#749's toast shape); every MM item's OoT pickup toast reads "
+     "'You found <item> (MM)', and those of the names both games use fit too (#865)",
      Test_PairingRefusalToastFit},
     {"paired-load-restore",
      "Loading a paired file whose Cross-Game Rules or MM options changed at the title screen restores the file's "
@@ -5913,6 +6092,10 @@ const TestDescriptor gTests[] = {
      "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
      "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
      Test_TestWindowNoActivation},
+    {"version-short-commit",
+     "The window title and --version read the release version plus the configured short commit (and -dirty), so "
+     "a build says which commit it is; the release part stays RSBS_VERSION_STRING (#880)",
+     Test_VersionShortCommit},
     {"mm-moon-crash-never-saved",
      "A moon crash in a paired MM half created and never saved restores the half as created (its only commit is "
      "the creation's, vanilla's new-file flash write): day 0, 05:59, not day 4; a session with no commit at all "
@@ -6047,6 +6230,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-start") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
@@ -6064,6 +6248,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
+                strcmp(gTests[i].name, "combo-item-view-new-file") == 0 ||
                 strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||
                 // Also skipped for a second reason: it is a diagnostic whose
                 // intended outcome on a bad id is a process abort, so it must never

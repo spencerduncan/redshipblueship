@@ -509,6 +509,38 @@ void Combo_ClearSharedItemOutbox(void);
  *  placements). */
 #define RSBS_FILL_ARM_GANON_BOSS_KEY_ROAM 0x02000000u
 
+// ============================================================================
+// THE CHEST GRADE (#862): how a chest hosting the item is dressed
+// ============================================================================
+//
+// "Chest Size & Texture Matches Contents" dresses a chest by the class of the
+// item it holds. A chest hosting the OTHER game's item holds the host's junk
+// cover in the host's own table, so the host needs the crossed item's class, and
+// ADR 0002 keeps the other game's item table out of its TUs. Each game therefore
+// publishes, per row of its own id space, the class ITS OWN chests use for that
+// item — OoT's Item::GetCategory (ITEM_CATEGORY_*), MM's randoItemType
+// (RITYPE_*) — translated into this neutral vocabulary, and each host maps the
+// grade back to its own chest set. That is OoTMM's rule (csmcFromItem grades a
+// chest by the item's type, the same way for either game's items), expressed in
+// the two ports' own vocabularies: the union of the classes the two games' chests
+// distinguish. A host with no chest for a grade (OoT has no fairy or mask chest)
+// presents it as MAJOR.
+//
+// NONE is "no grade": a non-fill id, or a source that leaves the byte zero. A
+// host presents it as MAJOR, the answer every crossing chest gave before #862, so
+// a zero byte is never silently wrong and the field needs no ABI bump.
+#define RSBS_CHEST_GRADE_NONE 0u
+#define RSBS_CHEST_GRADE_MAJOR 1u     /* OoT ITEM_CATEGORY_MAJOR, MM RITYPE_MAJOR */
+#define RSBS_CHEST_GRADE_LESSER 2u    /* ITEM_CATEGORY_LESSER, RITYPE_LESSER (maps, compasses, ...) */
+#define RSBS_CHEST_GRADE_JUNK 3u      /* ITEM_CATEGORY_JUNK, RITYPE_JUNK */
+#define RSBS_CHEST_GRADE_HEALTH 4u    /* ITEM_CATEGORY_HEALTH, RITYPE_HEALTH */
+#define RSBS_CHEST_GRADE_BOSS_KEY 5u  /* ITEM_CATEGORY_BOSS_KEY, RITYPE_BOSS_KEY */
+#define RSBS_CHEST_GRADE_SMALL_KEY 6u /* ITEM_CATEGORY_SMALL_KEY, RITYPE_SMALL_KEY */
+#define RSBS_CHEST_GRADE_TOKEN 7u     /* ITEM_CATEGORY_SKULLTULA_TOKEN, RITYPE_SKULLTULA_TOKEN */
+#define RSBS_CHEST_GRADE_FAIRY 8u     /* RITYPE_STRAY_FAIRY (OoT has no fairy chest) */
+#define RSBS_CHEST_GRADE_MASK 9u      /* RITYPE_MASK (OoT has no mask chest) */
+#define RSBS_CHEST_GRADE_COUNT 10u
+
 /** One source row. */
 typedef struct {
     uint8_t fillClass;  /* RSBS_FILL_CLASS_* */
@@ -520,6 +552,10 @@ typedef struct {
      *  quarter heart, 4 health units), so a piece is 1 and a heart container is 4.
      *  Meaningless (and stored as 0) for a row that feeds no kind. */
     uint8_t sharedUnits;
+    /** RSBS_CHEST_GRADE_*: the class this game's own chests dress a chest holding
+     *  the item by (#862). Stored only for a fill item; a value past the enum is
+     *  stored as NONE. */
+    uint8_t chestGrade;
 } ComboItemClassRow;
 
 /** Shared kinds the owner reconciles: [1, RSBS_ITEM_CLASS_SHARED_KIND_CAP). A row
@@ -650,6 +686,16 @@ int Combo_ItemClassVerify(uint8_t originGame);
  *  "(unknown)" past the table. Never NULL. */
 const char* Combo_ItemClassName(uint8_t fillClass);
 
+/** The chest grade @p item's own game publishes for it (RSBS_CHEST_GRADE_*, see
+ *  "THE CHEST GRADE" above): what a chest of the OTHER game hosting it is dressed
+ *  by. NONE for an unknown origin, an id outside the source's id space, a non-fill
+ *  id or a source that is not ready; a host presents NONE as major. */
+uint8_t Combo_ItemChestGrade(SharedItem item);
+
+/** A chest grade's name ("major", "small key", ...), "(none)" for NONE, or
+ *  "(unknown)" past the enum. Never NULL. */
+const char* Combo_ChestGradeName(uint8_t grade);
+
 /**
  * THE SETTINGS-CONDITIONAL PREDICATE: may @p item enter the union bag and cross
  * games in a world whose frozen settings arm @p armed (an OR of RSBS_FILL_ARM_*)?
@@ -704,7 +750,8 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 //
 // THE POLICY, per #525 kind. What shared_resources.h says is ALWAYS shared is
 // trimmed; the one conditionally shared capacity (the ocarina, armed per world
-// by the frozen combo record) is trimmed only when armed; nothing else is.
+// by the frozen combo record) is trimmed only when armed, which since #879
+// retired that rule is never; nothing else is.
 //
 //   kind                    policy             budget (COPIES the bag keeps, both games together)
 //   ----------------------  -----------------  ----------------------------------------------------
@@ -716,7 +763,7 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 //   BOMB_BAG_, STICK_,
 //   NUT_, HOOKSHOT_,
 //   WALLET_TIER
-//   OCARINA_TIER            TRIM when armed    TIER; KEEP_ALL while the frozen record does not share it
+//   OCARINA_TIER            TRIM when armed    TIER; KEEP_ALL while unarmed, which is always since #879
 //   everything else         KEEP_ALL           rupees, current health / magic, the five ammo COUNTS,
 //                                              bombchus, triforce pieces: renewable or counted, never
 //                                              a capacity the carrier clamps

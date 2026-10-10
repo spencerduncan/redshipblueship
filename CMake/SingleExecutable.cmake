@@ -17,6 +17,8 @@ message(STATUS "=== Single Executable Architecture Enabled ===")
 
 set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/game.c
+    # The version a person sees (#880): window title and --version
+    ${CMAKE_SOURCE_DIR}/src/common/rsbs_version.c
     ${CMAKE_SOURCE_DIR}/src/common/archive_check.cpp
     # #604: the boot-time output comparison of OoT's and MM's 'OARR' Array
     # readers (called from rsbs/src/main.cpp before anything can draw)
@@ -272,6 +274,11 @@ add_library(redship_common STATIC
     ${REDSHIP_COMMON_SOURCES}
     ${REDSHIP_COMMON_HEADERS}
 )
+
+# #880: the build identity ("+<short commit>[-dirty]", from CMakeLists.txt) goes
+# on rsbs_version.c alone, so a new commit recompiles one file, not the library.
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/common/rsbs_version.c PROPERTIES
+    COMPILE_DEFINITIONS "RSBS_BUILD_SUFFIX=\"${RSBS_BUILD_SUFFIX}\"")
 
 target_include_directories(redship_common PUBLIC
     ${CMAKE_SOURCE_DIR}/src/common
@@ -571,6 +578,11 @@ if(BUILD_TESTING)
     # crossing, order preservation, origin filtering, and that a NULL PlayState
     # defers the give instead of dereferencing it.
     redship_add_test(NAME ForeignAwardMM COMMAND redship --test foreign-award-mm)
+    # #878: "duplicate toasts when you cross over". Each pickup of a cross-game
+    # item is announced at the pickup; the arrival used to toast it again. Drives
+    # both legs' real arrival consumers (MM's through its first-frame drain over a
+    # stand-in PlayState) and requires each to redeem its crossing and toast nothing.
+    redship_add_test(NAME CrossingArrivalToasts COMMAND redship --test crossing-arrival-toasts)
     # #510's ForeignPoolMM and #495's ForeignItemClass rows are RETIRED with the
     # pinned pools they locked (ADR 0010 increment 3, D3; lane K11): items leave
     # origin pools under one bag, so there is no pool to register or draw.
@@ -582,16 +594,15 @@ if(BUILD_TESTING)
     # and the canonical heart quantity with its 20-heart clamp. Display-free,
     # ROM-free and save-free, so it runs in this redship tier.
     redship_add_test(NAME SharedResources COMMAND redship --test shared-resources)
-    # The shared OCARINA (#668): one instrument across both games, and the FIRST
-    # shared kind whose existence a player chooses — armed by the
-    # gCombo.Rando.SharedOcarina bit frozen into ComboSettingsRecord.comboFlags
-    # at file creation. Locks the two claims the row above cannot make: with the
-    # option OFF nothing is harvested, applied or even slotted (so an existing
-    # world's .redsave is byte-identical to one written before the option
-    # existed), and the arming gate is consulted by BOTH the harvest and the
-    # apply, because a one-sided gate on a pair that is not inverse leaks rather
-    # than under-shares. Display-free, ROM-free and save-free.
-    redship_add_test(NAME SharedOcarina COMMAND redship --test shared-ocarina)
+    # The RETIRED shared ocarina (#879; #668's SharedOcarina row stood here). MM
+    # starts every paired world with its Ocarina of Time, so the rule only ever
+    # carried that free instrument to Hyrule; the operator removed it
+    # (2026-10-09). Locks that the ocarina kind is never armed whatever the
+    # frozen RSBS_COMBO_FLAG_SHARED_OCARINA bit says, that a world created with
+    # the bit set loads without refusal (the bit stays reserved and pinned by
+    # the fingerprint), and that it harvests and applies nothing, an older
+    # save's slot included. Display-free, ROM-free and save-free.
+    redship_add_test(NAME SharedOcarinaRetired COMMAND redship --test shared-ocarina-retired)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an
@@ -605,6 +616,14 @@ if(BUILD_TESTING)
     # SaveContext images the OoT TU authors, handed to it as the frozen shadow
     # or a test live source; the shared group reads the resource pool.
     redship_add_test(NAME ComboItemView COMMAND redship --test combo-item-view)
+    # #873: the same view and the .redsave slot panel over the save Ship of
+    # Harkinian's own new-file path authors (Save_InitFile, which never writes
+    # the 'ZELDAZ' marker). Rando tier: Save_InitFile reads OTRGlobals and
+    # SaveManager::Instance, which only the full OoT bring-up constructs.
+    redship_add_test(NAME ComboItemViewNewFile COMMAND redship --test combo-item-view-new-file
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # The unified Item Tracker overlay (#458 U2): the ADR 0008 inertness
     # tripwire again (no ImGui context, so an ungated draw aborts the process),
     # the ShowOnlyPaused gate, the model reads its draw makes over authored
@@ -796,6 +815,7 @@ if(BUILD_TESTING)
     # stamps to detect freshness divergence.
     redship_add_test(NAME CommitGenerationMonotonic COMMAND redship --test commit-generation-monotonic)
     redship_add_test(NAME CommitTornWrite COMMAND redship --test commit-torn-write)
+    redship_add_test(NAME CommitGenerationOrder COMMAND redship --test commit-generation-order)
     redship_add_test(NAME CommitGenerationSkew COMMAND redship --test commit-generation-skew)
     # Whole-file commit (#589, operator ruling 2026-08-04) — the read half of
     # the same machinery. A durable save-and-quit in EITHER half commits BOTH
@@ -1431,6 +1451,18 @@ if(BUILD_TESTING)
     redship_add_test(NAME MMPairSwitchEntry COMMAND redship --test mm-pair-switch-entry
         LABEL rando
         TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # #879 (operator ruling 2026-10-09): the combo owns MM's paired start. A real
+    # paired creation, with a 2Ship `CVars.gRando.StartingItems` block present
+    # that names a different list, grants MM exactly the Ocarina of Time and the
+    # Song of Time; the creation stamp is the same with and without the block;
+    # the Kokiri Sword and the Hero's Shield are in MM's pool and placed in the
+    # world. Same display requirement as MMPairSwitchEntry, hence the same
+    # label/env; the timeout covers one OoT generation plus MM's half.
+    redship_add_test(NAME MMPairedStart COMMAND redship --test mm-paired-start
+        LABEL rando
+        TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ADR 0010 increment 1.2, lock (b), single-run half: a paired generation
@@ -2243,7 +2275,7 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME ComboPlayerName COMMAND redship --test combo-player-name)
 
     # The cross-game refusal toasts fit the screen (#749's toast shape): every
-    # "Not saved:" refusal, through its production emitter, and OoT's
+    # refusal (one prefix, "Refused:", #836), through its production emitter, and OoT's
     # paired-spoiler refusal, drawn by SoH's own Notification::Window in a private
     # display-free ImGui context whose default font is SoH's (Montserrat 20, the
     # file soh.o2r packs), at Notifications.Size 1.8 and 1.0, in the ui tier's
@@ -2284,6 +2316,37 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+    # #880: the window title and --version carry the configured short commit
+    # (and "-dirty"), so a build says which commit it is. The expected identity is
+    # handed over from configure ("none" for a tree without git); run outside
+    # CTest the row checks the string's shape only. ROM-free, no window.
+    if(SHORT_COMMIT_HASH)
+        set(RSBS_EXPECT_SHORT_COMMIT "${SHORT_COMMIT_HASH}")
+    else()
+        set(RSBS_EXPECT_SHORT_COMMIT "none")
+    endif()
+    redship_add_test(NAME VersionShortCommit COMMAND redship --test version-short-commit
+        ENVIRONMENT "RSBS_EXPECT_SHORT_COMMIT=${RSBS_EXPECT_SHORT_COMMIT}" "RSBS_EXPECT_DIRTY=${RSBS_BUILD_DIRTY}")
+    # #880, the person-visible surfaces through the real binary: `redship
+    # --version` and the Ship::Context main() creates (the window title) carry
+    # the same build identity. ROM-free and display-free: main() exits right
+    # after creating the context (RSBS_INT_EXIT_AFTER_CONTEXT=1).
+    # CMake/CheckVersionIdentity.cmake.
+    redship_add_test(NAME VersionIdentity
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -DEXPECT_SHORT=${RSBS_EXPECT_SHORT_COMMIT}
+                -DEXPECT_DIRTY=${RSBS_BUILD_DIRTY}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckVersionIdentity.cmake)
+    # #880, the "-dirty" bit's own oracle: the configure's rsbs_git_tree_dirty()
+    # (CMake/RsbsBuildIdentity.cmake) on a scratch repository with known edits,
+    # so the excludes and the verdicts are checked on every CI platform.
+    # CMake/CheckBuildIdentityDirty.cmake.
+    redship_add_test(NAME BuildIdentityDirty
+        COMMAND ${CMAKE_COMMAND}
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckBuildIdentityDirty.cmake)
 
     # #785: a moon crash in a paired MM half restores the last whole .redsave
     # commit (the file as last saved, vanilla's flash reload; OoTMM's default
@@ -2490,6 +2553,19 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
         ENVIRONMENT "RSBS_PFC_DIVERGE=1")
+    # #888 (the lock #885 asked for): the same paired file making TWO round
+    # trips, so the SECOND MM arrival is checked too. It must carry the MM half
+    # the first departure froze, not the creation-frozen half again: the drive
+    # arms an MM-local continuity sentinel (saveInfo.dekuPlaygroundHighScores[0],
+    # which no shared resource, pickup or arrival apply writes) at the first
+    # departure and asserts it at the second arrival. Rupees cannot carry that
+    # sentinel on a paired file: they are a shared resource, the base wallet
+    # (99) clamps a value above it, and the world's own pickups move them.
+    redship_add_test(NAME IntPairedFirstCrossingTwoCycles
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_GP_CYCLES=2")
 
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.
