@@ -116,8 +116,11 @@ void OoT_Notification_ClearForTest(void);
 // cannot read the store; it reads this. Recording is OFF by default and nothing
 // in a shipping path turns it on: RecordForTest(1) starts it (the paired row's
 // OoT driver, at hook registration, before any creation), RecordForTest(0)
-// stops it and frees the record. Count, then one entry as "<prefix> <message>"
-// (truncated to `cap`); At returns 0 for an index out of range.
+// stops it and frees the record. Count, then one entry as
+// "<prefix> <message> <suffix>", empty fields and their gaps left out (#878:
+// an item toast names the item in its suffix), truncated to `cap`; At returns
+// 0 for an index out of range. Each recorded toast is also printed to stderr as
+// a "[TOAST] <n> (<game>): ..." line.
 void OoT_Notification_RecordForTest(int on);
 int OoT_Notification_EmittedCountForTest(void);
 int OoT_Notification_EmittedAtForTest(int index, char* out, size_t cap);

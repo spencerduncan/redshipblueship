@@ -53,7 +53,7 @@ extern "C" {
 void MM_ConsumeSharedItems(void);
 
 // The give's test surface (2s2h/Rando/ForeignItemsSingleExe.cpp).
-int MM_ForeignItem_Give(uint16_t riId);
+int MM_ForeignItem_Give(uint16_t riId, int announce);
 int MM_ForeignItem_FlushPending(void);
 int MM_ForeignItem_TestPendingCount(void);
 uint16_t MM_ForeignItem_TestPendingAt(int index);
@@ -219,7 +219,7 @@ TestResult Test_ForeignAwardMM(void) {
     FA_ASSERT((gComboCtx.sharedItemsTagged[0].flags & RSBS_SHARED_ITEM_REDEEMED) != 0);
     FA_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 0);
     // The direct entry point reports the refusal rather than swallowing it.
-    FA_ASSERT(MM_ForeignItem_Give(riNone) == 0);
+    FA_ASSERT(MM_ForeignItem_Give(riNone, 0) == 0);
     FA_ASSERT(MM_ForeignItem_TestPendingCount() == 0);
 
     // ------------------------------------------------------------------
