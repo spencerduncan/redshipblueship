@@ -41,10 +41,15 @@ bool Rando::Foreign::GiveForeignCheck(RandoCheckId randoCheckId) {
 
 // THE PICKUP SENTENCE (#865; declared in Rando/Foreign.h): the words the
 // foreign branch's textbox shows, factored out so the ForeignTextboxIcon row can
-// lay out every OoT item's sentence through MM's own line breaker.
+// lay out every OoT item's sentence through MM's own line breaker. The item is
+// marked with its game, " (OoT)", the way the check trackers, the gossip hints
+// and the Combo Tracker mark it: many names exist in both games (the Song of
+// Time, the Hookshot, the Lens of Truth), and the icon alone cannot tell the two
+// Songs of Time apart (both are music notes). Always, not only for the names
+// both games use, so the player learns one convention.
 std::string Rando::Foreign::ForeignPickupMessage(const char* article, const char* name) {
     return std::string("You found ") + (article != nullptr ? article : "") +
-           (name != nullptr ? name : "a foreign item") + "!";
+           (name != nullptr ? name : "a foreign item") + " (OoT)!";
 }
 #endif
 
@@ -132,8 +137,9 @@ void Rando::MiscBehavior::CheckQueue() {
                             // (#800), factored below.
                             Rando::Foreign::GiveForeignCheck(checkId);
 
-                            // Same sentence shape as the native branch below:
-                            // "You found " + article + name + "!". The article
+                            // The native branch's sentence shape, with the
+                            // item's game marked (#865): "You found " + article
+                            // + name + " (OoT)!". The article
                             // rides the pooled descriptor because MM cannot read
                             // OoT's item table (ADR 0002).
                             //

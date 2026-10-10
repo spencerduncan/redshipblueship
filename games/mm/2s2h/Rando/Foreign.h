@@ -261,8 +261,9 @@ bool RecordForeignPickup(RandoCheckId randoCheckId);
 bool GiveForeignCheck(RandoCheckId randoCheckId);
 
 /** The sentence CheckQueue's textbox shows for a foreign item: "You found " +
- *  `article` + `name` + "!" (null article: none; null name: "a foreign item").
- *  Defined in MiscBehavior/CheckQueue.cpp (#865). */
+ *  `article` + `name` + " (OoT)!", the item's game marked as the trackers mark it
+ *  (null article: none; null name: "a foreign item"). Defined in
+ *  MiscBehavior/CheckQueue.cpp (#865). */
 std::string ForeignPickupMessage(const char* article, const char* name);
 
 /** A check hosting a foreign item whose crossing was already delivered: its

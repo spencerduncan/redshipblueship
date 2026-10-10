@@ -400,9 +400,11 @@ void BuildCustomItemMessage(Player* player, CustomMessage& msg) {
 #ifdef RSBS_SINGLE_EXECUTABLE
 // #577 M4 / #865: the get-item cutscene's words for a Majora's Mask item, before
 // OoT's AutoFormat lays them out. Factored out of BuildItemMessage below so the
-// ForeignModel row reads the very text the cutscene shows.
+// ForeignModel row reads the very text the cutscene shows. The item is marked
+// with its game, " (MM)", the way OoT's check tracker marks it: many names exist
+// in both games.
 static CustomMessage BuildForeignItemText(const char* article, const char* name) {
-    CustomMessage msg = CustomMessage("You found [[article]]%g[[name]]%w!", TEXTBOX_TYPE_BLUE);
+    CustomMessage msg = CustomMessage("You found [[article]]%g[[name]]%w (MM)!", TEXTBOX_TYPE_BLUE);
     msg.Replace("[[article]]", std::string(article != nullptr ? article : ""));
     msg.Replace("[[name]]", std::string(name != nullptr ? name : ""));
     return msg;

@@ -401,7 +401,8 @@ void Randomizer_ReleaseQueuedShowOnly(uint16_t rc) {
 
 // THE PICKUP TOAST for an MM item found at an OoT check (the drain below), shown
 // when the get-item animation is skipped. Factored out so PairingRefusalToastFit
-// draws every MM item's toast through this very emitter (#865).
+// draws every MM item's toast through this very emitter (#865), which marks the
+// item with its game, " (MM)", as OoT's check tracker and the cutscene text do.
 // FIELD ARRANGEMENT (#494): verb in `.message`, item name in `.suffix`, matching
 // the native rando pickup toasts further down this file. Options colours each
 // field differently, so the earlier `.prefix` + `.message` form rendered this
@@ -412,7 +413,7 @@ extern "C" void OoT_Rando_Foreign_EmitPickupToast(SharedItem item) {
     Notification::Emit({
         .message = "You found ",
         .suffix = std::string(foreignArticle != nullptr ? foreignArticle : "") +
-                  (foreignName != nullptr ? foreignName : "a foreign item"),
+                  (foreignName != nullptr ? foreignName : "a foreign item") + " (MM)",
     });
 }
 

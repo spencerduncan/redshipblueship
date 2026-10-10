@@ -301,8 +301,8 @@ extern "C" int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc) {
 //      colliding MM model OoT's host-native table maps (#577 M7), OoT's OWN row
 //      for it, re-expressed by path the same way. Neither: the mystery item,
 //      the stand-in the shelf uses too.
-//   4. TEXT (Messages/ItemMessages.cpp): "You found <article><name>!" from MM's
-//      describer, the name the toast used.
+//   4. TEXT (Messages/ItemMessages.cpp): "You found <article><name> (MM)!" from
+//      MM's describer, the name the toast used, marked with its game (#865).
 //
 // ONE ARMED ENTRY AT A TIME is all the drain can produce: it builds only when
 // its queue slot is free and the player is in no item cutscene, and the slot is
