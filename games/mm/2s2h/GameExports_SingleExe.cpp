@@ -890,6 +890,51 @@ static void MM_PfcBootWriteProbe(void) {
 static RegisterShipInitFunc sPfcBootWriteProbe(MM_PfcBootWriteProbe, { "IS_RANDO" });
 
 /**
+ * int-paired-first-crossing, first arrival only (#879): what MM Link holds when
+ * he first stands in Termina. The combo owns the paired start: the half's
+ * creation-frozen start list is exactly the Ocarina of Time and the Song of Time,
+ * and both are held; the Kokiri Sword and the Hero's Shield are MM pool items, so
+ * neither is held unless one of the two free starting checks the arrival pays out
+ * (RC_STARTING_ITEM_DEKU_MASK, RC_STARTING_ITEM_SONG_OF_HEALING) carries it.
+ * Writes the observed inventory into @p msg either way.
+ */
+static bool MM_PairedFirstCrossingCheckStart(char* msg, size_t cap) {
+    const std::vector<RandoItemId> start = Rando::GetStartingItemsFromSave(gSaveContext.save.shipSaveInfo.rando);
+    std::string list;
+    int ocarinas = 0;
+    int songs = 0;
+    for (RandoItemId id : start) {
+        list += (list.empty() ? "" : ",") + std::to_string((int)id);
+        ocarinas += id == RI_OCARINA ? 1 : 0;
+        songs += id == RI_SONG_TIME ? 1 : 0;
+    }
+    auto freeCheckHolds = [](RandoItemId a, RandoItemId b) {
+        for (RandoCheckId rc : { RC_STARTING_ITEM_DEKU_MASK, RC_STARTING_ITEM_SONG_OF_HEALING }) {
+            const RandoItemId held = RANDO_SAVE_CHECKS[rc].randoItemId;
+            if (held == a || held == b) {
+                return true;
+            }
+        }
+        return false;
+    };
+    const bool ocarina = INV_CONTENT(ITEM_OCARINA_OF_TIME) == ITEM_OCARINA_OF_TIME;
+    const bool songOfTime = CHECK_QUEST_ITEM(QUEST_SONG_TIME) != 0;
+    const int sword = (int)GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD);
+    const int shield = (int)GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
+    const int bButton = (int)BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) & 0xFF;
+    const bool swordFree = freeCheckHolds(RI_PROGRESSIVE_SWORD, RI_SWORD_KOKIRI);
+    const bool shieldFree = freeCheckHolds(RI_SHIELD_HERO, RI_SHIELD_HERO);
+    snprintf(msg, cap,
+             "start list [%s] (RI_OCARINA=%d, RI_SONG_TIME=%d); ocarina=%d songOfTime=%d sword=%d shield=%d B=0x%02X; "
+             "a free starting check holds a sword=%d, the Hero's Shield=%d",
+             list.c_str(), (int)RI_OCARINA, (int)RI_SONG_TIME, ocarina ? 1 : 0, songOfTime ? 1 : 0, sword, shield,
+             bButton, swordFree ? 1 : 0, shieldFree ? 1 : 0);
+    return start.size() == 2 && ocarinas == 1 && songs == 1 && ocarina && songOfTime &&
+           (swordFree || (sword == EQUIP_VALUE_SWORD_NONE && bButton == (ITEM_NONE & 0xFF))) &&
+           (shieldFree || shield == EQUIP_VALUE_SHIELD_NONE);
+}
+
+/**
  * int-paired-first-crossing: the MM arrival's verdict, taken once South Clock
  * Town is stable (the arrival's gate, consume and hydrate ran during the scene
  * load before it). `arrival` is 1-based. Everything asserted is what a tester
@@ -1046,6 +1091,20 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
         return false;
     }
 
+    // #879: the first arrival holds the combo's paired start and nothing of the
+    // pool (no sword, no shield) unless a free starting check paid it out.
+    if (arrival == 1) {
+        char start[512];
+        if (!MM_PairedFirstCrossingCheckStart(start, sizeof(start))) {
+            snprintf(msg, sizeof(msg),
+                     "MM arrival 1 does not hold the combo's paired start (exactly the Ocarina of Time and the Song "
+                     "of Time; the Kokiri Sword and the Hero's Shield are pool items, #879): %s",
+                     start);
+            IntegrationTest_GameplayFail(msg);
+            return false;
+        }
+        fprintf(stderr, "[PFC] MM arrival 1 start PASS: %s\n", start);
+    }
     fprintf(stderr, "[PFC] MM arrival %d PASS: \"%s\"\n", arrival, matchLine);
     fprintf(stderr, "[PFC] MM arrival %d PASS: \"%s\"\n", arrival, line);
     fprintf(stderr,
