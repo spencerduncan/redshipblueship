@@ -307,6 +307,31 @@ bool Combo_ForeignPairingActive(void);
  */
 #define RSBS_COMBO_FLAG_SHARED_OCARINA 0x01u
 
+/**
+ * ONE KOKIRI SWORD ACROSS BOTH GAMES (#886; operator ruling 2026-10-09 on #879:
+ * the two Kokiri Swords "being the same item can be an option"). DEFAULT OFF.
+ *
+ * Set, OoT's Kokiri Sword and MM's Kokiri Sword are ONE item: found once, in
+ * either game, and held in both. The sword becomes RSBS_SHARED_RES_KOKIRI_SWORD,
+ * a MONOTONIC 0/1 shared resource on the hookshot's model: harvested at suspend,
+ * applied at the arriving game's startup entrance, never lowered by a harvest.
+ *
+ * THE MAPPING:
+ *   - OoT's Kokiri Sword (its owned-equipment bit) gives MM the Kokiri Sword
+ *     when MM holds no sword at all, on B, as MM's own give puts it.
+ *   - ANY sword MM holds (Kokiri, Razor or Gilded) gives OoT the Kokiri Sword's
+ *     owned-equipment bit, which is all OoT's own give writes. MM's upgrades
+ *     stay MM's: nothing crosses as a Razor or Gilded Sword, and an apply never
+ *     takes a sword away (an MM apply leaves a Razor Sword alone).
+ *
+ * Clear, NOTHING changes: no slot, no harvest, no apply, and a record whose
+ * canonical bytes and fingerprint are exactly what they were before this bit
+ * existed. Set or clear, the two swords stay separate pool items (MM's is a
+ * pool item since #879); the option shares what the player holds, not what
+ * the world places.
+ */
+#define RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD 0x02u
+
 /** Every comboFlags bit ALLOCATED at formatVersion 1. The shipped default is 0
  *  — "reproduce today's world exactly" is the binding constraint on every
  *  default in this file, and every flag here changes a world. */
