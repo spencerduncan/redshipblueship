@@ -1078,6 +1078,61 @@ bool IntegrationTest_PairedDivergeLoadToasts(char* msg, size_t cap) {
     return !rules.empty() && !mm.empty();
 }
 
+// #878: one toast per event across a crossing (see the header).
+static int sPfcLegToastStart = 0;
+static int sPfcCrossingToastMark = -1;
+
+void IntegrationTest_PairedMarkCrossing(const char* game) {
+    sPfcCrossingToastMark = OoT_Notification_EmittedCountForTest();
+    fprintf(stderr, "[PFC] departure toward %s: %d toast(s) recorded so far\n", game, sPfcCrossingToastMark);
+    fflush(stderr);
+}
+
+bool IntegrationTest_PairedLegToastsCheck(const char* game, char* msg, size_t cap) {
+    const int total = OoT_Notification_EmittedCountForTest();
+    std::vector<std::string> texts;
+    for (int i = sPfcLegToastStart; i < total; i++) {
+        char toast[256] = { 0 };
+        OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast));
+        texts.emplace_back(toast);
+        fprintf(stderr, "[PFC] leg into %s, toast %d%s: \"%s\"\n", game, i + 1,
+                (sPfcCrossingToastMark >= 0 && i >= sPfcCrossingToastMark) ? " (after the departure)" : "", toast);
+    }
+    fflush(stderr);
+    const int legStart = sPfcLegToastStart;
+    const int mark = sPfcCrossingToastMark;
+    sPfcLegToastStart = total;
+    sPfcCrossingToastMark = -1;
+    for (size_t i = 0; i < texts.size(); i++) {
+        int seen = 0;
+        for (size_t j = 0; j < texts.size(); j++) {
+            seen += texts[j] == texts[i] ? 1 : 0;
+        }
+        if (seen > 1) {
+            snprintf(msg, cap, "the leg into %s toasted \"%s\" %d times; each text must appear once per leg", game,
+                     texts[i].c_str(), seen);
+            return false;
+        }
+    }
+    if (mark < 0) {
+        snprintf(msg, cap, "the leg into %s has no departure mark (IntegrationTest_PairedMarkCrossing never ran)",
+                 game);
+        return false;
+    }
+    if (total > mark) {
+        char first[256] = { 0 };
+        OoT_Notification_EmittedAtForTest(mark, first, sizeof(first));
+        snprintf(msg, cap,
+                 "the crossing into %s toasted %d time(s) (first: \"%s\"); an arrival announces nothing the pickup "
+                 "already did (#878)",
+                 game, total - mark, first);
+        return false;
+    }
+    snprintf(msg, cap, "the leg into %s: %d toast(s), each text once; the crossing toasted nothing", game,
+             total - legStart);
+    return true;
+}
+
 void IntegrationTest_PairedDivergeCleanup(void) {
     if (!sDiverge.applied) {
         return;
