@@ -75,8 +75,9 @@
  *     on a Combo page. Leg 7 requires Combo > Tracker Settings to write every
  *     gCombo.Tracker.Items.* key in the manifest exactly once, with the
  *     overlay's own widget, default and range, to hide the floating-only rows
- *     for a windowed overlay, and to embed SoH's Check Tracker Settings (whose
- *     colours the Combo Tracker draws with).
+ *     for a windowed overlay, to draw its colour picker in the menu theme, and
+ *     to embed SoH's Check Tracker Settings (whose colours the Combo Tracker
+ *     draws with).
  *
  * WHAT IS NOT COVERED. The six tier-4 rules' own behaviour — the staging buffers,
  * the freeze gate, the values-from-the-save rule — is `ComboSettingsRows`, which
@@ -106,6 +107,8 @@ namespace SohGui {
 // gRandoContext), so this row drives the page directly. Declared here the way the
 // SohGui TUs already declare SohGui::mSohMenu.
 void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path);
+// Leg 7 points THEME_COLOR (SohGui::GetMenuThemeColor) at the probe for one call.
+extern std::shared_ptr<SohMenu> mSohMenu;
 } // namespace SohGui
 
 namespace {
@@ -701,6 +704,40 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             COMBO_CHECK(row->type == WIDGET_CVAR_COLOR_PICKER && o->useAlpha && o->defaultValue.r == 0 &&
                             o->defaultValue.g == 0 && o->defaultValue.b == 0 && o->defaultValue.a == 0,
                         "the Background Color row is not an alpha colour picker defaulting to SoH's clear black");
+            // Its Reset and Random buttons draw in the menu theme, as SoH's Item
+            // Tracker Settings picker does. Menu::MenuDrawItem themes every
+            // other interactive row but draws a picker in its options' own
+            // colour (ColorPickerOptions' default is Gray), so only the row's
+            // PreFunc can theme it. The PreFunc reads THEME_COLOR, which is
+            // SohGui::mSohMenu's theme: point it at the probe for the call and
+            // drive two themes, so a fixed colour cannot pass.
+            COMBO_CHECK(row->preFunc != nullptr,
+                        "the Background Color row has no PreFunc, so its Reset and Random buttons draw Gray, not in "
+                        "the menu theme");
+            if (row->preFunc != nullptr) {
+                const char* kThemeKey = "gSettings.Menu.Theme";
+                const int savedTheme = CVarGetInteger(kThemeKey, -1);
+                std::shared_ptr<SohGui::SohMenu> savedMenu = SohGui::mSohMenu;
+                SohGui::mSohMenu = std::shared_ptr<SohGui::SohMenu>(&probe, [](SohGui::SohMenu*) {});
+                for (UIWidgets::Colors theme : { UIWidgets::Colors::Red, UIWidgets::Colors::Green }) {
+                    CVarSetInteger(kThemeKey, static_cast<int32_t>(theme));
+                    probe.UpdateElement();
+                    o->color = UIWidgets::Colors::Gray;
+                    row->ResetDisables();
+                    row->preFunc(*row);
+                    COMBO_CHECK(o->color == theme,
+                                "the Background Color picker draws in colour %d under menu theme %d, so its Reset and "
+                                "Random buttons do not follow the theme",
+                                static_cast<int>(o->color), static_cast<int>(theme));
+                }
+                SohGui::mSohMenu = savedMenu;
+                if (savedTheme < 0) {
+                    CVarClear(kThemeKey);
+                } else {
+                    CVarSetInteger(kThemeKey, savedTheme);
+                }
+                probe.UpdateElement();
+            }
         }
 
         // Dragging and Only While Paused apply to the floating overlay only, as
@@ -759,8 +796,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             }
         }
         printf("[TEST] leg 7: Combo / %s writes each of the nine %s* keys once with the overlay's defaults and "
-               "ranges, hides the floating-only rows for a windowed overlay, and embeds SoH's Check Tracker "
-               "Settings\n",
+               "ranges, hides the floating-only rows for a windowed overlay, themes its colour picker, and embeds "
+               "SoH's Check Tracker Settings\n",
                kTrackerSettingsPage, kItemTrackerKeyPrefix);
     }
 

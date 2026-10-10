@@ -25,15 +25,18 @@
  * its checks in the colours of SoH's Check Tracker Settings
  * (gTrackers.CheckTracker.*, ComboTrackerWindow.cpp). So the page hosts SoH's
  * own Check Tracker Settings exactly as SoH's Randomizer > Check Tracker page
- * does: embedded, under its "Popout Check Tracker Settings" row, with one gray
- * note saying which of its settings the Combo Tracker follows. SoH's window is
- * not copied or edited (rule 0).
+ * does: embedded, under its "Popout Check Tracker Settings" row. The Combo
+ * Tracker follows only its colours (each section's Main and Extra colour); every
+ * other row there (background, window type, font size, filters, the .Hide
+ * toggles) sets only SoH's (Ocarina of Time's) Check Tracker, and one gray
+ * note says so. SoH's window is not copied or edited (rule 0).
  *
  * Locked by MenuComboSection leg 7 (every gCombo.Tracker.Items.* key written
  * exactly once with the overlay's widget, default and range, the floating-only
- * rows hidden for a window, the embedded Check Tracker Settings row, and no
- * other key) and drawn by UiSnapshot (Combo > Tracker Settings beside SoH's
- * Randomizer > Item Tracker, states "" and "window").
+ * rows hidden for a window, the picker in the menu theme, the embedded Check
+ * Tracker Settings row, and no other key) and drawn by UiSnapshot (Combo >
+ * Tracker Settings beside SoH's Randomizer > Item Tracker, states "" and
+ * "window").
  */
 
 #include "SohMenu.h"
@@ -156,11 +159,14 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED)
         .RaceDisable(false)
         .Options(CheckboxOptions().DefaultValue(true).Tooltip(
-            "Shows the rupees, hearts and ammo the two games share in the Combo Item Tracker."));
+            "Shows the items and resources the two games share in the Combo Item Tracker."));
 
     menu.AddWidget(path, "Check Tracker Settings", WIDGET_SEPARATOR_TEXT);
     // A TEXT row draws its name: the one sentence SoH's window cannot say.
-    menu.AddWidget(path, "The Combo Tracker draws its checks in the Check Tracker's colors.", WIDGET_TEXT)
+    menu.AddWidget(path,
+                   "The Combo Tracker draws its checks in the colors set below. Every other Check Tracker setting "
+                   "applies only to Ocarina of Time's Check Tracker.",
+                   WIDGET_TEXT)
         .RaceDisable(false)
         .HideInSearch(true)
         .Options(TextOptions().Color(Colors::Gray));
