@@ -682,9 +682,11 @@ int Combo_ItemClassVerify(uint8_t originGame) {
             row.sharedKind != t->sharedKind[id] || ItemClassNormalizedUnits(&row) != t->sharedUnits[id] ||
             ItemClassNormalizedGrade(&row) != t->chestGrade[id]) {
             if (diverging < 8) {
-                fprintf(stderr, "[ItemClass] %s id %u DIVERGES: owner=(%s, 0x%08X) source=(%s, 0x%08X)\n",
+                fprintf(stderr, "[ItemClass] %s id %u DIVERGES: owner=(%s, 0x%08X, %s) source=(%s, 0x%08X, %s)\n",
                         Game_ToString((GameId)originGame), (unsigned)id, Combo_ItemClassName(t->fillClass[id]),
-                        (unsigned)t->armedBy[id], Combo_ItemClassName(row.fillClass), (unsigned)row.armedBy);
+                        (unsigned)t->armedBy[id], Combo_ChestGradeName(t->chestGrade[id]),
+                        Combo_ItemClassName(row.fillClass), (unsigned)row.armedBy,
+                        Combo_ChestGradeName(ItemClassNormalizedGrade(&row)));
             }
             diverging++;
         }

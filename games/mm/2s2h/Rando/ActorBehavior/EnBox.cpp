@@ -6,7 +6,7 @@
 #include "assets/2s2h_assets.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "2s2h/Rando/Rando.h"    // Rando::DrawForeignCheckAura
-#include "2s2h/Rando/Foreign.h"  // Lane 6 (#494 slice 6): IsForeignCheck
+#include "2s2h/Rando/Foreign.h"  // #862: ChestItemTypeForCheck
 #endif
 
 extern "C" {
