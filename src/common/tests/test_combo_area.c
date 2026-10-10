@@ -4,8 +4,8 @@
  *
  * ROM-free, redship tier. Drives the real vocabulary (src/common/combo_area.c),
  * both games' registered adapters through Combo_Area_OfCheck, MM's real check
- * table and OoT's real hint text table (InitStaticData runs without a ROM, as
- * the OoTEntrancePin row's bridge shows), and two source scans:
+ * table and OoT's real hint text table (HintTable_Init, the first step of
+ * InitStaticData, runs without a ROM), and two source scans:
  *
  *  1. Names are unique within each half, every name reads back through
  *     Combo_Area_FromName to the same area (the two specials included), and no

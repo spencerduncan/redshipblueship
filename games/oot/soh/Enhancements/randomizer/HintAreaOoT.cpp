@@ -146,15 +146,13 @@ extern "C" void OoT_HintArea_OnRandomizerLoaded(void) {
 // TEST BRIDGES (src/common/tests/test_combo_area.c; RandoHintReload)
 // ============================================================================
 
-/** Make OoT's static hint data readable without a ROM, the way the
- *  OoTEntrancePin bridge does (entrance.cpp, Rando_InitRegionGraphForTest). */
+/** Make OoT's hint text table readable without a ROM: the first step of
+ *  Context::InitStaticData, without creating a Rando::Context (OoT's Logic holds
+ *  the context it is given, so a context made here would outlive this test and
+ *  change what later rows of `--test all` see, e.g. combo-tracker-view). */
 extern "C" int OoT_HintArea_TestInitStaticData(void) {
-    auto ctx = Rando::Context::GetInstance();
-    if (!ctx) {
-        ctx = Rando::Context::CreateInstance();
-        ctx->InitStaticData();
-    }
-    return Rando::Context::GetInstance() ? 0 : 1;
+    Rando::StaticData::HintTable_Init();
+    return 0;
 }
 
 /** The RandomizerArea range the OoT half mirrors. */
