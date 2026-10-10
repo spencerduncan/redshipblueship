@@ -17,6 +17,8 @@ message(STATUS "=== Single Executable Architecture Enabled ===")
 
 set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/game.c
+    # The version a person sees (#880): window title and --version
+    ${CMAKE_SOURCE_DIR}/src/common/rsbs_version.c
     ${CMAKE_SOURCE_DIR}/src/common/archive_check.cpp
     # #604: the boot-time output comparison of OoT's and MM's 'OARR' Array
     # readers (called from rsbs/src/main.cpp before anything can draw)
@@ -272,6 +274,11 @@ add_library(redship_common STATIC
     ${REDSHIP_COMMON_SOURCES}
     ${REDSHIP_COMMON_HEADERS}
 )
+
+# #880: the build identity ("+<short commit>[-dirty]", from CMakeLists.txt) goes
+# on rsbs_version.c alone, so a new commit recompiles one file, not the library.
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/common/rsbs_version.c PROPERTIES
+    COMPILE_DEFINITIONS "RSBS_BUILD_SUFFIX=\"${RSBS_BUILD_SUFFIX}\"")
 
 target_include_directories(redship_common PUBLIC
     ${CMAKE_SOURCE_DIR}/src/common
@@ -2309,6 +2316,37 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+    # #880: the window title and --version carry the configured short commit
+    # (and "-dirty"), so a build says which commit it is. The expected identity is
+    # handed over from configure ("none" for a tree without git); run outside
+    # CTest the row checks the string's shape only. ROM-free, no window.
+    if(SHORT_COMMIT_HASH)
+        set(RSBS_EXPECT_SHORT_COMMIT "${SHORT_COMMIT_HASH}")
+    else()
+        set(RSBS_EXPECT_SHORT_COMMIT "none")
+    endif()
+    redship_add_test(NAME VersionShortCommit COMMAND redship --test version-short-commit
+        ENVIRONMENT "RSBS_EXPECT_SHORT_COMMIT=${RSBS_EXPECT_SHORT_COMMIT}" "RSBS_EXPECT_DIRTY=${RSBS_BUILD_DIRTY}")
+    # #880, the person-visible surfaces through the real binary: `redship
+    # --version` and the Ship::Context main() creates (the window title) carry
+    # the same build identity. ROM-free and display-free: main() exits right
+    # after creating the context (RSBS_INT_EXIT_AFTER_CONTEXT=1).
+    # CMake/CheckVersionIdentity.cmake.
+    redship_add_test(NAME VersionIdentity
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -DEXPECT_SHORT=${RSBS_EXPECT_SHORT_COMMIT}
+                -DEXPECT_DIRTY=${RSBS_BUILD_DIRTY}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckVersionIdentity.cmake)
+    # #880, the "-dirty" bit's own oracle: the configure's rsbs_git_tree_dirty()
+    # (CMake/RsbsBuildIdentity.cmake) on a scratch repository with known edits,
+    # so the excludes and the verdicts are checked on every CI platform.
+    # CMake/CheckBuildIdentityDirty.cmake.
+    redship_add_test(NAME BuildIdentityDirty
+        COMMAND ${CMAKE_COMMAND}
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckBuildIdentityDirty.cmake)
 
     # #785: a moon crash in a paired MM half restores the last whole .redsave
     # commit (the file as last saved, vanilla's flash reload; OoTMM's default
