@@ -2,6 +2,7 @@
 #include "Notification.h"
 #include <libultraship/libultraship.h>
 #include "soh/OTRGlobals.h"
+#include "context.h" // src/common: Context_GetCurrentGame (the [TOAST] line, #878)
 
 extern "C" {
 #include "functions.h"
@@ -136,6 +137,14 @@ void Emit(Options notification) {
     if (recordForTest) {
         emittedForTest.push_back(notification.prefix.empty() ? notification.message
                                                              : notification.prefix + " " + notification.message);
+        // #878: every recorded toast also lands in stderr, in order, with the
+        // suffix the record leaves out and the game that was running, so a
+        // run's log reads as the list of what the overlay was asked to show.
+        const GameId game = Context_GetCurrentGame();
+        fprintf(stderr, "[TOAST] %d (%s): \"%s%s\"\n", (int)emittedForTest.size(),
+                game == GAME_MM ? "MM" : (game == GAME_OOT ? "OoT" : "none"), emittedForTest.back().c_str(),
+                notification.suffix.empty() ? "" : (" | " + notification.suffix).c_str());
+        fflush(stderr);
     }
     if (notification.remainingTime == 0.0f) {
         notification.remainingTime = CVarGetFloat(CVAR_SETTING("Notifications.Duration"), 10.0f);
