@@ -63,14 +63,14 @@ void MM_ApplySharedResources(void);
 
 static int sSksFailures;
 
-#define SKS_CHECK(cond, ...)                                       \
-    do {                                                           \
-        if (!(cond)) {                                             \
-            printf("[TEST] FAIL: ");                               \
-            printf(__VA_ARGS__);                                   \
-            printf(" (%s:%d)\n", __FILE__, __LINE__);              \
-            sSksFailures++;                                        \
-        }                                                          \
+#define SKS_CHECK(cond, ...)                          \
+    do {                                              \
+        if (!(cond)) {                                \
+            printf("[TEST] FAIL: ");                  \
+            printf(__VA_ARGS__);                      \
+            printf(" (%s:%d)\n", __FILE__, __LINE__); \
+            sSksFailures++;                           \
+        }                                             \
     } while (0)
 
 /** The pool's value for the sword, or -1 when it has never been shared. */

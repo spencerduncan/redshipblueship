@@ -259,7 +259,7 @@ bool Combo_ForeignPairingActive(void);
 //
 // Pinned BIT POSITIONS, append-only, retire-never-renumber — the same rule the
 // item classes carry, and for the same two reasons (a local save re-read and
-// #574's cross-peer hash). Bits 0x02..0x80 are UNALLOCATED and must read as 0.
+// #574's cross-peer hash). Bits 0x04..0x80 are UNALLOCATED and must read as 0.
 //
 // EVERY BIT IN THIS BYTE MUST HAVE "CLEAR == THE BEHAVIOUR BEFORE IT EXISTED".
 // That is what let byte 10 be spent without a formatVersion bump (see
@@ -335,7 +335,7 @@ bool Combo_ForeignPairingActive(void);
 /** Every comboFlags bit ALLOCATED at formatVersion 1. The shipped default is 0
  *  — "reproduce today's world exactly" is the binding constraint on every
  *  default in this file, and every flag here changes a world. */
-#define RSBS_COMBO_FLAGS_ALL_V1 (RSBS_COMBO_FLAG_SHARED_OCARINA)
+#define RSBS_COMBO_FLAGS_ALL_V1 (RSBS_COMBO_FLAG_SHARED_OCARINA | RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD)
 
 // The pinning lock. A renumbering is a RED BUILD rather than a silently
 // re-read save — the same shape RSBS_SHARED_RES_* carries, and the reason
@@ -360,10 +360,11 @@ RSBS_CTX_STATIC_ASSERT(RSBS_ITEMCLASS_PROGRESSION == 0x0001u && RSBS_ITEMCLASS_S
                        "RSBS_ITEMCLASS_* bit positions are .redsave format: pinned, append-only, "
                        "allocate the next free bit and never re-point an allocated one (ADR 0011 "
                        "decision 1.2.1)");
-RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLAGS_ALL_V1 == 0x01u,
+RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD == 0x02u &&
+                           RSBS_COMBO_FLAGS_ALL_V1 == 0x03u,
                        "RSBS_COMBO_FLAG_* bit positions are .redsave format: pinned, append-only, "
                        "allocate the next free bit and never re-point an allocated one (ADR 0011 "
-                       "decision 1.2.1, amended 2026-09-16 for #668)");
+                       "decision 1.2.1, amended 2026-09-16 for #668 and 2026-10-10 for #886)");
 
 // ============================================================================
 // The class rule (#495; ADR 0011 decision 3; ADR 0010 increment 3)
@@ -577,6 +578,21 @@ bool Combo_ComboSettingsFrozen(void);
  *  frozen, compared, rendered setting rather than under one. */
 uint8_t Combo_ComboDirection(void);
 
+/**
+ * IS THE KOKIRI SWORD ONE SHARED ITEM in this world (#886)?
+ *
+ * The FROZEN record's RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit, and false while
+ * no world is frozen: before a world exists there is no live save to share a
+ * sword with, and after creation the rule is world identity, so a session that
+ * resolved differently is refused at the arrival gate (by name, through
+ * RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD) rather than honoured here.
+ *
+ * Its one consumer is Combo_SharedResourceKindArmed (shared_resources.h), which
+ * both the harvest and the apply of RSBS_SHARED_RES_KOKIRI_SWORD pass through,
+ * so the gate cannot be applied to one direction and not the other.
+ */
+bool Combo_ComboSharedKokiriSword(void);
+
 /** Does the resolved direction arm crossings ORIGINATING in @p originGame?
  *  Increment 4's gate; see Combo_ComboDirection. Under one bag (ADR 0010
  *  increment 3) the single-bag fill reads it per bag row: a row whose origin is
@@ -743,6 +759,13 @@ int Combo_FreezeLegacyComboSettings(void);
  *  the fingerprint and the MM profile digest already pin, so a disagreement here
  *  is the stored identity contradicting itself. See triforce_hunt.h. */
 #define RSBS_COMBO_DIVERGE_TRIFORCE 0x1000u
+/** The Shared Kokiri Sword rule differs (#886): the frozen record's
+ *  RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit is not the live resolution's. A
+ *  SESSION divergence, like the goal and the direction: the key authors it, so
+ *  a load restores it from the file (Combo_ComboSettingsRestorableMask). Named
+ *  for the rule, not for comboFlags, for RSBS_COMBO_DIVERGE_SHARED_OCARINA's
+ *  reason. */
+#define RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD 0x2000u
 
 /**
  * Which FIELDS differ between a frozen record and a live resolution, as

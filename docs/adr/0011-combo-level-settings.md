@@ -1680,3 +1680,31 @@ Operator ruling 2026-10-09 (#879, item 1), in the shape of #801 and #834.
 Locked by `SharedOcarinaRetired` (which replaced `SharedOcarina`),
 `ComboSettingsRows` leg 1e, `ComboSettingsAuthoring` leg 10,
 `PairedLoadRestore` leg 1 and `CVarClassification` (two identity keys).
+
+### 2026-10-10 -- The "Shared Kokiri Sword" option (#886)
+
+Operator ruling 2026-10-09 on #879: the two Kokiri Swords "being the same item
+can be an option". Default OFF, in the shape #668 gave the shared ocarina.
+
+- **The bit.** `RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD` (0x02) is the second
+  allocated `comboFlags` bit (`RSBS_COMBO_FLAGS_ALL_V1` is 0x03). Clear is the
+  behaviour before it existed, so no `formatVersion` bump is owed and a
+  default world's canonical bytes, fingerprint and `Golden*` digests do not
+  move.
+- **The key and the row.** `gCombo.Rando.SharedKokiriSword` (0 or 1, default
+  0) is a third tier-4 identity key, authored by the Cross-Game Rules checkbox
+  "[Both Games] Shared Kokiri Sword" (`COMBO_SETTING_SHARED_KOKIRI_SWORD`,
+  appended after the goal). It freezes at creation like the other rules, is
+  read-only from the save afterwards, and is restorable at a load
+  (`RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD`, named `sharedKokiriSword`).
+- **The effect.** `RSBS_SHARED_RES_KOKIRI_SWORD` (kind 20) is a MONOTONIC 0/1
+  shared resource armed only by the frozen bit. OoT harvests its Kokiri
+  Sword's owned-equipment bit and MM any sword it holds; OoT's apply writes
+  that owned bit, MM's gives the Kokiri Sword on B when MM holds no sword.
+- **Not changed:** the pool and the logic. Both swords stay pool items and
+  each game's proof still reaches its own sword checks with its own copies;
+  sharing only ever adds a sword. The shared-quantity trim keeps both
+  families whole (no pool row maps to the kind).
+
+Locked by `SharedKokiriSword`, `ComboSettingsRows`, `ComboSettingsAuthoring`,
+`ComboSettingsDivergence` and `CVarClassification` (three identity keys).

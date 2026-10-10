@@ -3037,6 +3037,16 @@ static void OoT_WriteOcarinaTier(uint16_t tier) {
     }
 }
 
+// The Kokiri Sword as a shared 0/1 (#886): OoT's owned-equipment bit, which is
+// all OoT's own give writes (z_parameter.c's ITEM_SWORD_KOKIRI..ITEM_SWORD_BGS
+// branch). Nothing else crosses: OoT's Master Sword and Biggoron's Sword are
+// OoT's alone, and MM's Razor or Gilded Sword arrives as this one bit.
+#define OOT_MAX_KOKIRI_SWORD 1u
+
+static uint16_t OoT_ReadKokiriSword(void) {
+    return CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI) ? 1u : 0u;
+}
+
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
  * seed placed elsewhere? Then the pool may not hand it over.
@@ -3350,6 +3360,11 @@ extern "C" void OoT_HarvestSharedResources(void) {
     // table.
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, OoT_ReadOcarinaTier());
 
+    // The Kokiri Sword (#886), offered unconditionally like the ocarina: the
+    // arming gate (the frozen Shared Kokiri Sword bit) lives in
+    // Combo_HarvestSharedResource, the same predicate the apply consults.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_KOKIRI_SWORD, OoT_ReadKokiriSword());
+
     // Triforce pieces (ADR 0010 answer O10): OoT's counter is a MIRROR of the
     // one combo count, so harvesting it max-merges OoT's collects into that
     // count. Offered unconditionally like the ocarina; the arming gate (the
@@ -3529,6 +3544,18 @@ extern "C" void OoT_ApplySharedResources(void) {
     uint16_t ocarinaTier = OoT_ReadOcarinaTier();
     if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, OOT_MAX_OCARINA_TIER, &ocarinaTier)) {
         OoT_WriteOcarinaTier(ocarinaTier);
+    }
+
+    // --- The Kokiri Sword (monotonic 0/1), armed per world by the frozen Shared
+    // Kokiri Sword setting (#886). Any sword MM holds arrives as the Kokiri
+    // Sword's owned-equipment bit, exactly what OoT's own give writes; the
+    // player equips it from the Equipment subscreen as after a chest. Never
+    // taken away: the apply only raises. With the option off
+    // Combo_ApplySharedResource returns false and nothing below runs.
+    uint16_t kokiriSword = OoT_ReadKokiriSword();
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_KOKIRI_SWORD, OOT_MAX_KOKIRI_SWORD, &kokiriSword) &&
+        kokiriSword >= 1u) {
+        gSaveContext.inventory.equipment |= (u16)OWNED_EQUIP_FLAG(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI);
     }
 
     // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the

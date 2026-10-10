@@ -817,6 +817,8 @@ bool Combo_SharedQuantityPolicyOf(uint8_t kind, ComboSharedQuantityPolicy* out) 
             default:
                 // Rupees, current health / magic, the five ammo counts and the
                 // triforce count: renewable or counted, never a capacity.
+                // The Kokiri Sword (#886) too: no pool row maps to it, so the option
+                // shares what the player holds and the pools stay whole.
                 break;
         }
         // The one arming gate, read from the one place it lives: a kind the

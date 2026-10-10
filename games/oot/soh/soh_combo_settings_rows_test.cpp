@@ -155,6 +155,13 @@ std::string RowName(ComboSettingId id) {
     return std::string(Combo_ComboSettingSharedMarker()) + " " + Combo_ComboSettingLabel(id);
 }
 
+// A checkbox row carries the marker on its own line above the label, so the
+// label fits beside the box at min-832x600 (SohMenuCombo.cpp,
+// ComboRuleCheckboxRowName; #886's Shared Kokiri Sword).
+std::string CheckboxRowName(ComboSettingId id) {
+    return std::string(Combo_ComboSettingSharedMarker()) + "\n" + Combo_ComboSettingLabel(id);
+}
+
 // Every widget of one sidebar page, flattened across its columns, each paired
 // with the column it landed in. Pointers into the page's own vectors, which is
 // safe because nothing is registered after the flatten.
@@ -200,6 +207,14 @@ void RunAllPreFuncs(std::vector<PageRow>& rows) {
 int32_t StagedInt(WidgetInfo& row) {
     int32_t* p = std::get<int32_t*>(row.valuePointer);
     return p != nullptr ? *p : -1;
+}
+
+/** The same, for a checkbox row: the Shared Kokiri Sword (#886) is a comboFlags
+ *  BIT, so its staging buffer is a bool rather than an int32_t. -1 for "no
+ *  buffer", which is never a legal staged value. */
+int StagedBool(WidgetInfo& row) {
+    bool* p = std::get<bool*>(row.valuePointer);
+    return p != nullptr ? (*p ? 1 : 0) : -1;
 }
 
 /**
@@ -261,7 +276,7 @@ void RecordPopup(std::string title, std::string message, std::string button1, st
 } // namespace
 
 extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
-    printf("[TEST] combo-settings-rows: the two tier-4 combo settings are SohMenu rows in the Combo section's "
+    printf("[TEST] combo-settings-rows: the three tier-4 combo settings are SohMenu rows in the Combo section's "
            "Cross-Game Rules page, marked per ADR 0004 §4.2, and read-only from the save once frozen (#655, #668, "
            "#497 step 6)\n");
 
@@ -302,7 +317,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     }
     std::vector<PageRow> rows = FlattenPage(columns);
 
-    // Leg 2 asserts a property of the WHOLE section (no pop-out for the two keys
+    // Leg 2 asserts a property of the WHOLE section (no pop-out for the three keys
     // survives anywhere in it), because the window rows moved to a sibling page:
     // checking only the rules page would make that assertion vacuous.
     std::vector<PageRow> sectionRows = rows;
@@ -323,11 +338,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         WidgetType type;
         const char* suffix; // "": the bare name; ": %d": the slider's value format
     };
-    // The direction is a combobox over the four pinned enumerators. No
-    // pool-size sliders (#801), no item-class groups (#834) and no Shared
+    // The direction is a combobox over the four pinned enumerators and the
+    // Shared Kokiri Sword (#886) a plain checkbox over the model's 0/1 space.
+    // No pool-size sliders (#801), no item-class groups (#834) and no Shared
     // Ocarina checkbox (#879).
     const ExpectedRow kExpected[] = {
         { COMBO_SETTING_DIRECTION, WIDGET_COMBOBOX, "" },
+        { COMBO_SETTING_SHARED_KOKIRI_SWORD, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -342,7 +359,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
 
     WidgetInfo* settingRow[COMBO_SETTING_COUNT] = {};
     for (const ExpectedRow& expected : kExpected) {
-        const std::string name = RowName(expected.id) + expected.suffix;
+        const std::string name =
+            (expected.type == WIDGET_CHECKBOX ? CheckboxRowName(expected.id) : RowName(expected.id)) + expected.suffix;
         uint32_t column = 0;
         WidgetInfo* row = FindRow(rows, name, &column);
         ROWS_CHECK(row != nullptr, "no Cross-Game Rules row named '%s' -- the setting '%s' is unreachable in the menu",
@@ -369,7 +387,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] combo-settings-rows: %d failure(s) in leg 1; the later legs need the rows\n", gFailures);
         return gFailures;
     }
-    printf("[TEST] leg 1: both tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
+    printf("[TEST] leg 1: all three tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
            Combo_ComboSettingSharedMarker());
 
     // ---- Leg 1b: the goal row offers exactly OoTMM's goals, in its words ----
@@ -490,8 +508,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // only effect was to carry that free instrument back to Hyrule. Operator
     // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
-    // fix removes; the page then has no checkbox at all, because that row was
-    // its only one.
+    // fix removes. The page's one checkbox is #886's Shared Kokiri Sword.
     {
         int ocarinaRows = 0;
         int checkboxes = 0;
@@ -505,17 +522,18 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 0,
-                   "the Cross-Game Rules page has %d checkbox row(s); the only one left after #834 was the retired "
-                   "Shared Ocarina (#879)",
+        ROWS_CHECK(checkboxes == 1,
+                   "the Cross-Game Rules page has %d checkbox row(s); the one expected is the Shared Kokiri Sword "
+                   "(#886), after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected none (#879)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 1 "
+               "(#879, #886)\n",
                ocarinaRows, checkboxes);
     }
 
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
     // The enforcement rule (ADR 0004 §6): the gate is on the src/common writers,
-    // so no widget in this section may bind one of the two keys directly -- a
+    // so no widget in this section may bind one of the three keys directly -- a
     // WIDGET_CVAR_* row would write the store itself and never reach the freeze
     // check.
     for (PageRow& pageRow : rows) {
@@ -547,6 +565,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the writer refused a pre-creation direction");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_OOT) == 1,
                "the writer refused a pre-creation goal");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1,
+               "the writer refused a pre-creation Shared Kokiri Sword");
 
     RunAllPreFuncs(rows);
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() == nullptr, "the model reports a read-only reason before creation");
@@ -563,6 +583,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_GOAL]) == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT,
                "the goal row staged %d, expected the authored %d (Ganon)", StagedInt(*settingRow[COMBO_SETTING_GOAL]),
                (int)RSBS_COMBO_GOAL_BEAT_OOT);
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]) == 1,
+               "the Shared Kokiri Sword row staged %d, expected the authored 1",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]));
     printf("[TEST] leg 3: before the creation event every row is editable and stages the resolver's value\n");
 
     // ---- Leg 4: a pre-creation edit reaches the store through the model -----
@@ -604,6 +627,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     Combo_ComboSettingsDefaults(&frozen);
     frozen.direction = (uint8_t)RSBS_COMBO_DIR_REVERSE; // authored: FORWARD
     frozen.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_MM;     // authored: BEAT_OOT
+    frozen.comboFlags = 0u;                             // authored: Shared Kokiri Sword ON (#886)
     Combo_FreezeComboSettings(&frozen);
     ROWS_CHECK(Combo_ComboSettingsFrozen(), "Combo_FreezeComboSettings left the record unfrozen");
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() != nullptr, "the model reports no read-only reason once frozen");
@@ -619,6 +643,11 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the frozen goal row staged %d; it must show the SAVE's %d (Majora), not the CVar's %d (Ganon) -- the "
                "world was proved against the frozen goal",
                StagedInt(*settingRow[COMBO_SETTING_GOAL]), (int)RSBS_COMBO_GOAL_BEAT_MM, (int)RSBS_COMBO_GOAL_BEAT_OOT);
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD], "the Shared Kokiri Sword row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]) == 0,
+               "the frozen Shared Kokiri Sword row staged %d; it must show the SAVE's OFF, not the CVar's ON -- the "
+               "world was built with two swords and a row that showed otherwise would be lying about it",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]));
     printf("[TEST] leg 5: once frozen every row is read-only with the model's reason and shows the save's record\n");
 
     // ---- Leg 6: a frozen row's Callback cannot move the store ---------------
@@ -664,6 +693,25 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ROWS_CHECK(StagedInt(goalRow) == (int32_t)RSBS_COMBO_GOAL_BEAT_MM,
                    "after a refused write the goal row staged %d; the next frame must restore the save's %d",
                    StagedInt(goalRow), (int)RSBS_COMBO_GOAL_BEAT_MM);
+
+        // The same, for the checkbox (#886). Not redundant with the rows above:
+        // a checkbox's Callback fires on a TOGGLE, so a row wired to flip the
+        // model itself rather than to offer the staged value to the writer
+        // would pass every other leg and still let a player turn a decided
+        // world's sword rule on from the menu.
+        WidgetInfo& swordRow = *settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD];
+        *std::get<bool*>(swordRow.valuePointer) = true;
+        ROWS_CHECK(swordRow.callback != nullptr, "the Shared Kokiri Sword row has no Callback");
+        if (swordRow.callback != nullptr) {
+            swordRow.callback(swordRow);
+        }
+        ROWS_CHECK(!Combo_ComboSharedKokiriSword(),
+                   "a post-creation toggle changed the world's sword rule; the frozen record is the authority");
+        RunPreFunc(swordRow);
+        ROWS_CHECK(StagedBool(swordRow) == 0,
+                   "after a refused toggle the Shared Kokiri Sword row staged %d; the next frame must restore the "
+                   "save's OFF",
+                   StagedBool(swordRow));
     }
 
     // ---- Leg 7: an unknown direction cannot take the process down ----------
@@ -790,7 +838,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     {
         ComboContext_Init();
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
@@ -841,11 +890,11 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             }
         }
         gRecordedPopups.clear();
-        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears both "
-               "rules\n");
+        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all "
+               "three rules\n");
     }
 
-    // Leave the process clean: this row writes the two tier-4 keys and freezes
+    // Leave the process clean: this row writes the three tier-4 keys and freezes
     // gComboCtx, and AllTests runs every dispatch entry in ONE process.
     ComboContext_Init();
     for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
