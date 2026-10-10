@@ -34,7 +34,12 @@
  *      whose only change is an entry the manifest does not select stays up to
  *      date; a refused manifest leaves the stale halves byte-identical (boot
  *      is never refused); an absent mm.o2r skips without writing; CRLF and LF
- *      manifests stamp the same.
+ *      manifests stamp the same. Every one of those results is also
+ *      reported through ReportEnsure (what the boot hook calls) with a capture
+ *      installed as the default spdlog logger, and the logger must receive the
+ *      console's line word for word, at info (error when Failed, plus the
+ *      stand-in line): that logger's file sink is logs/*.log, the file a
+ *      player attaches to a report (#883).
  *   D. Staged: the real extracted archives and the shipped manifest through
  *      both generators, compared like A -- the issue's "byte-equivalent to
  *      GenerateRedshipOtr" lock. Also checks the embedded manifest is the
@@ -50,10 +55,15 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include <zip.h>
+
+#include <spdlog/sinks/base_sink.h>
+#include <spdlog/spdlog.h>
 
 #include <ship/utils/StrHash64.h>
 
@@ -376,6 +386,48 @@ int CaiCompareHalves(const char* label, const std::string& cppPath, const std::s
     return diffs;
 }
 
+// #883: what the game's logger received. The game installs its Ship logger
+// (console sink plus the logs/*.log file sink) as spdlog's default logger;
+// a capture stands in for it here.
+struct CaiLogged {
+    spdlog::level::level_enum level;
+    std::string text;
+};
+
+class CaiCaptureSink final : public spdlog::sinks::base_sink<std::mutex> {
+  public:
+    std::vector<CaiLogged> lines;
+
+  protected:
+    void sink_it_(const spdlog::details::log_msg& msg) override {
+        lines.push_back({ msg.level, std::string(msg.payload.data(), msg.payload.size()) });
+    }
+    void flush_() override {
+    }
+};
+
+// ReportEnsure with the capture installed as the default logger (the one the
+// SPDLOG_* macros write through); the previous default is restored after.
+std::vector<CaiLogged> CaiReportCaptured(rsbs::curated::EnsureOutcome outcome, const std::string& log) {
+    auto sink = std::make_shared<CaiCaptureSink>();
+    auto capture = std::make_shared<spdlog::logger>("rsbs-883-capture", sink);
+    capture->set_level(spdlog::level::trace);
+    const std::shared_ptr<spdlog::logger> previous = spdlog::default_logger();
+    spdlog::set_default_logger(capture);
+    rsbs::curated::ReportEnsure(outcome, log);
+    spdlog::set_default_logger(previous);
+    return sink->lines;
+}
+
+bool CaiLoggedLine(const std::vector<CaiLogged>& logged, const std::string& text, spdlog::level::level_enum level) {
+    for (const CaiLogged& line : logged) {
+        if (line.text == text && line.level == level) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::string& generatorScript,
@@ -577,6 +629,30 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
             if (got != want) {
                 fprintf(stderr, "[curated-archive-inapp] FAIL: C (%s): Ensure returned %s, want %s\n", step,
                         cur::EnsureOutcomeName(got), cur::EnsureOutcomeName(want));
+                failures++;
+            }
+            // #883: the boot hook's report reaches the game's logger (logs/*.log)
+            // in the console's words, at info, or error when Failed.
+            const bool failed = got == cur::EnsureOutcome::Failed;
+            const spdlog::level::level_enum level = failed ? spdlog::level::err : spdlog::level::info;
+            const std::string line = std::string("[RSBS] Curated cross-game archives ") + cur::EnsureOutcomeName(got) +
+                                     ": " + log;
+            const std::vector<CaiLogged> logged = CaiReportCaptured(got, log);
+            printf("[curated-archive-inapp] C (%s): the game's logger received %zu line(s)\n", step, logged.size());
+            if (!CaiLoggedLine(logged, line, level)) {
+                fprintf(stderr,
+                        "[curated-archive-inapp] FAIL: C (%s): the game's logger (logs/*.log) did not receive "
+                        "'%s' at %s\n",
+                        step, line.c_str(), failed ? "error" : "info");
+                failures++;
+            }
+            const std::string fallback =
+                "[RSBS] Foreign models keep their model-less stand-ins where no curated half is current";
+            if (failed && !CaiLoggedLine(logged, fallback, spdlog::level::err)) {
+                fprintf(stderr,
+                        "[curated-archive-inapp] FAIL: C (%s): the game's logger (logs/*.log) did not receive "
+                        "'%s' at error\n",
+                        step, fallback.c_str());
                 failures++;
             }
         };

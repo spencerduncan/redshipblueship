@@ -146,6 +146,14 @@ const char* EnsureOutcomeName(EnsureOutcome outcome);
  */
 EnsureOutcome Ensure(const GenerateInputs& inputs, std::string* log = nullptr);
 
+/**
+ * Report an Ensure result (@p log is its one-line account) where a player's
+ * report can show it (#883): the console (stdout; stderr for Failed) and the
+ * game's logger, whose file sink writes logs/*.log (info; error for Failed),
+ * in the same words. Combo_EnsureCuratedArchives calls it at boot.
+ */
+void ReportEnsure(EnsureOutcome outcome, const std::string& log);
+
 } // namespace rsbs::curated
 
 extern "C" {

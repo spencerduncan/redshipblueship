@@ -993,6 +993,20 @@ EnsureOutcome Ensure(const GenerateInputs& inputs, std::string* log) {
     return outcome;
 }
 
+void ReportEnsure(EnsureOutcome outcome, const std::string& log) {
+    const bool failed = outcome == EnsureOutcome::Failed;
+    const std::string result =
+        Format("[RSBS] Curated cross-game archives %s: %s", EnsureOutcomeName(outcome), log.c_str());
+    const char* const fallback =
+        "[RSBS] Foreign models keep their model-less stand-ins where no curated half is current";
+    FILE* stream = failed ? stderr : stdout;
+    fprintf(stream, "%s\n", result.c_str());
+    if (failed) {
+        fprintf(stream, "%s\n", fallback);
+    }
+    fflush(stream);
+}
+
 } // namespace rsbs::curated
 
 namespace {
@@ -1039,10 +1053,5 @@ extern "C" void Combo_EnsureCuratedArchives(void) {
 
     std::string log;
     const cur::EnsureOutcome outcome = cur::Ensure(in, &log);
-    FILE* stream = outcome == cur::EnsureOutcome::Failed ? stderr : stdout;
-    fprintf(stream, "[RSBS] Curated cross-game archives %s: %s\n", cur::EnsureOutcomeName(outcome), log.c_str());
-    if (outcome == cur::EnsureOutcome::Failed) {
-        fprintf(stream, "[RSBS] Foreign models keep their model-less stand-ins where no curated half is current\n");
-    }
-    fflush(stream);
+    cur::ReportEnsure(outcome, log);
 }
