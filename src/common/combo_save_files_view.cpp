@@ -5,7 +5,8 @@
 
 #include "combo_save_files_view.h"
 
-#include <cctype>
+#include "pairing_refusal_toast.h"
+
 #include <cstdio>
 
 namespace {
@@ -44,53 +45,42 @@ bool ReadRows(ComboSaveFileRow* out) {
 } // namespace
 
 const char* Combo_SaveFiles_RefuseText(RsbsRefuseReason reason) {
-    // The page's own fragments after "Not paired: ". A refusal that posted a toast
-    // shows the toast's words instead (SlotMeta.refuseWords); these cover the
-    // refusals that post none, and any whose words were not recorded. The
+    // The page's own fragments after RSBS_REFUSAL_TOAST_PREFIX, from the one
+    // table the toasts read (pairing_refusal_toast.c). A refusal that posted a
+    // toast shows the toast's words instead (SlotMeta.refuseWords); these cover
+    // the refusals that post none, and any whose words were not recorded. The
     // developer label (SaveManager::RefuseReasonLabel) stays on stderr.
     switch (reason) {
         case RSBS_REFUSE_UNREADABLE:
-            return "File could not be read";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_UNREADABLE);
         case RSBS_REFUSE_HEADER:
-            return "Not a save file";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_NOT_A_SAVE);
         case RSBS_REFUSE_VERSION:
         case RSBS_REFUSE_TIER_SIZE:
-            return "File made by another build";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_OTHER_BUILD);
         case RSBS_REFUSE_WRONG_SLOT:
-            return "File belongs to another slot";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_WRONG_SLOT);
         case RSBS_REFUSE_TRUNCATED:
-            return "File is incomplete";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_INCOMPLETE);
         case RSBS_REFUSE_CRC:
-            return "File is damaged";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_DAMAGED);
         case RSBS_REFUSE_COMBO_MAGIC:
-            return "Cross-game record is damaged";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_RECORD_DAMAGED);
         case RSBS_REFUSE_COMMIT_SKEW:
-            return "Ocarina of Time save is newer";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_OLDER_THAN_OOT);
         case RSBS_REFUSE_IDENTITY:
-            return "Settings differ from its creation";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_SETTINGS_DIFFER);
         case RSBS_REFUSE_GENERATION:
-            return "Termina could not be generated";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_NOT_GENERATED);
         case RSBS_REFUSE_CROSSINGS:
-            return "Cross-game items are damaged";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_ITEMS_DAMAGED);
         case RSBS_REFUSE_MISSING:
-            return "Cross-game record is missing";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_RECORD_MISSING);
         case RSBS_REFUSE_NONE:
         default:
-            return "File could not be checked";
+            return Combo_RefusalWords(RSBS_REFUSAL_WORDS_UNCHECKED);
     }
 }
-
-std::string Combo_SaveFiles_ToastWords(const char* words) {
-    std::string out = words != nullptr ? words : "";
-    while (!out.empty() && (out.back() == '.' || out.back() == ' ')) {
-        out.pop_back();
-    }
-    if (!out.empty()) {
-        out[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(out[0])));
-    }
-    return out;
-}
-
 ComboSaveFileRow Combo_SaveFiles_RowFor(int slot, const rsbs::SlotMeta& meta) {
     ComboSaveFileRow row;
     char file[16];
@@ -111,11 +101,12 @@ ComboSaveFileRow Combo_SaveFiles_RowFor(int slot, const rsbs::SlotMeta& meta) {
 
     if (meta.state == RSBS_SLOT_REFUSED) {
         row.kind = ComboSaveFileKind::Refused;
-        // The toast's words where the refusal posted one, so the page and the
-        // toast say the same thing; the page's own words otherwise.
-        const std::string toastWords = Combo_SaveFiles_ToastWords(meta.refuseWords);
-        row.status = std::string("Not paired: ") +
-                     (toastWords.empty() ? std::string(Combo_SaveFiles_RefuseText(meta.refuseReason)) : toastWords);
+        // The toast's own line where the refusal posted one (every refusal
+        // message is capitalized with no trailing period, #836), so the page and
+        // the toast say the same thing; the page's own words otherwise.
+        const char* words =
+            meta.refuseWords[0] != '\0' ? meta.refuseWords : Combo_SaveFiles_RefuseText(meta.refuseReason);
+        row.status = std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + words;
         row.tooltip = meta.hasQuarantine ? "The original file is kept beside the save as a backup. Erasing this "
                                            "file in the file select frees the slot and discards the backup."
                                          : "The file is left in place. Erasing this file in the file select frees "

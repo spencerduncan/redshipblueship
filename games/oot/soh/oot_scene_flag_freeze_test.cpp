@@ -31,6 +31,16 @@
  * before the act), and the per-visit temp words do NOT leak; (2) hot-swap
  * driver -- the same; (3) no PlayState -- both drivers still freeze, nothing is
  * dereferenced, the saved flags are kept as they were.
+ *
+ * #850 rides the same seam (OoT_Combo_StampSavedSceneForFreeze): since #837 a
+ * crossing commits the departure freeze, and a reload of it places Link by the
+ * frozen savedSceneNum (OoT_Sram_OpenSave), which only a save wrote. Leg 2c
+ * locks that the departure records the scene Link stands in, as a save there
+ * would: F10 in a grotto, a fairy fountain, a boss room and the tower collapse,
+ * the door from the Market, Play_PerformSave's own guard (a debug save
+ * records nothing) and the frame on which an in-OoT scene change has already
+ * been committed (the PlayState still names the scene Link leaves, entranceIndex
+ * the one he enters); leg 3 locks that no PlayState keeps the last save's scene.
  */
 
 #include <z64.h>
@@ -38,6 +48,7 @@
 #include "context.h"
 #include "entrance.h"
 #include "game.h"
+#include "save.h" // RsbsSave_Get/SetActiveSlot: the door leg restores the slot it publishes (#850)
 
 #include <cstdio>
 #include <cstdlib>
@@ -47,6 +58,9 @@ extern "C" SaveContext gSaveContext;
 // games/oot/src/code/z_play.c: set by Play_Init, nulled by Play_Destroy and
 // OoT_Graph_ResetRunFrameContext. The flush reads it; this row publishes it.
 extern "C" PlayState* OoT_gPlayState;
+// games/oot/src/code/z_play.c: what Play_Update's SET_NEXT_GAMESTATE names when
+// it commits an in-OoT scene change (#850 leg 2c(d)).
+extern "C" void OoT_Play_Init(GameState* thisx);
 // The two REAL freeze drivers (games/oot/soh/GameExports_SingleExe.cpp).
 extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
 extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing);
@@ -71,10 +85,12 @@ const uint32_t kSwitchBit = 1u << 7;
 // the ship.* extensions and is over 100 KB.
 SaveContext sScratch;
 
-// A live OoT gameplay session: a real slot and GAMEMODE_NORMAL.
-// Combo_CheckEntranceSwitch publishes an in-range fileNum as the unified save
-// slot; 0xFF is the title-screen sentinel and is out of range, so this row
-// never touches slot session state.
+// A live OoT gameplay session: the title-screen file sentinel and
+// GAMEMODE_NORMAL. Combo_CheckEntranceSwitch publishes an in-range fileNum as
+// the unified save slot; 0xFF is out of range, so the legs armed by this alone
+// never touch slot session state. Leg 2c(b) is the exception: it arms fileNum 0
+// (ArmStampLeg), so its door publishes slot 0, and the leg puts the previous
+// slot back right after the driver returns.
 void ArmLiveOoTSession(void) {
     memset(&gSaveContext, 0, sizeof(SaveContext));
     gSaveContext.fileNum = 0xFF;
@@ -158,6 +174,102 @@ bool ReadFrozenOoT(void) {
     return Context_RestoreState(GAME_OOT, &sScratch, sizeof(SaveContext)) != 0;
 }
 
+// #850. A real file (fileNum 0) whose last save was in `lastSave`, playing in
+// `scene`. The scene flags are not under test here and stay clear.
+void ArmStampLeg(PlayState* play, s16 lastSave, s16 scene) {
+    ArmLiveOoTSession();
+    gSaveContext.fileNum = 0;
+    gSaveContext.savedSceneNum = lastSave;
+    memset(&play->actorCtx.flags, 0, sizeof(play->actorCtx.flags));
+    play->sceneNum = scene;
+}
+
+int StampChecks(PlayState* play) {
+    const s16 kLastSave = SCENE_KOKIRI_FOREST;
+    // (a) F10, the only trigger that can stand in these scenes: each is one
+    // OoT_Sram_OpenSave sends somewhere safe (a grotto or fountain to Link's
+    // House even with Remember Save Location; a boss room to its dungeon's
+    // entrance; the collapse to Ganon's Tower).
+    const struct {
+        s16 scene;
+        const char* name;
+    } kInteriors[] = {
+        { SCENE_GROTTOS, "a grotto" },
+        { SCENE_FAIRYS_FOUNTAIN, "a fairy fountain" },
+        { SCENE_DEKU_TREE_BOSS, "a boss room" },
+        { SCENE_GANONS_TOWER_COLLAPSE_INTERIOR, "the tower collapse" },
+    };
+    for (const auto& leg : kInteriors) {
+        ArmStampLeg(play, kLastSave, leg.scene);
+        OSFF_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_OOT) == 1, "#850 setup: the F10 departure freezes");
+        OSFF_ASSERT(ReadFrozenOoT(), "#850 setup: the F10 frozen OoT half reads back");
+        printf("[TEST] #850: F10 in %s (scene %d), last save in scene %d: frozen savedSceneNum %d\n", leg.name,
+               (int)leg.scene, (int)kLastSave, (int)sScratch.savedSceneNum);
+        OSFF_ASSERT(sScratch.savedSceneNum == leg.scene,
+                    "#850: the departure freeze must record the scene Link departs from as the save's scene, as a "
+                    "save made there would; it carried the last save's scene, so a reload of this crossing commit "
+                    "with Remember Save Location woke Link inside the interior");
+        Context_ClearFrozenState(GAME_OOT);
+    }
+
+    // (b) The door, through the entrance driver: Link walks into the Happy
+    // Mask Shop from the Market with his last save in a dungeon. A save in the
+    // Market would not send him back to the Deku Tree. The driver publishes
+    // fileNum 0 as the active slot; the row puts the previous one back.
+    const int prevSlot = RsbsSave_GetActiveSlot();
+    ArmStampLeg(play, SCENE_DEKU_TREE, SCENE_MARKET_DAY);
+    Combo_CheckEntranceSwitch(OOT_ENTR_HAPPY_MASK_SHOP);
+    RsbsSave_SetActiveSlot(prevSlot);
+    OSFF_ASSERT(Combo_IsCrossGameSwitch() && Context_HasFrozenState(GAME_OOT) == 1,
+                "#850 setup: the Happy Mask Shop door freezes the departing OoT half");
+    OSFF_ASSERT(ReadFrozenOoT(), "#850 setup: the door's frozen OoT half reads back");
+    printf("[TEST] #850: door from the Market (scene %d), last save in scene %d: frozen savedSceneNum %d\n",
+           (int)SCENE_MARKET_DAY, (int)SCENE_DEKU_TREE, (int)sScratch.savedSceneNum);
+    OSFF_ASSERT(sScratch.savedSceneNum == SCENE_MARKET_DAY,
+                "#850: the door's departure freeze must record the Market, not the last save's dungeon");
+    OSFF_ASSERT(ResetEntranceTable(), "the combo entrance table must reset between legs");
+    Context_ClearFrozenState(GAME_OOT);
+
+    // (c) Play_PerformSave's own guard: a debug save (fileNum 0xFF) is never
+    // saved, so its departure records nothing either.
+    ArmStampLeg(play, kLastSave, SCENE_GROTTOS);
+    gSaveContext.fileNum = 0xFF;
+    OSFF_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_OOT) == 1 && ReadFrozenOoT(),
+                "#850 setup: a debug-save F10 freezes");
+    OSFF_ASSERT(sScratch.savedSceneNum == kLastSave,
+                "#850: a debug save (fileNum 0xFF) is never saved, so its departure must not record a scene");
+    Context_ClearFrozenState(GAME_OOT);
+
+    // (d) The committed-transition frame. Play_Update commits an in-OoT scene
+    // change by clearing state.running, SET_NEXT_GAMESTATE(OoT_Play_Init) and
+    // writing entranceIndex = nextEntranceIndex (z_play.c); the PlayState is
+    // destroyed only by the next OoT_RunFrame, and OoT_Graph_ThreadEntry polls
+    // F10 before it (graph.c). Link walks from Hyrule Field into a grotto and
+    // F10 lands on that one poll: the PlayState still says Hyrule Field, while
+    // entranceIndex already says the grotto. A reload with Remember Save
+    // Location resumes at entranceIndex, so the recorded scene must be the
+    // grotto's (OpenSave then sends Link home); a frozen Hyrule Field woke him
+    // inside the grotto. The door legs above keep init NULL, as the door does.
+    ArmStampLeg(play, kLastSave, SCENE_HYRULE_FIELD);
+    gSaveContext.entranceIndex = ENTR_GROTTOS_0;
+    play->state.running = false;
+    play->state.init = (GameStateFunc)OoT_Play_Init;
+    const int committedFroze = Combo_FreezeActiveGameForHotSwap(GAME_OOT);
+    play->state.init = NULL;
+    OSFF_ASSERT(committedFroze == 1 && ReadFrozenOoT(), "#850 setup: an F10 on the committed-transition frame freezes");
+    printf("[TEST] #850: F10 on the frame Hyrule Field (scene %d) committed a grotto entrance (scene %d): frozen "
+           "savedSceneNum %d\n",
+           (int)SCENE_HYRULE_FIELD, (int)SCENE_GROTTOS, (int)sScratch.savedSceneNum);
+    OSFF_ASSERT(sScratch.savedSceneNum == SCENE_GROTTOS,
+                "#850: on the frame an in-OoT transition is committed, the departure freeze must record the scene "
+                "the frozen entranceIndex resumes in; it recorded the scene being left, so a reload with Remember "
+                "Save Location woke Link inside the grotto");
+    Context_ClearFrozenState(GAME_OOT);
+
+    play->sceneNum = SCENE_MARKET_DAY;
+    return 0;
+}
+
 int RunChecks(PlayState* play) {
     // ---- 1. Entrance driver: live scene flags reach the frozen blob --------
     ArmLiveOoTSession();
@@ -229,9 +341,22 @@ int RunChecks(PlayState* play) {
                 "title screen's save into the player's armed slot");
     Context_ClearFrozenState(GAME_OOT);
 
+    // ---- 2c. (#850) The departure records the scene Link stands in --------
+    // A reload of a crossing commit boots OoT through OoT_Sram_OpenSave, which
+    // places Link by the frozen half's savedSceneNum (z_sram.c). Only a save
+    // wrote that field, so an F10 inside a grotto, a fountain, a boss room or the
+    // tower collapse froze the scene of the LAST SAVE, and with Remember Save
+    // Location the reload woke Link inside the interior. Each scene below is one
+    // OpenSave sends somewhere safe; the last save was in Kokiri Forest, which
+    // OpenSave would not, so a frozen Kokiri Forest is the bug.
+    if (int rc = StampChecks(play)) {
+        return rc;
+    }
+
     // ---- 3. No PlayState: both drivers still freeze, nothing is dereferenced
     OoT_gPlayState = NULL;
     ArmLiveOoTSession();
+    gSaveContext.savedSceneNum = SCENE_KOKIRI_FOREST;                // the last save's scene
     gSaveContext.sceneFlags[SCENE_MARKET_DAY].collect = kCollectBit; // what the last transition left
     OSFF_ASSERT(Combo_FreezeActiveGameForHotSwap(GAME_OOT) == 1,
                 "a hot-swap freeze with no PlayState must not crash and must still record a blob");
@@ -239,6 +364,8 @@ int RunChecks(PlayState* play) {
     OSFF_ASSERT(sScratch.sceneFlags[SCENE_MARKET_DAY].collect == kCollectBit,
                 "with no PlayState there is nothing to flush; the saved flags the last transition left must be "
                 "frozen as they are");
+    OSFF_ASSERT(sScratch.savedSceneNum == SCENE_KOKIRI_FOREST,
+                "#850: with no PlayState there is no scene to record; the last save's scene must be frozen as is");
     Context_ClearFrozenState(GAME_OOT);
     Combo_CheckEntranceSwitch(OOT_ENTR_HAPPY_MASK_SHOP);
     OSFF_ASSERT(Context_HasFrozenState(GAME_OOT) == 1,

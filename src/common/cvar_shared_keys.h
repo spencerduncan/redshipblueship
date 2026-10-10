@@ -183,7 +183,9 @@
  *   Opacity         float 0.1..1, the whole overlay's alpha
  *   BgColor         colour picker base name; the value is "<key>.Value"
  *                   (UIWidgets::CVarColorPicker), SoH's default clear black
- *   Section.*       0/1 each, default 1: which sections the overlay draws */
+ *   Section.*       0/1 each, default 1: which sections the overlay draws
+ *   IconSize        int px, default 36 (SoH's IconSize default): an OoT icon's
+ *                   edge; every section's grid scales with it (#458 U3) */
 #define RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE "gCombo.Tracker.Items.WindowType"
 #define RSBS_CVAR_COMBO_ITEMS_DRAGGABLE "gCombo.Tracker.Items.Draggable"
 #define RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED "gCombo.Tracker.Items.ShowOnlyPaused"
@@ -192,6 +194,7 @@
 #define RSBS_CVAR_COMBO_ITEMS_SECTION_OOT "gCombo.Tracker.Items.Section.OoT"
 #define RSBS_CVAR_COMBO_ITEMS_SECTION_MM "gCombo.Tracker.Items.Section.MM"
 #define RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED "gCombo.Tracker.Items.Section.Shared"
+#define RSBS_CVAR_COMBO_ITEMS_ICON_SIZE "gCombo.Tracker.Items.IconSize"
 
 /* MM's four tracker windows' visibility toggles (#489, #535), MM's upstream
  * "gWindows.*" names. NOT tier-4 keys and not in kComboKeys: they are MM's own
@@ -581,6 +584,7 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_ITEMS_SECTION_MM, ComboKeyClass::Preference, "item tracker overlay: draws the MM section" },
     { RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED, ComboKeyClass::Preference,
       "item tracker overlay: draws the shared section" },
+    { RSBS_CVAR_COMBO_ITEMS_ICON_SIZE, ComboKeyClass::Preference, "item tracker overlay: icon size (#458 U3)" },
 };
 
 constexpr bool ComboKeyHasPrefix(const char* key, const char* prefix) {
@@ -971,12 +975,12 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // (ADR 0010 D1)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
-// unified item tracker overlay's) + eight gCombo.Tracker.Items.* preferences
-// (#458 U2, the overlay's look). Pinning the count makes a silently dropped
+// unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
+// (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 15, "three gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + eight "
-                                    "gCombo.Tracker.Items.* preferences = 15");
+static_assert(kComboKeyCount == 16, "three gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
+                                    "gCombo.Tracker.Items.* preferences = 16");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

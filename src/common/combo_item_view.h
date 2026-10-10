@@ -69,7 +69,48 @@ typedef struct {
     int count;                // current quantity (ammo, tokens, rupees); 0 when the row has no count
     int max;                  // ceiling for `count` right now; 0 when there is none to show
     uint8_t freshness;        // ComboTrackerFreshness; set by the view, never by the adapter
+    // How the icon is drawn (#458 U3), set by whoever produced the icon keys:
+    float iconAspect; // the icon's width over its height; 0 is square (a song's note is narrower)
+    float fadedAlpha; // not held: 0 draws iconKeyFaded as it is (SoH's own faded textures); otherwise
+                      // iconKeyFaded is drawn at this alpha (MM's tracker: the same icon at 0.4)
+    uint32_t iconTint; // 0xRRGGBBAA the icon is multiplied by; 0 draws it as it is (MM tints its rupee green)
+    // How the number on the icon is drawn (#458 U3), set by whoever produced the row:
+    uint8_t countAccent; // ComboItemCountAccent: the tone of the ceiling, and of the amount once it is full
+    int iconNumber;      // 0: count (and max) as usual; > 0: this number alone (a wallet's capacity, as
+                         // both native trackers print it); < 0: no number (the icon itself shows the tier)
 } ComboItemRow;
+
+/** The tone SoH's DrawItemCount gives a row's ceiling and its full amount (#458 U3). */
+typedef enum {
+    COMBO_ITEM_ACCENT_GREEN = 0, // every row but one
+    COMBO_ITEM_ACCENT_RED = 1,   // the Gold Skulltula Tokens (QUEST_SKULL_TOKEN's IM_COL_RED)
+} ComboItemCountAccent;
+
+/** Where a section's count is drawn on its icon (#458 U3): each game's own tracker's rule. */
+typedef enum {
+    COMBO_ITEM_COUNT_SOH = 0, // SoH's DrawItemCount: centred under the icon, "count/max" with SoH's colours
+    COMBO_ITEM_COUNT_MM = 1,  // MM's DrawItemCounts: the count alone, bottom right inside the cell
+} ComboItemCountStyle;
+
+/**
+ * How a game's own item tracker lays out its icons (#458 U3), so the overlay's
+ * section for that game looks like that tracker. Sizes are at the overlay's
+ * default IconSize (36, SoH's default); the overlay scales them together.
+ */
+typedef struct ComboItemGridStyle {
+    float cellPx;    // an icon cell's edge (SoH's IconSize 36; MM's ITEM_TEXTURE_SIZE 46)
+    float gapPx;     // between two cells of a line (SoH's IconSpacing 12; MM's table: two CellPadding.x, 8)
+    int columns;     // icons per line
+    bool groupLines; // each group starts its own line (MM: one table per group); false: rows flow on (SoH)
+    // Optional: a group's own icons per line (MM's Songs and Quest tables are 5 wide). NULL: `columns`.
+    int (*groupColumns)(const char* group);
+    uint8_t countStyle; // ComboItemCountStyle
+    float lineGapPx;    // between two lines; 0: gapPx (SoH's grid is square; MM's table rows: two CellPadding.y, 4)
+} ComboItemGridStyle;
+
+/** SoH's main Item Tracker grid (randomizer_item_tracker.cpp DrawItemsInRows: six 36 px icons a line,
+ *  12 px apart, the sections flowing on): the grid of an adapter that names none. */
+extern const ComboItemGridStyle kComboItemSohGrid;
 
 /**
  * A game's item adapter, registered from that game's own TU. Every member is
@@ -93,6 +134,17 @@ typedef struct ComboItemOps {
     // only while paused" option, SoH's ShowOnlyPaused)? May be NULL: the game is
     // then never paused. The view calls it only while this game is active.
     bool (*paused)(void);
+    // How this game's own tracker lays its icons out (#458 U3). May be NULL:
+    // kComboItemSohGrid.
+    const ComboItemGridStyle* grid;
+    // This game's own icon for a shared-pool row (#458 U3): fill `row`'s
+    // iconKey, iconKeyFaded, iconAspect, fadedAlpha and iconTint for shared
+    // resource `kind` (RSBS_SHARED_RES_*) at `tier` (the row's tier, or its
+    // count for a tier kind), and `iconNumber` for the number this game's own
+    // tracker prints on it (the wallet's capacity). Leaves the rest alone. May
+    // be NULL, and may leave the keys NULL for a kind the game has no icon for:
+    // the row is then text.
+    void (*sharedIcon)(uint8_t kind, uint16_t tier, ComboItemRow* row);
 } ComboItemOps;
 
 /**
@@ -140,6 +192,9 @@ bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out);
  *  inactive game is never asked (#458 U2). */
 bool Combo_ItemActiveGamePaused(void);
 
+/** `game`'s grid (its adapter's, else kComboItemSohGrid). Never NULL. */
+const ComboItemGridStyle* Combo_ItemGridStyle(uint8_t game);
+
 /** Player wording for a per-game freshness, no closing period: "Updated live",
  *  "As of the last game switch or save" (MM's reads "As of file creation" in
  *  the same case the check tracker's does), "No data". Never NULL. */
@@ -167,9 +222,19 @@ const char* Combo_ItemSharedLabel(void);
  *  triforce pieces only when armed); 0 while the pool is empty. */
 int Combo_ItemSharedCount(void);
 
-/** Fill `out` with shared row `index`. Icon keys are NULL (text). False for a
- *  NULL `out`, an out-of-range index, or an empty pool. */
+/** Fill `out` with shared row `index`, its icon the active game's own (OoT's
+ *  while no game is active; #458 U3). False for a NULL `out`, an out-of-range
+ *  index, or an empty pool. */
 bool Combo_ItemSharedRowAt(int index, ComboItemRow* out);
+
+/** Combo_ItemSharedRowAt with the icon from `iconGame`'s adapter (GAME_OOT or
+ *  GAME_MM): the overlay's fallback when the active game's icons are not loaded.
+ *  An unregistered adapter, or one without `sharedIcon`, leaves the keys NULL. */
+bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* out);
+
+/** The Shared section's grid: SoH's icons, four a line, so the pool stands as a
+ *  column beside the two games' grids (#458 U3). */
+extern const ComboItemGridStyle kComboItemSharedGrid;
 
 #ifdef __cplusplus
 }

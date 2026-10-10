@@ -919,7 +919,7 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
     for (int i = 0; i < toasts; i++) {
         char toast[256];
         if (OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast)) &&
-            (strstr(toast, "Not paired") != nullptr || strstr(toast, "Not saved") != nullptr)) {
+            strncmp(toast, RSBS_REFUSAL_TOAST_PREFIX, sizeof(RSBS_REFUSAL_TOAST_PREFIX) - 1) == 0) {
             snprintf(msg, sizeof(msg), "a refusal toast was raised (toast %d of %d): \"%s\"", i + 1, toasts, toast);
             IntegrationTest_GameplayFail(msg);
             return false;
@@ -5434,8 +5434,8 @@ void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
 /**
  * THE REFUSAL TOAST (src/common/pairing_refusal_toast.h): one short line in SoH's
  * toast shape, as PR #749 set it for our toasts — Notification::Options' default
- * colours, the player's configured duration (Notifications.Duration), a short
- * prefix saying what the refusal costs ("Not saved:") and a short reason. The
+ * colours, the player's configured duration (Notifications.Duration), the
+ * refusal class's one prefix (RSBS_REFUSAL_TOAST_PREFIX, #836) and a short reason. The
  * overlay draws prefix and message on ONE line at Notifications.Size (1.8 by
  * default) and never wraps, and the sentence pairs these toasts used to carry
  * drew up to about 2,480 px wide (#749's playtest notes: off-screen). The long

@@ -52,6 +52,7 @@ void MM_Combo_FlushSceneFlagsForFreeze(void);
 void MM_Combo_ReviveDeadHealthForFreeze(void);
 void OoT_Combo_ReviveDeadHealthForFreeze(void);
 void OoT_Combo_ApplySceneExitWritesForFreeze(void);
+void OoT_Combo_StampSavedSceneForFreeze(void);
 // #837: whether the departing gSaveContext is a live file (Combo_SaveIsLiveFile
 // on that game's gameMode), read in the game's own TU for the same reason.
 int OoT_Combo_DepartureIsLiveFile(void);
@@ -166,9 +167,11 @@ int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size
  * A game with no live PlayState (owl-save / game-over exits, headless tests)
  * flushes nothing and does not dereference anything. Writes no file itself:
  * the blob it corrects is the one Context_FreezeState captures, and since #837
- * that blob reaches disk at the crossing (Switch_CommitCrossing, below). The
- * flush's last job serves that commit: it notes whether the half about to be
- * frozen is a live file, which only a game TU can read.
+ * that blob reaches disk at the crossing (Switch_CommitCrossing, below). Two
+ * of the flush's jobs serve that commit: it notes whether the half about to be
+ * frozen is a live file, which only a game TU can read, and on OoT it records
+ * the departure scene as the save's scene (#850), which a reload reads to
+ * decide where Link wakes.
  */
 void Combo_FlushLiveStateForFreeze(GameId departing) {
     switch (departing) {
@@ -183,6 +186,9 @@ void Combo_FlushLiveStateForFreeze(GameId departing) {
             // Destroy writes, so its place relative to this seam is free.)
             OoT_Combo_ApplySceneExitWritesForFreeze();
             OoT_Combo_FlushSceneFlagsForFreeze();
+            // #850: the save's scene, so a reload of the crossing commit places
+            // Link as a save made here would (OoT_Sram_OpenSave keys on it).
+            OoT_Combo_StampSavedSceneForFreeze();
             OoT_Combo_ReviveDeadHealthForFreeze();
             break;
         case GAME_MM:
@@ -208,9 +214,10 @@ void Combo_FlushLiveStateForFreeze(GameId departing) {
  *   - WHAT. No harvest (the suspend just did it) and no shadow refresh: the
  *     departing half is the freeze, which is what that game resumes from, taken
  *     at the instant nextEntrance was set (the entrance path) or at F10.
- *     Nothing is stamped into it either; where Link wakes after a reload of this
- *     commit is OoT_Sram_OpenSave's savedSceneNum rule, the path an MM owl
- *     save's reload already takes.
+ *     The commit adds nothing to it. Where Link wakes after a reload of this
+ *     commit is OoT_Sram_OpenSave's savedSceneNum rule, and the freeze carries
+ *     the scene OoT departed from because the flush above records it, as a
+ *     save made there would (#850).
  *   - THE SKIP LINES never say "REFUSED": IntPairedFirstCrossing fails on that
  *     word in stderr, and its sibling rows cross with no file at all. The latch
  *     is checked here, before RsbsSave_Save, for the same reason: Save's own

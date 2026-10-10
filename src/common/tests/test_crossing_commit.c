@@ -340,7 +340,8 @@ TestResult Test_CrossingCommit(void) {
         XcBlob live(OOT_SAVE_CONTEXT_SIZE, 0x00);
         XC_ASSERT(Combo_ConsumeFrozenState("oot", live.data(), live.size()) == 1, "the OoT half is delivered");
         XC_ASSERT(XcUniform(live.data(), live.size(), 0x33),
-                  "the delivered OoT half is the departure freeze, byte for byte (nothing stamped into it)");
+                  "the delivered OoT half is the departure freeze, byte for byte (the commit adds nothing; the "
+                  "departure scene is recorded by the pre-freeze flush, #850)");
     }
     XC_ASSERT(XcUniform(Context_GetMMSaveContext(), MM_SAVE_CONTEXT_SIZE, 0x22),
               "the MM half is the target's own last half, untouched by the crossing");
