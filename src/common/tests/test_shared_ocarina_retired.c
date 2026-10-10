@@ -115,9 +115,8 @@ TestResult Test_SharedOcarinaRetired(void) {
         // (the .redsave load, SaveManager::LoadSlot) both have to agree with
         // the file: no key authors the bit, so nothing can diverge from it.
         const uint32_t session = Combo_ComboSettingsDivergence();
-        const uint32_t load = Combo_ComboSettingsDivergenceFor(&gComboCtx.comboSettings, stamp,
-                                                               gComboCtx.sharedRandoSettingsHash,
-                                                               gComboCtx.mmProfileDigest);
+        const uint32_t load = Combo_ComboSettingsDivergenceFor(
+            &gComboCtx.comboSettings, stamp, gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest);
         char named[192];
         Combo_ComboSettingsDivergenceDescribe(session | load, named, sizeof(named));
         printf("[TEST] shared-ocarina-retired: (2) older world with the bit set: arrival divergence 0x%X, load "
@@ -160,8 +159,7 @@ TestResult Test_SharedOcarinaRetired(void) {
         gComboCtx.sharedResources[0].value = 1u;
         uint16_t ootFromSlot = 0u;
         uint16_t mmFromSlot = 0u;
-        const bool ootSlotApplied =
-            Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, 2u, &ootFromSlot);
+        const bool ootSlotApplied = Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, 2u, &ootFromSlot);
         const bool mmSlotApplied = Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, 1u, &mmFromSlot);
         Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, 2u);
         printf("[TEST] shared-ocarina-retired: (3) an older save's ocarina slot (1): OoT apply=%d live=%u, MM apply=%d "

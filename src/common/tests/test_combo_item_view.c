@@ -527,7 +527,7 @@ static int CivSharedLegs(void) {
     CIV_ASSERT(CivFindSharedRow("Bombs", &row));
     CIV_ASSERT(!row.have && row.count == 0); // never shared: nothing held
     // #879: the Shared Ocarina rule is retired, so the overlay names no shared
-    // ocarina in any world.
+    // ocarina in any world (an older world with the bit set: the end of this leg).
     CIV_ASSERT(!CivFindSharedRow("Ocarina", &row));
     CIV_ASSERT(CivFindSharedRow("Triforce Pieces", &row) ==
                Combo_SharedResourceKindArmed(RSBS_SHARED_RES_TRIFORCE_PIECES));
@@ -541,6 +541,29 @@ static int CivSharedLegs(void) {
     }
     CIV_ASSERT(strcmp(Combo_ItemFreshnessLabel((uint8_t)GAME_OOT, COMBO_TRACKER_FRESH_STALE),
                       "As of the last game switch or save") == 0);
+
+    // #879: an OLDER world, whose frozen record carries the retired
+    // RSBS_COMBO_FLAG_SHARED_OCARINA bit, with both games' ocarinas harvested,
+    // still shows no shared "Ocarina" row. Before the retirement this exact
+    // world armed the kind and the overlay drew an "Ocarina 2/2" row. (The
+    // context is restored by Combo_ItemView_RunHeadless.)
+    {
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        rec.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
+        Combo_FreezeComboSettings(&rec);
+        Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99);
+        Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, 1); // MM's starting Ocarina of Time
+        Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_OCARINA_TIER, 2);
+        const bool ocarinaShown = CivFindSharedRow("Ocarina", &row);
+        printf("[TEST] combo-item-view: older world with the Shared Ocarina bit set, both ocarinas harvested: "
+               "shared Ocarina row shown=%d (expected 0, #879)\n",
+               ocarinaShown ? 1 : 0);
+        CIV_ASSERT(CivFindSharedRow("Rupees", &row) && row.count == 99); // the scan itself reads this world
+        CIV_ASSERT(!ocarinaShown);
+    }
     return TEST_PASS;
 }
 
