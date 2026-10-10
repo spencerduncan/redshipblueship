@@ -43,7 +43,20 @@ nlohmann::json GenerateFromSaveContext() {
         // The machine-readable record of the crossing is the "foreign"
         // section below.
         if (const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId)) {
-            spoiler["checks"][randoStaticCheck.name] = std::string(foreignName) + " (Ocarina of Time)";
+            const std::string foreignLabel = std::string(foreignName) + " (Ocarina of Time)";
+            // #863: a shop or Tingle map slot charges its price whatever it
+            // hosts, so a foreign host is written in the same object shape as
+            // a native one (name + price). The name keeps its game suffix, so
+            // Apply's GetItemIdFromName resolves it to RI_UNKNOWN exactly as
+            // it does the plain-string form, never to an MM item.
+            if (randoStaticCheck.randoCheckType == RCTYPE_SHOP ||
+                randoStaticCheck.randoCheckType == RCTYPE_TINGLE_SHOP) {
+                spoiler["checks"][randoStaticCheck.name] = nlohmann::json::object();
+                spoiler["checks"][randoStaticCheck.name]["randoItemId"] = foreignLabel;
+                spoiler["checks"][randoStaticCheck.name]["price"] = RANDO_SAVE_CHECKS[randoCheckId].price;
+            } else {
+                spoiler["checks"][randoStaticCheck.name] = foreignLabel;
+            }
             continue;
         }
 #endif

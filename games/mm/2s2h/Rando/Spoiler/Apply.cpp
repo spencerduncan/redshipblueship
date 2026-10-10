@@ -321,7 +321,8 @@ int ReconstructForeignPlacements(const nlohmann::json& spoiler) {
         // ADR 0002 host invariant, restored on load: the MM save table must
         // keep a LEGAL junk-class MM item at a foreign host check (never a
         // raw RG_*). The spoiler's human-readable "checks" map stored this
-        // check as "<item> (Ocarina of Time)", which GetItemIdFromName
+        // check as "<item> (Ocarina of Time)" (for a shop or Tingle host, as
+        // the object's "randoItemId" beside its price, #863), which GetItemIdFromName
         // cannot resolve, so ApplyToSaveContext just left RI_UNKNOWN there;
         // the underlying junk item is not recoverable from the spoiler, so
         // normalize to the canonical junk sentinel. Inert while the
