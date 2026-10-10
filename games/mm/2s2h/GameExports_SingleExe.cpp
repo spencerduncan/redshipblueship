@@ -488,6 +488,20 @@ static int sGpMMWatchdogFrames = 0;
 // (z_play.c) ever regresses.
 static int sGpMMArrivalCount = 0;
 #define GP_MM_CONTINUITY_RUPEE_BASE 100
+// The PAIRED drive's sentinel (#888): an MM-local save field, because rupees
+// are not stable on a paired file between the door frame and the freeze. They
+// are a shared resource, the paired file's base wallet (99) clamps 100 + n, and
+// the world's own pickups move them (RSBSSINGLEBAG1 hands the Purple Rupee on
+// RC_STARTING_ITEM_DEKU_MASK through the check queue at MM play frame 87, so
+// 17 rupees are still draining from rupeeAccumulator when the door fires).
+// dekuPlaygroundHighScores[0] is written only by the Deku Playground's own
+// record (z_inventory.c) and the high-score resets (Sram_ClearHighscores: file
+// creation and the end-of-cycle save), never by the shared-resource model, a
+// pickup or an arrival's apply. A new file holds SECONDS_TO_TIMER(75) = 7500,
+// so 7000 + n also tells a second arrival that re-hydrated the creation-frozen
+// half (#885) from one that carried the departure's save. The vanilla debug
+// save keeps the rupee sentinel (IntGameplayRoundtripSoak).
+#define GP_MM_CONTINUITY_DEKU_SCORE_BASE 7000u
 
 // MM's line in the wall-clock watchdog's dump (#793). Runs on the watchdog
 // thread while MM's own thread is wedged: plain reads, no dereference of the
@@ -1114,7 +1128,27 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
             // Save-continuity tripwire (see sGpMMArrivalCount): arrivals
             // after the first must carry the sentinel the previous MM leg
             // froze — proof the in-chain restore beat the boot-chain wipe.
-            if (sGpMMArrivalCount > 1) {
+            if (sGpMMArrivalCount > 1 && IntegrationTest_PairedFirstCrossing()) {
+                // #888: the paired file's MM-local sentinel (see
+                // GP_MM_CONTINUITY_DEKU_SCORE_BASE).
+                u32 expected = GP_MM_CONTINUITY_DEKU_SCORE_BASE + (u32)(sGpMMArrivalCount - 1);
+                u32 actual = gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0];
+                if (actual != expected) {
+                    fprintf(stderr,
+                            "[GP-TEST] FAIL: MM save continuity lost across round trip "
+                            "(arrival %d: dekuPlaygroundHighScores[0]=%u, expected sentinel %u — the "
+                            "departure's MM save did not reach this arrival)\n",
+                            sGpMMArrivalCount, (unsigned)actual, (unsigned)expected);
+                    fflush(stderr);
+                    IntegrationTest_GameplayFail("MM frozen-save continuity lost");
+                    return;
+                }
+                fprintf(stderr,
+                        "[GP-TEST] MM save continuity verified (arrival %d: MM-local sentinel "
+                        "dekuPlaygroundHighScores[0]=%u; rupees=%d)\n",
+                        sGpMMArrivalCount, (unsigned)actual, (int)gSaveContext.save.saveInfo.playerData.rupees);
+                fflush(stderr);
+            } else if (sGpMMArrivalCount > 1) {
                 s16 expected = (s16)(GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount - 1);
                 s16 actual = gSaveContext.save.saveInfo.playerData.rupees;
                 if (actual != expected) {
@@ -1174,11 +1208,22 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     // Arm the continuity sentinel for the next arrival BEFORE firing the
     // door: the transition's Combo_CheckEntranceSwitch freezes the live
     // SaveContext, sentinel included.
-    gSaveContext.save.saveInfo.playerData.rupees = (s16)(GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
-    fprintf(stderr,
-            "[GP-TEST] firing Clock Tower door: entrance 0x%04X after %d live MM frames "
-            "(continuity sentinel: %d rupees)\n",
-            MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames, GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
+    if (IntegrationTest_PairedFirstCrossing()) {
+        // #888: MM-local on a paired file; rupees stay the player's.
+        gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0] =
+            GP_MM_CONTINUITY_DEKU_SCORE_BASE + (u32)sGpMMArrivalCount;
+        fprintf(stderr,
+                "[GP-TEST] firing Clock Tower door: entrance 0x%04X after %d live MM frames "
+                "(continuity sentinel: dekuPlaygroundHighScores[0]=%u)\n",
+                MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames,
+                (unsigned)gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0]);
+    } else {
+        gSaveContext.save.saveInfo.playerData.rupees = (s16)(GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
+        fprintf(stderr,
+                "[GP-TEST] firing Clock Tower door: entrance 0x%04X after %d live MM frames "
+                "(continuity sentinel: %d rupees)\n",
+                MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames, GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
+    }
     fflush(stderr);
     play->nextEntrance = MM_ENTR_CLOCK_TOWER_INTERIOR_1;
     play->transitionTrigger = TRANS_TRIGGER_START;
