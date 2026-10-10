@@ -129,8 +129,9 @@ TestResult Test_GpWatchdog(void) {
             GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, f, now, budget) == GP_WATCHDOG_OK,
                        "a phase still completing frames (#882: 700 frames at 11.6 fps) tripped the watchdog");
         }
-        // (6b) Slower still: one frame every (budget - 1) s for four budgets'
-        // worth of wall clock, each gap under the budget: never trips.
+        // (6b) Slower still: one frame every (budget - 1) s, three gaps (177 s
+        // of wall clock at the default budget, under the ceiling), each gap
+        // under the budget: never trips.
         IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 2000.0);
         for (int f = 1; f <= 3; f++) {
             double now = 2000.0 + (double)f * (double)(budget - 1);
@@ -158,20 +159,25 @@ TestResult Test_GpWatchdog(void) {
                        GP_WATCHDOG_STALLED,
                    "a phase whose frames stopped did not trip a budget after its last frame");
 
-        // (6e) A phase change is progress too, with no frame counted yet.
-        IntegrationTest_GameplayWatchdogRebase(&t, (int)GP_PHASE_OOT_RETURN, 120, 5000.0);
-        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 5000.0 + budget - 0.1, budget) ==
+        // (6e) A phase change is progress too, with no frame counted yet. The
+        // tick lands past a whole budget since the previous phase's last
+        // progress with the frame count unchanged, so only the phase-change
+        // re-base keeps it OK.
+        IntegrationTest_GameplayWatchdogRebase(&t, (int)GP_PHASE_OOT_RETURN, 0, 5000.0);
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 5000.0 + budget + 1.0, budget) ==
                        GP_WATCHDOG_OK,
                    "a phase change did not re-base the watchdog");
 
         // (6f) The hard ceiling: a phase that keeps completing frames forever
-        // still fails, at the ceiling and not before, with its own verdict, and
-        // the ceiling stays under the IntGameplayRoundtrip TIMEOUT at defaults so
-        // its dump beats the kill.
+        // still fails, at the ceiling and not before, with its own verdict. The
+        // ceiling bounds ONE phase, counted from that phase's start; the CTest
+        // TIMEOUT counts from process start. So the ceiling sitting under the
+        // TIMEOUT is necessary for its dump to beat the kill, not sufficient: a
+        // phase entered late in the run is killed before its ceiling.
         int ceiling = IntegrationTest_GameplayWatchdogCeilingSecs(budget);
         GPWD_CHECK(ceiling > budget, "the phase ceiling is not above the stall budget");
         GPWD_CHECK(ceiling < GPWD_INTEGRATION_TIMEOUT_SECS,
-                   "the phase ceiling is not under the IntGameplayRoundtrip TIMEOUT at the default budget");
+                   "one phase's ceiling is not even under the whole row's TIMEOUT at the default budget");
         IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 6000.0);
         GameplayWatchdogVerdict v = GP_WATCHDOG_OK;
         int f = 0;

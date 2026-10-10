@@ -83,9 +83,11 @@ typedef enum {
  *                                  so the diagnostic beats the hard wall-clock
  *                                  kill (#376 item 4). A phase that keeps
  *                                  advancing still fails at a hard ceiling of
- *                                  four budgets (240 s at the default): raise
- *                                  this knob if RSBS_GP_WARP_FRAMES asks for an
- *                                  in-scene soak longer than that.
+ *                                  four budgets from that phase's own start
+ *                                  (240 s at the default; it bounds one phase,
+ *                                  not the run): raise this knob if
+ *                                  RSBS_GP_WARP_FRAMES asks for an in-scene
+ *                                  soak longer than that.
  * Entrance values accept hex (0x...) or decimal and must be < OoT's ENTR_MAX.
  */
 typedef struct {
@@ -253,7 +255,8 @@ bool IntegrationTest_GameplayWatchdogExpired(double elapsedSecs, int budgetSecs)
 
 /**
  * The OoT watchdog's timers for the phase it is watching (#882). `phase` is
- * the last phase a tick saw (-1 before the first), `frames` that phase's last
+ * the last phase a tick saw (GP_PHASE_DONE before the first OoT-owned tick;
+ * any phase other than the stored one re-bases), `frames` that phase's last
  * observed gameplay-frame count, `phaseStartSecs` the wall clock (seconds, any
  * monotonic base) at which the phase was entered and `progressSecs` the wall
  * clock of the phase's last progress.
@@ -275,8 +278,11 @@ typedef enum {
 
 /**
  * The hard ceiling (seconds) on one OoT-owned phase's wall clock, derived from
- * the stall budget: four budgets (240 s at the default 60), under the 300 s
- * IntGameplayRoundtrip TIMEOUT. A non-positive budget disables it.
+ * the stall budget: four budgets (240 s at the default 60), counted from that
+ * phase's start. It bounds one phase, not the run: the 300 s gameplay-row
+ * TIMEOUT counts from process start, so a phase entered late in the run is
+ * killed by the TIMEOUT before its ceiling dump. A non-positive budget
+ * disables it.
  */
 int IntegrationTest_GameplayWatchdogCeilingSecs(int budgetSecs);
 

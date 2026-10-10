@@ -335,7 +335,8 @@ constexpr unsigned long kOoTEntranceMax = 0x0614;
 // test as the contract.
 constexpr int kGpWatchdogDefaultSecs = 60;
 // The hard ceiling on one phase's wall clock, in stall budgets (#882): 240 s
-// at the default, under the 300 s IntGameplayRoundtrip TIMEOUT.
+// at the default, counted from the phase's start (it bounds one phase, not the
+// run; the 300 s gameplay-row TIMEOUT counts from process start).
 constexpr int kGpWatchdogCeilingBudgets = 4;
 
 int GameplayEnvInt(const char* name, int defaultValue, int minValue) {
