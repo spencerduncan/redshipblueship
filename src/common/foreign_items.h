@@ -270,6 +270,15 @@ bool Combo_ForeignPairingActive(void);
 // byte at its current version — it needs the bump this one did not.
 
 /**
+ * RETIRED (#879, operator ruling 2026-10-09): RESERVED, set by nothing, read by
+ * nothing. MM starts every paired world holding its Ocarina of Time, so the
+ * rule's only effect was to carry that free instrument to Hyrule. No key
+ * authors the bit, Combo_SharedResourceKindArmed never arms
+ * RSBS_SHARED_RES_OCARINA_TIER, and an older world whose record carries the bit
+ * keeps it (the fingerprint still pins it) and loads with it ignored
+ * (Combo_ComboSettingsDivergenceFor). The text below is the rule as #668 had
+ * it.
+ *
  * ONE OCARINA ACROSS BOTH GAMES (#668; operator direction, 2026-09-16:
  * "there should be an option to have the ocarina be shared in both games").
  *
@@ -543,23 +552,6 @@ bool Combo_ComboSettingsFrozen(void);
  *  frozen, compared, rendered setting rather than under one. */
 uint8_t Combo_ComboDirection(void);
 
-/**
- * IS THE OCARINA ONE SHARED INSTRUMENT in this world (#668)?
- *
- * The frozen record's RSBS_COMBO_FLAG_SHARED_OCARINA bit when frozen, else the
- * live resolution's — the exact shape of Combo_ComboDirection, and for the same
- * reason: after creation the rules are world identity, so a session that
- * resolved differently is REFUSED at the arrival gate (by name, through
- * RSBS_COMBO_DIVERGE_SHARED_OCARINA) rather than honoured here.
- *
- * FALSE is the shipped default and means NOTHING CHANGES — no shared-resource
- * slot, no harvest, no apply. Its one consumer is
- * Combo_SharedResourceKindArmed (shared_resources.h), which is where both the
- * harvest and the apply halves of RSBS_SHARED_RES_OCARINA_TIER pass through, so
- * the gate cannot be applied to one direction and not the other.
- */
-bool Combo_ComboSharedOcarina(void);
-
 /** Does the resolved direction arm crossings ORIGINATING in @p originGame?
  *  Increment 4's gate; see Combo_ComboDirection. Under one bag (ADR 0010
  *  increment 3) the single-bag fill reads it per bag row: a row whose origin is
@@ -714,7 +706,9 @@ int Combo_FreezeLegacyComboSettings(void);
 /** The shared-ocarina rule differs (#668). A BIT of comboFlags gets its own
  *  divergence bit rather than hiding inside the byte's, because decision 1.1's
  *  whole justification for storing twelve bytes is that the refusal can name
- *  WHICH RULE diverged — and "comboFlags" is a field name, not a rule. */
+ *  WHICH RULE diverged — and "comboFlags" is a field name, not a rule. Since
+ *  #879 retired the rule only a raw two-record diff reports it: the session
+ *  compare takes the live bit from the file (Combo_ComboSettingsDivergenceFor). */
 #define RSBS_COMBO_DIVERGE_SHARED_OCARINA 0x0800u
 /** The frozen triforce-hunt record (ADR 0010 answer O10, ComboTriforceRecord)
  *  does not agree with the combo record beside it or with the half its own game

@@ -1,11 +1,11 @@
 /**
  * @file combo_settings_view.h
- * @brief The tier-4 combo-level settings AUTHORING surface: the three
+ * @brief The tier-4 combo-level settings AUTHORING surface: the two
  *        `gCombo.Rando.*` keys behind ComboSettingsRecord (ADR 0011 increment
- *        2, #498, plus the shared ocarina #668 and the goal; ADR 0003 naming;
- *        ADR 0004 §6 state 4). #801 retired the two pool-size keys and #834
- *        the two item-class keys: the record keeps their bytes, and nothing
- *        authors them any more.
+ *        2, #498, plus the goal; ADR 0003 naming; ADR 0004 §6 state 4). #801
+ *        retired the two pool-size keys, #834 the two item-class keys and
+ *        #879 #668's shared-ocarina key: the record keeps their bytes, and
+ *        nothing authors them any more.
  *
  * WHAT THIS IS. ComboSettingsRecord (context.h) is the frozen 12-byte identity
  * of the crossing rules — direction, per-direction pool sizes, per-direction
@@ -46,14 +46,13 @@
  *    (Combo_ComboSettingsSummary), but a row is one caller; the gate is
  *    here.
  *  - VALUES ARE THE PINNED SPACES (ADR 0011 decision 1.2.1): RSBS_COMBO_DIR_*
- *    for the direction, RSBS_COMBO_GOAL_* for the goal, and 0-or-1 for a
- *    comboFlags bit. A
+ *    for the direction and RSBS_COMBO_GOAL_* for the goal. A
  *    stored value OUTSIDE its space RESOLVES TO THE SHIPPED DEFAULT WITH A
  *    LOGGED REASON — never to a new enumerator, and never to a clamp that
  *    invents a value the player did not choose. The writers refuse such a
  *    value outright, so the only way one reaches the store is out-of-band (a
  *    hand-edited config, the console).
- *  - ALL THREE KEYS ARE WORLD IDENTITY, not preference (ADR 0004 §6's scope
+ *  - BOTH KEYS ARE WORLD IDENTITY, not preference (ADR 0004 §6's scope
  *    note). The manifest in cvar_shared_keys.h carries the classification and
  *    the cvar-classification lock refuses an unclassified `gCombo.` key.
  *
@@ -84,23 +83,19 @@ extern "C" {
  * player's choice (2026-09-27). `logicRung` is deliberately NOT here: ADR
  * 0010 owns its authoring, and until that lands it freezes at its shipped
  * default (Combo_ComboSettingsDefaults). Neither are `poolSizeOoT` /
- * `poolSizeMM` (#801) nor `itemClassOoT` / `itemClassMM` (#834) any more:
- * their keys and rows are retired, so a new world freezes the shipped
- * defaults into those bytes and an existing world keeps its own
- * (Combo_ComboSettingsDivergenceFor).
+ * `poolSizeMM` (#801) nor `itemClassOoT` / `itemClassMM` (#834) any more, nor
+ * the comboFlags shared-ocarina bit (#879): their keys and rows are retired,
+ * so a new world freezes the shipped defaults into those bytes and an existing
+ * world keeps its own (Combo_ComboSettingsDivergenceFor).
  *
  * APPEND NEW IDS AT THE END. Nothing stores an id, but the SohMenu rows index
  * staging buffers by it and the locks index expectation tables by it, so an
  * insertion or a removal mid-list re-points both; #801's removal of the two
- * pool-size ids and #834's of the two item-class ids updated every such table
- * in the same change.
+ * pool-size ids, #834's of the two item-class ids and #879's of the
+ * shared-ocarina id updated every such table in the same change.
  */
 typedef enum {
     COMBO_SETTING_DIRECTION = 0, // gCombo.Rando.Direction     -> record.direction    (RSBS_COMBO_DIR_*)
-    // #668. A BIT of record.comboFlags rather than a field of its own, so the
-    // resolver assembles the byte from every flag key instead of overlaying one
-    // (see Combo_ResolveComboSettings). 0 or 1; the default is 0.
-    COMBO_SETTING_SHARED_OCARINA, // gCombo.Rando.SharedOcarina -> record.comboFlags & RSBS_COMBO_FLAG_SHARED_OCARINA
     // ADR 0010 D1's GOAL, authorable since 2026-09-27: one of the pinned
     // RSBS_COMBO_GOAL_* enumerators (1..5). The default is beat-both, OoTMM's
     // own default ('both').
@@ -123,10 +118,7 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id);
  * Is @p value inside @p id's PINNED value space (ADR 0011 decision 1.2.1)?
  * Direction: exactly RSBS_COMBO_DIR_OFF..RSBS_COMBO_DIR_BOTH. Goal: exactly
  * one of the pinned RSBS_COMBO_GOAL_* enumerators (0 is a legacy record's
- * "unset" and is not authorable). A comboFlags bit: exactly 0 or 1 —
- * never "nonzero is true", because a 2 stored in a boolean key is a value
- * nobody chose and the rule for those is the shipped default with a logged
- * reason. False for an invalid id.
+ * "unset" and is not authorable). False for an invalid id.
  */
 bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value);
 
@@ -206,10 +198,8 @@ const char* Combo_ComboSettingReadOnlyReason(void);
  * hovering. A tooltip alone does not satisfy it." The claim being marked is the
  * one a player cannot otherwise check -- that a control they are touching while
  * Ocarina of Time is on screen also governs Majora's Mask, a game they cannot
- * currently see. All three of these keys make that claim by construction: they
- * are tier-4 rules about the crossing between the two games, not settings of
- * either one — and #668's shared ocarina makes it most literally of all, since
- * the instrument it governs is held in both.
+ * currently see. Both of these keys make that claim by construction: they are
+ * tier-4 rules about the pair of games, not settings of either one.
  *
  * Owned by the MODEL rather than spelled in the menu file, for the same reason
  * Combo_ComboSettingReadOnlyReason is: a string only the renderer holds cannot
@@ -242,8 +232,8 @@ typedef struct ComboSettingsKeyUndo {
  * arrival compare, which reads the same keys, then agrees with the file.
  *
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
- * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the shared
- * ocarina), the CVar store exists,
+ * (Combo_ComboSettingsRestorableMask: goal, crossing direction), the CVar
+ * store exists,
  * and every frozen value is inside its pinned space; otherwise it writes
  * NOTHING and returns 0, and the caller refuses. A record field no key authors
  * (the logic rung, an unallocated flag bit, the spare byte) cannot be restored

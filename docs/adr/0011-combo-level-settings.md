@@ -189,7 +189,8 @@ typedef struct {
 ```
 
 > **Amended 2026-09-17 (#668): `spare0` is spent.** Byte 10 is now `comboFlags`,
-> an `RSBS_COMBO_FLAG_*` bitset whose first bit is the shared ocarina. The
+> an `RSBS_COMBO_FLAG_*` bitset whose first bit is the shared ocarina (retired
+> and reserved since #879, see the 2026-10-09 note). The
 > offset, the size and the canonical position are unchanged, and
 > `formatVersion` stays 1 — every bit in that byte must have "clear == the
 > behaviour before it existed", which is what makes *absent* and *zero* the same
@@ -1093,6 +1094,8 @@ record's fields, and **not** into `MixPairedFinalSeed()` (`MMRandoGen` and
 
 ### 2026-09-17 — The shared ocarina (#668): record byte 10 becomes `comboFlags`, and the first shared-resource kind a player chooses
 
+Retired by #879 (the 2026-10-09 note below): the key and the row are gone, the bit is reserved and arms nothing.
+
 Operator direction, 2026-09-16, alongside the [#654](https://github.com/spencerduncan/redshipblueship/issues/654)
 ruling that the ocarina is a pool item findable in either game — *"there should
 be an option to have the ocarina be shared in both games."* Landed as
@@ -1409,7 +1412,8 @@ putting the file's own values back where the resolvers read them, then
 commits:
 
 - **Cross-Game Rules.** When every diverged bit is a rule a key authors
-  (goal, direction, both pool sizes, both class masks, the shared ocarina),
+  (goal, direction, both pool sizes, both class masks, the shared ocarina;
+  #879 retired the last),
   `Combo_ComboSettingsRestoreLive` writes the record's values into the
   `gCombo.Rando.*` keys (directly: `Combo_ComboSettingSet`'s frozen gate
   refuses EDITS of a decided world, and this is the decided world's own
@@ -1519,7 +1523,8 @@ two item-class rows go, in the same shape as #801.
   their twelve checkboxes and the two "No ... items will cross." notes (the
   page's second column is empty now), the keys `gCombo.Rando.ItemClass.OoT` /
   `.MM` (`RSBS::kComboKeys` is seven entries, three of them tier-4 identity
-  keys: direction, the shared ocarina and the goal), and their
+  keys: direction, the shared ocarina and the goal; #879 later retired the
+  shared ocarina's), and their
   `ComboSettingId` entries (`COMBO_SETTING_ITEM_CLASS_OOT` / `_MM`; the enum
   closes up, as #801's did). The unshown `ComboSettingsWindow` pane loses its
   two class groups too.
@@ -1645,3 +1650,33 @@ the added refusals are the file-open path's. Locked by
   and by `tools/tests/test_repo_invariants.py`, which fails on a string literal
   opening with a retired prefix. The integration drives' toast matchers read
   the constant.
+
+### 2026-10-09 -- The "Shared Ocarina" row retired (#879)
+
+Operator ruling 2026-10-09 (#879, item 1), in the shape of #801 and #834.
+
+- **Why.** MM starts every paired world holding its Ocarina of Time (2Ship's
+  starting list, frozen at creation), so the rule's only effect was to carry
+  that free instrument to Hyrule as a Fairy Ocarina no check awarded.
+- **Removed:** the Cross-Game Rules row "[Both Games] Shared Ocarina", the key
+  `gCombo.Rando.SharedOcarina` (`RSBS::kComboKeys` keeps two tier-4 identity
+  keys: direction and the goal), its `ComboSettingId` entry
+  (`COMBO_SETTING_SHARED_OCARINA`; the enum closes up) and its effect:
+  `Combo_SharedResourceKindArmed` answers false for
+  `RSBS_SHARED_RES_OCARINA_TIER` whatever the record says, so neither game's
+  ocarina is harvested or applied, and the overlay has no shared Ocarina row.
+- **Kept:** `RSBS_COMBO_FLAG_SHARED_OCARINA` (0x01) stays allocated and
+  reserved in `comboFlags`, the shared-resource kind 18 stays allocated, and
+  `comboSettingsHash` still folds the byte. New worlds write `comboFlags` 0, as
+  every default world already did, so the canonical bytes, the fingerprint
+  vectors and the `Golden*` digests are unchanged.
+- **Existing worlds** created with the rule on keep the bit and their
+  identity, and load: `Combo_ComboSettingsDivergenceFor` takes the live side's
+  bit from the frozen record, so `RSBS_COMBO_DIVERGE_SHARED_OCARINA` is never
+  raised at a load or an arrival and left `Combo_ComboSettingsRestorableMask`.
+  Nothing is shared and no toast is shown; an ocarina slot such a world's
+  `.redsave` already holds is inert.
+
+Locked by `SharedOcarinaRetired` (which replaced `SharedOcarina`),
+`ComboSettingsRows` leg 1e, `ComboSettingsAuthoring` leg 10,
+`PairedLoadRestore` leg 1 and `CVarClassification` (two identity keys).
