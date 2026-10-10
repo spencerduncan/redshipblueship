@@ -63,10 +63,16 @@
  * CheckTrackerSceneFlagSet, which return at once on a randomizer file. So on a
  * vanilla file the same rule runs with "the check the hooks resolve that flag
  * to" read from the tracker's maps (OoT_CheckTracker_VanillaCheckForFlag), and
- * without the placed-item filter (a vanilla file places nothing). A check those
- * maps never resolve to (one the tracker marks on an item receive, a dungeon
- * reward or a song, or one it does not list) is not touched. Display only: a
- * vanilla file gives nothing through these statuses.
+ * without the placed-item filter (a vanilla file places nothing). That
+ * includes the dungeon rewards and songs whose collection flag is an
+ * EventChkInf (Queen Gohma's blue warp, Saria's Song): the tracker marks them
+ * in play on the item receive, but its generic EventChkInf loop resolves their
+ * flags to them too, so they follow the loaded half like any other check. A
+ * check those maps never resolve to (a chest the tracker does not show, which
+ * its scene-flag loop skips, such as a Mido chest) is not touched; in a
+ * process with no Randomizer (the ROM-free rows) a RandomizerInf flag resolves
+ * to nothing. Display only: a vanilla file gives nothing through these
+ * statuses.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 

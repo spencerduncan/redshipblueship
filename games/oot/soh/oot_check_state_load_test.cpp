@@ -29,8 +29,12 @@
  *   through its own flag maps (CheckTrackerFlagSet, CheckTrackerSceneFlagSet)
  *   and saves and reloads them through the same tracker section, so a heart
  *   piece and the horseback-archery prize collected before the crossing read
- *   SCUMMED, and a chest the loaded half has closed reads SAVED. Display only:
- *   a vanilla file gives nothing through these statuses.
+ *   SCUMMED, and a chest the loaded half has closed reads SAVED. The same holds
+ *   for a song and a dungeon reward whose collection flag is an EventChkInf
+ *   (Saria's Song, Queen Gohma's blue warp): the tracker marks them in play on
+ *   the item receive, but its generic EventChkInf loop resolves their flags to
+ *   them too, so they follow the loaded half. Display only: a vanilla file
+ *   gives nothing through these statuses.
  *
  * THE SEAM UNDER TEST. OoT_Combo_OnLoadFileSeam (games/oot/soh/SaveManager.cpp),
  * the body of OoT's OnLoadFile hook, driven exactly as LoadFile drives it: the
@@ -93,6 +97,11 @@ constexpr uint32_t kMidoLeftBit = 1u << 0x00;   // RC_KF_MIDOS_TOP_LEFT_CHEST, S
 // flag CheckTrackerFlagSet's own special case maps to it.
 void SetInfTable(SaveContext* s, uint32_t flag) {
     s->infTable[flag >> 4] |= (uint16_t)(1u << (flag & 0xF));
+}
+// RC_SONG_FROM_SARIA: EventChkInf(EVENTCHKINF_LEARNED_SARIAS_SONG) (ShuffleSongs.cpp);
+// RC_QUEEN_GOHMA: EventChkInf(EVENTCHKINF_USED_DEKU_TREE_BLUE_WARP) (location_list.cpp).
+void SetEventChkInf(SaveContext* s, uint32_t flag) {
+    s->eventChkInf[flag >> 4] |= (uint16_t)(1u << (flag & 0xF));
 }
 // RC_KF_BRIDGE_RUPEE, a shuffled freestanding item: its flag is a RandomizerInf
 // (ShuffleFreestanding.cpp), set in the half's ship.randomizerInf.
@@ -368,14 +377,18 @@ int RunLegs(void) {
     // player crosses: the crossing commit's OoT half holds them. That half is
     // also one where the Kokiri Sword chest is closed (the reverse direction,
     // as in leg B), and where a Mido chest the vanilla tracker never marks was
-    // opened (control).
+    // opened (control). Saria's Song was learned after the last save (the .sav
+    // has it SCUMMED); Queen Gohma's blue warp was taken before it (SAVED) and
+    // the loaded half is one from before it, the reverse direction again.
     BlankVanillaHalf(&sSavBase);
     ArmControls(&sSavBase);
     sSavBase.sceneFlags[SCENE_KOKIRI_FOREST].chest |= kSwordChestBit;
+    SetEventChkInf(&sSavBase, EVENTCHKINF_USED_DEKU_TREE_BLUE_WARP);
     BlankVanillaHalf(&sCommitted);
     ArmControls(&sCommitted);
     sCommitted.sceneFlags[SCENE_LAKE_HYLIA].collect |= kHeartPieceBit;
     SetInfTable(&sCommitted, INFTABLE_190);
+    SetEventChkInf(&sCommitted, EVENTCHKINF_LEARNED_SARIAS_SONG);
     sCommitted.sceneFlags[SCENE_MIDOS_HOUSE].chest |= kMidoLeftBit;
     savGeneration = WriteCommits(sSavBase, sCommitted, /*rando=*/false);
     OCSL_CHECK(savGeneration != 0, "leg C setup: the two commits of a vanilla file are written");
@@ -386,6 +399,8 @@ int RunLegs(void) {
     SetTrackerStatuses(RCSHOW_SAVED, RCSHOW_SCUMMED, RCSHOW_UNCHECKED);
     Loc(RC_GF_HBA_1000_POINTS)->SetCheckStatus(RCSHOW_SCUMMED);
     Loc(RC_KF_MIDOS_TOP_LEFT_CHEST)->SetCheckStatus(RCSHOW_UNCHECKED);
+    Loc(RC_SONG_FROM_SARIA)->SetCheckStatus(RCSHOW_SCUMMED);
+    Loc(RC_QUEEN_GOHMA)->SetCheckStatus(RCSHOW_SAVED);
     OoT_Combo_OnLoadFileSeam(kSlot, savGeneration);
     {
         const bool vanilla = gSaveContext.ship.quest.id == QUEST_NORMAL;
@@ -396,12 +411,16 @@ int RunLegs(void) {
         const RandomizerCheckStatus left = Loc(RC_KF_MIDOS_TOP_LEFT_CHEST)->GetCheckStatus();
         const RandomizerCheckStatus right = Loc(RC_KF_MIDOS_TOP_RIGHT_CHEST)->GetCheckStatus();
         const RandomizerCheckStatus master = Loc(RC_TOT_MASTER_SWORD)->GetCheckStatus();
+        const RandomizerCheckStatus saria = Loc(RC_SONG_FROM_SARIA)->GetCheckStatus();
+        const RandomizerCheckStatus gohma = Loc(RC_QUEEN_GOHMA)->GetCheckStatus();
         printf("[TEST] oot-check-state-load: leg C (vanilla): the loaded half %s the heart piece; heart piece %s, "
                "archery prize %s, Kokiri Sword chest %s\n",
                halfApplied ? "holds" : "does NOT hold", StatusName(poh), StatusName(hba), StatusName(sword));
         printf("[TEST] oot-check-state-load: leg C (vanilla) controls: Mido left %s, Mido right %s, Master Sword "
                "%s\n",
                StatusName(left), StatusName(right), StatusName(master));
+        printf("[TEST] oot-check-state-load: leg C (vanilla) EventChkInf checks: Saria's Song %s, Queen Gohma %s\n",
+               StatusName(saria), StatusName(gohma));
         OCSL_CHECK(vanilla && halfApplied, "leg C setup: the .redsave's newer OoT half of a vanilla file loaded");
         OCSL_CHECK(Loc(RC_LH_FREESTANDING_POH)->HasObtained(),
                    "#861: on a vanilla paired file, a heart piece the loaded half holds reads found in the Check "
@@ -417,6 +436,12 @@ int RunLegs(void) {
         OCSL_CHECK(master == RCSHOW_SAVED,
                    "#861 control: the Master Sword marked SAVED without its flag stays found (flag unset in both "
                    "halves)");
+        OCSL_CHECK(saria == RCSHOW_SAVED,
+                   "#861: on a vanilla paired file, a song whose collection flag is an EventChkInf the loaded half "
+                   "holds reads found (the tracker's EventChkInf loop resolves that flag to it)");
+        OCSL_CHECK(gohma == RCSHOW_SCUMMED,
+                   "#861 reverse: on a vanilla paired file, a dungeon reward whose EventChkInf the loaded half does "
+                   "not hold reads not found");
     }
     return 0;
 }
