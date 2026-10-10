@@ -16,8 +16,12 @@
 extern "C" {
 #include <z64.h>
 #include "variables.h"
-#include "macros.h" // OWNED_EQUIP_FLAG / CHECK_OWNED_EQUIP
 }
+// OWNED_EQUIP_FLAG / CHECK_OWNED_EQUIP. Outside the extern "C" block and after
+// z64.h, as the other OoT TUs include it: it pulls in C++ headers, which may
+// not be given C linkage (GCC refuses), and it declares an
+// `extern GraphicsContext*` that needs the type first.
+#include "macros.h"
 
 /** OoT's live save as a real loaded file: GAMEMODE_NORMAL is what
  *  Combo_SaveIsLiveFile requires before OoT_HarvestSharedResources does
