@@ -28,7 +28,6 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <iterator>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -534,6 +533,8 @@ bool SaveManager::ReadCommittedGeneration(int slot, uint32_t* outGeneration) con
     // (ReadSlotFile) also parses the crossing block through the crossing
     // store's static scratch, which the game thread uses at load; this runs on
     // the save worker, so it checks the CRC over the stored payload instead.
+    // The CRC is what keeps a damaged file whose Tier-1 happens to read high
+    // from refusing every later write; it costs about 2 ms per commit.
     std::ifstream in(SlotPath(slot), std::ios::binary);
     if (!in) {
         return false;
@@ -543,8 +544,16 @@ bool SaveManager::ReadCommittedGeneration(int slot, uint32_t* outGeneration) con
         return false;
     }
     // Every writer puts exactly the CRC-covered payload after the header.
-    std::vector<uint8_t> payload((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    if (payload.size() < header.comboSize || Crc32(payload.data(), payload.size()) != header.crc32) {
+    const std::streamoff start = in.tellg();
+    in.seekg(0, std::ios::end);
+    const std::streamoff end = in.tellg();
+    in.seekg(start);
+    if (!in || start < 0 || end < start) {
+        return false;
+    }
+    std::vector<uint8_t> payload(static_cast<size_t>(end - start));
+    in.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
+    if (!in || payload.size() < header.comboSize || Crc32(payload.data(), payload.size()) != header.crc32) {
         return false;
     }
     std::vector<uint8_t> record(kComboSize, 0);
