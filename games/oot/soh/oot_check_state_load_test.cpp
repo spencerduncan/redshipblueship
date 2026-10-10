@@ -157,9 +157,9 @@ bool AuthorWorld(void) {
     if (Rando::StaticData::RetrieveItem(RG_KOKIRI_SWORD).GetName().GetEnglish().empty()) {
         Rando::StaticData::InitItemTable();
     }
-    for (RandomizerCheck rc : { RC_KF_KOKIRI_SWORD_CHEST, RC_LH_FREESTANDING_POH, RC_KF_MIDOS_TOP_LEFT_CHEST,
-                                RC_KF_MIDOS_TOP_RIGHT_CHEST, RC_TOT_MASTER_SWORD, RC_KF_BRIDGE_RUPEE,
-                                RC_GF_HBA_1000_POINTS }) {
+    for (RandomizerCheck rc :
+         { RC_KF_KOKIRI_SWORD_CHEST, RC_LH_FREESTANDING_POH, RC_KF_MIDOS_TOP_LEFT_CHEST, RC_KF_MIDOS_TOP_RIGHT_CHEST,
+           RC_TOT_MASTER_SWORD, RC_KF_BRIDGE_RUPEE, RC_GF_HBA_1000_POINTS }) {
         Loc(rc)->SetPlacedItem(RG_PIECE_OF_HEART);
         Loc(rc)->SetCheckStatus(RCSHOW_UNCHECKED);
     }
