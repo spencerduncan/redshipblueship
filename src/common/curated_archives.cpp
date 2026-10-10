@@ -996,8 +996,10 @@ EnsureOutcome Ensure(const GenerateInputs& inputs, std::string* log) {
 
 void ReportEnsure(EnsureOutcome outcome, const std::string& log) {
     const bool failed = outcome == EnsureOutcome::Failed;
+    // Concatenated, not Format: a refusal's account carries one line per
+    // finding and has no length limit, and Format's buffer would cut it.
     const std::string result =
-        Format("[RSBS] Curated cross-game archives %s: %s", EnsureOutcomeName(outcome), log.c_str());
+        std::string("[RSBS] Curated cross-game archives ") + EnsureOutcomeName(outcome) + ": " + log;
     const char* const fallback =
         "[RSBS] Foreign models keep their model-less stand-ins where no curated half is current";
     FILE* stream = failed ? stderr : stdout;
