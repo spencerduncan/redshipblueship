@@ -71,6 +71,15 @@ void HideUnlessFloating(WidgetInfo& info) {
                     ComboGui::COMBO_ITEM_TRACKER_FLOATING;
 }
 
+/** MenuDrawItem gives every other interactive row the menu's theme colour, but
+ *  draws a colour picker in its options' own colour (no SoH page has one), so
+ *  its Reset and Random buttons would be gray where SoH's are themed. SoH's
+ *  Item Tracker Settings sets THEME_COLOR on its picker; this does the same,
+ *  read every frame so a theme change follows at once. */
+void ThemeColorPicker(WidgetInfo& info) {
+    std::static_pointer_cast<ColorPickerOptions>(info.options)->color = THEME_COLOR;
+}
+
 } // namespace
 
 /**
@@ -85,6 +94,7 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
     menu.AddWidget(path, "Background Color##ComboItemTracker", WIDGET_CVAR_COLOR_PICKER)
         .CVar(RSBS_CVAR_COMBO_ITEMS_BG_COLOR)
         .RaceDisable(false)
+        .PreFunc(ThemeColorPicker)
         .Options(ColorPickerOptions()
                      .DefaultValue({ 0, 0, 0, 0 })
                      .UseAlpha()
