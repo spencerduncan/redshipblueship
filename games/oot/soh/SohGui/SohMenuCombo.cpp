@@ -369,9 +369,9 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
     } else {
         // No paired file is loaded, so the rows author the NEXT world. Loading
         // an existing paired file puts that file's own rules back (#781), so an
-        // edit here never reaches a world that already exists. Two lines at the
-        // column's width, as Randomizer > General's note is; the freeze itself
-        // is the frozen state's own sentence.
+        // edit here never reaches a world that already exists. It wraps at the
+        // page's one column (#844): one line at desk-1280x800, two at
+        // min-832x600; the freeze itself is the frozen state's own sentence.
         snprintf(buffer, sizeof(buffer),
                  "These rules apply to the next paired world you create. Loading a paired file restores its own "
                  "rules.");
@@ -447,8 +447,8 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
  * the SohGui TUs already declare SohGui::mSohMenu, so no production header grows
  * a test-only entry point.
  *
- * The caller owns the sidebar: AddMenuCombo() creates it with two columns, and
- * this function pins `path.column` before each column's first row. That is a change from the interim registrar,
+ * The caller owns the sidebar: AddMenuCombo() creates it with one column, and
+ * this function pins `path.column` before its first row. That is a change from the interim registrar,
  * which had to pin the column itself because five `Rando::Settings` option groups
  * ran immediately before it and left `path.column` wherever their last COLUMN
  * container landed (option.cpp:469-472). Nothing runs before this page in the
@@ -462,15 +462,16 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     // is a pointer-based widget over a src/common writer rather than a
     // WIDGET_CVAR_* one, and for which value each row shows in which state.
     //
-    // The layout is SoH's Randomizer > General (SohMenuRandomizer.cpp), the page
-    // docs/ui-style-guide.md section 12 compares this one with: two columns, the
-    // first opened by one gray note, then SeparatorText groups, and the primary
-    // button at 250 px. Column 1 holds every rule. Column 2 held the two
-    // item-class sets until #834 retired them; it is left empty rather than the
-    // page dropping to one column, so the rows keep the two-column measure the
-    // reference page is compared at.
+    // The rows are SoH's Randomizer > General (SohMenuRandomizer.cpp), the page
+    // docs/ui-style-guide.md section 12 compares this one with: one gray note,
+    // then SeparatorText groups, and the primary button at 250 px. The page is
+    // ONE column (#844), as SoH's pages with a single group are: column 2 held
+    // the two item-class sets until #834 retired them, and an empty declared
+    // column still takes half the section. One column widens no widget: a
+    // combobox is as wide as its longest value (UIWidgets::Combobox's
+    // CalcComboWidth), and Reset keeps its explicit 250 px.
 
-    // ---- Column 1: the state note, the crossing, Reset ---------------------
+    // ---- The state note, the goal, the crossing, Reset ---------------------
     path.column = SECTION_COLUMN_1;
     // The state note. Its name is rewritten every frame by its PreFunc, so it is
     // kept out of the menu search rather than seeding it with a sentence.
@@ -698,12 +699,13 @@ void SohMenu::AddMenuCombo() {
 
     // PIN THE COLUMN on every page. A row parked in a column past the page's
     // count is registered and never drawn - Menu::DrawElement iterates
-    // columnCount columns, not every column a caller left behind. Cross-Game
-    // Rules declares two (its registrar pins its column itself; the second has
-    // been empty since #834 retired the item-class groups); every other page
-    // one.
+    // columnCount columns, not every column a caller left behind. Both shipped
+    // pages are one column. Cross-Game Rules declared two until #844: its
+    // second had been empty since #834 retired the item-class groups, and
+    // Menu::DrawElement halves the section for a declared column whether or
+    // not it holds rows, so the rules sat beside an empty half.
     WidgetPath path = { "Combo", "Cross-Game Rules", SECTION_COLUMN_1 };
-    AddSidebarEntry("Combo", path.sidebarName, 2);
+    AddSidebarEntry("Combo", path.sidebarName, 1);
     AddComboRulesWidgets(*this, path);
 
     path.sidebarName = kComboWindowsPage;

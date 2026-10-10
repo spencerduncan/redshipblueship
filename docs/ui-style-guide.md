@@ -356,7 +356,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 
 | Ours | SoH reference |
 |---|---|
-| Combo > Cross-Game Rules | Randomizer > General |
+| Combo > Cross-Game Rules | Randomizer > General (its gray note, groups, comboboxes and 250 px button; ours is one column since #844, nothing being left for a second) |
 | Combo > Windows | Randomizer > Item Tracker |
 | Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (its rows; ours is two columns, section 1's width rule) |
 | Combo > MM Row States (harness-only: the Majora's Mask page's builder over a synthetic non-live table, so its disabled rows and group notes are drawn) | Enhancements > Quality of Life |
