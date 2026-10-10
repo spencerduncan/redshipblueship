@@ -2502,6 +2502,19 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
         ENVIRONMENT "RSBS_PFC_DIVERGE=1")
+    # #888 (the lock #885 asked for): the same paired file making TWO round
+    # trips, so the SECOND MM arrival is checked too. It must carry the MM half
+    # the first departure froze, not the creation-frozen half again: the drive
+    # arms an MM-local continuity sentinel (saveInfo.dekuPlaygroundHighScores[0],
+    # which no shared resource, pickup or arrival apply writes) at the first
+    # departure and asserts it at the second arrival. Rupees cannot carry that
+    # sentinel on a paired file: they are a shared resource, the base wallet
+    # (99) clamps a value above it, and the world's own pickups move them.
+    redship_add_test(NAME IntPairedFirstCrossingTwoCycles
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_GP_CYCLES=2")
 
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.
