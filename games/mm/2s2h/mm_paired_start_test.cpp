@@ -73,9 +73,38 @@ int MM_Rando_HeadlessPairedHalf(void);
 namespace {
 
 constexpr const char* kStartSeed = "RSBSSINGLEBAG1"; // ComboSingleBag's pinned paired seed
-constexpr const char* kConfigBlock = "CVars.gRando.StartingItems";
 
 int sFailures = 0;
+
+// Ship::Config::SetBlock descends only through keys that already exist (a
+// missing `CVars.gRando` would land the block at `CVars.StartingItems`, where
+// 2Ship never looks), and it saves the config file. So the block is written at
+// the deepest level that exists, and the key this row created is the one it
+// erases afterwards.
+std::string sCreatedKey;
+
+void WriteStartingItemsBlock(const std::shared_ptr<Ship::Config>& config, const nlohmann::json& items) {
+    const nlohmann::json nested = config->GetNestedJson();
+    const bool hasCVars = nested.is_object() && nested.contains("CVars") && nested["CVars"].is_object();
+    const bool hasRando = hasCVars && nested["CVars"].contains("gRando") && nested["CVars"]["gRando"].is_object();
+    if (hasRando) {
+        sCreatedKey = "CVars.gRando.StartingItems";
+        config->SetBlock(sCreatedKey, items);
+    } else if (hasCVars) {
+        sCreatedKey = "CVars.gRando";
+        config->SetBlock(sCreatedKey, nlohmann::json{ { "StartingItems", items } });
+    } else {
+        sCreatedKey = "CVars";
+        config->SetBlock(sCreatedKey, nlohmann::json{ { "gRando", { { "StartingItems", items } } } });
+    }
+}
+
+void EraseStartingItemsBlock(const std::shared_ptr<Ship::Config>& config) {
+    if (!sCreatedKey.empty()) {
+        config->EraseBlock(sCreatedKey);
+        sCreatedKey.clear();
+    }
+}
 
 void Check(bool ok, const char* what) {
     if (!ok) {
@@ -150,15 +179,14 @@ extern "C" int MM_PairedStart_RunHeadless(void) {
     // ------------------------------------------------------------------------
     // 1. The identity ignores the block.
     // ------------------------------------------------------------------------
-    config->EraseBlock(kConfigBlock);
     const uint32_t stampWithout = MM_Rando_ComputeProfileStamp();
-    config->SetBlock(kConfigBlock, blockJson);
+    WriteStartingItemsBlock(config, blockJson);
     // Non-vacuity: 2Ship's own accessor reads the block this row wrote.
     const std::vector<RandoItemId> fromConfig = Rando::GetStartingItemsFromConfig();
     printf("[TEST] mm-paired-start: (1) 2Ship's config accessor now reads: %s\n", ItemNames(fromConfig).c_str());
     if (CountOf(fromConfig, RI_MASK_BUNNY) != 1) {
         printf("[TEST] FAIL: 2Ship's accessor did not read the block this row wrote; the legs would be vacuous\n");
-        config->EraseBlock(kConfigBlock);
+        EraseStartingItemsBlock(config);
         return 1;
     }
     const uint32_t stampWith = MM_Rando_ComputeProfileStamp();
@@ -177,13 +205,13 @@ extern "C" int MM_PairedStart_RunHeadless(void) {
         printf("[TEST] FAIL: the paired OoT generation for %s did not leave a frozen paired world at its general "
                "pass (rc=%d)\n",
                kStartSeed, rc);
-        config->EraseBlock(kConfigBlock);
+        EraseStartingItemsBlock(config);
         return 1;
     }
     rc = MM_Rando_HeadlessPairedHalf();
     if (rc != 0) {
         printf("[TEST] FAIL: MM's creation-time half did not produce a rando world (rc=%d)\n", rc);
-        config->EraseBlock(kConfigBlock);
+        EraseStartingItemsBlock(config);
         return 1;
     }
 
@@ -245,9 +273,8 @@ extern "C" int MM_PairedStart_RunHeadless(void) {
     Check(swordsPlaced == swords, "(4) not every progressive sword of MM's pool was placed in the world");
     Check(shieldsPlaced == shields, "(4) the Hero's Shield of MM's pool was not placed in the world");
 
-    // Leave the config as this row found it (no block): the row never saves the
-    // config, and an in-memory block must not outlive the row either.
-    config->EraseBlock(kConfigBlock);
+    // Leave the config file as this row found it: the block it created goes.
+    EraseStartingItemsBlock(config);
 
     if (sFailures != 0) {
         printf("[TEST] FAIL: %d contract(s) broken\n", sFailures);
