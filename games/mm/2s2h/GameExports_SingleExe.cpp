@@ -939,6 +939,13 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
             return false;
         }
     }
+    // #878: the OoT chest's MM item was announced at its pickup; this arrival
+    // must not toast it again, and no text repeats in the leg.
+    if (!IntegrationTest_PairedLegToastsCheck("Majora's Mask", msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return false;
+    }
+    fprintf(stderr, "[PFC] MM arrival %d toasts PASS: %s\n", arrival, msg);
 
     const int matched =
         IntegrationTest_StderrCaptureCount("[MM] pairing: arrival profile matches the creation-frozen identity");
@@ -1187,6 +1194,26 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
     if (sGpMMPlayFrames == 100 && std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
         MM_ForeignModel_PlaytestArmGive();
     }
+    // #878: the paired row takes one OoT item from an MM check before the Clock
+    // Tower door (the #577 M3 drive above takes its own instead), through the
+    // foreign give CheckQueue's pickup and a shop's purchase make, so the return
+    // leg's arrival has an item it could announce a second time.
+    if (sGpMMPlayFrames == 30 && IntegrationTest_PairedFirstCrossing() &&
+        std::getenv("RSBS_GP_MM_FOREIGN_MODEL") == nullptr) {
+        for (int i = 0; i < Combo_Crossings_Count(GAME_MM); i++) {
+            ComboCrossing row;
+            if (!Combo_Crossings_At(GAME_MM, i, &row) || row.hostCheck >= RC_MAX ||
+                RANDO_SAVE_CHECKS[row.hostCheck].obtained) {
+                continue;
+            }
+            const char* item = Combo_GetForeignItemName(row.item);
+            const bool crossed = Rando::Foreign::GiveForeignCheck((RandoCheckId)row.hostCheck);
+            fprintf(stderr, "[PFC] MM pickup before the Clock Tower door: check %u hosts the OoT item %s; %s\n",
+                    (unsigned)row.hostCheck, item != nullptr ? item : "?", crossed ? "crossed" : "NOT crossed");
+            fflush(stderr);
+            break;
+        }
+    }
     // #830: its per-frame half (closes textboxes nobody will press past, and
     // captures the framebuffer; Rando/ForeignModelSingleExe.cpp).
     if (std::getenv("RSBS_GP_MM_FOREIGN_MODEL") != nullptr) {
@@ -1225,6 +1252,9 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
                 MM_ENTR_CLOCK_TOWER_INTERIOR_1, sGpMMPlayFrames, GP_MM_CONTINUITY_RUPEE_BASE + sGpMMArrivalCount);
     }
     fflush(stderr);
+    if (IntegrationTest_PairedFirstCrossing()) {
+        IntegrationTest_PairedMarkCrossing("Ocarina of Time");
+    }
     play->nextEntrance = MM_ENTR_CLOCK_TOWER_INTERIOR_1;
     play->transitionTrigger = TRANS_TRIGGER_START;
     play->transitionType = TRANS_TYPE_FADE_BLACK;
@@ -3845,7 +3875,7 @@ extern "C" bool MM_GameHooks_ExecuteShouldItemGive(u8 item) {
 // rather than in src/common/foreign_items.h — which is where its OoT twin is
 // declared — because that header is Lane 1's and the MM pool surface lands in
 // it with the reverse-direction pool, not with this give. Fold this in then.
-extern "C" int MM_ForeignItem_Give(uint16_t riId);
+extern "C" int MM_ForeignItem_Give(uint16_t riId, int announce);
 
 /**
  * Award a single MM-origin shared item (ADR 0002 / Lane A1 consumer callback),
@@ -3872,10 +3902,17 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId);
  * `MM_gPlayState = this`, and the ROM-free rows drive it headlessly with no Gui
  * (src/common/tests/test_foreign_award.c). A Notification::Emit added back here
  * would fire before the item exists and on a display-free CI path.
+ *
+ * ONE ANNOUNCEMENT PER ITEM (#878): only a SOURCED grant asks the give to toast.
+ * A crossing pickup (an MM item taken from an OoT check) was presented when the
+ * player took it, by OoT's get-item textbox or its "You found" toast, and the
+ * arrival toast announced it a second time at the next crossing into Majora's
+ * Mask. A sourced grant (RSBS_SHARED_ITEM_SOURCED, the netplay relay) was never
+ * picked up in this player's game, so its toast is its only presentation.
  */
 static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    int given = MM_ForeignItem_Give(item->id);
+    int given = MM_ForeignItem_Give(item->id, (item->flags & RSBS_SHARED_ITEM_SOURCED) != 0 ? 1 : 0);
     fprintf(stderr, "[MM] shared-item redeem: RI id=%u %s (Lane 6 foreign give)\n", (unsigned)item->id,
             given ? "awarded or queued for the next gameplay frame" : "NOT awarded — no such MM item");
 }

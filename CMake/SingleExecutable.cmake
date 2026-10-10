@@ -571,6 +571,11 @@ if(BUILD_TESTING)
     # crossing, order preservation, origin filtering, and that a NULL PlayState
     # defers the give instead of dereferencing it.
     redship_add_test(NAME ForeignAwardMM COMMAND redship --test foreign-award-mm)
+    # #878: "duplicate toasts when you cross over". Each pickup of a cross-game
+    # item is announced at the pickup; the arrival used to toast it again. Drives
+    # both legs' real arrival consumers (MM's through its first-frame drain over a
+    # stand-in PlayState) and requires each to redeem its crossing and toast nothing.
+    redship_add_test(NAME CrossingArrivalToasts COMMAND redship --test crossing-arrival-toasts)
     # #510's ForeignPoolMM and #495's ForeignItemClass rows are RETIRED with the
     # pinned pools they locked (ADR 0010 increment 3, D3; lane K11): items leave
     # origin pools under one bag, so there is no pool to register or draw.

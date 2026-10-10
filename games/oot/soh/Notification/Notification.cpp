@@ -2,6 +2,7 @@
 #include "Notification.h"
 #include <libultraship/libultraship.h>
 #include "soh/OTRGlobals.h"
+#include "context.h" // src/common: Context_GetCurrentGame (the [TOAST] line, #878)
 
 extern "C" {
 #include "functions.h"
@@ -14,7 +15,8 @@ namespace Notification {
 static uint32_t nextId = 0;
 static std::vector<Options> notifications = {};
 // Test-only record of every toast queued while recording is on, as
-// "<prefix> <message>" (OoT_Notification_EmittedAtForTest). OFF unless a test
+// "<prefix> <message> <suffix>", the empty fields and their gaps left out
+// (OoT_Notification_EmittedAtForTest). OFF unless a test
 // row turns it on (OoT_Notification_RecordForTest), so a shipping process keeps
 // nothing and Emit behaves exactly as upstream.
 static bool recordForTest = false;
@@ -134,8 +136,27 @@ void Window::UpdateElement() {
 void Emit(Options notification) {
     notification.id = nextId++;
     if (recordForTest) {
-        emittedForTest.push_back(notification.prefix.empty() ? notification.message
-                                                             : notification.prefix + " " + notification.message);
+        // The suffix is recorded too (#878): an item toast keeps its verb in
+        // `.message` and the item in `.suffix`, so without it two different
+        // items' toasts would read as one text twice.
+        std::string line;
+        for (const std::string* field : { &notification.prefix, &notification.message, &notification.suffix }) {
+            if (field->empty()) {
+                continue;
+            }
+            if (!line.empty() && line.back() != ' ') {
+                line += ' ';
+            }
+            line += *field;
+        }
+        emittedForTest.push_back(line);
+        // Every recorded toast also lands in stderr, in order, with the game
+        // that was running, so a run's log reads as the list of what the
+        // overlay was asked to show (#878's reproduction).
+        const GameId game = Context_GetCurrentGame();
+        fprintf(stderr, "[TOAST] %d (%s): \"%s\"\n", (int)emittedForTest.size(),
+                game == GAME_MM ? "MM" : (game == GAME_OOT ? "OoT" : "none"), line.c_str());
+        fflush(stderr);
     }
     if (notification.remainingTime == 0.0f) {
         notification.remainingTime = CVarGetFloat(CVAR_SETTING("Notifications.Duration"), 10.0f);

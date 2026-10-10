@@ -505,6 +505,7 @@ extern "C" {
 #include "tests/test_foreign_items.c"
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
+#include "tests/test_crossing_toasts.c" // #878: a crossing toasts nothing its pickup announced
 
 // Lane C1 in-game spoiler VIEW model (#496): the read-only projection of
 // gComboCtx.foreignPlacements the combo spoiler window renders — named
@@ -1192,6 +1193,22 @@ TestResult Test_BootOoT(void) {
 
     printf("[TEST] PASS: display-free shared subsystems all initialized\n");
     return TEST_PASS;
+}
+
+// #878 crossing-arrival-toasts (body: tests/test_crossing_toasts.c, included
+// beside test_foreign_award.c). The overlay's Emit reads the CVar store, so the
+// row needs the display-free shared Context bring-up first; it mutes the
+// overlay so no unmuted toast reaches OoT's audio.
+static TestResult Test_CrossingArrivalToasts(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    CVarSetInteger("gSettings.Notifications.Mute", 1);
+    const TestResult result = CrossingArrivalToasts_Run();
+    CVarClear("gSettings.Notifications.Mute");
+    return result;
 }
 
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
@@ -5241,6 +5258,10 @@ const TestDescriptor gTests[] = {
     // fprintf; this one drives the real one and the real give behind it.
     {"foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
      Test_ForeignAwardMM},
+    // #878: both arrivals' real consumers redeem a crossing and toast nothing:
+    // the item was announced at its pickup.
+    {"crossing-arrival-toasts", "A crossing toasts nothing its pickup already announced, on both legs (#878)",
+     Test_CrossingArrivalToasts},
     // #510's foreign-pool-mm and #495's foreign-item-class rows are RETIRED with
     // the pinned pools (ADR 0010 increment 3, D3); see the note at the end of
     // tests/test_foreign_items.c for where each claim is locked now.
