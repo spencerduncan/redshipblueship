@@ -17,6 +17,8 @@ message(STATUS "=== Single Executable Architecture Enabled ===")
 
 set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/game.c
+    # The version a person sees (#880): window title and --version
+    ${CMAKE_SOURCE_DIR}/src/common/rsbs_version.c
     ${CMAKE_SOURCE_DIR}/src/common/archive_check.cpp
     # #604: the boot-time output comparison of OoT's and MM's 'OARR' Array
     # readers (called from rsbs/src/main.cpp before anything can draw)
@@ -2296,6 +2298,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+    # #880: the window title and --version carry the configured short commit
+    # (and "-dirty"), so a build says which commit it is. The expected identity is
+    # handed over from configure ("none" for a tree without git); run outside
+    # CTest the row checks the string's shape only. ROM-free, no window.
+    if(SHORT_COMMIT_HASH)
+        set(RSBS_EXPECT_SHORT_COMMIT "${SHORT_COMMIT_HASH}")
+    else()
+        set(RSBS_EXPECT_SHORT_COMMIT "none")
+    endif()
+    redship_add_test(NAME VersionShortCommit COMMAND redship --test version-short-commit
+        ENVIRONMENT "RSBS_EXPECT_SHORT_COMMIT=${RSBS_EXPECT_SHORT_COMMIT}" "RSBS_EXPECT_DIRTY=${RSBS_BUILD_DIRTY}")
 
     # #785: a moon crash in a paired MM half restores the last whole .redsave
     # commit (the file as last saved, vanilla's flash reload; OoTMM's default

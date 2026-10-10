@@ -401,13 +401,15 @@ bool HasVersionFlag(int argc, char** argv) {
 void PrintVersion(void) {
     // Base-port versions come from the linked game libraries so they can't
     // drift from what the archive/save compatibility checks actually enforce.
-    printf("%s %s (%s)\n", RSBS_APP_NAME, RSBS_VERSION_STRING, RSBS_VERSION_CODENAME);
+    // The first line is the context name: the window title less the backend
+    // libultraship appends (#880).
+    printf("%s\n", RsbsVersion_WindowTitle());
     printf("Base ports: Ship of Harkinian %s (OoT), 2 Ship 2 Harkinian %s (MM)\n",
            (const char*)OoT_gBuildVersion, (const char*)MM_gBuildVersion);
 }
 
 void PrintUsage(const char* progName) {
-    printf("%s %s - Unified OoT+MM Executable\n\n", RSBS_APP_NAME, RSBS_VERSION_STRING);
+    printf("%s %s - Unified OoT+MM Executable\n\n", RSBS_APP_NAME, RsbsVersion_Display());
     printf("Usage: %s [OPTIONS]\n\n", progName);
     printf("Options:\n");
     printf("  --game oot            Run Ocarina of Time\n");
@@ -551,7 +553,7 @@ int main(int argc, char** argv) {
     fprintf(stderr, "[RSBS] About to create Ship::Context singleton...\n");
     fflush(stderr);
     auto shipContext = Ship::Context::CreateUninitializedInstance(
-        RSBS_WINDOW_TITLE, "soh", "shipofharkinian.json");
+        RsbsVersion_WindowTitle(), "soh", "shipofharkinian.json");
     fprintf(stderr, "[RSBS] CreateUninitializedInstance returned: %p\n", (void*)shipContext.get());
     fflush(stderr);
     if (!shipContext) {

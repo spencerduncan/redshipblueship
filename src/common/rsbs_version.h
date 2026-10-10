@@ -35,7 +35,25 @@
 
 #define RSBS_APP_NAME "RedShipBlueShip"
 
-/* Context display name: window title, crash-dialog branding, log name. */
+/* The bare release title, with no build identity. The title a person sees is
+ * RsbsVersion_WindowTitle() below; this macro remains for surfaces that are not
+ * a build's identity (the UI snapshot harness's own window). */
 #define RSBS_WINDOW_TITLE RSBS_APP_NAME " " RSBS_VERSION_STRING " (" RSBS_VERSION_CODENAME ")"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* The version a person sees (#880): RSBS_VERSION_STRING, which only moves at a
+ * release (the tag rule above), followed by the build's identity. */
+const char* RsbsVersion_Display(void);
+
+/* Context display name: window title, crash-dialog branding, log name, and the
+ * first line of --version: RSBS_APP_NAME " " RsbsVersion_Display() " (" codename ")". */
+const char* RsbsVersion_WindowTitle(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // RSBS_VERSION_H

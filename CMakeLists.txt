@@ -124,6 +124,34 @@ string(SUBSTRING "${GIT_COMMIT_HASH}" 0 7 SHORT_COMMIT_HASH)
 
 set(CMAKE_PROJECT_GIT_COMMIT_HASH "${SHORT_COMMIT_HASH}" CACHE STRING "Git commit hash" FORCE)
 
+# The build identity a person sees (#880): the window title and --version read
+# RSBS_VERSION_STRING plus "+<short commit>", and "-dirty" when tracked files
+# differ from that commit at configure time. A tree without git (an exported
+# source archive) keeps the bare version. The four files the game CMakeLists
+# regenerate on every configure (build.c, properties.h) are tracked, so they are
+# excluded here: otherwise every configured tree would read dirty.
+set(RSBS_BUILD_DIRTY 0)
+set(RSBS_BUILD_SUFFIX "")
+if(SHORT_COMMIT_HASH)
+    execute_process(
+        COMMAND git status --porcelain --untracked-files=no --ignore-submodules=untracked -- .
+            ":(exclude)games/oot/src/boot/build.c" ":(exclude)games/oot/properties.h"
+            ":(exclude)games/mm/src/boot/build.c" ":(exclude)games/mm/windows/properties.h"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE RSBS_GIT_STATUS
+        RESULT_VARIABLE RSBS_GIT_STATUS_RESULT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(RSBS_GIT_STATUS_RESULT EQUAL 0 AND NOT RSBS_GIT_STATUS STREQUAL "")
+        set(RSBS_BUILD_DIRTY 1)
+    endif()
+    set(RSBS_BUILD_SUFFIX "+${SHORT_COMMIT_HASH}")
+    if(RSBS_BUILD_DIRTY)
+        string(APPEND RSBS_BUILD_SUFFIX "-dirty")
+    endif()
+endif()
+message(STATUS "RedShipBlueShip build identity: '${RSBS_BUILD_SUFFIX}'")
+
 execute_process(
     COMMAND git describe --tags --abbrev=0 --exact-match HEAD
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
