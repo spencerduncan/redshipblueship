@@ -1175,8 +1175,7 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
             const char* item = Combo_GetForeignItemName(row.item);
             const bool crossed = Rando::Foreign::GiveForeignCheck((RandoCheckId)row.hostCheck);
             fprintf(stderr, "[PFC] MM pickup before the Clock Tower door: check %u hosts the OoT item %s; %s\n",
-                    (unsigned)row.hostCheck, item != nullptr ? item : "?",
-                    crossed ? "crossed" : "NOT crossed");
+                    (unsigned)row.hostCheck, item != nullptr ? item : "?", crossed ? "crossed" : "NOT crossed");
             fflush(stderr);
             break;
         }
@@ -3831,7 +3830,7 @@ extern "C" bool MM_GameHooks_ExecuteShouldItemGive(u8 item) {
 // rather than in src/common/foreign_items.h — which is where its OoT twin is
 // declared — because that header is Lane 1's and the MM pool surface lands in
 // it with the reverse-direction pool, not with this give. Fold this in then.
-extern "C" int MM_ForeignItem_Give(uint16_t riId);
+extern "C" int MM_ForeignItem_Give(uint16_t riId, int announce);
 
 /**
  * Award a single MM-origin shared item (ADR 0002 / Lane A1 consumer callback),
@@ -3858,10 +3857,17 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId);
  * `MM_gPlayState = this`, and the ROM-free rows drive it headlessly with no Gui
  * (src/common/tests/test_foreign_award.c). A Notification::Emit added back here
  * would fire before the item exists and on a display-free CI path.
+ *
+ * ONE ANNOUNCEMENT PER ITEM (#878): only a SOURCED grant asks the give to toast.
+ * A crossing pickup (an MM item taken from an OoT check) was presented when the
+ * player took it, by OoT's get-item textbox or its "You found" toast, and the
+ * arrival toast announced it a second time at the next crossing into Majora's
+ * Mask. A sourced grant (RSBS_SHARED_ITEM_SOURCED, the netplay relay) was never
+ * picked up in this player's game, so its toast is its only presentation.
  */
 static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    int given = MM_ForeignItem_Give(item->id);
+    int given = MM_ForeignItem_Give(item->id, (item->flags & RSBS_SHARED_ITEM_SOURCED) != 0 ? 1 : 0);
     fprintf(stderr, "[MM] shared-item redeem: RI id=%u %s (Lane 6 foreign give)\n", (unsigned)item->id,
             given ? "awarded or queued for the next gameplay frame" : "NOT awarded — no such MM item");
 }

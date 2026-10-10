@@ -137,6 +137,8 @@ namespace {
 // gComboCtx redeeming entirely into MM in one arrival can never overflow it —
 // the queue is not allowed to be the thing that loses an item.
 uint16_t sPendingGives[RSBS_SHARED_ITEM_CAP];
+// Per queued give: whether its give toasts (#878: only a sourced grant does).
+bool sPendingAnnounce[RSBS_SHARED_ITEM_CAP];
 int sPendingCount = 0;
 
 /**
@@ -201,10 +203,20 @@ std::string RenderToastLine(const Notification::Options& toast) {
     return line;
 }
 
-/** The actual give. Precondition: MM_gPlayState != NULL and the id is real. */
-void GiveNow(uint16_t riId) {
+/** The actual give. Precondition: MM_gPlayState != NULL and the id is real.
+ *  `announce` is false for a crossing pickup, presented at its pickup (#878). */
+void GiveNow(uint16_t riId, bool announce) {
     const RandoItemId randoItemId = (RandoItemId)riId;
     Rando::GiveItem(randoItemId);
+    if (!announce) {
+        // #878: an item the player took from an OoT check was presented there
+        // (OoT's get-item textbox, or its "You found" toast when the cutscene is
+        // skipped); a toast here announced it again at the next crossing into
+        // Majora's Mask. OoTMM presents an item once, at its pickup, and says
+        // nothing at a game switch. MM_AwardSharedItem passes true only for a
+        // sourced grant (the netplay relay), which no pickup here presented.
+        return;
+    }
 
     // #494: the arrival is the player's ONLY signal that this item landed.
     // Until now it was silent — the item appeared in the inventory an arbitrary
@@ -240,21 +252,22 @@ void GiveNow(uint16_t riId) {
 /**
  * Award one MM-origin foreign item. Gives immediately when a PlayState is live,
  * otherwise queues for MM_ForeignItem_FlushPending (see the file header for why
- * that is the safe shape here).
+ * that is the safe shape here). `announce` (nonzero) makes the give toast the
+ * item: true only for a sourced grant, never for a crossing pickup (#878).
  *
  * @return 1 if the item was given or queued for the next gameplay frame,
  *         0 if the id names no real MM item (logged) or the queue is full.
  *         The caller's consumer sets RSBS_SHARED_ITEM_REDEEMED either way — a
  *         give we could not perform is a loud log, not a stalled arrival.
  */
-extern "C" int MM_ForeignItem_Give(uint16_t riId) {
+extern "C" int MM_ForeignItem_Give(uint16_t riId, int announce) {
     if (!IsGiveableItemId(riId)) {
         fprintf(stderr, "[MM] foreign give: RI id=%u names no real MM item — not given\n", (unsigned)riId);
         return 0;
     }
 
     if (MM_gPlayState != NULL) {
-        GiveNow(riId);
+        GiveNow(riId, announce != 0);
         return 1;
     }
 
@@ -265,7 +278,9 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId) {
         fprintf(stderr, "[MM] foreign give: pending queue full, dropping RI id=%u\n", (unsigned)riId);
         return 0;
     }
-    sPendingGives[sPendingCount++] = riId;
+    sPendingGives[sPendingCount] = riId;
+    sPendingAnnounce[sPendingCount] = announce != 0;
+    sPendingCount++;
     return 1;
 }
 
@@ -293,14 +308,16 @@ extern "C" int MM_ForeignItem_FlushPending(void) {
     // again; re-entrancy that re-gave would be a duplicate the redeemed bit
     // cannot catch, because the crossing was already consumed.
     uint16_t drained[RSBS_SHARED_ITEM_CAP];
+    bool drainedAnnounce[RSBS_SHARED_ITEM_CAP];
     for (int i = 0; i < count; i++) {
         drained[i] = sPendingGives[i];
+        drainedAnnounce[i] = sPendingAnnounce[i];
     }
     sPendingCount = 0;
 
     for (int i = 0; i < count; i++) {
         fprintf(stderr, "[MM] foreign give (deferred to gameplay): RI id=%u\n", (unsigned)drained[i]);
-        GiveNow(drained[i]);
+        GiveNow(drained[i], drainedAnnounce[i]);
     }
     return count;
 }

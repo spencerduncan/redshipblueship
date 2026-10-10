@@ -2681,12 +2681,28 @@ extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
  * logged but still consumes the redemption — by the time this callback can
  * run, OoT is at its presence-gated arrival point and the guarded
  * prerequisites are live, so that path is defensive, not expected.
+ *
+ * ONE ANNOUNCEMENT PER ITEM (#878). A crossing pickup (RSBS_SHARED_ITEM_CROSSING:
+ * an OoT item taken from a Majora's Mask check) was presented when the player
+ * took it, by MM's get-item textbox or a shop's own purchase dialogue, so this
+ * arrival gives it silently: toasting it here announced the same item a second
+ * time at the next crossing into OoT, the operator's "duplicate toasts when you
+ * cross over". The paired world is one game, and OoTMM (the reference for
+ * player-facing choices) presents an item once, at its pickup, and announces
+ * nothing at a game switch. Only a SOURCED grant (RSBS_SHARED_ITEM_SOURCED, the
+ * netplay relay's Combo_SubmitSourcedGrant) keeps its toast: it was never picked
+ * up in this player's game, so the toast is its only presentation. The redeem
+ * and its log line are the same for both. Locked by CrossingArrivalToasts and by
+ * IntPairedFirstCrossing's per-leg toast check.
  */
 static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
     int given = OoT_ForeignItem_Give(item->id);
     fprintf(stderr, "[OoT] shared-item redeem: RG id=%u %s (Lane C1 foreign give)\n", (unsigned)item->id,
             given ? "awarded" : "NOT awarded — give path unavailable");
+    if ((item->flags & RSBS_SHARED_ITEM_SOURCED) == 0) {
+        return; // #878: presented at its pickup (see above)
+    }
 
     // #494: tell the player. Until this, a cross-game item arrived in OoT with
     // NO in-game signal at all — the item simply appeared in the inventory, an
