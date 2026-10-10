@@ -26,8 +26,12 @@
  *   MM -> OoT   Combo_RecordSharedItemCrossing(GAME_OOT, id)
  *                 -> OoT_ConsumeSharedItems()           OoT's real arrival hook
  *
- * Each leg must redeem its crossing and run its give (not vacuous) and must
- * emit zero toasts. Before #878 each leg emitted one ("You got ...").
+ * Each leg must redeem its crossing and must emit zero toasts. Before #878
+ * each leg emitted one ("You got ..."). The MM leg's give runs (its deferred
+ * drain is flushed and counted). The OoT leg's give is unavailable ROM-free
+ * (no live rando context: "[OoT] foreign give unavailable"), so for OoT only
+ * the redeem and the toast count are asserted. The unfixed OoT_AwardSharedItem
+ * toasted whether or not its give ran, which is why that leg was red too.
  *
  * A SOURCED grant (Combo_SubmitSourcedGrant: the netplay relay's seam) was never
  * presented at a pickup in this player's game, so its arrival toast is its only
