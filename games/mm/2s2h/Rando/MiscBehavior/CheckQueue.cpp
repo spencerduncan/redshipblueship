@@ -38,6 +38,19 @@ bool Rando::Foreign::GiveForeignCheck(RandoCheckId randoCheckId) {
     randoSaveCheck.eligible = false;
     return crossed;
 }
+
+// THE PICKUP SENTENCE (#865; declared in Rando/Foreign.h): the words the
+// foreign branch's textbox shows, factored out so the ForeignTextboxIcon row can
+// lay out every OoT item's sentence through MM's own line breaker. The item is
+// marked with its game, " (OoT)", the way the check trackers, the gossip hints
+// and the Combo Tracker mark it: many names exist in both games (the Song of
+// Time, the Hookshot, the Lens of Truth), and the icon alone cannot tell the two
+// Songs of Time apart (both are music notes). Always, not only for the names
+// both games use, so the player learns one convention.
+std::string Rando::Foreign::ForeignPickupMessage(const char* article, const char* name) {
+    return std::string("You found ") + (article != nullptr ? article : "") +
+           (name != nullptr ? name : "a foreign item") + " (OoT)!";
+}
 #endif
 
 // This function handles queuing up item gives that the player has been marked as eligible for. If you are looking for
@@ -83,7 +96,8 @@ void Rando::MiscBehavior::CheckQueue() {
             // itself — a giant-rupee stand-in model, a cross-game aura, and a
             // textbox explaining the item belonged to Ocarina of Time and would
             // be awarded there. All three are gone. A foreign item now reads
-            // exactly like any other check: "You found the Fairy Bow!".
+            // like any other check, with only its game marked after the name
+            // (#865: ForeignPickupMessage): "You found the Fairy Bow (OoT)!".
             //
             // OoT'S OWN MODEL (#577 M3). The draw asks OoT (the origin) for the
             // item's get-item model and redraws it with MM's primitives
@@ -124,8 +138,9 @@ void Rando::MiscBehavior::CheckQueue() {
                             // (#800), factored below.
                             Rando::Foreign::GiveForeignCheck(checkId);
 
-                            // Same sentence shape as the native branch below:
-                            // "You found " + article + name + "!". The article
+                            // The native branch's sentence shape, with the
+                            // item's game marked (#865): "You found " + article
+                            // + name + " (OoT)!". The article
                             // rides the pooled descriptor because MM cannot read
                             // OoT's item table (ADR 0002).
                             //
@@ -140,9 +155,8 @@ void Rando::MiscBehavior::CheckQueue() {
                             CustomMessage::Entry entry = {
                                 .textboxType = 2,
                                 .icon = Rando::StaticData::GetIconForZMessage(RI_NONE),
-                                .msg = std::string("You found ") +
-                                       Rando::Foreign::ForeignArticleForCheck(checkId) +
-                                       (foreignName != nullptr ? foreignName : "a foreign item") + "!",
+                                .msg = Rando::Foreign::ForeignPickupMessage(
+                                    Rando::Foreign::ForeignArticleForCheck(checkId), foreignName),
                                 .foreignIconTexture = iconTexture,
                                 .foreignIconItemId = iconItemId,
                             };

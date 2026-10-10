@@ -187,7 +187,8 @@ TestResult Test_ForeignItemGive(void) {
         FI_ASSERT(name != NULL && name[0] != '\0');
         // Same answer through both entry points: one describer, two names for it.
         FI_ASSERT(Combo_DescribeItemName(item) == name);
-        // #510: MM's pickup textbox reads "You found " + article + name, and MM
+        // #510: MM's pickup textbox reads "You found " + article + name, with
+        // the item's game marked after the name (#865: " (OoT)!"), and MM
         // cannot look up OoT's item table for the article — it rides the
         // describer, with its own trailing space.
         const char* article = Combo_GetForeignItemArticle(item);
