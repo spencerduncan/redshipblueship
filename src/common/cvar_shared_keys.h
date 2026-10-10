@@ -196,17 +196,6 @@
 #define RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED "gCombo.Tracker.Items.Section.Shared"
 #define RSBS_CVAR_COMBO_ITEMS_ICON_SIZE "gCombo.Tracker.Items.IconSize"
 
-/* MM's four tracker windows' visibility toggles (#489, #535), MM's upstream
- * "gWindows.*" names. NOT tier-4 keys and not in kComboKeys: they are MM's own
- * window preferences, spelled here so the OoT-hosted Combo > Windows rows can
- * name them without an MM header. games/mm/2s2h/TrackersGuiSingleExe.cpp
- * static_asserts its ctor CVars (S2H::TrackersGui::k*VisibilityCVar) equal
- * these, so the menu row and the window cannot drift apart. */
-#define RSBS_CVAR_MM_WINDOW_ITEM_TRACKER "gWindows.ItemTracker"
-#define RSBS_CVAR_MM_WINDOW_ITEM_TRACKER_SETTINGS "gWindows.ItemTrackerSettings"
-#define RSBS_CVAR_MM_WINDOW_CHECK_TRACKER "gWindows.CheckTracker"
-#define RSBS_CVAR_MM_WINDOW_CHECK_TRACKER_SETTINGS "gWindows.CheckTrackerSettings"
-
 #ifdef __cplusplus
 
 #include <cstddef>

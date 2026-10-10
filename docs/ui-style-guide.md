@@ -253,8 +253,9 @@ SoH decides by WHEN a surface is used, not by how big it is. Ours follow the sam
 
 Ours: MM's randomizer options and tricks freeze at the creation event, so they are pages (Combo > MM Randomizer
 and Combo > MM Tricks, `SohMenuComboMmRandomizer.cpp`, since 2026-09-27; ADR 0004's host amendment of that date).
-Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker, the Combo Item Tracker and
-MM's trackers. The unified trackers' settings are a page, Combo > Tracker Settings (`SohMenuComboTrackerSettings.cpp`),
+Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker and the Combo Item Tracker.
+MM's native trackers have no row since #458 U6 (the unified trackers cover both games); they stay registered as
+fallbacks that their `gWindows.*` keys still open. The unified trackers' settings are a page, Combo > Tracker Settings (`SohMenuComboTrackerSettings.cpp`),
 which embeds SoH's own Check Tracker Settings because the Combo Tracker draws in its colours. A new
 surface that freezes at creation, or that feeds generation, is never a pop-out.
 
@@ -415,7 +416,7 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
   direction and goal comboboxes and (frozen) its first slider and its goal row; Majora's Mask hovers its first row and
-  Windows its MM Item Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state unless
+  Windows its Combo Item Tracker toggle (`PageSpec::hoverRows`, a named row, captured in the page's first state unless
   `PageSpec::hoverRowState` names another). Combo > MM Randomizer hovers its first row unpaired and frozen and its
   first capability-blocked row (named rows; the frozen and blocked ones are in `PageSpec::disabledHovers`). Combo > MM
   Tricks hovers a live, an unbound and a reserved trick unpaired and the live one frozen (`PageSpec::paneHovers`,

@@ -2115,10 +2115,10 @@ void Session::BuildPageList() {
                 p.hovers = { "window-type" };
                 p.hoverRows["window-type"] = "Window Type##ComboItemTracker";
             } else if (sidebar == "Windows") {
-                // An MM tracker toggle: SoH's "Toggles the <Window>." plus the
-                // sentence that explains its blank window under Ocarina of Time.
-                p.hovers = { "mm-item-tracker" };
-                p.hoverRows["mm-item-tracker"] = "Toggle MM Item Tracker";
+                // A tracker toggle: SoH's "Toggles the <Window>." (the unified
+                // Item Tracker's, since MM's tracker rows left the page, #458 U6).
+                p.hovers = { "item-tracker" };
+                p.hoverRows["item-tracker"] = "Toggle Combo Item Tracker";
             } else if (sidebar == COMBO_MM_OPTIONS_PAGE_NAME) {
                 // The model's state note in each state (combo_mm_options_page.c),
                 // and the suspended note, which only a non-MM running game shows.
