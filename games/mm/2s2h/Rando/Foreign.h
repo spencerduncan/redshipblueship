@@ -212,6 +212,14 @@ bool IsForeignCheck(RandoCheckId randoCheckId);
 /** Display name for the foreign item hosted by this check, or nullptr. */
 const char* ForeignNameForCheck(RandoCheckId randoCheckId);
 
+/** "Chest Size & Texture Matches Contents" (EnBox.cpp, EnBox_RandoPostLimbDraw):
+ *  the RandoItemType an MM chest at @p randoCheckId is dressed by, given the type
+ *  of the MM item the save table holds there (@p native). A chest hosting a
+ *  cross-game item holds MM's junk-class cover in RANDO_SAVE_CHECKS, so its look
+ *  comes from the crossed item instead (#494 slice 6, #862); every other chest
+ *  keeps @p native. */
+RandoItemType ChestItemTypeForCheck(RandoCheckId randoCheckId, RandoItemType native);
+
 /** PINNED-table-only twins of IsForeignCheck / ForeignNameForCheck (ADR 0010
  *  O7). The two above read through Combo_GetForeignPlacementForCheck, which
  *  falls back to the crossing store; the spoiler's "foreign" section is the

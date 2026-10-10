@@ -610,6 +610,40 @@ const char* ForeignNameForCheck(RandoCheckId randoCheckId) {
     return Combo_GetForeignItemName(*item);
 }
 
+RandoItemType ChestItemTypeForCheck(RandoCheckId randoCheckId, RandoItemType native) {
+    const SharedItem* item = PlacementFor(randoCheckId);
+    if (item == nullptr) {
+        return native;
+    }
+    // Dressed by the OoT item's class, as OoTMM grades a chest (#862): the chest
+    // grade OoT publishes for its own item (Item::GetCategory, through the item
+    // class owner, shared_items.h "THE CHEST GRADE"), mapped onto MM's own chest
+    // set, so an OoT small key shows MM's key chest and a Gold Skulltula Token its
+    // token chest. An item with no grade presents as major, the answer every
+    // crossing chest gave before #862. No new texture set: these are MM's own.
+    switch (Combo_ItemChestGrade(*item)) {
+        case RSBS_CHEST_GRADE_LESSER:
+            return RITYPE_LESSER;
+        case RSBS_CHEST_GRADE_JUNK:
+            return RITYPE_JUNK;
+        case RSBS_CHEST_GRADE_HEALTH:
+            return RITYPE_HEALTH;
+        case RSBS_CHEST_GRADE_BOSS_KEY:
+            return RITYPE_BOSS_KEY;
+        case RSBS_CHEST_GRADE_SMALL_KEY:
+            return RITYPE_SMALL_KEY;
+        case RSBS_CHEST_GRADE_TOKEN:
+            return RITYPE_SKULLTULA_TOKEN;
+        case RSBS_CHEST_GRADE_FAIRY:
+            return RITYPE_STRAY_FAIRY;
+        case RSBS_CHEST_GRADE_MASK:
+            return RITYPE_MASK;
+        case RSBS_CHEST_GRADE_MAJOR:
+        default:
+            return RITYPE_MAJOR;
+    }
+}
+
 static const SharedItem* PinnedPlacementFor(RandoCheckId randoCheckId) {
     if (randoCheckId == RC_UNKNOWN) {
         return nullptr;
@@ -1654,6 +1688,48 @@ extern "C" void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* 
     }
     if (outUnknown != nullptr) {
         *outUnknown = (uint16_t)RI_UNKNOWN;
+    }
+}
+
+/** TEST BRIDGE (ForeignModel row M15, #862): the RandoItemType MM chest
+ *  @p randoCheckId is dressed by when the save table holds the junk cover there
+ *  (what EnBox_RandoPostLimbDraw asks). */
+extern "C" int MM_Rando_Foreign_TestChestType(uint16_t randoCheckId) {
+    return (int)Rando::Foreign::ChestItemTypeForCheck((RandoCheckId)randoCheckId, RITYPE_JUNK);
+}
+
+/** TEST BRIDGE (M15): MM's OWN chest type for MM item @p randoItemId, read
+ *  straight off Rando::StaticData::Items (the type MM's chest is dressed by when
+ *  it holds that item natively). -1 when the id has no Items row. */
+extern "C" int MM_Rando_Foreign_TestOwnChestType(uint16_t randoItemId) {
+    const auto it = Rando::StaticData::Items.find((RandoItemId)randoItemId);
+    return it == Rando::StaticData::Items.end() ? -1 : (int)it->second.randoItemType;
+}
+
+/** TEST BRIDGE (M15): a RandoItemType's name in the vocabulary both games' chest
+ *  bridges share ("major", "small key", ...), "?" past the enum. */
+extern "C" const char* MM_Rando_Foreign_TestChestTypeName(int type) {
+    switch (type) {
+        case RITYPE_BOSS_KEY:
+            return "boss key";
+        case RITYPE_HEALTH:
+            return "health";
+        case RITYPE_JUNK:
+            return "junk";
+        case RITYPE_LESSER:
+            return "lesser";
+        case RITYPE_MAJOR:
+            return "major";
+        case RITYPE_MASK:
+            return "mask";
+        case RITYPE_SKULLTULA_TOKEN:
+            return "token";
+        case RITYPE_SMALL_KEY:
+            return "small key";
+        case RITYPE_STRAY_FAIRY:
+            return "fairy";
+        default:
+            return "?";
     }
 }
 
