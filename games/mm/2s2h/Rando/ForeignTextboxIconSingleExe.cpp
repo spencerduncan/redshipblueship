@@ -70,6 +70,7 @@
 #include "2s2h/CustomItem/CustomItem.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/Rando/MiscBehavior/MiscBehavior.h"
+#include "2s2h/Rando/Foreign.h" // #865: the pickup sentence and the check's describer answers
 
 extern "C" {
 #include "variables.h" // MM_gPlayState
@@ -530,8 +531,17 @@ bool RunCheckQueueGive(uint16_t mmCheckId, const char* wantTexture, uint8_t want
     }
     give->giveItem(&item00, fake.play);
 
-    FTI_EXPECT(activeCustomMessage.msg.rfind("You found ", 0) == 0, "Q2 the give left message \"%s\"",
-               activeCustomMessage.msg.c_str());
+    // #865: the WHOLE sentence, marked with the item's game the way the trackers
+    // and the gossip hints mark it, built here from the check's describer answers
+    // rather than through the production builder.
+    const char* foreignName = Rando::Foreign::ForeignNameForCheck((RandoCheckId)mmCheckId);
+    FTI_EXPECT(foreignName != nullptr, "Q2 the host %u names no foreign item", (unsigned)mmCheckId);
+    const std::string wantMessage = std::string("You found ") +
+                                    Rando::Foreign::ForeignArticleForCheck((RandoCheckId)mmCheckId) + foreignName +
+                                    " (OoT)!";
+    printf("[TEST]   Q2 the give's textbox reads \"%s\"\n", activeCustomMessage.msg.c_str());
+    FTI_EXPECT(activeCustomMessage.msg == wantMessage, "Q2 the give left message \"%s\", want \"%s\"",
+               activeCustomMessage.msg.c_str(), wantMessage.c_str());
     FTI_EXPECT(activeCustomMessage.icon == kNoIcon, "Q2 header icon byte %d, want 0xFE", (int)activeCustomMessage.icon);
     FTI_EXPECT(activeCustomMessage.foreignIconTexture == wantTexture,
                "Q2 the Entry CheckQueue built carries texture %s, want %s",
@@ -558,6 +568,42 @@ bool RunCheckQueueGive(uint16_t mmCheckId, const char* wantTexture, uint8_t want
 extern "C" int MM_ForeignTextboxIcon_TestCheckQueueGive(uint16_t mmCheckId, const char* wantTexture,
                                                         uint8_t wantItemId) {
     return RunCheckQueueGive(mmCheckId, wantTexture, wantItemId) ? 0 : 1;
+}
+
+/**
+ * #865's width leg: the sentence CheckQueue's textbox shows for an item named
+ * `article` + `name` (Rando::Foreign::ForeignPickupMessage), copied to `out`, and
+ * laid out the way LoadCustomMessageIntoFont lays out an autoFormat Entry (the
+ * colour codes, "\n" as 0x11, MM's own AddLineBreaks). `*lines` is the line count
+ * of its first page and `*pages` the page count (0x10 starts a page). Returns the
+ * sentence's length.
+ */
+extern "C" int MM_ForeignTextboxIcon_TestPickupLayout(const char* article, const char* name, char* out, int cap,
+                                                      int* lines, int* pages) {
+    const std::string message = Rando::Foreign::ForeignPickupMessage(article, name);
+    if (out != nullptr && cap > 0) {
+        std::snprintf(out, (size_t)cap, "%s", message.c_str());
+    }
+    std::string laid = message;
+    CustomMessage::ReplaceColorChars(&laid);
+    CustomMessage::Replace(&laid, "\n", "\x11");
+    CustomMessage::AddLineBreaks(&laid);
+    int firstPageLines = 1;
+    int pageCount = 1;
+    for (char c : laid) {
+        if (c == '\x10') {
+            pageCount++;
+        } else if (c == '\x11' && pageCount == 1) {
+            firstPageLines++;
+        }
+    }
+    if (lines != nullptr) {
+        *lines = firstPageLines;
+    }
+    if (pages != nullptr) {
+        *pages = pageCount;
+    }
+    return (int)message.size();
 }
 
 /** The MM half of the ForeignTextboxIcon row: 0 on success. */

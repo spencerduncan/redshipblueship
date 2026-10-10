@@ -399,6 +399,24 @@ void Randomizer_ReleaseQueuedShowOnly(uint16_t rc) {
     }
 }
 
+// THE PICKUP TOAST for an MM item found at an OoT check (the drain below), shown
+// when the get-item animation is skipped. Factored out so PairingRefusalToastFit
+// draws every MM item's toast through this very emitter (#865), which marks the
+// item with its game, " (MM)", as OoT's check tracker and the cutscene text do.
+// FIELD ARRANGEMENT (#494): verb in `.message`, item name in `.suffix`, matching
+// the native rando pickup toasts further down this file. Options colours each
+// field differently, so the earlier `.prefix` + `.message` form rendered this
+// pickup in blue-then-grey where every ordinary one is grey-then-red.
+extern "C" void OoT_Rando_Foreign_EmitPickupToast(SharedItem item) {
+    const char* foreignName = Combo_GetForeignItemName(item);
+    const char* foreignArticle = Combo_GetForeignItemArticle(item);
+    Notification::Emit({
+        .message = "You found ",
+        .suffix = std::string(foreignArticle != nullptr ? foreignArticle : "") +
+                  (foreignName != nullptr ? foreignName : "a foreign item") + " (MM)",
+    });
+}
+
 // TEST BRIDGES (ForeignModel row M13): the drain's show-only queueing for check
 // `rc` (*queued: the slot's entry), and the slot's check (RC_UNKNOWN_CHECK when
 // free).
@@ -482,9 +500,10 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
     // rather than a crossing no paired world could receive.
     const SharedItem* foreignItem = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
     if (foreignItem != nullptr && !loc->HasObtained() && OoT_Rando_Foreign_RecordPickup((uint16_t)rc) != 0) {
-        // Presented as an ORDINARY OoT pickup (#510): "You found the Bunny
-        // Hood" — no mention of Termina, no "will be awarded there". The item
-        // is not given locally (it belongs to MM's id-space).
+        // Presented as an ORDINARY OoT pickup (#510), with only the item's game
+        // marked after its name (#865): "You found the Bunny Hood (MM)" — no
+        // "will be awarded there". The item is not given locally (it belongs to
+        // MM's id-space).
         //
         // #577 M4: through OoT's own get-item cutscene, which now has a
         // display-without-grant path (ForeignModelHostOoT.cpp): Link holds up
@@ -493,18 +512,7 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
         // nothing. The toast stays for the player who skips every get-item
         // animation, where an ordinary pickup gets no cutscene either.
         if (RandomizerSkipForeignGetItemAnimation(rc) || !RandomizerQueueForeignShowOnly(rc)) {
-            // FIELD ARRANGEMENT (#494): verb in `.message`, item name in
-            // `.suffix`, matching the native rando pickup toasts further down
-            // this file. Options colours each field differently, so the earlier
-            // `.prefix` + `.message` form rendered this pickup in
-            // blue-then-grey where every ordinary one is grey-then-red.
-            const char* foreignName = Combo_GetForeignItemName(*foreignItem);
-            const char* foreignArticle = Combo_GetForeignItemArticle(*foreignItem);
-            Notification::Emit({
-                .message = "You found ",
-                .suffix = std::string(foreignArticle != nullptr ? foreignArticle : "") +
-                          (foreignName != nullptr ? foreignName : "a foreign item"),
-            });
+            OoT_Rando_Foreign_EmitPickupToast(*foreignItem);
         }
 
         // RCSHOW_COLLECTED is what HasObtained() reads (status == RCSHOW_COLLECTED

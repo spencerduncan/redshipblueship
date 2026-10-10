@@ -543,9 +543,14 @@ def test_oot_show_only_get_item_call_sites_are_wired():
     assert re.search(gate, foreign_branch), (
         "#577 M4: the drain's foreign branch must queue the show-only get-item entry, toasting only when the "
         "player skips every get-item animation or nothing could be queued")
-    assert "Notification::Emit(" in _block_after(foreign_branch, gate), "the skip-all toast left the show-only gate"
-    assert foreign_branch.count("Notification::Emit(") == 1, (
+    # #865: the toast is emitted through OoT_Rando_Foreign_EmitPickupToast, the
+    # emitter PairingRefusalToastFit draws every MM item's toast through.
+    toast = "OoT_Rando_Foreign_EmitPickupToast("
+    assert toast in _block_after(foreign_branch, gate), "the skip-all toast left the show-only gate"
+    assert foreign_branch.count(toast) == 1 and "Notification::Emit(" not in foreign_branch, (
         "#577 M4: the drain's foreign branch toasts unconditionally again (an Emit outside the show-only gate)")
+    emitter = _function_body(OOT_RANDO / "hook_handlers.cpp", "OoT_Rando_Foreign_EmitPickupToast")
+    assert "Notification::Emit(" in emitter, "#865: the pickup toast's emitter no longer emits the toast"
 
     message = _function_body(OOT_RANDO / "Messages" / "ItemMessages.cpp", "BuildItemMessage")
     assert re.search(
@@ -556,7 +561,7 @@ def test_oot_show_only_get_item_call_sites_are_wired():
     ice_trap = message.find("RG_ICE_TRAP")
     assert foreign_text and ice_trap != -1 and foreign_text.start() < ice_trap, (
         "#577 M4: BuildItemMessage's show-only branch must come first in the item-message chain")
-    assert "msg = CustomMessage(" in _block_after(message, r"if\s*\(\s*foreign\s*\)\s*\{"), (
+    assert "msg = BuildForeignItemText(" in _block_after(message, r"if\s*\(\s*foreign\s*\)\s*\{"), (
         "#577 M4: the show-only branch must build the textbox naming the MM item")
 
     give = _function_body(OOT_PLAYER, "func_8084DFF4")
