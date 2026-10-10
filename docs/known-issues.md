@@ -252,6 +252,15 @@ before the fix). Now, while you play Majora's Mask, the panel and the crossing l
 running save: the panel says "Updated live." and a collected check shows at once, with no
 save. In Hyrule it reads the copy, as of the last game switch or save.
 
+**The Combo Item Tracker lists Majora's Mask's items by name until Majora's Mask has started** ([#458](https://github.com/spencerduncan/redshipblueship/issues/458)).
+Majora's Mask's item icons come from its own archive and are loaded the first time Majora's
+Mask starts in a session. Until then (in a session that begins in Ocarina of Time, until your
+first crossing into Termina) the overlay's Majora's Mask section shows each item's name
+instead of its icon, dimmed while you do not hold it, with its count where it has one. The
+items are the same ones the icons would show. Once Majora's Mask has started, its icons stay
+loaded until you quit. Ocarina of Time's icons load at launch, so its section and the Shared
+section always have icons.
+
 ### Back up your saves. Seriously.
 
 The cross-game save (`.redsave`) format **has been re-versioned** since the last
