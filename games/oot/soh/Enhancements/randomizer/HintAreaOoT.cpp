@@ -167,9 +167,8 @@ extern "C" void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast) {
  *  text for it (the string OoT's hints print and areaNameToEnum reads back). */
 extern "C" void OoT_HintArea_TestArea(int ra, uint8_t* outArea, char* outEnglish, int cap) {
     *outArea = OoTComboAreaOf((RandomizerArea)ra);
-    const std::string english = Rando::StaticData::hintTextTable[Rando::StaticData::areaNames[(uint32_t)ra]]
-                                    .GetClear()
-                                    .GetEnglish(MF_CLEAN);
+    const std::string english =
+        Rando::StaticData::hintTextTable[Rando::StaticData::areaNames[(uint32_t)ra]].GetClear().GetEnglish(MF_CLEAN);
     snprintf(outEnglish, (size_t)cap, "%s", english.c_str());
 }
 
@@ -200,7 +199,7 @@ extern "C" int OoT_HintArea_TestSnapshot(void) {
             continue;
         }
         withArea++;
-        if (sampleChest < 0 && Rando::StaticData::GetLocation((RandomizerCheck)rc)->GetRCType() == RCTYPE_CHEST) {
+        if (sampleChest < 0 && Rando::StaticData::GetLocation((RandomizerCheck)rc)->GetActorID() == ACTOR_EN_BOX) {
             sampleChest = rc;
         }
     }

@@ -685,7 +685,6 @@ const MmAreaOverride kMmAreaOverrides[] = {
     { RC_STONE_TOWER_TEMPLE_INVERTED_WIZZROBE_CHEST, COMBO_AREA_MM_STONE_TOWER_TEMPLE_INVERTED },
 };
 
-
 /** RandoCheckId -> MM area, built once from MM's own check table on first use. */
 const std::array<uint8_t, RC_MAX>& MmAreaTable() {
     static const std::array<uint8_t, RC_MAX> table = [] {
