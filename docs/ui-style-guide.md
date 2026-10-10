@@ -326,7 +326,12 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   a 4K window at the X-Large menu scale, and requires each to keep the overlay's 30-px margin on the left as well as
   the right, as SoH's own toasts do: at most 772 px in the 832-px window. Each refusal site's own row
   (`mm-combo-settings-gate`, `mm-spoiler-identity`, `combo-creation-event`) compares the toast the site queued with
-  that copy, exactly. The long explanation belongs on the refusal's stderr line, not in the toast. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
+  that copy, exactly. The long explanation belongs on the refusal's stderr line, not in the toast. The paired-file
+  load's "Restored from file:" / "Restored for Majora's Mask:" toasts name a variable list of rows, so their 48
+  characters are a cap, not a fit: `RsbsSave_EmitLoadToast` drops names to "+N" until the overlay measures the toast
+  inside the window it is drawn in (`OoT_Notification_FitsWindow`, #881), because a config with no window size opens
+  libultraship's default 640 x 480, narrower than the 832-px contract. `PairingRefusalToastFit` draws them at
+  640 x 480 and 832 x 600 too. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
   their record names (`goal`, `direction`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name the
   field, and ten of the thirteen fields (`poolSizeOoT`, `poolSizeMM` since #801 retired their rows, `itemClassOoT`,
   `itemClassMM` since #834 retired theirs, `logicRung`, `comboFlags`, `spare1`, `formatVersion`, `comboSettingsHash`,
