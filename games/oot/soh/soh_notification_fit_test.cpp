@@ -372,6 +372,14 @@ std::vector<LoadInput> LoadInputs() {
     }
     inputs.push_back({ RSBS_LOAD_TOAST_RULES_RESTORED, rules, 0, "rules restored (every rule)" });
     inputs.push_back({ RSBS_LOAD_TOAST_MM_RESTORED, "Starting Hearts", 2, "MM restored (#881's 'Starting Hearts +1')" });
+    // The descriptor tables the MM options and tricks pages publish (both
+    // registrars are idempotent; GameExports_SingleExe.cpp brings them up the same way).
+    if (Combo_MMOptionCount() == 0) {
+        MM_RandoOptionsUi_Register();
+    }
+    if (Combo_MMTrickCount() == 0) {
+        MM_RandoTricksUi_Register();
+    }
     std::string all;
     int count = 0;
     auto add = [&](const char* label) {
@@ -621,7 +629,7 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
     ImGui::GetStyle() = baseStyle;
     io.FontGlobalScale = 1.0f;
     if (rc == 0 && failures != 0) {
-        rc = Fail("%d refusal toast check(s) failed (listed above)", failures);
+        rc = Fail("%d toast check(s) failed (listed above)", failures);
     }
 
     if (rc == 0) {
@@ -645,7 +653,7 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
     if (rc != 0) {
         return rc;
     }
-    printf("[TEST] PASS: %d refusal toasts drawn by SoH's overlay, every one keeping the overlay's margin on both "
+    printf("[TEST] PASS: %d toasts drawn by SoH's overlay, every one keeping the overlay's margin on both "
            "sides\n",
            checked);
     return 0;
