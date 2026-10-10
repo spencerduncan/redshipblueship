@@ -500,9 +500,10 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
     // rather than a crossing no paired world could receive.
     const SharedItem* foreignItem = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
     if (foreignItem != nullptr && !loc->HasObtained() && OoT_Rando_Foreign_RecordPickup((uint16_t)rc) != 0) {
-        // Presented as an ORDINARY OoT pickup (#510): "You found the Bunny
-        // Hood" — no mention of Termina, no "will be awarded there". The item
-        // is not given locally (it belongs to MM's id-space).
+        // Presented as an ORDINARY OoT pickup (#510), with only the item's game
+        // marked after its name (#865): "You found the Bunny Hood (MM)" — no
+        // "will be awarded there". The item is not given locally (it belongs to
+        // MM's id-space).
         //
         // #577 M4: through OoT's own get-item cutscene, which now has a
         // display-without-grant path (ForeignModelHostOoT.cpp): Link holds up

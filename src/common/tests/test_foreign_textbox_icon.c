@@ -46,7 +46,11 @@
  *     (#865).
  *  I8 THE WORDS (#865): every OoT item that may cross reads "You found
  *     <article><name> (OoT)!" through the production sentence builder, and MM's
- *     own line breaker keeps each on one page of the textbox.
+ *     own line breaker keeps each on one page of the textbox. One PAGE, not one
+ *     line: AddLineBreaks word-wraps at 300 width units, and the 53-unit marker
+ *     moves the longer names to a second line ("You found the Megaton Hammer
+ *     (OoT)!" is 307 units), which MM shows in the same box. The failure that
+ *     matters is a page break, where the player must press A mid-sentence.
  *
  * Not lockable headless: the pixels. Whether OoT's texture actually rasterizes in
  * MM's textbox is the playtest paragraph of the PR.

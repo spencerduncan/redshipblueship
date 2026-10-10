@@ -96,7 +96,8 @@ void Rando::MiscBehavior::CheckQueue() {
             // itself — a giant-rupee stand-in model, a cross-game aura, and a
             // textbox explaining the item belonged to Ocarina of Time and would
             // be awarded there. All three are gone. A foreign item now reads
-            // exactly like any other check: "You found the Fairy Bow!".
+            // like any other check, with only its game marked after the name
+            // (#865: ForeignPickupMessage): "You found the Fairy Bow (OoT)!".
             //
             // OoT'S OWN MODEL (#577 M3). The draw asks OoT (the origin) for the
             // item's get-item model and redraws it with MM's primitives
