@@ -275,6 +275,11 @@ add_library(redship_common STATIC
     ${REDSHIP_COMMON_HEADERS}
 )
 
+# #880: the build identity ("+<short commit>[-dirty]", from CMakeLists.txt) goes
+# on rsbs_version.c alone, so a new commit recompiles one file, not the library.
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/common/rsbs_version.c PROPERTIES
+    COMPILE_DEFINITIONS "RSBS_BUILD_SUFFIX=\"${RSBS_BUILD_SUFFIX}\"")
+
 target_include_directories(redship_common PUBLIC
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/rsbs/include

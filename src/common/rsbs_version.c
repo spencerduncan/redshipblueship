@@ -5,8 +5,17 @@
 
 #include "rsbs_version.h"
 
-static const char sRsbsDisplay[] = RSBS_VERSION_STRING;
-static const char sRsbsWindowTitle[] = RSBS_WINDOW_TITLE;
+/* "+<short commit>" and "-dirty" when tracked files differed from that commit,
+ * or "" for a tree without git: computed at configure time in CMakeLists.txt
+ * and set on this one source file (CMake/SingleExecutable.cmake), so a new
+ * commit recompiles this file alone. */
+#ifndef RSBS_BUILD_SUFFIX
+#define RSBS_BUILD_SUFFIX ""
+#endif
+
+static const char sRsbsDisplay[] = RSBS_VERSION_STRING RSBS_BUILD_SUFFIX;
+static const char sRsbsWindowTitle[] =
+    RSBS_APP_NAME " " RSBS_VERSION_STRING RSBS_BUILD_SUFFIX " (" RSBS_VERSION_CODENAME ")";
 
 const char* RsbsVersion_Display(void) {
     return sRsbsDisplay;
