@@ -408,8 +408,8 @@ std::vector<LoadInput> LoadInputs() {
 /**
  * #881: every "Restored ..." toast keeps the overlay's margin on both sides of a
  * 640-px and an 832-px window, at Notifications.Size 1.8 and 1.0. And where the
- * whole #881 toast fits (the 832-px window), it is not cut: the fit shortens a
- * toast only for a window it does not fit.
+ * whole #881 toast fits (the 832-px window, and the 640-px one at size 1.0), it
+ * is not cut: the fit shortens a toast only for a window it does not fit.
  */
 int CheckLoadToasts(Notification::Window& overlay, const ImGuiStyle& baseStyle, int& checked) {
     ImGuiIO& io = ImGui::GetIO();
@@ -441,7 +441,11 @@ int CheckLoadToasts(Notification::Window& overlay, const ImGuiStyle& baseStyle, 
                 failures += CheckOne(run, in.what.c_str(), scale, Class::OTHER);
             }
             printf("[TEST] %s, %.1fx: the #881 toast reads '%s'\n", profile.name, scale, issueText.c_str());
-            if (profile.width >= 832.0f && issueText != "Restored for Majora's Mask: Starting Hearts +1") {
+            // Where the whole #881 toast fits it must read whole: the 832-px
+            // window at both sizes, and the 640-px window at size 1.0. Only
+            // 640 px at 1.8 may shorten it.
+            const bool fitsWhole = profile.width >= 832.0f || scale == 1.0f;
+            if (fitsWhole && issueText != "Restored for Majora's Mask: Starting Hearts +1") {
                 failures += Fail("%s at %.1fx: the #881 toast reads '%s'; it fits whole here, so it must not be cut",
                                  profile.name, scale, issueText.c_str());
             }
