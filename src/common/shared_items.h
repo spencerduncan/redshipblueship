@@ -750,7 +750,8 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 //
 // THE POLICY, per #525 kind. What shared_resources.h says is ALWAYS shared is
 // trimmed; the one conditionally shared capacity (the ocarina, armed per world
-// by the frozen combo record) is trimmed only when armed; nothing else is.
+// by the frozen combo record) is trimmed only when armed, which since #879
+// retired that rule is never; nothing else is.
 //
 //   kind                    policy             budget (COPIES the bag keeps, both games together)
 //   ----------------------  -----------------  ----------------------------------------------------
@@ -762,7 +763,7 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 //   BOMB_BAG_, STICK_,
 //   NUT_, HOOKSHOT_,
 //   WALLET_TIER
-//   OCARINA_TIER            TRIM when armed    TIER; KEEP_ALL while the frozen record does not share it
+//   OCARINA_TIER            TRIM when armed    TIER; KEEP_ALL while unarmed, which is always since #879
 //   everything else         KEEP_ALL           rupees, current health / magic, the five ammo COUNTS,
 //                                              bombchus, triforce pieces: renewable or counted, never
 //                                              a capacity the carrier clamps

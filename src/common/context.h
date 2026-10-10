@@ -479,7 +479,11 @@ enum {
     // frozen at file creation. Disarmed, nothing is harvested and nothing is
     // applied, so a world that never asked for it has no slot at all and its
     // `.redsave` is byte-identical to one written before the option existed.
-    RSBS_SHARED_RES_OCARINA_TIER = 18,    // MONOTONIC: 0/1/2, gated by the frozen combo setting (#668)
+    //
+    // RETIRED (#879): the Shared Ocarina rule is gone and the kind is never
+    // armed (Combo_SharedResourceKindArmed). The value stays allocated because
+    // kinds are .redsave format; an older save's slot of this kind is inert.
+    RSBS_SHARED_RES_OCARINA_TIER = 18,    // MONOTONIC: 0/1/2; RETIRED (#879), never armed
     // Triforce pieces (ADR 0010 answer O10). ONE piece count across both
     // worlds: each game's own counter (OoT `triforcePiecesCollected`, MM
     // `foundTriforcePieces`) becomes a mirror of this quantity once paired, so
@@ -590,7 +594,8 @@ typedef struct {
     // enumerated. Zero means "every flag clear", which is exactly what a record
     // written before any flag existed already holds, so no formatVersion bump is
     // owed: the bit's clear state IS the legacy behaviour (see
-    // RSBS_COMBO_FLAG_SHARED_OCARINA in foreign_items.h, which states the rule).
+    // RSBS_COMBO_FLAG_SHARED_OCARINA in foreign_items.h, which states the rule;
+    // that bit is retired and reserved since #879).
     uint8_t comboFlags;
     uint8_t spare1;        // growth under formatVersion, NOT under zero-means-unset
 } ComboSettingsRecord;

@@ -33,8 +33,8 @@
  *      seeds (the sensitivity control). RED HALF: RSBS_COMBO_QUANTITY_KEEP_ALL
  *      composes the untrimmed bag (91 heart rows, 2 double defenses). THE
  *      OCARINA GATE at composer level: 2 + 2 ocarinas (equal effective ceilings)
- *      trim to 2 when the frozen record shares the ocarina and keep all 4 when it
- *      does not. THE STARTING BAR: a request with either starting health 0 is
+ *      keep all 4 whether or not the frozen record carries the shared-ocarina
+ *      bit, which #879 retired. THE STARTING BAR: a request with either starting health 0 is
  *      refused; a two-heart world keeps 44 + 7 and fills the bar from 0x20, which
  *      the three-heart bag cannot (red half, observed: it stops at 0x130).
  *   Q4 PLENTIFUL: surplus of a trimmed family is surplus relative to the trimmed
@@ -312,8 +312,9 @@ struct SqpGuard {
     }
 };
 
-/** Freeze a combo record with the shared ocarina on or off (the frozen record is
- *  what Combo_SharedResourceKindArmed reads once a world exists). */
+/** Freeze a combo record with the shared-ocarina bit set or clear (the frozen
+ *  record is what Combo_SharedResourceKindArmed reads once a world exists; the
+ *  bit is retired since #879 and arms nothing). */
 void SqpFreeze(bool sharedOcarina) {
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
@@ -486,10 +487,12 @@ TestResult Test_SharedQuantityPolicy(void) {
         SQP_ASSERT(!Combo_SharedQuantityPolicyOf(RSBS_SHARED_RES_NONE, &p) && p.policy == RSBS_SHARED_QTY_KEEP_ALL &&
                        !Combo_SharedQuantityPolicyOf((uint8_t)RSBS_SHARED_RES_KIND_COUNT, &p),
                    "Q1: a kind that is not a real shared resource is refused as KEEP_ALL");
+        // #879 retired the Shared Ocarina rule: an older record that still
+        // carries the bit arms nothing, so its ocarina copies stay untrimmed.
         SqpFreeze(true);
         SQP_ASSERT(Combo_SharedQuantityPolicyOf(RSBS_SHARED_RES_OCARINA_TIER, &p) &&
-                       p.policy == RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX && p.budget == RSBS_SHARED_QTY_BUDGET_TIER,
-                   "Q1: an ARMED shared ocarina is a TIER trim");
+                       p.policy == RSBS_SHARED_QTY_KEEP_ALL,
+                   "Q1: a record carrying the retired shared-ocarina bit keeps each game's own copies (#879)");
         SqpFreeze(false);
     }
 
@@ -704,24 +707,25 @@ TestResult Test_SharedQuantityPolicy(void) {
 
     // THE OCARINA GATE, at composer level (review of PR #744: the 2 + 1 row above
     // is kept whole by its unequal ceilings whether armed or not, so it cannot see
-    // the gate). 2 + 2 copies raise MM's effective ceiling to 2, equal to OoT's:
-    // armed, the family trims to 2; unarmed, it is not a shared quantity at all.
+    // the gate). 2 + 2 copies raise MM's effective ceiling to 2, equal to OoT's,
+    // so an armed family would trim to 2. Since #879 retired the Shared Ocarina
+    // rule the kind is never armed: a record carrying the old bit keeps all 4
+    // copies, exactly as one without it does.
     {
         SqpPool oc;
         oc.Add(O, kSqpOcarina, 2);
         oc.Add(M, kSqpOcarina, 2);
         SqpFreeze(true);
-        const SqpComposed armed = SqpCompose(oc, 0x0C33u);
+        const SqpComposed withBit = SqpCompose(oc, 0x0C33u);
         SqpFreeze(false);
         const SqpComposed unarmed = SqpCompose(oc, 0x0C33u);
-        printf("[TEST] shared-quantity-policy: Q3 ocarina 2 + 2: ARMED keeps %d (OoT %d, MM %d), trims %d; UNARMED "
+        printf("[TEST] shared-quantity-policy: Q3 ocarina 2 + 2: retired bit SET keeps %d, trims %d; bit CLEAR "
                "keeps %d, trims %d\n",
-               SqpBoth(armed, kSqpOcarina), SqpCount(armed, O, kSqpOcarina), SqpCount(armed, M, kSqpOcarina),
-               (int)armed.trimmed.size(), SqpBoth(unarmed, kSqpOcarina), (int)unarmed.trimmed.size());
-        SQP_ASSERT(armed.status == RSBS_COMBO_LOGIC_OK && SqpBoth(armed, kSqpOcarina) == 2 &&
-                       armed.trimmed.size() == 2 && SqpCount(armed, O, kSqpOcarina) == 1 &&
-                       SqpCount(armed, M, kSqpOcarina) == 1,
-                   "Q3: an ARMED shared ocarina (2 + 2, equal effective ceilings) trims to 2, one per game");
+               SqpBoth(withBit, kSqpOcarina), (int)withBit.trimmed.size(), SqpBoth(unarmed, kSqpOcarina),
+               (int)unarmed.trimmed.size());
+        SQP_ASSERT(withBit.status == RSBS_COMBO_LOGIC_OK && SqpBoth(withBit, kSqpOcarina) == 4 &&
+                       withBit.trimmed.empty(),
+                   "Q3: a record carrying the retired shared-ocarina bit trimmed the ocarina family (#879)");
         SQP_ASSERT(unarmed.status == RSBS_COMBO_LOGIC_OK && SqpBoth(unarmed, kSqpOcarina) == 4 &&
                        unarmed.trimmed.empty(),
                    "Q3: an UNARMED ocarina (the frozen record does not share it) keeps all 4 copies");

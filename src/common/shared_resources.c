@@ -15,9 +15,9 @@
  */
 
 #include "shared_resources.h"
-// #668: the ONE kind whose existence is a per-world choice reads its arming bit
-// from the frozen combo record. foreign_items.h is game-header-free too, so this
-// TU stays compilable in the ROM-free harness.
+// #668 armed the ocarina kind from the frozen combo record's comboFlags; #879
+// retired that rule and the kind is never armed now. foreign_items.h is
+// game-header-free too, so this TU stays compilable in the ROM-free harness.
 #include "foreign_items.h"
 #include "triforce_hunt.h" // Combo_TriforceHuntArmed: the O10 kind's arming gate
 #include <stdio.h>
@@ -204,20 +204,27 @@ bool Combo_SaveIsLiveFile(GameId game, int32_t gameMode) {
 
 bool Combo_SharedResourceKindArmed(uint8_t kind) {
     // ONE conditional kind, and the condition is the FROZEN world rule, not a
-    // live preference (Combo_ComboSharedOcarina reads the record once a world
-    // exists). Everything else #525 decided for every world.
+    // live preference. Everything else #525 decided for every world, except
+    // the retired ocarina below.
     //
     // Deliberately a positive allowlist of the conditional kinds rather than a
     // `switch` returning false by default: a kind appended without a row here
     // must keep working, because the default for a shared resource is
     // unconditional and a silently disarmed kind is invisible — it looks exactly
     // like a player who has not found the item.
+    //
+    // The ocarina is NEVER armed (#879, operator ruling 2026-10-09). MM starts
+    // every paired world holding its Ocarina of Time, so #668's Shared Ocarina
+    // rule only ever carried that free instrument to Hyrule. The kind stays
+    // allocated (.redsave format) and an older world's record may still carry
+    // RSBS_COMBO_FLAG_SHARED_OCARINA; neither arms it, so its harvest and its
+    // apply are no-ops and an older save's slot is inert.
     if (kind == (uint8_t)RSBS_SHARED_RES_OCARINA_TIER) {
-        return Combo_ComboSharedOcarina();
+        return false;
     }
     // ADR 0010 O10: the frozen goal decides, read from the record, never a CVar.
-    // There is no live-resolution fallback as the ocarina has: before a world
-    // exists there is no hunt to share a count for.
+    // There is no live-resolution fallback: before a world exists there is no
+    // hunt to share a count for.
     if (kind == (uint8_t)RSBS_SHARED_RES_TRIFORCE_PIECES) {
         return Combo_TriforceHuntArmed();
     }
