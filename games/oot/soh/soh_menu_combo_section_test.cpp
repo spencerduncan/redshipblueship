@@ -70,6 +70,14 @@
  *     afterwards (a registered page, so the carry table cannot name a page that
  *     does not exist), and leaves every other value alone.
  *
+ *  8. THE UNIFIED TRACKERS' SETTINGS HAVE NO MENU WRITER. ADR 0004's 2026-09-30
+ *     amendment puts the unified trackers in Combo > Windows and their settings
+ *     on a Combo page. Leg 7 requires Combo > Tracker Settings to write every
+ *     gCombo.Tracker.Items.* key in the manifest exactly once, with the
+ *     overlay's own widget, default and range, to hide the floating-only rows
+ *     for a windowed overlay, and to embed SoH's Check Tracker Settings (whose
+ *     colours the Combo Tracker draws with).
+ *
  * WHAT IS NOT COVERED. The six tier-4 rules' own behaviour — the staging buffers,
  * the freeze gate, the values-from-the-save rule — is `ComboSettingsRows`, which
  * followed the rows here. This row owns the section's SHAPE. Appearance is
@@ -79,6 +87,9 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "soh/SohGui/SohMenu.h"
+
+#include "ComboItemTrackerWindow.h" // leg 7: the overlay's window types and Icon Size range
+#include "cvar_shared_keys.h"       // leg 7: RSBS::kComboKeys and the gCombo.Tracker.Items.* keys
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -186,6 +197,11 @@ void ExtReplacementRegistrar(SohGui::SohMenu& menu, WidgetPath& path) {
 }
 
 const char* kExtPageName = "Contributed Test Page";
+
+// Leg 7. Restated as literals on purpose, as leg 3's are: the point is that the
+// page and this lock agree on the spelling.
+const char* kTrackerSettingsPage = "Tracker Settings";
+const char* kItemTrackerKeyPrefix = "gCombo.Tracker.Items.";
 
 } // namespace
 
@@ -588,6 +604,165 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         }
         printf("[TEST] leg 6: selections saved on \"Cross-Game Windows\" and \"MM Enhancements\" are carried to "
                "\"Windows\" and \"Majora's Mask\"; every other value is left alone\n");
+    }
+
+    // ---- Leg 7: Combo > Tracker Settings writes the unified trackers' keys ----
+    // ADR 0004's 2026-09-30 amendment: the unified trackers are live-play windows
+    // (Combo > Windows) and their settings are a Combo page. Every
+    // gCombo.Tracker.Items.* key in the manifest must have exactly one row here,
+    // with the overlay's own default and range, or the console is a player's only
+    // writer for it. The Combo Tracker draws its checks in SoH's Check Tracker
+    // colours, so the page embeds SoH's own Check Tracker Settings.
+    if (!combo.sidebars.contains(kTrackerSettingsPage)) {
+        printf("[TEST] FAIL(7): the Combo section has no \"%s\" page, so the Combo Item Tracker's settings "
+               "(gCombo.Tracker.Items.*) have no menu writer and the Combo Tracker's colours no Combo host\n",
+               kTrackerSettingsPage);
+        gFailures++;
+    } else {
+        SidebarEntry& page = combo.sidebars.at(kTrackerSettingsPage);
+        COMBO_CHECK(page.columnCount == 1, "Combo / %s declares %u columns, expected 1 (SoH's tracker pages)",
+                    kTrackerSettingsPage, page.columnCount);
+        auto rowFor = [&](const char* key) -> WidgetInfo* {
+            for (auto& column : page.columnWidgets) {
+                for (WidgetInfo& row : column) {
+                    if (row.cVar != nullptr && std::string(row.cVar) == key) {
+                        return &row;
+                    }
+                }
+            }
+            return nullptr;
+        };
+        std::size_t itemKeys = 0;
+        for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+            const char* key = RSBS::kComboKeys[k].key;
+            if (!RSBS::ComboKeyHasPrefix(key, kItemTrackerKeyPrefix)) {
+                continue;
+            }
+            itemKeys++;
+            int rows = 0;
+            for (auto& column : page.columnWidgets) {
+                for (WidgetInfo& row : column) {
+                    if (row.cVar != nullptr && std::string(row.cVar) == key) {
+                        rows++;
+                        const char* tip = row.options != nullptr ? row.options->tooltip : nullptr;
+                        COMBO_CHECK(tip != nullptr && tip[0] != '\0', "row '%s' (%s) has no tooltip",
+                                    row.name.c_str(), key);
+                        COMBO_CHECK(!row.raceDisable, "row '%s' is race-disabled; the overlay's look is cosmetic",
+                                    row.name.c_str());
+                    }
+                }
+            }
+            COMBO_CHECK(rows == 1, "Combo / %s holds %d rows writing %s, expected exactly one", kTrackerSettingsPage,
+                        rows, key);
+        }
+        COMBO_CHECK(itemKeys == 9, "the manifest holds %zu %s* keys; this leg was written against nine", itemKeys,
+                    kItemTrackerKeyPrefix);
+
+        // Each row's widget, default and range are the overlay's
+        // (ComboItemTrackerWindow.cpp reads every key with these defaults and
+        // clamps), so the page never shows a value the overlay is not drawing.
+        if (WidgetInfo* row = rowFor(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE)) {
+            auto o = std::static_pointer_cast<UIWidgets::ComboboxOptions>(row->options);
+            COMBO_CHECK(row->type == WIDGET_CVAR_COMBOBOX &&
+                            o->defaultIndex == (uint32_t)ComboGui::COMBO_ITEM_TRACKER_FLOATING &&
+                            o->comboMap.size() == 2 && o->comboMap.contains(ComboGui::COMBO_ITEM_TRACKER_FLOATING) &&
+                            o->comboMap.contains(ComboGui::COMBO_ITEM_TRACKER_WINDOW),
+                        "the Window Type row is not a combobox over Floating/Window defaulting to Floating");
+        }
+        const char* kBoolKeys[] = { RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED,
+                                    RSBS_CVAR_COMBO_ITEMS_SECTION_OOT, RSBS_CVAR_COMBO_ITEMS_SECTION_MM,
+                                    RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED };
+        const bool kBoolDefaults[] = { false, false, true, true, true };
+        for (std::size_t i = 0; i < sizeof(kBoolKeys) / sizeof(kBoolKeys[0]); i++) {
+            if (WidgetInfo* row = rowFor(kBoolKeys[i])) {
+                auto o = std::static_pointer_cast<UIWidgets::CheckboxOptions>(row->options);
+                COMBO_CHECK(row->type == WIDGET_CVAR_CHECKBOX && o->defaultValue == kBoolDefaults[i],
+                            "the %s row is not a checkbox defaulting to %s, the overlay's default", kBoolKeys[i],
+                            kBoolDefaults[i] ? "on" : "off");
+            }
+        }
+        if (WidgetInfo* row = rowFor(RSBS_CVAR_COMBO_ITEMS_ICON_SIZE)) {
+            auto o = std::static_pointer_cast<UIWidgets::IntSliderOptions>(row->options);
+            COMBO_CHECK(row->type == WIDGET_CVAR_SLIDER_INT && o->min == ComboGui::kComboItemTrackerIconSizeMin &&
+                            o->max == ComboGui::kComboItemTrackerIconSizeMax &&
+                            o->defaultValue == ComboGui::kComboItemTrackerIconSize,
+                        "the Icon Size row is not an int slider over %d..%d defaulting to %d",
+                        ComboGui::kComboItemTrackerIconSizeMin, ComboGui::kComboItemTrackerIconSizeMax,
+                        ComboGui::kComboItemTrackerIconSize);
+        }
+        if (WidgetInfo* row = rowFor(RSBS_CVAR_COMBO_ITEMS_OPACITY)) {
+            auto o = std::static_pointer_cast<UIWidgets::FloatSliderOptions>(row->options);
+            COMBO_CHECK(row->type == WIDGET_CVAR_SLIDER_FLOAT && o->min == 0.1f && o->max == 1.0f &&
+                            o->defaultValue == 1.0f && o->isPercentage,
+                        "the Opacity row is not a percentage slider over 0.1..1 defaulting to 1, the overlay's clamp");
+        }
+        if (WidgetInfo* row = rowFor(RSBS_CVAR_COMBO_ITEMS_BG_COLOR)) {
+            auto o = std::static_pointer_cast<UIWidgets::ColorPickerOptions>(row->options);
+            COMBO_CHECK(row->type == WIDGET_CVAR_COLOR_PICKER && o->useAlpha && o->defaultValue.r == 0 &&
+                            o->defaultValue.g == 0 && o->defaultValue.b == 0 && o->defaultValue.a == 0,
+                        "the Background Color row is not an alpha colour picker defaulting to SoH's clear black");
+        }
+
+        // Dragging and Only While Paused apply to the floating overlay only, as
+        // in SoH's Item Tracker Settings: hidden while the overlay is a window.
+        const char* kFloatingOnly[] = { RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED };
+        const int savedType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, -1);
+        for (const char* key : kFloatingOnly) {
+            WidgetInfo* row = rowFor(key);
+            if (row == nullptr) {
+                continue;
+            }
+            COMBO_CHECK(row->preFunc != nullptr, "the %s row has no PreFunc, so it shows for a windowed overlay", key);
+            if (row->preFunc == nullptr) {
+                continue;
+            }
+            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
+            row->ResetDisables();
+            row->preFunc(*row);
+            COMBO_CHECK(row->isHidden, "the %s row shows while the overlay is a window", key);
+            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_FLOATING);
+            row->ResetDisables();
+            row->preFunc(*row);
+            COMBO_CHECK(!row->isHidden, "the %s row is hidden while the overlay floats", key);
+        }
+        if (savedType < 0) {
+            CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
+        } else {
+            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, savedType);
+        }
+
+        // The Combo Tracker draws its checks in SoH's Check Tracker colours
+        // (ComboTrackerWindow.cpp reads gTrackers.CheckTracker.*), so the page
+        // hosts SoH's own Check Tracker Settings as SoH's Check Tracker page does:
+        // embedded, under its pop-out row.
+        WidgetInfo* check = FindRow(page, "Popout Check Tracker Settings");
+        COMBO_CHECK(check != nullptr, "Combo / %s has no \"Popout Check Tracker Settings\" row",
+                    kTrackerSettingsPage);
+        if (check != nullptr) {
+            auto o = std::static_pointer_cast<UIWidgets::WindowButtonOptions>(check->options);
+            COMBO_CHECK(check->type == WIDGET_WINDOW_BUTTON && check->cVar != nullptr &&
+                            std::string(check->cVar) == "gOpenWindows.CheckTrackerSettings" &&
+                            check->windowName != nullptr &&
+                            std::string(check->windowName) == "Check Tracker Settings" && o->embedWindow,
+                        "the Check Tracker Settings row is not SoH's embedded pop-out over "
+                        "gOpenWindows.CheckTrackerSettings / \"Check Tracker Settings\"");
+        }
+
+        // No other writer: every other interactive row writes one of the keys above.
+        for (auto& column : page.columnWidgets) {
+            for (WidgetInfo& row : column) {
+                if (row.type == WIDGET_SEPARATOR_TEXT || row.type == WIDGET_TEXT || &row == check) {
+                    continue;
+                }
+                COMBO_CHECK(row.cVar != nullptr && RSBS::ComboKeyHasPrefix(row.cVar, kItemTrackerKeyPrefix),
+                            "row '%s' on Combo / %s writes '%s', which is not one of the unified trackers' keys",
+                            row.name.c_str(), kTrackerSettingsPage, row.cVar != nullptr ? row.cVar : "(null)");
+            }
+        }
+        printf("[TEST] leg 7: Combo / %s writes each of the nine %s* keys once with the overlay's defaults and "
+               "ranges, hides the floating-only rows for a windowed overlay, and embeds SoH's Check Tracker "
+               "Settings\n",
+               kTrackerSettingsPage, kItemTrackerKeyPrefix);
     }
 
     if (gFailures == 0) {

@@ -1998,6 +1998,9 @@ void Session::BuildPageList() {
         // Each save file's cross-game state (lane W5): SoH's captured bordered
         // table page (DrawLocationsMenu's table, whose own page is not captured).
         { "Save Files", "Randomizer/Tricks/Glitches" },
+        // The unified trackers' settings (#458 U7): SoH's tracker page, whose
+        // embedded Item Tracker Settings hold the rows this page takes.
+        { "Tracker Settings", "Randomizer/Item Tracker" },
     };
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {
@@ -2101,6 +2104,16 @@ void Session::BuildPageList() {
                                               RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_RULES) };
                 p.stateText["backup"] = { "was kept as a backup", "No cross-game record (backup kept)" };
                 p.stateContrast = { { "", "listed" }, { "listed", "" }, { "backup", "" } };
+            } else if (sidebar == "Tracker Settings") {
+                // "": the overlay floats (its default), so the two floating-only
+                // rows show. "window": the overlay is a window, so they hide
+                // (their PreFunc; SoH's Item Tracker Settings hides them too).
+                p.states = { "", "window" };
+                p.stateText[""] = { "Enable Dragging", "Only Enable While Paused" };
+                p.stateContrast = { { "", "window" } };
+                // The Window Type row: its tooltip's "Value: effect" lines.
+                p.hovers = { "window-type" };
+                p.hoverRows["window-type"] = "Window Type##ComboItemTracker";
             } else if (sidebar == "Windows") {
                 // An MM tracker toggle: SoH's "Toggles the <Window>." plus the
                 // sentence that explains its blank window under Ocarina of Time.
@@ -2780,6 +2793,10 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         } else {
             Combo_MMModSet_LoadForTest(nullptr, 0, true);
         }
+    } else if (p.id == "Combo/Tracker Settings") {
+        if (state == "window") {
+            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
+        }
     } else if (p.id == "Combo/Save Files") {
         // Every state reads the seam's table, never the disk.
         if (state == "listed") {
@@ -2862,6 +2879,9 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     if (p.id == "Combo/Majora's Mask" && state == "autosave") {
         CVarClear("gEnhancements.Autosave");
+    }
+    if (p.id == "Combo/Tracker Settings" && state == "window") {
+        CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
     }
     if (p.id == "Settings/Graphics" && state == "match-refresh-rate") {
         CVarClear(CVAR_SETTING("MatchRefreshRate"));
