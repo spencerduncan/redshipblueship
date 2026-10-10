@@ -900,8 +900,8 @@ bool RecordIsPaired(const ComboContext& combo) {
 
 } // namespace
 
-void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind, SlotFileData& data,
-                               SlotVerdict& v) const {
+void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind,
+                               const RsbsOoTSavIdentity* savIdentity, SlotFileData& data, SlotVerdict& v) const {
     v = SlotVerdict{};
     RsbsRefuseReason reason = RSBS_REFUSE_NONE;
     const SlotReadResult result = ReadSlotFile(slot, data, reason, /*verbose=*/true);
@@ -1097,7 +1097,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
 }
 
 RsbsLoadOutcome SaveManager::ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile,
-                                              std::string* outWords) {
+                                              const RsbsOoTSavIdentity* savIdentity, std::string* outWords) {
     if (outWords != nullptr) {
         outWords->clear();
     }
@@ -1106,7 +1106,7 @@ RsbsLoadOutcome SaveManager::ProbeSlotForOpen(int slot, uint32_t ootSavGeneratio
     }
     SlotFileData data;
     SlotVerdict v;
-    EvaluateSlot(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile, data, v);
+    EvaluateSlot(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile, savIdentity, data, v);
     if (v.outcome != RSBS_LOAD_REFUSED) {
         std::fprintf(stderr, "[RsbsSave] slot %d: file-select probe ACCEPTED (%s file, %s)\n", slot,
                      isRandoFile ? "randomizer" : "vanilla", v.outcome == RSBS_LOAD_OK ? "record valid" : "no record");
@@ -1130,14 +1130,16 @@ RsbsLoadOutcome SaveManager::ProbeSlotForOpen(int slot, uint32_t ootSavGeneratio
 }
 
 RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
-    return LoadSlotImpl(slot, ootSavGeneration, kOpenLegacy);
+    return LoadSlotImpl(slot, ootSavGeneration, kOpenLegacy, nullptr);
 }
 
-RsbsLoadOutcome SaveManager::LoadSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile) {
-    return LoadSlotImpl(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile);
+RsbsLoadOutcome SaveManager::LoadSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile,
+                                             const RsbsOoTSavIdentity* savIdentity) {
+    return LoadSlotImpl(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile, savIdentity);
 }
 
-RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, int openKind) {
+RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, int openKind,
+                                          const RsbsOoTSavIdentity* savIdentity) {
     if (!SlotInRange(slot)) {
         return RSBS_LOAD_REFUSED;
     }
@@ -1150,7 +1152,7 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
 
     SlotFileData data;
     SlotVerdict v;
-    EvaluateSlot(slot, ootSavGeneration, openKind, data, v);
+    EvaluateSlot(slot, ootSavGeneration, openKind, savIdentity, data, v);
 
     // A refusal the load carries out. @p restoreUndo, when given, puts back the
     // rules this load wrote before it refused, so a refused load changes nothing.
@@ -1997,18 +1999,21 @@ int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration) {
     return static_cast<int>(rsbs::SaveManager::Instance().LoadSlot(slot, ootSavGeneration));
 }
 
-int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile, char* words, size_t wordsLen) {
+int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile,
+                              const RsbsOoTSavIdentity* savIdentity, char* words, size_t wordsLen) {
     std::string out;
     const RsbsLoadOutcome outcome =
-        rsbs::SaveManager::Instance().ProbeSlotForOpen(slot, ootSavGeneration, isRandoFile != 0, &out);
+        rsbs::SaveManager::Instance().ProbeSlotForOpen(slot, ootSavGeneration, isRandoFile != 0, savIdentity, &out);
     if (words != nullptr && wordsLen > 0) {
         std::snprintf(words, wordsLen, "%s", out.c_str());
     }
     return static_cast<int>(outcome);
 }
 
-int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile) {
-    return static_cast<int>(rsbs::SaveManager::Instance().LoadSlotForOpen(slot, ootSavGeneration, isRandoFile != 0));
+int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile,
+                             const RsbsOoTSavIdentity* savIdentity) {
+    return static_cast<int>(
+        rsbs::SaveManager::Instance().LoadSlotForOpen(slot, ootSavGeneration, isRandoFile != 0, savIdentity));
 }
 
 const char* RsbsSave_SlotRefusalWords(int slot) {

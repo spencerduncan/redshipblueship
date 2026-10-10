@@ -46,6 +46,14 @@
  *      words, and neither file moves. Control: the same record with the .sav
  *      at g is not a commit-skew refusal. The .sav that was at that path
  *      before the row (if any) is put back.
+ *   6. #564 V12, read from DISK: a paired .redsave (seed S, settings digest H)
+ *      and a .sav whose randomizer section's own "finalSeed", or whose mirrored
+ *      "rsbsPairSettingsHash", names another world. The gate's only source for
+ *      those numbers is SaveManager::ReadSavStamps, so a reader that missed the
+ *      key or the section would read 0 (exempt) and the file would open with
+ *      another file's record. The press is consumed with "Cross-game record is
+ *      for another file", and neither file moves. Control: the .sav naming S
+ *      and H is not refused for that reason.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -394,6 +402,106 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
             std::filesystem::remove(savPath, ec);
         }
         RsbsSave_DeleteSave(kSkew);
+    }
+
+    // ---- 6. another OoT world, read from the .sav on disk (#564 V12) ---------
+    {
+        const int kOther = kAbsent;
+        const uint32_t kSeed = 0x564C0012u;
+        const uint32_t kDigest = 0x5E770012u;
+        const char* const kOtherWords = "Cross-game record is for another file";
+        RsbsSave_ResetSlotSessionState();
+        RsbsSave_DeleteSave(kOther);
+        ComboContext_Init();
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = kSeed;
+        gComboCtx.sharedRandoSettingsHash = kDigest;
+        const bool authored = rsbsSave.Save(kOther);
+        const uint32_t gen = gComboCtx.commitGeneration;
+        FSR_ASSERT(authored && gen != 0, "leg 6: authoring the paired .redsave failed (saved %d, generation %u)",
+                   authored ? 1 : 0, (unsigned)gen);
+        RsbsSave_ResetSlotSessionState();
+        RsbsSave_SetActiveSlot(kVanilla);
+
+        const std::filesystem::path savPath =
+            std::filesystem::path(Ship::Context::GetPathRelativeToAppDirectory("Save")) /
+            ("file" + std::to_string(kOther + 1) + ".sav");
+        const bool savExisted = std::filesystem::exists(savPath);
+        const std::vector<uint8_t> savOriginal = savExisted ? FileBytes(savPath.string()) : std::vector<uint8_t>();
+        std::filesystem::create_directories(savPath.parent_path(), ec);
+        // The shape SoH's SaveFileThreaded writes: the mirrored stamps at the
+        // top level, the seed inside the randomizer section's data.
+        auto writeSav = [&](uint32_t seed, uint32_t digest) {
+            std::ofstream out(savPath, std::ios::binary | std::ios::trunc);
+            out << "{\"version\":1,\"rsbsCommitGeneration\":" << gen << ",\"rsbsPairSettingsHash\":" << digest
+                << ",\"sections\":{\"randomizer\":{\"version\":1,\"data\":{\"finalSeed\":" << seed << "}}}}\n";
+        };
+        struct Case {
+            const char* what;
+            uint32_t seed;
+            uint32_t digest;
+        };
+        const Case cases[] = {
+            { "another seed", kSeed ^ 0x0F0F0F0Fu, kDigest },
+            { "other settings", kSeed, kDigest ^ 0x00F00000u },
+        };
+        for (const Case& c : cases) {
+            RsbsSave_ResetSlotSessionState();
+            RsbsSave_SetActiveSlot(kVanilla);
+            writeSav(c.seed, c.digest);
+            const std::vector<uint8_t> redsaveBytes = FileBytes(rsbsSave.SlotPath(kOther));
+            const std::vector<uint8_t> savBytes = FileBytes(savPath.string());
+            const int extraBefore = ExtraFiles(dir);
+            ComboContext comboSnap;
+            memcpy(&comboSnap, &gComboCtx, sizeof(ComboContext));
+            const int toastsBefore = OoT_Notification_EmittedCountForTest();
+            press(kOther, BTN_A);
+            dispatchChoose(fc);
+            const u16 left = fc->state.input[0].press.button;
+            const int toasts = OoT_Notification_EmittedCountForTest() - toastsBefore;
+            const std::string toast = LastToast();
+            const bool redsaveSame = FileBytes(rsbsSave.SlotPath(kOther)) == redsaveBytes;
+            const bool savSame = FileBytes(savPath.string()) == savBytes;
+            printf("[TEST] leg 6 (%s) OBSERVED: record seed %08X digest %08X, .sav seed %08X digest %08X: press left "
+                   "%04X, %d toast(s) \"%s\", reason %d words \"%s\", .redsave %s, .sav %s, extra files %d (before "
+                   "%d)\n",
+                   c.what, (unsigned)kSeed, (unsigned)kDigest, (unsigned)c.seed, (unsigned)c.digest, left, toasts,
+                   toast.c_str(), RsbsSave_GetSlotRefuseReason(kOther), RsbsSave_SlotRefusalWords(kOther),
+                   redsaveSame ? "unchanged" : "CHANGED", savSame ? "unchanged" : "CHANGED", ExtraFiles(dir),
+                   extraBefore);
+            FSR_ASSERT((left & (BTN_A | BTN_START)) == 0,
+                       "leg 6 (%s): the A press on a file whose cross-game record names another world was not consumed",
+                       c.what);
+            FSR_ASSERT(RsbsSave_GetSlotRefuseReason(kOther) == (int)RSBS_REFUSE_IDENTITY &&
+                           std::string(RsbsSave_SlotRefusalWords(kOther)) == kOtherWords,
+                       "leg 6 (%s): the refusal record is reason %d words \"%s\" (want identity, \"%s\")", c.what,
+                       RsbsSave_GetSlotRefuseReason(kOther), RsbsSave_SlotRefusalWords(kOther), kOtherWords);
+            const std::string want = std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + kOtherWords;
+            FSR_ASSERT(toasts == 1 && toast == want, "leg 6 (%s): %d toast(s), last \"%s\" (want one: \"%s\")", c.what,
+                       toasts, toast.c_str(), want.c_str());
+            FSR_ASSERT(redsaveSame && savSame && ExtraFiles(dir) == extraBefore,
+                       "leg 6 (%s): the gate moved, renamed or changed a file", c.what);
+            FSR_ASSERT(memcmp(&comboSnap, &gComboCtx, sizeof(ComboContext)) == 0,
+                       "leg 6 (%s): the gate changed gComboCtx", c.what);
+        }
+
+        // Control: the .sav names this record's world.
+        RsbsSave_ResetSlotSessionState();
+        writeSav(kSeed, kDigest);
+        press(kOther, BTN_A);
+        dispatchChoose(fc);
+        printf("[TEST] leg 6 OBSERVED: control, .sav seed %08X digest %08X: reason %d words \"%s\"\n", (unsigned)kSeed,
+               (unsigned)kDigest, RsbsSave_GetSlotRefuseReason(kOther), RsbsSave_SlotRefusalWords(kOther));
+        FSR_ASSERT(std::string(RsbsSave_SlotRefusalWords(kOther)) != kOtherWords,
+                   "leg 6: control: a .sav naming the record's own world was refused as another file's");
+
+        if (savExisted) {
+            std::ofstream out(savPath, std::ios::binary | std::ios::trunc);
+            out.write(reinterpret_cast<const char*>(savOriginal.data()), (std::streamsize)savOriginal.size());
+        } else {
+            std::filesystem::remove(savPath, ec);
+        }
+        RsbsSave_DeleteSave(kOther);
     }
 
     // Put back everything this row touched.

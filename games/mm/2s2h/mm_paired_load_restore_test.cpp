@@ -91,6 +91,16 @@
  *           Majora's Mask world"), nothing moved, the page says the same, the
  *           open path's load refuses; this pair's half under a lost type byte
  *           is still accepted (the arrival repairs it)
+ *   leg 9 - #564 V12: a healthy paired record opened with a .sav that names
+ *           ANOTHER Ocarina of Time world (its own seed, its mirrored settings
+ *           digest, or both, differ from the record's sharedRandoSeed /
+ *           sharedRandoSettingsHash: a .redsave copied from another file)
+ *                -> REFUSED at the file select ("Cross-game record is for
+ *                   another file"), nothing moved, the page says the same, the
+ *                   open path's load refuses, nothing is committed and the
+ *                   record stays at its path (it is not damaged); a .sav that
+ *                   names this world, or records neither term (a file from
+ *                   before the stamp), is accepted and the load pairs
  *
  * Every leg loads through Context_InvalidateSessionOnSlotLoad +
  * RsbsSave_SetActiveSlot + RsbsSave_LoadSlotForOpen, the OnLoadFile seam's exact
@@ -271,11 +281,11 @@ int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride
 /** games/oot/soh/SaveManager.cpp's OnLoadFile seam, call for call: the open
  *  path's load of a randomizer file (#836). A refusal here is the backstop's
  *  trigger; the seam records it rather than acting on the return. */
-int LoadThroughProductionSeam() {
+int LoadThroughProductionSeam(const RsbsOoTSavIdentity* savIdentity = nullptr) {
     PlantSentinel();
     Context_InvalidateSessionOnSlotLoad();
     RsbsSave_SetActiveSlot(kSlot);
-    return RsbsSave_LoadSlotForOpen(kSlot, 0, /*isRandoFile=*/1);
+    return RsbsSave_LoadSlotForOpen(kSlot, 0, /*isRandoFile=*/1, savIdentity);
 }
 
 // ---------------------------------------------------------------------------
@@ -379,12 +389,14 @@ struct ProbeResult {
 };
 
 /** The file select's probe of the test slot, with the world snapshotted around
- *  it. A non-zero @p ootSavGeneration stands in for the .sav's mirrored stamp. */
-ProbeResult Probe(int isRandoFile, uint32_t ootSavGeneration = 0) {
+ *  it. A non-zero @p ootSavGeneration stands in for the .sav's mirrored stamp;
+ *  @p savIdentity (null: nothing recorded) for what the .sav says about its
+ *  world (#564 V12). */
+ProbeResult Probe(int isRandoFile, uint32_t ootSavGeneration = 0, const RsbsOoTSavIdentity* savIdentity = nullptr) {
     const World before = Snap();
     char words[96] = { 0 };
     ProbeResult r;
-    r.outcome = RsbsSave_ProbeSlotForOpen(kSlot, ootSavGeneration, isRandoFile, words, sizeof(words));
+    r.outcome = RsbsSave_ProbeSlotForOpen(kSlot, ootSavGeneration, isRandoFile, savIdentity, words, sizeof(words));
     r.words = words;
     r.moved = WhatMoved(before, Snap());
     return r;
@@ -1287,6 +1299,100 @@ int LegProbeMmHalfNotThisPairs() {
     return rc;
 }
 
+// ---------------------------------------------------------------------------
+// Leg 9 (#564 V12, gap 1): the record names another Ocarina of Time world.
+// The .redsave is healthy and paired, but the .sav it is opened with says its
+// world is another one: its own randomizer seed is not the record's
+// sharedRandoSeed, or the settings digest its last commit mirrored is not the
+// record's sharedRandoSettingsHash (a .redsave copied in from another file).
+// Opening it would pair this OoT file with that file's Majora's Mask world and
+// crossings. Refused at the file select, nothing moved, the page says the same,
+// the open path's load refuses too and leaves the record where it is.
+// ---------------------------------------------------------------------------
+int LegProbeOtherOoTWorld() {
+    int rc = 0;
+    auto note = [&rc](int legRc) {
+        if (rc == 0) {
+            rc = legRc;
+        }
+    };
+    const char* const kOtherFileWords = "Cross-game record is for another file";
+    const std::string path = rsbs::SaveManager::Instance().SlotPath(kSlot);
+    struct Sav {
+        const char* what;
+        RsbsOoTSavIdentity sav;
+    };
+    const Sav refused[] = {
+        { "another seed", { kSeed ^ 0x00A5A5A5u, kSettingsHash } },
+        { "other settings", { kSeed, kSettingsHash ^ 0x5A000000u } },
+        { "another seed, no digest recorded", { kSeed + 1u, 0u } },
+        { "other settings, no seed recorded", { 0u, kSettingsHash + 1u } },
+    };
+    int code = 140;
+    for (const Sav& s : refused) {
+        ClearAuthoredKeys();
+        if (int setup = CreatePairedFile(false, nullptr)) {
+            return setup;
+        }
+        Relaunch();
+        const std::vector<uint8_t> recordBytes = PlrReadAll(path);
+        const ProbeResult probe = Probe(1, 0, &s.sav);
+        const int reason = RsbsSave_GetSlotRefuseReason(kSlot);
+        const std::string page = SaveFilesStatus();
+        const int load = LoadThroughProductionSeam(&s.sav);
+        const bool paired = Combo_ForeignPairingActive();
+        const bool recordInPlace = PlrReadAll(path) == recordBytes;
+        printf("[TEST] leg 9 (%s) OBSERVED: sav seed=%08X digest=%08X, record seed=%08X digest=%08X: probe=%d "
+               "reason=%d words='%s' moved='%s' page='%s' load rc=%d paired=%d writable=%d record %s\n",
+               s.what, (unsigned)s.sav.randoSeed, (unsigned)s.sav.settingsHash, (unsigned)kSeed,
+               (unsigned)kSettingsHash, probe.outcome, reason, probe.words.c_str(), probe.moved.c_str(), page.c_str(),
+               load, paired ? 1 : 0, RsbsSave_IsSlotWritable(kSlot), recordInPlace ? "in place" : "MOVED");
+        if (probe.outcome != RSBS_LOAD_REFUSED || reason != (int)RSBS_REFUSE_IDENTITY ||
+            probe.words != kOtherFileWords) {
+            note(Fail(code,
+                      "leg 9 (%s): a record that names another OoT world than its .sav was not refused at the file "
+                      "select with \"%s\" (#564 V12)",
+                      s.what, kOtherFileWords));
+        } else if (!probe.moved.empty()) {
+            note(Fail(code + 1, "leg 9 (%s): the probe moved %s", s.what, probe.moved.c_str()));
+        } else if (page != std::string(RSBS_REFUSAL_TOAST_PREFIX) + " " + probe.words) {
+            note(Fail(code + 2, "leg 9 (%s): the Save Files page reads '%s', not the probe's words", s.what,
+                      page.c_str()));
+        } else if (load != RSBS_LOAD_REFUSED || paired || RsbsSave_IsSlotWritable(kSlot) != 0) {
+            note(Fail(code + 3, "leg 9 (%s): the open path's load committed another world's pair", s.what));
+        } else if (!recordInPlace) {
+            note(Fail(code + 4, "leg 9 (%s): the load moved or changed a record that is not damaged", s.what));
+        }
+        code += 5;
+    }
+
+    // Accepted: the .sav names this record's world, or records neither term.
+    const Sav accepted[] = {
+        { "this world", { kSeed, kSettingsHash } },
+        { "this seed, no digest recorded", { kSeed, 0u } },
+        { "nothing recorded", { 0u, 0u } },
+    };
+    for (const Sav& s : accepted) {
+        ClearAuthoredKeys();
+        if (int setup = CreatePairedFile(false, nullptr)) {
+            return setup;
+        }
+        Relaunch();
+        const ProbeResult probe = Probe(1, 0, &s.sav);
+        const int load = LoadThroughProductionSeam(&s.sav);
+        const bool paired = Combo_ForeignPairingActive();
+        printf("[TEST] leg 9 (%s) OBSERVED: sav seed=%08X digest=%08X: probe=%d moved='%s' load rc=%d paired=%d\n",
+               s.what, (unsigned)s.sav.randoSeed, (unsigned)s.sav.settingsHash, probe.outcome, probe.moved.c_str(),
+               load, paired ? 1 : 0);
+        if (probe.outcome != RSBS_LOAD_OK || !probe.moved.empty() || load != RSBS_LOAD_OK || !paired) {
+            note(Fail(code, "leg 9 (%s): a .sav that does not name another world was refused, or the load did not pair",
+                      s.what));
+        }
+        code++;
+    }
+    return rc;
+}
+
 } // namespace
 
 extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
@@ -1307,8 +1413,9 @@ extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
     // observed state; the first failure is the row's result.
     int rc = 0;
     int (*const legs[])() = {
-        LegCrossGameRules,   LegMmProfile, LegMmTrickOnly,   LegMmManyTricks, LegRoundTrip,
-        LegUnrestorableRule, LegRollback,  LegProbeRefusals, LegProbeAccepts, LegProbeMmHalfNotThisPairs
+        LegCrossGameRules,    LegMmProfile, LegMmTrickOnly,   LegMmManyTricks, LegRoundTrip,
+        LegUnrestorableRule,  LegRollback,  LegProbeRefusals, LegProbeAccepts, LegProbeMmHalfNotThisPairs,
+        LegProbeOtherOoTWorld
     };
     for (auto leg : legs) {
         const int legRc = leg();
