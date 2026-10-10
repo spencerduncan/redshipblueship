@@ -120,13 +120,13 @@
  * counterpart: ADR 0003 names them "new tier-4 keys, not converged MM keys",
  * so none of them is a ConvergedKey row and none has a legacy spelling.
  *
- * The three `gCombo.Rando.*` keys are WORLD IDENTITY (ADR 0004 §6 state 4):
+ * The two `gCombo.Rando.*` keys are WORLD IDENTITY (ADR 0004 §6 state 4):
  * they author a ComboSettingsRecord up to the creation event and no further.
  * Combo_ResolveComboSettings (foreign_items.h) is the ONE reader that turns
  * them into the record, through combo_settings_view.h, which also holds the
  * ONE writer surface — and that surface refuses once
  * Combo_ComboSettingsFrozen() is true. Values are the pinned RSBS_COMBO_DIR_*
- * / RSBS_COMBO_GOAL_* / 0-or-1 spaces; an
+ * / RSBS_COMBO_GOAL_* spaces; an
  * out-of-space value in the store resolves to the shipped default with a logged
  * reason, never to a new enumerator.
  *
@@ -145,11 +145,11 @@
  * #834 retired the two item-class keys (gCombo.Rando.ItemClass.OoT / .MM, the
  * "OoT Classes" / "MM Classes" rows) for the same reason: under the single bag
  * every bag row is progression, so no rule reads the other class bits and the
- * PROGRESSION bit only repeats the direction. The record fields stay too. */
-/* #668: one ocarina across both games. Boolean (0/1), DEFAULT 0, so every world
- * created before it existed — and every world whose player leaves it alone —
- * resolves to the same twelve record bytes and the same comboSettingsHash. */
-#define RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA "gCombo.Rando.SharedOcarina"
+ * PROGRESSION bit only repeats the direction. The record fields stay too.
+ * #879 retired #668's shared-ocarina key (gCombo.Rando.SharedOcarina, the
+ * "[Both Games] Shared Ocarina" row): MM starts every paired world with its
+ * ocarina, so the rule only handed OoT a free one. Its comboFlags bit stays
+ * reserved in the record; nothing sets it and nothing reads it. */
 /* ADR 0010 D1's GOAL (its working name, kept): one of the pinned
  * RSBS_COMBO_GOAL_* enumerators, DEFAULT beat-both (1), so a player who leaves
  * it alone resolves to the same twelve record bytes as before it existed. */
@@ -552,13 +552,10 @@ inline constexpr const char* kComboIdentityKeyPrefix = "gCombo.Rando.";
 inline constexpr ComboKey kComboKeys[] = {
     // ---- gCombo.Rando.*: the authorable fields of ComboSettingsRecord (ADR
     //      0011 increment 2, less the two pool sizes #801 and the two item
-    //      classes #834 retired, plus #668's shared ocarina and ADR 0010 D1's
-    //      goal). All IDENTITY.
+    //      classes #834 retired, plus ADR 0010 D1's goal; #668's shared
+    //      ocarina was retired by #879). All IDENTITY.
     { RSBS_CVAR_COMBO_RANDO_DIRECTION, ComboKeyClass::Identity,
       "ComboSettingsRecord.direction (RSBS_COMBO_DIR_*): which placement passes run" },
-    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA, ComboKeyClass::Identity,
-      "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_OCARINA bit (#668): the ocarina is ONE "
-      "monotonic shared instrument across both games" },
     { RSBS_CVAR_COMBO_RANDO_GOAL, ComboKeyClass::Identity,
       "ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*, ADR 0010 D1): the expression the creation's proof must "
       "satisfy" },
@@ -970,17 +967,17 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Three identity keys (the five of ADR 0011 increment 2 less the two pool sizes
-// #801 and the two item classes #834 retired, SharedOcarina (#668) and Goal
-// (ADR 0010 D1)) + four
+// Two identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// #801 and the two item classes #834 retired, and Goal (ADR 0010 D1); #879
+// retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
 // (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 16, "three gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
-                                    "gCombo.Tracker.Items.* preferences = 16");
+static_assert(kComboKeyCount == 15, "two gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
+                                    "gCombo.Tracker.Items.* preferences = 15");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

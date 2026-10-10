@@ -290,9 +290,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                     "the Cross-Game Rules page has no \"Combo Rules Status\" row");
         COMBO_CHECK(FindRow(rules, "Reset Combo Rules") != nullptr,
                     "the Cross-Game Rules page has no \"Reset Combo Rules\" row");
-        COMBO_CHECK(RowCount(rules) >= 7,
-                    "the Cross-Game Rules page holds %zu widgets; the three tier-4 settings alone are a status line, "
-                    "two group separators, two comboboxes, a checkbox and a button",
+        COMBO_CHECK(RowCount(rules) >= 6,
+                    "the Cross-Game Rules page holds %zu widgets; the two tier-4 settings alone are a status line, "
+                    "two group separators, two comboboxes and a button",
                     RowCount(rules));
     }
 
