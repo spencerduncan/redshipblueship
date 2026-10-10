@@ -155,13 +155,6 @@ std::string RowName(ComboSettingId id) {
     return std::string(Combo_ComboSettingSharedMarker()) + " " + Combo_ComboSettingLabel(id);
 }
 
-// A checkbox row carries the marker on its own line above the label, so the
-// label fits beside the box at min-832x600 (SohMenuCombo.cpp,
-// ComboRuleCheckboxRowName).
-std::string CheckboxRowName(ComboSettingId id) {
-    return std::string(Combo_ComboSettingSharedMarker()) + "\n" + Combo_ComboSettingLabel(id);
-}
-
 // Every widget of one sidebar page, flattened across its columns, each paired
 // with the column it landed in. Pointers into the page's own vectors, which is
 // safe because nothing is registered after the flatten.
@@ -207,14 +200,6 @@ void RunAllPreFuncs(std::vector<PageRow>& rows) {
 int32_t StagedInt(WidgetInfo& row) {
     int32_t* p = std::get<int32_t*>(row.valuePointer);
     return p != nullptr ? *p : -1;
-}
-
-/** The same, for a checkbox row: the shared ocarina (#668) is a comboFlags BIT,
- *  so its staging buffer is a bool rather than an int32_t. -1 for "no buffer",
- *  which is never a legal staged value. */
-int StagedBool(WidgetInfo& row) {
-    bool* p = std::get<bool*>(row.valuePointer);
-    return p != nullptr ? (*p ? 1 : 0) : -1;
 }
 
 /**
@@ -276,7 +261,7 @@ void RecordPopup(std::string title, std::string message, std::string button1, st
 } // namespace
 
 extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
-    printf("[TEST] combo-settings-rows: the three tier-4 combo settings are SohMenu rows in the Combo section's "
+    printf("[TEST] combo-settings-rows: the two tier-4 combo settings are SohMenu rows in the Combo section's "
            "Cross-Game Rules page, marked per ADR 0004 §4.2, and read-only from the save once frozen (#655, #668, "
            "#497 step 6)\n");
 
@@ -296,7 +281,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ComboRulesMenuProbe probe;
     probe.AddMenuCombo();
 
-    // ---- Leg 1: the section and the three rows exist --------------------------
+    // ---- Leg 1: the section and the two rows exist ----------------------------
     auto& entries = probe.Entries();
     if (!entries.contains("Combo")) {
         printf("[TEST] FAIL(1): AddMenuCombo registered no \"Combo\" menu entry -- ADR 0004 §4's tier-4 section "
@@ -317,7 +302,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     }
     std::vector<PageRow> rows = FlattenPage(columns);
 
-    // Leg 2 asserts a property of the WHOLE section (no pop-out for the three keys
+    // Leg 2 asserts a property of the WHOLE section (no pop-out for the two keys
     // survives anywhere in it), because the window rows moved to a sibling page:
     // checking only the rules page would make that assertion vacuous.
     std::vector<PageRow> sectionRows = rows;
@@ -338,12 +323,11 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         WidgetType type;
         const char* suffix; // "": the bare name; ": %d": the slider's value format
     };
-    // The direction is a combobox over the four pinned enumerators and the
-    // shared ocarina (#668) a plain checkbox over the model's 0/1 space. No
-    // pool-size sliders (#801) and no item-class groups (#834).
+    // The direction is a combobox over the four pinned enumerators. No
+    // pool-size sliders (#801), no item-class groups (#834) and no Shared
+    // Ocarina checkbox (#879).
     const ExpectedRow kExpected[] = {
         { COMBO_SETTING_DIRECTION, WIDGET_COMBOBOX, "" },
-        { COMBO_SETTING_SHARED_OCARINA, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -358,8 +342,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
 
     WidgetInfo* settingRow[COMBO_SETTING_COUNT] = {};
     for (const ExpectedRow& expected : kExpected) {
-        const std::string name =
-            (expected.type == WIDGET_CHECKBOX ? CheckboxRowName(expected.id) : RowName(expected.id)) + expected.suffix;
+        const std::string name = RowName(expected.id) + expected.suffix;
         uint32_t column = 0;
         WidgetInfo* row = FindRow(rows, name, &column);
         ROWS_CHECK(row != nullptr, "no Cross-Game Rules row named '%s' -- the setting '%s' is unreachable in the menu",
@@ -386,7 +369,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] combo-settings-rows: %d failure(s) in leg 1; the later legs need the rows\n", gFailures);
         return gFailures;
     }
-    printf("[TEST] leg 1: all three tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
+    printf("[TEST] leg 1: both tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
            Combo_ComboSettingSharedMarker());
 
     // ---- Leg 1b: the goal row offers exactly OoTMM's goals, in its words ----
@@ -532,7 +515,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
 
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
     // The enforcement rule (ADR 0004 §6): the gate is on the src/common writers,
-    // so no widget in this section may bind one of the three keys directly -- a
+    // so no widget in this section may bind one of the two keys directly -- a
     // WIDGET_CVAR_* row would write the store itself and never reach the freeze
     // check.
     for (PageRow& pageRow : rows) {
@@ -562,8 +545,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // ---- Leg 3: pre-creation the rows are editable and show the resolver ----
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
                "the writer refused a pre-creation direction");
-    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1,
-               "the writer refused a pre-creation shared-ocarina flag");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_OOT) == 1,
                "the writer refused a pre-creation goal");
 
@@ -579,9 +560,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_DIRECTION]) == (int32_t)RSBS_COMBO_DIR_FORWARD,
                "the direction row staged %d, expected the authored %d", StagedInt(*settingRow[COMBO_SETTING_DIRECTION]),
                (int)RSBS_COMBO_DIR_FORWARD);
-    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]) == 1,
-               "the shared-ocarina row staged %d, expected the authored 1",
-               StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]));
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_GOAL]) == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT,
                "the goal row staged %d, expected the authored %d (Ganon)", StagedInt(*settingRow[COMBO_SETTING_GOAL]),
                (int)RSBS_COMBO_GOAL_BEAT_OOT);
@@ -625,7 +603,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ComboSettingsRecord frozen;
     Combo_ComboSettingsDefaults(&frozen);
     frozen.direction = (uint8_t)RSBS_COMBO_DIR_REVERSE; // authored: FORWARD
-    frozen.comboFlags = 0;                              // authored: ON (#668)
     frozen.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_MM;     // authored: BEAT_OOT
     Combo_FreezeComboSettings(&frozen);
     ROWS_CHECK(Combo_ComboSettingsFrozen(), "Combo_FreezeComboSettings left the record unfrozen");
@@ -637,11 +614,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the frozen direction row staged %d; it must show the SAVE's %d, not the CVar's %d",
                StagedInt(*settingRow[COMBO_SETTING_DIRECTION]), (int)RSBS_COMBO_DIR_REVERSE,
                (int)RSBS_COMBO_DIR_FORWARD);
-    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_OCARINA], "the shared-ocarina row");
-    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]) == 0,
-               "the frozen shared-ocarina row staged %d; it must show the SAVE's OFF, not the CVar's ON -- the "
-               "world was built without a shared ocarina and a row that showed otherwise would be lying about it",
-               StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA]));
     ExpectDecided(*settingRow[COMBO_SETTING_GOAL], "the goal row");
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_GOAL]) == (int32_t)RSBS_COMBO_GOAL_BEAT_MM,
                "the frozen goal row staged %d; it must show the SAVE's %d (Majora), not the CVar's %d (Ganon) -- the "
@@ -669,25 +641,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ROWS_CHECK(StagedInt(dirRow) == (int32_t)RSBS_COMBO_DIR_REVERSE,
                    "after a refused write the direction row staged %d; the next frame must restore the save's %d",
                    StagedInt(dirRow), (int)RSBS_COMBO_DIR_REVERSE);
-
-        // The same, for the checkbox (#668). Not redundant with the row above:
-        // a checkbox's Callback fires on a TOGGLE, so a row wired to flip the
-        // model itself rather than to offer the staged value to the writer
-        // would pass every other leg and still let a player turn a decided
-        // world's ocarina rule on from the menu.
-        WidgetInfo& ocarinaRow = *settingRow[COMBO_SETTING_SHARED_OCARINA];
-        *std::get<bool*>(ocarinaRow.valuePointer) = true;
-        ROWS_CHECK(ocarinaRow.callback != nullptr, "the shared-ocarina row has no Callback");
-        if (ocarinaRow.callback != nullptr) {
-            ocarinaRow.callback(ocarinaRow);
-        }
-        ROWS_CHECK(!Combo_ComboSharedOcarina(),
-                   "a post-creation toggle changed the world's ocarina rule; the frozen record is the authority");
-        RunPreFunc(ocarinaRow);
-        ROWS_CHECK(StagedBool(ocarinaRow) == 0,
-                   "after a refused toggle the shared-ocarina row staged %d; the next frame must restore the "
-                   "save's OFF",
-                   StagedBool(ocarinaRow));
 
         // And the goal: a decided world's goal is what its creation PROVED, so
         // an edit that reached the store would make the next arrival diverge
@@ -837,7 +790,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     {
         ComboContext_Init();
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
@@ -889,11 +841,11 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             }
         }
         gRecordedPopups.clear();
-        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears all three "
+        printf("[TEST] leg 9: Reset queues one confirm; Cancel clears nothing, and its Reset button clears both "
                "rules\n");
     }
 
-    // Leave the process clean: this row writes the three tier-4 keys and freezes
+    // Leave the process clean: this row writes the two tier-4 keys and freezes
     // gComboCtx, and AllTests runs every dispatch entry in ONE process.
     ComboContext_Init();
     for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {

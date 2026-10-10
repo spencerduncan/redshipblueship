@@ -53,7 +53,8 @@ and on ours (R-N4).
   own line instead ("[Both Games]" over "Shared Ocarina", `ComboRuleCheckboxRowName` in `SohMenuCombo.cpp`). That
   break is an authored newline, a project choice with no SoH precedent: no SoH row authors a newline in its name, and
   SoH's own wrap (`WrappedText` at 90 / columns characters, 45 on a two-column page) would not wrap a 27-character
-  name, so the row is two lines at every profile, desk-1280x800 included. Only its shape, the box at the top and the
+  name, so the row is two lines at every profile, desk-1280x800 included (#879 retired that row, so no row carries
+  the authored newline now). Only its shape, the box at the top and the
   label beside it, matches SoH's wrapped rows. SoH's own pages do not meet the width rule, and rule 0 keeps them as
   shipped. At 832x600, 68 rows on SoH's pages overrun their column (23 of them on Enhancements > Quality of Life,
   where "Containers Match Contents" is counted twice, its separator and its checkbox). 63 are rows as SoH shipped
@@ -161,7 +162,8 @@ and on ours (R-N4).
   `##suffix` ("Enable##CrowdControl", `SohMenuNetwork.cpp:143`), never with a visible prefix. The search key is the
   name plus the tooltip, lowercased with spaces removed and newlines kept. The Shared Ocarina checkbox carries its
   marker followed by a newline, not a space (section 1, width rule), so "shared ocarina" finds it, and a search that
-  runs across the marker into the label ("games shared", or the full row name) does not.
+  runs across the marker into the label ("games shared", or the full row name) does not. (That checkbox was retired by
+  #879.)
 - **R-N6.** Combobox values are short Title Case, at most 30 characters. A parenthetical is only a qualifier
   ("(Seeded)", `SohMenuEnhancements.cpp:38-144`). Explanations go in the tooltip as "Value: effect" lines
   (`SohMenuSettings.cpp:198-203`).

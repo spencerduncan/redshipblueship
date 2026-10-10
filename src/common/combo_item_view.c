@@ -215,7 +215,7 @@ typedef struct {
     uint16_t unitsPerCount;
     bool heldAtZero;
     // The count is a tier the icon itself shows (the magic jar, the longshot,
-    // the ocarina, the wallet): neither native tracker prints a number on it
+    // the wallet): neither native tracker prints a number on it
     // (#458 U3). The text and the tooltip keep "n/max"; the icon game's
     // sharedIcon may still name a number of its own (the wallet's capacity).
     bool tierIcon;
@@ -245,7 +245,8 @@ static const SharedRowDef kSharedRows[] = {
     { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false, false },
     { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false, false },
     { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
-    { "Ocarina", RSBS_SHARED_RES_OCARINA_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    // No "Ocarina" row: #879 retired the Shared Ocarina rule, and the kind is
+    // never armed.
     { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
 };
 #define SHARED_ROW_DEF_COUNT ((int)(sizeof(kSharedRows) / sizeof(kSharedRows[0])))
@@ -259,8 +260,8 @@ static uint16_t SharedValue(uint8_t kind) {
 }
 
 static bool SharedRowShown(const SharedRowDef* def) {
-    // The conditional kinds (the ocarina, the triforce pieces) are a row only in
-    // a world that shares them.
+    // A conditional kind (the triforce pieces) is a row only in a world that
+    // shares it.
     return Combo_SharedResourceKindArmed(def->countKind) &&
            (def->tierKind == RSBS_SHARED_RES_NONE || Combo_SharedResourceKindArmed(def->tierKind));
 }

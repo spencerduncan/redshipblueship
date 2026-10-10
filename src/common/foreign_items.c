@@ -101,29 +101,11 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     Combo_ComboSettingsDefaults(out);
     out->direction = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION);
     out->goal = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
-    // comboFlags is ASSEMBLED from its flag keys, never overlaid: the byte is a
-    // bitset and each bit has its own key, so writing the whole byte from the
-    // set of resolved booleans is what keeps an unallocated bit at 0 in a
-    // formatVersion-1 record no matter what a stored value holds. With every
-    // flag off this is 0, i.e. byte-identical to the defaults — the digest
-    // guarantee (#668).
+    // comboFlags stays 0: no key authors a flag. Its one bit,
+    // RSBS_COMBO_FLAG_SHARED_OCARINA, lost its key when #879 retired the
+    // Shared Ocarina rule; a stale gCombo.Rando.SharedOcarina in a config file
+    // is ignored, and the bit stays reserved for the older worlds that carry it.
     out->comboFlags = 0u;
-    if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_OCARINA) != 0) {
-        out->comboFlags |= (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
-    }
-}
-
-bool Combo_ComboSharedOcarina(void) {
-    // The exact shape of Combo_ComboDirection: the FROZEN record once a world
-    // exists, the live resolution before then. Reading the CVar after creation
-    // would let a title-screen toggle change a world that was already built,
-    // which is the thing the freeze exists to make impossible.
-    if (Combo_ComboSettingsFrozen()) {
-        return (gComboCtx.comboSettings.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u;
-    }
-    ComboSettingsRecord live;
-    Combo_ResolveComboSettings(&live);
-    return (live.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u;
 }
 
 bool Combo_ComboSettingsDescribePairedWorld(const ComboSettingsRecord* rec) {
@@ -545,6 +527,12 @@ uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uin
     // and the fingerprint still pins them.
     live.itemClassOoT = frozen->itemClassOoT;
     live.itemClassMM = frozen->itemClassMM;
+    // And the shared-ocarina bit since #879: no key authors it, so a world
+    // created with the rule on keeps its bit and its identity and loads; the
+    // bit no longer arms anything (Combo_SharedResourceKindArmed), and the
+    // fingerprint still pins it.
+    live.comboFlags = (uint8_t)((live.comboFlags & (uint8_t)~RSBS_COMBO_FLAG_SHARED_OCARINA) |
+                                (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA));
     uint32_t bits = Combo_ComboSettingsDivergenceBetween(frozen, &live);
 
     // The fingerprint cross-check. Skipped for an UNREADABLE record, where a

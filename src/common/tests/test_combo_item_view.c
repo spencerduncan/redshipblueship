@@ -526,7 +526,9 @@ static int CivSharedLegs(void) {
     CIV_ASSERT(row.have && row.count == 1 && row.max == 3);
     CIV_ASSERT(CivFindSharedRow("Bombs", &row));
     CIV_ASSERT(!row.have && row.count == 0); // never shared: nothing held
-    CIV_ASSERT(CivFindSharedRow("Ocarina", &row) == Combo_SharedResourceKindArmed(RSBS_SHARED_RES_OCARINA_TIER));
+    // #879: the Shared Ocarina rule is retired, so the overlay names no shared
+    // ocarina in any world.
+    CIV_ASSERT(!CivFindSharedRow("Ocarina", &row));
     CIV_ASSERT(CivFindSharedRow("Triforce Pieces", &row) ==
                Combo_SharedResourceKindArmed(RSBS_SHARED_RES_TRIFORCE_PIECES));
 
