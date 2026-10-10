@@ -563,6 +563,23 @@ int main(int argc, char** argv) {
     fprintf(stderr, "[RSBS] Ship::Context singleton created successfully at %p\n", (void*)shipContext.get());
     fflush(stderr);
 
+    // The context's display name is what a person sees as the window title
+    // (libultraship appends the backend), in the crash dialog and in the log file
+    // name: RsbsVersion_WindowTitle(), with the build's commit (#880). Printed so
+    // every log says which build ran. RSBS_INT_EXIT_AFTER_CONTEXT=1 (integration
+    // mode only) stops here with no archive read and no window: the
+    // VersionIdentity row reads this line to lock the call above
+    // (CMake/CheckVersionIdentity.cmake).
+    fprintf(stderr, "[RSBS] Ship::Context name: %s\n", shipContext->GetName().c_str());
+    fflush(stderr);
+    if (TestRunner_IsIntegrationTestMode()) {
+        const char* exitAfterContext = getenv("RSBS_INT_EXIT_AFTER_CONTEXT");
+        if (exitAfterContext != nullptr && strcmp(exitAfterContext, "1") == 0) {
+            fflush(stdout);
+            _Exit(0);
+        }
+    }
+
     // Point the unified .redsave at the SAME directory the games write their own
     // per-game saves to. save.h documents this as the injection point where "the
     // game-integration follow-up injects the real per-app save directory" — that

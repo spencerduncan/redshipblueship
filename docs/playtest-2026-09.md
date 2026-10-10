@@ -155,7 +155,7 @@ Each departure prints `[OoT] Abandoned session retired: N overlay(s) reset, M ob
 
 - **One issue per finding** at [`spencerduncan/redshipblueship`](https://github.com/spencerduncan/redshipblueship/issues), labelled `agent-tracking`. Title it with the symptom.
 - **Body:** the build commit (Settings > General), the OS and GPU backend, the seed, every non-default setting (Cross-Game Rules including the Goal, MM options, tricks, OoT rando settings), exact steps from file creation, and expected vs. actual. Add the scenario number (for example "C3").
-- **Attach:** the spoiler JSON, a screenshot, the `.log` file from `logs/` for crashes (a crash dump is written into that log), and `stderr.txt` for refusals (refusal reasons are printed to stderr, not to the `.log`). For a save problem, a copy of the `.redsave` and the slot's save files.
+- **Attach:** the spoiler JSON, a screenshot, the newest `.log` file from `logs/` for crashes (its name carries the build, so each build writes its own) (a crash dump is written into that log), and `stderr.txt` for refusals (refusal reasons are printed to stderr, not to the `.log`). For a save problem, a copy of the `.redsave` and the slot's save files.
 - Timings (A1) are useful even when they pass. Post them as one line each: seed, seconds, CPU.
 
 ## 5. Known gaps (from the "Unverified" / "Not verified" sections of the merged PRs [#723](https://github.com/spencerduncan/redshipblueship/pull/723)-[#795](https://github.com/spencerduncan/redshipblueship/pull/795))

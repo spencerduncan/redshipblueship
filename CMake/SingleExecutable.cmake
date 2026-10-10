@@ -2314,6 +2314,26 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     endif()
     redship_add_test(NAME VersionShortCommit COMMAND redship --test version-short-commit
         ENVIRONMENT "RSBS_EXPECT_SHORT_COMMIT=${RSBS_EXPECT_SHORT_COMMIT}" "RSBS_EXPECT_DIRTY=${RSBS_BUILD_DIRTY}")
+    # #880, the person-visible surfaces through the real binary: `redship
+    # --version` and the Ship::Context main() creates (the window title) carry
+    # the same build identity. ROM-free and display-free: main() exits right
+    # after creating the context (RSBS_INT_EXIT_AFTER_CONTEXT=1).
+    # CMake/CheckVersionIdentity.cmake.
+    redship_add_test(NAME VersionIdentity
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -DEXPECT_SHORT=${RSBS_EXPECT_SHORT_COMMIT}
+                -DEXPECT_DIRTY=${RSBS_BUILD_DIRTY}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckVersionIdentity.cmake)
+    # #880, the "-dirty" bit's own oracle: the configure's rsbs_git_tree_dirty()
+    # (CMake/RsbsBuildIdentity.cmake) on a scratch repository with known edits,
+    # so the excludes and the verdicts are checked on every CI platform.
+    # CMake/CheckBuildIdentityDirty.cmake.
+    redship_add_test(NAME BuildIdentityDirty
+        COMMAND ${CMAKE_COMMAND}
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckBuildIdentityDirty.cmake)
 
     # #785: a moon crash in a paired MM half restores the last whole .redsave
     # commit (the file as last saved, vanilla's flash reload; OoTMM's default
