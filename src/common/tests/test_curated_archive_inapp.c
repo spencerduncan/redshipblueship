@@ -763,7 +763,7 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
         for (int i = 0; i < 24; i++) {
             char finding[160];
             snprintf(finding, sizeof(finding),
-                     "\n    COLLISION: objects/object_gi_finding_%02d/gGiFindingDL is also a path in the host archive", i);
+                     "\n    COLLISION: objects/object_gi_finding_%02d/gGiFindingDL collides with a host path", i);
             log += finding;
         }
         printf("[curated-archive-inapp] C: the long refusal's account is %zu bytes\n", log.size());
