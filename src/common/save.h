@@ -117,7 +117,10 @@ typedef enum RsbsRefuseReason {
     // reason too, and keeps the same contract for a field-only divergence; only
     // its DAMAGE case — an unreadable record, or a fingerprint the record does
     // not produce (Combo_ComboSettingsDivergenceIsDamage) — is evidence and is
-    // quarantined like any other refused file.
+    // quarantined like any other refused file. The file-open path also refuses
+    // under this reason a healthy record that names another Ocarina of Time
+    // world than the .sav it is opened with (#564 V12, RsbsOoTSavIdentity);
+    // that file is another file's record, so it is left in place too.
     RSBS_REFUSE_IDENTITY,
     // ADR 0010 increment 1.2 (#500): the paired MM world could not be
     // GENERATED at a cross-game arrival — the deterministic attempt ladder

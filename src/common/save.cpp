@@ -893,6 +893,9 @@ const char* WordsNoMMWorld() {
 const char* WordsMMOptions() {
     return Combo_RefusalWords(RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER);
 }
+const char* WordsOtherFile() {
+    return Combo_RefusalWords(RSBS_REFUSAL_WORDS_OTHER_FILE);
+}
 
 bool RecordIsPaired(const ComboContext& combo) {
     return combo.sourceIsRando && combo.sharedRandoSettingsHash != 0;
@@ -980,6 +983,40 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
         v.reason = RSBS_REFUSE_MISSING;
         v.words = WordsMissing();
         return;
+    }
+
+    if (openKind == kOpenRandoFile && savIdentity != nullptr) {
+        // #564 V12 (gap 1): the record must be THIS file's. OoT's .sav carries
+        // its own randomizer seed (the seed its world was generated from, which
+        // the creation freeze stamped as sharedRandoSeed) and the settings
+        // digest its last commit mirrored; a record that names another world
+        // in either term is another file's .redsave (copied in from another
+        // slot or install), and opening it would pair this OoT world with that
+        // file's Majora's Mask world and crossings. Nothing else at load can
+        // see it: the commit generation, the slot stamp and the combo record
+        // are all self-consistent in a copied file. A term the .sav does not
+        // record (0) is exempt. The record is healthy, so it stays where it is
+        // (no quarantine), as every other identity refusal leaves its file.
+        const bool seedDiffers = savIdentity->randoSeed != 0 && savIdentity->randoSeed != combo.sharedRandoSeed;
+        const bool settingsDiffer =
+            savIdentity->settingsHash != 0 && savIdentity->settingsHash != combo.sharedRandoSettingsHash;
+        if (seedDiffers || settingsDiffer) {
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: the cross-game record names another Ocarina of Time world "
+                         "(%s%s%s): the .sav's seed %u and settings digest %08X, the record's %u and %08X; the "
+                         "file is not opened and the record is left in place\n",
+                         slot, seedDiffers ? "seed" : "", seedDiffers && settingsDiffer ? ", " : "",
+                         settingsDiffer ? "settings digest" : "", (unsigned)savIdentity->randoSeed,
+                         (unsigned)savIdentity->settingsHash, (unsigned)combo.sharedRandoSeed,
+                         (unsigned)combo.sharedRandoSettingsHash);
+            v.outcome = RSBS_LOAD_REFUSED;
+            v.reason = RSBS_REFUSE_IDENTITY;
+            v.words = WordsOtherFile();
+            return;
+        }
+        std::fprintf(stderr, "[RsbsSave] slot %d: the .sav names the record's world (seed %s, settings digest %s)\n",
+                     slot, savIdentity->randoSeed != 0 ? "matches" : "not recorded",
+                     savIdentity->settingsHash != 0 ? "matches" : "not recorded");
     }
 
     // The COMBO-LEVEL IDENTITY check (ADR 0011 decision 4), over the record just
