@@ -100,6 +100,10 @@ extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
 extern "C" void OoT_Rando_Foreign_EmitPickupToast(SharedItem item);
 extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
 extern "C" int MM_ForeignItem_TestItemIdMax(void);
+// OoT's item table, for the names OoT also uses (ComboLogicEngineOoT.cpp): this
+// row never runs the OTR bring-up that fills it, and the transient form leaves no
+// Rando::Context behind for the rows after it under `--test all`.
+extern "C" int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 
 namespace {
 
@@ -240,6 +244,9 @@ int CheckPickupToasts(FitRun& run, float scale) {
     const Profile& p = *run.profile;
     const int idMax = MM_ForeignItem_TestItemIdMax();
     int failures = 0;
+    if (OoT_ComboLogic_TestEnsureItemTableTransient() != 0) {
+        return Fail("OoT's item table could not be brought up, so no name can be compared with OoT's");
+    }
     int swept = 0;
     int shared = 0;
     int otherOverflows = 0;
