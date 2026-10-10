@@ -372,10 +372,11 @@ jobs:
     # through the production creation event, and asserts the MM arrival
     # hydrated it. Driven through ctest so the row's own TIMEOUT bounds it.
     # IntPairedFirstCrossingDiverged (#804) is the same crossing after settings
-    # changed between the creation and the load.
+    # changed between the creation and the load. IntPairedFirstCrossingTwoCycles
+    # (#888) makes two round trips, so the second MM arrival is checked too.
     - name: Integration Test - Paired First Crossing
       if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
-      run: ctest --test-dir build-cmake --output-on-failure -R "^IntPairedFirstCrossing(Diverged)?$" --no-tests=error
+      run: ctest --test-dir build-cmake --output-on-failure -R "^IntPairedFirstCrossing(Diverged|TwoCycles)?$" --no-tests=error
       env:
         DISPLAY: :99
 
