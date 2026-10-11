@@ -24,6 +24,7 @@
 #include "crossing_store.h" // src/common — the paired world's hint checks (PR #743 review)
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "combo_area.h" // src/common — the MM area a Termina slot names (#575 H3a)
+#include "foreign_items.h" // src/common — the crossed item's name and article (#575 H3b)
 #include <set>
 #endif
 #include "notification_bridge.h"   // src/common — the refusal toast the reload bridge reads back
@@ -117,6 +118,8 @@ extern "C" int Rando_TestCreateStaticItemHint(int hintKey, int hintTextKey, int 
 extern "C" int Rando_TestCreateAltarHint(int hintKey, const int* rewards, int count);
 extern "C" int Rando_TestCreateStaticHintFromData(int hintKey, const int* items, int count);
 extern "C" void OoT_ComboLogic_TestSetHintingPairedRemainder(int on);
+// hints.cpp: the "Named Item" distribution's filter (#575 H3b: a crossing counts as major).
+bool FilterGoodItems(RandomizerCheck loc);
 #else
 static int OoT_Combo_CheckHostsCrossing(int) {
     return 0;
@@ -127,9 +130,15 @@ static int OoT_Combo_CheckHostsCrossing(int) {
  * The three #441 passes (and the round trip) over every enabled hint of the LIVE
  * context. With `pairedWorld`, the world is a single-bag paired world completed by
  * the creation event (PR #743 review), and four more things must hold:
- *   (P1) no hint names a crossing host: it physically holds a cover item, so any
- *        location hint about it would name the cover, not the MM item it yields;
- *   (P2) no crossing host is even hintable, so no distribution can pick one;
+ *   (P1) #575 H3b: a hint that names a crossing host names the MM item the host
+ *        yields, with its article and " (MM)", never the cover item the host
+ *        physically holds, and so does the spoiler's "item" (the hint's text is
+ *        read with the remainder's gate open, as the paired creation renders it);
+ *   (P2) #575 H3b: every crossing host is hintable, and the hint pass's "Named
+ *        Item" filter counts it as a major item. Because the pinned seed may hint
+ *        no host, P1 and P2 are also probed on every host (ProbeCrossingHostHints):
+ *        an item hint and an item-area hint built for it, their text, their
+ *        spoiler "item" and their JSON round trip;
  *   (P3) an item hint whose target is at no OoT location names Termina, never
  *        "an Isolated Place" (the RA_NONE a location with no area answers);
  *   (P4) every OoT item the crossing store hosts in MM resolves to Termina, so P3
@@ -137,7 +146,9 @@ static int OoT_Combo_CheckHostsCrossing(int) {
  *   (P5) OUTSIDE the remainder's hint pass (now: this validator runs after it) the
  *        hint pass does not read the store at all: every one of those items answers
  *        RA_NONE, so a later hint pass over another world cannot name Termina off
- *        this world's crossings.
+ *        this world's crossings. #575 H3b: nor does a host read the store outside
+ *        the remainder (no file is loaded here): its probe names the cover, and the
+ *        "Named Item" filter answers the cover's own majority.
  *   (P6) #575 H3a: every Termina slot names the exact MM area. A slot whose area is
  *        RA_TERMINA carries, in the hint's parallel foreignAreas, the shared
  *        vocabulary's area of the MM check that hosts THAT SLOT'S OWN item (the
@@ -472,6 +483,165 @@ static ForeignAreaProbeResult ProbeMultiSlotForeignAreaHints() {
     }
     return result;
 }
+
+/** (P1, #575 H3b) What an OoT hint must call the MM item OoT check `host` yields,
+ *  read straight from the crossing store (not through the production path): the
+ *  item's name with " (MM)", after its article when `withArticle`. "" when the
+ *  store hosts nothing there or MM's describer does not know the item. */
+static std::string ExpectedCrossedItemName(uint16_t host, bool withArticle) {
+    const SharedItem* item = Combo_Crossings_Lookup(GAME_OOT, host);
+    const char* name = item != nullptr ? Combo_DescribeItemName(*item) : nullptr;
+    if (name == nullptr) {
+        return "";
+    }
+    const char* article = withArticle ? Combo_GetForeignItemArticle(*item) : nullptr;
+    return std::string(article != nullptr ? article : "") + name + " (MM)";
+}
+
+/** The English name OoT's own item table gives the item OoT check `rc` physically holds. */
+static std::string PlacedItemEnglishName(RandomizerCheck rc) {
+    auto ctx = Rando::Context::GetInstance();
+    return Rando::StaticData::RetrieveItem(ctx->GetItemLocation(rc)->GetPlacedRandomizerGet()).GetName().GetEnglish();
+}
+
+/**
+ * (P1) Hint `hint`'s text and spoiler entry for its slot `slot`, which names crossing
+ * host `host`, read with the remainder's gate open (as the paired creation renders it
+ * and writes its spoiler): the crossed item's article, name and " (MM)", and not the
+ * cover's name when the hint names one location only.
+ */
+static size_t CheckCrossingHostHint(const std::string& label, Rando::Hint& hint, size_t slot, uint16_t host) {
+    size_t failures = 0;
+    const std::string expected = ExpectedCrossedItemName(host, true);
+    const std::string expectedBare = ExpectedCrossedItemName(host, false);
+    const std::string cover = PlacedItemEnglishName((RandomizerCheck)host);
+    OoT_ComboLogic_TestSetHintingPairedRemainder(1);
+    const std::string text = JoinMessages(hint.GetAllMessageStrings(MF_CLEAN));
+    const nlohmann::ordered_json doc = hint.toJSON();
+    OoT_ComboLogic_TestSetHintingPairedRemainder(0);
+    if (expected.empty()) {
+        fprintf(stderr, "[rando-hints] FAIL %s: crossing host %u has no nameable MM item in the store (P1)\n",
+                label.c_str(), (unsigned)host);
+        return 1;
+    }
+    if (text.find(expected) == std::string::npos) {
+        fprintf(stderr, "[rando-hints] FAIL %s: slot %zu names crossing host %u but the text does not name \"%s\": "
+                        "\"%s\" (P1)\n",
+                label.c_str(), slot, (unsigned)host, expected.c_str(), text.c_str());
+        failures++;
+    }
+    if (hint.GetHintedLocations().size() == 1 && text.find(cover) != std::string::npos) {
+        fprintf(stderr, "[rando-hints] FAIL %s: the text names crossing host %u's cover \"%s\": \"%s\" (P1)\n",
+                label.c_str(), (unsigned)host, cover.c_str(), text.c_str());
+        failures++;
+    }
+    if (doc.contains("item") && hint.GetHintedLocations().size() == 1 &&
+        (!doc["item"].is_string() || doc["item"].get<std::string>() != expectedBare)) {
+        fprintf(stderr, "[rando-hints] FAIL %s: the spoiler's item for crossing host %u is %s, not \"%s\" (P1)\n",
+                label.c_str(), (unsigned)host, doc["item"].dump().c_str(), expectedBare.c_str());
+        failures++;
+    }
+    return failures;
+}
+
+struct CrossingHostProbeResult {
+    int probes = 0;
+    size_t failures = 0;
+};
+
+/**
+ * (P1, P2, P5 for hosts) For every crossing host the store records in OoT: it is
+ * hintable; under the remainder's gate the "Named Item" filter counts it as major,
+ * and an item hint and an item-area hint built for it (as CreateHint builds a stone
+ * hint) name the crossed item, never the cover, in their text and spoiler entry,
+ * and survive the JSON round trip; with the gate shut (no remainder, no paired
+ * spoiler, no file loaded) the filter answers the cover's own majority and the same
+ * hints name the cover. The probes are built outside the world's hint table.
+ */
+static CrossingHostProbeResult ProbeCrossingHostHints() {
+    CrossingHostProbeResult result;
+    auto ctx = Rando::Context::GetInstance();
+    const RandomizerHint probeKey = Rando::StaticData::gossipStoneCheckToHint[RC_KF_GOSSIP_STONE];
+    for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+        ComboCrossing row;
+        if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
+            continue;
+        }
+        const RandomizerCheck host = (RandomizerCheck)row.hostCheck;
+        Rando::ItemLocation* itemLoc = ctx->GetItemLocation(host);
+        const std::string expected = ExpectedCrossedItemName(row.hostCheck, true);
+        const std::string bare = ExpectedCrossedItemName(row.hostCheck, false);
+        const std::string label = "probe crossing host " + std::to_string(row.hostCheck);
+        result.probes++;
+        if (!itemLoc->IsHintable()) {
+            fprintf(stderr, "[rando-hints] FAIL %s: not hintable (P2)\n", label.c_str());
+            result.failures++;
+        }
+        const RandomizerArea area = itemLoc->GetAreas().empty() ? RA_NONE : itemLoc->GetFirstArea();
+        OoT_ComboLogic_TestSetHintingPairedRemainder(1);
+        const bool goodOpen = FilterGoodItems(host);
+        Rando::Hint itemHint(probeKey, HINT_TYPE_ITEM, "H3b probe", {}, { host }, { area }, {});
+        Rando::Hint areaHint(probeKey, HINT_TYPE_ITEM_AREA, "H3b probe", {}, { host }, { area }, {});
+        const std::string itemText = JoinMessages(itemHint.GetAllMessageStrings(MF_CLEAN));
+        const std::string areaText = JoinMessages(areaHint.GetAllMessageStrings(MF_CLEAN));
+        const nlohmann::json areaDoc = nlohmann::json::parse(areaHint.toJSON().dump());
+        const Rando::Hint reloaded(probeKey, areaDoc);
+        const std::string reloadedText = JoinMessages(reloaded.GetAllMessageStrings(MF_CLEAN));
+        OoT_ComboLogic_TestSetHintingPairedRemainder(0);
+        const bool goodShut = FilterGoodItems(host);
+        const std::string shutText = JoinMessages(areaHint.GetAllMessageStrings(MF_CLEAN));
+        const bool coverMajor = itemLoc->GetPlacedItem().IsMajorItem();
+        const std::string cover = PlacedItemEnglishName(host);
+        if (!goodOpen) {
+            fprintf(stderr, "[rando-hints] FAIL %s: the Named Item filter does not count the crossing as major (P2)\n",
+                    label.c_str());
+            result.failures++;
+        }
+        if (expected.empty()) {
+            fprintf(stderr, "[rando-hints] FAIL %s: no nameable MM item in the store (P1)\n", label.c_str());
+            result.failures++;
+            continue;
+        }
+        const std::pair<const char*, std::string> texts[] = { { "item hint", itemText },
+                                                              { "item-area hint", areaText } };
+        for (const auto& t : texts) {
+            if (t.second.find(expected) == std::string::npos || t.second.find(cover) != std::string::npos) {
+                fprintf(stderr, "[rando-hints] FAIL %s: the %s does not name \"%s\" (or names the cover \"%s\"): "
+                                "\"%s\" (P1)\n",
+                        label.c_str(), t.first, expected.c_str(), cover.c_str(), t.second.c_str());
+                result.failures++;
+            }
+        }
+        if (!areaDoc.contains("item") || !areaDoc["item"].is_string() || areaDoc["item"].get<std::string>() != bare) {
+            fprintf(stderr, "[rando-hints] FAIL %s: the spoiler's item is %s, not \"%s\" (P1)\n", label.c_str(),
+                    areaDoc.contains("item") ? areaDoc["item"].dump().c_str() : "absent", bare.c_str());
+            result.failures++;
+        }
+        if (reloadedText != areaText) {
+            fprintf(stderr, "[rando-hints] FAIL %s: the JSON round trip changed the hint\n  live:     \"%s\"\n  "
+                            "reloaded: \"%s\" (P1)\n",
+                    label.c_str(), areaText.c_str(), reloadedText.c_str());
+            result.failures++;
+        }
+        if (goodShut != coverMajor) {
+            fprintf(stderr, "[rando-hints] FAIL %s: outside the remainder the Named Item filter reads the store "
+                            "(answers %d, the cover's own answer is %d) (P5)\n",
+                    label.c_str(), goodShut ? 1 : 0, coverMajor ? 1 : 0);
+            result.failures++;
+        }
+        if (shutText.find(bare) != std::string::npos) {
+            fprintf(stderr, "[rando-hints] FAIL %s: outside the remainder, with no file loaded, the hint still names "
+                            "\"%s\": \"%s\" (P5)\n",
+                    label.c_str(), bare.c_str(), shutText.c_str());
+            result.failures++;
+        }
+        if (result.probes <= 3) {
+            fprintf(stderr, "[rando-hints] %s: \"%s\" / \"%s\"\n", label.c_str(), itemText.c_str(),
+                    areaText.c_str());
+        }
+    }
+    return result;
+}
 #endif
 
 static int ValidateGeneratedHints(bool pairedWorld) {
@@ -494,6 +664,7 @@ static int ValidateGeneratedHints(bool pairedWorld) {
     size_t terminaHints = 0;
 #ifdef RSBS_SINGLE_EXECUTABLE
     size_t terminaSlots = 0;
+    size_t hostHints = 0;
 #endif
 
     for (int h = RH_NONE + 1; h < RH_MAX; h++) {
@@ -522,12 +693,19 @@ static int ValidateGeneratedHints(bool pairedWorld) {
         for (size_t li = 0; li < hintedLocations.size(); li++) {
             const RandomizerCheck hintedCheck = hintedLocations[li];
             if (pairedWorld) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                if (OoT_Combo_CheckHostsCrossing((int)hintedCheck) != 0) {
+                    hostHints++;
+                    failures += CheckCrossingHostHint(hintName, *hint, li, (uint16_t)hintedCheck);
+                }
+#else
                 if (OoT_Combo_CheckHostsCrossing((int)hintedCheck) != 0) {
                     fprintf(stderr, "[rando-hints] FAIL %s: names crossing host %d, which holds a cover item (P1)\n",
                             hintName.c_str(), (int)hintedCheck);
                     failures++;
                     continue;
                 }
+#endif
                 if (hintedCheck == RC_UNKNOWN_CHECK) {
                     if (li < hintedAreas.size() && hintedAreas[li] == RA_TERMINA) {
                         terminaHints++;
@@ -628,8 +806,9 @@ static int ValidateGeneratedHints(bool pairedWorld) {
                 continue;
             }
             crossingHosts++;
-            if (ctx->GetItemLocation((RandomizerCheck)row.hostCheck)->IsHintable()) {
-                fprintf(stderr, "[rando-hints] FAIL: crossing host %u is hintable (P2)\n", (unsigned)row.hostCheck);
+            if (!ctx->GetItemLocation((RandomizerCheck)row.hostCheck)->IsHintable()) {
+                fprintf(stderr, "[rando-hints] FAIL: crossing host %u is not hintable (P2)\n",
+                        (unsigned)row.hostCheck);
                 failures++;
             }
         }
@@ -676,10 +855,16 @@ static int ValidateGeneratedHints(bool pairedWorld) {
         failures += probe.failures;
         const ForeignAreaProbeResult multiProbe = ProbeMultiSlotForeignAreaHints();
         failures += multiProbe.failures;
+        const CrossingHostProbeResult hostProbe = ProbeCrossingHostHints();
+        failures += hostProbe.failures;
         fprintf(stderr,
-                "[rando-hints] paired world: %d crossing hosts in OoT (none may be hintable), %d OoT items in MM, "
+                "[rando-hints] paired world: %d crossing hosts in OoT (each hintable), %d OoT items in MM, "
                 "%zu hinted target(s) named Termina\n",
                 crossingHosts, ootItemsInMM, terminaHints);
+        fprintf(stderr,
+                "[rando-hints] paired world: %zu generated hint slot(s) name a crossing host, %d crossing host "
+                "probe(s) (P1/P2)\n",
+                hostHints, hostProbe.probes);
         fprintf(stderr,
                 "[rando-hints] paired world: %zu generated Termina slot(s) checked for their own item's MM area, %d "
                 "static item hint probe(s), %d altar / static-from-data probe(s) (P6)\n",
@@ -722,6 +907,91 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
 extern "C" int Rando_ValidatePairedWorldHints(void) {
     return ValidateGeneratedHints(true);
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * #575 H3b, ComboSingleBag D2b: the caller has generated a SOLO world (OoT's native
+ * general pass) after a paired creation, so the crossing store still holds the
+ * paired world's crossings (it outlives its creation) while the hints are this
+ * world's. Its hints name no crossed item:
+ *   - the #441 checks over its hints;
+ *   - no hint's text says " (MM)";
+ *   - every OoT check the store records as a crossing host is probed in THIS world
+ *     with an item-area hint built for it, as CreateHint builds one: its text and
+ *     spoiler entry name this world's own item there, never the paired world's MM
+ *     item, and the "Named Item" filter answers this world's own item's majority.
+ * Run as production runs it: no remainder, no paired spoiler, no file loaded.
+ * @return 0 when all hold; 9 when the store holds no OoT-hosted crossing (vacuous).
+ */
+extern "C" int Rando_ValidateSoloWorldHintsAfterPairing(void) {
+    if (Combo_Crossings_Count(GAME_OOT) == 0) {
+        fprintf(stderr, "[rando-hints] solo world: the store holds no OoT-hosted crossing; the check is vacuous\n");
+        return 9;
+    }
+    const int base = ValidateGeneratedHints(false);
+    if (base != 0) {
+        return base;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    size_t failures = 0;
+    for (int h = RH_NONE + 1; h < RH_MAX; h++) {
+        Rando::Hint* hint = ctx->GetHint((RandomizerHint)h);
+        if (hint == nullptr || !hint->IsEnabled()) {
+            continue;
+        }
+        const std::string text = JoinMessages(hint->GetAllMessageStrings(MF_CLEAN));
+        if (text.find(" (MM)") != std::string::npos) {
+            fprintf(stderr, "[rando-hints] FAIL solo world: hint %d names a crossed item: \"%s\"\n", h, text.c_str());
+            failures++;
+        }
+    }
+    const RandomizerHint probeKey = Rando::StaticData::gossipStoneCheckToHint[RC_KF_GOSSIP_STONE];
+    int probes = 0;
+    for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+        ComboCrossing row;
+        if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
+            continue;
+        }
+        const RandomizerCheck rc = (RandomizerCheck)row.hostCheck;
+        Rando::ItemLocation* itemLoc = ctx->GetItemLocation(rc);
+        const RandomizerGet placed = itemLoc->GetPlacedRandomizerGet();
+        if (placed == RG_NONE || placed == RG_ICE_TRAP || itemLoc->GetAreas().empty()) {
+            continue; // nothing to name, or a trick name in place of the item's
+        }
+        probes++;
+        const std::string crossed = ExpectedCrossedItemName(row.hostCheck, false);
+        const std::string own = PlacedItemEnglishName(rc);
+        Rando::Hint probe(probeKey, HINT_TYPE_ITEM_AREA, "H3b solo probe", {}, { rc }, { itemLoc->GetFirstArea() }, {});
+        const std::string text = JoinMessages(probe.GetAllMessageStrings(MF_CLEAN));
+        const nlohmann::ordered_json doc = probe.toJSON();
+        const std::string docItem = doc.contains("item") && doc["item"].is_string() ? doc["item"].get<std::string>() : "";
+        if ((!crossed.empty() && text.find(crossed) != std::string::npos) || text.find(own) == std::string::npos ||
+            docItem != own) {
+            fprintf(stderr, "[rando-hints] FAIL solo world: check %u (the paired world's host of \"%s\") holds \"%s\" "
+                            "here, but its hint reads \"%s\" and its spoiler item \"%s\"\n",
+                    (unsigned)row.hostCheck, crossed.c_str(), own.c_str(), text.c_str(), docItem.c_str());
+            failures++;
+        }
+        if (FilterGoodItems(rc) != itemLoc->GetPlacedItem().IsMajorItem()) {
+            fprintf(stderr, "[rando-hints] FAIL solo world: the Named Item filter reads the paired world's crossing at "
+                            "check %u\n",
+                    (unsigned)row.hostCheck);
+            failures++;
+        }
+        if (probes <= 2) {
+            fprintf(stderr, "[rando-hints] solo world: check %u (the paired world's host of \"%s\"): \"%s\"\n",
+                    (unsigned)row.hostCheck, crossed.c_str(), text.c_str());
+        }
+    }
+    fprintf(stderr, "[rando-hints] solo world: %d of the paired world's %d OoT crossing host(s) probed, %zu failures\n",
+            probes, Combo_Crossings_Count(GAME_OOT), failures);
+    if (probes == 0) {
+        fprintf(stderr, "[rando-hints] solo world: no host could be probed; the check is vacuous\n");
+        return 9;
+    }
+    return failures == 0 ? 0 : 1;
+}
+#endif
 
 /**
  * TEST BRIDGE (combo-creation-event; PR #743 review): reload the OoT spoiler the
