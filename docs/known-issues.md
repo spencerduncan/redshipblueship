@@ -146,8 +146,13 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   ("Updated live"), and a crossing collected there shows as collected at once. From
   Hyrule, Majora's Mask's is as of the last game switch or save (as of file creation
   until Majora's Mask is first entered), which the switch itself writes (#755, #757).
-- **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero
-  or barren analysis. Crossing hosts are never hinted. An OoT item that crossed is
+- **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero.
+  Foolish hints work again: each game calls one of its own areas foolish when none of
+  its checks holds a crossing, an item the single bag placed or one the game counts as
+  progression (OoTMM's rule without its probabilistic refinement; OoT's own Foolish
+  entry, and a "plundering ... is a foolish choice" variant on Majora's Mask's free
+  gossip stones, [#575](https://github.com/spencerduncan/redshipblueship/issues/575) H5a).
+  Crossing hosts are never hinted. An OoT item that crossed is
   hinted by the Majora's Mask area that holds it, for example "the Southern Swamp"
   (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743), [#575](https://github.com/spencerduncan/redshipblueship/issues/575) H3a);
   a file created before that still says "Termina".

@@ -19,13 +19,17 @@
  *   E  junk everywhere, nothing shuffled                       -> not (no hintable check)
  * Every other check is unshuffled junk, so A is the ONLY foolish area.
  *
- * Asserted, over 512 stone seeds with the stone's item pick fixed on B's Lens:
+ * Asserted: the shared rule (Combo_Area_ComputeFoolish) calls exactly {A}
+ * foolish; and over 512 stone seeds with the stone's item pick fixed on B's Lens:
  *   1. some stones speak the foolish variant, and not all of them;
  *   2. every foolish text is exactly "They say plundering %y<A>%w is a %pfoolish
  *      choice%w." -- only A is ever called foolish (never B, C, D or E);
  *   3. every other text is exactly the item hint the stone said before H5a;
  *   4. the same seed says the same thing twice (a pure function of the frozen
- *      world and the stone).
+ *      world and the stone);
+ *   5. about one stone in five speaks the foolish variant;
+ * and, with E's checks shuffled too, the rule calls exactly {A, E} foolish and
+ * the stones name both of them.
  *
  * Linkage note: #included into test_runner.cpp at file scope (compiled as C++).
  */
@@ -79,6 +83,17 @@ bool FhRunAuthoredWorld(const ComboArea areas[5], uint16_t lensCheck) {
         printf("[TEST] FAIL: the stone has no item hint for check %u\n", (unsigned)lensCheck);
         return false;
     }
+    // The set the stone draws from, straight from the shared rule: A and only A.
+    ComboFoolishAreas set;
+    const int foolishAreas = Combo_Area_ComputeFoolish((uint8_t)GAME_MM, &set);
+    printf("[TEST]   the shared rule calls %d MM area(s) foolish; A=%d B=%d C=%d D=%d E=%d\n", foolishAreas,
+           (int)Combo_Area_IsFoolish(&set, areas[0]), (int)Combo_Area_IsFoolish(&set, areas[1]),
+           (int)Combo_Area_IsFoolish(&set, areas[2]), (int)Combo_Area_IsFoolish(&set, areas[3]),
+           (int)Combo_Area_IsFoolish(&set, areas[4]));
+    if (foolishAreas != 1 || !Combo_Area_IsFoolish(&set, areas[0])) {
+        printf("[TEST] FAIL: the shared rule's MM set is not exactly {A}\n");
+        return false;
+    }
     const std::string foolishA = FhFoolishText(areas[0]);
     int foolish = 0;
     int itemHints = 0;
@@ -116,6 +131,12 @@ bool FhRunAuthoredWorld(const ComboArea areas[5], uint16_t lensCheck) {
     printf("[TEST]   %u stone seeds: %d foolish (first: \"%s\"), %d the item hint \"%s\"\n", (unsigned)kSeeds,
            foolish, firstFoolish.c_str(), itemHints, itemText);
     bool ok = true;
+    // About one stone in Rando::HintFoolish::kFreeStoneOneIn (5): 102 of 512 expected.
+    if (foolish < 51 || foolish > 154) {
+        printf("[TEST] FAIL: %d of %u stones spoke the foolish variant, far from one in five\n", foolish,
+               (unsigned)kSeeds);
+        ok = false;
+    }
     for (const std::string& t : otherFoolish) {
         printf("[TEST] FAIL: a stone called somewhere other than \"%s\" foolish: \"%s\"\n", Combo_Area_Name(areas[0]),
                t.c_str());
@@ -131,6 +152,46 @@ bool FhRunAuthoredWorld(const ComboArea areas[5], uint16_t lensCheck) {
         ok = false;
     }
     return ok;
+}
+
+/** With E's checks shuffled too, E is foolish beside A: the stones name both,
+ *  and nothing else (the draw over several foolish areas reaches every one). */
+bool FhRunTwoFoolishAreas(const ComboArea areas[5], uint16_t lensCheck) {
+    ComboFoolishAreas set;
+    const int foolishAreas = Combo_Area_ComputeFoolish((uint8_t)GAME_MM, &set);
+    if (foolishAreas != 2 || !Combo_Area_IsFoolish(&set, areas[0]) || !Combo_Area_IsFoolish(&set, areas[4])) {
+        printf("[TEST] FAIL: with E shuffled, the shared rule's MM set is not exactly {A, E} (%d areas)\n",
+               foolishAreas);
+        return false;
+    }
+    const std::string foolishA = FhFoolishText(areas[0]);
+    const std::string foolishE = FhFoolishText(areas[4]);
+    int namesA = 0;
+    int namesE = 0;
+    for (uint32_t seed = 0; seed < 512; seed++) {
+        char text[512];
+        if (MM_Rando_Hints_TestFreeStoneText(lensCheck, seed, text, (int)sizeof(text)) <= 0) {
+            return false;
+        }
+        if (strstr(text, "foolish") == nullptr) {
+            continue;
+        }
+        if (foolishA == text) {
+            namesA++;
+        } else if (foolishE == text) {
+            namesE++;
+        } else {
+            printf("[TEST] FAIL: stone seed %u called somewhere else foolish: \"%s\"\n", (unsigned)seed, text);
+            return false;
+        }
+    }
+    printf("[TEST]   with E shuffled too: {A, E} foolish; 512 stone seeds name A %d times, E %d times\n", namesA,
+           namesE);
+    if (namesA == 0 || namesE == 0) {
+        printf("[TEST] FAIL: one of two foolish areas is never named\n");
+        return false;
+    }
+    return true;
 }
 
 } // namespace
@@ -241,6 +302,12 @@ TestResult Test_MmFoolishStoneHint(void) {
         printf("[TEST] FAIL: the crossing store refused the authored crossing\n");
     } else {
         ok = FhRunAuthoredWorld(areas, lensCheck);
+    }
+    if (ok) {
+        for (const uint16_t id : byArea[areas[4].area]) {
+            MM_Rando_Hints_TestSetCheck(id, riJunk, 1, 0, NULL, NULL, NULL);
+        }
+        ok = FhRunTwoFoolishAreas(areas, lensCheck);
     }
 
     for (const FhPrior& p : priors) {

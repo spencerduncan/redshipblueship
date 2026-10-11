@@ -37,6 +37,8 @@ games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp
 games/mm/2s2h/Rando/ForeignShopSingleExe.cpp
 games/mm/2s2h/Rando/HintArea.h
 games/mm/2s2h/Rando/HintAreaSingleExe.cpp
+games/mm/2s2h/Rando/HintFoolish.h
+games/mm/2s2h/Rando/HintFoolishSingleExe.cpp
 games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp
 games/mm/2s2h/Rando/OptionsUiSingleExe.cpp
 games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp

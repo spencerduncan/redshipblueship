@@ -35,8 +35,9 @@
 #include "soh/Enhancements/randomizer/entrance.h"
 #include "soh/Enhancements/randomizer/3drando/fill.hpp"
 
-#include "combo_area.h" // src/common: the shared vocabulary and the registrar
-#include "game.h"       // src/common: GAME_OOT
+#include "combo_area.h"  // src/common: the shared vocabulary and the registrar
+#include "combo_logic.h" // src/common: the coordinator's placements (#575 H5a)
+#include "game.h"        // src/common: GAME_OOT
 
 namespace {
 
@@ -140,6 +141,117 @@ extern "C" void OoT_HintArea_OnRandomizerLoaded(void) {
     RegionTable_Init();
     ctx->GetEntranceShuffler()->ApplyEntranceOverrides();
     SetAreas();
+}
+
+// ============================================================================
+// #575 H5a: OoT's answer to the foolish rule (combo_area.h), and the paired
+// remainder's barren flags
+// ============================================================================
+//
+// A paired world skips CalculateBarren (fill.cpp's single-bag seam: it reads the
+// playthrough the seam does not run), so no OoT location was a foolish candidate
+// and OoT's native Foolish hint entry never drew. The remainder now marks the
+// candidates from the shared rule, before CreateAllHints, and that entry works
+// again: same distribution, same text, OoT's own areas only.
+
+// ComboLogicEngineOoT.cpp / ForeignItemsSingleExe.cpp
+extern "C" int OoT_ComboLogic_HintingPairedRemainder(void);
+extern "C" int OoT_Combo_CheckHostsCrossing(int rc);
+
+namespace {
+
+/**
+ * One OoT location's standing (ComboFoolishAdapter::hostStanding). HINTABLE when
+ * OoT's hints may name it (ItemLocation::IsHintable). IMPORTANT when it holds:
+ *  - a major item by OoT's own predicate, or a WotH location (the two facts the
+ *    native CalculateBarren reads; the second is never set in a paired world);
+ *  - any placement the single bag's coordinator made on it, whatever its origin
+ *    (every bag row is PROGRESSION, combo_logic.h THE BAG MODEL);
+ *  - a crossing (the store's OoT-hosted rows; the host physically holds a junk
+ *    cover, so its own item says nothing).
+ * The coordinator's tables hold the whole fill only while the creation runs, and
+ * the store describes THIS world only while OoT's remainder hints it, so outside
+ * that window the answer is IMPORTANT for every location: OoT cannot say, and an
+ * unknown is never a foolish claim. OoT asks only inside the window.
+ */
+uint8_t OoTHostStanding(uint16_t check) {
+    if (check == RC_UNKNOWN_CHECK || check >= RC_MAX) {
+        return 0;
+    }
+    const auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        return 0;
+    }
+    if (OoT_ComboLogic_HintingPairedRemainder() == 0) {
+        return COMBO_HOST_IMPORTANT;
+    }
+    Rando::ItemLocation* il = ctx->GetItemLocation((RandomizerCheck)check);
+    uint8_t standing = il->IsHintable() ? COMBO_HOST_HINTABLE : 0;
+    ComboLogicPlacement placement;
+    if (il->GetPlacedItem().IsMajorItem() || il->IsWothCandidate() ||
+        Combo_Logic_GetPlacement(GAME_OOT, check, &placement) || OoT_Combo_CheckHostsCrossing((int)check) != 0) {
+        standing |= COMBO_HOST_IMPORTANT;
+    }
+    return standing;
+}
+
+/** Every area of the location (ComboFoolishAdapter::areasOfCheck): an OoT
+ *  location can sit in several, and the native rule reads them all. */
+int OoTAreasOfCheck(uint16_t check, uint8_t* out, int cap) {
+    if (check == RC_UNKNOWN_CHECK || check >= RC_MAX) {
+        return 0;
+    }
+    const auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        return 0;
+    }
+    int n = 0;
+    for (const RandomizerArea ra : ctx->GetItemLocation((RandomizerCheck)check)->GetAreas()) {
+        if (n < cap) {
+            out[n] = OoTComboAreaOf(ra);
+        }
+        n++;
+    }
+    return n;
+}
+
+const ComboFoolishAdapter kOoTFoolishAdapter = { (uint16_t)RC_MAX, OoTHostStanding, OoTAreasOfCheck };
+
+struct OoTFoolishAdapterRegistrar {
+    OoTFoolishAdapterRegistrar() {
+        Combo_RegisterFoolishAdapter((uint8_t)GAME_OOT, &kOoTFoolishAdapter);
+    }
+};
+const OoTFoolishAdapterRegistrar gOoTFoolishAdapterRegistrar;
+
+} // namespace
+
+/**
+ * Mark OoT's foolish candidates in a paired world: every location whose areas
+ * are all foolish by the shared rule (Combo_Area_CheckIsFoolish, the native
+ * FindIfBarren's shape). Called by fill.cpp's RsbsFinishPairedGeneralPass after
+ * the per-game junk pass placed the last item and before CreateAllHints, inside
+ * OoT_ComboLogic_FinishGeneralPass's hinting window. Draws no RNG and places
+ * nothing: the flags steer the hint draw only. Returns the number marked.
+ */
+extern "C" int OoT_HintArea_MarkPairedFoolish(void) {
+    const auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        return 0;
+    }
+    ComboFoolishAreas foolish;
+    const int areas = Combo_Area_ComputeFoolish((uint8_t)GAME_OOT, &foolish);
+    int marked = 0;
+    if (areas > 0) {
+        for (const RandomizerCheck rc : ctx->allLocations) {
+            if (Combo_Area_CheckIsFoolish(&foolish, (uint16_t)rc)) {
+                ctx->GetItemLocation(rc)->SetBarrenCandidate();
+                marked++;
+            }
+        }
+    }
+    fprintf(stderr, "[OoT/hints] paired world: %d foolish area(s), %d foolish candidate location(s)\n", areas, marked);
+    return marked;
 }
 
 // ============================================================================

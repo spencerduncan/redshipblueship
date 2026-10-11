@@ -145,6 +145,32 @@ RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/HintFoolish.h" // #575 H5a: the free stone's foolish variant
+
+// #575 H5a: what the FREE stone says, given its item pick and its stone seed:
+// the foolish variant one time in Rando::HintFoolish::kFreeStoneOneIn when the
+// world has a foolish MM area (HintFoolishSingleExe.cpp), else the item hint
+// exactly as before. The text hook below calls FreeStoneHintText in both builds
+// (a directive is ill-formed inside its COND_ID_HOOK argument); the #else keeps
+// upstream's expression.
+static std::string FreeStoneHintTextSeeded(RandoCheckId randoCheckId, uint32_t stoneSeed) {
+    const std::string foolish = Rando::HintFoolish::FreeStoneText(stoneSeed);
+    return foolish.empty() ? GossipHintText(randoCheckId, false) : foolish;
+}
+
+// The stone seed is GetRandomCheck's own for the free stone (the same expression,
+// read off the same stone), so the variant is a pure function of the frozen world
+// and the stone, like the item pick.
+static std::string FreeStoneHintText(RandoCheckId randoCheckId) {
+    Player* player = GET_PLAYER(MM_gPlayState);
+    if (player->talkActor == nullptr || player->talkActor->id != ACTOR_EN_GS) {
+        return GossipHintText(randoCheckId, false);
+    }
+    EnGs* enGs = (EnGs*)player->talkActor;
+    uint32_t seed = MM_gPlayState->sceneId + enGs->actor.home.pos.x + enGs->actor.home.pos.z;
+    return FreeStoneHintTextSeeded(randoCheckId, gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);
+}
+
 /** TEST BRIDGE (redship tier; src/common/tests/test_foolish_hints.c, #575 H5a):
  *  the text the FREE stone's hook shows when its item pick is `randoCheckId` and
  *  the stone it is reading seeds `stoneSeed`, before colours and line breaks.
@@ -153,10 +179,13 @@ extern "C" int MM_Rando_Hints_TestFreeStoneText(uint16_t randoCheckId, uint32_t 
     if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
         return -1;
     }
-    (void)stoneSeed;
-    const std::string msg = GossipHintText((RandoCheckId)randoCheckId, false);
+    const std::string msg = FreeStoneHintTextSeeded((RandoCheckId)randoCheckId, stoneSeed);
     snprintf(out, (size_t)cap, "%s", msg.c_str());
     return (int)msg.size();
+}
+#else
+static std::string FreeStoneHintText(RandoCheckId randoCheckId) {
+    return GossipHintText(randoCheckId, false);
 }
 #endif // RSBS_SINGLE_EXECUTABLE
 
@@ -183,7 +212,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
 
             entry.autoFormat = false;
 
-            entry.msg = GossipHintText(randoCheckId, false);
+            entry.msg = FreeStoneHintText(randoCheckId);
 
             // Replace colors before line break calculation
             CustomMessage::ReplaceColorChars(&entry.msg);
