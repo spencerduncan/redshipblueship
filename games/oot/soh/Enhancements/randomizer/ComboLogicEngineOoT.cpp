@@ -2675,6 +2675,13 @@ extern "C" int OoT_ComboLogic_HintingPairedRemainder(void) {
     return sHintingPairedRemainder ? 1 : 0;
 }
 
+/** TEST BRIDGE (#575 H3a; ComboSingleBag D2): hold the gate above open (1) or
+ *  shut (0) so a lock can build one hint the way the remainder's pass builds it,
+ *  over the world the store describes. The lock shuts it again before P5. */
+extern "C" void OoT_ComboLogic_TestSetHintingPairedRemainder(int on) {
+    sHintingPairedRemainder = on != 0;
+}
+
 /**
  * TEST BRIDGE (combo-single-bag; PR #743 review): sweep EVERY OoT location through
  * the ABI-5 foreign-host predicate, by category, from facts the predicate does not
