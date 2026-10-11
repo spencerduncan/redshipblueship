@@ -58,6 +58,8 @@ extern "C" {
 // seam and consumed by the next OnLoadGame, which returns the player to the file
 // select instead of entering Play. -1 for none.
 static int sRsbsRefusedLoadSlot = -1;
+// #575 H1: a loaded world's locations get their hint areas (HintAreaOoT.cpp).
+extern "C" void OoT_HintArea_OnRandomizerLoaded(void);
 #endif
 using namespace std::string_literals;
 
@@ -722,6 +724,12 @@ void SaveManager::LoadRandomizer() {
         SaveManager::Instance->LoadData("", value);
         randoContext->GetTrickOption(RandomizerTrick(i)).Set(value);
     });
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #575 H1: only generation and the spoiler loader give locations their areas
+    // (SetAreas), and this load built a fresh context, so the shared area
+    // vocabulary's OoT adapter would answer "nowhere" for every check.
+    OoT_HintArea_OnRandomizerLoaded();
+#endif
 }
 
 void SaveManager::SaveRandomizer(SaveContext* saveContext, int sectionID, bool fullSave) {

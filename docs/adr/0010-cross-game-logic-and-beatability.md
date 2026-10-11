@@ -868,7 +868,10 @@ is accepted (listed here; deliberately not filed by this ADR):
    work, and native model-less presentation is the fallback for models not
    yet carried.
 4. **Epic: hints v2 (cross-game hints).** MM area taxonomy (#500 work item
-   4, including the dead `StaticData::RandoStaticRegion` decoy), foreign-host
+   4, including the dead `StaticData::RandoStaticRegion` decoy; *2026-10-10:
+   delivered as #575 H1, one shared area vocabulary in
+   `src/common/combo_area.h` with an MM half of OoTMM's 46 MM regions, and
+   the decoy deleted*), foreign-host
    gossip-stone hints (today structurally impossible: the junk filter
    excludes every host; *2026-09-30: the operator scheduled this item, #575
    item 2, and it is delivered for MM's stones, see the note under the
@@ -950,11 +953,11 @@ is accepted (listed here; deliberately not filed by this ADR):
   origin pools pass today and keep passing after a broken change. Locks
   land with removal (increment 3), never before.
 - `RandoHintCrossGame` still sounds like cross-game hint plumbing and still
-  is not (it is the #441 arrival-wipe regression lock); the dead
-  `StaticData::RandoStaticRegion` still reads like the area taxonomy Lane D
-  wants and still has zero references. Both traps are inherited by every
-  epic above and are re-stated here because they will outlive this ADR's
-  authors' attention.
+  is not (it is the #441 arrival-wipe regression lock). This trap is
+  inherited by every epic above and is re-stated here because it will
+  outlive this ADR's authors' attention. *(2026-10-10: the second trap, the
+  dead `StaticData::RandoStaticRegion` that read like the area taxonomy, is
+  gone: #575 H1 deleted it, and the area taxonomy is `src/common/combo_area.h`.)*
 
 ---
 

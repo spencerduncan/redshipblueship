@@ -35,6 +35,7 @@ games/mm/2s2h/Rando/Foreign.cpp
 games/mm/2s2h/Rando/Foreign.h
 games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp
 games/mm/2s2h/Rando/ForeignShopSingleExe.cpp
+games/mm/2s2h/Rando/HintAreaSingleExe.cpp
 games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp
 games/mm/2s2h/Rando/OptionsUiSingleExe.cpp
 games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp
@@ -80,6 +81,7 @@ games/mm/src/code/z_visfbuf.c
 games/mm/src/overlays/gamestates/ovl_title/z_title.c
 games/oot/soh/Enhancements/cosmetics/CustomLogoTitle.cpp
 games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
+games/oot/soh/Enhancements/randomizer/HintAreaOoT.cpp
 games/oot/soh/Enhancements/randomizer/CheckStateLoadSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/ItemAdapterSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp

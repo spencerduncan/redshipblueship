@@ -503,6 +503,8 @@ extern "C" {
 // serialization. FILE SCOPE (compiled as C++) for rsbs::SaveManager; the
 // pipeline symbols it drives are C-linkage and declared in the file.
 #include "tests/test_foreign_items.c"
+// #575 H1: the shared hint area vocabulary, both adapters and MM's table
+#include "tests/test_combo_area.c"
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
 #include "tests/test_crossing_toasts.c" // #878: a crossing toasts nothing its pickup announced
@@ -5269,6 +5271,9 @@ const TestDescriptor gTests[] = {
     // whose title-chain Save_Init used to wipe the placement table. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     {"rando-hint-crossgame", "Item hints survive a cross-game OoT arrival (#441)", Test_RandoHintCrossGame},
+    // #575 H1: the shared area vocabulary. Display-free and ROM-free, so it
+    // runs in the redship tier and in `--test all`.
+    {"combo-area-vocabulary", "One shared hint area vocabulary over both games (#575 H1)", Test_ComboAreaVocabulary},
     // #482: two more instances of the #441 class -- the check tracker's
     // areasSpoiled and the item tracker's typed notes are blanked by arrival
     // init-funcs and never rehydrated. Pure (no display), so it runs in the
