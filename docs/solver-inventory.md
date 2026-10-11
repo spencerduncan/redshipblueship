@@ -423,7 +423,9 @@ something (`Logic.cpp:162-179`, the `RE_ACCESS_ZORA_EGG >= 7` case at
 {BOSS_KEY, HEALTH, JUNK, LESSER, MAJOR, MASK, SKULLTULA_TOKEN, SMALL_KEY, STRAY_FAIRY}`
 (`Types.h:2299-2310`). `RandoStaticCheck` (`StaticData.h:20-28`) is
 `{id, name, type, sceneId, flagType, flag, vanilla item}` — no area field;
-`StaticData::RandoStaticRegion`/`Regions` (`:70-79`) is declared and dead.
+`StaticData::RandoStaticRegion`/`Regions` (`:70-79`) was declared and dead, and
+was deleted by #575 H1; a check's hint area is MM's adapter in
+`2s2h/Rando/HintAreaSingleExe.cpp` over `src/common/combo_area.h`.
 `RandoCheckId` `:4-2296` (~2,257).
 
 **Goal.** The Moon is reached from `RR_CLOCK_TOWER_ROOF` by

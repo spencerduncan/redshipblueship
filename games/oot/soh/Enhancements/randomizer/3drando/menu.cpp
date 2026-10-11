@@ -409,6 +409,11 @@ extern "C" int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, i
 // loading a saved file does.
 extern "C" void Rando_TestRoundTripRandomizerSection(int* outResetCleared, int* outPlacementRestored);
 
+// Implemented in HintAreaOoT.cpp (#575 H1): the OoT area adapter's answer for
+// every location, recorded before the reload and compared after it.
+extern "C" int OoT_HintArea_TestSnapshot(void);
+extern "C" int OoT_HintArea_TestCompareSnapshot(void);
+
 // Hint-RELOAD lock (#441). PR #445 proved generation-time text is correct and
 // added a hint-validity lock, but that lock (and its toJSON()/Hint(json) round
 // trip) re-renders every hint against the SAME live, fully-filled context, so it
@@ -475,6 +480,15 @@ extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr) {
     }
     fprintf(stderr, "[hint-reload] snapshotted %zu enabled item hints\n", snapshots.size());
 
+    // #575 H1: the shared area vocabulary's OoT adapter names a location's area
+    // from ItemLocation areas, which only generation and the spoiler loader set.
+    // Record its answer for every location now; the reload must give them back.
+    const int areasBefore = OoT_HintArea_TestSnapshot();
+    if (areasBefore == 0) {
+        fprintf(stderr, "[hint-reload] no chest has an area before the reload; the area check would be vacuous\n");
+        return 8;
+    }
+
     // Drop this local strong reference before the reset. Context::mContext is a
     // weak_ptr, so the reset inside the round trip only builds a fresh context if
     // every shared_ptr owner is released first; holding `ctx` here would pin the
@@ -536,6 +550,12 @@ extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr) {
     if (snapshots.empty()) {
         fprintf(stderr, "[hint-reload] no enabled item hints were generated; the lock would vacuously pass\n");
         return 6;
+    }
+
+    const int areasChanged = OoT_HintArea_TestCompareSnapshot();
+    fprintf(stderr, "[hint-reload] checked %d location areas across a reload, %d changed\n", areasBefore, areasChanged);
+    if (areasChanged != 0) {
+        failures++;
     }
 
     fprintf(stderr, "[hint-reload] checked %zu item hints across a reload, %zu failures\n", snapshots.size(), failures);

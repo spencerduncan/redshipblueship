@@ -282,3 +282,37 @@ ADR 0008 rule 5 and its amendments.
 
 **Locks:** `ComboTrackerView` (the check adapters, their projection and freshness, with MM's rows read at
 the offsets MM registers). The item view's lock arrives with the item view (#458 U1).
+
+## Amendment 2026-10-10 — hint areas: one shared vocabulary, origin-tagged (#575 H1)
+
+**Why an amendment.** Cross-game hints (#575) need one game to name a place in the other game's world. On
+2026-10-01 the operator ruled the question this ADR's rule left open (one shared area vocabulary in
+`src/common`, or two taxonomies bridged at the hint layer): **one shared vocabulary**. This amendment says how
+that vocabulary keeps the rule above. Nothing decided above changes.
+
+**1. Areas are neither checks nor items.** An area is a common-owned name for a place, used only to word a
+hint. It is not a check id and not an item id, so nothing here widens the "no common id space for checks or
+items" rule of the 2026-09-30 amendment; checks and items stay exactly where that amendment put them.
+
+**2. Origin-tagged, never merged.** The vocabulary is `ComboArea` = `{game, area}` (`src/common/combo_area.h`),
+where `game` is the `GameId` and `area` indexes that game's own half: OoT's half mirrors SoH's
+`RandomizerArea` one to one (35 areas, each named with OoT's own English text), MM's half is OoTMM's 46 MM
+regions. The two halves never share a value in meaning: no OoT area equals an MM area, no OoT area's name
+equals an MM area's name (the `ComboAreaVocabulary` lock), and there is **no table that maps one game's area
+to the other's**. Two specials, "nowhere" (`COMBO_AREA_NONE`, never hinted) and "Link's Pocket"
+(`COMBO_AREA_POCKET`), are valid in either half and still carry their game.
+
+**3. Per-game adapters, in each game's own TU.** No `RA_*`, `RC_*`, `RI_*`, `RG_*`, scene id or region id
+crosses into `src/common`. Each game maps its own check ids into its own half from a TU where its enums are in
+scope, and registers that mapping as a `ComboAreaAdapter` through a file-scope registrar that stores a pointer
+and calls nothing (the describer precedent): OoT in `games/oot/soh/Enhancements/randomizer/HintAreaOoT.cpp`
+(a location's first `RandomizerArea`), MM in `games/mm/2s2h/Rando/HintAreaSingleExe.cpp` (a scene default plus
+a per-check override table following OoTMM's world files). Common code asks
+`Combo_Area_OfCheck(hostGame, check)`, keyed exactly as `Combo_DescribeCheckName` is, and the check id there is
+meaningful only to `hostGame`'s adapter. `combo_area.{h,c}` include no game header (also locked).
+
+**4. Persisted by name, append-only.** Area values are append-only once anything persists them, and anything
+that persists an area writes its name (`Combo_Area_Name`) and reads it back through `Combo_Area_FromName`,
+never the number. H1 itself persists nothing.
+
+**Locks:** `ComboAreaVocabulary` (redship tier) and the area check in `RandoHintReload` (rando tier).
