@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "2s2h/CustomMessage/CustomMessage.h"
-#include "2s2h/ShipUtils.h"
 #include "Rando/Foreign.h"
 #include "Rando/HintArea.h"
 #include "Rando/HintFoolish.h"
@@ -89,13 +88,20 @@ struct MmFoolishAdapterRegistrar {
 const MmFoolishAdapterRegistrar gMmFoolishAdapterRegistrar;
 
 /** The foolish stream's domain tag ("FOOL"): the same stone seed as the item
- *  pick, a different stream, so the item pick a stone keeps never moves. */
+ *  pick, under its own tag, in a generator of its own. */
 constexpr uint64_t kFreeStoneFoolishDomain = 0x464F4F4Cull;
 
-/** splitmix64's finalizer: Ship_Random's PCG returns its first draw straight off
- *  the seeded state, so neighbouring stone seeds would otherwise draw alike. */
-uint64_t MixStoneSeed(uint64_t x) {
-    x += 0x9E3779B97F4A7C15ull;
+/**
+ * One draw of the stone's own foolish stream (splitmix64), which it advances.
+ *
+ * The stream is local on purpose, never MM's global Ship_Random: GetRandomCheck
+ * draws the item pick from that global stream, and the second message's hook
+ * draws the stone's flavour line from it right after this text, so reseeding it
+ * here would change what the stone says next. The 64-bit output keeps the
+ * modulo bias of a draw over 5 or over MM's areas negligible.
+ */
+uint64_t NextStoneDraw(uint64_t* state) {
+    uint64_t x = (*state += 0x9E3779B97F4A7C15ull);
     x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ull;
     x = (x ^ (x >> 27)) * 0x94D049BB133111EBull;
     return x ^ (x >> 31);
@@ -114,12 +120,11 @@ std::string Rando::HintFoolish::FreeStoneText(uint32_t stoneSeed) {
             areas.push_back((uint8_t)a);
         }
     }
-    // Ship_Random(min, max) draws from [min, max): its upper bound is EXCLUSIVE.
-    Ship_Random_Seed(MixStoneSeed(((uint64_t)stoneSeed << 32) ^ kFreeStoneFoolishDomain));
-    if (Ship_Random(0, kFreeStoneOneIn) != 0) {
+    uint64_t stream = ((uint64_t)stoneSeed << 32) ^ kFreeStoneFoolishDomain;
+    if (NextStoneDraw(&stream) % (uint64_t)kFreeStoneOneIn != 0) {
         return "";
     }
-    const ComboArea area = { (uint8_t)GAME_MM, areas[(size_t)Ship_Random(0, (s32)areas.size())] };
+    const ComboArea area = { (uint8_t)GAME_MM, areas[(size_t)(NextStoneDraw(&stream) % areas.size())] };
     // OoTMM's foolish sentence ("plundering <region> is a foolish choice", in
     // pink) in the stone's own voice ("They say ...", the area in yellow as the
     // item hint names it).

@@ -207,8 +207,11 @@ static std::string FreeStoneHintText(const GossipHintTarget& target) {
 }
 
 /** TEST BRIDGE (redship tier; src/common/tests/test_foolish_hints.c, #575 H5a):
- *  the text the FREE stone's hook shows when its item pick is `randoCheckId` and
- *  the stone it is reading seeds `stoneSeed`, before colours and line breaks.
+ *  what FreeStoneHintText (the free stone's hook calls it) returns once it has
+ *  read the stone seed `stoneSeed` off the stone, for the item pick
+ *  `randoCheckId`, before colours and line breaks. The bridge does not drive the
+ *  hook or read a live stone: the row checks from source that the hook calls
+ *  FreeStoneHintText and that its seed is GetRandomCheck's expression.
  *  Returns the full length, or -1 for an id that is not a real check. */
 extern "C" int MM_Rando_Hints_TestFreeStoneText(uint16_t randoCheckId, uint32_t stoneSeed, char* out, int cap) {
     if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
@@ -217,6 +220,24 @@ extern "C" int MM_Rando_Hints_TestFreeStoneText(uint16_t randoCheckId, uint32_t 
     const std::string msg = FreeStoneHintTextSeeded((RandoCheckId)randoCheckId, stoneSeed);
     snprintf(out, (size_t)cap, "%s", msg.c_str());
     return (int)msg.size();
+}
+
+/** TEST BRIDGE (#575 H5a): 1 when working out the free stone's text leaves MM's
+ *  global Ship_Random stream where the item pick left it, else 0 (-1 for an id
+ *  that is not a real check). The second message's hook draws its flavour line
+ *  from that stream right after, so a text that reseeded it would change what
+ *  the stone says next. `streamSeed` stands for wherever the item pick left it. */
+extern "C" int MM_Rando_Hints_TestFreeStoneKeepsStream(uint16_t randoCheckId, uint32_t stoneSeed,
+                                                       uint64_t streamSeed) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return -1;
+    }
+    Ship_Random_Seed(streamSeed);
+    const s32 untouched = Ship_Random(0, 0x40000000);
+    Ship_Random_Seed(streamSeed);
+    (void)FreeStoneHintTextSeeded((RandoCheckId)randoCheckId, stoneSeed);
+    const s32 afterText = Ship_Random(0, 0x40000000);
+    return untouched == afterText ? 1 : 0;
 }
 #else
 static std::string FreeStoneHintText(GossipHintTarget randoCheckId) {

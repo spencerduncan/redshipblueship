@@ -25,10 +25,11 @@ constexpr int kFreeStoneOneIn = 5;
  * "They say plundering %y<area>%w is a %pfoolish choice%w." for one foolish MM
  * area, or "" when this stone keeps its item hint (or no MM area is foolish).
  *
- * Picked when the stone is read, from a stream seeded like the item pick (the
- * same stone seed, under its own domain tag, so the item pick is untouched), over
- * the foolish set recomputed from the frozen world: a pure function of the world
- * and the stone, chosen nowhere and persisted nowhere.
+ * Picked when the stone is read, from a generator of its own seeded like the
+ * item pick (the same stone seed, under its own domain tag), over the foolish set
+ * recomputed from the frozen world: a pure function of the world and the stone,
+ * chosen nowhere and persisted nowhere. It never touches MM's global Ship_Random
+ * stream, so the item pick and the stone's flavour line after it never move.
  */
 std::string FreeStoneText(uint32_t stoneSeed);
 
