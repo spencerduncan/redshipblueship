@@ -45,6 +45,21 @@ const char* Combo_RefusalWords(int which) {
     return kRefusalWords[which];
 }
 
+/* #564 V18: why a save did not reach the file (RsbsSaveFailure), after
+ * RSBS_SAVE_FAILURE_TOAST_PREFIX. */
+static const char* const kSaveFailureWords[RSBS_SAVE_FAILURE_COUNT] = {
+    [RSBS_SAVE_FAILURE_NO_FILE] = "No save file is open",
+    [RSBS_SAVE_FAILURE_LOCKED] = "Saving is locked for this file",
+    [RSBS_SAVE_FAILURE_NOT_WRITTEN] = "The save file could not be written",
+};
+
+const char* Combo_SaveFailureWords(int cause) {
+    if (cause < 0 || cause >= RSBS_SAVE_FAILURE_COUNT || kSaveFailureWords[cause] == NULL) {
+        return "";
+    }
+    return kSaveFailureWords[cause];
+}
+
 const char* Combo_PairingRefusalToastPrefix(int kind) {
     switch (kind) {
         case RSBS_PAIRING_REFUSAL_MM_OPTIONS:
