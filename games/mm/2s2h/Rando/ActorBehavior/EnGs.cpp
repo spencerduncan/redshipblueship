@@ -179,6 +179,72 @@ GossipHintTarget GetRandomCheck(bool repeatableOnlyObtained = false) {
     return availableChecks[Ship_Random(0, availableChecks.size() - 1)];
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/HintFoolish.h" // #575 H5a: the free stone's foolish variant
+
+// #575 H5a: what the FREE stone says, given its item pick and its stone seed:
+// the foolish variant one time in Rando::HintFoolish::kFreeStoneOneIn when the
+// world has a foolish MM area (HintFoolishSingleExe.cpp), else the item hint
+// exactly as before. The text hook below calls FreeStoneHintText in both builds
+// (a directive is ill-formed inside its COND_ID_HOOK argument); the #else keeps
+// upstream's expression.
+static std::string FreeStoneHintTextSeeded(const GossipHintTarget& target, uint32_t stoneSeed) {
+    const std::string foolish = Rando::HintFoolish::FreeStoneText(stoneSeed);
+    return foolish.empty() ? GossipHintText(target, false) : foolish;
+}
+
+// The stone seed is GetRandomCheck's own for the free stone (the same expression,
+// read off the same stone), so the variant is a pure function of the frozen world
+// and the stone, like the item pick.
+static std::string FreeStoneHintText(const GossipHintTarget& target) {
+    Player* player = GET_PLAYER(MM_gPlayState);
+    if (player->talkActor == nullptr || player->talkActor->id != ACTOR_EN_GS) {
+        return GossipHintText(target, false);
+    }
+    EnGs* enGs = (EnGs*)player->talkActor;
+    uint32_t seed = MM_gPlayState->sceneId + enGs->actor.home.pos.x + enGs->actor.home.pos.z;
+    return FreeStoneHintTextSeeded(target, gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);
+}
+
+/** TEST BRIDGE (redship tier; src/common/tests/test_foolish_hints.c, #575 H5a):
+ *  what FreeStoneHintText (the free stone's hook calls it) returns once it has
+ *  read the stone seed `stoneSeed` off the stone, for the item pick
+ *  `randoCheckId`, before colours and line breaks. The bridge does not drive the
+ *  hook or read a live stone: the row checks from source that the hook calls
+ *  FreeStoneHintText and that its seed is GetRandomCheck's expression.
+ *  Returns the full length, or -1 for an id that is not a real check. */
+extern "C" int MM_Rando_Hints_TestFreeStoneText(uint16_t randoCheckId, uint32_t stoneSeed, char* out, int cap) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
+        return -1;
+    }
+    const std::string msg = FreeStoneHintTextSeeded((RandoCheckId)randoCheckId, stoneSeed);
+    snprintf(out, (size_t)cap, "%s", msg.c_str());
+    return (int)msg.size();
+}
+
+/** TEST BRIDGE (#575 H5a): 1 when working out the free stone's text leaves MM's
+ *  global Ship_Random stream where the item pick left it, else 0 (-1 for an id
+ *  that is not a real check). The second message's hook draws its flavour line
+ *  from that stream right after, so a text that reseeded it would change what
+ *  the stone says next. `streamSeed` stands for wherever the item pick left it. */
+extern "C" int MM_Rando_Hints_TestFreeStoneKeepsStream(uint16_t randoCheckId, uint32_t stoneSeed,
+                                                       uint64_t streamSeed) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return -1;
+    }
+    Ship_Random_Seed(streamSeed);
+    const s32 untouched = Ship_Random(0, 0x40000000);
+    Ship_Random_Seed(streamSeed);
+    (void)FreeStoneHintTextSeeded((RandoCheckId)randoCheckId, stoneSeed);
+    const s32 afterText = Ship_Random(0, 0x40000000);
+    return untouched == afterText ? 1 : 0;
+}
+#else
+static std::string FreeStoneHintText(GossipHintTarget randoCheckId) {
+    return GossipHintText(randoCheckId, false);
+}
+#endif // RSBS_SINGLE_EXECUTABLE
+
 void Rando::ActorBehavior::InitEnGsBehavior() {
     bool shouldRegister =
         IS_RANDO && (RANDO_SAVE_OPTIONS[RO_HINTS_GOSSIP_STONES] || RANDO_SAVE_OPTIONS[RO_HINTS_PURCHASEABLE]);
@@ -202,7 +268,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
 
             entry.autoFormat = false;
 
-            entry.msg = GossipHintText(randoCheckId, false);
+            entry.msg = FreeStoneHintText(randoCheckId);
 
             // Replace colors before line break calculation
             CustomMessage::ReplaceColorChars(&entry.msg);

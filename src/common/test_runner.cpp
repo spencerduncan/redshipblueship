@@ -509,6 +509,7 @@ extern "C" {
 #include "tests/test_foreign_items.c"
 // #575 H1: the shared hint area vocabulary, both adapters and MM's table
 #include "tests/test_combo_area.c"
+#include "tests/test_foolish_hints.c"
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
 #include "tests/test_crossing_toasts.c" // #878: a crossing toasts nothing its pickup announced
@@ -5432,6 +5433,8 @@ const TestDescriptor gTests[] = {
     // #575 item 2: MM gossip stones can hint a crossing host, by the crossed item.
     {"foreign-host-gossip-hint", "MM gossip stones hint crossing hosts by the crossed item (#575)",
      Test_ForeignHostGossipHint},
+    // #575 H5a: MM's free stone names a foolish area, in MM's voice.
+    {"mm-foolish-stone-hint", "MM's free gossip stone names a foolish area (#575 H5a)", Test_MmFoolishStoneHint},
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     {"mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText},
     // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.
