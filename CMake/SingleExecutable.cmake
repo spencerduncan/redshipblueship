@@ -970,7 +970,7 @@ if(BUILD_TESTING)
     redship_add_test(NAME MMUnifiedSaveCapture COMMAND redship --test mm-unified-save-capture)
     # #564 V18 (games/mm/2s2h/mm_save_failure_surface_test.cpp): an MM save that
     # cannot commit (no active slot, a latched slot, a failed write) is shown to
-    # the player as a "Not saved:" toast, once per cause, instead of running its
+    # the player as a "Save failed:" toast, once per cause, instead of running its
     # success ceremony with only a stderr line behind it. Display-free, ROM-free.
     redship_add_test(NAME MMSaveFailureSurface COMMAND redship --test mm-save-failure-surface)
     # MM's capture must not advance the SHARED-RESOURCE POOL for a commit the

@@ -17,7 +17,7 @@
  * WHAT THIS LOCKS, driving the real marshallers and one whole route:
  *
  *   1. Each of the capture's three non-commit outcomes queues one toast on the
- *      shared overlay, "Not saved:" and the cause's words
+ *      shared overlay, "Save failed:" and the cause's words
  *      (src/common/pairing_refusal_toast.h, RsbsSaveFailure): no slot active
  *      (driven through the whole Sram_SaveSpecialEnterClockTown route), a slot
  *      the #533/#568 latch keeps closed (refused, and never opened), and a

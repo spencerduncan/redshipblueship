@@ -2743,7 +2743,7 @@ void ClearSaveFailuresTold() {
  * runs its own ceremony whatever happens here (the owl's goodbye, "saved", the
  * new cycle), and the funnel (Sram_ComboCommitUnifiedSave) drops this result. So
  * the three outcomes that commit nothing -- no slot, the latch, a commit that did
- * not land -- each queue a "Not saved:" toast (TellSaveFailure, above), once per
+ * not land -- each queue a "Save failed:" toast (TellSaveFailure, above), once per
  * cause; the stderr lines stay as the machine record.
  */
 extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {

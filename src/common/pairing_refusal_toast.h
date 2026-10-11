@@ -113,7 +113,7 @@ typedef enum RsbsPairingRefusal {
  * status cell is this prefix and the toast's own words. The confirmations
  * ("Restored from file:", "Restored for Majora's Mask:") and the toasts outside
  * the class ("Spoiler not loaded:", "Not created:", "Not proven:", "Fewer
- * cross-game items:") keep their own prefixes. The integration drives' toast
+ * cross-game items:", "Save failed:") keep their own prefixes. The integration drives' toast
  * matchers read this constant, so they cannot go vacuous when the copy moves.
  */
 #define RSBS_REFUSAL_TOAST_PREFIX "Refused:"
@@ -203,8 +203,11 @@ void OoT_EmitPairedSpoilerRefusalToast(int mute);
  * Outside the refusal class (this toast refuses nothing and latches nothing: it
  * reports what a latch, or the disk, already decided), so it has its own prefix,
  * and it never touches the Combo > Save Files page's refusal words: a refused
- * slot keeps the reason it was refused for. Capitalized, no trailing period, like
- * every message on the overlay; PairingRefusalToastFit draws each one.
+ * slot keeps the reason it was refused for. The prefix is not "Not saved:": that
+ * was one of the refusal class's retired prefixes (#836), and
+ * test_refusal_toasts_use_one_prefix keeps it retired. Capitalized, no trailing
+ * period, like every message on the overlay; PairingRefusalToastFit draws each
+ * one.
  */
 typedef enum RsbsSaveFailure {
     /** No unified-save slot is active this session (a standalone MM session, or one with no file open). */
@@ -217,7 +220,7 @@ typedef enum RsbsSaveFailure {
 } RsbsSaveFailure;
 
 /** The prefix of the save-failure toast. */
-#define RSBS_SAVE_FAILURE_TOAST_PREFIX "Not saved:"
+#define RSBS_SAVE_FAILURE_TOAST_PREFIX "Save failed:"
 
 /** The message for @p cause (an RsbsSaveFailure); never NULL, "" past the table. */
 const char* Combo_SaveFailureWords(int cause);

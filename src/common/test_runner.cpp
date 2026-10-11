@@ -163,7 +163,7 @@ int MM_FbEffectsBinding_RunHeadless(void);
 int MM_FlashFileNumOob_RunHeadless(void);
 int MM_UnifiedSaveCapture_RunHeadless(void);
 // MM save-failure surface (games/mm/2s2h/mm_save_failure_surface_test.cpp,
-// #564 V18): a capture that cannot commit queues one "Not saved:" toast per
+// #564 V18): a capture that cannot commit queues one "Save failed:" toast per
 // cause, instead of reporting on stderr only.
 int MM_SaveFailureSurface_RunHeadless(void);
 // MM capture harvest gate (games/mm/2s2h/mm_capture_harvest_gate_test.cpp,
@@ -5624,7 +5624,7 @@ const TestDescriptor gTests[] = {
      Test_MMUnifiedSaveCapture},
     // #564 V18: an MM save that cannot commit is told to the player, once per
     // cause. Pure (no display, no ROM).
-    {"mm-save-failure-surface", "An MM save that cannot commit shows a 'Not saved:' toast, once per cause",
+    {"mm-save-failure-surface", "An MM save that cannot commit shows a 'Save failed:' toast, once per cause",
      Test_MMSaveFailureSurface},
     // A capture the #533/#568 write latch refuses must be a no-op on the
     // SHARED-RESOURCE POOL too, not just on the file: the harvest used to run
