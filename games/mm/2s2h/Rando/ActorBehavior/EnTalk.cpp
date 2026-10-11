@@ -2,6 +2,7 @@
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipUtils.h"
+#include "2s2h/Rando/HintArea.h" // #575 H2: a hint names the check's area (scene name outside single-exe)
 
 extern "C" {
 #include "variables.h"
@@ -25,7 +26,7 @@ void ApplyRemainsHint(u16* textId, bool* loadFromMessageTable) {
               "for their remains.";
     } else {
         msg = "         %g{{boss}}%w:\n"
-              "Last seen in near %y{{location}}%w.";
+              "Last seen " RANDO_HINT_PREPOS("in near") " %y{{location}}%w.";
 
         switch (remainsHintIndex) {
             case 1:
@@ -48,8 +49,7 @@ void ApplyRemainsHint(u16* textId, bool* loadFromMessageTable) {
 
         icon = Rando::StaticData::GetIconForZMessage(randoItemId);
         RandoCheckId randoCheckId = Rando::FindItemPlacement(randoItemId);
-        CustomMessage::Replace(&msg, "{{location}}",
-                               Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
+        Rando::HintArea::ReplaceLocation(&msg, "{{location}}", randoCheckId);
     }
 
     CustomMessage::Entry entry = {

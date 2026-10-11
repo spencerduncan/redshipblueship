@@ -2,6 +2,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/ShipUtils.h"
+#include "2s2h/Rando/HintArea.h" // #575 H2: a hint names the check's area (scene name outside single-exe)
 #include "2s2h/Rando/Logic/Logic.h"
 
 extern "C" {
@@ -33,7 +34,7 @@ void ApplyOathHint(u16* textId, bool* loadFromMessageTable) {
     }
 
     RandoCheckId randoCheckId = Rando::FindItemPlacement(RI_SONG_OATH);
-    CustomMessage::Replace(&msg, "{{location}}", Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
+    Rando::HintArea::ReplaceLocation(&msg, "{{location}}", randoCheckId);
 
     CustomMessage::Entry entry = {
         .nextMessageID = (u16)0xFFFF,

@@ -1,6 +1,7 @@
 #include "ActorBehavior.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/ShipUtils.h"
+#include "2s2h/Rando/HintArea.h" // #575 H2: a hint names the check's area (scene name outside single-exe)
 
 extern "C" {
 #include "variables.h"
@@ -112,10 +113,9 @@ void Rando::ActorBehavior::InitEnKgyBehavior() {
     // "Gold dust is the prize for winning the Goron race in spring?"
     COND_ID_HOOK(OnOpenText, 0xc49, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
-        entry.msg = "Huh? You say that gold dust can be found at %r{location}%w?\x19";
+        entry.msg = "Huh? You say that gold dust can be found " RANDO_HINT_PREPOS("at") " %r{location}%w?\x19";
         RandoCheckId randoCheckId = Rando::FindItemPlacement(RI_BOTTLE_GOLD_DUST);
-        CustomMessage::Replace(&entry.msg, "{location}",
-                               Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
+        Rando::HintArea::ReplaceLocation(&entry.msg, "{location}", randoCheckId);
 
         CustomMessage::LoadCustomMessageIntoFont(entry);
         *loadFromMessageTable = false;
@@ -124,14 +124,13 @@ void Rando::ActorBehavior::InitEnKgyBehavior() {
     // "Gold dust happens to be first prize at the racetrack"
     COND_ID_HOOK(OnOpenText, 0xc4b, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
-        entry.msg = "Gold dust can be found at %p{location}%w.\x10";
+        entry.msg = "Gold dust can be found " RANDO_HINT_PREPOS("at") " %p{location}%w.\x10";
         entry.msg += "Bring me that, and my %r{itemName}%w is all yours.\xE0";
         RandoCheckId randoCheckId = Rando::FindItemPlacement(RI_BOTTLE_GOLD_DUST);
         CustomMessage::Replace(
             &entry.msg, "{itemName}",
             Rando::StaticData::Items[RANDO_SAVE_CHECKS[RC_MOUNTAIN_VILLAGE_SMITHY_GILDED_SWORD].randoItemId].name);
-        CustomMessage::Replace(&entry.msg, "{location}",
-                               Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
+        Rando::HintArea::ReplaceLocation(&entry.msg, "{location}", randoCheckId);
 
         CustomMessage::LoadCustomMessageIntoFont(entry);
         *loadFromMessageTable = false;
