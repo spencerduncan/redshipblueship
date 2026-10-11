@@ -854,6 +854,19 @@ void SaveManager::SaveRandomizer(SaveContext* saveContext, int sectionID, bool f
                                 .GetForCurrentLanguage(MF_CLEAN));
                 });
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #575 H3a: the MM area each Termina slot names, by name and parallel
+                // to "areas"; Hint(key, json) reads it back. Written only when a slot
+                // names one, so every other hint's section is unchanged, and a save
+                // from before it still reads "Termina".
+                std::vector<std::string> foreignAreas = hint->GetForeignAreaNames();
+                if (!foreignAreas.empty()) {
+                    SaveManager::Instance->SaveArray("foreignAreas", foreignAreas.size(), [&](size_t i) {
+                        SaveManager::Instance->SaveData("", foreignAreas[i]);
+                    });
+                }
+#endif
+
                 std::vector<TrialKey> trials = hint->GetHintedTrials();
                 SaveManager::Instance->SaveArray("trials", trials.size(), [&](size_t i) {
                     SaveManager::Instance->SaveData(

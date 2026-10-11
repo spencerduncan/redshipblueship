@@ -11,6 +11,10 @@
 #include "../hint.h"
 #include "spoiler_log.hpp"
 #include "../static_data.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "combo_area.h" // src/common: the shared area vocabulary (#575 H3a)
+#include "game.h"       // src/common: GAME_MM
+#endif
 
 using namespace Rando;
 
@@ -664,6 +668,8 @@ extern "C" int OoT_Combo_ItemHostedInMM(int rg);
 // ComboLogicEngineOoT.cpp: 1 while OoT's remainder hints the paired world whose
 // crossings the store holds.
 extern "C" int OoT_ComboLogic_HintingPairedRemainder(void);
+// ForeignItemsSingleExe.cpp (#575 H3a): the MM check that first hosts OoT item `rg`, or 0.
+extern "C" int OoT_Combo_MMHostOfItem(int rg);
 #endif
 
 /** The crossing store's answer for `item`, with no question asked about whose
@@ -722,6 +728,12 @@ extern "C" int Rando_HintAreaFromCrossingStore(int item) {
  * (COMBO_AREA_NONE), which renders as "Termina" as before.
  */
 static uint8_t CrossingStoreForeignAreaForItem(RandomizerGet item) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    const int host = OoT_Combo_MMHostOfItem((int)item);
+    if (host > 0) {
+        return Combo_Area_OfCheck((uint8_t)GAME_MM, (uint16_t)host).area;
+    }
+#endif
     (void)item;
     return 0;
 }
@@ -736,6 +748,28 @@ static uint8_t HintForeignAreaForItem(RandomizerGet item) {
 #endif
     (void)item;
     return 0;
+}
+
+/** A slot for `item`, which is at no OoT location and which the store hosts in MM:
+ *  RA_TERMINA in `areas`, and its MM area at the same index of the parallel
+ *  `foreignAreas` (#575 H3a). */
+static void PushTerminaSlot(std::vector<RandomizerArea>& areas, std::vector<uint8_t>& foreignAreas,
+                            RandomizerGet item) {
+    foreignAreas.resize(areas.size(), 0);
+    areas.push_back(RA_TERMINA);
+    foreignAreas.push_back(HintForeignAreaForItem(item));
+}
+
+/** ctx->AddHint, carrying the MM areas PushTerminaSlot recorded (#575 H3a). */
+static void AddHintWithForeignAreas(RandomizerHint hintKey, Rando::Hint hint, std::vector<uint8_t> foreignAreas) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (!foreignAreas.empty()) {
+        foreignAreas.resize(hint.GetHintedAreas().size(), 0);
+        hint.SetForeignAreas(std::move(foreignAreas));
+    }
+#endif
+    (void)foreignAreas;
+    Rando::Context::GetInstance()->AddHint(hintKey, hint);
 }
 
 /** TEST BRIDGE: the MM area the paired remainder's hint pass gets (the store's). */
@@ -779,6 +813,7 @@ static void CreateAltarHint(RandomizerHint hintKey, HintType hintType, std::vect
     }
     std::vector<RandomizerCheck> locs = {};
     std::vector<RandomizerArea> areas = {};
+    std::vector<uint8_t> foreignAreas = {};
     if (ctx->GetOption(RSK_TOT_ALTAR_HINT)) {
         // force marking the rewards as hinted if they are at the end of dungeons as they can be inferred
         const bool rewardsInferrable =
@@ -792,11 +827,11 @@ static void CreateAltarHint(RandomizerHint hintKey, HintType hintType, std::vect
             } else if (HintAreaForItemOutsideHyrule(rewards[i]) == RA_TERMINA) {
                 // A reward the single bag placed in Termina keeps its position in
                 // the altar's list rather than shifting every later reward's area.
-                areas.push_back(RA_TERMINA);
+                PushTerminaSlot(areas, foreignAreas, rewards[i]);
             }
         }
     }
-    ctx->AddHint(hintKey, Hint(hintKey, hintType, {}, locs, areas));
+    AddHintWithForeignAreas(hintKey, Hint(hintKey, hintType, {}, locs, areas), foreignAreas);
 }
 
 void CreateChildAltarHint() {
@@ -828,11 +863,12 @@ void CreateStaticHintFromData(RandomizerHint hint, StaticHintInfo staticData) {
                 }
             }
             std::vector<RandomizerArea> areas = {};
+            std::vector<uint8_t> foreignAreas = {};
             for (size_t i = 0; i < locations.size(); i++) {
                 const RandomizerCheck loc = locations[i];
                 if (loc == RC_UNKNOWN_CHECK && i < staticData.targetItems.size() &&
                     HintAreaForItemOutsideHyrule(staticData.targetItems[i]) == RA_TERMINA) {
-                    areas.push_back(RA_TERMINA);
+                    PushTerminaSlot(areas, foreignAreas, staticData.targetItems[i]);
                     continue;
                 }
                 ctx->GetItemLocation(loc)->SetHintAccesible();
@@ -848,8 +884,9 @@ void CreateStaticHintFromData(RandomizerHint hint, StaticHintInfo staticData) {
                 }
             }
             // hintKeys are defaulted to in the hint object and do not need to be specified
-            ctx->AddHint(hint,
-                         Hint(hint, staticData.type, {}, locations, areas, {}, staticData.yourPocket, staticData.num));
+            AddHintWithForeignAreas(
+                hint, Hint(hint, staticData.type, {}, locations, areas, {}, staticData.yourPocket, staticData.num),
+                foreignAreas);
         }
     }
 }
@@ -861,14 +898,16 @@ void CreateStaticItemHint(RandomizerHint hintKey, std::vector<RandomizerHintText
     auto ctx = Rando::Context::GetInstance();
     std::vector<RandomizerCheck> locations = FindItemsAndMarkHinted(items, hintChecks);
     std::vector<RandomizerArea> areas = {};
+    std::vector<uint8_t> foreignAreas = {};
     for (size_t i = 0; i < locations.size(); i++) {
         if (locations[i] == RC_UNKNOWN_CHECK && HintAreaForItemOutsideHyrule(items[i]) == RA_TERMINA) {
-            areas.push_back(RA_TERMINA);
+            PushTerminaSlot(areas, foreignAreas, items[i]);
             continue;
         }
         areas.push_back(ctx->GetItemLocation(locations[i])->GetRandomArea());
     }
-    ctx->AddHint(hintKey, Hint(hintKey, HINT_TYPE_AREA, hintTextKeys, locations, areas, {}, yourPocket));
+    AddHintWithForeignAreas(hintKey, Hint(hintKey, HINT_TYPE_AREA, hintTextKeys, locations, areas, {}, yourPocket),
+                            foreignAreas);
 }
 
 /**

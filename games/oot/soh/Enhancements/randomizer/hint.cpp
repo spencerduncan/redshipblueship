@@ -5,8 +5,23 @@
 #include <spdlog/spdlog.h>
 #include "static_data.h"
 #include "3drando/random.hpp"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "combo_area.h" // src/common: the MM area a Termina slot names (#575 H3a)
+#include "game.h"       // src/common: GAME_MM
+#endif
 
 namespace Rando {
+#ifdef RSBS_SINGLE_EXECUTABLE
+/** RedShipBlueShip (#575 H3a): the name of MM area `area` of the shared vocabulary,
+ *  or NULL for 0 or anything outside the MM half. */
+static const char* ForeignAreaName(uint8_t area) {
+    if (area == COMBO_AREA_NONE || area > Combo_Area_Count((uint8_t)GAME_MM)) {
+        return nullptr;
+    }
+    return Combo_Area_Name(ComboArea{ (uint8_t)GAME_MM, area });
+}
+#endif
+
 Hint::Hint() {
 }
 
@@ -85,6 +100,21 @@ Hint::Hint(RandomizerHint ownKey_, nlohmann::json json_) {
     } else if (json_.contains("area")) {
         areas.push_back((RandomizerArea)Rando::StaticData::areaNameToEnum[json_["area"]]);
     }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip (#575 H3a): the MM area each Termina slot names, by name. A
+    // document without the field (an older save or spoiler) keeps "Termina".
+    if (json_.contains("foreignAreas")) {
+        for (auto name : json_["foreignAreas"]) {
+            ComboArea area = { (uint8_t)GAME_MM, (uint8_t)COMBO_AREA_NONE };
+            if (!name.is_string() || !Combo_Area_FromName((uint8_t)GAME_MM, name.get<std::string>().c_str(), &area) ||
+                ForeignAreaName(area.area) == nullptr) {
+                area.area = COMBO_AREA_NONE;
+            }
+            foreignAreas.push_back(area.area);
+        }
+    }
+#endif
 
     if (json_.contains("areaNamesChosen")) {
         for (auto name : json_["areaNamesChosen"]) {
@@ -452,6 +482,14 @@ oJson Hint::toJSON() {
             log["areas"] = areaStrings;
         }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RedShipBlueShip (#575 H3a): parallel to "areas", by name.
+        const std::vector<std::string> foreignAreaNames = GetForeignAreaNames();
+        if (!foreignAreaNames.empty()) {
+            log["foreignAreas"] = foreignAreaNames;
+        }
+#endif
+
         if (areaNamesChosen.size() == 1) {
             log["areaNameChosen"] = areaNamesChosen[0];
         } else if (areaNamesChosen.size() > 1) {
@@ -533,6 +571,16 @@ const HintText Hint::GetItemHintText(uint8_t slot, bool mysterious) const {
 }
 
 const HintText Hint::GetAreaHintText(uint8_t slot) const {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip (#575 H3a): a Termina slot names the exact MM area, in its
+    // English name for every language (epic #575, decision 3).
+    if (areas[slot] == RA_TERMINA && slot < foreignAreas.size()) {
+        const char* name = ForeignAreaName(foreignAreas[slot]);
+        if (name != nullptr) {
+            return HintText(CustomMessage(name, name, name));
+        }
+    }
+#endif
     CustomMessage areaText;
     if (yourPocket && areas[slot] == RA_LINKS_POCKET) {
         return StaticData::hintTextTable[RHT_YOUR_POCKET];
@@ -720,6 +768,22 @@ void Hint::SetForeignAreas(std::vector<uint8_t> foreignAreas_) {
 
 std::vector<uint8_t> Hint::GetForeignAreas() const {
     return foreignAreas;
+}
+
+std::vector<std::string> Hint::GetForeignAreaNames() const {
+    bool any = false;
+    for (const uint8_t area : foreignAreas) {
+        any = any || ForeignAreaName(area) != nullptr;
+    }
+    std::vector<std::string> names = {};
+    if (!any) {
+        return names;
+    }
+    for (const uint8_t area : foreignAreas) {
+        const char* name = ForeignAreaName(area);
+        names.push_back(name != nullptr ? name : Combo_Area_Name(ComboArea{ (uint8_t)GAME_MM, COMBO_AREA_NONE }));
+    }
+    return names;
 }
 #endif
 

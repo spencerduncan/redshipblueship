@@ -351,6 +351,23 @@ extern "C" int OoT_Combo_ItemHostedInMM(int rg) {
     return 0;
 }
 
+/**
+ * #575 H3a: the MM check that hosts OoT item `rg` in the crossing store, the first
+ * such row in insertion order (an item the fill placed more than once is named by
+ * its first host), or 0 when the store hosts it nowhere in MM (no row has host 0).
+ * Read by OoT's hint pass under the same gate as OoT_Combo_ItemHostedInMM.
+ */
+extern "C" int OoT_Combo_MMHostOfItem(int rg) {
+    for (int i = 0; i < Combo_Crossings_Count(GAME_MM); ++i) {
+        ComboCrossing row;
+        if (Combo_Crossings_At(GAME_MM, i, &row) && row.item.originGame == (uint8_t)GAME_OOT &&
+            row.item.id == (uint16_t)rg) {
+            return (int)row.hostCheck;
+        }
+    }
+    return 0;
+}
+
 /** 1 when OoT check `rc` hosts an MM item in the crossing store (a crossing host). */
 extern "C" int OoT_Combo_CheckHostsCrossing(int rc) {
     for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); ++i) {

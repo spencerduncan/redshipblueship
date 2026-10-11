@@ -147,8 +147,10 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   Hyrule, Majora's Mask's is as of the last game switch or save (as of file creation
   until Majora's Mask is first entered), which the switch itself writes (#755, #757).
 - **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero
-  or barren analysis. Crossing hosts are never hinted, and an OoT item that crossed is
-  hinted as "Termina" (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+  or barren analysis. Crossing hosts are never hinted. An OoT item that crossed is
+  hinted by the Majora's Mask area that holds it, for example "the Southern Swamp"
+  (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743), [#575](https://github.com/spencerduncan/redshipblueship/issues/575) H3a);
+  a file created before that still says "Termina".
 - **Triforce Hunt is not yet a paired goal.** The Goal row lists it, but generation
   refuses it, and OoTMM's Triforce Quest is not offered (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#760](https://github.com/spencerduncan/redshipblueship/pull/760), [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
 - ~~**Some settings re-seed the world without changing a rule.**~~ RESOLVED: the pool-size

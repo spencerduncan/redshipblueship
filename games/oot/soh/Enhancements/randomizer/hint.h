@@ -58,6 +58,9 @@ class Hint {
     // slot whose area is RA_TERMINA, else 0. Empty when no slot names Termina.
     void SetForeignAreas(std::vector<uint8_t> foreignAreas_);
     std::vector<uint8_t> GetForeignAreas() const;
+    // Each slot's MM area by its shared-vocabulary name, as the spoiler and the save
+    // write it; empty when no slot names one.
+    std::vector<std::string> GetForeignAreaNames() const;
 #endif
 
   private:
