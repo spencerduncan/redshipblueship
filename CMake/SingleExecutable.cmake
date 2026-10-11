@@ -909,6 +909,12 @@ if(BUILD_TESTING)
     # so its diagnostic dump can fire before the hard wall-clock kill (the old
     # frame budget of 4080 frames could not).
     redship_add_test(NAME GpWatchdog COMMAND redship --test gp-watchdog)
+    # Stderr-capture read-after-write lock (#901). The paired drives judge their
+    # own stderr lines through a pipe drained by a reader thread; a query taken
+    # right after the write used to read before the reader caught up ("creation-
+    # complete line absent" on a passing creation). Locks, ROM-free and under a
+    # loaded reader, that every query sees the line its caller just wrote.
+    redship_add_test(NAME StderrCaptureSync COMMAND redship --test stderr-capture-sync)
     # Active-thread-queue contract (#385). soh/stubs.c's empty-bodied
     # __osGetActiveQueue returned the return register, and both games' fault
     # handlers walk that as a thread list — so the crash handler was itself
