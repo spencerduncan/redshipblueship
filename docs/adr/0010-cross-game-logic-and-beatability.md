@@ -2268,15 +2268,26 @@ host calibration moved between runs (scale 100% to 122%, per-attempt budget
 | plentiful (budget 30.0 s) | 11.4 s / 14.1 s | 30.8 | 7.6 s / 12.0 s | 19.0 s / 25.4 s | 0 of 31 |
 | armed (budget 31.5 s) | 21.7 s / 32.9 s | 39.3 | 15.9 s / 23.2 s | 37.6 s / 54.5 s | 22 of 31 |
 
-In the same runs (b) cost 34 to 46 ms per round (means per profile), and the
-fill's own rounds 30 to 38 ms. All 93 capped zig-zags stopped inside their
-first pass.
+In the same runs (b) cost 34 to 46 ms per round (means per profile). All 93
+capped zig-zags stopped inside their first pass.
+
+The fill's rounds were not timed on their own. The fill figure used below is
+the single-bag call's wall time (the `[SingleBag]` ladder line's `wallMs`,
+which starts before the bag is built and stops after the probe returns) minus
+the probe's two timed passes, divided by the fill's rounds: 30 to 38 ms
+(means per profile: shipped 34.0, plentiful 29.5, armed 38.3). That
+remainder also carries the bag build, the post-fill bookkeeping and the
+probe's untimed baseline round and digests, so it is an upper bound on a fill
+round, not the fill round's own cost. The rest of MM's half, outside the
+single-bag call, added 0 to 7 ms per seed.
 
 **What it says.**
 
-- A round after the fill costs about what a fill round costs (the epic's
-  UNVERIFIED "round cost after the fill"): 31 to 45 ms against 30 to 38 ms in
-  the same runs, not less.
+- A round after the fill costs no less than a fill round (the epic's
+  UNVERIFIED "round cost after the fill"): (a)'s rounds cost 44.5, 30.8 and
+  39.3 ms (means, shipped, plentiful, armed), each at or above the fill's
+  upper bound of 34.0, 29.5 and 38.3 ms in the same runs. How much cheaper a
+  fill round itself is was not measured.
 - (a) costs one round per bag host plus one. On shipped and plentiful it fits
   beside creation on every seed measured (worst 28.6 s against 30 s). On armed
   it does not: 22 of 31 seeds go over.
