@@ -177,6 +177,19 @@ extern "C" void OoT_HintArea_TestSpecials(uint8_t* outNone, uint8_t* outPocket, 
     *outTermina = OoTComboAreaOf(RA_TERMINA);
 }
 
+/** #575 H3c (MmHintCrossedArea): give OoT check `rc` of the live heap context
+ *  the area `ra`, as SetAreas would, so MM's hints can be locked naming the OoT
+ *  area of a check that hosts an MM item without generating a world. Returns 0,
+ *  or -1 with no heap context or an out-of-range id. */
+extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra) {
+    const auto ctx = Rando::Context::GetInstance();
+    if (!ctx || rc == RC_UNKNOWN_CHECK || rc >= RC_MAX) {
+        return -1;
+    }
+    ctx->GetItemLocation((RandomizerCheck)rc)->MergeAreas({ (RandomizerArea)ra });
+    return 0;
+}
+
 namespace {
 std::vector<uint8_t> sAreaSnapshot;
 }
