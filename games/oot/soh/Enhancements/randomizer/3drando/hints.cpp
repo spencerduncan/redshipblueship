@@ -11,6 +11,10 @@
 #include "../hint.h"
 #include "spoiler_log.hpp"
 #include "../static_data.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "combo_area.h" // src/common: the shared area vocabulary (#575 H3a)
+#include "game.h"       // src/common: GAME_MM
+#endif
 
 using namespace Rando;
 
@@ -664,6 +668,8 @@ extern "C" int OoT_Combo_ItemHostedInMM(int rg);
 // ComboLogicEngineOoT.cpp: 1 while OoT's remainder hints the paired world whose
 // crossings the store holds.
 extern "C" int OoT_ComboLogic_HintingPairedRemainder(void);
+// ForeignItemsSingleExe.cpp (#575 H3a): the MM check that first hosts OoT item `rg`, or 0.
+extern "C" int OoT_Combo_MMHostOfItem(int rg);
 #endif
 
 /** The crossing store's answer for `item`, with no question asked about whose
@@ -716,6 +722,59 @@ extern "C" int Rando_HintAreaFromCrossingStore(int item) {
     return (int)CrossingStoreAreaForItem((RandomizerGet)item);
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * #575 H3a: the Majora's Mask area a Termina slot names, in src/common's shared
+ * vocabulary (combo_area.h): the area of the MM check that hosts `item`, or 0
+ * (COMBO_AREA_NONE), which renders as "Termina" as before.
+ */
+static uint8_t CrossingStoreForeignAreaForItem(RandomizerGet item) {
+    const int host = OoT_Combo_MMHostOfItem((int)item);
+    if (host > 0) {
+        return Combo_Area_OfCheck((uint8_t)GAME_MM, (uint16_t)host).area;
+    }
+    return 0;
+}
+
+/** The same, gated exactly as HintAreaForItemOutsideHyrule: only while OoT's
+ *  remainder hints the paired world whose crossings the store holds. */
+static uint8_t HintForeignAreaForItem(RandomizerGet item) {
+    if (OoT_ComboLogic_HintingPairedRemainder() != 0) {
+        return CrossingStoreForeignAreaForItem(item);
+    }
+    return 0;
+}
+
+/** A slot for `item`, which is at no OoT location and which the store hosts in MM:
+ *  RA_TERMINA in `areas`, and its MM area at the same index of the parallel
+ *  `foreignAreas` (#575 H3a). */
+static void PushTerminaSlot(std::vector<RandomizerArea>& areas, std::vector<uint8_t>& foreignAreas,
+                            RandomizerGet item) {
+    foreignAreas.resize(areas.size(), 0);
+    areas.push_back(RA_TERMINA);
+    foreignAreas.push_back(HintForeignAreaForItem(item));
+}
+
+/** ctx->AddHint, carrying the MM areas PushTerminaSlot recorded (#575 H3a). */
+static void AddHintWithForeignAreas(RandomizerHint hintKey, Rando::Hint hint, std::vector<uint8_t> foreignAreas) {
+    if (!foreignAreas.empty()) {
+        foreignAreas.resize(hint.GetHintedAreas().size(), 0);
+        hint.SetForeignAreas(std::move(foreignAreas));
+    }
+    Rando::Context::GetInstance()->AddHint(hintKey, hint);
+}
+
+/** TEST BRIDGE: the MM area the paired remainder's hint pass gets (the store's). */
+extern "C" int Rando_HintForeignAreaFromCrossingStore(int item) {
+    return (int)CrossingStoreForeignAreaForItem((RandomizerGet)item);
+}
+
+/** TEST BRIDGE: the hint pass's MM area right now (gated, as production asks it). */
+extern "C" int Rando_HintForeignAreaForItem(int item) {
+    return (int)HintForeignAreaForItem((RandomizerGet)item);
+}
+#endif
+
 std::vector<RandomizerCheck> FindItemsAndMarkHinted(std::vector<RandomizerGet> items,
                                                     std::vector<RandomizerCheck> hintChecks) {
     std::vector<RandomizerCheck> locations = {};
@@ -747,6 +806,9 @@ static void CreateAltarHint(RandomizerHint hintKey, HintType hintType, std::vect
     }
     std::vector<RandomizerCheck> locs = {};
     std::vector<RandomizerArea> areas = {};
+#ifdef RSBS_SINGLE_EXECUTABLE
+    std::vector<uint8_t> foreignAreas = {};
+#endif
     if (ctx->GetOption(RSK_TOT_ALTAR_HINT)) {
         // force marking the rewards as hinted if they are at the end of dungeons as they can be inferred
         const bool rewardsInferrable =
@@ -760,11 +822,19 @@ static void CreateAltarHint(RandomizerHint hintKey, HintType hintType, std::vect
             } else if (HintAreaForItemOutsideHyrule(rewards[i]) == RA_TERMINA) {
                 // A reward the single bag placed in Termina keeps its position in
                 // the altar's list rather than shifting every later reward's area.
+#ifdef RSBS_SINGLE_EXECUTABLE
+                PushTerminaSlot(areas, foreignAreas, rewards[i]);
+#else
                 areas.push_back(RA_TERMINA);
+#endif
             }
         }
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    AddHintWithForeignAreas(hintKey, Hint(hintKey, hintType, {}, locs, areas), foreignAreas);
+#else
     ctx->AddHint(hintKey, Hint(hintKey, hintType, {}, locs, areas));
+#endif
 }
 
 void CreateChildAltarHint() {
@@ -796,11 +866,18 @@ void CreateStaticHintFromData(RandomizerHint hint, StaticHintInfo staticData) {
                 }
             }
             std::vector<RandomizerArea> areas = {};
+#ifdef RSBS_SINGLE_EXECUTABLE
+            std::vector<uint8_t> foreignAreas = {};
+#endif
             for (size_t i = 0; i < locations.size(); i++) {
                 const RandomizerCheck loc = locations[i];
                 if (loc == RC_UNKNOWN_CHECK && i < staticData.targetItems.size() &&
                     HintAreaForItemOutsideHyrule(staticData.targetItems[i]) == RA_TERMINA) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    PushTerminaSlot(areas, foreignAreas, staticData.targetItems[i]);
+#else
                     areas.push_back(RA_TERMINA);
+#endif
                     continue;
                 }
                 ctx->GetItemLocation(loc)->SetHintAccesible();
@@ -816,8 +893,14 @@ void CreateStaticHintFromData(RandomizerHint hint, StaticHintInfo staticData) {
                 }
             }
             // hintKeys are defaulted to in the hint object and do not need to be specified
+#ifdef RSBS_SINGLE_EXECUTABLE
+            AddHintWithForeignAreas(
+                hint, Hint(hint, staticData.type, {}, locations, areas, {}, staticData.yourPocket, staticData.num),
+                foreignAreas);
+#else
             ctx->AddHint(hint,
                          Hint(hint, staticData.type, {}, locations, areas, {}, staticData.yourPocket, staticData.num));
+#endif
         }
     }
 }
@@ -829,15 +912,98 @@ void CreateStaticItemHint(RandomizerHint hintKey, std::vector<RandomizerHintText
     auto ctx = Rando::Context::GetInstance();
     std::vector<RandomizerCheck> locations = FindItemsAndMarkHinted(items, hintChecks);
     std::vector<RandomizerArea> areas = {};
+#ifdef RSBS_SINGLE_EXECUTABLE
+    std::vector<uint8_t> foreignAreas = {};
+#endif
     for (size_t i = 0; i < locations.size(); i++) {
         if (locations[i] == RC_UNKNOWN_CHECK && HintAreaForItemOutsideHyrule(items[i]) == RA_TERMINA) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+            PushTerminaSlot(areas, foreignAreas, items[i]);
+#else
             areas.push_back(RA_TERMINA);
+#endif
             continue;
         }
         areas.push_back(ctx->GetItemLocation(locations[i])->GetRandomArea());
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    AddHintWithForeignAreas(hintKey, Hint(hintKey, HINT_TYPE_AREA, hintTextKeys, locations, areas, {}, yourPocket),
+                            foreignAreas);
+#else
     ctx->AddHint(hintKey, Hint(hintKey, HINT_TYPE_AREA, hintTextKeys, locations, areas, {}, yourPocket));
+#endif
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * TEST BRIDGE (#575 H3a; ComboSingleBag D2): build, into `hintKey`, the static
+ * item hint production builds (CreateStaticItemHint, the Ganondorf hint's
+ * builder) for OoT item `item` with text `hintTextKey`. Returns 0 without
+ * building anything when `item` sits at an OoT location (the hint would name
+ * that location's area, not Termina), 1 when built.
+ */
+extern "C" int Rando_TestCreateStaticItemHint(int hintKey, int hintTextKey, int item) {
+    auto ctx = Rando::Context::GetInstance();
+    for (const RandomizerCheck loc : ctx->allLocations) {
+        if (ctx->GetItemLocation(loc)->GetPlacedRandomizerGet() == (RandomizerGet)item) {
+            return 0;
+        }
+    }
+    CreateStaticItemHint((RandomizerHint)hintKey, { (RandomizerHintTextKey)hintTextKey }, { (RandomizerGet)item }, {},
+                         true);
+    return 1;
+}
+
+/**
+ * TEST BRIDGE (#575 H3a; ComboSingleBag D2): build the altar hint `hintKey`
+ * (RH_ALTAR_CHILD or RH_ALTAR_ADULT) through production's CreateAltarHint, with
+ * `rewards` in place of the altar's own reward list. The builder skips a hint
+ * that is already enabled, so the slot is first replaced by a disabled one; the
+ * caller restores the world's own hint. Returns 0 without building anything when
+ * the Temple of Time altar hint option is off (the builder then names no area),
+ * 1 when built.
+ */
+extern "C" int Rando_TestCreateAltarHint(int hintKey, const int* rewards, int count) {
+    auto ctx = Rando::Context::GetInstance();
+    if (!ctx->GetOption(RSK_TOT_ALTAR_HINT)) {
+        return 0;
+    }
+    const bool child = (RandomizerHint)hintKey == RH_ALTAR_CHILD;
+    std::vector<RandomizerGet> list = {};
+    for (int i = 0; i < count; i++) {
+        list.push_back((RandomizerGet)rewards[i]);
+    }
+    ctx->AddHint((RandomizerHint)hintKey, Hint());
+    CreateAltarHint((RandomizerHint)hintKey, child ? HINT_TYPE_ALTAR_CHILD : HINT_TYPE_ALTAR_ADULT, list,
+                    child ? RC_ALTAR_HINT_CHILD : RC_ALTAR_HINT_ADULT);
+    return 1;
+}
+
+/**
+ * TEST BRIDGE (#575 H3a; ComboSingleBag D2): build the static hint `hintKey`
+ * through production's CreateStaticHintFromData, from its own staticHintInfoMap
+ * entry with `items` as the target items and its condition met by the option's
+ * current value. As above, the slot is first replaced by a disabled hint and the
+ * caller restores the world's own. Returns 0 when `hintKey` is no static hint
+ * built from data, 1 when built.
+ */
+extern "C" int Rando_TestCreateStaticHintFromData(int hintKey, const int* items, int count) {
+    auto ctx = Rando::Context::GetInstance();
+    const RandomizerHint key = (RandomizerHint)hintKey;
+    if (!StaticData::staticHintInfoMap.contains(key)) {
+        return 0;
+    }
+    StaticHintInfo data = StaticData::staticHintInfoMap[key];
+    data.targetItems.clear();
+    for (int i = 0; i < count; i++) {
+        data.targetItems.push_back((RandomizerGet)items[i]);
+    }
+    data.condition = (uint8_t)ctx->GetOption(data.setting).Get();
+    ctx->AddHint(key, Hint());
+    CreateStaticHintFromData(key, data);
+    return 1;
+}
+#endif
 
 void CreateGanondorfJoke() {
     auto ctx = Rando::Context::GetInstance();
