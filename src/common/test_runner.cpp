@@ -162,6 +162,10 @@ int MM_FbEffectsBinding_RunHeadless(void);
 // all-Ocarina corruption). Returns 0 on pass, non-zero on fail.
 int MM_FlashFileNumOob_RunHeadless(void);
 int MM_UnifiedSaveCapture_RunHeadless(void);
+// MM save-failure surface (games/mm/2s2h/mm_save_failure_surface_test.cpp,
+// #564 V18): a capture that cannot commit queues one "Not saved:" toast per
+// cause, instead of reporting on stderr only.
+int MM_SaveFailureSurface_RunHeadless(void);
 // MM capture harvest gate (games/mm/2s2h/mm_capture_harvest_gate_test.cpp,
 // #591): MM_Combo_CaptureSaveToUnifiedSlot harvested the shared-resource pool
 // BEFORE RsbsSave_Save checked the #533/#568 write latch, so a refused capture
@@ -995,6 +999,11 @@ static TestResult Test_MMFlashFileNumOob(void) {
 
 static TestResult Test_MMUnifiedSaveCapture(void) {
     return MM_UnifiedSaveCapture_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM save-failure surface (#564 V18; see the extern decl above).
+static TestResult Test_MMSaveFailureSurface(void) {
+    return MM_SaveFailureSurface_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM capture harvest gate (#591; see the extern decl above). Thin wrapper over
@@ -5613,6 +5622,10 @@ const TestDescriptor gTests[] = {
     // Pure (no display, no ROM).
     {"mm-unified-save-capture", "MM captures its live SaveContext into the unified slot, full-width and round-tripping",
      Test_MMUnifiedSaveCapture},
+    // #564 V18: an MM save that cannot commit is told to the player, once per
+    // cause. Pure (no display, no ROM).
+    {"mm-save-failure-surface", "An MM save that cannot commit shows a 'Not saved:' toast, once per cause",
+     Test_MMSaveFailureSurface},
     // A capture the #533/#568 write latch refuses must be a no-op on the
     // SHARED-RESOURCE POOL too, not just on the file: the harvest used to run
     // ahead of the latch check, so a refused commit still credited (or debited)

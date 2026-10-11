@@ -189,6 +189,48 @@ void MM_Rando_EmitPairingRefusalToast(int kind, const char* detail);
  */
 void OoT_EmitPairedSpoilerRefusalToast(int mute);
 
+/**
+ * #564 V18: A SAVE THAT DID NOT REACH THE FILE. Every durable MM save route
+ * (owl statue, pause save, Song of Time, game over, the two special saves, the
+ * autosave) commits through MM_Combo_CaptureSaveToUnifiedSlot, and each one runs
+ * its own success ceremony whatever the commit did. A commit that could not land
+ * used to say so on stderr only, so the player saw the ceremony and kept nothing.
+ * The capture now names the cause on the shared overlay, once per cause (a
+ * periodic autosave or a new day into the same locked file does not repeat it);
+ * a commit that lands, or another active slot, clears that record, so the next
+ * failure is shown again.
+ *
+ * Outside the refusal class (this toast refuses nothing and latches nothing: it
+ * reports what a latch, or the disk, already decided), so it has its own prefix,
+ * and it never touches the Combo > Save Files page's refusal words: a refused
+ * slot keeps the reason it was refused for. Capitalized, no trailing period, like
+ * every message on the overlay; PairingRefusalToastFit draws each one.
+ */
+typedef enum RsbsSaveFailure {
+    /** No unified-save slot is active this session (a standalone MM session, or one with no file open). */
+    RSBS_SAVE_FAILURE_NO_FILE = 0,
+    /** The active slot is latched against writes this session (#533/#568): refused, or never opened. */
+    RSBS_SAVE_FAILURE_LOCKED,
+    /** The slot was writable but the commit did not land (staging refused, or the file write failed). */
+    RSBS_SAVE_FAILURE_NOT_WRITTEN,
+    RSBS_SAVE_FAILURE_COUNT
+} RsbsSaveFailure;
+
+/** The prefix of the save-failure toast. */
+#define RSBS_SAVE_FAILURE_TOAST_PREFIX "Not saved:"
+
+/** The message for @p cause (an RsbsSaveFailure); never NULL, "" past the table. */
+const char* Combo_SaveFailureWords(int cause);
+
+/**
+ * THE MM EMITTER for a save that did not reach the file
+ * (games/mm/2s2h/GameExports_SingleExe.cpp): RSBS_SAVE_FAILURE_TOAST_PREFIX and
+ * Combo_SaveFailureWords(@p cause), in SoH's toast shape, muted (it runs on MM's
+ * game thread, where OoT's audio session is not live). Unconditional: the
+ * once-per-cause rule belongs to the capture that calls it.
+ */
+void MM_Combo_EmitSaveFailureToast(int cause);
+
 #ifdef __cplusplus
 }
 #endif

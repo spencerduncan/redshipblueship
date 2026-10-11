@@ -5635,6 +5635,21 @@ void MM_Rando_EmitPairingRefusalToast(int kind, const char* detail) {
     });
 }
 
+/**
+ * THE SAVE-FAILURE TOAST (#564 V18, src/common/pairing_refusal_toast.h): a save
+ * route that did not reach the file says so, in the same SoH toast shape as the
+ * refusal toasts above. Unlike MM_Rando_EmitPairingRefusalToast it records no
+ * words on the Combo > Save Files page: it refuses nothing, and a refused slot
+ * keeps the reason it was refused for. Muted for the same reason.
+ */
+void MM_Combo_EmitSaveFailureToast(int cause) {
+    Notification::MM_Notify_Emit({
+        .prefix = RSBS_SAVE_FAILURE_TOAST_PREFIX,
+        .message = Combo_SaveFailureWords(cause),
+        .mute = true,
+    });
+}
+
 } // extern "C"
 
 // ============================================================================

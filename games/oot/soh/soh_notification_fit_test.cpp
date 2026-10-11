@@ -59,6 +59,8 @@
  *     trailing period (#836, operator ruling 2026-10-01);
  *   - OoT's paired-spoiler refusal through OoT_EmitPairedSpoilerRefusalToast
  *     (outside the class: "Spoiler not loaded:", width only);
+ *   - #564 V18: MM's save-failure toast through MM_Combo_EmitSaveFailureToast,
+ *     every cause (outside the class: "Not saved:", width only);
  *   - that a one-field RULES refusal names its field, and that the two-field
  *     refusal mm-combo-settings-gate leg 4 depends on names both;
  *   - #865: the pickup toast OoT shows for an MM item found at an OoT check, through
@@ -699,6 +701,13 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
             // nothing): width only, under its own "Spoiler not loaded:".
             OoT_EmitPairedSpoilerRefusalToast(/*mute=*/1);
             failures += CheckOne(run, "OoT paired-spoiler refusal", scale, Class::OTHER);
+            // #564 V18: an MM save that did not reach the file, every cause.
+            // Outside the refusal class: its own "Not saved:".
+            for (int cause = 0; cause < RSBS_SAVE_FAILURE_COUNT; cause++) {
+                MM_Combo_EmitSaveFailureToast(cause);
+                const std::string what = std::string("save failure (") + Combo_SaveFailureWords(cause) + ")";
+                failures += CheckOne(run, what.c_str(), scale, Class::OTHER);
+            }
 
             // The refused FILE (#836): the file select's toast over every words
             // entry, and the load's own refusal toasts, each through its
