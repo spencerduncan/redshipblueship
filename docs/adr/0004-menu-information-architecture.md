@@ -828,3 +828,5 @@ Toggle Combo Tracker and Toggle Combo Item Tracker. `MenuComboSection` leg 3 pin
 that names one of MM's four tracker windows or binds one of their `gWindows.*` keys. The `RSBS_CVAR_MM_WINDOW_*`
 spellings in `cvar_shared_keys.h` went with the rows, their only writer; the keys themselves are MM's own
 (`TrackersGuiSingleExe.h`), and `MMTrackersGui` still locks that they open the registered windows.
+
+**Note (2026-10-11, #897).** Item 3's "the `MMActiveGated` wrapper is unchanged" no longer holds word for word: the wrapper now gives each window it draws a right-click menu with one item, Close, which clears that window's `gWindows.*` key, so a tracker an old config left open (floating or docked) can be shut in game. The ruling itself stands: the keys still open MM's native windows, and `MMTrackersGui` leg 7 locks both.
