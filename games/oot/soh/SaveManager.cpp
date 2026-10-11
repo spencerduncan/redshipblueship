@@ -58,6 +58,8 @@ extern "C" {
 // seam and consumed by the next OnLoadGame, which returns the player to the file
 // select instead of entering Play. -1 for none.
 static int sRsbsRefusedLoadSlot = -1;
+// #575 H1: a loaded world's locations get their hint areas (HintAreaOoT.cpp).
+extern "C" void OoT_HintArea_OnRandomizerLoaded(void);
 #endif
 using namespace std::string_literals;
 
@@ -216,7 +218,8 @@ extern "C" int OoT_Combo_ReconcileCheckStateToLoadedHalf(const SaveContext* desc
  * commit generation the .sav mirrors (GetLoadedCommitGeneration). extern "C"
  * so the oot-check-state-load row drives this exact seam.
  */
-extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration) {
+extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration,
+                                         const RsbsOoTSavIdentity* savIdentity) {
     // Order matters: the clear runs FIRST, then the new slot is
     // established. Session invalidation now also drops the active slot
     // (it is session state that used to outlive its session), so
@@ -257,8 +260,11 @@ extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration
     // whose after-check failed: the backstop below returns the player to the
     // file select at OnLoadGame. NEVER by throwing from here: LoadFile's
     // catch renames the player's .sav aside.
+    //
+    // savIdentity (#564 V12) is what the .sav just loaded says about its world:
+    // the load refuses a record that names another one, as the gate does.
     sRsbsRefusedLoadSlot = -1;
-    if (RsbsSave_LoadSlotForOpen(fileNum, savGeneration, IS_RANDO ? 1 : 0) == RSBS_LOAD_REFUSED) {
+    if (RsbsSave_LoadSlotForOpen(fileNum, savGeneration, IS_RANDO ? 1 : 0, savIdentity) == RSBS_LOAD_REFUSED) {
         sRsbsRefusedLoadSlot = fileNum;
     }
 #else
@@ -459,7 +465,8 @@ SaveManager::SaveManager() {
         if (fileNum < 0 || fileNum >= RSBS_SAVE_MAX_SLOTS) {
             return;
         }
-        OoT_Combo_OnLoadFileSeam(fileNum, this->GetLoadedCommitGeneration());
+        const RsbsOoTSavIdentity savIdentity = this->GetLoadedPairIdentity();
+        OoT_Combo_OnLoadFileSeam(fileNum, this->GetLoadedCommitGeneration(), &savIdentity);
     });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnDeleteFile>([](int32_t fileNum) {
@@ -722,6 +729,12 @@ void SaveManager::LoadRandomizer() {
         SaveManager::Instance->LoadData("", value);
         randoContext->GetTrickOption(RandomizerTrick(i)).Set(value);
     });
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #575 H1: only generation and the spoiler loader give locations their areas
+    // (SetAreas), and this load built a fresh context, so the shared area
+    // vocabulary's OoT adapter would answer "nowhere" for every check.
+    OoT_HintArea_OnRandomizerLoaded();
+#endif
 }
 
 void SaveManager::SaveRandomizer(SaveContext* saveContext, int sectionID, bool fullSave) {
@@ -1704,7 +1717,8 @@ int copy_file(const char* src, const char* dst) {
 
 // Threaded SaveFile takes copy of gSaveContext for local unmodified storage
 
-void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID, uint32_t rsbsGeneration) {
+void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID, uint32_t rsbsGeneration,
+                                   uint32_t rsbsPairSettingsHash) {
     // RAII, not lock()/unlock(): every statement below can throw (json
     // serialization, std::filesystem::rename, and the OnSaveFile handlers), and
     // an escaped exception used to leave saveMtx held forever.
@@ -1732,6 +1746,16 @@ void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int se
         // base data IS still that generation's.
         if (rsbsGeneration != 0) {
             saveBlock["rsbsCommitGeneration"] = rsbsGeneration;
+            // #564 V12: the same commit's pairing digest, so the load can tell
+            // that the .redsave beside this .sav is this world's record (the
+            // seed half of that check is the randomizer section's own
+            // "finalSeed"). An unpaired commit leaves no digest behind, rather
+            // than an earlier file's from this process's saveBlock.
+            if (rsbsPairSettingsHash != 0) {
+                saveBlock["rsbsPairSettingsHash"] = rsbsPairSettingsHash;
+            } else {
+                saveBlock.erase("rsbsPairSettingsHash");
+            }
         }
         for (auto& sectionHandlerPair : sectionSaveHandlers) {
             auto& saveFuncInfo = sectionHandlerPair.second;
@@ -1843,6 +1867,7 @@ void SaveManager::SaveSection(int fileNum, int sectionID, bool threaded) {
     // into the .sav JSON — the load-time freshness comparison depends on the
     // two stamps being authored by this single commit.
     uint32_t rsbsGeneration = 0;
+    uint32_t rsbsPairSettingsHash = 0;
     if (sectionID == SECTION_ID_BASE && fileNum >= 0 && fileNum < RSBS_SAVE_MAX_SLOTS) {
         // Publish the slot so a later MM-side save can address it; MM has no
         // slot of its own (its fileNum is the 0xFF sentinel cross-game).
@@ -1857,6 +1882,9 @@ void SaveManager::SaveSection(int fileNum, int sectionID, bool threaded) {
             Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
             gComboCtx.sourceGame = GAME_OOT;
             rsbsGeneration = RsbsSave_StageCommit();
+            // #564 V12: the digest of the pairing this commit staged, read at the
+            // same instant on the same thread; the worker mirrors it into the .sav.
+            rsbsPairSettingsHash = gComboCtx.sourceIsRando ? gComboCtx.sharedRandoSettingsHash : 0u;
         } else {
             // #533/#568: the slot is write-latched (this session REFUSED its
             // .redsave, or never established it). Stage NOTHING: the worker's
@@ -1869,10 +1897,10 @@ void SaveManager::SaveSection(int fileNum, int sectionID, bool threaded) {
     }
 
     if (threaded) {
-        smThreadPool->detach_task(
-            std::bind(&SaveManager::SaveFileThreaded, this, fileNum, saveContext, sectionID, rsbsGeneration));
+        smThreadPool->detach_task(std::bind(&SaveManager::SaveFileThreaded, this, fileNum, saveContext, sectionID,
+                                            rsbsGeneration, rsbsPairSettingsHash));
     } else {
-        SaveFileThreaded(fileNum, saveContext, sectionID, rsbsGeneration);
+        SaveFileThreaded(fileNum, saveContext, sectionID, rsbsGeneration, rsbsPairSettingsHash);
     }
 }
 
@@ -1924,20 +1952,77 @@ uint32_t SaveManager::GetLoadedCommitGeneration() {
     return CommitGenerationOf(saveBlock);
 }
 
-uint32_t SaveManager::ReadSavCommitGeneration(int fileNum) {
+// What a .sav records about the world it belongs to (#564 V12), validated one
+// way for both readers, as CommitGenerationOf is: the randomizer section's own
+// "finalSeed" (the seed Rando::Context generated the world from) and the
+// pairing digest the last commit mirrored ("rsbsPairSettingsHash"). A term that
+// is absent, or anything but the unsigned integer this build writes, reads as
+// 0, which the load treats as "not recorded" (exempt): detection must never
+// refuse a file over a value it cannot read.
+static uint32_t UnsignedStampOf(const nlohmann::json& object, const char* key) {
+    if (!object.is_object()) {
+        return 0;
+    }
+    const auto it = object.find(key);
+    if (it == object.end() || !it->is_number_unsigned()) {
+        return 0;
+    }
+    return it->get<uint32_t>();
+}
+
+static RsbsOoTSavIdentity PairIdentityOf(const nlohmann::json& block) {
+    RsbsOoTSavIdentity identity = { 0, 0 };
+    try {
+        identity.settingsHash = UnsignedStampOf(block, "rsbsPairSettingsHash");
+        if (block.is_object()) {
+            const auto sections = block.find("sections");
+            if (sections != block.end() && sections->is_object()) {
+                const auto rando = sections->find("randomizer");
+                if (rando != sections->end() && rando->is_object()) {
+                    const auto data = rando->find("data");
+                    if (data != rando->end()) {
+                        identity.randoSeed = UnsignedStampOf(*data, "finalSeed");
+                    }
+                }
+            }
+        }
+    } catch (const std::exception&) { identity = { 0, 0 }; }
+    return identity;
+}
+
+RsbsOoTSavIdentity SaveManager::GetLoadedPairIdentity() {
+    // Called from the OnLoadFile hook, with saveBlock populated (see
+    // GetLoadedCommitGeneration).
+    return PairIdentityOf(saveBlock);
+}
+
+void SaveManager::ReadSavStamps(int fileNum, uint32_t* outGeneration, RsbsOoTSavIdentity* outIdentity) {
     // The file select's gate (#836) asks before the file is opened. Anything
     // that cannot be read is 0, the exempt value, exactly as at load.
+    *outGeneration = 0;
+    *outIdentity = { 0, 0 };
     try {
         const std::filesystem::path fileName = GetFileName(fileNum);
         std::lock_guard<std::mutex> lock(saveMtx);
         std::ifstream input(fileName);
         if (!input) {
-            return 0;
+            return;
         }
         nlohmann::json block = nlohmann::json::object();
         input >> block;
-        return CommitGenerationOf(block);
-    } catch (const std::exception&) { return 0; }
+        *outGeneration = CommitGenerationOf(block);
+        *outIdentity = PairIdentityOf(block);
+    } catch (const std::exception&) {
+        *outGeneration = 0;
+        *outIdentity = { 0, 0 };
+    }
+}
+
+uint32_t SaveManager::ReadSavCommitGeneration(int fileNum) {
+    uint32_t generation = 0;
+    RsbsOoTSavIdentity identity;
+    ReadSavStamps(fileNum, &generation, &identity);
+    return generation;
 }
 
 bool SaveManager::ProbeFileForOpen(int fileNum, std::string* words) {
@@ -1948,8 +2033,11 @@ bool SaveManager::ProbeFileForOpen(int fileNum, std::string* words) {
         return true; // not a unified slot: nothing to gate
     }
     char buffer[96];
-    const int outcome = RsbsSave_ProbeSlotForOpen(fileNum, ReadSavCommitGeneration(fileNum),
-                                                  fileMetaInfo[fileNum].randoSave ? 1 : 0, buffer, sizeof(buffer));
+    uint32_t savGeneration = 0;
+    RsbsOoTSavIdentity savIdentity;
+    ReadSavStamps(fileNum, &savGeneration, &savIdentity);
+    const int outcome = RsbsSave_ProbeSlotForOpen(fileNum, savGeneration, fileMetaInfo[fileNum].randoSave ? 1 : 0,
+                                                  &savIdentity, buffer, sizeof(buffer));
     if (outcome != RSBS_LOAD_REFUSED) {
         return true;
     }

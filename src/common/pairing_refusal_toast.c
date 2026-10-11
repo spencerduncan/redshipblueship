@@ -32,6 +32,7 @@ static const char* const kRefusalWords[RSBS_REFUSAL_WORDS_COUNT] = {
     [RSBS_REFUSAL_WORDS_RECORD_MISSING] = "Cross-game record is missing",
     [RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER] = "Majora's Mask options differ",
     [RSBS_REFUSAL_WORDS_NO_MM_WORLD] = "This file has no Majora's Mask world",
+    [RSBS_REFUSAL_WORDS_OTHER_FILE] = "Cross-game record is for another file",
     [RSBS_REFUSAL_WORDS_SETTINGS_DIFFER] = "Settings differ from its creation",
     [RSBS_REFUSAL_WORDS_NOT_GENERATED] = "Termina could not be generated",
     [RSBS_REFUSAL_WORDS_UNCHECKED] = "File could not be checked",
