@@ -45,7 +45,6 @@
 #include "combo_tracker_view.h" // src/common: OoT's own check status, for a collected OoT host (H3c)
 #include "crossing_store.h"     // src/common: the OoT-hosted MM items (H3c)
 #include "game.h"               // src/common: GAME_OOT / GAME_MM
-#include "game.h"               // src/common: GAME_MM
 
 namespace {
 
