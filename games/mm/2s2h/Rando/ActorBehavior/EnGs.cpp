@@ -188,22 +188,22 @@ GossipHintTarget GetRandomCheck(bool repeatableOnlyObtained = false) {
 // exactly as before. The text hook below calls FreeStoneHintText in both builds
 // (a directive is ill-formed inside its COND_ID_HOOK argument); the #else keeps
 // upstream's expression.
-static std::string FreeStoneHintTextSeeded(RandoCheckId randoCheckId, uint32_t stoneSeed) {
+static std::string FreeStoneHintTextSeeded(const GossipHintTarget& target, uint32_t stoneSeed) {
     const std::string foolish = Rando::HintFoolish::FreeStoneText(stoneSeed);
-    return foolish.empty() ? GossipHintText(randoCheckId, false) : foolish;
+    return foolish.empty() ? GossipHintText(target, false) : foolish;
 }
 
 // The stone seed is GetRandomCheck's own for the free stone (the same expression,
 // read off the same stone), so the variant is a pure function of the frozen world
 // and the stone, like the item pick.
-static std::string FreeStoneHintText(RandoCheckId randoCheckId) {
+static std::string FreeStoneHintText(const GossipHintTarget& target) {
     Player* player = GET_PLAYER(MM_gPlayState);
     if (player->talkActor == nullptr || player->talkActor->id != ACTOR_EN_GS) {
-        return GossipHintText(randoCheckId, false);
+        return GossipHintText(target, false);
     }
     EnGs* enGs = (EnGs*)player->talkActor;
     uint32_t seed = MM_gPlayState->sceneId + enGs->actor.home.pos.x + enGs->actor.home.pos.z;
-    return FreeStoneHintTextSeeded(randoCheckId, gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);
+    return FreeStoneHintTextSeeded(target, gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);
 }
 
 /** TEST BRIDGE (redship tier; src/common/tests/test_foolish_hints.c, #575 H5a):
@@ -219,7 +219,7 @@ extern "C" int MM_Rando_Hints_TestFreeStoneText(uint16_t randoCheckId, uint32_t 
     return (int)msg.size();
 }
 #else
-static std::string FreeStoneHintText(RandoCheckId randoCheckId) {
+static std::string FreeStoneHintText(GossipHintTarget randoCheckId) {
     return GossipHintText(randoCheckId, false);
 }
 #endif // RSBS_SINGLE_EXECUTABLE
