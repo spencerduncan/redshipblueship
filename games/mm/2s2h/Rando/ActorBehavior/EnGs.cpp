@@ -5,6 +5,7 @@
 #include "2s2h/Rando/HintArea.h" // #575 H2: a hint names the check's area (scene name outside single-exe)
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // ForeignNameForCheck: a crossing host's hint (#575 item 2)
+#include "game.h"          // src/common: GAME_MM / GAME_OOT, a candidate's host game (#575 H3c)
 #include <cstdio>          // snprintf in the test bridge below
 #endif
 
@@ -311,5 +312,32 @@ extern "C" int MM_Rando_Hints_TestSceneName(uint16_t randoCheckId, char* out, in
     const std::string name = Ship_GetSceneName(Rando::StaticData::Checks[(RandoCheckId)randoCheckId].sceneId);
     snprintf(out, (size_t)cap, "%s", name.c_str());
     return (int)name.size();
+}
+
+/** #575 H3c: entry `index` of the stone's candidate list, in the order the
+ *  stone draws from: its host game and check. Returns the list's length (so
+ *  index -1 just counts), or -1 for a null out-parameter. */
+extern "C" int MM_Rando_Hints_TestGossipCandidateAt(int excludeObtained, int index, uint8_t* outGame,
+                                                     uint16_t* outCheck) {
+    if (outGame == nullptr || outCheck == nullptr) {
+        return -1;
+    }
+    const std::vector<RandoCheckId> candidates = GossipHintCandidates(excludeObtained != 0);
+    if (index >= 0 && index < (int)candidates.size()) {
+        *outGame = (uint8_t)GAME_MM;
+        *outCheck = (uint16_t)candidates[(size_t)index];
+    }
+    return (int)candidates.size();
+}
+
+/** #575 H3c: the text a stone says for a candidate of either host game (an MM
+ *  check, or an OoT check hosting an MM item), before colours and line breaks.
+ *  Returns the full length, or -1 for a target the stone cannot name. */
+extern "C" int MM_Rando_Hints_TestGossipHostText(uint8_t hostGame, uint16_t check, int purchased, char* out,
+                                                  int cap) {
+    if (hostGame != (uint8_t)GAME_MM) {
+        return -1;
+    }
+    return MM_Rando_Hints_TestGossipText(check, purchased, out, cap);
 }
 #endif // RSBS_SINGLE_EXECUTABLE

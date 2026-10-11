@@ -32,6 +32,7 @@
 #else
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/ShipUtils.h"
+#include "2s2h/Rando/Rando.h"
 #define RANDO_HINT_PREPOS(upstream) upstream
 #endif
 
@@ -47,9 +48,19 @@ void ReplaceLocation(std::string* msg, const char* key, RandoCheckId randoCheckI
 /** Whether `randoCheckId` has an area a hint can name: false for the 55 enemy
  *  drops and RC_UNKNOWN. A gossip stone hints only such checks. */
 bool HasArea(RandoCheckId randoCheckId);
+
+/** #575 H3c: replace `key` in `*msg` with where MM item `randoItemId` is, as
+ *  ReplaceLocation does for the MM check Rando::FindItemPlacement finds. The
+ *  static hints (Oath, remains, Hookshot, gold dust) fill their location
+ *  through it. Defined in HintAreaSingleExe.cpp. */
+void ReplaceItemLocation(std::string* msg, const char* key, RandoItemId randoItemId);
 #else
 inline void ReplaceLocation(std::string* msg, const char* key, RandoCheckId randoCheckId) {
     CustomMessage::Replace(msg, key, Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
+}
+
+inline void ReplaceItemLocation(std::string* msg, const char* key, RandoItemId randoItemId) {
+    ReplaceLocation(msg, key, Rando::FindItemPlacement(randoItemId));
 }
 #endif
 

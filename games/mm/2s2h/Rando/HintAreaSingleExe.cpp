@@ -35,6 +35,7 @@
 
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "Rando/HintArea.h"
+#include "Rando/Rando.h"
 #include "Rando/StaticData/StaticData.h"
 
 #include "combo_area.h" // src/common: the shared vocabulary and the registrar
@@ -753,6 +754,10 @@ bool Rando::HintArea::HasArea(RandoCheckId randoCheckId) {
     return MmAreaOfCheck((uint16_t)randoCheckId) != COMBO_AREA_NONE;
 }
 
+void Rando::HintArea::ReplaceItemLocation(std::string* msg, const char* key, RandoItemId randoItemId) {
+    ReplaceLocation(msg, key, Rando::FindItemPlacement(randoItemId));
+}
+
 // ============================================================================
 // TEST BRIDGE (redship tier; src/common/tests/test_combo_area.c)
 // ============================================================================
@@ -786,6 +791,20 @@ extern "C" int MM_HintArea_TestLocationText(uint16_t randoCheckId, const char* t
     }
     std::string msg = tmpl;
     Rando::HintArea::ReplaceLocation(&msg, key, (RandoCheckId)randoCheckId);
+    snprintf(out, (size_t)cap, "%s", msg.c_str());
+    return (int)msg.size();
+}
+
+/** #575 H3c: `tmpl` with `key` filled for MM item `randoItemId` by
+ *  ReplaceItemLocation, the helper every static hint (Oath, remains, Hookshot,
+ *  gold dust) fills its location with. Returns the full length, or -1. */
+extern "C" int MM_HintArea_TestItemLocationText(uint16_t randoItemId, const char* tmpl, const char* key, char* out,
+                                                int cap) {
+    if (randoItemId >= RI_MAX || tmpl == nullptr || key == nullptr || out == nullptr || cap <= 0) {
+        return -1;
+    }
+    std::string msg = tmpl;
+    Rando::HintArea::ReplaceItemLocation(&msg, key, (RandoItemId)randoItemId);
     snprintf(out, (size_t)cap, "%s", msg.c_str());
     return (int)msg.size();
 }

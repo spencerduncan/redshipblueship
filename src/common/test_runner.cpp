@@ -5403,6 +5403,9 @@ const TestDescriptor gTests[] = {
      Test_ForeignHostGossipHint},
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     {"mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText},
+    // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.
+    {"mm-hint-crossed-area", "MM's hints name the OoT area of an MM item hosted in OoT (#575 H3c)",
+     Test_MmHintCrossedArea},
     // #502: MM's half of the crossing. The reverse row above deliberately stops
     // at a test award callback because MM_AwardSharedItem was a placeholder
     // fprintf; this one drives the real one and the real give behind it.
