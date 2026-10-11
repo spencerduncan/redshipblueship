@@ -197,8 +197,9 @@ void OoT_EmitPairedSpoilerRefusalToast(int mute);
  * used to say so on stderr only, so the player saw the ceremony and kept nothing.
  * The capture now names the cause on the shared overlay, once per cause (a
  * periodic autosave or a new day into the same locked file does not repeat it);
- * a commit that lands, or another active slot, clears that record, so the next
- * failure is shown again.
+ * any change of the unified save's slot state (a .redsave commit that lands from
+ * either game, an erase, a create, a load, a refusal) or another active slot
+ * clears that record, so the next failure is shown again.
  *
  * Outside the refusal class (this toast refuses nothing and latches nothing: it
  * reports what a latch, or the disk, already decided), so it has its own prefix,

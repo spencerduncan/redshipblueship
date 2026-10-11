@@ -25,8 +25,12 @@
  *      all, only the stderr line.
  *   2. Once per cause, never per save: the same cause again (the next autosave,
  *      the next new day) queues nothing.
- *   3. A commit that lands clears the record, so the next failure is shown
- *      again; another active slot is another file and is told too.
+ *   3. Any change of the unified save's slot state starts a new episode, so
+ *      the next failure is shown again: a commit that lands from MM's capture
+ *      or from OoT's save worker, an erase and create of the same slot, the
+ *      same slot refused again. Another active slot is another file and is
+ *      told too. (A save that commits nothing moves no slot state, so the
+ *      record holds across repeats.)
  *   4. The toast leaves the Combo > Save Files page's refusal words alone: a
  *      refused slot keeps the reason it was refused for.
  *   5. A commit that lands queues nothing, and a refused one wrote nothing.
@@ -261,6 +265,42 @@ extern "C" int MM_SaveFailureSurface_RunHeadless(void) {
         SFS_ASSERT(queued == 1 && last == Expected(RSBS_SAVE_FAILURE_NOT_WRITTEN),
                    "a failure after a landed save was not told again: %d toast(s), last '%s'", queued, last.c_str());
     }
+
+    // ---- 3. Any slot-state change starts a new episode, from either game ----
+    // These legs report every miss before failing, so one run shows each.
+    int episodeMisses = 0;
+    const auto expectToldAgain = [&](const char* what, int wantQueued, int cause) {
+        const int queued = MarshalAndCount(&sramCtx, &last);
+        printf("[TEST] %s: %d toast(s) queued, last '%s'\n", what, queued, last.c_str());
+        if (queued != wantQueued || (wantQueued > 0 && last != Expected(cause))) {
+            printf("[TEST] FAIL: %s: %d toast(s), last '%s' (want %d '%s') (%s:%d)\n", what, queued, last.c_str(),
+                   wantQueued, Expected(cause).c_str(), __FILE__, __LINE__);
+            fflush(stdout);
+            episodeMisses++;
+        }
+    };
+    // OoT's side commits the same file (its save worker's two-phase path):
+    // under one-game semantics that is a landed commit of the same game.
+    rsbs::SaveManager::Instance().SetSaveDirectory(dir.string());
+    SFS_ASSERT(RsbsSave_StageCommit() != 0 && RsbsSave_WriteStagedCommit(kDisk) == 1,
+               "test setup: OoT's two-phase commit into the slot must land");
+    rsbs::SaveManager::Instance().SetSaveDirectory(unwritable.string());
+    expectToldAgain("failed write after OoT's commit landed", 1, RSBS_SAVE_FAILURE_NOT_WRITTEN);
+    expectToldAgain("failed write after OoT's commit landed, save 2", 0, RSBS_SAVE_FAILURE_NOT_WRITTEN);
+    // The player erases the file and creates a new one in the same slot.
+    rsbs::SaveManager::Instance().SetSaveDirectory(dir.string());
+    RsbsSave_DeleteSave(kDisk);
+    RsbsSave_ArmSlotOnCreate(kDisk);
+    rsbs::SaveManager::Instance().SetSaveDirectory(unwritable.string());
+    expectToldAgain("failed write after erase and create", 1, RSBS_SAVE_FAILURE_NOT_WRITTEN);
+    // The same slot refused, then refused again (the next arrival's check).
+    RsbsSave_RefuseSlotIdentity(kDisk);
+    expectToldAgain("refused again, save 1", 1, RSBS_SAVE_FAILURE_LOCKED);
+    expectToldAgain("refused again, save 2", 0, RSBS_SAVE_FAILURE_LOCKED);
+    RsbsSave_RefuseSlotIdentity(kDisk);
+    expectToldAgain("refused once more", 1, RSBS_SAVE_FAILURE_LOCKED);
+    SFS_ASSERT(episodeMisses == 0, "%d save failure(s) after a slot-state change were not told again",
+               episodeMisses);
     rsbs::SaveManager::Instance().SetSaveDirectory(dir.string());
 
     OoT_Notification_RecordForTest(0);
