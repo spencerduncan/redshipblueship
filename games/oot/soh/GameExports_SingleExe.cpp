@@ -982,9 +982,9 @@ static void GpPairedCheckStoneHints(const char* leg) {
     int probes = 0;
     int stones = 0;
     const int failures = Rando_TestCheckLoadedCrossingHostHints(&probes, &stones);
-    fprintf(stderr, "[PFC] %s: OoT stone hints in play name %d crossing host(s) by their MM item (%d loaded hint "
-                    "slot(s)), %d failure(s)
-",
+    fprintf(stderr,
+            "[PFC] %s: OoT stone hints in play name %d crossing host(s) by their MM item (%d loaded hint "
+            "slot(s)), %d failure(s)\n",
             leg, probes, stones, failures);
     fflush(stderr);
     if (failures != 0 || probes == 0) {

@@ -2812,19 +2812,16 @@ TestResult Test_ComboCreationEvent(void) {
         {
             int named = 0;
             const int hintFailures = Rando_TestCheckPairedSpoilerCrossingHints(absolute.c_str(), &named);
-            printf("[TEST] spoiler hints: %d entr%s name an OoT crossing host, %d failure(s) (#575 H3b)
-", named,
+            printf("[TEST] spoiler hints: %d entr%s name an OoT crossing host, %d failure(s) (#575 H3b)\n", named,
                    named == 1 ? "y" : "ies", hintFailures);
             if (hintFailures != 0) {
                 printf("[TEST] FAIL: the paired world's written spoiler names a crossing host's cover, not the MM "
-                       "item it yields, or could not be read (see [rando-hints])
-");
+                       "item it yields, or could not be read (see [rando-hints])\n");
                 return TEST_FAIL;
             }
             if (named == 0) {
                 printf("[TEST] FAIL: no hint of the written spoiler names a crossing host, so the check proves "
-                       "nothing
-");
+                       "nothing\n");
                 return TEST_FAIL;
             }
         }
