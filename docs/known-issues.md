@@ -945,6 +945,13 @@ MM's volume and tunic keys onto OoT's and added a config updater; the namespace
 decision is ADR 0003 (`docs/adr/0003-settings-namespace.md`). A standalone 2Ship
 install's config is not read.
 
+In a window 800 to about 980 pixels wide (the ui tier's 832x600 profile, for one),
+Settings → General's **Boot Sequence** dropdown is drawn over its own label and
+**ImGui Menu Scaling**'s dropdown covers the end of its label. Ship of Harkinian
+draws these rows the same way (unchanged right-aligned dropdowns in a fixed-width
+column), so they are kept as shipped
+([#899](https://github.com/spencerduncan/redshipblueship/issues/899)).
+
 ### Some menu entries are stubs
 
 Settings entries backed by unimplemented functionality are grayed out or labeled
