@@ -42,8 +42,9 @@
  * instead of dereferencing it.
  *
  * #909 adds one more: with OoT running and a paired file loaded, `gen_rando` must refuse like the Generate Randomizer
- * button (file select only, no save loaded): non-zero, the refusal in its output, no generation started, and the
- * paired identity in gComboCtx and the save unchanged.
+ * button (file select only, no save loaded): non-zero with the refusal in its output. That refusal is the lock. The
+ * identity, save and RandoGenerating checks beside it are smoke checks only: GenerateRandomizer runs the generation on
+ * a worker thread the leg never awaits, so they could not catch the re-stamp by themselves.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -363,10 +364,13 @@ int RunConsoleAndKnifeGate() {
     // The Generate Randomizer button is disabled unless OoT is on its file select with no save loaded (its PreFunc in
     // SohMenuRandomizer.cpp), and that gate is what keeps the paired world's one identity stamp site (the creation
     // freeze in Playthrough_Init) unreachable while a file is loaded. gen_rando reaches the same generation from the
-    // console, so it must refuse under the same predicate: non-zero, the refusal in its output (Ship::Console::Run logs
-    // it), no generation started, and the paired identity in gComboCtx and the save byte-for-byte unchanged. An
-    // unrefused gen_rando starts the generation worker, which dereferences this harness's absent window on its first
-    // lines and kills the process.
+    // console, so it must refuse under the same predicate. The lock is the refusal: a non-zero return with the refusal
+    // text in its output (Ship::Console::Run logs it). The gComboCtx identity, gSaveContext canary and RandoGenerating
+    // comparisons below are smoke checks only, not locks: GenerateRandomizer starts the generation on a worker thread
+    // (randoThread) and returns at once, and this leg never joins or waits for it, so even an unrefused generation
+    // could not have reached Playthrough_Init's freeze when they are read, and RandoGenerating flips only if the worker
+    // has already run its first line. An unrefused gen_rando starts that worker, which dereferences this harness's
+    // absent window on its first lines and kills the process.
     if (failures == 0) {
         Context_SetCurrentGame(GAME_OOT);
         FillSaveCanary(canary);
