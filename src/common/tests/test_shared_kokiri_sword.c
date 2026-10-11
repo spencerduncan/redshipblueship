@@ -28,7 +28,22 @@
  *       alone, and an MM harvest with no sword (Takkuri stole it) does not lower
  *       the pool, so OoT keeps its sword;
  *   (5) the arming predicate follows the FROZEN bit, and nothing is armed
- *       before a world exists.
+ *       before a world exists;
+ *   (6) THE POOLS STAY WHOLE, on or off: the kind's quantity policy is
+ *       KEEP_ALL even when armed, and neither game's REGISTERED item-class
+ *       source maps its pool sword (OoT's RG_KOKIRI_SWORD, MM's
+ *       RI_PROGRESSIVE_SWORD) to the kind. Trimming could not be right here:
+ *       OoT's sword reaches tier 1 and MM's chain tier 3, and the shared-quantity
+ *       rule keeps a family with unequal ceilings whole (shared_items.h), which
+ *       Combo_SharedQuantityTierBudget answers -1 for exactly this shape;
+ *   (7) THE COST OF KEEPING THEM WHOLE, stated rather than hidden: MM's pool
+ *       sword is PROGRESSIVE and resolves from the sword MM holds, so once OoT's
+ *       sword has crossed, MM's next sword pickup is the RAZOR Sword, the
+ *       Gilded Sword comes one pickup early, and MM's last sword copy is
+ *       surplus (it resolves to no sword). Off, MM's first pickup is still its
+ *       Kokiri Sword. (The other order, MM's sword first, makes OoT's own
+ *       Kokiri Sword pickup a duplicate of the bit leg (3) shows OoT already
+ *       owns.)
  */
 
 #include <stdio.h>
@@ -47,6 +62,12 @@ void MM_SharedSwordTest_SetSword(int equipValue);
 int MM_SharedSwordTest_Sword(void);
 int MM_SharedSwordTest_BButton(void);
 int MM_SharedSwordTest_ItemFor(int equipValue);
+int MM_SharedSwordTest_ProgressiveSwordGives(void);
+int MM_SharedSwordTest_PoolSwordId(void);
+int OoT_SharedSwordTest_PoolSwordId(void);
+// ComboLogicEngineOoT.cpp: brings OoT's item table up ROM-free and leaves no
+// Rando::Context behind, so OoT's item-class source can classify.
+int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 void OoT_HarvestSharedResources(void);
 void OoT_ApplySharedResources(void);
 void MM_HarvestSharedResources(void);
@@ -60,6 +81,7 @@ void MM_ApplySharedResources(void);
 #define SKS_MM_SWORD_NONE 0
 #define SKS_MM_SWORD_KOKIRI 1
 #define SKS_MM_SWORD_RAZOR 2
+#define SKS_MM_SWORD_GILDED 3
 
 static int sSksFailures;
 
@@ -221,6 +243,73 @@ TestResult Test_SharedKokiriSword(void) {
         SKS_CHECK(!unfrozen && !off && on, "the Kokiri Sword kind is not armed by exactly the frozen bit");
         SKS_CHECK(Combo_SharedResourceKindArmed((uint8_t)RSBS_SHARED_RES_HOOKSHOT_TIER),
                   "arming the sword disarmed an unconditional kind");
+    }
+
+    // ---- (6) The pools stay whole, on or off ----------------------------------
+    {
+        SksFreezeWorld(true);
+        ComboSharedQuantityPolicy policy;
+        memset(&policy, 0xA5, sizeof(policy));
+        const bool real = Combo_SharedQuantityPolicyOf((uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD, &policy);
+        SKS_CHECK(real && policy.policy == RSBS_SHARED_QTY_KEEP_ALL,
+                  "ON: the Kokiri Sword kind's quantity policy is %u (%s), expected keep-all: the pools stay whole",
+                  (unsigned)policy.policy, Combo_SharedQuantityPolicyName(policy.policy));
+
+        int kindOf[2] = { -2, -2 };
+        const uint8_t origins[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
+        const int ids[2] = { OoT_SharedSwordTest_PoolSwordId(), MM_SharedSwordTest_PoolSwordId() };
+        SKS_CHECK(OoT_ComboLogic_TestEnsureItemTableTransient() == 0, "OoT's item table did not come up");
+        for (int g = 0; g < 2; ++g) {
+            const ComboItemClassSource* src = Combo_GetItemClassSource(origins[g]);
+            ComboItemClassRow row;
+            memset(&row, 0, sizeof(row));
+            const int rv = (src != NULL && ids[g] >= 0) ? src->classify((uint16_t)ids[g], &row) : -9;
+            SKS_CHECK(rv == 1, "%s's pool sword (id %d) is not a fill item to its registered source (rv %d)",
+                      g == 0 ? "OoT" : "MM", ids[g], rv);
+            kindOf[g] = (rv == 1) ? (int)row.sharedKind : -1;
+            SKS_CHECK(kindOf[g] != (int)RSBS_SHARED_RES_KOKIRI_SWORD,
+                      "%s's pool sword maps to the Kokiri Sword kind: the trim would now count it", g == 0 ? "OoT" : "MM");
+        }
+
+        const ComboSharedQuantityPolicy swordShape = { (uint8_t)RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX,
+                                                       (uint8_t)RSBS_SHARED_QTY_BUDGET_TIER, 0u, 1u, 3u };
+        const int budget = Combo_SharedQuantityTierBudget(&swordShape, 1, 3);
+        printf("[TEST] (6) on: policy %s, pool-sword kinds OoT %d MM %d, a 1/3-ceiling trim budget %d "
+               "(expected keep-all, not %u, not %u, -1)\n",
+               Combo_SharedQuantityPolicyName(policy.policy), kindOf[0], kindOf[1], budget,
+               (unsigned)RSBS_SHARED_RES_KOKIRI_SWORD, (unsigned)RSBS_SHARED_RES_KOKIRI_SWORD);
+        SKS_CHECK(budget == -1,
+                  "a sword trim with ceilings OoT 1 / MM 3 over 1 + 3 copies budgets %d; the unequal-ceiling rule "
+                  "keeps such a family whole (-1)",
+                  budget);
+    }
+
+    // ---- (7) The cost of whole pools: MM's progressive chain moves one tier ----
+    {
+        SksFreezeWorld(false);
+        SksOoTDeparts(1);
+        SksMMArrives(SKS_MM_SWORD_NONE);
+        const int offFirst = MM_SharedSwordTest_ProgressiveSwordGives();
+
+        SksFreezeWorld(true);
+        SksOoTDeparts(1);
+        SksMMArrives(SKS_MM_SWORD_NONE);
+        const int onFirst = MM_SharedSwordTest_ProgressiveSwordGives();
+        MM_SharedSwordTest_SetSword(SKS_MM_SWORD_RAZOR);
+        const int onSecond = MM_SharedSwordTest_ProgressiveSwordGives();
+        MM_SharedSwordTest_SetSword(SKS_MM_SWORD_GILDED);
+        const int onThird = MM_SharedSwordTest_ProgressiveSwordGives();
+        printf("[TEST] (7) MM's sword pickups after OoT's sword: off, first gives %d; on, first %d, second %d, "
+               "third %d (expected 1; 2, 3, 0)\n",
+               offFirst, onFirst, onSecond, onThird);
+        SKS_CHECK(offFirst == SKS_MM_SWORD_KOKIRI, "OFF: MM's first sword pickup gives %d, expected its Kokiri Sword",
+                  offFirst);
+        SKS_CHECK(onFirst == SKS_MM_SWORD_RAZOR,
+                  "ON: MM's first sword pickup after OoT's sword crossed gives %d, expected the Razor Sword (2)",
+                  onFirst);
+        SKS_CHECK(onSecond == SKS_MM_SWORD_GILDED, "ON: MM's second sword pickup gives %d, expected the Gilded Sword",
+                  onSecond);
+        SKS_CHECK(onThird == 0, "ON: MM's third sword pickup gives %d, expected no sword (a surplus copy)", onThird);
     }
 
     ComboContext_Init();

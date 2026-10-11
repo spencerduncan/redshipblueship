@@ -1701,10 +1701,20 @@ can be an option". Default OFF, in the shape #668 gave the shared ocarina.
   shared resource armed only by the frozen bit. OoT harvests its Kokiri
   Sword's owned-equipment bit and MM any sword it holds; OoT's apply writes
   that owned bit, MM's gives the Kokiri Sword on B when MM holds no sword.
-- **Not changed:** the pool and the logic. Both swords stay pool items and
-  each game's proof still reaches its own sword checks with its own copies;
-  sharing only ever adds a sword. The shared-quantity trim keeps both
-  families whole (no pool row maps to the kind).
+- **Not changed:** the pool and the logic. OoT's `RG_KOKIRI_SWORD` and MM's
+  three `RI_PROGRESSIVE_SWORD` copies all stay placed, and no pool row maps to
+  the kind, so each game's proof still reaches its own sword checks with its
+  own copies. Trimming is not available: the sword's ceilings are unequal
+  (OoT 1, MM's progressive chain 3), the shared-quantity trim's
+  keep-whole case, and dropping either game's copy would leave that game's
+  engine short of its own sword tiers.
+- **What whole pools cost, with the option on.** MM's pool sword is
+  progressive and resolves from the sword MM holds. If OoT's sword crosses
+  first, MM's next sword pickup is the Razor Sword, the Gilded Sword comes one
+  pickup early, and MM's last sword copy is surplus. If MM's sword crosses
+  first, OoT's own Kokiri Sword pickup is a duplicate. Either way one sword
+  pickup of the four is spent.
 
-Locked by `SharedKokiriSword`, `ComboSettingsRows`, `ComboSettingsAuthoring`,
+Locked by `SharedKokiriSword` (legs 6 and 7 lock the whole pools and the
+promotion), `ComboSettingsRows`, `ComboSettingsAuthoring`,
 `ComboSettingsDivergence` and `CVarClassification` (three identity keys).

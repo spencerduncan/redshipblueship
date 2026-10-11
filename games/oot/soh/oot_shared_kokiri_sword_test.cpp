@@ -21,6 +21,7 @@
 // OWNED_EQUIP_FLAG / CHECK_OWNED_EQUIP. After z64.h, as the other OoT TUs
 // include it: it declares an `extern GraphicsContext*` that needs the type.
 #include "macros.h"
+#include "soh/Enhancements/randomizer/randomizerTypes.h"
 
 /** OoT's live save as a real loaded file: GAMEMODE_NORMAL is what
  *  Combo_SaveIsLiveFile requires before OoT_HarvestSharedResources does
@@ -46,4 +47,9 @@ extern "C" void OoT_SharedSwordTest_SetOwned(int owned) {
 /** 1 when OoT owns the Kokiri Sword, else 0. */
 extern "C" int OoT_SharedSwordTest_Owned(void) {
     return CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI) ? 1 : 0;
+}
+
+/** OoT's pool sword: the id OoT's Kokiri Sword is placed as (RG_KOKIRI_SWORD). */
+extern "C" int OoT_SharedSwordTest_PoolSwordId(void) {
+    return (int)RG_KOKIRI_SWORD;
 }

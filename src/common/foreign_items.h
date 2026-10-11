@@ -320,15 +320,33 @@ bool Combo_ForeignPairingActive(void);
  *   - OoT's Kokiri Sword (its owned-equipment bit) gives MM the Kokiri Sword
  *     when MM holds no sword at all, on B, as MM's own give puts it.
  *   - ANY sword MM holds (Kokiri, Razor or Gilded) gives OoT the Kokiri Sword's
- *     owned-equipment bit, which is all OoT's own give writes. MM's upgrades
- *     stay MM's: nothing crosses as a Razor or Gilded Sword, and an apply never
- *     takes a sword away (an MM apply leaves a Razor Sword alone).
+ *     owned-equipment bit, which is all OoT's own give writes. The crossing
+ *     itself carries only the Kokiri Sword: nothing crosses as a Razor or
+ *     Gilded Sword, and an apply never takes a sword away (an MM apply leaves a
+ *     Razor Sword alone).
+ *
+ * THE POOLS STAY WHOLE, set or clear: OoT's RG_KOKIRI_SWORD and MM's three
+ * RI_PROGRESSIVE_SWORD copies (MM's sword is a pool item since #879) are all
+ * placed, and neither engine maps a sword to the kind. That has a cost, and it
+ * is stated here rather than hidden:
+ *   - OoT's sword first: MM's pool sword is PROGRESSIVE and resolves from the
+ *     sword MM holds (ConvertItem.cpp), so once OoT's sword has crossed, MM's
+ *     next sword pickup is the RAZOR Sword, the Gilded Sword comes one pickup
+ *     early, and MM's last sword copy is surplus (it resolves to junk). The
+ *     share promotes MM's chain by one tier.
+ *   - MM's sword first: OoT already owns the Kokiri Sword when it arrives, so
+ *     OoT's own Kokiri Sword pickup is a duplicate (Item_Give sets a bit that
+ *     is already set).
+ * Either way exactly one sword pickup of the four is spent. Trimming one copy
+ * instead is the shared-quantity trim's UNEQUAL-CEILINGS case (shared_items.h):
+ * OoT's sword reaches tier 1 and MM's chain tier 3, so drop OoT's copy and
+ * OoT's engine never assumes its sword; drop one of MM's and MM's engine never
+ * reaches the Gilded Sword. Such a family is kept whole and costs (sum - budget)
+ * dead pickups, which is this one. Locked by SharedKokiriSword legs (6) and (7).
  *
  * Clear, NOTHING changes: no slot, no harvest, no apply, and a record whose
  * canonical bytes and fingerprint are exactly what they were before this bit
- * existed. Set or clear, the two swords stay separate pool items (MM's is a
- * pool item since #879); the option shares what the player holds, not what
- * the world places.
+ * existed.
  */
 #define RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD 0x02u
 

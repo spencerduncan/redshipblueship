@@ -817,8 +817,10 @@ bool Combo_SharedQuantityPolicyOf(uint8_t kind, ComboSharedQuantityPolicy* out) 
             default:
                 // Rupees, current health / magic, the five ammo counts and the
                 // triforce count: renewable or counted, never a capacity.
-                // The Kokiri Sword (#886) too: no pool row maps to it, so the option
-                // shares what the player holds and the pools stay whole.
+                // The Kokiri Sword (#886) too: no pool row maps to it and the pools
+                // stay whole. Its ceilings are unequal (OoT's sword 1, MM's
+                // progressive chain 3), which keeps a family whole anyway; the
+                // one spent pickup is stated at RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD.
                 break;
         }
         // The one arming gate, read from the one place it lives: a kind the

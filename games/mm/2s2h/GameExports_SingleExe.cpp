@@ -4649,7 +4649,9 @@ extern "C" void MM_ApplySharedResources(void) {
     // form's set, as 2Ship's RemoveItem does; no icon reload, because this runs
     // before there is a PlayState and the arrival's interface init loads B's icon
     // afterwards. With the option off Combo_ApplySharedResource returns false and
-    // nothing below runs.
+    // nothing below runs. MM's pool sword is progressive and resolves from this
+    // value, so MM's next sword pickup is then the Razor Sword (the cost of
+    // keeping both pools whole, stated at RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD).
     uint16_t kokiriSword = MM_ReadKokiriSword();
     if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_MAX_KOKIRI_SWORD, &kokiriSword) &&
         kokiriSword >= 1u && GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_NONE) {

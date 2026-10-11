@@ -546,7 +546,8 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         })
         .Options(CheckboxOptions().Tooltip(
             "Makes the Kokiri Sword one item across both games: finding it in either game gives it to you in the "
-            "other. A Razor or Gilded Sword gives the Kokiri Sword in Ocarina of Time."));
+            "other. A Razor or Gilded Sword gives the Kokiri Sword in Ocarina of Time. Majora's Mask's sword upgrades "
+            "count from the shared sword, so one of the two games' sword pickups ends up spare."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.
