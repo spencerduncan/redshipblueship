@@ -22,6 +22,62 @@ static std::vector<Options> notifications = {};
 static bool recordForTest = false;
 static std::vector<std::string> emittedForTest = {};
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #906: the width a toast lays out at the current window's font scale, the way
+// Draw lays it out: the icon, the prefix, the message and the suffix on one line,
+// SameLine's item spacing between them, and the window padding on both sides of
+// an AlwaysAutoResize window.
+static float ToastWidth(const Options& notification) {
+    const ImGuiStyle& style = ImGui::GetStyle();
+    float width = 2.0f * style.WindowPadding.x;
+    bool first = true;
+    auto item = [&](float itemWidth) {
+        width += (first ? 0.0f : style.ItemSpacing.x) + itemWidth;
+        first = false;
+    };
+    if (notification.itemIcon != nullptr) {
+        item(24.0f);
+    }
+    if (!notification.prefix.empty()) {
+        item(ImGui::CalcTextSize(notification.prefix.c_str()).x);
+    }
+    item(ImGui::CalcTextSize(notification.message.c_str()).x);
+    if (!notification.suffix.empty()) {
+        item(ImGui::CalcTextSize(notification.suffix.c_str()).x);
+    }
+    return width;
+}
+
+// #906: a toast wider than the window it is drawn in (libultraship's default
+// 640 x 480 window opens 580 px between the overlay's margins, and the refusal,
+// load-refusal and pickup toasts reach 757 px at the default size 1.8) is drawn
+// at the largest font scale, below the player's @p size and no smaller than 1.0
+// (the menus' own text size), at which it keeps the margin on both sides. The
+// words stay whole; a toast that fits is drawn exactly as before.
+static void FitToastToWindow(const Options& notification, float size, float available) {
+    if (available <= 0.0f) {
+        return;
+    }
+    const float wide = ToastWidth(notification);
+    if (wide <= available) {
+        return;
+    }
+    const float smallest = size < 1.0f ? size : 1.0f;
+    // The text scales with the font and the padding does not, so this first
+    // guess is never too small; step down from it to the first that fits.
+    float scale = size * available / wide;
+    for (;; scale -= 0.01f) {
+        if (scale <= smallest) {
+            scale = smallest;
+        }
+        ImGui::SetWindowFontScale(scale);
+        if (scale <= smallest || ToastWidth(notification) <= available) {
+            return;
+        }
+    }
+}
+#endif
+
 void Window::Draw() {
     auto vp = ImGui::GetMainViewport();
 
@@ -72,6 +128,10 @@ void Window::Draw() {
                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings);
 
         ImGui::SetWindowFontScale(CVarGetFloat(CVAR_SETTING("Notifications.Size"), 1.8f)); // Make this adjustable
+#ifdef RSBS_SINGLE_EXECUTABLE
+        FitToastToWindow(notification, CVarGetFloat(CVAR_SETTING("Notifications.Size"), 1.8f),
+                         vp->Size.x - 2.0f * margin);
+#endif
 
         ImVec2 notificationPos;
         switch (position) {
