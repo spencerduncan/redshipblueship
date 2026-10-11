@@ -138,6 +138,7 @@ typedef enum RsbsRefusalWords {
     RSBS_REFUSAL_WORDS_RECORD_MISSING,    // "Cross-game record is missing"
     RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER, // "Majora's Mask options differ"
     RSBS_REFUSAL_WORDS_NO_MM_WORLD,       // "This file has no Majora's Mask world"
+    RSBS_REFUSAL_WORDS_OTHER_FILE,        // "Cross-game record is for another file" (#564 V12: another OoT world)
     // The page's fallbacks for a refusal whose words were not recorded (every
     // refusal the file select posts records its words; these are reached only
     // through the session's record of a refusal that posted none).

@@ -73,7 +73,8 @@
 
 extern "C" SaveContext gSaveContext;
 // The seam (games/oot/soh/SaveManager.cpp).
-extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration);
+extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration,
+                                         const RsbsOoTSavIdentity* savIdentity);
 // hook_handlers.cpp: the real hook a chest's treasure flag fires, and the test
 // bridge that empties the queue it feeds.
 void RandomizerOnSceneFlagSetHandler(int16_t sceneNum, int16_t flagType, int16_t flag);
@@ -271,7 +272,7 @@ void LoadAsFileSelect(const SaveContext& savBase, uint32_t savGeneration, Random
                       RandomizerCheckStatus heartPiece, RandomizerCheckStatus bridgeRupee) {
     memcpy(&gSaveContext, &savBase, sizeof(SaveContext));
     SetTrackerStatuses(sword, heartPiece, bridgeRupee);
-    OoT_Combo_OnLoadFileSeam(kSlot, savGeneration);
+    OoT_Combo_OnLoadFileSeam(kSlot, savGeneration, nullptr);
 }
 
 void CheckControls(const char* leg) {
@@ -401,7 +402,7 @@ int RunLegs(void) {
     Loc(RC_KF_MIDOS_TOP_LEFT_CHEST)->SetCheckStatus(RCSHOW_UNCHECKED);
     Loc(RC_SONG_FROM_SARIA)->SetCheckStatus(RCSHOW_SCUMMED);
     Loc(RC_QUEEN_GOHMA)->SetCheckStatus(RCSHOW_SAVED);
-    OoT_Combo_OnLoadFileSeam(kSlot, savGeneration);
+    OoT_Combo_OnLoadFileSeam(kSlot, savGeneration, nullptr);
     {
         const bool vanilla = gSaveContext.ship.quest.id == QUEST_NORMAL;
         const bool halfApplied = (gSaveContext.sceneFlags[SCENE_LAKE_HYLIA].collect & kHeartPieceBit) != 0;
