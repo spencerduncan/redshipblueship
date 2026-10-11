@@ -5395,6 +5395,8 @@ const TestDescriptor gTests[] = {
     // #575 item 2: MM gossip stones can hint a crossing host, by the crossed item.
     {"foreign-host-gossip-hint", "MM gossip stones hint crossing hosts by the crossed item (#575)",
      Test_ForeignHostGossipHint},
+    // #575 H2: MM's own hints name the shared area (H1), never the scene.
+    {"mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText},
     // #502: MM's half of the crossing. The reverse row above deliberately stops
     // at a test award callback because MM_AwardSharedItem was a placeholder
     // fprintf; this one drives the real one and the real give behind it.

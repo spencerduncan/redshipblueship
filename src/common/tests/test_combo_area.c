@@ -19,12 +19,16 @@
  *  4. MM's dead StaticData::RandoStaticRegion decoy is gone, and combo_area.{h,c}
  *     include no game header.
  *
+ * Also MmHintAreaText (child H2): MM's own hints speak that vocabulary. See the
+ * block above Test_MmHintAreaText.
+ *
  * Linkage note: #included into test_runner.cpp at file scope (compiled as C++).
  */
 
 #include "../combo_area.h"
 #include "../game.h"
 #include "../test_runner.h"
+#include "test_named_items.h"
 
 #include <cstdio>
 #include <cstring>
@@ -41,6 +45,12 @@ int OoT_HintArea_TestInitStaticData(void);
 void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast);
 void OoT_HintArea_TestArea(int ra, uint8_t* outArea, char* outEnglish, int cap);
 void OoT_HintArea_TestSpecials(uint8_t* outNone, uint8_t* outPocket, uint8_t* outTermina);
+// #575 H2: MM's gossip stone (games/mm/2s2h/Rando/ActorBehavior/EnGs.cpp's bridge block)
+int MM_Rando_Hints_TestGossipCandidate(uint16_t randoCheckId, int excludeObtained);
+int MM_Rando_Hints_TestGossipText(uint16_t randoCheckId, int purchased, char* out, int cap);
+int MM_Rando_Hints_TestSceneName(uint16_t randoCheckId, char* out, int cap);
+void MM_Rando_Hints_TestSetCheck(uint16_t randoCheckId, uint16_t randoItemId, int shuffled, int obtained,
+                                 uint16_t* priorItemId, int* priorShuffled, int* priorObtained);
 }
 
 #define CA_ASSERT(cond)                                                                                                \
@@ -243,5 +253,116 @@ TestResult Test_ComboAreaVocabulary(void) {
     printf("[TEST]   sources: RandoStaticRegion is gone; combo_area.{h,c} include no game header\n");
 
     printf("[TEST] PASS: combo-area-vocabulary\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// #575 H2: MM's own hints name the shared area, never the scene.
+//
+// MM's gossip stones said where a check is by its SCENE's display name, so all
+// 415 grotto checks (SCENE_KAKUSIANA) read "Lone Peak Shrine & Grottos" wherever
+// the grotto is, and the 55 enemy drops (SCENE_SPOT00, "Cutscene Scene") could
+// be hinted at all. The stone now names the check's area in the shared
+// vocabulary (H1's MM table) with OoTMM's preposition, and hints only checks
+// that have an area. Drives the stone's REAL text (the hook's own template, item
+// and location substitution, EnGs.cpp) and its REAL candidate filter over MM's
+// real check table.
+// ============================================================================
+TestResult Test_MmHintAreaText(void) {
+    printf("[TEST] mm-hint-area-text: MM's own hints name the shared area, not the scene (#575 H2)\n");
+    static const char kGrottoScene[] = "Lone Peak Shrine & Grottos";
+    const int idMax = MM_HintArea_TestCheckIdMax();
+    char text[512];
+    char scene[128];
+
+    // ---- 1. A grotto check's text names its overworld area, never the grotto scene.
+    int grottoRows = 0;
+    uint16_t firstGrotto = 0;
+    for (int id = 1; id < idMax; id++) {
+        int isEnemyDrop = 0;
+        if (!MM_HintArea_TestCheckRow((uint16_t)id, &isEnemyDrop)) {
+            continue;
+        }
+        CA_ASSERT(MM_Rando_Hints_TestSceneName((uint16_t)id, scene, (int)sizeof(scene)) > 0);
+        if (strcmp(scene, kGrottoScene) != 0) {
+            continue;
+        }
+        const ComboArea area = Combo_Area_OfCheck((uint8_t)GAME_MM, (uint16_t)id);
+        const char* areaName = Combo_Area_Name(area);
+        CA_ASSERT(area.area != COMBO_AREA_NONE && areaName != nullptr);
+        for (int purchased = 0; purchased < 2; purchased++) {
+            CA_ASSERT(MM_Rando_Hints_TestGossipText((uint16_t)id, purchased, text, (int)sizeof(text)) > 0);
+            if (firstGrotto == 0) {
+                printf("[TEST]   grotto check %d (scene \"%s\", area \"%s\"): stone says \"%s\"\n", id, scene, areaName,
+                       text);
+            }
+            if (strstr(text, kGrottoScene) != nullptr || strstr(text, areaName) == nullptr) {
+                printf("[TEST] FAIL: grotto check %d (area \"%s\") says \"%s\"\n", id, areaName, text);
+                return TEST_FAIL;
+            }
+        }
+        if (firstGrotto == 0) {
+            firstGrotto = (uint16_t)id;
+        }
+        grottoRows++;
+    }
+    CA_ASSERT(grottoRows == 415);
+    printf("[TEST]   %d grotto checks name their overworld area, none \"%s\"\n", grottoRows, kGrottoScene);
+
+    // ---- 2. Every check with an area is named by it, with OoTMM's preposition.
+    int areaRows = 0;
+    uint16_t firstEnemyDrop = 0;
+    for (int id = 1; id < idMax; id++) {
+        int isEnemyDrop = 0;
+        if (!MM_HintArea_TestCheckRow((uint16_t)id, &isEnemyDrop)) {
+            continue;
+        }
+        if (isEnemyDrop) {
+            if (firstEnemyDrop == 0) {
+                firstEnemyDrop = (uint16_t)id;
+            }
+            continue;
+        }
+        const ComboArea area = Combo_Area_OfCheck((uint8_t)GAME_MM, (uint16_t)id);
+        CA_ASSERT(area.area != COMBO_AREA_NONE);
+        const char* prepos = Combo_Area_Prepos(area);
+        const std::string said = std::string("is hidden ") + (prepos != nullptr ? std::string(prepos) + " " : "") +
+                                 "%y" + Combo_Area_Name(area) + "%w.";
+        for (int purchased = 0; purchased < 2; purchased++) {
+            CA_ASSERT(MM_Rando_Hints_TestGossipText((uint16_t)id, purchased, text, (int)sizeof(text)) > 0);
+            if (strstr(text, said.c_str()) == nullptr) {
+                printf("[TEST] FAIL: check %d says \"%s\", not \"... %s\"\n", id, text, said.c_str());
+                return TEST_FAIL;
+            }
+        }
+        areaRows++;
+    }
+    printf("[TEST]   %d checks with an area are named by it, with its preposition\n", areaRows);
+
+    // ---- 3. An enemy drop (no area) is never a stone's candidate, even holding a major item.
+    CA_ASSERT(firstEnemyDrop != 0 && firstGrotto != 0);
+    SharedItem mmLens;
+    CA_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Lens of Truth", &mmLens));
+    const uint16_t rows[2] = { firstEnemyDrop, firstGrotto };
+    uint16_t priorItem[2];
+    int priorShuffled[2];
+    int priorObtained[2];
+    for (int i = 0; i < 2; i++) {
+        MM_Rando_Hints_TestSetCheck(rows[i], mmLens.id, 1, 0, &priorItem[i], &priorShuffled[i], &priorObtained[i]);
+    }
+    const int dropFree = MM_Rando_Hints_TestGossipCandidate(firstEnemyDrop, 0);
+    const int dropPurchased = MM_Rando_Hints_TestGossipCandidate(firstEnemyDrop, 1);
+    const int grottoFree = MM_Rando_Hints_TestGossipCandidate(firstGrotto, 0);
+    const int grottoPurchased = MM_Rando_Hints_TestGossipCandidate(firstGrotto, 1);
+    for (int i = 0; i < 2; i++) {
+        MM_Rando_Hints_TestSetCheck(rows[i], priorItem[i], priorShuffled[i], priorObtained[i], NULL, NULL, NULL);
+    }
+    printf("[TEST]   the Lens of Truth on enemy drop %u: candidate=%d purchasable=%d; on grotto check %u: "
+           "candidate=%d purchasable=%d\n",
+           (unsigned)firstEnemyDrop, dropFree, dropPurchased, (unsigned)firstGrotto, grottoFree, grottoPurchased);
+    CA_ASSERT(grottoFree == 1 && grottoPurchased == 1); // control: the same item on a check with an area
+    CA_ASSERT(dropFree == 0 && dropPurchased == 0);
+
+    printf("[TEST] PASS: mm-hint-area-text\n");
     return TEST_PASS;
 }

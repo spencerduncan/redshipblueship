@@ -270,4 +270,32 @@ extern "C" void MM_Rando_Hints_TestSetCheck(uint16_t randoCheckId, uint16_t rand
     saveCheck.shuffled = (shuffled != 0);
     saveCheck.obtained = (obtained != 0);
 }
+
+/** The text a stone says for `randoCheckId` before colours and line breaks:
+ *  the free stone's (purchased == 0) or the purchased hint's (purchased != 0),
+ *  built from the same template and substitutions as the two hooks above.
+ *  Returns the full length, or -1 for an id that is not a real check. */
+extern "C" int MM_Rando_Hints_TestGossipText(uint16_t randoCheckId, int purchased, char* out, int cap) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
+        return -1;
+    }
+    std::string msg = purchased != 0 ? "Wise choice... They say %g{{item}}%w is hidden at %y{{location}}%w."
+                                     : "They say %g{{item}}%w is hidden at %y{{location}}%w.";
+    CustomMessage::Replace(&msg, "{{item}}", GossipHintItemName((RandoCheckId)randoCheckId));
+    CustomMessage::Replace(&msg, "{{location}}",
+                           Ship_GetSceneName(Rando::StaticData::Checks[(RandoCheckId)randoCheckId].sceneId));
+    snprintf(out, (size_t)cap, "%s", msg.c_str());
+    return (int)msg.size();
+}
+
+/** The scene name upstream's hint said for `randoCheckId` (so the lock can find
+ *  the grotto rows by what they used to read). Returns the full length, or -1. */
+extern "C" int MM_Rando_Hints_TestSceneName(uint16_t randoCheckId, char* out, int cap) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
+        return -1;
+    }
+    const std::string name = Ship_GetSceneName(Rando::StaticData::Checks[(RandoCheckId)randoCheckId].sceneId);
+    snprintf(out, (size_t)cap, "%s", name.c_str());
+    return (int)name.size();
+}
 #endif // RSBS_SINGLE_EXECUTABLE
