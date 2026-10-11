@@ -5890,6 +5890,10 @@ const TestDescriptor gTests[] = {
      "An engine may offer a whole check pool of hosts, a beginQuery that refuses after detaching still gets its "
      "endQuery (with or without a snapshot), and RunFill takes both tables empty (#701)",
      Test_ComboLogicContractEdges},
+    {"combo-logic-forbidden-host",
+     "A round's forbidden host is never harvested or exchanged, an empty forbidden set changes no round, and a host "
+     "its engine cannot withhold is refused (ABI 6, #575 H4)",
+     Test_ComboLogicForbiddenHost},
     // Increment 3's two §6.3 MEASUREMENTS, over both real engines at once (#645,
     // lane K3). Needs a real OoT generation AND MM's rando graph, hence the
     // `rando` tier and the `--test all` skip below. It asserts no timing: only

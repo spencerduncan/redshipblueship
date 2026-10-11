@@ -1904,6 +1904,12 @@ if(BUILD_TESTING)
     # because the quantity under test is the size of a game's check pool and six
     # authored hosts cannot express it.
     redship_add_test(NAME ComboLogicContractEdges COMMAND redship --test combo-logic-contract-edges)
+    # The round's FORBIDDEN-HOST input (ABI 6, epic #575 H4): the input a hint
+    # analysis (OoTMM's required set and foolish zig-zag) runs its rounds through.
+    # Same stub fixture, same `redship` tier: a forbidden host's own-origin item is
+    # never harvested, its cross-origin item never exchanged, and an empty set
+    # changes no round.
+    redship_add_test(NAME ComboLogicForbiddenHost COMMAND redship --test combo-logic-forbidden-host)
 
     # The OoT ENGINE behind that coordinator (#645, lane K2a). `rando` tier, and
     # for a correctness reason rather than a convenience one: every fact this row
