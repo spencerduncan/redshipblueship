@@ -5,7 +5,8 @@
  *
  * One overlay covers both games (the operator's ruling on #458): the active
  * game's items live, the other game's from its frozen snapshot, and the shared
- * resource pool, each section labelled with how fresh it is. Every value comes
+ * resource pool, each section labelled by its header alone, as SoH's trackers
+ * label theirs: no caption says how fresh it is (#927). Every value comes
  * from src/common/combo_item_view.h and is read again every frame; the overlay
  * names no game layout and reads no gSaveContext, which is what makes it safe
  * to draw under GAME_OOT, GAME_MM and GAME_NONE alike (ADR 0008 rule 5).
@@ -37,7 +38,7 @@
  * ceiling when it has them ("Fairy Bow 35/40"), dimmed while not held, in
  * kComboItemTrackerColumns columns, each group on a new line. In a section of
  * icons, a single cell whose texture is missing draws its name in the cell.
- * "No data." is a note with no rows.
+ * A section with no data is its header with no rows (#927).
  *
  * FIT. The floating overlay cannot scroll, so it is fitted to the game window
  * every frame (ComboItemTrackerFitBoxes): every icon, gap and line of text
@@ -169,7 +170,7 @@ struct ComboItemTrackerSection {
     int id = COMBO_ITEM_SECTION_OOT;
     const char* title = "";
     uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
-    std::string note; // the freshness label as a sentence ("Updated live.")
+    std::string note; // the caption under the header: none since #927 (Combo_ItemFreshnessLabel)
     std::vector<ComboItemRow> rows;
     const ComboItemGridStyle* grid = &kComboItemSohGrid; // the game's own tracker grid (#458 U3)
 };

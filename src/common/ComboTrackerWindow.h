@@ -6,10 +6,10 @@
  * Renders src/common/combo_tracker_view.h's model: the combo identity header,
  * one panel per game fed ONLY by that game's registered adapter, and the
  * cross-game crossings in both directions (the crossing store, plus the legacy
- * pinned tables; combo_tracker_view.h "Cross-game crossings"). Every panel is labelled with its
- * freshness — the inactive game's data is honest about being "As of the last
- * game switch or save" (MM's shadow, written at freeze/save) or "As of the last
- * game switch" (OoT's heap, stopped at suspend), never presented as live.
+ * pinned tables; combo_tracker_view.h "Cross-game crossings"). Every panel is labelled by its
+ * game's header alone (#927): the inactive game's data is its snapshot (MM's
+ * shadow, written at freeze/save; OoT's heap, stopped at suspend), and the
+ * panel takes no live write from it (skips are written only while LIVE).
  *
  * Common-owned Gui window (ADR 0008), the ComboSpoilerWindow pattern: it
  * reads gComboCtx and the adapter surfaces and NOTHING else — no gSaveContext

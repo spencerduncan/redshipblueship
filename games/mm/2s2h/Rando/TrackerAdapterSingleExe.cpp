@@ -15,8 +15,8 @@
  * OoT runs there is no live MM gSaveContext to read (unified storage holds
  * OoT's bytes), but the frozen shadow Context_GetMMSaveContext() hands out is
  * a raw SaveContext image written at freeze/save time. Reading it at these
- * offsets is exactly as valid as the freeze itself, and the view labels the
- * result stale ("As of the last game switch or save"). While MM is played the
+ * offsets is exactly as valid as the freeze itself, and the view reports the
+ * result stale. While MM is played the
  * shadow is useless: MM's arrival consumes it into gSaveContext and zeroes it,
  * and nothing refills it before MM's first save or the departure freeze
  * (#799). So the descriptor also carries MMTrackerLiveSave, which hands the
@@ -304,7 +304,6 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     std::memcpy(desc.newf, kMMNewf, sizeof(kMMNewf));
     desc.saveTypeOffset = (uint32_t)offsetof(SaveContext, save.shipSaveInfo.saveType);
     desc.saveTypeRando = (uint32_t)SAVETYPE_RANDO;
-    desc.createdAtOffset = (uint32_t)offsetof(SaveContext, save.shipSaveInfo.fileCreatedAt);
     desc.finalSeedOffset = (uint32_t)offsetof(SaveContext, save.shipSaveInfo.rando.finalSeed);
     desc.checkTableOffset = (uint32_t)offsetof(SaveContext, save.shipSaveInfo.rando.randoSaveChecks);
     desc.checkStride = (uint32_t)sizeof(RandoSaveCheck);

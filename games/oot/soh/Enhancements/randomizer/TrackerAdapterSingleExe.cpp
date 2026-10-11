@@ -8,8 +8,8 @@
  * makes the accessor route sound is the suspend contract: a cross-game switch
  * SUSPENDS OoT (audio+graph only) rather than shutting it down, so the heap —
  * and every status the trackers wrote into it — survives the entire MM
- * session. The view labels the result live only while OoT is the running
- * game ("Updated live"), and stale otherwise ("As of the last game switch").
+ * session. The view reports the result live only while OoT is the running
+ * game, and stale otherwise.
  *
  * NULL-SAFETY IS THE CONTRACT. Rando::Context::GetInstance() is a weak_ptr
  * lock — NULL until something creates the context (an MM-first session that

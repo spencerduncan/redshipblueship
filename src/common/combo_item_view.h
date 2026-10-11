@@ -33,8 +33,7 @@
  * THE SHARED GROUP. The shared-resource pool (shared_resources.h) is a third
  * source, origin-neutral by construction: rupees, hearts, magic, ammo and the
  * rest are one quantity across both games. It is harvested at every game switch
- * and before every save, so its rows are labelled "As of the last switch or
- * save", never live.
+ * and before every save, so its rows are STALE, never live.
  *
  * FRESHNESS IS A FIELD. Every row carries the freshness the view set for its
  * source; the adapter never sets it.
@@ -195,9 +194,9 @@ bool Combo_ItemActiveGamePaused(void);
 /** `game`'s grid (its adapter's, else kComboItemSohGrid). Never NULL. */
 const ComboItemGridStyle* Combo_ItemGridStyle(uint8_t game);
 
-/** Player wording for a per-game freshness, no closing period: "Updated live",
- *  "As of the last game switch or save" (MM's reads "As of file creation" in
- *  the same case the check tracker's does), "No data". Never NULL. */
+/** The caption a game's section draws under its header for a freshness: none,
+ *  "" for every game and freshness (#927: a section is labelled by its header
+ *  alone, as SoH's trackers label theirs). Never NULL. */
 const char* Combo_ItemFreshnessLabel(uint8_t game, uint8_t freshness);
 
 // ============================================================================
@@ -207,15 +206,13 @@ const char* Combo_ItemFreshnessLabel(uint8_t game, uint8_t freshness);
 /** Group name of the shared-resource rows. */
 #define COMBO_ITEM_SHARED_GROUP "Shared"
 
-/** Label of the shared group while the pool holds anything. */
-#define COMBO_ITEM_SHARED_LABEL "As of the last switch or save"
-
 /** STALE while the pool holds any resource, UNAVAILABLE while it is empty (no
  *  game has been harvested yet). Never LIVE: the pool advances only at a game
  *  switch or a save. */
 uint8_t Combo_ItemSharedFreshness(void);
 
-/** COMBO_ITEM_SHARED_LABEL, or "No data" while the pool is empty. Never NULL. */
+/** The caption the Shared section draws under its header: none, "" whatever
+ *  the pool holds (#927). Never NULL. */
 const char* Combo_ItemSharedLabel(void);
 
 /** Shared rows: one per resource this world shares (the triforce pieces only

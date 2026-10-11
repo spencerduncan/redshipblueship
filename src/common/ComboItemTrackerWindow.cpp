@@ -79,8 +79,8 @@ void BeginOverlay(int windowType) {
     // game window (ComboItemTrackerFitBoxes); should even the smallest scale
     // not fit, it is held to the game window's bottom edge rather than drawn
     // past it. The window type's title bar is kept whole: ImGui's auto-fit
-    // sizes to the contents alone, and a short state ("No data.") would cut
-    // the title.
+    // sizes to the contents alone, and a short state (headers with no rows)
+    // would cut the title.
     ImVec2 minSize(0.0f, 0.0f);
     ImVec2 maxSize(FLT_MAX, FLT_MAX);
     if (windowType == COMBO_ITEM_TRACKER_FLOATING) {
@@ -278,7 +278,7 @@ void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out, i
     if (section == COMBO_ITEM_SECTION_SHARED) {
         out.title = COMBO_ITEM_SHARED_GROUP;
         out.freshness = Combo_ItemSharedFreshness();
-        out.note = std::string(Combo_ItemSharedLabel()) + ".";
+        out.note = Combo_ItemSharedLabel();
         out.grid = &kComboItemSharedGrid;
         const int count = Combo_ItemSharedCount();
         for (int i = 0; i < count; i++) {
@@ -295,7 +295,7 @@ void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out, i
     const uint8_t game = section == COMBO_ITEM_SECTION_MM ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
     out.title = game == (uint8_t)GAME_MM ? "Majora's Mask" : "Ocarina of Time";
     out.freshness = Combo_ItemFreshness(game);
-    out.note = std::string(Combo_ItemFreshnessLabel(game, out.freshness)) + ".";
+    out.note = Combo_ItemFreshnessLabel(game, out.freshness);
     out.grid = Combo_ItemGridStyle(game);
     const int count = Combo_ItemCount(game);
     for (int i = 0; i < count && Combo_ItemRowAt(game, i, &row); i++) {
@@ -602,11 +602,11 @@ void ComboItemTrackerWindow::DrawElement() {
         // A column is never narrower than its header: the title between two
         // padded rules (SeparatorText) with at least two lines' height of rule
         // after it, so a section with no rows still reads as SoH's ruled
-        // header, and the freshness note on one line, so the header's height
-        // does not change with the column's width.
+        // header, and any note on one line, so the header's height does not
+        // change with the column's width.
         const float title = ImGui::CalcTextSize(section.title).x + style.SeparatorTextPadding.x * 2.0f +
                             metrics.textHeight * 2.0f;
-        const float note = ImGui::CalcTextSize(section.note.c_str()).x + 1.0f;
+        const float note = section.note.empty() ? 0.0f : ImGui::CalcTextSize(section.note.c_str()).x + 1.0f;
         const float headerWidth = title > note ? title : note;
         boxes[s].width = boxes[s].width > headerWidth ? boxes[s].width : headerWidth;
         plan.box = boxes[s];
@@ -629,7 +629,7 @@ void ComboItemTrackerWindow::DrawElement() {
     }
 
     // The sections side by side, one table column each, so a section's header
-    // and its wrapped note keep to its own column.
+    // keeps to its own column.
     std::vector<ImGuiID> headerIds;
     for (const ComboItemTrackerSection& section : sections) {
         headerIds.push_back(ImGui::GetID(kHeaderKeys[section.id]));
@@ -651,7 +651,9 @@ void ComboItemTrackerWindow::DrawElement() {
         ImGui::TableNextColumn();
         const float top = ImGui::GetCursorScreenPos().y;
         Ui().SeparatorText(section.title);
-        Ui().NoteText(section.note.c_str());
+        if (!section.note.empty()) {
+            Ui().NoteText(section.note.c_str());
+        }
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         // The next frame's fit reads the header's height as drawn.
         storage->SetFloat(headerIds[s], origin.y - top);

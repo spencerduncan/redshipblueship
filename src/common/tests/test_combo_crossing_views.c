@@ -49,9 +49,9 @@
  *        OoT world is then re-authored as the stand-in for OoT's own .sav load
  *        (this ROM-free row cannot drive SoH's SaveManager), and the rows read
  *        what they read before the save.
- *   The MM stale label on a shadow MM has never loaded (the creation event's
- *   armed half: MM's marker, no creation stamp yet, #765) is "As of file
- *   creation", not "the last game switch or save".
+ *   A shadow MM has never loaded (the creation event's armed half: MM's
+ *   marker, no creation stamp yet, #765) reads as STALE, MM's found state
+ *   included.
  *
  *   combo-crossing-views-world (rando tier). A REAL single-bag world, the
  *   ComboSingleBag pinned seed (RSBSSINGLEBAG1), made by the production creation
@@ -242,9 +242,6 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     memcpy(blob.data() + desc->newfOffset, desc->newf, desc->newfLen);
     memcpy(blob.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
     memcpy(blob.data() + desc->finalSeedOffset, &kSeed, sizeof(uint32_t));
-    // A save MM has loaded: its OnSaveLoad stamped the creation time (#765).
-    const uint64_t kCreatedAt = 1760000000ull;
-    memcpy(blob.data() + desc->createdAtOffset, &kCreatedAt, sizeof(kCreatedAt));
     CxvSetMMObtained(blob, desc, mmA, true);
     CxvSetMMObtained(blob, desc, mmB, false);
     CxvSetMMObtained(blob, desc, mmC, false);
@@ -323,20 +320,15 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     Combo_SpoilerPairingSummary(&summary);
     CXV_ASSERT(summary.paired && summary.mmHosted == 3 && summary.ootHosted == 2);
     // The creation event's shape: MM's half armed with MM's file-select marker
-    // but never loaded by MM, so no creation stamp yet (#765; the world row runs
-    // the real creation). MM's found state is read.
+    // but never loaded by MM (#765; the world row runs the real creation). MM's
+    // found state is read.
     {
         std::vector<uint8_t> unloaded = blob;
-        memset(unloaded.data() + desc->createdAtOffset, 0, sizeof(uint64_t));
         Context_UpdateShadowCopy(GAME_MM, unloaded.data(), unloaded.size());
         const std::vector<CxvRow> unloadedRows = CxvPaneRows((uint8_t)GAME_MM, &ok);
         CXV_ASSERT(ok && unloadedRows == inMM);
         Combo_TrackerForeignProgress((uint8_t)GAME_MM, &mmProgress);
         CXV_ASSERT(mmProgress.found == 1 && mmProgress.freshness == COMBO_TRACKER_FRESH_STALE);
-        // MM has never loaded this half: its data is as of file creation, and
-        // the note must not name a switch or save that never happened.
-        CXV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE),
-                          "As of file creation") == 0);
         // ...but an all-zero shadow (MM never entered) is still no data at all.
         std::vector<uint8_t> zero((size_t)MM_SAVE_CONTEXT_SIZE, 0);
         Context_UpdateShadowCopy(GAME_MM, zero.data(), zero.size());
@@ -346,8 +338,6 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
         CXV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &unknownRow) &&
                    unknownRow.found == COMBO_TRACKER_FOUND_UNKNOWN);
         Context_UpdateShadowCopy(GAME_MM, blob.data(), blob.size());
-        CXV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE),
-                          "As of the last game switch or save") == 0);
     }
 
     // ---- 4. a game switch --------------------------------------------------

@@ -235,14 +235,10 @@ int CheckArmedHalf(uint32_t expectSeed) {
     CNF_ASSERT(desc != nullptr, "MM's tracker descriptor registered");
     ComboTrackerGameSummary summary;
     Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
-    printf("[TEST] %s: tracker MM summary: freshness=%d hasWorld=%d seed=%08X shuffled=%d label=\"%s\"\n", sRow,
-           (int)summary.freshness, (int)summary.hasWorld, (unsigned)summary.seed, summary.shuffled,
-           Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE));
+    printf("[TEST] %s: tracker MM summary: freshness=%d hasWorld=%d seed=%08X shuffled=%d\n", sRow,
+           (int)summary.freshness, (int)summary.hasWorld, (unsigned)summary.seed, summary.shuffled);
     CNF_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE, "the tracker reads the armed MM half as present");
     CNF_ASSERT(summary.hasWorld && summary.seed == expectSeed, "the tracker reads the armed half's rando world");
-    CNF_ASSERT(
-        strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE), "As of file creation") == 0,
-        "a half MM has never loaded is labelled as of file creation");
 
     std::vector<uint8_t> armed((size_t)MM_SAVE_CONTEXT_SIZE, 0);
     memcpy(armed.data(), Context_GetMMSaveContext(), armed.size());
@@ -255,15 +251,6 @@ int CheckArmedHalf(uint32_t expectSeed) {
         Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
         CNF_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE,
                    "presence is the marker's alone: no save-type widening");
-        // MM's first load stamps fileCreatedAt (SavingEnhancements' OnSaveLoad);
-        // from then on the note names the last switch or save.
-        std::vector<uint8_t> loaded = armed;
-        const uint64_t createdAt = 1760000000ull;
-        memcpy(loaded.data() + offsetof(SaveContext, save.shipSaveInfo.fileCreatedAt), &createdAt, sizeof(createdAt));
-        PutShadow(loaded);
-        CNF_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE),
-                          "As of the last game switch or save") == 0,
-                   "a half MM has loaded is labelled as of the last switch or save");
         PutShadow(armed);
     }
 

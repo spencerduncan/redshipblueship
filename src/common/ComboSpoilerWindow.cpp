@@ -74,8 +74,7 @@ void ComboSpoilerWindow::DrawElement() {
     // would tell the player this world has no crossings when the truth is that
     // these two worlds were never paired at all (see combo_spoiler_view.h).
     if (!summary.paired) {
-        Ui().NoteText("No paired world. This save was not created as a cross-game pair, so neither game holds the "
-                      "other's items.");
+        Ui().NoteText("No paired world.");
         return;
     }
 
