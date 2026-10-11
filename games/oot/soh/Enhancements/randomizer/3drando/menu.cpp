@@ -541,6 +541,7 @@ static size_t CheckCrossingHostHint(const std::string& label, Rando::Hint& hint,
                 label.c_str(), (unsigned)host, doc["item"].dump().c_str(), expectedBare.c_str());
         failures++;
     }
+    fprintf(stderr, "[rando-hints] %s names crossing host %u: \"%s\"\n", label.c_str(), (unsigned)host, text.c_str());
     return failures;
 }
 

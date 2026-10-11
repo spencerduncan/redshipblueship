@@ -856,8 +856,8 @@ TestResult ComboSingleBag_Run(void) {
     {
         const int hintRc = Rando_ValidatePairedWorldHints();
         printf("[TEST] combo-single-bag: paired-world hint validity rc=%d\n", hintRc);
-        CSB_ASSERT(hintRc == 0, "a paired world's hints name a crossing host, leave one hintable, point at no OoT "
-                                "location without naming Termina, or fail a #441 check (see [rando-hints])");
+        CSB_ASSERT(hintRc == 0, "a paired world's hints leave a crossing host unhintable or name its cover, point at "
+                                "no OoT location without naming Termina, or fail a #441 check (see [rando-hints])");
     }
 
     // ------------------------------------------------------------------

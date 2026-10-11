@@ -14,6 +14,9 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "combo_area.h" // src/common: the shared area vocabulary (#575 H3a)
 #include "game.h"       // src/common: GAME_MM
+// ForeignItemsSingleExe.cpp (#575 H3b): 1 when OoT check `rc` hosts an MM item, read
+// only while OoT's remainder hints the paired world the crossing store describes.
+extern "C" int OoT_Combo_HintPassHostsCrossing(int rc);
 #endif
 
 using namespace Rando;
@@ -150,6 +153,13 @@ bool FilterDungeonLocations(RandomizerCheck loc) {
 
 bool FilterGoodItems(RandomizerCheck loc) {
     auto ctx = Rando::Context::GetInstance();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip (#575 H3b): a crossing host holds a junk cover, but what it
+    // yields is an MM item of the single bag, which is progression.
+    if (OoT_Combo_HintPassHostsCrossing((int)loc) != 0) {
+        return true;
+    }
+#endif
     return ctx->GetItemLocation(loc)->GetPlacedItem().IsMajorItem();
 }
 

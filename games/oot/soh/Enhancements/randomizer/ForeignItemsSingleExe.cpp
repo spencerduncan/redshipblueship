@@ -47,6 +47,7 @@
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/logic.h"
 #include "soh/Enhancements/randomizer/savefile.h" // Randomizer_InitSaveFile: runs AFTER the creation event
+#include "soh/Enhancements/game-interactor/GameInteractor.h" // IsSaveLoaded: the hint text's gate (#575 H3b)
 // ReachabilitySearch — the reverse pass's reachability gate (#656). The same
 // header entrance.cpp reaches it through, from the same directory.
 #include "3drando/fill.hpp"
@@ -366,6 +367,57 @@ extern "C" int OoT_Combo_MMHostOfItem(int rg) {
         }
     }
     return 0;
+}
+
+// ComboLogicEngineOoT.cpp: 1 while OoT's remainder hints the paired world just
+// captured, and 1 while that world's spoiler is written.
+extern "C" int OoT_ComboLogic_HintingPairedRemainder(void);
+extern "C" int OoT_ComboLogic_WritingSingleBagSpoiler(void);
+
+/**
+ * #575 H3b: 1 when OoT check `rc` is a crossing host, for OoT's hint PASS (the
+ * checks a stone may pick, and the "Named Item" filter, which counts every
+ * crossing as major: the single bag carries progression only).
+ *
+ * The crossing store outlives the creation that filled it (it is cleared on a cold
+ * boot, a slot load, a failed creation and a session invalidation, not by a new
+ * generation), so a hint pass over any other world (a native general pass, a
+ * spoiler load's static hints) would read another world's crossings. The pass
+ * reads it only while OoT's remainder hints the paired world the store describes,
+ * the gate the Termina answer already uses (3drando/hints.cpp).
+ */
+extern "C" int OoT_Combo_HintPassHostsCrossing(int rc) {
+    if (rc <= 0 || OoT_ComboLogic_HintingPairedRemainder() == 0) {
+        return 0;
+    }
+    return Combo_GetForeignPlacementForOoTCheck((uint16_t)rc) != nullptr ? 1 : 0;
+}
+
+/**
+ * #575 H3b: the MM item OoT check `rc` yields, for the TEXT of an OoT hint that
+ * names the check (hint.cpp: the stone's words and the spoiler's "item"), or NULL
+ * when the hint should name what the check physically holds.
+ *
+ * The text is rendered in three moments, and the store describes the world being
+ * hinted in each only under its own condition:
+ *   - OoT's remainder builds the paired world's hints (OoT_ComboLogic_HintingPairedRemainder);
+ *   - the paired creation writes that world's spoiler (OoT_ComboLogic_WritingSingleBagSpoiler);
+ *   - a paired file is loaded and played: a slot load clears the store and loads
+ *     the file's own crossings, and a creation captures them, so during play the
+ *     store is the loaded file's (Combo_ForeignPairingActive and a loaded save).
+ * Anywhere else (a native general pass and its spoiler, the file select between a
+ * generation and the next load) the store may be another world's, and the check
+ * names its own item. Unpaired, the drain refuses the crossing and gives the cover,
+ * so the cover is what the check yields: the Check Tracker names it too.
+ */
+extern "C" const SharedItem* OoT_Combo_HintTextCrossingAt(int rc) {
+    if (rc <= 0) {
+        return nullptr;
+    }
+    const bool hintingThisWorld = OoT_ComboLogic_HintingPairedRemainder() != 0 ||
+                                  OoT_ComboLogic_WritingSingleBagSpoiler() != 0 ||
+                                  (Combo_ForeignPairingActive() && GameInteractor::IsSaveLoaded());
+    return hintingThisWorld ? Combo_GetForeignPlacementForOoTCheck((uint16_t)rc) : nullptr;
 }
 
 /** 1 when OoT check `rc` hosts an MM item in the crossing store (a crossing host). */

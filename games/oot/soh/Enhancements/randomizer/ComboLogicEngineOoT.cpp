@@ -2570,17 +2570,15 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
     }
     itemPool.clear();
 
-    // 2. The coordinator's OoT hosts are hintable, as the native pass's are —
-    //    EXCEPT a crossing host. It physically holds kOoTForeignJunkCover while
-    //    its real content is an MM item delivered through the crossing store, and
-    //    OoT's hint text reads the physical item: a gossip stone would name a Blue
-    //    Rupee for an MM progression item (PR #743 review). Kept out of every
-    //    location hint instead; where an OoT item hint's target crossed into MM,
-    //    hints.cpp names Termina.
+    // 2. The coordinator's OoT hosts are hintable, as the native pass's are,
+    //    crossing hosts included (#575 H3b, the mirror of MM's #814). A crossing
+    //    host physically holds kOoTForeignJunkCover while its real content is an
+    //    MM item delivered through the crossing store; OoT's hint text names that
+    //    MM item, never the cover (hint.cpp, through OoT_Combo_HintTextCrossingAt),
+    //    and the "Named Item" filter counts it as major (hints.cpp). Before #575
+    //    H3b a host was kept out of every location hint (PR #743 review), because
+    //    the text read the physical item and a stone would have named a Blue Rupee.
     for (int i = 0; i < sPlacementCount; ++i) {
-        if (sPlacements[i].item.originGame != (uint8_t)GAME_OOT) {
-            continue;
-        }
         Rando::ItemLocation* il = ctx->GetItemLocation(sPlacements[i].host);
         if (il != nullptr) {
             il->SetAsHintable();
