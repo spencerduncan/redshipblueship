@@ -382,117 +382,149 @@ extern "C" int MM_TrackersGui_RunHeadless(void) {
         TGT_ASSERT(ImGui::GetCurrentContext() == nullptr,
                    "harness already has an ImGui context: legs 2 and 6 above would not be hard tripwires");
 
-        for (const char* cvar : kMMWindowVisibilityCVars) {
-            CVarClear(cvar);
-        }
-        // The old config: only the key a retired Combo > Windows row wrote.
-        CVarSetInteger(S2H::TrackersGui::kCheckTrackerVisibilityCVar, 1);
-
         auto closeGui = std::make_shared<Ship::Gui>();
         S2H::TrackersGui::RegisterWindows(closeGui);
         std::shared_ptr<Ship::GuiWindow> checkTracker =
             closeGui->GetGuiWindow(S2H::TrackersGui::kCheckTrackerWindowName);
         TGT_ASSERT(checkTracker != nullptr, "MM Check Tracker missing from a fresh Gui");
 
-        ImGuiContext* imgui = ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO();
-        io.IniFilename = nullptr;
-        io.LogFilename = nullptr;
-        io.DisplaySize = ImVec2(1280.0f, 800.0f);
-        io.DeltaTime = 1.0f / 60.0f;
-        io.Fonts->AddFontDefault();
-        unsigned char* atlasPixels = nullptr;
-        int atlasW = 0;
-        int atlasH = 0;
-        io.Fonts->GetTexDataAsRGBA32(&atlasPixels, &atlasW, &atlasH); // builds the atlas; no renderer needs it
-
-        const GameId prevCloseGame = Context_GetCurrentGame();
-        Context_SetCurrentGame(GAME_MM);
-
         // CheckTracker.cpp's single-exe ImGui id for the window (#392).
         const char* kCheckTrackerImGuiName = "Check Tracker (MM)";
-        auto drawFrame = [&]() {
-            ImGui::NewFrame();
-            checkTracker->Draw();
-            ImGui::Render();
-        };
-        auto drawnThisFrame = [&]() -> ImGuiWindow* {
-            ImGuiWindow* window = ImGui::FindWindowByName(kCheckTrackerImGuiName);
-            return (window != nullptr && window->LastFrameActive == ImGui::GetFrameCount()) ? window : nullptr;
-        };
 
-        const char* failure = [&]() -> const char* {
-            drawFrame();
-            ImGuiWindow* tracker = drawnThisFrame();
-            if (tracker == nullptr) {
-                return "gWindows.CheckTracker=1 did not open MM's Check Tracker: the U6 ruling (the keys still "
-                       "open the native windows) no longer holds";
-            }
-
-            // Right-click the middle of the tracker (its "No Rando Save Loaded"
-            // pane: no MM play state here).
-            io.AddMousePosEvent(tracker->Pos.x + tracker->Size.x * 0.5f, tracker->Pos.y + tracker->Size.y * 0.5f);
-            drawFrame();
-            io.AddMouseButtonEvent(ImGuiMouseButton_Right, true);
-            drawFrame();
-            io.AddMouseButtonEvent(ImGuiMouseButton_Right, false);
-            drawFrame();
-            drawFrame(); // a popup's first frame is hidden while it sizes itself
-            drawFrame();
-
-            ImGuiContext& g = *ImGui::GetCurrentContext();
-            if (g.OpenPopupStack.empty() || g.OpenPopupStack.back().Window == nullptr) {
-                return "right-clicking MM's Check Tracker opened no menu: nothing in the game closes a tracker an "
-                       "old config left open (#897)";
-            }
-            ImGuiWindow* menu = g.OpenPopupStack.back().Window;
-
-            // Left-click the menu's first (only) item.
-            const ImGuiStyle& style = ImGui::GetStyle();
-            io.AddMousePosEvent(menu->Pos.x + style.WindowPadding.x + 4.0f,
-                                menu->Pos.y + style.WindowPadding.y + ImGui::GetFontSize() * 0.5f);
-            drawFrame();
-            io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
-            drawFrame();
-            io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
-            drawFrame();
-
-            if (CVarGetInteger(S2H::TrackersGui::kCheckTrackerVisibilityCVar, 0) != 0) {
-                return "choosing Close left gWindows.CheckTracker set: the per-frame re-sync reopens the tracker "
-                       "(#897)";
-            }
-            if (MM_TrackersGui_ShouldShow(S2H::TrackersGui::kCheckTrackerWindowName)) {
-                return "choosing Close left MM's Check Tracker visible (#897)";
-            }
-            drawFrame();
-            S2H::TrackersGui::SyncVisibilityFromCVars();
-            drawFrame();
-            if (drawnThisFrame() != nullptr) {
-                return "MM's Check Tracker is still drawn two frames after Close (#897)";
-            }
-
-            // The key still opens the window: Close is a player action, not a
-            // retirement of the fallback.
-            CVarSetInteger(S2H::TrackersGui::kCheckTrackerVisibilityCVar, 1);
-            drawFrame();
-            if (drawnThisFrame() == nullptr) {
-                return "setting gWindows.CheckTracker again after Close did not reopen MM's Check Tracker";
-            }
-            return nullptr;
-        }();
-
-        Context_SetCurrentGame(prevCloseGame);
-        ImGui::DestroyContext(imgui);
-
-        if (failure != nullptr) {
-            printf("[TEST] FAIL: %s (%s:%d)\n", failure, __FILE__, __LINE__);
+        // One pass per way an old config can leave the tracker on screen:
+        // floating, and docked (LUS persists the dock layout in imgui.ini, and
+        // the vendored Check Tracker opens without NoDocking). A docked window
+        // is begun inside its dock host and carries ImGuiWindowFlags_ChildWindow,
+        // so the docked pass is what catches a Close menu that skips it.
+        auto runPass = [&](bool docked) -> const char* {
             for (const char* cvar : kMMWindowVisibilityCVars) {
                 CVarClear(cvar);
             }
-            return 1;
+            // The old config: only the key a retired Combo > Windows row wrote.
+            CVarSetInteger(S2H::TrackersGui::kCheckTrackerVisibilityCVar, 1);
+
+            ImGuiContext* imgui = ImGui::CreateContext();
+            ImGuiIO& io = ImGui::GetIO();
+            io.IniFilename = nullptr;
+            io.LogFilename = nullptr;
+            io.DisplaySize = ImVec2(1280.0f, 800.0f);
+            io.DeltaTime = 1.0f / 60.0f;
+            if (docked) {
+                io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+            }
+            io.Fonts->AddFontDefault();
+            unsigned char* atlasPixels = nullptr;
+            int atlasW = 0;
+            int atlasH = 0;
+            io.Fonts->GetTexDataAsRGBA32(&atlasPixels, &atlasW, &atlasH); // builds the atlas; no renderer needs it
+
+            const GameId prevCloseGame = Context_GetCurrentGame();
+            Context_SetCurrentGame(GAME_MM);
+
+            bool dockRequested = false;
+            auto drawFrame = [&]() {
+                ImGui::NewFrame();
+                if (docked) {
+                    // LUS begins its main dockspace host before any GuiWindow
+                    // draws; this mirrors that order.
+                    const ImGuiID dockspace = ImGui::DockSpaceOverViewport();
+                    if (!dockRequested) {
+                        // What an imgui.ini that holds a docked tracker restores.
+                        ImGui::DockBuilderDockWindow(kCheckTrackerImGuiName, dockspace);
+                        dockRequested = true;
+                    }
+                }
+                checkTracker->Draw();
+                ImGui::Render();
+            };
+            auto drawnThisFrame = [&]() -> ImGuiWindow* {
+                ImGuiWindow* window = ImGui::FindWindowByName(kCheckTrackerImGuiName);
+                return (window != nullptr && window->LastFrameActive == ImGui::GetFrameCount()) ? window : nullptr;
+            };
+
+            const char* failure = [&]() -> const char* {
+                drawFrame();
+                drawFrame();
+                ImGuiWindow* tracker = drawnThisFrame();
+                if (tracker == nullptr) {
+                    return "gWindows.CheckTracker=1 did not open MM's Check Tracker: the U6 ruling (the keys still "
+                           "open the native windows) no longer holds";
+                }
+                if (docked && (!tracker->DockIsActive || (tracker->Flags & ImGuiWindowFlags_ChildWindow) == 0)) {
+                    return "the docked pass did not dock MM's Check Tracker, so it would not test the docked case";
+                }
+
+                // Right-click the middle of the tracker (its "No Rando Save
+                // Loaded" pane: no MM play state here).
+                io.AddMousePosEvent(tracker->Pos.x + tracker->Size.x * 0.5f, tracker->Pos.y + tracker->Size.y * 0.5f);
+                drawFrame();
+                io.AddMouseButtonEvent(ImGuiMouseButton_Right, true);
+                drawFrame();
+                io.AddMouseButtonEvent(ImGuiMouseButton_Right, false);
+                drawFrame();
+                drawFrame(); // a popup's first frame is hidden while it sizes itself
+                drawFrame();
+
+                ImGuiContext& g = *ImGui::GetCurrentContext();
+                if (g.OpenPopupStack.empty() || g.OpenPopupStack.back().Window == nullptr) {
+                    return "right-clicking MM's Check Tracker opened no menu: nothing in the game closes a tracker "
+                           "an old config left open (#897)";
+                }
+                ImGuiWindow* menu = g.OpenPopupStack.back().Window;
+
+                // Left-click the menu's first (only) item.
+                const ImGuiStyle& style = ImGui::GetStyle();
+                io.AddMousePosEvent(menu->Pos.x + style.WindowPadding.x + 4.0f,
+                                    menu->Pos.y + style.WindowPadding.y + ImGui::GetFontSize() * 0.5f);
+                drawFrame();
+                io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+                drawFrame();
+                io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+                drawFrame();
+
+                if (CVarGetInteger(S2H::TrackersGui::kCheckTrackerVisibilityCVar, 0) != 0) {
+                    return "choosing Close left gWindows.CheckTracker set: the per-frame re-sync reopens the "
+                           "tracker (#897)";
+                }
+                if (MM_TrackersGui_ShouldShow(S2H::TrackersGui::kCheckTrackerWindowName)) {
+                    return "choosing Close left MM's Check Tracker visible (#897)";
+                }
+                drawFrame();
+                S2H::TrackersGui::SyncVisibilityFromCVars();
+                drawFrame();
+                if (drawnThisFrame() != nullptr) {
+                    return "MM's Check Tracker is still drawn two frames after Close (#897)";
+                }
+
+                // The key still opens the window: Close is a player action,
+                // not a retirement of the fallback.
+                CVarSetInteger(S2H::TrackersGui::kCheckTrackerVisibilityCVar, 1);
+                drawFrame();
+                if (drawnThisFrame() == nullptr) {
+                    return "setting gWindows.CheckTracker again after Close did not reopen MM's Check Tracker";
+                }
+                return nullptr;
+            }();
+
+            Context_SetCurrentGame(prevCloseGame);
+            ImGui::DestroyContext(imgui);
+            return failure;
+        };
+
+        for (const bool docked : { false, true }) {
+            const char* failure = runPass(docked);
+            if (failure != nullptr) {
+                printf("[TEST] FAIL: %s pass: %s (%s:%d)\n", docked ? "docked" : "floating", failure, __FILE__,
+                       __LINE__);
+                for (const char* cvar : kMMWindowVisibilityCVars) {
+                    CVarClear(cvar);
+                }
+                return 1;
+            }
+            printf("[TEST] leg 7 (%s): gWindows.CheckTracker=1 opens MM's Check Tracker; right-click > Close clears "
+                   "the key and the window stays shut; the key reopens it (#897)\n",
+                   docked ? "docked" : "floating");
         }
-        printf("[TEST] leg 7: gWindows.CheckTracker=1 opens MM's Check Tracker; right-click > Close clears the key "
-               "and the window stays shut; the key reopens it (#897)\n");
     }
 
     // Cleanup: don't leak forced-visible tracker CVars into later tests or a
