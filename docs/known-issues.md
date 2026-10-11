@@ -147,7 +147,9 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   Hyrule, Majora's Mask's is as of the last game switch or save (as of file creation
   until Majora's Mask is first entered), which the switch itself writes (#755, #757).
 - **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero
-  or barren analysis. Crossing hosts are never hinted. An OoT item that crossed is
+  or barren analysis. OoT's gossip stones may hint an OoT check that holds a Majora's Mask
+  item, and name that item with " (MM)", never the Blue Rupee the check holds
+  ([#575](https://github.com/spencerduncan/redshipblueship/issues/575) H3b). An OoT item that crossed is
   hinted by the Majora's Mask area that holds it, for example "the Southern Swamp"
   (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743), [#575](https://github.com/spencerduncan/redshipblueship/issues/575) H3a);
   a file created before that still says "Termina".
