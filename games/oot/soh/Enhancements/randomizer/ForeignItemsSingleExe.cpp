@@ -46,7 +46,7 @@
 #include "soh/Enhancements/randomizer/item.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/logic.h"
-#include "soh/Enhancements/randomizer/savefile.h" // Randomizer_InitSaveFile: runs AFTER the creation event
+#include "soh/Enhancements/randomizer/savefile.h"            // Randomizer_InitSaveFile: runs AFTER the creation event
 #include "soh/Enhancements/game-interactor/GameInteractor.h" // IsSaveLoaded: the hint text's gate (#575 H3b)
 // ReachabilitySearch — the reverse pass's reachability gate (#656). The same
 // header entrance.cpp reaches it through, from the same directory.
