@@ -197,7 +197,8 @@ int NextImGuiBeginOrder(void) {
  * top-level window that Draw() began this frame (ImGui appends to a window
  * begun twice in one frame) and gives it a right-click menu with one item,
  * Close. Covering every window the Draw() began, rather than one hard-coded
- * ImGui name, is what reaches the Item Tracker's split-group windows too.
+ * ImGui name, is what reaches the Item Tracker's split-group windows too, and
+ * a tracker an old imgui.ini left docked is covered as well.
  * Returns true when the player chose Close.
  */
 bool DrawCloseMenu(int firstBeginOrder) {
@@ -212,7 +213,13 @@ bool DrawCloseMenu(int firstBeginOrder) {
         if (window->LastFrameActive != g->FrameCount || window->BeginOrderWithinContext < firstBeginOrder) {
             continue;
         }
-        if ((window->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Popup | ImGuiWindowFlags_Tooltip)) != 0) {
+        if ((window->Flags & (ImGuiWindowFlags_Popup | ImGuiWindowFlags_Tooltip)) != 0) {
+            continue;
+        }
+        // A docked window carries ImGuiWindowFlags_ChildWindow too (BeginDocked
+        // sets it), and its dock host was begun before Draw(), so a docked
+        // tracker is still collected here; real child windows are not.
+        if ((window->Flags & ImGuiWindowFlags_ChildWindow) != 0 && !window->DockIsActive) {
             continue;
         }
         began.push_back(window);
