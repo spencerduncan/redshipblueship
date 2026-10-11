@@ -49,6 +49,8 @@ void OoT_HintArea_TestSpecials(uint8_t* outNone, uint8_t* outPocket, uint8_t* ou
 int MM_Rando_Hints_TestGossipCandidate(uint16_t randoCheckId, int excludeObtained);
 int MM_Rando_Hints_TestGossipText(uint16_t randoCheckId, int purchased, char* out, int cap);
 int MM_Rando_Hints_TestSceneName(uint16_t randoCheckId, char* out, int cap);
+// #575 H2: the helper every MM hint fills its location with (HintAreaSingleExe.cpp)
+int MM_HintArea_TestLocationText(uint16_t randoCheckId, const char* tmpl, const char* key, char* out, int cap);
 void MM_Rando_Hints_TestSetCheck(uint16_t randoCheckId, uint16_t randoItemId, int shuffled, int obtained,
                                  uint16_t* priorItemId, int* priorShuffled, int* priorObtained);
 }
@@ -362,6 +364,30 @@ TestResult Test_MmHintAreaText(void) {
            (unsigned)firstEnemyDrop, dropFree, dropPurchased, (unsigned)firstGrotto, grottoFree, grottoPurchased);
     CA_ASSERT(grottoFree == 1 && grottoPurchased == 1); // control: the same item on a check with an area
     CA_ASSERT(dropFree == 0 && dropPurchased == 0);
+
+    // ---- 4. The static hints (Oath, remains, Hookshot, gold dust) fill theirs through the same helper.
+    char said[256];
+    const ComboArea grottoArea = Combo_Area_OfCheck((uint8_t)GAME_MM, firstGrotto);
+    CA_ASSERT(Combo_Area_Prepos(grottoArea) != nullptr);
+    // a template that names the preposition (gold dust, remains, Hookshot)
+    CA_ASSERT(MM_HintArea_TestLocationText(firstGrotto, "can be found {{prepos}} %r{location}%w?", "{location}", said,
+                                           (int)sizeof(said)) > 0);
+    CA_ASSERT(std::string("can be found ") + Combo_Area_Prepos(grottoArea) + " %r" + Combo_Area_Name(grottoArea) +
+                  "%w?" ==
+              said);
+    // a template that does not (the Oath: "coming from"): the name alone
+    CA_ASSERT(MM_HintArea_TestLocationText(firstGrotto, "coming from %y{{location}}%w.", "{{location}}", said,
+                                           (int)sizeof(said)) > 0);
+    CA_ASSERT(std::string("coming from %y") + Combo_Area_Name(grottoArea) + "%w." == said);
+    // no area: an enemy drop, and RC_UNKNOWN (0, what FindItemPlacement returns
+    // for an item no MM check holds): "nowhere", OoTMM's word, with no preposition
+    const uint16_t noArea[2] = { firstEnemyDrop, 0 };
+    for (int i = 0; i < 2; i++) {
+        CA_ASSERT(MM_HintArea_TestLocationText(noArea[i], "can be found {{prepos}} %r{location}%w?", "{location}",
+                                               said, (int)sizeof(said)) > 0);
+        printf("[TEST]   check %u (no area): \"%s\"\n", (unsigned)noArea[i], said);
+        CA_ASSERT(strcmp(said, "can be found %rnowhere%w?") == 0);
+    }
 
     printf("[TEST] PASS: mm-hint-area-text\n");
     return TEST_PASS;

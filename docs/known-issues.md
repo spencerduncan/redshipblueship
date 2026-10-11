@@ -149,6 +149,11 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 - **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero
   or barren analysis. Crossing hosts are never hinted, and an OoT item that crossed is
   hinted as "Termina" (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+  Majora's Mask's own hints (gossip stones, and the Oath, remains, Hookshot and gold dust
+  hints) name a check's area the way OoTMM does ("in the Southern Swamp", "around Goron
+  Village"), not its scene, so a grotto no longer reads "Lone Peak Shrine & Grottos" and
+  an enemy drop is never hinted. An MM item that crossed into Hyrule is still hinted as
+  "nowhere" ([#575](https://github.com/spencerduncan/redshipblueship/issues/575) H2; H3c names its OoT area).
 - **Triforce Hunt is not yet a paired goal.** The Goal row lists it, but generation
   refuses it, and OoTMM's Triforce Quest is not offered (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#760](https://github.com/spencerduncan/redshipblueship/pull/760), [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
 - ~~**Some settings re-seed the world without changing a rule.**~~ RESOLVED: the pool-size

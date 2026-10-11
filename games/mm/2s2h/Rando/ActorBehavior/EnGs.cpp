@@ -2,6 +2,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "2s2h/ShipUtils.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
+#include "2s2h/Rando/HintArea.h" // #575 H2: a hint names the check's area (scene name outside single-exe)
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // ForeignNameForCheck: a crossing host's hint (#575 item 2)
 #include <cstdio>          // snprintf in the test bridge below
@@ -62,6 +63,10 @@ static std::vector<RandoCheckId> GossipHintCandidates(bool excludeObtained) {
         // puts only progression in the bag), so a host is always worth a hint.
         bool hintable = Rando::StaticData::Items[saveCheck.randoItemId].randoItemType != RITYPE_JUNK ||
                         Rando::Foreign::ForeignNameForCheck(randoCheckId) != nullptr;
+        // #575 H2: the stone names the check's area, so a check with none (the
+        // 55 enemy drops) has nowhere to name: OoTMM's hints skip region-less
+        // checks the same way.
+        hintable = hintable && Rando::HintArea::HasArea(randoCheckId);
         if (saveCheck.shuffled && hintable && (!excludeObtained || !saveCheck.obtained)) {
             availableChecks.push_back(randoCheckId);
         }
@@ -141,11 +146,10 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
 
             entry.autoFormat = false;
 
-            entry.msg = "They say %g{{item}}%w is hidden at %y{{location}}%w.";
+            entry.msg = "They say %g{{item}}%w is hidden " RANDO_HINT_PREPOS("at") " %y{{location}}%w.";
 
             CustomMessage::Replace(&entry.msg, "{{item}}", GossipHintItemName(randoCheckId));
-            CustomMessage::Replace(&entry.msg, "{{location}}",
-                                   Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
+            Rando::HintArea::ReplaceLocation(&entry.msg, "{{location}}", randoCheckId);
 
             // Replace colors before line break calculation
             CustomMessage::ReplaceColorChars(&entry.msg);
@@ -187,11 +191,11 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
                 } else if (randoCheckId == RC_UNKNOWN) {
                     entry.msg = "I have no more hints for you...";
                 } else {
-                    entry.msg = "Wise choice... They say %g{{item}}%w is hidden at %y{{location}}%w.";
+                    entry.msg =
+                        "Wise choice... They say %g{{item}}%w is hidden " RANDO_HINT_PREPOS("at") " %y{{location}}%w.";
 
                     CustomMessage::Replace(&entry.msg, "{{item}}", GossipHintItemName(randoCheckId));
-                    CustomMessage::Replace(&entry.msg, "{{location}}",
-                                           Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
+                    Rando::HintArea::ReplaceLocation(&entry.msg, "{{location}}", randoCheckId);
 
                     gSaveContext.rupeeAccumulator -= cost;
                     cost *= 2;
@@ -279,11 +283,11 @@ extern "C" int MM_Rando_Hints_TestGossipText(uint16_t randoCheckId, int purchase
     if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
         return -1;
     }
-    std::string msg = purchased != 0 ? "Wise choice... They say %g{{item}}%w is hidden at %y{{location}}%w."
-                                     : "They say %g{{item}}%w is hidden at %y{{location}}%w.";
+    std::string msg =
+        purchased != 0 ? "Wise choice... They say %g{{item}}%w is hidden " RANDO_HINT_PREPOS("at") " %y{{location}}%w."
+                       : "They say %g{{item}}%w is hidden " RANDO_HINT_PREPOS("at") " %y{{location}}%w.";
     CustomMessage::Replace(&msg, "{{item}}", GossipHintItemName((RandoCheckId)randoCheckId));
-    CustomMessage::Replace(&msg, "{{location}}",
-                           Ship_GetSceneName(Rando::StaticData::Checks[(RandoCheckId)randoCheckId].sceneId));
+    Rando::HintArea::ReplaceLocation(&msg, "{{location}}", (RandoCheckId)randoCheckId);
     snprintf(out, (size_t)cap, "%s", msg.c_str());
     return (int)msg.size();
 }
