@@ -638,6 +638,12 @@ extern "C" {
 // CTest timeout. No display, no ROM archives, no game loop.
 #include "tests/test_gp_watchdog.c"
 
+// Stderr-capture read-after-write lock (#901). FILE SCOPE: it drives the
+// production stderr tee declared in integration_test_hooks.h (already included
+// above) and checks a query sees the line written just before it. No display,
+// no ROM archives, no game loop.
+#include "tests/test_stderr_capture_sync.c"
+
 // #560 root-cause contention lock over the shared per-archive handle. FILE
 // SCOPE (compiled as C++): it drives the C++-linkage Ship::Context /
 // ResourceManager / ArchiveManager APIs directly. The wrapper
@@ -5608,6 +5614,8 @@ const TestDescriptor gTests[] = {
     {"oot-audio-init-guard", "OoT synth no-ops while gAudioContextInitalized == false (#365)", Test_OoTAudioInitGuard},
     {"gp-watchdog", "Gameplay round-trip watchdog is wall-clock budgeted, can fire before the timeout (#376)",
      Test_GpWatchdog},
+    {"stderr-capture-sync", "A stderr-capture query sees the line its caller just wrote (#901)",
+     Test_StderrCaptureSync},
     {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
     {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
     {"mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",

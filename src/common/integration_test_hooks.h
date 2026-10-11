@@ -392,6 +392,12 @@ void IntegrationTest_StderrCaptureStop(void);
  */
 void IntegrationTest_StderrCaptureRestoreForCrash(void);
 
+/*
+ * Both queries below first wait (bounded) for the reader to consume everything
+ * written to fd 2 before the call, so a line the caller has just written is
+ * always seen: the verdict never races its own stderr (#901).
+ */
+
 /** Number of kept lines containing `needle` (0 when the capture never started). */
 int IntegrationTest_StderrCaptureCount(const char* needle);
 
