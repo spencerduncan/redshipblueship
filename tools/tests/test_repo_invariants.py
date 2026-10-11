@@ -285,7 +285,9 @@ def test_titlesetup_transitions_are_guarded_or_marked_exempt():
 
     TitleSetup_SetupTitleScreen calls MM_Sram_InitNewSave, so a fresh vanilla
     file becomes the live gSaveContext while gComboCtx and OoT's frozen blob
-    stay resident (MM has no twin of Context_InvalidateSessionOnReturnToTitle).
+    stay resident (MM had no twin of Context_InvalidateSessionOnReturnToTitle;
+    since #564 V21 MM's TitleSetup retires a paired file's session first and
+    MM_Sram_InitNewSave refuses over one, which these reroutes still avoid).
     The next hop back to OoT freezes that bootstrap into the MM shadow, and
     OoT's next save serializes it into the .redsave's Tier-3 -- overwriting the
     MM half the owl save persisted seconds earlier.

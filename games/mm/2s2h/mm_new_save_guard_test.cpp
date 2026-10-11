@@ -44,6 +44,10 @@
  *      open, no pairing; the hot-swap first entry beside a suspended OoT) keeps
  *      OoT's frozen blob through MM's title, and a staged generation with no
  *      file (pairing, no slot) still lets MM author.
+ *   6. The paired creation event's exemption: inside the creation scope
+ *      (MM_Combo_SetCreationAuthoring, which MM_Rando_AuthorHalfAtCreation
+ *      brackets its MM_Sram_InitNewSave with) MM authors even with a paired
+ *      file open, and the scope closes behind it.
  */
 
 #include "global.h"
@@ -66,6 +70,7 @@ extern "C" SaveContext gSaveContext;
 
 extern "C" void TitleSetup_SetupTitleScreen(TitleSetupState* thisx);
 extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
+extern "C" void MM_Combo_SetCreationAuthoring(int on);
 
 namespace {
 
@@ -244,6 +249,22 @@ extern "C" int MM_NewSaveSessionGuard_RunHeadless(void) {
     NSG_ASSERT(LooksLikeNewSave(), "leg 5b: a staged generation with no file open must not block MM's new save");
     NSG_ASSERT(Combo_ForeignPairingActive(), "leg 5b: MM's new save must not touch a staged identity");
     printf("[TEST]   leg 5 PASS: no paired file open, nothing refused or retired\n");
+
+    // ---- 6. The paired creation event is exempt ---------------------------
+    ClearSession();
+    OpenPairedFile();
+    AuthorLiveHalf();
+    MM_Combo_SetCreationAuthoring(1);
+    MM_Sram_InitNewSave();
+    MM_Combo_SetCreationAuthoring(0);
+    NSG_ASSERT(LooksLikeNewSave(),
+               "leg 6: the creation event's MM_Sram_InitNewSave was refused; the creation authors this identity's MM "
+               "half and must be exempt from the guard");
+    AuthorLiveHalf();
+    sBefore = gSaveContext;
+    MM_Sram_InitNewSave();
+    NSG_ASSERT(LiveHalfIntact(), "leg 6: the creation scope stayed open after the creation closed it");
+    printf("[TEST]   leg 6 PASS: the creation event authors inside its scope, and only there\n");
 
     ClearSession();
     printf("[TEST] mm-new-save-session-guard: PASS\n");

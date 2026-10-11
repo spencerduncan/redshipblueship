@@ -21,6 +21,8 @@ void func_80147414(SramContext* sramCtx, s32 fileNum, s32 arg2);
 extern int MM_Combo_CaptureSaveToUnifiedSlot(void);
 // #785: the moon-crash reset's reload for a session with no flash slot (same TU).
 extern int MM_Combo_ResetFromLastCommitOnMoonCrash(void);
+// #564 V21: no new save over an open paired file (same TU).
+extern int MM_Combo_RefuseNewSaveOverSession(const char* path);
 #endif
 
 #define CHECK_NEWF(newf)                                                                                 \
@@ -1012,6 +1014,13 @@ u16 sSaveDefaultChecksum = 0;
  *  This save has an empty inventory with 3 hearts, sword and shield.
  */
 void MM_Sram_InitNewSave(void) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#564 V21): the class-level guard. See
+    // MM_Combo_RefuseNewSaveOverSession for what it refuses and what it exempts.
+    if (MM_Combo_RefuseNewSaveOverSession("MM_Sram_InitNewSave")) {
+        return;
+    }
+#endif
     gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
     gSaveContext.save.eventDayCount = 0;
     gSaveContext.save.day = 0;
@@ -2168,6 +2177,14 @@ void MM_Sram_InitSave(FileSelectState* fileSelect2, SramContext* sramCtx) {
     u16 i;
     FileSelectState* fileSelect = fileSelect2;
     s16 maskCount;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#564 V21): refuse the whole new file, OnSaveInit included, not only
+    // MM_Sram_InitNewSave inside it.
+    if (MM_Combo_RefuseNewSaveOverSession("MM_Sram_InitSave")) {
+        return;
+    }
+#endif
 
     if (gSaveContext.flashSaveAvailable) {
         MM_Sram_InitNewSave();
