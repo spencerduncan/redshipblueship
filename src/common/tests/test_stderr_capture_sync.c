@@ -141,8 +141,7 @@ TestResult Test_StderrCaptureSync(void) {
            "%d kept after stop\n",
            SCS_ITERATIONS, lastMisses, countMisses, firstMiss, keptAfterStop);
     if (keptAfterStop != SCS_ITERATIONS) {
-        printf("[TEST] FAIL: after stop the capture kept %d probe lines, expected %d\n", keptAfterStop,
-               SCS_ITERATIONS);
+        printf("[TEST] FAIL: after stop the capture kept %d probe lines, expected %d\n", keptAfterStop, SCS_ITERATIONS);
         return TEST_FAIL;
     }
     if (lastMisses != 0 || countMisses != 0) {
