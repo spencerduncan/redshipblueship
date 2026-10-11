@@ -160,6 +160,23 @@
  * armed world. Save_SaveFile (the slot write) and the overlay's presentation are
  * the only parts of a file-select creation it leaves out.
  *
+ * RSBS_CSB_FOOLISH=N (not set by CTest) is epic #575 H4's MEASUREMENT of the
+ * pair-level foolish refinement, before anything wires it in: per creation (the
+ * pinned seed RSBSSINGLEBAG1, then RSBSSAMPLE0..N-1), on the profile
+ * RSBS_COMBO_PROFILE names (shipped | plentiful | armed, test_combo_logic_measure.c),
+ * a probe runs right after Combo_Logic_RunFill succeeds with both engines live
+ * (Combo_SingleBag_TestSetPostFillProbe) and times, over the coordinator's own
+ * placements ("bag hosts"):
+ *   (a) THE REQUIRED SET, OoTMM `analysis.ts` makeRequiredLocs: one round per bag
+ *       host with that host forbidden (ABI 6); required iff the GOAL falls;
+ *   (b) OoTMM's MONTE-CARLO ZIG-ZAG, `analysis-foolish.ts` (down / up passes over
+ *       a growing forbidden set, repeated until three passes find nothing new),
+ *       over the bag hosts (a) did not call required, with its own RNG seeded
+ *       from the frozen identity (Combo_SingleBag_FoolishSeed).
+ * It prints per creation and a summary against the #582 per-attempt budget, and
+ * asserts nothing. RSBS_CSB_FOOLISH_ROUND_CAP bounds (b) per creation (default
+ * 4000 rounds) so a runaway zig-zag is reported as capped, not waited on.
+ *
  * WHY THE `rando` TIER. Everything here needs a real OoT generation and MM's
  * real region graph; a ROM-free run has neither, and every count would be zero.
  *
@@ -561,9 +578,389 @@ TestResult CsbSampleEvent(int n) {
     return TEST_PASS;
 }
 
+// ============================================================================
+// RSBS_CSB_FOOLISH=N — epic #575 H4's measurement (see the file header)
+// ============================================================================
+
+struct CsbFoolishResult {
+    bool ran = false;
+    int baselineGoal = -1;
+    int hosts = 0;
+    int hostsBy[2][2] = {}; // [host is MM][item is MM]
+    int required = 0;
+    int requiredBy[2][2] = {};
+    int roundErrors = 0;
+    int roundsA = 0;
+    uint32_t msA = 0;
+    int candidates = 0;
+    int roundsB = 0;
+    uint32_t msB = 0;
+    int passes = 0;
+    int conditional = 0;
+    int useless = 0;
+    bool capped = false;
+    uint32_t digestBefore = 0;
+    uint32_t digestAfter = 0;
+};
+
+struct CsbFoolishCtx {
+    uint8_t goal = 0;
+    int roundCap = 4000;
+    uint32_t rng = 0;
+    int rounds = 0;
+    std::vector<ComboLogicHostRef> hosts;
+    std::vector<char> condReq; // OoTMM's conditionallyRequiredLocations, by host index
+    CsbFoolishResult r;
+};
+
+/** One beat-the-frozen-GOAL round with `forbidden` (host-index flags) withheld.
+ *  1 = the GOAL holds, 0 = it does not; an engine error counts as "does not" and
+ *  is reported. */
+int CsbFoolishGoal(CsbFoolishCtx* c, const std::vector<char>& forbidden) {
+    std::vector<ComboLogicHostRef> refs;
+    for (size_t i = 0; i < forbidden.size(); i++) {
+        if (forbidden[i]) {
+            refs.push_back(c->hosts[i]);
+        }
+    }
+    ComboLogicRoundRequest req;
+    memset(&req, 0, sizeof(req));
+    req.goal = c->goal;
+    req.forbidden = refs.empty() ? nullptr : refs.data();
+    req.forbiddenCount = (int)refs.size();
+    ComboLogicRoundResult res;
+    memset(&res, 0, sizeof(res));
+    c->rounds++;
+    if (Combo_Logic_RunRound(&req, &res) != RSBS_COMBO_LOGIC_OK) {
+        c->r.roundErrors++;
+        return 0;
+    }
+    return res.goalExpression == 1 ? 1 : 0;
+}
+
+uint32_t CsbFoolishRngBelow(CsbFoolishCtx* c, uint32_t bound) {
+    uint32_t x = c->rng != 0u ? c->rng : 0x9E3779B9u;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    c->rng = x;
+    return bound == 0u ? 0u : x % bound;
+}
+
+bool CsbFoolishCapped(CsbFoolishCtx* c) {
+    if (c->rounds - c->r.roundsA >= c->roundCap) {
+        c->r.capped = true;
+    }
+    return c->r.capped;
+}
+
+struct CsbZz {
+    std::vector<char> allowed;
+    std::vector<char> forbidden;
+};
+
+/** OoTMM monteCarloZigZagDown: forbid the allowed hosts one by one in a random
+ *  order, keeping each forbidden unless the GOAL falls; a host whose removal
+ *  breaks the GOAL is "sometimes required". Re-forbids the last NEW such host. */
+bool CsbZigZagDown(CsbFoolishCtx* c, const CsbZz& zz, CsbZz* out) {
+    std::vector<int> locs;
+    for (size_t i = 0; i < zz.allowed.size(); i++) {
+        if (zz.allowed[i]) {
+            locs.push_back((int)i);
+        }
+    }
+    CsbZz s = zz;
+    int lastBanished = -1;
+    while (!locs.empty()) {
+        if (CsbFoolishCapped(c)) {
+            return false;
+        }
+        const size_t k = CsbFoolishRngBelow(c, (uint32_t)locs.size());
+        const int loc = locs[k];
+        locs.erase(locs.begin() + (long)k);
+        s.allowed[loc] = 0;
+        s.forbidden[loc] = 1;
+        if (!CsbFoolishGoal(c, s.forbidden)) {
+            if (!c->condReq[loc]) {
+                c->condReq[loc] = 1;
+                lastBanished = loc;
+            }
+            s.allowed[loc] = 1;
+            s.forbidden[loc] = 0;
+        }
+    }
+    if (lastBanished < 0) {
+        return false;
+    }
+    s.forbidden[lastBanished] = 1;
+    s.allowed[lastBanished] = 0;
+    *out = s;
+    return true;
+}
+
+/** OoTMM monteCarloZigZagUp: re-allow the forbidden hosts one by one in a random
+ *  order; a host whose return restores the GOAL is "sometimes required" and is
+ *  forbidden again. Re-allows the last NEW such host. */
+bool CsbZigZagUp(CsbFoolishCtx* c, const CsbZz& zz, CsbZz* out) {
+    std::vector<int> locs;
+    for (size_t i = 0; i < zz.forbidden.size(); i++) {
+        if (zz.forbidden[i]) {
+            locs.push_back((int)i);
+        }
+    }
+    CsbZz s = zz;
+    int lastAdded = -1;
+    while (!locs.empty()) {
+        if (CsbFoolishCapped(c)) {
+            return false;
+        }
+        const size_t k = CsbFoolishRngBelow(c, (uint32_t)locs.size());
+        const int loc = locs[k];
+        locs.erase(locs.begin() + (long)k);
+        s.forbidden[loc] = 0;
+        s.allowed[loc] = 1;
+        if (CsbFoolishGoal(c, s.forbidden)) {
+            if (!c->condReq[loc]) {
+                c->condReq[loc] = 1;
+                lastAdded = loc;
+            }
+            s.allowed[loc] = 0;
+            s.forbidden[loc] = 1;
+        }
+    }
+    if (lastAdded < 0) {
+        return false;
+    }
+    s.allowed[lastAdded] = 1;
+    s.forbidden[lastAdded] = 0;
+    *out = s;
+    return true;
+}
+
+/** OoTMM monteCarloZigZag: alternate down and up generations until one yields no
+ *  step. True when a down step found a new sometimes-required host. */
+bool CsbZigZag(CsbFoolishCtx* c, const std::vector<char>& candidates) {
+    CsbZz zz0;
+    zz0.allowed = candidates;
+    zz0.forbidden.assign(candidates.size(), 0);
+    std::vector<CsbZz> stack(1, zz0);
+    bool result = false;
+    for (;;) {
+        std::vector<CsbZz> down;
+        down.swap(stack);
+        for (const CsbZz& zz : down) {
+            CsbZz step;
+            while (CsbZigZagDown(c, zz, &step)) {
+                result = true;
+                stack.push_back(step);
+            }
+        }
+        if (stack.empty() || c->r.capped) {
+            break;
+        }
+        std::vector<CsbZz> up;
+        up.swap(stack);
+        for (const CsbZz& zz : up) {
+            CsbZz step;
+            while (CsbZigZagUp(c, zz, &step)) {
+                stack.push_back(step);
+            }
+        }
+        if (stack.empty() || c->r.capped) {
+            break;
+        }
+    }
+    return result;
+}
+
+/** THE PROBE: runs inside Combo_SingleBag_Run, right after the fill succeeded. */
+void CsbFoolishProbe(void* ctxRaw) {
+    CsbFoolishCtx* c = (CsbFoolishCtx*)ctxRaw;
+    CsbFoolishResult& r = c->r;
+    r.ran = true;
+    c->goal = gComboCtx.comboSettings.goal;
+    c->rng = Combo_SingleBag_FoolishSeed();
+    c->rounds = 0;
+    r.digestBefore = Combo_Logic_PlacementDigest();
+
+    c->hosts.clear();
+    const GameId games[2] = { GAME_OOT, GAME_MM };
+    for (int g = 0; g < 2; g++) {
+        ComboLogicPlacement p;
+        for (int i = 0; i < Combo_Logic_PlacementCount(games[g]); i++) {
+            if (Combo_Logic_PlacementAt(games[g], i, &p)) {
+                ComboLogicHostRef h;
+                memset(&h, 0, sizeof(h));
+                h.hostGame = (uint8_t)games[g];
+                h.hostCheck = p.hostCheck;
+                c->hosts.push_back(h);
+                r.hostsBy[g][p.item.originGame == (uint8_t)GAME_MM ? 1 : 0]++;
+            }
+        }
+    }
+    const int n = (int)c->hosts.size();
+    r.hosts = n;
+    std::vector<char> none((size_t)n, 0);
+    r.baselineGoal = CsbFoolishGoal(c, none);
+
+    // (a) the required set: one round per bag host, that host forbidden.
+    std::vector<char> required((size_t)n, 0);
+    const uint32_t tA = Combo_GenBudget_NowMs();
+    for (int i = 0; i < n; i++) {
+        std::vector<char> one((size_t)n, 0);
+        one[(size_t)i] = 1;
+        if (!CsbFoolishGoal(c, one)) {
+            required[(size_t)i] = 1;
+            r.required++;
+            ComboLogicPlacement p;
+            if (Combo_Logic_GetPlacement((GameId)c->hosts[(size_t)i].hostGame, c->hosts[(size_t)i].hostCheck, &p)) {
+                r.requiredBy[c->hosts[(size_t)i].hostGame == (uint8_t)GAME_MM ? 1 : 0]
+                            [p.item.originGame == (uint8_t)GAME_MM ? 1 : 0]++;
+            }
+        }
+    }
+    r.msA = Combo_GenBudget_NowMs() - tA;
+    r.roundsA = c->rounds;
+
+    // (b) OoTMM's zig-zag over the bag hosts (a) did not call required.
+    std::vector<char> candidates((size_t)n, 0);
+    for (int i = 0; i < n; i++) {
+        candidates[(size_t)i] = required[(size_t)i] ? 0 : 1;
+        r.candidates += candidates[(size_t)i];
+    }
+    c->condReq.assign((size_t)n, 0);
+    const uint32_t tB = Combo_GenBudget_NowMs();
+    int failures = 0;
+    while (r.candidates > 0) {
+        r.passes++;
+        if (CsbZigZag(c, candidates)) {
+            failures = 0;
+        } else {
+            failures++;
+        }
+        if (failures >= 3 || r.capped) {
+            break;
+        }
+    }
+    r.msB = Combo_GenBudget_NowMs() - tB;
+    r.roundsB = c->rounds - r.roundsA;
+    for (int i = 0; i < n; i++) {
+        if (candidates[(size_t)i]) {
+            r.conditional += c->condReq[(size_t)i] ? 1 : 0;
+            r.useless += c->condReq[(size_t)i] ? 0 : 1;
+        }
+    }
+    r.digestAfter = Combo_Logic_PlacementDigest();
+}
+
+/** RSBS_CSB_FOOLISH=N: the pinned seed and N sample seeds, measured. */
+TestResult CsbFoolish(int n) {
+    const char* profile = ClmProfileName(std::getenv("RSBS_COMBO_PROFILE"));
+    const uint32_t budget = Combo_GenBudget_FillBudgetMs(0);
+    int cap = 4000;
+    if (const char* capEnv = std::getenv("RSBS_CSB_FOOLISH_ROUND_CAP")) {
+        cap = atoi(capEnv) > 0 ? atoi(capEnv) : cap;
+    }
+    printf("[TEST] combo-single-bag FOOLISH: epic #575 H4's measurement, profile \"%s\", the pinned seed and %d "
+           "sample seed(s), per-attempt budget %ums (host scale %u%%), zig-zag round cap %d\n",
+           profile, n, budget, Combo_GenBudget_HostScalePercent(), cap);
+    ClmProfileApply(profile);
+
+    int measured = 0;
+    int failed = 0;
+    int over = 0;
+    uint64_t sumA = 0, sumB = 0, sumHalf = 0, sumTotal = 0;
+    uint32_t worstA = 0, worstB = 0, worstTotal = 0;
+    int sumRoundsA = 0, sumRoundsB = 0, worstRoundsB = 0, cappedCount = 0, errorSeeds = 0;
+    for (int i = -1; i < n; i++) {
+        const std::string seed = i < 0 ? std::string("RSBSSINGLEBAG1") : "RSBSSAMPLE" + std::to_string(i);
+        CsbFoolishCtx ctx;
+        ctx.roundCap = cap;
+        const uint32_t tGen = Combo_GenBudget_NowMs();
+        if (Rando_HeadlessSeedTest(seed.c_str()) != 0) {
+            printf("[FOOLISH] %s: OoT generation failed\n", seed.c_str());
+            failed++;
+            continue;
+        }
+        Combo_SingleBag_TestSetPostFillProbe(CsbFoolishProbe, &ctx);
+        const uint32_t t0 = Combo_GenBudget_NowMs();
+        const int rc = MM_Rando_HeadlessPairedHalf();
+        const uint32_t halfMs = Combo_GenBudget_NowMs() - t0;
+        Combo_SingleBag_TestSetPostFillProbe(nullptr, nullptr);
+        const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+        const CsbFoolishResult& r = ctx.r;
+        if (rc != 0 || !r.ran) {
+            printf("[FOOLISH] %s: rc=%d status=%s probe=%d (no proven world to measure)\n", seed.c_str(), rc,
+                   Combo_Logic_StatusName(bag.status), r.ran ? 1 : 0);
+            failed++;
+            Combo_SingleBag_Forget();
+            Combo_Crossings_Clear();
+            continue;
+        }
+        const uint32_t analysisMs = r.msA + r.msB;
+        const uint32_t halfWithout = halfMs > analysisMs ? halfMs - analysisMs : 0u;
+        const uint32_t tTail = Combo_GenBudget_NowMs();
+        (void)OoT_Creation_FinishPairedHalf(0);
+        const uint32_t tEnd = Combo_GenBudget_NowMs();
+        const uint32_t total = tEnd - tGen;
+        printf("[FOOLISH] %s: goal %u; bag hosts %d (OoT hosts: %d OoT + %d MM items; MM hosts: %d OoT + %d MM items); "
+               "baseline GOAL=%d; digest %08X -> %08X%s\n",
+               seed.c_str(), (unsigned)ctx.goal, r.hosts, r.hostsBy[0][0], r.hostsBy[0][1], r.hostsBy[1][0],
+               r.hostsBy[1][1], r.baselineGoal, r.digestBefore, r.digestAfter,
+               r.digestBefore == r.digestAfter ? "" : " (MOVED)");
+        printf("[FOOLISH] %s: (a) required %d of %d (OoT hosts: %d OoT + %d MM items; MM hosts: %d OoT + %d MM items) "
+               "in %d rounds, %ums (%.1f ms/round)\n",
+               seed.c_str(), r.required, r.hosts, r.requiredBy[0][0], r.requiredBy[0][1], r.requiredBy[1][0],
+               r.requiredBy[1][1], r.roundsA, r.msA, r.roundsA > 0 ? (double)r.msA / r.roundsA : 0.0);
+        printf("[FOOLISH] %s: (b) zig-zag over %d candidates: %d pass(es), %d sometimes-required, %d useless, %d "
+               "rounds, %ums (%.1f ms/round)%s; %d round error(s)\n",
+               seed.c_str(), r.candidates, r.passes, r.conditional, r.useless, r.roundsB, r.msB,
+               r.roundsB > 0 ? (double)r.msB / r.roundsB : 0.0, r.capped ? " CAPPED" : "", r.roundErrors);
+        printf("[FOOLISH] %s: fill rounds %d, batches %d; MM half %ums = %ums creation + %ums analysis; end to end "
+               "%ums (OoT Generate %ums, OoT tail %ums); creation + analysis = %.2fx the %ums budget\n",
+               seed.c_str(), bag.fill.rounds, bag.fill.attempts, halfMs, halfWithout, analysisMs, total, t0 - tGen,
+               tEnd - tTail, budget > 0 ? (double)(halfMs) / budget : 0.0, budget);
+        measured++;
+        over += (budget > 0 && halfMs > budget) ? 1 : 0;
+        sumA += r.msA;
+        sumB += r.msB;
+        sumHalf += halfWithout;
+        sumTotal += halfMs;
+        worstA = r.msA > worstA ? r.msA : worstA;
+        worstB = r.msB > worstB ? r.msB : worstB;
+        worstTotal = halfMs > worstTotal ? halfMs : worstTotal;
+        sumRoundsA += r.roundsA;
+        sumRoundsB += r.roundsB;
+        worstRoundsB = r.roundsB > worstRoundsB ? r.roundsB : worstRoundsB;
+        cappedCount += r.capped ? 1 : 0;
+        errorSeeds += r.roundErrors > 0 ? 1 : 0;
+        Combo_SingleBag_Forget();
+        Combo_Crossings_Clear();
+    }
+    ClmProfileRestore(profile);
+    if (measured > 0) {
+        printf("[FOOLISH] summary (%s): %d measured, %d failed; (a) mean %ums worst %ums, %.1f rounds; (b) mean %ums "
+               "worst %ums, %.1f rounds (worst %d), %d capped; MM half without analysis mean %ums; with (a)+(b) mean "
+               "%ums worst %ums; %d of %d over the %ums per-attempt budget; %d seed(s) with round errors\n",
+               profile, measured, failed, (unsigned)(sumA / measured), worstA, (double)sumRoundsA / measured,
+               (unsigned)(sumB / measured), worstB, (double)sumRoundsB / measured, worstRoundsB, cappedCount,
+               (unsigned)(sumHalf / measured), (unsigned)(sumTotal / measured), worstTotal, over, measured, budget,
+               errorSeeds);
+    } else {
+        printf("[FOOLISH] summary (%s): nothing measured, %d failed\n", profile, failed);
+    }
+    return TEST_PASS;
+}
+
 } // namespace
 
 TestResult ComboSingleBag_Run(void) {
+    if (const char* foolish = std::getenv("RSBS_CSB_FOOLISH")) {
+        const int n = atoi(foolish);
+        if (n >= 0 && foolish[0] != '\0') {
+            return CsbFoolish(n);
+        }
+    }
     if (const char* sample = std::getenv("RSBS_CSB_SAMPLE")) {
         const int n = atoi(sample);
         if (n > 0) {
