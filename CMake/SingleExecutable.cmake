@@ -575,6 +575,12 @@ if(BUILD_TESTING)
     # named the cover. Drives the stone's real candidate filter and item-name
     # substitution (EnGs.cpp) with the crossing in the crossing store.
     redship_add_test(NAME ForeignHostGossipHint COMMAND redship --test foreign-host-gossip-hint)
+    # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
+    # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
+    # stone's real text and candidate filter (EnGs.cpp) over MM's real check
+    # table: each check is named by its shared area (H1) with OoTMM's preposition,
+    # and a check with no area is never a candidate.
+    redship_add_test(NAME MmHintAreaText COMMAND redship --test mm-hint-area-text)
     # #502: MM's award callback was still the Lane A1 logging stub, so the whole
     # consumer walk landed on a no-op. Drives the REAL MM_ConsumeSharedItems ->
     # MM_AwardSharedItem -> MM_ForeignItem_Give chain and asserts one award per
