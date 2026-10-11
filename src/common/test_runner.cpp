@@ -571,6 +571,12 @@ extern "C" {
 // healthy and shares nothing. FILE SCOPE for the same reason as its neighbour.
 #include "tests/test_shared_ocarina_retired.c"
 
+// The Shared Kokiri Sword option (#886): with the frozen comboFlags bit on, either
+// game's Kokiri Sword lights both through the two games' real harvest/apply
+// shims; with it off, neither crosses. FILE SCOPE for the same reason as its
+// neighbour.
+#include "tests/test_shared_kokiri_sword.c"
+
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
 // so the code under test does not exist. The `#include "tests/..."` text is
@@ -5417,6 +5423,12 @@ const TestDescriptor gTests[] = {
     {"shared-ocarina-retired",
      "The retired Shared Ocarina rule: the ocarina is never shared, and an older world's bit loads healthy (#879)",
      Test_SharedOcarinaRetired},
+    // #886: one Kokiri Sword across both games when the frozen combo bit arms it.
+    // ROM-free: gComboCtx, the RAM watermark table and both games' real shims.
+    {"shared-kokiri-sword",
+     "One Kokiri Sword across both games when the frozen combo bit arms it, and neither crosses when it does not "
+     "(#886)",
+     Test_SharedKokiriSword},
     {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
      Test_ComboSpoilerView},
     {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
@@ -6069,10 +6081,10 @@ const TestDescriptor gTests[] = {
      "resolves through the one resolver (#710)",
      Test_DigestOutHandRun},
     {"pairing-refusal-toast-fit",
-     "Every cross-game refusal toast fits an 832-px window at Notifications.Size 1.8 and 1.0, drawn by SoH's own "
-     "notification overlay in its default font (#749's toast shape); every MM item's OoT pickup toast reads "
-     "'You found <item> (MM)', and those of the names both games use fit too (#865); the load's 'Restored ...' "
-     "toasts fit a 640-px and an 832-px window (#881)",
+     "Every cross-game refusal toast fits a 640-px and an 832-px window at Notifications.Size 1.8 and 1.0, drawn "
+     "by SoH's own notification overlay in its default font (#749's toast shape), at the player's size from 832 px "
+     "up (#906); every MM item's OoT pickup toast reads 'You found <item> (MM)' and fits too (#865, #906); the "
+     "load's 'Restored ...' toasts fit a 640-px and an 832-px window (#881)",
      Test_PairingRefusalToastFit},
     {"paired-load-restore",
      "Loading a paired file whose Cross-Game Rules or MM options changed at the title screen restores the file's "

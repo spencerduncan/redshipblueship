@@ -496,6 +496,13 @@ enum {
     // world that never asked for it has no slot and its `.redsave` is
     // byte-identical to one written before the kind existed.
     RSBS_SHARED_RES_TRIFORCE_PIECES = 19, // MONOTONIC: the combo count, gated by the frozen goal (O10)
+    // The Kokiri Sword (#886). OoT keeps it as one owned-equipment bit and MM
+    // as the first rung of its sword equipment value, so "one sword in both
+    // games" is a 0/1 flag with a ceiling of 1 on both sides: 0 none, 1 the
+    // Kokiri Sword (MM reads any sword it holds as 1). ARMED PER WORLD by
+    // ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit,
+    // frozen at file creation; disarmed, a world has no slot of this kind.
+    RSBS_SHARED_RES_KOKIRI_SWORD = 20, // MONOTONIC: 0/1, gated by the frozen combo setting (#886)
 };
 
 /**

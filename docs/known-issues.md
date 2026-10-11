@@ -161,7 +161,7 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   fill it, but a netplay peer's grants take slots too, so a pickup can still be refused
   (loudly) while both happen (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
 - **Generation can still abort**, at file creation. A wall-clock stop fails the creation
-  with a toast ("Not created: try a new seed or Majora's Mask options."). No creation in
+  with a toast ("Not created: try a new seed or other options."). No creation in
   the 30-seed sample needed more than two fill batches, which bounds the failure rate
   below about 10%, not at zero. No partial or corrupt file is left behind.
 - **One MM randomizer option is drawn disabled on purpose.** "Majora Access: Remains"

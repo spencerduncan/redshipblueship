@@ -76,10 +76,10 @@ using namespace UIWidgets;
 // ============================================================================
 // Cross-Game combo rules (#655; ADR 0011 increment 2, #498; #497 step 6)
 // ============================================================================
-// The two tier-4 `gCombo.Rando.*` keys — direction and the goal (ADR 0010
-// D1); the two pool-size rows were retired by #801, the two item-class groups
-// by #834 and the Shared Ocarina checkbox (#668) by #879 — render as ROWS in
-// the Cross-Game Rules page of the tier-4 Combo section below. #497 step 6
+// The three tier-4 `gCombo.Rando.*` keys — direction, the goal (ADR 0010 D1)
+// and the Shared Kokiri Sword (#886); the two pool-size rows were retired by
+// #801, the two item-class groups by #834 and the Shared Ocarina checkbox
+// (#668) by #879 — render as ROWS in the Cross-Game Rules page of the tier-4 Combo section below. #497 step 6
 // moved them there from the interim host, Randomizer → Cross-Game.
 // PR #652 shipped them as a common-owned pop-out pane
 // (src/common/ComboSettingsWindow.cpp); operator direction after the 2026-09-11
@@ -101,7 +101,8 @@ using namespace UIWidgets;
 // PreFunc overwrites the buffer with the model's value again — so the rows can
 // never disagree with the record about what this world's rules are.
 static int32_t comboRuleDirection;
-static int32_t comboRuleGoal; // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
+static int32_t comboRuleGoal;           // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
+static bool comboRuleSharedKokiriSword; // #886: ComboSettingsRecord.comboFlags' shared-sword bit
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -457,7 +458,7 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
  * swapped), which no compile catches.
  */
 void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
-    // Two settings, rendered as rows rather than as the pop-out pane PR #652
+    // Three settings, rendered as rows rather than as the pop-out pane PR #652
     // shipped. See the block comment at the top of this file for why every row
     // is a pointer-based widget over a src/common writer rather than a
     // WIDGET_CVAR_* one, and for which value each row shows in which state.
@@ -522,6 +523,31 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     // No Shared Ocarina row (#879, operator ruling 2026-10-09): MM starts every
     // paired world holding its Ocarina of Time, so the rule's only effect was
     // to hand OoT a free Fairy Ocarina at the first return.
+
+    // The Shared Kokiri Sword (#886; operator ruling 2026-10-09 on #879: an
+    // option, default off), where the Shared Ocarina row was. One line: the
+    // page is one column since #844, so "[Both Games] Shared Kokiri Sword"
+    // fits beside the box at min-832x600 (the retired row needed a two-line
+    // name on the old two-column page).
+    // A comboFlags BIT rather than a field of its own, so the row is a plain
+    // checkbox over the model's 0/1 space; everything else is the other rows'
+    // pattern: the staging buffer, the PreFunc that refreshes it from the record,
+    // the Callback that offers the edit to src/common's writer, and the marker.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_KOKIRI_SWORD), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedKokiriSword)
+        .PreFunc([](WidgetInfo& info) {
+            ComboSettingsRecord shown;
+            const bool decided = ComboRuleShownRecord(&shown);
+            comboRuleSharedKokiriSword = (shown.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, comboRuleSharedKokiriSword ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Kokiri Sword one item across both games: finding it in either game gives it to you in the "
+            "other. A Razor or Gilded Sword gives the Kokiri Sword in Ocarina of Time. Majora's Mask's sword upgrades "
+            "count from the shared sword, so one of the two games' sword pickups ends up spare."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.

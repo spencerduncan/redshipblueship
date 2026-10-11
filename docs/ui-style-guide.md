@@ -315,24 +315,38 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   SoH's per-frame title-bar push, so it pushes the theme colour onto its own title bar.
 - **Toasts** are `Notification::Emit` with `Notification::Options`' default colours and the player's configured
   duration, as every SoH toast is (`Autosave.cpp`'s "Game autosaved"): an optional short prefix and one short message.
-  The overlay draws every field on ONE line at 1.8x and never wraps, so a toast is about 53 characters at most (the
-  width of the 832-px window the ui tier renders); the UI snapshot's toast pages fail when a toast leaves the window.
+  The overlay draws every field on ONE line at 1.8x and never wraps. **The real minimum window is 640 x 480**
+  (#906): a config with no window size opens libultraship's default, which leaves 580 px between the overlay's 30-px
+  margins. The copy contract is still the 832-px window the ui tier renders: there a toast is about 53 characters at
+  most and draws at the player's own size, and the UI snapshot's toast pages fail when a toast leaves the window or
+  the overlay draws it below `Notifications.Size`. In a narrower window the overlay itself fits a toast whose copy is wider than the window: `Notification::Window::Draw`
+  measures it and draws it at the largest font scale, below the player's `Notifications.Size` and no smaller than
+  1.0, at which it keeps the margin on both sides (`FitToastToWindow`, our addition to SoH's `Notification.cpp`). Its
+  words stay whole, and a toast that keeps the margin draws exactly as SoH draws it. (PR #749's creation-failure
+  toast was 800 px wide in the 832-px window, 2 px from its left edge, which broke the contract; #906 shortened its
+  copy to "Not created: try a new seed or other options.")
   R-N8 still applies: spell out "Majora's Mask" and "Ocarina of Time" in a toast's sentence. Mute it when the call
   site can run without audio. The cross-game refusals follow this shape: ONE prefix for the class, "Refused:"
   (`RSBS_REFUSAL_TOAST_PREFIX`, #836), plus a short capitalized reason with no period, their copy in
   `src/common/pairing_refusal_toast.c`, emitted through `MM_Rando_EmitPairingRefusalToast`,
   `RsbsSave_EmitFileSelectRefusalToast` and `RsbsSave_EmitLoadToast` (OoT's paired-spoiler refusal,
   `OoT_EmitPairedSpoilerRefusalToast`, refuses a document and keeps "Spoiler not loaded:"). The redship-tier row
-  `PairingRefusalToastFit` draws every one through SoH's own overlay at sizes 1.8 and 1.0, in an 832-px window and in
-  a 4K window at the X-Large menu scale, and requires each to keep the overlay's 30-px margin on the left as well as
-  the right, as SoH's own toasts do: at most 772 px in the 832-px window. Each refusal site's own row
+  `PairingRefusalToastFit` draws every one through SoH's own overlay at sizes 1.8 and 1.0, in a 640 x 480 window, an
+  832-px window and a 4K window at the X-Large menu scale, and requires each to keep the overlay's 30-px margin on the
+  left as well as the right, as SoH's own toasts do: at most 580 px in the 640-px window and 772 px in the 832-px one.
+  It also requires every toast to draw at the player's own size in the 832-px window and wider, and in the 640-px
+  window at size 1.0, so the overlay's fit never stands in for short copy; it draws the MM pickup toasts ("You found
+  <item> (MM)") and the creation toasts ("Not created:", "Fewer cross-game items:", "Not proven:") under the same
+  rule. Each refusal site's own row
   (`mm-combo-settings-gate`, `mm-spoiler-identity`, `combo-creation-event`) compares the toast the site queued with
   that copy, exactly. The long explanation belongs on the refusal's stderr line, not in the toast. The paired-file
   load's "Restored from file:" / "Restored for Majora's Mask:" toasts name a variable list of rows, so their 48
   characters are a cap, not a fit: `RsbsSave_EmitLoadToast` drops names to "+N" until the overlay measures the toast
   inside the window it is drawn in (`OoT_Notification_FitsWindow`, #881), because a config with no window size opens
   libultraship's default 640 x 480, narrower than the 832-px contract. `PairingRefusalToastFit` draws them at
-  640 x 480 and 832 x 600 too. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
+  640 x 480 and 832 x 600 too, and requires the player's own size in both windows except for that fit's floor: a
+  bare count ("Restored for Majora's Mask: 37 settings", every settable MM trick) has nothing left to drop and is
+  wider than 580 px at 1.8x, so the overlay draws it a little smaller in the 640-px window. **One recorded exception to R-N8:** the Cross-Game Rules refusal names the diverged fields by
   their record names (`goal`, `direction`, `triforceHunt`). ADR 0011 decision 4 requires the refusal to name the
   field, and ten of the thirteen fields (`poolSizeOoT`, `poolSizeMM` since #801 retired their rows, `itemClassOoT`,
   `itemClassMM` since #834 retired theirs, `logicRung`, `comboFlags`, `spare1`, `formatVersion`, `comboSettingsHash`,

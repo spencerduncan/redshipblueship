@@ -148,12 +148,12 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 20u
+#define RSBS_SHARED_RES_KIND_COUNT 21u
 
 /**
  * Is `kind` ARMED for this world?
  *
- * Seventeen of the nineteen kinds are unconditional: #525 decided that both
+ * Seventeen of the twenty kinds are unconditional: #525 decided that both
  * games share one wallet, one health bar, one magic meter, one set of ammo and
  * one hookshot, and no save can turn that off. RSBS_SHARED_RES_OCARINA_TIER
  * (#668) was the first that a PLAYER chose, through a tier-4 key frozen into
@@ -161,7 +161,9 @@ extern "C" {
  * NEVER armed now, whatever an older record's bit says.
  * RSBS_SHARED_RES_TRIFORCE_PIECES (ADR 0010 O10) is armed only while the
  * FROZEN combo goal is triforce-hunt with a valid frozen triforce record
- * (Combo_TriforceHuntArmed, triforce_hunt.h).
+ * (Combo_TriforceHuntArmed, triforce_hunt.h). RSBS_SHARED_RES_KOKIRI_SWORD
+ * (#886) is armed only by the FROZEN record's RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD
+ * bit, the player's Cross-Game Rules choice (Combo_ComboSharedKokiriSword).
  *
  * THE GATE LIVES HERE, ONCE, AND BOTH ENTRY POINTS CONSULT IT. A gate written
  * into the four per-game call sites instead would be four chances to gate one
@@ -170,7 +172,8 @@ extern "C" {
  * merely under-sharing. Exposed rather than static so the lock can drive the
  * predicate directly.
  *
- * Reads the FROZEN record (through Combo_TriforceHuntArmed): after creation
+ * Reads the FROZEN record (through Combo_TriforceHuntArmed and
+ * Combo_ComboSharedKokiriSword): after creation
  * the rules are identity, and a session that resolved differently is refused
  * at the arrival gate, never honoured here.
  */

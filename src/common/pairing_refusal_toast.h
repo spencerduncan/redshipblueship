@@ -32,15 +32,19 @@
  * lock (pairing-refusal-toast-fit, games/oot/soh/soh_notification_fit_test.cpp)
  * draws every message through SoH's own overlay in the real font and fails any
  * toast that does not keep the overlay's 30-px margin on BOTH sides of an 832-px
- * window (at most 772 px wide).
+ * window (at most 772 px wide) at the player's own size: the copy contract. The
+ * real minimum window is libultraship's default 640 x 480 (#906), where the
+ * overlay draws a toast whose copy is wider than the window a little smaller
+ * (Notification::Window::Draw, FitToastToWindow); the lock draws that window too.
  *
  * THE RULES REFUSAL NAMES FIELDS BY THEIR RECORD NAMES ("goal", "direction",
  * "triforceHunt"), a recorded exception to R-N8 (docs/ui-style-guide.md section
  * 10): ADR 0011 decision 4 requires the refusal to name the field, and eleven
- * of the thirteen fields (poolSizeOoT and poolSizeMM since #801 retired their
+ * of the fourteen fields (poolSizeOoT and poolSizeMM since #801 retired their
  * rows, itemClassOoT and itemClassMM since #834 retired theirs, sharedOcarina
  * since #879 retired its row, logicRung, comboFlags, spare1, formatVersion,
- * comboSettingsHash, triforceHunt) have no row on that page to name.
+ * comboSettingsHash, triforceHunt) have no row on that page to name; goal,
+ * direction and sharedKokiriSword (#886) do.
  *
  * Game-header-free C (ADR 0002): the spoiler refusal's detail is one of the
  * RSBS_SPOILER_REFUSAL_* route keys below, which the MM spoiler loader
