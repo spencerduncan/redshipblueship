@@ -25,6 +25,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "combo_area.h" // src/common — the MM area a Termina slot names (#575 H3a)
 #include "foreign_items.h" // src/common — the crossed item's name and article (#575 H3b)
+#include "shared_items.h" // src/common — MM's grade of a crossed item (#575 H3b)
 #include <set>
 #endif
 #include "notification_bridge.h"   // src/common — the refusal toast the reload bridge reads back
@@ -118,7 +119,14 @@ extern "C" int Rando_TestCreateStaticItemHint(int hintKey, int hintTextKey, int 
 extern "C" int Rando_TestCreateAltarHint(int hintKey, const int* rewards, int count);
 extern "C" int Rando_TestCreateStaticHintFromData(int hintKey, const int* items, int count);
 extern "C" void OoT_ComboLogic_TestSetHintingPairedRemainder(int on);
-// hints.cpp: the "Named Item" distribution's filter (#575 H3b: a crossing counts as major).
+// ComboLogicEngineOoT.cpp (#575 H3b): the paired spoiler's gate, held open by a lock
+// as OoT_ComboLogic_FinishGeneralPass holds it while it writes that spoiler; and the
+// two creation gates' state, which the loaded-file check requires shut.
+extern "C" void OoT_ComboLogic_TestSetWritingSingleBagSpoiler(int on);
+extern "C" int OoT_ComboLogic_HintingPairedRemainder(void);
+extern "C" int OoT_ComboLogic_WritingSingleBagSpoiler(void);
+// hints.cpp: the "Named Item" distribution's filter (#575 H3b: a crossing is major
+// when MM grades the MM item it yields major).
 bool FilterGoodItems(RandomizerCheck loc);
 #else
 static int OoT_Combo_CheckHostsCrossing(int) {
@@ -504,6 +512,20 @@ static std::string PlacedItemEnglishName(RandomizerCheck rc) {
     return Rando::StaticData::RetrieveItem(ctx->GetItemLocation(rc)->GetPlacedRandomizerGet()).GetName().GetEnglish();
 }
 
+/** (P2, #575 H3b) Whether the "Named Item" filter must count crossing host `host` as
+ *  major: MM's own grade of the item it yields, read from the store (not through the
+ *  production bridge), on OoT's rule. MM's majors, masks and crossed keys are major,
+ *  as OoT's own majors and general-pass keys are; maps and compasses (lesser),
+ *  heart pieces and containers (health), tokens, stray fairies and junk are not, as
+ *  Item::IsMajorItem excludes OoT's own maps, compasses and hearts. */
+static bool ExpectedCrossingMajor(uint16_t host, uint8_t* outGrade) {
+    const SharedItem* item = Combo_Crossings_Lookup(GAME_OOT, host);
+    const uint8_t grade = item != nullptr ? Combo_ItemChestGrade(*item) : (uint8_t)RSBS_CHEST_GRADE_NONE;
+    *outGrade = grade;
+    return grade == RSBS_CHEST_GRADE_MAJOR || grade == RSBS_CHEST_GRADE_MASK || grade == RSBS_CHEST_GRADE_SMALL_KEY ||
+           grade == RSBS_CHEST_GRADE_BOSS_KEY;
+}
+
 /**
  * (P1) Hint `hint`'s text and spoiler entry for its slot `slot`, which names crossing
  * host `host`, read with the remainder's gate open (as the paired creation renders it
@@ -547,17 +569,22 @@ static size_t CheckCrossingHostHint(const std::string& label, Rando::Hint& hint,
 
 struct CrossingHostProbeResult {
     int probes = 0;
+    int major = 0;    // probed hosts the filter must count as major (MM's grade)
+    int notMajor = 0; // probed hosts it must not
     size_t failures = 0;
 };
 
 /**
  * (P1, P2, P5 for hosts) For every crossing host the store records in OoT: it is
- * hintable; under the remainder's gate the "Named Item" filter counts it as major,
- * and an item hint and an item-area hint built for it (as CreateHint builds a stone
- * hint) name the crossed item, never the cover, in their text and spoiler entry,
- * and survive the JSON round trip; with the gate shut (no remainder, no paired
- * spoiler, no file loaded) the filter answers the cover's own majority and the same
- * hints name the cover. The probes are built outside the world's hint table.
+ * hintable; under the remainder's gate the "Named Item" filter counts it as major
+ * exactly when MM grades the item it yields major (ExpectedCrossingMajor), and an
+ * item hint and an item-area hint built for it (as CreateHint builds a stone hint)
+ * name the crossed item, never the cover, in their text and spoiler entry, and
+ * survive the JSON round trip; with only the paired spoiler's gate open (as the
+ * creation writes that world's spoiler, after the remainder) the spoiler entry and
+ * the text still name the crossed item; with every gate shut (no remainder, no
+ * paired spoiler, no file loaded) the filter answers the cover's own majority and
+ * the same hints name the cover. The probes are built outside the world's hint table.
  */
 static CrossingHostProbeResult ProbeCrossingHostHints() {
     CrossingHostProbeResult result;
@@ -589,13 +616,22 @@ static CrossingHostProbeResult ProbeCrossingHostHints() {
         const Rando::Hint reloaded(probeKey, areaDoc);
         const std::string reloadedText = JoinMessages(reloaded.GetAllMessageStrings(MF_CLEAN));
         OoT_ComboLogic_TestSetHintingPairedRemainder(0);
+        OoT_ComboLogic_TestSetWritingSingleBagSpoiler(1);
+        const nlohmann::ordered_json spoilerDoc = areaHint.toJSON();
+        const std::string spoilerText = JoinMessages(areaHint.GetAllMessageStrings(MF_CLEAN));
+        OoT_ComboLogic_TestSetWritingSingleBagSpoiler(0);
         const bool goodShut = FilterGoodItems(host);
         const std::string shutText = JoinMessages(areaHint.GetAllMessageStrings(MF_CLEAN));
         const bool coverMajor = itemLoc->GetPlacedItem().IsMajorItem();
         const std::string cover = PlacedItemEnglishName(host);
-        if (!goodOpen) {
-            fprintf(stderr, "[rando-hints] FAIL %s: the Named Item filter does not count the crossing as major (P2)\n",
-                    label.c_str());
+        uint8_t grade = RSBS_CHEST_GRADE_NONE;
+        const bool majorExpected = ExpectedCrossingMajor(row.hostCheck, &grade);
+        (majorExpected ? result.major : result.notMajor)++;
+        if (goodOpen != majorExpected) {
+            fprintf(stderr,
+                    "[rando-hints] FAIL %s: the Named Item filter answers %d for \"%s\", which MM grades %s (expected "
+                    "%d) (P2)\n",
+                    label.c_str(), goodOpen ? 1 : 0, bare.c_str(), Combo_ChestGradeName(grade), majorExpected ? 1 : 0);
             result.failures++;
         }
         if (expected.empty()) {
@@ -616,6 +652,15 @@ static CrossingHostProbeResult ProbeCrossingHostHints() {
         if (!areaDoc.contains("item") || !areaDoc["item"].is_string() || areaDoc["item"].get<std::string>() != bare) {
             fprintf(stderr, "[rando-hints] FAIL %s: the spoiler's item is %s, not \"%s\" (P1)\n", label.c_str(),
                     areaDoc.contains("item") ? areaDoc["item"].dump().c_str() : "absent", bare.c_str());
+            result.failures++;
+        }
+        const std::string spoilerItem =
+            spoilerDoc.contains("item") && spoilerDoc["item"].is_string() ? spoilerDoc["item"].get<std::string>() : "";
+        if (spoilerItem != bare || spoilerText.find(expected) == std::string::npos) {
+            fprintf(stderr,
+                    "[rando-hints] FAIL %s: while the paired spoiler is written (remainder over) the spoiler's item "
+                    "is \"%s\" and the text \"%s\", not \"%s\" (P1)\n",
+                    label.c_str(), spoilerItem.c_str(), spoilerText.c_str(), bare.c_str());
             result.failures++;
         }
         if (reloadedText != areaText) {
@@ -864,8 +909,15 @@ static int ValidateGeneratedHints(bool pairedWorld) {
                 crossingHosts, ootItemsInMM, terminaHints);
         fprintf(stderr,
                 "[rando-hints] paired world: %zu generated hint slot(s) name a crossing host, %d crossing host "
-                "probe(s) (P1/P2)\n",
-                hostHints, hostProbe.probes);
+                "probe(s), %d graded major by MM and %d not (P1/P2)\n",
+                hostHints, hostProbe.probes, hostProbe.major, hostProbe.notMajor);
+        if (hostProbe.major == 0 || hostProbe.notMajor == 0) {
+            fprintf(stderr,
+                    "[rando-hints] FAIL: the probes reach only one side of the Named Item filter (%d major, %d not), "
+                    "so its majority rule is not exercised (P2)\n",
+                    hostProbe.major, hostProbe.notMajor);
+            failures++;
+        }
         fprintf(stderr,
                 "[rando-hints] paired world: %zu generated Termina slot(s) checked for their own item's MM area, %d "
                 "static item hint probe(s), %d altar / static-from-data probe(s) (P6)\n",
@@ -991,6 +1043,154 @@ extern "C" int Rando_ValidateSoloWorldHintsAfterPairing(void) {
         return 9;
     }
     return failures == 0 ? 0 : 1;
+}
+
+/** One spoiler hint entry's (location, item) pairs ("location"/"item", or the
+ *  parallel "locations"/"items"). */
+static std::vector<std::pair<std::string, std::string>> SpoilerHintPairs(const nlohmann::json& entry) {
+    std::vector<std::pair<std::string, std::string>> pairs;
+    if (entry.contains("location") && entry["location"].is_string() && entry.contains("item") &&
+        entry["item"].is_string()) {
+        pairs.emplace_back(entry["location"].get<std::string>(), entry["item"].get<std::string>());
+    }
+    if (entry.contains("locations") && entry["locations"].is_array() && entry.contains("items") &&
+        entry["items"].is_array()) {
+        for (size_t i = 0; i < entry["locations"].size() && i < entry["items"].size(); i++) {
+            if (entry["locations"][i].is_string() && entry["items"][i].is_string()) {
+                pairs.emplace_back(entry["locations"][i].get<std::string>(), entry["items"][i].get<std::string>());
+            }
+        }
+    }
+    return pairs;
+}
+
+/**
+ * TEST BRIDGE (#575 H3b, combo-creation-event leg 11): the OoT spoiler the paired
+ * creation WROTE (OoT_ComboLogic_FinishGeneralPass, under its paired-spoiler gate),
+ * read back from disk: every hint entry that names an OoT crossing host of the store
+ * names, as its item, the MM item that host yields ("Elegy of Emptiness (MM)"),
+ * never the cover the host physically holds.
+ * @param outNamed  the entries naming a crossing host (0 makes the check vacuous).
+ * @return the number of failures (each printed); -1 when the file cannot be read.
+ */
+extern "C" int Rando_TestCheckPairedSpoilerCrossingHints(const char* path, int* outNamed) {
+    *outNamed = 0;
+    nlohmann::json doc;
+    try {
+        std::ifstream in(path);
+        if (!in.is_open()) {
+            return -1;
+        }
+        in >> doc;
+    } catch (...) { return -1; }
+    int failures = 0;
+    for (const char* section : { "Gossip Stone Hints", "Static Hints" }) {
+        if (!doc.contains(section) || !doc[section].is_object()) {
+            continue;
+        }
+        for (const auto& kv : doc[section].items()) {
+            for (const auto& pair : SpoilerHintPairs(kv.value())) {
+                const auto found = Rando::StaticData::locationNameToEnum.find(pair.first);
+                if (found == Rando::StaticData::locationNameToEnum.end() ||
+                    Combo_Crossings_Lookup(GAME_OOT, (uint16_t)found->second) == nullptr) {
+                    continue;
+                }
+                (*outNamed)++;
+                const std::string expected = ExpectedCrossedItemName((uint16_t)found->second, false);
+                if (expected.empty() || pair.second != expected) {
+                    fprintf(stderr,
+                            "[rando-hints] FAIL paired spoiler: %s \"%s\" names crossing host %u (%s) with the item "
+                            "\"%s\", not \"%s\"\n",
+                            section, kv.key().c_str(), (unsigned)found->second, pair.first.c_str(),
+                            pair.second.c_str(), expected.c_str());
+                    failures++;
+                } else if (*outNamed <= 3) {
+                    fprintf(stderr, "[rando-hints] paired spoiler: %s \"%s\" names crossing host %u: \"%s\"\n",
+                            section, kv.key().c_str(), (unsigned)found->second, pair.second.c_str());
+                }
+            }
+        }
+    }
+    return failures;
+}
+
+/**
+ * TEST BRIDGE (#575 H3b, IntPairedFirstCrossing): the loaded-file term of the hint
+ * text's gate (OoT_Combo_HintTextCrossingAt: a paired file loaded and played),
+ * checked in play, where a gossip stone renders its hint. The paired drive calls it
+ * with its paired file loaded and OoT in gameplay; neither creation gate (the
+ * remainder's, the paired spoiler's) is open there. For every OoT crossing host of
+ * the store, an item-area hint built for it (as CreateHint builds a stone hint)
+ * names the crossed MM item with its article and " (MM)", never the cover; and every
+ * enabled item or item-area hint of the loaded world that names a host (what its
+ * stone says when read) names the same.
+ * @param outProbes  the hosts probed; @param outStones  the loaded hints naming one.
+ * @return the number of failures (each printed with "[H3B]"); -1 when a creation
+ *         gate is open, so the check would not be testing the loaded-file term.
+ */
+extern "C" int Rando_TestCheckLoadedCrossingHostHints(int* outProbes, int* outStones) {
+    *outProbes = 0;
+    *outStones = 0;
+    if (OoT_ComboLogic_HintingPairedRemainder() != 0 || OoT_ComboLogic_WritingSingleBagSpoiler() != 0) {
+        fprintf(stderr, "[H3B] a creation gate is open in play; the loaded-file term is not what is tested\n");
+        return -1;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    int failures = 0;
+    const RandomizerHint probeKey = Rando::StaticData::gossipStoneCheckToHint[RC_KF_GOSSIP_STONE];
+    for (int i = 0; i < Combo_Crossings_Count(GAME_OOT); i++) {
+        ComboCrossing row;
+        if (!Combo_Crossings_At(GAME_OOT, i, &row)) {
+            continue;
+        }
+        const RandomizerCheck host = (RandomizerCheck)row.hostCheck;
+        Rando::ItemLocation* itemLoc = ctx->GetItemLocation(host);
+        const std::string expected = ExpectedCrossedItemName(row.hostCheck, true);
+        if (itemLoc == nullptr || itemLoc->GetAreas().empty() || expected.empty()) {
+            continue;
+        }
+        (*outProbes)++;
+        const std::string cover = PlacedItemEnglishName(host);
+        Rando::Hint probe(probeKey, HINT_TYPE_ITEM_AREA, "H3b loaded probe", {}, { host }, { itemLoc->GetFirstArea() },
+                          {});
+        const std::string text = JoinMessages(probe.GetAllMessageStrings(MF_CLEAN));
+        if (text.find(expected) == std::string::npos || text.find(cover) != std::string::npos) {
+            fprintf(stderr,
+                    "[H3B] FAIL: in play, a stone hint for crossing host %u reads \"%s\", not \"%s\" (cover \"%s\")\n",
+                    (unsigned)row.hostCheck, text.c_str(), expected.c_str(), cover.c_str());
+            failures++;
+        } else if (*outProbes <= 2) {
+            fprintf(stderr, "[H3B] in play, a stone hint for crossing host %u reads \"%s\"\n", (unsigned)row.hostCheck,
+                    text.c_str());
+        }
+    }
+    for (int h = RH_NONE + 1; h < RH_MAX; h++) {
+        Rando::Hint* hint = ctx->GetHint((RandomizerHint)h);
+        if (hint == nullptr || !hint->IsEnabled() ||
+            (hint->GetHintType() != HINT_TYPE_ITEM && hint->GetHintType() != HINT_TYPE_ITEM_AREA)) {
+            continue;
+        }
+        const std::vector<RandomizerCheck> locations = hint->GetHintedLocations();
+        for (const RandomizerCheck rc : locations) {
+            if (Combo_Crossings_Lookup(GAME_OOT, (uint16_t)rc) == nullptr) {
+                continue;
+            }
+            (*outStones)++;
+            const std::string expected = ExpectedCrossedItemName((uint16_t)rc, true);
+            const std::string text = JoinMessages(hint->GetAllMessageStrings(MF_CLEAN));
+            if (expected.empty() || text.find(expected) == std::string::npos) {
+                fprintf(stderr, "[H3B] FAIL: in play, hint %d names crossing host %u but reads \"%s\", not \"%s\"\n", h,
+                        (unsigned)rc, text.c_str(), expected.c_str());
+                failures++;
+            } else {
+                fprintf(stderr, "[H3B] in play, hint %d names crossing host %u: \"%s\"\n", h, (unsigned)rc,
+                        text.c_str());
+            }
+        }
+    }
+    fprintf(stderr, "[H3B] in play: %d crossing host(s) probed, %d loaded hint slot(s) name one, %d failure(s)\n",
+            *outProbes, *outStones, failures);
+    return failures;
 }
 #endif
 

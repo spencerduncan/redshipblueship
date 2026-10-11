@@ -77,8 +77,9 @@
  *       every OoT row HOME_ONLY — zero OoT items in Termina — while MM's rows
  *       still cross. Red with SingleBagOriginMayCross's class conjunct deleted.
  *   D2. PAIRED-WORLD HINTS: the #441 checks over the hints OoT's remainder wrote
- *       for THIS world, plus every crossing host hintable and, where a hint names
- *       one, named by the MM item it yields, never its cover (#575 H3b), and an
+ *       for THIS world, plus every crossing host hintable, counted major by the
+ *       "Named Item" filter exactly when MM grades its item major, and, where a
+ *       hint names one, named by the MM item it yields, never its cover (#575 H3b), and an
  *       OoT item placed in MM hinted by its MM area (Rando_ValidatePairedWorldHints).
  *   D2b. A SOLO WORLD AFTER A PAIRED CREATION NAMES NO CROSSED ITEM (#575 H3b): the
  *       crossing store outlives its creation, so OoT's native general pass is run

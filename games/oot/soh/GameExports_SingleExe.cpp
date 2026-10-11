@@ -973,6 +973,30 @@ static void GpPairedTrackerSearch(int host, const std::string& text) {
     fflush(stderr);
 }
 
+// #575 H3b: the hint text's loaded-file gate, in play (3drando/menu.cpp). An OoT
+// gossip stone that hints a crossing host names the MM item the host yields, with
+// the paired file loaded and no creation gate open: what a player reads.
+extern "C" int Rando_TestCheckLoadedCrossingHostHints(int* outProbes, int* outStones);
+
+static void GpPairedCheckStoneHints(const char* leg) {
+    int probes = 0;
+    int stones = 0;
+    const int failures = Rando_TestCheckLoadedCrossingHostHints(&probes, &stones);
+    fprintf(stderr, "[PFC] %s: OoT stone hints in play name %d crossing host(s) by their MM item (%d loaded hint "
+                    "slot(s)), %d failure(s)
+",
+            leg, probes, stones, failures);
+    fflush(stderr);
+    if (failures != 0 || probes == 0) {
+        char msg[256];
+        snprintf(msg, sizeof(msg),
+                 "%s: an OoT stone hint for a crossing host does not name the MM item it yields in play (%d "
+                 "failure(s), %d host(s) probed; see [H3B])",
+                 leg, failures, probes);
+        IntegrationTest_GameplayFail(msg);
+    }
+}
+
 static void GpPairedTrackerPlaytest(int frame) {
     static int sHost = -1;
     static std::string sItemName;
@@ -1885,6 +1909,10 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             sGpFramesInPhase++;
             if (phase == GP_PHASE_OOT_PRE && IntegrationTest_PairedFirstCrossing()) {
                 GpPairedTrackerPlaytest(sGpFramesInPhase);
+            }
+            if (sGpFramesInPhase == 20 && (phase == GP_PHASE_OOT_PRE || phase == GP_PHASE_OOT_RETURN) &&
+                IntegrationTest_PairedFirstCrossing() && !IntegrationTest_PairedSkipCreation()) {
+                GpPairedCheckStoneHints(phase == GP_PHASE_OOT_PRE ? "first OoT leg" : "return leg");
             }
             if (phase == GP_PHASE_OOT_WARP && IntegrationTest_PairedFirstCrossing()) {
                 PfcShopPlaytestWarpFrame(play, sGpFramesInPhase);

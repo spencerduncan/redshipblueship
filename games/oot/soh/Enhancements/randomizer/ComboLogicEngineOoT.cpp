@@ -2640,7 +2640,8 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
     //    host physically holds kOoTForeignJunkCover while its real content is an
     //    MM item delivered through the crossing store; OoT's hint text names that
     //    MM item, never the cover (hint.cpp, through OoT_Combo_HintTextCrossingAt),
-    //    and the "Named Item" filter counts it as major (hints.cpp). Before #575
+    //    and the "Named Item" filter counts it as major when MM grades that MM
+    //    item major (hints.cpp, OoT_Combo_HintPassCrossingIsMajor). Before #575
     //    H3b a host was kept out of every location hint (PR #743 review), because
     //    the text read the physical item and a stone would have named a Blue Rupee.
     for (int i = 0; i < sPlacementCount; ++i) {
@@ -2743,6 +2744,14 @@ extern "C" int OoT_ComboLogic_HintingPairedRemainder(void) {
  *  over the world the store describes. The lock shuts it again before P5. */
 extern "C" void OoT_ComboLogic_TestSetHintingPairedRemainder(int on) {
     sHintingPairedRemainder = on != 0;
+}
+
+/** TEST BRIDGE (#575 H3b; ComboSingleBag D2): hold the paired spoiler's gate open
+ *  (1) or shut (0), as step 5 above holds it around SpoilerLog_Write, so a lock can
+ *  render one hint's spoiler entry the way the paired creation writes it, with the
+ *  remainder's gate already shut. The lock shuts it again before P5. */
+extern "C" void OoT_ComboLogic_TestSetWritingSingleBagSpoiler(int on) {
+    sWritingSingleBagSpoiler = on != 0;
 }
 
 /**

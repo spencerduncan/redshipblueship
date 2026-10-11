@@ -375,9 +375,21 @@ extern "C" int OoT_ComboLogic_HintingPairedRemainder(void);
 extern "C" int OoT_ComboLogic_WritingSingleBagSpoiler(void);
 
 /**
- * #575 H3b: 1 when OoT check `rc` is a crossing host, for OoT's hint PASS (the
- * checks a stone may pick, and the "Named Item" filter, which counts every
- * crossing as major: the single bag carries progression only).
+ * #575 H3b: for OoT's hint PASS's "Named Item" filter (3drando/hints.cpp,
+ * FilterGoodItems), whether crossing host `rc` counts as a major item: -1 when
+ * `rc` is not a crossing host of the world being hinted (the filter then asks the
+ * item the check holds, as upstream does), else 1 when the MM item it yields is
+ * major and 0 when it is not.
+ *
+ * MAJOR IS MM'S OWN ANSWER, read through the item class owner (shared_items.h
+ * "THE CHEST GRADE", MM's randoItemType; ADR 0002 keeps MM's item table out of
+ * this TU), mapped onto OoT's own rule (Item::IsMajorItem): an MM major item, a
+ * mask, and a small or boss key that crossed (a crossing key was placed by the
+ * general pass, where OoT counts its own keys major) are major; a map or compass
+ * (LESSER), a heart piece or container (HEALTH), a skulltula token, a stray fairy,
+ * junk and an item with no grade are not, as OoT's own maps, compasses, heart
+ * pieces and containers are not. So an MM compass never takes a good-item stone
+ * an OoT compass could not take.
  *
  * The crossing store outlives the creation that filled it (it is cleared on a cold
  * boot, a slot load, a failed creation and a session invalidation, not by a new
@@ -386,11 +398,23 @@ extern "C" int OoT_ComboLogic_WritingSingleBagSpoiler(void);
  * reads it only while OoT's remainder hints the paired world the store describes,
  * the gate the Termina answer already uses (3drando/hints.cpp).
  */
-extern "C" int OoT_Combo_HintPassHostsCrossing(int rc) {
+extern "C" int OoT_Combo_HintPassCrossingIsMajor(int rc) {
     if (rc <= 0 || OoT_ComboLogic_HintingPairedRemainder() == 0) {
-        return 0;
+        return -1;
     }
-    return Combo_GetForeignPlacementForOoTCheck((uint16_t)rc) != nullptr ? 1 : 0;
+    const SharedItem* item = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
+    if (item == nullptr) {
+        return -1;
+    }
+    switch (Combo_ItemChestGrade(*item)) {
+        case RSBS_CHEST_GRADE_MAJOR:
+        case RSBS_CHEST_GRADE_MASK:
+        case RSBS_CHEST_GRADE_SMALL_KEY:
+        case RSBS_CHEST_GRADE_BOSS_KEY:
+            return 1;
+        default:
+            return 0;
+    }
 }
 
 /**
