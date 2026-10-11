@@ -48,6 +48,9 @@ set(REDSHIP_COMMON_SOURCES
     # "which MM check hosts which OoT item, and has it been collected", so the
     # spoiler stops being a JSON path the operator has to be told
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.c
+    # The one shared hint AREA vocabulary (#575 H1): origin-tagged {game, area},
+    # English names, and the per-game check-to-area adapters each game registers
+    ${CMAKE_SOURCE_DIR}/src/common/combo_area.c
     # The window that renders it — the first common-owned Gui element (ADR 0008)
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.cpp
     # Combo tracker (#458): both games' check progress through per-game
@@ -1387,6 +1390,16 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # #575 H1: the one shared hint AREA vocabulary (src/common/combo_area.c).
+    # Unlike the two rows above it is display-free and ROM-free, so it sits in
+    # the redship tier: names unique per half and invertible, no OoT name equal
+    # to an MM name, every MM check but the enemy drops in an MM area through
+    # MM's adapter and every MM area holding a check, every RandomizerArea in a
+    # distinct OoT area named in OoT's own English text, the dead
+    # RandoStaticRegion decoy gone, and combo_area.{h,c} free of game headers.
+    # RandoHintReload (above) holds the OoT adapter's answers across a reload.
+    redship_add_test(NAME ComboAreaVocabulary COMMAND redship --test combo-area-vocabulary)
 
     # Song shuffle modes. Stock (RandoGen above) already covers mode 1 — "Song
     # Locations" is the default — which is the mode that regressed when the
