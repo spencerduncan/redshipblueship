@@ -24,7 +24,10 @@
  *     `SetNextWindowPos` goes unconsumed on a widget-less page and undocks
  *     libultraship's "Main Game" window. Every registered Combo sidebar must
  *     hold at least one widget, which is also why ADR 0004 §4's other three
- *     Combo sidebars are deliberately NOT registered yet.
+ *     Combo sidebars are deliberately NOT registered yet. A COLUMN of a shipped
+ *     page is not empty either (#844): `Menu::DrawElement` splits the section
+ *     by `columnCount`, so a declared column with no rows draws as an empty
+ *     half and narrows the rows beside it.
  *
  *  4. A WINDOW BUTTON'S CVar OR NAME DRIFTS. `WIDGET_WINDOW_BUTTON` reads `.CVar`
  *     only for its open/close label and calls the window's own
@@ -262,6 +265,19 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                     "Combo / %s is registered with no widgets at all -- #640's failure mode, which "
                     "undocks libultraship's \"Main Game\" window rather than merely looking empty",
                     pageName);
+        // #844: every column the page declares holds rows. Menu::DrawElement
+        // divides the section by columnCount whether or not a column has rows,
+        // so a declared column with none leaves an empty half beside the page
+        // and squeezes every row into the other (Cross-Game Rules kept one
+        // after #834 retired its item-class groups).
+        for (uint32_t column = 0; column < page.columnCount; column++) {
+            const std::size_t rowsInColumn =
+                column < page.columnWidgets.size() ? page.columnWidgets.at(column).size() : 0;
+            COMBO_CHECK(rowsInColumn > 0,
+                        "Combo / %s declares %u columns but column %u holds no rows -- the page draws an empty "
+                        "column and its rows take only part of the width (#844)",
+                        pageName, page.columnCount, column + 1);
+        }
         // Every row must be in a column the page actually draws.
         for (uint32_t column = 0; column < page.columnWidgets.size(); column++) {
             for (WidgetInfo& row : page.columnWidgets.at(column)) {
@@ -280,7 +296,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         }
         COMBO_CHECK(found, "Combo / %s is in `sidebars` but not in `sidebarOrder`", pageName);
     }
-    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and both shipped pages hold widgets\n");
+    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and both shipped pages hold widgets in "
+           "every column they declare\n");
 
     // ---- Leg 2: the rules page hosts the tier-4 rows -----------------------
     // Which rows, and how they behave, is ComboSettingsRows. What this leg owns is
