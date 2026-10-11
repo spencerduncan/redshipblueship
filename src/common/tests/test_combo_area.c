@@ -266,9 +266,11 @@ TestResult Test_ComboAreaVocabulary(void) {
 // the grotto is, and the 55 enemy drops (SCENE_SPOT00, "Cutscene Scene") could
 // be hinted at all. The stone now names the check's area in the shared
 // vocabulary (H1's MM table) with OoTMM's preposition, and hints only checks
-// that have an area. Drives the stone's REAL text (the hook's own template, item
-// and location substitution, EnGs.cpp) and its REAL candidate filter over MM's
-// real check table.
+// that have an area. Drives the stone's REAL text (GossipHintText, the function
+// both text hooks call, EnGs.cpp) and its REAL candidate filter over MM's real
+// check table. Section 4 drives only the shared helper with sample templates:
+// the five static hint call sites (DmStk, EnTalk, EnZow, EnKgy x2) are not
+// driven, so their templates are not locked here.
 // ============================================================================
 TestResult Test_MmHintAreaText(void) {
     printf("[TEST] mm-hint-area-text: MM's own hints name the shared area, not the scene (#575 H2)\n");
@@ -365,7 +367,8 @@ TestResult Test_MmHintAreaText(void) {
     CA_ASSERT(grottoFree == 1 && grottoPurchased == 1); // control: the same item on a check with an area
     CA_ASSERT(dropFree == 0 && dropPurchased == 0);
 
-    // ---- 4. The static hints (Oath, remains, Hookshot, gold dust) fill theirs through the same helper.
+    // ---- 4. The helper the static hints call (ReplaceLocation), on sample templates
+    // of their two forms. This does not drive DmStk/EnTalk/EnZow/EnKgy themselves.
     char said[256];
     const ComboArea grottoArea = Combo_Area_OfCheck((uint8_t)GAME_MM, firstGrotto);
     CA_ASSERT(Combo_Area_Prepos(grottoArea) != nullptr);

@@ -84,9 +84,30 @@ static std::string GossipHintItemName(RandoCheckId randoCheckId) {
     }
     return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
 }
+
+// #575 H2: what a stone says for a check, before colours and line breaks: the
+// free stone's text (purchased == false) or the purchased hint's. Both text
+// hooks below call it, and so does the test bridge, so the lock reads the very
+// string the player is shown. The check is named by its area in the shared
+// vocabulary, with the area's OoTMM preposition (Rando/HintArea.h).
+static std::string GossipHintText(RandoCheckId randoCheckId, bool purchased) {
+    std::string msg = purchased ? "Wise choice... They say %g{{item}}%w is hidden {{prepos}} %y{{location}}%w."
+                                : "They say %g{{item}}%w is hidden {{prepos}} %y{{location}}%w.";
+    CustomMessage::Replace(&msg, "{{item}}", GossipHintItemName(randoCheckId));
+    Rando::HintArea::ReplaceLocation(&msg, "{{location}}", randoCheckId);
+    return msg;
+}
 #else
 static std::string GossipHintItemName(RandoCheckId randoCheckId) {
     return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
+}
+
+static std::string GossipHintText(RandoCheckId randoCheckId, bool purchased) {
+    std::string msg = purchased ? "Wise choice... They say %g{{item}}%w is hidden at %y{{location}}%w."
+                                : "They say %g{{item}}%w is hidden at %y{{location}}%w.";
+    CustomMessage::Replace(&msg, "{{item}}", GossipHintItemName(randoCheckId));
+    CustomMessage::Replace(&msg, "{{location}}", Ship_GetSceneName(Rando::StaticData::Checks[randoCheckId].sceneId));
+    return msg;
 }
 #endif // RSBS_SINGLE_EXECUTABLE
 
@@ -146,10 +167,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
 
             entry.autoFormat = false;
 
-            entry.msg = "They say %g{{item}}%w is hidden " RANDO_HINT_PREPOS("at") " %y{{location}}%w.";
-
-            CustomMessage::Replace(&entry.msg, "{{item}}", GossipHintItemName(randoCheckId));
-            Rando::HintArea::ReplaceLocation(&entry.msg, "{{location}}", randoCheckId);
+            entry.msg = GossipHintText(randoCheckId, false);
 
             // Replace colors before line break calculation
             CustomMessage::ReplaceColorChars(&entry.msg);
@@ -191,11 +209,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
                 } else if (randoCheckId == RC_UNKNOWN) {
                     entry.msg = "I have no more hints for you...";
                 } else {
-                    entry.msg =
-                        "Wise choice... They say %g{{item}}%w is hidden " RANDO_HINT_PREPOS("at") " %y{{location}}%w.";
-
-                    CustomMessage::Replace(&entry.msg, "{{item}}", GossipHintItemName(randoCheckId));
-                    Rando::HintArea::ReplaceLocation(&entry.msg, "{{location}}", randoCheckId);
+                    entry.msg = GossipHintText(randoCheckId, true);
 
                     gSaveContext.rupeeAccumulator -= cost;
                     cost *= 2;
@@ -276,18 +290,14 @@ extern "C" void MM_Rando_Hints_TestSetCheck(uint16_t randoCheckId, uint16_t rand
 }
 
 /** The text a stone says for `randoCheckId` before colours and line breaks:
- *  the free stone's (purchased == 0) or the purchased hint's (purchased != 0),
- *  built from the same template and substitutions as the two hooks above.
+ *  the free stone's (purchased == 0) or the purchased hint's (purchased != 0).
+ *  It is GossipHintText's own result, the function both text hooks above call.
  *  Returns the full length, or -1 for an id that is not a real check. */
 extern "C" int MM_Rando_Hints_TestGossipText(uint16_t randoCheckId, int purchased, char* out, int cap) {
     if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
         return -1;
     }
-    std::string msg =
-        purchased != 0 ? "Wise choice... They say %g{{item}}%w is hidden " RANDO_HINT_PREPOS("at") " %y{{location}}%w."
-                       : "They say %g{{item}}%w is hidden " RANDO_HINT_PREPOS("at") " %y{{location}}%w.";
-    CustomMessage::Replace(&msg, "{{item}}", GossipHintItemName((RandoCheckId)randoCheckId));
-    Rando::HintArea::ReplaceLocation(&msg, "{{location}}", (RandoCheckId)randoCheckId);
+    const std::string msg = GossipHintText((RandoCheckId)randoCheckId, purchased != 0);
     snprintf(out, (size_t)cap, "%s", msg.c_str());
     return (int)msg.size();
 }
