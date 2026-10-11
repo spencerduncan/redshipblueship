@@ -4535,12 +4535,14 @@ void Session::CaptureToast(const PageSpec& p) {
         // own counter, so the oracle finds it by prefix: every active toast
         // window, whose union is the content rectangle.
         float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f;
+        float fontScale = 1e9f;
         int found = 0;
         for (ImGuiWindow* w : GImGui->Windows) {
             if (w == nullptr || !w->Active || std::string(w->Name).rfind(p.window, 0) != 0) {
                 continue;
             }
             found++;
+            fontScale = std::min(fontScale, w->FontWindowScale);
             x0 = std::min(x0, w->Pos.x);
             y0 = std::min(y0, w->Pos.y);
             x1 = std::max(x1, w->Pos.x + w->Size.x);
@@ -4560,6 +4562,19 @@ void Session::CaptureToast(const PageSpec& p) {
                 c.status = "fail";
                 c.reason = "the toast runs off the window (x " + std::to_string((int)x0) + " to " +
                            std::to_string((int)x1) + " of " + std::to_string(profile.w) + ")";
+            }
+            // #906: the overlay draws a toast wider than its window smaller
+            // (Notification.cpp, FitToastToWindow), so the run-off check above
+            // alone no longer catches long copy. Every profile here is the copy
+            // contract's 832 px or wider, where each toast must draw at the
+            // player's own Notifications.Size (docs/ui-style-guide.md, Toasts).
+            const float size = CVarGetFloat(CVAR_SETTING("Notifications.Size"), 1.8f);
+            if (c.status != "fail" && fontScale < size - 0.001f) {
+                char scaleText[96];
+                snprintf(scaleText, sizeof(scaleText), "%.2fx, below Notifications.Size %.2fx", fontScale, size);
+                c.status = "fail";
+                c.reason = std::string("the overlay drew the toast at ") + scaleText +
+                           ", to fit the window: its copy is wider than the 832-px copy contract";
             }
         }
     }
