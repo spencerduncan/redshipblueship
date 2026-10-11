@@ -117,7 +117,10 @@ typedef enum RsbsRefuseReason {
     // reason too, and keeps the same contract for a field-only divergence; only
     // its DAMAGE case — an unreadable record, or a fingerprint the record does
     // not produce (Combo_ComboSettingsDivergenceIsDamage) — is evidence and is
-    // quarantined like any other refused file.
+    // quarantined like any other refused file. The file-open path also refuses
+    // under this reason a healthy record that names another Ocarina of Time
+    // world than the .sav it is opened with (#564 V12, RsbsOoTSavIdentity);
+    // that file is another file's record, so it is left in place too.
     RSBS_REFUSE_IDENTITY,
     // ADR 0010 increment 1.2 (#500): the paired MM world could not be
     // GENERATED at a cross-game arrival — the deterministic attempt ladder
@@ -149,6 +152,30 @@ typedef enum RsbsLoadOutcome {
     RSBS_LOAD_ABSENT = 1,   // no slot file; nothing loaded; slot armed (safe to create)
     RSBS_LOAD_REFUSED = 2,  // validation failed; evidence quarantined; writes latched
 } RsbsLoadOutcome;
+
+// What OoT's .sav records about the world it belongs to (#564 V12), for the
+// file-open path: the probe and the open path's load compare it with the
+// .redsave's Tier-1 pairing identity before anything commits, so a record that
+// names another Ocarina of Time world (a same-slot record from another install
+// or from an earlier file; a cross-slot copy is already refused by the header's
+// slot stamp) is refused instead of pairing this file with it. OoT's
+// SaveManager reads both terms (games/oot/soh/SaveManager.cpp):
+//   randoSeed    - the .sav's OWN randomizer seed (SoH's "finalSeed": the seed
+//                  Rando::Context generated the file's world from, which the
+//                  creation freeze stamps as sharedRandoSeed);
+//   settingsHash - the settings digest the commit that last wrote the .sav
+//                  mirrored beside its commit generation ("rsbsPairSettingsHash").
+//                  SoH's saved settings cannot be re-hashed at load instead: the
+//                  fill rewrites some of them after the digest is taken (the
+//                  mixed entrance-pool reset in entrance.cpp), so a re-hash would
+//                  refuse healthy files.
+// 0 means the .sav does not record that term (a file written before the stamp,
+// or a value that is not the unsigned integer this build writes): exempt, as an
+// absent commit generation is.
+typedef struct RsbsOoTSavIdentity {
+    uint32_t randoSeed;
+    uint32_t settingsHash;
+} RsbsOoTSavIdentity;
 
 // ---- In-session reset from the last whole commit (#785) ---------------------
 // What SaveManager::RestoreLastCommitForReset found. Only RSBS_RESET_RESTORED
@@ -425,13 +452,24 @@ public:
      *     record carries no pairing identity (RSBS_REFUSE_MISSING);
      *   - a paired record whose MM half is all zero (RSBS_REFUSE_GENERATION:
      *     the paired Termina world was never authored into the file);
-     *   - an MM option profile the file cannot restore (RSBS_REFUSE_IDENTITY).
+     *   - an MM option profile the file cannot restore (RSBS_REFUSE_IDENTITY);
+     *   - a paired record on a randomizer file whose .sav (@p savIdentity, may
+     *     be null: nothing recorded) names another world: the .sav's own seed or
+     *     its mirrored settings digest is not the record's sharedRandoSeed /
+     *     sharedRandoSettingsHash (#564 V12; RSBS_REFUSE_IDENTITY, not
+     *     quarantined: the record is healthy, it belongs to another file). This
+     *     is a record at its own slot path from another install, or from an
+     *     earlier file in this slot; a record copied from another slot is
+     *     already refused on its header's slot stamp (RSBS_REFUSE_WRONG_SLOT).
+     *     It is compared before the commit generations, which mean nothing
+     *     between two unrelated files.
      * A divergence the file CAN restore is accepted; the load restores it.
      *
      * Returns OK, ABSENT (a vanilla file with no record) or REFUSED; @p outWords
      * (may be null) receives the player's words for a refusal.
      */
-    RsbsLoadOutcome ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile, std::string* outWords);
+    RsbsLoadOutcome ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile,
+                                     const RsbsOoTSavIdentity* savIdentity, std::string* outWords);
 
     /**
      * The open path's load (OoT's OnLoadFile seam): LoadSlot plus the open
@@ -441,7 +479,8 @@ public:
      * it records the player's words on the slot and posts no toast (the
      * backstop that returns the player to the file select posts it).
      */
-    RsbsLoadOutcome LoadSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile);
+    RsbsLoadOutcome LoadSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile,
+                                    const RsbsOoTSavIdentity* savIdentity);
 
     /**
      * Whole-file commit, read side (#589/#531). True iff the load that just
@@ -692,9 +731,10 @@ private:
     // What a load of the slot would decide, before anything moves (#836). One
     // evaluation serves the file-select probe and both loads.
     struct SlotVerdict;
-    void EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind, SlotFileData& data,
-                      SlotVerdict& out) const;
-    RsbsLoadOutcome LoadSlotImpl(int slot, uint32_t ootSavGeneration, int openKind);
+    void EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind, const RsbsOoTSavIdentity* savIdentity,
+                      SlotFileData& data, SlotVerdict& out) const;
+    RsbsLoadOutcome LoadSlotImpl(int slot, uint32_t ootSavGeneration, int openKind,
+                                 const RsbsOoTSavIdentity* savIdentity);
 
     enum class SlotReadResult { Absent, Ok, Refused };
 
@@ -876,10 +916,13 @@ int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration);
  * LoadSlotForOpen). The probe returns the RsbsLoadOutcome the open path's load
  * would reach and writes nothing but the session's refusal record; @p words
  * (may be NULL) receives the player's words for a refusal ("" otherwise). The
- * load is OoT's OnLoadFile seam's call.
+ * load is OoT's OnLoadFile seam's call. @p savIdentity (may be NULL: the .sav
+ * records nothing) is what the file's .sav says about its world (#564 V12).
  */
-int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile, char* words, size_t wordsLen);
-int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile);
+int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile,
+                              const RsbsOoTSavIdentity* savIdentity, char* words, size_t wordsLen);
+int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile,
+                             const RsbsOoTSavIdentity* savIdentity);
 
 /** The file select's refusal toast (#836): RSBS_REFUSAL_TOAST_PREFIX and the
  *  player's words for the refused file, muted (the same words the Combo > Save
