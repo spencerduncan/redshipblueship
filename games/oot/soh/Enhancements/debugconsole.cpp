@@ -1367,6 +1367,21 @@ static bool CuccoStormHandler(std::shared_ptr<Ship::Console> Console, const std:
 
 static bool GenerateRandoHandler(std::shared_ptr<Ship::Console> Console, const std::vector<std::string>& args,
                                  std::string* output) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #909: the Generate Randomizer button is disabled outside OoT's file select or with a save loaded (its PreFunc
+    // in SohMenuRandomizer.cpp), and that gate is what keeps the paired world's identity stamp site (the creation
+    // freeze in Playthrough_Init) unreachable while a file is loaded. A loaded paired file's identity was frozen when
+    // it was created, so this command refuses under the button's own predicate instead of re-stamping it mid-play.
+    // Like the #798 gate, the refusal goes into the caller's output (the Console window prints it as the command's
+    // error).
+    if (gSaveContext.gameMode != GAMEMODE_FILE_SELECT || GameInteractor::IsSaveLoaded()) {
+        if (output != nullptr) {
+            *output = "[SOH] 'gen_rando' only runs on the file select with no file loaded: a loaded file keeps the "
+                      "world it was created with.";
+        }
+        return 1;
+    }
+#endif
     if (args.size() == 1) {
         if (GenerateRandomizer()) {
             return 0;

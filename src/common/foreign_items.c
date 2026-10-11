@@ -101,11 +101,25 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     Combo_ComboSettingsDefaults(out);
     out->direction = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION);
     out->goal = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
-    // comboFlags stays 0: no key authors a flag. Its one bit,
-    // RSBS_COMBO_FLAG_SHARED_OCARINA, lost its key when #879 retired the
-    // Shared Ocarina rule; a stale gCombo.Rando.SharedOcarina in a config file
-    // is ignored, and the bit stays reserved for the older worlds that carry it.
+    // comboFlags is ASSEMBLED from its flag keys, never overlaid: the byte is a
+    // bitset and each bit has its own key, so writing the whole byte from the
+    // resolved booleans keeps every unallocated bit at 0 whatever a stored value
+    // holds. With every flag off this is 0, byte-identical to the defaults.
+    // RSBS_COMBO_FLAG_SHARED_OCARINA lost its key when #879 retired the Shared
+    // Ocarina rule; a stale gCombo.Rando.SharedOcarina in a config file is
+    // ignored, and the bit stays reserved for the older worlds that carry it.
     out->comboFlags = 0u;
+    if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_KOKIRI_SWORD) != 0) {
+        out->comboFlags |= (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD; // #886
+    }
+}
+
+bool Combo_ComboSharedKokiriSword(void) {
+    // The FROZEN record only (#886). A CVar read after creation would let a
+    // title-screen toggle change a world that was already built, and before
+    // creation there is no world whose two saves could share a sword.
+    return Combo_ComboSettingsFrozen() &&
+           (gComboCtx.comboSettings.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u;
 }
 
 bool Combo_ComboSettingsDescribePairedWorld(const ComboSettingsRecord* rec) {
@@ -498,6 +512,9 @@ uint32_t Combo_ComboSettingsDivergenceBetween(const ComboSettingsRecord* frozen,
     if ((flagsDelta & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA) != 0u) {
         bits |= RSBS_COMBO_DIVERGE_SHARED_OCARINA;
     }
+    if ((flagsDelta & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u) {
+        bits |= RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD;
+    }
     if ((flagsDelta & (uint8_t)~RSBS_COMBO_FLAGS_ALL_V1) != 0u) {
         bits |= RSBS_COMBO_DIVERGE_COMBO_FLAGS;
     }
@@ -584,6 +601,8 @@ const char* Combo_ComboSettingsDivergenceFieldName(uint32_t bit) {
             return "comboSettingsHash";
         case RSBS_COMBO_DIVERGE_TRIFORCE:
             return "triforceHunt";
+        case RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD:
+            return "sharedKokiriSword";
         default:
             return "(unknown)";
     }

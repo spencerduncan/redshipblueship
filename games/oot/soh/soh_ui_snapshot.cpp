@@ -2033,7 +2033,8 @@ void Session::BuildPageList() {
                 // one "Value: effect" line per goal, all of which the oracle reads.
                 // frozen-goal: the goal row's disabled tooltip once the world is decided.
                 // (frozen-slider hovered a pool-size slider until #801 retired both.)
-                p.hovers = { "direction", "goal", "frozen-goal" };
+                // kokiri-sword: #886's Shared Kokiri Sword checkbox and its tooltip.
+                p.hovers = { "direction", "goal", "kokiri-sword", "frozen-goal" };
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
@@ -3358,7 +3359,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             if (byName) {
                 label = namedRow->second;
             } else {
-                ComboSettingId targetId = (hv == "direction") ? COMBO_SETTING_DIRECTION : COMBO_SETTING_GOAL;
+                ComboSettingId targetId = (hv == "direction")      ? COMBO_SETTING_DIRECTION
+                                          : (hv == "kokiri-sword") ? COMBO_SETTING_SHARED_KOKIRI_SWORD
+                                                                   : COMBO_SETTING_GOAL;
                 label = Combo_ComboSettingLabel(targetId);
             }
             WidgetInfo* row = FindRow(*menu, p.header, p.sidebar, [&](const WidgetInfo& w) {
@@ -4535,12 +4538,14 @@ void Session::CaptureToast(const PageSpec& p) {
         // own counter, so the oracle finds it by prefix: every active toast
         // window, whose union is the content rectangle.
         float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f;
+        float fontScale = 1e9f;
         int found = 0;
         for (ImGuiWindow* w : GImGui->Windows) {
             if (w == nullptr || !w->Active || std::string(w->Name).rfind(p.window, 0) != 0) {
                 continue;
             }
             found++;
+            fontScale = std::min(fontScale, w->FontWindowScale);
             x0 = std::min(x0, w->Pos.x);
             y0 = std::min(y0, w->Pos.y);
             x1 = std::max(x1, w->Pos.x + w->Size.x);
@@ -4560,6 +4565,19 @@ void Session::CaptureToast(const PageSpec& p) {
                 c.status = "fail";
                 c.reason = "the toast runs off the window (x " + std::to_string((int)x0) + " to " +
                            std::to_string((int)x1) + " of " + std::to_string(profile.w) + ")";
+            }
+            // #906: the overlay draws a toast wider than its window smaller
+            // (Notification.cpp, FitToastToWindow), so the run-off check above
+            // alone no longer catches long copy. Every profile here is the copy
+            // contract's 832 px or wider, where each toast must draw at the
+            // player's own Notifications.Size (docs/ui-style-guide.md, Toasts).
+            const float size = CVarGetFloat(CVAR_SETTING("Notifications.Size"), 1.8f);
+            if (c.status != "fail" && fontScale < size - 0.001f) {
+                char scaleText[96];
+                snprintf(scaleText, sizeof(scaleText), "%.2fx, below Notifications.Size %.2fx", fontScale, size);
+                c.status = "fail";
+                c.reason = std::string("the overlay drew the toast at ") + scaleText +
+                           ", to fit the window: its copy is wider than the 832-px copy contract";
             }
         }
     }
