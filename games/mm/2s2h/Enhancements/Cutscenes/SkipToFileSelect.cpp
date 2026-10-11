@@ -10,7 +10,15 @@ extern "C" {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 // MM's twin of OoT's return-to-title invalidation (#564 V21), src/common/context.cpp.
+// A function, not an #ifdef at the call: the call sits inside COND_HOOK's macro
+// argument, where a preprocessor directive is ill-formed.
 extern "C" int Context_InvalidateSessionOnMMReturnToTitle(void);
+static void RetirePairedSessionAsTitleSetupDoes() {
+    Context_InvalidateSessionOnMMReturnToTitle();
+}
+#else
+static void RetirePairedSessionAsTitleSetupDoes() {
+}
 #endif
 
 #define CVAR_NAME "gEnhancements.Cutscenes.SkipToFileSelect"
@@ -46,11 +54,9 @@ void RegisterSkipToFileSelect() {
             gSaveContext.ambienceId = AMBIENCE_ID_DISABLED;
 
             // Normally the following is called by the opening cutscene
-#ifdef RSBS_SINGLE_EXECUTABLE
             // RSBS (#564 V21): this leg stands in for TitleSetup, so it retires a
             // paired file's session first, as TitleSetup does.
-            Context_InvalidateSessionOnMMReturnToTitle();
-#endif
+            RetirePairedSessionAsTitleSetupDoes();
             MM_Sram_InitNewSave();
             gSaveContext.save.time = CLOCK_TIME(8, 0);
             gSaveContext.save.day = 1;
