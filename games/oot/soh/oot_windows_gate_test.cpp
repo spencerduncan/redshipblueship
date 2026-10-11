@@ -40,6 +40,10 @@
  * #826 adds to the pass-through leg: with OoT running outside Play the gate opens, and `give_item` and `entrance` must
  * refuse on the NULL OoT_gPlayState in their handlers (non-zero, the refusal in their output, the save unchanged)
  * instead of dereferencing it.
+ *
+ * #909 adds one more: with OoT running and a paired file loaded, `gen_rando` must refuse like the Generate Randomizer
+ * button (file select only, no save loaded): non-zero, the refusal in its output, no generation started, and the
+ * paired identity in gComboCtx and the save unchanged.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -352,6 +356,60 @@ int RunConsoleAndKnifeGate() {
             }
         }
         ItemTableManager::Instance = savedItemTables;
+        fflush(stdout);
+    }
+
+    // ---- 7b. #909: gen_rando with a paired file loaded --------------------------------------------------------------
+    // The Generate Randomizer button is disabled unless OoT is on its file select with no save loaded (its PreFunc in
+    // SohMenuRandomizer.cpp), and that gate is what keeps the paired world's one identity stamp site (the creation
+    // freeze in Playthrough_Init) unreachable while a file is loaded. gen_rando reaches the same generation from the
+    // console, so it must refuse under the same predicate: non-zero, the refusal in its output (Ship::Console::Run logs
+    // it), no generation started, and the paired identity in gComboCtx and the save byte-for-byte unchanged. An
+    // unrefused gen_rando starts the generation worker, which dereferences this harness's absent window on its first
+    // lines and kills the process.
+    if (failures == 0) {
+        Context_SetCurrentGame(GAME_OOT);
+        FillSaveCanary(canary);
+        gSaveContext.gameMode = GAMEMODE_NORMAL;
+        gSaveContext.fileNum = 0;
+        canary.assign(reinterpret_cast<const uint8_t*>(&gSaveContext),
+                      reinterpret_cast<const uint8_t*>(&gSaveContext) + sizeof(gSaveContext));
+        const ComboContext savedCombo = gComboCtx;
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = 0x0909C0DEu;
+        gComboCtx.sharedRandoSettingsHash = 0x5E7790A9u;
+        gComboCtx.mmProfileDigest = 0x3D16E909u;
+        gComboCtx.comboSettingsHash = 0xC0B0909Au;
+        std::vector<uint8_t> identity(reinterpret_cast<const uint8_t*>(&gComboCtx),
+                                      reinterpret_cast<const uint8_t*>(&gComboCtx) + sizeof(gComboCtx));
+        const int32_t generatingBefore = CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0);
+        const char* const kGenRandoLines[] = { "gen_rando 909", "gen_rando" };
+        for (const char* line : kGenRandoLines) {
+            printf("[TEST] oot-windows-gate: Ocarina of Time running, paired file loaded (gameMode %d, fileNum %d, "
+                   "seed %08X), console `%s`\n",
+                   (int)gSaveContext.gameMode, (int)gSaveContext.fileNum, (unsigned)gComboCtx.sharedRandoSeed, line);
+            fflush(stdout);
+            std::string genOutput;
+            const int32_t rc = console->Run(line, &genOutput);
+            const long saveDiff = FirstSaveDiff(canary);
+            const bool identityKept = memcmp(&gComboCtx, identity.data(), identity.size()) == 0;
+            const int32_t generatingAfter = CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0);
+            printf("[TEST] oot-windows-gate: `%s` returned %d with output \"%s\" (paired identity %s, seed %08X, "
+                   "RandoGenerating %d)\n",
+                   line, (int)rc, genOutput.c_str(), identityKept ? "unchanged" : "CHANGED",
+                   (unsigned)gComboCtx.sharedRandoSeed, (int)generatingAfter);
+            if (rc == 0 || genOutput.find("only runs on the file select") == std::string::npos || !identityKept ||
+                saveDiff >= 0 || generatingAfter != generatingBefore) {
+                printf("[TEST] FAIL: oot-windows-gate: `%s` with a paired file loaded did not refuse with \"only runs "
+                       "on the file select\", leaving the paired identity, gSaveContext (first differing byte %ld) and "
+                       "RandoGenerating unchanged (#909)\n",
+                       line, saveDiff);
+                failures++;
+                memcpy(&gComboCtx, identity.data(), identity.size());
+                memcpy(&gSaveContext, canary.data(), canary.size());
+            }
+        }
+        gComboCtx = savedCombo;
         fflush(stdout);
     }
 
