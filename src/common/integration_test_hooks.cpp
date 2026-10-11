@@ -96,22 +96,28 @@ std::atomic<int> sGameplayVariant{GP_VARIANT_ROUNDTRIP};
 // Read-after-write (#901): a write to fd 2 returns as soon as the bytes are in
 // the pipe, before the reader has appended them, so a query that reads `lines`
 // straight away can miss a line its caller has just written. Every query
-// therefore drains first (CaptureLockDrained): it writes one sync byte into the
-// pipe behind everything already written and waits, bounded, until the reader
-// has consumed that byte. The pipe is FIFO, so by then every earlier line is in
-// `lines`. The sync byte is never echoed and never kept.
+// therefore drains first (CaptureLockDrained): it writes a numbered sync marker
+// into the pipe behind everything already written and waits, bounded, until
+// the reader has accepted that marker. The pipe is FIFO, so by then every
+// earlier line is in `lines`. An accepted marker is never echoed and never
+// kept. The reader accepts only a number a query has actually sent, so a stray
+// 0x1F in real output stays ordinary output and cannot end a wait early or
+// turn the drain off (#919 review).
 // ---------------------------------------------------------------------------
 struct CaptureState {
     std::mutex mutex;
     std::vector<std::string> lines;
     std::string partial;
-    // Sync bytes the reader has consumed (guarded by `mutex`, signalled on syncCv).
+    // The newest sync marker the reader has accepted (guarded by `mutex`,
+    // signalled on syncCv).
     uint64_t syncSeen = 0;
     std::condition_variable syncCv;
-    // Serialises a query's sync-byte write (and its count) against other
-    // queries and against Stop closing the write end.
+    // Serialises a query's marker write (and its number) against other queries
+    // and against Stop closing the write end.
     std::mutex syncWriteMutex;
-    uint64_t syncSent = 0; // guarded by syncWriteMutex
+    // The newest marker number a query has sent: advanced under syncWriteMutex
+    // BEFORE the write, read by the reader to accept only sent numbers.
+    std::atomic<uint64_t> syncSent{ 0 };
     std::mutex doneMutex;
     std::condition_variable doneCv;
     bool readerDone = false;
@@ -124,9 +130,14 @@ int sCapturePipeWrite = -1;
 // How long Stop waits for the reader to drain after the write end is closed,
 // and how long a query waits for the reader to consume its sync byte.
 constexpr int kCaptureDrainBoundMs = 2000;
-// The query's sync marker (ASCII unit separator): a single byte, so a read can
-// never split it. Stripped from the echo and from the kept lines.
+// A query's sync marker: the unit separator 0x1F, then the query's number as
+// kCaptureSyncDigits lowercase hex digits. A read may split it; the reader
+// holds a partial marker until it resolves. Anything that starts with 0x1F but
+// is not a complete marker carrying a sent, not yet accepted number is ordinary
+// output, echoed and kept like any other byte.
 constexpr char kCaptureSyncByte = '\x1f';
+constexpr size_t kCaptureSyncDigits = 16;
+constexpr size_t kCaptureSyncLen = 1 + kCaptureSyncDigits;
 
 bool CaptureKeeps(const std::string& line) {
     // RSBS_REFUSAL_TOAST_PREFIX: a refusal toast's line, whatever its copy says (#836).
@@ -140,17 +151,15 @@ bool CaptureKeeps(const std::string& line) {
     return false;
 }
 
-void CaptureAppend(const char* data, size_t len) {
+// Appends ordinary output to the kept lines, then publishes `synced` (the
+// newest marker accepted in the same read, 0 for none): every byte written
+// before that marker is in `data` or was appended earlier.
+void CaptureAppend(const char* data, size_t len, uint64_t synced) {
     std::lock_guard<std::mutex> lock(sCapture->mutex);
     std::string& partial = sCapture->partial;
-    bool synced = false;
     for (size_t i = 0; i < len; i++) {
         const char c = data[i];
-        if (c == kCaptureSyncByte) {
-            // Everything written before this byte has been appended above.
-            sCapture->syncSeen++;
-            synced = true;
-        } else if (c == '\n') {
+        if (c == '\n') {
             if (!partial.empty() && partial.back() == '\r') {
                 partial.pop_back();
             }
@@ -162,14 +171,75 @@ void CaptureAppend(const char* data, size_t len) {
             partial.push_back(c);
         }
     }
-    if (synced) {
+    if (synced > sCapture->syncSeen) {
+        sCapture->syncSeen = synced;
         sCapture->syncCv.notify_all();
     }
 }
 
+// The reader thread's marker state: a marker the last read ended inside, and
+// the newest number accepted (equal to syncSeen; only the reader advances it).
+struct CaptureSyncScan {
+    char held[kCaptureSyncLen];
+    size_t heldLen = 0;
+    uint64_t accepted = 0;
+};
+
+// Splits one read into ordinary output (appended to `out`) and sync markers.
+// Returns the newest marker accepted in this read, 0 for none.
+uint64_t CaptureScan(CaptureSyncScan& scan, const char* data, size_t len, std::string& out) {
+    uint64_t newest = 0;
+    for (size_t i = 0; i < len; i++) {
+        const char c = data[i];
+        if (scan.heldLen > 0) {
+            if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+                scan.held[scan.heldLen++] = c;
+                if (scan.heldLen == kCaptureSyncLen) {
+                    uint64_t number = 0;
+                    for (size_t d = 1; d < kCaptureSyncLen; d++) {
+                        const char h = scan.held[d];
+                        number = (number << 4) | (uint64_t)(h <= '9' ? h - '0' : h - 'a' + 10);
+                    }
+                    if (number > scan.accepted && number <= sCapture->syncSent.load()) {
+                        scan.accepted = number;
+                        newest = number;
+                    } else {
+                        out.append(scan.held, scan.heldLen); // looked like a marker; was output
+                    }
+                    scan.heldLen = 0;
+                }
+                continue;
+            }
+            // Not a marker: what was held is ordinary output; `c` is judged afresh.
+            out.append(scan.held, scan.heldLen);
+            scan.heldLen = 0;
+        }
+        if (c == kCaptureSyncByte) {
+            scan.held[scan.heldLen++] = c;
+        } else {
+            out.push_back(c);
+        }
+    }
+    return newest;
+}
+
+void CaptureEcho(const std::string& out) {
+    if (out.empty()) {
+        return;
+    }
+#ifdef _WIN32
+    _write(sCaptureOrigFd, out.data(), (unsigned int)out.size());
+#else
+    ssize_t ignored = write(sCaptureOrigFd, out.data(), out.size());
+    (void)ignored;
+#endif
+}
+
 void CaptureReaderMain() {
     char buf[4096];
-    char echo[sizeof(buf)];
+    std::string out;
+    out.reserve(sizeof(buf) + kCaptureSyncLen);
+    CaptureSyncScan scan;
     for (;;) {
 #ifdef _WIN32
         const int n = _read(sCapturePipeRead, buf, (unsigned int)sizeof(buf));
@@ -179,22 +249,17 @@ void CaptureReaderMain() {
         if (n <= 0) {
             break; // write end closed (stop) or a broken pipe
         }
-        // Echo everything but the queries' sync bytes.
-        size_t echoLen = 0;
-        for (size_t i = 0; i < (size_t)n; i++) {
-            if (buf[i] != kCaptureSyncByte) {
-                echo[echoLen++] = buf[i];
-            }
-        }
-        if (echoLen > 0) {
-#ifdef _WIN32
-            _write(sCaptureOrigFd, echo, (unsigned int)echoLen);
-#else
-            ssize_t ignored = write(sCaptureOrigFd, echo, echoLen);
-            (void)ignored;
-#endif
-        }
-        CaptureAppend(buf, (size_t)n);
+        // Echo everything but accepted sync markers.
+        out.clear();
+        const uint64_t synced = CaptureScan(scan, buf, (size_t)n, out);
+        CaptureEcho(out);
+        CaptureAppend(out.data(), out.size(), synced);
+    }
+    // A marker cut off by the end of the stream was ordinary output.
+    if (scan.heldLen > 0) {
+        out.assign(scan.held, scan.heldLen);
+        CaptureEcho(out);
+        CaptureAppend(out.data(), out.size(), 0);
     }
     std::lock_guard<std::mutex> lock(sCapture->doneMutex);
     sCapture->readerDone = true;
@@ -213,14 +278,20 @@ std::unique_lock<std::mutex> CaptureLockDrained() {
         std::lock_guard<std::mutex> writeLock(sCapture->syncWriteMutex);
         if (sCaptureActive.load() && sCapturePipeWrite >= 0) {
             fflush(stderr);
-            const char sync = kCaptureSyncByte;
+            const uint64_t number = sCapture->syncSent.load() + 1;
+            char marker[kCaptureSyncLen + 1];
+            marker[0] = kCaptureSyncByte;
+            static_assert(kCaptureSyncDigits == 16, "the marker format below writes 16 hex digits");
+            snprintf(marker + 1, sizeof(marker) - 1, "%016llx", (unsigned long long)number);
+            // Published before the write, so the reader can accept the marker as sent.
+            sCapture->syncSent.store(number);
 #ifdef _WIN32
-            const bool sent = _write(sCapturePipeWrite, &sync, 1) == 1;
+            const bool sent = _write(sCapturePipeWrite, marker, (unsigned int)kCaptureSyncLen) == (int)kCaptureSyncLen;
 #else
-            const bool sent = write(sCapturePipeWrite, &sync, 1) == 1;
+            const bool sent = write(sCapturePipeWrite, marker, kCaptureSyncLen) == (ssize_t)kCaptureSyncLen;
 #endif
             if (sent) {
-                target = ++sCapture->syncSent;
+                target = number;
             }
         }
     }
