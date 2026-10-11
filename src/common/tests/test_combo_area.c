@@ -431,6 +431,11 @@ TestResult Test_MmHintAreaText(void) {
 //     insertion order; the purchasable path skips a host OoT has collected; the
 //     text names the MM item and the OoT area.
 // Failures are counted, not returned early, so one run reports every leg.
+//
+// Needs the display-free shared bring-up (OoT's check status names a found
+// check's item in the language its CVar holds), so the entry point is this
+// plain function, which the Test_MmHintCrossedArea wrapper in test_runner.cpp
+// calls after CreateHarnessStyleContext, as Test_ComboTrackerView does.
 // ============================================================================
 namespace {
 
@@ -465,7 +470,7 @@ int H3cOoTRandomizerArea(uint8_t area) {
 
 } // namespace
 
-TestResult Test_MmHintCrossedArea(void) {
+TestResult MmHintCrossedArea_RunHeadless(void) {
     printf("[TEST] mm-hint-crossed-area: MM names the OoT area for an MM item hosted in OoT (#575 H3c)\n");
     sH3cFailures = 0;
     const int idMax = MM_HintArea_TestCheckIdMax();
@@ -524,6 +529,10 @@ TestResult Test_MmHintCrossedArea(void) {
     ComboContext_Init();
     Combo_Crossings_Clear();
     OoT_TrackerAdapter_Register(); // the production registration (Combo_TrackerWindow_Init makes it)
+    // MM's hints are read while MM is played: OoT's heap is then its suspended
+    // world, read as of the last switch (combo_tracker_view.h).
+    const GameId priorGame = Context_GetCurrentGame();
+    Context_SetCurrentGame(GAME_MM);
     // [collected, unchecked, unchecked] OoT checks on a heap Rando::Context.
     uint16_t ootIds[3] = { 0, 0, 0 };
     CA_ASSERT(OoT_TrackerAdapter_TestAuthorWorld(0x0A11CE03u, ootIds) == 3);
@@ -670,6 +679,7 @@ TestResult Test_MmHintCrossedArea(void) {
     Combo_Crossings_Clear();
     OoT_TrackerAdapter_TestReleaseWorld();
     ComboContext_Init();
+    Context_SetCurrentGame(priorGame);
 
     if (sH3cFailures != 0) {
         printf("[TEST] FAIL: mm-hint-crossed-area: %d failure(s)\n", sH3cFailures);

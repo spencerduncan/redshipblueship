@@ -4497,6 +4497,22 @@ TestResult Test_ComboTrackerView(void) {
     return Combo_TrackerView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT. The same
+// display-free bring-up as the tracker view above: the purchasable hint reads
+// OoT's check status through that view, over an authored Rando::Context.
+TestResult Test_MmHintCrossedArea(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MmHintCrossedArea_RunHeadless();
+}
+
 // OoT's check state follows the loaded half (#849, #803). The same display-free
 // bring-up as the tracker view above: the row authors a real Rando::Context.
 TestResult Test_OoTCheckStateLoad(void) {
