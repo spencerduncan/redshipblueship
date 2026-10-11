@@ -1,10 +1,10 @@
 /**
  * @file soh_notification_fit_test.cpp
  * @brief Display-free lock: every cross-game refusal toast keeps the overlay's
- *        margin on both sides of the smallest window the ui tier renders, drawn
- *        by SoH's OWN notification overlay in the real menu font, at the default
- *        Notifications.Size (1.8) and at 1.0; and at the X-Large menu scale in a
- *        4K window.
+ *        margin on both sides of libultraship's default 640 x 480 window and of
+ *        the smallest window the ui tier renders, drawn by SoH's OWN notification
+ *        overlay in the real menu font, at the default Notifications.Size (1.8)
+ *        and at 1.0; and at the X-Large menu scale in a 4K window.
  *
  * CTest label "redship", row PairingRefusalToastFit in CMake/SingleExecutable.cmake,
  * dispatch "pairing-refusal-toast-fit" in src/common/test_runner.cpp.
@@ -31,8 +31,14 @@
  * off it, which is the defect.
  *
  * PROFILES:
+ *   - 640 x 480 at FontGlobalScale 1.0 (#906): the window a config with no size
+ *     opens (libultraship's default), the real minimum. At size 1.8 the overlay
+ *     draws a toast whose copy is wider than the window at the largest size, no
+ *     smaller than 1.0, at which it fits; the row requires the margin on both
+ *     sides and prints how many it drew smaller;
  *   - 832 x 600 at FontGlobalScale 1.0: the ui tier's smallest profile
- *     (soh_ui_snapshot.cpp, "min-832x600") at SoH's default menu scale;
+ *     (soh_ui_snapshot.cpp, "min-832x600") at SoH's default menu scale, the copy
+ *     contract: here and wider every toast is drawn at the player's own size;
  *   - 3840 x 2160 at FontGlobalScale 2.0: a 4K window at SoH's X-Large menu
  *     scale, applied the way OTRGlobals::ScaleImGui applies it (style sizes
  *     scaled, FontGlobalScale set), which multiplies every toast's font.
@@ -57,16 +63,23 @@
  *     refusal mm-combo-settings-gate leg 4 depends on names both;
  *   - #865: the pickup toast OoT shows for an MM item found at an OoT check, through
  *     its production emitter (OoT_Rando_Foreign_EmitPickupToast), for EVERY MM
- *     item that may cross: it reads "You found <article><name> (MM)", and the
- *     toast of every name OoT also uses fits like a refusal toast;
- *   - the creation-failure toast (PR #749) as the calibration: #749 measured it
- *     at 800 px in the ui tier's 832-px window, and this row prints its own width.
+ *     item that may cross: it reads "You found <article><name> (MM)", and every
+ *     one of them fits like a refusal toast (#906: not only the names OoT also
+ *     uses);
+ *   - the creation toasts the ui tier draws (its toast/creation-* pages), each
+ *     through its production emitter: the failure ("Not created:", PR #749, also
+ *     printed as the calibration: #749 measured it at 800 px in the 832-px
+ *     window), the shortfall ("Fewer cross-game items:") and the three goal
+ *     warnings ("Not proven:"). Width and the copy contract, like any toast;
  *   - #881: the paired-file load's "Restored from file:" and "Restored for
  *     Majora's Mask:" toasts through RsbsSave_EmitLoadToast, at 640 x 480 (the
  *     window a config with no size opens: libultraship's default) and 832 x 600,
  *     both at menu scale 1.0, over every rule and MM option or trick label a real
  *     load names, alone and all at once: each keeps the margin on both sides, and
- *     the #881 case ("Starting Hearts +1") is not cut where it fits whole.
+ *     the #881 case ("Starting Hearts +1") is not cut where it fits whole. #906:
+ *     each is drawn at the player's own size in BOTH windows, because #904's
+ *     name-dropping fit runs first; only its floor, a bare count ("37 settings",
+ *     every settable MM trick at 640 px and 1.8), may be drawn smaller there.
  * That the production refusal SITES call these emitters is locked where each
  * site is driven: mm-combo-settings-gate (MM options, rules, missing half),
  * mm-spoiler-identity (spoiler) and combo-creation-event (OoT spoiler) compare
@@ -92,6 +105,7 @@
 #include <string>
 #include <vector>
 
+#include "combo_logic.h"           // RSBS_COMBO_HALF_* (the creation goal-warning toasts, #906)
 #include "combo_mm_options_view.h" // Combo_MMOptionAt: the labels the load's MM toast names (#881)
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h" // Combo_ComboSettingLabel: the labels the load's rules toast names
@@ -105,6 +119,8 @@
 #include <utility>
 
 extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
+extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested);
+extern "C" void OoT_Creation_EmitGoalWarningToast(uint32_t unprovedHalves);
 // #865: the pickup toast for an MM item found at an OoT check (hook_handlers.cpp),
 // and the MM items that may cross (MM's classification and its id space).
 extern "C" void OoT_Rando_Foreign_EmitPickupToast(SharedItem item);
@@ -129,6 +145,9 @@ struct Profile {
 };
 
 constexpr Profile kProfiles[] = {
+    // #906: the window a config with no size opens (libultraship's default,
+    // gfx_sdl2.cpp Window.Width 640), the real minimum.
+    { "640x480 at menu scale 1.0", 640.0f, 480.0f, 1.0f },
     // The ui tier's smallest profile (soh_ui_snapshot.cpp, ChooseProfile: "min-832x600").
     { "832x600 at menu scale 1.0", 832.0f, 600.0f, 1.0f },
     // A 4K window at SoH's X-Large menu scale.
@@ -149,6 +168,8 @@ struct Measured {
     int windows = 0;
     float x0 = 0.0f;
     float x1 = 0.0f;
+    // #906: the font scale the overlay drew the toast at (its window's FontWindowScale).
+    float fontScale = 0.0f;
     std::string prefix;
     std::string message;
     std::string suffix;
@@ -174,6 +195,7 @@ Measured DrawAndMeasure(Notification::Window& overlay) {
         m.windows++;
         m.x0 = std::min(m.x0, w->Pos.x);
         m.x1 = std::max(m.x1, w->Pos.x + w->Size.x);
+        m.fontScale = m.windows == 1 ? w->FontWindowScale : std::min(m.fontScale, w->FontWindowScale);
     }
     ComboNotification last;
     memset(&last, 0, sizeof(last));
@@ -191,7 +213,77 @@ struct FitRun {
     int checked = 0;
     float widest = 0.0f;
     std::string widestText;
+    // #906: the toasts the overlay drew below the player's size to fit the window.
+    int shrunk = 0;
+    float smallest = 0.0f;
+    std::string smallestText;
+    // #906: the load's "Restored ..." toasts carry their own fit (#904 drops
+    // names until the toast fits the window at the player's size), so the
+    // overlay may draw one smaller only once that fit has reached its floor, the
+    // bare count ("37 settings"), which has nothing left to drop.
+    bool fullSizeOnly = false;
+    int floorShrunk = 0;
 };
+
+/**
+ * #906: whether a "Restored ...: <message>" toast's message is #904's floor, a
+ * bare count with no name ("2 settings", "37 settings", "1 rule"): FitNames'
+ * last step, which FitLoadToast returns when no name fits the window.
+ */
+bool IsBareCount(const std::string& text) {
+    const std::size_t colon = text.rfind(": ");
+    const std::string message = colon == std::string::npos ? text : text.substr(colon + 2);
+    std::size_t digits = 0;
+    while (digits < message.size() && std::isdigit(static_cast<unsigned char>(message[digits]))) {
+        digits++;
+    }
+    if (digits == 0) {
+        return false;
+    }
+    const std::string word = message.substr(digits);
+    return word == " rule" || word == " rules" || word == " setting" || word == " settings";
+}
+
+// #906: the copy contract. In the ui tier's smallest window and wider, every
+// toast's copy fits at the player's own size, so the overlay's fit never draws
+// one smaller there. Only a narrower window (libultraship's 640-px default) at a
+// size above 1.0 may draw a toast smaller, and never below 1.0 (the menus' own
+// text size).
+constexpr float kCopyContractWidth = 832.0f;
+
+/** #906: the toast was drawn at full size where the copy contract holds, and otherwise no smaller than 1.0. */
+int CheckFontScale(FitRun& run, const char* what, float scale, float fontScale, const std::string& text) {
+    const Profile& p = *run.profile;
+    if (fontScale >= scale - 0.001f) {
+        return 0;
+    }
+    // Counted before any verdict, so the row's "drawn below the player's size"
+    // line names every such toast, the failing ones too.
+    run.shrunk++;
+    if (run.smallest == 0.0f || fontScale < run.smallest) {
+        run.smallest = fontScale;
+        run.smallestText = text;
+    }
+    if (run.fullSizeOnly && !IsBareCount(text)) {
+        return Fail("%s at %.1fx, %s: the overlay drew it at %.2fx to fit; the load toast's own fit (#904) must "
+                    "drop names until it fits at the player's size: '%s'",
+                    what, scale, p.name, fontScale, text.c_str());
+    }
+    if (run.fullSizeOnly) {
+        run.floorShrunk++;
+    }
+    const bool mayShrink = p.width < kCopyContractWidth && scale > 1.0f;
+    if (!mayShrink) {
+        return Fail("%s at %.1fx, %s: the overlay drew it at %.2fx to fit; its copy must fit here at the player's "
+                    "size: '%s'",
+                    what, scale, p.name, fontScale, text.c_str());
+    }
+    if (fontScale < 1.0f - 0.001f) {
+        return Fail("%s at %.1fx, %s: the overlay drew it at %.2fx, below the menus' own 1.0: '%s'", what, scale,
+                    p.name, fontScale, text.c_str());
+    }
+    return 0;
+}
 
 /** Whether a toast belongs to the refusal class, whose prefix and copy shape are checked too. */
 enum class Class { REFUSAL, OTHER };
@@ -234,6 +326,9 @@ int CheckOne(FitRun& run, const char* what, float scale, Class cls = Class::REFU
                     "margin (x %.0f to %.0f, %.0f px wide, at most %.0f): '%s %s'",
                     what, scale, p.name, m.x0, margin, m.x0, m.x1, width, p.width - 2.0f * margin, m.prefix.c_str(),
                     m.message.c_str());
+    }
+    if (CheckFontScale(run, what, scale, m.fontScale, m.prefix + " " + m.message) != 0) {
+        return 1;
     }
     run.checked++;
     if (scale > 1.5f && width > run.widest) {
@@ -307,24 +402,26 @@ int CheckPickupToasts(FitRun& run, float scale) {
                 widestShared = width;
                 widestSharedText = text;
             }
-            if (!fits) {
-                failures += Fail("the pickup toast '%s' at %.1fx, %s: x %.0f to %.0f (%.0f px) against the overlay's "
-                                 "%.0f-px margin",
-                                 text.c_str(), scale, p.name, m.x0, m.x1, width, margin);
-                continue;
-            }
-            run.checked++;
-        } else if (!fits) {
-            printf("[TEST]   note: pickup toast '%s' at %.1fx, %s: x %.0f to %.0f (%.0f px), past the overlay's "
-                   "%.0f-px margin (no OoT item shares this name)\n",
-                   text.c_str(), scale, p.name, m.x0, m.x1, width, margin);
-            otherOverflows++;
         }
+        // #906: every pickup toast fits, not only those of the names OoT also uses.
+        if (!fits) {
+            failures += Fail("the pickup toast '%s' at %.1fx, %s: x %.0f to %.0f (%.0f px) against the overlay's "
+                             "%.0f-px margin%s",
+                             text.c_str(), scale, p.name, m.x0, m.x1, width, margin,
+                             isShared ? "" : " (no OoT item shares this name)");
+            otherOverflows += isShared ? 0 : 1;
+            continue;
+        }
+        if (CheckFontScale(run, "the pickup toast", scale, m.fontScale, text) != 0) {
+            failures++;
+            continue;
+        }
+        run.checked++;
     }
     if (shared == 0) {
         failures += Fail("no MM item that may cross shares a name with an OoT item; the shared-name sweep is vacuous");
     }
-    printf("[TEST] %s, %.1fx: %d MM pickup toasts read 'You found <item> (MM)'; the %d names OoT also uses fit, the "
+    printf("[TEST] %s, %.1fx: %d MM pickup toasts read 'You found <item> (MM)'; of the %d names OoT also uses, the "
            "widest '%s' at %.0f px; widest of all '%s' at %.0f px; %d other(s) past the margin\n",
            p.name, scale, swept, shared, widestSharedText.c_str(), widestShared, widestText.c_str(), widest,
            otherOverflows);
@@ -381,6 +478,21 @@ std::vector<LoadInput> LoadInputs() {
     if (Combo_MMTrickCount() == 0) {
         MM_RandoTricksUi_Register();
     }
+    // #906: every settable MM trick at once, the input the ui tier's
+    // toast/load-mm-restored-many page hands the emitter: in the 640-px window at
+    // 1.8 its fit reaches the bare count.
+    std::string tricks;
+    int trickCount = 0;
+    for (int i = 0; i < Combo_MMTrickCount(); i++) {
+        const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
+        if (d != nullptr && d->bound && !d->reserved && d->label != nullptr && d->label[0] != '\0') {
+            tricks += (tricks.empty() ? "" : ", ") + std::string(d->label);
+            trickCount++;
+        }
+    }
+    if (trickCount > 1) {
+        inputs.push_back({ RSBS_LOAD_TOAST_MM_RESTORED, tricks, trickCount, "MM restored (every trick)" });
+    }
     std::string all;
     int count = 0;
     auto add = [&](const char* label) {
@@ -423,6 +535,7 @@ int CheckLoadToasts(Notification::Window& overlay, const ImGuiStyle& baseStyle, 
         FitRun run;
         run.overlay = &overlay;
         run.profile = &profile;
+        run.fullSizeOnly = true; // #906: CheckOne fails a load toast drawn smaller unless a bare count
         for (float scale : { 1.8f, 1.0f }) {
             SetScale(scale);
             std::string issueText;
@@ -451,8 +564,9 @@ int CheckLoadToasts(Notification::Window& overlay, const ImGuiStyle& baseStyle, 
             }
         }
         checked += run.checked;
-        printf("[TEST] %s: %zu load toast inputs checked; widest at 1.8x %.0f px ('%s')\n", profile.name, inputs.size(),
-               run.widest, run.widestText.c_str());
+        printf("[TEST] %s: %zu load toast inputs checked; widest at 1.8x %.0f px ('%s'); %d drawn below the "
+               "player's size, %d of them a bare count (#904's floor)\n",
+               profile.name, inputs.size(), run.widest, run.widestText.c_str(), run.shrunk, run.floorShrunk);
     }
     return failures;
 }
@@ -480,8 +594,8 @@ int CountDivergenceBits() {
 
 extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
     printf("[TEST] pairing-refusal-toast-fit: every cross-game refusal toast keeps the overlay's margin on both "
-           "sides, drawn by SoH's own overlay in its default font, at Notifications.Size 1.8 and 1.0, in an 832-px "
-           "window and a 4K window at the X-Large menu scale\n");
+           "sides, drawn by SoH's own overlay in its default font, at Notifications.Size 1.8 and 1.0, in a 640-px "
+           "window, an 832-px window and a 4K window at the X-Large menu scale\n");
 
     if (fontPath == nullptr || fontPath[0] == '\0') {
         return Fail("no font path: the runner resolves games/oot/assets/custom/fonts/Montserrat-Regular.ttf (the "
@@ -553,8 +667,20 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
                 const Measured m = DrawAndMeasure(overlay);
                 OoT_Notification_ClearForTest();
                 printf("[TEST] calibration, %s, %.1fx: PR #749's creation-failure toast draws %.0f px wide (x %.0f "
-                       "to %.0f)\n",
-                       profile.name, scale, m.x1 - m.x0, m.x0, m.x1);
+                       "to %.0f) at %.2fx\n",
+                       profile.name, scale, m.x1 - m.x0, m.x0, m.x1, m.fontScale);
+            }
+            // #906: the creation toasts the ui tier draws (toast/creation-*), under
+            // the same width and copy contract as every other toast. Outside the
+            // refusal class: their own prefixes.
+            OoT_Creation_ReportFailureAtFileSelect(0, 0);
+            failures += CheckOne(run, "creation-failure toast", scale, Class::OTHER);
+            OoT_Creation_EmitShortfallToast(2, 4); // the numbers the toast/creation-shortfall page draws
+            failures += CheckOne(run, "creation-shortfall toast", scale, Class::OTHER);
+            for (uint32_t halves : { (uint32_t)RSBS_COMBO_HALF_OOT, (uint32_t)RSBS_COMBO_HALF_MM,
+                                     (uint32_t)(RSBS_COMBO_HALF_OOT | RSBS_COMBO_HALF_MM) }) {
+                OoT_Creation_EmitGoalWarningToast(halves);
+                failures += CheckOne(run, "creation goal-warning toast", scale, Class::OTHER);
             }
 
             MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MM_OPTIONS, nullptr);
@@ -625,6 +751,13 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
         if (failures == failuresBefore) {
             printf("[TEST] %s: widest refusal toast at 1.8x is %.0f px ('%s')\n", profile.name, run.widest,
                    run.widestText.c_str());
+        }
+        // #906: how many toasts the overlay drew smaller to fit this window.
+        if (run.shrunk > 0) {
+            printf("[TEST] %s: %d toast(s) drawn below the player's size to fit, the smallest at %.2fx ('%s')\n",
+                   profile.name, run.shrunk, run.smallest, run.smallestText.c_str());
+        } else {
+            printf("[TEST] %s: no toast drawn below the player's size\n", profile.name);
         }
     }
     if (rc == 0) {
