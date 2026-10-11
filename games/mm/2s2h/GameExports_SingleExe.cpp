@@ -5689,13 +5689,14 @@ void MM_Rando_EmitPairingRefusalToast(int kind, const char* detail) {
  * refusal toasts above. Unlike MM_Rando_EmitPairingRefusalToast it records no
  * words on the Combo > Save Files page: it refuses nothing, and a refused slot
  * keeps the reason it was refused for. Muted for the same reason.
+ *
+ * Through OoT_Notification_EmitDefault (Options' defaults and the player's
+ * configured duration) rather than MM_Notify_Emit: the capture also runs in the
+ * display-free rows, which have no CVar store, and EmitDefault is the bridge's
+ * one entry that reads the duration only when a store exists.
  */
 void MM_Combo_EmitSaveFailureToast(int cause) {
-    Notification::MM_Notify_Emit({
-        .prefix = RSBS_SAVE_FAILURE_TOAST_PREFIX,
-        .message = Combo_SaveFailureWords(cause),
-        .mute = true,
-    });
+    OoT_Notification_EmitDefault(RSBS_SAVE_FAILURE_TOAST_PREFIX, Combo_SaveFailureWords(cause), /*mute=*/1);
 }
 
 } // extern "C"

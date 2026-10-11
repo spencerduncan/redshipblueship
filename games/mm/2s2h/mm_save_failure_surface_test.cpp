@@ -208,7 +208,8 @@ extern "C" int MM_SaveFailureSurface_RunHeadless(void) {
     }
 
     // ---- 3. Another slot is another file: a never-opened slot ---------------
-    const int kNeverOpened = 3;
+    // (Slot 2, before the next leg opens it: there are RSBS_SAVE_MAX_SLOTS.)
+    const int kNeverOpened = 2;
     RsbsSave_SetActiveSlot(kNeverOpened);
     {
         const int queued = MarshalAndCount(&sramCtx, &last);
@@ -220,7 +221,8 @@ extern "C" int MM_SaveFailureSurface_RunHeadless(void) {
     }
 
     // ---- 1/2/3. A writable slot whose write fails ---------------------------
-    const int kDisk = 2;
+    // The same slot, now opened: a different cause on the same file is told.
+    const int kDisk = kNeverOpened;
     RsbsSave_SetActiveSlot(kDisk);
     SFS_ASSERT(RsbsSave_LoadSlot(kDisk) == RSBS_LOAD_ABSENT, "an empty slot must open as ABSENT and arm");
     SFS_ASSERT(RsbsSave_IsSlotWritable(kDisk) == 1, "test setup: the slot must be writable");
