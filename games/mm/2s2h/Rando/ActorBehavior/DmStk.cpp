@@ -33,8 +33,7 @@ void ApplyOathHint(u16* textId, bool* loadFromMessageTable) {
               "%y{{location}}%w. But it's too late! They can't help you now!";
     }
 
-    RandoCheckId randoCheckId = Rando::FindItemPlacement(RI_SONG_OATH);
-    Rando::HintArea::ReplaceLocation(&msg, "{{location}}", randoCheckId);
+    Rando::HintArea::ReplaceItemLocation(&msg, "{{location}}", RI_SONG_OATH);
 
     CustomMessage::Entry entry = {
         .nextMessageID = (u16)0xFFFF,

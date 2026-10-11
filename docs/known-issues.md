@@ -154,8 +154,11 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   Majora's Mask's own hints (gossip stones, and the Oath, remains, Hookshot and gold dust
   hints) name a check's area the way OoTMM does ("in the Southern Swamp", "around Goron
   Village"), not its scene, so a grotto no longer reads "Lone Peak Shrine & Grottos" and
-  an enemy drop is never hinted. An MM item that crossed into Hyrule is still hinted as
-  "nowhere" ([#575](https://github.com/spencerduncan/redshipblueship/issues/575) H2; H3c names its OoT area).
+  an enemy drop is never hinted. ~~An MM item that crossed into Hyrule is still hinted as
+  "nowhere".~~ **RESOLVED (#575 H3c):** an MM item that crossed onto an Ocarina of Time
+  check is named by that check's Hyrule area ("is hidden on Death Mountain Trail"), by
+  the static hints and by the gossip stones, which now draw such items after Termina's
+  own checks ([#575](https://github.com/spencerduncan/redshipblueship/issues/575) H2, H3c).
 - **Triforce Hunt is not yet a paired goal.** The Goal row lists it, but generation
   refuses it, and OoTMM's Triforce Quest is not offered (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#760](https://github.com/spencerduncan/redshipblueship/pull/760), [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
 - ~~**Some settings re-seed the world without changing a rule.**~~ RESOLVED: the pool-size

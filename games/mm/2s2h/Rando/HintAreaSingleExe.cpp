@@ -23,22 +23,28 @@
  * no save or golden carries it.
  *
  * Child H2 adds what MM's own hints say with it (Rando/HintArea.h): the area's
- * name and preposition in place of the scene name.
+ * name and preposition in place of the scene name. Child H3c names the OoT area
+ * of an MM item that crossed onto an OoT check, read from the crossing store.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "Rando/HintArea.h"
+#include "Rando/Rando.h"
 #include "Rando/StaticData/StaticData.h"
 
-#include "combo_area.h" // src/common: the shared vocabulary and the registrar
-#include "game.h"       // src/common: GAME_MM
+#include "combo_area.h"         // src/common: the shared vocabulary and the registrar
+#include "combo_tracker_view.h" // src/common: OoT's own check status, for a collected OoT host (H3c)
+#include "crossing_store.h"     // src/common: the OoT-hosted MM items (H3c)
+#include "game.h"               // src/common: GAME_OOT / GAME_MM
 
 namespace {
 
@@ -737,20 +743,159 @@ const MmAreaAdapterRegistrar gMmAreaAdapterRegistrar;
 // #575 H2: what MM's own hints say for a check (Rando/HintArea.h)
 // ============================================================================
 
-void Rando::HintArea::ReplaceLocation(std::string* msg, const char* key, RandoCheckId randoCheckId) {
-    const ComboArea area = Combo_Area_OfCheck((uint8_t)GAME_MM, (uint16_t)randoCheckId);
-    const char* name = Combo_Area_Name(area);
-    const char* prepos = Combo_Area_Prepos(area);
+namespace {
+
+// #575 H3c: the preposition an MM sentence puts before an OoT area's name.
+// combo_area.c's OoT half carries none, because OoT's own sentences supply
+// theirs; MM's hint sentences ("is hidden {{prepos}} ...", "Last seen {{prepos}}
+// ...") need one. Each is OoTMM's for the OoT region the area is
+// (packages/generator/src/common/text/text.c, kRegionNamesOot), read read-only.
+// Two exceptions: SoH's "the Castle Grounds" has no OoTMM region ("on" reads
+// with it), and the two Ganon's Castle areas carry none, because their names
+// already say where ("outside Ganon's Castle", "Inside Ganon's Castle").
+const char* const kOoTAreaPrepos[COMBO_AREA_OOT_END] = {
+    nullptr,  // COMBO_AREA_NONE
+    "in",     // Kokiri Forest
+    "in",     // the Lost Woods
+    "in",     // Sacred Forest Meadow
+    "in",     // Hyrule Field
+    "around", // Lake Hylia
+    "in",     // Gerudo Valley
+    "around", // Gerudo's Fortress
+    "in",     // Haunted Wasteland
+    "around", // Desert Colossus
+    "in",     // the Market
+    "in",     // Temple of Time
+    "in",     // Hyrule Castle
+    nullptr,  // outside Ganon's Castle (reads in place)
+    "on",     // the Castle Grounds (no OoTMM region)
+    "in",     // Kakariko Village
+    "inside", // the Graveyard
+    "on",     // Death Mountain Trail
+    "in",     // Goron City
+    "in",     // Death Mountain Crater
+    "in",     // Zora's River
+    "in",     // Zora's Domain
+    "in",     // Zora's Fountain
+    "in",     // Lon Lon Ranch
+    "inside", // Deku Tree
+    "inside", // Dodongo's Cavern
+    "inside", // Jabu-Jabu's Belly
+    "in",     // Forest Temple
+    "in",     // Fire Temple
+    "in",     // Water Temple
+    "in",     // Spirit Temple
+    "in",     // Shadow Temple
+    "at",     // Bottom of the Well
+    "in",     // Ice Cavern
+    "in",     // Gerudo Training Ground
+    nullptr,  // Inside Ganon's Castle (reads in place)
+};
+
+/** The preposition an MM hint puts before `area`: the MM half's own, or the
+ *  table above for the OoT half. */
+const char* HintPrepos(ComboArea area) {
+    if (area.game == (uint8_t)GAME_OOT && area.area != COMBO_AREA_NONE && area.area < COMBO_AREA_OOT_END) {
+        return kOoTAreaPrepos[area.area];
+    }
+    return Combo_Area_Prepos(area);
+}
+
+/** Fill `key` with `area`'s name and "{{prepos}}" with its preposition, or drop
+ *  "{{prepos}} " when it has none. An OoT area whose name already says where
+ *  ("Inside Ganon's Castle") is lower-cased at its first letter, because MM's
+ *  sentences put it mid-sentence. */
+void ReplaceAreaText(std::string* msg, const char* key, ComboArea area) {
+    const char* nameText = Combo_Area_Name(area);
+    std::string name = nameText != nullptr ? nameText : "";
+    const char* prepos = HintPrepos(area);
     if (prepos != nullptr) {
         CustomMessage::Replace(msg, "{{prepos}}", prepos);
     } else {
         CustomMessage::Replace(msg, "{{prepos}} ", "");
+        if (area.game == (uint8_t)GAME_OOT && area.area != COMBO_AREA_NONE && !name.empty()) {
+            name[0] = (char)std::tolower((unsigned char)name[0]);
+        }
     }
-    CustomMessage::Replace(msg, key, name != nullptr ? name : "");
+    CustomMessage::Replace(msg, key, name);
+}
+
+/** The OoT check the crossing store puts MM item `randoItemId` on (its first
+ *  OoT-hosted row carrying it, insertion order), or 0 for none. */
+uint16_t OoTHostOfItem(RandoItemId randoItemId) {
+    const int count = Combo_Crossings_Count(GAME_OOT);
+    for (int i = 0; i < count; i++) {
+        ComboCrossing crossing;
+        if (Combo_Crossings_At(GAME_OOT, i, &crossing) && crossing.item.originGame == (uint8_t)GAME_MM &&
+            crossing.item.id == (uint16_t)randoItemId) {
+            return crossing.hostCheck;
+        }
+    }
+    return 0;
+}
+
+/** Whether OoT's own check status reports OoT check `ootCheck` collected (its
+ *  live heap while OoT runs, as of the last switch while MM runs). An OoT with
+ *  nothing to read reports nothing collected. */
+bool OoTHostCollected(uint16_t ootCheck) {
+    ComboTrackerCheckRow row;
+    return Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootCheck, &row) && row.checkId == ootCheck && row.obtained;
+}
+
+} // namespace
+
+void Rando::HintArea::ReplaceLocation(std::string* msg, const char* key, RandoCheckId randoCheckId) {
+    ReplaceAreaText(msg, key, Combo_Area_OfCheck((uint8_t)GAME_MM, (uint16_t)randoCheckId));
 }
 
 bool Rando::HintArea::HasArea(RandoCheckId randoCheckId) {
     return MmAreaOfCheck((uint16_t)randoCheckId) != COMBO_AREA_NONE;
+}
+
+void Rando::HintArea::ReplaceItemLocation(std::string* msg, const char* key, RandoItemId randoItemId) {
+    const RandoCheckId randoCheckId = Rando::FindItemPlacement(randoItemId);
+    if (randoCheckId == RC_UNKNOWN) {
+        // No MM check holds it: it crossed into Hyrule, or it is nowhere.
+        const uint16_t ootHost = OoTHostOfItem(randoItemId);
+        if (ootHost != 0) {
+            ReplaceOoTHostLocation(msg, key, ootHost);
+            return;
+        }
+    }
+    ReplaceLocation(msg, key, randoCheckId);
+}
+
+std::vector<uint16_t> Rando::HintArea::OoTHostedHintCandidates(bool excludeObtained) {
+    std::vector<uint16_t> hosts;
+    const int count = Combo_Crossings_Count(GAME_OOT);
+    for (int i = 0; i < count; i++) {
+        ComboCrossing crossing;
+        if (!Combo_Crossings_At(GAME_OOT, i, &crossing) || crossing.item.originGame != (uint8_t)GAME_MM) {
+            continue;
+        }
+        // A stone names the host's area, so a host without one has nowhere to
+        // name (as GossipHintCandidates skips an MM check without an area).
+        if (Combo_Area_OfCheck((uint8_t)GAME_OOT, crossing.hostCheck).area == COMBO_AREA_NONE) {
+            continue;
+        }
+        if (excludeObtained && OoTHostCollected(crossing.hostCheck)) {
+            continue;
+        }
+        hosts.push_back(crossing.hostCheck);
+    }
+    return hosts;
+}
+
+RandoItemId Rando::HintArea::ItemOnOoTHost(uint16_t ootCheck) {
+    const SharedItem* item = Combo_Crossings_Lookup(GAME_OOT, ootCheck);
+    if (item == nullptr || item->originGame != (uint8_t)GAME_MM || item->id >= (uint16_t)RI_MAX) {
+        return RI_UNKNOWN;
+    }
+    return (RandoItemId)item->id;
+}
+
+void Rando::HintArea::ReplaceOoTHostLocation(std::string* msg, const char* key, uint16_t ootCheck) {
+    ReplaceAreaText(msg, key, Combo_Area_OfCheck((uint8_t)GAME_OOT, ootCheck));
 }
 
 // ============================================================================
@@ -786,6 +931,20 @@ extern "C" int MM_HintArea_TestLocationText(uint16_t randoCheckId, const char* t
     }
     std::string msg = tmpl;
     Rando::HintArea::ReplaceLocation(&msg, key, (RandoCheckId)randoCheckId);
+    snprintf(out, (size_t)cap, "%s", msg.c_str());
+    return (int)msg.size();
+}
+
+/** #575 H3c: `tmpl` with `key` filled for MM item `randoItemId` by
+ *  ReplaceItemLocation, the helper every static hint (Oath, remains, Hookshot,
+ *  gold dust) fills its location with. Returns the full length, or -1. */
+extern "C" int MM_HintArea_TestItemLocationText(uint16_t randoItemId, const char* tmpl, const char* key, char* out,
+                                                int cap) {
+    if (randoItemId >= RI_MAX || tmpl == nullptr || key == nullptr || out == nullptr || cap <= 0) {
+        return -1;
+    }
+    std::string msg = tmpl;
+    Rando::HintArea::ReplaceItemLocation(&msg, key, (RandoItemId)randoItemId);
     snprintf(out, (size_t)cap, "%s", msg.c_str());
     return (int)msg.size();
 }
