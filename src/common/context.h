@@ -709,10 +709,15 @@ typedef struct {
     // of the "one seed + one pinned settings profile" reproducibility contract:
     // sharedRandoSeed alone does NOT determine the fill, because Playthrough_Init
     // re-seeds the RNG with Hash(seed + settings-string) before placing items, so
-    // the same numeric seed reproduces a world only under the same settings. MM
-    // (Lane C) reads this to VERIFY both games were generated under the agreed
-    // pinned profile before pairing; a mismatch means the worlds do not pair.
-    // Seed-independent (a fixed profile hashes the same across seeds) and build-
+    // the same numeric seed reproduces a world only under the same settings.
+    // What reads it (#564 V12; nothing re-derives it from MM's settings, whose
+    // own profile is pinned by mmProfileDigest): Combo_ForeignPairingActive
+    // tests it only for != 0 (the pairing predicate, foreign_items.c); the combo
+    // fingerprint (Combo_ComputeComboSettingsHash) and the single-bag seed fold
+    // it in; MM's spoiler loader refuses a dropped spoiler whose digest differs
+    // (Rando/Spoiler/Apply.cpp); and the file-open path refuses a record whose
+    // digest is not the one OoT's .sav mirrored ("rsbsPairSettingsHash",
+    // RsbsOoTSavIdentity in save.h). Seed-independent (a fixed profile hashes the same across seeds) and build-
     // independent (computed before the DontGenerateSpoiler build-version mixing).
     // Zero == unset: a non-rando or zero-extended legacy record reads 0, which
     // MM treats as "no profile recorded" — the growth contract's required

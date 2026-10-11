@@ -795,6 +795,32 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
     }
     IntegrationTest_PairedIdentityRecord();
 
+    // ---- the .sav the creation wrote names its record's world (#564 V12) -------
+    // Read back from disk through the reader the file select's gate uses: SoH's
+    // own "finalSeed" is the record's sharedRandoSeed, and the digest the
+    // creation's commit mirrored ("rsbsPairSettingsHash") is the record's
+    // sharedRandoSettingsHash. A writer that dropped the digest would leave 0
+    // here, which the load reads as "not recorded" and never compares.
+    {
+        uint32_t savGeneration = 0;
+        RsbsOoTSavIdentity savIdentity = { 0, 0 };
+        SaveManager::Instance->ReadSavStamps(kPfcSlot, &savGeneration, &savIdentity);
+        if (savIdentity.randoSeed != gComboCtx.sharedRandoSeed ||
+            savIdentity.settingsHash != gComboCtx.sharedRandoSettingsHash) {
+            snprintf(msg, sizeof(msg),
+                     "the created .sav does not name its record's world (#564 V12): .sav finalSeed %u "
+                     "rsbsPairSettingsHash %08X, record sharedRandoSeed %u sharedRandoSettingsHash %08X",
+                     (unsigned)savIdentity.randoSeed, (unsigned)savIdentity.settingsHash,
+                     (unsigned)gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.sharedRandoSettingsHash);
+            IntegrationTest_GameplayFail(msg);
+            return;
+        }
+        fprintf(stderr,
+                "[PFC] the created .sav names its record's world: finalSeed %u = sharedRandoSeed, "
+                "rsbsPairSettingsHash %08X = sharedRandoSettingsHash (generation %u)\n",
+                (unsigned)savIdentity.randoSeed, (unsigned)savIdentity.settingsHash, (unsigned)savGeneration);
+    }
+
     // ---- 2b. RSBS_PFC_DIVERGE=1 (#804): the player changes settings ----------
     // Back at the title screen after the creation, one MM option, one MM trick
     // and one Cross-Game Rule move to other values. The load below must put the
