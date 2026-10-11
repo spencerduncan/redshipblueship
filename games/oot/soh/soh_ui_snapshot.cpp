@@ -2033,7 +2033,8 @@ void Session::BuildPageList() {
                 // one "Value: effect" line per goal, all of which the oracle reads.
                 // frozen-goal: the goal row's disabled tooltip once the world is decided.
                 // (frozen-slider hovered a pool-size slider until #801 retired both.)
-                p.hovers = { "direction", "goal", "frozen-goal" };
+                // kokiri-sword: #886's Shared Kokiri Sword checkbox and its tooltip.
+                p.hovers = { "direction", "goal", "kokiri-sword", "frozen-goal" };
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
@@ -3358,7 +3359,9 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             if (byName) {
                 label = namedRow->second;
             } else {
-                ComboSettingId targetId = (hv == "direction") ? COMBO_SETTING_DIRECTION : COMBO_SETTING_GOAL;
+                ComboSettingId targetId = (hv == "direction")      ? COMBO_SETTING_DIRECTION
+                                          : (hv == "kokiri-sword") ? COMBO_SETTING_SHARED_KOKIRI_SWORD
+                                                                   : COMBO_SETTING_GOAL;
                 label = Combo_ComboSettingLabel(targetId);
             }
             WidgetInfo* row = FindRow(*menu, p.header, p.sidebar, [&](const WidgetInfo& w) {

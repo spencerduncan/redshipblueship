@@ -46,13 +46,14 @@
  *    (Combo_ComboSettingsSummary), but a row is one caller; the gate is
  *    here.
  *  - VALUES ARE THE PINNED SPACES (ADR 0011 decision 1.2.1): RSBS_COMBO_DIR_*
- *    for the direction and RSBS_COMBO_GOAL_* for the goal. A
+ *    for the direction, RSBS_COMBO_GOAL_* for the goal, and 0-or-1 for a
+ *    comboFlags bit (#886's Shared Kokiri Sword). A
  *    stored value OUTSIDE its space RESOLVES TO THE SHIPPED DEFAULT WITH A
  *    LOGGED REASON — never to a new enumerator, and never to a clamp that
  *    invents a value the player did not choose. The writers refuse such a
  *    value outright, so the only way one reaches the store is out-of-band (a
  *    hand-edited config, the console).
- *  - BOTH KEYS ARE WORLD IDENTITY, not preference (ADR 0004 §6's scope
+ *  - ALL THREE KEYS ARE WORLD IDENTITY, not preference (ADR 0004 §6's scope
  *    note). The manifest in cvar_shared_keys.h carries the classification and
  *    the cvar-classification lock refuses an unclassified `gCombo.` key.
  *
@@ -100,6 +101,10 @@ typedef enum {
     // RSBS_COMBO_GOAL_* enumerators (1..5). The default is beat-both, OoTMM's
     // own default ('both').
     COMBO_SETTING_GOAL, // gCombo.Rando.Goal -> record.goal (RSBS_COMBO_GOAL_*)
+    // #886. A BIT of record.comboFlags rather than a field of its own, so the
+    // resolver assembles the byte from its flag keys instead of overlaying one
+    // (see Combo_ResolveComboSettings). 0 or 1; the default is 0.
+    COMBO_SETTING_SHARED_KOKIRI_SWORD, // gCombo.Rando.SharedKokiriSword -> record.comboFlags & 0x02
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
@@ -118,7 +123,10 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id);
  * Is @p value inside @p id's PINNED value space (ADR 0011 decision 1.2.1)?
  * Direction: exactly RSBS_COMBO_DIR_OFF..RSBS_COMBO_DIR_BOTH. Goal: exactly
  * one of the pinned RSBS_COMBO_GOAL_* enumerators (0 is a legacy record's
- * "unset" and is not authorable). False for an invalid id.
+ * "unset" and is not authorable). A comboFlags bit: exactly 0 or 1, never
+ * "nonzero is true", because a 2 stored in a boolean key is a value nobody
+ * chose and the rule for those is the shipped default with a logged reason.
+ * False for an invalid id.
  */
 bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value);
 
@@ -198,7 +206,7 @@ const char* Combo_ComboSettingReadOnlyReason(void);
  * hovering. A tooltip alone does not satisfy it." The claim being marked is the
  * one a player cannot otherwise check -- that a control they are touching while
  * Ocarina of Time is on screen also governs Majora's Mask, a game they cannot
- * currently see. Both of these keys make that claim by construction: they are
+ * currently see. All three of these keys make that claim by construction: they are
  * tier-4 rules about the pair of games, not settings of either one.
  *
  * Owned by the MODEL rather than spelled in the menu file, for the same reason
@@ -232,7 +240,8 @@ typedef struct ComboSettingsKeyUndo {
  * arrival compare, which reads the same keys, then agrees with the file.
  *
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
- * (Combo_ComboSettingsRestorableMask: goal, crossing direction), the CVar
+ * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the Shared
+ * Kokiri Sword), the CVar
  * store exists,
  * and every frozen value is inside its pinned space; otherwise it writes
  * NOTHING and returns 0, and the caller refuses. A record field no key authors

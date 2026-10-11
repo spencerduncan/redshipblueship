@@ -4101,6 +4101,16 @@ static uint16_t MM_ReadOcarinaTier(void) {
     return INV_CONTENT(ITEM_OCARINA_OF_TIME) == ITEM_OCARINA_OF_TIME ? 1u : 0u;
 }
 
+// The Kokiri Sword as a shared 0/1 (#886). MM has no owned-sword bit: the sword
+// equipment value IS the sword held (0 none, 1 Kokiri, 2 Razor, 3 Gilded), so
+// ANY sword reads as 1. MM's upgrades never cross: OoT only ever learns that MM
+// holds a sword, which is the Kokiri Sword's owned bit there.
+#define MM_MAX_KOKIRI_SWORD 1u
+
+static uint16_t MM_ReadKokiriSword(void) {
+    return GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) != EQUIP_VALUE_SWORD_NONE ? 1u : 0u;
+}
+
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & MM_HEART_PIECE_MASK) >> MM_HEART_PIECE_SHIFT);
@@ -4292,6 +4302,11 @@ extern "C" void MM_HarvestSharedResources(void) {
     // MM's 1 can never demote an Ocarina of Time the pool already holds — the
     // tier is monotonic, exactly as for the hookshot just above.
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_ReadOcarinaTier());
+
+    // The Kokiri Sword (#886), the twin of OoT's line. A sword Takkuri stole (or
+    // one at the smithy) reads 0 here and cannot lower the pool: the kind is
+    // monotonic. The arming gate is inside Combo_HarvestSharedResource.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_ReadKokiriSword());
 
     // Triforce pieces (ADR 0010 answer O10), the twin of OoT's line: MM's
     // counter is a MIRROR of the one combo count, so harvesting it max-merges
@@ -4625,6 +4640,23 @@ extern "C" void MM_ApplySharedResources(void) {
     if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_MAX_OCARINA_TIER, &ocarinaTier) &&
         ocarinaTier >= 1u) {
         MM_EnsureInventoryItem(ITEM_OCARINA_OF_TIME);
+    }
+
+    // --- The Kokiri Sword (monotonic 0/1), armed per world by the frozen Shared
+    // Kokiri Sword setting (#886). Only when MM holds NO sword: a Razor or
+    // Gilded Sword is never replaced. Written as MM's own give writes it
+    // (z_parameter.c: the equipment value, then the B button) for the human
+    // form's set, as 2Ship's RemoveItem does; no icon reload, because this runs
+    // before there is a PlayState and the arrival's interface init loads B's icon
+    // afterwards. With the option off Combo_ApplySharedResource returns false and
+    // nothing below runs. MM's pool sword is progressive and resolves from this
+    // value, so MM's next sword pickup is then the Razor Sword (the cost of
+    // keeping both pools whole, stated at RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD).
+    uint16_t kokiriSword = MM_ReadKokiriSword();
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_MAX_KOKIRI_SWORD, &kokiriSword) &&
+        kokiriSword >= 1u && GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_NONE) {
+        SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+        BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_KOKIRI;
     }
 
     // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the

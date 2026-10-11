@@ -77,6 +77,9 @@ static bool IsMonotonicKind(uint8_t kind) {
         // combo-triforce-hunt passes under both; its discipline-pin leg is the
         // one that fails under CONSUMABLE).
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
+        // #886: the Kokiri Sword, 0/1. A sword lost in MM (Takkuri) must not take
+        // OoT's away: max-merge keeps the 1.
+        case RSBS_SHARED_RES_KOKIRI_SWORD:
             return true;
         default:
             // The spent quantities — rupees, current health, current magic, and
@@ -227,6 +230,12 @@ bool Combo_SharedResourceKindArmed(uint8_t kind) {
     // hunt to share a count for.
     if (kind == (uint8_t)RSBS_SHARED_RES_TRIFORCE_PIECES) {
         return Combo_TriforceHuntArmed();
+    }
+    // #886: the Shared Kokiri Sword option, read from the FROZEN record's
+    // comboFlags bit. Off (the default), neither game's sword is harvested or
+    // applied and a world has no slot of this kind.
+    if (kind == (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD) {
+        return Combo_ComboSharedKokiriSword();
     }
     return true;
 }

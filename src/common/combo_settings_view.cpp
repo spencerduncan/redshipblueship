@@ -1,7 +1,8 @@
 /**
  * @file combo_settings_view.cpp
  * @brief The tier-4 combo-level settings authoring surface (ADR 0011
- *        increment 2, plus the goal; #879 retired #668's shared ocarina).
+ *        increment 2, plus the goal and #886's Shared Kokiri Sword; #879
+ *        retired #668's shared ocarina).
  *        See combo_settings_view.h for the contract.
  *
  * C++ rather than C for exactly one reason: the CVar store hangs off the
@@ -41,6 +42,7 @@ struct ComboSettingDesc {
 const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_DIRECTION, "Crossing Direction" },
     { RSBS_CVAR_COMBO_RANDO_GOAL, "Goal" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, "Shared Kokiri Sword" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -70,6 +72,10 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             return (int32_t)defaults.direction;
         case COMBO_SETTING_GOAL:
             return (int32_t)defaults.goal;
+        case COMBO_SETTING_SHARED_KOKIRI_SWORD:
+            // A BIT of the defaults record, read the way its siblings read their
+            // fields: one definition of "what ships" (#886).
+            return (defaults.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         default:
             return 0;
     }
@@ -92,6 +98,11 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
             return value == (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH || value == (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER ||
                    value == (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT || value == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT ||
                    value == (int32_t)RSBS_COMBO_GOAL_BEAT_MM;
+        case COMBO_SETTING_SHARED_KOKIRI_SWORD:
+            // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
+            // holding 2 is a value nobody chose, and the record stores one bit,
+            // so a coercion would make two stored values produce the same world.
+            return value == 0 || value == 1;
         default:
             return false;
     }
@@ -256,6 +267,7 @@ struct Restorable {
 const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_GOAL, COMBO_SETTING_GOAL },
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
+    { RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD, COMBO_SETTING_SHARED_KOKIRI_SWORD },
 };
 
 int32_t FrozenValue(const ComboSettingsRecord* frozen, ComboSettingId id) {
@@ -264,6 +276,8 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, ComboSettingId id) {
             return (int32_t)frozen->direction;
         case COMBO_SETTING_GOAL:
             return (int32_t)frozen->goal;
+        case COMBO_SETTING_SHARED_KOKIRI_SWORD:
+            return (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         default:
             return 0;
     }
