@@ -22,6 +22,8 @@
 #include <fstream>
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
 #include "crossing_store.h" // src/common — the paired world's hint checks (PR #743 review)
+#include "combo_area.h"     // src/common — the MM area a Termina slot names (#575 H3a)
+#include <set>
 #include "notification_bridge.h"   // src/common — the refusal toast the reload bridge reads back
 #include "pairing_refusal_toast.h" // src/common — that toast's copy
 
@@ -106,6 +108,11 @@ static int OoT_ComboLogic_TestSetNativeGeneralPass(int) {
 extern "C" int OoT_Combo_CheckHostsCrossing(int rc);
 extern "C" int Rando_HintAreaForItemOutsideHyrule(int item);
 extern "C" int Rando_HintAreaFromCrossingStore(int item);
+// hints.cpp / ComboLogicEngineOoT.cpp (#575 H3a): the MM area a Termina slot names.
+extern "C" int Rando_HintForeignAreaFromCrossingStore(int item);
+extern "C" int Rando_HintForeignAreaForItem(int item);
+extern "C" int Rando_TestCreateStaticItemHint(int hintKey, int hintTextKey, int item);
+extern "C" void OoT_ComboLogic_TestSetHintingPairedRemainder(int on);
 #else
 static int OoT_Combo_CheckHostsCrossing(int) {
     return 0;
@@ -127,7 +134,126 @@ static int OoT_Combo_CheckHostsCrossing(int) {
  *        hint pass does not read the store at all: every one of those items answers
  *        RA_NONE, so a later hint pass over another world cannot name Termina off
  *        this world's crossings.
+ *   (P6) #575 H3a: every Termina slot names the exact MM area. A slot whose area is
+ *        RA_TERMINA carries, in the hint's parallel foreignAreas, the shared
+ *        vocabulary's area of the MM check that hosts its item (the first store
+ *        row for that item, as P4 pins), and no other slot carries one. Because
+ *        a pinned seed's static hints may target no crossed item, P6 also builds,
+ *        through production's own static item hint builder under the remainder's
+ *        gate, one hint per OoT item hosted only in MM, and checks its slot, its
+ *        rendered text, its spoiler-JSON round trip and an old save's reading
+ *        (no foreignAreas: still "Termina").
  */
+#ifdef RSBS_SINGLE_EXECUTABLE
+/** (P4) The MM check of the FIRST store row hosting OoT item `item`, or 0. */
+static uint16_t P4FirstHostOf(uint16_t item) {
+    for (int i = 0; i < Combo_Crossings_Count(GAME_MM); i++) {
+        ComboCrossing row;
+        if (Combo_Crossings_At(GAME_MM, i, &row) && row.item.originGame == (uint8_t)GAME_OOT && row.item.id == item) {
+            return row.hostCheck;
+        }
+    }
+    return 0;
+}
+
+static std::string JoinMessages(const std::vector<std::string>& messages) {
+    std::string joined;
+    for (const std::string& m : messages) {
+        joined += m;
+        joined += "\n";
+    }
+    return joined;
+}
+
+struct ForeignAreaProbeResult {
+    int probes = 0;
+    size_t failures = 0;
+};
+
+/**
+ * (P6, the production builder) For each OoT item the store hosts in MM and no
+ * OoT location holds, build the static item hint production builds for it
+ * (CreateStaticItemHint, under the remainder's gate) into the Ganondorf hint's
+ * slot, check it, and put the world's own Ganondorf hint back.
+ */
+static ForeignAreaProbeResult ProbeForeignAreaHints() {
+    ForeignAreaProbeResult result;
+    auto ctx = Rando::Context::GetInstance();
+    const RandomizerHint probeKey = RH_GANONDORF_HINT;
+    const Rando::Hint saved = *ctx->GetHint(probeKey);
+    const std::string termina =
+        Rando::StaticData::hintTextTable[RHT_TERMINA].GetClear().GetForCurrentLanguage(MF_CLEAN);
+    std::set<uint16_t> probed;
+    for (int i = 0; i < Combo_Crossings_Count(GAME_MM); i++) {
+        ComboCrossing row;
+        if (!Combo_Crossings_At(GAME_MM, i, &row) || row.item.originGame != (uint8_t)GAME_OOT ||
+            !probed.insert(row.item.id).second) {
+            continue;
+        }
+        const ComboArea expected = Combo_Area_OfCheck((uint8_t)GAME_MM, row.hostCheck);
+        const std::string expectedName = Combo_Area_Name(expected) != nullptr ? Combo_Area_Name(expected) : "";
+        OoT_ComboLogic_TestSetHintingPairedRemainder(1);
+        const int built = Rando_TestCreateStaticItemHint((int)probeKey, (int)RHT_GANONDORF_HINT_LA_ONLY, row.item.id);
+        OoT_ComboLogic_TestSetHintingPairedRemainder(0);
+        if (built == 0) {
+            continue; // a copy also sits in Hyrule: the hint names that location's area
+        }
+        result.probes++;
+        Rando::Hint* probe = ctx->GetHint(probeKey);
+        const std::vector<RandomizerArea> areas = probe->GetHintedAreas();
+        const std::vector<uint8_t> foreign = probe->GetForeignAreas();
+        const std::string live = JoinMessages(probe->GetAllMessageStrings(MF_CLEAN));
+        if (areas.size() != 1 || areas[0] != RA_TERMINA) {
+            fprintf(stderr, "[rando-hints] FAIL probe: OoT item %u is only in MM but its hint's area is not Termina "
+                            "(P6)\n",
+                    (unsigned)row.item.id);
+            result.failures++;
+            continue;
+        }
+        if (expected.area == COMBO_AREA_NONE || foreign.size() != 1 || foreign[0] != expected.area) {
+            fprintf(stderr,
+                    "[rando-hints] FAIL probe: OoT item %u on MM check %u (\"%s\"): the Termina slot names MM area "
+                    "%d (P6)\n",
+                    (unsigned)row.item.id, (unsigned)row.hostCheck, expectedName.c_str(),
+                    foreign.size() == 1 ? (int)foreign[0] : -1);
+            result.failures++;
+        }
+        if (expectedName.empty() || live.find(expectedName) == std::string::npos) {
+            fprintf(stderr, "[rando-hints] FAIL probe: OoT item %u: the hint does not name \"%s\": \"%s\" (P6)\n",
+                    (unsigned)row.item.id, expectedName.c_str(), live.c_str());
+            result.failures++;
+        }
+        // The spoiler document's round trip (toJSON / Hint(key, json)), and an
+        // old save's reading of the same document without the new field.
+        nlohmann::json doc = nlohmann::json::parse(probe->toJSON().dump());
+        const Rando::Hint reloaded(probeKey, doc);
+        const std::string reloadedText = JoinMessages(reloaded.GetAllMessageStrings(MF_CLEAN));
+        if (reloadedText != live || reloaded.GetForeignAreas() != foreign) {
+            fprintf(stderr, "[rando-hints] FAIL probe: OoT item %u: the JSON round trip changed the hint\n  live:     "
+                            "\"%s\"\n  reloaded: \"%s\" (P6)\n",
+                    (unsigned)row.item.id, live.c_str(), reloadedText.c_str());
+            result.failures++;
+        }
+        doc.erase("foreignAreas");
+        const Rando::Hint oldSave(probeKey, doc);
+        const std::string oldText = JoinMessages(oldSave.GetAllMessageStrings(MF_CLEAN));
+        if (oldText.find(termina) == std::string::npos ||
+            (!expectedName.empty() && oldText.find(expectedName) != std::string::npos)) {
+            fprintf(stderr, "[rando-hints] FAIL probe: OoT item %u: a hint without foreignAreas no longer reads "
+                            "\"%s\": \"%s\" (P6)\n",
+                    (unsigned)row.item.id, termina.c_str(), oldText.c_str());
+            result.failures++;
+        }
+        if (result.probes <= 3) {
+            fprintf(stderr, "[rando-hints] probe: OoT item %u on MM check %u: \"%s\"\n", (unsigned)row.item.id,
+                    (unsigned)row.hostCheck, live.c_str());
+        }
+    }
+    ctx->AddHint(probeKey, saved);
+    return result;
+}
+#endif
+
 static int ValidateGeneratedHints(bool pairedWorld) {
     auto ctx = Rando::Context::GetInstance();
     if (!ctx) {
@@ -146,6 +272,26 @@ static int ValidateGeneratedHints(bool pairedWorld) {
     size_t hintsChecked = 0;
     size_t failures = 0;
     size_t terminaHints = 0;
+    size_t terminaSlots = 0;
+
+    // (P6) The MM areas the store's OoT items sit in: the area of each item's first
+    // MM host, the one the hint pass names.
+    std::set<uint8_t> mmHostAreas;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (pairedWorld) {
+        std::set<uint16_t> seenItems;
+        for (int i = 0; i < Combo_Crossings_Count(GAME_MM); i++) {
+            ComboCrossing row;
+            if (Combo_Crossings_At(GAME_MM, i, &row) && row.item.originGame == (uint8_t)GAME_OOT &&
+                seenItems.insert(row.item.id).second) {
+                const uint8_t area = Combo_Area_OfCheck((uint8_t)GAME_MM, row.hostCheck).area;
+                if (area != COMBO_AREA_NONE) {
+                    mmHostAreas.insert(area);
+                }
+            }
+        }
+    }
+#endif
 
     for (int h = RH_NONE + 1; h < RH_MAX; h++) {
         const auto hintKey = static_cast<RandomizerHint>(h);
@@ -162,6 +308,32 @@ static int ValidateGeneratedHints(bool pairedWorld) {
 
         const std::vector<RandomizerCheck> hintedLocations = hint->GetHintedLocations();
         const std::vector<RandomizerArea> hintedAreas = hint->GetHintedAreas();
+#ifdef RSBS_SINGLE_EXECUTABLE
+        if (pairedWorld) {
+            // (P6) a Termina slot names an MM area that hosts one of the store's OoT
+            // items; any other slot names none.
+            const std::vector<uint8_t> foreignAreas = hint->GetForeignAreas();
+            for (size_t ai = 0; ai < hintedAreas.size(); ai++) {
+                const uint8_t foreign = ai < foreignAreas.size() ? foreignAreas[ai] : (uint8_t)COMBO_AREA_NONE;
+                if (hintedAreas[ai] != RA_TERMINA) {
+                    if (foreign != COMBO_AREA_NONE) {
+                        fprintf(stderr, "[rando-hints] FAIL %s: slot %zu is not Termina but names MM area %u (P6)\n",
+                                hintName.c_str(), ai, (unsigned)foreign);
+                        failures++;
+                    }
+                    continue;
+                }
+                terminaSlots++;
+                if (mmHostAreas.count(foreign) == 0) {
+                    fprintf(stderr,
+                            "[rando-hints] FAIL %s: Termina slot %zu names MM area %u, which hosts none of the store's "
+                            "OoT items (P6)\n",
+                            hintName.c_str(), ai, (unsigned)foreign);
+                    failures++;
+                }
+            }
+        }
+#endif
         for (size_t li = 0; li < hintedLocations.size(); li++) {
             const RandomizerCheck hintedCheck = hintedLocations[li];
             if (pairedWorld) {
@@ -295,14 +467,43 @@ static int ValidateGeneratedHints(bool pairedWorld) {
                         (unsigned)row.item.id, Rando_HintAreaForItemOutsideHyrule((int)row.item.id));
                 failures++;
             }
+            if (Rando_HintForeignAreaForItem((int)row.item.id) != (int)COMBO_AREA_NONE) {
+                fprintf(stderr, "[rando-hints] FAIL: outside the paired remainder the hint pass still reads the "
+                                "crossing store: OoT item %u would name MM area %d (P5)\n",
+                        (unsigned)row.item.id, Rando_HintForeignAreaForItem((int)row.item.id));
+                failures++;
+            }
+            // (P4, #575 H3a) the exact area: the item's FIRST MM host, in store order.
+            if (P4FirstHostOf(row.item.id) == row.hostCheck) {
+                const ComboArea hostArea = Combo_Area_OfCheck((uint8_t)GAME_MM, row.hostCheck);
+                const int answered = Rando_HintForeignAreaFromCrossingStore((int)row.item.id);
+                if (hostArea.area == COMBO_AREA_NONE || answered != (int)hostArea.area) {
+                    fprintf(stderr,
+                            "[rando-hints] FAIL: OoT item %u is hosted on MM check %u in \"%s\" but a hint would "
+                            "name MM area %d (P4)\n",
+                            (unsigned)row.item.id, (unsigned)row.hostCheck,
+                            Combo_Area_Name(hostArea) != nullptr ? Combo_Area_Name(hostArea) : "?", answered);
+                    failures++;
+                }
+            }
         }
+        const ForeignAreaProbeResult probe = ProbeForeignAreaHints();
+        failures += probe.failures;
         fprintf(stderr,
                 "[rando-hints] paired world: %d crossing hosts in OoT (none may be hintable), %d OoT items in MM, "
                 "%zu hinted target(s) named Termina\n",
                 crossingHosts, ootItemsInMM, terminaHints);
+        fprintf(stderr,
+                "[rando-hints] paired world: %zu generated Termina slot(s) checked for their MM area, %d production "
+                "builder probe(s) (P6)\n",
+                terminaSlots, probe.probes);
         if (crossingHosts == 0 || ootItemsInMM == 0) {
             fprintf(stderr, "[rando-hints] the paired world crossed nothing in one direction; P2/P4 are vacuous\n");
             return 7;
+        }
+        if (probe.probes == 0) {
+            fprintf(stderr, "[rando-hints] every OoT item in MM also sits in Hyrule; the P6 probe is vacuous\n");
+            return 8;
         }
     }
 #endif
@@ -489,6 +690,35 @@ extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr) {
         return 8;
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #575 H3a: a slot that names an MM area beside RA_TERMINA must survive the
+    // save's hint section (SaveManager writes hints field by field, then reads them
+    // back through Hint(key, json)). This native world crosses nothing, so the
+    // Ganondorf hint's slot is set to one such slot by hand before the save.
+    const ComboArea foreignProbeArea = { (uint8_t)GAME_MM, (uint8_t)COMBO_AREA_MM_SOUTHERN_SWAMP };
+    const std::string foreignProbeName = Combo_Area_Name(foreignProbeArea);
+    std::vector<std::string> foreignProbeBefore;
+    size_t foreignProbeFailures = 0;
+    {
+        const std::vector<RandomizerHintTextKey> probeKeys = { RHT_GANONDORF_HINT_LA_ONLY };
+        const std::vector<RandomizerCheck> probeLocations = { RC_UNKNOWN_CHECK };
+        const std::vector<RandomizerArea> probeAreas = { RA_TERMINA };
+        Rando::Hint probe(RH_GANONDORF_HINT, HINT_TYPE_AREA, probeKeys, probeLocations, probeAreas, {}, true);
+        probe.SetForeignAreas({ foreignProbeArea.area });
+        ctx->AddHint(RH_GANONDORF_HINT, probe);
+        foreignProbeBefore = ctx->GetHint(RH_GANONDORF_HINT)->GetAllMessageStrings(MF_CLEAN);
+        bool named = false;
+        for (const std::string& m : foreignProbeBefore) {
+            named = named || m.find(foreignProbeName) != std::string::npos;
+        }
+        if (!named) {
+            fprintf(stderr, "[hint-reload] FAIL before the reload the Termina slot does not name \"%s\": \"%s\"\n",
+                    foreignProbeName.c_str(), foreignProbeBefore.empty() ? "" : foreignProbeBefore[0].c_str());
+            foreignProbeFailures++;
+        }
+    }
+#endif
+
     // Drop this local strong reference before the reset. Context::mContext is a
     // weak_ptr, so the reset inside the round trip only builds a fresh context if
     // every shared_ptr owner is released first; holding `ctx` here would pin the
@@ -551,6 +781,28 @@ extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr) {
         fprintf(stderr, "[hint-reload] no enabled item hints were generated; the lock would vacuously pass\n");
         return 6;
     }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    {
+        Rando::Hint* probe = reloaded->GetHint(RH_GANONDORF_HINT);
+        const std::vector<std::string> afterProbe =
+            probe != nullptr ? probe->GetAllMessageStrings(MF_CLEAN) : std::vector<std::string>{};
+        const std::vector<uint8_t> foreignAfter = probe != nullptr ? probe->GetForeignAreas() : std::vector<uint8_t>{};
+        if (afterProbe != foreignProbeBefore || foreignAfter != std::vector<uint8_t>{ foreignProbeArea.area }) {
+            fprintf(stderr,
+                    "[hint-reload] FAIL the Termina slot naming \"%s\" did not survive the reload (%zu MM area(s) "
+                    "after)\n  live:     \"%s\"\n  reloaded: \"%s\"\n",
+                    foreignProbeName.c_str(), foreignAfter.size(),
+                    foreignProbeBefore.empty() ? "" : foreignProbeBefore[0].c_str(),
+                    afterProbe.empty() ? "" : afterProbe[0].c_str());
+            foreignProbeFailures++;
+        } else {
+            fprintf(stderr, "[hint-reload] the Termina slot still names \"%s\" after the reload: \"%s\"\n",
+                    foreignProbeName.c_str(), afterProbe.empty() ? "" : afterProbe[0].c_str());
+        }
+        failures += foreignProbeFailures;
+    }
+#endif
 
     const int areasChanged = OoT_HintArea_TestCompareSnapshot();
     fprintf(stderr, "[hint-reload] checked %d location areas across a reload, %d changed\n", areasBefore, areasChanged);

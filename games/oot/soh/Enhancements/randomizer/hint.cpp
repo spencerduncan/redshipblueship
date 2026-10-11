@@ -708,6 +708,19 @@ void Hint::ResetVariables() {
     itemNamesChosen = {};
     hintTextsChosen = {};
     areaNamesChosen = {};
+#ifdef RSBS_SINGLE_EXECUTABLE
+    foreignAreas = {};
+#endif
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+void Hint::SetForeignAreas(std::vector<uint8_t> foreignAreas_) {
+    foreignAreas = std::move(foreignAreas_);
+}
+
+std::vector<uint8_t> Hint::GetForeignAreas() const {
+    return foreignAreas;
+}
+#endif
 
 } // namespace Rando

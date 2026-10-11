@@ -716,6 +716,38 @@ extern "C" int Rando_HintAreaFromCrossingStore(int item) {
     return (int)CrossingStoreAreaForItem((RandomizerGet)item);
 }
 
+/**
+ * #575 H3a: the Majora's Mask area a Termina slot names, in src/common's shared
+ * vocabulary (combo_area.h): the area of the MM check that hosts `item`, or 0
+ * (COMBO_AREA_NONE), which renders as "Termina" as before.
+ */
+static uint8_t CrossingStoreForeignAreaForItem(RandomizerGet item) {
+    (void)item;
+    return 0;
+}
+
+/** The same, gated exactly as HintAreaForItemOutsideHyrule: only while OoT's
+ *  remainder hints the paired world whose crossings the store holds. */
+static uint8_t HintForeignAreaForItem(RandomizerGet item) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (OoT_ComboLogic_HintingPairedRemainder() != 0) {
+        return CrossingStoreForeignAreaForItem(item);
+    }
+#endif
+    (void)item;
+    return 0;
+}
+
+/** TEST BRIDGE: the MM area the paired remainder's hint pass gets (the store's). */
+extern "C" int Rando_HintForeignAreaFromCrossingStore(int item) {
+    return (int)CrossingStoreForeignAreaForItem((RandomizerGet)item);
+}
+
+/** TEST BRIDGE: the hint pass's MM area right now (gated, as production asks it). */
+extern "C" int Rando_HintForeignAreaForItem(int item) {
+    return (int)HintForeignAreaForItem((RandomizerGet)item);
+}
+
 std::vector<RandomizerCheck> FindItemsAndMarkHinted(std::vector<RandomizerGet> items,
                                                     std::vector<RandomizerCheck> hintChecks) {
     std::vector<RandomizerCheck> locations = {};
@@ -837,6 +869,25 @@ void CreateStaticItemHint(RandomizerHint hintKey, std::vector<RandomizerHintText
         areas.push_back(ctx->GetItemLocation(locations[i])->GetRandomArea());
     }
     ctx->AddHint(hintKey, Hint(hintKey, HINT_TYPE_AREA, hintTextKeys, locations, areas, {}, yourPocket));
+}
+
+/**
+ * TEST BRIDGE (#575 H3a; ComboSingleBag D2): build, into `hintKey`, the static
+ * item hint production builds (CreateStaticItemHint, the Ganondorf hint's
+ * builder) for OoT item `item` with text `hintTextKey`. Returns 0 without
+ * building anything when `item` sits at an OoT location (the hint would name
+ * that location's area, not Termina), 1 when built.
+ */
+extern "C" int Rando_TestCreateStaticItemHint(int hintKey, int hintTextKey, int item) {
+    auto ctx = Rando::Context::GetInstance();
+    for (const RandomizerCheck loc : ctx->allLocations) {
+        if (ctx->GetItemLocation(loc)->GetPlacedRandomizerGet() == (RandomizerGet)item) {
+            return 0;
+        }
+    }
+    CreateStaticItemHint((RandomizerHint)hintKey, { (RandomizerHintTextKey)hintTextKey }, { (RandomizerGet)item }, {},
+                         true);
+    return 1;
 }
 
 void CreateGanondorfJoke() {
