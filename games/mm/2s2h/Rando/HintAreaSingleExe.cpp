@@ -21,13 +21,20 @@
  *
  * Nothing here is persisted: the table is a pure function of the check id, so
  * no save or golden carries it.
+ *
+ * Child H2 adds what MM's own hints say with it (Rando/HintArea.h): the area's
+ * name and preposition in place of the scene name.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <array>
 #include <cstdint>
+#include <cstdio>
+#include <string>
 
+#include "2s2h/CustomMessage/CustomMessage.h"
+#include "Rando/HintArea.h"
 #include "Rando/StaticData/StaticData.h"
 
 #include "combo_area.h" // src/common: the shared vocabulary and the registrar
@@ -727,6 +734,26 @@ const MmAreaAdapterRegistrar gMmAreaAdapterRegistrar;
 } // namespace
 
 // ============================================================================
+// #575 H2: what MM's own hints say for a check (Rando/HintArea.h)
+// ============================================================================
+
+void Rando::HintArea::ReplaceLocation(std::string* msg, const char* key, RandoCheckId randoCheckId) {
+    const ComboArea area = Combo_Area_OfCheck((uint8_t)GAME_MM, (uint16_t)randoCheckId);
+    const char* name = Combo_Area_Name(area);
+    const char* prepos = Combo_Area_Prepos(area);
+    if (prepos != nullptr) {
+        CustomMessage::Replace(msg, "{{prepos}}", prepos);
+    } else {
+        CustomMessage::Replace(msg, "{{prepos}} ", "");
+    }
+    CustomMessage::Replace(msg, key, name != nullptr ? name : "");
+}
+
+bool Rando::HintArea::HasArea(RandoCheckId randoCheckId) {
+    return MmAreaOfCheck((uint16_t)randoCheckId) != COMBO_AREA_NONE;
+}
+
+// ============================================================================
 // TEST BRIDGE (redship tier; src/common/tests/test_combo_area.c)
 // ============================================================================
 
@@ -747,6 +774,20 @@ extern "C" int MM_HintArea_TestCheckRow(uint16_t id, int* outIsEnemyDrop) {
 /** RC_MAX, so the lock can walk every id. */
 extern "C" int MM_HintArea_TestCheckIdMax(void) {
     return (int)RC_MAX;
+}
+
+/** #575 H2: `tmpl` with `key` filled for `randoCheckId` by ReplaceLocation, as
+ *  the static hints fill theirs (RC_UNKNOWN included: an item no MM check holds).
+ *  Returns the full length, or -1 for an id outside the table. */
+extern "C" int MM_HintArea_TestLocationText(uint16_t randoCheckId, const char* tmpl, const char* key, char* out,
+                                            int cap) {
+    if (randoCheckId >= RC_MAX || tmpl == nullptr || key == nullptr || out == nullptr || cap <= 0) {
+        return -1;
+    }
+    std::string msg = tmpl;
+    Rando::HintArea::ReplaceLocation(&msg, key, (RandoCheckId)randoCheckId);
+    snprintf(out, (size_t)cap, "%s", msg.c_str());
+    return (int)msg.size();
 }
 
 #endif /* RSBS_SINGLE_EXECUTABLE */
