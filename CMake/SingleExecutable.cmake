@@ -979,6 +979,11 @@ if(BUILD_TESTING)
     # capture is FULL-WIDTH rather than the sizeof(Save) prefix the excluded
     # file used. Display-free and ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMUnifiedSaveCapture COMMAND redship --test mm-unified-save-capture)
+    # #564 V18 (games/mm/2s2h/mm_save_failure_surface_test.cpp): an MM save that
+    # cannot commit (no active slot, a latched slot, a failed write) is shown to
+    # the player as a "Save failed:" toast, once per cause, instead of running its
+    # success ceremony with only a stderr line behind it. Display-free, ROM-free.
+    redship_add_test(NAME MMSaveFailureSurface COMMAND redship --test mm-save-failure-surface)
     # MM's capture must not advance the SHARED-RESOURCE POOL for a commit the
     # write latch refuses (#591, games/mm/2s2h/mm_capture_harvest_gate_test.cpp).
     # MM_Combo_CaptureSaveToUnifiedSlot harvested rupees/hearts/magic/ammo into
