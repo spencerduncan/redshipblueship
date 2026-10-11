@@ -6060,10 +6060,10 @@ const TestDescriptor gTests[] = {
      "resolves through the one resolver (#710)",
      Test_DigestOutHandRun},
     {"pairing-refusal-toast-fit",
-     "Every cross-game refusal toast fits an 832-px window at Notifications.Size 1.8 and 1.0, drawn by SoH's own "
-     "notification overlay in its default font (#749's toast shape); every MM item's OoT pickup toast reads "
-     "'You found <item> (MM)', and those of the names both games use fit too (#865); the load's 'Restored ...' "
-     "toasts fit a 640-px and an 832-px window (#881)",
+     "Every cross-game refusal toast fits a 640-px and an 832-px window at Notifications.Size 1.8 and 1.0, drawn "
+     "by SoH's own notification overlay in its default font (#749's toast shape), at the player's size from 832 px "
+     "up (#906); every MM item's OoT pickup toast reads 'You found <item> (MM)' and fits too (#865, #906); the "
+     "load's 'Restored ...' toasts fit a 640-px and an 832-px window (#881)",
      Test_PairingRefusalToastFit},
     {"paired-load-restore",
      "Loading a paired file whose Cross-Game Rules or MM options changed at the title screen restores the file's "
