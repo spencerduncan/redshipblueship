@@ -104,8 +104,18 @@ extern "C" {
  *  a host whose give path cannot deliver one (an OoT freestanding item, an MM
  *  shop slot) and the player would have picked up the junk cover instead of a
  *  progression item. The number moves because an old engine's silence would be
- *  read as "every host accepts", which is exactly that defect. */
-#define RSBS_COMBO_LOGIC_ENGINE_ABI 5u
+ *  read as "every host accepts", which is exactly that defect.
+ *
+ *  6 (2026-10-10, epic #575 child H4): the ROUND gains a FORBIDDEN-HOST input
+ *  (`ComboLogicRoundRequest.forbidden`) and the vtable one more OPTIONAL trailing
+ *  pointer, `withholdHost`. A forbidden host's contents are never granted in that
+ *  round. The coordinator withholds a forbidden CROSS-origin placement itself, at
+ *  the exchange; an OWN-origin item is harvested inside the engine's own `expand`,
+ *  which the coordinator cannot see into, so only the engine can withhold it. The
+ *  number moves because an ABI-5 engine would harvest a host the round was asked
+ *  to treat as empty, and a required-set or foolish analysis built on such a round
+ *  would call every own-origin host useless. */
+#define RSBS_COMBO_LOGIC_ENGINE_ABI 6u
 
 // ============================================================================
 // Status codes — DIAGNOSTICS, NOT FORMAT
@@ -319,6 +329,7 @@ const char* Combo_Logic_StatusName(int status);
 //   for each side S in {OOT, MM}:            // OoT first, deterministically
 //       if (S.snapshot) S.snapshot()         // BEFORE beginQuery: the restore
 //       S.beginQuery()                       //   must undo beginQuery too
+//   for each f in F:  side(f.hostGame).withholdHost(f.hostCheck)  // ABI 6, F = forbidden
 //   for each a in A:  side(a.originGame).assumeOwnItem(a.id)   // one call per COPY
 //   repeat, bounded by RSBS_COMBO_LOGIC_MAX_ROUND_ITERATIONS:
 //       changed  = OOT.expand()
@@ -383,6 +394,8 @@ const char* Combo_Logic_StatusName(int status);
 //   - An OoT-origin item sitting in an MM host reaches OoT iff that host is
 //     reached AND OoT's crossing is open (to get there at all) AND MM's
 //     crossing is open (to get back).
+//   - Either way, never from a host the round's request FORBIDS (ABI 6): that
+//     host's contents are withheld for the whole round.
 //
 // THE ARRIVAL GATE — a coordinator rule the audit did not state, taken here
 // deliberately. The combo's file starts in OoT and MM is reached through the
@@ -817,6 +830,36 @@ typedef struct ComboLogicEngine {
      * @return nonzero when a foreign-origin item may be placed on `hostCheck`.
      */
     int (*hostAcceptsForeign)(void* self, uint16_t hostCheck);
+
+    /**
+     * OPTIONAL (ABI 6). For the rest of THIS ROUND, treat `hostCheck` — a host in
+     * THIS engine's check id-space — as holding nothing: whatever it holds (a
+     * coordinator placement of this game's origin, a junk cover, or a placement
+     * this engine made itself) is never granted, however often `expand` reaches
+     * it. The host's REACHABILITY is untouched: `checkReached` still answers for
+     * it, and it still counts toward `allHostsReached`. Only its contents vanish.
+     *
+     * WHY IT EXISTS (epic #575 H4). A hint analysis asks "is the goal still
+     * provable without the item on this host?" — OoTMM's required set
+     * (`analysis.ts`, one search per location with that location forbidden) and
+     * its probabilistic foolish zig-zag (`analysis-foolish.ts`, a growing
+     * forbidden set). The coordinator can withhold a foreign item itself, because
+     * the exchange is its own code. An own-origin item is harvested inside
+     * `expand` (OoT's `ReachabilitySearch`, MM's per-host harvest), so withholding
+     * it needs this entry.
+     *
+     * CALLED AFTER `beginQuery` AND BEFORE ANY `assumeOwnItem` OR `expand` of the
+     * round, once per forbidden host of this game (a host may be named twice; the
+     * second call is a no-op). `beginQuery` and `endQuery` both forget the set, so
+     * a withheld host never leaks into the next round. It must not consume RNG,
+     * grant anything, or touch the host's own table entry beyond the round.
+     *
+     * NULL means this engine cannot withhold: a round whose request forbids one
+     * of its hosts is refused with RSBS_COMBO_LOGIC_ERR_BAD_REQUEST before any
+     * bracket opens, rather than answered as if nothing were forbidden. A round
+     * that forbids nothing never calls it.
+     */
+    void (*withholdHost)(void* self, uint16_t hostCheck);
 } ComboLogicEngine;
 
 /**
@@ -1014,6 +1057,14 @@ typedef struct {
     uint16_t bagFlags;  // RSBS_COMBO_BAG_* bits; 0 = a REQUIRED copy (the default)
 } ComboLogicBagItem;
 
+/** One host, keyed the only way a host is ever keyed: by its own game and its
+ *  check id in that game's id-space (ADR 0002; host ids are never compared
+ *  across games). RAM only; not format. */
+typedef struct {
+    uint8_t hostGame;   // GAME_OOT or GAME_MM
+    uint16_t hostCheck; // in hostGame's own check id-space
+} ComboLogicHostRef;
+
 typedef struct {
     const ComboLogicBagItem* assumed; // the assumed set A; NULL iff assumedCount == 0
     int assumedCount;
@@ -1022,6 +1073,28 @@ typedef struct {
      *  (Combo_TriforceHuntRequired). Ignored by every other goal; 0 under
      *  triforce-hunt leaves the expression unevaluated (-1). */
     uint16_t triforceRequired;
+    /**
+     * THE FORBIDDEN HOSTS (ABI 6, epic #575 H4): hosts whose contents this round
+     * never grants. NULL iff `forbiddenCount` == 0, and an empty set is exactly the
+     * round without this field (every pre-ABI-6 caller memsets it to that).
+     *
+     * A forbidden host holding a CROSS-origin placement is withheld by the
+     * coordinator: its item is never exchanged. Anything else it holds is
+     * withheld by its own engine (`withholdHost`), which the coordinator calls
+     * for every forbidden host of that engine's game. The host stays a host: it
+     * is still reached or not, still occupied, still counted by
+     * `allHostsReached`. Only what it HOLDS stops counting.
+     *
+     * Refused with RSBS_COMBO_LOGIC_ERR_BAD_REQUEST: a negative count, a NULL
+     * array with a positive count, a `hostGame` that is not a game, or a host of
+     * a game whose engine has no `withholdHost`.
+     *
+     * NOTHING IN PRODUCTION SETS IT. The fill's own rounds forbid nothing; this is
+     * the input a hint analysis (OoTMM's required set and foolish zig-zag) runs
+     * its rounds through.
+     */
+    const ComboLogicHostRef* forbidden;
+    int forbiddenCount;
 } ComboLogicRoundRequest;
 
 typedef struct {

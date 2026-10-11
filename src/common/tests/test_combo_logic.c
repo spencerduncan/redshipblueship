@@ -72,6 +72,17 @@
  *   both tables EMPTY at every attempt, engines included, so an authored partial
  *   world is discarded rather than extended.
  *
+ *   combo-logic-forbidden-host — the round's FORBIDDEN-HOST input (ABI 6, epic
+ *   #575 H4), over one world that holds an own-origin and a cross-origin item on
+ *   each side. A forbidden host's item is never harvested (own origin, withheld
+ *   by its engine through `withholdHost`) and never exchanged (cross origin,
+ *   withheld by the coordinator), the half-goal that item carried falls, the host
+ *   itself stays reached, and the call is routed to the host's own engine only.
+ *   An empty forbidden set, and a forbidden host that holds nothing, change no
+ *   round: the result is byte-identical to the round without the field. Nothing
+ *   leaks into the next round. A malformed set, or a host of an engine with no
+ *   `withholdHost`, is refused before any bracket opens.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE and therefore
  * compiled as C++, like every other file in this directory; every symbol under
  * test is C-linkage through combo_logic.h.
@@ -206,6 +217,13 @@ struct ClEngine {
     /** Hosts whose own-origin placement was harvested THIS round: the contract's
      *  "once per placed host per round". */
     uint32_t harvested;
+    /** Hosts this round WITHHOLDS (ABI 6, `withholdHost`): reached as ever, never
+     *  harvested. Cleared by `beginQuery` and `endQuery`, so it is one round's. */
+    uint32_t withheld;
+    /** `withholdHost` calls since the engine was reset, and how many named a host
+     *  this engine does not own — a misrouted host (ADR 0002). */
+    int withholdCalls;
+    int withholdUnknown;
     /** `assumeOwnItem` calls per item bit since the engine was reset — what the
      *  one-call-per-copy locks count. Never reset by a round. */
     int assumeCalls[kClMaxItems];
@@ -307,7 +325,8 @@ void ClRecompute(ClEngine* e) {
         }
         bool harvestedAny = false;
         for (int i = 0; i < e->hostCount; ++i) {
-            if ((nextReached & (1u << i)) == 0u || (e->harvested & (1u << i)) != 0u) {
+            if ((nextReached & (1u << i)) == 0u || (e->harvested & (1u << i)) != 0u ||
+                (e->withheld & (1u << i)) != 0u) {
                 continue;
             }
             const int p = ClOwnPlacementIndex(e, e->hostId[i]);
@@ -363,6 +382,7 @@ int ClBeginQuery(void* self) {
     e->reached = 0u;
     memset(e->haveCount, 0, sizeof(e->haveCount));
     e->harvested = 0u;
+    e->withheld = 0u;
     return 1;
 }
 
@@ -370,6 +390,7 @@ void ClEndQuery(void* self) {
     ClEngine* e = (ClEngine*)self;
     e->endCalls++;
     e->inQuery = false;
+    e->withheld = 0u;
     // THE INVERSE OF THE DETACH, and the only one there is. Unconditional on
     // purpose: the coordinator may reach here on a round that never opened (a
     // `beginQuery` that refused after detaching), and re-coupling is exactly what
@@ -415,6 +436,21 @@ int ClExpand(void* self) {
         return 1;
     }
     return (e->have != haveBefore || e->reached != reachedBefore || ClCopiesHeld(e) != copiesBefore) ? 1 : 0;
+}
+
+/** ABI 6: this round never harvests `hostCheck`'s contents. */
+void ClWithholdHost(void* self, uint16_t hostCheck) {
+    ClEngine* e = (ClEngine*)self;
+    if (!e->inQuery) {
+        e->sawQueryOutsideRound = true;
+    }
+    e->withholdCalls++;
+    const int i = ClHostIndex(e, hostCheck);
+    if (i < 0) {
+        e->withholdUnknown++;
+        return;
+    }
+    e->withheld |= (1u << i);
 }
 
 int ClCrossingOpen(void* self) {
@@ -631,6 +667,7 @@ void ClFillVtable(ComboLogicEngine* vt, ClEngine* e) {
     vt->place = ClPlace;
     vt->clearPlacements = ClClearPlacements;
     vt->endQuery = ClEndQuery;
+    vt->withholdHost = ClWithholdHost;
     if (e->withSnapshot) {
         vt->snapshot = ClSnapshot;
         vt->restore = ClRestore;
@@ -1912,6 +1949,231 @@ TestResult Test_ComboLogicContractEdges(void) {
 }
 
 // ============================================================================
+// Row 4b — the round's forbidden hosts (ABI 6, epic #575 H4)
+// ============================================================================
+//
+// THE WORLD. Each side hosts one item of its OWN origin and one of the OTHER's,
+// so every way a host's contents can reach a round is present once:
+//   OoT host 10 (sphere 0)        holds MM's Ocarina  -> exchanged to MM
+//   OoT host 11 (needs Sword)     holds OoT's Lens    -> harvested by OoT, OoT's goal
+//   OoT host 12 (sphere 0)        holds nothing       -> the empty-host control
+//   MM  host 20 (sphere 0)        holds OoT's Sword   -> exchanged to OoT, opens 11
+//   MM  host 21 (needs Ocarina)   holds MM's Remains  -> harvested by MM, MM's goal
+// MM snapshots, so the bracket's restore and re-apply run in every round.
+// beat-both holds with nothing forbidden, through both exchanges and both
+// harvests.
+
+namespace {
+
+void ClBuildForbiddenWorld() {
+    ClResetEngine(&gClOoT, (uint8_t)GAME_OOT);
+    ClAddItem(&gClOoT, kOotSword);
+    ClAddItem(&gClOoT, kOotHook);
+    ClAddItem(&gClOoT, kOotLens);
+    ClAddHost(&gClOoT, 10, 0u);
+    ClAddHost(&gClOoT, 11, ClBit(&gClOoT, kOotSword));
+    ClAddHost(&gClOoT, 12, 0u);
+    gClOoT.crossingRequires = 0u;
+    gClOoT.goalRequires = ClBit(&gClOoT, kOotLens);
+
+    ClResetEngine(&gClMM, (uint8_t)GAME_MM);
+    ClAddItem(&gClMM, kMmOcarina);
+    ClAddItem(&gClMM, kMmBow);
+    ClAddItem(&gClMM, kMmRemains);
+    ClAddHost(&gClMM, 20, 0u);
+    ClAddHost(&gClMM, 21, ClBit(&gClMM, kMmOcarina));
+    gClMM.crossingRequires = 0u;
+    gClMM.goalRequires = ClBit(&gClMM, kMmRemains);
+    gClMM.withSnapshot = true;
+    ClInstall();
+}
+
+bool ClPlaceForbiddenWorld() {
+    return Combo_Logic_Place(GAME_OOT, 10, ClItem((uint8_t)GAME_MM, kMmOcarina), RSBS_ITEMCLASS_PROGRESSION) &&
+           Combo_Logic_Place(GAME_OOT, 11, ClItem((uint8_t)GAME_OOT, kOotLens), RSBS_ITEMCLASS_PROGRESSION) &&
+           Combo_Logic_Place(GAME_MM, 20, ClItem((uint8_t)GAME_OOT, kOotSword), RSBS_ITEMCLASS_PROGRESSION) &&
+           Combo_Logic_Place(GAME_MM, 21, ClItem((uint8_t)GAME_MM, kMmRemains), RSBS_ITEMCLASS_PROGRESSION);
+}
+
+ComboLogicHostRef ClHostRef(uint8_t game, uint16_t check) {
+    ComboLogicHostRef h;
+    memset(&h, 0, sizeof(h));
+    h.hostGame = game;
+    h.hostCheck = check;
+    return h;
+}
+
+/** One beat-both round over the current tables, nothing assumed, `count` hosts
+ *  forbidden. `forbidden` is passed through verbatim (NULL included), so the
+ *  malformed shapes reach the coordinator as written. */
+int ClRunForbidden(const ComboLogicHostRef* forbidden, int count, ComboLogicRoundResult* out) {
+    ComboLogicRoundRequest req;
+    memset(&req, 0, sizeof(req));
+    req.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH;
+    req.forbidden = forbidden;
+    req.forbiddenCount = count;
+    memset(out, 0, sizeof(*out));
+    return Combo_Logic_RunRound(&req, out);
+}
+
+void ClPrintForbiddenRound(const char* tag, int rc, const ComboLogicRoundResult& r) {
+    // OoT's stub keeps its round state after `endQuery` (no snapshot pair), so its
+    // Lens count is the round's own; MM's is restored by its snapshot and is not
+    // printed. MM's Ocarina assumes are cumulative across rounds.
+    printf("[TEST]   %s: rc=%s goalOoT=%d goalMM=%d expr=%d exchanged=%d allHostsReached=%d | OoT Lens copies %d, MM "
+           "Ocarina assumes %d (cumulative) | withhold calls OoT %d MM %d\n",
+           tag, Combo_Logic_StatusName(rc), r.goalOoT, r.goalMM, r.goalExpression, r.exchanged, r.allHostsReached,
+           gClOoT.haveCount[ClBitIndex(&gClOoT, kOotLens)], gClMM.assumeCalls[ClBitIndex(&gClMM, kMmOcarina)],
+           gClOoT.withholdCalls, gClMM.withholdCalls);
+}
+
+} // namespace
+
+TestResult Test_ComboLogicForbiddenHost(void) {
+    printf("[TEST] combo-logic-forbidden-host: a forbidden host's item is never harvested or exchanged, and an empty "
+           "forbidden set changes no round (ABI 6, #575 H4)\n");
+    const uint8_t O = (uint8_t)GAME_OOT;
+    const uint8_t M = (uint8_t)GAME_MM;
+
+    ClBuildForbiddenWorld();
+    CL_ASSERT(ClPlaceForbiddenWorld(), "the four authored placements were accepted");
+
+    // --- 0. the baseline: nothing forbidden ---------------------------------
+    ComboLogicRoundResult base;
+    const int baseRc = ClRunForbidden(nullptr, 0, &base);
+    ClPrintForbiddenRound("baseline", baseRc, base);
+    CL_ASSERT(baseRc == RSBS_COMBO_LOGIC_OK && base.goalOoT == 1 && base.goalMM == 1 && base.goalExpression == 1,
+              "0: the world proves beat-both with nothing forbidden");
+    CL_ASSERT(base.exchanged == 2 && base.allHostsReached == 1,
+              "0: both crossings are exchanged and every placed host is reached");
+
+    // --- 1. an OWN-origin host: withheld by its engine ----------------------
+    {
+        const ComboLogicHostRef f[1] = { ClHostRef(O, 11) };
+        const int lensBefore = gClOoT.assumeCalls[ClBitIndex(&gClOoT, kOotLens)];
+        const int ootCallsBefore = gClOoT.withholdCalls;
+        const int mmCallsBefore = gClMM.withholdCalls;
+        ComboLogicRoundResult r;
+        const int rc = ClRunForbidden(f, 1, &r);
+        ClPrintForbiddenRound("forbid OoT 11 (own: OoT's Lens)", rc, r);
+        CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK, "1: the round runs");
+        CL_ASSERT(r.goalOoT == 0 && r.goalExpression == 0,
+                  "1: OoT's Lens on a forbidden OoT host was HARVESTED anyway — OoT's goal still reads proved");
+        CL_ASSERT(gClOoT.haveCount[ClBitIndex(&gClOoT, kOotLens)] == 0 &&
+                      gClOoT.assumeCalls[ClBitIndex(&gClOoT, kOotLens)] == lensBefore,
+                  "1: the round ended holding a Lens copy");
+        CL_ASSERT(r.goalMM == 1 && r.exchanged == 2, "1: the other half and both crossings are untouched");
+        CL_ASSERT(r.allHostsReached == 1, "1: a withheld host is still a REACHED host; only its contents vanish");
+        CL_ASSERT(gClOoT.withholdCalls == ootCallsBefore + 1 && gClMM.withholdCalls == mmCallsBefore,
+                  "1: the withhold went to the host's own engine, once, and to no other");
+    }
+
+    // --- 2. a CROSS-origin host on OoT: withheld by the coordinator ---------
+    {
+        const ComboLogicHostRef f[1] = { ClHostRef(O, 10) };
+        const int ocarinaBefore = gClMM.assumeCalls[ClBitIndex(&gClMM, kMmOcarina)];
+        ComboLogicRoundResult r;
+        const int rc = ClRunForbidden(f, 1, &r);
+        ClPrintForbiddenRound("forbid OoT 10 (cross: MM's Ocarina)", rc, r);
+        CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK, "2: the round runs");
+        CL_ASSERT(gClMM.assumeCalls[ClBitIndex(&gClMM, kMmOcarina)] == ocarinaBefore && r.exchanged == 1,
+                  "2: MM's Ocarina on a forbidden OoT host was EXCHANGED anyway");
+        CL_ASSERT(r.goalMM == 0 && r.goalOoT == 1 && r.goalExpression == 0,
+                  "2: MM's half (Remains behind the Ocarina) falls and OoT's half stands");
+    }
+
+    // --- 3. a CROSS-origin host on MM: withheld by the coordinator ----------
+    {
+        const ComboLogicHostRef f[1] = { ClHostRef(M, 20) };
+        ComboLogicRoundResult r;
+        const int rc = ClRunForbidden(f, 1, &r);
+        ClPrintForbiddenRound("forbid MM 20 (cross: OoT's Sword)", rc, r);
+        CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK && r.exchanged == 1,
+                  "3: OoT's Sword on a forbidden MM host was EXCHANGED anyway");
+        CL_ASSERT(r.goalOoT == 0 && r.goalMM == 1, "3: OoT's half (Lens behind the Sword) falls, MM's stands");
+        CL_ASSERT(r.allHostsReached == 0, "3: OoT host 11 is unreached without the Sword, and the round says so");
+    }
+
+    // --- 4. an OWN-origin host on MM, across MM's snapshot bracket ----------
+    {
+        const ComboLogicHostRef f[1] = { ClHostRef(M, 21) };
+        ComboLogicRoundResult r;
+        const int rc = ClRunForbidden(f, 1, &r);
+        ClPrintForbiddenRound("forbid MM 21 (own: MM's Remains)", rc, r);
+        CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK && r.goalMM == 0 && r.goalOoT == 1,
+                  "4: MM's Remains on a forbidden MM host was HARVESTED anyway");
+        CL_ASSERT(r.exchanged == 2 && r.allHostsReached == 1,
+                  "4: both crossings still exchange and the withheld host is still reached");
+    }
+
+    // --- 5. an EMPTY forbidden set, and a forbidden EMPTY host, change nothing
+    {
+        const ComboLogicHostRef unused[1] = { ClHostRef(O, 11) };
+        ComboLogicRoundResult emptyArray;
+        const int rcArray = ClRunForbidden(unused, 0, &emptyArray);
+        CL_ASSERT(rcArray == RSBS_COMBO_LOGIC_OK && memcmp(&emptyArray, &base, sizeof(base)) == 0,
+                  "5: a non-NULL forbidden array with a zero count changed the round");
+
+        const ComboLogicHostRef emptyHost[1] = { ClHostRef(O, 12) };
+        ComboLogicRoundResult r;
+        const int rc = ClRunForbidden(emptyHost, 1, &r);
+        ClPrintForbiddenRound("forbid OoT 12 (holds nothing)", rc, r);
+        CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK && memcmp(&r, &base, sizeof(base)) == 0,
+                  "5: forbidding a host that holds nothing changed the round");
+    }
+
+    // --- 6. nothing leaks into the next round --------------------------------
+    {
+        const ComboLogicHostRef f[2] = { ClHostRef(O, 11), ClHostRef(M, 20) };
+        ComboLogicRoundResult both;
+        const int rcBoth = ClRunForbidden(f, 2, &both);
+        ClPrintForbiddenRound("forbid OoT 11 + MM 20", rcBoth, both);
+        CL_ASSERT(rcBoth == RSBS_COMBO_LOGIC_OK && both.goalOoT == 0 && both.exchanged == 1,
+                  "6: two forbidden hosts in one round");
+        ComboLogicRoundResult after;
+        const int rcAfter = ClRunForbidden(nullptr, 0, &after);
+        CL_ASSERT(rcAfter == RSBS_COMBO_LOGIC_OK && memcmp(&after, &base, sizeof(base)) == 0,
+                  "6: the round AFTER a forbidden round differs from the baseline — the withhold leaked");
+        CL_ASSERT(gClOoT.withheld == 0u && gClMM.withheld == 0u, "6: an engine kept a withheld host past endQuery");
+    }
+
+    // --- 7. refusals, all before any bracket opens ----------------------------
+    {
+        const int beginsBefore = gClOoT.beginCalls + gClMM.beginCalls;
+        ComboLogicRoundResult r;
+        CL_ASSERT(ClRunForbidden(nullptr, -1, &r) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+                  "7: a negative forbidden count is refused");
+        CL_ASSERT(ClRunForbidden(nullptr, 1, &r) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+                  "7: a NULL forbidden array with a positive count is refused");
+        const ComboLogicHostRef none[1] = { ClHostRef((uint8_t)GAME_NONE, 10) };
+        CL_ASSERT(ClRunForbidden(none, 1, &r) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+                  "7: a forbidden host of no game is refused");
+
+        // An engine that cannot withhold: a round forbidding one of ITS hosts is
+        // refused; a round forbidding only the OTHER engine's hosts still runs.
+        gClVtOoT.withholdHost = nullptr;
+        CL_ASSERT(Combo_Logic_RegisterEngine(GAME_OOT, &gClVtOoT), "7: an ABI-6 engine without withholdHost registers");
+        const ComboLogicHostRef ootHost[1] = { ClHostRef(O, 11) };
+        CL_ASSERT(ClRunForbidden(ootHost, 1, &r) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+                  "7: a forbidden host of an engine with no withholdHost is refused, not ignored");
+        CL_ASSERT(gClOoT.beginCalls + gClMM.beginCalls == beginsBefore, "7: every refusal came before any beginQuery");
+        const ComboLogicHostRef mmHost[1] = { ClHostRef(M, 21) };
+        CL_ASSERT(ClRunForbidden(mmHost, 1, &r) == RSBS_COMBO_LOGIC_OK && r.goalMM == 0 && r.goalOoT == 1,
+                  "7: forbidding only the other engine's host still runs");
+        gClVtOoT.withholdHost = ClWithholdHost;
+        CL_ASSERT(Combo_Logic_RegisterEngine(GAME_OOT, &gClVtOoT), "7: the withholding engine re-registers");
+    }
+
+    CL_ASSERT(gClOoT.withholdUnknown == 0 && gClMM.withholdUnknown == 0,
+              "a withhold named a host its engine does not own (misrouted across games)");
+    CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
+
+    ClUninstall();
+    printf("[TEST] combo-logic-forbidden-host: PASS\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
 // Row 5 — the multiplicity contract and the bag model (ABI 3, 2026-09-26)
 // ============================================================================
 //
@@ -2264,7 +2526,9 @@ void ClCountCrossings(int* intoOoT, int* intoMM, bool* ootForeignOnly41) {
 }
 
 TestResult ClProductionRulesLeg(void) {
-    CL_ASSERT(RSBS_COMBO_LOGIC_ENGINE_ABI == 5u, "P0: the production wiring is ABI 5");
+    CL_ASSERT(RSBS_COMBO_LOGIC_ENGINE_ABI == 6u,
+              "P0: this build speaks ABI 6 (5: the production wiring's hostAcceptsForeign; 6: the round's forbidden "
+              "hosts)");
     const uint8_t O = (uint8_t)GAME_OOT;
     const uint8_t M = (uint8_t)GAME_MM;
     const uint16_t oItems[4] = { kOotSword, kOotHook, kOotLens, kOotBoots };

@@ -878,7 +878,9 @@ is accepted (listed here; deliberately not filed by this ADR):
    2026-09-27 increment 3 entry*), OoT-side cross-game hint type + serialization,
    check-tracker surfacing of foreign hosts, and — strictly on top of the
    deterministic core — OoTMM-style probabilistic foolish analysis as hint
-   refinement.
+   refinement (*2026-10-11: #575 H4 added the forbidden-host round input and
+   measured the pass; it does not fit the per-attempt budget, see the
+   2026-10-11 hints entry under Amendments*).
 5. **Epic: OoTMM world-data port.** The long-horizon unification target
    (Decision 4's "A only ever via the data port" corpus verdict survives as
    this epic): ~100 world files / ~1320 areas / ~6045 pool rows under D10's
@@ -2197,3 +2199,111 @@ every goal value and unpaired, OoT in both modes, and the creation's "Win"
 to "Ganon's Boss Key" change over a real generation) and `ComboGoalEnding`
 (E9: the decision for every goal and both games; E7: both arms wired, under
 their guards, with main's arms as counterfactuals).
+
+### 2026-10-11 -- Hints: the round's forbidden hosts (ABI 6) and the foolish-pass measurement (#575 H4)
+
+Non-goals item 4 allows a probabilistic foolish pass only on top of the
+deterministic core (§2.3). Before anything wires one in, H4 adds the input such
+a pass needs and measures what it costs. Nothing in production calls either.
+
+**The input.** `ComboLogicRoundRequest` gains `forbidden` / `forbiddenCount`:
+hosts whose contents the round never grants. `RSBS_COMBO_LOGIC_ENGINE_ABI`
+goes from 5 to 6. The coordinator withholds a forbidden host's cross-origin
+item at the exchange, because the exchange is its own code. An own-origin item
+is harvested inside the engine's own `expand`, so the vtable gains an optional
+trailing `withholdHost`, called once per forbidden host of that engine's game,
+after `beginQuery` and before anything is assumed or expanded. OoT lifts the
+host's placed item out around each `ReachabilitySearch` and puts it (and its
+price) back, the way its own `IsBeatableWithout` does; MM skips the host in
+its A6 and A7 harvests. A withheld host is still reached and still counts
+toward `allHostsReached`. A malformed set, or a host of an engine whose
+`withholdHost` is NULL, is refused with `ERR_BAD_REQUEST` before any bracket
+opens. The fill's own rounds forbid nothing, so no world moves and the four
+`Golden*` rows stay green with `tests/golden/` untouched.
+
+Locked by `ComboLogicForbiddenHost` (redship tier, stub engines): each of the
+four host kinds (own and cross origin, on each side) loses exactly the
+half-goal its item carried, the withhold goes only to the host's own engine,
+an empty set and a forbidden empty host leave the round byte-identical, nothing
+leaks into the next round, and the refusals come before any `beginQuery`. Red
+against main's coordinator (`1: OoT's Lens on a forbidden OoT host was
+HARVESTED anyway`), and red again with only the exchange-side withhold removed
+(`2: MM's Ocarina on a forbidden OoT host was EXCHANGED anyway`).
+
+**The measurement.** `RSBS_CSB_FOOLISH=N redship --test combo-single-bag`
+(not set by CTest) runs the headless paired creation of the K11 entry above on
+the pinned seed and `RSBSSAMPLE0`..`N-1`, under `RSBS_COMBO_PROFILE`, and
+calls a test-only probe right after `Combo_Logic_RunFill` succeeds, with both
+engines live. The probe times, over the coordinator's placements ("bag
+hosts"):
+
+- (a) the required set as OoTMM's `makeRequiredLocs` computes it
+  (`analysis.ts`): one round per bag host with that host forbidden; a host is
+  required when the goal falls;
+- (b) OoTMM's zig-zag (`analysis-foolish.ts`, down and up passes over a growing
+  forbidden set, repeated until three passes in a row find nothing new) over
+  the bag hosts (a) did not call required, with its own stream:
+  `Combo_SingleBag_FoolishSeed`, the frozen identity under the domain tag
+  `rsbs-foolish-zigzag-v1`.
+
+Every round of every run was `ok`, every baseline proved the goal, and the
+placement digest was the same before and after the probe on every seed.
+Development workstation, 2026-10-11, other worktrees building alongside, so the
+host calibration moved between runs (scale 100% to 122%, per-attempt budget
+30.0 s to 36.6 s) and the times are not like-for-like with the K11 entry.
+
+*Pinned seed, (b) run to completion (cap 20,000 rounds):*
+
+| Profile | Bag hosts | (a) required | (a) | (b) rounds | (b) | Creation without analysis | Budget |
+|---|---|---|---|---|---|---|---|
+| shipped | 257 | 74 | 15.1 s, 258 rounds | 2,548 (4 passes) | 166.9 s | 11.6 s | 31.5 s |
+| plentiful | 362 | 5 | 16.2 s, 363 rounds | 16,784 (5 passes) | 831.3 s | 13.2 s | 36.6 s |
+| armed | 549 | 14 | 31.0 s, 550 rounds | 20,000, capped | 839.4 s, unfinished | 20.3 s | 33.3 s |
+
+*The pinned seed plus 30 sample seeds, (b) capped at 200 rounds per seed:*
+
+| Profile | (a) mean / worst | (a) ms per round | Creation mean / worst | Creation + (a) mean / worst | Creation + (a) over budget |
+|---|---|---|---|---|---|
+| shipped (budget 30.0 s) | 11.5 s / 16.8 s | 44.5 | 8.8 s / 11.7 s | 20.2 s / 28.6 s | 0 of 31 |
+| plentiful (budget 30.0 s) | 11.4 s / 14.1 s | 30.8 | 7.6 s / 12.0 s | 19.0 s / 25.4 s | 0 of 31 |
+| armed (budget 31.5 s) | 21.7 s / 32.9 s | 39.3 | 15.9 s / 23.2 s | 37.6 s / 54.5 s | 22 of 31 |
+
+In the same runs (b) cost 34 to 46 ms per round (means per profile). All 93
+capped zig-zags stopped inside their first pass.
+
+The fill's rounds were not timed on their own. The fill figure used below is
+the single-bag call's wall time (the `[SingleBag]` ladder line's `wallMs`,
+which starts before the bag is built and stops after the probe returns) minus
+the probe's two timed passes, divided by the fill's rounds: 30 to 38 ms
+(means per profile: shipped 34.0, plentiful 29.5, armed 38.3). That
+remainder also carries the bag build, the post-fill bookkeeping and the
+probe's untimed baseline round and digests, so it is an upper bound on a fill
+round, not the fill round's own cost. The rest of MM's half, outside the
+single-bag call, added 0 to 7 ms per seed.
+
+**What it says.**
+
+- A round after the fill costs no less than a fill round (the epic's
+  UNVERIFIED "round cost after the fill"): (a)'s rounds cost 44.5, 30.8 and
+  39.3 ms (means, shipped, plentiful, armed), each at or above the fill's
+  upper bound of 34.0, 29.5 and 38.3 ms in the same runs. How much cheaper a
+  fill round itself is was not measured.
+- (a) costs one round per bag host plus one. On shipped and plentiful it fits
+  beside creation on every seed measured (worst 28.6 s against 30 s). On armed
+  it does not: 22 of 31 seeds go over.
+- (b) does not fit on any profile. The epic's estimate was about 600 rounds;
+  the shipped pinned seed took 2,548 rounds (167 s, 5.3x the budget by
+  itself), plentiful 16,784 (831 s), and armed did not finish in 20,000.
+  OoTMM's zig-zag makes a new generation every time it finds a new
+  sometimes-required host, so its cost grows with how many hosts are
+  sometimes-required (7 on shipped, 173 on plentiful, at least 257 on armed).
+- So H5b, the probabilistic refinement as OoTMM runs it, is not launched on
+  these numbers. H5a's deterministic foolish rule needs no rounds at all.
+
+**What this measured that OoTMM does not do, and the reverse.** OoTMM's
+required set covers only the playthrough's locations, not every bag host, and
+it pre-marks the playthrough's locations as sometimes-required before the
+zig-zag, which shortens every pass. Its pathfinder stops at the goal and its
+up-pass reuses the previous search. Here every round runs both engines to
+their fixpoint from scratch. Each of those is a lever a later H5b would need;
+none was tried here.
