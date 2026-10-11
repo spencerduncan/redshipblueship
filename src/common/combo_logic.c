@@ -645,10 +645,6 @@ static void ComboLogicResetRoundResult(ComboLogicRoundResult* res) {
     res->triforcePieces = -1;
 }
 
-/**
- * Run one round. On return the engines have been torn down, so every fact the
- * caller needs is in `res` and in sCandidates[].
- */
 /** Set (`on`) or clear the forbidden bits a round's request names. The request
  *  was validated first (ComboLogicForbiddenValid), so every row names a game. */
 static void ComboLogicMarkForbidden(const ComboLogicHostRef* forbidden, int forbiddenCount, bool on) {
@@ -695,6 +691,10 @@ static bool ComboLogicForbiddenValid(const ComboLogicHostRef* forbidden, int for
     return true;
 }
 
+/**
+ * Run one round. On return the engines have been torn down, so every fact the
+ * caller needs is in `res` and in sCandidates[].
+ */
 static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount, uint8_t goal,
                               uint16_t triforceRequired, const ComboLogicHostRef* forbidden, int forbiddenCount,
                               ComboLogicRoundResult* res) {
