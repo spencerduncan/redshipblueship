@@ -87,6 +87,21 @@ uint32_t Combo_SingleBag_TrimSeed(void) {
     return SingleBagIdentityHash("rsbs-single-bag-trim-v1");
 }
 
+uint32_t Combo_SingleBag_FoolishSeed(void) {
+    // No ladder attempt either: the analysis reads the world the successful
+    // attempt proved, and that world is already a function of the identity.
+    return SingleBagIdentityHash("rsbs-foolish-zigzag-v1");
+}
+
+// TEST ONLY (epic #575 H4): see Combo_SingleBag_TestSetPostFillProbe.
+static ComboSingleBagPostFillProbe sPostFillProbe = NULL;
+static void* sPostFillProbeCtx = NULL;
+
+void Combo_SingleBag_TestSetPostFillProbe(ComboSingleBagPostFillProbe probe, void* ctx) {
+    sPostFillProbe = probe;
+    sPostFillProbeCtx = ctx;
+}
+
 // ============================================================================
 // The observer: progress, frames, and the per-attempt stop
 // ============================================================================
@@ -341,6 +356,11 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
                     ladderAttempt + 1, Combo_Logic_StatusName(status), sReport.fill.attempts, sReport.fill.rounds,
                     watch.aborted ? " (the per-attempt budget stopped it)" : "");
             goto finish;
+        }
+        // TEST ONLY: H4's measurement point (#575), with both engines live over
+        // the proven world. NULL in production.
+        if (sPostFillProbe != NULL) {
+            sPostFillProbe(sPostFillProbeCtx);
         }
     }
 
