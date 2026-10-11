@@ -606,6 +606,10 @@ if(BUILD_TESTING)
     # the fingerprint), and that it harvests and applies nothing, an older
     # save's slot included. Display-free, ROM-free and save-free.
     redship_add_test(NAME SharedOcarinaRetired COMMAND redship --test shared-ocarina-retired)
+    # #886: the Shared Kokiri Sword option. With the frozen comboFlags bit on,
+    # either game's Kokiri Sword lights both through the real harvest/apply shims;
+    # with it off, neither crosses and no slot appears. Display-free, ROM-free.
+    redship_add_test(NAME SharedKokiriSword COMMAND redship --test shared-kokiri-sword)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an

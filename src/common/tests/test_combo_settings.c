@@ -195,8 +195,9 @@ TestResult Test_ComboSettingsFormat(void) {
                   RSBS_ITEMCLASS_MASKS == 0x0004u && RSBS_ITEMCLASS_DUNGEON_ITEMS == 0x0008u &&
                   RSBS_ITEMCLASS_DUNGEON_REWARD == 0x0010u && RSBS_ITEMCLASS_SIDEQUEST == 0x0020u,
               "RSBS_ITEMCLASS_* bit positions moved — a bit may be appended, never re-pointed");
-    CS_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLAGS_ALL_V1 == 0x01u,
-              "RSBS_COMBO_FLAG_* bit positions moved — comboFlags is .redsave format, append-only (#668)");
+    CS_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD == 0x02u &&
+                  RSBS_COMBO_FLAGS_ALL_V1 == 0x03u,
+              "RSBS_COMBO_FLAG_* bit positions moved — comboFlags is .redsave format, append-only (#668, #886)");
     CS_ASSERT(RSBS_COMBO_SETTINGS_FORMAT_VERSION == 1u,
               "the record format version moved. Spending a spare does NOT earn a bump — #668 spent byte 10 with "
               "a bitset whose CLEAR state is the pre-#668 behaviour, so 'absent' and 'zero' are the same world. "
@@ -638,6 +639,7 @@ TestResult Test_ComboSettingsDivergence(void) {
         // than a digest is that the refusal names WHICH RULE moved, and
         // "comboFlags" is a field name, not a rule.
         { RSBS_COMBO_DIVERGE_SHARED_OCARINA, "sharedOcarina" },
+        { RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD, "sharedKokiriSword" },
         { RSBS_COMBO_DIVERGE_COMBO_FLAGS, "comboFlags" },
         { RSBS_COMBO_DIVERGE_SPARE1, "spare1" },
     };
@@ -654,6 +656,9 @@ TestResult Test_ComboSettingsDivergence(void) {
             case RSBS_COMBO_DIVERGE_LOGIC_RUNG: frozen.logicRung = (uint8_t)RSBS_COMBO_RUNG_NONE; break;
             case RSBS_COMBO_DIVERGE_SHARED_OCARINA:
                 frozen.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
+                break;
+            case RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD:
+                frozen.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD;
                 break;
             // 0x80 is UNALLOCATED at formatVersion 1: the byte-level bit is the
             // honest report for a state a version-1 record may not be in at all.
@@ -983,6 +988,14 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             { COMBO_SETTING_GOAL, 6, false },
             { COMBO_SETTING_GOAL, -1, false },
             { COMBO_SETTING_GOAL, 255, false },
+            // A comboFlags BIT is EXACTLY 0 or 1 (#886, #668's rule), never
+            // "nonzero is true": the record stores one bit, so a coercion would make
+            // two stored values produce the same world.
+            { COMBO_SETTING_SHARED_KOKIRI_SWORD, 0, true },
+            { COMBO_SETTING_SHARED_KOKIRI_SWORD, 1, true },
+            { COMBO_SETTING_SHARED_KOKIRI_SWORD, 2, false },
+            { COMBO_SETTING_SHARED_KOKIRI_SWORD, -1, false },
+            { COMBO_SETTING_SHARED_KOKIRI_SWORD, 0x100, false },
         };
         for (size_t i = 0; i < sizeof(kProbes) / sizeof(kProbes[0]); i++) {
             if (Combo_ComboSettingValueValid(kProbes[i].id, kProbes[i].value) != kProbes[i].valid) {
@@ -998,7 +1011,87 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     // ---- (2b) retired: #668's shared ocarina was authored here until #879
     // removed the rule. Leg 10 locks the retirement; SharedOcarinaRetired
     // locks that the bit arms nothing.
-    // ---- (3) Authored values reach the record BEFORE the freeze ------------
+    // ---- (2c) The Shared Kokiri Sword, end to end (#886) --------------------
+    // A comboFlags BIT rather than a field of its own, the one shape no other
+    // key in this table has, so it gets its own leg: key -> resolver -> record
+    // byte -> the consumer predicate -> the arrival refusal -> the load's
+    // restore. Self contained (it re-inits and clears its key at the end) so
+    // leg 3 still starts from the untouched store it asserts about.
+    {
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_SHARED_KOKIRI_SWORD) == 0,
+                  "the shipped default must be OFF — an existing world has to reproduce byte for byte");
+        CS_ASSERT(!Combo_ComboSharedKokiriSword(), "with nothing frozen the sword must not be shared");
+
+        ComboSettingsRecord off;
+        Combo_ResolveComboSettings(&off);
+        CS_ASSERT(off.comboFlags == 0, "an unauthored flag key must resolve to a CLEAR comboFlags byte");
+
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1, "the flag must be authorable");
+        ComboSettingsRecord on;
+        Combo_ResolveComboSettings(&on);
+        CS_ASSERT(on.comboFlags == (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD,
+                  "the resolver did not assemble the authored flag into comboFlags");
+        CS_ASSERT((on.comboFlags & (uint8_t)~RSBS_COMBO_FLAGS_ALL_V1) == 0,
+                  "the resolver set an UNALLOCATED comboFlags bit; every one of them must read 0 in a "
+                  "formatVersion-1 record");
+        CS_ASSERT(Combo_ComputeComboSettingsHash(&on, kSettingsHash, kProfileDigest) !=
+                      Combo_ComputeComboSettingsHash(&off, kSettingsHash, kProfileDigest),
+                  "turning the Shared Kokiri Sword on did not move the world's fingerprint");
+        CS_ASSERT(!Combo_ComboSharedKokiriSword(),
+                  "the predicate followed an UNFROZEN resolution; it reads the frozen record only");
+
+        // Freeze it, and the predicate must read THE RECORD.
+        ComboSettingsArmPairing(0xA07A0886u, kSettingsHash, kProfileDigest);
+        Combo_FreezeComboSettings(&on);
+        CS_ASSERT(gComboCtx.comboSettings.comboFlags == (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD,
+                  "the freeze did not carry the flag into the record");
+        CS_ASSERT(Combo_ComboSharedKokiriSword(), "the frozen record's flag must arm the predicate");
+        CS_ASSERT(Combo_ComboSettingsDivergence() == 0, "a world frozen from its own store must compare healthy");
+
+        // THE SESSION WALKS AWAY: the key is cleared out of band. The compare
+        // must name the RULE, as a session divergence, and the load can put the
+        // file's value back (it is a restorable rule, like the goal).
+        CVarClear(Combo_ComboSettingKey(COMBO_SETTING_SHARED_KOKIRI_SWORD));
+        const uint32_t bits = Combo_ComboSettingsDivergence();
+        CS_ASSERT(bits == RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD,
+                  "a session that resolved the Shared Kokiri Sword OFF against a file created with it ON did not "
+                  "diverge as exactly that rule");
+        CS_ASSERT(strcmp(Combo_ComboSettingsDivergenceFieldName(bits), "sharedKokiriSword") == 0,
+                  "the refusal must name the Shared Kokiri Sword RULE");
+        CS_ASSERT(!Combo_ComboSettingsDivergenceIsDamage(bits), "a settings divergence must not quarantine the file");
+        CS_ASSERT(Combo_ComboSharedKokiriSword(), "the predicate followed the SESSION instead of the frozen record");
+        CS_ASSERT((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD) != 0 &&
+                      Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, bits) == 1,
+                  "the load cannot restore the file's Shared Kokiri Sword; the player's own world would be refused");
+        char restored[96];
+        const int restoredOk =
+            Combo_ComboSettingsRestoreLive(&gComboCtx.comboSettings, bits, restored, sizeof(restored), NULL);
+        CS_ASSERT(restoredOk == 1 && strcmp(restored, "Shared Kokiri Sword") == 0,
+                  "the load's restore did not write the file's Shared Kokiri Sword back under its label");
+        CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_SHARED_KOKIRI_SWORD) == 1 &&
+                      Combo_ComboSettingsDivergence() == 0,
+                  "after the restore the key must hold the file's ON and the pair must compare healthy");
+
+        // ...and the reverse: a file created with it OFF, met by a session that
+        // turned it ON. Same bit, same name; the diff is an XOR.
+        Combo_FreezeComboSettings(&off);
+        CVarClear(Combo_ComboSettingKey(COMBO_SETTING_SHARED_KOKIRI_SWORD));
+        CS_ASSERT(Combo_ComboSettingsDivergence() == 0, "control: the OFF file agrees with the cleared store");
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 0,
+                  "the writer must refuse once the record is frozen, whatever the value");
+        CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_SHARED_KOKIRI_SWORD), 1);
+        CS_ASSERT((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD) != 0,
+                  "a session that resolved the Shared Kokiri Sword ON against a file created with it OFF was not "
+                  "refused");
+        CS_ASSERT(!Combo_ComboSharedKokiriSword(), "the OFF file's rule must hold against an ON session");
+
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingClear(COMBO_SETTING_SHARED_KOKIRI_SWORD) == 1, "clear the flag before leg 3");
+        CS_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_SHARED_KOKIRI_SWORD), "the cleared flag must read unset");
+        printf("[TEST] (2c) #886: the Shared Kokiri Sword key authors bit 0x02, freezes, diverges by name both ways "
+               "and is restored at load\n");
+    }
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
               "an in-space write must land while nothing is frozen");
     CS_ASSERT(Combo_ComboSettingIsExplicit(COMBO_SETTING_DIRECTION), "a landed write must read as explicit");
