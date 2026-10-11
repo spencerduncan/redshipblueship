@@ -2326,8 +2326,9 @@ void Session::BuildPageList() {
         // takes no input, so a player sees its first view and nothing else: it
         // is captured unscrolled, and FitOracle fails it if anything is clipped
         // at its edge or the window runs past the game window's. Every state's
-        // one view must hold the three section headers (expectText) and each
-        // section's freshness note and a row from the last section (stateText).
+        // one view must hold the three section headers (expectText) and a row
+        // from the last section (stateText). No section carries a caption
+        // (#927): "no-data" is the headers alone.
         PageSpec p;
         p.id = std::string("window/") + ComboGui::kComboItemTrackerWindowName;
         p.kind = Kind::WINDOW;
@@ -2344,13 +2345,11 @@ void Session::BuildPageList() {
         // once MM has booted, which this harness never does, so MM's section
         // is the text fallback here: its snapshot bow in "live", its live
         // mask in "snapshot".
-        p.stateText["live"] = { "Updated live.", "As of file creation.", "As of the last switch or save.",
-                                "Bow 25/40" };
-        p.stateText["snapshot"] = { "Updated live.", "As of the last game switch or save.",
-                                    "As of the last switch or save.", "Zora Mask" };
+        p.stateText["live"] = { "Bow 25/40" };
+        p.stateText["snapshot"] = { "Zora Mask" };
         p.stateImages["live"] = 40;
         p.stateImages["snapshot"] = 40;
-        p.stateText["no-data"] = { "No data.", ComboGui::kComboItemTrackerWindowName };
+        p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         pages.push_back(p);
     }
