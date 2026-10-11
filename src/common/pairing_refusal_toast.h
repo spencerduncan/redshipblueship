@@ -32,7 +32,10 @@
  * lock (pairing-refusal-toast-fit, games/oot/soh/soh_notification_fit_test.cpp)
  * draws every message through SoH's own overlay in the real font and fails any
  * toast that does not keep the overlay's 30-px margin on BOTH sides of an 832-px
- * window (at most 772 px wide).
+ * window (at most 772 px wide) at the player's own size: the copy contract. The
+ * real minimum window is libultraship's default 640 x 480 (#906), where the
+ * overlay draws a toast whose copy is wider than the window a little smaller
+ * (Notification::Window::Draw, FitToastToWindow); the lock draws that window too.
  *
  * THE RULES REFUSAL NAMES FIELDS BY THEIR RECORD NAMES ("goal", "direction",
  * "triforceHunt"), a recorded exception to R-N8 (docs/ui-style-guide.md section
