@@ -39,8 +39,10 @@ void ScratchDirs_EndRow(const char* rowName, bool passed);
 
 /**
  * Runs `<this executable> --test <row>` @p copies times AT ONCE (one process
- * each, same working directory and environment as this one) and waits for all
- * of them. Child i's stdout and stderr go to `<logDir>/<row>.<i>.log`.
+ * each, this process's environment) and waits for all of them. Child i works in
+ * its own new directory `<logDir>/<row>.<i>` (as two worktrees' runs do: the
+ * only directory the copies share is the temp directory) and its stdout and
+ * stderr go to `<logDir>/<row>.<i>.log`.
  *
  * @return one exit code per child, or -1 for a child that could not be spawned
  *         or did not exit normally

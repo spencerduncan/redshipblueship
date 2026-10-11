@@ -106,8 +106,13 @@ std::vector<int> RunRowConcurrently(const char* row, int copies, const std::file
         return codes;
     }
     std::vector<std::string> logs;
+    std::vector<std::string> cwds;
     for (int i = 0; i < copies; i++) {
-        logs.push_back((logDir / (std::string(row) + "." + std::to_string(i) + ".log")).string());
+        const std::string stem = std::string(row) + "." + std::to_string(i);
+        logs.push_back((logDir / (stem + ".log")).string());
+        std::error_code ec;
+        std::filesystem::create_directories(logDir / stem, ec);
+        cwds.push_back((logDir / stem).string());
     }
     fflush(nullptr); // nothing buffered in this process may be duplicated into a child
 
@@ -135,7 +140,7 @@ std::vector<int> RunRowConcurrently(const char* row, int copies, const std::file
         // before the next is created, so no child holds another's log.
         // CREATE_NO_WINDOW: never a console window, so never a focus change.
         if (CreateProcessA(exe.c_str(), mutableCmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr,
-                           nullptr, &si, &pi)) {
+                           cwds[i].c_str(), &si, &pi)) {
             procs[i] = pi.hProcess;
             CloseHandle(pi.hThread);
         } else {
@@ -156,14 +161,18 @@ std::vector<int> RunRowConcurrently(const char* row, int copies, const std::file
 #else
     // Everything the child touches between fork and exec is built here: the
     // process is multithreaded, so the child may only make async-signal-safe
-    // calls (open, dup2, execv, _exit).
+    // calls (chdir, open, dup2, execv, _exit).
     std::vector<char*> argv = { const_cast<char*>(exe.c_str()), const_cast<char*>("--test"), const_cast<char*>(row),
                                 nullptr };
     std::vector<pid_t> pids(codes.size(), -1);
     for (int i = 0; i < copies; i++) {
         const char* logPath = logs[i].c_str();
+        const char* cwd = cwds[i].c_str();
         const pid_t pid = fork();
         if (pid == 0) {
+            if (chdir(cwd) != 0) {
+                _exit(126);
+            }
             const int fd = open(logPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
             if (fd >= 0) {
                 dup2(fd, 1);

@@ -10,9 +10,11 @@
  * denied."` while another worktree ran the same rows.
  *
  * This row is that overlap on purpose: for each save-writing row it starts two
- * processes of `<this executable> --test <row>` at once and requires both to
- * pass. With per-process scratch directories (src/common/test_scratch.h) the
- * two copies never see each other's files. A child that fails has the lines of
+ * processes of `<this executable> --test <row>` at once, each in a working
+ * directory of its own as two worktrees' runs are, and requires both to pass.
+ * The temp directory is then the only one the copies share; with per-process
+ * scratch directories there (src/common/test_scratch.h) they never see each
+ * other's files. A child that fails has the lines of
  * its log that say why printed here; the full logs stay in this row's own
  * scratch directory when the row fails.
  *
