@@ -48,8 +48,7 @@ void ApplyRemainsHint(u16* textId, bool* loadFromMessageTable) {
         }
 
         icon = Rando::StaticData::GetIconForZMessage(randoItemId);
-        RandoCheckId randoCheckId = Rando::FindItemPlacement(randoItemId);
-        Rando::HintArea::ReplaceLocation(&msg, "{{location}}", randoCheckId);
+        Rando::HintArea::ReplaceItemLocation(&msg, "{{location}}", randoItemId);
     }
 
     CustomMessage::Entry entry = {

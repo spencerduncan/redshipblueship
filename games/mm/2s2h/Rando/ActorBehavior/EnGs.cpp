@@ -5,6 +5,7 @@
 #include "2s2h/Rando/HintArea.h" // #575 H2: a hint names the check's area (scene name outside single-exe)
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // ForeignNameForCheck: a crossing host's hint (#575 item 2)
+#include "game.h"          // src/common: GAME_MM / GAME_OOT, a candidate's host game (#575 H3c)
 #include <cstdio>          // snprintf in the test bridge below
 #endif
 
@@ -53,8 +54,25 @@ s32 GetNormalizedCost() {
 // ill-formed (MSVC C2121), so they call GossipHintItemName in both builds and
 // the #else below defines it as upstream's exact expression.
 // excludeObtained: the purchasable-hint path skips checks already collected.
-static std::vector<RandoCheckId> GossipHintCandidates(bool excludeObtained) {
-    std::vector<RandoCheckId> availableChecks;
+//
+// #575 H3c: a candidate is {hostGame, check}: one of MM's own checks, or an OoT
+// check that hosts an MM item (the crossing store's OoT-hosted rows). It
+// converts from and compares with a RandoCheckId as an MM check, so the text
+// hooks below read the same in both builds (the #else makes it RandoCheckId).
+struct GossipHintTarget {
+    uint8_t hostGame;
+    uint16_t check;
+    GossipHintTarget(RandoCheckId randoCheckId) : hostGame((uint8_t)GAME_MM), check((uint16_t)randoCheckId) {
+    }
+    GossipHintTarget(uint8_t game, uint16_t hostCheck) : hostGame(game), check(hostCheck) {
+    }
+    bool operator==(RandoCheckId randoCheckId) const {
+        return hostGame == (uint8_t)GAME_MM && check == (uint16_t)randoCheckId;
+    }
+};
+
+static std::vector<GossipHintTarget> GossipHintCandidates(bool excludeObtained) {
+    std::vector<GossipHintTarget> availableChecks;
     for (auto& [randoCheckId, _] : Rando::StaticData::Checks) {
         RandoSaveCheck saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
         // A crossing host holds MM's junk cover (the item itself is the other
@@ -70,6 +88,12 @@ static std::vector<RandoCheckId> GossipHintCandidates(bool excludeObtained) {
         if (saveCheck.shuffled && hintable && (!excludeObtained || !saveCheck.obtained)) {
             availableChecks.push_back(randoCheckId);
         }
+    }
+    // #575 H3c: then the MM items hosted in OoT, in the crossing store's
+    // insertion order, so the list stays a pure function of the frozen world.
+    // Every crossing item is progression, so each is worth a hint.
+    for (uint16_t ootHost : Rando::HintArea::OoTHostedHintCandidates(excludeObtained)) {
+        availableChecks.push_back(GossipHintTarget((uint8_t)GAME_OOT, ootHost));
     }
     return availableChecks;
 }
@@ -90,14 +114,25 @@ static std::string GossipHintItemName(RandoCheckId randoCheckId) {
 // hooks below call it, and so does the test bridge, so the lock reads the very
 // string the player is shown. The check is named by its area in the shared
 // vocabulary, with the area's OoTMM preposition (Rando/HintArea.h).
-static std::string GossipHintText(RandoCheckId randoCheckId, bool purchased) {
+static std::string GossipHintText(const GossipHintTarget& target, bool purchased) {
     std::string msg = purchased ? "Wise choice... They say %g{{item}}%w is hidden {{prepos}} %y{{location}}%w."
                                 : "They say %g{{item}}%w is hidden {{prepos}} %y{{location}}%w.";
+    if (target.hostGame == (uint8_t)GAME_OOT) {
+        // #575 H3c: an MM item on an OoT check: MM's own item, so its own name
+        // and no game marker, at the OoT check's area.
+        CustomMessage::Replace(&msg, "{{item}}",
+                               Rando::StaticData::GetItemName(Rando::HintArea::ItemOnOoTHost(target.check)));
+        Rando::HintArea::ReplaceOoTHostLocation(&msg, "{{location}}", target.check);
+        return msg;
+    }
+    const RandoCheckId randoCheckId = (RandoCheckId)target.check;
     CustomMessage::Replace(&msg, "{{item}}", GossipHintItemName(randoCheckId));
     Rando::HintArea::ReplaceLocation(&msg, "{{location}}", randoCheckId);
     return msg;
 }
 #else
+using GossipHintTarget = RandoCheckId;
+
 static std::string GossipHintItemName(RandoCheckId randoCheckId) {
     return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
 }
@@ -111,7 +146,7 @@ static std::string GossipHintText(RandoCheckId randoCheckId, bool purchased) {
 }
 #endif // RSBS_SINGLE_EXECUTABLE
 
-RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
+GossipHintTarget GetRandomCheck(bool repeatableOnlyObtained = false) {
     Player* player = GET_PLAYER(MM_gPlayState);
     if (player->talkActor == nullptr || player->talkActor->id != ACTOR_EN_GS) {
         return RC_UNKNOWN;
@@ -119,7 +154,7 @@ RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
     EnGs* enGs = (EnGs*)player->talkActor;
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-    std::vector<RandoCheckId> availableChecks = GossipHintCandidates(repeatableOnlyObtained);
+    std::vector<GossipHintTarget> availableChecks = GossipHintCandidates(repeatableOnlyObtained);
 #else
     std::vector<RandoCheckId> availableChecks;
     for (auto& [randoCheckId, _] : Rando::StaticData::Checks) {
@@ -205,7 +240,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
 
         if (RANDO_SAVE_OPTIONS[RO_HINTS_GOSSIP_STONES]) {
-            RandoCheckId randoCheckId = GetRandomCheck();
+            GossipHintTarget randoCheckId = GetRandomCheck();
             if (randoCheckId == RC_UNKNOWN) {
                 return;
             }
@@ -248,7 +283,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
             if (msgCtx->choiceIndex == 1) {
                 s32 cost = GetNormalizedCost();
 
-                RandoCheckId randoCheckId = GetRandomCheck(true);
+                GossipHintTarget randoCheckId = GetRandomCheck(true);
                 if (gSaveContext.save.saveInfo.playerData.rupees < cost) {
                     entry.msg = "Foolish... You don't have enough rupees...";
                 } else if (randoCheckId == RC_UNKNOWN) {
@@ -293,7 +328,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
 
 /** 1 when `randoCheckId` is in the stone's candidate list. */
 extern "C" int MM_Rando_Hints_TestGossipCandidate(uint16_t randoCheckId, int excludeObtained) {
-    for (RandoCheckId candidate : GossipHintCandidates(excludeObtained != 0)) {
+    for (const GossipHintTarget& candidate : GossipHintCandidates(excludeObtained != 0)) {
         if (candidate == (RandoCheckId)randoCheckId) {
             return 1;
         }
@@ -356,5 +391,38 @@ extern "C" int MM_Rando_Hints_TestSceneName(uint16_t randoCheckId, char* out, in
     const std::string name = Ship_GetSceneName(Rando::StaticData::Checks[(RandoCheckId)randoCheckId].sceneId);
     snprintf(out, (size_t)cap, "%s", name.c_str());
     return (int)name.size();
+}
+
+/** #575 H3c: entry `index` of the stone's candidate list, in the order the
+ *  stone draws from: its host game and check. Returns the list's length (so
+ *  index -1 just counts), or -1 for a null out-parameter. */
+extern "C" int MM_Rando_Hints_TestGossipCandidateAt(int excludeObtained, int index, uint8_t* outGame,
+                                                     uint16_t* outCheck) {
+    if (outGame == nullptr || outCheck == nullptr) {
+        return -1;
+    }
+    const std::vector<GossipHintTarget> candidates = GossipHintCandidates(excludeObtained != 0);
+    if (index >= 0 && index < (int)candidates.size()) {
+        *outGame = candidates[(size_t)index].hostGame;
+        *outCheck = candidates[(size_t)index].check;
+    }
+    return (int)candidates.size();
+}
+
+/** #575 H3c: the text a stone says for a candidate of either host game (an MM
+ *  check, or an OoT check hosting an MM item), before colours and line breaks.
+ *  Returns the full length, or -1 for a target the stone cannot name. */
+extern "C" int MM_Rando_Hints_TestGossipHostText(uint8_t hostGame, uint16_t check, int purchased, char* out,
+                                                  int cap) {
+    if (hostGame == (uint8_t)GAME_MM) {
+        return MM_Rando_Hints_TestGossipText(check, purchased, out, cap);
+    }
+    if (hostGame != (uint8_t)GAME_OOT || Rando::HintArea::ItemOnOoTHost(check) == RI_UNKNOWN || out == nullptr ||
+        cap <= 0) {
+        return -1;
+    }
+    const std::string msg = GossipHintText(GossipHintTarget(hostGame, check), purchased != 0);
+    snprintf(out, (size_t)cap, "%s", msg.c_str());
+    return (int)msg.size();
 }
 #endif // RSBS_SINGLE_EXECUTABLE

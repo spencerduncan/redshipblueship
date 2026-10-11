@@ -586,6 +586,11 @@ if(BUILD_TESTING)
     # table: each check is named by its shared area (H1) with OoTMM's preposition,
     # and a check with no area is never a candidate.
     redship_add_test(NAME MmHintAreaText COMMAND redship --test mm-hint-area-text)
+    # #575 H3c: an MM item that crossed onto an OoT check was hinted "nowhere" by
+    # MM's static hints and never by a stone. Authors the crossing in the store,
+    # drives the static hints' item helper and the stone's real candidate list and
+    # text: the OoT host's area is named, and OoT-hosted items are stone candidates.
+    redship_add_test(NAME MmHintCrossedArea COMMAND redship --test mm-hint-crossed-area)
     # #502: MM's award callback was still the Lane A1 logging stub, so the whole
     # consumer walk landed on a no-op. Drives the REAL MM_ConsumeSharedItems ->
     # MM_AwardSharedItem -> MM_ForeignItem_Give chain and asserts one award per

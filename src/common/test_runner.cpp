@@ -4504,6 +4504,22 @@ TestResult Test_ComboTrackerView(void) {
     return Combo_TrackerView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT. The same
+// display-free bring-up as the tracker view above: the purchasable hint reads
+// OoT's check status through that view, over an authored Rando::Context.
+TestResult Test_MmHintCrossedArea(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MmHintCrossedArea_RunHeadless();
+}
+
 // OoT's check state follows the loaded half (#849, #803). The same display-free
 // bring-up as the tracker view above: the row authors a real Rando::Context.
 TestResult Test_OoTCheckStateLoad(void) {
@@ -5412,6 +5428,9 @@ const TestDescriptor gTests[] = {
     {"mm-foolish-stone-hint", "MM's free gossip stone names a foolish area (#575 H5a)", Test_MmFoolishStoneHint},
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     {"mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText},
+    // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.
+    {"mm-hint-crossed-area", "MM's hints name the OoT area of an MM item hosted in OoT (#575 H3c)",
+     Test_MmHintCrossedArea},
     // #502: MM's half of the crossing. The reverse row above deliberately stops
     // at a test award callback because MM_AwardSharedItem was a placeholder
     // fprintf; this one drives the real one and the real give behind it.
