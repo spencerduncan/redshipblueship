@@ -100,7 +100,11 @@
  *                   open path's load refuses, nothing is committed and the
  *                   record stays at its path (it is not damaged); a .sav that
  *                   names this world, or records neither term (a file from
- *                   before the stamp), is accepted and the load pairs
+ *                   before the stamp), is accepted and the load pairs; a
+ *                   .sav whose commit generation is NEWER than the foreign
+ *                   record's is refused for the other world too, not as a
+ *                   commit skew, and the load does not quarantine the record
+ *                   (two unrelated files' generations mean nothing)
  *
  * Every leg loads through Context_InvalidateSessionOnSlotLoad +
  * RsbsSave_SetActiveSlot + RsbsSave_LoadSlotForOpen, the OnLoadFile seam's exact
@@ -281,11 +285,11 @@ int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride
 /** games/oot/soh/SaveManager.cpp's OnLoadFile seam, call for call: the open
  *  path's load of a randomizer file (#836). A refusal here is the backstop's
  *  trigger; the seam records it rather than acting on the return. */
-int LoadThroughProductionSeam(const RsbsOoTSavIdentity* savIdentity = nullptr) {
+int LoadThroughProductionSeam(const RsbsOoTSavIdentity* savIdentity = nullptr, uint32_t savGeneration = 0) {
     PlantSentinel();
     Context_InvalidateSessionOnSlotLoad();
     RsbsSave_SetActiveSlot(kSlot);
-    return RsbsSave_LoadSlotForOpen(kSlot, 0, /*isRandoFile=*/1, savIdentity);
+    return RsbsSave_LoadSlotForOpen(kSlot, savGeneration, /*isRandoFile=*/1, savIdentity);
 }
 
 // ---------------------------------------------------------------------------
@@ -1321,12 +1325,17 @@ int LegProbeOtherOoTWorld() {
     struct Sav {
         const char* what;
         RsbsOoTSavIdentity sav;
+        uint32_t savGeneration; // 0: the .sav mirrors none (exempt from the skew compare)
     };
     const Sav refused[] = {
         { "another seed", { kSeed ^ 0x00A5A5A5u, kSettingsHash } },
         { "other settings", { kSeed, kSettingsHash ^ 0x5A000000u } },
         { "another seed, no digest recorded", { kSeed + 1u, 0u } },
         { "other settings, no seed recorded", { 0u, kSettingsHash + 1u } },
+        // Another file's .sav at a NEWER generation than this record: the
+        // identity compare runs first, so this is not a commit skew (which the
+        // load would quarantine as evidence).
+        { "another seed, newer .sav generation", { kSeed ^ 0x00A5A5A5u, kSettingsHash }, 0x7FFFFFF0u },
     };
     int code = 140;
     for (const Sav& s : refused) {
@@ -1336,17 +1345,18 @@ int LegProbeOtherOoTWorld() {
         }
         Relaunch();
         const std::vector<uint8_t> recordBytes = PlrReadAll(path);
-        const ProbeResult probe = Probe(1, 0, &s.sav);
+        const ProbeResult probe = Probe(1, s.savGeneration, &s.sav);
         const int reason = RsbsSave_GetSlotRefuseReason(kSlot);
         const std::string page = SaveFilesStatus();
-        const int load = LoadThroughProductionSeam(&s.sav);
+        const int load = LoadThroughProductionSeam(&s.sav, s.savGeneration);
         const bool paired = Combo_ForeignPairingActive();
         const bool recordInPlace = PlrReadAll(path) == recordBytes;
-        printf("[TEST] leg 9 (%s) OBSERVED: sav seed=%08X digest=%08X, record seed=%08X digest=%08X: probe=%d "
-               "reason=%d words='%s' moved='%s' page='%s' load rc=%d paired=%d writable=%d record %s\n",
-               s.what, (unsigned)s.sav.randoSeed, (unsigned)s.sav.settingsHash, (unsigned)kSeed,
-               (unsigned)kSettingsHash, probe.outcome, reason, probe.words.c_str(), probe.moved.c_str(), page.c_str(),
-               load, paired ? 1 : 0, RsbsSave_IsSlotWritable(kSlot), recordInPlace ? "in place" : "MOVED");
+        printf("[TEST] leg 9 (%s) OBSERVED: sav seed=%08X digest=%08X generation=%u, record seed=%08X digest=%08X: "
+               "probe=%d reason=%d words='%s' moved='%s' page='%s' load rc=%d paired=%d writable=%d record %s\n",
+               s.what, (unsigned)s.sav.randoSeed, (unsigned)s.sav.settingsHash, (unsigned)s.savGeneration,
+               (unsigned)kSeed, (unsigned)kSettingsHash, probe.outcome, reason, probe.words.c_str(),
+               probe.moved.c_str(), page.c_str(), load, paired ? 1 : 0, RsbsSave_IsSlotWritable(kSlot),
+               recordInPlace ? "in place" : "MOVED");
         if (probe.outcome != RSBS_LOAD_REFUSED || reason != (int)RSBS_REFUSE_IDENTITY ||
             probe.words != kOtherFileWords) {
             note(Fail(code,

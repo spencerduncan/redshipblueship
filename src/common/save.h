@@ -156,8 +156,10 @@ typedef enum RsbsLoadOutcome {
 // What OoT's .sav records about the world it belongs to (#564 V12), for the
 // file-open path: the probe and the open path's load compare it with the
 // .redsave's Tier-1 pairing identity before anything commits, so a record that
-// names another Ocarina of Time world is refused instead of pairing this file
-// with it. OoT's SaveManager reads both terms (games/oot/soh/SaveManager.cpp):
+// names another Ocarina of Time world (a same-slot record from another install
+// or from an earlier file; a cross-slot copy is already refused by the header's
+// slot stamp) is refused instead of pairing this file with it. OoT's
+// SaveManager reads both terms (games/oot/soh/SaveManager.cpp):
 //   randoSeed    - the .sav's OWN randomizer seed (SoH's "finalSeed": the seed
 //                  Rando::Context generated the file's world from, which the
 //                  creation freeze stamps as sharedRandoSeed);
@@ -455,7 +457,12 @@ public:
      *     be null: nothing recorded) names another world: the .sav's own seed or
      *     its mirrored settings digest is not the record's sharedRandoSeed /
      *     sharedRandoSettingsHash (#564 V12; RSBS_REFUSE_IDENTITY, not
-     *     quarantined: the record is healthy, it belongs to another file).
+     *     quarantined: the record is healthy, it belongs to another file). This
+     *     is a record at its own slot path from another install, or from an
+     *     earlier file in this slot; a record copied from another slot is
+     *     already refused on its header's slot stamp (RSBS_REFUSE_WRONG_SLOT).
+     *     It is compared before the commit generations, which mean nothing
+     *     between two unrelated files.
      * A divergence the file CAN restore is accepted; the load restores it.
      *
      * Returns OK, ABSENT (a vanilla file with no record) or REFUSED; @p outWords
