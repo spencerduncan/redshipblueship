@@ -2658,6 +2658,43 @@ extern "C" void MM_ResumeColdBootPrep(void) {
     Regs_Init();
 }
 
+namespace {
+
+// #564 V18: the save-failure toast's record, for MM_Combo_CaptureSaveToUnifiedSlot
+// below (its EVERY 0 IS TOLD paragraph): the causes already told (bit per
+// RsbsSaveFailure), the active slot they were told under, and the unified-save
+// slot-state epoch they were told at. Once per cause: the periodic autosave, the
+// next new day or the next owl into the same locked file repeat nothing, because
+// a save that commits nothing moves no slot state. Anything that does move it
+// starts a new episode, so the next failure is told again: a .redsave commit
+// that lands from EITHER game (MM's capture, OoT's save worker, a crossing), an
+// erase, a create, a load or a refusal recorded or released
+// (rsbs::SaveManager::SlotStateEpoch lists them). Another active slot is another
+// file and starts one too.
+uint32_t sSaveFailuresTold = 0;
+int sSaveFailuresToldSlot = -1;
+uint32_t sSaveFailuresToldEpoch = 0;
+
+void TellSaveFailure(int cause, int slot) {
+    const uint32_t epoch = rsbs::SaveManager::Instance().SlotStateEpoch();
+    if (slot != sSaveFailuresToldSlot || epoch != sSaveFailuresToldEpoch) {
+        sSaveFailuresTold = 0;
+        sSaveFailuresToldSlot = slot;
+        sSaveFailuresToldEpoch = epoch;
+    }
+    const uint32_t bit = 1u << cause;
+    if ((sSaveFailuresTold & bit) != 0) {
+        return;
+    }
+    sSaveFailuresTold |= bit;
+    fprintf(stderr, "[MM] unified save to slot %d did not reach the file; told the player: \"%s %s\" (#564 V18)\n",
+            slot, RSBS_SAVE_FAILURE_TOAST_PREFIX, Combo_SaveFailureWords(cause));
+    fflush(stderr);
+    MM_Combo_EmitSaveFailureToast(cause);
+}
+
+} // namespace
+
 /**
  * Commit MM's LIVE SaveContext into the unified .redsave slot (#35 follow-up).
  *
@@ -2704,6 +2741,13 @@ extern "C" void MM_ResumeColdBootPrep(void) {
  * MM_Game_Suspend would have folded the identical numbers into the pool anyway.
  * Claiming a blanket "0 means nothing moved" here would be false on those paths
  * and would invite a future caller to trust it.
+ *
+ * EVERY 0 IS TOLD TO THE PLAYER (#564 V18). Each caller is a save route that
+ * runs its own ceremony whatever happens here (the owl's goodbye, "saved", the
+ * new cycle), and the funnel (Sram_ComboCommitUnifiedSave) drops this result. So
+ * the three outcomes that commit nothing -- no slot, the latch, a commit that did
+ * not land -- each queue a "Save failed:" toast (TellSaveFailure, above), once per
+ * cause; the stderr lines stay as the machine record.
  */
 extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     const int slot = RsbsSave_GetActiveSlot();
@@ -2713,6 +2757,7 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
         // unsaved new file overwrite an unrelated slot.
         fprintf(stderr, "[MM] unified save skipped: no active slot for this session\n");
         fflush(stderr);
+        TellSaveFailure(RSBS_SAVE_FAILURE_NO_FILE, slot);
         return 0;
     }
 
@@ -2751,6 +2796,7 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
                 " shared-resource pool left untouched (#591)\n",
                 slot);
         fflush(stderr);
+        TellSaveFailure(RSBS_SAVE_FAILURE_LOCKED, slot);
         return 0;
     }
 
@@ -2775,6 +2821,9 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     fprintf(stderr, "[MM] unified save to slot %d: %s (commit generation %u)\n", slot, ok ? "ok" : "FAILED",
             (unsigned)gComboCtx.commitGeneration);
     fflush(stderr);
+    if (!ok) {
+        TellSaveFailure(RSBS_SAVE_FAILURE_NOT_WRITTEN, slot);
+    }
     return ok;
 }
 
@@ -5633,6 +5682,22 @@ void MM_Rando_EmitPairingRefusalToast(int kind, const char* detail) {
         .message = message,
         .mute = true,
     });
+}
+
+/**
+ * THE SAVE-FAILURE TOAST (#564 V18, src/common/pairing_refusal_toast.h): a save
+ * route that did not reach the file says so, in the same SoH toast shape as the
+ * refusal toasts above. Unlike MM_Rando_EmitPairingRefusalToast it records no
+ * words on the Combo > Save Files page: it refuses nothing, and a refused slot
+ * keeps the reason it was refused for. Muted for the same reason.
+ *
+ * Through OoT_Notification_EmitDefault (Options' defaults and the player's
+ * configured duration) rather than MM_Notify_Emit: the capture also runs in the
+ * display-free rows, which have no CVar store, and EmitDefault is the bridge's
+ * one entry that reads the duration only when a store exists.
+ */
+void MM_Combo_EmitSaveFailureToast(int cause) {
+    OoT_Notification_EmitDefault(RSBS_SAVE_FAILURE_TOAST_PREFIX, Combo_SaveFailureWords(cause), /*mute=*/1);
 }
 
 } // extern "C"
