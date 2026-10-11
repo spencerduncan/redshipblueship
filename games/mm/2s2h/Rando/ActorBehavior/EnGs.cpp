@@ -144,6 +144,22 @@ RandoCheckId GetRandomCheck(bool repeatableOnlyObtained = false) {
     return availableChecks[Ship_Random(0, availableChecks.size() - 1)];
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/** TEST BRIDGE (redship tier; src/common/tests/test_foolish_hints.c, #575 H5a):
+ *  the text the FREE stone's hook shows when its item pick is `randoCheckId` and
+ *  the stone it is reading seeds `stoneSeed`, before colours and line breaks.
+ *  Returns the full length, or -1 for an id that is not a real check. */
+extern "C" int MM_Rando_Hints_TestFreeStoneText(uint16_t randoCheckId, uint32_t stoneSeed, char* out, int cap) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
+        return -1;
+    }
+    (void)stoneSeed;
+    const std::string msg = GossipHintText((RandoCheckId)randoCheckId, false);
+    snprintf(out, (size_t)cap, "%s", msg.c_str());
+    return (int)msg.size();
+}
+#endif // RSBS_SINGLE_EXECUTABLE
+
 void Rando::ActorBehavior::InitEnGsBehavior() {
     bool shouldRegister =
         IS_RANDO && (RANDO_SAVE_OPTIONS[RO_HINTS_GOSSIP_STONES] || RANDO_SAVE_OPTIONS[RO_HINTS_PURCHASEABLE]);
