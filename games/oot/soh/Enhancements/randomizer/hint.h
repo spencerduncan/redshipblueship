@@ -52,6 +52,16 @@ class Hint {
     std::vector<TrialKey> GetHintedTrials() const;
     int GetNum();
     void ResetVariables();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip (#575 H3a): the Majora's Mask area a slot names. Parallel to
+    // `areas`: an MM area of src/common's shared vocabulary (combo_area.h) for a
+    // slot whose area is RA_TERMINA, else 0. Empty when no slot names Termina.
+    void SetForeignAreas(std::vector<uint8_t> foreignAreas_);
+    std::vector<uint8_t> GetForeignAreas() const;
+    // Each slot's MM area by its shared-vocabulary name, as the spoiler and the save
+    // write it; empty when no slot names one.
+    std::vector<std::string> GetForeignAreaNames() const;
+#endif
 
   private:
     RandomizerHint ownKey = RH_NONE;
@@ -69,5 +79,8 @@ class Hint {
     std::vector<uint8_t> itemNamesChosen = {};
     std::vector<uint8_t> hintTextsChosen = {};
     std::vector<uint8_t> areaNamesChosen = {};
+#ifdef RSBS_SINGLE_EXECUTABLE
+    std::vector<uint8_t> foreignAreas = {};
+#endif
 };
 } // namespace Rando
