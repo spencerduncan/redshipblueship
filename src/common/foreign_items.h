@@ -259,7 +259,7 @@ bool Combo_ForeignPairingActive(void);
 //
 // Pinned BIT POSITIONS, append-only, retire-never-renumber — the same rule the
 // item classes carry, and for the same two reasons (a local save re-read and
-// #574's cross-peer hash). Bits 0x02..0x80 are UNALLOCATED and must read as 0.
+// #574's cross-peer hash). Bits 0x04..0x80 are UNALLOCATED and must read as 0.
 //
 // EVERY BIT IN THIS BYTE MUST HAVE "CLEAR == THE BEHAVIOUR BEFORE IT EXISTED".
 // That is what let byte 10 be spent without a formatVersion bump (see
@@ -307,10 +307,53 @@ bool Combo_ForeignPairingActive(void);
  */
 #define RSBS_COMBO_FLAG_SHARED_OCARINA 0x01u
 
+/**
+ * ONE KOKIRI SWORD ACROSS BOTH GAMES (#886; operator ruling 2026-10-09 on #879:
+ * the two Kokiri Swords "being the same item can be an option"). DEFAULT OFF.
+ *
+ * Set, OoT's Kokiri Sword and MM's Kokiri Sword are ONE item: found once, in
+ * either game, and held in both. The sword becomes RSBS_SHARED_RES_KOKIRI_SWORD,
+ * a MONOTONIC 0/1 shared resource on the hookshot's model: harvested at suspend,
+ * applied at the arriving game's startup entrance, never lowered by a harvest.
+ *
+ * THE MAPPING:
+ *   - OoT's Kokiri Sword (its owned-equipment bit) gives MM the Kokiri Sword
+ *     when MM holds no sword at all, on B, as MM's own give puts it.
+ *   - ANY sword MM holds (Kokiri, Razor or Gilded) gives OoT the Kokiri Sword's
+ *     owned-equipment bit, which is all OoT's own give writes. The crossing
+ *     itself carries only the Kokiri Sword: nothing crosses as a Razor or
+ *     Gilded Sword, and an apply never takes a sword away (an MM apply leaves a
+ *     Razor Sword alone).
+ *
+ * THE POOLS STAY WHOLE, set or clear: OoT's RG_KOKIRI_SWORD and MM's three
+ * RI_PROGRESSIVE_SWORD copies (MM's sword is a pool item since #879) are all
+ * placed, and neither engine maps a sword to the kind. That has a cost, and it
+ * is stated here rather than hidden:
+ *   - OoT's sword first: MM's pool sword is PROGRESSIVE and resolves from the
+ *     sword MM holds (ConvertItem.cpp), so once OoT's sword has crossed, MM's
+ *     next sword pickup is the RAZOR Sword, the Gilded Sword comes one pickup
+ *     early, and MM's last sword copy is surplus (it resolves to junk). The
+ *     share promotes MM's chain by one tier.
+ *   - MM's sword first: OoT already owns the Kokiri Sword when it arrives, so
+ *     OoT's own Kokiri Sword pickup is a duplicate (Item_Give sets a bit that
+ *     is already set).
+ * Either way exactly one sword pickup of the four is spent. Trimming one copy
+ * instead is the shared-quantity trim's UNEQUAL-CEILINGS case (shared_items.h):
+ * OoT's sword reaches tier 1 and MM's chain tier 3, so drop OoT's copy and
+ * OoT's engine never assumes its sword; drop one of MM's and MM's engine never
+ * reaches the Gilded Sword. Such a family is kept whole and costs (sum - budget)
+ * dead pickups, which is this one. Locked by SharedKokiriSword legs (6) and (7).
+ *
+ * Clear, NOTHING changes: no slot, no harvest, no apply, and a record whose
+ * canonical bytes and fingerprint are exactly what they were before this bit
+ * existed.
+ */
+#define RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD 0x02u
+
 /** Every comboFlags bit ALLOCATED at formatVersion 1. The shipped default is 0
  *  — "reproduce today's world exactly" is the binding constraint on every
  *  default in this file, and every flag here changes a world. */
-#define RSBS_COMBO_FLAGS_ALL_V1 (RSBS_COMBO_FLAG_SHARED_OCARINA)
+#define RSBS_COMBO_FLAGS_ALL_V1 (RSBS_COMBO_FLAG_SHARED_OCARINA | RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD)
 
 // The pinning lock. A renumbering is a RED BUILD rather than a silently
 // re-read save — the same shape RSBS_SHARED_RES_* carries, and the reason
@@ -335,10 +378,11 @@ RSBS_CTX_STATIC_ASSERT(RSBS_ITEMCLASS_PROGRESSION == 0x0001u && RSBS_ITEMCLASS_S
                        "RSBS_ITEMCLASS_* bit positions are .redsave format: pinned, append-only, "
                        "allocate the next free bit and never re-point an allocated one (ADR 0011 "
                        "decision 1.2.1)");
-RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLAGS_ALL_V1 == 0x01u,
+RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD == 0x02u &&
+                           RSBS_COMBO_FLAGS_ALL_V1 == 0x03u,
                        "RSBS_COMBO_FLAG_* bit positions are .redsave format: pinned, append-only, "
                        "allocate the next free bit and never re-point an allocated one (ADR 0011 "
-                       "decision 1.2.1, amended 2026-09-16 for #668)");
+                       "decision 1.2.1, amended 2026-09-16 for #668 and 2026-10-10 for #886)");
 
 // ============================================================================
 // The class rule (#495; ADR 0011 decision 3; ADR 0010 increment 3)
@@ -552,6 +596,21 @@ bool Combo_ComboSettingsFrozen(void);
  *  frozen, compared, rendered setting rather than under one. */
 uint8_t Combo_ComboDirection(void);
 
+/**
+ * IS THE KOKIRI SWORD ONE SHARED ITEM in this world (#886)?
+ *
+ * The FROZEN record's RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit, and false while
+ * no world is frozen: before a world exists there is no live save to share a
+ * sword with, and after creation the rule is world identity, so a session that
+ * resolved differently is refused at the arrival gate (by name, through
+ * RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD) rather than honoured here.
+ *
+ * Its one consumer is Combo_SharedResourceKindArmed (shared_resources.h), which
+ * both the harvest and the apply of RSBS_SHARED_RES_KOKIRI_SWORD pass through,
+ * so the gate cannot be applied to one direction and not the other.
+ */
+bool Combo_ComboSharedKokiriSword(void);
+
 /** Does the resolved direction arm crossings ORIGINATING in @p originGame?
  *  Increment 4's gate; see Combo_ComboDirection. Under one bag (ADR 0010
  *  increment 3) the single-bag fill reads it per bag row: a row whose origin is
@@ -718,6 +777,13 @@ int Combo_FreezeLegacyComboSettings(void);
  *  the fingerprint and the MM profile digest already pin, so a disagreement here
  *  is the stored identity contradicting itself. See triforce_hunt.h. */
 #define RSBS_COMBO_DIVERGE_TRIFORCE 0x1000u
+/** The Shared Kokiri Sword rule differs (#886): the frozen record's
+ *  RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit is not the live resolution's. A
+ *  SESSION divergence, like the goal and the direction: the key authors it, so
+ *  a load restores it from the file (Combo_ComboSettingsRestorableMask). Named
+ *  for the rule, not for comboFlags, for RSBS_COMBO_DIVERGE_SHARED_OCARINA's
+ *  reason. */
+#define RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD 0x2000u
 
 /**
  * Which FIELDS differ between a frozen record and a live resolution, as
