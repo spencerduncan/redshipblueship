@@ -119,6 +119,14 @@ class SaveManager {
     // opened (the file select's gate). 0 (exempt) when absent or unreadable.
     uint32_t ReadSavCommitGeneration(int fileNum);
 
+    // #564 V12: what the currently-loaded .sav records about the world it
+    // belongs to (its own "finalSeed" and the mirrored "rsbsPairSettingsHash"),
+    // and the same read from file{N+1}.sav on disk together with its commit
+    // generation (the file select's gate reads the file once). A term that is
+    // absent or unreadable is 0 (exempt).
+    struct RsbsOoTSavIdentity GetLoadedPairIdentity();
+    void ReadSavStamps(int fileNum, uint32_t* outGeneration, struct RsbsOoTSavIdentity* outIdentity);
+
     // #836: the file select's gate. True when the file may be opened; false when
     // the open path would refuse it (@p words, may be null, gets the player's
     // words). Writes nothing but the session's refusal record.
@@ -193,8 +201,11 @@ class SaveManager {
     // marshalling in SaveSection (#537); 0 for non-base sections and for
     // fileNums outside the unified-slot range. When nonzero it is mirrored
     // into the .sav JSON so both durable artifacts carry the same freshness
-    // stamp.
-    void SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID, uint32_t rsbsGeneration);
+    // stamp. rsbsPairSettingsHash (#564 V12): the pairing's settings digest the
+    // same commit staged into Tier-1 (0 for an unpaired commit), mirrored with
+    // the generation so the load can tell a .redsave from another world.
+    void SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID, uint32_t rsbsGeneration,
+                          uint32_t rsbsPairSettingsHash);
 
     void InitMeta(int slotNum);
     void StartupCheckAndInitMeta(int slotNum);

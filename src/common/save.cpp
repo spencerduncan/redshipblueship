@@ -912,6 +912,9 @@ const char* WordsNoMMWorld() {
 const char* WordsMMOptions() {
     return Combo_RefusalWords(RSBS_REFUSAL_WORDS_MM_OPTIONS_DIFFER);
 }
+const char* WordsOtherFile() {
+    return Combo_RefusalWords(RSBS_REFUSAL_WORDS_OTHER_FILE);
+}
 
 bool RecordIsPaired(const ComboContext& combo) {
     return combo.sourceIsRando && combo.sharedRandoSettingsHash != 0;
@@ -919,8 +922,8 @@ bool RecordIsPaired(const ComboContext& combo) {
 
 } // namespace
 
-void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind, SlotFileData& data,
-                               SlotVerdict& v) const {
+void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind,
+                               const RsbsOoTSavIdentity* savIdentity, SlotFileData& data, SlotVerdict& v) const {
     v = SlotVerdict{};
     RsbsRefuseReason reason = RSBS_REFUSE_NONE;
     const SlotReadResult result = ReadSlotFile(slot, data, reason, /*verbose=*/true);
@@ -963,12 +966,60 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
         return;
     }
 
-    // Structurally valid. Compare the two durable artifacts' freshness stamps
-    // (#531/#564 V16): the commit choke point authors the same monotonic
-    // generation into the .redsave's Tier-1 and (mirrored) into OoT's .sav, so
-    // a torn PAIR becomes detectable here.
+    // Structurally valid.
     std::memcpy(&v.combo, data.comboRecord.data(), sizeof(ComboContext));
     const ComboContext& combo = v.combo;
+
+    if (openKind == kOpenRandoFile && savIdentity != nullptr && RecordIsPaired(combo)) {
+        // #564 V12 (gap 1): the record must be THIS file's. OoT's .sav carries
+        // its own randomizer seed (the seed its world was generated from, which
+        // the creation freeze stamped as sharedRandoSeed) and the settings
+        // digest its last commit mirrored; a paired record that names another
+        // world in either term is another file's .redsave, and opening it would
+        // pair this OoT world with that file's Majora's Mask world and
+        // crossings. What reaches here is a record at ITS OWN slot path: one
+        // from another install's same slot, or a backup of an earlier file that
+        // once occupied this slot (or a pre-#601 file that inherited another
+        // generation's identity). A record copied from another slot never gets
+        // here: ReadSlotFile already refused it on the header's slot stamp
+        // (RSBS_REFUSE_WRONG_SLOT, #533 V13). Nothing else at load sees a
+        // same-slot record from another file: its slot stamp and its combo
+        // record are self-consistent.
+        //
+        // It runs BEFORE the commit-skew comparison: the generations of two
+        // unrelated files have no relation to each other, so a skew between
+        // them means nothing, and comparing them first would refuse about half
+        // of all foreign records as "older than the Ocarina of Time save" and
+        // quarantine a healthy file. A term the .sav does not record (0) is
+        // exempt. The record is healthy, so it stays where it is (no
+        // quarantine), as every other identity refusal leaves its file. A
+        // record with no pairing is left to the no-pairing refusal below.
+        const bool seedDiffers = savIdentity->randoSeed != 0 && savIdentity->randoSeed != combo.sharedRandoSeed;
+        const bool settingsDiffer =
+            savIdentity->settingsHash != 0 && savIdentity->settingsHash != combo.sharedRandoSettingsHash;
+        if (seedDiffers || settingsDiffer) {
+            std::fprintf(stderr,
+                         "[RsbsSave] slot %d REFUSED: the cross-game record names another Ocarina of Time world "
+                         "(%s%s%s): the .sav's seed %u and settings digest %08X, the record's %u and %08X; the "
+                         "file is not opened and the record is left in place\n",
+                         slot, seedDiffers ? "seed" : "", seedDiffers && settingsDiffer ? ", " : "",
+                         settingsDiffer ? "settings digest" : "", (unsigned)savIdentity->randoSeed,
+                         (unsigned)savIdentity->settingsHash, (unsigned)combo.sharedRandoSeed,
+                         (unsigned)combo.sharedRandoSettingsHash);
+            v.outcome = RSBS_LOAD_REFUSED;
+            v.reason = RSBS_REFUSE_IDENTITY;
+            v.words = WordsOtherFile();
+            return;
+        }
+        std::fprintf(stderr, "[RsbsSave] slot %d: the .sav names the record's world (seed %s, settings digest %s)\n",
+                     slot, savIdentity->randoSeed != 0 ? "matches" : "not recorded",
+                     savIdentity->settingsHash != 0 ? "matches" : "not recorded");
+    }
+
+    // Compare the two durable artifacts' freshness stamps (#531/#564 V16): the
+    // commit choke point authors the same monotonic generation into the
+    // .redsave's Tier-1 and (mirrored) into OoT's .sav, so a torn PAIR becomes
+    // detectable here.
     v.skew = CompareCommitGenerations(combo.commitGeneration, ootSavGeneration);
     if (v.skew < 0) {
         // OoT's .sav carries a NEWER generation: at least one durable .redsave
@@ -1116,7 +1167,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
 }
 
 RsbsLoadOutcome SaveManager::ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile,
-                                              std::string* outWords) {
+                                              const RsbsOoTSavIdentity* savIdentity, std::string* outWords) {
     if (outWords != nullptr) {
         outWords->clear();
     }
@@ -1125,7 +1176,7 @@ RsbsLoadOutcome SaveManager::ProbeSlotForOpen(int slot, uint32_t ootSavGeneratio
     }
     SlotFileData data;
     SlotVerdict v;
-    EvaluateSlot(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile, data, v);
+    EvaluateSlot(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile, savIdentity, data, v);
     if (v.outcome != RSBS_LOAD_REFUSED) {
         std::fprintf(stderr, "[RsbsSave] slot %d: file-select probe ACCEPTED (%s file, %s)\n", slot,
                      isRandoFile ? "randomizer" : "vanilla", v.outcome == RSBS_LOAD_OK ? "record valid" : "no record");
@@ -1149,14 +1200,16 @@ RsbsLoadOutcome SaveManager::ProbeSlotForOpen(int slot, uint32_t ootSavGeneratio
 }
 
 RsbsLoadOutcome SaveManager::LoadSlot(int slot, uint32_t ootSavGeneration) {
-    return LoadSlotImpl(slot, ootSavGeneration, kOpenLegacy);
+    return LoadSlotImpl(slot, ootSavGeneration, kOpenLegacy, nullptr);
 }
 
-RsbsLoadOutcome SaveManager::LoadSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile) {
-    return LoadSlotImpl(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile);
+RsbsLoadOutcome SaveManager::LoadSlotForOpen(int slot, uint32_t ootSavGeneration, bool isRandoFile,
+                                             const RsbsOoTSavIdentity* savIdentity) {
+    return LoadSlotImpl(slot, ootSavGeneration, isRandoFile ? kOpenRandoFile : kOpenVanillaFile, savIdentity);
 }
 
-RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, int openKind) {
+RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, int openKind,
+                                          const RsbsOoTSavIdentity* savIdentity) {
     if (!SlotInRange(slot)) {
         return RSBS_LOAD_REFUSED;
     }
@@ -1169,7 +1222,7 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
 
     SlotFileData data;
     SlotVerdict v;
-    EvaluateSlot(slot, ootSavGeneration, openKind, data, v);
+    EvaluateSlot(slot, ootSavGeneration, openKind, savIdentity, data, v);
 
     // A refusal the load carries out. @p restoreUndo, when given, puts back the
     // rules this load wrote before it refused, so a refused load changes nothing.
@@ -2016,18 +2069,21 @@ int RsbsSave_LoadSlotChecked(int slot, uint32_t ootSavGeneration) {
     return static_cast<int>(rsbs::SaveManager::Instance().LoadSlot(slot, ootSavGeneration));
 }
 
-int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile, char* words, size_t wordsLen) {
+int RsbsSave_ProbeSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile,
+                              const RsbsOoTSavIdentity* savIdentity, char* words, size_t wordsLen) {
     std::string out;
     const RsbsLoadOutcome outcome =
-        rsbs::SaveManager::Instance().ProbeSlotForOpen(slot, ootSavGeneration, isRandoFile != 0, &out);
+        rsbs::SaveManager::Instance().ProbeSlotForOpen(slot, ootSavGeneration, isRandoFile != 0, savIdentity, &out);
     if (words != nullptr && wordsLen > 0) {
         std::snprintf(words, wordsLen, "%s", out.c_str());
     }
     return static_cast<int>(outcome);
 }
 
-int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile) {
-    return static_cast<int>(rsbs::SaveManager::Instance().LoadSlotForOpen(slot, ootSavGeneration, isRandoFile != 0));
+int RsbsSave_LoadSlotForOpen(int slot, uint32_t ootSavGeneration, int isRandoFile,
+                             const RsbsOoTSavIdentity* savIdentity) {
+    return static_cast<int>(
+        rsbs::SaveManager::Instance().LoadSlotForOpen(slot, ootSavGeneration, isRandoFile != 0, savIdentity));
 }
 
 const char* RsbsSave_SlotRefusalWords(int slot) {

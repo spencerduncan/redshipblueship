@@ -606,6 +606,17 @@ void SohMenu::AddMenuRandomizer() {
             OTRGlobals::Instance->gRandoContext->SetSpoilerLoaded(false);
             GenerateRandomizer(CVarGetInteger(CVAR_RANDOMIZER_SETTING("ManualSeedEntry"), 0) ? seedString : "");
         })
+        // RSBS (#564 V12, the audit's Phase 0 item 4): in the single executable
+        // this gate is LOAD-BEARING for the paired world's identity, not only a
+        // convenience. Generation is the one stamp site of gComboCtx's pairing
+        // identity (3drando/playthrough.cpp's creation freeze writes
+        // sharedRandoSeed, sharedRandoSettingsHash, mmProfileDigest and the
+        // combo record) and it replaces Rando::Context's world. While a file is
+        // loaded that identity is the file's, and every commit writes it into
+        // the .redsave and its digest into the .sav, so a generation reachable
+        // mid-play would re-stamp a running paired file with another world.
+        // Keep generation unreachable outside the file select (SoH's gen_rando
+        // console command does not go through this button: #909).
         .PreFunc([](WidgetInfo& info) {
             info.options->Disabled((gSaveContext.gameMode != GAMEMODE_FILE_SELECT) || GameInteractor::IsSaveLoaded());
         })
