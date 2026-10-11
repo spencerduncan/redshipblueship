@@ -299,8 +299,7 @@ extern "C" int MM_SaveFailureSurface_RunHeadless(void) {
     expectToldAgain("refused again, save 2", 0, RSBS_SAVE_FAILURE_LOCKED);
     RsbsSave_RefuseSlotIdentity(kDisk);
     expectToldAgain("refused once more", 1, RSBS_SAVE_FAILURE_LOCKED);
-    SFS_ASSERT(episodeMisses == 0, "%d save failure(s) after a slot-state change were not told again",
-               episodeMisses);
+    SFS_ASSERT(episodeMisses == 0, "%d save failure(s) after a slot-state change were not told again", episodeMisses);
     rsbs::SaveManager::Instance().SetSaveDirectory(dir.string());
 
     OoT_Notification_RecordForTest(0);

@@ -2661,19 +2661,26 @@ extern "C" void MM_ResumeColdBootPrep(void) {
 namespace {
 
 // #564 V18: the save-failure toast's record, for MM_Combo_CaptureSaveToUnifiedSlot
-// below (its EVERY 0 IS TOLD paragraph): the causes already told for the active
-// slot (bit per RsbsSaveFailure), and the slot they were told under. Once per
-// cause: the periodic autosave, the next new day or the next owl into the same
-// locked file repeat nothing. A commit that lands clears the record
-// (ClearSaveFailuresTold), and another active slot is another file, so either way
-// the next failure is told again.
+// below (its EVERY 0 IS TOLD paragraph): the causes already told (bit per
+// RsbsSaveFailure), the active slot they were told under, and the unified-save
+// slot-state epoch they were told at. Once per cause: the periodic autosave, the
+// next new day or the next owl into the same locked file repeat nothing, because
+// a save that commits nothing moves no slot state. Anything that does move it
+// starts a new episode, so the next failure is told again: a .redsave commit
+// that lands from EITHER game (MM's capture, OoT's save worker, a crossing), an
+// erase, a create, a load or a refusal recorded or released
+// (rsbs::SaveManager::SlotStateEpoch lists them). Another active slot is another
+// file and starts one too.
 uint32_t sSaveFailuresTold = 0;
 int sSaveFailuresToldSlot = -1;
+uint32_t sSaveFailuresToldEpoch = 0;
 
 void TellSaveFailure(int cause, int slot) {
-    if (slot != sSaveFailuresToldSlot) {
+    const uint32_t epoch = rsbs::SaveManager::Instance().SlotStateEpoch();
+    if (slot != sSaveFailuresToldSlot || epoch != sSaveFailuresToldEpoch) {
         sSaveFailuresTold = 0;
         sSaveFailuresToldSlot = slot;
+        sSaveFailuresToldEpoch = epoch;
     }
     const uint32_t bit = 1u << cause;
     if ((sSaveFailuresTold & bit) != 0) {
@@ -2684,10 +2691,6 @@ void TellSaveFailure(int cause, int slot) {
             slot, RSBS_SAVE_FAILURE_TOAST_PREFIX, Combo_SaveFailureWords(cause));
     fflush(stderr);
     MM_Combo_EmitSaveFailureToast(cause);
-}
-
-void ClearSaveFailuresTold() {
-    sSaveFailuresTold = 0;
 }
 
 } // namespace
@@ -2818,9 +2821,7 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     fprintf(stderr, "[MM] unified save to slot %d: %s (commit generation %u)\n", slot, ok ? "ok" : "FAILED",
             (unsigned)gComboCtx.commitGeneration);
     fflush(stderr);
-    if (ok) {
-        ClearSaveFailuresTold();
-    } else {
+    if (!ok) {
         TellSaveFailure(RSBS_SAVE_FAILURE_NOT_WRITTEN, slot);
     }
     return ok;
