@@ -2658,6 +2658,40 @@ extern "C" void MM_ResumeColdBootPrep(void) {
     Regs_Init();
 }
 
+namespace {
+
+// #564 V18: the save-failure toast's record, for MM_Combo_CaptureSaveToUnifiedSlot
+// below (its EVERY 0 IS TOLD paragraph): the causes already told for the active
+// slot (bit per RsbsSaveFailure), and the slot they were told under. Once per
+// cause: the periodic autosave, the next new day or the next owl into the same
+// locked file repeat nothing. A commit that lands clears the record
+// (ClearSaveFailuresTold), and another active slot is another file, so either way
+// the next failure is told again.
+uint32_t sSaveFailuresTold = 0;
+int sSaveFailuresToldSlot = -1;
+
+void TellSaveFailure(int cause, int slot) {
+    if (slot != sSaveFailuresToldSlot) {
+        sSaveFailuresTold = 0;
+        sSaveFailuresToldSlot = slot;
+    }
+    const uint32_t bit = 1u << cause;
+    if ((sSaveFailuresTold & bit) != 0) {
+        return;
+    }
+    sSaveFailuresTold |= bit;
+    fprintf(stderr, "[MM] unified save to slot %d did not reach the file; told the player: \"%s %s\" (#564 V18)\n",
+            slot, RSBS_SAVE_FAILURE_TOAST_PREFIX, Combo_SaveFailureWords(cause));
+    fflush(stderr);
+    MM_Combo_EmitSaveFailureToast(cause);
+}
+
+void ClearSaveFailuresTold() {
+    sSaveFailuresTold = 0;
+}
+
+} // namespace
+
 /**
  * Commit MM's LIVE SaveContext into the unified .redsave slot (#35 follow-up).
  *
@@ -2704,6 +2738,13 @@ extern "C" void MM_ResumeColdBootPrep(void) {
  * MM_Game_Suspend would have folded the identical numbers into the pool anyway.
  * Claiming a blanket "0 means nothing moved" here would be false on those paths
  * and would invite a future caller to trust it.
+ *
+ * EVERY 0 IS TOLD TO THE PLAYER (#564 V18). Each caller is a save route that
+ * runs its own ceremony whatever happens here (the owl's goodbye, "saved", the
+ * new cycle), and the funnel (Sram_ComboCommitUnifiedSave) drops this result. So
+ * the three outcomes that commit nothing -- no slot, the latch, a commit that did
+ * not land -- each queue a "Not saved:" toast (TellSaveFailure, above), once per
+ * cause; the stderr lines stay as the machine record.
  */
 extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     const int slot = RsbsSave_GetActiveSlot();
@@ -2713,6 +2754,7 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
         // unsaved new file overwrite an unrelated slot.
         fprintf(stderr, "[MM] unified save skipped: no active slot for this session\n");
         fflush(stderr);
+        TellSaveFailure(RSBS_SAVE_FAILURE_NO_FILE, slot);
         return 0;
     }
 
@@ -2751,6 +2793,7 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
                 " shared-resource pool left untouched (#591)\n",
                 slot);
         fflush(stderr);
+        TellSaveFailure(RSBS_SAVE_FAILURE_LOCKED, slot);
         return 0;
     }
 
@@ -2775,6 +2818,11 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     fprintf(stderr, "[MM] unified save to slot %d: %s (commit generation %u)\n", slot, ok ? "ok" : "FAILED",
             (unsigned)gComboCtx.commitGeneration);
     fflush(stderr);
+    if (ok) {
+        ClearSaveFailuresTold();
+    } else {
+        TellSaveFailure(RSBS_SAVE_FAILURE_NOT_WRITTEN, slot);
+    }
     return ok;
 }
 
