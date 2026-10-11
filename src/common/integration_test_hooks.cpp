@@ -22,6 +22,7 @@
 #include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX: the capture keeps refusal toast lines
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <cstdio>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <atomic>
@@ -91,11 +92,26 @@ std::atomic<int> sGameplayVariant{GP_VARIANT_ROUNDTRIP};
 // process that inherited fd 2 (the pipe's write end) keeps the pipe open, and a
 // verdict must never wait on it. The pipe's own ends are created
 // non-inheritable (_O_NOINHERIT / FD_CLOEXEC), so only fd 2 itself can leak.
+//
+// Read-after-write (#901): a write to fd 2 returns as soon as the bytes are in
+// the pipe, before the reader has appended them, so a query that reads `lines`
+// straight away can miss a line its caller has just written. Every query
+// therefore drains first (CaptureLockDrained): it writes one sync byte into the
+// pipe behind everything already written and waits, bounded, until the reader
+// has consumed that byte. The pipe is FIFO, so by then every earlier line is in
+// `lines`. The sync byte is never echoed and never kept.
 // ---------------------------------------------------------------------------
 struct CaptureState {
     std::mutex mutex;
     std::vector<std::string> lines;
     std::string partial;
+    // Sync bytes the reader has consumed (guarded by `mutex`, signalled on syncCv).
+    uint64_t syncSeen = 0;
+    std::condition_variable syncCv;
+    // Serialises a query's sync-byte write (and its count) against other
+    // queries and against Stop closing the write end.
+    std::mutex syncWriteMutex;
+    uint64_t syncSent = 0; // guarded by syncWriteMutex
     std::mutex doneMutex;
     std::condition_variable doneCv;
     bool readerDone = false;
@@ -105,8 +121,12 @@ std::atomic<bool> sCaptureActive{false};
 int sCaptureOrigFd = -1; // dup of the original fd 2
 int sCapturePipeRead = -1;
 int sCapturePipeWrite = -1;
-// How long Stop waits for the reader to drain after the write end is closed.
+// How long Stop waits for the reader to drain after the write end is closed,
+// and how long a query waits for the reader to consume its sync byte.
 constexpr int kCaptureDrainBoundMs = 2000;
+// The query's sync marker (ASCII unit separator): a single byte, so a read can
+// never split it. Stripped from the echo and from the kept lines.
+constexpr char kCaptureSyncByte = '\x1f';
 
 bool CaptureKeeps(const std::string& line) {
     // RSBS_REFUSAL_TOAST_PREFIX: a refusal toast's line, whatever its copy says (#836).
@@ -123,9 +143,14 @@ bool CaptureKeeps(const std::string& line) {
 void CaptureAppend(const char* data, size_t len) {
     std::lock_guard<std::mutex> lock(sCapture->mutex);
     std::string& partial = sCapture->partial;
+    bool synced = false;
     for (size_t i = 0; i < len; i++) {
         const char c = data[i];
-        if (c == '\n') {
+        if (c == kCaptureSyncByte) {
+            // Everything written before this byte has been appended above.
+            sCapture->syncSeen++;
+            synced = true;
+        } else if (c == '\n') {
             if (!partial.empty() && partial.back() == '\r') {
                 partial.pop_back();
             }
@@ -137,10 +162,14 @@ void CaptureAppend(const char* data, size_t len) {
             partial.push_back(c);
         }
     }
+    if (synced) {
+        sCapture->syncCv.notify_all();
+    }
 }
 
 void CaptureReaderMain() {
     char buf[4096];
+    char echo[sizeof(buf)];
     for (;;) {
 #ifdef _WIN32
         const int n = _read(sCapturePipeRead, buf, (unsigned int)sizeof(buf));
@@ -150,17 +179,63 @@ void CaptureReaderMain() {
         if (n <= 0) {
             break; // write end closed (stop) or a broken pipe
         }
+        // Echo everything but the queries' sync bytes.
+        size_t echoLen = 0;
+        for (size_t i = 0; i < (size_t)n; i++) {
+            if (buf[i] != kCaptureSyncByte) {
+                echo[echoLen++] = buf[i];
+            }
+        }
+        if (echoLen > 0) {
 #ifdef _WIN32
-        _write(sCaptureOrigFd, buf, (unsigned int)n);
+            _write(sCaptureOrigFd, echo, (unsigned int)echoLen);
 #else
-        ssize_t ignored = write(sCaptureOrigFd, buf, (size_t)n);
-        (void)ignored;
+            ssize_t ignored = write(sCaptureOrigFd, echo, echoLen);
+            (void)ignored;
 #endif
+        }
         CaptureAppend(buf, (size_t)n);
     }
     std::lock_guard<std::mutex> lock(sCapture->doneMutex);
     sCapture->readerDone = true;
     sCapture->doneCv.notify_all();
+}
+
+// Locks the kept lines once the reader has consumed everything written to fd 2
+// before this call (#901). Must be called with no capture lock held: the sync
+// write can block on a full pipe until the reader, which takes `mutex`, drains
+// it. When the capture is not running (never started, or stopped: Stop has
+// already drained) it just locks. A reader that does not catch up within the
+// bound is reported, and the query reads what is kept so far.
+std::unique_lock<std::mutex> CaptureLockDrained() {
+    uint64_t target = 0;
+    {
+        std::lock_guard<std::mutex> writeLock(sCapture->syncWriteMutex);
+        if (sCaptureActive.load() && sCapturePipeWrite >= 0) {
+            fflush(stderr);
+            const char sync = kCaptureSyncByte;
+#ifdef _WIN32
+            const bool sent = _write(sCapturePipeWrite, &sync, 1) == 1;
+#else
+            const bool sent = write(sCapturePipeWrite, &sync, 1) == 1;
+#endif
+            if (sent) {
+                target = ++sCapture->syncSent;
+            }
+        }
+    }
+    std::unique_lock<std::mutex> lock(sCapture->mutex);
+    if (target != 0 && !sCapture->syncCv.wait_for(lock, std::chrono::milliseconds(kCaptureDrainBoundMs),
+                                                  [target] { return sCapture->syncSeen >= target; })) {
+        lock.unlock();
+        fprintf(stderr,
+                "[PFC] stderr tee: the reader did not catch up within %d ms; this query reads the lines kept so "
+                "far\n",
+                kCaptureDrainBoundMs);
+        fflush(stderr);
+        lock.lock();
+    }
+    return lock;
 }
 
 // ---------------------------------------------------------------------------
@@ -764,15 +839,19 @@ void IntegrationTest_StderrCaptureStop(void) {
     fflush(stderr);
     // Point fd 2 back at the original stderr, then close the pipe's write end
     // (both of this process's references to it are then gone), so the reader
-    // drains what is left and sees EOF.
+    // drains what is left and sees EOF. Under syncWriteMutex, so a query's sync
+    // write never lands on a closed descriptor (#901).
+    {
+        std::lock_guard<std::mutex> writeLock(sCapture->syncWriteMutex);
 #ifdef _WIN32
-    _dup2(sCaptureOrigFd, 2);
-    _close(sCapturePipeWrite);
+        _dup2(sCaptureOrigFd, 2);
+        _close(sCapturePipeWrite);
 #else
-    dup2(sCaptureOrigFd, 2);
-    close(sCapturePipeWrite);
+        dup2(sCaptureOrigFd, 2);
+        close(sCapturePipeWrite);
 #endif
-    sCapturePipeWrite = -1;
+        sCapturePipeWrite = -1;
+    }
     bool drained = false;
     {
         std::unique_lock<std::mutex> lock(sCapture->doneMutex);
@@ -813,7 +892,7 @@ int IntegrationTest_StderrCaptureCount(const char* needle) {
     if (needle == nullptr || sCapture == nullptr) {
         return 0;
     }
-    std::lock_guard<std::mutex> lock(sCapture->mutex);
+    const std::unique_lock<std::mutex> lock = CaptureLockDrained();
     int count = 0;
     for (const std::string& line : sCapture->lines) {
         if (line.find(needle) != std::string::npos) {
@@ -831,7 +910,7 @@ bool IntegrationTest_StderrCaptureLast(const char* needle, char* out, size_t cap
     if (sCapture == nullptr) {
         return false;
     }
-    std::lock_guard<std::mutex> lock(sCapture->mutex);
+    const std::unique_lock<std::mutex> lock = CaptureLockDrained();
     for (auto it = sCapture->lines.rbegin(); it != sCapture->lines.rend(); ++it) {
         if (it->find(needle) != std::string::npos) {
             snprintf(out, cap, "%s", it->c_str());
