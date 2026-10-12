@@ -365,6 +365,9 @@ bool fileSelectSpoilerFileLoaded = false;
 // RSBS (#564 V2): 1 once a file has consumed the last staged generation, until
 // the next generation begins (ForeignItemsSingleExe.cpp).
 extern int OoT_Creation_StagedGenerationConsumed(void);
+// RSBS (#936): 1 when the spoiler is a paired world's, which the auto-load
+// leaves alone (SeedContext.cpp).
+extern int OoT_FileSelect_SkipPairedSpoilerAutoLoad(const char* spoilerFileName);
 #endif
 
 void FileChoose_UpdateRandomizer() {
@@ -404,6 +407,9 @@ void FileChoose_UpdateRandomizer() {
             && !OoT_Creation_StagedGenerationConsumed()
 #endif
     ) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        const bool rsbsDropped = CVarGetInteger(CVAR_GENERAL("RandomizerNewFileDropped"), 0) != 0;
+#endif
         if (CVarGetInteger(CVAR_GENERAL("RandomizerNewFileDropped"), 0) != 0) {
             if (SpoilerFileExists(CVarGetString(CVAR_GENERAL("RandomizerDroppedFile"), ""))) {
                 CVarSetString(CVAR_GENERAL("SpoilerLog"), CVarGetString(CVAR_GENERAL("RandomizerDroppedFile"), ""));
@@ -416,6 +422,21 @@ void FileChoose_UpdateRandomizer() {
         CVarSetInteger(CVAR_GENERAL("RandomizerNewFileDropped"), 0);
         CVarSetString(CVAR_GENERAL("RandomizerDroppedFile"), "");
         if (!Ship_IsCStringEmpty(fileLoc)) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // RSBS (#936): every paired creation leaves gGeneral.SpoilerLog naming
+            // its spoiler, which ParseSpoiler refuses with a toast. Found here on
+            // its own (no drop), it is not loaded: no parse, no toast, one log
+            // line, and not again on this visit. A dropped one still parses.
+            // Under DontGenerateSpoiler it is still deleted, as SoH deletes any
+            // spoiler it finds here below.
+            if (!rsbsDropped && OoT_FileSelect_SkipPairedSpoilerAutoLoad(fileLoc)) {
+                fileSelectSpoilerFileLoaded = true;
+                if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("DontGenerateSpoiler"), 0)) {
+                    remove(fileLoc);
+                }
+                return;
+            }
+#endif
             Randomizer_ParseSpoiler(fileLoc);
             fileSelectSpoilerFileLoaded = true;
         }

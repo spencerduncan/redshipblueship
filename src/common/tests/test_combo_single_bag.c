@@ -173,6 +173,14 @@
  *        does not reload the spoiler that creation just wrote: no parse, no toast,
  *        and the line still names file 1. Without that, every return to the file
  *        select after a creation would refuse the paired spoiler with a toast.
+ *   #936. A LATER LAUNCH of the same file select: V2b's consumption record is
+ *        process-local, so a fresh process has none, nothing staged and nothing
+ *        loaded, and gGeneral.SpoilerLog still names the paired spoiler. The
+ *        per-frame update must not parse it (a general-pass mark ParseSpoiler
+ *        would clear survives) and must queue no toast; the same file DROPPED
+ *        is an explicit load and is still refused with the paired-spoiler toast.
+ *        Under DontGenerateSpoiler the skipped spoiler is still deleted, as SoH's
+ *        file select deletes any spoiler it finds then (no parse, no toast).
  *   V2c. A new generation forgets the consumed one: after leg G's Generate the
  *        line is SoH's own again.
  *   V2d. A FAILED creation consumes its staged generation too (the event has
@@ -250,6 +258,7 @@
 #include "../foreign_items.h"
 #include "../foreign_model.h"
 #include "../notification_bridge.h"
+#include "../pairing_refusal_toast.h"
 #include "../shared_items.h"
 #include "../shared_resources.h"
 #include "../test_runner.h"
@@ -310,6 +319,7 @@ const char* OoT_Creation_TestLastSequence(void);
 uint32_t OoT_Creation_TestLastUnprovedHalves(void);
 // #564 V2 (legs V2a-V2d).
 void OoT_Creation_TestStageGeneration(void);
+void OoT_Creation_ForgetConsumedGeneration(void); // #936
 uint8_t Randomizer_IsSeedGenerated(void);
 uint8_t Randomizer_IsSpoilerLoaded(void);
 void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
@@ -1626,6 +1636,114 @@ TestResult ComboSingleBag_Run(void) {
             CSB_ASSERT(Randomizer_IsSeedGenerated() == 0 && Randomizer_IsSpoilerLoaded() == 0 &&
                            std::strstr(line, "file 1") != nullptr,
                        "the file select's update undid the consumption or lost its line");
+
+            // #936. A LATER LAUNCH: the consumption record V2b leans on is
+            // process-local, so a fresh process reaches the file select with nothing
+            // staged, nothing loaded, no record, and gGeneral.SpoilerLog still naming
+            // the paired spoiler. The auto-load must leave it alone (no parse, no
+            // toast); a DROP of the same file is the player asking, and keeps its toast.
+            {
+                const std::string pairedPath = CVarGetString("gGeneral.SpoilerLog", "");
+                OoT_Creation_ForgetConsumedGeneration(); // a new process starts with no record
+                fileSelectSpoilerFileLoaded = false;     // FileChoose_Init
+                CVarSetInteger("gGeneral.RandomizerNewFileDropped", 0);
+                CVarSetString("gGeneral.RandomizerDroppedFile", "");
+                // Context::ParseSpoiler's first act clears the general-pass mark, so a
+                // mark that survives the update proves nothing parsed the spoiler.
+                OoT_ComboLogic_SetGeneralPassDeferred(1);
+                OoT_Notification_ClearForTest();
+                FileChoose_UpdateRandomizer();
+                ComboNotification freshToast;
+                std::memset(&freshToast, 0, sizeof(freshToast));
+                const int freshQueued = OoT_Notification_PeekLastForTest(&freshToast);
+                const int freshParsed = OoT_ComboLogic_GeneralPassDeferred() == 0 ? 1 : 0;
+                OoT_ComboLogic_SetGeneralPassDeferred(0);
+                OoT_Notification_ClearForTest();
+                printf("[TEST] combo-single-bag: #936 a fresh launch's file select over the paired spoiler '%s' (found "
+                       "%u): parsed=%d, toast queued=%d ('%s %s'), spoiler loaded=%d, SpoilerLog \"%s\"\n",
+                       pairedPath.c_str(), (unsigned)SpoilerFileExists(pairedPath.c_str()), freshParsed, freshQueued,
+                       freshQueued && freshToast.prefix != nullptr ? freshToast.prefix : "",
+                       freshQueued && freshToast.message != nullptr ? freshToast.message : "",
+                       Randomizer_IsSpoilerLoaded(), CVarGetString("gGeneral.SpoilerLog", ""));
+                CSB_ASSERT(SpoilerFileExists(pairedPath.c_str()) != 0,
+                           "the paired spoiler is not on disk, so the fresh-launch leg proves nothing");
+                CSB_ASSERT(freshQueued == 0,
+                           "a fresh launch's file select auto-loaded the paired spoiler and refused it with "
+                           "a toast the player did nothing to cause (#936)");
+                CSB_ASSERT(freshParsed == 0,
+                           "a fresh launch's file select parsed the paired spoiler on its own (#936)");
+                CSB_ASSERT(Randomizer_IsSpoilerLoaded() == 0 && Randomizer_IsSeedGenerated() == 0,
+                           "the fresh launch's file select loaded or staged a world from the paired spoiler");
+
+                // The explicit load: the same file dropped on the window.
+                CVarSetString("gGeneral.RandomizerDroppedFile", pairedPath.c_str());
+                CVarSetInteger("gGeneral.RandomizerNewFileDropped", 1);
+                fileSelectSpoilerFileLoaded = false;
+                OoT_Notification_ClearForTest();
+                FileChoose_UpdateRandomizer();
+                std::memset(&freshToast, 0, sizeof(freshToast));
+                const int dropQueued = OoT_Notification_PeekLastForTest(&freshToast);
+                char expected[128];
+                Combo_PairingRefusalToastMessage(RSBS_PAIRING_REFUSAL_OOT_SPOILER, nullptr, expected, sizeof(expected));
+                const char* expectedPrefix = Combo_PairingRefusalToastPrefix(RSBS_PAIRING_REFUSAL_OOT_SPOILER);
+                const bool refusalCopy = dropQueued == 1 && freshToast.prefix != nullptr &&
+                                         freshToast.message != nullptr &&
+                                         std::strcmp(freshToast.prefix, expectedPrefix) == 0 &&
+                                         std::strcmp(freshToast.message, expected) == 0;
+                printf("[TEST] combo-single-bag: #936 the same spoiler dropped: toast queued=%d ('%s %s'), refusal "
+                       "copy=%d, spoiler loaded=%d\n",
+                       dropQueued, dropQueued && freshToast.prefix != nullptr ? freshToast.prefix : "",
+                       dropQueued && freshToast.message != nullptr ? freshToast.message : "", refusalCopy ? 1 : 0,
+                       Randomizer_IsSpoilerLoaded());
+                OoT_Notification_ClearForTest();
+                CSB_ASSERT(refusalCopy, "a dropped paired spoiler was not refused with the paired-spoiler toast: the "
+                                        "explicit load must still say why it did not load");
+                CSB_ASSERT(Randomizer_IsSpoilerLoaded() == 0, "a dropped paired spoiler loaded as a solo OoT world");
+
+                // Under DontGenerateSpoiler the player turned spoilers off, and SoH's
+                // file select deletes the spoiler it finds. The silent skip must
+                // still delete it (no parse, no toast), or the paired spoiler stays
+                // readable for good. A copy is used so the real one survives for
+                // the legs after this one, beside it: the app directory is not the
+                // cwd everywhere (SHIP_HOME on Linux CI), and the CVar names the
+                // spoiler by the path the creation gave it.
+                const std::string noSpoilerPath =
+                    pairedPath.substr(0, pairedPath.find_last_of("/\\") + 1) + "rsbs-936-dont-generate-spoiler.json";
+                const std::string& noSpoilerCVar = noSpoilerPath;
+                const std::string pairedDoc = CsbReadWholeFile(pairedPath);
+                {
+                    std::ofstream copy(noSpoilerPath, std::ios::binary | std::ios::trunc);
+                    copy << pairedDoc;
+                }
+                const unsigned copyBefore = (unsigned)SpoilerFileExists(noSpoilerCVar.c_str());
+                CVarSetString("gGeneral.SpoilerLog", noSpoilerCVar.c_str());
+                CVarSetInteger("gRandoSettings.DontGenerateSpoiler", 1);
+                OoT_Creation_ForgetConsumedGeneration();
+                fileSelectSpoilerFileLoaded = false;
+                CVarSetInteger("gGeneral.RandomizerNewFileDropped", 0);
+                CVarSetString("gGeneral.RandomizerDroppedFile", "");
+                OoT_ComboLogic_SetGeneralPassDeferred(1);
+                OoT_Notification_ClearForTest();
+                FileChoose_UpdateRandomizer();
+                std::memset(&freshToast, 0, sizeof(freshToast));
+                const int noSpoilerQueued = OoT_Notification_PeekLastForTest(&freshToast);
+                const int noSpoilerParsed = OoT_ComboLogic_GeneralPassDeferred() == 0 ? 1 : 0;
+                const unsigned copyAfter = (unsigned)SpoilerFileExists(noSpoilerCVar.c_str());
+                OoT_ComboLogic_SetGeneralPassDeferred(0);
+                OoT_Notification_ClearForTest();
+                CVarClear("gRandoSettings.DontGenerateSpoiler");
+                CVarSetString("gGeneral.SpoilerLog", pairedPath.c_str());
+                std::remove(noSpoilerPath.c_str());
+                printf("[TEST] combo-single-bag: #936 DontGenerateSpoiler, a fresh launch over a copy of the paired "
+                       "spoiler (%zu bytes, found %u): parsed=%d, toast queued=%d, still on disk=%u\n",
+                       pairedDoc.size(), copyBefore, noSpoilerParsed, noSpoilerQueued, copyAfter);
+                CSB_ASSERT(!pairedDoc.empty() && copyBefore != 0,
+                           "could not copy the paired spoiler, so the DontGenerateSpoiler leg proves nothing");
+                CSB_ASSERT(noSpoilerQueued == 0 && noSpoilerParsed == 0,
+                           "under DontGenerateSpoiler the file select parsed or toasted the paired spoiler (#936)");
+                CSB_ASSERT(copyAfter == 0, "under DontGenerateSpoiler the file select left the paired spoiler on disk: "
+                                           "the player turned spoilers off and it stays readable for good");
+            }
         }
 
         // V23a. #564 V23: MM's paired generation minted no spoiler of its own and
