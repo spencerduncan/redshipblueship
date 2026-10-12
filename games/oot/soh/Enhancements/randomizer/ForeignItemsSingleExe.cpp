@@ -1066,6 +1066,16 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
 }
 
 /**
+ * TEST BRIDGE (#564 V2): what the file select's Generate leaves behind, a STAGED
+ * generation. RandoMain::GenerateRando marks the context generated; the headless
+ * generation the locks drive (Rando_HeadlessSeedTest) does not, so a lock that
+ * models "Generate, then create a file" marks it here, as Generate would.
+ */
+extern "C" void OoT_Creation_TestStageGeneration(void) {
+    Rando::Context::GetInstance()->SetSeedGenerated(true);
+}
+
+/**
  * A RANDOMIZER FILE'S AUTHORING, IN ITS ONE CORRECT ORDER (PR #743 review): the
  * paired creation event, THEN Randomizer_InitSaveFile. Called by OoT_Sram_InitSave
  * (z_sram.c) for every randomizer file in the single executable, and by the

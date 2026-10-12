@@ -68,6 +68,12 @@ const char* SohFileSelect_GetSettingText(uint8_t optionIndex, uint8_t language) 
     return RandomizerSettingsMenuText[optionIndex][language].c_str();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+const char* OoT_FileSelect_NoSeedText(uint8_t language) {
+    return SohFileSelect_GetSettingText(RSM_NO_RANDOMIZER_GENERATED, language);
+}
+#endif
+
 void SohFileSelect_ShowPresetMenu() {
     SohGui::ShowEscMenu();
     CVarSetString(CVAR_SETTING("Menu.ActiveHeader"), "Settings");

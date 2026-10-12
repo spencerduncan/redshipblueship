@@ -8,6 +8,11 @@ extern "C" {
 #endif
 const char* SohFileSelect_GetSettingText(u8 optionIndex, u8 language);
 void SohFileSelect_ShowPresetModal();
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#564 V2): the line the randomizer menu draws under "Start Randomizer"
+// while no seed is loaded (RSM_NO_RANDOMIZER_GENERATED's place).
+const char* OoT_FileSelect_NoSeedText(u8 language);
+#endif
 #ifdef __cplusplus
 };
 #endif
