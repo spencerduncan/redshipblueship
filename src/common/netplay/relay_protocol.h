@@ -70,9 +70,9 @@ extern "C" {
 #define RSBS_RELAY_PROTOCOL_VERSION 0x00000200u
 #define RSBS_RELAY_VERSION_MAJOR(v) ((v) >> 16)
 
-#define RSBS_RELAY_HELLO_LEN 9u  // "OOMM2" + u32 version
+#define RSBS_RELAY_HELLO_LEN 9u    // "OOMM2" + u32 version
 #define RSBS_RELAY_SVHELLO_LEN 11u // "OOMM2" + u32 version + u16 clientId
-#define RSBS_RELAY_JOIN_LEN 20u  // uuid[16] + u32 ledgerBase
+#define RSBS_RELAY_JOIN_LEN 20u    // uuid[16] + u32 ledgerBase
 #define RSBS_RELAY_UUID_LEN 16u
 
 // Command opcodes.

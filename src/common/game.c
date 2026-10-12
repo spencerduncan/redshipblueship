@@ -21,16 +21,22 @@ GameId Game_FromString(const char* id) {
 
 const char* Game_ToString(GameId game) {
     switch (game) {
-        case GAME_OOT: return "oot";
-        case GAME_MM: return "mm";
-        default: return NULL;
+        case GAME_OOT:
+            return "oot";
+        case GAME_MM:
+            return "mm";
+        default:
+            return NULL;
     }
 }
 
 GameId Game_GetOther(GameId game) {
     switch (game) {
-        case GAME_OOT: return GAME_MM;
-        case GAME_MM: return GAME_OOT;
-        default: return GAME_NONE;
+        case GAME_OOT:
+            return GAME_MM;
+        case GAME_MM:
+            return GAME_OOT;
+        default:
+            return GAME_NONE;
     }
 }

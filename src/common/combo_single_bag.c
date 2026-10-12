@@ -304,25 +304,26 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
             // "carried, not filtered on"). Every bag row is O8-progression.
             sBag[i].itemClass = (uint16_t)RSBS_ITEMCLASS_PROGRESSION;
         }
-        fprintf(stderr,
-                "[SingleBag] bag: %d rows (OoT %d req + %d surplus + %d confined; MM %d req + %d surplus + %d confined) "
-                "from %d OoT + %d MM pool rows; %d home-only; crossings armed OoT->MM=%d MM->OoT=%d; filler left to "
-                "each game: OoT %d junk / %d renewable / %d trap / %d trimmed, MM %d junk / %d renewable / %d trap / "
-                "%d trimmed (trim seed %08X, starting health OoT 0x%X MM 0x%X)\n",
-                sReport.bagCount, sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_REQUIRED],
-                sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_SURPLUS],
-                sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_CONFINED],
-                sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_REQUIRED],
-                sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_SURPLUS],
-                sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_CONFINED], sReport.ootRows, sReport.mmRows,
-                sReport.homeOnlyRows, ootMayCross ? 1 : 0, mmMayCross ? 1 : 0,
-                sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_JUNK],
-                sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_RENEWABLE],
-                sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_TRAP], sReport.trimmedOoT,
-                sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_JUNK],
-                sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_RENEWABLE],
-                sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_TRAP], sReport.trimmedMM, sReport.trimSeed,
-                (unsigned)sReport.startingHealthOoT, (unsigned)sReport.startingHealthMM);
+        fprintf(
+            stderr,
+            "[SingleBag] bag: %d rows (OoT %d req + %d surplus + %d confined; MM %d req + %d surplus + %d confined) "
+            "from %d OoT + %d MM pool rows; %d home-only; crossings armed OoT->MM=%d MM->OoT=%d; filler left to "
+            "each game: OoT %d junk / %d renewable / %d trap / %d trimmed, MM %d junk / %d renewable / %d trap / "
+            "%d trimmed (trim seed %08X, starting health OoT 0x%X MM 0x%X)\n",
+            sReport.bagCount, sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_REQUIRED],
+            sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_SURPLUS],
+            sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_CONFINED],
+            sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_REQUIRED],
+            sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_SURPLUS],
+            sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_CONFINED], sReport.ootRows, sReport.mmRows,
+            sReport.homeOnlyRows, ootMayCross ? 1 : 0, mmMayCross ? 1 : 0,
+            sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_JUNK],
+            sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_RENEWABLE],
+            sReport.compose.perGame[GAME_OOT].rows[RSBS_COMBO_COMPOSE_TRAP], sReport.trimmedOoT,
+            sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_JUNK],
+            sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_RENEWABLE],
+            sReport.compose.perGame[GAME_MM].rows[RSBS_COMBO_COMPOSE_TRAP], sReport.trimmedMM, sReport.trimSeed,
+            (unsigned)sReport.startingHealthOoT, (unsigned)sReport.startingHealthMM);
     }
 
     // --- 3 + 4. the fill, seeded from the identity, stopped by the budget -----
@@ -421,10 +422,9 @@ finish:
             "leftovers OoT %d / MM %d; %d batch attempt(s), %d rounds, %ums (budget %ums)\n",
             ladderAttempt + 1, Combo_Logic_StatusName(status), (unsigned)sReport.goal, (unsigned)sReport.rung,
             sReport.seed, sReport.bagCount, sReport.trimmedOoT, sReport.trimmedMM, sReport.fill.placed,
-            sReport.fill.requiredPlaced, sReport.fill.surplusPlaced,
-            sReport.fill.surplusDropped, sReport.crossingsIntoMM, sReport.crossingsIntoOoT,
-            sReport.fill.leftoverHostsOoT, sReport.fill.leftoverHostsMM, sReport.fill.attempts, sReport.fill.rounds,
-            sReport.wallMs, budgetMs);
+            sReport.fill.requiredPlaced, sReport.fill.surplusPlaced, sReport.fill.surplusDropped,
+            sReport.crossingsIntoMM, sReport.crossingsIntoOoT, sReport.fill.leftoverHostsOoT,
+            sReport.fill.leftoverHostsMM, sReport.fill.attempts, sReport.fill.rounds, sReport.wallMs, budgetMs);
     fflush(stderr);
     if (out != NULL) {
         *out = sReport;

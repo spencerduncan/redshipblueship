@@ -201,9 +201,8 @@ std::vector<FontLicFile> FontLicSlurp(const std::filesystem::path& repoRoot, con
     }
     ok = true;
 
-    for (std::filesystem::recursive_directory_iterator it(root,
-                                                          std::filesystem::directory_options::skip_permission_denied,
-                                                          ec),
+    for (std::filesystem::recursive_directory_iterator
+             it(root, std::filesystem::directory_options::skip_permission_denied, ec),
          end;
          it != end; it.increment(ec)) {
         if (ec) {
@@ -485,14 +484,13 @@ TestResult Test_FontLicense(void) {
 
         // Non-members, including the shapes a real config can produce.
         static const char* const kSyntheticMisses[] = {
-            "Delta",  // simply not loaded
-            "alpha",  // right name, wrong case: SetCurrentFont is case-sensitive
-            "",       // an empty CVar string
-            "Alpha "  // trailing space
+            "Delta", // simply not loaded
+            "alpha", // right name, wrong case: SetCurrentFont is case-sensitive
+            "",      // an empty CVar string
+            "Alpha " // trailing space
         };
         for (const char* miss : kSyntheticMisses) {
-            const char* resolved =
-                SOH::ResolveOverlayFontNameIn(miss, kSynthetic, kSyntheticCount, kSyntheticFallback);
+            const char* resolved = SOH::ResolveOverlayFontNameIn(miss, kSynthetic, kSyntheticCount, kSyntheticFallback);
             if (resolved == nullptr || strcmp(resolved, kSyntheticFallback) != 0) {
                 printf("[TEST] FAIL: the resolver answered \"%s\" for the unloaded name \"%s\" instead of the "
                        "fallback \"%s\". An unloaded name reaching SetCurrentFont inserts a null mFonts entry "
@@ -874,8 +872,7 @@ TestResult Test_FontLicense(void) {
         const std::string mmLicense = FontLicRead(repoRoot / "games/mm/LICENSE", read);
         FONTLIC_CHECK(read, "games/mm/LICENSE is missing — 2Ship2Harkinian's CC0-1.0 grant over the vendored MM tree "
                             "must be visible in this repository, not only upstream");
-        FONTLIC_CHECK(FontLicHas(mmLicense, "CC0 1.0 Universal"),
-                      "games/mm/LICENSE is not the CC0 1.0 Universal text");
+        FONTLIC_CHECK(FontLicHas(mmLicense, "CC0 1.0 Universal"), "games/mm/LICENSE is not the CC0 1.0 Universal text");
         FONTLIC_CHECK(FontLicHas(mmLicense, "Creative Commons Legal Code"),
                       "games/mm/LICENSE is missing CC0's \"Creative Commons Legal Code\" heading — a summary or a "
                       "link does not carry the dedication");

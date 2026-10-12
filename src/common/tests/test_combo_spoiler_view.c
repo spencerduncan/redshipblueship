@@ -54,12 +54,12 @@
 #include <cstdio>
 #include <cstring>
 
-#define CSV_ASSERT(cond)                                                                                               \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CSV_ASSERT(cond)                                                   \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 namespace {
@@ -193,10 +193,10 @@ TestResult Test_ComboSpoilerView(void) {
     CSV_ASSERT(SpoilerRowIs((uint8_t)GAME_MM, 3, kSpoilerStoreMM, oot[3], kOoTNames[3]));
     CSV_ASSERT(SpoilerRowIs((uint8_t)GAME_OOT, 0, kSpoilerStoreOoT1, mm[0], kMMNames[0]));
     CSV_ASSERT(SpoilerRowIs((uint8_t)GAME_OOT, 1, kSpoilerStoreOoT2, mm[1], kMMNames[1]));
-    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, 4, &row));  // one past the end
-    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_OOT, 2, &row)); // one past the end
-    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, -1, &row)); // negative index
-    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, 0, NULL));  // NULL out
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, 4, &row));   // one past the end
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_OOT, 2, &row));  // one past the end
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, -1, &row));  // negative index
+    CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_MM, 0, NULL));   // NULL out
     CSV_ASSERT(!Combo_SpoilerRowAt((uint8_t)GAME_NONE, 0, &row)); // not a game
     CSV_ASSERT(Combo_SpoilerRowCount((uint8_t)GAME_NONE) == 0);
     // The article comes from the origin's describer (OoT: "the " for the Lens).

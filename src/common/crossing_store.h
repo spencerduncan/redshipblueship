@@ -154,7 +154,7 @@ extern "C" {
 #define RSBS_CROSSING_BLOCK_HEADER_SIZE 16u
 #define RSBS_CROSSING_RECORD_SIZE 8u
 /** Largest block this build accepts (both host lists at the cap). */
-#define RSBS_CROSSING_BLOCK_MAX_SIZE                                                                                   \
+#define RSBS_CROSSING_BLOCK_MAX_SIZE \
     ((size_t)RSBS_CROSSING_BLOCK_HEADER_SIZE + 2u * (size_t)RSBS_CROSSING_STORE_CAP * RSBS_CROSSING_RECORD_SIZE)
 
 /* Status codes. 0 is success; every refusal is negative. */

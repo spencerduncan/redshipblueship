@@ -136,7 +136,7 @@ TestResult Test_SharedStateRoundtrip(void) {
  * (RG_NONE / RI_UNKNOWN) and marks an empty slot, so real crossings use
  * non-zero values. Plain integers on purpose — the point of the tagged struct
  * is that the origin GAME is what disambiguates these, not the numbers. */
-#define SHARED_ITEM_MM_ID 0x0042u /* an MM RandoItemId, collected while in OoT */
+#define SHARED_ITEM_MM_ID 0x0042u  /* an MM RandoItemId, collected while in OoT */
 #define SHARED_ITEM_OOT_ID 0x0135u /* an OoT RandomizerGet, collected while in MM */
 
 /* A slice of a SaveContext is all the freeze path needs (it clamps to the
@@ -166,12 +166,12 @@ static int SharedItem_OccupiedTotal(void) {
            Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
 }
 
-#define SIR_ASSERT(cond)                                                                                               \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                            \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define SIR_ASSERT(cond)                                                   \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 TestResult Test_SharedItemRoundtrip(void) {

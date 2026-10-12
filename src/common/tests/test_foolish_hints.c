@@ -141,8 +141,8 @@ bool FhRunAuthoredWorld(const ComboArea areas[5], uint16_t lensCheck) {
         } else if (strcmp(text, itemText) == 0) {
             itemHints++;
         } else {
-            printf("[TEST] FAIL: stone seed %u said \"%s\": neither the item hint nor a foolish hint\n",
-                   (unsigned)seed, text);
+            printf("[TEST] FAIL: stone seed %u said \"%s\": neither the item hint nor a foolish hint\n", (unsigned)seed,
+                   text);
             return false;
         }
     }
@@ -321,8 +321,7 @@ std::string FhWiringProblem(const std::string& text) {
     if (!FhHasLine(freeText, kFhSeedLine) || !FhHasLine(freeText, kFhTextReturn)) {
         return "FreeStoneHintText does not seed the variant with GetRandomCheck's stone seed";
     }
-    const std::vector<std::string> bridge =
-        FhBlock(lines, "extern \"C\" int MM_Rando_Hints_TestFreeStoneText(", "}");
+    const std::vector<std::string> bridge = FhBlock(lines, "extern \"C\" int MM_Rando_Hints_TestFreeStoneText(", "}");
     if (!FhHasLine(bridge, kFhBridgeCall)) {
         return "the test bridge does not read FreeStoneHintTextSeeded, the function FreeStoneHintText returns";
     }

@@ -606,8 +606,7 @@ std::string SourcesHash(const Sources& src, uint64_t* out) {
         uint32_t crc = 0;
         uint64_t size = 0;
         if (!src.zips[game].Stat(path, &crc, &size)) {
-            return Format("could not read the directory entry of '%s' in %s", path.c_str(),
-                          src.paths[game].c_str());
+            return Format("could not read the directory entry of '%s' in %s", path.c_str(), src.paths[game].c_str());
         }
         text += Format("%s\t%s\t%08x\t%llu\n", kGameNames[game], path.c_str(), crc, (unsigned long long)size);
     }
@@ -732,9 +731,9 @@ GenerateResult Generate(const GenerateInputs& inputs) {
     // Constraint 2: no curated path may exist in any base archive its host mounts.
     for (const auto& [game, path] : selected) {
         if (hostNames[Other(game)].count(path) != 0) {
-            result.findings.push_back(Format("COLLISION: %s-owned '%s' also exists in a %s base archive, its host's (%s)",
-                                             kGameNames[game], path.c_str(), kGameNames[Other(game)],
-                                             hostArchiveList[Other(game)].c_str()));
+            result.findings.push_back(
+                Format("COLLISION: %s-owned '%s' also exists in a %s base archive, its host's (%s)", kGameNames[game],
+                       path.c_str(), kGameNames[Other(game)], hostArchiveList[Other(game)].c_str()));
         }
     }
     if (!result.findings.empty()) {
@@ -786,8 +785,8 @@ GenerateResult Generate(const GenerateInputs& inputs) {
         }
     }
     if (malformed != 0) {
-        return Refuse(result, Format("UNPARSABLE DISPLAY LIST: %zu curated display list(s) could not be walked",
-                                     malformed));
+        return Refuse(result,
+                      Format("UNPARSABLE DISPLAY LIST: %zu curated display list(s) could not be walked", malformed));
     }
     if (rawCount != 0) {
         return Refuse(result, Format("RAW SEGMENTED TEXTURE: %zu raw segmented texture reference(s) in curated "
@@ -811,17 +810,18 @@ GenerateResult Generate(const GenerateInputs& inputs) {
             unwalkable++;
         } else if (d.found) {
             const char* typeName = ScalarTypeName(d.scalarType);
-            result.findings.push_back(Format(
-                "ARRAY READER DISAGREEMENT: %s-owned '%s' element %u is %s -- OoT's factory consumes %u byte(s) "
-                "there, MM's consumes %u",
-                kGameNames[game], path.c_str(), d.index,
-                typeName != nullptr ? typeName : Format("scalar type %u", d.scalarType).c_str(), d.ootWidth,
-                d.mmWidth));
+            result.findings.push_back(
+                Format("ARRAY READER DISAGREEMENT: %s-owned '%s' element %u is %s -- OoT's factory consumes %u byte(s) "
+                       "there, MM's consumes %u",
+                       kGameNames[game], path.c_str(), d.index,
+                       typeName != nullptr ? typeName : Format("scalar type %u", d.scalarType).c_str(), d.ootWidth,
+                       d.mmWidth));
             disagreements++;
         }
     }
     if (unwalkable != 0) {
-        return Refuse(result, Format("UNPARSABLE ARRAY: %zu curated array resource(s) could not be walked", unwalkable));
+        return Refuse(result,
+                      Format("UNPARSABLE ARRAY: %zu curated array resource(s) could not be walked", unwalkable));
     }
     if (disagreements != 0) {
         return Refuse(result, Format("ARRAY READER DISAGREEMENT: %zu curated array resource(s) are parsed differently "
@@ -914,8 +914,8 @@ GenerateResult Generate(const GenerateInputs& inputs) {
                 std::error_code ignored;
                 std::filesystem::remove(t, ignored);
             }
-            return Refuse(result, Format("could not move %s into place: %s", outputs[host].c_str(),
-                                         ec.message().c_str()));
+            return Refuse(result,
+                          Format("could not move %s into place: %s", outputs[host].c_str(), ec.message().c_str()));
         }
     }
     result.ok = true;
@@ -958,8 +958,7 @@ EnsureOutcome Ensure(const GenerateInputs& inputs, std::string* log) {
                 if (!ReadStamp(outs[host], &have)) {
                     why += Format("%s%s absent", why.empty() ? "" : "; ", kOutputNames[host]);
                 } else if (have != want) {
-                    why += Format("%s%s stale (stamp '%s')", why.empty() ? "" : "; ", kOutputNames[host],
-                                  have.c_str());
+                    why += Format("%s%s stale (stamp '%s')", why.empty() ? "" : "; ", kOutputNames[host], have.c_str());
                 }
             }
             if (why.empty()) {
@@ -1042,12 +1041,14 @@ extern "C" void Combo_EnsureCuratedArchives(void) {
     in.ootArchive = oot;
     in.mmArchive = mm;
     in.hostArchives = {
-        { "oot", ExistingOr(Ship::Context::GetPathRelativeToAppBundle("soh.o2r"),
-                            Ship::Context::LocateFileAcrossAppDirs("soh.o2r", "soh")),
+        { "oot",
+          ExistingOr(Ship::Context::GetPathRelativeToAppBundle("soh.o2r"),
+                     Ship::Context::LocateFileAcrossAppDirs("soh.o2r", "soh")),
           true },
         { "oot", Ship::Context::LocateFileAcrossAppDirs("oot-mq.o2r", "soh"), false },
-        { "mm", ExistingOr(Ship::Context::GetPathRelativeToAppBundle("2ship.o2r"),
-                           Ship::Context::LocateFileAcrossAppDirs("2ship.o2r", "2s2h")),
+        { "mm",
+          ExistingOr(Ship::Context::GetPathRelativeToAppBundle("2ship.o2r"),
+                     Ship::Context::LocateFileAcrossAppDirs("2ship.o2r", "2s2h")),
           true },
     };
     in.manifestText = std::string(cur::EmbeddedManifest());
@@ -1059,10 +1060,10 @@ extern "C" void Combo_EnsureCuratedArchives(void) {
         const std::filesystem::path dir = std::filesystem::path(base).parent_path();
         return (dir.empty() ? std::filesystem::path(name) : dir / name).generic_string();
     };
-    in.outOoT = ExistingOr(Ship::Context::LocateFileAcrossAppDirs("redship-oot.o2r", "soh"),
-                           beside(oot, "redship-oot.o2r"));
-    in.outMM = ExistingOr(Ship::Context::LocateFileAcrossAppDirs("redship-mm.o2r", "2s2h"),
-                          beside(mm, "redship-mm.o2r"));
+    in.outOoT =
+        ExistingOr(Ship::Context::LocateFileAcrossAppDirs("redship-oot.o2r", "soh"), beside(oot, "redship-oot.o2r"));
+    in.outMM =
+        ExistingOr(Ship::Context::LocateFileAcrossAppDirs("redship-mm.o2r", "2s2h"), beside(mm, "redship-mm.o2r"));
 
     std::string log;
     const cur::EnsureOutcome outcome = cur::Ensure(in, &log);

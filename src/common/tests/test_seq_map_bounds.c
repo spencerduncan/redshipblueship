@@ -43,12 +43,12 @@ size_t MM_AudioLoad_SequenceMapCapacity(size_t authenticFileCount, size_t custom
 #define SEQMAP_MM_MAX_AUTHENTIC_SEQID 128
 #define SEQMAP_EXPECTED_SLACK 0xF
 
-#define SEQMAP_CHECK(cond, msg)                        \
-    do {                                               \
-        if (!(cond)) {                                 \
-            printf("[TEST] FAIL: %s\n", (msg));        \
-            return TEST_FAIL;                          \
-        }                                              \
+#define SEQMAP_CHECK(cond, msg)                 \
+    do {                                        \
+        if (!(cond)) {                          \
+            printf("[TEST] FAIL: %s\n", (msg)); \
+            return TEST_FAIL;                   \
+        }                                       \
     } while (0)
 
 TestResult Test_SeqMapBounds(void) {
@@ -60,8 +60,7 @@ TestResult Test_SeqMapBounds(void) {
     size_t mmSparse = MM_AudioLoad_SequenceMapCapacity(SEQMAP_MM_MAX_AUTHENTIC_SEQID - 1, 0);
     SEQMAP_CHECK(mmSparse > (size_t)(SEQMAP_MM_MAX_AUTHENTIC_SEQID - 1),
                  "MM capacity does not cover id 0x7F when the 0x7A hole shrinks the file count");
-    SEQMAP_CHECK(mmSparse >= (size_t)SEQMAP_MM_MAX_AUTHENTIC_SEQID,
-                 "MM capacity is below MAX_AUTHENTIC_SEQID");
+    SEQMAP_CHECK(mmSparse >= (size_t)SEQMAP_MM_MAX_AUTHENTIC_SEQID, "MM capacity is below MAX_AUTHENTIC_SEQID");
 
     size_t ootSparse = OoT_AudioLoad_SequenceMapCapacity(0, 0);
     SEQMAP_CHECK(ootSparse >= (size_t)SEQMAP_OOT_MAX_AUTHENTIC_SEQID,

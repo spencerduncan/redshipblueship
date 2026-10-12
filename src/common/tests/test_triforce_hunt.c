@@ -343,8 +343,7 @@ ComboLogicBagItem TfRow(uint8_t origin, uint16_t id) {
     return row;
 }
 
-int TfRound(const ComboLogicBagItem* assumed, int count, uint8_t goal, uint16_t required,
-            ComboLogicRoundResult* out) {
+int TfRound(const ComboLogicBagItem* assumed, int count, uint8_t goal, uint16_t required, ComboLogicRoundResult* out) {
     ComboLogicRoundRequest req;
     memset(&req, 0, sizeof(req));
     req.assumed = assumed;
@@ -529,10 +528,10 @@ TestResult Test_ComboTriforceHunt(void) {
         Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_TRIFORCE_PIECES, 9u);
         TFH_ASSERT(TfPool(RSBS_SHARED_RES_TRIFORCE_PIECES) == 9, "an armed harvest did not reach the pool");
         uint16_t mmLive = 0;
-        TFH_ASSERT(Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES, Combo_TriforceHuntTotal(),
-                                             &mmLive) &&
-                       mmLive == 9,
-                   "the FULL apply did not materialize the whole count");
+        TFH_ASSERT(
+            Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES, Combo_TriforceHuntTotal(), &mmLive) &&
+                mmLive == 9,
+            "the FULL apply did not materialize the whole count");
         // Now a LOWER live value is harvested (a counter reset, a stale save).
         // A consumable kind would take the delta (9 -> 4) against the apply
         // watermark and the pool would LOSE five pieces; a monotonic kind keeps 9.
@@ -556,10 +555,10 @@ TestResult Test_ComboTriforceHunt(void) {
         // The cap is the combo total.
         Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_TRIFORCE_PIECES, 60u);
         uint16_t capped = 0;
-        TFH_ASSERT(Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES, Combo_TriforceHuntTotal(),
-                                             &capped) &&
-                       capped == 45,
-                   "the apply must cap the count at the combo total");
+        TFH_ASSERT(
+            Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES, Combo_TriforceHuntTotal(), &capped) &&
+                capped == 45,
+            "the apply must cap the count at the combo total");
     }
 
     // ---- T6: arming ------------------------------------------------------------
@@ -707,8 +706,8 @@ TestResult Test_ComboTriforceHunt(void) {
         // and the count still decides.
         gTfOoT.goalAnswer = 1;
         gTfMM.goalAnswer = 1;
-        TFH_ASSERT(TfRound(assumed, 5, hunt, 6, &r) == RSBS_COMBO_LOGIC_OK && r.goalExpression == 0 &&
-                       r.goalOoT == 1 && r.goalMM == 1,
+        TFH_ASSERT(TfRound(assumed, 5, hunt, 6, &r) == RSBS_COMBO_LOGIC_OK && r.goalExpression == 0 && r.goalOoT == 1 &&
+                       r.goalMM == 1,
                    "the triforce-hunt expression followed goalReached instead of the shared count");
         TFH_ASSERT(TfRound(assumed, 5, (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, 6, &r) == RSBS_COMBO_LOGIC_OK &&
                        r.goalExpression == 1 && r.triforcePieces == -1,

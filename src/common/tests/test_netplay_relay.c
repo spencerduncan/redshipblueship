@@ -48,12 +48,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#define NR_ASSERT(cond)                                                                                                \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define NR_ASSERT(cond)                                                    \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 // ============================================================================
@@ -81,8 +81,8 @@ typedef struct {
 
 typedef struct {
     bool active;
-    bool ready;       // past the handshake
-    uint32_t base;    // ledgerBase: how many entries this client has been sent
+    bool ready;    // past the handshake
+    uint32_t base; // ledgerBase: how many entries this client has been sent
     MockPipe toClient;
     MockPipe toServer;
     // Server-side parse state for the client's own stream.
@@ -383,14 +383,14 @@ TestResult Test_RelayWireFormat(void) {
     uint8_t payload[RSBS_GRANT_PAYLOAD_LEN];
     NR_ASSERT(RelayProto_EncodeGrant(&g, payload));
     const uint8_t kGrantGold[RSBS_GRANT_PAYLOAD_LEN] = {
-        'R', 'S', 'B', 'S',      // magic
-        0x01,                    // version
-        0x02,                    // senderSlot
-        0x01,                    // targetSlot
-        0x01,                    // originGame == GAME_OOT
-        0x34, 0x12,              // itemId LE
-        0x07, 0x00,              // senderSeq LE
-        0xEF, 0xBE, 0xAD, 0xDE,  // settingsHash LE
+        'R',  'S',  'B',  'S',  // magic
+        0x01,                   // version
+        0x02,                   // senderSlot
+        0x01,                   // targetSlot
+        0x01,                   // originGame == GAME_OOT
+        0x34, 0x12,             // itemId LE
+        0x07, 0x00,             // senderSeq LE
+        0xEF, 0xBE, 0xAD, 0xDE, // settingsHash LE
     };
     NR_ASSERT(memcmp(payload, kGrantGold, sizeof(kGrantGold)) == 0);
 
@@ -474,8 +474,8 @@ TestResult Test_RelayLoopback(void) {
     MockClient* mcC = MockAttach(&gMockServer, 2);
 
     RelayClient a, b, cc;
-    Relay_Init(&a, kRoomA, 1, 0xABCDu); // receiver
-    Relay_Init(&b, kRoomA, 2, 0xABCDu); // peer
+    Relay_Init(&a, kRoomA, 1, 0xABCDu);  // receiver
+    Relay_Init(&b, kRoomA, 2, 0xABCDu);  // peer
     Relay_Init(&cc, kRoomA, 3, 0xABCDu); // second peer
 
     RelayChannel chA = MockChannelFor(mcA);
@@ -522,12 +522,13 @@ TestResult Test_RelayLoopback(void) {
     uint8_t dupPayload[RSBS_GRANT_PAYLOAD_LEN];
     NR_ASSERT(RelayProto_EncodeGrant(&dupGrant, dupPayload));
     uint8_t dupFrame[64];
-    const uint32_t dn = RelayProto_EncodeTransfer(RelayProto_GrantKey(&dupGrant), dupPayload, RSBS_GRANT_PAYLOAD_LEN, dupFrame);
+    const uint32_t dn =
+        RelayProto_EncodeTransfer(RelayProto_GrantKey(&dupGrant), dupPayload, RSBS_GRANT_PAYLOAD_LEN, dupFrame);
     MockPipeWrite(&mcB->toServer, dupFrame, dn);
     PumpAll(&gMockServer, all, 3, 4);
 
-    NR_ASSERT(gMockServer.count == 2);   // server-side dedup absorbed it
-    NR_ASSERT(a.statAccepted == 2);      // still exactly two
+    NR_ASSERT(gMockServer.count == 2); // server-side dedup absorbed it
+    NR_ASSERT(a.statAccepted == 2);    // still exactly two
     NR_ASSERT(RelayOccupied() == 2);
 
     // --- TWO PEERS, SAME ITEM = TWO ITEMS (the ADR 0005 §1 regression). C

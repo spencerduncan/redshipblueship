@@ -244,8 +244,9 @@ int Switch_CommitCrossing(GameId departing, GameId target) {
     }
     const int slot = RsbsSave_GetActiveSlot();
     if (slot < 0) {
-        fprintf(stderr, "[Switch] crossing commit skipped (%s -> %s): no active slot (no file loaded, or a debug save)\n",
-                from, to);
+        fprintf(stderr,
+                "[Switch] crossing commit skipped (%s -> %s): no active slot (no file loaded, or a debug save)\n", from,
+                to);
         return 0;
     }
     if (!RsbsSave_IsSlotWritable(slot)) {

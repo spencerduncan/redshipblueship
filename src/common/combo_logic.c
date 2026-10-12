@@ -19,7 +19,7 @@
  */
 
 #include "combo_logic.h"
-#include "shared_items.h" // the O8 owner the bag builder reads (game-header-free)
+#include "shared_items.h"     // the O8 owner the bag builder reads (game-header-free)
 #include "shared_resources.h" // RSBS_SHARED_RES_KIND_COUNT, for THE SHARED-QUANTITY TRIM (game-header-free)
 
 #include <stdio.h>
@@ -82,8 +82,9 @@ bool Combo_Logic_RegisterEngine(GameId originGame, const ComboLogicEngine* engin
     // Both or neither: a snapshot with no restore silently corrupts the save,
     // a restore with no snapshot silently reverts to nothing.
     if ((engine->snapshot == NULL) != (engine->restore == NULL)) {
-        fprintf(stderr, "[ComboLogic] engine registration rejected: %s engine has snapshot without restore (or vice "
-                        "versa)\n",
+        fprintf(stderr,
+                "[ComboLogic] engine registration rejected: %s engine has snapshot without restore (or vice "
+                "versa)\n",
                 Game_ToString((GameId)g));
         return false;
     }
@@ -102,19 +103,32 @@ const ComboLogicEngine* Combo_Logic_GetEngine(GameId originGame) {
 
 const char* Combo_Logic_StatusName(int status) {
     switch (status) {
-        case RSBS_COMBO_LOGIC_OK: return "ok";
-        case RSBS_COMBO_LOGIC_ERR_NO_ENGINE: return "no-engine";
-        case RSBS_COMBO_LOGIC_ERR_BAD_REQUEST: return "bad-request";
-        case RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL: return "unsupported-goal";
-        case RSBS_COMBO_LOGIC_ERR_NON_MONOTONE: return "non-monotone";
-        case RSBS_COMBO_LOGIC_ERR_NO_FIXPOINT: return "no-fixpoint";
-        case RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE: return "no-candidate";
-        case RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE: return "goal-unprovable";
-        case RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED: return "not-all-reached";
-        case RSBS_COMBO_LOGIC_ERR_CAPACITY: return "capacity";
-        case RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED: return "engine-refused";
-        case RSBS_COMBO_LOGIC_ERR_ABORTED: return "aborted";
-        default: return "(unknown)";
+        case RSBS_COMBO_LOGIC_OK:
+            return "ok";
+        case RSBS_COMBO_LOGIC_ERR_NO_ENGINE:
+            return "no-engine";
+        case RSBS_COMBO_LOGIC_ERR_BAD_REQUEST:
+            return "bad-request";
+        case RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL:
+            return "unsupported-goal";
+        case RSBS_COMBO_LOGIC_ERR_NON_MONOTONE:
+            return "non-monotone";
+        case RSBS_COMBO_LOGIC_ERR_NO_FIXPOINT:
+            return "no-fixpoint";
+        case RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE:
+            return "no-candidate";
+        case RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE:
+            return "goal-unprovable";
+        case RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED:
+            return "not-all-reached";
+        case RSBS_COMBO_LOGIC_ERR_CAPACITY:
+            return "capacity";
+        case RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED:
+            return "engine-refused";
+        case RSBS_COMBO_LOGIC_ERR_ABORTED:
+            return "aborted";
+        default:
+            return "(unknown)";
     }
 }
 
@@ -252,7 +266,7 @@ static void ComboLogicUndoLastPlacement(uint8_t hostGame, uint16_t hostCheck) {
         return;
     }
     sPlacementCount[hostGame] = last;
-    sOccupied[hostGame][hostCheck >> 3] &= (uint8_t)~(1u << (hostCheck & 7));
+    sOccupied[hostGame][hostCheck >> 3] &= (uint8_t) ~(1u << (hostCheck & 7));
 }
 
 bool Combo_Logic_Place(GameId hostGame, uint16_t hostCheck, SharedItem item, uint16_t itemClass) {
@@ -371,23 +385,29 @@ int Combo_Logic_EvaluateGoal(uint8_t goal, int ootGoalReached, int mmGoalReached
     const int m = (mmGoalReached != 0) ? 1 : 0;
 
     switch (goal) {
-        case RSBS_COMBO_GOAL_BEAT_BOTH: return (o && m) ? 1 : 0;
+        case RSBS_COMBO_GOAL_BEAT_BOTH:
+            return (o && m) ? 1 : 0;
         // A PLAIN OR. Both halves provable is a welcome outcome and is never
         // constrained away, perturbed or re-rolled to restore asymmetry (ADR
         // 0010 §1.2 / answer O1) — which is why there is nothing here but the
         // disjunction.
-        case RSBS_COMBO_GOAL_BEAT_EITHER: return (o || m) ? 1 : 0;
+        case RSBS_COMBO_GOAL_BEAT_EITHER:
+            return (o || m) ? 1 : 0;
         // OoTMM's single-game goals ('ganon', 'majora'): one half alone. The
         // other half's answer is deliberately not read — it is no term of the
         // expression, so neither its truth nor its falsity may move the result.
-        case RSBS_COMBO_GOAL_BEAT_OOT: return o;
-        case RSBS_COMBO_GOAL_BEAT_MM: return m;
+        case RSBS_COMBO_GOAL_BEAT_OOT:
+            return o;
+        case RSBS_COMBO_GOAL_BEAT_MM:
+            return m;
         // Answer O10 rules ONE shared piece count across both worlds. That is a
         // COUNT, not a boolean over the two halves — per-half composition is
         // exactly what O10 rejected — so the boolean form has no answer for it
         // and Combo_Logic_EvaluateTriforceHunt below is its evaluator.
-        case RSBS_COMBO_GOAL_TRIFORCE_HUNT: return -1;
-        default: return -1;
+        case RSBS_COMBO_GOAL_TRIFORCE_HUNT:
+            return -1;
+        default:
+            return -1;
     }
 }
 
@@ -654,7 +674,7 @@ static void ComboLogicMarkForbidden(const ComboLogicHostRef* forbidden, int forb
         if (on) {
             ComboLogicBitSet(bits, index);
         } else {
-            bits[index >> 3] &= (uint8_t)~(1u << (index & 7));
+            bits[index >> 3] &= (uint8_t) ~(1u << (index & 7));
         }
     }
 }
@@ -1616,15 +1636,24 @@ finish:
 
 const char* Combo_Logic_ComposeDispositionName(int disposition) {
     switch (disposition) {
-        case RSBS_COMBO_COMPOSE_REQUIRED: return "required";
-        case RSBS_COMBO_COMPOSE_SURPLUS: return "surplus";
-        case RSBS_COMBO_COMPOSE_CONFINED: return "confined";
-        case RSBS_COMBO_COMPOSE_RENEWABLE: return "renewable";
-        case RSBS_COMBO_COMPOSE_JUNK: return "junk";
-        case RSBS_COMBO_COMPOSE_TRAP: return "trap";
-        case RSBS_COMBO_COMPOSE_UNCLASSIFIED: return "unclassified";
-        case RSBS_COMBO_COMPOSE_TRIMMED: return "trimmed";
-        default: return "(unknown)";
+        case RSBS_COMBO_COMPOSE_REQUIRED:
+            return "required";
+        case RSBS_COMBO_COMPOSE_SURPLUS:
+            return "surplus";
+        case RSBS_COMBO_COMPOSE_CONFINED:
+            return "confined";
+        case RSBS_COMBO_COMPOSE_RENEWABLE:
+            return "renewable";
+        case RSBS_COMBO_COMPOSE_JUNK:
+            return "junk";
+        case RSBS_COMBO_COMPOSE_TRAP:
+            return "trap";
+        case RSBS_COMBO_COMPOSE_UNCLASSIFIED:
+            return "unclassified";
+        case RSBS_COMBO_COMPOSE_TRIMMED:
+            return "trimmed";
+        default:
+            return "(unknown)";
     }
 }
 
@@ -1763,7 +1792,8 @@ static void ComboTrimSharedQuantities(const ComboLogicComposeRequest* req, uint8
             continue;
         }
         if (policy.budget == RSBS_SHARED_QTY_BUDGET_HEALTH) {
-            const uint8_t grades[2] = { (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE, (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER };
+            const uint8_t grades[2] = { (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE,
+                                        (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER };
             int nO[2];
             int nM[2];
             for (int g = 0; g < 2; ++g) {
@@ -1915,8 +1945,8 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
             b->itemClass = 0u;
             const bool surplus = (disp[i] == (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS) ||
                                  (confinedHome && (req->rows[i].poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u);
-            b->bagFlags = (uint16_t)((surplus ? RSBS_COMBO_BAG_SURPLUS : 0u) |
-                                     (confinedHome ? RSBS_COMBO_BAG_HOME_ONLY : 0u));
+            b->bagFlags =
+                (uint16_t)((surplus ? RSBS_COMBO_BAG_SURPLUS : 0u) | (confinedHome ? RSBS_COMBO_BAG_HOME_ONLY : 0u));
             if (outPoolIndex != NULL) {
                 outPoolIndex[res.bagCount] = i;
             }

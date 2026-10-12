@@ -353,14 +353,13 @@ static void UiImage_Blit(UiImage* dst, const UiImage* src, int dx, int dy) {
         if (w <= 0) {
             continue;
         }
-        memcpy(dst->rgba + ((size_t)y * (size_t)dst->w + (size_t)dx) * 4,
-               src->rgba + (size_t)row * (size_t)src->w * 4, (size_t)w * 4);
+        memcpy(dst->rgba + ((size_t)y * (size_t)dst->w + (size_t)dx) * 4, src->rgba + (size_t)row * (size_t)src->w * 4,
+               (size_t)w * 4);
     }
 }
 
 int UiImage_StackVertical(const UiImage* top, const UiImage* bottom, int separatorPx, UiImage* out) {
-    if (top == NULL || bottom == NULL || top->rgba == NULL || bottom->rgba == NULL || out == NULL ||
-        separatorPx < 0) {
+    if (top == NULL || bottom == NULL || top->rgba == NULL || bottom->rgba == NULL || out == NULL || separatorPx < 0) {
         return -1;
     }
     const int w = (top->w > bottom->w) ? top->w : bottom->w;

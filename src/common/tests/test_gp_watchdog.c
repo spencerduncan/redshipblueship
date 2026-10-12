@@ -144,19 +144,16 @@ TestResult Test_GpWatchdog(void) {
         IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 3000.0);
         GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 3000.0 + budget - 0.1, budget) == GP_WATCHDOG_OK,
                    "a frameless phase tripped before its budget");
-        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 3000.0 + budget, budget) ==
-                       GP_WATCHDOG_STALLED,
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 3000.0 + budget, budget) == GP_WATCHDOG_STALLED,
                    "a phase with no frames did not trip the watchdog at its budget");
 
         // (6d) Frames that stop: the budget runs from the LAST frame.
         IntegrationTest_GameplayWatchdogRebase(&t, warp, 0, 4000.0);
         GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 50, 4030.0, budget) == GP_WATCHDOG_OK,
                    "a phase completing frames tripped the watchdog");
-        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 50, 4030.0 + budget - 0.1, budget) ==
-                       GP_WATCHDOG_OK,
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 50, 4030.0 + budget - 0.1, budget) == GP_WATCHDOG_OK,
                    "a phase tripped before a budget had passed since its last frame");
-        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 50, 4030.0 + budget, budget) ==
-                       GP_WATCHDOG_STALLED,
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 50, 4030.0 + budget, budget) == GP_WATCHDOG_STALLED,
                    "a phase whose frames stopped did not trip a budget after its last frame");
 
         // (6e) A phase change is progress too, with no frame counted yet. The
@@ -164,8 +161,7 @@ TestResult Test_GpWatchdog(void) {
         // progress with the frame count unchanged, so only the phase-change
         // re-base keeps it OK.
         IntegrationTest_GameplayWatchdogRebase(&t, (int)GP_PHASE_OOT_RETURN, 0, 5000.0);
-        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 5000.0 + budget + 1.0, budget) ==
-                       GP_WATCHDOG_OK,
+        GPWD_CHECK(IntegrationTest_GameplayWatchdogTick(&t, warp, 0, 5000.0 + budget + 1.0, budget) == GP_WATCHDOG_OK,
                    "a phase change did not re-base the watchdog");
 
         // (6f) The hard ceiling: a phase that keeps completing frames forever

@@ -112,12 +112,12 @@ int MM_ComboLogic_TestFillAdvancement(uint16_t id);
 int MM_ForeignItem_TestIsJunkClassId(uint16_t riId);
 }
 
-#define SIC_ASSERT(cond, msg)                                                   \
-    do {                                                                        \
-        if (!(cond)) {                                                          \
-            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__);      \
-            return TEST_FAIL;                                                   \
-        }                                                                       \
+#define SIC_ASSERT(cond, msg)                                               \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            return TEST_FAIL;                                               \
+        }                                                                   \
     } while (0)
 
 namespace {
@@ -272,8 +272,7 @@ TestResult SicCoverageAndTraps(uint8_t origin, int expectedRealNonFillRows) {
                 SIC_ASSERT(adv == 1, "PROGRESSION only where the game's own fill says advancement");
             }
             if (adv == 1 && sourced != RSBS_FILL_CLASS_PROGRESSION) {
-                SIC_ASSERT(sourced == RSBS_FILL_CLASS_TRAP,
-                           "advancement that is not PROGRESSION is only ever a TRAP");
+                SIC_ASSERT(sourced == RSBS_FILL_CLASS_TRAP, "advancement that is not PROGRESSION is only ever a TRAP");
                 printf("[TEST] %s id %u: advancement to its own fill, classed TRAP (trap-first rule)\n",
                        SicGameName(origin), (unsigned)id);
                 trapsTheFillCallsAdvancement++;

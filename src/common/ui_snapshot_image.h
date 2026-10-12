@@ -62,8 +62,7 @@ uint64_t UiImage_Fnv1a64(const UiImage* img);
  * (counted exactly up to @p distinctCap, then saturated at the cap). Returns 0 on
  * success.
  */
-int UiImage_Stats(const UiImage* img, int distinctCap, uint32_t* modalRgba, double* nonModalRatio,
-                  int* distinctColors);
+int UiImage_Stats(const UiImage* img, int distinctCap, uint32_t* modalRgba, double* nonModalRatio, int* distinctColors);
 
 /** Write @p img as an 8-bit RGBA PNG through libpng. Returns 0 on success. */
 int UiImage_WritePng(const UiImage* img, const char* path);

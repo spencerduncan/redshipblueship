@@ -376,8 +376,7 @@ std::vector<std::string> FindLooseModDirs(GameId game, const std::string& modsRo
 
     for (const std::filesystem::path& parent : parents) {
         std::error_code listEc;
-        for (std::filesystem::directory_iterator it(parent, listEc), end; !listEc && it != end;
-             it.increment(listEc)) {
+        for (std::filesystem::directory_iterator it(parent, listEc), end; !listEc && it != end; it.increment(listEc)) {
             std::error_code entryEc;
             if (!it->is_directory(entryEc) || !IEqualsAscii(it->path().filename().generic_string(), kLooseModsDir)) {
                 continue;

@@ -334,9 +334,9 @@ bool CaiWriteText(const std::string& path, const std::string& text) {
 // make_redship_otr.py over the same inputs; returns its exit code (-1: not run).
 int CaiRunPython(const std::string& pythonExe, const std::string& script, const rsbs::curated::GenerateInputs& in,
                  const std::string& manifestPath) {
-    std::vector<std::string> args = { pythonExe,     script,       "--oot-archive", in.ootArchive, "--mm-archive",
-                                      in.mmArchive,  "--manifest", manifestPath,    "--out-oot",   in.outOoT,
-                                      "--out-mm",    in.outMM };
+    std::vector<std::string> args = { pythonExe,      script,       "--oot-archive", in.ootArchive,
+                                      "--mm-archive", in.mmArchive, "--manifest",    manifestPath,
+                                      "--out-oot",    in.outOoT,    "--out-mm",      in.outMM };
     for (const auto& host : in.hostArchives) {
         args.push_back(host.required ? "--host-archive" : "--optional-host-archive");
         args.push_back(host.game + "=" + host.path);
@@ -353,8 +353,8 @@ int CaiCompareHalves(const char* label, const std::string& cppPath, const std::s
     const CaiArchive cpp = CaiReadZip(cppPath);
     const CaiArchive py = CaiReadZip(pyPath);
     if (!cpp.ok || !py.ok) {
-        fprintf(stderr, "[curated-archive-inapp] FAIL: %s: could not read %s (%d) or %s (%d)\n", label,
-                cppPath.c_str(), cpp.ok, pyPath.c_str(), py.ok);
+        fprintf(stderr, "[curated-archive-inapp] FAIL: %s: could not read %s (%d) or %s (%d)\n", label, cppPath.c_str(),
+                cpp.ok, pyPath.c_str(), py.ok);
         return 1;
     }
     int diffs = 0;
@@ -459,8 +459,9 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
     {
         const cur::GenerateInputs in = CaiInputs(fx, kCaiGoodManifest, root + "/cpp");
         const cur::GenerateResult res = cur::Generate(in);
-        printf("[curated-archive-inapp] A: in-app generator ok=%d (%zu -> redship-oot.o2r, %zu -> redship-mm.o2r)%s%s\n",
-               res.ok, res.resourcesOoT, res.resourcesMM, res.ok ? "" : ": ", res.error.c_str());
+        printf(
+            "[curated-archive-inapp] A: in-app generator ok=%d (%zu -> redship-oot.o2r, %zu -> redship-mm.o2r)%s%s\n",
+            res.ok, res.resourcesOoT, res.resourcesMM, res.ok ? "" : ": ", res.error.c_str());
         if (!res.ok || !CaiExists(in.outOoT) || !CaiExists(in.outMM)) {
             fprintf(stderr,
                     "[curated-archive-inapp] FAIL: A: the in-app generator did not write both halves from a packaged "
@@ -470,7 +471,9 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
             const CaiArchive oot = CaiReadZip(in.outOoT);
             const CaiArchive mm = CaiReadZip(in.outMM);
             const CaiEntries wantOoT = { { kCaiMmDL, "" }, { kCaiMmTex, "" }, { kCaiMmVtx, "" } };
-            const CaiEntries wantMM = { { kCaiOotDL, "" }, { kCaiOotTex, "" }, { kCaiOotVtx, "" }, { kCaiKeepTex, "" } };
+            const CaiEntries wantMM = {
+                { kCaiOotDL, "" }, { kCaiOotTex, "" }, { kCaiOotVtx, "" }, { kCaiKeepTex, "" }
+            };
             auto sameKeys = [](const CaiEntries& a, const CaiEntries& b) {
                 if (a.size() != b.size()) {
                     return false;
@@ -493,8 +496,8 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
             }
             const std::string stamp = CaiWant(in);
             if (oot.comment != stamp || mm.comment != stamp) {
-                fprintf(stderr, "[curated-archive-inapp] FAIL: A: stamps '%s' / '%s', want '%s'\n",
-                        oot.comment.c_str(), mm.comment.c_str(), stamp.c_str());
+                fprintf(stderr, "[curated-archive-inapp] FAIL: A: stamps '%s' / '%s', want '%s'\n", oot.comment.c_str(),
+                        mm.comment.c_str(), stamp.c_str());
                 failures++;
             }
         }
@@ -504,7 +507,8 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
             const int rc = CaiRunPython(pythonExe, generatorScript, py, manifestPath);
             printf("[curated-archive-inapp] A: make_redship_otr.py rc=%d\n", rc);
             if (rc != 0) {
-                fprintf(stderr, "[curated-archive-inapp] FAIL: A: make_redship_otr.py refused the synthetic manifest\n");
+                fprintf(stderr,
+                        "[curated-archive-inapp] FAIL: A: make_redship_otr.py refused the synthetic manifest\n");
                 failures++;
             } else {
                 failures += CaiCompareHalves("A redship-oot.o2r", in.outOoT, py.outOoT) != 0;
@@ -636,8 +640,8 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
             // in the console's words, at info, or error when Failed.
             const bool failed = got == cur::EnsureOutcome::Failed;
             const spdlog::level::level_enum level = failed ? spdlog::level::err : spdlog::level::info;
-            const std::string line = std::string("[RSBS] Curated cross-game archives ") + cur::EnsureOutcomeName(got) +
-                                     ": " + log;
+            const std::string line =
+                std::string("[RSBS] Curated cross-game archives ") + cur::EnsureOutcomeName(got) + ": " + log;
             const std::vector<CaiLogged> logged = CaiReportCaptured(got, log);
             printf("[curated-archive-inapp] C (%s): the game's logger received %zu line(s)\n", step, logged.size());
             if (!CaiLoggedLine(logged, line, level)) {
@@ -665,7 +669,8 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
         // 1. A packaged build after extraction: both sources, no halves.
         expect("no halves yet", cur::Ensure(in, &log), cur::EnsureOutcome::Generated);
         if (stampOf(in.outOoT) != CaiWant(in) || stampOf(in.outMM) != CaiWant(in)) {
-            fprintf(stderr, "[curated-archive-inapp] FAIL: C: the generated halves do not carry the manifest's stamp\n");
+            fprintf(stderr,
+                    "[curated-archive-inapp] FAIL: C: the generated halves do not carry the manifest's stamp\n");
             failures++;
         }
 

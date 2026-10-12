@@ -139,7 +139,7 @@ void WholeFileAwardToLiveOoT(const SharedItem* item, void* ctx) {
     static_cast<uint8_t*>(ctx)[kOoTBowSlot] = kOoTBowPresent;
 }
 
-}  // namespace
+} // namespace
 
 TestResult Test_WholeFileCommit(void) {
     printf("[TEST] whole-file-commit: one commit carries both halves; the newest whole commit wins (#589)\n");
@@ -177,7 +177,7 @@ TestResult Test_WholeFileCommit(void) {
         Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
         Context_UpdateShadowCopy(GAME_MM, mm.data(), mm.size());
     }
-    gComboCtx.sourceGame = GAME_MM;  // an MM-side durable route, the #531 shape
+    gComboCtx.sourceGame = GAME_MM; // an MM-side durable route, the #531 shape
     gComboCtx.sharedFlags[2] = 0xFEEDFACEu;
 
     const uint32_t genBefore = gComboCtx.commitGeneration;
@@ -255,7 +255,7 @@ TestResult Test_WholeFileCommit(void) {
     Context_ClearAllFrozenStates();
     ComboContext_Init();
     mgr.ResetSlotSessionState();
-    gComboCtx.saveSlot = 0x5AFE0007;  // sentinel: a refusal must not touch live state
+    gComboCtx.saveSlot = 0x5AFE0007; // sentinel: a refusal must not touch live state
     WFC_ASSERT(RsbsSave_LoadSlotChecked(0, wholeGen + 5) == RSBS_LOAD_REFUSED,
                "a .sav newer than the .redsave must still REFUSE (#533/#569)");
     WFC_ASSERT(gComboCtx.saveSlot == 0x5AFE0007, "the refusal clobbered live ComboContext");

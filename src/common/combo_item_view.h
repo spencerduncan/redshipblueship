@@ -69,9 +69,9 @@ typedef struct {
     int max;                  // ceiling for `count` right now; 0 when there is none to show
     uint8_t freshness;        // ComboTrackerFreshness; set by the view, never by the adapter
     // How the icon is drawn (#458 U3), set by whoever produced the icon keys:
-    float iconAspect; // the icon's width over its height; 0 is square (a song's note is narrower)
-    float fadedAlpha; // not held: 0 draws iconKeyFaded as it is (SoH's own faded textures); otherwise
-                      // iconKeyFaded is drawn at this alpha (MM's tracker: the same icon at 0.4)
+    float iconAspect;  // the icon's width over its height; 0 is square (a song's note is narrower)
+    float fadedAlpha;  // not held: 0 draws iconKeyFaded as it is (SoH's own faded textures); otherwise
+                       // iconKeyFaded is drawn at this alpha (MM's tracker: the same icon at 0.4)
     uint32_t iconTint; // 0xRRGGBBAA the icon is multiplied by; 0 draws it as it is (MM tints its rupee green)
     // How the number on the icon is drawn (#458 U3), set by whoever produced the row:
     uint8_t countAccent; // ComboItemCountAccent: the tone of the ceiling, and of the amount once it is full

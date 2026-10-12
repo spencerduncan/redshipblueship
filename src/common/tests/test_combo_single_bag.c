@@ -340,17 +340,16 @@ static const uint8_t kCsbEnglish = 0;
 // THE PLAY-SIDE CHECK (lane K13): award every heart row of a bag, interleaved by
 // origin, through the REAL shared carrier. Defined in test_shared_quantity_policy.c
 // (included after this file).
-int SqpDeadHeartPickups(const ComboLogicBagItem* bag, int count, uint16_t startHealth, int* outPickups,
-                        int* outFinal);
+int SqpDeadHeartPickups(const ComboLogicBagItem* bag, int count, uint16_t startHealth, int* outPickups, int* outFinal);
 
 namespace {
 
-#define CSB_ASSERT(cond, msg)                                                                                          \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL (combo-single-bag): %s  [%s:%d]\n", msg, __FILE__, __LINE__);                          \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CSB_ASSERT(cond, msg)                                                                 \
+    do {                                                                                      \
+        if (!(cond)) {                                                                        \
+            printf("[TEST] FAIL (combo-single-bag): %s  [%s:%d]\n", msg, __FILE__, __LINE__); \
+            return TEST_FAIL;                                                                 \
+        }                                                                                     \
     } while (0)
 
 /** Both coordinator tables, copied out. */
@@ -472,13 +471,13 @@ int CsbFindRemovalWitness(const CsbTables& full, GameId hostGame, uint8_t goal, 
 /** Leg D4's walk over the FINISHED paired world (after OoT's remainder, before
  *  Combo_SingleBag_Forget: the coordinator's tables are still read). */
 struct CsbHeartWalk {
-    int ootHosted = -1;     // OoT final-world rows read (ExportPool source 1)
-    int mmShuffled = -1;    // MM shuffled checks read
-    int heartRows = 0;      // max-health rows in the finished world, crossings included
-    int placedByBag = 0;    // max-health rows the coordinator placed
-    int pickups = 0;        // pickups the carrier walk made
-    int dead = -1;          // pickups the 20-heart clamp swallowed
-    int finalValue = 0;     // the bar at the end of the walk
+    int ootHosted = -1;  // OoT final-world rows read (ExportPool source 1)
+    int mmShuffled = -1; // MM shuffled checks read
+    int heartRows = 0;   // max-health rows in the finished world, crossings included
+    int placedByBag = 0; // max-health rows the coordinator placed
+    int pickups = 0;     // pickups the carrier walk made
+    int dead = -1;       // pickups the 20-heart clamp swallowed
+    int finalValue = 0;  // the bar at the end of the walk
     uint16_t startHealth = 0;
 };
 
@@ -554,11 +553,11 @@ const char* const kCsbGiveCVars[][2] = {
 
 /** Both games' shop shuffles, which leg G (#800) generates under (restored after). */
 const char* const kCsbShopCVars[][2] = {
-    { "gRandoSettings.Shopsanity", "1" },         // RO_SHOPSANITY_SPECIFIC_COUNT
-    { "gRandoSettings.ShopsanityCount", "4" },    // four emptied shelves per OoT shop
-    { "gRando.Options.RO_SHUFFLE_SHOPS", "1" },   // MM's shop stock enters the bag
-    { "gRandoSettings.ShuffleScrubs", "2" },      // RO_SCRUBS_ALL: every Business Scrub is a host (#800 pass 2)
-    { "gRandoSettings.ShuffleMerchants", "3" },   // RO_SHUFFLE_MERCHANTS_ALL: all four merchants are hosts (#800 pass 2)
+    { "gRandoSettings.Shopsanity", "1" },       // RO_SHOPSANITY_SPECIFIC_COUNT
+    { "gRandoSettings.ShopsanityCount", "4" },  // four emptied shelves per OoT shop
+    { "gRando.Options.RO_SHUFFLE_SHOPS", "1" }, // MM's shop stock enters the bag
+    { "gRandoSettings.ShuffleScrubs", "2" },    // RO_SCRUBS_ALL: every Business Scrub is a host (#800 pass 2)
+    { "gRandoSettings.ShuffleMerchants", "3" }, // RO_SHUFFLE_MERCHANTS_ALL: all four merchants are hosts (#800 pass 2)
 };
 
 /** RSBS_CSB_SAMPLE=N: N paired creations under the shipped budget, measured. */
@@ -592,7 +591,7 @@ TestResult CsbSample(int n) {
                bag.trimmedOoT, bag.trimmedMM, bag.wallMs, ms, bag.crossingsIntoMM, bag.crossingsIntoOoT);
         if (rc == 0) {
             ok++;
-            const int b = bag.fill.attempts < 0 ? 0
+            const int b = bag.fill.attempts < 0                                   ? 0
                           : bag.fill.attempts > RSBS_COMBO_LOGIC_FILL_RETRIES + 1 ? RSBS_COMBO_LOGIC_FILL_RETRIES + 1
                                                                                   : bag.fill.attempts;
             batchHist[b]++;
@@ -672,7 +671,7 @@ TestResult CsbSampleEvent(int n) {
             worstMs = total > worstMs ? total : worstMs;
             bestMs = total < bestMs ? total : bestMs;
             sumMs += total;
-            const int b = bag.fill.attempts < 0 ? 0
+            const int b = bag.fill.attempts < 0                                   ? 0
                           : bag.fill.attempts > RSBS_COMBO_LOGIC_FILL_RETRIES + 1 ? RSBS_COMBO_LOGIC_FILL_RETRIES + 1
                                                                                   : bag.fill.attempts;
             batchHist[b]++;
@@ -1110,8 +1109,8 @@ TestResult ComboSingleBag_Run(void) {
     const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
     printf("[TEST] combo-single-bag: bag %d rows (%d home-only), %d placed, %d crossings into MM, %d into OoT, %d "
            "rounds, %d batch attempt(s), %ums\n",
-           bag.bagCount, bag.homeOnlyRows, bag.fill.placed, bag.crossingsIntoMM, bag.crossingsIntoOoT,
-           bag.fill.rounds, bag.fill.attempts, bag.wallMs);
+           bag.bagCount, bag.homeOnlyRows, bag.fill.placed, bag.crossingsIntoMM, bag.crossingsIntoOoT, bag.fill.rounds,
+           bag.fill.attempts, bag.wallMs);
     CSB_ASSERT(bag.status == RSBS_COMBO_LOGIC_OK && bag.fill.goalProven, "the single-bag fill did not prove the GOAL");
     CSB_ASSERT(bag.crossingsIntoMM > 0 && bag.crossingsIntoOoT > 0,
                "the shipped direction BOTH crossed nothing in one direction");
@@ -1281,8 +1280,7 @@ TestResult ComboSingleBag_Run(void) {
         CSB_ASSERT(off.goalMM == 0 && off.goalExpression == 0,
                    "the GOAL is provable without MM's fixed contents, so this world does not run through them and "
                    "the grant is unlocked (#737's red half not observed)");
-        CSB_ASSERT(remainsRc == RSBS_COMBO_LOGIC_OK,
-                   "the round with the fixed boss remains assumed did not run");
+        CSB_ASSERT(remainsRc == RSBS_COMBO_LOGIC_OK, "the round with the fixed boss remains assumed did not run");
         CSB_ASSERT(renewablesRc == RSBS_COMBO_LOGIC_OK && withRenewables.goalMM == 1,
                    "assuming the fixed boss remains and every fixed renewable does not restore MM's goal: a fixed "
                    "PROGRESSION content other than the remains is load-bearing for Majora");
@@ -1482,7 +1480,8 @@ TestResult ComboSingleBag_Run(void) {
 
         CSB_ASSERT(Rando_HeadlessSeedTest("RSBSSINGLEBAGGIVES") == 0,
                    "the paired generation under the creation-give settings failed");
-        CSB_ASSERT(OoT_ComboLogic_GeneralPassDeferred() != 0, "the creation-give world did not stop at its general pass");
+        CSB_ASSERT(OoT_ComboLogic_GeneralPassDeferred() != 0,
+                   "the creation-give world did not stop at its general pass");
         bool emptyAtGenerate[3] = { false, false, false };
         int generalPassHosts = 0;
         for (int i = 0; i < 3; i++) {
@@ -1948,8 +1947,7 @@ TestResult ComboSingleBag_Run(void) {
             CSB_ASSERT(stored != nullptr && stored->originGame == hostItem.originGame && stored->id == hostItem.id,
                        "the crossing store does not answer the host's check with its MM item");
             const int before = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
-            CSB_ASSERT(OoT_Rando_Foreign_HostsForeign(host) == 1,
-                       "the host's draw and textbox do not see its MM item");
+            CSB_ASSERT(OoT_Rando_Foreign_HostsForeign(host) == 1, "the host's draw and textbox do not see its MM item");
             CSB_ASSERT(OoT_Rando_Foreign_HostCollected(host) == 0,
                        "the host reads sold out before anything was bought");
             CSB_ASSERT(OoT_Rando_Foreign_RecordPickup(host) == 1, "buying from the host recorded no MM crossing");

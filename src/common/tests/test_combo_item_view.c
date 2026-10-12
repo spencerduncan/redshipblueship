@@ -745,8 +745,8 @@ static int CivNewFileLegs(const ComboItemOps* ops, const std::vector<uint8_t>& n
     CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Slingshot", &row) && !row.have && row.count == 0);
     CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Song of Time", &row) && !row.have);
     CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Child's Wallet", &row));
-    printf("[TEST] combo-item-view-new-file: shadow Child's Wallet have=%d count=%d max=%d\n", (int)row.have,
-           row.count, row.max);
+    printf("[TEST] combo-item-view-new-file: shadow Child's Wallet have=%d count=%d max=%d\n", (int)row.have, row.count,
+           row.max);
     CIV_ASSERT(row.have && row.count == 0 && row.max == 99);
 
     // ---- C. the live save, read while OoT is played -------------------------

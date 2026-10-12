@@ -157,26 +157,26 @@ int OoT_Notification_EmittedAtForTest(int index, char* out, size_t cap);
  * semicolon. Requires ImVec4 in scope (both ports have it via their
  * Notification.h).
  */
-#define COMBO_NOTIFICATION_ASSERT_OPTIONS_CONTRACT(OptionsType)                                                        \
-    static_assert(std::is_same_v<decltype(OptionsType::id), uint32_t>,                                                 \
-                  "Notification::Options::id drifted from the bridge contract (#427)");                                \
-    static_assert(std::is_same_v<decltype(OptionsType::itemIcon), const char*>,                                        \
-                  "Notification::Options::itemIcon drifted from the bridge contract (#427)");                          \
-    static_assert(std::is_same_v<decltype(OptionsType::prefix), std::string>,                                          \
-                  "Notification::Options::prefix drifted from the bridge contract (#427)");                            \
-    static_assert(std::is_same_v<decltype(OptionsType::prefixColor), ImVec4>,                                          \
-                  "Notification::Options::prefixColor drifted from the bridge contract (#427)");                       \
-    static_assert(std::is_same_v<decltype(OptionsType::message), std::string>,                                         \
-                  "Notification::Options::message drifted from the bridge contract (#427)");                           \
-    static_assert(std::is_same_v<decltype(OptionsType::messageColor), ImVec4>,                                         \
-                  "Notification::Options::messageColor drifted from the bridge contract (#427)");                      \
-    static_assert(std::is_same_v<decltype(OptionsType::suffix), std::string>,                                          \
-                  "Notification::Options::suffix drifted from the bridge contract (#427)");                            \
-    static_assert(std::is_same_v<decltype(OptionsType::suffixColor), ImVec4>,                                          \
-                  "Notification::Options::suffixColor drifted from the bridge contract (#427)");                       \
-    static_assert(std::is_same_v<decltype(OptionsType::remainingTime), float>,                                         \
-                  "Notification::Options::remainingTime drifted from the bridge contract (#427)");                     \
-    static_assert(std::is_same_v<decltype(OptionsType::mute), bool>,                                                   \
+#define COMBO_NOTIFICATION_ASSERT_OPTIONS_CONTRACT(OptionsType)                                    \
+    static_assert(std::is_same_v<decltype(OptionsType::id), uint32_t>,                             \
+                  "Notification::Options::id drifted from the bridge contract (#427)");            \
+    static_assert(std::is_same_v<decltype(OptionsType::itemIcon), const char*>,                    \
+                  "Notification::Options::itemIcon drifted from the bridge contract (#427)");      \
+    static_assert(std::is_same_v<decltype(OptionsType::prefix), std::string>,                      \
+                  "Notification::Options::prefix drifted from the bridge contract (#427)");        \
+    static_assert(std::is_same_v<decltype(OptionsType::prefixColor), ImVec4>,                      \
+                  "Notification::Options::prefixColor drifted from the bridge contract (#427)");   \
+    static_assert(std::is_same_v<decltype(OptionsType::message), std::string>,                     \
+                  "Notification::Options::message drifted from the bridge contract (#427)");       \
+    static_assert(std::is_same_v<decltype(OptionsType::messageColor), ImVec4>,                     \
+                  "Notification::Options::messageColor drifted from the bridge contract (#427)");  \
+    static_assert(std::is_same_v<decltype(OptionsType::suffix), std::string>,                      \
+                  "Notification::Options::suffix drifted from the bridge contract (#427)");        \
+    static_assert(std::is_same_v<decltype(OptionsType::suffixColor), ImVec4>,                      \
+                  "Notification::Options::suffixColor drifted from the bridge contract (#427)");   \
+    static_assert(std::is_same_v<decltype(OptionsType::remainingTime), float>,                     \
+                  "Notification::Options::remainingTime drifted from the bridge contract (#427)"); \
+    static_assert(std::is_same_v<decltype(OptionsType::mute), bool>,                               \
                   "Notification::Options::mute drifted from the bridge contract (#427)")
 
 #endif // __cplusplus

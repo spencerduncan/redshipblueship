@@ -9,16 +9,16 @@
 #include "save.h"
 
 #include "combo_mm_options_view.h" // MM_Rando_RestoreProfileForLoad: the load-time MM profile compare (#781)
-#include "combo_save_files_view.h"  // Combo_SaveFiles_RefuseText: the player's words for a refusal (#836)
+#include "combo_save_files_view.h" // Combo_SaveFiles_RefuseText: the player's words for a refusal (#836)
 #include "combo_settings_view.h"   // Combo_ComboSettingsRestoreLive: frozen wins at load (#781)
 #include "context.h"
 #include "crossing_store.h" // the v3 Tier-4 crossing block (ADR 0010 O7)
-#include "entrance.h" // MM_ENTR_SOUTH_CLOCK_TOWN_0 — the armed blob's return entrance
+#include "entrance.h"       // MM_ENTR_SOUTH_CLOCK_TOWN_0 — the armed blob's return entrance
 // Combo_ComboSettingsDivergenceFor — the combo-level identity check the load
 // runs over the record it just read (ADR 0011 decision 4).
 #include "foreign_items.h"
 #include "game.h"
-#include "notification_bridge.h" // the load's player-visible surface (#781): stderr is not one
+#include "notification_bridge.h"   // the load's player-visible surface (#781): stderr is not one
 #include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX and the refused file's words (#836)
 #include "shared_resources.h"
 #include "triforce_hunt.h" // ADR 0010 O10: the triforce record joins the load-time identity check
@@ -47,8 +47,7 @@ constexpr uint32_t kComboSize = RSBS_COMBO_CONTEXT_RECORD_SIZE;
 constexpr uint32_t kOoTSize = static_cast<uint32_t>(OOT_SAVE_CONTEXT_SIZE);
 constexpr uint32_t kMMSize = static_cast<uint32_t>(MM_SAVE_CONTEXT_SIZE);
 
-static_assert(sizeof(ComboContext) <= kComboSize,
-              "ComboContext must fit the fixed Tier-1 record");
+static_assert(sizeof(ComboContext) <= kComboSize, "ComboContext must fit the fixed Tier-1 record");
 
 bool SlotInRange(int slot) {
     return slot >= 0 && slot < RSBS_SAVE_MAX_SLOTS;
@@ -58,13 +57,11 @@ bool SlotInRange(int slot) {
 // simply did not come back. Every refusal now names itself on stderr so a
 // format break is diagnosable from a log instead of a bug report that reads
 // "my save vanished".
-void SaveLogReject(bool verbose, const char* reason, unsigned long long got,
-                   unsigned long long expected) {
+void SaveLogReject(bool verbose, const char* reason, unsigned long long got, unsigned long long expected) {
     if (!verbose) {
         return;
     }
-    std::fprintf(stderr, "[RsbsSave] refusing slot file: %s (got %llu, expected %llu)\n",
-                 reason, got, expected);
+    std::fprintf(stderr, "[RsbsSave] refusing slot file: %s (got %llu, expected %llu)\n", reason, got, expected);
 }
 
 // Save() used to fail SILENTLY at five separate points, and every production
@@ -120,8 +117,7 @@ std::size_t LoadToastRoom(const char* prefix) {
 // complete"). When not even the first name fits whole, it is cut with "..."
 // (keeping at least eight of its characters); only when not even that fits is
 // the toast a bare count, "1 <singular>" or "N <plural>".
-std::string FitNames(const std::string& list, int total, std::size_t budget, const char* singular,
-                     const char* plural) {
+std::string FitNames(const std::string& list, int total, std::size_t budget, const char* singular, const char* plural) {
     std::vector<std::string> names;
     std::size_t start = 0;
     while (!list.empty() && start <= list.size()) {
@@ -176,8 +172,7 @@ std::string FitNames(const std::string& list, int total, std::size_t budget, con
 // (OoT_Notification_FitsWindow). Each step down drops a name to "+N", or cuts the
 // first name, and at the bottom the toast is a bare count ("2 settings"). With
 // nothing to measure against (a display-free row) the cap stands.
-std::string FitLoadToast(const char* prefix, const char* names, int count, const char* singular,
-                         const char* plural) {
+std::string FitLoadToast(const char* prefix, const char* names, int count, const char* singular, const char* plural) {
     const std::string list = names != nullptr ? names : "";
     for (std::size_t budget = LoadToastRoom(prefix);; budget--) {
         std::string message = FitNames(list, count, budget, singular, plural);
@@ -232,7 +227,7 @@ const char* RefuseReasonSlug(RsbsRefuseReason reason) {
     }
 }
 
-}  // namespace
+} // namespace
 
 const char* SaveManager::RefuseReasonLabel(RsbsRefuseReason reason) {
     switch (reason) {
@@ -297,9 +292,7 @@ int SaveManager::GetActiveSlot() const {
 }
 
 std::string SaveManager::SlotPath(int slot) const {
-    return (std::filesystem::path(mSaveDir) /
-            ("redship_slot" + std::to_string(slot) + ".redsave"))
-        .string();
+    return (std::filesystem::path(mSaveDir) / ("redship_slot" + std::to_string(slot) + ".redsave")).string();
 }
 
 // CRC32 (reflected, polynomial 0xEDB88320 — the zlib/PNG variant). Table-free
@@ -371,10 +364,8 @@ uint32_t SaveManager::StageCommit() {
     {
         std::lock_guard<std::mutex> lock(mStageMtx);
         std::memcpy(&mStaged.combo, &gComboCtx, sizeof(ComboContext));
-        mStaged.oot.assign(static_cast<const uint8_t*>(ootShadow),
-                           static_cast<const uint8_t*>(ootShadow) + kOoTSize);
-        mStaged.mm.assign(static_cast<const uint8_t*>(mmShadow),
-                          static_cast<const uint8_t*>(mmShadow) + kMMSize);
+        mStaged.oot.assign(static_cast<const uint8_t*>(ootShadow), static_cast<const uint8_t*>(ootShadow) + kOoTSize);
+        mStaged.mm.assign(static_cast<const uint8_t*>(mmShadow), static_cast<const uint8_t*>(mmShadow) + kMMSize);
         mStaged.crossings.swap(crossings);
         mStaged.generation = generation;
         mStaged.valid = true;
@@ -450,8 +441,8 @@ bool SaveManager::Save(int slot) {
     return WriteStagedCommit(slot);
 }
 
-bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob,
-                                const uint8_t* mmBlob, const std::vector<uint8_t>& crossings) {
+bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob, const uint8_t* mmBlob,
+                                const std::vector<uint8_t>& crossings) {
     // One writer at a time: the OnSaveFile worker (WriteStagedCommit) and a
     // synchronous game-thread commit (MM's capture, OnExitGame) share the same
     // `.tmp` staging path per slot, and interleaved temp writes would produce
@@ -491,7 +482,7 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
     // file's validity — moving.
     const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&combo);
     payload.insert(payload.end(), comboBytes, comboBytes + sizeof(ComboContext));
-    payload.insert(payload.end(), kComboSize - sizeof(ComboContext), uint8_t{0});
+    payload.insert(payload.end(), kComboSize - sizeof(ComboContext), uint8_t{ 0 });
     payload.insert(payload.end(), ootBlob, ootBlob + kOoTSize);
     payload.insert(payload.end(), mmBlob, mmBlob + kMMSize);
     // Tier-4 (v3, ADR 0010 O7): the crossing block, self-sized, always present
@@ -520,13 +511,11 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
     {
         std::ofstream out(tmpPath, std::ios::binary | std::ios::trunc);
         if (!out) {
-            std::fprintf(stderr, "[RsbsSave] slot %d NOT saved: cannot open '%s' for writing\n",
-                         slot, tmpPath.c_str());
+            std::fprintf(stderr, "[RsbsSave] slot %d NOT saved: cannot open '%s' for writing\n", slot, tmpPath.c_str());
             return false;
         }
         out.write(reinterpret_cast<const char*>(&header), sizeof(header));
-        out.write(reinterpret_cast<const char*>(payload.data()),
-                  static_cast<std::streamsize>(payload.size()));
+        out.write(reinterpret_cast<const char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
         out.flush();
         if (!out) {
             out.close();
@@ -537,8 +526,8 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
 
     std::filesystem::rename(tmpPath, finalPath, ec);
     if (ec) {
-        std::fprintf(stderr, "[RsbsSave] slot %d NOT saved: rename '%s' -> '%s' failed (%s)\n",
-                     slot, tmpPath.c_str(), finalPath.c_str(), ec.message().c_str());
+        std::fprintf(stderr, "[RsbsSave] slot %d NOT saved: rename '%s' -> '%s' failed (%s)\n", slot, tmpPath.c_str(),
+                     finalPath.c_str(), ec.message().c_str());
         std::filesystem::remove(tmpPath, ec);
         return false;
     }
@@ -591,8 +580,8 @@ void SaveManager::SetSlotStartsOver(int slot, bool startsOver) {
     mSlotStartsOver[slot] = startsOver;
 }
 
-bool SaveManager::DeserializeHeader(std::istream& in, int expectedSlot, RsbsSaveHeader& outHeader,
-                                    bool verbose, RsbsRefuseReason* outReason) const {
+bool SaveManager::DeserializeHeader(std::istream& in, int expectedSlot, RsbsSaveHeader& outHeader, bool verbose,
+                                    RsbsRefuseReason* outReason) const {
     RsbsRefuseReason scratch = RSBS_REFUSE_NONE;
     RsbsRefuseReason& reason = outReason != nullptr ? *outReason : scratch;
     reason = RSBS_REFUSE_NONE;
@@ -600,8 +589,7 @@ bool SaveManager::DeserializeHeader(std::istream& in, int expectedSlot, RsbsSave
     RsbsSaveHeader h;
     in.read(reinterpret_cast<char*>(&h), sizeof(h));
     if (!in || in.gcount() != static_cast<std::streamsize>(sizeof(h))) {
-        SaveLogReject(verbose, "short header read", static_cast<unsigned long long>(in.gcount()),
-                      sizeof(h));
+        SaveLogReject(verbose, "short header read", static_cast<unsigned long long>(in.gcount()), sizeof(h));
         reason = RSBS_REFUSE_HEADER;
         return false;
     }
@@ -677,8 +665,8 @@ struct SaveManager::SlotFileData {
     std::vector<uint8_t> crossings;
 };
 
-SaveManager::SlotReadResult SaveManager::ReadSlotFile(int slot, SlotFileData& out,
-                                                      RsbsRefuseReason& outReason, bool verbose) const {
+SaveManager::SlotReadResult SaveManager::ReadSlotFile(int slot, SlotFileData& out, RsbsRefuseReason& outReason,
+                                                      bool verbose) const {
     outReason = RSBS_REFUSE_NONE;
 
     const std::string path = SlotPath(slot);
@@ -847,8 +835,8 @@ void SaveManager::QuarantineSlotFile(int slot, RsbsRefuseReason reason) {
         // Rename failed (locked file, permissions). The evidence stays IN
         // PLACE, which is still safe: the caller latches the slot and Save()
         // refuses to touch an unarmed slot, so nothing overwrites it.
-        std::fprintf(stderr, "[RsbsSave] slot %d quarantine FAILED (%s); refused file left in place\n",
-                     slot, ec.message().c_str());
+        std::fprintf(stderr, "[RsbsSave] slot %d quarantine FAILED (%s); refused file left in place\n", slot,
+                     ec.message().c_str());
         return;
     }
     std::fprintf(stderr, "[RsbsSave] slot %d refused file quarantined to '%s'\n", slot, target.c_str());
@@ -922,8 +910,8 @@ bool RecordIsPaired(const ComboContext& combo) {
 
 } // namespace
 
-void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind,
-                               const RsbsOoTSavIdentity* savIdentity, SlotFileData& data, SlotVerdict& v) const {
+void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind, const RsbsOoTSavIdentity* savIdentity,
+                               SlotFileData& data, SlotVerdict& v) const {
     v = SlotVerdict{};
     RsbsRefuseReason reason = RSBS_REFUSE_NONE;
     const SlotReadResult result = ReadSlotFile(slot, data, reason, /*verbose=*/true);
@@ -1059,10 +1047,9 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
     // healthy file met by a session that walked away from it: FROZEN WINS AT
     // LOAD (#781), so a divergence every bit of which a key authors is accepted
     // here and restored by the load; what no key can restore refuses.
-    uint32_t comboDiverged =
-        Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash, combo.sharedRandoSettingsHash,
-                                         combo.mmProfileDigest) |
-        Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
+    uint32_t comboDiverged = Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash,
+                                                              combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
+                             Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
     if (comboDiverged != 0) {
         char fields[192];
         Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
@@ -1326,9 +1313,8 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
     int restoredMmCount = 0;
     int mmProfileOutcome = RSBS_MM_PROFILE_LOAD_MATCHES;
     if (v.mmProfileChecked && v.mmProfile != RSBS_MM_PROFILE_LOAD_MATCHES) {
-        mmProfileOutcome = MM_Rando_RestoreProfileForLoad(data.mmBlob.data(), data.mmBlob.size(),
-                                                          combo.mmProfileDigest, restoredMm, sizeof(restoredMm),
-                                                          &restoredMmCount);
+        mmProfileOutcome = MM_Rando_RestoreProfileForLoad(data.mmBlob.data(), data.mmBlob.size(), combo.mmProfileDigest,
+                                                          restoredMm, sizeof(restoredMm), &restoredMmCount);
         if (openKind != kOpenLegacy && mmProfileOutcome != RSBS_MM_PROFILE_LOAD_RESTORED) {
             // The probe found the profile restorable and the restore did not
             // take (its own after-check put its keys back): the backstop's
@@ -1460,8 +1446,8 @@ void SaveManager::DeleteSave(int slot) {
     if (!ec) {
         for (const auto& entry : it) {
             const std::string name = entry.path().filename().string();
-            if (name.size() > prefix.size() && name.compare(0, prefix.size(), prefix) == 0 &&
-                name.size() >= 4 && name.compare(name.size() - 4, 4, ".bak") == 0) {
+            if (name.size() > prefix.size() && name.compare(0, prefix.size(), prefix) == 0 && name.size() >= 4 &&
+                name.compare(name.size() - 4, 4, ".bak") == 0) {
                 std::error_code rmEc;
                 std::filesystem::remove(entry.path(), rmEc);
             }
@@ -1491,8 +1477,8 @@ void SaveManager::ArmSlotOnCreate(int slot) {
     SlotFileData data;
     RsbsRefuseReason reason = RSBS_REFUSE_NONE;
     if (ReadSlotFile(slot, data, reason, /*verbose=*/false) == SlotReadResult::Refused) {
-        std::fprintf(stderr, "[RsbsSave] slot %d create: existing .redsave fails validation (%s); quarantining\n",
-                     slot, RefuseReasonLabel(reason));
+        std::fprintf(stderr, "[RsbsSave] slot %d create: existing .redsave fails validation (%s); quarantining\n", slot,
+                     RefuseReasonLabel(reason));
         QuarantineSlotFile(slot, reason);
     }
     mSlotArmed[slot] = true;
@@ -1567,8 +1553,7 @@ RsbsSlotState SaveManager::GetSlotState(int slot) const {
         return RSBS_SLOT_ABSENT;
     }
     RsbsSaveHeader header;
-    return DeserializeHeader(in, slot, header, /*verbose=*/false, nullptr) ? RSBS_SLOT_VALID
-                                                                          : RSBS_SLOT_REFUSED;
+    return DeserializeHeader(in, slot, header, /*verbose=*/false, nullptr) ? RSBS_SLOT_VALID : RSBS_SLOT_REFUSED;
 }
 
 RsbsRefuseReason SaveManager::GetSlotRefuseReason(int slot) const {
@@ -1603,8 +1588,8 @@ bool SaveManager::HasQuarantine(int slot) const {
     }
     for (const auto& entry : it) {
         const std::string name = entry.path().filename().string();
-        if (name.size() > prefix.size() && name.compare(0, prefix.size(), prefix) == 0 &&
-            name.size() >= 4 && name.compare(name.size() - 4, 4, ".bak") == 0) {
+        if (name.size() > prefix.size() && name.compare(0, prefix.size(), prefix) == 0 && name.size() >= 4 &&
+            name.compare(name.size() - 4, 4, ".bak") == 0) {
             return true;
         }
     }
@@ -1746,8 +1731,8 @@ namespace {
 // 9-byte buffer (we always NUL-terminate); `outPlayTime`/`outStarted` are
 // written even on the unregistered path (zero / false) so callers don't have
 // to clear them themselves.
-void ExtractGameMeta(const RsbsGameMetaDesc& desc, const uint8_t* blob, size_t blobSize,
-                     char outName[9], uint32_t& outPlayTime, bool& outStarted) {
+void ExtractGameMeta(const RsbsGameMetaDesc& desc, const uint8_t* blob, size_t blobSize, char outName[9],
+                     uint32_t& outPlayTime, bool& outStarted) {
     std::memset(outName, 0, 9);
     outPlayTime = 0;
     outStarted = false;
@@ -1787,12 +1772,11 @@ void ExtractGameMeta(const RsbsGameMetaDesc& desc, const uint8_t* blob, size_t b
         outStarted = true;
     } else if (desc.validMarkerLen <= sizeof(desc.validMarker) &&
                static_cast<size_t>(desc.validMarkerOffset) + desc.validMarkerLen <= blobSize) {
-        outStarted = std::memcmp(blob + desc.validMarkerOffset, desc.validMarker,
-                                 desc.validMarkerLen) == 0;
+        outStarted = std::memcmp(blob + desc.validMarkerOffset, desc.validMarker, desc.validMarkerLen) == 0;
     }
 }
 
-}  // namespace
+} // namespace
 
 SlotMeta SaveManager::ReadMeta(int slot) const {
     SlotMeta meta{};
@@ -1882,12 +1866,12 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     }
 
     if (mMetaPresent[GAME_OOT]) {
-        ExtractGameMeta(mMetaDescs[GAME_OOT], ootBlob.data(), ootBlob.size(),
-                        meta.ootName, meta.ootPlayTime, meta.ootStarted);
+        ExtractGameMeta(mMetaDescs[GAME_OOT], ootBlob.data(), ootBlob.size(), meta.ootName, meta.ootPlayTime,
+                        meta.ootStarted);
     }
     if (mMetaPresent[GAME_MM]) {
-        ExtractGameMeta(mMetaDescs[GAME_MM], mmBlob.data(), mmBlob.size(),
-                        meta.mmName, meta.mmPlayTime, meta.mmStarted);
+        ExtractGameMeta(mMetaDescs[GAME_MM], mmBlob.data(), mmBlob.size(), meta.mmName, meta.mmPlayTime,
+                        meta.mmStarted);
     }
 
     return meta;
@@ -1962,14 +1946,12 @@ RsbsResetOutcome SaveManager::RestoreLastCommitForReset(int slot, uint8_t* mmOut
 
     // One game, one identity (ADR 0011 decision 4): a reset never changes which
     // world is being played. Every field frozen at creation must already agree.
-    const bool sameIdentity = combo.sharedRandoSeed == gComboCtx.sharedRandoSeed &&
-                              combo.sourceIsRando == gComboCtx.sourceIsRando &&
-                              combo.sharedRandoSettingsHash == gComboCtx.sharedRandoSettingsHash &&
-                              combo.mmProfileDigest == gComboCtx.mmProfileDigest &&
-                              combo.mmPairedAttempt == gComboCtx.mmPairedAttempt &&
-                              combo.comboSettingsHash == gComboCtx.comboSettingsHash &&
-                              std::memcmp(&combo.comboTriforce, &gComboCtx.comboTriforce,
-                                          sizeof(ComboTriforceRecord)) == 0;
+    const bool sameIdentity =
+        combo.sharedRandoSeed == gComboCtx.sharedRandoSeed && combo.sourceIsRando == gComboCtx.sourceIsRando &&
+        combo.sharedRandoSettingsHash == gComboCtx.sharedRandoSettingsHash &&
+        combo.mmProfileDigest == gComboCtx.mmProfileDigest && combo.mmPairedAttempt == gComboCtx.mmPairedAttempt &&
+        combo.comboSettingsHash == gComboCtx.comboSettingsHash &&
+        std::memcmp(&combo.comboTriforce, &gComboCtx.comboTriforce, sizeof(ComboTriforceRecord)) == 0;
     // The crossing store is the only truth for foreign placements, frozen at
     // creation; the commit's block must be the live store byte for byte (a
     // v1/v2 file carries none, which is true only of a world with none).
@@ -2026,15 +2008,14 @@ RsbsResetOutcome SaveManager::RestoreLastCommitForReset(int slot, uint8_t* mmOut
     }
 
     std::memcpy(mmOut, data.mmBlob.data(), mmOutSize);
-    std::fprintf(stderr,
-                 "[RsbsSave] slot %d: restored the last whole commit (generation %u) in place; OoT half %s\n", slot,
-                 (unsigned)combo.commitGeneration,
+    std::fprintf(stderr, "[RsbsSave] slot %d: restored the last whole commit (generation %u) in place; OoT half %s\n",
+                 slot, (unsigned)combo.commitGeneration,
                  ootMoved ? "ROLLED BACK too (OoT progress after that commit was never committed)"
                           : "unchanged (already that commit's)");
     return RSBS_RESET_RESTORED;
 }
 
-}  // namespace rsbs
+} // namespace rsbs
 
 // ============================================================================
 // C shim
@@ -2262,4 +2243,4 @@ void RsbsSave_DecodeN64FilenameName(const uint8_t name[8], char outName[9]) {
     outName[len] = '\0';
 }
 
-}  // extern "C"
+} // extern "C"

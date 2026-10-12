@@ -328,8 +328,8 @@ bool CamExpectOwner(Ship::ArchiveManager& am, const char* step, const char* reso
                     bool expectMM, bool checkIdentity = true) {
     const CamOwner owner = CamOwnerOf(am, resourcePath);
     if (!owner.present) {
-        fprintf(stderr, "[curated-archive-mount] FAIL (%s): '%s' is in no mounted archive -- expected %s (%s)\n",
-                step, resourcePath, expectedName, expectMM ? "MM identity" : "OoT identity");
+        fprintf(stderr, "[curated-archive-mount] FAIL (%s): '%s' is in no mounted archive -- expected %s (%s)\n", step,
+                resourcePath, expectedName, expectMM ? "MM identity" : "OoT identity");
         return false;
     }
     if (CamFileName(owner.path) != expectedName || (checkIdentity && owner.isMM != expectMM)) {
@@ -437,10 +437,9 @@ int CamBootLeg(Ship::ArchiveManager& am) {
     int failures = 0;
     Combo_MountCuratedArchive(GAME_MM);
     failures += !CamExpectOwner(am, "boot: MM", kCamBootMMHalfPath, kCamMMHalf, true);
-    failures += !CamExpectOwner(am, "boot: MM (mods after curated)", kCamBootContestedPath, "mm_mod_standin.o2r",
-                                false, /*checkIdentity=*/false);
-    failures += !CamExpectUnowned(am, "boot: MM", kCamBootOoTHalfPath,
-                                  "OoT's half must not be mounted by MM's boot");
+    failures += !CamExpectOwner(am, "boot: MM (mods after curated)", kCamBootContestedPath, "mm_mod_standin.o2r", false,
+                                /*checkIdentity=*/false);
+    failures += !CamExpectUnowned(am, "boot: MM", kCamBootOoTHalfPath, "OoT's half must not be mounted by MM's boot");
 
     Combo_MountCuratedArchive(GAME_OOT);
     failures += !CamExpectOwner(am, "boot: OoT", kCamBootOoTHalfPath, kCamOoTHalf, false);
@@ -590,8 +589,7 @@ int CamIdentityLeg(Ship::ArchiveManager& am) {
         // serving for its own paths -- a pass on base archives alone would
         // say nothing about the halves.
         if (servedByCurated == 0) {
-            fprintf(stderr, "[curated-archive-mount] FAIL (%s): no curated path is served by a curated half\n",
-                    step);
+            fprintf(stderr, "[curated-archive-mount] FAIL (%s): no curated path is served by a curated half\n", step);
             wrong++;
         }
         failures += wrong > 0 ? 1 : 0;
@@ -708,9 +706,10 @@ extern "C" int CuratedArchiveMount_VerifyBoot(GameId host) {
            Game_ToString(host), paths.size(), half.c_str(), servedByHalf, wrong);
     fflush(stdout);
     if (paths.empty() || servedByHalf == 0 || wrong > 0) {
-        fprintf(stderr, "[curated-archive-mount] boot check FAIL (%s): the booted game's curated half is not mounted "
-                        "with its identity -- main() must call Combo_MountCuratedArchive after the first game's "
-                        "Init\n",
+        fprintf(stderr,
+                "[curated-archive-mount] boot check FAIL (%s): the booted game's curated half is not mounted "
+                "with its identity -- main() must call Combo_MountCuratedArchive after the first game's "
+                "Init\n",
                 Game_ToString(host));
         fflush(stderr);
         return 1;

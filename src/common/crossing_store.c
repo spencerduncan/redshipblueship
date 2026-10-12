@@ -174,8 +174,7 @@ static void CrossingCommit(const ComboCrossing* oot, int ootCount, const ComboCr
     ++sWriteGeneration;
 }
 
-int Combo_Crossings_Replace(const ComboCrossing* ootHosted, int ootCount, const ComboCrossing* mmHosted,
-                            int mmCount) {
+int Combo_Crossings_Replace(const ComboCrossing* ootHosted, int ootCount, const ComboCrossing* mmHosted, int mmCount) {
     int rc = CrossingValidateSide(ootHosted, ootCount, (uint8_t)GAME_OOT);
     if (rc == RSBS_CROSSING_OK) {
         rc = CrossingValidateSide(mmHosted, mmCount, (uint8_t)GAME_MM);
@@ -300,8 +299,7 @@ size_t Combo_Crossings_SerializedSize(void) {
 }
 
 /** The one encoder: `rows[side]` / `counts[side]`, already bounded by the caller. */
-static size_t CrossingSerializeRows(const ComboCrossing* const rows[2], const int counts[2], uint8_t* out,
-                                    size_t cap) {
+static size_t CrossingSerializeRows(const ComboCrossing* const rows[2], const int counts[2], uint8_t* out, size_t cap) {
     const size_t total =
         (size_t)RSBS_CROSSING_BLOCK_HEADER_SIZE + (size_t)(counts[0] + counts[1]) * (size_t)RSBS_CROSSING_RECORD_SIZE;
     if (out == NULL || cap < total) {

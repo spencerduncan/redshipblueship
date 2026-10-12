@@ -93,12 +93,12 @@
 // no header of its own.
 extern "C" int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 
-#define SESSION_ASSERT(cond)                                                                                           \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("  FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                                  \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define SESSION_ASSERT(cond)                                          \
+    do {                                                              \
+        if (!(cond)) {                                                \
+            printf("  FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                         \
+        }                                                             \
     } while (0)
 
 namespace {
@@ -188,9 +188,9 @@ void SeedSessionA(uint32_t seed, uint32_t settingsHash) {
 // MMPairSwitchEntry (games/mm/2s2h/mm_rando_gen_test.cpp) covers the dispatch
 // itself; what belongs HERE is that the inputs the guard reads are correct.
 enum PairDecision {
-    PAIR_DECLINE_NO_WORLD,       // Combo_ForeignPairingActive() == false
-    PAIR_DECLINE_EXISTING_SAVE,  // hadFrozenState != 0 — the #440 failure
-    PAIR_PROCEED,                // dispatches OnSaveInit; the paired world activates
+    PAIR_DECLINE_NO_WORLD,      // Combo_ForeignPairingActive() == false
+    PAIR_DECLINE_EXISTING_SAVE, // hadFrozenState != 0 — the #440 failure
+    PAIR_PROCEED,               // dispatches OnSaveInit; the paired world activates
 };
 
 PairDecision ArrivalPairDecision(int hadFrozenState) {
@@ -266,7 +266,7 @@ bool SessionIsClear(bool expectSeedStamp) {
     return true;
 }
 
-}  // namespace
+} // namespace
 
 TestResult Test_SessionInvalidation(void) {
     printf("[TEST] session-invalidation: soft reset / new game retire cross-game session state (#440)\n");
@@ -334,8 +334,8 @@ TestResult Test_SessionInvalidation(void) {
     {
         std::vector<uint8_t> arriving(kSessionBuf, kSessionBByte);
         SESSION_ASSERT(Combo_ConsumeFrozenState("mm", arriving.data(), arriving.size()) == 0);
-        SESSION_ASSERT(arriving[0] == kSessionBByte);                 // not session A's clock
-        SESSION_ASSERT(arriving[kSessionBuf - 1] == kSessionBByte);   // not session A's fairy flags
+        SESSION_ASSERT(arriving[0] == kSessionBByte);               // not session A's clock
+        SESSION_ASSERT(arriving[kSessionBuf - 1] == kSessionBByte); // not session A's fairy flags
         SESSION_ASSERT(arriving[0] != kSessionAByte);
     }
 

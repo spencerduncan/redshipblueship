@@ -10,7 +10,8 @@
 
 /* Convert GameId to array index (GameId is 1-based, array is 0-based) */
 static int GameIdToIndex(GameId id) {
-    if (id < GAME_OOT || id > GAME_MM) return -1;
+    if (id < GAME_OOT || id > GAME_MM)
+        return -1;
     return (int)id - 1;
 }
 
@@ -24,8 +25,10 @@ void GameRunner_Init(GameRunner* runner) {
 
 int GameRunner_RegisterGame(GameRunner* runner, GameId id, GameOps* ops) {
     int idx = GameIdToIndex(id);
-    if (idx < 0 || !ops) return -1;
-    if (runner->games[idx] != NULL) return -1; /* Already registered */
+    if (idx < 0 || !ops)
+        return -1;
+    if (runner->games[idx] != NULL)
+        return -1; /* Already registered */
 
     runner->games[idx] = ops;
     runner->states[idx] = GAME_LIFECYCLE_STATE_READY;
@@ -34,14 +37,17 @@ int GameRunner_RegisterGame(GameRunner* runner, GameId id, GameOps* ops) {
 
 int GameRunner_StartGame(GameRunner* runner, GameId id, int argc, char** argv) {
     int idx = GameIdToIndex(id);
-    if (idx < 0 || !runner->games[idx]) return -1;
-    if (runner->activeGame != GAME_NONE) return -1; /* Already have an active game */
+    if (idx < 0 || !runner->games[idx])
+        return -1;
+    if (runner->activeGame != GAME_NONE)
+        return -1; /* Already have an active game */
 
     GameOps* ops = runner->games[idx];
     int rc = 0;
     if (ops->init) {
         rc = ops->init(argc, argv);
-        if (rc != 0) return rc;
+        if (rc != 0)
+            return rc;
     }
 
     runner->states[idx] = GAME_LIFECYCLE_STATE_RUNNING;
@@ -51,10 +57,12 @@ int GameRunner_StartGame(GameRunner* runner, GameId id, int argc, char** argv) {
 
 int GameRunner_SwitchTo(GameRunner* runner, GameId target, int argc, char** argv) {
     int targetIdx = GameIdToIndex(target);
-    if (targetIdx < 0 || !runner->games[targetIdx]) return -1;
+    if (targetIdx < 0 || !runner->games[targetIdx])
+        return -1;
 
     /* If switching to the same game, no-op */
-    if (target == runner->activeGame) return 0;
+    if (target == runner->activeGame)
+        return 0;
 
     /* Suspend the currently active game */
     if (runner->activeGame != GAME_NONE) {
@@ -86,7 +94,8 @@ int GameRunner_SwitchTo(GameRunner* runner, GameId target, int argc, char** argv
         /* First time — init */
         if (targetOps->init) {
             rc = targetOps->init(argc, argv);
-            if (rc != 0) return rc;
+            if (rc != 0)
+                return rc;
         }
     }
 
@@ -97,8 +106,8 @@ int GameRunner_SwitchTo(GameRunner* runner, GameId target, int argc, char** argv
 
 void GameRunner_ShutdownAll(GameRunner* runner) {
     for (int i = 0; i < GAME_RUNNER_MAX_GAMES; i++) {
-        if (runner->games[i] && runner->states[i] != GAME_LIFECYCLE_STATE_NONE
-                              && runner->states[i] != GAME_LIFECYCLE_STATE_STOPPED) {
+        if (runner->games[i] && runner->states[i] != GAME_LIFECYCLE_STATE_NONE &&
+            runner->states[i] != GAME_LIFECYCLE_STATE_STOPPED) {
             if (runner->games[i]->shutdown) {
                 runner->games[i]->shutdown();
             }
@@ -114,18 +123,21 @@ GameId GameRunner_GetActive(const GameRunner* runner) {
 
 bool GameRunner_IsSuspended(const GameRunner* runner, GameId id) {
     int idx = GameIdToIndex(id);
-    if (idx < 0) return false;
+    if (idx < 0)
+        return false;
     return runner->states[idx] == GAME_LIFECYCLE_STATE_SUSPENDED;
 }
 
 GameOps* GameRunner_GetOps(const GameRunner* runner, GameId id) {
     int idx = GameIdToIndex(id);
-    if (idx < 0) return NULL;
+    if (idx < 0)
+        return NULL;
     return runner->games[idx];
 }
 
 GameLifecycleState GameRunner_GetState(const GameRunner* runner, GameId id) {
     int idx = GameIdToIndex(id);
-    if (idx < 0) return GAME_LIFECYCLE_STATE_NONE;
+    if (idx < 0)
+        return GAME_LIFECYCLE_STATE_NONE;
     return runner->states[idx];
 }

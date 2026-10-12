@@ -25,15 +25,15 @@ extern "C" {
  */
 typedef enum {
     INT_TEST_NONE = 0,
-    INT_TEST_BOOT_OOT,            // Boot OoT, exit on title/file select
-    INT_TEST_BOOT_MM,             // Boot MM, exit on title/file select
-    INT_TEST_SWITCH_OOT_HMS_TO_MM,        // Boot OoT, trigger HMS entrance, verify MM South Clock Town spawn
+    INT_TEST_BOOT_OOT,                         // Boot OoT, exit on title/file select
+    INT_TEST_BOOT_MM,                          // Boot MM, exit on title/file select
+    INT_TEST_SWITCH_OOT_HMS_TO_MM,             // Boot OoT, trigger HMS entrance, verify MM South Clock Town spawn
     INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, // Boot MM, trigger the Clock Tower door, verify OoT Market spawn
                                                // (name is historical — the trigger moved from the SCT south exit
                                                // to the tower door when the arrival became SCT)
-    INT_TEST_ARCHIVE_HOTSWAP_CYCLE,       // Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (#263)
-    INT_TEST_GAMEPLAY_ROUNDTRIP           // Full operator repro: debug save + live gameplay + production
-                                          // cross-game round-trip + post-return warp + door transition
+    INT_TEST_ARCHIVE_HOTSWAP_CYCLE,            // Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (#263)
+    INT_TEST_GAMEPLAY_ROUNDTRIP                // Full operator repro: debug save + live gameplay + production
+                                               // cross-game round-trip + post-return warp + door transition
 } IntegrationTestMode;
 
 /**
@@ -47,14 +47,14 @@ typedef enum {
  * transition -> play.
  */
 typedef enum {
-    GP_PHASE_BOOT = 0,      // OoT: waiting to inject the debug save + enter Play
-    GP_PHASE_OOT_PRE,       // OoT: live gameplay frames, then trigger the HMS door
-    GP_PHASE_MM_STABILIZE,  // MM: waiting for the South Clock Town scene load (tower-exit arrival)
-    GP_PHASE_MM_PLAY,       // MM: live gameplay frames, then trigger the Clock Tower door
-    GP_PHASE_OOT_RETURN,    // OoT: RESUME leg — restored save + return entrance + gameplay frames
-    GP_PHASE_OOT_WARP,      // OoT: post-return debug warp arrival + gameplay frames
-    GP_PHASE_OOT_EXIT,      // OoT: final door-transition arrival + gameplay frames
-    GP_PHASE_DONE           // PASS signaled
+    GP_PHASE_BOOT = 0,     // OoT: waiting to inject the debug save + enter Play
+    GP_PHASE_OOT_PRE,      // OoT: live gameplay frames, then trigger the HMS door
+    GP_PHASE_MM_STABILIZE, // MM: waiting for the South Clock Town scene load (tower-exit arrival)
+    GP_PHASE_MM_PLAY,      // MM: live gameplay frames, then trigger the Clock Tower door
+    GP_PHASE_OOT_RETURN,   // OoT: RESUME leg — restored save + return entrance + gameplay frames
+    GP_PHASE_OOT_WARP,     // OoT: post-return debug warp arrival + gameplay frames
+    GP_PHASE_OOT_EXIT,     // OoT: final door-transition arrival + gameplay frames
+    GP_PHASE_DONE          // PASS signaled
 } GameplayPhase;
 
 /**
@@ -121,10 +121,7 @@ typedef struct {
  *       creation and boots the debug save instead (the red half: the arrival
  *       must then fail on the skipped-because-no-paired-oot-world leg).
  */
-typedef enum {
-    GP_VARIANT_ROUNDTRIP = 0,
-    GP_VARIANT_PAIRED_FIRST_CROSSING = 1
-} GameplayVariant;
+typedef enum { GP_VARIANT_ROUNDTRIP = 0, GP_VARIANT_PAIRED_FIRST_CROSSING = 1 } GameplayVariant;
 
 /**
  * Initialize integration test mode
@@ -294,8 +291,8 @@ void IntegrationTest_GameplayWatchdogRebase(GameplayWatchdogTimer* timer, int ph
  * `framesInPhase`. Pure, so the decision is locked ROM-free (test
  * `gp-watchdog`).
  */
-GameplayWatchdogVerdict IntegrationTest_GameplayWatchdogTick(GameplayWatchdogTimer* timer, int phase,
-                                                             int framesInPhase, double nowSecs, int budgetSecs);
+GameplayWatchdogVerdict IntegrationTest_GameplayWatchdogTick(GameplayWatchdogTimer* timer, int phase, int framesInPhase,
+                                                             double nowSecs, int budgetSecs);
 
 // ----------------------------------------------------------------------------
 // Progress word for the int-* rows (#793)

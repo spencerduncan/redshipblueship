@@ -470,8 +470,8 @@ TestResult FmWalkHostNative(const FmGame& origin, const FmGame& host, std::set<i
         ComboModelAnswer a;
         const uint8_t kind = Combo_GetForeignItemModel(host.game, FmItem(origin.game, (uint16_t)id), &a);
         if (r < 0 || kind != (r == 1 ? COMBO_MODEL_ANSWER_HOST_NATIVE : COMBO_MODEL_ANSWER_NONE)) {
-            printf("[TEST]   %s item %d: the registry's answer (%u) disagrees with the host's table\n", origin.name,
-                   id, (unsigned)kind);
+            printf("[TEST]   %s item %d: the registry's answer (%u) disagrees with the host's table\n", origin.name, id,
+                   (unsigned)kind);
             failures++;
         }
     }
@@ -525,7 +525,7 @@ TestResult FmCheckPin(const FmPin& pin) {
         ComboModel hostModel;
         const char* reason = nullptr;
         const int drawn = host == (uint8_t)GAME_MM ? MM_ComboModel_TestForHostKey(answer.hostKey, &hostModel, &reason)
-                                                    : OoT_ComboModel_TestForDrawRow(answer.hostKey, &hostModel, &reason);
+                                                   : OoT_ComboModel_TestForDrawRow(answer.hostKey, &hostModel, &reason);
         hostFirst = drawn == 1 ? hostModel.parts[0].dl : "(host row not drawable)";
         bool hasList = false;
         for (int i = 0; drawn == 1 && pin.hostListTail != nullptr && i < hostModel.partCount; i++) {
@@ -630,7 +630,10 @@ TestResult FmWalkOoTSongsInMM(void) {
                got == 1 ? "draws" : "NO MODEL", tableRow, (unsigned)key, (unsigned)host.partCount,
                host.xluColor.set ? host.xluColor.env[0] : -1, host.xluColor.set ? host.xluColor.env[1] : -1,
                host.xluColor.set ? host.xluColor.env[2] : -1, ok ? "" : "  <- ",
-               ok ? "" : got == 1 ? "wrong note" : why ? why : "no table row");
+               ok         ? ""
+               : got == 1 ? "wrong note"
+               : why      ? why
+                          : "no table row");
         failures += ok ? 0 : 1;
     }
     printf("[TEST]   OoT song rows in MM: %d rows (%d tinted, on %zu MM table rows); %d failures\n", songRows, tinted,
@@ -1295,7 +1298,8 @@ TestResult Test_ForeignModel(void) {
         const int modelOdolwa = OoT_ForeignModel_ModelForOoTCheck(shelf, nullptr);
         OoT_ForeignModel_TestSetMountOverride(-1);
 
-        const int realMissing = OoT_ForeignModel_TestPathMountedReal("__OTR__objects/rsbs_no_such_object/gRsbsNoSuchDL");
+        const int realMissing =
+            OoT_ForeignModel_TestPathMountedReal("__OTR__objects/rsbs_no_such_object/gRsbsNoSuchDL");
         const int realNoPrefix = OoT_ForeignModel_TestPathMountedReal("objects/object_gi_nutsmask/gGiNutsMaskDL");
         const int realNull = OoT_ForeignModel_TestPathMountedReal(nullptr);
 

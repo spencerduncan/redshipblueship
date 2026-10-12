@@ -132,8 +132,8 @@ uint32_t Combo_TriforceRecordDivergence(const ComboSettingsRecord* settings, con
     if (rec == NULL) {
         return 0;
     }
-    const bool hunt = settings != NULL && settings->formatVersion != 0 &&
-                      settings->goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
+    const bool hunt =
+        settings != NULL && settings->formatVersion != 0 && settings->goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
     if (hunt) {
         // A frozen hunt the stored record cannot describe: absent, or bytes the
         // creation rule could never have written.

@@ -45,7 +45,5 @@ alignas(16) char gSaveContext[UNIFIED_SAVE_SIZE];
  */
 
 /* Size verification - can be checked at runtime during init */
-_Static_assert(UNIFIED_SAVE_SIZE >= OOT_SAVE_CONTEXT_SIZE,
-               "Unified storage must fit OoT SaveContext");
-_Static_assert(UNIFIED_SAVE_SIZE >= MM_SAVE_CONTEXT_SIZE,
-               "Unified storage must fit MM SaveContext");
+_Static_assert(UNIFIED_SAVE_SIZE >= OOT_SAVE_CONTEXT_SIZE, "Unified storage must fit OoT SaveContext");
+_Static_assert(UNIFIED_SAVE_SIZE >= MM_SAVE_CONTEXT_SIZE, "Unified storage must fit MM SaveContext");

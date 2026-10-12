@@ -78,13 +78,13 @@ static_assert(RSBS_CROSSING_STORE_CAP >= RSBS_COMBO_LOGIC_PLACEMENT_CAP,
 static_assert(RSBS_CROSSING_RECORD_SIZE == 8u && RSBS_CROSSING_BLOCK_HEADER_SIZE == 16u,
               "the crossing block's record and header sizes are .redsave format");
 
-#define XS_ASSERT(cond)                                                                                                \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            XsRestore();                                                                                               \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define XS_ASSERT(cond)                                                    \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            XsRestore();                                                   \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 namespace {
@@ -134,8 +134,21 @@ void XsEnd(void*) {
 }
 
 const ComboLogicEngine kXsEngine = {
-    RSBS_COMBO_LOGIC_ENGINE_ABI, nullptr, XsBegin, XsAssume, XsExpand, XsCrossing, XsReached, XsHosts, XsHosts,
-    XsGoal,  XsPlace, XsClear, XsEnd, nullptr, nullptr,
+    RSBS_COMBO_LOGIC_ENGINE_ABI,
+    nullptr,
+    XsBegin,
+    XsAssume,
+    XsExpand,
+    XsCrossing,
+    XsReached,
+    XsHosts,
+    XsHosts,
+    XsGoal,
+    XsPlace,
+    XsClear,
+    XsEnd,
+    nullptr,
+    nullptr,
 };
 
 const ComboLogicEngine* sXsPriorOoT = nullptr;
@@ -228,8 +241,7 @@ bool XsWriteFile(const std::string& path, const std::vector<uint8_t>& bytes) {
 
 /** Offset of Tier-4 in a v3 file this build wrote. */
 size_t XsTier4Offset() {
-    return sizeof(rsbs::RsbsSaveHeader) + RSBS_COMBO_CONTEXT_RECORD_SIZE + OOT_SAVE_CONTEXT_SIZE +
-           MM_SAVE_CONTEXT_SIZE;
+    return sizeof(rsbs::RsbsSaveHeader) + RSBS_COMBO_CONTEXT_RECORD_SIZE + OOT_SAVE_CONTEXT_SIZE + MM_SAVE_CONTEXT_SIZE;
 }
 
 /** Re-stamp the header CRC after editing the payload, so a test reaches the

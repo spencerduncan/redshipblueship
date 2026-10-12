@@ -12,7 +12,7 @@
  */
 
 #include "shared_items.h"
-#include "foreign_items.h" // Combo_ForeignGiveCaps, RSBS_GIVECAP_* (src/common; game-header-free like this TU)
+#include "foreign_items.h"    // Combo_ForeignGiveCaps, RSBS_GIVECAP_* (src/common; game-header-free like this TU)
 #include "shared_resources.h" // Combo_SharedResourceKindArmed, RSBS_SHARED_RES_MAX_HEALTH_QUARTERS (pool policy)
 #include <stdio.h>
 #include <string.h>
@@ -187,8 +187,8 @@ int Combo_CommitStagedSharedItems(void) {
 
 ComboGrantResult Combo_SubmitSourcedGrant(uint32_t sourceKey, uint32_t seq, GameId originGame, uint16_t id) {
     if (sourceKey == 0u || seq == 0u || !IsRealGame(originGame)) {
-        fprintf(stderr, "[SharedItem] sourced grant REJECTED (malformed): key=%u seq=%u origin=%d id=%u\n",
-                sourceKey, seq, (int)originGame, (unsigned)id);
+        fprintf(stderr, "[SharedItem] sourced grant REJECTED (malformed): key=%u seq=%u origin=%d id=%u\n", sourceKey,
+                seq, (int)originGame, (unsigned)id);
         return RSBS_GRANT_REJECTED;
     }
 
@@ -347,9 +347,8 @@ RSBS_CTX_STATIC_ASSERT(RSBS_FILL_ARM_SOULS == RSBS_GIVECAP_SOULS &&
                            RSBS_FILL_ARM_SWIM == RSBS_GIVECAP_SWIM && RSBS_FILL_ARM_CLOCKS == RSBS_GIVECAP_CLOCKS &&
                            (RSBS_GIVECAP_ALL_V1 & ~RSBS_FILL_ARM_GIVECAPS_MASK) == 0u,
                        "the give-capability half of RSBS_FILL_ARM_* must be bit-identical to RSBS_GIVECAP_*");
-RSBS_CTX_STATIC_ASSERT(RSBS_FILL_CLASS_NONE == 0u && RSBS_FILL_CLASS_PROGRESSION == 1u &&
-                           RSBS_FILL_CLASS_JUNK == 2u && RSBS_FILL_CLASS_RENEWABLE == 3u &&
-                           RSBS_FILL_CLASS_TRAP == 4u && RSBS_FILL_CLASS_COUNT == 5u,
+RSBS_CTX_STATIC_ASSERT(RSBS_FILL_CLASS_NONE == 0u && RSBS_FILL_CLASS_PROGRESSION == 1u && RSBS_FILL_CLASS_JUNK == 2u &&
+                           RSBS_FILL_CLASS_RENEWABLE == 3u && RSBS_FILL_CLASS_TRAP == 4u && RSBS_FILL_CLASS_COUNT == 5u,
                        "RSBS_FILL_CLASS_* values are pinned and append-only");
 
 #define ITEM_CLASS_ORIGINS 3 /* indexed by GameId: GAME_NONE (unused), GAME_OOT, GAME_MM */
@@ -524,10 +523,9 @@ int Combo_ItemClassBuild(uint8_t originGame) {
             // "A fill item" with no class, or a class the enum does not have, is a
             // source refusing to classify. Stored as NONE so the lock that counts
             // unclassified fill items sees it, and logged so the id is named.
-            fprintf(stderr,
-                    "[ItemClass] %s id %u: invalid source row (rv=%d class=%u kind=%u) stored as unclassified\n",
-                    Game_ToString((GameId)originGame), (unsigned)id, rv, (unsigned)row.fillClass,
-                    (unsigned)row.sharedKind);
+            fprintf(
+                stderr, "[ItemClass] %s id %u: invalid source row (rv=%d class=%u kind=%u) stored as unclassified\n",
+                Game_ToString((GameId)originGame), (unsigned)id, rv, (unsigned)row.fillClass, (unsigned)row.sharedKind);
             row.fillClass = RSBS_FILL_CLASS_NONE;
             row.armedBy = 0u;
             row.sharedKind = 0u;
@@ -678,8 +676,8 @@ int Combo_ItemClassVerify(uint8_t originGame) {
             row.armedBy = 0u;
             row.sharedKind = 0u;
         }
-        if (row.fillClass != t->fillClass[id] || row.armedBy != t->armedBy[id] ||
-            row.sharedKind != t->sharedKind[id] || ItemClassNormalizedUnits(&row) != t->sharedUnits[id] ||
+        if (row.fillClass != t->fillClass[id] || row.armedBy != t->armedBy[id] || row.sharedKind != t->sharedKind[id] ||
+            ItemClassNormalizedUnits(&row) != t->sharedUnits[id] ||
             ItemClassNormalizedGrade(&row) != t->chestGrade[id]) {
             if (diverging < 8) {
                 fprintf(stderr, "[ItemClass] %s id %u DIVERGES: owner=(%s, 0x%08X, %s) source=(%s, 0x%08X, %s)\n",

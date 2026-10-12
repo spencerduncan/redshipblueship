@@ -122,8 +122,7 @@ bool DetectHeadless() {
     HWINSTA station = GetProcessWindowStation();
     USEROBJECTFLAGS flags;
     DWORD needed = 0;
-    if (station != nullptr &&
-        GetUserObjectInformationW(station, UOI_FLAGS, &flags, (DWORD)sizeof(flags), &needed)) {
+    if (station != nullptr && GetUserObjectInformationW(station, UOI_FLAGS, &flags, (DWORD)sizeof(flags), &needed)) {
         if ((flags.dwFlags & WSF_VISIBLE) == 0) {
             return true;
         }

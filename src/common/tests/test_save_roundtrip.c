@@ -53,7 +53,7 @@ uint8_t SaveTestMMByte(size_t i) {
 // Seed gComboCtx + both shadow copies with recognizable, distinct content.
 void SaveTestSeed(uint32_t tag) {
     Context_InitFrozenStates();
-    ComboContext_Init();  // stamps magic "OoT+MM<3" + version, zeroes the rest
+    ComboContext_Init(); // stamps magic "OoT+MM<3" + version, zeroes the rest
     gComboCtx.saveSlot = static_cast<int32_t>(tag);
     gComboCtx.sharedFlags[5] = tag;
     gComboCtx.sharedRandoSeed = tag ^ 0xA5A5A5A5u;
@@ -80,8 +80,8 @@ bool SaveTestPatchU32(const std::string& path, size_t offset, uint32_t value) {
         return false;
     }
     f.seekp(static_cast<std::streamoff>(offset), std::ios::beg);
-    uint8_t bytes[4] = {static_cast<uint8_t>(value & 0xFFu), static_cast<uint8_t>((value >> 8) & 0xFFu),
-                        static_cast<uint8_t>((value >> 16) & 0xFFu), static_cast<uint8_t>((value >> 24) & 0xFFu)};
+    uint8_t bytes[4] = { static_cast<uint8_t>(value & 0xFFu), static_cast<uint8_t>((value >> 8) & 0xFFu),
+                         static_cast<uint8_t>((value >> 16) & 0xFFu), static_cast<uint8_t>((value >> 24) & 0xFFu) };
     f.write(reinterpret_cast<const char*>(bytes), sizeof(bytes));
     return static_cast<bool>(f);
 }
@@ -131,7 +131,7 @@ bool SaveTestMMShadowMatchesPattern() {
     return true;
 }
 
-}  // namespace
+} // namespace
 
 TestResult Test_SaveRoundtripTiers(void) {
     printf("[TEST] save-roundtrip-tiers: .redsave preserves ComboContext + both SaveContexts (#35)\n");
@@ -295,7 +295,7 @@ TestResult Test_SaveLegacySize(void) {
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     mgr.SetSaveDirectory(kSaveTestDir);
-    const uint32_t tag = 0x4C454741u;  // "LEGA"
+    const uint32_t tag = 0x4C454741u; // "LEGA"
     SaveTestSeed(tag);
     mgr.DeleteSave(0);
 
@@ -443,7 +443,7 @@ bool SaveTestWriteCraftedSlot(const std::string& path, uint32_t version, uint32_
     return static_cast<bool>(out);
 }
 
-}  // namespace
+} // namespace
 
 TestResult Test_SaveComboLegacyRecord(void) {
     printf("[TEST] save-combo-legacy-record: a pre-headroom .redsave still loads and zero-extends\n");
@@ -486,8 +486,7 @@ TestResult Test_SaveComboLegacyRecord(void) {
     SAVE_ASSERT(gComboCtx.sourceIsRando, "legacy sourceIsRando not restored");
     SAVE_ASSERT(gComboCtx.sourceGame == GAME_OOT, "legacy sourceGame not restored");
     for (size_t i = 0; i < 32; i++) {
-        SAVE_ASSERT(gComboCtx.sharedItems[i] == static_cast<uint16_t>(0x2000u + i),
-                    "legacy sharedItems not restored");
+        SAVE_ASSERT(gComboCtx.sharedItems[i] == static_cast<uint16_t>(0x2000u + i), "legacy sharedItems not restored");
     }
     // The fields carved from the pre-carve headroom must read as UNSET, which
     // for SharedItem means all-zero members — the growth contract's "zero
@@ -534,9 +533,9 @@ TestResult Test_SaveComboLegacyRecord(void) {
     // cursor is then read out of the middle of the widened placement array,
     // this test fails, and the build plus every other test stays green. That
     // is the exact failure mode nothing else catches.
-    static const size_t kGrantCursorsOffset = 672u;          // grantCursors[0].sourceKey
-    static const size_t kGrantCursorsLastSeqOffset = 676u;   // grantCursors[0].lastSeq
-    static const size_t kOverflowCountOffset = 736u;         // sharedItemOverflowCount
+    static const size_t kGrantCursorsOffset = 672u;        // grantCursors[0].sourceKey
+    static const size_t kGrantCursorsLastSeqOffset = 676u; // grantCursors[0].lastSeq
+    static const size_t kOverflowCountOffset = 736u;       // sharedItemOverflowCount
     static const uint32_t kCraftedSourceKey = 0xC0FFEE01u;
     static const uint32_t kCraftedLastSeq = 0x00000205u;
     static const uint32_t kCraftedOverflow = 0x00BADBEDu;
@@ -582,7 +581,7 @@ TestResult Test_SaveComboLegacyRecord(void) {
         0x22,       // spare1
     };
 
-    SaveTestSeed(tag);  // re-inits gComboCtx and restamps the magic/version
+    SaveTestSeed(tag); // re-inits gComboCtx and restamps the magic/version
     {
         // Write through a byte pointer at the literal offsets. Deliberately
         // NOT gComboCtx.grantCursors[0].sourceKey = ...: assigning through the
@@ -601,9 +600,9 @@ TestResult Test_SaveComboLegacyRecord(void) {
 
     mgr.DeleteSave(0);
     // v2: the crafted file carries Tiers 1-3 only (no v3 Tier-4 crossing block).
-    SAVE_ASSERT(SaveTestWriteCraftedSlot(mgr.SlotPath(0), RSBS_SAVE_VERSION_CROSSINGS - 1u,
-                                         (uint32_t)sizeof(ComboContext)),
-                "could not write v2 fixed-offset slot file");
+    SAVE_ASSERT(
+        SaveTestWriteCraftedSlot(mgr.SlotPath(0), RSBS_SAVE_VERSION_CROSSINGS - 1u, (uint32_t)sizeof(ComboContext)),
+        "could not write v2 fixed-offset slot file");
 
     // Scribble the whole carve region so a pass cannot come from leftovers.
     ComboContext_Init();
@@ -649,8 +648,7 @@ TestResult Test_SaveComboLegacyRecord(void) {
                     gComboCtx.comboSettings.direction == kCraftedComboRecord[1] &&
                     gComboCtx.comboSettings.poolSizeOoT == kCraftedComboRecord[2] &&
                     gComboCtx.comboSettings.poolSizeMM == kCraftedComboRecord[3] &&
-                    gComboCtx.comboSettings.itemClassOoT == 0x4321u &&
-                    gComboCtx.comboSettings.itemClassMM == 0x8765u &&
+                    gComboCtx.comboSettings.itemClassOoT == 0x4321u && gComboCtx.comboSettings.itemClassMM == 0x8765u &&
                     gComboCtx.comboSettings.goal == kCraftedComboRecord[8] &&
                     gComboCtx.comboSettings.logicRung == kCraftedComboRecord[9] &&
                     gComboCtx.comboSettings.comboFlags == kCraftedComboRecord[10] &&
@@ -689,8 +687,8 @@ TestResult Test_SaveComboRecordFixed(void) {
     // grows. Total file length proves the padding is actually on disk.
     // Plus the v3 Tier-4 crossing block (ADR 0010 O7), which is variable
     // length: exactly what the resident store serializes to.
-    const uintmax_t expected = sizeof(rsbs::RsbsSaveHeader) + RSBS_COMBO_CONTEXT_RECORD_SIZE +
-                               OOT_SAVE_CONTEXT_SIZE + MM_SAVE_CONTEXT_SIZE + Combo_Crossings_SerializedSize();
+    const uintmax_t expected = sizeof(rsbs::RsbsSaveHeader) + RSBS_COMBO_CONTEXT_RECORD_SIZE + OOT_SAVE_CONTEXT_SIZE +
+                               MM_SAVE_CONTEXT_SIZE + Combo_Crossings_SerializedSize();
     SAVE_ASSERT(std::filesystem::file_size(mgr.SlotPath(0)) == expected,
                 "slot file length does not match a fixed-size padded Tier-1");
     SAVE_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,

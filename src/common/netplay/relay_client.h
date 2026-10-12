@@ -80,11 +80,11 @@ typedef struct {
 } RelayChannel;
 
 typedef enum {
-    RSBS_RELAY_STATE_IDLE = 0,   // never connected; no outbound anything
-    RSBS_RELAY_STATE_HELLO,      // hello sent, awaiting the 11-byte server hello
-    RSBS_RELAY_STATE_JOINING,    // join sent, awaiting ledger stream
-    RSBS_RELAY_STATE_READY,      // streaming
-    RSBS_RELAY_STATE_FAILED,     // terminal: version mismatch or channel error
+    RSBS_RELAY_STATE_IDLE = 0, // never connected; no outbound anything
+    RSBS_RELAY_STATE_HELLO,    // hello sent, awaiting the 11-byte server hello
+    RSBS_RELAY_STATE_JOINING,  // join sent, awaiting ledger stream
+    RSBS_RELAY_STATE_READY,    // streaming
+    RSBS_RELAY_STATE_FAILED,   // terminal: version mismatch or channel error
 } RelayState;
 
 typedef struct {

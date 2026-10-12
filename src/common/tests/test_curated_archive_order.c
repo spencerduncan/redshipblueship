@@ -137,8 +137,8 @@ std::shared_ptr<Ship::File> CaoLoadThroughWinner(Ship::ArchiveManager& mgr, cons
 
 // Byte-compare one path as resolved by two managers. Absent from both counts
 // as equal (neither manager can serve it, so order cannot matter).
-bool CaoResolvesIdentically(Ship::ArchiveManager& a, Ship::ArchiveManager& b, const std::string& path,
-                            size_t* outSizeA, size_t* outSizeB) {
+bool CaoResolvesIdentically(Ship::ArchiveManager& a, Ship::ArchiveManager& b, const std::string& path, size_t* outSizeA,
+                            size_t* outSizeB) {
     auto fileA = CaoLoadThroughWinner(a, path);
     auto fileB = CaoLoadThroughWinner(b, path);
 
@@ -306,9 +306,7 @@ extern "C" int ModArchiveSurvivesSwitch_RunHeadless(const char* baseArchive, con
         auto archive = archiveManager->GetArchiveFromFile(path);
         return archive != nullptr ? archive->GetPath() : std::string();
     };
-    auto isModPath = [&](const std::string& owner) {
-        return owner.find("rsbs_test_mod_593.o2r") != std::string::npos;
-    };
+    auto isModPath = [&](const std::string& owner) { return owner.find("rsbs_test_mod_593.o2r") != std::string::npos; };
 
     do {
         // ---- Registry semantics -------------------------------------------
@@ -381,9 +379,8 @@ extern "C" int ModArchiveSurvivesSwitch_RunHeadless(const char* baseArchive, con
         printf("[mod-survives-switch] with 0 registered mods, %s is owned by: %s\n", contested.c_str(),
                ownerControl.c_str());
         if (isModPath(ownerControl)) {
-            fprintf(stderr,
-                    "[mod-survives-switch] FAIL: control — the mod archive won with an EMPTY registry, so the "
-                    "positive leg above proves nothing\n");
+            fprintf(stderr, "[mod-survives-switch] FAIL: control — the mod archive won with an EMPTY registry, so the "
+                            "positive leg above proves nothing\n");
             rc = 1;
             break;
         }

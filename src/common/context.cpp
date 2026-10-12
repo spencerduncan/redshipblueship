@@ -61,20 +61,20 @@ struct FrozenGameState {
     FrozenGameState() = default;
 
     FrozenGameState(GameId g, size_t size)
-        : game(g)
-        , returnEntrance(0)
-        , saveContext(size, 0)  // Zero-initialize
-        , hasBeenFrozen(false)
-    {}
+        : game(g), returnEntrance(0), saveContext(size, 0) // Zero-initialize
+          ,
+          hasBeenFrozen(false) {
+    }
 };
 
 /**
  * Manager for frozen state of both games
  */
 class FrozenStateManager {
-public:
+  public:
     void Initialize() {
-        if (mInitialized) return;
+        if (mInitialized)
+            return;
 
         mOoTState = FrozenGameState(GAME_OOT, OOT_SAVE_CONTEXT_SIZE);
         mMMState = FrozenGameState(GAME_MM, MM_SAVE_CONTEXT_SIZE);
@@ -90,9 +90,9 @@ public:
     // capacity was the N64 0x1428, and every freeze dropped SoH's ship.*
     // state). The tail beyond `size` is zeroed so the blob is deterministic
     // for serialization/CRC regardless of what was frozen before.
-    void FreezeState(GameId game, uint16_t returnEntrance,
-                     const void* saveContextData, size_t size) {
-        if (!mInitialized) Initialize();
+    void FreezeState(GameId game, uint16_t returnEntrance, const void* saveContextData, size_t size) {
+        if (!mInitialized)
+            Initialize();
 
         FrozenGameState& state = GetState(game);
         size_t expectedSize = (game == GAME_OOT) ? OOT_SAVE_CONTEXT_SIZE : MM_SAVE_CONTEXT_SIZE;
@@ -131,7 +131,8 @@ public:
     }
 
     bool RestoreState(GameId game, void* saveContextData, size_t size) {
-        if (!mInitialized) Initialize();
+        if (!mInitialized)
+            Initialize();
 
         const FrozenGameState& state = GetState(game);
 
@@ -149,17 +150,20 @@ public:
     }
 
     bool HasFrozenState(GameId game) const {
-        if (!mInitialized) return false;
+        if (!mInitialized)
+            return false;
         return GetState(game).hasBeenFrozen;
     }
 
     uint16_t GetReturnEntrance(GameId game) const {
-        if (!mInitialized) return 0;
+        if (!mInitialized)
+            return 0;
         return GetState(game).returnEntrance;
     }
 
     void ClearFrozenState(GameId game) {
-        if (!mInitialized) return;
+        if (!mInitialized)
+            return;
 
         FrozenGameState& state = GetState(game);
         state.hasBeenFrozen = false;
@@ -188,7 +192,8 @@ public:
     }
 
     void UpdateShadowCopy(GameId game, const void* saveContextData, size_t size) {
-        if (!mInitialized) Initialize();
+        if (!mInitialized)
+            Initialize();
 
         FrozenGameState& state = GetState(game);
         size_t expectedSize = (game == GAME_OOT) ? OOT_SAVE_CONTEXT_SIZE : MM_SAVE_CONTEXT_SIZE;
@@ -228,7 +233,8 @@ public:
     // resumed game actually spawns is that game's own spawn policy, not a
     // property of the blob's arming.
     bool ArmShadowAsFrozen(GameId game, uint16_t returnEntrance) {
-        if (!mInitialized) Initialize();
+        if (!mInitialized)
+            Initialize();
 
         FrozenGameState& state = GetState(game);
         if (state.saveContext.empty()) {
@@ -252,7 +258,7 @@ public:
         return true;
     }
 
-private:
+  private:
     static size_t GameIndex(GameId game) {
         return game == GAME_MM ? 1u : 0u;
     }
@@ -309,10 +315,10 @@ void ComboContext_Init(void) {
     gComboCtx.targetEntrance = 0;
     gComboCtx.sourceGame = GAME_NONE;
     gComboCtx.sourceEntrance = 0;
-    gComboCtx.saveSlot = -1;  // RETIRED IN PLACE (ADR 0002) — the -1 stamp is shipped behavior, kept as-is
+    gComboCtx.saveSlot = -1; // RETIRED IN PLACE (ADR 0002) — the -1 stamp is shipped behavior, kept as-is
     gComboCtx.sourceIsRando = false;
     gComboCtx.sharedRandoSeed = 0;
-    gComboCtx.sharedRandoSettingsHash = 0;  // Lane B (ADR 0002 §3): 0 == no profile recorded
+    gComboCtx.sharedRandoSettingsHash = 0; // Lane B (ADR 0002 §3): 0 == no profile recorded
     // sharedItemsTagged, foreignPlacements, grantCursors,
     // sharedItemOverflowCount, and the remaining reserved[] headroom are
     // covered by the memset above: all-zero IS the initialized state (every
@@ -579,8 +585,8 @@ void Context_InvalidateSessionOnNewGame(int isRandoFile, uint32_t createdWorldSe
     // stamp real (Combo_ForeignPairingActive), and a zero seed is rejected
     // outright so that "nothing was ever stamped" (a cold boot's all-zero
     // gComboCtx) can never match a caller that has no world of its own.
-    const int identityIsThisFiles = gComboCtx.sourceIsRando && gComboCtx.sharedRandoSeed != 0 &&
-                                    gComboCtx.sharedRandoSeed == createdWorldSeed;
+    const int identityIsThisFiles =
+        gComboCtx.sourceIsRando && gComboCtx.sharedRandoSeed != 0 && gComboCtx.sharedRandoSeed == createdWorldSeed;
     const int keep = (isRandoFile != 0) && identityIsThisFiles;
 
     fprintf(stderr,
@@ -634,8 +640,7 @@ void Context_InitFrozenStates(void) {
     gFrozenStates.Initialize();
 }
 
-void Context_FreezeState(GameId game, uint16_t returnEntrance,
-                         const void* saveContext, size_t size) {
+void Context_FreezeState(GameId game, uint16_t returnEntrance, const void* saveContext, size_t size) {
     gFrozenStates.FreezeState(game, returnEntrance, saveContext, size);
 }
 
@@ -690,40 +695,45 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance) {
 // Legacy Combo_* API compatibility
 // ============================================================================
 
-void Combo_FreezeState(const char* gameId, uint16_t returnEntrance,
-                       const void* saveContext, size_t size) {
+void Combo_FreezeState(const char* gameId, uint16_t returnEntrance, const void* saveContext, size_t size) {
     GameId game = Game_FromString(gameId);
-    if (game == GAME_NONE) return;
+    if (game == GAME_NONE)
+        return;
     Context_FreezeState(game, returnEntrance, saveContext, size);
 }
 
 int Combo_RestoreState(const char* gameId, void* saveContext, size_t size) {
     GameId game = Game_FromString(gameId);
-    if (game == GAME_NONE) return 0;
+    if (game == GAME_NONE)
+        return 0;
     return Context_RestoreState(game, saveContext, size);
 }
 
 int Combo_HasFrozenState(const char* gameId) {
     GameId game = Game_FromString(gameId);
-    if (game == GAME_NONE) return 0;
+    if (game == GAME_NONE)
+        return 0;
     return Context_HasFrozenState(game);
 }
 
 uint16_t Combo_GetFrozenReturnEntrance(const char* gameId) {
     GameId game = Game_FromString(gameId);
-    if (game == GAME_NONE) return 0;
+    if (game == GAME_NONE)
+        return 0;
     return Context_GetFrozenReturnEntrance(game);
 }
 
 void Combo_ClearFrozenState(const char* gameId) {
     GameId game = Game_FromString(gameId);
-    if (game == GAME_NONE) return;
+    if (game == GAME_NONE)
+        return;
     Context_ClearFrozenState(game);
 }
 
 void Combo_UpdateShadowCopy(const char* gameId, const void* saveContext, size_t size) {
     GameId game = Game_FromString(gameId);
-    if (game == GAME_NONE) return;
+    if (game == GAME_NONE)
+        return;
     Context_UpdateShadowCopy(game, saveContext, size);
 }
 

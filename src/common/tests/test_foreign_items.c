@@ -97,12 +97,12 @@ uint16_t MM_ForeignItem_TestPendingAt(int index);
 void MM_ForeignItem_TestResetPending(void);
 }
 
-#define FI_ASSERT(cond)                                                                                                \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define FI_ASSERT(cond)                                                    \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 namespace {
@@ -276,7 +276,7 @@ TestResult Test_ForeignItemGive(void) {
     untagged.flags = 0;
     untagged.id = 7;
     FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, untagged) < 0); // untagged item rejected
-    FI_ASSERT(Combo_SetForeignPlacement(0, ootLens) < 0);              // RC_UNKNOWN rejected
+    FI_ASSERT(Combo_SetForeignPlacement(0, ootLens) < 0);                   // RC_UNKNOWN rejected
     FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, ootLens) >= 0);
     FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckA, ootLens) < 0); // duplicate check rejected
     FI_ASSERT(Combo_SetForeignPlacement(kForeignTestCheckB, ootHammer) >= 0);
@@ -346,7 +346,7 @@ TestResult Test_ForeignItemGive(void) {
     mgr.DeleteSave(0);
     FI_ASSERT(mgr.Save(0));
 
-    ComboContext_Init(); // wipe live state...
+    ComboContext_Init();                                                            // wipe live state...
     memset(gComboCtx.foreignPlacements, 0x5A, sizeof(gComboCtx.foreignPlacements)); // ...then scribble
     FI_ASSERT(mgr.Load(0));
     FI_ASSERT(memcmp(expected, gComboCtx.foreignPlacements, sizeof(expected)) == 0);

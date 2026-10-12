@@ -54,12 +54,12 @@
 #include <string.h>
 
 /* Local pass/fail helper, matching the style of test_game_lifecycle.c. */
-#define RT_ASSERT(cond)                                                       \
-    do {                                                                      \
-        if (!(cond)) {                                                        \
-            printf("  FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);         \
-            return 1;                                                         \
-        }                                                                     \
+#define RT_ASSERT(cond)                                               \
+    do {                                                              \
+        if (!(cond)) {                                                \
+            printf("  FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return 1;                                                 \
+        }                                                             \
     } while (0)
 
 /**

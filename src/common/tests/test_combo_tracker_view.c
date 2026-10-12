@@ -99,12 +99,12 @@
 extern "C" int OoT_TrackerAdapter_TestAuthorWorld(uint32_t seed, uint16_t outIds[3]);
 extern "C" void OoT_TrackerAdapter_TestReleaseWorld(void);
 
-#define CTV_ASSERT(cond)                                                                                               \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CTV_ASSERT(cond)                                                   \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 // ---- #799: the live source ------------------------------------------------
@@ -300,8 +300,8 @@ static int CtvMMRowsU4(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& blo
     // Agrees with MM's own check tracker, reading the same save.
     char native[96];
     uint16_t stored = 0;
-    CTV_ASSERT(MM_CheckTracker_TestItemName(Context_GetMMSaveContext(), obtainedB, native, (int)sizeof(native),
-                                            &stored) == 1);
+    CTV_ASSERT(
+        MM_CheckTracker_TestItemName(Context_GetMMSaveContext(), obtainedB, native, (int)sizeof(native), &stored) == 1);
     CTV_ASSERT(CtvNativeSpelling(row, (uint8_t)GAME_MM) == native);
     // The area is a property of the check, the same on every read.
     ComboTrackerCheckRow again;
@@ -522,8 +522,8 @@ static int CtvSkipLegsOoT(const uint16_t ootIds[3]) {
     const bool wrote = Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true);
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row));
     int persists = OoT_TrackerAdapter_TestSkipSeam(1);
-    printf("[TEST] combo-tracker-view U5 OoT live skip: returned=%d heapSkipped=%d status=%u persists=%d\n",
-           (int)wrote, (int)row.skipped, (unsigned)row.status, persists);
+    printf("[TEST] combo-tracker-view U5 OoT live skip: returned=%d heapSkipped=%d status=%u persists=%d\n", (int)wrote,
+           (int)row.skipped, (unsigned)row.status, persists);
     CTV_ASSERT(wrote);
     CTV_ASSERT(row.skipped && row.status == COMBO_TRACKER_CHECK_SKIPPED);
     CTV_ASSERT(persists == 1);
@@ -616,10 +616,10 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     // If this fires, the MM registration was dropped (the #516 dead-registrar
     // class) or the descriptor failed the view's geometry validation.
     CTV_ASSERT(desc != NULL);
-    CTV_ASSERT(desc->checkCount > 100);    // a real RC_MAX-sized table, not a stub
-    CTV_ASSERT(desc->checkStride >= 8);    // RandoSaveCheck carries an item id + flags + price
-    CTV_ASSERT(desc->checkName != NULL);   // names resolve MM-side
-    CTV_ASSERT(desc->saveTypeRando != 0);  // SAVETYPE_RANDO is nonzero (vanilla is 0)
+    CTV_ASSERT(desc->checkCount > 100);   // a real RC_MAX-sized table, not a stub
+    CTV_ASSERT(desc->checkStride >= 8);   // RandoSaveCheck carries an item id + flags + price
+    CTV_ASSERT(desc->checkName != NULL);  // names resolve MM-side
+    CTV_ASSERT(desc->saveTypeRando != 0); // SAVETYPE_RANDO is nonzero (vanilla is 0)
 
     // Snapshot whatever is resident before authoring over it. Under
     // `--test all` an earlier row (the roundtrip/switch tests) may have left a
@@ -687,7 +687,7 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kSkippedC, &row));
     CTV_ASSERT(row.shuffled && !row.obtained && row.skipped);
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kShuffledA + 1, &row));
-    CTV_ASSERT(!row.shuffled); // id 4 was never authored
+    CTV_ASSERT(!row.shuffled);                                                        // id 4 was never authored
     CTV_ASSERT(!Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)desc->checkCount, &row)); // out of range
 
     // ---- 2b. #458 U4: status, area and placed item on MM rows ----------------

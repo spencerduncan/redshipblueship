@@ -140,8 +140,8 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
             CMOP_ASSERT(rowsInColumn[c] > 0);
         }
         CMOP_ASSERT(Combo_MMOptionsPage_GroupColumn((uint8_t)COMBO_MM_GROUP_COUNT) == -1);
-        printf("[TEST] leg 2: every option group has a column (%d rows in column 1, %d in column 2)\n",
-               rowsInColumn[0], rowsInColumn[1]);
+        printf("[TEST] leg 2: every option group has a column (%d rows in column 1, %d in column 2)\n", rowsInColumn[0],
+               rowsInColumn[1]);
     }
 
     // ---- 3. Row states, both directions, and the freeze --------------------
@@ -411,8 +411,8 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
         for (int i = 0; i < trickCount; i++) {
             const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
             if (!fragment(d->disabledReason)) {
-                printf("[TEST] FAIL: MM trick %s's disabled reason '%s' is not a Title Case fragment (R-S2)\n",
-                       d->name, d->disabledReason);
+                printf("[TEST] FAIL: MM trick %s's disabled reason '%s' is not a Title Case fragment (R-S2)\n", d->name,
+                       d->disabledReason);
                 return TEST_FAIL;
             }
         }

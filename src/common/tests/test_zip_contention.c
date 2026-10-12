@@ -229,8 +229,7 @@ extern "C" int ZipContention_RunHeadless(void) {
     for (const auto& e : hot) {
         auto res = rm->LoadResourceProcess(e.path, /*loadExact*/ true, nullptr);
         if (res == nullptr) {
-            fprintf(stderr, "[zip-contention] FAIL: hot warm-up load of '%s' failed single-threaded\n",
-                    e.path.c_str());
+            fprintf(stderr, "[zip-contention] FAIL: hot warm-up load of '%s' failed single-threaded\n", e.path.c_str());
             return 1;
         }
     }
@@ -251,8 +250,8 @@ extern "C" int ZipContention_RunHeadless(void) {
             const std::lock_guard<std::mutex> lock(failMutex);
             if (firstFailure.empty()) {
                 char buf[512];
-                snprintf(buf, sizeof(buf), "cold load #%lld (pass %d, entry '%s'): %s", loadOrdinal, pass,
-                         path.c_str(), what);
+                snprintf(buf, sizeof(buf), "cold load #%lld (pass %d, entry '%s'): %s", loadOrdinal, pass, path.c_str(),
+                         what);
                 firstFailure = buf;
             }
         }
@@ -295,8 +294,7 @@ extern "C" int ZipContention_RunHeadless(void) {
                         return;
                     }
                     if (res->GetInitData() == nullptr || res->GetInitData()->Type == 0) {
-                        recordFailure(ordinal, pass, e.path,
-                                      "resource init data read as type 0 (the #560 signature)");
+                        recordFailure(ordinal, pass, e.path, "resource init data read as type 0 (the #560 signature)");
                         return;
                     }
                     rm->UnloadResource(e.path); // Cold again for the next pass.

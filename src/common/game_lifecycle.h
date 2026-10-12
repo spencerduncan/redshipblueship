@@ -26,34 +26,34 @@ extern "C" {
  * Each game (OoT, MM) provides one of these.
  */
 typedef struct GameOps {
-    const char* id;       /* "oot" or "mm" */
-    const char* name;     /* "Ocarina of Time" or "Majora's Mask" */
+    const char* id;   /* "oot" or "mm" */
+    const char* name; /* "Ocarina of Time" or "Majora's Mask" */
 
-    int  (*init)(int argc, char** argv);
+    int (*init)(int argc, char** argv);
     void (*run)(void);
-    void (*suspend)(void);    /* Pause for game switch (keep shared state alive) */
-    void (*resume)(void);     /* Resume after being suspended */
-    void (*shutdown)(void);   /* Full cleanup (final exit only) */
+    void (*suspend)(void);  /* Pause for game switch (keep shared state alive) */
+    void (*resume)(void);   /* Resume after being suspended */
+    void (*shutdown)(void); /* Full cleanup (final exit only) */
 } GameOps;
 
 /**
  * Game state as tracked by the runner.
  */
 typedef enum {
-    GAME_LIFECYCLE_STATE_NONE = 0,      /* Not registered or not started */
-    GAME_LIFECYCLE_STATE_READY,         /* Registered but not yet initialized */
-    GAME_LIFECYCLE_STATE_RUNNING,       /* Currently active */
-    GAME_LIFECYCLE_STATE_SUSPENDED,     /* Paused for a game switch */
-    GAME_LIFECYCLE_STATE_STOPPED        /* Shut down */
+    GAME_LIFECYCLE_STATE_NONE = 0,  /* Not registered or not started */
+    GAME_LIFECYCLE_STATE_READY,     /* Registered but not yet initialized */
+    GAME_LIFECYCLE_STATE_RUNNING,   /* Currently active */
+    GAME_LIFECYCLE_STATE_SUSPENDED, /* Paused for a game switch */
+    GAME_LIFECYCLE_STATE_STOPPED    /* Shut down */
 } GameLifecycleState;
 
 /**
  * Orchestrator that manages game lifecycle transitions.
  */
 typedef struct GameRunner {
-    GameOps*   games[GAME_RUNNER_MAX_GAMES];    /* Indexed by (GameId - 1) */
-    GameLifecycleState  states[GAME_RUNNER_MAX_GAMES];
-    GameId     activeGame;
+    GameOps* games[GAME_RUNNER_MAX_GAMES]; /* Indexed by (GameId - 1) */
+    GameLifecycleState states[GAME_RUNNER_MAX_GAMES];
+    GameId activeGame;
 } GameRunner;
 
 /* ---------- GameRunner API ---------- */

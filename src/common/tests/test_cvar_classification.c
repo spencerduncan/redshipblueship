@@ -52,12 +52,12 @@ bool ShouldAdoptLegacyValue(bool legacyPresent, bool canonicalPresent);
 int32_t VolumePercentFromFloatScale(float scale);
 } // namespace SOH
 
-#define CVARCLASS_CHECK(cond, msg)                     \
-    do {                                               \
-        if (!(cond)) {                                 \
-            printf("[TEST] FAIL: %s\n", (msg));        \
-            return TEST_FAIL;                          \
-        }                                              \
+#define CVARCLASS_CHECK(cond, msg)              \
+    do {                                        \
+        if (!(cond)) {                          \
+            printf("[TEST] FAIL: %s\n", (msg)); \
+            return TEST_FAIL;                   \
+        }                                       \
     } while (0)
 
 #ifdef RSBS_SOURCE_DIR
@@ -83,7 +83,8 @@ std::vector<std::string> CvarClassSlurpTree(const std::filesystem::path& root, b
     }
     ok = true;
 
-    for (std::filesystem::recursive_directory_iterator it(root, std::filesystem::directory_options::skip_permission_denied, ec),
+    for (std::filesystem::recursive_directory_iterator
+             it(root, std::filesystem::directory_options::skip_permission_denied, ec),
          end;
          it != end; it.increment(ec)) {
         if (ec) {
@@ -187,7 +188,8 @@ std::vector<CvarClassSourceFile> CvarClassSlurpTreeWithPaths(const std::filesyst
     }
     ok = true;
 
-    for (std::filesystem::recursive_directory_iterator it(root, std::filesystem::directory_options::skip_permission_denied, ec),
+    for (std::filesystem::recursive_directory_iterator
+             it(root, std::filesystem::directory_options::skip_permission_denied, ec),
          end;
          it != end; it.increment(ec)) {
         if (ec) {

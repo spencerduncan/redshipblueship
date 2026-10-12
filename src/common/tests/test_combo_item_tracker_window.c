@@ -99,12 +99,12 @@
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 
-#define CITW_ASSERT(cond)                                                                                              \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CITW_ASSERT(cond)                                                  \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 namespace {
@@ -150,8 +150,8 @@ bool CitwMMPaused(void) {
 }
 
 const char* const kCitwOverlayKeys[] = {
-    RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE,   RSBS_CVAR_COMBO_ITEMS_DRAGGABLE,    RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED,
-    RSBS_CVAR_COMBO_ITEMS_SECTION_OOT,   RSBS_CVAR_COMBO_ITEMS_SECTION_MM,   RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED,
+    RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE,         RSBS_CVAR_COMBO_ITEMS_DRAGGABLE,  RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED,
+    RSBS_CVAR_COMBO_ITEMS_SECTION_OOT,         RSBS_CVAR_COMBO_ITEMS_SECTION_MM, RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED,
     ComboGui::kComboItemTrackerVisibilityCVar,
 };
 
@@ -229,7 +229,8 @@ int CitwLockDecisions(void) {
     using namespace ComboGui;
 
     // BeginFloatingWindows' flags (randomizer_item_tracker.cpp).
-    const int base = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoResize;
+    const int base =
+        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoResize;
     const int floating = base | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoTitleBar |
                          ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
     const int fixedInputs = ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove;
@@ -401,15 +402,15 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     const ComboItemRow* ootSong = CitwFindRow(oot, "Song of Time");
     CITW_ASSERT(ootSong != nullptr && ootSong->iconAspect > 0.66f && ootSong->iconAspect < 0.67f); // iconSize / 1.5
     CITW_ASSERT(hookshot->iconAspect == 0.0f);
-    const ComboItemRow* mmBow = CitwFindRow(mm, "Bow");             // held in MM's snapshot world
-    const ComboItemRow* mmZora = CitwFindRow(mm, "Zora Mask");      // not held there
+    const ComboItemRow* mmBow = CitwFindRow(mm, "Bow");              // held in MM's snapshot world
+    const ComboItemRow* mmZora = CitwFindRow(mm, "Zora Mask");       // not held there
     const ComboItemRow* mmSong = CitwFindRow(mm, "Song of Healing"); // held
     CITW_ASSERT(mmBow != nullptr && mmBow->have && mmZora != nullptr && !mmZora->have && mmSong != nullptr);
     pick = ComboItemPickIcon(*mmBow);
     CITW_ASSERT(CitwIsPath(pick.key) && pick.alpha == 1.0f);
     pick = ComboItemPickIcon(*mmZora);
     CITW_ASSERT(CitwIsPath(pick.key) && pick.key == mmZora->iconKey && pick.alpha == 0.4f); // MM's 40%
-    CITW_ASSERT(mmSong->iconAspect > 0.69f && mmSong->iconAspect < 0.70f); // 32 / 46
+    CITW_ASSERT(mmSong->iconAspect > 0.69f && mmSong->iconAspect < 0.70f);                  // 32 / 46
 
     // ---- counts ---------------------------------------------------------------
     ComboItemCount count;
@@ -426,7 +427,7 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
                 count.amount == "40/");
     full.count = 0;
     CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GRAY);
-    CITW_ASSERT(!ComboItemCountFor(*bow, COMBO_ITEM_COUNT_SOH, count)); // faded, uncounted: no number
+    CITW_ASSERT(!ComboItemCountFor(*bow, COMBO_ITEM_COUNT_SOH, count));      // faded, uncounted: no number
     CITW_ASSERT(!ComboItemCountFor(*hookshot, COMBO_ITEM_COUNT_SOH, count)); // held, uncounted
     // QUEST_SKULL_TOKEN: the ceiling red (maxColor IM_COL_RED), the amount red once full.
     const ComboItemRow* tokens = CitwFindRow(ootSnap, "Gold Skulltula Tokens");
@@ -442,8 +443,8 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
                 count.ceiling.empty()); // MM prints the ammo alone
     const ComboItemRow* rupees = CitwFindRow(shared, "Rupees");
     const ComboItemRow* arrows = CitwFindRow(shared, "Arrows");
-    CITW_ASSERT(arrows != nullptr && ComboItemCountFor(*arrows, COMBO_ITEM_COUNT_SOH, count) &&
-                count.amount == "33/" && count.ceiling == "40");
+    CITW_ASSERT(arrows != nullptr && ComboItemCountFor(*arrows, COMBO_ITEM_COUNT_SOH, count) && count.amount == "33/" &&
+                count.ceiling == "40");
     if (rupees != nullptr && rupees->count > 0) {
         CITW_ASSERT(ComboItemCountFor(*rupees, COMBO_ITEM_COUNT_SOH, count) && count.ceiling.empty());
     }
@@ -720,15 +721,16 @@ int CitwLockLoadGuiTextureScan(void) {
             trim(key);
             trim(second);
             calls++;
-            bool name = key.size() >= 2 && key.front() == '"' && key.back() == '"' && key.find('/') == std::string::npos;
+            bool name =
+                key.size() >= 2 && key.front() == '"' && key.back() == '"' && key.find('/') == std::string::npos;
             for (const char* member : kNameKeys) {
                 name = name || key == member;
             }
             if (name) {
                 continue;
             }
-            const bool seedHash = key == "entry.tex" && second == "entry.tex" &&
-                                  file.filename().string() == "ImGuiUtils.cpp";
+            const bool seedHash =
+                key == "entry.tex" && second == "entry.tex" && file.filename().string() == "ImGuiUtils.cpp";
             if (seedHash) {
                 selfKeyed++;
                 continue;
@@ -862,9 +864,9 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(ootLiveSection.freshness == COMBO_TRACKER_FRESH_LIVE && ootLiveSection.note.empty());
     CITW_ASSERT((int)ootLiveSection.rows.size() == oot->count());
     CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Hookshot", true));     // the live world (variant 1)
-    CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Song of Time", true));  // the live world
-    CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Fairy Bow", false));    // not held: no count printed
-    CITW_ASSERT(!CitwSectionHasText(ootLiveSection, "Longshot", true));     // the shadow's, not shown
+    CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Song of Time", true)); // the live world
+    CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Fairy Bow", false));   // not held: no count printed
+    CITW_ASSERT(!CitwSectionHasText(ootLiveSection, "Longshot", true));    // the shadow's, not shown
     CITW_ASSERT(strcmp(mmSnap.title, "Majora's Mask") == 0);
     CITW_ASSERT(mmSnap.freshness == COMBO_TRACKER_FRESH_STALE);
     CITW_ASSERT(mmSnap.note.empty());
@@ -1050,8 +1052,9 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
                                      "if (!drawn) { DrawCellText(row, cellMin, cell); }")) != std::string::npos);
         CITW_ASSERT(flat.find(squash("const float baseAlpha = ImGui::GetStyle().Alpha;")) != std::string::npos);
         // SoH's counts in SoH's tracker font, popped as pushed.
-        CITW_ASSERT(flat.find(squash("const bool sohFont = countStyle != COMBO_ITEM_COUNT_MM && Ui().PushCountFont();")) !=
-                    std::string::npos);
+        CITW_ASSERT(
+            flat.find(squash("const bool sohFont = countStyle != COMBO_ITEM_COUNT_MM && Ui().PushCountFont();")) !=
+            std::string::npos);
         CITW_ASSERT(flat.find(squash("if (sohFont) { Ui().PopCountFont(); }")) != std::string::npos);
         // The draw reads exactly what point 4 drove, and lays out what point 5 holds.
         CITW_ASSERT(text.find("ComboItemTrackerCollectSection(s, sections.back())") != std::string::npos);
@@ -1064,7 +1067,8 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         CITW_ASSERT(text.find("ComboItemCountFor(row, countStyle, count)") != std::string::npos);
         CITW_ASSERT(text.find("Ui().Tooltip(row.name)") != std::string::npos); // the item's name alone, as SoH's
         CITW_ASSERT(text.find("Ui().Tooltip(ComboItemRowText") == std::string::npos);
-        CITW_ASSERT(text.find("ComboItemGridLayout(section.rows, kComboItemTrackerColumns, cells)") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemGridLayout(section.rows, kComboItemTrackerColumns, cells)") !=
+                    std::string::npos);
         // The floating overlay is fitted, and drawn at the fit's scale.
         CITW_ASSERT(text.find("fit = ComboItemTrackerFitBoxes(boxes, availWidth, availHeight, &previous)") !=
                     std::string::npos);

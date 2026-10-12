@@ -604,8 +604,8 @@ void ComboItemTrackerWindow::DrawElement() {
         // after it, so a section with no rows still reads as SoH's ruled
         // header, and any note on one line, so the header's height does not
         // change with the column's width.
-        const float title = ImGui::CalcTextSize(section.title).x + style.SeparatorTextPadding.x * 2.0f +
-                            metrics.textHeight * 2.0f;
+        const float title =
+            ImGui::CalcTextSize(section.title).x + style.SeparatorTextPadding.x * 2.0f + metrics.textHeight * 2.0f;
         const float note = section.note.empty() ? 0.0f : ImGui::CalcTextSize(section.note.c_str()).x + 1.0f;
         const float headerWidth = title > note ? title : note;
         boxes[s].width = boxes[s].width > headerWidth ? boxes[s].width : headerWidth;

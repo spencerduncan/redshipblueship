@@ -296,18 +296,17 @@ int MmsMissingFolderLegs(const std::filesystem::path& root) {
     Combo_MMModSet_Reset();
     MMS_ASSERT(Combo_MMModSet_Scan(rootStr.c_str()) == 1 && Combo_MMModSet_Editable(), 21,
                "the scan with mods/mm back did not find 1 editable archive");
-    MMS_ASSERT(MmsCVar(RSBS_CVAR_MM_ENABLED_MODS) == "keep-b.o2r" &&
-                   MmsCVar(RSBS_CVAR_MM_DISABLED_MODS) == "keep-off.o2r",
-               21, "with mods/mm present the lists became '%s', expected keep-b.o2r / keep-off.o2r",
-               MmsStored().c_str());
+    MMS_ASSERT(
+        MmsCVar(RSBS_CVAR_MM_ENABLED_MODS) == "keep-b.o2r" && MmsCVar(RSBS_CVAR_MM_DISABLED_MODS) == "keep-off.o2r", 21,
+        "with mods/mm present the lists became '%s', expected keep-b.o2r / keep-off.o2r", MmsStored().c_str());
     // An EMPTY mods/mm is a present folder (MM creates it at boot): the rules apply.
     std::error_code ec;
     std::filesystem::remove(root / "mm" / "keep-b.o2r", ec);
     Combo_MMModSet_Reset();
     MMS_ASSERT(Combo_MMModSet_Scan(rootStr.c_str()) == 0 && Combo_MMModSet_Editable() &&
-                   MmsCVar(RSBS_CVAR_MM_ENABLED_MODS).empty() &&
-                   MmsCVar(RSBS_CVAR_MM_DISABLED_MODS) == "keep-off.o2r",
-               21, "an empty but present mods/mm gave editable=%d and lists '%s', expected editable, nothing "
+                   MmsCVar(RSBS_CVAR_MM_ENABLED_MODS).empty() && MmsCVar(RSBS_CVAR_MM_DISABLED_MODS) == "keep-off.o2r",
+               21,
+               "an empty but present mods/mm gave editable=%d and lists '%s', expected editable, nothing "
                "enabled and keep-off kept",
                (int)Combo_MMModSet_Editable(), MmsStored().c_str());
     return 0;
@@ -343,8 +342,8 @@ int MmsPartialWalkLegs(const std::filesystem::path& root) {
                "the partial model is editable=%d and shows '%s', expected read-only and 20-b|10-a",
                (int)Combo_MMModSet_Editable(), MmsShownEnabled().c_str());
     // The page's four arrows, on keys the partial model holds.
-    MMS_ASSERT(!MmsAnySetterAccepted("10-a.o2r", "40-off.o2r") && !MmsAnySetterAccepted("20-b.o2r", "40-off.o2r"),
-               22, "a setter accepted an edit on the read-only partial model");
+    MMS_ASSERT(!MmsAnySetterAccepted("10-a.o2r", "40-off.o2r") && !MmsAnySetterAccepted("20-b.o2r", "40-off.o2r"), 22,
+               "a setter accepted an edit on the read-only partial model");
     MMS_ASSERT(MmsStored() == stored && MmsShownEnabled() == "20-b.o2r|10-a.o2r", 22,
                "a refused edit on the partial model changed the lists to '%s' or the model to '%s'",
                MmsStored().c_str(), MmsShownEnabled().c_str());

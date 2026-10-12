@@ -75,9 +75,8 @@ std::vector<SetMenuInvFile> SetMenuInvSlurp(const std::filesystem::path& repoRoo
     }
     ok = true;
 
-    for (std::filesystem::recursive_directory_iterator it(root,
-                                                          std::filesystem::directory_options::skip_permission_denied,
-                                                          ec),
+    for (std::filesystem::recursive_directory_iterator
+             it(root, std::filesystem::directory_options::skip_permission_denied, ec),
          end;
          it != end; it.increment(ec)) {
         if (ec) {
@@ -110,7 +109,8 @@ std::vector<SetMenuInvFile> SetMenuInvSlurp(const std::filesystem::path& repoRoo
 /** How many times @p needle occurs in @p haystack. */
 int SetMenuInvCount(const std::string& haystack, const std::string& needle) {
     int n = 0;
-    for (std::size_t at = haystack.find(needle); at != std::string::npos; at = haystack.find(needle, at + needle.size())) {
+    for (std::size_t at = haystack.find(needle); at != std::string::npos;
+         at = haystack.find(needle, at + needle.size())) {
         n++;
     }
     return n;

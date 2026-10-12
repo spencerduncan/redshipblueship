@@ -22,8 +22,8 @@ extern "C" {
  */
 typedef enum {
     GAME_NONE = 0,
-    GAME_OOT = 1,   // Ocarina of Time
-    GAME_MM = 2     // Majora's Mask
+    GAME_OOT = 1, // Ocarina of Time
+    GAME_MM = 2   // Majora's Mask
 } GameId;
 
 // SaveContext blob capacities — the SINGLE source of truth for every buffer
@@ -45,8 +45,8 @@ typedef enum {
 // sizeof(SaveContext) <= *_SAVE_CONTEXT_SIZE so drift fails the build loudly
 // instead of silently truncating cross-game save state (issue: freeze/restore
 // used to clamp OoT to 0x1428, losing all SoH ship.* state per switch).
-#define OOT_SAVE_CONTEXT_SIZE 0x22000  // ~136KB capacity (SoH runtime struct ~0x21C30)
-#define MM_SAVE_CONTEXT_SIZE  0x10000  // 64KB capacity (2S2H runtime struct ~0xC000)
+#define OOT_SAVE_CONTEXT_SIZE 0x22000 // ~136KB capacity (SoH runtime struct ~0x21C30)
+#define MM_SAVE_CONTEXT_SIZE 0x10000  // 64KB capacity (2S2H runtime struct ~0xC000)
 
 /**
  * Convert game ID string to enum

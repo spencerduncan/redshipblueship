@@ -68,12 +68,12 @@ int OoT_TrackerAdapter_TestSetCollected(uint16_t rc, int collected);
 int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
 }
 
-#define CA_ASSERT(cond)                                                                                                \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CA_ASSERT(cond)                                                    \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 namespace {
@@ -136,8 +136,8 @@ TestResult Test_ComboAreaVocabulary(void) {
             ComboArea back = { 0, 0 };
             CA_ASSERT(Combo_Area_FromName(games[g], name, &back));
             if (back.game != a.game || back.area != a.area) {
-                printf("[TEST] FAIL: \"%s\" reads back as {%d,%d}, not {%d,%d}\n", name, back.game, back.area,
-                       a.game, a.area);
+                printf("[TEST] FAIL: \"%s\" reads back as {%d,%d}, not {%d,%d}\n", name, back.game, back.area, a.game,
+                       a.area);
                 return TEST_FAIL;
             }
             CA_ASSERT(Combo_Area_IsValid(a));
@@ -399,8 +399,8 @@ TestResult Test_MmHintAreaText(void) {
     // for an item no MM check holds): "nowhere", OoTMM's word, with no preposition
     const uint16_t noArea[2] = { firstEnemyDrop, 0 };
     for (int i = 0; i < 2; i++) {
-        CA_ASSERT(MM_HintArea_TestLocationText(noArea[i], "can be found {{prepos}} %r{location}%w?", "{location}",
-                                               said, (int)sizeof(said)) > 0);
+        CA_ASSERT(MM_HintArea_TestLocationText(noArea[i], "can be found {{prepos}} %r{location}%w?", "{location}", said,
+                                               (int)sizeof(said)) > 0);
         printf("[TEST]   check %u (no area): \"%s\"\n", (unsigned)noArea[i], said);
         CA_ASSERT(strcmp(said, "can be found %rnowhere%w?") == 0);
     }
@@ -545,7 +545,8 @@ TestResult MmHintCrossedArea_RunHeadless(void) {
            (unsigned)ootIds[2], Combo_Area_Name(forestArea), Combo_Area_Name(trailArea), Combo_Area_Name(ganonArea));
     // The control on the fixture: OoT's own adapter answers the authored areas.
     bool worldOk = setAreas == 0 && forestArea.area == COMBO_AREA_OOT_KOKIRI_FOREST &&
-                   trailArea.area == COMBO_AREA_OOT_DEATH_MOUNTAIN_TRAIL && ganonArea.area == COMBO_AREA_OOT_GANONS_CASTLE;
+                   trailArea.area == COMBO_AREA_OOT_DEATH_MOUNTAIN_TRAIL &&
+                   ganonArea.area == COMBO_AREA_OOT_GANONS_CASTLE;
 
     // The OoT-hosted rows, deliberately not in ascending host order: the stone
     // must keep the store's insertion order, never re-sort it.
@@ -584,8 +585,8 @@ TestResult MmHintCrossedArea_RunHeadless(void) {
               "coming from %yinside Ganon's Castle%w." },
             { "the remains hint", odolwa.id, "Last seen {{prepos}} %y{{location}}%w.", "{{location}}",
               std::string("Last seen in %y") + Combo_Area_Name(forestArea) + "%w." },
-            { "the gold dust hint (on MM's own check)", goldDust.id, "Gold dust can be found {{prepos}} %p{location}%w.",
-              "{location}",
+            { "the gold dust hint (on MM's own check)", goldDust.id,
+              "Gold dust can be found {{prepos}} %p{location}%w.", "{location}",
               std::string("found ") + Combo_Area_Prepos(grottoArea) + " %p" + Combo_Area_Name(grottoArea) + "%w." },
         };
         for (const StaticCase& st : statics) {

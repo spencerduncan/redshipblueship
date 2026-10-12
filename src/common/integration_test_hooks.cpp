@@ -12,9 +12,9 @@
  */
 
 #include "integration_test_hooks.h"
-#include "context.h"        // gComboCtx: the paired identity's carriers
-#include "crossing_store.h" // the crossing store: the only truth for foreign placements
-#include "foreign_items.h"  // Combo_ForeignPairingActive
+#include "context.h"               // gComboCtx: the paired identity's carriers
+#include "crossing_store.h"        // the crossing store: the only truth for foreign placements
+#include "foreign_items.h"         // Combo_ForeignPairingActive
 #include "combo_settings_view.h"   // RSBS_PFC_DIVERGE: the Cross-Game Rules writer
 #include "combo_mm_options_view.h" // RSBS_PFC_DIVERGE: the MM options writer, the live profile digest
 #include "combo_mm_tricks_view.h"  // RSBS_PFC_DIVERGE: the MM tricks writer
@@ -50,32 +50,32 @@
 
 // Game switch request (to signal game to exit)
 extern "C" {
-    void Combo_RequestGameSwitch(void);
+void Combo_RequestGameSwitch(void);
 
-    // Archive hot-swap cycle helpers (defined in src/common/tests/test_archive_hotswap.c,
-    // compiled into redship_common via test_runner.cpp). Reset the cycle counters
-    // when the archive-hotswap integration test mode is selected (#263).
-    void ArchiveHotswap_ResetCycle(void);
+// Archive hot-swap cycle helpers (defined in src/common/tests/test_archive_hotswap.c,
+// compiled into redship_common via test_runner.cpp). Reset the cycle counters
+// when the archive-hotswap integration test mode is selected (#263).
+void ArchiveHotswap_ResetCycle(void);
 
-    // #577 M1 boot-mount lock (src/common/tests/test_curated_archive_mount.c,
-    // compiled into redship_common via test_runner.cpp): 0 when the booted
-    // game's curated half is mounted with its identity, or is not staged.
-    int CuratedArchiveMount_VerifyBoot(GameId host);
+// #577 M1 boot-mount lock (src/common/tests/test_curated_archive_mount.c,
+// compiled into redship_common via test_runner.cpp): 0 when the booted
+// game's curated half is mounted with its identity, or is not staged.
+int CuratedArchiveMount_VerifyBoot(GameId host);
 }
 
 namespace {
 
 // Integration test state
-std::atomic<IntegrationTestMode> sTestMode{INT_TEST_NONE};
-std::atomic<bool> sBootPassed{false};
-std::atomic<bool> sExitRequested{false};
-std::atomic<GameId> sBootedGame{GAME_NONE};
+std::atomic<IntegrationTestMode> sTestMode{ INT_TEST_NONE };
+std::atomic<bool> sBootPassed{ false };
+std::atomic<bool> sExitRequested{ false };
+std::atomic<GameId> sBootedGame{ GAME_NONE };
 
 // Gameplay round-trip state (INT_TEST_GAMEPLAY_ROUNDTRIP)
-std::atomic<GameplayPhase> sGameplayPhase{GP_PHASE_BOOT};
-std::atomic<int> sGameplayCyclesDone{0};
+std::atomic<GameplayPhase> sGameplayPhase{ GP_PHASE_BOOT };
+std::atomic<int> sGameplayCyclesDone{ 0 };
 GameplayTestConfig sGameplayConfig = {};
-std::atomic<int> sGameplayVariant{GP_VARIANT_ROUNDTRIP};
+std::atomic<int> sGameplayVariant{ GP_VARIANT_ROUNDTRIP };
 
 // ---------------------------------------------------------------------------
 // stderr tee (int-paired-first-crossing). fd 2 is pointed at a pipe's write
@@ -123,7 +123,7 @@ struct CaptureState {
     bool readerDone = false;
 };
 CaptureState* sCapture = nullptr; // allocated once, never freed
-std::atomic<bool> sCaptureActive{false};
+std::atomic<bool> sCaptureActive{ false };
 int sCaptureOrigFd = -1; // dup of the original fd 2
 int sCapturePipeRead = -1;
 int sCapturePipeWrite = -1;
@@ -314,8 +314,8 @@ std::unique_lock<std::mutex> CaptureLockDrained() {
 // stage main enters between frames. `sProgressStage` names where the run was
 // when it last made progress (string literals only).
 // ---------------------------------------------------------------------------
-std::atomic<uint64_t> sProgress{0};
-std::atomic<const char*> sProgressStage{"boot: first game init, before its first frame"};
+std::atomic<uint64_t> sProgress{ 0 };
+std::atomic<const char*> sProgressStage{ "boot: first game init, before its first frame" };
 std::atomic<uint32_t> sProgressFrames[3] = {}; // indexed by GameId
 
 // RSBS_INT_WEDGE fault injection, parsed once.
@@ -370,11 +370,11 @@ void WedgeNow(const char* where, uint32_t frame) {
 // ---------------------------------------------------------------------------
 constexpr int kIntWatchdogDefaultSecs = 60;
 constexpr int kIntWatchdogPollMs = 250;
-std::atomic<bool> sWatchdogStarted{false};
+std::atomic<bool> sWatchdogStarted{ false };
 int sWatchdogBudgetSecs = kIntWatchdogDefaultSecs;
 std::atomic<IntegrationTestStateDescriber> sWatchdogDescribers[3] = {};
-std::atomic<int64_t> sWatchdogLongestStallMs{0};
-std::atomic<const char*> sWatchdogLongestStallStage{"-"};
+std::atomic<int64_t> sWatchdogLongestStallMs{ 0 };
+std::atomic<const char*> sWatchdogLongestStallStage{ "-" };
 
 void WatchdogWrite(const char* text) {
     const size_t len = strlen(text);
@@ -457,14 +457,22 @@ uint32_t sPairedMMGenerationBaseline = 0;
 
 const char* GameplayPhaseName(GameplayPhase phase) {
     switch (phase) {
-        case GP_PHASE_BOOT:          return "boot";
-        case GP_PHASE_OOT_PRE:       return "oot-pre-switch";
-        case GP_PHASE_MM_STABILIZE:  return "mm-stabilize";
-        case GP_PHASE_MM_PLAY:       return "mm-play";
-        case GP_PHASE_OOT_RETURN:    return "oot-return";
-        case GP_PHASE_OOT_WARP:      return "oot-warp";
-        case GP_PHASE_OOT_EXIT:      return "oot-exit";
-        case GP_PHASE_DONE:          return "done";
+        case GP_PHASE_BOOT:
+            return "boot";
+        case GP_PHASE_OOT_PRE:
+            return "oot-pre-switch";
+        case GP_PHASE_MM_STABILIZE:
+            return "mm-stabilize";
+        case GP_PHASE_MM_PLAY:
+            return "mm-play";
+        case GP_PHASE_OOT_RETURN:
+            return "oot-return";
+        case GP_PHASE_OOT_WARP:
+            return "oot-warp";
+        case GP_PHASE_OOT_EXIT:
+            return "oot-exit";
+        case GP_PHASE_DONE:
+            return "done";
     }
     return "unknown";
 }
@@ -507,8 +515,8 @@ uint16_t GameplayEnvEntrance(const char* name, uint16_t defaultValue) {
     char* end = nullptr;
     unsigned long value = strtoul(raw, &end, 0);
     if (end == raw || *end != '\0' || value >= kOoTEntranceMax) {
-        fprintf(stderr, "[GP-TEST] WARNING: ignoring invalid %s='%s' (must be < 0x%04lX; using 0x%04X)\n",
-                name, raw, kOoTEntranceMax, defaultValue);
+        fprintf(stderr, "[GP-TEST] WARNING: ignoring invalid %s='%s' (must be < 0x%04lX; using 0x%04X)\n", name, raw,
+                kOoTEntranceMax, defaultValue);
         return defaultValue;
     }
     return (uint16_t)value;
@@ -516,13 +524,20 @@ uint16_t GameplayEnvEntrance(const char* name, uint16_t defaultValue) {
 
 const char* ModeName(IntegrationTestMode mode) {
     switch (mode) {
-        case INT_TEST_NONE: return "none";
-        case INT_TEST_BOOT_OOT: return "boot-oot";
-        case INT_TEST_BOOT_MM: return "boot-mm";
-        case INT_TEST_SWITCH_OOT_HMS_TO_MM: return "switch-oot-hms-to-mm";
-        case INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT: return "switch-mm-clocktown-south-to-oot";
-        case INT_TEST_ARCHIVE_HOTSWAP_CYCLE: return "archive-hotswap-cycle";
-        case INT_TEST_GAMEPLAY_ROUNDTRIP: return "gameplay-roundtrip";
+        case INT_TEST_NONE:
+            return "none";
+        case INT_TEST_BOOT_OOT:
+            return "boot-oot";
+        case INT_TEST_BOOT_MM:
+            return "boot-mm";
+        case INT_TEST_SWITCH_OOT_HMS_TO_MM:
+            return "switch-oot-hms-to-mm";
+        case INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT:
+            return "switch-mm-clocktown-south-to-oot";
+        case INT_TEST_ARCHIVE_HOTSWAP_CYCLE:
+            return "archive-hotswap-cycle";
+        case INT_TEST_GAMEPLAY_ROUNDTRIP:
+            return "gameplay-roundtrip";
     }
     return "unknown";
 }
@@ -559,9 +574,8 @@ void GameplayParseConfig(void) {
     printf("[GP-TEST] config: frames/phase=%d cycles=%d boot=0x%04X warp=0x%04X exit=0x%04X bootAge=%s "
            "warpFrames=%d camAssert=%d watchdogSecs=%d\n",
            sGameplayConfig.framesPerPhase, sGameplayConfig.cycles, sGameplayConfig.bootEntrance,
-           sGameplayConfig.warpEntrance, sGameplayConfig.exitEntrance,
-           sGameplayConfig.bootAdult ? "adult" : "child", sGameplayConfig.warpFrames,
-           sGameplayConfig.cameraAssert, sGameplayConfig.watchdogSecs);
+           sGameplayConfig.warpEntrance, sGameplayConfig.exitEntrance, sGameplayConfig.bootAdult ? "adult" : "child",
+           sGameplayConfig.warpFrames, sGameplayConfig.cameraAssert, sGameplayConfig.watchdogSecs);
     fflush(stdout);
 }
 
@@ -612,8 +626,7 @@ bool IntegrationTest_BootPassed(void) {
 }
 
 void IntegrationTest_SignalBootComplete(GameId game, const char* reason) {
-    printf("[INT-TEST] Boot complete: %s (%s)\n",
-           Game_ToString(game), reason);
+    printf("[INT-TEST] Boot complete: %s (%s)\n", Game_ToString(game), reason);
     fflush(stdout);
 
     // The boot rows also lock main()'s boot mount of the booted game's curated
@@ -651,8 +664,8 @@ void IntegrationTest_FrameProgress(GameId game) {
     sProgressStage = (game == GAME_OOT) ? "OoT frame" : "MM frame";
     sProgress++;
     const WedgeConfig& wedge = Wedge();
-    if (frame == wedge.frame && ((game == GAME_OOT && wedge.site == WEDGE_OOT) ||
-                                 (game == GAME_MM && wedge.site == WEDGE_MM))) {
+    if (frame == wedge.frame &&
+        ((game == GAME_OOT && wedge.site == WEDGE_OOT) || (game == GAME_MM && wedge.site == WEDGE_MM))) {
         WedgeNow(game == GAME_OOT ? "an OoT frame" : "an MM frame", frame);
     }
 }
@@ -777,8 +790,8 @@ void IntegrationTest_GameplayWatchdogRebase(GameplayWatchdogTimer* timer, int ph
     timer->progressSecs = nowSecs;
 }
 
-GameplayWatchdogVerdict IntegrationTest_GameplayWatchdogTick(GameplayWatchdogTimer* timer, int phase,
-                                                             int framesInPhase, double nowSecs, int budgetSecs) {
+GameplayWatchdogVerdict IntegrationTest_GameplayWatchdogTick(GameplayWatchdogTimer* timer, int phase, int framesInPhase,
+                                                             double nowSecs, int budgetSecs) {
     if (phase != timer->phase) {
         // The phase advanced: progress. Re-base both timers.
         IntegrationTest_GameplayWatchdogRebase(timer, phase, framesInPhase, nowSecs);

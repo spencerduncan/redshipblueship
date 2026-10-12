@@ -18,12 +18,7 @@ extern "C" {
 /**
  * Test result codes
  */
-typedef enum {
-    TEST_PASS = 0,
-    TEST_FAIL = 1,
-    TEST_SKIP = 2,
-    TEST_ERROR = 3
-} TestResult;
+typedef enum { TEST_PASS = 0, TEST_FAIL = 1, TEST_SKIP = 2, TEST_ERROR = 3 } TestResult;
 
 /**
  * Test descriptor
