@@ -163,7 +163,8 @@ uint32_t RelayProto_EncodeTransfer(uint64_t key, const uint8_t* payload, uint32_
 // Incremental decoder (server -> client)
 // ============================================================================
 
-RelayDecodeStatus RelayProto_DecodeFrame(const uint8_t* buf, uint32_t len, uint32_t* consumed, RelayLedgerEntry* entry) {
+RelayDecodeStatus RelayProto_DecodeFrame(const uint8_t* buf, uint32_t len, uint32_t* consumed,
+                                         RelayLedgerEntry* entry) {
     if (consumed != NULL) {
         *consumed = 0;
     }

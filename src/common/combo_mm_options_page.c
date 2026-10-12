@@ -136,8 +136,9 @@ const char* Combo_MMOptionsPage_TricksNote(char* buf, size_t size) {
         // Distinct from "MM has no tricks": say the table is missing.
         snprintf(buf, size, "The Majora's Mask trick table is not available in this build.");
     } else if (Combo_MMProfileFrozen()) {
-        snprintf(buf, size, "Already decided when this world was created. Return to the title screen to choose "
-                            "tricks for a new world.");
+        snprintf(buf, size,
+                 "Already decided when this world was created. Return to the title screen to choose "
+                 "tricks for a new world.");
     } else {
         // ONE line at the page's width (the reference page has no note at all
         // above its filter): the trick headline, then what a load does (#781).

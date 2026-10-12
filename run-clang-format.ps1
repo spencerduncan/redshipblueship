@@ -37,7 +37,8 @@ if (-not (Test-Path $clangFormatFilePath) -or ($currentVersion -ne $requiredVers
 # Format the RSBS-enforced subset. Mirrors run-clang-format.sh, which reads
 # the same list — .github/clang-format-paths.txt is the single source of truth
 # for both scripts so they cannot drift. See that file's header for why the
-# gate is an incremental allowlist rather than a directory sweep.
+# gate is an incremental allowlist over the game trees (RSBS-owned trees such
+# as src/common/ and rsbs/ are enrolled whole).
 $basePath = (Resolve-Path .).Path
 $pathsFile = "$basePath\.github\clang-format-paths.txt"
 
@@ -46,24 +47,48 @@ if (-not (Test-Path $pathsFile -PathType Leaf)) {
     exit 1
 }
 
-$files = Get-Content $pathsFile `
-    | Where-Object { $_ -notmatch '^\s*#' -and $_ -notmatch '^\s*$' } `
-    | ForEach-Object { Join-Path $basePath ($_ -replace '/', '\') }
+$entries = @(Get-Content $pathsFile `
+    | Where-Object { $_ -notmatch '^\s*#' -and $_ -notmatch '^\s*$' })
 
 # Guard against this gate silently becoming a no-op again (it targeted a
 # nonexistent soh\ directory for the whole life of the repo): an empty list is
 # an error, and so is any entry that no longer exists on disk. A renamed or
 # deleted file must fail loudly rather than silently shrink coverage.
-if ($files.Length -eq 0) {
+if ($entries.Length -eq 0) {
     Write-Host "error: $pathsFile lists no paths - the format gate would be a no-op"
     exit 1
 }
 
-$missing = $files | Where-Object { -not (Test-Path $_ -PathType Leaf) }
-if ($missing) {
-    foreach ($m in $missing) {
-        Write-Host "error: $pathsFile lists '$m', which does not exist (renamed or deleted?)"
+# An entry ending in '/' enrols a whole RSBS-owned tree: every tracked
+# .c/.cc/.cpp/.h/.hpp file under it (same rule as run-clang-format.sh). Any
+# other entry is a single file.
+$files = @()
+$missing = $false
+foreach ($e in $entries) {
+    if ($e.EndsWith('/')) {
+        if (-not (Test-Path (Join-Path $basePath ($e -replace '/', '\')) -PathType Container)) {
+            Write-Host "error: $pathsFile lists '$e', which does not exist (renamed or deleted?)"
+            $missing = $true
+            continue
+        }
+        $tree = @(git ls-files -- $e | Where-Object { $_ -match '\.(c|cc|cpp|h|hpp)$' })
+        if ($tree.Length -eq 0) {
+            Write-Host "error: $pathsFile lists '$e', which holds no tracked C/C++ files"
+            $missing = $true
+            continue
+        }
+        $files += @($tree | ForEach-Object { Join-Path $basePath ($_ -replace '/', '\') })
+    } else {
+        $f = Join-Path $basePath ($e -replace '/', '\')
+        if (-not (Test-Path $f -PathType Leaf)) {
+            Write-Host "error: $pathsFile lists '$e', which does not exist (renamed or deleted?)"
+            $missing = $true
+        } else {
+            $files += $f
+        }
     }
+}
+if ($missing) {
     Write-Host "error: fix the stale entries above, or the format gate silently loses coverage"
     exit 1
 }

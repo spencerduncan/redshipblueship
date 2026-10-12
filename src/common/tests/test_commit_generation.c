@@ -107,7 +107,7 @@ bool CommitGenShadowsAreUniform(uint8_t value) {
     return true;
 }
 
-}  // namespace
+} // namespace
 
 TestResult Test_CommitGenerationMonotonic(void) {
     printf("[TEST] commit-generation-monotonic: choke-point commits stamp a monotonic Tier-1 generation (#537)\n");
@@ -192,8 +192,8 @@ TestResult Test_CommitTornWrite(void) {
     CommitGenFillShadows(kInstantB);
     gComboCtx.sharedFlags[3] = 0xBBBB0000u;
     gComboCtx.sourceGame = GAME_MM;
-    gComboCtx.sharedItemsTagged[0].originGame = GAME_MM;  // half-write: id left at 0x1234
-    gComboCtx.commitGeneration = 999;                     // scribble the live stamp too
+    gComboCtx.sharedItemsTagged[0].originGame = GAME_MM; // half-write: id left at 0x1234
+    gComboCtx.commitGeneration = 999;                    // scribble the live stamp too
 
     // And keep mutating WHILE the write runs, from another thread — the
     // literal #537 interleave. This is race-free by construction precisely
@@ -248,8 +248,7 @@ TestResult Test_CommitTornWrite(void) {
     CG_ASSERT(mgr.Load(0), "reload after the latched write failed");
     CG_ASSERT(CommitGenShadowsAreUniform(kInstantA),
               "the latched write reached the artifact — the choke point ignored the #533 latch");
-    CG_ASSERT(gComboCtx.sharedFlags[3] == 0xAAAA5555u,
-              "the latched write replaced the artifact's Tier-1");
+    CG_ASSERT(gComboCtx.sharedFlags[3] == 0xAAAA5555u, "the latched write replaced the artifact's Tier-1");
 
     mgr.DeleteSave(0);
     ComboContext_Init();
@@ -289,7 +288,7 @@ bool CommitOrderReload(uint32_t* outGeneration) {
     return true;
 }
 
-}  // namespace
+} // namespace
 
 TestResult Test_CommitGenerationOrder(void) {
     printf("[TEST] commit-generation-order: an older generation never replaces a newer commit (#851)\n");
@@ -366,8 +365,7 @@ TestResult Test_CommitGenerationOrder(void) {
     CG_ASSERT(RsbsSave_WriteStagedCommit(0) == 1, "the first write of a staged generation failed");
     CG_ASSERT(RsbsSave_WriteStagedCommit(0) == 1, "a second write of the same generation must not be refused");
     CG_ASSERT(CommitOrderReload(&onDisk), "reloading after the equal-generation writes failed");
-    CG_ASSERT(onDisk == sameGeneration && CommitGenShadowsAreUniform(0x6D),
-              "the equal-generation write did not land");
+    CG_ASSERT(onDisk == sameGeneration && CommitGenShadowsAreUniform(0x6D), "the equal-generation write did not land");
 
     // ---- Leg 4: a created file starts its own sequence ---------------------
     // Creating a new file over a slot whose .redsave belongs to another world
@@ -470,7 +468,7 @@ TestResult Test_CommitGenerationSkew(void) {
     // quarantined evidence, sticky write latch, surfaced reason.
     mgr.ResetSlotSessionState();
     ComboContext_Init();
-    gComboCtx.saveSlot = 0x51C3B00F;  // sentinel: a refused load must not clobber live state
+    gComboCtx.saveSlot = 0x51C3B00F; // sentinel: a refused load must not clobber live state
     CG_ASSERT(RsbsSave_LoadSlotChecked(0, 9) == RSBS_LOAD_REFUSED,
               "a sav-newer slot must REFUSE (a .redsave commit is missing)");
     CG_ASSERT(gComboCtx.saveSlot == 0x51C3B00F, "the skew refusal clobbered live ComboContext");

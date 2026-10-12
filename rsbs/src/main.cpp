@@ -26,14 +26,14 @@
 #include "game.h"
 #include "game_lifecycle.h"
 #include "context.h"
-#include "ComboSpoilerWindow.h"   // Combo_SpoilerWindow_Init (#496, ADR 0008)
+#include "ComboSpoilerWindow.h"    // Combo_SpoilerWindow_Init (#496, ADR 0008)
 #include "combo_mm_options_page.h" // Combo_MMOptionsPages_Init (#497/#499, ADR 0004)
-#include "ComboSettingsWindow.h"  // Combo_ComboSettingsWindow_Init (#498, ADR 0011 inc 2)
-#include "ComboTrackerWindow.h"   // Combo_TrackerWindow_Init (#458, ADR 0008)
+#include "ComboSettingsWindow.h"   // Combo_ComboSettingsWindow_Init (#498, ADR 0011 inc 2)
+#include "ComboTrackerWindow.h"    // Combo_TrackerWindow_Init (#458, ADR 0008)
 #include "entrance.h"
-#include "mod_archives.h" // #593 — user mod archives must survive a game switch
+#include "mod_archives.h"     // #593 — user mod archives must survive a game switch
 #include "curated_archives.h" // #806 — the game generates the curated cross-game halves itself
-#include "save.h" // rsbs::SaveManager — unified .redsave save-directory wiring
+#include "save.h"             // rsbs::SaveManager — unified .redsave save-directory wiring
 #include "rsbs_version.h"
 #include "test_runner.h"
 #include "integration_test_hooks.h"
@@ -130,8 +130,9 @@ static void MountCuratedArchive(Ship::ArchiveManager& archiveManager, GameId hos
     if (archiveManager.AddArchive(path)) {
         printf("[RSBS] Cross-game archive ready (%s identity): %s\n", Game_ToString(host), path.c_str());
     } else {
-        fprintf(stderr, "[RSBS] Warning: failed to load cross-game archive %s; foreign models in %s keep their "
-                        "model-less stand-ins\n",
+        fprintf(stderr,
+                "[RSBS] Warning: failed to load cross-game archive %s; foreign models in %s keep their "
+                "model-less stand-ins\n",
                 path.c_str(), Game_ToString(host));
     }
 }
@@ -143,31 +144,36 @@ static void ReapplyModArchives(Ship::ArchiveManager& archiveManager, GameId targ
 // rather than a copy of it.
 extern "C" void Combo_EnsureGameArchivesLoaded(GameId targetGame) {
     auto ctx = Ship::Context::GetInstance();
-    if (!ctx || !ctx->GetResourceManager()) return;
+    if (!ctx || !ctx->GetResourceManager())
+        return;
     auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
-    if (!archiveManager) return;
+    if (!archiveManager)
+        return;
 
-    struct ArchiveEntry { const char* filename; bool useLocate; };
+    struct ArchiveEntry {
+        const char* filename;
+        bool useLocate;
+    };
     const char* appName = ArchiveAppName(targetGame);
     std::vector<ArchiveEntry> entries;
 
     switch (targetGame) {
         case GAME_OOT:
-            entries = {{"oot.o2r", true}, {"oot-mq.o2r", true}, {"soh.o2r", false}};
+            entries = { { "oot.o2r", true }, { "oot-mq.o2r", true }, { "soh.o2r", false } };
             break;
         case GAME_MM:
-            entries = {{"mm.o2r", true}, {"2ship.o2r", false}};
+            entries = { { "mm.o2r", true }, { "2ship.o2r", false } };
             break;
         default:
             return;
     }
 
     for (const auto& entry : entries) {
-        std::string path = entry.useLocate
-            ? Ship::Context::LocateFileAcrossAppDirs(entry.filename, appName)
-            : Ship::Context::GetPathRelativeToAppBundle(entry.filename);
+        std::string path = entry.useLocate ? Ship::Context::LocateFileAcrossAppDirs(entry.filename, appName)
+                                           : Ship::Context::GetPathRelativeToAppBundle(entry.filename);
 
-        if (path.empty() || !std::filesystem::exists(path)) continue;
+        if (path.empty() || !std::filesystem::exists(path))
+            continue;
 
         auto archive = archiveManager->AddArchive(path);
         if (archive) {
@@ -189,9 +195,11 @@ extern "C" void Combo_EnsureGameArchivesLoaded(GameId targetGame) {
 // back on top of it (declared in src/common/mod_archives.h).
 extern "C" void Combo_MountCuratedArchive(GameId host) {
     auto ctx = Ship::Context::GetInstance();
-    if (!ctx || !ctx->GetResourceManager()) return;
+    if (!ctx || !ctx->GetResourceManager())
+        return;
     auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
-    if (!archiveManager) return;
+    if (!archiveManager)
+        return;
 
     MountCuratedArchive(*archiveManager, host);
     ReapplyModArchives(*archiveManager, host);
@@ -224,7 +232,8 @@ static void ReapplyModArchives(Ship::ArchiveManager& archiveManager, GameId targ
     const int modCount = Combo_GetModArchiveCount(targetGame);
     for (int i = 0; i < modCount; i++) {
         const char* modPath = Combo_GetModArchive(targetGame, i);
-        if (modPath == nullptr || modPath[0] == '\0') continue;
+        if (modPath == nullptr || modPath[0] == '\0')
+            continue;
 
         if (!std::filesystem::exists(modPath)) {
             fprintf(stderr,
@@ -261,34 +270,34 @@ static void ReapplyModArchives(Ship::ArchiveManager& archiveManager, GameId targ
 // ============================================================================
 
 extern "C" {
-    GameOps* OoT_GetGameOps(void);
-    GameOps* MM_GetGameOps(void);
-    // Whether the shared bring-up found an OoT game archive and ran OoT's
-    // asset-dependent init (games/oot/soh/OTRGlobals.cpp, #330).
-    int OoT_GameAssetsInitialized(void);
-    // Freezes the departing game's SaveContext for an F10 hot swap and records
-    // a return entrance for it (#364). Defined in
-    // games/oot/soh/GameExports_SingleExe.cpp because only a game TU can
-    // address gSaveContext; the policy itself is in src/common/switch.cpp.
-    // Returns 0 when the freeze could not be performed — refuse the switch.
-    int Combo_FreezeActiveGameForHotSwap(GameId departing);
-    // In-app mm.o2r generation, offered at the start prompt when MM is
-    // selected without a game archive (#317). Defined in
-    // games/mm/2s2h/GameExports_SingleExe.cpp. Success is observed by
-    // re-checking archive availability, not via a return value.
-    void MM_Extract_OfferAndRun(void);
-    // Registers MM's four tracker windows on the shared Gui (#392 bypass
-    // surface, games/mm/2s2h/TrackersGuiSingleExe.cpp). Declared here rather
-    // than included: TrackersGuiSingleExe.h lives under games/mm/2s2h, which is
-    // not on this target's include path.
-    void MM_TrackersGui_Init(void);
-    // MM's .redsave slot-metadata descriptor (#765, games/mm/2s2h/
-    // GameExports_SingleExe.cpp). Same include-path reason as above.
-    void MM_SlotMeta_Register(void);
-    // Build-version strings baked into each game library
-    // (games/*/src/boot/build.c); declarations match each game's own header.
-    extern const char OoT_gBuildVersion[];
-    extern char MM_gBuildVersion[];
+GameOps* OoT_GetGameOps(void);
+GameOps* MM_GetGameOps(void);
+// Whether the shared bring-up found an OoT game archive and ran OoT's
+// asset-dependent init (games/oot/soh/OTRGlobals.cpp, #330).
+int OoT_GameAssetsInitialized(void);
+// Freezes the departing game's SaveContext for an F10 hot swap and records
+// a return entrance for it (#364). Defined in
+// games/oot/soh/GameExports_SingleExe.cpp because only a game TU can
+// address gSaveContext; the policy itself is in src/common/switch.cpp.
+// Returns 0 when the freeze could not be performed — refuse the switch.
+int Combo_FreezeActiveGameForHotSwap(GameId departing);
+// In-app mm.o2r generation, offered at the start prompt when MM is
+// selected without a game archive (#317). Defined in
+// games/mm/2s2h/GameExports_SingleExe.cpp. Success is observed by
+// re-checking archive availability, not via a return value.
+void MM_Extract_OfferAndRun(void);
+// Registers MM's four tracker windows on the shared Gui (#392 bypass
+// surface, games/mm/2s2h/TrackersGuiSingleExe.cpp). Declared here rather
+// than included: TrackersGuiSingleExe.h lives under games/mm/2s2h, which is
+// not on this target's include path.
+void MM_TrackersGui_Init(void);
+// MM's .redsave slot-metadata descriptor (#765, games/mm/2s2h/
+// GameExports_SingleExe.cpp). Same include-path reason as above.
+void MM_SlotMeta_Register(void);
+// Build-version strings baked into each game library
+// (games/*/src/boot/build.c); declarations match each game's own header.
+extern const char OoT_gBuildVersion[];
+extern char MM_gBuildVersion[];
 }
 
 // ============================================================================
@@ -308,10 +317,18 @@ static void SignalHandler(int signal) {
     IntegrationTest_StderrCaptureRestoreForCrash();
     fprintf(stderr, "\n[CRASH] Signal received: %d\n", signal);
     switch (signal) {
-        case SIGSEGV: fprintf(stderr, "[CRASH] SIGSEGV (Segmentation fault)\n"); break;
-        case SIGABRT: fprintf(stderr, "[CRASH] SIGABRT (Abort)\n"); break;
-        case SIGFPE:  fprintf(stderr, "[CRASH] SIGFPE (Floating point exception)\n"); break;
-        case SIGILL:  fprintf(stderr, "[CRASH] SIGILL (Illegal instruction)\n"); break;
+        case SIGSEGV:
+            fprintf(stderr, "[CRASH] SIGSEGV (Segmentation fault)\n");
+            break;
+        case SIGABRT:
+            fprintf(stderr, "[CRASH] SIGABRT (Abort)\n");
+            break;
+        case SIGFPE:
+            fprintf(stderr, "[CRASH] SIGFPE (Floating point exception)\n");
+            break;
+        case SIGILL:
+            fprintf(stderr, "[CRASH] SIGILL (Illegal instruction)\n");
+            break;
     }
     fflush(stderr);
     // Integration-test diagnostics only (release behavior unchanged): dump
@@ -341,8 +358,7 @@ static void InstallCrashHandler(void) {
 static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* exceptionInfo) {
     // As SignalHandler: the report goes to the real stderr, not the tee.
     IntegrationTest_StderrCaptureRestoreForCrash();
-    fprintf(stderr, "\n[CRASH] Windows exception: 0x%08X\n",
-            exceptionInfo->ExceptionRecord->ExceptionCode);
+    fprintf(stderr, "\n[CRASH] Windows exception: 0x%08X\n", exceptionInfo->ExceptionRecord->ExceptionCode);
     fflush(stderr);
     return EXCEPTION_CONTINUE_SEARCH;
 }
@@ -404,8 +420,8 @@ void PrintVersion(void) {
     // The first line is the context name: the window title less the backend
     // libultraship appends (#880).
     printf("%s\n", RsbsVersion_WindowTitle());
-    printf("Base ports: Ship of Harkinian %s (OoT), 2 Ship 2 Harkinian %s (MM)\n",
-           (const char*)OoT_gBuildVersion, (const char*)MM_gBuildVersion);
+    printf("Base ports: Ship of Harkinian %s (OoT), 2 Ship 2 Harkinian %s (MM)\n", (const char*)OoT_gBuildVersion,
+           (const char*)MM_gBuildVersion);
 }
 
 void PrintUsage(const char* progName) {
@@ -552,8 +568,8 @@ int main(int argc, char** argv) {
     // ========================================================================
     fprintf(stderr, "[RSBS] About to create Ship::Context singleton...\n");
     fflush(stderr);
-    auto shipContext = Ship::Context::CreateUninitializedInstance(
-        RsbsVersion_WindowTitle(), "soh", "shipofharkinian.json");
+    auto shipContext =
+        Ship::Context::CreateUninitializedInstance(RsbsVersion_WindowTitle(), "soh", "shipofharkinian.json");
     fprintf(stderr, "[RSBS] CreateUninitializedInstance returned: %p\n", (void*)shipContext.get());
     fflush(stderr);
     if (!shipContext) {
@@ -598,8 +614,7 @@ int main(int argc, char** argv) {
     // The "Save" default is deliberately left in place for the headless --test
     // path, which never creates a Ship::Context and relies on a CWD-relative
     // directory it can write to.
-    rsbs::SaveManager::Instance().SetSaveDirectory(
-        Ship::Context::GetPathRelativeToAppDirectory("Save"));
+    rsbs::SaveManager::Instance().SetSaveDirectory(Ship::Context::GetPathRelativeToAppDirectory("Save"));
 
     // Claim crash handling BEFORE any game init runs (#388).
     //
@@ -641,8 +656,7 @@ int main(int argc, char** argv) {
     // and resources on top of it.
     if (TestRunner_IsIntegrationTestMode()) {
         selectedGame = TestRunner_GetIntegrationTestGame();
-        printf("[INT-TEST] Using game from integration test: %s\n",
-               Game_ToString(selectedGame));
+        printf("[INT-TEST] Using game from integration test: %s\n", Game_ToString(selectedGame));
     } else {
         selectedGame = ParseGameArg(argc, argv);
         if (selectedGame == GAME_NONE) {
@@ -861,8 +875,7 @@ int main(int argc, char** argv) {
             targetEntrance = Entrance_GetSwitchTargetEntrance();
             isEntranceSwitch = true;
             printf("\n=== Cross-game entrance detected ===\n");
-            printf("Target: %s entrance 0x%04X\n",
-                   Game_ToString(nextGame), targetEntrance);
+            printf("Target: %s entrance 0x%04X\n", Game_ToString(nextGame), targetEntrance);
         } else if (Combo_IsGameSwitchRequested()) {
             // F10 hotkey switch
             nextGame = Game_GetOther(GameRunner_GetActive(&runner));
@@ -880,8 +893,8 @@ int main(int argc, char** argv) {
                 ArchiveCheck_ReportMissing(nextGame, /*showDialog=*/!TestRunner_IsIntegrationTestMode());
                 Combo_ClearGameSwitchRequest();
                 Entrance_ClearPendingSwitch();
-                printf("Switch to %s refused (missing game archive) — continuing %s.\n",
-                       Game_ToString(nextGame), Game_ToString(GameRunner_GetActive(&runner)));
+                printf("Switch to %s refused (missing game archive) — continuing %s.\n", Game_ToString(nextGame),
+                       Game_ToString(GameRunner_GetActive(&runner)));
                 continue;
             }
 
@@ -894,8 +907,8 @@ int main(int argc, char** argv) {
                                                       /*showDialog=*/!TestRunner_IsIntegrationTestMode());
                 Combo_ClearGameSwitchRequest();
                 Entrance_ClearPendingSwitch();
-                printf("Switch to %s refused (missing port-asset archive) — continuing %s.\n",
-                       Game_ToString(nextGame), Game_ToString(GameRunner_GetActive(&runner)));
+                printf("Switch to %s refused (missing port-asset archive) — continuing %s.\n", Game_ToString(nextGame),
+                       Game_ToString(GameRunner_GetActive(&runner)));
                 continue;
             }
 
@@ -941,8 +954,7 @@ int main(int argc, char** argv) {
             }
 
             GameOps* nextOps = GameRunner_GetOps(&runner, nextGame);
-            printf("\n=== Switching to %s ===\n",
-                   nextOps ? nextOps->name : "Unknown");
+            printf("\n=== Switching to %s ===\n", nextOps ? nextOps->name : "Unknown");
 
             // Clear switch state before transitioning
             Combo_ClearGameSwitchRequest();

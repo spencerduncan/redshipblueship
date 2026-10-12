@@ -594,8 +594,8 @@ Bag BuildBag(GameId game, const std::vector<uint16_t>& pool) {
 void PrintLoss(const char* label, const Walk& w) {
     printf("[TEST] combo-logic-monotonicity: %s LOST %s %d (bits 0x%llX) after granting item %u at step %d "
            "(%d step(s) lost something)\n",
-           label, w.lossKind == 0 ? "check" : "region", w.lossId, (unsigned long long)w.lossBits,
-           (unsigned)w.lossItem, w.lossStep, w.losses);
+           label, w.lossKind == 0 ? "check" : "region", w.lossId, (unsigned long long)w.lossBits, (unsigned)w.lossItem,
+           w.lossStep, w.losses);
 }
 
 /** The ids of the regions reached in `c` (any bit), for the red-half arming. */
@@ -724,10 +724,11 @@ TestResult WalkEngine(Side& s, const Bag& bag, int (*forceTricks)(int), int (*ne
                         memset(&si, 0, sizeof(si));
                         si.originGame = (uint8_t)s.game;
                         si.id = fwd[(size_t)k];
-                        printf("[TEST] combo-logic-monotonicity: %s FILLER GREW THE CLOSURE: item %u (class %s) at step "
-                               "%d: +%d checks, +%d region bits\n",
-                               s.name, (unsigned)si.id, Combo_ItemClassName(Combo_ItemClassOf(si)), k,
-                               after.checkCount - before.checkCount, after.regionBits - before.regionBits);
+                        printf(
+                            "[TEST] combo-logic-monotonicity: %s FILLER GREW THE CLOSURE: item %u (class %s) at step "
+                            "%d: +%d checks, +%d region bits\n",
+                            s.name, (unsigned)si.id, Combo_ItemClassName(Combo_ItemClassOf(si)), k,
+                            after.checkCount - before.checkCount, after.regionBits - before.regionBits);
                         grewOnFiller++;
                     }
                 }
@@ -815,8 +816,7 @@ TestResult WalkEngine(Side& s, const Bag& bag, int (*forceTricks)(int), int (*ne
     }
     CLMONO_ASSERT(red.opened && red.lost, "RED HALF: the planted negation did NOT turn the walk red - the grow-check "
                                           "is vacuous");
-    CLMONO_ASSERT(red.lossStep == firstGrant,
-                  "RED HALF: the walk went red, but not at the grant of the negated item");
+    CLMONO_ASSERT(red.lossStep == firstGrant, "RED HALF: the walk went red, but not at the grant of the negated item");
     // BOTH observables must see it, at that grant: the planted target region is
     // the first region lost, and a check is lost too (the probe prefers a target
     // that owns a check, so a region-only red would mean the check read is blind).
@@ -1266,7 +1266,8 @@ TestResult ComboLogicMonotonicity_Run(void) {
     auto body = [&]() -> TestResult {
         for (int i = 0; i < owned; ++i) {
             if (ootEmpty[(size_t)i]) {
-                CLMONO_ASSERT(OoT_ComboLogic_TestSetPlacedItem(ootHosts[(size_t)i], 0) == 1, "could not empty an OoT host");
+                CLMONO_ASSERT(OoT_ComboLogic_TestSetPlacedItem(ootHosts[(size_t)i], 0) == 1,
+                              "could not empty an OoT host");
             }
         }
         printf("[TEST] combo-logic-monotonicity: OoT: %d owned hosts, %d fill copies emptied into the bag, %d non-fill "
@@ -1281,11 +1282,13 @@ TestResult ComboLogicMonotonicity_Run(void) {
 
         const Bag ootBag = BuildBag(GAME_OOT, ootPool);
         const Bag mmBag = BuildBag(GAME_MM, mmPool);
-        printf("[TEST] combo-logic-monotonicity: OoT bag %d rows = %d required + %d surplus + %d filler + %d trap (pool of "
+        printf("[TEST] combo-logic-monotonicity: OoT bag %d rows = %d required + %d surplus + %d filler + %d trap "
+               "(pool of "
                "%d copies over %d owned hosts)\n",
-               (int)ootBag.rows.size(), ootBag.required, ootBag.surplus, ootBag.filler, ootBag.traps, (int)ootPool.size(),
-               owned);
-        printf("[TEST] combo-logic-monotonicity: MM  bag %d rows = %d required + %d surplus + %d filler + %d trap (%d trap "
+               (int)ootBag.rows.size(), ootBag.required, ootBag.surplus, ootBag.filler, ootBag.traps,
+               (int)ootPool.size(), owned);
+        printf("[TEST] combo-logic-monotonicity: MM  bag %d rows = %d required + %d surplus + %d filler + %d trap (%d "
+               "trap "
                "copies NOT granted: RI_TRAP's give leaves the save) (pool of %d copies, %d with no fill class)\n",
                (int)mmBag.rows.size(), mmBag.required, mmBag.surplus, mmBag.filler, mmBag.traps, mmBag.trapsSkipped,
                mmTotal, mmBag.unclassified);

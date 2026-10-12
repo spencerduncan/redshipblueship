@@ -353,8 +353,7 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
     { "P6 ocarina d-pad input", "gEnhancements.Playback.DpadOcarina", "gSettings.OcarinaControl.Dpad",
       "Split across different top-level namespaces with different member sets: MM adds right-stick "
       "ocarina, OoT adds a custom-mapping layer. Structurally parallel, not identical." },
-    { "P7 shield aim inversion", "gEnhancements.Equipment.InvertShieldY",
-      "gSettings.Controls.InvertShieldAimingYAxis",
+    { "P7 shield aim inversion", "gEnhancements.Equipment.InvertShieldY", "gSettings.Controls.InvertShieldAimingYAxis",
       "Different namespace AND different axis coverage: OoT has X+Y, MM has Y only. Merging loses OoT's "
       "X axis." },
     { "Climb speed (inventory §5.3 group A, reclassified P by #462)", "gEnhancements.Player.ClimbSpeed",
@@ -751,9 +750,9 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Double Time",
       "Lets the Song of Double Time pick any time of day instead of only the next dawn or dusk, and with Clock "
       "Shuffle on refuses a half-day this file does not own. Majora's Mask only.",
-      "games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp:472",
-      "gEnhancements.Songs.BetterSongOfDoubleTime", "ShouldVanillaBehavior[VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT]",
-      MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "" },
+      "games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp:472", "gEnhancements.Songs.BetterSongOfDoubleTime",
+      "ShouldVanillaBehavior[VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT]", MmEnhancementHosting::OwnRow,
+      MmEnhancementLiveness::Live, "" },
     { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Time Song Cutscenes",
       "Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes, and with Clock Shuffle on "
       "returns the Song of Time to the earliest half-day this file owns. Majora's Mask only.",
@@ -777,8 +776,8 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // both are SoH-shaped copy: a one-word section name and one sentence.
     { "gEnhancements.Autosave", "Autosave",
       "Autosave is under Enhancements > Quality of Life and applies to both games.",
-      "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:485", "gEnhancements.Autosave",
-      "OnGameStateDrawFinish", MmEnhancementHosting::HostedElsewhere, MmEnhancementLiveness::Live, "" },
+      "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:485", "gEnhancements.Autosave", "OnGameStateDrawFinish",
+      MmEnhancementHosting::HostedElsewhere, MmEnhancementLiveness::Live, "" },
 
     // #693: MM's autosave INTERVAL, the Autosave item's only genuinely
     // un-hosted half. Minutes, 1-60, default 5: BenMenu.cpp's own slider

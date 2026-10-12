@@ -127,8 +127,8 @@ typedef struct {
     uint8_t group;       // ComboMMOptionGroup
     uint8_t widget;      // ComboMMOptionWidget
     int32_t defaultValue;
-    int32_t minValue; // SLIDER/TIME only; 0 otherwise
-    int32_t maxValue; // SLIDER/TIME only; 0 otherwise
+    int32_t minValue;               // SLIDER/TIME only; 0 otherwise
+    int32_t maxValue;               // SLIDER/TIME only; 0 otherwise
     const char* const* valueLabels; // COMBO only, else NULL
     uint8_t valueCount;             // COMBO only, else 0
     uint8_t liveness;               // ComboMMOptionLiveness

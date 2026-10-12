@@ -35,10 +35,12 @@
  * ========================================================================== */
 
 /* Math functions - sqrtf was renamed by namespace tool, redirect to libc */
-float MM_sqrtf(float x) { return sqrtf(x); }
+float MM_sqrtf(float x) {
+    return sqrtf(x);
+}
 
 /* String functions */
-int MM_sprintf(char *str, const char *format, ...) {
+int MM_sprintf(char* str, const char* format, ...) {
     va_list args;
     va_start(args, format);
     int ret = vsprintf(str, format, args);
@@ -53,33 +55,55 @@ int MM_sprintf(char *str, const char *format, ...) {
  *
  * Note: osVi* functions are NOT aliased here because MM has its own
  * implementations in src/libultra/io/ that were renamed to MM_osVi*. */
-extern void osContGetReadData(void *data);
-extern int osContInit(void *mq, unsigned char *bitpattern, void *status);
-extern int osContStartReadData(void *mq);
-extern void osCreateMesgQueue(void *mq, void *msg, int count);
+extern void osContGetReadData(void* data);
+extern int osContInit(void* mq, unsigned char* bitpattern, void* status);
+extern int osContStartReadData(void* mq);
+extern void osCreateMesgQueue(void* mq, void* msg, int count);
 extern uint64_t osGetTime(void);
-extern int osMotorInit(void *mq, void *pfs, int channel);
-extern int osRecvMesg(void *mq, void *msg, int flag);
-extern int osSendMesg(void *mq, void *msg, int flag);
-extern void osSetEventMesg(int event, void *mq, void *msg);
+extern int osMotorInit(void* mq, void* pfs, int channel);
+extern int osRecvMesg(void* mq, void* msg, int flag);
+extern int osSendMesg(void* mq, void* msg, int flag);
+extern void osSetEventMesg(int event, void* mq, void* msg);
 
-void MM_osContGetReadData(void *data) { osContGetReadData(data); }
-int MM_osContInit(void *mq, unsigned char *bitpattern, void *status) { return osContInit(mq, bitpattern, status); }
-int MM_osContStartReadData(void *mq) { return osContStartReadData(mq); }
-void MM_osCreateMesgQueue(void *mq, void *msg, int count) { osCreateMesgQueue(mq, msg, count); }
-uint64_t MM_osGetTime(void) { return osGetTime(); }
-int MM_osMotorInit(void *mq, void *pfs, int channel) { return osMotorInit(mq, pfs, channel); }
-int MM_osRecvMesg(void *mq, void *msg, int flag) { return osRecvMesg(mq, msg, flag); }
-int MM_osSendMesg(void *mq, void *msg, int flag) { return osSendMesg(mq, msg, flag); }
-void MM_osSetEventMesg(int event, void *mq, void *msg) { osSetEventMesg(event, mq, msg); }
+void MM_osContGetReadData(void* data) {
+    osContGetReadData(data);
+}
+int MM_osContInit(void* mq, unsigned char* bitpattern, void* status) {
+    return osContInit(mq, bitpattern, status);
+}
+int MM_osContStartReadData(void* mq) {
+    return osContStartReadData(mq);
+}
+void MM_osCreateMesgQueue(void* mq, void* msg, int count) {
+    osCreateMesgQueue(mq, msg, count);
+}
+uint64_t MM_osGetTime(void) {
+    return osGetTime();
+}
+int MM_osMotorInit(void* mq, void* pfs, int channel) {
+    return osMotorInit(mq, pfs, channel);
+}
+int MM_osRecvMesg(void* mq, void* msg, int flag) {
+    return osRecvMesg(mq, msg, flag);
+}
+int MM_osSendMesg(void* mq, void* msg, int flag) {
+    return osSendMesg(mq, msg, flag);
+}
+void MM_osSetEventMesg(int event, void* mq, void* msg) {
+    osSetEventMesg(event, mq, msg);
+}
 
 /* osCartRomInit - MM's libultra/io is excluded; audio load.c calls this but
  * it's a no-op in the port (ROM cart access is replaced by archive loading) */
-void* MM_osCartRomInit(void) { return NULL; }
+void* MM_osCartRomInit(void) {
+    return NULL;
+}
 
 /* FaultDrawer - stub implementations (OoT uses different fault handling) */
 int MM_FaultDrawer_DrawText(int x, int y, const char* fmt, ...) {
-    (void)x; (void)y; (void)fmt;
+    (void)x;
+    (void)y;
+    (void)fmt;
     return 0;
 }
 
@@ -88,7 +112,10 @@ int MM_FaultDrawer_Printf(const char* fmt, ...) {
     return 0;
 }
 
-void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
+void MM_FaultDrawer_SetCharPad(int xPad, int yPad) {
+    (void)xPad;
+    (void)yPad;
+}
 
 /* ==========================================================================
  * Enhancement layer stubs - these are excluded in single-exe mode
@@ -141,7 +168,8 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) { (void)xPad; (void)yPad; }
  * real scene-name table — the stub's "Unknown" would otherwise shadow it in
  * every spoiler/tracker string, and the two strong definitions cannot
  * coexist on Linux. */
-void Ship_HandleConsoleCrashAsReset(void) {}
+void Ship_HandleConsoleCrashAsReset(void) {
+}
 
 /* The Ship_ExtendedCullingActorRestoreProjectedPos stub that used to live here
  * is gone (#382). It was declared `void (void*)` while every call site passes

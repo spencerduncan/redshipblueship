@@ -268,7 +268,8 @@ TestResult Test_SharedKokiriSword(void) {
                       g == 0 ? "OoT" : "MM", ids[g], rv);
             kindOf[g] = (rv == 1) ? (int)row.sharedKind : -1;
             SKS_CHECK(kindOf[g] != (int)RSBS_SHARED_RES_KOKIRI_SWORD,
-                      "%s's pool sword maps to the Kokiri Sword kind: the trim would now count it", g == 0 ? "OoT" : "MM");
+                      "%s's pool sword maps to the Kokiri Sword kind: the trim would now count it",
+                      g == 0 ? "OoT" : "MM");
         }
 
         const ComboSharedQuantityPolicy swordShape = { (uint8_t)RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX,

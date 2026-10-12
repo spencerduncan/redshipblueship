@@ -124,7 +124,7 @@ static const ComboAreaText sMMAreas[COMBO_AREA_MM_END] = {
 static const ComboAreaText sNone = { "nowhere", NULL };
 static const ComboAreaText sPocket = { "Link's Pocket", "inside" };
 
-static const ComboAreaAdapter* sAdapters[3]; /* indexed by GameId; [GAME_NONE] stays NULL */
+static const ComboAreaAdapter* sAdapters[3];           /* indexed by GameId; [GAME_NONE] stays NULL */
 static const ComboFoolishAdapter* sFoolishAdapters[3]; /* #575 H5a; same indexing */
 
 static bool IsGame(uint8_t game) {

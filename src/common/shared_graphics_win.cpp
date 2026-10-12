@@ -13,9 +13,9 @@
 // Import thunks - these are what __declspec(dllimport) references look for
 // The naming convention is __imp_<function_name>
 extern "C" {
-    // Pointers that the dllimport references will resolve to
-    decltype(&Combo_GetSharedGraphics) __imp_Combo_GetSharedGraphics = &Combo_GetSharedGraphics;
-    decltype(&Combo_SetSharedGraphics) __imp_Combo_SetSharedGraphics = &Combo_SetSharedGraphics;
+// Pointers that the dllimport references will resolve to
+decltype(&Combo_GetSharedGraphics) __imp_Combo_GetSharedGraphics = &Combo_GetSharedGraphics;
+decltype(&Combo_SetSharedGraphics) __imp_Combo_SetSharedGraphics = &Combo_SetSharedGraphics;
 }
 
 #endif // _WIN32

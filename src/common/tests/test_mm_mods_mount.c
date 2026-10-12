@@ -341,8 +341,8 @@ extern "C" int MMModsPartition_RunHeadless(void) {
         const bool mm = Combo_ModPathIsForGame(GAME_MM, c.root, c.path);
         const bool oot = Combo_ModPathIsForGame(GAME_OOT, c.root, c.path);
         if (mm != (c.owner == kOwnerMm)) {
-            printf("[TEST] FAIL(2): partition: MM %s '%s' under root '%s' (%s)\n",
-                   mm ? "claimed" : "did not claim", c.path, c.root, c.why);
+            printf("[TEST] FAIL(2): partition: MM %s '%s' under root '%s' (%s)\n", mm ? "claimed" : "did not claim",
+                   c.path, c.root, c.why);
             return 2;
         }
         // OoT's answer against the AUTHORED expectation, not against MM's. That is
@@ -350,8 +350,8 @@ extern "C" int MMModsPartition_RunHeadless(void) {
         // does NOT mean the two production rules can disagree (they are one rule and
         // its negation; see this function's comment).
         if (oot != (c.owner == kOwnerOoT)) {
-            printf("[TEST] FAIL(2): partition: OoT %s '%s' under root '%s' (%s)\n",
-                   oot ? "claimed" : "did not claim", c.path, c.root, c.why);
+            printf("[TEST] FAIL(2): partition: OoT %s '%s' under root '%s' (%s)\n", oot ? "claimed" : "did not claim",
+                   c.path, c.root, c.why);
             return 2;
         }
         // NO disjointness or totality assertion here, deliberately. With both pins
@@ -393,13 +393,26 @@ extern "C" int MMModsPartition_RunHeadless(void) {
         const char* tail;  // the rest, relative to that component
     };
     static const Shape kShapes[] = {
-        { "", "x.o2r" },         { "", "y.otr" },          { "mm", "x.o2r" },
-        { "mm", "deep/x.o2r" },  { "MM", "x.o2r" },        { "mM", "deep/deeper/x.otr" },
-        { "mmx", "x.o2r" },      { "xmm", "x.o2r" },       { "mm2", "deep/x.o2r" },
-        { "m", "x.o2r" },        { "mm-extra", "x.o2r" },  { "mm.o2r", "x.o2r" },
-        { "sub", "x.o2r" },      { "sub", "mm/x.o2r" },    { "sub", "deep/mm/x.o2r" },
-        { "a", "x.o2r" },        { "z-pack", "deep/x.o2r" }, { "MoDs", "x.o2r" },
-        { "notes.txt", "x" },    { "mm ", "x.o2r" },
+        { "", "x.o2r" },
+        { "", "y.otr" },
+        { "mm", "x.o2r" },
+        { "mm", "deep/x.o2r" },
+        { "MM", "x.o2r" },
+        { "mM", "deep/deeper/x.otr" },
+        { "mmx", "x.o2r" },
+        { "xmm", "x.o2r" },
+        { "mm2", "deep/x.o2r" },
+        { "m", "x.o2r" },
+        { "mm-extra", "x.o2r" },
+        { "mm.o2r", "x.o2r" },
+        { "sub", "x.o2r" },
+        { "sub", "mm/x.o2r" },
+        { "sub", "deep/mm/x.o2r" },
+        { "a", "x.o2r" },
+        { "z-pack", "deep/x.o2r" },
+        { "MoDs", "x.o2r" },
+        { "notes.txt", "x" },
+        { "mm ", "x.o2r" },
     };
     // Three root spellings, because the two globs are handed the root by
     // LocateFileAcrossAppDirs and the properties must not depend on how it spelled it.
@@ -442,9 +455,8 @@ extern "C" int MMModsPartition_RunHeadless(void) {
     // these), and it is what makes "total" a statement about a domain instead of
     // about every string.
     static const char* kOutside[] = {
-        "./elsewhere/mm/x.o2r", "./elsewhere/x.o2r", "./modsx/mm/x.o2r",   "./modsx/x.o2r",
-        "../mods/mm/x.o2r",     "./mods/../x.o2r",   "./mods/../mm/x.o2r", "./mods",
-        "./mods/.",             "./mods/..",
+        "./elsewhere/mm/x.o2r", "./elsewhere/x.o2r",  "./modsx/mm/x.o2r", "./modsx/x.o2r", "../mods/mm/x.o2r",
+        "./mods/../x.o2r",      "./mods/../mm/x.o2r", "./mods",           "./mods/.",      "./mods/..",
     };
     for (const char* p : kOutside) {
         if (Combo_ModPathIsForGame(GAME_MM, "./mods", p) || Combo_ModPathIsForGame(GAME_OOT, "./mods", p)) {
@@ -1056,8 +1068,8 @@ extern "C" int MMModsMount_RunHeadless(const char* sohArchive, const char* mmArc
             // CreateDirectoryW + DeviceIoControl(FSCTL_SET_REPARSE_POINT), which
             // would drag windows.h into a TU that includes libultraship's headers.
             if (linkEc) {
-                const std::string mklink = "cmd /c mklink /J \"" + linkPath.string() + "\" \"" +
-                                           linkTarget.string() + "\" >nul 2>&1";
+                const std::string mklink =
+                    "cmd /c mklink /J \"" + linkPath.string() + "\" \"" + linkTarget.string() + "\" >nul 2>&1";
                 std::error_code existsEc;
                 if (std::system(mklink.c_str()) == 0 && std::filesystem::exists(linkPath, existsEc)) {
                     linkKind = "directory junction";

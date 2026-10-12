@@ -50,8 +50,7 @@ void Context_InitFrozenStates(void);
  * @param saveContext Pointer to the game's SaveContext
  * @param size Size of the SaveContext
  */
-void Context_FreezeState(GameId game, uint16_t returnEntrance,
-                         const void* saveContext, size_t size);
+void Context_FreezeState(GameId game, uint16_t returnEntrance, const void* saveContext, size_t size);
 
 /**
  * Restore frozen state when returning to a game
@@ -354,9 +353,9 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * could contradict.
  */
 typedef struct {
-    uint8_t originGame;  // GameId that owns the id-space; GAME_NONE (0) = empty slot
-    uint8_t flags;       // RSBS_SHARED_ITEM_* bits; 0 = default (present, not redeemed)
-    uint16_t id;         // RG_* if originGame==GAME_OOT, RI_* if GAME_MM; 0 when empty
+    uint8_t originGame; // GameId that owns the id-space; GAME_NONE (0) = empty slot
+    uint8_t flags;      // RSBS_SHARED_ITEM_* bits; 0 = default (present, not redeemed)
+    uint16_t id;        // RG_* if originGame==GAME_OOT, RI_* if GAME_MM; 0 when empty
 } SharedItem;
 
 RSBS_CTX_STATIC_ASSERT(sizeof(SharedItem) == 4,
@@ -439,34 +438,34 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboGrantSourceCursor, sourceKey) == 0 &&
  * These values are .redsave format. Append only; never renumber.
  */
 enum {
-    RSBS_SHARED_RES_NONE = 0,             // empty slot (the growth contract's "unset")
-    RSBS_SHARED_RES_RUPEES = 1,           // CONSUMABLE: the single shared rupee pool
-    RSBS_SHARED_RES_WALLET_TIER = 2,      // MONOTONIC: wallet upgrade level (both games clamp against their own)
-    RSBS_SHARED_RES_HEALTH_QUARTERS = 3,  // MONOTONIC: capacity + pieces*4, the canonical heart quantity
-    RSBS_SHARED_RES_HEALTH_CURRENT = 4,   // CONSUMABLE: the single shared health bar, in 0x10-per-heart units
-    RSBS_SHARED_RES_DOUBLE_DEFENSE = 5,   // MONOTONIC: 0/1 flag; each game sets its OWN differently-named field pair
-    RSBS_SHARED_RES_MAGIC_LEVEL = 6,      // MONOTONIC: meter level 0/1/2 from the two acquired FLAGS, never magicLevel
-    RSBS_SHARED_RES_MAGIC_CURRENT = 7,    // CONSUMABLE: the single shared magic meter, 0x30 per bar in both games
+    RSBS_SHARED_RES_NONE = 0,            // empty slot (the growth contract's "unset")
+    RSBS_SHARED_RES_RUPEES = 1,          // CONSUMABLE: the single shared rupee pool
+    RSBS_SHARED_RES_WALLET_TIER = 2,     // MONOTONIC: wallet upgrade level (both games clamp against their own)
+    RSBS_SHARED_RES_HEALTH_QUARTERS = 3, // MONOTONIC: capacity + pieces*4, the canonical heart quantity
+    RSBS_SHARED_RES_HEALTH_CURRENT = 4,  // CONSUMABLE: the single shared health bar, in 0x10-per-heart units
+    RSBS_SHARED_RES_DOUBLE_DEFENSE = 5,  // MONOTONIC: 0/1 flag; each game sets its OWN differently-named field pair
+    RSBS_SHARED_RES_MAGIC_LEVEL = 6,     // MONOTONIC: meter level 0/1/2 from the two acquired FLAGS, never magicLevel
+    RSBS_SHARED_RES_MAGIC_CURRENT = 7,   // CONSUMABLE: the single shared magic meter, 0x30 per bar in both games
     // Ammo (#525 optional tier). Both games pack the capacity tiers into
     // inventory.upgrades with the SAME bit layout and the SAME capacity rows,
     // so a tier is one number needing no conversion. The counts live in each
     // game's own inventory.ammo[] and are spent, so they delta-harvest.
-    RSBS_SHARED_RES_QUIVER_TIER = 8,      // MONOTONIC: 0..3 ({0,30,40,50} arrows in both games)
-    RSBS_SHARED_RES_BOMB_BAG_TIER = 9,    // MONOTONIC: 0..3 ({0,20,30,40} bombs in both games)
-    RSBS_SHARED_RES_STICK_TIER = 10,      // MONOTONIC: 0..3 ({0,10,20,30} sticks in both games)
-    RSBS_SHARED_RES_NUT_TIER = 11,        // MONOTONIC: 0..3 ({0,20,30,40} nuts in both games)
-    RSBS_SHARED_RES_ARROW_COUNT = 12,     // CONSUMABLE: arrows held, clamped to the quiver capacity applied first
-    RSBS_SHARED_RES_BOMB_COUNT = 13,      // CONSUMABLE: bombs held, clamped to the bomb-bag capacity
-    RSBS_SHARED_RES_BOMBCHU_COUNT = 14,   // CONSUMABLE: bombchus held; the CAP is per-game (see the shims), not a kind
-    RSBS_SHARED_RES_STICK_COUNT = 15,     // CONSUMABLE: deku sticks held, clamped to the stick capacity
-    RSBS_SHARED_RES_NUT_COUNT = 16,       // CONSUMABLE: deku nuts held, clamped to the nut capacity
+    RSBS_SHARED_RES_QUIVER_TIER = 8,    // MONOTONIC: 0..3 ({0,30,40,50} arrows in both games)
+    RSBS_SHARED_RES_BOMB_BAG_TIER = 9,  // MONOTONIC: 0..3 ({0,20,30,40} bombs in both games)
+    RSBS_SHARED_RES_STICK_TIER = 10,    // MONOTONIC: 0..3 ({0,10,20,30} sticks in both games)
+    RSBS_SHARED_RES_NUT_TIER = 11,      // MONOTONIC: 0..3 ({0,20,30,40} nuts in both games)
+    RSBS_SHARED_RES_ARROW_COUNT = 12,   // CONSUMABLE: arrows held, clamped to the quiver capacity applied first
+    RSBS_SHARED_RES_BOMB_COUNT = 13,    // CONSUMABLE: bombs held, clamped to the bomb-bag capacity
+    RSBS_SHARED_RES_BOMBCHU_COUNT = 14, // CONSUMABLE: bombchus held; the CAP is per-game (see the shims), not a kind
+    RSBS_SHARED_RES_STICK_COUNT = 15,   // CONSUMABLE: deku sticks held, clamped to the stick capacity
+    RSBS_SHARED_RES_NUT_COUNT = 16,     // CONSUMABLE: deku nuts held, clamped to the nut capacity
     // Hookshot (#525 optional tier). An ITEM in OoTMM's wording ("combines the
     // Hookshots into two progressive items for both games") but a monotonic
     // TIER in both saves: each game stores it as one inventory byte, so the
     // shared quantity is 0 none / 1 hookshot / 2 longshot. OoT's ceiling is 2
     // and MM's is 1 — MM has no longshot at all — which max-merge handles
     // natively: an MM visit can never demote the pool's longshot.
-    RSBS_SHARED_RES_HOOKSHOT_TIER = 17,   // MONOTONIC: 0/1/2; each game clamps to its OWN ceiling
+    RSBS_SHARED_RES_HOOKSHOT_TIER = 17, // MONOTONIC: 0/1/2; each game clamps to its OWN ceiling
     // Ocarina (#668). The hookshot's shape exactly — one inventory byte per
     // game, so the "one instrument" the operator asked for is a monotonic tier:
     // 0 none, 1 OoT's Fairy Ocarina / MM's Ocarina of Time, 2 OoT's Ocarina of
@@ -483,7 +482,7 @@ enum {
     // RETIRED (#879): the Shared Ocarina rule is gone and the kind is never
     // armed (Combo_SharedResourceKindArmed). The value stays allocated because
     // kinds are .redsave format; an older save's slot of this kind is inert.
-    RSBS_SHARED_RES_OCARINA_TIER = 18,    // MONOTONIC: 0/1/2; RETIRED (#879), never armed
+    RSBS_SHARED_RES_OCARINA_TIER = 18, // MONOTONIC: 0/1/2; RETIRED (#879), never armed
     // Triforce pieces (ADR 0010 answer O10). ONE piece count across both
     // worlds: each game's own counter (OoT `triforcePiecesCollected`, MM
     // `foundTriforcePieces`) becomes a mirror of this quantity once paired, so
@@ -604,23 +603,20 @@ typedef struct {
     // RSBS_COMBO_FLAG_SHARED_OCARINA in foreign_items.h, which states the rule;
     // that bit is retired and reserved since #879).
     uint8_t comboFlags;
-    uint8_t spare1;        // growth under formatVersion, NOT under zero-means-unset
+    uint8_t spare1; // growth under formatVersion, NOT under zero-means-unset
 } ComboSettingsRecord;
 
 RSBS_CTX_STATIC_ASSERT(sizeof(ComboSettingsRecord) == 12,
                        "ComboSettingsRecord is serialized raw inside the .redsave Tier-1 record; its layout is "
                        "format (ADR 0011 decision 1.2)");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboSettingsRecord, formatVersion) == 0 &&
-                           offsetof(ComboSettingsRecord, direction) == 1 &&
-                           offsetof(ComboSettingsRecord, poolSizeOoT) == 2 &&
-                           offsetof(ComboSettingsRecord, poolSizeMM) == 3 &&
-                           offsetof(ComboSettingsRecord, itemClassOoT) == 4 &&
-                           offsetof(ComboSettingsRecord, itemClassMM) == 6 && offsetof(ComboSettingsRecord, goal) == 8 &&
-                           offsetof(ComboSettingsRecord, logicRung) == 9 &&
-                           offsetof(ComboSettingsRecord, comboFlags) == 10 &&
-                           offsetof(ComboSettingsRecord, spare1) == 11,
-                       "ComboSettingsRecord member offsets are .redsave format and must not move; the canonical "
-                       "digest encoder walks them in this declaration order (ADR 0011 decision 1.4)");
+RSBS_CTX_STATIC_ASSERT(
+    offsetof(ComboSettingsRecord, formatVersion) == 0 && offsetof(ComboSettingsRecord, direction) == 1 &&
+        offsetof(ComboSettingsRecord, poolSizeOoT) == 2 && offsetof(ComboSettingsRecord, poolSizeMM) == 3 &&
+        offsetof(ComboSettingsRecord, itemClassOoT) == 4 && offsetof(ComboSettingsRecord, itemClassMM) == 6 &&
+        offsetof(ComboSettingsRecord, goal) == 8 && offsetof(ComboSettingsRecord, logicRung) == 9 &&
+        offsetof(ComboSettingsRecord, comboFlags) == 10 && offsetof(ComboSettingsRecord, spare1) == 11,
+    "ComboSettingsRecord member offsets are .redsave format and must not move; the canonical "
+    "digest encoder walks them in this declaration order (ADR 0011 decision 1.4)");
 
 /**
  * The FROZEN TRIFORCE-HUNT RECORD (ADR 0010 answer O10; ADR 0011's 2026-09-27
@@ -675,7 +671,7 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboTriforceRecord, totalOoT) == 0 &&
                        "ComboTriforceRecord member offsets are .redsave format and must not move");
 
 typedef struct {
-    char magic[8];        // "OoT+MM<3"
+    char magic[8]; // "OoT+MM<3"
     uint32_t version;
     bool switchRequested;
     GameId targetGame;
@@ -701,8 +697,8 @@ typedef struct {
     // Cross-game rando state propagation — Lane B's carrier (ADR 0002): set in
     // the LIVE path at OoT generation time, read by MM's consumption path when
     // Lane C makes it reachable.
-    bool sourceIsRando;        // Source game is in randomizer mode
-    uint32_t sharedRandoSeed;  // Shared seed for synchronization
+    bool sourceIsRando;       // Source game is in randomizer mode
+    uint32_t sharedRandoSeed; // Shared seed for synchronization
 
     // Origin-tagged cross-game items (ADR 0002), carved from the FRONT of the
     // original reserved[640] headroom so every field above keeps its shipped
@@ -1061,9 +1057,9 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedRandoSettingsHash) ==
 // foreignPlacements is the next carve from the front of the old reserved[]:
 // it must sit immediately after the settings digest with no gap, occupying
 // bytes every shipped .redsave stored as zero (unset).
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, foreignPlacements) ==
-                           RSBS_COMBO_CONTEXT_PRECARVE_SIZE + RSBS_SHARED_ITEM_CAP * sizeof(SharedItem) +
-                               sizeof(uint32_t),
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, foreignPlacements) == RSBS_COMBO_CONTEXT_PRECARVE_SIZE +
+                                                                        RSBS_SHARED_ITEM_CAP * sizeof(SharedItem) +
+                                                                        sizeof(uint32_t),
                        "foreignPlacements must be carved from the FRONT of the old reserved[] "
                        "(contiguous with the settings digest); moving it changes .redsave format");
 // grantCursors and sharedItemOverflowCount are pinned to LITERAL byte offsets,
@@ -1673,8 +1669,7 @@ GameId Context_GetCurrentGame(void);
 
 // Combo_* functions for legacy compatibility
 #define Combo_InitFrozenStates Context_InitFrozenStates
-void Combo_FreezeState(const char* gameId, uint16_t returnEntrance,
-                       const void* saveContext, size_t size);
+void Combo_FreezeState(const char* gameId, uint16_t returnEntrance, const void* saveContext, size_t size);
 int Combo_RestoreState(const char* gameId, void* saveContext, size_t size);
 int Combo_HasFrozenState(const char* gameId);
 uint16_t Combo_GetFrozenReturnEntrance(const char* gameId);

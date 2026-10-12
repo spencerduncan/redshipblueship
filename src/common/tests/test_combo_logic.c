@@ -96,12 +96,12 @@
 #include <cstdio>
 #include <cstring>
 
-#define CL_ASSERT(cond, msg)                                              \
-    do {                                                                  \
-        if (!(cond)) {                                                    \
+#define CL_ASSERT(cond, msg)                                                \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
             printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
-            return TEST_FAIL;                                             \
-        }                                                                 \
+            return TEST_FAIL;                                               \
+        }                                                                   \
     } while (0)
 
 namespace {
@@ -162,11 +162,11 @@ struct ClEngine {
 
     // --- the world -------------------------------------------------------
     int hostCount;
-    uint16_t hostId[kClMaxHosts];      // ASCENDING: the order contract
+    uint16_t hostId[kClMaxHosts]; // ASCENDING: the order contract
     uint32_t hostRequires[kClMaxHosts];
-    uint32_t alwaysOffer;              // host indices offered even when unreached
+    uint32_t alwaysOffer; // host indices offered even when unreached
     int itemCount;
-    uint16_t itemId[kClMaxItems];      // index k <-> bit (1u << k)
+    uint16_t itemId[kClMaxItems]; // index k <-> bit (1u << k)
     uint32_t crossingRequires;
     uint32_t goalRequires;
     /** COUNTED requirements (the multiplicity ruling). A host `i` with
@@ -178,8 +178,8 @@ struct ClEngine {
     uint16_t goalNeedItem;
     uint8_t goalNeedCount;
     uint16_t junkId;
-    bool overReport;                   // offer hosts it has already placed on
-    bool restoreDropsPlacements;       // a harsh restore: the table comes back empty
+    bool overReport;             // offer hosts it has already placed on
+    bool restoreDropsPlacements; // a harsh restore: the table comes back empty
     bool withSnapshot;
     /** Refuse the next NEW placement (an idempotent re-apply still succeeds).
      *  Models an engine that rejects a host it had itself offered — the branch
@@ -257,9 +257,9 @@ struct ClEngine {
     bool placedIsCover[kClMaxHosts];
 
     // --- contract traps --------------------------------------------------
-    bool sawForeignAssume;      // an id this engine's table does not name
-    bool sawForeignInOwnTable;  // a foreign-origin SharedItem stored verbatim
-    bool sawQueryOutsideRound;  // a query call outside begin/end
+    bool sawForeignAssume;     // an id this engine's table does not name
+    bool sawForeignInOwnTable; // a foreign-origin SharedItem stored verbatim
+    bool sawQueryOutsideRound; // a query call outside begin/end
     bool sawDoubleBegin;
 };
 
@@ -561,9 +561,8 @@ int ClGoalReached(void* self) {
     if (!e->inQuery) {
         e->sawQueryOutsideRound = true;
     }
-    return ((e->goalRequires & e->have) == e->goalRequires && ClHoldsCopies(e, e->goalNeedItem, e->goalNeedCount))
-               ? 1
-               : 0;
+    return ((e->goalRequires & e->have) == e->goalRequires && ClHoldsCopies(e, e->goalNeedItem, e->goalNeedCount)) ? 1
+                                                                                                                   : 0;
 }
 
 int ClPlace(void* self, uint16_t hostCheck, SharedItem item) {
@@ -575,8 +574,7 @@ int ClPlace(void* self, uint16_t hostCheck, SharedItem item) {
     if (existing >= 0) {
         // IDEMPOTENT for the same (host, item): the coordinator re-applies the
         // whole table after every restore.
-        if (e->placedIsCover[existing] == foreign &&
-            (foreign || e->placedItem[existing].id == item.id)) {
+        if (e->placedIsCover[existing] == foreign && (foreign || e->placedItem[existing].id == item.id)) {
             return 1;
         }
         return 0; // a different item on an assigned host is a coordinator defect
@@ -1003,7 +1001,8 @@ TestResult Test_ComboLogicEngineSurface(void) {
     CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_BEAT_BOTH, 1, 1) == 1, "beat-both: 1 AND 1");
     CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_BEAT_BOTH, 1, 0) == 0, "beat-both: 1 AND 0");
     CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_BEAT_BOTH, 0, 1) == 0, "beat-both: 0 AND 1");
-    CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_BEAT_EITHER, 1, 0) == 1, "beat-either: an unbeatable half is OK");
+    CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_BEAT_EITHER, 1, 0) == 1,
+              "beat-either: an unbeatable half is OK");
     CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_BEAT_EITHER, 0, 1) == 1, "beat-either is symmetric");
     // The OR is never an XOR: both halves provable is a welcome outcome.
     CL_ASSERT(Combo_Logic_EvaluateGoal(RSBS_COMBO_GOAL_BEAT_EITHER, 1, 1) == 1,
@@ -1141,9 +1140,10 @@ TestResult Test_ComboLogicEngineSurface(void) {
         CL_ASSERT(refused.placed == 0 && refused.placementDigest == 0u,
                   "a pre-attempt refusal must report on the call — it placed nothing — and must not describe tables it "
                   "never looked at");
-        CL_ASSERT(gClOoT.placeCalls == ootCalls && gClMM.placeCalls == mmCalls, "and must not have called either engine");
-        CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) == ootPlaced && Combo_Logic_PlacementCount(GAME_MM) == mmPlaced &&
-                      Combo_Logic_PlacementDigest() == tableDigest,
+        CL_ASSERT(gClOoT.placeCalls == ootCalls && gClMM.placeCalls == mmCalls,
+                  "and must not have called either engine");
+        CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) == ootPlaced &&
+                      Combo_Logic_PlacementCount(GAME_MM) == mmPlaced && Combo_Logic_PlacementDigest() == tableDigest,
                   "and the tables it did not touch must still hold the previous fill, untouched");
     }
 
@@ -1261,7 +1261,8 @@ TestResult Test_ComboLogicFixpoint(void) {
                   "the fixpoint's goal facts must not depend on the order facts arrived in");
         CL_ASSERT(forward.candidatesOoT == reverse.candidatesOoT && forward.candidatesMM == reverse.candidatesMM,
                   "nor must the candidate sets");
-        CL_ASSERT(forward.crossingOpenOoT == reverse.crossingOpenOoT && forward.crossingOpenMM == reverse.crossingOpenMM,
+        CL_ASSERT(forward.crossingOpenOoT == reverse.crossingOpenOoT &&
+                      forward.crossingOpenMM == reverse.crossingOpenMM,
                   "nor the crossing facts");
         CL_ASSERT(forward.exchanged == reverse.exchanged, "nor the number of exchanges");
     }
@@ -1326,7 +1327,8 @@ TestResult Test_ComboLogicFixpoint(void) {
         CL_ASSERT(withoutHost.goalExpression == 0, "so beat-both must flip to unprovable");
         // ... and the same world under beat-either is a legitimate world with one
         // unbeatable half (answer O1), not a failure.
-        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_EITHER, NULL, 0, &withoutHost) == RSBS_COMBO_LOGIC_OK, "either round");
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_EITHER, NULL, 0, &withoutHost) == RSBS_COMBO_LOGIC_OK,
+                  "either round");
         CL_ASSERT(withoutHost.goalMM == 1 && withoutHost.goalOoT == 0,
                   "MM's half still proves and OoT's still does not");
         CL_ASSERT(withoutHost.goalExpression == 1, "beat-either permits the unbeatable half");
@@ -1655,8 +1657,7 @@ TestResult Test_ComboLogicFill(void) {
         CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 7u, &res) ==
                       RSBS_COMBO_LOGIC_OK,
                   "`beatable` asks only for the GOAL, which this world proves");
-        CL_ASSERT(res.goalProven && !res.allHostsReached,
-                  "and it reports honestly that a placed host was not reached");
+        CL_ASSERT(res.goalProven && !res.allHostsReached, "and it reports honestly that a placed host was not reached");
 
         ClBuildOfferUnreachedWorld();
         CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 7u, &res) ==
@@ -1918,8 +1919,7 @@ TestResult Test_ComboLogicContractEdges(void) {
 
         for (int r = 0; r < 2; ++r) {
             ClBuildFillWorld(true);
-            CL_ASSERT(Combo_Logic_Place(GAME_OOT, 10, ClItem((uint8_t)GAME_OOT, kOotBoots),
-                                        RSBS_ITEMCLASS_PROGRESSION),
+            CL_ASSERT(Combo_Logic_Place(GAME_OOT, 10, ClItem((uint8_t)GAME_OOT, kOotBoots), RSBS_ITEMCLASS_PROGRESSION),
                       "author one row the way a spoiler load would");
             CL_ASSERT(Combo_Logic_Place(GAME_MM, 20, ClItem((uint8_t)GAME_MM, kMmMask), RSBS_ITEMCLASS_PROGRESSION),
                       "and one on the other side");
@@ -2283,13 +2283,29 @@ namespace {
 int ClComposeOoTClassify(uint16_t id, ComboItemClassRow* out) {
     ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
     switch (id) {
-        case 1: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; break;
-        case 2: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; row.armedBy = RSBS_FILL_ARM_SMALL_KEYS_ROAM; break;
-        case 3: row.fillClass = RSBS_FILL_CLASS_RENEWABLE; break;
-        case 4: row.fillClass = RSBS_FILL_CLASS_JUNK; break;
-        case 5: row.fillClass = RSBS_FILL_CLASS_TRAP; break;
-        case 6: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT; break;
-        default: *out = row; return 0;
+        case 1:
+            row.fillClass = RSBS_FILL_CLASS_PROGRESSION;
+            break;
+        case 2:
+            row.fillClass = RSBS_FILL_CLASS_PROGRESSION;
+            row.armedBy = RSBS_FILL_ARM_SMALL_KEYS_ROAM;
+            break;
+        case 3:
+            row.fillClass = RSBS_FILL_CLASS_RENEWABLE;
+            break;
+        case 4:
+            row.fillClass = RSBS_FILL_CLASS_JUNK;
+            break;
+        case 5:
+            row.fillClass = RSBS_FILL_CLASS_TRAP;
+            break;
+        case 6:
+            row.fillClass = RSBS_FILL_CLASS_PROGRESSION;
+            row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT;
+            break;
+        default:
+            *out = row;
+            return 0;
     }
     *out = row;
     return 1;
@@ -2298,12 +2314,26 @@ int ClComposeOoTClassify(uint16_t id, ComboItemClassRow* out) {
 int ClComposeMMClassify(uint16_t id, ComboItemClassRow* out) {
     ComboItemClassRow row = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u };
     switch (id) {
-        case 1: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; break;
-        case 2: row.fillClass = RSBS_FILL_CLASS_RENEWABLE; row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT; break;
-        case 3: row.fillClass = RSBS_FILL_CLASS_TRAP; break;
-        case 4: row.fillClass = RSBS_FILL_CLASS_JUNK; break;
-        case 5: row.fillClass = RSBS_FILL_CLASS_PROGRESSION; row.armedBy = RSBS_FILL_ARM_SOULS; break;
-        default: *out = row; return 0;
+        case 1:
+            row.fillClass = RSBS_FILL_CLASS_PROGRESSION;
+            break;
+        case 2:
+            row.fillClass = RSBS_FILL_CLASS_RENEWABLE;
+            row.sharedKind = RSBS_SHARED_RES_BOMBCHU_COUNT;
+            break;
+        case 3:
+            row.fillClass = RSBS_FILL_CLASS_TRAP;
+            break;
+        case 4:
+            row.fillClass = RSBS_FILL_CLASS_JUNK;
+            break;
+        case 5:
+            row.fillClass = RSBS_FILL_CLASS_PROGRESSION;
+            row.armedBy = RSBS_FILL_ARM_SOULS;
+            break;
+        default:
+            *out = row;
+            return 0;
     }
     *out = row;
     return 1;
@@ -2469,7 +2499,6 @@ TestResult ClComposeLeg(void) {
            "confined, filler and trap rows counted per game and never admitted\n");
     return TEST_PASS;
 }
-
 
 // ---------------------------------------------------------------------------
 // P. THE PRODUCTION RULES (ABI 5; #645 lane K11): the four things the single-bag
@@ -2721,7 +2750,8 @@ TestResult ClProductionRulesLeg(void) {
                 req.maxCrossingsPerSide = 1;
                 ComboLogicFillResult res;
                 ClBuildOpenWorld(4, 4);
-                CL_ASSERT(Combo_Logic_RunFill(&req, &res) == RSBS_COMBO_LOGIC_OK, "P5: the bounded fill places the bag");
+                CL_ASSERT(Combo_Logic_RunFill(&req, &res) == RSBS_COMBO_LOGIC_OK,
+                          "P5: the bounded fill places the bag");
                 int intoOoT = 0;
                 int intoMM = 0;
                 ClCountCrossings(&intoOoT, &intoMM, nullptr);

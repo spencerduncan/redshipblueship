@@ -252,7 +252,7 @@ bool Combo_Area_HasFoolishAdapter(uint8_t game);
 /** The foolish areas of one game's half, indexed by area. */
 typedef struct {
     uint8_t game;
-    int count;          /* how many entries of `foolish` are true */
+    int count;           /* how many entries of `foolish` are true */
     bool foolish[0x100]; /* [area]; never the two specials */
 } ComboFoolishAreas;
 

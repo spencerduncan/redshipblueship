@@ -1477,8 +1477,8 @@ typedef struct {
 typedef struct {
     const ComboLogicPoolRow* rows; // both games' pool rows, in any interleaving; NULL iff rowCount == 0
     int rowCount;
-    uint32_t armedOoT; // the frozen armed word for OoT-origin rows (RSBS_FILL_ARM_*)
-    uint32_t armedMM;  // ... and for MM-origin rows
+    uint32_t armedOoT;     // the frozen armed word for OoT-origin rows (RSBS_FILL_ARM_*)
+    uint32_t armedMM;      // ... and for MM-origin rows
     uint16_t composeFlags; // RSBS_COMBO_COMPOSE_* flags; 0 = the rule table exactly as stated above
     // --- THE SHARED-QUANTITY TRIM's inputs (lane K13). The trim is ON unless
     //     `quantityFlags` says otherwise, and a trimming request MUST publish both
@@ -1603,19 +1603,19 @@ typedef struct {
 
 typedef struct {
     int status;
-    int attempts; // attempts consumed, including the successful one; 0 when the
-                  // request was refused before any attempt ran
-    int placed;   // placements this call put in the tables; 0 on a pre-attempt refusal
-    int rounds;   // rounds run across every attempt; always 0 under rung `none`
-    bool goalProven;      // the exit condition was evaluated and held
-    bool proofSkipped;    // rung `none`: no proof was attempted (goalProven is false)
-    bool allHostsReached; // rung `all-reachable` only: every placed host was reached
+    int attempts;             // attempts consumed, including the successful one; 0 when the
+                              // request was refused before any attempt ran
+    int placed;               // placements this call put in the tables; 0 on a pre-attempt refusal
+    int rounds;               // rounds run across every attempt; always 0 under rung `none`
+    bool goalProven;          // the exit condition was evaluated and held
+    bool proofSkipped;        // rung `none`: no proof was attempted (goalProven is false)
+    bool allHostsReached;     // rung `all-reachable` only: every placed host was reached
     uint32_t placementDigest; // 0 on a pre-attempt refusal (see the note at RunFill)
     // --- THE BAG MODEL's accounting (see that block). All 0 on a pre-attempt
     //     refusal, and describing the LAST attempt otherwise. ------------------
-    int requiredPlaced; // REQUIRED rows placed (== the required count on success)
-    int surplusPlaced;  // SURPLUS rows placed after the proof held
-    int surplusDropped; // SURPLUS rows dropped because the host supply ran out
+    int requiredPlaced;     // REQUIRED rows placed (== the required count on success)
+    int surplusPlaced;      // SURPLUS rows placed after the proof held
+    int surplusDropped;     // SURPLUS rows dropped because the host supply ran out
     uint32_t droppedDigest; // FNV-1a over the dropped rows (bag index, origin, id);
                             // the offset basis when nothing was dropped
     int leftoverHostsOoT;   // hosts no row landed on: each game's own per-game pass

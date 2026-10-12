@@ -285,8 +285,7 @@ void CVarClear(const char* name);
 // THE PLAY-SIDE CHECK (lane K13): award every heart row of a bag, interleaved by
 // origin, through the REAL shared carrier and count the pickups the 20-heart clamp
 // swallowed. Defined in test_shared_quantity_policy.c (included after this file).
-int SqpDeadHeartPickups(const ComboLogicBagItem* bag, int count, uint16_t startHealth, int* outPickups,
-                        int* outFinal);
+int SqpDeadHeartPickups(const ComboLogicBagItem* bag, int count, uint16_t startHealth, int* outPickups, int* outFinal);
 
 namespace {
 
@@ -408,9 +407,15 @@ const char* const kClmMmMaximalCvars[] = {
 // family at its ANYWHERE index (RandoOptionDungeonItemLocation 5, songs 3, rewards
 // 4, gerudo keys 3, Ganon's boss key 5) and all tokens shuffled (3).
 const char* const kClmOoTMaximalCvars[] = {
-    "gRandoSettings.ItemPool",          "gRandoSettings.AdditionalIceTraps", "gRandoSettings.Keysanity",
-    "gRandoSettings.BossKeysanity",     "gRandoSettings.StartingMapsCompasses", "gRandoSettings.ShuffleSongs",
-    "gRandoSettings.ShuffleTokens",     "gRandoSettings.ShuffleDungeonReward", "gRandoSettings.GerudoKeys",
+    "gRandoSettings.ItemPool",
+    "gRandoSettings.AdditionalIceTraps",
+    "gRandoSettings.Keysanity",
+    "gRandoSettings.BossKeysanity",
+    "gRandoSettings.StartingMapsCompasses",
+    "gRandoSettings.ShuffleSongs",
+    "gRandoSettings.ShuffleTokens",
+    "gRandoSettings.ShuffleDungeonReward",
+    "gRandoSettings.GerudoKeys",
     "gRandoSettings.ShuffleGanonBossKey",
 };
 
@@ -540,11 +545,10 @@ bool ClmExportMm(ClmMmPool& p, bool authorCheckTable) {
     p.checks.assign((size_t)RSBS_COMBO_LOGIC_HOST_CAP, 0);
     int mmCheckTotal = 0;
     const int mmTotal =
-        authorCheckTable
-            ? MM_ComboLogic_TestAuthorCheckTable(p.items.data(), p.flags.data(), kMmItemCap, p.checks.data(),
-                                                 RSBS_COMBO_LOGIC_HOST_CAP, &mmCheckTotal)
-            : MM_ComboLogic_TestGeneratePool(p.items.data(), p.flags.data(), kMmItemCap, p.checks.data(),
-                                             RSBS_COMBO_LOGIC_HOST_CAP, &mmCheckTotal);
+        authorCheckTable ? MM_ComboLogic_TestAuthorCheckTable(p.items.data(), p.flags.data(), kMmItemCap,
+                                                              p.checks.data(), RSBS_COMBO_LOGIC_HOST_CAP, &mmCheckTotal)
+                         : MM_ComboLogic_TestGeneratePool(p.items.data(), p.flags.data(), kMmItemCap, p.checks.data(),
+                                                          RSBS_COMBO_LOGIC_HOST_CAP, &mmCheckTotal);
     if (mmTotal <= 0 || mmTotal > kMmItemCap || mmCheckTotal <= 0 || mmCheckTotal > RSBS_COMBO_LOGIC_HOST_CAP) {
         printf("[TEST] compose: MM's export returned %d rows / %d checks (caps %d / %d)\n", mmTotal, mmCheckTotal,
                kMmItemCap, (int)RSBS_COMBO_LOGIC_HOST_CAP);
@@ -647,8 +651,8 @@ void ClmPrintComposition(const char* tag, const char* profile, const ClmComposed
     printf("[TEST] %s: === THE COMPOSED BAG (profile \"%s\") ===\n", tag, profile);
     printf("[TEST] %s: pool rows OoT=%d (read back from the generated world; %d copies plentiful added) MM=%d "
            "(GeneratePools), check pool MM=%d; armed OoT=0x%08X MM=0x%08X\n",
-           tag, c.ootRows, OoT_ComboLogic_PlentifulAddedCount(), c.mmRows, (int)c.mmChecks.size(),
-           (unsigned)c.armedOoT, (unsigned)c.armedMM);
+           tag, c.ootRows, OoT_ComboLogic_PlentifulAddedCount(), c.mmRows, (int)c.mmChecks.size(), (unsigned)c.armedOoT,
+           (unsigned)c.armedMM);
     const GameId games[2] = { GAME_OOT, GAME_MM };
     for (const GameId g : games) {
         const ComboLogicComposeCounts& k = c.res.perGame[(int)g];
@@ -769,8 +773,8 @@ struct FillMeasurement {
     ComboLogicFillResult res;
 };
 
-FillMeasurement RunTimedFill(const char* label, const ComboLogicBagItem* bag, int bagCount, uint8_t goal,
-                             uint8_t rung, uint32_t seed, int maxAttempts) {
+FillMeasurement RunTimedFill(const char* label, const ComboLogicBagItem* bag, int bagCount, uint8_t goal, uint8_t rung,
+                             uint32_t seed, int maxAttempts) {
     FillMeasurement m;
     memset(&m, 0, sizeof(m));
 
@@ -817,12 +821,12 @@ FillMeasurement RunTimedFill(const char* label, const ComboLogicBagItem* bag, in
     return m;
 }
 
-#define CLM_ASSERT(cond, msg)                                                    \
-    do {                                                                         \
-        if (!(cond)) {                                                           \
-            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__);       \
-            return TEST_FAIL;                                                    \
-        }                                                                        \
+#define CLM_ASSERT(cond, msg)                                               \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            return TEST_FAIL;                                               \
+        }                                                                   \
     } while (0)
 
 } // namespace
@@ -1082,8 +1086,9 @@ TestResult ComboLogicMeasure_Run(void) {
         ComboLogicComposeResult otherRes;
         memset(&otherRes, 0, sizeof(otherRes));
         std::vector<int> otherTrimmed;
-        const int otherStatus = ClmRecompose(composed, untrimmed ? (uint16_t)0u : (uint16_t)RSBS_COMBO_QUANTITY_KEEP_ALL,
-                                             otherBag, otherRes, &otherTrimmed);
+        const int otherStatus =
+            ClmRecompose(composed, untrimmed ? (uint16_t)0u : (uint16_t)RSBS_COMBO_QUANTITY_KEEP_ALL, otherBag,
+                         otherRes, &otherTrimmed);
         const int trimmedBag = untrimmed ? otherRes.bagCount : composed.res.bagCount;
         const int untrimmedBag = untrimmed ? composed.res.bagCount : otherRes.bagCount;
         const int trimmedRows = untrimmed ? (int)otherTrimmed.size() : (int)composed.trimmed.size();
@@ -1263,8 +1268,8 @@ TestResult ComboLogicMeasure_Run(void) {
         }
         printf("[TEST] combo-logic-measure: round %d: %.1fms alternations=%d crossingOoT=%d crossingMM=%d "
                "candidatesOoT=%d candidatesMM=%d exchanged=%d goalOoT=%d goalMM=%d goalExpr=%d\n",
-               i + 1, ms, res.iterations, res.crossingOpenOoT, res.crossingOpenMM, res.candidatesOoT,
-               res.candidatesMM, res.exchanged, res.goalOoT, res.goalMM, res.goalExpression);
+               i + 1, ms, res.iterations, res.crossingOpenOoT, res.crossingOpenMM, res.candidatesOoT, res.candidatesMM,
+               res.exchanged, res.goalOoT, res.goalMM, res.goalExpression);
     }
 
     const Stats roundStats = Summarize(roundMs);
@@ -1393,9 +1398,10 @@ TestResult ComboLogicMeasure_Run(void) {
         int m2bGoalMM = -1;
         const std::vector<ComboLogicBagItem>* sets[3] = { &required, &withFiller, &withFixed };
         const char* names[3] = { "M2b MM REQUIRED rows", "M2c + MM filler rows", "M2d + MM fixed vanilla contents" };
-        printf("[TEST] combo-logic-measure: M2d adds %d fixed vanilla contents of MM graph checks outside the check pool "
-               "(%d of them PROGRESSION-class)\n",
-               fixedRows, fixedProgression);
+        printf(
+            "[TEST] combo-logic-measure: M2d adds %d fixed vanilla contents of MM graph checks outside the check pool "
+            "(%d of them PROGRESSION-class)\n",
+            fixedRows, fixedProgression);
         for (int s = 0; s < 3; ++s) {
             ComboLogicRoundRequest req;
             memset(&req, 0, sizeof(req));
@@ -1462,21 +1468,21 @@ TestResult ComboLogicMeasure_Run(void) {
     //     it can under the measured bag is exactly the thing being measured rather
     //     than assumed.
     const FillMeasurement beatBothA =
-        RunTimedFill("beatable/beat-both A", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH,
-                     RSBS_COMBO_RUNG_BEATABLE, kSeedA, fillAttempts);
+        RunTimedFill("beatable/beat-both A", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE,
+                     kSeedA, fillAttempts);
     const FillMeasurement beatBothB =
-        RunTimedFill("beatable/beat-both B", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH,
-                     RSBS_COMBO_RUNG_BEATABLE, kSeedB, fillAttempts);
+        RunTimedFill("beatable/beat-both B", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE,
+                     kSeedB, fillAttempts);
     const FillMeasurement beatBothC =
-        RunTimedFill("beatable/beat-both C", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH,
-                     RSBS_COMBO_RUNG_BEATABLE, kSeedC, fillAttempts);
+        RunTimedFill("beatable/beat-both C", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE,
+                     kSeedC, fillAttempts);
 
     // (2) the same rung under `beat-either`, which OoT's half alone can satisfy —
     //     the configuration in which the fill's CONVERGENCE (rather than MM's
     //     goal) is what the numbers are about.
-    const FillMeasurement beatEitherA = RunTimedFill("beatable/beat-either A", bag.data(), bagCount,
-                                                     RSBS_COMBO_GOAL_BEAT_EITHER, RSBS_COMBO_RUNG_BEATABLE,
-                                                     kSeedA, fillAttempts);
+    const FillMeasurement beatEitherA =
+        RunTimedFill("beatable/beat-either A", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_EITHER,
+                     RSBS_COMBO_RUNG_BEATABLE, kSeedA, fillAttempts);
     CLM_ASSERT(beatEitherA.res.rounds > 0, "the proved rung ran no round — the fill took the `none` path");
     CLM_ASSERT(beatEitherA.res.attempts > 0, "the proved rung was refused before any attempt ran");
 
@@ -1484,7 +1490,7 @@ TestResult ComboLogicMeasure_Run(void) {
     //     proved. The contrast is the measurement — it is the cost floor the
     //     operator's base mode pays.
     const FillMeasurement noneRung = RunTimedFill("none/beat-both", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_BOTH,
-                                                 RSBS_COMBO_RUNG_NONE, kSeedA, 1);
+                                                  RSBS_COMBO_RUNG_NONE, kSeedA, 1);
     CLM_ASSERT(noneRung.res.rounds == 0, "the `none` rung ran a round — it is specified to run none at all");
     if (noneRung.status == RSBS_COMBO_LOGIC_OK) {
         CLM_ASSERT(noneRung.res.proofSkipped && !noneRung.res.goalProven,
@@ -1492,18 +1498,18 @@ TestResult ComboLogicMeasure_Run(void) {
     }
 
     // (4) variance: two more coordinator seeds, same bag, same rung.
-    const FillMeasurement beatEitherB = RunTimedFill("beatable/beat-either B", bag.data(), bagCount,
-                                                     RSBS_COMBO_GOAL_BEAT_EITHER, RSBS_COMBO_RUNG_BEATABLE,
-                                                     kSeedB, fillAttempts);
-    const FillMeasurement beatEitherC = RunTimedFill("beatable/beat-either C", bag.data(), bagCount,
-                                                     RSBS_COMBO_GOAL_BEAT_EITHER, RSBS_COMBO_RUNG_BEATABLE,
-                                                     kSeedC, fillAttempts);
+    const FillMeasurement beatEitherB =
+        RunTimedFill("beatable/beat-either B", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_EITHER,
+                     RSBS_COMBO_RUNG_BEATABLE, kSeedB, fillAttempts);
+    const FillMeasurement beatEitherC =
+        RunTimedFill("beatable/beat-either C", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_EITHER,
+                     RSBS_COMBO_RUNG_BEATABLE, kSeedC, fillAttempts);
 
     // (5) S3: same seed reproduces, different seed does not. Without the second
     //     half "reproducible" is satisfied by a constant digest.
-    const FillMeasurement beatEitherARepeat = RunTimedFill("beatable/beat-either A'", bag.data(), bagCount,
-                                                           RSBS_COMBO_GOAL_BEAT_EITHER, RSBS_COMBO_RUNG_BEATABLE,
-                                                           kSeedA, fillAttempts);
+    const FillMeasurement beatEitherARepeat =
+        RunTimedFill("beatable/beat-either A'", bag.data(), bagCount, RSBS_COMBO_GOAL_BEAT_EITHER,
+                     RSBS_COMBO_RUNG_BEATABLE, kSeedA, fillAttempts);
     CLM_ASSERT(beatEitherARepeat.status == beatEitherA.status,
                "the same seed gave a different STATUS on a second fill — the fill is not a pure function of its "
                "inputs");
@@ -1595,8 +1601,8 @@ TestResult ComboLogicMeasure_Run(void) {
            "%.0f rounds; at the measured median of %.1fms per round that is %.0fms = %.1fs = %.2fx the 30000ms floor "
            "and %.2fx this host's %ums total-creation budget\n",
            fullUnionBag, fullBagRounds, roundStats.median, extrapolatedMs, extrapolatedMs / 1000.0,
-           extrapolatedMs / (double)RSBS_GENBUDGET_FLOOR_MS,
-           extrapolatedMs / (double)Combo_GenBudget_TotalBudgetMs(), (unsigned)Combo_GenBudget_TotalBudgetMs());
+           extrapolatedMs / (double)RSBS_GENBUDGET_FLOOR_MS, extrapolatedMs / (double)Combo_GenBudget_TotalBudgetMs(),
+           (unsigned)Combo_GenBudget_TotalBudgetMs());
     printf("[TEST] combo-logic-measure: the extrapolation is LINEAR in the bag and that is its weakness: a round's "
            "cost is dominated by two full closures whose size does not depend on the assumed-set size, so linear is "
            "the honest first order — but the assume loop itself is O(bag) per round, which makes the true curve "
@@ -1623,9 +1629,8 @@ TestResult ComboLogicMeasure_Run(void) {
     // PER-ATTEMPT budget. The total is printed too, but beside a LADDER-attempt count
     // rather than beside the roll-back count, which is the only place it means
     // anything.
-    const double fillPerRoundMs = (beatEitherA.res.rounds > 0)
-                                      ? (beatEitherA.wallMs / (double)beatEitherA.res.rounds)
-                                      : roundStats.median;
+    const double fillPerRoundMs =
+        (beatEitherA.res.rounds > 0) ? (beatEitherA.wallMs / (double)beatEitherA.res.rounds) : roundStats.median;
     const double fullBagOneAttemptMs = fillPerRoundMs * fullBagRounds;
     printf("[TEST] combo-logic-measure: PER-ROUND INSIDE THE FILL: %.1fms (%.1fms wall / %d rounds) against %.1fms for "
            "an isolated round. The gap is work the isolated round cannot pay because its tables are EMPTY — the "
@@ -1638,14 +1643,12 @@ TestResult ComboLogicMeasure_Run(void) {
            "%.1fms = %.0fms = %.1fs, i.e. %.2fx the 30000ms floor and %.2fx this host's %ums PER-ATTEMPT budget\n",
            fullBagRounds, fillPerRoundMs, fullBagOneAttemptMs, fullBagOneAttemptMs / 1000.0,
            fullBagOneAttemptMs / (double)RSBS_GENBUDGET_FLOOR_MS,
-           fullBagOneAttemptMs / (double)Combo_GenBudget_FillBudgetMs(0),
-           (unsigned)Combo_GenBudget_FillBudgetMs(0));
+           fullBagOneAttemptMs / (double)Combo_GenBudget_FillBudgetMs(0), (unsigned)Combo_GenBudget_FillBudgetMs(0));
     printf("[TEST] combo-logic-measure: EXTRAPOLATED, WORST-CASE RunFill: the coordinator's default of %d BATCH "
            "ROLL-BACKS all happen inside ONE Combo_Logic_RunFill, i.e. inside ONE ladder attempt, so %.1fs is what has "
            "to fit this host's %ums PER-ATTEMPT budget: %.2fx it -> %s\n",
            (int)RSBS_COMBO_LOGIC_FILL_RETRIES, fullBagAllRollbacksMs / 1000.0,
-           (unsigned)Combo_GenBudget_FillBudgetMs(0),
-           fullBagAllRollbacksMs / (double)Combo_GenBudget_FillBudgetMs(0),
+           (unsigned)Combo_GenBudget_FillBudgetMs(0), fullBagAllRollbacksMs / (double)Combo_GenBudget_FillBudgetMs(0),
            (fullBagAllRollbacksMs > (double)Combo_GenBudget_FillBudgetMs(0))
                ? "OVER the per-attempt budget, so the roll-back count is a budget decision and not only a quality one"
                : "inside the per-attempt budget");
@@ -1782,12 +1785,12 @@ TestResult ComboLogicMeasure_Run(void) {
 // the whole unified save buffer (compared against the post-profile baseline
 // BEFORE the outer restore, the measurement row's S4 discipline).
 
-#define CLB_ASSERT(cond, msg)                                                    \
-    do {                                                                         \
-        if (!(cond)) {                                                           \
-            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__);       \
-            return TEST_FAIL;                                                    \
-        }                                                                        \
+#define CLB_ASSERT(cond, msg)                                               \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            return TEST_FAIL;                                               \
+        }                                                                   \
     } while (0)
 
 namespace {
@@ -2055,16 +2058,14 @@ TestResult ComboLogicBagComposition_Run(void) {
                        "B7: renewable (rupees), junk, trap and confined counts are identical trimmed and untrimmed");
         }
         // The play-side check over the REAL bags: the operator's actual concern.
-        const uint16_t start =
-            (c.startingHealthOoT > c.startingHealthMM) ? c.startingHealthOoT : c.startingHealthMM;
+        const uint16_t start = (c.startingHealthOoT > c.startingHealthMM) ? c.startingHealthOoT : c.startingHealthMM;
         int tp = 0;
         int tf = 0;
         int up = 0;
         int uf = 0;
         std::vector<ComboLogicBagItem> untrimmedAgain;
         ComboLogicComposeResult ures2;
-        CLB_ASSERT(ClmRecompose(c, RSBS_COMBO_QUANTITY_KEEP_ALL, untrimmedAgain, ures2, nullptr) ==
-                       RSBS_COMBO_LOGIC_OK,
+        CLB_ASSERT(ClmRecompose(c, RSBS_COMBO_QUANTITY_KEEP_ALL, untrimmedAgain, ures2, nullptr) == RSBS_COMBO_LOGIC_OK,
                    "B7: the untrimmed bag recomposes");
         const int deadTrimmed = SqpDeadHeartPickups(c.bag.data(), (int)c.bag.size(), start, &tp, &tf);
         const int deadUntrimmed =
@@ -2118,7 +2119,8 @@ TestResult ComboLogicBagComposition_Run(void) {
     int mmHeartTrimmed = 0;
     for (size_t i = 0; i < c.rows.size(); ++i) {
         const ComboLogicPoolRow& r = c.rows[i];
-        if (r.item.originGame == (uint8_t)GAME_MM && Combo_ItemClassSharedKind(r.item) == RSBS_SHARED_RES_HEALTH_QUARTERS) {
+        if (r.item.originGame == (uint8_t)GAME_MM &&
+            Combo_ItemClassSharedKind(r.item) == RSBS_SHARED_RES_HEALTH_QUARTERS) {
             const int d = Combo_Logic_ComposeDisposition(r.item, r.poolFlags, c.armedMM);
             CLB_ASSERT(d == RSBS_COMBO_COMPOSE_REQUIRED || d == RSBS_COMBO_COMPOSE_SURPLUS,
                        "B3: every MM heart-quarter pool row is classified REQUIRED/SURPLUS by the rule (#733)");

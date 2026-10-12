@@ -152,8 +152,9 @@ static void HandleEntry(RelayClient* c, const RelayLedgerEntry* entry) {
     if (!c->settingsMismatchSeen && c->settingsHash != 0u && g.settingsHash != 0u &&
         g.settingsHash != c->settingsHash) {
         c->settingsMismatchSeen = true;
-        fprintf(stderr, "[relay] warning: peer slot %u reports a different settings hash "
-                        "(%08x vs %08x) — you may be on different seeds\n",
+        fprintf(stderr,
+                "[relay] warning: peer slot %u reports a different settings hash "
+                "(%08x vs %08x) — you may be on different seeds\n",
                 (unsigned)g.senderSlot, (unsigned)g.settingsHash, (unsigned)c->settingsHash);
     }
 
@@ -283,8 +284,7 @@ static int ApplyInbox(RelayClient* c) {
             break;
         }
 
-        const ComboGrantResult r =
-            Combo_SubmitSourcedGrant(c->sourceKey, c->nextSeq, (GameId)g.originGame, g.itemId);
+        const ComboGrantResult r = Combo_SubmitSourcedGrant(c->sourceKey, c->nextSeq, (GameId)g.originGame, g.itemId);
 
         switch (r) {
             case RSBS_GRANT_ACCEPTED:
@@ -331,8 +331,8 @@ static int ApplyInbox(RelayClient* c) {
             default:
                 // Malformed at the seam though it passed our decode. Drop it
                 // rather than wedging the stream; it is one peer's bad grant.
-                fprintf(stderr, "[relay] seam rejected grant (game %u item %u); dropping\n",
-                        (unsigned)g.originGame, (unsigned)g.itemId);
+                fprintf(stderr, "[relay] seam rejected grant (game %u item %u); dropping\n", (unsigned)g.originGame,
+                        (unsigned)g.itemId);
                 InboxPop(c);
                 break;
         }

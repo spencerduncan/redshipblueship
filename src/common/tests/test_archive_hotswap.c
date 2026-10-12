@@ -183,12 +183,12 @@ long ArchiveHotswap_PeakDeltaKb(void) {
  * ComboEntrance_Init call), so this test initializes it itself.
  * ======================================================================== */
 
-#define HOTSWAP_ASSERT(cond, msg)                                  \
-    do {                                                           \
-        if (!(cond)) {                                             \
-            printf("[TEST] FAIL: %s\n", (msg));                    \
-            return TEST_FAIL;                                      \
-        }                                                          \
+#define HOTSWAP_ASSERT(cond, msg)               \
+    do {                                        \
+        if (!(cond)) {                          \
+            printf("[TEST] FAIL: %s\n", (msg)); \
+            return TEST_FAIL;                   \
+        }                                       \
     } while (0)
 
 /* Distinct, recognizable fill so a leaked/overwritten byte is obvious. */

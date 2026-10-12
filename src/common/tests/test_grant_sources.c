@@ -42,12 +42,12 @@
 #include <string>
 #include <vector>
 
-#define GS_ASSERT(cond)                                                                                                \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define GS_ASSERT(cond)                                                    \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 namespace {
@@ -206,8 +206,7 @@ TestResult Test_GrantIdempotency(void) {
     // then a 9th source is refused with nothing recorded.
     GS_ASSERT(Combo_CountGrantSources() == 2);
     for (uint32_t i = 0; i < RSBS_GRANT_SOURCE_CAP - 2u; i++) {
-        GS_ASSERT(Combo_SubmitSourcedGrant(0xC0DE0000u + i, 1, GAME_OOT, (uint16_t)(900u + i)) ==
-                  RSBS_GRANT_ACCEPTED);
+        GS_ASSERT(Combo_SubmitSourcedGrant(0xC0DE0000u + i, 1, GAME_OOT, (uint16_t)(900u + i)) == RSBS_GRANT_ACCEPTED);
     }
     GS_ASSERT(Combo_CountGrantSources() == (int)RSBS_GRANT_SOURCE_CAP);
     const int occupiedBefore = GrantTestOccupiedTotal();
@@ -286,8 +285,7 @@ TestResult Test_GrantOverflow(void) {
 
     // Every entry is un-redeemed: the next sourced grant is BACKPRESSURED —
     // refused loudly, cursor unmoved, durable overflow count up.
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) ==
-              RSBS_GRANT_RETRY_FULL);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) == RSBS_GRANT_RETRY_FULL);
     GS_ASSERT(Combo_GetGrantCursor(kGrantSrcA) == RSBS_SHARED_ITEM_CAP);
     GS_ASSERT(Combo_GetSharedItemOverflowCount() == 1);
 
@@ -307,16 +305,13 @@ TestResult Test_GrantOverflow(void) {
     // THE NO-SILENT-LOSS PROPERTY: the refused seq, retried after capacity
     // returned, is ACCEPTED — the cursor never advanced past it, so the retry
     // is not mistaken for a duplicate and the grant is not lost.
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) ==
-              RSBS_GRANT_ACCEPTED);
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 2u, GAME_OOT, 1066) ==
-              RSBS_GRANT_ACCEPTED);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) == RSBS_GRANT_ACCEPTED);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 2u, GAME_OOT, 1066) == RSBS_GRANT_ACCEPTED);
     GS_ASSERT(GrantTestOccupiedTotal() == (int)RSBS_SHARED_ITEM_CAP);
     GS_ASSERT(Combo_GetSharedItemOverflowCount() == 3); // reclaim is not a refusal
 
     // Both redeemed entries are gone; a third grant is backpressured again.
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 3u, GAME_OOT, 1067) ==
-              RSBS_GRANT_RETRY_FULL);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 3u, GAME_OOT, 1067) == RSBS_GRANT_RETRY_FULL);
     GS_ASSERT(Combo_GetSharedItemOverflowCount() == 4);
 
     // Reclamation preserved received order: the 62 originals award before the
@@ -330,8 +325,7 @@ TestResult Test_GrantOverflow(void) {
     GS_ASSERT(log.ids[RSBS_SHARED_ITEM_CAP - 2u] == 1065 && log.ids[RSBS_SHARED_ITEM_CAP - 1u] == 1066);
 
     // The once-refused-then-accepted seq is now firmly a duplicate.
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) ==
-              RSBS_GRANT_DUPLICATE);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) == RSBS_GRANT_DUPLICATE);
 
     // ---- A SIDE'S WORTH OF CROSSINGS FITS (PR #743 review) ---------------------
     // The single-bag fill bounds each side's crossings by RSBS_CROSSINGS_PER_SIDE_MAX
@@ -437,8 +431,8 @@ TestResult Test_GrantPersistence(void) {
     GS_ASSERT(mgr.Load(0));
     GS_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true) == 1);
     GS_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 1);
-    GS_ASSERT(Combo_CountGrantSources() == 0);              // no source ever delivered to a legacy save
-    GS_ASSERT(Combo_GetSharedItemOverflowCount() == 0);     // and it never overflowed
+    GS_ASSERT(Combo_CountGrantSources() == 0);          // no source ever delivered to a legacy save
+    GS_ASSERT(Combo_GetSharedItemOverflowCount() == 0); // and it never overflowed
     for (uint32_t i = 0; i < RSBS_GRANT_SOURCE_CAP; i++) {
         GS_ASSERT(gComboCtx.grantCursors[i].sourceKey == 0 && gComboCtx.grantCursors[i].lastSeq == 0);
     }

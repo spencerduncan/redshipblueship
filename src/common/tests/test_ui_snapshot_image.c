@@ -144,8 +144,8 @@ TestResult Test_UiSnapshotImage(void) {
     UIIMG_CHECK(UiImage_Fnv1a64(&img) == h0, "flipping twice is not the identity");
 
     UiImage crop = { 0, 0, nullptr };
-    UIIMG_CHECK(UiImage_Crop(&img, 20, 10, 70, 30, &crop) == 0 && crop.w == 70 && crop.h == 30,
-                "crop produced %dx%d", crop.w, crop.h);
+    UIIMG_CHECK(UiImage_Crop(&img, 20, 10, 70, 30, &crop) == 0 && crop.w == 70 && crop.h == 30, "crop produced %dx%d",
+                crop.w, crop.h);
     if (crop.rgba != nullptr) {
         UIIMG_CHECK(memcmp(UiImgPx(&crop, 0, 0), UiImgPx(&img, 20, 10), 4) == 0, "crop origin is off");
         UIIMG_CHECK(memcmp(UiImgPx(&crop, 69, 29), UiImgPx(&img, 89, 39), 4) == 0, "crop extent is off");

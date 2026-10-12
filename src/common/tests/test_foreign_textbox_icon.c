@@ -88,12 +88,12 @@ int MM_ForeignTextboxIcon_TestPickupLayout(const char* article, const char* name
                                            int* pages);
 }
 
-#define FTI_ASSERT(cond, msg)                                                     \
-    do {                                                                          \
-        if (!(cond)) {                                                            \
-            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__);        \
-            return TEST_FAIL;                                                     \
-        }                                                                         \
+#define FTI_ASSERT(cond, msg)                                               \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            return TEST_FAIL;                                               \
+        }                                                                   \
     } while (0)
 
 namespace {
@@ -373,10 +373,10 @@ TestResult Test_ForeignTextboxIcon(void) {
         MM_ForeignTextboxIcon_TestSetMountOverride(-1);
 
         // The production mount branch (no override): both answers are "no".
-        const int realNoPrefix = MM_ForeignTextboxIcon_TestTextureMountedReal(
-            "textures/icon_item_static/gItemIconHookshotTex");
-        const int realMissing = MM_ForeignTextboxIcon_TestTextureMountedReal(
-            "__OTR__textures/rsbs_no_such_object/gRsbsNoSuchTex");
+        const int realNoPrefix =
+            MM_ForeignTextboxIcon_TestTextureMountedReal("textures/icon_item_static/gItemIconHookshotTex");
+        const int realMissing =
+            MM_ForeignTextboxIcon_TestTextureMountedReal("__OTR__textures/rsbs_no_such_object/gRsbsNoSuchTex");
         const int realNull = MM_ForeignTextboxIcon_TestTextureMountedReal(nullptr);
 
         std::memcpy(gComboCtx.foreignPlacements, saved, sizeof(saved));
@@ -413,8 +413,7 @@ TestResult Test_ForeignTextboxIcon(void) {
         std::string mostLinesText;
         for (int id = 1; id < idSpace; id++) {
             ComboItemClassRow row;
-            if (OoT_ComboLogic_ClassifyItem((uint16_t)id, &row) != 1 ||
-                row.fillClass != RSBS_FILL_CLASS_PROGRESSION) {
+            if (OoT_ComboLogic_ClassifyItem((uint16_t)id, &row) != 1 || row.fillClass != RSBS_FILL_CLASS_PROGRESSION) {
                 continue;
             }
             const SharedItem item = FtiItem((uint8_t)GAME_OOT, (uint16_t)id);

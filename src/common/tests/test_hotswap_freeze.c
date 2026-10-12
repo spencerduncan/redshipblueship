@@ -54,12 +54,12 @@ int Switch_PrepareHotSwap(GameId departing, const void* saveContext, size_t size
 uint16_t Switch_GetHotSwapReturnEntrance(GameId departing);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
 
-#define HSF_ASSERT(cond)                                                                                               \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("  FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                                  \
-            return 1;                                                                                                  \
-        }                                                                                                              \
+#define HSF_ASSERT(cond)                                              \
+    do {                                                              \
+        if (!(cond)) {                                                \
+            printf("  FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return 1;                                                 \
+        }                                                             \
     } while (0)
 
 /* A slice of a SaveContext is enough: Context_FreezeState/RestoreState clamp to

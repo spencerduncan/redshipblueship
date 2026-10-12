@@ -245,8 +245,9 @@ void CgmWalkStream(Ship::ResourceManager* rm, Ship::ArchiveManager* am, const st
         }
         if (CgmIsOoTArchive(refArchive->GetPath())) {
             stats.ootServedRefs++;
-            fprintf(stderr, "[crossgame-model] reference %s served by OoT archive %s — this is the cross-game "
-                            "texture-divergence failure mode\n",
+            fprintf(stderr,
+                    "[crossgame-model] reference %s served by OoT archive %s — this is the cross-game "
+                    "texture-divergence failure mode\n",
                     path->c_str(), refArchive->GetPath().c_str());
             continue;
         }
@@ -281,8 +282,9 @@ void CgmWalkStream(Ship::ResourceManager* rm, Ship::ArchiveManager* am, const st
         }
         if (depth + 1 > kCgmMaxDepth) {
             stats.unresolvedRefs++;
-            fprintf(stderr, "[crossgame-model] sub-display-list nesting exceeded %d levels at %s — refusing to walk "
-                            "further, so this model is NOT fully checked\n",
+            fprintf(stderr,
+                    "[crossgame-model] sub-display-list nesting exceeded %d levels at %s — refusing to walk "
+                    "further, so this model is NOT fully checked\n",
                     kCgmMaxDepth, path->c_str());
             continue;
         }

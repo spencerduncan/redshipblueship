@@ -117,18 +117,12 @@ int CagRunGenerator(const std::string& pythonExe, const std::string& script, con
     std::filesystem::remove(CagOutPath(outPrefix, "oot"), ec);
     std::filesystem::remove(CagOutPath(outPrefix, "mm"), ec);
 
-    std::vector<std::string> argStorage = { pythonExe,
-                                            script,
-                                            "--oot-archive",
-                                            ootArchive,
-                                            "--mm-archive",
-                                            mmArchive,
-                                            "--manifest",
-                                            manifest,
-                                            "--out-oot",
-                                            CagOutPath(outPrefix, "oot"),
-                                            "--out-mm",
-                                            CagOutPath(outPrefix, "mm") };
+    std::vector<std::string> argStorage = { pythonExe,       script,
+                                            "--oot-archive", ootArchive,
+                                            "--mm-archive",  mmArchive,
+                                            "--manifest",    manifest,
+                                            "--out-oot",     CagOutPath(outPrefix, "oot"),
+                                            "--out-mm",      CagOutPath(outPrefix, "mm") };
     if (!reportPath.empty()) {
         std::filesystem::remove(reportPath, ec);
         argStorage.push_back("--report");
@@ -195,8 +189,8 @@ bool CagReadReport(const std::string& path, CagDirectionReport* mmToOoT, CagDire
 } // namespace
 
 extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const char* generatorScript,
-                                                    const char* shippedManifest, const char* ootArchive,
-                                                    const char* mmArchive) {
+                                                   const char* shippedManifest, const char* ootArchive,
+                                                   const char* mmArchive) {
     const std::string workDir = std::filesystem::current_path().generic_string();
     const std::string badManifestPath = workDir + "/rsbs_test_605_bad_manifest.txt";
     const std::string badOutPrefix = workDir + "/rsbs_test_605_bad_out";
@@ -227,8 +221,7 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
         int rc = CagRunGenerator(pythonExe, generatorScript, ootArchive, mmArchive, badManifestPath, badOutPrefix);
         printf("[curated-archive-generator] negative control (%s) rc=%d\n", label, rc);
         if (rc == 0) {
-            fprintf(stderr, "[curated-archive-generator] FAIL: the generator ACCEPTED %s -- %s\n", label,
-                    whatItProves);
+            fprintf(stderr, "[curated-archive-generator] FAIL: the generator ACCEPTED %s -- %s\n", label, whatItProves);
             failures++;
         }
         for (const char* host : { "oot", "mm" }) {
@@ -338,8 +331,7 @@ extern "C" int CuratedArchiveGenerator_RunHeadless(const char* pythonExe, const 
             } directions[] = { { "mm->oot", &mmToOoT }, { "oot->mm", &ootToMM } };
             for (const auto& d : directions) {
                 if (!d.row->seen) {
-                    fprintf(stderr, "[curated-archive-generator] FAIL: the admission report has no %s line\n",
-                            d.name);
+                    fprintf(stderr, "[curated-archive-generator] FAIL: the admission report has no %s line\n", d.name);
                     failures++;
                     continue;
                 }

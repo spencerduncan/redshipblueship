@@ -11,9 +11,9 @@
  */
 
 #include "foreign_items.h"
-#include "crossing_store.h" // ADR 0010 O7: the read path's second source
+#include "crossing_store.h"      // ADR 0010 O7: the read path's second source
 #include "combo_settings_view.h" // the tier-4 authoring surface the resolver reads (increment 2)
-#include "triforce_hunt.h"        // the O10 record joins the arrival refusal (Combo_ComboSettingsDivergence)
+#include "triforce_hunt.h"       // the O10 record joins the arrival refusal (Combo_ComboSettingsDivergence)
 #include <stdio.h>
 #include <string.h>
 
@@ -616,8 +616,7 @@ bool Combo_ComboSettingsDivergenceIsDamage(uint32_t bits) {
     // TRIFORCE is the same class (ADR 0010 O10): the triforce record is written
     // once, by creation, from inputs the fingerprint already pins, so a record
     // that contradicts its own goal is the identity contradicting itself.
-    return (bits & (RSBS_COMBO_DIVERGE_UNREADABLE | RSBS_COMBO_DIVERGE_FINGERPRINT | RSBS_COMBO_DIVERGE_TRIFORCE)) !=
-           0;
+    return (bits & (RSBS_COMBO_DIVERGE_UNREADABLE | RSBS_COMBO_DIVERGE_FINGERPRINT | RSBS_COMBO_DIVERGE_TRIFORCE)) != 0;
 }
 
 int Combo_ComboSettingsDivergenceDescribe(uint32_t bits, char* out, size_t len) {

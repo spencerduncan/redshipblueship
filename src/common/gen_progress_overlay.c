@@ -285,15 +285,13 @@ bool ComboGenOverlay_Heartbeat(uint32_t attemptElapsedMs) {
         if (ratio > 1.0f) {
             ratio = 1.0f;
         }
-        RaiseFraction(AttemptBase(sView.attempt, sView.maxAttempts) +
-                      AttemptSlice(sView.maxAttempts) * ratio * 0.95f);
+        RaiseFraction(AttemptBase(sView.attempt, sView.maxAttempts) + AttemptSlice(sView.maxAttempts) * ratio * 0.95f);
     } else {
         const float base = (sView.phase == (uint8_t)RSBS_GENPHASE_MM_FILL)
                                ? AttemptBase(sView.attempt, sView.maxAttempts)
                                : PhaseWeight(sView.phase);
-        const float ceiling = (sView.phase == (uint8_t)RSBS_GENPHASE_MM_FILL)
-                                  ? base + AttemptSlice(sView.maxAttempts)
-                                  : NextPhaseWeight(sView.phase);
+        const float ceiling = (sView.phase == (uint8_t)RSBS_GENPHASE_MM_FILL) ? base + AttemptSlice(sView.maxAttempts)
+                                                                              : NextPhaseWeight(sView.phase);
         const float t = (float)attemptElapsedMs;
         RaiseFraction(base + (ceiling - base) * (t / (t + 3000.0f)));
     }

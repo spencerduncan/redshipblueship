@@ -114,13 +114,13 @@ ComboSettingsRecord ComboSettingsGoldenRecord() {
     ComboSettingsRecord r;
     memset(&r, 0, sizeof(r));
     r.formatVersion = 1u;
-    r.direction = (uint8_t)RSBS_COMBO_DIR_FORWARD;         // 2
+    r.direction = (uint8_t)RSBS_COMBO_DIR_FORWARD; // 2
     r.poolSizeOoT = 3u;
     r.poolSizeMM = 5u;
     r.itemClassOoT = 0x1234u;
     r.itemClassMM = 0xABCDu;
-    r.goal = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;       // 3
-    r.logicRung = (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;  // 3
+    r.goal = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;      // 3
+    r.logicRung = (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE; // 3
     // comboFlags stays CLEAR in the golden record on purpose (#668): the
     // pinned bytes and the pinned fingerprint below are the ones this project
     // has shipped since increment 1, and spending byte 10 must not move them.
@@ -370,7 +370,8 @@ TestResult Test_ComboSettingsFormat(void) {
         ComboSettingsArmPairing(0x51EED001u, 0x5E77A120u, 0x11FEDCBBu);
         ComboSettingsRecord divergent;
         Combo_ResolveComboSettings(&divergent);
-        divergent.logicRung = (uint8_t)(divergent.logicRung + 1u); // no key authors it; the session resolves the default
+        divergent.logicRung =
+            (uint8_t)(divergent.logicRung + 1u); // no key authors it; the session resolves the default
         Combo_FreezeComboSettings(&divergent);
         CS_ASSERT(mgr.Save(0), "Save(0) failed for the divergent-record leg");
 
@@ -542,16 +543,36 @@ TestResult Test_ComboSettingsCanonical(void) {
         for (int i = 0; i < 10; i++) {
             ComboSettingsRecord moved = golden;
             switch (i) {
-                case 0: moved.formatVersion = 2u; break;
-                case 1: moved.direction = (uint8_t)RSBS_COMBO_DIR_BOTH; break;
-                case 2: moved.poolSizeOoT = 7u; break;
-                case 3: moved.poolSizeMM = 7u; break;
-                case 4: moved.itemClassOoT = 0x4321u; break;
-                case 5: moved.itemClassMM = 0xDCBAu; break;
-                case 6: moved.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_EITHER; break;
-                case 7: moved.logicRung = (uint8_t)RSBS_COMBO_RUNG_NONE; break;
-                case 8: moved.comboFlags = 0x77u; break;
-                default: moved.spare1 = 0x77u; break;
+                case 0:
+                    moved.formatVersion = 2u;
+                    break;
+                case 1:
+                    moved.direction = (uint8_t)RSBS_COMBO_DIR_BOTH;
+                    break;
+                case 2:
+                    moved.poolSizeOoT = 7u;
+                    break;
+                case 3:
+                    moved.poolSizeMM = 7u;
+                    break;
+                case 4:
+                    moved.itemClassOoT = 0x4321u;
+                    break;
+                case 5:
+                    moved.itemClassMM = 0xDCBAu;
+                    break;
+                case 6:
+                    moved.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_EITHER;
+                    break;
+                case 7:
+                    moved.logicRung = (uint8_t)RSBS_COMBO_RUNG_NONE;
+                    break;
+                case 8:
+                    moved.comboFlags = 0x77u;
+                    break;
+                default:
+                    moved.spare1 = 0x77u;
+                    break;
             }
             if (Combo_ComputeComboSettingsHash(&moved, kSettingsHash, kProfileDigest) == kGoldenFingerprint) {
                 printf("[TEST] FAIL: changing '%s' did not change the fingerprint — that field is not in the "
@@ -584,8 +605,7 @@ TestResult Test_ComboSettingsCanonical(void) {
         CS_ASSERT(Combo_ComputeComboSettingsHash(&empty, 0, 0) != 0,
                   "the fingerprint must never be 0: zero is this field's 'not frozen', so a real identity hashing "
                   "to 0 becomes an undetectable mismatch");
-        CS_ASSERT(Combo_ComputeComboSettingsHash(NULL, 0, 0) ==
-                      Combo_ComputeComboSettingsHash(&empty, 0, 0),
+        CS_ASSERT(Combo_ComputeComboSettingsHash(NULL, 0, 0) == Combo_ComputeComboSettingsHash(&empty, 0, 0),
                   "a NULL record must encode as an all-zero record");
     }
 
@@ -647,13 +667,27 @@ TestResult Test_ComboSettingsDivergence(void) {
     for (size_t i = 0; i < sizeof(kLegs) / sizeof(kLegs[0]); i++) {
         ComboSettingsRecord frozen = live;
         switch (kLegs[i].bit) {
-            case RSBS_COMBO_DIVERGE_DIRECTION: frozen.direction = (uint8_t)RSBS_COMBO_DIR_FORWARD; break;
-            case RSBS_COMBO_DIVERGE_POOL_SIZE_OOT: frozen.poolSizeOoT = 1u; break;
-            case RSBS_COMBO_DIVERGE_POOL_SIZE_MM: frozen.poolSizeMM = 1u; break;
-            case RSBS_COMBO_DIVERGE_ITEM_CLASS_OOT: frozen.itemClassOoT = RSBS_ITEMCLASS_SONGS; break;
-            case RSBS_COMBO_DIVERGE_ITEM_CLASS_MM: frozen.itemClassMM = RSBS_ITEMCLASS_MASKS; break;
-            case RSBS_COMBO_DIVERGE_GOAL: frozen.goal = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT; break;
-            case RSBS_COMBO_DIVERGE_LOGIC_RUNG: frozen.logicRung = (uint8_t)RSBS_COMBO_RUNG_NONE; break;
+            case RSBS_COMBO_DIVERGE_DIRECTION:
+                frozen.direction = (uint8_t)RSBS_COMBO_DIR_FORWARD;
+                break;
+            case RSBS_COMBO_DIVERGE_POOL_SIZE_OOT:
+                frozen.poolSizeOoT = 1u;
+                break;
+            case RSBS_COMBO_DIVERGE_POOL_SIZE_MM:
+                frozen.poolSizeMM = 1u;
+                break;
+            case RSBS_COMBO_DIVERGE_ITEM_CLASS_OOT:
+                frozen.itemClassOoT = RSBS_ITEMCLASS_SONGS;
+                break;
+            case RSBS_COMBO_DIVERGE_ITEM_CLASS_MM:
+                frozen.itemClassMM = RSBS_ITEMCLASS_MASKS;
+                break;
+            case RSBS_COMBO_DIVERGE_GOAL:
+                frozen.goal = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
+                break;
+            case RSBS_COMBO_DIVERGE_LOGIC_RUNG:
+                frozen.logicRung = (uint8_t)RSBS_COMBO_RUNG_NONE;
+                break;
             case RSBS_COMBO_DIVERGE_SHARED_OCARINA:
                 frozen.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
                 break;
@@ -662,8 +696,12 @@ TestResult Test_ComboSettingsDivergence(void) {
                 break;
             // 0x80 is UNALLOCATED at formatVersion 1: the byte-level bit is the
             // honest report for a state a version-1 record may not be in at all.
-            case RSBS_COMBO_DIVERGE_COMBO_FLAGS: frozen.comboFlags = 0x80u; break;
-            default: frozen.spare1 = 1u; break;
+            case RSBS_COMBO_DIVERGE_COMBO_FLAGS:
+                frozen.comboFlags = 0x80u;
+                break;
+            default:
+                frozen.spare1 = 1u;
+                break;
         }
 
         const uint32_t bits = Combo_ComboSettingsDivergenceBetween(&frozen, &live);
@@ -834,9 +872,9 @@ TestResult Test_ComboSettingsLegacyFreeze(void) {
         CS_ASSERT(ComboSettingsRecordsEqual(gComboCtx.comboSettings, defaults),
                   "the transitional write must freeze the SHIPPED DEFAULTS — a legacy pair was generated when "
                   "there was only ever one rule set, and that set is what the defaults record");
-        CS_ASSERT(gComboCtx.comboSettingsHash ==
-                      Combo_ComputeComboSettingsHash(&defaults, gComboCtx.sharedRandoSettingsHash,
-                                                     gComboCtx.mmProfileDigest),
+        CS_ASSERT(gComboCtx.comboSettingsHash == Combo_ComputeComboSettingsHash(&defaults,
+                                                                                gComboCtx.sharedRandoSettingsHash,
+                                                                                gComboCtx.mmProfileDigest),
                   "the transitional write must recompute the fingerprint over BOTH half-digests (decision 4.1's "
                   "order), or the next arrival refuses a healthy pair");
         CS_ASSERT(gComboCtx.comboSettingsHash != 0, "the transitional write must leave a nonzero fingerprint");
@@ -1217,8 +1255,7 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             // Unfrozen, so Combo_ComboDirectionArms serves the LIVE resolution —
             // which is what makes this an identity over the same input rather
             // than a comparison of two different worlds.
-            const bool arms =
-                Combo_ComboDirectionArms((uint8_t)GAME_OOT) || Combo_ComboDirectionArms((uint8_t)GAME_MM);
+            const bool arms = Combo_ComboDirectionArms((uint8_t)GAME_OOT) || Combo_ComboDirectionArms((uint8_t)GAME_MM);
             CS_ASSERT(Combo_ForeignCrossingsRequested() == arms,
                       "the pre-Fill crossings question and the frozen-record one disagree for a pinned direction — "
                       "the creation gate compares them and would refuse every creation (#657)");

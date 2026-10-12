@@ -36,22 +36,52 @@ static void ResetCounters(void) {
     sShutdownCountA = sShutdownCountB = 0;
 }
 
-static int MockA_Init(int argc, char** argv) { (void)argc; (void)argv; sInitCountA++; return 0; }
-static void MockA_Run(void) { sRunCountA++; }
-static void MockA_Suspend(void) { sSuspendCountA++; }
-static void MockA_Resume(void) { sResumeCountA++; }
-static void MockA_Shutdown(void) { sShutdownCountA++; }
+static int MockA_Init(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+    sInitCountA++;
+    return 0;
+}
+static void MockA_Run(void) {
+    sRunCountA++;
+}
+static void MockA_Suspend(void) {
+    sSuspendCountA++;
+}
+static void MockA_Resume(void) {
+    sResumeCountA++;
+}
+static void MockA_Shutdown(void) {
+    sShutdownCountA++;
+}
 
-static int MockB_Init(int argc, char** argv) { (void)argc; (void)argv; sInitCountB++; return 0; }
-static void MockB_Run(void) { sRunCountB++; }
-static void MockB_Suspend(void) { sSuspendCountB++; }
-static void MockB_Resume(void) { sResumeCountB++; }
-static void MockB_Shutdown(void) { sShutdownCountB++; }
+static int MockB_Init(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+    sInitCountB++;
+    return 0;
+}
+static void MockB_Run(void) {
+    sRunCountB++;
+}
+static void MockB_Suspend(void) {
+    sSuspendCountB++;
+}
+static void MockB_Resume(void) {
+    sResumeCountB++;
+}
+static void MockB_Shutdown(void) {
+    sShutdownCountB++;
+}
 
-static int MockFail_Init(int argc, char** argv) { (void)argc; (void)argv; return -1; }
+static int MockFail_Init(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+    return -1;
+}
 
 static GameOps sMockOpsA = { "oot", "Mock OoT", MockA_Init, MockA_Run, MockA_Suspend, MockA_Resume, MockA_Shutdown };
-static GameOps sMockOpsB = { "mm",  "Mock MM",  MockB_Init, MockB_Run, MockB_Suspend, MockB_Resume, MockB_Shutdown };
+static GameOps sMockOpsB = { "mm", "Mock MM", MockB_Init, MockB_Run, MockB_Suspend, MockB_Resume, MockB_Shutdown };
 static GameOps sMockOpsFail = { "fail", "Fail", MockFail_Init, NULL, NULL, NULL, NULL };
 
 /* ========================================================================
@@ -59,7 +89,13 @@ static GameOps sMockOpsFail = { "fail", "Fail", MockFail_Init, NULL, NULL, NULL,
  * ======================================================================== */
 
 #define TEST(name) static int name(void)
-#define ASSERT(cond) do { if (!(cond)) { printf("  FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); return 1; } } while(0)
+#define ASSERT(cond)                                                  \
+    do {                                                              \
+        if (!(cond)) {                                                \
+            printf("  FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return 1;                                                 \
+        }                                                             \
+    } while (0)
 
 TEST(test_runner_init) {
     GameRunner r;
@@ -87,7 +123,7 @@ TEST(test_register_duplicate_rejected) {
     GameRunner r;
     GameRunner_Init(&r);
     ASSERT(GameRunner_RegisterGame(&r, GAME_OOT, &sMockOpsA) == 0);
-    ASSERT(GameRunner_RegisterGame(&r, GAME_OOT, &sMockOpsA) == -1);  /* Duplicate */
+    ASSERT(GameRunner_RegisterGame(&r, GAME_OOT, &sMockOpsA) == -1); /* Duplicate */
     return 0;
 }
 
@@ -128,7 +164,7 @@ TEST(test_start_while_active_fails) {
     GameRunner_StartGame(&r, GAME_OOT, 0, NULL);
 
     ASSERT(GameRunner_StartGame(&r, GAME_MM, 0, NULL) == -1);
-    ASSERT(sInitCountB == 0);  /* Should not have been called */
+    ASSERT(sInitCountB == 0); /* Should not have been called */
     return 0;
 }
 
@@ -150,8 +186,8 @@ TEST(test_switch_suspends_current) {
     GameRunner_StartGame(&r, GAME_OOT, 0, NULL);
 
     ASSERT(GameRunner_SwitchTo(&r, GAME_MM, 0, NULL) == 0);
-    ASSERT(sSuspendCountA == 1);  /* OoT suspended */
-    ASSERT(sInitCountB == 1);     /* MM initialized */
+    ASSERT(sSuspendCountA == 1); /* OoT suspended */
+    ASSERT(sInitCountB == 1);    /* MM initialized */
     ASSERT(GameRunner_GetActive(&r) == GAME_MM);
     ASSERT(GameRunner_GetState(&r, GAME_OOT) == GAME_LIFECYCLE_STATE_SUSPENDED);
     ASSERT(GameRunner_GetState(&r, GAME_MM) == GAME_LIFECYCLE_STATE_RUNNING);
@@ -188,9 +224,9 @@ TEST(test_switch_to_same_noop) {
     GameRunner_StartGame(&r, GAME_OOT, 0, NULL);
 
     ASSERT(GameRunner_SwitchTo(&r, GAME_OOT, 0, NULL) == 0);
-    ASSERT(sSuspendCountA == 0);  /* Not suspended */
-    ASSERT(sResumeCountA == 0);   /* Not resumed */
-    ASSERT(sInitCountA == 1);     /* Still just the original init */
+    ASSERT(sSuspendCountA == 0); /* Not suspended */
+    ASSERT(sResumeCountA == 0);  /* Not resumed */
+    ASSERT(sInitCountA == 1);    /* Still just the original init */
     return 0;
 }
 
@@ -204,8 +240,8 @@ TEST(test_shutdown_all) {
     GameRunner_SwitchTo(&r, GAME_MM, 0, NULL);
 
     GameRunner_ShutdownAll(&r);
-    ASSERT(sShutdownCountA == 1);  /* OoT (was suspended) */
-    ASSERT(sShutdownCountB == 1);  /* MM (was running) */
+    ASSERT(sShutdownCountA == 1); /* OoT (was suspended) */
+    ASSERT(sShutdownCountB == 1); /* MM (was running) */
     ASSERT(GameRunner_GetActive(&r) == GAME_NONE);
     ASSERT(GameRunner_GetState(&r, GAME_OOT) == GAME_LIFECYCLE_STATE_STOPPED);
     ASSERT(GameRunner_GetState(&r, GAME_MM) == GAME_LIFECYCLE_STATE_STOPPED);
@@ -233,24 +269,25 @@ TEST(test_is_suspended) {
  * Test runner
  * ======================================================================== */
 
-typedef struct { const char* name; int (*func)(void); } TestEntry;
+typedef struct {
+    const char* name;
+    int (*func)(void);
+} TestEntry;
 
-static const TestEntry sLifecycleTests[] = {
-    {"runner_init", test_runner_init},
-    {"register_games", test_register_games},
-    {"register_duplicate_rejected", test_register_duplicate_rejected},
-    {"register_invalid_id", test_register_invalid_id},
-    {"start_game", test_start_game},
-    {"start_unregistered_fails", test_start_unregistered_fails},
-    {"start_while_active_fails", test_start_while_active_fails},
-    {"init_failure_propagated", test_init_failure_propagated},
-    {"switch_suspends_current", test_switch_suspends_current},
-    {"switch_back_resumes", test_switch_back_resumes},
-    {"switch_to_same_noop", test_switch_to_same_noop},
-    {"shutdown_all", test_shutdown_all},
-    {"is_suspended", test_is_suspended},
-    {NULL, NULL}
-};
+static const TestEntry sLifecycleTests[] = { { "runner_init", test_runner_init },
+                                             { "register_games", test_register_games },
+                                             { "register_duplicate_rejected", test_register_duplicate_rejected },
+                                             { "register_invalid_id", test_register_invalid_id },
+                                             { "start_game", test_start_game },
+                                             { "start_unregistered_fails", test_start_unregistered_fails },
+                                             { "start_while_active_fails", test_start_while_active_fails },
+                                             { "init_failure_propagated", test_init_failure_propagated },
+                                             { "switch_suspends_current", test_switch_suspends_current },
+                                             { "switch_back_resumes", test_switch_back_resumes },
+                                             { "switch_to_same_noop", test_switch_to_same_noop },
+                                             { "shutdown_all", test_shutdown_all },
+                                             { "is_suspended", test_is_suspended },
+                                             { NULL, NULL } };
 
 int TestLifecycle_RunAll(void) {
     int pass = 0, fail = 0;

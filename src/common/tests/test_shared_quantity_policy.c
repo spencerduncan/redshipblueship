@@ -61,12 +61,12 @@
 #include <memory>
 #include <vector>
 
-#define SQP_ASSERT(cond, msg)                                                    \
-    do {                                                                         \
-        if (!(cond)) {                                                           \
-            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__);       \
-            return TEST_FAIL;                                                    \
-        }                                                                        \
+#define SQP_ASSERT(cond, msg)                                               \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            return TEST_FAIL;                                               \
+        }                                                                   \
     } while (0)
 
 namespace {
@@ -206,8 +206,7 @@ std::vector<SqpHeartRow> SqpHeartRowsInterleaved(const ComboLogicBagItem* bag, i
  * through the real carrier from a `startHealth` bar. Returns the DEAD pickups and
  * writes the pickups and the final bar. Leaves gComboCtx exactly as it found it.
  */
-int SqpDeadHeartPickups(const ComboLogicBagItem* bag, int count, uint16_t startHealth, int* outPickups,
-                        int* outFinal) {
+int SqpDeadHeartPickups(const ComboLogicBagItem* bag, int count, uint16_t startHealth, int* outPickups, int* outFinal) {
     std::unique_ptr<unsigned char[]> saved(new unsigned char[sizeof(gComboCtx)]);
     memcpy(saved.get(), &gComboCtx, sizeof(gComboCtx));
     const SqpWalk w = SqpWalkHealth(SqpHeartRowsInterleaved(bag, count), startHealth);
@@ -459,10 +458,10 @@ TestResult Test_SharedQuantityPolicy(void) {
                                      RSBS_SHARED_RES_QUIVER_TIER,  RSBS_SHARED_RES_BOMB_BAG_TIER,
                                      RSBS_SHARED_RES_STICK_TIER,   RSBS_SHARED_RES_NUT_TIER,
                                      RSBS_SHARED_RES_HOOKSHOT_TIER };
-        const uint8_t keepAll[] = { RSBS_SHARED_RES_RUPEES,        RSBS_SHARED_RES_HEALTH_CURRENT,
-                                    RSBS_SHARED_RES_MAGIC_CURRENT, RSBS_SHARED_RES_ARROW_COUNT,
-                                    RSBS_SHARED_RES_BOMB_COUNT,    RSBS_SHARED_RES_BOMBCHU_COUNT,
-                                    RSBS_SHARED_RES_STICK_COUNT,   RSBS_SHARED_RES_NUT_COUNT,
+        const uint8_t keepAll[] = { RSBS_SHARED_RES_RUPEES,         RSBS_SHARED_RES_HEALTH_CURRENT,
+                                    RSBS_SHARED_RES_MAGIC_CURRENT,  RSBS_SHARED_RES_ARROW_COUNT,
+                                    RSBS_SHARED_RES_BOMB_COUNT,     RSBS_SHARED_RES_BOMBCHU_COUNT,
+                                    RSBS_SHARED_RES_STICK_COUNT,    RSBS_SHARED_RES_NUT_COUNT,
                                     RSBS_SHARED_RES_TRIFORCE_PIECES };
         ComboSharedQuantityPolicy p;
         SQP_ASSERT(Combo_SharedQuantityPolicyOf(RSBS_SHARED_RES_HEALTH_QUARTERS, &p) &&
@@ -514,10 +513,11 @@ TestResult Test_SharedQuantityPolicy(void) {
                    "Q2: nineteen starting hearts leaves one heart of pieces");
         SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x140u, -1, -1, &pc, &hc) == 0 && pc == 0 && hc == 0,
                    "Q2: twenty starting hearts leaves nothing to place");
-        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 30, 20, &pc, &hc) == 68 && pc == 30 && hc == 10 &&
-                       pc + 4 * hc >= 68,
-                   "Q2: fourteen missing pieces move FOUR containers (rounded up: 30 + 40 quarters reach the 68-quarter "
-                   "bar; rounding down stopped at 66, half a heart short of the shared maximum)");
+        SQP_ASSERT(
+            Combo_SharedQuantityHealthBudget(0x30u, 30, 20, &pc, &hc) == 68 && pc == 30 && hc == 10 &&
+                pc + 4 * hc >= 68,
+            "Q2: fourteen missing pieces move FOUR containers (rounded up: 30 + 40 quarters reach the 68-quarter "
+            "bar; rounding down stopped at 66, half a heart short of the shared maximum)");
         SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 32, 20, &pc, &hc) == 68 && pc == 32 && hc == 9 &&
                        pc + 4 * hc == 68,
                    "Q2: twelve missing pieces (a whole three hearts) move exactly three containers");
@@ -529,7 +529,8 @@ TestResult Test_SharedQuantityPolicy(void) {
         const ComboSharedQuantityPolicy keep = { RSBS_SHARED_QTY_KEEP_ALL, RSBS_SHARED_QTY_BUDGET_NONE, 0u };
         SQP_ASSERT(Combo_SharedQuantityTierBudget(&tier, 3, 3) == 3, "Q2: equal ceilings 3/3 keep 3");
         SQP_ASSERT(Combo_SharedQuantityTierBudget(&tier, 2, 0) == 2, "Q2: a family only one game holds keeps it");
-        SQP_ASSERT(Combo_SharedQuantityTierBudget(&tier, 2, 1) == -1 && Combo_SharedQuantityTierBudget(&tier, 1, 2) == -1,
+        SQP_ASSERT(Combo_SharedQuantityTierBudget(&tier, 2, 1) == -1 &&
+                       Combo_SharedQuantityTierBudget(&tier, 1, 2) == -1,
                    "Q2: UNEQUAL ceilings keep every copy");
         SQP_ASSERT(Combo_SharedQuantityTierBudget(&dd, 1, 1) == 1 && Combo_SharedQuantityTierBudget(&dd, 2, 2) == 1,
                    "Q2: double defense is capped at one copy");

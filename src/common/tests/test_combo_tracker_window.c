@@ -79,12 +79,12 @@
 #include <ship/window/gui/GuiWindow.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
-#define CTW_ASSERT(cond)                                                                                               \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CTW_ASSERT(cond)                                                   \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 namespace {
@@ -334,8 +334,8 @@ int Lock815(void) {
     const float itemCol = ComboCrossingItemColumnWidth(160.0f, widest);
     printf("[TEST] combo-tracker-window #815: Item column %.1f px of 160 px for an 80 px word\n", itemCol);
     CTW_ASSERT(itemCol >= widest);
-    CTW_ASSERT(ComboCrossingItemColumnWidth(400.0f, widest) == 160.0f);  // the 2/5 share when it fits
-    CTW_ASSERT(ComboCrossingItemColumnWidth(100.0f, widest) <= 60.0f);   // never past 3/5
+    CTW_ASSERT(ComboCrossingItemColumnWidth(400.0f, widest) == 160.0f); // the 2/5 share when it fits
+    CTW_ASSERT(ComboCrossingItemColumnWidth(100.0f, widest) <= 60.0f);  // never past 3/5
     CTW_ASSERT(ComboCrossingItemColumnWidth(100.0f, widest) >= 40.0f);
     return TEST_PASS;
 }

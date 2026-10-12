@@ -19,11 +19,11 @@
  */
 
 #ifdef _WIN32
-    #ifdef COMBO_BUILDING_DLL
-        #define COMBO_API __declspec(dllexport)
-    #else
-        #define COMBO_API __declspec(dllimport)
-    #endif
+#ifdef COMBO_BUILDING_DLL
+#define COMBO_API __declspec(dllexport)
 #else
-    #define COMBO_API
+#define COMBO_API __declspec(dllimport)
+#endif
+#else
+#define COMBO_API
 #endif

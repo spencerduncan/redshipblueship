@@ -138,9 +138,15 @@ uint32_t Combo_GenBudget_TotalBudgetMs(void) {
 // ============================================================================
 
 static const char* const kGenPhaseNames[RSBS_GENPHASE_MAX] = {
-    "idle", "freezing the world's rules", "building the Ocarina of Time world",
-    "building the Majora's Mask world", "linking the two worlds", "writing the spoiler",
-    "saving", "done", "failed",
+    "idle",
+    "freezing the world's rules",
+    "building the Ocarina of Time world",
+    "building the Majora's Mask world",
+    "linking the two worlds",
+    "writing the spoiler",
+    "saving",
+    "done",
+    "failed",
 };
 
 const char* Combo_GenPhaseName(uint8_t phase) {
@@ -266,8 +272,8 @@ void Combo_GenProgress_Report(uint8_t phase, int attempt, const char* detail) {
     sProgress.phase = phase;
     sProgress.attempt = (attempt > 0 && attempt < 256) ? (uint8_t)attempt : 0;
     sProgress.elapsedMs = Combo_GenProgress_ElapsedMs();
-    sProgress.budgetMs = (phase == RSBS_GENPHASE_MM_FILL) ? Combo_GenBudget_FillBudgetMs(attempt > 0 ? attempt - 1 : 0)
-                                                          : 0u;
+    sProgress.budgetMs =
+        (phase == RSBS_GENPHASE_MM_FILL) ? Combo_GenBudget_FillBudgetMs(attempt > 0 ? attempt - 1 : 0) : 0u;
     sProgress.detail = (detail != NULL) ? detail : kGenPhaseNames[phase];
 
     // The stderr leg fires unconditionally. It is the only leg a headless row, a

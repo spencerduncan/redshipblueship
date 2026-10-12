@@ -29,7 +29,7 @@
 #define RSBS_STRINGIFY(x) RSBS_STRINGIFY_(x)
 
 /* "v0.1.1-prealpha" — must equal the git release tag. */
-#define RSBS_VERSION_STRING                                                                       \
+#define RSBS_VERSION_STRING                                                                           \
     "v" RSBS_STRINGIFY(RSBS_VERSION_MAJOR) "." RSBS_STRINGIFY(RSBS_VERSION_MINOR) "." RSBS_STRINGIFY( \
         RSBS_VERSION_PATCH) "-" RSBS_VERSION_STAGE
 

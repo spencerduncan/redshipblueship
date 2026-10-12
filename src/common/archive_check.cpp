@@ -127,9 +127,8 @@ extern "C" void ArchiveCheck_ReportMissingPortArchive(GameId game, bool showDial
         return;
     }
 
-    std::string msg =
-        "Majora's Mask cannot start: the port-asset archive \"2ship.o2r\" was not found.\n\n"
-        "RedShipBlueShip looked in:\n";
+    std::string msg = "Majora's Mask cannot start: the port-asset archive \"2ship.o2r\" was not found.\n\n"
+                      "RedShipBlueShip looked in:\n";
     for (const auto& path : PortArchiveSearchPaths("2ship.o2r")) {
         msg += "  " + path + "\n";
     }

@@ -325,8 +325,7 @@ TestResult Test_GenProgressOverlay(void) {
             return TEST_FAIL;
         }
         if (sPaintedFractions[i] < 0.0f || sPaintedFractions[i] > 1.0f) {
-            printf("[TEST] FAIL: paint %d reported a fraction outside [0,1] (%.6f)\n", i,
-                   (double)sPaintedFractions[i]);
+            printf("[TEST] FAIL: paint %d reported a fraction outside [0,1] (%.6f)\n", i, (double)sPaintedFractions[i]);
             return TEST_FAIL;
         }
     }

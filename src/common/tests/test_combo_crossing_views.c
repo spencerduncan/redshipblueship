@@ -115,12 +115,12 @@ void MM_Rando_Foreign_TestItemSentinels(uint16_t* outJunk, uint16_t* outNone, ui
 
 namespace {
 
-#define CXV_ASSERT(cond)                                                                                               \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL (combo-crossing-views): %s  [%s:%d]\n", #cond, __FILE__, __LINE__);                    \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CXV_ASSERT(cond)                                                                            \
+    do {                                                                                            \
+        if (!(cond)) {                                                                              \
+            printf("[TEST] FAIL (combo-crossing-views): %s  [%s:%d]\n", #cond, __FILE__, __LINE__); \
+            return TEST_FAIL;                                                                       \
+        }                                                                                           \
     } while (0)
 
 const char* const kCxvSaveDir = "rsbs_test_saves_crossing_views";
@@ -305,7 +305,7 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     // ---- 3. found, per host check, from each game's save -----------------
     CXV_ASSERT(inMM[0].found == COMBO_TRACKER_FOUND_YES); // mmA obtained
     CXV_ASSERT(inMM[1].found == COMBO_TRACKER_FOUND_NO);
-    CXV_ASSERT(inMM[2].found == COMBO_TRACKER_FOUND_NO);  // the SAME item as row 0; its own host is not collected
+    CXV_ASSERT(inMM[2].found == COMBO_TRACKER_FOUND_NO);   // the SAME item as row 0; its own host is not collected
     CXV_ASSERT(inOoT[0].found == COMBO_TRACKER_FOUND_YES); // ootIds[0] is the collected OoT check
     CXV_ASSERT(inOoT[1].found == COMBO_TRACKER_FOUND_NO);
     ComboTrackerForeignProgress mmProgress, ootProgress;
@@ -371,7 +371,7 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
 
     ComboContext_Init();
     Combo_Crossings_Clear();
-    Context_ClearAllFrozenStates(); // zeroes MM's shadow: MM has nothing to read
+    Context_ClearAllFrozenStates();        // zeroes MM's shadow: MM has nothing to read
     OoT_TrackerAdapter_TestReleaseWorld(); // OoT's heap world goes too: nothing survives but the files
     CXV_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 0);
     Combo_TrackerForeignProgress((uint8_t)GAME_MM, &mmProgress);
@@ -498,8 +498,7 @@ TestResult ComboCrossingViews_RunWorld(void) {
             CXV_ASSERT(pane[i].hostNamed && !pane[i].hostName.empty());
             CXV_ASSERT(pane[i].hostName.rfind("RC_", 0) != 0);
             if (list.host == (uint8_t)GAME_OOT) {
-                CXV_ASSERT(r["hostCheckName"].is_string() &&
-                           pane[i].hostName == r["hostCheckName"].get<std::string>());
+                CXV_ASSERT(r["hostCheckName"].is_string() && pane[i].hostName == r["hostCheckName"].get<std::string>());
             }
             // A fresh world: its own game's save has collected none of the hosts.
             // For MM that save is the shadow the creation event armed, with
@@ -575,9 +574,10 @@ TestResult ComboCrossingViews_RunWorld(void) {
             }
             CXV_ASSERT(expected == name);
             if (i < 3 || byItem != listed || byNothing != 0) {
-                printf("[TEST] combo-crossing-views-world: OoT check tracker search \"%s\" lists %s: %d (empty box: %d, "
-                       "control: %d)\n",
-                       row.itemName, row.hostCheckName != nullptr ? row.hostCheckName : "?", byItem, listed, byNothing);
+                printf(
+                    "[TEST] combo-crossing-views-world: OoT check tracker search \"%s\" lists %s: %d (empty box: %d, "
+                    "control: %d)\n",
+                    row.itemName, row.hostCheckName != nullptr ? row.hostCheckName : "?", byItem, listed, byNothing);
             }
             CXV_ASSERT(listed == 0 || listed == 1);
             CXV_ASSERT(byItem == listed);

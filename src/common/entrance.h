@@ -24,12 +24,12 @@
 // ============================================================================
 
 // OoT entrances - Happy Mask Shop (production)
-#define OOT_ENTR_HAPPY_MASK_SHOP           0x0530  // Into Happy Mask Shop
-#define OOT_ENTR_MARKET_FROM_MASK_SHOP     0x01D1  // Out of Happy Mask Shop
+#define OOT_ENTR_HAPPY_MASK_SHOP 0x0530       // Into Happy Mask Shop
+#define OOT_ENTR_MARKET_FROM_MASK_SHOP 0x01D1 // Out of Happy Mask Shop
 
 // OoT entrances - Mido's House (testing - closer to spawn)
-#define OOT_ENTR_MIDOS_HOUSE               0x0433  // Into Mido's House
-#define OOT_ENTR_KOKIRI_FROM_MIDOS         0x0443  // Out of Mido's House
+#define OOT_ENTR_MIDOS_HOUSE 0x0433       // Into Mido's House
+#define OOT_ENTR_KOKIRI_FROM_MIDOS 0x0443 // Out of Mido's House
 
 // MM entrances (using ENTRANCE macro: ((scene & 0x7F) << 9) | ((spawn & 0x1F) << 4))
 // CLOCK_TOWER_INTERIOR scene = 0x60
@@ -45,8 +45,8 @@
 // own cycle resets (Song of Time, save-warp, the title attract demo), so it
 // can never be a switch trigger — when it was, every in-game reset to South
 // Clock Town spuriously fired a cross-game switch.
-#define MM_ENTR_CLOCK_TOWER_INTERIOR_1     0xC010  // ENTRANCE(CLOCK_TOWER_INTERIOR, 1) — MM->OoT trigger
-#define MM_ENTR_SOUTH_CLOCK_TOWN_0         0xD800  // ENTRANCE(SOUTH_CLOCK_TOWN, 0) — OoT->MM arrival
+#define MM_ENTR_CLOCK_TOWER_INTERIOR_1 0xC010 // ENTRANCE(CLOCK_TOWER_INTERIOR, 1) — MM->OoT trigger
+#define MM_ENTR_SOUTH_CLOCK_TOWN_0 0xD800     // ENTRANCE(SOUTH_CLOCK_TOWN, 0) — OoT->MM arrival
 
 // ============================================================================
 // Cross-game entrance link
@@ -57,10 +57,10 @@
  */
 typedef struct {
     GameId sourceGame;
-    uint16_t sourceEntrance;     // Entrance ID in source game
+    uint16_t sourceEntrance; // Entrance ID in source game
     GameId targetGame;
-    uint16_t targetEntrance;     // Where to spawn in target game
-    uint16_t returnEntrance;     // Where to return when coming back
+    uint16_t targetEntrance; // Where to spawn in target game
+    uint16_t returnEntrance; // Where to return when coming back
 } CrossGameEntranceLink;
 
 /**
@@ -70,8 +70,8 @@ typedef struct {
     bool requested;
     GameId targetGame;
     uint16_t targetEntrance;
-    uint16_t returnEntrance;     // Where to return in source game
-    bool readyToSwitch;          // Set by game after saving state
+    uint16_t returnEntrance; // Where to return in source game
+    bool readyToSwitch;      // Set by game after saving state
 } PendingGameSwitch;
 
 #ifdef __cplusplus
@@ -212,10 +212,8 @@ bool Entrance_RegisterPortalLinks(bool useTestPortal);
  *
  * @return true if both legs were registered.
  */
-bool Entrance_RegisterBidirectionalLink(
-    GameId game1, uint16_t entrance1, uint16_t return1,
-    GameId game2, uint16_t entrance2, uint16_t return2
-);
+bool Entrance_RegisterBidirectionalLink(GameId game1, uint16_t entrance1, uint16_t return1, GameId game2,
+                                        uint16_t entrance2, uint16_t return2);
 
 /**
  * Whether some registered link already resolves from (game, entrance).

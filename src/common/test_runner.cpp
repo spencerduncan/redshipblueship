@@ -6,12 +6,12 @@
 #include "test_runner.h"
 #include "context.h"
 #include "entrance.h"
-#include "foreign_items.h" // ADR 0010 inc. 2: the frozen record + the O8 give-caps surface
-#include "combo_logic.h"   // ADR 0010 inc. 3: the armed-caps bag pin (lane K11)
-#include "shared_items.h"  // ADR 0010 inc. 3: the O8 arming rows the armed-caps pin reads
-#include "gen_budget.h"    // ADR 0010 inc. 2: the #582 fill budget + progress surface
+#include "foreign_items.h"        // ADR 0010 inc. 2: the frozen record + the O8 give-caps surface
+#include "combo_logic.h"          // ADR 0010 inc. 3: the armed-caps bag pin (lane K11)
+#include "shared_items.h"         // ADR 0010 inc. 3: the O8 arming rows the armed-caps pin reads
+#include "gen_budget.h"           // ADR 0010 inc. 2: the #582 fill budget + progress surface
 #include "gen_progress_overlay.h" // #582: the on-screen creation-progress surface
-#include "save.h"          // the #533 slot-session surface the creation/arrival legs reset
+#include "save.h"                 // the #533 slot-session surface the creation/arrival legs reset
 
 #include "integration_test_hooks.h"
 #include "headless_crash.h"
@@ -1092,7 +1092,7 @@ namespace {
 bool sTestMode = false;
 bool sIntegrationTestMode = false;
 GameId sTargetGame = GAME_NONE;
-std::atomic<bool> sBootComplete{false};
+std::atomic<bool> sBootComplete{ false };
 const char* sIntegrationTestName = nullptr;
 
 // ============================================================================
@@ -1759,14 +1759,14 @@ TestResult Test_DigestOutHandRun(void) {
     printf("[TEST] digest-out-hand-run: a digest dispatch run without its output variable says it wrote no file "
            "(#710)\n");
     int failures = 0;
-#define DOH_ASSERT(cond, ...)             \
-    do {                                  \
-        if (!(cond)) {                    \
-            printf("[TEST] FAIL: ");      \
-            printf(__VA_ARGS__);          \
-            printf("\n");                 \
-            failures++;                   \
-        }                                 \
+#define DOH_ASSERT(cond, ...)        \
+    do {                             \
+        if (!(cond)) {               \
+            printf("[TEST] FAIL: "); \
+            printf(__VA_ARGS__);     \
+            printf("\n");            \
+            failures++;              \
+        }                            \
     } while (0)
 
     for (const DigestOutDispatch& d : kDigestOutDispatches) {
@@ -1798,8 +1798,10 @@ TestResult Test_DigestOutHandRun(void) {
                    wantPrefix.c_str());
         DOH_ASSERT(notice.find(std::string("--test ") + d.dispatch) != std::string::npos,
                    "H2: the notice does not name the dispatch '%s'", d.dispatch);
-        DOH_ASSERT(notice.find("NO digest file") != std::string::npos, "H2: the notice for '%s' does not say NO "
-                   "digest file was written", d.dispatch);
+        DOH_ASSERT(notice.find("NO digest file") != std::string::npos,
+                   "H2: the notice for '%s' does not say NO "
+                   "digest file was written",
+                   d.dispatch);
         DOH_ASSERT(notice.find(d.rows) != std::string::npos, "H2: the notice for '%s' does not name the rows %s",
                    d.dispatch, d.rows);
         DOH_ASSERT(notice.find("docs/determinism-goldens.md") != std::string::npos,
@@ -1808,15 +1810,15 @@ TestResult Test_DigestOutHandRun(void) {
         for (char c : notice) {
             newlines += c == '\n' ? 1u : 0u;
         }
-        DOH_ASSERT(newlines == 1 && notice.back() == '\n',
-                   "H2: the notice for '%s' is not exactly one line", d.dispatch);
+        DOH_ASSERT(newlines == 1 && notice.back() == '\n', "H2: the notice for '%s' is not exactly one line",
+                   d.dispatch);
 
         const char* kPath = "rsbs-digest-out-probe/never-written.txt";
         DigestOut_SetEnv(d.envVar, kPath);
         bool noticed = true;
         const char* path = DigestOut_Resolve(d.dispatch, &noticed);
-        DOH_ASSERT(path != nullptr && strcmp(path, kPath) == 0, "H3: %s=%s but the resolver returned '%s'",
-                   d.envVar, kPath, path != nullptr ? path : "(null)");
+        DOH_ASSERT(path != nullptr && strcmp(path, kPath) == 0, "H3: %s=%s but the resolver returned '%s'", d.envVar,
+                   kPath, path != nullptr ? path : "(null)");
         DOH_ASSERT(!noticed, "H3: %s is set and '%s' still printed the notice", d.envVar, d.dispatch);
 
         DigestOut_SetEnv(d.envVar, hadSaved ? savedCopy.c_str() : nullptr);
@@ -1842,9 +1844,12 @@ TestResult Test_DigestOutHandRun(void) {
         while ((at = src.find("getenv(", at)) != std::string::npos) {
             const size_t close = src.find(')', at);
             const std::string call = src.substr(at, close == std::string::npos ? 64 : close - at + 1);
-            const bool raw = call.find("\"RSBS_") != std::string::npos && call.find("DIGEST_OUT\"") != std::string::npos;
-            DOH_ASSERT(!raw, "H4: %s reads %s directly; resolve it through DigestOut_Resolve so a hand-run says it "
-                       "wrote no file", rel, call.c_str());
+            const bool raw =
+                call.find("\"RSBS_") != std::string::npos && call.find("DIGEST_OUT\"") != std::string::npos;
+            DOH_ASSERT(!raw,
+                       "H4: %s reads %s directly; resolve it through DigestOut_Resolve so a hand-run says it "
+                       "wrote no file",
+                       rel, call.c_str());
             at += 7;
         }
     }
@@ -1883,14 +1888,14 @@ TestResult Test_DigestOutHandRun(void) {
 TestResult Test_TestWindowNoActivation(void) {
     printf("[TEST] test-window-no-activation: a test window is shown without taking keyboard focus\n");
     int failures = 0;
-#define TWNA_ASSERT(cond, ...)            \
-    do {                                  \
-        if (!(cond)) {                    \
-            printf("[TEST] FAIL: ");      \
-            printf(__VA_ARGS__);          \
-            printf("\n");                 \
-            failures++;                   \
-        }                                 \
+#define TWNA_ASSERT(cond, ...)       \
+    do {                             \
+        if (!(cond)) {               \
+            printf("[TEST] FAIL: "); \
+            printf(__VA_ARGS__);     \
+            printf("\n");            \
+            failures++;              \
+        }                            \
     } while (0)
 
     DigestOut_SetEnv(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, nullptr);
@@ -2138,7 +2143,7 @@ uint32_t Combo_SingleBag_TrimSeed(void);
 TestResult Test_RandoArmedCapsDigest(void) {
     printf("[TEST] rando-armed-caps-digest: the composed bag with every give-capability family armed (#681, lane "
            "K11)\n");
-    DigestOutHandRunReminder handRun{ "rando-armed-caps-digest", false }; // #710
+    DigestOutHandRunReminder handRun{ "rando-armed-caps-digest", false };                   // #710
     const char* digestOut = DigestOut_Resolve("rando-armed-caps-digest", &handRun.noticed); // NULL => stdout
 
     auto ctx = CreateHarnessStyleContext();
@@ -2378,7 +2383,8 @@ static void CreationPhaseSink(const ComboGenProgress* progress) {
     // progress inside RSBS_GENPHASE_MM_FILL about once a second, so a long fill
     // would otherwise spend this fixed array on repeats of one phase and push the
     // PUBLISH record the order legs look for off the end.
-    if (progress != NULL && sCreationPhaseCount > 0 && sCreationPhaseOrder[sCreationPhaseCount - 1] == progress->phase) {
+    if (progress != NULL && sCreationPhaseCount > 0 &&
+        sCreationPhaseOrder[sCreationPhaseCount - 1] == progress->phase) {
         return;
     }
     if (progress != NULL && sCreationPhaseCount < cap) {
@@ -2862,8 +2868,8 @@ TestResult Test_ComboCreationEvent(void) {
         int pairedLoaded = -1;
         int strippedLoaded = -1;
         int refusalToast = -1;
-        const int reloadRc = Rando_TestReloadPairedSpoiler(absolute.c_str(), &marked, &pairedLoaded, &strippedLoaded,
-                                                           &refusalToast);
+        const int reloadRc =
+            Rando_TestReloadPairedSpoiler(absolute.c_str(), &marked, &pairedLoaded, &strippedLoaded, &refusalToast);
         printf("[TEST] spoiler reload: rc=%d marked=%d paired-loaded=%d stripped-loaded=%d refusal-toast=%d (%s)\n",
                reloadRc, marked, pairedLoaded, strippedLoaded, refusalToast, absolute.c_str());
         if (reloadRc != 0 || marked != 1) {
@@ -3030,7 +3036,7 @@ TestResult Test_MMPairedStart(void) {
 TestResult Test_MMPairedAttempt(void) {
     printf("[TEST] mm-paired-attempt: pinned multi-attempt master seed converges deterministically on the ladder "
            "(ADR 0010 inc. 1.2)\n");
-    DigestOutHandRunReminder handRun{ "mm-paired-attempt", false }; // #710
+    DigestOutHandRunReminder handRun{ "mm-paired-attempt", false };                   // #710
     const char* digestOut = DigestOut_Resolve("mm-paired-attempt", &handRun.noticed); // NULL => stdout
 
     auto ctx = CreateHarnessStyleContext();
@@ -3731,8 +3737,7 @@ TestResult Test_Roundtrip(void) {
         return TEST_FAIL;
     }
     if (strcmp(Combo_GetSwitchTargetGameId(), "mm") != 0) {
-        printf("[TEST] FAIL: Leg 1 - Target should be mm, got %s\n",
-               Combo_GetSwitchTargetGameId());
+        printf("[TEST] FAIL: Leg 1 - Target should be mm, got %s\n", Combo_GetSwitchTargetGameId());
         return TEST_FAIL;
     }
 
@@ -3743,9 +3748,8 @@ TestResult Test_Roundtrip(void) {
     memset(fakeOoTSave, 0, sizeof(fakeOoTSave));
     fakeOoTSave[0] = 0xDE;
     fakeOoTSave[1] = 0xAD;
-    fakeOoTSave[OOT_SAVE_CONTEXT_SIZE - 1] = 0xEF;  // Tail marker
-    Combo_FreezeState("oot", Combo_GetSwitchReturnEntrance(),
-                      fakeOoTSave, sizeof(fakeOoTSave));
+    fakeOoTSave[OOT_SAVE_CONTEXT_SIZE - 1] = 0xEF; // Tail marker
+    Combo_FreezeState("oot", Combo_GetSwitchReturnEntrance(), fakeOoTSave, sizeof(fakeOoTSave));
     Entrance_ClearPendingSwitch();
 
     // ------------------------------------------------------------------
@@ -3760,8 +3764,7 @@ TestResult Test_Roundtrip(void) {
         return TEST_FAIL;
     }
     if (strcmp(Combo_GetSwitchTargetGameId(), "oot") != 0) {
-        printf("[TEST] FAIL: Leg 2 - Target should be oot, got %s\n",
-               Combo_GetSwitchTargetGameId());
+        printf("[TEST] FAIL: Leg 2 - Target should be oot, got %s\n", Combo_GetSwitchTargetGameId());
         return TEST_FAIL;
     }
 
@@ -3770,8 +3773,7 @@ TestResult Test_Roundtrip(void) {
     memset(fakeMMSave, 0, sizeof(fakeMMSave));
     fakeMMSave[0] = 0xBE;
     fakeMMSave[1] = 0xEF;
-    Combo_FreezeState("mm", Combo_GetSwitchReturnEntrance(),
-                      fakeMMSave, sizeof(fakeMMSave));
+    Combo_FreezeState("mm", Combo_GetSwitchReturnEntrance(), fakeMMSave, sizeof(fakeMMSave));
 
     // ------------------------------------------------------------------
     // Leg 3: Verify OoT state can be restored after the round-trip.
@@ -3782,8 +3784,7 @@ TestResult Test_Roundtrip(void) {
         printf("[TEST] FAIL: Leg 3 - OoT state restore failed\n");
         return TEST_FAIL;
     }
-    if (restoredSave[0] != 0xDE || restoredSave[1] != 0xAD ||
-        restoredSave[OOT_SAVE_CONTEXT_SIZE - 1] != 0xEF) {
+    if (restoredSave[0] != 0xDE || restoredSave[1] != 0xAD || restoredSave[OOT_SAVE_CONTEXT_SIZE - 1] != 0xEF) {
         printf("[TEST] FAIL: Leg 3 - Restored OoT data corrupted\n");
         return TEST_FAIL;
     }
@@ -3826,14 +3827,12 @@ TestResult Test_EntranceDedup(void) {
         return TEST_FAIL;
     }
     if (Entrance_GetLinkCount() != 2) {
-        printf("[TEST] FAIL: expected 2 links after default registration, got %zu\n",
-               Entrance_GetLinkCount());
+        printf("[TEST] FAIL: expected 2 links after default registration, got %zu\n", Entrance_GetLinkCount());
         return TEST_FAIL;
     }
 
     Entrance_CheckCrossGame(GAME_MM, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
-    if (!Entrance_IsCrossGameSwitch() ||
-        Entrance_GetSwitchTargetGame() != GAME_OOT ||
+    if (!Entrance_IsCrossGameSwitch() || Entrance_GetSwitchTargetGame() != GAME_OOT ||
         Entrance_GetSwitchTargetEntrance() != OOT_ENTR_MARKET_FROM_MASK_SHOP) {
         printf("[TEST] FAIL: default return leg should land at Market 0x%04X, got 0x%04X\n",
                OOT_ENTR_MARKET_FROM_MASK_SHOP, Entrance_GetSwitchTargetEntrance());
@@ -3873,8 +3872,7 @@ TestResult Test_EntranceDedup(void) {
     }
 
     Entrance_CheckCrossGame(GAME_OOT, OOT_ENTR_MIDOS_HOUSE);
-    if (!Entrance_IsCrossGameSwitch() ||
-        Entrance_GetSwitchTargetEntrance() != MM_ENTR_SOUTH_CLOCK_TOWN_0 ||
+    if (!Entrance_IsCrossGameSwitch() || Entrance_GetSwitchTargetEntrance() != MM_ENTR_SOUTH_CLOCK_TOWN_0 ||
         Entrance_GetSwitchReturnEntrance() != OOT_ENTR_KOKIRI_FROM_MIDOS) {
         printf("[TEST] FAIL: Mido's outbound leg wrong (target 0x%04X, return 0x%04X)\n",
                Entrance_GetSwitchTargetEntrance(), Entrance_GetSwitchReturnEntrance());
@@ -3883,13 +3881,11 @@ TestResult Test_EntranceDedup(void) {
     Entrance_ClearPendingSwitch();
 
     Entrance_CheckCrossGame(GAME_MM, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
-    if (!Entrance_IsCrossGameSwitch() ||
-        Entrance_GetSwitchTargetGame() != GAME_OOT ||
+    if (!Entrance_IsCrossGameSwitch() || Entrance_GetSwitchTargetGame() != GAME_OOT ||
         Entrance_GetSwitchTargetEntrance() != OOT_ENTR_KOKIRI_FROM_MIDOS) {
         printf("[TEST] FAIL: test return leg should land at Kokiri 0x%04X, got 0x%04X "
                "(0x%04X means the default link shadowed it — #374)\n",
-               OOT_ENTR_KOKIRI_FROM_MIDOS, Entrance_GetSwitchTargetEntrance(),
-               OOT_ENTR_MARKET_FROM_MASK_SHOP);
+               OOT_ENTR_KOKIRI_FROM_MIDOS, Entrance_GetSwitchTargetEntrance(), OOT_ENTR_MARKET_FROM_MASK_SHOP);
         return TEST_FAIL;
     }
     Entrance_ClearPendingSwitch();
@@ -3897,19 +3893,15 @@ TestResult Test_EntranceDedup(void) {
     // --- Leg 4: rejection is keyed per-leg, not per-call. -------------------
     // A link whose OoT face is fresh but whose MM face is taken must still be
     // rejected — the MM trigger is the scarce resource.
-    if (Entrance_RegisterBidirectionalLink(
-            GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP, OOT_ENTR_MARKET_FROM_MASK_SHOP,
-            GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1)) {
-        printf("[TEST] FAIL: accepted a link reusing the claimed MM trigger 0x%04X\n",
-               MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+    if (Entrance_RegisterBidirectionalLink(GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP, OOT_ENTR_MARKET_FROM_MASK_SHOP, GAME_MM,
+                                           MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1)) {
+        printf("[TEST] FAIL: accepted a link reusing the claimed MM trigger 0x%04X\n", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
         return TEST_FAIL;
     }
 
     // A link colliding with itself (forward source == reverse source) is dead
     // on arrival and must be rejected too.
-    if (Entrance_RegisterBidirectionalLink(
-            GAME_OOT, 0x0EDD, 0x0EDE,
-            GAME_OOT, 0x0EDF, 0x0EDD)) {
+    if (Entrance_RegisterBidirectionalLink(GAME_OOT, 0x0EDD, 0x0EDE, GAME_OOT, 0x0EDF, 0x0EDD)) {
         printf("[TEST] FAIL: accepted a self-colliding link\n");
         return TEST_FAIL;
     }
@@ -3917,9 +3909,7 @@ TestResult Test_EntranceDedup(void) {
     // A genuinely distinct pair still registers — the guard rejects duplicates,
     // not everything.
     const size_t before = Entrance_GetLinkCount();
-    if (!Entrance_RegisterBidirectionalLink(
-            GAME_OOT, 0x0EE0, 0x0EE1,
-            GAME_MM, 0x0EE2, 0x0EE3)) {
+    if (!Entrance_RegisterBidirectionalLink(GAME_OOT, 0x0EE0, 0x0EE1, GAME_MM, 0x0EE2, 0x0EE3)) {
         printf("[TEST] FAIL: rejected a link with no source collision\n");
         return TEST_FAIL;
     }
@@ -3987,8 +3977,8 @@ TestResult Test_StartupEntrance(void) {
     // South Clock Town tower-exit spawn)
     uint16_t startup = Combo_GetStartupEntrance();
     if (startup != MM_ENTR_SOUTH_CLOCK_TOWN_0) {
-        printf("[TEST] FAIL: Startup entrance not set correctly (got 0x%04X, expected 0x%04X)\n",
-               startup, MM_ENTR_SOUTH_CLOCK_TOWN_0);
+        printf("[TEST] FAIL: Startup entrance not set correctly (got 0x%04X, expected 0x%04X)\n", startup,
+               MM_ENTR_SOUTH_CLOCK_TOWN_0);
         return TEST_FAIL;
     }
 
@@ -4014,8 +4004,7 @@ TestResult Test_StartupEntrance(void) {
         return TEST_FAIL;
     }
     // ...but OoT must NOT — this is precisely what prevents the OOB crash.
-    if (Entrance_HasStartupEntranceForGame(GAME_OOT) ||
-        Entrance_GetStartupEntranceForGame(GAME_OOT) != 0) {
+    if (Entrance_HasStartupEntranceForGame(GAME_OOT) || Entrance_GetStartupEntranceForGame(GAME_OOT) != 0) {
         printf("[TEST] FAIL: MM-tagged startup entrance leaked to OoT (crash condition)\n");
         return TEST_FAIL;
     }
@@ -4029,24 +4018,21 @@ TestResult Test_StartupEntrance(void) {
 
     // Symmetric: an OoT-tagged entrance must be invisible to MM.
     Entrance_SetStartupEntrance(OOT_ENTR_MARKET_FROM_MASK_SHOP, GAME_OOT);
-    if (!Entrance_HasStartupEntranceForGame(GAME_OOT) ||
-        Entrance_HasStartupEntranceForGame(GAME_MM)) {
+    if (!Entrance_HasStartupEntranceForGame(GAME_OOT) || Entrance_HasStartupEntranceForGame(GAME_MM)) {
         printf("[TEST] FAIL: OoT-tagged startup entrance leaked to MM\n");
         return TEST_FAIL;
     }
 
     // Back-compat: the legacy 1-arg setter tags wildcard, visible to both.
     Entrance_SetStartupEntrance(OOT_ENTR_HAPPY_MASK_SHOP);
-    if (!Entrance_HasStartupEntranceForGame(GAME_OOT) ||
-        !Entrance_HasStartupEntranceForGame(GAME_MM)) {
+    if (!Entrance_HasStartupEntranceForGame(GAME_OOT) || !Entrance_HasStartupEntranceForGame(GAME_MM)) {
         printf("[TEST] FAIL: wildcard (1-arg) startup entrance not visible to both games\n");
         return TEST_FAIL;
     }
 
     // Clearing resets the affinity tag too.
     Combo_ClearStartupEntrance();
-    if (Entrance_HasStartupEntranceForGame(GAME_OOT) ||
-        Entrance_HasStartupEntranceForGame(GAME_MM)) {
+    if (Entrance_HasStartupEntranceForGame(GAME_OOT) || Entrance_HasStartupEntranceForGame(GAME_MM)) {
         printf("[TEST] FAIL: startup entrance affinity not cleared\n");
         return TEST_FAIL;
     }
@@ -4086,8 +4072,8 @@ TestResult Test_VBAffinity(void) {
         return TEST_FAIL;
     }
     if (mmTrueDefault != true || mmFalseDefault != false) {
-        printf("[TEST] FAIL: MM-active call did not get vanilla behavior (got %d/%d, want 1/0)\n",
-               (int)mmTrueDefault, (int)mmFalseDefault);
+        printf("[TEST] FAIL: MM-active call did not get vanilla behavior (got %d/%d, want 1/0)\n", (int)mmTrueDefault,
+               (int)mmFalseDefault);
         return TEST_FAIL;
     }
 
@@ -4371,8 +4357,8 @@ TestResult Test_OoTWindowsGate(void) {
 }
 
 // #935: libultraship's own `set` command (ConsoleWindow::SetCommand, registered by the Console window directly through
-// Console::AddCommand, so #930's OoT wrapper never sees it) parsed its value with std::stof / std::stoul / std::stoi and
-// caught nothing, and nothing above it catches either. A value CheckVarType classifies as a number but no parse
+// Console::AddCommand, so #930's OoT wrapper never sees it) parsed its value with std::stof / std::stoul / std::stoi
+// and caught nothing, and nothing above it catches either. A value CheckVarType classifies as a number but no parse
 // accepts threw out of Ship::Console::Run and the process died (C++ exception 0xe06d7363). Each value below must now
 // fail the command (non-zero, the console's own error line as its output) and leave the CVar as it was; a parsable
 // value afterwards must still set it, so the guard did not simply disable the command. Display-free and ROM-free: the
@@ -4425,8 +4411,8 @@ static TestResult Test_ConsoleSetParseGuard(void) {
     int failures = 0;
     for (const Probe& probe : kProbes) {
         const std::string line = std::string("set ") + kVar + " " + probe.value;
-        const std::string want = std::string("[LUS] Could not set ") + kVar + ": '" + probe.value + "' " + probe.error +
-                                 ".";
+        const std::string want =
+            std::string("[LUS] Could not set ") + kVar + ": '" + probe.value + "' " + probe.error + ".";
         printf("[TEST] console-set-parse-guard: running `%s` (%s)\n", line.c_str(), probe.why);
         fflush(stdout); // before the fix the process dies inside Run: keep the line that names the value
         std::string output;
@@ -5438,45 +5424,45 @@ TestResult Test_OoTDepartureLinkAge(void) {
 // ============================================================================
 
 const TestDescriptor gTests[] = {
-    {"rando-gen", "Seed generation succeeds with default settings (#337)", Test_RandoGen},
+    { "rando-gen", "Seed generation succeeds with default settings (#337)", Test_RandoGen },
     // #560: the same generation with the RSBS_DISABLE_OTR_INIT mask OFF and the
     // fill on a worker thread — the bring-up and call shape a player actually
     // gets. Needs a display like rando-gen, so `--test all` skips it (below).
-    {"rando-gen-full-init", "Seed generation with the full OTR bring-up live, on a worker thread (#560)",
-     Test_RandoGenFullInit},
+    { "rando-gen-full-init", "Seed generation with the full OTR bring-up live, on a worker thread (#560)",
+      Test_RandoGenFullInit },
     // #441: no generated hint may resolve to the no-item sentinel. Needs a
     // display like rando-gen, so `--test all` skips it (below).
-    {"rando-hint-validity", "Every generated hint names a real item (#441)", Test_RandoHintValidity},
+    { "rando-hint-validity", "Every generated hint names a real item (#441)", Test_RandoHintValidity },
     // #441 runtime complement: item hints must still name their real item after a
     // save/reload cycle rebuilds the placement table. Needs a display like
     // rando-gen, so `--test all` skips it (below).
-    {"rando-hint-reload", "Item hints survive a save/reload cycle (#441)", Test_RandoHintReload},
+    { "rando-hint-reload", "Item hints survive a save/reload cycle (#441)", Test_RandoHintReload },
     // #441 root-cause lock: item hints must survive a cross-game OoT arrival,
     // whose title-chain Save_Init used to wipe the placement table. Needs a
     // display like rando-gen, so `--test all` skips it (below).
-    {"rando-hint-crossgame", "Item hints survive a cross-game OoT arrival (#441)", Test_RandoHintCrossGame},
+    { "rando-hint-crossgame", "Item hints survive a cross-game OoT arrival (#441)", Test_RandoHintCrossGame },
     // #575 H1: the shared area vocabulary. Display-free and ROM-free, so it
     // runs in the redship tier and in `--test all`.
-    {"combo-area-vocabulary", "One shared hint area vocabulary over both games (#575 H1)", Test_ComboAreaVocabulary},
+    { "combo-area-vocabulary", "One shared hint area vocabulary over both games (#575 H1)", Test_ComboAreaVocabulary },
     // #482: two more instances of the #441 class -- the check tracker's
     // areasSpoiled and the item tracker's typed notes are blanked by arrival
     // init-funcs and never rehydrated. Pure (no display), so it runs in the
     // display-free suite (NOT skipped by `--test all`).
-    {"tracker-arrival-rehydration", "Check/item tracker state survives a cross-game OoT arrival (#482)",
-     Test_TrackerArrivalRehydration},
+    { "tracker-arrival-rehydration", "Check/item tracker state survives a cross-game OoT arrival (#482)",
+      Test_TrackerArrivalRehydration },
     // Lane B unified seed: producer stamps gComboCtx at generation time; the
     // two-process same-seed determinism diff runs via the SeedDeterminism row.
     // Needs a display like rando-gen, so `--test all` skips it (below).
-    {"rando-determinism", "Unified-seed producer fires + same-seed fill is reproducible (Lane B)",
-     Test_RandoDeterminism},
+    { "rando-determinism", "Unified-seed producer fires + same-seed fill is reproducible (Lane B)",
+      Test_RandoDeterminism },
     // #681 review: the armed reverse draw's exact table. Driven only by the
     // GoldenSeedDigestArmedCaps golden row; needs a display, so `--test all`
     // skips it (below).
-    {"rando-armed-caps-digest", "Armed-profile reverse draw digest for the GoldenSeedDigestArmedCaps pin (#681)",
-     Test_RandoArmedCapsDigest},
+    { "rando-armed-caps-digest", "Armed-profile reverse draw digest for the GoldenSeedDigestArmedCaps pin (#681)",
+      Test_RandoArmedCapsDigest },
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
-    {"mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen},
+    { "mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen },
     // #510: the reverse pool end to end over a REAL fill. In this tier, not the
     // display-free one, because OoT's host predicate reads a fill result — with
     // no fill it accepts nothing and the lock would pass vacuously.
@@ -5485,310 +5471,315 @@ const TestDescriptor gTests[] = {
     // spoiler and #585's join. Same tier and the same reason as the row
     // above: without a REAL fill every table is empty and the legs pass
     // vacuously.
-    {"combo-creation-event",
-     "One creation event authors both halves; arrival hydrates or refuses and never generates (ADR 0010 "
-     "increment 2, #644)",
-     Test_ComboCreationEvent},
+    { "combo-creation-event",
+      "One creation event authors both halves; arrival hydrates or refuses and never generates (ADR 0010 "
+      "increment 2, #644)",
+      Test_ComboCreationEvent },
     // #439: the paired world must activate on the SWITCH-ENTRY path (the only
     // flow a player actually takes), not just the direct OnSaveInit chain.
     // Same display requirement as mm-rando-gen, so `--test all` skips it.
-    {"mm-pair-switch-entry", "Paired MM world activates via switch-entry; existing saves untouched (#439)",
-     Test_MMPairSwitchEntry},
+    { "mm-pair-switch-entry", "Paired MM world activates via switch-entry; existing saves untouched (#439)",
+      Test_MMPairSwitchEntry },
     // #879: the combo owns MM's paired start; sword and shield are pool items.
     // Same display requirement as mm-pair-switch-entry, so `--test all` skips it.
-    {"mm-paired-start",
-     "A paired MM half starts with exactly the Ocarina and the Song of Time, never 2Ship's StartingItems block; "
-     "the Kokiri Sword and the Hero's Shield are MM pool items (#879)",
-     Test_MMPairedStart},
+    { "mm-paired-start",
+      "A paired MM half starts with exactly the Ocarina and the Song of Time, never 2Ship's StartingItems block; "
+      "the Kokiri Sword and the Hero's Shield are MM pool items (#879)",
+      Test_MMPairedStart },
     // ADR 0010 increment 1.2 lock (b): a pinned master seed that NEEDS the
     // attempt ladder converges, records its winning attempt, and digests the
     // world for the two-process MMPairedAttemptDeterminism diff. Same display
     // requirement as mm-rando-gen, so `--test all` skips it.
-    {"mm-paired-attempt", "Pinned multi-attempt seed converges deterministically on the ladder (ADR 0010 inc. 1.2)",
-     Test_MMPairedAttempt},
+    { "mm-paired-attempt", "Pinned multi-attempt seed converges deterministically on the ladder (ADR 0010 inc. 1.2)",
+      Test_MMPairedAttempt },
     // ADR 0010 increment 1.2 lock (c): exhaustion is a LOUD failure on the
     // #533 surface, never a silent vanilla Termina. Same display requirement
     // as mm-rando-gen, so `--test all` skips it.
-    {"mm-paired-exhaustion", "Unconvergeable paired profile exhausts the ladder and refuses loudly (ADR 0010)",
-     Test_MMPairedExhaustion},
+    { "mm-paired-exhaustion", "Unconvergeable paired profile exhausts the ladder and refuses loudly (ADR 0010)",
+      Test_MMPairedExhaustion },
     // #439 follow-up: the OTHER entry paths into MM gameplay (file-select LOAD,
     // Song of Time / cycle reset, DayTelop) must also reach a live PlayState
     // with the IS_RANDO hooks matching the save. Same display requirement as
     // mm-rando-gen, so `--test all` skips it.
-    {"mm-reload-arm-state", "IS_RANDO hooks match the save on MM's non-arrival entry paths (#439)",
-     Test_MMReloadArmState},
+    { "mm-reload-arm-state", "IS_RANDO hooks match the save on MM's non-arrival entry paths (#439)",
+      Test_MMReloadArmState },
     // The operator-confirmed P0: a moon crash must not strip a paired world's
     // randomizer identity. Same display requirement, so `--test all` skips it.
-    {"mm-moon-crash-arm-state", "A moon crash preserves the paired MM world and its IS_RANDO hooks",
-     Test_MMMoonCrashArmState},
+    { "mm-moon-crash-arm-state", "A moon crash preserves the paired MM world and its IS_RANDO hooks",
+      Test_MMMoonCrashArmState },
     // #487: the owl save (and the file copy) do the same readback-then-commit
     // over gSaveContext that the moon crash did. Same display requirement, so
     // `--test all` skips it.
-    {"mm-owl-save-arm-state", "An owl save preserves the paired MM world and its IS_RANDO hooks (#487)",
-     Test_MMOwlSaveArmState},
-    {"boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT},
-    {"boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM},
+    { "mm-owl-save-arm-state", "An owl save preserves the paired MM world and its IS_RANDO hooks (#487)",
+      Test_MMOwlSaveArmState },
+    { "boot-oot", "Shared-context bring-up leaves no null subsystems (#329)", Test_BootOoT },
+    { "boot-mm", "MM-first bring-up prerequisites on the shared context (#330)", Test_BootMM },
     // #560: the archive-handle contention lock. Display-free — its own threads
     // ARE the concurrency — so `--test all` runs it; it SKIPs itself when no
     // soh.o2r is mounted (the netplay-relay archive-less control tier).
-    {"zip-contention", "Concurrent cold o2r loads return intact resources (#560)", Test_ZipContention},
-    {"crossgame-model", "An MM-exclusive model resolves+draws from an OoT-only session (#577)",
-     Test_CrossGameModel},
-    {"curated-archive-mount", "Each curated cross-game half mounts on arrival with its host's identity (#577)",
-     Test_CuratedArchiveMount},
+    { "zip-contention", "Concurrent cold o2r loads return intact resources (#560)", Test_ZipContention },
+    { "crossgame-model", "An MM-exclusive model resolves+draws from an OoT-only session (#577)", Test_CrossGameModel },
+    { "curated-archive-mount", "Each curated cross-game half mounts on arrival with its host's identity (#577)",
+      Test_CuratedArchiveMount },
     // #595/#593: archive-layer order locks. Display-free; both SKIP when the
     // curated archives are not staged.
-    {"curated-archive-order", "soh.o2r/2ship.o2r resolve identically in either mount order (#595)",
-     Test_CuratedArchiveOrder},
-    {"mod-survives-switch", "A registered mod archive still wins after a game switch (#593)",
-     Test_ModArchiveSurvivesSwitch},
-    {"curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
-     Test_CuratedArchiveGenerator},
-    {"curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",
-     Test_CuratedArchiveInApp},
-    {"switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM},
-    {"switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT},
-    {"midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse},
-    {"entrance-dedup", "Duplicate entrance links rejected; each portal face routes home (#374)", Test_EntranceDedup},
-    {"startup-entrance", "Test startup entrance flow", Test_StartupEntrance},
-    {"vb-affinity", "OoT VB hooks stay quiet while MM is active", Test_VBAffinity},
-    {"cosmetic-gfx-stub", "MM HUD gfx wrappers write commands and advance the display list", Test_CosmeticGfxStub},
-    {"roundtrip", "Full round-trip with state verification", Test_Roundtrip},
-    {"roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)", Test_RoundtripIntegrity},
-    {"shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip},
-    {"shared-item-roundtrip", "Origin-tagged item survives suspend->switch->resume x2, both dirs (ADR 0002)",
-     Test_SharedItemRoundtrip},
+    { "curated-archive-order", "soh.o2r/2ship.o2r resolve identically in either mount order (#595)",
+      Test_CuratedArchiveOrder },
+    { "mod-survives-switch", "A registered mod archive still wins after a game switch (#593)",
+      Test_ModArchiveSurvivesSwitch },
+    { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
+      Test_CuratedArchiveGenerator },
+    { "curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",
+      Test_CuratedArchiveInApp },
+    { "switch-oot-mm", "Test game switch OoT -> MM", Test_SwitchOoTMM },
+    { "switch-mm-oot", "Test game switch MM -> OoT", Test_SwitchMMOoT },
+    { "midos-house", "Test Mido's House entrance (test mode)", Test_MidosHouse },
+    { "entrance-dedup", "Duplicate entrance links rejected; each portal face routes home (#374)", Test_EntranceDedup },
+    { "startup-entrance", "Test startup entrance flow", Test_StartupEntrance },
+    { "vb-affinity", "OoT VB hooks stay quiet while MM is active", Test_VBAffinity },
+    { "cosmetic-gfx-stub", "MM HUD gfx wrappers write commands and advance the display list", Test_CosmeticGfxStub },
+    { "roundtrip", "Full round-trip with state verification", Test_Roundtrip },
+    { "roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)",
+      Test_RoundtripIntegrity },
+    { "shared-roundtrip", "Shared flag/seed survive OoT->MM switch (issue #264)", Test_SharedStateRoundtrip },
+    { "shared-item-roundtrip", "Origin-tagged item survives suspend->switch->resume x2, both dirs (ADR 0002)",
+      Test_SharedItemRoundtrip },
     // Lane C1: the foreign-item give path tags the shared structure, the
     // crossing awards exactly once, and the placement carve serializes.
-    {"foreign-item-give", "Foreign give path tags shared structure; awards once; placements serialize (Lane C1)",
-     Test_ForeignItemGive},
+    { "foreign-item-give", "Foreign give path tags shared structure; awards once; placements serialize (Lane C1)",
+      Test_ForeignItemGive },
     // #493: the reverse direction's OoT-keyed placement carve is a separate key
     // space from the MM-keyed one, serializes byte-exact, and zero-extends.
-    {"foreign-item-give-reverse",
-     "Reverse (MM->OoT) placement carve: separate key space, serializes, redeems once (#493)",
-     Test_ForeignItemGiveReverse},
+    { "foreign-item-give-reverse",
+      "Reverse (MM->OoT) placement carve: separate key space, serializes, redeems once (#493)",
+      Test_ForeignItemGiveReverse },
     // #800 pass 1: an OoT item in an MM shop slot is sold once, crosses once, and is
     // drawn as itself on the shelf and in the Bomb Shop owner's hand.
-    {"foreign-item-give-shop", "An OoT item in an MM shop slot: sold once, crosses once, drawn as itself (#800)",
-     Test_ForeignItemGiveShop},
+    { "foreign-item-give-shop", "An OoT item in an MM shop slot: sold once, crosses once, drawn as itself (#800)",
+      Test_ForeignItemGiveShop },
     // #488: host selection must reject any check class the game does not arm —
     // the give path is gated on `.eligible`, so an unarmed host strands a
     // crossing and no error is ever raised.
-    {"foreign-host-eligibility", "Crossing hosts limited to game-armed check classes (#488)",
-     Test_ForeignHostEligibility},
+    { "foreign-host-eligibility", "Crossing hosts limited to game-armed check classes (#488)",
+      Test_ForeignHostEligibility },
     // #575 item 2: MM gossip stones can hint a crossing host, by the crossed item.
-    {"foreign-host-gossip-hint", "MM gossip stones hint crossing hosts by the crossed item (#575)",
-     Test_ForeignHostGossipHint},
+    { "foreign-host-gossip-hint", "MM gossip stones hint crossing hosts by the crossed item (#575)",
+      Test_ForeignHostGossipHint },
     // #575 H5a: MM's free stone names a foolish area, in MM's voice.
-    {"mm-foolish-stone-hint", "MM's free gossip stone names a foolish area (#575 H5a)", Test_MmFoolishStoneHint},
+    { "mm-foolish-stone-hint", "MM's free gossip stone names a foolish area (#575 H5a)", Test_MmFoolishStoneHint },
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
-    {"mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText},
+    { "mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText },
     // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.
-    {"mm-hint-crossed-area", "MM's hints name the OoT area of an MM item hosted in OoT (#575 H3c)",
-     Test_MmHintCrossedArea},
+    { "mm-hint-crossed-area", "MM's hints name the OoT area of an MM item hosted in OoT (#575 H3c)",
+      Test_MmHintCrossedArea },
     // #502: MM's half of the crossing. The reverse row above deliberately stops
     // at a test award callback because MM_AwardSharedItem was a placeholder
     // fprintf; this one drives the real one and the real give behind it.
-    {"foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
-     Test_ForeignAwardMM},
+    { "foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
+      Test_ForeignAwardMM },
     // #878: both arrivals' real consumers redeem a crossing and toast nothing:
     // the item was announced at its pickup.
-    {"crossing-arrival-toasts", "A crossing toasts nothing its pickup already announced, on both legs (#878)",
-     Test_CrossingArrivalToasts},
+    { "crossing-arrival-toasts", "A crossing toasts nothing its pickup already announced, on both legs (#878)",
+      Test_CrossingArrivalToasts },
     // #510's foreign-pool-mm and #495's foreign-item-class rows are RETIRED with
     // the pinned pools (ADR 0010 increment 3, D3); see the note at the end of
     // tests/test_foreign_items.c for where each claim is locked now.
     // #525: shared cross-game resources. Display-free, ROM-free and save-free —
     // everything under test is gComboCtx plus a RAM watermark table.
-    {"shared-resources", "One quantity across both games: watermark, disciplines, seed, heart clamp (#525)",
-     Test_SharedResources},
+    { "shared-resources", "One quantity across both games: watermark, disciplines, seed, heart clamp (#525)",
+      Test_SharedResources },
     // #879: the Shared Ocarina rule (#668) is retired. Same display-free,
     // ROM-free, save-free shape as the row above — gComboCtx, the RAM watermark
     // table, and the frozen record.
-    {"shared-ocarina-retired",
-     "The retired Shared Ocarina rule: the ocarina is never shared, and an older world's bit loads healthy (#879)",
-     Test_SharedOcarinaRetired},
+    { "shared-ocarina-retired",
+      "The retired Shared Ocarina rule: the ocarina is never shared, and an older world's bit loads healthy (#879)",
+      Test_SharedOcarinaRetired },
     // #886: one Kokiri Sword across both games when the frozen combo bit arms it.
     // ROM-free: gComboCtx, the RAM watermark table and both games' real shims.
-    {"shared-kokiri-sword",
-     "One Kokiri Sword across both games when the frozen combo bit arms it, and neither crosses when it does not "
-     "(#886)",
-     Test_SharedKokiriSword},
-    {"combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
-     Test_ComboSpoilerView},
-    {"combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
-     Test_ComboSpoilerWindow},
+    { "shared-kokiri-sword",
+      "One Kokiri Sword across both games when the frozen combo bit arms it, and neither crosses when it does not "
+      "(#886)",
+      Test_SharedKokiriSword },
+    { "combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
+      Test_ComboSpoilerView },
+    { "combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
+      Test_ComboSpoilerWindow },
     // Combo tracker (#458): both games' progress through per-game adapters —
     // MM's frozen shadow at registered offsets, OoT's suspended heap through a
     // registered vtable — staleness-labelled, plus the window's inertness.
-    {"combo-tracker-view", "Tracker adapters recover authored MM shadow + OoT heap worlds, staleness-labelled (#458)",
-     Test_ComboTrackerView},
-    {"combo-tracker-window",
-     "Combo tracker window registers de-collided; inert under every active game and absent adapters (#458)",
-     Test_ComboTrackerWindow},
-    {"combo-item-view",
-     "Item rows from OoT's live save or frozen shadow, never live for the inactive game; shared group label (#458)",
-     Test_ComboItemView},
-    {"combo-item-view-new-file",
-     "The OoT item adapter and the .redsave slot panel read the save Ship of Harkinian's own new-file path authors "
-     "(Save_InitFile, no 'ZELDAZ') as a save, live and as the shadow; the title's attract save stays no data (#873)",
-     Test_ComboItemViewNewFile},
-    {"combo-item-tracker-window",
-     "Item Tracker overlay registers de-collided; inert under every game and while unpaused; draws the view (#458)",
-     Test_ComboItemTrackerWindow},
+    { "combo-tracker-view", "Tracker adapters recover authored MM shadow + OoT heap worlds, staleness-labelled (#458)",
+      Test_ComboTrackerView },
+    { "combo-tracker-window",
+      "Combo tracker window registers de-collided; inert under every active game and absent adapters (#458)",
+      Test_ComboTrackerWindow },
+    { "combo-item-view",
+      "Item rows from OoT's live save or frozen shadow, never live for the inactive game; shared group label (#458)",
+      Test_ComboItemView },
+    { "combo-item-view-new-file",
+      "The OoT item adapter and the .redsave slot panel read the save Ship of Harkinian's own new-file path authors "
+      "(Save_InitFile, no 'ZELDAZ') as a save, live and as the shadow; the title's attract save stays no data (#873)",
+      Test_ComboItemViewNewFile },
+    { "combo-item-tracker-window",
+      "Item Tracker overlay registers de-collided; inert under every game and while unpaused; draws the view (#458)",
+      Test_ComboItemTrackerWindow },
     // MM randomizer options surface (#497 step 4, #499). Three locks, split by
     // what they can see: the table needs MM's headers, the profile needs MM's
     // SaveContext, the window needs a Gui.
-    {"mm-rando-options", "Every MM rando option has a row, a label, a bound cvar, and honest gating (#497)",
-     Test_MMRandoOptions},
-    {"mm-paired-profile", "The paired MM profile honours explicit choices and publishes a moving digest (#499)",
-     Test_MMPairedProfile},
+    { "mm-rando-options", "Every MM rando option has a row, a label, a bound cvar, and honest gating (#497)",
+      Test_MMRandoOptions },
+    { "mm-paired-profile", "The paired MM profile honours explicit choices and publishes a moving digest (#499)",
+      Test_MMPairedProfile },
     // Spoiler-drop identity gate (#610): a dropped spoiler's cross-game section
     // is a COMBO commit, so it reaches gComboCtx only when its identity names
     // the live pairing; divergence refuses through the #533 surface.
-    {"mm-spoiler-identity",
-     "A spoiler's foreign section commits only when its identity names the live pairing (#610)",
-     Test_MMSpoilerIdentity},
-    {"mm-foreign-pickup-gate", "An unpaired session authors no durable shared-item record on a foreign pickup (#610)",
-     Test_MMForeignPickupGate},
+    { "mm-spoiler-identity", "A spoiler's foreign section commits only when its identity names the live pairing (#610)",
+      Test_MMSpoilerIdentity },
+    { "mm-foreign-pickup-gate", "An unpaired session authors no durable shared-item record on a foreign pickup (#610)",
+      Test_MMForeignPickupGate },
     // ADR 0011 increment 1 (#498): the arrival gate that CONSUMES the combo
     // divergence diff. The refusal must NAME the diverged rule, not merely
     // refuse — that capability is what the twelve-byte record buys over ADR
     // 0009's reserved four-byte digest.
-    {"mm-combo-settings-gate",
-     "A divergent combo record refuses at arrival BY NAME; a legacy pair freezes the shipped defaults (#498)",
-     Test_MMComboSettingsGate},
-    {"combo-mm-options-page",
-     "The MM options pages' model: columns, row states and reasons, notes, and the freeze gate (#497)",
-     Test_ComboMMOptionsPage},
+    { "mm-combo-settings-gate",
+      "A divergent combo record refuses at arrival BY NAME; a legacy pair freezes the shipped defaults (#498)",
+      Test_MMComboSettingsGate },
+    { "combo-mm-options-page",
+      "The MM options pages' model: columns, row states and reasons, notes, and the freeze gate (#497)",
+      Test_ComboMMOptionsPage },
     // Netplay 1a (ADR 0005, #460): the sourced-grant model, transport-free.
-    {"grant-idempotency", "Retransmit delivers once; a second gift of the same item delivers twice (ADR 0005)",
-     Test_GrantIdempotency},
-    {"grant-redeem-no-switch", "Grants redeem in received order at a safe point, no switch machinery (ADR 0005)",
-     Test_GrantRedeemNoSwitch},
-    {"grant-overflow", "Full array refuses loudly, backpressures sources, reclaims redeemed slots (ADR 0005)",
-     Test_GrantOverflow},
-    {"grant-persistence", "Cursors + overflow ride the .redsave; legacy loads unset; reset retires atomically "
-     "(ADR 0005)",
-     Test_GrantPersistence},
+    { "grant-idempotency", "Retransmit delivers once; a second gift of the same item delivers twice (ADR 0005)",
+      Test_GrantIdempotency },
+    { "grant-redeem-no-switch", "Grants redeem in received order at a safe point, no switch machinery (ADR 0005)",
+      Test_GrantRedeemNoSwitch },
+    { "grant-overflow", "Full array refuses loudly, backpressures sources, reclaims redeemed slots (ADR 0005)",
+      Test_GrantOverflow },
+    { "grant-persistence",
+      "Cursors + overflow ride the .redsave; legacy loads unset; reset retires atomically "
+      "(ADR 0005)",
+      Test_GrantPersistence },
 #ifdef RSBS_NETPLAY
     // Netplay 1b (ADR 0007, #460): the grant relay, over a loopback ledger with
     // multi-server's semantics. Registered only when the relay is built.
-    {"relay-wire-format", "Relay wire format matches golden vectors; foreign payloads skip (ADR 0007)",
-     Test_RelayWireFormat},
-    {"relay-loopback", "Loopback peers: retransmit delivers once, two peers' same item delivers twice, "
-     "self-echo filtered (ADR 0007)",
-     Test_RelayLoopback},
-    {"relay-catchup", "Late joiner catches up from ledger base 0; grants survive a cross-game switch (ADR 0007)",
-     Test_RelayCatchup},
-    {"relay-backpressure", "A full array backpressures the relay without losing the grant (ADR 0007)",
-     Test_RelayBackpressure},
-    {"relay-suspend-latch", "Suspend stops applying but not polling; resume drains in order; session "
-     "invalidation retires the inbox (ADR 0007)",
-     Test_RelaySuspendLatch},
+    { "relay-wire-format", "Relay wire format matches golden vectors; foreign payloads skip (ADR 0007)",
+      Test_RelayWireFormat },
+    { "relay-loopback",
+      "Loopback peers: retransmit delivers once, two peers' same item delivers twice, "
+      "self-echo filtered (ADR 0007)",
+      Test_RelayLoopback },
+    { "relay-catchup", "Late joiner catches up from ledger base 0; grants survive a cross-game switch (ADR 0007)",
+      Test_RelayCatchup },
+    { "relay-backpressure", "A full array backpressures the relay without losing the grant (ADR 0007)",
+      Test_RelayBackpressure },
+    { "relay-suspend-latch",
+      "Suspend stops applying but not polling; resume drains in order; session "
+      "invalidation retires the inbox (ADR 0007)",
+      Test_RelaySuspendLatch },
 #endif
-    {"context", "Test context/state management", Test_Context},
+    { "context", "Test context/state management", Test_Context },
     // Clears all frozen states on entry and exit, so it must not run between a
     // test that freezes and one that expects that freeze to still be there.
-    {"hotswap-freeze", "F10 hot swap freezes the departing game; frozen state is single-use (#364)",
-     Test_HotSwapFreeze},
+    { "hotswap-freeze", "F10 hot swap freezes the departing game; frozen state is single-use (#364)",
+      Test_HotSwapFreeze },
     // #440: the inverse #400 never got. Retiring a blob ON CONSUME stops it
     // being consumed twice; it does nothing about a dead session's blob still
     // being there for the NEXT session's first consume. Like hotswap-freeze
     // this clears all frozen states on entry and exit, so it must not run
     // between a test that freezes and one expecting that freeze to persist.
-    {"session-invalidation", "Soft reset / new game retire cross-game session state; loads still restore (#440)",
-     Test_SessionInvalidation},
-    {"lifecycle", "Game lifecycle unit tests", Test_Lifecycle},
+    { "session-invalidation", "Soft reset / new game retire cross-game session state; loads still restore (#440)",
+      Test_SessionInvalidation },
+    { "lifecycle", "Game lifecycle unit tests", Test_Lifecycle },
     // Unified save (.redsave) headless coverage (issue #35, Phase 2 T6).
-    {"save-roundtrip-tiers", "Unified .redsave preserves ComboContext + both SaveContexts (#35)", Test_SaveRoundtripTiers},
-    {"save-header", "Unified .redsave header fields + CRC are well-formed (#35)", Test_SaveHeader},
-    {"save-has-delete", "Unified save HasSave/DeleteSave lifecycle (#35)", Test_SaveHasDelete},
-    {"save-version-reject", "Unified save Load rejects unknown version, no clobber (#35)", Test_SaveVersionReject},
-    {"save-size-mismatch", "Unified save Load rejects oversized tier, no clobber (#35)", Test_SaveSizeMismatch},
-    {"save-legacy-size", "Unified save Load zero-extends shorter legacy tiers (#35)", Test_SaveLegacySize},
-    {"save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt},
+    { "save-roundtrip-tiers", "Unified .redsave preserves ComboContext + both SaveContexts (#35)",
+      Test_SaveRoundtripTiers },
+    { "save-header", "Unified .redsave header fields + CRC are well-formed (#35)", Test_SaveHeader },
+    { "save-has-delete", "Unified save HasSave/DeleteSave lifecycle (#35)", Test_SaveHasDelete },
+    { "save-version-reject", "Unified save Load rejects unknown version, no clobber (#35)", Test_SaveVersionReject },
+    { "save-size-mismatch", "Unified save Load rejects oversized tier, no clobber (#35)", Test_SaveSizeMismatch },
+    { "save-legacy-size", "Unified save Load zero-extends shorter legacy tiers (#35)", Test_SaveLegacySize },
+    { "save-crc-corrupt", "Unified save Load rejects corrupt payload, no clobber (#35)", Test_SaveCrcCorrupt },
     // #533: REFUSED as a first-class slot state, distinct from ABSENT.
-    {"save-refused-quarantine", "A refused .redsave is quarantined byte-exact and the slot write-latched (#533)",
-     Test_SaveRefusedQuarantine},
-    {"save-write-latch", "Save refuses slots this session never loaded/created/erased (#533)", Test_SaveWriteLatch},
-    {"save-arm-on-create", "File-create quarantines a failing .redsave before its first write (#533)",
-     Test_SaveArmOnCreate},
-    {"save-refused-meta", "The slot surface reports ABSENT / VALID / REFUSED distinctly (#533)",
-     Test_SaveRefusedMeta},
+    { "save-refused-quarantine", "A refused .redsave is quarantined byte-exact and the slot write-latched (#533)",
+      Test_SaveRefusedQuarantine },
+    { "save-write-latch", "Save refuses slots this session never loaded/created/erased (#533)", Test_SaveWriteLatch },
+    { "save-arm-on-create", "File-create quarantines a failing .redsave before its first write (#533)",
+      Test_SaveArmOnCreate },
+    { "save-refused-meta", "The slot surface reports ABSENT / VALID / REFUSED distinctly (#533)",
+      Test_SaveRefusedMeta },
     // Tier-1 format-headroom locks: the migration path Lane A's widened
     // sharedItems rides on. Without these, "ComboContext can grow" is a claim.
-    {"save-combo-legacy-record", "Pre-headroom Tier-1 still loads and zero-extends", Test_SaveComboLegacyRecord},
-    {"save-combo-record-fixed", "Tier-1 written at a fixed padded size; headroom round-trips", Test_SaveComboRecordFixed},
-    {"save-combo-oversize", "Load rejects an oversized Tier-1 record, no clobber", Test_SaveComboOversize},
-    {"save-tagged-items", "Origin-tagged shared items round-trip; empty slots stay unset (ADR 0002)",
-     Test_SaveTaggedItems},
+    { "save-combo-legacy-record", "Pre-headroom Tier-1 still loads and zero-extends", Test_SaveComboLegacyRecord },
+    { "save-combo-record-fixed", "Tier-1 written at a fixed padded size; headroom round-trips",
+      Test_SaveComboRecordFixed },
+    { "save-combo-oversize", "Load rejects an oversized Tier-1 record, no clobber", Test_SaveComboOversize },
+    { "save-tagged-items", "Origin-tagged shared items round-trip; empty slots stay unset (ADR 0002)",
+      Test_SaveTaggedItems },
     // The commit choke point (#537/#531): one game-thread-marshalled snapshot,
     // a monotonic generation in both artifacts, and load-time skew detection.
-    {"commit-generation-monotonic", "Choke-point commits stamp a monotonic Tier-1 generation (#537)",
-     Test_CommitGenerationMonotonic},
-    {"commit-torn-write", "Post-stage mutation cannot reach the .redsave; the #537 tear is unrepresentable",
-     Test_CommitTornWrite},
-    {"commit-generation-order", "An older generation never replaces a newer .redsave commit (#851)",
-     Test_CommitGenerationOrder},
-    {"commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#589)",
-     Test_CommitGenerationSkew},
+    { "commit-generation-monotonic", "Choke-point commits stamp a monotonic Tier-1 generation (#537)",
+      Test_CommitGenerationMonotonic },
+    { "commit-torn-write", "Post-stage mutation cannot reach the .redsave; the #537 tear is unrepresentable",
+      Test_CommitTornWrite },
+    { "commit-generation-order", "An older generation never replaces a newer .redsave commit (#851)",
+      Test_CommitGenerationOrder },
+    { "commit-generation-skew", "Load detects .redsave/.sav freshness divergence (#531/#589)",
+      Test_CommitGenerationSkew },
     // Whole-file commit (#589): a durable save in either half commits BOTH
     // halves at one generation, and on load the newest whole commit wins —
     // which is what retires #531's permanent item loss.
-    {"whole-file-commit", "One commit carries both halves; the newest whole commit is the authority (#589)",
-     Test_WholeFileCommit},
-    {"whole-file-redeemed-item", "A REDEEMED record and the world it was redeemed into survive together (#531)",
-     Test_WholeFileRedeemedItem},
+    { "whole-file-commit", "One commit carries both halves; the newest whole commit is the authority (#589)",
+      Test_WholeFileCommit },
+    { "whole-file-redeemed-item", "A REDEEMED record and the world it was redeemed into survive together (#531)",
+      Test_WholeFileRedeemedItem },
     // The frozen COMBO-LEVEL rule record (ADR 0011 increment 1, #498). Four
     // rows split by what each can prove: the carve is format, the digest input
     // is byte-pinned, the diff names the rule, and a legacy pair freezes rather
     // than being orphaned. The arrival GATE that consumes the diff is its own
     // row (mm-combo-settings-gate), MM-side.
-    {"combo-settings-format", "The combo record is .redsave format and its defaults reproduce today's world (#498)",
-     Test_ComboSettingsFormat},
-    {"combo-settings-canonical",
-     "canonical() and the whole-pair fingerprint are pinned byte-for-byte (ADR 0011 decision 1.4)",
-     Test_ComboSettingsCanonical},
-    {"combo-settings-divergence", "The divergence diff names WHICH combo rule diverged (ADR 0011 decision 1.1)",
-     Test_ComboSettingsDivergence},
-    {"combo-settings-legacy-freeze",
-     "A legacy paired file freezes the shipped defaults at its first crossing and compares thereafter (O5)",
-     Test_ComboSettingsLegacyFreeze},
+    { "combo-settings-format", "The combo record is .redsave format and its defaults reproduce today's world (#498)",
+      Test_ComboSettingsFormat },
+    { "combo-settings-canonical",
+      "canonical() and the whole-pair fingerprint are pinned byte-for-byte (ADR 0011 decision 1.4)",
+      Test_ComboSettingsCanonical },
+    { "combo-settings-divergence", "The divergence diff names WHICH combo rule diverged (ADR 0011 decision 1.1)",
+      Test_ComboSettingsDivergence },
+    { "combo-settings-legacy-freeze",
+      "A legacy paired file freezes the shipped defaults at its first crossing and compares thereafter (O5)",
+      Test_ComboSettingsLegacyFreeze },
     // ADR 0011 increment 2: the tier-4 keys and the pane. The authoring row
     // proves the keys reach the record BEFORE the freeze and are refused after
     // it; the window row is the common-owned pane's headless lock.
-    {"combo-settings-authoring",
-     "The six tier-4 keys author the combo record before the freeze and are refused after it (ADR 0011 inc 2, #668)",
-     Test_ComboSettingsAuthoring},
-    {"combo-settings-window",
-     "Common-owned combo settings pane registers de-collided; inert under every game and pairing state (ADR 0011)",
-     Test_ComboSettingsWindow},
-    {"mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse},
-    {"seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds},
-    {"cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
-     Test_CVarClassification},
-    {"active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue},
-    {"oot-audio-init-guard", "OoT synth no-ops while gAudioContextInitalized == false (#365)", Test_OoTAudioInitGuard},
-    {"gp-watchdog", "Gameplay round-trip watchdog is wall-clock budgeted, can fire before the timeout (#376)",
-     Test_GpWatchdog},
-    {"stderr-capture-sync", "A stderr-capture query sees the line its caller just wrote (#901)",
-     Test_StderrCaptureSync},
-    {"mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute},
-    {"mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding},
-    {"mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",
-     Test_MMGIShim},
-    {"mm-notification-binding",
-     "MM's toasts reach OoT's overlay through the MM_Notify_Emit bridge, Options stays layout-identical (#427)",
-     Test_MMNotificationBinding},
-    {"mm-fb-effects-binding", "MM's scaled framebuffer draw binds its own body against MM's dimensions (#386)",
-     Test_MMFbEffectsBinding},
+    { "combo-settings-authoring",
+      "The six tier-4 keys author the combo record before the freeze and are refused after it (ADR 0011 inc 2, #668)",
+      Test_ComboSettingsAuthoring },
+    { "combo-settings-window",
+      "Common-owned combo settings pane registers de-collided; inert under every game and pairing state (ADR 0011)",
+      Test_ComboSettingsWindow },
+    { "mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse },
+    { "seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds },
+    { "cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
+      Test_CVarClassification },
+    { "active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue },
+    { "oot-audio-init-guard", "OoT synth no-ops while gAudioContextInitalized == false (#365)",
+      Test_OoTAudioInitGuard },
+    { "gp-watchdog", "Gameplay round-trip watchdog is wall-clock budgeted, can fire before the timeout (#376)",
+      Test_GpWatchdog },
+    { "stderr-capture-sync", "A stderr-capture query sees the line its caller just wrote (#901)",
+      Test_StderrCaptureSync },
+    { "mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute },
+    { "mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding },
+    { "mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",
+      Test_MMGIShim },
+    { "mm-notification-binding",
+      "MM's toasts reach OoT's overlay through the MM_Notify_Emit bridge, Options stays layout-identical (#427)",
+      Test_MMNotificationBinding },
+    { "mm-fb-effects-binding", "MM's scaled framebuffer draw binds its own body against MM's dimensions (#386)",
+      Test_MMFbEffectsBinding },
     // Flash page-table OOB from the 0xFF fileNum sentinel: the moon-crash reset
     // (and the owl-delete write it fires) index the fixed-size flash tables far
     // out of bounds in a cross-game MM session, then copy the garbage over the
     // live save. Pure (no display), so it runs in the display-free suite.
-    {"mm-flash-filenum-oob", "Flash page indices stay in bounds for fileNum 0xFF; moon-crash reset keeps the save",
-     Test_MMFlashFileNumOob},
+    { "mm-flash-filenum-oob", "Flash page indices stay in bounds for fileNum 0xFF; moon-crash reset keeps the save",
+      Test_MMFlashFileNumOob },
     // MM's redship-native unified-save capture (#35 follow-up). MM has no
     // persistence in single-exe (2s2h/SaveManager/*.cpp is link-excluded and
     // the flash stubs are a -1 read plus an empty write), so every .redsave's
@@ -5796,74 +5787,76 @@ const TestDescriptor gTests[] = {
     // normalization, the no-slot no-op, the file round trip, and — the subtle
     // one — that the capture is FULL-WIDTH rather than a sizeof(Save) prefix.
     // Pure (no display, no ROM).
-    {"mm-unified-save-capture", "MM captures its live SaveContext into the unified slot, full-width and round-tripping",
-     Test_MMUnifiedSaveCapture},
+    { "mm-unified-save-capture",
+      "MM captures its live SaveContext into the unified slot, full-width and round-tripping",
+      Test_MMUnifiedSaveCapture },
     // #926: two copies of each save-writing row at once must both pass (each
     // process writes its own scratch directory). Spawns this executable.
-    {"test-scratch-concurrent", "Two concurrent copies of each save-writing row both pass (per-process scratch dirs)",
-     Test_TestScratchConcurrent},
+    { "test-scratch-concurrent", "Two concurrent copies of each save-writing row both pass (per-process scratch dirs)",
+      Test_TestScratchConcurrent },
     // #564 V18: an MM save that cannot commit is told to the player, once per
     // cause. Pure (no display, no ROM).
-    {"mm-save-failure-surface", "An MM save that cannot commit shows a 'Save failed:' toast, once per cause",
-     Test_MMSaveFailureSurface},
+    { "mm-save-failure-surface", "An MM save that cannot commit shows a 'Save failed:' toast, once per cause",
+      Test_MMSaveFailureSurface },
     // #564 V21: MM may not author a new save over an open paired file. Pure (no
     // display, no ROM).
-    {"mm-new-save-session-guard", "MM authors no new save over an open paired file; its title retires the session",
-     Test_MMNewSaveSessionGuard},
+    { "mm-new-save-session-guard", "MM authors no new save over an open paired file; its title retires the session",
+      Test_MMNewSaveSessionGuard },
     // A capture the #533/#568 write latch refuses must be a no-op on the
     // SHARED-RESOURCE POOL too, not just on the file: the harvest used to run
     // ahead of the latch check, so a refused commit still credited (or debited)
     // rupees/hearts/magic/ammo and raised permanent monotonic tiers for a record
     // that never reached disk. Pure (no display, no ROM).
-    {"mm-capture-harvest-gate", "a latch-refused MM capture leaves the shared-resource pool untouched (#591)",
-     Test_MMCaptureHarvestGate},
+    { "mm-capture-harvest-gate", "a latch-refused MM capture leaves the shared-resource pool untouched (#591)",
+      Test_MMCaptureHarvestGate },
     // Same class as mm-capture-harvest-gate above, on OoT's OnExitGame seam:
     // the harvest used to run ahead of the #533/#568 latch check, so a
     // refused exit-save still credited (or debited) rupees/hearts/magic and
     // raised permanent monotonic tiers for a record that never reached disk.
     // Pure (no display, no ROM).
-    {"oot-exit-harvest-gate", "a latch-refused OoT exit-save leaves the shared-resource pool untouched (#606)",
-     Test_OoTExitHarvestGate},
+    { "oot-exit-harvest-gate", "a latch-refused OoT exit-save leaves the shared-resource pool untouched (#606)",
+      Test_OoTExitHarvestGate },
     // ADR 0009 decision 4b: MM's cross-game game-over "don't continue" exit is
     // an AUTOSAVE POINT iff the Autosave enhancement is on -- a whole-file
     // commit after the #625 revive with the interval clock reset -- and writes
     // nothing at the death moment with it off. Display-free and ROM-free; the
     // bring-up it takes is for CVarSetInteger only.
-    {"mm-death-decline-autosave",
-     "MM's death-decline exit commits a whole-file autosave iff Autosave is on, nothing otherwise (ADR 0009 4b)",
-     Test_MMDeathDeclineAutosave},
+    { "mm-death-decline-autosave",
+      "MM's death-decline exit commits a whole-file autosave iff Autosave is on, nothing otherwise (ADR 0009 4b)",
+      Test_MMDeathDeclineAutosave },
     // Hook dispatch reaches the MM-owned registry the COND_* macros register
     // into. Registers through the production macros and drives each dispatcher
     // through the name MM's call sites spell, so both a deleted bridge and a
     // dropped rebind #define fail here. Pure (no display, no ROM).
-    {"mm-hook-dispatch", "ShouldActorInit/OnActorInit/OnActorDraw/OnOpenText dispatch reaches S2H::GameHooks (#511)",
-     Test_MMHookDispatch},
+    { "mm-hook-dispatch", "ShouldActorInit/OnActorInit/OnActorDraw/OnOpenText dispatch reaches S2H::GameHooks (#511)",
+      Test_MMHookDispatch },
     // The sibling of the row above, one layer earlier: a hook is only as armed
     // as the registrar that (un)registers it, and MM's registrar map had no
     // CVar-change driver at all — the unified menu re-armed OoT and left MM
     // latched at its first-boot value. Pure (no display, no ROM).
-    {"mm-shipinit-driver",
-     "A unified-menu CVar change re-arms MM's ShipInit registrars, including RegisterAutosave (#539, #614)",
-     Test_MMShipInitDriver},
+    { "mm-shipinit-driver",
+      "A unified-menu CVar change re-arms MM's ShipInit registrars, including RegisterAutosave (#539, #614)",
+      Test_MMShipInitDriver },
     // filePlaytime epoch injection: AdvancePlaytime accrued now-lastTimeLog with
     // lastTimeLog unseeded (0), writing a full Unix epoch into the persisted
     // playtime. Pure (no display), so it runs in the display-free suite.
-    {"mm-playtime-seed", "AdvancePlaytime seeds an unset lastTimeLog instead of injecting an epoch (#513)",
-     Test_MMPlaytimeSeed},
-    {"mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
-     Test_MMTrackersGui},
+    { "mm-playtime-seed", "AdvancePlaytime seeds an unset lastTimeLog instead of injecting an epoch (#513)",
+      Test_MMPlaytimeSeed },
+    { "mm-trackers-gui", "MM tracker windows register de-collided on the shared Gui + gate on the active game (#392)",
+      Test_MMTrackersGui },
     // #797: OoT's eight save/play-state windows (and the Port Menu's embeds of
     // them) run only while OoT is the running game; source scan + ROM-free
     // tripwire. Pure (no display, no ROM). #798 extends it to OoT's console
     // commands and the Giant's Knife toggle (memcmp canary over gSaveContext).
-    {"oot-windows-gate",
-     "OoT save/play-state windows, menu embeds, console commands and the Giant's Knife toggle gate on the active game "
-     "(#797, #798)",
-     Test_OoTWindowsGate},
+    { "oot-windows-gate",
+      "OoT save/play-state windows, menu embeds, console commands and the Giant's Knife toggle gate on the active game "
+      "(#797, #798)",
+      Test_OoTWindowsGate },
     // #935: libultraship's own `set` command fails on a value it cannot parse instead of ending the process.
     // Display-free, ROM-free.
-    {"console-set-parse-guard", "Console `set` with an unparsable value fails the command, the process survives (#935)",
-     Test_ConsoleSetParseGuard},
+    { "console-set-parse-guard",
+      "Console `set` with an unparsable value fails the command, the process survives (#935)",
+      Test_ConsoleSetParseGuard },
     // Pre-freeze discipline (#638 / #626): both freeze drivers must fold the
     // live scene flags (and, on MM, a dead health bar) into gSaveContext before
     // capturing it. Each row publishes a calloc'd PlayState as the game's live
@@ -5872,11 +5865,11 @@ const TestDescriptor gTests[] = {
     // (no display, no ROM). Both re-register the default entrance links on the
     // way out, so they are order-free with respect to everything but the
     // archive-hotswap-logic row, which must stay last.
-    {"mm-scene-flag-freeze",
-     "MM's live scene flags + a dead health bar are folded into the blob on both freeze drivers (#638, #626)",
-     Test_MMSceneFlagFreeze},
-    {"oot-scene-flag-freeze", "OoT's live scene flags are folded into the blob on both freeze drivers (#638)",
-     Test_OoTSceneFlagFreeze},
+    { "mm-scene-flag-freeze",
+      "MM's live scene flags + a dead health bar are folded into the blob on both freeze drivers (#638, #626)",
+      Test_MMSceneFlagFreeze },
+    { "oot-scene-flag-freeze", "OoT's live scene flags are folded into the blob on both freeze drivers (#638)",
+      Test_OoTSceneFlagFreeze },
     // Registrar coverage: BenPort.cpp's exclusion elided InitOTR's whole
     // registration list, so the re-homed registrars in MM_Rando_Init must be
     // shown to POPULATE their registries, not merely to link. Runs the real
@@ -5886,8 +5879,8 @@ const TestDescriptor gTests[] = {
     // assertion. #617 fixed that assertion (see TestRunner_Run's "all"
     // dispatch for the retirement), so this entry now also runs there,
     // ahead of the resume-contract rows below, matching real boot order.
-    {"mm-registrar-coverage", "MM_Rando_Init populates the registries BenPort's exclusion emptied (#516)",
-     Test_MMRegistrarCoverage},
+    { "mm-registrar-coverage", "MM_Rando_Init populates the registries BenPort's exclusion emptied (#516)",
+      Test_MMRegistrarCoverage },
     // The same elided-registrar class, one archive over (#678): the two Songs
     // TUs carrying RO_CLOCK_SHUFFLE's half-day ownership checks were dropped by
     // plain-archive 2ship_enh and are now carved into the WHOLE_ARCHIVE'd
@@ -5895,35 +5888,35 @@ const TestDescriptor gTests[] = {
     // registrars run when the CVar is driven. Pure (no display, no ROM);
     // restores both CVars and drains both registries on the way out, so it has
     // no ordering constraints.
-    {"mm-clock-shuffle-songs",
-     "RO_CLOCK_SHUFFLE's Songs handlers survive the link and their registrars run (#678)",
-     Test_MMClockShuffleSongs},
+    { "mm-clock-shuffle-songs", "RO_CLOCK_SHUFFLE's Songs handlers survive the link and their registrars run (#678)",
+      Test_MMClockShuffleSongs },
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after
     // themselves, but a future test that depends on live MM arena contents or
     // a pre-populated gSaveContext must run BEFORE them.
-    {"mm-resume-arena", "MM resume re-arms an exhausted system arena for the cold boot chain", Test_MMResumeArena},
-    {"mm-startup-restore", "MM startup-entrance consumption restores the frozen save post-wipe", Test_MMStartupRestore},
+    { "mm-resume-arena", "MM resume re-arms an exhausted system arena for the cold boot chain", Test_MMResumeArena },
+    { "mm-startup-restore", "MM startup-entrance consumption restores the frozen save post-wipe",
+      Test_MMStartupRestore },
     // Must stay AFTER mm-startup-restore for the same reason mm-startup-restore
     // stays after mm-resume-arena: it scribbles and re-zeroes the unified
     // gSaveContext, and it latches MM as a cross-game half (src/common/
     // entrance.cpp) before clearing it again on the way out.
-    {"mm-combo-first-cycle", "MM's cross-game arrival is the intro event; the first-cycle gates know it (#654)",
-     Test_MMComboFirstCycle},
+    { "mm-combo-first-cycle", "MM's cross-game arrival is the intro event; the first-cycle gates know it (#654)",
+      Test_MMComboFirstCycle },
     // soh_port registrar elision (#640): the Anchor page's and the resolution
     // editor's RegisterMenuInitFunc registrars must have RUN, observed by the
     // exact size of the MenuInit registries they populate. Pure (no display,
     // no ROM, no Ship::Context).
-    {"oot-menu-registrars", "soh_port's RegisterMenuInitFunc registrars survive the link (#640)",
-     Test_OoTMenuRegistrars},
+    { "oot-menu-registrars", "soh_port's RegisterMenuInitFunc registrars survive the link (#640)",
+      Test_OoTMenuRegistrars },
     // #618 (#516 Phase 3): the ExtensionCache rescan MM's two remaining InitOTR
     // entries depend on. Placed near the END on purpose — it MOUNTS an extra MM
     // archive into the shared ArchiveManager, and resolution is last-added-wins,
     // so rows that read soh.o2r paths through the ResourceManager (zip-contention
     // in particular) must have run already. SKIPs when 2ship.o2r is unstaged.
-    {"mm-extension-rescan", "A rescan after MM's archives mount adds MM extension entries, keeps OoT's (#618)",
-     Test_MMExtensionRescan},
+    { "mm-extension-rescan", "A rescan after MM's archives mount adds MM extension entries, keeps OoT's (#618)",
+      Test_MMExtensionRescan },
     // #670: MM's mods/mm mount, the shared mods/ tree partition, and an MM mod
     // override that survives a switch without shadowing an OoT path. Placed here,
     // next to mm-extension-rescan, for the same reason: it MOUNTS extra archives
@@ -5931,63 +5924,65 @@ const TestDescriptor gTests[] = {
     // the shared ArchiveManager, so every row that reads soh.o2r paths through the
     // ResourceManager must have run first. It restores the manager's archive list
     // from a snapshot on the way out, so nothing after it inherits the re-order.
-    {"mm-mods-mount", "MM mounts mods/mm; the shared mods tree is partitioned and the override survives a switch "
-                      "(#670)",
-     Test_MMModsMount},
+    { "mm-mods-mount",
+      "MM mounts mods/mm; the shared mods tree is partitioned and the override survives a switch "
+      "(#670)",
+      Test_MMModsMount },
     // #670, the archive-free half: the shared mods/ tree partition and the shared
     // archive-extension rule as pure path logic. Needs nothing staged and no
     // bring-up, so it runs (and can fail) in the archive-less netplay-relay job
     // where mm-mods-mount SKIPs.
-    {"mm-mods-partition",
-     "Each game's claim on the shared mods/ tree is pinned independently, disjoint everywhere and total under the "
-     "root; plus the roots-shared gate and the shared archive-extension rule (#670)",
-     Test_MMModsPartition},
+    { "mm-mods-partition",
+      "Each game's claim on the shared mods/ tree is pinned independently, disjoint everywhere and total under the "
+      "root; plus the roots-shared gate and the shared archive-extension rule (#670)",
+      Test_MMModsPartition },
     // The tier-4 combo settings' menu rows (#655). Builds a SohMenu headless, so
     // it needs the display-free shared bring-up above but no window; it writes
     // the five gCombo.Rando.* keys and freezes gComboCtx, and restores both.
-    {"combo-settings-rows", "The six tier-4 combo settings are marked, model-backed SohMenu rows (#655, #668)",
-     Test_ComboSettingsRows},
+    { "combo-settings-rows", "The six tier-4 combo settings are marked, model-backed SohMenu rows (#655, #668)",
+      Test_ComboSettingsRows },
     // The entrance -> region cache's registration boundary (#659). Its probe leg
     // wants a process where MM_Rando_Init has not run; in THIS array
     // mm-registrar-coverage has already run it, so the probe reports itself as
     // not run and the row's own CTest process carries that claim. The boundary
     // lock needs no freshness. Snapshots and restores Rando::Logic::Regions.
-    {"mm-entrance-region-cache",
-     "No lookup runs against a half-registered region graph, and a partial build cannot freeze the cache (#659)",
-     Test_MMEntranceRegionCache},
+    { "mm-entrance-region-cache",
+      "No lookup runs against a half-registered region graph, and a partial build cannot freeze the cache (#659)",
+      Test_MMEntranceRegionCache },
     // #497 steps 3, 5 and 6 and step 2's second half. The first two build a
     // SohMenu headless like the row above, so they need the display-free shared
     // bring-up and no window. menu-capability-gating un-registers MM's foreign
     // item pool to drive a real capability ABSENT and re-registers it before
     // returning; it also installs and withdraws two synthetic capability keys.
     // setmenu-count is a pure source scan (RSBS_SOURCE_DIR) and touches nothing.
-    {"menu-capability-gating", "SohMenu rows gate on capabilities and render ADR 0004 §6's four states (#497)",
-     Test_MenuCapabilityGating},
-    {"menu-combo-section", "The tier-4 Combo section hosts the cross-game rows and a contributed-page seam (#497)",
-     Test_MenuComboSection},
-    {"setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount},
+    { "menu-capability-gating", "SohMenu rows gate on capabilities and render ADR 0004 §6's four states (#497)",
+      Test_MenuCapabilityGating },
+    { "menu-combo-section", "The tier-4 Combo section hosts the cross-game rows and a contributed-page seam (#497)",
+      Test_MenuComboSection },
+    { "setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount },
     // #658: MM_GOAL's "Majora defeated" conjunct. Display-free and ROM-free,
     // but it MUST stay after mm-registrar-coverage in this table: it drives
     // MM_Rando_InitCore, and that row's non-vacuity requires the registries to
     // be empty before its own MM_Rando_Init call. It restores gSaveContext
     // byte-for-byte, so it is otherwise order-free.
-    {"mm-majora-goal", "MM_GOAL's \"Majora defeated\" predicate answers from the save and stays out of the fill "
-                       "(#658, ADR 0010 D1)",
-     Test_MMMajoraGoal},
+    { "mm-majora-goal",
+      "MM_GOAL's \"Majora defeated\" predicate answers from the save and stays out of the fill "
+      "(#658, ADR 0010 D1)",
+      Test_MMMajoraGoal },
     // MM's per-trick vocabulary (#578 part 1). Two rows because they see
     // different things: the table lock is graph-free (it proves finding (a) on
     // Rando::Logic::CanKillEnemy, a plain inline function), while finding (b)'s
     // edge is a std::function inside the ShipInit-populated region graph and so
     // needs MM's boot. Both sit after mm-majora-goal, which has its own
     // ordering requirement relative to mm-registrar-coverage.
-    {"mm-trick-table",
-     "MM's trick table is total, mirrored and honest; the Powder Keg gate and the trick digest term are real (#578)",
-     Test_MMTrickTable},
-    {"mm-trick-gbt-gate", "The Great Bay Temple boss-key edge is gated on MMRT_GBT_BOSS_KEY_ICE (#578)",
-     Test_MMTrickGbtGate},
+    { "mm-trick-table",
+      "MM's trick table is total, mirrored and honest; the Powder Keg gate and the trick digest term are real (#578)",
+      Test_MMTrickTable },
+    { "mm-trick-gbt-gate", "The Great Bay Temple boss-key edge is gated on MMRT_GBT_BOSS_KEY_ICE (#578)",
+      Test_MMTrickGbtGate },
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
     // must not run before any test that relies on the default links.
-    {"archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic},
+    { "archive-hotswap-logic", "Headless multi-switch archive/state regression (#263)", Test_ArchiveHotswapLogic },
     // #661: the Happy Mask Shop interior pair is the OoT<->MM crossing, so it
     // must never be a candidate in OoT's own entrance shuffle. The pool probe is
     // display-free and runs here; the generated-seed row needs a display like
@@ -5996,8 +5991,8 @@ const TestDescriptor gTests[] = {
     // depend on the default entrance links: neither of these touches the combo
     // entrance table (the pool probe reads the rando region graph; the generation
     // row runs in its own process under the rando label).
-    {"oot-entrance-pin", "The Happy Mask Shop pair never enters OoT's entrance-shuffle pools (#661)",
-     Test_OoTEntrancePin},
+    { "oot-entrance-pin", "The Happy Mask Shop pair never enters OoT's entrance-shuffle pools (#661)",
+      Test_OoTEntrancePin },
     // #682's two halves. Both display-free and ROM-free, and both order-free:
     // menu-mm-enhancement-rows builds its own SohMenu probes and touches only
     // their private registries, and mm-enhancement-toggles leaves every key at 0,
@@ -6006,70 +6001,72 @@ const TestDescriptor gTests[] = {
     // archive-hotswap-logic for the same reason the two rows above are: neither
     // touches the combo entrance table, so the "keep LAST" comment's dependency
     // does not apply to them.
-    {"menu-mm-enhancement-rows",
-     "The curated MM enhancement page's rows bind their manifest keys and render their liveness class (#682)",
-     Test_MenuMmEnhancementRows},
-    {"mm-enhancement-toggles",
-     "Every curated MM enhancement key reaches a live provider, and the key the menu writes is the one MM re-arms on "
-     "(#682)",
-     Test_MMEnhancementToggles},
-    {"menu-mm-randomizer-pages",
-     "MM's randomizer options and tricks are Combo pages whose rows equal the descriptor table and keep its gates "
-     "(#497)",
-     Test_MenuMmRandomizerPages},
-    {"rando-entrance-pin", "A generated seed with interior shuffle ON keeps the mask-shop door vanilla (#661)",
-     Test_RandoEntrancePin},
+    { "menu-mm-enhancement-rows",
+      "The curated MM enhancement page's rows bind their manifest keys and render their liveness class (#682)",
+      Test_MenuMmEnhancementRows },
+    { "mm-enhancement-toggles",
+      "Every curated MM enhancement key reaches a live provider, and the key the menu writes is the one MM re-arms on "
+      "(#682)",
+      Test_MMEnhancementToggles },
+    { "menu-mm-randomizer-pages",
+      "MM's randomizer options and tricks are Combo pages whose rows equal the descriptor table and keep its gates "
+      "(#497)",
+      Test_MenuMmRandomizerPages },
+    { "rando-entrance-pin", "A generated seed with interior shuffle ON keeps the mask-shop door vanilla (#661)",
+      Test_RandoEntrancePin },
     // #800 pass 1, MM side: a real paired creation with both shop shuffles on
     // crosses an OoT item into an MM shop slot.
-    {"rando-shop-crossings-mm", "A paired creation with both shop shuffles on crosses an OoT item into an MM shop slot (#800)",
-     Test_RandoShopCrossingsMM},
+    { "rando-shop-crossings-mm",
+      "A paired creation with both shop shuffles on crosses an OoT item into an MM shop slot (#800)",
+      Test_RandoShopCrossingsMM },
     // #578 part 2: the trick BINDINGS. Appended at the end of the block rather
     // than next to its part-1 siblings above, because those sit before
     // archive-hotswap-logic's "keep LAST" row and this one runs a real generation
     // (it needs a display, so `--test all` skips it and it runs under the rando
     // label in its own process).
-    {"mm-trick-bindings", "Every trick part 2 bound closes its edge off and opens it on, and none removes reach (#578)",
-     Test_MMTrickBindings},
+    { "mm-trick-bindings",
+      "Every trick part 2 bound closes its edge off and opens it on, and none removes reach (#578)",
+      Test_MMTrickBindings },
     // #582: the on-screen creation-progress surface's headless half — the two
     // channel legs' independence, the monotone bar across the attempt ladder,
     // the state machine's two terminal edges, and "no painter means no
     // behaviour". Appended at the end of the block; it touches only its own
     // sinks and restores them, so it is order-free.
-    {"gen-progress-overlay",
-     "Creation progress reaches both channel legs, the bar never rewinds across the ladder, and the overlay's state "
-     "machine has two distinct terminal edges (#582)",
-     Test_GenProgressOverlay},
+    { "gen-progress-overlay",
+      "Creation progress reaches both channel legs, the bar never rewinds across the ladder, and the overlay's state "
+      "machine has two distinct terminal edges (#582)",
+      Test_GenProgressOverlay },
     // The font-licensing invariant (license follow-up to #578). Order-free: an
     // asset/source scan under RSBS_SOURCE_DIR plus SOH::ResolveOverlayFontName,
     // a pure function over string literals. It reads no globals and writes none,
     // so the "keep archive-hotswap-logic LAST" dependency does not apply.
-    {"font-license",
-     "No ungranted font ships, the OFL 1.1 and CC0 texts are in the tree, and a stale gOverlayFont resolves to a "
-     "loaded font (#578 follow-up)",
-     Test_FontLicense},
+    { "font-license",
+      "No ungranted font ships, the OFL 1.1 and CC0 texts are in the tree, and a stale gOverlayFont resolves to a "
+      "loaded font (#578 follow-up)",
+      Test_FontLicense },
     // The combo-logic coordinator (#645). Order-free: each row registers its own
     // stub engines, resets the coordinator's tables before every scenario, and
     // un-registers both engines before returning, so nothing it touches outlives
     // it and it depends on nothing that ran earlier. No ROM, no display.
-    {"combo-logic-engine-surface",
-     "The engine contract holds: registration validation, the GOAL table, ADR 0002 routing, and both premise "
-     "watchdogs (#645)",
-     Test_ComboLogicEngineSurface},
-    {"combo-logic-fixpoint",
-     "One round terminates, is order-independent, exchanges both ways, and proves the pair-level goal that removing "
-     "the MM host un-proves (#645)",
-     Test_ComboLogicFixpoint},
-    {"combo-logic-fill",
-     "The single-bag fill is seed-determined, `none` draws from all empties with no round run, and beat-either is "
-     "never biased (#645)",
-     Test_ComboLogicFill},
+    { "combo-logic-engine-surface",
+      "The engine contract holds: registration validation, the GOAL table, ADR 0002 routing, and both premise "
+      "watchdogs (#645)",
+      Test_ComboLogicEngineSurface },
+    { "combo-logic-fixpoint",
+      "One round terminates, is order-independent, exchanges both ways, and proves the pair-level goal that removing "
+      "the MM host un-proves (#645)",
+      Test_ComboLogicFixpoint },
+    { "combo-logic-fill",
+      "The single-bag fill is seed-determined, `none` draws from all empties with no round run, and beat-either is "
+      "never biased (#645)",
+      Test_ComboLogicFill },
     // The OoT ENGINE behind that coordinator (#645, lane K2a). `rando` tier: every
     // fact it asserts is a function of a fill result and of the region graph, so a
     // ROM-free run would make the whole row vacuous rather than red.
-    {"oot-logic-export",
-     "OoT's real solver satisfies the combo-logic engine contract: the detach resets, identical queries agree across "
-     "a residue-producing search, and no placement or save byte moves (#645)",
-     Test_OoTLogicExport},
+    { "oot-logic-export",
+      "OoT's real solver satisfies the combo-logic engine contract: the detach resets, identical queries agree across "
+      "a residue-producing search, and no placement or save byte moves (#645)",
+      Test_OoTLogicExport },
     // MM's REAL engine behind that surface (#645 increment 3). Needs MM's boot for
     // the same reason mm-trick-gbt-gate does — every answer is a std::function
     // inside the ShipInit-populated Rando::Logic::Regions — so `--test all` skips
@@ -6083,18 +6080,18 @@ const TestDescriptor gTests[] = {
     // (5, 12) return early from RunLegs on failure, and a hand-written swap-back
     // never ran on those paths, so one failed assertion used to leave the region
     // graph permanently empty for every later row in a `--test all` process.
-    {"mm-combo-logic-engine",
-     "MM's ComboLogicEngine answers from the real region graph, brackets the live save byte-exactly, harvests its "
-     "own-origin placements, is monotone under assume and agrees with itself (#645, ADR 0010 inc. 3)",
-     Test_MMComboLogicEngine},
-    {"combo-logic-contract-edges",
-     "An engine may offer a whole check pool of hosts, a beginQuery that refuses after detaching still gets its "
-     "endQuery (with or without a snapshot), and RunFill takes both tables empty (#701)",
-     Test_ComboLogicContractEdges},
-    {"combo-logic-forbidden-host",
-     "A round's forbidden host is never harvested or exchanged, an empty forbidden set changes no round, and a host "
-     "its engine cannot withhold is refused (ABI 6, #575 H4)",
-     Test_ComboLogicForbiddenHost},
+    { "mm-combo-logic-engine",
+      "MM's ComboLogicEngine answers from the real region graph, brackets the live save byte-exactly, harvests its "
+      "own-origin placements, is monotone under assume and agrees with itself (#645, ADR 0010 inc. 3)",
+      Test_MMComboLogicEngine },
+    { "combo-logic-contract-edges",
+      "An engine may offer a whole check pool of hosts, a beginQuery that refuses after detaching still gets its "
+      "endQuery (with or without a snapshot), and RunFill takes both tables empty (#701)",
+      Test_ComboLogicContractEdges },
+    { "combo-logic-forbidden-host",
+      "A round's forbidden host is never harvested or exchanged, an empty forbidden set changes no round, and a host "
+      "its engine cannot withhold is refused (ABI 6, #575 H4)",
+      Test_ComboLogicForbiddenHost },
     // Increment 3's two §6.3 MEASUREMENTS, over both real engines at once (#645,
     // lane K3). Needs a real OoT generation AND MM's rando graph, hence the
     // `rando` tier and the `--test all` skip below. It asserts no timing: only
@@ -6103,271 +6100,274 @@ const TestDescriptor gTests[] = {
     // equal, and that the unified save buffer comes back byte-identical to the state
     // MM's shipped profile left it in — checked BEFORE the teardown's restoring
     // memcpy, which is the whole content of that assertion.
-    {"combo-logic-measure",
-     "The linked round's cost and the single-bag fill's convergence, measured over both real solvers; asserts "
-     "termination, seed reproducibility and that the measurement returns the live save to the profile-applied state, "
-     "never a wall clock (#645)",
-     Test_ComboLogicMeasure},
+    { "combo-logic-measure",
+      "The linked round's cost and the single-bag fill's convergence, measured over both real solvers; asserts "
+      "termination, seed reproducibility and that the measurement returns the live save to the profile-applied state, "
+      "never a wall clock (#645)",
+      Test_ComboLogicMeasure },
     // The give probe, deliberately a SEPARATE dispatch with no CTest row: it is
     // designed to abort the process on an id whose give dereferences a NULL
     // MM_gPlayState or gRegEditor, and it measures nothing.
-    {"combo-logic-give-probe",
-     "Diagnostic, NOT a lock: walks MM's giveable vanilla ids through Rando::GiveItem headlessly so a fault names the "
-     "id on stderr. No CTest row; RSBS_COMBO_PROBE_FROM resumes past a known fault (#645)",
-     Test_ComboLogicGiveProbe},
+    { "combo-logic-give-probe",
+      "Diagnostic, NOT a lock: walks MM's giveable vanilla ids through Rando::GiveItem headlessly so a fault names the "
+      "id on stderr. No CTest row; RSBS_COMBO_PROBE_FROM resumes past a known fault (#645)",
+      Test_ComboLogicGiveProbe },
     // The single-owner item classification table (ADR 0010 O8; #645 lane K5).
-    {"shared-item-class",
-     "One fill class (progression/junk/renewable/trap) per item of both games, owned by shared_items.c and sourced "
-     "from each engine TU: full coverage, traps never progression, sources agree, a second registration is refused, "
-     "and crossing is a predicate over the frozen settings (ADR 0010 O8)",
-     Test_SharedItemClass},
+    { "shared-item-class",
+      "One fill class (progression/junk/renewable/trap) per item of both games, owned by shared_items.c and sourced "
+      "from each engine TU: full coverage, traps never progression, sources agree, a second registration is refused, "
+      "and crossing is a predicate over the frozen settings (ADR 0010 O8)",
+      Test_SharedItemClass },
     // The multiplicity ruling (2026-09-26, combo_logic.h ABI 3). The stub half is
     // ROM-free; the real-engine half needs a generation and is skipped by
     // `--test all` below like its siblings.
-    {"combo-logic-bag-model",
-     "One assume per COPY (coordinator shape over a counting stub); surplus copies on the rung's host source and "
-     "dropped last-first and deterministically, leftover hosts handed to each game's own per-game pass, exact fit, "
-     "and surplus never load-bearing (#645)",
-     Test_ComboLogicBagModel},
-    {"combo-logic-multiplicity",
-     "Over both real engines: OoT progressive copies stop at the top tier and OoT counters at their derived maxima "
-     "(each wraps or overshoots without the clamp), rounds are order-independent (red half observed), MM counters "
-     "stop at their derived maxima, and the own-origin harvest is per host (#645)",
-     Test_ComboLogicMultiplicity},
+    { "combo-logic-bag-model",
+      "One assume per COPY (coordinator shape over a counting stub); surplus copies on the rung's host source and "
+      "dropped last-first and deterministically, leftover hosts handed to each game's own per-game pass, exact fit, "
+      "and surplus never load-bearing (#645)",
+      Test_ComboLogicBagModel },
+    { "combo-logic-multiplicity",
+      "Over both real engines: OoT progressive copies stop at the top tier and OoT counters at their derived maxima "
+      "(each wraps or overshoots without the clamp), rounds are order-independent (red half observed), MM counters "
+      "stop at their derived maxima, and the own-origin harvest is per host (#645)",
+      Test_ComboLogicMultiplicity },
     // ADR 0010 answer O6's grow-check (#645, #500). Needs a generation; skipped
     // by `--test all` below like its siblings.
-    {"combo-logic-monotonicity",
-     "Over both real engines: the bag (required, surplus and filler copies, traps included) granted one copy at a "
-     "time in four orders, tricks off and on - the reached check and region sets never shrink, the orders close "
-     "on one set, tricks only add, the coordinator's prefixes never lose a host, and a planted negated edge goes "
-     "red at its item's grant (ADR 0010 O6)",
-     Test_ComboLogicMonotonicity},
+    { "combo-logic-monotonicity",
+      "Over both real engines: the bag (required, surplus and filler copies, traps included) granted one copy at a "
+      "time in four orders, tricks off and on - the reached check and region sets never shrink, the orders close "
+      "on one set, tricks only add, the coordinator's prefixes never lose a host, and a planted negated edge goes "
+      "red at its item's grant (ADR 0010 O6)",
+      Test_ComboLogicMonotonicity },
     // ADR 0010 O7 (#645): the cross-game placement store. Redship tier, ROM-free.
-    {"crossing-store-roundtrip",
-     "The crossing store: capture keeps only the coordinator's crossings, both give-path accessors read them (pinned "
-     "first), hydrate rebuilds the coordinator with no engine call and re-captures byte-identical, freeze/restore/arm "
-     "leave the block exact, KEEP/DROP invalidation, a refused capture leaves the store empty (ADR 0010 O7)",
-     Test_CrossingStoreRoundtrip},
-    {"crossing-store-capacity",
-     "The crossing store holds exactly its cap per host; one over is refused and never truncated through the API and "
-     "a crafted .redsave; bad rows and repeated hosts are refused; the frozen set refuses divergence (ADR 0010 O7)",
-     Test_CrossingStoreCapacity},
-    {"crossing-store-redsave",
-     "The .redsave is format v3 and its Tier-4 is the serialized crossing block; save/load is byte-identical with MM "
-     "never booted; a refused load applies nothing; malformed and truncated blocks refuse; v2 loads empty (ADR 0010 O7)",
-     Test_CrossingStoreRedsave},
-    {"crossing-store-spoiler",
-     "combo.crossingStore round-trips write -> load byte-identical, reloads as a no-op, and refuses a different frozen "
-     "set, an unreproduced digest and an absent origin without changing the store (ADR 0010 O7)",
-     Test_CrossingStoreSpoiler},
+    { "crossing-store-roundtrip",
+      "The crossing store: capture keeps only the coordinator's crossings, both give-path accessors read them (pinned "
+      "first), hydrate rebuilds the coordinator with no engine call and re-captures byte-identical, freeze/restore/arm "
+      "leave the block exact, KEEP/DROP invalidation, a refused capture leaves the store empty (ADR 0010 O7)",
+      Test_CrossingStoreRoundtrip },
+    { "crossing-store-capacity",
+      "The crossing store holds exactly its cap per host; one over is refused and never truncated through the API and "
+      "a crafted .redsave; bad rows and repeated hosts are refused; the frozen set refuses divergence (ADR 0010 O7)",
+      Test_CrossingStoreCapacity },
+    { "crossing-store-redsave",
+      "The .redsave is format v3 and its Tier-4 is the serialized crossing block; save/load is byte-identical with MM "
+      "never booted; a refused load applies nothing; malformed and truncated blocks refuse; v2 loads empty (ADR 0010 "
+      "O7)",
+      Test_CrossingStoreRedsave },
+    { "crossing-store-spoiler",
+      "combo.crossingStore round-trips write -> load byte-identical, reloads as a no-op, and refuses a different "
+      "frozen "
+      "set, an unreproduced digest and an absent origin without changing the store (ADR 0010 O7)",
+      Test_CrossingStoreSpoiler },
     // #705: loose (unpacked) asset folders. The mount row MOUNTS extra archives into
     // the shared ArchiveManager and restores it from a snapshot on the way out, the
     // mm-mods-mount discipline; placed last so nothing after it could inherit a
     // re-order even if that restore regressed.
-    {"loose-mods-discovery",
-     "Each game's loose asset folder is found only as the first folder of its own half of the shared mods/ tree "
-     "(#705)",
-     Test_LooseModsDiscovery},
-    {"loose-mods-mount",
-     "A loose file under each game's mods partition overrides its base archive and packed mods, is re-applied on "
-     "arrival, is registered only to its own game, and is shadowed by the other game's base archives there (#705)",
-     Test_LooseModsMount},
+    { "loose-mods-discovery",
+      "Each game's loose asset folder is found only as the first folder of its own half of the shared mods/ tree "
+      "(#705)",
+      Test_LooseModsDiscovery },
+    { "loose-mods-mount",
+      "A loose file under each game's mods partition overrides its base archive and packed mods, is re-applied on "
+      "arrival, is registered only to its own game, and is shadowed by the other game's base archives there (#705)",
+      Test_LooseModsMount },
     // ADR 0010 answer O10. The first row is display-free and ROM-free; the
     // second drives both games' real give arms and is skipped by `--test all`
     // below like its rando-tier siblings.
-    {"combo-triforce-hunt",
-     "One shared triforce piece count across both worlds: the frozen record's rule and refusal, the MONOTONIC "
-     "discipline pin, k+m in both games through both real shims, the win decision, and the coordinator's "
-     "triforce-hunt predicate over stub engines (ADR 0010 O10)",
-     Test_ComboTriforceHunt},
-    {"rando-triforce-hunt-win",
-     "Both games' real piece-give arms: unarmed each ends its own hunt as upstream; paired, only the combo requirement "
-     "ends the combo, in whichever game reaches it (ADR 0010 O10)",
-     Test_RandoTriforceHuntWin},
+    { "combo-triforce-hunt",
+      "One shared triforce piece count across both worlds: the frozen record's rule and refusal, the MONOTONIC "
+      "discipline pin, k+m in both games through both real shims, the win decision, and the coordinator's "
+      "triforce-hunt predicate over stub engines (ADR 0010 O10)",
+      Test_ComboTriforceHunt },
+    { "rando-triforce-hunt-win",
+      "Both games' real piece-give arms: unarmed each ends its own hunt as upstream; paired, only the combo "
+      "requirement "
+      "ends the combo, in whichever game reaches it (ADR 0010 O10)",
+      Test_RandoTriforceHuntWin },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
-    {"combo-logic-bag-composition",
-     "Over both real pools: the composed bag holds progression copies only (plentiful copies as surplus, restricted "
-     "passes confined, filler and traps counted), surplus follows the profile, and MM's heart rows are REQUIRED and "
-     "load-bearing for CHECK_MAX_HP (#731, #733)",
-     Test_ComboLogicBagComposition},
+    { "combo-logic-bag-composition",
+      "Over both real pools: the composed bag holds progression copies only (plentiful copies as surplus, restricted "
+      "passes confined, filler and traps counted), surplus follows the profile, and MM's heart rows are REQUIRED and "
+      "load-bearing for CHECK_MAX_HP (#731, #733)",
+      Test_ComboLogicBagComposition },
     // #726: OoT's own fill under a plentiful pool. Needs a generation; skipped by
     // `--test all` below like its siblings.
-    {"oot-plentiful-progressive",
-     "OoT's own fill on a plentiful + tycoon profile: after the native full-world harvest no progressive tier is "
-     "past its top and the wallet rests at the tycoon tier instead of wrapping to 0 (#726)",
-     Test_OoTPlentifulProgressive},
+    { "oot-plentiful-progressive",
+      "OoT's own fill on a plentiful + tycoon profile: after the native full-world harvest no progressive tier is "
+      "past its top and the wallet rests at the tycoon tier instead of wrapping to 0 (#726)",
+      Test_OoTPlentifulProgressive },
     // The UI snapshot harness: its display-free pixel half, then the window-bound
     // capture itself (skipped by `--test all`; the `ui` CTest label runs it).
-    {"ui-snapshot-image",
-     "The UI snapshot harness's PNG writer, decoder, content hash, blank-page oracle and composites round-trip "
-     "a synthetic image",
-     Test_UiSnapshotImage},
-    {"ui-snapshot",
-     "Render SoH's reference menu pages and every RedShipBlueShip page into PNGs, text logs and a manifest "
-     "(structure-only asserts; RSBS_UI_SNAPSHOT_* env)",
-     Test_UiSnapshot},
+    { "ui-snapshot-image",
+      "The UI snapshot harness's PNG writer, decoder, content hash, blank-page oracle and composites round-trip "
+      "a synthetic image",
+      Test_UiSnapshotImage },
+    { "ui-snapshot",
+      "Render SoH's reference menu pages and every RedShipBlueShip page into PNGs, text logs and a manifest "
+      "(structure-only asserts; RSBS_UI_SNAPSHOT_* env)",
+      Test_UiSnapshot },
     // ADR 0010 increment 3 (lane K11): the single-bag fill at the creation event
     // over both real engines, and D5's pair-level locks paired with removal.
     // Needs a generation; skipped by `--test all` below like its siblings.
-    {"combo-single-bag",
-     "The single-bag fill at the creation event over both real engines: the GOAL proven with crossings both ways on "
-     "deliverable hosts, D5's removal locks in both directions, the direction gate, and OoT's remainder",
-     Test_ComboSingleBag},
-    {"shared-quantity-policy",
-     "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "
-     "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
-     "trimmed hearts end the shared bar at exactly 320 with zero dead pickups (lane K13)",
-     Test_SharedQuantityPolicy},
-    {"mm-abandoned-session-statics",
-     "A cross-game departure retires MM's abandoned Play session: overlays with live clients are reset once "
-     "(En_Test4's clock latch) after the graph is retired, client-free overlays are not, the statics only Destroy "
-     "restored are restored, and no per-actor ObjectExtension entry survives (#666)",
-     Test_MMAbandonedSessionStatics},
-    {"mm-mod-set",
-     "MM's enabled mod set: enable, disable and reorder round-trip through the persisted lists; unset lists keep the "
-     "stem order, new archives arrive enabled on top, a disabled mod stays disabled (#706)",
-     Test_MMModSet},
-    {"combo-gameover-revive",
-     "An F10 from either game's game-over screen revives the departing bar to that game's continue value (a spent "
-     "fairy's refill mid-revive) before the freeze, and the other game arrives with it, not the one-heart floor "
-     "(#664, #626)",
-     Test_ComboGameOverRevive},
-    {"foreign-textbox-icon",
-     "A foreign (OoT) item picked up in MM shows OoT's own icon in the blue get-item textbox: every OoT progression "
-     "item answers a well-formed icon with an MM textbox branch, unknown ids fall back to the icon-less textbox, and "
-     "the real load, header decode and draw carry it (#607)",
-     Test_ForeignTextboxIcon},
-    {"foreign-model",
-     "A foreign item's get-item model is answered by its origin game: every draw row and progression item of both "
-     "games classifies to a descriptor of its own display lists, a host-native model or a named no-model, "
-     "descriptors round-trip, and the collision table matches both asset trees (#577 M2)",
-     Test_ForeignModel},
-    {"combo-crossing-views",
-     "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
-     "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",
-     Test_ComboCrossingViews},
-    {"combo-crossing-views-world",
-     "Over the ComboSingleBag pinned seed's real single-bag world, both panes list exactly the one spoiler's "
-     "combo.crossingStore rows, named, found per host (#755, #757)",
-     Test_ComboCrossingViewsWorld},
-    {"combo-goal-ending",
-     "The paired game ends when the frozen goal is met, in the game whose final boss meets it: beat-both withholds "
-     "the first boss's ending and plays the second's, single-game goals end on their own boss, triforce-hunt on the "
-     "shared count, unpaired files as upstream; each port's redirect, Time Splits, fail-open, and every call site "
-     "wired under its guard (#762)",
-     Test_ComboGoalEnding},
-    {"oot-abandoned-session-statics",
-     "A cross-game departure retires OoT's abandoned Play session, twice: ActorDB entries with live clients are "
-     "reset once each time after the graph is retired and no client count outlives a departure, client-free entries "
-     "are not reset, the statics only Destroy restored are restored, and no per-actor ObjectExtension entry survives "
-     "(#750)",
-     Test_OoTAbandonedSessionStatics},
-    {"rando-settings-fold-excludes",
-     "Every per-area exclude-location group reaches OoT's settings fingerprint at its shipped size, whichever "
-     "archives are mounted (#702)",
-     Test_RandoSettingsFoldExcludes},
-    {"mm-creation-new-file",
-     "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
-     "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
-     "alone, the slot panel reads it started under that name, and a moon crash restores the last whole commit "
-     "(#765, #773, #785)",
-     Test_MMCreationNewFile},
-    {"mm-creation-new-file-world",
-     "The production paired creation over the ComboSingleBag pinned seed arms an MM half MM's own new-file path "
-     "would recognize: OoT's typed name in MM's charset, marker, fileNum 0xFF, tracker present, slot started under "
-     "that name, a moon crash restores the last whole commit (#765, #773, #785)",
-     Test_MMCreationNewFileWorld},
-    {"digest-out-hand-run",
-     "A digest dispatch run without its output variable prints a one-line notice that it wrote NO digest file, "
-     "naming the variable and the CTest rows that do; set, it resolves the exact path; every digest dispatch "
-     "resolves through the one resolver (#710)",
-     Test_DigestOutHandRun},
-    {"pairing-refusal-toast-fit",
-     "Every cross-game refusal toast fits a 640-px and an 832-px window at Notifications.Size 1.8 and 1.0, drawn "
-     "by SoH's own notification overlay in its default font (#749's toast shape), at the player's size from 832 px "
-     "up (#906); every MM item's OoT pickup toast reads 'You found <item> (MM)' and fits too (#865, #906); the "
-     "load's 'Restored ...' toasts fit a 640-px and an 832-px window (#881)",
-     Test_PairingRefusalToastFit},
-    {"paired-load-restore",
-     "Loading a paired file whose Cross-Game Rules or MM options changed at the title screen restores the file's "
-     "own values, names them in a toast, and never plays the file unpaired; what the file cannot restore is "
-     "refused or flagged visibly (#781)",
-     Test_PairedLoadRestore},
-    {"oot-file-select-refusal",
-     "A file the open path would refuse is not opened at the OoT file select (A/START consumed, one toast, nothing "
-     "written), and a load refused after the gate returns to the file select instead of Play (#836)",
-     Test_OoTFileSelectRefusal},
-    {"crossing-commit",
-     "Every cross-game crossing is a whole-file commit taken between the departing suspend and the target's "
-     "resume: a kill after the crossing reloads it; a latched, slot-less, freeze-less or not-live departure "
-     "writes nothing (#837)",
-     Test_CrossingCommit},
-    {"oot-check-state-load",
-     "After a load, OoT's check statuses follow the save half that was loaded: a heart piece the newer .redsave "
-     "half holds reads found, a chest that half has closed gives its item again, and a check whose flag both "
-     "halves agree on keeps its status (#849, #803)",
-     Test_OoTCheckStateLoad},
-    {"combo-player-name",
-     "The paired world has one name: OoT's typed name, in each OoT filename charset, translates into MM's charset "
-     "as OoTMM's copyName does (no-glyph bytes to MM's space), every typable character prints in MM as in OoT, "
-     "and the slot panel decodes MM's charset (#773)",
-     Test_ComboPlayerName},
-    {"test-window-no-activation",
-     "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
-     "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
-     Test_TestWindowNoActivation},
-    {"version-short-commit",
-     "The window title and --version read the release version plus the configured short commit (and -dirty), so "
-     "a build says which commit it is; the release part stays RSBS_VERSION_STRING (#880)",
-     Test_VersionShortCommit},
-    {"mm-moon-crash-never-saved",
-     "A moon crash in a paired MM half created and never saved restores the half as created (its only commit is "
-     "the creation's, vanilla's new-file flash write): day 0, 05:59, not day 4; a session with no commit at all "
-     "restarts the clock at dawn and keeps the half (#785)",
-     Test_MMMoonCrashNeverSaved},
-    {"mm-moon-crash-pool-applied",
-     "A moon crash that restores a commit taken on OoT's side (the pool moved after MM's departure) leaves MM's "
-     "rupees, health and ammo EQUAL to the restored pool, and a later spend is an exact delta (#785)",
-     Test_MMMoonCrashPoolApplied},
-    {"oot-departure-windmill-flag",
-     "A cross-game departure (F10 or door) from the windmill with the gear live freezes the Song of Storms windmill "
-     "flag cleared, as the gear's Destroy leaves it on any non-cutscene exit; no gear, a cutscene, or no PlayState "
-     "writes nothing (#770)",
-     Test_OoTDepartureWindmillFlag},
-    {"oot-departure-lake-flag",
-     "A cross-game departure from Lake Hylia in rando after the Water Temple blue warp freezes the lake raised and "
-     "puts the river water box back, as the lake objects' Destroy does on any exit; vanilla, no blue warp, no lake "
-     "object or no PlayState keep the save as it is (#770)",
-     Test_OoTDepartureLakeFlag},
-    {"oot-departure-sun-switch-flag",
-     "With SoH's Sunlight Arrows, a cross-game departure (F10 or door) freezes a sun switch a Light Arrow lit "
-     "unset, as its Destroy leaves it on any exit; sunlight, BURN, room 25, destroy order, no destroy or no "
-     "PlayState keep it as the Destroy would (#807)",
-     Test_OoTDepartureSunSwitchFlag},
-    {"oot-departure-link-age",
-     "A cross-game departure between an age-change write and its reload freezes linkAge = linkAgeOnLoad wearing "
-     "the new age's equipment, as Play_Destroy's swap and the Player Destroy leave it; no pending change, no Player "
-     "or no PlayState write nothing (#807)",
-     Test_OoTDepartureLinkAge},
-    {"array-reader-agreement",
-     "OoT's and MM's 'OARR' Array readers fill vertices identically: the boot check, then a synthetic payload whose "
-     "one-line reader mutations are each detected (#604)",
-     Test_ArrayReaderAgreement},
-    {"array-reader-agreement-mm",
-     "Real MM vertex arrays parse identically through both readers, and the production 'Array' slot hands MM's "
-     "archive to MM's reader: the Zora barrier's X8 alpha bytes equal the file's (#604)",
-     Test_ArrayReaderAgreementMM},
-    {"array-reader-dispatch",
-     "ROM-free: the per-archive 'Array' slot hands an MM-recorded archive's file to MM's reader and an unowned "
-     "archive's to OoT's, over two staged loose-folder archives (#604)",
-     Test_ArrayReaderDispatch},
-    {"combo-save-files-view",
-     "The Combo > Save Files page's model: every .redsave refusal reason has short player words, a refusal that "
-     "posted a toast shows that toast's words, each slot state yields its row, one cached read serves every frame "
-     "until the page opens or the save state moves, and the note names each case (lane W5)",
-     Test_ComboSaveFilesView},
-    {nullptr, nullptr, nullptr}  // Sentinel
+    { "combo-single-bag",
+      "The single-bag fill at the creation event over both real engines: the GOAL proven with crossings both ways on "
+      "deliverable hosts, D5's removal locks in both directions, the direction gate, and OoT's remainder",
+      Test_ComboSingleBag },
+    { "shared-quantity-policy",
+      "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "
+      "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
+      "trimmed hearts end the shared bar at exactly 320 with zero dead pickups (lane K13)",
+      Test_SharedQuantityPolicy },
+    { "mm-abandoned-session-statics",
+      "A cross-game departure retires MM's abandoned Play session: overlays with live clients are reset once "
+      "(En_Test4's clock latch) after the graph is retired, client-free overlays are not, the statics only Destroy "
+      "restored are restored, and no per-actor ObjectExtension entry survives (#666)",
+      Test_MMAbandonedSessionStatics },
+    { "mm-mod-set",
+      "MM's enabled mod set: enable, disable and reorder round-trip through the persisted lists; unset lists keep the "
+      "stem order, new archives arrive enabled on top, a disabled mod stays disabled (#706)",
+      Test_MMModSet },
+    { "combo-gameover-revive",
+      "An F10 from either game's game-over screen revives the departing bar to that game's continue value (a spent "
+      "fairy's refill mid-revive) before the freeze, and the other game arrives with it, not the one-heart floor "
+      "(#664, #626)",
+      Test_ComboGameOverRevive },
+    { "foreign-textbox-icon",
+      "A foreign (OoT) item picked up in MM shows OoT's own icon in the blue get-item textbox: every OoT progression "
+      "item answers a well-formed icon with an MM textbox branch, unknown ids fall back to the icon-less textbox, and "
+      "the real load, header decode and draw carry it (#607)",
+      Test_ForeignTextboxIcon },
+    { "foreign-model",
+      "A foreign item's get-item model is answered by its origin game: every draw row and progression item of both "
+      "games classifies to a descriptor of its own display lists, a host-native model or a named no-model, "
+      "descriptors round-trip, and the collision table matches both asset trees (#577 M2)",
+      Test_ForeignModel },
+    { "combo-crossing-views",
+      "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
+      "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",
+      Test_ComboCrossingViews },
+    { "combo-crossing-views-world",
+      "Over the ComboSingleBag pinned seed's real single-bag world, both panes list exactly the one spoiler's "
+      "combo.crossingStore rows, named, found per host (#755, #757)",
+      Test_ComboCrossingViewsWorld },
+    { "combo-goal-ending",
+      "The paired game ends when the frozen goal is met, in the game whose final boss meets it: beat-both withholds "
+      "the first boss's ending and plays the second's, single-game goals end on their own boss, triforce-hunt on the "
+      "shared count, unpaired files as upstream; each port's redirect, Time Splits, fail-open, and every call site "
+      "wired under its guard (#762)",
+      Test_ComboGoalEnding },
+    { "oot-abandoned-session-statics",
+      "A cross-game departure retires OoT's abandoned Play session, twice: ActorDB entries with live clients are "
+      "reset once each time after the graph is retired and no client count outlives a departure, client-free entries "
+      "are not reset, the statics only Destroy restored are restored, and no per-actor ObjectExtension entry survives "
+      "(#750)",
+      Test_OoTAbandonedSessionStatics },
+    { "rando-settings-fold-excludes",
+      "Every per-area exclude-location group reaches OoT's settings fingerprint at its shipped size, whichever "
+      "archives are mounted (#702)",
+      Test_RandoSettingsFoldExcludes },
+    { "mm-creation-new-file",
+      "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
+      "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
+      "alone, the slot panel reads it started under that name, and a moon crash restores the last whole commit "
+      "(#765, #773, #785)",
+      Test_MMCreationNewFile },
+    { "mm-creation-new-file-world",
+      "The production paired creation over the ComboSingleBag pinned seed arms an MM half MM's own new-file path "
+      "would recognize: OoT's typed name in MM's charset, marker, fileNum 0xFF, tracker present, slot started under "
+      "that name, a moon crash restores the last whole commit (#765, #773, #785)",
+      Test_MMCreationNewFileWorld },
+    { "digest-out-hand-run",
+      "A digest dispatch run without its output variable prints a one-line notice that it wrote NO digest file, "
+      "naming the variable and the CTest rows that do; set, it resolves the exact path; every digest dispatch "
+      "resolves through the one resolver (#710)",
+      Test_DigestOutHandRun },
+    { "pairing-refusal-toast-fit",
+      "Every cross-game refusal toast fits a 640-px and an 832-px window at Notifications.Size 1.8 and 1.0, drawn "
+      "by SoH's own notification overlay in its default font (#749's toast shape), at the player's size from 832 px "
+      "up (#906); every MM item's OoT pickup toast reads 'You found <item> (MM)' and fits too (#865, #906); the "
+      "load's 'Restored ...' toasts fit a 640-px and an 832-px window (#881)",
+      Test_PairingRefusalToastFit },
+    { "paired-load-restore",
+      "Loading a paired file whose Cross-Game Rules or MM options changed at the title screen restores the file's "
+      "own values, names them in a toast, and never plays the file unpaired; what the file cannot restore is "
+      "refused or flagged visibly (#781)",
+      Test_PairedLoadRestore },
+    { "oot-file-select-refusal",
+      "A file the open path would refuse is not opened at the OoT file select (A/START consumed, one toast, nothing "
+      "written), and a load refused after the gate returns to the file select instead of Play (#836)",
+      Test_OoTFileSelectRefusal },
+    { "crossing-commit",
+      "Every cross-game crossing is a whole-file commit taken between the departing suspend and the target's "
+      "resume: a kill after the crossing reloads it; a latched, slot-less, freeze-less or not-live departure "
+      "writes nothing (#837)",
+      Test_CrossingCommit },
+    { "oot-check-state-load",
+      "After a load, OoT's check statuses follow the save half that was loaded: a heart piece the newer .redsave "
+      "half holds reads found, a chest that half has closed gives its item again, and a check whose flag both "
+      "halves agree on keeps its status (#849, #803)",
+      Test_OoTCheckStateLoad },
+    { "combo-player-name",
+      "The paired world has one name: OoT's typed name, in each OoT filename charset, translates into MM's charset "
+      "as OoTMM's copyName does (no-glyph bytes to MM's space), every typable character prints in MM as in OoT, "
+      "and the slot panel decodes MM's charset (#773)",
+      Test_ComboPlayerName },
+    { "test-window-no-activation",
+      "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
+      "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
+      Test_TestWindowNoActivation },
+    { "version-short-commit",
+      "The window title and --version read the release version plus the configured short commit (and -dirty), so "
+      "a build says which commit it is; the release part stays RSBS_VERSION_STRING (#880)",
+      Test_VersionShortCommit },
+    { "mm-moon-crash-never-saved",
+      "A moon crash in a paired MM half created and never saved restores the half as created (its only commit is "
+      "the creation's, vanilla's new-file flash write): day 0, 05:59, not day 4; a session with no commit at all "
+      "restarts the clock at dawn and keeps the half (#785)",
+      Test_MMMoonCrashNeverSaved },
+    { "mm-moon-crash-pool-applied",
+      "A moon crash that restores a commit taken on OoT's side (the pool moved after MM's departure) leaves MM's "
+      "rupees, health and ammo EQUAL to the restored pool, and a later spend is an exact delta (#785)",
+      Test_MMMoonCrashPoolApplied },
+    { "oot-departure-windmill-flag",
+      "A cross-game departure (F10 or door) from the windmill with the gear live freezes the Song of Storms windmill "
+      "flag cleared, as the gear's Destroy leaves it on any non-cutscene exit; no gear, a cutscene, or no PlayState "
+      "writes nothing (#770)",
+      Test_OoTDepartureWindmillFlag },
+    { "oot-departure-lake-flag",
+      "A cross-game departure from Lake Hylia in rando after the Water Temple blue warp freezes the lake raised and "
+      "puts the river water box back, as the lake objects' Destroy does on any exit; vanilla, no blue warp, no lake "
+      "object or no PlayState keep the save as it is (#770)",
+      Test_OoTDepartureLakeFlag },
+    { "oot-departure-sun-switch-flag",
+      "With SoH's Sunlight Arrows, a cross-game departure (F10 or door) freezes a sun switch a Light Arrow lit "
+      "unset, as its Destroy leaves it on any exit; sunlight, BURN, room 25, destroy order, no destroy or no "
+      "PlayState keep it as the Destroy would (#807)",
+      Test_OoTDepartureSunSwitchFlag },
+    { "oot-departure-link-age",
+      "A cross-game departure between an age-change write and its reload freezes linkAge = linkAgeOnLoad wearing "
+      "the new age's equipment, as Play_Destroy's swap and the Player Destroy leave it; no pending change, no Player "
+      "or no PlayState write nothing (#807)",
+      Test_OoTDepartureLinkAge },
+    { "array-reader-agreement",
+      "OoT's and MM's 'OARR' Array readers fill vertices identically: the boot check, then a synthetic payload whose "
+      "one-line reader mutations are each detected (#604)",
+      Test_ArrayReaderAgreement },
+    { "array-reader-agreement-mm",
+      "Real MM vertex arrays parse identically through both readers, and the production 'Array' slot hands MM's "
+      "archive to MM's reader: the Zora barrier's X8 alpha bytes equal the file's (#604)",
+      Test_ArrayReaderAgreementMM },
+    { "array-reader-dispatch",
+      "ROM-free: the per-archive 'Array' slot hands an MM-recorded archive's file to MM's reader and an unowned "
+      "archive's to OoT's, over two staged loose-folder archives (#604)",
+      Test_ArrayReaderDispatch },
+    { "combo-save-files-view",
+      "The Combo > Save Files page's model: every .redsave refusal reason has short player words, a refusal that "
+      "posted a toast shows that toast's words, each slot state yields its row, one cached read serves every frame "
+      "until the page opens or the save state moves, and the note names each case (lane W5)",
+      Test_ComboSaveFilesView },
+    { nullptr, nullptr, nullptr } // Sentinel
 };
 
 // Integration tests that require actually booting the game
@@ -6382,30 +6382,30 @@ struct IntegrationTestDescriptor {
 };
 
 const IntegrationTestDescriptor gIntegrationTests[] = {
-    {"int-boot-oot", "Boot OoT and verify title screen (integration)", INT_TEST_BOOT_OOT, GAME_OOT},
-    {"int-boot-mm", "Boot MM and verify title screen (integration)", INT_TEST_BOOT_MM, GAME_MM},
-    {"int-switch-oot-hms-to-mm",
-     "Boot OoT into gameplay on a debug save, trigger Happy Mask Shop entrance (0x0530), verify spawn at MM South "
-     "Clock Town tower exit (0xD800) (#544)",
-     INT_TEST_SWITCH_OOT_HMS_TO_MM, GAME_OOT},
-    {"int-switch-mm-clocktown-south-to-oot",
-     "Boot MM, trigger the Clock Tower door (0xC010), verify spawn at OoT Market from Mask Shop (0x01D1)",
-     INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, GAME_MM},
-    {"int-archive-hotswap-cycle",
-     "Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (no missing assets, bounded RSS) (#263)",
-     INT_TEST_ARCHIVE_HOTSWAP_CYCLE, GAME_OOT},
-    {"int-gameplay-roundtrip",
-     "Operator crash repro: debug save, live gameplay, production OoT<->MM round trip (freeze/restore + "
-     "resume leg), post-return debug warp, door transition. Env: RSBS_GP_FRAMES/CYCLES/BOOT|WARP|EXIT_ENTRANCE",
-     INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT},
-    {"int-paired-first-crossing",
-     "The first crossing of a PAIRED file with the archives mounted, in one process: generate the pinned world "
-     "(RSBSSINGLEBAG1) on the shipped defaults, create the file through OoT's new-file seam (the production creation "
-     "event), load it as the file select does, walk into MM through the Happy Mask Shop, assert the arrival hydrated "
-     "the creation-frozen half (stderr lines, pairing, crossing store, no refusal), and come back restored. "
-     "RSBS_PFC_SKIP_CREATION=1 is the red half",
-     INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT, GP_VARIANT_PAIRED_FIRST_CROSSING},
-    {nullptr, nullptr, INT_TEST_NONE, GAME_NONE}  // Sentinel
+    { "int-boot-oot", "Boot OoT and verify title screen (integration)", INT_TEST_BOOT_OOT, GAME_OOT },
+    { "int-boot-mm", "Boot MM and verify title screen (integration)", INT_TEST_BOOT_MM, GAME_MM },
+    { "int-switch-oot-hms-to-mm",
+      "Boot OoT into gameplay on a debug save, trigger Happy Mask Shop entrance (0x0530), verify spawn at MM South "
+      "Clock Town tower exit (0xD800) (#544)",
+      INT_TEST_SWITCH_OOT_HMS_TO_MM, GAME_OOT },
+    { "int-switch-mm-clocktown-south-to-oot",
+      "Boot MM, trigger the Clock Tower door (0xC010), verify spawn at OoT Market from Mask Shop (0x01D1)",
+      INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, GAME_MM },
+    { "int-archive-hotswap-cycle",
+      "Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (no missing assets, bounded RSS) (#263)",
+      INT_TEST_ARCHIVE_HOTSWAP_CYCLE, GAME_OOT },
+    { "int-gameplay-roundtrip",
+      "Operator crash repro: debug save, live gameplay, production OoT<->MM round trip (freeze/restore + "
+      "resume leg), post-return debug warp, door transition. Env: RSBS_GP_FRAMES/CYCLES/BOOT|WARP|EXIT_ENTRANCE",
+      INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT },
+    { "int-paired-first-crossing",
+      "The first crossing of a PAIRED file with the archives mounted, in one process: generate the pinned world "
+      "(RSBSSINGLEBAG1) on the shipped defaults, create the file through OoT's new-file seam (the production creation "
+      "event), load it as the file select does, walk into MM through the Happy Mask Shop, assert the arrival hydrated "
+      "the creation-frozen half (stderr lines, pairing, crossing store, no refusal), and come back restored. "
+      "RSBS_PFC_SKIP_CREATION=1 is the red half",
+      INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT, GP_VARIANT_PAIRED_FIRST_CROSSING },
+    { nullptr, nullptr, INT_TEST_NONE, GAME_NONE } // Sentinel
 };
 
 TestResult RunSingleTest(const char* name) {
@@ -6452,18 +6452,15 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-armed-caps-digest") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
-                strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
-                strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
-                strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
-                strcmp(gTests[i].name, "mm-paired-start") == 0 ||
+                strcmp(gTests[i].name, "rando-hint-crossgame") == 0 || strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
+                strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 || strcmp(gTests[i].name, "mm-paired-start") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||
                 strcmp(gTests[i].name, "combo-creation-event") == 0 ||
-                strcmp(gTests[i].name, "mm-trick-gbt-gate") == 0 ||
-                strcmp(gTests[i].name, "mm-trick-bindings") == 0 ||
+                strcmp(gTests[i].name, "mm-trick-gbt-gate") == 0 || strcmp(gTests[i].name, "mm-trick-bindings") == 0 ||
                 strcmp(gTests[i].name, "mm-combo-logic-engine") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-measure") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
@@ -6563,9 +6560,7 @@ void TestRunner_ListTests(void) {
     printf("\nIntegration tests (--integration-test <name>):\n");
     printf("  (These tests actually boot the game - requires display/Xvfb)\n\n");
     for (int i = 0; gIntegrationTests[i].name != nullptr; i++) {
-        printf("  %-20s %s\n",
-               gIntegrationTests[i].name,
-               gIntegrationTests[i].description);
+        printf("  %-20s %s\n", gIntegrationTests[i].name, gIntegrationTests[i].description);
     }
 }
 

@@ -200,8 +200,7 @@ extern "C" int MMExtensionRescan_RunHeadless(const char* mmArchivePath) {
         MER_ASSERT(addedWithNoMmArchive == 0, 3,
                    "the 'mm' scope added entries with no MM archive mounted — the archive-ownership filter is "
                    "not scoping anything");
-        MER_ASSERT(Combo_ExtensionCache_Size() == sizeAfterOotScan, 3,
-                   "the no-op 'mm' scan changed the cache size");
+        MER_ASSERT(Combo_ExtensionCache_Size() == sizeAfterOotScan, 3, "the no-op 'mm' scan changed the cache size");
     }
 
     // ---- Mount MM's archive, the way MM mounts one ------------------------
@@ -273,8 +272,7 @@ extern "C" int MMExtensionRescan_RunHeadless(const char* mmArchivePath) {
     MER_ASSERT(Combo_ExtensionCache_Size() == sizeAfterFirst, 10, "a second rescan changed the cache size");
     MER_ASSERT(ResourceMgr_FileExists(probePath.c_str()) != 0, 10, "the MM probe path was lost by the second rescan");
     for (const auto& path : ootSample) {
-        MER_ASSERT(ResourceMgr_FileExists(path.c_str()) != 0, 10,
-                   "an OoT-owned path was lost by the second rescan");
+        MER_ASSERT(ResourceMgr_FileExists(path.c_str()) != 0, 10, "an OoT-owned path was lost by the second rescan");
     }
 
     // ---- Scoping control, the other direction -----------------------------

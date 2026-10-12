@@ -56,12 +56,12 @@
 
 #include <cstdio>
 
-#define SR_ASSERT(cond)                                                                                                \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s (line %d)\n", #cond, __LINE__);                                                    \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define SR_ASSERT(cond)                                             \
+    do {                                                            \
+        if (!(cond)) {                                              \
+            printf("[TEST] FAIL: %s (line %d)\n", #cond, __LINE__); \
+            return TEST_FAIL;                                       \
+        }                                                           \
     } while (0)
 
 // Both games' real tier-3 wallet capacities. Named rather than inlined because
@@ -469,12 +469,12 @@ TestResult Test_SharedResources(void) {
     // ------------------------------------------------------------------
     SR_FreshWorld();
     static const uint8_t kAllKinds[] = {
-        RSBS_SHARED_RES_RUPEES,          RSBS_SHARED_RES_WALLET_TIER,   RSBS_SHARED_RES_HEALTH_QUARTERS,
-        RSBS_SHARED_RES_HEALTH_CURRENT,  RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_MAGIC_LEVEL,
-        RSBS_SHARED_RES_MAGIC_CURRENT,   RSBS_SHARED_RES_QUIVER_TIER,   RSBS_SHARED_RES_BOMB_BAG_TIER,
-        RSBS_SHARED_RES_STICK_TIER,      RSBS_SHARED_RES_NUT_TIER,      RSBS_SHARED_RES_ARROW_COUNT,
-        RSBS_SHARED_RES_BOMB_COUNT,      RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_STICK_COUNT,
-        RSBS_SHARED_RES_NUT_COUNT,       RSBS_SHARED_RES_HOOKSHOT_TIER,
+        RSBS_SHARED_RES_RUPEES,         RSBS_SHARED_RES_WALLET_TIER,    RSBS_SHARED_RES_HEALTH_QUARTERS,
+        RSBS_SHARED_RES_HEALTH_CURRENT, RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_MAGIC_LEVEL,
+        RSBS_SHARED_RES_MAGIC_CURRENT,  RSBS_SHARED_RES_QUIVER_TIER,    RSBS_SHARED_RES_BOMB_BAG_TIER,
+        RSBS_SHARED_RES_STICK_TIER,     RSBS_SHARED_RES_NUT_TIER,       RSBS_SHARED_RES_ARROW_COUNT,
+        RSBS_SHARED_RES_BOMB_COUNT,     RSBS_SHARED_RES_BOMBCHU_COUNT,  RSBS_SHARED_RES_STICK_COUNT,
+        RSBS_SHARED_RES_NUT_COUNT,      RSBS_SHARED_RES_HOOKSHOT_TIER,
     };
     const int kAllKindCount = (int)(sizeof(kAllKinds) / sizeof(kAllKinds[0]));
     SR_ASSERT(kAllKindCount > (int)RSBS_SHARED_RESOURCE_CAP); // or this proves nothing

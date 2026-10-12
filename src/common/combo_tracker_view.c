@@ -19,7 +19,7 @@
 
 #include "context.h"        // Context_GetMMSaveContext / Context_GetCurrentGame
 #include "crossing_store.h" // Combo_Crossings_Count / Combo_Crossings_At (#755)
-#include "game.h"    // MM_SAVE_CONTEXT_SIZE
+#include "game.h"           // MM_SAVE_CONTEXT_SIZE
 
 #include <stdio.h>
 #include <string.h>

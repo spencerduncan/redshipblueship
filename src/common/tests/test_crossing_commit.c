@@ -233,9 +233,9 @@ TestResult XcExpectNoWrite(const char* what, GameId departing, void (*arrange)(v
         return TEST_FAIL;
     }
     const XcBlob after = XcReadFile(mgr.SlotPath(0));
-    printf("[TEST] crossing-commit: %s: generation %u -> %u, file %s, sourceGame %d -> %d\n", what,
-           (unsigned)genBefore, (unsigned)gComboCtx.commitGeneration, after == before ? "unchanged" : "CHANGED",
-           (int)departing, (int)gComboCtx.sourceGame);
+    printf("[TEST] crossing-commit: %s: generation %u -> %u, file %s, sourceGame %d -> %d\n", what, (unsigned)genBefore,
+           (unsigned)gComboCtx.commitGeneration, after == before ? "unchanged" : "CHANGED", (int)departing,
+           (int)gComboCtx.sourceGame);
     if (gComboCtx.commitGeneration != genBefore || after != before) {
         printf("[TEST] FAIL (crossing-commit): %s: a crossing that must write nothing moved the file or the "
                "generation\n",
@@ -288,7 +288,7 @@ void XcArrangeNotLiveMM() {
     Switch_PrepareHotSwap(GAME_MM, bootstrap.data(), bootstrap.size());
 }
 
-}  // namespace
+} // namespace
 
 TestResult Test_CrossingCommit(void) {
     printf("[TEST] crossing-commit: every cross-game crossing is a whole-file commit (#837)\n");
@@ -329,8 +329,7 @@ TestResult Test_CrossingCommit(void) {
     mgr.SetActiveSlot(0);
     XC_ASSERT(RsbsSave_LoadSlotChecked(0, g) == RSBS_LOAD_OK, "the slot loads after the kill");
     printf("[TEST] crossing-commit: leg 1: reloaded generation %u (last save %u), skew %d, sourceGame %d\n",
-           (unsigned)gComboCtx.commitGeneration, (unsigned)g, RsbsSave_GetSlotCommitSkew(0),
-           (int)gComboCtx.sourceGame);
+           (unsigned)gComboCtx.commitGeneration, (unsigned)g, RsbsSave_GetSlotCommitSkew(0), (int)gComboCtx.sourceGame);
     XC_ASSERT(gComboCtx.commitGeneration == g + 1,
               "the crossing is durable: the file holds a commit taken AT the crossing (generation G+1), not the "
               "last save before it");

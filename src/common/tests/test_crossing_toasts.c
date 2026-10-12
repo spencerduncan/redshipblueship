@@ -70,12 +70,12 @@ uint16_t MM_ForeignItem_TestStandInItemId(void);
 int MM_ForeignItem_TestFlushWithStandInPlay(void);
 }
 
-#define CAT_ASSERT(cond)                                                                                               \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond);                                             \
-            return TEST_FAIL;                                                                                          \
-        }                                                                                                              \
+#define CAT_ASSERT(cond)                                                   \
+    do {                                                                   \
+        if (!(cond)) {                                                     \
+            printf("[TEST] FAIL: %s:%d: %s\n", __FILE__, __LINE__, #cond); \
+            return TEST_FAIL;                                              \
+        }                                                                  \
     } while (0)
 
 /** Print every toast recorded from index @p from on; returns how many. */

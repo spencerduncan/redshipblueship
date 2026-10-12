@@ -8,9 +8,9 @@
 # upstream SoH / 2Ship trees we track.
 #
 # So the gate is enforced on an explicit list that grows incrementally.
-# Seeded with the files touched by the phase-2 cross-game work. Expanding it
-# to the rest of the tree is tracked as a separate issue — add paths here as
-# directories are cleaned up, one reviewable batch at a time.
+# Seeded with the files touched by the phase-2 cross-game work. A game-tree
+# file is added here one at a time, and only when it is RSBS-owned or already
+# format-clean (operator ruling 2026-10-01, #369).
 #
 # Deliberately NOT listed: vendored decomp files whose only RSBS change is a
 # one-line #include, where whole-file reformatting costs far more in upstream
@@ -20,6 +20,17 @@
 # One path per line. Blank lines and #-comments ignored. Every listed path
 # must exist — a stale entry is a hard error, so this list cannot silently
 # rot into another vacuous gate.
+#
+# An entry ending in '/' enrols a whole tree: every tracked .c/.cc/.cpp/.h/.hpp
+# file under it, so a new file there is enforced without being listed here (a
+# tree entry that holds no such file is a hard error too). Only RSBS-owned
+# trees are enrolled this way. The vendored game trees stay file-by-file, and
+# a vendored file is never reformatted just to enrol it (operator ruling
+# 2026-10-01, #369).
+
+# RSBS-owned trees, enforced whole (#369).
+src/common/
+rsbs/
 
 games/mm/2s2h/BenPort.h
 games/mm/2s2h/BenPortHudSingleExe.cpp

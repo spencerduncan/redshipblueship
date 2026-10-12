@@ -120,8 +120,8 @@ std::vector<int> RunRowConcurrently(const char* row, int copies, const std::file
     std::vector<HANDLE> procs(codes.size(), nullptr);
     for (int i = 0; i < copies; i++) {
         SECURITY_ATTRIBUTES sa = { sizeof(sa), nullptr, TRUE };
-        HANDLE log = CreateFileA(logs[i].c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa,
-                                 CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        HANDLE log = CreateFileA(logs[i].c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, CREATE_ALWAYS,
+                                 FILE_ATTRIBUTE_NORMAL, nullptr);
         if (log == INVALID_HANDLE_VALUE) {
             printf("[TestScratch] could not create %s: error %lu\n", logs[i].c_str(), GetLastError());
             continue;

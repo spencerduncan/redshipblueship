@@ -50,15 +50,15 @@
 #ifndef RSBS_COMMON_SAVE_H
 #define RSBS_COMMON_SAVE_H
 
-#include "game.h"     // GameId, OOT_SAVE_CONTEXT_SIZE, MM_SAVE_CONTEXT_SIZE
-#include "context.h"  // ComboContext, gComboCtx, Context_* shadow API
+#include "game.h"    // GameId, OOT_SAVE_CONTEXT_SIZE, MM_SAVE_CONTEXT_SIZE
+#include "context.h" // ComboContext, gComboCtx, Context_* shadow API
 
 #include <stddef.h>
 #include <stdint.h>
 
 // On-disk constants (visible to both C and C++).
-#define RSBS_SAVE_MAGIC      "REDSHIP1"  // 8 bytes, NOT NUL-terminated on disk
-#define RSBS_SAVE_VERSION    3u          // version THIS build writes
+#define RSBS_SAVE_MAGIC "REDSHIP1" // 8 bytes, NOT NUL-terminated on disk
+#define RSBS_SAVE_VERSION 3u       // version THIS build writes
 // The first version that carries the Tier-4 crossing block (ADR 0010 O7). v3
 // changes nothing about Tiers 0-3; it APPENDS Tier-4, which is why v1 and v2
 // stay inside the read window below: they load with an empty crossing store,
@@ -72,8 +72,8 @@
 // zero-extends cleanly. Widen this window rather than bumping VERSION alone —
 // bumping alone is what silently orphans every existing .redsave.
 #define RSBS_SAVE_VERSION_MIN 1u
-#define RSBS_SAVE_ENDIAN_LE  1
-#define RSBS_SAVE_MAX_SLOTS  3           // matches each game's MaxFiles
+#define RSBS_SAVE_ENDIAN_LE 1
+#define RSBS_SAVE_MAX_SLOTS 3 // matches each game's MaxFiles
 
 // ---- Slot state: ABSENT / VALID / REFUSED are three DIFFERENT facts ---------
 // (#533). A .redsave that fails validation used to leave the session in a state
@@ -84,23 +84,23 @@
 // never overwritten in place), the refusing session latches the slot against
 // writes, and the Combo > Save Files page shows REFUSED distinctly from empty.
 typedef enum RsbsSlotState {
-    RSBS_SLOT_ABSENT = 0,   // no slot file (and this session refused nothing)
-    RSBS_SLOT_VALID = 1,    // slot file present, header passes every compat check
-    RSBS_SLOT_REFUSED = 2,  // file failed validation, in place or already quarantined
+    RSBS_SLOT_ABSENT = 0,  // no slot file (and this session refused nothing)
+    RSBS_SLOT_VALID = 1,   // slot file present, header passes every compat check
+    RSBS_SLOT_REFUSED = 2, // file failed validation, in place or already quarantined
 } RsbsSlotState;
 
 // Why a load/validation was refused. Doubles as the quarantine filename tag so
 // the renamed-aside evidence names its own diagnosis.
 typedef enum RsbsRefuseReason {
     RSBS_REFUSE_NONE = 0,
-    RSBS_REFUSE_UNREADABLE,   // file exists but cannot be opened/read
-    RSBS_REFUSE_HEADER,       // short header / bad magic / endianness / headerSize
-    RSBS_REFUSE_VERSION,      // outside [RSBS_SAVE_VERSION_MIN, RSBS_SAVE_VERSION]
-    RSBS_REFUSE_TIER_SIZE,    // a stored tier size exceeds this build's capacity
-    RSBS_REFUSE_WRONG_SLOT,   // header.slot != the slot this path belongs to
-    RSBS_REFUSE_TRUNCATED,    // a tier read came up short
-    RSBS_REFUSE_CRC,          // payload CRC mismatch
-    RSBS_REFUSE_COMBO_MAGIC,  // Tier-1 bytes are not a ComboContext
+    RSBS_REFUSE_UNREADABLE,  // file exists but cannot be opened/read
+    RSBS_REFUSE_HEADER,      // short header / bad magic / endianness / headerSize
+    RSBS_REFUSE_VERSION,     // outside [RSBS_SAVE_VERSION_MIN, RSBS_SAVE_VERSION]
+    RSBS_REFUSE_TIER_SIZE,   // a stored tier size exceeds this build's capacity
+    RSBS_REFUSE_WRONG_SLOT,  // header.slot != the slot this path belongs to
+    RSBS_REFUSE_TRUNCATED,   // a tier read came up short
+    RSBS_REFUSE_CRC,         // payload CRC mismatch
+    RSBS_REFUSE_COMBO_MAGIC, // Tier-1 bytes are not a ComboContext
     // #537/#531: OoT's .sav mirrors a commit generation NEWER than the
     // .redsave's Tier-1 stamp — at least one durable .redsave commit is
     // missing (a write failed, or the file was replaced from elsewhere).
@@ -148,9 +148,9 @@ typedef enum RsbsRefuseReason {
 // What a load attempt actually did — richer than the old bool, because ABSENT
 // and REFUSED must never collapse into one "false" again.
 typedef enum RsbsLoadOutcome {
-    RSBS_LOAD_OK = 0,       // loaded and committed; slot armed for writes
-    RSBS_LOAD_ABSENT = 1,   // no slot file; nothing loaded; slot armed (safe to create)
-    RSBS_LOAD_REFUSED = 2,  // validation failed; evidence quarantined; writes latched
+    RSBS_LOAD_OK = 0,      // loaded and committed; slot armed for writes
+    RSBS_LOAD_ABSENT = 1,  // no slot file; nothing loaded; slot armed (safe to create)
+    RSBS_LOAD_REFUSED = 2, // validation failed; evidence quarantined; writes latched
 } RsbsLoadOutcome;
 
 // What OoT's .sav records about the world it belongs to (#564 V12), for the
@@ -205,11 +205,11 @@ typedef int (*RsbsResetAcceptHalf)(const uint8_t* mmBlob, size_t size, void* ctx
 // out and that the .redsave file holds in Tier-2 / Tier-3).
 typedef struct RsbsGameMetaDesc {
     uint32_t playerNameOffset;
-    uint32_t playerNameLen;     // <= 8; ReadMeta clamps to 8 either way
-    uint32_t playTimeOffset;    // u32 read at this offset; 0 if not applicable
+    uint32_t playerNameLen;  // <= 8; ReadMeta clamps to 8 either way
+    uint32_t playTimeOffset; // u32 read at this offset; 0 if not applicable
     uint32_t validMarkerOffset;
-    uint32_t validMarkerLen;    // 0 → treat as always-valid (skip the check)
-    uint8_t  validMarker[8];    // expected bytes (e.g. "ZELDAZ", "ZELDA3")
+    uint32_t validMarkerLen; // 0 → treat as always-valid (skip the check)
+    uint8_t validMarker[8];  // expected bytes (e.g. "ZELDAZ", "ZELDA3")
     // Optional (#773). A game's name bytes are in that game's own filename
     // charset, never ASCII, so the panel cannot print them as they are. A
     // registrar that knows its charset supplies this to turn them into
@@ -248,16 +248,16 @@ namespace rsbs {
  * record and, after a restart, `quarantineReason` carry it).
  */
 struct SlotMeta {
-    bool     exists;       // slot file is present and readable
-    bool     valid;        // header passes all build-compat checks (no CRC)
-    uint8_t  slot;         // mirrors header.slot
-    GameId   lastGame;     // ComboContext.sourceGame (last game played in slot)
-    char     ootName[9];   // NUL-terminated player name from the OoT blob
-    char     mmName[9];    // NUL-terminated player name from the MM blob
-    uint32_t ootPlayTime;  // raw u32 at the registered OoT play-time offset
-    uint32_t mmPlayTime;   // raw u32 at the registered MM play-time offset
-    bool     ootStarted;   // OoT's isStarted test passes (file has been started)
-    bool     mmStarted;    // MM  validMarker bytes match
+    bool exists;          // slot file is present and readable
+    bool valid;           // header passes all build-compat checks (no CRC)
+    uint8_t slot;         // mirrors header.slot
+    GameId lastGame;      // ComboContext.sourceGame (last game played in slot)
+    char ootName[9];      // NUL-terminated player name from the OoT blob
+    char mmName[9];       // NUL-terminated player name from the MM blob
+    uint32_t ootPlayTime; // raw u32 at the registered OoT play-time offset
+    uint32_t mmPlayTime;  // raw u32 at the registered MM play-time offset
+    bool ootStarted;      // OoT's isStarted test passes (file has been started)
+    bool mmStarted;       // MM  validMarker bytes match
 
     // #533: REFUSED distinct from ABSENT. `state` folds together what is on
     // disk right now AND what this session refused (a quarantined slot's file
@@ -265,9 +265,9 @@ struct SlotMeta {
     // `refuseReason` names the failing check; `hasQuarantine` reports whether
     // renamed-aside evidence (*.bak) sits next to the slot path, which
     // survives process restarts even after `state` degrades to ABSENT.
-    RsbsSlotState    state;
+    RsbsSlotState state;
     RsbsRefuseReason refuseReason;
-    bool             hasQuarantine;
+    bool hasQuarantine;
     // The reason named in the newest quarantine file's name
     // (`<slot>.refused-<slug>[-N].bak`, RefuseReasonSlug), so a refusal
     // survives a restart as evidence after `state` has gone back to ABSENT.
@@ -313,15 +313,15 @@ std::string SlotNameLine(const SlotMeta& meta);
  * compilers. All multi-byte integers little-endian.
  */
 struct RsbsSaveHeader {
-    char     magic[8];    // "REDSHIP1"
-    uint32_t version;     // RSBS_SAVE_VERSION
-    uint8_t  endian;      // RSBS_SAVE_ENDIAN_LE (1)
-    uint8_t  slot;        // 0..RSBS_SAVE_MAX_SLOTS-1
-    uint16_t headerSize;  // sizeof(RsbsSaveHeader) == 32 (forward-compat probe)
-    uint32_t comboSize;   // Tier-1 bytes as stored (RSBS_COMBO_CONTEXT_RECORD_SIZE at write time)
-    uint32_t ootSize;     // Tier-2 bytes as stored (== OOT_SAVE_CONTEXT_SIZE at write time)
-    uint32_t mmSize;      // Tier-3 bytes as stored (== MM_SAVE_CONTEXT_SIZE at write time)
-    uint32_t crc32;       // CRC32 over the payload after the header: Tiers 1..3, and Tier-4 from v3
+    char magic[8];       // "REDSHIP1"
+    uint32_t version;    // RSBS_SAVE_VERSION
+    uint8_t endian;      // RSBS_SAVE_ENDIAN_LE (1)
+    uint8_t slot;        // 0..RSBS_SAVE_MAX_SLOTS-1
+    uint16_t headerSize; // sizeof(RsbsSaveHeader) == 32 (forward-compat probe)
+    uint32_t comboSize;  // Tier-1 bytes as stored (RSBS_COMBO_CONTEXT_RECORD_SIZE at write time)
+    uint32_t ootSize;    // Tier-2 bytes as stored (== OOT_SAVE_CONTEXT_SIZE at write time)
+    uint32_t mmSize;     // Tier-3 bytes as stored (== MM_SAVE_CONTEXT_SIZE at write time)
+    uint32_t crc32;      // CRC32 over the payload after the header: Tiers 1..3, and Tier-4 from v3
 };
 #pragma pack(pop)
 
@@ -335,7 +335,7 @@ static_assert(sizeof(RsbsSaveHeader) == 32, "RsbsSaveHeader must be exactly 32 b
  * both shadows + gComboCtx for the next cross-game switch to pick up.
  */
 class SaveManager {
-public:
+  public:
     static SaveManager& Instance();
 
     /**
@@ -722,7 +722,7 @@ public:
 
     static uint32_t Crc32(const uint8_t* data, size_t len);
 
-private:
+  private:
     SaveManager() = default;
 
     // Everything ReadSlotFile stages before any commit decision is made.
@@ -841,7 +841,7 @@ private:
     // seam — never by default. Deliberately NOT reset by session
     // invalidation: "this process successfully established slot N" stays true
     // across in-process session changes, while a refusal stays sticky.
-    bool             mSlotArmed[RSBS_SAVE_MAX_SLOTS]{};
+    bool mSlotArmed[RSBS_SAVE_MAX_SLOTS]{};
     RsbsRefuseReason mSlotRefused[RSBS_SAVE_MAX_SLOTS]{};
     // The toast's reason words for a refused slot (NoteSlotRefusalWords).
     char mSlotRefusedWords[RSBS_SAVE_MAX_SLOTS][64]{};
@@ -851,7 +851,7 @@ private:
     void SetSlotRefused(int slot, RsbsRefuseReason reason);
 
     // SlotStateEpoch's counter.
-    std::atomic<uint32_t> mSlotEpoch{0};
+    std::atomic<uint32_t> mSlotEpoch{ 0 };
 
     // #531/#589: the freshness relation the last checked load observed
     // (see LoadSlot / GetSlotCommitSkew). 0 or +1; the -1 case refuses
@@ -868,22 +868,22 @@ private:
     // Game-side metadata descriptors, indexed by GameId (GAME_OOT / GAME_MM).
     // mMetaPresent[i] guards mMetaDescs[i]; an unset descriptor causes
     // ReadMeta to fill that game's fields with zeros / `started=false`.
-    RsbsGameMetaDesc mMetaDescs[3]{};   // GAME_NONE / GAME_OOT / GAME_MM
-    bool             mMetaPresent[3]{};
+    RsbsGameMetaDesc mMetaDescs[3]{}; // GAME_NONE / GAME_OOT / GAME_MM
+    bool mMetaPresent[3]{};
 };
 
-}  // namespace rsbs
+} // namespace rsbs
 
-#endif  // __cplusplus
+#endif // __cplusplus
 
 // ---- C shim for game-side hook code (used by the deferred integration PR) ----
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int  RsbsSave_Save(int slot);
-int  RsbsSave_Load(int slot);
-int  RsbsSave_HasSave(int slot);
+int RsbsSave_Save(int slot);
+int RsbsSave_Load(int slot);
+int RsbsSave_HasSave(int slot);
 void RsbsSave_DeleteSave(int slot);
 
 /**
@@ -895,7 +895,7 @@ void RsbsSave_DeleteSave(int slot);
  * on the calling thread (game thread only).
  */
 uint32_t RsbsSave_StageCommit(void);
-int      RsbsSave_WriteStagedCommit(int slot);
+int RsbsSave_WriteStagedCommit(int slot);
 
 /**
  * Load with the cross-artifact freshness check (#531/#589; see
@@ -958,14 +958,14 @@ int RsbsSave_OoTHalfIsAuthoritative(void);
  * IsSlotWritable reports the armed-session latch. ResetSlotSessionState
  * restores process-start latch state and exists for the headless tests.
  */
-int  RsbsSave_LoadSlot(int slot);
+int RsbsSave_LoadSlot(int slot);
 void RsbsSave_ArmSlotOnCreate(int slot);
-int  RsbsSave_IsSlotWritable(int slot);
+int RsbsSave_IsSlotWritable(int slot);
 void RsbsSave_RefuseSlotIdentity(int slot);
 void RsbsSave_RefuseSlotGeneration(int slot);
-int  RsbsSave_GetSlotState(int slot);
-int  RsbsSave_GetSlotRefuseReason(int slot);
-int  RsbsSave_HasQuarantine(int slot);
+int RsbsSave_GetSlotState(int slot);
+int RsbsSave_GetSlotRefuseReason(int slot);
+int RsbsSave_HasQuarantine(int slot);
 void RsbsSave_ResetSlotSessionState(void);
 
 /**
@@ -1023,7 +1023,7 @@ void RsbsSave_SetStagedCopyHookForTest(void (*hook)(void* ctx), void* ctx);
  * every caller must treat as "do not write" rather than as slot 0.
  */
 void RsbsSave_SetActiveSlot(int slot);
-int  RsbsSave_GetActiveSlot(void);
+int RsbsSave_GetActiveSlot(void);
 
 /**
  * Register a game's metadata-offset descriptor with the SaveManager. Called
@@ -1052,4 +1052,4 @@ int RsbsSave_RestoreLastCommitForReset(int slot, uint8_t* mmOut, size_t mmOutSiz
 }
 #endif
 
-#endif  // RSBS_COMMON_SAVE_H
+#endif // RSBS_COMMON_SAVE_H

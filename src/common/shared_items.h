@@ -204,13 +204,13 @@ int Combo_RedeemSharedItemsForGame(GameId arrivingGame, ComboSharedItemAward awa
  * leaves gComboCtx completely unchanged (no item recorded, no cursor moved).
  */
 typedef enum {
-    RSBS_GRANT_ACCEPTED = 0,   // recorded; the source's cursor advanced to seq
-    RSBS_GRANT_DUPLICATE = 1,  // seq <= cursor: retransmit of a delivered grant; drop it (idempotent success)
-    RSBS_GRANT_GAP = 2,        // seq skips ahead: predecessors missing; resync/resend the source in order
-    RSBS_GRANT_RETRY_FULL = 3, // array full of un-redeemed items: backpressure — the source still owes this
-                               // grant (cursor unmoved) and must re-offer it later
+    RSBS_GRANT_ACCEPTED = 0,       // recorded; the source's cursor advanced to seq
+    RSBS_GRANT_DUPLICATE = 1,      // seq <= cursor: retransmit of a delivered grant; drop it (idempotent success)
+    RSBS_GRANT_GAP = 2,            // seq skips ahead: predecessors missing; resync/resend the source in order
+    RSBS_GRANT_RETRY_FULL = 3,     // array full of un-redeemed items: backpressure — the source still owes this
+                                   // grant (cursor unmoved) and must re-offer it later
     RSBS_GRANT_NO_SOURCE_SLOT = 4, // all RSBS_GRANT_SOURCE_CAP cursor slots taken by other sources
-    RSBS_GRANT_REJECTED = 5,   // malformed: sourceKey 0, seq 0, or originGame not a real game
+    RSBS_GRANT_REJECTED = 5,       // malformed: sourceKey 0, seq 0, or originGame not a real game
 } ComboGrantResult;
 
 /**
@@ -833,9 +833,9 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 #define RSBS_SHARED_QTY_UNITS_CONTAINER 4u
 
 typedef struct {
-    uint8_t policy;   /* RSBS_SHARED_QTY_* */
-    uint8_t budget;   /* RSBS_SHARED_QTY_BUDGET_* */
-    uint8_t fixedCap; /* TIER only: an absolute cap in copies on top of the pools' counts; 0 = none */
+    uint8_t policy;     /* RSBS_SHARED_QTY_* */
+    uint8_t budget;     /* RSBS_SHARED_QTY_BUDGET_* */
+    uint8_t fixedCap;   /* TIER only: an absolute cap in copies on top of the pools' counts; 0 = none */
     uint8_t ceilingOoT; /* TIER only: OoT's give-path top tier (raised to OoT's pool count when that is larger) */
     uint8_t ceilingMM;  /* TIER only: MM's, likewise */
 } ComboSharedQuantityPolicy;

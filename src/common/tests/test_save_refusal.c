@@ -207,7 +207,7 @@ TestResult RefusalExpectRefusal(int slot, RsbsRefuseReason expectedReason, const
     return TEST_PASS;
 }
 
-}  // namespace
+} // namespace
 
 TestResult Test_SaveRefusedQuarantine(void) {
     printf("[TEST] save-refused-quarantine: every refusal quarantines the evidence and latches the slot (#533)\n");
@@ -258,8 +258,7 @@ TestResult Test_SaveRefusedQuarantine(void) {
     // ---- Future version (newer build's file opened by this one) ----------
     RefusalFreshDir();
     REFUSE_ASSERT(RefusalAuthorValidSlot(0, 0xF07F07F0u), "could not author the valid base save");
-    REFUSE_ASSERT(RefusalPatchU32(mgr.SlotPath(0), offsetof(rsbs::RsbsSaveHeader, version),
-                                  RSBS_SAVE_VERSION + 1u),
+    REFUSE_ASSERT(RefusalPatchU32(mgr.SlotPath(0), offsetof(rsbs::RsbsSaveHeader, version), RSBS_SAVE_VERSION + 1u),
                   "could not patch the version field");
     if (RefusalExpectRefusal(0, RSBS_REFUSE_VERSION, "future format version") != TEST_PASS) {
         return TEST_FAIL;
@@ -290,7 +289,7 @@ TestResult Test_SaveWriteLatch(void) {
     std::vector<uint8_t> fixture;
     REFUSE_ASSERT(RefusalReadFile(mgr.SlotPath(0), fixture), "could not snapshot the fixture");
 
-    RefusalSeed(0xA07A57A0u);  // live state to (not) serialize
+    RefusalSeed(0xA07A57A0u); // live state to (not) serialize
     REFUSE_ASSERT(!mgr.IsSlotWritable(0), "an un-established slot must not be writable");
     REFUSE_ASSERT(!mgr.Save(0), "Save into an un-established slot must refuse");
 

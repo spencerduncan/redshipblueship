@@ -155,12 +155,12 @@ int MM_ComboLogic_SnapshotLive(void);
 int MM_ComboLogic_ShrinkObservations(void);
 }
 
-#define OLE_ASSERT(cond, msg)                                                   \
-    do {                                                                        \
-        if (!(cond)) {                                                          \
-            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__);      \
-            return TEST_FAIL;                                                   \
-        }                                                                       \
+#define OLE_ASSERT(cond, msg)                                               \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            return TEST_FAIL;                                               \
+        }                                                                   \
     } while (0)
 
 namespace {
@@ -275,8 +275,8 @@ bool OleRunQuery(const ComboLogicEngine* e, const std::vector<uint16_t>& items, 
 }
 
 bool OleSameAnswer(const OleQueryAnswer& a, const OleQueryAnswer& b) {
-    return a.crossingOpen == b.crossingOpen && a.goalReached == b.goalReached &&
-           a.reachedChecks == b.reachedChecks && a.reachedHosts == b.reachedHosts && a.allHosts == b.allHosts;
+    return a.crossingOpen == b.crossingOpen && a.goalReached == b.goalReached && a.reachedChecks == b.reachedChecks &&
+           a.reachedHosts == b.reachedHosts && a.allHosts == b.allHosts;
 }
 
 void OlePrintAnswer(const char* label, const OleQueryAnswer& a) {
@@ -634,8 +634,7 @@ TestResult OoTLogicExport_Run(void) {
     const int tinyTotal = e->reachedEmptyHosts(e->self, tiny.data(), 1);
     OLE_ASSERT(tinyTotal == reachedTotal, "a cap-1 call did not report the true total");
     OLE_ASSERT(tiny[0] == reachedList[0], "a cap-1 call wrote the wrong first id");
-    OLE_ASSERT(tiny[1] == 0xFFFF && tiny[2] == 0xFFFF && tiny[3] == 0xFFFF,
-               "a cap-1 call wrote past its capacity");
+    OLE_ASSERT(tiny[1] == 0xFFFF && tiny[2] == 0xFFFF && tiny[3] == 0xFFFF, "a cap-1 call wrote past its capacity");
 
     e->endQuery(e->self);
 
@@ -772,8 +771,7 @@ TestResult OoTLogicExport_Run(void) {
     OLE_ASSERT(OoT_ComboLogic_TestLogicValsHeld() == 0,
                "place granted the item's LOGIC VALUE on the live Logic singleton — Item::ApplyEffect's "
                "logic->Set(logicVal) is outside the save-context bracket and must be saved and restored");
-    OLE_ASSERT(OoT_ComboLogic_TestLogicValDigest() == logicValsBeforePlace,
-               "place perturbed Logic::inLogic[]");
+    OLE_ASSERT(OoT_ComboLogic_TestLogicValDigest() == logicValsBeforePlace, "place perturbed Logic::inLogic[]");
     OLE_ASSERT(e->allEmptyHosts(e->self, nullptr, 0) == emptyBase, "a placed host is still offered as empty");
 
     // A FOREIGN-origin placement leaves a LOCAL junk item in the host; the foreign
@@ -801,8 +799,7 @@ TestResult OoTLogicExport_Run(void) {
     OLE_ASSERT(coverItem != 0, "the foreign host was left empty instead of covered with a local junk item");
     OLE_ASSERT(coverAdvancement == 0, "the junk cover is an advancement item; a foreign host must degrade to junk");
 
-    OLE_ASSERT(e->allEmptyHosts(e->self, nullptr, 0) == emptyBase,
-               "the junk-covered host is still offered as empty");
+    OLE_ASSERT(e->allEmptyHosts(e->self, nullptr, 0) == emptyBase, "the junk-covered host is still offered as empty");
     OLE_ASSERT(OoT_ComboLogic_TestLogicValsHeld() == 0,
                "the junk cover granted its logic value on the live Logic singleton");
 
@@ -869,8 +866,7 @@ TestResult OoTLogicExport_Run(void) {
 
     OleQueryAnswer childAgain;
     OLE_ASSERT(OleRunQuery(e, std::vector<uint16_t>(), &childAgain), "the restored child-start query refused");
-    OLE_ASSERT(childAgain.crossingOpen == 1,
-               "the crossing did not come back open after the starting age was restored");
+    OLE_ASSERT(childAgain.crossingOpen == 1, "the crossing did not come back open after the starting age was restored");
     OLE_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0, "the starting-age probe moved a placement");
 
     // ------------------------------------------------------------------
@@ -956,8 +952,7 @@ TestResult OoTLogicExport_Run(void) {
                    "MM's half of the round did not run, so nothing here is a pair-level fact");
         OLE_ASSERT(MM_ComboLogic_SnapshotLive() == 0,
                    "the composed round left MM's snapshot LIVE - MM's save is still owned by the engine");
-        OLE_ASSERT(MM_ComboLogic_ShrinkObservations() == 0,
-                   "MM's reachability shrank inside the composed round");
+        OLE_ASSERT(MM_ComboLogic_ShrinkObservations() == 0, "MM's reachability shrank inside the composed round");
     }
     // The monotonicity watchdog inside the coordinator did not fire, which is a
     // real statement about the OoT engine: its candidate count and crossing flag
@@ -1017,8 +1012,8 @@ TestResult OoTLogicExport_Run(void) {
                        fillRes[g].attempts, fillRes[g].goalProven ? 1 : 0);
                 Combo_Logic_ResetPlacements();
             }
-            OLE_ASSERT(fillStatus[0] == RSBS_COMBO_LOGIC_OK && fillRes[0].goalProven &&
-                           fillRes[0].placed == bagCount && fillRes[0].rounds > 0,
+            OLE_ASSERT(fillStatus[0] == RSBS_COMBO_LOGIC_OK && fillRes[0].goalProven && fillRes[0].placed == bagCount &&
+                           fillRes[0].rounds > 0,
                        "beat-oot did not prove a world whose OoT half proves: a goal with no MM term must not need "
                        "MM's half");
             OLE_ASSERT(fillStatus[1] == RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
@@ -1030,8 +1025,7 @@ TestResult OoTLogicExport_Run(void) {
 
     OLE_ASSERT(OoT_ComboLogic_TestLogicIsAttachedToLiveSave() == 1,
                "the composed round left Logic detached from the live save");
-    OLE_ASSERT(memcmp(saveBefore, gSaveContext, sizeof(saveBefore)) == 0,
-               "the composed round wrote the player's save");
+    OLE_ASSERT(memcmp(saveBefore, gSaveContext, sizeof(saveBefore)) == 0, "the composed round wrote the player's save");
     OLE_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0, "the composed round moved a placement");
 
     // Leave the registry EXACTLY as it was found, so a later row in the same

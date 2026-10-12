@@ -75,10 +75,8 @@ bool Entrance_RegisterDefaultLinks(void) {
     // Argument roles: entrance2 = OoT->MM arrival, return2 = MM->OoT trigger.
     // The arrival (0xD800) is deliberately NOT a trigger — MM's own cycle
     // resets target it (Song of Time, save-warp, title attract demo).
-    return Entrance_RegisterBidirectionalLink(
-        GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP, OOT_ENTR_MARKET_FROM_MASK_SHOP,
-        GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1
-    );
+    return Entrance_RegisterBidirectionalLink(GAME_OOT, OOT_ENTR_HAPPY_MASK_SHOP, OOT_ENTR_MARKET_FROM_MASK_SHOP,
+                                              GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
 }
 
 bool Entrance_RegisterTestLinks(void) {
@@ -89,10 +87,8 @@ bool Entrance_RegisterTestLinks(void) {
     // link, so the two are mutually exclusive — see
     // Entrance_RegisterPortalLinks. Registering both is now rejected rather
     // than silently shadowed (#374).
-    return Entrance_RegisterBidirectionalLink(
-        GAME_OOT, OOT_ENTR_MIDOS_HOUSE, OOT_ENTR_KOKIRI_FROM_MIDOS,
-        GAME_MM, MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1
-    );
+    return Entrance_RegisterBidirectionalLink(GAME_OOT, OOT_ENTR_MIDOS_HOUSE, OOT_ENTR_KOKIRI_FROM_MIDOS, GAME_MM,
+                                              MM_ENTR_SOUTH_CLOCK_TOWN_0, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
 }
 
 bool Entrance_RegisterPortalLinks(bool useTestPortal) {
@@ -116,15 +112,13 @@ bool Entrance_RegisterPortalLinks(bool useTestPortal) {
 
 bool Entrance_HasLinkFor(GameId game, uint16_t entrance) {
     return std::any_of(gEntranceLinks.begin(), gEntranceLinks.end(),
-        [game, entrance](const CrossGameEntranceLink& link) {
-            return link.sourceGame == game && link.sourceEntrance == entrance;
-        });
+                       [game, entrance](const CrossGameEntranceLink& link) {
+                           return link.sourceGame == game && link.sourceEntrance == entrance;
+                       });
 }
 
-bool Entrance_RegisterBidirectionalLink(
-    GameId game1, uint16_t entrance1, uint16_t return1,
-    GameId game2, uint16_t entrance2, uint16_t return2
-) {
+bool Entrance_RegisterBidirectionalLink(GameId game1, uint16_t entrance1, uint16_t return1, GameId game2,
+                                        uint16_t entrance2, uint16_t return2) {
     // Entrance_CheckCrossGame resolves by FIRST match on
     // (sourceGame, sourceEntrance), so a second link on an already-claimed key
     // is not an override — it is dead weight that silently changes nothing,
@@ -148,12 +142,12 @@ bool Entrance_RegisterBidirectionalLink(
     for (const auto& leg : legs) {
         if (Entrance_HasLinkFor(leg.game, leg.entrance)) {
             fprintf(stderr,
-                "[ENTRANCE] REJECTED duplicate registration: the %s leg's source "
-                "(%s entrance 0x%04X) is already claimed by an existing link. "
-                "Nothing was registered. Two links cannot share a source door — "
-                "the lookup resolves first-match, so the later one would be dead "
-                "(issue #374).\n",
-                leg.leg, Game_ToString(leg.game), leg.entrance);
+                    "[ENTRANCE] REJECTED duplicate registration: the %s leg's source "
+                    "(%s entrance 0x%04X) is already claimed by an existing link. "
+                    "Nothing was registered. Two links cannot share a source door — "
+                    "the lookup resolves first-match, so the later one would be dead "
+                    "(issue #374).\n",
+                    leg.leg, Game_ToString(leg.game), leg.entrance);
             return false;
         }
     }
@@ -164,30 +158,26 @@ bool Entrance_RegisterBidirectionalLink(
     // been pushed yet.
     if (game1 == game2 && entrance1 == return2) {
         fprintf(stderr,
-            "[ENTRANCE] REJECTED self-colliding link: forward and reverse legs "
-            "share source (%s entrance 0x%04X). Nothing was registered.\n",
-            Game_ToString(game1), entrance1);
+                "[ENTRANCE] REJECTED self-colliding link: forward and reverse legs "
+                "share source (%s entrance 0x%04X). Nothing was registered.\n",
+                Game_ToString(game1), entrance1);
         return false;
     }
 
     // Forward link: game1:entrance1 -> game2:entrance2
-    CrossGameEntranceLink forward = {
-        .sourceGame = game1,
-        .sourceEntrance = entrance1,
-        .targetGame = game2,
-        .targetEntrance = entrance2,
-        .returnEntrance = return1
-    };
+    CrossGameEntranceLink forward = { .sourceGame = game1,
+                                      .sourceEntrance = entrance1,
+                                      .targetGame = game2,
+                                      .targetEntrance = entrance2,
+                                      .returnEntrance = return1 };
     gEntranceLinks.push_back(forward);
 
     // Reverse link: game2:return2 -> game1:return1
-    CrossGameEntranceLink reverse = {
-        .sourceGame = game2,
-        .sourceEntrance = return2,
-        .targetGame = game1,
-        .targetEntrance = return1,
-        .returnEntrance = entrance2
-    };
+    CrossGameEntranceLink reverse = { .sourceGame = game2,
+                                      .sourceEntrance = return2,
+                                      .targetGame = game1,
+                                      .targetEntrance = return1,
+                                      .returnEntrance = entrance2 };
     gEntranceLinks.push_back(reverse);
 
     return true;
@@ -203,8 +193,8 @@ size_t Entrance_GetLinkCount(void) {
 
 uint16_t Entrance_CheckCrossGame(GameId game, uint16_t entrance) {
     // Search for a matching link
-    auto it = std::find_if(gEntranceLinks.begin(), gEntranceLinks.end(),
-        [game, entrance](const CrossGameEntranceLink& link) {
+    auto it =
+        std::find_if(gEntranceLinks.begin(), gEntranceLinks.end(), [game, entrance](const CrossGameEntranceLink& link) {
             return link.sourceGame == game && link.sourceEntrance == entrance;
         });
 
@@ -268,8 +258,7 @@ bool Entrance_HasStartupEntrance(void) {
 }
 
 bool Entrance_HasStartupEntranceForGame(GameId game) {
-    return sStartupEntrancePresent &&
-           (sStartupEntranceGame == GAME_NONE || sStartupEntranceGame == game);
+    return sStartupEntrancePresent && (sStartupEntranceGame == GAME_NONE || sStartupEntranceGame == game);
 }
 
 uint16_t Entrance_GetStartupEntranceForGame(GameId game) {
@@ -310,7 +299,8 @@ extern "C" {
 
 uint16_t Combo_CheckCrossGameEntrance(const char* gameId, uint16_t entrance) {
     GameId game = Game_FromString(gameId);
-    if (game == GAME_NONE) return entrance;
+    if (game == GAME_NONE)
+        return entrance;
     return Entrance_CheckCrossGame(game, entrance);
 }
 
@@ -319,7 +309,8 @@ bool Combo_IsCrossGameSwitch(void) {
 }
 
 const char* Combo_GetSwitchTargetGameId(void) {
-    if (!gPendingSwitch.requested) return nullptr;
+    if (!gPendingSwitch.requested)
+        return nullptr;
     return Game_ToString(gPendingSwitch.targetGame);
 }
 
@@ -357,13 +348,15 @@ void Combo_ClearStartupEntrance(void) {
 
 uint16_t Combo_GetStartupEntranceForGame(const char* gameId) {
     GameId game = Game_FromString(gameId);
-    if (game == GAME_NONE) return 0;
+    if (game == GAME_NONE)
+        return 0;
     return Entrance_GetStartupEntranceForGame(game);
 }
 
 bool Combo_HasStartupEntranceForGame(const char* gameId) {
     GameId game = Game_FromString(gameId);
-    if (game == GAME_NONE) return false;
+    if (game == GAME_NONE)
+        return false;
     return Entrance_HasStartupEntranceForGame(game);
 }
 

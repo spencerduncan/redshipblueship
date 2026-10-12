@@ -238,12 +238,12 @@ bool Combo_ForeignPairingActive(void);
 // (wallet / heart / magic / ammo / hookshot), because the criteria run FIRST and
 // the bitset selects among the survivors. Increment 3 may append bits; it may
 // not weaken that ordering.
-#define RSBS_ITEMCLASS_PROGRESSION 0x0001u   // progressive/major items
-#define RSBS_ITEMCLASS_SONGS 0x0002u         //
-#define RSBS_ITEMCLASS_MASKS 0x0004u         //
-#define RSBS_ITEMCLASS_DUNGEON_ITEMS 0x0008u // small/boss keys, maps, compasses
+#define RSBS_ITEMCLASS_PROGRESSION 0x0001u    // progressive/major items
+#define RSBS_ITEMCLASS_SONGS 0x0002u          //
+#define RSBS_ITEMCLASS_MASKS 0x0004u          //
+#define RSBS_ITEMCLASS_DUNGEON_ITEMS 0x0008u  // small/boss keys, maps, compasses
 #define RSBS_ITEMCLASS_DUNGEON_REWARD 0x0010u // medallions, stones, remains
-#define RSBS_ITEMCLASS_SIDEQUEST 0x0020u     // non-progression sidequest rewards
+#define RSBS_ITEMCLASS_SIDEQUEST 0x0020u      // non-progression sidequest rewards
 
 /** Every bit ALLOCATED at formatVersion 1, and the shipped default for both
  *  directions. It is the union rather than a narrower selection on purpose:
@@ -251,8 +251,8 @@ bool Combo_ForeignPairingActive(void);
  *  any narrower default would silently narrow them the moment increment 3
  *  makes the bitset load-bearing. "Reproduce today's world exactly" is the
  *  binding constraint on every default in this file. */
-#define RSBS_ITEMCLASS_ALL_V1                                                                                   \
-    (RSBS_ITEMCLASS_PROGRESSION | RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS | RSBS_ITEMCLASS_DUNGEON_ITEMS |   \
+#define RSBS_ITEMCLASS_ALL_V1                                                                                  \
+    (RSBS_ITEMCLASS_PROGRESSION | RSBS_ITEMCLASS_SONGS | RSBS_ITEMCLASS_MASKS | RSBS_ITEMCLASS_DUNGEON_ITEMS | \
      RSBS_ITEMCLASS_DUNGEON_REWARD | RSBS_ITEMCLASS_SIDEQUEST)
 
 // ---- comboFlags: the yes/no combo rules (record byte 10; #668) -------------
@@ -1099,7 +1099,7 @@ int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 #define RSBS_GIVECAP_CLOCKS 0x0008u
 /** Every bit ALLOCATED at v1. Append only; an unallocated bit in a published
  *  word comes from a newer build and is masked off rather than reinterpreted. */
-#define RSBS_GIVECAP_ALL_V1                                                                                        \
+#define RSBS_GIVECAP_ALL_V1 \
     (RSBS_GIVECAP_SOULS | RSBS_GIVECAP_OCARINA_BUTTONS | RSBS_GIVECAP_SWIM | RSBS_GIVECAP_CLOCKS)
 
 /**
@@ -1128,7 +1128,6 @@ bool Combo_ForeignGiveCapsArm(uint8_t originGame, uint32_t caps);
 /** Retire the session's published caps (a new creation, a session
  *  invalidation). */
 void Combo_ClearForeignGiveCaps(void);
-
 
 /**
  * Join the paired MM half onto OoT's spoiler document, producing the ONE

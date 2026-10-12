@@ -143,9 +143,9 @@ TestResult Test_ComboSaveFilesView(void) {
     }
     CSF_ASSERT(std::strcmp(Combo_SaveFiles_RefuseText(RSBS_REFUSE_NONE), "File could not be checked") == 0,
                "RSBS_REFUSE_NONE reads \"%s\", not the fallback", Combo_SaveFiles_RefuseText(RSBS_REFUSE_NONE));
-    CSF_ASSERT(std::strcmp(Combo_SaveFiles_RefuseText(static_cast<RsbsRefuseReason>(250)),
-                           "File could not be checked") == 0,
-               "an out-of-range reason does not read the fallback");
+    CSF_ASSERT(
+        std::strcmp(Combo_SaveFiles_RefuseText(static_cast<RsbsRefuseReason>(250)), "File could not be checked") == 0,
+        "an out-of-range reason does not read the fallback");
 
     // ---- A2. A refusal that posted a toast shows the toast's words -------------
     {
@@ -224,8 +224,8 @@ TestResult Test_ComboSaveFilesView(void) {
         mgr.NoteSlotRefusalWords(slot, Combo_RefusalWords(RSBS_REFUSAL_WORDS_NO_MM_WORLD));
         epoch = mgr.SlotStateEpoch();
         mgr.ResetSlotSessionState();
-        CSF_ASSERT(std::strcmp(mgr.GetSlotRefusalWords(slot), "") == 0,
-                   "releasing the refusal kept its words \"%s\"", mgr.GetSlotRefusalWords(slot));
+        CSF_ASSERT(std::strcmp(mgr.GetSlotRefusalWords(slot), "") == 0, "releasing the refusal kept its words \"%s\"",
+                   mgr.GetSlotRefusalWords(slot));
         CSF_ASSERT(mgr.SlotStateEpoch() != epoch, "releasing the refusal did not move the epoch");
         mgr.NoteSlotRefusalWords(-1, "out of range");
         mgr.NoteSlotRefusalWords(RSBS_SAVE_MAX_SLOTS, "out of range");
@@ -265,10 +265,9 @@ TestResult Test_ComboSaveFilesView(void) {
         CSF_ASSERT(row.kind == ComboSaveFileKind::Ready, "a valid file is not Ready");
         CSF_ASSERT(row.file == "File 3", "slot 2 is labelled \"%s\"", row.file.c_str());
         CSF_ASSERT(row.status == "Ready", "a valid file's status is \"%s\"", row.status.c_str());
-        CSF_ASSERT(row.name == rsbs::SlotNameLine(m), "the name \"%s\" is not SlotNameLine's \"%s\"",
-                   row.name.c_str(), rsbs::SlotNameLine(m).c_str());
-        CSF_ASSERT(row.lastPlayed == "MM", "a file last played in Majora's Mask reads \"%s\"",
-                   row.lastPlayed.c_str());
+        CSF_ASSERT(row.name == rsbs::SlotNameLine(m), "the name \"%s\" is not SlotNameLine's \"%s\"", row.name.c_str(),
+                   rsbs::SlotNameLine(m).c_str());
+        CSF_ASSERT(row.lastPlayed == "MM", "a file last played in Majora's Mask reads \"%s\"", row.lastPlayed.c_str());
         CSF_ASSERT(row.tooltip.empty(), "a plain ready file has a tooltip: \"%s\"", row.tooltip.c_str());
     }
     {
@@ -299,8 +298,7 @@ TestResult Test_ComboSaveFilesView(void) {
                    "a file refused for its header shows the name \"%s\" or last game \"%s\"", row.name.c_str(),
                    row.lastPlayed.c_str());
         CSF_ASSERT(row.tooltip.find("left in place") != std::string::npos,
-                   "a refusal without a backup does not say the file is left in place: \"%s\"",
-                   row.tooltip.c_str());
+                   "a refusal without a backup does not say the file is left in place: \"%s\"", row.tooltip.c_str());
     }
     {
         // A healthy file this session refused (identity), with its evidence aside.
@@ -329,8 +327,8 @@ TestResult Test_ComboSaveFilesView(void) {
 
         const int before = Combo_SaveFiles_ReadCountForTest();
         const ComboSaveFilesView& first = Combo_SaveFiles_View(true);
-        CSF_ASSERT(Combo_SaveFiles_ReadCountForTest() == before + 1, "opening the page did not read (%d -> %d)",
-                   before, Combo_SaveFiles_ReadCountForTest());
+        CSF_ASSERT(Combo_SaveFiles_ReadCountForTest() == before + 1, "opening the page did not read (%d -> %d)", before,
+                   Combo_SaveFiles_ReadCountForTest());
         CSF_ASSERT(first.count == RSBS_SAVE_MAX_SLOTS, "the view has %d rows, not %d", first.count,
                    RSBS_SAVE_MAX_SLOTS);
         if (first.count == RSBS_SAVE_MAX_SLOTS) {
@@ -357,8 +355,8 @@ TestResult Test_ComboSaveFilesView(void) {
         rsbs::SaveManager::Instance().RefuseSlotIdentity(0);
         (void)Combo_SaveFiles_View(false);
         (void)Combo_SaveFiles_View(false);
-        CSF_ASSERT(Combo_SaveFiles_ReadCountForTest() == before + 2,
-                   "a moved SlotStateEpoch gave %d reads, not one", Combo_SaveFiles_ReadCountForTest() - before - 1);
+        CSF_ASSERT(Combo_SaveFiles_ReadCountForTest() == before + 2, "a moved SlotStateEpoch gave %d reads, not one",
+                   Combo_SaveFiles_ReadCountForTest() - before - 1);
         rsbs::SaveManager::Instance().ResetSlotSessionState();
 
         // Opening the page again reads again.
@@ -432,8 +430,8 @@ TestResult Test_ComboSaveFilesView(void) {
             CSF_ASSERT(notes[i].find("No save files") == std::string::npos,
                        "note %d claims there are no save files: \"%s\"", i, notes[i].c_str());
             for (int j = 0; j < i; j++) {
-                CSF_ASSERT(notes[i].substr(0, 12) != notes[j].substr(0, 12),
-                           "notes %d and %d open with the same words", j, i);
+                CSF_ASSERT(notes[i].substr(0, 12) != notes[j].substr(0, 12), "notes %d and %d open with the same words",
+                           j, i);
             }
         }
         CSF_ASSERT(Combo_SaveFiles_Note(nullptr, 0) == notes[0], "no rows at all does not read the no-record note");

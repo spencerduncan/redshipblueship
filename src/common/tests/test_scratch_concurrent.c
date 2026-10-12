@@ -34,7 +34,7 @@ namespace {
 // The rows that write save files into the temp directory. Each must be
 // display-free and ROM-free (it runs in the redship tier on its own).
 const char* const kTscRows[] = {
-    "mm-unified-save-capture", "mm-save-failure-surface", "mm-capture-harvest-gate",
+    "mm-unified-save-capture", "mm-save-failure-surface",   "mm-capture-harvest-gate",
     "oot-exit-harvest-gate",   "mm-death-decline-autosave", "oot-file-select-refusal",
 };
 
