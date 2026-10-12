@@ -289,7 +289,7 @@ void DrawCheckList(uint8_t game) {
 }
 
 /**
- * One game's panel: freshness note, summary lines, and a default-closed
+ * One game's panel: summary lines and a default-closed
  * per-check list. Fed ONLY by that game's adapter through the view — the
  * game argument is the origin tag, and nothing here compares ids across
  * panels (ADR 0002).
@@ -304,13 +304,10 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     Combo_TrackerGameSummary(game, &summary);
 
     if (summary.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE) {
-        // "No data" is NOT "zero progress": an MM shadow that was never
-        // written and a never-created OoT heap context land here, and an
-        // empty check list under a 0/0 counter would misreport them.
-        Ui().NoteText(game == (uint8_t)GAME_MM
-                          ? "No data yet. Majora's Mask has not been played this session, and no save holding its "
-                            "progress is loaded."
-                          : "No data yet. Ocarina of Time has not started this session.");
+        // No data is NOT "zero progress": an MM shadow that was never written
+        // and a never-created OoT heap context land here, and an empty check
+        // list under a 0/0 counter would misreport them. The header stands
+        // alone, as SoH's trackers show nothing before a file exists (#927).
         ImGui::PopID();
         return;
     }
@@ -322,9 +319,11 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         return;
     }
 
-    char note[96];
-    snprintf(note, sizeof(note), "%s.", Combo_TrackerFreshnessLabel(game, summary.freshness));
-    Ui().NoteText(note);
+    // No freshness caption (#927): the panel is labelled by its header.
+    const char* caption = Combo_TrackerFreshnessLabel(game, summary.freshness);
+    if (caption[0] != '\0') {
+        Ui().NoteText(caption);
+    }
 
     // ComboPanelShowsOwnSeed (#816): a paired file's pane prints the paired seed
     // on its top line, and its panels print no seed of their own.
@@ -510,22 +509,12 @@ void DrawCrossingList(uint8_t hostGame) {
         return;
     }
     // The second sentence is the host game's own save: how many of these checks
-    // it has collected, and, when that data is not live, as of when (the same
-    // wording the game panel above prints, lower-cased to run on). With nothing
-    // to read from the host game, no collected count is claimed at all.
+    // it has collected. Not as of when (#927: freshness is no caption). With
+    // nothing to read from the host game, no collected count is claimed at all.
     int len = snprintf(note, sizeof(note), "%d %s %s placed in %s checks.", count, itemGame,
                        count == 1 ? "item was" : "items were", hostName);
     if (progress.freshness != COMBO_TRACKER_FRESH_UNAVAILABLE && len > 0 && len < (int)sizeof(note)) {
-        if (progress.freshness == COMBO_TRACKER_FRESH_LIVE) {
-            snprintf(note + len, sizeof(note) - (size_t)len, " %d collected.", progress.found);
-        } else {
-            char when[96];
-            snprintf(when, sizeof(when), "%s", Combo_TrackerFreshnessLabel(hostGame, progress.freshness));
-            if (when[0] >= 'A' && when[0] <= 'Z') {
-                when[0] = (char)(when[0] - 'A' + 'a');
-            }
-            snprintf(note + len, sizeof(note) - (size_t)len, " %d collected, %s.", progress.found, when);
-        }
+        snprintf(note + len, sizeof(note) - (size_t)len, " %d collected.", progress.found);
     }
     Ui().NoteText(note);
     ImGui::PushID((int)hostGame);

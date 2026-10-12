@@ -524,7 +524,6 @@ void DrawOverlayContents() {
         // the default 20 px font it is the same 600 x 50. No percentage inside it:
         // the fraction is a phase position, not a measured share of the work.
         ImGui::ProgressBar(view->fraction, ImVec2(ImGui::GetFontSize() * 30.0f, ImGui::GetFontSize() * 2.5f), "");
-        ImGui::Text("Your file is created once both worlds are ready.");
     }
     ImGui::End();
     ImGui::PopStyleVar(2);

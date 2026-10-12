@@ -169,22 +169,10 @@ bool Combo_ItemActiveGamePaused(void) {
 }
 
 const char* Combo_ItemFreshnessLabel(uint8_t game, uint8_t freshness) {
-    switch (freshness) {
-        case COMBO_TRACKER_FRESH_LIVE:
-            return "Updated live";
-        case COMBO_TRACKER_FRESH_STALE:
-            // Both shadows are written at a game switch and at a save. MM's
-            // shadow can also be the half the paired creation event armed and
-            // MM never loaded: the check tracker's label already says so.
-            if (game == (uint8_t)GAME_MM) {
-                return Combo_TrackerFreshnessLabel(game, freshness);
-            }
-            return "As of the last game switch or save";
-        case COMBO_TRACKER_FRESH_UNAVAILABLE:
-            return "No data";
-        default:
-            return "(bad freshness)";
-    }
+    // A section is labelled by its header alone, as SoH's item tracker labels
+    // its sections (#927): no caption for any freshness. The Combo Tracker's
+    // panels take the same answer from the same place.
+    return Combo_TrackerFreshnessLabel(game, freshness);
 }
 
 // ============================================================================
@@ -285,7 +273,9 @@ uint8_t Combo_ItemSharedFreshness(void) {
 }
 
 const char* Combo_ItemSharedLabel(void) {
-    return (Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_STALE) ? COMBO_ITEM_SHARED_LABEL : "No data";
+    // The Shared header labels the section; how fresh the pool is, is not a
+    // caption the overlay draws (#927).
+    return "";
 }
 
 int Combo_ItemSharedCount(void) {

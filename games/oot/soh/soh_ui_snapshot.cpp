@@ -827,6 +827,10 @@ struct PageSpec {
     // (DisabledShapeVerdict), as the row-state probe's are.
     std::set<std::string> disabledHovers;
     std::vector<std::string> expectText;
+    // Strings no capture of this page (any state, any view, any hover) may
+    // contain: the captions #927 cut. A capture that shows one fails by name,
+    // so a cut caption that comes back turns the row red.
+    std::vector<std::string> forbidText;
     // MENU_PAGE: a string only this page's body draws (assert 6); empty when no
     // registered row yields one, which fails the page.
     std::string bodyText;
@@ -2112,6 +2116,9 @@ void Session::BuildPageList() {
                 p.states = { "", "window" };
                 p.stateText[""] = { "Enable Dragging", "Only Enable While Paused" };
                 p.stateContrast = { { "", "window" } };
+                // The gray caption row #927 cut (its content is the Popout
+                // Check Tracker Settings tooltip now).
+                p.forbidText = { "The Combo Tracker draws its checks in the colors set below" };
                 // The Window Type row: its tooltip's "Value: effect" lines.
                 p.hovers = { "window-type" };
                 p.hoverRows["window-type"] = "Window Type##ComboItemTracker";
@@ -2296,6 +2303,9 @@ void Session::BuildPageList() {
         p.stateText["crossings"] = { kSnapshotOoTItemA, kSnapshotMMToOoTNote };
         p.stateText["unpaired"] = { "No paired world" };
         p.stateContrast = { { "crossings", "paired" }, { "unpaired", "paired" } };
+        // #927: the unpaired note's mechanism sentence and the collected
+        // count's freshness tail are cut.
+        p.forbidText = { "was not created as a cross-game pair", "collected, as of" };
         pages.push_back(p);
     }
     {
@@ -2314,6 +2324,10 @@ void Session::BuildPageList() {
         p.stateText["progress"] = { kSnapshotOoTChecks[0].name, kSnapshotOoTItemA, kSnapshotMMToOoTNote };
         p.stateText["unpaired"] = { "No paired world" };
         p.stateContrast = { { "progress", "paired" }, { "unpaired", "paired" } };
+        // #927: a panel with no data is its header alone, and no panel or
+        // crossing note says how fresh it is.
+        p.forbidText = { "No data yet", "Updated live", "As of the last game switch", "As of file creation",
+                         "collected, as of" };
         pages.push_back(p);
     }
     {
@@ -2326,8 +2340,9 @@ void Session::BuildPageList() {
         // takes no input, so a player sees its first view and nothing else: it
         // is captured unscrolled, and FitOracle fails it if anything is clipped
         // at its edge or the window runs past the game window's. Every state's
-        // one view must hold the three section headers (expectText) and each
-        // section's freshness note and a row from the last section (stateText).
+        // one view must hold the three section headers (expectText) and a row
+        // from the last section (stateText). No section carries a caption
+        // (#927): "no-data" is the headers alone.
         PageSpec p;
         p.id = std::string("window/") + ComboGui::kComboItemTrackerWindowName;
         p.kind = Kind::WINDOW;
@@ -2344,14 +2359,15 @@ void Session::BuildPageList() {
         // once MM has booted, which this harness never does, so MM's section
         // is the text fallback here: its snapshot bow in "live", its live
         // mask in "snapshot".
-        p.stateText["live"] = { "Updated live.", "As of file creation.", "As of the last switch or save.",
-                                "Bow 25/40" };
-        p.stateText["snapshot"] = { "Updated live.", "As of the last game switch or save.",
-                                    "As of the last switch or save.", "Zora Mask" };
+        p.stateText["live"] = { "Bow 25/40" };
+        p.stateText["snapshot"] = { "Zora Mask" };
         p.stateImages["live"] = 40;
         p.stateImages["snapshot"] = 40;
-        p.stateText["no-data"] = { "No data.", ComboGui::kComboItemTrackerWindowName };
+        p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
+        // #927: no section says how fresh it is, and an empty one is its
+        // header alone.
+        p.forbidText = { "Updated live", "As of the last", "As of file creation", "No data" };
         pages.push_back(p);
     }
     // Ours: the Cross-Game Rules Reset confirm, opened through the row's own
@@ -2402,6 +2418,8 @@ void Session::BuildPageList() {
         p.states = { "", "over-menu" };
         p.compareWith = "modal/ROM Extraction";
         p.expectText = { "Creating Your Paired World" };
+        // #927: the sentence under the progress bar is cut.
+        p.forbidText = { "Your file is created once both worlds are ready" };
         p.scroll = false;
         pages.push_back(p);
     }
@@ -3157,6 +3175,13 @@ void Session::Finish(Capture& c, const PageSpec& p) {
         c.status = "fail";
         c.reason = "the frame's text does not contain \"" + c.missing.front() + "\"";
         return;
+    }
+    for (const std::string& cut : p.forbidText) {
+        if (c.text.find(cut) != std::string::npos) {
+            c.status = "fail";
+            c.reason = "the frame's text contains the cut caption \"" + cut + "\" (#927)";
+            return;
+        }
     }
     // Assert 8: nothing queued behind the page (MODAL pages are torn down first).
     if (p.kind != Kind::MODAL && c.popupsQueued != 0) {

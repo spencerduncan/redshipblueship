@@ -149,33 +149,32 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_COMBO_ITEMS_SECTION_OOT)
         .RaceDisable(false)
         .Options(CheckboxOptions().DefaultValue(true).Tooltip(
-            "Shows the items you hold in Ocarina of Time in the Combo Item Tracker."));
+            "Shows the items you hold in Ocarina of Time in the Combo Item Tracker, as of your last game switch or "
+            "save while you play Majora's Mask."));
     menu.AddWidget(path, "Majora's Mask##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_COMBO_ITEMS_SECTION_MM)
         .RaceDisable(false)
         .Options(CheckboxOptions().DefaultValue(true).Tooltip(
-            "Shows the items you hold in Majora's Mask in the Combo Item Tracker."));
+            "Shows the items you hold in Majora's Mask in the Combo Item Tracker, as of your last game switch or save "
+            "while you play Ocarina of Time."));
     menu.AddWidget(path, "Shared##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED)
         .RaceDisable(false)
         .Options(CheckboxOptions().DefaultValue(true).Tooltip(
-            "Shows the items and resources the two games share in the Combo Item Tracker."));
+            "Shows the items and resources the two games share in the Combo Item Tracker, as of your last game "
+            "switch or save."));
 
     menu.AddWidget(path, "Check Tracker Settings", WIDGET_SEPARATOR_TEXT);
-    // A TEXT row draws its name: the one sentence SoH's window cannot say.
-    menu.AddWidget(path,
-                   "The Combo Tracker draws its checks in the colors set below. Every other Check Tracker setting "
-                   "applies only to Ocarina of Time's Check Tracker.",
-                   WIDGET_TEXT)
-        .RaceDisable(false)
-        .HideInSearch(true)
-        .Options(TextOptions().Color(Colors::Gray));
+    // No caption row (#927): the one thing SoH's window cannot say, that the
+    // Combo Tracker takes only its check colors, is the button's tooltip.
     menu.AddWidget(path, "Popout Check Tracker Settings", WIDGET_WINDOW_BUTTON)
         .CVar(CVAR_WINDOW("CheckTrackerSettings"))
         .RaceDisable(false)
         .WindowName("Check Tracker Settings")
         .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Enables the separate Check Tracker Settings Window."));
+        .Options(WindowButtonOptions().Tooltip(
+            "Enables the separate Check Tracker Settings Window, whose check colors, and no other setting, the "
+            "Combo Tracker also uses."));
 }
 
 /** File-scope, so it runs before AddMenuElements() (SohMenu.h's contract); this

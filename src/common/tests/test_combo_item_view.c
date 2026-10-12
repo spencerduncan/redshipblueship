@@ -16,7 +16,7 @@
  * What this proves, and how each claim would fail without the code under test:
  *
  * 1. UNREGISTERED IS INERT. With no adapter every per-game read answers
- *    UNAVAILABLE / 0 / false and the labels say "No data"; a half-filled vtable
+ *    UNAVAILABLE / 0 / false and the labels are empty (#927); a half-filled vtable
  *    and a non-game id are refused at registration.
  *
  * 2. THE PRODUCTION ENTRY POINT REGISTERS OoT's ADAPTER. With the registry
@@ -47,13 +47,13 @@
  *    live source and no shadow is UNAVAILABLE. The production vtable's liveSave
  *    answers NULL with no OoT play state (this tier).
  *
- * 5. THE SHARED GROUP AND ITS LABEL. An empty pool is UNAVAILABLE, "No data",
- *    zero rows. After production harvests (rupees, the quiver tier and arrows,
- *    the heart quantity) the group is STALE, labelled "As of the last switch or
- *    save", and its rows carry the pooled values; the ocarina row exists exactly
- *    when that kind is armed. Hearts count whole hearts (pieces truncated); the
- *    wallet row is held at every tier, tier 0 being the child's wallet. Labels
- *    are player wording.
+ * 5. THE SHARED GROUP. An empty pool is UNAVAILABLE, zero rows. After
+ *    production harvests (rupees, the quiver tier and arrows, the heart
+ *    quantity) the group is STALE and its rows carry the pooled values; the
+ *    ocarina row exists exactly when that kind is armed. Hearts count whole
+ *    hearts (pieces truncated); the wallet row is held at every tier, tier 0
+ *    being the child's wallet. No label is a caption (#927; the
+ *    ComboItemTrackerWindow row's leg 9 holds every label function).
  *
  * 6. STATE PUT BACK. The OoT shadow goes back to the bytes this row inherited
  *    (asserted byte-equal; a shadow that was absent comes back all-zero, which
@@ -141,22 +141,6 @@ static bool CivFindSharedRow(const char* name, ComboItemRow* out) {
         }
     }
     return false;
-}
-
-static bool CivLabelIsPlayerWording(const char* label) {
-    if (label == NULL || label[0] < 'A' || label[0] > 'Z') {
-        return false;
-    }
-    const size_t len = strlen(label);
-    if (label[len - 1] == '.' || label[len - 1] == ')') {
-        return false;
-    }
-    for (const char* jargon : { "freeze", "shadow", "suspend", "heap", "pool", "harvest" }) {
-        if (strstr(label, jargon) != NULL) {
-            return false;
-        }
-    }
-    return true;
 }
 
 /** Legs 2-4 over OoT's REAL registered adapter, `ops`. */
@@ -265,7 +249,7 @@ static int CivOoTLegs(const ComboItemOps* ops) {
     CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Bow", &row) && !row.have);
     CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Song of Time", &row) && row.have);
     CIV_ASSERT(sCivLiveCalls > 0);
-    CIV_ASSERT(strcmp(Combo_ItemFreshnessLabel((uint8_t)GAME_OOT, COMBO_TRACKER_FRESH_LIVE), "Updated live") == 0);
+    CIV_ASSERT(strcmp(Combo_ItemFreshnessLabel((uint8_t)GAME_OOT, COMBO_TRACKER_FRESH_LIVE), "") == 0); // #927
 
     // B + C. Another game (or none) active: the live source is never asked,
     // the shadow's rows are STALE.
@@ -388,7 +372,7 @@ static int CivMMLegs(const ComboItemOps* ops, const ComboItemOps* ootOps) {
     CIV_ASSERT(ops->liveSave() == NULL);
     CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_STALE);
     CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Razor Sword", &row) && row.freshness == COMBO_TRACKER_FRESH_STALE);
-    CIV_ASSERT(CivLabelIsPlayerWording(Combo_ItemFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE)));
+    CIV_ASSERT(strcmp(Combo_ItemFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE), "") == 0); // #927
 
     // ---- 4. the live-vs-shadow pick, both games registered -----------------
     std::vector<uint8_t> live((size_t)MM_SAVE_CONTEXT_SIZE, 0);
@@ -479,7 +463,7 @@ static int CivSharedLegs(void) {
     ComboItemRow row;
 
     CIV_ASSERT(Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE);
-    CIV_ASSERT(strcmp(Combo_ItemSharedLabel(), "No data") == 0);
+    CIV_ASSERT(strcmp(Combo_ItemSharedLabel(), "") == 0); // #927: no caption
     CIV_ASSERT(Combo_ItemSharedCount() == 0);
     CIV_ASSERT(!Combo_ItemSharedRowAt(0, &row));
 
@@ -491,10 +475,9 @@ static int CivSharedLegs(void) {
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x50, 2));
 
     CIV_ASSERT(Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_STALE);
-    CIV_ASSERT(strcmp(Combo_ItemSharedLabel(), COMBO_ITEM_SHARED_LABEL) == 0);
-    CIV_ASSERT(strcmp(COMBO_ITEM_SHARED_LABEL, "As of the last switch or save") == 0);
+    CIV_ASSERT(strcmp(Combo_ItemSharedLabel(), "") == 0); // #927: no caption, whatever the pool holds
     const int n = Combo_ItemSharedCount();
-    printf("[TEST] combo-item-view: shared rows=%d label=\"%s\"\n", n, Combo_ItemSharedLabel());
+    printf("[TEST] combo-item-view: shared rows=%d\n", n);
     CIV_ASSERT(n > 0);
     for (int i = 0; i < n; i++) {
         CIV_ASSERT(Combo_ItemSharedRowAt(i, &row));
@@ -532,15 +515,11 @@ static int CivSharedLegs(void) {
     CIV_ASSERT(CivFindSharedRow("Triforce Pieces", &row) ==
                Combo_SharedResourceKindArmed(RSBS_SHARED_RES_TRIFORCE_PIECES));
 
-    // Labels: player wording, and the pool's label is not a per-game one.
-    CIV_ASSERT(CivLabelIsPlayerWording(Combo_ItemSharedLabel()));
+    // Labels: no caption for the pool or either game at any freshness (#927).
     for (uint8_t f : { (uint8_t)COMBO_TRACKER_FRESH_LIVE, (uint8_t)COMBO_TRACKER_FRESH_STALE,
                        (uint8_t)COMBO_TRACKER_FRESH_UNAVAILABLE }) {
-        CIV_ASSERT(CivLabelIsPlayerWording(Combo_ItemFreshnessLabel((uint8_t)GAME_OOT, f)));
-        CIV_ASSERT(strcmp(Combo_ItemFreshnessLabel((uint8_t)GAME_OOT, f), Combo_ItemSharedLabel()) != 0);
+        CIV_ASSERT(strcmp(Combo_ItemFreshnessLabel((uint8_t)GAME_OOT, f), "") == 0);
     }
-    CIV_ASSERT(strcmp(Combo_ItemFreshnessLabel((uint8_t)GAME_OOT, COMBO_TRACKER_FRESH_STALE),
-                      "As of the last game switch or save") == 0);
 
     // #879: an OLDER world, whose frozen record carries the retired
     // RSBS_COMBO_FLAG_SHARED_OCARINA bit, with both games' ocarinas harvested,
@@ -595,7 +574,7 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
         for (uint8_t g : { (uint8_t)GAME_OOT, (uint8_t)GAME_MM, (uint8_t)GAME_NONE }) {
             ok = ok && Combo_ItemFreshness(g) == COMBO_TRACKER_FRESH_UNAVAILABLE && Combo_ItemCount(g) == 0 &&
                  !Combo_ItemRowAt(g, 0, &row) &&
-                 strcmp(Combo_ItemFreshnessLabel(g, COMBO_TRACKER_FRESH_UNAVAILABLE), "No data") == 0;
+                 strcmp(Combo_ItemFreshnessLabel(g, COMBO_TRACKER_FRESH_UNAVAILABLE), "") == 0;
         }
         if (!ok) {
             printf("[TEST] FAIL: an unregistered adapter is not inert\n");

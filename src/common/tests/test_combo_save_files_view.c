@@ -411,7 +411,9 @@ TestResult Test_ComboSaveFilesView(void) {
         };
         CSF_ASSERT(notes[0].rfind("No cross-game record yet", 0) == 0, "the no-record note is \"%s\"",
                    notes[0].c_str());
-        CSF_ASSERT(notes[1].rfind("Each file holds both games", 0) == 0, "the all-ready note is \"%s\"",
+        // #927: no mechanism sentence ("Each file holds both games"): where to
+        // manage files, which is what a player acts on.
+        CSF_ASSERT(notes[1].rfind("Load, create and erase files", 0) == 0, "the all-ready note is \"%s\"",
                    notes[1].c_str());
         // What a refusal does (#836, operator ruling 2026-10-01): the file does
         // not open. Never the retired unpaired-play words.
