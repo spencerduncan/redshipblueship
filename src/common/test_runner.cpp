@@ -4388,15 +4388,16 @@ static TestResult Test_ConsoleSetParseGuard(void) {
 
     auto console = ctx->GetConsole();
     auto cvars = ctx->GetConsoleVariables();
-    if (console->HasCommand("set")) {
-        printf("[TEST] FAIL: console-set-parse-guard: `set` was registered before the Console window initialised: "
-               "this row cannot tell whose handler it runs\n");
-        return TEST_FAIL;
-    }
-    auto window = std::make_shared<Ship::ConsoleWindow>("gConsoleEnabled", "Console");
-    window->Init();
+    // Under `--test all` an earlier row's bring-up has already initialised a Console window on the shared Console;
+    // Init again would only warn that `set` exists. Either way the handler must be the Console window's own, which
+    // its description identifies (nothing else in the tree registers `set`).
+    std::shared_ptr<Ship::ConsoleWindow> window;
     if (!console->HasCommand("set")) {
-        printf("[TEST] FAIL: console-set-parse-guard: the Console window did not register `set`\n");
+        window = std::make_shared<Ship::ConsoleWindow>("gConsoleEnabled", "Console");
+        window->Init();
+    }
+    if (!console->HasCommand("set") || console->GetCommand("set").Description != "Sets a console variable.") {
+        printf("[TEST] FAIL: console-set-parse-guard: `set` is not the Console window's own command\n");
         return TEST_FAIL;
     }
 
