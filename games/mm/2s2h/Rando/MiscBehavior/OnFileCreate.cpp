@@ -471,9 +471,10 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                         }
                     }
                     // Record the winning attempt as provenance, displaced by
-                    // one so 0 stays the growth contract's "unset" (context.h):
-                    // the spoiler carries the raw index, the combo record the
-                    // displaced one. Regeneration under the same identity
+                    // one so 0 stays the growth contract's "unset" (context.h);
+                    // the one spoiler reports it as combo.identity.mmPairedAttempt
+                    // (a paired world writes no MM spoiler of its own, #564 V23).
+                    // Regeneration under the same identity
                     // re-converges here by construction (the ladder is
                     // deterministic); the record makes that replay checkable.
                     gComboCtx.mmPairedAttempt = (uint32_t)rsbsWinningAttempt + 1u;

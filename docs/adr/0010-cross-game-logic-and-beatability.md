@@ -709,6 +709,18 @@ survives a paired creation. The join runs inside `MM_Rando_GenerateAtCreation`,
 because that is the only window in which MM's world and OoT's document both
 exist: the caller's snapshot bracket takes MM's world away the instant the call
 returns.
+*Amended 2026-10-12 (#564 V23):* MM writes no `RSBSPAIR<masterSeed>.json` for a
+paired world any more: `OnFileCreate` skips its own spoiler write when the world
+is paired and selects nothing in `gRando.SpoilerFile`, so the join builds
+`combo.mm` from the live save and has nothing to retire (the retire step is
+gone). `RSBSPAIR<masterSeed>` survives only as the MM seed derivation's input
+string and as `combo.mm.inputSeed`. And a document whose `combo.identity` names
+another pair (the #610 crossing-identity rule) is that pair's: neither OoT's
+writer nor the join rewrites it. OoT names its spoiler by its hash icons, which
+two pairs differing only in MM's options or the Cross-Game Rules share, so the
+later pair is created without a spoiler; OoT's writer then clears
+`gGeneral.SpoilerLog`, so the join never runs against a file this creation did
+not write.
 
 *Deviations from the literal contract, and why.*
 

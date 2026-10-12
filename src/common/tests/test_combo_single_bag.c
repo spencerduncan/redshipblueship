@@ -194,6 +194,12 @@
  *        Its real creation must not rewrite the first pair's spoiler: the bytes at
  *        that path are unchanged, and the creation still succeeds (a spoiler is a
  *        report, so its refusal never fails a creation).
+ *   V23c. In the same creation, gGeneral.SpoilerLog names a solo OoT document (no
+ *        "combo" section: a dropped file, an older build's spoiler) that this
+ *        creation did not write. OoT's writer refuses the aliased path, so the join
+ *        must not run against whatever the CVar names: that document is unchanged,
+ *        and the CVar does not name it afterwards (the Randomizer menu's "Spoiler
+ *        File:" line would show it as this world's).
  *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
@@ -1670,11 +1676,34 @@ TestResult ComboSingleBag_Run(void) {
             CSB_ASSERT(secondDigest != firstDigest,
                        "the changed MM option did not change the pair's identity, so V23b proves nothing");
 
+            // V23c's starting point: SpoilerLog names a solo OoT document this
+            // creation will not write (the creation event joins into whatever the
+            // CVar names).
+            const char* const kV23cName = "Randomizer/rsbs-v23c-solo-oot-spoiler.json";
+            const std::string v23cPath = Ship::Context::GetPathRelativeToAppDirectory(kV23cName);
+            const std::string v23cCVar = std::string("./") + kV23cName;
+            {
+                std::ofstream solo(v23cPath, std::ios::binary | std::ios::trunc);
+                solo << "{\n    \"_note\": \"a solo OoT spoiler with no combo section (ComboSingleBag V23c)\",\n"
+                        "    \"seed\": \"V23C\"\n}\n";
+            }
+            const std::string soloBefore = CsbReadWholeFile(v23cPath);
+            CSB_ASSERT(!soloBefore.empty(), "could not write V23c's solo OoT document, so V23c proves nothing");
+            CVarSetString("gGeneral.SpoilerLog", v23cCVar.c_str());
+
             Randomizer_TestClearOoTSave();
             Context_ClearFrozenState(GAME_MM);
             OoT_Creation_TestStageGeneration();
             const int created = OoT_Creation_AuthorRandoFile(1);
             const std::string after = CsbReadWholeFile(v23Path);
+            const std::string soloAfter = CsbReadWholeFile(v23cPath);
+            const std::string spoilerLogAfter = CVarGetString("gGeneral.SpoilerLog", "");
+            std::remove(v23cPath.c_str());
+            printf("[TEST] combo-single-bag: V23c the solo OoT document SpoilerLog named is %s (%zu bytes before, %zu "
+                   "after); SpoilerLog now reads '%s'\n",
+                   soloAfter == soloBefore ? "unchanged" : "REWRITTEN", soloBefore.size(), soloAfter.size(),
+                   spoilerLogAfter.c_str());
+            fflush(stdout);
             printf("[TEST] combo-single-bag: V23b the second pair's creation: created=%d; the first pair's spoiler is "
                    "%s (%zu bytes before, %zu after)\n",
                    created, after == before ? "unchanged" : "REWRITTEN", before.size(), after.size());
@@ -1684,6 +1713,13 @@ TestResult ComboSingleBag_Run(void) {
                        "the second pair's creation rewrote the first pair's spoiler: two pairs that share an OoT seed "
                        "and OoT settings share one spoiler path, and the later creation replaced the earlier pair's "
                        "artifact (#564 V23)");
+            CSB_ASSERT(soloAfter == soloBefore,
+                       "the second pair's creation joined its half into the solo OoT document SpoilerLog named, a file "
+                       "this creation did not write: OoT's writer refused the aliased path and left SpoilerLog as it "
+                       "was (#564 V23)");
+            CSB_ASSERT(spoilerLogAfter != v23cCVar,
+                       "SpoilerLog still names a document this creation did not write, so the Randomizer menu shows "
+                       "it as this world's spoiler (#564 V23)");
         }
     }
     Combo_SingleBag_Forget();
