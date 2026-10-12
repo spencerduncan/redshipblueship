@@ -410,11 +410,14 @@ const char* SpoilerLog_Write() {
     // #564 V23: the hash icons depend on the seed and OoT's settings only, so a
     // paired world shares this name with any pair that differs only in MM's
     // options or the Cross-Game Rules. Such a pair's spoiler is not this one's to
-    // replace.
+    // replace. SpoilerLog is cleared with the refusal: it still names whatever it
+    // held before (another pair's file, a dropped one, an older build's), and the
+    // creation event joins this pair's half into whatever it names.
     if (OoT_ComboLogic_WritingSingleBagSpoiler() != 0 &&
         MM_Rando_SpoilerBelongsToAnotherPair(
             Ship::Context::GetPathRelativeToAppDirectory(("Randomizer/" + fileName + ".json").c_str()).c_str(),
             "write this world's OoT spoiler over") != 0) {
+        CVarClear(CVAR_GENERAL("SpoilerLog"));
         return nullptr;
     }
 #endif

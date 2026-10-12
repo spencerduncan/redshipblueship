@@ -200,6 +200,9 @@
  *        must not run against whatever the CVar names: that document is unchanged,
  *        and the CVar does not name it afterwards (the Randomizer menu's "Spoiler
  *        File:" line would show it as this world's).
+ *   V23d. The join itself (MM_Rando_AugmentSpoilerWithPairedHalf), handed the
+ *        first pair's spoiler while the second pair is resident, refuses (-5) and
+ *        leaves it byte-identical: the defence in depth behind V23c.
  *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
@@ -1720,6 +1723,20 @@ TestResult ComboSingleBag_Run(void) {
             CSB_ASSERT(spoilerLogAfter != v23cCVar,
                        "SpoilerLog still names a document this creation did not write, so the Randomizer menu shows "
                        "it as this world's spoiler (#564 V23)");
+
+            // V23d. The join's own identity check, for any caller handed another
+            // pair's document regardless (the creation event no longer is): the
+            // second pair, still resident, joining into the first pair's spoiler
+            // is refused and leaves it as it is.
+            const int joinRc = MM_Rando_AugmentSpoilerWithPairedHalf(v23Path.c_str());
+            const std::string afterJoin = CsbReadWholeFile(v23Path);
+            printf("[TEST] combo-single-bag: V23d the second pair's join into the first pair's spoiler returned %d; "
+                   "the first pair's spoiler is %s (%zu bytes before, %zu after)\n",
+                   joinRc, afterJoin == before ? "unchanged" : "REWRITTEN", before.size(), afterJoin.size());
+            fflush(stdout);
+            CSB_ASSERT(joinRc == -5 && afterJoin == before,
+                       "the join rewrote another pair's spoiler: a document whose combo.identity names another pair "
+                       "is that pair's (#564 V23)");
         }
     }
     Combo_SingleBag_Forget();

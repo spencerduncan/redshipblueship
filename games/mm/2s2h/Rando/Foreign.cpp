@@ -1546,9 +1546,10 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
             in >> doc;
         }
         // #564 V23: the document is rewritten only when it is not another pair's.
-        // It is OoT's own when OoT's writer just wrote it; it is another pair's
-        // when OoT's writer refused (MM_Rando_SpoilerBelongsToAnotherPair) and
-        // CVAR_GENERAL("SpoilerLog") still names that pair's file.
+        // In a creation it is the one OoT's writer just wrote: when that writer
+        // refuses another pair's path it also clears CVAR_GENERAL("SpoilerLog"),
+        // so the creation event has nothing to join. This check is the defence in
+        // depth for any caller handed another pair's path regardless.
         {
             std::string why;
             if (SpoilerBelongsToAnotherPair(doc, why)) {
