@@ -427,10 +427,10 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
   glyphs) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
   adapter, with one collected, one skipped and two open OoT checks and its Checks list open, so the status glyphs and
-  both crossing tables are drawn). The Combo Item Tracker draws no-data (nothing to read: each section's header over
-  "No data.", drawn as the Window type so its title bar is captured), live (Ocarina of Time "Updated live.", Majora's
-  Mask from its snapshot, "As of file creation.", and an authored pool) and snapshot (the mirror image: Majora's Mask
-  live, Ocarina of Time "As of the last game switch or save."), the last two floating. It is captured unscrolled,
+  both crossing tables are drawn). The Combo Item Tracker draws no-data (nothing to read: each section's header alone,
+  drawn as the Window type so its title bar is captured), live (Ocarina of Time live, Majora's Mask from its
+  snapshot, and an authored pool) and snapshot (the mirror image: Majora's Mask live, Ocarina of Time from its
+  snapshot), the last two floating; no section carries a caption (#927). It is captured unscrolled,
   because the floating overlay has no scrollbar. Majora's Mask's section is the text fallback wherever it has rows,
   because its icons load only once Majora's Mask has booted and the harness never boots it.
 - SoH PANE: SoH's Check Tracker Settings pane, the reference both of those panes compare with (`compare/`). It is

@@ -46,12 +46,8 @@
  *    when the world is unpaired ("not paired" must never render as "no
  *    crossings"). The crossing-store half is ComboCrossingViews.
  *
- * 7. FRESHNESS LABELS ARE PLAYER WORDING (UI parity M8). The window prints the
- *    label as a gray note with a closing period, so every label, for both
- *    games and every freshness, starts upper case, carries no closing
- *    punctuation, and names no mechanism a player never sees ("freeze",
- *    "shadow", "suspend", "heap"): the stale wording is "As of the last game
- *    switch", with MM adding "or save".
+ * 7. NO FRESHNESS CAPTION (#927). A panel is labelled by its game's header
+ *    alone, so every label, for both games and every freshness, is empty.
  *
  * 8. MM READS LIVE WHILE MM IS PLAYED (#799). MM's arrival consumes the shadow
  *    and zeroes it, so a shadow-only reader showed "No data yet" in Termina
@@ -150,7 +146,7 @@ static void CtvSetObtained(std::vector<uint8_t>& buf, const ComboMMTrackerDesc* 
  *   D. refused arrival: the shadow stays armed (never consumed) and MM plays
  *      the boot chain's bootstrap. An unmarked bootstrap (Sram_InitNewSave's
  *      empty newf, which is what the code authors) falls back to the armed
- *      shadow, STALE, labelled "As of file creation"; a marked non-rando one
+ *      shadow, STALE; a marked non-rando one
  *      would read LIVE as "not a randomized world" with found UNKNOWN.
  */
 static int CtvLiveLegsBody(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
@@ -162,8 +158,6 @@ static int CtvLiveLegsBody(const ComboMMTrackerDesc* desc, std::vector<uint8_t>&
     memcpy(live.data() + desc->newfOffset, desc->newf, desc->newfLen);
     memcpy(live.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
     memcpy(live.data() + desc->finalSeedOffset, &kLiveSeed, sizeof(uint32_t));
-    const uint64_t kCreatedAt = 1759190400ull; // MM loaded it: OnSaveLoad stamped it
-    memcpy(live.data() + desc->createdAtOffset, &kCreatedAt, sizeof(kCreatedAt));
     for (uint16_t check : { kLiveA, kLiveHost, kLiveC }) {
         live[desc->checkTableOffset + (size_t)check * desc->checkStride + desc->shuffledOffset] = 1;
     }
@@ -200,7 +194,7 @@ static int CtvLiveLegsBody(const ComboMMTrackerDesc* desc, std::vector<uint8_t>&
     CTV_ASSERT(Combo_TrackerCheckCount((uint8_t)GAME_MM) == (int)desc->checkCount);
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kLiveHost, &row));
     CTV_ASSERT(row.shuffled && row.obtained && !row.skipped);
-    CTV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, summary.freshness), "Updated live") == 0);
+    CTV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, summary.freshness), "") == 0); // #927
     CTV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &foreignRow));
     CTV_ASSERT(foreignRow.hostCheckId == kLiveHost && foreignRow.found == COMBO_TRACKER_FOUND_YES);
     Combo_TrackerForeignProgress((uint8_t)GAME_MM, &progress);
@@ -236,19 +230,17 @@ static int CtvLiveLegsBody(const ComboMMTrackerDesc* desc, std::vector<uint8_t>&
     CTV_ASSERT(progress.freshness == COMBO_TRACKER_FRESH_STALE);
 
     // ---- D. refused arrival: the armed shadow stays, MM plays the bootstrap --
-    // The armed half: marked, rando, never loaded by MM (creation stamp zero).
+    // The armed half: marked, rando, never loaded by MM.
     std::vector<uint8_t> armed = shadowWorld;
-    memset(armed.data() + desc->createdAtOffset, 0, sizeof(uint64_t));
     Context_UpdateShadowCopy(GAME_MM, armed.data(), armed.size());
     // D1. What the code authors: Sram_InitNewSave's bootstrap carries an empty
     // newf and SAVETYPE_VANILLA, so the live read is refused and the armed
-    // shadow is shown, labelled as the file-creation snapshot it is.
+    // shadow is shown, stale.
     std::vector<uint8_t> bootstrap((size_t)MM_SAVE_CONTEXT_SIZE, 0);
     sCtvLive = bootstrap.data();
     Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
     CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);
     CTV_ASSERT(summary.hasWorld && summary.seed == 0x5EEDF00Du && summary.shuffled == 3);
-    CTV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, summary.freshness), "As of file creation") == 0);
     // D2. Were the bootstrap ever marked, it is MM's running save and is shown
     // live as what it is: not a randomized world, crossings' found not known.
     memcpy(bootstrap.data() + desc->newfOffset, desc->newf, desc->newfLen);
@@ -411,8 +403,6 @@ static int CtvSkipLegsMM(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& s
     std::vector<uint8_t> live((size_t)MM_SAVE_CONTEXT_SIZE, 0);
     memcpy(live.data() + desc->newfOffset, desc->newf, desc->newfLen);
     memcpy(live.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
-    const uint64_t kCreatedAt = 1759190400ull;
-    memcpy(live.data() + desc->createdAtOffset, &kCreatedAt, sizeof(kCreatedAt));
     for (uint16_t check : { kOpen, kFound }) {
         live[desc->checkTableOffset + (size_t)check * desc->checkStride + desc->shuffledOffset] = 1;
     }
@@ -850,7 +840,7 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_MM) == 0);
     CTV_ASSERT(Combo_TrackerForeignCount((uint8_t)GAME_OOT) == 0);
 
-    // ---- 7. Freshness labels are player wording ---------------------------
+    // ---- 7. No freshness caption (#927) -------------------------------------
     {
         const uint8_t games[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
         const uint8_t fresh[3] = { COMBO_TRACKER_FRESH_LIVE, COMBO_TRACKER_FRESH_STALE,
@@ -858,16 +848,9 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
         for (uint8_t g : games) {
             for (uint8_t f : fresh) {
                 const char* label = Combo_TrackerFreshnessLabel(g, f);
-                CTV_ASSERT(label != NULL && label[0] >= 'A' && label[0] <= 'Z');
-                const size_t len = strlen(label);
-                CTV_ASSERT(label[len - 1] != '.' && label[len - 1] != ')');
-                for (const char* jargon : { "freeze", "shadow", "suspend", "heap" }) {
-                    CTV_ASSERT(strstr(label, jargon) == NULL);
-                }
+                CTV_ASSERT(label != NULL && label[0] == '\0');
             }
         }
-        CTV_ASSERT(strcmp(Combo_TrackerFreshnessLabel((uint8_t)GAME_OOT, COMBO_TRACKER_FRESH_STALE),
-                          Combo_TrackerFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE)) != 0);
     }
 
     // ---- Leave global state clean -----------------------------------------

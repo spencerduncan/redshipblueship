@@ -159,7 +159,7 @@ std::string Combo_SaveFiles_Note(const ComboSaveFileRow* rows, int count) {
                "file select to free the slot.";
     }
     if (anyReady) {
-        return "Each file holds both games. Load, create and erase files from the Ocarina of Time file select.";
+        return "Load, create and erase files from the Ocarina of Time file select.";
     }
     if (anyBackup) {
         return "A cross-game record that could not be loaded was kept as a backup. Erasing its file in the "

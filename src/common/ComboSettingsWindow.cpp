@@ -69,8 +69,7 @@ void DrawPairingSummary(const ComboSettingsSummary& summary) {
         // "Not paired" and "paired under the defaults" are different facts. A
         // seedless header would tell the player these rules belong to a world
         // that does not exist.
-        ImGui::TextWrapped("No paired world yet. These rules freeze into the next paired world's identity when a "
-                           "randomized Ocarina of Time world is generated.");
+        ImGui::TextUnformatted("No paired world.");
         ImGui::Separator();
         return;
     }
@@ -79,38 +78,27 @@ void DrawPairingSummary(const ComboSettingsSummary& summary) {
     Combo_MMProfileSummary(&profile);
     ImGui::Text("Paired seed: %u", (unsigned)profile.sharedRandoSeed);
     if (summary.frozen) {
-        ImGui::Text("Rules fingerprint: %08X (frozen at creation)", (unsigned)summary.comboSettingsHash);
+        ImGui::Text("Rules fingerprint: %08X", (unsigned)summary.comboSettingsHash);
     } else {
         // formatVersion == 0 on a PAIRED world means a legacy pre-carve pair
         // (ADR 0011 decision 4.2): the shipped defaults freeze at its first
         // crossing (accepted answer O5). For a post-carve created file this
         // state is unreachable, so it is named rather than rendered as a
         // benign default.
-        ImGui::TextUnformatted("Rules: not frozen (this pair predates combo rules; the shipped defaults freeze at "
-                               "its first crossing)");
+        ImGui::TextUnformatted("Rules: not frozen");
     }
     ImGui::Separator();
 }
 
 /**
  * The FOURTH presentation state (ADR 0004 §6 state 4): frozen-at-creation,
- * read-only, with the reason stated where the rows are.
- *
- * The copy names the ACTUAL escape, which is not "create a new paired world":
- * the stamp lands at GENERATION (Playthrough_Init), and the only unfreezing
- * events are the DROP paths in Context_InvalidateSessionState — returning to
- * the title screen, starting a vanilla file, or loading a slot whose .redsave
- * is unfrozen. The same escape the MM options pane names, for the same
- * reason: advice the player cannot act on is ADR 0004 §5's vacuous gate
- * wearing a help string.
+ * read-only, with the reason stated where the rows are: the model's heading
+ * here and the same words beside every row (DecidedTag). No paragraph of
+ * mechanism under it (#927): the Cross-Game Rules page's state note says
+ * what a player can do about it.
  */
 void DrawDecidedBanner(const ComboSettingsSummary& summary) {
     DecidedHeading();
-    ImGui::TextWrapped("This paired world's cross-game rules were frozen into its identity when the world was "
-                       "created. The values below are read from the save, not from the settings store, and are "
-                       "shown read-only; changing them is no longer possible for this pair. To play under different "
-                       "rules, return to the title screen — these unlock there — then set them and generate a new "
-                       "seed.");
     if (!summary.paired) {
         // A frozen record with no live pairing is a state no created combo
         // file may be in (decision 4.2). Say so rather than render zeros as
@@ -120,18 +108,17 @@ void DrawDecidedBanner(const ComboSettingsSummary& summary) {
     ImGui::Separator();
 }
 
-/** Pre-creation: what these are, and — for a legacy pair — what they are NOT. */
+/**
+ * Pre-creation: what these are, in the Cross-Game Rules page's own words (its
+ * state note), so "editable" is not mistaken for "in effect now". One sentence,
+ * no paragraph of mechanism (#927). A legacy pre-carve pair (paired, not
+ * frozen) also gets that page's instruction, because an edit here before its
+ * first crossing is not harmless: the player acts on it.
+ */
 void DrawAuthoringNotice(const ComboSettingsSummary& summary) {
-    ImGui::TextColored(kWarnColor, "These freeze into the paired world's identity.");
-    ImGui::TextWrapped("They govern the crossing between both games and are decided once, when a randomized Ocarina "
-                       "of Time world is generated. After that the record in the save is the authority, and a "
-                       "crossing or a load whose authored rules no longer match it is refused by name.");
+    ImGui::TextUnformatted("These rules apply to the next paired world you create.");
     if (summary.paired && !summary.frozen) {
-        ImGui::Spacing();
-        ImGui::TextColored(kWarnColor, "The current paired world predates these rules.");
-        ImGui::TextWrapped("It was generated when there was only one rule set — the shipped defaults — and those are "
-                           "recorded into it at its first crossing. The values below describe the NEXT world you "
-                           "create; leave them at the defaults before crossing into this one.");
+        ImGui::TextUnformatted("Keep them at the defaults until you have crossed into this paired world once.");
     }
     ImGui::Separator();
 }

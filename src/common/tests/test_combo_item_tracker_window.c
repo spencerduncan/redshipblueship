@@ -26,12 +26,11 @@
  *
  * 4. THE MODEL READS THE DRAW MAKES. The open draw path is
  *    ComboItemTrackerCollectSection per shown section, so the lock drives
- *    exactly that over: no data (every section "No data." with no rows); OoT
- *    live from a test live source with MM's shadow and the shared pool
- *    authored (OoT "Updated live." with the live world's rows, MM from its
- *    snapshot with its label, the pool "As of the last switch or save."); MM
- *    active (OoT is never live, its rows are its snapshot's). Row text is
- *    asserted as printed ("Bow 25/40"), held and not held.
+ *    exactly that over: no data (every section with no rows); OoT live from a
+ *    test live source with MM's shadow and the shared pool authored (OoT with
+ *    the live world's rows, MM from its snapshot, the pool's rows); MM active
+ *    (OoT is never live, its rows are its snapshot's). Row text is asserted as
+ *    printed ("Bow 25/40"), held and not held.
  *
  * 5. THE CHROME AND GRID DECISIONS, as the pure functions the draw calls:
  *    BeginFloatingWindows' flags for both window types and both Draggable
@@ -49,6 +48,13 @@
  *    own icon at 0.4), the songs' narrow notes, the counts each tracker prints,
  *    the per-section text fallback, the Shared section's icons from the active
  *    game, and the side-by-side fit at both capture profiles.
+ *
+ * 9. THE CAPTIONS ARE CUT (#927). A section is labelled by its header alone,
+ *    as SoH's trackers label theirs: no section carries a note in any state,
+ *    and neither the overlay's label functions (Combo_ItemFreshnessLabel,
+ *    Combo_ItemSharedLabel) nor the Combo Tracker's (Combo_TrackerFreshnessLabel)
+ *    returns a sentence ("Updated live", "As of ...", "No data") for any game
+ *    and freshness, with the pool empty or holding resources.
  *
  * 8. THE KEY SPACES DO NOT MEET (#458 U3's scan lock). Both games' icons sit in
  *    one Gui texture map, so an OoT key equal to an MM key would draw one
@@ -166,8 +172,8 @@ bool CitwSectionHasText(const ComboGui::ComboItemTrackerSection& section, const 
 
 /**
  * The reads DrawElement makes, for every section, with the contract checks a
- * crash would not catch: a note that is a sentence, no rows without data, every
- * row labelled and carrying its section's freshness.
+ * crash would not catch: no note (#927), no rows without data, every row
+ * labelled and carrying its section's freshness.
  */
 bool CitwDriveSections(ComboGui::ComboItemTrackerSection out[ComboGui::COMBO_ITEM_SECTION_COUNT]) {
     for (int s = 0; s < ComboGui::COMBO_ITEM_SECTION_COUNT; s++) {
@@ -176,11 +182,12 @@ bool CitwDriveSections(ComboGui::ComboItemTrackerSection out[ComboGui::COMBO_ITE
         if (section.id != s || section.title == nullptr || section.title[0] == '\0') {
             return false;
         }
-        if (section.note.size() < 2 || section.note.back() != '.') {
+        if (!section.note.empty()) {
+            printf("[TEST] FAIL: section \"%s\" carries the caption \"%s\" (#927)\n", section.title,
+                   section.note.c_str());
             return false;
         }
-        if (section.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE &&
-            (!section.rows.empty() || section.note != "No data.")) {
+        if (section.freshness == COMBO_TRACKER_FRESH_UNAVAILABLE && !section.rows.empty()) {
             return false; // "no data" is not an empty inventory
         }
         for (const ComboItemRow& row : section.rows) {
@@ -190,6 +197,32 @@ bool CitwDriveSections(ComboGui::ComboItemTrackerSection out[ComboGui::COMBO_ITE
         }
     }
     return true;
+}
+
+/**
+ * #927: no label function returns a caption. Every label is non-NULL and empty
+ * for both games and every freshness, the pool's included.
+ */
+int CitwLockCaptionsCut(const char* state) {
+    const uint8_t games[] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
+    const uint8_t freshnesses[] = { (uint8_t)COMBO_TRACKER_FRESH_LIVE, (uint8_t)COMBO_TRACKER_FRESH_STALE,
+                                    (uint8_t)COMBO_TRACKER_FRESH_UNAVAILABLE };
+    for (uint8_t game : games) {
+        for (uint8_t freshness : freshnesses) {
+            const char* item = Combo_ItemFreshnessLabel(game, freshness);
+            const char* tracker = Combo_TrackerFreshnessLabel(game, freshness);
+            printf("[TEST] combo-item-tracker-window: %s: %s freshness %d: overlay label \"%s\", tracker label "
+                   "\"%s\"\n",
+                   state, game == (uint8_t)GAME_MM ? "MM" : "OoT", (int)freshness, item != nullptr ? item : "(null)",
+                   tracker != nullptr ? tracker : "(null)");
+            CITW_ASSERT(item != nullptr && item[0] == '\0');
+            CITW_ASSERT(tracker != nullptr && tracker[0] == '\0');
+        }
+    }
+    const char* shared = Combo_ItemSharedLabel();
+    printf("[TEST] combo-item-tracker-window: %s: shared label \"%s\"\n", state, shared != nullptr ? shared : "(null)");
+    CITW_ASSERT(shared != nullptr && shared[0] == '\0');
+    return TEST_PASS;
 }
 
 int CitwLockDecisions(void) {
@@ -749,6 +782,9 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     for (int authored = 0; authored < 2; authored++) {
         ComboContext_Init();
         Combo_ResetSharedResourceWatermarks();
+        if (!authored && CitwLockCaptionsCut("no data") != TEST_PASS) {
+            return TEST_FAIL; // #927, leg 9: checked first, so a regression names the label it returns
+        }
         Context_UpdateShadowCopy(GAME_OOT, authored ? ootShadow.data() : ootZeros.data(), ootZeros.size());
         Context_UpdateShadowCopy(GAME_MM, authored ? mmShadow.data() : mmZeros.data(), mmZeros.size());
         sCitwOoTLive = authored ? ootLive.data() : nullptr;
@@ -823,7 +859,7 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
            ootLiveSection.title, ootLiveSection.rows.size(), ootLiveSection.note.c_str(), mmSnap.title,
            mmSnap.rows.size(), mmSnap.note.c_str(), shared.title, shared.rows.size(), shared.note.c_str());
     CITW_ASSERT(strcmp(ootLiveSection.title, "Ocarina of Time") == 0);
-    CITW_ASSERT(ootLiveSection.freshness == COMBO_TRACKER_FRESH_LIVE && ootLiveSection.note == "Updated live.");
+    CITW_ASSERT(ootLiveSection.freshness == COMBO_TRACKER_FRESH_LIVE && ootLiveSection.note.empty());
     CITW_ASSERT((int)ootLiveSection.rows.size() == oot->count());
     CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Hookshot", true));     // the live world (variant 1)
     CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Song of Time", true));  // the live world
@@ -831,14 +867,13 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(!CitwSectionHasText(ootLiveSection, "Longshot", true));     // the shadow's, not shown
     CITW_ASSERT(strcmp(mmSnap.title, "Majora's Mask") == 0);
     CITW_ASSERT(mmSnap.freshness == COMBO_TRACKER_FRESH_STALE);
-    CITW_ASSERT(mmSnap.note ==
-                std::string(Combo_ItemFreshnessLabel((uint8_t)GAME_MM, COMBO_TRACKER_FRESH_STALE)) + ".");
+    CITW_ASSERT(mmSnap.note.empty());
     CITW_ASSERT((int)mmSnap.rows.size() == mm->count());
     CITW_ASSERT(CitwSectionHasText(mmSnap, "Bow 25/40", true));
     CITW_ASSERT(CitwSectionHasText(mmSnap, "Magic Bean 7/20", true));
     CITW_ASSERT(CitwSectionHasText(mmSnap, "Zora Mask", false)); // the live world's, not the snapshot's
     CITW_ASSERT(strcmp(shared.title, "Shared") == 0);
-    CITW_ASSERT(shared.freshness == COMBO_TRACKER_FRESH_STALE && shared.note == "As of the last switch or save.");
+    CITW_ASSERT(shared.freshness == COMBO_TRACKER_FRESH_STALE && shared.note.empty());
     CITW_ASSERT(CitwSectionHasText(shared, "Arrows 33/40", true));
     // Each section carries its own game's grid (#458 U3); the pool's icons are
     // the active game's own: OoT's tier-2 quiver under GAME_OOT.
@@ -863,7 +898,7 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(arrowsActiveMM != nullptr && CitwIsPath(arrowsActiveMM->iconKey)); // MM active: MM's icons
     const ComboItemTrackerSection ootSnapCopy = sections[ComboGui::COMBO_ITEM_SECTION_OOT];
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
-    CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].note == "As of the last game switch or save.");
+    CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].note.empty());
     CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Longshot", true));
     CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Fairy Bow 35/40", true));
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_LIVE);
@@ -875,6 +910,20 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_STALE);
     printf("[TEST] combo-item-tracker-window: model reads PASS (OoT live / MM live / no game)\n");
+
+    // ---- 9. the captions are cut (#927) ---------------------------------------
+    // Every label function, for both games and every freshness, with the pool
+    // holding resources (above) and empty (below): none returns a sentence.
+    if (CitwLockCaptionsCut("pool holding resources") != TEST_PASS) {
+        return TEST_FAIL;
+    }
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    CITW_ASSERT(Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE);
+    if (CitwLockCaptionsCut("pool empty") != TEST_PASS) {
+        return TEST_FAIL;
+    }
+    printf("[TEST] combo-item-tracker-window: captions cut PASS (#927)\n");
 
     // ---- 7. the icons and the fit, over the real rows -----------------------
     if (CitwLockIcons(ootLiveCopy, mmSnapCopy, sharedCopy, ootSnapCopy) != TEST_PASS) {

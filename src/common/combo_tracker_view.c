@@ -52,7 +52,6 @@ void Combo_Tracker_RegisterMM(const ComboMMTrackerDesc* desc) {
         desc->skippedOffset >= desc->checkStride || desc->newfLen > sizeof(desc->newf) ||
         (uint64_t)desc->newfOffset + desc->newfLen > (uint64_t)MM_SAVE_CONTEXT_SIZE ||
         (uint64_t)desc->saveTypeOffset + 4 > (uint64_t)MM_SAVE_CONTEXT_SIZE ||
-        (uint64_t)desc->createdAtOffset + 8 > (uint64_t)MM_SAVE_CONTEXT_SIZE ||
         (uint64_t)desc->finalSeedOffset + 4 > (uint64_t)MM_SAVE_CONTEXT_SIZE) {
         fprintf(stderr, "[ComboTracker] REJECTED MM tracker descriptor: geometry reads outside the shadow blob\n");
         return;
@@ -83,32 +82,14 @@ void Combo_Tracker_RegisterOoT(const ComboOoTTrackerOps* ops) {
 // Freshness
 // ============================================================================
 
-static bool MMShadowNeverEntered(void);
-
 const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness) {
-    switch (freshness) {
-        // Player wording (the window prints it as a gray note): a game switch is
-        // what freezes MM's shadow and suspends OoT's heap.
-        case COMBO_TRACKER_FRESH_LIVE:
-            return "Updated live";
-        case COMBO_TRACKER_FRESH_STALE:
-            // The stale wording is per game because the mechanism differs: the
-            // MM panel reads a shadow written at freeze/save time; the OoT
-            // panel reads a heap that simply stopped advancing at suspend.
-            // MM's half of a paired file that MM has never loaded: the creation
-            // event armed it and nothing has written it since, so "the last game
-            // switch or save" would name an event that never happened. Keyed on
-            // the save's creation stamp, which MM writes on its first load
-            // (#765; see MMShadowNeverEntered).
-            if (game == (uint8_t)GAME_MM && MMShadowNeverEntered()) {
-                return "As of file creation";
-            }
-            return (game == (uint8_t)GAME_MM) ? "As of the last game switch or save" : "As of the last game switch";
-        case COMBO_TRACKER_FRESH_UNAVAILABLE:
-            return "No data";
-        default:
-            return "(bad freshness)";
-    }
+    // The operator's rule for our windows (#927): a caption goes unless it is
+    // the label of what is drawn, and freshness is not one. A panel is labelled
+    // by its game's header alone, as SoH's trackers label theirs; the freshness
+    // stays a field, which the windows still act on (skip writes, found state).
+    (void)game;
+    (void)freshness;
+    return "";
 }
 
 // ============================================================================
@@ -189,28 +170,6 @@ static const uint8_t* MMBlobIfPresent(uint8_t* outFreshness) {
         *outFreshness = freshness;
     }
     return blob;
-}
-
-static uint64_t MMBlobReadU64(const uint8_t* blob, uint32_t offset) {
-    uint64_t v;
-    memcpy(&v, blob + offset, sizeof(v));
-    return v;
-}
-
-/**
- * A resident MM save that MM itself has never loaded: its creation stamp
- * (ShipSaveInfo.fileCreatedAt) is still zero. MM writes that stamp from
- * OnSaveLoad, which MM's file select dispatches as it creates or loads a file
- * and a paired half first sees at its first arrival (z_play.c), so a zero
- * stamp is exactly the half the creation event armed and nothing has loaded
- * since. (#755 keyed this on the missing marker, which MM's arrival and
- * departure never restore, so after a first visit the label still said "As of
- * file creation".) It is a question about the SHADOW, the only source a stale
- * label describes, so it reads the shadow and never the live save (#799).
- */
-static bool MMShadowNeverEntered(void) {
-    const uint8_t* blob = MMShadowIfPresent();
-    return blob != NULL && MMBlobReadU64(blob, sMMDesc.createdAtOffset) == 0;
 }
 
 static void MMSummary(ComboTrackerGameSummary* out) {

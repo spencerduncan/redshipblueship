@@ -25,7 +25,7 @@
  *
  * FRESHNESS IS A FIELD, NOT A COMMENT. The tracker's whole point is showing
  * data that may be stale, so every summary carries an explicit freshness the
- * window must label:
+ * window acts on (no skip writes and no found state from data it cannot read):
  *   - MM reads its live save while MM is the active game AND its play state
  *     is loaded (the descriptor's liveSave hook answers non-NULL) AND that
  *     save carries the 'ZELDA3' marker: LIVE. Otherwise it reads the frozen
@@ -65,14 +65,10 @@ typedef enum {
 } ComboTrackerFreshness;
 
 /**
- * Label for a freshness value, per game, in player wording with no closing
- * period (the stale wording differs: MM's shadow is "As of the last game
- * switch or save", OoT's suspended heap is "As of the last game switch").
- * MM's stale label reads "As of file creation" while the shadow holds the
- * paired creation event's armed half that MM has never run (no file-select
- * marker), so it depends on the shadow as well as on its arguments.
- * Never NULL — out-of-range yields a visible placeholder rather
- * than a crash in a printf-family call.
+ * The caption a game's panel draws under its header for a freshness value:
+ * none, "" for every game and freshness (#927, the operator's 2026-10-11 rule:
+ * a caption goes unless it is the label of what is drawn, and freshness is not
+ * one). The item overlay's labels answer through this one. Never NULL.
  */
 const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness);
 
@@ -201,11 +197,6 @@ typedef struct ComboMMTrackerDesc {
     uint8_t newf[8];
     uint32_t saveTypeOffset; // u32 read; == saveTypeRando means a rando save
     uint32_t saveTypeRando;  // MM's SAVETYPE_RANDO value
-    // ShipSaveInfo.fileCreatedAt, a u64 read. MM stamps it from OnSaveLoad, so
-    // zero means MM has never loaded this save: the half the paired creation
-    // event armed, which only MM's first arrival dispatches OnSaveLoad over
-    // (#765). Selects the stale label; presence is the marker's alone.
-    uint32_t createdAtOffset;
     uint32_t finalSeedOffset;
     uint32_t checkTableOffset; // randoSaveChecks[0]
     uint32_t checkStride;      // sizeof(RandoSaveCheck)
