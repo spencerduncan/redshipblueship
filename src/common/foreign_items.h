@@ -1149,6 +1149,10 @@ void Combo_ClearForeignGiveCaps(void);
  *         unwritable file, or a malformed document.
  */
 int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath);
+/** #564 V23: 1 when the file at @p path is another paired world's spoiler, after
+ *  logging that @p refusedAction was not done; 0 otherwise (no file, unparseable,
+ *  or no "combo" section). OoT's writer asks before writing a paired document. */
+int MM_Rando_SpoilerBelongsToAnotherPair(const char* path, const char* refusedAction);
 
 #ifdef __cplusplus
 }

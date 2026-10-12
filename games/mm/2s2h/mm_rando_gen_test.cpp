@@ -940,6 +940,10 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
             return 3;
         }
         const uint32_t masterSeed = gComboCtx.sharedRandoSeed;
+        // #564 V23: the paired generation below writes no MM spoiler of its own.
+        // A file an older build left under this seed's name would make that
+        // assertion read a stale artifact, so it goes first.
+        std::remove((Rando::Spoiler::SpoilerDirectory() + "/RSBSPAIR" + std::to_string(masterSeed) + ".json").c_str());
 
         // THE CREATION EVENT'S MM HALF, which is where the MM world now comes
         // from, then OoT's side of the same creation (the crossings and OoT's
@@ -1038,36 +1042,35 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         return 8;
     }
 
-    // The spoiler must exist AND be findable through the module's own
-    // directory accessor (#439 second bug: the write path resolved against a
-    // second app directory that portable installs never create, so even a
-    // working pairing produced no file the operator could find).
-    const std::string pairedSpoiler =
-        Rando::Spoiler::SpoilerDirectory() + "/RSBSPAIR" + std::to_string(usedMasterSeed) + ".json";
+    // ONE ARTIFACT PER PAIR (#564 V23): the paired generation wrote no MM
+    // spoiler of its own and selected none. Its half is reported in OoT's
+    // document, whose "combo.mm" section the creation event builds from the live
+    // save (the solo phase of MMRandoGen still locks #439's findable-directory
+    // rule for MM's own files).
+    const std::string pairedName = "RSBSPAIR" + std::to_string(usedMasterSeed) + ".json";
+    const std::string pairedSpoiler = Rando::Spoiler::SpoilerDirectory() + "/" + pairedName;
     {
         std::ifstream sf(pairedSpoiler);
-        if (!sf.is_open()) {
-            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(9): no MM spoiler at %s after switch-entry pairing\n",
-                    pairedSpoiler.c_str());
+        if (sf.is_open() || pairedName == CVarGetString("gRando.SpoilerFile", "")) {
+            fprintf(stderr,
+                    "[MM-PAIR-SWITCH] FAIL(9): the paired generation wrote or selected an MM spoiler of its own (%s "
+                    "exists=%d, gRando.SpoilerFile='%s') - a second artifact for one world (#564 V23)\n",
+                    pairedSpoiler.c_str(), sf.is_open() ? 1 : 0, CVarGetString("gRando.SpoilerFile", ""));
             return 9;
         }
-        nlohmann::json j;
-        try {
-            sf >> j;
-        } catch (const std::exception& e) {
-            fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(9): paired spoiler unparseable: %s\n", e.what());
-            return 9;
-        }
-        // The MM spoiler's pinned "foreign" section is the retired overlay pass's
-        // (lane K11): a single-bag world lists its crossings in the one spoiler's
-        // combo.crossingStore, so this file must not claim a pinned crossing.
+        // What the one spoiler's "combo.mm" section is built from. The MM
+        // spoiler's pinned "foreign" section is the retired overlay pass's (lane
+        // K11): a single-bag world lists its crossings in combo.crossingStore, so
+        // this half must not claim a pinned crossing.
+        const nlohmann::json j = Rando::Spoiler::GenerateFromSaveContext();
         if (j.contains("foreign") && j["foreign"].is_object() && !j["foreign"].empty()) {
             fprintf(stderr, "[MM-PAIR-SWITCH] FAIL(10): the MM spoiler lists pinned 'foreign' crossings in a "
                             "single-bag world\n");
             return 10;
         }
     }
-    fprintf(stderr, "[MM-PAIR-SWITCH] spoiler verified at %s\n", pairedSpoiler.c_str());
+    fprintf(stderr, "[MM-PAIR-SWITCH] no MM spoiler of its own for the paired world (%s absent)\n",
+            pairedSpoiler.c_str());
 
     // ----------------------------------------------------------------------
     // Phase 2 — return leg: an existing PAIRED save is restored, not remade.

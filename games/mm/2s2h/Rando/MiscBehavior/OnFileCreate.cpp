@@ -488,7 +488,20 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                 runGenerationOnce();
 #endif
 
-                if (CVarGetInteger("gRando.GenerateSpoiler", 1)) {
+                bool writeOwnSpoiler = CVarGetInteger("gRando.GenerateSpoiler", 1) != 0;
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // ONE ARTIFACT PER PAIR (#660; #564 V23). A paired world's MM half
+                // is reported in OoT's spoiler document, whose "combo" section the
+                // creation event builds from the live save
+                // (MM_Rando_AugmentSpoilerWithPairedHalf). A file of MM's own here
+                // would be a second artifact for the same world, and selecting it
+                // in gRando.SpoilerFile would offer a paired world's half to a
+                // later solo MM file.
+                if (rsbsPaired) {
+                    writeOwnSpoiler = false;
+                }
+#endif
+                if (writeOwnSpoiler) {
                     // The spoiler is a REPORT of the world, not part of it: the
                     // fill above already succeeded and the save already holds a
                     // complete, playable world. Before #439 a filesystem
@@ -500,27 +513,7 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     try {
                         nlohmann::json spoiler = Rando::Spoiler::GenerateFromSaveContext();
                         spoiler["inputSeed"] = inputSeed;
-#ifdef RSBS_SINGLE_EXECUTABLE
-                        if (rsbsPaired) {
-                            // ADR 0010 increment 1.2: the winning attempt-
-                            // ladder index (0-based), recorded so the spoiler
-                            // names the exact derivation that produced this
-                            // world — Foreign.h documents the recipe.
-                            spoiler["rsbsPairedAttempt"] = rsbsWinningAttempt;
-                        }
-#endif
 
-                        // ONE ARTIFACT PER PAIR (#660; #564 V23), and this write
-                        // is still the one that produces MM's half of it. For a
-                        // PAIRED world the creation event reads this file back,
-                        // folds it into OoT's spoiler document as the "combo"
-                        // section, and DELETES it — so exactly one artifact
-                        // survives a paired creation while the MM-only harnesses
-                        // (MMRandoGen, the spoiler-identity row), which never run
-                        // the creation event, keep the artifact they assert on.
-                        // Suppressing the write here instead would have made
-                        // "one artifact" and "MM's generation is observable on
-                        // its own" mutually exclusive.
                         std::string fileName = inputSeed + ".json";
                         Rando::Spoiler::SaveToFile(fileName, spoiler);
 

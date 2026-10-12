@@ -1627,6 +1627,7 @@ TestResult ComboSingleBag_Run(void) {
             printf("[TEST] combo-single-bag: V23a after file 1's creation MM's spoiler selection reads "
                    "gRando.SpoilerFile='%s', gRando.SpoilerFileIndex=%d\n",
                    mmSelected.c_str(), mmIndex);
+            fflush(stdout);
             CSB_ASSERT(mmSelected.empty() && mmIndex == 0,
                        "MM's paired generation wrote its own spoiler file and selected it in gRando.SpoilerFile: a "
                        "second artifact for one world, and a selection a later solo MM file loads from (#564 V23)");

@@ -42,6 +42,8 @@ extern std::array<std::string, 17> hintCategoryNames;
 // ComboLogicEngineOoT.cpp: 1 while OoT's remainder writes a single-bag paired
 // world's spoiler (ADR 0010 increment 3, PR #743 review).
 extern "C" int OoT_ComboLogic_WritingSingleBagSpoiler(void);
+// games/mm/2s2h/Rando/Foreign.cpp (#564 V23).
+extern "C" int MM_Rando_SpoilerBelongsToAnotherPair(const char* path, const char* refusedAction);
 #endif
 extern Region* GetHintRegion(uint32_t);
 
@@ -404,6 +406,18 @@ const char* SpoilerLog_Write() {
         fileNameStream << std::to_string(ctx->hashIconIndexes[i]);
     }
     std::string fileName = fileNameStream.str();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #564 V23: the hash icons depend on the seed and OoT's settings only, so a
+    // paired world shares this name with any pair that differs only in MM's
+    // options or the Cross-Game Rules. Such a pair's spoiler is not this one's to
+    // replace.
+    if (OoT_ComboLogic_WritingSingleBagSpoiler() != 0 &&
+        MM_Rando_SpoilerBelongsToAnotherPair(
+            Ship::Context::GetPathRelativeToAppDirectory(("Randomizer/" + fileName + ".json").c_str()).c_str(),
+            "write this world's OoT spoiler over") != 0) {
+        return nullptr;
+    }
+#endif
     std::ofstream jsonFile(Ship::Context::GetPathRelativeToAppDirectory(
         (std::string("Randomizer/") + fileName + std::string(".json")).c_str()));
     jsonFile << std::setw(4) << jsonString << std::endl;
