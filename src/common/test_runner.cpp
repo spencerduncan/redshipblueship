@@ -16,6 +16,7 @@
 #include "integration_test_hooks.h"
 #include "headless_crash.h"
 #include "test_window_focus.h" // lane F1: test windows never take focus
+#include "test_scratch.h"      // #926: per-process scratch dirs, removed when a row passes
 #include "rsbs_version.h"
 #include <SDL2/SDL_hints.h>
 #include <cstdio>
@@ -648,6 +649,11 @@ extern "C" {
 // above) and checks a query sees the line written just before it. No display,
 // no ROM archives, no game loop.
 #include "tests/test_stderr_capture_sync.c"
+
+// Concurrent save-writing rows lock (#926). FILE SCOPE: it starts two processes
+// of this executable per save-writing row through test_scratch.h and requires
+// both to pass. No display, no ROM archives, no game loop.
+#include "tests/test_scratch_concurrent.c"
 
 // #560 root-cause contention lock over the shared per-archive handle. FILE
 // SCOPE (compiled as C++): it drives the C++-linkage Ship::Context /
@@ -5672,6 +5678,10 @@ const TestDescriptor gTests[] = {
     // Pure (no display, no ROM).
     {"mm-unified-save-capture", "MM captures its live SaveContext into the unified slot, full-width and round-tripping",
      Test_MMUnifiedSaveCapture},
+    // #926: two copies of each save-writing row at once must both pass (each
+    // process writes its own scratch directory). Spawns this executable.
+    {"test-scratch-concurrent", "Two concurrent copies of each save-writing row both pass (per-process scratch dirs)",
+     Test_TestScratchConcurrent},
     // #564 V18: an MM save that cannot commit is told to the player, once per
     // cause. Pure (no display, no ROM).
     {"mm-save-failure-surface", "An MM save that cannot commit shows a 'Save failed:' toast, once per cause",
@@ -6374,6 +6384,7 @@ int TestRunner_Run(const char* testName) {
             // this array, matches real boot order and no longer costs anything.
             printf("\n--- Running: %s ---\n", gTests[i].name);
             TestResult result = gTests[i].runFunc();
+            rsbs::test::ScratchDirs_EndRow(gTests[i].name, result == TEST_PASS || result == TEST_SKIP);
             total++;
 
             if (result == TEST_PASS) {
@@ -6395,6 +6406,8 @@ int TestRunner_Run(const char* testName) {
 
     // Run single test
     TestResult result = RunSingleTest(testName);
+    // #926: the row's scratch directories go when it passed, stay when it did not.
+    rsbs::test::ScratchDirs_EndRow(testName, result == TEST_PASS || result == TEST_SKIP);
     // Whether this row's window (if it had one) holds the keyboard as the row
     // ends: one [FOCUS] line per row, so a tier log answers "did anything steal
     // focus" row by row (lane F1). Report only; the lock is the

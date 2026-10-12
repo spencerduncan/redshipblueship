@@ -204,6 +204,7 @@
 #include "global.h"
 
 #include "save.h"
+#include "test_scratch.h"
 #include "context.h"
 #include "shared_resources.h" // check 13d: the shared health bar the death exit hands over
 #include "entrance.h"
@@ -356,10 +357,10 @@ bool CommitReached(int slot, uint32_t genBefore, int stamp, const char* what) {
 
 extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
     // Isolated save directory so this never touches a real player's slots.
-    const std::filesystem::path dir = std::filesystem::temp_directory_path() / "rsbs_mm_unified_save_test";
-    std::error_code ec;
-    std::filesystem::remove_all(dir, ec);
-    std::filesystem::create_directories(dir, ec);
+    // This process's own directory (#926): a fixed name under the shared temp
+    // directory collided with every other run of this row on the machine. The
+    // runner removes it when the row passes and keeps it when the row fails.
+    const std::filesystem::path dir = rsbs::test::ScratchDir("rsbs_mm_unified_save_test");
     rsbs::SaveManager::Instance().SetSaveDirectory(dir.string());
     // #533: start from process-start latch state so earlier tests in the same
     // process cannot have pre-armed the slots this test writes.
@@ -860,7 +861,6 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
     Combo_ResetSharedResourceWatermarks();
     RsbsSave_SetActiveSlot(-1);
     RsbsSave_ResetSlotSessionState();
-    std::filesystem::remove_all(dir, ec);
 
     printf("[TEST] mm-unified-save-capture: PASS\n");
     return 0;

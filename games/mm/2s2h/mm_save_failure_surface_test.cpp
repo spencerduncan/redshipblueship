@@ -41,6 +41,7 @@
 #include "global.h"
 
 #include "save.h"
+#include "test_scratch.h"
 #include "context.h"
 #include "game.h"
 #include "notification_bridge.h"
@@ -111,10 +112,10 @@ int MarshalAndCount(SramContext* sramCtx, std::string* last) {
 
 extern "C" int MM_SaveFailureSurface_RunHeadless(void) {
     namespace fs = std::filesystem;
-    const fs::path dir = fs::temp_directory_path() / "rsbs_mm_save_failure_surface_test";
-    std::error_code ec;
-    fs::remove_all(dir, ec);
-    fs::create_directories(dir, ec);
+    // This process's own directory (#926): a fixed name under the shared temp
+    // directory collided with every other run of this row on the machine. The
+    // runner removes it when the row passes and keeps it when the row fails.
+    const fs::path dir = rsbs::test::ScratchDir("rsbs_mm_save_failure_surface_test");
     // A directory under a regular FILE: every write into it fails to open.
     const fs::path blocker = dir / "blocker";
     {
@@ -306,7 +307,6 @@ extern "C" int MM_SaveFailureSurface_RunHeadless(void) {
     OoT_Notification_ClearForTest();
     RsbsSave_SetActiveSlot(-1);
     RsbsSave_ResetSlotSessionState();
-    fs::remove_all(dir, ec);
 
     printf("[TEST] PASS: every MM save that did not reach the file was told once per cause, as '%s ...'\n",
            RSBS_SAVE_FAILURE_TOAST_PREFIX);

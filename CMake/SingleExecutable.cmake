@@ -134,6 +134,9 @@ set(REDSHIP_COMMON_SOURCES
     # only; reads the window's back buffer inside the frame and writes it with
     # ui_snapshot_image.c's PNG writer. Reached from both games' graph.c.
     ${CMAKE_SOURCE_DIR}/src/common/frame_capture.cpp
+    # Per-process scratch directories for the test rows that write files, and
+    # the concurrent-copies driver of their lock (#926). Test tooling only.
+    ${CMAKE_SOURCE_DIR}/src/common/test_scratch.cpp
     # The single-bag fill AT THE CREATION EVENT (ADR 0010 increment 3, D3/D5;
     # #645 lane K11): the coordinator's one production caller. Game-header-free.
     # APPENDED, never reordered.
@@ -237,6 +240,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/integration_test_hooks.h
     # Header for frame_capture.cpp above (#843)
     ${CMAKE_SOURCE_DIR}/src/common/frame_capture.h
+    # Header for test_scratch.cpp above (#926)
+    ${CMAKE_SOURCE_DIR}/src/common/test_scratch.h
     ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.h
     ${CMAKE_SOURCE_DIR}/src/common/SharedGraphics.h
     ${CMAKE_SOURCE_DIR}/src/common/save.h
@@ -984,6 +989,13 @@ if(BUILD_TESTING)
     # capture is FULL-WIDTH rather than the sizeof(Save) prefix the excluded
     # file used. Display-free and ROM-free, so it runs in this redship tier.
     redship_add_test(NAME MMUnifiedSaveCapture COMMAND redship --test mm-unified-save-capture)
+    # #926 (src/common/tests/test_scratch_concurrent.c): two copies of each
+    # save-writing row at once, as two worktrees' tiers overlap on one machine,
+    # and both must pass. Those rows kept their .redsave files in a FIXED
+    # directory under the shared temp directory, so the copies emptied and
+    # renamed into each other's files ("Access is denied"); each process now has
+    # its own (src/common/test_scratch.h). Display-free and ROM-free.
+    redship_add_test(NAME TestScratchConcurrent COMMAND redship --test test-scratch-concurrent)
     # #564 V18 (games/mm/2s2h/mm_save_failure_surface_test.cpp): an MM save that
     # cannot commit (no active slot, a latched slot, a failed write) is shown to
     # the player as a "Save failed:" toast, once per cause, instead of running its
