@@ -199,6 +199,76 @@ bool Combo_Area_HasAdapter(uint8_t game);
  *  answer outside the half is reported as NONE rather than passed on. */
 ComboArea Combo_Area_OfCheck(uint8_t hostGame, uint16_t check);
 
+/* ============================================================================
+ * THE FOOLISH RULE (epic #575, child H5a)
+ * ============================================================================
+ *
+ * OoTMM's foolish rule with its probabilistic refinement off (packages/logic/
+ * src/hints.ts, foolishRegions / locationFoolish): an area of one game's half is
+ * FOOLISH when at least one of its checks is HINTABLE and none of its checks
+ * holds anything IMPORTANT. The rule lives here, once; each game answers for its
+ * OWN hosts through the foolish adapter it registers, exactly as it answers
+ * areaOfCheck: no game's ids cross, and each game names only its own areas (the
+ * epic's open decision 2, default "no cross-game foolish").
+ *
+ * IMPORTANT is the epic's definition: any crossing (a host of the other game's
+ * item, whatever cover it physically holds); any placement the single bag's
+ * coordinator made (every bag row is PROGRESSION); or an own placement the game
+ * itself counts as progression (OoT: Item::IsMajorItem, what its native
+ * CalculateBarren reads). A game that cannot say must answer IMPORTANT, so an
+ * unknown never becomes a foolish claim.
+ *
+ * It is a pure function of the frozen placements, chosen nowhere and persisted
+ * nowhere: OoT applies it once, inside its paired remainder, as the barren flags
+ * its own Foolish hint entry draws from (and its hints persist as always); MM
+ * recomputes it whenever a stone is read.
+ */
+
+/** hostStanding bits: the check counts toward its areas as a hintable check... */
+#define COMBO_HOST_HINTABLE 0x01u
+/** ...and holds something important, which keeps every area it is in from being foolish. */
+#define COMBO_HOST_IMPORTANT 0x02u
+
+/** One game's answers for ITS OWN hosts. */
+typedef struct {
+    /** This game's check ids are 0 .. checkEnd - 1. */
+    uint16_t checkEnd;
+    /** COMBO_HOST_* bits for one check of this game; 0 for an id that is not a
+     *  host of this world (it counts toward no area). */
+    uint8_t (*hostStanding)(uint16_t check);
+    /** Optional: EVERY area of the check, into out[0..cap), returning how many
+     *  (a location of OoT's can sit in several areas). NULL = the one area the
+     *  game's area adapter answers. */
+    int (*areasOfCheck)(uint16_t check, uint8_t* out, int cap);
+} ComboFoolishAdapter;
+
+/** Register (or, with NULL, un-register) `game`'s foolish adapter. A non-game is
+ *  ignored. File-scope registrar: stores the pointer, calls nothing. */
+void Combo_RegisterFoolishAdapter(uint8_t game, const ComboFoolishAdapter* adapter);
+
+/** Whether `game` has registered a foolish adapter. */
+bool Combo_Area_HasFoolishAdapter(uint8_t game);
+
+/** The foolish areas of one game's half, indexed by area. */
+typedef struct {
+    uint8_t game;
+    int count;          /* how many entries of `foolish` are true */
+    bool foolish[0x100]; /* [area]; never the two specials */
+} ComboFoolishAreas;
+
+/** Apply the rule over every check of `game`. Returns the number of foolish
+ *  areas (>= 0), or -1 (and an empty set) when `game` has no foolish adapter or
+ *  no area adapter. COMBO_AREA_NONE and COMBO_AREA_POCKET are never foolish. */
+int Combo_Area_ComputeFoolish(uint8_t game, ComboFoolishAreas* out);
+
+/** Whether `a` is in `set` (false for another game's area or a special). */
+bool Combo_Area_IsFoolish(const ComboFoolishAreas* set, ComboArea a);
+
+/** Whether check `check` of `set`'s game sits ONLY in foolish areas: it has at
+ *  least one area, none is a special, and every one is foolish (OoT's native
+ *  FindIfBarren). */
+bool Combo_Area_CheckIsFoolish(const ComboFoolishAreas* set, uint16_t check);
+
 #ifdef __cplusplus
 }
 #endif

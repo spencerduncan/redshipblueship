@@ -1233,6 +1233,9 @@ void ClearProgress() {
  * still empty. Then the tail the native Fill() runs after its general pass,
  * minus the playthrough (see the seam in Fill()).
  */
+// HintAreaOoT.cpp (#575 H5a)
+extern "C" int OoT_HintArea_MarkPairedFoolish(void);
+
 int RsbsFinishPairedGeneralPass(std::vector<RandomizerGet>& remainingPool) {
     auto ctx = Rando::Context::GetInstance();
     std::vector<RandomizerGet> traps =
@@ -1240,6 +1243,9 @@ int RsbsFinishPairedGeneralPass(std::vector<RandomizerGet>& remainingPool) {
     FastFill(traps, GetAllEmptyLocations(), true);
     FastFill(remainingPool, GetAllEmptyLocations(), false);
     remainingPool.clear();
+    // #575 H5a: the barren flags the native tail's CalculateBarren would set
+    // (HintAreaOoT.cpp), so the Foolish hint entry has candidates again.
+    OoT_HintArea_MarkPairedFoolish();
 
     ctx->CreateItemOverrides();
     ctx->GetEntranceShuffler()->CreateEntranceOverrides();

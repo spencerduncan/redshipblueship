@@ -23,9 +23,10 @@
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
 #include "crossing_store.h" // src/common — the paired world's hint checks (PR #743 review)
 #ifdef RSBS_SINGLE_EXECUTABLE
-#include "combo_area.h" // src/common — the MM area a Termina slot names (#575 H3a)
+#include "combo_area.h"    // src/common — the MM area a Termina slot names (#575 H3a)
+#include "combo_logic.h"   // src/common — the coordinator's placements a foolish area may not hold (#575 H5a)
 #include "foreign_items.h" // src/common — the crossed item's name and article (#575 H3b)
-#include "shared_items.h" // src/common — MM's grade of a crossed item (#575 H3b)
+#include "shared_items.h"  // src/common — MM's grade of a crossed item (#575 H3b)
 #include <set>
 #endif
 #include "notification_bridge.h"   // src/common — the refusal toast the reload bridge reads back
@@ -170,6 +171,20 @@ static int OoT_Combo_CheckHostsCrossing(int) {
  *        foreignAreas still "Termina"), and the altar and static-from-data
  *        builders over a three-slot list {crossed A, an item in Hyrule, crossed B}
  *        (slot alignment, each slot's own area, the rendered names).
+ *   (P7) #575 H5a: OoT's native Foolish entry works in a paired world, and only
+ *        ever names a foolish area. Recomputed here in OoT's own RandomizerArea
+ *        terms, from facts the production pass does not share a line with: an
+ *        area is foolish when one of its locations is hintable and none of them
+ *        holds an IMPORTANT item -- a major item by OoT's own predicate (what the
+ *        native CalculateBarren reads), any placement the single bag's coordinator
+ *        made on an OoT host (its tables still hold the whole fill here), or a
+ *        crossing (the store's OoT-hosted rows). A location is a foolish
+ *        candidate exactly when every one of its areas is foolish (the native
+ *        FindIfBarren). Every location's barren flag must match that, at least one
+ *        location must carry it (a paired world had none: the seam skips
+ *        CalculateBarren, so the Foolish entry drew nothing), and every Foolish
+ *        hint the world drew must name a foolish area. A pinned seed may draw no
+ *        Foolish hint; that half is then reported as vacuous, the flag half is not.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 /** (P4) The MM check of the FIRST store row hosting OoT item `item`, or 0. */
@@ -688,6 +703,85 @@ static CrossingHostProbeResult ProbeCrossingHostHints() {
     }
     return result;
 }
+
+struct FoolishCheckResult {
+    size_t failures = 0;
+    int foolishAreas = 0;
+    int candidates = 0;
+    int foolishHints = 0;
+};
+
+/** (P7) Is the item at `rc` IMPORTANT to the foolish rule? See (P7) above. */
+static bool P7HoldsImportant(const std::shared_ptr<Rando::Context>& ctx, RandomizerCheck rc) {
+    Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+    ComboLogicPlacement placement;
+    return il->GetPlacedItem().IsMajorItem() || il->IsWothCandidate() ||
+           Combo_Logic_GetPlacement(GAME_OOT, (uint16_t)rc, &placement) || OoT_Combo_CheckHostsCrossing((int)rc) != 0;
+}
+
+/** (P7) The foolish rule over OoT's own areas, against the barren flags and the
+ *  Foolish hints the remainder's pass left on the live context. */
+static FoolishCheckResult CheckPairedFoolish(const std::shared_ptr<Rando::Context>& ctx) {
+    FoolishCheckResult r;
+    std::vector<bool> hintable(RA_MAX, false);
+    std::vector<bool> important(RA_MAX, false);
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        const bool isImportant = P7HoldsImportant(ctx, rc);
+        for (const RandomizerArea ra : il->GetAreas()) {
+            hintable[ra] = hintable[ra] || il->IsHintable();
+            important[ra] = important[ra] || isImportant;
+        }
+    }
+    std::vector<bool> foolish(RA_MAX, false);
+    for (int ra = RA_KOKIRI_FOREST; ra <= RA_GANONS_CASTLE; ra++) {
+        foolish[ra] = hintable[ra] && !important[ra];
+        r.foolishAreas += foolish[ra] ? 1 : 0;
+    }
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        const std::set<RandomizerArea> areas = il->GetAreas();
+        bool expected = !areas.empty();
+        for (const RandomizerArea ra : areas) {
+            expected = expected && foolish[ra];
+        }
+        const bool marked = il->IsFoolishCandidate();
+        r.candidates += marked ? 1 : 0;
+        if (marked != expected) {
+            if (r.failures < 5) {
+                fprintf(stderr,
+                        "[rando-hints] FAIL: %s (first area %d) is %sa foolish candidate, but the rule says it is %s "
+                        "(P7)\n",
+                        Rando::StaticData::GetLocation(rc)->GetName().c_str(), areas.empty() ? -1 : (int)*areas.begin(),
+                        marked ? "" : "not ", expected ? "one" : "not");
+            }
+            r.failures++;
+        }
+    }
+    if (r.candidates == 0) {
+        fprintf(stderr,
+                "[rando-hints] FAIL: the paired world marks no foolish candidate (%d area(s) are foolish by the rule): "
+                "OoT's Foolish entry has nothing to draw (P7)\n",
+                r.foolishAreas);
+        r.failures++;
+    }
+    for (int h = RH_NONE + 1; h < RH_MAX; h++) {
+        Rando::Hint* hint = ctx->GetHint(static_cast<RandomizerHint>(h));
+        if (hint == nullptr || !hint->IsEnabled() || hint->GetHintType() != HINT_TYPE_FOOLISH) {
+            continue;
+        }
+        r.foolishHints++;
+        for (const RandomizerArea ra : hint->GetHintedAreas()) {
+            const bool ok = ra >= RA_KOKIRI_FOREST && ra <= RA_GANONS_CASTLE && foolish[ra];
+            fprintf(stderr, "[rando-hints] Foolish hint %d names area %d (%s) (P7)\n", h, (int)ra,
+                    ok ? "foolish" : "NOT foolish");
+            if (!ok) {
+                r.failures++;
+            }
+        }
+    }
+    return r;
+}
 #endif
 
 static int ValidateGeneratedHints(bool pairedWorld) {
@@ -903,6 +997,16 @@ static int ValidateGeneratedHints(bool pairedWorld) {
         failures += multiProbe.failures;
         const CrossingHostProbeResult hostProbe = ProbeCrossingHostHints();
         failures += hostProbe.failures;
+        const FoolishCheckResult foolishCheck = CheckPairedFoolish(ctx);
+        failures += foolishCheck.failures;
+        fprintf(stderr,
+                "[rando-hints] paired world: %d foolish area(s) by the rule, %d foolish candidate location(s), %d "
+                "Foolish hint(s) drawn (P7)\n",
+                foolishCheck.foolishAreas, foolishCheck.candidates, foolishCheck.foolishHints);
+        if (foolishCheck.foolishHints == 0) {
+            fprintf(stderr, "[rando-hints] the pinned seed drew no Foolish hint; P7's hint half is vacuous (its "
+                            "candidate half is not)\n");
+        }
         fprintf(stderr,
                 "[rando-hints] paired world: %d crossing hosts in OoT (each hintable), %d OoT items in MM, "
                 "%zu hinted target(s) named Termina\n",
