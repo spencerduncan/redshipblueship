@@ -55,7 +55,10 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   quiver, bomb bag, and the wallet when OoT has no tycoon's wallet) are trimmed to the
   shared maximum the same way; with them, 51 rows (OoT 22, MM 29) become filler in their
   home game. Families whose top tiers differ keep every copy and cost a known dead pickup:
-  the hookshot (OoT 2, MM 1) always, and the ocarina when the frozen rules arm it. Stick
+  the hookshot (OoT 2, MM 1) always. ~~And the ocarina when the frozen rules arm it.~~ The
+  ocarina is never armed since [#879](https://github.com/spencerduncan/redshipblueship/issues/879)
+  (PR [#889](https://github.com/spencerduncan/redshipblueship/pull/889) retired the effect), so each game keeps its
+  own and no ocarina pickup is dead. Stick
   and nut capacity exist only in OoT and are unchanged.
 - **Both worlds are generated together, once, at file creation.** Freeze, the single-bag
   fill, each game's own pass over its leftover checks (traps and junk stay in their home
@@ -174,7 +177,8 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   ([#575](https://github.com/spencerduncan/redshipblueship/issues/575) H3b). An OoT item that crossed is
   hinted by the Majora's Mask area that holds it, for example "the Southern Swamp"
   (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743), [#575](https://github.com/spencerduncan/redshipblueship/issues/575) H3a);
-  a file created before that still says "Termina".
+  ~~a file created before that still says "Termina".~~ Such a file is refused since
+  PR [#895](https://github.com/spencerduncan/redshipblueship/pull/895) (see "Back up your saves").
   Majora's Mask's own hints (gossip stones, and the Oath, remains, Hookshot and gold dust
   hints) name a check's area the way OoTMM does ("in the Southern Swamp", "around Goron
   Village"), not its scene, so a grotto no longer reads "Lone Peak Shrine & Grottos" and
@@ -635,7 +639,9 @@ before #895 are refused (see "Back up your saves").
 - DirectX 11 was not compared with OpenGL.
 - The creation-time sample (10 real paired creations against the 30 s budget) was not re-run.
 - Not tested by anyone, by a row or by hand: the cross-game warp songs, networking, and a
-  crossing made after a save and a reload.
+  crossing made after quitting and relaunching the game, or after a save made during play.
+  (A crossing after the file is created, saved and loaded back from disk in the same session
+  is tested: `IntPairedFirstCrossing` does exactly that.)
 
 **Findings.** None in this run. The open issues at this commit are listed under "Open issues
 at `851b1ee9`" near the top of this document.

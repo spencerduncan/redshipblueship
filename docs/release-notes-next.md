@@ -178,7 +178,8 @@ Numbers in parentheses are pull requests. The full list of open problems is
 - In narrow windows Settings > General's Boot Sequence dropdown covers its label; Ship of Harkinian draws it
   the same way (#923).
 - The config file is still `shipofharkinian.json`.
-- Not tested by anyone: cross-game warp songs, networking, DirectX 11, and a crossing after a save-and-reload.
+- Not tested by anyone: cross-game warp songs, networking, DirectX 11, and a crossing after quitting and
+  relaunching the game or after a save made during play.
 
 ## Open decisions (operator)
 
