@@ -186,6 +186,30 @@
  *        nothing staged, nothing waiting at a general pass, SoH's own line (the
  *        "Not created:" toast is the failure's surface). At the end of the row.
  *
+ * #564 V23 LEGS: ONE SPOILER ARTIFACT, AND NO PAIR OVERWRITES ANOTHER'S.
+ *
+ *   V23a. File 1's creation (leg E) leaves MM's spoiler selection as it found it
+ *        (gRando.SpoilerFile empty, gRando.SpoilerFileIndex 0). MM's paired
+ *        generation used to write its own RSBSPAIR<masterSeed>.json and select it
+ *        (RefreshOptions found it in the folder, so the index was nonzero), and the
+ *        join deleted the file afterwards: a transient second artifact, and a
+ *        selection a later solo MM file would LOAD from.
+ *   V23b. A second pair with the same OoT seed and OoT settings but one MM option
+ *        changed has a different identity (mmProfileDigest) and the SAME OoT
+ *        spoiler path, because OoT names its spoiler by its own hash icons alone.
+ *        Its real creation must not rewrite the first pair's spoiler: the bytes at
+ *        that path are unchanged, and the creation still succeeds (a spoiler is a
+ *        report, so its refusal never fails a creation).
+ *   V23c. In the same creation, gGeneral.SpoilerLog names a solo OoT document (no
+ *        "combo" section: a dropped file, an older build's spoiler) that this
+ *        creation did not write. OoT's writer refuses the aliased path, so the join
+ *        must not run against whatever the CVar names: that document is unchanged,
+ *        and the CVar does not name it afterwards (the Randomizer menu's "Spoiler
+ *        File:" line would show it as this world's).
+ *   V23d. The join itself (MM_Rando_AugmentSpoilerWithPairedHalf), handed the
+ *        first pair's spoiler while the second pair is resident, refuses (-5) and
+ *        leaves it byte-identical: the defence in depth behind V23c.
+ *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
  * each (ladder attempts, batch attempts, rounds, wall time, status) and a
@@ -241,6 +265,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -296,6 +322,8 @@ uint8_t Randomizer_IsSeedGenerated(void);
 uint8_t Randomizer_IsSpoilerLoaded(void);
 void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
 const char* OoT_FileSelect_NoSeedText(uint8_t language);
+// #564 V23 (legs V23a-V23b): the OoT spoiler's name is its hash icons (OTRGlobals.cpp).
+uint8_t GetSeedIconIndex(uint8_t index);
 const char* SohFileSelect_GetSettingText(uint8_t optionIndex, uint8_t language);
 uint32_t SpoilerFileExists(const char* spoilerFileName);
 void FileChoose_UpdateRandomizer(void);
@@ -348,6 +376,29 @@ CsbTables CsbCopyTables() {
 bool CsbHydrate(const CsbTables& t) {
     return Combo_Logic_HydrateTables(t.oot.empty() ? nullptr : t.oot.data(), (int)t.oot.size(),
                                      t.mm.empty() ? nullptr : t.mm.data(), (int)t.mm.size());
+}
+
+/** Where OoT's writer puts the current generation's spoiler: "Randomizer/" plus the
+ *  five hash icons, two digits each, joined by '-' (SpoilerLog_Write,
+ *  3drando/spoiler_log.cpp), under the app directory. */
+std::string CsbOoTSpoilerPath() {
+    std::string name = "Randomizer/";
+    for (uint8_t i = 0; i < 5; i++) {
+        char part[8];
+        snprintf(part, sizeof(part), i == 0 ? "%02u" : "-%02u", (unsigned)GetSeedIconIndex(i));
+        name += part;
+    }
+    name += ".json";
+    return Ship::Context::GetPathRelativeToAppDirectory(name);
+}
+
+/** The whole file, or "" when it cannot be opened. */
+std::string CsbReadWholeFile(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open()) {
+        return std::string();
+    }
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
 }
 
 /** The GOAL over the current tables with nothing assumed: the fill's exit round. */
@@ -1445,6 +1496,29 @@ TestResult ComboSingleBag_Run(void) {
         Randomizer_TestResetStartingGiveLog();
         // No armed MM shadow going in, so E2 reads only what THIS event armed.
         Context_ClearFrozenState(GAME_MM);
+        // V23a's starting point: MM has no spoiler selected, and MM's "Generate
+        // Spoiler File" is at its shipped default (on). MM_Rando_HeadlessPairedHalf,
+        // which the legs above call, switches it off for its own digest; with it
+        // off MM's generation writes no spoiler of any kind, and V23a would pass
+        // whatever MM's paired generation does with one. V23b's starting point:
+        // nothing an earlier run left sits at this pair's OoT spoiler path, so
+        // file 1 writes it.
+        const int savedGenerateSpoiler = CVarGetInteger("gRando.GenerateSpoiler", -1);
+        struct GenerateSpoilerRestore {
+            int saved;
+            ~GenerateSpoilerRestore() {
+                if (saved < 0) {
+                    CVarClear("gRando.GenerateSpoiler");
+                } else {
+                    CVarSetInteger("gRando.GenerateSpoiler", saved);
+                }
+            }
+        } restoreGenerateSpoiler{ savedGenerateSpoiler };
+        CVarSetInteger("gRando.GenerateSpoiler", 1);
+        CVarSetString("gRando.SpoilerFile", "");
+        CVarSetInteger("gRando.SpoilerFileIndex", 0);
+        const std::string v23Path = CsbOoTSpoilerPath();
+        std::remove(v23Path.c_str());
         // Staged as the file select's Generate stages it (leg V2a reads it back).
         OoT_Creation_TestStageGeneration();
         CSB_ASSERT(Randomizer_IsSeedGenerated() != 0, "the staged generation does not read as staged");
@@ -1624,6 +1698,117 @@ TestResult ComboSingleBag_Run(void) {
                                         "explicit load must still say why it did not load");
                 CSB_ASSERT(Randomizer_IsSpoilerLoaded() == 0, "a dropped paired spoiler loaded as a solo OoT world");
             }
+        }
+
+        // V23a. #564 V23: MM's paired generation minted no spoiler of its own and
+        // selected none.
+        {
+            const std::string mmSelected = CVarGetString("gRando.SpoilerFile", "");
+            const int mmIndex = CVarGetInteger("gRando.SpoilerFileIndex", 0);
+            printf("[TEST] combo-single-bag: V23a after file 1's creation MM's spoiler selection reads "
+                   "gRando.SpoilerFile='%s', gRando.SpoilerFileIndex=%d\n",
+                   mmSelected.c_str(), mmIndex);
+            fflush(stdout);
+            CSB_ASSERT(mmSelected.empty() && mmIndex == 0,
+                       "MM's paired generation wrote its own spoiler file and selected it in gRando.SpoilerFile: a "
+                       "second artifact for one world, and a selection a later solo MM file loads from (#564 V23)");
+        }
+
+        // V23b. A second pair whose OoT spoiler path is the first pair's does not
+        // rewrite the first pair's spoiler.
+        {
+            const std::string before = CsbReadWholeFile(v23Path);
+            const uint32_t firstDigest = gComboCtx.mmProfileDigest;
+            const uint32_t firstSeed = gComboCtx.sharedRandoSeed;
+            CSB_ASSERT(before.find("\"combo\"") != std::string::npos,
+                       "file 1's creation left no joined spoiler at its OoT spoiler path, so V23b proves nothing");
+
+            const char* const kV23Option = "gRando.Options.RO_HINTS_SPIDER_HOUSES";
+            const int savedOption = CVarGetInteger(kV23Option, -1);
+            struct OptionRestore {
+                const char* name;
+                int saved;
+                ~OptionRestore() {
+                    if (saved < 0) {
+                        CVarClear(name);
+                    } else {
+                        CVarSetInteger(name, saved);
+                    }
+                }
+            } restoreOption{ kV23Option, savedOption };
+            CVarSetInteger(kV23Option, savedOption == 1 ? 0 : 1);
+
+            CSB_ASSERT(Rando_HeadlessSeedTest("RSBSSINGLEBAGGIVES") == 0,
+                       "the second pair's generation (one MM option changed) failed");
+            const std::string secondPath = CsbOoTSpoilerPath();
+            const uint32_t secondDigest = gComboCtx.mmProfileDigest;
+            printf("[TEST] combo-single-bag: V23b first pair masterSeed=0x%08X mmProfileDigest=0x%08X, second pair "
+                   "masterSeed=0x%08X mmProfileDigest=0x%08X; OoT spoiler paths '%s' and '%s'\n",
+                   (unsigned)firstSeed, (unsigned)firstDigest, (unsigned)gComboCtx.sharedRandoSeed,
+                   (unsigned)secondDigest, v23Path.c_str(), secondPath.c_str());
+            CSB_ASSERT(secondPath == v23Path && gComboCtx.sharedRandoSeed == firstSeed,
+                       "the second pair's OoT spoiler is not named like the first pair's, so V23b proves nothing");
+            CSB_ASSERT(secondDigest != firstDigest,
+                       "the changed MM option did not change the pair's identity, so V23b proves nothing");
+
+            // V23c's starting point: SpoilerLog names a solo OoT document this
+            // creation will not write (the creation event joins into whatever the
+            // CVar names).
+            const char* const kV23cName = "Randomizer/rsbs-v23c-solo-oot-spoiler.json";
+            const std::string v23cPath = Ship::Context::GetPathRelativeToAppDirectory(kV23cName);
+            const std::string v23cCVar = std::string("./") + kV23cName;
+            {
+                std::ofstream solo(v23cPath, std::ios::binary | std::ios::trunc);
+                solo << "{\n    \"_note\": \"a solo OoT spoiler with no combo section (ComboSingleBag V23c)\",\n"
+                        "    \"seed\": \"V23C\"\n}\n";
+            }
+            const std::string soloBefore = CsbReadWholeFile(v23cPath);
+            CSB_ASSERT(!soloBefore.empty(), "could not write V23c's solo OoT document, so V23c proves nothing");
+            CVarSetString("gGeneral.SpoilerLog", v23cCVar.c_str());
+
+            Randomizer_TestClearOoTSave();
+            Context_ClearFrozenState(GAME_MM);
+            OoT_Creation_TestStageGeneration();
+            const int created = OoT_Creation_AuthorRandoFile(1);
+            const std::string after = CsbReadWholeFile(v23Path);
+            const std::string soloAfter = CsbReadWholeFile(v23cPath);
+            const std::string spoilerLogAfter = CVarGetString("gGeneral.SpoilerLog", "");
+            std::remove(v23cPath.c_str());
+            printf("[TEST] combo-single-bag: V23c the solo OoT document SpoilerLog named is %s (%zu bytes before, %zu "
+                   "after); SpoilerLog now reads '%s'\n",
+                   soloAfter == soloBefore ? "unchanged" : "REWRITTEN", soloBefore.size(), soloAfter.size(),
+                   spoilerLogAfter.c_str());
+            fflush(stdout);
+            printf("[TEST] combo-single-bag: V23b the second pair's creation: created=%d; the first pair's spoiler is "
+                   "%s (%zu bytes before, %zu after)\n",
+                   created, after == before ? "unchanged" : "REWRITTEN", before.size(), after.size());
+            CSB_ASSERT(created == 1, "the second pair's creation failed: a spoiler is a report, and refusing to "
+                                     "write one must not fail a creation");
+            CSB_ASSERT(after == before,
+                       "the second pair's creation rewrote the first pair's spoiler: two pairs that share an OoT seed "
+                       "and OoT settings share one spoiler path, and the later creation replaced the earlier pair's "
+                       "artifact (#564 V23)");
+            CSB_ASSERT(soloAfter == soloBefore,
+                       "the second pair's creation joined its half into the solo OoT document SpoilerLog named, a file "
+                       "this creation did not write: OoT's writer refused the aliased path and left SpoilerLog as it "
+                       "was (#564 V23)");
+            CSB_ASSERT(spoilerLogAfter != v23cCVar,
+                       "SpoilerLog still names a document this creation did not write, so the Randomizer menu shows "
+                       "it as this world's spoiler (#564 V23)");
+
+            // V23d. The join's own identity check, for any caller handed another
+            // pair's document regardless (the creation event no longer is): the
+            // second pair, still resident, joining into the first pair's spoiler
+            // is refused and leaves it as it is.
+            const int joinRc = MM_Rando_AugmentSpoilerWithPairedHalf(v23Path.c_str());
+            const std::string afterJoin = CsbReadWholeFile(v23Path);
+            printf("[TEST] combo-single-bag: V23d the second pair's join into the first pair's spoiler returned %d; "
+                   "the first pair's spoiler is %s (%zu bytes before, %zu after)\n",
+                   joinRc, afterJoin == before ? "unchanged" : "REWRITTEN", before.size(), afterJoin.size());
+            fflush(stdout);
+            CSB_ASSERT(joinRc == -5 && afterJoin == before,
+                       "the join rewrote another pair's spoiler: a document whose combo.identity names another pair "
+                       "is that pair's (#564 V23)");
         }
     }
     Combo_SingleBag_Forget();

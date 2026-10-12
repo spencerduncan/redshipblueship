@@ -97,9 +97,10 @@ bool PairingActive() {
 }
 
 std::string PairedInputSeedString() {
-    // Plain decimal of the master seed with a stable prefix: deterministic,
-    // filename-safe (the spoiler lands at randomizer/<inputSeed>.json), and
-    // recognizable in logs/artifacts as a paired-world file.
+    // Plain decimal of the master seed with a stable prefix: deterministic, and
+    // recognizable in logs and in the one spoiler's combo.mm.inputSeed. It is the
+    // MM seed derivation's input string (OnFileCreate hashes it), and it names
+    // no file: a paired generation writes no MM spoiler of its own (#564 V23).
     return "RSBSPAIR" + std::to_string(gComboCtx.sharedRandoSeed);
 }
 
@@ -277,10 +278,9 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     //    are NOT identity and folding them would be actively harmful: the
     //    paired path ignores all three by construction (OnFileCreate.cpp:83
     //    forces generation over any stale spoiler index when rsbsPaired, and
-    //    :101 replaces the input seed with PairedInputSeedString), and
-    //    OnFileCreate.cpp:289 WRITES gRando.SpoilerFile after every successful
-    //    generation — so a pair that folded it would diverge its own identity
-    //    the instant it generated.
+    //    :101 replaces the input seed with PairedInputSeedString), and a solo
+    //    generation WRITES gRando.SpoilerFile after it succeeds, so a profile
+    //    that folded it would move with whatever MM world was generated last.
     // ------------------------------------------------------------------------
     return s;
 }
@@ -1129,6 +1129,18 @@ extern "C" void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, u
 // (#439's lesson, learned by turning "could not write a log file" into "your
 // paired world silently did not happen"). Every failure here logs and returns
 // nonzero; the creation succeeds regardless.
+//
+// ONE ARTIFACT, AND IT IS NOT ANOTHER PAIR'S (#564 V23). MM's generation writes
+// no file of its own for a paired world: "mm" below is built from the live save,
+// so a separate RSBSPAIR<masterSeed>.json was only ever a transient second
+// artifact, and selecting it in gRando.SpoilerFile offered a paired world's half
+// to a later solo MM file. And OoT names this document by its own hash icons,
+// which depend on the master seed and OoT's settings only, so two pairs that
+// differ only in MM's options or the Cross-Game Rules share one path. A document
+// whose combo.identity names another pair is that pair's artifact: neither OoT's
+// writer (3drando/spoiler_log.cpp) nor this join replaces it
+// (MM_Rando_SpoilerBelongsToAnotherPair). This pair then has no spoiler, which
+// is a lost report, never a lost world.
 // ============================================================================
 static int sLastSpoilerForward = 0;
 static int sLastSpoilerReverse = 0;
@@ -1249,6 +1261,25 @@ bool CrossingIdentityDiverges(const nlohmann::json& doc, std::string& why) {
         return true;
     }
     return false;
+}
+
+/**
+ * #564 V23's overwrite rule for the one spoiler. A document with a "combo"
+ * section is a paired world's artifact, and only the pair it names may rewrite
+ * it: the #610 identity rule above decides, so "another pair" means exactly what
+ * it means to the crossing loader. A document with no "combo" section is not a
+ * paired artifact (OoT's own, written moments before the join, or a solo world's)
+ * and stays OoT's writer's to replace, as it always was.
+ */
+bool SpoilerBelongsToAnotherPair(const nlohmann::json& doc, std::string& why) {
+    if (!doc.is_object() || !doc.contains("combo")) {
+        return false;
+    }
+    if (!doc["combo"].is_object()) {
+        why = "its combo section is not an object";
+        return true;
+    }
+    return CrossingIdentityDiverges(doc, why);
 }
 
 nlohmann::json CrossingStoreSpoilerSection() {
@@ -1464,6 +1495,37 @@ extern "C" int MM_Rando_LoadCrossingsFromSpoiler(const char* path) {
     return rc;
 }
 
+/**
+ * #564 V23: 1 when the file at @p path is another paired world's spoiler (its
+ * combo.identity does not name the resident pair), after printing which term
+ * differs and what was not done (@p refusedAction). 0 when there is no such
+ * file, it does not parse, or it carries no "combo" section: nothing there is a
+ * pair's artifact. OoT's writer asks before it writes a paired world's document.
+ */
+extern "C" int MM_Rando_SpoilerBelongsToAnotherPair(const char* path, const char* refusedAction) {
+    if (path == nullptr || path[0] == '\0') {
+        return 0;
+    }
+    nlohmann::json doc;
+    try {
+        std::ifstream in(path);
+        if (!in.is_open()) {
+            return 0;
+        }
+        in >> doc;
+    } catch (const std::exception&) { return 0; }
+    std::string why;
+    if (!SpoilerBelongsToAnotherPair(doc, why)) {
+        return 0;
+    }
+    fprintf(stderr,
+            "[MM] spoiler: REFUSED to %s '%s': it is another paired world's spoiler (%s); it is left as it is, and "
+            "this world has no spoiler (#564 V23)\n",
+            refusedAction != nullptr ? refusedAction : "rewrite", path, why.c_str());
+    fflush(stderr);
+    return 1;
+}
+
 extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath) {
     sLastSpoilerForward = 0;
     sLastSpoilerReverse = 0;
@@ -1482,6 +1544,22 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
                 return -2;
             }
             in >> doc;
+        }
+        // #564 V23: the document is rewritten only when it is not another pair's.
+        // In a creation it is the one OoT's writer just wrote: when that writer
+        // refuses another pair's path it also clears CVAR_GENERAL("SpoilerLog"),
+        // so the creation event has nothing to join. This check is the defence in
+        // depth for any caller handed another pair's path regardless.
+        {
+            std::string why;
+            if (SpoilerBelongsToAnotherPair(doc, why)) {
+                fprintf(stderr,
+                        "[MM] spoiler: REFUSED to join this pair's half into '%s': it is another paired world's "
+                        "spoiler (%s); it is left as it is (#564 V23)\n",
+                        ootSpoilerPath, why.c_str());
+                fflush(stderr);
+                return -5;
+            }
         }
 
         nlohmann::json combo;
@@ -1545,23 +1623,6 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
         combo["crossingStore"] = CrossingStoreSpoilerSection();
 
         doc["combo"] = combo;
-
-        // ABSORB, then RETIRE. MM's own RSBSPAIR<masterSeed>.json is what the
-        // "mm" section above was built from, and leaving it on disk beside the
-        // combined document would be the two-artifacts state #660 exists to end.
-        // Removed only after the join has been built in memory, and only on the
-        // paired creation path — the MM-only harnesses never reach this function
-        // and keep the file they assert on.
-        try {
-            const std::string mmOwnSpoiler =
-                Rando::Spoiler::SpoilerDirectory() + "/" + Rando::Foreign::PairedInputSeedString() + ".json";
-            if (std::remove(mmOwnSpoiler.c_str()) == 0) {
-                fprintf(stderr, "[MM] spoiler: retired the separate MM artifact '%s' (#660)\n", mmOwnSpoiler.c_str());
-            }
-        } catch (const std::exception&) {
-            // SpoilerDirectory() throws if it cannot resolve; a file that cannot
-            // be removed is untidy, never incorrect.
-        }
 
         {
             std::ofstream out(ootSpoilerPath);
