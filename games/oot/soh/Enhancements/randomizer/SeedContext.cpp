@@ -441,6 +441,48 @@ extern "C" void OoT_EmitPairedSpoilerRefusalToast(int mute) {
         .mute = mute != 0,
     });
 }
+
+// The paired-world markers a spoiler carries (PR #743 review): what ParseSpoiler
+// refuses, and what the file select's auto-load leaves alone (#936).
+static bool SpoilerJsonIsPairedWorld(const nlohmann::json& spoilerFileJson) {
+    return spoilerFileJson.is_object() &&
+           (spoilerFileJson.contains("combo") || spoilerFileJson.contains("rsbsSingleBagWorld"));
+}
+
+/**
+ * RSBS (#936): asked by the file select's AUTO-load (FileChoose_UpdateRandomizer
+ * with no drop pending) before it parses gGeneral.SpoilerLog. Every paired
+ * creation leaves that CVar naming the paired spoiler, so every later launch
+ * reached the file select, parsed it on its own and refused it with the
+ * paired-spoiler toast although the player did nothing. A paired spoiler found
+ * that way is not loaded at all: one log line, no parse, no toast. A dropped
+ * spoiler never asks, so its refusal (ParseSpoiler) keeps the toast.
+ *
+ * @return 1 when @p spoilerFileName is a paired world's spoiler (do not load it),
+ *         0 otherwise (unreadable or not JSON included: ParseSpoiler reports those).
+ */
+extern "C" int OoT_FileSelect_SkipPairedSpoilerAutoLoad(const char* spoilerFileName) {
+    std::ifstream spoilerFileStream(SohUtils::Sanitize(spoilerFileName));
+    if (!spoilerFileStream) {
+        return 0;
+    }
+    nlohmann::json spoilerFileJson;
+    try {
+        spoilerFileStream >> spoilerFileJson;
+    } catch (...) { return 0; }
+    if (!SpoilerJsonIsPairedWorld(spoilerFileJson)) {
+        return 0;
+    }
+    SPDLOG_INFO("Spoiler {} belongs to a paired Ocarina of Time + Majora's Mask world; the file select does not "
+                "load it on its own.",
+                spoilerFileName);
+    fprintf(stderr,
+            "[OoT] spoiler-autoload: skipped '%s' — it is half of a paired single-bag world, which the file select "
+            "does not load on its own; dropped on the window it is refused with a toast (#936)\n",
+            spoilerFileName);
+    fflush(stderr);
+    return 1;
+}
 #endif
 
 void Context::ParseSpoiler(const char* spoilerFileName) {
@@ -466,8 +508,7 @@ void Context::ParseSpoiler(const char* spoilerFileName) {
         // nothing about that file would say so. The pairing and its crossings are
         // not rebuilt from a spoiler at file select, so the document is REFUSED,
         // loudly, and the context stays empty: the player generates the seed again.
-        if (spoilerFileJson.is_object() &&
-            (spoilerFileJson.contains("combo") || spoilerFileJson.contains("rsbsSingleBagWorld"))) {
+        if (SpoilerJsonIsPairedWorld(spoilerFileJson)) {
             SPDLOG_ERROR("Spoiler {} belongs to a paired Ocarina of Time + Majora's Mask world; it cannot be loaded as "
                          "a solo Ocarina of Time world. Generate the seed again.",
                          spoilerFileName);
