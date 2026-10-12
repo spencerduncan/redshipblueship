@@ -1065,6 +1065,66 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
     return 1;
 }
 
+// ----------------------------------------------------------------------------
+// THE STAGED GENERATION IS CONSUMED BY THE FILE IT CREATES (#564 V2)
+// ----------------------------------------------------------------------------
+// OoT's Generate STAGES one world (Rando::Context's mSeedGenerated, set by
+// RandoMain::GenerateRando); the file select's "Start Randomizer" and
+// OoT_Sram_InitSave's isRandoFile both read it. Under one-game semantics a world
+// is the identity of ONE file, so the creation that uses a staged generation
+// consumes it: nothing is staged afterwards, nothing waits at a general pass, and
+// the file select turns a second file away at "Start Randomizer", saying which
+// file the seed made (OoT_FileSelect_NoSeedText), before any creation work.
+// Before this, the generation stayed staged after the file was written, and a
+// second file from it was named and ran the paired creation event until MM's
+// half reached the single-bag fill, which refused an OoT world whose general pass
+// had already finished.
+//
+// A FAILED creation consumes it too: the event has retracted the identity, so no
+// file could be created from that world ("Not created:" asks for a new seed).
+//
+// The record is what the file select reads: the slot the consumed generation
+// created, OOT_STAGED_GEN_FAILED when its creation failed, or OOT_STAGED_GEN_NONE
+// when nothing has been consumed since the last generation began
+// (Playthrough_Init forgets it). Process-local, like the staged generation.
+#define OOT_STAGED_GEN_NONE (-1)
+#define OOT_STAGED_GEN_FAILED (-2)
+static int sStagedGenerationConsumedBy = OOT_STAGED_GEN_NONE;
+// ComboLogicEngineOoT.cpp: cleared by every new generation, a spoiler load and
+// OoT's remainder; here, by the consumption of the world it was waiting for.
+extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
+
+/** The slot the last consumed generation created, or OOT_STAGED_GEN_FAILED (-2) /
+ *  OOT_STAGED_GEN_NONE (-1); see above. */
+extern "C" int OoT_Creation_StagedGenerationConsumedBy(void) {
+    return sStagedGenerationConsumedBy;
+}
+
+/** 1 while a creation has consumed the last staged generation and no generation
+ *  has begun since. The file select then does not auto-load the spoiler that
+ *  creation wrote (FileChoose_UpdateRandomizer): a paired world's spoiler is
+ *  refused as a solo world, with a toast, every time it is loaded. */
+extern "C" int OoT_Creation_StagedGenerationConsumed(void) {
+    return sStagedGenerationConsumedBy != OOT_STAGED_GEN_NONE ? 1 : 0;
+}
+
+/** Where every generation begins (Playthrough_Init): a new world replaces the
+ *  consumed one. */
+extern "C" void OoT_Creation_ForgetConsumedGeneration(void) {
+    sStagedGenerationConsumedBy = OOT_STAGED_GEN_NONE;
+}
+
+static void ConsumeStagedGeneration(int slot, bool created) {
+    Rando::Context::GetInstance()->SetSeedGenerated(false);
+    OoT_ComboLogic_SetGeneralPassDeferred(0);
+    sStagedGenerationConsumedBy = created ? slot : OOT_STAGED_GEN_FAILED;
+    fprintf(stderr,
+            "[OoT] creation: slot %d %s; the staged generation is consumed, and another file needs a new "
+            "generation (#564 V2)\n",
+            slot, created ? "created" : "not created");
+    fflush(stderr);
+}
+
 /**
  * TEST BRIDGE (#564 V2): what the file select's Generate leaves behind, a STAGED
  * generation. RandoMain::GenerateRando marks the context generated; the headless
@@ -1094,16 +1154,24 @@ extern "C" void OoT_Creation_TestStageGeneration(void) {
  * counted. With the event first, every host is placed before anything reads it;
  * for an unpaired file the event authors nothing and the order changes nothing.
  *
+ * LAST, THE STAGED GENERATION IS CONSUMED (#564 V2, above), whether the file was
+ * created or not. A world loaded from a spoiler is not a staged generation (the
+ * event refuses it as unpaired) and is left as it is.
+ *
  * @return 1 when the file may be written; 0 when the paired creation failed (the
  *         event has already retracted the identity and raised the refusal
  *         surface), in which case Randomizer_InitSaveFile does not run either.
  */
 extern "C" int OoT_Creation_AuthorRandoFile(int slot) {
-    if (!OoT_RunPairedCreationEvent(slot)) {
-        return 0;
+    const bool staged = Rando::Context::GetInstance()->IsSeedGenerated();
+    const bool created = OoT_RunPairedCreationEvent(slot) != 0;
+    if (created) {
+        Randomizer_InitSaveFile();
     }
-    Randomizer_InitSaveFile();
-    return 1;
+    if (staged) {
+        ConsumeStagedGeneration(slot, created);
+    }
+    return created ? 1 : 0;
 }
 
 /**
