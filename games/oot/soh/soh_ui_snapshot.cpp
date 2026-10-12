@@ -2367,7 +2367,7 @@ void Session::BuildPageList() {
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         // #927: no section says how fresh it is, and an empty one is its
         // header alone.
-        p.forbidText = { "Updated live", "As of the last", "As of file creation", "No data." };
+        p.forbidText = { "Updated live", "As of the last", "As of file creation", "No data" };
         pages.push_back(p);
     }
     // Ours: the Cross-Game Rules Reset confirm, opened through the row's own
