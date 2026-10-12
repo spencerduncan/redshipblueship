@@ -167,6 +167,10 @@ int MM_UnifiedSaveCapture_RunHeadless(void);
 // #564 V18): a capture that cannot commit queues one "Save failed:" toast per
 // cause, instead of reporting on stderr only.
 int MM_SaveFailureSurface_RunHeadless(void);
+// MM new-save session guard (games/mm/2s2h/mm_new_save_guard_test.cpp, #564
+// V21): MM may not author a new save over an open paired file, and MM's
+// TitleSetup retires the session before it authors its bootstrap.
+int MM_NewSaveSessionGuard_RunHeadless(void);
 // MM capture harvest gate (games/mm/2s2h/mm_capture_harvest_gate_test.cpp,
 // #591): MM_Combo_CaptureSaveToUnifiedSlot harvested the shared-resource pool
 // BEFORE RsbsSave_Save checked the #533/#568 write latch, so a refused capture
@@ -1017,6 +1021,11 @@ static TestResult Test_MMUnifiedSaveCapture(void) {
 // MM save-failure surface (#564 V18; see the extern decl above).
 static TestResult Test_MMSaveFailureSurface(void) {
     return MM_SaveFailureSurface_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM new-save session guard (#564 V21; see the extern decl above).
+static TestResult Test_MMNewSaveSessionGuard(void) {
+    return MM_NewSaveSessionGuard_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM capture harvest gate (#591; see the extern decl above). Thin wrapper over
@@ -5686,6 +5695,10 @@ const TestDescriptor gTests[] = {
     // cause. Pure (no display, no ROM).
     {"mm-save-failure-surface", "An MM save that cannot commit shows a 'Save failed:' toast, once per cause",
      Test_MMSaveFailureSurface},
+    // #564 V21: MM may not author a new save over an open paired file. Pure (no
+    // display, no ROM).
+    {"mm-new-save-session-guard", "MM authors no new save over an open paired file; its title retires the session",
+     Test_MMNewSaveSessionGuard},
     // A capture the #533/#568 write latch refuses must be a no-op on the
     // SHARED-RESOURCE POOL too, not just on the file: the harvest used to run
     // ahead of the latch check, so a refused commit still credited (or debited)

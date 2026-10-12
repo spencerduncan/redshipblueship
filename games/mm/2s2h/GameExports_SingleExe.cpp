@@ -2971,6 +2971,81 @@ extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
 }
 
 /**
+ * THE CLASS-LEVEL GUARD ON MM'S NEW-SAVE PATH (#564 V21). Called first thing by
+ * MM_Sram_InitNewSave and MM_Sram_InitSave (z_sram_NES.c).
+ *
+ * MM_Sram_InitNewSave authors a fresh vanilla save into the live gSaveContext,
+ * and MM_Sram_InitSave wraps it into a new file and dispatches OnSaveInit, MM's
+ * generation hook. Over an open paired file either one mints a second world
+ * where one game is being played. The owl-save and game-over exits below
+ * (#532, #590) keep the player's session by never reaching TitleSetup, and
+ * tools/tests/test_repo_invariants.py pins them, but they are call-site
+ * decisions. This answers for the class over a PAIRED file: every caller
+ * linked today (TitleSetup and MM's file select) and any added later. A
+ * vanilla cross-game session (no paired identity) is outside it; the
+ * call-site reroutes below still cover that session's owl-save and game-over
+ * exits.
+ *
+ * Refuses when a combo session is resident (Context_ComboSessionResident: a
+ * paired identity stamped AND a slot open), except in two cases that author no
+ * second world:
+ *   - the paired creation event (MM_Rando_AuthorHalfAtCreation), which IS the
+ *     authoring of this identity's MM half. It authors through
+ *     MM_Creation_AuthorBootstrap, which brackets its MM_Sram_InitNewSave with
+ *     MM_Combo_SetCreationAuthoring. Today it runs before the new file's slot
+ *     is published, so the predicate alone would let it through; the scope
+ *     keeps it through if that order ever changes, instead of failing the
+ *     creation.
+ *   - a cross-game arrival into MM in flight (a startup entrance pending for
+ *     MM). The arrival's boot chain authors TitleSetup's bootstrap as the canvas
+ *     MM_Play_ConsumeStartupEntrance hydrates the half over; the arrival itself
+ *     is hydrate-or-refuse.
+ *
+ * MM's TitleSetup retires a resident session before it gets here
+ * (Context_InvalidateSessionOnMMReturnToTitle), so this refuses only a caller
+ * that reaches a new save without passing MM's title. A refusal leaves
+ * gSaveContext byte-identical and says so on stderr; there is no frame of MM
+ * gameplay behind it for a toast to explain.
+ *
+ * @param path the caller, for the log line.
+ * @return 1 if refused (the caller must author nothing); 0 to proceed.
+ */
+static bool sCreationAuthorsNewSave = false;
+
+extern "C" void MM_Combo_SetCreationAuthoring(int on) {
+    sCreationAuthorsNewSave = (on != 0);
+}
+
+extern "C" int MM_Combo_RefuseNewSaveOverSession(const char* path) {
+    if (sCreationAuthorsNewSave || Combo_HasStartupEntranceForGame("mm") || !Context_ComboSessionResident()) {
+        return 0;
+    }
+    fprintf(stderr,
+            "[MM] %s REFUSED: a paired file is open (slot %d, seed %u); MM may not author a new save over it "
+            "(#564 V21)\n",
+            path, RsbsSave_GetActiveSlot(), (unsigned)gComboCtx.sharedRandoSeed);
+    fflush(stderr);
+    return 1;
+}
+
+/**
+ * The paired creation event's vanilla bootstrap (#564 V21): a zeroed
+ * SaveContext, then MM_Sram_InitNewSave inside the creation scope. The creation
+ * event is the one author of this identity's MM half, so it is exempt from the
+ * new-save guard above, and the scope closes behind it.
+ *
+ * A function of its own so the headless lock (mm_new_save_guard_test.cpp, leg 6)
+ * drives the production bracket with a paired file open, without the whole MM
+ * generation MM_Rando_AuthorHalfAtCreation runs after it.
+ */
+extern "C" void MM_Creation_AuthorBootstrap(void) {
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Combo_SetCreationAuthoring(1);
+    MM_Sram_InitNewSave();
+    MM_Combo_SetCreationAuthoring(0);
+}
+
+/**
  * Decide what an owl save's EXIT should do, and if this is a cross-game
  * session, drive the launcher instead of MM's own boot chain.
  *
@@ -2978,8 +3053,9 @@ extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
  * SET_NEXT_GAMESTATE(MM_TitleSetup_Init) from inside MM's own graph loop, with
  * no cross-game condition. TitleSetup_SetupTitleScreen then calls
  * MM_Sram_InitNewSave(), so a fresh vanilla file becomes the live gSaveContext
- * — while gComboCtx and OoT's frozen blob stay resident, because MM has no twin
- * of Context_InvalidateSessionOnReturnToTitle. The next hop back to OoT freezes
+ * — while gComboCtx and OoT's frozen blob stay resident, because MM had no twin
+ * of Context_InvalidateSessionOnReturnToTitle (since #564 V21 it has one, which
+ * retires the session there; this exit keeps it). The next hop back to OoT freezes
  * that bootstrap into the MM shadow and OoT's next save serializes it into
  * Tier-3, DESTROYING the good MM half the owl save persisted seconds earlier.
  * The player watches a successful save become an unrelated vanilla world.
@@ -5121,8 +5197,7 @@ extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPat
     // calls MM's own file select makes (MM_Sram_InitSave) and the same two the
     // headless digest makes, so there is exactly one generation code path in the
     // binary and this seam does not acquire a private copy of it.
-    memset(&gSaveContext, 0, sizeof(SaveContext));
-    MM_Sram_InitNewSave();
+    MM_Creation_AuthorBootstrap();
     // What MM_Sram_InitSave stamps after MM_Sram_InitNewSave and before
     // OnSaveInit (OoT's name in MM's charset, #773; the marker; the checksum),
     // plus the cross-game session fields the whole-SaveContext consume at

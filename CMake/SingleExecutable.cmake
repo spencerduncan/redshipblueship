@@ -1001,6 +1001,12 @@ if(BUILD_TESTING)
     # the player as a "Save failed:" toast, once per cause, instead of running its
     # success ceremony with only a stderr line behind it. Display-free, ROM-free.
     redship_add_test(NAME MMSaveFailureSurface COMMAND redship --test mm-save-failure-surface)
+    # #564 V21 (games/mm/2s2h/mm_new_save_guard_test.cpp): MM may not author a
+    # new save over an open paired file. MM_Sram_InitNewSave and MM's file-select
+    # new-file path refuse over a resident combo session (the paired creation
+    # event and an arrival's boot chain are exempt), and MM's TitleSetup retires
+    # the session first, as OoT's title does. Display-free, ROM-free.
+    redship_add_test(NAME MMNewSaveSessionGuard COMMAND redship --test mm-new-save-session-guard)
     # MM's capture must not advance the SHARED-RESOURCE POOL for a commit the
     # write latch refuses (#591, games/mm/2s2h/mm_capture_harvest_gate_test.cpp).
     # MM_Combo_CaptureSaveToUnifiedSlot harvested rupees/hearts/magic/ammo into

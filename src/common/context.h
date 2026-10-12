@@ -1458,6 +1458,64 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy);
 int Context_InvalidateSessionOnReturnToTitle(void);
 
 /**
+ * Whether a COMBO SESSION is resident: a paired file is open (#564 V21).
+ *
+ * Both halves are needed, and each rules out a state in which MM must keep
+ * authoring new saves:
+ *   - a paired world identity is stamped (Combo_ForeignPairingActive). Without
+ *     it there is no world identity for a new save to be a second one of. That
+ *     is a vanilla file's session, where MM's title also serves the hot-swap
+ *     first entry beside a suspended OoT session and always has.
+ *   - a unified-save slot is active (RsbsSave_GetActiveSlot() >= 0). Without it
+ *     the identity is a STAGED generation that no file plays yet (Generate at
+ *     OoT's file select). Nothing durable stands behind it, and the paired
+ *     creation event, which runs before the new file's first write publishes
+ *     its slot, is authoring the session rather than writing over one.
+ * Together they say "the one game is being played": OoT loaded or created a
+ * paired file (its OnLoadFile / OnSaveFile publish the slot) and no return to
+ * title, slot load or new file has retired it since.
+ *
+ * Two src/common facts and no gSaveContext read (ADR 0008 rule 5), so both
+ * games and the headless rows ask the same question.
+ */
+int Context_ComboSessionResident(void);
+
+/**
+ * MM's twin of Context_InvalidateSessionOnReturnToTitle (#564 V21, #532).
+ *
+ * Called by MM's TitleSetup (TitleSetup_SetupTitleScreen, z_opening.c)
+ * immediately before it authors its bootstrap with MM_Sram_InitNewSave. Every
+ * entry into MM's TitleSetup passes there, so for a PAIRED file this covers all
+ * of them by construction: the two #532 (owl save) and #590 (game over) already
+ * reroute to OoT, a soft reset, and any a later change adds. A vanilla
+ * cross-game session (no paired identity) is outside it (second suppression
+ * below); the #532 / #590 reroutes cover that session's two known exits at
+ * their call sites.
+ *
+ * Retires the session exactly as OoT's return to title does
+ * (RSBS_SEED_STAMP_DROP) when a combo session is resident and no cross-game
+ * arrival is in flight. The bootstrap is then authored over nothing: no
+ * identity for it to pass as, no active slot for a commit to write it into, no
+ * frozen OoT blob for the next hop back to pair it with.
+ *
+ * Suppressed in two cases, and OoT's twin needs only the first:
+ *   - a cross-game startup entrance is pending. The arrival's boot chain walks
+ *     MM's title chain too (ConsoleLogo -> TitleSetup -> Play), and the session
+ *     is what that arrival is on its way to hydrate. Same guard as OoT's twin.
+ *   - no combo session is resident (Context_ComboSessionResident). MM's title
+ *     is also where a hot-swap FIRST entry lands (rsbs/src/main.cpp sets no
+ *     startup entrance for a target with no frozen state), with an OoT session
+ *     suspended behind it. OoT is the boot game, so its own title never runs in
+ *     that position. Retiring there would end the OoT session the player
+ *     pressed F10 from. A paired file never lands there: its MM half is armed
+ *     at creation and a slot whose half is refused is never opened (#836), so
+ *     its F10 into MM is always an arrival.
+ *
+ * @return 1 if the session was retired, 0 if suppressed.
+ */
+int Context_InvalidateSessionOnMMReturnToTitle(void);
+
+/**
  * A new OoT file is being created (OoT_Sram_InitSave).
  *
  * KEEP IS CONDITIONAL ON IDENTITY, NOT ON "IS THIS A RANDO FILE" (#597). The

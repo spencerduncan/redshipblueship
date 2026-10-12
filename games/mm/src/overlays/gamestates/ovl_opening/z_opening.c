@@ -13,6 +13,12 @@
 
 #include "2s2h/GameInteractor/GameInteractor.h"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// MM's twin of OoT's return-to-title invalidation (#564 V21), src/common/context.cpp.
+// Declared locally: src/common is not on this decomp TU's include path.
+extern int Context_InvalidateSessionOnMMReturnToTitle(void);
+#endif
+
 void TitleSetup_SetupTitleScreen(TitleSetupState* this) {
     static s32 sOpeningEntrances[] = { ENTRANCE(CUTSCENE, 0), ENTRANCE(CUTSCENE, 1) };
     static s32 sOpeningCutscenes[] = { 0xFFFA, 0xFFFA };
@@ -20,6 +26,11 @@ void TitleSetup_SetupTitleScreen(TitleSetupState* this) {
     CLEAR_EVENTINF(EVENTINF_17);
     gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#564 V21): retire a paired file's session before the bootstrap is
+    // authored over it, as OoT's title does. Skipped for an arrival's boot chain.
+    Context_InvalidateSessionOnMMReturnToTitle();
+#endif
     MM_Sram_InitNewSave();
 
     gSaveContext.save.entrance = sOpeningEntrances[gOpeningEntranceIndex];

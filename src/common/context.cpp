@@ -31,6 +31,7 @@
 // layer — save.h already depends on context.h, and the reverse include would
 // make that circular. Same convention game-side TUs use to reach Combo_*.
 extern "C" void RsbsSave_SetActiveSlot(int slot);
+extern "C" int RsbsSave_GetActiveSlot(void);
 
 #include <cstdio>
 #include <cstring>
@@ -531,6 +532,34 @@ int Context_InvalidateSessionOnReturnToTitle(void) {
         return 0;
     }
     fprintf(stderr, "[Context] Return to title: retiring cross-game session state\n");
+    Context_InvalidateSessionState(RSBS_SEED_STAMP_DROP);
+    return 1;
+}
+
+int Context_ComboSessionResident(void) {
+    // See the header: an identity with no open slot is a staged generation (or
+    // the creation event authoring one), and an open slot with no identity is a
+    // vanilla file's session. Only both together are a paired file in play.
+    return (Combo_ForeignPairingActive() && RsbsSave_GetActiveSlot() >= 0) ? 1 : 0;
+}
+
+int Context_InvalidateSessionOnMMReturnToTitle(void) {
+    // The arrival guard, identical to OoT's twin: an arrival's boot chain walks
+    // MM's title chain before Play consumes the startup entrance.
+    if (Combo_HasStartupEntrance()) {
+        fprintf(stderr, "[Context] MM return-to-title invalidation skipped: cross-game arrival in flight\n");
+        return 0;
+    }
+    // MM's own title beside no paired file (a vanilla file's session, the
+    // hot-swap first entry, a cold boot): nothing to retire, and nothing to log
+    // either, since MM's attract loop passes here every few seconds.
+    if (!Context_ComboSessionResident()) {
+        return 0;
+    }
+    fprintf(stderr,
+            "[Context] MM return to title from a paired file (slot %d, seed %u): retiring cross-game session state "
+            "before MM authors its bootstrap (#564 V21)\n",
+            RsbsSave_GetActiveSlot(), (unsigned)gComboCtx.sharedRandoSeed);
     Context_InvalidateSessionState(RSBS_SEED_STAMP_DROP);
     return 1;
 }

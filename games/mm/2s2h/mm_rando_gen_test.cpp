@@ -1142,10 +1142,14 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     ComboForeignPlacement beforeVanilla[RSBS_FOREIGN_PLACEMENT_CAP];
     memcpy(beforeVanilla, gComboCtx.foreignPlacements, sizeof(beforeVanilla));
 
+    // The arrival is pending while MM's boot chain runs, as in production:
+    // TitleSetup authors its bootstrap (MM_Sram_InitNewSave, then OnSaveLoad)
+    // with the startup entrance already set, which is what exempts that
+    // bootstrap from the new-save guard over a paired file (#564 V21).
+    Combo_SetStartupEntrance(kArrival);
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     MM_Sram_InitNewSave();
     GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
-    Combo_SetStartupEntrance(kArrival);
     MM_Play_ConsumeStartupEntrance();
 
     if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_VANILLA) {
@@ -1260,10 +1264,14 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
     // The mid-session divergence: an option edit AFTER creation.
     CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_COWS].cvar, RO_GENERIC_ON);
 
+    // The arrival is pending while MM's boot chain runs, as in production:
+    // TitleSetup authors its bootstrap (MM_Sram_InitNewSave, then OnSaveLoad)
+    // with the startup entrance already set, which is what exempts that
+    // bootstrap from the new-save guard over a paired file (#564 V21).
+    Combo_SetStartupEntrance(kArrival);
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     MM_Sram_InitNewSave();
     GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
-    Combo_SetStartupEntrance(kArrival);
     MM_Play_ConsumeStartupEntrance();
 
     if (gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO) {
@@ -1328,10 +1336,14 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void) {
         return 34;
     }
 
+    // The arrival is pending while MM's boot chain runs, as in production:
+    // TitleSetup authors its bootstrap (MM_Sram_InitNewSave, then OnSaveLoad)
+    // with the startup entrance already set, which is what exempts that
+    // bootstrap from the new-save guard over a paired file (#564 V21).
+    Combo_SetStartupEntrance(kArrival);
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     MM_Sram_InitNewSave();
     GameInteractor_ExecuteOnSaveLoad(gSaveContext.fileNum);
-    Combo_SetStartupEntrance(kArrival);
     MM_Play_ConsumeStartupEntrance();
 
     if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
