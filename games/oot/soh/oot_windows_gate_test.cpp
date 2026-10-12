@@ -45,6 +45,10 @@
  * button (file select only, no save loaded): non-zero with the refusal in its output. That refusal is the lock. The
  * identity, save and RandoGenerating checks beside it are smoke checks only: GenerateRandomizer runs the generation on
  * a worker thread the leg never awaits, so they could not catch the re-stamp by themselves.
+ *
+ * #913: on the file select with no file loaded, bare `gen_rando` while a generation is already running
+ * (RandoGenerating set) must fail with "Rando generation already in progress" in its output instead of reading
+ * args[1] past the end of its one-element argument vector.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -414,6 +418,48 @@ int RunConsoleAndKnifeGate() {
             }
         }
         gComboCtx = savedCombo;
+        fflush(stdout);
+    }
+
+    // ---- 7c. #913: bare gen_rando while a generation is already running ---------------------------------------------
+    // On OoT's file select with no file loaded the #909 refusal lets gen_rando through, and GenerateRandomizer()
+    // returns false without starting a worker while RandoGenerating is set (a generation in progress, or one an
+    // exception left stuck). The inherited handler then fell through to std::stoi(args[1]) on the one-element argument
+    // vector, an out-of-range read. Bare gen_rando must instead fail with SoH's own "already in progress" error in its
+    // output, start nothing and leave RandoGenerating set. Unfixed, the read kills this process: on the garbage
+    // args[1], or, if that happens to parse, in ERROR_MESSAGE's dereference of this harness's absent Console window.
+    if (failures == 0) {
+        Context_SetCurrentGame(GAME_OOT);
+        gSaveContext.gameMode = GAMEMODE_FILE_SELECT;
+        gSaveContext.fileNum = 0;
+        OoT_gPlayState = nullptr;
+        canary.assign(reinterpret_cast<const uint8_t*>(&gSaveContext),
+                      reinterpret_cast<const uint8_t*>(&gSaveContext) + sizeof(gSaveContext));
+        const int32_t generatingBefore = CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0);
+        CVarSetInteger(CVAR_GENERAL("RandoGenerating"), 1);
+        printf("[TEST] oot-windows-gate: Ocarina of Time on its file select, no file loaded, RandoGenerating 1 (a "
+               "generation already running), console `gen_rando`\n");
+        fflush(stdout);
+        std::string genOutput;
+        const int32_t rc = console->Run("gen_rando", &genOutput);
+        const long saveDiff = FirstSaveDiff(canary);
+        const int32_t generatingAfter = CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0);
+        printf("[TEST] oot-windows-gate: bare `gen_rando` returned %d with output \"%s\" (RandoGenerating %d)\n",
+               (int)rc, genOutput.c_str(), (int)generatingAfter);
+        if (rc == 0 || genOutput.find("Rando generation already in progress") == std::string::npos ||
+            generatingAfter != 1 || saveDiff >= 0) {
+            printf("[TEST] FAIL: oot-windows-gate: bare `gen_rando` during a running generation did not fail with "
+                   "\"Rando generation already in progress\", leaving RandoGenerating 1 and gSaveContext (first "
+                   "differing byte %ld) unchanged (#913)\n",
+                   saveDiff);
+            failures++;
+            memcpy(&gSaveContext, canary.data(), canary.size());
+        }
+        if (generatingBefore == 0) {
+            CVarClear(CVAR_GENERAL("RandoGenerating"));
+        } else {
+            CVarSetInteger(CVAR_GENERAL("RandoGenerating"), generatingBefore);
+        }
         fflush(stdout);
     }
 
