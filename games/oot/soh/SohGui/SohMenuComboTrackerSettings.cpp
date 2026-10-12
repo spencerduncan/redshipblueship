@@ -173,7 +173,8 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
         .WindowName("Check Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip(
-            "Enables the separate Check Tracker Settings Window, whose check colors the Combo Tracker also uses."));
+            "Enables the separate Check Tracker Settings Window, whose check colors, and no other setting, the "
+            "Combo Tracker also uses."));
 }
 
 /** File-scope, so it runs before AddMenuElements() (SohMenu.h's contract); this

@@ -111,10 +111,15 @@ void DrawDecidedBanner(const ComboSettingsSummary& summary) {
 /**
  * Pre-creation: what these are, in the Cross-Game Rules page's own words (its
  * state note), so "editable" is not mistaken for "in effect now". One sentence,
- * no paragraph of mechanism (#927).
+ * no paragraph of mechanism (#927). A legacy pre-carve pair (paired, not
+ * frozen) also gets that page's instruction, because an edit here before its
+ * first crossing is not harmless: the player acts on it.
  */
-void DrawAuthoringNotice() {
+void DrawAuthoringNotice(const ComboSettingsSummary& summary) {
     ImGui::TextUnformatted("These rules apply to the next paired world you create.");
+    if (summary.paired && !summary.frozen) {
+        ImGui::TextUnformatted("Keep them at the defaults until you have crossed into this paired world once.");
+    }
     ImGui::Separator();
 }
 
@@ -207,7 +212,7 @@ void ComboSettingsWindow::DrawElement() {
     if (decided) {
         DrawDecidedBanner(summary);
     } else {
-        DrawAuthoringNotice();
+        DrawAuthoringNotice(summary);
     }
 
     DrawDirectionRow(shown.direction, decided);
