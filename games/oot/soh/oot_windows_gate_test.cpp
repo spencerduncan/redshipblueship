@@ -49,6 +49,10 @@
  * #913: on the file select with no file loaded, bare `gen_rando` while a generation is already running
  * (RandoGenerating set) must fail with "Rando generation already in progress" in its output instead of reading
  * args[1] past the end of its one-element argument vector.
+ *
+ * #930: a command whose numeric argument std::stoi cannot parse (`gen_rando 99999999999` overflows int, `item 0
+ * notanumber` is no number in a handler with no try) must fail with the gating wrapper's error line in its output
+ * instead of throwing out of Ship::Console::Run and terminating the process.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -459,6 +463,50 @@ int RunConsoleAndKnifeGate() {
             CVarClear(CVAR_GENERAL("RandoGenerating"));
         } else {
             CVarSetInteger(CVAR_GENERAL("RandoGenerating"), generatingBefore);
+        }
+        fflush(stdout);
+    }
+
+    // ---- 7d. #930: a numeric argument the handler cannot parse fails the command instead of ending the process ------
+    // The inherited handlers parse with std::stoi and catch only std::invalid_argument, some of them nothing at all, and
+    // nothing between Ship::Console::Run and the handler catches either. `gen_rando 99999999999` throws
+    // std::out_of_range inside its try (before any generation starts); `item 0 notanumber` throws
+    // std::invalid_argument from a handler with no try (before its save write). Unfixed, either exception leaves
+    // Ship::Console::Run uncaught and std::terminate ends this process. Each command must instead return non-zero with
+    // the gating wrapper's error line in its output and leave gSaveContext and RandoGenerating unchanged.
+    if (failures == 0) {
+        Context_SetCurrentGame(GAME_OOT);
+        gSaveContext.gameMode = GAMEMODE_FILE_SELECT;
+        gSaveContext.fileNum = 0;
+        OoT_gPlayState = nullptr;
+        canary.assign(reinterpret_cast<const uint8_t*>(&gSaveContext),
+                      reinterpret_cast<const uint8_t*>(&gSaveContext) + sizeof(gSaveContext));
+        const int32_t generatingBefore = CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0);
+        struct ParseProbe {
+            const char* line;
+            const char* error;
+        };
+        const ParseProbe kParseProbes[] = {
+            { "gen_rando 99999999999", "[SOH] 'gen_rando': a numeric argument is out of range." },
+            { "item 0 notanumber", "[SOH] 'item': an argument must be a number." },
+        };
+        for (const ParseProbe& probe : kParseProbes) {
+            printf("[TEST] oot-windows-gate: Ocarina of Time on its file select, no file loaded, console `%s`\n",
+                   probe.line);
+            fflush(stdout);
+            std::string parseOutput;
+            const int32_t rc = console->Run(probe.line, &parseOutput);
+            const long saveDiff = FirstSaveDiff(canary);
+            const int32_t generatingAfter = CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0);
+            printf("[TEST] oot-windows-gate: `%s` returned %d with output \"%s\" (RandoGenerating %d)\n", probe.line,
+                   (int)rc, parseOutput.c_str(), (int)generatingAfter);
+            if (rc == 0 || parseOutput != probe.error || generatingAfter != generatingBefore || saveDiff >= 0) {
+                printf("[TEST] FAIL: oot-windows-gate: `%s` did not fail with \"%s\", leaving RandoGenerating %d and "
+                       "gSaveContext (first differing byte %ld) unchanged (#930)\n",
+                       probe.line, probe.error, (int)generatingBefore, saveDiff);
+                failures++;
+                memcpy(&gSaveContext, canary.data(), canary.size());
+            }
         }
         fflush(stdout);
     }
