@@ -580,6 +580,11 @@ if(BUILD_TESTING)
     # named the cover. Drives the stone's real candidate filter and item-name
     # substitution (EnGs.cpp) with the crossing in the crossing store.
     redship_add_test(NAME ForeignHostGossipHint COMMAND redship --test foreign-host-gossip-hint)
+    # #575 H5a: MM's free gossip stone also names a FOOLISH area, in MM's voice:
+    # one whose shuffled checks hold no crossing, nothing the single bag placed
+    # and nothing MM's fill counts. Authors a five-area world over MM's real
+    # check table and reads the free stone's text (EnGs.cpp) for 512 stone seeds.
+    redship_add_test(NAME MmFoolishStoneHint COMMAND redship --test mm-foolish-stone-hint)
     # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
     # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
     # stone's real text and candidate filter (EnGs.cpp) over MM's real check

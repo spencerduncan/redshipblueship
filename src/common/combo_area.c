@@ -125,6 +125,7 @@ static const ComboAreaText sNone = { "nowhere", NULL };
 static const ComboAreaText sPocket = { "Link's Pocket", "inside" };
 
 static const ComboAreaAdapter* sAdapters[3]; /* indexed by GameId; [GAME_NONE] stays NULL */
+static const ComboFoolishAdapter* sFoolishAdapters[3]; /* #575 H5a; same indexing */
 
 static bool IsGame(uint8_t game) {
     return game == (uint8_t)GAME_OOT || game == (uint8_t)GAME_MM;
@@ -239,4 +240,109 @@ ComboArea Combo_Area_OfCheck(uint8_t hostGame, uint16_t check) {
         result.area = answered.area;
     }
     return result;
+}
+
+/* ---- #575 H5a: the foolish rule ------------------------------------------- */
+
+void Combo_RegisterFoolishAdapter(uint8_t game, const ComboFoolishAdapter* adapter) {
+    if (!IsGame(game)) {
+        return;
+    }
+    sFoolishAdapters[game] = adapter;
+}
+
+bool Combo_Area_HasFoolishAdapter(uint8_t game) {
+    return IsGame(game) && sFoolishAdapters[game] != NULL && sFoolishAdapters[game]->hostStanding != NULL;
+}
+
+/* Every area of `check` that names an area of `game`'s half, into
+ * out[0..COMBO_FOOLISH_AREAS_CAP). A special (nowhere, Link's Pocket) or an
+ * answer outside the half is dropped and sets *outSpecial. */
+#define COMBO_FOOLISH_AREAS_CAP 64
+static int FoolishAreasOf(uint8_t game, uint16_t check, uint8_t* out, bool* outSpecial) {
+    const ComboFoolishAdapter* fa = sFoolishAdapters[game];
+    uint8_t raw[COMBO_FOOLISH_AREAS_CAP];
+    int n;
+    if (fa->areasOfCheck != NULL) {
+        n = fa->areasOfCheck(check, raw, COMBO_FOOLISH_AREAS_CAP);
+        if (n > COMBO_FOOLISH_AREAS_CAP) {
+            n = COMBO_FOOLISH_AREAS_CAP;
+        }
+    } else {
+        raw[0] = Combo_Area_OfCheck(game, check).area;
+        n = 1;
+    }
+    int kept = 0;
+    *outSpecial = false;
+    for (int i = 0; i < n; i++) {
+        const ComboArea a = { game, raw[i] };
+        if (a.area != COMBO_AREA_NONE && a.area != COMBO_AREA_POCKET && Combo_Area_IsValid(a)) {
+            out[kept++] = a.area;
+        } else {
+            *outSpecial = true;
+        }
+    }
+    return kept;
+}
+
+int Combo_Area_ComputeFoolish(uint8_t game, ComboFoolishAreas* out) {
+    if (out == NULL) {
+        return -1;
+    }
+    memset(out, 0, sizeof(*out));
+    out->game = game;
+    if (!Combo_Area_HasFoolishAdapter(game) || !Combo_Area_HasAdapter(game)) {
+        return -1;
+    }
+    bool hintable[0x100];
+    bool important[0x100];
+    memset(hintable, 0, sizeof(hintable));
+    memset(important, 0, sizeof(important));
+    const ComboFoolishAdapter* fa = sFoolishAdapters[game];
+    for (uint32_t check = 0; check < fa->checkEnd; check++) {
+        const uint8_t standing = fa->hostStanding((uint16_t)check);
+        if ((standing & (COMBO_HOST_HINTABLE | COMBO_HOST_IMPORTANT)) == 0) {
+            continue;
+        }
+        uint8_t areas[COMBO_FOOLISH_AREAS_CAP];
+        bool special = false;
+        const int n = FoolishAreasOf(game, (uint16_t)check, areas, &special);
+        for (int i = 0; i < n; i++) {
+            hintable[areas[i]] = hintable[areas[i]] || (standing & COMBO_HOST_HINTABLE) != 0;
+            important[areas[i]] = important[areas[i]] || (standing & COMBO_HOST_IMPORTANT) != 0;
+        }
+    }
+    const int count = Combo_Area_Count(game);
+    for (int a = 1; a <= count; a++) {
+        if (hintable[a] && !important[a]) {
+            out->foolish[a] = true;
+            out->count++;
+        }
+    }
+    return out->count;
+}
+
+bool Combo_Area_IsFoolish(const ComboFoolishAreas* set, ComboArea a) {
+    return set != NULL && a.game == set->game && a.area != COMBO_AREA_NONE && a.area != COMBO_AREA_POCKET &&
+           set->foolish[a.area];
+}
+
+bool Combo_Area_CheckIsFoolish(const ComboFoolishAreas* set, uint16_t check) {
+    if (set == NULL || !Combo_Area_HasFoolishAdapter(set->game) || !Combo_Area_HasAdapter(set->game)) {
+        return false;
+    }
+    // A check that is also "nowhere" or in Link's Pocket is never foolish, as
+    // OoT's native rule never calls RA_NONE / RA_LINKS_POCKET barren.
+    uint8_t areas[COMBO_FOOLISH_AREAS_CAP];
+    bool special = false;
+    const int n = FoolishAreasOf(set->game, check, areas, &special);
+    if (n == 0 || special) {
+        return false;
+    }
+    for (int i = 0; i < n; i++) {
+        if (!set->foolish[areas[i]]) {
+            return false;
+        }
+    }
+    return true;
 }

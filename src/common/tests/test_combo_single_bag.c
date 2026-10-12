@@ -78,7 +78,12 @@
  *       still cross. Red with SingleBagOriginMayCross's class conjunct deleted.
  *   D2. PAIRED-WORLD HINTS: the #441 checks over the hints OoT's remainder wrote
  *       for THIS world, plus no crossing host hintable or hinted, and an OoT item
- *       placed in MM hinted as Termina (Rando_ValidatePairedWorldHints).
+ *       placed in MM hinted as Termina (Rando_ValidatePairedWorldHints). #575 H5a:
+ *       its P7 recomputes the foolish rule over OoT's own areas against the
+ *       barren flags and the Foolish hints drawn; and here, every placement the
+ *       coordinator made on an MM host reads IMPORTANT through MM's read-time
+ *       answer (which sees only the save and the store, never these tables), so
+ *       an MM stone can never call the area of a bag row foolish.
  *   D3. A REFUSAL IS NOT A RUNG: a second creation over an OoT world that already
  *       finished its general pass is refused by the fill (BAD_REQUEST) and fails
  *       on its FIRST ladder attempt, not after ten, and not as "exhausted".
@@ -183,6 +188,7 @@
  * Linkage note: `#include`d into test_runner.cpp at FILE SCOPE (compiled as C++).
  */
 
+#include "../combo_area.h"
 #include "../combo_logic.h"
 #include "../combo_single_bag.h"
 #include "../context.h"
@@ -238,6 +244,7 @@ int Randomizer_TestStartingGiveMatchesPlacement(int rc);
 int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_t* outHosts, uint16_t* outFlags, int cap);
 int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int cap);
 int MM_ComboLogic_TestShuffledItemsInShadow(uint16_t* outItems, int cap);
+int MM_HintFoolish_TestHostStanding(uint16_t check); // #575 H5a (HintFoolishSingleExe.cpp)
 void Randomizer_TestClearOoTSave(void);
 const char* OoT_Creation_TestLastSequence(void);
 uint32_t OoT_Creation_TestLastUnprovedHalves(void);
@@ -1248,6 +1255,35 @@ TestResult ComboSingleBag_Run(void) {
         printf("[TEST] combo-single-bag: paired-world hint validity rc=%d\n", hintRc);
         CSB_ASSERT(hintRc == 0, "a paired world's hints name a crossing host, leave one hintable, point at no OoT "
                                 "location without naming Termina, or fail a #441 check (see [rando-hints])");
+
+        // #575 H5a, MM's half: MM recomputes "a placement the coordinator made"
+        // from the item-class owner and the crossing store at read time. Over
+        // THIS fill, every coordinator row on an MM host must read IMPORTANT.
+        const int mmPlaced = Combo_Logic_PlacementCount(GAME_MM);
+        int mmUnimportant = 0;
+        for (int i = 0; i < mmPlaced; i++) {
+            ComboLogicPlacement p;
+            if (!Combo_Logic_PlacementAt(GAME_MM, i, &p)) {
+                continue;
+            }
+            if ((MM_HintFoolish_TestHostStanding(p.hostCheck) & COMBO_HOST_IMPORTANT) == 0) {
+                if (mmUnimportant < 5) {
+                    printf("[TEST] combo-single-bag: FAIL coordinator row on MM check %u (origin %u, id %u) reads "
+                           "unimportant\n",
+                           (unsigned)p.hostCheck, (unsigned)p.item.originGame, (unsigned)p.item.id);
+                }
+                mmUnimportant++;
+            }
+        }
+        ComboFoolishAreas mmFoolish;
+        const int mmFoolishAreas = Combo_Area_ComputeFoolish((uint8_t)GAME_MM, &mmFoolish);
+        printf("[TEST] combo-single-bag: #575 H5a: %d coordinator rows on MM hosts, %d read unimportant; MM's stones "
+               "would call %d MM area(s) foolish in this world\n",
+               mmPlaced, mmUnimportant, mmFoolishAreas);
+        CSB_ASSERT(mmPlaced > 0, "the fill placed nothing on an MM host, so the MM half of H5a proves nothing");
+        CSB_ASSERT(mmUnimportant == 0, "a placement the coordinator made on an MM host reads unimportant to MM's "
+                                       "foolish rule, so an MM stone could call its area foolish");
+        CSB_ASSERT(mmFoolishAreas >= 0, "MM registered no foolish adapter");
     }
 
     // ------------------------------------------------------------------
