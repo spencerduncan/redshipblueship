@@ -1479,8 +1479,25 @@ TestResult ComboSingleBag_Run(void) {
         Randomizer_TestResetStartingGiveLog();
         // No armed MM shadow going in, so E2 reads only what THIS event armed.
         Context_ClearFrozenState(GAME_MM);
-        // V23a's starting point: MM has no spoiler selected. V23b's: nothing an
-        // earlier run left sits at this pair's OoT spoiler path, so file 1 writes it.
+        // V23a's starting point: MM has no spoiler selected, and MM's "Generate
+        // Spoiler File" is at its shipped default (on). MM_Rando_HeadlessPairedHalf,
+        // which the legs above call, switches it off for its own digest; with it
+        // off MM's generation writes no spoiler of any kind, and V23a would pass
+        // whatever MM's paired generation does with one. V23b's starting point:
+        // nothing an earlier run left sits at this pair's OoT spoiler path, so
+        // file 1 writes it.
+        const int savedGenerateSpoiler = CVarGetInteger("gRando.GenerateSpoiler", -1);
+        struct GenerateSpoilerRestore {
+            int saved;
+            ~GenerateSpoilerRestore() {
+                if (saved < 0) {
+                    CVarClear("gRando.GenerateSpoiler");
+                } else {
+                    CVarSetInteger("gRando.GenerateSpoiler", saved);
+                }
+            }
+        } restoreGenerateSpoiler{ savedGenerateSpoiler };
+        CVarSetInteger("gRando.GenerateSpoiler", 1);
         CVarSetString("gRando.SpoilerFile", "");
         CVarSetInteger("gRando.SpoilerFileIndex", 0);
         const std::string v23Path = CsbOoTSpoilerPath();
