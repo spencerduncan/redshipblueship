@@ -8,6 +8,10 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "combo_area.h" // src/common: the MM area a Termina slot names (#575 H3a)
 #include "game.h"       // src/common: GAME_MM
+#include "foreign_items.h" // src/common: the crossed item's name and article (#575 H3b)
+// ForeignItemsSingleExe.cpp (#575 H3b): the MM item OoT check `rc` yields, when the
+// crossing store describes the world whose hint is rendered; else NULL.
+extern "C" const SharedItem* OoT_Combo_HintTextCrossingAt(int rc);
 #endif
 
 namespace Rando {
@@ -19,6 +23,34 @@ static const char* ForeignAreaName(uint8_t area) {
         return nullptr;
     }
     return Combo_Area_Name(ComboArea{ (uint8_t)GAME_MM, area });
+}
+
+/** RedShipBlueShip (#575 H3b): what an OoT hint calls the MM item crossing host
+ *  `check` yields: its name and " (MM)", after its article when `withArticle`, as
+ *  the check trackers mark it and as MM's stones mark an OoT item " (OoT)". "" when
+ *  the check yields no MM item for the hint being rendered (see
+ *  OoT_Combo_HintTextCrossingAt), so the check names what it holds. */
+static std::string CrossedItemHintName(RandomizerCheck check, bool withArticle) {
+    const SharedItem* item = OoT_Combo_HintTextCrossingAt((int)check);
+    const char* name = item != nullptr ? Combo_DescribeItemName(*item) : nullptr;
+    if (name == nullptr) {
+        return "";
+    }
+    const char* article = withArticle ? Combo_GetForeignItemArticle(*item) : nullptr;
+    return std::string(article != nullptr ? article : "") + name + " (MM)";
+}
+
+/** The spoiler's name for hinted item `c`: the crossed item at a crossing host
+ *  (#575 H3b), else the item table's English name, as upstream writes it. */
+static std::string SpoilerItemName(const std::vector<RandomizerCheck>& locations,
+                                   const std::vector<RandomizerGet>& items, size_t c) {
+    if (c < locations.size()) {
+        const std::string crossed = CrossedItemHintName(locations[c], false);
+        if (!crossed.empty()) {
+            return crossed;
+        }
+    }
+    return StaticData::GetItemTable()[items[c]].GetName().GetEnglish();
 }
 #endif
 
@@ -443,15 +475,23 @@ oJson Hint::toJSON() {
             if (!(StaticData::staticHintInfoMap.contains(ownKey) &&
                   StaticData::staticHintInfoMap[ownKey].targetItems.size() > 0)) {
                 if (items.size() == 1) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    log["item"] = SpoilerItemName(locations, items, 0);
+#else
                     log["item"] = StaticData::GetItemTable()[items[0]]
                                       .GetName()
                                       .GetEnglish(); // RANDOTODO change to CustomMessage;
+#endif
                 } else if (items.size() > 1) {
                     std::vector<std::string> itemStrings = {};
                     for (size_t c = 0; c < items.size(); c++) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                        itemStrings.push_back(SpoilerItemName(locations, items, c));
+#else
                         itemStrings.push_back(StaticData::GetItemTable()[items[c]]
                                                   .GetName()
                                                   .GetEnglish()); // RANDOTODO change to CustomMessage
+#endif
                     }
                     log["items"] = itemStrings;
                 }
@@ -557,6 +597,17 @@ const HintText Hint::GetItemHintText(uint8_t slot, bool mysterious) const {
     auto ctx = Rando::Context::GetInstance();
     RandomizerCheck hintedCheck = locations[slot];
     RandomizerGet targetRG = ctx->GetItemLocation(hintedCheck)->GetPlacedRandomizerGet();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip (#575 H3b): a crossing host physically holds a junk cover; the
+    // hint names the MM item it yields, in English for every language, as an MM area
+    // is named (epic #575, decision 3).
+    if (!mysterious) {
+        const std::string crossed = CrossedItemHintName(hintedCheck, true);
+        if (!crossed.empty()) {
+            return HintText(CustomMessage(crossed, crossed, crossed));
+        }
+    }
+#endif
     CustomMessage msg;
     if (mysterious) {
         return StaticData::hintTextTable[RHT_MYSTERIOUS_ITEM];
