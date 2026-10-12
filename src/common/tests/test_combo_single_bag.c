@@ -179,6 +179,8 @@
  *        per-frame update must not parse it (a general-pass mark ParseSpoiler
  *        would clear survives) and must queue no toast; the same file DROPPED
  *        is an explicit load and is still refused with the paired-spoiler toast.
+ *        Under DontGenerateSpoiler the skipped spoiler is still deleted, as SoH's
+ *        file select deletes any spoiler it finds then (no parse, no toast).
  *   V2c. A new generation forgets the consumed one: after leg G's Generate the
  *        line is SoH's own again.
  *   V2d. A FAILED creation consumes its staged generation too (the event has
@@ -1697,6 +1699,48 @@ TestResult ComboSingleBag_Run(void) {
                 CSB_ASSERT(refusalCopy, "a dropped paired spoiler was not refused with the paired-spoiler toast: the "
                                         "explicit load must still say why it did not load");
                 CSB_ASSERT(Randomizer_IsSpoilerLoaded() == 0, "a dropped paired spoiler loaded as a solo OoT world");
+
+                // Under DontGenerateSpoiler the player turned spoilers off, and SoH's
+                // file select deletes the spoiler it finds. The silent skip must
+                // still delete it (no parse, no toast), or the paired spoiler stays
+                // readable for good. A copy is used so the real one survives for
+                // the legs after this one.
+                const char* const kNoSpoilerName = "Randomizer/rsbs-936-dont-generate-spoiler.json";
+                const std::string noSpoilerPath = Ship::Context::GetPathRelativeToAppDirectory(kNoSpoilerName);
+                const std::string noSpoilerCVar = std::string("./") + kNoSpoilerName;
+                const std::string pairedDoc = CsbReadWholeFile(pairedPath);
+                {
+                    std::ofstream copy(noSpoilerPath, std::ios::binary | std::ios::trunc);
+                    copy << pairedDoc;
+                }
+                const unsigned copyBefore = (unsigned)SpoilerFileExists(noSpoilerCVar.c_str());
+                CVarSetString("gGeneral.SpoilerLog", noSpoilerCVar.c_str());
+                CVarSetInteger("gRandoSettings.DontGenerateSpoiler", 1);
+                OoT_Creation_ForgetConsumedGeneration();
+                fileSelectSpoilerFileLoaded = false;
+                CVarSetInteger("gGeneral.RandomizerNewFileDropped", 0);
+                CVarSetString("gGeneral.RandomizerDroppedFile", "");
+                OoT_ComboLogic_SetGeneralPassDeferred(1);
+                OoT_Notification_ClearForTest();
+                FileChoose_UpdateRandomizer();
+                std::memset(&freshToast, 0, sizeof(freshToast));
+                const int noSpoilerQueued = OoT_Notification_PeekLastForTest(&freshToast);
+                const int noSpoilerParsed = OoT_ComboLogic_GeneralPassDeferred() == 0 ? 1 : 0;
+                const unsigned copyAfter = (unsigned)SpoilerFileExists(noSpoilerCVar.c_str());
+                OoT_ComboLogic_SetGeneralPassDeferred(0);
+                OoT_Notification_ClearForTest();
+                CVarClear("gRandoSettings.DontGenerateSpoiler");
+                CVarSetString("gGeneral.SpoilerLog", pairedPath.c_str());
+                std::remove(noSpoilerPath.c_str());
+                printf("[TEST] combo-single-bag: #936 DontGenerateSpoiler, a fresh launch over a copy of the paired "
+                       "spoiler (%zu bytes, found %u): parsed=%d, toast queued=%d, still on disk=%u\n",
+                       pairedDoc.size(), copyBefore, noSpoilerParsed, noSpoilerQueued, copyAfter);
+                CSB_ASSERT(!pairedDoc.empty() && copyBefore != 0,
+                           "could not copy the paired spoiler, so the DontGenerateSpoiler leg proves nothing");
+                CSB_ASSERT(noSpoilerQueued == 0 && noSpoilerParsed == 0,
+                           "under DontGenerateSpoiler the file select parsed the paired spoiler or raised a toast (#936)");
+                CSB_ASSERT(copyAfter == 0, "under DontGenerateSpoiler the file select left the paired spoiler on disk: "
+                                           "the player turned spoilers off and it stays readable for good");
             }
         }
 
