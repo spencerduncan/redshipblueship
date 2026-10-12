@@ -427,8 +427,13 @@ void FileChoose_UpdateRandomizer() {
             // its spoiler, which ParseSpoiler refuses with a toast. Found here on
             // its own (no drop), it is not loaded: no parse, no toast, one log
             // line, and not again on this visit. A dropped one still parses.
+            // Under DontGenerateSpoiler it is still deleted, as SoH deletes any
+            // spoiler it finds here below.
             if (!rsbsDropped && OoT_FileSelect_SkipPairedSpoilerAutoLoad(fileLoc)) {
                 fileSelectSpoilerFileLoaded = true;
+                if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("DontGenerateSpoiler"), 0)) {
+                    remove(fileLoc);
+                }
                 return;
             }
 #endif
