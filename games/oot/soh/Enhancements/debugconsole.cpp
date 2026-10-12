@@ -1386,6 +1386,15 @@ static bool GenerateRandoHandler(std::shared_ptr<Ship::Console> Console, const s
         if (GenerateRandomizer()) {
             return 0;
         }
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #913: GenerateRandomizer() starts nothing while RandoGenerating is set, and the inherited code below then
+        // reads args[1] past the end of this one-element vector. Return the handler's own "already in progress" error
+        // here instead, through the caller's output like the #909 refusal above (ERROR_MESSAGE needs a Console window).
+        if (output != nullptr) {
+            *output = "[SOH] Rando generation already in progress";
+        }
+        return 1;
+#endif
     }
 
     try {
