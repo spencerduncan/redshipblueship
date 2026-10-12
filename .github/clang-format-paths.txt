@@ -20,6 +20,17 @@
 # One path per line. Blank lines and #-comments ignored. Every listed path
 # must exist — a stale entry is a hard error, so this list cannot silently
 # rot into another vacuous gate.
+#
+# An entry ending in '/' enrols a whole tree: every tracked .c/.cc/.cpp/.h/.hpp
+# file under it, so a new file there is enforced without being listed here (a
+# tree entry that holds no such file is a hard error too). Only RSBS-owned
+# trees are enrolled this way. The vendored game trees stay file-by-file, and
+# a vendored file is never reformatted just to enrol it (operator ruling
+# 2026-10-01, #369).
+
+# RSBS-owned trees, enforced whole (#369).
+src/common/
+rsbs/
 
 games/mm/2s2h/BenPort.h
 games/mm/2s2h/BenPortHudSingleExe.cpp
