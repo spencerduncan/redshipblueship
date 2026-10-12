@@ -4422,6 +4422,7 @@ static TestResult Test_ConsoleSetParseGuard(void) {
         const std::string want = std::string("[LUS] Could not set ") + kVar + ": '" + probe.value + "' " + probe.error +
                                  ".";
         printf("[TEST] console-set-parse-guard: running `%s` (%s)\n", line.c_str(), probe.why);
+        fflush(stdout); // before the fix the process dies inside Run: keep the line that names the value
         std::string output;
         const int32_t rc = console->Run(line, &output);
         auto cvar = cvars->Get(kVar);
