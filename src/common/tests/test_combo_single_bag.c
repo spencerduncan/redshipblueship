@@ -1738,7 +1738,7 @@ TestResult ComboSingleBag_Run(void) {
                 CSB_ASSERT(!pairedDoc.empty() && copyBefore != 0,
                            "could not copy the paired spoiler, so the DontGenerateSpoiler leg proves nothing");
                 CSB_ASSERT(noSpoilerQueued == 0 && noSpoilerParsed == 0,
-                           "under DontGenerateSpoiler the file select parsed the paired spoiler or raised a toast (#936)");
+                           "under DontGenerateSpoiler the file select parsed or toasted the paired spoiler (#936)");
                 CSB_ASSERT(copyAfter == 0, "under DontGenerateSpoiler the file select left the paired spoiler on disk: "
                                            "the player turned spoilers off and it stays readable for good");
             }
