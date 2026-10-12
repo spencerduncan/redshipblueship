@@ -1038,9 +1038,11 @@ Two rows to know about before you read a red or green as a signal:
   `integration` row it needs the ROM archives, so hosted CI never runs it; run it locally
   before merging anything that touches creation, the `.redsave` load, or the MM arrival.
 
-Also: clang-format is enforced against an incremental allowlist
-(`.github/clang-format-paths.txt`), not the full tree
-([#369](https://github.com/spencerduncan/redshipblueship/issues/369), open).
+Also: ~~clang-format is enforced against an incremental allowlist
+(`.github/clang-format-paths.txt`), not the full tree~~ RESOLVED
+([#369](https://github.com/spencerduncan/redshipblueship/issues/369)): `src/common/` and
+`rsbs/` are enforced whole. The vendored game trees stay on the file-by-file allowlist by
+design: a vendored file is never reformatted just to enrol it.
 
 ---
 
