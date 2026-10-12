@@ -147,6 +147,15 @@ bool LooksLikeNewSave() {
            gSaveContext.save.saveInfo.playerData.rupees == 0 && gSaveContext.save.shipSaveInfo.rando.finalSeed == 0;
 }
 
+// What MM_Sram_InitNewSave authors over a ZEROED SaveContext: the creation
+// bootstrap memsets first, so LooksLikeNewSave's zero fields cannot tell an
+// authored bootstrap from a refused one there. The new-file clock and the
+// three-heart capacity can.
+bool BootstrapAuthoredOverZero() {
+    return LooksLikeNewSave() && gSaveContext.save.time == (u16)(CLOCK_TIME(6, 0) - 1) &&
+           gSaveContext.save.saveInfo.playerData.healthCapacity == 0x30;
+}
+
 void RunTitleSetup() {
     static TitleSetupState state;
     memset(&state, 0, sizeof(state));
@@ -261,9 +270,11 @@ extern "C" int MM_NewSaveSessionGuard_RunHeadless(void) {
     OpenPairedFile();
     AuthorLiveHalf();
     MM_Creation_AuthorBootstrap();
-    NSG_ASSERT(LooksLikeNewSave(),
+    NSG_ASSERT(BootstrapAuthoredOverZero(),
                "leg 6: the creation event's bootstrap (MM_Creation_AuthorBootstrap) was refused with a paired file "
-               "open; the creation authors this identity's MM half and must be exempt from the guard");
+               "open (time %04X, healthCapacity %d); the creation authors this identity's MM half and must be "
+               "exempt from the guard",
+               (unsigned)gSaveContext.save.time, (int)gSaveContext.save.saveInfo.playerData.healthCapacity);
     AuthorLiveHalf();
     sBefore = gSaveContext;
     MM_Sram_InitNewSave();
