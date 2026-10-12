@@ -152,7 +152,9 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   progression (OoTMM's rule without its probabilistic refinement; OoT's own Foolish
   entry, and a "plundering ... is a foolish choice" variant on Majora's Mask's free
   gossip stones, [#575](https://github.com/spencerduncan/redshipblueship/issues/575) H5a).
-  Crossing hosts are never hinted. An OoT item that crossed is
+  OoT's gossip stones may hint an OoT check that holds a Majora's Mask
+  item, and name that item with " (MM)", never the Blue Rupee the check holds
+  ([#575](https://github.com/spencerduncan/redshipblueship/issues/575) H3b). An OoT item that crossed is
   hinted by the Majora's Mask area that holds it, for example "the Southern Swamp"
   (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743), [#575](https://github.com/spencerduncan/redshipblueship/issues/575) H3a);
   a file created before that still says "Termina".
