@@ -62,6 +62,7 @@
 #include "global.h"
 
 #include "save.h"
+#include "test_scratch.h"
 #include "context.h"
 #include "shared_resources.h"
 
@@ -111,10 +112,10 @@ void ArmLiveMMSession(int32_t rupees, uint32_t walletTier) {
 
 extern "C" int MM_CaptureHarvestGate_RunHeadless(void) {
     // Isolated save directory so this never touches a real player's slots.
-    const std::filesystem::path dir = std::filesystem::temp_directory_path() / "rsbs_mm_capture_harvest_gate_test";
-    std::error_code ec;
-    std::filesystem::remove_all(dir, ec);
-    std::filesystem::create_directories(dir, ec);
+    // This process's own directory (#926): a fixed name under the shared temp
+    // directory collided with every other run of this row on the machine. The
+    // runner removes it when the row passes and keeps it when the row fails.
+    const std::filesystem::path dir = rsbs::test::ScratchDir("rsbs_mm_capture_harvest_gate_test");
     rsbs::SaveManager::Instance().SetSaveDirectory(dir.string());
     RsbsSave_ResetSlotSessionState();
 
@@ -233,7 +234,6 @@ extern "C" int MM_CaptureHarvestGate_RunHeadless(void) {
     Combo_ResetSharedResourceWatermarks();
     RsbsSave_SetActiveSlot(-1);
     RsbsSave_ResetSlotSessionState();
-    std::filesystem::remove_all(dir, ec);
 
     printf("[TEST] mm-capture-harvest-gate: PASS\n");
     return 0;

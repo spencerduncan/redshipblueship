@@ -77,6 +77,7 @@
 #include "notification_bridge.h"
 #include "pairing_refusal_toast.h"
 #include "save.h"
+#include "test_scratch.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -162,10 +163,11 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
            "load refused after the gate returns to the file select (#836)\n");
     int failures = 0;
 
-    const std::filesystem::path dir = std::filesystem::temp_directory_path() / "rsbs_oot_file_select_refusal_test";
+    // This process's own directory (#926): a fixed name under the shared temp
+    // directory collided with every other run of this row on the machine. The
+    // runner removes it when the row passes and keeps it when the row fails.
+    const std::filesystem::path dir = rsbs::test::ScratchDir("rsbs_oot_file_select_refusal_test");
     std::error_code ec;
-    std::filesystem::remove_all(dir, ec);
-    std::filesystem::create_directories(dir, ec);
     rsbs::SaveManager& rsbsSave = rsbs::SaveManager::Instance();
     rsbsSave.SetSaveDirectory(dir.string());
     RsbsSave_ResetSlotSessionState();
@@ -672,7 +674,6 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
     ComboContext_Init();
     RsbsSave_SetActiveSlot(-1);
     RsbsSave_ResetSlotSessionState();
-    std::filesystem::remove_all(dir, ec);
 
     if (failures != 0) {
         printf("[TEST] oot-file-select-refusal: %d failure(s)\n", failures);
