@@ -11,9 +11,9 @@
  * TitleSetup_SetupTitleScreen calls it) one call site at a time, and
  * tools/tests/test_repo_invariants.py pins those sites, but the invariant was
  * per call site, not per class: MM's file-select new-file path
- * (MM_Sram_InitSave, which also dispatches OnSaveInit, MM's generation hook),
- * SkipToFileSelect's boot leg and any future caller still authored over the
- * session. And MM had no twin of OoT's Context_InvalidateSessionOnReturnToTitle,
+ * (MM_Sram_InitSave, which also dispatches OnSaveInit, MM's generation hook)
+ * and any future caller still authored over the session. And MM had no twin of
+ * OoT's Context_InvalidateSessionOnReturnToTitle,
  * so a TitleSetup entry from a live paired session left gComboCtx, the active
  * slot and OoT's frozen blob resident under a vanilla bootstrap, which the next
  * hop back to OoT freezes into the MM shadow and the next commit writes into
@@ -44,10 +44,14 @@
  *      open, no pairing; the hot-swap first entry beside a suspended OoT) keeps
  *      OoT's frozen blob through MM's title, and a staged generation with no
  *      file (pairing, no slot) still lets MM author.
- *   6. The paired creation event's exemption: inside the creation scope
- *      (MM_Combo_SetCreationAuthoring, which MM_Rando_AuthorHalfAtCreation
- *      brackets its MM_Sram_InitNewSave with) MM authors even with a paired
- *      file open, and the scope closes behind it.
+ *   6. The paired creation event's exemption, through the production bracket:
+ *      MM_Creation_AuthorBootstrap (the step MM_Rando_AuthorHalfAtCreation
+ *      authors its vanilla bootstrap with, ahead of the generation) authors
+ *      even with a paired file open, and the creation scope it opens
+ *      (MM_Combo_SetCreationAuthoring) is closed behind it, so the very next
+ *      MM_Sram_InitNewSave is refused again. RED with the bracket removed from
+ *      the seam (the creation is refused) and with only its closing call
+ *      removed (the scope stays open).
  */
 
 #include "global.h"
@@ -70,7 +74,7 @@ extern "C" SaveContext gSaveContext;
 
 extern "C" void TitleSetup_SetupTitleScreen(TitleSetupState* thisx);
 extern "C" uint32_t MM_Rando_OnSaveInitDispatchCount(void);
-extern "C" void MM_Combo_SetCreationAuthoring(int on);
+extern "C" void MM_Creation_AuthorBootstrap(void);
 
 namespace {
 
@@ -251,20 +255,22 @@ extern "C" int MM_NewSaveSessionGuard_RunHeadless(void) {
     printf("[TEST]   leg 5 PASS: no paired file open, nothing refused or retired\n");
 
     // ---- 6. The paired creation event is exempt ---------------------------
+    // The production step, not a hand-made bracket: a removed or unclosed
+    // bracket in MM_Creation_AuthorBootstrap turns this leg red.
     ClearSession();
     OpenPairedFile();
     AuthorLiveHalf();
-    MM_Combo_SetCreationAuthoring(1);
-    MM_Sram_InitNewSave();
-    MM_Combo_SetCreationAuthoring(0);
+    MM_Creation_AuthorBootstrap();
     NSG_ASSERT(LooksLikeNewSave(),
-               "leg 6: the creation event's MM_Sram_InitNewSave was refused; the creation authors this identity's MM "
-               "half and must be exempt from the guard");
+               "leg 6: the creation event's bootstrap (MM_Creation_AuthorBootstrap) was refused with a paired file "
+               "open; the creation authors this identity's MM half and must be exempt from the guard");
     AuthorLiveHalf();
     sBefore = gSaveContext;
     MM_Sram_InitNewSave();
-    NSG_ASSERT(LiveHalfIntact(), "leg 6: the creation scope stayed open after the creation closed it");
-    printf("[TEST]   leg 6 PASS: the creation event authors inside its scope, and only there\n");
+    NSG_ASSERT(LiveHalfIntact(),
+               "leg 6: the creation scope stayed open after MM_Creation_AuthorBootstrap returned; a later "
+               "MM_Sram_InitNewSave authored over the open paired file");
+    printf("[TEST]   leg 6 PASS: the creation event's bootstrap authors inside its scope, and the scope closes\n");
 
     ClearSession();
     printf("[TEST] mm-new-save-session-guard: PASS\n");

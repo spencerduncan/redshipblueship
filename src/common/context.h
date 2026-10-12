@@ -1485,11 +1485,12 @@ int Context_ComboSessionResident(void);
  *
  * Called by MM's TitleSetup (TitleSetup_SetupTitleScreen, z_opening.c)
  * immediately before it authors its bootstrap with MM_Sram_InitNewSave. Every
- * entry into MM's TitleSetup passes there, so this covers all of them by
- * construction: the two #532 (owl save) and #590 (game over) already reroute to
- * OoT, a soft reset, and any a later change adds. SkipToFileSelect's leg
- * (2s2h/Enhancements/Cutscenes/SkipToFileSelect.cpp), which stands in for
- * TitleSetup after a ConsoleLogo pass, calls it at the same point.
+ * entry into MM's TitleSetup passes there, so for a PAIRED file this covers all
+ * of them by construction: the two #532 (owl save) and #590 (game over) already
+ * reroute to OoT, a soft reset, and any a later change adds. A vanilla
+ * cross-game session (no paired identity) is outside it (second suppression
+ * below); the #532 / #590 reroutes cover that session's two known exits at
+ * their call sites.
  *
  * Retires the session exactly as OoT's return to title does
  * (RSBS_SEED_STAMP_DROP) when a combo session is resident and no cross-game

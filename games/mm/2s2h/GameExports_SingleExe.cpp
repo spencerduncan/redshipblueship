@@ -2980,14 +2980,18 @@ extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
  * where one game is being played. The owl-save and game-over exits below
  * (#532, #590) keep the player's session by never reaching TitleSetup, and
  * tools/tests/test_repo_invariants.py pins them, but they are call-site
- * decisions. This answers for the class: every caller, today's (TitleSetup,
- * MM's file select, SkipToFileSelect's boot leg) and any added later.
+ * decisions. This answers for the class over a PAIRED file: every caller
+ * linked today (TitleSetup and MM's file select) and any added later. A
+ * vanilla cross-game session (no paired identity) is outside it; the
+ * call-site reroutes below still cover that session's owl-save and game-over
+ * exits.
  *
  * Refuses when a combo session is resident (Context_ComboSessionResident: a
  * paired identity stamped AND a slot open), except in two cases that author no
  * second world:
  *   - the paired creation event (MM_Rando_AuthorHalfAtCreation), which IS the
- *     authoring of this identity's MM half. It brackets its own call with
+ *     authoring of this identity's MM half. It authors through
+ *     MM_Creation_AuthorBootstrap, which brackets its MM_Sram_InitNewSave with
  *     MM_Combo_SetCreationAuthoring. Today it runs before the new file's slot
  *     is published, so the predicate alone would let it through; the scope
  *     keeps it through if that order ever changes, instead of failing the
@@ -3022,6 +3026,23 @@ extern "C" int MM_Combo_RefuseNewSaveOverSession(const char* path) {
             path, RsbsSave_GetActiveSlot(), (unsigned)gComboCtx.sharedRandoSeed);
     fflush(stderr);
     return 1;
+}
+
+/**
+ * The paired creation event's vanilla bootstrap (#564 V21): a zeroed
+ * SaveContext, then MM_Sram_InitNewSave inside the creation scope. The creation
+ * event is the one author of this identity's MM half, so it is exempt from the
+ * new-save guard above, and the scope closes behind it.
+ *
+ * A function of its own so the headless lock (mm_new_save_guard_test.cpp, leg 6)
+ * drives the production bracket with a paired file open, without the whole MM
+ * generation MM_Rando_AuthorHalfAtCreation runs after it.
+ */
+extern "C" void MM_Creation_AuthorBootstrap(void) {
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Combo_SetCreationAuthoring(1);
+    MM_Sram_InitNewSave();
+    MM_Combo_SetCreationAuthoring(0);
 }
 
 /**
@@ -5176,12 +5197,7 @@ extern "C" int MM_Rando_AuthorHalfAtCreation(int slot, const char* ootSpoilerPat
     // calls MM's own file select makes (MM_Sram_InitSave) and the same two the
     // headless digest makes, so there is exactly one generation code path in the
     // binary and this seam does not acquire a private copy of it.
-    memset(&gSaveContext, 0, sizeof(SaveContext));
-    // The creation event is the one author of this identity's MM half, so it is
-    // exempt from the new-save guard (#564 V21, MM_Combo_RefuseNewSaveOverSession).
-    MM_Combo_SetCreationAuthoring(1);
-    MM_Sram_InitNewSave();
-    MM_Combo_SetCreationAuthoring(0);
+    MM_Creation_AuthorBootstrap();
     // What MM_Sram_InitSave stamps after MM_Sram_InitNewSave and before
     // OnSaveInit (OoT's name in MM's charset, #773; the marker; the checksum),
     // plus the cross-game session fields the whole-SaveContext consume at
