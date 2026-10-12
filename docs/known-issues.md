@@ -1,9 +1,10 @@
 # Known issues
 
-**Applies to:** `main` at `200adaea` (2026-09-28, PR [#794](https://github.com/spencerduncan/redshipblueship/pull/794): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
-plus the 35 PRs merged after it) and the GitHub Actions builds cut from it; the `v0.1.1-prealpha` tag
-(2026-07-03) is older than everything in the first section.
-**Last updated:** 2026-09-30 (the open cross-game findings, then a corrections pass). **Playtesting this build?** Start with
+**Applies to:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
+plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) and the GitHub Actions builds cut from it; the `v0.1.1-prealpha` tag
+(2026-07-03) is older than everything in the first section. What changed since that tag, in player terms:
+[`release-notes-next.md`](release-notes-next.md).
+**Last updated:** 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -36,13 +37,14 @@ classification table ([#725](https://github.com/spencerduncan/redshipblueship/pu
 crossings and the one spoiler ([#736](https://github.com/spencerduncan/redshipblueship/pull/736)), bag composition ([#738](https://github.com/spencerduncan/redshipblueship/pull/738)), one shared
 triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740)) and the shared-quantity trim ([#744](https://github.com/spencerduncan/redshipblueship/pull/744)).
 
-**What ships at `200adaea`:**
+**What ships at `851b1ee9`:**
 
 - **One seed, one paired world, one bag, items crossing in both directions.** Generating an
   OoT randomizer seed also generates the paired Majora's Mask world. OoT items are
   placed on MM checks and MM items on OoT checks, and **a crossed item is no longer also
-  in its home pool** (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)). Crossings land only on chests (OoT: non-shop
-  `EN_BOX` chests outside the treasure-chest game; MM: its Tier-A chests), at most 64 per
+  in its home pool** (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)). Crossings land on chests (OoT: non-shop
+  `EN_BOX` chests; MM: its Tier-A chests) and on shop slots (see the shops entry below,
+  [#800](https://github.com/spencerduncan/redshipblueship/issues/800)), at most 64 per
   side. Which items may cross is decided by a rule-defined item class (PR
   [#631](https://github.com/spencerduncan/redshipblueship/pull/631)) and the frozen direction.
 - **Hearts and capacity upgrades are counted once for the pair.** Health is one shared
@@ -62,11 +64,17 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   Arrival in MM no longer generates anything: it hydrates the frozen shadow or
   refuses. A generation failure fails file creation itself, at file select, with
   no partial identity and no silent vanilla Termina fallback. A paired world's OoT
-  spoiler loaded on its own at file select is refused with a toast.
+  spoiler dropped on the file select on its own is refused with a toast; one the file
+  select finds by itself at launch is left alone, with no toast (PR [#939](https://github.com/spencerduncan/redshipblueship/pull/939)).
+  One generation makes one file: once a file is created from it, "Start Randomizer" greys
+  out and reads "This seed was used for file N." (PR [#934](https://github.com/spencerduncan/redshipblueship/pull/934)).
 - **Foreign items have their own identity.** An OoT item in Termina shows its real
-  name and a coloured pickup toast; an MM item in Hyrule is presented as a native
-  pickup (PRs [#524](https://github.com/spencerduncan/redshipblueship/pull/524),
-  [#551](https://github.com/spencerduncan/redshipblueship/pull/551)).
+  name, its OoT icon and its model in MM's get-item cutscene; an MM item in Hyrule shows
+  its MM model in OoT's get-item cutscene. The text names the item's game, "(OoT)" in
+  Termina and "(MM)" in Hyrule (PRs [#524](https://github.com/spencerduncan/redshipblueship/pull/524),
+  [#551](https://github.com/spencerduncan/redshipblueship/pull/551), [#761](https://github.com/spencerduncan/redshipblueship/pull/761),
+  [#822](https://github.com/spencerduncan/redshipblueship/pull/822), [#845](https://github.com/spencerduncan/redshipblueship/pull/845),
+  [#884](https://github.com/spencerduncan/redshipblueship/pull/884)).
 - **The combo is one game, frozen at file creation.** MM's randomizer profile and
   the combo settings (direction, pool sizes, item classes) are frozen into the
   world's identity when the OoT file is created (ADR 0009, ADR 0011; PRs
@@ -113,11 +121,16 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   West Clock Town bank's heart piece needs the Giant's Wallet ("Bank Rewards Require One
   Less Wallet" admits the Adult Wallet).
 - ~~**You may opt into one shared Ocarina across both games**~~ RETIRED by
-  [#879](https://github.com/spencerduncan/redshipblueship/issues/879): the row is gone, and a world created with it on loads with it ignored. Was: (Combo → Cross-Game
+  [#879](https://github.com/spencerduncan/redshipblueship/issues/879) (PR [#889](https://github.com/spencerduncan/redshipblueship/pull/889)): the row is gone, and a world created with it on loads with it ignored. Was: (Combo → Cross-Game
   Rules → "[Both Games] Shared Ocarina") — off by default, frozen at file creation
   like every other combo rule: obtaining an ocarina in
   either game grants it in the other (PR
   [#675](https://github.com/spencerduncan/redshipblueship/pull/675)).
+- **Majora's Mask starts a paired world with the Ocarina of Time and the Song of Time
+  only.** The Kokiri Sword and the Hero's Shield are in MM's item pool, as in OoTMM (PR
+  [#895](https://github.com/spencerduncan/redshipblueship/pull/895)). Combo → Cross-Game
+  Rules → "[Both Games] Shared Kokiri Sword" (off by default, frozen at file creation)
+  makes the two games' Kokiri Swords one item (PR [#910](https://github.com/spencerduncan/redshipblueship/pull/910)).
 - **You choose the goal, and meeting it ends the paired game.** Combo → Cross-Game
   Rules → "[Both Games] Goal" offers OoTMM's goals: Ganon & Majora (the default), Any
   Final Boss, Ganon and Majora. A goal that leaves a half unproved says so with a toast
@@ -132,9 +145,13 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 
 **What does not ship yet:**
 
-- **Nothing of the switch has been played yet.** Every claim above comes from tests,
-  measurements and UI captures. The playtest is
-  [`playtest-2026-09.md`](playtest-2026-09.md).
+- **Nobody has played `851b1ee9`.** Every claim above comes from tests, measurements
+  and UI captures. The operator played an earlier build on 2026-10-09 (which build was
+  not recorded); its two findings are fixed: a crossing toasted an item a second time
+  ([#878](https://github.com/spencerduncan/redshipblueship/issues/878), PR [#887](https://github.com/spencerduncan/redshipblueship/pull/887)), and
+  entering Termina gave the Kokiri Sword and the Ocarina in both games
+  ([#879](https://github.com/spencerduncan/redshipblueship/issues/879), PRs [#889](https://github.com/spencerduncan/redshipblueship/pull/889), [#895](https://github.com/spencerduncan/redshipblueship/pull/895)).
+  The playtest is [`playtest-2026-09.md`](playtest-2026-09.md).
 - ~~**The in-game crossing views lag Majora's Mask.**~~ **Resolved** ([#799](https://github.com/spencerduncan/redshipblueship/issues/799)).
   Combo > Windows > Toggle Cross-Game Spoiler and the Combo Tracker list every crossing
   in both directions, by name, with whether each host check was collected. That state
@@ -142,8 +159,8 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   copy written at the last game switch or save, and arriving in Termina empties that
   copy, so while Majora's Mask was played the tracker's Majora's Mask panel read "No data
   yet" and every crossing hosted there read "?" until Majora's Mask's first save or the
-  next switch. Now, while Majora's Mask is played, both windows read its running save
-  ("Updated live"), and a crossing collected there shows as collected at once. From
+  next switch. Now, while Majora's Mask is played, both windows read its running save,
+  and a crossing collected there shows as collected at once. From
   Hyrule, Majora's Mask's is as of the last game switch or save (as of file creation
   until Majora's Mask is first entered), which the switch itself writes (#755, #757).
 - **Paired-world hints are partial.** OoT's hints have no pair-level Way of the Hero.
@@ -171,7 +188,7 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 - ~~**Some settings re-seed the world without changing a rule.**~~ RESOLVED: the pool-size
   sliders ([#801](https://github.com/spencerduncan/redshipblueship/issues/801)) and the
   "OoT Classes" / "MM Classes" rows ([#834](https://github.com/spencerduncan/redshipblueship/issues/834))
-  are retired, so every Cross-Game Rule left changes a rule (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
+  are retired, so every Cross-Game Rule left changes a rule (PRs [#817](https://github.com/spencerduncan/redshipblueship/pull/817), [#839](https://github.com/spencerduncan/redshipblueship/pull/839)).
 - **Surplus filler can be dropped** when more MM items land in Hyrule than OoT items
   leave; only filler gives way (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
 - **Netplay and crossings share one 64-slot shared-item array.** Crossings alone cannot
@@ -197,7 +214,9 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   3 minutes.
 
 **Open problems you may meet while playing** (found in or around the 2026-09 playtest and
-checked in the code at `200adaea`; each links the issue that will fix it):
+checked in the code at `200adaea`; each links the issue that will fix it; at `851b1ee9` all
+of them are fixed except the last, which is a limitation. Every issue still open is listed
+under "Open issues at `851b1ee9`" below):
 
 **~~Shops sell only their own game's items~~ — plain shops, Business Scrubs, Tingle, OoT's merchants and the Treasure Chest Game RESOLVED** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800)).
 #800's first pass makes plain shops cross-game in both directions. An Ocarina of Time shop
@@ -266,8 +285,9 @@ arriving in Termina uses that copy up, so from arrival until your first save in 
 or until you left Termina again the panel said "No data yet", the crossings hosted in MM
 checks showed a question-mark icon, and their list gave no collected count (seen on screen
 before the fix). Now, while you play Majora's Mask, the panel and the crossing list read its
-running save: the panel says "Updated live." and a collected check shows at once, with no
-save. In Hyrule it reads the copy, as of the last game switch or save.
+running save, and a collected check shows at once, with no save. In Hyrule it reads the copy,
+as of the last game switch or save. (Since PR [#929](https://github.com/spencerduncan/redshipblueship/pull/929)
+the panel prints no note saying which of the two it shows.)
 
 **The Combo Item Tracker lists Majora's Mask's items by name until Majora's Mask has started** ([#458](https://github.com/spencerduncan/redshipblueship/issues/458)).
 Majora's Mask's item icons come from its own archive and are loaded the first time Majora's
@@ -277,6 +297,32 @@ instead of its icon, dimmed while you do not hold it, with its count where it ha
 items are the same ones the icons would show. Once Majora's Mask has started, its icons stay
 loaded until you quit. Ocarina of Time's icons load at launch, so its section and the Shared
 section always have icons.
+
+### Open issues at `851b1ee9`
+
+Every issue open at this commit that this project's agents filed, one line each, with what a
+player sees. Epics and trackers are listed for what they leave out of this build.
+
+- [#925](https://github.com/spencerduncan/redshipblueship/issues/925): nothing in play. A test row (`AllTests`) failed once on a fresh build tree and then passed; probably the test collision PR [#931](https://github.com/spencerduncan/redshipblueship/pull/931) fixed. Watched.
+- [#824](https://github.com/spencerduncan/redshipblueship/issues/824): nothing in play. The test row `ForeignItemGiveReverse` ended once without a verdict and has not done so again. Watched.
+- [#855](https://github.com/spencerduncan/redshipblueship/issues/855): with OoT's "Scrubs Shuffle" on, a Business Scrub's offer follows "Merchant Hint Text" while the Check Tracker follows "Scrub Hint Text", so one can name the item while the other hides it (Ship of Harkinian's own behaviour; the operator's call).
+- [#694](https://github.com/spencerduncan/redshipblueship/issues/694): MM's game-over prompt (Combo > Majora's Mask, off by default) has never been seen in this build; its artwork may be missing. Awaiting a playtest.
+- [#607](https://github.com/spencerduncan/redshipblueship/issues/607): an OoT item found in Termina shows its OoT icon in MM's get-item textbox (PR [#761](https://github.com/spencerduncan/redshipblueship/pull/761)); not yet looked at in play.
+- [#599](https://github.com/spencerduncan/redshipblueship/issues/599): nothing seen in play. MM's regular saves and owl saves index their flash slots differently; inherited code, awaiting the operator's call.
+- [#645](https://github.com/spencerduncan/redshipblueship/issues/645): the single-bag fill is in this build; the epic stays open for two items awaiting the operator.
+- [#577](https://github.com/spencerduncan/redshipblueship/issues/577): foreign items show their real models in both games; every child has landed, and the epic awaits closing.
+- [#564](https://github.com/spencerduncan/redshipblueship/issues/564): the one-game audit. Its remaining rows guard against saves that mix two worlds; a player creating and playing files on one build should not meet them.
+- [#573](https://github.com/spencerduncan/redshipblueship/issues/573): no cross-game entrance randomization; the Happy Mask Shop door is always the crossing.
+- [#574](https://github.com/spencerduncan/redshipblueship/issues/574): no multiworld over the combo.
+- [#460](https://github.com/spencerduncan/redshipblueship/issues/460): a netplay grant for the game you are in would wait for your next crossing; the combo's netplay relay is not built by default (`RSBS_NETPLAY` is OFF), so a player does not meet this.
+- [#497](https://github.com/spencerduncan/redshipblueship/issues/497): nothing new in play; the rest of the menu plan awaits the operator.
+- [#500](https://github.com/spencerduncan/redshipblueship/issues/500) and [#492](https://github.com/spencerduncan/redshipblueship/issues/492): the Phase 3.2 and 3.1 trackers. The two-way randomizer and the cross-game logic they track are in this build; whether to close them is the operator's call.
+- [#310](https://github.com/spencerduncan/redshipblueship/issues/310): the manual QA pass by a person with the ROMs is still to do.
+
+The community reports [#634](https://github.com/spencerduncan/redshipblueship/issues/634),
+[#635](https://github.com/spencerduncan/redshipblueship/issues/635) and
+[#636](https://github.com/spencerduncan/redshipblueship/issues/636) are open for the operator's
+reply; their fixes are in this build (see their entries below).
 
 ### Back up your saves. Seriously.
 
@@ -291,6 +337,18 @@ durable write goes through one commit point with a generation stamp (PR
 [#569](https://github.com/spencerduncan/redshipblueship/pull/569)). None of that
 is a promise that the *next* format change will migrate. Treat any progress made on
 a pre-alpha build as disposable, and keep copies of files you care about.
+
+**Paired files created before PR #895 (2026-10-10) are refused.** PR
+[#895](https://github.com/spencerduncan/redshipblueship/pull/895) changed what Majora's
+Mask starts a paired world with (the Ocarina of Time and the Song of Time; the sword and
+shield went into the pool), and that start is part of the world's identity. An older
+file's identity cannot match it, so pressing A on the file in the Ocarina of Time file
+select plays the error sound, posts "Refused: Majora's Mask options differ", and keeps
+you on the file list. This is read from the code by that PR; no older file was loaded.
+Erase the file and create a new one. Since PR
+[#911](https://github.com/spencerduncan/redshipblueship/pull/911), a file whose
+`.redsave` belongs to another file (a copy put at this slot's path, for example) is
+refused the same way, with "Refused: Cross-game record is for another file".
 
 **Paired files created before PR #680 (2026-09-17) are not migrated.** Increment 2
 moved the entire paired generation to the file-create seam, and the arrival in Majora's
@@ -326,18 +384,20 @@ This project is pre-release — the operator has accepted invalidating existing 
 rather than spending effort on migration. **Create a new file**; there is no recovery
 path for the old one.
 
-**Paired files created between PR #680 and the switch (PR #743, 2026-09-27) are NOT
+~~**Paired files created between PR #680 and the switch (PR #743, 2026-09-27) are NOT
 refused.** They load and keep playing the world they were created with: the old
-overlay world, where a crossed item is also still in its home pool. They show nothing
-of the single-bag fill, and the same seed now generates a different world. Create a new
-file to play the current build.
+overlay world, where a crossed item is also still in its home pool.~~ **SUPERSEDED (PR
+#895):** such a file is refused, as above.
 
-**Paired files created before PR #772 (2026-09-28) are NOT refused, and are safe to
-play.** Every arrival in MM now gives the session the cross-game slot number, so the
-moon-crash reset and the owl save no longer wipe their MM half (PR [#772](https://github.com/spencerduncan/redshipblueship/pull/772)), and a moon
-crash restores the file's last save (PR [#789](https://github.com/spencerduncan/redshipblueship/pull/789); see the #785 entry below). What stays wrong on such a
-file is display only: the Combo Tracker's Majora's Mask panel reads "No data yet". A new
-file's panel reads "As of file creation." until MM is first entered. (#772 also describes
+~~**Paired files created before PR #772 (2026-09-28) are NOT refused, and are safe to
+play.**~~ **SUPERSEDED (PR #895):** such a file is refused, as above. What PR #772 changed
+still holds for every file: every arrival in MM gives the session the cross-game slot
+number, so the moon-crash reset and the owl save no longer wipe the MM half (PR
+[#772](https://github.com/spencerduncan/redshipblueship/pull/772)), and a moon crash
+restores the file's last save (PR [#789](https://github.com/spencerduncan/redshipblueship/pull/789); see the #785 entry below). To see whether a
+file's MM half exists, open the Combo Tracker: its Majora's Mask panel shows MM's world
+under its header, or nothing under the header when there is no half to read (the panel's
+explanatory notes were cut by PR [#929](https://github.com/spencerduncan/redshipblueship/pull/929)). (#772 also describes
 an `[MM v]` / `[MM _]` file-select marker; only `ComboMenuBar` printed it, and it was never
 constructed. PR [#794](https://github.com/spencerduncan/redshipblueship/pull/794) deleted
 `ComboMenuBar`, and no screen carries the marker: a paired creation stamps both halves' markers at creation
@@ -348,7 +408,12 @@ trick tightenings moved generated worlds, and since PR [#774](https://github.com
 newly generated world differs from what a build before it made from the same seed string
 and settings (OoT's excluded locations now reach the settings fingerprint, in every
 environment). A non-default goal is a different world from the same seed (PR [#760](https://github.com/spencerduncan/redshipblueship/pull/760)).
-Nothing stored in an existing save is recomputed, so existing files are unaffected.
+The 2026-09-30 wave moved default worlds three more times: MM shop slots as crossing hosts
+(PR [#840](https://github.com/spencerduncan/redshipblueship/pull/840)), the Treasure Chest
+Game's prize as a crossing host (PR [#874](https://github.com/spencerduncan/redshipblueship/pull/874))
+and MM's paired start (PR [#895](https://github.com/spencerduncan/redshipblueship/pull/895)).
+Nothing stored in an existing save is recomputed; files created before PR #895 are
+refused for their identity, as above.
 
 ---
 
@@ -523,7 +588,57 @@ price of an OoT item in an MM shop or Tingle slot
 OoT's Check Tracker can show checks from before a crossing commit after a reload
 ([#861](https://github.com/spencerduncan/redshipblueship/issues/861)); OoT's threaded save worker
 can land an older generation over a crossing commit
-([#851](https://github.com/spencerduncan/redshipblueship/issues/851)).
+([#851](https://github.com/spencerduncan/redshipblueship/issues/851)). All five were fixed
+after this run, by PRs [#884](https://github.com/spencerduncan/redshipblueship/pull/884),
+[#892](https://github.com/spencerduncan/redshipblueship/pull/892),
+[#893](https://github.com/spencerduncan/redshipblueship/pull/893),
+[#898](https://github.com/spencerduncan/redshipblueship/pull/898) and
+[#896](https://github.com/spencerduncan/redshipblueship/pull/896).
+
+---
+
+## Smoke, 2026-10-12, `851b1ee9`
+
+The closing run of the 2026-09-30 wave: 92 pull requests merged between `200adaea` and
+`851b1ee9`, [#802](https://github.com/spencerduncan/redshipblueship/pull/802) to
+[#940](https://github.com/spencerduncan/redshipblueship/pull/940), 43 of them after the run
+above. Like the runs above, it covers the checks hosted CI cannot run, because they need the
+ROMs.
+
+**How it was run.** The workstation's main Windows checkout at `851b1ee9` (the log opens
+with `=== merge origin/main onto origin/main flags=uia` and `Already up to date.`), rebuilt
+in 2496 build steps (Release). `soh.o2r`, `2ship.o2r` and the two curated archives were
+regenerated at 07:16 (`redship-oot.o2r`: "332 curated resource(s)", `redship-mm.o2r`: "190
+curated resource(s)"). `oot.o2r` and `mm.o2r` were not re-extracted. The config was OpenGL
+only, and windows opened without taking focus. The run ended at 07:30:06 on 2026-10-12.
+
+| Check | Result |
+|---|---|
+| `redship` tier | 179 of 179 passed ("100% tests passed out of 179"; 163 in the run above). `AllTests` and `ForeignItemGiveReverse` passed |
+| `rando` tier | 43 of 43 passed (42 in the run above). All four golden-world rows passed (`GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest`, `GoldenSeedDigestArmedCaps`) with `tests/golden/` as it stands at this commit |
+| `ui` tier (OpenGL, ROM archives mounted) | 2 of 2 rows passed (`UiSnapshot`, `UiSnapshotMin`). The parity lint passed plain ("OK: 0 gated hit(s), all in the baseline") and no-grow ("neither baseline gained an entry relative to origin/main") |
+| `integration` | 14 of 14 passed (13 in the run above): `IntBootOoT`, `IntBootMM`, `IntSwitchOoTHmsToMm`, `IntSwitchMmClockTownSouthToOoT`, `IntArchiveHotswapCycle`, `IntCuratedArchiveBootRegen`, `IntWatchdogWedgeOoTFrame`, `IntWatchdogWedgeHandoff`, `IntWatchdogWedgeMMFrame`, `IntGameplayRoundtrip`, `IntGameplayRoundtripCapture`, `IntPairedFirstCrossing`, `IntPairedFirstCrossingDiverged`, `IntPairedFirstCrossingTwoCycles` |
+| `integration-soak` | `IntGameplayRoundtripSoak` passed (70.6 s) |
+
+**Generated worlds moved during this work.** Three pull requests re-pinned golden files:
+[#840](https://github.com/spencerduncan/redshipblueship/pull/840) and
+[#874](https://github.com/spencerduncan/redshipblueship/pull/874) (named in the run above)
+each re-pinned three of the four (`seed-digest-default`, `seed-digest-profile-v1`,
+`paired-attempt-digest`), and [#895](https://github.com/spencerduncan/redshipblueship/pull/895)
+(MM's paired start) re-pinned all four, `seed-digest-armed-caps` included. A seed string and
+settings that made one world at `200adaea` make a different one now, and paired files created
+before #895 are refused (see "Back up your saves").
+
+**What this run did not cover.**
+- Nobody has played this build. The rows drive door transitions and item gives directly; they
+  do not see what a person sees.
+- DirectX 11 was not compared with OpenGL.
+- The creation-time sample (10 real paired creations against the 30 s budget) was not re-run.
+- Not tested by anyone, by a row or by hand: the cross-game warp songs, networking, and a
+  crossing made after a save and a reload.
+
+**Findings.** None in this run. The open issues at this commit are listed under "Open issues
+at `851b1ee9`" near the top of this document.
 
 ---
 
@@ -536,7 +651,7 @@ editable between sessions, and what they hold there is staging for the next file
 Loading a paired file now compares both its Cross-Game Rules and its Majora's Mask
 profile (the same digest the crossing checks) and puts the file's own values back into
 the pages:
-- a changed Cross-Game Rule (Goal, Crossing Direction; Shared Ocarina until #879 retired it) is
+- a changed Cross-Game Rule (Goal, Crossing Direction, Shared Kokiri Sword; Shared Ocarina until #879 retired it) is
   restored, and a toast reads "Restored from file:" with the rows it reset
   (for example "Restored from file: Goal, Crossing Direction");
 - a changed MM option or trick is restored from the file's MM half, and a toast reads
@@ -647,7 +762,8 @@ number, which also covers older files (see "Back up your saves"). The fix is loc
 headlessly and has not been played; the playtest guide's scenario I4 checks it in game.
 It fixed the wipe only; the half then stayed on day 4 after a crash, fixed separately
 (next entry). To see whether a file's MM half exists, open the Combo Tracker's Majora's
-Mask panel ("As of file creation." or a later freshness note, versus "No data yet").
+Mask panel: MM's world under its header, versus nothing under the header (its notes were
+cut by PR [#929](https://github.com/spencerduncan/redshipblueship/pull/929)).
 
 ### ~~A moon crash in a paired MM half leaves the cycle on day 4~~ — RESOLVED ([#785](https://github.com/spencerduncan/redshipblueship/issues/785), PR [#789](https://github.com/spencerduncan/redshipblueship/pull/789))
 
@@ -1033,9 +1149,13 @@ Two rows to know about before you read a red or green as a signal:
   code 3 (`RSBS_INT_WATCHDOG_SECS` changes the budget; 0 disables it, e.g. under a
   debugger). Either way a red run of this row is a regression to read, not
   known noise.
-- **`IntPairedFirstCrossing` is the only row that crosses with a paired file** (PR
-  [#790](https://github.com/spencerduncan/redshipblueship/pull/790)). Like every
-  `integration` row it needs the ROM archives, so hosted CI never runs it; run it locally
+- **Three rows cross with a paired file:** `IntPairedFirstCrossing` (PR
+  [#790](https://github.com/spencerduncan/redshipblueship/pull/790)),
+  `IntPairedFirstCrossingDiverged` (changed settings, the load's restore, then a real MM
+  boot; PR [#833](https://github.com/spencerduncan/redshipblueship/pull/833)) and
+  `IntPairedFirstCrossingTwoCycles` (a second arrival in Termina; PR
+  [#891](https://github.com/spencerduncan/redshipblueship/pull/891)). Like every
+  `integration` row they need the ROM archives, so hosted CI never runs them; run them locally
   before merging anything that touches creation, the `.redsave` load, or the MM arrival.
 
 Also: ~~clang-format is enforced against an incremental allowlist
@@ -1049,11 +1169,22 @@ design: a vendored file is never reformatted just to enrol it.
 ## Tracking
 
 - [#492](https://github.com/spencerduncan/redshipblueship/issues/492) — Phase 3.1
-  tracker (two-way combo randomizer; closing)
+  tracker (two-way combo randomizer; closing awaits the operator)
 - [#500](https://github.com/spencerduncan/redshipblueship/issues/500) — Phase 3.2
   tracker (cross-game logic and beatability), with its increment epics
-  [#644](https://github.com/spencerduncan/redshipblueship/issues/644) and
+  [#644](https://github.com/spencerduncan/redshipblueship/issues/644) (closed) and
   [#645](https://github.com/spencerduncan/redshipblueship/issues/645)
+- [#564](https://github.com/spencerduncan/redshipblueship/issues/564) — the one-game
+  semantics audit
+- [#577](https://github.com/spencerduncan/redshipblueship/issues/577) — cross-game
+  models (every child landed)
+- Epics closed by the 2026-09-30 wave: [#458](https://github.com/spencerduncan/redshipblueship/issues/458)
+  (trackers), [#575](https://github.com/spencerduncan/redshipblueship/issues/575) (hints),
+  [#800](https://github.com/spencerduncan/redshipblueship/issues/800) (shops),
+  [#836](https://github.com/spencerduncan/redshipblueship/issues/836) (a refused file is never
+  opened unpaired), [#837](https://github.com/spencerduncan/redshipblueship/issues/837) (every
+  crossing is a save), [#879](https://github.com/spencerduncan/redshipblueship/issues/879)
+  (MM's paired start)
 - [#310](https://github.com/spencerduncan/redshipblueship/issues/310) — manual
   runtime QA pass (open); findings should be appended to this document rather than
   tracked separately
