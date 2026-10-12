@@ -2635,17 +2635,16 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
     }
     itemPool.clear();
 
-    // 2. The coordinator's OoT hosts are hintable, as the native pass's are —
-    //    EXCEPT a crossing host. It physically holds kOoTForeignJunkCover while
-    //    its real content is an MM item delivered through the crossing store, and
-    //    OoT's hint text reads the physical item: a gossip stone would name a Blue
-    //    Rupee for an MM progression item (PR #743 review). Kept out of every
-    //    location hint instead; where an OoT item hint's target crossed into MM,
-    //    hints.cpp names Termina.
+    // 2. The coordinator's OoT hosts are hintable, as the native pass's are,
+    //    crossing hosts included (#575 H3b, the mirror of MM's #814). A crossing
+    //    host physically holds kOoTForeignJunkCover while its real content is an
+    //    MM item delivered through the crossing store; OoT's hint text names that
+    //    MM item, never the cover (hint.cpp, through OoT_Combo_HintTextCrossingAt),
+    //    and the "Named Item" filter counts it as major when MM grades that MM
+    //    item major (hints.cpp, OoT_Combo_HintPassCrossingIsMajor). Before #575
+    //    H3b a host was kept out of every location hint (PR #743 review), because
+    //    the text read the physical item and a stone would have named a Blue Rupee.
     for (int i = 0; i < sPlacementCount; ++i) {
-        if (sPlacements[i].item.originGame != (uint8_t)GAME_OOT) {
-            continue;
-        }
         Rando::ItemLocation* il = ctx->GetItemLocation(sPlacements[i].host);
         if (il != nullptr) {
             il->SetAsHintable();
@@ -2745,6 +2744,14 @@ extern "C" int OoT_ComboLogic_HintingPairedRemainder(void) {
  *  over the world the store describes. The lock shuts it again before P5. */
 extern "C" void OoT_ComboLogic_TestSetHintingPairedRemainder(int on) {
     sHintingPairedRemainder = on != 0;
+}
+
+/** TEST BRIDGE (#575 H3b; ComboSingleBag D2): hold the paired spoiler's gate open
+ *  (1) or shut (0), as step 5 above holds it around SpoilerLog_Write, so a lock can
+ *  render one hint's spoiler entry the way the paired creation writes it, with the
+ *  remainder's gate already shut. The lock shuts it again before P5. */
+extern "C" void OoT_ComboLogic_TestSetWritingSingleBagSpoiler(int on) {
+    sWritingSingleBagSpoiler = on != 0;
 }
 
 /**

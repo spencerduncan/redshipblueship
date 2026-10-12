@@ -77,13 +77,19 @@
  *       every OoT row HOME_ONLY — zero OoT items in Termina — while MM's rows
  *       still cross. Red with SingleBagOriginMayCross's class conjunct deleted.
  *   D2. PAIRED-WORLD HINTS: the #441 checks over the hints OoT's remainder wrote
- *       for THIS world, plus no crossing host hintable or hinted, and an OoT item
- *       placed in MM hinted as Termina (Rando_ValidatePairedWorldHints). #575 H5a:
- *       its P7 recomputes the foolish rule over OoT's own areas against the
+ *       for THIS world, plus every crossing host hintable, counted major by the
+ *       "Named Item" filter exactly when MM grades its item major, and, where a
+ *       hint names one, named by the MM item it yields, never its cover (#575 H3b), and an
+ *       OoT item placed in MM hinted by its MM area (Rando_ValidatePairedWorldHints).
+ *       #575 H5a: its P7 recomputes the foolish rule over OoT's own areas against the
  *       barren flags and the Foolish hints drawn; and here, every placement the
  *       coordinator made on an MM host reads IMPORTANT through MM's read-time
  *       answer (which sees only the save and the store, never these tables), so
  *       an MM stone can never call the area of a bag row foolish.
+ *   D2b. A SOLO WORLD AFTER A PAIRED CREATION NAMES NO CROSSED ITEM (#575 H3b): the
+ *       crossing store outlives its creation, so OoT's native general pass is run
+ *       after D3 with the paired world's crossings still in the store, and its
+ *       hints name none of them (Rando_ValidateSoloWorldHintsAfterPairing).
  *   D3. A REFUSAL IS NOT A RUNG: a second creation over an OoT world that already
  *       finished its general pass is refused by the fill (BAD_REQUEST) and fails
  *       on its FIRST ladder attempt, not after ten, and not as "exhausted".
@@ -236,6 +242,8 @@ int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
 int OoT_Rando_Foreign_HostsForeign(uint16_t rc);
 int OoT_Rando_Foreign_HostCollected(uint16_t rc);
 int Rando_ValidatePairedWorldHints(void);
+int Rando_ValidateSoloWorldHintsAfterPairing(void);
+int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 int OoT_Creation_AuthorRandoFile(int slot);
 void Randomizer_TestResetStartingGiveLog(void);
 int Randomizer_TestCreationGiveHost(int i);
@@ -1253,8 +1261,8 @@ TestResult ComboSingleBag_Run(void) {
     {
         const int hintRc = Rando_ValidatePairedWorldHints();
         printf("[TEST] combo-single-bag: paired-world hint validity rc=%d\n", hintRc);
-        CSB_ASSERT(hintRc == 0, "a paired world's hints name a crossing host, leave one hintable, point at no OoT "
-                                "location without naming Termina, or fail a #441 check (see [rando-hints])");
+        CSB_ASSERT(hintRc == 0, "a paired world's hints leave a crossing host unhintable or name its cover, point at "
+                                "no OoT location without naming Termina, or fail a #441 check (see [rando-hints])");
 
         // #575 H5a, MM's half: MM recomputes "a placement the coordinator made"
         // from the item-class owner and the crossing store at read time. Over
@@ -1326,6 +1334,25 @@ TestResult ComboSingleBag_Run(void) {
                    "the fill's refusal climbed the attempt ladder as if it were a world dead end");
     }
     Combo_SingleBag_Forget();
+
+    // ------------------------------------------------------------------
+    // D2b. (#575 H3b) A solo world generated after the paired creation, with
+    //      the paired world's crossings still in the store, names none of them.
+    // ------------------------------------------------------------------
+    {
+        const int storedHosts = Combo_Crossings_Count(GAME_OOT);
+        const int priorNative = OoT_ComboLogic_TestSetNativeGeneralPass(1);
+        const int soloGen = Rando_HeadlessSeedTest("RSBSH3BSOLOWORLD");
+        (void)OoT_ComboLogic_TestSetNativeGeneralPass(priorNative);
+        const int soloRc = soloGen == 0 ? Rando_ValidateSoloWorldHintsAfterPairing() : -1;
+        printf("[TEST] combo-single-bag: solo world after the paired creation (%d OoT-hosted crossings still stored): "
+               "generation rc=%d, hint check rc=%d\n",
+               storedHosts, soloGen, soloRc);
+        CSB_ASSERT(storedHosts > 0, "the store holds no OoT-hosted crossing, so the solo-world check proves nothing");
+        CSB_ASSERT(soloGen == 0, "the solo world after the paired creation did not generate");
+        CSB_ASSERT(soloRc == 0, "a solo world generated after a paired creation names a crossed item, reads the "
+                                "paired world's crossings in its hint pass, or fails a #441 check (see [rando-hints])");
+    }
     Combo_Crossings_Clear();
 
     // ------------------------------------------------------------------

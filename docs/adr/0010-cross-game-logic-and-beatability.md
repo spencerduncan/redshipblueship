@@ -1856,6 +1856,24 @@ count an MM crossing host as a candidate and name the crossed item
 name both games use, so the cover is never named and "the Lens of Truth (OoT)"
 never reads as MM's own Lens. A stone picks its check when it is read, not at generation, so
 no generated world or digest moves; locked by the `ForeignHostGossipHint` row.*
+*Amended 2026-10-11 (#575 H3b, the mirror of #814): a crossing host is now
+hintable in OoT too. OoT's remainder marks every coordinator host hintable, the
+"Named Item" filter counts a crossing as major when Majora's Mask grades the MM
+item major (MM's own `randoItemType` through the item class owner's chest grade,
+on `Item::IsMajorItem`'s rule: majors, masks and crossed keys yes; maps, compasses,
+heart pieces and containers, tokens and stray fairies no), and a hint that names a host
+names the MM item it yields with its article and an " (MM)" marker
+(`hint.cpp` `GetItemHintText`, and the spoiler's `item`), never the cover. The
+crossing store outlives its creation, so OoT's hint pass reads it only under the
+remainder's gate, and the text only then, while the paired spoiler is written,
+or while a paired file is loaded and played (`ForeignItemsSingleExe.cpp`
+`OoT_Combo_HintPassCrossingIsMajor` / `OoT_Combo_HintTextCrossingAt`). OoT's stones
+hold `RG_HINT` whatever they say, so no digest moves; locked by `ComboSingleBag`
+D2 (P1 and P2 inverted, every host probed, the filter's answer per MM grade, the
+spoiler entry under the paired spoiler's gate alone) and D2b (a solo world
+generated after a paired creation names no crossed item), `ComboCreationEvent`
+leg 11 (the spoiler the creation wrote) and `IntPairedFirstCrossing` (a stone's
+text in play, with the paired file loaded).*
 The pane's pool-size rows
 change no rule but re-seed the world. A paired world's OoT spoiler is refused
 as a solo OoT world at file select: the pairing and its crossings are not

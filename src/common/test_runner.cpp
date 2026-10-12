@@ -2333,6 +2333,7 @@ uint32_t MM_Rando_OnSaveInitDispatchCount(void);
 int MM_Rando_Logic_JoinOrderProbe(void);
 void MM_Rando_LastPairedSpoilerStats(int* outForward, int* outReverse, int* outIdentityOk);
 int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
+int Rando_TestCheckPairedSpoilerCrossingHints(const char* path, int* outNamed);
 int Rando_TestReloadPairedSpoiler(const char* path, int* outMarked, int* outPairedLoaded, int* outStrippedLoaded,
                                   int* outRefusalToast);
 // #582's overlay leg. games/oot/soh/SohGui/CreationProgressOverlay.h documents
@@ -2821,6 +2822,25 @@ TestResult Test_ComboCreationEvent(void) {
             return TEST_FAIL;
         }
         const std::string absolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
+        // #575 H3b: the stones of the spoiler the creation WROTE (under its
+        // paired-spoiler gate) name a crossing host by the MM item it yields.
+        // Before the reload below, which replaces the live OoT context.
+        {
+            int named = 0;
+            const int hintFailures = Rando_TestCheckPairedSpoilerCrossingHints(absolute.c_str(), &named);
+            printf("[TEST] spoiler hints: %d entr%s name an OoT crossing host, %d failure(s) (#575 H3b)\n", named,
+                   named == 1 ? "y" : "ies", hintFailures);
+            if (hintFailures != 0) {
+                printf("[TEST] FAIL: the paired world's written spoiler names a crossing host's cover, not the MM "
+                       "item it yields, or could not be read (see [rando-hints])\n");
+                return TEST_FAIL;
+            }
+            if (named == 0) {
+                printf("[TEST] FAIL: no hint of the written spoiler names a crossing host, so the check proves "
+                       "nothing\n");
+                return TEST_FAIL;
+            }
+        }
         int marked = 0;
         int pairedLoaded = -1;
         int strippedLoaded = -1;
