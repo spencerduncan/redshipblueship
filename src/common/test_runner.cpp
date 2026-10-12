@@ -2477,6 +2477,11 @@ TestResult Test_ComboCreationEvent(void) {
         Combo_GenProgress_SetSink(NULL);
         return TEST_FAIL;
     }
+    // Leg 7 reads back the spoiler this creation writes. A paired spoiler is
+    // never written over another pair's (#564 V23), and a file an earlier build
+    // left at this seed's path names whatever identity that build froze, so it
+    // goes first (CsbOoTSpoilerPath, tests/test_combo_single_bag.c).
+    std::remove(CsbOoTSpoilerPath().c_str());
 
     const int freezeAt = CreationPhaseIndexOf((uint8_t)RSBS_GENPHASE_FREEZE);
     const int fillAt = CreationPhaseIndexOf((uint8_t)RSBS_GENPHASE_OOT_FILL);
