@@ -68,6 +68,41 @@ const char* SohFileSelect_GetSettingText(uint8_t optionIndex, uint8_t language) 
     return RandomizerSettingsMenuText[optionIndex][language].c_str();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include <cstdio>
+
+// ForeignItemsSingleExe.cpp: the slot the last staged generation created, or
+// negative when no creation has consumed it since the last generation began.
+extern "C" int OoT_Creation_StagedGenerationConsumedBy(void);
+
+// RSBS (#564 V2): a staged generation makes exactly one file. Once a file has
+// used it, "Start Randomizer" is greyed as when no seed is loaded, and this line
+// says why in place of "No randomizer seed loaded". %d is the file's number.
+// A failed creation keeps SoH's line: its "Not created:" toast already asked
+// for a new seed.
+static const char* const kSeedUsedText[] = {
+    // English
+    "This seed was used for file %d.\nPlease generate a new one first.",
+    // German
+    "Seed für Datei %d verwendet.\nBitte neuen Seed generieren.",
+    // French
+    "Cette seed a servi pour le fichier %d.\nGénérez-en une nouvelle d'abord.",
+};
+
+const char* OoT_FileSelect_NoSeedText(uint8_t language) {
+    const int slot = OoT_Creation_StagedGenerationConsumedBy();
+    if (slot < 0) {
+        return SohFileSelect_GetSettingText(RSM_NO_RANDOMIZER_GENERATED, language);
+    }
+    if (language > LANGUAGE_FRA) {
+        language = LANGUAGE_ENG;
+    }
+    static char sLine[128];
+    snprintf(sLine, sizeof(sLine), kSeedUsedText[language], slot + 1);
+    return sLine;
+}
+#endif
+
 void SohFileSelect_ShowPresetMenu() {
     SohGui::ShowEscMenu();
     CVarSetString(CVAR_SETTING("Menu.ActiveHeader"), "Settings");

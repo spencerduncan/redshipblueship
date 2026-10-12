@@ -361,6 +361,12 @@ u8 generating;
 int retries = 0;
 bool fileSelectSpoilerFileLoaded = false;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#564 V2): 1 once a file has consumed the last staged generation, until
+// the next generation begins (ForeignItemsSingleExe.cpp).
+extern int OoT_Creation_StagedGenerationConsumed(void);
+#endif
+
 void FileChoose_UpdateRandomizer() {
     if (CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0) != 0 && generating == 0) {
         generating = 1;
@@ -386,9 +392,18 @@ void FileChoose_UpdateRandomizer() {
         Randomizer_SetSpoilerLoaded(false);
     }
 
+    // RSBS (#564 V2): a file consumes the generation it was created from, which
+    // leaves "no seed loaded" behind. The spoiler that creation wrote is a paired
+    // world's, which Context::ParseSpoiler refuses with a toast; auto-loading it
+    // here would raise that toast right after the creation and on every return
+    // to the file select. A dropped spoiler still loads (the first operand).
     if (CVarGetInteger(CVAR_GENERAL("RandomizerNewFileDropped"), 0) != 0 ||
         !(Randomizer_IsSeedGenerated() || Randomizer_IsSpoilerLoaded()) &&
-            SpoilerFileExists(CVarGetString(CVAR_GENERAL("SpoilerLog"), "")) && !fileSelectSpoilerFileLoaded) {
+            SpoilerFileExists(CVarGetString(CVAR_GENERAL("SpoilerLog"), "")) && !fileSelectSpoilerFileLoaded
+#ifdef RSBS_SINGLE_EXECUTABLE
+            && !OoT_Creation_StagedGenerationConsumed()
+#endif
+    ) {
         if (CVarGetInteger(CVAR_GENERAL("RandomizerNewFileDropped"), 0) != 0) {
             if (SpoilerFileExists(CVarGetString(CVAR_GENERAL("RandomizerDroppedFile"), ""))) {
                 CVarSetString(CVAR_GENERAL("SpoilerLog"), CVarGetString(CVAR_GENERAL("RandomizerDroppedFile"), ""));
@@ -1850,9 +1865,15 @@ void FileChoose_DrawWindowContents(GameState* thisx) {
         // the randomizer.
         if (!Randomizer_IsSeedGenerated() && !Randomizer_IsSpoilerLoaded() &&
             this->randomizerIndex == RSM_START_RANDOMIZER) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // RSBS (#564 V2): names the file a consumed generation made.
+            Interface_DrawTextLine(this->state.gfxCtx, OoT_FileSelect_NoSeedText(language), 70, (80 + 64), 240, 80, 80,
+                                   textAlpha, 0.8f, true);
+#else
             Interface_DrawTextLine(this->state.gfxCtx,
                                    SohFileSelect_GetSettingText(RSM_NO_RANDOMIZER_GENERATED, language), 70, (80 + 64),
                                    240, 80, 80, textAlpha, 0.8f, true);
+#endif
         }
 
         uint16_t textOffset = 16 * this->randomizerIndex;

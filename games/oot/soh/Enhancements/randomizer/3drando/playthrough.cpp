@@ -27,6 +27,9 @@
 // single-bag fill at the creation event (ADR 0010 increment 3, lane K11).
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
 extern "C" int OoT_ComboLogic_GeneralPassDeferred(void);
+// ForeignItemsSingleExe.cpp: the record of which file consumed the last staged
+// generation (#564 V2), which a new generation replaces.
+extern "C" void OoT_Creation_ForgetConsumedGeneration(void);
 
 // #702: a record of what the LAST settings fold below actually folded, so a
 // rando-tier row can assert that the per-area exclude-location groups reach the
@@ -65,8 +68,10 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     auto ctx = Rando::Context::GetInstance();
 #ifdef RSBS_SINGLE_EXECUTABLE
     // A new generation replaces the world, and with it any general pass a
-    // previous paired generation deferred to a creation that never happened.
+    // previous paired generation deferred to a creation that never happened,
+    // and the record of which file consumed the previous one (#564 V2).
     OoT_ComboLogic_SetGeneralPassDeferred(0);
+    OoT_Creation_ForgetConsumedGeneration();
 #endif
     ctx->overrides.clear();
     ctx->ItemReset();

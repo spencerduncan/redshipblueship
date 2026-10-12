@@ -156,6 +156,30 @@
  *       reader counts only path-named "__OTR__" lists, and the junk cover's
  *       draw emits none of them).
  *
+ * #564 V2 LEGS: A STAGED GENERATION IS CONSUMED EXACTLY ONCE, AT FILE CREATION.
+ *
+ *   V2a. Leg E's creation is staged the way the file select stages one (Generate
+ *        marks the context generated: OoT_Creation_TestStageGeneration). After
+ *        the real author order (OoT_Creation_AuthorRandoFile) creates file 1, no
+ *        generation is staged (Randomizer_IsSeedGenerated, which the file select's
+ *        "Start Randomizer" and OoT_Sram_InitSave's isRandoFile both read, is 0),
+ *        nothing waits at a general pass, and the randomizer menu's line under
+ *        "Start Randomizer" (OoT_FileSelect_NoSeedText, drawn where SoH draws
+ *        "No randomizer seed loaded") says the seed was used for file 1. That is
+ *        where a second file from the same generation is turned away: before any
+ *        creation work, not by the second paired fill's refusal (leg D3).
+ *   V2b. The file select's own per-frame update (FileChoose_UpdateRandomizer, as
+ *        its main menu runs it, with FileChoose_Init's "nothing auto-loaded yet")
+ *        does not reload the spoiler that creation just wrote: no parse, no toast,
+ *        and the line still names file 1. Without that, every return to the file
+ *        select after a creation would refuse the paired spoiler with a toast.
+ *   V2c. A new generation forgets the consumed one: after leg G's Generate the
+ *        line is SoH's own again.
+ *   V2d. A FAILED creation consumes its staged generation too (the event has
+ *        already retracted the world's identity, so nothing could create from it):
+ *        nothing staged, nothing waiting at a general pass, SoH's own line (the
+ *        "Not created:" toast is the failure's surface). At the end of the row.
+ *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
  * each (ladder attempts, batch attempts, rounds, wall time, status) and a
@@ -201,6 +225,7 @@
 #include "../crossing_store.h"
 #include "../foreign_items.h"
 #include "../foreign_model.h"
+#include "../notification_bridge.h"
 #include "../shared_items.h"
 #include "../shared_resources.h"
 #include "../test_runner.h"
@@ -213,6 +238,7 @@
 #include <vector>
 
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <ship/Context.h>
 
 extern "C" {
 int Rando_HeadlessSeedTest(const char* seedStr);
@@ -256,7 +282,22 @@ int MM_HintFoolish_TestHostStanding(uint16_t check); // #575 H5a (HintFoolishSin
 void Randomizer_TestClearOoTSave(void);
 const char* OoT_Creation_TestLastSequence(void);
 uint32_t OoT_Creation_TestLastUnprovedHalves(void);
+// #564 V2 (legs V2a-V2d).
+void OoT_Creation_TestStageGeneration(void);
+uint8_t Randomizer_IsSeedGenerated(void);
+uint8_t Randomizer_IsSpoilerLoaded(void);
+void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
+const char* OoT_FileSelect_NoSeedText(uint8_t language);
+const char* SohFileSelect_GetSettingText(uint8_t optionIndex, uint8_t language);
+uint32_t SpoilerFileExists(const char* spoilerFileName);
+void FileChoose_UpdateRandomizer(void);
+extern bool fileSelectSpoilerFileLoaded;
 }
+
+// SoH's index of "No randomizer seed loaded" (RSM_NO_RANDOMIZER_GENERATED) and
+// OoT's LANGUAGE_ENG, for the V2 legs' comparisons.
+static const uint8_t kCsbNoSeedLine = 4;
+static const uint8_t kCsbEnglish = 0;
 
 // THE PLAY-SIDE CHECK (lane K13): award every heart row of a bag, interleaved by
 // origin, through the REAL shared carrier. Defined in test_shared_quantity_policy.c
@@ -1396,6 +1437,9 @@ TestResult ComboSingleBag_Run(void) {
         Randomizer_TestResetStartingGiveLog();
         // No armed MM shadow going in, so E2 reads only what THIS event armed.
         Context_ClearFrozenState(GAME_MM);
+        // Staged as the file select's Generate stages it (leg V2a reads it back).
+        OoT_Creation_TestStageGeneration();
+        CSB_ASSERT(Randomizer_IsSeedGenerated() != 0, "the staged generation does not read as staged");
         CSB_ASSERT(OoT_Creation_AuthorRandoFile(0) == 1, "the paired creation under the creation-give settings failed");
 
         // E2. The event's step order.
@@ -1449,6 +1493,66 @@ TestResult ComboSingleBag_Run(void) {
             CSB_ASSERT(verdict == 1, "a creation-time give handed out an item other than the one placed at its host "
                                      "(it read the host before the single bag placed it)");
         }
+
+        // V2a. #564 V2: file 1's creation consumed its staged generation, and the
+        // file select says so where a second file would start.
+        {
+            const int generated = Randomizer_IsSeedGenerated();
+            const int spoilerLoaded = Randomizer_IsSpoilerLoaded();
+            const int waiting = OoT_ComboLogic_GeneralPassDeferred();
+            const char* line = OoT_FileSelect_NoSeedText(kCsbEnglish);
+            printf("[TEST] combo-single-bag: V2a after file 1's creation: generation staged=%d, spoiler loaded=%d, "
+                   "general pass waiting=%d; the line under Start Randomizer reads \"%s\"\n",
+                   generated, spoilerLoaded, waiting, line);
+            CSB_ASSERT(generated == 0, "file 1's creation left its generation staged: the file select still offers "
+                                       "Start Randomizer, and a second file from the same generation runs the "
+                                       "creation work before anything refuses it (#564 V2)");
+            CSB_ASSERT(spoilerLoaded == 0 && waiting == 0,
+                       "file 1's creation left a spoiler loaded or a general pass waiting for another creation");
+            CSB_ASSERT(std::strstr(line, "file 1") != nullptr,
+                       "the line under Start Randomizer does not say the seed was used for file 1");
+        }
+
+        // V2b. The file select's per-frame update does not reload the spoiler
+        // this creation wrote (FileChoose_Init leaves nothing auto-loaded yet).
+        {
+            std::string spoilerPath = CVarGetString("gGeneral.SpoilerLog", "");
+            // SpoilerLog_Write puts the file under the app directory and names it
+            // "./Randomizer/<name>" in the CVar. The two agree in a portable build,
+            // where the app directory is the working directory. This harness points
+            // SHIP_HOME at a sandbox (CreateHarnessStyleContext), which libultraship
+            // honours on Linux and macOS only, so there the relative name misses the
+            // file: point the CVar at where the writer put it, as a player's would.
+            if (!SpoilerFileExists(spoilerPath.c_str()) && spoilerPath.rfind("./", 0) == 0) {
+                const std::string written = Ship::Context::GetPathRelativeToAppDirectory(spoilerPath.substr(2));
+                if (SpoilerFileExists(written.c_str())) {
+                    spoilerPath = written;
+                    CVarSetString("gGeneral.SpoilerLog", spoilerPath.c_str());
+                }
+            }
+            const uint32_t exists = SpoilerFileExists(spoilerPath.c_str());
+            fileSelectSpoilerFileLoaded = false;
+            OoT_Notification_ClearForTest();
+            FileChoose_UpdateRandomizer();
+            ComboNotification toast;
+            std::memset(&toast, 0, sizeof(toast));
+            const int queued = OoT_Notification_PeekLastForTest(&toast);
+            const bool parsed = fileSelectSpoilerFileLoaded;
+            OoT_Notification_ClearForTest();
+            const char* line = OoT_FileSelect_NoSeedText(kCsbEnglish);
+            printf("[TEST] combo-single-bag: V2b the file select's update over the written spoiler '%s' (found %u): "
+                   "auto-loaded=%d, toast queued=%d ('%s %s'), staged=%d, line \"%s\"\n",
+                   spoilerPath.c_str(), (unsigned)exists, parsed ? 1 : 0, queued,
+                   queued && toast.prefix != nullptr ? toast.prefix : "",
+                   queued && toast.message != nullptr ? toast.message : "", Randomizer_IsSeedGenerated(), line);
+            CSB_ASSERT(exists != 0, "the creation wrote no spoiler the file select can find, so V2b proves nothing");
+            CSB_ASSERT(!parsed && queued == 0,
+                       "the file select reloaded the spoiler the creation just wrote (and refused it with a toast) "
+                       "because the creation consumed its generation");
+            CSB_ASSERT(Randomizer_IsSeedGenerated() == 0 && Randomizer_IsSpoilerLoaded() == 0 &&
+                           std::strstr(line, "file 1") != nullptr,
+                       "the file select's update undid the consumption or lost its line");
+        }
     }
     Combo_SingleBag_Forget();
     Combo_Crossings_Clear();
@@ -1479,6 +1583,14 @@ TestResult ComboSingleBag_Run(void) {
 
         CSB_ASSERT(Rando_HeadlessSeedTest("RSBSSINGLEBAGSHOPS") == 0,
                    "the paired generation with both shop shuffles on failed");
+        // V2c. A new generation forgets the one file 1 consumed.
+        {
+            const char* line = OoT_FileSelect_NoSeedText(kCsbEnglish);
+            printf("[TEST] combo-single-bag: V2c after a new generation the line under Start Randomizer reads \"%s\"\n",
+                   line);
+            CSB_ASSERT(std::strcmp(line, SohFileSelect_GetSettingText(kCsbNoSeedLine, kCsbEnglish)) == 0,
+                       "a new generation still reports the previous one as used for file 1");
+        }
         CSB_ASSERT(MM_Rando_HeadlessPairedHalf() == 0, "MM's creation-time half failed with both shop shuffles on");
         const ComboSingleBagReport shopBag = *Combo_SingleBag_LastReport();
         CSB_ASSERT(shopBag.status == RSBS_COMBO_LOGIC_OK && shopBag.fill.goalProven,
@@ -1698,6 +1810,33 @@ TestResult ComboSingleBag_Run(void) {
                "a category of the host-rule sweep is empty, so it proves nothing about that category");
     CSB_ASSERT(hostRuleCounts[6] > hostRuleCounts[0] + hostRuleCounts[1] + hostRuleCounts[2] + hostRuleCounts[7],
                "OoT's predicate accepts no treasure chest at all");
+
+    // V2d. A FAILED creation consumes its staged generation too. The world's
+    // identity is gone (as after a failed MM half, whose retraction clears it),
+    // so the event refuses; a world still waits at its general pass.
+    {
+        OoT_Creation_TestStageGeneration();
+        OoT_ComboLogic_SetGeneralPassDeferred(1);
+        const bool priorSourceIsRando = gComboCtx.sourceIsRando;
+        gComboCtx.sourceIsRando = false;
+        const int created = OoT_Creation_AuthorRandoFile(1);
+        gComboCtx.sourceIsRando = priorSourceIsRando;
+        RsbsSave_ResetSlotSessionState();
+        OoT_Notification_ClearForTest();
+        const int generated = Randomizer_IsSeedGenerated();
+        const int waiting = OoT_ComboLogic_GeneralPassDeferred();
+        const char* line = OoT_FileSelect_NoSeedText(kCsbEnglish);
+        printf("[TEST] combo-single-bag: V2d a failed creation of file 2: created=%d, generation staged=%d, general "
+               "pass waiting=%d, line \"%s\"\n",
+               created, generated, waiting, line);
+        OoT_ComboLogic_SetGeneralPassDeferred(0);
+        CSB_ASSERT(created == 0, "the creation with no pairing identity was not refused, so V2d proves nothing");
+        CSB_ASSERT(generated == 0 && waiting == 0,
+                   "a failed creation left its generation staged or its world waiting at a general pass, so the file "
+                   "select offers Start Randomizer for a world whose identity was retracted (#564 V2)");
+        CSB_ASSERT(std::strcmp(line, SohFileSelect_GetSettingText(kCsbNoSeedLine, kCsbEnglish)) == 0,
+                   "a failed creation's line names a file as if the seed had created one");
+    }
 
     printf("[TEST] PASS: combo-single-bag\n");
     return TEST_PASS;
