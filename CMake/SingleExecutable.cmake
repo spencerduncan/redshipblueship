@@ -1078,6 +1078,11 @@ if(BUILD_TESTING)
     # Source scan of SohGui::SetupGuiElements + a ROM-free, display-free
     # tripwire, so it runs in this redship tier.
     redship_add_test(NAME OoTWindowsGate COMMAND redship --test oot-windows-gate)
+    # #935: libultraship's own Console `set` command (registered by the Console
+    # window, so the #930 OoT wrapper does not cover it) fails the command on a
+    # value it cannot parse instead of throwing out of Ship::Console::Run and
+    # ending the process. ROM-free, display-free.
+    redship_add_test(NAME ConsoleSetParseGuard COMMAND redship --test console-set-parse-guard)
     # Registrar coverage (#516): games/mm/2s2h/BenPort.cpp is excluded from the
     # single exe and was the SOLE caller of InitOTR's registration sequence, so
     # 2ship_enh (a plain STATIC archive) lost the TUs entirely -- CustomItem and

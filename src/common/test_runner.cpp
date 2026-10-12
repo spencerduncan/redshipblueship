@@ -43,6 +43,9 @@
 #include <fast/resource/type/DisplayList.h>
 #include <ship/resource/archive/Archive.h>
 #include <ship/resource/archive/ArchiveManager.h>
+// For Test_ConsoleSetParseGuard (#935): the Console window registers `set` itself.
+#include <ship/debug/Console.h>
+#include <ship/window/gui/ConsoleWindow.h>
 
 // Shared-context bring-up entries for the boot regression tests (#329/#330).
 // Defined in games/oot/soh/OTRGlobals.cpp and
@@ -4367,6 +4370,109 @@ TestResult Test_OoTWindowsGate(void) {
     return OoT_WindowsGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #935: libultraship's own `set` command (ConsoleWindow::SetCommand, registered by the Console window directly through
+// Console::AddCommand, so #930's OoT wrapper never sees it) parsed its value with std::stof / std::stoul / std::stoi and
+// caught nothing, and nothing above it catches either. A value CheckVarType classifies as a number but no parse
+// accepts threw out of Ship::Console::Run and the process died (C++ exception 0xe06d7363). Each value below must now
+// fail the command (non-zero, the console's own error line as its output) and leave the CVar as it was; a parsable
+// value afterwards must still set it, so the guard did not simply disable the command. Display-free and ROM-free: the
+// window is constructed and initialised (InitElement registers the commands) but never drawn.
+static TestResult Test_ConsoleSetParseGuard(void) {
+    printf("[TEST] console-set-parse-guard: `set` with a value it cannot parse fails the command instead of ending "
+           "the process (#935)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    auto console = ctx->GetConsole();
+    auto cvars = ctx->GetConsoleVariables();
+    // Under `--test all` an earlier row's bring-up has already initialised a Console window on the shared Console;
+    // Init again would only warn that `set` exists. Either way the handler must be the Console window's own, which
+    // its description identifies (nothing else in the tree registers `set`).
+    std::shared_ptr<Ship::ConsoleWindow> window;
+    if (!console->HasCommand("set")) {
+        window = std::make_shared<Ship::ConsoleWindow>("gConsoleEnabled", "Console");
+        window->Init();
+    }
+    if (!console->HasCommand("set") || console->GetCommand("set").Description != "Sets a console variable.") {
+        printf("[TEST] FAIL: console-set-parse-guard: `set` is not the Console window's own command\n");
+        return TEST_FAIL;
+    }
+
+    const char* kVar = "gRsbsTest.ConsoleSetParseGuard";
+    cvars->SetInteger(kVar, 7);
+
+    struct Probe {
+        const char* value;
+        const char* why;
+        const char* error;
+    };
+    const Probe kProbes[] = {
+        { ".", "FLOAT, std::stof throws invalid_argument", "is not a number" },
+        { "#", "RGBA, std::stoul(\"\") throws invalid_argument", "is not a number" },
+        { "#zz", "RGBA, std::stoul throws invalid_argument", "is not a number" },
+        { "#FFFFFFFFFFFFFFFFFFFF", "RGBA, std::stoul throws out_of_range", "is out of range" },
+        { "99999999999", "INTEGER, std::stoi throws out_of_range", "is out of range" },
+    };
+
+    int failures = 0;
+    for (const Probe& probe : kProbes) {
+        const std::string line = std::string("set ") + kVar + " " + probe.value;
+        const std::string want = std::string("[LUS] Could not set ") + kVar + ": '" + probe.value + "' " + probe.error +
+                                 ".";
+        printf("[TEST] console-set-parse-guard: running `%s` (%s)\n", line.c_str(), probe.why);
+        fflush(stdout); // before the fix the process dies inside Run: keep the line that names the value
+        std::string output;
+        const int32_t rc = console->Run(line, &output);
+        auto cvar = cvars->Get(kVar);
+        const bool unchanged =
+            cvar != nullptr && cvar->Type == Ship::ConsoleVariableType::Integer && cvar->Integer == 7;
+        if (rc == 0 || output != want || !unchanged) {
+            printf("[TEST] FAIL: console-set-parse-guard: `%s` returned %d with output \"%s\" (want non-zero and "
+                   "\"%s\"); %s is %s\n",
+                   line.c_str(), rc, output.c_str(), want.c_str(), kVar,
+                   unchanged ? "unchanged" : "no longer the integer 7");
+            failures++;
+        } else {
+            printf("[TEST] console-set-parse-guard: `%s` failed the command (returned %d): %s\n", line.c_str(), rc,
+                   output.c_str());
+        }
+    }
+
+    // Positive control: a parsable value still reaches the CVar through the same handler.
+    {
+        const std::string line = std::string("set ") + kVar + " 42";
+        std::string output;
+        const int32_t rc = console->Run(line, &output);
+        const int32_t value = cvars->GetInteger(kVar, -1);
+        if (rc != 0 || value != 42) {
+            printf("[TEST] FAIL: console-set-parse-guard: `%s` returned %d with output \"%s\" and left %s = %d (want "
+                   "0 and 42)\n",
+                   line.c_str(), rc, output.c_str(), kVar, value);
+            failures++;
+        } else {
+            printf("[TEST] console-set-parse-guard: `%s` set %s to %d\n", line.c_str(), kVar, value);
+        }
+    }
+
+    cvars->ClearVariable(kVar);
+    cvars->Save();
+
+    if (failures != 0) {
+        return TEST_FAIL;
+    }
+    printf("[TEST] console-set-parse-guard: %zu unparsable values failed the command and the process survived\n",
+           sizeof(kProbes) / sizeof(kProbes[0]));
+    return TEST_PASS;
+}
+
 // #539/#614: a CVar change on the unified menu path must re-arm MM's
 // registrars, not only OoT's. Legs 1-5 (the original #539 lock) touch only
 // the two registrar maps and a synthetic probe, so they never needed a
@@ -5754,6 +5860,10 @@ const TestDescriptor gTests[] = {
      "OoT save/play-state windows, menu embeds, console commands and the Giant's Knife toggle gate on the active game "
      "(#797, #798)",
      Test_OoTWindowsGate},
+    // #935: libultraship's own `set` command fails on a value it cannot parse instead of ending the process.
+    // Display-free, ROM-free.
+    {"console-set-parse-guard", "Console `set` with an unparsable value fails the command, the process survives (#935)",
+     Test_ConsoleSetParseGuard},
     // Pre-freeze discipline (#638 / #626): both freeze drivers must fold the
     // live scene flags (and, on MM, a dead health bar) into gSaveContext before
     // capturing it. Each row publishes a calloc'd PlayState as the game's live
