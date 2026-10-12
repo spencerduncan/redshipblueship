@@ -37,6 +37,7 @@ extern PlayState* OoT_gPlayState;
 #include <libultraship/libultraship.h>
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include <stdexcept>                   // std::out_of_range, std::invalid_argument (#930)
 #include "soh/SohGui/OoTActiveGated.h" // OoT_Gui_ShouldDraw
 
 // #798: OoT and Majora's Mask share one gSaveContext buffer and one Ship::Console, and MM registers no commands of
@@ -57,7 +58,22 @@ static void OoT_AddGatedConsoleCommand(const std::string& command, Ship::Command
             }
             return 1;
         }
-        return handler(console, args, output);
+        // #930: the handlers below parse their numeric arguments with std::stoi / std::stof and catch only
+        // std::invalid_argument, some of them nothing, and nothing above this wrapper catches either: a value past
+        // int range (`gen_rando 99999999999`) terminated the process. Both exceptions fail the command instead, with
+        // the error in the caller's output like the refusal above.
+        try {
+            return handler(console, args, output);
+        } catch (const std::out_of_range&) {
+            if (output != nullptr) {
+                *output = "[SOH] '" + command + "': a numeric argument is out of range.";
+            }
+        } catch (const std::invalid_argument&) {
+            if (output != nullptr) {
+                *output = "[SOH] '" + command + "': an argument must be a number.";
+            }
+        }
+        return 1;
     };
     Ship::Context::GetInstance()->GetConsole()->AddCommand(command, entry);
 }

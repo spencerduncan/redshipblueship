@@ -52,7 +52,7 @@
  *
  * #930: a command whose numeric argument std::stoi cannot parse (`gen_rando 99999999999` overflows int, `item 0
  * notanumber` is no number in a handler with no try) must fail with the gating wrapper's error line in its output
- * instead of throwing out of Ship::Console::Run and terminating the process.
+ * instead of throwing out of Ship::Console::Run and ending the process.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -468,12 +468,13 @@ int RunConsoleAndKnifeGate() {
     }
 
     // ---- 7d. #930: a numeric argument the handler cannot parse fails the command instead of ending the process ------
-    // The inherited handlers parse with std::stoi and catch only std::invalid_argument, some of them nothing at all, and
-    // nothing between Ship::Console::Run and the handler catches either. `gen_rando 99999999999` throws
+    // The inherited handlers parse with std::stoi and catch only std::invalid_argument, some of them nothing at all,
+    // and nothing between Ship::Console::Run and the handler catches either. `gen_rando 99999999999` throws
     // std::out_of_range inside its try (before any generation starts); `item 0 notanumber` throws
     // std::invalid_argument from a handler with no try (before its save write). Unfixed, either exception leaves
-    // Ship::Console::Run uncaught and std::terminate ends this process. Each command must instead return non-zero with
-    // the gating wrapper's error line in its output and leave gSaveContext and RandoGenerating unchanged.
+    // Ship::Console::Run uncaught and the process dies (the crash handler reports C++ exception 0xe06d7363). Each
+    // command must instead return non-zero with the gating wrapper's error line in its output and leave gSaveContext
+    // and RandoGenerating unchanged.
     if (failures == 0) {
         Context_SetCurrentGame(GAME_OOT);
         gSaveContext.gameMode = GAMEMODE_FILE_SELECT;
