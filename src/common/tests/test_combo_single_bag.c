@@ -238,6 +238,7 @@
 #include <vector>
 
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <ship/Context.h>
 
 extern "C" {
 int Rando_HeadlessSeedTest(const char* seedStr);
@@ -1515,7 +1516,20 @@ TestResult ComboSingleBag_Run(void) {
         // V2b. The file select's per-frame update does not reload the spoiler
         // this creation wrote (FileChoose_Init leaves nothing auto-loaded yet).
         {
-            const std::string spoilerPath = CVarGetString("gGeneral.SpoilerLog", "");
+            std::string spoilerPath = CVarGetString("gGeneral.SpoilerLog", "");
+            // SpoilerLog_Write puts the file under the app directory and names it
+            // "./Randomizer/<name>" in the CVar. The two agree in a portable build,
+            // where the app directory is the working directory. This harness points
+            // SHIP_HOME at a sandbox (CreateHarnessStyleContext), which libultraship
+            // honours on Linux and macOS only, so there the relative name misses the
+            // file: point the CVar at where the writer put it, as a player's would.
+            if (!SpoilerFileExists(spoilerPath.c_str()) && spoilerPath.rfind("./", 0) == 0) {
+                const std::string written = Ship::Context::GetPathRelativeToAppDirectory(spoilerPath.substr(2));
+                if (SpoilerFileExists(written.c_str())) {
+                    spoilerPath = written;
+                    CVarSetString("gGeneral.SpoilerLog", spoilerPath.c_str());
+                }
+            }
             const uint32_t exists = SpoilerFileExists(spoilerPath.c_str());
             fileSelectSpoilerFileLoaded = false;
             OoT_Notification_ClearForTest();
