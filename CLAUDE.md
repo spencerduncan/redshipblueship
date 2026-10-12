@@ -33,7 +33,7 @@ CI: GitHub Actions — builds, clang-format, static analysis, multi-distro testi
 
 ## Code Style
 
-clang-format 14 (configs at `games/oot/.clang-format`, `games/mm/.clang-format`):
+clang-format 14 (configs at `games/oot/.clang-format`, `games/mm/.clang-format`, `src/common/.clang-format`, `rsbs/.clang-format`; `src/common/` and `rsbs/` are enforced whole, the game trees file by file via `.github/clang-format-paths.txt`):
 - 4-space indent, no tabs, 120-col limit
 - Left-aligned pointers, attached braces
 - Run: `./run-clang-format.sh` (Linux/macOS) or `./run-clang-format.ps1` (Windows)
