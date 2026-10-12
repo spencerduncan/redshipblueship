@@ -1704,10 +1704,12 @@ TestResult ComboSingleBag_Run(void) {
                 // file select deletes the spoiler it finds. The silent skip must
                 // still delete it (no parse, no toast), or the paired spoiler stays
                 // readable for good. A copy is used so the real one survives for
-                // the legs after this one.
-                const char* const kNoSpoilerName = "Randomizer/rsbs-936-dont-generate-spoiler.json";
-                const std::string noSpoilerPath = Ship::Context::GetPathRelativeToAppDirectory(kNoSpoilerName);
-                const std::string noSpoilerCVar = std::string("./") + kNoSpoilerName;
+                // the legs after this one, beside it: the app directory is not the
+                // cwd everywhere (SHIP_HOME on Linux CI), and the CVar names the
+                // spoiler by the path the creation gave it.
+                const std::string noSpoilerPath =
+                    pairedPath.substr(0, pairedPath.find_last_of("/\\") + 1) + "rsbs-936-dont-generate-spoiler.json";
+                const std::string& noSpoilerCVar = noSpoilerPath;
                 const std::string pairedDoc = CsbReadWholeFile(pairedPath);
                 {
                     std::ofstream copy(noSpoilerPath, std::ios::binary | std::ios::trunc);
