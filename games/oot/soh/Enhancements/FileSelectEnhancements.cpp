@@ -84,7 +84,7 @@ static const char* const kSeedUsedText[] = {
     // English
     "This seed was used for file %d.\nPlease generate a new one first.",
     // German
-    "Dieser Seed wurde für Datei %d verwendet.\nBitte generiere zuerst einen neuen.",
+    "Seed für Datei %d verwendet.\nBitte neuen Seed generieren.",
     // French
     "Cette seed a servi pour le fichier %d.\nGénérez-en une nouvelle d'abord.",
 };
