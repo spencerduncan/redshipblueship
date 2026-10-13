@@ -47,6 +47,7 @@
 #include <SDL2/SDL_messagebox.h>
 
 #include <array>
+#include <atomic>
 #include <fstream>
 #include <filesystem>
 #include <thread>
@@ -76,7 +77,18 @@ enum class ButtonId : int {
     FIND,
 };
 
+// Every native box this file shows bumps this (#944), so the ROM-free test row
+// can assert that the silent paths stayed silent on every platform: on Linux CI
+// a box fails or returns at once instead of hanging, so a timeout proves nothing.
+// Atomic because CallZapd runs on the in-window flow's worker thread.
+static std::atomic<int> sNativeBoxCount{ 0 };
+
+int MMExtractor::DebugNativeBoxCount() {
+    return sNativeBoxCount.load();
+}
+
 void MMExtractor::ShowErrorBox(const char* title, const char* text) {
+    sNativeBoxCount++;
 #ifdef _WIN32
     MessageBoxA(nullptr, text, title, MB_OK | MB_ICONERROR);
 #else
@@ -133,6 +145,7 @@ int MMExtractor::ShowRomPickBox(uint32_t verCrc) const {
              "Use this rom for Majora's Mask?",
              mCurrentRomPath.c_str(), verCrc, verMap.at(verCrc));
 
+    sNativeBoxCount++;
     SDL_ShowMessageBox(&boxData, &ret);
     return ret;
 }
@@ -140,6 +153,7 @@ int MMExtractor::ShowRomPickBox(uint32_t verCrc) const {
 int MMExtractor::ShowYesNoBox(const char* title, const char* box) {
     // Default to "No" on a failed SDL_ShowMessageBox — see ShowRomPickBox.
     int ret = IDNO;
+    sNativeBoxCount++;
 #ifdef _WIN32
     ret = MessageBoxA(nullptr, box, title, MB_YESNO | MB_ICONQUESTION);
 #else
@@ -247,8 +261,11 @@ void MMExtractor::GetRoms(std::vector<std::string>& roms) {
                 }
             }
         }
+        // Only a stream opendir returned may be closed: closedir(NULL) faults
+        // on glibc, and GetRoms is public now (#944), so a caller can name a
+        // directory that does not exist.
+        closedir(d);
     }
-    closedir(d);
 #else
     for (const auto& file : std::filesystem::directory_iterator(mSearchPath)) {
         if (file.is_directory())
@@ -271,6 +288,9 @@ bool MMExtractor::GetRomPathFromBox() {
     box.lpstrFile = nameBuffer;
     box.nMaxFile = sizeof(nameBuffer) / sizeof(nameBuffer[0]);
     box.lpstrTitle = "Open Majora's Mask Rom";
+    // Open in the search directory, as the pfd picker below does (#944: the
+    // in-window flow names it through SetSearchPath).
+    box.lpstrInitialDir = mSearchPath.empty() ? nullptr : mSearchPath.c_str();
     box.Flags =
         OFN_NOCHANGEDIR | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_LONGNAMES | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
     box.lpstrFilter = "N64 Roms\0*.z64;*.v64;*.n64\0\0";
@@ -290,6 +310,7 @@ bool MMExtractor::GetRomPathFromBox() {
                     errStr = "Failed to open a filebox because there is not enough RAM to do so.";
                     break;
             }
+            sNativeBoxCount++;
             MessageBoxA(nullptr, errStr != nullptr ? errStr : "Unknown file dialog error.", "Box Error",
                         MB_OK | MB_ICONERROR);
             return false;
@@ -377,11 +398,15 @@ bool MMExtractor::ValidateRom(bool skipCrcTextBox) {
     return true;
 }
 
-bool MMExtractor::ManuallySearchForRom() {
+bool MMExtractor::ManuallySearchForRom(bool quietCancel) {
     std::ifstream inFile;
 
     if (!GetRomPathFromBox()) {
-        ShowErrorBox("Majora's Mask - No rom selected", "No Majora's Mask ROM selected. Exiting");
+        // The in-window flow (#944) answers a cancel with its own "Try again /
+        // Continue" popup, and nothing exits there.
+        if (!quietCancel) {
+            ShowErrorBox("Majora's Mask - No rom selected", "No Majora's Mask ROM selected. Exiting");
+        }
         return false;
     }
 
@@ -437,6 +462,74 @@ bool MMExtractor::ManuallySearchForRomMatchingType(RomSearchMode searchMode) {
     }
 
     return true;
+}
+
+// Silent check of one candidate for the in-window flow (#944), which shows its
+// own ImGui popups and must be able to probe every file in a directory without
+// a native box per reject. ValidateRom(true) is not usable here: it still shows
+// the compressed and size boxes.
+bool MMExtractor::RunFileStandalone(const std::string& rom, bool checkExtension) {
+    // A directory named like a ROM, or a missing file, is a plain reject.
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(rom, ec)) {
+        return false;
+    }
+    // The extension is a filter for scanned and command-line candidates only.
+    // A file from ManuallySearchForRom never had it checked (the Windows
+    // picker's filter ignores case, and a typed name gets past it), so
+    // MM_Extract_Generate re-validates such a file with checkExtension false.
+    auto file = std::filesystem::path(rom);
+    if (checkExtension && (file.extension() != ".n64") && (file.extension() != ".z64") &&
+        (file.extension() != ".v64")) {
+        return false;
+    }
+    try {
+        SetRomInfo(rom);
+    } catch (...) {
+        // Its file_size throws if the file vanished after the probe above.
+        return false;
+    }
+
+    // Before reading: mRomData is a fixed 64MB buffer.
+    if (!ValidateRomSize()) {
+        return false;
+    }
+    std::ifstream inFile;
+
+    inFile.open(rom, std::ios::in | std::ios::binary);
+    if (!inFile.is_open()) {
+        return false;
+    }
+    inFile.read((char*)mRomData.get(), mCurRomSize);
+    // A short read would leave the previous candidate's bytes in the buffer.
+    if ((size_t)inFile.gcount() != mCurRomSize) {
+        return false;
+    }
+    inFile.close();
+    BitConverter::RomToBigEndian(mRomData.get(), mCurRomSize);
+
+    if (!ValidateNotCompressed()) {
+        return false;
+    }
+    // Required, not redundant: goodCrcs has 10 slots and 2 initialisers, so a
+    // file whose CRC32C is 0 would pass ValidateAndFixRom, and CallZapd's
+    // GetZapdVerStr is UNREACHABLE for a header it does not know.
+    if (!verMap.contains(GetRomVerCrc())) {
+        return false;
+    }
+    if (!ValidateAndFixRom()) {
+        return false;
+    }
+
+    return true;
+}
+
+void MMExtractor::SetSearchPath(const std::string& path) {
+    mSearchPath = path;
+}
+
+const std::string& MMExtractor::GetCurrentRomPath() const {
+    return mCurrentRomPath;
 }
 
 bool MMExtractor::Run(std::string searchPath, RomSearchMode searchMode) {
@@ -575,7 +668,7 @@ extern "C" int zapd_main(int argc, char** argv);
 #endif
 static void MessageboxWorker();
 
-bool MMExtractor::CallZapd(std::string installPath, std::string exportdir) {
+bool MMExtractor::CallZapd(std::string installPath, std::string exportdir, bool quiet) {
     constexpr int argc = 22;
     char xmlPath[1024];
     char confPath[1024];
@@ -668,11 +761,19 @@ bool MMExtractor::CallZapd(std::string installPath, std::string exportdir) {
 
             // Normally the command window is hidden. We want the window to be shown here so the user can see the
             // progess of the extraction.
-            ShowWindow(cmdWindow, SW_SHOW);
-            SetWindowPos(cmdWindow, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+            // Not when quiet (#944): the in-window flow shows its own progress modal, and redship is a
+            // console-subsystem binary, so this would raise the player's console over the game window and
+            // then hide it.
+            if (!quiet) {
+                ShowWindow(cmdWindow, SW_SHOW);
+                SetWindowPos(cmdWindow, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+            }
 #else
-            std::thread mbThread(MessageboxWorker);
-            mbThread.detach();
+            // Likewise no detached "Extracting" box over the game window when quiet.
+            if (!quiet) {
+                std::thread mbThread(MessageboxWorker);
+                mbThread.detach();
+            }
 #endif
 
             bool zapdRan = false;
@@ -715,7 +816,9 @@ bool MMExtractor::CallZapd(std::string installPath, std::string exportdir) {
 
 #ifdef _WIN32
             // Hide the command window again.
-            ShowWindow(cmdWindow, SW_HIDE);
+            if (!quiet) {
+                ShowWindow(cmdWindow, SW_HIDE);
+            }
 #endif
 
             if (zapdRan) {
@@ -755,6 +858,7 @@ bool MMExtractor::CallZapd(std::string installPath, std::string exportdir) {
 }
 
 static void MessageboxWorker() {
+    sNativeBoxCount++;
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Extracting",
                              "Extraction will now begin in the background.\n\nPlease be patient for the process to "
                              "finish. Do not close the main program.",

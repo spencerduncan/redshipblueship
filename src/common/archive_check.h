@@ -4,14 +4,17 @@
  *
  * The single exe can only run a game whose ROM-derived archive is present
  * (oot.o2r / oot-mq.o2r for OoT, mm.o2r / mm.zip / mm.otr for MM). Either
- * game can regenerate its archive through a bundled in-app extractor on a
- * cold boot: OoT during its own init (RunExtract), MM through the start-
- * prompt offer the harness drives via MM_Extract_OfferAndRun (see
+ * archive can be generated in-app from the player's ROM by a bundled
+ * extractor, at launch only. A default launch boots OoT, whose first-launch
+ * flow (RunExtract, games/oot/soh/OTRGlobals.cpp) sets up oot.o2r and, since
+ * #944, then offers MM's extractor while no MM archive exists. A
+ * `--game mm` launch never reaches RunExtract, so the harness offers MM's
+ * extractor itself, before any window, through MM_Extract_OfferAndRun (see
  * rsbs/src/main.cpp and docs/mm-archive-setup.md).
  *
  * These helpers let the harness (rsbs/src/main.cpp) verify availability
  * up front and show an instructive message instead of failing mid-init or
- * mid-switch.
+ * mid-switch, and let RunExtract decide whether MM's offer applies.
  */
 
 #ifndef RSBS_COMMON_ARCHIVE_CHECK_H

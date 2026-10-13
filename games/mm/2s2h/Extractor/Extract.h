@@ -48,12 +48,10 @@ class MMExtractor {
     void SetRomInfo(const std::string& path);
 
     void FilterRoms(std::vector<std::string>& roms, RomSearchMode searchMode);
-    void GetRoms(std::vector<std::string>& roms);
     void ShowSizeErrorBox() const;
     void ShowCrcErrorBox() const;
     void ShowCompressedErrorBox() const;
     int ShowRomPickBox(uint32_t verCrc) const;
-    bool ManuallySearchForRom();
     bool ManuallySearchForRomMatchingType(RomSearchMode searchMode);
 
   public:
@@ -62,8 +60,30 @@ class MMExtractor {
     static void ShowErrorBox(const char* title, const char* text);
     bool IsMasterQuest() const;
 
+    // Public for the in-window extraction flow (#944, src/common/mm_extract.h),
+    // which drives the ROM search, the picker and the validation step by step
+    // instead of through Run's chain of native prompts. SetSearchPath, GetRoms
+    // and RunFileStandalone mirror OoT's Extractor
+    // (games/oot/soh/Extractor/Extract.h).
+    void SetSearchPath(const std::string& path);
+    const std::string& GetCurrentRomPath() const;
+    void GetRoms(std::vector<std::string>& roms);
+    // quietCancel: a cancelled picker returns false without the "No rom
+    // selected. Exiting" box, because that caller offers its own retry.
+    bool ManuallySearchForRom(bool quietCancel = false);
+    // Silent on every path: never shows a box. A directory, a missing file or
+    // one that vanishes mid-check is a plain false. Unlike OoT's, it also
+    // requires a known header CRC. checkExtension: also require an exact
+    // ".z64", ".n64" or ".v64" (case-sensitive, as GetRoms and OoT's check
+    // are); false checks the contents only.
+    bool RunFileStandalone(const std::string& rom, bool checkExtension = true);
+    // Test seam: native message boxes this class has shown in this process.
+    static int DebugNativeBoxCount();
+
     bool Run(std::string searchPath, RomSearchMode searchMode = RomSearchMode::Both);
-    bool CallZapd(std::string installPath, std::string exportdir);
+    // quiet: no console window and no "Extracting" box; the in-window flow
+    // draws its own progress modal over the game window.
+    bool CallZapd(std::string installPath, std::string exportdir, bool quiet = false);
     const char* GetZapdStr();
     std::string Mkdtemp();
 };

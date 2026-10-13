@@ -2477,6 +2477,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # note. ROM-free, display-free and disk-free (default tier);
     # src/common/tests/test_combo_save_files_view.c.
     redship_add_test(NAME ComboSaveFilesView COMMAND redship --test combo-save-files-view)
+    # #944: a default launch offers to generate mm.o2r, reaching MM's extractor
+    # through src/common/mm_extract.h. Leg A (ROM-free, display-free, never
+    # skips): the silent ROM scan and validation reject a zeroed, a zipped, an
+    # undersized, a non-ROM and a directory "ROM" without throwing or counting a
+    # native box; the ROM search dirs de-duplicate and follow $APPIMAGE; the tools
+    # check needs Config_N64_US.xml and ZAPD_MM. Leg B arms when
+    # OTRExporter/mm.z64 is staged and prints its own SKIP line otherwise, so the
+    # row never skips as a whole. src/common/tests/test_mm_extract.c.
+    redship_add_test(NAME MmExtract COMMAND redship --test mm-extract)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

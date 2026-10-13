@@ -852,6 +852,10 @@ extern "C" {
 // per slot state, the cached view's read count, the seam and the note.
 // ROM-free, display-free and disk-free. FILE SCOPE (compiled as C++).
 #include "tests/test_combo_save_files_view.c"
+// #944: the in-app MM extraction bridge (src/common/mm_extract.h): a silent ROM
+// scan and validation, the ROM search dirs and the tools check, ROM-free; plus
+// the staged MM ROM when OTRExporter/mm.z64 exists. FILE SCOPE (compiled as C++).
+#include "tests/test_mm_extract.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -6367,6 +6371,9 @@ const TestDescriptor gTests[] = {
       "posted a toast shows that toast's words, each slot state yields its row, one cached read serves every frame "
       "until the page opens or the save state moves, and the note names each case (lane W5)",
       Test_ComboSaveFilesView },
+    { "mm-extract",
+      "In-app Majora's Mask extraction seams: silent ROM scan and validation, search dirs, tools check (#944)",
+      Test_MmExtract },
     { nullptr, nullptr, nullptr } // Sentinel
 };
 
