@@ -393,6 +393,10 @@ extern "C" int OoT_SceneFlagFreeze_RunHeadless(void) {
         Context_SetCurrentGame(prevGame);
         return 1;
     }
+    // The Happy Mask Shop door crosses into MM, whose archives a ROM-free run
+    // does not stage: say it is playable, or the door is refused before it
+    // freezes anything (#954).
+    Switch_SetTargetStatusForTest(SWITCH_TARGET_PLAYABLE);
 
     // A minimal live PlayState: the flush reads sceneNum and actorCtx.flags and
     // nothing else. calloc'd on the C heap, not OoT's arena.
@@ -414,6 +418,7 @@ extern "C" int OoT_SceneFlagFreeze_RunHeadless(void) {
     Context_ClearAllFrozenStates();
     ComboContext_Init();
     (void)ResetEntranceTable();
+    Switch_SetTargetStatusForTest(-1);
     Context_SetCurrentGame(prevGame);
 
     if (rc == 0) {

@@ -24,8 +24,9 @@ whether to generate one from your Majora's Mask ROM now:
   uses, and the boot continues into Ocarina of Time. No restart is needed:
   the Happy Mask Shop door and F10 reach Majora's Mask in the same session.
 - **Not now** — Ocarina of Time starts alone. Crossings into Majora's Mask
-  are refused with a message until `mm.o2r` exists, and the offer comes back
-  on the next launch.
+  are refused with a message until `mm.o2r` exists: the Happy Mask Shop door
+  leaves Link outside it and F10 does nothing, and Ocarina of Time carries on.
+  The offer comes back on the next launch.
 
 If you cancel the file picker, the ROM is rejected or the extraction fails,
 you can try again or continue into Ocarina of Time without Majora's Mask: a

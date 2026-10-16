@@ -1653,6 +1653,51 @@ void Combo_FlushLiveStateForFreeze(GameId departing);
 int Switch_CommitCrossing(GameId departing, GameId target);
 
 /**
+ * Whether this session can run a game it would switch into (#954).
+ * Implemented in switch.cpp.
+ */
+typedef enum {
+    SWITCH_TARGET_PLAYABLE = 0,
+    SWITCH_TARGET_NO_GAME_ARCHIVE, // its ROM-derived archive is missing (oot.o2r / mm.o2r, #317)
+    SWITCH_TARGET_NO_PORT_ARCHIVE, // its port-asset archive is missing (2ship.o2r)
+    SWITCH_TARGET_OOT_NOT_BOOTED,  // OoT, whose assets the bring-up skipped: oot.o2r appeared after startup (#330)
+} SwitchTargetStatus;
+
+SwitchTargetStatus Switch_GetTargetStatus(GameId target);
+
+/**
+ * Refuse a switch into a game this session cannot run (#317, #330, #954):
+ * returns 1, having reported why (stderr, and a message box outside the test
+ * runners), when Switch_GetTargetStatus says it is not playable; 0 otherwise.
+ *
+ * WHERE IT IS ASKED. While the running game is still in its frame loop:
+ * Combo_CheckEntranceSwitch asks it for a door before it freezes anything, and
+ * Switch_RequestHotSwap for F10. A refusal there leaves the game running and
+ * puts Link back outside the door. Once a game's run function has returned for
+ * a switch, its frame loop cannot simply be entered again: OoT's re-runs Main(),
+ * which re-initializes the system arena under the gamestate the graph coroutine
+ * still points at, and the first frame reads freed memory (#954). So the
+ * launcher's own refusal (rsbs/src/main.cpp), for whatever leaves the loop past
+ * those gates, brings the game back through GameRunner_ReenterActive.
+ */
+int Switch_RefuseUnplayableTarget(GameId target);
+
+/**
+ * Test seam: every target reports `status` instead of probing the files and
+ * OoT's bring-up. A negative value goes back to probing. ROM-free rows that
+ * cross use it, since the archives they would cross into are not staged.
+ */
+void Switch_SetTargetStatusForTest(int status);
+
+/**
+ * The F10 hot-swap request (#954): asks Combo_RequestGameSwitch for a switch
+ * into the other game unless Switch_RefuseUnplayableTarget refuses it, in
+ * which case the running game keeps its loop. Returns 1 when the switch was
+ * requested, 0 when it was refused.
+ */
+int Switch_RequestHotSwap(void);
+
+/**
  * Set the current game (used during initialization)
  */
 void Context_SetCurrentGame(GameId game);
