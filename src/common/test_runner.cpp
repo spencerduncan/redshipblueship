@@ -419,6 +419,10 @@ int OoT_CheckStateLoad_RunHeadless(void);
 // needs the display bring-up, like the other rando-tier rows. Return 0 on pass.
 int OoTTest_EntrancePinPool(void);
 int RandoTest_EntrancePinGenerated(void);
+// #948: in a paired world the night Market's Happy Mask Shop door is a
+// scene-exit door, so the crossing works at night. ROM-free and display-free;
+// body in games/oot/soh/oot_mask_shop_night_door_test.cpp. Return 0 on pass.
+int OoT_MaskShopNightDoor_RunHeadless(void);
 // #702: the per-area exclude-location groups reach OoT's settings fingerprint at
 // their shipped sizes, whichever archives are mounted. Body in
 // games/oot/soh/oot_settings_fold_test.cpp. Runs a real generation, so it needs
@@ -852,6 +856,10 @@ extern "C" {
 // per slot state, the cached view's read count, the seam and the note.
 // ROM-free, display-free and disk-free. FILE SCOPE (compiled as C++).
 #include "tests/test_combo_save_files_view.c"
+// #944: the in-app MM extraction bridge (src/common/mm_extract.h): a silent ROM
+// scan and validation, the ROM search dirs and the tools check, ROM-free; plus
+// the staged MM ROM when OTRExporter/mm.z64 exists. FILE SCOPE (compiled as C++).
+#include "tests/test_mm_extract.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -1081,6 +1089,12 @@ static TestResult Test_OoTSceneFlagFreeze(void) {
 // up only the rando region graph, no Ship::Context and no archives.
 static TestResult Test_OoTEntrancePin(void) {
     return OoTTest_EntrancePinPool() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #948 (see the extern decl above). Thin wrapper over the C entry point in
+// games/oot/soh/oot_mask_shop_night_door_test.cpp.
+static TestResult Test_OoTMaskShopNightDoor(void) {
+    return OoT_MaskShopNightDoor_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // ============================================================================
@@ -5993,6 +6007,12 @@ const TestDescriptor gTests[] = {
     // row runs in its own process under the rando label).
     { "oot-entrance-pin", "The Happy Mask Shop pair never enters OoT's entrance-shuffle pools (#661)",
       Test_OoTEntrancePin },
+    // #948: display-free and ROM-free, and order-free: it restores the current
+    // game, the active slot and OoT_gPlayState, and clears the combo identity.
+    { "oot-mask-shop-night-door",
+      "In a paired world the night Market's Happy Mask Shop door opens as the day door does, so the crossing works "
+      "at night; a vanilla file keeps the sign, and the other night shops and the day door are unchanged (#948)",
+      Test_OoTMaskShopNightDoor },
     // #682's two halves. Both display-free and ROM-free, and both order-free:
     // menu-mm-enhancement-rows builds its own SohMenu probes and touches only
     // their private registries, and mm-enhancement-toggles leaves every key at 0,
@@ -6367,6 +6387,9 @@ const TestDescriptor gTests[] = {
       "posted a toast shows that toast's words, each slot state yields its row, one cached read serves every frame "
       "until the page opens or the save state moves, and the note names each case (lane W5)",
       Test_ComboSaveFilesView },
+    { "mm-extract",
+      "In-app Majora's Mask extraction seams: silent ROM scan and validation, search dirs, tools check (#944)",
+      Test_MmExtract },
     { nullptr, nullptr, nullptr } // Sentinel
 };
 

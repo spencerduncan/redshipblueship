@@ -1274,6 +1274,17 @@ if(BUILD_TESTING)
     # the rando tier below.
     redship_add_test(NAME OoTEntrancePin COMMAND redship --test oot-entrance-pin)
 
+    # #948: the same door at night. SCENE_MARKET_NIGHT places it as a sign door
+    # (DOOR_CHECKABLE, text 0x0210), so the crossing waited for morning; in a
+    # paired world MaskShopNightDoor.cpp gives it the day door's params before
+    # its init. The row runs the hook's boot registrar out of ShipInit's map,
+    # then the REAL ShouldActorInit dispatch and EnDoor_SetupType over the real
+    # scene params, and asserts: paired -> the day door byte for byte (scene
+    # exit, no sign text); no session, a vanilla file or a staged generation ->
+    # the sign; the night Potion Shop, the day door and the same params in
+    # another scene -> unchanged. Display-free and ROM-free.
+    redship_add_test(NAME OoTMaskShopNightDoor COMMAND redship --test oot-mask-shop-night-door)
+
     # #682: the curated MM enhancement toggles, in two halves that fail
     # differently on purpose.
     #
@@ -2477,6 +2488,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # note. ROM-free, display-free and disk-free (default tier);
     # src/common/tests/test_combo_save_files_view.c.
     redship_add_test(NAME ComboSaveFilesView COMMAND redship --test combo-save-files-view)
+    # #944: a default launch offers to generate mm.o2r, reaching MM's extractor
+    # through src/common/mm_extract.h. Leg A (ROM-free, display-free, never
+    # skips): the silent ROM scan and validation reject a zeroed, a zipped, an
+    # undersized, a non-ROM and a directory "ROM" without throwing or counting a
+    # native box; the ROM search dirs de-duplicate and follow $APPIMAGE; the tools
+    # check needs Config_N64_US.xml and ZAPD_MM. Leg B arms when
+    # OTRExporter/mm.z64 is staged and prints its own SKIP line otherwise, so the
+    # row never skips as a whole. src/common/tests/test_mm_extract.c.
+    redship_add_test(NAME MmExtract COMMAND redship --test mm-extract)
 
     # ========================================================================
     # Integration tests (requires display - use Xvfb in CI)

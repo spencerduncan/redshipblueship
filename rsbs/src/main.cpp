@@ -281,10 +281,12 @@ int OoT_GameAssetsInitialized(void);
 // address gSaveContext; the policy itself is in src/common/switch.cpp.
 // Returns 0 when the freeze could not be performed — refuse the switch.
 int Combo_FreezeActiveGameForHotSwap(GameId departing);
-// In-app mm.o2r generation, offered at the start prompt when MM is
-// selected without a game archive (#317). Defined in
-// games/mm/2s2h/GameExports_SingleExe.cpp. Success is observed by
-// re-checking archive availability, not via a return value.
+// In-app mm.o2r generation for a `--game mm` launch without an MM game
+// archive (#317): the pre-flight in main() offers it before any window
+// exists. A default (OoT-first) launch does not call it: OoT's in-window
+// first-launch flow (RunExtract) makes the same offer instead (#944).
+// Defined in games/mm/2s2h/GameExports_SingleExe.cpp. Success is observed
+// by re-checking archive availability, not via a return value.
 void MM_Extract_OfferAndRun(void);
 // Registers MM's four tracker windows on the shared Gui (#392 bypass
 // surface, games/mm/2s2h/TrackersGuiSingleExe.cpp). Declared here rather
@@ -771,7 +773,8 @@ int main(int argc, char** argv) {
     // #806: first make sure the halves exist and match the manifest compiled
     // into this binary. A packaged build ships neither (they are ROM-derived),
     // so the game carves them out of oot.o2r / mm.o2r itself -- by now both
-    // extractors have had their chance (OoT's runs inside its Init, MM's in the
+    // extractors have had their chance (OoT's runs inside its Init and, since
+    // #944, offers MM's there too; a `--game mm` launch offers MM's in the
     // pre-flight above). Missing sources, a refusal or an I/O failure are
     // logged and never refuse boot: foreign models keep their stand-ins.
     Combo_EnsureCuratedArchives();

@@ -43,13 +43,12 @@ const GameArchiveSpec* SpecFor(GameId game) {
         { "mm.o2r", "mm.zip", "mm.otr" },
         "mm.o2r is generated from your own Majora's Mask ROM\n"
         "(US N64 1.0 or US GameCube version). To set it up, either:\n"
-        "  - Relaunch RedShipBlueShip, select Majora's Mask, and accept the\n"
-        "    generation prompt — the built-in extractor creates mm.o2r from\n"
-        "    your ROM (needs the packaged assets folder next to the\n"
+        "  - Relaunch RedShipBlueShip and answer \"Yes\" when it offers\n"
+        "    to generate mm.o2r at launch (it asks while mm.o2r is\n"
+        "    missing; needs the packaged assets folder next to the\n"
         "    executable), or\n"
-        "  - Generate mm.o2r elsewhere (standalone 2Ship2Harkinian, or a\n"
-        "    build of this repository — see docs/mm-archive-setup.md) and\n"
-        "    copy it next to the redship executable, then relaunch.\n",
+        "  - Copy an existing mm.o2r next to the redship executable,\n"
+        "    then relaunch.\n",
     };
 
     switch (game) {

@@ -23,6 +23,11 @@ Numbers in parentheses are pull requests. The full list of open problems is
   you care about.
 - **Seeds.** A seed string and settings no longer make the world they made on an older build. Generated worlds
   moved in this wave (#840, #874, #895) and before it (#729, #763, #774).
+- **The first launch now also asks for your Majora's Mask ROM.** When no `mm.o2r` is found, the first-launch
+  setup that generates `oot.o2r` now also offers to generate `mm.o2r` from your Majora's Mask ROM, with the same
+  popups and progress dialog. If you already have `oot.o2r` but no `mm.o2r`, this is a new question on your next launch;
+  "Not now" starts Ocarina of Time alone, as before, and the question returns at the next launch until
+  `mm.o2r` exists (#945).
 - **Nobody has played this exact build.** Everything below comes from tests, measurements and UI captures. The
   operator played an earlier build on 2026-10-09; its two findings are fixed (#887, #889, #895).
 

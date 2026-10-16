@@ -1,5 +1,10 @@
 * text=auto eol=lf
 
+# cmd.exe misparses labels and long lines in LF-only batch files, so Windows
+# wrappers (.claude/tools/wave/*.cmd) stay CRLF on every checkout.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
 # Binary files - do not modify
 *.png binary
 *.jpg binary

@@ -147,6 +147,11 @@ are the reasoning behind them.
   mechanism and the failure it prevents. Comments explain *why*.
 - Push as you work; open a PR when the change is ready for CI; squash-merge only
   once CI is fully green. Never merge red or partial CI — push and report instead.
+- **Wave state lives in `.claude/tools/wave/`, not in a scratchpad.** That
+  covers the gate lock, `verify.cmd`, the workflow preflight and your lane's
+  resume manifest. Write the manifest at every stage change
+  (`lane-manifest.py write <KEY> stage=<stage>`). The protocol is in
+  `.claude/tools/wave/README.md`.
 - **Closing keywords: repeat the keyword per issue.** GitHub closes only the issue directly after the keyword — `Fixes #659 #656` closes #659 and leaves #656 open. Write `Fixes #659, fixes #656`. `Fixes` is for agent-authored issues only; use `Refs #N` for everything else.
 - When modifying MM code in single-exe mode, check `src/common/mm_stubs.c` for
   related stubs. Signature drift there has caused two separate faults.
@@ -219,5 +224,64 @@ are the reasoning behind them.
   `monotonicity-probe`) and the `ComboLogicMonotonicity` rando row enforce it; a
   new probe-baseline entry needs a written reading proving the site monotone.
   Details: `docs/monotonicity.md`.
+
+## Triage and evidence rules
+
+These come from the 2026-09-30 wave's post-mortem. Each one is a failure that
+cost a lane, a gate or the operator real time. They bind every worker,
+reviewer, fix pass and gate.
+
+1. **A FAIL with no green control row is `harness-unvalidated`.** A drive
+   mode, env knob or flag combination may have no CTest row that has ever
+   passed. A FAIL from it is labelled `harness-unvalidated` in your report and
+   in any issue you file. It is not a regression.
+
+   "P0" is used only after an instrumented reproduction that names the lost
+   state: which field, flag or byte, its observed and expected value, and the
+   seam where it changed.
+
+   *Why:* #885 was filed as a P0 from a never-green `RSBS_GP_CYCLES=3` paired
+   drive. Its FAIL text asserted a cause. It cost 40 minutes, was closed
+   not-a-bug, and the defect was the harness (#888).
+2. **Harness FAIL text prints observed and expected values, never a
+   diagnosis.** Write `FAIL second arrival sentinel: observed 99, expected
+   101`. Do not write `FAIL frozen save not restored over the boot-chain
+   wipe`. The diagnosis belongs in the issue, after the reproduction in rule 1.
+   *Why:* a FAIL line that names a cause is read as a finding, and the next
+   agent fixes the cause it names.
+3. **A follow-up in the class of your own fix carries a grep census.** You
+   may file a follow-up issue for a defect of the same class as the one you
+   just fixed. Its body then includes:
+   - the grep command or commands you ran;
+   - every hit across `games/`, `src/` and `libultraship/`;
+   - a mark on each hit: fixed by this PR, same defect, or not affected
+     (with the reason).
+
+   The orchestrator folds the whole class into one lane instead of one site
+   per wave. *Why:* the console class went #909 → #913 → #930 → #935 and the
+   toast class #881 → #906, one site at a time.
+4. **RED evidence is per assertion, not per row.** Each new assertion leg gets
+   its own mutation, and that mutation turns exactly that leg red. Quote it in
+   the PR body for every leg:
+   - the mutation (file, the change);
+   - the row that failed;
+   - the FAIL line it printed.
+
+   A row that went red once, for some mutation, is no evidence for its other
+   legs. *Why:* reviews found a test lock that could not fail in 9 of the
+   wave's 44 PRs, because RED evidence was recorded per row.
+5. **Two lanes never share a test-row anchor.** New rows are inserted next to
+   a related anchor row, not appended at the end. Before you pick an anchor,
+   check that no open PR inserts at the same one: run `gh pr list`, then read
+   the diffs of the registration files. *Why:* C1 and N1 both inserted after
+   `PairedLoadRestore`. The keep-both resolution was refused, a fix pass ended
+   `blocked`, and its dependent lanes were skipped.
+6. **A lane never ends a stage with unpushed commits.** Commit (a WIP commit
+   is fine) and push before you report a stage done. Then write the manifest:
+   `lane-manifest.py write <KEY> stage=<next stage>`. Exit 3 means your head is
+   not on origin: push and write it again. Uncommitted drafts count as
+   unpushed work. *Why:* every recovery after the wave's four workflow deaths
+   was a hand inventory of worktrees that found unpushed commits and
+   uncommitted drafts.
 
 See `CLAUDE.md` for build, test, and architecture basics.

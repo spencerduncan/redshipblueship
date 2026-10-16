@@ -465,3 +465,7 @@ Randomizer/
 .claude/tmp/*
 
 /vcpkg/
+
+# Wave toolkit state in the main checkout: gate lock, lane manifests, verify
+# logs (.claude/tools/wave/README.md). Machine-local, never committed.
+/.wave/

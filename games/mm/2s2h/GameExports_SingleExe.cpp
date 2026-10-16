@@ -101,6 +101,8 @@
 #include <vector>
 #include <algorithm>
 #include "Extractor/Extract.h"
+#include "mm_extract.h"      // src/common — the #944 in-app extraction bridge, defined below
+#include "zapd_subprocess.h" // src/common — ZapdSubprocess_Locate, for MM_Extract_ToolsAvailable
 
 // From main.c headers
 extern "C" {
@@ -5778,21 +5780,28 @@ void MM_Combo_EmitSaveFailureToast(int cause) {
 } // extern "C"
 
 // ============================================================================
-// In-app mm.o2r generation for the start prompt (issue #317)
+// In-app mm.o2r generation (issues #317, #944)
 // ============================================================================
 
 /**
- * Offer to generate mm.o2r from the user's own Majora's Mask ROM.
+ * The --game mm pre-flight offer: generate mm.o2r from the user's own
+ * Majora's Mask ROM.
  *
- * Called by the harness (rsbs/src/main.cpp) when Majora's Mask is selected at
- * the start prompt but no MM game archive exists. Runs before any game init or
- * window creation, so the UI is parentless SDL message boxes plus a native
- * file dialog — the same pre-window flow standalone 2Ship drives from InitOTR
- * (2s2h/BenPort.cpp). ROMs are searched for next to the executable (next to
- * the .AppImage file on AppImage runs); the archive is exported to MM's app
- * directory, the first location the archive checks probe
- * (src/common/archive_check.cpp). The harness re-checks archive presence
- * after this returns — success is "mm.o2r now exists", not a return value.
+ * Called by the harness (rsbs/src/main.cpp) when a session boots Majora's Mask
+ * first (--game mm) but no MM game archive exists. (It was written for a start
+ * prompt that picked the game; that prompt was removed in #349.) Runs before
+ * any game init or window creation, so the UI is parentless SDL message boxes
+ * plus a native file dialog — the same pre-window flow standalone 2Ship drives
+ * from InitOTR (2s2h/BenPort.cpp). A default launch boots Ocarina of Time
+ * instead, and OoT's in-window extraction flow (RunExtract,
+ * games/oot/soh/OTRGlobals.cpp) now offers Majora's Mask too, through the
+ * MM_Extract_* bridge below (#944); both flows share the tool check, the export
+ * directory and CallZapd. ROMs are searched for in one directory here: next to
+ * the executable, or next to the .AppImage file on AppImage runs. The archive
+ * is exported to MM's app directory (MM_Extract_ExportDir), the first location
+ * the archive checks probe (src/common/archive_check.cpp). The harness
+ * re-checks archive presence after this returns — success is "mm.o2r now
+ * exists", not a return value.
  */
 extern "C" void MM_Extract_OfferAndRun(void) {
 #if defined(__SWITCH__) || defined(__WIIU__)
@@ -5801,13 +5810,16 @@ extern "C" void MM_Extract_OfferAndRun(void) {
     return;
 #else
     const std::string installPath = Ship::Context::GetAppBundlePath();
-    const std::string exportDir = Ship::Context::GetAppDirectoryPath(kMmAppName);
 
-    if (!std::filesystem::exists(installPath + "/assets")) {
-        MMExtractor::ShowErrorBox(
-            "Extractor assets not found",
-            "No Majora's Mask O2R file found, and the assets folder needed to generate one is missing.\n\n"
-            "In-app generation needs a packaged RedShipBlueShip install (an assets/ folder next to the executable).");
+    // The same check the in-window flow makes: an assets/ folder alone is not
+    // enough, since a package can carry OoT's extractor files without MM's.
+    if (!MM_Extract_ToolsAvailable(installPath)) {
+        MMExtractor::ShowErrorBox("Extractor files not found",
+                                  "No Majora's Mask game archive (mm.o2r) was found, and the\n"
+                                  "Majora's Mask extractor files needed to generate one are\n"
+                                  "missing from this install's assets folder.\n\n"
+                                  "In-app generation needs a packaged RedShipBlueShip install\n"
+                                  "(its assets/ folder next to the executable).");
         return;
     }
 
@@ -5830,10 +5842,8 @@ extern "C" void MM_Extract_OfferAndRun(void) {
         }
     }
 
-    // GetAppDirectoryPath can name a directory that does not exist yet (e.g.
-    // ~/.local/share/2s2h on a first boot); CallZapd's final copy needs it.
-    std::error_code ec;
-    std::filesystem::create_directories(exportDir, ec);
+    // Created if absent: CallZapd's final copy needs the directory to exist.
+    const std::string exportDir = MM_Extract_ExportDir();
 
     // The extractor drives throwing std::filesystem overloads (file probes,
     // reads); nothing above this frame catches, so keep exceptions from
@@ -5844,7 +5854,9 @@ extern "C" void MM_Extract_OfferAndRun(void) {
             MMExtractor::ShowErrorBox("Error", "An error occurred, no O2R file was generated.");
             return;
         }
-        if (!extract.CallZapd(installPath, exportDir)) {
+        // Not quiet: before any window exists, the console window and the
+        // "Extracting" box are this flow's only progress indication.
+        if (!extract.CallZapd(installPath, exportDir, /*quiet=*/false)) {
             // CallZapd reports its own errors via message boxes.
             return;
         }
@@ -5853,12 +5865,246 @@ extern "C" void MM_Extract_OfferAndRun(void) {
         fflush(stderr);
         MMExtractor::ShowErrorBox("Extraction Failed", e.what());
         return;
+    } catch (...) {
+        fprintf(stderr, "[MM] Extraction failed with an unknown error\n");
+        fflush(stderr);
+        MMExtractor::ShowErrorBox("Extraction Failed", "Extraction failed with an unknown error.");
+        return;
     }
 
     fprintf(stderr, "[MM] mm.o2r generated into %s\n", exportDir.c_str());
     fflush(stderr);
 #endif
 }
+
+// ----------------------------------------------------------------------------
+// The in-window extraction bridge (#944, src/common/mm_extract.h)
+// ----------------------------------------------------------------------------
+//
+// OoT's RunExtract cannot include this side's Extractor/Extract.h (both
+// extractors define RomSearchMode and MB32..MB64 at global scope), so it
+// reaches MMExtractor through these. Each call builds its own transient
+// MMExtractor, so the bridge holds no state between calls. Every function
+// catches every exception: MMExtractor's 64 MiB buffer allocation and
+// SetRomInfo's file_size sit outside CallZapd's own try block, and the callers
+// run on RunExtract's worker thread or inside OoT's boot, where an escaped
+// exception ends the app.
+
+#if defined(__SWITCH__) || defined(__WIIU__)
+// No extractor on console platforms (see MM_Extract_OfferAndRun above), and
+// RunExtract never reaches its MM step there.
+bool MM_Extract_ToolsAvailable(const std::string&) {
+    return false;
+}
+
+std::vector<std::string> MM_Extract_RomSearchDirs(const std::string&) {
+    return {};
+}
+
+std::vector<std::string> MM_Extract_FindValidRoms(const std::vector<std::string>&) {
+    return {};
+}
+
+bool MM_Extract_ValidateRomFile(const std::string&) {
+    return false;
+}
+
+std::string MM_Extract_PickRomInteractive(const std::string&) {
+    return "";
+}
+
+bool MM_Extract_Generate(const std::string&, const std::string&, const std::string&, bool) {
+    return false;
+}
+
+std::string MM_Extract_ExportDir() {
+    return "";
+}
+
+int MM_Extract_DebugNativeBoxCount() {
+    return 0;
+}
+#else
+// Logs the exception being handled; call it only from inside a catch block
+// (it rethrows to read it). One place for the std::exception / anything-else
+// split every entry below needs.
+static void MmExtract_LogCurrentException(const char* step) {
+    try {
+        throw;
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[MM] %s failed: %s\n", step, e.what());
+        fflush(stderr);
+    } catch (...) {
+        fprintf(stderr, "[MM] %s failed with an unknown error\n", step);
+        fflush(stderr);
+    }
+}
+
+bool MM_Extract_ToolsAvailable(const std::string& installPath) {
+    // What CallZapd needs from the install: the version config it passes ZAPD
+    // (assets/Config_<ver>.xml; Config_N64_US.xml is MM's own, OoT's configs
+    // are named by region and revision) and the bundled ZAPD_MM it spawns. A
+    // package can carry assets/ with only OoT's extractor files, and offering
+    // then would end in a failed extraction.
+    try {
+        const std::string assetsPath = installPath + "/assets";
+        std::error_code ec;
+        return std::filesystem::exists(assetsPath + "/Config_N64_US.xml", ec) &&
+               !ZapdSubprocess_Locate(assetsPath, "ZAPD_MM").empty();
+    } catch (...) {
+        MmExtract_LogCurrentException("Extractor tool check");
+        return false;
+    }
+}
+
+std::vector<std::string> MM_Extract_RomSearchDirs(const std::string& installPath) {
+    std::vector<std::string> dirs;
+    try {
+        // MM's app directory first (where mm.o2r lands, and in a portable
+        // build the working directory), then the install. On AppImage runs the
+        // install is a transient read-only mount and the player's ROM sits
+        // next to the .AppImage file, so that directory is added too.
+        // (MM_Extract_OfferAndRun's single-directory search replaces the
+        // install with it; here every candidate is scanned.)
+        std::vector<std::string> candidates;
+        candidates.push_back(Ship::Context::GetAppDirectoryPath(kMmAppName));
+        candidates.push_back(installPath);
+        const char* appImagePath = getenv("APPIMAGE");
+        if (appImagePath != nullptr && appImagePath[0] != '\0') {
+            candidates.push_back(std::filesystem::path(appImagePath).parent_path().string());
+        }
+
+        for (const std::string& candidate : candidates) {
+            std::error_code ec;
+            if (candidate.empty() || !std::filesystem::is_directory(candidate, ec)) {
+                continue;
+            }
+            // In a portable build the app directory is "." and the install is
+            // the same folder spelled absolutely; scanning it twice would list
+            // every ROM twice.
+            bool seen = false;
+            for (const std::string& kept : dirs) {
+                std::error_code eqEc;
+                if (std::filesystem::equivalent(kept, candidate, eqEc)) {
+                    seen = true;
+                    break;
+                }
+            }
+            if (!seen) {
+                dirs.push_back(candidate);
+            }
+        }
+    } catch (...) {
+        // The directories gathered so far are still worth scanning.
+        MmExtract_LogCurrentException("ROM search directory listing");
+    }
+    return dirs;
+}
+
+std::vector<std::string> MM_Extract_FindValidRoms(const std::vector<std::string>& dirs) {
+    std::vector<std::string> valid;
+    try {
+        // One extractor for the whole scan: each MMExtractor zero-fills its
+        // own 64 MiB buffer, and RunFileStandalone re-derives every bit of
+        // per-file state, so reusing it changes nothing but the cost.
+        MMExtractor extract;
+        for (const std::string& dir : dirs) {
+            try {
+                // GetRoms' directory walks assume the folder exists.
+                std::error_code ec;
+                if (!std::filesystem::is_directory(dir, ec)) {
+                    continue;
+                }
+                std::vector<std::string> candidates;
+                extract.SetSearchPath(dir);
+                extract.GetRoms(candidates);
+                for (const std::string& candidate : candidates) {
+                    if (extract.RunFileStandalone(candidate)) {
+                        valid.push_back(candidate);
+                    }
+                }
+            } catch (...) {
+                // Per directory, so one unreadable folder does not end the scan.
+                MmExtract_LogCurrentException("ROM scan of a search directory");
+            }
+        }
+    } catch (...) {
+        // The extractor's buffer could not be allocated.
+        MmExtract_LogCurrentException("ROM scan");
+    }
+    return valid;
+}
+
+bool MM_Extract_ValidateRomFile(const std::string& path) {
+    try {
+        MMExtractor extract;
+        return extract.RunFileStandalone(path);
+    } catch (...) {
+        MmExtract_LogCurrentException("ROM validation");
+        return false;
+    }
+}
+
+std::string MM_Extract_PickRomInteractive(const std::string& startDir) {
+    try {
+        MMExtractor extract;
+        extract.SetSearchPath(startDir);
+        // quietCancel: the caller answers a cancel with its own "Try again /
+        // Continue" popup. The size, compressed and CRC boxes still show, as
+        // OoT's own picker step shows them.
+        if (extract.ManuallySearchForRom(/*quietCancel=*/true)) {
+            return extract.GetCurrentRomPath();
+        }
+        return "";
+    } catch (...) {
+        MmExtract_LogCurrentException("ROM selection");
+        return "";
+    }
+}
+
+bool MM_Extract_Generate(const std::string& romPath, const std::string& installPath, const std::string& exportDir,
+                         bool quiet) {
+    try {
+        // Validated again on this side rather than trusting the caller: CallZapd
+        // reads the version from the loaded header, and an unknown header there
+        // is UNREACHABLE (MMExtractor::GetZapdVerStr). The contents only, not
+        // the extension: MS_PICK passes on whatever ManuallySearchForRom
+        // accepted, and that never checks the extension, so a valid
+        // "MAJORA.Z64" would fail here on every retry with no reason shown.
+        // The `--game mm` flow and OoT's own picker extract such a file too.
+        MMExtractor extract;
+        if (!extract.RunFileStandalone(romPath, /*checkExtension=*/false)) {
+            fprintf(stderr, "[MM] %s is not a supported Majora's Mask ROM; no mm.o2r generated\n", romPath.c_str());
+            fflush(stderr);
+            return false;
+        }
+        return extract.CallZapd(installPath, exportDir, quiet);
+    } catch (...) {
+        MmExtract_LogCurrentException("Extraction");
+        return false;
+    }
+}
+
+std::string MM_Extract_ExportDir() {
+    try {
+        // GetAppDirectoryPath can name a directory that does not exist yet
+        // (e.g. ~/.local/share/2s2h on a first boot); CallZapd's final copy
+        // needs it.
+        std::string dir = Ship::Context::GetAppDirectoryPath(kMmAppName);
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        return dir;
+    } catch (...) {
+        // "." is libultraship's own portable answer.
+        MmExtract_LogCurrentException("Export directory lookup");
+        return ".";
+    }
+}
+
+int MM_Extract_DebugNativeBoxCount() {
+    return MMExtractor::DebugNativeBoxCount();
+}
+#endif
 
 // ============================================================================
 // Extended-culling helpers (MM_-prefixed) — issue #382
