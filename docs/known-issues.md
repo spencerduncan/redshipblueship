@@ -1,7 +1,7 @@
 # Known issues
 
 **Applies to:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
-plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) plus PRs [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's Mask's ROM extraction) and [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the night Happy Mask Shop door), and the GitHub Actions builds cut from them; the `v0.1.1-prealpha` tag
+plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) plus PRs [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's Mask's ROM extraction), [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the night Happy Mask Shop door) and [#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer crashes), and the GitHub Actions builds cut from them; the `v0.1.1-prealpha` tag
 (2026-07-03) is older than everything in the first section. What changed since that tag, in player terms:
 [`release-notes-next.md`](release-notes-next.md).
 **Last updated:** 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with

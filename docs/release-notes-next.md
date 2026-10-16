@@ -2,9 +2,11 @@
 
 **Status:** draft for the operator to edit. Nothing here is released.
 **Built from:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940))
-plus two code changes merged on 2026-10-16: PR [#945](https://github.com/spencerduncan/redshipblueship/pull/945)
-(the first launch also offers Majora's Mask's ROM extraction) and PR
-[#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the Happy Mask Shop door opens at night). Everything
+plus three code changes merged on 2026-10-16: PR [#945](https://github.com/spencerduncan/redshipblueship/pull/945)
+(the first launch also offers Majora's Mask's ROM extraction), PR
+[#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the Happy Mask Shop door opens at night) and PR
+[#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer
+crashes). Everything
 else merged after `851b1ee9` is documentation or agent tooling (PR #947).
 **Covers:** everything since `v0.1.1-prealpha` (2026-07-03). That tag's commit, `eab838c1`, is not an
 ancestor of `main`, so "since" is by date: 360 commits on `main` after 2026-07-03. The last 92 of them are
@@ -123,6 +125,10 @@ Numbers in parentheses are pull requests. The full list of open problems is
 - **The Happy Mask Shop door opens at night in a paired world,** so the crossing into Termina works at any hour as
   child Link. On a vanilla file it still shows its "Apply during the day" sign, and the other night shops stay
   closed (#956). The crossing is child-only: as adult the Market is in ruins and has no Happy Mask Shop door.
+- **A crossing into a game that cannot start is refused, and the game you are in keeps running.** If its archive
+  is missing (for example after "Not now" to the Majora's Mask extraction, or with no `2ship.o2r`), the door leaves
+  Link just outside it (the Market in Hyrule, South Clock Town in Termina), F10 does nothing, and a message says
+  why. Before, such a refusal crashed the game (#957).
 - After such a reload Link wakes at a safe place (#871), OoT's collected checks stay collected (#856, #898),
   and an older save can never land over a newer one (#896).
 - **Moon crash.** A moon crash in a paired file restores the file's last save instead of leaving you on day 4,
