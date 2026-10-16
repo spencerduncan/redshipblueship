@@ -565,12 +565,28 @@ OTRGlobals::OTRGlobals() {
     ScaleImGui();
 }
 
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+// The first-launch extraction flow also offers Majora's Mask's mm.o2r once
+// OoT's archive is settled (#944). MM's Extractor/Extract.h cannot be included
+// in this file (it defines RomSearchMode and MB32..MB64 again, next to OoT's),
+// so MMExtractor is reached through the mm_extract.h bridge. The other three
+// are src/common's archive probes and its unattended-session gates; they are
+// needed above the flow, and context.h further down comes too late.
+#include "mm_extract.h"
+#include "archive_check.h"
+#include "test_runner.h"
+#include "headless_crash.h"
+#endif
+
 typedef enum ExtractSteps {
     ES_PORT_ARCHIVE,
     ES_WINDOWS,
     ES_EXTRACT_ARGS,
     ES_EXTRACT,
     ES_VERIFY,
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+    ES_EXTRACT_MM,
+#endif
 } ExtractSteps;
 
 typedef enum PromptSteps {
@@ -582,6 +598,17 @@ typedef enum PromptSteps {
     PS_WAIT,
     PS_NONE,
 } PromptSteps;
+
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+// Sub-steps of ES_EXTRACT_MM (#944).
+typedef enum MmPromptSteps {
+    MS_CHECK,  // decide whether to offer mm.o2r at all
+    MS_LOCAL,  // look for a valid Majora's Mask ROM next to the application
+    MS_PICK,   // native file picker
+    MS_WAIT,   // a popup callback or the extraction worker owns the next step
+    MS_VERIFY, // the worker finished: did mm.o2r appear?
+} MmPromptSteps;
+#endif
 
 typedef enum WindowsSteps {
     WS_TEMP,
@@ -666,6 +693,28 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
 
     std::shared_ptr<BS::thread_pool> threadPool = std::make_shared<BS::thread_pool>(1);
     std::optional<std::future<void>> extractionTask;
+
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+    MmPromptSteps mmStep = MS_CHECK;
+    std::string mmRomPath;
+    // Generates mm.o2r from mmRomPath on the extraction worker, under the same
+    // "ROM Extraction" modal, which names `file` (#944). whenDone is the step
+    // the worker leaves mmStep at: MS_VERIFY inside ES_EXTRACT_MM, MS_CHECK for
+    // a ROM named on the command line so ES_EXTRACT_MM later starts from the
+    // top. MS_WAIT is stored BEFORE submit_task: stored after, it could
+    // overwrite a fast worker's whenDone and the loop would render forever.
+    // The loop reads mmStep only after get()/reset(), as with PS_SECOND, and
+    // MM_Extract_Generate never throws, so an MM failure cannot reach the
+    // "Extraction Crashed" popup, whose button ends the process.
+    auto submitMmGenerate = [&](MmPromptSteps whenDone) {
+        file = mmRomPath;
+        mmStep = MS_WAIT;
+        extractionTask = threadPool->submit_task([&, whenDone]() -> void {
+            MM_Extract_Generate(mmRomPath, installPath, MM_Extract_ExportDir(), /*quiet=*/true);
+            mmStep = whenDone;
+        });
+    };
+#endif
 
 #if not defined(__SWITCH__) && not defined(__WIIU__)
     CheckAndCreateModFolder();
@@ -819,6 +868,23 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
                             extractCount = totalExtract = 0;
                         });
                     }
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+                } else if (MM_Extract_ToolsAvailable(installPath) && MM_Extract_ValidateRomFile(file)) {
+                    // A Majora's Mask ROM, named on the command line or found
+                    // by PS_LOCAL in a folder holding both ROMs (#944). OoT's
+                    // check above stays silent for it: its size check passes
+                    // and ValidateRom(true) skips the CRC box. The run leaves
+                    // mmStep at MS_CHECK, so ES_EXTRACT_MM checks again from
+                    // the top and a failed run just gets the normal offer.
+                    mmRomPath = file;
+                    if (ArchiveCheck_GameAvailable(GAME_MM)) {
+                        SohGui::RegisterPopup("Confirm Re-extract",
+                                              "Archive for current ROM, mm.o2r, already exists.\nExtract again?", "Yes",
+                                              "No", [&]() { submitMmGenerate(MS_CHECK); });
+                    } else {
+                        submitMmGenerate(MS_CHECK);
+                    }
+#endif
                 } else {
                     std::string msg = "File\n" + std::string(file) + "\nis not a ROM or does not match supported ROMs.";
                     SohGui::RegisterPopup("SoH ROM Error", msg.c_str());
@@ -851,6 +917,15 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
                         extract.GetRoms(args);
                         extract.SetSearchPath(dataPath);
                         extract.GetRoms(args);
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+                        // Both scans list bare file names, and in a portable
+                        // install they cover the same folder, so every ROM
+                        // there is listed twice. The second pass would then
+                        // ask "Confirm Re-extract" about the archive the first
+                        // pass just wrote (#944).
+                        std::sort(args.begin(), args.end());
+                        args.erase(std::unique(args.begin(), args.end()), args.end());
+#endif
                         if (!args.empty()) {
                             promptStep = PS_WAIT;
                             SohGui::RegisterPopup(
@@ -912,9 +987,120 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
                                           "No ROM O2R files detected. Please generate a ROM O2R and relaunch.", "OK",
                                           "", [&]() { exit(0); });
                 }
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+                if (ootO2RExists) {
+                    extractStep = ES_EXTRACT_MM;
+                    continue;
+                }
+#endif
                 extractDone = true;
                 continue;
             }
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+            case ES_EXTRACT_MM: {
+                // Every way out of this step continues into OoT's boot: a
+                // Majora's Mask failure never ends the process (#944).
+                switch (mmStep) {
+                    case MS_CHECK: {
+                        // Order matters. An existing archive ends the step.
+                        // Unattended sessions get no popup at all: every
+                        // OoT-first --integration-test row runs this flow, and
+                        // the integration workflow stages only oot.o2r. The two
+                        // install defects no ROM can fix come next, each told
+                        // once, so the offer is only made when saying Yes can
+                        // produce a Majora's Mask that boots.
+                        if (ArchiveCheck_GameAvailable(GAME_MM)) {
+                            extractDone = true;
+                        } else if (TestRunner_IsIntegrationTestMode() || HeadlessCrash_IsHeadless()) {
+                            extractDone = true;
+                        } else if (!ArchiveCheck_PortArchiveAvailable(GAME_MM)) {
+                            mmStep = MS_WAIT;
+                            SohGui::RegisterPopup("Majora's Mask Files Missing",
+                                                  "2ship.o2r was not found next to the executable. Unlike\n"
+                                                  "mm.o2r it is not made from your ROM: it ships with\n"
+                                                  "RedShipBlueShip itself, so this install is incomplete.\n"
+                                                  "Re-download the latest RedShipBlueShip package and make\n"
+                                                  "sure 2ship.o2r sits next to the redship executable.\n"
+                                                  "\n"
+                                                  "Ocarina of Time will start now. Majora's Mask stays\n"
+                                                  "unavailable until 2ship.o2r is in place.",
+                                                  "OK", "", [&]() { extractDone = true; });
+                        } else if (!MM_Extract_ToolsAvailable(installPath)) {
+                            mmStep = MS_WAIT;
+                            SohGui::RegisterPopup("Majora's Mask Extractor Missing",
+                                                  "This install has no Majora's Mask extractor files in its\n"
+                                                  "assets folder, so mm.o2r cannot be generated here.\n"
+                                                  "\n"
+                                                  "Ocarina of Time will start now. Majora's Mask stays\n"
+                                                  "unavailable until mm.o2r is placed next to the executable.",
+                                                  "OK", "", [&]() { extractDone = true; });
+                        } else {
+                            mmStep = MS_WAIT;
+                            SohGui::RegisterPopup(
+                                "No Majora's Mask O2R File",
+                                "No Majora's Mask game archive (mm.o2r) was found.\n"
+                                "Generate one from your Majora's Mask ROM now?\n"
+                                "\n"
+                                "If you skip this, Ocarina of Time starts alone, and\n"
+                                "crossing into Termina through the Happy Mask Shop door\n"
+                                "is refused until mm.o2r exists.",
+                                "Yes", "Not now", [&]() { mmStep = MS_LOCAL; }, [&]() { extractDone = true; });
+                        }
+                        continue;
+                    }
+                    case MS_LOCAL: {
+                        std::vector<std::string> mmRoms =
+                            MM_Extract_FindValidRoms(MM_Extract_RomSearchDirs(installPath));
+                        if (mmRoms.empty()) {
+                            mmStep = MS_PICK;
+                            continue;
+                        }
+                        mmRomPath = mmRoms.front();
+                        std::string msg = "Found " + std::filesystem::path(mmRomPath).filename().string() +
+                                          " next to the application.\nGenerate mm.o2r from it?";
+                        mmStep = MS_WAIT;
+                        SohGui::RegisterPopup(
+                            "Majora's Mask ROM Found", msg, "Yes", "Choose another",
+                            [&]() { submitMmGenerate(MS_VERIFY); }, [&]() { mmStep = MS_PICK; });
+                        continue;
+                    }
+                    case MS_PICK: {
+                        // Synchronous native dialog, as PS_FIRST does for OoT.
+                        mmRomPath = MM_Extract_PickRomInteractive(installPath);
+                        if (mmRomPath.empty()) {
+                            mmStep = MS_WAIT;
+                            SohGui::RegisterPopup(
+                                "No Majora's Mask ROM Selected",
+                                "No ROM was selected.\nTry again, or continue without Majora's Mask?", "Try again",
+                                "Continue", [&]() { mmStep = MS_PICK; }, [&]() { extractDone = true; });
+                        } else {
+                            submitMmGenerate(MS_VERIFY);
+                        }
+                        continue;
+                    }
+                    case MS_VERIFY: {
+                        // No success popup: the boot carrying on is the
+                        // confirmation.
+                        if (ArchiveCheck_GameAvailable(GAME_MM)) {
+                            extractDone = true;
+                        } else {
+                            mmStep = MS_WAIT;
+                            SohGui::RegisterPopup(
+                                "Majora's Mask Extraction Failed",
+                                "mm.o2r was not generated.\nTry another ROM, or continue without Majora's Mask?",
+                                "Try again", "Continue", [&]() { mmStep = MS_PICK; }, [&]() { extractDone = true; });
+                        }
+                        continue;
+                    }
+                    case MS_WAIT:
+                    default:
+                        // A popup callback or the worker owns the next step;
+                        // the loop renders while either is pending.
+                        break;
+                }
+                break;
+            }
+#endif
             default:
                 break;
         }
