@@ -28,6 +28,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
 
+      # .claude/tools/wave/tests/ locks the wave toolkit (gate lock, preflight,
+      # lane manifests, verify's decisions) against temp dirs and throwaway git
+      # repos; it never needs a build, ROMs or Windows.
       - name: Run tests
         run: |
-          python -m pytest tools/tests/ -v --tb=short
+          python -m pytest tools/tests/ .claude/tools/wave/tests/ -v --tb=short

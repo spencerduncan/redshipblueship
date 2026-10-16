@@ -102,6 +102,7 @@ Prerequisites for isolated runs:
 
 - Work branches: `claude/<description>` prefix
 - Worker task descriptions: `.claude/worker-prompts.md`
+- Wave tooling (gate lock, `verify.cmd`, workflow preflight, lane resume manifests): `.claude/tools/wave/README.md`
 - Pushes, PRs, and merges are automated: push your branch as you work, open a PR when the change is ready for CI, and squash-merge once CI is fully green — no need to ask
 - Never merge red or partial CI; if blocked or uncertain, push the branch and report instead
 - **Human-filed issues and PRs are hands-off.** Anything authored by a GitHub account other than `spencerduncan` was filed by a person, and only the operator talks to people. Never comment on, label, assign, retitle, edit, close, or auto-close (`Fixes`/`Closes`/`Resolves #N`) it, and never reply to a person's comment on an agent issue or PR; surface it in your report instead. To work on one, file a secondary tracking issue titled `[agent] #N: <summary>` with the `agent-tracking` label, link the human issue from its body, verify the premise in code there, and point PRs at the agent issue (`Fixes #<agent>`, `Refs #<human>`). When unsure whether an author is a person, treat them as one.
