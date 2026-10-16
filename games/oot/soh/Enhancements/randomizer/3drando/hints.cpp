@@ -14,6 +14,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "combo_area.h" // src/common: the shared area vocabulary (#575 H3a)
 #include "game.h"       // src/common: GAME_MM
+#include <algorithm>    // std::sort, std::reverse: the static hints' build order (#951)
 // ForeignItemsSingleExe.cpp (#575 H3b): whether OoT check `rc`, a crossing host of the
 // paired world OoT's remainder hints, yields an MM item MM itself grades major (1) or
 // not (0); -1 when `rc` is no such host.
@@ -1039,14 +1040,60 @@ void CreateGanondorfHint() {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip (#951): the static hints are built in RandomizerHint order, not in
+// staticHintInfoMap's (an unordered_map, whose order differs between MSVC's STL and
+// libstdc++). A hint can draw from the fill's stream (GetRandomArea, the hint-clarity
+// text draws), so two of them built in a different order read different text for
+// the same seed on Windows and Linux. sStaticHintOrderTestMode is a test seam only:
+// 1 builds them in reverse order, 2 in the map's own order (the code before #951).
+static int sStaticHintOrderTestMode = 0;
+static int sStaticHintsThatDrew = 0;
+
+static std::vector<RandomizerHint> StaticHintBuildOrder() {
+    std::vector<RandomizerHint> keys;
+    for (const auto& entry : StaticData::staticHintInfoMap) {
+        keys.push_back(entry.first);
+    }
+    if (sStaticHintOrderTestMode != 2) {
+        std::sort(keys.begin(), keys.end());
+    }
+    if (sStaticHintOrderTestMode == 1) {
+        std::reverse(keys.begin(), keys.end());
+    }
+    return keys;
+}
+
+/** TEST BRIDGE (#951): the order the next generation builds static hints in (see
+ *  above); 0 is production's. */
+extern "C" void Rando_TestSetStaticHintOrder(int mode) {
+    sStaticHintOrderTestMode = mode;
+}
+
+/** TEST BRIDGE (#951): how many static hints the last CreateStaticHints built while
+ *  drawing from the fill's stream; the order only matters when two or more did. */
+extern "C" int Rando_TestStaticHintsThatDrew(void) {
+    return sStaticHintsThatDrew;
+}
+#endif
+
 void CreateStaticHints() {
     CreateChildAltarHint();
     CreateAdultAltarHint();
     CreateGanondorfJoke();
     CreateGanondorfHint();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    sStaticHintsThatDrew = 0;
+    for (const RandomizerHint hint : StaticHintBuildOrder()) {
+        const uint64_t streamBefore = rando_state;
+        CreateStaticHintFromData(hint, StaticData::staticHintInfoMap[hint]);
+        sStaticHintsThatDrew += rando_state != streamBefore ? 1 : 0;
+    }
+#else
     for (auto [hint, staticData] : StaticData::staticHintInfoMap) {
         CreateStaticHintFromData(hint, staticData);
     }
+#endif
 }
 
 void CreateAllHints() {
