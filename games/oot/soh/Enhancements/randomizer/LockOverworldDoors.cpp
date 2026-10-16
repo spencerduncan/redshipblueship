@@ -22,6 +22,10 @@ std::map<SceneDoorParamsPair, RandomizerInf> lookupTable = {
     {{ SCENE_MARKET_NIGHT, 1678 },               RAND_INF_MARKET_POTION_SHOP_UNLOCKED },
     {{ SCENE_MARKET_DAY, 3519 },                 RAND_INF_MASK_SHOP_UNLOCKED },
     {{ SCENE_MARKET_NIGHT, 3728 },               RAND_INF_MASK_SHOP_UNLOCKED },
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#948): the night door once a paired world gives it the day door's params (MaskShopNightDoor.cpp)
+    {{ SCENE_MARKET_NIGHT, 3519 },               RAND_INF_MASK_SHOP_UNLOCKED },
+#endif
     {{ SCENE_MARKET_DAY, 2495 },                 RAND_INF_MARKET_SHOOTING_GALLERY_UNLOCKED },
     {{ SCENE_MARKET_NIGHT, 2703 },               RAND_INF_MARKET_SHOOTING_GALLERY_UNLOCKED },
     {{ SCENE_MARKET_DAY, 5567 },                 RAND_INF_BOMBCHU_BOWLING_UNLOCKED },
