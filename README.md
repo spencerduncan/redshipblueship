@@ -76,10 +76,11 @@ redshipblueship/
 
 ## Quick Start (Once Built)
 
-1. Place `oot.z64` and `mm.z64` ROMs in the game directory
-2. Run asset extraction to generate `oot.otr` and `mm.otr`
-3. Launch `redshipblueship` (boots into Ocarina of Time by default)
-4. Switch to Majora's Mask in-game, or launch with `--game mm`
+1. Generate `oot.o2r` and `mm.o2r` from your Ocarina of Time and Majora's Mask ROMs:
+   - **Release package** (Windows zip or Linux AppImage, which carry the extractor's `assets/` folder): place both ROMs next to the `redship` executable. Its first launch finds them (or lets you browse for them) and generates the two archives itself
+   - **Source build**: a plain `cmake --build` tree has no `assets/` folder, so its first launch cannot generate them. Run the `ExtractAssets` and `ExtractMMAssets` targets from the build steps above, then copy `oot.o2r` and `mm.o2r` next to `redship` (see [docs/mm-archive-setup.md](docs/mm-archive-setup.md))
+2. Launch `redship` (boots into Ocarina of Time by default)
+3. Switch to Majora's Mask in-game, or launch with `--game mm`
 
 ## Default Controls
 
