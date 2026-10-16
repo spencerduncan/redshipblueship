@@ -1,10 +1,10 @@
 # Known issues
 
 **Applies to:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
-plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) and the GitHub Actions builds cut from it; the `v0.1.1-prealpha` tag
+plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) plus PRs [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's Mask's ROM extraction) and [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the night Happy Mask Shop door), and the GitHub Actions builds cut from them; the `v0.1.1-prealpha` tag
 (2026-07-03) is older than everything in the first section. What changed since that tag, in player terms:
 [`release-notes-next.md`](release-notes-next.md).
-**Last updated:** 2026-10-16 (the open issues at `851b1ee9`: #944 added, the #645, #599 and #497 lines brought up to date); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
+**Last updated:** 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -108,6 +108,11 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   OoT's own entrance randomizer now leaves both directions of it out of every
   shuffle pool; under interior (or any) entrance shuffle the door you walk
   through is still the door to Termina (PR [#691](https://github.com/spencerduncan/redshipblueship/pull/691), [#661](https://github.com/spencerduncan/redshipblueship/issues/661)).
+  Since PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956) ([#948](https://github.com/spencerduncan/redshipblueship/issues/948))
+  the door also opens at night while a paired file is open, so child Link can cross at any hour. On a vanilla
+  file it still shows its "Apply during the day" sign at night and does not open, as in Ocarina of Time, and
+  the other night shops keep their signs. The crossing is child-only: as adult the Market is in ruins and has
+  no Happy Mask Shop door.
 - **Paired MM worlds can enable individual Majora's Mask logic tricks.** MM now
   has a per-trick vocabulary (86 trick keys, frozen into the world's identity
   like OoT's). **37** of them are bound to a real logic edge, 20 are reserved for an
@@ -307,7 +312,6 @@ section always have icons.
 Every issue open at this commit that this project's agents filed, one line each, with what a
 player sees. Epics and trackers are listed for what they leave out of this build.
 
-- [#944](https://github.com/spencerduncan/redshipblueship/issues/944) (filed after this list was first written): a default launch extracts only Ocarina of Time's ROM and never offers Majora's Mask's. Without `mm.o2r` the first crossing into Termina is refused, and its message tells you to "select Majora's Mask" at a start prompt that no longer exists; [`mm-archive-setup.md`](mm-archive-setup.md) names the same prompt. Launch once with `redship --game mm` instead: it offers to generate `mm.o2r` from your Majora's Mask ROM. PR [#945](https://github.com/spencerduncan/redshipblueship/pull/945) is the fix.
 - [#925](https://github.com/spencerduncan/redshipblueship/issues/925): nothing in play. A test row (`AllTests`) failed once on a fresh build tree and then passed; probably the test collision PR [#931](https://github.com/spencerduncan/redshipblueship/pull/931) fixed. Watched.
 - [#824](https://github.com/spencerduncan/redshipblueship/issues/824): nothing in play. The test row `ForeignItemGiveReverse` ended once without a verdict and has not done so again. Watched.
 - [#855](https://github.com/spencerduncan/redshipblueship/issues/855): with OoT's "Scrubs Shuffle" on, a Business Scrub's offer follows "Merchant Hint Text" while the Check Tracker follows "Scrub Hint Text", so one can name the item while the other hides it (Ship of Harkinian's own behaviour; the operator's call).

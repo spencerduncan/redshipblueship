@@ -1,7 +1,11 @@
 # Release notes draft: the next prerelease
 
 **Status:** draft for the operator to edit. Nothing here is released.
-**Built from:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940)).
+**Built from:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940))
+plus two code changes merged on 2026-10-16: PR [#945](https://github.com/spencerduncan/redshipblueship/pull/945)
+(the first launch also offers Majora's Mask's ROM extraction) and PR
+[#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the Happy Mask Shop door opens at night). Everything
+else merged after `851b1ee9` is documentation or agent tooling (PR #947).
 **Covers:** everything since `v0.1.1-prealpha` (2026-07-03). That tag's commit, `eab838c1`, is not an
 ancestor of `main`, so "since" is by date: 360 commits on `main` after 2026-07-03. The last 92 of them are
 the pull requests of the 2026-09-30 wave ([#802](https://github.com/spencerduncan/redshipblueship/pull/802) to
@@ -116,6 +120,9 @@ Numbers in parentheses are pull requests. The full list of open problems is
 - **Every crossing saves the file.** Walking through the Happy Mask Shop or Clock Tower door, or pressing F10,
   saves the whole file, as OoTMM does at every game switch (#846). Closing the game after a crossing no longer
   loses it.
+- **The Happy Mask Shop door opens at night in a paired world,** so the crossing into Termina works at any hour as
+  child Link. On a vanilla file it still shows its "Apply during the day" sign, and the other night shops stay
+  closed (#956). The crossing is child-only: as adult the Market is in ruins and has no Happy Mask Shop door.
 - After such a reload Link wakes at a safe place (#871), OoT's collected checks stay collected (#856, #898),
   and an older save can never land over a newer one (#896).
 - **Moon crash.** A moon crash in a paired file restores the file's last save instead of leaving you on day 4,
@@ -188,10 +195,6 @@ Numbers in parentheses are pull requests. The full list of open problems is
 
 ## Open decisions (operator)
 
-- #944: a default launch never offers to extract Majora's Mask's ROM, and both the first-crossing refusal
-  (`src/common/archive_check.cpp`) and `docs/mm-archive-setup.md` still tell the player to "select Majora's
-  Mask" at a start prompt that no longer exists (removed by #349). PR #945 fixes all three: merge it before
-  tagging, or list #944 as a known issue (the workaround is one launch with `--game mm`).
 - #645: its two open items, O2 (the per-direction crossing-edge expressions, which no merged PR records) and
   O11 (the strictness presentation, which the Goal row of #760 does not record), and whether to close the
   epic.
