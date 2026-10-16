@@ -183,12 +183,22 @@ Numbers in parentheses are pull requests. The full list of open problems is
 
 ## Open decisions (operator)
 
-- #645: its two open items, and whether to close the epic.
-- #497: the SohMenu remainder of ADR 0004.
+- #944: a default launch never offers to extract Majora's Mask's ROM, and both the first-crossing refusal
+  (`src/common/archive_check.cpp`) and `docs/mm-archive-setup.md` still tell the player to "select Majora's
+  Mask" at a start prompt that no longer exists (removed by #349). PR #945 fixes all three: merge it before
+  tagging, or list #944 as a known issue (the workaround is one launch with `--game mm`).
+- #645: its two open items, O2 (the per-direction crossing-edge expressions, which no merged PR records) and
+  O11 (the strictness presentation, which the Goal row of #760 does not record), and whether to close the
+  epic.
+- #497: build or close. PR #687 delivered its steps 3, 5 and 6 (capability gating, the shared-intent marker
+  and the Combo section) and the `SetMenu`-count invariant; all that remains is ADR 0004 §4's pairing status,
+  entrance links and hot-swap pages, which the ADR still lists as unbuilt.
 - #573: cross-game entrance randomization.
 - #574: networking / multiworld.
 - #460: the rest of netplay increment 1a beyond the hygiene slice (#821).
-- #599: MM's regular-save and owl-save flash indexing.
+- #599: close or keep. MM's regular-save and owl-save flash indexing has no effect in the single executable:
+  MM's flash write ends in a no-op (`z_sram_NES.c` -> `sys_flashrom.c` -> `mm_save_manager_stubs.c`), and MM's
+  saves are committed to the unified `.redsave` instead.
 - Closing the trackers #500 and #492 and the QA pass #310.
 - Playtests #694 (MM's game-over prompt) and #607 (an OoT item's icon in MM's textbox).
 - Replies to the community reports #634, #635 and #636 (fixed by #651, #650 and #648).

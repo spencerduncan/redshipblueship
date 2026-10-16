@@ -13,7 +13,9 @@ Trackers: [#645](https://github.com/spencerduncan/redshipblueship/issues/645) (t
 
 ## 1. Get the build
 
-No release has been cut since `v0.1.1-prealpha` (July), which is far older than this build. Use the CI build from `main`.
+**Take a release when one covers this build.** Each tag on the [releases page](https://github.com/spencerduncan/redshipblueship/releases) carries two assets: `redshipblueship-<tag>-windows.zip` and `redshipblueship-<tag>-linux.AppImage`. A release is the build to test once a tag at or after `851b1ee9` exists. Until then there is none: the only release, `v0.1.1-prealpha` (July), is far older than this build, so use the CI build from `main` below. A CI build is also how to get something merged after the newest tag; such a build is **newer and untested**.
+
+**Newer, untested: the CI build from `main`.**
 
 - **Click path:** open the [latest `main` builds on nightly.link](https://nightly.link/spencerduncan/redshipblueship/workflows/generate-builds/main). Take `rsbs-windows.zip` (an unzipped Windows package inside) or `rsbs-linux.zip` (`rsbs.appimage` and `readme.txt`). nightly.link serves the newest **successful** `generate-builds` run on `main`, so it lags a fresh merge by the ~30 minutes a run takes.
 - **Command line:** find the run, then download one artifact:
@@ -21,10 +23,10 @@ No release has been cut since `v0.1.1-prealpha` (July), which is far older than 
   gh run list -R spencerduncan/redshipblueship --workflow generate-builds.yml --branch main --status success --limit 3
   gh run download <run-id> -R spencerduncan/redshipblueship -n rsbs-windows   # or -n rsbs-linux
   ```
-- **Newest build at the time of writing (2026-10-12):** `generate-builds` run `38261362180` on `main` at `851b1ee9`, still running when this was written; the newest green run then was `38250124816` at `dc141cce` (PR [#939](https://github.com/spencerduncan/redshipblueship/pull/939)). The only change between the two is PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940), which reformats source files and changes no behaviour, so either build plays the same.
+- **Newest build at the time of writing (2026-10-16):** `generate-builds` run `38261362180` on `main` at `851b1ee9`, green (finished 2026-10-12). The merges after it change only documentation, which starts no build. The run before it, `38250124816` at `dc141cce` (PR [#939](https://github.com/spencerduncan/redshipblueship/pull/939)), differs only by PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940), which reformats source files and changes no behaviour, so either build plays the same.
 - **Check that you have the right build.** The window title names the commit, for example `RedShipBlueShip v0.1.1-prealpha+851b1ee (Morpheus Bravo) (OpenGL)` (PR [#900](https://github.com/spencerduncan/redshipblueship/pull/900)); so does the About column of Settings > General (`Commit:`). It must be `dc141cc`, `851b1ee` or a later `main` commit.
 - **Create your file after the last change to file creation or loading lands.** A paired file keeps what the build that created it wrote. If such a change merges after you download, take the new build and create a new file.
-- Artifacts are kept 90 days. You supply both ROMs; the first launch extracts them ([`BUILDING.md`](BUILDING.md), [`mm-archive-setup.md`](mm-archive-setup.md)).
+- **How long a download stays up:** CI artifacts expire 90 days after their run (run `38261362180`'s on 2027-01-10); release assets do not expire. You supply both ROMs; the first launch extracts them ([`BUILDING.md`](BUILDING.md), [`mm-archive-setup.md`](mm-archive-setup.md)).
 
 ## 2. Fresh-file setup
 
