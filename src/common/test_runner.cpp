@@ -507,6 +507,13 @@ extern "C" {
 // same reason as above.
 #include "tests/test_crossing_commit.c"
 
+// A REFUSED CROSSING LEAVES THE GAME RUNNING (#954): the real
+// Combo_CheckEntranceSwitch refuses a door into an unplayable game before it
+// freezes anything and hands back the entrance outside the door, F10 is refused
+// the same way, and GameRunner_ReenterActive is suspend-then-resume. FILE SCOPE
+// (compiled as C++) for entrance.h's C++-linkage ComboEntrance_Init.
+#include "tests/test_crossing_refusal.c"
+
 // The frozen COMBO-LEVEL rule record (ADR 0011 increment 1, #498): the 16-byte
 // carve at 880/884 as .redsave format, the byte-pinned canonical() encoder and
 // its golden-vector fingerprint, the field-level divergence diff behind the
@@ -6323,6 +6330,11 @@ const TestDescriptor gTests[] = {
       "resume: a kill after the crossing reloads it; a latched, slot-less, freeze-less or not-live departure "
       "writes nothing (#837)",
       Test_CrossingCommit },
+    { "crossing-refusal",
+      "A door or F10 into a game this session cannot run is refused before anything is frozen and Link is handed "
+      "back the entrance outside the door; a refusal after the loop returned re-enters the game by suspend then "
+      "resume (#954)",
+      Test_CrossingRefusal },
     { "oot-check-state-load",
       "After a load, OoT's check statuses follow the save half that was loaded: a heart piece the newer .redsave "
       "half holds reads found, a chest that half has closed gives its item again, and a check whose flag both "
@@ -6428,6 +6440,12 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
       "the creation-frozen half (stderr lines, pairing, crossing store, no refusal), and come back restored. "
       "RSBS_PFC_SKIP_CREATION=1 is the red half",
       INT_TEST_GAMEPLAY_ROUNDTRIP, GAME_OOT, GP_VARIANT_PAIRED_FIRST_CROSSING },
+    { "int-crossing-refused",
+      "With MM's game or port archive set aside (CMake/CheckCrossingRefused.cmake): debug save outside the Happy "
+      "Mask Shop, walk into the door, verify the crossing is refused while OoT is still in its frame loop and Link "
+      "plays on outside the door; then a switch request that leaves the loop is refused by main and OoT comes back "
+      "through its suspend/resume contract (#954)",
+      INT_TEST_CROSSING_REFUSED, GAME_OOT },
     { nullptr, nullptr, INT_TEST_NONE, GAME_NONE } // Sentinel
 };
 

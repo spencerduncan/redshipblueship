@@ -538,6 +538,8 @@ const char* ModeName(IntegrationTestMode mode) {
             return "archive-hotswap-cycle";
         case INT_TEST_GAMEPLAY_ROUNDTRIP:
             return "gameplay-roundtrip";
+        case INT_TEST_CROSSING_REFUSED:
+            return "crossing-refused";
     }
     return "unknown";
 }

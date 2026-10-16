@@ -689,9 +689,11 @@ void Play_UpdateTransition(PlayState* this) {
             // Check for cross-game entrance switch (combo launcher support)
             // This catches all entrance transitions regardless of source
             if (this->transitionTrigger != TRANS_TRIGGER_END) {
-                Combo_CheckEntranceSwitch((uint16_t)this->nextEntrance);
+                this->nextEntrance = Combo_CheckEntranceSwitch((uint16_t)this->nextEntrance);
                 // If a cross-game switch was triggered, state has been frozen.
                 // The game loop will detect the switch request and exit cleanly.
+                // A crossing refused for a game this session cannot run hands
+                // back the entrance outside the door (#954).
             }
 
             if (this->transitionTrigger != TRANS_TRIGGER_END) {

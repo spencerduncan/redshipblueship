@@ -223,7 +223,11 @@ bool DepartDoor(void) {
     if (!ResetEntranceTable()) {
         return false;
     }
+    // MM's archives are not staged in a ROM-free run: say MM is playable, or
+    // the door is refused before it freezes anything (#954).
+    Switch_SetTargetStatusForTest(SWITCH_TARGET_PLAYABLE);
     Combo_CheckEntranceSwitch(OOT_ENTR_HAPPY_MASK_SHOP);
+    Switch_SetTargetStatusForTest(-1);
     const bool ok = Combo_IsCrossGameSwitch() && Context_HasFrozenState(GAME_OOT) == 1 && ReadFrozenOoT();
     (void)ResetEntranceTable();
     return ok;

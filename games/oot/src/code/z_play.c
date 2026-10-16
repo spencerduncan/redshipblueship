@@ -1172,8 +1172,10 @@ void OoT_Play_Update(PlayState* play) {
                             play->state.running = false;
 
                             if (gSaveContext.gameMode != GAMEMODE_FILE_SELECT) {
-                                // Check for cross-game entrance switch (combo support)
-                                Combo_CheckEntranceSwitch(play->nextEntranceIndex);
+                                // Check for cross-game entrance switch (combo support). A
+                                // crossing refused for a game this session cannot run hands
+                                // back the entrance outside the door instead (#954).
+                                play->nextEntranceIndex = Combo_CheckEntranceSwitch(play->nextEntranceIndex);
                                 if (Combo_IsCrossGameSwitch()) {
                                     // Cross-game switch triggered - exit game loop
                                     // main.cpp will handle the switch to the other game
@@ -1236,8 +1238,9 @@ void OoT_Play_Update(PlayState* play) {
                     play->envCtx.screenFillColor[3] = (OoT_sTransitionFillTimer / 20.0f) * 255.0f;
 
                     if (OoT_sTransitionFillTimer >= 20) {
-                        // Check for cross-game entrance switch (combo support)
-                        Combo_CheckEntranceSwitch(play->nextEntranceIndex);
+                        // Check for cross-game entrance switch (combo support); a refused
+                        // crossing hands back the entrance outside the door (#954).
+                        play->nextEntranceIndex = Combo_CheckEntranceSwitch(play->nextEntranceIndex);
                         if (Combo_IsCrossGameSwitch()) {
                             // Cross-game switch triggered - exit game loop
                             play->state.running = false;

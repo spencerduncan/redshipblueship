@@ -76,6 +76,18 @@ int GameRunner_StartGame(GameRunner* runner, GameId id, int argc, char** argv);
  */
 int GameRunner_SwitchTo(GameRunner* runner, GameId target, int argc, char** argv);
 
+/**
+ * Bring the active game back after its run() returned for a switch that was
+ * then refused (#954): suspend, then resume, the same contract a return leg
+ * runs, with no crossing commit and no target. A game's run() cannot just be
+ * called again once it has returned for a switch (OoT's re-runs Main() over the
+ * gamestate its graph coroutine still points at); the suspend retires that
+ * gamestate and the resume re-arms the game for a cold start, which a startup
+ * entrance tagged for it steers. Caller is responsible for calling run() after
+ * this returns. Returns 0 on success, -1 with no active game (nothing is called).
+ */
+int GameRunner_ReenterActive(GameRunner* runner);
+
 /** Shutdown all registered games. Calls shutdown on each that isn't already stopped. */
 void GameRunner_ShutdownAll(GameRunner* runner);
 
