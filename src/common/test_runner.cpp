@@ -1665,9 +1665,9 @@ TestResult Test_RandoStaticHintOrder(void) {
     Rando_TestSetStaticHintOrder(orderEnv != nullptr ? atoi(orderEnv) : 0);
     // Every static hint whose option is a plain on/off.
     static const char* const kProfile[] = {
-        "SariaHint",    "MidoHint",  "FrogsHint", "OoTHint",      "BiggoronHint", "BigPoesHint",     "ChickensHint",
-        "MalonHint",    "HBAHint",   "LoachHint", "MaskShopHint", "DampeHint",    "FishingPoleHint", "GregHint",
-        "BossKeyHint",
+        "SariaHint",    "MidoHint",     "FrogsHint",       "OoTHint",  "BiggoronHint",
+        "BigPoesHint",  "ChickensHint", "MalonHint",       "HBAHint",  "LoachHint",
+        "MaskShopHint", "DampeHint",    "FishingPoleHint", "GregHint", "BossKeyHint",
     };
     std::vector<std::string> cvars;
     for (const char* name : kProfile) {
