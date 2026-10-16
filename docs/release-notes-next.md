@@ -1,20 +1,26 @@
-# Release notes draft: the next prerelease
+# Release notes draft: v0.2.0-prealpha ("Trinity Alfa")
 
 **Status:** draft for the operator to edit. Nothing here is released.
+**Version:** `v0.2.0-prealpha`, codename "Trinity Alfa" (`src/common/rsbs_version.h`, PR
+[#946](https://github.com/spencerduncan/redshipblueship/pull/946)). Under [`VERSIONING.md`](VERSIONING.md) that is a
+`y` bump: major features and fixes without a new `oot.otr` (the archive version, `project(Ship VERSION 9.1.1)`, is
+unchanged).
 **Built from:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940))
 plus three code changes merged on 2026-10-16: PR [#945](https://github.com/spencerduncan/redshipblueship/pull/945)
 (the first launch also offers Majora's Mask's ROM extraction), PR
 [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the Happy Mask Shop door opens at night) and PR
 [#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer
 crashes). Everything
-else merged after `851b1ee9` is documentation or agent tooling (PR #947).
+else merged after `851b1ee9` is documentation, agent tooling (PR #947) or the version bump of PR #946.
 **Covers:** everything since `v0.1.1-prealpha` (2026-07-03). That tag's commit, `eab838c1`, is not an
 ancestor of `main`, so "since" is by date: 360 commits on `main` after 2026-07-03. The last 92 of them are
 the pull requests of the 2026-09-30 wave ([#802](https://github.com/spencerduncan/redshipblueship/pull/802) to
 [#940](https://github.com/spencerduncan/redshipblueship/pull/940)).
 
-Before tagging: `src/common/rsbs_version.h` still reads `v0.1.1-prealpha` (its comment says it "must equal the
-git release tag"), and since PR #900 every build's window title reads `v0.1.1-prealpha+<commit>`.
+Before tagging: the tag must be `v0.2.0-prealpha`, the `RSBS_VERSION_STRING` that `src/common/rsbs_version.h` now
+builds (its comment says it "must equal the git release tag"); the `create-release` job refuses any other tag. Since
+PR #900 a build's window title adds its commit: `v0.2.0-prealpha+<commit> (Trinity Alfa)` from the bump on,
+`v0.1.1-prealpha+<commit> (Morpheus Bravo)` before it.
 
 Numbers in parentheses are pull requests. The full list of open problems is
 [`known-issues.md`](known-issues.md); the playtest checklist is [`playtest-2026-09.md`](playtest-2026-09.md).
@@ -180,7 +186,7 @@ Numbers in parentheses are pull requests. The full list of open problems is
 ## For testers
 
 - The window title and `redship --version` name the commit the build was made from, for example
-  `RedShipBlueShip v0.1.1-prealpha+851b1ee (Morpheus Bravo) (OpenGL)`, and each build writes its own log file
+  `RedShipBlueShip v0.2.0-prealpha+<commit> (Trinity Alfa) (OpenGL)`, and each build writes its own log file
   in `logs/` (#900).
 
 ## Known limitations
