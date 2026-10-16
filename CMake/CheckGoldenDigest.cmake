@@ -10,7 +10,7 @@
 #
 # WHAT IT DOES. Run the digest dispatch ONCE and compare its output against a
 # digest text checked into `tests/golden/`. A mismatch fails the row with a
-# FIELD-BY-FIELD diff, because "foreignOoTHash 3F2A1B07 -> 91CC04DE" is not a
+# FIELD-BY-FIELD diff, because "crossingDigest 3F2A1B07 -> 91CC04DE" is not a
 # reviewable failure and "the digests moved" is not a review. Fields are reported
 # as INPUT (the seed and the settings fingerprints — moving one means the PROFILE
 # changed, so the world was asked a different question) or OUTPUT (everything the

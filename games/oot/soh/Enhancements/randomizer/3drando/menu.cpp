@@ -18,6 +18,8 @@
 #include "../SeedContext.h"
 #include "../settings.h"
 #include "../item_location.h"
+#include "../entrance.h"          // #949: the entrance table the content digest folds
+#include "starting_inventory.hpp" // #949: the starting inventory the content digest folds
 #include <cstdio>
 #include <fstream>
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
@@ -1754,6 +1756,134 @@ extern "C" uint32_t Rando_HeadlessPlacementHash(size_t* outPlacedCount) {
     return SohUtils::Hash(blob);
 }
 
+/**
+ * #949: what a player of OoT's world READS and PAYS and STARTS WITH, beside where
+ * its items are: every enabled hint, every priced check, the starting inventory and
+ * the entrance table, each folded in fixed enum order through the project's FNV-1a
+ * so a golden pins it and a self-diff row compares it. Placement hashes cannot see
+ * any of these: a hint drawn in a different order, a price drawn from a different
+ * stream position or a starting item granted on one platform only all leave every
+ * placement where it was.
+ *
+ *   ootHintCount / ootHintDigest   each enabled hint in RandomizerHint order: its key,
+ *                                  type, hinted checks, hinted areas and every message
+ *                                  in English (MF_CLEAN), so a moved area draw, text
+ *                                  draw or foolish area all move the digest;
+ *   ootPriceCount / ootPriceDigest each check whose GetPrice() is non-zero, in
+ *                                  RandomizerCheck order, with its price;
+ *   ootStartingItems               <count>/<digest> of the starting inventory in the
+ *                                  order generation granted it;
+ *   entranceCount / entranceDigest every entrance override the shuffle wrote (count:
+ *                                  the non-empty rows), in table order.
+ *
+ * Call it on a COMPLETE world: a paired generation stops at its general pass, so the
+ * MM writers call it after OoT's remainder (which builds the hints) has run.
+ */
+extern "C" void Rando_HeadlessWriteOoTContentDigest(FILE* out) {
+    auto ctx = Rando::Context::GetInstance();
+    if (out == nullptr || !ctx) {
+        return;
+    }
+    std::string hintBlob;
+    int hintCount = 0;
+    for (int h = RH_NONE + 1; h < RH_MAX; h++) {
+        Rando::Hint* hint = ctx->GetHint(static_cast<RandomizerHint>(h));
+        if (hint == nullptr || !hint->IsEnabled()) {
+            continue;
+        }
+        hintCount++;
+        hintBlob += std::to_string(h) + '|' + std::to_string(static_cast<int>(hint->GetHintType())) + '|';
+        for (const RandomizerCheck rc : hint->GetHintedLocations()) {
+            hintBlob += std::to_string(static_cast<int>(rc)) + ',';
+        }
+        hintBlob += '|';
+        for (const RandomizerArea area : hint->GetHintedAreas()) {
+            hintBlob += std::to_string(static_cast<int>(area)) + ',';
+        }
+        for (size_t m = 0; m < hint->GetNumberOfMessages(); m++) {
+            hintBlob += '|' + hint->GetHintMessage(MF_CLEAN, m).GetEnglish(MF_CLEAN);
+        }
+        hintBlob += '\n';
+    }
+    std::string priceBlob;
+    int priceCount = 0;
+    for (int i = 0; i < RC_MAX; i++) {
+        const uint16_t price = ctx->GetItemLocation(static_cast<RandomizerCheck>(i))->GetPrice();
+        if (price != 0) {
+            priceCount++;
+            priceBlob += std::to_string(i) + ':' + std::to_string(price) + ';';
+        }
+    }
+    std::string startBlob;
+    for (const RandomizerGet item : StartingInventory) {
+        startBlob += std::to_string(static_cast<int>(item)) + ';';
+    }
+    std::string entranceBlob;
+    int entranceCount = 0;
+    for (const EntranceOverride& e : ctx->GetEntranceShuffler()->entranceOverrides) {
+        if (e.type == 0 && e.index == 0 && e.override == 0) {
+            continue;
+        }
+        entranceCount++;
+        entranceBlob += std::to_string(e.type) + ':' + std::to_string(e.index) + ':' + std::to_string(e.destination) +
+                        ':' + std::to_string(e.override) + ':' + std::to_string(e.overrideDestination) + ';';
+    }
+    fprintf(out,
+            "ootHintCount=%d\n"
+            "ootHintDigest=%08X\n"
+            "ootPriceCount=%d\n"
+            "ootPriceDigest=%08X\n"
+            "ootStartingItems=%zu/%08X\n"
+            "entranceCount=%d\n"
+            "entranceDigest=%08X\n",
+            hintCount, SohUtils::Hash(hintBlob), priceCount, SohUtils::Hash(priceBlob), StartingInventory.size(),
+            SohUtils::Hash(startBlob), entranceCount, SohUtils::Hash(entranceBlob));
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * TEST BRIDGE (#951, the StaticHintOrder row): every ENABLED static hint of the live
+ * world (staticHintInfoMap's keys, in RandomizerHint order), printed one per line
+ * with its English text, and folded "<key>=<message>|<message>" through SohUtils::Hash.
+ * Returns the digest; `*outCount` is the number of enabled static hints.
+ */
+extern "C" uint32_t Rando_TestStaticHintTexts(int* outCount) {
+    auto ctx = Rando::Context::GetInstance();
+    std::vector<RandomizerHint> keys;
+    for (const auto& entry : Rando::StaticData::staticHintInfoMap) {
+        keys.push_back(entry.first);
+    }
+    std::sort(keys.begin(), keys.end());
+    std::string blob;
+    int count = 0;
+    for (const RandomizerHint key : keys) {
+        Rando::Hint* hint = ctx ? ctx->GetHint(key) : nullptr;
+        if (hint == nullptr || !hint->IsEnabled()) {
+            continue;
+        }
+        count++;
+        std::string line = std::to_string(static_cast<int>(key)) + '=';
+        for (size_t m = 0; m < hint->GetNumberOfMessages(); m++) {
+            line += (m == 0 ? "" : "|") + hint->GetHintMessage(MF_CLEAN, m).GetEnglish(MF_CLEAN);
+        }
+        printf("[static-hints] %s\n", line.c_str());
+        blob += line + '\n';
+    }
+    if (outCount != nullptr) {
+        *outCount = count;
+    }
+    // A static hint draws for an area only when its location spans more than one.
+    int multiArea = 0;
+    for (int i = 0; ctx && i < RC_MAX; i++) {
+        if (ctx->GetItemLocation(static_cast<RandomizerCheck>(i))->GetAreas().size() > 1) {
+            multiArea++;
+        }
+    }
+    printf("[static-hints] %d location(s) span more than one area\n", multiArea);
+    return SohUtils::Hash(blob);
+}
+#endif
+
 // Determinism harness bridge (Lane B, Phase 3.0): run ONE seed generation and
 // emit a canonical, side-effect-free digest of (a) the unified-seed producer's
 // output in gComboCtx and (b) the full item placement, so an external wrapper
@@ -1848,6 +1978,12 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
             (unsigned)gComboCtx.comboSettings.poolSizeOoT, (unsigned)gComboCtx.comboSettings.poolSizeMM,
             (unsigned)gComboCtx.comboSettings.itemClassOoT, (unsigned)gComboCtx.comboSettings.itemClassMM,
             (unsigned)gComboCtx.comboSettings.goal, (unsigned)gComboCtx.comboSettings.logicRung);
+    // #949: a world that did NOT stop at its general pass is complete here, so its
+    // hints, prices, starting items and entrances are folded here; a paired world's
+    // are folded by the MM half's writer once OoT's remainder has run.
+    if (!generalPassDeferred) {
+        Rando_HeadlessWriteOoTContentDigest(out);
+    }
     if (closeOut) {
         fclose(out);
     }

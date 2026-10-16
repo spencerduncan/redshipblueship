@@ -1630,6 +1630,103 @@ TestResult Test_RandoShopCrossingsMM(void) {
     return TEST_PASS;
 }
 
+// #951: THE STATIC HINTS' TEXT IS A FUNCTION OF THE SEED, NOT OF THE STL. A real paired
+// creation with every on/off static hint on, then every static hint's English text
+// against a pinned digest. CreateStaticHints used to walk staticHintInfoMap, an
+// unordered_map whose order differs between MSVC's STL and libstdc++, and a static
+// hint that names a location spanning several areas draws one of them from the fill's
+// stream, so the same seed could read different text on Windows and Linux; it now
+// builds them in RandomizerHint order, and both CI legs check this one pin. It means
+// something only while at least two static hints draw, so that is asserted first.
+// RSBS_STATIC_HINT_ORDER=1 (reverse) or 2 (the map's own order) drives the test seam
+// and RSBS_STATIC_HINT_NO_FIXTURE skips the fixture below, for RED evidence; no CTest
+// row sets either.
+extern "C" void Rando_TestSetStaticHintOrder(int mode);
+extern "C" int Rando_TestStaticHintsThatDrew(void);
+extern "C" uint32_t Rando_TestStaticHintTexts(int* outCount);
+extern "C" void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast);
+extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
+static const uint32_t kStaticHintTextDigest = 0x321F2D27u;
+static const int kStaticHintCount = 18;
+static const char* const kStaticHintSeed = "RSBSUNIFIED1";
+
+TestResult Test_RandoStaticHintOrder(void) {
+    printf("[TEST] rando-static-hint-order: static hints read the same text for the same seed on every STL (#951)\n");
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    const char* orderEnv = std::getenv("RSBS_STATIC_HINT_ORDER");
+    Rando_TestSetStaticHintOrder(orderEnv != nullptr ? atoi(orderEnv) : 0);
+    // Every static hint whose option is a plain on/off.
+    static const char* const kProfile[] = {
+        "SariaHint",    "MidoHint",  "FrogsHint", "OoTHint",      "BiggoronHint", "BigPoesHint",     "ChickensHint",
+        "MalonHint",    "HBAHint",   "LoachHint", "MaskShopHint", "DampeHint",    "FishingPoleHint", "GregHint",
+        "BossKeyHint",
+    };
+    std::vector<std::string> cvars;
+    for (const char* name : kProfile) {
+        cvars.push_back(std::string("gRandoSettings.") + name);
+        CVarSetInteger(cvars.back().c_str(), 1);
+    }
+    const char* digestPath = "rsbs_static_hint_order_digest.txt";
+    std::remove(digestPath);
+    // RSBS_STATIC_HINT_SEED overrides the pinned seed, for re-pinning by scan.
+    const char* seedEnv = std::getenv("RSBS_STATIC_HINT_SEED");
+    const char* seed = (seedEnv != nullptr && seedEnv[0] != '\0') ? seedEnv : kStaticHintSeed;
+    const int ootRc = Rando_HeadlessSeedDeterminismDigest(seed, digestPath);
+    // THE FIXTURE. A static hint draws only when the location it names spans more
+    // than one area, and in a generated world almost none do (4 of OoT's locations
+    // under the shipped profile, 14 with interior and overworld entrances shuffled;
+    // no static hint drew on any of 18 seeds scanned). So between OoT's general pass
+    // and the creation tail that builds the hints, every location is given two more
+    // areas, as a placement on a multi-area location would: every static hint that
+    // names a location then draws, and the order they are built in shows in the text.
+    int widened = 0;
+    if (ootRc == 0 && std::getenv("RSBS_STATIC_HINT_NO_FIXTURE") == nullptr) {
+        int firstArea = 0;
+        int lastArea = 0;
+        OoT_HintArea_TestAreaRange(&firstArea, &lastArea);
+        for (uint16_t rc = 1; OoT_HintArea_TestSetArea(rc, firstArea) == 0; rc++) {
+            OoT_HintArea_TestSetArea(rc, firstArea + 1);
+            widened++;
+        }
+    }
+    const int mmRc = ootRc == 0 ? MM_Rando_HeadlessForeignDigest(digestPath) : -1;
+    for (const std::string& cvar : cvars) {
+        CVarClear(cvar.c_str());
+    }
+    Rando_TestSetStaticHintOrder(0);
+    if (ootRc != 0 || mmRc != 0) {
+        printf("[TEST] FAIL: the paired creation failed (OoT rc=%d, MM rc=%d)\n", ootRc, mmRc);
+        return TEST_FAIL;
+    }
+    const int drew = Rando_TestStaticHintsThatDrew();
+    int count = 0;
+    const uint32_t digest = Rando_TestStaticHintTexts(&count);
+    printf("[TEST] rando-static-hint-order: seed %s: %d locations widened, %d static hints enabled, %d drew from the "
+           "fill's stream, text %08X (pinned %d / %08X)\n",
+           seed, widened, count, drew, (unsigned)digest, kStaticHintCount, (unsigned)kStaticHintTextDigest);
+    if (drew < 2) {
+        printf("[TEST] FAIL: only %d static hint(s) drew from the fill's stream, so the order they are built in "
+               "cannot show and this lock is vacuous\n",
+               drew);
+        return TEST_FAIL;
+    }
+    if (count != kStaticHintCount || digest != kStaticHintTextDigest) {
+        printf("[TEST] FAIL: the static hints' text moved: %d hints / %08X, pinned %d / %08X\n", count,
+               (unsigned)digest, kStaticHintCount, (unsigned)kStaticHintTextDigest);
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: the static hints read the pinned text\n");
+    return TEST_PASS;
+}
+
 // #710: WHERE A DIGEST DISPATCH WRITES, AND SAYING SO WHEN IT WRITES NOWHERE.
 //
 // The digest dispatches below read their output path from the environment and
@@ -6039,6 +6136,8 @@ const TestDescriptor gTests[] = {
     { "rando-shop-crossings-mm",
       "A paired creation with both shop shuffles on crosses an OoT item into an MM shop slot (#800)",
       Test_RandoShopCrossingsMM },
+    { "rando-static-hint-order", "Static hints read the pinned text for the pinned seed on every STL (#951)",
+      Test_RandoStaticHintOrder },
     // #578 part 2: the trick BINDINGS. Appended at the end of the block rather
     // than next to its part-1 siblings above, because those sit before
     // archive-hotswap-logic's "keep LAST" row and this one runs a real generation
@@ -6501,6 +6600,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-give-probe") == 0 ||
                 strcmp(gTests[i].name, "rando-entrance-pin") == 0 ||
                 strcmp(gTests[i].name, "rando-shop-crossings-mm") == 0 ||
+                strcmp(gTests[i].name, "rando-static-hint-order") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-export") == 0 ||
                 strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.

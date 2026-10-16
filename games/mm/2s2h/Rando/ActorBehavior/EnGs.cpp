@@ -239,6 +239,24 @@ extern "C" int MM_Rando_Hints_TestFreeStoneKeepsStream(uint16_t randoCheckId, ui
     const s32 afterText = Ship_Random(0, 0x40000000);
     return untouched == afterText ? 1 : 0;
 }
+
+/** TEST BRIDGE (#949, the golden digests): every check a gossip stone may hint, in
+ *  GossipHintCandidates' order, with the free stone's item text for it, folded
+ *  through Ship_Hash into `*outDigest`. A stone picks its check when it is read, so
+ *  the candidate list and each candidate's text are what the frozen world decides
+ *  about MM's hints. Returns the candidate count. */
+extern "C" int MM_Rando_Hints_DigestCandidates(uint32_t* outDigest) {
+    std::string blob;
+    const std::vector<GossipHintTarget> candidates = GossipHintCandidates(false);
+    for (const GossipHintTarget& target : candidates) {
+        blob += std::to_string(target.hostGame) + ':' + std::to_string(target.check) + '|' +
+                GossipHintText(target, false) + '\n';
+    }
+    if (outDigest != nullptr) {
+        *outDigest = Ship_Hash(blob);
+    }
+    return (int)candidates.size();
+}
 #else
 static std::string FreeStoneHintText(GossipHintTarget randoCheckId) {
     return GossipHintText(randoCheckId, false);
