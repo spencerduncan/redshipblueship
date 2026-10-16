@@ -272,9 +272,6 @@ static void ReapplyModArchives(Ship::ArchiveManager& archiveManager, GameId targ
 extern "C" {
 GameOps* OoT_GetGameOps(void);
 GameOps* MM_GetGameOps(void);
-// Whether the shared bring-up found an OoT game archive and ran OoT's
-// asset-dependent init (games/oot/soh/OTRGlobals.cpp, #330).
-int OoT_GameAssetsInitialized(void);
 // Freezes the departing game's SaveContext for an F10 hot swap and records
 // a return entrance for it (#364). Defined in
 // games/oot/soh/GameExports_SingleExe.cpp because only a game TU can
@@ -300,6 +297,44 @@ void MM_SlotMeta_Register(void);
 // (games/*/src/boot/build.c); declarations match each game's own header.
 extern const char OoT_gBuildVersion[];
 extern char MM_gBuildVersion[];
+}
+
+// ============================================================================
+// A switch refused after the active game left its frame loop (#954)
+// ============================================================================
+
+/**
+ * Bring the active game back after its run function returned for a switch
+ * that main then refused. Its loop cannot simply be entered again: on the
+ * entrance path OoT has already ended its Play gamestate, and OoT's run re-runs
+ * Main(), which re-initializes the system arena under the gamestate its graph
+ * coroutine still points at, so the first frame faulted on freed memory in
+ * OoT_GameState_SetFrameBuffer. Instead the game takes the same road as a
+ * return leg from the other game: its departure freeze (taken here when the
+ * departure did not take one, as F10's does only after the checks), a startup
+ * entrance tagged for it at that freeze's return entrance, then its own
+ * suspend and resume (GameRunner_ReenterActive). The next run cold-starts and
+ * Play_Init restores the frozen save there: outside the door for a refused
+ * crossing, at the hot-swap return spawn for anything else. A game with no
+ * freeze to restore (one that could not be taken) cold-starts at its title.
+ */
+static void ReenterAfterRefusedSwitch(GameRunner* runner) {
+    const GameId active = GameRunner_GetActive(runner);
+    Combo_ClearGameSwitchRequest();
+    Entrance_ClearPendingSwitch();
+    if (!Context_HasFrozenState(active)) {
+        (void)Combo_FreezeActiveGameForHotSwap(active);
+    }
+    if (Context_HasFrozenState(active)) {
+        Entrance_SetStartupEntrance(Context_GetFrozenReturnEntrance(active), active);
+    }
+    // No frame runs from here until the re-entered game's first one: name the
+    // stage for the integration rows' wall-clock watchdog (#793).
+    if (TestRunner_IsIntegrationTestMode()) {
+        IntegrationTest_StageProgress(active == GAME_MM ? "re-entry of MM after a refused switch (suspend, resume)"
+                                                        : "re-entry of OoT after a refused switch (suspend, resume)");
+    }
+    GameRunner_ReenterActive(runner);
 }
 
 // ============================================================================
@@ -886,45 +921,26 @@ int main(int argc, char** argv) {
 
         // Handle the switch
         if (nextGame != GAME_NONE) {
-            // Refuse the switch up front if the target game's ROM archives are
-            // missing (#317). GameRunner_SwitchTo suspends the current game
-            // before initializing the target, so a late init failure would
-            // take down the whole app. Checking here keeps the current game
-            // running: clear the pending switch, tell the user what's missing,
-            // and loop back into the active game's run loop.
-            if (!ArchiveCheck_GameAvailable(nextGame)) {
-                ArchiveCheck_ReportMissing(nextGame, /*showDialog=*/!TestRunner_IsIntegrationTestMode());
-                Combo_ClearGameSwitchRequest();
-                Entrance_ClearPendingSwitch();
-                printf("Switch to %s refused (missing game archive) — continuing %s.\n", Game_ToString(nextGame),
+            // Refuse a switch into a game this session cannot run: its ROM
+            // archive (#317) or port-asset archive is missing, or it is OoT and
+            // oot.o2r appeared only after startup (#330). GameRunner_SwitchTo
+            // suspends the current game before initializing the target, so a
+            // late init failure would take down the whole app.
+            //
+            // The door and F10 are refused in-game, while the running game is
+            // still in its loop (Combo_CheckEntranceSwitch,
+            // Switch_RequestHotSwap; #954), so this refusal only sees what left
+            // the loop past them: a raw switch request (MM's owl-save and
+            // game-over exits), or an archive that vanished in between. The
+            // active game's run function has RETURNED, and calling it again
+            // bare is not a resume: OoT's re-runs Main() over the gamestate its
+            // graph coroutine still points at, and the first frame faults on
+            // freed memory (#954). ReenterAfterRefusedSwitch brings it back
+            // through its suspend/resume contract instead.
+            if (Switch_RefuseUnplayableTarget(nextGame)) {
+                printf("Switch to %s refused — re-entering %s.\n", Game_ToString(nextGame),
                        Game_ToString(GameRunner_GetActive(&runner)));
-                continue;
-            }
-
-            // Same up-front refusal for the target game's port-asset archive
-            // (2ship.o2r for MM): a switch into MM without it would fail in
-            // MM_Game_Init and take down the whole app, or worse, boot into
-            // null-resource crashes. Keep the current game running instead.
-            if (!ArchiveCheck_PortArchiveAvailable(nextGame)) {
-                ArchiveCheck_ReportMissingPortArchive(nextGame,
-                                                      /*showDialog=*/!TestRunner_IsIntegrationTestMode());
-                Combo_ClearGameSwitchRequest();
-                Entrance_ClearPendingSwitch();
-                printf("Switch to %s refused (missing port-asset archive) — continuing %s.\n", Game_ToString(nextGame),
-                       Game_ToString(GameRunner_GetActive(&runner)));
-                continue;
-            }
-
-            // The shared bring-up skips OoT's asset-dependent init (GUI, message
-            // tables, item icons) when no OoT game archive was loaded at boot
-            // (#330). If oot.o2r appeared on disk afterwards, the archive check
-            // above passes but OoT would enter half-initialized — refuse and
-            // ask for a restart instead.
-            if (nextGame == GAME_OOT && !OoT_GameAssetsInitialized()) {
-                Combo_ClearGameSwitchRequest();
-                Entrance_ClearPendingSwitch();
-                printf("Switch to OoT refused: oot.o2r was not present at startup — "
-                       "restart RedShipBlueShip to play Ocarina of Time.\n");
+                ReenterAfterRefusedSwitch(&runner);
                 continue;
             }
 
@@ -941,17 +957,16 @@ int main(int argc, char** argv) {
             // the blob the launcher restores actually belong to this trip.
             //
             // If the freeze cannot be performed we refuse the switch outright
-            // and keep the current game running, exactly like the archive checks
-            // above. Switching anyway would hand the player a silent rollback,
-            // which is strictly worse than a hotkey that appears not to work.
+            // and keep the current game, exactly like the refusal above.
+            // Switching anyway would hand the player a silent rollback, which
+            // is strictly worse than a hotkey that appears not to work.
             if (!isEntranceSwitch) {
                 GameId departingGame = GameRunner_GetActive(&runner);
                 if (!Combo_FreezeActiveGameForHotSwap(departingGame)) {
-                    Combo_ClearGameSwitchRequest();
-                    Entrance_ClearPendingSwitch();
-                    printf("Hot swap to %s refused: could not freeze %s state — continuing %s.\n",
+                    printf("Hot swap to %s refused: could not freeze %s state — re-entering %s.\n",
                            Game_ToString(nextGame), Game_ToString(departingGame),
                            Game_ToString(GameRunner_GetActive(&runner)));
+                    ReenterAfterRefusedSwitch(&runner);
                     continue;
                 }
             }

@@ -434,6 +434,268 @@ static void T1TriggerHmsAndAssertRouting(void) {
 }
 
 // ============================================================================
+// int-crossing-refused (#954): a refused crossing leaves OoT running
+// ============================================================================
+//
+// The row's script (CMake/CheckCrossingRefused.cmake) sets mm.o2r or 2ship.o2r
+// aside, so no switch into Majora's Mask can go ahead. Both legs start from
+// live gameplay outside the Happy Mask Shop on the debug save:
+//
+//   1. THE DOOR. The production door transition into 0x0530: z_play.c runs
+//      Combo_CheckEntranceSwitch, which must refuse the crossing while OoT is
+//      still in its frame loop. The scene then reloads at 0x01D1, outside the
+//      door, with no switch pending, no departure freeze and OoT_Game_Run
+//      entered once, and OoT plays on. Before #954 the loop exited with the
+//      switch pending, main refused it after the fact and ran OoT_Game_Run
+//      again: Main() re-initialized the system arena under the gamestate the
+//      graph coroutine still pointed at, and the first frame read the
+//      GraphicsContext out of freed memory (OoT_GameState_SetFrameBuffer).
+//   2. A LATE REFUSAL. A raw switch request (Combo_RequestGameSwitch, which
+//      MM's owl-save and game-over exits and these hooks call) leaves the loop
+//      past the in-game gates. main must refuse it and bring OoT back through
+//      its suspend/resume contract (GameRunner_ReenterActive), never a bare
+//      second Main(): OoT comes back at 0x01D1 and plays on.
+//
+// "Plays on" is kCrLiveFrames live gameplay frames AND kCrLiveSecs of wall
+// clock. A stage that stalls while OoT keeps ticking frames fails on
+// kCrStageBudgetSecs; a dead or wedged process is the wall-clock watchdog
+// thread's and the script's to report.
+typedef enum {
+    CR_STAGE_BOOT,          // waiting for the title screen to inject the debug save
+    CR_STAGE_ENTERING_PLAY, // debug save injected; waiting for the scene init at kCrOutsideDoor
+    CR_STAGE_BEFORE_DOOR,   // live frames outside the door
+    CR_STAGE_DOOR,          // walked into the door; waiting for the scene init it leads to
+    CR_STAGE_AFTER_DOOR,    // playing on after the refused door
+    CR_STAGE_LATE,          // raw switch request made; waiting for OoT to come back
+    CR_STAGE_AFTER_LATE,    // playing on after the late refusal
+    CR_STAGE_DONE,
+    CR_STAGE_FAILED,
+} CrStage;
+
+// How many times OoT_Game_Run has been entered in this process: once at boot,
+// and once more for each time OoT's frame loop was left and re-entered.
+static int sOoTRunEntries = 0;
+
+static CrStage sCrStage = CR_STAGE_BOOT;
+static int sCrLiveFrames = 0;
+static std::chrono::steady_clock::time_point sCrStageStart{};
+static const uint16_t kCrOutsideDoor = OOT_ENTR_MARKET_FROM_MASK_SHOP;
+static const int kCrFramesBeforeDoor = 20;
+static const int kCrLiveFrames = 60;
+static const double kCrLiveSecs = 3.0;
+static const int kCrStageBudgetSecs = 30;
+
+static const char* CrStageName(CrStage stage) {
+    switch (stage) {
+        case CR_STAGE_BOOT:
+            return "boot";
+        case CR_STAGE_ENTERING_PLAY:
+            return "entering-play";
+        case CR_STAGE_BEFORE_DOOR:
+            return "before-door";
+        case CR_STAGE_DOOR:
+            return "door";
+        case CR_STAGE_AFTER_DOOR:
+            return "after-door";
+        case CR_STAGE_LATE:
+            return "late";
+        case CR_STAGE_AFTER_LATE:
+            return "after-late";
+        case CR_STAGE_DONE:
+            return "done";
+        case CR_STAGE_FAILED:
+            return "failed";
+    }
+    return "unknown";
+}
+
+static double CrSecondsInStage(void) {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - sCrStageStart).count();
+}
+
+static void CrSetStage(CrStage stage) {
+    fprintf(stderr, "[OoT-INT-TEST] crossing-refused: stage %s -> %s (%.1f s, %d live frames in %s)\n",
+            CrStageName(sCrStage), CrStageName(stage), CrSecondsInStage(), sCrLiveFrames, CrStageName(sCrStage));
+    fflush(stderr);
+    sCrStage = stage;
+    sCrLiveFrames = 0;
+    sCrStageStart = std::chrono::steady_clock::now();
+}
+
+// Same exit as T1Fail: RequestExit leaves the pass flag unset, and the switch
+// request is what hands control back to main, which sees the exit first.
+static void CrFail(const char* why) {
+    PlayState* play = OoT_gPlayState;
+    fprintf(stderr,
+            "[OoT-INT-TEST] FAIL (int-crossing-refused): %s [stage=%s after %.1f s; OoT_Game_Run entries=%d "
+            "gameMode=%d entranceIndex=0x%04X gPlayState=%p sceneNum=%d]\n",
+            why, CrStageName(sCrStage), CrSecondsInStage(), sOoTRunEntries, (int)gSaveContext.gameMode,
+            (uint16_t)gSaveContext.entranceIndex, (void*)play, play != NULL ? (int)play->sceneNum : -1);
+    fflush(stderr);
+    sCrStage = CR_STAGE_FAILED;
+    IntegrationTest_RequestExit();
+    Combo_RequestGameSwitch();
+}
+
+static void CrInjectFrom(GameState* gameState, const char* from) {
+    if (sCrStage != CR_STAGE_BOOT) {
+        return;
+    }
+    if (!IntInjectDebugSaveAndEnterPlay(gameState, kCrOutsideDoor, false, "OoT-INT-TEST", from)) {
+        CrFail("no GameState available for debug-save injection");
+        return;
+    }
+    CrSetStage(CR_STAGE_ENTERING_PLAY);
+}
+
+// The production "walk into the door" trio (GpFireOoTDoor): the play update
+// loop runs the real transition, and z_play.c calls Combo_CheckEntranceSwitch.
+static void CrWalkIntoDoor(void) {
+    PlayState* play = OoT_gPlayState;
+    fprintf(stderr,
+            "[OoT-INT-TEST] crossing-refused: %d live frames outside the Happy Mask Shop; walking into its door "
+            "(entrance 0x%04X)\n",
+            sCrLiveFrames, OOT_ENTR_HAPPY_MASK_SHOP);
+    fflush(stderr);
+    CrSetStage(CR_STAGE_DOOR);
+    play->nextEntranceIndex = OOT_ENTR_HAPPY_MASK_SHOP;
+    play->transitionTrigger = TRANS_TRIGGER_START;
+    play->transitionType = TRANS_TYPE_FADE_BLACK;
+    gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+}
+
+static void CrRequestLateSwitch(void) {
+    fprintf(stderr,
+            "[OoT-INT-TEST] crossing-refused: leg 1 PASS (the door was refused in OoT's loop; %d live frames, %.1f s "
+            "outside it); leg 2: a raw switch request leaves the loop past the in-game gates\n",
+            sCrLiveFrames, CrSecondsInStage());
+    fflush(stderr);
+    CrSetStage(CR_STAGE_LATE);
+    Combo_RequestGameSwitch();
+}
+
+// Gameplay (re)built: where the refused door, or the re-entry after the late
+// refusal, put Link. Fires after the startup-entrance consumption, so
+// entranceIndex is final here.
+static void CrSceneInit(int16_t sceneNum) {
+    if (Context_GetCurrentGame() != GAME_OOT) {
+        return; // shared hook storage guard (#344)
+    }
+    const uint16_t entrance = (uint16_t)gSaveContext.entranceIndex;
+    char msg[192];
+    switch (sCrStage) {
+        case CR_STAGE_ENTERING_PLAY:
+            if (entrance != kCrOutsideDoor) {
+                snprintf(msg, sizeof(msg), "gameplay arrived at entrance 0x%04X, expected 0x%04X", entrance,
+                         kCrOutsideDoor);
+                CrFail(msg);
+                return;
+            }
+            CrSetStage(CR_STAGE_BEFORE_DOOR);
+            return;
+        case CR_STAGE_DOOR:
+        case CR_STAGE_LATE: {
+            const bool door = sCrStage == CR_STAGE_DOOR;
+            fprintf(stderr,
+                    "[OoT-INT-TEST] crossing-refused: scene init after the %s: scene %d, entrance 0x%04X, "
+                    "OoT_Game_Run entries %d\n",
+                    door ? "door" : "late refusal", sceneNum, entrance, sOoTRunEntries);
+            fflush(stderr);
+            if (entrance != kCrOutsideDoor) {
+                snprintf(msg, sizeof(msg),
+                         "after the %s, entrance 0x%04X loaded; a refused crossing must leave Link outside the "
+                         "door (0x%04X)",
+                         door ? "refused door" : "late refusal", entrance, kCrOutsideDoor);
+                CrFail(msg);
+                return;
+            }
+            if (Combo_IsCrossGameSwitch() || Combo_IsGameSwitchRequested()) {
+                CrFail("a switch is still pending after the refusal");
+                return;
+            }
+            if (door && Context_HasFrozenState(GAME_OOT)) {
+                CrFail("the refused door froze OoT's half: the refusal must come before the departure freeze");
+                return;
+            }
+            const int expectedEntries = door ? 1 : 2;
+            if (sOoTRunEntries != expectedEntries) {
+                snprintf(msg, sizeof(msg),
+                         door ? "OoT_Game_Run was entered %d times: OoT left its frame loop for the refused door "
+                                "instead of being refused while it ran"
+                              : "OoT_Game_Run was entered %d times, expected 2 (boot, then the re-entry after the "
+                                "late refusal)",
+                         sOoTRunEntries);
+                CrFail(msg);
+                return;
+            }
+            CrSetStage(door ? CR_STAGE_AFTER_DOOR : CR_STAGE_AFTER_LATE);
+            return;
+        }
+        default:
+            return;
+    }
+}
+
+static void CrFrame(void) {
+    if (Context_GetCurrentGame() != GAME_OOT) {
+        return; // (#344) MM frames share this hook storage
+    }
+    if (sCrStage == CR_STAGE_DONE || sCrStage == CR_STAGE_FAILED) {
+        return;
+    }
+    if (CrSecondsInStage() >= kCrStageBudgetSecs) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "stage %s made no progress for %d s", CrStageName(sCrStage), kCrStageBudgetSecs);
+        CrFail(msg);
+        return;
+    }
+    if (sCrStage != CR_STAGE_BEFORE_DOOR && sCrStage != CR_STAGE_AFTER_DOOR && sCrStage != CR_STAGE_AFTER_LATE) {
+        return;
+    }
+    PlayState* play = OoT_gPlayState;
+    if (play == NULL || OoT_gGameState != &play->state || gSaveContext.gameMode != GAMEMODE_NORMAL ||
+        GET_PLAYER(play) == NULL) {
+        return;
+    }
+    sCrLiveFrames++;
+    if (sCrStage == CR_STAGE_BEFORE_DOOR) {
+        if (sCrLiveFrames >= kCrFramesBeforeDoor) {
+            CrWalkIntoDoor();
+        }
+        return;
+    }
+    if (sCrLiveFrames < kCrLiveFrames || CrSecondsInStage() < kCrLiveSecs) {
+        return;
+    }
+    if (sCrStage == CR_STAGE_AFTER_DOOR) {
+        CrRequestLateSwitch();
+        return;
+    }
+    fprintf(stderr,
+            "[OoT-INT-TEST] int-crossing-refused: PASS (the door was refused while OoT ran, the late refusal "
+            "re-entered OoT through suspend/resume, and OoT played on after both: %d live frames, %.1f s)\n",
+            sCrLiveFrames, CrSecondsInStage());
+    fflush(stderr);
+    CrSetStage(CR_STAGE_DONE);
+    IntegrationTest_SignalBootComplete(GAME_OOT, "crossing refused; OoT played on");
+}
+
+static void CrRegisterHooks(void) {
+    fprintf(stderr, "[OoT] Registering integration test hooks for the refused crossing (#954)\n");
+    fflush(stderr);
+    sCrStage = CR_STAGE_BOOT;
+    sCrLiveFrames = 0;
+    sCrStageStart = std::chrono::steady_clock::now();
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnZTitleUpdate>(
+        [](void* gameState) { CrInjectFrom((GameState*)gameState, "title screen"); });
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPresentFileSelect>(
+        []() { CrInjectFrom(OoT_gGameState, "file select"); });
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSceneInit>(
+        [](int16_t sceneNum) { CrSceneInit(sceneNum); });
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() { CrFrame(); });
+}
+
+// ============================================================================
 // int-paired-first-crossing (the gameplay round trip's paired variant)
 // ============================================================================
 
@@ -1617,6 +1879,8 @@ static void OoT_RegisterIntegrationTestHooks(void) {
 
         fprintf(stderr, "[OoT] HMS->MM switch hooks registered\n");
         fflush(stderr);
+    } else if (mode == INT_TEST_CROSSING_REFUSED) {
+        CrRegisterHooks();
     } else if (mode == INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT) {
         // T2 (#261) leg 2: OoT has been booted via the cross-game switch from
         // MM's SCT-south trigger. Reaching this hook means MM's freeze + main
@@ -2177,6 +2441,7 @@ int OoT_Game_Init(int argc, char** argv) {
 }
 
 void OoT_Game_Run(void) {
+    sOoTRunEntries++;
     fprintf(stderr, "[OoT] Game_Run called, entering Main()\n");
     fflush(stderr);
     // Run the main game loop
@@ -3658,8 +3923,10 @@ extern "C" bool Combo_CheckHotSwap(void) {
     int32_t scancode = window->GetLastScancode();
     bool f10Pressed = (scancode == Ship::LUS_KB_F10);
 
+    // Refused here, while the running game is still in its loop, when the
+    // other game cannot run (#954): see Switch_RefuseUnplayableTarget.
     if (f10Pressed && !sLastF10State) {
-        Combo_RequestGameSwitch();
+        Switch_RequestHotSwap();
     }
     sLastF10State = f10Pressed;
 
@@ -3677,6 +3944,16 @@ extern "C" bool Combo_CheckHotSwap(void) {
  *
  * Called from OoT's z_play.c / randomizer_entrance.c and from MM's
  * z_play.c / z_player.c.
+ *
+ * Returns the entrance the caller loads: `entranceIndex` itself, unless it is
+ * a crossing into a game this session cannot run (#954). That crossing is
+ * refused HERE, before anything is frozen and while the running game is still
+ * in its frame loop, and the return is the running game's entrance just
+ * outside the door (the link's return entrance: 0x01D1 outside the Happy Mask
+ * Shop, 0xD800 outside the Clock Tower), so the transition already under way
+ * puts Link back there. Refusing later was the bug: OoT's loop exited with the
+ * switch pending, the launcher refused it and ran OoT's Main() again over the
+ * retired gamestate, and the first frame read freed memory.
  */
 extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
     // Capture the pending state up front. If a cross-game switch is already
@@ -3697,6 +3974,17 @@ extern "C" uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex) {
     uint16_t result = Combo_CheckCrossGameEntrance(gameId, entranceIndex);
 
     if (Combo_IsCrossGameSwitch() && !wasAlreadyPending) {
+        const GameId target = Entrance_GetSwitchTargetGame();
+        if (Switch_RefuseUnplayableTarget(target)) {
+            const uint16_t outside = Combo_GetSwitchReturnEntrance();
+            Combo_ClearPendingSwitch();
+            fprintf(stderr,
+                    "[COMBO] Crossing (%s) to %s refused at entrance 0x%04X: %s keeps running, Link goes back "
+                    "outside the door (entrance 0x%04X)\n",
+                    gameId, Game_ToString(target), entranceIndex, gameId, outside);
+            return outside;
+        }
+
         fprintf(stderr, "[COMBO] Cross-game switch (%s)! entrance=0x%04X\n", gameId, entranceIndex);
 
         // Publish the unified slot while OoT still knows it. This is the last

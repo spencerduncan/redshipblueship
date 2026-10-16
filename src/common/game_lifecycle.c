@@ -104,6 +104,23 @@ int GameRunner_SwitchTo(GameRunner* runner, GameId target, int argc, char** argv
     return 0;
 }
 
+int GameRunner_ReenterActive(GameRunner* runner) {
+    int idx = GameIdToIndex(runner->activeGame);
+    if (idx < 0 || !runner->games[idx])
+        return -1;
+
+    /* No Switch_CommitCrossing: nothing crossed. */
+    GameOps* ops = runner->games[idx];
+    if (ops->suspend) {
+        ops->suspend();
+    }
+    if (ops->resume) {
+        ops->resume();
+    }
+    runner->states[idx] = GAME_LIFECYCLE_STATE_RUNNING;
+    return 0;
+}
+
 void GameRunner_ShutdownAll(GameRunner* runner) {
     for (int i = 0; i < GAME_RUNNER_MAX_GAMES; i++) {
         if (runner->games[i] && runner->states[i] != GAME_LIFECYCLE_STATE_NONE &&

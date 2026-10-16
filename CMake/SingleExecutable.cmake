@@ -2385,6 +2385,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # latched, slot-less, freeze-less or not-live departure writes nothing.
     # ROM-free. src/common/tests/test_crossing_commit.c.
     redship_add_test(NAME CrossingCommit COMMAND redship --test crossing-commit)
+    # #954: a switch into a game this session cannot run (an archive missing, or
+    # OoT not booted) is refused while the running game is still in its frame
+    # loop. The real Combo_CheckEntranceSwitch hands back the entrance outside
+    # the door (0x01D1 / 0xD800) with nothing pending or frozen, F10 requests
+    # nothing, a playable target still crosses (the control), and the launcher's
+    # late-refusal road, GameRunner_ReenterActive, is suspend then resume.
+    # Target statuses are forced, so ROM-free. src/common/tests/test_crossing_refusal.c.
+    redship_add_test(NAME CrossingRefusal COMMAND redship --test crossing-refusal)
     # #849 / #803's load leg: a load whose .redsave holds a newer OoT half than
     # the .sav makes OoT's check statuses follow that half (a check whose own
     # collection flag differs between the two halves takes the loaded half's
@@ -2532,6 +2540,43 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
                 -DRUN_TIMEOUT=${_curated_boot_run_timeout}
                 -P ${CMAKE_CURRENT_LIST_DIR}/CheckCuratedBootRegen.cmake
         LABEL integration TIMEOUT ${_curated_boot_row_timeout})
+
+    # #954: a crossing refused because one of MM's archives is missing must leave
+    # OoT running. Each row sets one archive aside (restored pass or fail) and
+    # runs int-crossing-refused: from live gameplay on the debug save, walk into
+    # the Happy Mask Shop door, which must be refused while OoT is still in its
+    # frame loop (Link plays on outside it, OoT_Game_Run entered once); then a
+    # raw switch request that leaves the loop, which main must refuse and answer
+    # by re-entering OoT through its suspend/resume contract. Before #954 the
+    # door left the loop and main re-ran OoT's Main() on the retired gamestate:
+    # an access violation in OoT_GameState_SetFrameBuffer. RUN_SERIAL because
+    # the archive is missing from the build directory while the row runs.
+    # CMake/CheckCrossingRefused.cmake; the driver is in
+    # games/oot/soh/GameExports_SingleExe.cpp.
+    math(EXPR _crossing_refused_run_timeout "${REDSHIP_INTEGRATION_TEST_TIMEOUT} - 5")
+    foreach(_refusal
+            "IntCrossingRefusedNoMMArchive|mm.o2r|=== Majora's Mask archive missing ==="
+            "IntCrossingRefusedNoPortArchive|2ship.o2r|=== Majora's Mask port archive missing ===")
+        string(REPLACE "|" ";" _refusal_fields "${_refusal}")
+        list(GET _refusal_fields 0 _refusal_name)
+        list(GET _refusal_fields 1 _refusal_hide)
+        list(GET _refusal_fields 2 _refusal_report)
+        redship_add_test(NAME ${_refusal_name}
+            COMMAND ${CMAKE_COMMAND}
+                    -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                    -DWORK_DIR=${CMAKE_BINARY_DIR}
+                    -DMODE=int-crossing-refused
+                    -DHIDE=${_refusal_hide}
+                    "-DEXPECT_REPORT=${_refusal_report}"
+                    -DRUN_TIMEOUT=${_crossing_refused_run_timeout}
+                    -P ${CMAKE_CURRENT_LIST_DIR}/CheckCrossingRefused.cmake
+            LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
+        set_tests_properties(${_refusal_name} PROPERTIES RUN_SERIAL TRUE)
+    endforeach()
+    redship_test_exempt(int-crossing-refused
+        "Driven by the IntCrossingRefused* rows (cmake -P CheckCrossingRefused.cmake), which the manifest records as \
+meta rows: each sets one of MM's archives aside first. A plain --integration-test row with every archive staged has \
+no crossing to refuse (#954).")
 
     # #793: the wall-clock watchdog thread (src/common/integration_test_hooks.cpp).
     # Each row wedges a real run with RSBS_INT_WEDGE (a 600 s sleep with no frame

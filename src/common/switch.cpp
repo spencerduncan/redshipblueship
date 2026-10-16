@@ -36,8 +36,10 @@
  */
 
 #include "context.h"
+#include "archive_check.h"
 #include "entrance.h"
 #include "save.h"
+#include "test_runner.h"
 #include <chrono>
 #include <cstdio>
 #include <cstddef>
@@ -57,6 +59,9 @@ void OoT_Combo_StampSavedSceneForFreeze(void);
 // on that game's gameMode), read in the game's own TU for the same reason.
 int OoT_Combo_DepartureIsLiveFile(void);
 int MM_Combo_DepartureIsLiveFile(void);
+// Whether the shared bring-up found an OoT game archive and ran OoT's
+// asset-dependent init (games/oot/soh/OTRGlobals.cpp, #330).
+int OoT_GameAssetsInitialized(void);
 
 /**
  * Where a hot-swapped game should spawn when the player comes back to it.
@@ -270,6 +275,72 @@ int Switch_CommitCrossing(GameId departing, GameId target) {
     }
     fprintf(stderr, "[Switch] crossing commit: %s -> %s, slot %d, generation %u, %.2f ms\n", from, to, slot,
             (unsigned)gComboCtx.commitGeneration, ms);
+    return 1;
+}
+
+// Switch_SetTargetStatusForTest's value; negative = probe for real.
+static int sTargetStatusForTest = -1;
+
+void Switch_SetTargetStatusForTest(int status) {
+    sTargetStatusForTest = status;
+}
+
+SwitchTargetStatus Switch_GetTargetStatus(GameId target) {
+    if (sTargetStatusForTest >= 0) {
+        return (SwitchTargetStatus)sTargetStatusForTest;
+    }
+    if (!ArchiveCheck_GameAvailable(target)) {
+        return SWITCH_TARGET_NO_GAME_ARCHIVE;
+    }
+    if (!ArchiveCheck_PortArchiveAvailable(target)) {
+        return SWITCH_TARGET_NO_PORT_ARCHIVE;
+    }
+    // The archive checks above pass for an oot.o2r that appeared on disk after
+    // an MM-first boot, but the shared bring-up skipped OoT's asset-dependent
+    // init then (GUI, message tables, item icons): OoT would enter
+    // half-initialized, so it needs a restart instead.
+    if (target == GAME_OOT && !OoT_GameAssetsInitialized()) {
+        return SWITCH_TARGET_OOT_NOT_BOOTED;
+    }
+    return SWITCH_TARGET_PLAYABLE;
+}
+
+/**
+ * The checks the launcher used to make only after the departing game had left
+ * its frame loop (#317, #330), now asked while it is still running (#954). See
+ * context.h for where each caller asks.
+ */
+int Switch_RefuseUnplayableTarget(GameId target) {
+    // No message box under a test runner: nobody is there to close it, and an
+    // unattended row would wait on it until its timeout.
+    const bool showDialog = !TestRunner_IsIntegrationTestMode() && !TestRunner_IsTestMode();
+    switch (Switch_GetTargetStatus(target)) {
+        case SWITCH_TARGET_PLAYABLE:
+            return 0;
+        case SWITCH_TARGET_NO_GAME_ARCHIVE:
+            ArchiveCheck_ReportMissing(target, showDialog);
+            break;
+        case SWITCH_TARGET_NO_PORT_ARCHIVE:
+            ArchiveCheck_ReportMissingPortArchive(target, showDialog);
+            break;
+        case SWITCH_TARGET_OOT_NOT_BOOTED:
+            fprintf(stderr, "[Switch] Ocarina of Time cannot be entered: oot.o2r was not present at startup. "
+                            "Restart RedShipBlueShip to play Ocarina of Time.\n");
+            break;
+    }
+    fprintf(stderr, "[Switch] Switch to %s refused\n", Game_ToString(target));
+    fflush(stderr);
+    return 1;
+}
+
+int Switch_RequestHotSwap(void) {
+    const GameId running = Context_GetCurrentGame();
+    const GameId target = Game_GetOther(running);
+    if (Switch_RefuseUnplayableTarget(target)) {
+        fprintf(stderr, "[Switch] F10: %s keeps running\n", Game_ToString(running));
+        return 0;
+    }
+    Combo_RequestGameSwitch();
     return 1;
 }
 

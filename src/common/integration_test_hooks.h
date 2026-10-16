@@ -32,8 +32,10 @@ typedef enum {
                                                // (name is historical — the trigger moved from the SCT south exit
                                                // to the tower door when the arrival became SCT)
     INT_TEST_ARCHIVE_HOTSWAP_CYCLE,            // Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (#263)
-    INT_TEST_GAMEPLAY_ROUNDTRIP                // Full operator repro: debug save + live gameplay + production
+    INT_TEST_GAMEPLAY_ROUNDTRIP,               // Full operator repro: debug save + live gameplay + production
                                                // cross-game round-trip + post-return warp + door transition
+    INT_TEST_CROSSING_REFUSED                  // Boot OoT with MM's archive set aside, walk into the Happy Mask
+                                               // Shop door, verify OoT keeps running outside it (#954)
 } IntegrationTestMode;
 
 /**

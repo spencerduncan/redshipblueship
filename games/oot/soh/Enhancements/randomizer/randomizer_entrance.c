@@ -287,11 +287,17 @@ s16 Entrance_PeekNextIndexOverride(int16_t nextEntranceIndex) {
 s16 Entrance_OverrideNextIndex(s16 nextEntranceIndex) {
     // Check for cross-game entrance switch first (combo launcher support)
     // This must be checked before any randomizer overrides
-    Combo_CheckEntranceSwitch((uint16_t)nextEntranceIndex);
+    uint16_t comboEntrance = Combo_CheckEntranceSwitch((uint16_t)nextEntranceIndex);
     if (Combo_IsCrossGameSwitch()) {
         // A cross-game switch was triggered - state has been frozen
         // Return the original entrance; the game loop will exit before loading it
         return nextEntranceIndex;
+    }
+    if (comboEntrance != (uint16_t)nextEntranceIndex) {
+        // A crossing refused for a game this session cannot run (#954): back
+        // outside the door, as the return from the other game would land, so
+        // no override applies to it.
+        return (s16)comboEntrance;
     }
 
     // Exiting through the crawl space from Hyrule Castle courtyard is the same exit as leaving Ganon's castle

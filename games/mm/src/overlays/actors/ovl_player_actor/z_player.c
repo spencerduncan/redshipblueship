@@ -6517,9 +6517,10 @@ void func_808354A4(PlayState* play, s32 exitIndex, s32 arg2) {
     }
 
     // Check for cross-game entrance switch (combo launcher support)
-    Combo_CheckEntranceSwitch((uint16_t)play->nextEntrance);
+    play->nextEntrance = Combo_CheckEntranceSwitch((uint16_t)play->nextEntrance);
     // Note: If this is a cross-game switch, state has been frozen by the check function.
-    // The game loop will detect the switch request and exit cleanly.
+    // The game loop will detect the switch request and exit cleanly. A crossing refused
+    // for a game this session cannot run hands back the entrance outside the door (#954).
 
     play->transitionTrigger = TRANS_TRIGGER_START;
 }
