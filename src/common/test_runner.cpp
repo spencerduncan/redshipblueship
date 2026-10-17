@@ -23,7 +23,9 @@
 #include <cstring>
 #include <cstdlib>
 #include <atomic>
+#include <chrono> // #950: the budget clock is wall time (a timed sleep)
 #include <filesystem>
+#include <thread> // #950: the budget clock is wall time (a timed sleep)
 #include <vector> // the #656 reachability leg collects its host list
 
 #include <ship/Context.h>
@@ -2254,6 +2256,22 @@ TestResult Test_RandoDeterminism(void) {
             (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
         }
     }
+    // #950: RSBS_GENBUDGET_HOST_SCALE pins the host scale for the whole run (the
+    // GoldenSeedDigestDefaultHostScale300 row), to prove no host input reaches the
+    // world: the digest must still equal the golden pinned at whatever scale the
+    // re-pin host measured. Refused when the scale did not take, so the row cannot
+    // pass on the measured scale by accident.
+    if (const char* scaleEnv = std::getenv("RSBS_GENBUDGET_HOST_SCALE")) {
+        const uint32_t requested = (uint32_t)strtoul(scaleEnv, nullptr, 10);
+        Combo_GenBudget_SetHostScalePercentOverride(requested);
+        const uint32_t inForce = Combo_GenBudget_HostScalePercent();
+        printf("[TEST] rando-determinism: host scale pinned at %u%% (requested %s)\n", inForce, scaleEnv);
+        if (requested == 0u || inForce != requested) {
+            printf("[TEST] FAIL: RSBS_GENBUDGET_HOST_SCALE=%s did not pin the host scale (in force: %u%%)\n", scaleEnv,
+                   inForce);
+            return TEST_FAIL;
+        }
+    }
     int rc = Rando_HeadlessSeedDeterminismDigest(seed, digestOut);
     printf("[TEST] %s: determinism digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     if (rc != 0) {
@@ -2633,7 +2651,40 @@ TestResult Test_ComboCreationEvent(void) {
                    doubledBudget, referenceBudget);
             return TEST_FAIL;
         }
+        // #950: THE STOPS COUNT ROUNDS, and no host input reaches them. The
+        // millisecond figures above are the overlay's estimate; the two stops are
+        // these, and they must be the pinned constants at every host scale.
+        Combo_GenBudget_SetHostScalePercentOverride(100);
+        const uint32_t roundsAtReference = Combo_GenBudget_RoundsPerAttempt(0);
+        const uint32_t totalAtReference = Combo_GenBudget_TotalRounds();
+        Combo_GenBudget_SetHostScalePercentOverride(300);
+        const uint32_t roundsAtSlowest = Combo_GenBudget_RoundsPerAttempt(0);
+        const uint32_t totalAtSlowest = Combo_GenBudget_TotalRounds();
         Combo_GenBudget_SetHostScalePercentOverride(0);
+        printf("[TEST] budget: %u rounds per attempt, %u in total, at host scale 100%% and %u / %u at 300%%\n",
+               roundsAtReference, totalAtReference, roundsAtSlowest, totalAtSlowest);
+        if (roundsAtReference != (uint32_t)RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT ||
+            totalAtReference != (uint32_t)RSBS_GENBUDGET_TOTAL_ROUNDS || roundsAtSlowest != roundsAtReference ||
+            totalAtSlowest != totalAtReference ||
+            totalAtReference != roundsAtReference * (uint32_t)RSBS_GENBUDGET_TOTAL_MULTIPLIER) {
+            printf("[TEST] FAIL: the round budget read the host (%u/%u rounds at 100%%, %u/%u at 300%%; pinned %u/%u) "
+                   "- a seed's verdict would depend on the machine (#950)\n",
+                   roundsAtReference, totalAtReference, roundsAtSlowest, totalAtSlowest,
+                   (unsigned)RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT, (unsigned)RSBS_GENBUDGET_TOTAL_ROUNDS);
+            return TEST_FAIL;
+        }
+        // #950: THE CLOCK IS WALL TIME on every platform. It was C clock(), the
+        // process's CPU time under glibc, which does not advance while the
+        // thread sleeps; the elapsed display and the timing lines read wall time.
+        const uint32_t sleepStartMs = Combo_GenBudget_NowMs();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        const uint32_t sleptMs = Combo_GenBudget_NowMs() - sleepStartMs;
+        printf("[TEST] budget clock: a 100 ms sleep read as %u ms\n", sleptMs);
+        if (sleptMs < 80u) {
+            printf("[TEST] FAIL: the budget clock advanced %u ms across a 100 ms sleep - it is not wall time (#950)\n",
+                   sleptMs);
+            return TEST_FAIL;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -3149,6 +3200,10 @@ extern "C" int MM_Rando_HeadlessPairSwitchEntry(void);
 // a display like mm-rando-gen, so `--test all` skips them.
 extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath);
 extern "C" int MM_Rando_HeadlessPairedExhaustion(void);
+// #950: the round budget's two locks (host scale, golden seeds); same file, same
+// display requirement.
+extern "C" int MM_Rando_HeadlessRoundBudgetHostScale(void);
+extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void);
 
 TestResult Test_MMPairSwitchEntry(void) {
     printf("[TEST] mm-pair-switch-entry: paired MM world activates through the switch-entry path (#439)\n");
@@ -3238,6 +3293,33 @@ TestResult Test_MMPairedExhaustion(void) {
     int rc = MM_Rando_HeadlessPairedExhaustion();
     printf("[TEST] %s: exhaustion surface rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #950: the round budget gives one seed one verdict at every host scale
+// (mm-round-budget-host-scale), and every golden seed still creates on its pinned
+// attempt inside it (mm-golden-seeds-round-budget). Display like mm-rando-gen, so
+// `--test all` skips them.
+static TestResult RunRoundBudgetDispatch(const char* name, int (*bridge)(void)) {
+    printf("[TEST] %s: the creation's round budget (#950)\n", name);
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+    const int rc = bridge();
+    printf("[TEST] %s: %s rc=%d\n", rc == 0 ? "PASS" : "FAIL", name, rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+TestResult Test_MMRoundBudgetHostScale(void) {
+    return RunRoundBudgetDispatch("mm-round-budget-host-scale", MM_Rando_HeadlessRoundBudgetHostScale);
+}
+
+TestResult Test_MMGoldenSeedsRoundBudget(void) {
+    return RunRoundBudgetDispatch("mm-golden-seeds-round-budget", MM_Rando_HeadlessGoldenSeedsRoundBudget);
 }
 
 // Non-arrival entry-path arm-state lock (#439 follow-up). MMPairSwitchEntry
@@ -5660,6 +5742,10 @@ const TestDescriptor gTests[] = {
     // as mm-rando-gen, so `--test all` skips it.
     { "mm-paired-exhaustion", "Unconvergeable paired profile exhausts the ladder and refuses loudly (ADR 0010)",
       Test_MMPairedExhaustion },
+    { "mm-round-budget-host-scale", "One seed, one budget verdict at every host scale (#950)",
+      Test_MMRoundBudgetHostScale },
+    { "mm-golden-seeds-round-budget", "Every golden seed creates on its pinned attempt in the round budget (#950)",
+      Test_MMGoldenSeedsRoundBudget },
     // #439 follow-up: the OTHER entry paths into MM gameplay (file-select LOAD,
     // Song of Time / cycle reset, DayTelop) must also reach a live PlayState
     // with the IS_RANDO hooks matching the save. Same display requirement as
@@ -6643,6 +6729,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 || strcmp(gTests[i].name, "mm-paired-start") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
+                strcmp(gTests[i].name, "mm-round-budget-host-scale") == 0 ||
+                strcmp(gTests[i].name, "mm-golden-seeds-round-budget") == 0 ||
                 strcmp(gTests[i].name, "mm-reload-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-moon-crash-arm-state") == 0 ||
                 strcmp(gTests[i].name, "mm-owl-save-arm-state") == 0 ||

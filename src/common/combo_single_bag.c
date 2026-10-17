@@ -108,7 +108,7 @@ void Combo_SingleBag_TestSetPostFillProbe(ComboSingleBagPostFillProbe probe, voi
 
 typedef struct {
     int ladderAttempt;
-    uint32_t budgetMs;
+    uint32_t roundBudget;    // the per-attempt round budget (#950); 0 = none
     uint32_t startMs;        // Combo_GenBudget_NowMs() at the fill's start
     uint32_t presentStartMs; // Combo_GenProgress_PresentationMs() at the fill's start
     uint32_t lastReportMs;   // generation ms at the last progress report
@@ -119,8 +119,9 @@ typedef struct {
 } SingleBagWatch;
 
 /** Generation time since the fill started: wall time minus what the overlay
- *  spent presenting. Two measurements in ONE clock (gen_budget's), which is the
- *  rule gen_budget.h states for both of the creation's stops. */
+ *  spent presenting, both in gen_budget's clock. DISPLAY ONLY since #950: it
+ *  paces the heartbeat and the caption and is printed, and the stop below counts
+ *  rounds instead. */
 static uint32_t SingleBagGenerationMs(const SingleBagWatch* w) {
     const uint32_t now = Combo_GenBudget_NowMs();
     const uint32_t wall = (now >= w->startMs) ? now - w->startMs : 0u;
@@ -162,13 +163,16 @@ static int SingleBagObserve(void* ctx, const ComboLogicFillProgress* p) {
         w->lastAttempt = p->attempt;
     }
 
-    // THE STOP. A wall clock decides nothing about the world: this only ever
-    // ends the fill, with a status the ladder refuses to climb on.
-    if (w->budgetMs > 0u && genMs > w->budgetMs) {
+    // THE STOP (#950). A count of the rounds this attempt has run, never a
+    // clock: `p->rounds` is a pure function of the frozen identity, so the same
+    // seed reaches this line on every machine or on none. It only ever ends the
+    // fill, with a status the ladder refuses to climb on. Checked BEFORE a round
+    // runs, so a fill runs at most `roundBudget` rounds.
+    if (w->roundBudget > 0u && (uint32_t)p->rounds >= w->roundBudget) {
         fprintf(stderr,
-                "[SingleBag] per-attempt budget exhausted: %ums of generation against %ums, after %d rounds (a "
-                "wall-clock STOP, never a rung)\n",
-                genMs, w->budgetMs, p->rounds);
+                "[SingleBag] per-attempt budget spent: %d of %u rounds run (%ums of generation on this host; a "
+                "budget STOP, never a rung)\n",
+                p->rounds, w->roundBudget, genMs);
         w->aborted = true;
         return 1;
     }
@@ -185,11 +189,11 @@ static bool SingleBagOriginMayCross(uint8_t origin) {
 }
 
 int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mmCount, int ladderAttempt,
-                        uint32_t budgetMs, uint8_t* outMmInBag, ComboSingleBagReport* out) {
+                        uint32_t roundBudget, uint8_t* outMmInBag, ComboSingleBagReport* out) {
     const uint32_t t0 = Combo_GenBudget_NowMs();
     memset(&sReport, 0, sizeof(sReport));
     sReport.ladderAttempt = ladderAttempt;
-    sReport.budgetMs = budgetMs;
+    sReport.roundBudget = roundBudget;
     sReport.goal = gComboCtx.comboSettings.goal;
     sReport.rung = gComboCtx.comboSettings.logicRung;
     int status = RSBS_COMBO_LOGIC_OK;
@@ -331,7 +335,7 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         SingleBagWatch watch;
         memset(&watch, 0, sizeof(watch));
         watch.ladderAttempt = ladderAttempt;
-        watch.budgetMs = budgetMs;
+        watch.roundBudget = roundBudget;
         watch.startMs = t0;
         watch.presentStartMs = Combo_GenProgress_PresentationMs();
         watch.lastStage = -1;
@@ -355,7 +359,7 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         if (status != RSBS_COMBO_LOGIC_OK) {
             fprintf(stderr, "[SingleBag] fill failed on ladder attempt %d: %s after %d batch attempt(s), %d rounds%s\n",
                     ladderAttempt + 1, Combo_Logic_StatusName(status), sReport.fill.attempts, sReport.fill.rounds,
-                    watch.aborted ? " (the per-attempt budget stopped it)" : "");
+                    watch.aborted ? " (the per-attempt round budget stopped it)" : "");
             goto finish;
         }
         // TEST ONLY: H4's measurement point (#575), with both engines live over
@@ -415,16 +419,21 @@ finish:
         Combo_Logic_ResetPlacements();
     }
     sReport.status = status;
+    // THE TOTAL'S CHARGE (#950): every round this fill ran, whatever its status,
+    // so the ladder's between-attempt check sees dead ends and successes alike.
+    if (sReport.fill.rounds > 0) {
+        Combo_GenBudget_ChargeRounds((uint32_t)sReport.fill.rounds);
+    }
     sReport.wallMs = Combo_GenBudget_NowMs() - t0;
     fprintf(stderr,
             "[SingleBag] ladder attempt %d: %s — goal %u rung %u seed %08X; %d bag rows (%d OoT + %d MM trimmed to "
             "filler); %d rows placed (%d required, %d surplus, %d dropped), %d crossings into MM, %d into OoT, "
-            "leftovers OoT %d / MM %d; %d batch attempt(s), %d rounds, %ums (budget %ums)\n",
+            "leftovers OoT %d / MM %d; %d batch attempt(s), %d rounds (budget %u), %ums\n",
             ladderAttempt + 1, Combo_Logic_StatusName(status), (unsigned)sReport.goal, (unsigned)sReport.rung,
             sReport.seed, sReport.bagCount, sReport.trimmedOoT, sReport.trimmedMM, sReport.fill.placed,
             sReport.fill.requiredPlaced, sReport.fill.surplusPlaced, sReport.fill.surplusDropped,
             sReport.crossingsIntoMM, sReport.crossingsIntoOoT, sReport.fill.leftoverHostsOoT,
-            sReport.fill.leftoverHostsMM, sReport.fill.attempts, sReport.fill.rounds, sReport.wallMs, budgetMs);
+            sReport.fill.leftoverHostsMM, sReport.fill.attempts, sReport.fill.rounds, roundBudget, sReport.wallMs);
     fflush(stderr);
     if (out != NULL) {
         *out = sReport;

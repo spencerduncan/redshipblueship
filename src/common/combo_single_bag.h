@@ -74,11 +74,13 @@
  *     under its own domain tag and WITHOUT the ladder attempt: which copies of a
  *     shared family survive is a fact of the world's identity, so a ladder retry
  *     re-draws the placements over the same bag.
- *  4. THE BUDGET. The per-attempt wall-clock budget MM's ladder hands its fill
- *     (#582) is checked between rounds by the fill's observer; exceeding it is
- *     RSBS_COMBO_LOGIC_ERR_ABORTED, which the ladder treats as a wall-clock STOP
- *     and never as a rung (#581 §2a). Presentation time is credited back, exactly
- *     as the MM fill's own stop credits it.
+ *  4. THE BUDGET. The per-attempt ROUND budget MM's ladder hands its fill (#582,
+ *     counted in rounds since #950: Combo_GenBudget_RoundsPerAttempt) is checked
+ *     before every round by the fill's observer; reaching it is
+ *     RSBS_COMBO_LOGIC_ERR_ABORTED, which the ladder treats as a budget STOP and
+ *     never as a rung (#581 §2a). The rounds a fill ran are charged to the
+ *     ladder's total (Combo_GenBudget_ChargeRounds) whatever its status. No clock
+ *     decides anything here: a seed spends the same rounds on every machine.
  */
 
 #ifndef RSBS_COMMON_COMBO_SINGLE_BAG_H
@@ -100,15 +102,15 @@ extern "C" {
 
 /** What the last single-bag fill did. Diagnostics, not format. */
 typedef struct {
-    int status;        // RSBS_COMBO_LOGIC_*
-    int ladderAttempt; // 0-based MM ladder attempt this fill ran under
-    uint32_t seed;     // the coordinator seed (Combo_SingleBag_SeedFor)
-    uint8_t goal;      // the frozen GOAL
-    uint8_t rung;      // the frozen logic rung
-    uint32_t budgetMs; // the per-attempt wall-clock budget; 0 = none
-    uint32_t wallMs;   // this fill's wall time, bag build included
-    int ootRows;       // OoT general-pass pool rows exported
-    int mmRows;        // MM pool rows handed in
+    int status;           // RSBS_COMBO_LOGIC_*
+    int ladderAttempt;    // 0-based MM ladder attempt this fill ran under
+    uint32_t seed;        // the coordinator seed (Combo_SingleBag_SeedFor)
+    uint8_t goal;         // the frozen GOAL
+    uint8_t rung;         // the frozen logic rung
+    uint32_t roundBudget; // the per-attempt round budget (#950); 0 = none
+    uint32_t wallMs;      // this fill's wall time, bag build included (reporting only)
+    int ootRows;          // OoT general-pass pool rows exported
+    int mmRows;           // MM pool rows handed in
     ComboLogicComposeResult compose;
     uint32_t trimSeed;          // THE SHARED-QUANTITY TRIM's seed (Combo_SingleBag_TrimSeed)
     uint16_t startingHealthOoT; // the frozen starting healths the trim was handed (0x10 per heart)
@@ -135,7 +137,9 @@ typedef struct {
  *
  * @param mmItems     MM's pool, one row per copy, in GeneratePools' order
  * @param mmFlags     each row's RSBS_COMBO_POOL_* flags (MM_ComboLogic_MarkPoolRows)
- * @param budgetMs    the per-attempt wall-clock budget; 0 = none
+ * @param roundBudget the per-attempt budget in coordinator fill rounds (#950):
+ *                    the fill stops before running round `roundBudget + 1`;
+ *                    0 = none
  * @param outMmInBag  optional, `mmCount` bytes, one RSBS_SINGLE_BAG_MM_ROW_* per
  *                    MM row: IN_BAG where it entered the bag (the coordinator
  *                    placed or dropped it), TRIMMED where the shared-quantity trim
@@ -150,7 +154,7 @@ typedef struct {
  *         leftovers from the rest, with one junk copy per trimmed row.
  */
 int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mmCount, int ladderAttempt,
-                        uint32_t budgetMs, uint8_t* outMmInBag, ComboSingleBagReport* out);
+                        uint32_t roundBudget, uint8_t* outMmInBag, ComboSingleBagReport* out);
 
 /** The most recent Combo_SingleBag_Run's report. Never NULL (zeroed before any run). */
 const ComboSingleBagReport* Combo_SingleBag_LastReport(void);
@@ -196,7 +200,7 @@ void Combo_SingleBag_Forget(void);
  * only kind of failure the attempt ladder may climb a rung on (PR #743 review)?
  * True for RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE, _GOAL_UNPROVABLE and
  * _NOT_ALL_REACHED: facts about the world this attempt's seed drew, which another
- * seed can change. False for OK, for ERR_ABORTED (a wall-clock stop, never a rung,
+ * seed can change. False for OK, for ERR_ABORTED (a budget stop, never a rung,
  * #581 section 2a) and for every refusal and engine defect (BAD_REQUEST,
  * NO_ENGINE, UNSUPPORTED_GOAL, NON_MONOTONE, NO_FIXPOINT, CAPACITY,
  * ENGINE_REFUSED): none of those depends on the seed, so re-seeding only repeats

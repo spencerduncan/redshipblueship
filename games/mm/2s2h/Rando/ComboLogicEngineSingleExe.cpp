@@ -2320,9 +2320,9 @@ extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
 // caller's job for an engine with no detached save.
 //
 // Throws, as MM's own fill does, so the ladder's two catches keep their meaning:
-//   - Rando::Logic::GenerationTimeout for the per-attempt WALL-CLOCK stop
-//     (RSBS_COMBO_LOGIC_ERR_ABORTED): the ladder stops and never climbs a rung on
-//     it (#581 §2a);
+//   - Rando::Logic::GenerationTimeout for the per-attempt ROUND-BUDGET stop
+//     (RSBS_COMBO_LOGIC_ERR_ABORTED; a round count since #950, never a clock):
+//     the ladder stops and never climbs a rung on it (#581 §2a);
 //   - std::runtime_error for every deterministic dead end (no candidate, the GOAL
 //     unprovable, not all reached): a rung, re-derived from the next attempt's
 //     seed.
@@ -2366,20 +2366,29 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
         throw std::runtime_error("single-bag fill: MM's pool is not the one GeneratePools just returned");
     }
 
-    // The per-attempt budget: the value the ladder armed on the fill's budget
-    // channel (a lock's injected value included), else the #582 budget itself.
-    const uint32_t budgetMs = (Rando::Logic::gRsbsGlitchlessTimeoutMsOverride != 0)
-                                  ? (uint32_t)Rando::Logic::gRsbsGlitchlessTimeoutMsOverride
-                                  : Combo_GenBudget_FillBudgetMs(ladderAttempt);
+    // The per-attempt budget, in coordinator fill rounds (#950): a compile-time
+    // constant, or a lock's armed override (Combo_GenBudget_SetRoundBudgetOverride).
+    // No clock and no host scale: the same seed is stopped here on every machine
+    // or on none.
+    const uint32_t roundBudget = Combo_GenBudget_RoundsPerAttempt(ladderAttempt);
 
     std::vector<uint8_t> inBag(items.size(), 0);
     ComboSingleBagReport report;
-    const int status = Combo_SingleBag_Run(items.data(), flags.data(), (int)items.size(), ladderAttempt, budgetMs,
+    const int status = Combo_SingleBag_Run(items.data(), flags.data(), (int)items.size(), ladderAttempt, roundBudget,
                                            inBag.data(), &report);
     if (status == RSBS_COMBO_LOGIC_ERR_ABORTED) {
-        throw Rando::Logic::GenerationTimeout("single-bag fill stopped by its " + std::to_string(budgetMs) +
-                                              "ms per-attempt budget after " + std::to_string(report.fill.rounds) +
+        throw Rando::Logic::GenerationTimeout("single-bag fill stopped by its " + std::to_string(roundBudget) +
+                                              "-round per-attempt budget after " + std::to_string(report.fill.rounds) +
                                               " rounds");
+    }
+    // THE TOTAL-BUDGET LOCK'S RUNG (MMPairedExhaustion, #950): a deterministic dead
+    // end injected AFTER a real fill, so the attempt charges the ladder's total
+    // with real rounds before it fails. Rolled back exactly as a world dead end
+    // is (Combo_SingleBag_Run's failure path). Zero on every shipping path.
+    if (status == RSBS_COMBO_LOGIC_OK && Rando::Foreign::ConsumeForcedLadderRungAfterFill()) {
+        Combo_Logic_ResetPlacements();
+        throw std::runtime_error("single-bag fill: injected ladder rung after " + std::to_string(report.fill.rounds) +
+                                 " rounds (test)");
     }
     if (status != RSBS_COMBO_LOGIC_OK && !Combo_SingleBag_StatusIsWorldDeadEnd(status)) {
         // Not a world dead end: a refusal to run (no frozen identity, OoT not at

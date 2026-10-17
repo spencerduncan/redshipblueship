@@ -142,11 +142,10 @@
  * It does not touch creation order, the RNG stream, or any number the fill
  * reads. It does not read a wall clock to decide anything (#581 section 2a): the
  * repaint interval is measured in milliseconds the FILL already computed for its
- * own timeout check, and the presentation time each paint costs is credited back
- * to BOTH of the creation's wall-clock stops -- the fill's per-attempt timeout at
- * its own call site, and the ladder's total budget through the state machine's
- * Combo_GenProgress_PresentationBegin/End bracket -- so a host with a window gets
- * the same generation headroom as a headless one at either stop.
+ * own display, and since #950 neither of the creation's stops reads a clock at
+ * all (both count fill rounds, gen_budget.h), so painting a frame cannot spend
+ * any of the budget. The presentation time each paint costs is still bracketed
+ * (Combo_GenProgress_PresentationBegin/End) for the stderr timing lines.
  *
  * And on a host where nothing is presentable it is not installed at all: the
  * install asks CanPresentHere() and arms nothing when the answer is no, which is
