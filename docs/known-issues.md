@@ -1,10 +1,10 @@
 # Known issues
 
 **Applies to:** `v0.2.0-prealpha` ("Trinity Alfa"): `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
-plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) plus PRs [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's Mask's ROM extraction), [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the night Happy Mask Shop door) and [#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer crashes), with the version bump of PR [#946](https://github.com/spencerduncan/redshipblueship/pull/946), and the GitHub Actions builds cut from them; the `v0.1.1-prealpha` tag
+plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) plus PRs [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's Mask's ROM extraction), [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the night Happy Mask Shop door) and [#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer crashes), with the version bump of PR [#946](https://github.com/spencerduncan/redshipblueship/pull/946) (`ece56551`), then [#958](https://github.com/spencerduncan/redshipblueship/pull/958) (the goldens pin hint text, prices, starting items and entrances; static hints in a fixed order), [#959](https://github.com/spencerduncan/redshipblueship/pull/959) (the creation budget counts fill rounds) and [#960](https://github.com/spencerduncan/redshipblueship/pull/960) (the fingerprint and build beside the seed icons), up to `7e44b8a0` (2026-10-17), and the GitHub Actions builds cut from them; the `v0.1.1-prealpha` tag
 (2026-07-03) is older than everything in the first section. What changed since that tag, in player terms:
 [`release-notes-next.md`](release-notes-next.md).
-**Last updated:** 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
+**Last updated:** 2026-10-17 (the creation budget of PR [#959](https://github.com/spencerduncan/redshipblueship/pull/959), the open issues refreshed at `7e44b8a0`); 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -98,8 +98,10 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   Randomizer → Cross-Game).
 - **The pair is generated with logic set to Glitchless** by default, and the fill proves
   the frozen goal (`beat-both`, Ganon & Majora, by default) over both games' logic.
-  It runs behind a deterministic attempt ladder with a host-calibrated budget (~30 s
-  floor, ~90 s ceiling; PRs [#680](https://github.com/spencerduncan/redshipblueship/pull/680), [#743](https://github.com/spencerduncan/redshipblueship/pull/743)). On the development
+  It runs behind a deterministic attempt ladder with a budget of 1250 fill rounds per
+  attempt and 2500 per creation (about 30 s on the development workstation). The budget
+  counts work, not time, so a seed is creatable on every machine or on none (PRs
+  [#680](https://github.com/spencerduncan/redshipblueship/pull/680), [#743](https://github.com/spencerduncan/redshipblueship/pull/743), [#959](https://github.com/spencerduncan/redshipblueship/pull/959)). On the development
   workstation 30 real creations took 5.9-13.7 s, each on its first attempt. **A progress
   overlay paints during file creation** ("Placing item n of N in both worlds"; PRs
   [#707](https://github.com/spencerduncan/redshipblueship/pull/707), [#749](https://github.com/spencerduncan/redshipblueship/pull/749), [#582](https://github.com/spencerduncan/redshipblueship/issues/582)): the window stays responsive and menu
@@ -203,8 +205,10 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 - **Netplay and crossings share one 64-slot shared-item array.** Crossings alone cannot
   fill it, but a netplay peer's grants take slots too, so a pickup can still be refused
   (loudly) while both happen (PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)).
-- **Generation can still abort**, at file creation. A wall-clock stop fails the creation
-  with a toast ("Not created: try a new seed or other options."). No creation in
+- **Generation can still abort**, at file creation. A budget stop (1250 fill rounds per
+  attempt) fails the creation with a toast ("Not created: try a new seed or other
+  options."). The stop depends only on the seed and settings, never on the machine (PR
+  [#959](https://github.com/spencerduncan/redshipblueship/pull/959)). No creation in
   the 30-seed sample needed more than two fill batches, which bounds the failure rate
   below about 10%, not at zero. No partial or corrupt file is left behind.
 - **One MM randomizer option is drawn disabled on purpose.** "Majora Access: Remains"
@@ -225,7 +229,7 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 **Open problems you may meet while playing** (found in or around the 2026-09 playtest and
 checked in the code at `200adaea`; each links the issue that will fix it; at `851b1ee9` all
 of them are fixed except the last, which is a limitation. Every issue still open is listed
-under "Open issues at `851b1ee9`" below):
+under "Open issues at `7e44b8a0`" below):
 
 **~~Shops sell only their own game's items~~ — plain shops, Business Scrubs, Tingle, OoT's merchants and the Treasure Chest Game RESOLVED** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800)).
 #800's first pass makes plain shops cross-game in both directions. An Ocarina of Time shop
@@ -307,10 +311,15 @@ items are the same ones the icons would show. Once Majora's Mask has started, it
 loaded until you quit. Ocarina of Time's icons load at launch, so its section and the Shared
 section always have icons.
 
-### Open issues at `851b1ee9`
+### Open issues at `7e44b8a0`
 
 Every issue open at this commit that this project's agents filed, one line each, with what a
-player sees. Epics and trackers are listed for what they leave out of this build.
+player sees. Epics and trackers are listed for what they leave out of this build. (Refreshed
+at `7e44b8a0`: [#949](https://github.com/spencerduncan/redshipblueship/issues/949), [#950](https://github.com/spencerduncan/redshipblueship/issues/950), [#951](https://github.com/spencerduncan/redshipblueship/issues/951) and [#952](https://github.com/spencerduncan/redshipblueship/issues/952), filed after
+the `851b1ee9` list, are closed by PRs [#958](https://github.com/spencerduncan/redshipblueship/pull/958), [#959](https://github.com/spencerduncan/redshipblueship/pull/959) and [#960](https://github.com/spencerduncan/redshipblueship/pull/960);
+[#955](https://github.com/spencerduncan/redshipblueship/issues/955) is new.)
+
+- [#955](https://github.com/spencerduncan/redshipblueship/issues/955): on DirectX 11, the default backend on a fresh Windows install, F10 does not switch games. Windows takes F10 as the menu key, and the game seems to pause until another key is pressed. The Happy Mask Shop and Clock Tower doors still cross, and F10 works on the OpenGL backend. The fix belongs in the libultraship fork.
 
 - [#925](https://github.com/spencerduncan/redshipblueship/issues/925): nothing in play. A test row (`AllTests`) failed once on a fresh build tree and then passed; probably the test collision PR [#931](https://github.com/spencerduncan/redshipblueship/pull/931) fixed. Watched.
 - [#824](https://github.com/spencerduncan/redshipblueship/issues/824): nothing in play. The test row `ForeignItemGiveReverse` ended once without a verdict and has not done so again. Watched.
@@ -648,8 +657,8 @@ before #895 are refused (see "Back up your saves").
   (A crossing after the file is created, saved and loaded back from disk in the same session
   is tested: `IntPairedFirstCrossing` does exactly that.)
 
-**Findings.** None in this run. The open issues at this commit are listed under "Open issues
-at `851b1ee9`" near the top of this document.
+**Findings.** None in this run. The open issues at this commit were listed under "Open issues
+at `851b1ee9`" near the top of this document, since refreshed at `7e44b8a0`.
 
 ---
 
