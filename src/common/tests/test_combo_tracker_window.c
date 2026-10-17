@@ -589,7 +589,7 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         // told apart from a game's own seed, which a paired file's panels do not
         // print (#816; the decision itself is section 5's ComboPanelShowsOwnSeed).
         CTW_ASSERT(text.find("(%d)") == std::string::npos);
-        CTW_ASSERT(text.find("\"Paired Seed: %u\"") != std::string::npos);
+        CTW_ASSERT(text.find("\"Paired Seed: %s\"") != std::string::npos);
         CTW_ASSERT(text.find("if (ComboPanelShowsOwnSeed(identity, summary))") != std::string::npos);
         // The Checks list draws what section 5 locks (#458 U4): the grouping
         // through ComboCollectCheckAreas and SoH's search box through the seam.

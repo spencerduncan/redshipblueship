@@ -204,7 +204,7 @@ extern "C" int Combo_SpoilerWindow_RunHeadless(void) {
         // The section header carries no count (R-N4); the seed is named as the
         // Combo Tracker names it.
         CSW_ASSERT(text.find("(%d)") == std::string::npos);
-        CSW_ASSERT(text.find("\"Paired Seed: %u\"") != std::string::npos);
+        CSW_ASSERT(text.find("\"Paired Seed: %s\"") != std::string::npos);
     }
 #endif
 

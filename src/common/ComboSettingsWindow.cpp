@@ -21,7 +21,8 @@
 #include <ship/window/gui/Gui.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
-#include "combo_mm_options_view.h" // Combo_MMProfileSummary: the paired seed, for the header
+#include "combo_identity_display.h" // the paired seed as the player typed it (#952)
+#include "combo_mm_options_view.h"  // Combo_MMProfileSummary: the paired seed, for the header
 #include "combo_settings_view.h"
 #include "context.h"
 #include "foreign_items.h"
@@ -76,7 +77,10 @@ void DrawPairingSummary(const ComboSettingsSummary& summary) {
 
     ComboMMProfileSummary profile;
     Combo_MMProfileSummary(&profile);
-    ImGui::Text("Paired seed: %u", (unsigned)profile.sharedRandoSeed);
+    // The seed string, which can be typed back in (#952), not its hash.
+    char seed[256];
+    Combo_IdentityDisplay_PairedSeed(profile.sharedRandoSeed, seed, sizeof(seed));
+    ImGui::Text("Paired seed: %s", seed);
     if (summary.frozen) {
         ImGui::Text("Rules fingerprint: %08X", (unsigned)summary.comboSettingsHash);
     } else {

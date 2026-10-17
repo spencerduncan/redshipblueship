@@ -331,6 +331,11 @@ void DrawSeedHashSprites(FileChooseContext* this) {
                 SpriteDraw(this, GetSeedTexture(Save_GetSaveMetaInfo(this->selectedFileIndex)->seedHash[i]),
                            xStart + (40 * i), 10, 24, 24);
             }
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // RSBS (#952): the paired world's fingerprint and the build.
+            OoT_FileSelect_DrawComboIdentity(this->state.gfxCtx, this->selectedFileIndex,
+                                             this->fileInfoAlpha[this->selectedFileIndex]);
+#endif
         }
     }
 
@@ -350,6 +355,10 @@ void DrawSeedHashSprites(FileChooseContext* this) {
             SpriteLoad(this, GetSeedTexture(GetSeedIconIndex(i)));
             SpriteDraw(this, GetSeedTexture(GetSeedIconIndex(i)), xStart + (40 * i), 10, 24, 24);
         }
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RSBS (#952): the generated paired world's fingerprint and the build.
+        OoT_FileSelect_DrawComboIdentity(this->state.gfxCtx, -1, 0xFF);
+#endif
     }
 
     gDPPipeSync(POLY_OPA_DISP++);

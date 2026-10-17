@@ -43,6 +43,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #include "ComboItemTrackerWindow.h" // RegisterComboItemTrackerWindow (#458 U2)
+#include "combo_identity_display.h" // the paired seed as the player typed it (#952)
 #include "combo_item_view.h"        // {OoT,MM}_ItemAdapter_Register (#458 U1)
 #include "combo_tracker_view.h"
 #include "combo_ui.h"
@@ -632,7 +633,10 @@ void ComboTrackerWindow::DrawElement() {
     if (identity.paired) {
         // "Paired Seed", not "Seed": each game panel below may print its own
         // seed, and the two must not read as the same line.
-        ImGui::Text("Paired Seed: %u", (unsigned)identity.sharedRandoSeed);
+        // The seed string, which can be typed back in (#952), not its hash.
+        char seed[256];
+        Combo_IdentityDisplay_PairedSeed(identity.sharedRandoSeed, seed, sizeof(seed));
+        ImGui::Text("Paired Seed: %s", seed);
     } else {
         Ui().NoteText("No paired world.");
     }
