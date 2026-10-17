@@ -116,6 +116,17 @@ Spider Houses) are composed when their text opens and are off by default; they a
 not folded. The entrance fields mean something only under a profile with entrance
 shuffle on: under the shipped profile the table is empty (`entranceCount=0`).
 
+Some of these fields are the same in every golden, so they pin the writer and the
+fixed values, not a draw. Under the shipped profiles OoT's prices do not depend on the
+seed: `ootPriceCount=114` and `ootPriceDigest=2F60E6D1` appear in all four paired
+goldens, which are four different worlds. So no golden exercises OoT's stream-drawn
+price path (`3drando/shops.cpp`, used by shopsanity and the scrub and merchant price
+options); that needs a golden profile with one of them on, which #949 lists as a
+follow-up. MM's prices are drawn: `paired-attempt-digest` pins `mmPriceDigest=46E226E3`
+and the other three, which share one MM seed, pin `9E241182`. `ootStartingItems`,
+`mmStartingItems` and `mmStartInventory` are constant too, as expected for a fixed
+paired start.
+
 ## Reading a failure
 
 A mismatch is reported field by field, split into two kinds, because they demand

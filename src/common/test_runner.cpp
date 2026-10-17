@@ -1097,6 +1097,13 @@ static TestResult Test_OoTMaskShopNightDoor(void) {
     return OoT_MaskShopNightDoor_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The project hash in each game, declared here at file scope (not inside the
+// anonymous namespace below) for Test_HashBytesUnsigned (#951).
+namespace SohUtils {
+uint32_t Hash(std::string str);
+}
+uint32_t Ship_Hash(std::string str);
+
 // ============================================================================
 // Internal state
 // ============================================================================
@@ -1724,6 +1731,44 @@ TestResult Test_RandoStaticHintOrder(void) {
         return TEST_FAIL;
     }
     printf("[TEST] PASS: the static hints read the pinned text\n");
+    return TEST_PASS;
+}
+
+// #951: THE PROJECT HASH FOLDS BYTES UNSIGNED. SohUtils::Hash and Ship_Hash (FNV-1a 32)
+// used to fold (uint32_t)str[pos], which sign-extends a byte >= 0x80 where char is
+// signed (x86) and not where it is unsigned (ARM), so a seed typed with a non-ASCII
+// character made a different world on each. Both now fold through uint8_t. These
+// vectors are the unsigned fold; on a signed-char target the old code reads "\x80" as
+// 04F3B29F and the UTF-8 seed as D07CCF05, so reverting either cast turns this red on
+// both CI legs. "a" pins that ASCII did not move. (Both are declared at file scope,
+// above the anonymous namespace.)
+TestResult Test_HashBytesUnsigned(void) {
+    struct HashVector {
+        const char* label;
+        const char* bytes;
+        uint32_t want;
+    };
+    static const HashVector kVectors[] = {
+        { "\"a\"", "a", 0xE40C292Cu },
+        { "\"\\x80\"", "\x80", 0x850B939Fu },
+        { "\"RSBS\\xC3\\xA9\" (a UTF-8 seed)", "RSBS\xC3\xA9", 0x2BBFE705u },
+    };
+    int failures = 0;
+    for (const HashVector& v : kVectors) {
+        const uint32_t oot = SohUtils::Hash(v.bytes);
+        const uint32_t mm = Ship_Hash(v.bytes);
+        printf("[TEST] hash-bytes-unsigned: %s: SohUtils::Hash %08X, Ship_Hash %08X, pinned %08X\n", v.label,
+               (unsigned)oot, (unsigned)mm, (unsigned)v.want);
+        if (oot != v.want || mm != v.want) {
+            printf("[TEST] FAIL: %s hashes %08X (OoT) / %08X (MM), not the unsigned fold %08X\n", v.label,
+                   (unsigned)oot, (unsigned)mm, (unsigned)v.want);
+            failures++;
+        }
+    }
+    if (failures > 0) {
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: both games' hashes fold every byte unsigned\n");
     return TEST_PASS;
 }
 
@@ -6138,6 +6183,8 @@ const TestDescriptor gTests[] = {
       Test_RandoShopCrossingsMM },
     { "rando-static-hint-order", "Static hints read the pinned text for the pinned seed on every STL (#951)",
       Test_RandoStaticHintOrder },
+    { "hash-bytes-unsigned", "SohUtils::Hash and Ship_Hash fold bytes >= 0x80 unsigned (#951)",
+      Test_HashBytesUnsigned },
     // #578 part 2: the trick BINDINGS. Appended at the end of the block rather
     // than next to its part-1 siblings above, because those sit before
     // archive-hotswap-logic's "keep LAST" row and this one runs a real generation

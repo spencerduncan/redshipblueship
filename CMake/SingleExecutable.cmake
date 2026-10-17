@@ -865,6 +865,10 @@ if(BUILD_TESTING)
     # different world identity on one peer's build.
     redship_add_test(NAME ComboSettingsFormat COMMAND redship --test combo-settings-format)
     redship_add_test(NAME ComboSettingsCanonical COMMAND redship --test combo-settings-canonical)
+    # #951: the project hash (SohUtils::Hash, Ship_Hash) folds bytes >= 0x80
+    # unsigned, so a non-ASCII seed makes the same world on signed- and
+    # unsigned-char targets. Pinned vectors; reverting either cast is red on x86.
+    redship_add_test(NAME HashBytesUnsigned COMMAND redship --test hash-bytes-unsigned)
     redship_add_test(NAME ComboSettingsDivergence COMMAND redship --test combo-settings-divergence)
     redship_add_test(NAME ComboSettingsLegacyFreeze COMMAND redship --test combo-settings-legacy-freeze)
     # ADR 0011 increment 2 (+ #668): the six tier-4 gCombo.Rando.* keys and the pane.
@@ -1887,11 +1891,14 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
-    # #951: the static hints' text under a profile where several of them draw from
-    # the fill's stream (Obscure clarity, most static hints on, set by the dispatch),
-    # against one pinned digest, so Windows/MSVC and Linux/GCC must build them in the
-    # same order. It also requires at least two of them to draw, without which the
-    # order could not show. Tier `rando` because it reads a real paired creation.
+    # #951: the static hints' text against one pinned digest, so Windows/MSVC and
+    # Linux/GCC must build them in the same order. A real paired creation at the
+    # default hint clarity, with every on/off static hint set on by the dispatch and
+    # an area-widening fixture (every location given two more hint areas between
+    # OoT's general pass and the hints), because a static hint draws from the fill's
+    # stream only when the location it names spans several areas and no generated
+    # profile makes that happen. It also requires at least two of them to draw,
+    # without which the order could not show. Tier `rando` because it reads a fill.
     redship_add_test(NAME RandoStaticHintOrder COMMAND redship --test rando-static-hint-order
         LABEL rando
         TIMEOUT 300
