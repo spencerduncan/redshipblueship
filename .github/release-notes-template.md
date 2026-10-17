@@ -14,11 +14,16 @@ Both builds bundle `soh.o2r` and the asset extraction tools (`assets/extractor/`
 - **Windows:** extract the zip anywhere and run `redship.exe`.
 - **Linux:** `chmod +x redshipblueship-{{TAG}}-linux.AppImage`, then run it.
 
-## Known Issues
+## Before you play: saves from earlier builds
 
-- **No macOS build.** The macOS CI build is disabled due to a libultraship linking issue; this pre-alpha supports Windows and Linux only.
-- **Stubbed settings tabs.** Several settings/enhancements tabs in the menu bar are placeholders and have no effect yet.
-- **MM enhancement hooks disabled.** The Majora's Mask C++ enhancement layer is stubbed out in single-executable builds, so MM enhancements are unavailable.
-- **Config file name.** Settings are saved to `shipofharkinian.json` (legacy name inherited from upstream Ship of Harkinian).
+- **Back up first.** Copy your `Save/` and `Randomizer/` folders aside before running this build on them.
+- **Old paired files are refused.** A paired randomizer file created before 2026-10-10 is not opened ("Refused: Majora's Mask options differ"): erase it and create a new file.
+- **Old seeds make new worlds.** A seed and settings from an older build generate a different world on this one.
+- **Rollback:** install into a new folder and keep the old one; earlier releases, `v0.1.1-prealpha` among them, stay downloadable from the releases page.
+
+## Known issues and changes
+
+- Known issues: [`docs/known-issues.md`](https://github.com/spencerduncan/redshipblueship/blob/{{TAG}}/docs/known-issues.md)
+- What changed in this release: [`docs/release-notes-next.md`](https://github.com/spencerduncan/redshipblueship/blob/{{TAG}}/docs/release-notes-next.md)
 
 Found something else? Report it at https://github.com/spencerduncan/redshipblueship/issues.

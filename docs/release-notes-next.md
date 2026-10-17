@@ -1,14 +1,26 @@
-# Release notes draft: the next prerelease
+# Release notes draft: v0.2.0-prealpha ("Trinity Alfa")
 
 **Status:** draft for the operator to edit. Nothing here is released.
-**Built from:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940)).
+**Version:** `v0.2.0-prealpha`, codename "Trinity Alfa" (`src/common/rsbs_version.h`, PR
+[#946](https://github.com/spencerduncan/redshipblueship/pull/946)). Under [`VERSIONING.md`](VERSIONING.md) that is a
+`y` bump: major features and fixes without a new `oot.otr` (the archive version, `project(Ship VERSION 9.1.1)`, is
+unchanged).
+**Built from:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940))
+plus three code changes merged on 2026-10-16: PR [#945](https://github.com/spencerduncan/redshipblueship/pull/945)
+(the first launch also offers Majora's Mask's ROM extraction), PR
+[#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the Happy Mask Shop door opens at night) and PR
+[#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer
+crashes). Everything
+else merged after `851b1ee9` is documentation, agent tooling (PR #947) or the version bump of PR #946.
 **Covers:** everything since `v0.1.1-prealpha` (2026-07-03). That tag's commit, `eab838c1`, is not an
 ancestor of `main`, so "since" is by date: 360 commits on `main` after 2026-07-03. The last 92 of them are
 the pull requests of the 2026-09-30 wave ([#802](https://github.com/spencerduncan/redshipblueship/pull/802) to
 [#940](https://github.com/spencerduncan/redshipblueship/pull/940)).
 
-Before tagging: `src/common/rsbs_version.h` still reads `v0.1.1-prealpha` (its comment says it "must equal the
-git release tag"), and since PR #900 every build's window title reads `v0.1.1-prealpha+<commit>`.
+Before tagging: the tag must be `v0.2.0-prealpha`, the `RSBS_VERSION_STRING` that `src/common/rsbs_version.h` now
+builds (its comment says it "must equal the git release tag"); the `create-release` job refuses any other tag. Since
+PR #900 a build's window title adds its commit: `v0.2.0-prealpha+<commit> (Trinity Alfa)` from the bump on,
+`v0.1.1-prealpha+<commit> (Morpheus Bravo)` before it.
 
 Numbers in parentheses are pull requests. The full list of open problems is
 [`known-issues.md`](known-issues.md); the playtest checklist is [`playtest-2026-09.md`](playtest-2026-09.md).
@@ -116,6 +128,13 @@ Numbers in parentheses are pull requests. The full list of open problems is
 - **Every crossing saves the file.** Walking through the Happy Mask Shop or Clock Tower door, or pressing F10,
   saves the whole file, as OoTMM does at every game switch (#846). Closing the game after a crossing no longer
   loses it.
+- **The Happy Mask Shop door opens at night in a paired world,** so the crossing into Termina works at any hour as
+  child Link. On a vanilla file it still shows its "Apply during the day" sign, and the other night shops stay
+  closed (#956). The crossing is child-only: as adult the Market is in ruins and has no Happy Mask Shop door.
+- **A crossing into a game that cannot start is refused, and the game you are in keeps running.** If its archive
+  is missing (for example after "Not now" to the Majora's Mask extraction, or with no `2ship.o2r`), the door leaves
+  Link just outside it (the Market in Hyrule, South Clock Town in Termina), F10 does nothing, and a message says
+  why. Before, such a refusal crashed the game (#957).
 - After such a reload Link wakes at a safe place (#871), OoT's collected checks stay collected (#856, #898),
   and an older save can never land over a newer one (#896).
 - **Moon crash.** A moon crash in a paired file restores the file's last save instead of leaving you on day 4,
@@ -167,7 +186,7 @@ Numbers in parentheses are pull requests. The full list of open problems is
 ## For testers
 
 - The window title and `redship --version` name the commit the build was made from, for example
-  `RedShipBlueShip v0.1.1-prealpha+851b1ee (Morpheus Bravo) (OpenGL)`, and each build writes its own log file
+  `RedShipBlueShip v0.2.0-prealpha+<commit> (Trinity Alfa) (OpenGL)`, and each build writes its own log file
   in `logs/` (#900).
 
 ## Known limitations
@@ -188,12 +207,18 @@ Numbers in parentheses are pull requests. The full list of open problems is
 
 ## Open decisions (operator)
 
-- #645: its two open items, and whether to close the epic.
-- #497: the SohMenu remainder of ADR 0004.
+- #645: its two open items, O2 (the per-direction crossing-edge expressions, which no merged PR records) and
+  O11 (the strictness presentation, which the Goal row of #760 does not record), and whether to close the
+  epic.
+- #497: build or close. PR #687 delivered its steps 3, 5 and 6 (capability gating, the shared-intent marker
+  and the Combo section) and the `SetMenu`-count invariant; all that remains is ADR 0004 §4's pairing status,
+  entrance links and hot-swap pages, which the ADR still lists as unbuilt.
 - #573: cross-game entrance randomization.
 - #574: networking / multiworld.
 - #460: the rest of netplay increment 1a beyond the hygiene slice (#821).
-- #599: MM's regular-save and owl-save flash indexing.
+- #599: close or keep. MM's regular-save and owl-save flash indexing has no effect in the single executable:
+  MM's flash write ends in a no-op (`z_sram_NES.c` -> `sys_flashrom.c` -> `mm_save_manager_stubs.c`), and MM's
+  saves are committed to the unified `.redsave` instead.
 - Closing the trackers #500 and #492 and the QA pass #310.
 - Playtests #694 (MM's game-over prompt) and #607 (an OoT item's icon in MM's textbox).
 - Replies to the community reports #634, #635 and #636 (fixed by #651, #650 and #648).

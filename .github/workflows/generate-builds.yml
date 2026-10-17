@@ -30,7 +30,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag to cut, e.g. v0.1.0-prealpha (must equal RSBS_VERSION_STRING)'
+        description: 'Release tag to cut, e.g. v0.2.0-prealpha (must equal RSBS_VERSION_STRING)'
         required: true
         type: string
 concurrency:
@@ -805,6 +805,25 @@ jobs:
       run: |
         TAG="${INPUT_TAG:-${GITHUB_REF_NAME#release/}}"
         echo "RELEASE_TAG=${TAG}" >> "$GITHUB_ENV"
+    # The tag rule (src/common/rsbs_version.h): a release tag must equal
+    # RSBS_VERSION_STRING, "v<MAJOR>.<MINOR>.<PATCH>-<STAGE>". Otherwise the
+    # release would ship a build whose window title and --version name another
+    # version, so refuse it before anything is published.
+    - name: Check release tag equals RSBS_VERSION_STRING
+      run: |
+        HDR=src/common/rsbs_version.h
+        field() { sed -n "s/^#define RSBS_VERSION_$1[[:space:]]\{1,\}//p" "$HDR" | tr -d '"\r' | sed 's/[[:space:]]*$//'; }
+        MAJOR="$(field MAJOR)"; MINOR="$(field MINOR)"; PATCH="$(field PATCH)"; STAGE="$(field STAGE)"
+        if [ -z "$MAJOR" ] || [ -z "$MINOR" ] || [ -z "$PATCH" ] || [ -z "$STAGE" ]; then
+          echo "::error::could not read RSBS_VERSION_MAJOR/MINOR/PATCH/STAGE from ${HDR}"
+          exit 1
+        fi
+        EXPECTED="v${MAJOR}.${MINOR}.${PATCH}-${STAGE}"
+        if [ "${RELEASE_TAG}" != "${EXPECTED}" ]; then
+          echo "::error::release tag '${RELEASE_TAG}' does not equal RSBS_VERSION_STRING '${EXPECTED}' (${HDR})"
+          exit 1
+        fi
+        echo "Release tag ${RELEASE_TAG} equals RSBS_VERSION_STRING."
     - name: Download Linux build
       uses: actions/download-artifact@v4
       with:
