@@ -7,7 +7,7 @@ them was tested:
 | Property | Question | Enforced by |
 |---|---|---|
 | **Reproducibility** | does the same seed produce the same world *twice in a row*? | `SeedDeterminism`, `MMPairedAttemptDeterminism` (self-diff rows) |
-| **Stability** | does the same seed still produce *the world we shipped*? | `GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest`, `GoldenSeedDigestArmedCaps` (golden rows) |
+| **Stability** | does the same seed still produce *the world we shipped*? | `GoldenSeedDigestDefault`, `GoldenSeedDigestProfileV1`, `GoldenPairedAttemptDigest`, `GoldenSeedDigestArmedCaps`, `GoldenSeedDigestEntrances` (golden rows) |
 
 The self-diff rows run one seed twice and compare the two runs **against each
 other**. Nothing in them compares anything to a stored value, so a change that
@@ -28,7 +28,17 @@ tests/golden/seed-digest-default.txt      # --test rando-determinism, SHIPPED pr
 tests/golden/seed-digest-profile-v1.txt   # --test rando-determinism, RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2
 tests/golden/paired-attempt-digest.txt    # --test mm-paired-attempt, the ladder world
 tests/golden/seed-digest-armed-caps.txt   # --test rando-armed-caps-digest, every give-capability family armed (the composed bag)
+tests/golden/seed-digest-entrances.txt    # --test rando-determinism, RSBS_DIAG_CVARS=gRandoSettings.ShuffleInteriorsEntrances=2,gRandoSettings.ShuffleOverworldEntrances=1
 ```
+
+`seed-digest-entrances` exists because the shipped profile shuffles no entrance, so
+in the other goldens `entranceCount` is 0 and `entranceDigest` is the empty hash: it
+pins nothing. This profile shuffles every interior and the overworld on the same
+seed and dispatch as `seed-digest-default` (132 overrides; the single bag places on
+its first attempt in 258 rounds, far from the fill's wall clock, so the golden does
+not ride machine speed). A heavier profile with dungeon entrances shuffled too was
+measured first and rejected: on this seed its single bag hit the 30 s per-attempt
+budget, and a golden must never pin a world a slower machine would not reach.
 
 `seed-digest-armed-caps` exists because the shipped profile arms none of the four
 MM give-capability families (souls, ocarina buttons, swim, clocks; #681), so under
@@ -46,8 +56,9 @@ changed arming row in the O8 table, a changed compose rule or a reordered pool a
 move it. The dispatch refuses to write a digest whose world did not publish every
 family or whose bag holds no capability row. Like the other goldens it is pinned
 archive-free and, in a ROM-staged tree, checked ROM-mounted too. (Until increment 3
-it pinned the retired reverse pass's armed draw,
-`foreignOoT<n>`.)
+it pinned the retired reverse pass's armed draw, in per-slot lines then named
+`foreignOoT<n>`.) It stops before the fill, so it carries none of the content
+fields below.
 
 Each is the digest text the corresponding dispatch writes, one `key=value` per
 line. The comparison is line-by-line after stripping CR, never a byte compare:
@@ -66,11 +77,55 @@ environment generates the same digest as the archive-free one, and a ROM-staged 
 checks that (see "The archive set is part of the pin"). They are still generated
 headlessly, with the empty exclude and trick sets the harness passes in, which is a
 separate question from the archive set. Both resolve combo direction `BOTH` at the
-shipped defaults, so both cover **both crossing directions** — the reverse table
-(`foreignOoTHash`, `foreignOoTCount`, and the per-slot `foreignOoT<n>` lines: OoT
-checks hosting MM items) and the forward table (`foreignCount` and the per-slot
-`foreign<n>` lines: MM checks hosting OoT items) are in every one of these
-digests.
+shipped defaults, so both cover **both crossing directions**: `crossingDigest` over
+the single bag's crossings, then `crossingsInOoT` and the per-slot `crossingOoT<n>`
+lines (`host:origin:id`, OoT checks hosting MM items) and `crossingsInMM` and the
+per-slot `crossingMM<n>` lines (MM checks hosting OoT items) are in every one of
+these digests. (Before ADR 0010 increment 3 retired the overlay passes these were
+`foreignOoTHash`/`foreignOoT<n>` and `foreignCount`/`foreign<n>`; a digest older than
+that reads with those names.)
+
+### What a player reads, pays and starts with (#949)
+
+A placement hash says where every item is and nothing else. A hint drawn in a
+different order, a price drawn from a different stream position, a starting item
+granted on one platform only or a different entrance table all leave every
+placement where it was, so until #949 they could differ between two binaries, or
+between Windows and Linux, with every row green. Every digest of a **complete**
+paired world (`seed-digest-default`, `seed-digest-profile-v1`,
+`paired-attempt-digest`, `seed-digest-entrances`, and the self-diff rows that run the
+same writers) now also
+carries:
+
+| Field | What it folds |
+|---|---|
+| `ootHintCount`, `ootHintDigest` | every enabled OoT hint in `RandomizerHint` order: key, type, hinted checks, hinted areas and every message in English (`MF_CLEAN`); the gossip stones, the static hints, the altars, Ganondorf and the foolish hints alike |
+| `mmHintCount`, `mmHintDigest` | every check an MM gossip stone may hint, in candidate order, with the free stone's text for it (a stone picks among these when it is read, so this is what the frozen world decides about MM's hints) |
+| `mmFoolishAreas` | MM's foolish areas, ascending (`none` when there are none); the free stone's foolish variant names one of them |
+| `ootPriceCount`, `ootPriceDigest` | every OoT check whose `GetPrice()` is non-zero, in `RandomizerCheck` order |
+| `mmPriceCount`, `mmPriceDigest` | every MM check with a price (`RANDO_SAVE_CHECKS[].price`: shops, Tingle, merchants), in check order |
+| `ootStartingItems` | `<count>/<digest>` of OoT's starting inventory, in the order generation granted it |
+| `mmStartingItems` | `<count>/<digest>` of the frozen start MM's save holds (`randoStartingItems`; the paired start since #879) |
+| `mmStartInventory` | MM's inventory, health, rupees and magic after creation, field by field: what `GrantStartingItems` granted |
+| `entranceCount`, `entranceDigest` | every entrance override OoT's shuffle wrote, in table order (`entranceCount` is the non-empty rows) |
+
+The two hint digests fold English text, so a wording change to a hint moves them as
+surely as a moved draw does; that is intended, and the re-pin commit says which.
+MM's four fixed-NPC hints (boss remains, Oath to Order, the hookshot Zora, the
+Spider Houses) are composed when their text opens and are off by default; they are
+not folded. The entrance fields mean something only under a profile with entrance
+shuffle on: under the shipped profile the table is empty (`entranceCount=0`).
+
+Some of these fields are the same in every golden, so they pin the writer and the
+fixed values, not a draw. Under the shipped profiles OoT's prices do not depend on the
+seed: `ootPriceCount=114` and `ootPriceDigest=2F60E6D1` appear in all four paired
+goldens, which are four different worlds. So no golden exercises OoT's stream-drawn
+price path (`3drando/shops.cpp`, used by shopsanity and the scrub and merchant price
+options); that needs a golden profile with one of them on, which #949 lists as a
+follow-up. MM's prices are drawn: `paired-attempt-digest` pins `mmPriceDigest=46E226E3`
+and the other three, which share one MM seed, pin `9E241182`. `ootStartingItems`,
+`mmStartingItems` and `mmStartInventory` are constant too, as expected for a fixed
+paired start.
 
 ## Reading a failure
 
@@ -78,9 +133,10 @@ A mismatch is reported field by field, split into two kinds, because they demand
 different reviews:
 
 * **OUTPUT fields moved** — the world changed under the same question. Examples:
-  `placementHash`, `placedCount`, `foreignOoTHash`, `foreignOoT<n>`,
-  `mmPlacementHash`, `mmReachableHash`, `foreign<n>`, `mmFinalSeed`,
-  `winningAttempt`. Something in the PR changed what the fill decided.
+  `placementHash`, `placedCount`, `crossingDigest`, `crossingOoT<n>`,
+  `crossingMM<n>`, `mmPlacementHash`, `mmReachableHash`, `ootFinalPlacementHash`,
+  `ootHintDigest`, `mmPriceDigest`, `mmFinalSeed`, `winningAttempt`. Something in
+  the PR changed what the fill, the hints, the prices or the start decided.
 * **INPUT fields moved** — the fill was asked a different question:
   `seed`, `settingsHash`, `comboSettingsHash`, `comboSettings`,
   `ladderMasterSeed`, `sourceIsRando`. Somebody changed the pinned seed, the
@@ -436,8 +492,9 @@ The measurement is worth stating because it was earned the hard way. The first
 goldens were generated ROM-staged on Windows and the Linux CI leg went red on both
 seed rows — which looked exactly like a compiler divergence. Hiding `oot.o2r` and
 `mm.o2r` and regenerating on the *same Windows machine* reproduced the Linux digest
-field for field (`settingsHash` 01CBE129, `placementHash` 98F07849, `foreignOoTHash`
-9362087A, `comboSettingsHash` EAF43DC3, and every per-slot line), so the variable
+field for field (`settingsHash` 01CBE129, `placementHash` 98F07849, the reverse
+table's hash 9362087A in a field then named `foreignOoTHash`, `comboSettingsHash`
+EAF43DC3, and every per-slot line), so the variable
 was the archive set, not the platform. Windows and Linux agree.
 
 **The measurement is re-taken on every PR, not remembered.** Both CI legs compare the

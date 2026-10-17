@@ -789,7 +789,13 @@ uint32_t SohUtils::Hash(std::string str) {
     const size_t len = str.size();
     uint32_t hval = 0x811c9dc5;
     for (size_t pos = 0; pos < len; pos++) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RedShipBlueShip (#951): through uint8_t, so a byte >= 0x80 folds the same on a
+        // signed-char and an unsigned-char target (identical for ASCII).
+        hval ^= (uint32_t)(uint8_t)str[pos];
+#else
         hval ^= (uint32_t)str[pos];
+#endif
         hval *= 0x01000193;
     }
     return hval;

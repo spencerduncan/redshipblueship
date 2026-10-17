@@ -90,10 +90,15 @@ int Rando_HeadlessSeedTest(const char* seedStr);
 int OoT_ComboLogic_GeneralPassDeferred(void);
 int OoT_Creation_FinishPairedHalf(int writeSpoiler);
 uint32_t Rando_HeadlessPlacementHash(size_t* outPlacedCount);
+// #949: OoT's hints, prices, starting items and entrances (3drando/menu.cpp), and
+// MM's gossip-stone candidates and their text (Rando/ActorBehavior/EnGs.cpp).
+void Rando_HeadlessWriteOoTContentDigest(FILE* out);
+int MM_Rando_Hints_DigestCandidates(uint32_t* outDigest);
 }
 
 #include "combo_single_bag.h" // src/common — the single bag's report and commit (lane K11)
 #include "crossing_store.h"   // src/common — the crossings the creation stores (ADR 0010 O7)
+#include "combo_area.h"       // src/common — MM's foolish areas the content digest folds (#949)
 
 namespace {
 
@@ -131,6 +136,92 @@ int K11FinishPairedOoTHalf() {
     const int crossings = OoT_Creation_FinishPairedHalf(0);
     Combo_SingleBag_Forget();
     return crossings;
+}
+
+/**
+ * #949: what a player of the paired world READS, PAYS and STARTS WITH, for both
+ * games, beside where the items are: OoT's lines (Rando_HeadlessWriteOoTContentDigest)
+ * and MM's own. Every determinism writer of a COMPLETE paired world calls this, so
+ * the goldens and the self-diff rows fold the same fields.
+ *
+ *   mmHintCount / mmHintDigest  every check a gossip stone may hint and the free
+ *                               stone's text for it, in candidate order (a stone picks
+ *                               among these when it is read);
+ *   mmFoolishAreas              MM's foolish areas (the free stone's foolish variant
+ *                               names one), ascending;
+ *   mmPriceCount / mmPriceDigest every MM check with a price (shops, Tingle,
+ *                               merchants), in check order;
+ *   mmStartingItems             <count>/<digest> of the frozen start the save holds
+ *                               (randoStartingItems, the paired start since #879);
+ *   mmStartInventory            the save's inventory and health, rupees and magic
+ *                               after creation: what GrantStartingItems granted.
+ */
+void WriteContentDigest(FILE* out) {
+    Rando_HeadlessWriteOoTContentDigest(out);
+
+    uint32_t mmHintDigest = 0;
+    const int mmHintCount = MM_Rando_Hints_DigestCandidates(&mmHintDigest);
+    std::string foolishList;
+    ComboFoolishAreas foolish;
+    if (Combo_Area_ComputeFoolish((uint8_t)GAME_MM, &foolish) > 0) {
+        for (int a = 1; a <= Combo_Area_Count((uint8_t)GAME_MM); a++) {
+            if (foolish.foolish[a]) {
+                foolishList += (foolishList.empty() ? "" : ",") + std::to_string(a);
+            }
+        }
+    }
+    std::string priceBlob;
+    int priceCount = 0;
+    for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+        if (randoStaticCheck.randoCheckId == RC_UNKNOWN || RANDO_SAVE_CHECKS[randoCheckId].price == 0) {
+            continue;
+        }
+        priceCount++;
+        priceBlob +=
+            std::to_string((int)randoCheckId) + ':' + std::to_string(RANDO_SAVE_CHECKS[randoCheckId].price) + ';';
+    }
+    std::string startBlob;
+    int startCount = 0;
+    for (const u16 item : gSaveContext.save.shipSaveInfo.rando.randoStartingItems) {
+        if (item != 0) {
+            startCount++;
+            startBlob += std::to_string(item) + ';';
+        }
+    }
+    // Field by field rather than the struct's bytes, so padding and layout can never
+    // reach the digest.
+    const Inventory& inv = gSaveContext.save.saveInfo.inventory;
+    const SavePlayerData& player = gSaveContext.save.saveInfo.playerData;
+    std::string invBlob;
+    for (const u8 v : inv.items) {
+        invBlob += std::to_string(v) + ',';
+    }
+    for (const s8 v : inv.ammo) {
+        invBlob += std::to_string(v) + ',';
+    }
+    invBlob += std::to_string(inv.upgrades) + ',' + std::to_string(inv.questItems) + ',';
+    for (const u8 v : inv.dungeonItems) {
+        invBlob += std::to_string(v) + ',';
+    }
+    for (const s8 v : inv.dungeonKeys) {
+        invBlob += std::to_string(v) + ',';
+    }
+    for (const s8 v : inv.strayFairies) {
+        invBlob += std::to_string(v) + ',';
+    }
+    invBlob += std::to_string(inv.defenseHearts) + '|' + std::to_string(player.healthCapacity) + ',' +
+               std::to_string(player.health) + ',' + std::to_string(player.rupees) + ',' +
+               std::to_string(player.magicLevel);
+    fprintf(out,
+            "mmHintCount=%d\n"
+            "mmHintDigest=%08X\n"
+            "mmFoolishAreas=%s\n"
+            "mmPriceCount=%d\n"
+            "mmPriceDigest=%08X\n"
+            "mmStartingItems=%d/%08X\n"
+            "mmStartInventory=%08X\n",
+            mmHintCount, mmHintDigest, foolishList.empty() ? "none" : foolishList.c_str(), priceCount,
+            Ship_Hash(priceBlob), startCount, Ship_Hash(startBlob), Ship_Hash(invBlob));
 }
 
 } // namespace
@@ -794,6 +885,7 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
             bag.fill.surplusPlaced, bag.fill.surplusDropped, bag.fill.attempts, bag.fill.rounds,
             bag.fill.leftoverHostsOoT, bag.fill.leftoverHostsMM, coordinatorDigest, ootFinalHash, ootFinalPlaced,
             Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM));
+    WriteContentDigest(out); // #949: hints, prices, starting items, entrances
     // Every crossing, row by row, so a golden diff names WHICH host moved:
     // host:origin:id, in the coordinator's order.
     for (const GameId host : { GAME_OOT, GAME_MM }) {
@@ -2212,6 +2304,7 @@ extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
             (unsigned)gComboCtx.mmPairedAttempt, placementHash, attemptBag.seed, attemptBag.bagCount,
             attemptBag.fill.rounds, attemptOoTHash, Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT),
             Combo_Crossings_Count(GAME_MM));
+    WriteContentDigest(out); // #949: hints, prices, starting items, entrances
     for (const GameId host : { GAME_OOT, GAME_MM }) {
         for (int i = 0; i < Combo_Crossings_Count(host); i++) {
             ComboCrossing row;

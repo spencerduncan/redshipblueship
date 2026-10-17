@@ -865,6 +865,10 @@ if(BUILD_TESTING)
     # different world identity on one peer's build.
     redship_add_test(NAME ComboSettingsFormat COMMAND redship --test combo-settings-format)
     redship_add_test(NAME ComboSettingsCanonical COMMAND redship --test combo-settings-canonical)
+    # #951: the project hash (SohUtils::Hash, Ship_Hash) folds bytes >= 0x80
+    # unsigned, so a non-ASCII seed makes the same world on signed- and
+    # unsigned-char targets. Pinned vectors; reverting either cast is red on x86.
+    redship_add_test(NAME HashBytesUnsigned COMMAND redship --test hash-bytes-unsigned)
     redship_add_test(NAME ComboSettingsDivergence COMMAND redship --test combo-settings-divergence)
     redship_add_test(NAME ComboSettingsLegacyFreeze COMMAND redship --test combo-settings-legacy-freeze)
     # ADR 0011 increment 2 (+ #668): the six tier-4 gCombo.Rando.* keys and the pane.
@@ -1722,10 +1726,18 @@ if(BUILD_TESTING)
     #     (ShuffleSongs=2) the self-diff rows above use, so the golden and the
     #     self-diff describe the same world and can be read against each other.
     # Both resolve combo direction BOTH at the shipped defaults, so both cover
-    # BOTH crossing directions: the reverse table (foreignOoTHash plus its
-    # per-slot foreignOoT<n> lines, OoT checks hosting MM items) and the forward
-    # table (foreignCount plus its per-slot foreign<n> lines, MM checks hosting
-    # OoT items) are in every one of these digests.
+    # BOTH crossing directions: crossingDigest over the single bag's crossings,
+    # then crossingsInOoT plus the per-slot crossingOoT<n> lines (OoT checks
+    # hosting MM items) and crossingsInMM plus the per-slot crossingMM<n> lines (MM
+    # checks hosting OoT items) are in every one of these digests.
+    #
+    # #949: every digest of a COMPLETE paired world also folds what a player reads,
+    # pays and starts with, which no placement hash can see: ootHint*/mmHint* (every
+    # enabled hint with its English text, and the gossip stones' candidates and
+    # text), mmFoolishAreas, ootPrice*/mmPrice* (every priced check), ootStartingItems,
+    # mmStartingItems and mmStartInventory (the frozen start and what was granted),
+    # and entranceCount/entranceDigest (the entrance table). The armed-caps golden
+    # stops before the fill, so it carries none of them.
     #
     # Timeout is 300, which is the number SeedDeterminism carries too — the
     # clause that used to sit here ("not SeedDeterminism's") described the same
@@ -1807,6 +1819,13 @@ if(BUILD_TESTING)
         # on this seed). Same seed and OoT settings as seed-digest-default, so the
         # two files differ only in what the capability narrowing changed.
         "GoldenSeedDigestArmedCaps|seed-digest-armed-caps|rando-armed-caps-digest|RSBS_SEED_DIGEST_OUT|ON|"
+        # #949: the entrance table. Under the shipped profile it is empty, so
+        # entranceDigest pins nothing in the goldens above; this profile shuffles
+        # every interior and the overworld (132 overrides on the pinned seed, a
+        # first-attempt single bag of 258 rounds, nowhere near the fill's wall
+        # clock), so the table, and the hints and prices of a shuffled world, are
+        # pinned too. Same seed and dispatch as seed-digest-default.
+        "GoldenSeedDigestEntrances|seed-digest-entrances|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRandoSettings.ShuffleInteriorsEntrances=2,gRandoSettings.ShuffleOverworldEntrances=1"
     )
     set(REDSHIP_GOLDEN_DIR "${CMAKE_SOURCE_DIR}/tests/golden")
 
@@ -1869,6 +1888,18 @@ if(BUILD_TESTING)
     # Shops set by the dispatch itself, pinned to a seed on which at least one OoT
     # item crosses into an MM shop slot. Tier `rando` because it reads a fill.
     redship_add_test(NAME RandoShopCrossingsMM COMMAND redship --test rando-shop-crossings-mm
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #951: the static hints' text against one pinned digest, so Windows/MSVC and
+    # Linux/GCC must build them in the same order. A real paired creation at the
+    # default hint clarity, with every on/off static hint set on by the dispatch and
+    # an area-widening fixture (every location given two more hint areas between
+    # OoT's general pass and the hints), because a static hint draws from the fill's
+    # stream only when the location it names spans several areas and no generated
+    # profile makes that happen. It also requires at least two of them to draw,
+    # without which the order could not show. Tier `rando` because it reads a fill.
+    redship_add_test(NAME RandoStaticHintOrder COMMAND redship --test rando-static-hint-order
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
