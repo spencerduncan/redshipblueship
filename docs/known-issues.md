@@ -1,10 +1,10 @@
 # Known issues
 
-**Applies to:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
-plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) and the GitHub Actions builds cut from it; the `v0.1.1-prealpha` tag
+**Applies to:** `v0.2.0-prealpha` ("Trinity Alfa"): `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
+plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) plus PRs [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's Mask's ROM extraction), [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the night Happy Mask Shop door) and [#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer crashes), with the version bump of PR [#946](https://github.com/spencerduncan/redshipblueship/pull/946), and the GitHub Actions builds cut from them; the `v0.1.1-prealpha` tag
 (2026-07-03) is older than everything in the first section. What changed since that tag, in player terms:
 [`release-notes-next.md`](release-notes-next.md).
-**Last updated:** 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
+**Last updated:** 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -108,6 +108,11 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   OoT's own entrance randomizer now leaves both directions of it out of every
   shuffle pool; under interior (or any) entrance shuffle the door you walk
   through is still the door to Termina (PR [#691](https://github.com/spencerduncan/redshipblueship/pull/691), [#661](https://github.com/spencerduncan/redshipblueship/issues/661)).
+  Since PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956) ([#948](https://github.com/spencerduncan/redshipblueship/issues/948))
+  the door also opens at night while a paired file is open, so child Link can cross at any hour. On a vanilla
+  file it still shows its "Apply during the day" sign at night and does not open, as in Ocarina of Time, and
+  the other night shops keep their signs. The crossing is child-only: as adult the Market is in ruins and has
+  no Happy Mask Shop door.
 - **Paired MM worlds can enable individual Majora's Mask logic tricks.** MM now
   has a per-trick vocabulary (86 trick keys, frozen into the world's identity
   like OoT's). **37** of them are bound to a real logic edge, 20 are reserved for an
@@ -312,14 +317,14 @@ player sees. Epics and trackers are listed for what they leave out of this build
 - [#855](https://github.com/spencerduncan/redshipblueship/issues/855): with OoT's "Scrubs Shuffle" on, a Business Scrub's offer follows "Merchant Hint Text" while the Check Tracker follows "Scrub Hint Text", so one can name the item while the other hides it (Ship of Harkinian's own behaviour; the operator's call).
 - [#694](https://github.com/spencerduncan/redshipblueship/issues/694): MM's game-over prompt (Combo > Majora's Mask, off by default) has never been seen in this build; its artwork may be missing. Awaiting a playtest.
 - [#607](https://github.com/spencerduncan/redshipblueship/issues/607): an OoT item found in Termina shows its OoT icon in MM's get-item textbox (PR [#761](https://github.com/spencerduncan/redshipblueship/pull/761)); not yet looked at in play.
-- [#599](https://github.com/spencerduncan/redshipblueship/issues/599): nothing seen in play. MM's regular saves and owl saves index their flash slots differently; inherited code, awaiting the operator's call.
-- [#645](https://github.com/spencerduncan/redshipblueship/issues/645): the single-bag fill is in this build; the epic stays open for two items awaiting the operator.
+- [#599](https://github.com/spencerduncan/redshipblueship/issues/599): nothing in play. MM's regular saves and owl saves index their flash slots differently (inherited code), but in the single executable MM's flash write is a no-op and its saves are committed to the `.redsave`, so the difference has no effect; whether to close it is the operator's call.
+- [#645](https://github.com/spencerduncan/redshipblueship/issues/645): the single-bag fill is in this build; the epic stays open for two items awaiting the operator: O2, the per-direction crossing-edge expressions (no merged PR records them), and O11, the strictness presentation (the Goal row of PR [#760](https://github.com/spencerduncan/redshipblueship/pull/760) does not record one).
 - [#577](https://github.com/spencerduncan/redshipblueship/issues/577): foreign items show their real models in both games; every child has landed, and the epic awaits closing.
 - [#564](https://github.com/spencerduncan/redshipblueship/issues/564): the one-game audit. Its remaining rows guard against saves that mix two worlds; a player creating and playing files on one build should not meet them.
 - [#573](https://github.com/spencerduncan/redshipblueship/issues/573): no cross-game entrance randomization; the Happy Mask Shop door is always the crossing.
 - [#574](https://github.com/spencerduncan/redshipblueship/issues/574): no multiworld over the combo.
 - [#460](https://github.com/spencerduncan/redshipblueship/issues/460): a netplay grant for the game you are in would wait for your next crossing; the combo's netplay relay is not built by default (`RSBS_NETPLAY` is OFF), so a player does not meet this.
-- [#497](https://github.com/spencerduncan/redshipblueship/issues/497): nothing new in play; the rest of the menu plan awaits the operator.
+- [#497](https://github.com/spencerduncan/redshipblueship/issues/497): nothing new in play. PR [#687](https://github.com/spencerduncan/redshipblueship/pull/687) built its capability gating, shared-intent marker and Combo section; only ADR 0004's pairing status, entrance links and hot-swap pages remain, and whether to build them or close the issue is the operator's call.
 - [#500](https://github.com/spencerduncan/redshipblueship/issues/500) and [#492](https://github.com/spencerduncan/redshipblueship/issues/492): the Phase 3.2 and 3.1 trackers. The two-way randomizer and the cross-game logic they track are in this build; whether to close them is the operator's call.
 - [#310](https://github.com/spencerduncan/redshipblueship/issues/310): the manual QA pass by a person with the ROMs is still to do.
 

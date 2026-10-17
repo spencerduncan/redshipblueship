@@ -327,6 +327,10 @@ extern "C" int MM_SceneFlagFreeze_RunHeadless(void) {
         Context_SetCurrentGame(prevGame);
         return 1;
     }
+    // The Clock Tower door crosses into OoT, which a ROM-free run has not
+    // booted: say it is playable, or the door is refused before it freezes
+    // anything (#954).
+    Switch_SetTargetStatusForTest(SWITCH_TARGET_PLAYABLE);
 
     // A minimal live PlayState: the flush reads sceneId and actorCtx.sceneFlags
     // and nothing else. calloc'd on the C heap, not MM's arena, so this row is
@@ -351,6 +355,7 @@ extern "C" int MM_SceneFlagFreeze_RunHeadless(void) {
     // The watermark table lives outside gComboCtx; leg 3 harvested into it.
     Combo_ResetSharedResourceWatermarks();
     (void)ResetEntranceTable();
+    Switch_SetTargetStatusForTest(-1);
     Context_SetCurrentGame(prevGame);
 
     if (rc == 0) {

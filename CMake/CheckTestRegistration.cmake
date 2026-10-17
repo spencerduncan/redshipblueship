@@ -180,9 +180,15 @@ row-less with redship_test_exempt(${_entry} \"<why>\")")
 endforeach()
 
 foreach(_entry IN LISTS _found_integration)
-    if(NOT _entry IN_LIST _reg_int)
+    if(_entry IN_LIST _reg_int)
+        continue()
+    elseif(_entry IN_LIST _exempt)
+        list(APPEND _used_exempt "${_entry}")
+    else()
         list(APPEND _problems
-            "integration entry '${_entry}' (test_runner.cpp gIntegrationTests[]) has no CTest row")
+            "integration entry '${_entry}' (test_runner.cpp gIntegrationTests[]) has no CTest row -- \
+add redship_add_test(NAME <Row> COMMAND redship --integration-test ${_entry} LABEL integration), or, when a \
+cmake -P row drives it, declare it row-less with redship_test_exempt(${_entry} \"<why>\")")
     endif()
 endforeach()
 
@@ -211,11 +217,11 @@ endforeach()
 #     cannot quietly become a rubber stamp (same rule as
 #     .github/clang-format-paths.txt).
 foreach(_e IN LISTS _exempt)
-    if(NOT _e IN_LIST _found_unit)
+    if(NOT _e IN_LIST _found_unit AND NOT _e IN_LIST _found_integration)
         list(APPEND _problems
             "stale exemption: redship_test_exempt(${_e}) names a dispatch entry that no \
 longer exists -- drop the exemption")
-    elseif(_e IN_LIST _reg_unit)
+    elseif(_e IN_LIST _reg_unit OR _e IN_LIST _reg_int)
         list(APPEND _problems
             "needless exemption: '${_e}' now has its own CTest row -- drop the \
 redship_test_exempt(${_e}) line")
