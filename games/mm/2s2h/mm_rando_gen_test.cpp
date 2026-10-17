@@ -92,9 +92,9 @@ int OoT_Creation_FinishPairedHalf(int writeSpoiler);
 uint32_t Rando_HeadlessPlacementHash(size_t* outPlacedCount);
 }
 
+#include "gen_budget.h"       // src/common — the creation's round budget (#950)
 #include "combo_single_bag.h" // src/common — the single bag's report and commit (lane K11)
 #include "crossing_store.h"   // src/common — the crossings the creation stores (ADR 0010 O7)
-#include "gen_budget.h"       // src/common — the creation's round budget (#950)
 
 namespace {
 
