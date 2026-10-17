@@ -676,6 +676,14 @@ delivered into the fill through `Rando::Logic::gRsbsGlitchlessTimeoutMsOverride`
 so an armed test override is never clobbered (the alternative is a lock that
 silently tests the shipped budget). **PR #581 §2a is untouched**: neither the
 per-attempt abort nor the new total abort climbs a rung; both stop the ladder.
+[amended 2026-10-16, #950: both stops now count coordinator fill rounds, not
+milliseconds — 1250 rounds per attempt (the 30 s floor over a measured 24 ms
+reference round) and 2500 summed over the ladder, compile-time constants with no
+host input; the host scale, the 90 s ceiling and the millisecond figures are the
+progress overlay's estimate only, the clock is a monotonic wall clock on every
+platform, and the single bag no longer reads
+`Rando::Logic::gRsbsGlitchlessTimeoutMsOverride`. See the Amendments entry of
+that date.]
 
 *The progress surface.* `Combo_GenProgress_*` in the same file: a
 phase/attempt/elapsed/budget record with a greppable stderr leg that always
@@ -936,7 +944,9 @@ is accepted (listed here; deliberately not filed by this ADR):
   tail case. The operator decision (see increment 2 above) is a visible
   generation-progress surface plus a ~30s floor, layered with a per-attempt
   adaptive budget keyed to host speed; #582 remains open as the
-  implementation tracker.
+  implementation tracker. [amended 2026-10-16, #950: the budget is now a count
+  of fill rounds sized to that 30 s floor, so it no longer depends on the
+  machine; see the Amendments entry of that date.]
 - **Determinism re-pins, twice**: increment 2 re-pins the
   SeedDeterminism/MMRandoGen/HeadlessForeignDigest rows; increment 3 re-pins
   everything again when the fill unifies. Batched deliberately; never
@@ -1811,7 +1821,9 @@ and `Combo_ComboSettingsFrozen`):
 per-attempt budget; the coordinator reports each round, the proof and the
 surplus stage to an observer, which reports progress to the overlay and stops
 the fill at the budget (`RSBS_COMBO_LOGIC_ERR_ABORTED`). A wall-clock stop is a
-`GenerationTimeout`, never a ladder rung (#581 section 2a). Only a world dead
+`GenerationTimeout`, never a ladder rung (#581 section 2a). [amended 2026-10-16,
+#950: the stop counts the attempt's fill rounds, not a clock; it is still a
+`GenerationTimeout` and still never a rung.] Only a world dead
 end (`NO_CANDIDATE`, `GOAL_UNPROVABLE`, `NOT_ALL_REACHED`) is a rung and
 re-seeds from `Combo_SingleBag_SeedFor(attempt)`; a refusal or an engine defect
 (`BAD_REQUEST`, `NO_ENGINE`, `CAPACITY`, `ENGINE_REFUSED`, ...) is
@@ -2337,3 +2349,55 @@ zig-zag, which shortens every pass. Its pathfinder stops at the goal and its
 up-pass reuses the previous search. Here every round runs both engines to
 their fixpoint from scratch. Each of those is a lever a later H5b would need;
 none was tried here.
+
+### 2026-10-16 -- The creation budget counts fill rounds, not milliseconds (#950)
+
+Decision 5's *The budget (#582)* paragraph sized both of the creation's stops in
+milliseconds, and `src/common/gen_budget.c` measured them with C `clock()`. That
+is wall time under MSVC and the process's CPU time, summed over every thread,
+under glibc and macOS. Once the clock decided whether a creation stopped, one seed
+had a different budget on Windows and on Linux, and a slow or loaded machine could
+refuse a seed that a faster one created. The never-climb rule kept every machine
+to the same world, but whether the file was created still depended on the
+machine, which the one-game ruling does not allow.
+
+**What changed.** Both stops count the coordinator's fill rounds
+(`ComboLogicFillResult::rounds`), which are a pure function of the frozen
+identity:
+
+- **Per attempt:** `RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT` = 30 s /
+  `RSBS_GENBUDGET_REFERENCE_ROUND_MS` (24 ms) = **1250 rounds**, checked by the
+  single-bag fill's observer before every round. Reaching it is still
+  `RSBS_COMBO_LOGIC_ERR_ABORTED`, still a `GenerationTimeout`, still never a rung.
+- **Whole creation:** `RSBS_GENBUDGET_TOTAL_ROUNDS` = 2 x 1250 = **2500 rounds**,
+  summed over every ladder attempt (each single-bag fill charges the rounds it
+  ran, dead end or not) and checked between attempts. Still never a rung: it
+  stops the ladder outside the attempt's `try`.
+
+The operator's ~30 s floor is kept as what the round budget is sized to: 24 ms is
+the measured cost of one round on the reference machine (the single-bag call's
+wall time over its rounds: 24.3 ms in the K11 entry's thirty-creation sample,
+25.7 ms over nine fills measured for #950). A shipped batch is 258 rounds, so a
+fill that needs four batches is created and one that needs five is stopped, which
+is where the wall-clock floor sat on that machine. The host scale, the 90 s
+ceiling and `Combo_GenBudget_FillBudgetMs` remain only as the progress overlay's
+estimate of how long the budget takes on this host. `Combo_GenBudget_NowMs` is a
+monotonic wall clock on every platform (`QueryPerformanceCounter`,
+`CLOCK_MONOTONIC`) and serves only that display and the stderr timing lines. The
+presentation credit no longer protects any stop, because painting a frame runs no
+round.
+
+**What it costs.** A slow host now waits longer for the same verdict instead of
+getting a larger budget: at three times the reference round cost a full 1250-round
+attempt takes about 90 s, which is the old ceiling.
+
+**Locks.** `MMPairedExhaustion` (a one-round per-attempt budget stops at attempt 1;
+a one-round total after a real fill stops before attempt 2; both refuse loudly),
+`MMRoundBudgetHostScale` (one seed under a 64-round and under the shipped budget
+at host scales 100% and 300%: the same verdict, rounds and world at both),
+`GoldenSeedDigestDefaultHostScale300` (the default golden with the host scale
+pinned at 300%) and `GoldenSeedsRoundBudget` (every golden seed creates on its
+pinned attempt, 258 of 1250 rounds). No golden moved.
+
+Solo MM generation (not paired) keeps upstream's own 10 s wall-clock abort in
+`GlitchlessLogic.cpp`; it is outside the paired creation and this decision.

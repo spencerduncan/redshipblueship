@@ -136,7 +136,7 @@ extern "C" {
  * re-measured only deliberately and only in its own commit, because changing it
  * changes which seeds are creatable, on every machine at once.
  */
-#define RSBS_GENBUDGET_REFERENCE_ROUND_MS 22u
+#define RSBS_GENBUDGET_REFERENCE_ROUND_MS 24u
 /** THE PER-ATTEMPT STOP: fill rounds one ladder attempt may run (#950). */
 #define RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT (RSBS_GENBUDGET_FLOOR_MS / RSBS_GENBUDGET_REFERENCE_ROUND_MS)
 /** THE TOTAL STOP: fill rounds the whole ladder may run, summed over attempts. */

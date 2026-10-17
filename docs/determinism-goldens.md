@@ -37,8 +37,10 @@ arms all four through MM's own option CVars, generates the same seed with the sa
 OoT settings as `seed-digest-default` (so `settingsHash` and `placementHash` match
 that file), and then composes the single bag (ADR 0010 increment 3) from OoT's
 deferred general-pass pool and MM's pool under the frozen armed profile, without
-running the fill: the armed MM fill hits its wall-clock budget on this seed, and a
-golden riding a machine-speed timeout would be flaky. What it pins is the bag:
+running the fill: the armed MM fill hit its wall-clock budget on this seed when
+this golden was added, and a golden riding a machine-speed timeout would have been
+flaky (since #950 that budget counts fill rounds, so it no longer depends on the
+machine, but the golden still stops before the fill). What it pins is the bag:
 the published caps (`armedGiveCaps`), each game's pool size (`armedOoTPoolRows`,
 `armedMMPoolRows`), the admitted rows (`armedBagRows`, `armedBagCapabilityRows`,
 `armedBagDigest`) and each game's disposition counts (`armedOoT`, `armedMM`). A
@@ -470,6 +472,24 @@ the iteration order the digests fold.
 measured, and this page must then say which field differs and why.** Adding one to
 make a row go green would convert a real finding — *the same seed gives two
 players different worlds* — into a silenced test.
+
+## The host-scale variant (#950)
+
+`GoldenSeedDigestDefaultHostScale300` runs the `seed-digest-default` dispatch with
+`RSBS_GENBUDGET_HOST_SCALE=300` (the slowest host the progress overlay models) and
+compares against the same `seed-digest-default.txt`. Since #950 the creation budget
+counts fill rounds and no host input reaches generation, so the digest must not
+move. The row sits outside `REDSHIP_GOLDEN_DIGESTS` on purpose: the re-pin loop
+regenerates every table row, and a variant that re-pinned the default golden from
+a pinned-scale run could hide the very leak it checks. It passes
+`-DRUN_TAG=seed-digest-default-host-scale-300` to `CheckGoldenDigest.cmake` so its
+digest files and sandbox never collide with `GoldenSeedDigestDefault`'s under
+`ctest -j`. The dispatch refuses to run if the requested scale did not take.
+
+`GoldenSeedsRoundBudget` (rando tier) creates each golden seed again under the
+shipped round budget and requires it on its pinned ladder attempt, with its
+`bagRounds` and `mmPairedAttempt` equal to the golden's when the file is in the
+tree, and prints how much of the budget each one uses.
 
 ## Adding a golden
 

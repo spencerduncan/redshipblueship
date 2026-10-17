@@ -104,21 +104,25 @@ uint32_t Combo_GenBudget_NowMs(void) {
 /*
  * RSBS_GENBUDGET_REFERENCE_ROUND_MS (gen_budget.h), WHERE IT COMES FROM.
  *
- * The cost of one coordinator fill round on the reference machine, measured over
- * real paired creations of the shipped profile, every fill a single batch of
- * 256-258 rounds:
- *   - ADR 0010's K11 entry (PR #743): one headless creation, 5.61 s of fill over
- *     256 rounds = 21.9 ms per round, at host scale 100%; thirty creations
- *     through the event averaged 6.41 s of fill at about 260 rounds = 24.7 ms
- *     per round, at host scale 105%.
- *   - This change (2026-10-16, Release/MSVC, the same workstation): see the
- *     PR #950 measurement in docs/combo-logic-coordinator.md ("The budget").
- * 22 ms at scale 100% is the round the floor is divided by: 30 s / 22 ms = 1363
- * rounds per attempt, five single-batch shipped fills, which is where the
- * wall-clock floor sat on the reference machine (ADR 0010: "a seed would need
- * five batches to exceed the budget"). The bag's fill wall time includes the bag
- * build, so the per-round figure is a slight overestimate and the round budget
- * slightly generous against the old floor, never stricter.
+ * The cost of one coordinator fill round on the reference machine (the same
+ * workstation GENBUDGET_REFERENCE_MS was measured on), from real paired
+ * creations of the shipped profile, every fill a single batch:
+ *   - ADR 0010's K11 entry (PR #743): thirty creations through the event, host
+ *     scale 105%: 6.41 s of fill on average over about 264 rounds = 24.3 ms per
+ *     round. (One headless creation at scale 100%: 5.61 s over 256 = 21.9 ms.)
+ *   - #950 (2026-10-16, Release/MSVC, scale 100-105%): nine single-batch fills
+ *     of 258 rounds across the MMPairedExhaustion, MMRoundBudgetHostScale and
+ *     GoldenSeedsRoundBudget rows took 4.96-7.70 s, mean 6.63 s = 25.7 ms per
+ *     round (19.2 to 29.8).
+ * Each figure is the single-bag call's wall time (bag build and bookkeeping
+ * included) over its rounds, so a little above a bare round's cost.
+ *
+ * 24 ms is the round the floor is divided by: 30 s / 24 ms = 1250 rounds per
+ * attempt. A shipped single batch is 258 rounds, so a fill that needs four
+ * batches (1032 rounds) is created and one that needs five (1290) is stopped,
+ * which is where the wall-clock floor sat on the reference machine (ADR 0010's
+ * K11 entry: "at about 6.4 s per batch, a seed would need five batches to exceed
+ * the budget"). The total is 2500 rounds.
  */
 
 static uint32_t sRoundsPerAttemptOverride = 0;

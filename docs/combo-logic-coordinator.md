@@ -283,6 +283,49 @@ across both worlds, that carrier does not exist, and per-half composition is wha
 O10 rejected — so evaluating it as anything would ship a world whose stated goal
 is not the goal that was proved.
 
+### 4.3 The creation budget counts rounds, not milliseconds (#950)
+
+`Combo_Logic_RunFill` calls its observer before every round, and the observer
+may stop the fill (`RSBS_COMBO_LOGIC_ERR_ABORTED`). The paired creation's
+observer (`combo_single_bag.c`) stops it when the attempt has run
+`Combo_GenBudget_RoundsPerAttempt()` rounds, and MM's attempt ladder
+(`OnFileCreate.cpp`) stops the creation between attempts once the rounds summed
+over every attempt reach `Combo_GenBudget_TotalRounds()`. Both numbers are
+compile-time constants in `src/common/gen_budget.h`:
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `RSBS_GENBUDGET_REFERENCE_ROUND_MS` | 24 | measured cost of one fill round on the reference machine |
+| `RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT` | 1250 | 30 s floor / 24 ms: the per-attempt stop |
+| `RSBS_GENBUDGET_TOTAL_ROUNDS` | 2500 | 2 x the per-attempt budget: the whole creation's stop |
+
+Until #950 both stops compared C `clock()` against a millisecond budget scaled by
+the host's measured speed. `clock()` is wall time under MSVC and the process's CPU
+time under glibc and macOS, so one seed got a different budget on Windows and on
+Linux, and a slow or loaded machine could refuse a seed a faster one created. The
+round count of a fill is a pure function of the frozen identity, so a seed is now
+either creatable on every machine or on none. The host scale and the millisecond
+figures survive only as the progress overlay's estimate of how long the round
+budget takes on this host, and `Combo_GenBudget_NowMs()` is a monotonic wall clock
+on every platform, used only for that display and the stderr timing lines.
+
+**Where 24 ms comes from.** The single-bag call's wall time over its rounds, on
+the reference machine, shipped profile, single-batch fills: 24.3 ms (ADR 0010's
+K11 sample of thirty creations, 6.41 s over about 264 rounds) and 25.7 ms (#950:
+nine fills of 258 rounds, 4.96-7.70 s). A shipped batch is 258 rounds, so a fill
+that needs four batches is created and one that needs five is stopped, which is
+where the 30 s wall-clock floor sat on that machine. The four golden seeds use
+258 of the 1250 rounds on their creating attempt (`GoldenSeedsRoundBudget`).
+
+**A budget stop is never a rung.** It throws `GenerationTimeout` (per attempt) or
+stops outside the attempt's `try` (total), and the ladder stops cold, exactly as it
+did when the stop was a clock. The budget can refuse a seed; it can never choose
+which attempt's world the player gets. `MMPairedExhaustion` locks both stops
+(a one-round per-attempt budget, and a one-round total after a real fill), and
+`MMRoundBudgetHostScale` creates one seed at host scales 100% and 300% under a
+squeezed and the shipped budget and requires the same verdict, the same rounds and
+the same world at both.
+
 ## 5. Termination, and the two watchdogs
 
 The argument is written at the loop: each engine's expansion is monotone on its
