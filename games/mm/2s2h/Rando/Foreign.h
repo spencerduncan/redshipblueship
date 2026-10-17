@@ -97,13 +97,14 @@ uint32_t MixPairedFinalSeed();
  *  ":glitchless-attempt-" literal is the ADR's domain-separation tag and is
  *  used under EVERY logic mode (it names the ladder, not the rung).
  *
- *  WHICH FAILURES ARE RUNGS: only failures that are a function of the seeded
- *  RNG stream. The Glitchless fill's 10s wall-clock abort is not — it depends
- *  on machine speed and load — so it throws Rando::Logic::GenerationTimeout
- *  and OnFileCreate STOPS the ladder on it (loud refusal) instead of
- *  re-rolling. Otherwise a slow machine would climb to a different rung and
- *  hand the player a different world for the same frozen identity, which is
- *  precisely what this recipe exists to prevent.
+ *  WHICH FAILURES ARE RUNGS: only world dead ends. A BUDGET STOP is not: the
+ *  single-bag fill's per-attempt round budget throws
+ *  Rando::Logic::GenerationTimeout and OnFileCreate STOPS the ladder on it (loud
+ *  refusal) instead of re-rolling. When that stop was a wall clock (until #950),
+ *  climbing on it would have let a slow machine reach a different rung and hand
+ *  the player a different world for the same frozen identity, which is
+ *  precisely what this recipe exists to prevent; the round budget is
+ *  deterministic, and the rule is kept so a budget can never choose a world.
  *
  *  Same ordering contract as MixPairedFinalSeed: resolve the profile first. */
 uint32_t MixPairedFinalSeedForAttempt(uint32_t attempt);
@@ -183,6 +184,16 @@ int ForcedShortForeignPlacementsRemaining();
  *  consumer: the forward overlay pass that used to throw here is retired. */
 bool ConsumeForcedLadderRung();
 
+/** TEST-ONLY (#950): make the next `attempts` paired single-bag fills that
+ *  SUCCEED fail afterwards as a deterministic ladder rung, rolled back like a
+ *  world dead end. Unlike ForceShortForeignPlacements (which fails before any
+ *  engine is touched, charging zero rounds), the attempt has run a REAL fill and
+ *  charged its rounds to the ladder's total, which is what the total-budget leg
+ *  of MMPairedExhaustion needs. Zero on every shipping path. */
+void ForceLadderRungAfterFill(int attempts);
+/** Consume one ForceLadderRungAfterFill rung: true when one was armed. */
+bool ConsumeForcedLadderRungAfterFill();
+
 /** Is this check of a class MM's foreign give path delivers from? Tier A: a
  *  cycle-reset chest, whose `.eligible` bit game code arms on the ordinary
  *  CheckQueue path. Tier S (#800 pass 1): a shop slot (RCTYPE_SHOP), whose
@@ -201,8 +212,8 @@ bool IsForeignHostClass(RandoCheckId randoCheckId);
  *  pass over MM's leftover hosts. Defined in ComboLogicEngineSingleExe.cpp; called
  *  from OnFileCreate's paired branch inside the attempt ladder, in place of MM's
  *  own fill and the forward crossing pass. Throws Rando::Logic::GenerationTimeout
- *  on the per-attempt wall-clock stop and std::runtime_error on a deterministic
- *  dead end, exactly as MM's own fill does. */
+ *  on the per-attempt round-budget stop (#950) and std::runtime_error on a
+ *  deterministic dead end, the shapes MM's own fill uses. */
 void RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool,
                             int ladderAttempt);
 

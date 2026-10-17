@@ -57,8 +57,10 @@
  *  6. A SECOND CREATION STARTS FROM ZERO. The fraction is a watermark, so
  *     failing to reset it would leave the next file's bar pinned at 100%.
  *
- *  7. PRESENTATION TIME IS CREDITED OUT OF THE NUMBER THE LADDER DECIDES WITH. A
- *     painted frame waits for vblank; the creation has TWO wall-clock stops, and
+ *  7. PRESENTATION TIME IS CREDITED OUT OF THE GENERATION FIGURE. (Until #950 the
+ *     ladder decided with it; both stops count fill rounds now, and the split
+ *     survives in the stderr timing lines.) A
+ *     painted frame waits for vblank; the creation had TWO wall-clock stops, and
  *     the first cut of #582 credited only the fill's per-attempt one, leaving the
  *     ladder's TOTAL budget charging every presented frame in full — a creation
  *     that fails on a host with a window and succeeds on the same host headless.

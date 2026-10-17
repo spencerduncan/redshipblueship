@@ -24,34 +24,62 @@
  * named, not buried.
  *
  * ------------------------------------------------------------------------
+ * THE BUDGET IS COUNTED IN ROUNDS, NOT MILLISECONDS (#950)
+ * ------------------------------------------------------------------------
+ * Until #950 both of the creation's stops compared a CLOCK against the budget,
+ * and the clock was C clock(): wall time under MSVC, the process's CPU time
+ * summed over every thread under glibc and macOS. So one seed got a different
+ * effective budget on Windows and on Linux, and a loaded or slow machine could
+ * refuse a seed a faster one created. The never-climb rule below kept every
+ * machine to the SAME world, but "created" versus "Not created" still depended
+ * on the machine, which one-game semantics does not allow: a seed must be
+ * creatable everywhere or nowhere.
+ *
+ * Both stops now count WORK, and the work is the coordinator's fill round
+ * (Combo_Logic_RunFill; ComboLogicFillResult::rounds), which is a pure function
+ * of the frozen identity:
+ * - PER ATTEMPT: at most RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT rounds, checked by the
+ *   single-bag fill's observer before every round (combo_single_bag.c).
+ * - WHOLE CREATION: at most RSBS_GENBUDGET_TOTAL_ROUNDS rounds summed over every
+ *   ladder attempt, checked BETWEEN attempts (OnFileCreate.cpp).
+ * Both numbers are compile-time constants; nothing about the host reaches them.
+ * The host scale and the millisecond figures below survive only as the
+ * progress overlay's ESTIMATE of how long the round budget lasts on this host
+ * (the bar's within-attempt creep) and in the stderr timing lines.
+ *
+ * ------------------------------------------------------------------------
  * WHAT THE BUDGET DOES *NOT* CHANGE — PR #581 §2a's DETERMINISM RULE
  * ------------------------------------------------------------------------
- * A WALL-CLOCK ABORT NEVER CLIMBS A LADDER RUNG. An abort is a function of how
- * fast the machine is, not of the seed, and letting it advance the attempt index
- * would hand two players on different hardware two different worlds under one
- * frozen identity. The ladder catches Rando::Logic::GenerationTimeout BEFORE
- * std::exception and stops cold (OnFileCreate.cpp). Nothing here touches that.
- * All a bigger budget buys is a slower host reaching the SAME verdict the fast
- * host reached; all the calibration does is decide how long it waits first.
+ * A BUDGET STOP NEVER CLIMBS A LADDER RUNG. When the stop read a clock, an abort
+ * was a function of how fast the machine was, and letting it advance the attempt
+ * index would have handed two players on different hardware two different worlds
+ * under one frozen identity. The round budget is deterministic now, but the rule
+ * stays exactly as it was: the ladder catches Rando::Logic::GenerationTimeout
+ * BEFORE std::exception and stops cold (OnFileCreate.cpp), and the total stop
+ * throws outside the attempt's try. A seed that spends its budget is refused,
+ * never re-rolled into a different world.
  *
  * ------------------------------------------------------------------------
  * THE NUMBERS
  * ------------------------------------------------------------------------
  * - FLOOR = 30 s per attempt. The operator's "~30 second cap as the floor",
- *   taken literally: no host ever gets less. Three times upstream's 10 s, which
- *   is the constant every one of the 14 observed failures hit.
- * - CEILING = 90 s per attempt. A budget has to end somewhere, and a player
- *   staring at a file-select screen for longer than a minute and a half with no
- *   world at the end of it is a worse outcome than "try another seed".
- * - HOST SCALE = measured/reference, clamped to [1.0, 3.0]. Never below 1: the
- *   floor is a floor, and a machine FASTER than the reference does not need a
- *   smaller budget — it will simply finish sooner.
- * - TOTAL CREATION BUDGET = 2 x the per-attempt budget, checked BETWEEN
- *   attempts. Without it, ten deterministic dead-ends that each grind for most
- *   of their budget would keep a player waiting for minutes. Checked between
- *   attempts rather than inside one, so it can never truncate an attempt that is
- *   about to succeed; worst-case wait is therefore total + one in-flight attempt
- *   (~90 s at scale 1.0).
+ *   taken literally. Three times upstream's 10 s, which is the constant every one
+ *   of the 14 observed failures hit. Since #950 it is the TIME the round budget
+ *   is sized to last on the reference machine, not a stop.
+ * - REFERENCE ROUND = the measured cost of one fill round on the reference
+ *   machine (gen_budget.c says where the number comes from).
+ * - ROUNDS PER ATTEMPT = FLOOR / REFERENCE ROUND: the round budget that lasts
+ *   the floor on the reference machine. THE STOP. A slower host takes longer to
+ *   spend it and a faster one less; neither gets a different verdict.
+ * - TOTAL ROUNDS = 2 x the rounds per attempt, summed over every ladder attempt
+ *   and checked BETWEEN attempts. Without it, ten deterministic dead-ends that
+ *   each grind for most of their budget would keep a player waiting for
+ *   minutes. Checked between attempts rather than inside one, so it can never
+ *   truncate an attempt that is about to succeed.
+ * - CEILING = 90 s and HOST SCALE = measured/reference clamped to [1.0, 3.0]:
+ *   DISPLAY ONLY since #950. They size the overlay's estimate of how long this
+ *   host takes to spend the round budget (Combo_GenBudget_FillBudgetMs), and
+ *   nothing a creation decides reads either of them.
  *
  * THE REFERENCE MACHINE IS NAMED, NOT IMPLIED. kGenBudgetReferenceMs is the time
  * the fixed calibration workload below takes on the development workstation this
@@ -90,22 +118,36 @@ extern "C" {
 
 // ---- The pinned numbers (see the header comment for each one's reason) ------
 
-/** Per-attempt wall-clock floor, ms. The operator's "~30 second cap as the
- *  floor". No host ever gets less than this. */
+/** The operator's "~30 second cap as the floor", ms: the time the per-attempt
+ *  round budget is sized to last on the reference machine. Display and sizing
+ *  only since #950; no stop compares a clock against it. */
 #define RSBS_GENBUDGET_FLOOR_MS 30000u
-/** Per-attempt wall-clock ceiling, ms. */
+/** The overlay estimate's ceiling, ms (display only since #950). */
 #define RSBS_GENBUDGET_CEILING_MS 90000u
-/** Upper clamp on the measured host scale. */
+/** Upper clamp on the measured host scale (display only since #950). */
 #define RSBS_GENBUDGET_MAX_SCALE_PERCENT 300u
 /** The whole creation's budget is this many per-attempt budgets, checked
  *  BETWEEN ladder attempts. */
 #define RSBS_GENBUDGET_TOTAL_MULTIPLIER 2u
+/**
+ * What one coordinator fill round costs on the reference machine, in ms: the
+ * conversion from the operator's 30 s floor to a count of rounds. MEASURED, not
+ * chosen; gen_budget.c records the measurement. Like GENBUDGET_REFERENCE_MS it is
+ * re-measured only deliberately and only in its own commit, because changing it
+ * changes which seeds are creatable, on every machine at once.
+ */
+#define RSBS_GENBUDGET_REFERENCE_ROUND_MS 22u
+/** THE PER-ATTEMPT STOP: fill rounds one ladder attempt may run (#950). */
+#define RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT (RSBS_GENBUDGET_FLOOR_MS / RSBS_GENBUDGET_REFERENCE_ROUND_MS)
+/** THE TOTAL STOP: fill rounds the whole ladder may run, summed over attempts. */
+#define RSBS_GENBUDGET_TOTAL_ROUNDS (RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT * RSBS_GENBUDGET_TOTAL_MULTIPLIER)
 
 /**
  * The host's speed relative to the reference machine, in PERCENT (100 = the
  * reference; 250 = two and a half times slower). Integer percent rather than a
  * double so the value is exactly reproducible in a log line and in a test
- * assertion.
+ * assertion. DISPLAY ONLY since #950: it sizes the overlay's estimate and is
+ * printed, and no stop reads it.
  *
  * Measured ONCE per process, on first call, by timing a fixed integer workload —
  * not by sampling a previous generation, which would make the budget a function
@@ -114,7 +156,10 @@ extern "C" {
 uint32_t Combo_GenBudget_HostScalePercent(void);
 
 /**
- * The wall-clock budget, in ms, for ladder attempt @p attempt (0-based).
+ * The ESTIMATED time, in ms, this host takes to spend ladder attempt @p attempt's
+ * round budget (0-based): the progress overlay's denominator for the bar's
+ * within-attempt creep and the figure the stderr lines print. Since #950 it is
+ * NOT a stop: nothing compares a clock against it.
  *
  * Constant across attempts by design: every attempt is a FRESH derivation of
  * equal expected cost, so a taper would only express impatience, and the total
@@ -124,13 +169,45 @@ uint32_t Combo_GenBudget_HostScalePercent(void);
  */
 uint32_t Combo_GenBudget_FillBudgetMs(int attempt);
 
-/** The whole creation's budget in ms (per-attempt x the multiplier). */
+/** The whole creation's estimated time in ms (per-attempt x the multiplier).
+ *  Display only since #950, like Combo_GenBudget_FillBudgetMs. */
 uint32_t Combo_GenBudget_TotalBudgetMs(void);
 
-/** The budget's own clock, in ms since an arbitrary origin (the one every
- *  number in this file is measured in). Exposed for the single-bag fill's
- *  per-attempt stop (combo_single_bag.c), which must measure in the same clock
- *  the presentation credit below is measured in. Only DIFFERENCES mean anything. */
+/**
+ * THE PER-ATTEMPT STOP (#950): the fill rounds ladder attempt @p attempt
+ * (0-based) may run. RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT unless a test override is
+ * armed. Takes no host input of any kind: the same seed spends the same rounds
+ * on every machine, so it is stopped by this budget everywhere or nowhere.
+ */
+uint32_t Combo_GenBudget_RoundsPerAttempt(int attempt);
+
+/** THE TOTAL STOP (#950): the fill rounds the whole ladder may run, summed over
+ *  attempts. RSBS_GENBUDGET_TOTAL_ROUNDS unless a test override is armed. */
+uint32_t Combo_GenBudget_TotalRounds(void);
+
+/** The ladder's running sum of fill rounds: zeroed by the ladder before its
+ *  first attempt, charged by every single-bag fill that ran (combo_single_bag.c,
+ *  success or failure alike), and compared against Combo_GenBudget_TotalRounds
+ *  between attempts. */
+void Combo_GenBudget_ResetRoundsCharged(void);
+/** Add @p rounds to the running sum (saturating). */
+void Combo_GenBudget_ChargeRounds(uint32_t rounds);
+/** The running sum since the last reset. */
+uint32_t Combo_GenBudget_RoundsCharged(void);
+
+/**
+ * TEST SEAM (#950). Arm a per-attempt and a total round budget in place of the
+ * shipped constants; 0 leaves that one at the shipped value. Nothing in a shipping
+ * path calls this. The locks that force a stop (the 1-round per-attempt leg and
+ * the total-budget leg of MMPairedExhaustion, the host-scale row) arm it before
+ * the creation and disarm it before any assertion can return.
+ */
+void Combo_GenBudget_SetRoundBudgetOverride(uint32_t roundsPerAttempt, uint32_t totalRounds);
+
+/** The budget's own clock: MONOTONIC WALL time in ms since an arbitrary origin,
+ *  the same kind of clock on every platform since #950 (it was C clock(), CPU
+ *  time under glibc). Used for the elapsed display, the presentation credit and
+ *  the stderr timing lines; no stop reads it. Only DIFFERENCES mean anything. */
 uint32_t Combo_GenBudget_NowMs(void);
 
 /**
@@ -159,7 +236,7 @@ typedef struct ComboGenProgress {
     uint8_t attempt;     /**< 1-based ladder attempt; 0 outside MM_FILL */
     uint8_t maxAttempts; /**< the ladder bound; 0 outside MM_FILL */
     uint32_t elapsedMs;  /**< since Combo_GenProgress_Begin */
-    uint32_t budgetMs;   /**< this attempt's wall-clock budget; 0 when N/A */
+    uint32_t budgetMs;   /**< this attempt's ESTIMATED duration (display only); 0 when N/A */
     const char* detail;  /**< a short human phrase; never NULL */
 } ComboGenProgress;
 
@@ -188,14 +265,20 @@ const ComboGenProgress* Combo_GenProgress_Current(void);
 
 /** Milliseconds since Combo_GenProgress_Begin (0 when never begun). WALL time,
  *  including whatever an overlay spent presenting — this is the number a player
- *  is shown and the number the P12 measurement prints. It is NOT the number the
- *  ladder decides with; that is Combo_GenProgress_GenerationElapsedMs. */
+ *  is shown and the number the P12 measurement prints. Nothing decides with it
+ *  (since #950 the ladder decides with rounds). */
 uint32_t Combo_GenProgress_ElapsedMs(void);
 
 /**
- * PRESENTATION TIME, AND WHY BOTH WALL-CLOCK STOPS HAVE TO KNOW ABOUT IT
+ * PRESENTATION TIME
  *
- * A paired creation has exactly two wall-clock stops: the fill's PER-ATTEMPT
+ * SINCE #950 NEITHER STOP READS THIS: both count fill rounds, and presenting a
+ * frame runs no round, so a windowed host and a headless one spend the same
+ * budget by construction. The credit below survives for the stderr lines (the
+ * "generating / presenting" split of the P12 measurement) and the history that
+ * follows is why it was built.
+ *
+ * A paired creation had exactly two wall-clock stops: the fill's PER-ATTEMPT
  * timeout (GlitchlessLogic's `tick` against its budget) and the ladder's TOTAL
  * budget (OnFileCreate.cpp against Combo_GenBudget_TotalBudgetMs). Since #582 a
  * host with a window spends part of the creation presenting frames — a buffer
@@ -226,10 +309,9 @@ void Combo_GenProgress_PresentationEnd(void);
  *  identical to the pre-#582 one. */
 uint32_t Combo_GenProgress_PresentationMs(void);
 /**
- * Elapsed WITHOUT the time spent presenting: the number the ladder's total
- * budget is compared against, so that stop measures GENERATION on every host.
- * Never larger than Combo_GenProgress_ElapsedMs(), and equal to it whenever
- * nothing painted.
+ * Elapsed WITHOUT the time spent presenting (reporting only since #950; the
+ * ladder's total stop counts rounds). Never larger than
+ * Combo_GenProgress_ElapsedMs(), and equal to it whenever nothing painted.
  */
 uint32_t Combo_GenProgress_GenerationElapsedMs(void);
 

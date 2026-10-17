@@ -94,6 +94,7 @@ uint32_t Rando_HeadlessPlacementHash(size_t* outPlacedCount);
 
 #include "combo_single_bag.h" // src/common — the single bag's report and commit (lane K11)
 #include "crossing_store.h"   // src/common — the crossings the creation stores (ADR 0010 O7)
+#include "gen_budget.h"       // src/common — the creation's round budget (#950)
 
 namespace {
 
@@ -2255,17 +2256,18 @@ extern "C" int MM_Rando_HeadlessPairedAttemptDigest(const char* outPath) {
  * path — the only flow a player actually takes — exactly as
  * MM_Rando_HeadlessPairSwitchEntry drives it.
  *
- * A THIRD leg locks the determinism boundary: the fill's WALL-CLOCK abort is
- * the one failure that is a function of the machine rather than the seed, so
- * the ladder must stop on it instead of climbing to a different world. See
- * that leg's own comment for its counterfactual.
+ * A THIRD and a FOURTH leg lock the budget boundary (#950): a BUDGET STOP,
+ * per attempt or for the whole creation, ends the creation and never climbs a
+ * rung, so a budget can refuse a seed but never choose its world. See each
+ * leg's own comment for its counterfactual.
  *
  * COUNTERFACTUALS (each independently red): restore the silent-vanilla
  * fallback (drop RsbsSave_RefuseSlotGeneration from the arrival gate's
  * failure branch) and FAIL(6)/FAIL(7)/FAIL(8) fire; unbound the ladder and
  * the row times out instead of exhausting; latch unconditionally (refuse
  * even on success) and the counter-leg's FAIL(12)/FAIL(13) fire; treat a
- * wall-clock abort as a ladder rung and FAIL(15) fires.
+ * per-attempt budget stop as a ladder rung and FAIL(15) fires; drop the total
+ * stop (or make it read a clock again) and FAIL(23) fires.
  *
  * Returns 0 on success, a distinct nonzero step code otherwise.
  */
@@ -2464,24 +2466,26 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
             (unsigned)gComboCtx.mmPairedAttempt);
 
     // ----------------------------------------------------------------------
-    // Wall-clock leg (determinism): the Glitchless fill's 10s abort is the ONE
-    // failure that is a function of the machine rather than of the seed, so
-    // the ladder must NOT treat it as a rung. If it did, the same identity
-    // would converge on attempt 0 on a fast machine and on some later attempt
-    // on a slow one — two players, one seed, two different worlds, which is
-    // the exact thing the ladder's hash recipe exists to make impossible.
+    // Per-attempt budget leg: a BUDGET STOP is never a rung. Until #950 the
+    // stop was the fill's wall clock, a function of the machine rather than of
+    // the seed, and climbing on it would have converged the same identity on
+    // attempt 0 on a fast machine and on a later attempt on a slow one. The
+    // stop counts fill rounds now, and the rule is unchanged: a budget may
+    // refuse a seed, never pick its world.
     //
-    // Driven by squeezing the fill's budget to 1ms (Logic.h's test-only
-    // override) on the SAME profile and SAME seed the counter-leg above just
-    // generated successfully, so the only changed input is "the fill ran out
-    // of wall clock". The assertion that carries the property is
-    // attempts == 1: the ladder stopped at the first attempt instead of
-    // climbing.
+    // Driven by squeezing the per-attempt round budget to ONE round
+    // (Combo_GenBudget_SetRoundBudgetOverride) on the SAME profile and SAME
+    // seed the counter-leg above just generated successfully, so the only
+    // changed input is "the fill ran out of budget". The assertion that carries
+    // the property is attempts == 1: the ladder stopped at the first attempt
+    // instead of climbing. (Until #950 this leg squeezed the wall clock to 1 ms
+    // through Logic.h's GlitchlessLogic override, which the single bag no
+    // longer reads.)
     //
     // COUNTERFACTUAL (measured, not asserted): delete the
     // `catch (const Rando::Logic::GenerationTimeout&)` arm from the ladder in
-    // OnFileCreate.cpp so a timeout falls into the generic dead-end arm — the
-    // ladder then climbs all ten rungs and this leg goes red at FAIL(14)
+    // OnFileCreate.cpp so a budget stop falls into the generic dead-end arm —
+    // the ladder then climbs all ten rungs and this leg goes red at FAIL(15)
     // (attempts=10, exhausted=1).
     // ----------------------------------------------------------------------
     RsbsSave_ResetSlotSessionState();
@@ -2498,46 +2502,105 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
         return 21;
     }
 
-    // ARMED BEFORE the creation runs, which is also the non-vacuity guard on the
-    // #582 budget: OnFileCreate only writes its calibrated budget into a ZERO
-    // override, so an armed one survives. If that guard were ever dropped, this
-    // leg would silently start testing the shipped 30s budget instead of a 1ms
-    // one and FAIL(14) would go red — which is the behaviour wanted.
-    Rando::Logic::gRsbsGlitchlessTimeoutMsOverride = 1; // the fill cannot finish in 1ms
-    const int wallClockCreated = OoT_RunPairedCreationEvent(0);
-    Rando::Logic::gRsbsGlitchlessTimeoutMsOverride = 0; // restore before ANY assertion can return
+    // ARMED BEFORE the creation runs, disarmed before any assertion can return.
+    Combo_GenBudget_SetRoundBudgetOverride(1, 0); // the fill cannot finish in one round
+    const int roundCapCreated = OoT_RunPairedCreationEvent(0);
+    Combo_GenBudget_SetRoundBudgetOverride(0, 0);
 
-    if (wallClockCreated != 0) {
-        fprintf(stderr, "[MM-EXHAUST] FAIL(14): a 1ms fill budget still produced a world — the wall-clock leg's "
-                        "premise is broken and its determinism assertions below prove nothing\n");
+    if (roundCapCreated != 0) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(14): a one-round fill budget still produced a world — the per-attempt "
+                        "budget leg's premise is broken and its assertions below prove nothing\n");
         return 14;
     }
     if (MM_Rando_PairedGenLastAttempts() != 1 || MM_Rando_PairedGenLastExhausted()) {
         fprintf(stderr,
-                "[MM-EXHAUST] FAIL(15): a WALL-CLOCK abort climbed the ladder (attempts=%d exhausted=%d, expected "
-                "1/0) — the winning attempt, and therefore the world, would depend on machine speed: the same seed "
-                "and settings would generate differently on a slow machine than on a fast one\n",
+                "[MM-EXHAUST] FAIL(15): a per-attempt BUDGET STOP climbed the ladder (attempts=%d exhausted=%d, "
+                "expected 1/0) — a budget would be choosing which attempt's world the player gets\n",
                 MM_Rando_PairedGenLastAttempts(), MM_Rando_PairedGenLastExhausted());
         return 15;
     }
     if (RsbsSave_GetSlotState(0) != (int)RSBS_SLOT_REFUSED ||
         RsbsSave_GetSlotRefuseReason(0) != (int)RSBS_REFUSE_GENERATION) {
         fprintf(stderr,
-                "[MM-EXHAUST] FAIL(16): the wall-clock failure did not refuse loudly (state=%d reason=%d) — "
+                "[MM-EXHAUST] FAIL(16): the budget stop did not refuse loudly (state=%d reason=%d) — "
                 "stopping the ladder must take the LOUD path, not a quiet vanilla Termina\n",
                 RsbsSave_GetSlotState(0), RsbsSave_GetSlotRefuseReason(0));
         return 16;
     }
     if (gComboCtx.mmPairedAttempt != 0) {
-        fprintf(stderr, "[MM-EXHAUST] FAIL(17): the wall-clock abort left a stale attempt-provenance stamp (%u)\n",
+        fprintf(stderr, "[MM-EXHAUST] FAIL(17): the budget stop left a stale attempt-provenance stamp (%u)\n",
                 (unsigned)gComboCtx.mmPairedAttempt);
         return 17;
     }
-    fprintf(stderr, "[MM-EXHAUST] wall-clock leg: the fill's non-deterministic abort stopped the ladder at attempt 1 "
-                    "and refused loudly — no machine-speed-dependent rung\n");
+    fprintf(stderr, "[MM-EXHAUST] per-attempt budget leg: a one-round budget stopped the ladder at attempt 1 and "
+                    "refused loudly — no budget-chosen rung\n");
+
+    // ----------------------------------------------------------------------
+    // Total budget leg (#950): the per-attempt leg's twin for the OTHER stop,
+    // the whole creation's round budget, checked BETWEEN ladder attempts. Until
+    // #950 nothing locked that this stop never climbs.
+    //
+    // Fixture: attempt 1 runs a REAL single-bag fill, which charges its rounds
+    // to the ladder's total, and then fails as a deterministic rung
+    // (Rando::Foreign::ForceLadderRungAfterFill). The total budget is squeezed
+    // to ONE round, so before attempt 2 the ladder finds its total spent. The
+    // only correct response is to stop there and refuse: attempts == 1.
+    // Without the stop the same fixture climbs to attempt 2 and creates the
+    // world (the MMPairedAttempt* rows' shape), which is what FAIL(23) catches.
+    //
+    // COUNTERFACTUALS (measured, not asserted): make the total stop read a clock
+    // again (Combo_GenProgress_GenerationElapsedMs() against
+    // Combo_GenBudget_TotalBudgetMs()) or drop it, and FAIL(23) fires; stop
+    // charging rounds (Combo_GenBudget_ChargeRounds) and FAIL(22) fires.
+    // ----------------------------------------------------------------------
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    RsbsSave_SetActiveSlot(0);
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    ComboContext_Init();
+    if (K11PairedOoTGenerate(kExhaustSeed) != 0) {
+        fprintf(stderr, "[MM-EXHAUST] FAIL(21): the OoT half of the pinned seed could not be generated\n");
+        return 21;
+    }
+    Rando::Foreign::ForceLadderRungAfterFill(1);
+    Combo_GenBudget_SetRoundBudgetOverride(0, 1); // the whole creation may run one round
+    const int totalCapCreated = OoT_RunPairedCreationEvent(0);
+    Combo_GenBudget_SetRoundBudgetOverride(0, 0);
+    const bool afterFillRungLeft = Rando::Foreign::ConsumeForcedLadderRungAfterFill();
+    Rando::Foreign::ForceLadderRungAfterFill(0);
+    const uint32_t totalCharged = Combo_GenBudget_RoundsCharged();
+
+    if (afterFillRungLeft || totalCharged <= 1u) {
+        fprintf(stderr,
+                "[MM-EXHAUST] FAIL(22): the total-budget leg's attempt 1 never charged a real fill's rounds "
+                "(after-fill rung %s, %u rounds charged) — the stop below would be firing on nothing\n",
+                afterFillRungLeft ? "never consumed" : "consumed", totalCharged);
+        return 22;
+    }
+    if (totalCapCreated != 0 || RsbsSave_GetSlotState(0) != (int)RSBS_SLOT_REFUSED ||
+        RsbsSave_GetSlotRefuseReason(0) != (int)RSBS_REFUSE_GENERATION) {
+        fprintf(stderr,
+                "[MM-EXHAUST] FAIL(23): a spent TOTAL budget did not refuse the creation (created=%d state=%d "
+                "reason=%d, %u rounds charged against a total of 1) — the ladder ran on past its budget\n",
+                totalCapCreated, RsbsSave_GetSlotState(0), RsbsSave_GetSlotRefuseReason(0), totalCharged);
+        return 23;
+    }
+    if (MM_Rando_PairedGenLastAttempts() != 1 || MM_Rando_PairedGenLastExhausted()) {
+        fprintf(stderr,
+                "[MM-EXHAUST] FAIL(24): the TOTAL budget stop climbed the ladder (attempts=%d exhausted=%d, "
+                "expected 1/0) — a budget would be choosing which attempt's world the player gets\n",
+                MM_Rando_PairedGenLastAttempts(), MM_Rando_PairedGenLastExhausted());
+        return 24;
+    }
+    fprintf(stderr,
+            "[MM-EXHAUST] total budget leg: attempt 1 charged %u rounds against a total of 1, and the ladder stopped "
+            "before attempt 2 and refused loudly — no budget-chosen rung\n",
+            totalCharged);
 
     // Leave clean global state for later dispatches in the same process.
-    Rando::Logic::gRsbsGlitchlessTimeoutMsOverride = 0;
+    Combo_GenBudget_SetRoundBudgetOverride(0, 0);
     RsbsSave_DeleteSave(0);
     RsbsSave_ResetSlotSessionState();
     RsbsSave_SetActiveSlot(-1);
@@ -2556,6 +2619,395 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void) {
     fprintf(stderr, "[MM-EXHAUST] PASS: a cannot-converge profile exhausts the bounded ladder and refuses loudly "
                     "through the #533 surface; a converging one generates and latches nothing\n");
     return 0;
+}
+
+
+// ============================================================================
+// THE ROUND BUDGET (#950): one verdict per seed, on every machine
+// ============================================================================
+namespace {
+
+/** What one paired creation under the round budget did, as the #950 rows
+ *  compare it. */
+struct RoundBudgetOutcome {
+    int created = 0;
+    int attempts = 0;
+    int exhausted = 0;
+    int slotState = 0;
+    int bagStatus = 0;
+    int bagRounds = 0;
+    uint32_t roundBudget = 0;
+    uint32_t bagSeed = 0;
+    uint32_t placementDigest = 0;
+    uint32_t crossingDigest = 0;
+    uint32_t pairedAttempt = 0;
+    uint32_t scaleInForce = 0;
+    uint32_t estimateMs = 0;
+};
+
+/** One real paired creation of @p ootSeed through the creation event, under host
+ *  scale @p scalePercent and per-attempt round budget @p roundsPerAttempt (0: the
+ *  shipped one). Both overrides are disarmed before it returns.
+ *  @return 0, or 21 when the OoT half could not be generated. */
+int RoundBudgetCreate(const char* ootSeed, uint32_t scalePercent, uint32_t roundsPerAttempt,
+                      RoundBudgetOutcome* out) {
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    RsbsSave_SetActiveSlot(0);
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    ComboContext_Init();
+    if (K11PairedOoTGenerate(ootSeed) != 0) {
+        return 21;
+    }
+    Combo_GenBudget_SetHostScalePercentOverride(scalePercent);
+    Combo_GenBudget_SetRoundBudgetOverride(roundsPerAttempt, 0);
+    out->scaleInForce = Combo_GenBudget_HostScalePercent();
+    out->estimateMs = Combo_GenBudget_FillBudgetMs(0);
+    out->created = OoT_RunPairedCreationEvent(0);
+    Combo_GenBudget_SetRoundBudgetOverride(0, 0);
+    Combo_GenBudget_SetHostScalePercentOverride(0);
+
+    const ComboSingleBagReport* bag = Combo_SingleBag_LastReport();
+    out->attempts = MM_Rando_PairedGenLastAttempts();
+    out->exhausted = MM_Rando_PairedGenLastExhausted();
+    out->slotState = RsbsSave_GetSlotState(0);
+    out->bagStatus = bag->status;
+    out->bagRounds = bag->fill.rounds;
+    out->roundBudget = bag->roundBudget;
+    out->bagSeed = bag->seed;
+    out->placementDigest = bag->fill.placementDigest;
+    out->crossingDigest = Combo_Crossings_Digest();
+    out->pairedAttempt = gComboCtx.mmPairedAttempt;
+    fprintf(stderr,
+            "[MM-ROUNDS] %s at host scale %u%% (estimate %ums), round budget %u: created=%d attempts=%d "
+            "exhausted=%d slot=%d bag %s after %d rounds, seed %08X, placements %08X, crossings %08X, "
+            "attempt record %u\n",
+            ootSeed, out->scaleInForce, out->estimateMs, out->roundBudget, out->created, out->attempts, out->exhausted,
+            out->slotState, Combo_Logic_StatusName(out->bagStatus), out->bagRounds, out->bagSeed, out->placementDigest,
+            out->crossingDigest, (unsigned)out->pairedAttempt);
+    return 0;
+}
+
+void RoundBudgetCleanup(const char* saveDir) {
+    Combo_GenBudget_SetRoundBudgetOverride(0, 0);
+    Combo_GenBudget_SetHostScalePercentOverride(0);
+    RsbsSave_DeleteSave(0);
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_SetActiveSlot(-1);
+    rsbs::SaveManager::Instance().SetSaveDirectory("Save"); // the documented harness default
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(saveDir, ec);
+    }
+    LadderClearOptionCVars();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    ComboContext_Init();
+}
+
+/** The common bring-up of the #950 rows. @return 0, or a FAIL code. */
+int RoundBudgetBringUp(const char* tag, const char* saveDir) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
+        fprintf(stderr, "[%s] FAIL(1): Ship::Context not live\n", tag);
+        return 1;
+    }
+    MM_Rando_Init();
+    if (Rando::Logic::Regions.empty()) {
+        fprintf(stderr, "[%s] FAIL(2): Logic/Regions graph empty\n", tag);
+        return 2;
+    }
+    if (gRegEditor == NULL) {
+        static RegEditor sRoundBudgetRegEditor = {};
+        gRegEditor = &sRoundBudgetRegEditor;
+    }
+    LadderClearOptionCVars();
+    CVarSetInteger("gRando.SpoilerFileIndex", 0);
+    CVarSetInteger("gRando.GenerateSpoiler", 0);
+    CVarSetString("gRando.InputSeed", "USERSEEDPOISON");
+    rsbs::SaveManager::Instance().SetSaveDirectory(saveDir);
+    return 0;
+}
+
+/** The round budget the host-scale row squeezes a creation to: well under the
+ *  pinned seed's single-batch fill (about 258 rounds), so the stop is certain. */
+constexpr uint32_t kRoundBudgetSqueezed = 64u;
+constexpr uint32_t kRoundBudgetScaleLow = 100u;
+constexpr uint32_t kRoundBudgetScaleHigh = 300u;
+
+} // namespace
+
+/**
+ * #950, lock (b): THE ROUND BUDGET IGNORES THE HOST. One seed, created four times
+ * through the real creation event: under a squeezed per-attempt round budget at
+ * host scale 100% and at 300%, and under the shipped budget at 100% and at 300%.
+ * The squeezed pair must be REFUSED identically (attempt 1, no climb, stopped
+ * after exactly the budget's rounds); the shipped pair must CREATE identically
+ * (attempt 1, the same rounds, the same placements and crossings). Until #950 the
+ * host scale tripled the per-attempt budget (30 s at 100%, 90 s at 300%), so this
+ * is the row that would have shown one seed with two verdicts.
+ *
+ * COUNTERFACTUALS (measured, not asserted): let the host scale reach the round
+ * budget (budget x scale / 100) and FAIL(11) fires (the 300% leg stops after a
+ * different number of rounds); make the stop read a clock again and FAIL(10)
+ * fires (the fill stops after however many rounds fit, not after exactly the
+ * budget); fold the host scale into the single bag's seed and FAIL(13) fires.
+ *
+ * @return 0 on success, a distinct nonzero step code otherwise.
+ */
+extern "C" int MM_Rando_HeadlessRoundBudgetHostScale(void) {
+    const char* const kSaveDir = "rsbs_test_roundbudget_saves";
+    const int up = RoundBudgetBringUp("MM-ROUNDS", kSaveDir);
+    if (up != 0) {
+        return up;
+    }
+
+    RoundBudgetOutcome squeezedLow;
+    RoundBudgetOutcome squeezedHigh;
+    RoundBudgetOutcome shippedLow;
+    RoundBudgetOutcome shippedHigh;
+    if (RoundBudgetCreate(kExhaustSeed, kRoundBudgetScaleLow, kRoundBudgetSqueezed, &squeezedLow) != 0 ||
+        RoundBudgetCreate(kExhaustSeed, kRoundBudgetScaleHigh, kRoundBudgetSqueezed, &squeezedHigh) != 0 ||
+        RoundBudgetCreate(kExhaustSeed, kRoundBudgetScaleLow, 0, &shippedLow) != 0 ||
+        RoundBudgetCreate(kExhaustSeed, kRoundBudgetScaleHigh, 0, &shippedHigh) != 0) {
+        fprintf(stderr, "[MM-ROUNDS] FAIL(21): the OoT half of the pinned seed could not be generated\n");
+        RoundBudgetCleanup(kSaveDir);
+        return 21;
+    }
+    RoundBudgetCleanup(kSaveDir);
+
+    // Non-vacuity: the two scales really were in force, and they really would
+    // have been two different budgets under the clock this replaced.
+    if (squeezedLow.scaleInForce != kRoundBudgetScaleLow || squeezedHigh.scaleInForce != kRoundBudgetScaleHigh ||
+        shippedLow.scaleInForce != kRoundBudgetScaleLow || shippedHigh.scaleInForce != kRoundBudgetScaleHigh ||
+        shippedHigh.estimateMs <= shippedLow.estimateMs) {
+        fprintf(stderr,
+                "[MM-ROUNDS] FAIL(9): the host scales were not in force (%u/%u/%u/%u%%, estimates %u/%ums) — the "
+                "comparison below would be between two identical hosts\n",
+                squeezedLow.scaleInForce, squeezedHigh.scaleInForce, shippedLow.scaleInForce,
+                shippedHigh.scaleInForce, shippedLow.estimateMs, shippedHigh.estimateMs);
+        return 9;
+    }
+    if (squeezedLow.created != 0 || squeezedLow.attempts != 1 || squeezedLow.exhausted != 0 ||
+        squeezedLow.slotState != (int)RSBS_SLOT_REFUSED || squeezedLow.bagStatus != RSBS_COMBO_LOGIC_ERR_ABORTED ||
+        squeezedLow.bagRounds != (int)kRoundBudgetSqueezed) {
+        fprintf(stderr,
+                "[MM-ROUNDS] FAIL(10): a %u-round budget at host scale %u%% did not refuse the seed on attempt 1 "
+                "after exactly %u rounds (created=%d attempts=%d exhausted=%d slot=%d, bag %s after %d rounds)\n",
+                kRoundBudgetSqueezed, kRoundBudgetScaleLow, kRoundBudgetSqueezed, squeezedLow.created,
+                squeezedLow.attempts, squeezedLow.exhausted, squeezedLow.slotState,
+                Combo_Logic_StatusName(squeezedLow.bagStatus), squeezedLow.bagRounds);
+        return 10;
+    }
+    if (squeezedHigh.created != squeezedLow.created || squeezedHigh.attempts != squeezedLow.attempts ||
+        squeezedHigh.exhausted != squeezedLow.exhausted || squeezedHigh.slotState != squeezedLow.slotState ||
+        squeezedHigh.bagStatus != squeezedLow.bagStatus || squeezedHigh.bagRounds != squeezedLow.bagRounds) {
+        fprintf(stderr,
+                "[MM-ROUNDS] FAIL(11): the same seed under the same %u-round budget got a different verdict at host "
+                "scale %u%% (created=%d attempts=%d, bag %s after %d rounds) than at %u%% (created=%d attempts=%d, "
+                "bag %s after %d rounds) — the budget is reading the host\n",
+                kRoundBudgetSqueezed, kRoundBudgetScaleHigh, squeezedHigh.created, squeezedHigh.attempts,
+                Combo_Logic_StatusName(squeezedHigh.bagStatus), squeezedHigh.bagRounds, kRoundBudgetScaleLow,
+                squeezedLow.created, squeezedLow.attempts, Combo_Logic_StatusName(squeezedLow.bagStatus),
+                squeezedLow.bagRounds);
+        return 11;
+    }
+    if (shippedLow.created == 0 || shippedLow.attempts != 1 || shippedLow.exhausted != 0 ||
+        shippedLow.bagStatus != RSBS_COMBO_LOGIC_OK ||
+        shippedLow.roundBudget != (uint32_t)RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT) {
+        fprintf(stderr,
+                "[MM-ROUNDS] FAIL(12): the shipped %u-round budget at host scale %u%% did not create the seed on "
+                "attempt 1 (created=%d attempts=%d exhausted=%d, bag %s after %d rounds under a budget of %u)\n",
+                (unsigned)RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT, kRoundBudgetScaleLow, shippedLow.created,
+                shippedLow.attempts, shippedLow.exhausted, Combo_Logic_StatusName(shippedLow.bagStatus),
+                shippedLow.bagRounds, shippedLow.roundBudget);
+        return 12;
+    }
+    if (shippedHigh.created != shippedLow.created || shippedHigh.attempts != shippedLow.attempts ||
+        shippedHigh.bagStatus != shippedLow.bagStatus || shippedHigh.bagRounds != shippedLow.bagRounds ||
+        shippedHigh.bagSeed != shippedLow.bagSeed || shippedHigh.placementDigest != shippedLow.placementDigest ||
+        shippedHigh.crossingDigest != shippedLow.crossingDigest ||
+        shippedHigh.pairedAttempt != shippedLow.pairedAttempt) {
+        fprintf(stderr,
+                "[MM-ROUNDS] FAIL(13): the same seed created a different world at host scale %u%% (attempts=%d, %d "
+                "rounds, seed %08X, placements %08X, crossings %08X) than at %u%% (attempts=%d, %d rounds, seed "
+                "%08X, placements %08X, crossings %08X) — a host input reached the world\n",
+                kRoundBudgetScaleHigh, shippedHigh.attempts, shippedHigh.bagRounds, shippedHigh.bagSeed,
+                shippedHigh.placementDigest, shippedHigh.crossingDigest, kRoundBudgetScaleLow, shippedLow.attempts,
+                shippedLow.bagRounds, shippedLow.bagSeed, shippedLow.placementDigest, shippedLow.crossingDigest);
+        return 13;
+    }
+    fprintf(stderr,
+            "[MM-ROUNDS] PASS: seed %s is refused after exactly %u rounds at both %u%% and %u%%, and created on "
+            "attempt 1 in %d rounds with placements %08X at both (shipped budget %u rounds)\n",
+            kExhaustSeed, kRoundBudgetSqueezed, kRoundBudgetScaleLow, kRoundBudgetScaleHigh, shippedLow.bagRounds,
+            shippedLow.placementDigest, (unsigned)RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT);
+    return 0;
+}
+
+/**
+ * #950, lock (d): EVERY GOLDEN SEED STILL CREATES UNDER THE SHIPPED ROUND BUDGET,
+ * on the attempt its golden records. Each seed is generated exactly as its golden
+ * row's dispatch generates it (the OoT seed and settings, then MM's half through
+ * the real OnSaveInit chain), under the shipped per-attempt budget, and must
+ * create on its expected ladder attempt with its fill inside the budget. When the
+ * golden file is in the tree (RSBS_GOLDEN_DIR), its recorded `bagRounds` and
+ * `mmPairedAttempt` must match too, which ties this row to the pinned worlds
+ * rather than to look-alikes. The row prints each seed's headroom.
+ *
+ * COUNTERFACTUAL (measured, not asserted): shrink RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT
+ * below a golden fill's rounds (200) and FAIL(10) fires for every seed.
+ *
+ * @return 0 on success, a distinct nonzero step code otherwise.
+ */
+extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
+    const char* const kSaveDir = "rsbs_test_goldenrounds_saves";
+    const int up = RoundBudgetBringUp("MM-GOLDEN-ROUNDS", kSaveDir);
+    if (up != 0) {
+        return up;
+    }
+
+    struct GoldenSeed {
+        const char* golden;
+        const char* ootSeed;
+        const char* cvars[2]; // OoT settings the golden row passes in RSBS_DIAG_CVARS, value 1 or 2 below
+        int values[2];
+        int injectedRungs;    // the paired-attempt golden's pre-fill rung
+        int expectedAttempts; // ladder attempts until the world was created
+    };
+    static const GoldenSeed kGoldens[] = {
+        { "seed-digest-default", "RSBSUNIFIED1", { nullptr, nullptr }, { 0, 0 }, 0, 1 },
+        { "seed-digest-profile-v1", "RSBSUNIFIED1", { "gRandoSettings.ShuffleSongs", nullptr }, { 2, 0 }, 0, 1 },
+        { "seed-digest-entrances",
+          "RSBSUNIFIED1",
+          { "gRandoSettings.ShuffleInteriorsEntrances", "gRandoSettings.ShuffleOverworldEntrances" },
+          { 2, 1 },
+          0,
+          1 },
+        { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr }, { 0, 0 }, kLadderInjectedRungs,
+          kLadderInjectedRungs + 1 },
+    };
+    const char* goldenDir = std::getenv("RSBS_GOLDEN_DIR");
+    const uint32_t budget = Combo_GenBudget_RoundsPerAttempt(0);
+    if (budget != (uint32_t)RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT) {
+        fprintf(stderr, "[MM-GOLDEN-ROUNDS] FAIL(3): a round budget override is armed (%u, shipped %u)\n", budget,
+                (unsigned)RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT);
+        return 3;
+    }
+
+    int rc = 0;
+    for (const GoldenSeed& g : kGoldens) {
+        for (int i = 0; i < 2; ++i) {
+            if (g.cvars[i] != nullptr) {
+                CVarSetInteger(g.cvars[i], g.values[i]);
+            }
+        }
+        Combo_ClearForeignPlacements();
+        Combo_ClearFrozenState("mm");
+        Combo_ClearStartupEntrance();
+        ComboContext_Init();
+        // The OoT settings stay set until MM's half has run, as they do for the
+        // golden row (RSBS_DIAG_CVARS lives for the whole process there).
+        auto clearSettings = [&g]() {
+            for (int i = 0; i < 2; ++i) {
+                if (g.cvars[i] != nullptr) {
+                    CVarClear(g.cvars[i]);
+                }
+            }
+        };
+        const int ootRc = K11PairedOoTGenerate(g.ootSeed);
+        if (ootRc != 0) {
+            clearSettings();
+            fprintf(stderr, "[MM-GOLDEN-ROUNDS] FAIL(21): the OoT half of %s (%s) could not be generated\n", g.golden,
+                    g.ootSeed);
+            rc = 21;
+            break;
+        }
+        Rando::Foreign::ForceShortForeignPlacements(g.injectedRungs);
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        MM_Sram_InitNewSave();
+        GameInteractor_ExecuteOnSaveInit(0);
+        Rando::Foreign::ForceShortForeignPlacements(0);
+        clearSettings();
+
+        const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+        const bool created = gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO;
+        const int attempts = MM_Rando_PairedGenLastAttempts();
+        fprintf(stderr,
+                "[MM-GOLDEN-ROUNDS] %s (%s): created=%d on attempt %d of %d expected, bag %s after %d of %u rounds "
+                "(%u rounds of headroom, %.0f%% of the budget used)\n",
+                g.golden, g.ootSeed, created ? 1 : 0, attempts, g.expectedAttempts, Combo_Logic_StatusName(bag.status),
+                bag.fill.rounds, bag.roundBudget,
+                (bag.fill.rounds >= 0 && (uint32_t)bag.fill.rounds < budget) ? budget - (uint32_t)bag.fill.rounds : 0u,
+                budget > 0 ? 100.0 * (double)bag.fill.rounds / (double)budget : 0.0);
+        if (!created || attempts != g.expectedAttempts || MM_Rando_PairedGenLastExhausted() ||
+            bag.status != RSBS_COMBO_LOGIC_OK || bag.roundBudget != budget || bag.fill.rounds <= 0 ||
+            (uint32_t)bag.fill.rounds >= budget) {
+            fprintf(stderr,
+                    "[MM-GOLDEN-ROUNDS] FAIL(10): golden seed %s no longer creates on attempt %d inside the shipped "
+                    "%u-round budget (created=%d attempts=%d, bag %s after %d rounds under a budget of %u)\n",
+                    g.golden, g.expectedAttempts, budget, created ? 1 : 0, attempts,
+                    Combo_Logic_StatusName(bag.status), bag.fill.rounds, bag.roundBudget);
+            rc = 10;
+            break;
+        }
+
+        // Tie the seed to its pinned world when the golden is in this tree.
+        if (goldenDir != nullptr && goldenDir[0] != '\0') {
+            const std::filesystem::path path = std::filesystem::path(goldenDir) / (std::string(g.golden) + ".txt");
+            std::ifstream in(path);
+            if (!in) {
+                fprintf(stderr, "[MM-GOLDEN-ROUNDS] NOTE: %s is not in this tree; its seed is asserted to create, "
+                                "not compared with a pin\n",
+                        path.string().c_str());
+            } else {
+                int pinnedRounds = -1;
+                int pinnedAttempt = -1;
+                std::string line;
+                while (std::getline(in, line)) {
+                    if (!line.empty() && line.back() == '\r') {
+                        line.pop_back();
+                    }
+                    if (line.rfind("bagRounds=", 0) == 0) {
+                        pinnedRounds = std::atoi(line.c_str() + 10);
+                    } else if (line.rfind("mmPairedAttempt=", 0) == 0) {
+                        pinnedAttempt = std::atoi(line.c_str() + 16);
+                    }
+                }
+                if (pinnedRounds != bag.fill.rounds || pinnedAttempt != (int)gComboCtx.mmPairedAttempt) {
+                    fprintf(stderr,
+                            "[MM-GOLDEN-ROUNDS] FAIL(11): %s pins bagRounds=%d mmPairedAttempt=%d but this creation "
+                            "ran %d rounds with attempt record %u — this row is not generating the pinned world\n",
+                            g.golden, pinnedRounds, pinnedAttempt, bag.fill.rounds, (unsigned)gComboCtx.mmPairedAttempt);
+                    rc = 11;
+                    break;
+                }
+            }
+        }
+        (void)K11FinishPairedOoTHalf();
+    }
+
+    LadderClearOptionCVars();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    ComboContext_Init();
+    rsbs::SaveManager::Instance().SetSaveDirectory("Save");
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(kSaveDir, ec);
+    }
+    if (rc == 0) {
+        fprintf(stderr, "[MM-GOLDEN-ROUNDS] PASS: every golden seed creates on its pinned attempt inside the shipped "
+                        "%u-round budget\n",
+                budget);
+    }
+    return rc;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

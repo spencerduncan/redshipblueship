@@ -121,6 +121,12 @@ foreach(_required REDSHIP_EXE WORK_DIR DISPATCH DIGEST_ENV GOLDEN_DIR GOLDEN_NAM
         message(FATAL_ERROR "CheckGoldenDigest: -D${_required}=<value> is required")
     endif()
 endforeach()
+# RUN_TAG (optional, #950): names this run's digest files and sandbox, so a row that
+# checks an EXISTING golden under another environment never shares them with that
+# golden's own row under `ctest -j`. Defaults to GOLDEN_NAME.
+if(NOT DEFINED RUN_TAG)
+    set(RUN_TAG "${GOLDEN_NAME}")
+endif()
 
 # The REGEN caller contract, checked before anything expensive so a caller that
 # gets it wrong learns immediately and without a binary. `cmake -P` has no cache
@@ -376,7 +382,7 @@ if(ARCHIVE_FREE_ONLY)
                 "`regen-golden-digests-rom-mounted` target (it passes -DALLOW_ROM_ARCHIVE_REGEN=ON). See "
                 "docs/determinism-goldens.md.")
         else()
-            _archive_free_sandbox("${WORK_DIR}" "${REDSHIP_EXE}" "${GOLDEN_NAME}"
+            _archive_free_sandbox("${WORK_DIR}" "${REDSHIP_EXE}" "${RUN_TAG}"
                                   "${_rom_archive_names}" "${_port_archive_names}"
                                   _sandbox_dir _sandbox_exe _sandbox_ports _sandbox_reason)
             if(_sandbox_dir)
@@ -495,7 +501,7 @@ function(_digest_keys lines out_keys prefix)
     set(${out_keys} "${_keys}" PARENT_SCOPE)
 endfunction()
 
-set(_actual "${WORK_DIR}/golden-${GOLDEN_NAME}-actual.txt")
+set(_actual "${WORK_DIR}/golden-${RUN_TAG}-actual.txt")
 _golden_generate("${_run_dir}" "${_run_exe}" "${_run_env}" "${_actual}")
 _digest_lines("${_actual}" _actual_lines)
 
@@ -587,7 +593,7 @@ _digest_lines("${_golden}" _golden_lines)
 set(_rom_run OFF)
 if(_run_env STREQUAL "archive-free-sandbox")
     set(_rom_run ON)
-    set(_rom_actual "${WORK_DIR}/golden-${GOLDEN_NAME}-actual-rom-mounted.txt")
+    set(_rom_actual "${WORK_DIR}/golden-${RUN_TAG}-actual-rom-mounted.txt")
     _golden_generate("${WORK_DIR}" "${REDSHIP_EXE}" "rom-mounted-work-dir" "${_rom_actual}")
     _digest_lines("${_rom_actual}" _rom_lines)
     string(REPLACE ";" "\n  " _rom_pretty "${_rom_lines}")

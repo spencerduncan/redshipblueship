@@ -31,10 +31,11 @@
  * counter would make the world identity depend on state the digest cannot
  * see" survives as the recipe's discipline — the counter is an INPUT to the
  * hash, not hidden state beside it. For the same reason only DETERMINISTIC
- * dead-ends are rungs: the Glitchless fill's wall-clock abort throws
- * Rando::Logic::GenerationTimeout and stops the ladder cold, because a rung
- * climbed because the machine was busy is exactly "state the digest cannot
- * see" wearing the counter's clothes.
+ * dead-ends are rungs: the fill's budget stop throws
+ * Rando::Logic::GenerationTimeout and stops the ladder cold. While that stop
+ * was a wall clock (until #950), a rung climbed because the machine was busy
+ * would have been exactly "state the digest cannot see" wearing the counter's
+ * clothes; the stop counts rounds now, and still never climbs.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -589,6 +590,22 @@ bool ConsumeForcedLadderRung() {
         return false;
     }
     sForcedShortPlacements--;
+    return true;
+}
+
+// The total-budget lock's rung (#950; Foreign.h): consumed only by a fill that
+// succeeded, so the attempt has charged real rounds before it fails.
+static int sForcedRungsAfterFill = 0;
+
+void ForceLadderRungAfterFill(int attempts) {
+    sForcedRungsAfterFill = attempts > 0 ? attempts : 0;
+}
+
+bool ConsumeForcedLadderRungAfterFill() {
+    if (sForcedRungsAfterFill <= 0) {
+        return false;
+    }
+    sForcedRungsAfterFill--;
     return true;
 }
 

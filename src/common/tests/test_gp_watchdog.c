@@ -86,9 +86,10 @@ TestResult Test_GpWatchdog(void) {
     GPWD_CHECK(IntegrationTest_GameplayWatchdogParse("abc") == GPWD_DEFAULT_SECS, "non-numeric override not defaulted");
 
     // (5) #793: a paired-world creation blocks the game thread inside ONE frame
-    // for as long as its own wall-clock budget allows (gen_budget.h: up to 90 s
-    // per attempt on a slow host), which the int-* wall-clock watchdog thread's
-    // 60 s default would read as a wedged frame. Each creation-progress report
+    // for as long as its round budget takes to spend (gen_budget.h: about 30 s
+    // per attempt on the reference machine, longer on a slower host; #950), which
+    // the int-* wall-clock watchdog thread's 60 s default would read as a wedged
+    // frame. Each creation-progress report
     // (Begin, every Report, End) must therefore advance the progress word that
     // thread polls, and name the creation as the stage. Observed without it: a
     // healthy IntPairedFirstCrossing pinned to one core failed with

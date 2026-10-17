@@ -319,88 +319,59 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     // never a silent vanilla Termina.
                     //
                     // Only DETERMINISTIC dead-ends are rungs: the fill's
-                    // wall-clock abort gets its own catch below and stops the
-                    // ladder rather than re-rolling, because a rung climbed
-                    // because the machine was slow would hand two players the
-                    // same identity and different worlds.
+                    // budget stop gets its own catch below and stops the
+                    // ladder rather than re-rolling. While that stop was a
+                    // wall clock, a rung climbed because the machine was slow
+                    // would have handed two players the same identity and
+                    // different worlds; since #950 it counts rounds, and a
+                    // budget still never chooses a world.
                     // --------------------------------------------------------
                     gComboCtx.mmPairedAttempt = 0;
                     static SaveContext sPreAttemptSave;
                     memcpy(&sPreAttemptSave, &gSaveContext, sizeof(SaveContext));
                     // ------------------------------------------------------
                     // THE FILL BUDGET (#582's operator decision; ADR 0010
-                    // increment 2). Every number and every reason lives in
-                    // src/common/gen_budget.h; what happens HERE is the
-                    // plumbing of it into the one place the fill reads.
+                    // increment 2), COUNTED IN ROUNDS since #950. Every number
+                    // and every reason lives in src/common/gen_budget.h. The
+                    // per-attempt stop is the single-bag fill's own
+                    // (RunPairedSingleBagFill reads Combo_GenBudget_RoundsPerAttempt);
+                    // the TOTAL stop is here. Neither reads a clock, so a seed
+                    // is creatable on every machine or on none.
                     //
-                    // Written through Rando::Logic's existing override rather
-                    // than by editing GlitchlessLogic's constant, because that
-                    // override already IS the fill's budget channel — it was
-                    // added so a lock could observe a wall-clock abort without
-                    // stalling CI for ten real seconds, and a second channel
-                    // beside it would be two sources of truth for one number.
-                    //
-                    // THE ARMED-OVERRIDE GUARD IS LOAD-BEARING: the locks set
-                    // that variable directly to force an abort. A budget write
-                    // that clobbered a pre-armed value would silently make those
-                    // rows test the shipped budget instead of the injected one —
-                    // a vacuous pass. So the budget only ever fills a ZERO.
-                    const bool budgetOwnsTimeout = (Rando::Logic::gRsbsGlitchlessTimeoutMsOverride == 0);
-                    // Restore on EVERY exit, including the throws below: leaving
-                    // the budget armed would silently apply a paired world's
-                    // budget to the next SOLO generation in the same process
-                    // (every headless row runs several).
-                    struct BudgetRestore {
-                        bool owns;
-                        ~BudgetRestore() {
-                            if (owns) {
-                                Rando::Logic::gRsbsGlitchlessTimeoutMsOverride = 0;
-                            }
-                        }
-                    } budgetRestore{ budgetOwnsTimeout };
+                    // The TOTAL is checked BETWEEN attempts, so it can never
+                    // truncate an attempt that is about to succeed. Ten
+                    // deterministic dead-ends that each grind for most of their
+                    // per-attempt budget would otherwise keep a player at the
+                    // file-select screen for minutes.
                     Combo_GenProgress_SetMaxAttempts((uint8_t)Rando::Foreign::kPairedGenMaxAttempts);
-                    // The TOTAL creation budget is checked BETWEEN attempts, so
-                    // it can never truncate an attempt that is about to succeed.
-                    // Ten deterministic dead-ends that each grind for most of
-                    // their per-attempt budget would otherwise keep a player at
-                    // the file-select screen for minutes.
-                    const uint32_t totalBudgetMs = Combo_GenBudget_TotalBudgetMs();
+                    Combo_GenBudget_ResetRoundsCharged();
+                    const uint32_t totalRounds = Combo_GenBudget_TotalRounds();
                     for (int attempt = 0;; attempt++) {
                         if (attempt > 0) {
                             memcpy(&gSaveContext, &sPreAttemptSave, sizeof(SaveContext));
                             Combo_ClearForeignPlacements();
-                            // GENERATION elapsed, not WALL elapsed (#582). The
-                            // overlay's frames wait for vblank, and charging
-                            // those waits to this stop would make one seed on
-                            // one machine abort here with a window on screen and
-                            // succeed headless — the same asymmetry the fill's
-                            // per-attempt stop credits away, at the OTHER stop.
-                            // Identical to wall elapsed whenever nothing painted,
-                            // so every headless row's arithmetic is unchanged.
-                            if (Combo_GenProgress_GenerationElapsedMs() > totalBudgetMs) {
-                                // A WALL-CLOCK STOP, NOT A RUNG. Same rule as the
-                                // per-attempt abort below and for the same
-                                // reason: how many attempts a machine gets
-                                // through in a fixed time is a property of the
-                                // machine, so letting it decide the ladder index
-                                // would hand two players different worlds under
-                                // one frozen identity. It stops the ladder; it
-                                // never advances it.
+                            // ROUNDS SPENT, summed over every attempt so far: each
+                            // single-bag fill charges the rounds it ran, dead end
+                            // or not (combo_single_bag.c). A pure function of the
+                            // frozen identity, unlike the clock this replaced
+                            // (#950), and blind to presentation by construction:
+                            // painting a frame runs no round.
+                            if (Combo_GenBudget_RoundsCharged() >= totalRounds) {
+                                // A BUDGET STOP, NOT A RUNG. Same rule as the
+                                // per-attempt stop below: a budget may end a
+                                // creation, never choose its world, so it stops
+                                // the ladder and never advances it.
                                 Rando::Foreign::NotePairedGenerationOutcome(attempt, false);
                                 fprintf(stderr,
-                                        "[MM] paired generation: the whole creation exceeded its %ums budget after "
-                                        "%d attempt(s) — stopping the ladder (a wall-clock stop NEVER climbs a "
-                                        "rung; %ums generating of %ums wall, %ums presenting)\n",
-                                        totalBudgetMs, attempt, Combo_GenProgress_GenerationElapsedMs(),
-                                        Combo_GenProgress_ElapsedMs(), Combo_GenProgress_PresentationMs());
-                                throw std::runtime_error(
-                                    "Paired generation exceeded the creation's total wall-clock budget after " +
-                                    std::to_string(attempt) + " attempt(s)");
+                                        "[MM] paired generation: the whole creation spent its %u-round budget after "
+                                        "%d attempt(s) (%u rounds run) — stopping the ladder (a budget stop NEVER "
+                                        "climbs a rung; %ums wall on this host)\n",
+                                        totalRounds, attempt, Combo_GenBudget_RoundsCharged(),
+                                        Combo_GenProgress_ElapsedMs());
+                                throw std::runtime_error("Paired generation spent the creation's total budget of " +
+                                                         std::to_string(totalRounds) + " fill rounds after " +
+                                                         std::to_string(attempt) + " attempt(s)");
                             }
-                        }
-                        if (budgetOwnsTimeout) {
-                            Rando::Logic::gRsbsGlitchlessTimeoutMsOverride =
-                                Combo_GenBudget_FillBudgetMs(attempt);
                         }
                         Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_MM_FILL, attempt + 1, nullptr);
                         rsbsLadderAttempt = attempt;
@@ -413,31 +384,30 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                             Rando::Foreign::NotePairedGenerationOutcome(attempt + 1, false);
                             break;
                         } catch (const Rando::Logic::GenerationTimeout& timeoutError) {
-                            // NOT a ladder rung. The Glitchless fill's only
-                            // non-deterministic failure is its 10s WALL-CLOCK
-                            // abort (GlitchlessLogic.cpp), and re-rolling on it
-                            // would make the winning attempt index — and
+                            // NOT a ladder rung: the single-bag fill spent its
+                            // per-attempt ROUND budget (#950). Until #950 this
+                            // was a WALL-CLOCK abort, and re-rolling on it would
+                            // have made the winning attempt index — and
                             // therefore the WORLD — a function of how fast the
-                            // machine was, not of the frozen identity. Same
-                            // seed + settings must produce the same world on
-                            // every machine, so the ladder stops cold here and
-                            // takes the loud path (vanilla revert at the outer
-                            // catch, REFUSED at the arrival gate) rather than
-                            // silently delivering a different world to a slower
-                            // player. `exhausted` stays false: the bound was
-                            // never the problem, so the refusal copy says
-                            // "generation threw", which is the truth.
+                            // machine was. The stop is deterministic now, and the
+                            // rule stays: a budget may refuse a seed, never pick
+                            // its world. So the ladder stops cold here and takes
+                            // the loud path (vanilla revert at the outer catch,
+                            // REFUSED at the arrival gate). `exhausted` stays
+                            // false: the bound was never the problem, so the
+                            // refusal copy says "generation threw", which is
+                            // the truth.
                             Rando::Foreign::NotePairedGenerationOutcome(attempt + 1, false);
                             fprintf(stderr,
-                                    "[MM] paired generation: attempt %d/%d hit the fill's WALL-CLOCK abort (%s) — "
-                                    "NOT re-rolled: a machine-speed-dependent retry would make this seed's world "
-                                    "differ between machines\n",
+                                    "[MM] paired generation: attempt %d/%d spent the fill's per-attempt round budget "
+                                    "(%s) — NOT re-rolled: a budget stop never climbs a rung\n",
                                     attempt + 1, Rando::Foreign::kPairedGenMaxAttempts, timeoutError.what());
-                            throw std::runtime_error(
-                                "Paired generation hit the Glitchless fill's wall-clock abort on ladder attempt " +
-                                std::to_string(attempt + 1) +
-                                "; the attempt ladder deliberately does not re-roll a non-deterministic failure (" +
-                                std::string(timeoutError.what()) + ")");
+                            throw std::runtime_error("Paired generation spent the fill's per-attempt round budget on "
+                                                     "ladder attempt " +
+                                                     std::to_string(attempt + 1) +
+                                                     "; the attempt ladder deliberately does not re-roll a budget "
+                                                     "stop (" +
+                                                     std::string(timeoutError.what()) + ")");
                         } catch (const Rando::Foreign::PairedFillRefused& refusal) {
                             // NOT a ladder rung either (PR #743 review). The fill
                             // refused to run, or an engine broke its contract:

@@ -9,30 +9,66 @@
 #include "integration_test_hooks.h" // #793: each report is progress for the int-* watchdog
 
 #include <stdio.h>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#else
 #include <time.h>
+#endif
 
 // ============================================================================
-// Host calibration
+// The clock
 // ============================================================================
 
 /**
- * Milliseconds on a clock that is monotonic enough for a ratio and a budget.
- * clock() rather than a platform timer because this file is plain C compiled
- * for every target the single exe builds for, and the two consumers — a ratio
- * and an elapsed-time display — are both insensitive to the CPU-time /
- * wall-time difference between implementations.
+ * MONOTONIC WALL time in ms, the same kind of clock on every platform (#950).
+ *
+ * This used to be C clock(), and the comment above it said its consumers were
+ * "insensitive to the CPU-time / wall-time difference between implementations".
+ * That stopped being true the moment the clock decided whether a creation
+ * stopped: clock() is wall time under MSVC but the process's CPU time, summed
+ * over every thread, under glibc and macOS, so one seed got a different budget
+ * on Windows and on Linux. Since #950 no stop reads any clock (both count fill
+ * rounds, gen_budget.h), and what is left reading this one is the elapsed
+ * display, the presentation credit, the host-scale estimate and the stderr
+ * timing lines. Those are all WALL-time questions ("how long did the player
+ * wait"), so the clock is a monotonic wall clock everywhere: QueryPerformanceCounter
+ * on Windows, CLOCK_MONOTONIC elsewhere. Monotonic rather than calendar time
+ * (timespec_get's TIME_UTC) so a clock adjustment mid-creation cannot make an
+ * elapsed figure jump or run backwards.
  */
 static uint32_t GenBudgetNowMs(void) {
-    const clock_t ticks = clock();
-    if (ticks == (clock_t)-1) {
+#ifdef _WIN32
+    static LARGE_INTEGER sFrequency = { 0 };
+    LARGE_INTEGER now;
+    if (sFrequency.QuadPart == 0 && !QueryPerformanceFrequency(&sFrequency)) {
         return 0;
     }
-    return (uint32_t)(((uint64_t)ticks * 1000ull) / (uint64_t)CLOCKS_PER_SEC);
+    if (!QueryPerformanceCounter(&now) || sFrequency.QuadPart <= 0) {
+        return 0;
+    }
+    return (uint32_t)(((uint64_t)now.QuadPart / (uint64_t)sFrequency.QuadPart) * 1000ull +
+                      (((uint64_t)now.QuadPart % (uint64_t)sFrequency.QuadPart) * 1000ull) /
+                          (uint64_t)sFrequency.QuadPart);
+#else
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+        return 0;
+    }
+    return (uint32_t)((uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull);
+#endif
 }
 
 uint32_t Combo_GenBudget_NowMs(void) {
     return GenBudgetNowMs();
 }
+
+// ============================================================================
+// Host calibration (DISPLAY ONLY since #950: it sizes the overlay's estimate)
+// ============================================================================
 
 /**
  * THE CALIBRATION WORKLOAD. A fixed, branch-light integer loop: no allocation,
@@ -41,8 +77,8 @@ uint32_t Combo_GenBudget_NowMs(void) {
  * nothing; the ratio against kGenBudgetReferenceMs is the whole output.
  *
  * Sized so the reference machine takes tens of milliseconds — long enough that
- * clock()'s millisecond granularity is not the dominant term, short enough that
- * paying it once per process on the creation path is invisible.
+ * a millisecond granularity is not the dominant term, short enough that paying
+ * it once per process on the creation path is invisible.
  */
 #define GENBUDGET_CALIBRATION_ITERATIONS 24000000u
 
@@ -55,14 +91,39 @@ uint32_t Combo_GenBudget_NowMs(void) {
  * gen_budget.h for why a runtime-sampled reference would make every host scale
  * drift out from under the ruling.
  *
- * A machine at or below this number scales to 100% and gets the 30 s floor; one
- * three times slower saturates the 300% clamp and gets the 90 s ceiling.
+ * A machine at or below this number scales to 100% and its overlay estimates
+ * the 30 s floor; one three times slower saturates the 300% clamp and estimates
+ * the 90 s ceiling. (Until #950 those were the host's real per-attempt budgets.)
  *
  * WHEN TO RE-MEASURE: only when the reference machine is deliberately changed,
- * and only as its own commit, because the number silently retunes every host
- * budget. It is not a knob for making a slow CI row pass.
+ * and only as its own commit. Since #950 it moves only the overlay's estimate,
+ * never a verdict.
  */
 #define GENBUDGET_REFERENCE_MS 18u
+
+/*
+ * RSBS_GENBUDGET_REFERENCE_ROUND_MS (gen_budget.h), WHERE IT COMES FROM.
+ *
+ * The cost of one coordinator fill round on the reference machine, measured over
+ * real paired creations of the shipped profile, every fill a single batch of
+ * 256-258 rounds:
+ *   - ADR 0010's K11 entry (PR #743): one headless creation, 5.61 s of fill over
+ *     256 rounds = 21.9 ms per round, at host scale 100%; thirty creations
+ *     through the event averaged 6.41 s of fill at about 260 rounds = 24.7 ms
+ *     per round, at host scale 105%.
+ *   - This change (2026-10-16, Release/MSVC, the same workstation): see the
+ *     PR #950 measurement in docs/combo-logic-coordinator.md ("The budget").
+ * 22 ms at scale 100% is the round the floor is divided by: 30 s / 22 ms = 1363
+ * rounds per attempt, five single-batch shipped fills, which is where the
+ * wall-clock floor sat on the reference machine (ADR 0010: "a seed would need
+ * five batches to exceed the budget"). The bag's fill wall time includes the bag
+ * build, so the per-round figure is a slight overestimate and the round budget
+ * slightly generous against the old floor, never stricter.
+ */
+
+static uint32_t sRoundsPerAttemptOverride = 0;
+static uint32_t sTotalRoundsOverride = 0;
+static uint32_t sRoundsCharged = 0;
 
 static uint32_t sHostScaleOverridePercent = 0;
 static uint32_t sMeasuredScalePercent = 0;
@@ -134,6 +195,39 @@ uint32_t Combo_GenBudget_TotalBudgetMs(void) {
 }
 
 // ============================================================================
+// The round budget (#950): the creation's two stops
+// ============================================================================
+
+uint32_t Combo_GenBudget_RoundsPerAttempt(int attempt) {
+    // Constant across attempts for the reason Combo_GenBudget_FillBudgetMs is.
+    // NO HOST INPUT, deliberately and entirely: not the scale, not a clock, not
+    // a platform. That is the whole of #950.
+    (void)attempt;
+    return (sRoundsPerAttemptOverride != 0) ? sRoundsPerAttemptOverride : (uint32_t)RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT;
+}
+
+uint32_t Combo_GenBudget_TotalRounds(void) {
+    return (sTotalRoundsOverride != 0) ? sTotalRoundsOverride : (uint32_t)RSBS_GENBUDGET_TOTAL_ROUNDS;
+}
+
+void Combo_GenBudget_ResetRoundsCharged(void) {
+    sRoundsCharged = 0;
+}
+
+void Combo_GenBudget_ChargeRounds(uint32_t rounds) {
+    sRoundsCharged = (rounds > 0xFFFFFFFFu - sRoundsCharged) ? 0xFFFFFFFFu : sRoundsCharged + rounds;
+}
+
+uint32_t Combo_GenBudget_RoundsCharged(void) {
+    return sRoundsCharged;
+}
+
+void Combo_GenBudget_SetRoundBudgetOverride(uint32_t roundsPerAttempt, uint32_t totalRounds) {
+    sRoundsPerAttemptOverride = roundsPerAttempt;
+    sTotalRoundsOverride = totalRounds;
+}
+
+// ============================================================================
 // The progress surface
 // ============================================================================
 
@@ -161,9 +255,8 @@ static ComboGenProgressSink sProgressSink = NULL;
 static ComboGenProgressSink sDisplaySink = NULL;
 static uint32_t sProgressStartMs = 0;
 static bool sProgressRunning = false;
-/** Time this creation has spent presenting, in GenBudgetNowMs units. See the
- *  header: the TOTAL budget's stop is compared against elapsed MINUS this, so a
- *  windowed host and a headless one get the same generation headroom. */
+/** Time this creation has spent presenting, in GenBudgetNowMs units. Reporting
+ *  only since #950 (the stops count rounds); see the header. */
 static uint32_t sPresentationMs = 0;
 static uint32_t sPresentationStartMs = 0;
 static bool sPresentationOpen = false;
@@ -182,9 +275,10 @@ const ComboGenProgress* Combo_GenProgress_Current(void) {
 
 uint32_t Combo_GenProgress_ElapsedMs(void) {
     // ZERO WHEN NOT RUNNING, deliberately, and NOT the previous creation's
-    // frozen total. The ladder's total-budget check reads this, so a stale
-    // elapsed time left over from an earlier creation would abort the next one
-    // at its second attempt for no reason. The finished total is still readable
+    // frozen total. The ladder's total-budget check read this until #950, when a
+    // stale elapsed time left over from an earlier creation would have aborted
+    // the next one at its second attempt; the display and the stderr lines still
+    // read it, and must not show a previous creation's time. The finished total is still readable
     // through Combo_GenProgress_Current()->elapsedMs, which is where a display
     // (and the P12 measurement line) gets it.
     if (!sProgressRunning) {
@@ -213,8 +307,7 @@ void Combo_GenProgress_PresentationEnd(void) {
     const uint32_t now = GenBudgetNowMs();
     if (now > sPresentationStartMs) {
         // A backwards step credits nothing rather than wrapping into an enormous
-        // credit that would disable the total-budget stop for the rest of the
-        // creation. Same rule as the per-attempt credit's guard.
+        // credit that would turn every later "generating" figure into zero.
         sPresentationMs += now - sPresentationStartMs;
     }
 }
@@ -250,8 +343,11 @@ void Combo_GenProgress_Begin(void) {
     // weights and the existing phase-order assertions are untouched; only the words
     // the player reads change, which is what `detail` is for.
     sProgress.detail = "preparing to build your paired world";
-    fprintf(stderr, "[Combo] creation progress: BEGIN (per-attempt budget %ums, total budget %ums, host scale %u%%)\n",
-            Combo_GenBudget_FillBudgetMs(0), Combo_GenBudget_TotalBudgetMs(), Combo_GenBudget_HostScalePercent());
+    fprintf(stderr,
+            "[Combo] creation progress: BEGIN (per-attempt budget %u rounds, total budget %u rounds; host scale %u%%, "
+            "estimated %ums per attempt)\n",
+            Combo_GenBudget_RoundsPerAttempt(0), Combo_GenBudget_TotalRounds(), Combo_GenBudget_HostScalePercent(),
+            Combo_GenBudget_FillBudgetMs(0));
     fflush(stderr);
 
     // THE ON-SCREEN LEG ONLY (#582). An overlay has to exist before the first
@@ -280,7 +376,7 @@ void Combo_GenProgress_Report(uint8_t phase, int attempt, const char* detail) {
     // CI log or an operator session has, and the one the #582 evidence was
     // gathered from in the first place.
     if (sProgress.attempt != 0) {
-        fprintf(stderr, "[Combo] creation progress: %s (attempt %u of %u, %ums elapsed, %ums budget)\n",
+        fprintf(stderr, "[Combo] creation progress: %s (attempt %u of %u, %ums elapsed, ~%ums estimated)\n",
                 sProgress.detail, (unsigned)sProgress.attempt, (unsigned)sProgress.maxAttempts, sProgress.elapsedMs,
                 sProgress.budgetMs);
     } else {
@@ -312,11 +408,11 @@ void Combo_GenProgress_End(bool ok) {
     // generation nothing" is a claim about numbers and this is where the numbers
     // are. Zero on a headless host by construction.
     fprintf(stderr,
-            "[Combo] creation progress: %s in %ums wall (%ums generating, %ums presenting; per-attempt budget %ums, "
-            "floor %ums)\n",
+            "[Combo] creation progress: %s in %ums wall (%ums generating, %ums presenting; per-attempt budget %u "
+            "rounds, floor %ums)\n",
             ok ? "COMPLETE" : "FAILED", sProgress.elapsedMs,
             (sProgress.elapsedMs > sPresentationMs) ? (sProgress.elapsedMs - sPresentationMs) : 0u, sPresentationMs,
-            Combo_GenBudget_FillBudgetMs(0), (unsigned)RSBS_GENBUDGET_FLOOR_MS);
+            Combo_GenBudget_RoundsPerAttempt(0), (unsigned)RSBS_GENBUDGET_FLOOR_MS);
     fflush(stderr);
 
     if (sProgressSink != NULL) {

@@ -1585,14 +1585,31 @@ if(BUILD_TESTING)
     # machinery, no leaked placements, no stale provenance — while the same
     # arrival with the fixture undone generates and latches nothing. The
     # anti-regression row for the silent-vanilla-revert class (#564 V7).
-    # Its third leg is the determinism boundary: a WALL-CLOCK fill abort (the
-    # one failure that depends on the machine rather than the seed) must stop
-    # the ladder at attempt 1 rather than climb to a different world, so the
-    # same seed + settings cannot generate differently on a slow machine.
+    # Its third and fourth legs are the budget boundary (#950): a BUDGET STOP,
+    # per attempt (a one-round budget) or for the whole creation (a one-round
+    # total after a real fill), must stop the ladder at attempt 1 rather than
+    # climb to a different world, so a budget can refuse a seed but never pick
+    # its world.
     redship_add_test(NAME MMPairedExhaustion COMMAND redship --test mm-paired-exhaustion
         LABEL rando
         TIMEOUT 240
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #950: the creation's budget counts fill rounds, not milliseconds, so a seed
+    # is creatable on every machine or on none. One seed created four times
+    # through the real event: refused identically under a squeezed round budget at
+    # host scale 100% and 300%, created identically (same rounds, placements and
+    # crossings) under the shipped budget at both.
+    redship_add_test(NAME MMRoundBudgetHostScale COMMAND redship --test mm-round-budget-host-scale
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #950: every golden seed (default, profile-v1, entrances, the ladder world)
+    # still creates on its pinned attempt inside the shipped round budget, and its
+    # rounds match the golden's bagRounds when the golden is in the tree.
+    redship_add_test(NAME GoldenSeedsRoundBudget COMMAND redship --test mm-golden-seeds-round-budget
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_GOLDEN_DIR=${CMAKE_SOURCE_DIR}/tests/golden")
 
     # #439 follow-up: MMPairSwitchEntry locks the cross-game arrival convergence;
     # this row locks the OTHER paths into MM gameplay the arrival fix does not
@@ -1846,6 +1863,26 @@ if(BUILD_TESTING)
         # golden row is now green or red on every gate; a SKIPPED golden row means
         # somebody re-added a skip path.
     endforeach()
+    # #950: the default golden again with the host scale pinned at 300%, the
+    # slowest host the overlay's estimate models. Since the budget counts fill
+    # rounds no host input reaches the world, so the digest must equal
+    # seed-digest-default exactly. Deliberately OUTSIDE REDSHIP_GOLDEN_DIGESTS:
+    # the regen loop re-pins every table row, and a variant that re-pinned the
+    # default golden from a pinned-scale run could hide the very leak it checks.
+    redship_add_test(NAME GoldenSeedDigestDefaultHostScale300
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -DDISPATCH=rando-determinism
+                -DDIGEST_ENV=RSBS_SEED_DIGEST_OUT
+                -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
+                -DGOLDEN_NAME=seed-digest-default
+                -DRUN_TAG=seed-digest-default-host-scale-300
+                -DARCHIVE_FREE_ONLY=ON
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_GENBUDGET_HOST_SCALE=300")
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL
     # candidate; this one proves a REAL fill with entrance shuffle on never writes
