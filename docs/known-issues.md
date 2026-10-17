@@ -4,7 +4,7 @@
 plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) plus PRs [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's Mask's ROM extraction), [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the night Happy Mask Shop door) and [#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer crashes), with the version bump of PR [#946](https://github.com/spencerduncan/redshipblueship/pull/946) (`ece56551`), then [#958](https://github.com/spencerduncan/redshipblueship/pull/958) (the goldens pin hint text, prices, starting items and entrances; static hints in a fixed order), [#959](https://github.com/spencerduncan/redshipblueship/pull/959) (the creation budget counts fill rounds) and [#960](https://github.com/spencerduncan/redshipblueship/pull/960) (the fingerprint and build beside the seed icons), up to `7e44b8a0` (2026-10-17), and the GitHub Actions builds cut from them; the `v0.1.1-prealpha` tag
 (2026-07-03) is older than everything in the first section. What changed since that tag, in player terms:
 [`release-notes-next.md`](release-notes-next.md).
-**Last updated:** 2026-10-17 (the creation budget of PR [#959](https://github.com/spencerduncan/redshipblueship/pull/959), the open issues refreshed at `7e44b8a0`); 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
+**Last updated:** 2026-10-17 (the creation budget of PR [#959](https://github.com/spencerduncan/redshipblueship/pull/959), the open issues refreshed at `7e44b8a0`, the gates record at `7e44b8a0`); 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -659,6 +659,52 @@ before #895 are refused (see "Back up your saves").
 
 **Findings.** None in this run. The open issues at this commit were listed under "Open issues
 at `851b1ee9`" near the top of this document, since refreshed at `7e44b8a0`.
+
+---
+
+## Gates, 2026-10-17, `7e44b8a0`
+
+The three determinism pull requests merged on top of the version bump (`ece56551`, PR
+[#946](https://github.com/spencerduncan/redshipblueship/pull/946)): [#958](https://github.com/spencerduncan/redshipblueship/pull/958) (the goldens pin hint text, prices, starting items and
+the entrance table, plus an entrance-shuffle golden; static hints built in a fixed order;
+byte-unsigned seed hashing), [#959](https://github.com/spencerduncan/redshipblueship/pull/959) (the creation budget counts fill rounds) and
+[#960](https://github.com/spencerduncan/redshipblueship/pull/960) (the paired world's fingerprint and the build beside the seed icons). Like
+the runs above, it covers the checks hosted CI cannot run, because they need the ROMs.
+
+**How it was run.** The workstation's main Windows checkout, OpenGL only, windows opened
+without taking focus, one tier at a time. Each pull request was gated as a merge of its branch
+onto the `main` of that moment, and each merged tree equals its gated tree: #958 at tree
+`1fa8507d` (squash commit `865ec10b`), #959 at `fb229270` (`aff54bf7`), #960 at `e524fdfc`,
+which is `main`'s tree at `7e44b8a0`.
+
+| Check | #958 (`1fa8507d`) | #959 (`fb229270`) | #960 (`e524fdfc` = `7e44b8a0`) |
+|---|---|---|---|
+| `redship` tier | 183 of 183 | 183 | 184 of 184 (179 at `851b1ee9`) |
+| `rando` tier | 45 of 45 | 48 | 49 of 49 (43 at `851b1ee9`), the golden-world rows among them (five golden files now, with `seed-digest-entrances`) |
+| `ui` tier, parity lint | 2 of 2; lint plain and no-grow OK | 2; lint OK | 2 of 2; lint plain and no-grow OK |
+| `integration` | 16 of 16 | 16 | 17 of 17 (14 at `851b1ee9`); `IntPairedFileSelectIdentity` is new |
+| `integration-soak` | 1 of 1 | 1 | 1 of 1 |
+
+**Creation-time sample, re-run at `7e44b8a0`.** `RSBS_CSB_SAMPLE_EVENT=10 redship --test
+combo-single-bag`, host scale 100%: 10 of 10 paired creations succeeded on their first
+attempt, each after 258 fill rounds against the 1250-round per-attempt cap. End to end the mean
+was 7058 ms, the best 6182 ms and the worst 8550 ms, with no per-attempt budget stop and no
+dead heart pickup. This answers the "creation-time sample was not re-run" line of the two runs
+above.
+
+**Generated worlds.** No pinned world moved. #958 added its new fields to three golden files and
+a fifth golden, `seed-digest-entrances`; no existing golden line changed. A typed seed with
+non-ASCII characters makes a different world than before #958 on Windows and x86 Linux (ASCII
+and generated seeds are unchanged).
+
+**What this run did not cover.**
+- Nobody has played `7e44b8a0`.
+- DirectX 11 was not compared with OpenGL, and F10 does not switch games under DirectX 11
+  ([#955](https://github.com/spencerduncan/redshipblueship/issues/955)).
+- Networking is untested.
+
+**Findings.** None in this run. The open issues at this commit are listed under "Open issues
+at `7e44b8a0`" near the top of this document.
 
 ---
 

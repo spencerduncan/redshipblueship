@@ -259,4 +259,9 @@ Numbers in parentheses are pull requests. The full list of open problems is
 
 The closing smoke at `851b1ee9` (2026-10-12; Windows, OpenGL, ROM archives mounted) passed `redship` 179 of
 179, `rando` 43 of 43 (all four golden-world rows), `ui` 2 of 2 with the parity lint, `integration` 14 of 14
-and `integration-soak` 1 of 1. The full record is in [`known-issues.md`](known-issues.md).
+and `integration-soak` 1 of 1. The gates of the three determinism pull requests (#958, #959, #960; 2026-10-17,
+same setup) ended at `7e44b8a0`, the code of this release, with `redship` 184 of 184, `rando` 49 of 49 (the golden-world
+rows among them, over five golden files now), `ui` 2 of 2 with the parity lint, `integration` 17 of 17 and `integration-soak` 1 of
+1. There, 10 of 10 sample paired creations succeeded on the first attempt (258 fill rounds each against the
+1250-round cap; 6.2-8.6 s, mean 7.1 s). Nobody has played this build, and DirectX 11 was not compared. The full
+records are in [`known-issues.md`](known-issues.md).
