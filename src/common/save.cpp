@@ -1846,6 +1846,7 @@ SlotMeta SaveManager::ReadMeta(int slot) const {
     std::memcpy(&combo, comboRecord.data(), sizeof(ComboContext));
     if (std::memcmp(combo.magic, COMBO_CONTEXT_MAGIC, sizeof(combo.magic)) == 0) {
         meta.lastGame = combo.sourceGame;
+        meta.comboSettingsHash = combo.comboSettingsHash;
     }
 
     std::vector<uint8_t> ootBlob(header.ootSize);

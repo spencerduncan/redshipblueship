@@ -293,6 +293,12 @@ struct SlotMeta {
     // that load REFUSES instead — see RSBS_REFUSE_COMMIT_SKEW.) Session state,
     // reset by erase/create/reset.
     int commitSkew;
+
+    // #952: the pair's fingerprint as its Tier-1 record froze it at creation
+    // (ComboContext.comboSettingsHash), which the file select prints beside the
+    // seed icons. 0 for no record, a record without the ComboContext magic, and
+    // a legacy pair whose rules never froze.
+    uint32_t comboSettingsHash;
 };
 
 /**

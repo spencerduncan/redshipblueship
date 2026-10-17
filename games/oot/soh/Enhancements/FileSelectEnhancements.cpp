@@ -101,6 +101,64 @@ const char* OoT_FileSelect_NoSeedText(uint8_t language) {
     snprintf(sLine, sizeof(sLine), kSeedUsedText[language], slot + 1);
     return sLine;
 }
+
+// RSBS (#952): what tells two paired worlds apart, beside the icons that cover
+// only OoT's seed and settings (src/common/combo_identity_display.h).
+#include "combo_identity_display.h"
+#include "soh/Enhancements/randomizer/SeedContext.h"
+#include "soh/util.h"
+
+// z_parameter.c (functions.h, whose C++ half redefines `this`): SoH's
+// file-select text, the font the randomizer menu's lines use.
+extern "C" uint16_t Interface_DrawTextLine(GraphicsContext* gfx, char text[], int16_t x, int16_t y, uint16_t colorR,
+                                           uint16_t colorG, uint16_t colorB, uint16_t colorA, float textScale,
+                                           uint8_t textShadow);
+
+namespace {
+
+// The paired seed STRING the panes print: the one this context generated or
+// loaded (SaveManager's "inputSeed"), only when it is the world's own seed.
+int OoT_PairedSeedString(uint32_t sharedRandoSeed, char* out, size_t cap) {
+    const auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || out == nullptr || cap == 0) {
+        return 0;
+    }
+    const std::string& seedString = ctx->GetSeedString();
+    if (seedString.empty() || SohUtils::Hash(seedString) != sharedRandoSeed) {
+        return 0;
+    }
+    snprintf(out, cap, "%s", seedString.c_str());
+    return 1;
+}
+
+const bool sPairedSeedStringRegistered =
+    (Combo_IdentityDisplay_SetSeedStringProvider(&OoT_PairedSeedString), true);
+
+} // namespace
+
+// Right of the five icons (64 + 40 * 4 + 24 = 248, y 10..34), two lines in the
+// randomizer menu's own font, scale and shadow.
+#define OOT_COMBO_IDENTITY_X 254
+#define OOT_COMBO_IDENTITY_Y 11
+#define OOT_COMBO_IDENTITY_SCALE 0.8f
+
+void OoT_FileSelect_DrawComboIdentity(GraphicsContext* gfx, s32 slot, u8 alpha) {
+    char text[RSBS_COMBO_IDENTITY_TEXT_CAP];
+    int have = 0;
+    if (slot < 0) {
+        const auto ctx = Rando::Context::GetInstance();
+        have = ctx != nullptr && ctx->IsSeedGenerated() &&
+               Combo_IdentityDisplay_GeneratedText(ctx->GetSeed(), text, sizeof(text));
+    } else {
+        have = Combo_IdentityDisplay_SlotText(slot, text, sizeof(text));
+    }
+    if (!have || alpha == 0) {
+        return;
+    }
+    Interface_DrawTextLine(gfx, text, OOT_COMBO_IDENTITY_X, OOT_COMBO_IDENTITY_Y, 255, 255, 255, alpha,
+                           OOT_COMBO_IDENTITY_SCALE, true);
+    Combo_IdentityDisplay_NoteDrawn(text);
+}
 #endif
 
 void SohFileSelect_ShowPresetMenu() {

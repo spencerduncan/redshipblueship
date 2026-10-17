@@ -904,6 +904,11 @@ static bool PfcCreationMatchesStore(char* msg, size_t cap) {
 }
 
 static bool sPfcCreationAttempted = false;
+// oot_file_select_identity_shot.cpp (#952, RSBS_PFC_FILE_SELECT_SHOT=1): after
+// the creation, the file select opens the created file and draws its identity.
+extern "C" int OoT_PfcFileSelectShot_Begin(FileChooseContext* fileChoose, int slot);
+extern "C" int OoT_PfcFileSelectShot_Running(void);
+extern "C" void OoT_PfcFileSelectShot_Frame(FileChooseContext* fileChoose);
 
 /**
  * The paired variant's boot: the production path a player takes, minus the menu
@@ -945,6 +950,10 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
     // there until the exit request lands. A second pass would erase the slot
     // the first one wrote (a failure keeps it for forensics) and generate again.
     if (sPfcCreationAttempted) {
+        if (OoT_PfcFileSelectShot_Running()) {
+            OoT_PfcFileSelectShot_Frame(fileChoose);
+            return;
+        }
         static bool sReentryLogged = false;
         if (!sReentryLogged) {
             sReentryLogged = true;
@@ -1081,6 +1090,13 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
                 "[PFC] the created .sav names its record's world: finalSeed %u = sharedRandoSeed, "
                 "rsbsPairSettingsHash %08X = sharedRandoSettingsHash (generation %u)\n",
                 (unsigned)savIdentity.randoSeed, (unsigned)savIdentity.settingsHash, (unsigned)savGeneration);
+    }
+
+    // ---- RSBS_PFC_FILE_SELECT_SHOT=1 (#952): the file select shows the file ---
+    // Instead of loading it: the next frames open file 3 at the file select and
+    // capture its icons with the fingerprint beside them; the shot ends the run.
+    if (OoT_PfcFileSelectShot_Begin(fileChoose, kPfcSlot)) {
+        return;
     }
 
     // ---- 2b. RSBS_PFC_DIVERGE=1 (#804): the player changes settings ----------

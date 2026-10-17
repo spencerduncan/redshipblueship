@@ -22,7 +22,8 @@
 #include <ship/window/gui/Gui.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
-#include "ComboTrackerWindow.h" // DrawCrossingList: the one crossing table both panes draw
+#include "ComboTrackerWindow.h"     // DrawCrossingList: the one crossing table both panes draw
+#include "combo_identity_display.h" // the paired seed as the player typed it (#952)
 #include "combo_spoiler_view.h"
 #include "combo_ui.h"
 #include "context.h" // GameId
@@ -78,8 +79,11 @@ void ComboSpoilerWindow::DrawElement() {
         return;
     }
 
-    // "Paired Seed", the Combo Tracker's word for the same number.
-    ImGui::Text("Paired Seed: %u", (unsigned)summary.sharedRandoSeed);
+    // "Paired Seed", the Combo Tracker's word for the same seed: the string
+    // the player typed (or generated), which can be typed back in (#952).
+    char seed[256];
+    Combo_IdentityDisplay_PairedSeed(summary.sharedRandoSeed, seed, sizeof(seed));
+    ImGui::Text("Paired Seed: %s", seed);
     Ui().Spacer(0.0f);
 
     // Both directions, in the one spoiler's order (combo.crossingStore lists

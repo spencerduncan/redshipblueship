@@ -430,6 +430,10 @@ int OoT_MaskShopNightDoor_RunHeadless(void);
 // games/oot/soh/oot_settings_fold_test.cpp. Runs a real generation, so it needs
 // the display bring-up like the other rando-tier rows. Return 0 on pass.
 int RandoTest_SettingsFoldExcludes(void);
+// #952: two real paired generations that differ in one MM option print the same
+// five icons and different fingerprints beside them. Body in
+// games/oot/soh/oot_combo_identity_display_test.cpp. Return 0 on pass.
+int RandoTest_ComboIdentityDisplayWorld(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -865,6 +869,10 @@ extern "C" {
 // per slot state, the cached view's read count, the seam and the note.
 // ROM-free, display-free and disk-free. FILE SCOPE (compiled as C++).
 #include "tests/test_combo_save_files_view.c"
+// #952: the fingerprint and build beside the seed icons and the paired seed
+// string (src/common/combo_identity_display.cpp). ROM-free and display-free;
+// its .redsave writes go to a scratch directory. FILE SCOPE (compiled as C++).
+#include "tests/test_combo_identity_display.c"
 // #944: the in-app MM extraction bridge (src/common/mm_extract.h): a silent ROM
 // scan and validation, the ROM search dirs and the tools check, ROM-free; plus
 // the staged MM ROM when OTRExporter/mm.z64 exists. FILE SCOPE (compiled as C++).
@@ -2213,6 +2221,24 @@ TestResult Test_RandoSettingsFoldExcludes(void) {
 
     int rc = RandoTest_SettingsFoldExcludes();
     printf("[TEST] %s: settings-fold excludes rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #952 over real generations: the same bring-up as the row above. Assertions in
+// games/oot/soh/oot_combo_identity_display_test.cpp.
+TestResult Test_ComboIdentityDisplayWorld(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = RandoTest_ComboIdentityDisplayWorld();
+    printf("[TEST] %s: combo identity display world rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -5170,6 +5196,21 @@ TestResult Test_MMComboSettingsGate(void) {
     return MM_ComboSettingsGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #952: the same bring-up, for the CVar store MM's profile stamp reads.
+// Assertions in tests/test_combo_identity_display.c.
+TestResult Test_ComboIdentityDisplay(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return ComboIdentityDisplay_RunHeadless();
+}
+
 // The tier-4 authoring surface (ADR 0011 increment 2). Needs the shared
 // bring-up because the five keys live in the CVar store on the Ship::Context
 // singleton, and libultraship's C bridge dereferences that singleton without
@@ -6526,6 +6567,10 @@ const TestDescriptor gTests[] = {
       "Every per-area exclude-location group reaches OoT's settings fingerprint at its shipped size, whichever "
       "archives are mounted (#702)",
       Test_RandoSettingsFoldExcludes },
+    { "combo-identity-display-world",
+      "Two real paired generations of one seed that differ in one MM option print the same five seed icons and "
+      "different fingerprints beside them; the panes print the seed string, a blank field's ten digits (#952)",
+      Test_ComboIdentityDisplayWorld },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -6631,6 +6676,10 @@ const TestDescriptor gTests[] = {
       "posted a toast shows that toast's words, each slot state yields its row, one cached read serves every frame "
       "until the page opens or the save state moves, and the note names each case (lane W5)",
       Test_ComboSaveFilesView },
+    { "combo-identity-display",
+      "The file select prints a paired world's fingerprint (comboSettingsHash) and the build beside the seed icons, "
+      "for a generated world and for a file's record; an MM option moves it; the panes print the seed string (#952)",
+      Test_ComboIdentityDisplay },
     { "mm-extract",
       "In-app Majora's Mask extraction seams: silent ROM scan and validation, search dirs, tools check (#944)",
       Test_MmExtract },
@@ -6756,6 +6805,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-static-hint-order") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-export") == 0 ||
                 strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
+                strcmp(gTests[i].name, "combo-identity-display-world") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

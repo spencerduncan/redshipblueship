@@ -162,6 +162,9 @@ set(REDSHIP_COMMON_SOURCES
     # player's words (lane W5, 2026-09-28; it replaces the never-constructed
     # ComboMenuBar panel). Game-header-free. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_save_files_view.cpp
+    # #952: the pair's fingerprint and build beside the file select's seed
+    # icons, and the paired seed string the panes print. Game-header-free.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_identity_display.cpp
     # The paired game's END under the frozen combo goal (#762, OoTMM parity):
     # the defeat record, the goal predicate and the decision both ports' ending
     # sites call. Game-header-free. APPENDED, never reordered.
@@ -272,6 +275,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/test_window_focus.h
     # Header for combo_save_files_view.cpp above (lane W5)
     ${CMAKE_SOURCE_DIR}/src/common/combo_save_files_view.h
+    # Header for combo_identity_display.cpp above (#952)
+    ${CMAKE_SOURCE_DIR}/src/common/combo_identity_display.h
 )
 
 # ============================================================================
@@ -2401,6 +2406,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #952 over three real paired generations: one seed, one MM option moved:
+    # the same five icons, different fingerprints beside them; the panes print
+    # the seed string, and a blank field's ten generated digits.
+    # games/oot/soh/oot_combo_identity_display_test.cpp.
+    redship_add_test(NAME ComboIdentityDisplayWorld COMMAND redship --test combo-identity-display-world
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
@@ -2564,6 +2577,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # note. ROM-free, display-free and disk-free (default tier);
     # src/common/tests/test_combo_save_files_view.c.
     redship_add_test(NAME ComboSaveFilesView COMMAND redship --test combo-save-files-view)
+    # #952: what the file select prints beside the five seed icons (which cover
+    # only OoT's seed and settings): the pair's fingerprint, comboSettingsHash,
+    # and the build, for a generated world and for a file's .redsave record; one
+    # MM option moves it; the panes print the paired seed string. ROM-free and
+    # display-free (default tier); src/common/tests/test_combo_identity_display.c.
+    redship_add_test(NAME ComboIdentityDisplay COMMAND redship --test combo-identity-display)
     # #944: a default launch offers to generate mm.o2r, reaching MM's extractor
     # through src/common/mm_extract.h. Leg A (ROM-free, display-free, never
     # skips): the silent ROM scan and validation reject a zeroed, a zipped, an
@@ -2772,6 +2791,18 @@ no crossing to refuse (#954).")
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=2")
+    # #952: the same creation, then the REAL file select opens file 3 (A on the
+    # file, as a player opens it) instead of loading it. On the confirm screen
+    # the file's five seed icons must have the pair's fingerprint and the build
+    # drawn beside them (the text the draw recorded is the created file's
+    # comboSettingsHash over the short commit), and the frame is captured as
+    # <build>/frame-capture/file-select-paired-identity.png for review. Same
+    # ROM/display needs as its siblings. games/oot/soh/oot_file_select_identity_shot.cpp.
+    redship_add_test(NAME IntPairedFileSelectIdentity
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_PFC_FILE_SELECT_SHOT=1" "RSBS_CAPTURE_OUT=${CMAKE_BINARY_DIR}/frame-capture")
 
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.
