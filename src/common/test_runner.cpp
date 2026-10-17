@@ -4972,6 +4972,21 @@ TestResult Test_MMComboSettingsGate(void) {
     return MM_ComboSettingsGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #952: the same bring-up, for the CVar store MM's profile stamp reads.
+// Assertions in tests/test_combo_identity_display.c.
+TestResult Test_ComboIdentityDisplay(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return ComboIdentityDisplay_RunHeadless();
+}
+
 // The tier-4 authoring surface (ADR 0011 increment 2). Needs the shared
 // bring-up because the five keys live in the CVar store on the Ship::Context
 // singleton, and libultraship's C bridge dereferences that singleton without

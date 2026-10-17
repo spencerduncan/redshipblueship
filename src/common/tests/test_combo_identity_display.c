@@ -6,6 +6,8 @@
  *
  * CTest row ComboIdentityDisplay ("combo-identity-display", label "redship").
  * Display-free; its .redsave writes go to this process's own scratch directory.
+ * The wrapper (Test_ComboIdentityDisplay, test_runner.cpp) brings up the CVar
+ * store first: MM's profile stamp and the MM option read it.
  *
  * WHAT IT ASSERTS:
  *   A. The build the file select prints is the window title's (#880): the part
@@ -101,7 +103,7 @@ int CidProvider(uint32_t sharedRandoSeed, char* out, size_t cap) {
 
 } // namespace
 
-TestResult Test_ComboIdentityDisplay(void) {
+TestResult ComboIdentityDisplay_RunHeadless(void) {
     printf("[TEST] combo-identity-display: the fingerprint and build beside the seed icons, and the paired seed "
            "string (#952)\n");
     int failures = 0;
@@ -151,6 +153,7 @@ TestResult Test_ComboIdentityDisplay(void) {
                CidGenerated(kCidSeed + 1u).c_str());
 
     // ---- E (first half). the file the creation writes prints the same text ----
+    Context_InitFrozenStates(); // the shadows a commit stages (both halves, blank)
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     mgr.SetSaveDirectory(rsbs::test::ScratchDir("rsbs_test_combo_identity_display").string());
     mgr.DeleteSave(0);

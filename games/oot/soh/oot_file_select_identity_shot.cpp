@@ -31,14 +31,13 @@
 #include "OTRGlobals.h"
 #include "z64.h"
 
-extern "C" {
-#include "src/overlays/gamestates/ovl_file_choose/file_choose.h"
-}
-
 #include "combo_identity_display.h" // src/common
 #include "context.h"                // src/common — gComboCtx
 #include "integration_test_hooks.h" // src/common
 #include "ui_snapshot_image.h"      // src/common — the capture's PNG reader
+
+// Last: through global.h it pulls in functions.h, whose C++ half redefines `this`.
+#include "src/overlays/gamestates/ovl_file_choose/file_choose.h"
 
 extern "C" void Save_DeleteFile(int fileNum);
 
