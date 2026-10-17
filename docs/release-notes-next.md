@@ -5,13 +5,17 @@
 [#946](https://github.com/spencerduncan/redshipblueship/pull/946)). Under [`VERSIONING.md`](VERSIONING.md) that is a
 `y` bump: major features and fixes without a new `oot.otr` (the archive version, `project(Ship VERSION 9.1.1)`, is
 unchanged).
-**Built from:** `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940))
-plus three code changes merged on 2026-10-16: PR [#945](https://github.com/spencerduncan/redshipblueship/pull/945)
-(the first launch also offers Majora's Mask's ROM extraction), PR
-[#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the Happy Mask Shop door opens at night) and PR
-[#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer
-crashes). Everything
-else merged after `851b1ee9` is documentation, agent tooling (PR #947) or the version bump of PR #946.
+**Built from:** `main` at `7e44b8a0` (2026-10-17, PR [#960](https://github.com/spencerduncan/redshipblueship/pull/960)):
+`851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940)) plus the code merged
+after it: PR [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's
+Mask's ROM extraction), PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the Happy Mask Shop door
+opens at night), PR [#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a
+missing archive no longer crashes), the version bump of PR [#946](https://github.com/spencerduncan/redshipblueship/pull/946)
+(`ece56551`), PR [#958](https://github.com/spencerduncan/redshipblueship/pull/958) (the goldens pin more; static hints
+in a fixed order), PR [#959](https://github.com/spencerduncan/redshipblueship/pull/959) (the creation budget counts
+fill rounds) and PR [#960](https://github.com/spencerduncan/redshipblueship/pull/960) (the fingerprint and build
+beside the seed icons). Everything else merged after `851b1ee9` is documentation or agent tooling (PR #947). The
+version is unchanged: `v0.2.0-prealpha`, "Trinity Alfa".
 **Covers:** everything since `v0.1.1-prealpha` (2026-07-03). That tag's commit, `eab838c1`, is not an
 ancestor of `main`, so "since" is by date: 360 commits on `main` after 2026-07-03. The last 92 of them are
 the pull requests of the 2026-09-30 wave ([#802](https://github.com/spencerduncan/redshipblueship/pull/802) to
@@ -34,7 +38,11 @@ Numbers in parentheses are pull requests. The full list of open problems is
   on the file list (#895). Erase it and create a new file. Pre-alpha saves are disposable; back up any file
   you care about.
 - **Seeds.** A seed string and settings no longer make the world they made on an older build. Generated worlds
-  moved in this wave (#840, #874, #895) and before it (#729, #763, #774).
+  moved in this wave (#840, #874, #895; #958 for a typed seed with non-ASCII characters) and before it (#729, #763,
+  #774). Sharing a seed means sharing the same seed string, OoT settings, MM options, Cross-Game Rules, extracted
+  ROM type (vanilla or Master Quest) and build. The file select now prints the paired world's fingerprint and the
+  build's short commit beside the five seed icons; the icons alone cover only the seed string and OoT's settings
+  (#960).
 - **The first launch now also asks for your Majora's Mask ROM.** When no `mm.o2r` is found, the first-launch
   setup that generates `oot.o2r` now also offers to generate `mm.o2r` from your Majora's Mask ROM, with the same
   popups and progress dialog. If you already have `oot.o2r` but no `mm.o2r`, this is a new question on your next launch;
@@ -106,6 +114,24 @@ Numbers in parentheses are pull requests. The full list of open problems is
 - MM's hints name the Hyrule area of an MM item placed in Hyrule, and MM's stones can hint it (#920).
 - Gossip stones in both games can hint a check that holds the other game's item, naming that item (#814, #922).
 - Foolish hints work in paired worlds again, in both games (#924).
+
+## Seeds and determinism
+
+- **The same seed and settings make the same world, and the same hints, on every machine.** Static hints are
+  built in a fixed order, so the same seed reads the same hint text on Windows and Linux. Before, a world where a
+  hinted item sat on a location spanning several hint areas could read different static-hint text on the two
+  (#958).
+- **File creation's budget counts the fill's work instead of time** (1250 fill rounds per attempt, 2500 per
+  creation), so the same seed and settings are created, or refused, on every machine. Before, a slow or busy
+  machine, or Linux (where the old clock measured CPU time), could refuse a seed another machine created (#959).
+- **A typed seed that contains non-ASCII characters** (accents, emoji) now generates a different world than it
+  did in earlier builds on Windows and x86 Linux, and the same world on every platform. ASCII seeds and generated
+  seeds are unchanged (#958).
+- The Combo Tracker, the Cross-Game Spoiler and the Combo settings pane print the paired seed as the seed string
+  you typed (or the ten digits a blank seed field generated), which you can type back in, instead of a number
+  (#960).
+- The determinism goldens now pin hint text, shop prices, starting items and the entrance table for both games,
+  and a new golden pins a world with entrances shuffled (#958).
 
 ## Trackers
 
@@ -195,7 +221,10 @@ Numbers in parentheses are pull requests. The full list of open problems is
 - Triforce Hunt is listed as a goal but refused for a paired world. OoT's hints have no pair-level Way of the
   Hero.
 - Generation can still fail at file creation ("Not created: try a new seed or other options."); no partial
-  file is left.
+  file is left. Whether a seed and settings fail is the same on every machine (#959).
+- On DirectX 11, the default backend on a fresh Windows install, F10 does not switch games: Windows takes it as
+  the menu key and the game seems to pause until another key is pressed. Cross through the doors, or switch to
+  OpenGL (issue #955).
 - At most 64 crossings each way, and netplay grants share those slots.
 - Until Majora's Mask has started in a session, the Item Tracker overlay lists MM's items by name instead of
   by icon.
@@ -230,4 +259,9 @@ Numbers in parentheses are pull requests. The full list of open problems is
 
 The closing smoke at `851b1ee9` (2026-10-12; Windows, OpenGL, ROM archives mounted) passed `redship` 179 of
 179, `rando` 43 of 43 (all four golden-world rows), `ui` 2 of 2 with the parity lint, `integration` 14 of 14
-and `integration-soak` 1 of 1. The full record is in [`known-issues.md`](known-issues.md).
+and `integration-soak` 1 of 1. The gates of the three determinism pull requests (#958, #959, #960; 2026-10-17,
+same setup) ended at `7e44b8a0`, the code of this release, with `redship` 184 of 184, `rando` 49 of 49 (the golden-world
+rows among them, over five golden files now), `ui` 2 of 2 with the parity lint, `integration` 17 of 17 and `integration-soak` 1 of
+1. There, 10 of 10 sample paired creations succeeded on the first attempt (258 fill rounds each against the
+1250-round cap; 6.2-8.6 s, mean 7.1 s). Nobody has played this build, and DirectX 11 was not compared. The full
+records are in [`known-issues.md`](known-issues.md).
