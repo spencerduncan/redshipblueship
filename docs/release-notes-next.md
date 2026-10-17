@@ -48,8 +48,13 @@ Numbers in parentheses are pull requests. The full list of open problems is
   popups and progress dialog. If you already have `oot.o2r` but no `mm.o2r`, this is a new question on your next launch;
   "Not now" starts Ocarina of Time alone, as before, and the question returns at the next launch until
   `mm.o2r` exists (#945).
-- **Nobody has played this exact build.** Everything below comes from tests, measurements and UI captures. The
-  operator played an earlier build on 2026-10-09; its two findings are fixed (#887, #889, #895).
+- **The operator played this build on 2026-10-17** (`7e44b8a0`, on DirectX 11): a new paired file, shops in both
+  games selling crossed items, the Happy Mask Shop crossing both ways, play in Termina and the Combo Item Tracker
+  overlay in both games. The first-launch extraction was checked on 2026-10-16 (#945). The findings are filed
+  (issues #962 to #971), none is a crash, and the ones a player sees are under Known limitations. Not played yet:
+  a crossing after quitting and relaunching the game or after a save made during play, the cross-game warp songs,
+  "[Both Games] Shared Kokiri Sword" on, MM's game-over prompt, OoT's icon in MM's get-item textbox, and OpenGL
+  compared with DirectX 11. An earlier build's two findings (2026-10-09) are fixed (#887, #889, #895).
 
 ## The combo randomizer
 
@@ -227,12 +232,20 @@ Numbers in parentheses are pull requests. The full list of open problems is
   OpenGL (issue #955).
 - At most 64 crossings each way, and netplay grants share those slots.
 - Until Majora's Mask has started in a session, the Item Tracker overlay lists MM's items by name instead of
-  by icon.
+  by icon (issue #963).
 - In narrow windows Settings > General's Boot Sequence dropdown covers its label; Ship of Harkinian draws it
   the same way (#923).
 - The config file is still `shipofharkinian.json`.
-- Not tested by anyone: cross-game warp songs, networking, DirectX 11, and a crossing after quitting and
-  relaunching the game or after a save made during play.
+- A Majora's Mask item whose model MM draws with custom code (the boss remains, stray fairies, the seahorse,
+  the Moon's Tear, a bottled fairy) shows as the "?" stand-in on Ocarina of Time's shop shelves and in its get-item
+  cutscene; buying or getting it works (issue #964).
+- Frame interpolation (Settings > Graphics) smooths Ocarina of Time but not Majora's Mask, which stays at 20
+  frames a second (issue #965).
+- The Item Tracker overlay's Shared column updates at a save or a crossing, not live (issue #971), and the
+  overlay's default position covers the hearts until you move it: turn on Enable Dragging, or set Window Type to
+  Window, on Combo > Tracker Settings (issue #962).
+- Not tested by anyone: cross-game warp songs, networking, OpenGL compared with DirectX 11, and a crossing after
+  quitting and relaunching the game or after a save made during play.
 
 ## Open decisions (operator)
 
@@ -263,5 +276,5 @@ and `integration-soak` 1 of 1. The gates of the three determinism pull requests 
 same setup) ended at `7e44b8a0`, the code of this release, with `redship` 184 of 184, `rando` 49 of 49 (the golden-world
 rows among them, over five golden files now), `ui` 2 of 2 with the parity lint, `integration` 17 of 17 and `integration-soak` 1 of
 1. There, 10 of 10 sample paired creations succeeded on the first attempt (258 fill rounds each against the
-1250-round cap; 6.2-8.6 s, mean 7.1 s). Nobody has played this build, and DirectX 11 was not compared. The full
+1250-round cap; 6.2-8.6 s, mean 7.1 s). The operator then played the build on DirectX 11 (see Read this first); OpenGL and DirectX 11 were not compared. The full
 records are in [`known-issues.md`](known-issues.md).
