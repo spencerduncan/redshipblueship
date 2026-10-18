@@ -320,7 +320,11 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     {
         ComboSettingsRecord comboSettings;
         Combo_ResolveComboSettings(&comboSettings);
-        Combo_FreezeComboSettings(&comboSettings);
+        // #976: the cross-game item rules freeze in the same act, so the
+        // fingerprint folds them (every rule off reproduces today's hash).
+        ComboItemRulesRecord comboItemRules;
+        Combo_ResolveComboItemRules(&comboItemRules);
+        Combo_FreezeComboSettingsEx(&comboSettings, &comboItemRules);
         SPDLOG_INFO("Paired identity: combo settings frozen at creation (fingerprint {:08X})",
                     gComboCtx.comboSettingsHash);
     }
