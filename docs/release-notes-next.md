@@ -83,8 +83,10 @@ Numbers in parentheses are pull requests. The full list of open problems is
   the shop's room never loads, so a paired world is generated with "Mask Quest" as "Shuffle" (all eight masks
   in the pool; the pause menu's mask slot cycles through the masks you have) and "Mask Shop Hint" off, whatever the
   settings say. Both rows are greyed with the reason. Before this, "Vanilla" (the default) and "Completed" (the
-  shipped presets) let the logic count masks nobody could get, so the two Deku Theater checks could hold an
-  item the seed needed (#974).
+  shipped presets) let the logic count masks only the shop (or, under "Completed", the optional Mask Select
+  enhancement) puts in your hands, so the two Deku Theater checks could hold an item the seed needed. As in Ship
+  of Harkinian's "Shuffle", the Deku Theater's Mask of Truth check no longer takes an "Always" gossip-stone hint
+  (#974).
 - **Majora's Mask's start in a paired world is the Ocarina of Time and the Song of Time.** The Kokiri Sword and
   the Hero's Shield are in MM's item pool, as in OoTMM (#895). A new rule, "[Both Games] Shared Kokiri Sword"
   (off by default), makes the two games' Kokiri Swords one item (#910).

@@ -121,11 +121,13 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   slot cycles through the masks you have. "Mask Shop Hint" is generated off, because its sign is inside the
   shop. Both rows on the Randomizer settings page are greyed, show the value the world uses, and say why on
   hover. Before this change "Vanilla" (the option's default) and "Completed" (the shipped presets) let the logic
-  count masks nobody could get, so the two Deku Theater checks, and Spirit Temple MQ's Skull Mask route, could
-  hold an item the seed needed. A file keeps the settings it was created with. On a file created earlier with
-  "Completed", the masks can be used only through Enhancements > Items > Masks > "Mask Select in Inventory",
-  once Zelda's Letter has been shown to the Kakariko gate guard (what the code requires; not played). A file
-  created earlier with "Vanilla" cannot get them.
+  count masks that only the shop, or under "Completed" the optional Mask Select enhancement the seed cannot see,
+  puts in your hands, so the two Deku Theater checks, and Spirit Temple MQ's Skull Mask route, could hold an item
+  the seed needed. Following Ship of Harkinian's own "Shuffle", the Deku Theater's Mask of Truth check no longer
+  takes one of the "Always" gossip-stone hints, which SoH gives it only under "Vanilla". A file keeps the
+  settings it was created with. On a file created earlier with "Completed", the masks can be used only through
+  Enhancements > Items > Masks > "Mask Select in Inventory", once Zelda's Letter has been shown to the Kakariko
+  gate guard (what the code requires; not played). A file created earlier with "Vanilla" cannot get them.
 - **Paired MM worlds can enable individual Majora's Mask logic tricks.** MM now
   has a per-trick vocabulary (86 trick keys, frozen into the world's identity
   like OoT's). **37** of them are bound to a real logic edge, 20 are reserved for an

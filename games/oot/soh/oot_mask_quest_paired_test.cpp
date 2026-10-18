@@ -22,15 +22,17 @@
  *      everything else in the world assumed: the Deku Theater is reached, yet
  *      neither of its checks is until its own mask is assumed; the Skull Mask
  *      opens only its check, and the Mask of Truth then opens the other;
- *   M4 the menu: each option's callback leaves the row showing the generated
- *      value.
+ *   M4 the menu: each row shows the generated value (it is the row's default),
+ *      a stored value (a preset's) is cleared back to it, and the callbacks never
+ *      store one, which would take a config off the shipped defaults the
+ *      integration rows require.
  * Every check runs and reports, and the row fails if any did, so one red run
  * shows every leg a change breaks.
  *
  * RED HALVES, run before landing: without playthrough.cpp's #973 block, M1 and
  * M2 fail under both modes and M3 fails over the "Completed" world (both checks
  * are reached before any mask is assumed); without the two settings.cpp
- * callbacks, M4 fails.
+ * callbacks, or with Mask Quest's default left at "Vanilla", M4 fails.
  */
 
 #include <cstdio>
@@ -186,7 +188,13 @@ void CheckTheaterNeedsTheMasks() {
         placedHosts.push_back(rc);
         assumed.push_back((uint16_t)placed);
     }
-    MQP_REQUIRE(e->beginQuery(e->self) != 0, "M3: the OoT engine refused to open a round");
+    if (e->beginQuery(e->self) == 0) {
+        // combo_logic.h: endQuery is still called when beginQuery refuses.
+        e->endQuery(e->self);
+        printf("[TEST] FAIL: M3: the OoT engine refused to open a round (%s:%d)\n", __FILE__, __LINE__);
+        sFailures++;
+        return;
+    }
     for (const RandomizerCheck rc : placedHosts) {
         e->withholdHost(e->self, (uint16_t)rc);
     }
@@ -230,21 +238,46 @@ void CheckTheaterNeedsTheMasks() {
     MQP_CHECK(truthWithBoth, "M3: the Mask of Truth did not open the Mask of Truth check");
 }
 
-/** M4: the menu rows show the generated value. */
+/** M4: the menu rows show the generated value, and the callbacks never store a
+ *  setting (a stored one would take a config off the shipped defaults, which the
+ *  integration rows refuse). */
 void CheckMenuRows() {
     auto settings = Rando::Settings::GetInstance();
+    Rando::Option& maskQuest = settings->GetOption(RSK_MASK_QUEST);
+    Rando::Option& maskShopHint = settings->GetOption(RSK_MASK_SHOP_HINT);
+
+    // A preset's (or an old config's) stored values are cleared to the defaults.
     CVarSetInteger(kMaskQuestCVar, RO_MASK_QUEST_COMPLETED);
     CVarSetInteger(kMaskShopHintCVar, 1);
-    settings->GetOption(RSK_MASK_QUEST).RunCallback();
-    settings->GetOption(RSK_MASK_SHOP_HINT).RunCallback();
-    const int shownMode = CVarGetInteger(kMaskQuestCVar, -1);
-    const int shownHint = CVarGetInteger(kMaskShopHintCVar, -1);
+    maskQuest.RunCallback();
+    maskShopHint.RunCallback();
+    const bool storedMode = CVarExists(kMaskQuestCVar);
+    const bool storedHint = CVarExists(kMaskShopHintCVar);
+    const int shownMode = maskQuest.GetOptionIndex();
+    const int shownHint = maskShopHint.GetOptionIndex();
     CVarClear(kMaskQuestCVar);
     CVarClear(kMaskShopHintCVar);
-    printf("[TEST] M4: authored Completed / hint on, the rows show Mask Quest %d, Mask Shop Hint %d\n", shownMode,
-           shownHint);
+    printf("[TEST] M4: stored Completed / hint on -> stored afterwards %d / %d, the rows show Mask Quest %d, Mask Shop "
+           "Hint %d\n",
+           storedMode ? 1 : 0, storedHint ? 1 : 0, shownMode, shownHint);
     MQP_CHECK(shownMode == RO_MASK_QUEST_SHUFFLE, "M4: the Mask Quest row does not show \"Shuffle\"");
     MQP_CHECK(shownHint == RO_GENERIC_OFF, "M4: the Mask Shop Hint row does not show off");
+    MQP_CHECK(!storedMode && !storedHint, "M4: a stored Mask Quest / Mask Shop Hint value was not cleared");
+
+    // Nothing stored: the callbacks store nothing, and the rows still show the
+    // generated values (they are the defaults).
+    maskQuest.RunCallback();
+    maskShopHint.RunCallback();
+    const bool createdMode = CVarExists(kMaskQuestCVar);
+    const bool createdHint = CVarExists(kMaskShopHintCVar);
+    printf("[TEST] M4: nothing stored -> stored afterwards %d / %d, the rows show Mask Quest %d, Mask Shop Hint %d\n",
+           createdMode ? 1 : 0, createdHint ? 1 : 0, (int)maskQuest.GetOptionIndex(),
+           (int)maskShopHint.GetOptionIndex());
+    MQP_CHECK(!createdMode && !createdHint, "M4: a menu callback stored a randomizer setting the player never set");
+    MQP_CHECK(maskQuest.GetOptionIndex() == RO_MASK_QUEST_SHUFFLE && maskShopHint.GetOptionIndex() == RO_GENERIC_OFF,
+              "M4: with nothing stored the rows do not show \"Shuffle\" / off");
+    CVarClear(kMaskQuestCVar);
+    CVarClear(kMaskShopHintCVar);
 }
 
 } // namespace
