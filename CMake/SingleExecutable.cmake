@@ -1823,6 +1823,8 @@ if(BUILD_TESTING)
     # runner reproduces, and the sandbox is not "the build directory minus the ROM
     # archives" (CheckGoldenDigest.cmake, _archive_free_sandbox).
     # Fields: <ctest-name>|<golden-name>|<dispatch>|<digest-env-var>|<archive-free-only>|<extra-env>
+    # <extra-env> holds VAR=value assignments separated by '^' (#982), never ';'
+    # (the field is split into a CMake list on '|').
     set(REDSHIP_GOLDEN_DIGESTS
         "GoldenSeedDigestDefault|seed-digest-default|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|"
         "GoldenSeedDigestProfileV1|seed-digest-profile-v1|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2"
@@ -1848,6 +1850,34 @@ if(BUILD_TESTING)
         # clock), so the table, and the hints and prices of a shuffled world, are
         # pinned too. Same seed and dispatch as seed-digest-default.
         "GoldenSeedDigestEntrances|seed-digest-entrances|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRandoSettings.ShuffleInteriorsEntrances=2,gRandoSettings.ShuffleOverworldEntrances=1"
+        # #982: four more profiles on the same seed and dispatch as
+        # seed-digest-default, each pinning an input no row above varies.
+        # Excludes and tricks, both games: every golden above generates with
+        # EMPTY exclude and trick sets. The OoT keys are RandomizerCheck and
+        # RandomizerTrick ids in the menu's own CVar form, parsed by the Generate
+        # button's code (ReadGoldenProfileSets, 3drando/menu.cpp): excluded
+        # 24 RC_KF_MIDOS_TOP_LEFT_CHEST, 44 RC_LW_TARGET_IN_WOODS,
+        # 144 RC_KAK_10_GOLD_SKULLTULA_REWARD, 194 RC_GC_DARUNIAS_JOY,
+        # 301 RC_LH_SUN; tricks 1 RT_GROTTOS_WITHOUT_AGONY,
+        # 2 RT_FEWER_TUNIC_REQUIREMENTS, 16 RT_LW_BRIDGE, 21 RT_KAK_TOWER_GS,
+        # 24 RT_GY_POH. MM's excluded checks are RandoCheckId ids in
+        # gRando.ExcludedChecks form (26 RC_CLOCK_TOWN_EAST_TREASURE_CHEST_GAME_GORON,
+        # 77 RC_GREAT_BAY_COAST_FISHERMAN_MINIGAME, 211 RC_ROMANI_RANCH_ALIENS);
+        # MM's tricks are their own gRando.Tricks.MMRT_* CVars. An id moved by an
+        # enum insertion moves this golden: read the [golden-profile] log lines,
+        # which name every OoT key, before re-pinning.
+        "GoldenSeedDigestExcludesTricks|seed-digest-excludes-tricks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_GOLDEN_EXCLUDES=24,44,144,194,301^RSBS_GOLDEN_TRICKS=1,2,16,21,24^RSBS_GOLDEN_MM_EXCLUDES=26,77,211^RSBS_DIAG_CVARS=gRando.Tricks.MMRT_LENS=1,gRando.Tricks.MMRT_SCT_NOTHING=1,gRando.Tricks.MMRT_BANK_ONE_WALLET=1"
+        # OoT shopsanity with drawn prices (four items a shop, Balanced): under
+        # every profile above OoT's prices are fixed (ootPriceDigest 2F60E6D1 in
+        # all of them), so the stream-drawn price path of 3drando/shops.cpp is
+        # pinned only here.
+        "GoldenSeedDigestShopsanity|seed-digest-shopsanity|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRandoSettings.Shopsanity=1,gRandoSettings.ShopsanityCount=4,gRandoSettings.ShopsanityPrices=2"
+        # MM Nearly No Logic, the explicit choice the paired profile honours
+        # (Foreign.cpp): every profile above resolves MM to Glitchless.
+        "GoldenSeedDigestMMNearlyNoLogic|seed-digest-mm-nearly-no-logic|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRando.Options.RO_LOGIC=2"
+        # Combo direction FORWARD (OoT items into MM checks only): every profile
+        # above resolves BOTH, so this is the one golden whose crossingsInOoT is 0.
+        "GoldenSeedDigestDirectionForward|seed-digest-direction-forward|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Direction=2"
     )
     set(REDSHIP_GOLDEN_DIR "${CMAKE_SOURCE_DIR}/tests/golden")
 
@@ -1861,7 +1891,9 @@ if(BUILD_TESTING)
         list(GET _golden_fields 5 _golden_extra_env)
         set(_golden_env "SDL_AUDIODRIVER=dummy" "RSBS_DISABLE_OTR_INIT=1")
         if(_golden_extra_env)
-            list(APPEND _golden_env "${_golden_extra_env}")
+            # #982: several assignments, separated by '^'.
+            string(REPLACE "^" ";" _golden_extra_env "${_golden_extra_env}")
+            list(APPEND _golden_env ${_golden_extra_env})
         endif()
         redship_add_test(NAME ${_golden_row}
             COMMAND ${CMAKE_COMMAND}
@@ -1907,6 +1939,31 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_GENBUDGET_HOST_SCALE=300")
+    # #982: THE PLAYER'S PATH against the default golden. Every golden is written
+    # by the headless harness (RSBS_DISABLE_OTR_INIT=1, the synchronous generation,
+    # MM's OnSaveInit driven directly); this row generates the same seed the way a
+    # player does -- the full OTR bring-up, GenerateRandomizer(seed) on the Generate
+    # button's worker thread, then the real OoT_RunPairedCreationEvent -- writes the
+    # same fields with the same writers, and requires seed-digest-default. So NO
+    # RSBS_DISABLE_OTR_INIT here (the dispatch refuses it), and it needs soh.o2r,
+    # which the archive-free sandbox carries. Outside REDSHIP_GOLDEN_DIGESTS for
+    # the host-scale row's reason: the re-pin loop must never pin the default
+    # golden from this path, because a difference here is a finding about the two
+    # paths, not a world to record.
+    redship_add_test(NAME GoldenSeedDigestPlayerPath
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -DDISPATCH=rando-player-path-digest
+                -DDIGEST_ENV=RSBS_SEED_DIGEST_OUT
+                -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
+                -DGOLDEN_NAME=seed-digest-default
+                -DRUN_TAG=seed-digest-default-player-path
+                -DARCHIVE_FREE_ONLY=ON
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy")
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL
     # candidate; this one proves a REAL fill with entrance shuffle on never writes
@@ -2137,6 +2194,10 @@ if(BUILD_TESTING)
     redship_test_exempt(rando-armed-caps-digest
         "Driven by the GoldenSeedDigestArmedCaps golden row (cmake -P CheckGoldenDigest.cmake), which the manifest \
 records as a meta row. A plain --test row would only regenerate the same world without comparing it (#681).")
+    # The player-path golden's dispatch, for the same reason (#982).
+    redship_test_exempt(rando-player-path-digest
+        "Driven by the GoldenSeedDigestPlayerPath golden row (cmake -P CheckGoldenDigest.cmake), which the manifest \
+records as a meta row. A plain --test row would only regenerate the same world without comparing it (#982).")
 
     redship_test_exempt(combo-logic-give-probe
         "Diagnostic, not a lock: walks MM's giveable vanilla ids through Rando::GiveItem headlessly so an id whose \
@@ -2874,7 +2935,9 @@ no crossing to refuse (#954).")
             list(GET _golden_fields 5 _golden_extra_env)
             set(_golden_env "SDL_AUDIODRIVER=dummy" "RSBS_DISABLE_OTR_INIT=1")
             if(_golden_extra_env)
-                list(APPEND _golden_env "${_golden_extra_env}")
+                # #982: several assignments, separated by '^' (as in the CTest loop).
+                string(REPLACE "^" ";" _golden_extra_env "${_golden_extra_env}")
+                list(APPEND _golden_env ${_golden_extra_env})
             endif()
             add_custom_command(TARGET ${_regen_target} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E env ${_golden_env}
