@@ -996,7 +996,11 @@ u8 gEquipAgeReqs[][4] = {
 
 };
 
-u8 gItemAgeReqs[] = {
+// RedShipBlueShip (#983): sized to every value a u8 ItemID can hold. The custom ItemIDs
+// (ITEM_ROCS_FEATHER = 0x9C, written by OoT_Play_Init) sit past the 86 vanilla entries, and
+// every reader indexes with a u8 (inventory.items[], equips.buttonItems[], the cycle's items).
+// Entries past ITEM_GIANTS_KNIFE start as 0 (AGE_REQ_ADULT) until code sets them.
+u8 gItemAgeReqs[ITEM_NONE + 1] = {
     AGE_REQ_CHILD, // ITEM_DEKU_STICK
     AGE_REQ_NONE,  // ITEM_DEKU_NUT
     AGE_REQ_NONE,  // ITEM_BOMB
