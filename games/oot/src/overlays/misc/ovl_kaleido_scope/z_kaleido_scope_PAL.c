@@ -1085,6 +1085,10 @@ u8 gItemAgeReqs[] = {
     AGE_REQ_ADULT, // ITEM_GIANTS_KNIFE
 };
 
+// RedShipBlueShip (#983): the entry count, for the ROM-free `item-age-reqs-bounds` row. The
+// declarations are unsized, so only this TU can see it.
+const u32 gItemAgeReqsCount = ARRAY_COUNTU(gItemAgeReqs);
+
 u8 OoT_gAreaGsFlags[] = {
     0x0F, 0x1F, 0x0F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x07, 0x07, 0x03,
     0x0F, 0x07, 0x0F, 0x0F, 0xFF, 0xFF, 0xFF, 0x1F, 0x0F, 0x03, 0x0F,
