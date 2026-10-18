@@ -87,12 +87,12 @@ const RandomizerGet kMasks[8] = {
     RG_GORON_MASK,  RG_ZORA_MASK,  RG_GERUDO_MASK, RG_MASK_OF_TRUTH,
 };
 
-bool IsRealItem(RandomizerGet rg) {
+bool MqpIsRealItem(RandomizerGet rg) {
     return rg > RG_NONE && rg < RG_MAX && Rando::StaticData::RetrieveItem(rg).GetRandomizerGet() == rg;
 }
 
 /** The general-pass pool the single bag takes (export source 0). */
-std::vector<uint16_t> PoolRows() {
+std::vector<uint16_t> MqpPoolRows() {
     const int total = OoT_ComboLogic_ExportPool(0, nullptr, nullptr, nullptr, 0);
     std::vector<uint16_t> rows(total > 0 ? (size_t)total : 0);
     if (total > 0) {
@@ -102,7 +102,7 @@ std::vector<uint16_t> PoolRows() {
 }
 
 /** Copies of `rg` in the world: in the pool, or at a location already. */
-int CopiesInWorld(RandomizerGet rg, const std::vector<uint16_t>& pool) {
+int MqpCopiesInWorld(RandomizerGet rg, const std::vector<uint16_t>& pool) {
     int copies = 0;
     for (const uint16_t row : pool) {
         copies += (row == (uint16_t)rg) ? 1 : 0;
@@ -114,13 +114,13 @@ int CopiesInWorld(RandomizerGet rg, const std::vector<uint16_t>& pool) {
     return copies;
 }
 
-void ExpandToFixpoint(const ComboLogicEngine* e) {
+void MqpExpandToFixpoint(const ComboLogicEngine* e) {
     for (int i = 0; i < 16 && e->expand(e->self) != 0; i++) {}
 }
 
 /** M1 and M2 over one generation authored with `authoredMode`. Returns false
  *  when there is no world to check the later legs against. */
-bool GenerateAndCheck(uint8_t authoredMode, const char* modeName) {
+bool MqpGenerateAndCheck(uint8_t authoredMode, const char* modeName) {
     CVarSetInteger(kMaskQuestCVar, authoredMode);
     CVarSetInteger(kMaskShopHintCVar, 1);
     const int genRc = Rando_HeadlessSeedTest("RSBSMASKQUEST973");
@@ -145,7 +145,7 @@ bool GenerateAndCheck(uint8_t authoredMode, const char* modeName) {
               "M1: a paired world kept the Mask Shop Hint, whose sign is inside the Happy Mask Shop");
 
     // ---- M2: the masks are in the world ------------------------------------
-    const std::vector<uint16_t> pool = PoolRows();
+    const std::vector<uint16_t> pool = MqpPoolRows();
     if (pool.empty()) {
         printf("[TEST] FAIL: M2: the general-pass pool is empty, so the pool leg would be vacuous (%s:%d)\n", __FILE__,
                __LINE__);
@@ -154,7 +154,7 @@ bool GenerateAndCheck(uint8_t authoredMode, const char* modeName) {
     }
     int missing = 0;
     for (const RandomizerGet mask : kMasks) {
-        if (CopiesInWorld(mask, pool) < 1) {
+        if (MqpCopiesInWorld(mask, pool) < 1) {
             printf("[TEST] FAIL: M2 (authored %s): %s is in neither the pool (%d rows) nor at any location (%s:%d)\n",
                    modeName, Rando::StaticData::RetrieveItem(mask).GetName().GetEnglish().c_str(), (int)pool.size(),
                    __FILE__, __LINE__);
@@ -170,7 +170,7 @@ bool GenerateAndCheck(uint8_t authoredMode, const char* modeName) {
 }
 
 /** M3 over the world the last generation left. */
-void CheckTheaterNeedsTheMasks() {
+void MqpCheckTheaterNeedsTheMasks() {
     auto ctx = Rando::Context::GetInstance();
     const ComboLogicEngine* e = Combo_Logic_GetEngine(GAME_OOT);
     MQP_REQUIRE(e != nullptr, "M3: no OoT combo-logic engine is registered");
@@ -178,7 +178,7 @@ void CheckTheaterNeedsTheMasks() {
     // Everything in the world but the two theater masks: the pool rows and every
     // placed item. Placed items are also withheld, so the round's inventory is
     // exactly this set plus the starting inventory, whatever the fill put where.
-    std::vector<uint16_t> assumed = PoolRows();
+    std::vector<uint16_t> assumed = MqpPoolRows();
     std::vector<RandomizerCheck> placedHosts;
     for (const RandomizerCheck rc : ctx->allLocations) {
         const RandomizerGet placed = ctx->GetItemLocation(rc)->GetPlacedRandomizerGet();
@@ -200,13 +200,13 @@ void CheckTheaterNeedsTheMasks() {
     }
     int assumedCount = 0;
     for (const uint16_t id : assumed) {
-        if (id == (uint16_t)RG_SKULL_MASK || id == (uint16_t)RG_MASK_OF_TRUTH || !IsRealItem((RandomizerGet)id)) {
+        if (id == (uint16_t)RG_SKULL_MASK || id == (uint16_t)RG_MASK_OF_TRUTH || !MqpIsRealItem((RandomizerGet)id)) {
             continue;
         }
         e->assumeOwnItem(e->self, id);
         assumedCount++;
     }
-    ExpandToFixpoint(e);
+    MqpExpandToFixpoint(e);
     const bool theater = RegionTable(RR_DEKU_THEATER)->Child();
     const bool skullBefore = e->checkReached(e->self, (uint16_t)RC_DEKU_THEATER_SKULL_MASK) != 0;
     const bool truthBefore = e->checkReached(e->self, (uint16_t)RC_DEKU_THEATER_MASK_OF_TRUTH) != 0;
@@ -215,14 +215,14 @@ void CheckTheaterNeedsTheMasks() {
            assumedCount, (int)placedHosts.size(), theater ? 1 : 0, skullBefore ? 1 : 0, truthBefore ? 1 : 0);
 
     e->assumeOwnItem(e->self, (uint16_t)RG_SKULL_MASK);
-    ExpandToFixpoint(e);
+    MqpExpandToFixpoint(e);
     const bool skullWithSkull = e->checkReached(e->self, (uint16_t)RC_DEKU_THEATER_SKULL_MASK) != 0;
     const bool truthWithSkull = e->checkReached(e->self, (uint16_t)RC_DEKU_THEATER_MASK_OF_TRUTH) != 0;
     printf("[TEST] M3: + Skull Mask: Skull Mask check %d, Mask of Truth check %d\n", skullWithSkull ? 1 : 0,
            truthWithSkull ? 1 : 0);
 
     e->assumeOwnItem(e->self, (uint16_t)RG_MASK_OF_TRUTH);
-    ExpandToFixpoint(e);
+    MqpExpandToFixpoint(e);
     const bool truthWithBoth = e->checkReached(e->self, (uint16_t)RC_DEKU_THEATER_MASK_OF_TRUTH) != 0;
     printf("[TEST] M3: + Mask of Truth: Mask of Truth check %d\n", truthWithBoth ? 1 : 0);
     e->endQuery(e->self);
@@ -241,7 +241,7 @@ void CheckTheaterNeedsTheMasks() {
 /** M4: the menu rows show the generated value, and the callbacks never store a
  *  setting (a stored one would take a config off the shipped defaults, which the
  *  integration rows refuse). */
-void CheckMenuRows() {
+void MqpCheckMenuRows() {
     auto settings = Rando::Settings::GetInstance();
     Rando::Option& maskQuest = settings->GetOption(RSK_MASK_QUEST);
     Rando::Option& maskShopHint = settings->GetOption(RSK_MASK_SHOP_HINT);
@@ -286,11 +286,11 @@ extern "C" int OoT_MaskQuestPaired_RunGenerated(void) {
     printf("[TEST] rando-mask-quest-paired (OoT): a paired world shuffles the Happy Mask Shop's masks and drops its "
            "sign hint, because the shop's door leads to Termina (#973)\n");
     sFailures = 0;
-    GenerateAndCheck(RO_MASK_QUEST_VANILLA, "Vanilla");
-    if (GenerateAndCheck(RO_MASK_QUEST_COMPLETED, "Completed")) {
-        CheckTheaterNeedsTheMasks();
+    MqpGenerateAndCheck(RO_MASK_QUEST_VANILLA, "Vanilla");
+    if (MqpGenerateAndCheck(RO_MASK_QUEST_COMPLETED, "Completed")) {
+        MqpCheckTheaterNeedsTheMasks();
     }
-    CheckMenuRows();
+    MqpCheckMenuRows();
     if (sFailures != 0) {
         printf("[TEST] FAIL: rando-mask-quest-paired (OoT): %d check(s) failed\n", sFailures);
         return 1;
