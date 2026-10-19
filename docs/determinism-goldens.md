@@ -42,7 +42,7 @@ with `seed-digest-default.txt` (see "The player's path" below).
 in the other goldens `entranceCount` is 0 and `entranceDigest` is the empty hash: it
 pins nothing. This profile shuffles every interior and the overworld on the same
 seed and dispatch as `seed-digest-default` (132 overrides; the single bag places on
-its first attempt in 258 rounds, far from the fill's wall clock, so the golden does
+its first attempt in 266 rounds (258 before #974 added the mask shop's masks), far from the fill's wall clock, so the golden does
 not ride machine speed). A heavier profile with dungeon entrances shuffled too was
 measured first and rejected: on this seed its single bag hit the 30 s per-attempt
 budget, and a golden must never pin a world a slower machine would not reach.
@@ -131,7 +131,7 @@ fixed values, not a draw. Under the shipped profiles OoT's prices do not depend 
 seed: `ootPriceCount=114` and `ootPriceDigest=2F60E6D1` appear in every paired
 golden but one, and those are different worlds. The exception is
 `seed-digest-shopsanity` (#982), the one profile with OoT's stream-drawn price path
-(`3drando/shops.cpp`) on: `ootPriceCount=113`, `ootPriceDigest=2D415CF1`. MM's prices
+(`3drando/shops.cpp`) on: `ootPriceCount=114`, `ootPriceDigest=1AA05B30`. MM's prices
 are drawn: `paired-attempt-digest` pins `mmPriceDigest=46E226E3`, the MM Nearly No
 Logic golden pins `49E4D929`, and the others, which share one MM seed, pin `9E241182`. `ootStartingItems`,
 `mmStartingItems` and `mmStartInventory` are constant too, as expected for a fixed
@@ -180,7 +180,7 @@ this golden. Before re-pinning, read the `[golden-profile]` log lines, which nam
 every OoT key, and correct the ids in the table instead if they no longer name the
 same checks.
 
-All four are created on ladder attempt 1 in 258 rounds against the 1250-round
+All four are created on ladder attempt 1 in 266 rounds against the 1250-round
 per-attempt budget. `GoldenSeedsRoundBudget` checks three of them again, the ones
 that `RSBS_DIAG_CVARS` alone describes. The excludes-and-tricks profile also needs
 the harness's sets, so its own golden row is where its creation inside the budget
@@ -222,7 +222,7 @@ tables before the event returns, so this row reads `coordinatorDigest` from the
 fill's own digest of those tables (`fill.placementDigest`). The headless writer
 reads the tables after OoT's remainder, and on the pinned seed the two agree.
 
-When it was added, all 137 fields matched in both environments. The two paths
+When it was added, every field of the golden matched in both environments. The two paths
 generate the same world.
 
 The row sits outside `REDSHIP_GOLDEN_DIGESTS`, for the host-scale row's reason: a
