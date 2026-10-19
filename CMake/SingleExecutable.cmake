@@ -925,6 +925,11 @@ if(BUILD_TESTING)
     # bound-arithmetic bugs, so the capacity computation was factored into pure
     # helpers this test calls directly — display-free, ROM-free.
     redship_add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
+    # OoT item-action table bounds (#984). OoT_Player_ItemToItemAction indexes the static
+    # sItemActions[] with an ItemID, and ITEM_ROCS_FEATHER (0x9C) sat 94 bytes past its
+    # 62 vanilla entries. Asserts the count and entries z_player.c exports cover every u8
+    # ItemID. Display-free, ROM-free.
+    redship_add_test(NAME ItemActionsBounds COMMAND redship --test item-actions-bounds)
     # OoT audio producer init-guard (#365). The shared OTRAudio_Thread runs
     # OoT_AudioMgr_CreateNextAudioBuffer whenever MM's synth is inactive — every
     # MM frame before MM audio boots, and the mid-switch window where OoT is
