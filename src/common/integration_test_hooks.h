@@ -34,8 +34,10 @@ typedef enum {
     INT_TEST_ARCHIVE_HOTSWAP_CYCLE,            // Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (#263)
     INT_TEST_GAMEPLAY_ROUNDTRIP,               // Full operator repro: debug save + live gameplay + production
                                                // cross-game round-trip + post-return warp + door transition
-    INT_TEST_CROSSING_REFUSED                  // Boot OoT with MM's archive set aside, walk into the Happy Mask
+    INT_TEST_CROSSING_REFUSED,                 // Boot OoT with MM's archive set aside, walk into the Happy Mask
                                                // Shop door, verify OoT keeps running outside it (#954)
+    INT_TEST_CROSSING_REFUSED_MM               // Boot MM with oot.o2r set aside, walk into the Clock Tower
+                                               // door, verify MM keeps running outside it (#954)
 } IntegrationTestMode;
 
 /**
