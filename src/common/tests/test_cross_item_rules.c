@@ -325,8 +325,11 @@ TestResult Test_CrossItemRulesRecord(void) {
         XIR_CHECK(Combo_ComboItemRulesClear(&gComboCtx.comboItemRules) && gComboCtx.comboSettingsHash == base,
                   "Combo_FreezeComboSettings must freeze every rule off and stamp today's fingerprint");
         ComboContext_Init();
-        XIR_CHECK(Combo_ComboCrossItemFlags() == 0u && Combo_ComboBlastMaskCooldown() == 0u,
+        gComboCtx.comboItemRules = on; // bytes with no frozen record behind them
+        XIR_CHECK(Combo_ComboCrossItemFlags() == 0u &&
+                      Combo_ComboBlastMaskCooldown() == (uint8_t)RSBS_BLAST_COOLDOWN_DEFAULT,
                   "nothing is frozen: no rule may read as on");
+        ComboContext_Init();
     }
 
     // ---- (7) Divergence ----------------------------------------------------------
