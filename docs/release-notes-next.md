@@ -14,7 +14,9 @@ missing archive no longer crashes), the version bump of PR [#946](https://github
 (`ece56551`), PR [#958](https://github.com/spencerduncan/redshipblueship/pull/958) (the goldens pin more; static hints
 in a fixed order), PR [#959](https://github.com/spencerduncan/redshipblueship/pull/959) (the creation budget counts
 fill rounds) and PR [#960](https://github.com/spencerduncan/redshipblueship/pull/960) (the fingerprint and build
-beside the seed icons). Everything else merged after `851b1ee9` is documentation or agent tooling (PR #947). The
+beside the seed icons). Everything else merged after `851b1ee9` is documentation or agent tooling (PR #947). After
+the operator's playtest of `7e44b8a0`, PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974) (2026-10-18)
+makes a paired world shuffle the Happy Mask Shop's masks and drop the Mask Shop Hint, and moves generated worlds. The
 version is unchanged: `v0.2.0-prealpha`, "Trinity Alfa".
 **Covers:** everything since `v0.1.1-prealpha` (2026-07-03). That tag's commit, `eab838c1`, is not an
 ancestor of `main`, so "since" is by date: 360 commits on `main` after 2026-07-03. The last 92 of them are
@@ -38,8 +40,8 @@ Numbers in parentheses are pull requests. The full list of open problems is
   on the file list (#895). Erase it and create a new file. Pre-alpha saves are disposable; back up any file
   you care about.
 - **Seeds.** A seed string and settings no longer make the world they made on an older build. Generated worlds
-  moved in this wave (#840, #874, #895; #958 for a typed seed with non-ASCII characters) and before it (#729, #763,
-  #774). Sharing a seed means sharing the same seed string, OoT settings, MM options, Cross-Game Rules, extracted
+  moved in this wave (#840, #874, #895, #974; #958 for a typed seed with non-ASCII characters) and before it (#729,
+  #763, #774). Sharing a seed means sharing the same seed string, OoT settings, MM options, Cross-Game Rules, extracted
   ROM type (vanilla or Master Quest) and build. The file select now prints the paired world's fingerprint and the
   build's short commit beside the five seed icons; the icons alone cover only the seed string and OoT's settings
   (#960).
@@ -77,6 +79,14 @@ Numbers in parentheses are pull requests. The full list of open problems is
   Stick combat now needs its trick (#686, #696, #703, #713, #729, #763).
 - **The Happy Mask Shop door is never shuffled** by OoT's entrance randomizer: it is always the door to
   Termina (#691).
+- **The Happy Mask Shop's masks are always in the item pool,** as in OoTMM. Because its door leads to Termina,
+  the shop's room never loads, so a paired world is generated with "Mask Quest" as "Shuffle" (all eight masks
+  in the pool; the pause menu's mask slot cycles through the masks you have) and "Mask Shop Hint" off, whatever the
+  settings say. Both rows are greyed with the reason. Before this, "Vanilla" (the default) and "Completed" (the
+  shipped presets) let the logic count masks only the shop (or, under "Completed", the optional Mask Select
+  enhancement) puts in your hands, so the two Deku Theater checks could hold an item the seed needed. As in Ship
+  of Harkinian's "Shuffle", the Deku Theater's Mask of Truth check no longer takes an "Always" gossip-stone hint
+  (#974).
 - **Majora's Mask's start in a paired world is the Ocarina of Time and the Song of Time.** The Kokiri Sword and
   the Hero's Shield are in MM's item pool, as in OoTMM (#895). A new rule, "[Both Games] Shared Kokiri Sword"
   (off by default), makes the two games' Kokiri Swords one item (#910).
