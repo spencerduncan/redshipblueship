@@ -186,6 +186,13 @@ The `redship` and `rando` tiers always run. In order:
      staged main tree means a missing input. Set `WAVE_ALLOW_SKIPS=1` to make
      a skip a warning instead.
 
+   The row count comes from CTest's summary line. That line has two forms:
+   `N% tests passed, F tests failed out of T` (CTest 3.x, and any run with a
+   failure), and `100% tests passed out of T` (CTest 4.x when every row
+   passes). Failed and skipped names come from the `The following tests
+   FAILED:` and `did not run:` lists. CTest 4.x ends each FAILED row with that
+   row's labels.
+
    Verify stops at the first red tier unless you pass `--keep-going`.
 7. **Restore.** Always: `checkout main`, then fast-forward to `origin/main`.
    The build tree then holds the merged binary, and the next verify rebuilds
@@ -363,3 +370,7 @@ The tests need git and Python 3.11+, and nothing else: no build, no ROMs, no
 Windows. They run against temp directories and throwaway git repositories (a
 bare origin plus a clone that stands in for the main checkout). CI runs them
 in the `python-tests` job beside `tools/tests/`.
+
+`python .claude/tools/wave/tests/test_verify.py` runs verify's checks on its
+own, in a few seconds. Those checks include the CTest parser tests, which use
+CTest 3.x and 4.4 output captured verbatim.

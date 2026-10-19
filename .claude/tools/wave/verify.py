@@ -198,8 +198,12 @@ def _seen_text(seen: dict) -> str:
 # CTest output
 # ---------------------------------------------------------------------------
 
-_SUMMARY = re.compile(r"(\d+)% tests passed, (\d+) tests? failed out of (\d+)")
-_ROW = re.compile(r"^\s*\d+\s+-\s+(\S+)\s+\((.+)\)\s*$")
+# CTest 3.x prints "100% tests passed, 0 tests failed out of 3"; CTest 4.x
+# drops the failed clause when nothing failed ("100% tests passed out of 3").
+_SUMMARY = re.compile(r"(\d+)% tests passed(?:, (\d+) tests? failed)? out of (\d+)")
+# "\t  5 - GoldenSeedDigestDefault (Failed)" -- CTest 4.x pads a FAILED row
+# out to a column and appends the row's labels ("...  golden rando").
+_ROW = re.compile(r"^\s*\d+\s+-\s+(\S+)\s+\((.+?)\)(?:\s+.*)?$")
 
 
 @dataclass
