@@ -896,6 +896,38 @@ uint32_t Combo_FreezeComboSettings(const ComboSettingsRecord* rec);
 uint32_t Combo_FreezeComboSettingsEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules);
 
 /**
+ * THE CREATION FREEZE'S RECORDS, as one unit for its two failure exits (#976
+ * review F1). The creation event writes four combo-level fields beside the
+ * identity: the combo record, its fingerprint, the O10 triforce record and the
+ * cross-game item rules. A failed generation must leave all four exactly as they
+ * were (Playthrough_Init's rollback: snapshot, then restore), and a failed
+ * creation must retract all four (RetractFailedPairedCreation). Both exits go
+ * through these three functions, so a field the freeze gains is undone by
+ * every exit at once: a rule left behind beside a restored fingerprint reads
+ * as FINGERPRINT damage, and one left behind an ABSENT record is carried by the
+ * KEEP invalidation onto disk. Those two exits are the only callers.
+ */
+typedef struct ComboCreationRecords {
+    ComboSettingsRecord comboSettings;
+    uint32_t comboSettingsHash;
+    ComboTriforceRecord comboTriforce;
+    ComboItemRulesRecord comboItemRules;
+} ComboCreationRecords;
+
+/** Copy the four creation records out of gComboCtx into @p out. */
+void Combo_SnapshotCreationRecords(ComboCreationRecords* out);
+
+/** Put the four creation records of @p in back into gComboCtx. */
+void Combo_RestoreCreationRecords(const ComboCreationRecords* in);
+
+/**
+ * Retract the four creation records: every byte zero, which is how a world with
+ * no frozen record stores each of them (formatVersion 0 is the combo record's
+ * ABSENT tag, ADR 0011 decision 4.2).
+ */
+void Combo_RetractCreationRecords(void);
+
+/**
  * Recompute comboSettingsHash from the RESIDENT record and the two resident
  * half-digests, and stamp it. Used by Combo_FreezeComboSettings and by the O5
  * transitional writer; exposed so a caller that re-stamps a half-digest can

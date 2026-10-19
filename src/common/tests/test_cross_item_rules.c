@@ -44,6 +44,7 @@
 #include "../save.h"
 #include "../shared_resources.h"
 #include "../test_runner.h"
+#include "../test_scratch.h"
 
 #include <cstdio>
 #include <cstring>
@@ -332,6 +333,65 @@ TestResult Test_CrossItemRulesRecord(void) {
         ComboContext_Init();
     }
 
+    // ---- (6b) The creation's two failure exits undo the rules too ---------------
+    // Playthrough_Init's rollback (snapshot -> restore) and
+    // RetractFailedPairedCreation (retract) both go through these three calls.
+    {
+        // The "untouched" state: a frozen world with every rule off.
+        XirFreezeWorld(NULL);
+        ComboCreationRecords prior;
+        memset(&prior, 0xEE, sizeof(prior));
+        Combo_SnapshotCreationRecords(&prior);
+        // A generation that failed after the freeze: a different record, the
+        // rules on (so a new fingerprint), and a triforce record.
+        ComboSettingsRecord failed;
+        Combo_ComboSettingsDefaults(&failed);
+        failed.comboFlags ^= 0x01u;
+        const ComboItemRulesRecord on = XirOnRecord();
+        Combo_FreezeComboSettingsEx(&failed, &on);
+        gComboCtx.comboTriforce.totalOoT = 2u;
+        gComboCtx.comboTriforce.requiredOoT = 1u;
+        Combo_RestoreCreationRecords(&prior);
+        const bool settingsBack =
+            memcmp(&gComboCtx.comboSettings, &prior.comboSettings, sizeof(prior.comboSettings)) == 0;
+        const bool hashBack = gComboCtx.comboSettingsHash == prior.comboSettingsHash;
+        const bool triforceBack =
+            memcmp(&gComboCtx.comboTriforce, &prior.comboTriforce, sizeof(prior.comboTriforce)) == 0;
+        const bool rulesBack =
+            memcmp(&gComboCtx.comboItemRules, &prior.comboItemRules, sizeof(prior.comboItemRules)) == 0;
+        printf(
+            "[TEST] (6b) rollback: record %d, fingerprint %d, triforce %d, item rules %d restored (expected all 1)\n",
+            settingsBack ? 1 : 0, hashBack ? 1 : 0, triforceBack ? 1 : 0, rulesBack ? 1 : 0);
+        XIR_CHECK(settingsBack && hashBack && triforceBack && rulesBack,
+                  "the creation rollback did not restore all four creation records: a failed generation must leave "
+                  "the world untouched");
+        XIR_CHECK((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_FINGERPRINT) == 0u,
+                  "after the rollback the restored fingerprint does not reproduce over the resident rules: a failed "
+                  "generation turned the prior world into FINGERPRINT damage");
+
+        // A creation that failed: retracted, every record ABSENT.
+        XirFreezeWorld(&on);
+        gComboCtx.comboTriforce.totalOoT = 2u;
+        gComboCtx.comboTriforce.requiredOoT = 1u;
+        Combo_RetractCreationRecords();
+        ComboSettingsRecord zeroSettings;
+        memset(&zeroSettings, 0, sizeof(zeroSettings));
+        ComboTriforceRecord zeroTriforce;
+        memset(&zeroTriforce, 0, sizeof(zeroTriforce));
+        XIR_CHECK(memcmp(&gComboCtx.comboSettings, &zeroSettings, sizeof(zeroSettings)) == 0 &&
+                      gComboCtx.comboSettingsHash == 0u &&
+                      memcmp(&gComboCtx.comboTriforce, &zeroTriforce, sizeof(zeroTriforce)) == 0 &&
+                      Combo_ComboItemRulesClear(&gComboCtx.comboItemRules),
+                  "the creation retraction left a creation record behind (record %u, fingerprint %08X, items %08X)",
+                  (unsigned)gComboCtx.comboSettings.formatVersion, (unsigned)gComboCtx.comboSettingsHash,
+                  (unsigned)gComboCtx.comboItemRules.crossItemFlags);
+        Context_InvalidateSessionState(RSBS_SEED_STAMP_KEEP);
+        XIR_CHECK(Combo_ComboItemRulesClear(&gComboCtx.comboItemRules),
+                  "the KEEP invalidation after a retraction carried rule bytes (%08X) behind an ABSENT record",
+                  (unsigned)gComboCtx.comboItemRules.crossItemFlags);
+        ComboContext_Init();
+    }
+
     // ---- (7) Divergence ----------------------------------------------------------
     {
         const ComboItemRulesRecord on = XirOnRecord();
@@ -384,10 +444,11 @@ TestResult Test_CrossItemRulesRecord(void) {
 
     // ---- (8) THE LOAD: a file with a rule on is refused, nothing quarantined ---
     {
-        std::error_code ec;
-        std::filesystem::remove_all(kXirLoadDir, ec);
+        // A per-process scratch directory (#926), and the previous save
+        // directory put back afterwards, so no other row sees this one's files.
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-        mgr.SetSaveDirectory(kXirLoadDir);
+        const std::string priorSaveDir = std::filesystem::path(mgr.SlotPath(0)).parent_path().string();
+        mgr.SetSaveDirectory(rsbs::test::ScratchDir(kXirLoadDir).string());
 
         // Control: every rule off saves and loads.
         RsbsSave_ResetSlotSessionState();
@@ -420,7 +481,7 @@ TestResult Test_CrossItemRulesRecord(void) {
 
         RsbsSave_ResetSlotSessionState();
         mgr.DeleteSave(0);
-        std::filesystem::remove_all(kXirLoadDir, ec);
+        mgr.SetSaveDirectory(priorSaveDir);
         ComboContext_Init();
     }
 

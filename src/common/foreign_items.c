@@ -626,6 +626,33 @@ uint32_t Combo_FreezeComboSettingsEx(const ComboSettingsRecord* rec, const Combo
     return digest;
 }
 
+void Combo_SnapshotCreationRecords(ComboCreationRecords* out) {
+    if (out == NULL) {
+        return;
+    }
+    out->comboSettings = gComboCtx.comboSettings;
+    out->comboSettingsHash = gComboCtx.comboSettingsHash;
+    out->comboTriforce = gComboCtx.comboTriforce;
+    out->comboItemRules = gComboCtx.comboItemRules;
+}
+
+void Combo_RestoreCreationRecords(const ComboCreationRecords* in) {
+    if (in == NULL) {
+        return;
+    }
+    gComboCtx.comboSettings = in->comboSettings;
+    gComboCtx.comboSettingsHash = in->comboSettingsHash;
+    gComboCtx.comboTriforce = in->comboTriforce;
+    gComboCtx.comboItemRules = in->comboItemRules;
+}
+
+void Combo_RetractCreationRecords(void) {
+    memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
+    gComboCtx.comboSettingsHash = 0;
+    memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
+    memset(&gComboCtx.comboItemRules, 0, sizeof(gComboCtx.comboItemRules));
+}
+
 int Combo_FreezeLegacyComboSettings(void) {
     if (!Combo_ForeignPairingActive()) {
         // Nothing to freeze rules FOR. An unpaired file must not acquire a combo
