@@ -213,7 +213,7 @@ int ArchiveHotswap_TargetArrivals(void);
 int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, int limbCount, char* msg, size_t cap);
 void ResourceCacheOwner_SetMMLegPassed(void);
 // OoT's port layer defines the one ResourceMgr_LoadSkeletonByName both games call.
-struct SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
+SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
 // MM's staff roll table (z_message.c), built by MM_OTRMessage_Init.
 extern MessageTableEntry* sMessageTableCredits;
 }
