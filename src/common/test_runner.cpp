@@ -694,6 +694,12 @@ extern "C" {
 // wrappers below resolve the staged archives and SKIP when they are absent.
 #include "tests/test_curated_archive_order.c"
 
+// #981 resource cache owner locks. FILE SCOPE (compiled as C++): the ROM-free
+// row drives the C++-linkage ResourceManager over two temporary O2R zips, and
+// ResourceCacheOwner_CheckArrival (C linkage) is the per-arrival check both
+// games' integration hooks call.
+#include "tests/test_resource_cache_owner.c"
+
 // #618 (#516 Phase 3) ExtensionCache rescan lock. FILE SCOPE (compiled as C++):
 // it drives the C++-linkage Ship::Context / ResourceManager APIs directly and
 // declares the C-linkage cache/rescan entry points it needs itself. The wrapper
@@ -3664,6 +3670,32 @@ TestResult Test_CuratedArchiveOrder(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #981: one path parsed by one game must never be served to the other. Body in
+// src/common/tests/test_resource_cache_owner.c: two temporary O2R zips with
+// different Blob contents at one path, loaded under two cache owners through the
+// fork's ResourceManager::SetDefaultCacheOwner. ROM-free and archive-free: it
+// needs only the display-free shared bring-up and the Blob factory.
+TestResult Test_ResourceCacheOwner(void) {
+    printf("[TEST] resource-cache-owner: each cache owner keeps its own copy of a shared path (#981)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    ctx->GetResourceManager()->GetResourceLoader()->RegisterResourceFactory(
+        std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY, "Blob",
+        static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+
+    int rc = ResourceCacheOwner_RunHeadless();
+    printf("[TEST] %s: resource cache owner rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #593: a user mod overrides a base asset only by being mounted after it, and
 // the switch-time base re-add (the #154 fix) put the base archives back on top
 // — silently revoking every override, with the mods still listed as enabled.
@@ -5837,6 +5869,8 @@ const TestDescriptor gTests[] = {
       Test_CuratedArchiveOrder },
     { "mod-survives-switch", "A registered mod archive still wins after a game switch (#593)",
       Test_ModArchiveSurvivesSwitch },
+    { "resource-cache-owner", "Each resource cache owner keeps its own copy of a shared path (#981)",
+      Test_ResourceCacheOwner },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
     { "curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",
@@ -6735,6 +6769,10 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
     { "int-archive-hotswap-cycle",
       "Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (no missing assets, bounded RSS) (#263)",
       INT_TEST_ARCHIVE_HOTSWAP_CYCLE, GAME_OOT },
+    { "int-resource-cache-owner",
+      "Boot OoT into gameplay on a debug save, cross to MM through the Happy Mask Shop and back: each game is served "
+      "its own gOctorokSkel and staff text, and OoT gets back the objects it had (#981)",
+      INT_TEST_RESOURCE_CACHE_OWNER, GAME_OOT },
     { "int-gameplay-roundtrip",
       "Operator crash repro: debug save, live gameplay, production OoT<->MM round trip (freeze/restore + "
       "resume leg), post-return debug warp, door transition. Env: RSBS_GP_FRAMES/CYCLES/BOOT|WARP|EXIT_ENTRANCE",

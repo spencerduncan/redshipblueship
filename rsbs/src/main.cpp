@@ -190,6 +190,30 @@ extern "C" void Combo_EnsureGameArchivesLoaded(GameId targetGame) {
     ReapplyModArchives(*archiveManager, targetGame);
 }
 
+// #981: libultraship caches every parsed resource under {path, owner, archive},
+// and every path-only load takes the owner from ResourceManager's default. With
+// one owner for both games, the first game to parse a path both archives carry
+// fixed the copy both games got for the rest of the process (OoT's 37-limb
+// gOctorokSkel in MM's 16-entry joint tables, OoT's SOH::Text read as MM's
+// staff roll). So each game loads under its own owner, switched together with
+// the archives: the booted game keeps owner 0 (its boot working set is already
+// cached there), the other game gets kComboOtherGameCacheOwner. Switching the
+// owner frees, dirties and reparses nothing; each game gets back the objects it
+// had, which keeps the pointers Fast3D wrote into display lists and the static
+// SkelAnimes valid. What it costs is a second parse of the paths both games
+// load. A refused switch never reaches this, so the running game keeps its owner.
+static GameId sComboBootGame = GAME_NONE;
+static constexpr uintptr_t kComboOtherGameCacheOwner = 0x52534253u; // "RSBS"
+
+static void ApplyResourceCacheOwner(GameId game) {
+    auto ctx = Ship::Context::GetInstance();
+    if (!ctx || !ctx->GetResourceManager())
+        return;
+    const uintptr_t owner = (game == sComboBootGame) ? 0 : kComboOtherGameCacheOwner;
+    ctx->GetResourceManager()->SetDefaultCacheOwner(owner);
+    printf("[RSBS] Resource cache owner for %s: 0x%llx\n", Game_ToString(game), (unsigned long long)owner);
+}
+
 // The boot half of the above: the booted game's own Init has already mounted
 // its base archives and mods, so this adds the curated half and puts the mods
 // back on top of it (declared in src/common/mod_archives.h).
@@ -797,6 +821,8 @@ int main(int argc, char** argv) {
     // Keep context's view of the current game in sync with the runner so that
     // cross-game entrance hooks dispatch against the right game (issue #170).
     Context_SetCurrentGame(selectedGame);
+    // #981: the booted game loads under resource cache owner 0 (the default).
+    sComboBootGame = selectedGame;
 
     // #577 M1: the booted game's curated cross-game half. Its own Init has
     // mounted its base archives (and mods) by now; every later arrival mounts
@@ -1015,7 +1041,10 @@ int main(int argc, char** argv) {
                 IntegrationTest_HandoffWedgeIfArmed();
             }
 
-            // Hot-swap resource archives before game init/resume
+            // Hot-swap resource archives before game init/resume, and the
+            // resource cache owner with them (#981), before anything of the
+            // arriving game loads.
+            ApplyResourceCacheOwner(nextGame);
             Combo_EnsureGameArchivesLoaded(nextGame);
 
             // GameRunner handles suspend/resume/init lifecycle

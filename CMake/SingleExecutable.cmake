@@ -786,6 +786,12 @@ if(BUILD_TESTING)
     set_tests_properties(CuratedArchiveOrder PROPERTIES SKIP_RETURN_CODE 77)
     redship_add_test(NAME ModArchiveSurvivesSwitch COMMAND redship --test mod-survives-switch)
     set_tests_properties(ModArchiveSurvivesSwitch PROPERTIES SKIP_RETURN_CODE 77)
+    # #981: the resource cache is keyed by owner as well as path, and each game
+    # runs under its own owner. Two temporary O2R zips with different Blob
+    # contents at one path, loaded under two owners through the fork's
+    # ResourceManager::SetDefaultCacheOwner: each owner keeps its own bytes, and
+    # the first keeps its original object. ROM-free and archive-free.
+    redship_add_test(NAME ResourceCacheOwner COMMAND redship --test resource-cache-owner)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture
@@ -2618,6 +2624,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
     redship_add_test(NAME IntArchiveHotswapCycle
         COMMAND redship --integration-test int-archive-hotswap-cycle
+        LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
+    # #981: T1's crossing and back. Each game is served its own gOctorokSkel (OoT
+    # 37 limbs, MM 15) and staff text (SOH::Text, S2H::TextMM with MM's credit
+    # ids), and OoT gets back the very objects it had before it left.
+    redship_add_test(NAME IntResourceCacheOwner
+        COMMAND redship --integration-test int-resource-cache-owner
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
     # #806 on the real boot path: with the staged redship-oot.o2r replaced by an
     # unstamped zip and redship-mm.o2r removed, an OoT boot must regenerate both
