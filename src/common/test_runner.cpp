@@ -2170,28 +2170,21 @@ TestResult Test_TestAudioSilent(void) {
                "A2: SDL_HINT_AUDIODRIVER is '%s' with the environment variable removed, not 'dummy'",
                hint != nullptr ? hint : "(unset)");
 
-    // A3 opens SDL audio for real, but only under the pin A2 just read: without it
-    // this would initialise the platform's own driver, which is the thing under test
-    // and not something to do to the speakers of the person at the workstation.
-    const bool pinned = hint != nullptr && strcmp(hint, "dummy") == 0;
-    if (pinned) {
-        const bool audioWasUp = SDL_WasInit(SDL_INIT_AUDIO) != 0;
-        if (!audioWasUp && SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
-            TAS_ASSERT(false, "A3: SDL_InitSubSystem(SDL_INIT_AUDIO) failed under the dummy driver (%s)",
-                       SDL_GetError());
-        } else {
-            const char* driver = SDL_GetCurrentAudioDriver();
-            printf("[AUDIO] row: SDL_GetCurrentAudioDriver() = %s\n", driver != nullptr ? driver : "(null)");
-            TAS_ASSERT(driver != nullptr && strcmp(driver, "dummy") == 0,
-                       "A3: SDL_GetCurrentAudioDriver() is '%s' after SDL_InitSubSystem(SDL_INIT_AUDIO), not 'dummy'",
-                       driver != nullptr ? driver : "(null)");
-            if (!audioWasUp) {
-                SDL_QuitSubSystem(SDL_INIT_AUDIO);
-            }
-        }
+    // A3 brings the SDL audio subsystem up for real and asks which driver won. That
+    // opens the driver, never a device, so even the red half (no pin: the platform's
+    // own driver) makes no sound; the FAIL line names the driver that would have played.
+    const bool audioWasUp = SDL_WasInit(SDL_INIT_AUDIO) != 0;
+    if (!audioWasUp && SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+        TAS_ASSERT(false, "A3: SDL_InitSubSystem(SDL_INIT_AUDIO) failed (%s)", SDL_GetError());
     } else {
-        TAS_ASSERT(false, "A3: not run (the dummy driver is not pinned, so opening SDL audio would use the platform "
-                          "driver)");
+        const char* driver = SDL_GetCurrentAudioDriver();
+        printf("[AUDIO] row: SDL_GetCurrentAudioDriver() = %s\n", driver != nullptr ? driver : "(null)");
+        TAS_ASSERT(driver != nullptr && strcmp(driver, "dummy") == 0,
+                   "A3: SDL_GetCurrentAudioDriver() is '%s' after SDL_InitSubSystem(SDL_INIT_AUDIO), not 'dummy'",
+                   driver != nullptr ? driver : "(null)");
+        if (!audioWasUp) {
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        }
     }
 #undef TAS_ASSERT
     printf("[TEST] %s: test-audio-silent, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
