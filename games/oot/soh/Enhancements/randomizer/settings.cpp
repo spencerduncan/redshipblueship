@@ -1207,7 +1207,22 @@ void Settings::CreateOptions() {
             mOptions[RSK_BIG_POES_HINT].Enable();
         }
     });
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #973: every randomizer file here is paired, and a paired world is generated
+    // with "Shuffle" (3drando/playthrough.cpp), so that is the row's default here
+    // and the row is greyed. The callback only CLEARS a stored value (a preset's,
+    // an old config's) back to that default and never stores one, so a config
+    // stays at the shipped defaults the integration rows require.
+    OPT_U8(RSK_MASK_QUEST, "Mask Quest", {"Vanilla", "Completed", "Shuffle"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("CompleteMaskQuest"), mOptionDescriptions[RSK_MASK_QUEST], WIDGET_CVAR_COMBOBOX, RO_MASK_QUEST_SHUFFLE);
+    OPT_CALLBACK(RSK_MASK_QUEST, {
+        if (CVarExists(CVAR_RANDOMIZER_SETTING("CompleteMaskQuest"))) {
+            CVarClear(CVAR_RANDOMIZER_SETTING("CompleteMaskQuest"));
+        }
+        mOptions[RSK_MASK_QUEST].Disable("This option is disabled because the Happy Mask Shop door leads to Termina, so its masks are always shuffled.");
+    });
+#else
     OPT_U8(RSK_MASK_QUEST, "Mask Quest", {"Vanilla", "Completed", "Shuffle"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("CompleteMaskQuest"), mOptionDescriptions[RSK_MASK_QUEST], WIDGET_CVAR_COMBOBOX, 0);
+#endif
     OPT_U8(RSK_GOSSIP_STONE_HINTS, "Gossip Stone Hints", {"No Hints", "Need Nothing", "Mask of Truth", "Stone of Agony"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("GossipStoneHints"), mOptionDescriptions[RSK_GOSSIP_STONE_HINTS], WIDGET_CVAR_COMBOBOX, RO_GOSSIP_STONES_NEED_NOTHING, false, nullptr, IMFLAG_NONE);
     OPT_CALLBACK(RSK_GOSSIP_STONE_HINTS, {
         if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("GossipStoneHints"), RO_GOSSIP_STONES_NEED_NOTHING) ==
@@ -1248,6 +1263,17 @@ void Settings::CreateOptions() {
     OPT_BOOL(RSK_KAK_50_SKULLS_HINT, "50 GS Hint", CVAR_RANDOMIZER_SETTING("50GSHint"), mOptionDescriptions[RSK_KAK_50_SKULLS_HINT], IMFLAG_NONE);
     OPT_BOOL(RSK_KAK_100_SKULLS_HINT, "100 GS Hint", CVAR_RANDOMIZER_SETTING("100GSHint"), mOptionDescriptions[RSK_KAK_100_SKULLS_HINT], IMFLAG_NONE);
     OPT_BOOL(RSK_MASK_SHOP_HINT, "Mask Shop Hint", CVAR_RANDOMIZER_SETTING("MaskShopHint"), mOptionDescriptions[RSK_MASK_SHOP_HINT]);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #973: the sign is inside the Happy Mask Shop, so a paired world is generated
+    // with this off (3drando/playthrough.cpp), the row's default; the row is greyed
+    // and, as Mask Quest's above, a stored value is cleared, never one stored.
+    OPT_CALLBACK(RSK_MASK_SHOP_HINT, {
+        if (CVarExists(CVAR_RANDOMIZER_SETTING("MaskShopHint"))) {
+            CVarClear(CVAR_RANDOMIZER_SETTING("MaskShopHint"));
+        }
+        mOptions[RSK_MASK_SHOP_HINT].Disable("This option is disabled because the Happy Mask Shop door leads to Termina, so the shop's sign cannot be read.");
+    });
+#endif
     // TODO: Compasses show rewards/woth, maps show dungeon mode
     OPT_BOOL(RSK_BLUE_FIRE_ARROWS, "Blue Fire Arrows", CVAR_RANDOMIZER_SETTING("BlueFireArrows"), mOptionDescriptions[RSK_BLUE_FIRE_ARROWS]);
     OPT_BOOL(RSK_SUNLIGHT_ARROWS, "Sunlight Arrows", CVAR_RANDOMIZER_SETTING("SunlightArrows"), mOptionDescriptions[RSK_SUNLIGHT_ARROWS]);

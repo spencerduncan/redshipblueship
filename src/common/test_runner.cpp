@@ -1676,8 +1676,8 @@ extern "C" int Rando_TestStaticHintsThatDrew(void);
 extern "C" uint32_t Rando_TestStaticHintTexts(int* outCount);
 extern "C" void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast);
 extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
-static const uint32_t kStaticHintTextDigest = 0x321F2D27u;
-static const int kStaticHintCount = 18;
+static const uint32_t kStaticHintTextDigest = 0x69FCC6BBu;
+static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 
 TestResult Test_RandoStaticHintOrder(void) {
@@ -1693,7 +1693,9 @@ TestResult Test_RandoStaticHintOrder(void) {
 
     const char* orderEnv = std::getenv("RSBS_STATIC_HINT_ORDER");
     Rando_TestSetStaticHintOrder(orderEnv != nullptr ? atoi(orderEnv) : 0);
-    // Every static hint whose option is a plain on/off.
+    // Every static hint whose option is a plain on/off. "MaskShopHint" stays in the
+    // profile, but a paired world generates it off (#973: its sign is inside the
+    // Happy Mask Shop), so it is not among the counted hints.
     static const char* const kProfile[] = {
         "SariaHint",    "MidoHint",     "FrogsHint",       "OoTHint",  "BiggoronHint",
         "BigPoesHint",  "ChickensHint", "MalonHint",       "HBAHint",  "LoachHint",
@@ -5433,6 +5435,24 @@ TestResult Test_RandoTriforceHuntWin(void) {
     return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
 }
 
+// #973: a paired world generates OoT's Mask Quest as "Shuffle" and its Mask Shop
+// Hint off, because the Happy Mask Shop's door leads to Termina. Same bring-up as
+// the row above (a real paired generation, then the registered OoT engine).
+// Assertions in games/oot/soh/oot_mask_quest_paired_test.cpp.
+extern "C" int OoT_MaskQuestPaired_RunGenerated(void);
+TestResult Test_RandoMaskQuestPaired(void) {
+    printf("[TEST] rando-mask-quest-paired: a paired world shuffles the Happy Mask Shop's masks (#973)\n");
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char mqpArg0[] = "redship";
+    static char* mqpArgv[] = { mqpArg0, nullptr };
+    InitOTRForMMFirstBoot(1, mqpArgv);
+    return OoT_MaskQuestPaired_RunGenerated() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason; the row
 // body lives in tests/test_combo_logic_measure.c beside the composition helpers
@@ -6503,6 +6523,11 @@ const TestDescriptor gTests[] = {
       "requirement "
       "ends the combo, in whichever game reaches it (ADR 0010 O10)",
       Test_RandoTriforceHuntWin },
+    // #973. Needs a generation; skipped by `--test all` below like its siblings.
+    { "rando-mask-quest-paired",
+      "A paired world generates Mask Quest as Shuffle and the Mask Shop Hint off, all eight OoT masks are in the "
+      "world, and each Deku Theater check is reached only once its mask is assumed (#973)",
+      Test_RandoMaskQuestPaired },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     { "combo-logic-bag-composition",
@@ -6809,6 +6834,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
                 strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
+                strcmp(gTests[i].name, "rando-mask-quest-paired") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 ||

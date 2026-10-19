@@ -110,6 +110,33 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
                     (unsigned)rsbsGoalPreview.goal);
         }
     }
+    // #973: the Happy Mask Shop door IS the OoT<->MM crossing (entrance.cpp pins it
+    // out of every shuffle pool), so the shop's room never loads, and two settings
+    // assume it does. Mask Quest "Vanilla" credits borrowing the masks there (the
+    // LOGIC_CAN_BORROW_MASKS chain starts in RR_MARKET_MASK_SHOP), and "Completed"
+    // credits them once the shop opens, which in play needs the shop or the
+    // MaskSelect enhancement no seed can see; either way the fill could put
+    // progression on the Deku Theater checks with no mask to show. The Mask Shop
+    // Hint is the sign in the shop's own room (text 0x0207, an En_Wonder_Talk2 in
+    // face_shop_room_0), which nobody can read. OoTMM's Mask Shop is only the
+    // crossing and OoTMM shuffles all eight OoT masks, so a paired world is
+    // generated as "Shuffle" with the sign hint off, here for #768's reason: before
+    // the settings string is hashed. Unconditional, like the door's pin: every
+    // generation in this build is a paired creation (the gate below refuses any
+    // other).
+    if (ctx->GetOption(RSK_MASK_QUEST).IsNot(RO_MASK_QUEST_SHUFFLE)) {
+        SPDLOG_WARN("Paired world: Mask Quest {} is generated as \"Shuffle\": the Happy Mask Shop door leads to "
+                    "Termina, so the shop's masks are in the item pool (#973)",
+                    (unsigned)ctx->GetOption(RSK_MASK_QUEST).Get());
+        fprintf(stderr, "[OoT] Mask Quest: %u generated as \"Shuffle\" (#973)\n",
+                (unsigned)ctx->GetOption(RSK_MASK_QUEST).Get());
+        ctx->GetOption(RSK_MASK_QUEST).Set(RO_MASK_QUEST_SHUFFLE);
+    }
+    if (ctx->GetOption(RSK_MASK_SHOP_HINT)) {
+        SPDLOG_WARN("Paired world: the Mask Shop Hint is generated off: its sign is inside the Happy Mask Shop (#973)");
+        fprintf(stderr, "[OoT] Mask Shop Hint: generated off (#973)\n");
+        ctx->GetOption(RSK_MASK_SHOP_HINT).Set(RO_GENERIC_OFF);
+    }
 #endif
     // once the settings have been finalized turn them into a string for hashing
     std::string settingsStr;
