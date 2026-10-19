@@ -60,30 +60,25 @@ void TestWindowFocus_ArmSilentAudio(const char* mode) {
     const char* who = mode != nullptr ? mode : "?";
     const char* sabotage = std::getenv("RSBS_TEST_AUDIO_SABOTAGE");
     if (sabotage != nullptr && std::strstr(sabotage, "no-default") != nullptr) {
-        fprintf(stderr, "[AUDIO] %s: RSBS_TEST_AUDIO_SABOTAGE=no-default -- the silent audio default is NOT armed
-                        ",
+        fprintf(stderr, "[AUDIO] %s: RSBS_TEST_AUDIO_SABOTAGE=no-default -- the silent audio default is NOT armed\n",
                 who);
         return;
     }
     const char* optOut = std::getenv("RSBS_TEST_AUDIO");
     if (optOut != nullptr && std::strcmp(optOut, "1") == 0) {
-        fprintf(stderr, "[AUDIO] %s: RSBS_TEST_AUDIO=1 -- audio left at the platform default on purpose
-", who);
+        fprintf(stderr, "[AUDIO] %s: RSBS_TEST_AUDIO=1 -- audio left at the platform default on purpose\n", who);
         return;
     }
     // An explicit SDL_AUDIODRIVER wins; otherwise "dummy". Pinned at OVERRIDE so a
     // later change to the environment cannot un-pin it (see the header).
     const char* explicitDriver = SDL_getenv("SDL_AUDIODRIVER");
-    const char* driver = (explicitDriver != nullptr && explicitDriver[0] != '\0') ? explicitDriver : "dummy";
+    const bool fromEnv = explicitDriver != nullptr && explicitDriver[0] != '\0';
+    const char* driver = fromEnv ? explicitDriver : "dummy";
     SDL_SetHintWithPriority(SDL_HINT_AUDIODRIVER, driver, SDL_HINT_OVERRIDE);
     SDL_setenv("SDL_AUDIODRIVER", driver, 0);
     sAudioArmed = true;
-    fprintf(stderr, "[AUDIO] %s: SDL audio driver pinned to '%s'%s
-                    ", who, driver,
-                                explicitDriver != nullptr &&
-                            explicitDriver[0] != '\0'
-                        ? " (from the environment)"
-                        : " (default)");
+    fprintf(stderr, "[AUDIO] %s: SDL audio driver pinned to '%s'%s\n", who, driver,
+            fromEnv ? " (from the environment)" : " (default)");
 }
 
 int TestWindowFocus_IsAudioArmed(void) {
@@ -93,8 +88,7 @@ int TestWindowFocus_IsAudioArmed(void) {
 void TestWindowFocus_AudioProbe(const char* where) {
     const char* current = SDL_WasInit(SDL_INIT_AUDIO) != 0 ? SDL_GetCurrentAudioDriver() : nullptr;
     const char* hint = SDL_GetHint(SDL_HINT_AUDIODRIVER);
-    printf("[AUDIO] %s: currentDriver=%s hint=%s armed=%d
-", where != nullptr ? where : "?",
+    printf("[AUDIO] %s: currentDriver=%s hint=%s armed=%d\n", where != nullptr ? where : "?",
            current != nullptr ? current : "(audio not up)", hint != nullptr ? hint : "(unset)", sAudioArmed ? 1 : 0);
     fflush(stdout);
 }
