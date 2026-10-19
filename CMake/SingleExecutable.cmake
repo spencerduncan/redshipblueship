@@ -2206,6 +2206,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #973: the Happy Mask Shop door is the crossing, so its room never loads. A
+    # paired world generates Mask Quest as "Shuffle" and the Mask Shop Hint off
+    # (under both authored modes a player can arrive with), all eight OoT masks are
+    # in the world, and over the registered OoT engine each Deku Theater check is
+    # reached only once its own mask is assumed. `rando`: it needs a generation.
+    redship_add_test(NAME RandoMaskQuestPaired COMMAND redship --test rando-mask-quest-paired
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
     # #731, #733): the composed bag holds progression copies only, plentiful copies
     # are surplus, OoT's restricted passes confine their families, filler and traps
