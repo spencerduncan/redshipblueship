@@ -2504,6 +2504,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+    # S0: test processes are silent. redship_add_test() puts SDL_AUDIODRIVER=dummy
+    # in every row's environment and main.cpp pins the driver in code for every
+    # --test / --integration-test process (src/common/test_window_focus.h). This
+    # row removes the variable from its own process and asserts the in-code pin
+    # alone: SDL_GetHint, then a real SDL audio init reports the dummy driver.
+    # Default tier: SDL audio only, no window, no archive.
+    redship_add_test(NAME TestAudioSilent COMMAND redship --test test-audio-silent)
     # #880: the window title and --version carry the configured short commit
     # (and "-dirty"), so a build says which commit it is. The expected identity is
     # handed over from configure ("none" for a tree without git); run outside

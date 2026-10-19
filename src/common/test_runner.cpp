@@ -2130,6 +2130,74 @@ TestResult Test_TestWindowNoActivation(void) {
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Silent tests (S0): a --test / --integration-test process never plays audio,
+// whatever the staged config's Window.AudioBackend or the caller's environment say.
+// Two layers hold it: redship_add_test() puts SDL_AUDIODRIVER=dummy in every row's
+// environment, and main.cpp pins SDL's audio driver in code
+// (TestWindowFocus_ArmSilentAudio). This row proves the in-code layer alone: it
+// REMOVES SDL_AUDIODRIVER from its own environment first (the CMake layer has
+// already put it there, so leaving it would make the row pass vacuously), then
+// asserts the pin survives and a real SDL audio init lands on the dummy driver.
+// Red half: RSBS_TEST_AUDIO_SABOTAGE=no-default makes main skip the pin, which turns
+// A1-A3 red (the platform's own driver opens). RSBS_TEST_AUDIO=1 is the operator's
+// opt-out, so the row reports and skips rather than failing a deliberate choice.
+TestResult Test_TestAudioSilent(void) {
+    printf("[TEST] test-audio-silent: a test process defaults SDL to the dummy audio driver in code\n");
+    const char* optOut = getenv("RSBS_TEST_AUDIO");
+    if (optOut != nullptr && strcmp(optOut, "1") == 0) {
+        printf("[TEST] SKIP: RSBS_TEST_AUDIO=1 is set, so main left audio at the platform default on purpose\n");
+        return TEST_SKIP;
+    }
+    int failures = 0;
+#define TAS_ASSERT(cond, ...)        \
+    do {                             \
+        if (!(cond)) {               \
+            printf("[TEST] FAIL: "); \
+            printf(__VA_ARGS__);     \
+            printf("\n");            \
+            failures++;              \
+        }                            \
+    } while (0)
+
+    DigestOut_SetEnv("SDL_AUDIODRIVER", nullptr);
+    TAS_ASSERT(SDL_getenv("SDL_AUDIODRIVER") == nullptr || SDL_getenv("SDL_AUDIODRIVER")[0] == '\0',
+               "A0: setup: SDL_AUDIODRIVER is still in the environment after removing it");
+
+    TAS_ASSERT(TestWindowFocus_IsAudioArmed() == 1,
+               "A1: main.cpp did not pin the audio driver for --test (TestWindowFocus_ArmSilentAudio)");
+    const char* hint = SDL_GetHint(SDL_HINT_AUDIODRIVER);
+    TAS_ASSERT(hint != nullptr && strcmp(hint, "dummy") == 0,
+               "A2: SDL_HINT_AUDIODRIVER is '%s' with the environment variable removed, not 'dummy'",
+               hint != nullptr ? hint : "(unset)");
+
+    // A3 opens SDL audio for real, but only under the pin A2 just read: without it
+    // this would initialise the platform's own driver, which is the thing under test
+    // and not something to do to the speakers of the person at the workstation.
+    const bool pinned = hint != nullptr && strcmp(hint, "dummy") == 0;
+    if (pinned) {
+        const bool audioWasUp = SDL_WasInit(SDL_INIT_AUDIO) != 0;
+        if (!audioWasUp && SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+            TAS_ASSERT(false, "A3: SDL_InitSubSystem(SDL_INIT_AUDIO) failed under the dummy driver (%s)",
+                       SDL_GetError());
+        } else {
+            const char* driver = SDL_GetCurrentAudioDriver();
+            printf("[AUDIO] row: SDL_GetCurrentAudioDriver() = %s\n", driver != nullptr ? driver : "(null)");
+            TAS_ASSERT(driver != nullptr && strcmp(driver, "dummy") == 0,
+                       "A3: SDL_GetCurrentAudioDriver() is '%s' after SDL_InitSubSystem(SDL_INIT_AUDIO), not 'dummy'",
+                       driver != nullptr ? driver : "(null)");
+            if (!audioWasUp) {
+                SDL_QuitSubSystem(SDL_INIT_AUDIO);
+            }
+        }
+    } else {
+        TAS_ASSERT(false, "A3: not run (the dummy driver is not pinned, so opening SDL audio would use the platform "
+                          "driver)");
+    }
+#undef TAS_ASSERT
+    printf("[TEST] %s: test-audio-silent, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #880 lock: the version a person sees names the commit it was built from.
 // Every build between two release tags used to read the same
 // "RedShipBlueShip v0.1.1-prealpha (Morpheus Bravo)", so a stale build could not
@@ -6685,6 +6753,10 @@ const TestDescriptor gTests[] = {
       "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
       "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
       Test_TestWindowNoActivation },
+    { "test-audio-silent",
+      "A --test process pins SDL's audio driver to the dummy driver in code (not only from the CTest environment), "
+      "so a tier never plays game audio through the speakers of the person at the workstation (S0)",
+      Test_TestAudioSilent },
     { "version-short-commit",
       "The window title and --version read the release version plus the configured short commit (and -dirty), so "
       "a build says which commit it is; the release part stays RSBS_VERSION_STRING (#880)",
@@ -6928,6 +7000,7 @@ int TestRunner_Run(const char* testName) {
     // focus" row by row (lane F1). Report only; the lock is the
     // test-window-no-activation row.
     TestWindowFocus_Probe(testName);
+    TestWindowFocus_AudioProbe(testName);
     if (result == TEST_SKIP) {
         // Rows that can self-skip declare SKIP_RETURN_CODE 77 in
         // CMake/SingleExecutable.cmake, so ctest reports "Skipped" rather than

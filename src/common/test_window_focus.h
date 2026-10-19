@@ -60,6 +60,43 @@ void TestWindowFocus_ArmForTestMode(const char* mode);
 int TestWindowFocus_IsArmed(void);
 
 /**
+ * @brief Make this (test) process silent: default SDL's audio driver to "dummy".
+ *
+ * Same lifetime and call site as TestWindowFocus_ArmForTestMode (rsbs/src/main.cpp,
+ * for `--test` and `--integration-test`, before SDL or Ship::Context initialise),
+ * and for the same reason: a tier is run on a workstation while the person at it
+ * is working. Test rows used to be silent only when the CTest row (about 49 of
+ * them) or the staged `shipofharkinian.json` (`Window.AudioBackend` "null") said
+ * so; a ROM-mounted row on a config without it played the games' audio through
+ * the operator's speakers. Now no test process depends on either.
+ *
+ * Mechanics: an SDL_HINT_AUDIODRIVER hint at SDL_HINT_OVERRIDE priority, so the
+ * value survives anything done to the environment afterwards (a normal-priority
+ * hint is refused outright while the variable exists, and would read back as
+ * whatever the variable says). An explicit non-empty `SDL_AUDIODRIVER` in the
+ * environment at arm time wins: that value is what gets pinned. SDL_setenv
+ * (overwrite = 0) also fills an absent variable for any code that reads the
+ * environment directly.
+ *
+ * `RSBS_TEST_AUDIO=1` skips it (hearing the game on purpose).
+ * `RSBS_TEST_AUDIO_SABOTAGE=no-default` skips it and says so on stderr: the red-half
+ * switch the test-audio-silent row is proven against, standing in for "main.cpp's
+ * call was removed".
+ *
+ * Prints one `[AUDIO]` line saying what it pinned.
+ */
+void TestWindowFocus_ArmSilentAudio(const char* mode);
+
+/** @brief 1 once TestWindowFocus_ArmSilentAudio has pinned a driver, else 0. */
+int TestWindowFocus_IsAudioArmed(void);
+
+/**
+ * @brief One `[AUDIO]` diagnostics line: the SDL audio driver actually in use
+ *        (SDL_GetCurrentAudioDriver) if SDL audio is up, else the pinned hint.
+ */
+void TestWindowFocus_AudioProbe(const char* where);
+
+/**
  * @brief One `[FOCUS]` diagnostics line: is SDL video up, and does any SDL window
  *        hold keyboard focus right now.
  *
