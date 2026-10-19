@@ -2,8 +2,9 @@
 
 Read-only audit of the reachability logic behind the three check-tracker surfaces, for gaps
 under the paired (OoT + MM) game. Anchors were verified at main `96b8ce9a`; the one later
-local commit (`edf3cd04`) is docs-only and moves none of the lines cited. Nothing was built,
-run, committed or filed. Method is in the appendix.
+local commit (`edf3cd04`) is docs-only and moves none of the lines cited. Nothing was built or
+run. The findings are filed as #990 to #999 (2026-10-18) and the report lands with PR #989.
+Method is in the appendix.
 
 ## Verdict
 
@@ -33,19 +34,19 @@ mutation, and five latent items.
 
 ## 1. Findings
 
-| # | Sev | Surface | Finding | Filed? |
+| # | Sev | Surface | Finding | Issue |
 |---|-----|---------|---------|--------|
-| R1 | P1 | OoT Check Tracker | Arrival into OoT never recalculates Available Checks | no |
-| R2 | P1 | OoT Check Tracker + shared resources | Shared wallet tier vs Shuffle Child's Wallet: false availability and a rupee drain | no |
-| R3 | P2 | Combo Tracker, MM Check Tracker | No cross-game reachability projection; MM in-logic display is console-only since U6; crossing rows have no reachable mark | no |
-| R4 | P2 | tests | No test drives either native tracker's reachability, on any file, let alone across an arrival | no |
-| R5 | P3 | MM Check Tracker | The tracker's crawl zeroes and re-fires `RANDO_EVENTS` in the live save, unbracketed (inherited) | no |
-| R6 | P3 | tests | The `mmReachable` determinism digest pins a retired closure; two comments are stale | no |
-| R7 | P3 | OoT logic | Combo triforce hunt + OoT hunt mode GBK: OoT's graph grants the boss key at OoT's own threshold (latent) | no |
-| R8 | P3 | tests | The crossing pin is unlocked in the one-way (spawn / warp song / owl) target pools | no |
-| R9 | P3 | OoT Entrance Tracker | The crossing door is never listed or marked discovered (by design; cosmetic) | no |
-| R10 | P3 | OoT logic (inherited) | `GetMinimumPrice` reads range 1 twice, so a reversed price range hides affordable checks | no |
-| R11 | — | save | Moon-crash rollback of OoT's half is never reconciled into OoT check statuses: **unreachable today**, guard-dependent | no |
+| R1 | P1 | OoT Check Tracker | Arrival into OoT never recalculates Available Checks | #990 |
+| R2 | P1 | OoT Check Tracker + shared resources | Shared wallet tier vs Shuffle Child's Wallet: false availability and a rupee drain | #991 (tracker), #992 (rupee drain) |
+| R3 | P2 | Combo Tracker, MM Check Tracker | No cross-game reachability projection; MM in-logic display is console-only since U6; crossing rows have no reachable mark | #993 |
+| R4 | P2 | tests | No test drives either native tracker's reachability, on any file, let alone across an arrival | #994 |
+| R5 | P3 | MM Check Tracker | The tracker's crawl zeroes and re-fires `RANDO_EVENTS` in the live save, unbracketed (inherited) | #995 |
+| R6 | P3 | tests | The `mmReachable` determinism digest pins a retired closure; two comments are stale | #996 |
+| R7 | P3 | OoT logic | Combo triforce hunt + OoT hunt mode GBK: OoT's graph grants the boss key at OoT's own threshold (latent) | #997 |
+| R8 | P3 | tests | The crossing pin is unlocked in the one-way (spawn / warp song / owl) target pools | #998 |
+| R9 | P3 | OoT Entrance Tracker | The crossing door is never listed or marked discovered (by design; cosmetic) | not filed (by design) |
+| R10 | P3 | OoT logic (inherited) | `GetMinimumPrice` reads range 1 twice, so a reversed price range hides affordable checks | #999 |
+| R11 | — | save | Moon-crash rollback of OoT's half is never reconciled into OoT check statuses: **unreachable today**, guard-dependent | not filed (unreachable) |
 
 Already filed and not re-reported: #973 (Happy Mask Shop interior credited by OoT logic),
 #971 (Combo Item Tracker Shared column reads the pool), #967, #963, #962, #855, #573.
