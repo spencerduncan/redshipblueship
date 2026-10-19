@@ -1718,3 +1718,40 @@ can be an option". Default OFF, in the shape #668 gave the shared ocarina.
 Locked by `SharedKokiriSword` (legs 6 and 7 lock the whole pools and the
 promotion), `ComboSettingsRows`, `ComboSettingsAuthoring`,
 `ComboSettingsDivergence` and `CVarClassification` (three identity keys).
+
+### 2026-10-18 -- The generator version in the fingerprint (#1003)
+
+Decision 1.4's fingerprint gains a fourth term, the generator version:
+
+```
+comboSettingsHash = Hash( canonical(comboSettings) ‖ ":" ‖ LE32(sharedRandoSettingsHash) ‖ ":" ‖
+                          LE32(mmProfileDigest) ‖ ":" ‖ LE32(RSBS_GENERATOR_VERSION) )
+```
+
+The problem it fixes: the three terms name the seed and the settings, never the
+generator, so two builds whose generator differs made two worlds behind one
+fingerprint. #840, #874 and #895 each moved worlds without moving the 8 hex
+digits #960 prints at file select. `RSBS_GENERATOR_VERSION` (`foreign_items.h`) is
+bumped by hand in any PR that re-pins a golden for a world-moving reason
+(`docs/determinism-goldens.md`).
+
+- **Version 0 is the decision 1.4 formula as it was**, with no fourth term. Every
+  fingerprint written before #1003 is a version-0 fingerprint. The load and
+  arrival check (`Combo_ComboSettingsDivergenceFor`) accepts a stored hash that
+  any version from 0 to this build's reproduces
+  (`Combo_ComboSettingsHashGeneratorVersion`). So an older file is refused only
+  where it already was, and only a hash no version reproduces sets `FINGERPRINT`.
+  A file stamped by a newer generator matches no version this build knows and
+  reads as `FINGERPRINT`, as a newer record format already reads as `UNREADABLE`.
+- **The term is a label, not an input.** The single bag folds
+  `Combo_ComboSettingsWorldHash()`, which is the resident fingerprint with the
+  label taken off (its version-0 value). A version bump therefore moves no
+  placement, and every world the bag made before #1003 is still made from the
+  same seed. Worlds move only through code, and the bump is what makes that
+  visible.
+- R2 above ("22 bytes in") now describes version 0; a version-n fingerprint folds
+  27 bytes. R3's zero displacement is unchanged.
+
+Locked by `ComboGeneratorVersion` (the fold, the legacy and newer-version load
+legs, the version-free bag seeds, the file-select text) and `ComboSettingsCanonical`
+(vectors pinned at explicit versions 0 and 1).

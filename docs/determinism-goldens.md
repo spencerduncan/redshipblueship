@@ -198,6 +198,50 @@ build would turn the oracle back into a no-op.
    "Which gate runs these rows"), so a re-pin on Linux and a re-pin on Windows are
    equally verifiable and a divergence between the two toolchains turns one leg red
    rather than passing unnoticed.
+6. **Bump `RSBS_GENERATOR_VERSION`** (`src/common/foreign_items.h`) in any PR that
+   re-pins a golden for a world-moving reason. Do it in the same PR, so the
+   re-pin commit records both the moved world and the moved `comboSettingsHash`.
+   A re-pin that moved only an input field or a digest writer does not bump it.
+   See "The generator version" below.
+
+## The generator version (#1003)
+
+The seed, the OoT settings hash and the MM profile digest name the question a
+world answers, never the generator that answered it. So until #1003 two builds
+whose generator differed made two different worlds behind one `comboSettingsHash`,
+and the fingerprint #960 prints beside the seed icons at file select did not move
+(#840, #874 and #895 each moved worlds that way).
+
+`RSBS_GENERATOR_VERSION` (`src/common/foreign_items.h`) is a hand-bumped constant
+folded into `comboSettingsHash` as a fourth term (ADR 0011, amendment of
+2026-10-18). **Bump it in any PR that re-pins a golden for a world-moving reason**
+(rule 6 under "Re-pinning"). After a bump, a file created by the new build shows a
+different fingerprint at file select than the same seed created by the old one.
+
+What a bump moves, and what it must not:
+
+* **`comboSettingsHash`** moves in the four goldens that carry it
+  (`seed-digest-default`, `seed-digest-profile-v1`, `seed-digest-entrances`,
+  `seed-digest-armed-caps`). It is an INPUT field, so the checker reports it under
+  "INPUT fields moved". A bump with nothing else moving is that line alone.
+* **No placement moves.** The version is a label, not an entropy input. The
+  single bag folds the fingerprint with the label taken off
+  (`Combo_ComboSettingsWorldHash`, the version-0 value), so `crossingDigest`,
+  `ootFinalPlacementHash`, `mmPlacementHash` and every per-slot line stay where the
+  code put them. If a bump alone moves an output field, the label has leaked into
+  generation.
+* **Older files still load.** Version 0 is the formula as it was before #1003. The
+  load and arrival check accepts a stored fingerprint that any version from 0 to
+  this build's reproduces, so a file an older build created is refused only where
+  it already was. A file from a *newer* generator reads as a fingerprint mismatch.
+
+`ComboGeneratorVersion` (redship tier, ROM-free) locks the fold. It was red with
+the term removed. It also locks the legacy and newer-version load legs, the
+version-free bag seeds and the file-select text.
+
+History: version 1 (#1003) is the first stamped generator, the worlds as of #974.
+Re-pinning version 1 in moved `comboSettingsHash` in the four goldens above and
+nothing else.
 
 ## Comparing two binaries by hand: never read a file a bare `--test` did not write
 
@@ -442,6 +486,7 @@ why Windows *could not*.
 | Windows CI (`build-windows`) | **yes**, all four | `ctest --label-regex '^rando$'` — the whole tier, like Linux (#709) |
 | Operator's local ROM-staged run | **yes**, all four, in **both** environments | each row generates in an archive-free sandbox under `build-cmake/golden-archive-free/` AND in the build directory with `oot.o2r`/`mm.o2r` mounted, and compares both to the golden and to each other (#702) — see "The archive set is part of the pin" |
 | Operator's local archive-free run | **yes**, all four | this is how the goldens are generated and re-pinned |
+| CI `digest-crossos-diff` (#1003) | compares the two legs' **produced** digests with each other | see "Platform portability" |
 
 The golden rows carry `LABEL rando`, and for one PR the Windows job ran the `redship`
 label only, so they were enforced on exactly one gate. The expectation was that
@@ -524,6 +569,28 @@ xorshift and `std::rotr` — drawn through `ShipUtils::Random`'s rejection loop.
 path; all three are implementation-defined and would differ between libstdc++ and
 MSVC's STL. Ordered containers (`std::map`, `std::set`) and fixed enum ranges carry
 the iteration order the digests fold.
+
+**The two legs' produced digests are also diffed against each other (#1003).**
+Checking both legs against one committed file proves they agree only on what a
+committed golden pins. Each test job therefore uploads the digest files its tiers
+wrote, as an artifact named `determinism-digests-linux` or
+`determinism-digests-windows`:
+
+* the golden rows' `golden-*-actual.txt`;
+* the self-diff rows' `seed-determinism-run1.txt` and `paired-attempt-run1.txt`;
+* the redship tier's `rsbs_static_hint_order_digest.txt` and
+  `rsbs_shop_crossings_digest.txt`.
+
+The `digest-crossos-diff` job (`.github/scripts/diff-crossos-digests.py`)
+downloads both artifacts. It fails when any file differs field by field (CR
+stripped) or exists on one leg only, and it reports each moved field by name.
+
+This covers worlds no golden pins. It also answers the question a world-moving
+PR raises: when both legs are red against the old golden, do they agree on the
+new world? If they do, a re-pin from either platform is valid for the other. The
+job runs even when a leg is red, and is skipped only when a leg never ran. It is
+not a required check, so a docs-only PR, which skips this workflow, is
+unaffected.
 
 **A per-platform golden may be added only when a platform difference has been
 measured, and this page must then say which field differs and why.** Adding one to
