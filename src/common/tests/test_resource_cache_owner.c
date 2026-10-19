@@ -103,16 +103,29 @@ std::string RcoBlobBytes(const std::shared_ptr<Ship::IResource>& res) {
 
 } // namespace
 
-#define RCO_CHECK(cond, ...)                         \
-    do {                                             \
-        if (!(cond)) {                               \
-            printf("[resource-cache-owner] FAIL: "); \
-            printf(__VA_ARGS__);                     \
-            printf("\n");                            \
-            fflush(stdout);                          \
-            rm->SetDefaultCacheOwner(savedOwner);    \
-            return 1;                                \
-        }                                            \
+// RCO_REQUIRE stops the row (what follows needs it); RCO_EXPECT reports the
+// failure and carries on, so one run shows every assertion that fails.
+#define RCO_REPORT(...)                          \
+    do {                                         \
+        printf("[resource-cache-owner] FAIL: "); \
+        printf(__VA_ARGS__);                     \
+        printf("\n");                            \
+        fflush(stdout);                          \
+    } while (0)
+#define RCO_REQUIRE(cond, ...)                    \
+    do {                                          \
+        if (!(cond)) {                            \
+            RCO_REPORT(__VA_ARGS__);              \
+            rm->SetDefaultCacheOwner(savedOwner); \
+            return 1;                             \
+        }                                         \
+    } while (0)
+#define RCO_EXPECT(cond, ...)        \
+    do {                             \
+        if (!(cond)) {               \
+            RCO_REPORT(__VA_ARGS__); \
+            failures++;              \
+        }                            \
     } while (0)
 
 // The ROM-free row's body. The caller has done the display-free shared bring-up
@@ -129,62 +142,68 @@ int ResourceCacheOwner_RunHeadless(void) {
     }
     auto am = rm->GetArchiveManager();
     const uintptr_t savedOwner = rm->GetDefaultCacheOwner();
+    int failures = 0;
 
     const std::filesystem::path dir = rsbs::test::ScratchDir("resource-cache-owner");
     const std::string zipA = (dir / "rco-a.o2r").string();
     const std::string zipB = (dir / "rco-b.o2r").string();
     const std::string bytesA = "resource-cache-owner: archive A's blob";
     const std::string bytesB = "resource-cache-owner: archive B's blob, a different length";
-    RCO_CHECK(RcoWriteZip(zipA, kRcoBlobPath, RcoBlobFile(bytesA)), "could not write %s", zipA.c_str());
-    RCO_CHECK(RcoWriteZip(zipB, kRcoBlobPath, RcoBlobFile(bytesB)), "could not write %s", zipB.c_str());
+    RCO_REQUIRE(RcoWriteZip(zipA, kRcoBlobPath, RcoBlobFile(bytesA)), "could not write %s", zipA.c_str());
+    RCO_REQUIRE(RcoWriteZip(zipB, kRcoBlobPath, RcoBlobFile(bytesB)), "could not write %s", zipB.c_str());
 
-    // 1. The setter is what the identifier is built from.
+    // 1. The setter is what the getter reports.
     rm->SetDefaultCacheOwner(kRcoOwnerX);
-    RCO_CHECK(rm->GetDefaultCacheOwner() == kRcoOwnerX, "GetDefaultCacheOwner() = 0x%llx after setting 0x%llx",
-              (unsigned long long)rm->GetDefaultCacheOwner(), (unsigned long long)kRcoOwnerX);
+    RCO_EXPECT(rm->GetDefaultCacheOwner() == kRcoOwnerX, "GetDefaultCacheOwner() = 0x%llx after setting 0x%llx",
+               (unsigned long long)rm->GetDefaultCacheOwner(), (unsigned long long)kRcoOwnerX);
 
     // 2. Owner X parses A.
-    RCO_CHECK(am->AddArchive(zipA) != nullptr, "AddArchive refused %s", zipA.c_str());
+    RCO_REQUIRE(am->AddArchive(zipA) != nullptr, "AddArchive refused %s", zipA.c_str());
     auto resA = rm->LoadResourceProcess(kRcoBlobPath);
-    RCO_CHECK(resA != nullptr, "owner X: no resource at %s from archive A", kRcoBlobPath);
-    RCO_CHECK(RcoBlobBytes(resA) == bytesA, "owner X: got \"%s\", expected archive A's \"%s\"",
-              RcoBlobBytes(resA).c_str(), bytesA.c_str());
+    RCO_REQUIRE(resA != nullptr, "owner X: no resource at %s from archive A", kRcoBlobPath);
+    RCO_REQUIRE(RcoBlobBytes(resA) == bytesA, "owner X: got \"%s\", expected archive A's \"%s\"",
+                RcoBlobBytes(resA).c_str(), bytesA.c_str());
     void* const rawA = resA->GetRawPointer();
 
     // 3. B now owns the path in the archive layer. Owner Y must get B's bytes,
     //    in an object of its own: the cache key carries the owner.
-    RCO_CHECK(am->AddArchive(zipB) != nullptr, "AddArchive refused %s", zipB.c_str());
+    RCO_REQUIRE(am->AddArchive(zipB) != nullptr, "AddArchive refused %s", zipB.c_str());
     auto owningArchive = am->GetArchiveFromFile(kRcoBlobPath);
-    RCO_CHECK(owningArchive != nullptr && owningArchive->GetPath() == zipB,
-              "archive B does not own %s after it was added (owner '%s')", kRcoBlobPath,
-              owningArchive ? owningArchive->GetPath().c_str() : "(none)");
+    RCO_REQUIRE(owningArchive != nullptr && owningArchive->GetPath() == zipB,
+                "archive B does not own %s after it was added (owner '%s')", kRcoBlobPath,
+                owningArchive ? owningArchive->GetPath().c_str() : "(none)");
     rm->SetDefaultCacheOwner(kRcoOwnerY);
     auto resB = rm->LoadResourceProcess(kRcoBlobPath);
-    RCO_CHECK(resB != nullptr, "owner Y: no resource at %s", kRcoBlobPath);
-    RCO_CHECK(RcoBlobBytes(resB) == bytesB, "owner Y: got \"%s\", expected archive B's \"%s\"",
-              RcoBlobBytes(resB).c_str(), bytesB.c_str());
-    RCO_CHECK(resB.get() != resA.get(), "owner Y was served owner X's object %p", (void*)resA.get());
+    RCO_REQUIRE(resB != nullptr, "owner Y: no resource at %s", kRcoBlobPath);
+    RCO_EXPECT(RcoBlobBytes(resB) == bytesB, "owner Y: got \"%s\", expected archive B's \"%s\"",
+               RcoBlobBytes(resB).c_str(), bytesB.c_str());
+    RCO_EXPECT(resB.get() != resA.get(), "owner Y was served owner X's object %p", (void*)resA.get());
 
     // 4. Back under X: A's original object and bytes, not a reparse from B and
     //    not a fresh copy. Setting the owner freed and dirtied nothing.
     rm->SetDefaultCacheOwner(kRcoOwnerX);
     auto resA2 = rm->LoadResourceProcess(kRcoBlobPath);
-    RCO_CHECK(resA2.get() == resA.get(), "owner X: served %p, not its original object %p", (void*)resA2.get(),
-              (void*)resA.get());
-    RCO_CHECK(RcoBlobBytes(resA2) == bytesA, "owner X: got \"%s\" after the switch, expected archive A's \"%s\"",
-              RcoBlobBytes(resA2).c_str(), bytesA.c_str());
-    RCO_CHECK(!resA->IsDirty(), "owner X's object was dirtied by the owner switches");
+    RCO_EXPECT(resA2.get() == resA.get(), "owner X: served %p, not its original object %p", (void*)resA2.get(),
+               (void*)resA.get());
+    RCO_EXPECT(RcoBlobBytes(resA2) == bytesA, "owner X: got \"%s\" after the switch, expected archive A's \"%s\"",
+               RcoBlobBytes(resA2).c_str(), bytesA.c_str());
+    RCO_EXPECT(!resA->IsDirty(), "owner X's object was dirtied by the owner switches");
 
     // 5. The C bridge (ResourceGetDataByName -> GetResourceRawPointer ->
     //    LoadResource(path)) keys by the same owner.
     void* bridgeX = rm->GetResourceRawPointer(kRcoBlobPath);
-    RCO_CHECK(bridgeX == rawA, "bridge under owner X: %p, expected A's data %p", bridgeX, rawA);
+    RCO_EXPECT(bridgeX == rawA, "bridge under owner X: %p, expected A's data %p", bridgeX, rawA);
     rm->SetDefaultCacheOwner(kRcoOwnerY);
     void* bridgeY = rm->GetResourceRawPointer(kRcoBlobPath);
-    RCO_CHECK(bridgeY == resB->GetRawPointer(), "bridge under owner Y: %p, expected B's data %p", bridgeY,
-              resB->GetRawPointer());
+    RCO_EXPECT(bridgeY == resB->GetRawPointer(), "bridge under owner Y: %p, expected B's data %p", bridgeY,
+               resB->GetRawPointer());
 
     rm->SetDefaultCacheOwner(savedOwner);
+    if (failures != 0) {
+        printf("[resource-cache-owner] %d assertion(s) failed\n", failures);
+        fflush(stdout);
+        return 1;
+    }
     printf("[resource-cache-owner] PASS: owner X kept archive A's object %p (\"%s\"), owner Y got archive B's %p "
            "(\"%s\"), bridge agrees\n",
            (void*)resA.get(), bytesA.c_str(), (void*)resB.get(), bytesB.c_str());
@@ -192,7 +211,9 @@ int ResourceCacheOwner_RunHeadless(void) {
     return 0;
 }
 
-#undef RCO_CHECK
+#undef RCO_EXPECT
+#undef RCO_REQUIRE
+#undef RCO_REPORT
 
 // ---------------------------------------------------------------------------
 // One arrival's checks for the ROM-staged rows
