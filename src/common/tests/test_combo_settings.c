@@ -57,7 +57,9 @@
  * symbol under test is C-linkage.
  */
 
+#include "../combo_identity_display.h"
 #include "../combo_settings_view.h"
+#include "../combo_single_bag.h"
 #include "../context.h"
 #include "../cvar_shared_keys.h"
 #include "../foreign_items.h"
@@ -449,14 +451,28 @@ TestResult Test_ComboSettingsCanonical(void) {
 
     // --- The golden digest --------------------------------------------------
     // Hash( canonical || ':' || LE32(settingsHash) || ':' || LE32(mmProfileDigest) )
-    // over FNV-1a 32, computed independently of this build.
+    // over FNV-1a 32, computed independently of this build. That is generator
+    // version 0, the legacy formula every pre-#1003 file was stamped with; a
+    // version n >= 1 appends ':' || LE32(n). Both are pinned at an EXPLICIT
+    // version, so a bump of RSBS_GENERATOR_VERSION re-pins no vector here.
     static const uint32_t kSettingsHash = 0xDEADBEEFu;
     static const uint32_t kProfileDigest = 0x0BADF00Du;
-    static const uint32_t kGoldenFingerprint = 0xDE17C51Du;
+    static const uint32_t kGoldenFingerprintV0 = 0xDE17C51Du;
+    static const uint32_t kGoldenFingerprintV1 = 0xBA0DBEA4u;
+    CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&golden, kSettingsHash, kProfileDigest, 0u) ==
+                  kGoldenFingerprintV0,
+              "the whole-pair fingerprint's legacy (version 0) formula moved off its golden vector — every file "
+              "written before #1003 verifies against it, and #574's identity handshake inherits it");
+    CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&golden, kSettingsHash, kProfileDigest, 1u) ==
+                  kGoldenFingerprintV1,
+              "the whole-pair fingerprint at generator version 1 moved off its golden vector (#1003)");
     const uint32_t fingerprint = Combo_ComputeComboSettingsHash(&golden, kSettingsHash, kProfileDigest);
-    CS_ASSERT(fingerprint == kGoldenFingerprint,
-              "the whole-pair fingerprint moved off its golden vector — this is the lock #574's identity handshake "
-              "inherits, so a drift here is a cross-peer disagreement, not a local detail");
+    CS_ASSERT(fingerprint == Combo_ComputeComboSettingsHashForGenerator(&golden, kSettingsHash, kProfileDigest,
+                                                                        RSBS_GENERATOR_VERSION),
+              "the production fingerprint is not the formula at RSBS_GENERATOR_VERSION");
+    // The rest of this row reads the production value through the name it
+    // always used.
+    const uint32_t kGoldenFingerprint = fingerprint;
 
     // The SHIPPED DEFAULTS get their own vector: they are what every legacy
     // pair and every increment-1 world freezes, so a default change must be a
@@ -469,8 +485,10 @@ TestResult Test_ComboSettingsCanonical(void) {
     };
     CS_ASSERT(memcmp(canon, kDefaultsCanonGold, sizeof(kDefaultsCanonGold)) == 0,
               "the shipped defaults' canonical bytes changed — every new world's identity just moved");
-    CS_ASSERT(Combo_ComputeComboSettingsHash(&defaults, kSettingsHash, kProfileDigest) == 0xBA5FC364u,
-              "the shipped defaults' fingerprint changed");
+    CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&defaults, kSettingsHash, kProfileDigest, 0u) == 0xBA5FC364u,
+              "the shipped defaults' legacy (version 0) fingerprint changed");
+    CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&defaults, kSettingsHash, kProfileDigest, 1u) == 0xFC9F21ABu,
+              "the shipped defaults' version-1 fingerprint changed");
 
     // --- The comboFlags vector: SET moves it, CLEAR does not (#668) ---------
     // Both halves matter and they are different claims.
@@ -499,8 +517,10 @@ TestResult Test_ComboSettingsCanonical(void) {
                   "the byte formerly named spare0, and nothing else may shift with it");
         CS_ASSERT(memcmp(flaggedCanon, kDefaultsCanonGold, 10) == 0 && flaggedCanon[11] == kDefaultsCanonGold[11],
                   "setting the shared-ocarina flag changed a byte OTHER than byte 10");
-        CS_ASSERT(Combo_ComputeComboSettingsHash(&flagged, kSettingsHash, kProfileDigest) == 0x0B1A2145u,
-                  "the shared-ocarina world's fingerprint moved off its vector");
+        CS_ASSERT(
+            Combo_ComputeComboSettingsHashForGenerator(&flagged, kSettingsHash, kProfileDigest, 0u) == 0x0B1A2145u &&
+                Combo_ComputeComboSettingsHashForGenerator(&flagged, kSettingsHash, kProfileDigest, 1u) == 0xF7DE7DACu,
+            "the shared-ocarina world's fingerprint moved off its vector");
         CS_ASSERT(Combo_ComputeComboSettingsHash(&flagged, kSettingsHash, kProfileDigest) !=
                       Combo_ComputeComboSettingsHash(&defaults, kSettingsHash, kProfileDigest),
                   "turning the shared ocarina ON did not change comboSettingsHash — a world rule outside the "
@@ -508,7 +528,10 @@ TestResult Test_ComboSettingsCanonical(void) {
 
         ComboSettingsRecord cleared = flagged;
         cleared.comboFlags = 0u;
-        CS_ASSERT(Combo_ComputeComboSettingsHash(&cleared, kSettingsHash, kProfileDigest) == 0xBA5FC364u,
+        CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&cleared, kSettingsHash, kProfileDigest, 0u) ==
+                          0xBA5FC364u &&
+                      Combo_ComputeComboSettingsHash(&cleared, kSettingsHash, kProfileDigest) ==
+                          Combo_ComputeComboSettingsHash(&defaults, kSettingsHash, kProfileDigest),
                   "clearing the shared-ocarina flag did not return the fingerprint to the shipped defaults' — "
                   "the off state must be byte-identical to a world written before the flag existed");
     }
@@ -610,6 +633,116 @@ TestResult Test_ComboSettingsCanonical(void) {
     }
 
     printf("[TEST] PASS: canonical() emits its pinned bytes and the fingerprint folds the whole pair\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// combo-generator-version — the generator label in the fingerprint (#1003)
+// ============================================================================
+
+TestResult Test_ComboGeneratorVersion(void) {
+    printf("[TEST] combo-generator-version: comboSettingsHash folds RSBS_GENERATOR_VERSION, older files still "
+           "verify, and the single bag's seed ignores the label (#1003)\n");
+    static const uint32_t kSettingsHash = 0x5E77A1D2u;
+    static const uint32_t kProfileDigest = 0x11FED2D2u;
+    const ComboSettingsRecord golden = ComboSettingsGoldenRecord();
+    ComboSettingsRecord defaults;
+    Combo_ComboSettingsDefaults(&defaults);
+
+    CS_ASSERT(RSBS_GENERATOR_VERSION >= 1u,
+              "RSBS_GENERATOR_VERSION must be at least 1: version 0 is the legacy formula with no version term");
+
+    // --- G1: the fold. The production fingerprint IS the formula at this
+    // build's version, and a different version gives a different fingerprint,
+    // for the golden record and for the shipped defaults alike.
+    const ComboSettingsRecord* const records[2] = { &golden, &defaults };
+    for (int i = 0; i < 2; i++) {
+        const uint32_t now = Combo_ComputeComboSettingsHash(records[i], kSettingsHash, kProfileDigest);
+        const uint32_t legacy =
+            Combo_ComputeComboSettingsHashForGenerator(records[i], kSettingsHash, kProfileDigest, 0u);
+        const uint32_t next = Combo_ComputeComboSettingsHashForGenerator(records[i], kSettingsHash, kProfileDigest,
+                                                                         RSBS_GENERATOR_VERSION + 1u);
+        printf("[TEST] G1 record %d: version %u fingerprint %08X, legacy %08X, version %u %08X\n", i,
+               (unsigned)RSBS_GENERATOR_VERSION, (unsigned)now, (unsigned)legacy,
+               (unsigned)(RSBS_GENERATOR_VERSION + 1u), (unsigned)next);
+        CS_ASSERT(now == Combo_ComputeComboSettingsHashForGenerator(records[i], kSettingsHash, kProfileDigest,
+                                                                    RSBS_GENERATOR_VERSION),
+                  "G1: Combo_ComputeComboSettingsHash is not the fingerprint formula at RSBS_GENERATOR_VERSION");
+        CS_ASSERT(now != legacy,
+                  "G1: the production fingerprint equals the legacy (version 0) one — RSBS_GENERATOR_VERSION is not "
+                  "folded into comboSettingsHash, so a build whose generator changed shows the same fingerprint");
+        CS_ASSERT(now != next, "G1: bumping RSBS_GENERATOR_VERSION would not change comboSettingsHash");
+    }
+
+    // The creation stamp carries it too: what a file created by this build
+    // stores, and what #960's file-select surface prints beside the icons.
+    ComboContext_Init();
+    ComboSettingsArmPairing(0xD2D2D2D2u, kSettingsHash, kProfileDigest);
+    const uint32_t stamped = Combo_FreezeComboSettings(&defaults);
+    const ComboSettingsRecord frozen = gComboCtx.comboSettings;
+    const uint32_t legacyStamp = Combo_ComputeComboSettingsHashForGenerator(&frozen, kSettingsHash, kProfileDigest, 0u);
+    CS_ASSERT(stamped == gComboCtx.comboSettingsHash &&
+                  stamped == Combo_ComputeComboSettingsHashForGenerator(&frozen, kSettingsHash, kProfileDigest,
+                                                                        RSBS_GENERATOR_VERSION) &&
+                  stamped != legacyStamp,
+              "G1: the creation freeze did not stamp the fingerprint at RSBS_GENERATOR_VERSION");
+    char shown[RSBS_COMBO_IDENTITY_TEXT_CAP];
+    char expected[16];
+    snprintf(expected, sizeof(expected), "%08X\n", (unsigned)stamped);
+    CS_ASSERT(Combo_IdentityDisplay_GeneratedText(0xD2D2D2D2u, shown, sizeof(shown)) == 1 &&
+                  strncmp(shown, expected, 9) == 0,
+              "G1: the file select's fingerprint text is not the version-folded comboSettingsHash");
+
+    // --- G2: the load-time check. A file this build created verifies; a file
+    // an older build created (the legacy formula: every file before #1003)
+    // verifies; a newer generator and a corrupted value are damage.
+    CS_ASSERT(Combo_ComboSettingsDivergence() == 0, "G2: a file created by this build must not diverge");
+    CS_ASSERT(Combo_ComboSettingsHashGeneratorVersion(&frozen, kSettingsHash, kProfileDigest, stamped) ==
+                  (int)RSBS_GENERATOR_VERSION,
+              "G2: this build's fingerprint must read as this build's generator version");
+    gComboCtx.comboSettingsHash = legacyStamp;
+    CS_ASSERT(Combo_ComboSettingsDivergence() == 0,
+              "G2: a file created before #1003 (a version-0 fingerprint) is refused — the generator fold must not "
+              "orphan an older healthy file");
+    CS_ASSERT(Combo_ComboSettingsHashGeneratorVersion(&frozen, kSettingsHash, kProfileDigest, legacyStamp) == 0,
+              "G2: a legacy fingerprint must read as generator version 0");
+    gComboCtx.comboSettingsHash =
+        Combo_ComputeComboSettingsHashForGenerator(&frozen, kSettingsHash, kProfileDigest, RSBS_GENERATOR_VERSION + 1u);
+    CS_ASSERT(Combo_ComboSettingsDivergence() == RSBS_COMBO_DIVERGE_FINGERPRINT,
+              "G2: a fingerprint from a NEWER generator than this build's must read as a fingerprint mismatch");
+    gComboCtx.comboSettingsHash = stamped ^ 0x00010000u;
+    CS_ASSERT(Combo_ComboSettingsDivergence() == RSBS_COMBO_DIVERGE_FINGERPRINT,
+              "G2: a corrupted fingerprint must still be damage");
+
+    // --- G3: the label is not an entropy input. The single bag's three seeds
+    // are the same whether the resident fingerprint carries this build's
+    // version or the legacy formula, so a version bump moves no placement.
+    gComboCtx.comboSettingsHash = stamped;
+    CS_ASSERT(Combo_ComboSettingsWorldHash() == legacyStamp,
+              "G3: the world hash of a version-stamped fingerprint must be its legacy (version 0) value");
+    const uint32_t seedNow = Combo_SingleBag_SeedFor(0);
+    const uint32_t seedNow3 = Combo_SingleBag_SeedFor(3);
+    const uint32_t trimNow = Combo_SingleBag_TrimSeed();
+    const uint32_t foolishNow = Combo_SingleBag_FoolishSeed();
+    gComboCtx.comboSettingsHash = legacyStamp;
+    CS_ASSERT(Combo_ComboSettingsWorldHash() == legacyStamp, "G3: a legacy fingerprint is its own world hash");
+    CS_ASSERT(Combo_SingleBag_SeedFor(0) == seedNow && Combo_SingleBag_SeedFor(3) == seedNow3 &&
+                  Combo_SingleBag_TrimSeed() == trimNow && Combo_SingleBag_FoolishSeed() == foolishNow,
+              "G3: the single bag's seeds moved with the generator version — a bump would move every placement");
+    // ...and the record still reaches the seed: the label came off, not the identity.
+    ComboSettingsRecord other = defaults;
+    other.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_EITHER;
+    Combo_FreezeComboSettings(&other);
+    CS_ASSERT(Combo_SingleBag_SeedFor(0) != seedNow,
+              "G3: a different combo record gave the same single-bag seed — the world hash lost the record");
+    // A value no version reproduces is folded as stored, as before #1003.
+    gComboCtx.comboSettingsHash = 0x0BADC0DEu;
+    CS_ASSERT(Combo_ComboSettingsWorldHash() == 0x0BADC0DEu, "G3: an unrecognised fingerprint must fold as stored");
+
+    ComboContext_Init();
+    printf("[TEST] PASS: comboSettingsHash folds generator version %u, older files verify, and the single bag's "
+           "seeds ignore the label\n",
+           (unsigned)RSBS_GENERATOR_VERSION);
     return TEST_PASS;
 }
 
@@ -979,13 +1112,19 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     };
     static const uint32_t kSettingsHash = 0xDEADBEEFu;
     static const uint32_t kProfileDigest = 0x0BADF00Du;
-    static const uint32_t kDefaultsFingerprint = 0xBA5FC364u;
+    // Pinned at the legacy formula (version 0) so a bump of RSBS_GENERATOR_VERSION
+    // re-pins nothing here (#1003); the production value is derived from it below.
+    static const uint32_t kDefaultsFingerprintV0 = 0xBA5FC364u;
     uint8_t canon[RSBS_COMBO_SETTINGS_CANONICAL_LEN];
     Combo_ComboSettingsCanonical(&live, canon);
     CS_ASSERT(memcmp(canon, kDefaultsCanon, sizeof(kDefaultsCanon)) == 0,
               "the resolved defaults' canonical bytes moved — the identity of every unauthored world just changed");
-    CS_ASSERT(Combo_ComputeComboSettingsHash(&live, kSettingsHash, kProfileDigest) == kDefaultsFingerprint,
+    CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&live, kSettingsHash, kProfileDigest, 0u) ==
+                  kDefaultsFingerprintV0,
               "the resolved defaults' fingerprint moved off its golden vector");
+    const uint32_t kDefaultsFingerprint = Combo_ComputeComboSettingsHash(&defaults, kSettingsHash, kProfileDigest);
+    CS_ASSERT(Combo_ComputeComboSettingsHash(&live, kSettingsHash, kProfileDigest) == kDefaultsFingerprint,
+              "the resolved defaults' production fingerprint is not the shipped defaults'");
     CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_DIRECTION) == (int32_t)defaults.direction &&
                   Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)defaults.goal,
               "each key's default must be the defaults record's own field — one definition of 'what ships'");

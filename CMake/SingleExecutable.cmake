@@ -870,6 +870,9 @@ if(BUILD_TESTING)
     # different world identity on one peer's build.
     redship_add_test(NAME ComboSettingsFormat COMMAND redship --test combo-settings-format)
     redship_add_test(NAME ComboSettingsCanonical COMMAND redship --test combo-settings-canonical)
+    # #1003: the fingerprint folds RSBS_GENERATOR_VERSION (red with the fold
+    # removed), a pre-#1003 file still verifies, and the bag seed ignores the label.
+    redship_add_test(NAME ComboGeneratorVersion COMMAND redship --test combo-generator-version)
     # #951: the project hash (SohUtils::Hash, Ship_Hash) folds bytes >= 0x80
     # unsigned, so a non-ASCII seed makes the same world on signed- and
     # unsigned-char targets. Pinned vectors; reverting either cast is red on x86.
