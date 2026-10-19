@@ -3159,11 +3159,23 @@ int ClPairCopies(const ClEngine* e, uint16_t id) {
 
 } // namespace
 
+// A SOFT check: every assertion of the row runs even after one fails, so a
+// single mutation shows each assertion it breaks (the per-assertion RED).
+static int sClpFailures;
+#define CLP_CHECK(cond, msg)                                                \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            sClpFailures++;                                                 \
+        }                                                                   \
+    } while (0)
+
 TestResult Test_ComboLogicSharedPair(void) {
     printf("[TEST] combo-logic-shared-pair: one shared-pair bag row is credited by BOTH engines, its far half goes "
            "through the crossing gate, and the composer replaces both games' rows with one (ABI 7, #976)\n");
     const uint8_t O = (uint8_t)GAME_OOT;
     const uint8_t M = (uint8_t)GAME_MM;
+    sClpFailures = 0;
     ClUninstall();
 
     // ---- (1) SEED: an assumed shared-pair row is one copy in EACH engine ----
@@ -3174,15 +3186,15 @@ TestResult Test_ComboLogicSharedPair(void) {
         const int rc = ClRunRound((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, assumed, 1, &r);
         printf("[TEST] (1) seed: rc %d goalOoT %d goalMM %d, assume calls OoT %d MM %d (expected 0, 1, 1, 1, 1)\n", rc,
                r.goalOoT, r.goalMM, ClPairAssumeCalls(&gClOoT, kOotPairMask), ClPairAssumeCalls(&gClMM, kMmPairMask));
-        CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK, "(1) the round runs");
-        CL_ASSERT(ClPairAssumeCalls(&gClOoT, kOotPairMask) == 1,
+        CLP_CHECK(rc == RSBS_COMBO_LOGIC_OK, "(1) the round runs");
+        CLP_CHECK(ClPairAssumeCalls(&gClOoT, kOotPairMask) == 1,
                   "(1) the OoT engine was not credited the row's OoT half exactly once");
-        CL_ASSERT(ClPairAssumeCalls(&gClMM, kMmPairMask) == 1,
+        CLP_CHECK(ClPairAssumeCalls(&gClMM, kMmPairMask) == 1,
                   "(1) the MM engine was not credited the row's MM half exactly once: an assumed shared pair must "
                   "seed BOTH engines");
-        CL_ASSERT(r.goalOoT == 1 && r.goalMM == 1 && r.goalExpression == 1,
+        CLP_CHECK(r.goalOoT == 1 && r.goalMM == 1 && r.goalExpression == 1,
                   "(1) one assumed shared row must prove both halves");
-        CL_ASSERT(ClContractClean(), "(1) no engine saw the other game's id");
+        CLP_CHECK(ClContractClean(), "(1) no engine saw the other game's id");
     }
 
     // ---- (2) PLACED ON AN OoT HOST: OoT harvests its half, MM is handed its own --
@@ -3198,41 +3210,41 @@ TestResult Test_ComboLogicSharedPair(void) {
         printf("[TEST] (2) OoT host: fill rc %d, placed %d item %u/%u pair %u/%u, engine stored %u/%u\n", rc,
                placed ? 1 : 0, (unsigned)p.item.originGame, (unsigned)p.item.id, (unsigned)p.pair.originGame,
                (unsigned)p.pair.id, (unsigned)gClOoT.placedRaw[0].originGame, (unsigned)gClOoT.placedRaw[0].id);
-        CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK && fr.goalProven,
+        CLP_CHECK(rc == RSBS_COMBO_LOGIC_OK && fr.goalProven,
                   "(2) a shared row on an OoT host must prove beat-both: MM's half has to reach MM's engine");
-        CL_ASSERT(placed && p.item.originGame == O && p.item.id == kOotPairMask,
+        CLP_CHECK(placed && p.item.originGame == O && p.item.id == kOotPairMask,
                   "(2) the OoT host must hold OoT's OWN half of the pair");
-        CL_ASSERT(p.pair.originGame == M && p.pair.id == kMmPairMask,
+        CLP_CHECK(p.pair.originGame == M && p.pair.id == kMmPairMask,
                   "(2) the placement must keep MM's half as `pair`");
-        CL_ASSERT(gClOoT.placedCount == 1 && !gClOoT.placedIsCover[0] && gClOoT.placedRaw[0].originGame == O &&
+        CLP_CHECK(gClOoT.placedCount == 1 && !gClOoT.placedIsCover[0] && gClOoT.placedRaw[0].originGame == O &&
                       gClOoT.placedRaw[0].id == kOotPairMask,
                   "(2) the OoT engine must be given its own id through place, never a cover");
 
         // One round over the placed world: each engine holds ONE copy.
         ComboLogicRoundResult r;
         memset(gClMM.assumeCalls, 0, sizeof(gClMM.assumeCalls));
-        CL_ASSERT(ClRunRound((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &r) == RSBS_COMBO_LOGIC_OK,
+        CLP_CHECK(ClRunRound((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &r) == RSBS_COMBO_LOGIC_OK,
                   "(2) the round over the placed world runs");
         printf("[TEST] (2) round: goalOoT %d goalMM %d exchanged %d, copies OoT %d MM %d (expected 1, 1, 1, 1, 1)\n",
                r.goalOoT, r.goalMM, r.exchanged, ClPairCopies(&gClOoT, kOotPairMask),
                ClPairCopies(&gClMM, kMmPairMask));
-        CL_ASSERT(ClPairCopies(&gClOoT, kOotPairMask) == 1, "(2) OoT must harvest exactly one copy from its own host");
-        CL_ASSERT(ClPairCopies(&gClMM, kMmPairMask) == 1 && r.exchanged == 1,
+        CLP_CHECK(ClPairCopies(&gClOoT, kOotPairMask) == 1, "(2) OoT must harvest exactly one copy from its own host");
+        CLP_CHECK(ClPairCopies(&gClMM, kMmPairMask) == 1 && r.exchanged == 1,
                   "(2) MM must be handed exactly one copy of its half, through the exchange");
-        CL_ASSERT(r.goalOoT == 1 && r.goalMM == 1, "(2) both halves prove");
+        CLP_CHECK(r.goalOoT == 1 && r.goalMM == 1, "(2) both halves prove");
 
         // THE GATE: with OoT's crossing closed the player cannot carry the item
         // to Termina, so MM's engine must not be credited.
         gClOoT.crossingRequires = kClNeverBit;
         memset(gClMM.assumeCalls, 0, sizeof(gClMM.assumeCalls));
-        CL_ASSERT(ClRunRound((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &r) == RSBS_COMBO_LOGIC_OK,
+        CLP_CHECK(ClRunRound((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &r) == RSBS_COMBO_LOGIC_OK,
                   "(2) the gated round runs");
         printf("[TEST] (2) OoT crossing closed: MM copies %d, exchanged %d (expected 0, 0)\n",
                ClPairCopies(&gClMM, kMmPairMask), r.exchanged);
-        CL_ASSERT(ClPairCopies(&gClMM, kMmPairMask) == 0 && r.exchanged == 0,
+        CLP_CHECK(ClPairCopies(&gClMM, kMmPairMask) == 0 && r.exchanged == 0,
                   "(2) MM's half crossed while OoT's crossing was closed: the far half must wait for the gate");
-        CL_ASSERT(ClPairCopies(&gClOoT, kOotPairMask) == 1, "(2) OoT's own half needs no gate");
-        CL_ASSERT(ClContractClean(), "(2) no engine saw the other game's id");
+        CLP_CHECK(ClPairCopies(&gClOoT, kOotPairMask) == 1, "(2) OoT's own half needs no gate");
+        CLP_CHECK(ClContractClean(), "(2) no engine saw the other game's id");
     }
 
     // ---- (3) PLACED ON AN MM HOST: the far half needs BOTH crossings ---------
@@ -3247,24 +3259,24 @@ TestResult Test_ComboLogicSharedPair(void) {
         const bool placed = Combo_Logic_GetPlacement(GAME_MM, 20, &p);
         printf("[TEST] (3) MM host: fill rc %d, placed %d item %u/%u pair %u/%u\n", rc, placed ? 1 : 0,
                (unsigned)p.item.originGame, (unsigned)p.item.id, (unsigned)p.pair.originGame, (unsigned)p.pair.id);
-        CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK && fr.goalProven,
+        CLP_CHECK(rc == RSBS_COMBO_LOGIC_OK && fr.goalProven,
                   "(3) a shared row on an MM host must prove beat-both: OoT's half has to reach OoT's engine");
-        CL_ASSERT(placed && p.item.originGame == M && p.item.id == kMmPairMask && p.pair.originGame == O &&
+        CLP_CHECK(placed && p.item.originGame == M && p.item.id == kMmPairMask && p.pair.originGame == O &&
                       p.pair.id == kOotPairMask,
                   "(3) the MM host must hold MM's OWN half, with OoT's half as `pair`");
-        CL_ASSERT(gClMM.placedCount == 1 && !gClMM.placedIsCover[0] && gClMM.placedRaw[0].id == kMmPairMask,
+        CLP_CHECK(gClMM.placedCount == 1 && !gClMM.placedIsCover[0] && gClMM.placedRaw[0].id == kMmPairMask,
                   "(3) the MM engine must be given its own id through place, never a cover");
 
         ComboLogicRoundResult r;
         gClMM.crossingRequires = kClNeverBit; // the player could reach Termina but never come back
-        CL_ASSERT(ClRunRound((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &r) == RSBS_COMBO_LOGIC_OK,
+        CLP_CHECK(ClRunRound((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, NULL, 0, &r) == RSBS_COMBO_LOGIC_OK,
                   "(3) the gated round runs");
         printf("[TEST] (3) MM crossing closed: OoT copies %d, MM copies %d (expected 0, 1)\n",
                ClPairCopies(&gClOoT, kOotPairMask), ClPairCopies(&gClMM, kMmPairMask));
-        CL_ASSERT(ClPairCopies(&gClOoT, kOotPairMask) == 0,
+        CLP_CHECK(ClPairCopies(&gClOoT, kOotPairMask) == 0,
                   "(3) OoT's half crossed from an MM host with MM's crossing closed: it needs both crossings");
-        CL_ASSERT(ClPairCopies(&gClMM, kMmPairMask) == 1, "(3) MM's own half needs no gate");
-        CL_ASSERT(ClContractClean(), "(3) no engine saw the other game's id");
+        CLP_CHECK(ClPairCopies(&gClMM, kMmPairMask) == 1, "(3) MM's own half needs no gate");
+        CLP_CHECK(ClContractClean(), "(3) no engine saw the other game's id");
     }
 
     // ---- (4) THE ROW IS REFUSED WITH HOME_ONLY -------------------------------
@@ -3275,14 +3287,14 @@ TestResult Test_ComboLogicSharedPair(void) {
         ComboLogicFillResult fr;
         const int rc =
             ClRunFill(bag, 1, (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH, (uint8_t)RSBS_COMBO_RUNG_BEATABLE, 0x0976A003u, &fr);
-        CL_ASSERT(rc == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST, "(4) a shared pair marked HOME_ONLY must be refused");
+        CLP_CHECK(rc == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST, "(4) a shared pair marked HOME_ONLY must be refused");
     }
     ClUninstall();
 
     // ---- (5) COMPOSE: both games' rows become ONE row ------------------------
     {
         const ClComposeSourceGuard guard;
-        CL_ASSERT(guard.installed, "(5) both synthetic classification sources installed");
+        CLP_CHECK(guard.installed, "(5) both synthetic classification sources installed");
         // Synthetic ids 1 (progression in both games) form the family; 4 is junk.
         const ComboLogicPoolRow pool[] = { ClPoolRow(O, 1, 0), ClPoolRow(O, 4, 0), ClPoolRow(M, 1, 0) };
         ComboLogicComposeRequest req;
@@ -3295,7 +3307,7 @@ TestResult Test_ComboLogicSharedPair(void) {
         int index[8];
         ComboLogicComposeResult res;
 
-        CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 8, index, &res) == RSBS_COMBO_LOGIC_OK && res.bagCount == 2 &&
+        CLP_CHECK(Combo_Logic_ComposeBag(&req, bag, 8, index, &res) == RSBS_COMBO_LOGIC_OK && res.bagCount == 2 &&
                       res.sharedPairs == 0,
                   "(5) control: with no family both games' rows are bag rows");
 
@@ -3308,14 +3320,14 @@ TestResult Test_ComboLogicSharedPair(void) {
         printf("[TEST] (5) compose: rc %d bag %d pairs %d, row0 %u/%u flags %04X pairId %u, trimmed %d at %d\n", rc,
                res.bagCount, res.sharedPairs, (unsigned)bag[0].item.originGame, (unsigned)bag[0].item.id,
                (unsigned)bag[0].bagFlags, (unsigned)bag[0].pairId, Combo_Logic_ComposeTrimmedCount(), trimmedAt);
-        CL_ASSERT(rc == RSBS_COMBO_LOGIC_OK && res.bagCount == 1 && res.sharedPairs == 1,
+        CLP_CHECK(rc == RSBS_COMBO_LOGIC_OK && res.bagCount == 1 && res.sharedPairs == 1,
                   "(5) the family must leave exactly ONE bag row");
-        CL_ASSERT(index[0] == 0 && bag[0].item.originGame == O && bag[0].item.id == 1 &&
+        CLP_CHECK(index[0] == 0 && bag[0].item.originGame == O && bag[0].item.id == 1 &&
                       bag[0].bagFlags == RSBS_COMBO_BAG_SHARED_PAIR && bag[0].pairId == 1,
                   "(5) the row at the EARLIER pool position must be the shared row, naming the other half's id");
-        CL_ASSERT(Combo_Logic_ComposeTrimmedCount() == 1 && trimmed && trimmedAt == 2,
+        CLP_CHECK(Combo_Logic_ComposeTrimmedCount() == 1 && trimmed && trimmedAt == 2,
                   "(5) the other game's row must be TRIMMED to filler for its own pass");
-        CL_ASSERT(res.perGame[M].rows[RSBS_COMBO_COMPOSE_TRIMMED] == 1 &&
+        CLP_CHECK(res.perGame[M].rows[RSBS_COMBO_COMPOSE_TRIMMED] == 1 &&
                       res.perGame[M].rows[RSBS_COMBO_COMPOSE_REQUIRED] == 0 &&
                       res.perGame[O].rows[RSBS_COMBO_COMPOSE_REQUIRED] == 1,
                   "(5) the counts must move the dropped half from REQUIRED to TRIMMED under its own game");
@@ -3324,7 +3336,7 @@ TestResult Test_ComboLogicSharedPair(void) {
         const ComboLogicPoolRow mmFirst[] = { ClPoolRow(M, 1, 0), ClPoolRow(O, 1, 0) };
         req.rows = mmFirst;
         req.rowCount = 2;
-        CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 8, index, &res) == RSBS_COMBO_LOGIC_OK && res.bagCount == 1 &&
+        CLP_CHECK(Combo_Logic_ComposeBag(&req, bag, 8, index, &res) == RSBS_COMBO_LOGIC_OK && res.bagCount == 1 &&
                       bag[0].item.originGame == M && bag[0].pairId == 1 && index[0] == 0,
                   "(5) with MM's row first the kept row is MM's, at its own position");
 
@@ -3334,17 +3346,17 @@ TestResult Test_ComboLogicSharedPair(void) {
         req.rows = oneSide;
         req.rowCount = 1;
         req.sharedPairs = &famOne;
-        CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 8, index, &res) == RSBS_COMBO_LOGIC_OK && res.bagCount == 1 &&
+        CLP_CHECK(Combo_Logic_ComposeBag(&req, bag, 8, index, &res) == RSBS_COMBO_LOGIC_OK && res.bagCount == 1 &&
                       bag[0].bagFlags == RSBS_COMBO_BAG_SHARED_PAIR && bag[0].pairId == 77 &&
                       Combo_Logic_ComposeTrimmedCount() == 0,
                   "(5) a family with one side's row keeps that copy as the shared row and trims nothing");
 
         req.sharedPairs = NULL;
         req.sharedPairCount = 1;
-        CL_ASSERT(Combo_Logic_ComposeBag(&req, bag, 8, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
+        CLP_CHECK(Combo_Logic_ComposeBag(&req, bag, 8, index, &res) == RSBS_COMBO_LOGIC_ERR_BAD_REQUEST,
                   "(5) a positive family count with a NULL list must be refused");
     }
 
-    printf("[TEST] combo-logic-shared-pair: PASS\n");
-    return TEST_PASS;
+    printf("[TEST] combo-logic-shared-pair: %s\n", sClpFailures == 0 ? "PASS" : "FAIL");
+    return sClpFailures == 0 ? TEST_PASS : TEST_FAIL;
 }

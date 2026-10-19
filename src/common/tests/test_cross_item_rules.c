@@ -310,7 +310,10 @@ TestResult Test_CrossItemRulesRecord(void) {
         Context_InvalidateSessionState(RSBS_SEED_STAMP_KEEP);
         XIR_CHECK(memcmp(&gComboCtx.comboItemRules, &on, sizeof(on)) == 0 && gComboCtx.comboSettingsHash == 0x3AC849EBu,
                   "the file-create invalidation dropped the item rules while keeping the fingerprint over them");
-        XIR_CHECK(Combo_ComboSettingsDivergence() == 0, "a kept world must compare healthy against itself");
+        // Kept with its fingerprint, the record is not damage: the only fields the
+        // session diff names are the two rules this session cannot author ((7)).
+        XIR_CHECK((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_FINGERPRINT) == 0u,
+                  "a kept world's rules no longer reproduce its kept fingerprint");
         Context_InvalidateSessionState(RSBS_SEED_STAMP_DROP);
         XIR_CHECK(Combo_ComboItemRulesClear(&gComboCtx.comboItemRules) && Combo_ComboCrossItemFlags() == 0u,
                   "a DROP invalidation must drop the rules with the record");
@@ -505,7 +508,11 @@ TestResult Test_SharedFamilyMerge(void) {
                sXirGives[GAME_MM], sXirHeld[GAME_MM] ? 1 : 0, (unsigned)G);
         XIR_CHECK(afterOoT == G, "OoT's real harvest shim did not put the family OoT holds into the pool");
         XIR_CHECK(sXirGives[GAME_MM] == 1 && sXirHeld[GAME_MM], "MM's real apply shim did not give MM its copy");
-        XIR_CHECK(sXirGives[GAME_OOT] == 0, "OoT, which held its copy, was given another");
+        // OoT's own next arrival: it holds its copy, so it is owed nothing.
+        OoT_SharedSwordTest_ArmLive();
+        OoT_ApplySharedResources();
+        XIR_CHECK(sXirGives[GAME_OOT] == 0, "OoT, which held its copy, was given another at its own arrival");
+        MM_SharedSwordTest_ArmLive();
 
         // A second arrival gives nothing: MM holds it now.
         MM_ApplySharedResources();
