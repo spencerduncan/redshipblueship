@@ -326,6 +326,29 @@ which attempt's world the player gets. `MMPairedExhaustion` locks both stops
 squeezed and the shipped budget and requires the same verdict, the same rounds and
 the same world at both.
 
+## 4.4 The shared pair (ABI 7, #976)
+
+The one place a bag row is credited by both engines. The contract is THE SHARED
+PAIR block in `combo_logic.h`; the choices behind it:
+
+- **The far half is a coordinator delivery, not an engine one.** The host
+  engine harvests its own half from its own host as it harvests any own-origin
+  item; the other engine cannot see that host, so the coordinator hands it the
+  other half in the exchange, under the gate a crossing from that host would
+  use. That keeps every engine's `expand` unchanged and puts the new behaviour
+  in one function (`ComboLogicExchangeFrom`).
+- **The placement stores the host's own half.** `item` is what the host engine
+  was given; `pair` is the far half. So everything downstream that reads
+  `item` (the crossing count, the crossing store, the per-side bound, the
+  host's own save) sees an ordinary own-origin placement, and the only readers
+  that need to know are the exchange and the digest.
+- **The digest folds the pair only when present**, so every world without one
+  digests as it did at ABI 6.
+- **The ids come from the caller.** The coordinator still names no RG_* or
+  RI_*: a family is an opaque (OoT id, MM id) pair in the compose request.
+
+Locked by `ComboLogicSharedPair`.
+
 ## 5. Termination, and the two watchdogs
 
 The argument is written at the loop: each engine's expansion is monotone on its

@@ -2401,3 +2401,58 @@ pinned attempt, 258 of 1250 rounds). No golden moved.
 
 Solo MM generation (not paired) keeps upstream's own 10 s wall-clock abort in
 `GlitchlessLogic.cpp`; it is outside the paired creation and this decision.
+
+### 2026-10-18 -- The shared pair: one bag row both solvers credit (ABI 7, #976)
+
+Epic #975's shared masks need OoTMM's shared item: one pool item that both
+games' logic counts (`has(MASK_X) || has(SHARED_MASK_X)` in both macro files).
+Until now the coordinator routed every bag row to the ONE engine its origin
+names, so no item was counted by both proofs. The operator ruled for a shared
+row (2026-10-18, epic #975 decision 1), not the Shared Kokiri Sword pattern,
+which keeps both pools whole and spends a pickup, and not a trim to one copy,
+which would leave the dropped copy's engine never assuming it.
+
+**The row.** `RSBS_COMBO_BAG_SHARED_PAIR` (bag flag 0x4) with
+`ComboLogicBagItem.pairId`, the other game's id for the same family.
+`RSBS_COMBO_LOGIC_ENGINE_ABI` goes from 6 to 7: the vtable's shape is
+unchanged, but `assumeOwnItem` gains a third source, so an engine can now be
+credited one of its own ids from a host of the other game that holds an
+own-origin item there.
+
+- **Compose.** `ComboLogicComposeRequest.sharedPairs` lists the families as
+  (OoT id, MM id). After the rule table and the shared-quantity trim, the
+  first REQUIRED row of each half becomes one shared row at the earlier pool
+  position, and the other is TRIMMED (filler for its own game's junk pass):
+  OoTMM's replace-both-then-remove-one. A family with one side's row keeps it
+  as the shared row and trims nothing. `ComboLogicComposeResult.sharedPairs`
+  counts them.
+- **Seed.** An assumed shared row is one copy in EACH engine.
+- **Draw.** The row may use any candidate of either side as that side's own
+  item: no `hostAcceptsForeign`, no crossing bound, never HOME_ONLY (refused
+  if marked). Placed on host game H, the host's engine is given H's own half
+  through `place`, and the placement keeps the other half as
+  `ComboLogicPlacement.pair`.
+- **Exchange.** The host engine harvests its half itself. The coordinator hands
+  the far half to the far engine through the gate a crossing from that host
+  uses: from an OoT host, once it is reached and OoT's crossing is open; from
+  an MM host, once it is reached and both crossings are open. A forbidden host
+  delivers nothing.
+- **Production.** `combo_single_bag.c` builds the family list from the frozen
+  record's armed families (ADR 0011's 2026-10-18 amendment) and each game's
+  registered native copy (`Combo_RegisterSharedFamilyMember`), the same
+  registration the runtime family bitset gives from, and never marks a shared
+  row HOME_ONLY. With every rule off (the default, and the only state this
+  build can freeze) the list is empty and the bag is byte for byte what it was:
+  no world moves, and the `Golden*` rows stay green with `tests/golden/`
+  untouched.
+- **Unchanged:** a placement digest over a world with no shared pair (the pair
+  is folded only when present), the crossing count, and the crossing store
+  (which never holds a shared pair: the far game receives its copy through the
+  family bitset at its next arrival, which is the same moment the exchange
+  gate models).
+
+Locked by `ComboLogicSharedPair` (redship tier, stub engines): an assumed row
+credits both engines once; placed on an OoT host it proves beat-both with one
+copy in each engine and MM's half waits for OoT's crossing; placed on an MM
+host OoT's half waits for both crossings; HOME_ONLY is refused; the composer
+makes one row and trims the other game's.

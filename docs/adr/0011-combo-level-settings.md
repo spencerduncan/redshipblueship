@@ -1718,3 +1718,77 @@ can be an option". Default OFF, in the shape #668 gave the shared ocarina.
 Locked by `SharedKokiriSword` (legs 6 and 7 lock the whole pools and the
 promotion), `ComboSettingsRows`, `ComboSettingsAuthoring`,
 `ComboSettingsDivergence` and `CVarClassification` (three identity keys).
+
+### 2026-10-18 -- The cross-game item rules: a sibling record at 900 and the shared-family bitset at 908 (#976, format note)
+
+Epic #975 (OoTMM-parity cross-game masks) needs one combo-level home for 17
+mask rules, #968's three arrows, #969's Bunny Hood and #970's bottles, plus
+the Blast Mask's cooldown. `comboFlags` has six free bits and `spare1` is one
+byte, and the record cannot grow in place: `comboTriforce` is pinned at 896,
+right behind it. So the rules are a **sibling record**, carved from the front
+of `reserved[]`, and the combo record's `formatVersion` stays 1.
+
+- **The layout.** `ComboItemRulesRecord comboItemRules` at **900** (8 bytes):
+  `uint32_t crossItemFlags` (offset 0), `uint8_t blastMaskCooldown` (4),
+  `uint8_t spare[3]` (5..7). Then `uint32_t sharedFamilyOwned` at **908**.
+  `reserved[]` goes from 104 bytes at 900 to **92 at 912**, 28 above ADR
+  0009's floor. `sizeof(ComboContext)` stays 1004. Every offset is pinned by a
+  static assert, beside the carves before it.
+- **The value spaces** (`foreign_items.h`, pinned, append-only):
+  `RSBS_XITEM_SHARED_GORON` 0x1, `_ZORA` 0x2, `_BUNNY` 0x4 (#969 rides this
+  bit; there is no separate one), `_KEATON` 0x8, `_TRUTH` 0x10;
+  `RSBS_XITEM_BLAST_MASK_OOT` 0x20, `_STONE_MASK_OOT` 0x40,
+  `_KAMARO_MASK_OOT` 0x80, `_GERUDO_MASK_MM` 0x100, `_SKULL_MASK_MM` 0x200,
+  `_SPOOKY_MASK_MM` 0x400; the shared extensions `RSBS_XITEM_SHARED_BLAST`
+  0x800 through `_SPOOKY` 0x10000, each requiring its extension bit; #968's
+  `_SHARED_ARROW_FIRE` 0x20000, `_ICE` 0x40000, `_LIGHT` 0x80000; #970's
+  `_SHARED_BOTTLES` 0x100000 (reserved, not a family). `RSBS_XITEM_ALL_V1` is
+  0x1FFFFF; bit 31 is never allocated. The cooldown is
+  `RSBS_BLAST_COOLDOWN_DEFAULT` 0 (MM's own), `_INSTANT` 1, `_VERY_SHORT` 2,
+  `_SHORT` 3, `_LONG` 4, `_VERY_LONG` 5.
+- **Zero is every rule off**, which is today's world and what every pre-carve
+  record holds, so no occupancy tag is needed: "frozen or not" is
+  `comboSettings.formatVersion`'s answer.
+- **The fingerprint.** `Combo_ComputeComboSettingsHashEx` appends
+  `"#" || canonical(itemRules)` (the u32 little-endian, the cooldown, the
+  spares, a byte at a time) **only when the record is not all clear**. An
+  all-clear record therefore leaves `comboSettingsHash`, the single-bag seed
+  folded from it, and every `Golden*` digest exactly where they were. Any set
+  bit, a non-default cooldown or a nonzero spare moves it. Vectors: the
+  defaults' fingerprint stays 0xBA5FC364; with `crossItemFlags` 0x825 and the
+  SHORT cooldown it is 0x3AC849EB (computed outside the build).
+- **The freeze.** `Combo_FreezeComboSettingsEx(rec, rules)` freezes both and
+  stamps over both; the creation event (`Playthrough_Init`) calls it with
+  `Combo_ResolveComboItemRules`. `Combo_FreezeComboSettings(rec)` freezes every
+  rule off. `comboItemRules` joins the file-create invalidation's KEEP set
+  beside the record and its hash.
+- **Divergence.** Three bits, contiguous after 0x2000:
+  `RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS` 0x4000 (`crossItemFlags`),
+  `_BLAST_MASK_COOLDOWN` 0x8000 (`blastMaskCooldown`) and
+  `_ITEM_RULES_SPARE` 0x10000 (`itemRulesSpare`). One bit for the whole
+  bitset, not one per rule: the u32 has fewer bits left than there are rules.
+  The load (`SaveManager::LoadSlot`, both compares) and the arrival
+  (`Combo_ComboSettingsDivergence`) run `Combo_ComboSettingsDivergenceForEx`
+  over the record they hold, and the fingerprint cross-check folds the rules.
+- **No authoring surface yet.** #976 adds no Cross-Game Rules row and no
+  tier-4 key: the rows come with the phase that gives each rule its behaviour
+  (epic #975 P2 on). Until then `Combo_ResolveComboItemRules` is the defaults,
+  every world this build creates freezes every rule off, and a file a later
+  build made with a rule on is **refused at load and at arrival, by name, and
+  not quarantined** (a session divergence no key can restore). Playing it with
+  the rule silently off would be the corruption one-game semantics forbids.
+  When the keys land, they join `Combo_ComboSettingsRestorableMask`.
+- **The family bitset.** `sharedFamilyOwned` holds one bit per SHARED family,
+  at the family's own rule bit (`RSBS_XITEM_FAMILY_MASK` 0x000FF81F: the five
+  shared masks, the six shared extensions, the three arrows). It merges by a
+  third discipline, OR (`shared_resources.h`): harvest `owned |= held & armed`,
+  apply gives the arriving game its own copy of `owned & armed & ~held`. It is
+  not a shared-resource slot: all twenty are allocated, and a slot's 16-bit
+  value could not hold the 32-bit family space. Session state, like the
+  shared-resource pool: not in the KEEP set.
+
+Locked by `CrossItemRulesRecord` (the carve, the spaces, canonical(), every
+rule moving the fingerprint and the all-clear record not moving it, the two
+vectors, the freeze and the KEEP set, the divergence names, and a `.redsave`
+with a rule on refused at load with nothing quarantined) and
+`SharedFamilyMerge` (the OR merge both ways and both games' real shims).
