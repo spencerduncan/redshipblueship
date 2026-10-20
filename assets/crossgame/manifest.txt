@@ -125,6 +125,16 @@ mm->oot objects/object_gi_sword_2/
 mm->oot objects/object_gi_sword_3/
 mm->oot objects/object_gi_sword_4/
 #
+# MM's item-icon textures (#963).  The Combo Item Tracker overlay draws MM's
+# section from these before Majora's Mask has run in the session: mm.o2r is
+# not mounted until the first crossing, so the icons that section names by
+# resource path (MM_gItemIcons) are reachable from OoT only through this half.
+# All 117 distinct paths MM_gItemIcons names are absent from oot.o2r and soh.o2r
+# (none collides); 112 sit in these two directories, the five ocarina-button
+# icons in parameter_static are no tracker row's and stay with MM.
+mm->oot icon_item_static_yar/
+mm->oot icon_item_24_static_yar/
+#
 # --- oot->mm: redship-mm.o2r ---------------------------------------------------
 # The 36 OoT-exclusive get-item objects (#577 M6; object_gi_hammer was M1's
 # seed).
