@@ -2773,32 +2773,50 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # door left the loop and main re-ran OoT's Main() on the retired gamestate:
     # an access violation in OoT_GameState_SetFrameBuffer. RUN_SERIAL because
     # the archive is missing from the build directory while the row runs.
-    # CMake/CheckCrossingRefused.cmake; the driver is in
-    # games/oot/soh/GameExports_SingleExe.cpp.
+    #
+    # IntCrossingRefusedNoOoTArchive is the same gate from the other side: with
+    # oot.o2r aside MM boots first (int-crossing-refused-mm), loads its debug
+    # save outside the Clock Tower and walks into the door, which must be
+    # refused while MM is still in its frame loop (z_play.c loads the 0xD800
+    # Combo_CheckEntranceSwitch hands back; MM_Game_Run entered once); then the
+    # raw switch request, after which MM must come back through suspend/resume
+    # with its save. Each row also asserts the door's own refusal line, which
+    # only Combo_CheckEntranceSwitch prints.
+    #
+    # CMake/CheckCrossingRefused.cmake; the drivers are in
+    # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp.
     math(EXPR _crossing_refused_run_timeout "${REDSHIP_INTEGRATION_TEST_TIMEOUT} - 5")
     foreach(_refusal
-            "IntCrossingRefusedNoMMArchive|mm.o2r|=== Majora's Mask archive missing ==="
-            "IntCrossingRefusedNoPortArchive|2ship.o2r|=== Majora's Mask port archive missing ===")
+            "IntCrossingRefusedNoMMArchive|int-crossing-refused|mm.o2r|=== Majora's Mask archive missing ===|[COMBO] Crossing (oot) to mm refused"
+            "IntCrossingRefusedNoPortArchive|int-crossing-refused|2ship.o2r|=== Majora's Mask port archive missing ===|[COMBO] Crossing (oot) to mm refused"
+            "IntCrossingRefusedNoOoTArchive|int-crossing-refused-mm|oot.o2r|=== Ocarina of Time archive missing ===|[COMBO] Crossing (mm) to oot refused")
         string(REPLACE "|" ";" _refusal_fields "${_refusal}")
         list(GET _refusal_fields 0 _refusal_name)
-        list(GET _refusal_fields 1 _refusal_hide)
-        list(GET _refusal_fields 2 _refusal_report)
+        list(GET _refusal_fields 1 _refusal_mode)
+        list(GET _refusal_fields 2 _refusal_hide)
+        list(GET _refusal_fields 3 _refusal_report)
+        list(GET _refusal_fields 4 _refusal_line)
         redship_add_test(NAME ${_refusal_name}
             COMMAND ${CMAKE_COMMAND}
                     -DREDSHIP_EXE=$<TARGET_FILE:redship>
                     -DWORK_DIR=${CMAKE_BINARY_DIR}
-                    -DMODE=int-crossing-refused
+                    -DMODE=${_refusal_mode}
                     -DHIDE=${_refusal_hide}
                     "-DEXPECT_REPORT=${_refusal_report}"
+                    "-DEXPECT_REFUSAL=${_refusal_line}"
                     -DRUN_TIMEOUT=${_crossing_refused_run_timeout}
                     -P ${CMAKE_CURRENT_LIST_DIR}/CheckCrossingRefused.cmake
             LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
         set_tests_properties(${_refusal_name} PROPERTIES RUN_SERIAL TRUE)
     endforeach()
     redship_test_exempt(int-crossing-refused
-        "Driven by the IntCrossingRefused* rows (cmake -P CheckCrossingRefused.cmake), which the manifest records as \
-meta rows: each sets one of MM's archives aside first. A plain --integration-test row with every archive staged has \
-no crossing to refuse (#954).")
+        "Driven by the IntCrossingRefusedNoMMArchive/NoPortArchive rows (cmake -P CheckCrossingRefused.cmake), which the \
+manifest records as meta rows: each sets one of MM's archives aside first. A plain --integration-test row with every \
+archive staged has no crossing to refuse (#954).")
+    redship_test_exempt(int-crossing-refused-mm
+        "Driven by the IntCrossingRefusedNoOoTArchive row (cmake -P CheckCrossingRefused.cmake), which the manifest \
+records as a meta row: it sets oot.o2r aside first. A plain --integration-test row with every archive staged has no \
+crossing to refuse (#954).")
 
     # #793: the wall-clock watchdog thread (src/common/integration_test_hooks.cpp).
     # Each row wedges a real run with RSBS_INT_WEDGE (a 600 s sleep with no frame

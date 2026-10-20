@@ -7062,6 +7062,12 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
       "plays on outside the door; then a switch request that leaves the loop is refused by main and OoT comes back "
       "through its suspend/resume contract (#954)",
       INT_TEST_CROSSING_REFUSED, GAME_OOT },
+    { "int-crossing-refused-mm",
+      "With oot.o2r set aside (CMake/CheckCrossingRefused.cmake), MM boots first: MM's debug save outside the Clock "
+      "Tower, walk into its door, verify the crossing is refused while MM is still in its frame loop and Link plays "
+      "on in South Clock Town; then a switch request that leaves the loop is refused by main and MM comes back "
+      "through its suspend/resume contract with its save (#954)",
+      INT_TEST_CROSSING_REFUSED_MM, GAME_MM },
     { nullptr, nullptr, INT_TEST_NONE, GAME_NONE } // Sentinel
 };
 
