@@ -52,7 +52,9 @@
  * line), no-menu-under (the creation overlay's over-menu variant leaves the
  * menu hidden), no-dim (the creation overlay's dim is drawn transparent),
  * activate (the no-activation hint is overridden to "0" before the window
- * exists, so the window is shown the way a player's is), no-label-fit (R9's
+ * exists, so the window is shown the way a player's is), no-curated (a ROM-rich
+ * run skips OoT's curated archive mount, so the Item Tracker overlay's MM column
+ * has no icons to load), no-label-fit (R9's
  * measuring frame records no row, as if the page were not the one drawn). A
  * sabotaged run is expected to fail; docs/ui-style-guide.md section 12 lists
  * what each one must turn red.
@@ -1305,8 +1307,12 @@ bool Session::BringUp(std::string& why) {
         // rsbs/src/main.cpp's boot, for the half that matters here: OoT's
         // curated cross-game archive, which carries MM's item icons so the Item
         // Tracker overlay's MM column draws them before MM has run (#963).
-        Combo_EnsureCuratedArchives();
-        Combo_MountCuratedArchive(GAME_OOT);
+        // RSBS_UI_SNAPSHOT_SABOTAGE=no-curated skips both, so the MM column
+        // stays the text fallback and the icon count must go red.
+        if (!opt.Sabotaged("no-curated")) {
+            Combo_EnsureCuratedArchives();
+            Combo_MountCuratedArchive(GAME_OOT);
+        }
     }
     MirrorProductionWindows();
     if (romFree) {
@@ -2376,8 +2382,8 @@ void Session::BuildPageList() {
             p.stateText["live"] = { "Bow 25/40" };
             p.stateText["snapshot"] = { "Zora Mask" };
         }
-        p.stateImages["live"] = 40;
-        p.stateImages["snapshot"] = 40;
+        p.stateImages["live"] = 100;
+        p.stateImages["snapshot"] = 100;
         p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         // #927: no section says how fresh it is, and an empty one is its

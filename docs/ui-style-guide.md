@@ -541,6 +541,7 @@ names what must fail. Run them after changing the harness itself.
 | `hover-first-line` | a hovered row draws only the first line of its tooltip | every hover whose tooltip has a second line ("does not show its row's tooltip") |
 | `no-menu-under` | the overlay's `over-menu` variant leaves the menu hidden | that capture ("the menu under the dim was not drawn") |
 | `no-dim` | the overlay's dim is drawn fully transparent | that capture ("... pixels outside the box are not the menu dimmed by ModalWindowDimBg") |
+| `no-curated` | a ROM-rich run skips mounting OoT's curated archive | the Combo Item Tracker `live` and `snapshot` captures ("the pane drew N icon draw commands, expected at least 100": MM's column falls back to text; ROM-rich only) |
 | `no-label-fit` | R9's measuring frame records no row of our pages | each of our pages with measurable rows ("R9: measured no row of ...") |
 | `activate` | the no-activation hint is overridden to `"0"` before the window exists | on Windows with OpenGL only, the run ("focus: the harness window took keyboard focus ..."); `windowActivated` is a report on DirectX 11 (DXGI shows its window without consulting SDL's hint) and off Windows (Xvfb has no window manager) |
 
