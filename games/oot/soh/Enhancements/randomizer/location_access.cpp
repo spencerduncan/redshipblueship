@@ -77,7 +77,7 @@ static uint16_t GetMinimumPrice(const Rando::Location* loc) {
             return ctx->GetOption(priceSettings.fixedPrice).Get() * 5;
         case RO_PRICE_RANGE: {
             uint16_t range1 = ctx->GetOption(priceSettings.range1).Get() * 5;
-            uint16_t range2 = ctx->GetOption(priceSettings.range1).Get() * 5;
+            uint16_t range2 = ctx->GetOption(priceSettings.range2).Get() * 5;
             return range1 < range2 ? range1 : range2;
         }
         case RO_PRICE_SET_BY_WALLET: {
@@ -97,6 +97,37 @@ static uint16_t GetMinimumPrice(const Rando::Location* loc) {
             return 0;
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #999 probe surface for the OoTPriceRangeMinimum lock (games/oot/soh/
+// oot_price_range_test.cpp). GetMinimumPrice is file-local by design, so the lock
+// reaches it through this bridge. `family` is the RandomizerCheckType of the slot
+// the minimum is asked for (RCTYPE_SHOP / RCTYPE_SCRUB / RCTYPE_MERCHANT picks the
+// shop, scrub or merchant price settings). Sets that family's price mode to Range
+// with the two slider values given (raw slider units, the same ones the menu
+// stores; the price is the slider times 5) and returns the tracker's minimum.
+// Needs no display, archive or ROM: only the rando Context, created here when
+// no generation has made one.
+extern PriceSettingsStruct shopsanityPrices;
+extern PriceSettingsStruct scrubPrices;
+extern PriceSettingsStruct merchantPrices;
+extern "C" int Rando_MinimumRangePriceForTest(int family, int range1, int range2) {
+    auto ctx = Rando::Context::GetInstance();
+    if (!ctx) {
+        ctx = Rando::Context::CreateInstance();
+        ctx->InitStaticData();
+    }
+    const PriceSettingsStruct& settings = family == RCTYPE_SHOP    ? shopsanityPrices
+                                          : family == RCTYPE_SCRUB ? scrubPrices
+                                                                   : merchantPrices;
+    ctx->GetOption(settings.main).Set(RO_PRICE_RANGE);
+    ctx->GetOption(settings.range1).Set(static_cast<uint8_t>(range1));
+    ctx->GetOption(settings.range2).Set(static_cast<uint8_t>(range2));
+    const Rando::Location loc(RC_UNKNOWN_CHECK, RCQUEST_BOTH, static_cast<RandomizerCheckType>(family), RCAREA_INVALID,
+                              ACTOR_ID_MAX, SCENE_ID_MAX, 0, "price range probe", RHT_NONE, RG_NONE);
+    return GetMinimumPrice(&loc);
+}
+#endif
 
 uint16_t GetCheckPrice(RandomizerCheck check /* = RC_UNKNOWN_CHECK */) {
     RandomizerCheck rc = check != RC_UNKNOWN_CHECK ? check : logic->CurrentCheckKey;
