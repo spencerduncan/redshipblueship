@@ -158,7 +158,9 @@ TestResult Test_MmGossipStoneSeed(void) {
     return TEST_PASS;
 }
 
-TestResult Test_MmTrapRollFrozen(void) {
+// The row's body. Test_MmTrapRollFrozen (test_runner.cpp) brings up the
+// display-free Ship::Context first: the CVars live on it.
+static TestResult MmTrapRollFrozen_Run(void) {
     printf("[TEST] mm-trap-roll-frozen: a trap's type is a pure function of the frozen world and the check "
            "(#1047)\n");
     const int typeCount = MM_Rando_Traps_TestTypeCount();
