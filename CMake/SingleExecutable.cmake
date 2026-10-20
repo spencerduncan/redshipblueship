@@ -530,6 +530,11 @@ if(BUILD_TESTING)
     # the real init functions with and without the arrival flag (survive vs. still
     # clear). Pure -- no display -- so it runs in this redship tier.
     redship_add_test(NAME TrackerArrivalRehydration COMMAND redship --test tracker-arrival-rehydration)
+    # Arrival-recalc lock (#990): the same arrival restores the frozen save without Save_LoadFile, so
+    # nothing armed the Check Tracker's deferred Available Checks recalculation, and the apply + redeem
+    # run before OoT_gPlayState exists (every handler bails on IsSaveLoaded). Drives
+    # OoT_Play_ApplyArrivalShared (what OoT_Play_Init runs) and the option toggle. ROM-free.
+    redship_add_test(NAME TrackerArrivalRecalc COMMAND redship --test tracker-arrival-recalc)
     # Entrance-link dedup regression (#374): the default (mask shop) and test
     # (Mido's House) links both return through MM 0xC010, and both were
     # registered unconditionally. Entrance_CheckCrossGame resolves first-match,
