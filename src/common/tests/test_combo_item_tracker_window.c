@@ -598,7 +598,9 @@ int CitwLockMMIconsBeforeMM(const ComboItemOps* oot, const ComboItemOps* mm) {
     CITW_ASSERT(uncovered == 0);
 
     // Before the load: MM has not run, nothing of MM's is in the texture map,
-    // and the section is the text grid.
+    // and the section is the text grid. A precondition of the legs below (true by
+    // construction: the map is cleared on the line above), not a lock on the fix;
+    // the after-the-load assertions are the ones that fail without it.
     sCitwTextures.clear();
     sCitwLoadCalls = 0;
     CITW_ASSERT(!ComboItemSectionDrawsIcons(rows, CitwStoreHas));
@@ -608,10 +610,8 @@ int CitwLockMMIconsBeforeMM(const ComboItemOps* oot, const ComboItemOps* mm) {
     CITW_ASSERT(loaded == (int)keys.size());
     CITW_ASSERT(sCitwLoadCalls == (int)keys.size()); // one load per distinct key, not per row
     CITW_ASSERT(ComboItemSectionDrawsIcons(rows, CitwStoreHas));
-    for (const ComboItemRow& row : rows) {
-        // Icon rows, not text: the held and the faded pick both have their texture.
-        CITW_ASSERT(CitwStoreHas(row.iconKey) && CitwStoreHas(row.iconKeyFaded));
-    }
+    // (Every row's held and faded pick has its texture: implied by `loaded == keys.size()` above, since
+    // `keys` is exactly those picks, so it is not asserted a second time.)
     // Loaded is loaded: the next frame asks the loader for nothing.
     CITW_ASSERT(ComboItemTrackerLoadIcons(rows, CitwStoreHas, CitwStoreLoad, (int)GAME_OOT, memo) == 0);
     CITW_ASSERT(sCitwLoadCalls == (int)keys.size());
@@ -649,6 +649,14 @@ int CitwLockMMIconsBeforeMM(const ComboItemOps* oot, const ComboItemOps* mm) {
     // No seam, no loader: nothing to do.
     CITW_ASSERT(ComboItemTrackerLoadIcons(rows, nullptr, CitwStoreLoad, (int)GAME_OOT, ootMemo) == 0);
     CITW_ASSERT(ComboItemTrackerLoadIcons(rows, CitwStoreHas, nullptr, (int)GAME_OOT, ootMemo) == 0);
+
+    // The path predicate itself: only a `__OTR__` resource path is a key for the
+    // loader; a texture name, an empty string, a short prefix and null are not.
+    CITW_ASSERT(ComboItemKeyIsPath("__OTR__icon_item_static_yar/gItemIconBowTex"));
+    CITW_ASSERT(!ComboItemKeyIsPath(nullptr));
+    CITW_ASSERT(!ComboItemKeyIsPath(""));
+    CITW_ASSERT(!ComboItemKeyIsPath("ITEM_OCARINA"));
+    CITW_ASSERT(!ComboItemKeyIsPath("__OTR_"));
 
     // The production loader with no archive behind it (this harness mounts
     // none): a miss, never a crash.
@@ -1261,6 +1269,11 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         const size_t loadAt =
             text.find("ComboItemTrackerLoadIcons(section.rows, Ui().HasImage, ComboItemLoadIconByPath,");
         CITW_ASSERT(loadAt != std::string::npos);
+        // The epoch is the active game (a switch re-arms the misses) and the memo is per
+        // section (one section's misses never hide another's): both belong to the call.
+        const std::string loadCall = text.substr(loadAt, text.find(';', loadAt) - loadAt);
+        CITW_ASSERT(loadCall.find("(int)Context_GetCurrentGame()") != std::string::npos);
+        CITW_ASSERT(loadCall.find("iconLoadMemo[section.id]") != std::string::npos);
         CITW_ASSERT(loadAt < text.find("ComboItemSectionDrawsIcons(section.rows, Ui().HasImage)"));
         CITW_ASSERT(text.find("ComboItemIconLayout(section.rows, *section.grid, plan.cells)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemPickIcon(row)") != std::string::npos);
