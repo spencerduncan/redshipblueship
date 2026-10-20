@@ -104,6 +104,7 @@ carries:
 | `ootHintCount`, `ootHintDigest` | every enabled OoT hint in `RandomizerHint` order: key, type, hinted checks, hinted areas and every message in English (`MF_CLEAN`); the gossip stones, the static hints, the altars, Ganondorf and the foolish hints alike |
 | `mmHintCount`, `mmHintDigest` | every check an MM gossip stone may hint, in candidate order, with the free stone's text for it (a stone picks among these when it is read, so this is what the frozen world decides about MM's hints) |
 | `mmFoolishAreas` | MM's foolish areas, ascending (`none` when there are none); the free stone's foolish variant names one of them |
+| `mmFreeStoneCount`, `mmFreeStoneDigest` | what every free gossip stone placed in MM says (#1047): for each of the 58 En_Gs placements in MM's scene actor lists (a ROM-free table in `EnGs.cpp`), its seed, the check it picks and its text, through the functions the stone's hooks call. `mmHintDigest` pins what a stone *may* say; this pins what each stone *does* say |
 | `ootPriceCount`, `ootPriceDigest` | every OoT check whose `GetPrice()` is non-zero, in `RandomizerCheck` order |
 | `mmPriceCount`, `mmPriceDigest` | every MM check with a price (`RANDO_SAVE_CHECKS[].price`: shops, Tingle, merchants), in check order |
 | `ootStartingItems` | `<count>/<digest>` of OoT's starting inventory, in the order generation granted it |

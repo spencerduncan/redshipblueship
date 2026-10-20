@@ -590,6 +590,20 @@ if(BUILD_TESTING)
     # and nothing MM's fill counts. Authors a five-area world over MM's real
     # check table and reads the free stone's text (EnGs.cpp) for 512 stone seeds.
     redship_add_test(NAME MmFoolishStoneHint COMMAND redship --test mm-foolish-stone-hint)
+    # #1047: what MM decides while you play is a pure function of the frozen world.
+    # A free stone's seed was a float sum converted to uint32_t (undefined when
+    # negative, which 23 of MM's 58 stones are); a trap's type was rolled at pickup
+    # from the live gRando.Traps.* CVars and the running stream. Each row runs once
+    # here and twice, in two processes, in its *TwoProcesses row
+    # (CMake/CheckPureTwoRuns.cmake: the "[pure]" lines must match).
+    redship_add_test(NAME MmGossipStoneSeed COMMAND redship --test mm-gossip-stone-seed)
+    redship_add_test(NAME MmGossipStoneSeedTwoProcesses
+        COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-gossip-stone-seed
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
+    redship_add_test(NAME MmTrapRollFrozen COMMAND redship --test mm-trap-roll-frozen)
+    redship_add_test(NAME MmTrapRollFrozenTwoProcesses
+        COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-trap-roll-frozen
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
     # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
     # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
     # stone's real text and candidate filter (EnGs.cpp) over MM's real check

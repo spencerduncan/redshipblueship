@@ -146,6 +146,34 @@ static std::string GossipHintText(RandoCheckId randoCheckId, bool purchased) {
 }
 #endif // RSBS_SINGLE_EXECUTABLE
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1047: a free stone's seed, from where the stone was placed. Upstream converts
+// the float sum straight to uint32_t, which is undefined behaviour in C++ when the
+// sum is negative (23 of the 58 stone placements in kMmGossipStones below):
+// x86-64 usually wraps it, AArch64 saturates it to 0 and a constant folder may do
+// either, so the stone could hint a different check on another platform. The same
+// float sum (exact: spawn positions are s16, so |sum| < 2^17) goes through int32_t
+// first, which is in range, then to uint32_t, which wraps by definition: the value
+// x86-64 already produced, now the same everywhere.
+static uint32_t GossipStoneSeed(s16 sceneId, const Vec3f& homePos) {
+    return (uint32_t)(int32_t)((f32)sceneId + homePos.x + homePos.z);
+}
+
+// #1047: the free stone's pick for stone seed `stoneSeed`: what GetRandomCheck
+// returns for the free stone, and what the free-stone digest folds. Reseeds MM's
+// global stream, as upstream's pick always has. (Ship_Random's upper bound is
+// exclusive, so the last candidate is never picked: inherited, and kept so no
+// hint moves.)
+static GossipHintTarget FreeStonePick(const std::vector<GossipHintTarget>& candidates, uint32_t stoneSeed) {
+    Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + stoneSeed);
+    return candidates[Ship_Random(0, candidates.size() - 1)];
+}
+#else
+static uint32_t GossipStoneSeed(s16 sceneId, const Vec3f& homePos) {
+    return sceneId + homePos.x + homePos.z;
+}
+#endif // RSBS_SINGLE_EXECUTABLE
+
 GossipHintTarget GetRandomCheck(bool repeatableOnlyObtained = false) {
     Player* player = GET_PLAYER(MM_gPlayState);
     if (player->talkActor == nullptr || player->talkActor->id != ACTOR_EN_GS) {
@@ -173,8 +201,12 @@ GossipHintTarget GetRandomCheck(bool repeatableOnlyObtained = false) {
     if (repeatableOnlyObtained) {
         Ship_Random_Seed(MM_gGameState->frames);
     } else {
-        uint32_t seed = MM_gPlayState->sceneId + enGs->actor.home.pos.x + enGs->actor.home.pos.z;
+        uint32_t seed = GossipStoneSeed(MM_gPlayState->sceneId, enGs->actor.home.pos);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        return FreeStonePick(availableChecks, seed);
+#else
         Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);
+#endif
     }
     return availableChecks[Ship_Random(0, availableChecks.size() - 1)];
 }
@@ -202,7 +234,7 @@ static std::string FreeStoneHintText(const GossipHintTarget& target) {
         return GossipHintText(target, false);
     }
     EnGs* enGs = (EnGs*)player->talkActor;
-    uint32_t seed = MM_gPlayState->sceneId + enGs->actor.home.pos.x + enGs->actor.home.pos.z;
+    uint32_t seed = GossipStoneSeed(MM_gPlayState->sceneId, enGs->actor.home.pos);
     return FreeStoneHintTextSeeded(target, gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);
 }
 
@@ -256,6 +288,144 @@ extern "C" int MM_Rando_Hints_DigestCandidates(uint32_t* outDigest) {
         *outDigest = Ship_Hash(blob);
     }
     return (int)candidates.size();
+}
+
+// #1047: every En_Gs placement in MM's scene actor lists (every room and every
+// alternate setup), as the scene it is in and its home x and z: the inputs of
+// GossipStoneSeed. Unique by those three; a stone placed in several setups at one
+// spot is one row. Read off the ROM-derived archive's actor lists (actor id 0xEF)
+// once, so the free-stone digest below needs no archive.
+struct MmGossipStone {
+    s16 sceneId;
+    s16 x;
+    s16 z;
+};
+
+static const MmGossipStone kMmGossipStones[] = {
+    { SCENE_20SICHITAI2, 4170, -1657 },
+    { SCENE_KAKUSIANA, -91, -467 },
+    { SCENE_KAKUSIANA, -31, -467 },
+    { SCENE_KAKUSIANA, 48, -466 },
+    { SCENE_KAKUSIANA, 128, -467 },
+    { SCENE_KAKUSIANA, 524, -438 },
+    { SCENE_KAKUSIANA, 604, -438 },
+    { SCENE_KAKUSIANA, 663, -437 },
+    { SCENE_KAKUSIANA, 724, -437 },
+    { SCENE_KAKUSIANA, 1121, -457 },
+    { SCENE_KAKUSIANA, 1178, -456 },
+    { SCENE_KAKUSIANA, 1240, -456 },
+    { SCENE_KAKUSIANA, 1320, -455 },
+    { SCENE_KAKUSIANA, 1710, -455 },
+    { SCENE_KAKUSIANA, 1788, -454 },
+    { SCENE_KAKUSIANA, 1869, -454 },
+    { SCENE_KAKUSIANA, 1930, -454 },
+    { SCENE_IKANA, -1352, 100 },
+    { SCENE_IKANA, 176, 3778 },
+    { SCENE_IKANA, 3323, 3940 },
+    { SCENE_13HUBUKINOMITI, 266, 6567 },
+    { SCENE_13HUBUKINOMITI, 267, 6567 },
+    { SCENE_ROMANYMAE, -4467, 1198 },
+    { SCENE_KINSTA1, 0, -2416 },
+    { SCENE_LAST_DEKU, 761, -1144 },
+    { SCENE_LAST_DEKU, 780, 0 },
+    { SCENE_LAST_DEKU, 1710, -1140 },
+    { SCENE_LAST_DEKU, 1800, 120 },
+    { SCENE_LAST_DEKU, 3048, 284 },
+    { SCENE_00KEIKOKU, 4479, 1255 },
+    { SCENE_F01, -1008, 1960 },
+    { SCENE_F01, -568, -1887 },
+    { SCENE_F01, 2597, 1053 },
+    { SCENE_30GYOSON, 1530, -2246 },
+    { SCENE_31MISAKI, 2867, 1936 },
+    { SCENE_LAST_GORON, -6780, -1560 },
+    { SCENE_LAST_GORON, -4995, -2280 },
+    { SCENE_LAST_GORON, -4785, -2280 },
+    { SCENE_LAST_GORON, -3195, -2490 },
+    { SCENE_LAST_GORON, -2985, -2490 },
+    { SCENE_24KEMONOMITI, 1907, 2392 },
+    { SCENE_F01_B, -4747, 2516 },
+    { SCENE_F01C, -3551, -927 },
+    { SCENE_20SICHITAI, 4170, -1657 },
+    { SCENE_LAST_ZORA, 9377, -3555 },
+    { SCENE_LAST_ZORA, 9377, -2901 },
+    { SCENE_LAST_ZORA, 9377, -1788 },
+    { SCENE_LAST_ZORA, 9377, -1221 },
+    { SCENE_LAST_ZORA, 9377, -666 },
+    { SCENE_10YUKIYAMANOMURA, -805, 1346 },
+    { SCENE_IKANAMAE, 1084, -1560 },
+    { SCENE_10YUKIYAMANOMURA2, -805, 1346 },
+    { SCENE_10YUKIYAMANOMURA2, 3685, -1101 },
+    { SCENE_LAST_LINK, -210, -3180 },
+    { SCENE_LAST_LINK, 0, -3720 },
+    { SCENE_LAST_LINK, 0, -2280 },
+    { SCENE_LAST_LINK, 0, -1120 },
+    { SCENE_LAST_LINK, 210, -3180 },
+};
+
+/** TEST BRIDGE (#1047): stone `index` of kMmGossipStones and its seed. Returns the
+ *  table's length (so index -1 just counts), or -1 for a null out-parameter. */
+extern "C" int MM_Rando_Hints_TestGossipStone(int index, int16_t* outSceneId, int16_t* outX, int16_t* outZ,
+                                              uint32_t* outSeed) {
+    if (outSceneId == nullptr || outX == nullptr || outZ == nullptr || outSeed == nullptr) {
+        return -1;
+    }
+    const int count = (int)(sizeof(kMmGossipStones) / sizeof(kMmGossipStones[0]));
+    if (index >= 0 && index < count) {
+        const MmGossipStone& stone = kMmGossipStones[index];
+        const Vec3f homePos = { (f32)stone.x, 0.0f, (f32)stone.z };
+        *outSceneId = stone.sceneId;
+        *outX = stone.x;
+        *outZ = stone.z;
+        *outSeed = GossipStoneSeed(stone.sceneId, homePos);
+    }
+    return count;
+}
+
+/** TEST BRIDGE (#1047, the golden digests): what every free stone of the frozen
+ *  world says, in kMmGossipStones order: its seed, the check it picks
+ *  (FreeStonePick, GetRandomCheck's own pick) and its text
+ *  (FreeStoneHintTextSeeded, FreeStoneHintText's own), folded through Ship_Hash
+ *  into `*outDigest`. mmHintDigest pins what a stone MAY say; this pins what each
+ *  stone DOES say. Reseeds MM's global stream, as reading a stone does. Returns
+ *  the stone count. */
+extern "C" int MM_Rando_Hints_DigestFreeStones(uint32_t* outDigest) {
+    const std::vector<GossipHintTarget> candidates = GossipHintCandidates(false);
+    const uint32_t finalSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed;
+    std::string blob;
+    int count = 0;
+    for (const MmGossipStone& stone : kMmGossipStones) {
+        const Vec3f homePos = { (f32)stone.x, 0.0f, (f32)stone.z };
+        const uint32_t seed = GossipStoneSeed(stone.sceneId, homePos);
+        blob += std::to_string(stone.sceneId) + ':' + std::to_string(stone.x) + ':' + std::to_string(stone.z) + '|' +
+                std::to_string(seed) + '|';
+        if (candidates.empty()) {
+            blob += "none
+";
+        } else {
+            const GossipHintTarget target = FreeStonePick(candidates, seed);
+            blob += std::to_string(target.hostGame) + ':' + std::to_string(target.check) + '|' +
+                    FreeStoneHintTextSeeded(target, finalSeed + seed) + '
+';
+        }
+        count++;
+    }
+    if (outDigest != nullptr) {
+        *outDigest = Ship_Hash(blob);
+    }
+    return count;
+}
+
+/** TEST BRIDGE (#1047): MM_Rando_Hints_DigestFreeStones with MM's global stream
+ *  first put at `streamSeed` (standing for wherever play left it), and the world's
+ *  seed swapped to `finalSeed` for the call. Returns the stone count. */
+extern "C" int MM_Rando_Hints_TestFreeStonesAfterStream(uint32_t finalSeed, uint64_t streamSeed,
+                                                        uint32_t* outDigest) {
+    const uint32_t prior = gSaveContext.save.shipSaveInfo.rando.finalSeed;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = finalSeed;
+    Ship_Random_Seed(streamSeed);
+    const int count = MM_Rando_Hints_DigestFreeStones(outDigest);
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = prior;
+    return count;
 }
 #else
 static std::string FreeStoneHintText(GossipHintTarget randoCheckId) {

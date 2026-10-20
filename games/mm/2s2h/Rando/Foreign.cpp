@@ -41,6 +41,7 @@
 
 #include "Foreign.h"
 #include "Rando/Rando.h"
+#include "Rando/MiscBehavior/Traps.h" // ResolveTrapTypesFromCVars: the frozen trap-type set (#1047)
 // GenerateFromSaveContext - the MM half of the ONE paired spoiler
 // artifact (#660; #564 V23).
 #include "Rando/Spoiler/Spoiler.h"
@@ -266,15 +267,17 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     // identity (ADR 0004 §6 scope note), so silence here is not neutral.
     //
     //  - `gRando.Traps.*` (Traps.cpp's trapToCvarMap: Freeze/Blast/Shock/Jinx/
-    //    Wallet/Enemy/Time) are RUNTIME FLAVOUR, not world identity. Their sole
-    //    consumer is RollTrapType(), called from actor behaviour when a trap is
-    //    collected (ActorBehavior/EnGirlA.cpp:73, Traps.cpp:133) — it draws
-    //    from the LIVE Ship_Random stream at pickup time and never runs inside
-    //    a fill. The trap knobs that DO shape the world (RO_SHUFFLE_TRAPS,
+    //    Wallet/Enemy/Time) are not a GENERATION input: no fill reads them. They
+    //    are still part of the world (#1047): ResolvePairedProfile freezes them
+    //    into the save (randoSaveTrapTypes) at creation, and RollTrapType reads
+    //    that, seeded by the world's seed and the check, never the live CVars
+    //    or the running stream. So nothing after creation reads these CVars,
+    //    and an arrival has nothing of them to compare; folding them here would
+    //    only refuse arrivals over a value the world no longer consults. Like
+    //    randoStartingItems, the frozen set lives in the save, not in this
+    //    string. The trap knobs that shape the fill (RO_SHUFFLE_TRAPS,
     //    RO_TRAP_AMOUNT, read by GeneratePools.cpp:281) are ordinary option
-    //    rows and are already folded by the loop above. Flipping which trap
-    //    flavour fires changes no placement, so folding these would refuse
-    //    arrivals over a cosmetic preference.
+    //    rows and are already folded by the loop above.
     //  - `gRando.SpoilerFile` / `gRando.SpoilerFileIndex` / `gRando.InputSeed`
     //    are NOT identity and folding them would be actively harmful: the
     //    paired path ignores all three by construction (OnFileCreate.cpp:83
@@ -325,6 +328,9 @@ uint32_t ResolvePairedProfile(bool paired) {
     for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
         gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[mmRandoTrickId] = tricks[mmRandoTrickId];
     }
+    // #1047: the trap-type set freezes here too, for the same reason: a trap's
+    // type is part of the world, so it reads this file's set, not the CVars.
+    gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes = ResolveTrapTypesFromCVars();
 
     if (!paired) {
         // A solo MM rando file has no cross-game identity to publish, and must
