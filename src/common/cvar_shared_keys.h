@@ -406,8 +406,9 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "gEnhancements.DamageMult",
       "Same intent (a left-shift of incoming damage: OoT z_player.c `1 << DamageMult`, MM `*damage <<= value`) "
       "and 0-4 agree (1x-16x), but the VALUE SPACES differ: OoT's list runs 0-8 (to 256x) while MM's is 0-4 plus "
-      "10 = '1 Hit KO'. A plain key swap makes OoT's 5-8 shift MM's damage out of range and MM's 10 shift OoT's "
-      "by 1024x. Pending an operator ruling on which value space wins; do not converge until it lands." },
+      "10 = '1 Hit KO'. A plain key swap leaves OoT's 5-8 with no entry in MM's list and MM's 10 with none in "
+      "OoT's, so each menu would show a blank for the other's value. Pending an operator ruling on which value "
+      "space wins; do not converge until it lands." },
     { "PARKED: infinite ammo scope", "gCheats.InfiniteConsumables", "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },
