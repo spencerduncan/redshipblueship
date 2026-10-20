@@ -655,7 +655,9 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .RaceDisable(false)
         .WindowName(ComboGui::kComboItemTrackerWindowName)
         .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Toggles the Combo Item Tracker.").EmbedWindow(false));
+        .Options(WindowButtonOptions()
+                     .Tooltip("Toggles the Combo Item Tracker. Drag it via Tracker Settings > Enable Dragging.")
+                     .EmbedWindow(false));
 }
 
 /**

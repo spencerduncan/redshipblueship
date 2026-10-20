@@ -64,7 +64,14 @@
  *    registers names (the one path-keyed call, the seed-hash icons that key a
  *    texture by its own OoT path, is named and held to that shape).
  *
- * 10. MM'S ICONS BEFORE MM HAS RUN (#963). MM's icon textures are keyed by
+ * 10. THE DEFAULT POSITION (#962). The floating overlay's default placement
+ *    (ComboItemTrackerDefaultPos) stays below the HUD band that holds the
+ *    hearts and the magic bar (ComboItemTrackerHudBand) at seven view sizes and
+ *    two view origins, the HUD literals held to the decomp by a source scan.
+ *    UiSnapshot's HudBandOracle holds the same over the drawn overlay, and its
+ *    ResetPositionCheck drives Move to Default Position over real ImGui frames
+ *    (a saved position is kept, the button returns to the default once).
+ * 11. MM'S ICONS BEFORE MM HAS RUN (#963). MM's icon textures are keyed by
  *    resource path and registered by MM's init, which runs at the first
  *    crossing. The overlay loads the row keys it draws by path from the archives
  *    mounted at that moment (ComboItemTrackerLoadIcons), and OoT mounts the
@@ -313,6 +320,104 @@ int CitwLockDecisions(void) {
     return TEST_PASS;
 }
 
+/**
+ * Point 10, #962: the floating overlay's default position stays off the HUD's
+ * hearts and magic bar. Both are rebuilt here from the HUD's own grid, written
+ * out as the decomp's literals: hearts (z_lifemeter.c: first heart centre
+ * (30, 26) of a 320x240 layout, 10 apart, ten to a row, 16 px hearts drawn at
+ * 0.7), up to the two rows of 20 hearts; the magic bar (z_construct.c: left
+ * X 18, lowest top 42; z_parameter.c: 16 px tall, 8 + up to 96 + 8 wide). A
+ * source scan below holds those literals to the decomp. The overlay is given
+ * a generous 300x300 px of body. (The old default, ImGui's (60, 60), sat on the
+ * hearts at every size: the HudBandOracle in UiSnapshot holds that regression
+ * over the drawn overlay.)
+ */
+int CitwLockDefaultPosition(void) {
+    using namespace ComboGui;
+    struct View {
+        float w;
+        float h;
+    };
+    const View views[] = { { 640, 480 },   { 832, 600 },   { 1280, 720 }, { 1280, 800 },
+                           { 1920, 1080 }, { 2560, 1080 }, { 3840, 2160 } };
+    for (const View& v : views) {
+        for (int offset = 0; offset < 2; offset++) {
+            const float vx = offset ? 7.0f : 0.0f; // a view that does not start at the screen's corner
+            const float vy = offset ? 19.0f : 0.0f;
+            const float unit = v.h / 240.0f;
+            ComboItemTrackerRect hearts;
+            hearts.x = vx + (30.0f - 5.6f) * unit;
+            hearts.y = vy + (26.0f - 5.6f) * unit;
+            hearts.w = (90.0f + 11.2f) * unit;
+            hearts.h = (10.0f + 11.2f) * unit; // two rows
+            ComboItemTrackerRect bar;
+            bar.x = vx + 18.0f * unit;
+            bar.y = vy + 42.0f * unit;
+            bar.w = (8.0f + 96.0f + 8.0f) * unit;
+            bar.h = 16.0f * unit;
+            const ComboItemTrackerRect band = ComboItemTrackerHudBand(vx, vy, v.w, v.h);
+            // The band holds the hearts whole ...
+            CITW_ASSERT(band.x <= hearts.x && band.y <= hearts.y);
+            CITW_ASSERT(band.x + band.w >= hearts.x + hearts.w && band.y + band.h >= hearts.y + hearts.h);
+            // ... and the magic bar whole, to its bottom edge (y 58).
+            CITW_ASSERT(band.x <= bar.x && band.y <= bar.y);
+            CITW_ASSERT(band.x + band.w >= bar.x + bar.w);
+            CITW_ASSERT(band.y + band.h >= bar.y + bar.h);
+
+            float x = 0.0f;
+            float y = 0.0f;
+            ComboItemTrackerDefaultPos(vx, vy, v.w, v.h, &x, &y);
+            ComboItemTrackerRect overlay;
+            overlay.x = x;
+            overlay.y = y;
+            overlay.w = 300.0f;
+            overlay.h = 300.0f;
+            const bool hitsHearts = overlay.x < hearts.x + hearts.w && hearts.x < overlay.x + overlay.w &&
+                                    overlay.y < hearts.y + hearts.h && hearts.y < overlay.y + overlay.h;
+            const bool hitsBar = overlay.x < bar.x + bar.w && bar.x < overlay.x + overlay.w &&
+                                 overlay.y < bar.y + bar.h && bar.y < overlay.y + overlay.h;
+            if (hitsHearts) {
+                printf("[TEST] FAIL: %.0fx%.0f view at (%.0f, %.0f): default overlay at (%.0f, %.0f) covers the "
+                       "hearts (%.0f,%.0f %.0fx%.0f)\n",
+                       v.w, v.h, vx, vy, x, y, hearts.x, hearts.y, hearts.w, hearts.h);
+                return TEST_FAIL;
+            }
+            if (hitsBar) {
+                printf("[TEST] FAIL: %.0fx%.0f view at (%.0f, %.0f): default overlay at (%.0f, %.0f) covers the "
+                       "magic bar (%.0f,%.0f %.0fx%.0f)\n",
+                       v.w, v.h, vx, vy, x, y, bar.x, bar.y, bar.w, bar.h);
+                return TEST_FAIL;
+            }
+            // Below the whole band, not merely clear of the two rects.
+            CITW_ASSERT(y >= band.y + band.h);
+            // Inside the view, flush to its left, with the lower half of it to grow into.
+            CITW_ASSERT(x >= vx && x < vx + v.w);
+            CITW_ASSERT(y < vy + v.h * 0.5f);
+        }
+    }
+#ifdef RSBS_SOURCE_DIR
+    {
+        // The literals above are the decomp's: if the HUD moves, this fails.
+        auto slurp = [](const char* rel) {
+            std::ifstream in(std::string(RSBS_SOURCE_DIR) + rel, std::ios::binary);
+            return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        };
+        const std::string construct = slurp("/games/oot/src/code/z_construct.c");
+        const std::string parameter = slurp("/games/oot/src/code/z_parameter.c");
+        const std::string lifemeter = slurp("/games/oot/src/code/z_lifemeter.c");
+        CITW_ASSERT(construct.find("R_MAGIC_BAR_LARGE_Y = 42;") != std::string::npos);
+        CITW_ASSERT(construct.find("R_MAGIC_BAR_X = 18;") != std::string::npos);
+        CITW_ASSERT(parameter.find("gMagicMeterEndTex, 8, 16, PosX_Start, magicBarY, 8, 16") != std::string::npos);
+        CITW_ASSERT(lifemeter.find("-130 + offsetX,       // Pos X") != std::string::npos);
+        CITW_ASSERT(lifemeter.find("(-94 + offsetY) * -1, // Pos Y") != std::string::npos);
+    }
+#endif
+    printf("[TEST] combo-item-tracker-window: the default position clears the HUD's hearts and magic bar at %zu view "
+           "sizes PASS\n",
+           sizeof(views) / sizeof(views[0]));
+    return TEST_PASS;
+}
+
 bool CitwIsPath(const char* key) {
     return key != nullptr && strchr(key, '/') != nullptr;
 }
@@ -526,7 +631,7 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
 }
 
 /**
- * Point 10 (#963): the MM section draws icons from the first frame, with
+ * Point 11 (#963): the MM section draws icons from the first frame, with
  * Majora's Mask never started. MM's icons are registered by MM's own init, so
  * before this the column was the text grid until the first crossing. Here the
  * section's rows come from the real MM adapter (an empty save and both
@@ -1133,7 +1238,7 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     if (CitwLockFit(live) != TEST_PASS) {
         return TEST_FAIL;
     }
-    // ---- 10. MM's icons before MM has run (#963) --------------------------------
+    // ---- 11. MM's icons before MM has run (#963) --------------------------------
     if (CitwLockMMIconsBeforeMM(oot, mm) != TEST_PASS) {
         return TEST_FAIL;
     }
@@ -1205,6 +1310,9 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
 
     // ---- 5. decisions --------------------------------------------------------
     if (CitwLockDecisions() != TEST_PASS) {
+        return TEST_FAIL;
+    }
+    if (CitwLockDefaultPosition() != TEST_PASS) {
         return TEST_FAIL;
     }
 
