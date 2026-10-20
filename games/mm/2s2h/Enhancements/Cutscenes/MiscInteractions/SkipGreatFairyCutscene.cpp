@@ -14,7 +14,7 @@ s32 EnElfgrp_SummonStrayFairies(PlayState* play);
 void func_80A3A210(EnElfgrp* elfgrp, PlayState* play);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 #define ELFGRP_STATE_0 (1 << 0)

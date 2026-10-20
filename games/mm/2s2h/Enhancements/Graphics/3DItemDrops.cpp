@@ -11,7 +11,7 @@ void MM_EnItem00_Draw(Actor* thisx, PlayState* play);
 void EnTanron5_ItemDrop_Draw(Actor* thisx, PlayState* play);
 }
 
-#define CVAR_NAME "gEnhancements.Graphics.3DItemDrops"
+#define CVAR_NAME "gEnhancements.NewDrops"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 bool ItemShouldSpinWhen3D(Actor* actor) {

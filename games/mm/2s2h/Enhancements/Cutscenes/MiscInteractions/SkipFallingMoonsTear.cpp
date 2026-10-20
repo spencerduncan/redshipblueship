@@ -10,7 +10,7 @@ extern "C" {
 #include "overlays/actors/ovl_En_Bji_01/z_en_bji_01.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 static int frames = 0;

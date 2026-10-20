@@ -7,7 +7,7 @@ extern "C" {
 #include "overlays/actors/ovl_En_Ginko_Man/z_en_ginko_man.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 int16_t choiceIndex = 0;

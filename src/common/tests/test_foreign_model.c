@@ -298,6 +298,22 @@ TestResult FmWalkDrawRows(const FmGame& g) {
             if (list == nullptr) {
                 continue;
             }
+            if (std::strstr(list, "BillboardRotMtx") != nullptr) {
+                // A matrix RESOURCE, not a display list: the descriptor must express it as billboardOffset (#964).
+                // Only the caught seahorse's gGiSeahorseBillboardRotMtx is understood (a pure translation,
+                // (-2, 27, 0), read off the resource); any other matrix resource a row starts answering must be
+                // decoded and pinned here on purpose, so it fails until it is.
+                if (std::strstr(list, "gGiSeahorseBillboardRotMtx") == nullptr) {
+                    printf("[TEST]   %s row %d: the matrix %s has no decoded offset in this test\n", g.name, row, list);
+                    failures++;
+                } else if (model.billboardOffset[0] != -2.0f || model.billboardOffset[1] != 27.0f ||
+                           model.billboardOffset[2] != 0.0f) {
+                    printf("[TEST]   %s row %d: the matrix %s is not expressed as the offset (-2, 27, 0)\n", g.name,
+                           row, list);
+                    failures++;
+                }
+                continue;
+            }
             bool used = false;
             for (int i = 0; i < model.partCount; i++) {
                 used |= model.parts[i].dl == list;
@@ -839,8 +855,9 @@ TestResult Test_ForeignModel(void) {
     FM_ASSERT(OoT_ComboLogic_TestEnsureItemTableTransient() == 0, "M1 OoT's item table is available");
 
     // ---- M2 --------------------------------------------------------------------
-    // OoT: the Triforce piece and the fishing pole. MM: the three empty rows,
-    // the seahorse, the bottled fairy, the Moon's Tear and the four remains.
+    // OoT: the Triforce piece and the fishing pole. MM: the three empty rows and
+    // the bottled fairy's row (no item names any of the four; #964 gave the
+    // seahorse, the Moon's Tear and the four remains a model).
     const FmGame oot = { "OoT",
                          (uint8_t)GAME_OOT,
                          (uint8_t)GAME_MM,
@@ -863,7 +880,7 @@ TestResult Test_ForeignModel(void) {
                         MM_ComboModel_TestIdSpace,
                         MM_ComboLogic_ClassifyItem,
                         MM_ComboModel_TestItemReason,
-                        10,
+                        4,
                         MM_ComboModelHostNative_TestAnswer,
                         MM_ComboModelHostNative_TestRowCount,
                         MM_ComboModel_TestForHostKey };
@@ -976,13 +993,18 @@ TestResult Test_ForeignModel(void) {
         { (uint8_t)GAME_MM, "Hero's Shield", kHost, "/object_gi_shield_2/gGiHerosShieldEmblemDL", 2, kOpa,
           "/object_gi_shield_2/gGiHylianShieldDL" },
         { (uint8_t)GAME_MM, "Silver Rupee", kNone, nullptr, 0, 0, nullptr },
-        { (uint8_t)GAME_MM, "Odolwa's Remains", kNone, nullptr, 0, 0, nullptr },
+        // #964: the custom-drawn rows that used to answer no model.
+        { (uint8_t)GAME_MM, "Odolwa's Remains", kDesc, "/object_bsmask/gRemainsOdolwaDL", 1, kOpa, nullptr },
+        { (uint8_t)GAME_MM, "Goht's Remains", kDesc, "/object_bsmask/gRemainsGohtDL", 1, kOpa, nullptr },
+        { (uint8_t)GAME_MM, "Gyorg's Remains", kDesc, "/object_bsmask/gRemainsGyorgDL", 1, kOpa, nullptr },
+        { (uint8_t)GAME_MM, "Twinmold's Remains", kDesc, "/object_bsmask/gRemainsTwinmoldDL", 1, kOpa, nullptr },
+        { (uint8_t)GAME_MM, "Moon's Tear", kDesc, "/object_gi_reserve00/gGiMoonsTearItemDL", 2, kOpa, nullptr },
     };
+    bool pinsOk = true;
     for (const FmPin& pin : pins) {
-        if (FmCheckPin(pin) != TEST_PASS) {
-            return TEST_FAIL;
-        }
+        pinsOk = FmCheckPin(pin) == TEST_PASS && pinsOk;
     }
+    FM_ASSERT(pinsOk, "M5 every pinned item answers its pinned model");
     {
         // OoT's ice trap: OoT_Player_DrawGetItemImpl special-cases it (a growing
         // ice fragment), so its entry's gold-rupee row is not what OoT shows. The
@@ -1009,6 +1031,82 @@ TestResult Test_ForeignModel(void) {
         Combo_GetForeignItemModel((uint8_t)GAME_MM, medallion, &a);
         FM_ASSERT(a.model.opaSetupDl == 26 && a.model.xluSetupDl == 0,
                   "M5 a medallion keeps GetItem_DrawEggOrMedallion's setup list 26");
+    }
+    {
+        // #964: the MM rows whose draw is custom code answer a model with the
+        // shape that code gives them (z_draw.c), not just "a model".
+        SharedItem remains[4];
+        const char* const remainsNames[4] = { "Odolwa's Remains", "Goht's Remains", "Gyorg's Remains",
+                                              "Twinmold's Remains" };
+        const char* const remainsLists[4] = { "/object_bsmask/gRemainsOdolwaDL", "/object_bsmask/gRemainsGohtDL",
+                                              "/object_bsmask/gRemainsGyorgDL", "/object_bsmask/gRemainsTwinmoldDL" };
+        for (int i = 0; i < 4; i++) {
+            FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, remainsNames[i], &remains[i]), "M16 named item");
+            ComboModelAnswer a;
+            FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, remains[i], &a) == kDesc,
+                      "M16 a boss remains is a DESCRIPTOR in OoT (#964)");
+            // GetItem_DrawRemains: setup 25 OPA, MM_Matrix_Scale(0.02) on top of the caller's, one list, no
+            // scroll, no camera-facing part. The list reads no segment, so no segment-6 bind is needed.
+            FM_ASSERT(a.model.partCount == 1 && FmTailIs(a.model.parts[0].dl, remainsLists[i]) &&
+                          a.model.parts[0].layer == COMBO_MODEL_LAYER_OPA && a.model.parts[0].billboard == 0 &&
+                          a.model.opaSetupDl == 25 && a.model.xluSetupDl == 0 &&
+                          std::fabs(a.model.scale - 0.02f) < 1e-6f && a.model.scrolls[0].segment == 0 &&
+                          a.model.opaColor.set == 0 && a.model.xluColor.set == 0 && a.model.grayscale == 0,
+                      "M16 a boss remains is GetItem_DrawRemains' shape: one OPA list under setup 25 at scale 0.02");
+            FM_ASSERT(a.model.partCount == 1 && a.model.parts[0].dl != nullptr &&
+                          !Combo_ForeignModel_PathCollides(a.model.parts[0].dl),
+                      "M16 object_bsmask is MM-only, so OoT draws the remains from the curated archive");
+        }
+
+        // GetItem_DrawMoonsTear: the item list on OPA under AnimatedMat segment 2 (+7 = 9), the glow on XLU under
+        // segment 3 (+7 = 10) facing the camera, both two-tile scrolls (gGiMoonsTearTexAnim).
+        SharedItem tear;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Moon's Tear", &tear), "M16 named item");
+        ComboModelAnswer t;
+        FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, tear, &t) == kDesc,
+                  "M16 the Moon's Tear is a DESCRIPTOR");
+        FM_ASSERT(t.model.partCount == 2 && FmTailIs(t.model.parts[0].dl, "/object_gi_reserve00/gGiMoonsTearItemDL") &&
+                      t.model.parts[0].layer == COMBO_MODEL_LAYER_OPA && t.model.parts[0].billboard == 0 &&
+                      FmTailIs(t.model.parts[1].dl, "/object_gi_reserve00/gGiMoonsTearGlowDL") &&
+                      t.model.parts[1].layer == COMBO_MODEL_LAYER_XLU && t.model.parts[1].billboard == 1 &&
+                      t.model.opaSetupDl == 25 && t.model.xluSetupDl == 25 && t.model.billboardOffset[0] == 0.0f &&
+                      t.model.billboardOffset[1] == 0.0f && t.model.billboardOffset[2] == 0.0f,
+                  "M16 the Moon's Tear is the item list (OPA) and its camera-facing glow (XLU)");
+        const ComboModelScroll* itemScroll = nullptr;
+        const ComboModelScroll* glowScroll = nullptr;
+        for (const ComboModelScroll& sc : t.model.scrolls) {
+            itemScroll = sc.segment == 9 ? &sc : itemScroll;
+            glowScroll = sc.segment == 10 ? &sc : glowScroll;
+        }
+        FM_ASSERT(itemScroll != nullptr && itemScroll->layer == COMBO_MODEL_LAYER_OPA && itemScroll->twoTiles == 1 &&
+                      itemScroll->x1PerFrame == 1 && itemScroll->y1PerFrame == 1 && itemScroll->x2PerFrame == 0 &&
+                      itemScroll->y2PerFrame == 0 && itemScroll->w1 == 32 && itemScroll->h1 == 32 &&
+                      itemScroll->w2 == 32 && itemScroll->h2 == 32,
+                  "M16 the Moon's Tear scrolls its item texture on segment 9 (xStep 1, yStep -1)");
+        FM_ASSERT(glowScroll != nullptr && glowScroll->layer == COMBO_MODEL_LAYER_XLU && glowScroll->twoTiles == 1 &&
+                      glowScroll->x1PerFrame == 0 && glowScroll->y1PerFrame == 0 && glowScroll->x2PerFrame == 1 &&
+                      glowScroll->y2PerFrame == -2 && glowScroll->w1 == 32 && glowScroll->h1 == 32 &&
+                      glowScroll->w2 == 32 && glowScroll->h2 == 32,
+                  "M16 the Moon's Tear scrolls its glow texture on segment 10 (second tile xStep 1, yStep 2)");
+
+        // GetItem_DrawSeahorse, row GID_SEAHORSE_CAUGHT (0x62 in z64item.h; no randomizer item names it, so it is
+        // asserted on the row): the empty list on OPA, the body on XLU, then the glow facing the camera after
+        // gGiSeahorseBillboardRotMtx, a pure translation (-2, 27, 0).
+        constexpr int kSeahorseCaughtRow = 0x62;
+        ComboModel d;
+        const char* seahorseReason = nullptr;
+        FM_ASSERT(MM_ComboModel_TestForDrawRow(kSeahorseCaughtRow, &d, &seahorseReason) == 1,
+                  "M16 the seahorse row answers a model");
+        FM_ASSERT(d.partCount == 3 && FmTailIs(d.parts[0].dl, "/object_gi_seahorse/gGiSeahorseEmptyDL") &&
+                      d.parts[0].layer == COMBO_MODEL_LAYER_OPA && d.parts[0].billboard == 0 &&
+                      FmTailIs(d.parts[1].dl, "/object_gi_seahorse/gGiSeahorseBodyDL") &&
+                      d.parts[1].layer == COMBO_MODEL_LAYER_XLU && d.parts[1].billboard == 0 &&
+                      FmTailIs(d.parts[2].dl, "/object_gi_seahorse/gGiSeahorseGlowDL") &&
+                      d.parts[2].layer == COMBO_MODEL_LAYER_XLU && d.parts[2].billboard == 1 && d.opaSetupDl == 25 &&
+                      d.xluSetupDl == 25,
+                  "M16 the seahorse is the empty list (OPA), the body (XLU) and the camera-facing glow (XLU)");
+        FM_ASSERT(d.billboardOffset[0] == -2.0f && d.billboardOffset[1] == 27.0f && d.billboardOffset[2] == 0.0f,
+                  "M16 the seahorse's glow sits at gGiSeahorseBillboardRotMtx's translation");
     }
 
     // ---- M6 --------------------------------------------------------------------
@@ -1236,17 +1334,22 @@ TestResult Test_ForeignModel(void) {
         SharedItem dekuMask;
         SharedItem mmHookshot;
         SharedItem odolwa;
+        SharedItem goht;
         FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Deku Mask", &dekuMask) &&
                       TestNamedItem((uint8_t)GAME_MM, "Hookshot", &mmHookshot) &&
-                      TestNamedItem((uint8_t)GAME_MM, "Odolwa's Remains", &odolwa),
+                      TestNamedItem((uint8_t)GAME_MM, "Odolwa's Remains", &odolwa) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Soul of Goht", &goht),
                   "M12 named items");
         ComboModelAnswer maskA;
         ComboModelAnswer hookshotA;
         ComboModelAnswer odolwaA;
+        ComboModelAnswer gohtA;
         const uint8_t hookshotKind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, mmHookshot, &hookshotA);
         FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, dekuMask, &maskA) == kDesc &&
-                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &odolwaA) == kNone,
-                  "M12 MM's Deku Mask is a DESCRIPTOR in OoT, Odolwa's Remains is no model");
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &odolwaA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, goht, &gohtA) == kNone,
+                  "M12 MM's Deku Mask and Odolwa's Remains (#964) are DESCRIPTORs in OoT, the Soul of Goht is no "
+                  "model");
         // MM's hookshot collides, and OoT's host-native table (#577 M7) maps it to
         // OoT's own hookshot row. #832: the shelf draws that row, as OoT's own
         // recipe gives it (the lists the get-item cutscene draws for it, M13).
@@ -1291,11 +1394,25 @@ TestResult Test_ForeignModel(void) {
         const int drawHookshotUnmounted = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
         OoT_ForeignModel_TestSetMountOverride(1);
 
+        // #964: the remains bind OBJECT_BSMASK into segment 6 in MM, which a static
+        // (object, list) row cannot do; the list reads no segment, so the shelf
+        // draws it as a plain curated descriptor.
         Combo_ClearForeignPlacementsOoT();
         const int placedOdolwa = Combo_SetForeignPlacementOoT(shelf, odolwa);
-        printf("[TEST]   M12 MM Odolwa's Remains (no model), archive mounted:\n");
-        const int drawOdolwa = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
-        const int modelOdolwa = OoT_ForeignModel_ModelForOoTCheck(shelf, nullptr);
+        printf("[TEST]   M12 MM Odolwa's Remains (#964: a curated descriptor), archive mounted:\n");
+        const int drawOdolwa = OoT_ForeignModel_TestShelfDraw(shelf, &odolwaA.model);
+        ComboModel answeredOdolwa;
+        const int modelOdolwa = OoT_ForeignModel_ModelForOoTCheck(shelf, &answeredOdolwa);
+        OoT_ForeignModel_TestSetMountOverride(0);
+        printf("[TEST]   M12 MM Odolwa's Remains, archive NOT mounted:\n");
+        const int drawOdolwaUnmounted = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        OoT_ForeignModel_TestSetMountOverride(1);
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedGoht = Combo_SetForeignPlacementOoT(shelf, goht);
+        printf("[TEST]   M12 MM Soul of Goht (no model), archive mounted:\n");
+        const int drawGoht = OoT_ForeignModel_TestShelfDraw(shelf, nullptr);
+        const int modelGoht = OoT_ForeignModel_ModelForOoTCheck(shelf, nullptr);
         OoT_ForeignModel_TestSetMountOverride(-1);
 
         const int realMissing =
@@ -1304,7 +1421,8 @@ TestResult Test_ForeignModel(void) {
         const int realNull = OoT_ForeignModel_TestPathMountedReal(nullptr);
 
         std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
-        FM_ASSERT(placedMask >= 0 && placedHookshot >= 0 && placedOdolwa >= 0, "M12 placements accepted");
+        FM_ASSERT(placedMask >= 0 && placedHookshot >= 0 && placedOdolwa >= 0 && placedGoht >= 0,
+                  "M12 placements accepted");
         FM_ASSERT(drawNone == 0, "M12 an OoT check with no MM item draws no foreign model (see the M12 lines above)");
         FM_ASSERT(drawMask == 0, "M12 the shelf draws MM's Deku Mask model (see the M12 lines above)");
         FM_ASSERT(modelMask == 1 && FmModelEqual(answered, maskA.model),
@@ -1317,8 +1435,16 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(drawHookshotUnmounted == 0,
                   "M12 a host-native row whose lists no mounted archive holds keeps the stand-in (see the M12 lines "
                   "above)");
-        FM_ASSERT(drawOdolwa == 0 && modelOdolwa == 0,
-                  "M12 a no-model answer keeps the stand-in (see the M12 lines above)");
+        FM_ASSERT(drawOdolwa == 0, "M12 the shelf draws Odolwa's Remains model, not the stand-in (#964; see the M12 "
+                                   "lines above)");
+        FM_ASSERT(modelOdolwa == 1 && FmModelEqual(answeredOdolwa, odolwaA.model),
+                  "M12 the shelf's model for the remains is exactly MM's descriptor for them (#964)");
+        FM_ASSERT(
+            drawOdolwaUnmounted == 0,
+            "M12 the remains with the curated archive unmounted keep the stand-in (see the M12 lines above; locks "
+            "HostPathMounted's gate on the new descriptor)");
+        FM_ASSERT(drawGoht == 0 && modelGoht == 0,
+                  "M12 (control, also true on main) a no-model answer keeps the stand-in (see the M12 lines above)");
         FM_ASSERT(realMissing == 0 && realNoPrefix == 0 && realNull == 0,
                   "M12 the production mount test refuses a missing, unprefixed or null path");
     }
@@ -1330,21 +1456,25 @@ TestResult Test_ForeignModel(void) {
         SharedItem sword;
         SharedItem mmHookshot;
         SharedItem odolwa;
+        SharedItem goht;
         FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Deku Mask", &dekuMask) &&
                       TestNamedItem((uint8_t)GAME_MM, "Great Fairy's Sword", &sword) &&
                       TestNamedItem((uint8_t)GAME_MM, "Hookshot", &mmHookshot) &&
-                      TestNamedItem((uint8_t)GAME_MM, "Odolwa's Remains", &odolwa),
+                      TestNamedItem((uint8_t)GAME_MM, "Odolwa's Remains", &odolwa) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Soul of Goht", &goht),
                   "M13 named items");
         ComboModelAnswer maskA;
         ComboModelAnswer swordA;
         ComboModelAnswer hookshotA;
         ComboModelAnswer odolwaA;
+        ComboModelAnswer gohtA;
         FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, dekuMask, &maskA) == kDesc &&
                       Combo_GetForeignItemModel((uint8_t)GAME_OOT, sword, &swordA) == kDesc &&
                       Combo_GetForeignItemModel((uint8_t)GAME_OOT, mmHookshot, &hookshotA) == kHost &&
-                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &odolwaA) == kNone,
-                  "M13 in OoT: the mask and the sword are DESCRIPTORs, MM's (colliding) hookshot is OoT's own row, "
-                  "Odolwa's Remains is no model");
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &odolwaA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_OOT, goht, &gohtA) == kNone,
+                  "M13 in OoT: the mask, the sword and Odolwa's Remains (#964) are DESCRIPTORs, MM's (colliding) "
+                  "hookshot is OoT's own row, the Soul of Goht is no model");
         // What OoT draws for MM's hookshot: its own row, as its own recipe gives it.
         ComboModel ootHookshot;
         const char* ootHookshotReason = nullptr;
@@ -1380,12 +1510,17 @@ TestResult Test_ForeignModel(void) {
 
         Combo_ClearForeignPlacementsOoT();
         const int placedOdolwa = Combo_SetForeignPlacementOoT(host, odolwa);
-        printf("[TEST]   M13 Odolwa's Remains (no model), archive mounted:\n");
-        const int showOdolwa = OoT_ForeignModel_TestShowOnlyGetItem(host, 1, nullptr, "Odolwa's Remains");
+        printf("[TEST]   M13 Odolwa's Remains (#964: a curated descriptor), archive mounted:\n");
+        const int showOdolwa = OoT_ForeignModel_TestShowOnlyGetItem(host, 1, &odolwaA.model, "Odolwa's Remains");
+
+        Combo_ClearForeignPlacementsOoT();
+        const int placedGoht = Combo_SetForeignPlacementOoT(host, goht);
+        printf("[TEST]   M13 Soul of Goht (no model), archive mounted:\n");
+        const int showGoht = OoT_ForeignModel_TestShowOnlyGetItem(host, 1, nullptr, "Soul of Goht");
         OoT_ForeignModel_TestSetMountOverride(-1);
 
         std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
-        FM_ASSERT(placedMask >= 0 && placedSword >= 0 && placedHookshot >= 0 && placedOdolwa >= 0,
+        FM_ASSERT(placedMask >= 0 && placedSword >= 0 && placedHookshot >= 0 && placedOdolwa >= 0 && placedGoht >= 0,
                   "M13 placements accepted");
         FM_ASSERT(showNothing == 0, "M13 an OoT check with no MM item queues no show-only entry (see the M13 lines "
                                     "above)");
@@ -1395,9 +1530,11 @@ TestResult Test_ForeignModel(void) {
                                   "lines above)");
         FM_ASSERT(showHookshot == 0, "M13 a colliding MM model with a host-native row shows OoT's OWN model for "
                                      "that row (see the M13 lines above)");
-        FM_ASSERT(showUnmounted == 0 && showOdolwa == 0,
-                  "M13 unmounted, or no model: the cutscene shows the mystery stand-in and still gives nothing (see "
-                  "the M13 lines above)");
+        FM_ASSERT(showOdolwa == 0, "M13 OoT's get-item cutscene shows Odolwa's Remains model, not the stand-in (#964; "
+                                   "see the M13 lines above)");
+        FM_ASSERT(showUnmounted == 0 && showGoht == 0,
+                  "M13 (control, also true on main) unmounted, or no model: the cutscene shows the mystery stand-in "
+                  "and still gives nothing (see the M13 lines above)");
     }
 
     // ---- M14 (#577 M5) -----------------------------------------------------------

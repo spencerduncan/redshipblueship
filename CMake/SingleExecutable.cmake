@@ -530,6 +530,11 @@ if(BUILD_TESTING)
     # the real init functions with and without the arrival flag (survive vs. still
     # clear). Pure -- no display -- so it runs in this redship tier.
     redship_add_test(NAME TrackerArrivalRehydration COMMAND redship --test tracker-arrival-rehydration)
+    # Arrival-recalc lock (#990): the same arrival restores the frozen save without Save_LoadFile, so
+    # nothing armed the Check Tracker's deferred Available Checks recalculation, and the apply + redeem
+    # run before OoT_gPlayState exists (every handler bails on IsSaveLoaded). Drives
+    # OoT_Play_ApplyArrivalShared (what OoT_Play_Init runs) and the option toggle. ROM-free.
+    redship_add_test(NAME TrackerArrivalRecalc COMMAND redship --test tracker-arrival-recalc)
     # Entrance-link dedup regression (#374): the default (mask shop) and test
     # (Mido's House) links both return through MM 0xC010, and both were
     # registered unconditionally. Entrance_CheckCrossGame resolves first-match,
@@ -590,6 +595,20 @@ if(BUILD_TESTING)
     # and nothing MM's fill counts. Authors a five-area world over MM's real
     # check table and reads the free stone's text (EnGs.cpp) for 512 stone seeds.
     redship_add_test(NAME MmFoolishStoneHint COMMAND redship --test mm-foolish-stone-hint)
+    # #1047: what MM decides while you play is a pure function of the frozen world.
+    # A free stone's seed was a float sum converted to uint32_t (undefined when
+    # negative, which 23 of MM's 58 stones are); a trap's type was rolled at pickup
+    # from the live gRando.Traps.* CVars and the running stream. Each row runs once
+    # here and twice, in two processes, in its *TwoProcesses row
+    # (CMake/CheckPureTwoRuns.cmake: the "[pure]" lines must match).
+    redship_add_test(NAME MmGossipStoneSeed COMMAND redship --test mm-gossip-stone-seed)
+    redship_add_test(NAME MmGossipStoneSeedTwoProcesses
+        COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-gossip-stone-seed
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
+    redship_add_test(NAME MmTrapRollFrozen COMMAND redship --test mm-trap-roll-frozen)
+    redship_add_test(NAME MmTrapRollFrozenTwoProcesses
+        COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-trap-roll-frozen
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
     # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
     # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
     # stone's real text and candidate filter (EnGs.cpp) over MM's real check
@@ -797,6 +816,11 @@ if(BUILD_TESTING)
     # ResourceManager::SetDefaultCacheOwner: each owner keeps its own bytes, and
     # the first keeps its original object. ROM-free and archive-free.
     redship_add_test(NAME ResourceCacheOwner COMMAND redship --test resource-cache-owner)
+    # #987: re-adding a mounted archive path (every game switch does) mounts
+    # nothing new and keeps newest-wins. Two temporary O2R zips added and
+    # re-added by path: archive count, game-version list and mount order
+    # asserted. ROM-free and archive-free.
+    redship_add_test(NAME ArchiveAddDedup COMMAND redship --test archive-add-dedup)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture
@@ -933,6 +957,11 @@ if(BUILD_TESTING)
     # bound-arithmetic bugs, so the capacity computation was factored into pure
     # helpers this test calls directly — display-free, ROM-free.
     redship_add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
+    # OoT pause-menu item age table bounds (#983). OoT_Play_Init writes
+    # gItemAgeReqs[ITEM_ROCS_FEATHER] (0x9C) and the pause menu reads it, but
+    # the table held the 86 vanilla entries. Asserts the count the defining TU
+    # exports covers that index and every u8 ItemID. Display-free, ROM-free.
+    redship_add_test(NAME ItemAgeReqsBounds COMMAND redship --test item-age-reqs-bounds)
     # OoT audio producer init-guard (#365). The shared OTRAudio_Thread runs
     # OoT_AudioMgr_CreateNextAudioBuffer whenever MM's synth is inactive — every
     # MM frame before MM audio boots, and the mid-switch window where OoT is
@@ -1296,6 +1325,15 @@ if(BUILD_TESTING)
     # The end-to-end complement, which needs a real fill, is RandoEntrancePin in
     # the rando tier below.
     redship_add_test(NAME OoTEntrancePin COMMAND redship --test oot-entrance-pin)
+
+    # #999: the Check Tracker's Available Checks prices an unidentified shop, scrub
+    # or merchant slot at GetMinimumPrice, and for a Range price setting that must
+    # be min(range 1, range 2) * 5 whichever slider is higher; the inherited code
+    # read range 1 for both ends, so a reversed range hid affordable checks. The row
+    # sets each family to Range with a pair in both orders and asserts the minimum
+    # through the bridge in location_access.cpp. Display-free and ROM-free: it needs
+    # only the rando Context.
+    redship_add_test(NAME OoTPriceRangeMinimum COMMAND redship --test oot-price-range-minimum)
 
     # #948: the same door at night. SCENE_MARKET_NIGHT places it as a sign door
     # (DOOR_CHECKABLE, text 0x0210), so the crossing waited for morning; in a
@@ -2754,32 +2792,50 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # door left the loop and main re-ran OoT's Main() on the retired gamestate:
     # an access violation in OoT_GameState_SetFrameBuffer. RUN_SERIAL because
     # the archive is missing from the build directory while the row runs.
-    # CMake/CheckCrossingRefused.cmake; the driver is in
-    # games/oot/soh/GameExports_SingleExe.cpp.
+    #
+    # IntCrossingRefusedNoOoTArchive is the same gate from the other side: with
+    # oot.o2r aside MM boots first (int-crossing-refused-mm), loads its debug
+    # save outside the Clock Tower and walks into the door, which must be
+    # refused while MM is still in its frame loop (z_play.c loads the 0xD800
+    # Combo_CheckEntranceSwitch hands back; MM_Game_Run entered once); then the
+    # raw switch request, after which MM must come back through suspend/resume
+    # with its save. Each row also asserts the door's own refusal line, which
+    # only Combo_CheckEntranceSwitch prints.
+    #
+    # CMake/CheckCrossingRefused.cmake; the drivers are in
+    # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp.
     math(EXPR _crossing_refused_run_timeout "${REDSHIP_INTEGRATION_TEST_TIMEOUT} - 5")
     foreach(_refusal
-            "IntCrossingRefusedNoMMArchive|mm.o2r|=== Majora's Mask archive missing ==="
-            "IntCrossingRefusedNoPortArchive|2ship.o2r|=== Majora's Mask port archive missing ===")
+            "IntCrossingRefusedNoMMArchive|int-crossing-refused|mm.o2r|=== Majora's Mask archive missing ===|[COMBO] Crossing (oot) to mm refused"
+            "IntCrossingRefusedNoPortArchive|int-crossing-refused|2ship.o2r|=== Majora's Mask port archive missing ===|[COMBO] Crossing (oot) to mm refused"
+            "IntCrossingRefusedNoOoTArchive|int-crossing-refused-mm|oot.o2r|=== Ocarina of Time archive missing ===|[COMBO] Crossing (mm) to oot refused")
         string(REPLACE "|" ";" _refusal_fields "${_refusal}")
         list(GET _refusal_fields 0 _refusal_name)
-        list(GET _refusal_fields 1 _refusal_hide)
-        list(GET _refusal_fields 2 _refusal_report)
+        list(GET _refusal_fields 1 _refusal_mode)
+        list(GET _refusal_fields 2 _refusal_hide)
+        list(GET _refusal_fields 3 _refusal_report)
+        list(GET _refusal_fields 4 _refusal_line)
         redship_add_test(NAME ${_refusal_name}
             COMMAND ${CMAKE_COMMAND}
                     -DREDSHIP_EXE=$<TARGET_FILE:redship>
                     -DWORK_DIR=${CMAKE_BINARY_DIR}
-                    -DMODE=int-crossing-refused
+                    -DMODE=${_refusal_mode}
                     -DHIDE=${_refusal_hide}
                     "-DEXPECT_REPORT=${_refusal_report}"
+                    "-DEXPECT_REFUSAL=${_refusal_line}"
                     -DRUN_TIMEOUT=${_crossing_refused_run_timeout}
                     -P ${CMAKE_CURRENT_LIST_DIR}/CheckCrossingRefused.cmake
             LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
         set_tests_properties(${_refusal_name} PROPERTIES RUN_SERIAL TRUE)
     endforeach()
     redship_test_exempt(int-crossing-refused
-        "Driven by the IntCrossingRefused* rows (cmake -P CheckCrossingRefused.cmake), which the manifest records as \
-meta rows: each sets one of MM's archives aside first. A plain --integration-test row with every archive staged has \
-no crossing to refuse (#954).")
+        "Driven by the IntCrossingRefusedNoMMArchive/NoPortArchive rows (cmake -P CheckCrossingRefused.cmake), which the \
+manifest records as meta rows: each sets one of MM's archives aside first. A plain --integration-test row with every \
+archive staged has no crossing to refuse (#954).")
+    redship_test_exempt(int-crossing-refused-mm
+        "Driven by the IntCrossingRefusedNoOoTArchive row (cmake -P CheckCrossingRefused.cmake), which the manifest \
+records as a meta row: it sets oot.o2r aside first. A plain --integration-test row with every archive staged has no \
+crossing to refuse (#954).")
 
     # #793: the wall-clock watchdog thread (src/common/integration_test_hooks.cpp).
     # Each row wedges a real run with RSBS_INT_WEDGE (a 600 s sleep with no frame

@@ -184,7 +184,11 @@ void EnGirlA_RandoBuyFunc(PlayState* play, EnGirlA* enGirlA) {
     randoSaveCheck.obtained = true;
     MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
     if (randoItemId == RI_TRAP) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        RollTrapType((RandoCheckId)enGirlA->actor.world.rot.z); // #1047: the check decides the trap
+#else
         RollTrapType();
+#endif
     }
     Rando::GiveItem(randoItemId);
 }
