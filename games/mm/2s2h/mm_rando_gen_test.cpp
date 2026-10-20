@@ -232,10 +232,8 @@ void WriteContentDigest(FILE* out) {
     uint32_t mmFreeStoneDigest = 0;
     const int mmFreeStoneCount = MM_Rando_Hints_DigestFreeStones(&mmFreeStoneDigest);
     fprintf(out,
-            "mmFreeStoneCount=%d
-"
-            "mmFreeStoneDigest=%08X
-",
+            "mmFreeStoneCount=%d\n"
+            "mmFreeStoneDigest=%08X\n",
             mmFreeStoneCount, mmFreeStoneDigest);
 }
 

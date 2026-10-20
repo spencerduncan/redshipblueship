@@ -399,13 +399,11 @@ extern "C" int MM_Rando_Hints_DigestFreeStones(uint32_t* outDigest) {
         blob += std::to_string(stone.sceneId) + ':' + std::to_string(stone.x) + ':' + std::to_string(stone.z) + '|' +
                 std::to_string(seed) + '|';
         if (candidates.empty()) {
-            blob += "none
-";
+            blob += "none\n";
         } else {
             const GossipHintTarget target = FreeStonePick(candidates, seed);
             blob += std::to_string(target.hostGame) + ':' + std::to_string(target.check) + '|' +
-                    FreeStoneHintTextSeeded(target, finalSeed + seed) + '
-';
+                    FreeStoneHintTextSeeded(target, finalSeed + seed) + '\n';
         }
         count++;
     }
