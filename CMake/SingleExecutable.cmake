@@ -655,6 +655,12 @@ if(BUILD_TESTING)
     # either game's Kokiri Sword lights both through the real harvest/apply shims;
     # with it off, neither crosses and no slot appears. Display-free, ROM-free.
     redship_add_test(NAME SharedKokiriSword COMMAND redship --test shared-kokiri-sword)
+    # #991/#992: one wallet progression. A wallet found in Termina is the pair's
+    # wallet, so OoT's arrival apply sets RAND_INF_HAS_WALLET at tier 1 or more
+    # (logic's capacity and the per-frame rupee pin then agree with the tier),
+    # and a wallet-less arrival leaves the shared rupee pool whole. OoT's real
+    # shims, ROM-free.
+    redship_add_test(NAME SharedWallet COMMAND redship --test shared-wallet)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an
