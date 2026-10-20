@@ -53,12 +53,13 @@
  *    names in 2ship_port/2ship_src TUs — including this one, which is why the
  *    MM side of this test only exports layout facts.
  *
- * 3. SHIM CONTRACT + FOUR-MODE ARMING. The MM_GameHooks_* registry must
+ * 3. SHIM CONTRACT + PER-MODE ARMING. The MM_GameHooks_* registry must
  *    register/dispatch/deferred-unregister as documented, and the REAL
  *    per-mode arming path (MM_RegisterIntegrationTestHooks, reached via
  *    IntegrationTest_SetMode + the C test entry) must register exactly one
- *    MM-frame hook for each of the four hook-driven integration modes
- *    (boot-mm, T1, T2, T4) and none for the direct-tick round-trip mode.
+ *    MM-frame hook for each of the five hook-driven integration modes
+ *    (boot-mm, T1, T2, T4, crossing-refused-mm) and none for the direct-tick
+ *    round-trip mode.
  *    Live arming on a real boot is the operator-batch check on #392.
  */
 
@@ -236,7 +237,7 @@ extern "C" int MM_GIShim_RunHeadless(void) {
     MM_GameHooks_ExecuteOnGameStateMainStart();
     GIS_ASSERT(sHookBCalls == 3, "hook lost after no-op unregisters");
 
-    // ---- 4. Four-mode arming registers through the shim ------------------
+    // ---- 4. Per-mode arming registers through the shim ------------------
     // Pin the harness state the real lambdas gate on: with no game active,
     // dispatching them is a headless no-op (MM_SceneLoadComplete and the
     // watchdog both require GAME_MM).
@@ -253,6 +254,7 @@ extern "C" int MM_GIShim_RunHeadless(void) {
         { INT_TEST_SWITCH_OOT_HMS_TO_MM, 1, "switch-oot-hms-to-mm (T1)" },
         { INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, 1, "switch-mm-clocktown-south-to-oot (T2)" },
         { INT_TEST_ARCHIVE_HOTSWAP_CYCLE, 1, "archive-hotswap-cycle (T4)" },
+        { INT_TEST_CROSSING_REFUSED_MM, 1, "crossing-refused-mm (#954)" },
         { INT_TEST_GAMEPLAY_ROUNDTRIP, 0, "gameplay-roundtrip (direct tick, no hooks)" },
         { INT_TEST_NONE, 0, "none (arming must early-out)" },
     };
@@ -278,7 +280,7 @@ extern "C" int MM_GIShim_RunHeadless(void) {
     Context_SetCurrentGame(prevGame);
 
     printf("[TEST] PASS: mm-gi-shim — MM hook registration stays off the shared 4-byte instance, the two ports' "
-           "same-named hook registries are distinct symbols, all four hook-driven integration modes arm through "
+           "same-named hook registries are distinct symbols, all five hook-driven integration modes arm through "
            "the MM-owned shim\n");
     return 0;
 }

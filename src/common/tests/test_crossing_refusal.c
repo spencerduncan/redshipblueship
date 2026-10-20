@@ -11,8 +11,9 @@
  * the refusal cleared the switch and ran OoT_Game_Run again. Its Main()
  * re-initialized the system arena under the gamestate the graph coroutine
  * still pointed at, and the first frame read the GraphicsContext out of freed
- * memory (OoT_GameState_SetFrameBuffer). The end-to-end lock is the
- * IntCrossingRefused* integration rows (CMake/CheckCrossingRefused.cmake).
+ * memory (OoT_GameState_SetFrameBuffer). The end-to-end locks are the
+ * IntCrossingRefused* integration rows (CMake/CheckCrossingRefused.cmake):
+ * NoMMArchive and NoPortArchive drive leg 1's door, NoOoTArchive leg 2's.
  *
  * THE LEGS. Every target status is forced through Switch_SetTargetStatusForTest,
  * so the row is the same with or without archives staged.

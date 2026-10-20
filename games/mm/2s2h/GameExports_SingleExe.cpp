@@ -23,6 +23,7 @@
 #include <cstddef>     // offsetof for the #395 layout facts; ptrdiff_t
 #include <type_traits> // std::is_same_v for the #470 payload-divergence premise
 #include <cctype>
+#include <chrono> // int-crossing-refused-mm's stage clock (#954)
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -117,6 +118,10 @@ extern "C" {
 #include "system_heap.h"
 #include "z64thread.h"
 #include "global.h"
+// int-crossing-refused-mm's boot (#954): the console logo it recognizes, and
+// MM's map-select load it enters Play through.
+#include "overlays/gamestates/ovl_title/z_title.h"
+#include "overlays/gamestates/ovl_select/z_select.h"
 #include "message_data_static.h" // #981: MessageTableEntry, for the credits table accessor
 }
 
@@ -554,6 +559,330 @@ static void MM_IntegrationWatchdogDescribe(char* out, size_t cap) {
              (unsigned)gSaveContext.save.entrance, (void*)MM_gPlayState);
 }
 
+// ============================================================================
+// int-crossing-refused-mm (#954): a refused crossing leaves MM running
+// ============================================================================
+//
+// MM's twin of OoT's int-crossing-refused (games/oot/soh/GameExports_SingleExe.cpp).
+// The row's script (CMake/CheckCrossingRefused.cmake) sets oot.o2r aside and
+// MM boots first, so no switch into Ocarina of Time can go ahead. Both legs
+// start from live gameplay outside the Clock Tower:
+//
+//   0. THE BOOT. An unattended MM boot settles into the title demo, and its file
+//      select needs a Start press. So on the console logo's first frame the
+//      driver loads MM's debug save at South Clock Town (0xD800), the way MM's
+//      map select loads it, and Play starts outside the Clock Tower.
+//   1. THE DOOR. The production door transition into 0xC010 (the round trip's
+//      GP_PHASE_MM_PLAY trio): z_play.c's TRANS_MODE_SETUP runs
+//      Combo_CheckEntranceSwitch, which must refuse the crossing while MM is
+//      still in its frame loop and hand back 0xD800, which z_play.c loads. The
+//      scene then reloads at 0xD800 with no switch pending, MM's half not
+//      frozen and MM_Game_Run entered once, and MM plays on. If z_play.c drops
+//      the return, the transition carries Link through the door into the
+//      Clock Tower's interior (0xC010) instead.
+//   2. A LATE REFUSAL. A raw switch request (Combo_RequestGameSwitch, which
+//      MM's owl-save and game-over exits make) leaves MM's loop past the
+//      in-game gates. main must refuse it and bring MM back through its
+//      suspend/resume contract (ReenterAfterRefusedSwitch): MM_Game_Run is
+//      entered a second time, the scene loads at 0xD800 (MM's hot-swap return
+//      entrance), the save MM left with comes back (a sentinel written before
+//      the request), and MM plays on.
+//
+// "Plays on" is kMMCrLiveFrames live gameplay frames AND kMMCrLiveSecs of wall
+// clock. A stage that stalls while MM keeps ticking frames fails on
+// kMMCrStageBudgetSecs; a dead or wedged process is the wall-clock watchdog
+// thread's and the script's to report.
+typedef enum {
+    MMCR_STAGE_BOOT,          // waiting for the console logo to inject the debug save
+    MMCR_STAGE_ENTERING_PLAY, // debug save injected; waiting for the scene init at kMMCrOutsideDoor
+    MMCR_STAGE_BEFORE_DOOR,   // live frames outside the Clock Tower
+    MMCR_STAGE_DOOR,          // walked into the door; waiting for the scene init it leads to
+    MMCR_STAGE_AFTER_DOOR,    // playing on after the refused door
+    MMCR_STAGE_LATE,          // raw switch request made; waiting for MM to come back
+    MMCR_STAGE_AFTER_LATE,    // playing on after the late refusal
+    MMCR_STAGE_DONE,
+    MMCR_STAGE_FAILED,
+} MMCrStage;
+
+// How many times MM_Game_Run has been entered in this process: once at boot,
+// and once more for each time MM's frame loop was left and re-entered.
+static int sMMRunEntries = 0;
+
+static MMCrStage sMMCrStage = MMCR_STAGE_BOOT;
+static int sMMCrLiveFrames = 0;
+static std::chrono::steady_clock::time_point sMMCrStageStart{};
+static bool sMMCrSceneHookRegistered = false;
+static const uint16_t kMMCrOutsideDoor = MM_ENTR_SOUTH_CLOCK_TOWN_0;
+static const int kMMCrFramesBeforeDoor = 20;
+static const int kMMCrLiveFrames = 60;
+static const double kMMCrLiveSecs = 3.0;
+static const int kMMCrStageBudgetSecs = 30;
+// The late leg's continuity sentinel, in the field the paired round trip uses
+// for the same purpose (GP_MM_CONTINUITY_DEKU_SCORE_BASE): only the Deku
+// Playground's own record and the high-score resets write it, never the shared
+// resources or an arrival's apply. A re-entry that cold-booted MM's bootstrap
+// file instead of restoring the freeze reads the new file's 7500.
+static const u32 kMMCrLateSentinel = 6954u;
+
+static const char* MMCrStageName(MMCrStage stage) {
+    switch (stage) {
+        case MMCR_STAGE_BOOT:
+            return "boot";
+        case MMCR_STAGE_ENTERING_PLAY:
+            return "entering-play";
+        case MMCR_STAGE_BEFORE_DOOR:
+            return "before-door";
+        case MMCR_STAGE_DOOR:
+            return "door";
+        case MMCR_STAGE_AFTER_DOOR:
+            return "after-door";
+        case MMCR_STAGE_LATE:
+            return "late";
+        case MMCR_STAGE_AFTER_LATE:
+            return "after-late";
+        case MMCR_STAGE_DONE:
+            return "done";
+        case MMCR_STAGE_FAILED:
+            return "failed";
+    }
+    return "unknown";
+}
+
+static double MMCrSecondsInStage(void) {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - sMMCrStageStart).count();
+}
+
+static void MMCrSetStage(MMCrStage stage) {
+    fprintf(stderr, "[MM-INT-TEST] crossing-refused-mm: stage %s -> %s (%.1f s, %d live frames in %s)\n",
+            MMCrStageName(sMMCrStage), MMCrStageName(stage), MMCrSecondsInStage(), sMMCrLiveFrames,
+            MMCrStageName(sMMCrStage));
+    fflush(stderr);
+    sMMCrStage = stage;
+    sMMCrLiveFrames = 0;
+    sMMCrStageStart = std::chrono::steady_clock::now();
+}
+
+// Same exit as the other MM rows (#793): RequestExit leaves the pass flag
+// unset, and the switch request is what makes MM's frame loop return to main,
+// which sees the exit first.
+static void MMCrFail(const char* why) {
+    PlayState* play = MM_gPlayState;
+    fprintf(stderr,
+            "[MM-INT-TEST] FAIL (int-crossing-refused-mm): %s [stage=%s after %.1f s; MM_Game_Run entries=%d "
+            "gameMode=%d entrance=0x%04X gPlayState=%p sceneId=%d]\n",
+            why, MMCrStageName(sMMCrStage), MMCrSecondsInStage(), sMMRunEntries, (int)gSaveContext.gameMode,
+            (unsigned)gSaveContext.save.entrance, (void*)play, play != NULL ? (int)play->sceneId : -1);
+    fflush(stderr);
+    sMMCrStage = MMCR_STAGE_FAILED;
+    IntegrationTest_RequestExit();
+    Combo_RequestGameSwitch();
+}
+
+// MM's twin of OoT's IntInjectDebugSaveAndEnterPlay. The load is MM's own map
+// select's (MapSelect_LoadGame, ovl_select/z_select.c): on the debug file
+// (fileNum 0xFF, which ConsoleLogo_Init sets) it authors MM_Sram_InitDebugSave,
+// resets the cycle's flags, re-dispatches OnSaveLoad and starts Play at the
+// entrance. It touches nothing of its gamestate but `state`, so the console
+// logo stands in for the map select, as 2S2H's boot-to-warp-point does. What
+// the map select's menu authors before it is set here: a day-1 spawn in normal
+// play with no cutscene.
+static void MMCrInjectDebugSave(GameState* gameState) {
+    fprintf(stderr,
+            "[MM-INT-TEST] crossing-refused-mm: injecting MM's debug save at the console logo; entering Play at "
+            "entrance 0x%04X\n",
+            kMMCrOutsideDoor);
+    fflush(stderr);
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.save.cutsceneIndex = 0;
+    gSaveContext.nextCutsceneIndex = 0xFFEF;
+    gSaveContext.sceneLayer = 0;
+    gSaveContext.save.time = CLOCK_TIME(8, 0);
+    gSaveContext.save.day = 1;
+    gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+    MapSelect_LoadGame((MapSelectState*)gameState, kMMCrOutsideDoor, 0);
+    MMCrSetStage(MMCR_STAGE_ENTERING_PLAY);
+}
+
+// The production door (MM_IntegrationGameplayFrameTick's GP_PHASE_MM_PLAY
+// trio): the play update loop runs the real transition, and z_play.c calls
+// Combo_CheckEntranceSwitch.
+static void MMCrWalkIntoDoor(PlayState* play) {
+    fprintf(stderr,
+            "[MM-INT-TEST] crossing-refused-mm: %d live frames outside the Clock Tower; walking into its door "
+            "(entrance 0x%04X)\n",
+            sMMCrLiveFrames, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+    fflush(stderr);
+    MMCrSetStage(MMCR_STAGE_DOOR);
+    play->nextEntrance = MM_ENTR_CLOCK_TOWER_INTERIOR_1;
+    play->transitionTrigger = TRANS_TRIGGER_START;
+    play->transitionType = TRANS_TYPE_FADE_BLACK;
+    gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+}
+
+static void MMCrRequestLateSwitch(void) {
+    fprintf(stderr,
+            "[MM-INT-TEST] crossing-refused-mm: leg 1 PASS (the door was refused in MM's loop; %d live frames, "
+            "%.1f s outside it); leg 2: a raw switch request leaves the loop past the in-game gates (continuity "
+            "sentinel: dekuPlaygroundHighScores[0]=%u)\n",
+            sMMCrLiveFrames, MMCrSecondsInStage(), (unsigned)kMMCrLateSentinel);
+    fflush(stderr);
+    gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0] = kMMCrLateSentinel;
+    MMCrSetStage(MMCR_STAGE_LATE);
+    Combo_RequestGameSwitch();
+}
+
+// Gameplay (re)built: where the debug save, the refused door, or the re-entry
+// after the late refusal put Link. MM's OnSceneInit fires at the end of
+// MM_Play_Init, after the startup-entrance consumption, so the save's entrance
+// is final here.
+static void MMCrSceneInit(void) {
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return;
+    }
+    const uint16_t entrance = (uint16_t)gSaveContext.save.entrance;
+    char msg[224];
+    switch (sMMCrStage) {
+        case MMCR_STAGE_ENTERING_PLAY:
+            if (entrance != kMMCrOutsideDoor) {
+                snprintf(msg, sizeof(msg), "gameplay arrived at entrance 0x%04X, expected 0x%04X", entrance,
+                         kMMCrOutsideDoor);
+                MMCrFail(msg);
+                return;
+            }
+            MMCrSetStage(MMCR_STAGE_BEFORE_DOOR);
+            return;
+        case MMCR_STAGE_DOOR:
+        case MMCR_STAGE_LATE: {
+            const bool door = sMMCrStage == MMCR_STAGE_DOOR;
+            fprintf(stderr,
+                    "[MM-INT-TEST] crossing-refused-mm: scene init after the %s: scene %d, entrance 0x%04X, "
+                    "MM_Game_Run entries %d\n",
+                    door ? "door" : "late refusal", MM_gPlayState != NULL ? (int)MM_gPlayState->sceneId : -1, entrance,
+                    sMMRunEntries);
+            fflush(stderr);
+            if (entrance != kMMCrOutsideDoor) {
+                snprintf(msg, sizeof(msg),
+                         "after the %s, entrance 0x%04X loaded; a refused crossing must leave Link outside the "
+                         "Clock Tower (0x%04X)",
+                         door ? "refused door" : "late refusal", entrance, kMMCrOutsideDoor);
+                MMCrFail(msg);
+                return;
+            }
+            if (Combo_IsCrossGameSwitch() || Combo_IsGameSwitchRequested()) {
+                MMCrFail("a switch is still pending after the refusal");
+                return;
+            }
+            if (door && Context_HasFrozenState(GAME_MM)) {
+                MMCrFail("the refused door froze MM's half: the refusal must come before the departure freeze");
+                return;
+            }
+            const int expectedEntries = door ? 1 : 2;
+            if (sMMRunEntries != expectedEntries) {
+                snprintf(msg, sizeof(msg),
+                         door ? "MM_Game_Run was entered %d times: MM left its frame loop for the refused door "
+                                "instead of being refused while it ran"
+                              : "MM_Game_Run was entered %d times, expected 2 (boot, then the re-entry after the "
+                                "late refusal)",
+                         sMMRunEntries);
+                MMCrFail(msg);
+                return;
+            }
+            if (!door) {
+                const u32 score = gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0];
+                if (score != kMMCrLateSentinel) {
+                    snprintf(msg, sizeof(msg),
+                             "the re-entry lost MM's save: dekuPlaygroundHighScores[0]=%u, expected the sentinel %u "
+                             "written before the late request",
+                             (unsigned)score, (unsigned)kMMCrLateSentinel);
+                    MMCrFail(msg);
+                    return;
+                }
+            }
+            MMCrSetStage(door ? MMCR_STAGE_AFTER_DOOR : MMCR_STAGE_AFTER_LATE);
+            return;
+        }
+        default:
+            return;
+    }
+}
+
+static void MMCrFrame(void) {
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return; // the ROM-free arming row dispatches with no game running
+    }
+    // Registered on MM's first frame rather than at arming, so the ROM-free
+    // mm-gi-shim row arms this mode without leaving a hook in MM's registry.
+    if (!sMMCrSceneHookRegistered) {
+        sMMCrSceneHookRegistered = true;
+        S2H::GameHooks::Register<GameInteractor::OnSceneInit>([](s8 sceneId, s8 spawnNum) {
+            (void)sceneId;
+            (void)spawnNum;
+            MMCrSceneInit();
+        });
+    }
+    if (sMMCrStage == MMCR_STAGE_DONE || sMMCrStage == MMCR_STAGE_FAILED) {
+        return;
+    }
+    if (MMCrSecondsInStage() >= kMMCrStageBudgetSecs) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "stage %s made no progress for %d s", MMCrStageName(sMMCrStage),
+                 kMMCrStageBudgetSecs);
+        MMCrFail(msg);
+        return;
+    }
+    if (sMMCrStage == MMCR_STAGE_BOOT) {
+        if (MM_gGameState != NULL && MM_gGameState->destroy == ConsoleLogo_Destroy) {
+            MMCrInjectDebugSave(MM_gGameState);
+        }
+        return;
+    }
+    if (sMMCrStage != MMCR_STAGE_BEFORE_DOOR && sMMCrStage != MMCR_STAGE_AFTER_DOOR &&
+        sMMCrStage != MMCR_STAGE_AFTER_LATE) {
+        return;
+    }
+    // A live frame is one with no transition under way. The door must not fire
+    // during the scene's fade-in: a trigger set while that instance runs is
+    // read as the fade's own exit, and z_play.c loads nextEntrance as it
+    // finishes without passing TRANS_MODE_SETUP, where the crossing is asked.
+    PlayState* play = MM_gPlayState;
+    if (play == NULL || MM_gGameState != &play->state || gSaveContext.gameMode != GAMEMODE_NORMAL ||
+        !MM_SceneLoadComplete() || play->transitionMode != TRANS_MODE_OFF ||
+        play->transitionTrigger != TRANS_TRIGGER_OFF) {
+        return;
+    }
+    sMMCrLiveFrames++;
+    if (sMMCrStage == MMCR_STAGE_BEFORE_DOOR) {
+        if (sMMCrLiveFrames >= kMMCrFramesBeforeDoor) {
+            MMCrWalkIntoDoor(play);
+        }
+        return;
+    }
+    if (sMMCrLiveFrames < kMMCrLiveFrames || MMCrSecondsInStage() < kMMCrLiveSecs) {
+        return;
+    }
+    if (sMMCrStage == MMCR_STAGE_AFTER_DOOR) {
+        MMCrRequestLateSwitch();
+        return;
+    }
+    fprintf(stderr,
+            "[MM-INT-TEST] int-crossing-refused-mm: PASS (the Clock Tower door was refused while MM ran, the late "
+            "refusal re-entered MM through suspend/resume with its save, and MM played on after both: %d live "
+            "frames, %.1f s)\n",
+            sMMCrLiveFrames, MMCrSecondsInStage());
+    fflush(stderr);
+    MMCrSetStage(MMCR_STAGE_DONE);
+    IntegrationTest_SignalBootComplete(GAME_MM, "crossing refused; MM played on");
+}
+
+static void MMCrRegisterHooks(void) {
+    fprintf(stderr, "[MM] Registering integration test hooks for the refused crossing (#954)\n");
+    fflush(stderr);
+    sMMCrStage = MMCR_STAGE_BOOT;
+    sMMCrLiveFrames = 0;
+    sMMCrStageStart = std::chrono::steady_clock::now();
+    MM_GameHooks_RegisterOnGameStateMainStart(MMCrFrame);
+}
+
 static void MM_RegisterIntegrationTestHooks(void) {
     if (!IntegrationTest_IsActive()) {
         return;
@@ -875,6 +1204,8 @@ static void MM_RegisterIntegrationTestHooks(void) {
 
         fprintf(stderr, "[MM] gameplay round-trip driver armed (direct frame tick)\n");
         fflush(stderr);
+    } else if (mode == INT_TEST_CROSSING_REFUSED_MM) {
+        MMCrRegisterHooks();
     }
 }
 
@@ -2602,6 +2933,7 @@ extern "C" int MM_ExtensionRescan_LastEntriesAdded(void) {
 }
 
 void MM_Game_Run(void) {
+    sMMRunEntries++;
     fprintf(stderr, "[MM] Game_Run called, entering MM_Graph_ThreadEntry()\n");
     fflush(stderr);
     // Assert context still valid before graph loop (issue #158)
