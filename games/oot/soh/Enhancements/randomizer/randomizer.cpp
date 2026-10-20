@@ -3474,6 +3474,40 @@ RandomizerCheck Randomizer::GetCheckFromRandomizerInf(RandomizerInf randomizerIn
 
 std::thread randoThread;
 
+// RSBS (#982): the Generate button's read of the exclude and trick CVars, moved
+// out of GenerateRandomizerImgui unchanged so the golden harness
+// (Rando_HeadlessSeedTest, 3drando/menu.cpp) parses a golden profile's sets with
+// the code a player's generation runs, visibility filter included.
+void Rando_ReadMenuExcludesAndTricks(std::set<RandomizerCheck>& excludedLocations,
+                                     std::set<RandomizerTrick>& enabledTricks) {
+    auto ctx = Rando::Context::GetInstance();
+    // todo: this efficently when we build out cvar array support
+    std::stringstream excludedLocationStringStream(CVarGetString(CVAR_RANDOMIZER_SETTING("ExcludedLocations"), ""));
+    std::string excludedLocationString;
+    while (getline(excludedLocationStringStream, excludedLocationString, ',')) {
+        excludedLocations.insert((RandomizerCheck)std::stoi(excludedLocationString));
+    }
+
+    // todo: better way to sort out linking tricks rather than name
+
+    std::stringstream enabledTrickStringStream(CVarGetString(CVAR_RANDOMIZER_SETTING("EnabledTricks"), ""));
+    std::string enabledTrickString;
+    while (getline(enabledTrickStringStream, enabledTrickString, ',')) {
+        enabledTricks.insert((RandomizerTrick)std::stoi(enabledTrickString));
+    }
+
+    // Update the visibilitiy before removing conflicting excludes (in case the locations tab wasn't viewed)
+    RandomizerCheckObjects::UpdateImGuiVisibility();
+
+    // Remove excludes for locations that are no longer allowed to be excluded
+    for (auto& location : Rando::StaticData::GetLocationTable()) {
+        auto elfound = excludedLocations.find(location.GetRandomizerCheck());
+        if (!ctx->GetItemLocation(location.GetRandomizerCheck())->IsVisible() && elfound != excludedLocations.end()) {
+            excludedLocations.erase(elfound);
+        }
+    }
+}
+
 void GenerateRandomizerImgui(std::string seed = "") {
     CVarSetInteger(CVAR_GENERAL("RandoGenerating"), 1);
     Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
@@ -3492,34 +3526,9 @@ void GenerateRandomizerImgui(std::string seed = "") {
         // RANDOTODO proper UI for selecting if a spoiler loaded should be used for settings
         Rando::Settings::GetInstance()->SetAllToContext();
 
-        // todo: this efficently when we build out cvar array support
         std::set<RandomizerCheck> excludedLocations;
-        std::stringstream excludedLocationStringStream(CVarGetString(CVAR_RANDOMIZER_SETTING("ExcludedLocations"), ""));
-        std::string excludedLocationString;
-        while (getline(excludedLocationStringStream, excludedLocationString, ',')) {
-            excludedLocations.insert((RandomizerCheck)std::stoi(excludedLocationString));
-        }
-
-        // todo: better way to sort out linking tricks rather than name
-
         std::set<RandomizerTrick> enabledTricks;
-        std::stringstream enabledTrickStringStream(CVarGetString(CVAR_RANDOMIZER_SETTING("EnabledTricks"), ""));
-        std::string enabledTrickString;
-        while (getline(enabledTrickStringStream, enabledTrickString, ',')) {
-            enabledTricks.insert((RandomizerTrick)std::stoi(enabledTrickString));
-        }
-
-        // Update the visibilitiy before removing conflicting excludes (in case the locations tab wasn't viewed)
-        RandomizerCheckObjects::UpdateImGuiVisibility();
-
-        // Remove excludes for locations that are no longer allowed to be excluded
-        for (auto& location : Rando::StaticData::GetLocationTable()) {
-            auto elfound = excludedLocations.find(location.GetRandomizerCheck());
-            if (!ctx->GetItemLocation(location.GetRandomizerCheck())->IsVisible() &&
-                elfound != excludedLocations.end()) {
-                excludedLocations.erase(elfound);
-            }
-        }
+        Rando_ReadMenuExcludesAndTricks(excludedLocations, enabledTricks); // RSBS (#982): shared with the goldens
 
         RandoMain::GenerateRando(excludedLocations, enabledTricks, seed);
     } catch (const std::exception& e) {
@@ -3726,6 +3735,25 @@ extern "C" int Rando_HeadlessFullInitSeedTest(const char* seedStr) {
         OTRAudio_Exit();
     }
     return rc;
+}
+
+/**
+ * #982: the player-path golden row's generation (GoldenSeedDigestPlayerPath,
+ * MM_Rando_HeadlessPlayerPathDigest). Exactly Rando_HeadlessFullInitSeedTest's
+ * body -- the full OTR bring-up proved live, then GenerateRandomizer(seed) on the
+ * Generate button's worker thread, joined -- without the audio teardown, because
+ * the caller goes on to run the creation event in the same bring-up. The caller
+ * pairs it with Rando_HeadlessFullInitTeardown.
+ */
+extern "C" int Rando_HeadlessWorkerGenerate(const char* seedStr) {
+    return RunFullInitSeedTest(seedStr);
+}
+
+/** #982: Rando_HeadlessFullInitSeedTest's audio teardown, for the player-path row. */
+extern "C" void Rando_HeadlessFullInitTeardown(void) {
+    if (OoT_OtrInitRan() != 0) {
+        OTRAudio_Exit();
+    }
 }
 
 class ExtendedVanillaTableInvalidItemIdException : public std::exception {
