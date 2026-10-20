@@ -542,6 +542,11 @@ int main(int argc, char** argv) {
         // never reaches this, so a player's window still comes to the front.
         // Locked by the test-window-no-activation row (test_window_focus.h).
         TestWindowFocus_ArmForTestMode("--test");
+        // And silent: SDL's audio driver defaults to "dummy" for a test process
+        // (RSBS_TEST_AUDIO=1 opts out), so a row never plays the games' audio
+        // through the speakers of the person at the workstation, whatever the
+        // staged config's Window.AudioBackend says. Locked by test-audio-silent.
+        TestWindowFocus_ArmSilentAudio("--test");
         // Fast-exit with the verdict: the chimera process heap-corrupts during
         // normal CRT teardown (0xC0000374 in the onexit static-destructor
         // chain — reproducible with just `redship --version` on Windows),
@@ -566,6 +571,8 @@ int main(int argc, char** argv) {
         // a window, and it must not take focus either. Set before the
         // Ship::Context below can create one.
         TestWindowFocus_ArmForTestMode("--integration-test");
+        // Silent too, before the Ship::Context below can open an audio device.
+        TestWindowFocus_ArmSilentAudio("--integration-test");
         // Continue to game initialization - integration tests actually run the game
         printf("[INT-TEST] Integration test mode - will boot game with hooks\n");
     }
@@ -924,6 +931,11 @@ int main(int argc, char** argv) {
             // still up here, so this reads whether it holds the keyboard after a
             // real boot, and armed=1 shows main armed the hint on this path too.
             TestWindowFocus_Probe(integrationTestArg);
+            // The audio a real boot ended with: SDL's driver, and the Ship audio
+            // backend the game built. A run that is not silent (the arm call above
+            // gone, or the OTRGlobals InitAudio hook gone and a config naming a real
+            // backend) fails the integration row, so those calls are locked here.
+            TestWindowFocus_AudioProbe(integrationTestArg);
             keepRunning = false;
             break;
         }
@@ -1078,6 +1090,10 @@ int main(int argc, char** argv) {
     // static-destructor chain is skipped.
     if (TestRunner_IsIntegrationTestMode()) {
         int integrationResult = TestRunner_GetIntegrationTestResult();
+        if (integrationResult == 0 && TestWindowFocus_AudioVerdictFailed()) {
+            printf("[INT-TEST] FAIL: the run was not silent (see the [AUDIO] line above)\n");
+            integrationResult = 1;
+        }
         fflush(stdout);
         fflush(stderr);
         _Exit(integrationResult);

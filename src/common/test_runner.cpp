@@ -29,6 +29,7 @@
 #include <vector> // the #656 reachability leg collects its host list
 
 #include <ship/Context.h>
+#include <ship/config/Config.h>
 #include <ship/resource/ResourceManager.h>
 // For Test_ZipContention's headless factory registration (#560): both games
 // register these only inside their display-bound Initialize paths.
@@ -2127,6 +2128,142 @@ TestResult Test_TestWindowNoActivation(void) {
     }
 #undef TWNA_ASSERT
     printf("[TEST] %s: test-window-no-activation, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Silent tests (S0): a --test / --integration-test process never plays audio,
+// whatever the staged config's Window.AudioBackend or the caller's environment say.
+// Two layers hold it: redship_add_test() puts SDL_AUDIODRIVER=dummy in every row's
+// environment, and main.cpp pins SDL's audio driver in code
+// (TestWindowFocus_ArmSilentAudio). This row proves the in-code layer alone: it
+// REMOVES SDL_AUDIODRIVER from its own environment first (the CMake layer has
+// already put it there, so leaving it would make the row pass vacuously), then
+// asserts the pin survives and a real SDL audio init lands on the dummy driver.
+// The SDL driver pin does not silence a Windows run on its own: libultraship's
+// default Ship audio backend there is WASAPI (Config::GetCurrentAudioBackend, when
+// Window.AudioBackend is absent or "wasapi"), and a WASAPI player never goes
+// through SDL's driver. So a second layer forces the Ship backend to "null" in
+// memory before Context::InitAudio (TestWindowFocus_ForceNullAudioBackend, called
+// from OTRGlobals) and puts the key back after. A4-A8 drive that layer on throw-away
+// Ship::Config files in a scratch directory (never the staged config, whose own
+// "null" would make them pass vacuously), with the key absent and with "sdl".
+// Red half, one switch per assertion group (RSBS_TEST_AUDIO_SABOTAGE, comma-joinable):
+//   no-default  main skips the whole arm            -> A1-A3, A5, A7 red
+//   no-config   the force call is removed           -> A5, A7 red
+//   no-restore  the restore call is removed         -> A6, A8 red
+// RSBS_TEST_AUDIO=1 is the operator's opt-out, so the row reports and skips rather
+// than failing a deliberate choice (SKIP_RETURN_CODE 77 in CMake).
+TestResult Test_TestAudioSilent(void) {
+    printf("[TEST] test-audio-silent: a test process defaults SDL to the dummy audio driver in code\n");
+    const char* optOut = getenv("RSBS_TEST_AUDIO");
+    if (optOut != nullptr && strcmp(optOut, "1") == 0) {
+        printf("[TEST] SKIP: RSBS_TEST_AUDIO=1 is set, so main left audio at the platform default on purpose\n");
+        return TEST_SKIP;
+    }
+    int failures = 0;
+#define TAS_ASSERT(cond, ...)        \
+    do {                             \
+        if (!(cond)) {               \
+            printf("[TEST] FAIL: "); \
+            printf(__VA_ARGS__);     \
+            printf("\n");            \
+            failures++;              \
+        }                            \
+    } while (0)
+
+    DigestOut_SetEnv("SDL_AUDIODRIVER", nullptr);
+    TAS_ASSERT(SDL_getenv("SDL_AUDIODRIVER") == nullptr || SDL_getenv("SDL_AUDIODRIVER")[0] == '\0',
+               "A0: setup: SDL_AUDIODRIVER is still in the environment after removing it");
+
+    TAS_ASSERT(TestWindowFocus_IsAudioArmed() == 1,
+               "A1: main.cpp did not pin the audio driver for --test (TestWindowFocus_ArmSilentAudio)");
+    const char* hint = SDL_GetHint(SDL_HINT_AUDIODRIVER);
+    TAS_ASSERT(hint != nullptr && strcmp(hint, "dummy") == 0,
+               "A2: SDL_HINT_AUDIODRIVER is '%s' with the environment variable removed, not 'dummy'",
+               hint != nullptr ? hint : "(unset)");
+
+    // A3 brings the SDL audio subsystem up for real and asks which driver won. That
+    // opens the driver, never a device, so even the red half (no pin: the platform's
+    // own driver) makes no sound; the FAIL line names the driver that would have played.
+    const bool audioWasUp = SDL_WasInit(SDL_INIT_AUDIO) != 0;
+    if (!audioWasUp && SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+        TAS_ASSERT(false, "A3: SDL_InitSubSystem(SDL_INIT_AUDIO) failed (%s)", SDL_GetError());
+    } else {
+        const char* driver = SDL_GetCurrentAudioDriver();
+        printf("[AUDIO] row: SDL_GetCurrentAudioDriver() = %s\n", driver != nullptr ? driver : "(null)");
+        TAS_ASSERT(driver != nullptr && strcmp(driver, "dummy") == 0,
+                   "A3: SDL_GetCurrentAudioDriver() is '%s' after SDL_InitSubSystem(SDL_INIT_AUDIO), not 'dummy'",
+                   driver != nullptr ? driver : "(null)");
+        if (!audioWasUp) {
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        }
+    }
+
+    // A4-A8: the Ship backend layer, on throw-away configs.
+    {
+        namespace fs = std::filesystem;
+        const fs::path dir = rsbs::test::ScratchDir("audio-silent-config");
+        const char* kKey = "Window.AudioBackend";
+        auto backendName = [](Ship::AudioBackend b) {
+            return b == Ship::AudioBackend::NUL ? "null" : b == Ship::AudioBackend::SDL ? "sdl" : "wasapi";
+        };
+        auto writeConfig = [&](const char* file, const char* body) {
+            const fs::path p = dir / file;
+            std::ofstream(p, std::ios::trunc) << body;
+            return p.string();
+        };
+        auto readFile = [](const std::string& path) {
+            std::ifstream in(path);
+            return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        };
+
+        // Key ABSENT (a "Window" block with another key, so only the audio key is missing).
+        const std::string absentPath = writeConfig("absent.json", "{\"Window\":{\"PositionX\":100}}");
+        {
+            Ship::Config control(absentPath);
+            const Ship::AudioBackend def = control.GetCurrentAudioBackend();
+            printf("[AUDIO] row: key absent, unforced Ship backend = %s\n", backendName(def));
+            TAS_ASSERT(def != Ship::AudioBackend::NUL,
+                       "A4: control: a config without Window.AudioBackend already reads 'null', so A5 proves nothing");
+        }
+        {
+            Ship::Config c(absentPath);
+            const TestSilentAudioConfigState st = TestWindowFocus_ForceNullAudioBackend(&c);
+            const Ship::AudioBackend forced = c.GetCurrentAudioBackend();
+            TAS_ASSERT(forced == Ship::AudioBackend::NUL,
+                       "A5: with Window.AudioBackend absent the forced Ship backend is '%s', not 'null' "
+                       "(the platform default would build a real audio player)",
+                       backendName(forced));
+            c.Save(); // what Audio::Init does while the key is forced
+            TestWindowFocus_RestoreAudioBackend(&c, st);
+            const std::string after = c.GetString(kKey);
+            const std::string disk = readFile(absentPath);
+            TAS_ASSERT(after.empty() && disk.find("AudioBackend") == std::string::npos,
+                       "A6: the absent key was not put back: memory '%s', on disk %s", after.c_str(),
+                       disk.find("AudioBackend") == std::string::npos ? "absent" : "still holds the key");
+        }
+
+        // Key "sdl": an explicit real backend is overridden too, then put back as it was.
+        const std::string sdlPath =
+            writeConfig("sdl.json", "{\"Window\":{\"AudioBackend\":\"sdl\",\"PositionX\":100}}");
+        {
+            Ship::Config c(sdlPath);
+            const TestSilentAudioConfigState st = TestWindowFocus_ForceNullAudioBackend(&c);
+            const Ship::AudioBackend forced = c.GetCurrentAudioBackend();
+            TAS_ASSERT(forced == Ship::AudioBackend::NUL,
+                       "A7: with Window.AudioBackend 'sdl' the forced Ship backend is '%s', not 'null'",
+                       backendName(forced));
+            c.Save();
+            TestWindowFocus_RestoreAudioBackend(&c, st);
+            const std::string after = c.GetString(kKey);
+            const std::string disk = readFile(sdlPath);
+            TAS_ASSERT(after == "sdl" && disk.find("\"sdl\"") != std::string::npos,
+                       "A8: the 'sdl' key was not put back: memory '%s', on disk %s", after.c_str(),
+                       disk.find("\"sdl\"") != std::string::npos ? "'sdl'" : "not 'sdl'");
+        }
+    }
+#undef TAS_ASSERT
+    printf("[TEST] %s: test-audio-silent, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -6685,6 +6822,10 @@ const TestDescriptor gTests[] = {
       "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
       "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
       Test_TestWindowNoActivation },
+    { "test-audio-silent",
+      "A --test process pins SDL's audio driver to the dummy driver in code (not only from the CTest environment), "
+      "so a tier never plays game audio through the speakers of the person at the workstation (S0)",
+      Test_TestAudioSilent },
     { "version-short-commit",
       "The window title and --version read the release version plus the configured short commit (and -dirty), so "
       "a build says which commit it is; the release part stays RSBS_VERSION_STRING (#880)",
@@ -6928,6 +7069,7 @@ int TestRunner_Run(const char* testName) {
     // focus" row by row (lane F1). Report only; the lock is the
     // test-window-no-activation row.
     TestWindowFocus_Probe(testName);
+    TestWindowFocus_AudioProbe(testName);
     if (result == TEST_SKIP) {
         // Rows that can self-skip declare SKIP_RETURN_CODE 77 in
         // CMake/SingleExecutable.cmake, so ctest reports "Skipped" rather than

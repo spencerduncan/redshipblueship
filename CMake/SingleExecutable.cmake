@@ -2504,6 +2504,25 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+    # S0: test processes are silent. redship_add_test() puts SDL_AUDIODRIVER=dummy
+    # in every row's environment and main.cpp pins the driver in code for every
+    # --test / --integration-test process (src/common/test_window_focus.h). This
+    # row removes the variable from its own process and asserts the in-code pin
+    # alone: SDL_GetHint, then a real SDL audio init reports the dummy driver.
+    # Default tier: SDL audio only, no window, no archive.
+    redship_add_test(NAME TestAudioSilent COMMAND redship --test test-audio-silent)
+    # Self-skips (exit 77) when RSBS_TEST_AUDIO=1 is exported, the operator's opt-out.
+    set_tests_properties(TestAudioSilent PROPERTIES SKIP_RETURN_CODE 77)
+    # S0: every row's ENVIRONMENT carries SDL_AUDIODRIVER=, read back from
+    # `ctest --show-only=json-v1`. Holds the integration rows (ROM-only, so never run
+    # in hosted CI) and every redship_add_test() caller to the CMake half of the
+    # silent default; a deleted PREPEND line or a bare add_test() fails it.
+    redship_add_test(NAME TestAudioEnvCoverage
+        COMMAND ${CMAKE_COMMAND}
+                -DCTEST_EXE=${CMAKE_CTEST_COMMAND}
+                -DBUILD_DIR=${CMAKE_BINARY_DIR}
+                "-DEXEMPT=prism" # libultraship's own row; it runs no redship
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckTestAudioEnv.cmake)
     # #880: the window title and --version carry the configured short commit
     # (and "-dirty"), so a build says which commit it is. The expected identity is
     # handed over from configure ("none" for a tree without git); run outside
