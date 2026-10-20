@@ -70,6 +70,13 @@
 # object_mask_truth_DL_0001A0 resolves to a path inside this same directory.
 mm->oot objects/object_mask_truth/
 #
+# The remains' object (#964).  MM's GetItem_DrawRemains binds this object into
+# segment 6 before it draws, but the four remains display lists name every
+# vertex array and texture by resource path and read no segment, so OoT can draw
+# them as plain curated lists (OoT's shop shelves and get-item cutscene).  The
+# generator's raw-segmented-reference guard is what keeps that true.
+mm->oot objects/object_bsmask/
+#
 # The 43 MM-exclusive get-item objects (#577 M6).  Every display list here
 # names only its own directory.
 mm->oot objects/object_gi_bigbomb/

@@ -301,7 +301,33 @@ void CgmWalkStream(Ship::ResourceManager* rm, Ship::ArchiveManager* am, const st
 
 } // namespace
 
+// The curated MM display lists OoT's shop shelves and get-item cutscene draw for
+// Majora's Mask items whose draw is custom code (#964): the four boss remains,
+// the Moon's Tear's item list and glow, the seahorse's body and glow. Each is
+// walked as its own model: it must be served by the curated archive, carry no
+// raw segmented texture reference (the segment-6 bind MM's GetItem_DrawRemains
+// does is only harmless because none exists) and resolve every reference.
+constexpr const char* kCgmCustomDrawLists[] = {
+    "objects/object_bsmask/gRemainsOdolwaDL",         "objects/object_bsmask/gRemainsGohtDL",
+    "objects/object_bsmask/gRemainsGyorgDL",          "objects/object_bsmask/gRemainsTwinmoldDL",
+    "objects/object_gi_reserve00/gGiMoonsTearItemDL", "objects/object_gi_reserve00/gGiMoonsTearGlowDL",
+    "objects/object_gi_seahorse/gGiSeahorseBodyDL",   "objects/object_gi_seahorse/gGiSeahorseGlowDL",
+};
+
+static int CgmCheckModel(const char* dlPath);
+
 extern "C" int CrossGameModel_RunHeadless(void) {
+    const char* env = std::getenv("RSBS_CROSSGAME_MODEL_PATH");
+    int failures = CgmCheckModel(CgmDisplayListPath());
+    if (env == nullptr || env[0] == '\0') {
+        for (const char* path : kCgmCustomDrawLists) {
+            failures += CgmCheckModel(path);
+        }
+    }
+    return failures == 0 ? 0 : 1;
+}
+
+static int CgmCheckModel(const char* dlPath) {
     auto ctx = Ship::Context::GetInstance();
     if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
         ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
@@ -310,7 +336,6 @@ extern "C" int CrossGameModel_RunHeadless(void) {
         return 1;
     }
     auto rm = ctx->GetResourceManager();
-    const char* dlPath = CgmDisplayListPath();
     auto am = rm->GetArchiveManager();
 
     // ---- 1. The model itself resolves, from a non-OoT archive --------------
