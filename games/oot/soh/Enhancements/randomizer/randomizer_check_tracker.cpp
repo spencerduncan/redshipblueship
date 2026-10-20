@@ -2286,6 +2286,53 @@ void ImGuiDrawTwoColorPickerSection(const char* text, const char* cvarMainName, 
     UIWidgets::PopStyleCombobox();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Ask for a recalculation at the tracker's next draw, for a caller that cannot
+// run one now: RecalculateAvailableChecks returns while no OoT play state exists
+// (IsSaveLoaded is false), which is the case on a cross-game arrival until
+// Play_Init assigns OoT_gPlayState, and while Majora's Mask is the active game.
+// The draw consumes the flag once a save is loaded (#990).
+void ArmAvailableChecksRecalc() {
+    recalculateAvailable = true;
+    if (initialized) {
+        RecalculateAllAreaTotals();
+        CalculateTotals();
+    }
+}
+#endif
+
+// The Enable Available Checks option changed. With a live OoT save the set is
+// recomputed now; without one (Majora's Mask active, or the arrival window) the
+// direct call is a no-op, so the recalculation is left to the next draw (#990).
+static void SetEnableAvailableChecks(bool enabled) {
+    enableAvailableChecks = enabled;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (!GameInteractor::IsSaveLoaded()) {
+        ArmAvailableChecksRecalc();
+        return;
+    }
+#endif
+    RecalculateAvailableChecks();
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// TEST BRIDGES (#990): the deferred recalculation flag, and the Enable Available
+// Checks option's change handler (the toggle callback's body) with the option value
+// given, so a ROM-free row can drive both without the menu.
+extern "C" int RandoTest_CheckTrackerRecalcPending(void) {
+    return recalculateAvailable ? 1 : 0;
+}
+
+extern "C" void RandoTest_CheckTrackerClearRecalcPending(void) {
+    recalculateAvailable = false;
+}
+
+extern "C" void RandoTest_CheckTrackerSetEnableAvailable(int enabled) {
+    SetEnableAvailableChecks(enabled != 0);
+}
+#endif
+
+
 void RecalculateAvailableChecks(RandomizerRegion startingRegion /* = RR_ROOT */) {
     if (!enableAvailableChecks || !GameInteractor::IsSaveLoaded()) {
         return;
@@ -2559,8 +2606,7 @@ void RegisterCheckTrackerWidgets() {
                      .Tooltip("If enabled, will show the checks that are available to be collected "
                               "with your current progress."))
         .Callback([&](WidgetInfo& info) {
-            enableAvailableChecks = CVarGetInteger(CVAR_TRACKER_CHECK("EnableAvailableChecks"), 0);
-            RecalculateAvailableChecks();
+            SetEnableAvailableChecks(CVarGetInteger(CVAR_TRACKER_CHECK("EnableAvailableChecks"), 0));
         });
 }
 

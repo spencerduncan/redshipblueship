@@ -539,7 +539,8 @@ extern "C" {
 #include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
-#include "tests/test_crossing_toasts.c" // #878: a crossing toasts nothing its pickup announced
+#include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
+#include "tests/test_tracker_arrival_recalc.c" // #990: an arrival schedules the tracker recalc
 
 // Lane C1 in-game spoiler VIEW model (#496): the read-only projection of
 // gComboCtx.foreignPlacements the combo spoiler window renders — named
@@ -1287,6 +1288,21 @@ TestResult Test_BootOoT(void) {
 
     printf("[TEST] PASS: display-free shared subsystems all initialized\n");
     return TEST_PASS;
+}
+
+// #990 tracker-arrival-recalc (body: tests/test_tracker_arrival_recalc.c). The arrival's
+// apply + redeem reach the real consumers, which read the CVar store, so the
+// row needs the display-free shared Context bring-up first.
+static TestResult Test_TrackerArrivalRecalc(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    CVarSetInteger("gSettings.Notifications.Mute", 1);
+    const TestResult result = TrackerArrivalRecalc_Run();
+    CVarClear("gSettings.Notifications.Mute");
+    return result;
 }
 
 // #878 crossing-arrival-toasts (body: tests/test_crossing_toasts.c, included
@@ -6023,6 +6039,9 @@ const TestDescriptor gTests[] = {
     // display-free suite (NOT skipped by `--test all`).
     { "tracker-arrival-rehydration", "Check/item tracker state survives a cross-game OoT arrival (#482)",
       Test_TrackerArrivalRehydration },
+    // #990: the same arrival must also schedule the tracker's Available Checks recalculation.
+    { "tracker-arrival-recalc", "A cross-game arrival into OoT schedules the tracker's Available Checks recalc (#990)",
+      Test_TrackerArrivalRecalc },
     // Lane B unified seed: producer stamps gComboCtx at generation time; the
     // two-process same-seed determinism diff runs via the SeedDeterminism row.
     // Needs a display like rando-gen, so `--test all` skips it (below).
