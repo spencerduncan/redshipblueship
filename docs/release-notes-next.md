@@ -5,7 +5,9 @@
 [#946](https://github.com/spencerduncan/redshipblueship/pull/946)). Under [`VERSIONING.md`](VERSIONING.md) that is a
 `y` bump: major features and fixes without a new `oot.otr` (the archive version, `project(Ship VERSION 9.1.1)`, is
 unchanged).
-**Built from:** `main` at `7e44b8a0` (2026-10-17, PR [#960](https://github.com/spencerduncan/redshipblueship/pull/960)):
+**Built from:** `main` at `7e44b8a0` (2026-10-17, PR [#960](https://github.com/spencerduncan/redshipblueship/pull/960);
+which commit the tag takes, this one or a later one with the merges listed under "Since the last refresh", is the
+operator's call):
 `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940)) plus the code merged
 after it: PR [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's
 Mask's ROM extraction), PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the Happy Mask Shop door
@@ -142,9 +144,10 @@ Numbers in parentheses are pull requests. The full list of open problems is
   is dressed by that item's type, as OoTMM does, not always as a major chest. OoT has no fairy or mask chest,
   so an MM stray fairy or mask shows as major there (#892).
 - **Majora's Mask's boss remains and the Moon's Tear show their real models** on Ocarina of Time's shop shelves
-  and in its get-item cutscene, instead of the "?" stand-in. Stray fairies and the bottled fairy still show "?"
-  (PR [#1042](https://github.com/spencerduncan/redshipblueship/pull/1042);
-  [#964](https://github.com/spencerduncan/redshipblueship/issues/964) stays open for them).
+  and in its get-item cutscene, instead of the "?" stand-in. Stray fairies, the other items 2Ship2Harkinian draws
+  with its own code (owl statues, boss and enemy souls, clocks, frogs, the swim ability, Triforce pieces, traps
+  and ocarina buttons) and the bottled fairy still show "?" (PR [#1042](https://github.com/spencerduncan/redshipblueship/pull/1042);
+  [#964](https://github.com/spencerduncan/redshipblueship/issues/964) stays open for the stray fairies).
 - **The models come from your own ROMs.** The two curated archives (`redship-oot.o2r`, `redship-mm.o2r`) are
   built on your machine from your extracted game data at launch, and the result is written to `logs/*.log`
   (#810, #827, #867, #905).
@@ -350,9 +353,10 @@ Numbers in parentheses are pull requests. The full list of open problems is
 - In narrow windows Settings > General's Boot Sequence dropdown covers its label; Ship of Harkinian draws it
   the same way (#923).
 - The config file is still `shipofharkinian.json`.
-- A Majora's Mask stray fairy (and the bottled fairy, which no item reaches) still shows as the "?" stand-in on
-  Ocarina of Time's shop shelves and in its get-item cutscene; buying or getting it works. The boss remains and the
-  Moon's Tear show their models since PR [#1042](https://github.com/spencerduncan/redshipblueship/pull/1042)
+- Majora's Mask's stray fairies, the other items 2Ship2Harkinian draws with its own code (owl statues, boss and
+  enemy souls, clocks, frogs, the swim ability, Triforce pieces, traps and ocarina buttons) and the bottled fairy,
+  which no item reaches, still show as the "?" stand-in on Ocarina of Time's shop shelves and in its get-item
+  cutscene; buying or getting one works. The boss remains and the Moon's Tear show their models since PR [#1042](https://github.com/spencerduncan/redshipblueship/pull/1042)
   (issue [#964](https://github.com/spencerduncan/redshipblueship/issues/964)).
 - Frame interpolation (Settings > Graphics) smooths Ocarina of Time but not Majora's Mask, which stays at 20
   frames a second (issue #965).
