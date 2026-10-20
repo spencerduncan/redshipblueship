@@ -853,20 +853,99 @@ uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t
                                         uint32_t mmProfileDigest);
 
 /**
- * The whole pair's fingerprint WITH the cross-game item rules (#976):
+ * The whole pair's fingerprint WITH the cross-game item rules (#976), at this
+ * build's generator version:
  *
  *   all clear:  exactly Combo_ComputeComboSettingsHash(rec, ...), byte for byte
  *   otherwise:  Hash( canonical(rec) || ":" || LE32(sharedRandoSettingsHash) ||
- *                     ":" || LE32(mmProfileDigest) || "#" || canonical(rules) )
+ *                     ":" || LE32(mmProfileDigest) || "#" || canonical(rules) ||
+ *                     ":" || LE32(RSBS_GENERATOR_VERSION) )
  *
  * The rules are APPENDED, and only when they are not all clear, so every world
  * created before the rules existed, and every new world with every rule off,
  * keeps the fingerprint it always had (and with it the single-bag seed, which
  * folds this hash): no golden moves. Any set bit, or a non-default cooldown,
- * moves it. NULL @p rules is all clear.
+ * moves it. NULL @p rules is all clear. The generator label (#1003) stays the
+ * LAST term, after the rules.
  */
 uint32_t Combo_ComputeComboSettingsHashEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
                                           uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest);
+
+/**
+ * Combo_ComputeComboSettingsHashEx at an explicit generator version (#976 x
+ * #1003): version 0 is the label-free value over the record and its rules.
+ * Combo_ComputeComboSettingsHashForGenerator is this with NULL @p rules. Pure.
+ */
+uint32_t Combo_ComputeComboSettingsHashForGeneratorEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                                      uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                                      uint32_t generatorVersion);
+
+/**
+ * Combo_ComboSettingsHashGeneratorVersion over a record AND its item rules
+ * (#976): the version whose formula reproduces @p storedHash, or -1. The load
+ * and arrival checks go through this one. NULL @p rules is all clear. Pure.
+ */
+int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                              uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                              uint32_t storedHash);
+
+/**
+ * THE GENERATOR VERSION (#1003). Hand-bumped; folded into comboSettingsHash as
+ * a fourth term, so a build whose generator changed shows a different
+ * fingerprint at file select (#960's surface) for the same seed and settings.
+ *
+ * BUMP IT in any PR that re-pins a golden for a world-moving reason
+ * (docs/determinism-goldens.md, "Re-pinning"). Do not bump it for a re-pin that
+ * moved only an input field or a digest writer.
+ *
+ * IT IS A LABEL, NOT AN ENTROPY INPUT. Nothing is seeded from it: the single
+ * bag folds the fingerprint with this term taken off
+ * (Combo_ComboSettingsWorldHash), so a bump moves no placement. Worlds move
+ * through code; the bump is what makes that visible.
+ *
+ * VERSION 0 IS THE LEGACY FORMULA, with no version term: every fingerprint
+ * written before #1003 is a version-0 fingerprint, and the load-time check
+ * accepts any version from 0 to this one (Combo_ComboSettingsHashGeneratorVersion),
+ * so an older file is refused only where it already was. A file stamped by a
+ * NEWER generator matches no version this build knows and reads as a
+ * fingerprint mismatch, as a newer record format already reads as unreadable.
+ *
+ * History: 1 = #1003 (the first stamped generator; the worlds of #974).
+ */
+#define RSBS_GENERATOR_VERSION 1u
+
+/**
+ * The fingerprint formula at an explicit generator version:
+ *
+ *   version 0:  Hash( canonical(rec) || ":" || LE32(settingsHash) || ":" || LE32(mmProfileDigest) )
+ *   version n:  Hash( canonical(rec) || ":" || LE32(settingsHash) || ":" || LE32(mmProfileDigest) ||
+ *                     ":" || LE32(n) )
+ *
+ * with the same zero displacement. Combo_ComputeComboSettingsHash is this at
+ * RSBS_GENERATOR_VERSION. Pure.
+ */
+uint32_t Combo_ComputeComboSettingsHashForGenerator(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                                    uint32_t mmProfileDigest, uint32_t generatorVersion);
+
+/**
+ * The generator version whose formula reproduces @p storedHash over this record
+ * and these half-digests: 0 (legacy, pre-#1003) through RSBS_GENERATOR_VERSION,
+ * or -1 when none does (damage, or a newer generator than this build's). Pure.
+ */
+int Combo_ComboSettingsHashGeneratorVersion(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                            uint32_t mmProfileDigest, uint32_t storedHash);
+
+/**
+ * The resident fingerprint WITHOUT its generator label: what the single bag
+ * folds into its seed (combo_single_bag.c), so a generator-version bump moves
+ * no placement. When the resident comboSettingsHash is a version-n fingerprint
+ * of the resident record (n >= 1), this is the version-0 value of the same
+ * record; otherwise (a legacy fingerprint, an unfrozen record, zero, or a value
+ * no version reproduces) it is comboSettingsHash itself, unchanged, which is
+ * exactly what the bag folded before #1003. Both legs fold the resident item
+ * rules (#976), as the stamp does.
+ */
+uint32_t Combo_ComboSettingsWorldHash(void);
 
 /**
  * Freeze @p rec into gComboCtx as this world's combo identity, then compute and

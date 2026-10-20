@@ -1756,7 +1756,14 @@ of `reserved[]`, and the combo record's `formatVersion` stays 1.
   folded from it, and every `Golden*` digest exactly where they were. Any set
   bit, a non-default cooldown or a nonzero spare moves it. Vectors: the
   defaults' fingerprint stays 0xBA5FC364; with `crossItemFlags` 0x825 and the
-  SHORT cooldown it is 0x3AC849EB (computed outside the build).
+  SHORT cooldown it is 0x3AC849EB (computed outside the build). Both are
+  generator-version-0 values: since #1003 (next section) the generator label
+  `":" || LE32(version)` is appended AFTER the rules term, so at version 1 the
+  defaults read 0xFC9F21AB and the 0x825/SHORT record 0x5033F222, while the
+  single bag still folds the version-0 value, rules included
+  (`Combo_ComboSettingsWorldHash`). The load and arrival checks accept any
+  known version over the record and its rules
+  (`Combo_ComboSettingsHashGeneratorVersionEx`).
 - **The freeze.** `Combo_FreezeComboSettingsEx(rec, rules)` freezes both and
   stamps over both; the creation event (`Playthrough_Init`) calls it with
   `Combo_ResolveComboItemRules`. `Combo_FreezeComboSettings(rec)` freezes every
@@ -1792,3 +1799,40 @@ rule moving the fingerprint and the all-clear record not moving it, the two
 vectors, the freeze and the KEEP set, the divergence names, and a `.redsave`
 with a rule on refused at load with nothing quarantined) and
 `SharedFamilyMerge` (the OR merge both ways and both games' real shims).
+
+### 2026-10-18 -- The generator version in the fingerprint (#1003)
+
+Decision 1.4's fingerprint gains a fourth term, the generator version:
+
+```
+comboSettingsHash = Hash( canonical(comboSettings) ‖ ":" ‖ LE32(sharedRandoSettingsHash) ‖ ":" ‖
+                          LE32(mmProfileDigest) ‖ ":" ‖ LE32(RSBS_GENERATOR_VERSION) )
+```
+
+The problem it fixes: the three terms name the seed and the settings, never the
+generator, so two builds whose generator differs made two worlds behind one
+fingerprint. #840, #874 and #895 each moved worlds without moving the 8 hex
+digits #960 prints at file select. `RSBS_GENERATOR_VERSION` (`foreign_items.h`) is
+bumped by hand in any PR that re-pins a golden for a world-moving reason
+(`docs/determinism-goldens.md`).
+
+- **Version 0 is the decision 1.4 formula as it was**, with no fourth term. Every
+  fingerprint written before #1003 is a version-0 fingerprint. The load and
+  arrival check (`Combo_ComboSettingsDivergenceFor`) accepts a stored hash that
+  any version from 0 to this build's reproduces
+  (`Combo_ComboSettingsHashGeneratorVersion`). So an older file is refused only
+  where it already was, and only a hash no version reproduces sets `FINGERPRINT`.
+  A file stamped by a newer generator matches no version this build knows and
+  reads as `FINGERPRINT`, as a newer record format already reads as `UNREADABLE`.
+- **The term is a label, not an input.** The single bag folds
+  `Combo_ComboSettingsWorldHash()`, which is the resident fingerprint with the
+  label taken off (its version-0 value). A version bump therefore moves no
+  placement, and every world the bag made before #1003 is still made from the
+  same seed. Worlds move only through code, and the bump is what makes that
+  visible.
+- R2 above ("22 bytes in") now describes version 0; a version-n fingerprint folds
+  27 bytes. R3's zero displacement is unchanged.
+
+Locked by `ComboGeneratorVersion` (the fold, the legacy and newer-version load
+legs, the version-free bag seeds, the file-select text) and `ComboSettingsCanonical`
+(vectors pinned at explicit versions 0 and 1).

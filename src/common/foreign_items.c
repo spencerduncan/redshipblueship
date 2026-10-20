@@ -540,17 +540,16 @@ static void ComboAppendLe32(uint8_t* out, uint32_t value) {
     out[3] = (uint8_t)((value >> 24) & 0xFFu);
 }
 
-uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
-                                        uint32_t mmProfileDigest) {
-    return Combo_ComputeComboSettingsHashEx(rec, NULL, sharedRandoSettingsHash, mmProfileDigest);
-}
-
-uint32_t Combo_ComputeComboSettingsHashEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
-                                          uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest) {
+uint32_t Combo_ComputeComboSettingsHashForGeneratorEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                                      uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                                      uint32_t generatorVersion) {
     // canonical(12) || ':' || LE32(settingsHash) || ':' || LE32(mmProfileDigest)
-    //   [ || '#' || canonical(rules, 8) ]   -- only when the rules are not all clear (#976)
+    //   [ || '#' || canonical(rules, 8) ]      -- only when the rules are not all clear (#976)
+    //   [ || ':' || LE32(generatorVersion) ]   -- only for version >= 1 (#1003)
+    // The version label is the LAST term, so taking it off (version 0) leaves
+    // exactly the label-free fingerprint over the record AND its rules.
     enum { kBase = RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u + 4u + 1u + 4u };
-    uint8_t buf[kBase + 1u + RSBS_COMBO_ITEM_RULES_CANONICAL_LEN];
+    uint8_t buf[kBase + 1u + RSBS_COMBO_ITEM_RULES_CANONICAL_LEN + 1u + 4u];
     size_t len = kBase;
     Combo_ComboSettingsCanonical(rec, buf);
     buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN] = (uint8_t)':';
@@ -561,9 +560,16 @@ uint32_t Combo_ComputeComboSettingsHashEx(const ComboSettingsRecord* rec, const 
     // every world without a cross-game item rule keeps the fingerprint (and the
     // single-bag seed folded from it) that it had before the rules existed.
     if (!Combo_ComboItemRulesClear(rules)) {
-        buf[kBase] = (uint8_t)'#';
-        Combo_ComboItemRulesCanonical(rules, &buf[kBase + 1u]);
-        len = sizeof(buf);
+        buf[len] = (uint8_t)'#';
+        Combo_ComboItemRulesCanonical(rules, &buf[len + 1u]);
+        len += 1u + RSBS_COMBO_ITEM_RULES_CANONICAL_LEN;
+    }
+    if (generatorVersion != 0) {
+        // Version 0 is the legacy byte string, untouched, so every fingerprint
+        // written before #1003 still verifies (Combo_ComboSettingsHashGeneratorVersion).
+        buf[len] = (uint8_t)':';
+        ComboAppendLe32(&buf[len + 1u], generatorVersion);
+        len += 1u + 4u;
     }
 
     uint32_t digest = ComboFnv1a(buf, len);
@@ -575,6 +581,62 @@ uint32_t Combo_ComputeComboSettingsHashEx(const ComboSettingsRecord* rec, const 
         digest = 0x43425348u; // 'CBSH'
     }
     return digest;
+}
+
+uint32_t Combo_ComputeComboSettingsHashForGenerator(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                                    uint32_t mmProfileDigest, uint32_t generatorVersion) {
+    return Combo_ComputeComboSettingsHashForGeneratorEx(rec, NULL, sharedRandoSettingsHash, mmProfileDigest,
+                                                        generatorVersion);
+}
+
+uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                        uint32_t mmProfileDigest) {
+    return Combo_ComputeComboSettingsHashForGeneratorEx(rec, NULL, sharedRandoSettingsHash, mmProfileDigest,
+                                                        RSBS_GENERATOR_VERSION);
+}
+
+uint32_t Combo_ComputeComboSettingsHashEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                          uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest) {
+    return Combo_ComputeComboSettingsHashForGeneratorEx(rec, rules, sharedRandoSettingsHash, mmProfileDigest,
+                                                        RSBS_GENERATOR_VERSION);
+}
+
+int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                              uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                              uint32_t storedHash) {
+    // Newest first: a file this build created is the common case.
+    for (int v = (int)RSBS_GENERATOR_VERSION; v >= 0; --v) {
+        if (Combo_ComputeComboSettingsHashForGeneratorEx(rec, rules, sharedRandoSettingsHash, mmProfileDigest,
+                                                         (uint32_t)v) == storedHash) {
+            return v;
+        }
+    }
+    return -1;
+}
+
+int Combo_ComboSettingsHashGeneratorVersion(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                            uint32_t mmProfileDigest, uint32_t storedHash) {
+    return Combo_ComboSettingsHashGeneratorVersionEx(rec, NULL, sharedRandoSettingsHash, mmProfileDigest, storedHash);
+}
+
+uint32_t Combo_ComboSettingsWorldHash(void) {
+    const uint32_t stored = gComboCtx.comboSettingsHash;
+    if (stored == 0 || !Combo_ComboSettingsFrozen()) {
+        return stored;
+    }
+    // Over the resident record AND its item rules (#976): the fingerprint the
+    // freeze stamped folds both, so the label comes off that one.
+    const int version =
+        Combo_ComboSettingsHashGeneratorVersionEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
+                                                  gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest, stored);
+    if (version <= 0) {
+        // Legacy (already the label-free value) or a value no version
+        // reproduces: fold it as stored, which is what the bag did before #1003.
+        return stored;
+    }
+    return Combo_ComputeComboSettingsHashForGeneratorEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
+                                                        gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest,
+                                                        0u);
 }
 
 uint32_t Combo_StampComboSettingsHash(void) {
@@ -813,9 +875,12 @@ uint32_t Combo_ComboSettingsDivergenceForEx(const ComboSettingsRecord* frozen, c
     // recomputation would be meaningless anyway (this build cannot know which
     // of that record's fields the newer format made authoritative).
     if ((bits & RSBS_COMBO_DIVERGE_UNREADABLE) == 0) {
-        const uint32_t expected =
-            Combo_ComputeComboSettingsHashEx(frozen, frozenRules, sharedRandoSettingsHash, mmProfileDigest);
-        if (storedHash != expected) {
+        // Any generator version this build knows (#1003): a file an older build
+        // created carries that build's version (0 before #1003) and is the same
+        // healthy identity; only a hash no version reproduces is damage. The
+        // rules fold at every version (#976).
+        if (Combo_ComboSettingsHashGeneratorVersionEx(frozen, frozenRules, sharedRandoSettingsHash, mmProfileDigest,
+                                                      storedHash) < 0) {
             bits |= RSBS_COMBO_DIVERGE_FINGERPRINT;
         }
     }
