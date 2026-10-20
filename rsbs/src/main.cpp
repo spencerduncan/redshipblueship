@@ -931,8 +931,10 @@ int main(int argc, char** argv) {
             // still up here, so this reads whether it holds the keyboard after a
             // real boot, and armed=1 shows main armed the hint on this path too.
             TestWindowFocus_Probe(integrationTestArg);
-            // SDL_GetCurrentAudioDriver as the real game left it: "dummy" shows
-            // the silent default held through a ROM-mounted boot.
+            // The audio a real boot ended with: SDL's driver, and the Ship audio
+            // backend the game built. A run that is not silent (the arm call above
+            // gone, or the OTRGlobals InitAudio hook gone and a config naming a real
+            // backend) fails the integration row, so those calls are locked here.
             TestWindowFocus_AudioProbe(integrationTestArg);
             keepRunning = false;
             break;
@@ -1088,6 +1090,10 @@ int main(int argc, char** argv) {
     // static-destructor chain is skipped.
     if (TestRunner_IsIntegrationTestMode()) {
         int integrationResult = TestRunner_GetIntegrationTestResult();
+        if (integrationResult == 0 && TestWindowFocus_AudioVerdictFailed()) {
+            printf("[INT-TEST] FAIL: the run was not silent (see the [AUDIO] line above)\n");
+            integrationResult = 1;
+        }
         fflush(stdout);
         fflush(stderr);
         _Exit(integrationResult);

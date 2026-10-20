@@ -10,11 +10,23 @@
 #include <cstring>
 
 #include <SDL2/SDL.h>
+#include <ship/Context.h>
+#include <ship/audio/Audio.h>
+#include <ship/config/Config.h>
 
 namespace {
 
 bool sArmed = false;
 bool sAudioArmed = false;
+bool sAudioOptedOut = false;
+bool sSabotageConfig = false;
+bool sSabotageRestore = false;
+bool sAudioVerdictFailed = false;
+// What TestWindowFocus_BeforeInitAudio changed on the live Ship::Context's config,
+// for TestWindowFocus_AfterInitAudio to put back.
+TestSilentAudioConfigState sLiveConfigState;
+
+const char* kAudioBackendKey = "Window.AudioBackend";
 
 bool SabotagedNoHint() {
     const char* s = std::getenv("RSBS_TEST_FOCUS_SABOTAGE");
@@ -35,6 +47,35 @@ int SDLCALL CountFocusEvents(void* userdata, SDL_Event* event) {
 }
 
 } // namespace
+
+TestSilentAudioConfigState TestWindowFocus_ForceNullAudioBackend(Ship::Config* config) {
+    TestSilentAudioConfigState state;
+    // Only an armed process: a normal-play run, and RSBS_TEST_AUDIO=1, keep their config.
+    if (config == nullptr || !sAudioArmed || sSabotageConfig) {
+        return state;
+    }
+    state.previous = config->GetString(kAudioBackendKey);
+    state.hadKey = !state.previous.empty();
+    // Forced in memory, then put back by TestWindowFocus_RestoreAudioBackend once the
+    // audio player is built, so a test run never leaves "null" behind in a config a
+    // real run reads. Audio::Init saves the config itself while the key is forced,
+    // hence the restore saves it again.
+    config->SetString(kAudioBackendKey, "null");
+    state.forced = true;
+    return state;
+}
+
+void TestWindowFocus_RestoreAudioBackend(Ship::Config* config, const TestSilentAudioConfigState& state) {
+    if (config == nullptr || !state.forced || sSabotageRestore) {
+        return;
+    }
+    if (state.hadKey) {
+        config->SetString(kAudioBackendKey, state.previous);
+    } else {
+        config->Erase(kAudioBackendKey);
+    }
+    config->Save();
+}
 
 extern "C" {
 
@@ -66,9 +107,14 @@ void TestWindowFocus_ArmSilentAudio(const char* mode) {
     }
     const char* optOut = std::getenv("RSBS_TEST_AUDIO");
     if (optOut != nullptr && std::strcmp(optOut, "1") == 0) {
+        sAudioOptedOut = true;
         fprintf(stderr, "[AUDIO] %s: RSBS_TEST_AUDIO=1 -- audio left at the platform default on purpose\n", who);
         return;
     }
+    // Red-half switches for the config layer (see the header). Each stands in for
+    // the call it names being removed, and is only honoured once the process is armed.
+    sSabotageConfig = sabotage != nullptr && std::strstr(sabotage, "no-config") != nullptr;
+    sSabotageRestore = sabotage != nullptr && std::strstr(sabotage, "no-restore") != nullptr;
     // An explicit SDL_AUDIODRIVER wins; otherwise "dummy". Pinned at OVERRIDE so a
     // later change to the environment cannot un-pin it (see the header).
     const char* explicitDriver = SDL_getenv("SDL_AUDIODRIVER");
@@ -85,12 +131,63 @@ int TestWindowFocus_IsAudioArmed(void) {
     return sAudioArmed ? 1 : 0;
 }
 
-void TestWindowFocus_AudioProbe(const char* where) {
+void TestWindowFocus_BeforeInitAudio(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConfig() == nullptr) {
+        return;
+    }
+    sLiveConfigState = TestWindowFocus_ForceNullAudioBackend(ctx->GetConfig().get());
+    if (sLiveConfigState.forced) {
+        fprintf(stderr, "[AUDIO] Ship audio backend forced to 'null' for this test process (config had '%s')\n",
+                sLiveConfigState.hadKey ? sLiveConfigState.previous.c_str() : "(no key)");
+    }
+}
+
+void TestWindowFocus_AfterInitAudio(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConfig() == nullptr) {
+        return;
+    }
+    TestWindowFocus_RestoreAudioBackend(ctx->GetConfig().get(), sLiveConfigState);
+    sLiveConfigState = TestSilentAudioConfigState{};
+}
+
+int TestWindowFocus_AudioProbe(const char* where) {
     const char* current = SDL_WasInit(SDL_INIT_AUDIO) != 0 ? SDL_GetCurrentAudioDriver() : nullptr;
     const char* hint = SDL_GetHint(SDL_HINT_AUDIODRIVER);
-    printf("[AUDIO] %s: currentDriver=%s hint=%s armed=%d\n", where != nullptr ? where : "?",
-           current != nullptr ? current : "(audio not up)", hint != nullptr ? hint : "(unset)", sAudioArmed ? 1 : 0);
+    // The Ship audio player the game actually built: "null" is the only silent one.
+    const char* backend = "(audio not up)";
+    bool backendSilent = true;
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx != nullptr && ctx->GetAudio() != nullptr) {
+        switch (ctx->GetAudio()->GetCurrentAudioBackend()) {
+            case Ship::AudioBackend::NUL:
+                backend = "null";
+                break;
+            case Ship::AudioBackend::SDL:
+                backend = "sdl";
+                backendSilent = false;
+                break;
+            case Ship::AudioBackend::WASAPI:
+                backend = "wasapi";
+                backendSilent = false;
+                break;
+        }
+    }
+    const bool silent = sAudioOptedOut || (sAudioArmed && backendSilent);
+    printf("[AUDIO] %s: currentDriver=%s hint=%s shipBackend=%s armed=%d optOut=%d verdict=%s\n",
+           where != nullptr ? where : "?", current != nullptr ? current : "(audio not up)",
+           hint != nullptr ? hint : "(unset)", backend, sAudioArmed ? 1 : 0, sAudioOptedOut ? 1 : 0,
+           silent ? "silent" : "NOT-SILENT");
     fflush(stdout);
+    if (!silent) {
+        sAudioVerdictFailed = true;
+    }
+    return silent ? 0 : 1;
+}
+
+int TestWindowFocus_AudioVerdictFailed(void) {
+    return sAudioVerdictFailed ? 1 : 0;
 }
 
 int TestWindowFocus_IsArmed(void) {
