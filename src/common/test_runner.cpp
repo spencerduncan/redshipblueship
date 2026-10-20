@@ -1316,6 +1316,12 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
 // + every foreign placement to the same digest file, so the SeedDeterminism
 // two-process diff covers the whole paired world.
 extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath);
+// #982 (body in games/mm/2s2h/mm_rando_gen_test.cpp): the player's path, digested:
+// the Generate button's worker-thread generation with the full OTR bring-up, then
+// the real paired creation event, written with the same two writers as above.
+extern "C" int MM_Rando_HeadlessPlayerPathDigest(const char* seedStr, const char* outPath);
+// randomizer.cpp (#982): Rando_HeadlessFullInitSeedTest's audio teardown.
+extern "C" void Rando_HeadlessFullInitTeardown(void);
 extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 // Hint-validity lock (#441, body in menu.cpp): generates one seed, then asserts
 // every enabled hint names a REAL item — no hint may resolve to the no-item
@@ -1828,6 +1834,8 @@ static const DigestOutDispatch kDigestOutDispatches[] = {
       "golden-seed-digest-armed-caps-actual.txt" },
     { "mm-paired-attempt", "RSBS_ATTEMPT_DIGEST_OUT", "MMPairedAttemptDeterminism|GoldenPairedAttemptDigest",
       "paired-attempt-run1.txt, golden-paired-attempt-digest-actual.txt" },
+    { "rando-player-path-digest", "RSBS_SEED_DIGEST_OUT", "GoldenSeedDigestPlayerPath",
+      "golden-seed-digest-default-player-path-actual.txt" },
 };
 
 static const DigestOutDispatch* DigestOut_Find(const char* dispatch) {
@@ -2457,6 +2465,51 @@ TestResult Test_RandoDeterminism(void) {
     int mmRc = MM_Rando_HeadlessForeignDigest(digestOut);
     printf("[TEST] %s: foreign-placement digest rc=%d\n", mmRc == 0 ? "PASS" : "FAIL", mmRc);
     return mmRc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #982: THE PLAYER'S PATH AGAINST THE DEFAULT GOLDEN. Driven only by the
+// GoldenSeedDigestPlayerPath row, which runs WITHOUT RSBS_DISABLE_OTR_INIT and
+// compares this digest with tests/golden/seed-digest-default.txt (the pinned seed
+// of rando-determinism, at the shipped profile). The golden is written by the
+// headless harness; this generates the same seed the way a player does -- the full
+// OTR bring-up, GenerateRandomizer(seed) on the Generate button's worker thread,
+// then OoT_RunPairedCreationEvent -- and writes the same fields with the same
+// writers. A difference is a finding about the two paths, never a re-pin, which is
+// why the row sits outside REDSHIP_GOLDEN_DIGESTS. Needs a display and a mounted
+// soh.o2r like rando-gen-full-init, so `--test all` skips it.
+TestResult Test_RandoPlayerPathDigest(void) {
+    printf("[TEST] rando-player-path-digest: the Generate button's worker thread and the creation event, digested "
+           "(#982)\n");
+    DigestOutHandRunReminder handRun{ "rando-player-path-digest", false };
+    const char* digestOut = DigestOut_Resolve("rando-player-path-digest", &handRun.noticed); // NULL => stdout
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    // rando-gen-full-init's precondition, for its reason: with no archive the
+    // un-masked bring-up's synchronous audio load never returns.
+    const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    if (!std::filesystem::exists(sohArchive)) {
+        printf("[TEST] FAIL: no soh.o2r resolvable (tried '%s'); the full OTR bring-up needs a mounted archive\n",
+               sohArchive.c_str());
+        return TEST_FAIL;
+    }
+    if (std::getenv("RSBS_DISABLE_OTR_INIT") != nullptr) {
+        printf("[TEST] FAIL: RSBS_DISABLE_OTR_INIT is set, so this would digest the headless bring-up again, not a "
+               "player's\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    const int rc = MM_Rando_HeadlessPlayerPathDigest("RSBSUNIFIED1", digestOut);
+    Rando_HeadlessFullInitTeardown();
+    printf("[TEST] %s: player-path digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #681 review, re-aimed by ADR 0010 increment 3 (lane K11): THE ARMED CAPABILITY
@@ -5935,6 +5988,11 @@ const TestDescriptor gTests[] = {
     // skips it (below).
     { "rando-armed-caps-digest", "Armed-profile reverse draw digest for the GoldenSeedDigestArmedCaps pin (#681)",
       Test_RandoArmedCapsDigest },
+    // #982: the player's path digested against the default golden. Driven only by
+    // the GoldenSeedDigestPlayerPath row; needs a display and soh.o2r, so `--test
+    // all` skips it (below).
+    { "rando-player-path-digest", "The Generate button's worker thread and the creation event, digested (#982)",
+      Test_RandoPlayerPathDigest },
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     { "mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen },
@@ -6976,6 +7034,7 @@ int TestRunner_Run(const char* testName) {
             if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-gen-full-init") == 0 ||
                 strcmp(gTests[i].name, "rando-determinism") == 0 ||
                 strcmp(gTests[i].name, "rando-armed-caps-digest") == 0 ||
+                strcmp(gTests[i].name, "rando-player-path-digest") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 || strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
