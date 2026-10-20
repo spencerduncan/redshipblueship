@@ -222,6 +222,41 @@ std::vector<CvarClassSourceFile> CvarClassSlurpTreeWithPaths(const std::filesyst
 } // namespace
 #endif // RSBS_SOURCE_DIR
 
+namespace {
+
+/// One row of the #966 key-name-gap audit: SoH's menu writes `canonical`, MM
+/// used to read the unmapped twin `legacy`. The table is the lock's own copy of
+/// the audit's issue list, kept apart from RSBS::kConvergedKeys on purpose: if it
+/// derived from the manifest, deleting a manifest row would delete its own
+/// assertion and the lock would pass, which is exactly the regression it exists
+/// to catch. Every entry must stay in the manifest, in MM's readers (under the
+/// canonical spelling), in SoH's menu, and in ConfigVersion9Updater's table.
+struct CvarClassKeyGapRow {
+    int issue;
+    const char* legacy;
+    const char* canonical;
+};
+
+constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
+    { 1027, "gEnhancements.Graphics.IncreaseActorDrawDistance", "gEnhancements.DisableDrawDistance" },
+    { 1028, "gEnhancements.Graphics.ActorCullingAccountsForWidescreen", "gEnhancements.WidescreenActorCulling" },
+    { 1029, "gEnhancements.Fixes.FixTexturesOOB", "gEnhancements.FixTexturesOOB" },
+    { 1030, "gEnhancements.A11y.NoScreenFlashForEnemyKill", "gSettings.A11yNoScreenFlashForFinishingBlow" },
+    { 1031, "gEnhancements.Graphics.3DItemDrops", "gEnhancements.NewDrops" },
+    { 1032, "gEnhancements.Cutscenes.SkipMiscInteractions", "gEnhancements.TimeSavers.SkipMiscInteractions" },
+    { 1033, "gEnhancements.Playback.SkipScarecrowSong", "gEnhancements.InstantScarecrow" },
+    { 1034, "gEnhancements.PlayerActions.ArrowCycle", "gEnhancements.BowArrowCycle" },
+    { 1035, "gEnhancements.Equipment.MagicArrowEquipSpeed", "gEnhancements.SkipArrowAnimation" },
+    { 1036, "gEnhancements.DifficultyOptions.PermanentHeartLoss", "gEnhancements.PermanentHeartLoss" },
+    { 1038, "gEnhancements.Restorations.N64WeirdFrames", "gEnhancements.N64WeirdFrames" },
+};
+
+/// #1037: held APART, not mapped. OoT's DamageMult list runs 0-8, MM's 0-4 plus 10.
+constexpr const char* kCvarClassDamageMultMm = "gEnhancements.DifficultyOptions.DamageMultiplier";
+constexpr const char* kCvarClassDamageMultOot = "gEnhancements.DamageMult";
+
+} // namespace
+
 TestResult Test_CVarClassification(void) {
     printf("[TEST] cvar-classification: cross-game CVar classification matches ADR 0003 + the inventory (#34)\n");
 
@@ -314,6 +349,58 @@ TestResult Test_CVarClassification(void) {
         for (std::size_t d = 0; d < RSBS::kDisputedClassificationKeyCount; d++) {
             CVARCLASS_CHECK(strcmp(RSBS::kDisputedClassificationKeys[d], "gDeveloperTools.DebugSaveFileMode") != 0,
                             "gDeveloperTools.DebugSaveFileMode is back in the disputed table — #454 reopened");
+        }
+    }
+
+    // The #966 key-name-gap rows (#1027-#1036, #1038): each pinned row is in the
+    // manifest exactly as the audit specified, and is classified ONCE (a legacy
+    // spelling is not also a shared-intent key, which would claim "both games
+    // read this key" of a key only one game reads).
+    for (const CvarClassKeyGapRow& row : kCvarClassKeyGapRows) {
+        bool inManifest = false;
+        for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
+            const RSBS::ConvergedKey& key = RSBS::kConvergedKeys[i];
+            if (strcmp(key.legacy, row.legacy) == 0 && strcmp(key.canonical, row.canonical) == 0) {
+                inManifest = !key.scaledPercent;
+                break;
+            }
+        }
+        if (!inManifest) {
+            printf("[TEST] FAIL: #%d: RSBS::kConvergedKeys has no plain row mapping MM's \"%s\" onto SoH's \"%s\".\n"
+                   "[TEST]       SoH's menu writes the canonical key; without the row MM reads a key nothing\n"
+                   "[TEST]       writes and the control silently does nothing in Majora's Mask (#966).\n",
+                   row.issue, row.legacy, row.canonical);
+            return TEST_FAIL;
+        }
+        for (std::size_t i = 0; i < RSBS::kSharedIntentKeyCount; i++) {
+            if (strcmp(RSBS::kSharedIntentKeys[i], row.legacy) == 0 ||
+                strcmp(RSBS::kSharedIntentKeys[i], row.canonical) == 0) {
+                printf("[TEST] FAIL: #%d: \"%s\" is both a converged key and a shared-intent key.\n"
+                       "[TEST]       A key is classified once: converged rows retire the MM spelling, shared-intent\n"
+                       "[TEST]       rows claim both games already read ONE spelling.\n",
+                       row.issue, strcmp(RSBS::kSharedIntentKeys[i], row.legacy) == 0 ? row.legacy : row.canonical);
+                return TEST_FAIL;
+            }
+        }
+    }
+
+    // #1037 is the one audit row that must NOT be mapped: it stays in
+    // kMustStayDistinct until an operator ruling picks a value space.
+    {
+        bool held = false;
+        for (std::size_t i = 0; i < RSBS::kMustStayDistinctCount; i++) {
+            if (strcmp(RSBS::kMustStayDistinct[i].mmKey, kCvarClassDamageMultMm) == 0 &&
+                strcmp(RSBS::kMustStayDistinct[i].ootKey, kCvarClassDamageMultOot) == 0) {
+                held = true;
+            }
+        }
+        CVARCLASS_CHECK(held, "#1037: the damage multiplier pair is not in kMustStayDistinct — OoT's DamageMult "
+                              "runs 0-8 and MM's 0-4 plus 10 (1-hit KO), so a plain key swap is a regression; "
+                              "an operator ruling on the value space comes first");
+        for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
+            CVARCLASS_CHECK(strcmp(RSBS::kConvergedKeys[i].legacy, kCvarClassDamageMultMm) != 0 &&
+                                strcmp(RSBS::kConvergedKeys[i].canonical, kCvarClassDamageMultOot) != 0,
+                            "#1037: the damage multiplier was converged while its value spaces still differ");
         }
     }
 
@@ -584,6 +671,50 @@ TestResult Test_CVarClassification(void) {
                        "[TEST]       typo, or the ADR's convergence direction for this row.\n",
                        canonical, probe);
                 return TEST_FAIL;
+            }
+        }
+
+        // (3f-2) The #966 key-name gaps, in the tree. The manifest row alone proves
+        // nothing: MM's reader must actually read SoH's spelling (the retired MM
+        // spelling being gone is (3a)), SoH's menu must actually write it, and the
+        // version-9 migration must carry a stored MM-spelled value across.
+        {
+            bool menuOk = false;
+            const std::vector<std::string> sohMenuTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "SohGui", menuOk);
+            CVARCLASS_CHECK(menuOk && !sohMenuTree.empty(), "could not scan games/oot/soh/SohGui for the menu rows");
+
+            std::ifstream migratorFile(sourceRoot / "games" / "oot" / "soh" / "config" / "ConfigMigrators.h",
+                                       std::ios::binary);
+            const std::string migrators((std::istreambuf_iterator<char>(migratorFile)),
+                                        std::istreambuf_iterator<char>());
+            const std::size_t v9 = migrators.find("version9Migrations");
+            CVARCLASS_CHECK(v9 != std::string::npos, "ConfigMigrators.h has no version9Migrations table (#966)");
+            const std::string v9Text = migrators.substr(v9);
+
+            for (const CvarClassKeyGapRow& row : kCvarClassKeyGapRows) {
+                if (!CvarClassTreeContainsExactKey(mmTree, row.canonical)) {
+                    printf("[TEST] FAIL: #%d: no file under games/mm reads SoH's \"%s\".\n"
+                           "[TEST]       MM's reader of \"%s\" has to move onto the key SoH's menu writes, or the\n"
+                           "[TEST]       control does nothing in Majora's Mask.\n",
+                           row.issue, row.canonical, row.legacy);
+                    return TEST_FAIL;
+                }
+                if (!CvarClassOotTreeNamesKey(sohMenuTree, row.canonical)) {
+                    printf("[TEST] FAIL: #%d: no SoH menu row under games/oot/soh/SohGui writes \"%s\".\n"
+                           "[TEST]       The manifest maps MM onto a key no widget sets; check the spelling.\n",
+                           row.issue, row.canonical);
+                    return TEST_FAIL;
+                }
+                const std::string legacyLiteral = std::string("\"") + row.legacy + "\"";
+                const std::string canonicalLiteral = std::string("\"") + row.canonical + "\"";
+                if (v9Text.find(legacyLiteral) == std::string::npos ||
+                    v9Text.find(canonicalLiteral) == std::string::npos) {
+                    printf("[TEST] FAIL: #%d: version9Migrations lacks \"%s\" -> \"%s\".\n"
+                           "[TEST]       A config storing the MM spelling would keep it and lose the setting.\n",
+                           row.issue, row.legacy, row.canonical);
+                    return TEST_FAIL;
+                }
             }
         }
 

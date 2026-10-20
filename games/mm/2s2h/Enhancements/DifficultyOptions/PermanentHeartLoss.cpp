@@ -6,7 +6,7 @@ extern "C" {
 #include "variables.h"
 }
 
-#define CVAR_NAME "gEnhancements.DifficultyOptions.PermanentHeartLoss"
+#define CVAR_NAME "gEnhancements.PermanentHeartLoss"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterPermanentHeartLoss() {

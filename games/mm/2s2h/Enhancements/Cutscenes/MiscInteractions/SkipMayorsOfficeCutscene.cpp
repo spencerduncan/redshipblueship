@@ -6,7 +6,7 @@ extern "C" {
 #include "overlays/actors/ovl_En_Dt/z_en_dt.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // These skips still allow the first textboxes to display, but they do ignore most of the scenes

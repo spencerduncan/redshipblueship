@@ -44,7 +44,7 @@ static void ChuDrop_Draw(Actor* actor, PlayState* play) {
     FrameInterpolation_RecordOpenChild(actor, (CUSTOM_ITEM_FLAGS & CustomItem::KEEP_ON_PLAYER) ? 1 : 0);
     FrameInterpolation_IgnoreActorMtx();
 
-    if (CVarGetInteger("gEnhancements.Graphics.3DItemDrops", 0)) {
+    if (CVarGetInteger("gEnhancements.NewDrops", 0)) {
         CUSTOM_ITEM_FLAGS &= ~CustomItem::STOP_SPINNING;
 
         MM_Matrix_Scale(16.0f, 16.0f, 16.0f, MTXMODE_APPLY);

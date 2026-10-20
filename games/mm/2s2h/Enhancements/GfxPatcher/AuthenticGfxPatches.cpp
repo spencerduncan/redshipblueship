@@ -84,7 +84,7 @@ void MM_PatchArrowTipTexture() {
                              G_TX_MIRROR | G_TX_WRAP, 5, 5, 1, 1),
     };
 
-    bool fixTexturesOOB = CVarGetInteger("gEnhancements.Fixes.FixTexturesOOB", 0);
+    bool fixTexturesOOB = CVarGetInteger("gEnhancements.FixTexturesOOB", 0);
 
     for (const auto& patchInfo : arrowTipDListPatchInfos) {
         const char* dlist = patchInfo.dlist;
@@ -136,7 +136,7 @@ void PatchFreezardBodyTexture() {
                              G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD),
     };
 
-    bool fixTexturesOOB = CVarGetInteger("gEnhancements.Fixes.FixTexturesOOB", 0);
+    bool fixTexturesOOB = CVarGetInteger("gEnhancements.FixTexturesOOB", 0);
 
     for (const auto& patchInfo : freezardBodyDListPatchInfos) {
         const char* dlist = patchInfo.dlist;
@@ -188,7 +188,7 @@ void PatchIronKnuckleFireTexture() {
                                 G_TX_MIRROR | G_TX_WRAP, 5, 6, G_TX_NOLOD, G_TX_NOLOD),
     };
 
-    bool fixTexturesOOB = CVarGetInteger("gEnhancements.Fixes.FixTexturesOOB", 0);
+    bool fixTexturesOOB = CVarGetInteger("gEnhancements.FixTexturesOOB", 0);
 
     for (const auto& patchInfo : ironKnuckleDListPatchInfos) {
         const char* dlist = patchInfo.dlist;
@@ -229,6 +229,10 @@ void PatchIronKnuckleFireTexture() {
     }
 }
 
+// Reads SoH's gEnhancements.FixTexturesOOB (#1029): the one checkbox both games share. In the single exe this
+// runs once, from MM_Game_Init's asset phase, so a change made after MM has initialised in the session takes
+// effect at the next launch. Re-applying from the SoH callback while OoT is active is not safe: these display
+// lists are MM resources and would be resolved under OoT's resource cache owner (#1000).
 void GfxPatcher_ApplyOverflowTexturePatches() {
     MM_PatchArrowTipTexture();
     PatchFreezardBodyTexture();
