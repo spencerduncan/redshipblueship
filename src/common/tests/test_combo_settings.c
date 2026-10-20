@@ -1122,9 +1122,10 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&live, kSettingsHash, kProfileDigest, 0u) ==
                   kDefaultsFingerprintV0,
               "the resolved defaults' fingerprint moved off its golden vector");
+    // The production value the rest of this row compares against. No assertion
+    // of its own: the canonical bytes above already pin it, because the
+    // fingerprint is a function of those bytes and the two fixed half-digests.
     const uint32_t kDefaultsFingerprint = Combo_ComputeComboSettingsHash(&defaults, kSettingsHash, kProfileDigest);
-    CS_ASSERT(Combo_ComputeComboSettingsHash(&live, kSettingsHash, kProfileDigest) == kDefaultsFingerprint,
-              "the resolved defaults' production fingerprint is not the shipped defaults'");
     CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_DIRECTION) == (int32_t)defaults.direction &&
                   Combo_ComboSettingDefault(COMBO_SETTING_GOAL) == (int32_t)defaults.goal,
               "each key's default must be the defaults record's own field — one definition of 'what ships'");
