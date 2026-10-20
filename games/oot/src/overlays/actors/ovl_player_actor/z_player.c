@@ -1177,7 +1177,11 @@ static u8 OoT_sFidgetAnimSfxTypes[] = {
 };
 
 // Used to map item IDs to item actions
-static s8 sItemActions[] = {
+// RedShipBlueShip (#984): sized to every value a u8 ItemID can hold. The vanilla table stops at
+// ITEM_SWORD_BIGGORON (0x3D), so a lookup of the shields/tunics/boots, the wallets and every custom
+// ItemID (ITEM_ROCS_FEATHER = 0x9C) read past the end. Entries without an initializer are 0,
+// which is PLAYER_IA_NONE, the value AssignableTunicsAndBoots already returns for those items.
+static s8 sItemActions[ITEM_NONE + 1] = {
     PLAYER_IA_DEKU_STICK,          // ITEM_DEKU_STICK
     PLAYER_IA_DEKU_NUT,            // ITEM_DEKU_NUT
     PLAYER_IA_BOMB,                // ITEM_BOMB
@@ -1241,6 +1245,16 @@ static s8 sItemActions[] = {
     PLAYER_IA_SWORD_MASTER,        // ITEM_SWORD_MASTER
     PLAYER_IA_SWORD_BIGGORON,      // ITEM_SWORD_BIGGORON
 };
+
+// RedShipBlueShip (#984): the entry count, for the ROM-free `item-actions-bounds` row. The table is
+// static, so only this TU can see it.
+const u32 gItemActionsCount = ARRAY_COUNTU(sItemActions);
+
+// RedShipBlueShip (#984): the table entry for an ItemID, read straight from sItemActions (no hook), for
+// the same row. Returns -1 for an index past the table instead of reading it.
+s32 OoT_Player_ItemActionTableEntry(u32 item) {
+    return item < ARRAY_COUNTU(sItemActions) ? sItemActions[item] : -1;
+}
 
 static s32 (*sItemActionUpdateFuncs[])(Player* this, PlayState* play) = {
     func_8083485C,                 // PLAYER_IA_NONE
