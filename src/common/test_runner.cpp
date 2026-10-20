@@ -422,6 +422,10 @@ int OoT_CheckStateLoad_RunHeadless(void);
 // needs the display bring-up, like the other rando-tier rows. Return 0 on pass.
 int OoTTest_EntrancePinPool(void);
 int RandoTest_EntrancePinGenerated(void);
+// #999: a Range price setting's tracker minimum is min(range 1, range 2) * 5 in
+// either slider order. ROM-free and display-free; body in
+// games/oot/soh/oot_price_range_test.cpp. Return 0 on pass.
+int OoTTest_PriceRangeMinimum(void);
 // #948: in a paired world the night Market's Happy Mask Shop door is a
 // scene-exit door, so the crossing works at night. ROM-free and display-free;
 // body in games/oot/soh/oot_mask_shop_night_door_test.cpp. Return 0 on pass.
@@ -1113,6 +1117,12 @@ static TestResult Test_OoTSceneFlagFreeze(void) {
 // up only the rando region graph, no Ship::Context and no archives.
 static TestResult Test_OoTEntrancePin(void) {
     return OoTTest_EntrancePinPool() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #999 (see the extern decl above). Thin wrapper over the C entry point in
+// games/oot/soh/oot_price_range_test.cpp. Display-free and ROM-free.
+static TestResult Test_OoTPriceRangeMinimum(void) {
+    return OoTTest_PriceRangeMinimum() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #948 (see the extern decl above). Thin wrapper over the C entry point in
@@ -6532,6 +6542,11 @@ const TestDescriptor gTests[] = {
     // row runs in its own process under the rando label).
     { "oot-entrance-pin", "The Happy Mask Shop pair never enters OoT's entrance-shuffle pools (#661)",
       Test_OoTEntrancePin },
+    // #999: display-free and ROM-free; sets the three price families' own options in
+    // a fresh rando Context and touches nothing else.
+    { "oot-price-range-minimum",
+      "A Range price setting's tracker minimum is min(range 1, range 2) * 5 in either slider order (#999)",
+      Test_OoTPriceRangeMinimum },
     // #948: display-free and ROM-free, and order-free: it restores the current
     // game, the active slot and OoT_gPlayState, and clears the combo identity.
     { "oot-mask-shop-night-door",

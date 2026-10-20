@@ -1289,6 +1289,15 @@ if(BUILD_TESTING)
     # the rando tier below.
     redship_add_test(NAME OoTEntrancePin COMMAND redship --test oot-entrance-pin)
 
+    # #999: the Check Tracker's Available Checks prices an unidentified shop, scrub
+    # or merchant slot at GetMinimumPrice, and for a Range price setting that must
+    # be min(range 1, range 2) * 5 whichever slider is higher; the inherited code
+    # read range 1 for both ends, so a reversed range hid affordable checks. The row
+    # sets each family to Range with a pair in both orders and asserts the minimum
+    # through the bridge in location_access.cpp. Display-free and ROM-free: it needs
+    # only the rando Context.
+    redship_add_test(NAME OoTPriceRangeMinimum COMMAND redship --test oot-price-range-minimum)
+
     # #948: the same door at night. SCENE_MARKET_NIGHT places it as a sign door
     # (DOOR_CHECKABLE, text 0x0210), so the crossing waited for morning; in a
     # paired world MaskShopNightDoor.cpp gives it the day door's params before
