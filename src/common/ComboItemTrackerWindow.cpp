@@ -19,6 +19,11 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <fast/resource/ResourceType.h>
+#include <ship/Context.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/ArchiveManager.h>
+#include <ship/window/Window.h>
 #include <ship/window/gui/Gui.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -443,6 +448,67 @@ bool ComboItemSectionDrawsIcons(const std::vector<ComboItemRow>& rows, bool (*ha
     return false;
 }
 
+bool ComboItemKeyIsPath(const char* key) {
+    return key != nullptr && std::strncmp(key, "__OTR__", 7) == 0;
+}
+
+int ComboItemTrackerLoadIcons(const std::vector<ComboItemRow>& rows, bool (*hasImage)(const char*),
+                              bool (*loadImage)(const char*), int epoch, ComboItemIconLoadMemo& memo) {
+    if (hasImage == nullptr || loadImage == nullptr) {
+        return 0;
+    }
+    if (memo.epoch != epoch) {
+        memo.epoch = epoch;
+        memo.missed.clear();
+    }
+    int loaded = 0;
+    for (const ComboItemRow& row : rows) {
+        const char* key = ComboItemPickIcon(row).key;
+        if (!ComboItemKeyIsPath(key) || hasImage(key) || memo.missed.count(key) != 0) {
+            continue;
+        }
+        if (loadImage(key)) {
+            loaded++;
+        } else {
+            memo.missed.insert(key);
+        }
+    }
+    return loaded;
+}
+
+bool ComboItemLoadIconByPath(const char* key) {
+    if (!ComboItemKeyIsPath(key)) {
+        return false;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    auto window = ctx != nullptr ? ctx->GetWindow() : nullptr;
+    auto gui = window != nullptr ? window->GetGui() : nullptr;
+    auto resources = ctx != nullptr ? ctx->GetResourceManager() : nullptr;
+    auto archives = resources != nullptr ? resources->GetArchiveManager() : nullptr;
+    if (gui == nullptr || archives == nullptr) {
+        return false;
+    }
+    if (gui->HasTextureByName(key)) {
+        return true;
+    }
+    // A path no mounted archive holds is not asked of the loader: it would only
+    // cache the miss. The archive key has no "__OTR__" signature.
+    if (!archives->HasFile(std::string(key + 7))) {
+        return false;
+    }
+    // The texture is loaded through the resource manager and handed to the Gui
+    // as a parsed Fast::Texture, so a path that is not a texture (or does not
+    // parse) is a miss here and not a null dereference inside the Gui's own
+    // path overload.
+    auto resource = resources->LoadResource(key, true);
+    if (resource == nullptr || resource->GetInitData() == nullptr ||
+        resource->GetInitData()->Type != static_cast<uint32_t>(Fast::ResourceType::Texture)) {
+        return false;
+    }
+    gui->LoadGuiTexture(key, *static_cast<Fast::Texture*>(resource.get()), ImVec4(1, 1, 1, 1));
+    return gui->HasTextureByName(key);
+}
+
 // ============================================================================
 // The fit
 // ============================================================================
@@ -574,6 +640,14 @@ void ComboItemTrackerWindow::DrawElement() {
     for (size_t s = 0; s < sections.size(); s++) {
         ComboItemTrackerSection& section = sections[s];
         SectionPlan& plan = plans[s];
+        // #963: a game's icons are registered by its own init, and MM's has not
+        // run yet when the session starts in Hyrule. Its keys are resource
+        // paths, so the ones not loaded are loaded from the archives mounted
+        // now. The only state kept here: what could not be loaded since the
+        // last game switch, so a miss is one attempt and not one per frame.
+        static ComboItemIconLoadMemo iconLoadMemo[COMBO_ITEM_SECTION_COUNT];
+        ComboItemTrackerLoadIcons(section.rows, Ui().HasImage, ComboItemLoadIconByPath, (int)Context_GetCurrentGame(),
+                                  iconLoadMemo[section.id]);
         plan.icons = ComboItemSectionDrawsIcons(section.rows, Ui().HasImage);
         if (!plan.icons && section.id == COMBO_ITEM_SECTION_SHARED && !section.rows.empty()) {
             // The active game's icons are not loaded (MM's, before MM has
