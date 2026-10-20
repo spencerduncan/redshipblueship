@@ -76,6 +76,20 @@ function(redship_add_test)
     # and, should a row ever name this variable itself, its later entry wins.
     list(PREPEND _environment "SDL_WINDOW_NO_ACTIVATION_WHEN_SHOWN=1")
 
+    # Every row is also SILENT (S0), whatever else it sets: a test process never
+    # plays game audio through the speakers of the person at the workstation. Until
+    # now only the ~49 rows that spelled SDL_AUDIODRIVER=dummy themselves were; the
+    # ROM-mounted integration rows and the redship tier's boot/switch rows relied on
+    # the staged config's Window.AudioBackend being "null". Same two-layer shape as
+    # the line above: main.cpp pins the driver in code (TestWindowFocus_ArmSilentAudio,
+    # opt out with RSBS_TEST_AUDIO=1 on a direct run); this carries it to the children
+    # a -P script row launches and to a binary older than that change. The rows' own
+    # SDL_AUDIODRIVER=dummy entries are redundant now and are left as they are
+    # (removing 49 of them would only widen the diff); a row that names another
+    # driver still wins, since this entry is PREPENDED. CTest always applies it, so
+    # RSBS_TEST_AUDIO=1 un-silences direct `redship --test` runs, not ctest.
+    list(PREPEND _environment "SDL_AUDIODRIVER=dummy")
+
     add_test(NAME ${RSBS_T_NAME} COMMAND ${RSBS_T_COMMAND})
     set_tests_properties(${RSBS_T_NAME} PROPERTIES
         TIMEOUT "${RSBS_T_TIMEOUT}"
