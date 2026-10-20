@@ -50,25 +50,19 @@ int32_t OoT_Player_ItemActionTableEntry(uint32_t item);
 #define ITEMACT_IA_NONE 0
 
 TestResult Test_ItemActionsBounds(void) {
-    printf("[TEST] item-actions-bounds: sItemActions covers every u8 ItemID (#984)
-");
-    printf("[TEST] sItemActions has %u entries
-", (unsigned)gItemActionsCount);
+    printf("[TEST] item-actions-bounds: sItemActions covers every u8 ItemID (#984)\n");
+    printf("[TEST] sItemActions has %u entries\n", (unsigned)gItemActionsCount);
 
     if (gItemActionsCount <= ITEMACT_ITEM_ROCS_FEATHER) {
         printf("[TEST] FAIL: sItemActions has %u entries, so OoT_Player_ItemToItemAction(ITEM_ROCS_FEATHER = 0x%X) "
-               "reads past the end
-               ",
-               (unsigned)gItemActionsCount,
-               ITEMACT_ITEM_ROCS_FEATHER);
+               "reads past the end\n",
+               (unsigned)gItemActionsCount, ITEMACT_ITEM_ROCS_FEATHER);
         return TEST_FAIL;
     }
     if (gItemActionsCount < ITEMACT_U8_DOMAIN) {
         printf("[TEST] FAIL: sItemActions has %u entries, fewer than the %u values a u8 ItemID can hold, so a lookup "
-               "of a later custom ItemID can index past the end
-               ",
-               (unsigned)gItemActionsCount,
-               (unsigned)ITEMACT_U8_DOMAIN);
+               "of a later custom ItemID can index past the end\n",
+               (unsigned)gItemActionsCount, (unsigned)ITEMACT_U8_DOMAIN);
         return TEST_FAIL;
     }
 
@@ -76,10 +70,8 @@ TestResult Test_ItemActionsBounds(void) {
         int32_t action = OoT_Player_ItemActionTableEntry(item);
         if (action != ITEMACT_IA_NONE) {
             printf("[TEST] FAIL: sItemActions[0x%X] is %d, not PLAYER_IA_NONE, for an ItemID the vanilla table does "
-                   "not name
-                   ",
-                   (unsigned)item,
-                   (int)action);
+                   "not name\n",
+                   (unsigned)item, (int)action);
             return TEST_FAIL;
         }
     }
@@ -87,13 +79,11 @@ TestResult Test_ItemActionsBounds(void) {
     if (OoT_Player_ItemActionTableEntry(0x00) == ITEMACT_IA_NONE ||
         OoT_Player_ItemActionTableEntry(0x3D) == ITEMACT_IA_NONE) {
         printf("[TEST] FAIL: a vanilla entry (ITEM_DEKU_STICK / ITEM_SWORD_BIGGORON) reads PLAYER_IA_NONE, so the "
-               "table was not initialised
-");
+               "table was not initialised\n");
         return TEST_FAIL;
     }
 
-    printf("[TEST] PASS: sItemActions covers ITEM_ROCS_FEATHER and every u8 ItemID, unnamed ids are PLAYER_IA_NONE
-");
+    printf("[TEST] PASS: sItemActions covers ITEM_ROCS_FEATHER and every u8 ItemID, unnamed ids are PLAYER_IA_NONE\n");
     return TEST_PASS;
 }
 
