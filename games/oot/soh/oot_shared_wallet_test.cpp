@@ -54,6 +54,18 @@ extern "C" void OoT_SharedWalletTest_ArmLive(int tier, int rupees, int hasWallet
     }
 }
 
+/** OoT's live save as a VANILLA (non-randomizer) loaded file: the wallet kinds
+ *  are armed for every world, but RAND_INF_HAS_WALLET is never set outside the
+ *  randomizer, so the flag stays clear here by design. */
+extern "C" void OoT_SharedWalletTest_ArmLiveVanilla(int tier, int rupees) {
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    gSaveContext.fileNum = 0;
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.ship.quest.id = QUEST_NORMAL;
+    OoT_Inventory_ChangeUpgrade(UPG_WALLET, (s16)tier);
+    gSaveContext.rupees = (s16)rupees;
+}
+
 /** OoT's own child-wallet give (Item_Give for the first progressive wallet when
  *  the flag is clear): sets the possession flag, leaves the tier at 0. */
 extern "C" void OoT_SharedWalletTest_GiveChildWallet(void) {

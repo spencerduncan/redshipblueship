@@ -3839,7 +3839,7 @@ extern "C" void OoT_ApplySharedResources(void) {
     // possession flag. Without it the tier rises with the flag clear (a state SoH
     // alone cannot reach): logic's GetWalletCapacity reads the tier while the
     // frame handler pins rupees at 0.
-    if (walletTier >= 1) {
+    if (IS_RANDO && walletTier >= 1) {
         Flags_SetRandomizerInf(RAND_INF_HAS_WALLET);
     }
 

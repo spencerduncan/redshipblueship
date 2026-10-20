@@ -29,7 +29,11 @@
  *       its rupees with the pool the way the kind always has, creates no wallet
  *       slot (MM owns that wallet already) and survives a following apply;
  *   (5) higher tiers: pool tier 2 and 3 raise OoT's tier, set the flag, and the
- *       capacity logic reads follows the tier (500, 999).
+ *       capacity logic reads follows the tier (500, 999);
+ *   (6) a VANILLA (non-randomizer) file never has the possession flag, yet the
+ *       wallet kinds are armed for every world: its rupees must still apply
+ *       (the zero cap is a randomizer-only rule), and a pooled wallet tier
+ *       writes no randomizer-inf bit into it.
  */
 
 #include <stdio.h>
@@ -39,6 +43,7 @@
 extern "C" {
 #endif
 void OoT_SharedWalletTest_ArmLive(int tier, int rupees, int hasWallet);
+void OoT_SharedWalletTest_ArmLiveVanilla(int tier, int rupees);
 void OoT_SharedWalletTest_GiveChildWallet(void);
 void OoT_SharedWalletTest_SetRupees(int rupees);
 int OoT_SharedWalletTest_HasWalletFlag(void);
@@ -209,6 +214,38 @@ TestResult Test_SharedWallet(void) {
             SW_CHECK(capacity == expectCap[i], "pool tier %d: logic capacity %d, expected %d", tiers[i], capacity,
                      expectCap[i]);
         }
+    }
+
+    // ---- (6) A vanilla file: the zero cap and the flag write are randomizer-only
+    {
+        SwFreezeWorld();
+        Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_RUPEES, 50);
+        OoT_SharedWalletTest_ArmLiveVanilla(0, 0); // QUEST_NORMAL: flag clear, tier 0
+        OoT_ApplySharedResources();
+        const int applied = OoT_SharedWalletTest_Rupees();
+        const int flag = OoT_SharedWalletTest_HasWalletFlag();
+        printf("[TEST] (6) vanilla file, 50 pooled rupees, flag clear, tier 0: rupees applied %d, flag %d "
+               "(expected 50, 0)\n",
+               applied, flag);
+        SW_CHECK(applied == 50,
+                 "a vanilla file lost its rupees on arrival (%d applied, expected 50): the zero cap hit a "
+                 "file that never has the wallet flag",
+                 applied);
+        SW_CHECK(flag == 0, "a vanilla file got the randomizer wallet flag (%d)", flag);
+
+        SwFreezeWorld();
+        Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_WALLET_TIER, 1);
+        Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_RUPEES, 50);
+        OoT_SharedWalletTest_ArmLiveVanilla(0, 0);
+        OoT_ApplySharedResources();
+        const int tier = OoT_SharedWalletTest_Tier();
+        const int flag2 = OoT_SharedWalletTest_HasWalletFlag();
+        const int applied2 = OoT_SharedWalletTest_Rupees();
+        printf("[TEST] (6) vanilla file, pooled tier 1 + 50 rupees: tier %d, flag %d, rupees %d (expected 1, 0, 50)\n",
+               tier, flag2, applied2);
+        SW_CHECK(tier == 1, "the vanilla file's tier is %d after a pooled tier-1 apply, expected 1", tier);
+        SW_CHECK(flag2 == 0, "a pooled tier wrote the randomizer wallet flag (%d) into a vanilla file", flag2);
+        SW_CHECK(applied2 == 50, "the vanilla file holds %d rupees after the apply, expected 50", applied2);
     }
 
     ComboContext_Init();
