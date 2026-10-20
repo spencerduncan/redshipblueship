@@ -332,9 +332,12 @@ different fingerprint at file select than the same seed created by the old one.
 
 What a bump moves, and what it must not:
 
-* **`comboSettingsHash`** moves in the four goldens that carry it
+* **`comboSettingsHash`** moves in the eight goldens that carry it
   (`seed-digest-default`, `seed-digest-profile-v1`, `seed-digest-entrances`,
-  `seed-digest-armed-caps`). It is an INPUT field, so the checker reports it under
+  `seed-digest-armed-caps`, and the four #982 added: `seed-digest-excludes-tricks`,
+  `seed-digest-shopsanity`, `seed-digest-mm-nearly-no-logic`,
+  `seed-digest-direction-forward`). `paired-attempt-digest` does not carry it. It
+  is an INPUT field, so the checker reports it under
   "INPUT fields moved". A bump with nothing else moving is that line alone.
 * **No placement moves.** The version is a label, not an entropy input. The
   single bag folds the fingerprint with the label taken off
@@ -352,8 +355,9 @@ the term removed. It also locks the legacy and newer-version load legs, the
 version-free bag seeds and the file-select text.
 
 History: version 1 (#1003) is the first stamped generator, the worlds as of #974.
-Re-pinning version 1 in moved `comboSettingsHash` in the four goldens above and
-nothing else.
+Re-pinning version 1 moved `comboSettingsHash` in the eight goldens above and
+nothing else. The four profiles #982 added were pinned at version 0 and re-pinned
+after #982 merged, in the same PR as the bump.
 
 ## Comparing two binaries by hand: never read a file a bare `--test` did not write
 
