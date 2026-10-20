@@ -69,6 +69,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <ship/window/gui/GuiWindow.h>
 
@@ -314,9 +315,46 @@ bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCou
 /**
  * Whether a section draws icons: some row's picked texture is loaded
  * (`hasImage`, the seam's HasImage). Otherwise it is U2's text grid, the
- * fallback while a game's icons are not loaded (MM's before MM's first boot).
+ * fallback while a game's icons are not loaded and cannot be (ComboItemTrackerLoadIcons).
  */
 bool ComboItemSectionDrawsIcons(const std::vector<ComboItemRow>& rows, bool (*hasImage)(const char*));
+
+/**
+ * Which keys a section's load already tried, for one stretch of the session. A
+ * key that could not be loaded is not asked again until the epoch changes: the
+ * archives a game can reach change only at a game switch, so the overlay passes
+ * the active game as the epoch and a miss costs one attempt per switch, not one
+ * per frame.
+ */
+struct ComboItemIconLoadMemo {
+    int epoch = -1;
+    std::unordered_set<std::string> missed;
+};
+
+/**
+ * Load the textures a section's rows name that are not loaded yet (#963). A
+ * game's icon textures are normally registered by that game's own init, and
+ * Majora's Mask's runs at its first boot, so before it the overlay's MM column
+ * had no icons to draw. A row key that is a resource path (ComboItemKeyIsPath)
+ * is loaded by that path through `loadImage` (the shared resource manager's
+ * archives), independent of any game's init; a texture name is a game's own
+ * and is left alone. `hasImage` says what is loaded, `loadImage` loads one key
+ * and says whether it is now loaded. Returns the number loaded by this call. A
+ * key that fails stays a text cell, and is not retried within `epoch`.
+ */
+int ComboItemTrackerLoadIcons(const std::vector<ComboItemRow>& rows, bool (*hasImage)(const char*),
+                              bool (*loadImage)(const char*), int epoch, ComboItemIconLoadMemo& memo);
+
+/** Is `key` a resource path ("__OTR__..."), the kind MM's icons are keyed by, and OoT's are not? */
+bool ComboItemKeyIsPath(const char* key);
+
+/**
+ * The production loader: load the Gui texture named `key` from the resource of
+ * that path in the mounted archives, if one is there and parses as a texture.
+ * Safe with no window, no Gui or no archive (false). True when the texture is
+ * loaded under `key` afterwards, including when it already was.
+ */
+bool ComboItemLoadIconByPath(const char* key);
 
 // ============================================================================
 // The fit
