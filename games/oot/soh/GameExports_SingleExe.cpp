@@ -44,6 +44,7 @@
 // combo settings), must be unset in the CVar store.
 #include "soh/Enhancements/randomizer/settings.h"
 #include "soh/Enhancements/randomizer/static_data.h"
+#include "soh/resource/type/Text.h" // #981: the cache-owner row's staff text type check
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
@@ -117,6 +118,10 @@ extern "C" {
 int ArchiveHotswap_RecordArrival(void);
 int ArchiveHotswap_RssExceeded(void);
 int ArchiveHotswap_TargetArrivals(void);
+// #981 resource cache owner checks (src/common/tests/test_resource_cache_owner.c).
+int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, int limbCount, char* msg, size_t cap);
+int ResourceCacheOwner_MMLegPassed(void);
+SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
 }
 
 // Game state
@@ -390,10 +395,57 @@ static void T1InjectFrom(GameState* gameState, const char* from) {
     T1SetStage(T1_STAGE_ENTERING_PLAY);
 }
 
+// #981 (int-resource-cache-owner): OoT's own copies of two paths MM's archive
+// also carries, before the crossing and after the return. The first check
+// records the objects; the second must be served the very same ones.
+static const char* const kRcoOctorokSkel = "objects/object_okuta/gOctorokSkel";
+static const char* const kRcoStaffText = "text/staff_message_data_static/staff_message_data_static";
+static const void* sRcoOoTSkel = nullptr;
+static const void* sRcoOoTText = nullptr;
+static int sRcoReturnFrames = 0;
+
+static bool RcoOoTCheck(const char* when, char* msg, size_t cap) {
+    SkeletonHeader* skel = ResourceMgr_LoadSkeletonByName(kRcoOctorokSkel, NULL);
+    auto text = std::dynamic_pointer_cast<SOH::Text>(
+        Ship::Context::GetInstance()->GetResourceManager()->LoadResource(kRcoStaffText));
+    const int limbs = skel != NULL ? skel->limbCount : -1;
+    std::string fail;
+    if (limbs != 37) {
+        fail += "gOctorokSkel has " + std::to_string(limbs) + " limbs, expected OoT's 37; ";
+    }
+    if (text == nullptr) {
+        fail += "the staff text is not a SOH::Text; ";
+    }
+    if (sRcoOoTSkel == nullptr) {
+        sRcoOoTSkel = skel;
+        sRcoOoTText = text.get();
+    } else if (sRcoOoTSkel != skel || sRcoOoTText != text.get()) {
+        char line[160];
+        snprintf(line, sizeof(line), "served gOctorokSkel %p / staff text %p, not the %p / %p it had before; ",
+                 (void*)skel, (void*)text.get(), sRcoOoTSkel, sRcoOoTText);
+        fail += line;
+    }
+    if (!fail.empty()) {
+        snprintf(msg, cap, "OoT %s: %s", when, fail.c_str());
+        return false;
+    }
+    snprintf(msg, cap, "OoT %s: gOctorokSkel %p with 37 limbs, staff text %p is a SOH::Text", when, (void*)skel,
+             (void*)text.get());
+    return true;
+}
+
 // Fire the HMS entrance and assert where it routes. Same call OoT's z_play.c
 // makes when the player walks into the Happy Mask Shop door — minus the
 // SaveContext freeze, which IntGameplayRoundtrip's production door covers.
 static void T1TriggerHmsAndAssertRouting(void) {
+    if (IntegrationTest_GetMode() == INT_TEST_RESOURCE_CACHE_OWNER) {
+        char msg[384];
+        if (!RcoOoTCheck("before the crossing", msg, sizeof(msg))) {
+            T1Fail(msg);
+            return;
+        }
+        fprintf(stderr, "[OoT-INT-TEST] PASS cache-owner leg 1: %s\n", msg);
+    }
     fprintf(stderr, "[OoT-INT-TEST] gameplay reached (scene %d, %d live frames); triggering HMS entrance 0x%04X\n",
             OoT_gPlayState != NULL ? (int)OoT_gPlayState->sceneNum : -1, sT1GameplayFrames, OOT_ENTR_HAPPY_MASK_SHOP);
     fflush(stderr);
@@ -1808,7 +1860,7 @@ static void OoT_RegisterIntegrationTestHooks(void) {
 
         fprintf(stderr, "[OoT] Integration test hooks registered\n");
         fflush(stderr);
-    } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM) {
+    } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM || mode == INT_TEST_RESOURCE_CACHE_OWNER) {
         // T1 (#260, #544): reach live OoT gameplay without a Start press, fire
         // the Happy Mask Shop entrance from there, assert the cross-game switch
         // resolves to MM South Clock Town (the tower-exit arrival). Leg 1 passes
@@ -1893,6 +1945,34 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             T1TriggerHmsAndAssertRouting();
         });
 
+        // #981: int-resource-cache-owner rides T1 to MM (its leg 1 is in
+        // T1TriggerHmsAndAssertRouting), and MM walks back through the Clock Tower
+        // door once its leg passes. Back in OoT, 10 frames in, OoT must be served
+        // the objects it had before it left.
+        if (mode == INT_TEST_RESOURCE_CACHE_OWNER) {
+            sRcoReturnFrames = 0;
+            GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+                if (Context_GetCurrentGame() != GAME_OOT || !ResourceCacheOwner_MMLegPassed()) {
+                    sRcoReturnFrames = 0;
+                    return;
+                }
+                if (++sRcoReturnFrames != 10) {
+                    return;
+                }
+                char msg[384];
+                if (!RcoOoTCheck("back from MM", msg, sizeof(msg))) {
+                    fprintf(stderr, "[OoT-INT-TEST] FAIL (int-resource-cache-owner): %s\n", msg);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    Combo_RequestGameSwitch();
+                    return;
+                }
+                fprintf(stderr, "[OoT-INT-TEST] PASS cache-owner leg 3: %s\n", msg);
+                fflush(stderr);
+                IntegrationTest_SignalBootComplete(GAME_OOT, "each game served its own copies; OoT's survived");
+            });
+        }
+
         fprintf(stderr, "[OoT] HMS->MM switch hooks registered\n");
         fflush(stderr);
     } else if (mode == INT_TEST_CROSSING_REFUSED) {
@@ -1956,6 +2036,19 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             fprintf(stderr, "[OoT-INT-TEST] OoT stable; archive-hotswap arrival #%d of %d\n", n,
                     ArchiveHotswap_TargetArrivals());
             fflush(stderr);
+
+            // #981: OoT is served its own copies of the paths MM also carries.
+            SkeletonHeader* skel = ResourceMgr_LoadSkeletonByName(kRcoOctorokSkel, NULL);
+            char rco[512];
+            if (!ResourceCacheOwner_CheckArrival(GAME_OOT, n, skel, skel != NULL ? skel->limbCount : -1, rco,
+                                                 sizeof(rco))) {
+                fprintf(stderr, "[OoT-INT-TEST] FAIL: resource cache: %s\n", rco);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
+                return;
+            }
+            fprintf(stderr, "[OoT-INT-TEST] resource cache: %s\n", rco);
 
             if (ArchiveHotswap_RssExceeded()) {
                 // Steady-state RSS blew the bound — the #154 per-switch leak

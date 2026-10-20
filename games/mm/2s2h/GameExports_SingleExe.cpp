@@ -91,6 +91,7 @@
 #include "2s2h/resource/type/2shResourceType.h"
 #include "2s2h/resource/importer/PathFactory.h"
 #include "2s2h/resource/importer/TextMMFactory.h"
+#include "2s2h/resource/type/TextMM.h" // #981: the cache-owner row's staff text type check
 #include "2s2h/resource/importer/TextureAnimationFactory.h"
 #include "2s2h/resource/importer/KeyFrameFactory.h"
 #include "2s2h/resource/importer/SceneFactory.h"
@@ -116,6 +117,7 @@ extern "C" {
 #include "system_heap.h"
 #include "z64thread.h"
 #include "global.h"
+#include "message_data_static.h" // #981: MessageTableEntry, for the credits table accessor
 }
 
 // External declarations from main.c
@@ -207,6 +209,45 @@ extern "C" {
 int ArchiveHotswap_RecordArrival(void);
 int ArchiveHotswap_RssExceeded(void);
 int ArchiveHotswap_TargetArrivals(void);
+// #981 resource cache owner checks (src/common/tests/test_resource_cache_owner.c).
+int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, int limbCount, char* msg, size_t cap);
+void ResourceCacheOwner_SetMMLegPassed(void);
+// OoT's port layer defines the one ResourceMgr_LoadSkeletonByName both games call.
+SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
+// MM's staff roll table (z_message.c), built by MM_OTRMessage_Init.
+extern MessageTableEntry* sMessageTableCredits;
+}
+
+// #981: MM's own copies of two paths OoT's archive also carries. OoT's would
+// be a 37-limb skeleton (MM's joint tables hold 16) and a SOH::Text, whose
+// 40-byte entries MM_OTRMessage_Init reads as 56-byte S2H::TextMM ones.
+static const char* const kRcoOctorokSkel = "objects/object_okuta/gOctorokSkel";
+
+static bool RcoMMCheck(char* msg, size_t cap) {
+    SkeletonHeader* skel = ResourceMgr_LoadSkeletonByName(kRcoOctorokSkel, NULL);
+    auto text = std::dynamic_pointer_cast<S2H::TextMM>(Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
+        "text/staff_message_data_static/staff_message_data_static"));
+    const int limbs = skel != NULL ? skel->limbCount : -1;
+    const int creditsId = sMessageTableCredits != NULL ? sMessageTableCredits[0].textId : -1;
+    std::string fail;
+    if (limbs != 15) {
+        fail += "gOctorokSkel has " + std::to_string(limbs) + " limbs, expected MM's 15; ";
+    }
+    if (text == nullptr) {
+        fail += "the staff text is not an S2H::TextMM; ";
+    }
+    if (creditsId < 0x4E20) {
+        char line[96];
+        snprintf(line, sizeof(line), "the credits table's first textId is 0x%X, expected MM's >= 0x4E20; ", creditsId);
+        fail += line;
+    }
+    if (!fail.empty()) {
+        snprintf(msg, cap, "MM on arrival: %s", fail.c_str());
+        return false;
+    }
+    snprintf(msg, cap, "MM on arrival: gOctorokSkel %p with 15 limbs, staff text %p is an S2H::TextMM, credits at 0x%X",
+             (void*)skel, (void*)text.get(), creditsId);
+    return true;
 }
 
 // Shared single-exe bring-up (issues #329/#330). Defined in OoT's port layer
@@ -684,6 +725,44 @@ static void MM_RegisterIntegrationTestHooks(void) {
 
         fprintf(stderr, "[MM] Clock Tower door->OoT switch hooks registered\n");
         fflush(stderr);
+    } else if (mode == INT_TEST_RESOURCE_CACHE_OWNER) {
+        // #981: T1's arrival in South Clock Town (OoT's leg 1 recorded OoT's
+        // copies). 10 stable frames in, MM must be served its own copies; then it
+        // walks back through the Clock Tower door and OoT's leg 3 checks OoT got
+        // back what it had.
+        fprintf(stderr, "[MM] Registering integration test hooks for the resource cache owner row (#981)\n");
+        fflush(stderr);
+
+        sSceneLoadWaitFrames = 0;
+        sSceneLoadStableFrames = 0;
+
+        MM_GameHooks_RegisterOnGameStateMainStart([]() {
+            static bool sLegDone = false;
+            if (sLegDone) {
+                return;
+            }
+            if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_CLOCKTOWER) {
+                sSceneLoadStableFrames = 0;
+                MM_SceneLoadWatchdogExpired("int-resource-cache-owner");
+                return;
+            }
+            if (++sSceneLoadStableFrames != 10) {
+                return;
+            }
+            sLegDone = true;
+            char msg[512];
+            if (!RcoMMCheck(msg, sizeof(msg))) {
+                fprintf(stderr, "[MM-INT-TEST] FAIL (int-resource-cache-owner): %s\n", msg);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
+                return;
+            }
+            fprintf(stderr, "[MM-INT-TEST] PASS cache-owner leg 2: %s; back through the Clock Tower door\n", msg);
+            fflush(stderr);
+            ResourceCacheOwner_SetMMLegPassed();
+            Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+        });
     } else if (mode == INT_TEST_ARCHIVE_HOTSWAP_CYCLE) {
         // T4 (#263): MM side of the OoT<->MM archive hot-swap cycle. OoT boots
         // first, so MM is arrivals #2 and #4 (the last) of the
@@ -727,6 +806,19 @@ static void MM_RegisterIntegrationTestHooks(void) {
             fprintf(stderr, "[MM-INT-TEST] MM stable; archive-hotswap arrival #%d of %d\n", n,
                     ArchiveHotswap_TargetArrivals());
             fflush(stderr);
+
+            // #981: MM is served its own copies of the paths OoT also carries.
+            SkeletonHeader* skel = ResourceMgr_LoadSkeletonByName(kRcoOctorokSkel, NULL);
+            char rco[512];
+            if (!ResourceCacheOwner_CheckArrival(GAME_MM, n, skel, skel != NULL ? skel->limbCount : -1, rco,
+                                                 sizeof(rco))) {
+                fprintf(stderr, "[MM-INT-TEST] FAIL: resource cache: %s\n", rco);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
+                return;
+            }
+            fprintf(stderr, "[MM-INT-TEST] resource cache: %s\n", rco);
 
             if (ArchiveHotswap_RssExceeded()) {
                 // Steady-state RSS blew the bound — the #154 per-switch leak

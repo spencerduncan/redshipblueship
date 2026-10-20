@@ -80,6 +80,8 @@ class ArchivePreconditionTest(unittest.TestCase):
         self.assertIsNone(verify.check_gl_backend(self.build))
 
 
+# CTest 3.x: the summary always carries the failed clause, and FAILED rows end
+# at the status.
 PASS_OUTPUT = """\
       Start  1: BootOoT
  1/3 Test  #1: BootOoT ..........................   Passed    1.20 sec
@@ -116,6 +118,74 @@ The following tests did not run:
 \t  2 - MMModsMount (Skipped)
 """
 
+# CTest 4.4.0, captured verbatim from `ctest -L ^<label>$ --output-on-failure
+# --no-tests=error` (only the project path is shortened). An all-green run has
+# no failed clause, and a FAILED row ends with the row's labels.
+CTEST4_PASS_OUTPUT = """\
+Test project C:/src/redshipblueship/build-cmake
+    Start 1: BootOoT
+1/3 Test #1: BootOoT ..........................   Passed    0.13 sec
+    Start 2: BootMM
+2/3 Test #2: BootMM ...........................   Passed    0.12 sec
+    Start 3: Context
+3/3 Test #3: Context ..........................   Passed    0.25 sec
+
+100% tests passed out of 3
+
+Label Time Summary:
+redship    =   0.51 sec*proc (3 tests)
+
+Total Test time (real) =   0.53 sec
+"""
+
+CTEST4_FAIL_OUTPUT = """\
+Test project C:/src/redshipblueship/build-cmake
+    Start 4: RandoGenerate
+1/4 Test #4: RandoGenerate ....................   Passed    0.65 sec
+    Start 5: GoldenSeedDigestDefault
+2/4 Test #5: GoldenSeedDigestDefault ..........***Failed    0.41 sec
+
+    Start 6: MMModsMount
+3/4 Test #6: MMModsMount ......................***Skipped   0.60 sec
+    Start 7: RandoRoundtrip
+4/4 Test #7: RandoRoundtrip ...................***Timeout   1.08 sec
+
+
+50% tests passed, 2 tests failed out of 4
+
+Label Time Summary:
+golden    =   0.41 sec*proc (1 test)
+rando     =   2.74 sec*proc (4 tests)
+
+Total Test time (real) =   2.75 sec
+
+The following tests did not run:
+\t  6 - MMModsMount (Skipped)
+
+The following tests FAILED:
+\t  5 - GoldenSeedDigestDefault (Failed)                  golden rando
+\t  7 - RandoRoundtrip (Timeout)                          rando
+Errors while running CTest
+"""
+
+CTEST4_SKIP_ONLY_OUTPUT = """\
+Test project C:/src/redshipblueship/build-cmake
+    Start 8: UiSnapshot
+1/2 Test #8: UiSnapshot .......................   Passed    0.27 sec
+    Start 9: UiArchiveRows
+2/2 Test #9: UiArchiveRows ....................***Skipped   0.18 sec
+
+100% tests passed out of 2
+
+Label Time Summary:
+ui    =   0.44 sec*proc (2 tests)
+
+Total Test time (real) =   0.45 sec
+
+The following tests did not run:
+\t  9 - UiArchiveRows (Skipped)
+"""
+
 
 class CtestParseTest(unittest.TestCase):
     def test_all_green(self):
@@ -148,6 +218,49 @@ class CtestParseTest(unittest.TestCase):
                                               "\t  1 - BootOoT (BAD_COMMAND)"])
         self.assertTrue(r.bad_command)
         self.assertEqual(r.failed, ["BootOoT"])
+
+    def test_summary_line_in_both_ctest_forms(self):
+        for line, total in (
+            ("100% tests passed out of 185", 185),  # CTest 4.x, all green
+            ("100% tests passed, 0 tests failed out of 185", 185),  # CTest 3.x, all green
+            ("99% tests passed, 1 tests failed out of 185", 185),
+            ("0% tests passed, 1 test failed out of 1", 1),
+        ):
+            m = verify._SUMMARY.search(line)
+            self.assertIsNotNone(m, line)
+            self.assertEqual(int(m.group(3)), total, line)
+
+    def test_ctest4_all_green_is_green(self):
+        """CTest 4.x drops ", 0 tests failed" from an all-green summary; that
+        tier read 0/0 and every fully green gate reported VERIFY FAIL."""
+        r = verify.parse_ctest("redship", 0, CTEST4_PASS_OUTPUT.splitlines())
+        self.assertTrue(r.ok())
+        self.assertEqual((r.total, r.failed, r.skipped), (3, [], []))
+        self.assertTrue(r.line().startswith("redship 3/3"), r.line())
+
+    def test_ctest4_failures_are_named_despite_the_label_column(self):
+        r = verify.parse_ctest("rando", 8, CTEST4_FAIL_OUTPUT.splitlines())
+        self.assertFalse(r.ok())
+        self.assertEqual(r.total, 4)
+        self.assertEqual(r.failed, ["GoldenSeedDigestDefault", "RandoRoundtrip"])
+        self.assertEqual(r.skipped, ["MMModsMount"])
+        self.assertTrue(r.line().startswith("rando 1/4"), r.line())
+        self.assertIn("FAILED: GoldenSeedDigestDefault, RandoRoundtrip", r.line())
+
+    def test_ctest4_named_failures_keep_a_tier_red_without_the_exit_code(self):
+        """A lost exit code (the #948 .bat trap) must not turn a red tier green:
+        the FAILED rows alone keep it red."""
+        r = verify.parse_ctest("rando", 0, CTEST4_FAIL_OUTPUT.splitlines())
+        self.assertFalse(r.ok())
+        self.assertFalse(r.ok(allow_skips=True))
+        self.assertEqual(len(r.failed), 2)
+
+    def test_ctest4_skip_only_tier(self):
+        r = verify.parse_ctest("ui", 0, CTEST4_SKIP_ONLY_OUTPUT.splitlines())
+        self.assertFalse(r.ok())
+        self.assertTrue(r.ok(allow_skips=True))
+        self.assertEqual((r.total, r.failed, r.skipped), (2, [], ["UiArchiveRows"]))
+        self.assertTrue(r.line().startswith("ui 1/2 (1 skipped: UiArchiveRows)"), r.line())
 
 
 class FakeMachine:

@@ -791,6 +791,12 @@ if(BUILD_TESTING)
     set_tests_properties(CuratedArchiveOrder PROPERTIES SKIP_RETURN_CODE 77)
     redship_add_test(NAME ModArchiveSurvivesSwitch COMMAND redship --test mod-survives-switch)
     set_tests_properties(ModArchiveSurvivesSwitch PROPERTIES SKIP_RETURN_CODE 77)
+    # #981: the resource cache is keyed by owner as well as path, and each game
+    # runs under its own owner. Two temporary O2R zips with different Blob
+    # contents at one path, loaded under two owners through the fork's
+    # ResourceManager::SetDefaultCacheOwner: each owner keeps its own bytes, and
+    # the first keeps its original object. ROM-free and archive-free.
+    redship_add_test(NAME ResourceCacheOwner COMMAND redship --test resource-cache-owner)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture
@@ -2508,6 +2514,25 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+    # S0: test processes are silent. redship_add_test() puts SDL_AUDIODRIVER=dummy
+    # in every row's environment and main.cpp pins the driver in code for every
+    # --test / --integration-test process (src/common/test_window_focus.h). This
+    # row removes the variable from its own process and asserts the in-code pin
+    # alone: SDL_GetHint, then a real SDL audio init reports the dummy driver.
+    # Default tier: SDL audio only, no window, no archive.
+    redship_add_test(NAME TestAudioSilent COMMAND redship --test test-audio-silent)
+    # Self-skips (exit 77) when RSBS_TEST_AUDIO=1 is exported, the operator's opt-out.
+    set_tests_properties(TestAudioSilent PROPERTIES SKIP_RETURN_CODE 77)
+    # S0: every row's ENVIRONMENT carries SDL_AUDIODRIVER=, read back from
+    # `ctest --show-only=json-v1`. Holds the integration rows (ROM-only, so never run
+    # in hosted CI) and every redship_add_test() caller to the CMake half of the
+    # silent default; a deleted PREPEND line or a bare add_test() fails it.
+    redship_add_test(NAME TestAudioEnvCoverage
+        COMMAND ${CMAKE_COMMAND}
+                -DCTEST_EXE=${CMAKE_CTEST_COMMAND}
+                -DBUILD_DIR=${CMAKE_BINARY_DIR}
+                "-DEXEMPT=prism" # libultraship's own row; it runs no redship
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckTestAudioEnv.cmake)
     # #880: the window title and --version carry the configured short commit
     # (and "-dirty"), so a build says which commit it is. The expected identity is
     # handed over from configure ("none" for a tree without git); run outside
@@ -2628,6 +2653,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
     redship_add_test(NAME IntArchiveHotswapCycle
         COMMAND redship --integration-test int-archive-hotswap-cycle
+        LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
+    # #981: T1's crossing and back. Each game is served its own gOctorokSkel (OoT
+    # 37 limbs, MM 15) and staff text (SOH::Text, S2H::TextMM with MM's credit
+    # ids), and OoT gets back the very objects it had before it left.
+    redship_add_test(NAME IntResourceCacheOwner
+        COMMAND redship --integration-test int-resource-cache-owner
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
     # #806 on the real boot path: with the staged redship-oot.o2r replaced by an
     # unstamped zip and redship-mm.o2r removed, an OoT boot must regenerate both
