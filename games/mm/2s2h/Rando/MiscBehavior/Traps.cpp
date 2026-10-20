@@ -4,6 +4,10 @@
 #include "Rando/ActorBehavior/ActorBehavior.h"
 #include "2s2h/DeveloperTools/SaveEditor.h"
 #include "2s2h/ShipUtils.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "Rando/Foreign.h" // ResolvePairedProfile, for the creation bridge (#1047)
+#include <memory>
+#endif
 
 extern "C" {
 #include "variables.h"
@@ -26,6 +30,100 @@ std::map<TrapTypes, const char*> trapToCvarMap = {
     { TRAP_TIME, "gRando.Traps.Time" },
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1047: a trap's type is part of the world (one-game semantics; OoTMM decides a
+// trap's kind at generation; SoH's ExtraTraps seeds its roll from the world's
+// seed). Upstream rolled it at pickup from the LIVE gRando.Traps.* CVars and
+// wherever MM's global stream happened to be, so a reload or a config change
+// could spring a different trap from the same check. The set now freezes into
+// the save at creation (ResolveTrapTypesFromCVars, written by
+// Rando::Foreign::ResolvePairedProfile) and the roll is seeded by the world's
+// seed plus the check.
+uint8_t ResolveTrapTypesFromCVars() {
+    uint8_t mask = 0;
+    for (auto& trap : trapToCvarMap) {
+        if (CVarGetInteger(trap.second, 0)) {
+            mask |= (uint8_t)(1u << trap.first);
+        }
+    }
+    return mask;
+}
+
+const char* TrapTypeCVar(int type) {
+    auto it = trapToCvarMap.find((TrapTypes)type);
+    return it == trapToCvarMap.end() ? nullptr : it->second;
+}
+
+const char* TrapTypeLabel(int type) {
+    // Rando/Menu.cpp's names for the toggles (not built into the single exe).
+    static const char* const kLabels[TRAP_MAX] = {
+        "Freeze Traps", "Blast Traps", "Shock Traps", "Jinx Traps", "Wallet Traps", "Like Like Traps", "Time Traps",
+    };
+    return type >= 0 && type < TRAP_MAX ? kLabels[type] : nullptr;
+}
+
+std::vector<TrapTypes> getEnabledTrapTypes() {
+    static_assert(TRAP_MAX <= 8, "randoSaveTrapTypes holds one bit per trap type");
+    const uint8_t mask = gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes;
+    std::vector<TrapTypes> enabledTrapTypes;
+    for (auto& trap : trapToCvarMap) {
+        if (mask & (1u << trap.first)) {
+            enabledTrapTypes.push_back(trap.first);
+        }
+    }
+    if (enabledTrapTypes.size() == 0) {
+        enabledTrapTypes.push_back(TRAP_FREEZE);
+    }
+    return enabledTrapTypes;
+};
+
+int RollTrapType(RandoCheckId randoCheckId) {
+    auto enabledTraps = getEnabledTrapTypes();
+    Ship_Random_Seed((uint32_t)(gSaveContext.save.shipSaveInfo.rando.finalSeed + (uint32_t)randoCheckId));
+    roll = enabledTraps[Ship_Random(0, enabledTraps.size())];
+    return roll;
+}
+
+// ROM-free test bridges (redship tier; src/common/tests/test_playtime_frozen.c, #1047).
+
+/** The type the trap on `randoCheckId` springs in a world whose seed is
+ *  `finalSeed` and whose frozen set is `mask`, with MM's global stream first put
+ *  at `streamSeed` (standing for wherever play left it). Leaves the save's seed
+ *  and set as it found them. */
+extern "C" int MM_Rando_Traps_TestRoll(uint32_t finalSeed, uint8_t mask, uint16_t randoCheckId, uint64_t streamSeed) {
+    RandoSaveInfo& rando = gSaveContext.save.shipSaveInfo.rando;
+    const uint32_t priorSeed = rando.finalSeed;
+    const uint8_t priorMask = rando.randoSaveTrapTypes;
+    rando.finalSeed = finalSeed;
+    rando.randoSaveTrapTypes = mask;
+    Ship_Random_Seed(streamSeed);
+    const int type = RollTrapType((RandoCheckId)randoCheckId);
+    rando.finalSeed = priorSeed;
+    rando.randoSaveTrapTypes = priorMask;
+    return type;
+}
+
+/** The CVar that enables trap type `type`, or nullptr; and TRAP_MAX for -1. */
+extern "C" const char* MM_Rando_Traps_TestCVarName(int type) {
+    return TrapTypeCVar(type);
+}
+
+extern "C" int MM_Rando_Traps_TestTypeCount(void) {
+    return (int)TRAP_MAX;
+}
+
+/** What creation freezes: runs the real Rando::Foreign::ResolvePairedProfile
+ *  (the solo leg, which publishes no identity) over a copy of the save's rando
+ *  block and returns the randoSaveTrapTypes it wrote; the block is put back. */
+extern "C" int MM_Rando_Traps_TestCreationFreezes(void) {
+    auto saved = std::make_unique<RandoSaveInfo>(gSaveContext.save.shipSaveInfo.rando);
+    gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes = 0xFF;
+    Rando::Foreign::ResolvePairedProfile(false);
+    const int mask = gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes;
+    gSaveContext.save.shipSaveInfo.rando = *saved;
+    return mask;
+}
+#else
 std::vector<TrapTypes> getEnabledTrapTypes() {
     std::vector<TrapTypes> enabledTrapTypes;
     for (auto& trap : trapToCvarMap) {
@@ -44,6 +142,7 @@ int RollTrapType() {
     roll = enabledTraps[Ship_Random(0, enabledTraps.size())];
     return roll;
 }
+#endif // RSBS_SINGLE_EXECUTABLE
 
 // clang-format off
 std::vector<std::string> defaultTrapMessages = { 
@@ -129,8 +228,13 @@ std::map<TrapTypes, std::vector<std::string>> trapMessageList = {
 };
 // clang-format on
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+std::string GetTrapMessage(RandoCheckId randoCheckId) {
+    RollTrapType(randoCheckId);
+#else
 std::string GetTrapMessage() {
     RollTrapType();
+#endif
     auto findIt = trapMessageList.find((TrapTypes)roll);
     if (findIt == trapMessageList.end()) {
         return defaultTrapMessages[Ship_Random(0, defaultTrapMessages.size())];

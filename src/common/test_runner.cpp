@@ -536,9 +536,11 @@ extern "C" {
 // #575 H1: the shared hint area vocabulary, both adapters and MM's table
 #include "tests/test_combo_area.c"
 #include "tests/test_foolish_hints.c"
+#include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
-#include "tests/test_crossing_toasts.c" // #878: a crossing toasts nothing its pickup announced
+#include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
+#include "tests/test_tracker_arrival_recalc.c" // #990: an arrival schedules the tracker recalc
 
 // Lane C1 in-game spoiler VIEW model (#496): the read-only projection of
 // gComboCtx.foreignPlacements the combo spoiler window renders — named
@@ -710,6 +712,11 @@ extern "C" {
 // ResourceCacheOwner_CheckArrival (C linkage) is the per-arrival check both
 // games' integration hooks call.
 #include "tests/test_resource_cache_owner.c"
+
+// #987 ArchiveManager::AddArchive de-duplication lock. FILE SCOPE (compiled as
+// C++): the ROM-free row drives the C++-linkage ArchiveManager over two
+// temporary O2R zips.
+#include "tests/test_archive_add_dedup.c"
 
 // #618 (#516 Phase 3) ExtensionCache rescan lock. FILE SCOPE (compiled as C++):
 // it drives the C++-linkage Ship::Context / ResourceManager APIs directly and
@@ -1286,6 +1293,21 @@ TestResult Test_BootOoT(void) {
 
     printf("[TEST] PASS: display-free shared subsystems all initialized\n");
     return TEST_PASS;
+}
+
+// #990 tracker-arrival-recalc (body: tests/test_tracker_arrival_recalc.c). The arrival's
+// apply + redeem reach the real consumers, which read the CVar store, so the
+// row needs the display-free shared Context bring-up first.
+static TestResult Test_TrackerArrivalRecalc(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    CVarSetInteger("gSettings.Notifications.Mute", 1);
+    const TestResult result = TrackerArrivalRecalc_Run();
+    CVarClear("gSettings.Notifications.Mute");
+    return result;
 }
 
 // #878 crossing-arrival-toasts (body: tests/test_crossing_toasts.c, included
@@ -3896,6 +3918,29 @@ TestResult Test_ResourceCacheOwner(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #987: a game switch re-adds the arriving game's archives by path, and the
+// ArchiveManager must not mount a second copy of one that is already mounted.
+// Body in src/common/tests/test_archive_add_dedup.c: two temporary O2R zips
+// added and re-added, counts and newest-wins asserted. ROM-free and
+// archive-free: it needs only the display-free shared bring-up.
+TestResult Test_ArchiveAddDedup(void) {
+    printf("[TEST] archive-add-dedup: re-adding a mounted archive path mounts nothing new (#987)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = ArchiveAddDedup_RunHeadless();
+    printf("[TEST] %s: archive add dedup rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #593: a user mod overrides a base asset only by being mounted after it, and
 // the switch-time base re-add (the #154 fix) put the base archives back on top
 // — silently revoking every override, with the mods still listed as enabled.
@@ -5479,6 +5524,17 @@ TestResult Test_ComboSettingsWindow(void) {
     return Combo_SettingsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1047: the trap row sets the gRando.Traps.* CVars, which live on the
+// Ship::Context singleton, so it needs the same display-free bring-up.
+TestResult Test_MmTrapRollFrozen(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MmTrapRollFrozen_Run();
+}
+
 // ADR 0009 decision 4b (#590/#625): MM's cross-game death-decline exit is an
 // autosave point iff the Autosave enhancement is on. Needs the shared bring-up
 // for ONE reason: the lock arms and disarms the REAL RegisterAutosave through
@@ -5988,6 +6044,9 @@ const TestDescriptor gTests[] = {
     // display-free suite (NOT skipped by `--test all`).
     { "tracker-arrival-rehydration", "Check/item tracker state survives a cross-game OoT arrival (#482)",
       Test_TrackerArrivalRehydration },
+    // #990: the same arrival must also schedule the tracker's Available Checks recalculation.
+    { "tracker-arrival-recalc", "A cross-game arrival into OoT schedules the tracker's Available Checks recalc (#990)",
+      Test_TrackerArrivalRecalc },
     // Lane B unified seed: producer stamps gComboCtx at generation time; the
     // two-process same-seed determinism diff runs via the SeedDeterminism row.
     // Needs a display like rando-gen, so `--test all` skips it (below).
@@ -6076,6 +6135,7 @@ const TestDescriptor gTests[] = {
       Test_ModArchiveSurvivesSwitch },
     { "resource-cache-owner", "Each resource cache owner keeps its own copy of a shared path (#981)",
       Test_ResourceCacheOwner },
+    { "archive-add-dedup", "Re-adding a mounted archive path mounts nothing new (#987)", Test_ArchiveAddDedup },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
     { "curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",
@@ -6116,6 +6176,9 @@ const TestDescriptor gTests[] = {
       Test_ForeignHostGossipHint },
     // #575 H5a: MM's free stone names a foolish area, in MM's voice.
     { "mm-foolish-stone-hint", "MM's free gossip stone names a foolish area (#575 H5a)", Test_MmFoolishStoneHint },
+    // #1047: a free stone's seed and a trap's type are pure functions of the frozen world.
+    { "mm-gossip-stone-seed", "MM's free gossip stone seeds are defined integers (#1047)", Test_MmGossipStoneSeed },
+    { "mm-trap-roll-frozen", "MM trap types come from the frozen world and the check (#1047)", Test_MmTrapRollFrozen },
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     { "mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText },
     // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.

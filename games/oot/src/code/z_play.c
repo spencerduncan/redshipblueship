@@ -46,6 +46,24 @@ extern void OoT_ConsumeSharedItems(void);
 // stays free of the src/common resource types.
 extern void OoT_ApplySharedResources(void);
 
+// Check Tracker: schedule an Available Checks recalculation for the tracker's
+// next draw (soh/OTRGlobals.cpp, #990). Declared for the same reason.
+extern void CheckTracker_ArmAvailableChecksRecalc(void);
+
+// What a cross-game arrival into OoT does with the other game's contributions,
+// once the frozen save is restored and settled: apply the shared resources,
+// redeem the shared items, then tell the Check Tracker that the live state
+// moved. One function so a ROM-free row (tracker-arrival-recalc) drives exactly
+// what OoT_Play_Init runs. The tracker call must be a deferred arm, not a
+// recalculation: the arrival commits through RsbsSave_Save (no Save_LoadFile, so
+// no OnLoadGame) and OoT_gPlayState is not assigned yet, so every OnItemReceive
+// handler and RecalculateAvailableChecks itself bail on IsSaveLoaded (#990).
+void OoT_Play_ApplyArrivalShared(void) {
+    OoT_ApplySharedResources();
+    OoT_ConsumeSharedItems();
+    CheckTracker_ArmAvailableChecksRecalc();
+}
+
 // Cross-game combo support - entrance switch checking
 extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
 extern bool Combo_IsCrossGameSwitch(void);
@@ -583,8 +601,7 @@ void OoT_Play_Init(GameState* thisx) {
                 // would be silently overwritten. Applied first, an item's give
                 // layers on top and is picked up as a delta by the next
                 // harvest.
-                OoT_ApplySharedResources();
-                OoT_ConsumeSharedItems();
+                OoT_Play_ApplyArrivalShared();
                 Combo_ClearStartupEntrance();
                 osSyncPrintf("[OoT] Cross-game switch: loading entrance 0x%04X\n", startupEntrance);
             }

@@ -52,7 +52,9 @@
  * line), no-menu-under (the creation overlay's over-menu variant leaves the
  * menu hidden), no-dim (the creation overlay's dim is drawn transparent),
  * activate (the no-activation hint is overridden to "0" before the window
- * exists, so the window is shown the way a player's is), no-label-fit (R9's
+ * exists, so the window is shown the way a player's is), no-curated (a ROM-rich
+ * run skips OoT's curated archive mount, so the Item Tracker overlay's MM column
+ * has no icons to load), no-label-fit (R9's
  * measuring frame records no row, as if the page were not the one drawn). A
  * sabotaged run is expected to fail; docs/ui-style-guide.md section 12 lists
  * what each one must turn red.
@@ -147,10 +149,12 @@
 #include "combo_tracker_view.h"
 #include "combo_ui.h"
 #include "context.h"
-#include "crossing_store.h" // the crossings the tracker and spoiler states author (#755)
+#include "crossing_store.h"   // the crossings the tracker and spoiler states author (#755)
+#include "curated_archives.h" // Combo_EnsureCuratedArchives: the boot's curated halves (#963)
 #include "cvar_shared_keys.h"
 #include "game.h"                  // MM_SAVE_CONTEXT_SIZE (the authored MM shadow)
 #include "mm_mod_set.h"            // #706: the MM Mods page's model, authored for its three states
+#include "mod_archives.h"          // Combo_MountCuratedArchive (#963)
 #include "combo_save_files_view.h" // lane W5: the Save Files page's model, authored for its two states
 #include "foreign_items.h"
 #include "gen_progress_overlay.h"
@@ -1299,6 +1303,17 @@ bool Session::BringUp(std::string& why) {
 
     const bool rich = OTRGlobals::Instance->HasOriginal() || OTRGlobals::Instance->HasMasterQuest();
     romFree = !rich;
+    if (rich) {
+        // rsbs/src/main.cpp's boot, for the half that matters here: OoT's
+        // curated cross-game archive, which carries MM's item icons so the Item
+        // Tracker overlay's MM column draws them before MM has run (#963).
+        // RSBS_UI_SNAPSHOT_SABOTAGE=no-curated skips both, so the MM column
+        // stays the text fallback and the icon count must go red.
+        if (!opt.Sabotaged("no-curated")) {
+            Combo_EnsureCuratedArchives();
+            Combo_MountCuratedArchive(GAME_OOT);
+        }
+    }
     MirrorProductionWindows();
     if (romFree) {
         BuildRomFreeMenu();
@@ -2355,14 +2370,20 @@ void Session::BuildPageList() {
         // section and the pool (OoT's icons, which SoH loads at boot from the
         // staged archives) are pictures, held by ImageOracle in a ROM-rich run
         // (OoT's 66 cells and the pool's on dozens of textures; U2's text rows
-        // drew none). ROM-free, every section is the text fallback. MM's icons load only
-        // once MM has booted, which this harness never does, so MM's section
-        // is the text fallback here: its snapshot bow in "live", its live
-        // mask in "snapshot".
-        p.stateText["live"] = { "Bow 25/40" };
-        p.stateText["snapshot"] = { "Zora Mask" };
-        p.stateImages["live"] = 40;
-        p.stateImages["snapshot"] = 40;
+        // drew none). ROM-free, every section is the text fallback. MM never
+        // boots in this harness, and since #963 its section is pictures anyway
+        // in a ROM-rich run: the overlay loads the icons it names by path from
+        // redship-oot.o2r, the curated half OoT mounts at boot (mirrored in
+        // Session::BringUp). So a ROM-rich run holds the MM column to its icons
+        // by their count (stateImages: more than OoT's 66 cells and the pool's
+        // can draw), and ROM-free MM's section is the text fallback: its
+        // snapshot bow in "live", its live mask in "snapshot".
+        if (romFree) {
+            p.stateText["live"] = { "Bow 25/40" };
+            p.stateText["snapshot"] = { "Zora Mask" };
+        }
+        p.stateImages["live"] = 100;
+        p.stateImages["snapshot"] = 100;
         p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         // #927: no section says how fresh it is, and an empty one is its

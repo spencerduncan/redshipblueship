@@ -2057,9 +2057,11 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion6Updater>());
     // RSBS: cross-game key convergence — MM moves onto OoT's spelling for
     // settings both games mean identically (ADR 0003 §5.1). Version 7 is the
-    // audio + tunic tier (#34); version 8 is the inventory §5.3 remainder (#462).
+    // audio + tunic tier (#34); version 8 is the inventory §5.3 remainder (#462);
+    // version 9 is the #966 key-name gaps (#1027-#1036, #1038).
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion7Updater>());
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion8Updater>());
+    conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion9Updater>());
     conf->RunVersionUpdates();
 
     // RSBS: one-shot import of an existing 2Ship2Harkinian config, mapped
@@ -3278,6 +3280,18 @@ bool SoH_HandleConfigDrop(char* filePath) {
 extern "C" void CheckTracker_RecalculateAvailableChecks() {
     CheckTracker::RecalculateAvailableChecks();
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Cross-game arrival into OoT (#990): z_play.c calls this after the shared-item
+// redeem. The arrival restores the frozen save without Save_LoadFile and commits
+// through RsbsSave_Save, so neither of the tracker's arming sites (OnLoadGame, a
+// full SaveFile) runs, and calling RecalculateAvailableChecks here is a no-op:
+// OoT_gPlayState is not assigned until later in OoT_Play_Init, so IsSaveLoaded is
+// still false. Arm the deferred flag instead; the tracker's next draw consumes it.
+extern "C" void CheckTracker_ArmAvailableChecksRecalc() {
+    CheckTracker::ArmAvailableChecksRecalc();
+}
+#endif
 
 // Kept vs upstream SOH #6636: MM's z_kankyo.c calls this OoT-provided symbol in
 // single-exe builds (scrolling-texture-interpolation port, #234)

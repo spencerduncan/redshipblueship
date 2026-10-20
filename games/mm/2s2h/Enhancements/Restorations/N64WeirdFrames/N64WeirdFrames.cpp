@@ -17,9 +17,11 @@ int ResourceMgr_OTRSigCheck(char* imgData);
 AnimationHeaderCommon* ResourceMgr_LoadAnimByName(const char* path);
 }
 
-#define CVAR_NAME "gEnhancements.Restorations.N64WeirdFrames"
-// This CVAR is defaulted to on, because it is consistent with hardware, but able to be disabled if desired.
-#define CVAR CVarGetInteger(CVAR_NAME, 1)
+#define CVAR_NAME "gEnhancements.N64WeirdFrames"
+// This is OoT's key (RSBS converged it, #1038): the unified menu draws OoT's checkbox, whose default is OFF, so MM
+// reads it with OoT's default too. A different reader default would play weird frames in MM while the one
+// checkbox both games share shows them off (2Ship itself defaulted this to on, to match hardware).
+#define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // A list of weird animations to contruct. These can either be an index out of bounds before
 // the start of the animation or past the end of it. In either case you add a list of animations'

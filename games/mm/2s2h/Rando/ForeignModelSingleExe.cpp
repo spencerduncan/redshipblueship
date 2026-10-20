@@ -14,9 +14,11 @@
  * through MM's graph allocator); it re-expresses each draw function as a
  * ComboModel recipe below, one per function, read off games/mm/src/code/
  * z_draw.c. Rows that answer no model, by name: the three empty rows (GID_37,
- * GID_46, GID_4C), the seahorse and the bottled fairy (they multiply in a
- * matrix RESOURCE), the Moon's Tear (an animated material) and the four
- * remains (they bind OBJECT_BSMASK's object slot to segment 6).
+ * GID_46, GID_4C: MM draws nothing for them either) and the bottled fairy's
+ * (GID_FAIRY: a colour animation bound to segment 8; no item names it). #964
+ * gave the caught seahorse (its matrix resource is a pure translation), the Moon's
+ * Tear (two texture scrolls) and the four remains (the segment-6 bind of
+ * OBJECT_BSMASK is a no-op for lists that name everything by path) a model.
  *
  * Rando::DrawItem's special cases:
  *  - small and boss keys, Double Defense, the milk refill and the Gold Skulltula
@@ -246,17 +248,33 @@ int RecipeForRow(MMGetItemDrawFn fn, void* const* d, ComboModel* out, const char
         out->scrolls[0] = TwoTileScroll(8, kXlu, 0, 0, 32, 32, 1, -6, 32, 32);
         ok = AddSteps(out, d, { { 0, kOpa, 0 }, { 1, kXlu, 0 }, { 2, kXlu, 1 } });
     } else if (fn == GetItem_DrawSeahorse) {
-        *reason = "seahorse: multiplies in a matrix resource before its billboard";
-        return 0;
+        // GID_SEAHORSE_CAUGHT (no randomizer item names it). The matrix gGiSeahorseBillboardRotMtx (d[3]) is a pure
+        // translation, (-2, 27, 0): Matrix_Mult of it then Matrix_ReplaceRotation is a translate before the
+        // camera-facing rotation, which is exactly what billboardOffset expresses (#964). Read off the resource: its
+        // fixed-point rows are the identity with row 3 = (-2, 27, 0).
+        out->billboardOffset[0] = -2.0f;
+        out->billboardOffset[1] = 27.0f;
+        ok = AddSteps(out, d, { { 0, kOpa, 0 }, { 1, kXlu, 0 }, { 2, kXlu, 1 } });
     } else if (fn == GetItem_DrawFairyContainer) {
-        *reason = "bottled fairy: animated material and a matrix resource";
+        *reason = "bottled fairy: its contents list jumps into segment 8, which AnimatedMat_Draw fills with an "
+                  "animated colour (no item names this row; the Fairy refill draws GID_FAIRY_2)";
         return 0;
     } else if (fn == GetItem_DrawMoonsTear) {
-        *reason = "Moon's Tear: animated material";
-        return 0;
+        // AnimatedMat_Draw(gGiMoonsTearTexAnim): two two-tile scrolls, AnimatedMat segment 2 (+7 = 9) for the item
+        // list's texture and segment 3 (+7 = 10) for the glow's; the y step is negated by AnimatedMat_TexScroll,
+        // so yStep -1 is +1 a frame and yStep 2 is -2. The glow then draws under the camera-facing rotation with
+        // no offset (the row has no matrix resource).
+        out->scrolls[0] = TwoTileScroll(9, kOpa, 1, 1, 32, 32, 0, 0, 32, 32);
+        out->scrolls[1] = TwoTileScroll(10, kXlu, 0, 0, 32, 32, 1, -2, 32, 32);
+        ok = AddSteps(out, d, { { 0, kOpa, 0 }, { 1, kXlu, 1 } });
     } else if (fn == GetItem_DrawRemains) {
-        *reason = "remains: binds OBJECT_BSMASK's object slot to segment 6";
-        return 0;
+        // GetItem_DrawRemains binds OBJECT_BSMASK's object slot to segment 6, then scales by 0.02 and draws the
+        // list. In this port the list names its vertices and textures by resource path and reads no segment
+        // (the ROM-staged CrossGameModel row fails on a raw segment-6 operand in these lists), so the bind has no
+        // effect here and the list draws as a plain curated descriptor (#964). The scene fog MM_Play_SetFog adds
+        // afterwards is not expressed.
+        out->scale = 0.02f;
+        ok = AddSteps(out, d, { { 0, kOpa, 0 } });
     } else {
         *reason = "draw function without a recipe";
         return 0;

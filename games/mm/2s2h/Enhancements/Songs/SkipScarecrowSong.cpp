@@ -9,7 +9,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Kakasi/z_en_kakasi.h"
 }
 
-#define CVAR_NAME "gEnhancements.Playback.SkipScarecrowSong"
+#define CVAR_NAME "gEnhancements.InstantScarecrow"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterSkipScarecrowSong() {

@@ -232,7 +232,7 @@ extern "C" f32 Ship_GetExtendedAspectRatioMultiplier() {
 // to the projected Z value of the actor. This tricks distance checks without having to replace hardcoded values.
 // Requires that Ship_ExtendedCullingActorRestoreProjectedPos is called within the same function scope.
 extern "C" void Ship_ExtendedCullingActorAdjustProjectedZ(Actor* actor) {
-    s32 multiplier = CVarGetInteger("gEnhancements.Graphics.IncreaseActorDrawDistance", 1);
+    s32 multiplier = CVarGetInteger("gEnhancements.DisableDrawDistance", 1);
     multiplier = MAX(multiplier, 1);
     if (multiplier > 1) {
         actor->projectedPos.z /= multiplier;
@@ -243,7 +243,7 @@ extern "C" void Ship_ExtendedCullingActorAdjustProjectedZ(Actor* actor) {
 // to the projected X value of the actor. This tricks distance checks without having to replace hardcoded values.
 // Requires that Ship_ExtendedCullingActorRestoreProjectedPos is called within the same function scope.
 extern "C" void Ship_ExtendedCullingActorAdjustProjectedX(Actor* actor) {
-    if (CVarGetInteger("gEnhancements.Graphics.ActorCullingAccountsForWidescreen", 0)) {
+    if (CVarGetInteger("gEnhancements.WidescreenActorCulling", 0)) {
         f32 ratioAdjusted = Ship_GetExtendedAspectRatioMultiplier();
         actor->projectedPos.x /= ratioAdjusted;
     }

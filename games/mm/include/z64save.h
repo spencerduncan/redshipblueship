@@ -412,6 +412,16 @@ typedef struct RandoSaveInfo {
     // APPEND-ONLY: the enumerator's number is the index in every written save
     // and a positional term in the identity string.
     u8 randoSaveTricks[MMRT_MAX];
+    // The FROZEN set of trap types (#1047): bit (1 << TrapTypes) per enabled
+    // type, resolved from the gRando.Traps.* CVars at creation beside the trick
+    // set and read when a trap springs, so a trap's type is part of the world.
+    // Appended after randoSaveTricks for the same reason: a .redsave written
+    // before it zero-extends into it, and zero reads as Freeze only, the
+    // fallback the roll always had (and the only type the single-exe options
+    // page offers). Not a generation input, but world identity: the profile
+    // digest folds it when nonzero (Foreign.cpp ProfileIdentityString), so a
+    // paired world cannot change it between creation and its first crossing.
+    u8 randoSaveTrapTypes;
 } RandoSaveInfo;
 
 // These are values added by 2S2H that we need to be persisted to the save file
