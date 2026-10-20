@@ -7,20 +7,27 @@
  * call and append it to mArchives and mGameVersions, so every round trip left
  * one more zip handle and one more file list per re-added archive, and the
  * game-version list grew by one entry per versioned archive. The fork's
- * AddArchive now returns the mounted archive for an identical path and
- * re-registers it on top, which is what a fresh add did to the lookup order.
+ * AddArchive now REPLACES the mounted archive of an identical path with the
+ * freshly read one (a re-add must still see a file that changed on disk, which
+ * the #705 loose-mod folders rely on) and releases the old object, while the
+ * new one registers on top exactly as a first add would.
  *
  * ArchiveAddDedup_RunHeadless is the ROM-free `archive-add-dedup` row, included
  * at FILE SCOPE by test_runner.cpp (compiled as C++, it drives the C++-linkage
  * ArchiveManager directly). It builds two temporary O2R zips that carry a
  * version entry and one shared path with different bytes, then asserts:
  *   1. a first add grows the archive count and the game-version list by one;
- *   2. adding the same path again returns the same archive object and grows
- *      neither, and a file only that archive carries still resolves;
+ *   2. adding the same path again grows neither, the replaced object is
+ *      released (nothing keeps its zip handle and file list), the new one is
+ *      the last in the mount order, and a file only that archive carries still
+ *      resolves;
  *   3. newest-wins survives the re-add: with A then B mounted, re-adding A
  *      makes the shared path resolve to A again, and re-adding B back to B;
  *   4. repeated alternating re-adds (a long play session of switches) leave the
- *      counts where two archives put them.
+ *      counts where two archives put them and release every replaced object;
+ *   5. a file added to a loose folder between two adds is seen by the second,
+ *      and a file the new copy no longer carries stops resolving into the old
+ *      one.
  */
 
 #include <ship/Context.h>
@@ -47,6 +54,8 @@ namespace {
 
 constexpr const char* kAadSharedPath = "rsbs-test/archive-add-dedup/shared";
 constexpr const char* kAadOnlyAPath = "rsbs-test/archive-add-dedup/only-a";
+constexpr const char* kAadLooseOldPath = "rsbs-test/archive-add-dedup/loose-old";
+constexpr const char* kAadLooseNewPath = "rsbs-test/archive-add-dedup/loose-new";
 constexpr uint32_t kAadVersionA = 0x41414441u; // "ADAA"
 constexpr uint32_t kAadVersionB = 0x42414442u; // "BDAB"
 
@@ -81,6 +90,15 @@ bool AadWriteZip(const std::string& path, const std::vector<std::pair<std::strin
         }
     }
     return zip_close(za) == 0;
+}
+
+bool AadWriteFile(const std::filesystem::path& path, const std::string& data) {
+    FILE* f = fopen(path.string().c_str(), "wb");
+    if (f == nullptr) {
+        return false;
+    }
+    const bool ok = fwrite(data.data(), 1, data.size(), f) == data.size();
+    return fclose(f) == 0 && ok;
 }
 
 std::string AadBytes(const std::shared_ptr<Ship::File>& file) {
@@ -162,10 +180,13 @@ int ArchiveAddDedup_RunHeadless(void) {
     AAD_EXPECT(archives() == 1, "after adding A: %zu archives mounted, expected 1", archives());
     AAD_EXPECT(versions() == 1, "after adding A: %zu game versions recorded, expected 1", versions());
 
-    // 2. The same path again: same object, nothing grows, A's own file resolves.
+    // 2. The same path again: nothing grows, the replaced object is released, A's own file resolves.
+    std::weak_ptr<Ship::Archive> weakFirstA = firstA;
+    firstA.reset();
     auto secondA = am->AddArchive(zipA);
-    AAD_EXPECT(secondA == firstA, "re-adding A returned %p, not the mounted archive %p", (void*)secondA.get(),
-               (void*)firstA.get());
+    AAD_REQUIRE(secondA != nullptr, "re-adding A was refused");
+    AAD_EXPECT(weakFirstA.expired(), "the replaced archive object for A is still alive after the re-add");
+    AAD_EXPECT(am->GetArchives()->back() == secondA, "the re-added A is not last in the mount order");
     AAD_EXPECT(archives() == 1, "after re-adding A: %zu archives mounted, expected 1", archives());
     AAD_EXPECT(versions() == 1, "after re-adding A: %zu game versions recorded, expected 1", versions());
     AAD_EXPECT(AadBytes(am->LoadFile(kAadOnlyAPath)) == onlyA, "A's own file resolves to \"%s\" after the re-add",
@@ -179,12 +200,14 @@ int ArchiveAddDedup_RunHeadless(void) {
     AAD_EXPECT(sharedOwner() == zipB, "B is newest but %s is served by '%s'", kAadSharedPath, sharedOwner().c_str());
     AAD_EXPECT(AadBytes(am->LoadFile(kAadSharedPath)) == bytesB, "shared path read \"%s\" with B on top",
                AadBytes(am->LoadFile(kAadSharedPath)).c_str());
-    am->AddArchive(zipA);
+    firstB.reset();
+    secondA.reset();
+    auto latestA = am->AddArchive(zipA);
     AAD_EXPECT(sharedOwner() == zipA, "A was re-added last but %s is served by '%s'", kAadSharedPath,
                sharedOwner().c_str());
     AAD_EXPECT(AadBytes(am->LoadFile(kAadSharedPath)) == bytesA, "shared path read \"%s\" after A was re-added",
                AadBytes(am->LoadFile(kAadSharedPath)).c_str());
-    am->AddArchive(zipB);
+    auto latestB = am->AddArchive(zipB);
     AAD_EXPECT(sharedOwner() == zipB, "B was re-added last but %s is served by '%s'", kAadSharedPath,
                sharedOwner().c_str());
     AAD_EXPECT(AadBytes(am->LoadFile(kAadSharedPath)) == bytesB, "shared path read \"%s\" after B was re-added",
@@ -192,11 +215,19 @@ int ArchiveAddDedup_RunHeadless(void) {
     AAD_EXPECT(archives() == 2, "after A, B and both re-adds: %zu archives mounted, expected 2", archives());
     AAD_EXPECT(versions() == 2, "after A, B and both re-adds: %zu game versions recorded, expected 2", versions());
 
-    // 4. Twenty round trips later the counts are still those of two archives, each
-    //    version appears once, and the mount order is the last re-add's.
+    // 4. Twenty round trips later the counts are still those of two archives, every
+    //    replaced object is gone, each version appears once, and the mount order
+    //    is the last re-add's.
     for (int trip = 0; trip < 20; trip++) {
-        AAD_EXPECT(am->AddArchive(zipA) == firstA, "trip %d: A came back as a different object", trip);
-        AAD_EXPECT(am->AddArchive(zipB) == firstB, "trip %d: B came back as a different object", trip);
+        std::weak_ptr<Ship::Archive> oldA = latestA;
+        std::weak_ptr<Ship::Archive> oldB = latestB;
+        latestA.reset();
+        latestB.reset();
+        latestA = am->AddArchive(zipA);
+        latestB = am->AddArchive(zipB);
+        AAD_REQUIRE(latestA != nullptr && latestB != nullptr, "trip %d: a re-add was refused", trip);
+        AAD_EXPECT(oldA.expired(), "trip %d: the replaced A object is still alive", trip);
+        AAD_EXPECT(oldB.expired(), "trip %d: the replaced B object is still alive", trip);
     }
     AAD_EXPECT(archives() == 2, "after 20 round trips: %zu archives mounted, expected 2", archives());
     AAD_EXPECT(versions() == 2, "after 20 round trips: %zu game versions recorded, expected 2", versions());
@@ -206,23 +237,50 @@ int ArchiveAddDedup_RunHeadless(void) {
     AAD_EXPECT(AadCountVersion(allVersions, kAadVersionB) == 1, "B's version is listed %zu times, expected 1",
                AadCountVersion(allVersions, kAadVersionB));
     auto mounted = am->GetArchives();
-    AAD_EXPECT(!mounted->empty() && mounted->back() == firstB,
+    AAD_EXPECT(!mounted->empty() && mounted->back() == latestB,
                "the last re-add (B) is not last in the mount order (back is '%s')",
                mounted->empty() ? "(empty)" : mounted->back()->GetPath().c_str());
     AAD_EXPECT(sharedOwner() == zipB, "after 20 round trips %s is served by '%s', expected B", kAadSharedPath,
                sharedOwner().c_str());
     AAD_EXPECT(AadBytes(am->LoadFile(kAadOnlyAPath)) == onlyA, "A's own file stopped resolving after 20 round trips");
 
+    // 5. A re-add re-reads what is on disk. A loose folder (the shape #705 mounts for a
+    //    mod) gains one file and loses another between two adds: the second add must
+    //    resolve the new file, and the old one must stop resolving into the replaced
+    //    copy, with the mounted count unchanged by the re-add.
+    const std::filesystem::path loose = dir / "aad-loose";
+    const std::string loosePath = loose.generic_string();
+    const std::string looseBytes = "archive-add-dedup: written between two adds";
+    std::error_code ec;
+    std::filesystem::create_directories(loose / "rsbs-test" / "archive-add-dedup", ec);
+    AAD_REQUIRE(AadWriteFile(loose / "rsbs-test" / "archive-add-dedup" / "loose-old", "old"),
+                "could not write the loose folder");
+    AAD_REQUIRE(am->AddArchive(loosePath) != nullptr, "AddArchive refused the loose folder %s", loosePath.c_str());
+    AAD_EXPECT(AadBytes(am->LoadFile(kAadLooseOldPath)) == "old", "loose-old did not resolve after the first add");
+    AAD_EXPECT(archives() == 3, "with the loose folder: %zu archives mounted, expected 3", archives());
+    std::filesystem::remove(loose / "rsbs-test" / "archive-add-dedup" / "loose-old", ec);
+    AAD_REQUIRE(AadWriteFile(loose / "rsbs-test" / "archive-add-dedup" / "loose-new", looseBytes),
+                "could not rewrite the loose folder");
+    AAD_REQUIRE(am->AddArchive(loosePath) != nullptr, "re-adding the loose folder was refused");
+    AAD_EXPECT(AadBytes(am->LoadFile(kAadLooseNewPath)) == looseBytes, "the file written between two adds read \"%s\"",
+               AadBytes(am->LoadFile(kAadLooseNewPath)).c_str());
+    AAD_EXPECT(AadBytes(am->LoadFile(kAadLooseOldPath)) == "(not found)",
+               "a file the new copy of the folder no longer carries still resolves (\"%s\")",
+               AadBytes(am->LoadFile(kAadLooseOldPath)).c_str());
+    AAD_EXPECT(archives() == 3, "after re-adding the loose folder: %zu archives mounted, expected 3", archives());
+
     // Leave the shared ArchiveManager as the row found it.
     am->RemoveArchive(zipA);
     am->RemoveArchive(zipB);
+    am->RemoveArchive(loosePath);
 
     if (failures != 0) {
         printf("[archive-add-dedup] %d assertion(s) failed\n", failures);
         fflush(stdout);
         return 1;
     }
-    printf("[archive-add-dedup] PASS: 2 archives, 2 versions after 22 re-adds; newest-wins held (A->B->A->B)\n");
+    printf("[archive-add-dedup] PASS: 2 archives, 2 versions after 22 re-adds; replaced objects released; newest-wins "
+           "held (A->B->A->B); a changed loose folder is re-read\n");
     fflush(stdout);
     return 0;
 }
