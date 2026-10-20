@@ -830,30 +830,31 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         "gOpenWindows.CheckTrackerSettings / \"Check Tracker Settings\"");
         }
 
-        // Reset Position (#962) is the one row that writes no key: it asks the
+        // Move to Default Position (#962) is the one row that writes no key: it asks the
         // floating overlay to return to its default place (under the hearts),
         // and, like Enable Dragging, shows only while the overlay floats.
-        WidgetInfo* resetPos = FindRow(page, "Reset Position##ComboItemTracker");
+        WidgetInfo* resetPos = FindRow(page, "Move to Default Position##ComboItemTracker");
         COMBO_CHECK(resetPos != nullptr && resetPos->type == WIDGET_BUTTON && resetPos->callback != nullptr &&
                         resetPos->cVar == nullptr,
-                    "Combo / %s has no Reset Position button with a Callback and no key", kTrackerSettingsPage);
+                    "Combo / %s has no Move to Default Position button with a Callback and no key",
+                    kTrackerSettingsPage);
         if (resetPos != nullptr && resetPos->preFunc != nullptr) {
             const int savedResetType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, -1);
             CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
             resetPos->ResetDisables();
             resetPos->preFunc(*resetPos);
-            COMBO_CHECK(resetPos->isHidden, "the Reset Position row shows while the overlay is a window");
+            COMBO_CHECK(resetPos->isHidden, "the Move to Default Position row shows while the overlay is a window");
             CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_FLOATING);
             resetPos->ResetDisables();
             resetPos->preFunc(*resetPos);
-            COMBO_CHECK(!resetPos->isHidden, "the Reset Position row is hidden while the overlay floats");
+            COMBO_CHECK(!resetPos->isHidden, "the Move to Default Position row is hidden while the overlay floats");
             if (savedResetType < 0) {
                 CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
             } else {
                 CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, savedResetType);
             }
         } else {
-            COMBO_CHECK(false, "the Reset Position row has no PreFunc, so it shows for a windowed overlay");
+            COMBO_CHECK(false, "the Move to Default Position row has no PreFunc, so it shows for a windowed overlay");
         }
 
         // No other writer: every other interactive row writes one of the keys above.

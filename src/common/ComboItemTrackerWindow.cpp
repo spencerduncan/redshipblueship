@@ -4,7 +4,7 @@
  *        each game's section as that game's own icon grid (#458 U3).
  *
  * See ComboItemTrackerWindow.h for the contract. The file keeps no state of its
- * own (bar one flag, the Reset Position request, consumed by the next draw):
+ * own (bar one flag, the Move to Default Position request, consumed by the next draw):
  * every section is collected from combo_item_view.h on every frame, so a
  * game switch, a save or a load shows on the next frame; the numbers carried
  * between frames (each section's measured header height, the fit last drawn)

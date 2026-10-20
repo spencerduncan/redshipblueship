@@ -23,7 +23,7 @@
  * POSITION (#962). The floating overlay first appears at the left edge, just
  * below the HUD's hearts and magic bar (ComboItemTrackerDefaultPos), not on
  * them; a dragged position is kept (ImGui's saved window settings, as SoH's
- * trackers keep theirs) and Combo > Tracker Settings > Reset Position returns
+ * trackers keep theirs) and Combo > Tracker Settings > Move to Default Position returns
  * it. The Windows toggle's tooltip and the Enable Dragging row say how to move it.
  *
  * ICONS (#458 U3). Each game's section is that game's own tracker: its icons
@@ -200,7 +200,7 @@ void ComboItemTrackerDefaultPos(float viewX, float viewY, float viewW, float vie
 
 /**
  * Asks the floating overlay to go back to ComboItemTrackerDefaultPos on its
- * next draw (the Combo > Tracker Settings Reset Position button). Takes effect
+ * next draw (the Combo > Tracker Settings Move to Default Position button). Takes effect
  * once; draws nothing itself.
  */
 void ComboItemTrackerResetPosition();
