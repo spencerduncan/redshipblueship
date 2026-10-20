@@ -472,7 +472,19 @@ typedef struct {
     bool isCustom;
 } GfxPatch;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #981: both games' patchers land here (MM's are in the excluded BenPort.cpp),
+// and each game is served its own copy of a path under its own resource cache
+// owner (rsbs/src/main.cpp, ApplyResourceCacheOwner). So the originals are
+// recorded per owner: a patch is restored on the copy it was made on, and an
+// unpatch under the other owner never takes that game's copy for an alt swap
+// and unloads it (the pointer check below).
+static std::unordered_map<uintptr_t, std::unordered_map<std::string, std::unordered_map<std::string, GfxPatch>>>
+    sOriginalGfxByOwner;
+#define originalGfx (sOriginalGfxByOwner[Ship::Context::GetInstance()->GetResourceManager()->GetDefaultCacheOwner()])
+#else
 std::unordered_map<std::string, std::unordered_map<std::string, GfxPatch>> originalGfx;
+#endif
 
 // Attention! This is primarily for cosmetics & bug fixes. For things like mods and model replacement you should be
 // using OTRs instead (When that is available). Index can be found using the commented out section below.
@@ -605,6 +617,10 @@ extern "C" void ResourceMgr_UnpatchGfxByName(const char* path, const char* patch
         originalGfx[path].erase(patchName);
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+#undef originalGfx
+#endif
 
 extern "C" char* ResourceMgr_LoadArrayByName(const char* path) {
     auto res = std::static_pointer_cast<SOH::Array>(ResourceMgr_GetResourceByNameHandlingMQ(path));

@@ -36,6 +36,8 @@ typedef enum {
                                                // cross-game round-trip + post-return warp + door transition
     INT_TEST_CROSSING_REFUSED,                 // Boot OoT with MM's archive set aside, walk into the Happy Mask
                                                // Shop door, verify OoT keeps running outside it (#954)
+    INT_TEST_RESOURCE_CACHE_OWNER,             // T1's crossing and back: each game is served its own copy of the
+                                               // paths both archives carry, OoT gets back what it had (#981)
     INT_TEST_CROSSING_REFUSED_MM               // Boot MM with oot.o2r set aside, walk into the Clock Tower
                                                // door, verify MM keeps running outside it (#954)
 } IntegrationTestMode;

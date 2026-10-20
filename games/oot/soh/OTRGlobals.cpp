@@ -576,6 +576,7 @@ OTRGlobals::OTRGlobals() {
 #include "archive_check.h"
 #include "test_runner.h"
 #include "headless_crash.h"
+#include "test_window_focus.h"
 #endif
 
 typedef enum ExtractSteps {
@@ -1210,7 +1211,17 @@ void OTRGlobals::Initialize(bool tolerateInvalidGameArchives) {
     context->GetWindow()->SetForceCursorVisibility(CVarGetInteger(CVAR_SETTING("CursorVisibility"), 0));
 
     if (RsbsFeatureEnabled("RSBS_DISABLE_AUDIO")) {
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+        // A --test / --integration-test process builds a null Ship audio player
+        // whatever the staged config's Window.AudioBackend says (absent means WASAPI
+        // on Windows, which SDL's audio driver pin cannot silence), and the config
+        // key is put back right after. No-ops on any other process.
+        TestWindowFocus_BeforeInitAudio();
+#endif
         context->InitAudio({ .SampleRate = 32000, .SampleLength = 1024, .DesiredBuffered = 1680 });
+#if defined(RSBS_SINGLE_EXECUTABLE) && !defined(__SWITCH__) && !defined(__WIIU__)
+        TestWindowFocus_AfterInitAudio();
+#endif
     }
 
     SPDLOG_INFO("Starting Ship of Harkinian version {} (Branch: {} | Commit: {})", (char*)OoT_gBuildVersion,

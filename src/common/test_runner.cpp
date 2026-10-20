@@ -29,6 +29,7 @@
 #include <vector> // the #656 reachability leg collects its host list
 
 #include <ship/Context.h>
+#include <ship/config/Config.h>
 #include <ship/resource/ResourceManager.h>
 // For Test_ZipContention's headless factory registration (#560): both games
 // register these only inside their display-bound Initialize paths.
@@ -694,6 +695,12 @@ extern "C" {
 // wrappers below resolve the staged archives and SKIP when they are absent.
 #include "tests/test_curated_archive_order.c"
 
+// #981 resource cache owner locks. FILE SCOPE (compiled as C++): the ROM-free
+// row drives the C++-linkage ResourceManager over two temporary O2R zips, and
+// ResourceCacheOwner_CheckArrival (C linkage) is the per-arrival check both
+// games' integration hooks call.
+#include "tests/test_resource_cache_owner.c"
+
 // #618 (#516 Phase 3) ExtensionCache rescan lock. FILE SCOPE (compiled as C++):
 // it drives the C++-linkage Ship::Context / ResourceManager APIs directly and
 // declares the C-linkage cache/rescan entry points it needs itself. The wrapper
@@ -1309,6 +1316,12 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
 // + every foreign placement to the same digest file, so the SeedDeterminism
 // two-process diff covers the whole paired world.
 extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath);
+// #982 (body in games/mm/2s2h/mm_rando_gen_test.cpp): the player's path, digested:
+// the Generate button's worker-thread generation with the full OTR bring-up, then
+// the real paired creation event, written with the same two writers as above.
+extern "C" int MM_Rando_HeadlessPlayerPathDigest(const char* seedStr, const char* outPath);
+// randomizer.cpp (#982): Rando_HeadlessFullInitSeedTest's audio teardown.
+extern "C" void Rando_HeadlessFullInitTeardown(void);
 extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 // Hint-validity lock (#441, body in menu.cpp): generates one seed, then asserts
 // every enabled hint names a REAL item — no hint may resolve to the no-item
@@ -1821,6 +1834,8 @@ static const DigestOutDispatch kDigestOutDispatches[] = {
       "golden-seed-digest-armed-caps-actual.txt" },
     { "mm-paired-attempt", "RSBS_ATTEMPT_DIGEST_OUT", "MMPairedAttemptDeterminism|GoldenPairedAttemptDigest",
       "paired-attempt-run1.txt, golden-paired-attempt-digest-actual.txt" },
+    { "rando-player-path-digest", "RSBS_SEED_DIGEST_OUT", "GoldenSeedDigestPlayerPath",
+      "golden-seed-digest-default-player-path-actual.txt" },
 };
 
 static const DigestOutDispatch* DigestOut_Find(const char* dispatch) {
@@ -2124,6 +2139,142 @@ TestResult Test_TestWindowNoActivation(void) {
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Silent tests (S0): a --test / --integration-test process never plays audio,
+// whatever the staged config's Window.AudioBackend or the caller's environment say.
+// Two layers hold it: redship_add_test() puts SDL_AUDIODRIVER=dummy in every row's
+// environment, and main.cpp pins SDL's audio driver in code
+// (TestWindowFocus_ArmSilentAudio). This row proves the in-code layer alone: it
+// REMOVES SDL_AUDIODRIVER from its own environment first (the CMake layer has
+// already put it there, so leaving it would make the row pass vacuously), then
+// asserts the pin survives and a real SDL audio init lands on the dummy driver.
+// The SDL driver pin does not silence a Windows run on its own: libultraship's
+// default Ship audio backend there is WASAPI (Config::GetCurrentAudioBackend, when
+// Window.AudioBackend is absent or "wasapi"), and a WASAPI player never goes
+// through SDL's driver. So a second layer forces the Ship backend to "null" in
+// memory before Context::InitAudio (TestWindowFocus_ForceNullAudioBackend, called
+// from OTRGlobals) and puts the key back after. A4-A8 drive that layer on throw-away
+// Ship::Config files in a scratch directory (never the staged config, whose own
+// "null" would make them pass vacuously), with the key absent and with "sdl".
+// Red half, one switch per assertion group (RSBS_TEST_AUDIO_SABOTAGE, comma-joinable):
+//   no-default  main skips the whole arm            -> A1-A3, A5, A7 red
+//   no-config   the force call is removed           -> A5, A7 red
+//   no-restore  the restore call is removed         -> A6, A8 red
+// RSBS_TEST_AUDIO=1 is the operator's opt-out, so the row reports and skips rather
+// than failing a deliberate choice (SKIP_RETURN_CODE 77 in CMake).
+TestResult Test_TestAudioSilent(void) {
+    printf("[TEST] test-audio-silent: a test process defaults SDL to the dummy audio driver in code\n");
+    const char* optOut = getenv("RSBS_TEST_AUDIO");
+    if (optOut != nullptr && strcmp(optOut, "1") == 0) {
+        printf("[TEST] SKIP: RSBS_TEST_AUDIO=1 is set, so main left audio at the platform default on purpose\n");
+        return TEST_SKIP;
+    }
+    int failures = 0;
+#define TAS_ASSERT(cond, ...)        \
+    do {                             \
+        if (!(cond)) {               \
+            printf("[TEST] FAIL: "); \
+            printf(__VA_ARGS__);     \
+            printf("\n");            \
+            failures++;              \
+        }                            \
+    } while (0)
+
+    DigestOut_SetEnv("SDL_AUDIODRIVER", nullptr);
+    TAS_ASSERT(SDL_getenv("SDL_AUDIODRIVER") == nullptr || SDL_getenv("SDL_AUDIODRIVER")[0] == '\0',
+               "A0: setup: SDL_AUDIODRIVER is still in the environment after removing it");
+
+    TAS_ASSERT(TestWindowFocus_IsAudioArmed() == 1,
+               "A1: main.cpp did not pin the audio driver for --test (TestWindowFocus_ArmSilentAudio)");
+    const char* hint = SDL_GetHint(SDL_HINT_AUDIODRIVER);
+    TAS_ASSERT(hint != nullptr && strcmp(hint, "dummy") == 0,
+               "A2: SDL_HINT_AUDIODRIVER is '%s' with the environment variable removed, not 'dummy'",
+               hint != nullptr ? hint : "(unset)");
+
+    // A3 brings the SDL audio subsystem up for real and asks which driver won. That
+    // opens the driver, never a device, so even the red half (no pin: the platform's
+    // own driver) makes no sound; the FAIL line names the driver that would have played.
+    const bool audioWasUp = SDL_WasInit(SDL_INIT_AUDIO) != 0;
+    if (!audioWasUp && SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+        TAS_ASSERT(false, "A3: SDL_InitSubSystem(SDL_INIT_AUDIO) failed (%s)", SDL_GetError());
+    } else {
+        const char* driver = SDL_GetCurrentAudioDriver();
+        printf("[AUDIO] row: SDL_GetCurrentAudioDriver() = %s\n", driver != nullptr ? driver : "(null)");
+        TAS_ASSERT(driver != nullptr && strcmp(driver, "dummy") == 0,
+                   "A3: SDL_GetCurrentAudioDriver() is '%s' after SDL_InitSubSystem(SDL_INIT_AUDIO), not 'dummy'",
+                   driver != nullptr ? driver : "(null)");
+        if (!audioWasUp) {
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        }
+    }
+
+    // A4-A8: the Ship backend layer, on throw-away configs.
+    {
+        namespace fs = std::filesystem;
+        const fs::path dir = rsbs::test::ScratchDir("audio-silent-config");
+        const char* kKey = "Window.AudioBackend";
+        auto backendName = [](Ship::AudioBackend b) {
+            return b == Ship::AudioBackend::NUL ? "null" : b == Ship::AudioBackend::SDL ? "sdl" : "wasapi";
+        };
+        auto writeConfig = [&](const char* file, const char* body) {
+            const fs::path p = dir / file;
+            std::ofstream(p, std::ios::trunc) << body;
+            return p.string();
+        };
+        auto readFile = [](const std::string& path) {
+            std::ifstream in(path);
+            return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        };
+
+        // Key ABSENT (a "Window" block with another key, so only the audio key is missing).
+        const std::string absentPath = writeConfig("absent.json", "{\"Window\":{\"PositionX\":100}}");
+        {
+            Ship::Config control(absentPath);
+            const Ship::AudioBackend def = control.GetCurrentAudioBackend();
+            printf("[AUDIO] row: key absent, unforced Ship backend = %s\n", backendName(def));
+            TAS_ASSERT(def != Ship::AudioBackend::NUL,
+                       "A4: control: a config without Window.AudioBackend already reads 'null', so A5 proves nothing");
+        }
+        {
+            Ship::Config c(absentPath);
+            const TestSilentAudioConfigState st = TestWindowFocus_ForceNullAudioBackend(&c);
+            const Ship::AudioBackend forced = c.GetCurrentAudioBackend();
+            TAS_ASSERT(forced == Ship::AudioBackend::NUL,
+                       "A5: with Window.AudioBackend absent the forced Ship backend is '%s', not 'null' "
+                       "(the platform default would build a real audio player)",
+                       backendName(forced));
+            c.Save(); // what Audio::Init does while the key is forced
+            TestWindowFocus_RestoreAudioBackend(&c, st);
+            const std::string after = c.GetString(kKey);
+            const std::string disk = readFile(absentPath);
+            TAS_ASSERT(after.empty() && disk.find("AudioBackend") == std::string::npos,
+                       "A6: the absent key was not put back: memory '%s', on disk %s", after.c_str(),
+                       disk.find("AudioBackend") == std::string::npos ? "absent" : "still holds the key");
+        }
+
+        // Key "sdl": an explicit real backend is overridden too, then put back as it was.
+        const std::string sdlPath =
+            writeConfig("sdl.json", "{\"Window\":{\"AudioBackend\":\"sdl\",\"PositionX\":100}}");
+        {
+            Ship::Config c(sdlPath);
+            const TestSilentAudioConfigState st = TestWindowFocus_ForceNullAudioBackend(&c);
+            const Ship::AudioBackend forced = c.GetCurrentAudioBackend();
+            TAS_ASSERT(forced == Ship::AudioBackend::NUL,
+                       "A7: with Window.AudioBackend 'sdl' the forced Ship backend is '%s', not 'null'",
+                       backendName(forced));
+            c.Save();
+            TestWindowFocus_RestoreAudioBackend(&c, st);
+            const std::string after = c.GetString(kKey);
+            const std::string disk = readFile(sdlPath);
+            TAS_ASSERT(after == "sdl" && disk.find("\"sdl\"") != std::string::npos,
+                       "A8: the 'sdl' key was not put back: memory '%s', on disk %s", after.c_str(),
+                       disk.find("\"sdl\"") != std::string::npos ? "'sdl'" : "not 'sdl'");
+        }
+    }
+#undef TAS_ASSERT
+    printf("[TEST] %s: test-audio-silent, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #880 lock: the version a person sees names the commit it was built from.
 // Every build between two release tags used to read the same
 // "RedShipBlueShip v0.1.1-prealpha (Morpheus Bravo)", so a stale build could not
@@ -2314,6 +2465,51 @@ TestResult Test_RandoDeterminism(void) {
     int mmRc = MM_Rando_HeadlessForeignDigest(digestOut);
     printf("[TEST] %s: foreign-placement digest rc=%d\n", mmRc == 0 ? "PASS" : "FAIL", mmRc);
     return mmRc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #982: THE PLAYER'S PATH AGAINST THE DEFAULT GOLDEN. Driven only by the
+// GoldenSeedDigestPlayerPath row, which runs WITHOUT RSBS_DISABLE_OTR_INIT and
+// compares this digest with tests/golden/seed-digest-default.txt (the pinned seed
+// of rando-determinism, at the shipped profile). The golden is written by the
+// headless harness; this generates the same seed the way a player does -- the full
+// OTR bring-up, GenerateRandomizer(seed) on the Generate button's worker thread,
+// then OoT_RunPairedCreationEvent -- and writes the same fields with the same
+// writers. A difference is a finding about the two paths, never a re-pin, which is
+// why the row sits outside REDSHIP_GOLDEN_DIGESTS. Needs a display and a mounted
+// soh.o2r like rando-gen-full-init, so `--test all` skips it.
+TestResult Test_RandoPlayerPathDigest(void) {
+    printf("[TEST] rando-player-path-digest: the Generate button's worker thread and the creation event, digested "
+           "(#982)\n");
+    DigestOutHandRunReminder handRun{ "rando-player-path-digest", false };
+    const char* digestOut = DigestOut_Resolve("rando-player-path-digest", &handRun.noticed); // NULL => stdout
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    // rando-gen-full-init's precondition, for its reason: with no archive the
+    // un-masked bring-up's synchronous audio load never returns.
+    const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    if (!std::filesystem::exists(sohArchive)) {
+        printf("[TEST] FAIL: no soh.o2r resolvable (tried '%s'); the full OTR bring-up needs a mounted archive\n",
+               sohArchive.c_str());
+        return TEST_FAIL;
+    }
+    if (std::getenv("RSBS_DISABLE_OTR_INIT") != nullptr) {
+        printf("[TEST] FAIL: RSBS_DISABLE_OTR_INIT is set, so this would digest the headless bring-up again, not a "
+               "player's\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    const int rc = MM_Rando_HeadlessPlayerPathDigest("RSBSUNIFIED1", digestOut);
+    Rando_HeadlessFullInitTeardown();
+    printf("[TEST] %s: player-path digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #681 review, re-aimed by ADR 0010 increment 3 (lane K11): THE ARMED CAPABILITY
@@ -3661,6 +3857,32 @@ TestResult Test_CuratedArchiveOrder(void) {
 
     int rc = CuratedArchiveOrder_RunHeadless(sohArchive.c_str(), mmArchive.c_str());
     printf("[TEST] %s: curated archive order rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #981: one path parsed by one game must never be served to the other. Body in
+// src/common/tests/test_resource_cache_owner.c: two temporary O2R zips with
+// different Blob contents at one path, loaded under two cache owners through the
+// fork's ResourceManager::SetDefaultCacheOwner. ROM-free and archive-free: it
+// needs only the display-free shared bring-up and the Blob factory.
+TestResult Test_ResourceCacheOwner(void) {
+    printf("[TEST] resource-cache-owner: each cache owner keeps its own copy of a shared path (#981)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    ctx->GetResourceManager()->GetResourceLoader()->RegisterResourceFactory(
+        std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY, "Blob",
+        static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+
+    int rc = ResourceCacheOwner_RunHeadless();
+    printf("[TEST] %s: resource cache owner rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -5766,6 +5988,11 @@ const TestDescriptor gTests[] = {
     // skips it (below).
     { "rando-armed-caps-digest", "Armed-profile reverse draw digest for the GoldenSeedDigestArmedCaps pin (#681)",
       Test_RandoArmedCapsDigest },
+    // #982: the player's path digested against the default golden. Driven only by
+    // the GoldenSeedDigestPlayerPath row; needs a display and soh.o2r, so `--test
+    // all` skips it (below).
+    { "rando-player-path-digest", "The Generate button's worker thread and the creation event, digested (#982)",
+      Test_RandoPlayerPathDigest },
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     { "mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen },
@@ -5837,6 +6064,8 @@ const TestDescriptor gTests[] = {
       Test_CuratedArchiveOrder },
     { "mod-survives-switch", "A registered mod archive still wins after a game switch (#593)",
       Test_ModArchiveSurvivesSwitch },
+    { "resource-cache-owner", "Each resource cache owner keeps its own copy of a shared path (#981)",
+      Test_ResourceCacheOwner },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
     { "curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",
@@ -6050,6 +6279,9 @@ const TestDescriptor gTests[] = {
     { "combo-settings-canonical",
       "canonical() and the whole-pair fingerprint are pinned byte-for-byte (ADR 0011 decision 1.4)",
       Test_ComboSettingsCanonical },
+    { "combo-generator-version",
+      "comboSettingsHash folds RSBS_GENERATOR_VERSION; older files verify; the bag seed ignores it (#1003)",
+      Test_ComboGeneratorVersion },
     { "combo-settings-divergence", "The divergence diff names WHICH combo rule diverged (ADR 0011 decision 1.1)",
       Test_ComboSettingsDivergence },
     { "combo-settings-legacy-freeze",
@@ -6651,6 +6883,10 @@ const TestDescriptor gTests[] = {
       "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
       "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
       Test_TestWindowNoActivation },
+    { "test-audio-silent",
+      "A --test process pins SDL's audio driver to the dummy driver in code (not only from the CTest environment), "
+      "so a tier never plays game audio through the speakers of the person at the workstation (S0)",
+      Test_TestAudioSilent },
     { "version-short-commit",
       "The window title and --version read the release version plus the configured short commit (and -dirty), so "
       "a build says which commit it is; the release part stays RSBS_VERSION_STRING (#880)",
@@ -6735,6 +6971,10 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
     { "int-archive-hotswap-cycle",
       "Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (no missing assets, bounded RSS) (#263)",
       INT_TEST_ARCHIVE_HOTSWAP_CYCLE, GAME_OOT },
+    { "int-resource-cache-owner",
+      "Boot OoT into gameplay on a debug save, cross to MM through the Happy Mask Shop and back: each game is served "
+      "its own gOctorokSkel and staff text, and OoT gets back the objects it had (#981)",
+      INT_TEST_RESOURCE_CACHE_OWNER, GAME_OOT },
     { "int-gameplay-roundtrip",
       "Operator crash repro: debug save, live gameplay, production OoT<->MM round trip (freeze/restore + "
       "resume leg), post-return debug warp, door transition. Env: RSBS_GP_FRAMES/CYCLES/BOOT|WARP|EXIT_ENTRANCE",
@@ -6803,6 +7043,7 @@ int TestRunner_Run(const char* testName) {
             if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-gen-full-init") == 0 ||
                 strcmp(gTests[i].name, "rando-determinism") == 0 ||
                 strcmp(gTests[i].name, "rando-armed-caps-digest") == 0 ||
+                strcmp(gTests[i].name, "rando-player-path-digest") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 || strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
@@ -6896,6 +7137,7 @@ int TestRunner_Run(const char* testName) {
     // focus" row by row (lane F1). Report only; the lock is the
     // test-window-no-activation row.
     TestWindowFocus_Probe(testName);
+    TestWindowFocus_AudioProbe(testName);
     if (result == TEST_SKIP) {
         // Rows that can self-skip declare SKIP_RETURN_CODE 77 in
         // CMake/SingleExecutable.cmake, so ctest reports "Skipped" rather than

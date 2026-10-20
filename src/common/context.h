@@ -911,7 +911,12 @@ typedef struct {
     // twelve bytes beside it.
     //
     //   comboSettingsHash = Hash( canonical(comboSettings) || ":" ||
-    //                             sharedRandoSettingsHash || ":" || mmProfileDigest )
+    //                             sharedRandoSettingsHash || ":" || mmProfileDigest ||
+    //                             ":" || RSBS_GENERATOR_VERSION )
+    //
+    // The generator term (#1003) is a label: a pre-#1003 file carries the
+    // legacy form without it (version 0) and still verifies, and nothing is
+    // seeded from it (foreign_items.h, RSBS_GENERATOR_VERSION).
     //
     // Folding both half-digests is what makes the term non-vacuous (ADR 0009
     // decision 1's amendment: "a digest narrower than the input set is vacuous —
