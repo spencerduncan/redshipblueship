@@ -947,6 +947,11 @@ if(BUILD_TESTING)
     # bound-arithmetic bugs, so the capacity computation was factored into pure
     # helpers this test calls directly — display-free, ROM-free.
     redship_add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
+    # OoT pause-menu item age table bounds (#983). OoT_Play_Init writes
+    # gItemAgeReqs[ITEM_ROCS_FEATHER] (0x9C) and the pause menu reads it, but
+    # the table held the 86 vanilla entries. Asserts the count the defining TU
+    # exports covers that index and every u8 ItemID. Display-free, ROM-free.
+    redship_add_test(NAME ItemAgeReqsBounds COMMAND redship --test item-age-reqs-bounds)
     # OoT audio producer init-guard (#365). The shared OTRAudio_Thread runs
     # OoT_AudioMgr_CreateNextAudioBuffer whenever MM's synth is inactive — every
     # MM frame before MM audio boots, and the mid-switch window where OoT is
