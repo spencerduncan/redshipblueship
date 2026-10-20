@@ -655,6 +655,11 @@ if(BUILD_TESTING)
     # either game's Kokiri Sword lights both through the real harvest/apply shims;
     # with it off, neither crosses and no slot appears. Display-free, ROM-free.
     redship_add_test(NAME SharedKokiriSword COMMAND redship --test shared-kokiri-sword)
+    # #976 (epic #975 P1): the cross-game item rules record (carve, fingerprint
+    # only when set, freeze, the load refusing a rule this build cannot honour)
+    # and the shared-family OR merge through both games' real shims. ROM-free.
+    redship_add_test(NAME CrossItemRulesRecord COMMAND redship --test cross-item-rules-record)
+    redship_add_test(NAME SharedFamilyMerge COMMAND redship --test shared-family-merge)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an
@@ -2144,6 +2149,11 @@ if(BUILD_TESTING)
     # never harvested, its cross-origin item never exchanged, and an empty set
     # changes no round.
     redship_add_test(NAME ComboLogicForbiddenHost COMMAND redship --test combo-logic-forbidden-host)
+    # THE SHARED PAIR (ABI 7, #976): one bag row both engines credit. Same stub
+    # fixture, same `redship` tier: seeded in both engines, placed as the host's
+    # own half, the far half through the crossing gate, and composed from both
+    # games' rows into one.
+    redship_add_test(NAME ComboLogicSharedPair COMMAND redship --test combo-logic-shared-pair)
 
     # The OoT ENGINE behind that coordinator (#645, lane K2a). `rando` tier, and
     # for a correctness reason rather than a convenience one: every fact this row

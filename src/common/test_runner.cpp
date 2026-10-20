@@ -614,6 +614,12 @@ extern "C" {
 // neighbour.
 #include "tests/test_shared_kokiri_sword.c"
 
+// The cross-game item rules and the shared-family bitset (#976, epic #975 P1):
+// the sibling record's format, fingerprint, freeze and load check, and the OR
+// merge through both games' real harvest/apply shims. FILE SCOPE for
+// rsbs::SaveManager, like its neighbours.
+#include "tests/test_cross_item_rules.c"
+
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
 // so the code under test does not exist. The `#include "tests/..."` text is
@@ -6217,6 +6223,15 @@ const TestDescriptor gTests[] = {
       "One Kokiri Sword across both games when the frozen combo bit arms it, and neither crosses when it does not "
       "(#886)",
       Test_SharedKokiriSword },
+    // #976: the cross-game item rules record and the shared-family OR merge.
+    { "cross-item-rules-record",
+      "The cross-game item rules are a frozen record folded into the fingerprint only when set, and a file with a "
+      "rule this build cannot honour is refused at load (#976)",
+      Test_CrossItemRulesRecord },
+    { "shared-family-merge",
+      "The shared-family bitset merges by OR in both directions, arms only from the frozen rules, and reaches both "
+      "games through their real harvest and apply shims (#976)",
+      Test_SharedFamilyMerge },
     { "combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
       Test_ComboSpoilerView },
     { "combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
@@ -6729,6 +6744,10 @@ const TestDescriptor gTests[] = {
       "A round's forbidden host is never harvested or exchanged, an empty forbidden set changes no round, and a host "
       "its engine cannot withhold is refused (ABI 6, #575 H4)",
       Test_ComboLogicForbiddenHost },
+    { "combo-logic-shared-pair",
+      "One shared-pair bag row is credited by both engines, its far half goes through the crossing gate, and the "
+      "composer replaces both games' rows with one (ABI 7, #976)",
+      Test_ComboLogicSharedPair },
     // Increment 3's two §6.3 MEASUREMENTS, over both real engines at once (#645,
     // lane K3). Needs a real OoT generation AND MM's rando graph, hence the
     // `rando` tier and the `--test all` skip below. It asserts no timing: only

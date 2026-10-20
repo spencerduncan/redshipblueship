@@ -13,6 +13,7 @@
 #include "gen_budget.h"
 #include "gen_progress_overlay.h"
 #include "shared_items.h"
+#include "shared_resources.h" // the shared-family registry THE SHARED PAIR reads (#976)
 
 #include <stdio.h>
 #include <string.h>
@@ -186,6 +187,39 @@ static int SingleBagObserve(void* ctx, const ComboLogicFillProgress* p) {
 // The fill
 // ============================================================================
 
+/**
+ * THE SHARED PAIR's families for this world (ABI 7, #976): every family the
+ * FROZEN record arms whose two native copies are both registered
+ * (shared_resources.h). The registration is the one the runtime family bitset
+ * gives from, so the bag row and the item the far game receives are the same
+ * pair by construction. With every rule off (the shipped default) this is empty
+ * and the compose is exactly the one before shared pairs existed.
+ */
+static int SingleBagSharedPairs(ComboLogicSharedPair* out, int cap) {
+    const uint32_t armed = Combo_SharedFamiliesArmed();
+    int n = 0;
+    for (uint32_t b = 0; b < RSBS_XITEM_BIT_COUNT && n < cap; ++b) {
+        const uint32_t bit = 1u << b;
+        if ((armed & bit) == 0u) {
+            continue;
+        }
+        uint16_t ootId = 0;
+        uint16_t mmId = 0;
+        if (!Combo_SharedFamilyMemberId(GAME_OOT, bit, &ootId) || !Combo_SharedFamilyMemberId(GAME_MM, bit, &mmId)) {
+            // A rule this build froze on with no item behind it on one side: the
+            // pair cannot be built, and the row stays each game's own item. Loud,
+            // because only a build that registers half a family can reach it.
+            fprintf(stderr, "[SingleBag] shared family %s is armed but not registered in both games; not paired\n",
+                    Combo_ComboItemRuleName(bit));
+            continue;
+        }
+        out[n].ootId = ootId;
+        out[n].mmId = mmId;
+        n++;
+    }
+    return n;
+}
+
 static bool SingleBagOriginMayCross(uint8_t origin) {
     return Combo_ComboDirectionArms(origin) &&
            (Combo_ComboItemClassFor(origin) & (uint16_t)RSBS_ITEMCLASS_PROGRESSION) != 0u;
@@ -271,6 +305,10 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         creq.startingHealthOoT = OoT_ComboLogic_StartingHealth();
         creq.startingHealthMM = MM_ComboLogic_StartingHealth();
         creq.quantityFlags = 0u;
+        // THE SHARED PAIR (ABI 7, #976): empty unless a frozen rule arms one.
+        static ComboLogicSharedPair sPairs[RSBS_XITEM_BIT_COUNT];
+        creq.sharedPairCount = SingleBagSharedPairs(sPairs, (int)RSBS_XITEM_BIT_COUNT);
+        creq.sharedPairs = (creq.sharedPairCount > 0) ? sPairs : NULL;
         sReport.trimSeed = creq.trimSeed;
         sReport.startingHealthOoT = creq.startingHealthOoT;
         sReport.startingHealthMM = creq.startingHealthMM;
@@ -300,7 +338,10 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         const bool mmMayCross = SingleBagOriginMayCross((uint8_t)GAME_MM);
         for (int i = 0; i < sReport.bagCount; ++i) {
             const bool mayCross = (sBag[i].item.originGame == (uint8_t)GAME_OOT) ? ootMayCross : mmMayCross;
-            if (!mayCross) {
+            // A shared pair never crosses (each side hosts its own half), so the
+            // direction does not confine it, and HOME_ONLY would refuse the fill.
+            const bool sharedPair = (sBag[i].bagFlags & RSBS_COMBO_BAG_SHARED_PAIR) != 0u;
+            if (!mayCross && !sharedPair) {
                 sBag[i].bagFlags |= RSBS_COMBO_BAG_HOME_ONLY;
             }
             if ((sBag[i].bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u) {

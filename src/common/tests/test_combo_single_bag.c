@@ -273,6 +273,7 @@
 #include <vector>
 
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <nlohmann/json.hpp>
 #include <ship/Context.h>
 
 extern "C" {
@@ -1767,6 +1768,29 @@ TestResult ComboSingleBag_Run(void) {
             const uint32_t firstSeed = gComboCtx.sharedRandoSeed;
             CSB_ASSERT(before.find("\"combo\"") != std::string::npos,
                        "file 1's creation left no joined spoiler at its OoT spoiler path, so V23b proves nothing");
+            // #976: the joined combo block names every frozen rule, read back
+            // with the values file 1's creation froze: the yes/no combo rules and
+            // the cross-game item rules beside the record's other fields.
+            {
+                const nlohmann::json doc = nlohmann::json::parse(before, nullptr, false);
+                const bool shaped = !doc.is_discarded() && doc.is_object() && doc.contains("combo") &&
+                                    doc["combo"].is_object() && doc["combo"].contains("comboSettings");
+                const nlohmann::json block = shaped ? doc["combo"]["comboSettings"] : nlohmann::json::object();
+                const auto names = [&block](const char* key, uint32_t frozen) {
+                    return block.contains(key) && block[key].is_number_unsigned() &&
+                           block[key].get<uint32_t>() == frozen;
+                };
+                printf("[TEST] combo-single-bag: V23b file 1's spoiler combo.comboSettings: %s (frozen comboFlags=%u "
+                       "crossItemFlags=%08X blastMaskCooldown=%u)\n",
+                       shaped ? block.dump().c_str() : "(missing)", (unsigned)gComboCtx.comboSettings.comboFlags,
+                       (unsigned)gComboCtx.comboItemRules.crossItemFlags,
+                       (unsigned)gComboCtx.comboItemRules.blastMaskCooldown);
+                CSB_ASSERT(names("comboFlags", gComboCtx.comboSettings.comboFlags) &&
+                               names("crossItemFlags", gComboCtx.comboItemRules.crossItemFlags) &&
+                               names("blastMaskCooldown", gComboCtx.comboItemRules.blastMaskCooldown),
+                           "the paired spoiler's combo.comboSettings does not name comboFlags, crossItemFlags and "
+                           "blastMaskCooldown with the values the creation froze (#976)");
+            }
 
             const char* const kV23Option = "gRando.Options.RO_HINTS_SPIDER_HOUSES";
             const int savedOption = CVarGetInteger(kV23Option, -1);

@@ -1047,9 +1047,11 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
     // healthy file met by a session that walked away from it: FROZEN WINS AT
     // LOAD (#781), so a divergence every bit of which a key authors is accepted
     // here and restored by the load; what no key can restore refuses.
-    uint32_t comboDiverged = Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash,
-                                                              combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
-                             Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
+    // #976: the item rules ride the same check, over the record just read.
+    uint32_t comboDiverged =
+        Combo_ComboSettingsDivergenceForEx(&combo.comboSettings, &combo.comboItemRules, combo.comboSettingsHash,
+                                           combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
+        Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
     if (comboDiverged != 0) {
         char fields[192];
         Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
@@ -1280,10 +1282,11 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
         if (Combo_ComboSettingsRestoreLive(&combo.comboSettings, v.comboDiverged, restoredRules, sizeof(restoredRules),
                                            &rulesUndo) == 1) {
             rulesWritten = true;
-            afterRestore = Combo_ComboSettingsDivergenceFor(&combo.comboSettings, combo.comboSettingsHash,
-                                                            combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
-                           Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
-                           (gForceLoadRestoreVerifyFail ? v.comboDiverged : 0u);
+            afterRestore =
+                Combo_ComboSettingsDivergenceForEx(&combo.comboSettings, &combo.comboItemRules, combo.comboSettingsHash,
+                                                   combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
+                Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
+                (gForceLoadRestoreVerifyFail ? v.comboDiverged : 0u);
             std::fprintf(stderr,
                          "[RsbsSave] slot %d: the cross-game rules this session held differed from the file's; the "
                          "file's own values were restored (%s) — frozen wins at load (#781)\n",
@@ -1952,7 +1955,8 @@ RsbsResetOutcome SaveManager::RestoreLastCommitForReset(int slot, uint8_t* mmOut
         combo.sharedRandoSettingsHash == gComboCtx.sharedRandoSettingsHash &&
         combo.mmProfileDigest == gComboCtx.mmProfileDigest && combo.mmPairedAttempt == gComboCtx.mmPairedAttempt &&
         combo.comboSettingsHash == gComboCtx.comboSettingsHash &&
-        std::memcmp(&combo.comboTriforce, &gComboCtx.comboTriforce, sizeof(ComboTriforceRecord)) == 0;
+        std::memcmp(&combo.comboTriforce, &gComboCtx.comboTriforce, sizeof(ComboTriforceRecord)) == 0 &&
+        std::memcmp(&combo.comboItemRules, &gComboCtx.comboItemRules, sizeof(ComboItemRulesRecord)) == 0;
     // The crossing store is the only truth for foreign placements, frozen at
     // creation; the commit's block must be the live store byte for byte (a
     // v1/v2 file carries none, which is true only of a world with none).

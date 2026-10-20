@@ -122,6 +122,168 @@ bool Combo_ComboSharedKokiriSword(void) {
            (gComboCtx.comboSettings.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u;
 }
 
+// ---- The cross-game item rules (#976) ---------------------------------------
+
+uint32_t Combo_ComboItemRuleRequires(uint32_t bit) {
+    // A shared extension is one family of the extension's added copy and the
+    // host-native copy, so without the extension there is nothing to share.
+    switch (bit) {
+        case RSBS_XITEM_SHARED_BLAST:
+            return RSBS_XITEM_BLAST_MASK_OOT;
+        case RSBS_XITEM_SHARED_STONE:
+            return RSBS_XITEM_STONE_MASK_OOT;
+        case RSBS_XITEM_SHARED_KAMARO:
+            return RSBS_XITEM_KAMARO_MASK_OOT;
+        case RSBS_XITEM_SHARED_GERUDO:
+            return RSBS_XITEM_GERUDO_MASK_MM;
+        case RSBS_XITEM_SHARED_SKULL:
+            return RSBS_XITEM_SKULL_MASK_MM;
+        case RSBS_XITEM_SHARED_SPOOKY:
+            return RSBS_XITEM_SPOOKY_MASK_MM;
+        default:
+            return 0u;
+    }
+}
+
+const char* Combo_ComboItemRuleName(uint32_t bit) {
+    switch (bit) {
+        case RSBS_XITEM_SHARED_GORON:
+            return "sharedGoronMask";
+        case RSBS_XITEM_SHARED_ZORA:
+            return "sharedZoraMask";
+        case RSBS_XITEM_SHARED_BUNNY:
+            return "sharedBunnyHood";
+        case RSBS_XITEM_SHARED_KEATON:
+            return "sharedKeatonMask";
+        case RSBS_XITEM_SHARED_TRUTH:
+            return "sharedMaskOfTruth";
+        case RSBS_XITEM_BLAST_MASK_OOT:
+            return "blastMaskOoT";
+        case RSBS_XITEM_STONE_MASK_OOT:
+            return "stoneMaskOoT";
+        case RSBS_XITEM_KAMARO_MASK_OOT:
+            return "kamaroMaskOoT";
+        case RSBS_XITEM_GERUDO_MASK_MM:
+            return "gerudoMaskMM";
+        case RSBS_XITEM_SKULL_MASK_MM:
+            return "skullMaskMM";
+        case RSBS_XITEM_SPOOKY_MASK_MM:
+            return "spookyMaskMM";
+        case RSBS_XITEM_SHARED_BLAST:
+            return "sharedBlastMask";
+        case RSBS_XITEM_SHARED_STONE:
+            return "sharedStoneMask";
+        case RSBS_XITEM_SHARED_KAMARO:
+            return "sharedKamaroMask";
+        case RSBS_XITEM_SHARED_GERUDO:
+            return "sharedGerudoMask";
+        case RSBS_XITEM_SHARED_SKULL:
+            return "sharedSkullMask";
+        case RSBS_XITEM_SHARED_SPOOKY:
+            return "sharedSpookyMask";
+        case RSBS_XITEM_SHARED_ARROW_FIRE:
+            return "sharedFireArrows";
+        case RSBS_XITEM_SHARED_ARROW_ICE:
+            return "sharedIceArrows";
+        case RSBS_XITEM_SHARED_ARROW_LIGHT:
+            return "sharedLightArrows";
+        case RSBS_XITEM_SHARED_BOTTLES:
+            return "sharedBottles";
+        default:
+            return "(unknown)";
+    }
+}
+
+void Combo_ComboItemRulesDefaults(ComboItemRulesRecord* out) {
+    if (out == NULL) {
+        return;
+    }
+    // Every rule OFF and the default cooldown: today's world (one-game
+    // semantics; OoTMM's own defaults). All zero, which is also what a record
+    // written before the carve holds.
+    memset(out, 0, sizeof(*out));
+}
+
+bool Combo_ComboItemRulesValid(const ComboItemRulesRecord* rec) {
+    if (rec == NULL) {
+        return true;
+    }
+    if ((rec->crossItemFlags & ~(uint32_t)RSBS_XITEM_ALL_V1) != 0u) {
+        return false; // a bit this build does not allocate
+    }
+    for (uint32_t b = 0; b < RSBS_XITEM_BIT_COUNT; ++b) {
+        const uint32_t bit = 1u << b;
+        const uint32_t needs = Combo_ComboItemRuleRequires(bit);
+        if ((rec->crossItemFlags & bit) != 0u && needs != 0u && (rec->crossItemFlags & needs) == 0u) {
+            return false; // a shared extension without its extension
+        }
+    }
+    if (rec->blastMaskCooldown > (uint8_t)RSBS_BLAST_COOLDOWN_MAX) {
+        return false;
+    }
+    return rec->spare[0] == 0u && rec->spare[1] == 0u && rec->spare[2] == 0u;
+}
+
+void Combo_ResolveComboItemRules(ComboItemRulesRecord* out) {
+    // NO AUTHORING SURFACE YET (#976 adds the format and the mechanism; the
+    // Cross-Game Rules rows come with the phase that gives each rule its
+    // behaviour, epic #975 P2 on). So the session's rules are the shipped
+    // defaults, every world this build creates freezes every rule off, and the
+    // one-resolver discipline holds trivially: creation and every compare read
+    // this one function. When the keys land, they are read HERE and nowhere
+    // else, validated through Combo_ComboItemRulesValid with an invalid store
+    // resolving to the defaults with a logged reason.
+    Combo_ComboItemRulesDefaults(out);
+}
+
+uint32_t Combo_ComboCrossItemFlags(void) {
+    return Combo_ComboSettingsFrozen() ? gComboCtx.comboItemRules.crossItemFlags : 0u;
+}
+
+bool Combo_ComboCrossItemRule(uint32_t bit) {
+    return bit != 0u && (Combo_ComboCrossItemFlags() & bit) == bit;
+}
+
+uint8_t Combo_ComboBlastMaskCooldown(void) {
+    return Combo_ComboSettingsFrozen() ? gComboCtx.comboItemRules.blastMaskCooldown
+                                       : (uint8_t)RSBS_BLAST_COOLDOWN_DEFAULT;
+}
+
+void Combo_ComboItemRulesCanonical(const ComboItemRulesRecord* rec, uint8_t* out) {
+    if (out == NULL) {
+        return;
+    }
+    ComboItemRulesRecord zero;
+    if (rec == NULL) {
+        memset(&zero, 0, sizeof(zero));
+        rec = &zero;
+    }
+    // Field by field, declaration order, little-endian, a byte at a time: the
+    // discipline Combo_ComboSettingsCanonical states, for the same reason.
+    out[0] = (uint8_t)(rec->crossItemFlags & 0xFFu);
+    out[1] = (uint8_t)((rec->crossItemFlags >> 8) & 0xFFu);
+    out[2] = (uint8_t)((rec->crossItemFlags >> 16) & 0xFFu);
+    out[3] = (uint8_t)((rec->crossItemFlags >> 24) & 0xFFu);
+    out[4] = rec->blastMaskCooldown;
+    out[5] = rec->spare[0];
+    out[6] = rec->spare[1];
+    out[7] = rec->spare[2];
+}
+
+bool Combo_ComboItemRulesClear(const ComboItemRulesRecord* rec) {
+    if (rec == NULL) {
+        return true;
+    }
+    uint8_t canon[RSBS_COMBO_ITEM_RULES_CANONICAL_LEN];
+    Combo_ComboItemRulesCanonical(rec, canon);
+    for (size_t i = 0; i < sizeof(canon); ++i) {
+        if (canon[i] != 0u) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool Combo_ComboSettingsDescribePairedWorld(const ComboSettingsRecord* rec) {
     // THE #667 RULING, as one falsifiable function rather than a comment.
     //
@@ -378,22 +540,35 @@ static void ComboAppendLe32(uint8_t* out, uint32_t value) {
     out[3] = (uint8_t)((value >> 24) & 0xFFu);
 }
 
-uint32_t Combo_ComputeComboSettingsHashForGenerator(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
-                                                    uint32_t mmProfileDigest, uint32_t generatorVersion) {
+uint32_t Combo_ComputeComboSettingsHashForGeneratorEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                                      uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                                      uint32_t generatorVersion) {
     // canonical(12) || ':' || LE32(settingsHash) || ':' || LE32(mmProfileDigest)
+    //   [ || '#' || canonical(rules, 8) ]      -- only when the rules are not all clear (#976)
     //   [ || ':' || LE32(generatorVersion) ]   -- only for version >= 1 (#1003)
-    uint8_t buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u + 4u + 1u + 4u + 1u + 4u];
-    size_t len = RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u + 4u + 1u + 4u;
+    // The version label is the LAST term, so taking it off (version 0) leaves
+    // exactly the label-free fingerprint over the record AND its rules.
+    enum { kBase = RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u + 4u + 1u + 4u };
+    uint8_t buf[kBase + 1u + RSBS_COMBO_ITEM_RULES_CANONICAL_LEN + 1u + 4u];
+    size_t len = kBase;
     Combo_ComboSettingsCanonical(rec, buf);
     buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN] = (uint8_t)':';
     ComboAppendLe32(&buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u], sharedRandoSettingsHash);
     buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 5u] = (uint8_t)':';
     ComboAppendLe32(&buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 6u], mmProfileDigest);
+    // APPENDED, AND ONLY WHEN SET. An all-clear record contributes no byte, so
+    // every world without a cross-game item rule keeps the fingerprint (and the
+    // single-bag seed folded from it) that it had before the rules existed.
+    if (!Combo_ComboItemRulesClear(rules)) {
+        buf[len] = (uint8_t)'#';
+        Combo_ComboItemRulesCanonical(rules, &buf[len + 1u]);
+        len += 1u + RSBS_COMBO_ITEM_RULES_CANONICAL_LEN;
+    }
     if (generatorVersion != 0) {
         // Version 0 is the legacy byte string, untouched, so every fingerprint
         // written before #1003 still verifies (Combo_ComboSettingsHashGeneratorVersion).
-        buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 10u] = (uint8_t)':';
-        ComboAppendLe32(&buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 11u], generatorVersion);
+        buf[len] = (uint8_t)':';
+        ComboAppendLe32(&buf[len + 1u], generatorVersion);
         len += 1u + 4u;
     }
 
@@ -408,22 +583,40 @@ uint32_t Combo_ComputeComboSettingsHashForGenerator(const ComboSettingsRecord* r
     return digest;
 }
 
-uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
-                                        uint32_t mmProfileDigest) {
-    return Combo_ComputeComboSettingsHashForGenerator(rec, sharedRandoSettingsHash, mmProfileDigest,
-                                                      RSBS_GENERATOR_VERSION);
+uint32_t Combo_ComputeComboSettingsHashForGenerator(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                                    uint32_t mmProfileDigest, uint32_t generatorVersion) {
+    return Combo_ComputeComboSettingsHashForGeneratorEx(rec, NULL, sharedRandoSettingsHash, mmProfileDigest,
+                                                        generatorVersion);
 }
 
-int Combo_ComboSettingsHashGeneratorVersion(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
-                                            uint32_t mmProfileDigest, uint32_t storedHash) {
+uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                        uint32_t mmProfileDigest) {
+    return Combo_ComputeComboSettingsHashForGeneratorEx(rec, NULL, sharedRandoSettingsHash, mmProfileDigest,
+                                                        RSBS_GENERATOR_VERSION);
+}
+
+uint32_t Combo_ComputeComboSettingsHashEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                          uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest) {
+    return Combo_ComputeComboSettingsHashForGeneratorEx(rec, rules, sharedRandoSettingsHash, mmProfileDigest,
+                                                        RSBS_GENERATOR_VERSION);
+}
+
+int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                              uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                              uint32_t storedHash) {
     // Newest first: a file this build created is the common case.
     for (int v = (int)RSBS_GENERATOR_VERSION; v >= 0; --v) {
-        if (Combo_ComputeComboSettingsHashForGenerator(rec, sharedRandoSettingsHash, mmProfileDigest, (uint32_t)v) ==
-            storedHash) {
+        if (Combo_ComputeComboSettingsHashForGeneratorEx(rec, rules, sharedRandoSettingsHash, mmProfileDigest,
+                                                         (uint32_t)v) == storedHash) {
             return v;
         }
     }
     return -1;
+}
+
+int Combo_ComboSettingsHashGeneratorVersion(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                            uint32_t mmProfileDigest, uint32_t storedHash) {
+    return Combo_ComboSettingsHashGeneratorVersionEx(rec, NULL, sharedRandoSettingsHash, mmProfileDigest, storedHash);
 }
 
 uint32_t Combo_ComboSettingsWorldHash(void) {
@@ -431,27 +624,36 @@ uint32_t Combo_ComboSettingsWorldHash(void) {
     if (stored == 0 || !Combo_ComboSettingsFrozen()) {
         return stored;
     }
-    const int version = Combo_ComboSettingsHashGeneratorVersion(
-        &gComboCtx.comboSettings, gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest, stored);
+    // Over the resident record AND its item rules (#976): the fingerprint the
+    // freeze stamped folds both, so the label comes off that one.
+    const int version =
+        Combo_ComboSettingsHashGeneratorVersionEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
+                                                  gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest, stored);
     if (version <= 0) {
         // Legacy (already the label-free value) or a value no version
         // reproduces: fold it as stored, which is what the bag did before #1003.
         return stored;
     }
-    return Combo_ComputeComboSettingsHashForGenerator(&gComboCtx.comboSettings, gComboCtx.sharedRandoSettingsHash,
-                                                      gComboCtx.mmProfileDigest, 0u);
+    return Combo_ComputeComboSettingsHashForGeneratorEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
+                                                        gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest,
+                                                        0u);
 }
 
 uint32_t Combo_StampComboSettingsHash(void) {
     if (!Combo_ComboSettingsFrozen()) {
         return 0;
     }
-    gComboCtx.comboSettingsHash = Combo_ComputeComboSettingsHash(
-        &gComboCtx.comboSettings, gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest);
+    gComboCtx.comboSettingsHash =
+        Combo_ComputeComboSettingsHashEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
+                                         gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest);
     return gComboCtx.comboSettingsHash;
 }
 
 uint32_t Combo_FreezeComboSettings(const ComboSettingsRecord* rec) {
+    return Combo_FreezeComboSettingsEx(rec, NULL);
+}
+
+uint32_t Combo_FreezeComboSettingsEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules) {
     ComboSettingsRecord frozen;
     if (rec != NULL) {
         frozen = *rec;
@@ -462,6 +664,13 @@ uint32_t Combo_FreezeComboSettings(const ComboSettingsRecord* rec) {
     // occupancy tag is what makes the other eleven bytes usable at all.
     frozen.formatVersion = (uint8_t)RSBS_COMBO_SETTINGS_FORMAT_VERSION;
     gComboCtx.comboSettings = frozen;
+    // #976: the item rules freeze in the same act, before the stamp below folds
+    // them. NULL is every rule off, the world every pre-#976 caller froze.
+    if (rules != NULL) {
+        gComboCtx.comboItemRules = *rules;
+    } else {
+        Combo_ComboItemRulesDefaults(&gComboCtx.comboItemRules);
+    }
 
     // Computed LAST, over the record and BOTH half-digests. The caller is
     // responsible for having stamped those first (decision 4.1's order); this
@@ -470,12 +679,40 @@ uint32_t Combo_FreezeComboSettings(const ComboSettingsRecord* rec) {
     const uint32_t digest = Combo_StampComboSettingsHash();
     fprintf(stderr,
             "[Combo] combo settings FROZEN: dir=%u poolOoT=%u poolMM=%u classOoT=%04X classMM=%04X goal=%u rung=%u "
-            "(fingerprint %08X over settingsHash=%08X mmProfile=%08X)\n",
+            "flags=%02X itemRules=%08X blastCooldown=%u (fingerprint %08X over settingsHash=%08X mmProfile=%08X)\n",
             (unsigned)frozen.direction, (unsigned)frozen.poolSizeOoT, (unsigned)frozen.poolSizeMM,
             (unsigned)frozen.itemClassOoT, (unsigned)frozen.itemClassMM, (unsigned)frozen.goal,
-            (unsigned)frozen.logicRung, (unsigned)digest, (unsigned)gComboCtx.sharedRandoSettingsHash,
-            (unsigned)gComboCtx.mmProfileDigest);
+            (unsigned)frozen.logicRung, (unsigned)frozen.comboFlags, (unsigned)gComboCtx.comboItemRules.crossItemFlags,
+            (unsigned)gComboCtx.comboItemRules.blastMaskCooldown, (unsigned)digest,
+            (unsigned)gComboCtx.sharedRandoSettingsHash, (unsigned)gComboCtx.mmProfileDigest);
     return digest;
+}
+
+void Combo_SnapshotCreationRecords(ComboCreationRecords* out) {
+    if (out == NULL) {
+        return;
+    }
+    out->comboSettings = gComboCtx.comboSettings;
+    out->comboSettingsHash = gComboCtx.comboSettingsHash;
+    out->comboTriforce = gComboCtx.comboTriforce;
+    out->comboItemRules = gComboCtx.comboItemRules;
+}
+
+void Combo_RestoreCreationRecords(const ComboCreationRecords* in) {
+    if (in == NULL) {
+        return;
+    }
+    gComboCtx.comboSettings = in->comboSettings;
+    gComboCtx.comboSettingsHash = in->comboSettingsHash;
+    gComboCtx.comboTriforce = in->comboTriforce;
+    gComboCtx.comboItemRules = in->comboItemRules;
+}
+
+void Combo_RetractCreationRecords(void) {
+    memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
+    gComboCtx.comboSettingsHash = 0;
+    memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
+    memset(&gComboCtx.comboItemRules, 0, sizeof(gComboCtx.comboItemRules));
 }
 
 int Combo_FreezeLegacyComboSettings(void) {
@@ -567,8 +804,36 @@ uint32_t Combo_ComboSettingsDivergenceBetween(const ComboSettingsRecord* frozen,
     return bits;
 }
 
+uint32_t Combo_ComboItemRulesDivergenceBetween(const ComboItemRulesRecord* frozen, const ComboItemRulesRecord* live) {
+    ComboItemRulesRecord clear;
+    Combo_ComboItemRulesDefaults(&clear);
+    if (frozen == NULL) {
+        frozen = &clear;
+    }
+    if (live == NULL) {
+        live = &clear;
+    }
+    uint32_t bits = 0;
+    if (frozen->crossItemFlags != live->crossItemFlags) {
+        bits |= RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS;
+    }
+    if (frozen->blastMaskCooldown != live->blastMaskCooldown) {
+        bits |= RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN;
+    }
+    if (memcmp(frozen->spare, live->spare, sizeof(frozen->spare)) != 0) {
+        bits |= RSBS_COMBO_DIVERGE_ITEM_RULES_SPARE;
+    }
+    return bits;
+}
+
 uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uint32_t storedHash,
                                           uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest) {
+    return Combo_ComboSettingsDivergenceForEx(frozen, NULL, storedHash, sharedRandoSettingsHash, mmProfileDigest);
+}
+
+uint32_t Combo_ComboSettingsDivergenceForEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                            uint32_t storedHash, uint32_t sharedRandoSettingsHash,
+                                            uint32_t mmProfileDigest) {
     if (frozen == NULL || frozen->formatVersion == 0) {
         return 0; // absent, exempt (decision 4.2)
     }
@@ -595,14 +860,27 @@ uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uin
                                 (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA));
     uint32_t bits = Combo_ComboSettingsDivergenceBetween(frozen, &live);
 
+    // #976: the item rules against the session's. Deliberately NOT given the
+    // pool-size treatment above (live := frozen): nothing in this build can
+    // honour a rule that is on, so a file whose rules differ from what this
+    // session would freeze is a different world, and one-game semantics refuses
+    // it by name rather than playing it with the rule silently off.
+    ComboItemRulesRecord liveRules;
+    Combo_ResolveComboItemRules(&liveRules);
+    if ((bits & RSBS_COMBO_DIVERGE_UNREADABLE) == 0) {
+        bits |= Combo_ComboItemRulesDivergenceBetween(frozenRules, &liveRules);
+    }
+
     // The fingerprint cross-check. Skipped for an UNREADABLE record, where a
     // recomputation would be meaningless anyway (this build cannot know which
     // of that record's fields the newer format made authoritative).
     if ((bits & RSBS_COMBO_DIVERGE_UNREADABLE) == 0) {
         // Any generator version this build knows (#1003): a file an older build
         // created carries that build's version (0 before #1003) and is the same
-        // healthy identity; only a hash no version reproduces is damage.
-        if (Combo_ComboSettingsHashGeneratorVersion(frozen, sharedRandoSettingsHash, mmProfileDigest, storedHash) < 0) {
+        // healthy identity; only a hash no version reproduces is damage. The
+        // rules fold at every version (#976).
+        if (Combo_ComboSettingsHashGeneratorVersionEx(frozen, frozenRules, sharedRandoSettingsHash, mmProfileDigest,
+                                                      storedHash) < 0) {
             bits |= RSBS_COMBO_DIVERGE_FINGERPRINT;
         }
     }
@@ -613,8 +891,9 @@ uint32_t Combo_ComboSettingsDivergence(void) {
     // The triforce record (ADR 0010 O10) rides the same arrival refusal: the
     // record and the goal it serves are one identity, so a resident pair whose
     // triforce record contradicts its combo record is refused by name here.
-    return Combo_ComboSettingsDivergenceFor(&gComboCtx.comboSettings, gComboCtx.comboSettingsHash,
-                                            gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest) |
+    return Combo_ComboSettingsDivergenceForEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
+                                              gComboCtx.comboSettingsHash, gComboCtx.sharedRandoSettingsHash,
+                                              gComboCtx.mmProfileDigest) |
            Combo_TriforceRecordDivergence(&gComboCtx.comboSettings, &gComboCtx.comboTriforce);
 }
 
@@ -648,6 +927,12 @@ const char* Combo_ComboSettingsDivergenceFieldName(uint32_t bit) {
             return "triforceHunt";
         case RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD:
             return "sharedKokiriSword";
+        case RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS:
+            return "crossItemFlags";
+        case RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN:
+            return "blastMaskCooldown";
+        case RSBS_COMBO_DIVERGE_ITEM_RULES_SPARE:
+            return "itemRulesSpare";
         default:
             return "(unknown)";
     }
@@ -723,6 +1008,7 @@ void Combo_ComboSettingsSummary(ComboSettingsSummary* out) {
     out->frozen = Combo_ComboSettingsFrozen();
     out->record = gComboCtx.comboSettings;
     out->comboSettingsHash = gComboCtx.comboSettingsHash;
+    out->itemRules = gComboCtx.comboItemRules;
 }
 
 // ============================================================================

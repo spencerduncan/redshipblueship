@@ -889,6 +889,9 @@ Publishing the allocation once beats five sequential re-versions:
 | 8 | `commitGeneration` (#569, one-game-persistence commit-generation stamp) | 4 B | **carved** — PR #569, merged 2026-07-31; missing from this table until the 2026-08-04 (#584) amendment |
 | 9 | `mmPairedAttempt` (#581, ADR 0010 increment 1.2 / accepted answer O3) | 4 B | **carved** — PR #581, merged 2026-08-02; missing from this table until the 2026-08-04 (#584) amendment |
 | **10 (new, 2026-08-05)** | `comboSettings` (`ComboSettingsRecord`, ADR 0011 decision 1 / accepted answer O1) | 12 B | **carved 2026-08-05** — ADR 0011 increment 1, offset **884** |
+| 11 | `comboTriforce` (`ComboTriforceRecord`, ADR 0010 answer O10) | 4 B | **carved** — offset **896**; recorded in ADR 0010/0011, added to this table 2026-10-18 |
+| 12 (2026-10-18) | `comboItemRules` (`ComboItemRulesRecord`, #976, ADR 0011's 2026-10-18 amendment) | 8 B | **carved** — offset **900** |
+| 13 (2026-10-18) | `sharedFamilyOwned` (#976, the shared-family bitset) | 4 B | **carved** — offset **908** |
 
 Total reserved-against: 152 B of 284. After claims 1, 3, 5 and 6 land, `reserved[]`
 is 132 bytes and 152 B of capacity remain.
@@ -1032,6 +1035,16 @@ append-only second-block rule in force. The stale warning in `context.h`'s
 floor" — is removed by the same change, because leaving it in place invites the
 next carver to raise the record size to solve a problem that no longer exists
 (ADR 0011 increment 0).
+
+### Amendment — claims 11 to 13 (2026-10-18, #976)
+
+Rows 11 to 13 bring the table back to `src/common/context.h`. ADR 0010's O10
+carved the 4-byte triforce record at 896, so `reserved[]` became 104 bytes at
+900; that carve was recorded in ADR 0010 and ADR 0011 but not here. #976 then
+carved the 8-byte cross-game item rules at 900 and the 4-byte shared-family
+bitset at 908: `108 − 4 − 8 − 4` = **92**, matching `reserved[92]` at offset
+**912**, 28 bytes above the floor. `sizeof(ComboContext)` stays 1004. Both new
+offsets carry literal-integer static asserts like the carves before them.
 
 Two constraints on anyone spending from this:
 

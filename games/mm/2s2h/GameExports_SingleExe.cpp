@@ -4865,6 +4865,10 @@ extern "C" void MM_HarvestSharedResources(void) {
     // triforce-hunt) is inside Combo_HarvestSharedResource.
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES,
                                 (uint16_t)gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces);
+
+    // Shared families (#976), the twin of OoT's line: behind the same live-file
+    // gate, a no-op until a family is frozen on and registered.
+    Combo_SharedFamiliesHarvestLive(GAME_MM);
 }
 
 // ============================================================================
@@ -5219,6 +5223,10 @@ extern "C" void MM_ApplySharedResources(void) {
                                   &triforcePieces)) {
         gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces = triforcePieces;
     }
+
+    // Shared families (#976): MM's own copy of every armed family found in either
+    // game, before MM_ConsumeSharedItems (z_play.c).
+    Combo_SharedFamiliesApplyLive(GAME_MM);
 }
 
 // ============================================================================

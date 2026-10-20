@@ -1635,6 +1635,12 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
             { "itemClassMM", gComboCtx.comboSettings.itemClassMM },
             { "goal", gComboCtx.comboSettings.goal },
             { "logicRung", gComboCtx.comboSettings.logicRung },
+            // #976: the yes/no combo rules and the cross-game item rules, so the
+            // spoiler names every frozen rule (it used to leave out even the
+            // Shared Kokiri Sword bit).
+            { "comboFlags", gComboCtx.comboSettings.comboFlags },
+            { "crossItemFlags", gComboCtx.comboItemRules.crossItemFlags },
+            { "blastMaskCooldown", gComboCtx.comboItemRules.blastMaskCooldown },
         };
 
         // The MM world, in MM's own schema, under its own key.

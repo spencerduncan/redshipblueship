@@ -808,15 +808,16 @@ static void RetractFailedPairedCreation(int slot) {
     Combo_SingleBag_Forget();
     // formatVersion 0 is the record's ABSENT tag (ADR 0011 decision 4.2) — the
     // occupancy byte that makes the other eleven usable. Zeroing it is how a
-    // record is retracted; there is deliberately no "unfreeze" API, because the
-    // only legitimate retraction is this one.
-    memset(&gComboCtx.comboSettings, 0, sizeof(gComboCtx.comboSettings));
-    gComboCtx.comboSettingsHash = 0;
-    // The O10 triforce record (ADR 0010) was frozen beside the combo record and
-    // goes with it. Left behind, it would sit next to an ABSENT goal as a hunt
-    // nobody froze, which Combo_TriforceRecordDivergence reads as damage. Four
-    // zero bytes is how every non-hunt world stores it.
-    memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
+    // record is retracted; Combo_RetractCreationRecords is not a general
+    // "unfreeze" API, because the only legitimate retraction is this one.
+    //
+    // The O10 triforce record (ADR 0010) and the cross-game item rules (#976)
+    // were frozen beside the combo record and go with it, in one call shared with
+    // Playthrough_Init's rollback so the two exits cannot drift apart. Left
+    // behind, a triforce record would sit next to an ABSENT goal as a hunt nobody
+    // froze (Combo_TriforceRecordDivergence reads that as damage), and item rules
+    // would be carried by the KEEP invalidation onto disk.
+    Combo_RetractCreationRecords();
     gComboCtx.sourceIsRando = false;
     gComboCtx.sharedRandoSeed = 0;
     gComboCtx.sharedRandoSettingsHash = 0;
