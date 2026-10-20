@@ -505,7 +505,9 @@ bool ComboItemLoadIconByPath(const char* key) {
         resource->GetInitData()->Type != static_cast<uint32_t>(Fast::ResourceType::Texture)) {
         return false;
     }
-    gui->LoadGuiTexture(key, *static_cast<Fast::Texture*>(resource.get()), ImVec4(1, 1, 1, 1));
+    // The identity tint: the texture as the archive holds it (MM's own loader passes the same).
+    constexpr float kNoTint = 1.0f;
+    gui->LoadGuiTexture(key, *static_cast<Fast::Texture*>(resource.get()), ImVec4(kNoTint, kNoTint, kNoTint, kNoTint));
     return gui->HasTextureByName(key);
 }
 
