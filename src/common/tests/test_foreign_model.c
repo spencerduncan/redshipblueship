@@ -299,11 +299,17 @@ TestResult FmWalkDrawRows(const FmGame& g) {
                 continue;
             }
             if (std::strstr(list, "BillboardRotMtx") != nullptr) {
-                // A matrix RESOURCE (the seahorse's), not a display list: the descriptor expresses it as
-                // billboardOffset (#964), so it must have turned into a non-zero offset.
-                if (model.billboardOffset[0] == 0.0f && model.billboardOffset[1] == 0.0f &&
-                    model.billboardOffset[2] == 0.0f) {
-                    printf("[TEST]   %s row %d: the matrix %s is dropped\n", g.name, row, list);
+                // A matrix RESOURCE, not a display list: the descriptor must express it as billboardOffset (#964).
+                // Only the caught seahorse's gGiSeahorseBillboardRotMtx is understood (a pure translation,
+                // (-2, 27, 0), read off the resource); any other matrix resource a row starts answering must be
+                // decoded and pinned here on purpose, so it fails until it is.
+                if (std::strstr(list, "gGiSeahorseBillboardRotMtx") == nullptr) {
+                    printf("[TEST]   %s row %d: the matrix %s has no decoded offset in this test\n", g.name, row, list);
+                    failures++;
+                } else if (model.billboardOffset[0] != -2.0f || model.billboardOffset[1] != 27.0f ||
+                           model.billboardOffset[2] != 0.0f) {
+                    printf("[TEST]   %s row %d: the matrix %s is not expressed as the offset (-2, 27, 0)\n", g.name,
+                           row, list);
                     failures++;
                 }
                 continue;
@@ -1047,7 +1053,8 @@ TestResult Test_ForeignModel(void) {
                           std::fabs(a.model.scale - 0.02f) < 1e-6f && a.model.scrolls[0].segment == 0 &&
                           a.model.opaColor.set == 0 && a.model.xluColor.set == 0 && a.model.grayscale == 0,
                       "M16 a boss remains is GetItem_DrawRemains' shape: one OPA list under setup 25 at scale 0.02");
-            FM_ASSERT(!Combo_ForeignModel_PathCollides(a.model.parts[0].dl),
+            FM_ASSERT(a.model.partCount == 1 && a.model.parts[0].dl != nullptr &&
+                          !Combo_ForeignModel_PathCollides(a.model.parts[0].dl),
                       "M16 object_bsmask is MM-only, so OoT draws the remains from the curated archive");
         }
 
@@ -1432,10 +1439,12 @@ TestResult Test_ForeignModel(void) {
                                    "lines above)");
         FM_ASSERT(modelOdolwa == 1 && FmModelEqual(answeredOdolwa, odolwaA.model),
                   "M12 the shelf's model for the remains is exactly MM's descriptor for them (#964)");
-        FM_ASSERT(drawOdolwaUnmounted == 0,
-                  "M12 the remains with the curated archive unmounted keep the stand-in (see the M12 lines above)");
+        FM_ASSERT(
+            drawOdolwaUnmounted == 0,
+            "M12 the remains with the curated archive unmounted keep the stand-in (see the M12 lines above; locks "
+            "HostPathMounted's gate on the new descriptor)");
         FM_ASSERT(drawGoht == 0 && modelGoht == 0,
-                  "M12 a no-model answer keeps the stand-in (see the M12 lines above)");
+                  "M12 (control, also true on main) a no-model answer keeps the stand-in (see the M12 lines above)");
         FM_ASSERT(realMissing == 0 && realNoPrefix == 0 && realNull == 0,
                   "M12 the production mount test refuses a missing, unprefixed or null path");
     }
@@ -1524,8 +1533,8 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(showOdolwa == 0, "M13 OoT's get-item cutscene shows Odolwa's Remains model, not the stand-in (#964; "
                                    "see the M13 lines above)");
         FM_ASSERT(showUnmounted == 0 && showGoht == 0,
-                  "M13 unmounted, or no model: the cutscene shows the mystery stand-in and still gives nothing (see "
-                  "the M13 lines above)");
+                  "M13 (control, also true on main) unmounted, or no model: the cutscene shows the mystery stand-in "
+                  "and still gives nothing (see the M13 lines above)");
     }
 
     // ---- M14 (#577 M5) -----------------------------------------------------------

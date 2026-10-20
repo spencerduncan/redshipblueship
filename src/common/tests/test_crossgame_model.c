@@ -140,6 +140,17 @@ constexpr uint8_t kCgmMovememOtr = 0x42;
 // Raw RDP/RSP commands whose operand is a segmented address the interpreter
 // resolves against the HOST game's segment table.
 constexpr uint8_t kCgmRawSetTimg = 0xFD;
+// Raw (non-hashed) F3DEX2 commands whose operand is also a segmented address:
+// G_VTX, G_MTX, G_MOVEMEM and G_DL. The generator does NOT refuse these (a get-item
+// draw binds segments 9 and 10 for them, scripts/make_redship_otr.py), so a model
+// whose draw function binds segment 6 before it draws (MM's GetItem_DrawRemains
+// binds OBJECT_BSMASK there) is only safe to draw cross-game while no list
+// reaches segment 6 through one of them (#964).
+constexpr uint8_t kCgmRawVtx = 0x01;
+constexpr uint8_t kCgmRawMtx = 0xDA;
+constexpr uint8_t kCgmRawMovemem = 0xDC;
+constexpr uint8_t kCgmRawDl = 0xDE;
+constexpr uint32_t kCgmObjectSegment = 6;
 
 bool CgmIsExpanded(uint8_t opcode) {
     return opcode == kCgmSetTimgOtrHash || opcode == kCgmDlOtrHash || opcode == kCgmVtxOtrHash ||
@@ -153,6 +164,7 @@ struct CgmStats {
     int vertexRefs = 0;
     int subDlRefs = 0;
     int rawSegmentedTextures = 0;
+    int rawSegment6Operands = 0;
     int unresolvedRefs = 0;
     int ootServedRefs = 0;
     int streamsWalked = 0;
@@ -203,6 +215,19 @@ void CgmWalkStream(Ship::ResourceManager* rm, Ship::ArchiveManager* am, const st
                 stats.rawSegmentedTextures++;
                 fprintf(stderr, "[crossgame-model] raw segmented texture in %s at instruction %zu: segment 0x%02X\n",
                         streamPath.c_str(), i, (unsigned)((operand >> 24) & 0x0F));
+            }
+            continue;
+        }
+
+        if (opcode == kCgmRawVtx || opcode == kCgmRawMtx || opcode == kCgmRawMovemem || opcode == kCgmRawDl) {
+            // Segments 9 and 10 (the AnimatedMat scroll segments) are legitimate raw operands;
+            // segment 6 is the object slot the foreign host owns.
+            const uint32_t operand = (uint32_t)instructions[i].words.w1;
+            if (((operand >> 24) & 0x0F) == kCgmObjectSegment) {
+                stats.rawSegment6Operands++;
+                fprintf(stderr,
+                        "[crossgame-model] raw segment-6 operand (opcode 0x%02X) in %s at instruction %zu: 0x%08X\n",
+                        (unsigned)opcode, streamPath.c_str(), i, (unsigned)operand);
             }
             continue;
         }
@@ -305,8 +330,9 @@ void CgmWalkStream(Ship::ResourceManager* rm, Ship::ArchiveManager* am, const st
 // Majora's Mask items whose draw is custom code (#964): the four boss remains,
 // the Moon's Tear's item list and glow, the seahorse's body and glow. Each is
 // walked as its own model: it must be served by the curated archive, carry no
-// raw segmented texture reference (the segment-6 bind MM's GetItem_DrawRemains
-// does is only harmless because none exists) and resolve every reference.
+// raw segmented texture reference and no raw G_DL/G_VTX/G_MTX/G_MOVEMEM operand
+// in segment 6 (the segment-6 bind MM's GetItem_DrawRemains does is only
+// harmless because none exists) and resolve every reference.
 constexpr const char* kCgmCustomDrawLists[] = {
     "objects/object_bsmask/gRemainsOdolwaDL",         "objects/object_bsmask/gRemainsGohtDL",
     "objects/object_bsmask/gRemainsGyorgDL",          "objects/object_bsmask/gRemainsTwinmoldDL",
@@ -393,6 +419,7 @@ static int CgmCheckModel(const char* dlPath) {
     const int textureRefs = stats.textureRefs;
     const int vertexRefs = stats.vertexRefs;
     const int rawSegmentedTextures = stats.rawSegmentedTextures;
+    const int rawSegment6Operands = stats.rawSegment6Operands;
     const int unresolvedRefs = stats.unresolvedRefs;
     const int ootServedRefs = stats.ootServedRefs;
 
@@ -403,6 +430,13 @@ static int CgmCheckModel(const char* dlPath) {
                 "game's segment table, which is the OoTMM kObjectPatches[] hazard — this model cannot be drawn "
                 "cross-game without a patch entry.\n",
                 rawSegmentedTextures);
+        failures++;
+    }
+    if (rawSegment6Operands > 0) {
+        fprintf(stderr,
+                "[crossgame-model] FAIL: %d raw G_DL/G_VTX/G_MTX/G_MOVEMEM operand(s) in segment 6. Under the "
+                "foreign host that is the HOST's object slot, not this model's.\n",
+                rawSegment6Operands);
         failures++;
     }
     if (unresolvedRefs > 0) {

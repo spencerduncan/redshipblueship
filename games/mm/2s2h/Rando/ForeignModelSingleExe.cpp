@@ -270,8 +270,9 @@ int RecipeForRow(MMGetItemDrawFn fn, void* const* d, ComboModel* out, const char
     } else if (fn == GetItem_DrawRemains) {
         // GetItem_DrawRemains binds OBJECT_BSMASK's object slot to segment 6, then scales by 0.02 and draws the
         // list. In this port the list names its vertices and textures by resource path and reads no segment
-        // (the curated archive's guards refuse one that did), so the bind has no effect here and the list draws
-        // as a plain curated descriptor (#964). The scene fog MM_Play_SetFog adds afterwards is not expressed.
+        // (the ROM-staged CrossGameModel row fails on a raw segment-6 operand in these lists), so the bind has no
+        // effect here and the list draws as a plain curated descriptor (#964). The scene fog MM_Play_SetFog adds
+        // afterwards is not expressed.
         out->scale = 0.02f;
         ok = AddSteps(out, d, { { 0, kOpa, 0 } });
     } else {
