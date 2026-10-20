@@ -167,24 +167,35 @@ capabilities. Four more profiles, on the same seed and dispatch as
 MM's tricks need no variable of their own: they are their `gRando.Tricks.MMRT_*`
 CVars, set through `RSBS_DIAG_CVARS` like any other option.
 
-**A profile never shrinks silently.** Two checks refuse to write a digest:
+**A profile never shrinks silently.** Three checks refuse to write a digest:
 
 - The parse must keep every requested key. The visibility filter drops an exclude
   on a location the profile does not show, such as a shop item with Shop Shuffle
   off, and the harness then refuses.
 - The generation's context must hold every requested exclude and trick (the head
   writer, `[rando-determinism] FAIL`).
+- MM's world must hold every requested MM key (`GoldenMMProfileTook` in
+  `mm_rando_gen_test.cpp`, `[MM-FOREIGN-DIGEST] FAIL(7)`). Each id in
+  `RSBS_GOLDEN_MM_EXCLUDES` must be a check MM's pool generation skipped and filled
+  with junk, and each `gRando.Tricks.*` CVar that `RSBS_DIAG_CVARS` turns on must
+  name an MM trick that froze on in the save. A misspelled CVar names no trick, and
+  a trick later flagged reserved resolves off (`ResolveTrickFromCVar`); either one
+  refuses rather than letting a re-pin record the smaller set.
 
 The ids are enum positions. An upstream import that inserts an enumerator moves
 this golden. Before re-pinning, read the `[golden-profile]` log lines, which name
-every OoT key, and correct the ids in the table instead if they no longer name the
-same checks.
+every OoT key and every MM key, and correct the ids in the table instead if they
+no longer name the same checks.
 
 All four are created on ladder attempt 1 in 266 rounds against the 1250-round
 per-attempt budget. `GoldenSeedsRoundBudget` checks three of them again, the ones
-that `RSBS_DIAG_CVARS` alone describes. The excludes-and-tricks profile also needs
-the harness's sets, so its own golden row is where its creation inside the budget
-is checked.
+that `RSBS_DIAG_CVARS` alone describes. Because every golden on `RSBSUNIFIED1`
+creates on attempt 1 in the same number of rounds, that row ties each entry to
+its golden by `bagSeed` as well, which folds the frozen identity (both games'
+settings hashes and the combo settings) and so differs per profile: an entry
+whose settings were dropped would generate the default world and fail on its
+bag seed. The excludes-and-tricks profile also needs the harness's sets, so its
+own golden row is where its creation inside the budget is checked.
 
 ### The player's path (#982)
 
@@ -647,8 +658,8 @@ digest files and sandbox never collide with `GoldenSeedDigestDefault`'s under
 
 `GoldenSeedsRoundBudget` (rando tier) creates each golden seed again under the
 shipped round budget and requires it on its pinned ladder attempt, with its
-`bagRounds` and `mmPairedAttempt` equal to the golden's when the file is in the
-tree, and prints how much of the budget each one uses.
+`bagSeed`, `bagRounds` and `mmPairedAttempt` equal to the golden's when the file
+is in the tree, and prints how much of the budget each one uses.
 
 ## Adding a golden
 

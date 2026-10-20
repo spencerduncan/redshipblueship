@@ -27,6 +27,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include <ship/Context.h>
@@ -764,6 +765,65 @@ PairedMMWorldHashes ComputePairedMMWorldHashes() {
 }
 
 /**
+ * #982: a golden profile's MM keys must have reached MM's world, as its OoT keys
+ * must reach OoT's (Rando_HeadlessWriteDeterminismHead). Read off the save MM's
+ * creation froze, so MM's bytes must be in view. Every id in RSBS_GOLDEN_MM_EXCLUDES
+ * must be a check GeneratePools skipped and filled with junk, and every
+ * gRando.Tricks.* assignment RSBS_DIAG_CVARS turns on must name an MM trick that
+ * froze on: a misspelled CVar names none, and a trick later flagged reserved
+ * resolves off (ResolveTrickFromCVar), so either would otherwise let a re-pin
+ * record a smaller profile. Logs each MM key it checks, so a re-pin reader sees
+ * them by name. With neither variable naming an MM key it checks nothing.
+ * @return false (after a FAIL line) when a requested MM key did not take.
+ */
+bool GoldenMMProfileTook() {
+    bool ok = true;
+    if (const char* excludes = std::getenv("RSBS_GOLDEN_MM_EXCLUDES")) {
+        std::stringstream ss(excludes);
+        std::string key;
+        while (std::getline(ss, key, ',')) {
+            if (key.empty()) {
+                continue;
+            }
+            const int id = std::atoi(key.c_str());
+            auto it = Rando::StaticData::Checks.find((RandoCheckId)id);
+            const bool known = it != Rando::StaticData::Checks.end() && id > (int)RC_UNKNOWN && id < (int)RC_MAX;
+            const bool took = known && RANDO_SAVE_CHECKS[id].skipped && RANDO_SAVE_CHECKS[id].randoItemId == RI_JUNK;
+            fprintf(stderr, "[golden-profile] MM exclude %d = %s %s\n", id, known ? it->second.name : "(no such check)",
+                    took ? "took" : "DID NOT TAKE");
+            ok = ok && took;
+        }
+    }
+    if (const char* cvars = std::getenv("RSBS_DIAG_CVARS")) {
+        static const std::string kTrickPrefix = "gRando.Tricks.";
+        std::stringstream ss(cvars);
+        std::string pair;
+        while (std::getline(ss, pair, ',')) {
+            const size_t eq = pair.find('=');
+            if (eq == std::string::npos || pair.rfind(kTrickPrefix, 0) != 0 || std::atoi(pair.c_str() + eq + 1) == 0) {
+                continue;
+            }
+            const std::string cvar = pair.substr(0, eq);
+            int id = -1;
+            for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
+                if (cvar == randoStaticTrick.cvar) {
+                    id = (int)mmRandoTrickId;
+                    break;
+                }
+            }
+            const bool took = id >= 0 && gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[id] != 0;
+            fprintf(stderr, "[golden-profile] MM trick %d = %s %s\n", id, cvar.c_str(),
+                    id < 0 ? "NAMES NO MM TRICK" : (took ? "took" : "DID NOT TAKE (reserved?)"));
+            ok = ok && took;
+        }
+    }
+    if (!ok) {
+        fprintf(stderr, "[golden-profile] FAIL: a golden profile's MM key did not reach MM's world (lines above)\n");
+    }
+    return ok;
+}
+
+/**
  * The MM half of a paired world's determinism digest, APPENDED to @p outPath
  * (stdout when NULL/empty): MM's world, the single bag, OoT's final world, the
  * content (#949) and every crossing. One writer for the headless digest and the
@@ -902,6 +962,13 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
         fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(3): paired MM fill dead-ended under the pinned seed — pin a "
                         "different determinism seed\n");
         return 3;
+    }
+    // #982: a golden profile that lost an MM key writes no digest, as one that lost
+    // an OoT key does (refusal 2, Rando_HeadlessWriteDeterminismHead).
+    if (!GoldenMMProfileTook()) {
+        fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(7): the golden profile's MM keys did not all take\n");
+        Combo_SingleBag_Forget();
+        return 7;
     }
 
     const PairedMMWorldHashes mmWorld = ComputePairedMMWorldHashes();
@@ -3093,9 +3160,15 @@ extern "C" int MM_Rando_HeadlessRoundBudgetHostScale(void) {
  * row's dispatch generates it (the OoT seed and settings, then MM's half through
  * the real OnSaveInit chain), under the shipped per-attempt budget, and must
  * create on its expected ladder attempt with its fill inside the budget. When the
- * golden file is in the tree (RSBS_GOLDEN_DIR), its recorded `bagRounds` and
- * `mmPairedAttempt` must match too, which ties this row to the pinned worlds
- * rather than to look-alikes. The row prints each seed's headroom.
+ * golden file is in the tree (RSBS_GOLDEN_DIR), its recorded `bagSeed`,
+ * `bagRounds` and `mmPairedAttempt` must match too, which ties this row to the
+ * pinned worlds rather than to look-alikes. `bagSeed` is the part that tells the
+ * profiles apart (#982): every seed-digest golden on RSBSUNIFIED1 creates on
+ * attempt 1 in the same number of rounds, so an entry whose settings were dropped
+ * or misspelled would generate the default world and still match those two, but
+ * the bag's seed folds the frozen identity (both games' settings hashes and the
+ * combo settings, Combo_SingleBag_SeedFor) and differs per golden. The row prints
+ * each seed's headroom.
  *
  * COUNTERFACTUAL (measured, not asserted): shrink RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT
  * below a golden fill's rounds (200) and FAIL(10) fires for every seed.
@@ -3219,6 +3292,8 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
             } else {
                 int pinnedRounds = -1;
                 int pinnedAttempt = -1;
+                bool havePinnedSeed = false;
+                uint32_t pinnedSeed = 0;
                 std::string line;
                 while (std::getline(in, line)) {
                     if (!line.empty() && line.back() == '\r') {
@@ -3228,13 +3303,21 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
                         pinnedRounds = std::atoi(line.c_str() + 10);
                     } else if (line.rfind("mmPairedAttempt=", 0) == 0) {
                         pinnedAttempt = std::atoi(line.c_str() + 16);
+                    } else if (line.rfind("bagSeed=", 0) == 0) {
+                        pinnedSeed = (uint32_t)std::strtoul(line.c_str() + 8, nullptr, 16);
+                        havePinnedSeed = true;
                     }
                 }
-                if (pinnedRounds != bag.fill.rounds || pinnedAttempt != (int)gComboCtx.mmPairedAttempt) {
+                // #982: bagSeed is what separates a profile from the default world;
+                // rounds and attempt alone are equal across the RSBSUNIFIED1 goldens.
+                if (!havePinnedSeed || pinnedSeed != bag.seed || pinnedRounds != bag.fill.rounds ||
+                    pinnedAttempt != (int)gComboCtx.mmPairedAttempt) {
                     fprintf(stderr,
-                            "[MM-GOLDEN-ROUNDS] FAIL(11): %s pins bagRounds=%d mmPairedAttempt=%d but this creation "
-                            "ran %d rounds with attempt record %u — this row is not generating the pinned world\n",
-                            g.golden, pinnedRounds, pinnedAttempt, bag.fill.rounds, (unsigned)gComboCtx.mmPairedAttempt);
+                            "[MM-GOLDEN-ROUNDS] FAIL(11): %s pins bagSeed=%08X bagRounds=%d mmPairedAttempt=%d but "
+                            "this creation drew bag seed %08X and ran %d rounds with attempt record %u — this row is "
+                            "not generating the pinned world\n",
+                            g.golden, pinnedSeed, pinnedRounds, pinnedAttempt, bag.seed, bag.fill.rounds,
+                            (unsigned)gComboCtx.mmPairedAttempt);
                     rc = 11;
                     break;
                 }

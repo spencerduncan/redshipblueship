@@ -1618,9 +1618,11 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
-    # #950: every golden seed (default, profile-v1, entrances, the ladder world)
-    # still creates on its pinned attempt inside the shipped round budget, and its
-    # rounds match the golden's bagRounds when the golden is in the tree.
+    # #950: every golden seed (default, profile-v1, entrances, #982's shopsanity,
+    # mm-nearly-no-logic and direction-forward, the ladder world) still creates on
+    # its pinned attempt inside the shipped round budget, and its bagSeed,
+    # bagRounds and mmPairedAttempt match the golden's when the golden is in the
+    # tree (bagSeed tells the profiles apart; #982).
     redship_add_test(NAME GoldenSeedsRoundBudget COMMAND redship --test mm-golden-seeds-round-budget
         LABEL rando
         TIMEOUT 300
