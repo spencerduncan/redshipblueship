@@ -996,7 +996,11 @@ u8 gEquipAgeReqs[][4] = {
 
 };
 
-u8 gItemAgeReqs[] = {
+// RedShipBlueShip (#983): sized to every value a u8 ItemID can hold. The custom ItemIDs
+// (ITEM_ROCS_FEATHER = 0x9C, written by OoT_Play_Init) sit past the 86 vanilla entries, and
+// every reader indexes with a u8 (inventory.items[], equips.buttonItems[], the cycle's items).
+// Entries past ITEM_GIANTS_KNIFE start as 0 (AGE_REQ_ADULT) until code sets them.
+u8 gItemAgeReqs[ITEM_NONE + 1] = {
     AGE_REQ_CHILD, // ITEM_DEKU_STICK
     AGE_REQ_NONE,  // ITEM_DEKU_NUT
     AGE_REQ_NONE,  // ITEM_BOMB
@@ -1084,6 +1088,10 @@ u8 gItemAgeReqs[] = {
     AGE_REQ_NONE,  // ITEM_SCALE_GOLDEN
     AGE_REQ_ADULT, // ITEM_GIANTS_KNIFE
 };
+
+// RedShipBlueShip (#983): the entry count, for the ROM-free `item-age-reqs-bounds` row. The
+// declarations are unsized, so only this TU can see it.
+const u32 gItemAgeReqsCount = ARRAY_COUNTU(gItemAgeReqs);
 
 u8 OoT_gAreaGsFlags[] = {
     0x0F, 0x1F, 0x0F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x07, 0x07, 0x03,

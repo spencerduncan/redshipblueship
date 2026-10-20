@@ -635,6 +635,11 @@ extern "C" {
 // MAX_AUTHENTIC_SEQID). Pure arithmetic — no audio subsystem, no archives.
 #include "tests/test_seq_map_bounds.c"
 
+// OoT pause-menu item age table bounds (#983). Included at FILE SCOPE: it reads
+// the entry count z_kaleido_scope_PAL.c exports for it, declared in its own
+// extern "C" block, so no game header is needed. ROM-free, display-free.
+#include "tests/test_item_age_reqs_bounds.c"
+
 // OoT item-action table bounds (#984). Included at FILE SCOPE: it reads the entry count and
 // raw entry z_player.c exports for it (the table is static), declared in its own extern "C"
 // block, so no game header is needed. ROM-free, display-free.
@@ -6303,6 +6308,8 @@ const TestDescriptor gTests[] = {
       Test_ComboSettingsWindow },
     { "mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse },
     { "seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds },
+    { "item-age-reqs-bounds", "OoT's gItemAgeReqs covers ITEM_ROCS_FEATHER and every u8 ItemID (#983)",
+      Test_ItemAgeReqsBounds },
     { "item-actions-bounds", "OoT sItemActions covers ITEM_ROCS_FEATHER and every u8 ItemID (#984)",
       Test_ItemActionsBounds },
     { "cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
