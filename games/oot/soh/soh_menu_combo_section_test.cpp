@@ -859,8 +859,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         // No other writer: every other interactive row writes one of the keys above.
         for (auto& column : page.columnWidgets) {
             for (WidgetInfo& row : column) {
-                if (row.type == WIDGET_SEPARATOR_TEXT || row.type == WIDGET_TEXT || &row == check ||
-                    &row == resetPos) {
+                if (row.type == WIDGET_SEPARATOR_TEXT || row.type == WIDGET_TEXT || &row == check || &row == resetPos) {
                     continue;
                 }
                 COMBO_CHECK(row.cVar != nullptr && RSBS::ComboKeyHasPrefix(row.cVar, kItemTrackerKeyPrefix),

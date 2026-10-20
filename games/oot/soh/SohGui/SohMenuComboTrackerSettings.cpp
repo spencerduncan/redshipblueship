@@ -128,8 +128,10 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
         .RaceDisable(false)
         .PreFunc(HideUnlessFloating)
         .Callback([](WidgetInfo& info) { ComboGui::ComboItemTrackerResetPosition(); })
-        .Options(ButtonOptions().Size(Sizes::Inline).Tooltip(
-            "Puts the floating Combo Item Tracker back where it starts, below the hearts at the left of the game."));
+        .Options(ButtonOptions()
+                     .Size(Sizes::Inline)
+                     .Tooltip("Puts the floating Combo Item Tracker back where it starts, below the hearts at the left "
+                              "of the game."));
     menu.AddWidget(path, "Only Enable While Paused##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED)
         .RaceDisable(false)
