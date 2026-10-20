@@ -229,6 +229,10 @@ void PatchIronKnuckleFireTexture() {
     }
 }
 
+// Reads SoH's gEnhancements.FixTexturesOOB (#1029): the one checkbox both games share. In the single exe this
+// runs once, from MM_Game_Init's asset phase, so a change made after MM has initialised in the session takes
+// effect at the next launch. Re-applying from the SoH callback while OoT is active is not safe: these display
+// lists are MM resources and would be resolved under OoT's resource cache owner (#1000).
 void GfxPatcher_ApplyOverflowTexturePatches() {
     MM_PatchArrowTipTexture();
     PatchFreezardBodyTexture();
