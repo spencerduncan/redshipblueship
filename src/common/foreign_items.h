@@ -385,6 +385,170 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
                        "decision 1.2.1, amended 2026-09-16 for #668 and 2026-10-10 for #886)");
 
 // ============================================================================
+// The cross-game ITEM RULES (#976, epic #975 P1): ComboItemRulesRecord's value
+// spaces. PINNED, APPEND-ONLY, retire-never-renumber, like every table above.
+// ============================================================================
+//
+// One bit per OoTMM rule, at a position chosen once. Every bit's CLEAR state is
+// today's world, so every default is 0 and an all-clear record is the legacy
+// record byte for byte (its canonical bytes and fingerprint do not move).
+//
+// THREE KINDS OF BIT, and the difference is what the bit DOES:
+//   - A SHARED rule (RSBS_XITEM_SHARED_*): the two games' copies of one item are
+//     ONE item. The bag replaces both games' rows with ONE shared-pair row that
+//     both solvers credit (combo_logic.h, THE SHARED PAIR), the player holds it in
+//     both games once either copy is found (shared_resources.h, THE OR
+//     DISCIPLINE), and its bit position is also its FAMILY bit in
+//     gComboCtx.sharedFamilyOwned. RSBS_XITEM_FAMILY_MASK is the set of them.
+//   - An EXTENSION rule (*_MASK_OOT / *_MASK_MM): the other game's mask is added
+//     to this game as a NATIVE item of the host game (epic design rule 3). It is
+//     not a family; the host solver owns its logic.
+//   - A SHARED EXTENSION (RSBS_XITEM_SHARED_BLAST ... _SPOOKY): an extension's
+//     added copy and the host-native copy are one family. REQUIRES its extension
+//     bit: a record with the shared bit and not the extension is not a world
+//     anything can build (Combo_ComboItemRulesValid refuses it).
+//
+// #969's Bunny Hood speed in Hyrule rides RSBS_XITEM_SHARED_BUNNY (operator
+// ruling 2026-10-18, epic #975 decision 2): there is no separate bit.
+// #970's bottles get ONE bit; whether they are a family (OoTMM shares six bottle
+// items, contents included) is #970's design, so the bit is reserved here and is
+// NOT in RSBS_XITEM_FAMILY_MASK.
+//
+// Bit 31 is never allocated: a future tier-4 key stores the bitset in an int32.
+
+// The five masks both games have (OoTMM sharedMask*), shared-pair families.
+#define RSBS_XITEM_SHARED_GORON 0x00000001u
+#define RSBS_XITEM_SHARED_ZORA 0x00000002u
+#define RSBS_XITEM_SHARED_BUNNY 0x00000004u // #969 rides this bit
+#define RSBS_XITEM_SHARED_KEATON 0x00000008u
+#define RSBS_XITEM_SHARED_TRUTH 0x00000010u
+// MM masks added to OoT (OoTMM blastMaskOot, stoneMaskOot, kamaroMaskOot).
+#define RSBS_XITEM_BLAST_MASK_OOT 0x00000020u
+#define RSBS_XITEM_STONE_MASK_OOT 0x00000040u
+#define RSBS_XITEM_KAMARO_MASK_OOT 0x00000080u
+// OoT masks added to MM (OoTMM gerudoMaskMm, skullMaskMm, spookyMaskMm).
+#define RSBS_XITEM_GERUDO_MASK_MM 0x00000100u
+#define RSBS_XITEM_SKULL_MASK_MM 0x00000200u
+#define RSBS_XITEM_SPOOKY_MASK_MM 0x00000400u
+// The six shared extensions (OoTMM sharedMaskBlast ... sharedMaskSpooky), each
+// requiring the extension five or six bits below it.
+#define RSBS_XITEM_SHARED_BLAST 0x00000800u
+#define RSBS_XITEM_SHARED_STONE 0x00001000u
+#define RSBS_XITEM_SHARED_KAMARO 0x00002000u
+#define RSBS_XITEM_SHARED_GERUDO 0x00004000u
+#define RSBS_XITEM_SHARED_SKULL 0x00008000u
+#define RSBS_XITEM_SHARED_SPOOKY 0x00010000u
+// #968: the three magic arrows (OoTMM sharedMagicArrowFire/Ice/Light).
+#define RSBS_XITEM_SHARED_ARROW_FIRE 0x00020000u
+#define RSBS_XITEM_SHARED_ARROW_ICE 0x00040000u
+#define RSBS_XITEM_SHARED_ARROW_LIGHT 0x00080000u
+// #970: shared bottles (OoTMM sharedBottles). Reserved; not a family yet.
+#define RSBS_XITEM_SHARED_BOTTLES 0x00100000u
+
+/** Every RSBS_XITEM_* bit ALLOCATED by this build. A frozen record holding any
+ *  other bit was written by a later build (Combo_ComboItemRulesValid). */
+#define RSBS_XITEM_ALL_V1 0x001FFFFFu
+
+/** The bits that are SHARED-PAIR FAMILIES: the bit is both the rule and the
+ *  family's bit in gComboCtx.sharedFamilyOwned. */
+#define RSBS_XITEM_FAMILY_MASK                                                                                      \
+    (RSBS_XITEM_SHARED_GORON | RSBS_XITEM_SHARED_ZORA | RSBS_XITEM_SHARED_BUNNY | RSBS_XITEM_SHARED_KEATON |        \
+     RSBS_XITEM_SHARED_TRUTH | RSBS_XITEM_SHARED_BLAST | RSBS_XITEM_SHARED_STONE | RSBS_XITEM_SHARED_KAMARO |       \
+     RSBS_XITEM_SHARED_GERUDO | RSBS_XITEM_SHARED_SKULL | RSBS_XITEM_SHARED_SPOOKY | RSBS_XITEM_SHARED_ARROW_FIRE | \
+     RSBS_XITEM_SHARED_ARROW_ICE | RSBS_XITEM_SHARED_ARROW_LIGHT)
+
+/** How many family bit positions there are (one per bit of the u32). */
+#define RSBS_XITEM_BIT_COUNT 32u
+
+/**
+ * The Blast Mask's cooldown (OoTMM blastMaskCooldown). Read by MM, and by OoT
+ * when RSBS_XITEM_BLAST_MASK_OOT is on (epic P4). DEFAULT is 0, so an all-clear
+ * record is today's MM; its frame count is the consumer's (MM's own vanilla
+ * cooldown), never stated here.
+ */
+#define RSBS_BLAST_COOLDOWN_DEFAULT 0u
+#define RSBS_BLAST_COOLDOWN_INSTANT 1u
+#define RSBS_BLAST_COOLDOWN_VERY_SHORT 2u
+#define RSBS_BLAST_COOLDOWN_SHORT 3u
+#define RSBS_BLAST_COOLDOWN_LONG 4u
+#define RSBS_BLAST_COOLDOWN_VERY_LONG 5u
+#define RSBS_BLAST_COOLDOWN_MAX RSBS_BLAST_COOLDOWN_VERY_LONG
+
+RSBS_CTX_STATIC_ASSERT(
+    RSBS_XITEM_SHARED_GORON == 0x1u && RSBS_XITEM_SHARED_TRUTH == 0x10u && RSBS_XITEM_BLAST_MASK_OOT == 0x20u &&
+        RSBS_XITEM_SPOOKY_MASK_MM == 0x400u && RSBS_XITEM_SHARED_BLAST == 0x800u &&
+        RSBS_XITEM_SHARED_SPOOKY == 0x10000u && RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u &&
+        RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u && RSBS_XITEM_SHARED_BOTTLES == 0x100000u &&
+        RSBS_XITEM_ALL_V1 == 0x1FFFFFu && (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u &&
+        (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u,
+    "RSBS_XITEM_* bit positions are .redsave format: pinned, append-only, allocate the next free bit and never "
+    "re-point an allocated one (ADR 0011's 2026-10-18 amendment, #976)");
+RSBS_CTX_STATIC_ASSERT(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_INSTANT == 1u &&
+                           RSBS_BLAST_COOLDOWN_VERY_LONG == 5u,
+                       "RSBS_BLAST_COOLDOWN_* values are .redsave format: pinned, append-only, and DEFAULT stays 0 "
+                       "so an all-clear record is today's world");
+
+/** The extension bit a SHARED EXTENSION bit requires, or 0 for every other bit
+ *  (a plain shared rule, an extension itself, an unallocated bit). */
+uint32_t Combo_ComboItemRuleRequires(uint32_t bit);
+
+/** A short name for ONE RSBS_XITEM_* bit ("sharedGoronMask", ...), or
+ *  "(unknown)" for an unallocated bit or a mask with more than one bit set. */
+const char* Combo_ComboItemRuleName(uint32_t bit);
+
+/** Fill @p out with the SHIPPED DEFAULTS: every rule off, the default cooldown,
+ *  zero spares. That is today's world and what a legacy record holds. */
+void Combo_ComboItemRulesDefaults(ComboItemRulesRecord* out);
+
+/**
+ * Could a world be built from @p rec? True iff every set bit is allocated
+ * (RSBS_XITEM_ALL_V1), every shared extension's extension bit is set too, the
+ * cooldown is inside its pinned space and the spares are zero. NULL is the
+ * defaults, which are valid.
+ */
+bool Combo_ComboItemRulesValid(const ComboItemRulesRecord* rec);
+
+/**
+ * The session's RESOLVED item rules: what a creation event would freeze now and
+ * what an arrival or a load compares the frozen record against (the
+ * one-resolver discipline Combo_ResolveComboSettings states).
+ *
+ * #976 ADDS NO AUTHORING SURFACE: the Cross-Game Rules rows and their tier-4
+ * keys come with the phases that give each rule its behaviour (epic #975 P2 on).
+ * Until then this is the shipped defaults, so every world this build creates
+ * freezes every rule off, and a file written by a later build with a rule on is
+ * REFUSED at load and at arrival, by name (RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS):
+ * this build cannot honour the rule, and under one-game semantics playing that
+ * file as if the rule were off is corruption, not choice.
+ */
+void Combo_ResolveComboItemRules(ComboItemRulesRecord* out);
+
+/** The FROZEN record's crossItemFlags, or 0 while nothing is frozen. Never a
+ *  CVar: after creation the rules are identity. */
+uint32_t Combo_ComboCrossItemFlags(void);
+
+/** Is the single RSBS_XITEM_* rule @p bit frozen ON? False while unfrozen. */
+bool Combo_ComboCrossItemRule(uint32_t bit);
+
+/** The FROZEN Blast Mask cooldown (RSBS_BLAST_COOLDOWN_*); DEFAULT while
+ *  nothing is frozen. */
+uint8_t Combo_ComboBlastMaskCooldown(void);
+
+/** Bytes canonical() writes for an item-rules record. */
+#define RSBS_COMBO_ITEM_RULES_CANONICAL_LEN 8u
+
+/**
+ * canonical() for the item rules: crossItemFlags little-endian, then the
+ * cooldown, then the three spares, a byte at a time (the discipline
+ * Combo_ComboSettingsCanonical states). NULL encodes the defaults.
+ */
+void Combo_ComboItemRulesCanonical(const ComboItemRulesRecord* rec, uint8_t* out);
+
+/** Is @p rec all clear (every byte zero)? NULL is. An all-clear record is not
+ *  folded into the fingerprint, which is what keeps today's fingerprints. */
+bool Combo_ComboItemRulesClear(const ComboItemRulesRecord* rec);
+
+// ============================================================================
 // The class rule (#495; ADR 0011 decision 3; ADR 0010 increment 3)
 // ============================================================================
 //
@@ -689,6 +853,43 @@ uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t
                                         uint32_t mmProfileDigest);
 
 /**
+ * The whole pair's fingerprint WITH the cross-game item rules (#976), at this
+ * build's generator version:
+ *
+ *   all clear:  exactly Combo_ComputeComboSettingsHash(rec, ...), byte for byte
+ *   otherwise:  Hash( canonical(rec) || ":" || LE32(sharedRandoSettingsHash) ||
+ *                     ":" || LE32(mmProfileDigest) || "#" || canonical(rules) ||
+ *                     ":" || LE32(RSBS_GENERATOR_VERSION) )
+ *
+ * The rules are APPENDED, and only when they are not all clear, so every world
+ * created before the rules existed, and every new world with every rule off,
+ * keeps the fingerprint it always had (and with it the single-bag seed, which
+ * folds this hash): no golden moves. Any set bit, or a non-default cooldown,
+ * moves it. NULL @p rules is all clear. The generator label (#1003) stays the
+ * LAST term, after the rules.
+ */
+uint32_t Combo_ComputeComboSettingsHashEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                          uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest);
+
+/**
+ * Combo_ComputeComboSettingsHashEx at an explicit generator version (#976 x
+ * #1003): version 0 is the label-free value over the record and its rules.
+ * Combo_ComputeComboSettingsHashForGenerator is this with NULL @p rules. Pure.
+ */
+uint32_t Combo_ComputeComboSettingsHashForGeneratorEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                                      uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                                      uint32_t generatorVersion);
+
+/**
+ * Combo_ComboSettingsHashGeneratorVersion over a record AND its item rules
+ * (#976): the version whose formula reproduces @p storedHash, or -1. The load
+ * and arrival checks go through this one. NULL @p rules is all clear. Pure.
+ */
+int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                              uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                              uint32_t storedHash);
+
+/**
  * THE GENERATOR VERSION (#1003). Hand-bumped; folded into comboSettingsHash as
  * a fourth term, so a build whose generator changed shows a different
  * fingerprint at file select (#960's surface) for the same seed and settings.
@@ -741,7 +942,8 @@ int Combo_ComboSettingsHashGeneratorVersion(const ComboSettingsRecord* rec, uint
  * of the resident record (n >= 1), this is the version-0 value of the same
  * record; otherwise (a legacy fingerprint, an unfrozen record, zero, or a value
  * no version reproduces) it is comboSettingsHash itself, unchanged, which is
- * exactly what the bag folded before #1003.
+ * exactly what the bag folded before #1003. Both legs fold the resident item
+ * rules (#976), as the stamp does.
  */
 uint32_t Combo_ComboSettingsWorldHash(void);
 
@@ -761,6 +963,48 @@ uint32_t Combo_ComboSettingsWorldHash(void);
  * @return the stamped comboSettingsHash (always nonzero).
  */
 uint32_t Combo_FreezeComboSettings(const ComboSettingsRecord* rec);
+
+/**
+ * Combo_FreezeComboSettings with the cross-game item rules (#976): freezes @p rec
+ * AND @p rules into gComboCtx, then stamps the fingerprint over both. The
+ * creation event calls this one (Playthrough_Init: resolve both -> freeze).
+ * NULL @p rules freezes every rule off, which is what Combo_FreezeComboSettings
+ * does for every caller that predates the rules; NULL @p rec resolves the combo
+ * record from the session, as Combo_FreezeComboSettings(NULL) does.
+ */
+uint32_t Combo_FreezeComboSettingsEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules);
+
+/**
+ * THE CREATION FREEZE'S RECORDS, as one unit for its two failure exits (#976
+ * review F1). The creation event writes four combo-level fields beside the
+ * identity: the combo record, its fingerprint, the O10 triforce record and the
+ * cross-game item rules. A failed generation must leave all four exactly as they
+ * were (Playthrough_Init's rollback: snapshot, then restore), and a failed
+ * creation must retract all four (RetractFailedPairedCreation). Both exits go
+ * through these three functions, so a field the freeze gains is undone by
+ * every exit at once: a rule left behind beside a restored fingerprint reads
+ * as FINGERPRINT damage, and one left behind an ABSENT record is carried by the
+ * KEEP invalidation onto disk. Those two exits are the only callers.
+ */
+typedef struct ComboCreationRecords {
+    ComboSettingsRecord comboSettings;
+    uint32_t comboSettingsHash;
+    ComboTriforceRecord comboTriforce;
+    ComboItemRulesRecord comboItemRules;
+} ComboCreationRecords;
+
+/** Copy the four creation records out of gComboCtx into @p out. */
+void Combo_SnapshotCreationRecords(ComboCreationRecords* out);
+
+/** Put the four creation records of @p in back into gComboCtx. */
+void Combo_RestoreCreationRecords(const ComboCreationRecords* in);
+
+/**
+ * Retract the four creation records: every byte zero, which is how a world with
+ * no frozen record stores each of them (formatVersion 0 is the combo record's
+ * ABSENT tag, ADR 0011 decision 4.2).
+ */
+void Combo_RetractCreationRecords(void);
 
 /**
  * Recompute comboSettingsHash from the RESIDENT record and the two resident
@@ -841,6 +1085,26 @@ int Combo_FreezeLegacyComboSettings(void);
  *  for the rule, not for comboFlags, for RSBS_COMBO_DIVERGE_SHARED_OCARINA's
  *  reason. */
 #define RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD 0x2000u
+/** The frozen cross-game item rules' crossItemFlags differ from the live
+ *  resolution's (#976). One bit for the whole bitset rather than one per rule:
+ *  the field-name table must stay contiguous and the u32 has 18 bits left, fewer
+ *  than the rules; Combo_ComboItemRuleName names each one. Until a
+ *  key authors the rules (epic #975 P2) no load can restore it, so a file a later
+ *  build made with a rule on is refused here, by name. */
+#define RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS 0x4000u
+/** The frozen Blast Mask cooldown differs from the live resolution's (#976). */
+#define RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN 0x8000u
+/** A spare byte of the frozen item rules is nonzero, or differs: a record this
+ *  build cannot fully read, from a later build (#976). */
+#define RSBS_COMBO_DIVERGE_ITEM_RULES_SPARE 0x10000u
+
+/**
+ * Which item-rule FIELDS differ between a frozen record and a live resolution,
+ * as RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS / _BLAST_MASK_COOLDOWN /
+ * _ITEM_RULES_SPARE bits (#976). NULL on either side is all clear. 0 means the
+ * same rules.
+ */
+uint32_t Combo_ComboItemRulesDivergenceBetween(const ComboItemRulesRecord* frozen, const ComboItemRulesRecord* live);
 
 /**
  * Which FIELDS differ between a frozen record and a live resolution, as
@@ -875,6 +1139,19 @@ uint32_t Combo_ComboSettingsDivergenceBetween(const ComboSettingsRecord* frozen,
  */
 uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uint32_t storedHash,
                                           uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest);
+
+/**
+ * Combo_ComboSettingsDivergenceFor over BOTH frozen records (#976): the combo
+ * record's field diff, the item rules' field diff against
+ * Combo_ResolveComboItemRules, and the fingerprint cross-check recomputed with
+ * the rules folded (Combo_ComputeComboSettingsHashEx). The load path calls this
+ * over the records it just read; the session diff over the resident ones. NULL
+ * @p frozenRules is all clear, which makes this exactly
+ * Combo_ComboSettingsDivergenceFor (that function is this one with NULL).
+ */
+uint32_t Combo_ComboSettingsDivergenceForEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                            uint32_t storedHash, uint32_t sharedRandoSettingsHash,
+                                            uint32_t mmProfileDigest);
 
 /**
  * The session-level diff the arrival refusal calls: Combo_ComboSettingsDivergenceFor
@@ -928,6 +1205,7 @@ typedef struct {
     bool frozen;
     ComboSettingsRecord record;
     uint32_t comboSettingsHash;
+    ComboItemRulesRecord itemRules; // #976: the frozen cross-game item rules (all clear when none)
 } ComboSettingsSummary;
 
 /** Fill @p out with the combo-settings header. NULL @p out is ignored. */

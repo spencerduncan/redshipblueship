@@ -661,6 +661,11 @@ if(BUILD_TESTING)
     # and a wallet-less arrival leaves the shared rupee pool whole. OoT's real
     # shims, ROM-free.
     redship_add_test(NAME SharedWallet COMMAND redship --test shared-wallet)
+    # #976 (epic #975 P1): the cross-game item rules record (carve, fingerprint
+    # only when set, freeze, the load refusing a rule this build cannot honour)
+    # and the shared-family OR merge through both games' real shims. ROM-free.
+    redship_add_test(NAME CrossItemRulesRecord COMMAND redship --test cross-item-rules-record)
+    redship_add_test(NAME SharedFamilyMerge COMMAND redship --test shared-family-merge)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an
@@ -963,6 +968,11 @@ if(BUILD_TESTING)
     # the table held the 86 vanilla entries. Asserts the count the defining TU
     # exports covers that index and every u8 ItemID. Display-free, ROM-free.
     redship_add_test(NAME ItemAgeReqsBounds COMMAND redship --test item-age-reqs-bounds)
+    # OoT item-action table bounds (#984). OoT_Player_ItemToItemAction indexes the static
+    # sItemActions[] with an ItemID, and ITEM_ROCS_FEATHER (0x9C) sat 94 bytes past its
+    # 62 vanilla entries. Asserts the count and entries z_player.c exports cover every u8
+    # ItemID. Display-free, ROM-free.
+    redship_add_test(NAME ItemActionsBounds COMMAND redship --test item-actions-bounds)
     # OoT audio producer init-guard (#365). The shared OTRAudio_Thread runs
     # OoT_AudioMgr_CreateNextAudioBuffer whenever MM's synth is inactive — every
     # MM frame before MM audio boots, and the mid-switch window where OoT is
@@ -2150,6 +2160,11 @@ if(BUILD_TESTING)
     # never harvested, its cross-origin item never exchanged, and an empty set
     # changes no round.
     redship_add_test(NAME ComboLogicForbiddenHost COMMAND redship --test combo-logic-forbidden-host)
+    # THE SHARED PAIR (ABI 7, #976): one bag row both engines credit. Same stub
+    # fixture, same `redship` tier: seeded in both engines, placed as the host's
+    # own half, the far half through the crossing gate, and composed from both
+    # games' rows into one.
+    redship_add_test(NAME ComboLogicSharedPair COMMAND redship --test combo-logic-shared-pair)
 
     # The OoT ENGINE behind that coordinator (#645, lane K2a). `rando` tier, and
     # for a correctness reason rather than a convenience one: every fact this row

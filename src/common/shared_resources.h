@@ -377,6 +377,104 @@ int Combo_CountSharedResources(void);
  */
 void Combo_ResetSharedResourceWatermarks(void);
 
+/*
+ * ---------------------------------------------------------------------------
+ * SHARED FAMILIES AND THE OR DISCIPLINE (#976, epic #975 P1)
+ * ---------------------------------------------------------------------------
+ * A SHARED FAMILY is a pair of items, one per game, that a frozen cross-game
+ * rule makes ONE item: OoT's Goron Mask and MM's Goron Mask under
+ * RSBS_XITEM_SHARED_GORON (foreign_items.h). The bag holds one shared-pair row
+ * for it that both solvers credit (combo_logic.h, THE SHARED PAIR); this is the
+ * runtime half, which makes the player hold the family in both games once
+ * either game's copy has been found.
+ *
+ * It is neither of the two disciplines above and it is not a shared-resource
+ * slot. A family is a 0/1 fact per family, so the whole set is ONE BITSET,
+ * gComboCtx.sharedFamilyOwned, one bit per family at the family's own
+ * RSBS_XITEM_* rule bit (all twenty slots are allocated, and a slot's 16-bit
+ * value could not hold the 32-bit family space). Its merge is a third
+ * discipline:
+ *
+ *   OR - harvest is `owned |= held & armed`, apply gives the arriving game its
+ *   NATIVE copy of every family in `owned & armed & ~held`. Monotonic in both
+ *   directions by construction: a harvest can only add bits (a mask the player
+ *   has traded away never takes the other game's copy with it), and an apply
+ *   only gives, never takes.
+ *
+ * THE SAME DIRECTION RULE as the slots: only harvest writes the bitset, apply
+ * only reads it. And THE SAME ARMING RULE, read from the FROZEN record only: a
+ * family whose rule is off is neither harvested nor applied, so a world that
+ * never asked for one keeps an all-zero bitset, the same bytes a pre-#976
+ * .redsave holds.
+ *
+ * WHO KNOWS THE ITEMS. Nothing here names an RG_* or RI_*. Each game's
+ * single-exe TU registers its NATIVE copy of a family through
+ * Combo_RegisterSharedFamilyMember, with two callbacks that read and write its
+ * own live save (epic #975 P2 registers the five masks). The same registration is
+ * what the bag reads for the family's two ids (combo_single_bag.c), so the bag
+ * row and the runtime family can never name different items.
+ *
+ * WIRING: Combo_SharedFamiliesHarvestLive runs at the end of each game's
+ * harvest shim (OoT_/MM_HarvestSharedResources: Game_Suspend and every
+ * .redsave capture, behind the shim's live-file gate), and
+ * Combo_SharedFamiliesApplyLive at the end of each game's apply shim
+ * (OoT_/MM_ApplySharedResources: the startup entrance, BEFORE the shared-item
+ * consumer). With no member registered, both are no-ops.
+ */
+
+/** One game's NATIVE copy of one shared family. */
+typedef struct {
+    uint16_t nativeId; // the game's own id (OoT RG_*, MM RI_*); also the bag's id for this half
+    /** Does the LIVE save hold this game's copy? Read at harvest. Required. */
+    bool (*held)(uint16_t nativeId);
+    /** Give this game's copy to the LIVE save, without a get-item cutscene (the
+     *  startup entrance runs before gameplay). Called only when held() is false.
+     *  Required. */
+    void (*give)(uint16_t nativeId);
+} ComboSharedFamilyMember;
+
+/**
+ * Register (or, with NULL @p member, unregister) @p game's copy of the family at
+ * @p familyBit. Refused (false) for a game that is not OoT or MM, a bit that is
+ * not exactly one RSBS_XITEM_FAMILY_MASK bit, or a member with a NULL callback.
+ */
+bool Combo_RegisterSharedFamilyMember(GameId game, uint32_t familyBit, const ComboSharedFamilyMember* member);
+
+/** @p game's registered native id for the family at @p familyBit; false when
+ *  none is registered. */
+bool Combo_SharedFamilyMemberId(GameId game, uint32_t familyBit, uint16_t* outId);
+
+/** Drop every registered member (tests). */
+void Combo_ClearSharedFamilyMembers(void);
+
+/** The families the FROZEN record arms: crossItemFlags & RSBS_XITEM_FAMILY_MASK,
+ *  0 while nothing is frozen. */
+uint32_t Combo_SharedFamiliesArmed(void);
+
+/** The pool: the family bits the player holds in either game. */
+uint32_t Combo_SharedFamiliesOwned(void);
+
+/**
+ * HARVEST, the OR half: fold @p heldBits (the families @p game's live save holds
+ * its copy of) into the pool, armed bits only. Never clears a bit. No-op for a
+ * game that is not OoT or MM. Returns the pool afterwards.
+ */
+uint32_t Combo_SharedFamiliesHarvest(GameId game, uint32_t heldBits);
+
+/**
+ * APPLY, the OR half: the families @p game must be GIVEN: owned, armed, and not
+ * in @p heldBits. Pure; reads the pool and the frozen record only.
+ */
+uint32_t Combo_SharedFamiliesOwed(GameId game, uint32_t heldBits);
+
+/** The harvest shims' call: ask every member registered for @p game whether the
+ *  live save holds it, then Combo_SharedFamiliesHarvest. Returns the pool. */
+uint32_t Combo_SharedFamiliesHarvestLive(GameId game);
+
+/** The apply shims' call: give @p game's registered copy of every family it is
+ *  owed. Returns how many copies were given. */
+int Combo_SharedFamiliesApplyLive(GameId game);
+
 #ifdef __cplusplus
 }
 #endif

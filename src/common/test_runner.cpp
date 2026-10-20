@@ -619,6 +619,12 @@ extern "C" {
 // never debits the rupee pool. FILE SCOPE for the same reason as its neighbours.
 #include "tests/test_shared_wallet.c"
 
+// The cross-game item rules and the shared-family bitset (#976, epic #975 P1):
+// the sibling record's format, fingerprint, freeze and load check, and the OR
+// merge through both games' real harvest/apply shims. FILE SCOPE for
+// rsbs::SaveManager, like its neighbours.
+#include "tests/test_cross_item_rules.c"
+
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
 // so the code under test does not exist. The `#include "tests/..."` text is
@@ -650,6 +656,11 @@ extern "C" {
 // the entry count z_kaleido_scope_PAL.c exports for it, declared in its own
 // extern "C" block, so no game header is needed. ROM-free, display-free.
 #include "tests/test_item_age_reqs_bounds.c"
+
+// OoT item-action table bounds (#984). Included at FILE SCOPE: it reads the entry count and
+// raw entry z_player.c exports for it (the table is static), declared in its own extern "C"
+// block, so no game header is needed. ROM-free, display-free.
+#include "tests/test_item_actions_bounds.c"
 
 // Cross-game CVar classification lock (#34, ADR 0003 §6.5 + the
 // enhancement-classification inventory). Manifest self-consistency, the
@@ -6229,6 +6240,15 @@ const TestDescriptor gTests[] = {
       "A wallet found in Termina is the pair's wallet: the apply sets OoT's flag, and a wallet-less arrival never "
       "debits the rupee pool (#991, #992)",
       Test_SharedWallet },
+    // #976: the cross-game item rules record and the shared-family OR merge.
+    { "cross-item-rules-record",
+      "The cross-game item rules are a frozen record folded into the fingerprint only when set, and a file with a "
+      "rule this build cannot honour is refused at load (#976)",
+      Test_CrossItemRulesRecord },
+    { "shared-family-merge",
+      "The shared-family bitset merges by OR in both directions, arms only from the frozen rules, and reaches both "
+      "games through their real harvest and apply shims (#976)",
+      Test_SharedFamilyMerge },
     { "combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
       Test_ComboSpoilerView },
     { "combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
@@ -6390,6 +6410,8 @@ const TestDescriptor gTests[] = {
     { "seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds },
     { "item-age-reqs-bounds", "OoT's gItemAgeReqs covers ITEM_ROCS_FEATHER and every u8 ItemID (#983)",
       Test_ItemAgeReqsBounds },
+    { "item-actions-bounds", "OoT sItemActions covers ITEM_ROCS_FEATHER and every u8 ItemID (#984)",
+      Test_ItemActionsBounds },
     { "cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
       Test_CVarClassification },
     { "active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue },
@@ -6741,6 +6763,10 @@ const TestDescriptor gTests[] = {
       "A round's forbidden host is never harvested or exchanged, an empty forbidden set changes no round, and a host "
       "its engine cannot withhold is refused (ABI 6, #575 H4)",
       Test_ComboLogicForbiddenHost },
+    { "combo-logic-shared-pair",
+      "One shared-pair bag row is credited by both engines, its far half goes through the crossing gate, and the "
+      "composer replaces both games' rows with one (ABI 7, #976)",
+      Test_ComboLogicSharedPair },
     // Increment 3's two §6.3 MEASUREMENTS, over both real engines at once (#645,
     // lane K3). Needs a real OoT generation AND MM's rando graph, hence the
     // `rando` tier and the `--test all` skip below. It asserts no timing: only

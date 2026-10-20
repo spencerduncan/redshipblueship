@@ -338,7 +338,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         // The unified Item Tracker overlay (#458 U2; ADR 0004's 2026-09-30
         // amendment: U2 added this row, U6 removed MM's four tracker rows).
         { "Toggle Combo Item Tracker", "gCombo.Windows.ItemTracker", "Combo Item Tracker", "Combo Item Tracker",
-          "Toggles the Combo Item Tracker." },
+          "Toggles the Combo Item Tracker. Drag it via Tracker Settings > Enable Dragging." },
     };
     // MM's four tracker rows, retired by #458 U6: the Combo Tracker and the
     // Combo Item Tracker above cover both games. Their windows stay registered
@@ -830,10 +830,37 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         "gOpenWindows.CheckTrackerSettings / \"Check Tracker Settings\"");
         }
 
+        // Move to Default Position (#962) is the one row that writes no key: it asks the
+        // floating overlay to return to its default place (under the hearts),
+        // and, like Enable Dragging, shows only while the overlay floats.
+        WidgetInfo* resetPos = FindRow(page, "Move to Default Position##ComboItemTracker");
+        COMBO_CHECK(resetPos != nullptr && resetPos->type == WIDGET_BUTTON && resetPos->callback != nullptr &&
+                        resetPos->cVar == nullptr,
+                    "Combo / %s has no Move to Default Position button with a Callback and no key",
+                    kTrackerSettingsPage);
+        if (resetPos != nullptr && resetPos->preFunc != nullptr) {
+            const int savedResetType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, -1);
+            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
+            resetPos->ResetDisables();
+            resetPos->preFunc(*resetPos);
+            COMBO_CHECK(resetPos->isHidden, "the Move to Default Position row shows while the overlay is a window");
+            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_FLOATING);
+            resetPos->ResetDisables();
+            resetPos->preFunc(*resetPos);
+            COMBO_CHECK(!resetPos->isHidden, "the Move to Default Position row is hidden while the overlay floats");
+            if (savedResetType < 0) {
+                CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
+            } else {
+                CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, savedResetType);
+            }
+        } else {
+            COMBO_CHECK(false, "the Move to Default Position row has no PreFunc, so it shows for a windowed overlay");
+        }
+
         // No other writer: every other interactive row writes one of the keys above.
         for (auto& column : page.columnWidgets) {
             for (WidgetInfo& row : column) {
-                if (row.type == WIDGET_SEPARATOR_TEXT || row.type == WIDGET_TEXT || &row == check) {
+                if (row.type == WIDGET_SEPARATOR_TEXT || row.type == WIDGET_TEXT || &row == check || &row == resetPos) {
                     continue;
                 }
                 COMBO_CHECK(row.cVar != nullptr && RSBS::ComboKeyHasPrefix(row.cVar, kItemTrackerKeyPrefix),

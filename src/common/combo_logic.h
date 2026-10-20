@@ -114,8 +114,18 @@ extern "C" {
  *  which the coordinator cannot see into, so only the engine can withhold it. The
  *  number moves because an ABI-5 engine would harvest a host the round was asked
  *  to treat as empty, and a required-set or foolish analysis built on such a round
- *  would call every own-origin host useless. */
-#define RSBS_COMBO_LOGIC_ENGINE_ABI 6u
+ *  would call every own-origin host useless.
+ *
+ *  7 (2026-10-18, epic #975 P1, #976): THE SHARED PAIR. The vtable's SHAPE is
+ *  unchanged; `assumeOwnItem` gains a THIRD source. A shared-pair bag row
+ *  (RSBS_COMBO_BAG_SHARED_PAIR) is one row that BOTH engines credit: seeding
+ *  assumes its OoT id in OoT's engine and its MM id in MM's, and once it is
+ *  placed, the host engine harvests its own half from its own host while the
+ *  coordinator hands the other half to the other engine through the crossing
+ *  exchange gate. So an engine may now be granted one of its own ids from a host
+ *  of the OTHER game that holds an OWN-origin item there, which no ABI-6 engine
+ *  was told could happen. The number moves for the meaning, as it did at 3. */
+#define RSBS_COMBO_LOGIC_ENGINE_ABI 7u
 
 // ============================================================================
 // Status codes — DIAGNOSTICS, NOT FORMAT
@@ -511,7 +521,7 @@ typedef struct ComboLogicEngine {
      * ONE CALL IS ONE COPY (ABI 3, the operator's multiplicity ruling of
      * 2026-09-26). The bag holds one row per copy, and within one round the
      * coordinator calls this EXACTLY ONCE for every copy the round is meant to
-     * hold, from exactly two sources and never a third:
+     * hold, from exactly these sources (the third since ABI 7):
      *
      *   1. SEEDING — once per row of the assumed set, in the assumed set's order
      *      (the fill's own shuffled order of the not-yet-placed rows);
@@ -520,6 +530,12 @@ typedef struct ComboLogicEngine {
      *      placement is delivered at most once per round (the coordinator keeps
      *      a per-round delivered bit per placement), so a later alternation
      *      never re-delivers a copy it already handed over.
+     *   3. THE SHARED PAIR's far half (ABI 7, #976) — once per shared-pair
+     *      placement hosted by the OTHER game whose host became reachable through
+     *      the same gate a crossing from that host uses, under the same delivered
+     *      bit. The host engine harvests its own half itself (`expand`), so a
+     *      shared-pair row gives exactly ONE copy to EACH engine, and a seeded
+     *      (assumed) shared-pair row is one call per engine through source 1.
      *
      * A row is either assumed or placed, never both, so no copy reaches this
      * call twice. The same ID reaching it twice therefore means TWO COPIES —
@@ -900,6 +916,14 @@ typedef struct {
     uint16_t hostCheck; // in hostGame's own check id-space
     uint16_t itemClass; // the bag row's RSBS_ITEMCLASS_* bit, carried through
     SharedItem item;    // origin-tagged; may be either game's origin
+    /** THE SHARED PAIR's other half (ABI 7, #976): for a placement of a
+     *  shared-pair bag row, `item` is the HOST game's own half (what the host
+     *  engine was given through `place`) and this is the other game's half,
+     *  in the other game's id-space. originGame GAME_NONE on every other row.
+     *  Never persisted: the crossing store keeps cross-origin rows only, and a
+     *  shared pair reaches the far game through the shared-family bitset at
+     *  runtime (shared_resources.h), so a HYDRATED row never carries one. */
+    SharedItem pair;
 } ComboLogicPlacement;
 
 /**
@@ -1044,9 +1068,16 @@ int Combo_Logic_EvaluateTriforceHunt(int sharedPieces, uint16_t required);
  *  crosses"), and (b) the CONFINED rows of THE BAG COMPOSITION RULE, which a frozen
  *  setting keeps in their own game. RAM only; not format. */
 #define RSBS_COMBO_BAG_HOME_ONLY 0x0002u
+/** `ComboLogicBagItem.bagFlags`: this row is a SHARED PAIR (ABI 7, #976): ONE row
+ *  that BOTH engines credit, `item` being one game's half and `pairId` the other
+ *  game's id for the same family (THE SHARED PAIR, below). Hostable on either
+ *  side as that side's OWN item, so it never crosses and never counts against
+ *  the per-side crossing bound. Refused with HOME_ONLY (a shared pair has no
+ *  single home). RAM only; not format. */
+#define RSBS_COMBO_BAG_SHARED_PAIR 0x0004u
 /** Every bag flag this build understands. A row carrying any other bit is
  *  refused (RSBS_COMBO_LOGIC_ERR_BAD_REQUEST) rather than silently ignored. */
-#define RSBS_COMBO_BAG_FLAGS_KNOWN (RSBS_COMBO_BAG_SURPLUS | RSBS_COMBO_BAG_HOME_ONLY)
+#define RSBS_COMBO_BAG_FLAGS_KNOWN (RSBS_COMBO_BAG_SURPLUS | RSBS_COMBO_BAG_HOME_ONLY | RSBS_COMBO_BAG_SHARED_PAIR)
 
 /** The assumed set / bag element: ONE COPY of an origin-tagged item, the class
  *  it was admitted under, and its bag flags. The class is CARRIED, not filtered
@@ -1055,6 +1086,10 @@ typedef struct {
     SharedItem item;    // originGame must be GAME_OOT or GAME_MM
     uint16_t itemClass; // one RSBS_ITEMCLASS_* bit, or 0 when the caller has none
     uint16_t bagFlags;  // RSBS_COMBO_BAG_* bits; 0 = a REQUIRED copy (the default)
+    /** RSBS_COMBO_BAG_SHARED_PAIR rows only: the OTHER game's id for this
+     *  family, in that game's id-space. Ignored, and may be anything, on every
+     *  other row. */
+    uint16_t pairId;
 } ComboLogicBagItem;
 
 /** One host, keyed the only way a host is ever keyed: by its own game and its
@@ -1425,6 +1460,64 @@ int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 // fill then draws that row only onto its own game's hosts. A measured bag with
 // no row marked is the upper bound on what a paired world may cross.
 
+// ============================================================================
+// THE SHARED PAIR (ABI 7; #976, epic #975 P1, operator ruling 2026-10-18 "shared
+// row")
+// ============================================================================
+//
+// OoTMM's shared item is one pool item that both games' logic counts:
+// `has(MASK_X) || has(SHARED_MASK_X)` in both macro files, with the pool built
+// by replacing both games' copies and removing one. Here that is ONE BAG ROW
+// that both solvers credit, and this block is its whole contract.
+//
+// WHO SAYS WHICH ITEMS. A family is a (OoT id, MM id) pair, handed to the
+// composer as ComboLogicSharedPair rows (ComboLogicComposeRequest.sharedPairs).
+// The coordinator never names an RG_* or RI_*: production builds the list from
+// the frozen record's armed families and each game's registered native copy
+// (combo_single_bag.c over shared_resources.h); the locks author synthetic ids.
+//
+// COMPOSE. After the rule table and the shared-quantity trim, for each family:
+// the first REQUIRED row of OoT origin naming its OoT id and the first REQUIRED
+// row of MM origin naming its MM id become ONE row, at the EARLIER of the two
+// pool positions, carrying RSBS_COMBO_BAG_SHARED_PAIR, that row's own item and
+// the other half's id in `pairId`. The other row is TRIMMED (filler for its
+// origin game's own junk pass, THE SHARED-QUANTITY TRIM rule 5): that is OoTMM's
+// replace-both-then-remove-one. A family with a REQUIRED row on one side only
+// turns that row into the shared row and trims nothing (OoTMM would leave zero
+// copies; here the one copy is kept and both engines credit it). Surplus and
+// confined rows are never paired, and a family whose ids match no REQUIRED row
+// changes nothing. ComboLogicComposeResult.sharedPairs counts the rows made.
+//
+// SEED. An assumed shared-pair row is assumed in BOTH engines: its OoT id in
+// OoT's, its MM id in MM's. One row, one copy per engine (ABI 3's rules).
+//
+// DRAW AND PLACE. The row may use any candidate host of EITHER side as that
+// side's own item (no `hostAcceptsForeign` question, no crossing bound, never
+// HOME_ONLY), in the one uniform draw over the union. Placed on host game H, the
+// placement records H's own half as `item` (that is what H's engine is given
+// through `place`, so H's engine stores and harvests its own id) and the other
+// half as `pair`.
+//
+// EXCHANGE. The host engine harvests its half from its own host (`expand`). The
+// coordinator hands the far half to the far engine through the SAME GATE a
+// crossing from that host uses: an OoT host's pair reaches MM once the host is
+// reached and OoT's crossing is open; an MM host's pair reaches OoT once the
+// host is reached and both crossings are open. A forbidden host (ABI 6) delivers
+// nothing. So the far engine credits the item exactly when the player could
+// carry it there, which is also when the runtime family bitset gives the far
+// game its copy (at its next arrival).
+//
+// WHAT IS NOT DIFFERENT. A placement digest over a world with no shared pair is
+// byte-identical to an ABI-6 digest (the pair is folded only when present), the
+// crossing count does not see a shared pair (its `item` is the host's own), and
+// the crossing store never stores one.
+
+/** One shared family for the composer: the two games' ids for ONE item. */
+typedef struct {
+    uint16_t ootId; // the family's id in OoT's id-space
+    uint16_t mmId;  // the family's id in MM's id-space
+} ComboLogicSharedPair;
+
 /** `ComboLogicPoolRow.poolFlags`: this copy was added by its port's PLENTIFUL
  *  setting — beyond what the frozen settings' non-plentiful pool would hold. */
 #define RSBS_COMBO_POOL_PLENTIFUL 0x0001u
@@ -1495,6 +1588,11 @@ typedef struct {
     uint16_t startingHealthOoT;
     uint16_t startingHealthMM;
     uint16_t quantityFlags; // RSBS_COMBO_QUANTITY_* bits; 0 = the trim as stated above
+    /** THE SHARED PAIR's families (ABI 7, #976); NULL iff `sharedPairCount` == 0,
+     *  and an empty list is exactly the compose without the field. A negative
+     *  count, or a NULL list with a positive one, is refused. */
+    const ComboLogicSharedPair* sharedPairs;
+    int sharedPairCount;
 } ComboLogicComposeRequest;
 
 /** `ComboLogicComposeRequest.quantityFlags`: skip THE SHARED-QUANTITY TRIM (the
@@ -1507,6 +1605,7 @@ typedef struct {
     int bagCount; // rows admitted (REQUIRED + SURPLUS), even when refused for capacity
     int noOrigin; // rows whose origin names no game (refused; counted under no game)
     ComboLogicComposeCounts perGame[RSBS_FOREIGN_POOL_ORIGIN_COUNT]; // indexed by GameId
+    int sharedPairs; // shared-pair rows THE SHARED PAIR made (ABI 7); their trimmed halves count as TRIMMED
 } ComboLogicComposeResult;
 
 /**

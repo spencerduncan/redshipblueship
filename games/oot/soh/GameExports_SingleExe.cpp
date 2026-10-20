@@ -3806,6 +3806,11 @@ extern "C" void OoT_HarvestSharedResources(void) {
     // frozen goal is triforce-hunt) lives in Combo_HarvestSharedResource.
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_TRIFORCE_PIECES,
                                 (uint16_t)gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected);
+
+    // Shared families (#976): OR in every armed family OoT's live save holds its
+    // copy of. Behind the same live-file gate as everything above; a no-op until
+    // a family is frozen on and registered (shared_resources.h).
+    Combo_SharedFamiliesHarvestLive(GAME_OOT);
 }
 
 /**
@@ -4021,6 +4026,10 @@ extern "C" void OoT_ApplySharedResources(void) {
     if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_TRIFORCE_PIECES, triforceCap, &triforcePieces)) {
         gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected = (u8)triforcePieces;
     }
+
+    // Shared families (#976): OoT's own copy of every armed family found in
+    // either game. Last, and still before the shared-item consumer (z_play.c).
+    Combo_SharedFamiliesApplyLive(GAME_OOT);
 }
 
 static bool sLastF10State = false;

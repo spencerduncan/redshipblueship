@@ -4,7 +4,8 @@
  *        each game's section as that game's own icon grid (#458 U3).
  *
  * See ComboItemTrackerWindow.h for the contract. The file keeps no state of its
- * own: every section is collected from combo_item_view.h on every frame, so a
+ * own (bar one flag, the Move to Default Position request, consumed by the next draw):
+ * every section is collected from combo_item_view.h on every frame, so a
  * game switch, a save or a load shows on the next frame; the numbers carried
  * between frames (each section's measured header height, the fit last drawn)
  * live in the overlay window's ImGui state storage. src/common cannot include
@@ -37,6 +38,9 @@ namespace {
 const ComboUiTable& Ui() {
     return *ComboUi_Get();
 }
+
+// Set by ComboItemTrackerResetPosition, consumed by the next floating draw (UI thread only).
+bool gResetPositionRequested = false;
 
 // SoH's default overlay background (BeginFloatingWindows: CVarGetColor of
 // BgColor.Value with { 0, 0, 0, 0 }): clear, so only the icons show over the game.
@@ -75,7 +79,16 @@ void BeginOverlay(int windowType) {
     const bool draggable = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, 0) != 0;
     const ImGuiWindowFlags flags = (ImGuiWindowFlags)ComboItemTrackerWindowFlags(windowType, draggable);
     if (windowType == COMBO_ITEM_TRACKER_FLOATING) {
-        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+        const ImGuiViewport* main = ImGui::GetMainViewport();
+        ImGui::SetNextWindowViewport(main->ID);
+        // Where it first appears (#962): under the HUD's hearts, not on them.
+        // FirstUseEver leaves a saved or dragged position alone; Move to
+        // Default Position (ComboItemTrackerResetPosition) forces the default
+        // for one frame.
+        ImVec2 pos;
+        ComboItemTrackerDefaultPos(main->Pos.x, main->Pos.y, main->Size.x, main->Size.y, &pos.x, &pos.y);
+        ImGui::SetNextWindowPos(pos, gResetPositionRequested ? ImGuiCond_Always : ImGuiCond_FirstUseEver);
+        gResetPositionRequested = false;
     }
     const Color_RGBA8 bg = CVarGetColor(RSBS_CVAR_COMBO_ITEMS_BG_COLOR ".Value", kBgDefault);
     ImVec4 color(bg.r / 255.0f, bg.g / 255.0f, bg.b / 255.0f, bg.a / 255.0f);
@@ -258,6 +271,34 @@ int ComboItemTrackerWindowFlags(int windowType, bool draggable) {
         }
     }
     return flags;
+}
+
+void ComboItemTrackerResetPosition() {
+    gResetPositionRequested = true;
+}
+
+// The magic bar's lowest placement (hearts past one row push it down to the
+// large Y): top at R_MAGIC_BAR_LARGE_Y (z_construct.c), drawn 16 px tall
+// (gMagicMeterEndTex, z_parameter.c), on the HUD's 320x240 grid.
+constexpr float kMagicBarLargeTop = 42.0f;
+constexpr float kMagicBarHeight = 16.0f;
+
+ComboItemTrackerRect ComboItemTrackerHudBand(float viewX, float viewY, float viewW, float viewH) {
+    (void)viewW;
+    const float unit = viewH / 240.0f; // the HUD's grid is 240 high, scaled to the view's height
+    ComboItemTrackerRect band;
+    band.x = viewX;
+    band.y = viewY;
+    band.w = 136.0f * unit;
+    band.h = (kMagicBarLargeTop + kMagicBarHeight) * unit;
+    return band;
+}
+
+void ComboItemTrackerDefaultPos(float viewX, float viewY, float viewW, float viewH, float* outX, float* outY) {
+    const ComboItemTrackerRect band = ComboItemTrackerHudBand(viewX, viewY, viewW, viewH);
+    // Flush to the left edge, as the HUD is, and 4 grid units under the band.
+    *outX = viewX + 8.0f;
+    *outY = band.y + band.h + 4.0f * (viewH / 240.0f);
 }
 
 std::string ComboItemRowText(const ComboItemRow& row) {

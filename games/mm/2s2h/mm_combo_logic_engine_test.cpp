@@ -107,6 +107,7 @@ extern "C" int MM_ComboLogicEngine_RunHeadless(void) {
 #include <ship/Context.h>
 
 #include "2s2h/Rando/Rando.h"
+#include "2s2h/Rando/CheckTracker/CheckTracker.h"
 #include "2s2h/Rando/Logic/Logic.h"
 #include "2s2h/Rando/StaticData/StaticData.h"
 
@@ -1262,6 +1263,51 @@ int RunLegs() {
                   "seam cannot hand MM's real pool in intact");
         CE_ASSERT(memcmp(reference.get(), &gSaveContext, sizeof(SaveContext)) == 0, 14,
                   "leg 14 did not leave gSaveContext as it found it");
+    }
+
+    // ---- Leg 15: the CHECK TRACKER's crawl leaves the live save byte-identical (#995) --
+    //
+    // The tracker redraws "in logic" every 20 frames while its window is open. Its crawl ZEROES and re-fires
+    // RANDO_EVENTS, which is gSaveContext.save.shipSaveInfo.rando.randoEvents: inside the SaveContext the departure
+    // freeze copies whole and the .redsave persists. Unbracketed, the MM save bytes depended on whether a window was
+    // open. ComputeChecksInLogic is the gate-free callable the window draws from, so this reads what it draws.
+    //
+    // NON-VACUITY: the array is poisoned by hand first and an UNBRACKETED crawl is shown to change it, so the
+    // byte-identical claim below cannot pass because the crawl happened to leave the bytes alone.
+    {
+        SaveGuard leg15Guard; // the poison and the unbracketed probe crawl below write the live save
+
+        for (int i = 0; i < RE_MAX; i++) {
+            RANDO_EVENTS[i] = 0x5A;
+        }
+        auto poisoned = std::make_unique<SaveContext>();
+        memcpy(poisoned.get(), &gSaveContext, sizeof(SaveContext));
+
+        const Rando::Logic::ReachabilityCrawl probe = Rando::Logic::CrawlReachableRegions(gSaveContext.save.entrance);
+        const std::set<RandoCheckId> probeReachable = Rando::Logic::EvaluateReachableChecks(probe);
+        CE_ASSERT(!probeReachable.empty(), 15, "the probe crawl reached no checks - leg 15 would be vacuous");
+        CE_ASSERT(memcmp(poisoned.get(), &gSaveContext, sizeof(SaveContext)) != 0, 15,
+                  "an unbracketed crawl left the poisoned RANDO_EVENTS untouched - the byte-identical claim below "
+                  "would pass vacuously");
+
+        // Back to the poisoned state, then the tracker's own computation.
+        memcpy(&gSaveContext, poisoned.get(), sizeof(SaveContext));
+        const std::set<RandoCheckId> trackerSet = Rando::CheckTracker::ComputeChecksInLogic(gSaveContext.save.entrance);
+        CE_ASSERT(memcmp(poisoned.get(), &gSaveContext, sizeof(SaveContext)) == 0, 15,
+                  "the check tracker's in-logic computation changed gSaveContext - the crawl's RANDO_EVENTS "
+                  "zero-and-refire leaked into the live save, so MM save bytes depend on whether the tracker window "
+                  "is open");
+
+        // The bracket must not change the answer: the tracker's set is the crawl's reachable set restricted to
+        // shuffled && !obtained.
+        std::set<RandoCheckId> expected;
+        for (RandoCheckId id : probeReachable) {
+            if (RANDO_SAVE_CHECKS[id].shuffled && !RANDO_SAVE_CHECKS[id].obtained) {
+                expected.insert(id);
+            }
+        }
+        CE_ASSERT(trackerSet == expected, 15,
+                  "the tracker's in-logic set differs from the shared crawl restricted to shuffled-and-unobtained");
     }
 
     return 0;
