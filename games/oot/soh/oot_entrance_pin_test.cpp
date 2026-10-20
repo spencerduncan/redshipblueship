@@ -14,12 +14,17 @@
  *     filter is removed (the pin is gone) AND it fails if upstream ever drops
  *     the pair from the Interior table or renames a region (the "RED" side stops
  *     being red), instead of quietly passing against a stale expectation.
+ *     The same pairing is run over the one-way target lists (#998): Spawn and Warp
+ *     Song targets include the Interior entrances, so the real BuildOneWayTargets()
+ *     must offer neither crossing direction while the unfiltered list offers both.
  *   - RandoEntrancePin (CTest label "rando", dispatch "rando-entrance-pin"):
  *     an END-TO-END generation with Interior shuffle ALL plus the strongest
  *     pool-mixing configuration that would otherwise swallow this pair (mixed
  *     pools over interiors + overworld, decoupled), asserting the generated
  *     entrance-override table never names either crossing index, while OTHER
  *     interior entrances were in fact shuffled.
+ *     The generation also turns on Spawn, Warp Song and Owl Drop shuffle (#998) and
+ *     requires one-way override rows, so the scan covers the one-way pools.
  *
  * WHY POOL MEMBERSHIP IS THE RIGHT INVARIANT. Everything downstream keys off it:
  * SetShuffledEntrances() marks only pooled entrances as shuffled;
@@ -47,6 +52,10 @@
 extern "C" int Rando_InitRegionGraphForTest(void);
 extern "C" int Rando_CountCrossingEntrancesInInteriorPool(int onlyPrimary, int filtered, int* poolSize);
 extern "C" int Rando_GetCrossingEntranceIndices(int* forwardIndex, int* reverseIndex);
+// #998: the one-way (Spawn / Warp Song) target lists, raw versus as built by the
+// real BuildOneWayTargets(), and the generated one-way override rows.
+extern "C" int Rando_CountCrossingEntrancesInOneWayTargets(int filtered, int* poolSize);
+extern "C" int Rando_CountOneWayOverrideRows(void);
 
 // games/oot/soh/Enhancements/randomizer/3drando/menu.cpp — the same headless
 // generation bridge the RandoGen rows use. It creates the real Settings options
@@ -136,6 +145,27 @@ extern "C" int OoTTest_EntrancePinPool(void) {
     OEP_ASSERT(reverseIndex == kOotEntrMarketFromMaskShop,
                "the pinned Mask Shop->Market entrance is not OOT_ENTR_MARKET_FROM_MASK_SHOP");
 
+    // --- #998: the one-way target pools. The Spawn and Warp Song targets include
+    // the Interior entrances, so a warp song or spawn could take the Mask Shop door
+    // (a crossing the combo layer would then fire from a warp song, adult
+    // included) unless BuildOneWayTargets keeps the pair out. Same pairing as
+    // above: the unfiltered builder offers both crossing directions, the real
+    // target builder offers neither and drops nothing else. Last, because
+    // building targets adds exits to the root region.
+    int oneWayRawSize = 0;
+    const int oneWayRaw = Rando_CountCrossingEntrancesInOneWayTargets(/*filtered=*/0, &oneWayRawSize);
+    printf("[TEST]   unfiltered one-way target list: %d of %d entrances are the crossing\n", oneWayRaw, oneWayRawSize);
+    OEP_ASSERT(oneWayRawSize > 100, "unfiltered one-way target list is implausibly small - graph did not initialize");
+    OEP_ASSERT(oneWayRaw == 2, "unfiltered one-way target list does not offer both crossing directions - the RED side "
+                               "of the one-way lock is gone, re-derive it against upstream's target type list");
+
+    int oneWayTargetsSize = 0;
+    const int oneWayTargets = Rando_CountCrossingEntrancesInOneWayTargets(/*filtered=*/1, &oneWayTargetsSize);
+    printf("[TEST]   BuildOneWayTargets: %d of %d targets are the crossing\n", oneWayTargets, oneWayTargetsSize);
+    OEP_ASSERT(oneWayTargets == 0, "the crossing is a target in the Spawn / Warp Song pools - a warp song or spawn can "
+                                   "take the Happy Mask Shop door (BuildOneWayTargets bypasses the pin)");
+    OEP_ASSERT(oneWayTargetsSize == oneWayRawSize - oneWayRaw, "the one-way target pin removed more than the crossing");
+
     printf("[TEST] PASS: oot-entrance-pin\n");
     return 0;
 }
@@ -158,6 +188,13 @@ extern "C" int RandoTest_EntrancePinGenerated(void) {
     CVarSetInteger("gRandoSettings.MixInteriors", 1);
     CVarSetInteger("gRandoSettings.MixOverworld", 1);
     CVarSetInteger("gRandoSettings.DecoupleEntrances", 1);
+    // #998: the one-way pools too. Spawn and Warp Song targets include interiors,
+    // so a bypassed pin would show up here as an override row naming the crossing
+    // (owl drop targets hold no interiors, but are on so all three one-way pools
+    // run). The probe row above is the deterministic lock; this is the end to end.
+    CVarSetInteger("gRandoSettings.ShuffleOwlDrops", 1);
+    CVarSetInteger("gRandoSettings.ShuffleWarpSongs", 1);
+    CVarSetInteger("gRandoSettings.ShuffleOverworldSpawns", 1);
 
     // OoT's NATIVE general pass (lane K11): this row reads a world whose general
     // pass OoT's own fill placed, not the paired creation's single bag, so it asks
@@ -199,6 +236,10 @@ extern "C" int RandoTest_EntrancePinGenerated(void) {
     // row names the crossing" is true of an empty table.
     OEP_ASSERT(rows > 20, "the generation produced almost no entrance overrides - the settings above did not take, so "
                           "this row would pass vacuously");
+    const int oneWayRows = Rando_CountOneWayOverrideRows();
+    printf("[TEST]   %d of them belong to the Spawn / Warp Song / Owl Drop pools\n", oneWayRows);
+    OEP_ASSERT(oneWayRows > 0, "no Spawn / Warp Song / Owl Drop override rows were written - the one-way shuffles did "
+                               "not run, so this row would not cover the one-way pools");
     OEP_ASSERT(crossingRows == 0, "a generated entrance override names the Happy Mask Shop crossing - the cross-game "
                                   "door was shuffled");
 
