@@ -9,7 +9,7 @@ extern "C" {
 #include "variables.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // Skips the interaction in which kafei reveals his secret to Link, and gives him the Pendant of Memories.

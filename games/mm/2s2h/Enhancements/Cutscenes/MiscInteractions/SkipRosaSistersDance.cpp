@@ -11,7 +11,7 @@ void func_80BFC270(EnRz* enRz, PlayState* play);
 void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterSkipRosaSistersDance() {

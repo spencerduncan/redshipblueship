@@ -13,7 +13,7 @@ s32 Player_UpperAction_7(Player* thisx, PlayState* play);
 s32 Player_UpperAction_8(Player* thisx, PlayState* play);
 }
 
-#define CVAR_NAME "gEnhancements.PlayerActions.ArrowCycle"
+#define CVAR_NAME "gEnhancements.BowArrowCycle"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // Magic arrow costs based on z_player.c

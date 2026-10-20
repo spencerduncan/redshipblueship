@@ -302,6 +302,40 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     { "gEnhancements.Camera.FreeLook.Enable", "gSettings.FreeLook.Enabled", false },
     { "gEnhancements.Camera.FreeLook.MaxCameraDistance", "gSettings.FreeLook.MaxCameraDistance", false },
     { "gEnhancements.Camera.FreeLook.TransitionSpeed", "gSettings.FreeLook.TransitionSpeed", false },
+
+    // ---- The #966 key-name gaps (issues #1027-#1038). ----
+    // The audit of which settings MM does not honour found rows where SoH's menu
+    // writes one key and MM reads a differently spelled twin with NO row here, so
+    // the control moved a key nothing in MM consulted. Each row below was
+    // re-verified at its read sites to agree on TYPE and RANGE on both sides
+    // (the draw-distance multiplier is an int 1..5, default 1; every other row is
+    // a 0/1 toggle, default 0), which makes it a pure rename: ConfigVersion9Updater
+    // copies a stored MM-spelled value across and test_cvar_classification pins
+    // every row (the "#966 key-gap rows" block). MM's readers moved to SoH's key
+    // in the same change, BenMenu.cpp's excluded widgets included.
+    //
+    // Mapping is not the same as live. The first three rows (#1027-#1029) have
+    // readers that are LINKED (the actor-cull TUs and AuthenticGfxPatches.cpp).
+    // The other eight providers sit in the plain 2ship_enh archive and are
+    // elided from the single exe today, so those rows are mapped and wait on the
+    // link-class issues to become effective; mapping first means the day a
+    // provider links it already reads the one shared key.
+    // Defaults: N64WeirdFrames (#1038) is the one row whose MM reader default
+    // differed (2Ship: on, to match hardware); the reader now takes OoT's off, so
+    // the one checkbox cannot show a state MM is not in. SkipMiscInteractions
+    // keeps the per-reader default difference the cutscene-skip family already
+    // documents above (OoT IS_RANDO, MM 0).
+    { "gEnhancements.Graphics.IncreaseActorDrawDistance", "gEnhancements.DisableDrawDistance", false },
+    { "gEnhancements.Graphics.ActorCullingAccountsForWidescreen", "gEnhancements.WidescreenActorCulling", false },
+    { "gEnhancements.Fixes.FixTexturesOOB", "gEnhancements.FixTexturesOOB", false },
+    { "gEnhancements.A11y.NoScreenFlashForEnemyKill", "gSettings.A11yNoScreenFlashForFinishingBlow", false },
+    { "gEnhancements.Graphics.3DItemDrops", "gEnhancements.NewDrops", false },
+    { "gEnhancements.Cutscenes.SkipMiscInteractions", "gEnhancements.TimeSavers.SkipMiscInteractions", false },
+    { "gEnhancements.Playback.SkipScarecrowSong", "gEnhancements.InstantScarecrow", false },
+    { "gEnhancements.PlayerActions.ArrowCycle", "gEnhancements.BowArrowCycle", false },
+    { "gEnhancements.Equipment.MagicArrowEquipSpeed", "gEnhancements.SkipArrowAnimation", false },
+    { "gEnhancements.DifficultyOptions.PermanentHeartLoss", "gEnhancements.PermanentHeartLoss", false },
+    { "gEnhancements.Restorations.N64WeirdFrames", "gEnhancements.N64WeirdFrames", false },
 };
 
 /**
@@ -368,6 +402,12 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "(none — OoT hardcodes THREE_MINUTES_IN_UNIX)",
       "The Autosave ENABLE flag is genuinely shared-intent, but OoT's interval is hardcoded with no CVar. "
       "The interval is MM-only and must NOT ride along with an Autosave rename." },
+    { "PARKED: damage multiplier value space (#1037)", "gEnhancements.DifficultyOptions.DamageMultiplier",
+      "gEnhancements.DamageMult",
+      "Same intent (a left-shift of incoming damage: OoT z_player.c `1 << DamageMult`, MM `*damage <<= value`) "
+      "and 0-4 agree (1x-16x), but the VALUE SPACES differ: OoT's list runs 0-8 (to 256x) while MM's is 0-4 plus "
+      "10 = '1 Hit KO'. A plain key swap makes OoT's 5-8 shift MM's damage out of range and MM's 10 shift OoT's "
+      "by 1024x. Pending an operator ruling on which value space wins; do not converge until it lands." },
     { "PARKED: infinite ammo scope", "gCheats.InfiniteConsumables", "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },
@@ -412,9 +452,11 @@ inline constexpr const char* kSharedIntentKeys[] = {
     "gDeveloperTools.DebugSaveFileMode",
     "gDeveloperTools.FrameAdvanceTick",
     "gDeveloperTools.LogLevel",
-    // Graphics enhancements that describe the renderer, not the game.
-    "gEnhancements.Graphics.IncreaseActorDrawDistance",
-    "gEnhancements.Graphics.ActorCullingAccountsForWidescreen",
+    // (The actor draw-distance and widescreen-culling keys that stood here were
+    // NOT shared: the ADR's measurement matched them in OoT's uncalled
+    // ShipUtils.cpp copy, while every live OoT reader and SoH's menu use
+    // gEnhancements.DisableDrawDistance / .WidescreenActorCulling. #966 moved MM
+    // onto those two keys, so they are converged rows above: #1027, #1028.)
     // Audio editor behaviour.
     "gAudioEditor.EnemyBGMDisable",
     "gAudioEditor.LowHpAlarm",
@@ -942,17 +984,24 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 
 // Tier 1 (#34) landed 9 keys — 6 audio + 3 tunic. #462 adds 23 of the inventory
 // §5.3 remainder's 26 rows (the 3 held out are ClimbSpeed and the two parked
-// cheat pairs, all in kMustStayDistinct). 9 + 23 = 32. Pinning the count makes a
-// silently dropped or double-added row a compile error.
-static_assert(kConvergedKeyCount == 32, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) = 32");
+// cheat pairs, all in kMustStayDistinct). 9 + 23 = 32. The #966 audit adds 11
+// key-name-gap rows (#1027-#1036 and #1038; #1037's damage multiplier is held
+// out in kMustStayDistinct). 32 + 11 = 43. Pinning the count makes a silently
+// dropped or double-added row a compile error.
+static_assert(kConvergedKeyCount == 43, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
+                                        "key-name gaps (11 of 12; #1037 held out) = 43");
 
-// ADR 0003 Appendix B measured 26 class-(S) collisions, and this table now
-// carries all 26: DebugSaveFileMode rejoined when #454 was fixed (MM's clobber
-// retired, read default aligned to OoT's 1). Pinning the count makes a silent
-// drop a compile error rather than a quietly weaker lock.
-static_assert(kSharedIntentKeyCount == 26,
-              "ADR 0003 Appendix B's 26 class-(S) keys, including DebugSaveFileMode — restored to (S) by #454 "
-              "once MM's DeveloperTools.cpp write was retired and its read default aligned to OoT's 1");
+// ADR 0003 Appendix B measured 26 class-(S) collisions. DebugSaveFileMode
+// rejoined when #454 was fixed (MM's clobber retired, read default aligned to
+// OoT's 1). Two of the 26 were never shared: the draw-distance and
+// widescreen-culling spellings matched only in OoT's uncalled ShipUtils.cpp, so
+// #966 (#1027, #1028) converged them as ordinary rows and this table carries 24.
+// Pinning the count makes a silent drop a compile error rather than a quietly
+// weaker lock.
+static_assert(kSharedIntentKeyCount == 24,
+              "ADR 0003 Appendix B's 26 class-(S) keys less the two actor-cull spellings #966 moved to converged "
+              "rows (#1027, #1028); includes DebugSaveFileMode — restored to (S) by #454 once MM's "
+              "DeveloperTools.cpp write was retired and its read default aligned to OoT's 1");
 static_assert(kMenuIndexKeyCount == 4, "four menu-index keys — #451");
 // The disputed table is empty since #454's fix. Pinned at 0 like every other
 // table here, so a key silently re-added to it is a compile error rather than a

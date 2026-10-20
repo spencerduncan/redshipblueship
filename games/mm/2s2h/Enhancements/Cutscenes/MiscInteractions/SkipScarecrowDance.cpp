@@ -6,7 +6,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Kakasi/z_en_kakasi.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterSkipScarecrowDance() {
