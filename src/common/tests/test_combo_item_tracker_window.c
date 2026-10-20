@@ -66,9 +66,11 @@
  *
  * 10. THE DEFAULT POSITION (#962). The floating overlay's default placement
  *    (ComboItemTrackerDefaultPos) stays below the HUD band that holds the
- *    hearts (ComboItemTrackerHudBand) at seven view sizes and two view origins,
- *    where the old default, ImGui's (60, 60), sat on the hearts. UiSnapshot's
- *    HudBandOracle holds the same over the drawn overlay.
+ *    hearts and the magic bar (ComboItemTrackerHudBand) at seven view sizes and
+ *    two view origins, the HUD literals held to the decomp by a source scan.
+ *    UiSnapshot's HudBandOracle holds the same over the drawn overlay, and its
+ *    ResetPositionCheck drives Move to Default Position over real ImGui frames
+ *    (a saved position is kept, the button returns to the default once).
  *
  * Appearance is judged from the UiSnapshot captures (window/Combo Item Tracker
  * @no-data, @live and @snapshot beside SoH's window/Item Tracker); ImageOracle
@@ -309,10 +311,15 @@ int CitwLockDecisions(void) {
 
 /**
  * Point 10, #962: the floating overlay's default position stays off the HUD's
- * hearts. The hearts are rebuilt here from the HUD's own grid (z_lifemeter.c:
- * first heart centre (30, 26) of a 320x240 layout, 10 apart, ten to a row, 16 px
- * hearts drawn at 0.7), up to the two rows of 20 hearts, and the overlay is
- * given a generous 300x300 px of body; the old default was ImGui's (60, 60).
+ * hearts and magic bar. Both are rebuilt here from the HUD's own grid, written
+ * out as the decomp's literals: hearts (z_lifemeter.c: first heart centre
+ * (30, 26) of a 320x240 layout, 10 apart, ten to a row, 16 px hearts drawn at
+ * 0.7), up to the two rows of 20 hearts; the magic bar (z_construct.c: left
+ * X 18, lowest top 42; z_parameter.c: 16 px tall, 8 + up to 96 + 8 wide). A
+ * source scan below holds those literals to the decomp. The overlay is given
+ * a generous 300x300 px of body. (The old default, ImGui's (60, 60), sat on the
+ * hearts at every size: the HudBandOracle in UiSnapshot holds that regression
+ * over the drawn overlay.)
  */
 int CitwLockDefaultPosition(void) {
     using namespace ComboGui;
@@ -332,10 +339,19 @@ int CitwLockDefaultPosition(void) {
             hearts.y = vy + (26.0f - 5.6f) * unit;
             hearts.w = (90.0f + 11.2f) * unit;
             hearts.h = (10.0f + 11.2f) * unit; // two rows
+            ComboItemTrackerRect bar;
+            bar.x = vx + 18.0f * unit;
+            bar.y = vy + 42.0f * unit;
+            bar.w = (8.0f + 96.0f + 8.0f) * unit;
+            bar.h = 16.0f * unit;
             const ComboItemTrackerRect band = ComboItemTrackerHudBand(vx, vy, v.w, v.h);
-            // The band holds the hearts whole.
+            // The band holds the hearts whole ...
             CITW_ASSERT(band.x <= hearts.x && band.y <= hearts.y);
             CITW_ASSERT(band.x + band.w >= hearts.x + hearts.w && band.y + band.h >= hearts.y + hearts.h);
+            // ... and the magic bar whole, to its bottom edge (y 58).
+            CITW_ASSERT(band.x <= bar.x && band.y <= bar.y);
+            CITW_ASSERT(band.x + band.w >= bar.x + bar.w);
+            CITW_ASSERT(band.y + band.h >= bar.y + bar.h);
 
             float x = 0.0f;
             float y = 0.0f;
@@ -347,21 +363,46 @@ int CitwLockDefaultPosition(void) {
             overlay.h = 300.0f;
             const bool hitsHearts = overlay.x < hearts.x + hearts.w && hearts.x < overlay.x + overlay.w &&
                                     overlay.y < hearts.y + hearts.h && hearts.y < overlay.y + overlay.h;
-            if (hitsHearts || y < band.y + band.h) {
-                printf("[TEST] FAIL: %.0fx%.0f view at (%.0f, %.0f): default overlay at (%.0f, %.0f) covers the hearts "
-                       "(%.0f,%.0f %.0fx%.0f) or the HUD band to y %.0f\n",
-                       v.w, v.h, vx, vy, x, y, hearts.x, hearts.y, hearts.w, hearts.h, band.y + band.h);
+            const bool hitsBar = overlay.x < bar.x + bar.w && bar.x < overlay.x + overlay.w &&
+                                 overlay.y < bar.y + bar.h && bar.y < overlay.y + overlay.h;
+            if (hitsHearts) {
+                printf("[TEST] FAIL: %.0fx%.0f view at (%.0f, %.0f): default overlay at (%.0f, %.0f) covers the "
+                       "hearts (%.0f,%.0f %.0fx%.0f)\n",
+                       v.w, v.h, vx, vy, x, y, hearts.x, hearts.y, hearts.w, hearts.h);
                 return TEST_FAIL;
             }
-            // Inside the view, with the lower half of it to grow into.
-            CITW_ASSERT(x >= vx && x < vx + v.w && y < vy + v.h * 0.5f);
-            // The old default, ImGui's own for a new window, is on the hearts.
-            const bool oldHits = 60.0f < hearts.x + hearts.w && hearts.x < 60.0f + overlay.w &&
-                                 60.0f < hearts.y + hearts.h && hearts.y < 60.0f + overlay.h;
-            CITW_ASSERT(oldHits);
+            if (hitsBar) {
+                printf("[TEST] FAIL: %.0fx%.0f view at (%.0f, %.0f): default overlay at (%.0f, %.0f) covers the "
+                       "magic bar (%.0f,%.0f %.0fx%.0f)\n",
+                       v.w, v.h, vx, vy, x, y, bar.x, bar.y, bar.w, bar.h);
+                return TEST_FAIL;
+            }
+            // Below the whole band, not merely clear of the two rects.
+            CITW_ASSERT(y >= band.y + band.h);
+            // Inside the view, flush to its left, with the lower half of it to grow into.
+            CITW_ASSERT(x >= vx && x < vx + v.w);
+            CITW_ASSERT(y < vy + v.h * 0.5f);
         }
     }
-    printf("[TEST] combo-item-tracker-window: the default position clears the HUD's hearts at %zu view sizes PASS\n",
+#ifdef RSBS_SOURCE_DIR
+    {
+        // The literals above are the decomp's: if the HUD moves, this fails.
+        auto slurp = [](const char* rel) {
+            std::ifstream in(std::string(RSBS_SOURCE_DIR) + rel, std::ios::binary);
+            return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        };
+        const std::string construct = slurp("/games/oot/src/code/z_construct.c");
+        const std::string parameter = slurp("/games/oot/src/code/z_parameter.c");
+        const std::string lifemeter = slurp("/games/oot/src/code/z_lifemeter.c");
+        CITW_ASSERT(construct.find("R_MAGIC_BAR_LARGE_Y = 42;") != std::string::npos);
+        CITW_ASSERT(construct.find("R_MAGIC_BAR_X = 18;") != std::string::npos);
+        CITW_ASSERT(parameter.find("gMagicMeterEndTex, 8, 16, PosX_Start, magicBarY, 8, 16") != std::string::npos);
+        CITW_ASSERT(lifemeter.find("-130 + offsetX,       // Pos X") != std::string::npos);
+        CITW_ASSERT(lifemeter.find("(-94 + offsetY) * -1, // Pos Y") != std::string::npos);
+    }
+#endif
+    printf("[TEST] combo-item-tracker-window: the default position clears the HUD's hearts and magic bar at %zu view "
+           "sizes PASS\n",
            sizeof(views) / sizeof(views[0]));
     return TEST_PASS;
 }

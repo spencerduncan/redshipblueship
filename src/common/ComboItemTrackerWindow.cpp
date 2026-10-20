@@ -77,8 +77,9 @@ void BeginOverlay(int windowType) {
         const ImGuiViewport* main = ImGui::GetMainViewport();
         ImGui::SetNextWindowViewport(main->ID);
         // Where it first appears (#962): under the HUD's hearts, not on them.
-        // FirstUseEver leaves a saved or dragged position alone; Reset
-        // Position forces the default for one frame.
+        // FirstUseEver leaves a saved or dragged position alone; Move to
+        // Default Position (ComboItemTrackerResetPosition) forces the default
+        // for one frame.
         ImVec2 pos;
         ComboItemTrackerDefaultPos(main->Pos.x, main->Pos.y, main->Size.x, main->Size.y, &pos.x, &pos.y);
         ImGui::SetNextWindowPos(pos, gResetPositionRequested ? ImGuiCond_Always : ImGuiCond_FirstUseEver);
@@ -271,6 +272,12 @@ void ComboItemTrackerResetPosition() {
     gResetPositionRequested = true;
 }
 
+// The magic bar's lowest placement (hearts past one row push it down to the
+// large Y): top at R_MAGIC_BAR_LARGE_Y (z_construct.c), drawn 16 px tall
+// (gMagicMeterEndTex, z_parameter.c), on the HUD's 320x240 grid.
+constexpr float kMagicBarLargeTop = 42.0f;
+constexpr float kMagicBarHeight = 16.0f;
+
 ComboItemTrackerRect ComboItemTrackerHudBand(float viewX, float viewY, float viewW, float viewH) {
     (void)viewW;
     const float unit = viewH / 240.0f; // the HUD's grid is 240 high, scaled to the view's height
@@ -278,7 +285,7 @@ ComboItemTrackerRect ComboItemTrackerHudBand(float viewX, float viewY, float vie
     band.x = viewX;
     band.y = viewY;
     band.w = 136.0f * unit;
-    band.h = 56.0f * unit;
+    band.h = (kMagicBarLargeTop + kMagicBarHeight) * unit;
     return band;
 }
 

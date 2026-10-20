@@ -847,6 +847,9 @@ struct PageSpec {
     // (HudBandOracle, #962). A state drawn with a title bar is a window, not
     // the floating overlay, and is exempt.
     bool avoidHudBand = false;
+    // WINDOW: the floating overlay's Move to Default Position request is driven
+    // over real frames in the "live" state (ResetPositionCheck, #962).
+    bool checksResetPosition = false;
     bool scroll = true;
     bool needsRom = false;
     // When non-empty, hover variants are taken in these states only. A race
@@ -1058,6 +1061,7 @@ class Session {
     void CaptureMenuPage(const PageSpec& p);
     void CaptureWindowPage(const PageSpec& p);
     void CapturePaneHovers(const PageSpec& p, const std::string& state);
+    void ResetPositionCheck(const PageSpec& p);
     void CheckTrickCensus(const PageSpec& p, const std::string& state);
     void CaptureOverlay(const PageSpec& p);
     void CaptureModal(const PageSpec& p);
@@ -2368,6 +2372,7 @@ void Session::BuildPageList() {
         p.stateImages["live"] = 40;
         p.stateImages["snapshot"] = 40;
         p.avoidHudBand = true; // #962: the floating states sit below the hearts
+        p.checksResetPosition = true;
         p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         // #927: no section says how fresh it is, and an empty one is its
@@ -3960,6 +3965,70 @@ void ImageOracle(const ImGuiWindow* w, int minImages, Capture& c) {
                std::to_string(minImages);
 }
 
+/**
+ * Move to Default Position over real frames (#962): the floating overlay keeps
+ * a position it already has (an imgui.ini entry, a drag), ComboItemTrackerResetPosition
+ * puts it back at ComboItemTrackerDefaultPos on the next draw, and only that
+ * draw (the request is consumed: a drag afterwards stays). The "old (60, 60)"
+ * entry is the one the button exists to repair. Ends with the overlay back at
+ * the default, so the states drawn after this one are not left moved.
+ */
+void Session::ResetPositionCheck(const PageSpec& p) {
+    const std::string who = p.id + " (live): Move to Default Position: ";
+    auto pump = [&]() {
+        std::string why;
+        if (!PumpFrame(nullptr, false, nullptr, why)) {
+            Fail(who + "a frame failed: " + why);
+            return false;
+        }
+        return true;
+    };
+    auto window = [&]() { return ImGui::FindWindowByName(p.window.c_str()); };
+    if (!pump() || window() == nullptr || (window()->Flags & ImGuiWindowFlags_NoTitleBar) == 0) {
+        Fail(who + "the floating overlay is not drawn in the live state");
+        return;
+    }
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImVec2 def;
+    ComboGui::ComboItemTrackerDefaultPos(viewport->Pos.x, viewport->Pos.y, viewport->Size.x, viewport->Size.y, &def.x,
+                                         &def.y);
+    auto at = [&](const char* step, ImVec2 want) {
+        ImGuiWindow* w = window();
+        if (w == nullptr || std::fabs(w->Pos.x - want.x) > 1.0f || std::fabs(w->Pos.y - want.y) > 1.0f) {
+            char why[256];
+            snprintf(why, sizeof(why), "%s: the overlay is at (%.0f,%.0f), expected (%.0f,%.0f)", step,
+                     w != nullptr ? w->Pos.x : -1.0f, w != nullptr ? w->Pos.y : -1.0f, want.x, want.y);
+            Fail(who + why);
+            return false;
+        }
+        return true;
+    };
+    // The old saved entry (ImGui's default for a new window) is kept by an ordinary frame.
+    const ImVec2 old(60.0f, 60.0f);
+    ImGui::SetWindowPos(window(), old, ImGuiCond_Always);
+    if (!pump() || !at("a saved position is kept by an ordinary draw", old)) {
+        return;
+    }
+    // The button's request moves it to the default ...
+    ComboGui::ComboItemTrackerResetPosition();
+    if (!pump() || !at("the request returns the overlay to the default position", def)) {
+        return;
+    }
+    // ... once: a position dragged to afterwards stays.
+    const ImVec2 dragged(def.x + 150.0f, def.y + 40.0f);
+    ImGui::SetWindowPos(window(), dragged, ImGuiCond_Always);
+    if (!pump() || !at("the request is consumed by one draw (a later drag is kept)", dragged)) {
+        return;
+    }
+    // Leave it at the default for the states drawn next.
+    ComboGui::ComboItemTrackerResetPosition();
+    if (pump() && at("the overlay is left at the default position", def)) {
+        printf("[UI-SNAPSHOT] reset-position check %s: an old (60,60) kept, moved to (%.0f,%.0f) by the request, "
+               "a later drag kept\n",
+               p.id.c_str(), def.x, def.y);
+    }
+}
+
 void Session::CaptureWindowPage(const PageSpec& p) {
     // Ours read their visibility CVar LIVE in Draw() (they override it), so
     // setting the CVar is what opens them; Show() would do nothing. An SoH pane
@@ -4102,6 +4171,9 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         }
 
         CapturePaneHovers(p, state);
+        if (p.checksResetPosition && state == "live") {
+            ResetPositionCheck(p);
+        }
         gHooks.unclipLog = true;
         if (sohPane) {
             guiWindow->Hide();

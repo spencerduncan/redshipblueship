@@ -23,8 +23,9 @@
  * POSITION (#962). The floating overlay first appears at the left edge, just
  * below the HUD's hearts and magic bar (ComboItemTrackerDefaultPos), not on
  * them; a dragged position is kept (ImGui's saved window settings, as SoH's
- * trackers keep theirs) and Combo > Tracker Settings > Move to Default Position returns
- * it. The Windows toggle's tooltip and the Enable Dragging row say how to move it.
+ * trackers keep theirs) and Combo > Tracker Settings > Move to Default Position
+ * returns it, also from an old saved position on the hearts. The Windows
+ * toggle's tooltip and the Enable Dragging row say how to move it.
  *
  * ICONS (#458 U3). Each game's section is that game's own tracker: its icons
  * (OoT's keyed by texture name, MM's by resource path, both straight from the
@@ -178,12 +179,17 @@ struct ComboItemTrackerRect {
  * (`viewX`, `viewY`): the heart rows and the magic bar under them, which both
  * games draw in the same place. The HUD is laid out on a 320x240 grid scaled to
  * the view's height (hearts: first centre at (30, 26), 10 apart, ten to a row,
- * two rows for 20 hearts, z_lifemeter.c; magic bar: top at y 42, a few lines
- * tall, z_construct.c; the rupee counter and key count sit at the bottom left,
- * (26, 206)), so the band is 136 grid units wide and 56 tall, from the view's
- * left edge. Wider than the hearts themselves: it only needs to be a rect the
- * overlay stays out of, at any aspect ratio (a pillarboxed 4:3 view shifts the
- * hearts right, never down).
+ * two rows for 20 hearts, z_lifemeter.c; magic bar: top at y 42 at its lowest,
+ * 16 tall, so its bottom is y 58, z_construct.c and z_parameter.c; the rupee
+ * counter and key count sit at the bottom left, (26, 206)), so the band is 136
+ * grid units wide and 58 tall, from the view's left edge. Wider than the hearts
+ * themselves: it only needs to be a rect the overlay stays out of.
+ *
+ * Covered: a 4:3 or wider view, however far it is pillarboxed (the hearts shift
+ * right, never down, so the vertical separation holds). NOT covered: a view
+ * narrower than 4:3 that letterboxes the game top and bottom, where the grid's
+ * unit is the view's width, not its height, and the hearts may sit lower than the
+ * band; nor a HUD the player moved with the cosmetic HUD editor.
  */
 ComboItemTrackerRect ComboItemTrackerHudBand(float viewX, float viewY, float viewW, float viewH);
 
@@ -192,8 +198,8 @@ ComboItemTrackerRect ComboItemTrackerHudBand(float viewX, float viewY, float vie
  * below the HUD band (ComboItemTrackerHudBand), in the free stretch above the
  * rupee counter. The old default was ImGui's own (60, 60) for a new window,
  * which is on the hearts at every size. Applied only when the window has no
- * saved position (ImGuiCond_FirstUseEver) or the player presses Reset
- * Position; a position the player dragged to is kept, as SoH's trackers keep
+ * saved position (ImGuiCond_FirstUseEver) or the player presses Move to
+ * Default Position; a position the player dragged to is kept, as SoH's trackers keep
  * theirs (ImGui's saved window settings).
  */
 void ComboItemTrackerDefaultPos(float viewX, float viewY, float viewW, float viewH, float* outX, float* outY);
