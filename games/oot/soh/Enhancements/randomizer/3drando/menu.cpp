@@ -20,6 +20,7 @@
 #include "../item_location.h"
 #include "../entrance.h"          // #949: the entrance table the content digest folds
 #include "starting_inventory.hpp" // #949: the starting inventory the content digest folds
+#include "soh/cvar_prefixes.h"     // #982: the menu CVars a golden profile writes
 #include <cstdio>
 #include <fstream>
 #include "context.h" // src/common — gComboCtx, Lane B unified-seed carrier (ADR 0002)
@@ -39,6 +40,91 @@ bool seedChanged;
 uint16_t pastSeedLength;
 std::vector<std::string> presetEntries;
 Rando::Option* currentSetting;
+} // namespace
+
+// randomizer.cpp (#982): the Generate button's read of the exclude and trick CVars.
+void Rando_ReadMenuExcludesAndTricks(std::set<RandomizerCheck>& excludedLocations,
+                                     std::set<RandomizerTrick>& enabledTricks);
+
+namespace {
+// #982: what a golden profile asked for, so the digest can prove it took. -1 when
+// the environment named no set (every golden before #982, which passes {} {}).
+int sGoldenExcludesRequested = -1;
+int sGoldenTricksRequested = -1;
+std::set<RandomizerCheck> sGoldenExcludes;
+std::set<RandomizerTrick> sGoldenTricks;
+
+/** How many distinct comma-separated keys @p list names. */
+int CountGoldenKeys(const char* list) {
+    std::set<std::string> keys;
+    std::stringstream ss(list);
+    std::string key;
+    while (std::getline(ss, key, ',')) {
+        if (!key.empty()) {
+            keys.insert(key);
+        }
+    }
+    return (int)keys.size();
+}
+
+/**
+ * #982: a golden profile's OoT exclude and trick sets, and MM's excluded checks,
+ * from the environment. RSBS_GOLDEN_EXCLUDES and RSBS_GOLDEN_TRICKS carry
+ * comma-separated RandomizerCheck and RandomizerTrick ids, the form the menu stores
+ * in gRandoSettings.ExcludedLocations and gRandoSettings.EnabledTricks. They are
+ * written to those CVars and read back with the Generate button's own parse
+ * (Rando_ReadMenuExcludesAndTricks), visibility filter included, so a golden pins
+ * the sets a player's generation builds from the same keys. A key the filter drops
+ * refuses the run: a profile must never shrink silently. RSBS_GOLDEN_MM_EXCLUDES is
+ * written to gRando.ExcludedChecks as given, which MM's pool generation parses and
+ * MM's profile digest folds (write it sorted, as MM's menu does). With none of the
+ * three set, both sets stay empty, as they were before #982.
+ * @return false when a requested key did not take or a key is not a number.
+ */
+bool ReadGoldenProfileSets(std::set<RandomizerCheck>& excludedLocations, std::set<RandomizerTrick>& enabledTricks) {
+    sGoldenExcludesRequested = -1;
+    sGoldenTricksRequested = -1;
+    sGoldenExcludes.clear();
+    sGoldenTricks.clear();
+    if (const char* mmExcludes = std::getenv("RSBS_GOLDEN_MM_EXCLUDES")) {
+        CVarSetString("gRando.ExcludedChecks", mmExcludes);
+        fprintf(stderr, "[golden-profile] MM excluded checks: %s\n", mmExcludes);
+    }
+    const char* excludes = std::getenv("RSBS_GOLDEN_EXCLUDES");
+    const char* tricks = std::getenv("RSBS_GOLDEN_TRICKS");
+    if (excludes == nullptr && tricks == nullptr) {
+        return true;
+    }
+    CVarSetString(CVAR_RANDOMIZER_SETTING("ExcludedLocations"), excludes != nullptr ? excludes : "");
+    CVarSetString(CVAR_RANDOMIZER_SETTING("EnabledTricks"), tricks != nullptr ? tricks : "");
+    try {
+        Rando_ReadMenuExcludesAndTricks(excludedLocations, enabledTricks);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[golden-profile] FAIL: the menu's parse refused the profile's keys (%s)\n", e.what());
+        return false;
+    }
+    sGoldenExcludesRequested = excludes != nullptr ? CountGoldenKeys(excludes) : 0;
+    sGoldenTricksRequested = tricks != nullptr ? CountGoldenKeys(tricks) : 0;
+    for (const RandomizerCheck rc : excludedLocations) {
+        fprintf(stderr, "[golden-profile] exclude %d = %s\n", (int)rc,
+                Rando::StaticData::GetLocation(rc)->GetName().c_str());
+    }
+    for (const RandomizerTrick rt : enabledTricks) {
+        fprintf(stderr, "[golden-profile] trick %d = %s\n", (int)rt,
+                Rando::Settings::GetInstance()->GetTrickOption(rt).GetName().c_str());
+    }
+    if ((int)excludedLocations.size() != sGoldenExcludesRequested ||
+        (int)enabledTricks.size() != sGoldenTricksRequested) {
+        fprintf(stderr,
+                "[golden-profile] FAIL: the profile names %d exclude(s) and %d trick(s), the menu's parse kept %zu and "
+                "%zu (a key that is not visible under this profile is dropped)\n",
+                sGoldenExcludesRequested, sGoldenTricksRequested, excludedLocations.size(), enabledTricks.size());
+        return false;
+    }
+    sGoldenExcludes = excludedLocations;
+    sGoldenTricks = enabledTricks;
+    return true;
+}
 } // namespace
 
 // Test bridge for the RandoGen regression test (issue #337): drive seed
@@ -77,7 +163,12 @@ extern "C" int Rando_HeadlessSeedTest(const char* seedStr) {
         }
     }
     Rando::Settings::GetInstance()->SetAllToContext();
-    bool ok = GenerateRandomizer({}, {}, seedStr ? seedStr : "");
+    std::set<RandomizerCheck> excludedLocations;
+    std::set<RandomizerTrick> enabledTricks;
+    if (!ReadGoldenProfileSets(excludedLocations, enabledTricks)) {
+        return 1;
+    }
+    bool ok = GenerateRandomizer(excludedLocations, enabledTricks, seedStr ? seedStr : "");
     fprintf(stderr, "[rando-diag] GenerateRandomizer returned %s\n", ok ? "true" : "false");
     return ok ? 0 : 1;
 }
@@ -1899,17 +1990,31 @@ extern "C" uint32_t Rando_TestStaticHintTexts(int* outCount) {
 // fields the spoiler JSON carries.
 //
 // Determinism scope: the harness drives the synchronous 3-arg GenerateRandomizer
-// with EMPTY excludedLocations/enabledTricks (see Rando_HeadlessSeedTest), so
-// this locks reproducibility for the pinned settings profile with no per-check
-// exclusions or extra tricks. Exclusion/trick-driven fills are out of scope for
-// this lock.
+// with the exclude and trick sets a golden profile names in the environment
+// (#982; see ReadGoldenProfileSets), EMPTY when it names none, which is every
+// profile before #982. The player's own path (the Generate button's worker
+// thread, then the creation event) is the GoldenSeedDigestPlayerPath row's, which
+// writes its OoT half with Rando_HeadlessWriteDeterminismHead below.
+extern "C" int Rando_HeadlessWriteDeterminismHead(const char* outPath);
+
 extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const char* outPath) {
     int rc = Rando_HeadlessSeedTest(seedStr);
     if (rc != 0) {
         fprintf(stderr, "[rando-determinism] generation failed rc=%d\n", rc);
         return rc;
     }
+    return Rando_HeadlessWriteDeterminismHead(outPath);
+}
 
+/**
+ * The OoT half of the determinism digest, over the generation that just ran: the
+ * unified-seed fields, the combo record and OoT's placement at the Generate
+ * button, and (for a world that did not stop at its general pass) its content.
+ * Split out of Rando_HeadlessSeedDeterminismDigest (#982) so the player-path row
+ * writes the same lines after the worker thread's generation. Creates (truncates)
+ * @p outPath; NULL/empty writes to stdout.
+ */
+extern "C" int Rando_HeadlessWriteDeterminismHead(const char* outPath) {
     // The live unified-seed producer (Playthrough_Init) must have stamped the
     // ComboContext during generation. This ties the determinism lock directly to
     // Lane B's producer: if it ever stops firing, sourceIsRando/sharedRandoSeed
@@ -1942,6 +2047,33 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
     const int generalPassDeferred = 0;
 #endif
 
+    // #982: a golden profile's sets must have reached the generation, counted off
+    // the context the fill read rather than the sets the harness passed, so a
+    // profile that silently lost its keys between the parse and the fill writes no
+    // digest. Counted, and written below, only when the profile named a set.
+    int goldenExcluded = 0;
+    int goldenTricks = 0;
+    if (sGoldenExcludesRequested >= 0) {
+        // Each requested key, not the context's totals: FinalizeSettings excludes
+        // some checks itself (a starting sword's or ocarina's own check).
+        for (const RandomizerCheck rc : sGoldenExcludes) {
+            if (ctx->GetLocationOption(rc).Is(RO_LOCATION_EXCLUDE)) {
+                goldenExcluded++;
+            }
+        }
+        for (const RandomizerTrick rt : sGoldenTricks) {
+            if (ctx->GetTrickOption(rt).Is(RO_GENERIC_ON)) {
+                goldenTricks++;
+            }
+        }
+        if (goldenExcluded != sGoldenExcludesRequested || goldenTricks != sGoldenTricksRequested) {
+            fprintf(stderr,
+                    "[rando-determinism] FAIL: the golden profile asked for %d exclude(s) and %d trick(s), the "
+                    "generation's context holds %d and %d\n",
+                    sGoldenExcludesRequested, sGoldenTricksRequested, goldenExcluded, goldenTricks);
+            return 6;
+        }
+    }
     FILE* out = stdout;
     bool closeOut = false;
     if (outPath && outPath[0] != '\0') {
@@ -1981,6 +2113,9 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
     // #949: a world that did NOT stop at its general pass is complete here, so its
     // hints, prices, starting items and entrances are folded here; a paired world's
     // are folded by the MM half's writer once OoT's remainder has run.
+    if (sGoldenExcludesRequested >= 0) {
+        fprintf(out, "ootExcludedLocations=%d\nootEnabledTricks=%d\n", goldenExcluded, goldenTricks);
+    }
     if (!generalPassDeferred) {
         Rando_HeadlessWriteOoTContentDigest(out);
     }

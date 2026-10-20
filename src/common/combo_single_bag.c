@@ -71,7 +71,10 @@ static uint32_t SingleBagIdentityHash(const char* tag) {
     SingleBagFold(&h, gComboCtx.sharedRandoSeed);
     SingleBagFold(&h, gComboCtx.sharedRandoSettingsHash);
     SingleBagFold(&h, gComboCtx.mmProfileDigest);
-    SingleBagFold(&h, gComboCtx.comboSettingsHash);
+    // The fingerprint WITHOUT its generator label (#1003): the version is a
+    // label, never an entropy input, so a bump of RSBS_GENERATOR_VERSION moves
+    // no placement. For every pre-#1003 fingerprint this is the stored value.
+    SingleBagFold(&h, Combo_ComboSettingsWorldHash());
     return h;
 }
 
