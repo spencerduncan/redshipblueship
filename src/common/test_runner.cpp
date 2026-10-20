@@ -702,6 +702,11 @@ extern "C" {
 // games' integration hooks call.
 #include "tests/test_resource_cache_owner.c"
 
+// #987 ArchiveManager::AddArchive de-duplication lock. FILE SCOPE (compiled as
+// C++): the ROM-free row drives the C++-linkage ArchiveManager over two
+// temporary O2R zips.
+#include "tests/test_archive_add_dedup.c"
+
 // #618 (#516 Phase 3) ExtensionCache rescan lock. FILE SCOPE (compiled as C++):
 // it drives the C++-linkage Ship::Context / ResourceManager APIs directly and
 // declares the C-linkage cache/rescan entry points it needs itself. The wrapper
@@ -3887,6 +3892,29 @@ TestResult Test_ResourceCacheOwner(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #987: a game switch re-adds the arriving game's archives by path, and the
+// ArchiveManager must not mount a second copy of one that is already mounted.
+// Body in src/common/tests/test_archive_add_dedup.c: two temporary O2R zips
+// added and re-added, counts and newest-wins asserted. ROM-free and
+// archive-free: it needs only the display-free shared bring-up.
+TestResult Test_ArchiveAddDedup(void) {
+    printf("[TEST] archive-add-dedup: re-adding a mounted archive path mounts nothing new (#987)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = ArchiveAddDedup_RunHeadless();
+    printf("[TEST] %s: archive add dedup rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #593: a user mod overrides a base asset only by being mounted after it, and
 // the switch-time base re-add (the #154 fix) put the base archives back on top
 // — silently revoking every override, with the mods still listed as enabled.
@@ -6078,6 +6106,7 @@ const TestDescriptor gTests[] = {
       Test_ModArchiveSurvivesSwitch },
     { "resource-cache-owner", "Each resource cache owner keeps its own copy of a shared path (#981)",
       Test_ResourceCacheOwner },
+    { "archive-add-dedup", "Re-adding a mounted archive path mounts nothing new (#987)", Test_ArchiveAddDedup },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
     { "curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",

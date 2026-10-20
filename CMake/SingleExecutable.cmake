@@ -806,6 +806,11 @@ if(BUILD_TESTING)
     # ResourceManager::SetDefaultCacheOwner: each owner keeps its own bytes, and
     # the first keeps its original object. ROM-free and archive-free.
     redship_add_test(NAME ResourceCacheOwner COMMAND redship --test resource-cache-owner)
+    # #987: re-adding a mounted archive path (every game switch does) mounts
+    # nothing new and keeps newest-wins. Two temporary O2R zips added and
+    # re-added by path: archive count, game-version list and mount order
+    # asserted. ROM-free and archive-free.
+    redship_add_test(NAME ArchiveAddDedup COMMAND redship --test archive-add-dedup)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture
