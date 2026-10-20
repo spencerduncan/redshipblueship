@@ -284,23 +284,11 @@ void RefreshChecksInLogic() {
     lastFrame = MM_gGameState->frames;
     checksInLogic.clear();
 
-    // The regions+events fixpoint that used to live inline here is the
-    // factored Rando::Logic::CrawlReachableRegions (ADR 0010 increment 1.3;
-    // #500 work item 2) — one traversal shared with generation's foreign-host
-    // reachability gate, now with the join-and-recheck discipline the inline
-    // copy lacked (a region re-reached with better time slices is re-explored
-    // instead of keeping its first-arrival set). Same seeding, same
-    // clear-and-refire of RANDO_EVENTS.
-    const Rando::Logic::ReachabilityCrawl crawl = Rando::Logic::CrawlReachableRegions(gSaveContext.save.entrance);
-
-    // The tracker's own semantics on top of the shared crawl: a check is "in
-    // logic" when its access lambda passes AND it is shuffled AND not yet
-    // obtained.
-    for (RandoCheckId randoCheckId : Rando::Logic::EvaluateReachableChecks(crawl)) {
-        auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
-        if (randoSaveCheck.shuffled && !randoSaveCheck.obtained) {
-            checksInLogic.insert({ randoCheckId, true });
-        }
+    // The regions+events fixpoint lives in Rando::CheckTracker::ComputeChecksInLogic, which also brackets the
+    // crawl's RANDO_EVENTS clobber (#995): the crawl zeroes and re-fires them in the live save, so an unbracketed
+    // call made the MM save bytes depend on whether this window was open.
+    for (RandoCheckId randoCheckId : Rando::CheckTracker::ComputeChecksInLogic(gSaveContext.save.entrance)) {
+        checksInLogic.insert({ randoCheckId, true });
     }
 }
 
@@ -454,6 +442,34 @@ void CheckTrackerDrawNonLogicalList() {
 namespace Rando {
 
 namespace CheckTracker {
+
+std::set<RandoCheckId> ComputeChecksInLogic(s32 startEntrance) {
+    // The regions+events fixpoint that used to live inline in the tracker is the factored
+    // Rando::Logic::CrawlReachableRegions (ADR 0010 increment 1.3; #500 work item 2) -- one traversal shared with
+    // generation's foreign-host reachability gate, with the join-and-recheck discipline the inline copy lacked (a
+    // region re-reached with better time slices is re-explored instead of keeping its first-arrival set).
+    //
+    // The crawl zeroes RANDO_EVENTS and re-fires them. They are inside the live SaveContext, so snapshot the
+    // RE_MAX bytes and put them back (#995; ComputeReachableCheckSet brackets the whole struct for the same reason).
+    // gCurrentRegionTime is thread_local and outside the save.
+    u8 savedEvents[RE_MAX];
+    memcpy(savedEvents, RANDO_EVENTS, sizeof(savedEvents));
+
+    std::set<RandoCheckId> inLogic;
+    const Rando::Logic::ReachabilityCrawl crawl = Rando::Logic::CrawlReachableRegions(startEntrance);
+
+    // The tracker's own semantics on top of the shared crawl: a check is "in logic" when its access lambda passes
+    // AND it is shuffled AND not yet obtained.
+    for (RandoCheckId randoCheckId : Rando::Logic::EvaluateReachableChecks(crawl)) {
+        auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+        if (randoSaveCheck.shuffled && !randoSaveCheck.obtained) {
+            inLogic.insert(randoCheckId);
+        }
+    }
+
+    memcpy(RANDO_EVENTS, savedEvents, sizeof(savedEvents));
+    return inLogic;
+}
 
 void CheckTrackerWindow::Draw() {
     if (!CVAR_SHOW_CHECK_TRACKER) {
