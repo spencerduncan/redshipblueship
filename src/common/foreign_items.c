@@ -378,17 +378,26 @@ static void ComboAppendLe32(uint8_t* out, uint32_t value) {
     out[3] = (uint8_t)((value >> 24) & 0xFFu);
 }
 
-uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
-                                        uint32_t mmProfileDigest) {
+uint32_t Combo_ComputeComboSettingsHashForGenerator(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                                    uint32_t mmProfileDigest, uint32_t generatorVersion) {
     // canonical(12) || ':' || LE32(settingsHash) || ':' || LE32(mmProfileDigest)
-    uint8_t buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u + 4u + 1u + 4u];
+    //   [ || ':' || LE32(generatorVersion) ]   -- only for version >= 1 (#1003)
+    uint8_t buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u + 4u + 1u + 4u + 1u + 4u];
+    size_t len = RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u + 4u + 1u + 4u;
     Combo_ComboSettingsCanonical(rec, buf);
     buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN] = (uint8_t)':';
     ComboAppendLe32(&buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u], sharedRandoSettingsHash);
     buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 5u] = (uint8_t)':';
     ComboAppendLe32(&buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 6u], mmProfileDigest);
+    if (generatorVersion != 0) {
+        // Version 0 is the legacy byte string, untouched, so every fingerprint
+        // written before #1003 still verifies (Combo_ComboSettingsHashGeneratorVersion).
+        buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 10u] = (uint8_t)':';
+        ComboAppendLe32(&buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN + 11u], generatorVersion);
+        len += 1u + 4u;
+    }
 
-    uint32_t digest = ComboFnv1a(buf, sizeof(buf));
+    uint32_t digest = ComboFnv1a(buf, len);
     if (digest == 0) {
         // Zero displaces, exactly as DigestFromIdentity does: zero is this
         // field's growth-contract "unset", so a real identity hashing to 0 would
@@ -397,6 +406,40 @@ uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t
         digest = 0x43425348u; // 'CBSH'
     }
     return digest;
+}
+
+uint32_t Combo_ComputeComboSettingsHash(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                        uint32_t mmProfileDigest) {
+    return Combo_ComputeComboSettingsHashForGenerator(rec, sharedRandoSettingsHash, mmProfileDigest,
+                                                      RSBS_GENERATOR_VERSION);
+}
+
+int Combo_ComboSettingsHashGeneratorVersion(const ComboSettingsRecord* rec, uint32_t sharedRandoSettingsHash,
+                                            uint32_t mmProfileDigest, uint32_t storedHash) {
+    // Newest first: a file this build created is the common case.
+    for (int v = (int)RSBS_GENERATOR_VERSION; v >= 0; --v) {
+        if (Combo_ComputeComboSettingsHashForGenerator(rec, sharedRandoSettingsHash, mmProfileDigest, (uint32_t)v) ==
+            storedHash) {
+            return v;
+        }
+    }
+    return -1;
+}
+
+uint32_t Combo_ComboSettingsWorldHash(void) {
+    const uint32_t stored = gComboCtx.comboSettingsHash;
+    if (stored == 0 || !Combo_ComboSettingsFrozen()) {
+        return stored;
+    }
+    const int version = Combo_ComboSettingsHashGeneratorVersion(
+        &gComboCtx.comboSettings, gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest, stored);
+    if (version <= 0) {
+        // Legacy (already the label-free value) or a value no version
+        // reproduces: fold it as stored, which is what the bag did before #1003.
+        return stored;
+    }
+    return Combo_ComputeComboSettingsHashForGenerator(&gComboCtx.comboSettings, gComboCtx.sharedRandoSettingsHash,
+                                                      gComboCtx.mmProfileDigest, 0u);
 }
 
 uint32_t Combo_StampComboSettingsHash(void) {
@@ -556,8 +599,10 @@ uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uin
     // recomputation would be meaningless anyway (this build cannot know which
     // of that record's fields the newer format made authoritative).
     if ((bits & RSBS_COMBO_DIVERGE_UNREADABLE) == 0) {
-        const uint32_t expected = Combo_ComputeComboSettingsHash(frozen, sharedRandoSettingsHash, mmProfileDigest);
-        if (storedHash != expected) {
+        // Any generator version this build knows (#1003): a file an older build
+        // created carries that build's version (0 before #1003) and is the same
+        // healthy identity; only a hash no version reproduces is damage.
+        if (Combo_ComboSettingsHashGeneratorVersion(frozen, sharedRandoSettingsHash, mmProfileDigest, storedHash) < 0) {
             bits |= RSBS_COMBO_DIVERGE_FINGERPRINT;
         }
     }
