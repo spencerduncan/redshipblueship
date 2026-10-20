@@ -49,6 +49,19 @@ uint8_t ResolveTrapTypesFromCVars() {
     return mask;
 }
 
+const char* TrapTypeCVar(int type) {
+    auto it = trapToCvarMap.find((TrapTypes)type);
+    return it == trapToCvarMap.end() ? nullptr : it->second;
+}
+
+const char* TrapTypeLabel(int type) {
+    // Rando/Menu.cpp's names for the toggles (not built into the single exe).
+    static const char* const kLabels[TRAP_MAX] = {
+        "Freeze Traps", "Blast Traps", "Shock Traps", "Jinx Traps", "Wallet Traps", "Like Like Traps", "Time Traps",
+    };
+    return type >= 0 && type < TRAP_MAX ? kLabels[type] : nullptr;
+}
+
 std::vector<TrapTypes> getEnabledTrapTypes() {
     static_assert(TRAP_MAX <= 8, "randoSaveTrapTypes holds one bit per trap type");
     const uint8_t mask = gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes;
@@ -92,8 +105,7 @@ extern "C" int MM_Rando_Traps_TestRoll(uint32_t finalSeed, uint8_t mask, uint16_
 
 /** The CVar that enables trap type `type`, or nullptr; and TRAP_MAX for -1. */
 extern "C" const char* MM_Rando_Traps_TestCVarName(int type) {
-    auto it = trapToCvarMap.find((TrapTypes)type);
-    return it == trapToCvarMap.end() ? nullptr : it->second;
+    return TrapTypeCVar(type);
 }
 
 extern "C" int MM_Rando_Traps_TestTypeCount(void) {

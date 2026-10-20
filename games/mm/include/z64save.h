@@ -418,7 +418,9 @@ typedef struct RandoSaveInfo {
     // Appended after randoSaveTricks for the same reason: a .redsave written
     // before it zero-extends into it, and zero reads as Freeze only, the
     // fallback the roll always had (and the only type the single-exe options
-    // page offers). Not a generation input, so not in the profile digest.
+    // page offers). Not a generation input, but world identity: the profile
+    // digest folds it when nonzero (Foreign.cpp ProfileIdentityString), so a
+    // paired world cannot change it between creation and its first crossing.
     u8 randoSaveTrapTypes;
 } RandoSaveInfo;
 
