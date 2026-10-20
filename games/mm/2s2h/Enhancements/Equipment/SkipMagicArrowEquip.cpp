@@ -8,7 +8,7 @@ extern s16 MM_sEquipState;
 extern s16 MM_sEquipAnimTimer;
 }
 
-#define CVAR_NAME "gEnhancements.Equipment.MagicArrowEquipSpeed"
+#define CVAR_NAME "gEnhancements.SkipArrowAnimation"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterSkipMagicArrowEquip() {

@@ -103,8 +103,8 @@ s32 MM_EnWood02_SpawnZoneCheck(EnWood02* this, PlayState* play, Vec3f* arg2) {
     MM_SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, arg2, &this->actor.projectedPos, &this->actor.projectedW);
 
     // 2S2H [Enhancement] Use the extended culling calculation
-    if (CVarGetInteger("gEnhancements.Graphics.IncreaseActorDrawDistance", 1) > 1 ||
-        CVarGetInteger("gEnhancements.Graphics.ActorCullingAccountsForWidescreen", 0)) {
+    if (CVarGetInteger("gEnhancements.DisableDrawDistance", 1) > 1 ||
+        CVarGetInteger("gEnhancements.WidescreenActorCulling", 0)) {
         bool shipShouldDraw = false;
         bool shipShouldUpdate = false;
         return MM_Ship_CalcShouldDrawAndUpdate(play, &this->actor, &this->actor.projectedPos, this->actor.projectedW,

@@ -12,7 +12,7 @@ void func_80BCB1C8(EnScopenuts* enScopenuts, PlayState* play);
 f32 func_80BCC448(Path* path, s32 arg1, Vec3f* arg2, Vec3s* arg3);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // has reached point

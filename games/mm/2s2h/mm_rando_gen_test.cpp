@@ -95,6 +95,7 @@ uint32_t Rando_HeadlessPlacementHash(size_t* outPlacedCount);
 // MM's gossip-stone candidates and their text (Rando/ActorBehavior/EnGs.cpp).
 void Rando_HeadlessWriteOoTContentDigest(FILE* out);
 int MM_Rando_Hints_DigestCandidates(uint32_t* outDigest);
+int MM_Rando_Hints_DigestFreeStones(uint32_t* outDigest); // #1047, EnGs.cpp
 }
 
 #include "gen_budget.h"       // src/common — the creation's round budget (#950)
@@ -156,7 +157,11 @@ int K11FinishPairedOoTHalf() {
  *   mmStartingItems             <count>/<digest> of the frozen start the save holds
  *                               (randoStartingItems, the paired start since #879);
  *   mmStartInventory            the save's inventory and health, rupees and magic
- *                               after creation: what GrantStartingItems granted.
+ *                               after creation: what GrantStartingItems granted;
+ *   mmFreeStoneCount /          #1047: what every free gossip stone placed in MM
+ *   mmFreeStoneDigest           says: its seed, its pick and its text, in the stone
+ *                               table's order (written last: reading a stone
+ *                               reseeds MM's stream).
  */
 void WriteContentDigest(FILE* out) {
     Rando_HeadlessWriteOoTContentDigest(out);
@@ -224,6 +229,13 @@ void WriteContentDigest(FILE* out) {
             "mmStartInventory=%08X\n",
             mmHintCount, mmHintDigest, foolishList.empty() ? "none" : foolishList.c_str(), priceCount,
             Ship_Hash(priceBlob), startCount, Ship_Hash(startBlob), Ship_Hash(invBlob));
+
+    uint32_t mmFreeStoneDigest = 0;
+    const int mmFreeStoneCount = MM_Rando_Hints_DigestFreeStones(&mmFreeStoneDigest);
+    fprintf(out,
+            "mmFreeStoneCount=%d\n"
+            "mmFreeStoneDigest=%08X\n",
+            mmFreeStoneCount, mmFreeStoneDigest);
 }
 
 } // namespace

@@ -530,6 +530,11 @@ if(BUILD_TESTING)
     # the real init functions with and without the arrival flag (survive vs. still
     # clear). Pure -- no display -- so it runs in this redship tier.
     redship_add_test(NAME TrackerArrivalRehydration COMMAND redship --test tracker-arrival-rehydration)
+    # Arrival-recalc lock (#990): the same arrival restores the frozen save without Save_LoadFile, so
+    # nothing armed the Check Tracker's deferred Available Checks recalculation, and the apply + redeem
+    # run before OoT_gPlayState exists (every handler bails on IsSaveLoaded). Drives
+    # OoT_Play_ApplyArrivalShared (what OoT_Play_Init runs) and the option toggle. ROM-free.
+    redship_add_test(NAME TrackerArrivalRecalc COMMAND redship --test tracker-arrival-recalc)
     # Entrance-link dedup regression (#374): the default (mask shop) and test
     # (Mido's House) links both return through MM 0xC010, and both were
     # registered unconditionally. Entrance_CheckCrossGame resolves first-match,
@@ -590,6 +595,20 @@ if(BUILD_TESTING)
     # and nothing MM's fill counts. Authors a five-area world over MM's real
     # check table and reads the free stone's text (EnGs.cpp) for 512 stone seeds.
     redship_add_test(NAME MmFoolishStoneHint COMMAND redship --test mm-foolish-stone-hint)
+    # #1047: what MM decides while you play is a pure function of the frozen world.
+    # A free stone's seed was a float sum converted to uint32_t (undefined when
+    # negative, which 23 of MM's 58 stones are); a trap's type was rolled at pickup
+    # from the live gRando.Traps.* CVars and the running stream. Each row runs once
+    # here and twice, in two processes, in its *TwoProcesses row
+    # (CMake/CheckPureTwoRuns.cmake: the "[pure]" lines must match).
+    redship_add_test(NAME MmGossipStoneSeed COMMAND redship --test mm-gossip-stone-seed)
+    redship_add_test(NAME MmGossipStoneSeedTwoProcesses
+        COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-gossip-stone-seed
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
+    redship_add_test(NAME MmTrapRollFrozen COMMAND redship --test mm-trap-roll-frozen)
+    redship_add_test(NAME MmTrapRollFrozenTwoProcesses
+        COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-trap-roll-frozen
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
     # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
     # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
     # stone's real text and candidate filter (EnGs.cpp) over MM's real check
@@ -792,6 +811,11 @@ if(BUILD_TESTING)
     # ResourceManager::SetDefaultCacheOwner: each owner keeps its own bytes, and
     # the first keeps its original object. ROM-free and archive-free.
     redship_add_test(NAME ResourceCacheOwner COMMAND redship --test resource-cache-owner)
+    # #987: re-adding a mounted archive path (every game switch does) mounts
+    # nothing new and keeps newest-wins. Two temporary O2R zips added and
+    # re-added by path: archive count, game-version list and mount order
+    # asserted. ROM-free and archive-free.
+    redship_add_test(NAME ArchiveAddDedup COMMAND redship --test archive-add-dedup)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture
@@ -928,6 +952,11 @@ if(BUILD_TESTING)
     # bound-arithmetic bugs, so the capacity computation was factored into pure
     # helpers this test calls directly — display-free, ROM-free.
     redship_add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
+    # OoT pause-menu item age table bounds (#983). OoT_Play_Init writes
+    # gItemAgeReqs[ITEM_ROCS_FEATHER] (0x9C) and the pause menu reads it, but
+    # the table held the 86 vanilla entries. Asserts the count the defining TU
+    # exports covers that index and every u8 ItemID. Display-free, ROM-free.
+    redship_add_test(NAME ItemAgeReqsBounds COMMAND redship --test item-age-reqs-bounds)
     # OoT audio producer init-guard (#365). The shared OTRAudio_Thread runs
     # OoT_AudioMgr_CreateNextAudioBuffer whenever MM's synth is inactive — every
     # MM frame before MM audio boots, and the mid-switch window where OoT is

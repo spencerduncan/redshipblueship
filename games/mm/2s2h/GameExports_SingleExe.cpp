@@ -6229,14 +6229,14 @@ int MM_Extract_DebugNativeBoxCount() {
 extern "C" float OTRGetAspectRatio();
 
 extern "C" void MM_Ship_ExtendedCullingActorAdjustProjectedZ(Actor* actor) {
-    s32 multiplier = CVarGetInteger("gEnhancements.Graphics.IncreaseActorDrawDistance", 1);
+    s32 multiplier = CVarGetInteger("gEnhancements.DisableDrawDistance", 1);
     if (multiplier > 1) {
         actor->projectedPos.z /= multiplier;
     }
 }
 
 extern "C" void MM_Ship_ExtendedCullingActorAdjustProjectedX(Actor* actor) {
-    if (CVarGetInteger("gEnhancements.Graphics.ActorCullingAccountsForWidescreen", 0)) {
+    if (CVarGetInteger("gEnhancements.WidescreenActorCulling", 0)) {
         // Same clamp-to-1 as Ship_GetExtendedAspectRatioMultiplier, computed
         // inline. That helper is itself a duplicated symbol across the two
         // ports; it happens to be Actor-free and therefore harmless to share,

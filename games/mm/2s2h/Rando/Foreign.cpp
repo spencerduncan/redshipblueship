@@ -41,6 +41,7 @@
 
 #include "Foreign.h"
 #include "Rando/Rando.h"
+#include "Rando/MiscBehavior/Traps.h" // ResolveTrapTypesFromCVars: the frozen trap-type set (#1047)
 // GenerateFromSaveContext - the MM half of the ONE paired spoiler
 // artifact (#660; #564 V23).
 #include "Rando/Spoiler/Spoiler.h"
@@ -211,7 +212,7 @@ static void ResolveProfileTricks(uint8_t* tricks) {
  *  them is a vacuous guard — same seed + same digest could still yield
  *  different MM worlds. OoT's own settings hash is the precedent: it folds
  *  excludes and tricks. */
-static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks) {
+static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks, uint8_t trapTypes) {
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         s += std::to_string(values[randoOptionId]);
@@ -259,6 +260,24 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
         s += std::to_string((int)randoItemId);
         s += ',';
     }
+    // The TRAP-TYPE SET (#1047; ADR 0009 decision 1's coverage amendment names
+    // "every trap-type key classified as world identity"). No fill reads it, but
+    // a trap's type is part of the world: RollTrapType draws from the set
+    // frozen into the save (randoSaveTrapTypes), seeded by the world's seed and
+    // the check. A paired world's MM half is authored at its FIRST CROSSING, not
+    // at the creation event, so the set it freezes is resolved from the CVars
+    // there; folding it here is what makes a change between creation and that
+    // crossing a detected divergence (the arrival refuses, and the load-time
+    // restore puts the file's set back) instead of a silently different world.
+    // Folded only when nonzero, as two hex digits of the bit set: the set every
+    // world before #1047 had (no gRando.Traps.* key set) adds no term, so no
+    // existing pair's mmProfileDigest moves.
+    if (trapTypes != 0) {
+        char traps[8];
+        snprintf(traps, sizeof(traps), "%02X", (unsigned)trapTypes);
+        s += "|traps:";
+        s += traps;
+    }
     // ------------------------------------------------------------------------
     // WHAT IS DELIBERATELY *NOT* FOLDED, and why. #564 V4 asks for each
     // remaining CVar family to be CLASSIFIED world-identity vs runtime flavour
@@ -266,15 +285,10 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     // identity (ADR 0004 §6 scope note), so silence here is not neutral.
     //
     //  - `gRando.Traps.*` (Traps.cpp's trapToCvarMap: Freeze/Blast/Shock/Jinx/
-    //    Wallet/Enemy/Time) are RUNTIME FLAVOUR, not world identity. Their sole
-    //    consumer is RollTrapType(), called from actor behaviour when a trap is
-    //    collected (ActorBehavior/EnGirlA.cpp:73, Traps.cpp:133) — it draws
-    //    from the LIVE Ship_Random stream at pickup time and never runs inside
-    //    a fill. The trap knobs that DO shape the world (RO_SHUFFLE_TRAPS,
-    //    RO_TRAP_AMOUNT, read by GeneratePools.cpp:281) are ordinary option
-    //    rows and are already folded by the loop above. Flipping which trap
-    //    flavour fires changes no placement, so folding these would refuse
-    //    arrivals over a cosmetic preference.
+    //    Wallet/Enemy/Time) ARE folded, as the trap-type set above (#1047): not
+    //    a generation input, but world identity. The trap knobs that shape the
+    //    fill (RO_SHUFFLE_TRAPS, RO_TRAP_AMOUNT, read by GeneratePools.cpp:281)
+    //    are ordinary option rows and are already folded by the loop above.
     //  - `gRando.SpoilerFile` / `gRando.SpoilerFileIndex` / `gRando.InputSeed`
     //    are NOT identity and folding them would be actively harmful: the
     //    paired path ignores all three by construction (OnFileCreate.cpp:83
@@ -325,6 +339,12 @@ uint32_t ResolvePairedProfile(bool paired) {
     for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
         gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[mmRandoTrickId] = tricks[mmRandoTrickId];
     }
+    // #1047: the trap-type set freezes here too, for the same reason: a trap's
+    // type is part of the world, so it reads this file's set, not the CVars. A
+    // paired world reaches this at its first crossing, so the set is also an
+    // identity term (ProfileIdentityString), compared below like the tricks.
+    const uint8_t trapTypes = ResolveTrapTypesFromCVars();
+    gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes = trapTypes;
 
     if (!paired) {
         // A solo MM rando file has no cross-game identity to publish, and must
@@ -339,7 +359,7 @@ uint32_t ResolvePairedProfile(bool paired) {
     // under the frozen MM rules", a question about the rules alone;
     // MixPairedFinalSeed() folds the master seed separately for the different
     // question of "which world does this seed derive".
-    const uint32_t digest = DigestFromIdentity(ProfileIdentityString(values.data(), tricks.data()));
+    const uint32_t digest = DigestFromIdentity(ProfileIdentityString(values.data(), tricks.data(), trapTypes));
     if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
         // NEVER self-heal (overwrite the stamp with the divergent profile) and
         // NEVER generate under it. Throwing lands in OnFileCreate's catch,
@@ -779,7 +799,10 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     // drift — the exact defect the single resolution exists to prevent.
     std::vector<uint8_t> tricks(MMRT_MAX, 0);
     Rando::Foreign::ResolveProfileTricks(tricks.data());
-    return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(values.data(), tricks.data()));
+    // The trap-type set likewise (#1047): the same resolution ResolvePairedProfile
+    // freezes into the half at the first crossing.
+    return Rando::Foreign::DigestFromIdentity(
+        Rando::Foreign::ProfileIdentityString(values.data(), tricks.data(), ResolveTrapTypesFromCVars()));
 }
 
 // ============================================================================
@@ -795,10 +818,10 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
 // that loaded.
 //
 // The source is the file's MM half: creation resolved the profile into
-// RANDO_SAVE_OPTIONS and randoSaveTricks (ResolvePairedProfile), so those
-// arrays ARE the frozen options and tricks. The digest also folds the
-// excluded-check list, which the half does not record, and the paired start,
-// a constant since #879 (a file created before #879 folded 2Ship's list and
+// RANDO_SAVE_OPTIONS, randoSaveTricks and randoSaveTrapTypes
+// (ResolvePairedProfile), so those ARE the frozen options, tricks and trap
+// types. The digest also folds the excluded-check list, which the half does
+// not record, and the paired start, a constant since #879 (a file created before #879 folded 2Ship's list and
 // cannot match it); the candidate is therefore checked against the frozen
 // digest BEFORE anything is written, and a mismatch there writes nothing.
 // ============================================================================
@@ -822,10 +845,11 @@ namespace {
  * The classification both MM_Rando_ClassifyProfileForLoad (the file-select
  * probe, #836) and MM_Rando_RestoreProfileForLoad (the load) run, so the two
  * cannot disagree. Writes nothing. On RESTORABLE, @p fileValues / @p fileTricks
- * (sized RO_MAX / MMRT_MAX) hold the file's own options and tricks.
+ * (sized RO_MAX / MMRT_MAX) hold the file's own options and tricks, and
+ * @p fileTraps its trap-type set (#1047).
  */
 int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
-                           std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks) {
+                           std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint8_t& fileTraps) {
     const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
     if (liveDigest == frozenDigest) {
         return RSBS_MM_PROFILE_LOAD_MATCHES;
@@ -857,13 +881,15 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
     for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
         fileTricks[mmRandoTrickId] = half->save.shipSaveInfo.rando.randoSaveTricks[mmRandoTrickId] != 0 ? 1 : 0;
     }
-    const uint32_t candidate =
-        Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(fileValues.data(), fileTricks.data()));
+    // A half written before #1047 zero-extends here: no trap term, as its stamp.
+    fileTraps = half->save.shipSaveInfo.rando.randoSaveTrapTypes;
+    const uint32_t candidate = Rando::Foreign::DigestFromIdentity(
+        Rando::Foreign::ProfileIdentityString(fileValues.data(), fileTricks.data(), fileTraps));
     if (candidate != frozenDigest) {
         fprintf(stderr,
-                "[MM] profile: load-time restore impossible — the file's own options and tricks give %08X, not the "
-                "frozen %08X, so what differs is an input the file does not record (the excluded-check list, or the "
-                "paired start of a file created before #879); nothing was written\n",
+                "[MM] profile: load-time restore impossible — the file's own options, tricks and trap types give "
+                "%08X, not the frozen %08X, so what differs is an input the file does not record (the excluded-check "
+                "list, or the paired start of a file created before #879); nothing was written\n",
                 (unsigned)candidate, (unsigned)frozenDigest);
         return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
     }
@@ -875,7 +901,8 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
 extern "C" int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest) {
     std::vector<uint32_t> fileValues;
     std::vector<uint8_t> fileTricks;
-    return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks);
+    uint8_t fileTraps = 0;
+    return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps);
 }
 
 extern "C" int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSize, uint32_t masterSeed,
@@ -932,7 +959,8 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     }
     std::vector<uint32_t> fileValues;
     std::vector<uint8_t> fileTricks;
-    const int classified = ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks);
+    uint8_t fileTraps = 0;
+    const int classified = ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps);
     if (classified != RSBS_MM_PROFILE_LOAD_RESTORABLE) {
         return classified;
     }
@@ -943,6 +971,7 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     Rando::Foreign::ResolveProfileValues(liveValues.data(), /*paired=*/true);
     std::vector<uint8_t> liveTricks(MMRT_MAX, 0);
     Rando::Foreign::ResolveProfileTricks(liveTricks.data());
+    const uint8_t liveTraps = ResolveTrapTypesFromCVars();
 
     // Every key written is recorded first (set, and to what, or unset), so a
     // restore whose after-check fails puts the keys back exactly as the player
@@ -979,6 +1008,18 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
         restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, randoStaticTrick.cvar));
         fprintf(stderr, "[MM] profile: load restored trick %s to the file's value %d\n", randoStaticTrick.cvar,
                 (int)fileTricks[mmRandoTrickId]);
+    }
+    // #1047: the trap-type set, one key per type whose bit differs.
+    for (int type = 0; type < TRAP_MAX; type++) {
+        const int fileOn = (fileTraps >> type) & 1;
+        if (((liveTraps >> type) & 1) == fileOn) {
+            continue;
+        }
+        const char* cvar = TrapTypeCVar(type);
+        remember(cvar);
+        CVarSetInteger(cvar, fileOn);
+        restored.push_back(MMProfileRestoreLabel(TrapTypeLabel(type), cvar));
+        fprintf(stderr, "[MM] profile: load restored trap type %s to the file's value %d\n", cvar, fileOn);
     }
 
     const uint32_t after = MM_Rando_ComputeProfileStamp();

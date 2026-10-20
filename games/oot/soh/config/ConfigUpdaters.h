@@ -71,6 +71,19 @@ class ConfigVersion8Updater final : public Ship::ConfigVersionUpdater {
 };
 
 /**
+ * RSBS version 9 — the #966 key-name gaps (#1027-#1036, #1038).
+ *
+ * Eleven more MM keys move onto the spelling SoH's menu writes. All PURE
+ * renames (type and range verified on both sides), same conflict rule (OoT's
+ * value wins) via version9Migrations' RenameIfAbsent rows.
+ */
+class ConfigVersion9Updater final : public Ship::ConfigVersionUpdater {
+  public:
+    ConfigVersion9Updater();
+    void Update(Ship::Config* conf);
+};
+
+/**
  * @brief The ADR 0003 §6.3 conflict rule, as a pure predicate.
  *
  * A config can legitimately hold BOTH spellings of a converged setting: the
