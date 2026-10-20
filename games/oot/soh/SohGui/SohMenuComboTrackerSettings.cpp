@@ -14,7 +14,9 @@
  * ItemTrackerSettingsWindow::DrawElement and RegisterItemTrackerWidgets) for
  * the keys the overlay has: Background Color (SoH's clear-black alpha picker),
  * Window Type (Floating / Window), Enable Dragging and Only Enable While Paused
- * (floating only, hidden for a window as SoH hides them), the Icon Size slider
+ * (floating only, hidden for a window as SoH hides them) and, after them, Reset
+ * Position (floating only; #962: the overlay starts under the hearts, and this
+ * returns a dragged overlay there), the Icon Size slider
  * (SoH's 25..128 px, default 36), then the overlay's two keys SoH's overlay has
  * no row for: its Opacity (the overlay's 0.1..1 clamp) and which of its three
  * sections it draws. Every default and range is the overlay's own
@@ -114,13 +116,20 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
                      .ComboMap(kComboItemTrackerWindowTypes)
                      .Tooltip("Chooses how the Combo Item Tracker is shown.\n\n"
                               "Floating: Over the game, with no title bar.\n"
-                              "Window: In a window of its own, with a title bar."));
+                              "Window: In a window of its own, which you move by its title bar."));
     menu.AddWidget(path, "Enable Dragging##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_COMBO_ITEMS_DRAGGABLE)
         .RaceDisable(false)
         .PreFunc(HideUnlessFloating)
         .Options(CheckboxOptions().DefaultValue(false).Tooltip(
-            "Allows the floating Combo Item Tracker to be dragged to a new place."));
+            "Allows the floating Combo Item Tracker to be dragged to a new place. It starts below the hearts at the "
+            "left of the game: turn this on, then drag it where you want it."));
+    menu.AddWidget(path, "Reset Position##ComboItemTracker", WIDGET_BUTTON)
+        .RaceDisable(false)
+        .PreFunc(HideUnlessFloating)
+        .Callback([](WidgetInfo& info) { ComboGui::ComboItemTrackerResetPosition(); })
+        .Options(ButtonOptions().Size(Sizes::Inline).Tooltip(
+            "Puts the floating Combo Item Tracker back where it starts, below the hearts at the left of the game."));
     menu.AddWidget(path, "Only Enable While Paused##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED)
         .RaceDisable(false)

@@ -20,6 +20,12 @@
  * pause menu opens. Like SoH's overlay it has no close button: the Combo >
  * Windows row toggles it.
  *
+ * POSITION (#962). The floating overlay first appears at the left edge, just
+ * below the HUD's hearts and magic bar (ComboItemTrackerDefaultPos), not on
+ * them; a dragged position is kept (ImGui's saved window settings, as SoH's
+ * trackers keep theirs) and Combo > Tracker Settings > Reset Position returns
+ * it. The Windows toggle's tooltip and the Enable Dragging row say how to move it.
+ *
  * ICONS (#458 U3). Each game's section is that game's own tracker: its icons
  * (OoT's keyed by texture name, MM's by resource path, both straight from the
  * adapters), laid out as that tracker lays them out (the adapter's
@@ -158,6 +164,46 @@ bool ComboItemTrackerShows(int windowType, bool showOnlyPaused, bool paused);
  * mouse scroll or scrollbar, and, unless draggable, no inputs and no move.
  */
 int ComboItemTrackerWindowFlags(int windowType, bool draggable);
+
+/** A rectangle in game-view pixels (the decisions below keep ImGui out of the lock). */
+struct ComboItemTrackerRect {
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+};
+
+/**
+ * The HUD's top-left band in a game view of `viewW` x `viewH` pixels at
+ * (`viewX`, `viewY`): the heart rows and the magic bar under them, which both
+ * games draw in the same place. The HUD is laid out on a 320x240 grid scaled to
+ * the view's height (hearts: first centre at (30, 26), 10 apart, ten to a row,
+ * two rows for 20 hearts, z_lifemeter.c; magic bar: top at y 42, a few lines
+ * tall, z_construct.c; the rupee counter and key count sit at the bottom left,
+ * (26, 206)), so the band is 136 grid units wide and 56 tall, from the view's
+ * left edge. Wider than the hearts themselves: it only needs to be a rect the
+ * overlay stays out of, at any aspect ratio (a pillarboxed 4:3 view shifts the
+ * hearts right, never down).
+ */
+ComboItemTrackerRect ComboItemTrackerHudBand(float viewX, float viewY, float viewW, float viewH);
+
+/**
+ * Where the floating overlay first appears (#962): at the left edge, just
+ * below the HUD band (ComboItemTrackerHudBand), in the free stretch above the
+ * rupee counter. The old default was ImGui's own (60, 60) for a new window,
+ * which is on the hearts at every size. Applied only when the window has no
+ * saved position (ImGuiCond_FirstUseEver) or the player presses Reset
+ * Position; a position the player dragged to is kept, as SoH's trackers keep
+ * theirs (ImGui's saved window settings).
+ */
+void ComboItemTrackerDefaultPos(float viewX, float viewY, float viewW, float viewH, float* outX, float* outY);
+
+/**
+ * Asks the floating overlay to go back to ComboItemTrackerDefaultPos on its
+ * next draw (the Combo > Tracker Settings Reset Position button). Takes effect
+ * once; draws nothing itself.
+ */
+void ComboItemTrackerResetPosition();
 
 /** A row as the overlay prints it: the name, then " count/max" when the row has
  *  a ceiling, else " count" when it has a count, else nothing more. A row

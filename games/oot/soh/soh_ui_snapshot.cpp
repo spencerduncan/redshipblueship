@@ -843,6 +843,10 @@ struct PageSpec {
     // the font atlas) its first view must draw (ImageOracle). A pane that draws
     // icons, not text, has little text to expect.
     std::map<std::string, int> stateImages;
+    // WINDOW: the floating overlay's captures must stay off the HUD's hearts
+    // (HudBandOracle, #962). A state drawn with a title bar is a window, not
+    // the floating overlay, and is exempt.
+    bool avoidHudBand = false;
     bool scroll = true;
     bool needsRom = false;
     // When non-empty, hover variants are taken in these states only. A race
@@ -2363,6 +2367,7 @@ void Session::BuildPageList() {
         p.stateText["snapshot"] = { "Zora Mask" };
         p.stateImages["live"] = 40;
         p.stateImages["snapshot"] = 40;
+        p.avoidHudBand = true; // #962: the floating states sit below the hearts
         p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         // #927: no section says how fresh it is, and an empty one is its
@@ -3909,6 +3914,31 @@ void FitOracle(const ImGuiWindow* w, Capture& c) {
 }
 
 /**
+ * The floating overlay's HUD oracle (#962): the game draws its hearts and magic
+ * bar at the top left of the game window, so a floating overlay's rect must not
+ * reach into that band (ComboItemTrackerHudBand). Applies to the title-less
+ * floating overlay only: the window type is the player's own to place.
+ */
+void HudBandOracle(const ImGuiWindow* w, Capture& c) {
+    if ((w->Flags & ImGuiWindowFlags_NoTitleBar) == 0) {
+        return;
+    }
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const ComboGui::ComboItemTrackerRect band =
+        ComboGui::ComboItemTrackerHudBand(viewport->Pos.x, viewport->Pos.y, viewport->Size.x, viewport->Size.y);
+    if (w->Pos.x < band.x + band.w && band.x < w->Pos.x + w->Size.x && w->Pos.y < band.y + band.h &&
+        band.y < w->Pos.y + w->Size.y) {
+        char why[256];
+        snprintf(why, sizeof(why),
+                 "the floating overlay (%.0f,%.0f %.0fx%.0f) covers the HUD's hearts and magic bar (%.0f,%.0f "
+                 "%.0fx%.0f)",
+                 w->Pos.x, w->Pos.y, w->Size.x, w->Size.y, band.x, band.y, band.w, band.h);
+        c.status = "fail";
+        c.reason = why;
+    }
+}
+
+/**
  * The icon pane's oracle (#458 U3): the window's last frame drew at least
  * `minImages` draw commands on a texture other than the font atlas, so its
  * icons are pictures and not text. Two neighbouring icons on one texture merge
@@ -4015,6 +4045,9 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 // nothing clipped at the window's edge, and the window inside
                 // the game window.
                 FitOracle(w, c);
+                if (p.avoidHudBand && c.status == "pass") {
+                    HudBandOracle(w, c);
+                }
             }
             // The icons are textures from the staged archives: a ROM-free run
             // (CI) has none and draws the text fallback, so only a ROM-rich

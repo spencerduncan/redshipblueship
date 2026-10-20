@@ -64,6 +64,12 @@
  *    registers names (the one path-keyed call, the seed-hash icons that key a
  *    texture by its own OoT path, is named and held to that shape).
  *
+ * 10. THE DEFAULT POSITION (#962). The floating overlay's default placement
+ *    (ComboItemTrackerDefaultPos) stays below the HUD band that holds the
+ *    hearts (ComboItemTrackerHudBand) at seven view sizes and two view origins,
+ *    where the old default, ImGui's (60, 60), sat on the hearts. UiSnapshot's
+ *    HudBandOracle holds the same over the drawn overlay.
+ *
  * Appearance is judged from the UiSnapshot captures (window/Combo Item Tracker
  * @no-data, @live and @snapshot beside SoH's window/Item Tracker); ImageOracle
  * there holds that the live and snapshot states draw icons.
@@ -298,6 +304,65 @@ int CitwLockDecisions(void) {
     CVarClear(RSBS_CVAR_COMBO_ITEMS_SECTION_MM);
     CITW_ASSERT(!ComboItemTrackerSectionShown(ComboGui::COMBO_ITEM_SECTION_COUNT));
     printf("[TEST] combo-item-tracker-window: chrome flags, show rule, row text, grid and section keys PASS\n");
+    return TEST_PASS;
+}
+
+/**
+ * Point 10, #962: the floating overlay's default position stays off the HUD's
+ * hearts. The hearts are rebuilt here from the HUD's own grid (z_lifemeter.c:
+ * first heart centre (30, 26) of a 320x240 layout, 10 apart, ten to a row, 16 px
+ * hearts drawn at 0.7), up to the two rows of 20 hearts, and the overlay is
+ * given a generous 300x300 px of body; the old default was ImGui's (60, 60).
+ */
+int CitwLockDefaultPosition(void) {
+    using namespace ComboGui;
+    struct View {
+        float w;
+        float h;
+    };
+    const View views[] = { { 640, 480 },   { 832, 600 },   { 1280, 720 }, { 1280, 800 },
+                           { 1920, 1080 }, { 2560, 1080 }, { 3840, 2160 } };
+    for (const View& v : views) {
+        for (int offset = 0; offset < 2; offset++) {
+            const float vx = offset ? 7.0f : 0.0f; // a view that does not start at the screen's corner
+            const float vy = offset ? 19.0f : 0.0f;
+            const float unit = v.h / 240.0f;
+            ComboItemTrackerRect hearts;
+            hearts.x = vx + (30.0f - 5.6f) * unit;
+            hearts.y = vy + (26.0f - 5.6f) * unit;
+            hearts.w = (90.0f + 11.2f) * unit;
+            hearts.h = (10.0f + 11.2f) * unit; // two rows
+            const ComboItemTrackerRect band = ComboItemTrackerHudBand(vx, vy, v.w, v.h);
+            // The band holds the hearts whole.
+            CITW_ASSERT(band.x <= hearts.x && band.y <= hearts.y);
+            CITW_ASSERT(band.x + band.w >= hearts.x + hearts.w && band.y + band.h >= hearts.y + hearts.h);
+
+            float x = 0.0f;
+            float y = 0.0f;
+            ComboItemTrackerDefaultPos(vx, vy, v.w, v.h, &x, &y);
+            ComboItemTrackerRect overlay;
+            overlay.x = x;
+            overlay.y = y;
+            overlay.w = 300.0f;
+            overlay.h = 300.0f;
+            const bool hitsHearts = overlay.x < hearts.x + hearts.w && hearts.x < overlay.x + overlay.w &&
+                                    overlay.y < hearts.y + hearts.h && hearts.y < overlay.y + overlay.h;
+            if (hitsHearts || y < band.y + band.h) {
+                printf("[TEST] FAIL: %.0fx%.0f view at (%.0f, %.0f): default overlay at (%.0f, %.0f) covers the hearts "
+                       "(%.0f,%.0f %.0fx%.0f) or the HUD band to y %.0f\n",
+                       v.w, v.h, vx, vy, x, y, hearts.x, hearts.y, hearts.w, hearts.h, band.y + band.h);
+                return TEST_FAIL;
+            }
+            // Inside the view, with the lower half of it to grow into.
+            CITW_ASSERT(x >= vx && x < vx + v.w && y < vy + v.h * 0.5f);
+            // The old default, ImGui's own for a new window, is on the hearts.
+            const bool oldHits = 60.0f < hearts.x + hearts.w && hearts.x < 60.0f + overlay.w &&
+                                 60.0f < hearts.y + hearts.h && hearts.y < 60.0f + overlay.h;
+            CITW_ASSERT(oldHits);
+        }
+    }
+    printf("[TEST] combo-item-tracker-window: the default position clears the HUD's hearts at %zu view sizes PASS\n",
+           sizeof(views) / sizeof(views[0]));
     return TEST_PASS;
 }
 
@@ -1003,6 +1068,9 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
 
     // ---- 5. decisions --------------------------------------------------------
     if (CitwLockDecisions() != TEST_PASS) {
+        return TEST_FAIL;
+    }
+    if (CitwLockDefaultPosition() != TEST_PASS) {
         return TEST_FAIL;
     }
 
