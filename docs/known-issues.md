@@ -871,7 +871,7 @@ complete-world golden.
 - Networking is untested.
 
 **Findings.** [#1055](https://github.com/spencerduncan/redshipblueship/issues/1055), above. The open issues at this commit are listed under "Open issues
-at `ee35d2c6`" near the top of this document.
+at `7671196a`" near the top of this document.
 
 ---
 
