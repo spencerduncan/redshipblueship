@@ -16,6 +16,9 @@ extern "C" {
 void RegisterSkipTatlInterrupts() {
     // First time entering Clock Town Interupt
     COND_VB_SHOULD(VB_PLAY_TRANSITION_CS, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (gSaveContext.save.entrance == ENTRANCE(SOUTH_CLOCK_TOWN, 0) && gSaveContext.save.cutsceneIndex == 0 &&
             !CHECK_WEEKEVENTREG(WEEKEVENTREG_59_04)) {
             Flags_SetWeekEventReg(WEEKEVENTREG_59_04);
@@ -25,6 +28,9 @@ void RegisterSkipTatlInterrupts() {
 
     // General Interupt
     COND_VB_SHOULD(VB_TATL_INTERRUPT_MSG, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (*should) {
             Actor* actor = va_arg(args, Actor*);
             *should = false;
@@ -37,6 +43,9 @@ void RegisterSkipTatlInterrupts() {
 
     // General interupt (3)
     COND_VB_SHOULD(VB_TATL_INTERRUPT_MSG3, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (*should) {
             Actor* actor = va_arg(args, Actor*);
             *should = false;
@@ -49,6 +58,9 @@ void RegisterSkipTatlInterrupts() {
 
     // General interupt (4)
     COND_VB_SHOULD(VB_TATL_INTERRUPT_MSG4, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (*should) {
             Actor* actor = va_arg(args, Actor*);
             *should = false;
