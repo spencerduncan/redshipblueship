@@ -65,6 +65,7 @@
 // (see context.h's header comment).
 #include "foreign_items.h"
 #include "shared_items.h"
+#include "shared_resources.h" // MM_CreditSharedPickup: a counted pack credits the pool (#1061)
 // ADR 0010 O7: the crossing store the "combo" spoiler section prints and the
 // spoiler-load path rebuilds.
 #include "crossing_store.h"
@@ -762,6 +763,14 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
         fprintf(stderr, "[MM] foreign pickup: MM check %u already delivered its crossing on an earlier cycle\n",
                 (unsigned)randoCheckId);
         return false;
+    }
+    // #1061: a COUNTED pack (an OoT bombchu pack) does not cross. It is credited
+    // to the shared pool here and MM's count re-applies from it (up to MM's
+    // bomb-bag capacity; the rest stays in the pool for OoT), the twin of OoT's
+    // pickup. Gated by the same `obtained` bit above, so a cycle-reset host
+    // credits once.
+    if (MM_CreditSharedPickup(item) != 0) {
+        return true;
     }
     return Combo_RecordSharedItemCrossing((GameId)item->originGame, item->id) >= 0;
 }

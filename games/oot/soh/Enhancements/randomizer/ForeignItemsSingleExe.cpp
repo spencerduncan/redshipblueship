@@ -57,6 +57,7 @@
 #include "combo_single_bag.h" // src/common — the single-bag fill (ADR 0010 increment 3, lane K11)
 #include "crossing_store.h"   // src/common — the creation writer of the crossings (ADR 0010 O7)
 #include "shared_items.h"     // src/common — Combo_RecordSharedItem (#493)
+#include "shared_resources.h" // src/common — OoT_CreditSharedPickup: a counted pack credits the pool (#1061)
 #include "gen_budget.h"       // src/common — the #582 fill budget + progress surface
 
 extern "C" {
@@ -166,8 +167,9 @@ extern "C" int OoT_ForeignItem_Give(uint16_t rgId) {
 // the host physically holds — the documented absent-placement behaviour
 // (foreign_items.h) — rather than to a crossing nobody can receive.
 //
-// @return true only when a durable shared-item record was authored. The caller
-//         presents the foreign pickup if and only if that happened.
+// @return true only when a durable shared-item record was authored, or (#1061) a
+//         counted pack was credited to the shared pool. The caller presents the
+//         foreign pickup if and only if one of those happened.
 static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
     const SharedItem* item = Combo_GetForeignPlacementForOoTCheck(rc);
     if (item == nullptr) {
@@ -193,6 +195,16 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
         return false;
     }
 
+    // #1061: a COUNTED pack (an MM bombchu pack) does not cross. It is credited
+    // to the shared pool here and OoT's count re-applies from it at once, so the
+    // pickup shows in Hyrule and Termina reads it from the pool on arrival. A
+    // crossing would reach the count only through MM's give, which caps
+    // bombchus at MM's bomb-bag capacity and lost the pack. Durable the same way
+    // a crossing is: the pool is gComboCtx, and the live count is OoT's save.
+    if (OoT_CreditSharedPickup(item) != 0) {
+        return true;
+    }
+
     // Durable immediately (the serialized array, so an OoT save+quit before the
     // next switch cannot lose the pickup — the stage/commit outbox is RAM-only,
     // see shared_items.h). ONE COPY PER PICKUP (ADR 0010 increment 3): under the
@@ -209,7 +221,8 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
  * production function, two callers, so the lock covers the real recording path
  * rather than a copy of it.
  *
- * @return 1 if a durable crossing was authored for this OoT check, 0 otherwise
+ * @return 1 if a durable crossing was authored for this OoT check (or, #1061, a
+ *         counted pack credited to the shared pool), 0 otherwise
  *         (no foreign placement here, or no live pairing to author it for).
  */
 extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {

@@ -3260,7 +3260,12 @@ extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
  */
 static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    int given = OoT_ForeignItem_Give(item->id);
+    // #1061: a counted pack (an OoT bombchu pack an older save crossed from
+    // Termina) is credited to the shared pool, not given: OoT's give adds to
+    // OoT's own count under OoT's own cap, which loses what the cap cuts.
+    // New pickups never cross such a pack (OoT_/MM_CreditSharedPickup at the
+    // pickup); this is the redemption of the ones recorded before that.
+    int given = OoT_CreditSharedPickup(item) != 0 ? 1 : OoT_ForeignItem_Give(item->id);
     fprintf(stderr, "[OoT] shared-item redeem: RG id=%u %s (Lane C1 foreign give)\n", (unsigned)item->id,
             given ? "awarded" : "NOT awarded — give path unavailable");
     if ((item->flags & RSBS_SHARED_ITEM_SOURCED) == 0) {
@@ -3654,6 +3659,34 @@ static bool OoT_SharedAmmoGrantBlocked(const OoTSharedAmmo* row) {
     return false;
 }
 
+/**
+ * Apply one row's COUNT from the pool: the arrival's per-row count step, and the
+ * re-apply a pickup credit runs (#1061, OoT_CreditSharedPickup).
+ *
+ * Runs even when the grant is blocked (see OoT_SharedAmmoGrantBlocked: skipping
+ * it loses the player's stock the moment the gate opens), and then against a cap
+ * of ZERO, so nothing materializes and the whole count stays in the pool. The
+ * row's own capacity is not enough for that: sticks and nuts read capacity 0 at
+ * tier 0, but OoT_BombchuCapacity is 50 under the Single Bombchu Bag option
+ * whether or not the bag has been found (only the progressive option reads the
+ * bag's level). Without the zero, a blocked apply under Single wrote a count
+ * with no item in the slot, the bag's own give then ASSIGNED 20 over it
+ * (SeedContext.cpp, HandleGetBombchuBag), and the next harvest took the
+ * difference out of the pool.
+ */
+static void OoT_ApplySharedAmmoCount(const OoTSharedAmmo* row, bool grantBlocked) {
+    uint16_t count = OoT_ReadAmmo(row->item);
+    const uint16_t cap = grantBlocked ? 0u : OoT_AmmoCapacity(row);
+    if (Combo_ApplySharedResource(GAME_OOT, row->countKind, cap, &count)) {
+        // Bombchus have no tier to carry the item across, so a nonzero
+        // shared count is what implies the item here.
+        if (!grantBlocked && count > 0u) {
+            OoT_EnsureInventoryItem(row->item);
+        }
+        AMMO(row->item) = (s8)count;
+    }
+}
+
 static uint16_t OoT_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.inventory.questItems & OOT_HEART_PIECE_MASK) >> OOT_HEART_PIECE_SHIFT);
@@ -3942,6 +3975,40 @@ extern "C" void OoT_HarvestSharedResources(void) {
 }
 
 /**
+ * CREDIT AT PICKUP (#1061; shared_resources.h): a counted pack found in Hyrule
+ * (an MM bombchu pack on an OoT check), or an OoT pack redeemed from an older
+ * save's crossing, goes into the pool now and OoT's count re-applies from it:
+ * harvest OoT's bombchus, credit the pack, re-apply. The harvest first is what
+ * keeps every bombchu spent since the arrival out of the re-applied count.
+ *
+ * @return 1 when credited; 0 (nothing touched) when @p item is not a counted
+ *         pack, OoT's live save is not a real file, or the kind has no OoT row.
+ */
+extern "C" int OoT_CreditSharedPickup(const SharedItem* item) {
+    uint8_t kind = 0;
+    uint16_t units = 0;
+    if (item == nullptr || !Combo_SharedPickupCreditOf(*item, &kind, &units) || !OoT_SaveIsLiveFile()) {
+        return 0;
+    }
+    for (int i = 0; i < ARRAY_COUNT(kOoTSharedAmmo); i++) {
+        const OoTSharedAmmo* row = &kOoTSharedAmmo[i];
+        if (row->countKind != kind) {
+            continue;
+        }
+        Combo_HarvestSharedResource(GAME_OOT, kind, OoT_ReadAmmo(row->item));
+        if (!Combo_CreditSharedResource(kind, units)) {
+            return 0; // the harvest alone changes nothing a later harvest would not
+        }
+        OoT_ApplySharedAmmoCount(row, OoT_SharedAmmoGrantBlocked(row));
+        fprintf(stderr, "[OoT] shared pickup credit: %s id=%u adds %u to shared kind %u; OoT now holds %d\n",
+                Game_ToString((GameId)item->originGame), (unsigned)item->id, (unsigned)units, (unsigned)kind,
+                (int)AMMO(row->item));
+        return 1;
+    }
+    return 0;
+}
+
+/**
  * APPLY (#525). Write the shared pool into OoT's live gSaveContext.
  *
  * Called from OoT_Play_Init's presence-gated startup-entrance branch beside
@@ -4095,19 +4162,9 @@ extern "C" void OoT_ApplySharedResources(void) {
             }
         }
 
-        // Runs even when the grant is blocked — see OoT_SharedAmmoGrantBlocked
-        // for why suppressing the apply entirely loses the player's stock the
-        // moment the gate opens. The cap does the suppressing: with no bag it
-        // is zero, so nothing materializes.
-        uint16_t count = OoT_ReadAmmo(row->item);
-        if (Combo_ApplySharedResource(GAME_OOT, row->countKind, OoT_AmmoCapacity(row), &count)) {
-            // Bombchus have no tier to carry the item across, so a nonzero
-            // shared count is what implies the item here.
-            if (!grantBlocked && count > 0u) {
-                OoT_EnsureInventoryItem(row->item);
-            }
-            AMMO(row->item) = (s8)count;
-        }
+        // Runs even when the grant is blocked, against a zero cap then (see
+        // OoT_ApplySharedAmmoCount for both halves of that).
+        OoT_ApplySharedAmmoCount(row, grantBlocked);
     }
 
     // --- Hookshot (monotonic 0/1/2). Clamped to OoT's own ceiling of 2, which
