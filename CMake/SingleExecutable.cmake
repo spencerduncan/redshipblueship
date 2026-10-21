@@ -695,6 +695,13 @@ if(BUILD_TESTING)
     # row each, and a button found in one game owned in the other on arrival.
     redship_add_test(NAME SharedOcarinaButtonsPairs COMMAND redship --test shared-ocarina-buttons-pairs)
     redship_add_test(NAME SharedOcarinaButtonsArrival COMMAND redship --test shared-ocarina-buttons-arrival)
+    # #968: Shared Fire, Ice and Light Arrows, three more families on the lens's
+    # rows (#976 reserved their bits): the three keys (off by default, 0 or 1),
+    # the freeze, the fingerprint and the load restore; then both games' arrows
+    # registered and carried by the real harvest/apply shims, each rule only its
+    # own arrow. ROM-free.
+    redship_add_test(NAME SharedArrowsRule COMMAND redship --test shared-arrows-rule)
+    redship_add_test(NAME SharedArrowsMerge COMMAND redship --test shared-arrows-merge)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an
@@ -2502,6 +2509,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # songs shuffled anywhere, so both halves are bag rows): one copy per song,
     # both solvers credit it, MM's world holds no second copy, the GOAL proven.
     redship_add_test(NAME SharedSongsBag COMMAND redship --test shared-songs-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #968: each shared arrow's ONE bag row over a real paired generation: one
+    # copy per arrow, both solvers credit it (OoT's logic and MM's Snowhead, Great
+    # Bay and Stone Tower logic), MM's world holds no second copy, the GOAL proven.
+    redship_add_test(NAME SharedArrowsBag COMMAND redship --test shared-arrows-bag
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
