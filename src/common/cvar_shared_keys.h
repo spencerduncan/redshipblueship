@@ -162,6 +162,10 @@
  * (OoTMM sharedShields). Boolean (0/1), DEFAULT 0: a BIT of the item rules
  * record, so with it off the record stays all clear and every fingerprint holds. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS "gCombo.Rando.SharedShields"
+/* #1067: each game's five ocarina buttons are one set for the pair (OoTMM
+ * sharedOcarinaButtons). Boolean (0/1), DEFAULT 0: a BIT of the item rules
+ * record, so with it off the record stays all clear and every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS "gCombo.Rando.SharedOcarinaButtons"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -604,6 +608,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SHIELDS bit (#1068): the Hylian/Hero's Shield and the "
       "Mirror Shield are each ONE shared item across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_OCARINA_BUTTONS bit (#1067): each of the five ocarina "
+      "buttons is ONE shared item across both games" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -1019,18 +1026,18 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Four identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Five identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
-// SharedKokiriSword (#886) and SharedShields (#1068); #879 retired
-// SharedOcarina (#668)) + four
+// SharedKokiriSword (#886), SharedShields (#1068) and SharedOcarinaButtons
+// (#1067); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
 // (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 17, "four gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
-                                    "gCombo.Tracker.Items.* preferences = 17");
+static_assert(kComboKeyCount == 18, "five gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
+                                    "gCombo.Tracker.Items.* preferences = 18");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

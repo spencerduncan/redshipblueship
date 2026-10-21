@@ -44,6 +44,7 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_GOAL, "Goal" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, "Shared Kokiri Sword" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS, "Shared Shields" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS, "Shared Ocarina Buttons" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -83,6 +84,11 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             Combo_ComboItemRulesDefaults(&rulesDefaults);
             return (rulesDefaults.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_SHIELDS) != 0u ? 1 : 0;
         }
+        case COMBO_SETTING_SHARED_OCARINA_BUTTONS: {
+            ComboItemRulesRecord rulesDefaults; // #1067, the shields' one definition
+            Combo_ComboItemRulesDefaults(&rulesDefaults);
+            return (rulesDefaults.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u ? 1 : 0;
+        }
         default:
             return 0;
     }
@@ -107,6 +113,7 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
                    value == (int32_t)RSBS_COMBO_GOAL_BEAT_MM;
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
         case COMBO_SETTING_SHARED_SHIELDS:
+        case COMBO_SETTING_SHARED_OCARINA_BUTTONS:
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
@@ -280,6 +287,7 @@ const Restorable kRestorable[] = {
     // is one row under it (#1068). Restorable only when every differing bit has
     // a key (ItemRulesKeyedDiff).
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SHIELDS },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_OCARINA_BUTTONS }, // #1067
 };
 
 /** The crossItemFlags bit each item-rule key authors (Combo_ResolveComboItemRules). */
@@ -289,6 +297,7 @@ struct KeyedItemRule {
 };
 const KeyedItemRule kKeyedItemRules[] = {
     { RSBS_XITEM_SHARED_SHIELDS, COMBO_SETTING_SHARED_SHIELDS },
+    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, COMBO_SETTING_SHARED_OCARINA_BUTTONS }, // #1067
 };
 
 uint32_t KeyedItemRuleBits() {
@@ -328,6 +337,7 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
             return (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         case COMBO_SETTING_SHARED_SHIELDS:
+        case COMBO_SETTING_SHARED_OCARINA_BUTTONS:
             return (frozenRules != nullptr && (frozenRules->crossItemFlags & KeyedItemRuleBit(id)) != 0u) ? 1 : 0;
         default:
             return 0;

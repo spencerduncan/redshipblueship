@@ -394,10 +394,11 @@ void Combo_ResetSharedResourceWatermarks(void);
  * RSBS_XITEM_* rule bit (all twenty slots are allocated, and a slot's 16-bit
  * value could not hold the 32-bit family space). A rule that makes MORE than one
  * pair one item owns its first pair at its own bit and each further pair at an
- * EXTRA SLOT (RSBS_XFAMILY_SLOTS_EXTRA, foreign_items.h), a bit no rule can
- * occupy, armed with the rule (#1068: the Shared Shields rule's Hylian/Hero's
- * pair at its bit, its Mirror pair at RSBS_XFAMILY_SLOT_MIRROR_SHIELD). Its merge
- * is a third discipline:
+ * EXTRA SLOT (RSBS_XFAMILY_SLOTS_EXTRA, foreign_items.h), a bit no family rule
+ * can occupy, armed with the rule (#1068: the Shared Shields rule's Hylian/Hero's
+ * pair at its bit, its Mirror pair at RSBS_XFAMILY_SLOT_MIRROR_SHIELD; #1067:
+ * the Shared Ocarina Buttons' A pair at its bit, its four C pairs at the
+ * extension rules' bits). Its merge is a third discipline:
  *
  *   OR - harvest is `owned |= held & armed`, apply gives the arriving game its
  *   NATIVE copy of every family in `owned & armed & ~held`. Monotonic in both

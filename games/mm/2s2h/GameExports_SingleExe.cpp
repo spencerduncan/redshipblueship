@@ -4722,10 +4722,68 @@ const MMSharedShieldRegistrar gMMSharedShieldRegistrar;
 // ============================================================================
 // The Shared Ocarina Buttons families (#1067; OoTMM sharedOcarinaButtons)
 // ============================================================================
+//
+// MM's copies of the rule's five pairs: RI_OCARINA_BUTTON_A at the rule's own
+// bit, the four C buttons at their extra slots. Ownership is the
+// RANDO_INF_OBTAINED_OCARINA_BUTTON_* bit MM's own give writes (GiveItem.cpp:
+// the flag at the item's offset from RI_OCARINA_BUTTON_A) and the
+// VB_PLAY_OCARINA_NOTE gate reads (Rando/ActorBehavior/Player.cpp).
+//
+// HELD only in a randomizer file whose frozen RO_SHUFFLE_OCARINA_BUTTONS is on
+// (the note gate's own test): without it MM plays every note and finds no
+// button, so it has nothing to share. The GIVE writes the bit directly, as the
+// shields write the equipment value (Flags_SetRandoInf would also fire the
+// flag-set hooks before gameplay); with MM's shuffle off nothing reads it.
 
-/** Register MM's copies of the Shared Ocarina Buttons families (#1067). */
-extern "C" void MM_RegisterSharedOcarinaButtonFamilies(void) {
+namespace {
+
+int MM_SharedButtonFlag(uint16_t nativeId) {
+    return RANDO_INF_OBTAINED_OCARINA_BUTTON_A + ((int)nativeId - (int)RI_OCARINA_BUTTON_A);
 }
+
+bool MM_SharedButtonHeld(uint16_t nativeId) {
+    if (!IS_RANDO || RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] == RO_GENERIC_OFF) {
+        return false;
+    }
+    const int flag = MM_SharedButtonFlag(nativeId);
+    return (gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+void MM_SharedButtonGive(uint16_t nativeId) {
+    const int flag = MM_SharedButtonFlag(nativeId);
+    gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] |= (u16)(1 << (flag & 0xF));
+}
+
+} // namespace
+
+/** Register MM's copies of the Shared Ocarina Buttons families (#1067).
+ *  Idempotent; the static registrar below runs it at start-up, and the locks
+ *  re-run it after a row that cleared the registry. */
+extern "C" void MM_RegisterSharedOcarinaButtonFamilies(void) {
+    static const struct {
+        uint32_t slot;
+        RandoItemId button;
+    } kButtons[] = {
+        { RSBS_XITEM_SHARED_OCARINA_BUTTONS, RI_OCARINA_BUTTON_A },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_UP, RI_OCARINA_BUTTON_C_UP },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, RI_OCARINA_BUTTON_C_DOWN },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, RI_OCARINA_BUTTON_C_LEFT },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, RI_OCARINA_BUTTON_C_RIGHT },
+    };
+    for (const auto& b : kButtons) {
+        const ComboSharedFamilyMember member = { (uint16_t)b.button, MM_SharedButtonHeld, MM_SharedButtonGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, b.slot, &member);
+    }
+}
+
+namespace {
+struct MMSharedOcarinaButtonRegistrar {
+    MMSharedOcarinaButtonRegistrar() {
+        MM_RegisterSharedOcarinaButtonFamilies();
+    }
+};
+const MMSharedOcarinaButtonRegistrar gMMSharedOcarinaButtonRegistrar;
+} // namespace
 
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
