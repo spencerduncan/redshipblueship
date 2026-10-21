@@ -12,6 +12,9 @@ void EnSuttari_TriggerTransition(PlayState* play, u16 entrance);
 
 void RegisterSkipBombBagTheftCutscene() {
     COND_VB_SHOULD(VB_SAKON_TAKE_DAMAGE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnSuttari* enSuttari = va_arg(args, EnSuttari*);
         if (enSuttari->actor.colChkInfo.damageEffect == 0xF && enSuttari->scheduleResult == 4) {
             // scheduleResult becomes 4 when Sakon steals the bomb bag. damageEffect is 0xF if the player stopped Sakon
@@ -34,6 +37,9 @@ void RegisterSkipBombBagTheftCutscene() {
      * note that this is not a bug introduced by this skip.
      */
     COND_VB_SHOULD(VB_QUEUE_CUTSCENE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         /*
          * Scene 18 in North Clock Town is the bomb bag theft. Preventing the cutscene from starting is not sufficient;
          * Sakon's actor will lock Link in place if this cutscene is queued. Preventing the queue instead allows the

@@ -14,6 +14,9 @@ void Flags_SetWeekEventReg(s32 flag);
 
 void RegisterSkipIntroSequence() {
     COND_VB_SHOULD(VB_PLAY_TRANSITION_CS, INTRO_CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         // Intro cutscene
         if (!(gSaveContext.save.entrance == ENTRANCE(CUTSCENE, 0) && gSaveContext.save.cutsceneIndex == 0) ||
             gSaveContext.save.isFirstCycle) {
