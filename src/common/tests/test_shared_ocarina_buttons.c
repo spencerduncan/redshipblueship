@@ -14,10 +14,12 @@
  *   (Combo_SingleBag_SharedPairs, what Combo_SingleBag_Run hands the composer)
  *   names all five pairs; and the real composer, over both games' REAL item
  *   classifications, makes each pair ONE RSBS_COMBO_BAG_SHARED_PAIR row both
- *   solvers credit, with the other game's REQUIRED copy trimmed. With one game's
- *   shuffle off (its buttons in no pool) the other game's five rows are still
- *   the shared rows and nothing is trimmed. With the rule off nothing is armed
- *   and no pair exists.
+ *   solvers credit, with the other game's REQUIRED copy trimmed. The pairs need
+ *   BOTH games' own button shuffles on (OoT's seed option, MM's frozen
+ *   RSBS_GIVECAP_OCARINA_BUTTONS): a shared row may be hosted in either game,
+ *   and a game without the shuffle never sees a button given there, so with one
+ *   shuffle off no pair is built and each game's buttons stay its own items.
+ *   With the rule off nothing is armed and no pair exists.
  *
  *   SharedOcarinaButtonsArrival ("shared-ocarina-buttons-arrival") - THE
  *   ARRIVAL. Through both games' REAL harvest and apply shims (driven as
@@ -160,6 +162,44 @@ static void SobMMArrives(int shuffle, unsigned held) {
     MM_ApplySharedResources();
 }
 
+/** Both games' own button shuffles as the bag reads them at generation: OoT's
+ *  from its seed's option (the context OoT_SharedButtonsTest_Begin holds), MM's
+ *  from its frozen published give caps (@p mm < 0: MM published nothing). */
+static void SobSetShuffles(int oot, int mm) {
+    OoT_SharedSwordTest_ArmLive();
+    OoT_SharedButtonsTest_Set(oot, 0u);
+    Combo_ClearForeignGiveCaps();
+    if (mm >= 0) {
+        Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, mm != 0 ? (uint32_t)RSBS_GIVECAP_OCARINA_BUTTONS : 0u);
+    }
+}
+
+/** The process's published give caps, put back when a row ends (the AllTests
+ *  process runs every row in one process). */
+typedef struct {
+    bool published[2];
+    uint32_t caps[2];
+} SobGiveCaps;
+
+static SobGiveCaps SobSaveGiveCaps(void) {
+    SobGiveCaps g;
+    for (int i = 0; i < 2; ++i) {
+        const uint8_t game = i == 0 ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
+        g.published[i] = Combo_ForeignGiveCapsPublished(game);
+        g.caps[i] = Combo_ForeignGiveCaps(game);
+    }
+    return g;
+}
+
+static void SobRestoreGiveCaps(const SobGiveCaps* g) {
+    Combo_ClearForeignGiveCaps();
+    for (int i = 0; i < 2; ++i) {
+        if (g->published[i]) {
+            Combo_PublishForeignGiveCaps(i == 0 ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM, g->caps[i]);
+        }
+    }
+}
+
 /** Compose @p rowCount pool rows through the real composer with MM's frozen
  *  armed word holding the button shuffle (what MM's profile publishes when its
  *  shuffle is on, RSBS_GIVECAP_OCARINA_BUTTONS). */
@@ -182,6 +222,8 @@ TestResult Test_SharedOcarinaButtonsPairs(void) {
     printf("[TEST] shared-ocarina-buttons-pairs: the Shared Ocarina Buttons rule arms five shared families (A and the "
            "four C buttons) that both games register, and the bag makes each one row both solvers credit (#1067)\n");
     sSobFailures = 0;
+    const SobGiveCaps priorCaps = SobSaveGiveCaps();
+    OoT_SharedButtonsTest_Begin();
     const uint32_t R = (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS;
     uint16_t ootId[SOB_BUTTONS];
     uint16_t mmId[SOB_BUTTONS];
@@ -229,6 +271,7 @@ TestResult Test_SharedOcarinaButtonsPairs(void) {
     // ---- (2) OFF: nothing armed, no pair ---------------------------------------
     {
         SobFreezeWorld(false);
+        SobSetShuffles(1, 1);
         ComboLogicSharedPair pairs[RSBS_XITEM_BIT_COUNT];
         const int n = Combo_SingleBag_SharedPairs(pairs, (int)RSBS_XITEM_BIT_COUNT);
         printf("[TEST] (2) off: armed %08X, %d pair(s) (expected 00000000, 0)\n", (unsigned)Combo_SharedFamiliesArmed(),
@@ -238,11 +281,12 @@ TestResult Test_SharedOcarinaButtonsPairs(void) {
                   (unsigned)Combo_SharedFamiliesArmed(), n);
     }
 
-    // ---- (3) ON: all five slots armed, all five pairs built ---------------------
+    // ---- (3) ON, both shuffles on: all five slots armed, all five pairs built ---
     ComboLogicSharedPair pairs[RSBS_XITEM_BIT_COUNT];
     int pairCount = 0;
     {
         SobFreezeWorld(true);
+        SobSetShuffles(1, 1);
         pairCount = Combo_SingleBag_SharedPairs(pairs, (int)RSBS_XITEM_BIT_COUNT);
         printf("[TEST] (3) on: armed %08X, %d pair(s):", (unsigned)Combo_SharedFamiliesArmed(), pairCount);
         for (int i = 0; i < pairCount; ++i) {
@@ -260,6 +304,40 @@ TestResult Test_SharedOcarinaButtonsPairs(void) {
             }
             SOB_CHECK(found, "ON: the bag has no shared pair (OoT %u, MM %u) for the %s buttons", (unsigned)ootId[b],
                       (unsigned)mmId[b], kSobNames[b]);
+        }
+    }
+
+    // ---- (3b) ON, ONE SHUFFLE OFF: no pair --------------------------------------
+    // A shared row may be hosted at a check in either game, and that game gives
+    // its own copy. A game without the shuffle never sees a button given there
+    // (its HELD reads nothing), so the button would never reach the game that
+    // needs it, while both solvers had credited it: an unbeatable seed. So with
+    // either shuffle off (or MM's profile unpublished) the bag builds no pair,
+    // though the rule still arms all five slots.
+    {
+        static const struct {
+            int oot;
+            int mm;
+            const char* what;
+        } kOneOff[] = {
+            { 1, 0, "OoT on, MM off" },
+            { 0, 1, "OoT off, MM on" },
+            { 0, 0, "both off" },
+            { 1, -1, "OoT on, MM unpublished" },
+        };
+        for (int k = 0; k < (int)(sizeof(kOneOff) / sizeof(kOneOff[0])); ++k) {
+            SobFreezeWorld(true);
+            SobSetShuffles(kOneOff[k].oot, kOneOff[k].mm);
+            ComboLogicSharedPair none[RSBS_XITEM_BIT_COUNT];
+            const int n = Combo_SingleBag_SharedPairs(none, (int)RSBS_XITEM_BIT_COUNT);
+            printf("[TEST] (3b) on, %s: armed %08X, %d pair(s) (expected %08X, 0)\n", kOneOff[k].what,
+                   (unsigned)Combo_SharedFamiliesArmed(), n, (unsigned)SobAllSlots());
+            SOB_CHECK(Combo_SharedFamiliesArmed() == SobAllSlots(), "ON, %s: the rule armed %08X, expected %08X",
+                      kOneOff[k].what, (unsigned)Combo_SharedFamiliesArmed(), (unsigned)SobAllSlots());
+            SOB_CHECK(n == 0,
+                      "ON, %s: the bag built %d shared button pair(s); a pair hosted in the game without the "
+                      "shuffle is never delivered",
+                      kOneOff[k].what, n);
         }
     }
 
@@ -318,27 +396,31 @@ TestResult Test_SharedOcarinaButtonsPairs(void) {
                   Combo_Logic_ComposeTrimmedCount());
 
         // ---- (4b) ONE SHUFFLE OFF: only MM's buttons are in a pool ------------
-        // OoT starts with all five, so its buttons are in no pool: MM's five rows
-        // are still the shared rows (both solvers credit them; OoT's credit adds
-        // nothing it lacks) and nothing is trimmed.
-        const int rcMM = SobCompose(pool + SOB_BUTTONS, SOB_BUTTONS, pairs, pairCount, bag, 16, &res);
+        // OoT starts with all five, so its buttons are in no pool, and (3b) built
+        // no pair: MM's five rows are MM's own items, none shared, none trimmed.
+        SobFreezeWorld(true);
+        SobSetShuffles(0, 1);
+        ComboLogicSharedPair oneOff[RSBS_XITEM_BIT_COUNT];
+        const int oneOffCount = Combo_SingleBag_SharedPairs(oneOff, (int)RSBS_XITEM_BIT_COUNT);
+        const int rcMM = SobCompose(pool + SOB_BUTTONS, SOB_BUTTONS, oneOff, oneOffCount, bag, 16, &res);
         int sharedMM = 0;
         for (int i = 0; i < res.bagCount && i < 16; ++i) {
-            sharedMM +=
-                ((bag[i].bagFlags & RSBS_COMBO_BAG_SHARED_PAIR) != 0u && bag[i].item.originGame == (uint8_t)GAME_MM)
-                    ? 1
-                    : 0;
+            sharedMM += ((bag[i].bagFlags & RSBS_COMBO_BAG_SHARED_PAIR) != 0u) ? 1 : 0;
         }
-        printf("[TEST] (4b) MM's buttons alone: rc %d, %d bag row(s), %d shared, %d trimmed (expected 0, 5, 5, 0)\n",
+        printf("[TEST] (4b) MM's buttons alone: rc %d, %d bag row(s), %d shared, %d trimmed (expected 0, 5, 0, 0)\n",
                rcMM, res.bagCount, sharedMM, Combo_Logic_ComposeTrimmedCount());
-        SOB_CHECK(rcMM == RSBS_COMBO_LOGIC_OK && res.bagCount == SOB_BUTTONS && sharedMM == SOB_BUTTONS &&
+        SOB_CHECK(rcMM == RSBS_COMBO_LOGIC_OK && res.bagCount == SOB_BUTTONS && sharedMM == 0 &&
                       Combo_Logic_ComposeTrimmedCount() == 0,
-                  "with OoT's buttons in no pool, MM's five rows must be the shared rows and nothing trimmed");
+                  "with OoT's buttons in no pool, MM's five rows must stay MM's own items, none shared, none trimmed");
     }
 
     Combo_ClearSharedFamilyMembers();
     OoT_RegisterSharedOcarinaButtonFamilies();
     MM_RegisterSharedOcarinaButtonFamilies();
+    OoT_SharedButtonsTest_End();
+    // Leave OoT's live save a plain, non-randomizer file for the next row.
+    OoT_SharedSwordTest_ArmLive();
+    SobRestoreGiveCaps(&priorCaps);
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
     if (sSobFailures != 0) {
@@ -426,6 +508,10 @@ TestResult Test_SharedOcarinaButtonsArrival(void) {
     }
 
     OoT_SharedButtonsTest_End();
+    // Leave both live saves plain, non-randomizer files for the next row (the
+    // AllTests process runs every row in one process).
+    OoT_SharedSwordTest_ArmLive();
+    MM_SharedSwordTest_ArmLive();
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
     if (sSobFailures != 0) {
