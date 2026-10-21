@@ -426,6 +426,20 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Restorations/PauseBufferInputs.cpp"
         # #1017
         "2s2h/Enhancements/DifficultyOptions/HyperEnemies.cpp"
+        # #1024-#1026: the three Audio Editor rows the SoH menu draws (kSharedIntentKeys: gAudioEditor.LowHpAlarm,
+        # .EnemyBGMDisable, .SeqNameNotification and its Duration). Each registers only through a file-scope
+        # RegisterShipInitFunc, and rides a hook the single exe dispatches: VB_PLAY_LOW_HP_ALARM (z_lifemeter.c) and
+        # VB_PLAY_ENEMY_PROXIMITY_MUSIC (z_player.c) via MM_GameHooks_ExecuteVBShould, OnSeqPlayerInit (audio/lib/load.c)
+        # via MM_GameHooks_ExecuteOnSeqPlayerInit. None reads the play state unguarded (AudioHook null-checks
+        # MM_gPlayState). AudioHook's NotifySequenceName / RegisterAudioNotificationHooks exist in OoT too and are
+        # MM_-prefixed by include/mm_audio_prefix.h (pulled in through AudioCollection.h); the toast goes out through
+        # the MM_Notify_Emit bridge to OoT's overlay, and AudioCollection::Instance is created by GameExports_SingleExe.
+        # #1024
+        "2s2h/Enhancements/Audio/Sfx/MuteLowHpAlarm.cpp"
+        # #1025
+        "2s2h/Enhancements/Audio/Sfx/DisableEnemyProximityMusic.cpp"
+        # #1026
+        "2s2h/Enhancements/Audio/AudioHook.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 
