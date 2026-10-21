@@ -1262,6 +1262,21 @@ if(BUILD_TESTING)
     # reference would un-elide them by itself). Pure (no display, no ROM);
     # needs the shared bring-up only for CVarSetInteger.
     redship_add_test(NAME MMClockShuffleSongs COMMAND redship --test mm-clock-shuffle-songs)
+    # The same class a third time (#1071): the nine song-teacher hooks under
+    # games/mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearning*.cpp are
+    # forced on under IS_RANDO because they ARE the rando hand-off for those
+    # checks (the Sonata hook is the only caller of VB_GIVE_ITEM_FROM_MNK,
+    # which Rando/ActorBehavior/EnMnk.cpp waits on), and plain-archive
+    # 2ship_enh dropped all nine: the monkey taught the vanilla Sonata and the
+    # seed's item was never given. They are carved into the WHOLE_ARCHIVE'd
+    # 2ship_enh_registrars (games/mm/CMakeLists.txt); this row arms them through
+    # the production rando path (saveType + ShipInit::Init("IS_RANDO")) and
+    # attributes each one, by an exactly-one registry delta or by the VB
+    # verdict and check hand-off only that hook produces, and checks the Epona
+    # and Healing hooks survive a missing play state. Names no symbol from the
+    # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
+    # the CVar reads.
+    redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
     # The entrance -> region cache's registration boundary (#659).
     # Rando::Logic::Regions is filled by eighteen independent ShipInit
     # registrars whose order is link order, and the cache inside

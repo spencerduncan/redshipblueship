@@ -291,6 +291,14 @@ int MM_RegistrarCoverage_RunHeadless(void);
 // display-free shared bring-up first (CVarSetInteger). Returns 0 on pass,
 // non-zero on fail.
 int MM_ClockShuffleSongs_RunHeadless(void);
+// The song-teacher hooks (games/mm/2s2h/mm_song_teacher_hooks_test.cpp,
+// #1071): the nine StoryCutscenes/SkipLearning*.cpp TUs register only through a
+// file-scope RegisterShipInitFunc, so plain-archive 2ship_enh dropped all nine
+// and every song-teacher check in Termina could give the vanilla song instead of
+// the seed's item. Asserts each one arms under the production rando path and
+// that the Epona and Healing hooks survive a missing play state. Needs the
+// display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
+int MM_SongTeacherHooks_RunHeadless(void);
 // The curated MM enhancement keys' liveness evidence
 // (games/mm/2s2h/mm_enhancement_toggles_test.cpp, #682): the EVIDENCE half of the
 // pair above, MM-side because the registries are. Per key: exactly one
@@ -5146,6 +5154,24 @@ static TestResult Test_MMClockShuffleSongs(void) {
     return MM_ClockShuffleSongs_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1071. Same display-free shared bring-up as mm-clock-shuffle-songs: the
+// registrars it arms read CVars through the Ship::Context singleton. It restores
+// the SaveContext image, MM_gPlayState, the event queue and the Story CVar and
+// re-runs the IS_RANDO drive on the way out, so it has no ordering constraints.
+static TestResult Test_MMSongTeacherHooks(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's evidence half. Same display-free shared bring-up and the same reason as
 // mm-clock-shuffle-songs: it drives MM's registrars through CVarSetInteger +
 // MM_ShipInit_OnCVarChanged, and reads the Ship::Context singleton's
@@ -6591,6 +6617,11 @@ const TestDescriptor gTests[] = {
     // no ordering constraints.
     { "mm-clock-shuffle-songs", "RO_CLOCK_SHUFFLE's Songs handlers survive the link and their registrars run (#678)",
       Test_MMClockShuffleSongs },
+    // The same elided-registrar class again (#1071): the nine song-teacher
+    // hooks, carved into the WHOLE_ARCHIVE'd 2ship_enh_registrars. Restores
+    // everything it touches, so it has no ordering constraints.
+    { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
+      Test_MMSongTeacherHooks },
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after
