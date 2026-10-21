@@ -18,6 +18,9 @@ extern "C" {
 void RegisterSkipMoonCrash() {
     // Skips initial cutscene in Termina Field where the moon falls, goes straight to clock tower cutscene
     COND_VB_SHOULD(VB_PLAY_TRANSITION_CS, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (gSaveContext.save.cutsceneIndex == 0x0 && gSaveContext.save.entrance == ENTRANCE(TERMINA_FIELD, 12)) {
             // This cutscene command would otherwise be run as part of the Fire Wall cutscene that gets skipped.
             // IT MUST BE CALLED HERE IF THAT CUTSCENE IS SKIPPED OR ELSE THE GAME STATE WILL NOT RESET CORRECTLY!
