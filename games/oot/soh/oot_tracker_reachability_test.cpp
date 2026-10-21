@@ -72,8 +72,10 @@ int Rando_HeadlessSeedTest(const char* seedStr);
 // ItemAdapterSingleExe.cpp: the new file Ship of Harkinian's own init path
 // authors (variant 0: Save_InitFile(false), what OoT_Sram_InitNewSave runs).
 int OoT_ItemAdapter_TestAuthorNewFile(void* buf, size_t size, int variant, int* outNewfMarked);
-// ForeignItemsSingleExe.cpp: the creation event, then Randomizer_InitSaveFile.
+// ForeignItemsSingleExe.cpp: the creation event, then Randomizer_InitSaveFile;
+// and the #1055 bridge that removes a stale spoiler of this seed first.
 int OoT_Creation_AuthorRandoFile(int slot);
+int OoT_Creation_TestClearPairedSpoiler(void);
 // z_play.c: what OoT_Play_Init runs at a cross-game arrival (apply, redeem,
 // tracker arm; #990).
 void OoT_Play_ApplyArrivalShared(void);
@@ -143,6 +145,9 @@ bool TrrCreatePairedFile(const char* seed) {
     const int genRc = Rando_HeadlessSeedTest(seed);
     auto ctx = Rando::Context::GetInstance();
     TRR_REQUIRE(genRc == 0 && ctx != nullptr, "the headless paired generation failed");
+    // #1055: the build directory is shared by every run of every build, so a
+    // spoiler of this seed under another identity must not meet this creation.
+    OoT_Creation_TestClearPairedSpoiler();
 
     auto newFile = std::make_unique<SaveContext>();
     TRR_REQUIRE(OoT_ItemAdapter_TestAuthorNewFile(newFile.get(), sizeof(SaveContext), 0, nullptr) == 1,

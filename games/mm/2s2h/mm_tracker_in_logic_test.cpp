@@ -219,11 +219,18 @@ extern "C" int MM_TrackerFillSuperset_RunMM(void) {
     const std::set<RandoCheckId> tracker = TilInLogic(&unchanged);
     TIL_CHECK(unchanged, "the in-logic computation changed the live SaveContext");
 
-    // ---- the fill's round: nothing assumed (the coordinator's tables are empty
-    // after the creation commits, so nothing is harvested either) -------------------------
+    // ---- the fill's round: nothing assumed, every shuffled host withheld (sphere
+    // zero, whatever placements the engine still holds) ---------------------------------
     std::set<RandoCheckId> fill;
     if (e->snapshot(e->self) != 0) {
         if (e->beginQuery(e->self) != 0) {
+            if (e->withholdHost != nullptr) {
+                for (int id = 1; id < RC_MAX; id++) {
+                    if (RANDO_SAVE_CHECKS[id].shuffled) {
+                        e->withholdHost(e->self, (uint16_t)id);
+                    }
+                }
+            }
             for (int i = 0; i < RSBS_COMBO_LOGIC_MAX_ROUND_ITERATIONS; ++i) {
                 if (!e->expand(e->self)) {
                     break;
