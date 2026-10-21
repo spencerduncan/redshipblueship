@@ -36,6 +36,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring> // memcpy/memset — the creation event's snapshot bracket
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -56,6 +57,7 @@
 #include "combo_single_bag.h" // src/common — the single-bag fill (ADR 0010 increment 3, lane K11)
 #include "crossing_store.h"   // src/common — the creation writer of the crossings (ADR 0010 O7)
 #include "shared_items.h"     // src/common — Combo_RecordSharedItem (#493)
+#include "shared_resources.h" // src/common — OoT_CreditSharedPickup: a counted pack credits the pool (#1061)
 #include "gen_budget.h"       // src/common — the #582 fill budget + progress surface
 
 extern "C" {
@@ -165,8 +167,9 @@ extern "C" int OoT_ForeignItem_Give(uint16_t rgId) {
 // the host physically holds — the documented absent-placement behaviour
 // (foreign_items.h) — rather than to a crossing nobody can receive.
 //
-// @return true only when a durable shared-item record was authored. The caller
-//         presents the foreign pickup if and only if that happened.
+// @return true only when a durable shared-item record was authored, or (#1061) a
+//         counted pack was credited to the shared pool. The caller presents the
+//         foreign pickup if and only if one of those happened.
 static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
     const SharedItem* item = Combo_GetForeignPlacementForOoTCheck(rc);
     if (item == nullptr) {
@@ -192,6 +195,16 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
         return false;
     }
 
+    // #1061: a COUNTED pack (an MM bombchu pack) does not cross. It is credited
+    // to the shared pool here and OoT's count re-applies from it at once, so the
+    // pickup shows in Hyrule and Termina reads it from the pool on arrival. A
+    // crossing would reach the count only through MM's give, which caps
+    // bombchus at MM's bomb-bag capacity and lost the pack. Durable the same way
+    // a crossing is: the pool is gComboCtx, and the live count is OoT's save.
+    if (OoT_CreditSharedPickup(item) != 0) {
+        return true;
+    }
+
     // Durable immediately (the serialized array, so an OoT save+quit before the
     // next switch cannot lose the pickup — the stage/commit outbox is RAM-only,
     // see shared_items.h). ONE COPY PER PICKUP (ADR 0010 increment 3): under the
@@ -208,7 +221,8 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
  * production function, two callers, so the lock covers the real recording path
  * rather than a copy of it.
  *
- * @return 1 if a durable crossing was authored for this OoT check, 0 otherwise
+ * @return 1 if a durable crossing was authored for this OoT check (or, #1061, a
+ *         counted pack credited to the shared pool), 0 otherwise
  *         (no foreign placement here, or no live pairing to author it for).
  */
 extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
@@ -1134,6 +1148,75 @@ static void ConsumeStagedGeneration(int slot, bool created) {
  */
 extern "C" void OoT_Creation_TestStageGeneration(void) {
     Rando::Context::GetInstance()->SetSeedGenerated(true);
+}
+
+/**
+ * TEST BRIDGE (#1055): the seed name OoT's writer gives the current generation's
+ * spoiler (SpoilerLog_Write, 3drando/spoiler_log.cpp): the five hash icons, two
+ * digits each, joined by '-'. Returns 0 (and writes "" when it can) when @p out
+ * cannot hold it.
+ */
+extern "C" int OoT_Creation_TestSpoilerSeedName(char* out, size_t cap) {
+    if (out == nullptr || cap == 0) {
+        return 0;
+    }
+    std::string name;
+    const auto& icons = Rando::Context::GetInstance()->hashIconIndexes;
+    for (size_t i = 0; i < icons.size(); i++) {
+        char part[8];
+        snprintf(part, sizeof(part), i == 0 ? "%02u" : "-%02u", (unsigned)icons[i]);
+        name += part;
+    }
+    if (name.size() + 1 > cap) {
+        out[0] = '\0';
+        return 0;
+    }
+    memcpy(out, name.c_str(), name.size() + 1);
+    return 1;
+}
+
+/**
+ * TEST BRIDGE (#1055): removes Randomizer/<seed>.json and every
+ * Randomizer/<seed>-<fingerprint>.json of the current generation, so a spoiler
+ * that a run of another build left in the shared build directory cannot meet
+ * this creation. The rows that create a paired file there call it after
+ * generating and before creating. @return the number of files removed.
+ */
+extern "C" int OoT_Creation_TestClearPairedSpoiler(void) {
+    char seed[64];
+    if (!OoT_Creation_TestSpoilerSeedName(seed, sizeof(seed)) || seed[0] == '\0') {
+        return 0;
+    }
+    const std::string seedName = seed;
+    const std::string suffixPrefix = seedName + "-";
+    std::vector<std::filesystem::path> matches;
+    std::error_code ec;
+    const std::filesystem::path dir = Ship::Context::GetPathRelativeToAppDirectory("Randomizer");
+    for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+        const std::filesystem::path& p = it->path();
+        if (p.extension() != ".json") {
+            continue;
+        }
+        const std::string stem = p.stem().string();
+        bool ours = stem == seedName;
+        if (!ours && stem.size() == suffixPrefix.size() + 8 &&
+            stem.compare(0, suffixPrefix.size(), suffixPrefix) == 0) {
+            ours = stem.find_first_not_of("0123456789ABCDEF", suffixPrefix.size()) == std::string::npos;
+        }
+        if (ours) {
+            matches.push_back(p);
+        }
+    }
+    int removed = 0;
+    for (const auto& p : matches) {
+        std::error_code rmEc;
+        if (std::filesystem::remove(p, rmEc)) {
+            fprintf(stderr, "[OoT] test: removed '%s' before the paired creation (#1055)\n", p.string().c_str());
+            removed++;
+        }
+    }
+    fflush(stderr);
+    return removed;
 }
 
 /**
