@@ -28,8 +28,12 @@
  *      presentation per item class, junk, a re-looted check (which converts to
  *      junk), health, lesser (a trap) and major;
  *   3. the two read sites that consume the tier directly: the trap text loses
- *      its colour codes only when health and lesser skip too (tier >= 2), and
- *      the non-rando story gives present only at tier 0.
+ *      its colour codes only when health and lesser skip too (tier >= 2, the
+ *      expression CheckQueue.cpp uses), and the story gives (they queue only
+ *      outside rando: masks, songs, the Oath) keep their hold unless SoH says
+ *      All Items, driven through StoryGiveShowsGetItemCutscene() itself. SoH's
+ *      own reader always shows outside rando; MM keeps 2S2H's option of
+ *      skipping the hold, but only on the tier that means "everything".
  *
  * Linkage note: #included into test_runner.cpp at file scope (compiled as C++).
  */
@@ -43,6 +47,7 @@ extern "C" {
 int MM_Rando_GetItemPresentation_TestTierFromSoh(int sohSkipGetItemAnimation);
 int MM_Rando_GetItemPresentation_TestTier(void);
 int MM_Rando_GetItemPresentation_TestShows(int sample);
+int MM_Rando_GetItemPresentation_TestStoryGiveShows(void);
 }
 
 namespace {
@@ -122,10 +127,10 @@ static TestResult MmGetItemPresentation_Run(void) {
         }
 
         // (3) The read sites that consume the tier directly.
-        const bool stripsTrapColours = tier >= 2;     // CheckQueue.cpp
-        const bool storyGivePresents = tier == 0;     // SkipGiantsChamber.cpp and the story gives
-        const bool wantStrips = c.sohValue == 2;      // health and lesser skip only at All Items
-        const bool wantStoryPresents = c.mmTier == 0; // Off, or a value OoT treats as Off
+        const bool stripsTrapColours = tier >= 2; // CheckQueue.cpp's expression
+        const bool storyGivePresents = MM_Rando_GetItemPresentation_TestStoryGiveShows() != 0;
+        const bool wantStrips = c.sohValue == 2;        // health and lesser skip only at All Items
+        const bool wantStoryPresents = c.sohValue != 2; // a mask, song or the Oath skips only at All Items
         if (stripsTrapColours != wantStrips || storyGivePresents != wantStoryPresents) {
             printf("[TEST] FAIL: SoH %s: trap colour strip %d (want %d), story give presents %d (want %d)\n", c.name,
                    stripsTrapColours, wantStrips, storyGivePresents, wantStoryPresents);

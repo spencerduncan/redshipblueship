@@ -67,6 +67,9 @@ int SkipGetItemCutsceneTier();
 #ifdef RSBS_SINGLE_EXECUTABLE
 int SkipGetItemCutsceneTierFromSoh(int sohSkipGetItemAnimation);
 #endif
+// #1060: does a story-cutscene give (SkipGiantsChamber.cpp and the
+// StoryCutscenes gives, which queue only outside rando) hold the item overhead?
+bool StoryGiveShowsGetItemCutscene();
 std::string GetItemName(RandoItemId randoItemId, bool includeArticle = true);
 std::string GetTrapMessage();
 

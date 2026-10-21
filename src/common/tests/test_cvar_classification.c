@@ -309,7 +309,23 @@ constexpr CvarClassTranslatedRow kCvarClassTranslatedRows[] = {
 constexpr const char* kCvarClassGetItemTierReaders[] = {
     "2s2h/Rando/StaticData/Items.cpp",
     "2s2h/Rando/MiscBehavior/CheckQueue.cpp",
+};
+
+/// #1060's story-cutscene gives (they queue only outside rando): each must ask
+/// StoryGiveShowsGetItemCutscene(), which keeps the hold unless SoH says All
+/// Items, so the default Junk Items never strips a mask, song or the Oath.
+constexpr const char* kCvarClassStoryGiveReaders[] = {
     "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipGiantsChamber.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingDarmani.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingMikau.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipIkanaCurseCutscenes.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningElegyOfEmptiness.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullaby.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullabyIntro.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningNewWaveBossaNova.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSonataOfAwakening.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfSoaring.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfStorms.cpp",
 };
 
 /// MM files that may still name a translated row's MM key: BenMenu.cpp, whose
@@ -950,6 +966,17 @@ TestResult Test_CVarClassification(void) {
                 if (text == nullptr || text->find("SkipGetItemCutsceneTier()") == std::string::npos) {
                     printf("[TEST] FAIL: #1060: games/mm/%s does not call SkipGetItemCutsceneTier(); its get-item\n"
                            "[TEST]       presentation would not follow SoH's Skip Get Item Animations.\n",
+                           reader);
+                    return TEST_FAIL;
+                }
+            }
+            for (const char* reader : kCvarClassStoryGiveReaders) {
+                const std::string* text = fileText(reader);
+                if (text == nullptr || text->find("StoryGiveShowsGetItemCutscene()") == std::string::npos ||
+                    text->find("!Rando::StaticData::SkipGetItemCutsceneTier()") != std::string::npos) {
+                    printf("[TEST] FAIL: #1060: games/mm/%s does not ask StoryGiveShowsGetItemCutscene() for its\n"
+                           "[TEST]       story give's hold (or still negates the raw tier, which strips the hold\n"
+                           "[TEST]       at SoH's default Junk Items).\n",
                            reader);
                     return TEST_FAIL;
                 }

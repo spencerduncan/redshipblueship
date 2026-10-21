@@ -583,6 +583,10 @@ std::string GetItemName(RandoItemId randoItemId, bool includeArticle) {
     return result;
 }
 
+bool StoryGiveShowsGetItemCutscene() {
+    return !SkipGetItemCutsceneTier();
+}
+
 } // namespace StaticData
 
 } // namespace Rando
@@ -598,6 +602,11 @@ extern "C" int MM_Rando_GetItemPresentation_TestTierFromSoh(int sohSkipGetItemAn
 /** The tier every MM reader consumes, from the live CVar store. */
 extern "C" int MM_Rando_GetItemPresentation_TestTier(void) {
     return Rando::StaticData::SkipGetItemCutsceneTier();
+}
+
+/** Does a story-cutscene give hold the item overhead? 1 yes, 0 no. */
+extern "C" int MM_Rando_GetItemPresentation_TestStoryGiveShows(void) {
+    return Rando::StaticData::StoryGiveShowsGetItemCutscene() ? 1 : 0;
 }
 
 /** Does `sample` play the full get-item presentation? 1 yes, 0 no, negative on a
