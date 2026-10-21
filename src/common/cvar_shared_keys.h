@@ -435,8 +435,15 @@ struct TranslatedKey {
     const char* why;        ///< Why a rename would be wrong.
 };
 
-inline constexpr const TranslatedKey* kTranslatedKeys = nullptr;
-inline constexpr std::size_t kTranslatedKeyCount = 0;
+inline constexpr TranslatedKey kTranslatedKeys[] = {
+    { 1060, "gEnhancements.Cutscenes.SkipGetItemCutscenes", "gRandoEnhancements.TimeSavers.SkipGetItemAnimation",
+      "2s2h/Rando/StaticData/Items.cpp",
+      "SoH has three tiers (Off / Junk Items / All Items), MM four (Never / Junk Items Only / Everything But "
+      "Major / Always). A rename would give SoH's All Items (2) MM's Everything But Major and keep presenting "
+      "majors, so Rando::StaticData::SkipGetItemCutsceneTierFromSoh maps Off->Never, Junk Items->Junk Items "
+      "Only, All Items->Always." },
+};
+inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
 
 /**
  * Casing hazard, inventory §5.1. MM uses `gEnhancements.Timesavers.*`

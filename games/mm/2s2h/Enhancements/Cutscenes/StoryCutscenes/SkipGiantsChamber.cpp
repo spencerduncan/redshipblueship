@@ -101,7 +101,7 @@ void handleGiantsCheck(SceneId sceneId) {
             RANDO_SAVE_CHECKS[RC_GIANTS_CHAMBER_OATH_TO_ORDER].eligible = true;
         } else {
             MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
+                .showGetItemCutscene = !Rando::StaticData::SkipGetItemCutsceneTier(),
                 .giveItem =
                     [](Actor* actor, PlayState* play) {
                         if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {

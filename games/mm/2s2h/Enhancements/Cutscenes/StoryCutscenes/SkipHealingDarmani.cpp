@@ -2,6 +2,7 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/CustomItem/CustomItem.h"
+#include "2s2h/Rando/StaticData/StaticData.h"
 #include "2s2h/ShipInit.hpp"
 
 extern "C" {
@@ -22,7 +23,7 @@ void RegisterSkipHealingDarmani() {
         if (MM_gPlayState->sceneId == SCENE_GORON_HAKA && *csId == 9) {
             if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_GORON)) {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                    .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
+                    .showGetItemCutscene = !Rando::StaticData::SkipGetItemCutsceneTier(),
                     .param = GID_MASK_GORON,
                     .giveItem =
                         [](Actor* actor, PlayState* play) {

@@ -517,32 +517,52 @@ const char* GetIconTexturePath(RandoItemId randoItemId) {
 }
 
 bool ShouldShowGetItemCutscene(RandoItemId itemId) {
-    if (!CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0)) {
+    const int tier = SkipGetItemCutsceneTier();
+    if (!tier) {
         return true;
     }
 
     switch (Rando::StaticData::Items[itemId].randoItemType) {
         case RITYPE_JUNK:
-            return CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0) < 1;
+            return tier < 1;
         case RITYPE_HEALTH:
         case RITYPE_LESSER:
         case RITYPE_STRAY_FAIRY:
         case RITYPE_SKULLTULA_TOKEN:
         case RITYPE_SMALL_KEY:
-            return CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0) < 2;
+            return tier < 2;
         default:
-            return CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0) < 3;
+            return tier < 3;
     }
 }
 
 int SkipGetItemCutsceneTier() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1060: one control for one game. MM's own key has no widget or preset in
+    // the single exe, so SoH's "Skip Get Item Animations" (default Junk Items,
+    // SohMenuRandomizer.cpp) decides Termina's presentation too.
+    return SkipGetItemCutsceneTierFromSoh(CVarGetInteger("gRandoEnhancements.TimeSavers.SkipGetItemAnimation", 1));
+#else
     return CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0);
+#endif
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+// SoH's values (enhancementTypes.h SkipGetItemAnimationType): 0 SGIA_DISABLED,
+// 1 SGIA_JUNK, 2 SGIA_ALL. MM's tiers: 0 Never, 1 Junk Items Only, 2 Everything
+// But Major, 3 Always. Junk Items takes MM's tier of the same name (a re-looted
+// check converts to junk, ConvertItem.cpp, so repeats skip too); All Items takes
+// Always. Any other value shows everything, as OoT's reader (hook_handlers.cpp)
+// does.
 int SkipGetItemCutsceneTierFromSoh(int sohSkipGetItemAnimation) {
-    (void)sohSkipGetItemAnimation;
-    return 0;
+    switch (sohSkipGetItemAnimation) {
+        case 1:
+            return 1;
+        case 2:
+            return 3;
+        default:
+            return 0;
+    }
 }
 #endif
 

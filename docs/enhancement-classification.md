@@ -308,7 +308,15 @@ under `Cutscenes.Skip*Cutscenes`. Same behaviour, both bool.
 
 Remaining members of each family are (O): OoT-only `SkipCutscene.{BossIntro, GlitchAiding,
 LearnSong, QuickBossDeaths}`; MM-only `Cutscenes.{SkipFirstCycle, SkipMiscInteractions,
-SkipToFileSelect, SkipGetItemCutscenes, SkipEnemyCutscenes}`.
+SkipToFileSelect, SkipEnemyCutscenes}`.
+
+`Cutscenes.SkipGetItemCutscenes` is NOT MM-only (#1060): its twin is SoH's
+`gRandoEnhancements.TimeSavers.SkipGetItemAnimation` ("Skip Get Item Animations", Randomizer
+page), outside the `gEnhancements` namespace. The value spaces differ (SoH Off / Junk Items /
+All Items, MM Never / Junk Items Only / Everything But Major / Always), so it is a
+**translated** pair (`RSBS::kTranslatedKeys`), not a rename: every MM reader calls
+`Rando::StaticData::SkipGetItemCutsceneTier()`, which reads SoH's key and maps Off → Never,
+Junk Items → Junk Items Only, All Items → Always. MM's own key is left to its elided widget.
 
 **Group D — free-look (3).** OoT files free-look under `gSettings.`, MM under
 `gEnhancements.Camera.` — a top-level namespace disagreement.
