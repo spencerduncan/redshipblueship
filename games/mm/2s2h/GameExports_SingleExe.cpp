@@ -2382,7 +2382,7 @@ int GameInteractor_InvertControl(GIInvertType type) {
  * enhancements: BTN_DPAD_EQUIP (include/z64save.h) expanded to BTN_DPAD as
  * if gEnhancements.DpadEquips were on, and the ocarina paths in
  * src/audio/code_8019AF00.c treated the D-pad as ocarina buttons as if
- * gEnhancements.Playback.DpadOcarina were on.
+ * gSettings.CustomOcarina.Dpad were on (the key SoH writes since #1062).
  *
  * Bodies lifted verbatim from upstream 2s2h/GameInteractor/
  * GameInteractor.cpp so the shipped 2S2H defaults apply (both
@@ -2395,7 +2395,7 @@ uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo) {
 
     switch (type) {
         case GI_DPAD_OCARINA:
-            if (CVarGetInteger("gEnhancements.Playback.DpadOcarina", 0)) {
+            if (CVarGetInteger("gSettings.CustomOcarina.Dpad", 0)) {
                 result = buttonCombo;
             }
             break;
@@ -2412,14 +2412,14 @@ uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo) {
 /**
  * The old stub `int GameInteractor_RightStickOcarina(void* input)` returned
  * 0, which matched the enhancement's default-off CVar
- * (gEnhancements.Playback.RightStickOcarina) — but it kept the enhancement
+ * (gSettings.CustomOcarina.RightStick since #1062) — but it kept the enhancement
  * dead even when enabled, and its untyped signature (void* vs Input*) sat
  * in the same drift class. Body lifted verbatim from upstream.
  */
 uint32_t GameInteractor_RightStickOcarina(Input* input) {
     uint32_t result = 0;
 
-    if (!CVarGetInteger("gEnhancements.Playback.RightStickOcarina", 0)) {
+    if (!CVarGetInteger("gSettings.CustomOcarina.RightStick", 0)) {
         return result;
     }
 

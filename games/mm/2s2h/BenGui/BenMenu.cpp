@@ -1305,10 +1305,10 @@ void BenMenu::AddEnhancements() {
             "This song will make time move very fast until either Link moves to a different scene, "
             "or when the time switches to a new time period."));
     AddWidget(path, "D-pad Ocarina", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Playback.DpadOcarina")
+        .CVar("gSettings.CustomOcarina.Dpad")
         .Options(CheckboxOptions().Tooltip("Enables using the D-pad for Ocarina playback."));
     AddWidget(path, "Right Stick Ocarina", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Playback.RightStickOcarina")
+        .CVar("gSettings.CustomOcarina.RightStick")
         .Options(CheckboxOptions().Tooltip("Enables using the Right Stick for Ocarina playback."));
     AddWidget(path, "Pause Owl Warp", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Songs.PauseOwlWarp")
@@ -1325,7 +1325,7 @@ void BenMenu::AddEnhancements() {
                      .Max(7)
                      .DefaultValue(7));
     AddWidget(path, "Prevent Dropped Ocarina Inputs", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Playback.NoDropOcarinaInput")
+        .CVar("gEnhancements.DpadNoDropOcarinaInput")
         .Options(CheckboxOptions().Tooltip("Prevent dropping inputs when playing the Ocarina quickly."));
     AddWidget(path, "Skip Scarecrow Song", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.InstantScarecrow")

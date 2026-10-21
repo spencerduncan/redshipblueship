@@ -137,7 +137,7 @@ RandoCheckId IdentifyCrate(Actor* actor) {
 }
 
 void ObjKibako_RandoDraw(Actor* actor, PlayState* play) {
-    if (!CVarGetInteger("gRando.CSMC", 0)) {
+    if (!CVarGetInteger("gEnhancements.ChestSizeAndTextureMatchContents", 0)) {
         MM_Gfx_DrawDListOpa(play, (Gfx*)gSmallJunkCrateDL);
         return;
     }
@@ -178,7 +178,7 @@ void ObjKibako_RandoDraw(Actor* actor, PlayState* play) {
 }
 
 void ObjKibako2_RandoDraw(Actor* actor, PlayState* play) {
-    if (!CVarGetInteger("gRando.CSMC", 0)) {
+    if (!CVarGetInteger("gEnhancements.ChestSizeAndTextureMatchContents", 0)) {
         MM_Gfx_DrawDListOpa(play, (Gfx*)gLargeJunkCrateDL);
         return;
     }
