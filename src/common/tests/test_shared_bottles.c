@@ -11,7 +11,10 @@
  *   RSBS_XITEM_SHARED_BOTTLES, the frozen record carries it, the fingerprint
  *   moves with it, and a world frozen with it compares healthy against a session
  *   that resolves it the same way. RED with the bit ignored (no key, the resolver
- *   returns the defaults).
+ *   returns the defaults). The key lives in the CVar store on the Ship::Context
+ *   singleton, whose C bridge dereferences that singleton unchecked, so the row
+ *   runs behind test_runner.cpp's display-free shared bring-up
+ *   (Test_SharedBottlesRule there; SharedBottlesRule_Run here).
  *
  *   SharedBottlesTier ("shared-bottles-tier") - THE SHARED TIER. Through both
  *   games' REAL harvest and apply shims (driven as test_shared_kokiri_sword.c
@@ -33,6 +36,7 @@
  */
 
 #include "../combo_logic.h"
+#include "../combo_settings_view.h" // Combo_ComboSettingStoreAvailable
 #include "../context.h"
 #include "../foreign_items.h"
 #include "../shared_items.h"
@@ -175,10 +179,14 @@ static bool SsbMMIs(const char* expected) {
     return strcmp(SsbMMSlots(buf), expected) == 0;
 }
 
-TestResult Test_SharedBottlesRule(void) {
+/** The record row's body. Run only by Test_SharedBottlesRule (test_runner.cpp),
+ *  after the shared bring-up has put a CVar store on the Ship::Context. */
+static TestResult SharedBottlesRule_Run(void) {
     printf("[TEST] shared-bottles-rule: the Shared Bottles key is read into the frozen item rules record, and the "
            "fingerprint carries it (#970)\n");
     sSsbFailures = 0;
+    // Without a store every leg below would read the defaults and pass vacuously.
+    SSB_CHECK(Combo_ComboSettingStoreAvailable(), "the bring-up gave the resolver no CVar store");
     const uint32_t B = (uint32_t)RSBS_XITEM_SHARED_BOTTLES;
 
     // ---- (0) The format -----------------------------------------------------

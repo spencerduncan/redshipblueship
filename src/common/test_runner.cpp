@@ -5623,6 +5623,18 @@ TestResult Test_ComboSettingsWindow(void) {
     return Combo_SettingsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #970: the Shared Bottles record row reads gCombo.Rando.SharedBottles, which
+// lives in the CVar store on the Ship::Context singleton, so it needs the same
+// display-free bring-up. Assertions in tests/test_shared_bottles.c.
+TestResult Test_SharedBottlesRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return SharedBottlesRule_Run();
+}
+
 // #1047: the trap row sets the gRando.Traps.* CVars, which live on the
 // Ship::Context singleton, so it needs the same display-free bring-up.
 TestResult Test_MmTrapRollFrozen(void) {
