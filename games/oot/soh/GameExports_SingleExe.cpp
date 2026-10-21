@@ -3519,6 +3519,24 @@ static void OoT_SharedSongGive(uint16_t nativeId) {
     gSaveContext.inventory.questItems |= OoT_SharedSongQuestBit(nativeId);
 }
 
+// #968: the Fire, Ice and Light Arrows (OoTMM sharedMagicArrowFire, Ice,
+// Light). Item_Give(ITEM_ARROW_*) only fills the arrow's own slot (z_parameter.c
+// has no branch for them, so they take the plain INV_CONTENT write); the bow
+// they ride is already one shared quiver tier (#744) and is not touched here.
+static uint8_t OoT_SharedArrowItem(uint16_t nativeId) {
+    return (nativeId == (uint16_t)RG_ICE_ARROWS)     ? (uint8_t)ITEM_ARROW_ICE
+           : (nativeId == (uint16_t)RG_LIGHT_ARROWS) ? (uint8_t)ITEM_ARROW_LIGHT
+                                                     : (uint8_t)ITEM_ARROW_FIRE;
+}
+static bool OoT_SharedArrowHeld(uint16_t nativeId) {
+    const uint8_t item = OoT_SharedArrowItem(nativeId);
+    return INV_CONTENT(item) == item;
+}
+static void OoT_SharedArrowGive(uint16_t nativeId) {
+    const uint8_t item = OoT_SharedArrowItem(nativeId);
+    INV_CONTENT(item) = item;
+}
+
 namespace {
 // Static-init registration, the ComboLogicEngine registrars' shape: this TU is
 // always linked (it holds the shims), and the registry is zero-initialised
@@ -3532,6 +3550,12 @@ struct OoTSharedFamilyRegistrar {
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SONG_EPONA, &epona);
         const ComboSharedFamilyMember storms = { (uint16_t)RG_SONG_OF_STORMS, OoT_SharedSongHeld, OoT_SharedSongGive };
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SONG_STORMS, &storms);
+        const ComboSharedFamilyMember fire = { (uint16_t)RG_FIRE_ARROWS, OoT_SharedArrowHeld, OoT_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ARROW_FIRE, &fire);
+        const ComboSharedFamilyMember ice = { (uint16_t)RG_ICE_ARROWS, OoT_SharedArrowHeld, OoT_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ARROW_ICE, &ice);
+        const ComboSharedFamilyMember light = { (uint16_t)RG_LIGHT_ARROWS, OoT_SharedArrowHeld, OoT_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ARROW_LIGHT, &light);
     }
 };
 const OoTSharedFamilyRegistrar gOoTSharedFamilyRegistrar;
