@@ -444,6 +444,10 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 #define RSBS_XITEM_SHARED_ARROW_LIGHT 0x00080000u
 // #970: shared bottles (OoTMM sharedBottles). Reserved; not a family yet.
 #define RSBS_XITEM_SHARED_BOTTLES 0x00100000u
+// #1067: shared ocarina buttons (OoTMM sharedOcarinaButtons). ONE rule over FIVE
+// pairs, one per button: the A buttons (the family at this bit) and the four C
+// buttons (the families at RSBS_XFAMILY_SLOT_OCARINA_C_* below).
+#define RSBS_XITEM_SHARED_OCARINA_BUTTONS 0x01000000u
 // #1068: shared shields (OoTMM sharedShields). ONE rule over TWO pairs: OoT's
 // Hylian Shield with MM's Hero's Shield (the family at this bit), and the two
 // Mirror Shields (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD below).
@@ -454,6 +458,18 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
  *  (bit 31 is never allocated to a rule, so it is free in the ownership bitset).
  *  Armed exactly when RSBS_XITEM_SHARED_SHIELDS is (Combo_SharedFamiliesArmed). */
 #define RSBS_XFAMILY_SLOT_MIRROR_SHIELD 0x80000000u
+
+/** The FAMILY SLOTS of the shared-ocarina-buttons rule's four C-button pairs
+ *  (#1067). Each is the sharedFamilyOwned bit of an EXTENSION rule
+ *  (RSBS_XITEM_BLAST_MASK_OOT .. RSBS_XITEM_GERUDO_MASK_MM): an extension is
+ *  pinned as NOT a family (its family is its RSBS_XITEM_SHARED_* bit), so its bit
+ *  of the ownership bitset can never be anything else's, and five pairs cost one
+ *  rule bit instead of five. Armed exactly when RSBS_XITEM_SHARED_OCARINA_BUTTONS
+ *  is (Combo_SharedFamiliesArmed). */
+#define RSBS_XFAMILY_SLOT_OCARINA_C_UP 0x00000020u
+#define RSBS_XFAMILY_SLOT_OCARINA_C_DOWN 0x00000040u
+#define RSBS_XFAMILY_SLOT_OCARINA_C_LEFT 0x00000080u
+#define RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT 0x00000100u
 
 /** Every RSBS_XITEM_* bit ALLOCATED by this build. A frozen record holding any
  *  other bit was written by a later build (Combo_ComboItemRulesValid). */

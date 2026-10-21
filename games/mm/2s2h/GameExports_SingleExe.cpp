@@ -4719,6 +4719,14 @@ struct MMSharedShieldRegistrar {
 const MMSharedShieldRegistrar gMMSharedShieldRegistrar;
 } // namespace
 
+// ============================================================================
+// The Shared Ocarina Buttons families (#1067; OoTMM sharedOcarinaButtons)
+// ============================================================================
+
+/** Register MM's copies of the Shared Ocarina Buttons families (#1067). */
+extern "C" void MM_RegisterSharedOcarinaButtonFamilies(void) {
+}
+
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & MM_HEART_PIECE_MASK) >> MM_HEART_PIECE_SHIFT);

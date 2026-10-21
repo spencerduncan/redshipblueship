@@ -161,6 +161,8 @@ games/mm/2s2h/mm_shared_kokiri_sword_test.cpp
 games/oot/soh/oot_shared_kokiri_sword_test.cpp
 games/mm/2s2h/mm_shared_shields_test.cpp
 games/oot/soh/oot_shared_shields_test.cpp
+games/mm/2s2h/mm_shared_ocarina_buttons_test.cpp
+games/oot/soh/oot_shared_ocarina_buttons_test.cpp
 games/oot/soh/oot_shared_wallet_test.cpp
 games/oot/soh/soh_ui_snapshot.cpp
 games/oot/soh/SohGui/ComboUiSoh.cpp

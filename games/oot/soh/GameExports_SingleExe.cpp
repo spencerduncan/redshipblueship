@@ -3538,6 +3538,14 @@ struct OoTSharedShieldRegistrar {
 const OoTSharedShieldRegistrar gOoTSharedShieldRegistrar;
 } // namespace
 
+// ============================================================================
+// The Shared Ocarina Buttons families (#1067; OoTMM sharedOcarinaButtons)
+// ============================================================================
+
+/** Register OoT's copies of the Shared Ocarina Buttons families (#1067). */
+extern "C" void OoT_RegisterSharedOcarinaButtonFamilies(void) {
+}
+
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
  * seed placed elsewhere? Then the pool may not hand it over.
