@@ -643,6 +643,10 @@ extern "C" {
 // merge through both games' real harvest/apply shims. FILE SCOPE for
 // rsbs::SaveManager, like its neighbours.
 #include "tests/test_cross_item_rules.c"
+// #1065: the Shared Lens of Truth, the first family a player can turn on: the
+// rule, its key and restore (shared-lens-rule, needs the CVar store), the merge
+// through both games' real shims, and the shared bag row (shared-lens-bag, rando).
+#include "tests/test_shared_lens.c"
 
 // The Shared Shields rule (#1068): both games register both shield pairs, the
 // bag makes each one shared row, and the arrival gives and wears the shield in
@@ -5714,6 +5718,21 @@ TestResult Test_ComboSettingsAuthoring(void) {
     return Combo_SettingsAuthoring_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1065: the Shared Lens of Truth's rule row reads and writes its tier-4 key, so
+// it needs the CVar store: the same bring-up as combo-settings-authoring.
+TestResult Test_SharedLensRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedLensRule_Run();
+}
+
 // The combo settings pane's window (ADR 0011 increment 2). Same bring-up as
 // the Gui bridges above and for the same reason.
 TestResult Test_ComboSettingsWindow(void) {
@@ -5839,6 +5858,20 @@ TestResult Test_ComboSingleBag(void) {
     static char* csbArgv[] = { csbArg0, nullptr };
     InitOTRForMMFirstBoot(1, csbArgv);
     return ComboSingleBag_Run();
+}
+
+// #1065: the shared lens's bag row over a real generation. Same bring-up as
+// combo-single-bag, for the same reason.
+TestResult Test_SharedLensBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char slbArg0[] = "redship";
+    static char* slbArgv[] = { slbArg0, nullptr };
+    InitOTRForMMFirstBoot(1, slbArgv);
+    return SharedLensBag_Run();
 }
 
 // #755/#757's two rows (tests/test_combo_crossing_views.c). The synthetic row
@@ -6456,6 +6489,15 @@ const TestDescriptor gTests[] = {
       "With the Shared Shields rule on, a shield found in one game is given and worn in the other on arrival; off, "
       "nothing crosses (#1068)",
       Test_SharedShieldsArrival },
+    // #1065: the Shared Lens of Truth on the #976 mechanism.
+    { "shared-lens-rule",
+      "The Shared Lens of Truth is one Cross-Game Rule, off by default, frozen at creation into the fingerprint, and "
+      "restored from the file at load (#1065)",
+      Test_SharedLensRule },
+    { "shared-lens-merge",
+      "Both games register their Lens of Truth as the shared family, and a lens found in either game is in the "
+      "other's inventory at arrival through the real shims (#1065)",
+      Test_SharedLensMerge },
     { "combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
       Test_ComboSpoilerView },
     { "combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
@@ -7108,6 +7150,10 @@ const TestDescriptor gTests[] = {
       "The single-bag fill at the creation event over both real engines: the GOAL proven with crossings both ways on "
       "deliverable hosts, D5's removal locks in both directions, the direction gate, and OoT's remainder",
       Test_ComboSingleBag },
+    { "shared-lens-bag",
+      "With the Shared Lens of Truth on, the single bag holds one lens row both solvers credit, placed once over "
+      "both games, and the GOAL is still proven (#1065)",
+      Test_SharedLensBag },
     { "shared-quantity-policy",
       "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "
       "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
@@ -7407,7 +7453,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-mask-quest-paired") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
-                strcmp(gTests[i].name, "combo-single-bag") == 0 ||
+                strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
                 strcmp(gTests[i].name, "combo-item-view-new-file") == 0 ||
                 strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||
