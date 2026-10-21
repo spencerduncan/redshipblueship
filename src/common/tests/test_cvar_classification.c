@@ -249,11 +249,13 @@ constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
     { 1035, "gEnhancements.Equipment.MagicArrowEquipSpeed", "gEnhancements.SkipArrowAnimation" },
     { 1036, "gEnhancements.DifficultyOptions.PermanentHeartLoss", "gEnhancements.PermanentHeartLoss" },
     { 1038, "gEnhancements.Restorations.N64WeirdFrames", "gEnhancements.N64WeirdFrames" },
-    // #1062: the D-pad / right-stick ocarina enhancements. MM kept them under Playback.*; SoH writes the same two
-    // switches as gSettings.CustomOcarina.{Dpad,RightStick} (Settings > Controls > Ocarina Controls, drawn from
-    // the input editor). Both bool, default off; the P6 held-apart entry is gone with this row.
+    // #1062: the ocarina enhancements MM kept under Playback.*. SoH writes the D-pad and right-stick switches as
+    // gSettings.CustomOcarina.Dpad / .RightStick (Settings > Controls > Ocarina Controls, drawn from the input editor)
+    // and "Prevent Dropped Ocarina Inputs" as gEnhancements.DpadNoDropOcarinaInput. All bool, default off; the P6
+    // held-apart entry retires with these rows.
     { 1062, "gEnhancements.Playback.DpadOcarina", "gSettings.CustomOcarina.Dpad" },
     { 1062, "gEnhancements.Playback.RightStickOcarina", "gSettings.CustomOcarina.RightStick" },
+    { 1062, "gEnhancements.Playback.NoDropOcarinaInput", "gEnhancements.DpadNoDropOcarinaInput" },
     // #1064: the container-matches-contents switch. MM's rando readers (chests, pots, grass, crates, barrels) read
     // gRando.CSMC; SoH writes gEnhancements.ChestSizeAndTextureMatchContents. Both bool, default off.
     { 1064, "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents" },
