@@ -565,4 +565,30 @@ extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant
     return 1;
 }
 
+/**
+ * Author the ocarina-button world of #1072 into `buf`: the variant-0 save above
+ * with the file's frozen shuffle option and the button bits set from `mode` and
+ * `heldMask`. `mode` 0: the option off (a vanilla button world). 1: the option
+ * on in a randomizer file. 2: the option on in a file that is not a randomizer
+ * file (saveType vanilla), the gate IS_RANDO excludes. `heldMask` bit i is the
+ * i-th button of the shuffle's order (A, C-Down, C-Right, C-Left, C-Up, the
+ * RANDO_INF_OBTAINED_OCARINA_BUTTON_* order) held. Returns 1, or 0 as above.
+ */
+extern "C" int MM_ItemAdapter_TestAuthorOcarinaButtons(void* buf, size_t size, int mode, unsigned heldMask) {
+    if (MM_ItemAdapter_TestAuthorSave(buf, size, 0) != 1) {
+        return 0;
+    }
+    SaveContext* s = static_cast<SaveContext*>(buf);
+    s->save.shipSaveInfo.saveType = (mode == 2) ? SAVETYPE_VANILLA : SAVETYPE_RANDO;
+    s->save.shipSaveInfo.rando.randoSaveOptions[RO_SHUFFLE_OCARINA_BUTTONS] =
+        (mode == 0) ? RO_GENERIC_OFF : RO_GENERIC_YES;
+    for (int i = 0; i < 5; i++) {
+        if ((heldMask & (1u << i)) != 0) {
+            const int flag = RANDO_INF_OBTAINED_OCARINA_BUTTON_A + i;
+            s->save.shipSaveInfo.rando.randoInf[flag >> 4] |= (u16)(1u << (flag & 0xF));
+        }
+    }
+    return 1;
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE
