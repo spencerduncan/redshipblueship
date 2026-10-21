@@ -59,7 +59,8 @@ extern "C" int OoT_SaveBlobIsStarted(const uint8_t* blob, size_t blobSize);
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
-#include "game.h" // OOT_SAVE_CONTEXT_SIZE
+#include "game.h"             // OOT_SAVE_CONTEXT_SIZE
+#include "shared_resources.h" // Combo_SaveIsLiveFile, Combo_MakeHealthQuarters (the Shared column's live view, #971)
 
 // The view hands this TU either the unified live storage (unified_save.c,
 // alignas(16)) or OoT's shadow, a std::vector<uint8_t> buffer (context.cpp),
@@ -610,14 +611,87 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     row->iconTint = 0;
 }
 
+// Heart pieces occupy the TOP NIBBLE of questItems (the pool's canonical health quantity,
+// OoT_ReadHealthQuarters in GameExports_SingleExe.cpp).
+constexpr uint32_t kOoTHeartPieceShift = 28u;
+constexpr uint32_t kOoTHeartPieceMask = 0xF0000000u;
+
+/**
+ * The Shared column's LIVE view (#971): the value of shared kind `kind` in the save
+ * `src`, over the harvest's own arithmetic (OoT_HarvestSharedResources in
+ * GameExports_SingleExe.cpp: the wallet tier, the health quarters, the double
+ * defense flag, the magic level from its acquired flags, the ammo slots and the
+ * hookshot slot), but READ ONLY: no settle of the rupee accumulator, no pool or
+ * watermark write, nothing stored in `src`. Gated like the harvest, on a played
+ * file (Combo_SaveIsLiveFile over the buffer's own game mode), so the title
+ * screen's attract save and file select read nothing. False for a kind this view
+ * has no reading of.
+ */
+bool OoTItemSharedLive(const void* srcv, uint8_t kind, uint16_t* out) {
+    if (out == nullptr || !Aligned(srcv)) {
+        return false;
+    }
+    const SaveContext* src = static_cast<const SaveContext*>(srcv);
+    if (!Combo_SaveIsLiveFile(GAME_OOT, (int32_t)gSaveContext.gameMode)) {
+        return false;
+    }
+    const auto ammoOf = [src](uint8_t item) -> uint16_t {
+        const s8 held = AMMO(item);
+        return held < 0 ? 0u : (uint16_t)held;
+    };
+    switch (kind) {
+        case RSBS_SHARED_RES_RUPEES:
+            *out = gSaveContext.rupees < 0 ? 0u : (uint16_t)gSaveContext.rupees;
+            return true;
+        case RSBS_SHARED_RES_WALLET_TIER:
+            *out = (uint16_t)CUR_UPG_VALUE(UPG_WALLET);
+            return true;
+        case RSBS_SHARED_RES_HEALTH_QUARTERS: {
+            const uint16_t pieces =
+                (uint16_t)((gSaveContext.inventory.questItems & kOoTHeartPieceMask) >> kOoTHeartPieceShift);
+            const uint16_t capacity = gSaveContext.healthCapacity < 0 ? 0u : (uint16_t)gSaveContext.healthCapacity;
+            *out = Combo_MakeHealthQuarters(capacity, pieces);
+            return true;
+        }
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+            *out = gSaveContext.isDoubleDefenseAcquired ? 1u : 0u;
+            return true;
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
+            *out = !gSaveContext.isMagicAcquired ? 0u : (gSaveContext.isDoubleMagicAcquired ? 2u : 1u);
+            return true;
+        case RSBS_SHARED_RES_ARROW_COUNT:
+            *out = ammoOf(ITEM_BOW);
+            return true;
+        case RSBS_SHARED_RES_BOMB_COUNT:
+            *out = ammoOf(ITEM_BOMB);
+            return true;
+        case RSBS_SHARED_RES_BOMBCHU_COUNT:
+            *out = ammoOf(ITEM_BOMBCHU);
+            return true;
+        case RSBS_SHARED_RES_STICK_COUNT:
+            *out = ammoOf(ITEM_STICK);
+            return true;
+        case RSBS_SHARED_RES_NUT_COUNT:
+            *out = ammoOf(ITEM_NUT);
+            return true;
+        case RSBS_SHARED_RES_HOOKSHOT_TIER: {
+            const u8 held = INV_CONTENT(ITEM_HOOKSHOT);
+            *out = (held == ITEM_LONGSHOT) ? 2u : (held == ITEM_HOOKSHOT ? 1u : 0u);
+            return true;
+        }
+        default:
+            return false;
+    }
+}
+
 } // namespace
 
 extern "C" void OoT_ItemAdapter_Register(void) {
     // SoH's main window grid (kComboItemSohGrid): the 66 rows flow six a line,
     // 11 lines, exactly DrawItemsInRows(mainWindowItems, 6).
     static const ComboItemOps kOps = {
-        OoTItemCount,  OoTItemRowAt,       OoTItemHasSave,    OoTItemLiveSave,
-        OoTItemPaused, &kComboItemSohGrid, OoTItemSharedIcon,
+        OoTItemCount,       OoTItemRowAt,      OoTItemHasSave, OoTItemLiveSave,   OoTItemPaused,
+        &kComboItemSohGrid, OoTItemSharedIcon, nullptr,        OoTItemSharedLive,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, &kOps);
 }
