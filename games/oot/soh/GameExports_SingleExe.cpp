@@ -3561,12 +3561,22 @@ RandomizerInf OoT_SharedButtonFlag(uint16_t nativeId) {
     return (RandomizerInf)(RAND_INF_HAS_OCARINA_A + ((int)nativeId - (int)RG_OCARINA_A_BUTTON));
 }
 
-bool OoT_SharedButtonShuffleOn(void) {
-    if (!IS_RANDO) {
-        return false;
-    }
+/** The seed's own button-shuffle option (the generating or loaded context). */
+bool OoT_SharedButtonOptionOn(void) {
     const std::shared_ptr<Rando::Context> ctx = Rando::Context::GetInstance();
     return ctx != nullptr && ctx->GetOption(RSK_SHUFFLE_OCARINA_BUTTONS).Get() != RO_GENERIC_OFF;
+}
+
+bool OoT_SharedButtonShuffleOn(void) {
+    return IS_RANDO && OoT_SharedButtonOptionOn();
+}
+
+/** POOLED (the bag, at generation): OoT's buttons are items of its pool only
+ *  under its own shuffle. Without it no pair is built, so a button can never be
+ *  hosted at an OoT check whose give HELD above would not see. */
+bool OoT_SharedButtonPooled(uint16_t nativeId) {
+    (void)nativeId;
+    return OoT_SharedButtonOptionOn();
 }
 
 bool OoT_SharedButtonHeld(uint16_t nativeId) {
@@ -3596,7 +3606,8 @@ extern "C" void OoT_RegisterSharedOcarinaButtonFamilies(void) {
         { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, RG_OCARINA_C_RIGHT_BUTTON },
     };
     for (const auto& b : kButtons) {
-        const ComboSharedFamilyMember member = { (uint16_t)b.button, OoT_SharedButtonHeld, OoT_SharedButtonGive };
+        const ComboSharedFamilyMember member = { (uint16_t)b.button, OoT_SharedButtonHeld, OoT_SharedButtonGive,
+                                                 OoT_SharedButtonPooled };
         Combo_RegisterSharedFamilyMember(GAME_OOT, b.slot, &member);
     }
 }

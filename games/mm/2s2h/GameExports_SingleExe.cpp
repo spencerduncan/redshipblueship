@@ -4754,6 +4754,16 @@ void MM_SharedButtonGive(uint16_t nativeId) {
     gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] |= (u16)(1 << (flag & 0xF));
 }
 
+/** POOLED (the bag, at generation): MM's buttons are items of its pool only
+ *  under its own shuffle, which its frozen profile publishes as
+ *  RSBS_GIVECAP_OCARINA_BUTTONS (the same word that arms MM's button rows into
+ *  the bag). Without it no pair is built, so a button can never be hosted at an
+ *  MM check whose give HELD above would not see. */
+bool MM_SharedButtonPooled(uint16_t nativeId) {
+    (void)nativeId;
+    return Combo_ForeignGiveCapsArm((uint8_t)GAME_MM, RSBS_GIVECAP_OCARINA_BUTTONS);
+}
+
 } // namespace
 
 /** Register MM's copies of the Shared Ocarina Buttons families (#1067).
@@ -4771,7 +4781,8 @@ extern "C" void MM_RegisterSharedOcarinaButtonFamilies(void) {
         { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, RI_OCARINA_BUTTON_C_RIGHT },
     };
     for (const auto& b : kButtons) {
-        const ComboSharedFamilyMember member = { (uint16_t)b.button, MM_SharedButtonHeld, MM_SharedButtonGive };
+        const ComboSharedFamilyMember member = { (uint16_t)b.button, MM_SharedButtonHeld, MM_SharedButtonGive,
+                                                 MM_SharedButtonPooled };
         Combo_RegisterSharedFamilyMember(GAME_MM, b.slot, &member);
     }
 }

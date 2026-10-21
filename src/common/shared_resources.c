@@ -442,6 +442,15 @@ bool Combo_SharedFamilyMemberId(GameId game, uint32_t familyBit, uint16_t* outId
     return true;
 }
 
+bool Combo_SharedFamilyMemberPooled(GameId game, uint32_t familyBit) {
+    const int b = FamilyIndex(familyBit);
+    if (!IsRealGame(game) || b < 0 || !sFamilyMemberSet[game][b]) {
+        return false;
+    }
+    const ComboSharedFamilyMember* m = &sFamilyMembers[game][b];
+    return m->pooled == NULL || m->pooled(m->nativeId);
+}
+
 void Combo_ClearSharedFamilyMembers(void) {
     memset(sFamilyMembers, 0, sizeof(sFamilyMembers));
     memset(sFamilyMemberSet, 0, sizeof(sFamilyMemberSet));

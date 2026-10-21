@@ -436,6 +436,13 @@ typedef struct {
      *  startup entrance runs before gameplay). Called only when held() is false.
      *  Required. */
     void (*give)(uint16_t nativeId);
+    /** Is this game's copy an item of this world's pool, i.e. do the game's own
+     *  settings shuffle it? Read by the bag at generation (Combo_SingleBag): a
+     *  pair is built only when BOTH copies are pooled, because a shared row can
+     *  be hosted in either game, and a game that does not shuffle its copy may
+     *  not be able to hand it on (#1067: a button found in a game without the
+     *  button shuffle is never held there). Optional: NULL means always pooled. */
+    bool (*pooled)(uint16_t nativeId);
 } ComboSharedFamilyMember;
 
 /**
@@ -449,6 +456,11 @@ bool Combo_RegisterSharedFamilyMember(GameId game, uint32_t familyBit, const Com
 /** @p game's registered native id for the family at @p familyBit; false when
  *  none is registered. */
 bool Combo_SharedFamilyMemberId(GameId game, uint32_t familyBit, uint16_t* outId);
+
+/** Is @p game's registered copy of the family at @p familyBit in this world's
+ *  pool (its member's pooled(), true when that is NULL)? False when none is
+ *  registered. */
+bool Combo_SharedFamilyMemberPooled(GameId game, uint32_t familyBit);
 
 /** Drop every registered member (tests). */
 void Combo_ClearSharedFamilyMembers(void);

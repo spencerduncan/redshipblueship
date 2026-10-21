@@ -1898,6 +1898,15 @@ OoTMM's `sharedOcarinaButtons`, off by default. One Cross-Game Rules row,
   shuffle is on. A game without the shuffle starts with all five and finds
   none, so it adds nothing to the pool; it still receives the found buttons,
   which it already holds.
+- **The pairs need both shuffles.** A shared row can be hosted at a check in
+  either game, and that game gives its own copy. A game without the shuffle
+  never sees a button given there, so the button would never reach the game
+  that needs it while both solvers had credited it. Each member therefore has a
+  `pooled` callback the bag reads at generation (OoT: the seed's
+  `RSK_SHUFFLE_OCARINA_BUTTONS`; MM: its frozen `RSBS_GIVECAP_OCARINA_BUTTONS`),
+  and `SingleBagSharedPairs` builds a pair only when both copies are pooled.
+  With one shuffle off the rule still arms its five slots but builds no pair:
+  each game's buttons stay its own items, exactly as with the rule off.
 - With the rule off nothing changes: the record stays all clear, the
   fingerprint and every `Golden*` digest hold, nothing is armed.
 
@@ -1905,7 +1914,7 @@ Locked by `CrossItemRulesRecord` (the bit allocated, named, valid and a
 family; the C slots are extra slots at the extension bits; the rule arms
 exactly its five slots and moves the fingerprint), `SharedOcarinaButtonsPairs`
 (both games register all five, the bag names five pairs, the real composer
-makes each one shared row, and with one game's buttons in no pool the other's
-five are still the shared rows) and `SharedOcarinaButtonsArrival` (through both
+makes each one shared row; with either shuffle off no pair is built and MM's
+five stay MM's own items) and `SharedOcarinaButtonsArrival` (through both
 games' real shims, a button found in one game is owned in the other; a game
 whose shuffle is off shares nothing; off, nothing crosses).
