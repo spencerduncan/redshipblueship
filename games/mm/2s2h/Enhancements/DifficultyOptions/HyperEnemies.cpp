@@ -12,6 +12,9 @@ extern "C" {
 
 void RegisterHyperEnemies() {
     COND_HOOK(OnActorUpdate, CVAR, [](Actor* actor) {
+        // #1017: this TU is in the single-exe link now (2ship_enh_registrars); GET_PLAYER and the frame-advance
+        // toggle below dereference the play state, and OnActorUpdate is pumped for every MM actor update.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL && GET_PLAYER(MM_gPlayState) != NULL);
         if (actor->category != ACTORCAT_ENEMY || actor->id == ACTOR_EN_DG) {
             return;
         }

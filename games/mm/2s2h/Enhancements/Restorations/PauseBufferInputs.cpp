@@ -15,6 +15,8 @@ static u16 pauseInputs = 0;
 
 void MM_RegisterPauseBufferInputs() {
     COND_VB_SHOULD(VB_KALEIDO_UNPAUSE_CLOSE, CVAR, {
+        // #1016: this TU is in the single-exe link now (2ship_enh_registrars); the body reads the play state.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Input* input = CONTROLLER1(&MM_gPlayState->state);
 
         // Store all inputs that were pressed during the buffer window
