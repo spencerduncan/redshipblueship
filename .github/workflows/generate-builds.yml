@@ -50,6 +50,12 @@ jobs:
     - name: Git Checkout
       uses: actions/checkout@v4
       with:
+        # Tag push: check out the tag's commit by SHA. By default checkout
+        # fetches `<sha>:refs/tags/<tag>` and fetch-tags fetches that ref again;
+        # for an ANNOTATED tag the two differ and git refuses (#1059). fetch-tags
+        # stays: CMakeLists.txt bakes `git describe --tags --exact-match HEAD`
+        # into the build. Empty ref on other events keeps the default.
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     # Required for the git commands run by the otr-cache-key action and the
@@ -117,6 +123,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        # Tag push by SHA, see the first checkout (#1059).
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     - name: Configure ccache
@@ -232,6 +240,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        # Tag push by SHA, see the first checkout (#1059).
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     - name: Configure git safe directory
@@ -486,6 +496,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        # Tag push by SHA, see the first checkout (#1059).
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     - name: Configure git safe directory
@@ -601,6 +613,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        # Tag push by SHA, see the first checkout (#1059).
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     - name: Configure sccache
