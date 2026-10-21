@@ -45,6 +45,8 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, "Shared Kokiri Sword" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS, "Shared Shields" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_LENS, "Shared Lens of Truth" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_EPONA, "Shared Epona's Song" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_STORMS, "Shared Song of Storms" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -60,8 +62,10 @@ struct ItemRuleKey {
     uint32_t bit;
 };
 const ItemRuleKey kItemRuleKeys[] = {
-    { COMBO_SETTING_SHARED_SHIELDS, RSBS_XITEM_SHARED_SHIELDS }, // #1068
-    { COMBO_SETTING_SHARED_LENS, RSBS_XITEM_SHARED_LENS },       // #1065
+    { COMBO_SETTING_SHARED_SHIELDS, RSBS_XITEM_SHARED_SHIELDS },         // #1068
+    { COMBO_SETTING_SHARED_LENS, RSBS_XITEM_SHARED_LENS },               // #1065
+    { COMBO_SETTING_SHARED_SONG_EPONA, RSBS_XITEM_SHARED_SONG_EPONA },   // #1066
+    { COMBO_SETTING_SHARED_SONG_STORMS, RSBS_XITEM_SHARED_SONG_STORMS }, // #1066
 };
 
 /** The item-rule bit @p id authors, or 0 for a setting of ComboSettingsRecord. */
@@ -102,7 +106,9 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             // fields: one definition of "what ships" (#886).
             return (defaults.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         case COMBO_SETTING_SHARED_SHIELDS:
-        case COMBO_SETTING_SHARED_LENS: {
+        case COMBO_SETTING_SHARED_LENS:
+        case COMBO_SETTING_SHARED_SONG_EPONA:    // #1066
+        case COMBO_SETTING_SHARED_SONG_STORMS: { // #1066
             // A bit of the item rules' defaults (#1068, #1065), the same
             // one-definition rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rulesDefaults;
@@ -132,8 +138,10 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
                    value == (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT || value == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT ||
                    value == (int32_t)RSBS_COMBO_GOAL_BEAT_MM;
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
-        case COMBO_SETTING_SHARED_SHIELDS: // #1068: one crossItemFlags bit, the same rule
-        case COMBO_SETTING_SHARED_LENS:    // #1065: likewise
+        case COMBO_SETTING_SHARED_SHIELDS:     // #1068: one crossItemFlags bit, the same rule
+        case COMBO_SETTING_SHARED_LENS:        // #1065: likewise
+        case COMBO_SETTING_SHARED_SONG_EPONA:  // #1066, the same
+        case COMBO_SETTING_SHARED_SONG_STORMS: // #1066, the same
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
