@@ -36,6 +36,9 @@ void skipHealingPamelasFather() {
 void RegisterSkipIkanaCurseCutscenes() {
     // Must use the queue hook for the skip. If the start hook is used, cutscene cues will mess up the curtain movement.
     COND_VB_SHOULD(VB_QUEUE_CUTSCENE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         s16* csId = va_arg(args, s16*);
         if (MM_gPlayState->sceneId == SCENE_HAKASHITA && *csId == 16) { // Flat appears in his tomb Beneath the Graveyard
             BgHakaCurtain* bgHakaCurtain = (BgHakaCurtain*)MM_Actor_FindNearby(
@@ -49,6 +52,9 @@ void RegisterSkipIkanaCurseCutscenes() {
 
     // Pamela's Father
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         s16* csId = va_arg(args, s16*);
         if (MM_gPlayState->sceneId == SCENE_MUSICHOUSE) { // Music Box House
             if (*csId == 9) {                          // Gibdo dad busts out
@@ -118,6 +124,9 @@ void RegisterSkipIkanaCurseCutscenes() {
 
     // Healing Sharp's curse
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         s16* csId = va_arg(args, s16*);
         if (MM_gPlayState->sceneId == SCENE_IKANA && *csId == 20) { // Played Song of Storms for Sharp
             // Reload the scene so that all actor states are appropriate

@@ -108,6 +108,26 @@
  *   - gCheats.EasyFrameAdvance: OnGameStateMainStart.
  * The probe puts every key back to 0 and re-drives it, so the row is order-free.
  *
+ * PHASE 5 (#1018-#1022) -- THE SKIPS & SPEED-UPS TUs. Cutscenes/HideTitleCards,
+ * SkipIntroSequence, SkipEntranceCutscenes, SkipOnePointCutscenes and the
+ * StoryCutscenes/* set register only through a file-scope RegisterShipInitFunc
+ * keyed on the converged gEnhancements.TimeSavers.* key SoH's row writes, in the
+ * plain `2ship_enh` archive, so the linker dropped them and the rows did
+ * nothing in Majora's Mask. Each registrar is CVar-gated, so what proves a TU is
+ * linked is that ShipInit::Init(<its key>) with the key ON raises the registry
+ * the TU writes to by EXACTLY the number of registrations the table below names
+ * for that key. Exact, not "at least": the Story key is also read by linked TUs
+ * (SkipGiantsChamber) and by the #1071 song teachers, which are in the table, so
+ * a TU of this set falling out of the link leaves the delta short by its own
+ * count. Adding a Story registrant means adding its line to the table. Nothing a
+ * TU defines is named here (a reference would un-elide it).
+ *   - one key, one TU: Title Card (VB_SHOW_TITLE_CARD), Intro
+ *     (VB_PLAY_TRANSITION_CS), Entrances (VB_PLAY_ENTRANCE_CS, VB_START_CUTSCENE),
+ *     One Point (VB_CAMERA_SET_FOCAL_ACTOR, VB_START_CUTSCENE).
+ *   - Story: the remaining StoryCutscenes TUs, minus HealingMikauAudio, which is
+ *     unconditional and is probed separately: OnActorInit[ACTOR_EN_ZOG] has no
+ *     other registrant, empty before MM_Rando_Init and one after.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -122,6 +142,7 @@
 #include "global.h"
 
 #include <cstdio>
+#include <vector>
 
 #if !defined(RSBS_SINGLE_EXECUTABLE)
 /**
@@ -253,6 +274,89 @@ void ResetCheatKeys() {
     }
 }
 
+// ---- Phase 5 (#1018-#1022): the Skips & Speed-ups TUs ---------------------
+// One probe per SoH-written key. Each registry row names the TUs that put a
+// hook there when the key turns on; `expected` is their summed count.
+struct SkipRegistry {
+    const char* what;
+    size_t (*count)();
+    size_t expected;
+};
+
+struct SkipKeyProbe {
+    const char* key;
+    const char* row;
+    std::vector<SkipRegistry> registries;
+};
+
+#define SKIP_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define SKIP_ACTOR_INIT_COUNT(id) []() { return SettledCountForId<GameInteractor::OnActorInit>(id); }
+
+const std::vector<SkipKeyProbe>& SkipProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.TimeSavers.DisableTitleCard",
+          "Disable Title Card",
+          { { "VB_SHOW_TITLE_CARD (Cutscenes/HideTitleCards.cpp)", SKIP_VB_COUNT(VB_SHOW_TITLE_CARD), 1 } } },
+        { "gEnhancements.TimeSavers.SkipCutscene.Intro",
+          "Skip Intro",
+          { { "VB_PLAY_TRANSITION_CS (Cutscenes/SkipIntroSequence.cpp)", SKIP_VB_COUNT(VB_PLAY_TRANSITION_CS), 1 } } },
+        { "gEnhancements.TimeSavers.SkipCutscene.Entrances",
+          "Skip Entrance Cutscenes",
+          { { "VB_PLAY_ENTRANCE_CS (Cutscenes/SkipEntranceCutscenes.cpp)", SKIP_VB_COUNT(VB_PLAY_ENTRANCE_CS), 1 },
+            { "VB_START_CUTSCENE (Cutscenes/SkipEntranceCutscenes.cpp)", SKIP_VB_COUNT(VB_START_CUTSCENE), 1 } } },
+        { "gEnhancements.TimeSavers.SkipCutscene.OnePoint",
+          "Skip One Point Cutscenes",
+          { { "VB_CAMERA_SET_FOCAL_ACTOR (Cutscenes/SkipOnePointCutscenes.cpp)",
+              SKIP_VB_COUNT(VB_CAMERA_SET_FOCAL_ACTOR), 1 },
+            { "VB_START_CUTSCENE (Cutscenes/SkipOnePointCutscenes.cpp)", SKIP_VB_COUNT(VB_START_CUTSCENE), 1 } } },
+        // The Story key. Per registry, the contributing TUs (StoryCutscenes/ unless noted):
+        //   VB_START_CUTSCENE 14 = Biggoron, DefeatCaptain, HealingMikau, IkanaCurse x2 (Pamela, Sharp),
+        //     PrincessDelivery, RaisingWoodfall, StoppingMoon, WakingAndRidingTurtle (9, #1022) +
+        //     LearningElegy, LearningGoronLullaby, LearningNewWaveBossaNova, LearningSonataOfAwakening,
+        //     LearningSongOfStorms (5, #1071).
+        //   VB_QUEUE_CUTSCENE 4 = BombBagTheft, HealingDarmani, IkanaCurse (3, #1022) + LearningEponasSong (#1071).
+        //   VB_PLAY_TRANSITION_CS 5 = ClockTowerOpen, FirstSongOfTimeFlashbacks, MilkRun, MoonCrash (4, #1022) +
+        //     SkipGiantsChamber (already linked).
+        //   VB_GIVE_ITEM_FROM_OFFER 1 = SkipGiantsChamber (already linked, CVAR && !IS_RANDO).
+        //   The 1-of-1 buckets: VB_SAKON_TAKE_DAMAGE (BombBagTheft), VB_CLOCK_TOWER_OPENING_CONSIDER_THIS_FIRST_CYCLE
+        //     (ClockTowerOpen), VB_PLAY_DEFEAT_CAPTAIN_SEQUENCE (DefeatCaptain), VB_PLAY_SONG_OF_TIME_CS
+        //     (LearningSongOfTime), OnActorInit[DM_STK] and [DM_CHAR02] (ClockTowerSkullKidEncounter),
+        //     OnActorInit[EN_PO_COMPOSER] (IkanaCurse).
+        { "gEnhancements.TimeSavers.SkipCutscene.Story",
+          "Skip Story Cutscenes",
+          { { "VB_START_CUTSCENE", SKIP_VB_COUNT(VB_START_CUTSCENE), 14 },
+            { "VB_QUEUE_CUTSCENE", SKIP_VB_COUNT(VB_QUEUE_CUTSCENE), 4 },
+            { "VB_PLAY_TRANSITION_CS", SKIP_VB_COUNT(VB_PLAY_TRANSITION_CS), 5 },
+            { "VB_GIVE_ITEM_FROM_OFFER", SKIP_VB_COUNT(VB_GIVE_ITEM_FROM_OFFER), 1 },
+            { "VB_SAKON_TAKE_DAMAGE (SkipBombBagTheftCutscene.cpp)", SKIP_VB_COUNT(VB_SAKON_TAKE_DAMAGE), 1 },
+            { "VB_CLOCK_TOWER_OPENING_CONSIDER_THIS_FIRST_CYCLE (SkipClockTowerOpen.cpp)",
+              SKIP_VB_COUNT(VB_CLOCK_TOWER_OPENING_CONSIDER_THIS_FIRST_CYCLE), 1 },
+            { "VB_PLAY_DEFEAT_CAPTAIN_SEQUENCE (SkipDefeatCaptainSequence.cpp)",
+              SKIP_VB_COUNT(VB_PLAY_DEFEAT_CAPTAIN_SEQUENCE), 1 },
+            { "VB_PLAY_SONG_OF_TIME_CS (SkipLearningSongOfTime.cpp)", SKIP_VB_COUNT(VB_PLAY_SONG_OF_TIME_CS), 1 },
+            { "OnActorInit[DM_STK] (SkipClockTowerSkullKidEncounter.cpp)", SKIP_ACTOR_INIT_COUNT(ACTOR_DM_STK), 1 },
+            { "OnActorInit[DM_CHAR02] (SkipClockTowerSkullKidEncounter.cpp)", SKIP_ACTOR_INIT_COUNT(ACTOR_DM_CHAR02),
+              1 },
+            { "OnActorInit[EN_PO_COMPOSER] (SkipIkanaCurseCutscenes.cpp)", SKIP_ACTOR_INIT_COUNT(ACTOR_EN_PO_COMPOSER),
+              1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetSkipKeys() {
+    for (const auto& probe : SkipProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : SkipProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
 } // namespace
 
 extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
@@ -276,6 +380,13 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     for (const auto& probe : kCheatProbes) {
         CVarSetInteger(probe.key, 0);
     }
+    // Phase 5: the same for the Skips & Speed-ups keys. They are not default-on
+    // for MM, but the operator's config may hold them on (OoT's rando preset
+    // writes them true), and a TU that is linked would then arm at MM_Rando_Init
+    // and shrink the delta the probe measures.
+    for (const auto& probe : SkipProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
 
     // ---- Non-vacuity: every probed registry starts empty -------------------
     // If any of these is already populated, the "non-empty after" assertions
@@ -297,6 +408,8 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
               "vacuous (#618)");
     RC_ASSERT(MM_ExtensionRescan_FlipbooksPatchedAfterScan() == 0, 2,
               "PlayerCustomFlipbooks_Patch already ran before MM_Rando_Init — probe would be vacuous (#618)");
+    RC_ASSERT(SettledCountForId<GameInteractor::OnActorInit>(ACTOR_EN_ZOG) == 0, 2,
+              "OnActorInit[EN_ZOG] was already populated before MM_Rando_Init — probe would be vacuous (#1022)");
 
     // ---- The production bring-up -------------------------------------------
     // Once-only guarded internally; this row is the only caller in its process.
@@ -411,8 +524,51 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     ResetCheatKeys();
 
+    // ---- #1022: HealingMikauAudio, the one unconditional Story TU -----------
+    // Registers OnActorInit[EN_ZOG] at InitAll whatever any CVar says, and is the
+    // only registrant of that bucket (SkipPushingMikau is ShouldActorInit).
+    RC_ASSERT(SettledCountForId<GameInteractor::OnActorInit>(ACTOR_EN_ZOG) == 1, 12,
+              "OnActorInit[EN_ZOG] is not exactly one after MM_Rando_Init - StoryCutscenes/HealingMikauAudio.cpp "
+              "is not in the link, so the Healing Mikau cutscene loses its Great Bay Coast BGM (#1022)");
+
+    // ---- #1018-#1022: the Skips & Speed-ups TUs ------------------------------
+    // Each probe turns ONE key on, drives ShipInit::Init(key), and requires every
+    // registry the key's TUs write to to rise by exactly the table's count. The
+    // baseline is read per probe after the previous key was put back to 0.
+    for (const auto& probe : SkipProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(13): %s went %zu -> %zu when %s was turned on, expected exactly +%zu - the "
+                       "Skips & Speed-ups TU(s) behind the \"%s\" row are not in the link (a plain 2ship_enh "
+                       "archive drops a TU whose only anchor is a RegisterShipInitFunc), so the row does "
+                       "nothing in Majora's Mask (#1018-#1022)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetSkipKeys();
+                ResetCheatKeys();
+                return 13;
+            }
+        }
+        // Back to 0 before the next key so the buckets two keys share
+        // (VB_START_CUTSCENE) are measured one key at a time.
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetSkipKeys();
+
     printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars populated their registries; the two "
-           "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook)\n");
+           "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
+           "Skips & Speed-ups keys each armed their TUs)\n");
     return 0;
 }
 
