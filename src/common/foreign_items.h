@@ -444,6 +444,16 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 #define RSBS_XITEM_SHARED_ARROW_LIGHT 0x00080000u
 // #970: shared bottles (OoTMM sharedBottles). Reserved; not a family yet.
 #define RSBS_XITEM_SHARED_BOTTLES 0x00100000u
+// #1068: shared shields (OoTMM sharedShields). ONE rule over TWO pairs: OoT's
+// Hylian Shield with MM's Hero's Shield (the family at this bit), and the two
+// Mirror Shields (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD below).
+#define RSBS_XITEM_SHARED_SHIELDS 0x02000000u
+
+/** The FAMILY SLOT of the shared-shields rule's second pair, the two Mirror
+ *  Shields: a bit of gComboCtx.sharedFamilyOwned that no rule can ever occupy
+ *  (bit 31 is never allocated to a rule, so it is free in the ownership bitset).
+ *  Armed exactly when RSBS_XITEM_SHARED_SHIELDS is (Combo_SharedFamiliesArmed). */
+#define RSBS_XFAMILY_SLOT_MIRROR_SHIELD 0x80000000u
 
 /** Every RSBS_XITEM_* bit ALLOCATED by this build. A frozen record holding any
  *  other bit was written by a later build (Combo_ComboItemRulesValid). */

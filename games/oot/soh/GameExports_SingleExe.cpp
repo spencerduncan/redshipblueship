@@ -3482,6 +3482,10 @@ static uint16_t OoT_ReadKokiriSword(void) {
     return CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI) ? 1u : 0u;
 }
 
+/** Register OoT's copies of the Shared Shields families (#1068). */
+extern "C" void OoT_RegisterSharedShieldFamilies(void) {
+}
+
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
  * seed placed elsewhere? Then the pool may not hand it over.

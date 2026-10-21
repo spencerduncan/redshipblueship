@@ -220,6 +220,10 @@ static int SingleBagSharedPairs(ComboLogicSharedPair* out, int cap) {
     return n;
 }
 
+int Combo_SingleBag_SharedPairs(ComboLogicSharedPair* out, int cap) {
+    return (out == NULL || cap <= 0) ? 0 : SingleBagSharedPairs(out, cap);
+}
+
 static bool SingleBagOriginMayCross(uint8_t origin) {
     return Combo_ComboDirectionArms(origin) &&
            (Combo_ComboItemClassFor(origin) & (uint16_t)RSBS_ITEMCLASS_PROGRESSION) != 0u;

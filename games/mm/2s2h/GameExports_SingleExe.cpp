@@ -4662,6 +4662,10 @@ static uint16_t MM_ReadKokiriSword(void) {
     return GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) != EQUIP_VALUE_SWORD_NONE ? 1u : 0u;
 }
 
+/** Register MM's copies of the Shared Shields families (#1068). */
+extern "C" void MM_RegisterSharedShieldFamilies(void) {
+}
+
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & MM_HEART_PIECE_MASK) >> MM_HEART_PIECE_SHIFT);
