@@ -3724,6 +3724,89 @@ struct OoTSharedShieldRegistrar {
 const OoTSharedShieldRegistrar gOoTSharedShieldRegistrar;
 } // namespace
 
+// ============================================================================
+// The Shared Ocarina Buttons families (#1067; OoTMM sharedOcarinaButtons)
+// ============================================================================
+//
+// OoT's copies of the rule's five pairs: RG_OCARINA_A_BUTTON at the rule's own
+// bit, the four C buttons at their extra slots. Ownership is the
+// RAND_INF_HAS_OCARINA_* flag OoT's own give writes and its note gate reads
+// (hook_handlers.cpp VB_HAVE_OCARINA_NOTE_*); the RG ids and the flags run in
+// the same order (logic.cpp's item-to-flag table).
+//
+// HELD only when OoT's own frozen shuffle is on: a file without it is given all
+// five at creation (savefile.cpp) and finds none, and a harvest that read those
+// flags would hand Termina five buttons nobody found, which the solver never
+// proved. The GIVE writes the flag directly (Flags_SetRandomizerInf would also
+// fire the flag-set hooks, and the startup entrance runs before gameplay); with
+// OoT's shuffle off the flag is already set and the write changes nothing.
+
+namespace {
+
+RandomizerInf OoT_SharedButtonFlag(uint16_t nativeId) {
+    return (RandomizerInf)(RAND_INF_HAS_OCARINA_A + ((int)nativeId - (int)RG_OCARINA_A_BUTTON));
+}
+
+/** The seed's own button-shuffle option (the generating or loaded context). */
+bool OoT_SharedButtonOptionOn(void) {
+    const std::shared_ptr<Rando::Context> ctx = Rando::Context::GetInstance();
+    return ctx != nullptr && ctx->GetOption(RSK_SHUFFLE_OCARINA_BUTTONS).Get() != RO_GENERIC_OFF;
+}
+
+bool OoT_SharedButtonShuffleOn(void) {
+    return IS_RANDO && OoT_SharedButtonOptionOn();
+}
+
+/** POOLED (the bag, at generation): OoT's buttons are items of its pool only
+ *  under its own shuffle. Without it no pair is built, so a button can never be
+ *  hosted at an OoT check whose give HELD above would not see. */
+bool OoT_SharedButtonPooled(uint16_t nativeId) {
+    (void)nativeId;
+    return OoT_SharedButtonOptionOn();
+}
+
+bool OoT_SharedButtonHeld(uint16_t nativeId) {
+    const int flag = (int)OoT_SharedButtonFlag(nativeId);
+    return OoT_SharedButtonShuffleOn() && (gSaveContext.ship.randomizerInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+void OoT_SharedButtonGive(uint16_t nativeId) {
+    const int flag = (int)OoT_SharedButtonFlag(nativeId);
+    gSaveContext.ship.randomizerInf[flag >> 4] |= (u16)(1 << (flag & 0xF));
+}
+
+} // namespace
+
+/** Register OoT's copies of the Shared Ocarina Buttons families (#1067).
+ *  Idempotent; the static registrar below runs it at start-up, and the locks
+ *  re-run it after a row that cleared the registry. */
+extern "C" void OoT_RegisterSharedOcarinaButtonFamilies(void) {
+    static const struct {
+        uint32_t slot;
+        RandomizerGet button;
+    } kButtons[] = {
+        { RSBS_XITEM_SHARED_OCARINA_BUTTONS, RG_OCARINA_A_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_UP, RG_OCARINA_C_UP_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, RG_OCARINA_C_DOWN_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, RG_OCARINA_C_LEFT_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, RG_OCARINA_C_RIGHT_BUTTON },
+    };
+    for (const auto& b : kButtons) {
+        const ComboSharedFamilyMember member = { (uint16_t)b.button, OoT_SharedButtonHeld, OoT_SharedButtonGive,
+                                                 OoT_SharedButtonPooled };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, b.slot, &member);
+    }
+}
+
+namespace {
+struct OoTSharedOcarinaButtonRegistrar {
+    OoTSharedOcarinaButtonRegistrar() {
+        OoT_RegisterSharedOcarinaButtonFamilies();
+    }
+};
+const OoTSharedOcarinaButtonRegistrar gOoTSharedOcarinaButtonRegistrar;
+} // namespace
+
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
  * seed placed elsewhere? Then the pool may not hand it over.

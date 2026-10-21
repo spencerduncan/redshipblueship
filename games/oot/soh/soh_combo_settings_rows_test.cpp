@@ -354,6 +354,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // #1066: the two shared songs, the lens's shape.
         { COMBO_SETTING_SHARED_SONG_EPONA, WIDGET_CHECKBOX, "" },
         { COMBO_SETTING_SHARED_SONG_STORMS, WIDGET_CHECKBOX, "" },
+        // #1067's Shared Ocarina Buttons: the same shape.
+        { COMBO_SETTING_SHARED_OCARINA_BUTTONS, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -516,15 +518,18 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // only effect was to carry that free instrument back to Hyrule. Operator
     // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
-    // fix removes. The page's five checkboxes are #886's Shared Kokiri Sword,
-    // #1068's Shared Shields, #1065's Shared Lens of Truth and #1066's two
-    // shared songs.
+    // fix removes. The page's six checkboxes are #886's Shared Kokiri Sword,
+    // #1068's Shared Shields, #1065's Shared Lens of Truth, #1066's two shared
+    // songs and #1067's Shared Ocarina Buttons. #1067's "Shared Ocarina Buttons"
+    // is a different rule (the five ocarina buttons, not the instrument), so its
+    // name is not the retired row's: the match excludes it explicitly.
     {
         int ocarinaRows = 0;
         int checkboxes = 0;
         for (PageRow& pageRow : rows) {
             const std::string& name = pageRow.first->name;
-            const bool retired = name.find("Shared Ocarina") != std::string::npos;
+            const bool retired = name.find("Shared Ocarina") != std::string::npos &&
+                                 name.find("Shared Ocarina Buttons") == std::string::npos;
             ROWS_CHECK(!retired,
                        "the Cross-Game Rules page still offers the retired row '%s' (#879): MM already starts with "
                        "its ocarina, so the rule only hands OoT a free one",
@@ -532,13 +537,14 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 5,
-                   "the Cross-Game Rules page has %d checkbox row(s); the five expected are the Shared Kokiri Sword "
+        ROWS_CHECK(checkboxes == 6,
+                   "the Cross-Game Rules page has %d checkbox row(s); the six expected are the Shared Kokiri Sword "
                    "(#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song and "
-                   "Shared Song of Storms (#1066), after #879 retired the Shared Ocarina",
+                   "Shared Song of Storms (#1066) and the Shared Ocarina Buttons (#1067), after #879 retired the "
+                   "Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 5 "
-               "(#879, #886, #1068, #1065, #1066)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 6 "
+               "(#879, #886, #1068, #1065, #1066, #1067)\n",
                ocarinaRows, checkboxes);
     }
 
@@ -592,6 +598,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         *std::get<bool*>(lensRow->valuePointer) = true;
         lensRow->callback(*lensRow);
     }
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, 1) == 1,
+               "the writer refused a pre-creation Shared Ocarina Buttons");
 
     RunAllPreFuncs(rows);
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() == nullptr, "the model reports a read-only reason before creation");
@@ -621,6 +629,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                    "the resolver",
                    StagedBool(*lensRow));
     }
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]) == 1,
+               "the Shared Ocarina Buttons row staged %d, expected the authored 1",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]));
     printf("[TEST] leg 3: before the creation event every row is editable and stages the resolver's value\n");
 
     // ---- Leg 4: a pre-creation edit reaches the store through the model -----
@@ -697,6 +708,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                    "the frozen Shared Lens of Truth row staged %d; it must show the SAVE's OFF, not the CVar's ON",
                    StagedBool(*lensRow));
     }
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS], "the Shared Ocarina Buttons row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]) == 0,
+               "the frozen Shared Ocarina Buttons row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]));
     printf("[TEST] leg 5: once frozen every row is read-only with the model's reason and shows the save's record\n");
 
     // ---- Leg 6: a frozen row's Callback cannot move the store ---------------
@@ -906,7 +921,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_EPONA, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
