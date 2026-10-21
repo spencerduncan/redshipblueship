@@ -178,13 +178,14 @@ TestResult Test_CrossItemRulesRecord(void) {
                   RSBS_XITEM_BLAST_MASK_OOT == 0x20u && RSBS_XITEM_SPOOKY_MASK_MM == 0x400u &&
                   RSBS_XITEM_SHARED_BLAST == 0x800u && RSBS_XITEM_SHARED_SPOOKY == 0x10000u &&
                   RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u && RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u &&
-                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_ALL_V1 == 0x3FFFFFu,
-              "an RSBS_XITEM_* bit moved, or RSBS_XITEM_ALL_V1 (%08X) is not 003FFFFF (#1065's Shared Lens of Truth "
-              "is 0x00200000); they are .redsave format, append-only",
+                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_ALL_V1 == 0xFFFFFFu,
+              "an RSBS_XITEM_* bit moved, or RSBS_XITEM_ALL_V1 (%08X) is not 00FFFFFF (#1065's Shared Lens of Truth "
+              "is 0x00200000, #1066's Shared Epona's Song and Song of Storms 0x00400000 and 0x00800000); they are "
+              ".redsave format, append-only",
               (unsigned)RSBS_XITEM_ALL_V1);
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x002FF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 002FF81F (the five shared masks, the six shared extensions, "
-              "the three arrows and the lens; not the extensions, not the bottles)",
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x00EFF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 00EFF81F (the five shared masks, the six shared extensions, "
+              "the three arrows, the lens and the two songs; not the extensions, not the bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
     XIR_CHECK(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_MAX == 5u,
               "the cooldown space moved; DEFAULT must stay 0");
@@ -218,7 +219,9 @@ TestResult Test_CrossItemRulesRecord(void) {
         r.crossItemFlags &= ~RSBS_XITEM_BLAST_MASK_OOT;
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "a shared extension without its extension must be invalid");
         r = on;
-        r.crossItemFlags |= 0x00200000u;
+        // A bit no build allocates (0x00200000 was the first free one until
+        // #1065 took it, and #1066 took the next two).
+        r.crossItemFlags |= 0x40000000u;
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "an unallocated bit must be invalid");
         r = on;
         r.blastMaskCooldown = 6u;
