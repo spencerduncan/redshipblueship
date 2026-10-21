@@ -643,6 +643,9 @@ main() {
         "RegisterMuteLowHpAlarm()"
         "RegisterDisableEnemyProximityMusic()"
         "MM_RegisterAudioNotificationHooks()"
+        # #1023: Free Look (Camera/FreeLook.cpp), in lib2ship_enh_registrars.a. Its registrar has no OoT twin (grep games/oot);
+        # the archive gate above covers the same file by member.
+        "RegisterCameraFreeLook()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do
