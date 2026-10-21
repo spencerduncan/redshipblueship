@@ -183,19 +183,30 @@ TestResult Test_CrossItemRulesRecord(void) {
                   RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u && RSBS_XITEM_SHARED_SHIELDS == 0x02000000u,
               "an RSBS_XITEM_* bit moved; they are .redsave format, append-only");
     // #1065 allocates the Shared Lens of Truth bit, #1066 the Shared Epona's
-    // Song and Song of Storms bits, #1067 the Shared Ocarina Buttons bit and
-    // #1068 the Shared Shields bit: each ALLOCATED (a record holding it is valid
-    // and the bit has a name) and a FAMILY (the lens pair; the two song pairs;
-    // the A buttons; the Hylian/Hero's pair).
-    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x03FFFFFFu,
-              "RSBS_XITEM_ALL_V1 is %08X, expected 03FFFFFF (#976's 21 bits, #1065's Shared Lens of Truth, #1066's "
-              "Shared Epona's Song and Song of Storms, #1067's Shared Ocarina Buttons and #1068's Shared Shields)",
+    // Song and Song of Storms bits, #1067 the Shared Ocarina Buttons bit, #1068
+    // the Shared Shields bit and #1069 the Shared Song of Time bit (0x04000000,
+    // spelled as a literal: .redsave format): each ALLOCATED (a record holding
+    // it is valid and the bit has a name) and a FAMILY (the lens pair; the two
+    // song pairs; the A buttons; the Hylian/Hero's pair; the two Songs of Time).
+    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x07FFFFFFu,
+              "RSBS_XITEM_ALL_V1 is %08X, expected 07FFFFFF (#976's 21 bits, #1065's Shared Lens of Truth, #1066's "
+              "Shared Epona's Song and Song of Storms, #1067's Shared Ocarina Buttons, #1068's Shared Shields and "
+              "#1069's Shared Song of Time)",
               (unsigned)RSBS_XITEM_ALL_V1);
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x03EFF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 03EFF81F (the five shared masks, the six shared extensions, "
-              "the three arrows, the lens, the two songs, the shared ocarina buttons and the shared shields; not the "
-              "extensions, not the bottles)",
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x07EFF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 07EFF81F (the five shared masks, the six shared extensions, "
+              "the three arrows, the lens, the two songs, the shared ocarina buttons, the shared shields and the "
+              "shared Song of Time; not the extensions, not the bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
+    {
+        ComboItemRulesRecord songOfTime;
+        memset(&songOfTime, 0, sizeof(songOfTime));
+        songOfTime.crossItemFlags = 0x04000000u;
+        XIR_CHECK(Combo_ComboItemRulesValid(&songOfTime) &&
+                      strcmp(Combo_ComboItemRuleName(0x04000000u), "sharedSongTime") == 0,
+                  "a record with only the Shared Song of Time rule must be valid and the rule named sharedSongTime "
+                  "(#1069); this build would refuse its own world");
+    }
     {
         // #1067: ONE rule bit over five pairs. The four C-button pairs own extra
         // family slots at the EXTENSION rules' bits (never families), so the

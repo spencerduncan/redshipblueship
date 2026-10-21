@@ -670,6 +670,10 @@ extern "C" {
 // bag makes each one shared row, and the arrival gives and wears the shield in
 // the other game. FILE SCOPE for the same reason as its neighbours.
 #include "tests/test_shared_shields.c"
+// The Shared Song of Time rule (#1069): both games register their Song of Time
+// as one family, the bag makes it one shared row, and the arrival teaches it in
+// the other game. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_song_of_time.c"
 
 // The Shared Ocarina Buttons rule (#1067): both games register all five button
 // pairs, the bag makes each one shared row, and a button found in one game is
@@ -6812,6 +6816,16 @@ const TestDescriptor gTests[] = {
       "With the Shared Shields rule on, a shield found in one game is given and worn in the other on arrival; off, "
       "nothing crosses (#1068)",
       Test_SharedShieldsArrival },
+    // #1069: the Shared Song of Time rule on the same mechanism. ROM-free, as
+    // the shields rows.
+    { "shared-song-of-time-pairs",
+      "The Shared Song of Time rule arms the family both games register their Song of Time as, and the bag makes the "
+      "two copies one row both solvers credit (#1069)",
+      Test_SharedSongOfTimePairs },
+    { "shared-song-of-time-arrival",
+      "With the Shared Song of Time rule on, the song learnt in one game is known in the other at its arrival; off, "
+      "nothing crosses (#1069)",
+      Test_SharedSongOfTimeArrival },
     // #1065: the Shared Lens of Truth on the #976 mechanism.
     { "shared-lens-rule",
       "The Shared Lens of Truth is one Cross-Game Rule, off by default, frozen at creation into the fingerprint, and "

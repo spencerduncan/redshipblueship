@@ -689,6 +689,12 @@ if(BUILD_TESTING)
     # and the arrival giving and wearing the shield in the other game. ROM-free.
     redship_add_test(NAME SharedShieldsPairs COMMAND redship --test shared-shields-pairs)
     redship_add_test(NAME SharedShieldsArrival COMMAND redship --test shared-shields-arrival)
+    # #1069: the Shared Song of Time rule (OoTMM sharedSongTime) on that
+    # mechanism: both games' Song of Time registered as one family and composed
+    # into one shared row, and the song learnt in one game known in the other at
+    # the arrival. ROM-free.
+    redship_add_test(NAME SharedSongOfTimePairs COMMAND redship --test shared-song-of-time-pairs)
+    redship_add_test(NAME SharedSongOfTimeArrival COMMAND redship --test shared-song-of-time-arrival)
     # #1065: the Shared Lens of Truth, a family a player can turn on. Its
     # bit, its Cross-Game Rules key (off by default, 0 or 1), the creation freezing
     # it into the fingerprint, and a load restoring it into the key (CVar store,
