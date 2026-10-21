@@ -128,6 +128,34 @@
  *     unconditional and is probed separately: OnActorInit[ACTOR_EN_ZOG] has no
  *     other registrant, empty before MM_Rando_Init and one after.
  *
+ * PHASE 6 (#1010-#1017) -- THE EIGHT ENHANCEMENT TUs. Timesavers/FastChests,
+ * Graphics/EnemyHealthBars, Graphics/BowReticle, Graphics/DisableBlackBars,
+ * Player/InstantPutaway, Equipment/ItemUnequip, Restorations/PauseBufferInputs
+ * and DifficultyOptions/HyperEnemies register only through a file-scope
+ * RegisterShipInitFunc keyed on the converged gEnhancements.* key SoH's row
+ * writes (kConvergedKeys), in the plain `2ship_enh` archive, so the linker
+ * dropped all eight and the rows did nothing in Majora's Mask. Same probe as
+ * Phase 5: the key ON plus ShipInit::Init(key) must raise the registry the TU
+ * writes to by EXACTLY the count the table names. Every key is read by one TU
+ * tree-wide (BenMenu.cpp only draws it), so the delta is attributable. Nothing a
+ * TU defines is named here (a reference would un-elide it).
+ *   - FastChests: VB_PLAY_SLOW_CHEST_CS.   DisableBlackBars: VB_DISABLE_LETTERBOX.
+ *   - InstantPutaway: VB_RESET_PUTAWAY_TIMER.
+ *   - ItemUnequip: VB_KALEIDO_EQUIP_ITEM_TO_BUTTON; the same TU's second key,
+ *     DpadEquips, arms VB_KALEIDO_SWITCH_PAGE_WITH_DPAD.
+ *   - PauseBufferWindow: VB_KALEIDO_UNPAUSE_CLOSE and OnGameStateMainStart.
+ *   - HyperEnemies: OnActorUpdate (unkeyed).
+ *   - BowReticle: OnPlayerPostLimbDraw keyed on PLAYER_LIMB_RIGHT_HAND, the
+ *     ForID leg MM_GameHooks_ExecuteOnPlayerPostLimbDraw runs from
+ *     Player_PostLimbDrawGameplay (z_player_lib.c): the draw hook of the aiming
+ *     reticle.
+ *   - EnemyHealthBars: OnInterfaceDrawStart (+1), and the TU's unconditional
+ *     OnActorInit registrant must NOT grow when the key is toggled (it used to
+ *     register again on every toggle; the unkeyed OnActorInit bucket is read
+ *     before and after the drive).
+ * Each key is driven TWICE per probe, so a registrar that stacks one
+ * registration per toggle shows up as a second delta.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -357,6 +385,69 @@ void ResetSkipKeys() {
     }
 }
 
+// ---- Phase 6 (#1010-#1017): the eight enhancement TUs ----------------------
+// Same shape as Phase 5 (SkipKeyProbe). `expected` may be 0: that row asserts a
+// registry does NOT grow when the key is driven (the EnemyHealthBars OnActorInit
+// once-only registration).
+#define ENH_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+
+const std::vector<SkipKeyProbe>& EnhProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.FastChests",
+          "Fast Chests",
+          { { "VB_PLAY_SLOW_CHEST_CS (Timesavers/FastChests.cpp)", ENH_VB_COUNT(VB_PLAY_SLOW_CHEST_CS), 1 } } },
+        { "gEnhancements.EnemyHealthBar",
+          "Enemy Health Bars",
+          { { "OnInterfaceDrawStart (Graphics/EnemyHealthBars.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnInterfaceDrawStart>(); }, 1 },
+            { "OnActorInit, unkeyed: must not grow per toggle (Graphics/EnemyHealthBars.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnActorInit>(); }, 0 } } },
+        { "gEnhancements.BowReticle",
+          "Aiming Reticle for the Bow/Slingshot",
+          { { "OnPlayerPostLimbDraw[PLAYER_LIMB_RIGHT_HAND] (Graphics/BowReticle.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnPlayerPostLimbDraw>(PLAYER_LIMB_RIGHT_HAND); }, 1 } } },
+        { "gEnhancements.DisableBlackBars",
+          "Disable Black Bar Letterboxes",
+          { { "VB_DISABLE_LETTERBOX (Graphics/DisableBlackBars.cpp)", ENH_VB_COUNT(VB_DISABLE_LETTERBOX), 1 } } },
+        { "gEnhancements.InstantPutaway",
+          "Instant Putaway",
+          { { "VB_RESET_PUTAWAY_TIMER (Player/InstantPutaway.cpp)", ENH_VB_COUNT(VB_RESET_PUTAWAY_TIMER), 1 } } },
+        { "gEnhancements.ItemUnequip",
+          "Unequip C-Items on Re-press",
+          { { "VB_KALEIDO_EQUIP_ITEM_TO_BUTTON (Equipment/ItemUnequip.cpp)",
+              ENH_VB_COUNT(VB_KALEIDO_EQUIP_ITEM_TO_BUTTON), 1 } } },
+        { "gEnhancements.DpadEquips",
+          "D-pad Equips (the dpad page-switch half of Equipment/ItemUnequip.cpp)",
+          { { "VB_KALEIDO_SWITCH_PAGE_WITH_DPAD (Equipment/ItemUnequip.cpp)",
+              ENH_VB_COUNT(VB_KALEIDO_SWITCH_PAGE_WITH_DPAD), 1 } } },
+        { "gEnhancements.PauseBufferWindow",
+          "Pause Buffer Input Window",
+          { { "VB_KALEIDO_UNPAUSE_CLOSE (Restorations/PauseBufferInputs.cpp)", ENH_VB_COUNT(VB_KALEIDO_UNPAUSE_CLOSE),
+              1 },
+            { "OnGameStateMainStart (Restorations/PauseBufferInputs.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnGameStateMainStart>(); }, 1 } } },
+        { "gEnhancements.HyperEnemies",
+          "Hyper Enemies",
+          { { "OnActorUpdate, unkeyed (DifficultyOptions/HyperEnemies.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnActorUpdate>(); }, 1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetEnhKeys() {
+    for (const auto& probe : EnhProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : EnhProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
 } // namespace
 
 extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
@@ -385,6 +476,11 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     // writes them true), and a TU that is linked would then arm at MM_Rando_Init
     // and shrink the delta the probe measures.
     for (const auto& probe : SkipProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
+    // Phase 6: the same for the enhancement keys (an operator config may hold
+    // any of them on, and a linked TU would then arm at MM_Rando_Init).
+    for (const auto& probe : EnhProbes()) {
         CVarSetInteger(probe.key, 0);
     }
 
@@ -566,9 +662,47 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     ResetSkipKeys();
 
+    // ---- #1010-#1017: the eight enhancement TUs ------------------------------
+    // Same drive as the Skips & Speed-ups loop above: ONE key on, ShipInit::Init
+    // (key), every registry the key's TU writes to must move by exactly the
+    // table's count (0 meaning "must not move"). The key is driven TWICE so a
+    // registrar that stacks a registration per toggle shows up as a second delta.
+    for (const auto& probe : EnhProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(14): %s went %zu -> %zu when %s was turned on and driven twice, expected "
+                       "exactly +%zu - the enhancement TU behind the \"%s\" row is not in the link (a plain "
+                       "2ship_enh archive drops a TU whose only anchor is a RegisterShipInitFunc), or it stacks "
+                       "a registration per toggle, so the row does nothing or misbehaves in Majora's Mask "
+                       "(#1010-#1017)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetEnhKeys();
+                ResetSkipKeys();
+                ResetCheatKeys();
+                return 14;
+            }
+        }
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetEnhKeys();
+
     printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars populated their registries; the two "
            "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
-           "Skips & Speed-ups keys each armed their TUs)\n");
+           "Skips & Speed-ups keys each armed their TUs; the 9 enhancement keys of #1010-#1017 each armed "
+           "theirs)\n");
     return 0;
 }
 
