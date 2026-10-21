@@ -109,6 +109,23 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
                     "[OoT] Triforce Hunt: \"Win\" generated as \"Ganon's Boss Key\" under combo goal %u (#768)\n",
                     (unsigned)rsbsGoalPreview.goal);
         }
+        // #997, the reverse: under the combo triforce hunt the give that reaches
+        // the COMBO requirement grants Ganon's Boss Key and ends the paired game
+        // (it takes the Win branch whichever mode is named here), so "Ganon's
+        // Boss Key" would put the boss key at RC_TRIFORCE_COMPLETED behind OoT's
+        // OWN requirement, crediting Ganondorf's Lair to the proof long before
+        // play opens it. Generated as "Win": the same pieces and requirement (the
+        // creation freeze below reads them unchanged), RG_TRIFORCE at
+        // RC_TRIFORCE_COMPLETED, and the lair is post-game, as it is in play.
+        if (Combo_GoalGeneratesOwnHuntAsWin(rsbsGoalPreview.goal) &&
+            ctx->GetOption(RSK_TRIFORCE_HUNT).Is(RO_TRIFORCE_HUNT_GBK)) {
+            ctx->GetOption(RSK_TRIFORCE_HUNT).Set(RO_TRIFORCE_HUNT_WIN);
+            SPDLOG_WARN("Paired world: OoT's Triforce Hunt \"Ganon's Boss Key\" is generated as \"Win\" under the "
+                        "combo triforce hunt: the combo requirement ends the game and opens Ganon's tower door in "
+                        "the same give (#997)");
+            fprintf(stderr, "[OoT] Triforce Hunt: \"Ganon's Boss Key\" generated as \"Win\" under the combo "
+                            "triforce hunt (#997)\n");
+        }
     }
     // #973: the Happy Mask Shop door IS the OoT<->MM crossing (entrance.cpp pins it
     // out of every shuffle pool), so the shop's room never loads, and two settings
