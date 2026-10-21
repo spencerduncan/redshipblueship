@@ -249,6 +249,14 @@ constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
     { 1035, "gEnhancements.Equipment.MagicArrowEquipSpeed", "gEnhancements.SkipArrowAnimation" },
     { 1036, "gEnhancements.DifficultyOptions.PermanentHeartLoss", "gEnhancements.PermanentHeartLoss" },
     { 1038, "gEnhancements.Restorations.N64WeirdFrames", "gEnhancements.N64WeirdFrames" },
+    // #1062: the D-pad / right-stick ocarina enhancements. MM kept them under Playback.*; SoH writes the same two
+    // switches as gSettings.CustomOcarina.{Dpad,RightStick} (Settings > Controls > Ocarina Controls, drawn from
+    // the input editor). Both bool, default off; the P6 held-apart entry is gone with this row.
+    { 1062, "gEnhancements.Playback.DpadOcarina", "gSettings.CustomOcarina.Dpad" },
+    { 1062, "gEnhancements.Playback.RightStickOcarina", "gSettings.CustomOcarina.RightStick" },
+    // #1064: the container-matches-contents switch. MM's rando readers (chests, pots, grass, crates, barrels) read
+    // gRando.CSMC; SoH writes gEnhancements.ChestSizeAndTextureMatchContents. Both bool, default off.
+    { 1064, "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents" },
 };
 
 /// One reader of a #966 key-gap key that has to be IN THE LINK, not just mapped. Mapping MM's reader onto SoH's key
@@ -270,6 +278,9 @@ constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
     { 1032, "gEnhancements.TimeSavers.SkipMiscInteractions", "Cutscenes/MiscInteractions" },
     { 1033, "gEnhancements.InstantScarecrow", "Songs/SkipScarecrowSong.cpp" },
     { 1034, "gEnhancements.BowArrowCycle", "Equipment/ArrowCycle.cpp" },
+    { 1035, "gEnhancements.SkipArrowAnimation", "Equipment/SkipMagicArrowEquip.cpp" },
+    { 1036, "gEnhancements.PermanentHeartLoss", "DifficultyOptions/PermanentHeartLoss.cpp" },
+    { 1038, "gEnhancements.N64WeirdFrames", "Restorations/N64WeirdFrames/N64WeirdFrames.cpp" },
 };
 
 /// #1037: held APART, not mapped. OoT's DamageMult list runs 0-8, MM's 0-4 plus 10.
@@ -701,9 +712,17 @@ TestResult Test_CVarClassification(void) {
         // version-9 migration must carry a stored MM-spelled value across.
         {
             bool menuOk = false;
-            const std::vector<std::string> sohMenuTree =
+            std::vector<std::string> sohMenuTree =
                 CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "SohGui", menuOk);
             CVARCLASS_CHECK(menuOk && !sohMenuTree.empty(), "could not scan games/oot/soh/SohGui for the menu rows");
+            // Settings > Controls is drawn partly from the input editor window (the ocarina and D-pad rows, #1062),
+            // which lives beside the controls code rather than under SohGui.
+            bool controlsOk = false;
+            const std::vector<std::string> sohControlsTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "Enhancements" / "controls", controlsOk);
+            CVARCLASS_CHECK(controlsOk && !sohControlsTree.empty(),
+                            "could not scan games/oot/soh/Enhancements/controls for the input editor rows");
+            sohMenuTree.insert(sohMenuTree.end(), sohControlsTree.begin(), sohControlsTree.end());
 
             std::ifstream migratorFile(sourceRoot / "games" / "oot" / "soh" / "config" / "ConfigMigrators.h",
                                        std::ios::binary);
@@ -722,7 +741,7 @@ TestResult Test_CVarClassification(void) {
                     return TEST_FAIL;
                 }
                 if (!CvarClassOotTreeNamesKey(sohMenuTree, row.canonical)) {
-                    printf("[TEST] FAIL: #%d: no SoH menu row under games/oot/soh/SohGui writes \"%s\".\n"
+                    printf("[TEST] FAIL: #%d: no SoH menu row (SohGui or the input editor) writes \"%s\".\n"
                            "[TEST]       The manifest maps MM onto a key no widget sets; check the spelling.\n",
                            row.issue, row.canonical);
                     return TEST_FAIL;
