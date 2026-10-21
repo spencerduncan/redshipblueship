@@ -1027,6 +1027,8 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
 // generation with the full OTR bring-up, and the OoT half of the digest.
 extern "C" int Rando_HeadlessWorkerGenerate(const char* seedStr);
 extern "C" int Rando_HeadlessWriteDeterminismHead(const char* outPath);
+// ForeignItemsSingleExe.cpp (#1055): this generation's spoilers out of the shared build directory.
+extern "C" int OoT_Creation_TestClearPairedSpoiler(void);
 
 /**
  * #982: THE PLAYER'S PATH, DIGESTED. Driven only by the GoldenSeedDigestPlayerPath
@@ -1087,6 +1089,9 @@ extern "C" int MM_Rando_HeadlessPlayerPathDigest(const char* seedStr, const char
         return 3;
     }
 
+    // #1055: a spoiler of this seed that a run of another build left in the build
+    // directory must not meet this creation's spoiler write.
+    OoT_Creation_TestClearPairedSpoiler();
     // Cleared first, so the shadow read below can only be the one this creation armed.
     Combo_ClearFrozenState("mm");
     if (OoT_RunPairedCreationEvent(0) == 0) {
