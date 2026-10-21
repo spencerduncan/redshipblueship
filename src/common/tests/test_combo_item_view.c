@@ -814,8 +814,10 @@ static int CivSharedTierLegs(const ComboItemOps* ootOps, const ComboItemOps* mmO
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_NUT_TIER, 2); // behind the world's tier-3 nut bag
     CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Bow", &row) && row.have && row.count == 12 && row.max == 30);
     CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row) && row.have && row.count == 12);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Deku Nuts", &row) && row.have && row.count == 9 && row.max == 40);
 
     // ---- the rule off: no Shared Kokiri Sword row, the sword stays lit -------------
     ComboContext_Init();
