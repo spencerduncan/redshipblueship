@@ -108,8 +108,28 @@ typedef enum {
     // #1068. A BIT of the item rules record (ComboItemRulesRecord.crossItemFlags),
     // assembled by Combo_ResolveComboItemRules. 0 or 1; the default is 0.
     COMBO_SETTING_SHARED_SHIELDS, // gCombo.Rando.SharedShields -> rules.crossItemFlags & 0x02000000
+    // #1065. A BIT of the sibling ComboItemRulesRecord's crossItemFlags (#976),
+    // not of this record: Combo_ResolveComboItemRules assembles crossItemFlags
+    // from the item-rule keys (Combo_ComboItemRulesAuthored). 0 or 1; default 0.
+    COMBO_SETTING_SHARED_LENS, // gCombo.Rando.SharedLens -> itemRules.crossItemFlags & RSBS_XITEM_SHARED_LENS
     COMBO_SETTING_COUNT
 } ComboSettingId;
+
+/**
+ * THE ITEM-RULE KEYS (#976's ComboItemRulesRecord, #1065 on). Some settings
+ * author a bit of the item rules' crossItemFlags rather than a field of
+ * ComboSettingsRecord; these two answer which.
+ *
+ * Combo_ComboItemRulesAuthored: the RSBS_XITEM_* bits whose keys RESOLVE on now
+ * (Combo_ComboSettingResolved, so an unset or out-of-space key is its default
+ * off). Combo_ResolveComboItemRules reads this and nothing else.
+ *
+ * Combo_ComboItemRuleKeyedBits: every RSBS_XITEM_* bit a key authors at all. A
+ * frozen rule outside it is one only another build (or a later phase) writes,
+ * so no load can restore it through a key.
+ */
+uint32_t Combo_ComboItemRulesAuthored(void);
+uint32_t Combo_ComboItemRuleKeyedBits(void);
 
 /** The tier-4 CVar key for @p id (the RSBS_CVAR_COMBO_RANDO_* literal from
  *  cvar_shared_keys.h). Never NULL; "(invalid)" for an id past the table. */
@@ -245,7 +265,8 @@ typedef struct ComboSettingsKeyUndo {
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
  * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the Shared
  * Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
- * from the session has a key: today the Shared Shields, #1068), the CVar
+ * from the session has a key: today the Shared Shields, #1068, and the Shared
+ * Lens of Truth, #1065), the CVar
  * store exists,
  * and every frozen value is inside its pinned space; otherwise it writes
  * NOTHING and returns 0, and the caller refuses. @p frozenRules is the file's
