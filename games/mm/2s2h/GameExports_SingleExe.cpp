@@ -4676,6 +4676,21 @@ static void MM_SharedLensGive(uint16_t nativeId) {
     INV_CONTENT(ITEM_LENS_OF_TRUTH) = ITEM_LENS_OF_TRUTH;
 }
 
+// #1066: Epona's Song and the Song of Storms (OoTMM sharedSongEpona,
+// sharedSongStorms). Item_Give(ITEM_SONG_*) only sets the song's quest bit, free
+// play builds the playable set from the quest bits alone (z_message.c,
+// Message_DisplayOcarinaStaffImpl; the #1070 finding), and Epona's spawn reads
+// the same bit (z_horse.c). Songs survive the Song of Time.
+static uint32_t MM_SharedSongQuestBit(uint16_t nativeId) {
+    return (nativeId == (uint16_t)RI_SONG_STORMS) ? (1u << QUEST_SONG_STORMS) : (1u << QUEST_SONG_EPONA);
+}
+static bool MM_SharedSongHeld(uint16_t nativeId) {
+    return (gSaveContext.save.saveInfo.inventory.questItems & MM_SharedSongQuestBit(nativeId)) != 0u;
+}
+static void MM_SharedSongGive(uint16_t nativeId) {
+    gSaveContext.save.saveInfo.inventory.questItems |= MM_SharedSongQuestBit(nativeId);
+}
+
 namespace {
 // Static-init registration (the ComboLogicEngine registrars' shape): this TU is
 // always linked, and the registry is zero-initialised storage.
@@ -4683,6 +4698,10 @@ struct MMSharedFamilyRegistrar {
     MMSharedFamilyRegistrar() {
         const ComboSharedFamilyMember lens = { (uint16_t)RI_LENS, MM_SharedLensHeld, MM_SharedLensGive };
         Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_LENS, &lens);
+        const ComboSharedFamilyMember epona = { (uint16_t)RI_SONG_EPONA, MM_SharedSongHeld, MM_SharedSongGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_EPONA, &epona);
+        const ComboSharedFamilyMember storms = { (uint16_t)RI_SONG_STORMS, MM_SharedSongHeld, MM_SharedSongGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_STORMS, &storms);
     }
 };
 const MMSharedFamilyRegistrar gMMSharedFamilyRegistrar;
