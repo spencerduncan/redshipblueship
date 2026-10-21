@@ -26,7 +26,7 @@ void RegisterSkipHealingDarmani() {
         if (MM_gPlayState->sceneId == SCENE_GORON_HAKA && *csId == 9) {
             if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_GORON)) {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                    .showGetItemCutscene = !Rando::StaticData::SkipGetItemCutsceneTier(),
+                    .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                     .param = GID_MASK_GORON,
                     .giveItem =
                         [](Actor* actor, PlayState* play) {

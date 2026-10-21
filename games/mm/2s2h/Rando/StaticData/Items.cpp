@@ -584,7 +584,15 @@ std::string GetItemName(RandoItemId randoItemId, bool includeArticle) {
 }
 
 bool StoryGiveShowsGetItemCutscene() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1060: these gives queue only outside rando, where SoH's own reader always
+    // shows (hook_handlers.cpp). SoH's default Junk Items must not strip a mask,
+    // song or the Oath of its hold, so only the tier that means "everything"
+    // (All Items -> Always) skips it.
+    return SkipGetItemCutsceneTier() < 3;
+#else
     return !SkipGetItemCutsceneTier();
+#endif
 }
 
 } // namespace StaticData

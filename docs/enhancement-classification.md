@@ -316,7 +316,11 @@ page), outside the `gEnhancements` namespace. The value spaces differ (SoH Off /
 All Items, MM Never / Junk Items Only / Everything But Major / Always), so it is a
 **translated** pair (`RSBS::kTranslatedKeys`), not a rename: every MM reader calls
 `Rando::StaticData::SkipGetItemCutsceneTier()`, which reads SoH's key and maps Off → Never,
-Junk Items → Junk Items Only, All Items → Always. MM's own key is left to its elided widget.
+Junk Items → Junk Items Only, All Items → Always. The story-cutscene gives (masks, songs, the
+Oath to Order, the Giants' Chamber), which queue only outside rando, ask
+`StoryGiveShowsGetItemCutscene()` instead and keep their hold unless SoH says All Items: SoH
+itself always shows outside rando, so its default Junk Items must not strip them. MM's own key
+is left to its elided widget.
 
 **Group D — free-look (3).** OoT files free-look under `gSettings.`, MM under
 `gEnhancements.Camera.` — a top-level namespace disagreement.

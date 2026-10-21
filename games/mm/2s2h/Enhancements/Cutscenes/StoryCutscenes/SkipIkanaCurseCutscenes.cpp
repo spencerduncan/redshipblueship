@@ -88,7 +88,7 @@ void RegisterSkipIkanaCurseCutscenes() {
                 skipHealingPamelasFather();
                 if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_GIBDO)) {
                     MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                        .showGetItemCutscene = !Rando::StaticData::SkipGetItemCutsceneTier(),
+                        .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                         .param = GID_MASK_GIBDO,
                         .giveItem =
                             [](Actor* actor, PlayState* play) {

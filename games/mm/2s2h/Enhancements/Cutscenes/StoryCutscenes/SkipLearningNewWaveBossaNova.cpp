@@ -23,7 +23,7 @@ void RegisterSkipLearningNewWaveBossaNova() {
         if (MM_gPlayState->sceneId == SCENE_LABO && *csId == 11) {
             if (GameInteractor_Should(VB_GIVE_NEW_WAVE_BOSSA_NOVA, true)) {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                    .showGetItemCutscene = !Rando::StaticData::SkipGetItemCutsceneTier(),
+                    .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                     .giveItem =
                         [](Actor* actor, PlayState* play) {
                             if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {
