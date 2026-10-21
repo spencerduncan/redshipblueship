@@ -2332,12 +2332,37 @@ extern "C" void RandoTest_CheckTrackerSetEnableAvailable(int enabled) {
 }
 #endif
 
+static void ComputeAvailableChecks(RandomizerRegion startingRegion);
 
 void RecalculateAvailableChecks(RandomizerRegion startingRegion /* = RR_ROOT */) {
     if (!enableAvailableChecks || !GameInteractor::IsSaveLoaded()) {
         return;
     }
+    ComputeAvailableChecks(startingRegion);
+}
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// TEST BRIDGE (#994): what the tracker's next draw does with the deferred flag
+// (DrawElement: clear it, then recalculate), without the draw's play-state gate,
+// which a ROM-free row cannot satisfy. Returns 1 when a recalculation was pending
+// and ran, 0 when nothing was pending, and -1 when one was pending but Enable
+// Available Checks is off (the draw's recalculation returns at once then).
+extern "C" int RandoTest_CheckTrackerDrainPendingRecalc(void) {
+    if (!recalculateAvailable) {
+        return 0;
+    }
+    recalculateAvailable = false;
+    if (!enableAvailableChecks) {
+        return -1;
+    }
+    ComputeAvailableChecks(RR_ROOT);
+    return 1;
+}
+#endif
+
+// The recalculation below RecalculateAvailableChecks' gate, split out (#994) so a
+// ROM-free row runs the real computation over a live save.
+static void ComputeAvailableChecks(RandomizerRegion startingRegion) {
     ResetPerformanceTimer(PT_RECALCULATE_AVAILABLE_CHECKS);
     StartPerformanceTimer(PT_RECALCULATE_AVAILABLE_CHECKS);
 
