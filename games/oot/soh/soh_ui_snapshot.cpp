@@ -2061,7 +2061,10 @@ void Session::BuildPageList() {
                 // frozen-goal: the goal row's disabled tooltip once the world is decided.
                 // (frozen-slider hovered a pool-size slider until #801 retired both.)
                 // kokiri-sword: #886's Shared Kokiri Sword checkbox and its tooltip.
-                p.hovers = { "direction", "goal", "kokiri-sword", "frozen-goal" };
+                // lens: #1065's Shared Lens of Truth checkbox and its tooltip, by
+                // its row name (marker and label) in the first state.
+                p.hovers = { "direction", "goal", "kokiri-sword", "lens", "frozen-goal" };
+                p.hoverRows["lens"] = std::string(Combo_ComboSettingSharedMarker()) + " Shared Lens of Truth";
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
