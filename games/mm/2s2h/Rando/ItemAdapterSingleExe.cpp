@@ -33,6 +33,15 @@
  * (count goals whose ceilings are seed options), and the Dungeon keys
  * (setting-dependent, as OoT's adapter leaves out its dungeon items).
  *
+ * ONE MORE GROUP, BY THE FILE (#1072). The five ocarina buttons ("Ocarina
+ * Buttons", MM's native group of that name) follow the 60 rows, shown only when
+ * the buffer's own frozen RO_SHUFFLE_OCARINA_BUTTONS is on in a randomizer file
+ * (MMItemButtonRowsShown: the same IS_RANDO + option test the note gate in
+ * ActorBehavior/Player.cpp applies, read from the buffer, never the live CVar)
+ * and held from the buffer's button bits (RANDO_INF_OBTAINED_OCARINA_BUTTON_*,
+ * the bits that gate reads). The adapter's `countFor` reports them, so a file
+ * without the shuffle shows 60 rows exactly as before.
+ *
  * Names are MM's own (Rando::StaticData::Items, the table MM's tracker tooltips
  * read). Icon keys are resource paths (MM_gItemIcons, GetIconTexturePath), the
  * keys MM's tracker hands the Gui's texture map; MM has no faded variant (its
@@ -285,6 +294,43 @@ const MMItemRowDef kMMItemRows[] = {
 
 constexpr int kMMItemRowCount = (int)(sizeof(kMMItemRows) / sizeof(kMMItemRows[0]));
 
+// The ocarina-button rows (#1072), after the table above: button i is the Rando
+// item RI_OCARINA_BUTTON_A + i and the randoInf flag RANDO_INF_OBTAINED_OCARINA_BUTTON_A
+// + i (A, C-Down, C-Right, C-Left, C-Up; ConvertItem.cpp and GiveItem.cpp index
+// both the same way). Every gate on these rows is MMItemButtonRowsShown.
+constexpr int kMMButtonRowCount = 5;
+constexpr const char* kMMButtonGroup = "Ocarina Buttons";
+
+// MM's tracker tints the white button glyphs (ShipUtils.cpp randoItemColorMap):
+// the A button blue, the four C buttons yellow. 0xRRGGBBAA.
+constexpr uint32_t kMMButtonTintA = 0x167ECBFFu;
+constexpr uint32_t kMMButtonTintC = 0xD6C417FFu;
+
+/** Does this file shuffle the ocarina buttons? The frozen option of a randomizer
+ *  file, as the note gate reads it; the one place to change when the rows move
+ *  to the Shared column. */
+bool MMItemButtonRowsShown(const SaveContext* src) {
+    return IS_RANDO && RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] != 0;
+}
+
+/** Does the buffer's save hold ocarina button `button` (0..4)? Flags_GetRandoInf's
+ *  read, over the handed buffer. */
+bool MMItemButtonHeld(const SaveContext* src, int button) {
+    const int flag = RANDO_INF_OBTAINED_OCARINA_BUTTON_A + button;
+    return (gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+bool MMItemDeriveButton(const SaveContext* src, int button, ComboItemRow* out) {
+    if (button < 0 || button >= kMMButtonRowCount || !MMItemButtonRowsShown(src)) {
+        return false;
+    }
+    out->group = kMMButtonGroup;
+    MMItemFillRando(out, (RandoItemId)(RI_OCARINA_BUTTON_A + button));
+    out->iconTint = (button == 0) ? kMMButtonTintA : kMMButtonTintC;
+    out->have = MMItemButtonHeld(src, button);
+    return true;
+}
+
 /** An inventory slot: the held item names the row, the empty slot falls back to
  *  the base item (MM's tracker: safeItemsForInventorySlot[slot][0]). */
 void MMItemFillSlot(const SaveContext* src, const MMItemRowDef& def, ComboItemRow* out) {
@@ -383,6 +429,16 @@ int MMItemCount(void) {
     return kMMItemRowCount;
 }
 
+/** The rows this buffer shows: the curated rows plus the ocarina buttons when
+ *  its file shuffles them (#1072). */
+int MMItemCountFor(const void* buf) {
+    if (!MMItemAligned(buf)) {
+        return kMMItemRowCount;
+    }
+    const SaveContext* src = static_cast<const SaveContext*>(buf);
+    return kMMItemRowCount + (MMItemButtonRowsShown(src) ? kMMButtonRowCount : 0);
+}
+
 bool MMItemHasSave(const void* buf) {
     if (!MMItemAligned(buf)) {
         return false;
@@ -395,13 +451,16 @@ bool MMItemHasSave(const void* buf) {
 }
 
 bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
-    if (!MMItemAligned(buf) || out == nullptr || index < 0 || index >= kMMItemRowCount) {
+    if (!MMItemAligned(buf) || out == nullptr || index < 0 || index >= kMMItemRowCount + kMMButtonRowCount) {
         return false;
     }
     const SaveContext* src = static_cast<const SaveContext*>(buf);
     const uint8_t freshness = out->freshness; // the view's field; left alone
     std::memset(out, 0, sizeof(*out));
     out->freshness = freshness;
+    if (index >= kMMItemRowCount) {
+        return MMItemDeriveButton(src, index - kMMItemRowCount, out);
+    }
     return MMItemDerive(src, kMMItemRows[index], out);
 }
 
@@ -415,9 +474,10 @@ bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
 namespace {
 
 /** MM's own tracker tables (ItemTrackerSettings.cpp LoadAvailableWindows): the
- *  Inventory and Masks tables are 6 wide, Songs and Quest 5. */
+ *  Inventory and Masks tables are 6 wide, Songs, Quest and Ocarina Buttons 5. */
 int MMItemGroupColumns(const char* group) {
-    if (group != nullptr && (std::strcmp(group, "Songs") == 0 || std::strcmp(group, "Quest") == 0)) {
+    if (group != nullptr && (std::strcmp(group, "Songs") == 0 || std::strcmp(group, "Quest") == 0 ||
+                             std::strcmp(group, kMMButtonGroup) == 0)) {
         return 5;
     }
     return 6;
@@ -507,7 +567,8 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
 
 extern "C" void MM_ItemAdapter_Register(void) {
     static const ComboItemOps kOps = {
-        MMItemCount, MMItemRowAt, MMItemHasSave, MMItemLiveSave, MMItemPaused, &kMMItemGrid, MMItemSharedIcon,
+        MMItemCount,  MMItemRowAt,  MMItemHasSave,    MMItemLiveSave,
+        MMItemPaused, &kMMItemGrid, MMItemSharedIcon, MMItemCountFor,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_MM, &kOps);
 }
