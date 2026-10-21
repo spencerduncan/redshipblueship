@@ -538,10 +538,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                    "Shared Song of Storms (#1066), after #879 retired the Shared Ocarina",
                    checkboxes);
         printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 5 "
-               "(#879, #886, #1068, #1065, #1066)
-               ",
-               ocarinaRows,
-               checkboxes);
+               "(#879, #886, #1068, #1065, #1066)\n",
+               ocarinaRows, checkboxes);
     }
 
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
