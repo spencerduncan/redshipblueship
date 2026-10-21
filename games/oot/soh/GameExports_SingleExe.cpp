@@ -3692,6 +3692,145 @@ static uint16_t OoT_ReadKokiriSword(void) {
     return CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI) ? 1u : 0u;
 }
 
+// ============================================================================
+// The Shared Shields families (#1068; OoTMM sharedShields)
+// ============================================================================
+//
+// OoT's copies of the rule's two pairs: the Hylian Shield (the family at
+// RSBS_XITEM_SHARED_SHIELDS, paired with MM's Hero's Shield) and the Mirror
+// Shield (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD). OoT keeps its own
+// shields: HELD is the owned-equipment bit OoT's own give writes (a shop's
+// Hylian Shield included, so buying one in Hyrule gives Termina the Hero's
+// Shield), and the GIVE writes that bit. A given shield is also WORN when the
+// player's own choice allows it: the Hylian Shield when Link wears no shield,
+// the Mirror Shield when an adult wears none or the Hylian Shield (as MM's
+// Mirror Shield replaces its Hero's Shield). A child is never put in the Mirror
+// Shield, and a worn Deku Shield is the player's choice and stays. The startup
+// entrance runs this before Player init, which reads the equips.
+
+extern "C" void OoT_Inventory_ChangeEquipment(s16 equipment, u16 value);
+
+static bool OoT_SharedShieldHeld(uint16_t nativeId) {
+    const int inv = (nativeId == (uint16_t)RG_MIRROR_SHIELD) ? EQUIP_INV_SHIELD_MIRROR : EQUIP_INV_SHIELD_HYLIAN;
+    return CHECK_OWNED_EQUIP(EQUIP_TYPE_SHIELD, inv) != 0;
+}
+
+static void OoT_SharedShieldGive(uint16_t nativeId) {
+    const bool mirror = nativeId == (uint16_t)RG_MIRROR_SHIELD;
+    gSaveContext.inventory.equipment |=
+        (u16)OWNED_EQUIP_FLAG(EQUIP_TYPE_SHIELD, mirror ? EQUIP_INV_SHIELD_MIRROR : EQUIP_INV_SHIELD_HYLIAN);
+    const s32 worn = CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
+    if (mirror) {
+        if (LINK_IS_ADULT && (worn == EQUIP_VALUE_SHIELD_NONE || worn == EQUIP_VALUE_SHIELD_HYLIAN)) {
+            OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
+        }
+    } else if (worn == EQUIP_VALUE_SHIELD_NONE) {
+        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HYLIAN);
+    }
+}
+
+/** Register OoT's copies of the Shared Shields families (#1068). Idempotent;
+ *  the static registrar below runs it at start-up, and the locks re-run it
+ *  after a row that cleared the registry. */
+extern "C" void OoT_RegisterSharedShieldFamilies(void) {
+    const ComboSharedFamilyMember hylian = { (uint16_t)RG_HYLIAN_SHIELD, OoT_SharedShieldHeld, OoT_SharedShieldGive };
+    const ComboSharedFamilyMember mirror = { (uint16_t)RG_MIRROR_SHIELD, OoT_SharedShieldHeld, OoT_SharedShieldGive };
+    Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SHIELDS, &hylian);
+    Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XFAMILY_SLOT_MIRROR_SHIELD, &mirror);
+}
+
+namespace {
+struct OoTSharedShieldRegistrar {
+    OoTSharedShieldRegistrar() {
+        OoT_RegisterSharedShieldFamilies();
+    }
+};
+const OoTSharedShieldRegistrar gOoTSharedShieldRegistrar;
+} // namespace
+
+// ============================================================================
+// The Shared Ocarina Buttons families (#1067; OoTMM sharedOcarinaButtons)
+// ============================================================================
+//
+// OoT's copies of the rule's five pairs: RG_OCARINA_A_BUTTON at the rule's own
+// bit, the four C buttons at their extra slots. Ownership is the
+// RAND_INF_HAS_OCARINA_* flag OoT's own give writes and its note gate reads
+// (hook_handlers.cpp VB_HAVE_OCARINA_NOTE_*); the RG ids and the flags run in
+// the same order (logic.cpp's item-to-flag table).
+//
+// HELD only when OoT's own frozen shuffle is on: a file without it is given all
+// five at creation (savefile.cpp) and finds none, and a harvest that read those
+// flags would hand Termina five buttons nobody found, which the solver never
+// proved. The GIVE writes the flag directly (Flags_SetRandomizerInf would also
+// fire the flag-set hooks, and the startup entrance runs before gameplay); with
+// OoT's shuffle off the flag is already set and the write changes nothing.
+
+namespace {
+
+RandomizerInf OoT_SharedButtonFlag(uint16_t nativeId) {
+    return (RandomizerInf)(RAND_INF_HAS_OCARINA_A + ((int)nativeId - (int)RG_OCARINA_A_BUTTON));
+}
+
+/** The seed's own button-shuffle option (the generating or loaded context). */
+bool OoT_SharedButtonOptionOn(void) {
+    const std::shared_ptr<Rando::Context> ctx = Rando::Context::GetInstance();
+    return ctx != nullptr && ctx->GetOption(RSK_SHUFFLE_OCARINA_BUTTONS).Get() != RO_GENERIC_OFF;
+}
+
+bool OoT_SharedButtonShuffleOn(void) {
+    return IS_RANDO && OoT_SharedButtonOptionOn();
+}
+
+/** POOLED (the bag, at generation): OoT's buttons are items of its pool only
+ *  under its own shuffle. Without it no pair is built, so a button can never be
+ *  hosted at an OoT check whose give HELD above would not see. */
+bool OoT_SharedButtonPooled(uint16_t nativeId) {
+    (void)nativeId;
+    return OoT_SharedButtonOptionOn();
+}
+
+bool OoT_SharedButtonHeld(uint16_t nativeId) {
+    const int flag = (int)OoT_SharedButtonFlag(nativeId);
+    return OoT_SharedButtonShuffleOn() && (gSaveContext.ship.randomizerInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+void OoT_SharedButtonGive(uint16_t nativeId) {
+    const int flag = (int)OoT_SharedButtonFlag(nativeId);
+    gSaveContext.ship.randomizerInf[flag >> 4] |= (u16)(1 << (flag & 0xF));
+}
+
+} // namespace
+
+/** Register OoT's copies of the Shared Ocarina Buttons families (#1067).
+ *  Idempotent; the static registrar below runs it at start-up, and the locks
+ *  re-run it after a row that cleared the registry. */
+extern "C" void OoT_RegisterSharedOcarinaButtonFamilies(void) {
+    static const struct {
+        uint32_t slot;
+        RandomizerGet button;
+    } kButtons[] = {
+        { RSBS_XITEM_SHARED_OCARINA_BUTTONS, RG_OCARINA_A_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_UP, RG_OCARINA_C_UP_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, RG_OCARINA_C_DOWN_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, RG_OCARINA_C_LEFT_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, RG_OCARINA_C_RIGHT_BUTTON },
+    };
+    for (const auto& b : kButtons) {
+        const ComboSharedFamilyMember member = { (uint16_t)b.button, OoT_SharedButtonHeld, OoT_SharedButtonGive,
+                                                 OoT_SharedButtonPooled };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, b.slot, &member);
+    }
+}
+
+namespace {
+struct OoTSharedOcarinaButtonRegistrar {
+    OoTSharedOcarinaButtonRegistrar() {
+        OoT_RegisterSharedOcarinaButtonFamilies();
+    }
+};
+const OoTSharedOcarinaButtonRegistrar gOoTSharedOcarinaButtonRegistrar;
+} // namespace
+
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
  * seed placed elsewhere? Then the pool may not hand it over.

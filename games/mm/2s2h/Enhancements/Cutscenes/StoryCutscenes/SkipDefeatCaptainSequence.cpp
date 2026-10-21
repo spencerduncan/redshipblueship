@@ -39,11 +39,17 @@ void SkipDefeatCaptainCutscene() {
 
 void RegisterSkipDefeatCaptainSequence() {
     COND_VB_SHOULD(VB_PLAY_DEFEAT_CAPTAIN_SEQUENCE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         *should = false;
         SkipDefeatCaptainTextbox();
     });
 
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         s16* csId = va_arg(args, s16*);
         if (MM_gPlayState->sceneId == SCENE_BOTI && *csId == 20) {
             *should = false;

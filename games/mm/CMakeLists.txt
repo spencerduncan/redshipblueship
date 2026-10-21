@@ -361,6 +361,85 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfHealing.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfSoaring.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfStorms.cpp"
+        # #1005-#1009: the Cheats rows the SoH menu draws (kSharedIntentKeys / kConvergedKeys):
+        # Infinite Health/Magic/Money(/Consumables), Climb Everything, Hookshot Everything,
+        # Moon Jump on L and Easy Frame Advancing. Each is CVar-gated, so a TU only arms when
+        # its row is on; the play-state guards landed with the carve-out.
+        "2s2h/Enhancements/Cheats/Infinite.cpp"
+        "2s2h/Enhancements/Cheats/ClimbAnywhere.cpp"
+        "2s2h/Enhancements/Cheats/HookshotAnywhere.cpp"
+        "2s2h/Enhancements/Cheats/MoonJump.cpp"
+        "2s2h/Enhancements/Cheats/EasyFrameAdvance.cpp"
+        # #1018-#1022: the Skips & Speed-ups rows the SoH menu draws. Every file keys on the converged
+        # gEnhancements.TimeSavers.* key SoH writes (kConvergedKeys), registers only through a file-scope
+        # RegisterShipInitFunc, and rides a VB/actor hook the single exe dispatches (z_demo.c, z_eventmgr.c,
+        # z_camera.c, the actor overlays). Play-state guards landed with the carve-out. The song-teacher
+        # SkipLearning* files above are #1071's; SkipLearningSongOfTime.cpp (excluded by the comment there) is
+        # carried here with the rest of the Story set, and SkipGiantsChamber.cpp stays linked through its own path.
+        # #1018
+        "2s2h/Enhancements/Cutscenes/HideTitleCards.cpp"
+        # #1019
+        "2s2h/Enhancements/Cutscenes/SkipIntroSequence.cpp"
+        # #1020
+        "2s2h/Enhancements/Cutscenes/SkipEntranceCutscenes.cpp"
+        # #1021
+        "2s2h/Enhancements/Cutscenes/SkipOnePointCutscenes.cpp"
+        # #1022: the Story set (the remaining StoryCutscenes TUs, HealingMikauAudio included)
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/HealingMikauAudio.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipBiggoronSnowheadLullaby.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipBombBagTheftCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipClockTowerOpen.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipClockTowerSkullKidEncounter.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipDefeatCaptainSequence.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipFirstSongOfTimeFlashbacks.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingDarmani.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingMikau.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipIkanaCurseCutscenes.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfTime.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipMilkRunCutscenes.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipMoonCrash.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipPrincessDelivery.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipRaisingWoodfall.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipStoppingMoonCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipWakingAndRidingTurtle.cpp"
+        # #1010-#1017: eight enhancement rows the SoH menu draws. Each keys on the converged
+        # gEnhancements.* key SoH's row writes (kConvergedKeys; DpadEquips for ItemUnequip's second
+        # half), registers only through a file-scope RegisterShipInitFunc, and rides a hook the single
+        # exe dispatches (VB_* via MM_GameHooks_ExecuteVBShould; OnInterfaceDrawStart, OnPlayerPostLimbDraw,
+        # OnActorUpdate, OnActorInit, OnGameStateMainStart via MM_GameHooks_Execute*). Play-state guards
+        # landed with the carve-out. Duplicate-symbol exposure measured: RegisterItemUnequip and
+        # RegisterPauseBufferInputs exist in games/oot too, and MM's copies are MM_-prefixed in the source;
+        # Interface_DrawEnemyHealthBar is a C symbol in OoT's z_parameter.c and a C++ one (Attention*) here.
+        # #1010
+        "2s2h/Enhancements/Timesavers/FastChests.cpp"
+        # #1011
+        "2s2h/Enhancements/Graphics/EnemyHealthBars.cpp"
+        # #1012
+        "2s2h/Enhancements/Graphics/BowReticle.cpp"
+        # #1013
+        "2s2h/Enhancements/Graphics/DisableBlackBars.cpp"
+        # #1014
+        "2s2h/Enhancements/Player/InstantPutaway.cpp"
+        # #1015
+        "2s2h/Enhancements/Equipment/ItemUnequip.cpp"
+        # #1016
+        "2s2h/Enhancements/Restorations/PauseBufferInputs.cpp"
+        # #1017
+        "2s2h/Enhancements/DifficultyOptions/HyperEnemies.cpp"
+        # #1024-#1026: the three Audio Editor rows the SoH menu draws (kSharedIntentKeys: gAudioEditor.LowHpAlarm,
+        # .EnemyBGMDisable, .SeqNameNotification and its Duration). Each registers only through a file-scope
+        # RegisterShipInitFunc, and rides a hook the single exe dispatches: VB_PLAY_LOW_HP_ALARM (z_lifemeter.c) and
+        # VB_PLAY_ENEMY_PROXIMITY_MUSIC (z_player.c) via MM_GameHooks_ExecuteVBShould, OnSeqPlayerInit (audio/lib/load.c)
+        # via MM_GameHooks_ExecuteOnSeqPlayerInit. None reads the play state unguarded (AudioHook null-checks
+        # MM_gPlayState). AudioHook's NotifySequenceName / RegisterAudioNotificationHooks exist in OoT too and are
+        # MM_-prefixed by include/mm_audio_prefix.h (pulled in through AudioCollection.h); the toast goes out through
+        # the MM_Notify_Emit bridge to OoT's overlay, and AudioCollection::Instance is created by GameExports_SingleExe.
+        # #1024
+        "2s2h/Enhancements/Audio/Sfx/MuteLowHpAlarm.cpp"
+        # #1025
+        "2s2h/Enhancements/Audio/Sfx/DisableEnemyProximityMusic.cpp"
+        # #1026
+        "2s2h/Enhancements/Audio/AudioHook.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 

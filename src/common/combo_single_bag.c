@@ -189,8 +189,8 @@ static int SingleBagObserve(void* ctx, const ComboLogicFillProgress* p) {
 
 /**
  * THE SHARED PAIR's families for this world (ABI 7, #976): every family the
- * FROZEN record arms whose two native copies are both registered
- * (shared_resources.h). The registration is the one the runtime family bitset
+ * FROZEN record arms whose two native copies are both registered and both
+ * pooled (shared_resources.h). The registration is the one the runtime family bitset
  * gives from, so the bag row and the item the far game receives are the same
  * pair by construction. With every rule off (the shipped default) this is empty
  * and the compose is exactly the one before shared pairs existed.
@@ -210,7 +210,14 @@ static int SingleBagSharedPairs(ComboLogicSharedPair* out, int cap) {
             // pair cannot be built, and the row stays each game's own item. Loud,
             // because only a build that registers half a family can reach it.
             fprintf(stderr, "[SingleBag] shared family %s is armed but not registered in both games; not paired\n",
-                    Combo_ComboItemRuleName(bit));
+                    Combo_SharedFamilySlotName(bit));
+            continue;
+        }
+        if (!Combo_SharedFamilyMemberPooled(GAME_OOT, bit) || !Combo_SharedFamilyMemberPooled(GAME_MM, bit)) {
+            // One game's own settings do not shuffle its copy (#1067: a game
+            // without the ocarina-button shuffle). A shared row may be hosted in
+            // either game, and that game could not hand the item on, so no pair:
+            // each pooled copy stays its own game's item.
             continue;
         }
         out[n].ootId = ootId;
@@ -218,6 +225,10 @@ static int SingleBagSharedPairs(ComboLogicSharedPair* out, int cap) {
         n++;
     }
     return n;
+}
+
+int Combo_SingleBag_SharedPairs(ComboLogicSharedPair* out, int cap) {
+    return (out == NULL || cap <= 0) ? 0 : SingleBagSharedPairs(out, cap);
 }
 
 static bool SingleBagOriginMayCross(uint8_t origin) {

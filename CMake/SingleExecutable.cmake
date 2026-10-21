@@ -672,7 +672,12 @@ if(BUILD_TESTING)
     # and the shared-family OR merge through both games' real shims. ROM-free.
     redship_add_test(NAME CrossItemRulesRecord COMMAND redship --test cross-item-rules-record)
     redship_add_test(NAME SharedFamilyMerge COMMAND redship --test shared-family-merge)
-    # #1065: the Shared Lens of Truth, the first family a player can turn on. Its
+    # #1068: the Shared Shields rule (OoTMM sharedShields) on that mechanism: the
+    # two pairs registered by both games and composed into one shared row each,
+    # and the arrival giving and wearing the shield in the other game. ROM-free.
+    redship_add_test(NAME SharedShieldsPairs COMMAND redship --test shared-shields-pairs)
+    redship_add_test(NAME SharedShieldsArrival COMMAND redship --test shared-shields-arrival)
+    # #1065: the Shared Lens of Truth, a family a player can turn on. Its
     # bit, its Cross-Game Rules key (off by default, 0 or 1), the creation freezing
     # it into the fingerprint, and a load restoring it into the key (CVar store,
     # display-free bring-up); then both games' real lens registered as the family
@@ -685,6 +690,11 @@ if(BUILD_TESTING)
     # carried by the real harvest/apply shims, each rule only its own song. ROM-free.
     redship_add_test(NAME SharedSongsRule COMMAND redship --test shared-songs-rule)
     redship_add_test(NAME SharedSongsMerge COMMAND redship --test shared-songs-merge)
+    # #1067: the Shared Ocarina Buttons rule (OoTMM sharedOcarinaButtons): five
+    # pairs behind one bit, registered by both games and composed into one shared
+    # row each, and a button found in one game owned in the other on arrival.
+    redship_add_test(NAME SharedOcarinaButtonsPairs COMMAND redship --test shared-ocarina-buttons-pairs)
+    redship_add_test(NAME SharedOcarinaButtonsArrival COMMAND redship --test shared-ocarina-buttons-arrival)
     # #968: Shared Fire, Ice and Light Arrows, three more families on the lens's
     # rows (#976 reserved their bits): the three keys (off by default, 0 or 1),
     # the freeze, the fingerprint and the load restore; then both games' arrows
