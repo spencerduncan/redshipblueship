@@ -1798,11 +1798,17 @@ of `reserved[]`, and the combo record's `formatVersion` stays 1.
   (`Combo_ComboSettingsUnrestorableBits`); a rule no key authors is still
   refused, as above. Both rules sit in one item-rule key table
   (`kItemRuleKeys`), so `RSBS_XITEM_ALL_V1` is 0x023FFFFF with both.
+  *2026-10-21 (#1066):* two more keys, `gCombo.Rando.SharedSongEpona` and
+  `gCombo.Rando.SharedSongStorms` ("[Both Games] Shared Epona's Song" and
+  "Shared Song of Storms", 0 or 1, default off), author
+  `RSBS_XITEM_SHARED_SONG_EPONA` (0x00400000) and
+  `RSBS_XITEM_SHARED_SONG_STORMS` (0x00800000) through the same table, making
+  `RSBS_XITEM_ALL_V1` 0x02FFFFFF.
 - **The family bitset.** `sharedFamilyOwned` holds one bit per SHARED family,
   at the family's own rule bit (`RSBS_XITEM_FAMILY_MASK` 0x022FF81F: the five
   shared masks, the six shared extensions, the three arrows and, since #1065
   and #1068, the Lens of Truth and the Hylian/Hero's Shield, whose members OoT
-  and MM register at static init). It merges by a
+  and MM register at static init; #1066's two songs make it 0x02EFF81F). It merges by a
   third discipline, OR (`shared_resources.h`): harvest `owned |= held & armed`,
   apply gives the arriving game its own copy of `owned & armed & ~held`. It is
   not a shared-resource slot: all twenty are allocated, and a slot's 16-bit

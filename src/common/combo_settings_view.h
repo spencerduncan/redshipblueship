@@ -112,6 +112,9 @@ typedef enum {
     // not of this record: Combo_ResolveComboItemRules assembles crossItemFlags
     // from the item-rule keys (Combo_ComboItemRulesAuthored). 0 or 1; default 0.
     COMBO_SETTING_SHARED_LENS, // gCombo.Rando.SharedLens -> itemRules.crossItemFlags & RSBS_XITEM_SHARED_LENS
+    // #1066. Two more item-rule bits, the lens's shape: 0 or 1, default 0 each.
+    COMBO_SETTING_SHARED_SONG_EPONA,  // gCombo.Rando.SharedSongEpona -> RSBS_XITEM_SHARED_SONG_EPONA
+    COMBO_SETTING_SHARED_SONG_STORMS, // gCombo.Rando.SharedSongStorms -> RSBS_XITEM_SHARED_SONG_STORMS
     // #1067, the same shape: gCombo.Rando.SharedOcarinaButtons -> rules.crossItemFlags & 0x01000000.
     COMBO_SETTING_SHARED_OCARINA_BUTTONS,
     // #970, the same shape: gCombo.Rando.SharedBottles -> rules.crossItemFlags & 0x00100000.

@@ -653,6 +653,9 @@ extern "C" {
 // rule, its key and restore (shared-lens-rule, needs the CVar store), the merge
 // through both games' real shims, and the shared bag row (shared-lens-bag, rando).
 #include "tests/test_shared_lens.c"
+// #1066: Shared Epona's Song and Shared Song of Storms, the lens's three rows
+// for two more families (shared-songs-rule, -merge, -bag).
+#include "tests/test_shared_songs.c"
 
 // The Shared Shields rule (#1068): both games register both shield pairs, the
 // bag makes each one shared row, and the arrival gives and wears the shield in
@@ -5626,6 +5629,20 @@ TestResult Test_SharedLensRule(void) {
     return SharedLensRule_Run();
 }
 
+// #1066: the shared songs' rule rows, the same bring-up as shared-lens-rule.
+TestResult Test_SharedSongsRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedSongsRule_Run();
+}
+
 // The combo settings pane's window (ADR 0011 increment 2). Same bring-up as
 // the Gui bridges above and for the same reason.
 TestResult Test_ComboSettingsWindow(void) {
@@ -5777,6 +5794,20 @@ TestResult Test_SharedLensBag(void) {
     static char* slbArgv[] = { slbArg0, nullptr };
     InitOTRForMMFirstBoot(1, slbArgv);
     return SharedLensBag_Run();
+}
+
+// #1066: the shared songs' bag rows over a real generation, shared-lens-bag's
+// bring-up.
+TestResult Test_SharedSongsBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char ssbArg0[] = "redship";
+    static char* ssbArgv[] = { ssbArg0, nullptr };
+    InitOTRForMMFirstBoot(1, ssbArgv);
+    return SharedSongsBag_Run();
 }
 
 // #755/#757's two rows (tests/test_combo_crossing_views.c). The synthetic row
@@ -6412,6 +6443,15 @@ const TestDescriptor gTests[] = {
       "Both games register their Lens of Truth as the shared family, and a lens found in either game is in the "
       "other's inventory at arrival through the real shims (#1065)",
       Test_SharedLensMerge },
+    // #1066: Shared Epona's Song and Shared Song of Storms on the same mechanism.
+    { "shared-songs-rule",
+      "Shared Epona's Song and Shared Song of Storms are two Cross-Game Rules, off by default, frozen at creation "
+      "into the fingerprint, and restored from the file at load (#1066)",
+      Test_SharedSongsRule },
+    { "shared-songs-merge",
+      "Both games register Epona's Song and the Song of Storms as shared families, and a song learnt in either game "
+      "is known in the other at arrival through the real shims (#1066)",
+      Test_SharedSongsMerge },
     // #1067: the Shared Ocarina Buttons rule on the same mechanism, five pairs
     // behind one bit. ROM-free, as the shields rows.
     { "shared-ocarina-buttons-pairs",
@@ -7078,6 +7118,10 @@ const TestDescriptor gTests[] = {
       "With the Shared Lens of Truth on, the single bag holds one lens row both solvers credit, placed once over "
       "both games, and the GOAL is still proven (#1065)",
       Test_SharedLensBag },
+    { "shared-songs-bag",
+      "With both shared-song rules on, the single bag holds one row per song both solvers credit, each placed once "
+      "over both games, and the GOAL is still proven (#1066)",
+      Test_SharedSongsBag },
     { "shared-quantity-policy",
       "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "
       "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
@@ -7377,6 +7421,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
+                strcmp(gTests[i].name, "shared-songs-bag") == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
                 strcmp(gTests[i].name, "combo-item-view-new-file") == 0 ||
                 strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||

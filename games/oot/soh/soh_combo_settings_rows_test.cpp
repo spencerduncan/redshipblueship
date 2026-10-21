@@ -351,6 +351,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_SHARED_SHIELDS, WIDGET_CHECKBOX, "" },
         // #1065: the Shared Lens of Truth, the sword's shape over an item rule.
         { COMBO_SETTING_SHARED_LENS, WIDGET_CHECKBOX, "" },
+        // #1066: the two shared songs, the lens's shape.
+        { COMBO_SETTING_SHARED_SONG_EPONA, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_SONG_STORMS, WIDGET_CHECKBOX, "" },
         // #1067's Shared Ocarina Buttons: the same shape.
         { COMBO_SETTING_SHARED_OCARINA_BUTTONS, WIDGET_CHECKBOX, "" },
         // #970's Shared Bottles: the same shape.
@@ -519,9 +522,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
     // fix removes. #1067's "Shared Ocarina Buttons" is a different rule (the
     // five ocarina buttons, not the instrument), so its name is not the retired
-    // row's: the match excludes it explicitly. The page's five checkboxes are
+    // row's: the match excludes it explicitly. The page's seven checkboxes are
     // #886's Shared Kokiri Sword, #1068's Shared Shields, #1065's Shared Lens of
-    // Truth, #1067's Shared Ocarina Buttons and #970's Shared Bottles.
+    // Truth, #1066's two shared songs, #1067's Shared Ocarina Buttons and #970's
+    // Shared Bottles.
     {
         int ocarinaRows = 0;
         int checkboxes = 0;
@@ -536,13 +540,14 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 5,
-                   "the Cross-Game Rules page has %d checkbox row(s); the five expected are the Shared Kokiri Sword "
-                   "(#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), the Shared Ocarina Buttons "
-                   "(#1067) and the Shared Bottles (#970), after #879 retired the Shared Ocarina",
+        ROWS_CHECK(checkboxes == 7,
+                   "the Cross-Game Rules page has %d checkbox row(s); the seven expected are the Shared Kokiri Sword "
+                   "(#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song and "
+                   "Shared Song of Storms (#1066), the Shared Ocarina Buttons (#1067) and the Shared Bottles (#970), "
+                   "after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 5 "
-               "(#879, #886, #1068, #1065, #1067, #970)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 7 "
+               "(#879, #886, #1068, #1065, #1066, #1067, #970)\n",
                ocarinaRows, checkboxes);
     }
 
@@ -927,6 +932,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_EPONA, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");

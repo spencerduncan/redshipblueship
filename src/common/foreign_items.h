@@ -451,6 +451,13 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 // #1065: the Lens of Truth (OoTMM sharedLens), a shared-pair family: OoT's
 // RG_LENS_OF_TRUTH and MM's RI_LENS, each registered by its game.
 #define RSBS_XITEM_SHARED_LENS 0x00200000u
+// #1066: Epona's Song and the Song of Storms (OoTMM sharedSongEpona,
+// sharedSongStorms), two shared-pair families: OoT's RG_EPONAS_SONG and
+// RG_SONG_OF_STORMS, MM's RI_SONG_EPONA and RI_SONG_STORMS, each registered by
+// its game. A song is its quest bit in both games (the ocarina's playable set is
+// built from the quest bits alone), so the shared grant teaches it.
+#define RSBS_XITEM_SHARED_SONG_EPONA 0x00400000u
+#define RSBS_XITEM_SHARED_SONG_STORMS 0x00800000u
 // #1067: shared ocarina buttons (OoTMM sharedOcarinaButtons). ONE rule over FIVE
 // pairs, one per button: the A buttons (the family at this bit) and the four C
 // buttons (the families at RSBS_XFAMILY_SLOT_OCARINA_C_* below).
@@ -480,8 +487,9 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 
 /** Every RSBS_XITEM_* bit ALLOCATED by this build. A frozen record holding any
  *  other bit was written by a later build (Combo_ComboItemRulesValid). */
-#define RSBS_XITEM_ALL_V1 \
-    (0x001FFFFFu | RSBS_XITEM_SHARED_LENS | RSBS_XITEM_SHARED_OCARINA_BUTTONS | RSBS_XITEM_SHARED_SHIELDS)
+#define RSBS_XITEM_ALL_V1                                                                                  \
+    (0x001FFFFFu | RSBS_XITEM_SHARED_LENS | RSBS_XITEM_SHARED_SONG_EPONA | RSBS_XITEM_SHARED_SONG_STORMS | \
+     RSBS_XITEM_SHARED_OCARINA_BUTTONS | RSBS_XITEM_SHARED_SHIELDS)
 
 /** The bits that are SHARED-PAIR FAMILIES: the bit is both the rule and the
  *  family's bit in gComboCtx.sharedFamilyOwned. */
@@ -490,7 +498,8 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
      RSBS_XITEM_SHARED_TRUTH | RSBS_XITEM_SHARED_BLAST | RSBS_XITEM_SHARED_STONE | RSBS_XITEM_SHARED_KAMARO |       \
      RSBS_XITEM_SHARED_GERUDO | RSBS_XITEM_SHARED_SKULL | RSBS_XITEM_SHARED_SPOOKY | RSBS_XITEM_SHARED_ARROW_FIRE | \
      RSBS_XITEM_SHARED_ARROW_ICE | RSBS_XITEM_SHARED_ARROW_LIGHT | RSBS_XITEM_SHARED_LENS |                         \
-     RSBS_XITEM_SHARED_OCARINA_BUTTONS | RSBS_XITEM_SHARED_SHIELDS)
+     RSBS_XITEM_SHARED_SONG_EPONA | RSBS_XITEM_SHARED_SONG_STORMS | RSBS_XITEM_SHARED_OCARINA_BUTTONS |             \
+     RSBS_XITEM_SHARED_SHIELDS)
 
 /** The FAMILY SLOTS that are not family rule bits: a rule with more than one
  *  pair (#1068's two shields, #1067's five buttons) owns its first pair at its
@@ -526,8 +535,9 @@ RSBS_CTX_STATIC_ASSERT(
         RSBS_XITEM_SPOOKY_MASK_MM == 0x400u && RSBS_XITEM_SHARED_BLAST == 0x800u &&
         RSBS_XITEM_SHARED_SPOOKY == 0x10000u && RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u &&
         RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u && RSBS_XITEM_SHARED_BOTTLES == 0x100000u &&
-        RSBS_XITEM_SHARED_LENS == 0x200000u && RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u &&
-        RSBS_XITEM_SHARED_SHIELDS == 0x02000000u && RSBS_XITEM_ALL_V1 == 0x033FFFFFu &&
+        RSBS_XITEM_SHARED_LENS == 0x200000u && RSBS_XITEM_SHARED_SONG_EPONA == 0x400000u &&
+        RSBS_XITEM_SHARED_SONG_STORMS == 0x800000u && RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u &&
+        RSBS_XITEM_SHARED_SHIELDS == 0x02000000u && RSBS_XITEM_ALL_V1 == 0x03FFFFFFu &&
         (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u && (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u &&
         RSBS_XFAMILY_SLOT_MIRROR_SHIELD == 0x80000000u && (RSBS_XITEM_ALL_V1 & RSBS_XFAMILY_SLOT_MIRROR_SHIELD) == 0u &&
         RSBS_XFAMILY_SLOT_OCARINA_C_UP == 0x20u && RSBS_XFAMILY_SLOT_OCARINA_C_DOWN == 0x40u &&
@@ -538,7 +548,7 @@ RSBS_CTX_STATIC_ASSERT(
            RSBS_XITEM_GERUDO_MASK_MM | RSBS_XITEM_SKULL_MASK_MM | RSBS_XITEM_SPOOKY_MASK_MM)) == 0u,
     "RSBS_XITEM_* bit positions and the extra family slots are .redsave format: pinned, append-only, allocate the "
     "next free bit and never re-point an allocated one; an extra slot is bit 31 or an extension rule's bit, never a "
-    "family's (ADR 0011's 2026-10-18 amendment, #976, #1065, #1067, #1068)");
+    "family's (ADR 0011's 2026-10-18 amendment, #976, #1065, #1066, #1067, #1068)");
 RSBS_CTX_STATIC_ASSERT(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_INSTANT == 1u &&
                            RSBS_BLAST_COOLDOWN_VERY_LONG == 5u,
                        "RSBS_BLAST_COOLDOWN_* values are .redsave format: pinned, append-only, and DEFAULT stays 0 "

@@ -45,6 +45,8 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, "Shared Kokiri Sword" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS, "Shared Shields" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_LENS, "Shared Lens of Truth" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_EPONA, "Shared Epona's Song" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_STORMS, "Shared Song of Storms" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS, "Shared Ocarina Buttons" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES, "Shared Bottles" },
 };
@@ -64,6 +66,8 @@ struct ItemRuleKey {
 const ItemRuleKey kItemRuleKeys[] = {
     { COMBO_SETTING_SHARED_SHIELDS, RSBS_XITEM_SHARED_SHIELDS },                 // #1068
     { COMBO_SETTING_SHARED_LENS, RSBS_XITEM_SHARED_LENS },                       // #1065
+    { COMBO_SETTING_SHARED_SONG_EPONA, RSBS_XITEM_SHARED_SONG_EPONA },           // #1066
+    { COMBO_SETTING_SHARED_SONG_STORMS, RSBS_XITEM_SHARED_SONG_STORMS },         // #1066
     { COMBO_SETTING_SHARED_OCARINA_BUTTONS, RSBS_XITEM_SHARED_OCARINA_BUTTONS }, // #1067
     { COMBO_SETTING_SHARED_BOTTLES, RSBS_XITEM_SHARED_BOTTLES },                 // #970
 };
@@ -107,9 +111,11 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             return (defaults.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         case COMBO_SETTING_SHARED_SHIELDS:
         case COMBO_SETTING_SHARED_LENS:
+        case COMBO_SETTING_SHARED_SONG_EPONA:  // #1066
+        case COMBO_SETTING_SHARED_SONG_STORMS: // #1066
         case COMBO_SETTING_SHARED_OCARINA_BUTTONS:
         case COMBO_SETTING_SHARED_BOTTLES: {
-            // A bit of the item rules' defaults (#1068, #1065, #1067, #970), the same
+            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #970), the same
             // one-definition rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rulesDefaults;
             Combo_ComboItemRulesDefaults(&rulesDefaults);
@@ -140,6 +146,8 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
         case COMBO_SETTING_SHARED_SHIELDS:         // #1068: one crossItemFlags bit, the same rule
         case COMBO_SETTING_SHARED_LENS:            // #1065: likewise
+        case COMBO_SETTING_SHARED_SONG_EPONA:      // #1066, the same
+        case COMBO_SETTING_SHARED_SONG_STORMS:     // #1066, the same
         case COMBO_SETTING_SHARED_OCARINA_BUTTONS: // #1067: likewise
         case COMBO_SETTING_SHARED_BOTTLES:         // #970: likewise
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
