@@ -104,6 +104,7 @@ static int32_t comboRuleDirection;
 static int32_t comboRuleGoal;              // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
 static bool comboRuleSharedKokiriSword;    // #886: ComboSettingsRecord.comboFlags' shared-sword bit
 static bool comboRuleSharedShields;        // #1068: ComboItemRulesRecord.crossItemFlags' shared-shields bit
+static bool comboRuleSharedLens;           // #1065: the item rules' RSBS_XITEM_SHARED_LENS bit
 static bool comboRuleSharedOcarinaButtons; // #1067: ComboItemRulesRecord.crossItemFlags' shared-buttons bit
 static bool comboRuleSharedBottles;        // #970: ComboItemRulesRecord.crossItemFlags' shared-bottles bit
 
@@ -582,6 +583,23 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "Shields one item: finding one in either game gives it to you in the other. In Majora's Mask the Mirror "
             "Shield replaces the Hero's Shield. Shops still sell their own game's shield. The Deku Shield stays "
             "Ocarina of Time's own."));
+    // The Shared Lens of Truth (#1065; OoTMM sharedLens, off by default), the
+    // first rule of the cross-game item rules record (#976). The sword row's
+    // pattern, except that the frozen value is a bit of the item rules, read
+    // through the frozen-rule accessor rather than ComboRuleShownRecord.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_LENS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedLens)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedLens = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_LENS)
+                                          : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_LENS) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback(
+            [](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, comboRuleSharedLens ? 1 : 0); })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Lens of Truth one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Lens of Truth is shuffled, and both games' logic counts it."));
 
     // The Shared Ocarina Buttons (#1067; OoTMM's sharedOcarinaButtons, default
     // off). The Shared Shields row's pattern exactly.

@@ -2062,11 +2062,13 @@ void Session::BuildPageList() {
                 // (frozen-slider hovered a pool-size slider until #801 retired both.)
                 // kokiri-sword: #886's Shared Kokiri Sword checkbox and its tooltip.
                 // shields: #1068's Shared Shields checkbox and its tooltip.
+                // lens: #1065's Shared Lens of Truth checkbox and its tooltip, by
+                // its row name (marker and label) in the first state.
                 // ocarina-buttons: #1067's Shared Ocarina Buttons checkbox and its tooltip.
                 // bottles: #970's Shared Bottles checkbox and its tooltip.
-                p.hovers = {
-                    "direction", "goal", "kokiri-sword", "shields", "ocarina-buttons", "bottles", "frozen-goal"
-                };
+                p.hovers = { "direction",       "goal",    "kokiri-sword", "shields", "lens",
+                             "ocarina-buttons", "bottles", "frozen-goal" };
+                p.hoverRows["lens"] = std::string(Combo_ComboSettingSharedMarker()) + " Shared Lens of Truth";
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.

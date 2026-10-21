@@ -189,6 +189,8 @@ const char* Combo_ComboItemRuleName(uint32_t bit) {
             return "sharedLightArrows";
         case RSBS_XITEM_SHARED_BOTTLES:
             return "sharedBottles";
+        case RSBS_XITEM_SHARED_LENS:
+            return "sharedLens";
         case RSBS_XITEM_SHARED_OCARINA_BUTTONS:
             return "sharedOcarinaButtons";
         case RSBS_XITEM_SHARED_SHIELDS:
@@ -229,26 +231,27 @@ bool Combo_ComboItemRulesValid(const ComboItemRulesRecord* rec) {
 }
 
 void Combo_ResolveComboItemRules(ComboItemRulesRecord* out) {
+    // THE ONE RESOLVER (Combo_ResolveComboSettings' discipline): creation and
+    // every compare read the rules here and nowhere else. crossItemFlags is
+    // ASSEMBLED from the rule keys (Combo_ComboItemRulesAuthored: each key's
+    // resolved 0/1, an out-of-space value already resolved to its default off),
+    // never overlaid from a stored bitset, so a bit no key authors is never on.
+    // The cooldown and the spares keep their defaults: nothing authors them yet.
+    // With no key set this is the shipped defaults byte for byte, so every world
+    // whose player leaves the rules alone keeps its fingerprint.
     if (out == NULL) {
         return;
     }
-    // THE SHIPPED DEFAULTS, OVERLAID WITH THE AUTHORED RULES: the one resolver
-    // creation and every compare read (Combo_ResolveComboSettings' discipline).
-    // crossItemFlags is ASSEMBLED from its rule keys, never overlaid, as
-    // comboFlags is: each key authors one bit, so every bit without a key stays
-    // 0 whatever a store holds. Combo_ComboSettingResolved validates each value
-    // against its 0/1 space and resolves anything else to the default with a
-    // logged reason, so the assembled record is always valid. With every key
-    // unset this is the defaults, byte for byte.
     Combo_ComboItemRulesDefaults(out);
-    if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SHIELDS) != 0) {
-        out->crossItemFlags |= (uint32_t)RSBS_XITEM_SHARED_SHIELDS; // #1068
-    }
-    if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_OCARINA_BUTTONS) != 0) {
-        out->crossItemFlags |= (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS; // #1067
-    }
-    if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_BOTTLES) != 0) {
-        out->crossItemFlags |= (uint32_t)RSBS_XITEM_SHARED_BOTTLES; // #970
+    out->crossItemFlags = Combo_ComboItemRulesAuthored() & (uint32_t)RSBS_XITEM_ALL_V1;
+    if (!Combo_ComboItemRulesValid(out)) {
+        // Unreachable while every keyed rule is a plain shared rule; a keyed
+        // shared extension authored without its extension would land here.
+        fprintf(stderr,
+                "[Combo] cross-game item rules %08X are not a world this build can create; resolving to every "
+                "rule off\n",
+                (unsigned)out->crossItemFlags);
+        Combo_ComboItemRulesDefaults(out);
     }
 }
 

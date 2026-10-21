@@ -1742,8 +1742,9 @@ of `reserved[]`, and the combo record's `formatVersion` stays 1.
   `_SPOOKY_MASK_MM` 0x400; the shared extensions `RSBS_XITEM_SHARED_BLAST`
   0x800 through `_SPOOKY` 0x10000, each requiring its extension bit; #968's
   `_SHARED_ARROW_FIRE` 0x20000, `_ICE` 0x40000, `_LIGHT` 0x80000; #970's
-  `_SHARED_BOTTLES` 0x100000 (reserved, not a family). `RSBS_XITEM_ALL_V1` is
-  0x1FFFFF; bit 31 is never allocated. The cooldown is
+  `_SHARED_BOTTLES` 0x100000 (reserved, not a family); #1065's
+  `_SHARED_LENS` 0x200000 (2026-10-21, a family). `RSBS_XITEM_ALL_V1` is
+  0x3FFFFF (0x1FFFFF before #1065); bit 31 is never allocated. The cooldown is
   `RSBS_BLAST_COOLDOWN_DEFAULT` 0 (MM's own), `_INSTANT` 1, `_VERY_SHORT` 2,
   `_SHORT` 3, `_LONG` 4, `_VERY_LONG` 5.
 - **Zero is every rule off**, which is today's world and what every pre-carve
@@ -1785,9 +1786,23 @@ of `reserved[]`, and the combo record's `formatVersion` stays 1.
   not quarantined** (a session divergence no key can restore). Playing it with
   the rule silently off would be the corruption one-game semantics forbids.
   When the keys land, they join `Combo_ComboSettingsRestorableMask`.
+  *2026-10-21 (#1068, #1065):* the keys landed, #1068's Shared Shields first
+  (its own section below), then `gCombo.Rando.SharedLens`
+  (`COMBO_SETTING_SHARED_LENS`, the "[Both Games] Shared Lens of Truth" row,
+  0 or 1, default off) authors `RSBS_XITEM_SHARED_LENS`, and
+  `Combo_ResolveComboItemRules` assembles `crossItemFlags` from the item-rule
+  keys and nothing else (`Combo_ComboItemRulesAuthored`). A `crossItemFlags`
+  divergence is restored at load from the file
+  (`Combo_ComboSettingsRestoreLive` with the file's item rules) when every
+  `crossItemFlags` bit that differs from the session has a key
+  (`Combo_ComboSettingsUnrestorableBits`); a rule no key authors is still
+  refused, as above. Both rules sit in one item-rule key table
+  (`kItemRuleKeys`), so `RSBS_XITEM_ALL_V1` is 0x023FFFFF with both.
 - **The family bitset.** `sharedFamilyOwned` holds one bit per SHARED family,
-  at the family's own rule bit (`RSBS_XITEM_FAMILY_MASK` 0x000FF81F: the five
-  shared masks, the six shared extensions, the three arrows). It merges by a
+  at the family's own rule bit (`RSBS_XITEM_FAMILY_MASK` 0x022FF81F: the five
+  shared masks, the six shared extensions, the three arrows and, since #1065
+  and #1068, the Lens of Truth and the Hylian/Hero's Shield, whose members OoT
+  and MM register at static init). It merges by a
   third discipline, OR (`shared_resources.h`): harvest `owned |= held & armed`,
   apply gives the arriving game its own copy of `owned & armed & ~held`. It is
   not a shared-resource slot: all twenty are allocated, and a slot's 16-bit

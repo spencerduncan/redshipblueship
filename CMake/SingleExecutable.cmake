@@ -684,6 +684,13 @@ if(BUILD_TESTING)
     # and the arrival giving and wearing the shield in the other game. ROM-free.
     redship_add_test(NAME SharedShieldsPairs COMMAND redship --test shared-shields-pairs)
     redship_add_test(NAME SharedShieldsArrival COMMAND redship --test shared-shields-arrival)
+    # #1065: the Shared Lens of Truth, a family a player can turn on. Its
+    # bit, its Cross-Game Rules key (off by default, 0 or 1), the creation freezing
+    # it into the fingerprint, and a load restoring it into the key (CVar store,
+    # display-free bring-up); then both games' real lens registered as the family
+    # and carried by the real harvest/apply shims. ROM-free.
+    redship_add_test(NAME SharedLensRule COMMAND redship --test shared-lens-rule)
+    redship_add_test(NAME SharedLensMerge COMMAND redship --test shared-lens-merge)
     # #1067: the Shared Ocarina Buttons rule (OoTMM sharedOcarinaButtons): five
     # pairs behind one bit, registered by both games and composed into one shared
     # row each, and a button found in one game owned in the other on arrival.
@@ -2475,6 +2482,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # with removal in BOTH directions, the direction gate (OFF crosses nothing and
     # still proves), and OoT's remainder. rando tier: it needs a real generation.
     redship_add_test(NAME ComboSingleBag COMMAND redship --test combo-single-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1065: the Shared Lens of Truth's ONE bag row over a real paired generation:
+    # the composer pairs the two games' lenses, the coordinator places one copy
+    # both solvers credit, MM's world holds no second lens, and the GOAL is proven.
+    redship_add_test(NAME SharedLensBag COMMAND redship --test shared-lens-bag
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
