@@ -267,7 +267,9 @@ const char* ForeignArticleForCheck(RandoCheckId randoCheckId);
 
 /** Give-path core: record the check's foreign item into the shared structure
  *  (durable immediately; de-duped by the A1 producer). Returns true if a
- *  foreign item was recorded. The CheckQueue lambda calls this and layers the
+ *  foreign item was recorded, or (#1061) a counted pack (an OoT bombchu pack)
+ *  was credited to the shared pool instead of crossing (MM_CreditSharedPickup,
+ *  shared_resources.h). The CheckQueue lambda calls this and layers the
  *  generic presentation on top; the ROM-free unit test drives it directly.
  *
  *  Returns false — authoring NOTHING — when the check hosts no foreign item OR

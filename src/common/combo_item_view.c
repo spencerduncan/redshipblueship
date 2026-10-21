@@ -133,10 +133,20 @@ uint8_t Combo_ItemFreshness(uint8_t game) {
     return freshness;
 }
 
+/** The rows `src` shows: the adapter's per-save count when it has one (#1072), never below count(). */
+static int ItemRowCount(const ComboItemOps* ops, const void* src) {
+    const int base = ops->count();
+    if (ops->countFor == NULL) {
+        return base;
+    }
+    const int rows = ops->countFor(src);
+    return (rows > base) ? rows : base;
+}
+
 int Combo_ItemCount(uint8_t game) {
     const ComboItemOps* ops = NULL;
     const void* src = PickSource(game, &ops, NULL);
-    return (src != NULL) ? ops->count() : 0;
+    return (src != NULL) ? ItemRowCount(ops, src) : 0;
 }
 
 bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
@@ -146,7 +156,7 @@ bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
     const ComboItemOps* ops = NULL;
     uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
     const void* src = PickSource(game, &ops, &freshness);
-    if (src == NULL || index >= ops->count()) {
+    if (src == NULL || index >= ItemRowCount(ops, src)) {
         return false;
     }
     ComboItemRow row;
