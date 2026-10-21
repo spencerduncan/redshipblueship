@@ -626,8 +626,9 @@ main() {
         # in the source, so the OoT copy cannot satisfy the probe. EnemyHealthBars registers through a lambda,
         # so it is gated by the one function it exports; the parameter list separates it from OoT's C
         # Interface_DrawEnemyHealthBar. The archive gate above covers the same files by member.
+        # The symbol is matched as a basic regex, so the pointer star is escaped (an unescaped * is a quantifier).
         "RegisterFastChests()"
-        "GetActorMaxHealth(Actor*)"
+        "GetActorMaxHealth(Actor\*)"
         "RegisterBowReticle()"
         "RegisterDisableBlackBars()"
         "RegisterInstantPutaway()"
