@@ -187,17 +187,23 @@ void Interface_DrawEnemyHealthBar(Attention* attention, PlayState* play) {
 
 static RegisterShipInitFunc initFunc(
     []() {
-        // Register actor extension health data and actor init hook once
-        S2H::GameHooks::Register<GameInteractor::OnActorInit>([](Actor* actor) {
-            u8 maxHealth = actor->colChkInfo.health;
+        // Register actor extension health data and actor init hook once. This init func runs again on
+        // every toggle of the row, and a bare Register would stack one more OnActorInit hook per toggle
+        // (#1011: the TU is in the single-exe link now, 2ship_enh_registrars).
+        static bool sActorInitHookRegistered = false;
+        if (!sActorInitHookRegistered) {
+            sActorInitHookRegistered = true;
+            S2H::GameHooks::Register<GameInteractor::OnActorInit>([](Actor* actor) {
+                u8 maxHealth = actor->colChkInfo.health;
 
-            // The remains in the Majora fight get their health set after init for the first time fighting,
-            // so we set the expected value now
-            if (actor->id == ACTOR_BOSS_07 && actor->params >= MAJORA_TYPE_REMAINS) {
-                maxHealth = 5;
-            }
-            MM_SetActorMaximumHealth(actor, maxHealth);
-        });
+                // The remains in the Majora fight get their health set after init for the first time fighting,
+                // so we set the expected value now
+                if (actor->id == ACTOR_BOSS_07 && actor->params >= MAJORA_TYPE_REMAINS) {
+                    maxHealth = 5;
+                }
+                MM_SetActorMaximumHealth(actor, maxHealth);
+            });
+        }
 
         COND_HOOK(OnInterfaceDrawStart, CVAR, []() {
             if (MM_gPlayState != NULL) {
