@@ -4323,14 +4323,14 @@ extern "C" void MM_GameHooks_ExecuteOnBossDefeated(s16 actorId) {
  * effect on MM frames as unverified. Re-measured: the body is
  * Camera_ShouldInterpolateDist (camera math over six function-local statics)
  * feeding MM_FrameInterpolation_ShouldInterpolateFrame, whose entire effect is
- * one bool gating MM's OWN matrix recorder. The consumer of that recording,
- * MM_FrameInterpolation_Interpolate, has exactly one caller in the tree --
- * 2s2h/BenPort.cpp -- and BenPort is excluded from the single-exe link, so MM's
- * recording is never replayed and the bool cannot reach a rendered frame. The
- * gate therefore stays upstream-faithful: diverging from a vendored 2S2H
- * registration to CVar-gate a body that can only make MM skip a recording
- * nothing reads would buy nothing and cost an upstream-sync landmine. Restoring
- * MM's replay path is the change that has to re-measure this row.
+ * one bool gating MM's OWN matrix recorder. Re-measured when #965 restored MM's
+ * replay path (the shared Graph_ProcessGfxCommands in soh/OTRGlobals.cpp now
+ * calls MM_FrameInterpolation_Interpolate on MM frames): the bool now reaches a
+ * rendered frame, and what it does there is upstream's own behaviour -- after a
+ * camera move too large to interpolate, MM records nothing for that frame, so
+ * the frames across the cut are drawn without in-between sub-frames instead of
+ * sweeping the camera through it. That is the effect upstream 2S2H ships with the same
+ * unconditional registration, so the gate stays upstream-faithful.
  *
  * LEGS mirror each excluded twin minus ForFilter. OnPlayerPostLimbDraw keys its
  * id leg on limbIndex, which is what PersistentMasks (PLAYER_LIMB_HEAD),
