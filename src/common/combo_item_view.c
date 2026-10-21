@@ -13,6 +13,7 @@
 #include "combo_item_view.h"
 
 #include "context.h"          // Context_GetCurrentGame, Context_Get{OoT,MM}SaveContext
+#include "foreign_items.h"    // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: the shared families the Shared group draws
 #include "shared_resources.h" // Combo_GetSharedResource, Combo_SharedResourceKindArmed
 
 #include <stdio.h>
@@ -133,10 +134,65 @@ uint8_t Combo_ItemFreshness(uint8_t game) {
     return freshness;
 }
 
+/** The rows `src` shows: the adapter's per-save count when it has one (#1072), never below count(). */
+static int ItemRowCount(const ComboItemOps* ops, const void* src) {
+    const int base = ops->count();
+    if (ops->countFor == NULL) {
+        return base;
+    }
+    const int rows = ops->countFor(src);
+    return (rows > base) ? rows : base;
+}
+
+/**
+ * The shared families the Shared group draws instead of the games' own rows
+ * (#1067): every family slot the frozen rules arm, while the Shared group is
+ * shown at all. Before the pool's first harvest there is no Shared group, so
+ * each game keeps its own row and the item is never drawn nowhere.
+ */
+static uint32_t SharedFamiliesDrawnShared(void) {
+    return (Combo_ItemSharedFreshness() != COMBO_TRACKER_FRESH_UNAVAILABLE) ? Combo_SharedFamiliesArmed() : 0u;
+}
+
+/** Is adapter row `index` of `src` a game's own copy of a family in `drawnShared`? */
+static bool RowLeftOut(const ComboItemOps* ops, const void* src, int index, uint32_t drawnShared) {
+    ComboItemRow row;
+    memset(&row, 0, sizeof(row));
+    return ops->rowAt(src, index, &row) && (row.sharedFamily & drawnShared) != 0u;
+}
+
+/** The adapter index of the `index`-th row the view shows for `src`, or -1. */
+static int AdapterIndexOf(const ComboItemOps* ops, const void* src, int index) {
+    const int n = ItemRowCount(ops, src);
+    const uint32_t drawnShared = SharedFamiliesDrawnShared();
+    if (drawnShared == 0u) {
+        return (index < n) ? index : -1; // every rule off: the adapter's rows exactly
+    }
+    int seen = 0;
+    for (int i = 0; i < n; i++) {
+        if (!RowLeftOut(ops, src, i, drawnShared) && seen++ == index) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int Combo_ItemCount(uint8_t game) {
     const ComboItemOps* ops = NULL;
     const void* src = PickSource(game, &ops, NULL);
-    return (src != NULL) ? ops->count() : 0;
+    if (src == NULL) {
+        return 0;
+    }
+    const int n = ItemRowCount(ops, src);
+    const uint32_t drawnShared = SharedFamiliesDrawnShared();
+    if (drawnShared == 0u) {
+        return n;
+    }
+    int shown = 0;
+    for (int i = 0; i < n; i++) {
+        shown += RowLeftOut(ops, src, i, drawnShared) ? 0 : 1;
+    }
+    return shown;
 }
 
 bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
@@ -146,12 +202,15 @@ bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
     const ComboItemOps* ops = NULL;
     uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
     const void* src = PickSource(game, &ops, &freshness);
-    if (src == NULL || index >= ops->count()) {
+    // `index` counts the rows Combo_ItemCount counts: a family the Shared group
+    // draws is walked past.
+    const int adapterIndex = (src != NULL) ? AdapterIndexOf(ops, src, index) : -1;
+    if (adapterIndex < 0) {
         return false;
     }
     ComboItemRow row;
     memset(&row, 0, sizeof(row));
-    if (!ops->rowAt(src, index, &row) || row.group == NULL || row.name == NULL) {
+    if (!ops->rowAt(src, adapterIndex, &row) || row.group == NULL || row.name == NULL) {
         return false; // an adapter must not hand out a row the drawer cannot label
     }
     row.freshness = freshness; // the view's call, never the adapter's
@@ -278,10 +337,25 @@ const char* Combo_ItemSharedLabel(void) {
     return "";
 }
 
-int Combo_ItemSharedCount(void) {
-    if (Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE) {
-        return 0; // "nothing shared yet", not a row of zeroes
-    }
+// ---- the shared families (#976's OR discipline; #1067 on) -------------------
+
+/** One shared family the Shared group can draw, after the resource rows. Its
+ *  icon is the icon game's own row for it (the adapter row whose sharedFamily
+ *  is this slot), so no adapter grows a second icon table. */
+typedef struct {
+    uint32_t family; // the family slot (an RSBS_XITEM_* family bit or an RSBS_XFAMILY_SLOT_*)
+    const char* name;
+} SharedFamilyRowDef;
+
+static const SharedFamilyRowDef kSharedFamilyRows[] = {
+    // #1067: the five ocarina buttons, in MM's tracker order.
+    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, "A Button" },       { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, "C Down Button" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, "C Right Button" }, { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, "C Left Button" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_UP, "C Up Button" },
+};
+#define SHARED_FAMILY_ROW_DEF_COUNT ((int)(sizeof(kSharedFamilyRows) / sizeof(kSharedFamilyRows[0])))
+
+static int SharedResourceRowCount(void) {
     int n = 0;
     for (int i = 0; i < SHARED_ROW_DEF_COUNT; i++) {
         if (SharedRowShown(&kSharedRows[i])) {
@@ -289,6 +363,91 @@ int Combo_ItemSharedCount(void) {
         }
     }
     return n;
+}
+
+/** `game`'s own row for `family`, read from the source the view picks for it
+ *  (live or shadow). False when the game has no data or no such row. */
+static bool FamilyRowOf(uint8_t game, uint32_t family, ComboItemRow* out) {
+    const ComboItemOps* ops = NULL;
+    const void* src = PickSource(game, &ops, NULL);
+    if (src == NULL) {
+        return false;
+    }
+    const int n = ItemRowCount(ops, src);
+    for (int i = 0; i < n; i++) {
+        memset(out, 0, sizeof(*out));
+        if (ops->rowAt(src, i, out) && (out->sharedFamily & family) != 0u) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** Is family row `def` drawn? Its slot is armed and at least one game has a row
+ *  for it (a button has rows only in a game that shuffles it: with a row in
+ *  neither game there is nothing to show, not a missing button). */
+static bool SharedFamilyRowShown(const SharedFamilyRowDef* def) {
+    if ((Combo_SharedFamiliesArmed() & def->family) == 0u) {
+        return false;
+    }
+    ComboItemRow own;
+    return FamilyRowOf((uint8_t)GAME_OOT, def->family, &own) || FamilyRowOf((uint8_t)GAME_MM, def->family, &own);
+}
+
+/** The `index`-th family row shown, or NULL. */
+static const SharedFamilyRowDef* SharedFamilyDefAt(int index) {
+    int seen = 0;
+    for (int i = 0; i < SHARED_FAMILY_ROW_DEF_COUNT; i++) {
+        if (SharedFamilyRowShown(&kSharedFamilyRows[i]) && seen++ == index) {
+            return &kSharedFamilyRows[i];
+        }
+    }
+    return NULL;
+}
+
+int Combo_ItemSharedCount(void) {
+    if (Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE) {
+        return 0; // "nothing shared yet", not a row of zeroes
+    }
+    int n = SharedResourceRowCount();
+    if (Combo_SharedFamiliesArmed() != 0u) {
+        for (int i = 0; i < SHARED_FAMILY_ROW_DEF_COUNT; i++) {
+            n += SharedFamilyRowShown(&kSharedFamilyRows[i]) ? 1 : 0;
+        }
+    }
+    return n;
+}
+
+/** Fill `out` with family row `familyIndex`: held when the pool holds it or
+ *  either game's own copy does (the pool only advances at a crossing or a save,
+ *  so a button found this stint lights at once); its icon is `iconGame`'s own
+ *  row's, and the row is text when that game has none. */
+static bool SharedFamilyRowAt(int familyIndex, uint8_t iconGame, ComboItemRow* out) {
+    const SharedFamilyRowDef* def = SharedFamilyDefAt(familyIndex);
+    if (def == NULL) {
+        return false;
+    }
+    bool have = (Combo_SharedFamiliesOwned() & def->family) != 0u;
+    ComboItemRow own;
+    for (uint8_t g = (uint8_t)GAME_OOT; g <= (uint8_t)GAME_MM; g++) {
+        if (FamilyRowOf(g, def->family, &own) && own.have) {
+            have = true;
+        }
+    }
+    memset(out, 0, sizeof(*out));
+    if (FamilyRowOf(iconGame, def->family, &own)) {
+        out->iconKey = own.iconKey;
+        out->iconKeyFaded = own.iconKeyFaded;
+        out->iconAspect = own.iconAspect;
+        out->fadedAlpha = own.fadedAlpha;
+        out->iconTint = own.iconTint;
+    }
+    out->group = COMBO_ITEM_SHARED_GROUP;
+    out->name = def->name;
+    out->have = have;
+    out->sharedFamily = def->family;
+    out->freshness = COMBO_TRACKER_FRESH_STALE;
+    return true;
 }
 
 bool Combo_ItemSharedRowAt(int index, ComboItemRow* out) {
@@ -303,7 +462,8 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
     }
     const SharedRowDef* def = SharedDefAt(index);
     if (def == NULL) {
-        return false;
+        // Past the resource rows: the shared families the frozen rules arm.
+        return SharedFamilyRowAt(index - SharedResourceRowCount(), iconGame, out);
     }
     memset(out, 0, sizeof(*out));
     out->group = COMBO_ITEM_SHARED_GROUP;

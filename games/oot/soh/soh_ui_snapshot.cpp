@@ -2062,7 +2062,8 @@ void Session::BuildPageList() {
                 // (frozen-slider hovered a pool-size slider until #801 retired both.)
                 // kokiri-sword: #886's Shared Kokiri Sword checkbox and its tooltip.
                 // shields: #1068's Shared Shields checkbox and its tooltip.
-                p.hovers = { "direction", "goal", "kokiri-sword", "shields", "frozen-goal" };
+                // ocarina-buttons: #1067's Shared Ocarina Buttons checkbox and its tooltip.
+                p.hovers = { "direction", "goal", "kokiri-sword", "shields", "ocarina-buttons", "frozen-goal" };
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
@@ -3416,10 +3417,11 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             if (byName) {
                 label = namedRow->second;
             } else {
-                ComboSettingId targetId = (hv == "direction")      ? COMBO_SETTING_DIRECTION
-                                          : (hv == "kokiri-sword") ? COMBO_SETTING_SHARED_KOKIRI_SWORD
-                                          : (hv == "shields")      ? COMBO_SETTING_SHARED_SHIELDS
-                                                                   : COMBO_SETTING_GOAL;
+                ComboSettingId targetId = (hv == "direction")         ? COMBO_SETTING_DIRECTION
+                                          : (hv == "kokiri-sword")    ? COMBO_SETTING_SHARED_KOKIRI_SWORD
+                                          : (hv == "shields")         ? COMBO_SETTING_SHARED_SHIELDS
+                                          : (hv == "ocarina-buttons") ? COMBO_SETTING_SHARED_OCARINA_BUTTONS
+                                                                      : COMBO_SETTING_GOAL;
                 label = Combo_ComboSettingLabel(targetId);
             }
             WidgetInfo* row = FindRow(*menu, p.header, p.sidebar, [&](const WidgetInfo& w) {

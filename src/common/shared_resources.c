@@ -442,6 +442,15 @@ bool Combo_SharedFamilyMemberId(GameId game, uint32_t familyBit, uint16_t* outId
     return true;
 }
 
+bool Combo_SharedFamilyMemberPooled(GameId game, uint32_t familyBit) {
+    const int b = FamilyIndex(familyBit);
+    if (!IsRealGame(game) || b < 0 || !sFamilyMemberSet[game][b]) {
+        return false;
+    }
+    const ComboSharedFamilyMember* m = &sFamilyMembers[game][b];
+    return m->pooled == NULL || m->pooled(m->nativeId);
+}
+
 void Combo_ClearSharedFamilyMembers(void) {
     memset(sFamilyMembers, 0, sizeof(sFamilyMembers));
     memset(sFamilyMemberSet, 0, sizeof(sFamilyMemberSet));
@@ -454,12 +463,32 @@ uint32_t Combo_SharedFamilySlotsArmedBy(uint32_t crossItemFlags) {
     if ((crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_SHIELDS) != 0u) {
         slots |= (uint32_t)RSBS_XFAMILY_SLOT_MIRROR_SHIELD;
     }
+    // #1067: the shared ocarina buttons' four C-button pairs.
+    if ((crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u) {
+        slots |= (uint32_t)(RSBS_XFAMILY_SLOT_OCARINA_C_UP | RSBS_XFAMILY_SLOT_OCARINA_C_DOWN |
+                            RSBS_XFAMILY_SLOT_OCARINA_C_LEFT | RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT);
+    }
     return slots;
 }
 
 const char* Combo_SharedFamilySlotName(uint32_t slot) {
     if (slot == (uint32_t)RSBS_XFAMILY_SLOT_MIRROR_SHIELD) {
         return "sharedShields (Mirror Shield)";
+    }
+    // An extra slot at an extension rule's bit names its pair, not that rule.
+    switch (slot) {
+        case RSBS_XFAMILY_SLOT_OCARINA_C_UP:
+            return "sharedOcarinaButtons (C-Up)";
+        case RSBS_XFAMILY_SLOT_OCARINA_C_DOWN:
+            return "sharedOcarinaButtons (C-Down)";
+        case RSBS_XFAMILY_SLOT_OCARINA_C_LEFT:
+            return "sharedOcarinaButtons (C-Left)";
+        case RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT:
+            return "sharedOcarinaButtons (C-Right)";
+        case RSBS_XITEM_SHARED_OCARINA_BUTTONS:
+            return "sharedOcarinaButtons (A)";
+        default:
+            break;
     }
     return Combo_ComboItemRuleName(slot);
 }

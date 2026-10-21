@@ -444,6 +444,10 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 #define RSBS_XITEM_SHARED_ARROW_LIGHT 0x00080000u
 // #970: shared bottles (OoTMM sharedBottles). Reserved; not a family yet.
 #define RSBS_XITEM_SHARED_BOTTLES 0x00100000u
+// #1067: shared ocarina buttons (OoTMM sharedOcarinaButtons). ONE rule over FIVE
+// pairs, one per button: the A buttons (the family at this bit) and the four C
+// buttons (the families at RSBS_XFAMILY_SLOT_OCARINA_C_* below).
+#define RSBS_XITEM_SHARED_OCARINA_BUTTONS 0x01000000u
 // #1068: shared shields (OoTMM sharedShields). ONE rule over TWO pairs: OoT's
 // Hylian Shield with MM's Hero's Shield (the family at this bit), and the two
 // Mirror Shields (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD below).
@@ -455,9 +459,21 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
  *  Armed exactly when RSBS_XITEM_SHARED_SHIELDS is (Combo_SharedFamiliesArmed). */
 #define RSBS_XFAMILY_SLOT_MIRROR_SHIELD 0x80000000u
 
+/** The FAMILY SLOTS of the shared-ocarina-buttons rule's four C-button pairs
+ *  (#1067). Each is the sharedFamilyOwned bit of an EXTENSION rule
+ *  (RSBS_XITEM_BLAST_MASK_OOT .. RSBS_XITEM_GERUDO_MASK_MM): an extension is
+ *  pinned as NOT a family (its family is its RSBS_XITEM_SHARED_* bit), so its bit
+ *  of the ownership bitset can never be anything else's, and five pairs cost one
+ *  rule bit instead of five. Armed exactly when RSBS_XITEM_SHARED_OCARINA_BUTTONS
+ *  is (Combo_SharedFamiliesArmed). */
+#define RSBS_XFAMILY_SLOT_OCARINA_C_UP 0x00000020u
+#define RSBS_XFAMILY_SLOT_OCARINA_C_DOWN 0x00000040u
+#define RSBS_XFAMILY_SLOT_OCARINA_C_LEFT 0x00000080u
+#define RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT 0x00000100u
+
 /** Every RSBS_XITEM_* bit ALLOCATED by this build. A frozen record holding any
  *  other bit was written by a later build (Combo_ComboItemRulesValid). */
-#define RSBS_XITEM_ALL_V1 (0x001FFFFFu | RSBS_XITEM_SHARED_SHIELDS)
+#define RSBS_XITEM_ALL_V1 (0x001FFFFFu | RSBS_XITEM_SHARED_OCARINA_BUTTONS | RSBS_XITEM_SHARED_SHIELDS)
 
 /** The bits that are SHARED-PAIR FAMILIES: the bit is both the rule and the
  *  family's bit in gComboCtx.sharedFamilyOwned. */
@@ -465,13 +481,18 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
     (RSBS_XITEM_SHARED_GORON | RSBS_XITEM_SHARED_ZORA | RSBS_XITEM_SHARED_BUNNY | RSBS_XITEM_SHARED_KEATON |        \
      RSBS_XITEM_SHARED_TRUTH | RSBS_XITEM_SHARED_BLAST | RSBS_XITEM_SHARED_STONE | RSBS_XITEM_SHARED_KAMARO |       \
      RSBS_XITEM_SHARED_GERUDO | RSBS_XITEM_SHARED_SKULL | RSBS_XITEM_SHARED_SPOOKY | RSBS_XITEM_SHARED_ARROW_FIRE | \
-     RSBS_XITEM_SHARED_ARROW_ICE | RSBS_XITEM_SHARED_ARROW_LIGHT | RSBS_XITEM_SHARED_SHIELDS)
+     RSBS_XITEM_SHARED_ARROW_ICE | RSBS_XITEM_SHARED_ARROW_LIGHT | RSBS_XITEM_SHARED_OCARINA_BUTTONS |              \
+     RSBS_XITEM_SHARED_SHIELDS)
 
-/** The FAMILY SLOTS that are not rule bits: a rule with more than one pair
- *  (#1068's two shields) owns its first pair at its own bit and each further
- *  pair at one of these. Pinned, append-only, .redsave format (bits of
- *  gComboCtx.sharedFamilyOwned); never an RSBS_XITEM_ALL_V1 bit. */
-#define RSBS_XFAMILY_SLOTS_EXTRA RSBS_XFAMILY_SLOT_MIRROR_SHIELD
+/** The FAMILY SLOTS that are not family rule bits: a rule with more than one
+ *  pair (#1068's two shields, #1067's five buttons) owns its first pair at its
+ *  own bit and each further pair at one of these. Pinned, append-only,
+ *  .redsave format (bits of gComboCtx.sharedFamilyOwned); never an
+ *  RSBS_XITEM_FAMILY_MASK bit: either a bit no rule occupies (bit 31) or the
+ *  bit of an EXTENSION rule, which is pinned as never a family. */
+#define RSBS_XFAMILY_SLOTS_EXTRA                                                                           \
+    (RSBS_XFAMILY_SLOT_MIRROR_SHIELD | RSBS_XFAMILY_SLOT_OCARINA_C_UP | RSBS_XFAMILY_SLOT_OCARINA_C_DOWN | \
+     RSBS_XFAMILY_SLOT_OCARINA_C_LEFT | RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT)
 /** Every family slot: a family rule's own bit or an extra slot. */
 #define RSBS_XFAMILY_SLOTS_ALL (RSBS_XITEM_FAMILY_MASK | RSBS_XFAMILY_SLOTS_EXTRA)
 
@@ -497,11 +518,18 @@ RSBS_CTX_STATIC_ASSERT(
         RSBS_XITEM_SPOOKY_MASK_MM == 0x400u && RSBS_XITEM_SHARED_BLAST == 0x800u &&
         RSBS_XITEM_SHARED_SPOOKY == 0x10000u && RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u &&
         RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u && RSBS_XITEM_SHARED_BOTTLES == 0x100000u &&
-        RSBS_XITEM_SHARED_SHIELDS == 0x02000000u && RSBS_XITEM_ALL_V1 == 0x021FFFFFu &&
-        (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u && (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u &&
-        RSBS_XFAMILY_SLOT_MIRROR_SHIELD == 0x80000000u && (RSBS_XFAMILY_SLOTS_EXTRA & RSBS_XITEM_ALL_V1) == 0u,
+        RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u && RSBS_XITEM_SHARED_SHIELDS == 0x02000000u &&
+        RSBS_XITEM_ALL_V1 == 0x031FFFFFu && (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u &&
+        (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u && RSBS_XFAMILY_SLOT_MIRROR_SHIELD == 0x80000000u &&
+        (RSBS_XITEM_ALL_V1 & RSBS_XFAMILY_SLOT_MIRROR_SHIELD) == 0u && RSBS_XFAMILY_SLOT_OCARINA_C_UP == 0x20u &&
+        RSBS_XFAMILY_SLOT_OCARINA_C_DOWN == 0x40u && RSBS_XFAMILY_SLOT_OCARINA_C_LEFT == 0x80u &&
+        RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT == 0x100u && (RSBS_XFAMILY_SLOTS_EXTRA & RSBS_XITEM_FAMILY_MASK) == 0u &&
+        ((RSBS_XFAMILY_SLOTS_EXTRA & ~RSBS_XFAMILY_SLOT_MIRROR_SHIELD) &
+         ~(RSBS_XITEM_BLAST_MASK_OOT | RSBS_XITEM_STONE_MASK_OOT | RSBS_XITEM_KAMARO_MASK_OOT |
+           RSBS_XITEM_GERUDO_MASK_MM | RSBS_XITEM_SKULL_MASK_MM | RSBS_XITEM_SPOOKY_MASK_MM)) == 0u,
     "RSBS_XITEM_* bit positions and the extra family slots are .redsave format: pinned, append-only, allocate the "
-    "next free bit and never re-point an allocated one (ADR 0011's 2026-10-18 amendment, #976, #1068)");
+    "next free bit and never re-point an allocated one; an extra slot is bit 31 or an extension rule's bit, never a "
+    "family's (ADR 0011's 2026-10-18 amendment, #976, #1067, #1068)");
 RSBS_CTX_STATIC_ASSERT(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_INSTANT == 1u &&
                            RSBS_BLAST_COOLDOWN_VERY_LONG == 5u,
                        "RSBS_BLAST_COOLDOWN_* values are .redsave format: pinned, append-only, and DEFAULT stays 0 "

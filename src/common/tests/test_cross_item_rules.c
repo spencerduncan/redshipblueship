@@ -178,17 +178,55 @@ TestResult Test_CrossItemRulesRecord(void) {
                   RSBS_XITEM_BLAST_MASK_OOT == 0x20u && RSBS_XITEM_SPOOKY_MASK_MM == 0x400u &&
                   RSBS_XITEM_SHARED_BLAST == 0x800u && RSBS_XITEM_SHARED_SPOOKY == 0x10000u &&
                   RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u && RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u &&
-                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_SHARED_SHIELDS == 0x02000000u,
+                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u &&
+                  RSBS_XITEM_SHARED_SHIELDS == 0x02000000u,
               "an RSBS_XITEM_* bit moved; they are .redsave format, append-only");
-    // #1068 allocates the Shared Shields bit: ALLOCATED (a record holding it is
-    // valid and the bit has a name) and a FAMILY (the Hylian/Hero's pair).
-    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x021FFFFFu,
-              "RSBS_XITEM_ALL_V1 is %08X, expected 021FFFFF (#976's 21 bits and #1068's Shared Shields)",
+    // #1068 allocates the Shared Shields bit and #1067 the Shared Ocarina Buttons
+    // bit: each ALLOCATED (a record holding it is valid and the bit has a name)
+    // and a FAMILY (the Hylian/Hero's pair; the A buttons).
+    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x031FFFFFu,
+              "RSBS_XITEM_ALL_V1 is %08X, expected 031FFFFF (#976's 21 bits, #1067's Shared Ocarina Buttons and "
+              "#1068's Shared Shields)",
               (unsigned)RSBS_XITEM_ALL_V1);
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x020FF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 020FF81F (the five shared masks, the six shared extensions, "
-              "the three arrows and the shared shields; not the extensions, not the bottles)",
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x030FF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 030FF81F (the five shared masks, the six shared extensions, "
+              "the three arrows, the shared ocarina buttons and the shared shields; not the extensions, not the "
+              "bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
+    {
+        // #1067: ONE rule bit over five pairs. The four C-button pairs own extra
+        // family slots at the EXTENSION rules' bits (never families), so the
+        // rule bit is the only crossItemFlags bit the rule spends.
+        ComboItemRulesRecord buttons;
+        memset(&buttons, 0, sizeof(buttons));
+        buttons.crossItemFlags = RSBS_XITEM_SHARED_OCARINA_BUTTONS;
+        XIR_CHECK(Combo_ComboItemRulesValid(&buttons) &&
+                      strcmp(Combo_ComboItemRuleName(RSBS_XITEM_SHARED_OCARINA_BUTTONS), "sharedOcarinaButtons") == 0,
+                  "a record with only the Shared Ocarina Buttons rule must be valid and the rule named "
+                  "sharedOcarinaButtons (#1067); this build would refuse its own world");
+        const uint32_t cSlots = RSBS_XFAMILY_SLOT_OCARINA_C_UP | RSBS_XFAMILY_SLOT_OCARINA_C_DOWN |
+                                RSBS_XFAMILY_SLOT_OCARINA_C_LEFT | RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT;
+        XIR_CHECK(cSlots == 0x000001E0u && (RSBS_XFAMILY_SLOTS_EXTRA & cSlots) == cSlots &&
+                      (RSBS_XITEM_FAMILY_MASK & cSlots) == 0u,
+                  "the four C-button family slots are not the extension rules' bits 0x1E0, or not extra slots, or a "
+                  "family rule's (extra slots %08X)",
+                  (unsigned)RSBS_XFAMILY_SLOTS_EXTRA);
+        XIR_CHECK(Combo_SharedFamilySlotsArmedBy(RSBS_XITEM_SHARED_OCARINA_BUTTONS) ==
+                          (RSBS_XITEM_SHARED_OCARINA_BUTTONS | cSlots) &&
+                      Combo_SharedFamilySlotsArmedBy(RSBS_XITEM_BLAST_MASK_OOT | RSBS_XITEM_STONE_MASK_OOT |
+                                                     RSBS_XITEM_KAMARO_MASK_OOT | RSBS_XITEM_GERUDO_MASK_MM) == 0u,
+                  "the Shared Ocarina Buttons rule must arm its own bit and the four C slots, and the extension rules "
+                  "whose bits the slots reuse must arm nothing (armed %08X)",
+                  (unsigned)Combo_SharedFamilySlotsArmedBy(RSBS_XITEM_SHARED_OCARINA_BUTTONS));
+        // The fingerprint: an all-clear world keeps its identity, the rule moves it.
+        ComboItemRulesRecord clear;
+        Combo_ComboItemRulesDefaults(&clear);
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        const uint32_t hClear = Combo_ComputeComboSettingsHashEx(&rec, &clear, 0x1067u, 0x1067u);
+        const uint32_t hOn = Combo_ComputeComboSettingsHashEx(&rec, &buttons, 0x1067u, 0x1067u);
+        XIR_CHECK(hClear != hOn, "the Shared Ocarina Buttons rule did not move the fingerprint (%08X)", (unsigned)hOn);
+    }
     {
         ComboItemRulesRecord shields;
         memset(&shields, 0, sizeof(shields));

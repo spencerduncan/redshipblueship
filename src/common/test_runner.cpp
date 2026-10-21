@@ -636,6 +636,11 @@ extern "C" {
 // the other game. FILE SCOPE for the same reason as its neighbours.
 #include "tests/test_shared_shields.c"
 
+// The Shared Ocarina Buttons rule (#1067): both games register all five button
+// pairs, the bag makes each one shared row, and a button found in one game is
+// owned in the other on arrival. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_ocarina_buttons.c"
+
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
 // so the code under test does not exist. The `#include "tests/..."` text is
@@ -6284,6 +6289,16 @@ const TestDescriptor gTests[] = {
       "With the Shared Shields rule on, a shield found in one game is given and worn in the other on arrival; off, "
       "nothing crosses (#1068)",
       Test_SharedShieldsArrival },
+    // #1067: the Shared Ocarina Buttons rule on the same mechanism, five pairs
+    // behind one bit. ROM-free, as the shields rows.
+    { "shared-ocarina-buttons-pairs",
+      "The Shared Ocarina Buttons rule arms the five button families both games register, and the bag makes each one "
+      "row both solvers credit (#1067)",
+      Test_SharedOcarinaButtonsPairs },
+    { "shared-ocarina-buttons-arrival",
+      "With the Shared Ocarina Buttons rule on, a button found in one game is owned in the other on arrival; a game "
+      "whose own shuffle is off shares nothing; off, nothing crosses (#1067)",
+      Test_SharedOcarinaButtonsArrival },
     { "combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
       Test_ComboSpoilerView },
     { "combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",

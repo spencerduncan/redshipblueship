@@ -33,7 +33,10 @@
  * THE SHARED GROUP. The shared-resource pool (shared_resources.h) is a third
  * source, origin-neutral by construction: rupees, hearts, magic, ammo and the
  * rest are one quantity across both games. It is harvested at every game switch
- * and before every save, so its rows are STALE, never live.
+ * and before every save, so its rows are STALE, never live. It also draws each
+ * SHARED FAMILY the frozen rules arm (#976, #1067: the ocarina buttons) once,
+ * held when the pool or either game's own copy holds it, and the games' own rows
+ * for that family are then left out of their sections.
  *
  * FRESHNESS IS A FIELD. Every row carries the freshness the view set for its
  * source; the adapter never sets it.
@@ -77,6 +80,12 @@ typedef struct {
     uint8_t countAccent; // ComboItemCountAccent: the tone of the ceiling, and of the amount once it is full
     int iconNumber;      // 0: count (and max) as usual; > 0: this number alone (a wallet's capacity, as
                          // both native trackers print it); < 0: no number (the icon itself shows the tier)
+    // The shared-family slot (foreign_items.h: an RSBS_XITEM_* family bit or an
+    // RSBS_XFAMILY_SLOT_*) this row is the game's own copy of, set by the
+    // adapter; 0 for every other row. While the frozen rules arm that slot the
+    // view draws it ONCE, in the Shared group, and leaves this game's row out
+    // (#1067's ocarina buttons the first).
+    uint32_t sharedFamily;
 } ComboItemRow;
 
 /** The tone SoH's DrawItemCount gives a row's ceiling and its full amount (#458 U3). */
@@ -116,7 +125,9 @@ extern const ComboItemGridStyle kComboItemSohGrid;
  * called on the game thread.
  */
 typedef struct ComboItemOps {
-    // Number of rows; fixed for the adapter's lifetime.
+    // Number of rows that are always there; fixed for the adapter's lifetime.
+    // Rows a save adds on top (see countFor) come after these, so an index below
+    // this answers for every save.
     int (*count)(void);
     // Fill row `index` from `src` (a SaveContext image of this game) and nothing
     // else: never the global save. Leaves `out->freshness` alone. False when
@@ -144,6 +155,12 @@ typedef struct ComboItemOps {
     // be NULL, and may leave the keys NULL for a kind the game has no icon for:
     // the row is then text.
     void (*sharedIcon)(uint8_t kind, uint16_t tier, ComboItemRow* row);
+    // The rows THIS save shows (#1072): count() plus the rows a save's frozen
+    // options switch on (MM's ocarina buttons, shown only when the file shuffles
+    // them). Never below count(); indices count()..countFor()-1 are valid for
+    // that `src` and contiguous, so a drawer that stops at the first refused row
+    // sees them all. May be NULL: count() is then the answer for every save.
+    int (*countFor)(const void* src);
 } ComboItemOps;
 
 /**

@@ -71,6 +71,7 @@
 #include "../ComboTrackerWindow.h" // Combo_TrackerWindow_Init: the production registration
 #include "../combo_item_view.h"
 #include "../context.h"
+#include "../foreign_items.h" // RSBS_XITEM_SHARED_OCARINA_BUTTONS: the #1067 leg
 #include "../game.h"
 #include "../save.h" // rsbs::SaveManager, SlotMeta: the new-file row's slot-panel leg (#873)
 #include "../shared_resources.h"
@@ -87,6 +88,11 @@
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 // The MM-side twin (games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp), #458 U1b.
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
+// #1072: the variant-0 MM save with the file's frozen ocarina-button shuffle
+// option and the held button bits set (mode 0 off, 1 on in a randomizer file,
+// 2 on in a file that is not a randomizer file; heldMask bit i = the i-th
+// button of A, C-Down, C-Right, C-Left, C-Up).
+extern "C" int MM_ItemAdapter_TestAuthorOcarinaButtons(void* buf, size_t size, int mode, unsigned heldMask);
 // #873, the combo-item-view-new-file row: a save Ship of Harkinian's own init
 // path authors, copied into `buf`. Variant 0 is the player's new file
 // (Save_InitFile(false)), 1 the title screen's attract save, 2 that debug save
@@ -456,6 +462,108 @@ static int CivMMLegs(const ComboItemOps* ops, const ComboItemOps* ootOps) {
     return TEST_PASS;
 }
 
+/**
+ * #1072: MM's five shuffled ocarina buttons are rows of MM's section, shown only
+ * when the FILE's frozen RO_SHUFFLE_OCARINA_BUTTONS is on in a randomizer file,
+ * and held from the save's own button bits (the bits the VB_PLAY_OCARINA_NOTE
+ * gate reads, Player.cpp). Without the rows a player whose C-up is still
+ * missing sees a Sonata or a Song of Soaring that will not play and nothing
+ * that says why. The option is never read from the live CVar: it arrives in
+ * the buffer the view hands over.
+ */
+static int CivMMOcarinaButtonLegs(const ComboItemOps* ops) {
+    static const char* const kButtons[5] = { "A Button", "C Down Button", "C Right Button", "C Left Button",
+                                             "C Up Button" };
+    ComboItemRow row;
+    std::vector<uint8_t> buf((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+
+    Context_SetCurrentGame(GAME_OOT); // MM inactive: its shadow is what the view reads
+    const int baseRows = ops->count();
+
+    // Option on, every button but C-up held: five rows, C-up alone unowned.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 1, 0x0Fu) == 1);
+    CIV_ASSERT(ops->hasSave(buf.data()));
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, kButtons[i], &row));
+        printf("[TEST] combo-item-view: MM button row %s have=%d group=%s\n", kButtons[i], (int)row.have, row.group);
+        CIV_ASSERT(strcmp(row.group, "Ocarina Buttons") == 0);
+        CIV_ASSERT(row.have == (i != 4));
+        CIV_ASSERT(row.iconKey != NULL && row.iconKeyFaded != NULL); // MM's own icon
+    }
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == baseRows + 5);
+    for (int i = 0; i < Combo_ItemCount((uint8_t)GAME_MM); i++) {
+        CIV_ASSERT(Combo_ItemRowAt((uint8_t)GAME_MM, i, &row)); // contiguous: no hole the drawer stops at
+    }
+    CIV_ASSERT(!Combo_ItemRowAt((uint8_t)GAME_MM, baseRows + 5, &row));
+
+    // The same file once C-up is found: all five held.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 1, 0x1Fu) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "C Up Button", &row) && row.have);
+
+    // Nothing held yet: five unowned rows, still shown.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 1, 0u) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, kButtons[i], &row) && !row.have);
+    }
+
+    // The frozen option off: no button row, however many bits are set.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 0, 0x0Fu) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, kButtons[i], &row));
+    }
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == baseRows);
+
+    // The option byte alone is not the gate: a file that is not a randomizer
+    // file never ran the note gate, so it shows no buttons.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 2, 0x0Fu) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, kButtons[i], &row));
+    }
+
+    // #1067: under the frozen Shared Ocarina Buttons rule the five buttons are
+    // ONE set for the pair: drawn once, in the Shared group (held from MM's own
+    // bits or the pool), and left out of MM's section.
+    {
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = 0x1067F00Du;
+        gComboCtx.sharedRandoSettingsHash = 0x1067CA5Eu;
+        gComboCtx.mmProfileDigest = 0x1067D16Eu;
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        ComboItemRulesRecord rules;
+        memset(&rules, 0, sizeof(rules));
+        rules.crossItemFlags = (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS;
+        Combo_FreezeComboSettingsEx(&rec, &rules);
+        Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 1); // a Shared group to draw in
+        CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 1, 0x0Fu) == 1);
+        Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+        CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == baseRows);
+        for (int i = 0; i < 5; i++) {
+            CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, kButtons[i], &row)); // not in MM's section
+            CIV_ASSERT(CivFindSharedRow(kButtons[i], &row));
+            printf("[TEST] combo-item-view: shared button row %s have=%d\n", kButtons[i], (int)row.have);
+            CIV_ASSERT(strcmp(row.group, COMBO_ITEM_SHARED_GROUP) == 0);
+            CIV_ASSERT(row.have == (i != 4));
+        }
+        for (int i = 0; i < Combo_ItemCount((uint8_t)GAME_MM); i++) {
+            CIV_ASSERT(Combo_ItemRowAt((uint8_t)GAME_MM, i, &row)); // contiguous after the walk-past
+        }
+        // The pool lights a button MM's own save does not hold yet (found in Hyrule).
+        Combo_SharedFamiliesHarvest(GAME_OOT, (uint32_t)RSBS_XFAMILY_SLOT_OCARINA_C_UP);
+        CIV_ASSERT(CivFindSharedRow("C Up Button", &row) && row.have);
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+    }
+    return TEST_PASS;
+}
+
 /** Leg 5: the Shared group, over a freshly initialized context. */
 static int CivSharedLegs(void) {
     ComboContext_Init();
@@ -627,6 +735,12 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
         }
         printf("[TEST] combo-item-view: MM adapter registered with %d curated rows\n", mmOps->count());
         if (CivMMLegs(mmOps, ops) != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 2 for MM's ocarina buttons (#1072) --------------------------------
+        if (CivMMOcarinaButtonLegs(mmOps) != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }

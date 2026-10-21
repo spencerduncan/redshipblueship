@@ -189,6 +189,8 @@ const char* Combo_ComboItemRuleName(uint32_t bit) {
             return "sharedLightArrows";
         case RSBS_XITEM_SHARED_BOTTLES:
             return "sharedBottles";
+        case RSBS_XITEM_SHARED_OCARINA_BUTTONS:
+            return "sharedOcarinaButtons";
         case RSBS_XITEM_SHARED_SHIELDS:
             return "sharedShields";
         default:
@@ -241,6 +243,9 @@ void Combo_ResolveComboItemRules(ComboItemRulesRecord* out) {
     Combo_ComboItemRulesDefaults(out);
     if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SHIELDS) != 0) {
         out->crossItemFlags |= (uint32_t)RSBS_XITEM_SHARED_SHIELDS; // #1068
+    }
+    if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_OCARINA_BUTTONS) != 0) {
+        out->crossItemFlags |= (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS; // #1067
     }
 }
 

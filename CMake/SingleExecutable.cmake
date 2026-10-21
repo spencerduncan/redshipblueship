@@ -678,6 +678,11 @@ if(BUILD_TESTING)
     # and the arrival giving and wearing the shield in the other game. ROM-free.
     redship_add_test(NAME SharedShieldsPairs COMMAND redship --test shared-shields-pairs)
     redship_add_test(NAME SharedShieldsArrival COMMAND redship --test shared-shields-arrival)
+    # #1067: the Shared Ocarina Buttons rule (OoTMM sharedOcarinaButtons): five
+    # pairs behind one bit, registered by both games and composed into one shared
+    # row each, and a button found in one game owned in the other on arrival.
+    redship_add_test(NAME SharedOcarinaButtonsPairs COMMAND redship --test shared-ocarina-buttons-pairs)
+    redship_add_test(NAME SharedOcarinaButtonsArrival COMMAND redship --test shared-ocarina-buttons-arrival)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an

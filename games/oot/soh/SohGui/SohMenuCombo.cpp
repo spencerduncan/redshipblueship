@@ -101,9 +101,10 @@ using namespace UIWidgets;
 // PreFunc overwrites the buffer with the model's value again — so the rows can
 // never disagree with the record about what this world's rules are.
 static int32_t comboRuleDirection;
-static int32_t comboRuleGoal;           // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
-static bool comboRuleSharedKokiriSword; // #886: ComboSettingsRecord.comboFlags' shared-sword bit
-static bool comboRuleSharedShields;     // #1068: ComboItemRulesRecord.crossItemFlags' shared-shields bit
+static int32_t comboRuleGoal;              // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
+static bool comboRuleSharedKokiriSword;    // #886: ComboSettingsRecord.comboFlags' shared-sword bit
+static bool comboRuleSharedShields;        // #1068: ComboItemRulesRecord.crossItemFlags' shared-shields bit
+static bool comboRuleSharedOcarinaButtons; // #1067: ComboItemRulesRecord.crossItemFlags' shared-buttons bit
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -580,6 +581,25 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "Shields one item: finding one in either game gives it to you in the other. In Majora's Mask the Mirror "
             "Shield replaces the Hero's Shield. Shops still sell their own game's shield. The Deku Shield stays "
             "Ocarina of Time's own."));
+
+    // The Shared Ocarina Buttons (#1067; OoTMM's sharedOcarinaButtons, default
+    // off). The Shared Shields row's pattern exactly.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_OCARINA_BUTTONS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedOcarinaButtons)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleSharedOcarinaButtons = (shown.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, comboRuleSharedOcarinaButtons ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes each ocarina button one item across both games: finding the A or a C button in either game gives "
+            "it to you in the other. It only matters when both games shuffle their ocarina buttons. A game that does "
+            "not shuffle them already has all five, so there is nothing to share there. The ocarina itself stays each "
+            "game's own."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.
