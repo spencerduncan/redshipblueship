@@ -535,6 +535,17 @@ bool ShouldShowGetItemCutscene(RandoItemId itemId) {
     }
 }
 
+int SkipGetItemCutsceneTier() {
+    return CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0);
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+int SkipGetItemCutsceneTierFromSoh(int sohSkipGetItemAnimation) {
+    (void)sohSkipGetItemAnimation;
+    return 0;
+}
+#endif
+
 std::string GetItemName(RandoItemId randoItemId, bool includeArticle) {
     std::string result;
 
@@ -555,3 +566,60 @@ std::string GetItemName(RandoItemId randoItemId, bool includeArticle) {
 } // namespace StaticData
 
 } // namespace Rando
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ROM-free test bridges (redship tier; src/common/tests/test_mm_get_item_presentation.c, #1060).
+
+/** The MM tier SoH's "Skip Get Item Animations" value maps onto. */
+extern "C" int MM_Rando_GetItemPresentation_TestTierFromSoh(int sohSkipGetItemAnimation) {
+    return Rando::StaticData::SkipGetItemCutsceneTierFromSoh(sohSkipGetItemAnimation);
+}
+
+/** The tier every MM reader consumes, from the live CVar store. */
+extern "C" int MM_Rando_GetItemPresentation_TestTier(void) {
+    return Rando::StaticData::SkipGetItemCutsceneTier();
+}
+
+/** Does `sample` play the full get-item presentation? 1 yes, 0 no, negative on a
+ *  bad sample or a broken fixture. Samples: 0 a green rupee (junk), 1 RI_JUNK
+ *  (what a repeat converts to), 2 a heart piece (health), 3 a trap (lesser),
+ *  4 the bow (major), 5 a heart piece on a check already obtained, through
+ *  ConvertItem exactly as CheckQueue queues it (the repeated pickup). */
+extern "C" int MM_Rando_GetItemPresentation_TestShows(int sample) {
+    switch (sample) {
+        case 0:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_RUPEE_GREEN) ? 1 : 0;
+        case 1:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_JUNK) ? 1 : 0;
+        case 2:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_HEART_PIECE) ? 1 : 0;
+        case 3:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_TRAP) ? 1 : 0;
+        case 4:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_BOW) ? 1 : 0;
+        case 5: {
+            RandoCheckId check = RC_UNKNOWN;
+            for (const auto& [id, row] : Rando::StaticData::Checks) {
+                if (id != RC_UNKNOWN) {
+                    check = id;
+                    break;
+                }
+            }
+            if (check == RC_UNKNOWN) {
+                return -2;
+            }
+            const bool priorObtained = RANDO_SAVE_CHECKS[check].obtained;
+            RANDO_SAVE_CHECKS[check].obtained = true;
+            const RandoItemId converted = Rando::ConvertItem(RI_HEART_PIECE, check);
+            const bool shows = Rando::StaticData::ShouldShowGetItemCutscene(converted);
+            RANDO_SAVE_CHECKS[check].obtained = priorObtained;
+            if (Rando::StaticData::Items[converted].randoItemType != RITYPE_JUNK) {
+                return -3; // the repeat no longer converts to junk: the fixture is stale
+            }
+            return shows ? 1 : 0;
+        }
+        default:
+            return -1;
+    }
+}
+#endif

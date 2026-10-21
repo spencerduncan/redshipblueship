@@ -555,6 +555,8 @@ extern "C" {
 #include "tests/test_combo_area.c"
 #include "tests/test_foolish_hints.c"
 #include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
+// #1060: SoH's Skip Get Item Animations drives MM's get-item presentation
+#include "tests/test_mm_get_item_presentation.c"
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
 #include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
@@ -5618,6 +5620,17 @@ TestResult Test_MmTrapRollFrozen(void) {
     return MmTrapRollFrozen_Run();
 }
 
+// #1060: the row sets SoH's and MM's get-item CVars, which live on the
+// Ship::Context singleton, so it needs the same display-free bring-up.
+TestResult Test_MmGetItemPresentation(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MmGetItemPresentation_Run();
+}
+
 // ADR 0009 decision 4b (#590/#625): MM's cross-game death-decline exit is an
 // autosave point iff the Autosave enhancement is on. Needs the shared bring-up
 // for ONE reason: the lock arms and disarms the REAL RegisterAutosave through
@@ -6262,6 +6275,9 @@ const TestDescriptor gTests[] = {
     // #1047: a free stone's seed and a trap's type are pure functions of the frozen world.
     { "mm-gossip-stone-seed", "MM's free gossip stone seeds are defined integers (#1047)", Test_MmGossipStoneSeed },
     { "mm-trap-roll-frozen", "MM trap types come from the frozen world and the check (#1047)", Test_MmTrapRollFrozen },
+    // #1060: SoH's Skip Get Item Animations decides MM's get-item presentation.
+    { "mm-get-item-presentation", "SoH's Skip Get Item Animations decides MM's get-item presentation (#1060)",
+      Test_MmGetItemPresentation },
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     { "mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText },
     // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.

@@ -609,6 +609,11 @@ if(BUILD_TESTING)
     redship_add_test(NAME MmTrapRollFrozenTwoProcesses
         COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-trap-roll-frozen
                 -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
+    # #1060: SoH's "Skip Get Item Animations" decides MM's get-item presentation
+    # too. Every MM reader goes through Rando::StaticData::SkipGetItemCutsceneTier,
+    # which maps SoH Off/Junk Items/All Items onto MM's Never/Junk Items Only/Always
+    # and ignores MM's own key (whose widget and preset are not in the single exe).
+    redship_add_test(NAME MmGetItemPresentation COMMAND redship --test mm-get-item-presentation)
     # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
     # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
     # stone's real text and candidate filter (EnGs.cpp) over MM's real check
