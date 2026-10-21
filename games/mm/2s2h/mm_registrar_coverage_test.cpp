@@ -87,6 +87,27 @@
  * (src/common/tests/test_mm_extension_rescan.c), which needs a staged archive
  * and so SKIPs where this row cannot.
  *
+ * PHASE 4 (#1005-#1009) -- THE FIVE CHEATS TUs. Cheats/Infinite.cpp,
+ * ClimbAnywhere.cpp, HookshotAnywhere.cpp, MoonJump.cpp and
+ * EasyFrameAdvance.cpp register only through a file-scope RegisterShipInitFunc
+ * keyed on one gCheats.* CVar each, in the plain `2ship_enh` archive, so the
+ * linker dropped all five and the shared Cheats rows did nothing in Majora's
+ * Mask. Every one of these registrars is CVar-gated (the COND_* macros register
+ * only when the key reads true), so the registries are empty after MM_Rando_Init
+ * for ANY link. What distinguishes a linked TU is that it answers
+ * ShipInit::Init(<its key>): the probe turns the CVar on, drives exactly that
+ * key (what OoT's ShipInit::Init forwards when the player toggles the row) and
+ * requires the matching registry to rise by exactly one. Each key is read by
+ * one TU tree-wide (BenMenu.cpp only draws it), so the delta is attributable;
+ * nothing the five TUs define is named here (a reference would un-elide them).
+ *   - gCheats.InfiniteHealth / InfiniteMagic / InfiniteMoney: three
+ *     OnGameStateUpdate registrants, one per key (Infinite.cpp).
+ *   - gCheats.ClimbEverything: ShouldVanillaBehavior[VB_BE_CLIMBABLE_SURFACE].
+ *   - gCheats.HookshotEverything: ShouldVanillaBehavior[VB_BE_HOOKSHOT_SURFACE].
+ *   - gCheats.MoonJumpOnL: OnActorUpdate[ACTOR_PLAYER].
+ *   - gCheats.EasyFrameAdvance: OnGameStateMainStart.
+ * The probe puts every key back to 0 and re-drives it, so the row is order-free.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -120,6 +141,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
 
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
+#include "2s2h/ShipInit.hpp"
 #include "mm_game_hooks.h"
 
 extern "C" {
@@ -182,6 +204,55 @@ constexpr const char* kJPGrottosCVar = "gEnhancements.Restorations.JPGrottos";
 // failure rather than a configuration artifact.
 constexpr const char* kAutosaveCVar = "gEnhancements.Autosave";
 
+// ---- Phase 4 (#1005-#1009): the five Cheats TUs ---------------------------
+// One probe per gCheats.* key. `count` reads the settled registry the key's
+// registrar writes to; see PHASE 4 in the file header for the attribution.
+struct CheatProbe {
+    const char* key;
+    const char* what;
+    size_t (*count)();
+};
+
+size_t UpdateCount() {
+    return SettledUnkeyedCount<GameInteractor::OnGameStateUpdate>();
+}
+size_t ClimbCount() {
+    return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_BE_CLIMBABLE_SURFACE);
+}
+size_t HookshotCount() {
+    return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_BE_HOOKSHOT_SURFACE);
+}
+size_t PlayerUpdateCount() {
+    return SettledCountForId<GameInteractor::OnActorUpdate>(ACTOR_PLAYER);
+}
+size_t MainStartCount() {
+    return SettledUnkeyedCount<GameInteractor::OnGameStateMainStart>();
+}
+
+const CheatProbe kCheatProbes[] = {
+    { "gCheats.InfiniteHealth", "Infinite Health: OnGameStateUpdate (Cheats/Infinite.cpp)", UpdateCount },
+    { "gCheats.InfiniteMagic", "Infinite Magic: OnGameStateUpdate (Cheats/Infinite.cpp)", UpdateCount },
+    { "gCheats.InfiniteMoney", "Infinite Money: OnGameStateUpdate (Cheats/Infinite.cpp)", UpdateCount },
+    { "gCheats.ClimbEverything", "Climb Everything: VB_BE_CLIMBABLE_SURFACE (Cheats/ClimbAnywhere.cpp)", ClimbCount },
+    { "gCheats.HookshotEverything", "Hookshot Everything: VB_BE_HOOKSHOT_SURFACE (Cheats/HookshotAnywhere.cpp)",
+      HookshotCount },
+    { "gCheats.MoonJumpOnL", "Moon Jump on L: OnActorUpdate[ACTOR_PLAYER] (Cheats/MoonJump.cpp)", PlayerUpdateCount },
+    { "gCheats.EasyFrameAdvance", "Easy Frame Advance: OnGameStateMainStart (Cheats/EasyFrameAdvance.cpp)",
+      MainStartCount },
+};
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetCheatKeys() {
+    for (const auto& probe : kCheatProbes) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : kCheatProbes) {
+        (void)probe.count();
+    }
+}
+
 } // namespace
 
 extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
@@ -199,6 +270,12 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     CVarSetInteger(kChuDropsCVar, 0);
     CVarSetInteger(kJPGrottosCVar, 0);
     CVarSetInteger(kAutosaveCVar, 1);
+    // Phase 4: the five Cheats keys start OFF whatever the operator's config
+    // holds, so MM_Rando_Init arms none of them and the probe below measures
+    // only what its own ShipInit::Init drive registers.
+    for (const auto& probe : kCheatProbes) {
+        CVarSetInteger(probe.key, 0);
+    }
 
     // ---- Non-vacuity: every probed registry starts empty -------------------
     // If any of these is already populated, the "non-empty after" assertions
@@ -312,8 +389,30 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
               "PlayerCustomFlipbooks_Patch did not run after the ExtensionCache rescan — its one-shot latch "
               "would fix MM's faces to vanilla against an unscanned cache (#618)");
 
+    // ---- #1005-#1009: the five Cheats TUs -----------------------------------
+    // Each probe turns ONE key on, drives ShipInit::Init(key), and requires its
+    // registry to rise by exactly one. The baseline is read per probe, after the
+    // previous probe's registrant is already counted, so the three
+    // OnGameStateUpdate keys are attributed one at a time.
+    for (const auto& probe : kCheatProbes) {
+        const size_t before = probe.count();
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        const size_t after = probe.count();
+        if (after != before + 1) {
+            printf("[TEST] FAIL(11): %s went %zu -> %zu when %s was turned on, expected exactly +1 - its "
+                   "Cheats/*.cpp registrar is not in the link (a plain 2ship_enh archive drops a TU whose only "
+                   "anchor is a RegisterShipInitFunc), so the shared Cheats row does nothing in Majora's "
+                   "Mask (#1005-#1009)\n",
+                   probe.what, before, after, probe.key);
+            ResetCheatKeys();
+            return 11;
+        }
+    }
+    ResetCheatKeys();
+
     printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars populated their registries; the two "
-           "Phase-3 ExtensionCache entries ran, in order)\n");
+           "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook)\n");
     return 0;
 }
 
