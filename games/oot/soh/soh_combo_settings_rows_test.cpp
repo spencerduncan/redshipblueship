@@ -340,6 +340,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_SHARED_KOKIRI_SWORD, WIDGET_CHECKBOX, "" },
         // #1065: the Shared Lens of Truth, the sword's shape over an item rule.
         { COMBO_SETTING_SHARED_LENS, WIDGET_CHECKBOX, "" },
+        // #1066: the two shared songs, the lens's shape.
+        { COMBO_SETTING_SHARED_SONG_EPONA, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_SONG_STORMS, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -834,7 +837,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_EPONA, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
