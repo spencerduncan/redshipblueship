@@ -2337,6 +2337,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #997: under the combo hunt OoT's own "Ganon's Boss Key" hunt is generated as
+    # "Win", so RC_TRIFORCE_COMPLETED never holds the boss key the game grants only
+    # as the paired game ends. `rando`: it needs a paired creation.
+    redship_add_test(NAME RandoComboHuntOwnMode COMMAND redship --test rando-combo-hunt-own-mode
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #973: the Happy Mask Shop door is the crossing, so its room never loads. A
     # paired world generates Mask Quest as "Shuffle" and the Mask Shop Hint off
     # (under both authored modes a player can arrive with), all eight OoT masks are

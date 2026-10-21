@@ -30,6 +30,15 @@
  *          an input); the COMBO requirement takes the Win branch, in either
  *          mode, because under the combo goal reaching it IS the win.
  *
+ *
+ * And, run by its own rando row `rando-combo-hunt-own-mode` (#997),
+ * `OoT_ComboHuntOwnMode_RunGenerated`: a paired creation under the combo
+ * triforce-hunt goal with OoT's own hunt authored as "Ganon's Boss Key" must
+ * generate it as "Win", so RC_TRIFORCE_COMPLETED holds RG_TRIFORCE and never
+ * Ganon's Boss Key: the boss key is granted only by the give that reaches the
+ * COMBO requirement, which ends the paired game, so no location may be proved
+ * behind it at OoT's own requirement. An authored "Win" stays "Win" (control).
+ *
  * COUNTERFACTUALS, run before landing (#768): main's arm (the "Win" test ungated
  * by the goal) turns W2 red under "Win"; main's playthrough.cpp (no "Win"
  * change at a paired creation) turns W0 red, and so does main's
@@ -53,8 +62,11 @@
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/settings.h"
 
+#include "soh/Enhancements/randomizer/3drando/item_pool.hpp" // GenerateItemPool (#997)
+
 #include "context.h"
-#include "foreign_items.h" // Combo_FreezeComboSettings, RSBS_COMBO_GOAL_TRIFORCE_HUNT
+#include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_RANDO_GOAL (#997)
+#include "foreign_items.h"    // Combo_FreezeComboSettings, RSBS_COMBO_GOAL_TRIFORCE_HUNT
 #include "triforce_hunt.h"
 
 extern "C" {
@@ -295,5 +307,83 @@ extern "C" int OoT_TriforceHuntWin_RunGenerated(void) {
     ComboContext_Init();
     ResetHuntState(0);
     printf("[TEST] PASS: rando-triforce-hunt-win (OoT)\n");
+    return 0;
+}
+
+// ============================================================================
+// (3) OoT's own hunt mode under the combo hunt (#997)
+// ============================================================================
+
+namespace {
+
+/** One paired creation through the headless bridge with the combo goal and
+ *  OoT's own hunt mode authored. Both keys are cleared afterwards, so nothing
+ *  authored here outlives the call (and nothing is saved to a config file).
+ *  Returns the bridge's rc; the effective mode stays in the seed context. */
+int GenerateAuthored(uint8_t goal, uint8_t ownMode, const char* seed) {
+    const char* const huntCVar = CVAR_RANDOMIZER_SETTING("TriforceHunt");
+    CVarSetInteger(RSBS_CVAR_COMBO_RANDO_GOAL, (int32_t)goal);
+    CVarSetInteger(huntCVar, ownMode);
+    ComboSettingsRecord preview;
+    Combo_ResolveComboSettings(&preview);
+    const bool goalTook = preview.goal == goal;
+    const int rc = Rando_HeadlessSeedTest(seed);
+    CVarClear(huntCVar);
+    CVarClear(RSBS_CVAR_COMBO_RANDO_GOAL);
+    return goalTook ? rc : -100;
+}
+
+} // namespace
+
+extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void) {
+    printf("[TEST] rando-combo-hunt-own-mode: under the combo triforce hunt, OoT's own hunt is generated as \"Win\", "
+           "so no location is proved behind Ganon's Boss Key at OoT's own requirement (#997)\n");
+    const uint8_t hunt = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
+
+    // ---- H1: authored "Ganon's Boss Key" under the combo hunt -> "Win" ------
+    // The generation itself may be refused later in Playthrough_Init (a paired
+    // triforce-hunt world is not carried by the single-bag fill yet); the mode
+    // is decided right after the settings are finalized, before any refusal,
+    // so the context holds the effective mode either way.
+    const int rc1 = GenerateAuthored(hunt, RO_TRIFORCE_HUNT_GBK, "RSBSHUNTGBK997");
+    OTH_ASSERT(rc1 != -100, "H1: the authored combo goal did not reach the creation's resolver");
+    auto ctx = Rando::Context::GetInstance();
+    OTH_ASSERT(ctx != nullptr, "no randomizer context after generation");
+    const int mode1 = (int)ctx->GetOption(RSK_TRIFORCE_HUNT).Get();
+    printf("[TEST] H1: combo goal triforce-hunt, OoT hunt authored \"Ganon's Boss Key\" -> mode %d (bridge rc %d)\n",
+           mode1, rc1);
+    OTH_ASSERT(mode1 == RO_TRIFORCE_HUNT_WIN,
+               "H1: under the combo triforce hunt OoT's own hunt stayed \"Ganon's Boss Key\": the fill would put "
+               "Ganon's Boss Key at RC_TRIFORCE_COMPLETED behind OoT's OWN requirement while the game grants it only "
+               "at the COMBO requirement, as the paired game ends (#997)");
+    // What the effective mode places: the fixed placements of OoT's item pool.
+    GenerateItemPool();
+    const RandomizerGet atHunt = ctx->GetItemLocation(RC_TRIFORCE_COMPLETED)->GetPlacedRandomizerGet();
+    const RandomizerGet atGanon = ctx->GetItemLocation(RC_GANON)->GetPlacedRandomizerGet();
+    printf("[TEST] H1: RC_TRIFORCE_COMPLETED holds %d, RC_GANON holds %d\n", (int)atHunt, (int)atGanon);
+    OTH_ASSERT(atHunt != RG_GANONS_CASTLE_BOSS_KEY,
+               "H1: RC_TRIFORCE_COMPLETED holds Ganon's Boss Key under the combo triforce hunt (#997)");
+    OTH_ASSERT(atHunt == RG_TRIFORCE && atGanon != RG_TRIFORCE,
+               "H1: the generated world does not put OoT's hunt completion where its \"Win\" mode does");
+    // The player is told where the option is set.
+    const std::string& huntDesc = Rando::Settings::GetInstance()->GetOption(RSK_TRIFORCE_HUNT).GetDescription();
+    const bool descStates =
+        huntDesc.find("Under the Triforce Hunt combo goal, \"Ganon's Boss Key\" is generated as \"Win\"") !=
+        std::string::npos;
+    printf("[TEST] H1: the Triforce Hunt option description %s the combo-hunt change\n",
+           descStates ? "states" : "does NOT state");
+    OTH_ASSERT(descStates, "H1: the Triforce Hunt option description does not tell the player that the combo "
+                           "triforce hunt generates \"Ganon's Boss Key\" as \"Win\" (#997)");
+
+    // ---- H2 (control): authored "Win" under the combo hunt stays "Win" -------
+    const int rc2 = GenerateAuthored(hunt, RO_TRIFORCE_HUNT_WIN, "RSBSHUNTWIN997");
+    OTH_ASSERT(rc2 != -100, "H2: the authored combo goal did not reach the creation's resolver");
+    const int mode2 = (int)ctx->GetOption(RSK_TRIFORCE_HUNT).Get();
+    printf("[TEST] H2: combo goal triforce-hunt, OoT hunt authored \"Win\" -> mode %d (bridge rc %d)\n", mode2, rc2);
+    OTH_ASSERT(mode2 == RO_TRIFORCE_HUNT_WIN, "H2: under the combo triforce hunt an authored \"Win\" did not stay "
+                                              "\"Win\" (the #768 boss-goal rewrite must not apply)");
+
+    ComboContext_Init();
+    printf("[TEST] PASS: rando-combo-hunt-own-mode\n");
     return 0;
 }

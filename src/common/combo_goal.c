@@ -129,6 +129,11 @@ bool Combo_GoalKeepsOwnHuntWin(uint8_t goal) {
     return Combo_Logic_EvaluateGoal(goal, 0, 0) < 0;
 }
 
+bool Combo_GoalGeneratesOwnHuntAsWin(uint8_t goal) {
+    (void)goal;
+    return false;
+}
+
 int Combo_GoalOnTriforceHuntCompleted(GameId game, int liveTriforcePieces) {
     if (GoalFlagFor(game) == 0u || !Combo_GoalArmed()) {
         return RSBS_GOAL_ENDING_OWN;

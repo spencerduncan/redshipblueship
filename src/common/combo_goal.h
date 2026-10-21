@@ -192,6 +192,18 @@ int Combo_GoalOnTriforceHuntCompleted(GameId game, int liveTriforcePieces);
  */
 bool Combo_GoalKeepsOwnHuntWin(uint8_t goal);
 
+/**
+ * Must a paired creation generate a half's own triforce hunt, when that hunt is
+ * on, in its WIN mode (#997)? True for triforce-hunt only: there the combo
+ * requirement is the end of the paired game and both piece-give arms take the
+ * Win branch on it whichever mode the half named, so a half's own "lock on the
+ * final boss" mode (OoT's "Ganon's Boss Key") would describe a door the game
+ * opens only as it ends, behind the half's OWN requirement in the proof. False
+ * for every boss goal (Combo_GoalKeepsOwnHuntWin covers those) and for a value
+ * outside the pinned table. Pure.
+ */
+bool Combo_GoalGeneratesOwnHuntAsWin(uint8_t goal);
+
 #ifdef __cplusplus
 }
 #endif

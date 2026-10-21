@@ -48,8 +48,9 @@
  *      boss) and records nothing; under triforce-hunt it is the goal predicate
  *      over the reaching count; an unevaluable goal fails open. And the
  *      creation's rule (Combo_GoalKeepsOwnHuntWin): a half's own hunt may stay a
- *      win condition only under triforce-hunt. E7 checks that both ports' piece
- *      give arms call it, under their guards.
+ *      win condition only under triforce-hunt, and under triforce-hunt it is
+ *      generated as Win (Combo_GoalGeneratesOwnHuntAsWin, #997). E7 checks that
+ *      both ports' piece give arms call it, under their guards.
  *
  * On main (before #762) every final-boss defeat played its own game's ending
  * under every goal: E2's and E5's withheld expectations are the red half (see
@@ -613,9 +614,17 @@ TestResult Test_ComboGoalEnding(void) {
         CG_ASSERT(Combo_GoalKeepsOwnHuntWin(goal) == (goal == hunt),
                   "E9: %s: the creation's rule says a half's own hunt %s a win condition", CgGoalName(goal),
                   Combo_GoalKeepsOwnHuntWin(goal) ? "stays" : "does not stay");
+        // #997: under the combo hunt a half's own hunt is generated as Win (its
+        // completion is the end the arms already play), never as a lock on its
+        // final boss that opens only when the paired game ends.
+        CG_ASSERT(Combo_GoalGeneratesOwnHuntAsWin(goal) == (goal == hunt),
+                  "E9: %s: the creation's rule %s a half's own hunt as Win (#997)", CgGoalName(goal),
+                  Combo_GoalGeneratesOwnHuntAsWin(goal) ? "generates" : "does not generate");
     }
     CG_ASSERT(Combo_GoalKeepsOwnHuntWin(0) && Combo_GoalKeepsOwnHuntWin(6),
               "E9: a goal byte outside the pinned table must leave a half's own hunt as authored");
+    CG_ASSERT(!Combo_GoalGeneratesOwnHuntAsWin(0) && !Combo_GoalGeneratesOwnHuntAsWin(6),
+              "E9: a goal byte outside the pinned table must not rewrite a half's own hunt (#997)");
     CgFreezeWorld(hunt);
     gComboCtx.comboTriforce.requiredOoT = 0; // damaged: the hunt disarms, the requirement reads 0
     CG_ASSERT(Combo_GoalOnTriforceHuntCompleted(GAME_OOT, 3) == RSBS_GOAL_ENDING_OWN,
