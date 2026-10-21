@@ -62,7 +62,8 @@ extern "C" {
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
-#include "game.h" // MM_SAVE_CONTEXT_SIZE
+#include "foreign_items.h" // RSBS_XITEM_*: the shared families a row is MM's copy of (#1065)
+#include "game.h"          // MM_SAVE_CONTEXT_SIZE
 
 // The view hands this TU either the unified live storage (unified_save.c,
 // alignas(16)) or MM's shadow, a std::vector<uint8_t> buffer (context.cpp),
@@ -394,6 +395,15 @@ bool MMItemHasSave(const void* buf) {
     return std::memcmp(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf)) == 0;
 }
 
+/** The shared family (foreign_items.h) a slot row's item is MM's own copy of,
+ *  or 0: the view draws an armed family once, in the Shared group (#1065). */
+uint32_t MMItemSharedFamily(const MMItemRowDef& def) {
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_LENS_OF_TRUTH) {
+        return RSBS_XITEM_SHARED_LENS;
+    }
+    return 0u;
+}
+
 bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
     if (!MMItemAligned(buf) || out == nullptr || index < 0 || index >= kMMItemRowCount) {
         return false;
@@ -402,7 +412,11 @@ bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
     const uint8_t freshness = out->freshness; // the view's field; left alone
     std::memset(out, 0, sizeof(*out));
     out->freshness = freshness;
-    return MMItemDerive(src, kMMItemRows[index], out);
+    if (!MMItemDerive(src, kMMItemRows[index], out)) {
+        return false;
+    }
+    out->sharedFamily = MMItemSharedFamily(kMMItemRows[index]);
+    return true;
 }
 
 } // namespace
