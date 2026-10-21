@@ -166,8 +166,9 @@ extern "C" int OoT_ForeignItem_Give(uint16_t rgId) {
 // the host physically holds — the documented absent-placement behaviour
 // (foreign_items.h) — rather than to a crossing nobody can receive.
 //
-// @return true only when a durable shared-item record was authored. The caller
-//         presents the foreign pickup if and only if that happened.
+// @return true only when a durable shared-item record was authored, or (#1061) a
+//         counted pack was credited to the shared pool. The caller presents the
+//         foreign pickup if and only if one of those happened.
 static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
     const SharedItem* item = Combo_GetForeignPlacementForOoTCheck(rc);
     if (item == nullptr) {
@@ -219,7 +220,8 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
  * production function, two callers, so the lock covers the real recording path
  * rather than a copy of it.
  *
- * @return 1 if a durable crossing was authored for this OoT check, 0 otherwise
+ * @return 1 if a durable crossing was authored for this OoT check (or, #1061, a
+ *         counted pack credited to the shared pool), 0 otherwise
  *         (no foreign placement here, or no live pairing to author it for).
  */
 extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
