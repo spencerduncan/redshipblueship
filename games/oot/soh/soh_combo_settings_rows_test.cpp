@@ -506,13 +506,16 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // only effect was to carry that free instrument back to Hyrule. Operator
     // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
-    // fix removes. The page's one checkbox is #886's Shared Kokiri Sword.
+    // fix removes. #1067's "Shared Ocarina Buttons" is a different rule (the
+    // five ocarina buttons, not the instrument), so its name is not the retired
+    // row's: the match excludes it explicitly.
     {
         int ocarinaRows = 0;
         int checkboxes = 0;
         for (PageRow& pageRow : rows) {
             const std::string& name = pageRow.first->name;
-            const bool retired = name.find("Shared Ocarina") != std::string::npos;
+            const bool retired = name.find("Shared Ocarina") != std::string::npos &&
+                                 name.find("Shared Ocarina Buttons") == std::string::npos;
             ROWS_CHECK(!retired,
                        "the Cross-Game Rules page still offers the retired row '%s' (#879): MM already starts with "
                        "its ocarina, so the rule only hands OoT a free one",

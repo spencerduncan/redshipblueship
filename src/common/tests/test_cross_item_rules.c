@@ -583,7 +583,10 @@ TestResult Test_SharedFamilyMerge(void) {
     {
         const ComboSharedFamilyMember m = { 7u, XirHeldOoT, XirGiveOoT };
         const ComboSharedFamilyMember noGive = { 7u, XirHeldOoT, nullptr };
-        XIR_CHECK(!Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_BLAST_MASK_OOT, &m),
+        // The Skull Mask's extension bit: #1067's C-button family slots reuse the
+        // Blast/Stone/Kamaro/Gerudo extension bits (0x1E0) as EXTRA slots, so
+        // those four are slots now; the remaining extension bits are not.
+        XIR_CHECK(!Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SKULL_MASK_MM, &m),
                   "an extension bit is not a family");
         XIR_CHECK(!Combo_RegisterSharedFamilyMember(GAME_OOT, G | Z, &m), "two bits are not one family");
         XIR_CHECK(!Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_BOTTLES, &m),
