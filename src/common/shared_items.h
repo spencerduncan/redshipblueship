@@ -308,7 +308,8 @@ void Combo_ClearSharedItemOutbox(void);
 //   through Combo_ItemClassOf, whichever origin it belongs to.
 //
 // PROGRESSION WINS because it is the only sound direction: an MM bombchu pack
-// refills the count OoT's bombchu logic reads, so classing it as filler would let
+// refills the count OoT's bombchu logic reads (at its pickup in Hyrule, since
+// #1061: shared_resources.h, CREDIT AT PICKUP), so classing it as filler would let
 // the bag put something a logic term needs anywhere, with no logic (the per-game
 // junk pass places filler blind). The reverse error only costs the proof some
 // work. A TRAP row can never feed a shared kind — a trap is a per-game
@@ -547,10 +548,12 @@ typedef struct {
     uint32_t armedBy;   /* RSBS_FILL_ARM_* the item needs armed to roam; 0 = unconditional */
     uint8_t sharedKind; /* the RSBS_SHARED_RES_* kind this item's give feeds (context.h); 0 = none */
     /** How many UNITS of `sharedKind` one copy grants (ABI 3, #525 pool policy). 0 is
-     *  read as 1, so every tier copy (one progressive step) needs no value. The one
-     *  kind whose copies differ in size is health: the unit is ONE HEART PIECE (a
-     *  quarter heart, 4 health units), so a piece is 1 and a heart container is 4.
-     *  Meaningless (and stored as 0) for a row that feeds no kind. */
+     *  read as 1, so every tier copy (one progressive step) needs no value. Health's
+     *  unit is ONE HEART PIECE (a quarter heart, 4 health units), so a piece is 1
+     *  and a heart container is 4. A bombchu pack is its size in bombchus (#1061:
+     *  the pool is credited that many when the pack is found in the other game,
+     *  shared_resources.h). Meaningless (and stored as 0) for a row that feeds no
+     *  kind. */
     uint8_t sharedUnits;
     /** RSBS_CHEST_GRADE_*: the class this game's own chests dress a chest holding
      *  the item by (#862). Stored only for a fill item; a value past the enum is

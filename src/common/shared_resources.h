@@ -115,7 +115,9 @@
  * the RAM watermark). Keep it that way — it is what makes the wiring auditable:
  * every pool mutation is at a suspend or a pre-save point, never mid-scene. An
  * arriving game holding MORE than the pool is not lost, it is picked up by that
- * game's own next harvest.
+ * game's own next harvest. The ONE exception is CREDIT AT PICKUP (#1061, below):
+ * a counted pack found in the other game is added mid-scene, bracketed by a
+ * harvest before it and an apply after it, so the watermark stays exact.
  *
  * WIRING (both games, see each GameExports_SingleExe.cpp):
  *   - Harvest at `Game_Suspend`, beside `Combo_CommitStagedSharedItems()`, and
@@ -355,6 +357,68 @@ void Combo_HarvestSharedResource(GameId game, uint8_t kind, uint16_t liveValue);
  * as the watermark — the excess stays in the pool rather than being lost.
  */
 bool Combo_ApplySharedResource(GameId game, uint8_t kind, uint16_t cap, uint16_t* liveValue);
+
+/*
+ * ---------------------------------------------------------------------------
+ * CREDIT AT PICKUP (#1061), the one pool write outside a harvest
+ * ---------------------------------------------------------------------------
+ * A pack of a COUNTED kind found in the other game does not cross: it is
+ * credited to the pool where it is found. A crossing waits for the next arrival
+ * in its home game and then runs that game's own give, and MM's give caps
+ * bombchus at MM's BOMB BAG capacity (0 with no bag, z_parameter.c), so a
+ * crossed MM bombchu pack was lost whenever the pool already filled MM's bag,
+ * and wholly lost with no bag. The pool is the one count both games share; the
+ * pack belongs in it the moment it is found, and each game then holds what fits
+ * (OoTMM's SHARED_BOMBCHU: one quantity, a pack from either game adds to it).
+ *
+ * THE FINDING GAME RUNS THREE STEPS, in this order, through its own shim
+ * (OoT_/MM_CreditSharedPickup, each game's GameExports_SingleExe.cpp):
+ *   1. HARVEST its own live count for the kind, so everything spent since the
+ *      last apply leaves the pool first. Apply ASSIGNS a consumable, so a credit
+ *      re-applied without this harvest would refund every unit spent since the
+ *      arrival.
+ *   2. CREDIT the pack's units (Combo_CreditSharedResource).
+ *   3. RE-APPLY the kind in place: the live count becomes min(pool, cap) and
+ *      the watermark records exactly that, as at an arrival.
+ * Behind the shim's live-file gate, like the harvest. A shim that answers 0
+ * (not a counted pack, not a live file) leaves the pickup to the crossing, the
+ * behaviour before #1061.
+ *
+ * WHO KNOWS THE AMOUNT. The item's own game, through the item class owner
+ * (shared_items.h): `sharedKind` names the kind and `sharedUnits` the pack size
+ * in that kind's units (one bombchu), so the finding game never names the other
+ * game's ids (ADR 0002). A crossing already recorded in an older save gets the
+ * same credit when its home game redeems it (OoT_/MM_AwardSharedItem).
+ *
+ * Only RSBS_SHARED_RES_BOMBCHU_COUNT is credited at pickup: it is the one
+ * counted kind whose packs the bag classes PROGRESSION, so the only one that
+ * crosses. Another counted kind joins only with its pack sizes published.
+ */
+
+/** Is @p kind one a pickup credits to the pool instead of crossing? (#1061) */
+bool Combo_SharedResourceCreditsAtPickup(uint8_t kind);
+
+/**
+ * The credit a pickup of @p item makes in place of a crossing: true, with the
+ * kind and the pack's units, when @p item feeds a kind credited at pickup;
+ * false otherwise (outs untouched).
+ */
+bool Combo_SharedPickupCreditOf(SharedItem item, uint8_t* outKind, uint16_t* outUnits);
+
+/**
+ * CREDIT (step 2 above). Add @p amount to the pool's slot for @p kind, creating
+ * the slot on first use and saturating at 0xFFFF. Touches no watermark: the
+ * caller's harvest before it and re-apply after it own those.
+ * @return false (nothing written) for a kind not credited at pickup, a disarmed
+ *         kind, a zero amount, or full slot blocks.
+ */
+bool Combo_CreditSharedResource(uint8_t kind, uint16_t amount);
+
+/** Each game's shim: steps 1-3 above over its OWN live save, for @p item (the
+ *  found item, of either origin). 1 when the pool was credited and the live
+ *  count re-applied; 0 when the pickup is not a credit (the caller crosses it). */
+int OoT_CreditSharedPickup(const SharedItem* item);
+int MM_CreditSharedPickup(const SharedItem* item);
 
 /**
  * Read the shared pool's value for `kind` (trackers / tests / the cycle-safe
