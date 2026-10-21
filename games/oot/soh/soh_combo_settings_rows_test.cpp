@@ -347,6 +347,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     const ExpectedRow kExpected[] = {
         { COMBO_SETTING_DIRECTION, WIDGET_COMBOBOX, "" },
         { COMBO_SETTING_SHARED_KOKIRI_SWORD, WIDGET_CHECKBOX, "" },
+        // #1068's Shared Shields: a checkbox over a bit of the item rules record.
+        { COMBO_SETTING_SHARED_SHIELDS, WIDGET_CHECKBOX, "" },
         // #1065: the Shared Lens of Truth, the sword's shape over an item rule.
         { COMBO_SETTING_SHARED_LENS, WIDGET_CHECKBOX, "" },
         // #1066: the two shared songs, the lens's shape.
@@ -514,8 +516,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // only effect was to carry that free instrument back to Hyrule. Operator
     // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
-    // fix removes. The page's four checkboxes are #886's Shared Kokiri Sword,
-    // #1065's Shared Lens of Truth and #1066's two shared songs.
+    // fix removes. The page's five checkboxes are #886's Shared Kokiri Sword,
+    // #1068's Shared Shields, #1065's Shared Lens of Truth and #1066's two
+    // shared songs.
     {
         int ocarinaRows = 0;
         int checkboxes = 0;
@@ -529,14 +532,16 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 4,
-                   "the Cross-Game Rules page has %d checkbox row(s); the four expected are the Shared Kokiri Sword "
-                   "(#886), the Shared Lens of Truth (#1065), Shared Epona's Song and Shared Song of Storms (#1066), "
-                   "after #879 retired the Shared Ocarina",
+        ROWS_CHECK(checkboxes == 5,
+                   "the Cross-Game Rules page has %d checkbox row(s); the five expected are the Shared Kokiri Sword "
+                   "(#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song and "
+                   "Shared Song of Storms (#1066), after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 4 "
-               "(#879, #886, #1065, #1066)\n",
-               ocarinaRows, checkboxes);
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 5 "
+               "(#879, #886, #1068, #1065, #1066)
+               ",
+               ocarinaRows,
+               checkboxes);
     }
 
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
@@ -575,6 +580,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the writer refused a pre-creation goal");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1,
                "the writer refused a pre-creation Shared Kokiri Sword");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1,
+               "the writer refused a pre-creation Shared Shields");
     // #1065: the lens is authored ON through its own row's Callback (the row's
     // only write path), so the PreFunc below must stage what the writer kept.
     WidgetInfo* lensRow = FindRow(rows, LensRowName());
@@ -606,6 +613,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]) == 1,
                "the Shared Kokiri Sword row staged %d, expected the authored 1",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]));
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]) == 1,
+               "the Shared Shields row staged %d, expected the authored 1",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]));
     if (lensRow != nullptr) {
         ROWS_CHECK(!lensRow->options->disabled, "the Shared Lens of Truth row is disabled before the creation event");
         ROWS_CHECK(StagedBool(*lensRow) == 1,
@@ -675,6 +685,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the frozen Shared Kokiri Sword row staged %d; it must show the SAVE's OFF, not the CVar's ON -- the "
                "world was built with two swords and a row that showed otherwise would be lying about it",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]));
+    // #1068: the frozen ITEM RULES record (every rule off here) against the
+    // authored ON key.
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_SHIELDS], "the Shared Shields row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]) == 0,
+               "the frozen Shared Shields row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]));
     // #1065: the frozen ITEM RULES record (every rule off: the freeze above
     // passed none) against the authored ON key.
     if (lensRow != nullptr) {
@@ -889,6 +905,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_EPONA, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, 1) == 1,

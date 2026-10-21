@@ -67,6 +67,7 @@ games/mm/2s2h/mm_hook_dispatch_test.cpp
 games/mm/2s2h/mm_paired_load_restore_test.cpp
 games/mm/2s2h/mm_playtime_seed_test.cpp
 games/mm/2s2h/mm_registrar_coverage_test.cpp
+games/mm/2s2h/mm_song_teacher_hooks_test.cpp
 games/mm/2s2h/mm_framebuffer_effects.c
 games/mm/2s2h/mm_gi_shim_test.cpp
 games/mm/2s2h/mm_notification_binding_test.cpp
@@ -157,8 +158,12 @@ games/oot/soh/Enhancements/randomizer/ComboLogicMonotonicityOoT.cpp
 games/mm/2s2h/Rando/ComboLogicMonotonicitySingleExe.cpp
 games/mm/2s2h/mm_triforce_hunt_test.cpp
 games/oot/soh/oot_triforce_hunt_test.cpp
+games/mm/2s2h/mm_shared_bombchu_test.cpp
 games/mm/2s2h/mm_shared_kokiri_sword_test.cpp
 games/oot/soh/oot_shared_kokiri_sword_test.cpp
+games/mm/2s2h/mm_shared_shields_test.cpp
+games/oot/soh/oot_shared_shields_test.cpp
+games/oot/soh/oot_shared_bombchu_test.cpp
 games/oot/soh/oot_shared_wallet_test.cpp
 games/mm/2s2h/mm_shared_lens_test.cpp
 games/oot/soh/oot_shared_lens_test.cpp
@@ -184,6 +189,7 @@ games/oot/soh/oot_combo_goal_test.cpp
 games/mm/2s2h/mm_combo_goal_test.cpp
 games/oot/soh/oot_abandoned_session_test.cpp
 games/oot/soh/oot_settings_fold_test.cpp
+games/oot/soh/oot_scrub_text_hint_test.cpp
 games/mm/2s2h/mm_creation_new_file_test.cpp
 games/oot/soh/SohGui/SohMenuComboMmRandomizer.cpp
 games/oot/soh/soh_menu_mm_randomizer_pages_test.cpp

@@ -158,6 +158,10 @@
  * world created before it existed, and every world whose player leaves it alone,
  * resolves to the same twelve record bytes and the same comboSettingsHash. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD "gCombo.Rando.SharedKokiriSword"
+/* #1068: one Hylian/Hero's Shield and one Mirror Shield across both games
+ * (OoTMM sharedShields). Boolean (0/1), DEFAULT 0: a BIT of the item rules
+ * record, so with it off the record stays all clear and every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS "gCombo.Rando.SharedShields"
 /* #1065: one Lens of Truth across both games (OoTMM sharedLens). Boolean (0/1),
  * DEFAULT 0. A bit of the sibling ComboItemRulesRecord's crossItemFlags
  * (RSBS_XITEM_SHARED_LENS), folded into comboSettingsHash only when on, so a
@@ -608,6 +612,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, ComboKeyClass::Identity,
       "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit (#886): the Kokiri Sword is ONE "
       "monotonic shared item across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SHIELDS bit (#1068): the Hylian/Hero's Shield and the "
+      "Mirror Shield are each ONE shared item across both games" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_LENS, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_LENS bit (#1065): the Lens of Truth is ONE shared-pair "
       "family across both games" },
@@ -1032,18 +1039,19 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Six identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Seven identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
-// SharedKokiriSword (#886), SharedLens (#1065), SharedSongEpona and
-// SharedSongStorms (#1066); #879 retired SharedOcarina (#668)) + four
+// SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
+// SharedSongEpona and SharedSongStorms (#1066); #879 retired SharedOcarina
+// (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
 // (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 19, "six gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
-                                    "gCombo.Tracker.Items.* preferences = 19");
+static_assert(kComboKeyCount == 20, "seven gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
+                                    "gCombo.Tracker.Items.* preferences = 20");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

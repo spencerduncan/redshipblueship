@@ -178,15 +178,34 @@ TestResult Test_CrossItemRulesRecord(void) {
                   RSBS_XITEM_BLAST_MASK_OOT == 0x20u && RSBS_XITEM_SPOOKY_MASK_MM == 0x400u &&
                   RSBS_XITEM_SHARED_BLAST == 0x800u && RSBS_XITEM_SHARED_SPOOKY == 0x10000u &&
                   RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u && RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u &&
-                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_ALL_V1 == 0xFFFFFFu,
-              "an RSBS_XITEM_* bit moved, or RSBS_XITEM_ALL_V1 (%08X) is not 00FFFFFF (#1065's Shared Lens of Truth "
-              "is 0x00200000, #1066's Shared Epona's Song and Song of Storms 0x00400000 and 0x00800000); they are "
-              ".redsave format, append-only",
+                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_SHARED_LENS == 0x00200000u &&
+                  RSBS_XITEM_SHARED_SONG_EPONA == 0x00400000u && RSBS_XITEM_SHARED_SONG_STORMS == 0x00800000u &&
+                  RSBS_XITEM_SHARED_SHIELDS == 0x02000000u,
+              "an RSBS_XITEM_* bit moved; they are .redsave format, append-only");
+    // #1065 allocates the Shared Lens of Truth bit, #1066 the Shared Epona's
+    // Song and Song of Storms bits and #1068 the Shared Shields bit: each
+    // ALLOCATED (a record holding it is valid and the bit has a name) and a
+    // FAMILY (the lens pair; the two song pairs; the Hylian/Hero's pair).
+    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x02FFFFFFu,
+              "RSBS_XITEM_ALL_V1 is %08X, expected 02FFFFFF (#976's 21 bits, #1065's Shared Lens of Truth, #1066's "
+              "Shared Epona's Song and Song of Storms and #1068's Shared Shields)",
               (unsigned)RSBS_XITEM_ALL_V1);
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x00EFF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 00EFF81F (the five shared masks, the six shared extensions, "
-              "the three arrows, the lens and the two songs; not the extensions, not the bottles)",
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x02EFF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 02EFF81F (the five shared masks, the six shared extensions, "
+              "the three arrows, the lens, the two songs and the shared shields; not the extensions, not the bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
+    {
+        ComboItemRulesRecord shields;
+        memset(&shields, 0, sizeof(shields));
+        shields.crossItemFlags = RSBS_XITEM_SHARED_SHIELDS;
+        XIR_CHECK(Combo_ComboItemRulesValid(&shields) &&
+                      strcmp(Combo_ComboItemRuleName(RSBS_XITEM_SHARED_SHIELDS), "sharedShields") == 0,
+                  "a record with only the Shared Shields rule must be valid and the rule named sharedShields (#1068); "
+                  "this build would refuse its own world");
+        XIR_CHECK(strcmp(Combo_ComboItemRuleName(RSBS_XFAMILY_SLOT_MIRROR_SHIELD), "(unknown)") == 0 &&
+                      (RSBS_XITEM_ALL_V1 & RSBS_XFAMILY_SLOT_MIRROR_SHIELD) == 0u,
+                  "the Mirror Shield's family slot is not a rule");
+    }
     XIR_CHECK(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_MAX == 5u,
               "the cooldown space moved; DEFAULT must stay 0");
     for (uint32_t b = 0; b < 32u; ++b) {
@@ -210,7 +229,7 @@ TestResult Test_CrossItemRulesRecord(void) {
     memset(&live, 0xEE, sizeof(live));
     Combo_ResolveComboItemRules(&live);
     XIR_CHECK(memcmp(&live, &defaults, sizeof(live)) == 0,
-              "the session resolver must be the shipped defaults while no key authors the rules");
+              "the session resolver must be the shipped defaults while no rule key is set");
     XIR_CHECK(Combo_ComboItemRulesValid(&defaults) && Combo_ComboItemRulesValid(NULL), "the defaults are valid");
     {
         const ComboItemRulesRecord on = XirOnRecord();
@@ -219,10 +238,14 @@ TestResult Test_CrossItemRulesRecord(void) {
         r.crossItemFlags &= ~RSBS_XITEM_BLAST_MASK_OOT;
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "a shared extension without its extension must be invalid");
         r = on;
-        // A bit no build allocates (0x00200000 was the first free one until
-        // #1065 took it, and #1066 took the next two).
-        r.crossItemFlags |= 0x40000000u;
-        XIR_CHECK(!Combo_ComboItemRulesValid(&r), "an unallocated bit must be invalid");
+        // The lowest free bit, derived so a later allocation (#1065 took
+        // 0x00200000, #1066 the next two, #1068 0x02000000) never turns this probe into an
+        // allocated bit.
+        const uint32_t unallocated = (RSBS_XITEM_ALL_V1 + 1u) & ~(uint32_t)RSBS_XITEM_ALL_V1;
+        XIR_CHECK((RSBS_XITEM_ALL_V1 & unallocated) == 0u && unallocated != 0u, "the probe bit %08X is allocated",
+                  (unsigned)unallocated);
+        r.crossItemFlags |= unallocated;
+        XIR_CHECK(!Combo_ComboItemRulesValid(&r), "an unallocated bit (%08X) must be invalid", (unsigned)unallocated);
         r = on;
         r.blastMaskCooldown = 6u;
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "a cooldown past VERY_LONG must be invalid");
@@ -435,6 +458,10 @@ TestResult Test_CrossItemRulesRecord(void) {
         XIR_CHECK(!Combo_ComboSettingsDivergenceIsDamage(bits), "a rule divergence is the session's, not damage");
         XIR_CHECK((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) == 0u,
                   "no key authors the Blast Mask cooldown, so no load may claim to restore it");
+        XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == bits &&
+                      Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 0,
+                  "no key of this build authors these rules (only #1068's Shared Shields and #1065's lens have one), "
+                  "so no load may claim to restore them");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN),

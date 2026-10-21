@@ -454,10 +454,22 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 // built from the quest bits alone), so the shared grant teaches it.
 #define RSBS_XITEM_SHARED_SONG_EPONA 0x00400000u
 #define RSBS_XITEM_SHARED_SONG_STORMS 0x00800000u
+// #1068: shared shields (OoTMM sharedShields). ONE rule over TWO pairs: OoT's
+// Hylian Shield with MM's Hero's Shield (the family at this bit), and the two
+// Mirror Shields (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD below).
+#define RSBS_XITEM_SHARED_SHIELDS 0x02000000u
+
+/** The FAMILY SLOT of the shared-shields rule's second pair, the two Mirror
+ *  Shields: a bit of gComboCtx.sharedFamilyOwned that no rule can ever occupy
+ *  (bit 31 is never allocated to a rule, so it is free in the ownership bitset).
+ *  Armed exactly when RSBS_XITEM_SHARED_SHIELDS is (Combo_SharedFamiliesArmed). */
+#define RSBS_XFAMILY_SLOT_MIRROR_SHIELD 0x80000000u
 
 /** Every RSBS_XITEM_* bit ALLOCATED by this build. A frozen record holding any
  *  other bit was written by a later build (Combo_ComboItemRulesValid). */
-#define RSBS_XITEM_ALL_V1 0x00FFFFFFu
+#define RSBS_XITEM_ALL_V1                                                                                  \
+    (0x001FFFFFu | RSBS_XITEM_SHARED_LENS | RSBS_XITEM_SHARED_SONG_EPONA | RSBS_XITEM_SHARED_SONG_STORMS | \
+     RSBS_XITEM_SHARED_SHIELDS)
 
 /** The bits that are SHARED-PAIR FAMILIES: the bit is both the rule and the
  *  family's bit in gComboCtx.sharedFamilyOwned. */
@@ -466,7 +478,15 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
      RSBS_XITEM_SHARED_TRUTH | RSBS_XITEM_SHARED_BLAST | RSBS_XITEM_SHARED_STONE | RSBS_XITEM_SHARED_KAMARO |       \
      RSBS_XITEM_SHARED_GERUDO | RSBS_XITEM_SHARED_SKULL | RSBS_XITEM_SHARED_SPOOKY | RSBS_XITEM_SHARED_ARROW_FIRE | \
      RSBS_XITEM_SHARED_ARROW_ICE | RSBS_XITEM_SHARED_ARROW_LIGHT | RSBS_XITEM_SHARED_LENS |                         \
-     RSBS_XITEM_SHARED_SONG_EPONA | RSBS_XITEM_SHARED_SONG_STORMS)
+     RSBS_XITEM_SHARED_SONG_EPONA | RSBS_XITEM_SHARED_SONG_STORMS | RSBS_XITEM_SHARED_SHIELDS)
+
+/** The FAMILY SLOTS that are not rule bits: a rule with more than one pair
+ *  (#1068's two shields) owns its first pair at its own bit and each further
+ *  pair at one of these. Pinned, append-only, .redsave format (bits of
+ *  gComboCtx.sharedFamilyOwned); never an RSBS_XITEM_ALL_V1 bit. */
+#define RSBS_XFAMILY_SLOTS_EXTRA RSBS_XFAMILY_SLOT_MIRROR_SHIELD
+/** Every family slot: a family rule's own bit or an extra slot. */
+#define RSBS_XFAMILY_SLOTS_ALL (RSBS_XITEM_FAMILY_MASK | RSBS_XFAMILY_SLOTS_EXTRA)
 
 /** How many family bit positions there are (one per bit of the u32). */
 #define RSBS_XITEM_BIT_COUNT 32u
@@ -491,10 +511,12 @@ RSBS_CTX_STATIC_ASSERT(
         RSBS_XITEM_SHARED_SPOOKY == 0x10000u && RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u &&
         RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u && RSBS_XITEM_SHARED_BOTTLES == 0x100000u &&
         RSBS_XITEM_SHARED_LENS == 0x200000u && RSBS_XITEM_SHARED_SONG_EPONA == 0x400000u &&
-        RSBS_XITEM_SHARED_SONG_STORMS == 0x800000u && RSBS_XITEM_ALL_V1 == 0xFFFFFFu &&
-        (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u && (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u,
-    "RSBS_XITEM_* bit positions are .redsave format: pinned, append-only, allocate the next free bit and never "
-    "re-point an allocated one (ADR 0011's 2026-10-18 amendment, #976)");
+        RSBS_XITEM_SHARED_SONG_STORMS == 0x800000u && RSBS_XITEM_SHARED_SHIELDS == 0x02000000u &&
+        RSBS_XITEM_ALL_V1 == 0x02FFFFFFu && (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u &&
+        (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u && RSBS_XFAMILY_SLOT_MIRROR_SHIELD == 0x80000000u &&
+        (RSBS_XFAMILY_SLOTS_EXTRA & RSBS_XITEM_ALL_V1) == 0u,
+    "RSBS_XITEM_* bit positions and the extra family slots are .redsave format: pinned, append-only, allocate the "
+    "next free bit and never re-point an allocated one (ADR 0011's 2026-10-18 amendment, #976, #1065, #1066, #1068)");
 RSBS_CTX_STATIC_ASSERT(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_INSTANT == 1u &&
                            RSBS_BLAST_COOLDOWN_VERY_LONG == 5u,
                        "RSBS_BLAST_COOLDOWN_* values are .redsave format: pinned, append-only, and DEFAULT stays 0 "
@@ -526,15 +548,17 @@ bool Combo_ComboItemRulesValid(const ComboItemRulesRecord* rec);
  * one-resolver discipline Combo_ResolveComboSettings states).
  *
  * A rule is authored by its Cross-Game Rules row's tier-4 key, which comes
- * with the phase that gives the rule its behaviour (#1065's Shared Lens of
- * Truth is the first: combo_settings_view.h, Combo_ComboItemRulesAuthored).
- * This reads those keys and nothing else; with none set it is the shipped
- * defaults, every rule off. A rule no key authors yet is never on here, so a
- * file written by a later build with such a rule on is REFUSED at load and at
- * arrival, by name (RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS): this build cannot
- * honour the rule, and under one-game semantics playing that file as if the
- * rule were off is corruption, not choice. A keyed rule that diverges is
- * restored from the file instead (frozen wins at load, #781).
+ * with the phase that gives the rule its behaviour (epic #975 P2 on: #1068's
+ * Shared Shields and #1065's Shared Lens of Truth today; combo_settings_view.h,
+ * Combo_ComboItemRulesAuthored). This reads those keys and nothing else
+ * (Combo_ComboSettingResolved, the shipped default when unset or out of space);
+ * with none set it is the shipped defaults, every rule off. A rule no key
+ * authors yet is never on here, so a file written by a later build with such a
+ * rule on is REFUSED at load and at arrival, by name
+ * (RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS): this build cannot honour the rule, and
+ * under one-game semantics playing that file as if the rule were off is
+ * corruption, not choice. A keyed rule that diverges is restored from the file
+ * instead (frozen wins at load, #781).
  */
 void Combo_ResolveComboItemRules(ComboItemRulesRecord* out);
 
@@ -1502,6 +1526,14 @@ int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath);
  *  logging that @p refusedAction was not done; 0 otherwise (no file, unparseable,
  *  or no "combo" section). OoT's writer asks before writing a paired document. */
 int MM_Rando_SpoilerBelongsToAnotherPair(const char* path, const char* refusedAction);
+/** #1055: the name (no directory, no ".json") this pair's OoT spoiler is written
+ *  under in the directory @p dir: @p seedName (return 0) unless that file is
+ *  another pair's, then "<seedName>-<fingerprint>" (return 1, the fingerprint
+ *  being comboSettingsHash as 8 uppercase hex digits) unless that one is another
+ *  pair's too (return -1, both refusals logged, @p out empty); -2 on a bad
+ *  argument. Writes nothing to disk. OoT's writer asks before writing a paired
+ *  document. */
+int MM_Rando_ChoosePairedSpoilerName(const char* dir, const char* seedName, char* out, size_t outCap);
 
 #ifdef __cplusplus
 }

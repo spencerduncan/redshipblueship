@@ -317,6 +317,62 @@ if(SINGLE_EXECUTABLE_BUILD)
     list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Songs/BetterSongOfDoubleTime\\.cpp$")
     list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Songs/SkipSoTCutscenes\\.cpp$")
 
+    # #1071 - 2ship_enh_registrars: enhancement TUs whose ONLY anchor in the
+    # link is a file-scope RegisterShipInitFunc, carved out of 2ship_enh so
+    # they can be WHOLE_ARCHIVE'd one deliberate file at a time.
+    #
+    # THE CLASS (#516's elided provider). A TU that registers purely through a
+    # static RegisterShipInitFunc object and exports nothing anything else
+    # references is dropped outright by plain archive semantics: its object
+    # never reaches redship.map, its static initializer never runs, and every
+    # hook it would have registered stays empty. When that hook is the rando
+    # hand-off for a check, the check silently plays vanilla. #678 hit it with
+    # the two ClockShuffle Songs TUs above (they keep their own archive, which
+    # predates this one); #1071 hit it with the nine song teachers below.
+    #
+    # WHY THIS ARCHIVE AND NOT THE WHOLE OF 2ship_enh: the reasons the #678
+    # block above gives, unchanged. Each member of this list is a decision to
+    # ARM that TU in the single exe, and check-registrar-elision.sh audits the
+    # archive as `required`, so every member must survive the link.
+    #
+    # TO ADD A FILE (later lanes of the same class): append it to the list
+    # below, ONE FILE PER LINE, under a `# #<issue>` comment of its own, after
+    # the last group, so two lanes' appends do not touch the same lines. In the
+    # same change: land the play-state guards PR #673's criterion asks for in
+    # every hook the TU registers, confirm each of those hooks is DISPATCHED in
+    # the single exe (the #512/#517 registered-but-not-dispatched class), check
+    # the TU's other definitions for a twin anywhere in games/oot or games/mm,
+    # and add a ROM-free row that attributes the TU by registry content without
+    # naming any symbol it defines (a reference from a test would un-elide it
+    # by itself). The REMOVE_ITEM below takes every listed file out of
+    # ship__Enhancements, so there is nothing else to edit here.
+    set(ship__Enh_registrars
+        # #1071: the song-teacher hooks. Forced on under IS_RANDO because they
+        # are the rando hand-off for the song checks (the Sonata hook is the
+        # only caller of VB_GIVE_ITEM_FROM_MNK, which
+        # Rando/ActorBehavior/EnMnk.cpp waits on). SkipLearningSongOfTime.cpp
+        # has no IS_RANDO gate and is not part of #1071; it stays in 2ship_enh.
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningElegyOfEmptiness.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningEponasSong.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullaby.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullabyIntro.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningNewWaveBossaNova.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSonataOfAwakening.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfHealing.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfSoaring.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfStorms.cpp"
+        # #1005-#1009: the Cheats rows the SoH menu draws (kSharedIntentKeys / kConvergedKeys):
+        # Infinite Health/Magic/Money(/Consumables), Climb Everything, Hookshot Everything,
+        # Moon Jump on L and Easy Frame Advancing. Each is CVar-gated, so a TU only arms when
+        # its row is on; the play-state guards landed with the carve-out.
+        "2s2h/Enhancements/Cheats/Infinite.cpp"
+        "2s2h/Enhancements/Cheats/ClimbAnywhere.cpp"
+        "2s2h/Enhancements/Cheats/HookshotAnywhere.cpp"
+        "2s2h/Enhancements/Cheats/MoonJump.cpp"
+        "2s2h/Enhancements/Cheats/EasyFrameAdvance.cpp"
+    )
+    list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
+
     # GameInteractor (use OoT's)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
 
@@ -437,9 +493,13 @@ if(SINGLE_EXECUTABLE_BUILD)
     # ZAPDLib deps, the include dirs, and the mm_gi_hook_guard.h poison prelude
     # that #427 item 2 made whole-target).
     add_library(2ship_enh_clockshuffle STATIC ${ship__Enh_clockshuffle})
+    # #1071: the RegisterShipInitFunc-only TUs, carved out above, with the same
+    # TWOSHIP_COMPILE_TARGETS inheritance as 2ship_enh_clockshuffle.
+    add_library(2ship_enh_registrars STATIC ${ship__Enh_registrars})
     add_library(2ship_rando STATIC ${ship__Rando})
     add_library(2ship_rando_ui STATIC ${ship__Rando_ui})
-    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_enh_clockshuffle 2ship_rando 2ship_rando_ui)
+    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_enh_clockshuffle 2ship_enh_registrars
+        2ship_rando 2ship_rando_ui)
     foreach(_t ${TWOSHIP_COMPILE_TARGETS})
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
@@ -473,8 +533,14 @@ if(SINGLE_EXECUTABLE_BUILD)
     # separate archive rather than an added reference or the whole-archive
     # flip of 2ship_enh itself (#516). check-registrar-elision.sh audits it as
     # required.
+    #
+    # 2ship_enh_registrars links WHOLE_ARCHIVE as of #1071, for the same reason:
+    # every member registers only through a file-scope RegisterShipInitFunc (the
+    # carve-out block above lists them and says how to add one). Also audited as
+    # required by check-registrar-elision.sh.
     set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_enh_clockshuffle>"
+        "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_enh_registrars>"
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_rando>"
         2ship_rando_ui PARENT_SCOPE)
 else()

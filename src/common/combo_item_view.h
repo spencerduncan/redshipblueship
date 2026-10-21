@@ -124,7 +124,9 @@ extern const ComboItemGridStyle kComboItemSohGrid;
  * called on the game thread.
  */
 typedef struct ComboItemOps {
-    // Number of rows; fixed for the adapter's lifetime.
+    // Number of rows that are always there; fixed for the adapter's lifetime.
+    // Rows a save adds on top (see countFor) come after these, so an index below
+    // this answers for every save.
     int (*count)(void);
     // Fill row `index` from `src` (a SaveContext image of this game) and nothing
     // else: never the global save. Leaves `out->freshness` alone. False when
@@ -152,6 +154,12 @@ typedef struct ComboItemOps {
     // be NULL, and may leave the keys NULL for a kind the game has no icon for:
     // the row is then text.
     void (*sharedIcon)(uint8_t kind, uint16_t tier, ComboItemRow* row);
+    // The rows THIS save shows (#1072): count() plus the rows a save's frozen
+    // options switch on (MM's ocarina buttons, shown only when the file shuffles
+    // them). Never below count(); indices count()..countFor()-1 are valid for
+    // that `src` and contiguous, so a drawer that stops at the first refused row
+    // sees them all. May be NULL: count() is then the answer for every save.
+    int (*countFor)(const void* src);
 } ComboItemOps;
 
 /**

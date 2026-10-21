@@ -1786,24 +1786,29 @@ of `reserved[]`, and the combo record's `formatVersion` stays 1.
   not quarantined** (a session divergence no key can restore). Playing it with
   the rule silently off would be the corruption one-game semantics forbids.
   When the keys land, they join `Combo_ComboSettingsRestorableMask`.
-  *2026-10-21 (#1065):* the first key landed. `gCombo.Rando.SharedLens`
+  *2026-10-21 (#1068, #1065):* the keys landed, #1068's Shared Shields first
+  (its own section below), then `gCombo.Rando.SharedLens`
   (`COMBO_SETTING_SHARED_LENS`, the "[Both Games] Shared Lens of Truth" row,
   0 or 1, default off) authors `RSBS_XITEM_SHARED_LENS`, and
   `Combo_ResolveComboItemRules` assembles `crossItemFlags` from the item-rule
   keys and nothing else (`Combo_ComboItemRulesAuthored`). A `crossItemFlags`
   divergence is restored at load from the file
-  (`Combo_ComboSettingsRestoreLiveEx`) when every rule the file froze on has a
-  key; a rule no key authors is still refused, as above.
+  (`Combo_ComboSettingsRestoreLive` with the file's item rules) when every
+  `crossItemFlags` bit that differs from the session has a key
+  (`Combo_ComboSettingsUnrestorableBits`); a rule no key authors is still
+  refused, as above. Both rules sit in one item-rule key table
+  (`kItemRuleKeys`), so `RSBS_XITEM_ALL_V1` is 0x023FFFFF with both.
   *2026-10-21 (#1066):* two more keys, `gCombo.Rando.SharedSongEpona` and
   `gCombo.Rando.SharedSongStorms` ("[Both Games] Shared Epona's Song" and
   "Shared Song of Storms", 0 or 1, default off), author
   `RSBS_XITEM_SHARED_SONG_EPONA` (0x00400000) and
-  `RSBS_XITEM_SHARED_SONG_STORMS` (0x00800000) through the same table.
+  `RSBS_XITEM_SHARED_SONG_STORMS` (0x00800000) through the same table, making
+  `RSBS_XITEM_ALL_V1` 0x02FFFFFF.
 - **The family bitset.** `sharedFamilyOwned` holds one bit per SHARED family,
-  at the family's own rule bit (`RSBS_XITEM_FAMILY_MASK` 0x002FF81F: the five
-  shared masks, the six shared extensions, the three arrows and, since #1065,
-  the Lens of Truth, whose members OoT and MM register at static init; #1066's
-  two songs make it 0x00EFF81F). It merges by a
+  at the family's own rule bit (`RSBS_XITEM_FAMILY_MASK` 0x022FF81F: the five
+  shared masks, the six shared extensions, the three arrows and, since #1065
+  and #1068, the Lens of Truth and the Hylian/Hero's Shield, whose members OoT
+  and MM register at static init; #1066's two songs make it 0x02EFF81F). It merges by a
   third discipline, OR (`shared_resources.h`): harvest `owned |= held & armed`,
   apply gives the arriving game its own copy of `owned & armed & ~held`. It is
   not a shared-resource slot: all twenty are allocated, and a slot's 16-bit
@@ -1852,3 +1857,38 @@ bumped by hand in any PR that re-pins a golden for a world-moving reason
 Locked by `ComboGeneratorVersion` (the fold, the legacy and newer-version load
 legs, the version-free bag seeds, the file-select text) and `ComboSettingsCanonical`
 (vectors pinned at explicit versions 0 and 1).
+
+### 2026-10-21 -- The "Shared Shields" rule, and a rule with two pairs (#1068)
+
+The first item rule with an authoring surface (operator ruling 2026-10-20:
+follow OoTMM's `sharedShields`, off by default). One Cross-Game Rules row,
+"[Both Games] Shared Shields", key `gCombo.Rando.SharedShields` (0 or 1,
+IDENTITY), resolved into `crossItemFlags` by `Combo_ResolveComboItemRules` and
+frozen at creation like every rule.
+
+- **The bit.** `RSBS_XITEM_SHARED_SHIELDS` 0x02000000, a family. The bits
+  between it and #976's 21 are #1065, #1066 and #1067's (0x00200000 to
+  0x01000000), and 0x04000000 is #1069's. `RSBS_XITEM_ALL_V1` is
+  0x021FFFFF on this change alone.
+- **One rule, two pairs.** OoT's Hylian Shield with MM's Hero's Shield, and the
+  two Mirror Shields. A family is one ownership bit, so the second pair needs a
+  bit of its own in `sharedFamilyOwned`: an **extra family slot**
+  (`RSBS_XFAMILY_SLOTS_EXTRA`, pinned and append-only like the rule bits). The
+  Mirror pair's is `RSBS_XFAMILY_SLOT_MIRROR_SHIELD` 0x80000000: bit 31 is never
+  a rule bit, so it is free in the ownership bitset, and it is never a
+  `crossItemFlags` bit (a record holding it is still invalid). The rule arms
+  its own bit and its extra slot together (`Combo_SharedFamilySlotsArmedBy`);
+  the registry, the OR merge and the bag's pair list work over slots.
+- **Restore.** The item rules diverge as one bit, so a key under it is restored
+  only when every `crossItemFlags` bit that differs from the session has a key
+  in this build (`Combo_ComboSettingsUnrestorableBits`). A rule only a later
+  build authors is still refused by name, as before.
+- With the rule off nothing changes: the record stays all clear, the
+  fingerprint and every `Golden*` digest hold, nothing is armed or registered
+  into the bag.
+
+Locked by `CrossItemRulesRecord` (the bit allocated, named, valid and a
+family), `SharedShieldsPairs` (both games register both pairs, the bag names
+them, the real composer makes each one shared row) and `SharedShieldsArrival`
+(through both games' real shims, the shield found in one game is given and
+worn in the other; off, nothing crosses).

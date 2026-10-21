@@ -491,12 +491,22 @@ main() {
     # required_mm_registrars: the allowlist would prove the SYMBOLS survived a
     # plain link that happens to pull them, which PR #651 measured to be
     # linker-incidental rather than a contract.
+    #
+    # lib2ship_enh_registrars.a (#1071) is the general form of the same
+    # carve-out: enhancement TUs whose only anchor is a file-scope
+    # RegisterShipInitFunc, starting with the nine StoryCutscenes/SkipLearning*
+    # song-teacher hooks the plain link dropped (the rando hand-off for every
+    # song check). Required for the same reason: membership is the claim, and a
+    # file is added to it only to arm it. Its members are ALSO named in
+    # required_mm_registrars below, because this archive gate is nm-based on
+    # the Linux build only and the per-symbol probe is the second witness.
     run_elision_gate "$bin" \
         "$build_dir/games/oot/libsoh_rando.a:required" \
         "$build_dir/games/oot/libsoh_enh.a:required" \
         "$build_dir/games/oot/libsoh_port.a:required" \
         "$build_dir/games/mm/lib2ship_rando.a:required" \
         "$build_dir/games/mm/lib2ship_enh_clockshuffle.a:required" \
+        "$build_dir/games/mm/lib2ship_enh_registrars.a:required" \
         "$build_dir/games/mm/lib2ship_enh.a:report-only" \
         "$build_dir/games/mm/lib2ship_rando_ui.a:report-only"
     overall=$?
@@ -566,6 +576,25 @@ main() {
         "RegisterSavingEnhancements"                # owl-save persistence, cycle-save playtime (#516 Phase 2)
         "GfxPatcher_ApplyNecessaryAuthenticPatches" # authentic gfx patches incl. latent matrix-stack UB
         "PlayerCustomFlipbooks_Patch"               # static FD/Deku/Goron faces (#618, the #516 Phase 3 pair)
+        # #1071: the song-teacher hooks in lib2ship_enh_registrars.a. The trailing
+        # "()" matters: the demangled name of a no-argument function ends in it,
+        # and without it GoronLullaby would be satisfied by GoronLullabyIntro.
+        "RegisterSkipLearningElegyOfEmptiness()"
+        "RegisterSkipLearningEponasSong()"
+        "RegisterSkipLearningGoronLullaby()"
+        "RegisterSkipLearningGoronLullabyIntro()"
+        "RegisterSkipLearningNewWaveBossaNova()"
+        "RegisterSkipLearningSonataOfAwakening()"
+        "RegisterSkipLearningSongOfHealing()"
+        "RegisterSkipLearningSongOfSoaring()"
+        "RegisterSkipLearningSongOfStorms()"
+        # #1005-#1009: the Cheats registrars in lib2ship_enh_registrars.a. MM_-prefixed where OoT
+        # ships a twin (RegisterMoonJump, RegisterEasyFrameAdvance), so the OoT copy cannot satisfy
+        # the probe. Infinite.cpp exports nothing; the archive gate above covers it by member.
+        "RegisterClimbAnywhere()"
+        "RegisterHookshotAnywhere()"
+        "MM_RegisterMoonJump()"
+        "MM_RegisterEasyFrameAdvance()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do
