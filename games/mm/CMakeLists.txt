@@ -370,6 +370,38 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Cheats/HookshotAnywhere.cpp"
         "2s2h/Enhancements/Cheats/MoonJump.cpp"
         "2s2h/Enhancements/Cheats/EasyFrameAdvance.cpp"
+        # #1018-#1022: the Skips & Speed-ups rows the SoH menu draws. Every file keys on the converged
+        # gEnhancements.TimeSavers.* key SoH writes (kConvergedKeys), registers only through a file-scope
+        # RegisterShipInitFunc, and rides a VB/actor hook the single exe dispatches (z_demo.c, z_eventmgr.c,
+        # z_camera.c, the actor overlays). Play-state guards landed with the carve-out. The song-teacher
+        # SkipLearning* files above are #1071's; SkipLearningSongOfTime.cpp (excluded by the comment there) is
+        # carried here with the rest of the Story set, and SkipGiantsChamber.cpp stays linked through its own path.
+        # #1018
+        "2s2h/Enhancements/Cutscenes/HideTitleCards.cpp"
+        # #1019
+        "2s2h/Enhancements/Cutscenes/SkipIntroSequence.cpp"
+        # #1020
+        "2s2h/Enhancements/Cutscenes/SkipEntranceCutscenes.cpp"
+        # #1021
+        "2s2h/Enhancements/Cutscenes/SkipOnePointCutscenes.cpp"
+        # #1022: the Story set (the remaining StoryCutscenes TUs, HealingMikauAudio included)
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/HealingMikauAudio.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipBiggoronSnowheadLullaby.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipBombBagTheftCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipClockTowerOpen.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipClockTowerSkullKidEncounter.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipDefeatCaptainSequence.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipFirstSongOfTimeFlashbacks.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingDarmani.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingMikau.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipIkanaCurseCutscenes.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfTime.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipMilkRunCutscenes.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipMoonCrash.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipPrincessDelivery.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipRaisingWoodfall.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipStoppingMoonCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipWakingAndRidingTurtle.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 
