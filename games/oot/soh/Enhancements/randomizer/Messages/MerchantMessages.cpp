@@ -222,15 +222,19 @@ static CustomMessage BuildScrubOfferMessage(RandomizerCheck rc) {
     }
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #800 pass 2: a scrub hosting an MM item names that item where it would name
-    // its own (Merchant Hint Text on, Mysterious Shuffle off), not the junk cover.
-    if (!RAND_GET_OPTION(RSK_MERCHANT_TEXT_HINT).Is(RO_GENERIC_OFF) &&
+    // its own (Scrub Hint Text on, Mysterious Shuffle off), not the junk cover.
+    if (!RAND_GET_OPTION(RSK_SCRUB_TEXT_HINT).Is(RO_GENERIC_OFF) &&
         !CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0) && BuildForeignHostMessage(msg, rc)) {
         msg.AutoFormat();
         return msg;
     }
 #endif
+    // #855: the scrub's offer follows Scrub Hint Text ("Business scrubs will reveal the identity of what
+    // they're selling"), the setting the Check Tracker's reveal and row name read for a scrub. Upstream read
+    // Merchant Hint Text here, so the box and the tracker disagreed whenever the two settings differed;
+    // Merchant Hint Text keeps governing the other merchants.
     BuildMerchantMessage(msg, rc,
-                         RAND_GET_OPTION(RSK_MERCHANT_TEXT_HINT).Is(RO_GENERIC_OFF) ||
+                         RAND_GET_OPTION(RSK_SCRUB_TEXT_HINT).Is(RO_GENERIC_OFF) ||
                              CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0));
     msg.AutoFormat();
     return msg;
