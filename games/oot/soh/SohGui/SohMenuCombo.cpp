@@ -588,7 +588,8 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         })
         .Options(CheckboxOptions().Tooltip(
             "Makes Epona's Song one song across both games: learning it in either game teaches it to you in the "
-            "other. Only one Epona's Song is shuffled, and both games' logic counts it."));
+            "other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only one "
+            "Epona's Song is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy too."));
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SONG_STORMS), WIDGET_CHECKBOX)
         .ValuePointer(&comboRuleSharedSongStorms)
         .PreFunc([](WidgetInfo& info) {
@@ -602,7 +603,9 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         })
         .Options(CheckboxOptions().Tooltip(
             "Makes the Song of Storms one song across both games: learning it in either game teaches it to you in "
-            "the other. Only one Song of Storms is shuffled, and both games' logic counts it."));
+            "the other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only "
+            "one Song of Storms is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy "
+            "too."));
 
     // Shared Fire, Ice and Light Arrows (#968; OoTMM sharedMagicArrowFire, Ice
     // and Light, off by default): the lens row's shape, one row per arrow as
