@@ -450,6 +450,47 @@ if(SINGLE_EXECUTABLE_BUILD)
         # Its definitions (Camera_FreeLook, Camera_CanFreeLook, UpdateFreeLookState, RegisterCameraFreeLook) have no
         # twin in games/oot or games/mm.
         "2s2h/Enhancements/Camera/FreeLook.cpp"
+        # #1030-#1034 (#966 key-name gaps, the link half; PR #1046 mapped the keys): the five SoH rows whose MM twin
+        # was mapped onto SoH's key and still did nothing because its provider was dropped from the link. Each
+        # registers only through a file-scope RegisterShipInitFunc keyed on the converged key SoH's row writes
+        # (kConvergedKeys), and rides a hook the single exe dispatches: VB_* via MM_GameHooks_ExecuteVBShould,
+        # OnActorInit / OnActorUpdate / OnActorDestroy / ShouldActorInit / OnOpenText via MM_GameHooks_Execute*. Play-state
+        # guards landed with the carve-out (RSBS_SINGLE_EXE_REQUIRE in the hook bodies, CanCycleArrows). Equipment/ChuDrops.cpp
+        # reads gEnhancements.NewDrops inline but is its own row (gEnhancements.Equipment.ChuDrops) and stays out.
+        # #1030
+        "2s2h/Enhancements/Accessibility/NoScreenFlashForEnemyKill.cpp"
+        # #1031
+        "2s2h/Enhancements/Graphics/3DItemDrops.cpp"
+        # #1032: the 25 Skip Misc Interactions TUs, all keyed on gEnhancements.TimeSavers.SkipMiscInteractions
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipAlienStartAndFail.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipAlienWarning.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipBankerDialogue.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipBossWarpPrompt.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipBothersomeMonkey.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipDekuSalesman.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipDekuTelescope.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipEponaReveal.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipEvanSong.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipFallingMoonsTear.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipGateGuards.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipGivingBombersNotebook.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipGreatFairyCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipHungryGoronDialogue.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipKafeiReveal.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipKamaroTeachDance.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipKotakeFlying.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipMayorsOfficeCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipOwlInteractions.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipPushingMikau.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipRosaSistersDance.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipScarecrowDance.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipTatlInterrupts.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipTingleTime.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipTurtleGoodbye.cpp"
+        # #1033
+        "2s2h/Enhancements/Songs/SkipScarecrowSong.cpp"
+        # #1034
+        "2s2h/Enhancements/Equipment/ArrowCycle.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 
