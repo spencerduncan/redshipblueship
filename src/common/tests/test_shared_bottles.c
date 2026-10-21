@@ -24,9 +24,12 @@
  *   pin). With the rule off nothing crosses.
  *
  *   SharedBottlesTrim ("shared-bottles-trim") - THE FILL. The real composer, over
- *   both games' REAL item classifications, trims the pair's bottle items to FOUR
- *   in total with the rule on (both games keep at least one, Ruto's Letter is
- *   never a trimmed copy), and trims nothing with it off.
+ *   both games' REAL item classifications, trims the pair's SLOT-BOUND bottle
+ *   items to FOUR in total with the rule on, and trims nothing with it off.
+ *   Ruto's Letter is never a trimmed copy but takes one of the four slots (OoT
+ *   gives it only into an empty bottle slot), so a Zora's-Fountain-closed pool
+ *   keeps three bottles beside it; plentiful (SURPLUS) bottle copies count
+ *   against the same four; and each game that has bottles keeps at least one.
  */
 
 #include "../combo_logic.h"
@@ -345,37 +348,105 @@ TestResult Test_SharedBottlesTier(void) {
     return TEST_PASS;
 }
 
-/** Is pool row @p r one of the bottle items this row puts in the pool? */
+/** What one compose kept and trimmed of a bottle pool. */
+typedef struct {
+    int rc;
+    int keptBottles[3]; // indexed by GameId; Ruto's Letter not counted
+    int trimmedBottles;
+    int letterRows; // Ruto's Letter rows in the pool
+    bool letterKept;
+    bool trimmedLetter;
+} SsbCompose;
+
+/** Is pool row @p r one of the bottle items this row puts in the pool (not Ruto's Letter)? */
 static bool SsbIsBottleRow(const ComboLogicPoolRow* r, uint16_t ootLetter) {
     return !(r->item.originGame == (uint8_t)GAME_OOT && r->item.id == ootLetter);
 }
 
+/** Append @p count rows of (@p game, @p id, @p poolFlags) to @p pool. */
+static void SsbAdd(ComboLogicPoolRow* pool, int* n, uint8_t game, int id, int count, uint16_t poolFlags) {
+    for (int i = 0; i < count; ++i, ++*n) {
+        pool[*n].item.originGame = game;
+        pool[*n].item.id = (uint16_t)id;
+        pool[*n].poolFlags = poolFlags;
+    }
+}
+
+/** Freeze a world with the rule @p on and compose @p pool through the REAL composer. */
+static SsbCompose SsbRun(const char* leg, const ComboLogicPoolRow* pool, int n, bool on, uint16_t ootLetter) {
+    SsbCompose c;
+    memset(&c, 0, sizeof(c));
+    SsbFreezeWorld(on);
+    ComboLogicComposeRequest req;
+    memset(&req, 0, sizeof(req));
+    req.rows = pool;
+    req.rowCount = n;
+    req.quantityFlags = 0u; // the production trim
+    req.startingHealthOoT = (uint16_t)RSBS_SHARED_QTY_DEFAULT_START_HEALTH;
+    req.startingHealthMM = (uint16_t)RSBS_SHARED_QTY_DEFAULT_START_HEALTH;
+    req.trimSeed = 0x0970u;
+    ComboLogicBagItem bag[32];
+    int index[32];
+    ComboLogicComposeResult res;
+    memset(&res, 0, sizeof(res));
+    c.rc = Combo_Logic_ComposeBag(&req, bag, 32, index, &res);
+    for (int i = 0; i < n; ++i) {
+        c.letterRows += SsbIsBottleRow(&pool[i], ootLetter) ? 0 : 1;
+    }
+    for (int i = 0; i < res.bagCount && i < 32; ++i) {
+        const ComboLogicPoolRow* r = &pool[index[i]];
+        if (SsbIsBottleRow(r, ootLetter)) {
+            c.keptBottles[r->item.originGame]++;
+        } else {
+            c.letterKept = true;
+        }
+    }
+    for (int t = 0; t < Combo_Logic_ComposeTrimmedCount(); ++t) {
+        int at = -1;
+        if (Combo_Logic_ComposeTrimmedAt(t, &at) && at >= 0 && at < n) {
+            if (SsbIsBottleRow(&pool[at], ootLetter)) {
+                c.trimmedBottles++;
+            } else {
+                c.trimmedLetter = true;
+            }
+        }
+    }
+    printf("[TEST] (%s, %s) compose rc %d: %d bag row(s), kept bottles OoT %d + MM %d, letter %s, %d trimmed\n", leg,
+           on ? "on" : "off", c.rc, res.bagCount, c.keptBottles[GAME_OOT], c.keptBottles[GAME_MM],
+           c.letterRows == 0 ? "absent" : (c.letterKept ? "kept" : "MISSING"), c.trimmedBottles);
+    SSB_CHECK(c.rc == RSBS_COMBO_LOGIC_OK, "%s: the composer refused the pool (rc %d)", leg, c.rc);
+    if (c.letterRows != 0) {
+        SSB_CHECK(c.letterKept && !c.trimmedLetter,
+                  "%s: Ruto's Letter left the bag: it is OoT's quest item, never one of the shared bottle copies", leg);
+    }
+    return c;
+}
+
 TestResult Test_SharedBottlesTrim(void) {
-    printf("[TEST] shared-bottles-trim: with the Shared Bottles rule on, the composer keeps four of the pair's "
-           "bottle items, at least one per game, and never trims Ruto's Letter; off, it trims nothing (#970)\n");
+    printf("[TEST] shared-bottles-trim: with the Shared Bottles rule on, the composer keeps the pair's slot-bound "
+           "bottle items (Ruto's Letter counted, never trimmed) at four, at least one bottle per game, plentiful "
+           "copies included; off, it trims nothing (#970)\n");
     sSsbFailures = 0;
     SSB_CHECK(OoT_ComboLogic_TestEnsureItemTableTransient() == 0, "OoT's item table did not come up");
 
-    // OoT: three generic bottles and Ruto's Letter (a ZF-closed pool's four).
-    // MM: its six bottle checks' items.
-    ComboLogicPoolRow pool[10];
-    memset(pool, 0, sizeof(pool));
-    const int ootIds[4] = { OoT_SharedBottleTest_PoolId(0), OoT_SharedBottleTest_PoolId(1),
-                            OoT_SharedBottleTest_PoolId(2), OoT_SharedBottleTest_PoolId(3) };
-    const int mmIds[6] = {
-        MM_SharedBottleTest_PoolId(0), MM_SharedBottleTest_PoolId(0), MM_SharedBottleTest_PoolId(1),
-        MM_SharedBottleTest_PoolId(2), MM_SharedBottleTest_PoolId(3), MM_SharedBottleTest_PoolId(4)
-    };
-    int n = 0;
-    for (int i = 0; i < 4; ++i, ++n) {
-        pool[n].item.originGame = (uint8_t)GAME_OOT;
-        pool[n].item.id = (uint16_t)ootIds[i];
-    }
-    for (int i = 0; i < 6; ++i, ++n) {
-        pool[n].item.originGame = (uint8_t)GAME_MM;
-        pool[n].item.id = (uint16_t)mmIds[i];
-    }
     const uint16_t ootLetter = (uint16_t)OoT_SharedBottleTest_PoolId(3);
+    const uint8_t O = (uint8_t)GAME_OOT;
+    const uint8_t M = (uint8_t)GAME_MM;
+    const uint16_t P = (uint16_t)RSBS_COMBO_POOL_PLENTIFUL;
+
+    // LEG 1, Zora's Fountain closed (SoH's default): OoT's three generic bottles
+    // and Ruto's Letter (item_pool.cpp's four), MM its six bottle checks' items.
+    ComboLogicPoolRow pool[32];
+    memset(pool, 0, sizeof(pool));
+    int n = 0;
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(0), 1, 0u);
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(1), 1, 0u);
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(2), 1, 0u);
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(3), 1, 0u);
+    SsbAdd(pool, &n, M, MM_SharedBottleTest_PoolId(0), 2, 0u);
+    for (int w = 1; w <= 4; ++w) {
+        SsbAdd(pool, &n, M, MM_SharedBottleTest_PoolId(w), 1, 0u);
+    }
 
     // The premise: every one is progression in its own game, so REQUIRED.
     for (int i = 0; i < n; ++i) {
@@ -383,69 +454,91 @@ TestResult Test_SharedBottlesTrim(void) {
         SSB_CHECK(d == RSBS_COMBO_COMPOSE_REQUIRED,
                   "pool row %d (%s id %u) is disposition %d, not REQUIRED; the row's "
                   "premise moved",
-                  i, pool[i].item.originGame == (uint8_t)GAME_OOT ? "OoT" : "MM", (unsigned)pool[i].item.id, d);
+                  i, pool[i].item.originGame == O ? "OoT" : "MM", (unsigned)pool[i].item.id, d);
     }
 
-    for (int pass = 0; pass < 2; ++pass) {
-        const bool on = (pass == 1);
-        SsbFreezeWorld(on);
-        ComboLogicComposeRequest req;
-        memset(&req, 0, sizeof(req));
-        req.rows = pool;
-        req.rowCount = n;
-        req.quantityFlags = 0u; // the production trim
-        req.startingHealthOoT = (uint16_t)RSBS_SHARED_QTY_DEFAULT_START_HEALTH;
-        req.startingHealthMM = (uint16_t)RSBS_SHARED_QTY_DEFAULT_START_HEALTH;
-        req.trimSeed = 0x0970u;
-        ComboLogicBagItem bag[16];
-        int index[16];
-        ComboLogicComposeResult res;
-        memset(&res, 0, sizeof(res));
-        const int rc = Combo_Logic_ComposeBag(&req, bag, 16, index, &res);
-        int keptBottles[3] = { 0, 0, 0 };
-        bool letterKept = false;
-        for (int i = 0; i < res.bagCount && i < 16; ++i) {
-            const ComboLogicPoolRow* r = &pool[index[i]];
-            if (SsbIsBottleRow(r, ootLetter)) {
-                keptBottles[r->item.originGame]++;
-            } else {
-                letterKept = true;
-            }
-        }
-        int trimmedBottles = 0;
-        bool trimmedLetter = false;
-        for (int t = 0; t < Combo_Logic_ComposeTrimmedCount(); ++t) {
-            int at = -1;
-            if (Combo_Logic_ComposeTrimmedAt(t, &at) && at >= 0 && at < n) {
-                if (SsbIsBottleRow(&pool[at], ootLetter)) {
-                    trimmedBottles++;
-                } else {
-                    trimmedLetter = true;
-                }
-            }
-        }
-        printf("[TEST] (%s) compose rc %d: %d bag row(s), kept bottles OoT %d + MM %d, letter %s, %d trimmed\n",
-               on ? "on" : "off", rc, res.bagCount, keptBottles[GAME_OOT], keptBottles[GAME_MM],
-               letterKept ? "kept" : "MISSING", trimmedBottles);
-        SSB_CHECK(rc == RSBS_COMBO_LOGIC_OK, "the composer refused the pool (rc %d)", rc);
-        SSB_CHECK(letterKept && !trimmedLetter,
-                  "Ruto's Letter left the bag: it is OoT's quest item, never one of the shared bottle copies");
-        if (!on) {
-            SSB_CHECK(trimmedBottles == 0 && keptBottles[GAME_OOT] == 3 && keptBottles[GAME_MM] == 6,
-                      "OFF: the composer trimmed %d bottle item(s) (kept OoT %d, MM %d); a world that never asked "
-                      "keeps both games' bottles",
-                      trimmedBottles, keptBottles[GAME_OOT], keptBottles[GAME_MM]);
-        } else {
-            SSB_CHECK(keptBottles[GAME_OOT] + keptBottles[GAME_MM] == 4,
-                      "ON: the bag keeps %d bottle items across both games (OoT %d, MM %d); the shared count is four, "
-                      "so the bag keeps four",
-                      keptBottles[GAME_OOT] + keptBottles[GAME_MM], keptBottles[GAME_OOT], keptBottles[GAME_MM]);
-            SSB_CHECK(keptBottles[GAME_OOT] >= 1 && keptBottles[GAME_MM] >= 1,
-                      "ON: a game kept no bottle of its own (OoT %d, MM %d); each engine assumes only its own copies",
-                      keptBottles[GAME_OOT], keptBottles[GAME_MM]);
-            SSB_CHECK(trimmedBottles == 5, "ON: %d bottle item(s) trimmed, expected 5 (nine copies, four kept)",
-                      trimmedBottles);
-        }
+    {
+        const SsbCompose off = SsbRun("zf-closed", pool, n, false, ootLetter);
+        SSB_CHECK(off.trimmedBottles == 0 && off.keptBottles[GAME_OOT] == 3 && off.keptBottles[GAME_MM] == 6,
+                  "OFF: the composer trimmed %d bottle item(s) (kept OoT %d, MM %d); a world that never asked "
+                  "keeps both games' bottles",
+                  off.trimmedBottles, off.keptBottles[GAME_OOT], off.keptBottles[GAME_MM]);
+    }
+    {
+        // Ruto's Letter takes a bottle slot when it is given (OoT's Item_Give
+        // needs an ITEM_NONE slot for it, and the rando hands a blue rupee when
+        // there is none), so it is one of the four slot-bound items: the bag
+        // keeps THREE bottles beside it. Four bottles plus the letter would let
+        // the shared count fill OoT's four slots before the letter is found.
+        const SsbCompose on = SsbRun("zf-closed", pool, n, true, ootLetter);
+        const int kept = on.keptBottles[GAME_OOT] + on.keptBottles[GAME_MM];
+        SSB_CHECK(kept == 3,
+                  "ON: the bag keeps %d bottle items beside Ruto's Letter (OoT %d, MM %d); with the letter's slot "
+                  "the pair holds %d slot-bound items against a shared count of four",
+                  kept, on.keptBottles[GAME_OOT], on.keptBottles[GAME_MM], kept + 1);
+        SSB_CHECK(on.keptBottles[GAME_OOT] >= 1 && on.keptBottles[GAME_MM] >= 1,
+                  "ON: a game kept no bottle of its own (OoT %d, MM %d); each engine assumes only its own copies",
+                  on.keptBottles[GAME_OOT], on.keptBottles[GAME_MM]);
+        SSB_CHECK(on.trimmedBottles == 6, "ON: %d bottle item(s) trimmed, expected 6 (nine copies, three kept)",
+                  on.trimmedBottles);
+    }
+
+    // LEG 2, Zora's Fountain open: no letter in OoT's pool (four generic
+    // bottles), so the bag keeps four bottle items.
+    n = 0;
+    memset(pool, 0, sizeof(pool));
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(0), 2, 0u);
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(1), 1, 0u);
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(2), 1, 0u);
+    SsbAdd(pool, &n, M, MM_SharedBottleTest_PoolId(0), 2, 0u);
+    for (int w = 1; w <= 4; ++w) {
+        SsbAdd(pool, &n, M, MM_SharedBottleTest_PoolId(w), 1, 0u);
+    }
+    {
+        const SsbCompose on = SsbRun("zf-open", pool, n, true, ootLetter);
+        SSB_CHECK(on.keptBottles[GAME_OOT] + on.keptBottles[GAME_MM] == 4,
+                  "ON (no letter): the bag keeps %d bottle items (OoT %d, MM %d); the shared count is four",
+                  on.keptBottles[GAME_OOT] + on.keptBottles[GAME_MM], on.keptBottles[GAME_OOT],
+                  on.keptBottles[GAME_MM]);
+        SSB_CHECK(on.keptBottles[GAME_OOT] >= 1 && on.keptBottles[GAME_MM] >= 1,
+                  "ON (no letter): a game kept no bottle of its own (OoT %d, MM %d)", on.keptBottles[GAME_OOT],
+                  on.keptBottles[GAME_MM]);
+    }
+
+    // LEG 3, plentiful: MM's plentiful copies of its bottles are SURPLUS rows
+    // (GeneratePools duplicates RITYPE_MAJOR items). They take slots exactly as
+    // the required ones do, so the four-slot budget covers them too: with the
+    // letter and three required bottles kept, every surplus bottle is trimmed.
+    n = 0;
+    memset(pool, 0, sizeof(pool));
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(0), 3, 0u);
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(3), 1, 0u);
+    SsbAdd(pool, &n, M, MM_SharedBottleTest_PoolId(0), 6, 0u);
+    SsbAdd(pool, &n, M, MM_SharedBottleTest_PoolId(1), 3, P);
+    SSB_CHECK(Combo_Logic_ComposeDisposition(pool[n - 1].item, P, 0u) == RSBS_COMBO_COMPOSE_SURPLUS,
+              "a plentiful MM bottle row is not SURPLUS; the leg's premise moved");
+    {
+        const SsbCompose on = SsbRun("plentiful", pool, n, true, ootLetter);
+        SSB_CHECK(on.keptBottles[GAME_OOT] + on.keptBottles[GAME_MM] == 3,
+                  "ON (plentiful): the bag keeps %d bottle items beside Ruto's Letter (OoT %d, MM %d); surplus "
+                  "bottles take slots too, so the pair keeps three",
+                  on.keptBottles[GAME_OOT] + on.keptBottles[GAME_MM], on.keptBottles[GAME_OOT],
+                  on.keptBottles[GAME_MM]);
+    }
+
+    // LEG 4, lopsided pools: one OoT bottle against ten MM ones. A largest-
+    // remainder split of four would keep none of OoT's; the trim keeps at least
+    // one bottle for each game that has any, so each engine's own HasBottle
+    // proof still has a copy of its own to stand on.
+    n = 0;
+    memset(pool, 0, sizeof(pool));
+    SsbAdd(pool, &n, O, OoT_SharedBottleTest_PoolId(0), 1, 0u);
+    SsbAdd(pool, &n, M, MM_SharedBottleTest_PoolId(0), 10, 0u);
+    {
+        const SsbCompose on = SsbRun("lopsided", pool, n, true, ootLetter);
+        SSB_CHECK(on.keptBottles[GAME_OOT] == 1 && on.keptBottles[GAME_MM] == 3,
+                  "ON (lopsided): kept OoT %d + MM %d, expected 1 + 3 (at least one per game, four in total)",
+                  on.keptBottles[GAME_OOT], on.keptBottles[GAME_MM]);
     }
 
     ComboContext_Init();
