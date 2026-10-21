@@ -120,8 +120,14 @@
 #include <string>
 #include <vector>
 
+#include <libultraship/bridge/consolevariablebridge.h>
+
+#include "2s2h/Rando/Foreign.h"
+#include "combo_mm_options_view.h"
 #include "combo_tracker_view.h"
 #include "context.h"
+#include "cvar_shared_keys.h"
+#include "foreign_items.h"
 #include "crossing_store.h"
 #include "game.h"
 #include "game_lifecycle.h"
@@ -1243,6 +1249,243 @@ extern "C" int MM_CreationPlayerName_Run(void) {
     }
     Randomizer_TestClearOoTSave();
 
+    printf("[TEST] PASS: %s\n", sRow);
+    return 0;
+}
+
+// ============================================================================
+// THE MOON CRASH UNDER "NEW CYCLE" (#1069; OoTMM's moonCrash 'cycle')
+// ============================================================================
+namespace {
+
+/** The MM option's key and the Shared Song of Time rule's tier-4 key (spelled
+ *  from the identity prefix, as the classification scan requires). */
+const char* const kMoonCrashKey = "gRando.Options.MoonCrash";
+std::string SharedSongTimeKey() {
+    return std::string(RSBS::kComboIdentityKeyPrefix) + "SharedSongTime";
+}
+/** The rule's record bit (.redsave format, spelled as a literal). */
+const uint32_t kSharedSongTimeBit = 0x04000000u;
+
+/** Freeze a paired world with the shipped combo record and the Shared Song of
+ *  Time rule @p on (the creation event's act; the bit as a literal). */
+void FreezeSongOfTimeRule(bool on) {
+    ComboContext_Init();
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0x1069C0DEu;
+    gComboCtx.sharedRandoSettingsHash = 0x1069CA5Eu;
+    gComboCtx.mmProfileDigest = 0x1069D16Eu;
+    ComboSettingsRecord rec;
+    Combo_ComboSettingsDefaults(&rec);
+    ComboItemRulesRecord rules;
+    memset(&rules, 0, sizeof(rules));
+    rules.crossItemFlags = on ? kSharedSongTimeBit : 0u;
+    Combo_FreezeComboSettingsEx(&rec, &rules);
+}
+
+/** A fresh rando half whose profile is resolved from the live keys, as the
+ *  creation resolves it (solo resolution: it stamps no identity). */
+void ResolveFreshRandoHalf() {
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    Rando::Foreign::ResolvePairedProfile(false);
+}
+
+} // namespace
+
+/**
+ * mm-moon-crash-cycle-forced (#1069). The FROZEN moon crash a file plays under
+ * (MM_Rando_FrozenMoonCrash): the MM option's frozen value, forced to New Cycle
+ * by the frozen Shared Song of Time rule.
+ *
+ *   1. Rule off, option untouched: Last Save (today's behaviour, OoTMM's default).
+ *   2. Rule frozen on, option untouched: New Cycle, whatever the half holds.
+ *   3. The rule never enters MM's identity: the creation stamp is the same with
+ *      the rule's key on and off (MM_Rando_ComputeProfileStamp runs before the
+ *      combo freeze, so a rule-dependent term would refuse every arrival).
+ *   4. The option itself: New Cycle authored freezes into the half and plays as
+ *      New Cycle with the rule off, and moves the stamp; Last Save authored adds
+ *      no term (no existing pair's digest moves).
+ */
+extern "C" int MM_MoonCrashCycleForced_Run(void) {
+    sRow = "mm-moon-crash-cycle-forced";
+    printf("[TEST] %s: the frozen Shared Song of Time rule forces Moon Crash Behavior to New Cycle; otherwise the "
+           "frozen option decides, Last Save by default (#1069)\n",
+           sRow);
+    const std::string ruleKey = SharedSongTimeKey();
+    CVarClear(kMoonCrashKey);
+    CVarClear(ruleKey.c_str());
+    int failures = 0;
+    auto check = [&failures](bool ok, const char* what) {
+        if (!ok) {
+            failures++;
+            printf("[TEST] FAIL (%s): %s\n", sRow, what);
+        }
+    };
+
+    // ---- 1. rule off, option untouched ---------------------------------------
+    ResolveFreshRandoHalf();
+    FreezeSongOfTimeRule(false);
+    const int offMode = MM_Rando_FrozenMoonCrash();
+    printf("[TEST] %s: (1) rule off: frozen option %u, plays as %d (expected 0, %d)\n", sRow,
+           (unsigned)gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash, offMode, RSBS_MM_MOON_CRASH_RESET);
+    check(gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash == RSBS_MM_MOON_CRASH_RESET &&
+              offMode == RSBS_MM_MOON_CRASH_RESET,
+          "(1) with every rule off and the option untouched the moon crash is not Last Save");
+
+    // ---- 2. rule frozen on --------------------------------------------------
+    FreezeSongOfTimeRule(true);
+    const int onMode = MM_Rando_FrozenMoonCrash();
+    printf("[TEST] %s: (2) rule on: frozen rules %08X, frozen option %u, plays as %d (expected %08X, 0, %d)\n", sRow,
+           (unsigned)gComboCtx.comboItemRules.crossItemFlags,
+           (unsigned)gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash, onMode, (unsigned)kSharedSongTimeBit,
+           RSBS_MM_MOON_CRASH_CYCLE);
+    check(onMode == RSBS_MM_MOON_CRASH_CYCLE,
+          "(2) the frozen Shared Song of Time rule did not force New Cycle: MM would start without the song and "
+          "without a free reset");
+
+    // ---- 3. the identity is rule-independent ---------------------------------
+    const uint32_t stampOff = MM_Rando_ComputeProfileStamp();
+    CVarSetInteger(ruleKey.c_str(), 1);
+    const uint32_t stampOn = MM_Rando_ComputeProfileStamp();
+    CVarClear(ruleKey.c_str());
+    printf("[TEST] %s: (3) creation stamp with the rule's key off %08X, on %08X (expected equal)\n", sRow,
+           (unsigned)stampOff, (unsigned)stampOn);
+    check(stampOff == stampOn, "(3) the Shared Song of Time rule moved MM's profile stamp");
+
+    // ---- 4. the option itself ------------------------------------------------
+    CVarSetInteger(kMoonCrashKey, RSBS_MM_MOON_CRASH_CYCLE);
+    const uint32_t stampCycle = MM_Rando_ComputeProfileStamp();
+    ResolveFreshRandoHalf();
+    FreezeSongOfTimeRule(false);
+    const int authoredMode = MM_Rando_FrozenMoonCrash();
+    printf("[TEST] %s: (4) New Cycle authored: frozen option %u, plays as %d, stamp %08X vs default %08X (expected "
+           "%d, %d, different)\n",
+           sRow, (unsigned)gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash, authoredMode, (unsigned)stampCycle,
+           (unsigned)stampOff, RSBS_MM_MOON_CRASH_CYCLE, RSBS_MM_MOON_CRASH_CYCLE);
+    check(gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash == RSBS_MM_MOON_CRASH_CYCLE &&
+              authoredMode == RSBS_MM_MOON_CRASH_CYCLE,
+          "(4) New Cycle authored did not freeze into the half, or does not play as New Cycle");
+    check(stampCycle != stampOff,
+          "(4) the option is not part of MM's identity: a change after creation would go unnoticed");
+    CVarSetInteger(kMoonCrashKey, RSBS_MM_MOON_CRASH_RESET);
+    const uint32_t stampReset = MM_Rando_ComputeProfileStamp();
+    check(stampReset == stampOff, "(4) Last Save authored moved the stamp: every existing pair's digest would move");
+
+    CVarClear(kMoonCrashKey);
+    CVarClear(ruleKey.c_str());
+    ComboContext_Init();
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    if (failures != 0) {
+        printf("[TEST] FAIL: %s (%d failure(s))\n", sRow, failures);
+        return 1;
+    }
+    printf("[TEST] PASS: %s\n", sRow);
+    return 0;
+}
+
+/**
+ * mm-moon-crash-cycle-reset (#1069). A moon crash under New Cycle starts a new
+ * cycle, as OoTMM's MoonCrashCycle does (human form, no mask, the Song of Time's
+ * Sram_SaveEndOfCycle): the clock goes to the Dawn of the First Day, inventory,
+ * masks and quest items are kept, the last-commit rollback (#785) does not run,
+ * and the new cycle is committed. A paired half with a creation commit; play on
+ * past it (a mask, a song and a bottle the commit does not hold); crash through
+ * the REAL Interface_StartMoonCrash and Sram_ResetSaveFromMoonCrash.
+ */
+extern "C" int MM_MoonCrashCycleReset_Run(void) {
+    sRow = "mm-moon-crash-cycle-reset";
+    printf("[TEST] %s: a moon crash under New Cycle starts a new cycle keeping progress, and commits it; it does not "
+           "restore the last commit (#1069)\n",
+           sRow);
+
+    const GameId prevGame = Context_GetCurrentGame();
+    Context_InitFrozenStates();
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+
+    // ---- the creation and its commit (as mm-moon-crash-never-saved) ----------
+    const uint32_t kSeed = 0x5EED1069u;
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Sram_InitNewSave();
+    MM_Creation_StampNewFileFields(kMMName);
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = kSeed;
+    // The frozen option: New Cycle (what the creation resolves from the key).
+    gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = RSBS_MM_MOON_CRASH_CYCLE;
+    CNF_ASSERT(MM_Rando_ArmCreatedHalf(0) == 0, "the authored half arms");
+    Context_SetCurrentGame(GAME_OOT);
+    {
+        std::vector<uint8_t> oot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+        Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+    }
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveDir);
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    CNF_ASSERT(mgr.Save(0), "the creation commits the .redsave with the armed MM half (Save_SaveFile)");
+    RsbsSave_SetActiveSlot(0);
+    if (memcmp(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic)) != 0) {
+        memcpy(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic));
+    }
+
+    // ---- the arrival, and play past the commit --------------------------------
+    CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
+               "the arrival consumes the armed half");
+    CNF_ASSERT(gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash == RSBS_MM_MOON_CRASH_CYCLE,
+               "the half's frozen Moon Crash Behavior is New Cycle (premise)");
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.save.day = 2;
+    gSaveContext.save.eventDayCount = 2;
+    gSaveContext.save.time = (u16)CLOCK_TIME(15, 0);
+    gSaveContext.save.saveInfo.inventory.items[SLOT_MASK_BUNNY] = ITEM_MASK_BUNNY;
+    gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = ITEM_BOTTLE;
+    const uint32_t kQuest = (1u << QUEST_SONG_HEALING) | (1u << QUEST_REMAINS_ODOLWA);
+    gSaveContext.save.saveInfo.inventory.questItems |= kQuest;
+    gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+    gSaveContext.save.equippedMask = PLAYER_MASK_BUNNY;
+    const u16 resetsBefore = gSaveContext.save.saveInfo.playerData.threeDayResetCount;
+    const uint32_t generationBefore = gComboCtx.commitGeneration;
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    PrintClock("after the moon crash (New Cycle)");
+    printf("[TEST] %s: threeDayResetCount %u -> %u, commit generation %u -> %u, mask slot 0x%02X, bottle 0x%02X, "
+           "quest %08X, equipped mask %u\n",
+           sRow, (unsigned)resetsBefore, (unsigned)gSaveContext.save.saveInfo.playerData.threeDayResetCount,
+           (unsigned)generationBefore, (unsigned)gComboCtx.commitGeneration,
+           (unsigned)gSaveContext.save.saveInfo.inventory.items[SLOT_MASK_BUNNY],
+           (unsigned)gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1],
+           (unsigned)gSaveContext.save.saveInfo.inventory.questItems, (unsigned)gSaveContext.save.equippedMask);
+    CNF_ASSERT(gSaveContext.save.day == 0 && gSaveContext.save.eventDayCount == 0 &&
+                   gSaveContext.save.time == (u16)(CLOCK_TIME(6, 0) - 1),
+               "the crash under New Cycle did not restart the clock at the Dawn of the First Day (day 0, 05:59)");
+    CNF_ASSERT(gSaveContext.save.saveInfo.playerData.threeDayResetCount == (u16)(resetsBefore + 1),
+               "the crash did not start a NEW CYCLE (Sram_SaveEndOfCycle counts one)");
+    CNF_ASSERT(gSaveContext.save.saveInfo.inventory.items[SLOT_MASK_BUNNY] == ITEM_MASK_BUNNY &&
+                   gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] == ITEM_BOTTLE,
+               "the crash lost inventory found after the last commit: the last-commit rollback ran (Last Save)");
+    CNF_ASSERT((gSaveContext.save.saveInfo.inventory.questItems & kQuest) == kQuest,
+               "the crash lost quest items learnt after the last commit");
+    CNF_ASSERT(gSaveContext.save.playerForm == PLAYER_FORM_HUMAN && gSaveContext.save.equippedMask == PLAYER_MASK_NONE,
+               "the new cycle does not start in human form with no mask on (OoTMM's MoonCrashCycle)");
+    CNF_ASSERT(memcmp(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf)) == 0 &&
+                   gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO &&
+                   gSaveContext.save.shipSaveInfo.rando.finalSeed == kSeed,
+               "the half is still this world");
+    CNF_ASSERT(gComboCtx.commitGeneration > generationBefore,
+               "the new cycle was not committed: a reload would put the file back before the crash");
+
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    mgr.SetSaveDirectory("Save");
+    RsbsSave_SetActiveSlot(-1);
+    Context_ClearAllFrozenStates();
+    ComboContext_Init();
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    Context_SetCurrentGame(prevGame);
     printf("[TEST] PASS: %s\n", sRow);
     return 0;
 }

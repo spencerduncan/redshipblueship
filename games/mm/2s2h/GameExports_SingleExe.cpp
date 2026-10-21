@@ -892,6 +892,184 @@ static void MMCrRegisterHooks(void) {
     MM_GameHooks_RegisterOnGameStateMainStart(MMCrFrame);
 }
 
+// ============================================================================
+// int-mm-moon-crash-cycle (#1069): the moon falls on a live MM session whose
+// frozen Moon Crash Behavior is New Cycle (OoTMM's moonCrash 'cycle').
+// ============================================================================
+//
+// MM boots on its debug save outside the Clock Tower (the refused-crossing
+// row's injection), plays kMMMcFramesBeforeCrash live frames, then marks the
+// file New Cycle (randoSaveMoonCrash, the frozen option the creation writes),
+// records what a new cycle must keep (the Bunny Hood, the Song of Healing, a
+// bottle) and what only a new cycle clears (a Deku Playground record and the
+// three-day reset count), and lets the moon fall through the REAL
+// Interface_StartMoonCrash. The crash cutscene runs in Termina Field and its
+// CS_MISC_RESET_SAVE_FROM_MOON_CRASH runs the reset. Once gameplay is live in
+// the scene after Termina Field, the file must be in a NEW cycle with its
+// progress: day 1 or the dawn before it, one more three-day reset, the record
+// cleared, the mask, the song and the bottle kept. A debug session has no
+// .redsave slot, so under Last Save the crash would restart the clock and keep
+// the bytes (#785's no-commit leg): the reset count and the cleared record are
+// what tell a new cycle from that.
+typedef enum {
+    MMMC_STAGE_BOOT,
+    MMMC_STAGE_ENTERING_PLAY,
+    MMMC_STAGE_BEFORE_CRASH,
+    MMMC_STAGE_CRASHING,
+    MMMC_STAGE_DONE,
+    MMMC_STAGE_FAILED,
+} MMMcStage;
+
+static MMMcStage sMMMcStage = MMMC_STAGE_BOOT;
+static int sMMMcLiveFrames = 0;
+static std::chrono::steady_clock::time_point sMMMcStageStart{};
+static u16 sMMMcResetsBefore = 0;
+static const int kMMMcFramesBeforeCrash = 20;
+static const int kMMMcFramesAfterCrash = 30;
+static const int kMMMcStageBudgetSecs = 240; // the crash cutscene plays in full
+static const u32 kMMMcRecordSentinel = 1069u;
+
+static double MMMcSecondsInStage(void) {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - sMMMcStageStart).count();
+}
+
+static void MMMcSetStage(MMMcStage stage) {
+    fprintf(stderr, "[MM-INT-TEST] mm-moon-crash-cycle: stage %d -> %d (%.1f s)\n", (int)sMMMcStage, (int)stage,
+            MMMcSecondsInStage());
+    fflush(stderr);
+    sMMMcStage = stage;
+    sMMMcLiveFrames = 0;
+    sMMMcStageStart = std::chrono::steady_clock::now();
+}
+
+static void MMMcFail(const char* why) {
+    PlayState* play = MM_gPlayState;
+    fprintf(stderr,
+            "[MM-INT-TEST] FAIL (int-mm-moon-crash-cycle): %s [stage=%d after %.1f s; day=%d time=0x%04X "
+            "entrance=0x%04X sceneId=%d]\n",
+            why, (int)sMMMcStage, MMMcSecondsInStage(), (int)gSaveContext.save.day, (unsigned)gSaveContext.save.time,
+            (unsigned)gSaveContext.save.entrance, play != NULL ? (int)play->sceneId : -1);
+    fflush(stderr);
+    sMMMcStage = MMMC_STAGE_FAILED;
+    IntegrationTest_RequestExit();
+    Combo_RequestGameSwitch();
+}
+
+static void MMMcCrash(PlayState* play) {
+    gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = RSBS_MM_MOON_CRASH_CYCLE;
+    gSaveContext.save.saveInfo.inventory.items[SLOT_MASK_BUNNY] = ITEM_MASK_BUNNY;
+    gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = ITEM_BOTTLE;
+    gSaveContext.save.saveInfo.inventory.questItems |= (1u << QUEST_SONG_HEALING);
+    gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0] = kMMMcRecordSentinel;
+    sMMMcResetsBefore = gSaveContext.save.saveInfo.playerData.threeDayResetCount;
+    fprintf(stderr,
+            "[MM-INT-TEST] mm-moon-crash-cycle: %d live frames outside the Clock Tower; the file plays under %d "
+            "(expected %d, New Cycle); the moon falls (threeDayResetCount %u)\n",
+            sMMMcLiveFrames, MM_Rando_FrozenMoonCrash(), RSBS_MM_MOON_CRASH_CYCLE, (unsigned)sMMMcResetsBefore);
+    fflush(stderr);
+    MMMcSetStage(MMMC_STAGE_CRASHING);
+    Interface_StartMoonCrash(play);
+}
+
+static void MMMcVerify(void) {
+    const SaveInfo& info = gSaveContext.save.saveInfo;
+    const bool newCycle = info.playerData.threeDayResetCount == (u16)(sMMMcResetsBefore + 1);
+    const bool recordCleared = info.dekuPlaygroundHighScores[0] != kMMMcRecordSentinel;
+    const bool dawn = gSaveContext.save.day <= 1 && gSaveContext.save.eventDayCount <= 1;
+    const bool kept = info.inventory.items[SLOT_MASK_BUNNY] == ITEM_MASK_BUNNY &&
+                      info.inventory.items[SLOT_BOTTLE_1] == ITEM_BOTTLE &&
+                      (info.inventory.questItems & (1u << QUEST_SONG_HEALING)) != 0u;
+    fprintf(stderr,
+            "[MM-INT-TEST] mm-moon-crash-cycle: after the crash: scene %d, day %d, eventDayCount %d, time 0x%04X, "
+            "threeDayResetCount %u (was %u), Deku record %u (was %u), mask 0x%02X bottle 0x%02X quest %08X\n",
+            MM_gPlayState != NULL ? (int)MM_gPlayState->sceneId : -1, (int)gSaveContext.save.day,
+            (int)gSaveContext.save.eventDayCount, (unsigned)gSaveContext.save.time,
+            (unsigned)info.playerData.threeDayResetCount, (unsigned)sMMMcResetsBefore,
+            (unsigned)info.dekuPlaygroundHighScores[0], (unsigned)kMMMcRecordSentinel,
+            (unsigned)info.inventory.items[SLOT_MASK_BUNNY], (unsigned)info.inventory.items[SLOT_BOTTLE_1],
+            (unsigned)info.inventory.questItems);
+    fflush(stderr);
+    if (!newCycle || !recordCleared) {
+        MMMcFail("the crash under New Cycle did not start a new cycle (the reset count did not move, or the cycle's "
+                 "Deku record survived): the Last Save path ran");
+        return;
+    }
+    if (!dawn) {
+        MMMcFail("after the crash the file is not at the Dawn of the First Day");
+        return;
+    }
+    if (!kept) {
+        MMMcFail("the new cycle lost the Bunny Hood, the bottle or the Song of Healing");
+        return;
+    }
+    fprintf(stderr, "[MM-INT-TEST] int-mm-moon-crash-cycle: PASS (the moon fell and a new cycle began with the "
+                    "file's progress kept)\n");
+    fflush(stderr);
+    MMMcSetStage(MMMC_STAGE_DONE);
+    IntegrationTest_SignalBootComplete(GAME_MM, "moon crash started a new cycle");
+}
+
+static void MMMcFrame(void) {
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return; // the ROM-free arming row dispatches with no game running
+    }
+    if (sMMMcStage == MMMC_STAGE_DONE || sMMMcStage == MMMC_STAGE_FAILED) {
+        return;
+    }
+    if (MMMcSecondsInStage() >= kMMMcStageBudgetSecs) {
+        MMMcFail("a stage made no progress within its budget");
+        return;
+    }
+    if (sMMMcStage == MMMC_STAGE_BOOT) {
+        if (MM_gGameState != NULL && MM_gGameState->destroy == ConsoleLogo_Destroy) {
+            gSaveContext.gameMode = GAMEMODE_NORMAL;
+            gSaveContext.save.cutsceneIndex = 0;
+            gSaveContext.nextCutsceneIndex = 0xFFEF;
+            gSaveContext.sceneLayer = 0;
+            gSaveContext.save.time = CLOCK_TIME(8, 0);
+            gSaveContext.save.day = 1;
+            gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+            MapSelect_LoadGame((MapSelectState*)MM_gGameState, kMMCrOutsideDoor, 0);
+            MMMcSetStage(MMMC_STAGE_ENTERING_PLAY);
+        }
+        return;
+    }
+    PlayState* play = MM_gPlayState;
+    if (play == NULL || MM_gGameState != &play->state || gSaveContext.gameMode != GAMEMODE_NORMAL ||
+        !MM_SceneLoadComplete() || play->transitionMode != TRANS_MODE_OFF ||
+        play->transitionTrigger != TRANS_TRIGGER_OFF) {
+        return;
+    }
+    if (sMMMcStage == MMMC_STAGE_ENTERING_PLAY) {
+        MMMcSetStage(MMMC_STAGE_BEFORE_CRASH);
+        return;
+    }
+    if (sMMMcStage == MMMC_STAGE_BEFORE_CRASH) {
+        if (++sMMMcLiveFrames >= kMMMcFramesBeforeCrash) {
+            MMMcCrash(play);
+        }
+        return;
+    }
+    // CRASHING: Termina Field holds the crash cutscene; the scene after it is
+    // where the new cycle plays.
+    if (play->sceneId == SCENE_00KEIKOKU) {
+        sMMMcLiveFrames = 0;
+        return;
+    }
+    if (++sMMMcLiveFrames >= kMMMcFramesAfterCrash) {
+        MMMcVerify();
+    }
+}
+
+static void MMMcRegisterHooks(void) {
+    fprintf(stderr, "[MM] Registering integration test hooks for the New Cycle moon crash (#1069)\n");
+    fflush(stderr);
+    sMMMcStage = MMMC_STAGE_BOOT;
+    sMMMcLiveFrames = 0;
+    sMMMcStageStart = std::chrono::steady_clock::now();
+    MM_GameHooks_RegisterOnGameStateMainStart(MMMcFrame);
+}
+
 static void MM_RegisterIntegrationTestHooks(void) {
     if (!IntegrationTest_IsActive()) {
         return;
@@ -1215,6 +1393,8 @@ static void MM_RegisterIntegrationTestHooks(void) {
         fflush(stderr);
     } else if (mode == INT_TEST_CROSSING_REFUSED_MM) {
         MMCrRegisterHooks();
+    } else if (mode == INT_TEST_MM_MOON_CRASH_CYCLE) {
+        MMMcRegisterHooks();
     }
 }
 

@@ -255,6 +255,7 @@ extern "C" int MM_GIShim_RunHeadless(void) {
         { INT_TEST_SWITCH_MM_CLOCKTOWN_SOUTH_TO_OOT, 1, "switch-mm-clocktown-south-to-oot (T2)" },
         { INT_TEST_ARCHIVE_HOTSWAP_CYCLE, 1, "archive-hotswap-cycle (T4)" },
         { INT_TEST_CROSSING_REFUSED_MM, 1, "crossing-refused-mm (#954)" },
+        { INT_TEST_MM_MOON_CRASH_CYCLE, 1, "mm-moon-crash-cycle (#1069)" },
         { INT_TEST_GAMEPLAY_ROUNDTRIP, 0, "gameplay-roundtrip (direct tick, no hooks)" },
         { INT_TEST_NONE, 0, "none (arming must early-out)" },
     };

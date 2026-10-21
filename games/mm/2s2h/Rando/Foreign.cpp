@@ -305,6 +305,10 @@ std::vector<RandoItemId> PairedStartingItems() {
     return { RI_OCARINA, RI_SONG_TIME };
 }
 
+std::vector<RandoItemId> PairedStartingItemsForWorld() {
+    return PairedStartingItems();
+}
+
 /** Hash the identity string, displacing 0: zero is the growth contract's
  *  "unset" for every field carved from reserved[] (context.h) — and now also
  *  the frozen-state predicate's "not frozen" — so a real profile hashing to 0
@@ -812,6 +816,13 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     // freezes into the half at the first crossing.
     return Rando::Foreign::DigestFromIdentity(
         Rando::Foreign::ProfileIdentityString(values.data(), tricks.data(), ResolveTrapTypesFromCVars()));
+}
+
+// ============================================================================
+// THE MOON CRASH (#1069; declared in src/common/combo_mm_options_view.h).
+// ============================================================================
+extern "C" int MM_Rando_FrozenMoonCrash(void) {
+    return RSBS_MM_MOON_CRASH_RESET;
 }
 
 // ============================================================================

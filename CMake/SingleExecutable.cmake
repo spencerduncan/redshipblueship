@@ -1717,6 +1717,14 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1069: the same paired creation under the Shared Song of Time rule (OoTMM
+    # sharedSongTime): MM's start is the Ocarina alone and the song is an MM pool
+    # item (the pair's one copy); with the rule off the start keeps it; MM's
+    # identity list and creation stamp never move with the rule. Same label/env.
+    redship_add_test(NAME MMPairedStartSharedSongTime COMMAND redship --test mm-paired-start-shared-song-time
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ADR 0010 increment 1.2, lock (b), single-run half: a paired generation
     # whose first ladder attempt fails DETERMINISTICALLY climbs one rung,
@@ -2863,6 +2871,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME MMMoonCrashPoolApplied COMMAND redship --test mm-moon-crash-pool-applied)
 
+    # #1069: MM's Moon Crash Behavior (OoTMM's moonCrash: "Last Save", the
+    # default and the rows above, or "New Cycle"). The frozen value a file plays
+    # under, forced to New Cycle by the Shared Song of Time rule (which never moves
+    # MM's profile stamp); and a crash under New Cycle starting a new cycle that
+    # keeps progress and is committed, not the last commit. ROM-free (default
+    # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashCycleForced COMMAND redship --test mm-moon-crash-cycle-forced)
+    redship_add_test(NAME MMMoonCrashCycleReset COMMAND redship --test mm-moon-crash-cycle-reset)
+
     # #770: two OoT actor Destroys write the save on ANY exit from their scene
     # (the windmill gear clears the Song of Storms windmill flag; in rando, after
     # the Water Temple blue warp, every Lake Hylia object raises the lake again),
@@ -3095,6 +3112,20 @@ crossing to refuse (#954).")
         LABEL integration-soak
         TIMEOUT ${REDSHIP_GAMEPLAY_SOAK_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=3")
+
+    # #1069: the moon falls on a live MM session whose frozen Moon Crash Behavior
+    # is New Cycle (OoTMM's moonCrash 'cycle', which the Shared Song of Time rule
+    # forces). MM boots on its debug save outside the Clock Tower, the crash runs
+    # the real Interface_StartMoonCrash and the real crash cutscene, and the scene
+    # after it must be a NEW cycle (one more three-day reset, the cycle's Deku
+    # record cleared) at the Dawn of the First Day with the mask, the bottle and
+    # the song kept. Red under Last Save: a debug session has no commit, so that
+    # path restarts the clock and keeps the bytes but counts no reset. Same
+    # ROM/display needs and timeout as the round trip (the cutscene plays whole).
+    redship_add_test(NAME IntMoonCrashCycle
+        COMMAND redship --integration-test int-mm-moon-crash-cycle
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
 
     # The FIRST CROSSING OF A PAIRED FILE with the archives mounted, in one
     # process (hop 6 of the playtest path, which no row ran before: the rows
