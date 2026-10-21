@@ -83,6 +83,27 @@
  * `sharedItemsTagged` record, because there is no world for that record to
  * belong to. Includes the matching non-vacuity leg (pairing active -> the
  * record IS authored), so "gate everything off" cannot pass.
+ *
+ * ============================================================================
+ * mm-paired-spoiler-name — where a paired spoiler is written (#1055)
+ * ============================================================================
+ *
+ * OoT names a paired world's spoiler by its seed (the five hash icons), which
+ * every pair of that seed and those OoT settings shares, whatever MM's options,
+ * the Cross-Game Rules or the generator version. When that file is another
+ * pair's (a spoiler kept from an older build, or a pair with other MM options),
+ * the #564 V23 rule leaves it alone, and this pair's spoiler goes to
+ * "<seed>-<fingerprint>.json" instead of nowhere. Drives the real
+ * MM_Rando_ChoosePairedSpoilerName over files planted in a per-process scratch
+ * directory, the live identity armed by hand:
+ *
+ *   1. no file                                   -> the seed name
+ *   2. a solo OoT spoiler (no "combo" section)   -> the seed name
+ *   3. this pair's own spoiler                   -> the seed name
+ *   4. another identity's (the fingerprint moved) -> "<seed>-<fingerprint>",
+ *      and the planted file is unchanged
+ *   5. as 4, the suffixed file this pair's own    -> "<seed>-<fingerprint>"
+ *   6. both names another identity's              -> refused (-1), nothing named
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -91,8 +112,12 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+
+#include "test_scratch.h"
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -784,6 +809,162 @@ extern "C" int MM_ForeignPickupGate_RunHeadless(void) {
 
     printf("[TEST] PASS: foreign pickups author durable shared-item records only under a live pairing\n");
     return 0;
+}
+
+namespace {
+
+// The seed name of the gate's failing run (#1055) and the identity armed here.
+const char* const kPsnSeedName = "20-47-81-30-78";
+constexpr uint32_t kPsnSeed = 0x10550001u;
+constexpr uint32_t kPsnSettingsHash = 0x10550002u;
+constexpr uint32_t kPsnProfileDigest = 0x10550003u;
+constexpr uint32_t kPsnFingerprint = 0x10550004u;
+// An older build's fingerprint for the same seed and settings.
+constexpr uint32_t kPsnOtherFingerprint = 0x0BADF1E1u;
+
+bool PsnWrite(const std::filesystem::path& path, const std::string& text) {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out << text;
+    return (bool)out;
+}
+
+std::string PsnRead(const std::filesystem::path& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open()) {
+        return std::string();
+    }
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    return ss.str();
+}
+
+/** A paired spoiler's identity block, as ComboIdentityJson writes it. */
+std::string PsnPairedDoc(uint32_t fingerprint) {
+    char buf[512];
+    snprintf(
+        buf, sizeof(buf),
+        "{\n    \"_note\": \"planted by mm-paired-spoiler-name (#1055)\",\n    \"combo\": {\n        \"identity\": "
+        "{\n            \"masterSeed\": %u,\n            \"ootSettingsHash\": %u,\n            "
+        "\"mmProfileDigest\": %u,\n            \"comboSettingsHash\": %u\n        }\n    }\n}\n",
+        (unsigned)kPsnSeed, (unsigned)kPsnSettingsHash, (unsigned)kPsnProfileDigest, (unsigned)fingerprint);
+    return buf;
+}
+
+} // namespace
+
+extern "C" int MM_PairedSpoilerName_RunHeadless(void) {
+    printf("[TEST] mm-paired-spoiler-name: a paired spoiler whose seed-named file is another identity's is written "
+           "under <seed>-<fingerprint>.json, never nowhere (#1055)\n");
+    fflush(stdout);
+
+    ComboContext_Init();
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = kPsnSeed;
+    gComboCtx.sharedRandoSettingsHash = kPsnSettingsHash;
+    gComboCtx.mmProfileDigest = kPsnProfileDigest;
+    gComboCtx.comboSettingsHash = kPsnFingerprint;
+    if (!Combo_ForeignPairingActive()) {
+        ComboContext_Init();
+        return Fail(120, "the armed identity does not read as a live pairing, so no leg below proves anything");
+    }
+
+    const std::filesystem::path dir = rsbs::test::ScratchDir("rsbs_mm_paired_spoiler_name");
+    const std::string dirStr = dir.string();
+    const std::filesystem::path seedPath = dir / (std::string(kPsnSeedName) + ".json");
+    char fpHex[16];
+    snprintf(fpHex, sizeof(fpHex), "%08X", (unsigned)kPsnFingerprint);
+    const std::string suffixedName = std::string(kPsnSeedName) + "-" + fpHex;
+    const std::filesystem::path suffixedPath = dir / (suffixedName + ".json");
+
+    int rc = 0;
+    const auto choose = [&](char* out, size_t cap) {
+        return MM_Rando_ChoosePairedSpoilerName(dirStr.c_str(), kPsnSeedName, out, cap);
+    };
+    const auto finish = [](int code) {
+        ComboContext_Init();
+        return code;
+    };
+    char name[128];
+
+    // 1. Nothing at the seed name.
+    std::error_code ec;
+    std::filesystem::remove(seedPath, ec);
+    std::filesystem::remove(suffixedPath, ec);
+    rc = choose(name, sizeof(name));
+    printf("[TEST] mm-paired-spoiler-name: leg 1 (no file): rc=%d name='%s'\n", rc, name);
+    if (rc != 0 || std::string(name) != kPsnSeedName) {
+        return finish(
+            Fail(121, "with no file at the seed name the writer did not pick the seed name (rc=%d '%s')", rc, name));
+    }
+
+    // 2. A solo OoT spoiler (no "combo" section) stays OoT's writer's to replace.
+    if (!PsnWrite(seedPath, "{\n    \"seed\": \"SOLO\"\n}\n")) {
+        return finish(Fail(122, "could not plant the solo spoiler in %s", dirStr.c_str()));
+    }
+    rc = choose(name, sizeof(name));
+    printf("[TEST] mm-paired-spoiler-name: leg 2 (solo OoT spoiler): rc=%d name='%s'\n", rc, name);
+    if (rc != 0 || std::string(name) != kPsnSeedName) {
+        return finish(Fail(123, "a solo OoT spoiler at the seed name moved the paired spoiler (rc=%d '%s')", rc, name));
+    }
+
+    // 3. This pair's own spoiler: rewritten in place.
+    if (!PsnWrite(seedPath, PsnPairedDoc(kPsnFingerprint))) {
+        return finish(Fail(124, "could not plant this pair's spoiler"));
+    }
+    rc = choose(name, sizeof(name));
+    printf("[TEST] mm-paired-spoiler-name: leg 3 (this pair's spoiler): rc=%d name='%s'\n", rc, name);
+    if (rc != 0 || std::string(name) != kPsnSeedName) {
+        return finish(Fail(125, "this pair's own spoiler at the seed name moved its rewrite (rc=%d '%s')", rc, name));
+    }
+
+    // 4. THE LOCK: another identity's spoiler (an older build's fingerprint) at
+    //    the seed name. Left as it is, and this pair's goes beside it.
+    const std::string foreignDoc = PsnPairedDoc(kPsnOtherFingerprint);
+    if (!PsnWrite(seedPath, foreignDoc)) {
+        return finish(Fail(126, "could not plant the other identity's spoiler"));
+    }
+    rc = choose(name, sizeof(name));
+    printf("[TEST] mm-paired-spoiler-name: leg 4 (another identity's spoiler at the seed name): rc=%d name='%s' "
+           "(expected '%s')\n",
+           rc, name, suffixedName.c_str());
+    fflush(stdout);
+    if (rc != 1 || suffixedName != name) {
+        return finish(Fail(127,
+                           "the seed-named spoiler is another identity's (comboSettingsHash %08X, this world's %08X) "
+                           "and the writer picked rc=%d '%s' instead of '%s': this world gets no spoiler, and a "
+                           "stale spoiler from an older build fails the paired creation's run (#1055)",
+                           (unsigned)kPsnOtherFingerprint, (unsigned)kPsnFingerprint, rc, name, suffixedName.c_str()));
+    }
+    if (PsnRead(seedPath) != foreignDoc) {
+        return finish(Fail(128, "choosing the name rewrote the other identity's spoiler"));
+    }
+
+    // 5. The suffixed file is this pair's own (a second creation of the same
+    //    pair): rewritten in place.
+    if (!PsnWrite(suffixedPath, PsnPairedDoc(kPsnFingerprint))) {
+        return finish(Fail(129, "could not plant this pair's suffixed spoiler"));
+    }
+    rc = choose(name, sizeof(name));
+    printf("[TEST] mm-paired-spoiler-name: leg 5 (suffixed file is this pair's): rc=%d name='%s'\n", rc, name);
+    if (rc != 1 || suffixedName != name) {
+        return finish(Fail(130, "this pair's own suffixed spoiler was not chosen again (rc=%d '%s')", rc, name));
+    }
+
+    // 6. Both names belong to other identities: refused, nothing named.
+    if (!PsnWrite(suffixedPath, PsnPairedDoc(kPsnOtherFingerprint ^ 1u))) {
+        return finish(Fail(131, "could not plant the other identity's suffixed spoiler"));
+    }
+    rc = choose(name, sizeof(name));
+    printf("[TEST] mm-paired-spoiler-name: leg 6 (both names another identity's): rc=%d name='%s'\n", rc, name);
+    if (rc != -1 || name[0] != '\0') {
+        return finish(Fail(132, "with both names another identity's the writer did not refuse (rc=%d '%s')", rc, name));
+    }
+
+    std::filesystem::remove(seedPath, ec);
+    std::filesystem::remove(suffixedPath, ec);
+    printf("[TEST] PASS: the paired spoiler takes its seed name unless that file is another identity's, then "
+           "<seed>-<fingerprint>, and is refused only when both are\n");
+    return finish(0);
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE
