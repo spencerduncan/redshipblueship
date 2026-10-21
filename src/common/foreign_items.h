@@ -439,7 +439,10 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 #define RSBS_XITEM_SHARED_GERUDO 0x00004000u
 #define RSBS_XITEM_SHARED_SKULL 0x00008000u
 #define RSBS_XITEM_SHARED_SPOOKY 0x00010000u
-// #968: the three magic arrows (OoTMM sharedMagicArrowFire/Ice/Light).
+// #968: the three magic arrows (OoTMM sharedMagicArrowFire/Ice/Light), three
+// shared-pair families: OoT's RG_FIRE_ARROWS, RG_ICE_ARROWS and RG_LIGHT_ARROWS,
+// MM's RI_ARROW_FIRE, RI_ARROW_ICE and RI_ARROW_LIGHT, each registered by its
+// game, each authored by its own Cross-Game Rules row.
 #define RSBS_XITEM_SHARED_ARROW_FIRE 0x00020000u
 #define RSBS_XITEM_SHARED_ARROW_ICE 0x00040000u
 #define RSBS_XITEM_SHARED_ARROW_LIGHT 0x00080000u

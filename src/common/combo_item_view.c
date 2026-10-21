@@ -361,6 +361,9 @@ static const SharedFamilyRowDef kSharedFamilyRows[] = {
     { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, "C Right Button" },
     { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, "C Left Button" },
     { RSBS_XFAMILY_SLOT_OCARINA_C_UP, "C Up Button" },
+    { RSBS_XITEM_SHARED_ARROW_FIRE, "Fire Arrows" },   // #968
+    { RSBS_XITEM_SHARED_ARROW_ICE, "Ice Arrows" },     // #968
+    { RSBS_XITEM_SHARED_ARROW_LIGHT, "Light Arrows" }, // #968
 };
 #define SHARED_FAMILY_ROW_DEF_COUNT ((int)(sizeof(kSharedFamilyRows) / sizeof(kSharedFamilyRows[0])))
 

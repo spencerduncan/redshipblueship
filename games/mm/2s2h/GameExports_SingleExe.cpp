@@ -4682,6 +4682,24 @@ static void MM_SharedSongGive(uint16_t nativeId) {
     gSaveContext.save.saveInfo.inventory.questItems |= MM_SharedSongQuestBit(nativeId);
 }
 
+// #968: the Fire, Ice and Light Arrows (OoTMM sharedMagicArrowFire, Ice,
+// Light). Item_Give(ITEM_ARROW_*) only fills the arrow's own slot, and the
+// Song of Time keeps the magic arrows (only ammo and the cycle's items reset);
+// the bow is already one shared quiver tier (#744) and is not touched here.
+static uint8_t MM_SharedArrowItem(uint16_t nativeId) {
+    return (nativeId == (uint16_t)RI_ARROW_ICE)     ? (uint8_t)ITEM_ARROW_ICE
+           : (nativeId == (uint16_t)RI_ARROW_LIGHT) ? (uint8_t)ITEM_ARROW_LIGHT
+                                                    : (uint8_t)ITEM_ARROW_FIRE;
+}
+static bool MM_SharedArrowHeld(uint16_t nativeId) {
+    const uint8_t item = MM_SharedArrowItem(nativeId);
+    return INV_CONTENT(item) == item;
+}
+static void MM_SharedArrowGive(uint16_t nativeId) {
+    const uint8_t item = MM_SharedArrowItem(nativeId);
+    INV_CONTENT(item) = item;
+}
+
 namespace {
 // Static-init registration (the ComboLogicEngine registrars' shape): this TU is
 // always linked, and the registry is zero-initialised storage.
@@ -4693,6 +4711,12 @@ struct MMSharedFamilyRegistrar {
         Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_EPONA, &epona);
         const ComboSharedFamilyMember storms = { (uint16_t)RI_SONG_STORMS, MM_SharedSongHeld, MM_SharedSongGive };
         Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_STORMS, &storms);
+        const ComboSharedFamilyMember fire = { (uint16_t)RI_ARROW_FIRE, MM_SharedArrowHeld, MM_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ARROW_FIRE, &fire);
+        const ComboSharedFamilyMember ice = { (uint16_t)RI_ARROW_ICE, MM_SharedArrowHeld, MM_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ARROW_ICE, &ice);
+        const ComboSharedFamilyMember light = { (uint16_t)RI_ARROW_LIGHT, MM_SharedArrowHeld, MM_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ARROW_LIGHT, &light);
     }
 };
 const MMSharedFamilyRegistrar gMMSharedFamilyRegistrar;
