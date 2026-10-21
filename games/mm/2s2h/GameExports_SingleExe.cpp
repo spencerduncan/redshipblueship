@@ -4522,7 +4522,19 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId, int announce);
  */
 static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    int given = MM_ForeignItem_Give(item->id, (item->flags & RSBS_SHARED_ITEM_SOURCED) != 0 ? 1 : 0);
+    const bool sourced = (item->flags & RSBS_SHARED_ITEM_SOURCED) != 0;
+    // #1061: a crossed counted pack (an MM bombchu pack an older save recorded in
+    // Hyrule) is credited to the shared pool, not given. MM's give caps
+    // bombchus at MM's bomb-bag capacity and lost the pack whenever the pool
+    // already filled the bag (all of it with no bag). New pickups never cross
+    // such a pack (OoT_/MM_CreditSharedPickup); this redeems the ones recorded
+    // before. A SOURCED grant keeps the give, whose toast is its only
+    // presentation.
+    if (!sourced && MM_CreditSharedPickup(item) != 0) {
+        fprintf(stderr, "[MM] shared-item redeem: RI id=%u credited to the shared pool (#1061)\n", (unsigned)item->id);
+        return;
+    }
+    int given = MM_ForeignItem_Give(item->id, sourced ? 1 : 0);
     fprintf(stderr, "[MM] shared-item redeem: RI id=%u %s (Lane 6 foreign give)\n", (unsigned)item->id,
             given ? "awarded or queued for the next gameplay frame" : "NOT awarded — no such MM item");
 }
@@ -4620,6 +4632,20 @@ static uint16_t MM_AmmoCapacity(const MMSharedAmmo* row) {
 static void MM_EnsureInventoryItem(uint8_t item) {
     if (INV_CONTENT(item) == ITEM_NONE) {
         INV_CONTENT(item) = item;
+    }
+}
+
+// One row's COUNT from the pool, clamped to MM's own capacity: the arrival's
+// per-row count step, and the re-apply a pickup credit runs (#1061,
+// MM_CreditSharedPickup). The item goes in its slot only for a nonzero count, so
+// a bombchu count MM's bomb bag cannot hold stays in the pool, item and all.
+static void MM_ApplySharedAmmoCount(const MMSharedAmmo* row) {
+    uint16_t count = MM_ReadAmmo(row->item);
+    if (Combo_ApplySharedResource(GAME_MM, row->countKind, MM_AmmoCapacity(row), &count)) {
+        if (count > 0u) {
+            MM_EnsureInventoryItem(row->item);
+        }
+        AMMO(row->item) = (s8)count;
     }
 }
 
@@ -4869,6 +4895,40 @@ extern "C" void MM_HarvestSharedResources(void) {
     // Shared families (#976), the twin of OoT's line: behind the same live-file
     // gate, a no-op until a family is frozen on and registered.
     Combo_SharedFamiliesHarvestLive(GAME_MM);
+}
+
+/**
+ * CREDIT AT PICKUP (#1061; shared_resources.h), the twin of
+ * OoT_CreditSharedPickup: an OoT bombchu pack found in Termina, or an MM pack
+ * redeemed from an older save's crossing, goes into the pool now and MM's count
+ * re-applies from it (harvest, credit, re-apply). MM holds what its bomb bag
+ * fits, 0 with no bag; the rest stays in the pool, where OoT reads it.
+ *
+ * @return 1 when credited; 0 (nothing touched) when @p item is not a counted
+ *         pack, MM's live save is not a real file, or the kind has no MM row.
+ */
+extern "C" int MM_CreditSharedPickup(const SharedItem* item) {
+    uint8_t kind = 0;
+    uint16_t units = 0;
+    if (item == nullptr || !Combo_SharedPickupCreditOf(*item, &kind, &units) || !MM_SaveIsLiveFile()) {
+        return 0;
+    }
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        const MMSharedAmmo* row = &kMMSharedAmmo[i];
+        if (row->countKind != kind) {
+            continue;
+        }
+        Combo_HarvestSharedResource(GAME_MM, kind, MM_ReadAmmo(row->item));
+        if (!Combo_CreditSharedResource(kind, units)) {
+            return 0; // the harvest alone changes nothing a later harvest would not
+        }
+        MM_ApplySharedAmmoCount(row);
+        fprintf(stderr, "[MM] shared pickup credit: %s id=%u adds %u to shared kind %u; MM now holds %d\n",
+                Game_ToString((GameId)item->originGame), (unsigned)item->id, (unsigned)units, (unsigned)kind,
+                (int)AMMO(row->item));
+        return 1;
+    }
+    return 0;
 }
 
 // ============================================================================
@@ -5159,13 +5219,7 @@ extern "C" void MM_ApplySharedResources(void) {
             }
         }
 
-        uint16_t count = MM_ReadAmmo(row->item);
-        if (Combo_ApplySharedResource(GAME_MM, row->countKind, MM_AmmoCapacity(row), &count)) {
-            if (count > 0u) {
-                MM_EnsureInventoryItem(row->item);
-            }
-            AMMO(row->item) = (s8)count;
-        }
+        MM_ApplySharedAmmoCount(row);
     }
 
     // --- Hookshot (monotonic). Clamped to MM's ceiling of 1, so an OoT
