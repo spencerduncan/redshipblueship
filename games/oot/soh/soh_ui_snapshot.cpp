@@ -2385,9 +2385,12 @@ void Session::BuildPageList() {
         // Session::BringUp). So a ROM-rich run holds the MM column to its icons
         // by their count (stateImages: more than OoT's 66 cells and the pool's
         // can draw), and ROM-free MM's section is the text fallback: its
-        // snapshot bow in "live", its live mask in "snapshot".
+        // live mask in "snapshot". A shared quiver shows once (#967): in
+        // "live" the pool holds the tier-2 quiver and its 33 arrows, so MM's
+        // snapshot bow (the same tier) is dimmed and the Shared column's
+        // Arrows row carries the amount.
         if (romFree) {
-            p.stateText["live"] = { "Bow 25/40" };
+            p.stateText["live"] = { "Arrows 33/40" };
             p.stateText["snapshot"] = { "Zora Mask" };
         }
         p.stateImages["live"] = 100;
