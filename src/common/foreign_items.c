@@ -189,6 +189,8 @@ const char* Combo_ComboItemRuleName(uint32_t bit) {
             return "sharedLightArrows";
         case RSBS_XITEM_SHARED_BOTTLES:
             return "sharedBottles";
+        case RSBS_XITEM_SHARED_LENS:
+            return "sharedLens";
         default:
             return "(unknown)";
     }
@@ -225,15 +227,28 @@ bool Combo_ComboItemRulesValid(const ComboItemRulesRecord* rec) {
 }
 
 void Combo_ResolveComboItemRules(ComboItemRulesRecord* out) {
-    // NO AUTHORING SURFACE YET (#976 adds the format and the mechanism; the
-    // Cross-Game Rules rows come with the phase that gives each rule its
-    // behaviour, epic #975 P2 on). So the session's rules are the shipped
-    // defaults, every world this build creates freezes every rule off, and the
-    // one-resolver discipline holds trivially: creation and every compare read
-    // this one function. When the keys land, they are read HERE and nowhere
-    // else, validated through Combo_ComboItemRulesValid with an invalid store
-    // resolving to the defaults with a logged reason.
+    // THE ONE RESOLVER (Combo_ResolveComboSettings' discipline): creation and
+    // every compare read the rules here and nowhere else. crossItemFlags is
+    // ASSEMBLED from the rule keys (Combo_ComboItemRulesAuthored: each key's
+    // resolved 0/1, an out-of-space value already resolved to its default off),
+    // never overlaid from a stored bitset, so a bit no key authors is never on.
+    // The cooldown and the spares keep their defaults: nothing authors them yet.
+    // With no key set this is the shipped defaults byte for byte, so every world
+    // whose player leaves the rules alone keeps its fingerprint.
+    if (out == NULL) {
+        return;
+    }
     Combo_ComboItemRulesDefaults(out);
+    out->crossItemFlags = Combo_ComboItemRulesAuthored() & (uint32_t)RSBS_XITEM_ALL_V1;
+    if (!Combo_ComboItemRulesValid(out)) {
+        // Unreachable while every keyed rule is a plain shared rule; a keyed
+        // shared extension authored without its extension would land here.
+        fprintf(stderr,
+                "[Combo] cross-game item rules %08X are not a world this build can create; resolving to every "
+                "rule off\n",
+                (unsigned)out->crossItemFlags);
+        Combo_ComboItemRulesDefaults(out);
+    }
 }
 
 uint32_t Combo_ComboCrossItemFlags(void) {

@@ -3334,6 +3334,40 @@ static void OoT_EnsureInventoryItem(uint8_t item) {
     }
 }
 
+// ---- Shared families (#976's OR discipline): OoT's own copies ---------------
+//
+// Each family is one item both games have, made ONE by a frozen cross-game rule
+// (foreign_items.h, RSBS_XITEM_FAMILY_MASK). OoT registers its NATIVE copy: the
+// id the bag pairs (OoT's pool places it as this RG_*) and the two callbacks the
+// harvest and apply shims call (shared_resources.h, SHARED FAMILIES). The give
+// runs at the startup entrance, before gameplay, so it writes the inventory the
+// way Item_Give does and shows nothing.
+
+// #1065: the Lens of Truth (OoTMM sharedLens). Item_Give(ITEM_LENS) only fills
+// its slot; nothing else in OoT's save records owning it.
+static bool OoT_SharedLensHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return INV_CONTENT(ITEM_LENS) == ITEM_LENS;
+}
+static void OoT_SharedLensGive(uint16_t nativeId) {
+    (void)nativeId;
+    INV_CONTENT(ITEM_LENS) = ITEM_LENS;
+}
+
+namespace {
+// Static-init registration, the ComboLogicEngine registrars' shape: this TU is
+// always linked (it holds the shims), and the registry is zero-initialised
+// storage, so the order against other static constructors does not matter. The
+// bag reads it at the creation event and the shims at every crossing.
+struct OoTSharedFamilyRegistrar {
+    OoTSharedFamilyRegistrar() {
+        const ComboSharedFamilyMember lens = { (uint16_t)RG_LENS_OF_TRUTH, OoT_SharedLensHeld, OoT_SharedLensGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_LENS, &lens);
+    }
+};
+const OoTSharedFamilyRegistrar gOoTSharedFamilyRegistrar;
+} // namespace
+
 // OoT's hookshot ceiling: 0 none, 1 hookshot, 2 longshot.
 #define OOT_MAX_HOOKSHOT_TIER 2u
 

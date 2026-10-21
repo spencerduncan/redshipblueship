@@ -1067,7 +1067,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
             v.words = RsbsSave_LoadToastRefusalMessage(v.identityToast);
             return;
         }
-        if (Combo_ComboSettingsCanRestoreLive(&combo.comboSettings, comboDiverged) == 0) {
+        if (Combo_ComboSettingsCanRestoreLiveEx(&combo.comboSettings, &combo.comboItemRules, comboDiverged) == 0) {
             std::fprintf(stderr,
                          "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
                          "created under do not match this session's and cannot be restored from it: %s. The "
@@ -1078,7 +1078,7 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
             // A field no key authors (logicRung, an unallocated comboFlags bit,
             // spare1) is one only another build writes; a divergence of keyed
             // rules alone reaches here only when the store could not take them.
-            v.identityToast = (comboDiverged & ~Combo_ComboSettingsRestorableMask()) != 0u
+            v.identityToast = Combo_ComboSettingsUnrestorableEx(&combo.comboItemRules, comboDiverged) != 0u
                                   ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
                                   : RSBS_LOAD_TOAST_REFUSED_RULES;
             v.words = RsbsSave_LoadToastRefusalMessage(v.identityToast);
@@ -1279,8 +1279,10 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
     bool rulesWritten = false;
     if (v.comboDiverged != 0) {
         uint32_t afterRestore = v.comboDiverged;
-        if (Combo_ComboSettingsRestoreLive(&combo.comboSettings, v.comboDiverged, restoredRules, sizeof(restoredRules),
-                                           &rulesUndo) == 1) {
+        // #1065: with the file's item rules, so a keyed rule (the Shared Lens of
+        // Truth) is restored like the goal and the direction.
+        if (Combo_ComboSettingsRestoreLiveEx(&combo.comboSettings, &combo.comboItemRules, v.comboDiverged,
+                                             restoredRules, sizeof(restoredRules), &rulesUndo) == 1) {
             rulesWritten = true;
             afterRestore =
                 Combo_ComboSettingsDivergenceForEx(&combo.comboSettings, &combo.comboItemRules, combo.comboSettingsHash,
@@ -1302,7 +1304,7 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
                          "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the restore of the file's rules did "
                          "not take (%s); every key it wrote was put back. The on-disk .redsave is intact.\n",
                          slot, fields);
-            const int toast = (afterRestore & ~Combo_ComboSettingsRestorableMask()) != 0u
+            const int toast = Combo_ComboSettingsUnrestorableEx(&combo.comboItemRules, afterRestore) != 0u
                                   ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
                                   : RSBS_LOAD_TOAST_REFUSED_RULES;
             return refuse(RSBS_REFUSE_IDENTITY, false, toast, RsbsSave_LoadToastRefusalMessage(toast));

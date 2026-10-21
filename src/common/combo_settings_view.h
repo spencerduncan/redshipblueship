@@ -105,8 +105,28 @@ typedef enum {
     // resolver assembles the byte from its flag keys instead of overlaying one
     // (see Combo_ResolveComboSettings). 0 or 1; the default is 0.
     COMBO_SETTING_SHARED_KOKIRI_SWORD, // gCombo.Rando.SharedKokiriSword -> record.comboFlags & 0x02
+    // #1065. A BIT of the sibling ComboItemRulesRecord's crossItemFlags (#976),
+    // not of this record: Combo_ResolveComboItemRules assembles crossItemFlags
+    // from the item-rule keys (Combo_ComboItemRulesAuthored). 0 or 1; default 0.
+    COMBO_SETTING_SHARED_LENS, // gCombo.Rando.SharedLens -> itemRules.crossItemFlags & RSBS_XITEM_SHARED_LENS
     COMBO_SETTING_COUNT
 } ComboSettingId;
+
+/**
+ * THE ITEM-RULE KEYS (#976's ComboItemRulesRecord, #1065 on). Some settings
+ * author a bit of the item rules' crossItemFlags rather than a field of
+ * ComboSettingsRecord; these two answer which.
+ *
+ * Combo_ComboItemRulesAuthored: the RSBS_XITEM_* bits whose keys RESOLVE on now
+ * (Combo_ComboSettingResolved, so an unset or out-of-space key is its default
+ * off). Combo_ResolveComboItemRules reads this and nothing else.
+ *
+ * Combo_ComboItemRuleKeyedBits: every RSBS_XITEM_* bit a key authors at all. A
+ * frozen rule outside it is one only another build (or a later phase) writes,
+ * so no load can restore it through a key.
+ */
+uint32_t Combo_ComboItemRulesAuthored(void);
+uint32_t Combo_ComboItemRuleKeyedBits(void);
 
 /** The tier-4 CVar key for @p id (the RSBS_CVAR_COMBO_RANDO_* literal from
  *  cvar_shared_keys.h). Never NULL; "(invalid)" for an id past the table. */
@@ -241,7 +261,8 @@ typedef struct ComboSettingsKeyUndo {
  *
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
  * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the Shared
- * Kokiri Sword), the CVar
+ * Kokiri Sword, and crossItemFlags while every rule the file froze on has a key,
+ * #1065's Shared Lens of Truth the first), the CVar
  * store exists,
  * and every frozen value is inside its pinned space; otherwise it writes
  * NOTHING and returns 0, and the caller refuses. A record field no key authors
@@ -273,12 +294,22 @@ int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, uint32_
  * Combo_ComboSettingsCanRestoreLive / Combo_ComboSettingsRestoreLive over the
  * file's record AND its cross-game item rules (#976, #1065): the load's form,
  * since crossItemFlags is a rule a key authors once a rule has a row. NULL
- * @p frozenRules is a file with every rule off. Same contract otherwise.
+ * @p frozenRules is a file with every rule off (what the two forms above pass).
+ * A crossItemFlags divergence is restorable only when every bit the file froze
+ * on is keyed (Combo_ComboItemRuleKeyedBits); then each item-rule key whose
+ * resolved value differs from the file's bit is written. Same contract
+ * otherwise.
  */
 int Combo_ComboSettingsCanRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                         uint32_t divergedBits);
 int Combo_ComboSettingsRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                      uint32_t divergedBits, char* names, size_t len, ComboSettingsKeyUndo* undo);
+
+/** The bits of @p divergedBits no key can restore for a file whose item rules
+ *  are @p frozenRules (NULL: every rule off): every bit outside
+ *  Combo_ComboSettingsRestorableMask, plus crossItemFlags when the file froze
+ *  on a rule no key authors. Nonzero means a field only another build writes. */
+uint32_t Combo_ComboSettingsUnrestorableEx(const ComboItemRulesRecord* frozenRules, uint32_t divergedBits);
 
 /** Undo a Combo_ComboSettingsRestoreLive: every key it wrote goes back to the
  *  value it held, or back to unset. A NULL or all-unwritten @p undo is a no-op. */
