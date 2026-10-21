@@ -2158,6 +2158,30 @@ uint8_t MMFillClassSharedKind(RandoItemId ri) {
             return 0u;
     }
 }
+
+/** The size of one copy of an MM item in its shared kind's units (ABI 3, the
+ *  #525 pool policy): a heart container is four heart pieces; a bombchu pack is
+ *  as many bombchus as MM's give adds (ITEM_BOMBCHUS_1/5/10, z_parameter.c's
+ *  sBombchuRefillCounts; #1061: a pack found in Hyrule is credited to the pool
+ *  at pickup by this many, shared_resources.h); every other copy is one unit.
+ *  0 for an item that feeds no kind. */
+uint8_t MMFillClassSharedUnits(RandoItemId ri, uint8_t sharedKind) {
+    if (sharedKind == 0u) {
+        return 0u;
+    }
+    switch (ri) {
+        case RI_HEART_CONTAINER:
+            return (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER;
+        case RI_BOMBCHU:
+            return 1u;
+        case RI_BOMBCHU_5:
+            return 5u;
+        case RI_BOMBCHU_10:
+            return 10u;
+        default:
+            return (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
+    }
+}
 } // namespace
 
 /** The chest grade (#862) of an MM item: the RandoItemType MM's own chests are
@@ -2268,11 +2292,9 @@ extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
         row.armedBy = RSBS_FILL_ARM_WORLD_EVENT;
     }
     row.sharedKind = (row.fillClass == RSBS_FILL_CLASS_TRAP) ? 0u : MMFillClassSharedKind(ri);
-    // The size of one copy in its kind's units (ABI 3, the #525 pool policy): a
-    // heart container is four heart pieces; every other copy is one unit.
-    row.sharedUnits = (row.sharedKind == 0u)       ? 0u
-                      : (ri == RI_HEART_CONTAINER) ? (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER
-                                                   : (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
+    // The size of one copy in its kind's units (ABI 3, the #525 pool policy;
+    // a bombchu pack's size since #1061): see MMFillClassSharedUnits.
+    row.sharedUnits = MMFillClassSharedUnits(ri, row.sharedKind);
     // How an OoT chest hosting this item is dressed (#862): MM's own grade for it.
     row.chestGrade = MMChestGradeOf(type);
     if (out != nullptr) {

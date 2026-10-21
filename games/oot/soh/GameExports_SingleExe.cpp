@@ -11,6 +11,8 @@
 #include <cstring>
 #include <cmath>
 #include <chrono>
+#include <filesystem>
+#include <string>
 #include "OTRGlobals.h"
 #include "soh/CrashHandlerExt.h"
 #include <libultraship/bridge.h>
@@ -962,6 +964,117 @@ extern "C" int OoT_PfcFileSelectShot_Begin(FileChooseContext* fileChoose, int sl
 extern "C" int OoT_PfcFileSelectShot_Running(void);
 extern "C" void OoT_PfcFileSelectShot_Frame(FileChooseContext* fileChoose);
 
+// #1055: the pair's spoilers in the shared build directory (ForeignItemsSingleExe.cpp).
+extern "C" int OoT_Creation_TestSpoilerSeedName(char* out, size_t cap);
+extern "C" int OoT_Creation_TestClearPairedSpoiler(void);
+
+/**
+ * RSBS_PFC_PLANT_FOREIGN_SPOILER=1 (#1055; CTest IntPairedFirstCrossingForeignSpoiler):
+ * after the drive clears this pair's spoilers, a spoiler of the SAME seed and
+ * another identity is planted at Randomizer/<seed>.json: the identity this
+ * generation froze with comboSettingsHash flipped, which is what a run of a
+ * build with another fingerprint leaves behind. The creation must leave it as
+ * it is and write its own spoiler to Randomizer/<seed>-<fingerprint>.json.
+ */
+static bool PfcPlantForeignSpoiler(void) {
+    const char* env = getenv("RSBS_PFC_PLANT_FOREIGN_SPOILER");
+    return env != NULL && strcmp(env, "1") == 0;
+}
+static std::string sPfcPlantedSeedName;
+static std::string sPfcPlantedPath;
+static std::string sPfcPlantedBytes;
+static uint32_t sPfcPlantedFingerprint = 0;
+
+static std::string PfcReadWholeFile(const std::string& path) {
+    FILE* f = fopen(path.c_str(), "rb");
+    if (f == NULL) {
+        return std::string();
+    }
+    std::string bytes;
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        bytes.append(buf, n);
+    }
+    fclose(f);
+    return bytes;
+}
+
+static bool PfcPlantForeignSpoilerWrite(char* msg, size_t cap) {
+    char seed[64];
+    if (!OoT_Creation_TestSpoilerSeedName(seed, sizeof(seed)) || seed[0] == '\0') {
+        snprintf(msg, cap, "the generation has no seed name to plant a foreign spoiler under");
+        return false;
+    }
+    sPfcPlantedSeedName = seed;
+    sPfcPlantedFingerprint = ~gComboCtx.comboSettingsHash;
+    if (sPfcPlantedFingerprint == 0) {
+        sPfcPlantedFingerprint = 0x10550000u;
+    }
+    char doc[768];
+    snprintf(doc, sizeof(doc),
+             "{\n    \"_note\": \"planted by IntPairedFirstCrossingForeignSpoiler (#1055): this seed under another "
+             "identity\",\n    \"rsbsSingleBagWorld\": true,\n    \"combo\": {\n        \"identity\": {\n            "
+             "\"masterSeed\": %u,\n            \"ootSettingsHash\": %u,\n            \"mmProfileDigest\": %u,\n      "
+             "      \"comboSettingsHash\": %u\n        }\n    }\n}\n",
+             (unsigned)gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.sharedRandoSettingsHash,
+             (unsigned)gComboCtx.mmProfileDigest, (unsigned)sPfcPlantedFingerprint);
+    std::error_code ec;
+    std::filesystem::create_directories(Ship::Context::GetPathRelativeToAppDirectory("Randomizer"), ec);
+    sPfcPlantedPath = Ship::Context::GetPathRelativeToAppDirectory("Randomizer/" + sPfcPlantedSeedName + ".json");
+    FILE* f = fopen(sPfcPlantedPath.c_str(), "wb");
+    if (f == NULL) {
+        snprintf(msg, cap, "could not plant the foreign spoiler at '%s'", sPfcPlantedPath.c_str());
+        return false;
+    }
+    fwrite(doc, 1, strlen(doc), f);
+    fclose(f);
+    sPfcPlantedBytes = PfcReadWholeFile(sPfcPlantedPath);
+    fprintf(stderr, "[PFC] planted a spoiler of this seed under another identity (comboSettingsHash %08X) at '%s'\n",
+            (unsigned)sPfcPlantedFingerprint, sPfcPlantedPath.c_str());
+    fflush(stderr);
+    return !sPfcPlantedBytes.empty();
+}
+
+/** After the creation: the planted spoiler is unchanged, and this world's went
+ *  to Randomizer/<seed>-<fingerprint>.json, which gGeneral.SpoilerLog names and
+ *  whose combo.identity is this world's. */
+static bool PfcForeignSpoilerCheck(char* msg, size_t cap) {
+    if (sPfcPlantedFingerprint == gComboCtx.comboSettingsHash) {
+        snprintf(msg, cap, "the planted spoiler's fingerprint is the created world's (%08X), so the row proves nothing",
+                 (unsigned)gComboCtx.comboSettingsHash);
+        return false;
+    }
+    if (PfcReadWholeFile(sPfcPlantedPath) != sPfcPlantedBytes) {
+        snprintf(msg, cap, "the creation rewrote the planted spoiler of another identity at '%s' (#564 V23)",
+                 sPfcPlantedPath.c_str());
+        return false;
+    }
+    char expected[160];
+    snprintf(expected, sizeof(expected), "./Randomizer/%s-%08X.json", sPfcPlantedSeedName.c_str(),
+             (unsigned)gComboCtx.comboSettingsHash);
+    const std::string spoilerLog = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");
+    if (spoilerLog != expected) {
+        snprintf(msg, cap,
+                 "with another identity's spoiler at the seed name, gGeneral.SpoilerLog reads '%s' after the creation, "
+                 "not '%s': this world's spoiler was not written beside it (#1055)",
+                 spoilerLog.c_str(), expected);
+        return false;
+    }
+    const std::string written =
+        PfcReadWholeFile(Ship::Context::GetPathRelativeToAppDirectory(std::string(expected).substr(2)));
+    char identityTerm[64];
+    snprintf(identityTerm, sizeof(identityTerm), "\"comboSettingsHash\": %u", (unsigned)gComboCtx.comboSettingsHash);
+    if (written.find("\"combo\"") == std::string::npos || written.find(identityTerm) == std::string::npos) {
+        snprintf(msg, cap, "'%s' does not carry this world's joined combo section (%zu bytes)", expected,
+                 written.size());
+        return false;
+    }
+    snprintf(msg, cap, "the planted spoiler is unchanged and this world's is '%s' (%zu bytes, joined)", expected,
+             written.size());
+    return true;
+}
+
 /**
  * The paired variant's boot: the production path a player takes, minus the menu
  * clicks. It runs from the REAL file select (FileChoose_Main's OnFileChooseMain,
@@ -1060,6 +1173,14 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
         IntegrationTest_GameplayFail("generation on the shipped defaults published no cross-game pairing identity");
         return;
     }
+    // #1055: the build directory is shared by every run of every build, and a
+    // spoiler of this seed under another identity must not meet this creation
+    // unless the row plants one on purpose.
+    OoT_Creation_TestClearPairedSpoiler();
+    if (PfcPlantForeignSpoiler() && !PfcPlantForeignSpoilerWrite(msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return;
+    }
 
     // ---- 2. create, through the naming screen's seam -------------------------
     // What the naming screen leaves set when the player confirms a name on file
@@ -1117,6 +1238,13 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
         return;
     }
     IntegrationTest_PairedIdentityRecord();
+    if (PfcPlantForeignSpoiler()) {
+        if (!PfcForeignSpoilerCheck(msg, sizeof(msg))) {
+            IntegrationTest_GameplayFail(msg);
+            return;
+        }
+        fprintf(stderr, "[PFC] foreign spoiler PASS: %s\n", msg);
+    }
 
     // ---- the .sav the creation wrote names its record's world (#564 V12) -------
     // Read back from disk through the reader the file select's gate uses: SoH's
@@ -3132,7 +3260,12 @@ extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
  */
 static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    int given = OoT_ForeignItem_Give(item->id);
+    // #1061: a counted pack (an OoT bombchu pack an older save crossed from
+    // Termina) is credited to the shared pool, not given: OoT's give adds to
+    // OoT's own count under OoT's own cap, which loses what the cap cuts.
+    // New pickups never cross such a pack (OoT_/MM_CreditSharedPickup at the
+    // pickup); this is the redemption of the ones recorded before that.
+    int given = OoT_CreditSharedPickup(item) != 0 ? 1 : OoT_ForeignItem_Give(item->id);
     fprintf(stderr, "[OoT] shared-item redeem: RG id=%u %s (Lane C1 foreign give)\n", (unsigned)item->id,
             given ? "awarded" : "NOT awarded — give path unavailable");
     if ((item->flags & RSBS_SHARED_ITEM_SOURCED) == 0) {
@@ -3526,6 +3659,34 @@ static bool OoT_SharedAmmoGrantBlocked(const OoTSharedAmmo* row) {
     return false;
 }
 
+/**
+ * Apply one row's COUNT from the pool: the arrival's per-row count step, and the
+ * re-apply a pickup credit runs (#1061, OoT_CreditSharedPickup).
+ *
+ * Runs even when the grant is blocked (see OoT_SharedAmmoGrantBlocked: skipping
+ * it loses the player's stock the moment the gate opens), and then against a cap
+ * of ZERO, so nothing materializes and the whole count stays in the pool. The
+ * row's own capacity is not enough for that: sticks and nuts read capacity 0 at
+ * tier 0, but OoT_BombchuCapacity is 50 under the Single Bombchu Bag option
+ * whether or not the bag has been found (only the progressive option reads the
+ * bag's level). Without the zero, a blocked apply under Single wrote a count
+ * with no item in the slot, the bag's own give then ASSIGNED 20 over it
+ * (SeedContext.cpp, HandleGetBombchuBag), and the next harvest took the
+ * difference out of the pool.
+ */
+static void OoT_ApplySharedAmmoCount(const OoTSharedAmmo* row, bool grantBlocked) {
+    uint16_t count = OoT_ReadAmmo(row->item);
+    const uint16_t cap = grantBlocked ? 0u : OoT_AmmoCapacity(row);
+    if (Combo_ApplySharedResource(GAME_OOT, row->countKind, cap, &count)) {
+        // Bombchus have no tier to carry the item across, so a nonzero
+        // shared count is what implies the item here.
+        if (!grantBlocked && count > 0u) {
+            OoT_EnsureInventoryItem(row->item);
+        }
+        AMMO(row->item) = (s8)count;
+    }
+}
+
 static uint16_t OoT_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.inventory.questItems & OOT_HEART_PIECE_MASK) >> OOT_HEART_PIECE_SHIFT);
@@ -3814,6 +3975,40 @@ extern "C" void OoT_HarvestSharedResources(void) {
 }
 
 /**
+ * CREDIT AT PICKUP (#1061; shared_resources.h): a counted pack found in Hyrule
+ * (an MM bombchu pack on an OoT check), or an OoT pack redeemed from an older
+ * save's crossing, goes into the pool now and OoT's count re-applies from it:
+ * harvest OoT's bombchus, credit the pack, re-apply. The harvest first is what
+ * keeps every bombchu spent since the arrival out of the re-applied count.
+ *
+ * @return 1 when credited; 0 (nothing touched) when @p item is not a counted
+ *         pack, OoT's live save is not a real file, or the kind has no OoT row.
+ */
+extern "C" int OoT_CreditSharedPickup(const SharedItem* item) {
+    uint8_t kind = 0;
+    uint16_t units = 0;
+    if (item == nullptr || !Combo_SharedPickupCreditOf(*item, &kind, &units) || !OoT_SaveIsLiveFile()) {
+        return 0;
+    }
+    for (int i = 0; i < ARRAY_COUNT(kOoTSharedAmmo); i++) {
+        const OoTSharedAmmo* row = &kOoTSharedAmmo[i];
+        if (row->countKind != kind) {
+            continue;
+        }
+        Combo_HarvestSharedResource(GAME_OOT, kind, OoT_ReadAmmo(row->item));
+        if (!Combo_CreditSharedResource(kind, units)) {
+            return 0; // the harvest alone changes nothing a later harvest would not
+        }
+        OoT_ApplySharedAmmoCount(row, OoT_SharedAmmoGrantBlocked(row));
+        fprintf(stderr, "[OoT] shared pickup credit: %s id=%u adds %u to shared kind %u; OoT now holds %d\n",
+                Game_ToString((GameId)item->originGame), (unsigned)item->id, (unsigned)units, (unsigned)kind,
+                (int)AMMO(row->item));
+        return 1;
+    }
+    return 0;
+}
+
+/**
  * APPLY (#525). Write the shared pool into OoT's live gSaveContext.
  *
  * Called from OoT_Play_Init's presence-gated startup-entrance branch beside
@@ -3967,19 +4162,9 @@ extern "C" void OoT_ApplySharedResources(void) {
             }
         }
 
-        // Runs even when the grant is blocked — see OoT_SharedAmmoGrantBlocked
-        // for why suppressing the apply entirely loses the player's stock the
-        // moment the gate opens. The cap does the suppressing: with no bag it
-        // is zero, so nothing materializes.
-        uint16_t count = OoT_ReadAmmo(row->item);
-        if (Combo_ApplySharedResource(GAME_OOT, row->countKind, OoT_AmmoCapacity(row), &count)) {
-            // Bombchus have no tier to carry the item across, so a nonzero
-            // shared count is what implies the item here.
-            if (!grantBlocked && count > 0u) {
-                OoT_EnsureInventoryItem(row->item);
-            }
-            AMMO(row->item) = (s8)count;
-        }
+        // Runs even when the grant is blocked, against a zero cap then (see
+        // OoT_ApplySharedAmmoCount for both halves of that).
+        OoT_ApplySharedAmmoCount(row, grantBlocked);
     }
 
     // --- Hookshot (monotonic 0/1/2). Clamped to OoT's own ceiling of 2, which
