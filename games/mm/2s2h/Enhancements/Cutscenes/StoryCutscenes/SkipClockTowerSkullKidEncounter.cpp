@@ -32,6 +32,9 @@ Vec3f afterCutscenePos = { 0, 200.0f, 0 };
 // Skips the interaction with Skull Kid at the Clock Tower, both with and without the ocarina
 void RegisterSkipClockTowerSkullKidEncounter() {
     COND_ID_HOOK(OnActorInit, ACTOR_DM_STK, CVAR, [](Actor* actor) {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         DmStk* dmstk = (DmStk*)actor;
 
         // Needs to be clock tower rooftop
