@@ -587,8 +587,10 @@ extern "C" void MM_ItemAdapter_Register(void) {
  * the Song of Healing, the Goron Lullaby intro only, Odolwa's Remains, the
  * Razor Sword, the Hero's Shield, magic, and an Adult's Wallet holding 150
  * rupees. Variant 1, the "live" world: the Hookshot, the Zora Mask, the Song
- * of Soaring and the Kokiri Sword only. Returns 1, or 0 when `size` cannot hold
- * a SaveContext or `buf` is misaligned.
+ * of Soaring and the Kokiri Sword only. Variant 2, the "capacity tier" world
+ * (#967): the Bow (tier-1 quiver, 12 arrows), bombs (tier-2 bag, 7), Deku
+ * Sticks (tier 1, 5), Deku Nuts (tier 3, 9) and the Kokiri Sword. Returns 1, or
+ * 0 when `size` cannot hold a SaveContext or `buf` is misaligned.
  */
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant) {
     if (buf == nullptr || size < sizeof(SaveContext) || !MMItemAligned(buf)) {
@@ -617,6 +619,23 @@ extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant
         s->save.saveInfo.playerData.isMagicAcquired = 1;
         inv.upgrades |= (1u << MM_gUpgradeShifts[UPG_WALLET]);
         s->save.saveInfo.playerData.rupees = 150;
+    } else if (variant == 2) {
+        // The capacity-tier world (#967), OoT's twin: the Bow with a tier-1
+        // quiver holding 12 arrows, bombs with a tier-2 bag holding 7, 5 Deku
+        // Sticks (tier 1), 9 Deku Nuts (tier 3), and the Kokiri Sword.
+        inv.items[SLOT_BOW] = ITEM_BOW;
+        inv.ammo[SLOT_BOW] = 12;
+        inv.upgrades |= (1u << MM_gUpgradeShifts[UPG_QUIVER]);
+        inv.items[SLOT_BOMB] = ITEM_BOMB;
+        inv.ammo[SLOT_BOMB] = 7;
+        inv.upgrades |= (2u << MM_gUpgradeShifts[UPG_BOMB_BAG]);
+        inv.items[SLOT_DEKU_STICK] = ITEM_DEKU_STICK;
+        inv.ammo[SLOT_DEKU_STICK] = 5;
+        inv.upgrades |= (1u << MM_gUpgradeShifts[UPG_DEKU_STICKS]);
+        inv.items[SLOT_DEKU_NUT] = ITEM_DEKU_NUT;
+        inv.ammo[SLOT_DEKU_NUT] = 9;
+        inv.upgrades |= (3u << MM_gUpgradeShifts[UPG_DEKU_NUTS]);
+        s->save.saveInfo.equips.equipment |= (u16)(EQUIP_VALUE_SWORD_KOKIRI << MM_gEquipShifts[EQUIP_TYPE_SWORD]);
     } else {
         inv.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
         inv.items[SLOT_MASK_ZORA] = ITEM_MASK_ZORA;

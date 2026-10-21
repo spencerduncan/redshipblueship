@@ -559,12 +559,17 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     const ComboItemRow* ootSong = CitwFindRow(oot, "Song of Time");
     CITW_ASSERT(ootSong != nullptr && ootSong->iconAspect > 0.66f && ootSong->iconAspect < 0.67f); // iconSize / 1.5
     CITW_ASSERT(hookshot->iconAspect == 0.0f);
-    const ComboItemRow* mmBow = CitwFindRow(mm, "Bow");              // held in MM's snapshot world
+    // The quiver is the pair's (the pool holds tier 2): MM's snapshot Bow is a
+    // copy of it, drawn dimmed, once, in the Shared column (#967).
+    const ComboItemRow* mmBow = CitwFindRow(mm, "Bow");
     const ComboItemRow* mmZora = CitwFindRow(mm, "Zora Mask");       // not held there
     const ComboItemRow* mmSong = CitwFindRow(mm, "Song of Healing"); // held
-    CITW_ASSERT(mmBow != nullptr && mmBow->have && mmZora != nullptr && !mmZora->have && mmSong != nullptr);
-    pick = ComboItemPickIcon(*mmBow);
+    CITW_ASSERT(mmBow != nullptr && !mmBow->have && mmBow->count == 0 && mmBow->max == 0);
+    CITW_ASSERT(mmZora != nullptr && !mmZora->have && mmSong != nullptr && mmSong->have);
+    pick = ComboItemPickIcon(*mmSong);
     CITW_ASSERT(CitwIsPath(pick.key) && pick.alpha == 1.0f);
+    pick = ComboItemPickIcon(*mmBow);
+    CITW_ASSERT(CitwIsPath(pick.key) && pick.alpha == 0.4f); // MM's 40%, the dimmed copy
     pick = ComboItemPickIcon(*mmZora);
     CITW_ASSERT(CitwIsPath(pick.key) && pick.key == mmZora->iconKey && pick.alpha == 0.4f); // MM's 40%
     CITW_ASSERT(mmSong->iconAspect > 0.69f && mmSong->iconAspect < 0.70f);                  // 32 / 46
@@ -572,13 +577,19 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     // ---- counts ---------------------------------------------------------------
     ComboItemCount count;
     const ComboItemRow* ootSnapBow = CitwFindRow(ootSnap, "Fairy Bow");
-    CITW_ASSERT(ootSnapBow != nullptr && ootSnapBow->have);
-    // SoH's DrawItemCount: the slash is the amount's ("35/" in the amount's
-    // tone), the ceiling alone takes the accent (#458 U3 review).
-    CITW_ASSERT(ComboItemCountFor(*ootSnapBow, COMBO_ITEM_COUNT_SOH, count));
+    // OoT's snapshot Bow is the pair's quiver too: dimmed, no second count (#967).
+    CITW_ASSERT(ootSnapBow != nullptr && !ootSnapBow->have && ootSnapBow->count == 0 && ootSnapBow->max == 0);
+    // A bow held outside the pool's share (35 arrows in a 40 quiver): SoH's
+    // DrawItemCount, the slash is the amount's ("35/" in the amount's tone),
+    // the ceiling alone takes the accent (#458 U3 review).
+    ComboItemRow ootBowHeld = *ootSnapBow;
+    ootBowHeld.have = true;
+    ootBowHeld.count = 35;
+    ootBowHeld.max = 40;
+    CITW_ASSERT(ComboItemCountFor(ootBowHeld, COMBO_ITEM_COUNT_SOH, count));
     CITW_ASSERT(count.amount == "35/" && count.ceiling == "40" && count.amountTone == COMBO_UI_TONE_WHITE &&
                 count.ceilingTone == COMBO_UI_TONE_GREEN);
-    ComboItemRow full = *ootSnapBow;
+    ComboItemRow full = ootBowHeld;
     full.count = 40;
     CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GREEN &&
                 count.amount == "40/");
@@ -596,7 +607,11 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     allTokens.count = 100;
     CITW_ASSERT(ComboItemCountFor(allTokens, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_RED);
     CITW_ASSERT(ootSnapBow->countAccent == COMBO_ITEM_ACCENT_GREEN);
-    CITW_ASSERT(ComboItemCountFor(*mmBow, COMBO_ITEM_COUNT_MM, count) && count.amount == "25" &&
+    ComboItemRow mmBowHeld = *mmBow;
+    mmBowHeld.have = true;
+    mmBowHeld.count = 25;
+    mmBowHeld.max = 40;
+    CITW_ASSERT(ComboItemCountFor(mmBowHeld, COMBO_ITEM_COUNT_MM, count) && count.amount == "25" &&
                 count.ceiling.empty()); // MM prints the ammo alone
     const ComboItemRow* rupees = CitwFindRow(shared, "Rupees");
     const ComboItemRow* arrows = CitwFindRow(shared, "Arrows");
@@ -1174,7 +1189,9 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(mmSnap.freshness == COMBO_TRACKER_FRESH_STALE);
     CITW_ASSERT(mmSnap.note.empty());
     CITW_ASSERT((int)mmSnap.rows.size() == mm->count());
-    CITW_ASSERT(CitwSectionHasText(mmSnap, "Bow 25/40", true));
+    // The pool holds the tier-2 quiver: the Bow shows once, in the Shared column
+    // (below), and MM's copy is dimmed with no second count (#967).
+    CITW_ASSERT(CitwSectionHasText(mmSnap, "Bow", false));
     CITW_ASSERT(CitwSectionHasText(mmSnap, "Magic Bean 7/20", true));
     CITW_ASSERT(CitwSectionHasText(mmSnap, "Zora Mask", false)); // the live world's, not the snapshot's
     CITW_ASSERT(strcmp(shared.title, "Shared") == 0);
@@ -1205,7 +1222,7 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].note.empty());
     CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Longshot", true));
-    CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Fairy Bow 35/40", true));
+    CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Fairy Bow", false)); // #967: dimmed
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_LIVE);
     CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_MM], "Zora Mask", true));
 

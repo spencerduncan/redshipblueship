@@ -605,8 +605,10 @@ extern "C" void OoT_ItemAdapter_Register(void) {
  * a Red Potion in bottle 1, the Kokiri Sword, Zelda's Lullaby, the Forest
  * Medallion, 17 Gold Skulltula Tokens, 5 pieces of heart and an Adult's Wallet
  * holding 123 rupees, on a vanilla (not randomized) file. Variant 1, the "live"
- * world: the Hookshot and the Song of Time only. Returns 1, or 0 when `size`
- * cannot hold a SaveContext or `buf` is misaligned.
+ * world: the Hookshot and the Song of Time only. Variant 2, the "capacity
+ * tier" world (#967): the Fairy Bow (tier-1 quiver, 12 arrows), bombs (tier-2
+ * bag, 7), Deku Sticks (tier 1, 5), Deku Nuts (tier 3, 9) and the Kokiri Sword.
+ * Returns 1, or 0 when `size` cannot hold a SaveContext or `buf` is misaligned.
  */
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant) {
     if (buf == nullptr || size < sizeof(SaveContext) || !Aligned(buf)) {
@@ -634,6 +636,23 @@ extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int varian
             (1u << QUEST_SONG_LULLABY) | (1u << QUEST_MEDALLION_FOREST) | (1u << QUEST_SKULL_TOKEN);
         s->inventory.gsTokens = 17;
         s->ship.stats.heartPieces = 5;
+    } else if (variant == 2) {
+        // The capacity-tier world (#967): the Fairy Bow with a tier-1 quiver
+        // holding 12 arrows, bombs with a tier-2 bag holding 7, 5 Deku Sticks
+        // in a tier-1 bag, 9 Deku Nuts in a tier-3 bag, and the Kokiri Sword.
+        s->inventory.items[SLOT_BOW] = ITEM_BOW;
+        s->inventory.ammo[SLOT_BOW] = 12;
+        s->inventory.upgrades |= (1u << OoT_gUpgradeShifts[UPG_QUIVER]);
+        s->inventory.items[SLOT_BOMB] = ITEM_BOMB;
+        s->inventory.ammo[SLOT_BOMB] = 7;
+        s->inventory.upgrades |= (2u << OoT_gUpgradeShifts[UPG_BOMB_BAG]);
+        s->inventory.items[SLOT_STICK] = ITEM_STICK;
+        s->inventory.ammo[SLOT_STICK] = 5;
+        s->inventory.upgrades |= (1u << OoT_gUpgradeShifts[UPG_STICKS]);
+        s->inventory.items[SLOT_NUT] = ITEM_NUT;
+        s->inventory.ammo[SLOT_NUT] = 9;
+        s->inventory.upgrades |= (3u << OoT_gUpgradeShifts[UPG_NUTS]);
+        s->inventory.equipment |= (1 << 0); // Kokiri Sword
     } else {
         s->inventory.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
         s->inventory.questItems |= (1u << QUEST_SONG_TIME);
