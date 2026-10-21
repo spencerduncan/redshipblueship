@@ -53,10 +53,14 @@ extern SaveContext gSaveContext;
  *  sentinel and GAMEMODE_NORMAL, which Combo_SaveIsLiveFile requires before the
  *  harvest or a pickup credit does anything. Bomb bag at @p bombBagTier (MM's
  *  bombchu ceiling is the bag's capacity: 0, 20, 30, 40) and @p count bombchus,
- *  with the bombchu item in its slot only for a nonzero count. Everything else
- *  zero, the rando check table included. */
+ *  with the bombchu item in its slot only for a nonzero count. Every item slot
+ *  starts at ITEM_NONE, as a real save's does (a zeroed slot reads as item 0,
+ *  which MM_EnsureInventoryItem treats as occupied and never fills, and which
+ *  never reads as ITEM_BOMBCHU whatever the code under test does). Everything
+ *  else zero, the rando check table included. */
 extern "C" void MM_SharedBombchuTest_ArmLive(int bombBagTier, int count) {
     memset(&gSaveContext, 0, sizeof(SaveContext));
+    memset(gSaveContext.save.saveInfo.inventory.items, ITEM_NONE, sizeof(gSaveContext.save.saveInfo.inventory.items));
     gSaveContext.fileNum = 0xFF;
     gSaveContext.flashSaveAvailable = true;
     gSaveContext.gameMode = GAMEMODE_NORMAL;
