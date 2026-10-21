@@ -6023,6 +6023,22 @@ TestResult Test_RandoTriforceHuntWin(void) {
     return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
 }
 
+// #997: under the combo triforce hunt OoT's own hunt is generated as "Win". Same
+// bring-up as the row above (a real paired creation through the headless bridge).
+// Assertions in games/oot/soh/oot_triforce_hunt_test.cpp.
+extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void);
+TestResult Test_RandoComboHuntOwnMode(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char chomArg0[] = "redship";
+    static char* chomArgv[] = { chomArg0, nullptr };
+    InitOTRForMMFirstBoot(1, chomArgv);
+    return OoT_ComboHuntOwnMode_RunGenerated() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #973: a paired world generates OoT's Mask Quest as "Shuffle" and its Mask Shop
 // Hint off, because the Happy Mask Shop's door leads to Termina. Same bring-up as
 // the row above (a real paired generation, then the registered OoT engine).
@@ -7210,6 +7226,11 @@ const TestDescriptor gTests[] = {
       "requirement "
       "ends the combo, in whichever game reaches it (ADR 0010 O10)",
       Test_RandoTriforceHuntWin },
+    // #997. Needs a generation; skipped by `--test all` below like its siblings.
+    { "rando-combo-hunt-own-mode",
+      "Under the combo triforce hunt a paired creation generates OoT's own \"Ganon's Boss Key\" hunt as \"Win\", "
+      "so RC_TRIFORCE_COMPLETED never holds Ganon's Boss Key (#997)",
+      Test_RandoComboHuntOwnMode },
     // #973. Needs a generation; skipped by `--test all` below like its siblings.
     { "rando-mask-quest-paired",
       "A paired world generates Mask Quest as Shuffle and the Mask Shop Hint off, all eight OoT masks are in the "
@@ -7553,6 +7574,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
                 strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
+                strcmp(gTests[i].name, "rando-combo-hunt-own-mode") == 0 ||
                 strcmp(gTests[i].name, "rando-mask-quest-paired") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||

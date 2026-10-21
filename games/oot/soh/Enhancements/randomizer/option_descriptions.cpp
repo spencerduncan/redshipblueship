@@ -132,13 +132,15 @@ void Settings::CreateOptionDescriptions() {
         "Castle Boss Key. Keep in mind that Ganon might not be logically reachable when \"All Locations Reachable\" "
         "is disabled."
 #ifdef RSBS_SINGLE_EXECUTABLE
-        // #768: the paired creation changes "Win" under a boss goal
-        // (playthrough.cpp); the player is told here, where the option is set.
+        // #768: the paired creation changes "Win" under a boss goal, and #997
+        // "Ganon's Boss Key" under the combo hunt (playthrough.cpp); the player
+        // is told here, where the option is set.
         "\n"
         "\n"
         "In a paired OoT + MM world the combo goal decides when the game ends. Under a boss goal, \"Win\" is "
         "generated as \"Ganon's Boss Key\": completing the hunt gives you Ganon's Castle Boss Key and the credits "
-        "do not roll."
+        "do not roll. Under the Triforce Hunt combo goal, \"Ganon's Boss Key\" is generated as \"Win\": the combo "
+        "hunt's pieces end the game."
 #endif
         ;
     mOptionDescriptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL] =
