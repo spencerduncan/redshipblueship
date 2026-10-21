@@ -588,6 +588,13 @@ main() {
         "RegisterSkipLearningSongOfHealing()"
         "RegisterSkipLearningSongOfSoaring()"
         "RegisterSkipLearningSongOfStorms()"
+        # #1005-#1009: the Cheats registrars in lib2ship_enh_registrars.a. MM_-prefixed where OoT
+        # ships a twin (RegisterMoonJump, RegisterEasyFrameAdvance), so the OoT copy cannot satisfy
+        # the probe. Infinite.cpp exports nothing; the archive gate above covers it by member.
+        "RegisterClimbAnywhere()"
+        "RegisterHookshotAnywhere()"
+        "MM_RegisterMoonJump()"
+        "MM_RegisterEasyFrameAdvance()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do
