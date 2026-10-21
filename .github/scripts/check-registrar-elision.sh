@@ -595,6 +595,31 @@ main() {
         "RegisterHookshotAnywhere()"
         "MM_RegisterMoonJump()"
         "MM_RegisterEasyFrameAdvance()"
+        # #1018-#1022: the Skips & Speed-ups registrars in lib2ship_enh_registrars.a (Disable Title Card,
+        # Skip Intro, Skip Entrance Cutscenes, Skip One Point Cutscenes and the Story set). No OoT twin
+        # exists for any of the names (grep games/oot); the trailing "()" keeps one name from satisfying
+        # a longer one. The archive gate above covers the same files by member.
+        "RegisterHideTitleCards()"
+        "RegisterSkipIntroSequence()"
+        "RegisterSkipEntranceCutscenes()"
+        "RegisterSkipOnePointCutscenes()"
+        "RegisterHealingMikauAudioFix()"
+        "RegisterSkipBiggoronSnowheadLullabyCutscene()"
+        "RegisterSkipBombBagTheftCutscene()"
+        "RegisterSkipClockTowerOpen()"
+        "RegisterSkipClockTowerSkullKidEncounter()"
+        "RegisterSkipDefeatCaptainSequence()"
+        "RegisterSkipFirstSongOfTimeFlashbacks()"
+        "RegisterSkipHealingDarmani()"
+        "RegisterSkipHealingMikau()"
+        "RegisterSkipIkanaCurseCutscenes()"
+        "RegisterSkipLearningSongOfTime()"
+        "RegisterSkipMilkRunCutscenes()"
+        "RegisterSkipMoonCrash()"
+        "RegisterSkipPrincessDelivery()"
+        "RegisterSkipRaisingWoodfall()"
+        "RegisterSkipStoppingMoon()"
+        "RegisterSkipWakingAndRidingTurtle()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do
