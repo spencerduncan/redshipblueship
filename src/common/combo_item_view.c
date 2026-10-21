@@ -348,7 +348,9 @@ typedef struct {
 } SharedFamilyRowDef;
 
 static const SharedFamilyRowDef kSharedFamilyRows[] = {
-    { RSBS_XITEM_SHARED_LENS, "Lens of Truth" }, // #1065
+    { RSBS_XITEM_SHARED_LENS, "Lens of Truth" },         // #1065
+    { RSBS_XITEM_SHARED_SONG_EPONA, "Epona's Song" },    // #1066
+    { RSBS_XITEM_SHARED_SONG_STORMS, "Song of Storms" }, // #1066
     // #1067: the five ocarina buttons, in MM's tracker order.
     { RSBS_XITEM_SHARED_OCARINA_BUTTONS, "A Button" },
     { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, "C Down Button" },

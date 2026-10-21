@@ -684,6 +684,12 @@ if(BUILD_TESTING)
     # and carried by the real harvest/apply shims. ROM-free.
     redship_add_test(NAME SharedLensRule COMMAND redship --test shared-lens-rule)
     redship_add_test(NAME SharedLensMerge COMMAND redship --test shared-lens-merge)
+    # #1066: Shared Epona's Song and Shared Song of Storms, the lens's rows for two
+    # more families: both bits and keys (off by default, 0 or 1), the freeze, the
+    # fingerprint and the load restore; then both games' songs registered and
+    # carried by the real harvest/apply shims, each rule only its own song. ROM-free.
+    redship_add_test(NAME SharedSongsRule COMMAND redship --test shared-songs-rule)
+    redship_add_test(NAME SharedSongsMerge COMMAND redship --test shared-songs-merge)
     # #1067: the Shared Ocarina Buttons rule (OoTMM sharedOcarinaButtons): five
     # pairs behind one bit, registered by both games and composed into one shared
     # row each, and a button found in one game owned in the other on arrival.
@@ -2482,6 +2488,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the composer pairs the two games' lenses, the coordinator places one copy
     # both solvers credit, MM's world holds no second lens, and the GOAL is proven.
     redship_add_test(NAME SharedLensBag COMMAND redship --test shared-lens-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1066: each shared song's ONE bag row over a real paired generation (OoT's
+    # songs shuffled anywhere, so both halves are bag rows): one copy per song,
+    # both solvers credit it, MM's world holds no second copy, the GOAL proven.
+    redship_add_test(NAME SharedSongsBag COMMAND redship --test shared-songs-bag
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")

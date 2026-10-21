@@ -179,20 +179,22 @@ TestResult Test_CrossItemRulesRecord(void) {
                   RSBS_XITEM_SHARED_BLAST == 0x800u && RSBS_XITEM_SHARED_SPOOKY == 0x10000u &&
                   RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u && RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u &&
                   RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_SHARED_LENS == 0x00200000u &&
+                  RSBS_XITEM_SHARED_SONG_EPONA == 0x00400000u && RSBS_XITEM_SHARED_SONG_STORMS == 0x00800000u &&
                   RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u && RSBS_XITEM_SHARED_SHIELDS == 0x02000000u,
               "an RSBS_XITEM_* bit moved; they are .redsave format, append-only");
-    // #1065 allocates the Shared Lens of Truth bit, #1067 the Shared Ocarina
-    // Buttons bit and #1068 the Shared Shields bit: each ALLOCATED (a record
-    // holding it is valid and the bit has a name) and a FAMILY (the lens pair;
+    // #1065 allocates the Shared Lens of Truth bit, #1066 the Shared Epona's
+    // Song and Song of Storms bits, #1067 the Shared Ocarina Buttons bit and
+    // #1068 the Shared Shields bit: each ALLOCATED (a record holding it is valid
+    // and the bit has a name) and a FAMILY (the lens pair; the two song pairs;
     // the A buttons; the Hylian/Hero's pair).
-    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x033FFFFFu,
-              "RSBS_XITEM_ALL_V1 is %08X, expected 033FFFFF (#976's 21 bits, #1065's Shared Lens of Truth, #1067's "
-              "Shared Ocarina Buttons and #1068's Shared Shields)",
+    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x03FFFFFFu,
+              "RSBS_XITEM_ALL_V1 is %08X, expected 03FFFFFF (#976's 21 bits, #1065's Shared Lens of Truth, #1066's "
+              "Shared Epona's Song and Song of Storms, #1067's Shared Ocarina Buttons and #1068's Shared Shields)",
               (unsigned)RSBS_XITEM_ALL_V1);
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x032FF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 032FF81F (the five shared masks, the six shared extensions, "
-              "the three arrows, the lens, the shared ocarina buttons and the shared shields; not the extensions, "
-              "not the bottles)",
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x03EFF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 03EFF81F (the five shared masks, the six shared extensions, "
+              "the three arrows, the lens, the two songs, the shared ocarina buttons and the shared shields; not the "
+              "extensions, not the bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
     {
         // #1067: ONE rule bit over five pairs. The four C-button pairs own extra
@@ -273,7 +275,7 @@ TestResult Test_CrossItemRulesRecord(void) {
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "a shared extension without its extension must be invalid");
         r = on;
         // The lowest free bit, derived so a later allocation (#1065 took
-        // 0x00200000, #1068 0x02000000) never turns this probe into an
+        // 0x00200000, #1066 the next two, #1068 0x02000000) never turns this probe into an
         // allocated bit.
         const uint32_t unallocated = (RSBS_XITEM_ALL_V1 + 1u) & ~(uint32_t)RSBS_XITEM_ALL_V1;
         XIR_CHECK((RSBS_XITEM_ALL_V1 & unallocated) == 0u && unallocated != 0u, "the probe bit %08X is allocated",
@@ -494,8 +496,8 @@ TestResult Test_CrossItemRulesRecord(void) {
                   "no key authors the Blast Mask cooldown, so no load may claim to restore it");
         XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == bits &&
                       Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 0,
-                  "no key of this build authors these rules (only #1068's Shared Shields, #1065's lens and #1067's "
-                  "ocarina buttons have one), so no load may claim to restore them");
+                  "no key of this build authors these rules (only #1068's Shared Shields, #1065's lens, #1066's "
+                  "songs and #1067's ocarina buttons have one), so no load may claim to restore them");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN),
