@@ -392,8 +392,12 @@ void Combo_ResetSharedResourceWatermarks(void);
  * slot. A family is a 0/1 fact per family, so the whole set is ONE BITSET,
  * gComboCtx.sharedFamilyOwned, one bit per family at the family's own
  * RSBS_XITEM_* rule bit (all twenty slots are allocated, and a slot's 16-bit
- * value could not hold the 32-bit family space). Its merge is a third
- * discipline:
+ * value could not hold the 32-bit family space). A rule that makes MORE than one
+ * pair one item owns its first pair at its own bit and each further pair at an
+ * EXTRA SLOT (RSBS_XFAMILY_SLOTS_EXTRA, foreign_items.h), a bit no rule can
+ * occupy, armed with the rule (#1068: the Shared Shields rule's Hylian/Hero's
+ * pair at its bit, its Mirror pair at RSBS_XFAMILY_SLOT_MIRROR_SHIELD). Its merge
+ * is a third discipline:
  *
  *   OR - harvest is `owned |= held & armed`, apply gives the arriving game its
  *   NATIVE copy of every family in `owned & armed & ~held`. Monotonic in both
@@ -436,7 +440,8 @@ typedef struct {
 /**
  * Register (or, with NULL @p member, unregister) @p game's copy of the family at
  * @p familyBit. Refused (false) for a game that is not OoT or MM, a bit that is
- * not exactly one RSBS_XITEM_FAMILY_MASK bit, or a member with a NULL callback.
+ * not exactly one family slot (an RSBS_XITEM_FAMILY_MASK bit or an
+ * RSBS_XFAMILY_SLOTS_EXTRA bit), or a member with a NULL callback.
  */
 bool Combo_RegisterSharedFamilyMember(GameId game, uint32_t familyBit, const ComboSharedFamilyMember* member);
 
@@ -447,8 +452,18 @@ bool Combo_SharedFamilyMemberId(GameId game, uint32_t familyBit, uint16_t* outId
 /** Drop every registered member (tests). */
 void Combo_ClearSharedFamilyMembers(void);
 
-/** The families the FROZEN record arms: crossItemFlags & RSBS_XITEM_FAMILY_MASK,
- *  0 while nothing is frozen. */
+/** The family slots @p crossItemFlags arms: its RSBS_XITEM_FAMILY_MASK bits,
+ *  plus each extra slot of a rule it holds (#1068's Mirror slot with
+ *  RSBS_XITEM_SHARED_SHIELDS). Pure. */
+uint32_t Combo_SharedFamilySlotsArmedBy(uint32_t crossItemFlags);
+
+/** A short name for one family slot, for logs: the rule's name at a rule bit
+ *  (Combo_ComboItemRuleName), the owning rule and its pair at an extra slot.
+ *  Never NULL. */
+const char* Combo_SharedFamilySlotName(uint32_t slot);
+
+/** The family slots the FROZEN record arms (Combo_SharedFamilySlotsArmedBy of
+ *  its crossItemFlags), 0 while nothing is frozen. */
 uint32_t Combo_SharedFamiliesArmed(void);
 
 /** The pool: the family bits the player holds in either game. */

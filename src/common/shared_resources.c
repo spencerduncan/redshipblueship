@@ -398,10 +398,11 @@ void Combo_ResetSharedResourceWatermarks(void) {
 static ComboSharedFamilyMember sFamilyMembers[3][RSBS_XITEM_BIT_COUNT];
 static bool sFamilyMemberSet[3][RSBS_XITEM_BIT_COUNT];
 
-/** The bit index of a single FAMILY bit, or -1 for anything else. */
+/** The bit index of a single FAMILY SLOT (a family rule's own bit, or an extra
+ *  slot such as #1068's Mirror Shield), or -1 for anything else. */
 static int FamilyIndex(uint32_t familyBit) {
     if (familyBit == 0u || (familyBit & (familyBit - 1u)) != 0u ||
-        (familyBit & (uint32_t)RSBS_XITEM_FAMILY_MASK) == 0u) {
+        (familyBit & (uint32_t)RSBS_XFAMILY_SLOTS_ALL) == 0u) {
         return -1;
     }
     for (int b = 0; b < (int)RSBS_XITEM_BIT_COUNT; ++b) {
@@ -446,10 +447,27 @@ void Combo_ClearSharedFamilyMembers(void) {
     memset(sFamilyMemberSet, 0, sizeof(sFamilyMemberSet));
 }
 
+uint32_t Combo_SharedFamilySlotsArmedBy(uint32_t crossItemFlags) {
+    uint32_t slots = crossItemFlags & (uint32_t)RSBS_XITEM_FAMILY_MASK;
+    // A rule with more than one pair arms its extra slots with its own bit
+    // (#1068: the shields rule's second pair, the two Mirror Shields).
+    if ((crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_SHIELDS) != 0u) {
+        slots |= (uint32_t)RSBS_XFAMILY_SLOT_MIRROR_SHIELD;
+    }
+    return slots;
+}
+
+const char* Combo_SharedFamilySlotName(uint32_t slot) {
+    if (slot == (uint32_t)RSBS_XFAMILY_SLOT_MIRROR_SHIELD) {
+        return "sharedShields (Mirror Shield)";
+    }
+    return Combo_ComboItemRuleName(slot);
+}
+
 uint32_t Combo_SharedFamiliesArmed(void) {
     // The FROZEN record only, as every arming gate in this file: before a world
     // exists there is nothing to share, and after it the rules are identity.
-    return Combo_ComboCrossItemFlags() & (uint32_t)RSBS_XITEM_FAMILY_MASK;
+    return Combo_SharedFamilySlotsArmedBy(Combo_ComboCrossItemFlags());
 }
 
 uint32_t Combo_SharedFamiliesOwned(void) {
@@ -520,7 +538,7 @@ int Combo_SharedFamiliesApplyLive(GameId game) {
         m->give(m->nativeId);
         given++;
         fprintf(stderr, "[combo] shared family %s: %s given its own copy (id %u) at arrival\n",
-                Combo_ComboItemRuleName(bit), Game_ToString(game), (unsigned)m->nativeId);
+                Combo_SharedFamilySlotName(bit), Game_ToString(game), (unsigned)m->nativeId);
     }
     return given;
 }
