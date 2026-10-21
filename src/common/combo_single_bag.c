@@ -210,7 +210,7 @@ static int SingleBagSharedPairs(ComboLogicSharedPair* out, int cap) {
             // pair cannot be built, and the row stays each game's own item. Loud,
             // because only a build that registers half a family can reach it.
             fprintf(stderr, "[SingleBag] shared family %s is armed but not registered in both games; not paired\n",
-                    Combo_ComboItemRuleName(bit));
+                    Combo_SharedFamilySlotName(bit));
             continue;
         }
         out[n].ootId = ootId;

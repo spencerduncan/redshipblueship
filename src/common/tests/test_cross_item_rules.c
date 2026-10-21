@@ -224,7 +224,7 @@ TestResult Test_CrossItemRulesRecord(void) {
     memset(&live, 0xEE, sizeof(live));
     Combo_ResolveComboItemRules(&live);
     XIR_CHECK(memcmp(&live, &defaults, sizeof(live)) == 0,
-              "the session resolver must be the shipped defaults while no key authors the rules");
+              "the session resolver must be the shipped defaults while no rule key is set");
     XIR_CHECK(Combo_ComboItemRulesValid(&defaults) && Combo_ComboItemRulesValid(NULL), "the defaults are valid");
     {
         const ComboItemRulesRecord on = XirOnRecord();
@@ -445,8 +445,10 @@ TestResult Test_CrossItemRulesRecord(void) {
                   "the session diff is %08X; a frozen rule this session would not freeze must be named, alone",
                   (unsigned)bits);
         XIR_CHECK(!Combo_ComboSettingsDivergenceIsDamage(bits), "a rule divergence is the session's, not damage");
-        XIR_CHECK((Combo_ComboSettingsRestorableMask() & bits) == 0u,
-                  "no key authors the rules yet, so no load may claim to restore them");
+        XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == bits &&
+                      Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 0,
+                  "no key of this build authors these rules (only #1068's Shared Shields has one), so no load may "
+                  "claim to restore them");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN),

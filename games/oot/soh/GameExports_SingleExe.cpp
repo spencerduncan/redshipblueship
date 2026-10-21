@@ -3482,9 +3482,61 @@ static uint16_t OoT_ReadKokiriSword(void) {
     return CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI) ? 1u : 0u;
 }
 
-/** Register OoT's copies of the Shared Shields families (#1068). */
-extern "C" void OoT_RegisterSharedShieldFamilies(void) {
+// ============================================================================
+// The Shared Shields families (#1068; OoTMM sharedShields)
+// ============================================================================
+//
+// OoT's copies of the rule's two pairs: the Hylian Shield (the family at
+// RSBS_XITEM_SHARED_SHIELDS, paired with MM's Hero's Shield) and the Mirror
+// Shield (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD). OoT keeps its own
+// shields: HELD is the owned-equipment bit OoT's own give writes (a shop's
+// Hylian Shield included, so buying one in Hyrule gives Termina the Hero's
+// Shield), and the GIVE writes that bit. A given shield is also WORN when the
+// player's own choice allows it: the Hylian Shield when Link wears no shield,
+// the Mirror Shield when an adult wears none or the Hylian Shield (as MM's
+// Mirror Shield replaces its Hero's Shield). A child is never put in the Mirror
+// Shield, and a worn Deku Shield is the player's choice and stays. The startup
+// entrance runs this before Player init, which reads the equips.
+
+extern "C" void OoT_Inventory_ChangeEquipment(s16 equipment, u16 value);
+
+static bool OoT_SharedShieldHeld(uint16_t nativeId) {
+    const int inv = (nativeId == (uint16_t)RG_MIRROR_SHIELD) ? EQUIP_INV_SHIELD_MIRROR : EQUIP_INV_SHIELD_HYLIAN;
+    return CHECK_OWNED_EQUIP(EQUIP_TYPE_SHIELD, inv) != 0;
 }
+
+static void OoT_SharedShieldGive(uint16_t nativeId) {
+    const bool mirror = nativeId == (uint16_t)RG_MIRROR_SHIELD;
+    gSaveContext.inventory.equipment |=
+        (u16)OWNED_EQUIP_FLAG(EQUIP_TYPE_SHIELD, mirror ? EQUIP_INV_SHIELD_MIRROR : EQUIP_INV_SHIELD_HYLIAN);
+    const s32 worn = CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
+    if (mirror) {
+        if (LINK_IS_ADULT && (worn == EQUIP_VALUE_SHIELD_NONE || worn == EQUIP_VALUE_SHIELD_HYLIAN)) {
+            OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
+        }
+    } else if (worn == EQUIP_VALUE_SHIELD_NONE) {
+        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HYLIAN);
+    }
+}
+
+/** Register OoT's copies of the Shared Shields families (#1068). Idempotent;
+ *  the static registrar below runs it at start-up, and the locks re-run it
+ *  after a row that cleared the registry. */
+extern "C" void OoT_RegisterSharedShieldFamilies(void) {
+    const ComboSharedFamilyMember hylian = { (uint16_t)RG_HYLIAN_SHIELD, OoT_SharedShieldHeld, OoT_SharedShieldGive };
+    const ComboSharedFamilyMember mirror = { (uint16_t)RG_MIRROR_SHIELD, OoT_SharedShieldHeld, OoT_SharedShieldGive };
+    Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SHIELDS, &hylian);
+    Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XFAMILY_SLOT_MIRROR_SHIELD, &mirror);
+}
+
+namespace {
+struct OoTSharedShieldRegistrar {
+    OoTSharedShieldRegistrar() {
+        OoT_RegisterSharedShieldFamilies();
+    }
+};
+const OoTSharedShieldRegistrar gOoTSharedShieldRegistrar;
+} // namespace
 
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
