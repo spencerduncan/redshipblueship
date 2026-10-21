@@ -4697,6 +4697,63 @@ static uint16_t MM_ReadKokiriSword(void) {
     return GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) != EQUIP_VALUE_SWORD_NONE ? 1u : 0u;
 }
 
+// ============================================================================
+// The Shared Shields families (#1068; OoTMM sharedShields)
+// ============================================================================
+//
+// MM's copies of the rule's two pairs: the Hero's Shield (the family at
+// RSBS_XITEM_SHARED_SHIELDS, paired with OoT's Hylian Shield) and the Mirror
+// Shield (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD). MM has ONE shield
+// slot: the equipment value is both what Link owns and what he wears (0 none,
+// 1 Hero's, 2 Mirror). So:
+//   - HELD (Hero's) is ANY shield: MM's Mirror Shield replaced a Hero's Shield
+//     the player may have found first, and a Hero's Shield found and replaced in
+//     the same stint must still reach OoT (the solver credited OoT's half when
+//     the shared row was collected). The cost, stated: a Mirror Shield found
+//     first in Termina also gives OoT the Hylian Shield, which never takes
+//     anything away from a world the solver proved.
+//   - HELD (Mirror) is the Mirror Shield.
+//   - GIVE (Hero's) only into an EMPTY slot: a Hero's Shield never replaces a
+//     Mirror Shield. GIVE (Mirror) always replaces, as MM's own give does
+//     (Rando::GiveItem writes the equipment value).
+// Equipping is the same write; the startup entrance runs before Player init,
+// which reads it.
+
+static bool MM_SharedShieldHeld(uint16_t nativeId) {
+    const u8 shield = GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
+    if (nativeId == (uint16_t)RI_SHIELD_MIRROR) {
+        return shield == EQUIP_VALUE_SHIELD_MIRROR;
+    }
+    return shield != EQUIP_VALUE_SHIELD_NONE;
+}
+
+static void MM_SharedShieldGive(uint16_t nativeId) {
+    if (nativeId == (uint16_t)RI_SHIELD_MIRROR) {
+        SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
+    } else if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_NONE) {
+        SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HERO);
+    }
+}
+
+/** Register MM's copies of the Shared Shields families (#1068). Idempotent;
+ *  the static registrar below runs it at start-up, and the locks re-run it
+ *  after a row that cleared the registry. */
+extern "C" void MM_RegisterSharedShieldFamilies(void) {
+    const ComboSharedFamilyMember hero = { (uint16_t)RI_SHIELD_HERO, MM_SharedShieldHeld, MM_SharedShieldGive };
+    const ComboSharedFamilyMember mirror = { (uint16_t)RI_SHIELD_MIRROR, MM_SharedShieldHeld, MM_SharedShieldGive };
+    Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SHIELDS, &hero);
+    Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XFAMILY_SLOT_MIRROR_SHIELD, &mirror);
+}
+
+namespace {
+struct MMSharedShieldRegistrar {
+    MMSharedShieldRegistrar() {
+        MM_RegisterSharedShieldFamilies();
+    }
+};
+const MMSharedShieldRegistrar gMMSharedShieldRegistrar;
+} // namespace
+
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & MM_HEART_PIECE_MASK) >> MM_HEART_PIECE_SHIFT);
