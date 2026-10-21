@@ -178,20 +178,21 @@ TestResult Test_CrossItemRulesRecord(void) {
                   RSBS_XITEM_BLAST_MASK_OOT == 0x20u && RSBS_XITEM_SPOOKY_MASK_MM == 0x400u &&
                   RSBS_XITEM_SHARED_BLAST == 0x800u && RSBS_XITEM_SHARED_SPOOKY == 0x10000u &&
                   RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u && RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u &&
-                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u &&
-                  RSBS_XITEM_SHARED_SHIELDS == 0x02000000u,
+                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_SHARED_LENS == 0x00200000u &&
+                  RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u && RSBS_XITEM_SHARED_SHIELDS == 0x02000000u,
               "an RSBS_XITEM_* bit moved; they are .redsave format, append-only");
-    // #1068 allocates the Shared Shields bit and #1067 the Shared Ocarina Buttons
-    // bit: each ALLOCATED (a record holding it is valid and the bit has a name)
-    // and a FAMILY (the Hylian/Hero's pair; the A buttons).
-    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x031FFFFFu,
-              "RSBS_XITEM_ALL_V1 is %08X, expected 031FFFFF (#976's 21 bits, #1067's Shared Ocarina Buttons and "
-              "#1068's Shared Shields)",
+    // #1065 allocates the Shared Lens of Truth bit, #1067 the Shared Ocarina
+    // Buttons bit and #1068 the Shared Shields bit: each ALLOCATED (a record
+    // holding it is valid and the bit has a name) and a FAMILY (the lens pair;
+    // the A buttons; the Hylian/Hero's pair).
+    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x033FFFFFu,
+              "RSBS_XITEM_ALL_V1 is %08X, expected 033FFFFF (#976's 21 bits, #1065's Shared Lens of Truth, #1067's "
+              "Shared Ocarina Buttons and #1068's Shared Shields)",
               (unsigned)RSBS_XITEM_ALL_V1);
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x030FF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 030FF81F (the five shared masks, the six shared extensions, "
-              "the three arrows, the shared ocarina buttons and the shared shields; not the extensions, not the "
-              "bottles)",
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x032FF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 032FF81F (the five shared masks, the six shared extensions, "
+              "the three arrows, the lens, the shared ocarina buttons and the shared shields; not the extensions, "
+              "not the bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
     {
         // #1067: ONE rule bit over five pairs. The four C-button pairs own extra
@@ -271,8 +272,14 @@ TestResult Test_CrossItemRulesRecord(void) {
         r.crossItemFlags &= ~RSBS_XITEM_BLAST_MASK_OOT;
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "a shared extension without its extension must be invalid");
         r = on;
-        r.crossItemFlags |= 0x00200000u;
-        XIR_CHECK(!Combo_ComboItemRulesValid(&r), "an unallocated bit must be invalid");
+        // The lowest free bit, derived so a later allocation (#1065 took
+        // 0x00200000, #1068 0x02000000) never turns this probe into an
+        // allocated bit.
+        const uint32_t unallocated = (RSBS_XITEM_ALL_V1 + 1u) & ~(uint32_t)RSBS_XITEM_ALL_V1;
+        XIR_CHECK((RSBS_XITEM_ALL_V1 & unallocated) == 0u && unallocated != 0u, "the probe bit %08X is allocated",
+                  (unsigned)unallocated);
+        r.crossItemFlags |= unallocated;
+        XIR_CHECK(!Combo_ComboItemRulesValid(&r), "an unallocated bit (%08X) must be invalid", (unsigned)unallocated);
         r = on;
         r.blastMaskCooldown = 6u;
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "a cooldown past VERY_LONG must be invalid");
@@ -483,10 +490,12 @@ TestResult Test_CrossItemRulesRecord(void) {
                   "the session diff is %08X; a frozen rule this session would not freeze must be named, alone",
                   (unsigned)bits);
         XIR_CHECK(!Combo_ComboSettingsDivergenceIsDamage(bits), "a rule divergence is the session's, not damage");
+        XIR_CHECK((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) == 0u,
+                  "no key authors the Blast Mask cooldown, so no load may claim to restore it");
         XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == bits &&
                       Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 0,
-                  "no key of this build authors these rules (only #1068's Shared Shields has one), so no load may "
-                  "claim to restore them");
+                  "no key of this build authors these rules (only #1068's Shared Shields, #1065's lens and #1067's "
+                  "ocarina buttons have one), so no load may claim to restore them");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN),
@@ -579,7 +588,11 @@ TestResult Test_SharedFamilyMerge(void) {
     const uint32_t K = RSBS_XITEM_SHARED_KEATON;
 
     // ---- (0) The registry refuses what is not one family bit ------------------
-    Combo_ClearSharedFamilyMembers();
+    // Only the Goron family this row registers is dropped, never the whole
+    // registry: the games' own members (#1065's lens) are registered at static
+    // init and later rows in the same process read them.
+    Combo_RegisterSharedFamilyMember(GAME_OOT, G, NULL);
+    Combo_RegisterSharedFamilyMember(GAME_MM, G, NULL);
     {
         const ComboSharedFamilyMember m = { 7u, XirHeldOoT, XirGiveOoT };
         const ComboSharedFamilyMember noGive = { 7u, XirHeldOoT, nullptr };
@@ -692,7 +705,8 @@ TestResult Test_SharedFamilyMerge(void) {
                   "with the rule off a shim asked a member or gave a copy");
     }
 
-    Combo_ClearSharedFamilyMembers();
+    Combo_RegisterSharedFamilyMember(GAME_OOT, G, NULL);
+    Combo_RegisterSharedFamilyMember(GAME_MM, G, NULL);
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
     printf("[TEST] shared-family-merge: %s\n", sXirFailures == 0 ? "PASS" : "FAIL");

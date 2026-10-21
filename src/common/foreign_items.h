@@ -444,6 +444,9 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 #define RSBS_XITEM_SHARED_ARROW_LIGHT 0x00080000u
 // #970: shared bottles (OoTMM sharedBottles). Reserved; not a family yet.
 #define RSBS_XITEM_SHARED_BOTTLES 0x00100000u
+// #1065: the Lens of Truth (OoTMM sharedLens), a shared-pair family: OoT's
+// RG_LENS_OF_TRUTH and MM's RI_LENS, each registered by its game.
+#define RSBS_XITEM_SHARED_LENS 0x00200000u
 // #1067: shared ocarina buttons (OoTMM sharedOcarinaButtons). ONE rule over FIVE
 // pairs, one per button: the A buttons (the family at this bit) and the four C
 // buttons (the families at RSBS_XFAMILY_SLOT_OCARINA_C_* below).
@@ -473,7 +476,8 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 
 /** Every RSBS_XITEM_* bit ALLOCATED by this build. A frozen record holding any
  *  other bit was written by a later build (Combo_ComboItemRulesValid). */
-#define RSBS_XITEM_ALL_V1 (0x001FFFFFu | RSBS_XITEM_SHARED_OCARINA_BUTTONS | RSBS_XITEM_SHARED_SHIELDS)
+#define RSBS_XITEM_ALL_V1 \
+    (0x001FFFFFu | RSBS_XITEM_SHARED_LENS | RSBS_XITEM_SHARED_OCARINA_BUTTONS | RSBS_XITEM_SHARED_SHIELDS)
 
 /** The bits that are SHARED-PAIR FAMILIES: the bit is both the rule and the
  *  family's bit in gComboCtx.sharedFamilyOwned. */
@@ -481,8 +485,8 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
     (RSBS_XITEM_SHARED_GORON | RSBS_XITEM_SHARED_ZORA | RSBS_XITEM_SHARED_BUNNY | RSBS_XITEM_SHARED_KEATON |        \
      RSBS_XITEM_SHARED_TRUTH | RSBS_XITEM_SHARED_BLAST | RSBS_XITEM_SHARED_STONE | RSBS_XITEM_SHARED_KAMARO |       \
      RSBS_XITEM_SHARED_GERUDO | RSBS_XITEM_SHARED_SKULL | RSBS_XITEM_SHARED_SPOOKY | RSBS_XITEM_SHARED_ARROW_FIRE | \
-     RSBS_XITEM_SHARED_ARROW_ICE | RSBS_XITEM_SHARED_ARROW_LIGHT | RSBS_XITEM_SHARED_OCARINA_BUTTONS |              \
-     RSBS_XITEM_SHARED_SHIELDS)
+     RSBS_XITEM_SHARED_ARROW_ICE | RSBS_XITEM_SHARED_ARROW_LIGHT | RSBS_XITEM_SHARED_LENS |                         \
+     RSBS_XITEM_SHARED_OCARINA_BUTTONS | RSBS_XITEM_SHARED_SHIELDS)
 
 /** The FAMILY SLOTS that are not family rule bits: a rule with more than one
  *  pair (#1068's two shields, #1067's five buttons) owns its first pair at its
@@ -518,18 +522,19 @@ RSBS_CTX_STATIC_ASSERT(
         RSBS_XITEM_SPOOKY_MASK_MM == 0x400u && RSBS_XITEM_SHARED_BLAST == 0x800u &&
         RSBS_XITEM_SHARED_SPOOKY == 0x10000u && RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u &&
         RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u && RSBS_XITEM_SHARED_BOTTLES == 0x100000u &&
-        RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u && RSBS_XITEM_SHARED_SHIELDS == 0x02000000u &&
-        RSBS_XITEM_ALL_V1 == 0x031FFFFFu && (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u &&
-        (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u && RSBS_XFAMILY_SLOT_MIRROR_SHIELD == 0x80000000u &&
-        (RSBS_XITEM_ALL_V1 & RSBS_XFAMILY_SLOT_MIRROR_SHIELD) == 0u && RSBS_XFAMILY_SLOT_OCARINA_C_UP == 0x20u &&
-        RSBS_XFAMILY_SLOT_OCARINA_C_DOWN == 0x40u && RSBS_XFAMILY_SLOT_OCARINA_C_LEFT == 0x80u &&
-        RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT == 0x100u && (RSBS_XFAMILY_SLOTS_EXTRA & RSBS_XITEM_FAMILY_MASK) == 0u &&
+        RSBS_XITEM_SHARED_LENS == 0x200000u && RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u &&
+        RSBS_XITEM_SHARED_SHIELDS == 0x02000000u && RSBS_XITEM_ALL_V1 == 0x033FFFFFu &&
+        (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u && (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u &&
+        RSBS_XFAMILY_SLOT_MIRROR_SHIELD == 0x80000000u && (RSBS_XITEM_ALL_V1 & RSBS_XFAMILY_SLOT_MIRROR_SHIELD) == 0u &&
+        RSBS_XFAMILY_SLOT_OCARINA_C_UP == 0x20u && RSBS_XFAMILY_SLOT_OCARINA_C_DOWN == 0x40u &&
+        RSBS_XFAMILY_SLOT_OCARINA_C_LEFT == 0x80u && RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT == 0x100u &&
+        (RSBS_XFAMILY_SLOTS_EXTRA & RSBS_XITEM_FAMILY_MASK) == 0u &&
         ((RSBS_XFAMILY_SLOTS_EXTRA & ~RSBS_XFAMILY_SLOT_MIRROR_SHIELD) &
          ~(RSBS_XITEM_BLAST_MASK_OOT | RSBS_XITEM_STONE_MASK_OOT | RSBS_XITEM_KAMARO_MASK_OOT |
            RSBS_XITEM_GERUDO_MASK_MM | RSBS_XITEM_SKULL_MASK_MM | RSBS_XITEM_SPOOKY_MASK_MM)) == 0u,
     "RSBS_XITEM_* bit positions and the extra family slots are .redsave format: pinned, append-only, allocate the "
     "next free bit and never re-point an allocated one; an extra slot is bit 31 or an extension rule's bit, never a "
-    "family's (ADR 0011's 2026-10-18 amendment, #976, #1067, #1068)");
+    "family's (ADR 0011's 2026-10-18 amendment, #976, #1065, #1067, #1068)");
 RSBS_CTX_STATIC_ASSERT(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_INSTANT == 1u &&
                            RSBS_BLAST_COOLDOWN_VERY_LONG == 5u,
                        "RSBS_BLAST_COOLDOWN_* values are .redsave format: pinned, append-only, and DEFAULT stays 0 "
@@ -560,15 +565,18 @@ bool Combo_ComboItemRulesValid(const ComboItemRulesRecord* rec);
  * what an arrival or a load compares the frozen record against (the
  * one-resolver discipline Combo_ResolveComboSettings states).
  *
- * The Cross-Game Rules rows and their tier-4 keys come with the phases that give
- * each rule its behaviour (epic #975 P2 on). A rule with a key is read HERE
- * (Combo_ComboSettingResolved, the shipped default when unset or out of space):
- * today only RSBS_XITEM_SHARED_SHIELDS (#1068, COMBO_SETTING_SHARED_SHIELDS).
- * Every other bit resolves off, so a file written by a later build with such a
+ * A rule is authored by its Cross-Game Rules row's tier-4 key, which comes
+ * with the phase that gives the rule its behaviour (epic #975 P2 on: #1068's
+ * Shared Shields and #1065's Shared Lens of Truth today; combo_settings_view.h,
+ * Combo_ComboItemRulesAuthored). This reads those keys and nothing else
+ * (Combo_ComboSettingResolved, the shipped default when unset or out of space);
+ * with none set it is the shipped defaults, every rule off. A rule no key
+ * authors yet is never on here, so a file written by a later build with such a
  * rule on is REFUSED at load and at arrival, by name
  * (RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS): this build cannot honour the rule, and
  * under one-game semantics playing that file as if the rule were off is
- * corruption, not choice.
+ * corruption, not choice. A keyed rule that diverges is restored from the file
+ * instead (frozen wins at load, #781).
  */
 void Combo_ResolveComboItemRules(ComboItemRulesRecord* out);
 

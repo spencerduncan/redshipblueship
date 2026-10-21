@@ -99,6 +99,18 @@ static uint32_t SobAllSlots(void) {
     return slots;
 }
 
+/** Drop both games' button members, and only those: a whole-registry clear
+ *  would also drop the other families' static-init members (#1065's lens) for
+ *  every later row of an AllTests process. */
+static void SobUnregisterButtons(void) {
+    const GameId games[2] = { GAME_OOT, GAME_MM };
+    for (int g = 0; g < 2; g++) {
+        for (int i = 0; i < SOB_BUTTONS; ++i) {
+            Combo_RegisterSharedFamilyMember(games[g], SobSlot(i), NULL);
+        }
+    }
+}
+
 static int sSobFailures;
 
 #define SOB_CHECK(cond, ...)                          \
@@ -250,7 +262,7 @@ TestResult Test_SharedOcarinaButtonsPairs(void) {
 
     // ---- (1) THE REGISTRATIONS: both games, all five buttons --------------------
     {
-        Combo_ClearSharedFamilyMembers();
+        SobUnregisterButtons();
         OoT_RegisterSharedOcarinaButtonFamilies();
         MM_RegisterSharedOcarinaButtonFamilies();
         for (int i = 0; i < SOB_BUTTONS; ++i) {
@@ -414,7 +426,7 @@ TestResult Test_SharedOcarinaButtonsPairs(void) {
                   "with OoT's buttons in no pool, MM's five rows must stay MM's own items, none shared, none trimmed");
     }
 
-    Combo_ClearSharedFamilyMembers();
+    SobUnregisterButtons();
     OoT_RegisterSharedOcarinaButtonFamilies();
     MM_RegisterSharedOcarinaButtonFamilies();
     OoT_SharedButtonsTest_End();

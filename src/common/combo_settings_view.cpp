@@ -44,11 +44,36 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_GOAL, "Goal" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, "Shared Kokiri Sword" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS, "Shared Shields" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_LENS, "Shared Lens of Truth" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS, "Shared Ocarina Buttons" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
     return (int)id >= 0 && (int)id < (int)COMBO_SETTING_COUNT;
+}
+
+// THE ITEM-RULE KEYS (#1068, #1065, #1067): the settings that author one RSBS_XITEM_* bit of
+// the frozen ComboItemRulesRecord rather than a field of ComboSettingsRecord.
+// One row per Cross-Game Rules row, in page order (the restore names them in
+// this order). Every bit here is a plain 0/1 rule.
+struct ItemRuleKey {
+    ComboSettingId id;
+    uint32_t bit;
+};
+const ItemRuleKey kItemRuleKeys[] = {
+    { COMBO_SETTING_SHARED_SHIELDS, RSBS_XITEM_SHARED_SHIELDS },                 // #1068
+    { COMBO_SETTING_SHARED_LENS, RSBS_XITEM_SHARED_LENS },                       // #1065
+    { COMBO_SETTING_SHARED_OCARINA_BUTTONS, RSBS_XITEM_SHARED_OCARINA_BUTTONS }, // #1067
+};
+
+/** The item-rule bit @p id authors, or 0 for a setting of ComboSettingsRecord. */
+uint32_t ItemRuleBitFor(ComboSettingId id) {
+    for (const ItemRuleKey& k : kItemRuleKeys) {
+        if (k.id == id) {
+            return k.bit;
+        }
+    }
+    return 0u;
 }
 
 } // namespace
@@ -78,16 +103,14 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             // A BIT of the defaults record, read the way its siblings read their
             // fields: one definition of "what ships" (#886).
             return (defaults.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
-        case COMBO_SETTING_SHARED_SHIELDS: {
-            // A BIT of the item rules' defaults, the same one definition (#1068).
+        case COMBO_SETTING_SHARED_SHIELDS:
+        case COMBO_SETTING_SHARED_LENS:
+        case COMBO_SETTING_SHARED_OCARINA_BUTTONS: {
+            // A bit of the item rules' defaults (#1068, #1065, #1067), the same
+            // one-definition rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rulesDefaults;
             Combo_ComboItemRulesDefaults(&rulesDefaults);
-            return (rulesDefaults.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_SHIELDS) != 0u ? 1 : 0;
-        }
-        case COMBO_SETTING_SHARED_OCARINA_BUTTONS: {
-            ComboItemRulesRecord rulesDefaults; // #1067, the shields' one definition
-            Combo_ComboItemRulesDefaults(&rulesDefaults);
-            return (rulesDefaults.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u ? 1 : 0;
+            return (rulesDefaults.crossItemFlags & ItemRuleBitFor(id)) != 0u ? 1 : 0;
         }
         default:
             return 0;
@@ -112,8 +135,9 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
                    value == (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT || value == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT ||
                    value == (int32_t)RSBS_COMBO_GOAL_BEAT_MM;
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
-        case COMBO_SETTING_SHARED_SHIELDS:
-        case COMBO_SETTING_SHARED_OCARINA_BUTTONS:
+        case COMBO_SETTING_SHARED_SHIELDS:         // #1068: one crossItemFlags bit, the same rule
+        case COMBO_SETTING_SHARED_LENS:            // #1065: likewise
+        case COMBO_SETTING_SHARED_OCARINA_BUTTONS: // #1067: likewise
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
@@ -284,38 +308,12 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
     { RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD, COMBO_SETTING_SHARED_KOKIRI_SWORD },
     // The item rules (#976) diverge as ONE bit, crossItemFlags; each keyed rule
-    // is one row under it (#1068). Restorable only when every differing bit has
-    // a key (ItemRulesKeyedDiff).
+    // (kItemRuleKeys) is one row under it (#1068, #1065, #1067). Restorable only when
+    // every differing bit has a key (ItemRulesKeyedDiff).
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SHIELDS },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_LENS },
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_OCARINA_BUTTONS }, // #1067
 };
-
-/** The crossItemFlags bit each item-rule key authors (Combo_ResolveComboItemRules). */
-struct KeyedItemRule {
-    uint32_t bit;
-    ComboSettingId id;
-};
-const KeyedItemRule kKeyedItemRules[] = {
-    { RSBS_XITEM_SHARED_SHIELDS, COMBO_SETTING_SHARED_SHIELDS },
-    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, COMBO_SETTING_SHARED_OCARINA_BUTTONS }, // #1067
-};
-
-uint32_t KeyedItemRuleBits() {
-    uint32_t bits = 0;
-    for (const KeyedItemRule& k : kKeyedItemRules) {
-        bits |= k.bit;
-    }
-    return bits;
-}
-
-uint32_t KeyedItemRuleBit(ComboSettingId id) {
-    for (const KeyedItemRule& k : kKeyedItemRules) {
-        if (k.id == id) {
-            return k.bit;
-        }
-    }
-    return 0;
-}
 
 /** Can the keys put the file's crossItemFlags back? Only when every bit that
  *  differs from the session's resolution has a key; a rule only another build
@@ -325,7 +323,7 @@ bool ItemRulesKeyedDiff(const ComboItemRulesRecord* frozenRules) {
     ComboItemRulesRecord live;
     Combo_ResolveComboItemRules(&live);
     const uint32_t frozenFlags = (frozenRules != nullptr) ? frozenRules->crossItemFlags : 0u;
-    return ((frozenFlags ^ live.crossItemFlags) & ~KeyedItemRuleBits()) == 0u;
+    return ((frozenFlags ^ live.crossItemFlags) & ~Combo_ComboItemRuleKeyedBits()) == 0u;
 }
 
 int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules, ComboSettingId id) {
@@ -337,14 +335,54 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
             return (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         case COMBO_SETTING_SHARED_SHIELDS:
+        case COMBO_SETTING_SHARED_LENS:
         case COMBO_SETTING_SHARED_OCARINA_BUTTONS:
-            return (frozenRules != nullptr && (frozenRules->crossItemFlags & KeyedItemRuleBit(id)) != 0u) ? 1 : 0;
+            // A bit of the file's item rules (NULL: every rule off).
+            return (frozenRules != nullptr && (frozenRules->crossItemFlags & ItemRuleBitFor(id)) != 0u) ? 1 : 0;
         default:
             return 0;
     }
 }
 
+/** Write @p value into @p id's key for the restore, recording the undo and the
+ *  label. */
+void RestoreKey(ComboSettingId id, int32_t value, ComboSettingsKeyUndo* undo, std::string& restored) {
+    const char* key = kComboSettingDescs[id].key;
+    if (undo != nullptr) {
+        undo->written[id] = 1;
+        undo->wasSet[id] = Combo_CVarIsExplicitInt(key) ? 1 : 0;
+        undo->value[id] = CVarGetInteger(key, 0);
+    }
+    CVarSetInteger(key, value);
+    if (!restored.empty()) {
+        restored += ", ";
+    }
+    restored += kComboSettingDescs[id].label;
+    std::fprintf(stderr, "[Combo] load: '%s' restored to the file's value %d (frozen wins at load, #781)\n", key,
+                 (int)value);
+}
+
 } // namespace
+
+uint32_t Combo_ComboItemRulesAuthored(void) {
+    // Each key through THE ONE READER, so an unset key and an out-of-space
+    // stored value are both the shipped default (off), with the reason logged.
+    uint32_t bits = 0u;
+    for (const ItemRuleKey& k : kItemRuleKeys) {
+        if (Combo_ComboSettingResolved(k.id) != 0) {
+            bits |= k.bit;
+        }
+    }
+    return bits;
+}
+
+uint32_t Combo_ComboItemRuleKeyedBits(void) {
+    uint32_t bits = 0u;
+    for (const ItemRuleKey& k : kItemRuleKeys) {
+        bits |= k.bit;
+    }
+    return bits;
+}
 
 uint32_t Combo_ComboSettingsRestorableMask(void) {
     uint32_t mask = 0;
@@ -377,6 +415,7 @@ int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, const C
     }
     // All-or-nothing: every value is validated before any is written, so a
     // record carrying an out-of-space value leaves the store exactly as it was.
+    // An item rule's value is one bit, 0 or 1, so it is always in its space.
     for (const Restorable& r : kRestorable) {
         if ((divergedBits & r.bit) != 0u &&
             !Combo_ComboSettingValueValid(r.id, FrozenValue(frozen, frozenRules, r.id))) {
@@ -407,24 +446,13 @@ int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, const Comb
         }
         // One divergence bit covers every item rule (crossItemFlags): write only
         // the keys whose rule actually differs, so a load names what it changed.
-        if (r.bit == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS &&
-            Combo_ComboSettingResolved(r.id) == FrozenValue(frozen, frozenRules, r.id)) {
+        // Every differing rule is keyed (checked above), so this makes the
+        // resolver's crossItemFlags the file's exactly.
+        const int32_t value = FrozenValue(frozen, frozenRules, r.id);
+        if (r.bit == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS && Combo_ComboSettingResolved(r.id) == value) {
             continue;
         }
-        const char* key = kComboSettingDescs[r.id].key;
-        if (undo != nullptr) {
-            undo->written[r.id] = 1;
-            undo->wasSet[r.id] = Combo_CVarIsExplicitInt(key) ? 1 : 0;
-            undo->value[r.id] = CVarGetInteger(key, 0);
-        }
-        const int32_t value = FrozenValue(frozen, frozenRules, r.id);
-        CVarSetInteger(key, value);
-        if (!restored.empty()) {
-            restored += ", ";
-        }
-        restored += kComboSettingDescs[r.id].label;
-        std::fprintf(stderr, "[Combo] load: '%s' restored to the file's value %d (frozen wins at load, #781)\n", key,
-                     (int)value);
+        RestoreKey(r.id, value, undo, restored);
     }
     if (names != nullptr && len > 0) {
         std::snprintf(names, len, "%s", restored.c_str());

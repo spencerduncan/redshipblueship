@@ -146,7 +146,7 @@ static int ItemRowCount(const ComboItemOps* ops, const void* src) {
 
 /**
  * The shared families the Shared group draws instead of the games' own rows
- * (#1067): every family slot the frozen rules arm, while the Shared group is
+ * (#1065, #1067): every family slot the frozen rules arm, while the Shared group is
  * shown at all. Before the pool's first harvest there is no Shared group, so
  * each game keeps its own row and the item is never drawn nowhere.
  */
@@ -337,7 +337,7 @@ const char* Combo_ItemSharedLabel(void) {
     return "";
 }
 
-// ---- the shared families (#976's OR discipline; #1067 on) -------------------
+// ---- the shared families (#976's OR discipline; #1065, #1067 on) -------------
 
 /** One shared family the Shared group can draw, after the resource rows. Its
  *  icon is the icon game's own row for it (the adapter row whose sharedFamily
@@ -348,9 +348,12 @@ typedef struct {
 } SharedFamilyRowDef;
 
 static const SharedFamilyRowDef kSharedFamilyRows[] = {
+    { RSBS_XITEM_SHARED_LENS, "Lens of Truth" }, // #1065
     // #1067: the five ocarina buttons, in MM's tracker order.
-    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, "A Button" },       { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, "C Down Button" },
-    { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, "C Right Button" }, { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, "C Left Button" },
+    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, "A Button" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, "C Down Button" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, "C Right Button" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, "C Left Button" },
     { RSBS_XFAMILY_SLOT_OCARINA_C_UP, "C Up Button" },
 };
 #define SHARED_FAMILY_ROW_DEF_COUNT ((int)(sizeof(kSharedFamilyRows) / sizeof(kSharedFamilyRows[0])))
