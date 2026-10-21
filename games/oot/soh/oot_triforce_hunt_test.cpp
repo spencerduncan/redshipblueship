@@ -357,6 +357,14 @@ extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void) {
                "Ganon's Boss Key at RC_TRIFORCE_COMPLETED behind OoT's OWN requirement while the game grants it only "
                "at the COMBO requirement, as the paired game ends (#997)");
     // What the effective mode places: the fixed placements of OoT's item pool.
+    // The refused creation never reached Fill(), so no location pool exists
+    // yet: build it first, as VanillaFill and Fill do (fill.cpp), or the item
+    // pool's junk count (locCount - itemPool.size(), a size_t) wraps on an
+    // empty pool and the junk loop never ends.
+    ctx->GenerateLocationPool();
+    ctx->ItemReset();
+    OTH_ASSERT(ctx->CountEmptyLocations(false) > 0,
+               "H1: the location pool is empty, so the item pool cannot be generated against it");
     GenerateItemPool();
     const RandomizerGet atHunt = ctx->GetItemLocation(RC_TRIFORCE_COMPLETED)->GetPlacedRandomizerGet();
     const RandomizerGet atGanon = ctx->GetItemLocation(RC_GANON)->GetPlacedRandomizerGet();
@@ -374,6 +382,8 @@ extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void) {
            descStates ? "states" : "does NOT state");
     OTH_ASSERT(descStates, "H1: the Triforce Hunt option description does not tell the player that the combo "
                            "triforce hunt generates \"Ganon's Boss Key\" as \"Win\" (#997)");
+    // Leave no placement behind for the control's creation.
+    ctx->ItemReset();
 
     // ---- H2 (control): authored "Win" under the combo hunt stays "Win" -------
     const int rc2 = GenerateAuthored(hunt, RO_TRIFORCE_HUNT_WIN, "RSBSHUNTWIN997");
