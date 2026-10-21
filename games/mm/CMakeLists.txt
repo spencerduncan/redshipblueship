@@ -361,6 +361,15 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfHealing.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfSoaring.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfStorms.cpp"
+        # #1005-#1009: the Cheats rows the SoH menu draws (kSharedIntentKeys / kConvergedKeys):
+        # Infinite Health/Magic/Money(/Consumables), Climb Everything, Hookshot Everything,
+        # Moon Jump on L and Easy Frame Advancing. Each is CVar-gated, so a TU only arms when
+        # its row is on; the play-state guards landed with the carve-out.
+        "2s2h/Enhancements/Cheats/Infinite.cpp"
+        "2s2h/Enhancements/Cheats/ClimbAnywhere.cpp"
+        "2s2h/Enhancements/Cheats/HookshotAnywhere.cpp"
+        "2s2h/Enhancements/Cheats/MoonJump.cpp"
+        "2s2h/Enhancements/Cheats/EasyFrameAdvance.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 
