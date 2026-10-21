@@ -4658,6 +4658,36 @@ static void MM_ApplySharedAmmoCount(const MMSharedAmmo* row) {
     }
 }
 
+// ---- Shared families (#976's OR discipline): MM's own copies ----------------
+//
+// The twin of OoT's block (OoT_SharedLensHeld): MM registers its NATIVE copy of
+// each family, the RI_* its pool places and the two callbacks the harvest and
+// apply shims call. The give runs at the startup entrance, before gameplay, so
+// it writes the inventory the way Item_Give does and shows nothing.
+
+// #1065: the Lens of Truth (OoTMM sharedLens). Item_Give(ITEM_LENS_OF_TRUTH)
+// only fills its slot, and the slot is not reset by the Song of Time.
+static bool MM_SharedLensHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return INV_CONTENT(ITEM_LENS_OF_TRUTH) == ITEM_LENS_OF_TRUTH;
+}
+static void MM_SharedLensGive(uint16_t nativeId) {
+    (void)nativeId;
+    INV_CONTENT(ITEM_LENS_OF_TRUTH) = ITEM_LENS_OF_TRUTH;
+}
+
+namespace {
+// Static-init registration (the ComboLogicEngine registrars' shape): this TU is
+// always linked, and the registry is zero-initialised storage.
+struct MMSharedFamilyRegistrar {
+    MMSharedFamilyRegistrar() {
+        const ComboSharedFamilyMember lens = { (uint16_t)RI_LENS, MM_SharedLensHeld, MM_SharedLensGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_LENS, &lens);
+    }
+};
+const MMSharedFamilyRegistrar gMMSharedFamilyRegistrar;
+} // namespace
+
 // MM's hookshot ceiling. MM has no longshot: there is no RI_LONGSHOT at all,
 // and MM's ITEM_LONGSHOT id is an OoT leftover its give path repurposes into a
 // Red Potion. So MM tops out at tier 1, and the pool's tier 2 materializes here

@@ -111,6 +111,17 @@ static void SshFreezeWorld(bool on) {
     MM_RegisterSharedShieldFamilies();
 }
 
+/** Drop both games' shield members, and only those: a whole-registry clear
+ *  would also drop the other families' static-init members (#1065's lens) for
+ *  every later row of an AllTests process. */
+static void SshUnregisterShields(void) {
+    const GameId games[2] = { GAME_OOT, GAME_MM };
+    for (int g = 0; g < 2; g++) {
+        Combo_RegisterSharedFamilyMember(games[g], (uint32_t)RSBS_XITEM_SHARED_SHIELDS, NULL);
+        Combo_RegisterSharedFamilyMember(games[g], (uint32_t)RSBS_XFAMILY_SLOT_MIRROR_SHIELD, NULL);
+    }
+}
+
 /** An OoT stint: Link at @p adult, owning the Hylian / Mirror Shield as given,
  *  then OoT departs. */
 static void SshOoTDeparts(int adult, int hylian, int mirror) {
@@ -167,7 +178,7 @@ TestResult Test_SharedShieldsPairs(void) {
 
     // ---- (1) THE REGISTRATIONS: both games, both pairs -------------------------
     {
-        Combo_ClearSharedFamilyMembers();
+        SshUnregisterShields();
         OoT_RegisterSharedShieldFamilies();
         MM_RegisterSharedShieldFamilies();
         uint16_t id[4] = { 0, 0, 0, 0 };
@@ -298,7 +309,7 @@ TestResult Test_SharedShieldsPairs(void) {
                   Combo_Logic_ComposeTrimmedCount(), trimmedAt);
     }
 
-    Combo_ClearSharedFamilyMembers();
+    SshUnregisterShields();
     OoT_RegisterSharedShieldFamilies();
     MM_RegisterSharedShieldFamilies();
     ComboContext_Init();
