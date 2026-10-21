@@ -375,6 +375,9 @@ int MM_TrickBindings_RunHeadless(void);
 // Rando::Foreign::RecordForeignPickup. Return 0 on pass.
 int MM_SpoilerIdentity_RunHeadless(void);
 int MM_ForeignPickupGate_RunHeadless(void);
+// #1055: where a paired spoiler goes when its seed-named file is another
+// identity's (same file, MM_Rando_ChoosePairedSpoilerName). Return 0 on pass.
+int MM_PairedSpoilerName_RunHeadless(void);
 // games/mm/2s2h/mm_combo_settings_test.cpp (#498, ADR 0011 increment 1): the
 // COMBO-LEVEL arrival identity gate. MM-side because it drives the REAL
 // MM_Rando_PairOnCrossGameArrival, and because reaching its combo leg means
@@ -5474,6 +5477,13 @@ TestResult Test_MMForeignPickupGate(void) {
     return MM_ForeignPickupGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1055: a paired spoiler whose seed-named file is another identity's goes to
+// <seed>-<fingerprint>.json. File I/O in a per-process scratch directory and
+// gComboCtx only: no bring-up.
+TestResult Test_MMPairedSpoilerName(void) {
+    return MM_PairedSpoilerName_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // The COMBO-LEVEL arrival identity gate (#498, ADR 0011 increment 1). Drives
 // the REAL MM_Rando_PairOnCrossGameArrival: a divergent frozen record must
 // refuse through the #533/#568 surface AND name the diverged rule (the
@@ -6285,6 +6295,8 @@ const TestDescriptor gTests[] = {
       Test_MMSpoilerIdentity },
     { "mm-foreign-pickup-gate", "An unpaired session authors no durable shared-item record on a foreign pickup (#610)",
       Test_MMForeignPickupGate },
+    { "mm-paired-spoiler-name", "A paired spoiler whose seed name is another identity's goes to <seed>-<fp> (#1055)",
+      Test_MMPairedSpoilerName },
     // ADR 0011 increment 1 (#498): the arrival gate that CONSUMES the combo
     // divergence diff. The refusal must NAME the diverged rule, not merely
     // refuse — that capability is what the twelve-byte record buys over ADR

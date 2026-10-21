@@ -708,6 +708,11 @@ if(BUILD_TESTING)
     # the placement table need no fill, no display, and no ROM.
     redship_add_test(NAME MMSpoilerIdentity COMMAND redship --test mm-spoiler-identity)
     redship_add_test(NAME MMForeignPickupGate COMMAND redship --test mm-foreign-pickup-gate)
+    # #1055: a paired spoiler whose seed-named file is another identity's (an
+    # older build's fingerprint, other MM options) goes to
+    # <seed>-<fingerprint>.json instead of nowhere. Files in a per-process
+    # scratch directory and gComboCtx only.
+    redship_add_test(NAME MMPairedSpoilerName COMMAND redship --test mm-paired-spoiler-name)
     # Combo-level arrival identity gate (#498, ADR 0011 increment 1). Drives the
     # REAL MM_Rando_PairOnCrossGameArrival. A divergent frozen combo record must
     # refuse through the #533/#568 surface AND NAME the diverged rule — the
@@ -2974,6 +2979,17 @@ crossing to refuse (#954).")
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=2")
+    # #1055: the same creation with a spoiler of the same seed and another
+    # identity (comboSettingsHash flipped: what an older build leaves behind)
+    # planted at Randomizer/<seed>.json after the drive clears the pair's
+    # spoilers. The planted file must stay as it was, the creation's spoiler must
+    # land at Randomizer/<seed>-<fingerprint>.json with gGeneral.SpoilerLog naming
+    # it, and the run must settle with no refusal line.
+    redship_add_test(NAME IntPairedFirstCrossingForeignSpoiler
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_PFC_PLANT_FOREIGN_SPOILER=1")
     # #952: the same creation, then the REAL file select opens file 3 (A on the
     # file, as a player opens it) instead of loading it. On the confirm screen
     # the file's five seed icons must have the pair's fingerprint and the build

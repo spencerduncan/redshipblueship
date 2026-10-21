@@ -201,13 +201,16 @@
  *        spoiler path, because OoT names its spoiler by its own hash icons alone.
  *        Its real creation must not rewrite the first pair's spoiler: the bytes at
  *        that path are unchanged, and the creation still succeeds (a spoiler is a
- *        report, so its refusal never fails a creation).
+ *        report, so its refusal never fails a creation). #1055: and the second
+ *        pair still gets its spoiler, beside the first one, at
+ *        Randomizer/<icons>-<fingerprint>.json: gGeneral.SpoilerLog names it and
+ *        its combo.identity is the second pair's.
  *   V23c. In the same creation, gGeneral.SpoilerLog names a solo OoT document (no
  *        "combo" section: a dropped file, an older build's spoiler) that this
- *        creation did not write. OoT's writer refuses the aliased path, so the join
- *        must not run against whatever the CVar names: that document is unchanged,
- *        and the CVar does not name it afterwards (the Randomizer menu's "Spoiler
- *        File:" line would show it as this world's).
+ *        creation did not write. The join must not run against whatever the CVar
+ *        named before the creation: that document is unchanged, and the CVar does
+ *        not name it afterwards (the Randomizer menu's "Spoiler File:" line would
+ *        show it as this world's).
  *   V23d. The join itself (MM_Rando_AugmentSpoilerWithPairedHalf), handed the
  *        first pair's spoiler while the second pair is resident, refuses (-5) and
  *        leaves it byte-identical: the defence in depth behind V23c.
@@ -1864,6 +1867,35 @@ TestResult ComboSingleBag_Run(void) {
             CSB_ASSERT(spoilerLogAfter != v23cCVar,
                        "SpoilerLog still names a document this creation did not write, so the Randomizer menu shows "
                        "it as this world's spoiler (#564 V23)");
+
+            // #1055: the second pair's spoiler went beside the first pair's, under
+            // its fingerprint, and SpoilerLog names it.
+            {
+                char suffix[24];
+                snprintf(suffix, sizeof(suffix), "-%08X.json", (unsigned)gComboCtx.comboSettingsHash);
+                const std::string suffixedPath = v23Path.substr(0, v23Path.size() - 5) + suffix;
+                const size_t slash = suffixedPath.find_last_of("/\\");
+                const std::string expectedCVar =
+                    "./Randomizer/" + (slash == std::string::npos ? suffixedPath : suffixedPath.substr(slash + 1));
+                const std::string suffixedDoc = CsbReadWholeFile(suffixedPath);
+                char identityTerm[64];
+                snprintf(identityTerm, sizeof(identityTerm), "\"comboSettingsHash\": %u",
+                         (unsigned)gComboCtx.comboSettingsHash);
+                std::remove(suffixedPath.c_str());
+                printf("[TEST] combo-single-bag: V23b (#1055) the second pair's spoiler: SpoilerLog '%s' (expected "
+                       "'%s'); '%s' holds %zu bytes, %s\n",
+                       spoilerLogAfter.c_str(), expectedCVar.c_str(), suffixedPath.c_str(), suffixedDoc.size(),
+                       suffixedDoc.find(identityTerm) != std::string::npos ? "naming the second pair"
+                                                                           : "NOT naming the second pair");
+                fflush(stdout);
+                CSB_ASSERT(spoilerLogAfter == expectedCVar,
+                           "the second pair's creation left SpoilerLog not naming <icons>-<fingerprint>.json: with "
+                           "another pair's spoiler at its seed name this world got no spoiler at all (#1055)");
+                CSB_ASSERT(suffixedDoc.find("\"combo\"") != std::string::npos &&
+                               suffixedDoc.find(identityTerm) != std::string::npos,
+                           "the second pair's <icons>-<fingerprint>.json does not carry its joined combo section with "
+                           "its own identity (#1055)");
+            }
 
             // V23d. The join's own identity check, for any caller handed another
             // pair's document regardless (the creation event no longer is): the

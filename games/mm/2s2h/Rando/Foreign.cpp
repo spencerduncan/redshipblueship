@@ -1584,6 +1584,29 @@ extern "C" int MM_Rando_SpoilerBelongsToAnotherPair(const char* path, const char
     return 1;
 }
 
+/**
+ * #1055: the name (no directory, no ".json") this pair's OoT spoiler is written
+ * under in @p dir. OoT names it by its seed (the five hash icons, @p seedName),
+ * which is the same for every pair of that seed and those OoT settings, whatever
+ * MM's options, the Cross-Game Rules or the generator version.
+ *
+ * @return 0 and @p seedName in @p out when that file is free, unparseable, not a
+ *         paired world's, or this pair's own; -1 (refusal logged, @p out empty)
+ *         when it is another pair's; -2 on a bad argument.
+ */
+extern "C" int MM_Rando_ChoosePairedSpoilerName(const char* dir, const char* seedName, char* out, size_t outCap) {
+    if (dir == nullptr || seedName == nullptr || seedName[0] == '\0' || out == nullptr || outCap == 0) {
+        return -2;
+    }
+    out[0] = '\0';
+    const std::string seedPath = std::string(dir) + "/" + seedName + ".json";
+    if (MM_Rando_SpoilerBelongsToAnotherPair(seedPath.c_str(), "write this world's OoT spoiler over") != 0) {
+        return -1;
+    }
+    snprintf(out, outCap, "%s", seedName);
+    return 0;
+}
+
 extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath) {
     sLastSpoilerForward = 0;
     sLastSpoilerReverse = 0;

@@ -36,6 +36,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring> // memcpy/memset — the creation event's snapshot bracket
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -1134,6 +1135,75 @@ static void ConsumeStagedGeneration(int slot, bool created) {
  */
 extern "C" void OoT_Creation_TestStageGeneration(void) {
     Rando::Context::GetInstance()->SetSeedGenerated(true);
+}
+
+/**
+ * TEST BRIDGE (#1055): the seed name OoT's writer gives the current generation's
+ * spoiler (SpoilerLog_Write, 3drando/spoiler_log.cpp): the five hash icons, two
+ * digits each, joined by '-'. Returns 0 (and writes "" when it can) when @p out
+ * cannot hold it.
+ */
+extern "C" int OoT_Creation_TestSpoilerSeedName(char* out, size_t cap) {
+    if (out == nullptr || cap == 0) {
+        return 0;
+    }
+    std::string name;
+    const auto& icons = Rando::Context::GetInstance()->hashIconIndexes;
+    for (size_t i = 0; i < icons.size(); i++) {
+        char part[8];
+        snprintf(part, sizeof(part), i == 0 ? "%02u" : "-%02u", (unsigned)icons[i]);
+        name += part;
+    }
+    if (name.size() + 1 > cap) {
+        out[0] = '\0';
+        return 0;
+    }
+    memcpy(out, name.c_str(), name.size() + 1);
+    return 1;
+}
+
+/**
+ * TEST BRIDGE (#1055): removes Randomizer/<seed>.json and every
+ * Randomizer/<seed>-<fingerprint>.json of the current generation, so a spoiler
+ * that a run of another build left in the shared build directory cannot meet
+ * this creation. The rows that create a paired file there call it after
+ * generating and before creating. @return the number of files removed.
+ */
+extern "C" int OoT_Creation_TestClearPairedSpoiler(void) {
+    char seed[64];
+    if (!OoT_Creation_TestSpoilerSeedName(seed, sizeof(seed)) || seed[0] == '\0') {
+        return 0;
+    }
+    const std::string seedName = seed;
+    const std::string suffixPrefix = seedName + "-";
+    std::vector<std::filesystem::path> matches;
+    std::error_code ec;
+    const std::filesystem::path dir = Ship::Context::GetPathRelativeToAppDirectory("Randomizer");
+    for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+        const std::filesystem::path& p = it->path();
+        if (p.extension() != ".json") {
+            continue;
+        }
+        const std::string stem = p.stem().string();
+        bool ours = stem == seedName;
+        if (!ours && stem.size() == suffixPrefix.size() + 8 &&
+            stem.compare(0, suffixPrefix.size(), suffixPrefix) == 0) {
+            ours = stem.find_first_not_of("0123456789ABCDEF", suffixPrefix.size()) == std::string::npos;
+        }
+        if (ours) {
+            matches.push_back(p);
+        }
+    }
+    int removed = 0;
+    for (const auto& p : matches) {
+        std::error_code rmEc;
+        if (std::filesystem::remove(p, rmEc)) {
+            fprintf(stderr, "[OoT] test: removed '%s' before the paired creation (#1055)\n", p.string().c_str());
+            removed++;
+        }
+    }
+    fflush(stderr);
+    return removed;
 }
 
 /**
