@@ -3388,6 +3388,38 @@ static void OoT_SharedArrowGive(uint16_t nativeId) {
     INV_CONTENT(item) = item;
 }
 
+// #978: the Goron, Zora, Keaton and Truth masks and the Bunny Hood (OoTMM
+// sharedMaskGoron, Zora, Bunny, Keaton, Truth). OoT owns a shuffled mask through
+// its RAND_INF_CHILD_TRADES_HAS_MASK_* flag (every paired world shuffles the
+// Happy Mask Shop's masks, #973), and its get-item also puts the mask in the
+// child trade slot when that slot is empty (randomizer.cpp, the RG_KEATON_MASK
+// ... RG_MASK_OF_TRUTH branch); the give does both, as that get-item does.
+// OoT's Goron and Zora masks stay cosmetic trade masks: nothing here makes them
+// transform.
+static RandomizerInf OoT_SharedMaskFlag(uint16_t nativeId) {
+    return (RandomizerInf)((int)RAND_INF_CHILD_TRADES_HAS_MASK_KEATON + ((int)nativeId - (int)RG_KEATON_MASK));
+}
+static bool OoT_SharedMaskHeld(uint16_t nativeId) {
+    return Flags_GetRandomizerInf(OoT_SharedMaskFlag(nativeId)) != 0;
+}
+static void OoT_SharedMaskGive(uint16_t nativeId) {
+    Flags_SetRandomizerInf(OoT_SharedMaskFlag(nativeId));
+    if (INV_CONTENT(ITEM_TRADE_CHILD) == ITEM_NONE) {
+        INV_CONTENT(ITEM_TRADE_CHILD) = (u8)((int)ITEM_MASK_KEATON + ((int)nativeId - (int)RG_KEATON_MASK));
+    }
+}
+// The arithmetic above is randomizer.cpp's own: the eight masks are contiguous,
+// in the same order, in RandomizerGet, RandomizerInf and ItemID.
+static_assert((int)RG_MASK_OF_TRUTH - (int)RG_KEATON_MASK == 7 &&
+                  (int)RAND_INF_CHILD_TRADES_HAS_MASK_TRUTH - (int)RAND_INF_CHILD_TRADES_HAS_MASK_KEATON == 7 &&
+                  (int)ITEM_MASK_TRUTH - (int)ITEM_MASK_KEATON == 7 &&
+                  (int)RG_GORON_MASK - (int)RG_KEATON_MASK == (int)ITEM_MASK_GORON - (int)ITEM_MASK_KEATON &&
+                  (int)RAND_INF_CHILD_TRADES_HAS_MASK_ZORA - (int)RAND_INF_CHILD_TRADES_HAS_MASK_KEATON ==
+                      (int)RG_ZORA_MASK - (int)RG_KEATON_MASK &&
+                  (int)RAND_INF_CHILD_TRADES_HAS_MASK_BUNNY - (int)RAND_INF_CHILD_TRADES_HAS_MASK_KEATON ==
+                      (int)RG_BUNNY_HOOD - (int)RG_KEATON_MASK,
+              "the masks' RG_*, RAND_INF_* and ITEM_* ids must stay contiguous and in the same order");
+
 namespace {
 // Static-init registration, the ComboLogicEngine registrars' shape: this TU is
 // always linked (it holds the shims), and the registry is zero-initialised
@@ -3407,6 +3439,17 @@ struct OoTSharedFamilyRegistrar {
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ARROW_ICE, &ice);
         const ComboSharedFamilyMember light = { (uint16_t)RG_LIGHT_ARROWS, OoT_SharedArrowHeld, OoT_SharedArrowGive };
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ARROW_LIGHT, &light);
+        const ComboSharedFamilyMember maskGoron = { (uint16_t)RG_GORON_MASK, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_GORON, &maskGoron);
+        const ComboSharedFamilyMember maskZora = { (uint16_t)RG_ZORA_MASK, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ZORA, &maskZora);
+        const ComboSharedFamilyMember maskBunny = { (uint16_t)RG_BUNNY_HOOD, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_BUNNY, &maskBunny);
+        const ComboSharedFamilyMember maskKeaton = { (uint16_t)RG_KEATON_MASK, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_KEATON, &maskKeaton);
+        const ComboSharedFamilyMember maskTruth = { (uint16_t)RG_MASK_OF_TRUTH, OoT_SharedMaskHeld,
+                                                    OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_TRUTH, &maskTruth);
     }
 };
 const OoTSharedFamilyRegistrar gOoTSharedFamilyRegistrar;
@@ -3414,9 +3457,19 @@ const OoTSharedFamilyRegistrar gOoTSharedFamilyRegistrar;
 
 // #969: THE ONE READER of the Bunny Hood's behaviour in Hyrule. Every OoT site
 // that asks SoH's "Bunny Hood Effect" enhancement (CVAR_ENHANCEMENT
-// "MMBunnyHood", a BunnyHoodMode) asks this instead.
+// "MMBunnyHood", a BunnyHoodMode) asks this instead. With the shared Bunny Hood
+// FROZEN on (#978; operator ruling 2026-10-18, epic #975 decision 2) the hood
+// behaves as that enhancement does when on, whatever its own setting: at least
+// "Faster Run", Majora's Mask's speed boost; a stronger setting of the player's
+// own ("Faster + Longer Jump") stands. Read, never stored: the enhancement's
+// CVar keeps the player's value. OoT's logic gains no edge from it, as SoH's
+// own enhancement never did.
 extern "C" int OoT_BunnyHoodEffectMode(void) {
-    return CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), BUNNY_HOOD_VANILLA);
+    const int own = CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), BUNNY_HOOD_VANILLA);
+    if (own == BUNNY_HOOD_VANILLA && Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_BUNNY)) {
+        return BUNNY_HOOD_FAST;
+    }
+    return own;
 }
 
 // OoT's hookshot ceiling: 0 none, 1 hookshot, 2 longshot.

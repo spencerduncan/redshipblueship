@@ -356,6 +356,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_SHARED_ARROW_FIRE, WIDGET_CHECKBOX, "" },
         { COMBO_SETTING_SHARED_ARROW_ICE, WIDGET_CHECKBOX, "" },
         { COMBO_SETTING_SHARED_ARROW_LIGHT, WIDGET_CHECKBOX, "" },
+        // #978: the five shared masks, the lens's shape.
+        { COMBO_SETTING_SHARED_MASK_GORON, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_ZORA, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_BUNNY, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_KEATON, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_TRUTH, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -900,7 +906,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_FIRE, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_ICE, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_LIGHT, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_LIGHT, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_GORON, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_ZORA, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BUNNY, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_KEATON, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),

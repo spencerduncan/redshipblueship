@@ -49,6 +49,11 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_FIRE, "Shared Fire Arrows" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_ICE, "Shared Ice Arrows" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_LIGHT, "Shared Light Arrows" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GORON, "Shared Goron Mask" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_ZORA, "Shared Zora Mask" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BUNNY, "Shared Bunny Hood" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_KEATON, "Shared Keaton Mask" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH, "Shared Mask of Truth" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -70,6 +75,11 @@ const ItemRuleKey kItemRuleKeys[] = {
     { COMBO_SETTING_SHARED_ARROW_FIRE, RSBS_XITEM_SHARED_ARROW_FIRE },   // #968
     { COMBO_SETTING_SHARED_ARROW_ICE, RSBS_XITEM_SHARED_ARROW_ICE },     // #968
     { COMBO_SETTING_SHARED_ARROW_LIGHT, RSBS_XITEM_SHARED_ARROW_LIGHT }, // #968
+    { COMBO_SETTING_SHARED_MASK_GORON, RSBS_XITEM_SHARED_GORON },        // #978
+    { COMBO_SETTING_SHARED_MASK_ZORA, RSBS_XITEM_SHARED_ZORA },          // #978
+    { COMBO_SETTING_SHARED_MASK_BUNNY, RSBS_XITEM_SHARED_BUNNY },        // #978
+    { COMBO_SETTING_SHARED_MASK_KEATON, RSBS_XITEM_SHARED_KEATON },      // #978
+    { COMBO_SETTING_SHARED_MASK_TRUTH, RSBS_XITEM_SHARED_TRUTH },        // #978
 };
 
 /** The item-rule bit @p id authors, or 0 for a setting of ComboSettingsRecord. */
@@ -110,11 +120,16 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             // fields: one definition of "what ships" (#886).
             return (defaults.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         case COMBO_SETTING_SHARED_LENS:
-        case COMBO_SETTING_SHARED_SONG_EPONA:    // #1066
-        case COMBO_SETTING_SHARED_SONG_STORMS:   // #1066
-        case COMBO_SETTING_SHARED_ARROW_FIRE:    // #968
-        case COMBO_SETTING_SHARED_ARROW_ICE:     // #968
-        case COMBO_SETTING_SHARED_ARROW_LIGHT: { // #968
+        case COMBO_SETTING_SHARED_SONG_EPONA:   // #1066
+        case COMBO_SETTING_SHARED_SONG_STORMS:  // #1066
+        case COMBO_SETTING_SHARED_ARROW_FIRE:   // #968
+        case COMBO_SETTING_SHARED_ARROW_ICE:    // #968
+        case COMBO_SETTING_SHARED_ARROW_LIGHT:  // #968
+        case COMBO_SETTING_SHARED_MASK_GORON:   // #978
+        case COMBO_SETTING_SHARED_MASK_ZORA:    // #978
+        case COMBO_SETTING_SHARED_MASK_BUNNY:   // #978
+        case COMBO_SETTING_SHARED_MASK_KEATON:  // #978
+        case COMBO_SETTING_SHARED_MASK_TRUTH: { // #978
             // A bit of the item rules' defaults (#1065), the same one-definition
             // rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rules;
@@ -150,6 +165,11 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
         case COMBO_SETTING_SHARED_ARROW_FIRE:  // #968, the same
         case COMBO_SETTING_SHARED_ARROW_ICE:   // #968, the same
         case COMBO_SETTING_SHARED_ARROW_LIGHT: // #968, the same
+        case COMBO_SETTING_SHARED_MASK_GORON:  // #978, the same
+        case COMBO_SETTING_SHARED_MASK_ZORA:   // #978, the same
+        case COMBO_SETTING_SHARED_MASK_BUNNY:  // #978, the same
+        case COMBO_SETTING_SHARED_MASK_KEATON: // #978, the same
+        case COMBO_SETTING_SHARED_MASK_TRUTH:  // #978, the same
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.

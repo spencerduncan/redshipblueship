@@ -1455,7 +1455,7 @@ void OoT_Play_Update(PlayState* play) {
                     gSaveContext.ship.stats.sceneTimer++;
                     gSaveContext.ship.stats.roomTimer++;
 
-                    if (CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), BUNNY_HOOD_VANILLA) != BUNNY_HOOD_VANILLA &&
+                    if (OoT_BunnyHoodEffectMode() /* [RSBS #969] */ != BUNNY_HOOD_VANILLA &&
                         OoT_Player_GetMask(play) == PLAYER_MASK_BUNNY) {
                         gSaveContext.ship.stats.count[COUNT_TIME_BUNNY_HOOD]++;
                     }
