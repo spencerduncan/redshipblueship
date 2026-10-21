@@ -198,7 +198,8 @@ bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
     if (drawnShared != 0u) {
         adapterIndex = -1;
         int seen = 0;
-        for (int i = 0; i < ItemRowCount(ops, src); i++) {
+        const int n = ItemRowCount(ops, src);
+        for (int i = 0; i < n; i++) {
             if (RowLeftOut(ops, src, i, drawnShared)) {
                 continue;
             }

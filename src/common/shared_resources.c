@@ -20,6 +20,7 @@
 // game-header-free too, so this TU stays compilable in the ROM-free harness.
 #include "foreign_items.h"
 #include "triforce_hunt.h" // Combo_TriforceHuntArmed: the O10 kind's arming gate
+#include "shared_items.h"  // #1061: a pack's kind and size, from the item class owner
 #include <stdio.h>
 #include <string.h>
 
@@ -360,6 +361,51 @@ bool Combo_ApplySharedResource(GameId game, uint8_t kind, uint16_t cap, uint16_t
     *liveValue = applied;
     sWatermarks[kind].value = applied;
     sWatermarks[kind].owner = (uint8_t)game;
+    return true;
+}
+
+bool Combo_SharedResourceCreditsAtPickup(uint8_t kind) {
+    // #1061: the one counted kind whose packs cross (see the header). A positive
+    // allowlist: a kind credited here must have its pack sizes published by both
+    // games' item class sources, and today only the bombchu rows do.
+    return kind == (uint8_t)RSBS_SHARED_RES_BOMBCHU_COUNT;
+}
+
+bool Combo_SharedPickupCreditOf(SharedItem item, uint8_t* outKind, uint16_t* outUnits) {
+    const uint8_t kind = Combo_ItemClassSharedKind(item);
+    if (!Combo_SharedResourceCreditsAtPickup(kind)) {
+        return false;
+    }
+    const uint8_t units = Combo_ItemClassSharedUnits(item);
+    if (units == 0u) {
+        return false;
+    }
+    if (outKind != NULL) {
+        *outKind = kind;
+    }
+    if (outUnits != NULL) {
+        *outUnits = (uint16_t)units;
+    }
+    return true;
+}
+
+bool Combo_CreditSharedResource(uint8_t kind, uint16_t amount) {
+    // Consumable only, by construction: the allowlist holds no monotonic kind,
+    // and a capacity tier is never "added to".
+    if (!IsRealKind(kind) || amount == 0u || !Combo_SharedResourceCreditsAtPickup(kind) || IsMonotonicKind(kind)) {
+        return false;
+    }
+    // The same arming gate as both halves above, so a disarmed kind grows no slot.
+    if (!Combo_SharedResourceKindArmed(kind)) {
+        return false;
+    }
+    const int slot = FindOrCreateSlot(kind);
+    if (slot < 0) {
+        return false;
+    }
+    ComboSharedResource* entry = SlotAt(slot);
+    const uint32_t next = (uint32_t)entry->value + (uint32_t)amount;
+    entry->value = (uint16_t)(next > 0xFFFFu ? 0xFFFFu : next);
     return true;
 }
 
