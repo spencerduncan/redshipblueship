@@ -134,6 +134,16 @@ uint8_t Combo_ItemFreshness(uint8_t game) {
     return freshness;
 }
 
+/** The rows `src` shows: the adapter's per-save count when it has one (#1072), never below count(). */
+static int ItemRowCount(const ComboItemOps* ops, const void* src) {
+    const int base = ops->count();
+    if (ops->countFor == NULL) {
+        return base;
+    }
+    const int rows = ops->countFor(src);
+    return (rows > base) ? rows : base;
+}
+
 /**
  * The shared families the Shared group draws instead of the games' own rows
  * (#1065): every family the frozen rules arm, while the Shared group is shown
@@ -157,7 +167,7 @@ int Combo_ItemCount(uint8_t game) {
     if (src == NULL) {
         return 0;
     }
-    const int n = ops->count();
+    const int n = ItemRowCount(ops, src);
     const uint32_t drawnShared = SharedFamiliesDrawnShared();
     if (drawnShared == 0u) {
         return n; // every rule off: the adapter's rows exactly, as before #1065
@@ -178,7 +188,7 @@ bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
     const ComboItemOps* ops = NULL;
     uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
     const void* src = PickSource(game, &ops, &freshness);
-    if (src == NULL || index >= ops->count()) {
+    if (src == NULL || index >= ItemRowCount(ops, src)) {
         return false;
     }
     // `index` counts the rows Combo_ItemCount counts: with a family drawn in the
@@ -188,7 +198,8 @@ bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
     if (drawnShared != 0u) {
         adapterIndex = -1;
         int seen = 0;
-        for (int i = 0; i < ops->count(); i++) {
+        const int n = ItemRowCount(ops, src);
+        for (int i = 0; i < n; i++) {
             if (RowLeftOut(ops, src, i, drawnShared)) {
                 continue;
             }

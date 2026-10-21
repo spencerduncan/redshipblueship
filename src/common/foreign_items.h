@@ -1505,6 +1505,14 @@ int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath);
  *  logging that @p refusedAction was not done; 0 otherwise (no file, unparseable,
  *  or no "combo" section). OoT's writer asks before writing a paired document. */
 int MM_Rando_SpoilerBelongsToAnotherPair(const char* path, const char* refusedAction);
+/** #1055: the name (no directory, no ".json") this pair's OoT spoiler is written
+ *  under in the directory @p dir: @p seedName (return 0) unless that file is
+ *  another pair's, then "<seedName>-<fingerprint>" (return 1, the fingerprint
+ *  being comboSettingsHash as 8 uppercase hex digits) unless that one is another
+ *  pair's too (return -1, both refusals logged, @p out empty); -2 on a bad
+ *  argument. Writes nothing to disk. OoT's writer asks before writing a paired
+ *  document. */
+int MM_Rando_ChoosePairedSpoilerName(const char* dir, const char* seedName, char* out, size_t outCap);
 
 #ifdef __cplusplus
 }
