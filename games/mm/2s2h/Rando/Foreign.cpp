@@ -65,6 +65,7 @@
 // (see context.h's header comment).
 #include "foreign_items.h"
 #include "shared_items.h"
+#include "shared_resources.h" // MM_CreditSharedPickup: a counted pack credits the pool (#1061)
 // ADR 0010 O7: the crossing store the "combo" spoiler section prints and the
 // spoiler-load path rebuilds.
 #include "crossing_store.h"
@@ -763,6 +764,14 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
                 (unsigned)randoCheckId);
         return false;
     }
+    // #1061: a COUNTED pack (an OoT bombchu pack) does not cross. It is credited
+    // to the shared pool here and MM's count re-applies from it (up to MM's
+    // bomb-bag capacity; the rest stays in the pool for OoT), the twin of OoT's
+    // pickup. Gated by the same `obtained` bit above, so a cycle-reset host
+    // credits once.
+    if (MM_CreditSharedPickup(item) != 0) {
+        return true;
+    }
     return Combo_RecordSharedItemCrossing((GameId)item->originGame, item->id) >= 0;
 }
 
@@ -1197,8 +1206,10 @@ extern "C" void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, u
 // differ only in MM's options or the Cross-Game Rules share one path. A document
 // whose combo.identity names another pair is that pair's artifact: neither OoT's
 // writer (3drando/spoiler_log.cpp) nor this join replaces it
-// (MM_Rando_SpoilerBelongsToAnotherPair). This pair then has no spoiler, which
-// is a lost report, never a lost world.
+// (MM_Rando_SpoilerBelongsToAnotherPair). #1055: OoT's writer then writes this
+// pair's beside it, under <icons>-<fingerprint>.json
+// (MM_Rando_ChoosePairedSpoilerName); only when that name is another pair's too
+// does this pair have no spoiler, which is a lost report, never a lost world.
 // ============================================================================
 static int sLastSpoilerForward = 0;
 static int sLastSpoilerReverse = 0;
@@ -1553,33 +1564,99 @@ extern "C" int MM_Rando_LoadCrossingsFromSpoiler(const char* path) {
     return rc;
 }
 
-/**
- * #564 V23: 1 when the file at @p path is another paired world's spoiler (its
- * combo.identity does not name the resident pair), after printing which term
- * differs and what was not done (@p refusedAction). 0 when there is no such
- * file, it does not parse, or it carries no "combo" section: nothing there is a
- * pair's artifact. OoT's writer asks before it writes a paired world's document.
- */
-extern "C" int MM_Rando_SpoilerBelongsToAnotherPair(const char* path, const char* refusedAction) {
+namespace {
+
+/** True (with the term in @p why) when the file at @p path is another paired
+ *  world's spoiler; false when there is no such file, it does not parse, or it
+ *  carries no "combo" section. Logs nothing. */
+bool SpoilerFileBelongsToAnotherPair(const char* path, std::string& why) {
     if (path == nullptr || path[0] == '\0') {
-        return 0;
+        return false;
     }
     nlohmann::json doc;
     try {
         std::ifstream in(path);
         if (!in.is_open()) {
-            return 0;
+            return false;
         }
         in >> doc;
-    } catch (const std::exception&) { return 0; }
+    } catch (const std::exception&) { return false; }
+    return SpoilerBelongsToAnotherPair(doc, why);
+}
+
+} // namespace
+
+/**
+ * #564 V23: 1 when the file at @p path is another paired world's spoiler (its
+ * combo.identity does not name the resident pair), after printing which term
+ * differs and what was not done (@p refusedAction). 0 when there is no such
+ * file, it does not parse, or it carries no "combo" section: nothing there is a
+ * pair's artifact.
+ */
+extern "C" int MM_Rando_SpoilerBelongsToAnotherPair(const char* path, const char* refusedAction) {
     std::string why;
-    if (!SpoilerBelongsToAnotherPair(doc, why)) {
+    if (!SpoilerFileBelongsToAnotherPair(path, why)) {
         return 0;
     }
     fprintf(stderr,
             "[MM] spoiler: REFUSED to %s '%s': it is another paired world's spoiler (%s); it is left as it is, and "
             "this world has no spoiler (#564 V23)\n",
             refusedAction != nullptr ? refusedAction : "rewrite", path, why.c_str());
+    fflush(stderr);
+    return 1;
+}
+
+/**
+ * #1055: the name (no directory, no ".json") this pair's OoT spoiler is written
+ * under in @p dir. OoT names it by its seed (the five hash icons, @p seedName),
+ * which is the same for every pair of that seed and those OoT settings, whatever
+ * MM's options, the Cross-Game Rules or the generator version. When that file is
+ * another pair's (a spoiler kept from a build whose fingerprint differs, or a
+ * pair with other MM options), the #564 V23 rule still leaves it alone, and this
+ * pair's spoiler goes beside it as "<seed>-<fingerprint>", the fingerprint being
+ * comboSettingsHash as 8 uppercase hex digits: the name the seed package design
+ * (#1044) gives its artifact. Where it went is logged; gGeneral.SpoilerLog then
+ * names it like any other spoiler, so the Randomizer menu and the creation's join
+ * read it from there.
+ *
+ * @return 0 and @p seedName in @p out when that file is free, unparseable, not a
+ *         paired world's, or this pair's own; 1 and "<seedName>-<fingerprint>"
+ *         when the seed-named file is another pair's and the suffixed one is not;
+ *         -1 (refusal logged, @p out empty) when both are another pair's; -2 on a
+ *         bad argument.
+ */
+extern "C" int MM_Rando_ChoosePairedSpoilerName(const char* dir, const char* seedName, char* out, size_t outCap) {
+    if (dir == nullptr || seedName == nullptr || seedName[0] == '\0' || out == nullptr || outCap == 0) {
+        return -2;
+    }
+    out[0] = '\0';
+    const std::string seedPath = std::string(dir) + "/" + seedName + ".json";
+    std::string why;
+    if (!SpoilerFileBelongsToAnotherPair(seedPath.c_str(), why)) {
+        if (strlen(seedName) + 1 > outCap) {
+            return -2;
+        }
+        snprintf(out, outCap, "%s", seedName);
+        return 0;
+    }
+    char fingerprint[16];
+    snprintf(fingerprint, sizeof(fingerprint), "%08X", (unsigned)gComboCtx.comboSettingsHash);
+    const std::string suffixedName = std::string(seedName) + "-" + fingerprint;
+    const std::string suffixedPath = std::string(dir) + "/" + suffixedName + ".json";
+    if (MM_Rando_SpoilerBelongsToAnotherPair(suffixedPath.c_str(), "write this world's OoT spoiler over") != 0) {
+        fprintf(stderr, "[MM] spoiler: '%s' is another paired world's spoiler too (%s) (#1055)\n", seedPath.c_str(),
+                why.c_str());
+        fflush(stderr);
+        return -1;
+    }
+    if (suffixedName.size() + 1 > outCap) {
+        return -2;
+    }
+    snprintf(out, outCap, "%s", suffixedName.c_str());
+    fprintf(stderr,
+            "[MM] spoiler: '%s' is another paired world's spoiler (%s); it is left as it is, and this world's spoiler "
+            "is written to '%s' (#1055)\n",
+            seedPath.c_str(), why.c_str(), suffixedPath.c_str());
     fflush(stderr);
     return 1;
 }
