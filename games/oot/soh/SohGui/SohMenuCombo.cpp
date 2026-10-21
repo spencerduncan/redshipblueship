@@ -602,8 +602,10 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "not shuffle them already has all five, so there is nothing to share there. The ocarina itself stays each "
             "game's own."));
 
-    // The Shared Bottles (#970; no OoTMM equivalent, default off). The Shared
-    // Shields row's pattern exactly.
+    // The Shared Bottles (#970, default off; a count up to OoT's four with the
+    // contents per game, a deliberate divergence from OoTMM's sharedBottles,
+    // which shares six bottles and their contents). The Shared Shields row's
+    // pattern exactly.
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_BOTTLES), WIDGET_CHECKBOX)
         .ValuePointer(&comboRuleSharedBottles)
         .PreFunc([](WidgetInfo& info) {
@@ -618,8 +620,8 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Options(CheckboxOptions().Tooltip(
             "Makes the number of bottles one count across both games, up to Ocarina of Time's four: a bottle found "
             "in either game gives you an empty bottle in the other. What is in each bottle stays that game's own. "
-            "Only four bottles are placed across both games, and Majora's Mask's fifth and sixth bottles are never "
-            "shared."));
+            "Only four bottles are placed across both games (Ruto's Letter, when it is shuffled, is one of them), "
+            "so Majora's Mask's fifth and sixth bottle slots stay empty."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.

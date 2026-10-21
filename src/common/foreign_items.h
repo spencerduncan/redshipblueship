@@ -445,7 +445,8 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 #define RSBS_XITEM_SHARED_ARROW_LIGHT 0x00080000u
 // #970: shared bottles. The bottle COUNT (unlocked bottle slots) is one shared
 // tier up to OoT's four slots (RSBS_SHARED_RES_BOTTLE_COUNT); contents stay per
-// game. Not a family: no member is registered at this bit.
+// game. Not a family: no member is registered at this bit. OoTMM's sharedBottles
+// differs on purpose (six shared bottles, contents included; PR #1094).
 #define RSBS_XITEM_SHARED_BOTTLES 0x00100000u
 // #1067: shared ocarina buttons (OoTMM sharedOcarinaButtons). ONE rule over FIVE
 // pairs, one per button: the A buttons (the family at this bit) and the four C

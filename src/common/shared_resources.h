@@ -152,6 +152,14 @@ extern "C" {
  */
 #define RSBS_SHARED_RES_KIND_COUNT 22u
 
+/* Every kind one world can arm at once must have a slot in the two blocks: the
+ * real kinds less the retired ocarina tier, which is never armed (#879). Today
+ * that is twenty of twenty (#970's bottles took the last one), so the next kind
+ * fails here and needs a third block (context.h), rather than silently finding
+ * no slot at its first harvest. */
+RSBS_CTX_STATIC_ASSERT(RSBS_SHARED_RES_KIND_COUNT - 2u <= RSBS_SHARED_RESOURCE_TOTAL_CAP,
+                       "more shared-resource kinds can be armed at once than the two blocks have slots");
+
 /**
  * Is `kind` ARMED for this world?
  *

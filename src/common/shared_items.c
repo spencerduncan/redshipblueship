@@ -932,6 +932,47 @@ int Combo_SharedQuantityTierBudget(const ComboSharedQuantityPolicy* policy, int 
     return budget;
 }
 
+// The slot reserves (shared_items.h). Constant-initialized, so a registrar that
+// runs during static initialization finds the table ready.
+typedef struct {
+    uint8_t originGame;
+    uint8_t kind;
+    uint16_t id;
+} SharedSlotReserve;
+static SharedSlotReserve sSlotReserves[RSBS_SHARED_SLOT_RESERVE_CAP];
+static int sSlotReserveCount = 0;
+
+bool Combo_RegisterSharedSlotReserve(uint8_t originGame, uint16_t id, uint8_t kind) {
+    if ((originGame != (uint8_t)GAME_OOT && originGame != (uint8_t)GAME_MM) || kind == 0u ||
+        kind >= (uint8_t)RSBS_SHARED_RES_KIND_COUNT) {
+        return false;
+    }
+    for (int i = 0; i < sSlotReserveCount; i++) {
+        if (sSlotReserves[i].originGame == originGame && sSlotReserves[i].id == id) {
+            return false;
+        }
+    }
+    if (sSlotReserveCount >= RSBS_SHARED_SLOT_RESERVE_CAP) {
+        fprintf(stderr, "[SharedItems] slot reserve %u:%u for kind %u refused: the table is full\n",
+                (unsigned)originGame, (unsigned)id, (unsigned)kind);
+        return false;
+    }
+    sSlotReserves[sSlotReserveCount].originGame = originGame;
+    sSlotReserves[sSlotReserveCount].kind = kind;
+    sSlotReserves[sSlotReserveCount].id = id;
+    sSlotReserveCount++;
+    return true;
+}
+
+uint8_t Combo_SharedSlotReserveKind(SharedItem item) {
+    for (int i = 0; i < sSlotReserveCount; i++) {
+        if (sSlotReserves[i].originGame == item.originGame && sSlotReserves[i].id == item.id) {
+            return sSlotReserves[i].kind;
+        }
+    }
+    return 0u;
+}
+
 void Combo_SharedQuantitySplit(int budget, int ootCopies, int mmCopies, uint32_t tieSeed, int* outOoT, int* outMM) {
     int keepO = 0;
     int keepM = 0;

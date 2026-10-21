@@ -768,7 +768,8 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 //   WALLET_TIER
 //   OCARINA_TIER            TRIM when armed    TIER; KEEP_ALL while unarmed, which is always since #879
 //   BOTTLE_COUNT            TRIM when armed    SLOTS, fixed cap 4 (OoT's four slots; #970's Shared Bottles
-//                                              rule); KEEP_ALL while the rule is off
+//                                              rule), Ruto's Letter a reserve counted against the four;
+//                                              KEEP_ALL while the rule is off
 //   everything else         KEEP_ALL           rupees, current health / magic, the five ammo COUNTS,
 //                                              bombchus, triforce pieces: renewable or counted, never
 //                                              a capacity the carrier clamps
@@ -827,7 +828,10 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 /* #970: one copy = one SLOT (a bottle), budget = min(fixedCap, the larger pool count).
  * Never kept whole for unequal slot counts: each give fills its own game's next empty
  * slot, so below the cap every kept copy raises the shared count (see
- * Combo_SharedQuantityTierBudget). */
+ * Combo_SharedQuantityTierBudget). A registered SLOT RESERVE (Ruto's Letter; see
+ * Combo_RegisterSharedSlotReserve) takes a slot too and is never trimmed, so the
+ * composer keeps `fixedCap` slot-bound items IN ALL, reserves and SURPLUS copies
+ * included. */
 #define RSBS_SHARED_QTY_BUDGET_SLOTS 3u
 
 /** OoTMM's sharedHealth pool (packages/logic/src/world/transform.ts): 44 pieces
@@ -905,6 +909,26 @@ int Combo_SharedQuantityTierBudget(const ComboSharedQuantityPolicy* policy, int 
  * game's own count and sum to min(budget, ootCopies + mmCopies).
  */
 void Combo_SharedQuantitySplit(int budget, int ootCopies, int mmCopies, uint32_t tieSeed, int* outOoT, int* outMM);
+
+/**
+ * SLOT RESERVES (#970, PR #1094 review F1). An item that takes one unit of a
+ * SLOTS kind when it is given but is NEVER one of the kind's trimmable copies:
+ * OoT's Ruto's Letter, which OoT gives only into an empty bottle slot (the
+ * rando hands a blue rupee instead when every slot is full) and which is OoT's
+ * quest item, so no trim may take it out of the pool. Its row feeds no kind
+ * (ComboItemClassRow.sharedKind 0); the composer counts each kept copy of a
+ * registered reserve against the kind's budget instead, so the pair's
+ * slot-bound items never outnumber the shared count's slots.
+ *
+ * Registered once per game from its combo-logic engine TU's file-scope
+ * registrar (beside its item class source). Returns false, registering
+ * nothing, for a bad game or kind, a duplicate, or a full table.
+ */
+#define RSBS_SHARED_SLOT_RESERVE_CAP 8
+bool Combo_RegisterSharedSlotReserve(uint8_t originGame, uint16_t id, uint8_t kind);
+
+/** The SLOTS kind @p item is a registered slot reserve of, or 0. */
+uint8_t Combo_SharedSlotReserveKind(SharedItem item);
 
 #ifdef __cplusplus
 }

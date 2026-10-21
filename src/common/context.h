@@ -316,13 +316,15 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * splits a kind across blocks or drops a harvest on a "full" array that has
  * twelve free slots behind it.
  *
- * Sized for the whole class in ONE carve, deliberately. Today's set occupies
- * seventeen of the twenty slots (seven from v1 plus magic, nine from ammo, one
- * for the hookshot), and a carve is permanent: a third block would cost another
- * literal offset, another span in every accessor, and another ADR amendment.
- * The three spare slots are what keeps the next resource from needing any of
- * that — the hookshot took one of them and needed no format change at all,
- * which is the headroom doing its job.
+ * Sized for the whole class in ONE carve, deliberately. The unconditional set
+ * occupies seventeen of the twenty slots (seven from v1 plus magic, nine from
+ * ammo, one for the hookshot), and a carve is permanent: a third block would
+ * cost another literal offset, another span in every accessor, and another ADR
+ * amendment. The three spare slots kept the next resources from needing any of
+ * that, and they are now spoken for: the triforce count, the Kokiri Sword and
+ * the bottle count (#970) are each armed per world, and a world that arms all
+ * three fills the twentieth slot. RSBS_SHARED_RES_KIND_COUNT's static assert
+ * (shared_resources.h) stops the next kind at compile time.
  *
  * Bounded from above by ADR 0009's 64-byte reserved[] floor, not by taste:
  * twelve slots is 48 bytes, leaving reserved[132], which still clears the floor

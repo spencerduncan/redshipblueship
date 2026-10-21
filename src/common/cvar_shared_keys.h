@@ -167,7 +167,9 @@
  * record, so with it off the record stays all clear and every fingerprint holds. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS "gCombo.Rando.SharedOcarinaButtons"
 /* #970: the bottle COUNT is one quantity for the pair up to OoT's four slots, the
- * contents stay each game's own (no OoTMM equivalent). Boolean (0/1), DEFAULT 0:
+ * contents stay each game's own. A deliberate divergence from OoTMM's sharedBottles
+ * (six bottles, contents and refills shared, needs extraBottlesOot's six OoT
+ * slots): see PR #1094. Boolean (0/1), DEFAULT 0:
  * a BIT of the item rules record, so with it off the record stays all clear and
  * every fingerprint holds. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES "gCombo.Rando.SharedBottles"

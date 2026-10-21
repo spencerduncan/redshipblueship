@@ -2182,7 +2182,9 @@ uint8_t OoTFillClassSharedKind(RandomizerGet rg) {
         // #970: a bottle, whatever it holds. Ruto's Letter is not tagged: it is a
         // bottle in the inventory (the shared count sees its slot) but it is OoT's
         // quest item, and the Shared Bottles trim must never take it out of the
-        // pool. The policy trims only while the frozen rule arms the kind.
+        // pool. It is a SLOT RESERVE instead (the registrar below): the trim
+        // counts it against the four slots. The policy trims only while the
+        // frozen rule arms the kind.
         case RG_EMPTY_BOTTLE:
         case RG_BOTTLE_WITH_MILK:
         case RG_BOTTLE_WITH_RED_POTION:
@@ -2329,6 +2331,10 @@ const ComboItemClassSource kOoTItemClassSource = {
 struct OoTItemClassRegistrar {
     OoTItemClassRegistrar() {
         Combo_RegisterItemClassSource(GAME_OOT, &kOoTItemClassSource);
+        // #970: Ruto's Letter is given only into an empty bottle slot, so under
+        // the Shared Bottles rule it takes one of the pair's four slots; the
+        // composer counts it against the bottle budget and never trims it.
+        Combo_RegisterSharedSlotReserve(GAME_OOT, (uint16_t)RG_RUTOS_LETTER, RSBS_SHARED_RES_BOTTLE_COUNT);
     }
 };
 const OoTItemClassRegistrar gOoTItemClassRegistrar;
