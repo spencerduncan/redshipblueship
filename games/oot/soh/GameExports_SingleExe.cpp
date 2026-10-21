@@ -121,6 +121,9 @@ int ArchiveHotswap_TargetArrivals(void);
 // #981 resource cache owner checks (src/common/tests/test_resource_cache_owner.c).
 int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, int limbCount, char* msg, size_t cap);
 int ResourceCacheOwner_MMLegPassed(void);
+int ResourceCacheOwner_PatchProbeOoTDepart(char* msg, size_t cap); // #1040 R2
+int ResourceCacheOwner_PatchProbeOoTReturn(char* msg, size_t cap);
+int ResourceCacheOwner_CheckBootOwner(const char* when, char* msg, size_t cap); // #1040 R3
 SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
 }
 
@@ -445,6 +448,12 @@ static void T1TriggerHmsAndAssertRouting(void) {
             return;
         }
         fprintf(stderr, "[OoT-INT-TEST] PASS cache-owner leg 1: %s\n", msg);
+        // #1040 R2: a patch OoT makes before it leaves, for MM's leg to unpatch.
+        if (!ResourceCacheOwner_PatchProbeOoTDepart(msg, sizeof(msg))) {
+            T1Fail(msg);
+            return;
+        }
+        fprintf(stderr, "[OoT-INT-TEST] PASS cache-owner leg 1 (patch registry): %s\n", msg);
     }
     fprintf(stderr, "[OoT-INT-TEST] gameplay reached (scene %d, %d live frames); triggering HMS entrance 0x%04X\n",
             OoT_gPlayState != NULL ? (int)OoT_gPlayState->sceneNum : -1, sT1GameplayFrames, OOT_ENTR_HAPPY_MASK_SHOP);
@@ -667,6 +676,13 @@ static void CrSceneInit(int16_t sceneNum) {
             }
             if (door && Context_HasFrozenState(GAME_OOT)) {
                 CrFail("the refused door froze OoT's half: the refusal must come before the departure freeze");
+                return;
+            }
+            // #1040 R3: a refused crossing never reaches ApplyResourceCacheOwner,
+            // so the booted game keeps owner 0.
+            if (!ResourceCacheOwner_CheckBootOwner(door ? "after the refused door" : "after the late refusal", msg,
+                                                   sizeof(msg))) {
+                CrFail(msg);
                 return;
             }
             const int expectedEntries = door ? 1 : 2;
@@ -1960,7 +1976,8 @@ static void OoT_RegisterIntegrationTestHooks(void) {
                     return;
                 }
                 char msg[384];
-                if (!RcoOoTCheck("back from MM", msg, sizeof(msg))) {
+                if (!RcoOoTCheck("back from MM", msg, sizeof(msg)) ||
+                    !ResourceCacheOwner_PatchProbeOoTReturn(msg, sizeof(msg))) {
                     fprintf(stderr, "[OoT-INT-TEST] FAIL (int-resource-cache-owner): %s\n", msg);
                     fflush(stderr);
                     IntegrationTest_RequestExit();

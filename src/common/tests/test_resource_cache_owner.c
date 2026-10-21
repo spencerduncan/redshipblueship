@@ -10,7 +10,7 @@
  * switch (rsbs/src/main.cpp, ApplyResourceCacheOwner) through the fork's
  * ResourceManager::SetDefaultCacheOwner.
  *
- * Two pieces live here, both included at FILE SCOPE by test_runner.cpp
+ * These pieces live here, all included at FILE SCOPE by test_runner.cpp
  * (compiled as C++, they drive the C++-linkage ResourceManager directly):
  *
  *   ResourceCacheOwner_RunHeadless: the ROM-free `resource-cache-owner` row. It
@@ -22,6 +22,12 @@
  *   ResourceCacheOwner_CheckArrival: one arrival's checks for the two ROM-staged
  *     rows (IntArchiveHotswapCycle and IntResourceCacheOwner), called from each
  *     game's GameExports_SingleExe.cpp with the skeleton its own loader served.
+ *
+ *   #1040 follow-ups: ResourceCacheOwner_RunUnloadFilterHeadless (the ROM-free
+ *     `resource-cache-owner-unload-filter` row: a filtered unload honours the
+ *     filter's owner), the ResourceCacheOwner_PatchProbe* legs IntResourceCacheOwner
+ *     runs over the per-owner gfx-patch registry, and ResourceCacheOwner_CheckBootOwner,
+ *     which both crossing-refused drivers call after each refusal.
  */
 
 #include <ship/Context.h>
@@ -30,6 +36,7 @@
 #include <ship/resource/archive/Archive.h>
 #include <ship/resource/archive/ArchiveManager.h>
 #include <ship/resource/type/Blob.h>
+#include <fast/resource/type/DisplayList.h> // #1040 R2's probe display list
 
 #include <zip.h>
 
@@ -306,9 +313,11 @@ std::string RcoResourceBytes(const std::shared_ptr<Ship::IResource>& res) {
     return std::string(p, p + res->GetPointerSize());
 }
 
-bool RcoEndsWith(const std::string& s, const char* suffix) {
-    const size_t n = strlen(suffix);
-    return s.size() >= n && s.compare(s.size() - n, n, suffix) == 0;
+// The archive's file name is exactly @p name (#1040 R5): a suffix match would
+// also take redship-oot.o2r for oot.o2r, and a curated half that ever carried
+// the path would then pass the archive-layer precondition vacuously.
+bool RcoArchiveNamed(const std::string& archivePath, const char* name) {
+    return std::filesystem::path(archivePath).filename().string() == name;
 }
 
 // Appends one failure to @p out ("; "-separated), so a check reports every
@@ -378,7 +387,7 @@ int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, 
     auto rm = Ship::Context::GetInstance()->GetResourceManager();
     auto archive = rm->GetArchiveManager()->GetArchiveFromFile(kRcoBoxVtxPath);
     const char* wantArchive = game == GAME_OOT ? "oot.o2r" : "mm.o2r";
-    if (archive == nullptr || !RcoEndsWith(archive->GetPath(), wantArchive)) {
+    if (archive == nullptr || !RcoArchiveNamed(archive->GetPath(), wantArchive)) {
         RcoAppend(fail, "%s is owned by '%s', not %s", kRcoBoxVtxPath, archive ? archive->GetPath().c_str() : "(none)",
                   wantArchive);
     } else {
@@ -403,6 +412,161 @@ int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, 
     }
     snprintf(msg, cap, "%s arrival #%d: gOctorokSkel %p with %d limbs (first served at arrival #%d), %s matches %s",
              name, arrival, skel, limbCount, rec.firstArrival, kRcoBoxVtxPath, wantArchive);
+    return 1;
+}
+
+// ---------------------------------------------------------------------------
+// #1040 R3: the owner a game runs under where no switch has happened
+// ---------------------------------------------------------------------------
+
+/**
+ * The booted game loads under cache owner 0 (rsbs/src/main.cpp, sComboBootGame),
+ * whichever game it is, and a refused crossing never reaches
+ * ApplyResourceCacheOwner, so the running game keeps that owner. Called by both
+ * crossing-refused drivers (OoT boot, and MM boot with --game mm's owner) after
+ * each refusal. @return 1 when the default owner is 0, else 0 with @p msg set.
+ */
+int ResourceCacheOwner_CheckBootOwner(const char* when, char* msg, size_t cap) {
+    auto ctx = Ship::Context::GetInstance();
+    auto rm = ctx ? ctx->GetResourceManager() : nullptr;
+    if (rm == nullptr) {
+        snprintf(msg, cap, "%s: no ResourceManager", when);
+        return 0;
+    }
+    const uintptr_t owner = rm->GetDefaultCacheOwner();
+    if (owner != 0) {
+        snprintf(msg, cap, "%s: resource cache owner is 0x%llx, expected the booted game's 0", when,
+                 (unsigned long long)owner);
+        return 0;
+    }
+    return 1;
+}
+
+} // extern "C"
+
+// ---------------------------------------------------------------------------
+// #1040 R2: the per-owner gfx-patch registry across IntResourceCacheOwner's trip
+// ---------------------------------------------------------------------------
+//
+// ResourceMgr_PatchGfxByName records each patch's original command so that
+// ResourceMgr_UnpatchGfxByName can restore it, and in the single exe that record
+// is kept per resource cache owner (games/oot/soh/ResourceManagerHelpers.cpp,
+// sOriginalGfxByOwner). OoT patches a display list both archives carry before it
+// leaves; MM, under its own owner, unpatches the same name; OoT unpatches it
+// again on its return. With one registry for both owners, MM's unpatch finds
+// OoT's record, sees its own copy is not the one recorded, unloads MM's copy and
+// drops the record, so OoT's own unpatch later restores nothing.
+
+namespace {
+
+constexpr const char* kRcoPatchDL = "__OTR__objects/object_gi_rupy/gGiGreenRupeeInnerColorDL";
+constexpr const char* kRcoPatchName = "RsbsResourceCacheOwnerProbe";
+constexpr size_t kRcoPatchIndex = 3; // the Cosmetics Editor's green rupee prim colour
+
+struct RcoPatchProbe {
+    std::shared_ptr<Fast::DisplayList> oot; // held: a reparse can never reuse its address
+    Gfx original;
+    Gfx marker;
+};
+RcoPatchProbe sRcoProbe;
+
+std::shared_ptr<Fast::DisplayList> RcoLoadProbeDL() {
+    return std::dynamic_pointer_cast<Fast::DisplayList>(
+        Ship::Context::GetInstance()->GetResourceManager()->LoadResource(kRcoPatchDL));
+}
+
+bool RcoSameGfx(const Gfx& a, const Gfx& b) {
+    return memcmp(&a, &b, sizeof(Gfx)) == 0;
+}
+
+} // namespace
+
+extern "C" {
+
+void ResourceMgr_PatchGfxByName(const char* path, const char* patchName, int index, Gfx instruction);
+void ResourceMgr_UnpatchGfxByName(const char* path, const char* patchName);
+
+// OoT, before the crossing: patch OoT's copy and record what was there.
+int ResourceCacheOwner_PatchProbeOoTDepart(char* msg, size_t cap) {
+    auto dl = RcoLoadProbeDL();
+    if (dl == nullptr || dl->Instructions.size() <= kRcoPatchIndex) {
+        snprintf(msg, cap, "OoT before the crossing: %s is not a display list of more than %zu commands", kRcoPatchDL,
+                 kRcoPatchIndex);
+        return 0;
+    }
+    sRcoProbe.oot = dl;
+    sRcoProbe.original = dl->Instructions[kRcoPatchIndex];
+    sRcoProbe.marker = sRcoProbe.original;
+    sRcoProbe.marker.words.w1 ^= 0x00FFFF00u; // another prim colour, same command
+    ResourceMgr_PatchGfxByName(kRcoPatchDL, kRcoPatchName, (int)kRcoPatchIndex, sRcoProbe.marker);
+    if (!RcoSameGfx(dl->Instructions[kRcoPatchIndex], sRcoProbe.marker)) {
+        snprintf(msg, cap, "OoT before the crossing: the probe patch did not land on OoT's copy %p", (void*)dl.get());
+        return 0;
+    }
+    snprintf(msg, cap, "OoT before the crossing: patched command %zu of its copy %p", kRcoPatchIndex, (void*)dl.get());
+    return 1;
+}
+
+// MM, under its own owner: unpatching the same name must leave MM's copy cached
+// at the same object with the same commands.
+int ResourceCacheOwner_PatchProbeMM(char* msg, size_t cap) {
+    if (sRcoProbe.oot == nullptr) {
+        snprintf(msg, cap, "MM: OoT's probe patch was never made");
+        return 0;
+    }
+    auto dl = RcoLoadProbeDL();
+    if (dl == nullptr) {
+        snprintf(msg, cap, "MM: %s is not a display list", kRcoPatchDL);
+        return 0;
+    }
+    if (dl.get() == sRcoProbe.oot.get()) {
+        snprintf(msg, cap, "MM was served OoT's patched copy %p of %s", (void*)dl.get(), kRcoPatchDL);
+        return 0;
+    }
+    const std::vector<Gfx> before = dl->Instructions;
+    ResourceMgr_UnpatchGfxByName(kRcoPatchDL, kRcoPatchName);
+    auto after = RcoLoadProbeDL();
+    std::string fail;
+    if (after.get() != dl.get()) {
+        RcoAppend(fail, "MM's copy %p was dropped from the cache by an unpatch of a name only OoT patched (now %p)",
+                  (void*)dl.get(), (void*)after.get());
+    }
+    if (dl->Instructions.size() != before.size() ||
+        memcmp(dl->Instructions.data(), before.data(), before.size() * sizeof(Gfx)) != 0) {
+        RcoAppend(fail, "MM's copy %p was written by an unpatch of a name only OoT patched", (void*)dl.get());
+    }
+    if (!fail.empty()) {
+        snprintf(msg, cap, "MM: %s", fail.c_str());
+        return 0;
+    }
+    snprintf(msg, cap, "MM: its copy %p of the probe display list survived the unpatch untouched", (void*)dl.get());
+    return 1;
+}
+
+// OoT, back from MM: its patch is still in its copy, and unpatching restores it.
+int ResourceCacheOwner_PatchProbeOoTReturn(char* msg, size_t cap) {
+    if (sRcoProbe.oot == nullptr) {
+        snprintf(msg, cap, "OoT back from MM: the probe patch was never made");
+        return 0;
+    }
+    auto dl = RcoLoadProbeDL();
+    std::string fail;
+    if (dl.get() != sRcoProbe.oot.get()) {
+        RcoAppend(fail, "served %p, not the copy %p it patched", (void*)dl.get(), (void*)sRcoProbe.oot.get());
+    } else if (!RcoSameGfx(dl->Instructions[kRcoPatchIndex], sRcoProbe.marker)) {
+        RcoAppend(fail, "its patch did not survive the trip");
+    } else {
+        ResourceMgr_UnpatchGfxByName(kRcoPatchDL, kRcoPatchName);
+        if (!RcoSameGfx(dl->Instructions[kRcoPatchIndex], sRcoProbe.original)) {
+            RcoAppend(fail, "its unpatch restored nothing: the record of its patch was lost while MM ran");
+        }
+    }
+    sRcoProbe.oot.reset();
+    if (!fail.empty()) {
+        snprintf(msg, cap, "OoT back from MM: %s", fail.c_str());
+        return 0;
+    }
+    snprintf(msg, cap, "OoT back from MM: its patch survived and its unpatch restored command %zu", kRcoPatchIndex);
     return 1;
 }
 
