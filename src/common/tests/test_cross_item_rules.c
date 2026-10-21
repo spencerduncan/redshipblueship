@@ -218,8 +218,13 @@ TestResult Test_CrossItemRulesRecord(void) {
         r.crossItemFlags &= ~RSBS_XITEM_BLAST_MASK_OOT;
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "a shared extension without its extension must be invalid");
         r = on;
-        r.crossItemFlags |= 0x00200000u;
-        XIR_CHECK(!Combo_ComboItemRulesValid(&r), "an unallocated bit must be invalid");
+        // The next free bit, derived so a later allocation (#1065 took
+        // 0x00200000) never turns this probe into an allocated bit.
+        const uint32_t unallocated = RSBS_XITEM_ALL_V1 + 1u;
+        XIR_CHECK((RSBS_XITEM_ALL_V1 & unallocated) == 0u && unallocated != 0u, "the probe bit %08X is allocated",
+                  (unsigned)unallocated);
+        r.crossItemFlags |= unallocated;
+        XIR_CHECK(!Combo_ComboItemRulesValid(&r), "an unallocated bit (%08X) must be invalid", (unsigned)unallocated);
         r = on;
         r.blastMaskCooldown = 6u;
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "a cooldown past VERY_LONG must be invalid");
