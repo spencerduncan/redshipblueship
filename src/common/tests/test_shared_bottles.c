@@ -39,12 +39,7 @@
 #include <cstdio>
 #include <cstring>
 
-// The rule's key, until cvar_shared_keys.h names it. Spelled as the identity
-// prefix and a suffix so the tier-4 namespace scan (CVarClassification) does not
-// read this restatement as a second, unclassified spelling of the key.
-#ifndef RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES
-#define RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES "gCombo.Rando." "SharedBottles"
-#endif
+#include "../cvar_shared_keys.h" // RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES, the rule's key
 
 #ifdef __cplusplus
 extern "C" {

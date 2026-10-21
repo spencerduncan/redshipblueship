@@ -292,6 +292,10 @@ static const SharedRowDef kSharedRows[] = {
     { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false, false },
     { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false, false },
     { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    // #970: how many bottles the pair holds, up to OoT's four; a row only in a
+    // world whose frozen Shared Bottles rule shares the count. What each bottle
+    // holds is each game's own, so the per-game bottle rows stay.
+    { "Bottles", RSBS_SHARED_RES_BOTTLE_COUNT, RSBS_SHARED_RES_NONE, NULL, 4, 1, false, false },
     // No "Ocarina" row: #879 retired the Shared Ocarina rule, and the kind is
     // never armed.
     { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },

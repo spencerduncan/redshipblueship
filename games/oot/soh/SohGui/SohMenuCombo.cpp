@@ -105,6 +105,7 @@ static int32_t comboRuleGoal;              // ADR 0010 D1: ComboSettingsRecord.g
 static bool comboRuleSharedKokiriSword;    // #886: ComboSettingsRecord.comboFlags' shared-sword bit
 static bool comboRuleSharedShields;        // #1068: ComboItemRulesRecord.crossItemFlags' shared-shields bit
 static bool comboRuleSharedOcarinaButtons; // #1067: ComboItemRulesRecord.crossItemFlags' shared-buttons bit
+static bool comboRuleSharedBottles;        // #970: ComboItemRulesRecord.crossItemFlags' shared-bottles bit
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -600,6 +601,25 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "it to you in the other. It only matters when both games shuffle their ocarina buttons. A game that does "
             "not shuffle them already has all five, so there is nothing to share there. The ocarina itself stays each "
             "game's own."));
+
+    // The Shared Bottles (#970; no OoTMM equivalent, default off). The Shared
+    // Shields row's pattern exactly.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_BOTTLES), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedBottles)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleSharedBottles = (shown.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_BOTTLES) != 0u;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, comboRuleSharedBottles ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the number of bottles one count across both games, up to Ocarina of Time's four: a bottle found "
+            "in either game gives you an empty bottle in the other. What is in each bottle stays that game's own. "
+            "Only four bottles are placed across both games, and Majora's Mask's fifth and sixth bottles are never "
+            "shared."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.

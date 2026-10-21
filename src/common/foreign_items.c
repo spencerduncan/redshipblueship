@@ -247,6 +247,9 @@ void Combo_ResolveComboItemRules(ComboItemRulesRecord* out) {
     if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_OCARINA_BUTTONS) != 0) {
         out->crossItemFlags |= (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS; // #1067
     }
+    if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_BOTTLES) != 0) {
+        out->crossItemFlags |= (uint32_t)RSBS_XITEM_SHARED_BOTTLES; // #970
+    }
 }
 
 uint32_t Combo_ComboCrossItemFlags(void) {

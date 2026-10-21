@@ -342,6 +342,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_SHARED_SHIELDS, WIDGET_CHECKBOX, "" },
         // #1067's Shared Ocarina Buttons: the same shape.
         { COMBO_SETTING_SHARED_OCARINA_BUTTONS, WIDGET_CHECKBOX, "" },
+        // #970's Shared Bottles: the same shape.
+        { COMBO_SETTING_SHARED_BOTTLES, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -518,13 +520,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 3,
-                   "the Cross-Game Rules page has %d checkbox row(s); the three expected are the Shared Kokiri Sword "
-                   "(#886), the Shared Shields (#1068) and the Shared Ocarina Buttons (#1067), after #879 retired the "
-                   "Shared Ocarina",
+        ROWS_CHECK(checkboxes == 4,
+                   "the Cross-Game Rules page has %d checkbox row(s); the four expected are the Shared Kokiri Sword "
+                   "(#886), the Shared Shields (#1068), the Shared Ocarina Buttons (#1067) and the Shared Bottles "
+                   "(#970), after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 3 "
-               "(#879, #886, #1068, #1067)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 4 "
+               "(#879, #886, #1068, #1067, #970)\n",
                ocarinaRows, checkboxes);
     }
 
@@ -568,6 +570,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the writer refused a pre-creation Shared Shields");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, 1) == 1,
                "the writer refused a pre-creation Shared Ocarina Buttons");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, 1) == 1,
+               "the writer refused a pre-creation Shared Bottles");
 
     RunAllPreFuncs(rows);
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() == nullptr, "the model reports a read-only reason before creation");
@@ -593,6 +597,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]) == 1,
                "the Shared Ocarina Buttons row staged %d, expected the authored 1",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]));
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]) == 1,
+               "the Shared Bottles row staged %d, expected the authored 1",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]));
     printf("[TEST] leg 3: before the creation event every row is editable and stages the resolver's value\n");
 
     // ---- Leg 4: a pre-creation edit reaches the store through the model -----
@@ -665,6 +672,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]) == 0,
                "the frozen Shared Ocarina Buttons row staged %d; it must show the SAVE's OFF, not the CVar's ON",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]));
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_BOTTLES], "the Shared Bottles row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]) == 0,
+               "the frozen Shared Bottles row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]));
     printf("[TEST] leg 5: once frozen every row is read-only with the model's reason and shows the save's record\n");
 
     // ---- Leg 6: a frozen row's Callback cannot move the store ---------------
@@ -858,7 +869,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),

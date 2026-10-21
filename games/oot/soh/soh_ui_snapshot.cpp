@@ -2063,7 +2063,10 @@ void Session::BuildPageList() {
                 // kokiri-sword: #886's Shared Kokiri Sword checkbox and its tooltip.
                 // shields: #1068's Shared Shields checkbox and its tooltip.
                 // ocarina-buttons: #1067's Shared Ocarina Buttons checkbox and its tooltip.
-                p.hovers = { "direction", "goal", "kokiri-sword", "shields", "ocarina-buttons", "frozen-goal" };
+                // bottles: #970's Shared Bottles checkbox and its tooltip.
+                p.hovers = {
+                    "direction", "goal", "kokiri-sword", "shields", "ocarina-buttons", "bottles", "frozen-goal"
+                };
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
@@ -3421,6 +3424,7 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                                           : (hv == "kokiri-sword")    ? COMBO_SETTING_SHARED_KOKIRI_SWORD
                                           : (hv == "shields")         ? COMBO_SETTING_SHARED_SHIELDS
                                           : (hv == "ocarina-buttons") ? COMBO_SETTING_SHARED_OCARINA_BUTTONS
+                                          : (hv == "bottles")         ? COMBO_SETTING_SHARED_BOTTLES
                                                                       : COMBO_SETTING_GOAL;
                 label = Combo_ComboSettingLabel(targetId);
             }
