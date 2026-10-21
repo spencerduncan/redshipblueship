@@ -552,7 +552,16 @@ extern "C" int CosmeticsEditor_CustomGfxPatchesDeferred(void) {
     return sCustomGfxPatchesDeferred ? 1 : 0;
 }
 
-// What the editor's widgets call.
+// The row's display-free bring-up has no OTRGlobals::Instance, which the patch
+// body reads (the Greg Bridge check), so the row stops each pass once it is
+// counted: it checks the gate and the owed pass, never the patches themselves.
+static bool sCustomGfxPatchBodySkipped = false;
+
+extern "C" void CosmeticsEditor_SetCustomGfxPatchBodySkipped(int skip) {
+    sCustomGfxPatchBodySkipped = skip != 0;
+}
+
+// A manual pass, as the editor's widgets make one with ApplyOrResetCustomGfxPatches().
 extern "C" void CosmeticsEditor_ApplyCustomGfxPatches(void) {
     ApplyOrResetCustomGfxPatches(true);
 }
@@ -631,6 +640,11 @@ void ApplyOrResetCustomGfxPatches(bool manualChange) {
     sCustomGfxPatchPasses++;
 #endif
     static CosmeticOption& magicFaroresPrimary = cosmeticOptions.at("Magic.FaroresPrimary");
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (sCustomGfxPatchBodySkipped) {
+        return; // the cosmetics-patch-owner-gate row: counted, not patched (see above)
+    }
+#endif
     if (manualChange || CVarGetInteger(magicFaroresPrimary.rainbowCvar, 0)) {
         Color_RGBA8 color = CVarGetColor(magicFaroresPrimary.valuesCvar, magicFaroresPrimary.defaultColor);
         PATCH_GFX(sInnerCylinderDL, "Magic_FaroresPrimary1", magicFaroresPrimary.changedCvar, 24,

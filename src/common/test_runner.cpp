@@ -3969,13 +3969,14 @@ TestResult Test_ResourceCacheOwnerUnloadFilter(void) {
 // under MM's owner and write OoT's command indices into MM's copies of the ones
 // both archives carry. The editor must patch only while OoT runs, owe the pass
 // otherwise, and pay it once on OoT's next frame. Seams in
-// games/oot/soh/Enhancements/cosmetics/CosmeticsEditor.cpp. ROM-free: with no
-// cosmetic changed every PATCH_GFX takes its unpatch branch, which finds no
-// record and touches no resource.
+// games/oot/soh/Enhancements/cosmetics/CosmeticsEditor.cpp. ROM-free: the row
+// skips the patch body once a pass is counted, because that body reads
+// OTRGlobals::Instance (the Greg Bridge check), which this bring-up never builds.
 extern "C" int CosmeticsEditor_CustomGfxPatchPasses(void);
 extern "C" int CosmeticsEditor_CustomGfxPatchesDeferred(void);
 extern "C" void CosmeticsEditor_ApplyCustomGfxPatches(void);
 extern "C" void CosmeticsEditor_ReapplyDeferredGfxPatches(void);
+extern "C" void CosmeticsEditor_SetCustomGfxPatchBodySkipped(int skip);
 
 TestResult Test_CosmeticsPatchOwnerGate(void) {
     printf("[TEST] cosmetics-patch-owner-gate: the Cosmetics Editor patches only while OoT runs (#1040)\n");
@@ -3991,6 +3992,7 @@ TestResult Test_CosmeticsPatchOwnerGate(void) {
     }
 
     const GameId savedGame = Context_GetCurrentGame();
+    CosmeticsEditor_SetCustomGfxPatchBodySkipped(1);
     int failures = 0;
     auto expect = [&failures](bool ok, const char* what, int passes, int deferred) {
         if (!ok) {
@@ -4031,6 +4033,7 @@ TestResult Test_CosmeticsPatchOwnerGate(void) {
     passes = CosmeticsEditor_CustomGfxPatchPasses();
     expect(passes == p1 + 1, "the owed pass was paid twice", passes - p1, deferred);
 
+    CosmeticsEditor_SetCustomGfxPatchBodySkipped(0);
     Context_SetCurrentGame(savedGame);
     printf("[TEST] %s: cosmetics patch owner gate (%d failure(s))\n", failures == 0 ? "PASS" : "FAIL", failures);
     return failures == 0 ? TEST_PASS : TEST_FAIL;
