@@ -2554,6 +2554,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #855: a Business Scrub's offer textbox read Merchant Hint Text while the Check
+    # Tracker's reveal and row name read Scrub Hint Text, so the two disagreed
+    # whenever the settings differed. Gives a scrub check a known item and reads
+    # the real builder's English offer for all four settings pairs: it must name
+    # the item exactly when Scrub Hint Text is on. games/oot/soh/oot_scrub_text_hint_test.cpp.
+    redship_add_test(NAME ScrubTextHintSetting COMMAND redship --test scrub-text-hint-setting
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
