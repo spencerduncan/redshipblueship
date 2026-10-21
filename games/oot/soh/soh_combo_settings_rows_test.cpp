@@ -514,8 +514,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // only effect was to carry that free instrument back to Hyrule. Operator
     // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
-    // fix removes. The page's two checkboxes are #886's Shared Kokiri Sword and
-    // #1065's Shared Lens of Truth.
+    // fix removes. The page's four checkboxes are #886's Shared Kokiri Sword,
+    // #1065's Shared Lens of Truth and #1066's two shared songs.
     {
         int ocarinaRows = 0;
         int checkboxes = 0;
@@ -529,12 +529,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 2,
-                   "the Cross-Game Rules page has %d checkbox row(s); the two expected are the Shared Kokiri Sword "
-                   "(#886) and the Shared Lens of Truth (#1065), after #879 retired the Shared Ocarina",
+        ROWS_CHECK(checkboxes == 4,
+                   "the Cross-Game Rules page has %d checkbox row(s); the four expected are the Shared Kokiri Sword "
+                   "(#886), the Shared Lens of Truth (#1065), Shared Epona's Song and Shared Song of Storms (#1066), "
+                   "after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 2 "
-               "(#879, #886, #1065)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 4 "
+               "(#879, #886, #1065, #1066)\n",
                ocarinaRows, checkboxes);
     }
 
