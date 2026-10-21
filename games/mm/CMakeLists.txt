@@ -402,6 +402,30 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipRaisingWoodfall.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipStoppingMoonCutscene.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipWakingAndRidingTurtle.cpp"
+        # #1010-#1017: eight enhancement rows the SoH menu draws. Each keys on the converged
+        # gEnhancements.* key SoH's row writes (kConvergedKeys; DpadEquips for ItemUnequip's second
+        # half), registers only through a file-scope RegisterShipInitFunc, and rides a hook the single
+        # exe dispatches (VB_* via MM_GameHooks_ExecuteVBShould; OnInterfaceDrawStart, OnPlayerPostLimbDraw,
+        # OnActorUpdate, OnActorInit, OnGameStateMainStart via MM_GameHooks_Execute*). Play-state guards
+        # landed with the carve-out. Duplicate-symbol exposure measured: RegisterItemUnequip and
+        # RegisterPauseBufferInputs exist in games/oot too, and MM's copies are MM_-prefixed in the source;
+        # Interface_DrawEnemyHealthBar is a C symbol in OoT's z_parameter.c and a C++ one (Attention*) here.
+        # #1010
+        "2s2h/Enhancements/Timesavers/FastChests.cpp"
+        # #1011
+        "2s2h/Enhancements/Graphics/EnemyHealthBars.cpp"
+        # #1012
+        "2s2h/Enhancements/Graphics/BowReticle.cpp"
+        # #1013
+        "2s2h/Enhancements/Graphics/DisableBlackBars.cpp"
+        # #1014
+        "2s2h/Enhancements/Player/InstantPutaway.cpp"
+        # #1015
+        "2s2h/Enhancements/Equipment/ItemUnequip.cpp"
+        # #1016
+        "2s2h/Enhancements/Restorations/PauseBufferInputs.cpp"
+        # #1017
+        "2s2h/Enhancements/DifficultyOptions/HyperEnemies.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 
