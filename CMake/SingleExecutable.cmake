@@ -661,6 +661,12 @@ if(BUILD_TESTING)
     # and a wallet-less arrival leaves the shared rupee pool whole. OoT's real
     # shims, ROM-free.
     redship_add_test(NAME SharedWallet COMMAND redship --test shared-wallet)
+    # #1061: MM caps bombchus at its bomb bag (0 with none), and an MM bombchu pack
+    # found in Hyrule crossed into that capped give and was lost. A counted pack
+    # now credits the shared count at its pickup in either game (harvest, credit,
+    # re-apply) and an older save's crossing is credited at redemption. Both
+    # games' real shims and pickup cores, ROM-free.
+    redship_add_test(NAME SharedBombchuPickup COMMAND redship --test shared-bombchu-pickup)
     # #976 (epic #975 P1): the cross-game item rules record (carve, fingerprint
     # only when set, freeze, the load refusing a rule this build cannot honour)
     # and the shared-family OR merge through both games' real shims. ROM-free.
@@ -708,6 +714,11 @@ if(BUILD_TESTING)
     # the placement table need no fill, no display, and no ROM.
     redship_add_test(NAME MMSpoilerIdentity COMMAND redship --test mm-spoiler-identity)
     redship_add_test(NAME MMForeignPickupGate COMMAND redship --test mm-foreign-pickup-gate)
+    # #1055: a paired spoiler whose seed-named file is another identity's (an
+    # older build's fingerprint, other MM options) goes to
+    # <seed>-<fingerprint>.json instead of nowhere. Files in a per-process
+    # scratch directory and gComboCtx only.
+    redship_add_test(NAME MMPairedSpoilerName COMMAND redship --test mm-paired-spoiler-name)
     # Combo-level arrival identity gate (#498, ADR 0011 increment 1). Drives the
     # REAL MM_Rando_PairOnCrossGameArrival. A divergent frozen combo record must
     # refuse through the #533/#568 surface AND NAME the diverged rule — the
@@ -1251,6 +1262,21 @@ if(BUILD_TESTING)
     # reference would un-elide them by itself). Pure (no display, no ROM);
     # needs the shared bring-up only for CVarSetInteger.
     redship_add_test(NAME MMClockShuffleSongs COMMAND redship --test mm-clock-shuffle-songs)
+    # The same class a third time (#1071): the nine song-teacher hooks under
+    # games/mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearning*.cpp are
+    # forced on under IS_RANDO because they ARE the rando hand-off for those
+    # checks (the Sonata hook is the only caller of VB_GIVE_ITEM_FROM_MNK,
+    # which Rando/ActorBehavior/EnMnk.cpp waits on), and plain-archive
+    # 2ship_enh dropped all nine: the monkey taught the vanilla Sonata and the
+    # seed's item was never given. They are carved into the WHOLE_ARCHIVE'd
+    # 2ship_enh_registrars (games/mm/CMakeLists.txt); this row arms them through
+    # the production rando path (saveType + ShipInit::Init("IS_RANDO")) and
+    # attributes each one, by an exactly-one registry delta or by the VB
+    # verdict and check hand-off only that hook produces, and checks the Epona
+    # and Healing hooks survive a missing play state. Names no symbol from the
+    # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
+    # the CVar reads.
+    redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
     # The entrance -> region cache's registration boundary (#659).
     # Rando::Logic::Regions is filled by eighteen independent ShipInit
     # registrars whose order is link order, and the cache inside
@@ -2561,6 +2587,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #855: a Business Scrub's offer textbox read Merchant Hint Text while the Check
+    # Tracker's reveal and row name read Scrub Hint Text, so the two disagreed
+    # whenever the settings differed. Gives a scrub check a known item and reads
+    # the real builder's English offer for all four settings pairs: it must name
+    # the item exactly when Scrub Hint Text is on. games/oot/soh/oot_scrub_text_hint_test.cpp.
+    redship_add_test(NAME ScrubTextHintSetting COMMAND redship --test scrub-text-hint-setting
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
@@ -2981,6 +3016,17 @@ crossing to refuse (#954).")
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=2")
+    # #1055: the same creation with a spoiler of the same seed and another
+    # identity (comboSettingsHash flipped: what an older build leaves behind)
+    # planted at Randomizer/<seed>.json after the drive clears the pair's
+    # spoilers. The planted file must stay as it was, the creation's spoiler must
+    # land at Randomizer/<seed>-<fingerprint>.json with gGeneral.SpoilerLog naming
+    # it, and the run must settle with no refusal line.
+    redship_add_test(NAME IntPairedFirstCrossingForeignSpoiler
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_PFC_PLANT_FOREIGN_SPOILER=1")
     # #952: the same creation, then the REAL file select opens file 3 (A on the
     # file, as a player opens it) instead of loading it. On the confirm screen
     # the file's five seed icons must have the pair's fingerprint and the build
@@ -2993,6 +3039,14 @@ crossing to refuse (#954).")
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
         ENVIRONMENT "RSBS_PFC_FILE_SELECT_SHOT=1" "RSBS_CAPTURE_OUT=${CMAKE_BINARY_DIR}/frame-capture")
+    # #1055: every int-paired-first-crossing row generates the same pinned seed,
+    # so they share Randomizer/<seed>.json, which each drive clears (and
+    # IntPairedFirstCrossingForeignSpoiler plants into) between its generation
+    # and its creation; they also all create save slot 3. One lock, so a
+    # parallel ctest -j never interleaves two of them.
+    set_tests_properties(IntPairedFirstCrossing IntPairedFirstCrossingDiverged IntPairedFirstCrossingTwoCycles
+        IntPairedFirstCrossingForeignSpoiler IntPairedFileSelectIdentity
+        PROPERTIES RESOURCE_LOCK rsbs_paired_first_crossing)
 
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.
