@@ -31,6 +31,11 @@ void RegisterSkipLearningGoronLullaby() {
             return;
         }
 
+        // #1071, per PR #673's criterion: MM_Flags_SetSwitch below writes
+        // through MM_gPlayState. Before any *should write, so a missing play
+        // state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
+
         EnGk* enGk = (EnGk*)actor;
 
         // Reset baby Goron cutscene flags state
