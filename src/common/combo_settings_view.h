@@ -105,6 +105,9 @@ typedef enum {
     // resolver assembles the byte from its flag keys instead of overlaying one
     // (see Combo_ResolveComboSettings). 0 or 1; the default is 0.
     COMBO_SETTING_SHARED_KOKIRI_SWORD, // gCombo.Rando.SharedKokiriSword -> record.comboFlags & 0x02
+    // #1068. A BIT of the item rules record (ComboItemRulesRecord.crossItemFlags),
+    // assembled by Combo_ResolveComboItemRules. 0 or 1; the default is 0.
+    COMBO_SETTING_SHARED_SHIELDS, // gCombo.Rando.SharedShields -> rules.crossItemFlags & 0x02000000
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
@@ -241,10 +244,12 @@ typedef struct ComboSettingsKeyUndo {
  *
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
  * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the Shared
- * Kokiri Sword), the CVar
+ * Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
+ * from the session has a key: today the Shared Shields, #1068), the CVar
  * store exists,
  * and every frozen value is inside its pinned space; otherwise it writes
- * NOTHING and returns 0, and the caller refuses. A record field no key authors
+ * NOTHING and returns 0, and the caller refuses. @p frozenRules is the file's
+ * own item rules record (NULL reads as every rule off). A record field no key authors
  * (the logic rung, an unallocated flag bit, the spare byte) cannot be restored
  * through a key, and the damage bits (unreadable, fingerprint, triforce) never
  * are.
@@ -261,13 +266,15 @@ typedef struct ComboSettingsKeyUndo {
  *
  * @return 1 when every diverged rule was restored; 0 when nothing was written.
  */
-int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits, char* names, size_t len,
-                                   ComboSettingsKeyUndo* undo);
+int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                   uint32_t divergedBits, char* names, size_t len, ComboSettingsKeyUndo* undo);
 
 /** 1 iff Combo_ComboSettingsRestoreLive would restore @p divergedBits from
- *  @p frozen (every bit restorable, the store present, every value in its
- *  space), WITHOUT writing anything: the file-select probe's question (#836). */
-int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits);
+ *  @p frozen and @p frozenRules (every bit restorable, the store present, every
+ *  value in its space), WITHOUT writing anything: the file-select probe's
+ *  question (#836). */
+int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                      uint32_t divergedBits);
 
 /** Undo a Combo_ComboSettingsRestoreLive: every key it wrote goes back to the
  *  value it held, or back to unset. A NULL or all-unwritten @p undo is a no-op. */
@@ -277,6 +284,13 @@ void Combo_ComboSettingsRestoreUndo(const ComboSettingsKeyUndo* undo);
  *  Combo_ComboSettingsRestoreLive can answer. A divergence with any other bit
  *  is damage, or a field only another build writes. */
 uint32_t Combo_ComboSettingsRestorableMask(void);
+
+/** The bits of @p divergedBits no key can answer for this file: those outside
+ *  Combo_ComboSettingsRestorableMask, plus RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS
+ *  when an item rule that differs from the session has no key in this build
+ *  (#1068; a rule only another build authors). Nonzero is the "other build"
+ *  refusal; zero with a refusal is "the store could not take them". */
+uint32_t Combo_ComboSettingsUnrestorableBits(const ComboItemRulesRecord* frozenRules, uint32_t divergedBits);
 
 /** Ask the host to write the CVar store to its config file on the next frame.
  *  A no-op in a process with no window or GUI (every headless row). */
