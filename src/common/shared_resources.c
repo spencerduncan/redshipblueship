@@ -80,6 +80,9 @@ static bool IsMonotonicKind(uint8_t kind) {
         // #886: the Kokiri Sword, 0/1. A sword lost in MM (Takkuri) must not take
         // OoT's away: max-merge keeps the 1.
         case RSBS_SHARED_RES_KOKIRI_SWORD:
+        // #970: the bottle count. Bottles are never lost, but a rewound or stale
+        // save can harvest fewer than the pair holds; max-merge keeps the count.
+        case RSBS_SHARED_RES_BOTTLE_COUNT:
             return true;
         default:
             // The spent quantities — rupees, current health, current magic, and
@@ -236,6 +239,12 @@ bool Combo_SharedResourceKindArmed(uint8_t kind) {
     // applied and a world has no slot of this kind.
     if (kind == (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD) {
         return Combo_ComboSharedKokiriSword();
+    }
+    // #970: the Shared Bottles rule, read from the FROZEN item rules record.
+    // Off (the default), neither game's bottles are harvested or applied and a
+    // world has no slot of this kind.
+    if (kind == (uint8_t)RSBS_SHARED_RES_BOTTLE_COUNT) {
+        return Combo_ComboCrossItemRule((uint32_t)RSBS_XITEM_SHARED_BOTTLES);
     }
     return true;
 }

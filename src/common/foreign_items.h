@@ -410,9 +410,10 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 //
 // #969's Bunny Hood speed in Hyrule rides RSBS_XITEM_SHARED_BUNNY (operator
 // ruling 2026-10-18, epic #975 decision 2): there is no separate bit.
-// #970's bottles get ONE bit; whether they are a family (OoTMM shares six bottle
-// items, contents included) is #970's design, so the bit is reserved here and is
-// NOT in RSBS_XITEM_FAMILY_MASK.
+// #970's bottles get ONE bit and are NOT a family (not in RSBS_XITEM_FAMILY_MASK):
+// what the rule shares is the bottle COUNT, a capacity tier
+// (RSBS_SHARED_RES_BOTTLE_COUNT, context.h), while each bottle's contents stay
+// its own game's.
 //
 // Bit 31 is never allocated: a future tier-4 key stores the bitset in an int32.
 
@@ -442,7 +443,9 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 #define RSBS_XITEM_SHARED_ARROW_FIRE 0x00020000u
 #define RSBS_XITEM_SHARED_ARROW_ICE 0x00040000u
 #define RSBS_XITEM_SHARED_ARROW_LIGHT 0x00080000u
-// #970: shared bottles (OoTMM sharedBottles). Reserved; not a family yet.
+// #970: shared bottles. The bottle COUNT (unlocked bottle slots) is one shared
+// tier up to OoT's four slots (RSBS_SHARED_RES_BOTTLE_COUNT); contents stay per
+// game. Not a family: no member is registered at this bit.
 #define RSBS_XITEM_SHARED_BOTTLES 0x00100000u
 // #1067: shared ocarina buttons (OoTMM sharedOcarinaButtons). ONE rule over FIVE
 // pairs, one per button: the A buttons (the family at this bit) and the four C

@@ -764,6 +764,8 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 //   NUT_, HOOKSHOT_,
 //   WALLET_TIER
 //   OCARINA_TIER            TRIM when armed    TIER; KEEP_ALL while unarmed, which is always since #879
+//   BOTTLE_COUNT            TRIM when armed    SLOTS, fixed cap 4 (OoT's four slots; #970's Shared Bottles
+//                                              rule); KEEP_ALL while the rule is off
 //   everything else         KEEP_ALL           rupees, current health / magic, the five ammo COUNTS,
 //                                              bombchus, triforce pieces: renewable or counted, never
 //                                              a capacity the carrier clamps
@@ -819,6 +821,11 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 #define RSBS_SHARED_QTY_BUDGET_NONE 0u   /* KEEP_ALL: no budget */
 #define RSBS_SHARED_QTY_BUDGET_TIER 1u   /* one copy = one tier step; budget = the pools' own ceiling */
 #define RSBS_SHARED_QTY_BUDGET_HEALTH 2u /* per unit grade: pieces (1) and containers (4) */
+/* #970: one copy = one SLOT (a bottle), budget = min(fixedCap, the larger pool count).
+ * Never kept whole for unequal slot counts: each give fills its own game's next empty
+ * slot, so below the cap every kept copy raises the shared count (see
+ * Combo_SharedQuantityTierBudget). */
+#define RSBS_SHARED_QTY_BUDGET_SLOTS 3u
 
 /** OoTMM's sharedHealth pool (packages/logic/src/world/transform.ts): 44 pieces
  *  and 6 containers for both games = 17 hearts, the whole 3 -> 20 headroom. */
@@ -882,7 +889,8 @@ int Combo_SharedQuantityHealthBudget(uint16_t startingHealth, int piecesAvailabl
  * @p mmCopies: the larger count, capped by the row's `fixedCap`. Returns -1, KEEP
  * EVERY COPY, when both games hold copies and their CEILINGS differ (each game's
  * `ceiling*` raised to its own copy count; see the section header), and when the
- * policy is not a TIER trim.
+ * policy is not a TIER or SLOTS trim. A SLOTS trim (#970's bottles) is never kept
+ * whole: its budget is the larger count capped by `fixedCap`.
  */
 int Combo_SharedQuantityTierBudget(const ComboSharedQuantityPolicy* policy, int ootCopies, int mmCopies);
 

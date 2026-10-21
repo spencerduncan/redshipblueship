@@ -2179,6 +2179,22 @@ uint8_t OoTFillClassSharedKind(RandomizerGet rg) {
             return RSBS_SHARED_RES_HOOKSHOT_TIER;
         case RG_PROGRESSIVE_OCARINA:
             return RSBS_SHARED_RES_OCARINA_TIER;
+        // #970: a bottle, whatever it holds. Ruto's Letter is not tagged: it is a
+        // bottle in the inventory (the shared count sees its slot) but it is OoT's
+        // quest item, and the Shared Bottles trim must never take it out of the
+        // pool. The policy trims only while the frozen rule arms the kind.
+        case RG_EMPTY_BOTTLE:
+        case RG_BOTTLE_WITH_MILK:
+        case RG_BOTTLE_WITH_RED_POTION:
+        case RG_BOTTLE_WITH_GREEN_POTION:
+        case RG_BOTTLE_WITH_BLUE_POTION:
+        case RG_BOTTLE_WITH_FAIRY:
+        case RG_BOTTLE_WITH_FISH:
+        case RG_BOTTLE_WITH_BLUE_FIRE:
+        case RG_BOTTLE_WITH_BUGS:
+        case RG_BOTTLE_WITH_POE:
+        case RG_BOTTLE_WITH_BIG_POE:
+            return RSBS_SHARED_RES_BOTTLE_COUNT;
         default:
             return 0u;
     }

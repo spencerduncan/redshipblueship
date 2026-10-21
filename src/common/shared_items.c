@@ -812,6 +812,17 @@ bool Combo_SharedQuantityPolicyOf(uint8_t kind, ComboSharedQuantityPolicy* out) 
                 p.ceilingOoT = 2u; // OOT_MAX_HOOKSHOT_TIER / OOT_MAX_OCARINA_TIER
                 p.ceilingMM = 1u;  // MM_MAX_HOOKSHOT_TIER / MM_MAX_OCARINA_TIER
                 break;
+            case RSBS_SHARED_RES_BOTTLE_COUNT:
+                // #970: a SLOT count, not a progressive tier. Every bottle give,
+                // in either game, fills its own next empty slot, and the shared
+                // count is OoT's four (OOT_/MM_MAX_BOTTLE_COUNT): the pair keeps
+                // four bottle items. Armed by the frozen rule (below).
+                p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
+                p.budget = RSBS_SHARED_QTY_BUDGET_SLOTS;
+                p.fixedCap = 4u;
+                p.ceilingOoT = 4u;
+                p.ceilingMM = 4u;
+                break;
             default:
                 // Rupees, current health / magic, the five ammo counts and the
                 // triforce count: renewable or counted, never a capacity.
@@ -897,8 +908,17 @@ int Combo_SharedQuantityHealthBudget(uint16_t startingHealth, int piecesAvailabl
 
 int Combo_SharedQuantityTierBudget(const ComboSharedQuantityPolicy* policy, int ootCopies, int mmCopies) {
     if (policy == NULL || policy->policy != RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX ||
-        policy->budget != RSBS_SHARED_QTY_BUDGET_TIER || ootCopies < 0 || mmCopies < 0) {
+        (policy->budget != RSBS_SHARED_QTY_BUDGET_TIER && policy->budget != RSBS_SHARED_QTY_BUDGET_SLOTS) ||
+        ootCopies < 0 || mmCopies < 0) {
         return -1;
+    }
+    if (policy->budget == RSBS_SHARED_QTY_BUDGET_SLOTS) {
+        // A slot count has no give-path ceiling a copy can be stuck under: every
+        // copy fills its own game's next empty slot, so below the shared cap any
+        // kept copy raises the count by one wherever it is found. The budget is
+        // the cap (or fewer, when the pools hold fewer).
+        const int larger = (ootCopies > mmCopies) ? ootCopies : mmCopies;
+        return (policy->fixedCap != 0u && larger > (int)policy->fixedCap) ? (int)policy->fixedCap : larger;
     }
     const int ceilO = ((int)policy->ceilingOoT > ootCopies) ? (int)policy->ceilingOoT : ootCopies;
     const int ceilM = ((int)policy->ceilingMM > mmCopies) ? (int)policy->ceilingMM : mmCopies;

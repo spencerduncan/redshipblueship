@@ -502,6 +502,16 @@ enum {
     // ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit,
     // frozen at file creation; disarmed, a world has no slot of this kind.
     RSBS_SHARED_RES_KOKIRI_SWORD = 20, // MONOTONIC: 0/1, gated by the frozen combo setting (#886)
+    // The bottle COUNT (#970): how many bottle slots hold a bottle, whatever is
+    // in it. OoT has four slots and MM six; the shared count is OoT's 0..4, so
+    // MM's harvest clamps at four and MM's fifth and sixth bottles stay MM's own.
+    // The CONTENTS never cross: an apply gives the arriving game EMPTY bottles in
+    // its next empty slots and never touches a filled one. ARMED PER WORLD by the
+    // frozen item rules' RSBS_XITEM_SHARED_BOTTLES bit; disarmed, a world has no
+    // slot of this kind. A world this build creates can hold at most twenty kinds
+    // at once (the retired ocarina is never armed in one), which is exactly the
+    // two blocks' twenty slots: the next kind needs a third block.
+    RSBS_SHARED_RES_BOTTLE_COUNT = 21, // MONOTONIC: 0..4, gated by the frozen Shared Bottles rule (#970)
 };
 
 /**
