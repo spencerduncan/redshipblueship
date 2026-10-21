@@ -15,6 +15,9 @@ void EnMnk_Monkey_SetupRunAfterTalk(EnMnk* thisx, PlayState* play);
 
 void RegisterSkipBothersomeMonkey() {
     COND_VB_SHOULD(VB_MONKEY_WAIT_TO_TALK_AFTER_APPROACH, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnMnk* monkey = (EnMnk*)va_arg(args, EnMnk*);
         if (MONKEY_GET_TYPE(&monkey->picto.actor) == MONKEY_OUTSIDEWOODS) {
             *should = false;

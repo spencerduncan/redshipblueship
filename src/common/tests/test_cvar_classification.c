@@ -252,6 +252,27 @@ constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
     { 1038, "gEnhancements.Restorations.N64WeirdFrames", "gEnhancements.N64WeirdFrames" },
 };
 
+/// One reader of a #966 key-gap key that has to be IN THE LINK, not just mapped. Mapping MM's reader onto SoH's key
+/// (PR #1046) is necessary and not sufficient: every one of these providers registers only through a file-scope
+/// RegisterShipInitFunc, in the plain `2ship_enh` archive, which the linker drops, so the control moved a key
+/// nothing in the single exe consulted. The carve-out list in games/mm/CMakeLists.txt (`ship__Enh_registrars`,
+/// WHOLE_ARCHIVE'd) is what keeps a provider; `path` is relative to games/mm/2s2h/Enhancements and names either
+/// one file or a directory (every .cpp directly inside it). The table is the lock's own copy, like the key-gap
+/// rows above: deleting a CMake entry has to turn this red, and deleting a table entry is a reviewed edit here.
+struct CvarClassLinkedReader {
+    int issue;
+    const char* canonical;
+    const char* path;
+};
+
+constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
+    { 1030, "gSettings.A11yNoScreenFlashForFinishingBlow", "Accessibility/NoScreenFlashForEnemyKill.cpp" },
+    { 1031, "gEnhancements.NewDrops", "Graphics/3DItemDrops.cpp" },
+    { 1032, "gEnhancements.TimeSavers.SkipMiscInteractions", "Cutscenes/MiscInteractions" },
+    { 1033, "gEnhancements.InstantScarecrow", "Songs/SkipScarecrowSong.cpp" },
+    { 1034, "gEnhancements.BowArrowCycle", "Equipment/ArrowCycle.cpp" },
+};
+
 /// #1037: held APART, not mapped. OoT's DamageMult list runs 0-8, MM's 0-4 plus 10.
 constexpr const char* kCvarClassDamageMultMm = "gEnhancements.DifficultyOptions.DamageMultiplier";
 constexpr const char* kCvarClassDamageMultOot = "gEnhancements.DamageMult";
@@ -784,7 +805,71 @@ TestResult Test_CVarClassification(void) {
             }
         }
 
-        // (3f-3) #1060's translated rows, in the tree: the translator reads SoH's
+        // (3f-3) Mapped is not live: the #966 key-gap rows whose provider is a RegisterShipInitFunc-only TU
+        // (#1030-#1034). (3f-2) proves MM reads SoH's spelling; this proves the TU that reads it is carved into the
+        // WHOLE_ARCHIVE'd registrars archive, so the single exe contains it at all. Each reader file is also
+        // required to still spell the canonical key, so a table row cannot outlive a reader that moved.
+        {
+            std::ifstream cmakeFile(sourceRoot / "games" / "mm" / "CMakeLists.txt", std::ios::binary);
+            const std::string cmake((std::istreambuf_iterator<char>(cmakeFile)), std::istreambuf_iterator<char>());
+            const std::size_t listBegin = cmake.find("set(ship__Enh_registrars");
+            const std::size_t listEnd = cmake.find("list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})");
+            CVARCLASS_CHECK(listBegin != std::string::npos && listEnd != std::string::npos && listEnd > listBegin,
+                            "games/mm/CMakeLists.txt has no ship__Enh_registrars carve-out list (#1071) — the "
+                            "mapped-is-not-live scan cannot run");
+            const std::string registrars = cmake.substr(listBegin, listEnd - listBegin);
+
+            for (const CvarClassLinkedReader& row : kCvarClassLinkedReaders) {
+                const std::filesystem::path readerPath =
+                    sourceRoot / "games" / "mm" / "2s2h" / "Enhancements" / row.path;
+                std::vector<std::filesystem::path> readers;
+                std::error_code ec;
+                if (std::filesystem::is_directory(readerPath, ec)) {
+                    for (const auto& entry : std::filesystem::directory_iterator(readerPath, ec)) {
+                        if (entry.is_regular_file() && entry.path().extension() == ".cpp") {
+                            readers.push_back(entry.path());
+                        }
+                    }
+                } else {
+                    readers.push_back(readerPath);
+                }
+                if (readers.empty()) {
+                    printf("[TEST] FAIL: #%d: no reader file at games/mm/2s2h/Enhancements/%s.\n"
+                           "[TEST]       The lock table names a provider that is gone; update the row with the move.\n",
+                           row.issue, row.path);
+                    return TEST_FAIL;
+                }
+                for (const std::filesystem::path& reader : readers) {
+                    std::ifstream readerFile(reader, std::ios::binary);
+                    const std::string text((std::istreambuf_iterator<char>(readerFile)),
+                                           std::istreambuf_iterator<char>());
+                    if (text.find(std::string("\"") + row.canonical + "\"") == std::string::npos) {
+                        printf("[TEST] FAIL: #%d: %s no longer spells \"%s\".\n"
+                               "[TEST]       The lock table's reader moved or was repointed; update the row.\n",
+                               row.issue, reader.generic_string().c_str(), row.canonical);
+                        return TEST_FAIL;
+                    }
+                    const std::string listed = std::string("\"2s2h/Enhancements/") +
+                                               (std::filesystem::is_directory(readerPath, ec)
+                                                    ? std::string(row.path) + "/" + reader.filename().generic_string()
+                                                    : std::string(row.path)) +
+                                               "\"";
+                    if (registrars.find(listed) == std::string::npos) {
+                        printf("[TEST] FAIL: #%d: %s is not in the ship__Enh_registrars carve-out list.\n"
+                               "[TEST]       MM reads SoH's \"%s\" there, but the plain 2ship_enh archive drops a TU "
+                               "whose\n"
+                               "[TEST]       only anchor is a RegisterShipInitFunc, so the row does nothing in the "
+                               "single\n"
+                               "[TEST]       exe (#966). Append it to the list in games/mm/CMakeLists.txt and add a\n"
+                               "[TEST]       MMRegistrarCoverage probe for it.\n",
+                               row.issue, listed.c_str(), row.canonical);
+                        return TEST_FAIL;
+                    }
+                }
+            }
+        }
+
+        // (3f-4) #1060's translated rows, in the tree: the translator reads SoH's
         // key, SoH's menu writes it, every linked MM read site calls the
         // translator, and no linked MM file names MM's own key any more.
         {
