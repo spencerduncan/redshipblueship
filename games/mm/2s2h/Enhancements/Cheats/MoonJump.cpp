@@ -11,6 +11,8 @@ extern "C" {
 
 void MM_RegisterMoonJump() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) {
+        // #1008: GET_PLAYER dereferences the play state; a missing one leaves vanilla untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
 
         if (player != nullptr && CHECK_BTN_ANY(MM_gPlayState->state.input[0].cur.button, BTN_L)) {
