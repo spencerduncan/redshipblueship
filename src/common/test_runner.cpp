@@ -614,6 +614,11 @@ extern "C" {
 // neighbour.
 #include "tests/test_shared_kokiri_sword.c"
 
+// The shared wallet (#991, #992): a wallet found in Termina is the pair's wallet,
+// so OoT's arrival apply sets the possession flag and an arrival with no wallet
+// never debits the rupee pool. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_wallet.c"
+
 // The cross-game item rules and the shared-family bitset (#976, epic #975 P1):
 // the sibling record's format, fingerprint, freeze and load check, and the OR
 // merge through both games' real harvest/apply shims. FILE SCOPE for
@@ -6228,6 +6233,13 @@ const TestDescriptor gTests[] = {
       "One Kokiri Sword across both games when the frozen combo bit arms it, and neither crosses when it does not "
       "(#886)",
       Test_SharedKokiriSword },
+    // #991/#992: one wallet progression across both games. ROM-free: gComboCtx,
+    // the RAM watermark table, OoT's real shims, logic's capacity and the
+    // per-frame rupee handler.
+    { "shared-wallet",
+      "A wallet found in Termina is the pair's wallet: the apply sets OoT's flag, and a wallet-less arrival never "
+      "debits the rupee pool (#991, #992)",
+      Test_SharedWallet },
     // #976: the cross-game item rules record and the shared-family OR merge.
     { "cross-item-rules-record",
       "The cross-game item rules are a frozen record folded into the fingerprint only when set, and a file with a "

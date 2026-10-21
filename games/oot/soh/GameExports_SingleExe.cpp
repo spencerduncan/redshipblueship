@@ -3832,6 +3832,16 @@ extern "C" void OoT_ApplySharedResources(void) {
     if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_WALLET_TIER, OOT_MAX_WALLET_TIER, &walletTier)) {
         OoT_Inventory_ChangeUpgrade(UPG_WALLET, (s16)walletTier);
     }
+    // #991/#992 (operator ruling R2, 2026-10-19): OoT has ONE wallet progression
+    // shared by child and adult, and a wallet found in Termina IS the pair's
+    // wallet. Shuffle Child's Wallet shuffles the starting wallet of that
+    // progression, not a second item, so a tier of 1 or more implies the
+    // possession flag. Without it the tier rises with the flag clear (a state SoH
+    // alone cannot reach): logic's GetWalletCapacity reads the tier while the
+    // frame handler pins rupees at 0.
+    if (IS_RANDO && walletTier >= 1) {
+        Flags_SetRandomizerInf(RAND_INF_HAS_WALLET);
+    }
 
     // --- Health capacity + pieces, from the ONE canonical quantity.
     uint16_t quarters = OoT_ReadHealthQuarters();
@@ -3864,7 +3874,14 @@ extern "C" void OoT_ApplySharedResources(void) {
 
     // --- Rupees (consumable), clamped to the wallet capacity just applied.
     uint16_t rupees = gSaveContext.rupees < 0 ? 0u : (uint16_t)gSaveContext.rupees;
-    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, (uint16_t)CUR_CAPACITY(UPG_WALLET), &rupees)) {
+    // With no wallet yet (Shuffle Child's Wallet on, flag clear, tier 0) OoT holds
+    // no rupees: the frame handler pins the count at 0. Apply against a ZERO
+    // capacity then, the way the ammo grant block does (OoT_SharedAmmoGrantBlocked):
+    // the pool keeps its balance, OoT shows 0, and the watermark moves to 0 so
+    // the next harvest reads no drop to debit from the pool (#992).
+    const uint16_t rupeeCap =
+        (!IS_RANDO || Flags_GetRandomizerInf(RAND_INF_HAS_WALLET)) ? (uint16_t)CUR_CAPACITY(UPG_WALLET) : 0u;
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, rupeeCap, &rupees)) {
         gSaveContext.rupees = (s16)rupees;
     }
     // Whatever the restored blob had pending would drain on top of the count we
