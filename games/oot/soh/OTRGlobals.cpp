@@ -2498,6 +2498,35 @@ void RunCommands(Gfx* Commands, const std::vector<std::unordered_map<Mtx*, MtxF>
 // OoT_Graph_HasPresentedFrame below; see the increment at the end of
 // Graph_ProcessGfxCommands for what it is for.
 static uint64_t sOoTPresentedFrames = 0;
+
+// #965: the recorder Graph_ProcessGfxCommands builds its interpolated
+// sub-frames from. Graph_BeginInterpolatedFrame runs once per processed frame,
+// before any step; Graph_InterpolateActiveRecorder is one step. Kept apart from
+// the processor so OoT_Graph_ProbeInterpolatedFrame can drive the selection
+// without a GL context.
+static void Graph_BeginInterpolatedFrame(void) {
+}
+
+static std::unordered_map<Mtx*, MtxF> Graph_InterpolateActiveRecorder(float step) {
+    return FrameInterpolation_Interpolate(step);
+}
+
+// Test seam (#965): one processed frame's recorder selection followed by one
+// interpolation step at `step`. Returns 1 and copies the replacement's 16
+// floats into out16 (when non-null) if the step replaced `mtx`, else 0.
+extern "C" int OoT_Graph_ProbeInterpolatedFrame(float step, const void* mtx, float* out16) {
+    static_assert(sizeof(MtxF) == 16 * sizeof(float), "MtxF is a 4x4 float matrix");
+    Graph_BeginInterpolatedFrame();
+    std::unordered_map<Mtx*, MtxF> replacements = Graph_InterpolateActiveRecorder(step);
+    auto it = replacements.find(const_cast<Mtx*>(static_cast<const Mtx*>(mtx)));
+    if (it == replacements.end()) {
+        return 0;
+    }
+    if (out16 != nullptr) {
+        memcpy(out16, &it->second, sizeof(MtxF));
+    }
+    return 1;
+}
 #endif
 
 // C->C++ Bridge
@@ -2531,10 +2560,17 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     // time_base = fps * original_fps (one second)
     int next_original_frame = fps;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    Graph_BeginInterpolatedFrame(); // #965: pick this frame's recorder
+#endif
     while (time + original_fps <= next_original_frame) {
         time += original_fps;
         if (time != next_original_frame) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+            mtx_replacements.push_back(Graph_InterpolateActiveRecorder((float)time / next_original_frame));
+#else
             mtx_replacements.push_back(FrameInterpolation_Interpolate((float)time / next_original_frame));
+#endif
         } else {
             mtx_replacements.emplace_back();
         }
