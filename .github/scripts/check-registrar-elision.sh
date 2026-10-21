@@ -636,6 +636,13 @@ main() {
         "RegisterDpadPageSwitchPrevention()"
         "MM_RegisterPauseBufferInputs()"
         "RegisterHyperEnemies()"
+        # #1024-#1026: the Audio Editor registrars in lib2ship_enh_registrars.a (Mute Low HP Alarm, Disable Enemy
+        # Proximity Music, Display Sequence Name in Notifications). RegisterAudioNotificationHooks is MM_-prefixed
+        # by include/mm_audio_prefix.h because OoT's AudioHooks.cpp defines the same name; the other two have no
+        # OoT twin. The archive gate above covers the same files by member.
+        "RegisterMuteLowHpAlarm()"
+        "RegisterDisableEnemyProximityMusic()"
+        "MM_RegisterAudioNotificationHooks()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do
