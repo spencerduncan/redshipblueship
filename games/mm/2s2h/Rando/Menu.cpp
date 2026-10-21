@@ -303,7 +303,7 @@ static void DrawGeneralTab() {
     }
 
     ImGui::SeparatorText("Enhancements");
-    UIWidgets::CVarCheckbox("Container Style Matches Contents", "gRando.CSMC");
+    UIWidgets::CVarCheckbox("Container Style Matches Contents", "gEnhancements.ChestSizeAndTextureMatchContents");
     UIWidgets::Tooltip("This will make the contents of a container match the container itself. This currently only "
                        "applies to chests and pots.");
     ImGui::EndChild();
