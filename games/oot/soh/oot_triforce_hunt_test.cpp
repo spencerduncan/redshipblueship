@@ -63,6 +63,7 @@
 #include "soh/Enhancements/randomizer/settings.h"
 
 #include "soh/Enhancements/randomizer/3drando/item_pool.hpp" // GenerateItemPool (#997)
+#include "soh/Enhancements/randomizer/location_access.h"     // RegionTable_Init (#997)
 
 #include "context.h"
 #include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_RANDO_GOAL (#997)
@@ -360,7 +361,10 @@ extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void) {
     // The refused creation never reached Fill(), so no location pool exists
     // yet: build it first, as VanillaFill and Fill do (fill.cpp), or the item
     // pool's junk count (locCount - itemPool.size(), a size_t) wraps on an
-    // empty pool and the junk loop never ends.
+    // empty pool and the junk loop never ends. RegionTable_Init comes first, as
+    // it does there: it binds the world graph's `ctx` (location_access.cpp),
+    // which GenerateLocationPool reads, and nothing before Fill() binds it.
+    RegionTable_Init();
     ctx->GenerateLocationPool();
     ctx->ItemReset();
     OTH_ASSERT(ctx->CountEmptyLocations(false) > 0,
