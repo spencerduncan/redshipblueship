@@ -146,7 +146,7 @@ static int ItemRowCount(const ComboItemOps* ops, const void* src) {
 
 /**
  * The shared families the Shared group draws instead of the games' own rows
- * (#1067): every family slot the frozen rules arm, while the Shared group is
+ * (#1065, #1067): every family slot the frozen rules arm, while the Shared group is
  * shown at all. Before the pool's first harvest there is no Shared group, so
  * each game keeps its own row and the item is never drawn nowhere.
  */
