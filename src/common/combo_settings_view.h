@@ -269,6 +269,17 @@ int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t d
  *  space), WITHOUT writing anything: the file-select probe's question (#836). */
 int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits);
 
+/**
+ * Combo_ComboSettingsCanRestoreLive / Combo_ComboSettingsRestoreLive over the
+ * file's record AND its cross-game item rules (#976, #1065): the load's form,
+ * since crossItemFlags is a rule a key authors once a rule has a row. NULL
+ * @p frozenRules is a file with every rule off. Same contract otherwise.
+ */
+int Combo_ComboSettingsCanRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                        uint32_t divergedBits);
+int Combo_ComboSettingsRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                     uint32_t divergedBits, char* names, size_t len, ComboSettingsKeyUndo* undo);
+
 /** Undo a Combo_ComboSettingsRestoreLive: every key it wrote goes back to the
  *  value it held, or back to unset. A NULL or all-unwritten @p undo is a no-op. */
 void Combo_ComboSettingsRestoreUndo(const ComboSettingsKeyUndo* undo);

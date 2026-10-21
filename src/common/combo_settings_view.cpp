@@ -353,6 +353,18 @@ int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t d
     return 1;
 }
 
+int Combo_ComboSettingsCanRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                        uint32_t divergedBits) {
+    (void)frozenRules; // no key authors an item rule yet
+    return Combo_ComboSettingsCanRestoreLive(frozen, divergedBits);
+}
+
+int Combo_ComboSettingsRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                     uint32_t divergedBits, char* names, size_t len, ComboSettingsKeyUndo* undo) {
+    (void)frozenRules; // no key authors an item rule yet
+    return Combo_ComboSettingsRestoreLive(frozen, divergedBits, names, len, undo);
+}
+
 void Combo_ComboSettingsRestoreUndo(const ComboSettingsKeyUndo* undo) {
     if (undo == nullptr || !Combo_ComboSettingStoreAvailable()) {
         return;

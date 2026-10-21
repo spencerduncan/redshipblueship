@@ -178,11 +178,13 @@ TestResult Test_CrossItemRulesRecord(void) {
                   RSBS_XITEM_BLAST_MASK_OOT == 0x20u && RSBS_XITEM_SPOOKY_MASK_MM == 0x400u &&
                   RSBS_XITEM_SHARED_BLAST == 0x800u && RSBS_XITEM_SHARED_SPOOKY == 0x10000u &&
                   RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u && RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u &&
-                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_ALL_V1 == 0x1FFFFFu,
-              "an RSBS_XITEM_* bit moved; they are .redsave format, append-only");
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x000FF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 000FF81F (the five shared masks, the six shared extensions, "
-              "the three arrows; not the extensions, not the bottles)",
+                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_ALL_V1 == 0x3FFFFFu,
+              "an RSBS_XITEM_* bit moved, or RSBS_XITEM_ALL_V1 (%08X) is not 003FFFFF (#1065's Shared Lens of Truth "
+              "is 0x00200000); they are .redsave format, append-only",
+              (unsigned)RSBS_XITEM_ALL_V1);
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x002FF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 002FF81F (the five shared masks, the six shared extensions, "
+              "the three arrows and the lens; not the extensions, not the bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
     XIR_CHECK(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_MAX == 5u,
               "the cooldown space moved; DEFAULT must stay 0");
@@ -428,8 +430,8 @@ TestResult Test_CrossItemRulesRecord(void) {
                   "the session diff is %08X; a frozen rule this session would not freeze must be named, alone",
                   (unsigned)bits);
         XIR_CHECK(!Combo_ComboSettingsDivergenceIsDamage(bits), "a rule divergence is the session's, not damage");
-        XIR_CHECK((Combo_ComboSettingsRestorableMask() & bits) == 0u,
-                  "no key authors the rules yet, so no load may claim to restore them");
+        XIR_CHECK((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) == 0u,
+                  "no key authors the Blast Mask cooldown, so no load may claim to restore it");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN),
@@ -522,7 +524,11 @@ TestResult Test_SharedFamilyMerge(void) {
     const uint32_t K = RSBS_XITEM_SHARED_KEATON;
 
     // ---- (0) The registry refuses what is not one family bit ------------------
-    Combo_ClearSharedFamilyMembers();
+    // Only the Goron family this row registers is dropped, never the whole
+    // registry: the games' own members (#1065's lens) are registered at static
+    // init and later rows in the same process read them.
+    Combo_RegisterSharedFamilyMember(GAME_OOT, G, NULL);
+    Combo_RegisterSharedFamilyMember(GAME_MM, G, NULL);
     {
         const ComboSharedFamilyMember m = { 7u, XirHeldOoT, XirGiveOoT };
         const ComboSharedFamilyMember noGive = { 7u, XirHeldOoT, nullptr };
@@ -632,7 +638,8 @@ TestResult Test_SharedFamilyMerge(void) {
                   "with the rule off a shim asked a member or gave a copy");
     }
 
-    Combo_ClearSharedFamilyMembers();
+    Combo_RegisterSharedFamilyMember(GAME_OOT, G, NULL);
+    Combo_RegisterSharedFamilyMember(GAME_MM, G, NULL);
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
     printf("[TEST] shared-family-merge: %s\n", sXirFailures == 0 ? "PASS" : "FAIL");
