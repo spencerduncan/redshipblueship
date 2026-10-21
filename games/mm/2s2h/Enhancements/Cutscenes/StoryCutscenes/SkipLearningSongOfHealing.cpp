@@ -30,6 +30,10 @@ void RegisterSkipLearningSongOfHealing() {
     // learning mechanism)
     COND_VB_SHOULD(VB_OSN_TEACH_SONG_OF_HEALING, CVAR || IS_RANDO, {
         EnOsn* enOsn = va_arg(args, EnOsn*);
+        // #1071, per PR #673's criterion: GET_PLAYER below walks
+        // MM_gPlayState->actorCtx. Before any *should write, so a missing play
+        // state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
 
         *should = false;
