@@ -822,6 +822,14 @@ if(BUILD_TESTING)
     # ResourceManager::SetDefaultCacheOwner: each owner keeps its own bytes, and
     # the first keeps its original object. ROM-free and archive-free.
     redship_add_test(NAME ResourceCacheOwner COMMAND redship --test resource-cache-owner)
+    # #1040 R4: UnloadResources with an explicit owner in its ResourceFilter
+    # unloads that owner's entry and leaves the default owner's alone (the fork's
+    # UnloadResourcesProcess once took mDefaultCacheOwner instead). ROM-free.
+    redship_add_test(NAME ResourceCacheOwnerUnloadFilter COMMAND redship --test resource-cache-owner-unload-filter)
+    # #1040 R1: OoT's Cosmetics Editor patches display lists only while OoT
+    # runs (under MM it would write MM's owner's copies); a change made under MM
+    # is owed to OoT and paid once on OoT's next frame. ROM-free.
+    redship_add_test(NAME CosmeticsPatchOwnerGate COMMAND redship --test cosmetics-patch-owner-gate)
     # #987: re-adding a mounted archive path (every game switch does) mounts
     # nothing new and keeps newest-wins. Two temporary O2R zips added and
     # re-added by path: archive count, game-version list and mount order

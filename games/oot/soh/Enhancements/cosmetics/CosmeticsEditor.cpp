@@ -528,6 +528,32 @@ void ResetPositionAll() {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1040 R1: the patches below are written into whatever copy of each display list
+// the current resource cache owner holds (rsbs/src/main.cpp, ApplyResourceCacheOwner),
+// and while Majora's Mask runs that is MM's owner. These seams let the ROM-free
+// cosmetics-patch-owner-gate row see whether a pass reached the patches and
+// whether one is owed to OoT.
+static int sCustomGfxPatchPasses = 0;
+static bool sCustomGfxPatchesDeferred = false;
+
+extern "C" int CosmeticsEditor_CustomGfxPatchPasses(void) {
+    return sCustomGfxPatchPasses;
+}
+
+extern "C" int CosmeticsEditor_CustomGfxPatchesDeferred(void) {
+    return sCustomGfxPatchesDeferred ? 1 : 0;
+}
+
+// What the editor's widgets call.
+extern "C" void CosmeticsEditor_ApplyCustomGfxPatches(void) {
+    ApplyOrResetCustomGfxPatches(true);
+}
+
+extern "C" void CosmeticsEditor_ReapplyDeferredGfxPatches(void) {
+}
+#endif
+
 int hue = 0;
 
 // Runs every frame to update rainbow hue, a potential future optimization is to only run this a once or twice a second
@@ -582,6 +608,9 @@ void CosmeticsUpdateTick() {
     5. GFX Command: The GFX command you want to insert
 */
 void ApplyOrResetCustomGfxPatches(bool manualChange) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    sCustomGfxPatchPasses++;
+#endif
     static CosmeticOption& magicFaroresPrimary = cosmeticOptions.at("Magic.FaroresPrimary");
     if (manualChange || CVarGetInteger(magicFaroresPrimary.rainbowCvar, 0)) {
         Color_RGBA8 color = CVarGetColor(magicFaroresPrimary.valuesCvar, magicFaroresPrimary.defaultColor);

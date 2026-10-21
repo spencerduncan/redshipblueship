@@ -211,6 +211,74 @@ int ResourceCacheOwner_RunHeadless(void) {
     return 0;
 }
 
+// #1040 R4: the ROM-free `resource-cache-owner-unload-filter` row. A ResourceFilter
+// carries its own owner, and DirtyResources honours it; UnloadResourcesProcess
+// once unloaded under mDefaultCacheOwner instead. That is the path an
+// UnloadResourcesAsync queued before a game switch and run after it takes: the
+// owner was captured into the filter at queue time, and the default has since
+// become the arriving game's. Here owner X and owner Y each cache their own
+// copy of one path; with Y the default, an unload filtered to X must drop X's
+// entry and leave Y's. Same bring-up as the row above.
+int ResourceCacheOwner_RunUnloadFilterHeadless(void) {
+    auto ctx = Ship::Context::GetInstance();
+    auto rm = ctx ? ctx->GetResourceManager() : nullptr;
+    if (rm == nullptr || rm->GetArchiveManager() == nullptr) {
+        printf("[resource-cache-owner] FAIL: no ResourceManager/ArchiveManager after the bring-up\n");
+        return 1;
+    }
+    auto am = rm->GetArchiveManager();
+    const uintptr_t savedOwner = rm->GetDefaultCacheOwner();
+    int failures = 0;
+
+    const std::filesystem::path dir = rsbs::test::ScratchDir("resource-cache-owner-unload-filter");
+    const std::string zip = (dir / "rco-unload.o2r").string();
+    const std::string bytes = "resource-cache-owner: the unload-filter row's blob";
+    RCO_REQUIRE(RcoWriteZip(zip, kRcoBlobPath, RcoBlobFile(bytes)), "could not write %s", zip.c_str());
+    RCO_REQUIRE(am->AddArchive(zip) != nullptr, "AddArchive refused %s", zip.c_str());
+
+    // 1. Each owner caches its own copy.
+    rm->SetDefaultCacheOwner(kRcoOwnerX);
+    auto resX = rm->LoadResourceProcess(kRcoBlobPath);
+    RCO_REQUIRE(resX != nullptr, "owner X: no resource at %s", kRcoBlobPath);
+    rm->SetDefaultCacheOwner(kRcoOwnerY);
+    auto resY = rm->LoadResourceProcess(kRcoBlobPath);
+    RCO_REQUIRE(resY != nullptr, "owner Y: no resource at %s", kRcoBlobPath);
+    RCO_REQUIRE(resY.get() != resX.get(), "owner Y was served owner X's object %p", (void*)resX.get());
+    // Anti-vacuity: a plain reload is a cache hit for either owner.
+    RCO_REQUIRE(rm->LoadResourceProcess(kRcoBlobPath).get() == resY.get(),
+                "owner Y: a second load reparsed instead of hitting the cache");
+
+    // 2. With Y the default, unload X's entry through a filter naming X.
+    rm->UnloadResources(Ship::ResourceFilter({ kRcoBlobPath }, {}, kRcoOwnerX, nullptr));
+
+    // 3. Y keeps its entry: still the very object it had.
+    auto resY2 = rm->LoadResourceProcess(kRcoBlobPath);
+    RCO_EXPECT(resY2.get() == resY.get(),
+               "owner Y: served %p after an unload filtered to owner X, not its cached %p (the unload took the "
+               "default owner instead of the filter's)",
+               (void*)resY2.get(), (void*)resY.get());
+
+    // 4. X lost its entry: a load under X parses a new object. resX still holds
+    //    the old one, so a new object cannot reuse its address.
+    rm->SetDefaultCacheOwner(kRcoOwnerX);
+    auto resX2 = rm->LoadResourceProcess(kRcoBlobPath);
+    RCO_EXPECT(resX2 != nullptr && resX2.get() != resX.get(),
+               "owner X: still served its cached %p after an unload filtered to owner X", (void*)resX.get());
+    RCO_EXPECT(RcoBlobBytes(resX2) == bytes, "owner X: reparsed \"%s\", expected \"%s\"", RcoBlobBytes(resX2).c_str(),
+               bytes.c_str());
+
+    rm->SetDefaultCacheOwner(savedOwner);
+    if (failures != 0) {
+        printf("[resource-cache-owner] %d assertion(s) failed\n", failures);
+        fflush(stdout);
+        return 1;
+    }
+    printf("[resource-cache-owner] PASS: an unload filtered to owner X dropped X's %p and kept owner Y's %p\n",
+           (void*)resX.get(), (void*)resY.get());
+    fflush(stdout);
+    return 0;
+}
+
 #undef RCO_EXPECT
 #undef RCO_REQUIRE
 #undef RCO_REPORT
