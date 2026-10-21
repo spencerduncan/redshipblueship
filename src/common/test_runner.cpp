@@ -439,6 +439,9 @@ int RandoTest_SettingsFoldExcludes(void);
 // five icons and different fingerprints beside them. Body in
 // games/oot/soh/oot_combo_identity_display_test.cpp. Return 0 on pass.
 int RandoTest_ComboIdentityDisplayWorld(void);
+// #855: the scrub's offer textbox follows Scrub Hint Text, not Merchant Hint Text.
+// Body in games/oot/soh/oot_scrub_text_hint_test.cpp. Return 0 on pass.
+int RandoTest_ScrubTextHintSetting(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -2445,6 +2448,24 @@ TestResult Test_ComboIdentityDisplayWorld(void) {
 
     int rc = RandoTest_ComboIdentityDisplayWorld();
     printf("[TEST] %s: combo identity display world rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #855 lock: the scrub's offer follows Scrub Hint Text. Same bring-up as the rows
+// above. Assertions in games/oot/soh/oot_scrub_text_hint_test.cpp.
+TestResult Test_ScrubTextHintSetting(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = RandoTest_ScrubTextHintSetting();
+    printf("[TEST] %s: scrub text hint setting rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -6951,6 +6972,10 @@ const TestDescriptor gTests[] = {
       "Two real paired generations of one seed that differ in one MM option print the same five seed icons and "
       "different fingerprints beside them; the panes print the seed string, a blank field's ten digits (#952)",
       Test_ComboIdentityDisplayWorld },
+    { "scrub-text-hint-setting",
+      "A scrub's offer textbox names its item exactly when Scrub Hint Text is on, whatever Merchant Hint Text says "
+      "(#855)",
+      Test_ScrubTextHintSetting },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -7202,6 +7227,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-logic-export") == 0 ||
                 strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
                 strcmp(gTests[i].name, "combo-identity-display-world") == 0 ||
+                strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

@@ -6,6 +6,8 @@
  * including both shops and one-off merchants (i.e. Medigoron, Bean Guy,
  * and Carpet Salesman)
  */
+#include <cstdio>
+#include <string>
 #include <soh/OTRGlobals.h>
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
@@ -192,9 +194,10 @@ void BuildCarpetGuyFailToBuyMessage(uint16_t* textId, bool* loadFromMessageTable
     *loadFromMessageTable = false;
 }
 
-void BuildScrubMessage(uint16_t* textId, bool* loadFromMessageTable) {
-    EnDns* enDns = reinterpret_cast<EnDns*>(GET_PLAYER(OoT_gPlayState)->talkActor);
-    RandomizerCheck rc = ObjectExtension::GetInstance().Get<ScrubIdentity>(enDns)->identity.randomizerCheck;
+// The scrub's offer for check `rc`, formatted and ready to load. Split out of
+// BuildScrubMessage so a ROM-free row can read the text a given pair of hint
+// settings produces (OoT_Rando_ScrubOfferText below).
+static CustomMessage BuildScrubOfferMessage(RandomizerCheck rc) {
     uint16_t price = RAND_GET_ITEM(rc)->GetPrice();
     CustomMessage msg;
     if (price == 0) {
@@ -219,19 +222,42 @@ void BuildScrubMessage(uint16_t* textId, bool* loadFromMessageTable) {
     }
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #800 pass 2: a scrub hosting an MM item names that item where it would name
-    // its own (Merchant Hint Text on, Mysterious Shuffle off), not the junk cover.
-    if (!RAND_GET_OPTION(RSK_MERCHANT_TEXT_HINT).Is(RO_GENERIC_OFF) &&
+    // its own (Scrub Hint Text on, Mysterious Shuffle off), not the junk cover.
+    if (!RAND_GET_OPTION(RSK_SCRUB_TEXT_HINT).Is(RO_GENERIC_OFF) &&
         !CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0) && BuildForeignHostMessage(msg, rc)) {
         msg.AutoFormat();
-        msg.LoadIntoFont();
-        *loadFromMessageTable = false;
-        return;
+        return msg;
     }
 #endif
+    // #855: the scrub's offer follows Scrub Hint Text ("Business scrubs will reveal the identity of what
+    // they're selling"), the setting the Check Tracker's reveal and row name read for a scrub. Upstream read
+    // Merchant Hint Text here, so the box and the tracker disagreed whenever the two settings differed;
+    // Merchant Hint Text keeps governing the other merchants.
     BuildMerchantMessage(msg, rc,
-                         RAND_GET_OPTION(RSK_MERCHANT_TEXT_HINT).Is(RO_GENERIC_OFF) ||
+                         RAND_GET_OPTION(RSK_SCRUB_TEXT_HINT).Is(RO_GENERIC_OFF) ||
                              CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0));
     msg.AutoFormat();
+    return msg;
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Test seam (row ScrubTextHintSetting, #855): the English text of the scrub offer
+// for check `rc` under the live hint settings. Returns its length (it is cut to
+// `cap` - 1 characters when longer), or -1 for a bad argument.
+extern "C" int OoT_Rando_ScrubOfferText(uint16_t rc, char* out, size_t cap) {
+    if (out == nullptr || cap == 0) {
+        return -1;
+    }
+    const std::string text = BuildScrubOfferMessage(static_cast<RandomizerCheck>(rc)).GetEnglish();
+    std::snprintf(out, cap, "%s", text.c_str());
+    return static_cast<int>(text.size());
+}
+#endif
+
+void BuildScrubMessage(uint16_t* textId, bool* loadFromMessageTable) {
+    EnDns* enDns = reinterpret_cast<EnDns*>(GET_PLAYER(OoT_gPlayState)->talkActor);
+    RandomizerCheck rc = ObjectExtension::GetInstance().Get<ScrubIdentity>(enDns)->identity.randomizerCheck;
+    CustomMessage msg = BuildScrubOfferMessage(rc);
     msg.LoadIntoFont();
     *loadFromMessageTable = false;
 }
