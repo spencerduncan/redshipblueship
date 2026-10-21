@@ -339,6 +339,22 @@ void MMItemFillSlot(const SaveContext* src, const MMItemRowDef& def, ComboItemRo
     MMItemFillVanilla(out, out->have ? content : def.item);
 }
 
+/** The shared-resource kind of capacity upgrade `upg` (#967), or NONE when the pair does not share it. */
+uint8_t MMItemSharedTierKindOf(uint32_t upg) {
+    switch (upg) {
+        case UPG_QUIVER:
+            return RSBS_SHARED_RES_QUIVER_TIER;
+        case UPG_BOMB_BAG:
+            return RSBS_SHARED_RES_BOMB_BAG_TIER;
+        case UPG_DEKU_STICKS:
+            return RSBS_SHARED_RES_STICK_TIER;
+        case UPG_DEKU_NUTS:
+            return RSBS_SHARED_RES_NUT_TIER;
+        default:
+            return RSBS_SHARED_RES_NONE;
+    }
+}
+
 bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow* out) {
     out->group = def.group;
     if (std::strcmp(def.group, "Songs") == 0) {
@@ -352,6 +368,11 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
         case MMRK_SLOT_BOMBCHU:
         case MMRK_SLOT_FIXED:
             MMItemFillSlot(src, def, out);
+            if (def.kind == MMRK_SLOT_AMMO) {
+                // This game's copy of a shared capacity tier: the view dims it once the Shared column holds it.
+                out->sharedKind = MMItemSharedTierKindOf(def.data);
+                out->sharedTier = (uint8_t)CUR_UPG_VALUE(def.data);
+            }
             if (out->have) {
                 out->count = AMMO(def.item);
                 out->max = (def.kind == MMRK_SLOT_FIXED)     ? (int)def.data
@@ -390,6 +411,12 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
             static const RandoItemId kSwords[] = { RI_SWORD_KOKIRI, RI_SWORD_KOKIRI, RI_SWORD_RAZOR, RI_SWORD_GILDED };
             MMItemFillRando(out, kSwords[tier <= EQUIP_VALUE_SWORD_GILDED ? tier : EQUIP_VALUE_SWORD_GILDED]);
             out->have = tier > EQUIP_VALUE_SWORD_NONE;
+            if (tier <= EQUIP_VALUE_SWORD_KOKIRI) {
+                // The shared Kokiri Sword (#886): this row is its copy while the sword held is the
+                // Kokiri one; a Razor or Gilded Sword is MM's alone and stays lit.
+                out->sharedKind = RSBS_SHARED_RES_KOKIRI_SWORD;
+                out->sharedTier = (tier == EQUIP_VALUE_SWORD_KOKIRI) ? 1 : 0;
+            }
             return true;
         }
         case MMRK_SHIELD: {
@@ -530,7 +557,9 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             key = MMItemIcon(tier >= 2 ? ITEM_MAGIC_JAR_BIG : ITEM_MAGIC_JAR_SMALL);
             break;
         case RSBS_SHARED_RES_ARROW_COUNT:
-            key = MMItemIcon(tier >= 3 ? ITEM_QUIVER_50 : (tier == 2 ? ITEM_QUIVER_40 : ITEM_QUIVER_30));
+            // The quiver tiers as the player knows them (#967): the Bow, then
+            // the Big and Biggest Quivers.
+            key = MMItemIcon(tier >= 3 ? ITEM_QUIVER_50 : (tier == 2 ? ITEM_QUIVER_40 : ITEM_BOW));
             break;
         case RSBS_SHARED_RES_BOMB_COUNT:
             key = MMItemIcon(tier >= 3 ? ITEM_BOMB_BAG_40 : (tier == 2 ? ITEM_BOMB_BAG_30 : ITEM_BOMB_BAG_20));
@@ -549,6 +578,9 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             break;
         case RSBS_SHARED_RES_OCARINA_TIER:
             key = MMItemIcon(ITEM_OCARINA_OF_TIME);
+            break;
+        case RSBS_SHARED_RES_KOKIRI_SWORD:
+            key = MMItemRandoIcon(RI_SWORD_KOKIRI);
             break;
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             key = MMItemRandoIcon(RI_TRIFORCE_PIECE);

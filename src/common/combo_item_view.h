@@ -35,6 +35,16 @@
  * rest are one quantity across both games. It is harvested at every game switch
  * and before every save, so its rows are STALE, never live.
  *
+ * A SHARED TIER SHOWS ONCE (#967). The quiver, the bomb bag, the stick and nut
+ * bags and (under the shared-sword rule) the Kokiri Sword are one item for the
+ * pair, held in the pool. Each game's row for one names its shared kind and the
+ * tier its save holds (sharedKind, sharedTier); Combo_ItemRowAt then returns the
+ * row dimmed (nothing held, no count) once the Shared column holds that tier, and
+ * the Shared row for it takes the ACTIVE game's live tier and count when they are
+ * ahead of the pool (the pool is written at a game switch or a save, so a bow
+ * found a minute ago is in the live save only). A copy ahead of the pool stays
+ * lit: it is the only place the find shows.
+ *
  * FRESHNESS IS A FIELD. Every row carries the freshness the view set for its
  * source; the adapter never sets it.
  *
@@ -77,6 +87,12 @@ typedef struct {
     uint8_t countAccent; // ComboItemCountAccent: the tone of the ceiling, and of the amount once it is full
     int iconNumber;      // 0: count (and max) as usual; > 0: this number alone (a wallet's capacity, as
                          // both native trackers print it); < 0: no number (the icon itself shows the tier)
+    // The shared copy (#967), set by the adapter on a row that is THIS game's copy of a capacity tier the
+    // pair shares (the quiver, bomb bag, stick and nut bags, the Kokiri Sword): the shared-resource kind
+    // (RSBS_SHARED_RES_*; 0: the row is not one) and the tier this save holds in it. The view draws the
+    // copy dimmed once the Shared column holds the tier, so an item never reads as held twice.
+    uint8_t sharedKind;
+    uint8_t sharedTier;
 } ComboItemRow;
 
 /** The tone SoH's DrawItemCount gives a row's ceiling and its full amount (#458 U3). */

@@ -143,6 +143,91 @@ static int ItemRowCount(const ComboItemOps* ops, const void* src) {
     return (rows > base) ? rows : base;
 }
 
+// ============================================================================
+// Shared capacity tiers (#967)
+// ============================================================================
+
+/** The pool's value for `kind`, 0 when the kind has never been shared. */
+static uint16_t SharedValue(uint8_t kind) {
+    uint16_t v = 0;
+    return Combo_GetSharedResource(kind, &v) ? v : 0;
+}
+
+/**
+ * The ACTIVE game's own copy of shared tier `kind`: the row of its LIVE save that
+ * names `kind` (ComboItemRow::sharedKind). The pool is written at a game switch
+ * or a save only, so a find made since is in the live save and nowhere else.
+ * False when no game is active, the active game's rows are not LIVE, or none of
+ * its rows names `kind`. Reads the adapter's raw rows, never the dimmed ones.
+ */
+static bool LiveCopyOf(uint8_t kind, uint16_t* outTier, int* outCount) {
+    const GameId active = Context_GetCurrentGame();
+    if (active != GAME_OOT && active != GAME_MM) {
+        return false;
+    }
+    const ComboItemOps* ops = NULL;
+    uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
+    const void* src = PickSource((uint8_t)active, &ops, &freshness);
+    if (src == NULL || freshness != COMBO_TRACKER_FRESH_LIVE) {
+        return false;
+    }
+    const int rows = ItemRowCount(ops, src);
+    for (int i = 0; i < rows; i++) {
+        ComboItemRow row;
+        memset(&row, 0, sizeof(row));
+        if (ops->rowAt(src, i, &row) && row.sharedKind == kind) {
+            *outTier = row.sharedTier;
+            *outCount = row.count;
+            return true;
+        }
+    }
+    return false;
+}
+
+/** The tier the Shared column shows for `kind` (see ReadSharedTier). */
+typedef struct {
+    uint16_t tier;
+    bool live;     // the active game's live copy supplied it (it is at least the pool's)
+    int liveCount; // that copy's ammo count, when `live`
+} SharedTierRead;
+
+/**
+ * `kind`'s tier as the Shared column shows it: the pool's, raised to the active
+ * game's live copy when that is at least the pool's. A live save behind the pool
+ * (a game that has not yet received it) never lowers it.
+ */
+static SharedTierRead ReadSharedTier(uint8_t kind) {
+    SharedTierRead read = { SharedValue(kind), false, 0 };
+    uint16_t liveTier = 0;
+    int liveCount = 0;
+    if (LiveCopyOf(kind, &liveTier, &liveCount) && liveTier >= read.tier) {
+        read.tier = liveTier;
+        read.live = true;
+        read.liveCount = liveCount;
+    }
+    return read;
+}
+
+/**
+ * Dim a per-game copy of a shared tier once the Shared column holds that tier
+ * (at least as high as this save's): nothing held, no count, so the item reads as
+ * held once. A copy ahead of the pool stays lit.
+ */
+static void DimSharedCopy(ComboItemRow* row) {
+    if (row->sharedKind == (uint8_t)RSBS_SHARED_RES_NONE ||
+        Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE ||
+        !Combo_SharedResourceKindArmed(row->sharedKind)) {
+        return;
+    }
+    const SharedTierRead read = ReadSharedTier(row->sharedKind);
+    if (read.tier == 0 || read.tier < row->sharedTier) {
+        return;
+    }
+    row->have = false;
+    row->count = 0;
+    row->max = 0;
+}
+
 int Combo_ItemCount(uint8_t game) {
     const ComboItemOps* ops = NULL;
     const void* src = PickSource(game, &ops, NULL);
@@ -165,6 +250,7 @@ bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
         return false; // an adapter must not hand out a row the drawer cannot label
     }
     row.freshness = freshness; // the view's call, never the adapter's
+    DimSharedCopy(&row);       // a shared tier shows once, in the Shared column (#967)
     *out = row;
     return true;
 }
@@ -243,6 +329,10 @@ static const SharedRowDef kSharedRows[] = {
     { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false, false },
     { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false, false },
     { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    // The shared Kokiri Sword (#886): a row only in a world whose frozen record
+    // turns the rule on (Combo_SharedResourceKindArmed). One item, so it draws
+    // as the sword itself with no number.
+    { "Kokiri Sword", RSBS_SHARED_RES_KOKIRI_SWORD, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, true },
     // No "Ocarina" row: #879 retired the Shared Ocarina rule, and the kind is
     // never armed.
     { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
@@ -251,11 +341,6 @@ static const SharedRowDef kSharedRows[] = {
 
 // The current and magic meters are left out on purpose: the HUD shows them, and
 // they move every frame the pool cannot see.
-
-static uint16_t SharedValue(uint8_t kind) {
-    uint16_t v = 0;
-    return Combo_GetSharedResource(kind, &v) ? v : 0;
-}
 
 static bool SharedRowShown(const SharedRowDef* def) {
     // A conditional kind (the triforce pieces) is a row only in a world that
@@ -323,14 +408,25 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
     out->count = (int)(SharedValue(def->countKind) / def->unitsPerCount);
     uint16_t iconTier = (uint16_t)out->count;
     if (def->tierKind != RSBS_SHARED_RES_NONE) {
-        uint16_t tier = SharedValue(def->tierKind);
+        // The tier and the ammo of the active game's live copy when it is at
+        // least the pool's: the pool is written at a switch or a save, so a
+        // bow found since is in the live save only (#967).
+        const SharedTierRead read = ReadSharedTier(def->tierKind);
+        uint16_t tier = read.tier;
         if (tier > 3) {
             tier = 3;
+        }
+        if (read.live) {
+            out->count = read.liveCount;
         }
         out->have = tier > 0;
         out->max = (int)def->tierCaps[tier];
         iconTier = tier;
     } else {
+        if (def->countKind == (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD) {
+            out->count = (int)ReadSharedTier(def->countKind).tier;
+            iconTier = (uint16_t)out->count;
+        }
         out->have = def->heldAtZero || out->count > 0;
         out->max = (int)def->fixedMax;
     }

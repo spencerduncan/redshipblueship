@@ -359,6 +359,23 @@ void FillSlot(ComboItemRow* out, uint32_t content, const RowDef& def) {
     }
 }
 
+/** The shared-resource kind of capacity upgrade `upg` (#967), or NONE when the pair does not share it:
+ *  the quiver, bomb bag, stick bag and nut bag (shared_items.h TRIM_TO_SHARED_MAX). */
+uint8_t SharedTierKindOf(uint32_t upg) {
+    switch (upg) {
+        case UPG_QUIVER:
+            return RSBS_SHARED_RES_QUIVER_TIER;
+        case UPG_BOMB_BAG:
+            return RSBS_SHARED_RES_BOMB_BAG_TIER;
+        case UPG_STICKS:
+            return RSBS_SHARED_RES_STICK_TIER;
+        case UPG_NUTS:
+            return RSBS_SHARED_RES_NUT_TIER;
+        default:
+            return RSBS_SHARED_RES_NONE;
+    }
+}
+
 bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
     out->group = def.group;
     switch (def.kind) {
@@ -367,6 +384,9 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             return true;
         case RK_INV_AMMO:
             FillSlot(out, INV_CONTENT(def.item), def);
+            // This game's copy of a shared capacity tier: the view dims it once the Shared column holds it.
+            out->sharedKind = SharedTierKindOf(def.data);
+            out->sharedTier = (uint8_t)CUR_UPG_VALUE(def.data);
             if (out->have) {
                 out->count = AMMO(def.item);
                 out->max = CUR_CAPACITY(def.data);
@@ -387,6 +407,11 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             out->iconKey = def.key;
             out->iconKeyFaded = def.keyFaded;
             out->have = (gSaveContext.inventory.equipment & def.data) != 0;
+            if (def.item == ITEM_SWORD_KOKIRI) {
+                // The shared Kokiri Sword (#886): the owned bit is the pool's 0/1.
+                out->sharedKind = RSBS_SHARED_RES_KOKIRI_SWORD;
+                out->sharedTier = out->have ? 1 : 0;
+            }
             return true;
         case RK_QUEST:
         case RK_TOKENS:
@@ -526,12 +551,14 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             }
             break;
         case RSBS_SHARED_RES_ARROW_COUNT:
+            // The quiver tiers as the player knows them (#967): the Bow, then
+            // the Big and Biggest Quivers.
             if (tier >= 3) {
                 OOT_SHARED_ICON("ITEM_QUIVER_50");
             } else if (tier == 2) {
                 OOT_SHARED_ICON("ITEM_QUIVER_40");
             } else {
-                OOT_SHARED_ICON("ITEM_QUIVER_30");
+                OOT_SHARED_ICON("ITEM_BOW");
             }
             break;
         case RSBS_SHARED_RES_BOMB_COUNT:
@@ -565,6 +592,9 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             } else {
                 OOT_SHARED_ICON("ITEM_OCARINA_FAIRY");
             }
+            break;
+        case RSBS_SHARED_RES_KOKIRI_SWORD:
+            OOT_SHARED_ICON("ITEM_SWORD_KOKIRI");
             break;
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             OOT_SHARED_ICON("RG_TRIFORCE_PIECE");
