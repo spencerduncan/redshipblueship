@@ -3002,6 +3002,14 @@ crossing to refuse (#954).")
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
         ENVIRONMENT "RSBS_PFC_FILE_SELECT_SHOT=1" "RSBS_CAPTURE_OUT=${CMAKE_BINARY_DIR}/frame-capture")
+    # #1055: every int-paired-first-crossing row generates the same pinned seed,
+    # so they share Randomizer/<seed>.json, which each drive clears (and
+    # IntPairedFirstCrossingForeignSpoiler plants into) between its generation
+    # and its creation; they also all create save slot 3. One lock, so a
+    # parallel ctest -j never interleaves two of them.
+    set_tests_properties(IntPairedFirstCrossing IntPairedFirstCrossingDiverged IntPairedFirstCrossingTwoCycles
+        IntPairedFirstCrossingForeignSpoiler IntPairedFileSelectIdentity
+        PROPERTIES RESOURCE_LOCK rsbs_paired_first_crossing)
 
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.

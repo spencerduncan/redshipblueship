@@ -394,9 +394,11 @@ jobs:
     # (#888) makes two round trips, so the second MM arrival is checked too.
     # IntPairedFileSelectIdentity (#952) opens the created file at the file
     # select instead and checks its fingerprint is drawn beside its seed icons.
+    # IntPairedFirstCrossingForeignSpoiler (#1055) plants another identity's
+    # spoiler at the seed's name first; the creation's goes beside it.
     - name: Integration Test - Paired First Crossing
       if: steps.check-archives.outputs.has_oot == 'true' && steps.check-archives.outputs.has_mm == 'true'
-      run: ctest --test-dir build-cmake --output-on-failure -R "^(IntPairedFirstCrossing(Diverged|TwoCycles)?|IntPairedFileSelectIdentity)$" --no-tests=error
+      run: ctest --test-dir build-cmake --output-on-failure -R "^(IntPairedFirstCrossing(Diverged|TwoCycles|ForeignSpoiler)?|IntPairedFileSelectIdentity)$" --no-tests=error
       env:
         DISPLAY: :99
 

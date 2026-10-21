@@ -214,6 +214,11 @@
  *   V23d. The join itself (MM_Rando_AugmentSpoilerWithPairedHalf), handed the
  *        first pair's spoiler while the second pair is resident, refuses (-5) and
  *        leaves it byte-identical: the defence in depth behind V23c.
+ *   V23e. #1055: with another pair's spoiler at both <icons>.json and
+ *        <icons>-<fingerprint>.json, OoT's paired writer (SpoilerLog_Write under
+ *        the creation's gate) refuses, leaves both byte-identical, and clears a
+ *        SpoilerLog that names a solo document: since #1055 V23c's creation
+ *        writes the suffixed name, this is the leg that reaches the refusal.
  *
  * RSBS_CSB_SAMPLE=N (not set by CTest) turns the row into a MEASUREMENT: N paired
  * creations of consecutive seeds under the shipped per-attempt budget, one line
@@ -334,7 +339,12 @@ const char* SohFileSelect_GetSettingText(uint8_t optionIndex, uint8_t language);
 uint32_t SpoilerFileExists(const char* spoilerFileName);
 void FileChoose_UpdateRandomizer(void);
 extern bool fileSelectSpoilerFileLoaded;
+// #1055 V23e: the paired spoiler's gate (ComboLogicEngineOoT.cpp), held open as
+// the creation holds it around OoT's writer.
+void OoT_ComboLogic_TestSetWritingSingleBagSpoiler(int on);
 }
+// #1055 V23e: OoT's spoiler writer (3drando/spoiler_log.hpp).
+const char* SpoilerLog_Write();
 
 // SoH's index of "No randomizer seed loaded" (RSM_NO_RANDOMIZER_GENERATED) and
 // OoT's LANGUAGE_ENG, for the V2 legs' comparisons.
@@ -1862,8 +1872,7 @@ TestResult ComboSingleBag_Run(void) {
                        "artifact (#564 V23)");
             CSB_ASSERT(soloAfter == soloBefore,
                        "the second pair's creation joined its half into the solo OoT document SpoilerLog named, a file "
-                       "this creation did not write: OoT's writer refused the aliased path and left SpoilerLog as it "
-                       "was (#564 V23)");
+                       "this creation did not write (#564 V23)");
             CSB_ASSERT(spoilerLogAfter != v23cCVar,
                        "SpoilerLog still names a document this creation did not write, so the Randomizer menu shows "
                        "it as this world's spoiler (#564 V23)");
@@ -1910,6 +1919,56 @@ TestResult ComboSingleBag_Run(void) {
             CSB_ASSERT(joinRc == -5 && afterJoin == before,
                        "the join rewrote another pair's spoiler: a document whose combo.identity names another pair "
                        "is that pair's (#564 V23)");
+
+            // V23e. #1055: the writer's remaining refusal. With another pair's
+            // spoiler at both <icons>.json and <icons>-<fingerprint>.json, OoT's
+            // writer refuses, and with the refusal it clears a SpoilerLog that
+            // names a solo document this write did not produce: the creation
+            // event joins into whatever the CVar names.
+            {
+                char suffix[24];
+                snprintf(suffix, sizeof(suffix), "-%08X.json", (unsigned)gComboCtx.comboSettingsHash);
+                const std::string suffixedPath = v23Path.substr(0, v23Path.size() - 5) + suffix;
+                {
+                    std::ofstream planted(suffixedPath, std::ios::binary | std::ios::trunc);
+                    planted << before;
+                }
+                const std::string plantedBefore = CsbReadWholeFile(suffixedPath);
+                {
+                    std::ofstream solo(v23cPath, std::ios::binary | std::ios::trunc);
+                    solo << "{\n    \"_note\": \"a solo OoT spoiler with no combo section (ComboSingleBag V23e)\",\n"
+                            "    \"seed\": \"V23E\"\n}\n";
+                }
+                const std::string soloBefore2 = CsbReadWholeFile(v23cPath);
+                CSB_ASSERT(plantedBefore == before && !soloBefore2.empty(),
+                           "could not plant V23e's documents, so V23e proves nothing");
+                CVarSetString("gGeneral.SpoilerLog", v23cCVar.c_str());
+                OoT_ComboLogic_TestSetWritingSingleBagSpoiler(1);
+                const bool written = SpoilerLog_Write() != nullptr;
+                OoT_ComboLogic_TestSetWritingSingleBagSpoiler(0);
+                const std::string seedAfter = CsbReadWholeFile(v23Path);
+                const std::string plantedAfter = CsbReadWholeFile(suffixedPath);
+                const std::string soloAfter2 = CsbReadWholeFile(v23cPath);
+                const std::string spoilerLogAfter2 = CVarGetString("gGeneral.SpoilerLog", "");
+                std::remove(suffixedPath.c_str());
+                std::remove(v23cPath.c_str());
+                printf("[TEST] combo-single-bag: V23e the paired writer over two other pairs' spoilers: written=%d; "
+                       "'%s' %s, '%s' %s, the solo document %s; SpoilerLog now reads '%s'\n",
+                       written ? 1 : 0, v23Path.c_str(), seedAfter == before ? "unchanged" : "REWRITTEN",
+                       suffixedPath.c_str(), plantedAfter == plantedBefore ? "unchanged" : "REWRITTEN",
+                       soloAfter2 == soloBefore2 ? "unchanged" : "REWRITTEN", spoilerLogAfter2.c_str());
+                fflush(stdout);
+                CSB_ASSERT(!written, "OoT's writer wrote a paired spoiler although both <icons>.json and "
+                                     "<icons>-<fingerprint>.json are other pairs' (#1055)");
+                CSB_ASSERT(seedAfter == before && plantedAfter == plantedBefore,
+                           "OoT's writer rewrote another pair's spoiler at <icons>.json or "
+                           "<icons>-<fingerprint>.json (#564 V23, #1055)");
+                CSB_ASSERT(soloAfter2 == soloBefore2, "the refused write changed the solo document SpoilerLog named");
+                CSB_ASSERT(spoilerLogAfter2 != v23cCVar,
+                           "OoT's writer refused both names but left SpoilerLog naming a solo document it did not "
+                           "write, so the creation event's join and the Randomizer menu treat it as this world's "
+                           "spoiler (#564 V23, #1055)");
+            }
         }
     }
     Combo_SingleBag_Forget();
