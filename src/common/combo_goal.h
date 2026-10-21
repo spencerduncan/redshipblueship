@@ -72,7 +72,12 @@
  * at RC_TRIFORCE_COMPLETED and a blue rupee at RC_GANON), so a paired creation
  * under a boss goal generates it as "Ganon's Boss Key" instead
  * (Combo_GoalKeepsOwnHuntWin, read by OoT's Playthrough_Init right after its
- * settings are finalized).
+ * settings are finalized). Under the combo triforce hunt the reverse holds
+ * (#997): the give reaching the COMBO requirement grants Ganon's Boss Key and
+ * ends the paired game in the same frame, so "Ganon's Boss Key" would have the
+ * fill credit the boss key (and Ganondorf's Lair) at OoT's OWN requirement, a
+ * door play opens only as the game ends; the creation generates it as "Win",
+ * the mode the arms already play (Combo_GoalGeneratesOwnHuntAsWin).
  *
  * Game-header-free, like triforce_hunt.c. THREADING: game thread only.
  */
