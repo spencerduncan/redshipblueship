@@ -291,6 +291,14 @@ int MM_RegistrarCoverage_RunHeadless(void);
 // display-free shared bring-up first (CVarSetInteger). Returns 0 on pass,
 // non-zero on fail.
 int MM_ClockShuffleSongs_RunHeadless(void);
+// The song-teacher hooks (games/mm/2s2h/mm_song_teacher_hooks_test.cpp,
+// #1071): the nine StoryCutscenes/SkipLearning*.cpp TUs register only through a
+// file-scope RegisterShipInitFunc, so plain-archive 2ship_enh dropped all nine
+// and every song-teacher check in Termina could give the vanilla song instead of
+// the seed's item. Asserts each one arms under the production rando path and
+// that the Epona and Healing hooks survive a missing play state. Needs the
+// display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
+int MM_SongTeacherHooks_RunHeadless(void);
 // The curated MM enhancement keys' liveness evidence
 // (games/mm/2s2h/mm_enhancement_toggles_test.cpp, #682): the EVIDENCE half of the
 // pair above, MM-side because the registries are. Per key: exactly one
@@ -375,6 +383,9 @@ int MM_TrickBindings_RunHeadless(void);
 // Rando::Foreign::RecordForeignPickup. Return 0 on pass.
 int MM_SpoilerIdentity_RunHeadless(void);
 int MM_ForeignPickupGate_RunHeadless(void);
+// #1055: where a paired spoiler goes when its seed-named file is another
+// identity's (same file, MM_Rando_ChoosePairedSpoilerName). Return 0 on pass.
+int MM_PairedSpoilerName_RunHeadless(void);
 // games/mm/2s2h/mm_combo_settings_test.cpp (#498, ADR 0011 increment 1): the
 // COMBO-LEVEL arrival identity gate. MM-side because it drives the REAL
 // MM_Rando_PairOnCrossGameArrival, and because reaching its combo leg means
@@ -439,6 +450,9 @@ int RandoTest_SettingsFoldExcludes(void);
 // five icons and different fingerprints beside them. Body in
 // games/oot/soh/oot_combo_identity_display_test.cpp. Return 0 on pass.
 int RandoTest_ComboIdentityDisplayWorld(void);
+// #855: the scrub's offer textbox follows Scrub Hint Text, not Merchant Hint Text.
+// Body in games/oot/soh/oot_scrub_text_hint_test.cpp. Return 0 on pass.
+int RandoTest_ScrubTextHintSetting(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -618,6 +632,11 @@ extern "C" {
 // so OoT's arrival apply sets the possession flag and an arrival with no wallet
 // never debits the rupee pool. FILE SCOPE for the same reason as its neighbours.
 #include "tests/test_shared_wallet.c"
+
+// #1061: a bombchu pack found in the other game credits the shared count at its
+// pickup instead of crossing into MM's bomb-bag-capped give. FILE SCOPE for the
+// same reason as its neighbours.
+#include "tests/test_shared_bombchu.c"
 
 // The cross-game item rules and the shared-family bitset (#976, epic #975 P1):
 // the sibling record's format, fingerprint, freeze and load check, and the OR
@@ -2449,6 +2468,24 @@ TestResult Test_ComboIdentityDisplayWorld(void) {
 
     int rc = RandoTest_ComboIdentityDisplayWorld();
     printf("[TEST] %s: combo identity display world rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #855 lock: the scrub's offer follows Scrub Hint Text. Same bring-up as the rows
+// above. Assertions in games/oot/soh/oot_scrub_text_hint_test.cpp.
+TestResult Test_ScrubTextHintSetting(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = RandoTest_ScrubTextHintSetting();
+    printf("[TEST] %s: scrub text hint setting rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -5121,6 +5158,24 @@ static TestResult Test_MMClockShuffleSongs(void) {
     return MM_ClockShuffleSongs_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1071. Same display-free shared bring-up as mm-clock-shuffle-songs: the
+// registrars it arms read CVars through the Ship::Context singleton. It restores
+// the SaveContext image, MM_gPlayState, the event queue and the Story CVar and
+// re-runs the IS_RANDO drive on the way out, so it has no ordering constraints.
+static TestResult Test_MMSongTeacherHooks(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's evidence half. Same display-free shared bring-up and the same reason as
 // mm-clock-shuffle-songs: it drives MM's registrars through CVarSetInteger +
 // MM_ShipInit_OnCVarChanged, and reads the Ship::Context singleton's
@@ -5476,6 +5531,13 @@ TestResult Test_MMForeignPickupGate(void) {
     }
 
     return MM_ForeignPickupGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1055: a paired spoiler whose seed-named file is another identity's goes to
+// <seed>-<fingerprint>.json. File I/O in a per-process scratch directory and
+// gComboCtx only: no bring-up.
+TestResult Test_MMPairedSpoilerName(void) {
+    return MM_PairedSpoilerName_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // The COMBO-LEVEL arrival identity gate (#498, ADR 0011 increment 1). Drives
@@ -6273,6 +6335,13 @@ const TestDescriptor gTests[] = {
       "A wallet found in Termina is the pair's wallet: the apply sets OoT's flag, and a wallet-less arrival never "
       "debits the rupee pool (#991, #992)",
       Test_SharedWallet },
+    // #1061: a bombchu pack found in the other game credits the one shared count
+    // at its pickup. ROM-free: gComboCtx, the RAM watermark table, both games'
+    // real shims, pickup cores and MM's arrival consumer.
+    { "shared-bombchu-pickup",
+      "A bombchu pack found in the other game credits the shared count at its pickup, and MM's bomb-bag cap no "
+      "longer eats it (#1061)",
+      Test_SharedBombchuPickup },
     // #976: the cross-game item rules record and the shared-family OR merge.
     { "cross-item-rules-record",
       "The cross-game item rules are a frozen record folded into the fingerprint only when set, and a file with a "
@@ -6327,6 +6396,8 @@ const TestDescriptor gTests[] = {
       Test_MMSpoilerIdentity },
     { "mm-foreign-pickup-gate", "An unpaired session authors no durable shared-item record on a foreign pickup (#610)",
       Test_MMForeignPickupGate },
+    { "mm-paired-spoiler-name", "A paired spoiler whose seed name is another identity's goes to <seed>-<fp> (#1055)",
+      Test_MMPairedSpoilerName },
     // ADR 0011 increment 1 (#498): the arrival gate that CONSUMES the combo
     // divergence diff. The refusal must NAME the diverged rule, not merely
     // refuse — that capability is what the twelve-byte record buys over ADR
@@ -6588,6 +6659,11 @@ const TestDescriptor gTests[] = {
     // no ordering constraints.
     { "mm-clock-shuffle-songs", "RO_CLOCK_SHUFFLE's Songs handlers survive the link and their registrars run (#678)",
       Test_MMClockShuffleSongs },
+    // The same elided-registrar class again (#1071): the nine song-teacher
+    // hooks, carved into the WHOLE_ARCHIVE'd 2ship_enh_registrars. Restores
+    // everything it touches, so it has no ordering constraints.
+    { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
+      Test_MMSongTeacherHooks },
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after
@@ -6997,6 +7073,10 @@ const TestDescriptor gTests[] = {
       "Two real paired generations of one seed that differ in one MM option print the same five seed icons and "
       "different fingerprints beside them; the panes print the seed string, a blank field's ten digits (#952)",
       Test_ComboIdentityDisplayWorld },
+    { "scrub-text-hint-setting",
+      "A scrub's offer textbox names its item exactly when Scrub Hint Text is on, whatever Merchant Hint Text says "
+      "(#855)",
+      Test_ScrubTextHintSetting },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -7248,6 +7328,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-logic-export") == 0 ||
                 strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
                 strcmp(gTests[i].name, "combo-identity-display-world") == 0 ||
+                strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
