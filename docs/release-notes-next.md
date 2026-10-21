@@ -20,8 +20,8 @@ beside the seed icons). Everything else merged after `851b1ee9` is documentation
 the operator's playtest of `7e44b8a0`, PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974) (2026-10-18)
 makes a paired world shuffle the Happy Mask Shop's masks and drop the Mask Shop Hint, and moves generated worlds. The
 version is unchanged: `v0.2.0-prealpha`, "Trinity Alfa".
-**Since the last refresh (2026-10-18 to 2026-10-20):** 21 more pull requests merged, up to `main` at `ee35d2c6`
-(2026-10-20, PR [#1056](https://github.com/spencerduncan/redshipblueship/pull/1056)); no tag has been cut yet, so they
+**Since the last refresh (2026-10-18 to 2026-10-20):** 22 more pull requests merged, up to `main` at `7671196a`
+(2026-10-20, PR [#1058](https://github.com/spencerduncan/redshipblueship/pull/1058)); no tag has been cut yet, so they
 are in this draft. The player-facing ones are listed under their headings below with links. Test and tooling only:
 PR [#986](https://github.com/spencerduncan/redshipblueship/pull/986) (the wave toolkit reads CTest 4.x summaries),
 PR [#989](https://github.com/spencerduncan/redshipblueship/pull/989) (the tracker reachability audit report,
@@ -237,12 +237,11 @@ Numbers in parentheses are pull requests. The full list of open problems is
   works out what is in logic, so what MM saves no longer depends on whether that window is open (PR
   [#1056](https://github.com/spencerduncan/redshipblueship/pull/1056),
   [#995](https://github.com/spencerduncan/redshipblueship/issues/995); inherited from 2Ship2Harkinian).
-- **Pending merge:** with OoT's "Shuffle Child's Wallet" on, a wallet found in Termina counts as OoT's wallet, so
-  the Check Tracker no longer shows about 115 price-gated checks as available while rupees are pinned at 0, and the
-  shared rupee pool is no longer drained on every visit to Hyrule
-  ([#991](https://github.com/spencerduncan/redshipblueship/issues/991),
-  [#992](https://github.com/spencerduncan/redshipblueship/issues/992); branch `claude/shared-wallet-implies-flag`,
-  no pull request open when this was written).
+- With OoT's "Shuffle Child's Wallet" on, a wallet found in Termina counts as OoT's wallet, so the Check
+  Tracker no longer shows about 115 price-gated checks as available while rupees are pinned at 0, and the
+  shared rupee pool is no longer drained on every visit to Hyrule (PR [#1058](https://github.com/spencerduncan/redshipblueship/pull/1058),
+  [#991](https://github.com/spencerduncan/redshipblueship/issues/991), [#992](https://github.com/spencerduncan/redshipblueship/issues/992)). While Ocarina of Time has no wallet at all, pooled rupees
+  show as 0 there and stay in the pool until a wallet is found.
 - Ocarina of Time's Save Editor, Message Viewer and its other save windows, and its console commands, do
   nothing while you are in Majora's Mask, instead of writing MM's save or crashing (#812, #823).
 
@@ -374,11 +373,6 @@ Numbers in parentheses are pull requests. The full list of open problems is
   new paired world of that seed gets no spoiler (stderr says `[MM] spoiler: REFUSED ...`; the world plays normally).
   Move or delete the older spoiler with the same seed name before you create the file
   ([#1055](https://github.com/spencerduncan/redshipblueship/issues/1055)).
-- Until the shared-wallet fix merges: with OoT's "Shuffle Child's Wallet" on, a wallet from Termina raises OoT's
-  wallet without its possession flag, so the Check Tracker shows price-gated checks as available while rupees stay
-  at 0, and the shared rupees are drained on every visit to Hyrule until OoT's child wallet is found. Leave the
-  option off ([#991](https://github.com/spencerduncan/redshipblueship/issues/991),
-  [#992](https://github.com/spencerduncan/redshipblueship/issues/992)).
 - The Item Tracker overlay's Shared column updates at a save or a crossing, not live (issue #971).
 - Not tested by anyone: cross-game warp songs, networking, OpenGL compared with DirectX 11, and a crossing after
   quitting and relaunching the game or after a save made during play.
@@ -418,7 +412,7 @@ same setup) ended at `7e44b8a0`, the code of this release, with `redship` 184 of
 rows among them, over five golden files now), `ui` 2 of 2 with the parity lint, `integration` 17 of 17 and `integration-soak` 1 of
 1. There, 10 of 10 sample paired creations succeeded on the first attempt (258 fill rounds each against the
 1250-round cap; 6.2-8.6 s, mean 7.1 s). The operator then played the build on DirectX 11 (see Read this first); OpenGL and DirectX 11 were not compared.
-The merges of 2026-10-18 to 2026-10-20 were gated the same way, singly (#1000, #1041, #1001, #1004) and in three
-merged batches, each merged tree checked equal to its gated tree; the last batch ended at `ee35d2c6` with `redship`
-200 of 200, `rando` 55 of 55, `ui` 2 of 2, `integration` 19 of 19 and `integration-soak` 1 of 1. Nobody has played
+The merges of 2026-10-18 to 2026-10-20 were gated the same way, singly (#1000, #1041, #1001, #1004, #1058) and in three
+merged batches, each merged tree checked equal to its gated tree; the last gate, PR #1058 at `7671196a`, passed `redship`
+201 of 201, `rando` 55 of 55, `ui` 2 of 2, `integration` 19 of 19 and `integration-soak` 1 of 1. Nobody has played
 them yet. The full records are in [`known-issues.md`](known-issues.md).

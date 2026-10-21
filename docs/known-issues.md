@@ -4,7 +4,7 @@
 plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) plus PRs [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's Mask's ROM extraction), [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the night Happy Mask Shop door) and [#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer crashes), with the version bump of PR [#946](https://github.com/spencerduncan/redshipblueship/pull/946) (`ece56551`), then [#958](https://github.com/spencerduncan/redshipblueship/pull/958) (the goldens pin hint text, prices, starting items and entrances; static hints in a fixed order), [#959](https://github.com/spencerduncan/redshipblueship/pull/959) (the creation budget counts fill rounds) and [#960](https://github.com/spencerduncan/redshipblueship/pull/960) (the fingerprint and build beside the seed icons), up to `7e44b8a0` (2026-10-17), then PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974) (2026-10-18: a paired world shuffles the Happy Mask Shop's masks), then the 20 pull requests merged after it from 2026-10-18 to 2026-10-20 up to `ee35d2c6` (PR [#986](https://github.com/spencerduncan/redshipblueship/pull/986) to PR [#1056](https://github.com/spencerduncan/redshipblueship/pull/1056), listed in [`release-notes-next.md`](release-notes-next.md)), and the GitHub Actions builds cut from them; the `v0.1.1-prealpha` tag
 (2026-07-03) is older than everything in the first section. What changed since that tag, in player terms:
 [`release-notes-next.md`](release-notes-next.md).
-**Last updated:** 2026-10-20 (the open issues refreshed at `ee35d2c6`; the gates record of 2026-10-20; the cross-game resource cache crash class of [#981](https://github.com/spencerduncan/redshipblueship/issues/981), F10 on DirectX 11, the stale-spoiler refusal of [#1055](https://github.com/spencerduncan/redshipblueship/issues/1055) and Majora's Mask's frozen trap types); 2026-10-18 (the Happy Mask Shop's masks are always in the item pool, PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974), [#973](https://github.com/spencerduncan/redshipblueship/issues/973)); 2026-10-17 (the operator's playtest of `7e44b8a0` and its findings, [#962](https://github.com/spencerduncan/redshipblueship/issues/962) to [#971](https://github.com/spencerduncan/redshipblueship/issues/971)); 2026-10-17 (the creation budget of PR [#959](https://github.com/spencerduncan/redshipblueship/pull/959), the open issues refreshed at `7e44b8a0`, the gates record at `7e44b8a0`); 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
+**Last updated:** 2026-10-20 (the open issues refreshed at `7671196a`; the gates record of 2026-10-20; the cross-game resource cache crash class of [#981](https://github.com/spencerduncan/redshipblueship/issues/981), F10 on DirectX 11, the stale-spoiler refusal of [#1055](https://github.com/spencerduncan/redshipblueship/issues/1055) and Majora's Mask's frozen trap types); 2026-10-18 (the Happy Mask Shop's masks are always in the item pool, PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974), [#973](https://github.com/spencerduncan/redshipblueship/issues/973)); 2026-10-17 (the operator's playtest of `7e44b8a0` and its findings, [#962](https://github.com/spencerduncan/redshipblueship/issues/962) to [#971](https://github.com/spencerduncan/redshipblueship/issues/971)); 2026-10-17 (the creation budget of PR [#959](https://github.com/spencerduncan/redshipblueship/pull/959), the open issues refreshed at `7e44b8a0`, the gates record at `7e44b8a0`); 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -250,7 +250,7 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
 **Open problems you may meet while playing** (found in or around the 2026-09 playtest and
 checked in the code at `200adaea`; each links the issue that will fix it; at `851b1ee9` all
 of them are fixed, the last since PR [#1043](https://github.com/spencerduncan/redshipblueship/pull/1043). Every issue still open is listed
-under "Open issues at `ee35d2c6`" below):
+under "Open issues at `7671196a`" below):
 
 **~~Shops sell only their own game's items~~ — plain shops, Business Scrubs, Tingle, OoT's merchants and the Treasure Chest Game RESOLVED** ([#800](https://github.com/spencerduncan/redshipblueship/issues/800)).
 #800's first pass makes plain shops cross-game in both directions. An Ocarina of Time shop
@@ -341,11 +341,12 @@ items are the same ones the icons would show. Once Majora's Mask has started, it
 loaded until you quit. Ocarina of Time's icons load at launch, so its section and the Shared
 section always have icons.~~
 
-### Open issues at `ee35d2c6`
+### Open issues at `7671196a`
 
 Every issue open at this commit that this project's agents filed, one line each, with what a
 player sees. Epics and trackers are listed for what they leave out of this build. (Refreshed
-at `ee35d2c6`, 2026-10-20. Closed since the `7e44b8a0` list:
+at `7671196a`, 2026-10-20. Closed since the `7e44b8a0` list:
+[#991](https://github.com/spencerduncan/redshipblueship/issues/991) and [#992](https://github.com/spencerduncan/redshipblueship/issues/992) (the shared wallet with "Shuffle Child's Wallet", PR [#1058](https://github.com/spencerduncan/redshipblueship/pull/1058)),
 [#955](https://github.com/spencerduncan/redshipblueship/issues/955) (F10 on DirectX 11, by the libultraship fork's PR #11 through PR [#1045](https://github.com/spencerduncan/redshipblueship/pull/1045)'s pin),
 [#962](https://github.com/spencerduncan/redshipblueship/issues/962) and [#963](https://github.com/spencerduncan/redshipblueship/issues/963) (the overlay's position and icons, PRs [#1051](https://github.com/spencerduncan/redshipblueship/pull/1051) and [#1043](https://github.com/spencerduncan/redshipblueship/pull/1043)).
 Filed and closed between the two lists: [#954](https://github.com/spencerduncan/redshipblueship/issues/954) (its last lock, PR [#988](https://github.com/spencerduncan/redshipblueship/pull/988)),
@@ -377,7 +378,6 @@ PR #1046 fixed three of the eleven settings it mapped; [#1030](https://github.co
 - [#975](https://github.com/spencerduncan/redshipblueship/issues/975) (epic) and its phases [#976](https://github.com/spencerduncan/redshipblueship/issues/976) to [#980](https://github.com/spencerduncan/redshipblueship/issues/980): cross-game masks as in OoTMM. PR [#1002](https://github.com/spencerduncan/redshipblueship/pull/1002) laid the groundwork with every rule off, so nothing in play yet; a file made by a later build with a rule on is refused by name (`crossItemFlags`).
 - [#1040](https://github.com/spencerduncan/redshipblueship/issues/1040): follow-ups of the per-game resource cache (PR [#1000](https://github.com/spencerduncan/redshipblueship/pull/1000)). The one a player can meet: changing a colour in Ocarina of Time's Cosmetics Editor while Majora's Mask is running patches MM's copy of the models, and OoT keeps the old colour until it reapplies; change cosmetics in Hyrule. The rest are missing locks and a fork-side cleanup.
 - [#1055](https://github.com/spencerduncan/redshipblueship/issues/1055): a spoiler in `Randomizer/` for the same seed name that another fingerprint made (any build before `29e8dba5`, PR [#1004](https://github.com/spencerduncan/redshipblueship/pull/1004)) is left as it is, and the new paired world gets no spoiler; only stderr says so. See the entry under "Randomizer generation".
-- [#991](https://github.com/spencerduncan/redshipblueship/issues/991) and [#992](https://github.com/spencerduncan/redshipblueship/issues/992) (the fix is pending merge on branch `claude/shared-wallet-implies-flag`; no pull request was open when this was written): with OoT's "Shuffle Child's Wallet" on (off by default), a wallet found in Termina raises OoT's wallet without its possession flag, so the Check Tracker shows about 115 price-gated checks as available while rupees are pinned at 0, and the shared rupee pool is drained on every visit to Hyrule until OoT's child wallet is found. Leave the option off until the fix lands.
 - [#1044](https://github.com/spencerduncan/redshipblueship/issues/1044): planned, not in this build. Generate will make the whole paired world and write a shareable seed package, and file creation will read the package instead of generating. Today the paired half is still generated at file creation, from the settings as they are then.
 - [#993](https://github.com/spencerduncan/redshipblueship/issues/993): the Combo Tracker does not show which checks you can reach, and Majora's Mask's own Check Tracker (the only place that shows MM's in-logic checks) has had no menu row since the trackers were unified; it opens only with the console's `set gWindows.CheckTracker 1`. A decision for the operator (tracker reachability audit, PR [#989](https://github.com/spencerduncan/redshipblueship/pull/989)).
 - [#994](https://github.com/spencerduncan/redshipblueship/issues/994): nothing in play. No test drives either Check Tracker's reachability; three rows are proposed.
@@ -504,7 +504,7 @@ as a fingerprint mismatch ("Refused:" at the file select). Open it in the build 
 it or a newer one. In the same way, since PR [#1002](https://github.com/spencerduncan/redshipblueship/pull/1002) a file made by a later build with one
 of the cross-game item rules on is refused by name (`crossItemFlags` on stderr) and is not
 quarantined: the file is not damaged, it needs that later build. The fingerprint is a label:
-the version moves no placement, and no generated world moved between PR #974 and `ee35d2c6`.
+the version moves no placement, and no generated world moved between PR #974 and `7671196a`.
 
 ---
 
@@ -731,7 +731,7 @@ before #895 are refused (see "Back up your saves").
   is tested: `IntPairedFirstCrossing` does exactly that.)
 
 **Findings.** None in this run. The open issues at this commit were listed under "Open issues
-at `851b1ee9`" near the top of this document, since refreshed at `7e44b8a0` and `ee35d2c6`.
+at `851b1ee9`" near the top of this document, since refreshed at `7e44b8a0` and `7671196a`.
 
 ---
 
@@ -777,7 +777,7 @@ and generated seeds are unchanged).
 - Networking is untested.
 
 **Findings.** None in this run. The open issues at this commit were listed under "Open issues
-at `7e44b8a0`" near the top of this document, since refreshed at `ee35d2c6`.
+at `7e44b8a0`" near the top of this document, since refreshed at `7671196a`.
 
 ---
 
@@ -823,15 +823,15 @@ OpenGL compared with DirectX 11, and networking. On DirectX 11 F10 does not swit
 
 ---
 
-## Gates, 2026-10-20, `ee35d2c6`
+## Gates, 2026-10-20, `7671196a`
 
-The 20 pull requests merged after PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974) (2026-10-18) up to `ee35d2c6`. Like the runs
+The 21 pull requests merged after PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974) (2026-10-18) up to `7671196a`. Like the runs
 above, these gates cover the checks hosted CI cannot run, because they need the ROMs.
 
 **How it was run.** The workstation's main Windows checkout, OpenGL only, the ROM archives
 mounted, windows opened without taking focus and, since PR [#1041](https://github.com/spencerduncan/redshipblueship/pull/1041), test processes silent.
-Four pull requests were gated alone, each as a merge of its branch onto the `main` of that
-moment: [#1000](https://github.com/spencerduncan/redshipblueship/pull/1000), [#1041](https://github.com/spencerduncan/redshipblueship/pull/1041), [#1001](https://github.com/spencerduncan/redshipblueship/pull/1001) and [#1004](https://github.com/spencerduncan/redshipblueship/pull/1004). The rest were gated in batches: each
+Five pull requests were gated alone, each as a merge of its branch onto the `main` of that
+moment (the last, [#1058](https://github.com/spencerduncan/redshipblueship/pull/1058), after the batches): [#1000](https://github.com/spencerduncan/redshipblueship/pull/1000), [#1041](https://github.com/spencerduncan/redshipblueship/pull/1041), [#1001](https://github.com/spencerduncan/redshipblueship/pull/1001) and [#1004](https://github.com/spencerduncan/redshipblueship/pull/1004). The rest were gated in batches: each
 batch verify-merged several branches onto `main` at once, the pull requests were then
 squash-merged one by one, and the merged tree was checked equal to the gated tree. Batch b1
 was a verification run only and was not merged as a set. PRs [#986](https://github.com/spencerduncan/redshipblueship/pull/986) and [#989](https://github.com/spencerduncan/redshipblueship/pull/989) (tooling
@@ -846,6 +846,7 @@ and documentation) are not in the table.
 | b2 | [#1049](https://github.com/spencerduncan/redshipblueship/pull/1049), [#1045](https://github.com/spencerduncan/redshipblueship/pull/1045), [#985](https://github.com/spencerduncan/redshipblueship/pull/985), [#1052](https://github.com/spencerduncan/redshipblueship/pull/1052), [#1046](https://github.com/spencerduncan/redshipblueship/pull/1046), [#1042](https://github.com/spencerduncan/redshipblueship/pull/1042), [#1043](https://github.com/spencerduncan/redshipblueship/pull/1043) (up to `0bea298d`) | 195 of 195 | 55 of 55 | 2 of 2; lint plain and no-grow OK | 18 of 18 | 1 of 1 |
 | b3 | [#988](https://github.com/spencerduncan/redshipblueship/pull/988), [#1053](https://github.com/spencerduncan/redshipblueship/pull/1053), [#1054](https://github.com/spencerduncan/redshipblueship/pull/1054) (up to `e496f625`) | 196 | 55 | 2 | 19; `IntCrossingRefusedNoOoTArchive` is new | 1 |
 | b4 | [#1002](https://github.com/spencerduncan/redshipblueship/pull/1002), [#1048](https://github.com/spencerduncan/redshipblueship/pull/1048), [#1051](https://github.com/spencerduncan/redshipblueship/pull/1051), [#1056](https://github.com/spencerduncan/redshipblueship/pull/1056) (up to `ee35d2c6`) | 200 | 55 | 2 | 19 | 1 |
+| #1058 alone | [#1058](https://github.com/spencerduncan/redshipblueship/pull/1058) (`7671196a`) | 201 | 55 | 2 | 19 | 1 |
 
 At `7e44b8a0` the tiers stood at 184, 49, 2, 17 and 1.
 
@@ -863,7 +864,7 @@ it, and PR #1049 added two lines (`mmFreeStoneCount`, `mmFreeStoneDigest`) to ea
 complete-world golden.
 
 **What these gates did not cover.**
-- Play by a person: nobody has played `ee35d2c6`. Section N of the playtest guide lists what
+- Play by a person: nobody has played `7671196a`. Section N of the playtest guide lists what
   to check by hand.
 - DirectX 11: F10 on DirectX 11 ([#955](https://github.com/spencerduncan/redshipblueship/issues/955)) is fixed in the libultraship fork, and no gate runs
   that backend.
