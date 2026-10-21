@@ -30,12 +30,17 @@ typedef enum {
 // [RSBS #969] The Bunny Hood's effective BunnyHoodMode: the "Bunny Hood Effect"
 // enhancement's value, read under the frozen cross-game rules
 // (GameExports_SingleExe.cpp). The OoT sites that read the enhancement ask this.
+#ifdef RSBS_SINGLE_EXECUTABLE
 #ifdef __cplusplus
 extern "C" {
 #endif
 int OoT_BunnyHoodEffectMode(void);
 #ifdef __cplusplus
 }
+#endif
+#else
+// [RSBS #969] Outside the single exe there is no shared Bunny Hood rule: the reader is the enhancement's own CVar.
+#define OoT_BunnyHoodEffectMode() CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), BUNNY_HOOD_VANILLA)
 #endif
 
 typedef enum {
