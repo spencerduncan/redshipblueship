@@ -648,6 +648,11 @@ extern "C" {
 // through both games' real shims, and the shared bag row (shared-lens-bag, rando).
 #include "tests/test_shared_lens.c"
 
+// The Shared Shields rule (#1068): both games register both shield pairs, the
+// bag makes each one shared row, and the arrival gives and wears the shield in
+// the other game. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_shields.c"
+
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
 // so the code under test does not exist. The `#include "tests/..."` text is
@@ -6351,6 +6356,17 @@ const TestDescriptor gTests[] = {
       "The shared-family bitset merges by OR in both directions, arms only from the frozen rules, and reaches both "
       "games through their real harvest and apply shims (#976)",
       Test_SharedFamilyMerge },
+    // #1068: the Shared Shields rule on the #976 mechanism. ROM-free: the
+    // registry, the bag's pair list, the real composer over both games' real
+    // classifications, and both games' real harvest and apply shims.
+    { "shared-shields-pairs",
+      "The Shared Shields rule arms the Hylian/Hero's and Mirror/Mirror families both games register, and the bag "
+      "makes each one row both solvers credit (#1068)",
+      Test_SharedShieldsPairs },
+    { "shared-shields-arrival",
+      "With the Shared Shields rule on, a shield found in one game is given and worn in the other on arrival; off, "
+      "nothing crosses (#1068)",
+      Test_SharedShieldsArrival },
     // #1065: the Shared Lens of Truth on the #976 mechanism.
     { "shared-lens-rule",
       "The Shared Lens of Truth is one Cross-Game Rule, off by default, frozen at creation into the fingerprint, and "

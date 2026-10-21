@@ -672,7 +672,12 @@ if(BUILD_TESTING)
     # and the shared-family OR merge through both games' real shims. ROM-free.
     redship_add_test(NAME CrossItemRulesRecord COMMAND redship --test cross-item-rules-record)
     redship_add_test(NAME SharedFamilyMerge COMMAND redship --test shared-family-merge)
-    # #1065: the Shared Lens of Truth, the first family a player can turn on. Its
+    # #1068: the Shared Shields rule (OoTMM sharedShields) on that mechanism: the
+    # two pairs registered by both games and composed into one shared row each,
+    # and the arrival giving and wearing the shield in the other game. ROM-free.
+    redship_add_test(NAME SharedShieldsPairs COMMAND redship --test shared-shields-pairs)
+    redship_add_test(NAME SharedShieldsArrival COMMAND redship --test shared-shields-arrival)
+    # #1065: the Shared Lens of Truth, a family a player can turn on. Its
     # bit, its Cross-Game Rules key (off by default, 0 or 1), the creation freezing
     # it into the fingerprint, and a load restoring it into the key (CVar store,
     # display-free bring-up); then both games' real lens registered as the family

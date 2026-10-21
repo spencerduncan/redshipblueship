@@ -278,12 +278,12 @@ TestResult SharedLensRule_Run(void) {
                  (unsigned)bits);
         SL_CHECK((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS) != 0u,
                  "a key authors crossItemFlags now, so the restorable mask must name it");
-        SL_CHECK(Combo_ComboSettingsCanRestoreLiveEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 1,
+        SL_CHECK(Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 1,
                  "the file-select probe would refuse a lens-on file the key can restore");
         char names[192] = { 0 };
         ComboSettingsKeyUndo undo;
-        const int restored = Combo_ComboSettingsRestoreLiveEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits,
-                                                              names, sizeof(names), &undo);
+        const int restored = Combo_ComboSettingsRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits,
+                                                            names, sizeof(names), &undo);
         printf("[TEST] (5) restore: %d, restored '%s', diverged after %08X\n", restored, names,
                (unsigned)Combo_ComboSettingsDivergence());
         SL_CHECK(restored == 1 && strstr(names, "Shared Lens of Truth") != NULL,
@@ -300,14 +300,14 @@ TestResult SharedLensRule_Run(void) {
         // A rule no key authors (a later build's bit) is never restored, and
         // neither is the Blast Mask cooldown.
         const ComboItemRulesRecord later = SlRules(kSlLens | kSlLaterBuildBit);
-        SL_CHECK(Combo_ComboSettingsCanRestoreLiveEx(&gComboCtx.comboSettings, &later,
-                                                     RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS) == 0,
+        SL_CHECK(Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &later,
+                                                   RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS) == 0,
                  "a frozen rule no key authors must not be claimed restorable");
         ComboItemRulesRecord cooldown = SlRules(kSlLens);
         cooldown.blastMaskCooldown = (uint8_t)RSBS_BLAST_COOLDOWN_SHORT;
-        SL_CHECK(Combo_ComboSettingsCanRestoreLiveEx(&gComboCtx.comboSettings, &cooldown,
-                                                     RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS |
-                                                         RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) == 0,
+        SL_CHECK(Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &cooldown,
+                                                   RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS |
+                                                       RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) == 0,
                  "the Blast Mask cooldown has no key, so it must not be claimed restorable");
         ComboContext_Init();
     }
