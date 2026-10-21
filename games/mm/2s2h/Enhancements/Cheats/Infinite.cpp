@@ -6,9 +6,13 @@ extern "C" {
 #include "variables.h"
 }
 
+// #1005: this TU is in the single-exe link now (2ship_enh_registrars). OnGameStateUpdate is
+// pumped on every MM frame, including the console-logo, title and file-select states where
+// the save is not a live file, so each body is held to a live play state (PR #673's criterion).
 static RegisterShipInitFunc healthInitFunc(
     []() {
         COND_HOOK(OnGameStateUpdate, CVarGetInteger("gCheats.InfiniteHealth", 0), []() {
+            RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
             gSaveContext.save.saveInfo.playerData.health = gSaveContext.save.saveInfo.playerData.healthCapacity;
         });
     },
@@ -17,6 +21,7 @@ static RegisterShipInitFunc healthInitFunc(
 static RegisterShipInitFunc magicInitFunc(
     []() {
         COND_HOOK(OnGameStateUpdate, CVarGetInteger("gCheats.InfiniteMagic", 0), []() {
+            RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
             uint8_t magicLevel = gSaveContext.save.saveInfo.playerData.magicLevel;
             if (magicLevel == 1) {
                 gSaveContext.save.saveInfo.playerData.magic = MAGIC_NORMAL_METER;
@@ -29,14 +34,17 @@ static RegisterShipInitFunc magicInitFunc(
 
 static RegisterShipInitFunc rupeesInitFunc(
     []() {
-        COND_HOOK(OnGameStateUpdate, CVarGetInteger("gCheats.InfiniteMoney", 0),
-                  []() { gSaveContext.save.saveInfo.playerData.rupees = CUR_CAPACITY(UPG_WALLET); });
+        COND_HOOK(OnGameStateUpdate, CVarGetInteger("gCheats.InfiniteMoney", 0), []() {
+            RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
+            gSaveContext.save.saveInfo.playerData.rupees = CUR_CAPACITY(UPG_WALLET);
+        });
     },
     { "gCheats.InfiniteMoney" });
 
 static RegisterShipInitFunc consumeablesInitFunc(
     []() {
         COND_HOOK(OnGameStateUpdate, CVarGetInteger("gCheats.InfiniteConsumables", 0), []() {
+            RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
             if (INV_CONTENT(ITEM_BOW) == ITEM_BOW) {
                 AMMO(ITEM_BOW) = CUR_CAPACITY(UPG_QUIVER);
             }
