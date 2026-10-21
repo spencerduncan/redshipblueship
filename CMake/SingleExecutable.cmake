@@ -661,6 +661,12 @@ if(BUILD_TESTING)
     # and a wallet-less arrival leaves the shared rupee pool whole. OoT's real
     # shims, ROM-free.
     redship_add_test(NAME SharedWallet COMMAND redship --test shared-wallet)
+    # #1061: MM caps bombchus at its bomb bag (0 with none), and an MM bombchu pack
+    # found in Hyrule crossed into that capped give and was lost. A counted pack
+    # now credits the shared count at its pickup in either game (harvest, credit,
+    # re-apply) and an older save's crossing is credited at redemption. Both
+    # games' real shims and pickup cores, ROM-free.
+    redship_add_test(NAME SharedBombchuPickup COMMAND redship --test shared-bombchu-pickup)
     # #976 (epic #975 P1): the cross-game item rules record (carve, fingerprint
     # only when set, freeze, the load refusing a rule this build cannot honour)
     # and the shared-family OR merge through both games' real shims. ROM-free.

@@ -619,6 +619,11 @@ extern "C" {
 // never debits the rupee pool. FILE SCOPE for the same reason as its neighbours.
 #include "tests/test_shared_wallet.c"
 
+// #1061: a bombchu pack found in the other game credits the shared count at its
+// pickup instead of crossing into MM's bomb-bag-capped give. FILE SCOPE for the
+// same reason as its neighbours.
+#include "tests/test_shared_bombchu.c"
+
 // The cross-game item rules and the shared-family bitset (#976, epic #975 P1):
 // the sibling record's format, fingerprint, freeze and load check, and the OR
 // merge through both games' real harvest/apply shims. FILE SCOPE for
@@ -6240,6 +6245,13 @@ const TestDescriptor gTests[] = {
       "A wallet found in Termina is the pair's wallet: the apply sets OoT's flag, and a wallet-less arrival never "
       "debits the rupee pool (#991, #992)",
       Test_SharedWallet },
+    // #1061: a bombchu pack found in the other game credits the one shared count
+    // at its pickup. ROM-free: gComboCtx, the RAM watermark table, both games'
+    // real shims, pickup cores and MM's arrival consumer.
+    { "shared-bombchu-pickup",
+      "A bombchu pack found in the other game credits the shared count at its pickup, and MM's bomb-bag cap no "
+      "longer eats it (#1061)",
+      Test_SharedBombchuPickup },
     // #976: the cross-game item rules record and the shared-family OR merge.
     { "cross-item-rules-record",
       "The cross-game item rules are a frozen record folded into the fingerprint only when set, and a file with a "
