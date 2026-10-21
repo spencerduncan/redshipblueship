@@ -56,6 +56,7 @@
 #include "combo_single_bag.h" // src/common — the single-bag fill (ADR 0010 increment 3, lane K11)
 #include "crossing_store.h"   // src/common — the creation writer of the crossings (ADR 0010 O7)
 #include "shared_items.h"     // src/common — Combo_RecordSharedItem (#493)
+#include "shared_resources.h" // src/common — OoT_CreditSharedPickup: a counted pack credits the pool (#1061)
 #include "gen_budget.h"       // src/common — the #582 fill budget + progress surface
 
 extern "C" {
@@ -190,6 +191,16 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
     Rando::ItemLocation* il = (ctx != nullptr) ? ctx->GetItemLocation((RandomizerCheck)rc) : nullptr;
     if (il != nullptr && il->HasObtained()) {
         return false;
+    }
+
+    // #1061: a COUNTED pack (an MM bombchu pack) does not cross. It is credited
+    // to the shared pool here and OoT's count re-applies from it at once, so the
+    // pickup shows in Hyrule and Termina reads it from the pool on arrival. A
+    // crossing would reach the count only through MM's give, which caps
+    // bombchus at MM's bomb-bag capacity and lost the pack. Durable the same way
+    // a crossing is: the pool is gComboCtx, and the live count is OoT's save.
+    if (OoT_CreditSharedPickup(item) != 0) {
+        return true;
     }
 
     // Durable immediately (the serialized array, so an OoT save+quit before the
