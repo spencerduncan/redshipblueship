@@ -614,6 +614,12 @@ extern "C" {
 // neighbour.
 #include "tests/test_shared_kokiri_sword.c"
 
+// The Shared Bottles rule (#970): the key reaches the frozen record, the bottle
+// count is one shared tier through both games' real shims, and the fill trims
+// the pair's bottle items to four. FILE SCOPE for the same reason as its
+// neighbours.
+#include "tests/test_shared_bottles.c"
+
 // The shared wallet (#991, #992): a wallet found in Termina is the pair's wallet,
 // so OoT's arrival apply sets the possession flag and an arrival with no wallet
 // never debits the rupee pool. FILE SCOPE for the same reason as its neighbours.
@@ -6233,6 +6239,19 @@ const TestDescriptor gTests[] = {
       "One Kokiri Sword across both games when the frozen combo bit arms it, and neither crosses when it does not "
       "(#886)",
       Test_SharedKokiriSword },
+    // #970: the Shared Bottles rule. ROM-free: the resolver and the frozen record,
+    // both games' real harvest and apply shims, and the real composer over both
+    // games' real classifications.
+    { "shared-bottles-rule",
+      "The Shared Bottles key is read into the frozen item rules record, and the fingerprint carries it (#970)",
+      Test_SharedBottlesRule },
+    { "shared-bottles-tier",
+      "With the Shared Bottles rule on, a bottle found in one game unlocks an empty bottle slot in the other on "
+      "arrival, up to OoT's four; off, nothing crosses (#970)",
+      Test_SharedBottlesTier },
+    { "shared-bottles-trim",
+      "With the Shared Bottles rule on, the fill keeps four of the pair's bottle items; off, it trims none (#970)",
+      Test_SharedBottlesTrim },
     // #991/#992: one wallet progression across both games. ROM-free: gComboCtx,
     // the RAM watermark table, OoT's real shims, logic's capacity and the
     // per-frame rupee handler.
