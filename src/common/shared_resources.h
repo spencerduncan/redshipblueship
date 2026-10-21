@@ -444,6 +444,11 @@ bool Combo_RegisterSharedFamilyMember(GameId game, uint32_t familyBit, const Com
  *  none is registered. */
 bool Combo_SharedFamilyMemberId(GameId game, uint32_t familyBit, uint16_t* outId);
 
+/** @p game's whole registered member for the family at @p familyBit, so a
+ *  test that registers its own can put the game's back (#978); false when none
+ *  is registered. */
+bool Combo_SharedFamilyMemberGet(GameId game, uint32_t familyBit, ComboSharedFamilyMember* out);
+
 /** Drop every registered member (tests). */
 void Combo_ClearSharedFamilyMembers(void);
 

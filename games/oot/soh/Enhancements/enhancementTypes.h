@@ -27,6 +27,17 @@ typedef enum {
     BUNNY_HOOD_FAST_AND_JUMP,
 } BunnyHoodMode;
 
+// [RSBS #969] The Bunny Hood's effective BunnyHoodMode: the "Bunny Hood Effect"
+// enhancement's value, read under the frozen cross-game rules
+// (GameExports_SingleExe.cpp). The OoT sites that read the enhancement ask this.
+#ifdef __cplusplus
+extern "C" {
+#endif
+int OoT_BunnyHoodEffectMode(void);
+#ifdef __cplusplus
+}
+#endif
+
 typedef enum {
     MIRRORED_WORLD_OFF,
     MIRRORED_WORLD_ALWAYS,

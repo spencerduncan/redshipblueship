@@ -17,6 +17,7 @@
 #include <ship/Context.h>
 #include "z64save.h"
 #include "soh/cvar_prefixes.h" // CVAR_ENHANCEMENT: the continue value OoT_Combo_ReviveDeadHealthForFreeze mirrors
+#include "soh/Enhancements/enhancementTypes.h" // BunnyHoodMode: OoT_BunnyHoodEffectMode (#969)
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
@@ -3410,6 +3411,13 @@ struct OoTSharedFamilyRegistrar {
 };
 const OoTSharedFamilyRegistrar gOoTSharedFamilyRegistrar;
 } // namespace
+
+// #969: THE ONE READER of the Bunny Hood's behaviour in Hyrule. Every OoT site
+// that asks SoH's "Bunny Hood Effect" enhancement (CVAR_ENHANCEMENT
+// "MMBunnyHood", a BunnyHoodMode) asks this instead.
+extern "C" int OoT_BunnyHoodEffectMode(void) {
+    return CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), BUNNY_HOOD_VANILLA);
+}
 
 // OoT's hookshot ceiling: 0 none, 1 hookshot, 2 longshot.
 #define OOT_MAX_HOOKSHOT_TIER 2u

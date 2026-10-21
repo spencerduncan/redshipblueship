@@ -518,9 +518,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // only effect was to carry that free instrument back to Hyrule. Operator
     // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
-    // fix removes. The page's seven checkboxes are #886's Shared Kokiri Sword,
-    // #1065's Shared Lens of Truth, #1066's two shared songs and #968's three
-    // shared arrows.
+    // fix removes. The page's twelve checkboxes are #886's Shared Kokiri Sword,
+    // #1065's Shared Lens of Truth, #1066's two shared songs, #968's three
+    // shared arrows and #978's five shared masks.
     {
         int ocarinaRows = 0;
         int checkboxes = 0;
@@ -534,13 +534,14 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 7,
-                   "the Cross-Game Rules page has %d checkbox row(s); the seven expected are the Shared Kokiri Sword "
+        ROWS_CHECK(checkboxes == 12,
+                   "the Cross-Game Rules page has %d checkbox row(s); the twelve expected are the Shared Kokiri Sword "
                    "(#886), the Shared Lens of Truth (#1065), Shared Epona's Song and Shared Song of Storms (#1066), "
-                   "and Shared Fire, Ice and Light Arrows (#968), after #879 retired the Shared Ocarina",
+                   "Shared Fire, Ice and Light Arrows (#968), and the Shared Goron, Zora, Keaton and Truth masks and "
+                   "Bunny Hood (#978), after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 7 "
-               "(#879, #886, #1065, #1066, #968)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 12 "
+               "(#879, #886, #1065, #1066, #968, #978)\n",
                ocarinaRows, checkboxes);
     }
 

@@ -529,7 +529,12 @@ TestResult Test_SharedFamilyMerge(void) {
     // ---- (0) The registry refuses what is not one family bit ------------------
     // Only the Goron family this row registers is dropped, never the whole
     // registry: the games' own members (#1065's lens) are registered at static
-    // init and later rows in the same process read them.
+    // init and later rows in the same process read them. The games' own Goron
+    // Masks (#978) are kept aside and put back at the end, for the same reason.
+    ComboSharedFamilyMember gameGoron[2];
+    memset(gameGoron, 0, sizeof(gameGoron));
+    const bool hadGoron[2] = { Combo_SharedFamilyMemberGet(GAME_OOT, G, &gameGoron[0]),
+                               Combo_SharedFamilyMemberGet(GAME_MM, G, &gameGoron[1]) };
     Combo_RegisterSharedFamilyMember(GAME_OOT, G, NULL);
     Combo_RegisterSharedFamilyMember(GAME_MM, G, NULL);
     {
@@ -641,8 +646,8 @@ TestResult Test_SharedFamilyMerge(void) {
                   "with the rule off a shim asked a member or gave a copy");
     }
 
-    Combo_RegisterSharedFamilyMember(GAME_OOT, G, NULL);
-    Combo_RegisterSharedFamilyMember(GAME_MM, G, NULL);
+    Combo_RegisterSharedFamilyMember(GAME_OOT, G, hadGoron[0] ? &gameGoron[0] : NULL);
+    Combo_RegisterSharedFamilyMember(GAME_MM, G, hadGoron[1] ? &gameGoron[1] : NULL);
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
     printf("[TEST] shared-family-merge: %s\n", sXirFailures == 0 ? "PASS" : "FAIL");
