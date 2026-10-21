@@ -611,6 +611,10 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     row->iconTint = 0;
 }
 
+// The live view reads the HANDED buffer (the view's liveSave, which production points at the process
+// global and the ROM-free test points at an authored one), so the accessor macros are redirected again.
+#define gSaveContext (*src)
+
 // Heart pieces occupy the TOP NIBBLE of questItems (the pool's canonical health quantity,
 // OoT_ReadHealthQuarters in GameExports_SingleExe.cpp).
 constexpr uint32_t kOoTHeartPieceShift = 28u;
@@ -641,6 +645,7 @@ bool OoTItemSharedLive(const void* srcv, uint8_t kind, uint16_t* out) {
     };
     switch (kind) {
         case RSBS_SHARED_RES_RUPEES:
+            // The HUD's count: a pending rupeeAccumulator (settled by the harvest) lags a few frames.
             *out = gSaveContext.rupees < 0 ? 0u : (uint16_t)gSaveContext.rupees;
             return true;
         case RSBS_SHARED_RES_WALLET_TIER:
@@ -683,6 +688,8 @@ bool OoTItemSharedLive(const void* srcv, uint8_t kind, uint16_t* out) {
             return false;
     }
 }
+
+#undef gSaveContext
 
 } // namespace
 
