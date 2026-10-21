@@ -112,6 +112,11 @@ typedef enum {
     // #1066. Two more item-rule bits, the lens's shape: 0 or 1, default 0 each.
     COMBO_SETTING_SHARED_SONG_EPONA,  // gCombo.Rando.SharedSongEpona -> RSBS_XITEM_SHARED_SONG_EPONA
     COMBO_SETTING_SHARED_SONG_STORMS, // gCombo.Rando.SharedSongStorms -> RSBS_XITEM_SHARED_SONG_STORMS
+    // #968. The three magic arrows' bits #976 reserved, the lens's shape: 0 or
+    // 1, default 0 each, one row per arrow (OoTMM's three options).
+    COMBO_SETTING_SHARED_ARROW_FIRE,  // gCombo.Rando.SharedArrowFire -> RSBS_XITEM_SHARED_ARROW_FIRE
+    COMBO_SETTING_SHARED_ARROW_ICE,   // gCombo.Rando.SharedArrowIce -> RSBS_XITEM_SHARED_ARROW_ICE
+    COMBO_SETTING_SHARED_ARROW_LIGHT, // gCombo.Rando.SharedArrowLight -> RSBS_XITEM_SHARED_ARROW_LIGHT
     COMBO_SETTING_COUNT
 } ComboSettingId;
 

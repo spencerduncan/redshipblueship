@@ -341,9 +341,11 @@ typedef struct {
 } SharedFamilyRowDef;
 
 static const SharedFamilyRowDef kSharedFamilyRows[] = {
-    { RSBS_XITEM_SHARED_LENS, "Lens of Truth" },
-    { RSBS_XITEM_SHARED_SONG_EPONA, "Epona's Song" },    // #1066
-    { RSBS_XITEM_SHARED_SONG_STORMS, "Song of Storms" }, // #1066
+    { RSBS_XITEM_SHARED_LENS, "Lens of Truth" },         { RSBS_XITEM_SHARED_SONG_EPONA, "Epona's Song" }, // #1066
+    { RSBS_XITEM_SHARED_SONG_STORMS, "Song of Storms" },                                                   // #1066
+    { RSBS_XITEM_SHARED_ARROW_FIRE, "Fire Arrows" },                                                       // #968
+    { RSBS_XITEM_SHARED_ARROW_ICE, "Ice Arrows" },                                                         // #968
+    { RSBS_XITEM_SHARED_ARROW_LIGHT, "Light Arrows" },                                                     // #968
 };
 #define SHARED_FAMILY_ROW_DEF_COUNT ((int)(sizeof(kSharedFamilyRows) / sizeof(kSharedFamilyRows[0])))
 

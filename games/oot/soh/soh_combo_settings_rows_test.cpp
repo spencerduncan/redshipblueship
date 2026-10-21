@@ -352,6 +352,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // #1066: the two shared songs, the lens's shape.
         { COMBO_SETTING_SHARED_SONG_EPONA, WIDGET_CHECKBOX, "" },
         { COMBO_SETTING_SHARED_SONG_STORMS, WIDGET_CHECKBOX, "" },
+        // #968: the three shared arrows, the lens's shape.
+        { COMBO_SETTING_SHARED_ARROW_FIRE, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_ARROW_ICE, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_ARROW_LIGHT, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -892,7 +896,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_EPONA, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_FIRE, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_ICE, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_LIGHT, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
