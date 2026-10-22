@@ -450,6 +450,11 @@ s32 Sram_FileNumHasFlashSlot(s32 fileNum) {
     return (fileNum >= 0) && (fileNum < FILE_NUM_MAX);
 }
 
+void Sram_FlashTableExtents(s32* mainCount, s32* owlCount) {
+    *mainCount = ARRAY_COUNT(gFlashSaveStartPages);
+    *owlCount = ARRAY_COUNT(gFlashOwlSaveStartPages);
+}
+
 u16 D_801F6AF0;
 u8 D_801F6AF2;
 
@@ -2418,6 +2423,10 @@ void Sram_SetFlashPagesDefault(SramContext* sramCtx, u32 curPage, u32 numPages) 
     sramCtx->curPage = curPage;
     sramCtx->numPages = numPages;
     sramCtx->status = 1;
+}
+
+void Sram_SetFlashPagesDefaultForFile(SramContext* sramCtx, s32 fileNum) {
+    Sram_SetFlashPagesDefault(sramCtx, gFlashSaveStartPages[fileNum], gFlashSaveNumPages[fileNum]);
 }
 
 void Sram_StartWriteToFlashDefault(SramContext* sramCtx) {
