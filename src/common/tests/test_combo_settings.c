@@ -1321,8 +1321,9 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
 
         // A file whose other differing rule only a later build authors: the key
         // alone cannot answer it, so nothing is written and the load refuses.
+        // (An extension: #978 keyed the five shared masks.)
         ComboItemRulesRecord later = rulesOn;
-        later.crossItemFlags |= (uint32_t)RSBS_XITEM_SHARED_GORON;
+        later.crossItemFlags |= (uint32_t)RSBS_XITEM_BLAST_MASK_OOT;
         Combo_FreezeComboSettingsEx(&rec, &later);
         CVarClear(Combo_ComboSettingKey(COMBO_SETTING_SHARED_SHIELDS));
         const uint32_t laterBits = Combo_ComboSettingsDivergence();

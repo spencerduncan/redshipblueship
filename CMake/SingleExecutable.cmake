@@ -714,6 +714,15 @@ if(BUILD_TESTING)
     # own arrow. ROM-free.
     redship_add_test(NAME SharedArrowsRule COMMAND redship --test shared-arrows-rule)
     redship_add_test(NAME SharedArrowsMerge COMMAND redship --test shared-arrows-merge)
+    # #978 (absorbs #969): the five shared masks, five more families on the
+    # lens's rows (#976 reserved their bits): the five keys (off by default, 0 or
+    # 1), the freeze, the fingerprint and the load restore; then both games'
+    # masks registered and carried by the real harvest/apply shims, each rule
+    # only its own mask; then the Bunny Hood's speed in Hyrule under the frozen
+    # shared Bunny Hood rule. ROM-free.
+    redship_add_test(NAME SharedMasksRule COMMAND redship --test shared-masks-rule)
+    redship_add_test(NAME SharedMasksMerge COMMAND redship --test shared-masks-merge)
+    redship_add_test(NAME SharedMasksBunnyBoost COMMAND redship --test shared-masks-bunny-boost)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an
@@ -2548,6 +2557,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # copy per arrow, both solvers credit it (OoT's logic and MM's Snowhead, Great
     # Bay and Stone Tower logic), MM's world holds no second copy, the GOAL proven.
     redship_add_test(NAME SharedArrowsBag COMMAND redship --test shared-arrows-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #978: each shared mask's ONE bag row over a real paired generation: one copy
+    # per mask, both solvers credit it, MM's world holds no second copy, the GOAL
+    # proven, and OoT's logic answers HasItem for each mask from its ownership.
+    redship_add_test(NAME SharedMasksBag COMMAND redship --test shared-masks-bag
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
