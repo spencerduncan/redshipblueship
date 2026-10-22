@@ -320,6 +320,8 @@ const Restorable kRestorable[] = {
     // every differing bit has a key (ItemRulesKeyedDiff).
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SHIELDS },
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_LENS },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_EPONA },      // #1066
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_STORMS },     // #1066
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_OCARINA_BUTTONS }, // #1067
 };
 
@@ -344,6 +346,8 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
             return (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         case COMBO_SETTING_SHARED_SHIELDS:
         case COMBO_SETTING_SHARED_LENS:
+        case COMBO_SETTING_SHARED_SONG_EPONA:  // #1066
+        case COMBO_SETTING_SHARED_SONG_STORMS: // #1066
         case COMBO_SETTING_SHARED_OCARINA_BUTTONS:
             // A bit of the file's item rules (NULL: every rule off).
             return (frozenRules != nullptr && (frozenRules->crossItemFlags & ItemRuleBitFor(id)) != 0u) ? 1 : 0;
