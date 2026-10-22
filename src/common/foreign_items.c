@@ -191,6 +191,10 @@ const char* Combo_ComboItemRuleName(uint32_t bit) {
             return "sharedBottles";
         case RSBS_XITEM_SHARED_LENS:
             return "sharedLens";
+        case RSBS_XITEM_SHARED_SONG_EPONA:
+            return "sharedSongEpona";
+        case RSBS_XITEM_SHARED_SONG_STORMS:
+            return "sharedSongStorms";
         case RSBS_XITEM_SHARED_SHIELDS:
             return "sharedShields";
         default:

@@ -179,18 +179,20 @@ TestResult Test_CrossItemRulesRecord(void) {
                   RSBS_XITEM_SHARED_BLAST == 0x800u && RSBS_XITEM_SHARED_SPOOKY == 0x10000u &&
                   RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u && RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u &&
                   RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_SHARED_LENS == 0x00200000u &&
+                  RSBS_XITEM_SHARED_SONG_EPONA == 0x00400000u && RSBS_XITEM_SHARED_SONG_STORMS == 0x00800000u &&
                   RSBS_XITEM_SHARED_SHIELDS == 0x02000000u,
               "an RSBS_XITEM_* bit moved; they are .redsave format, append-only");
-    // #1065 allocates the Shared Lens of Truth bit and #1068 the Shared Shields
-    // bit: each ALLOCATED (a record holding it is valid and the bit has a name)
-    // and a FAMILY (the lens pair; the Hylian/Hero's pair).
-    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x023FFFFFu,
-              "RSBS_XITEM_ALL_V1 is %08X, expected 023FFFFF (#976's 21 bits, #1065's Shared Lens of Truth and "
-              "#1068's Shared Shields)",
+    // #1065 allocates the Shared Lens of Truth bit, #1066 the Shared Epona's
+    // Song and Song of Storms bits and #1068 the Shared Shields bit: each
+    // ALLOCATED (a record holding it is valid and the bit has a name) and a
+    // FAMILY (the lens pair; the two song pairs; the Hylian/Hero's pair).
+    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x02FFFFFFu,
+              "RSBS_XITEM_ALL_V1 is %08X, expected 02FFFFFF (#976's 21 bits, #1065's Shared Lens of Truth, #1066's "
+              "Shared Epona's Song and Song of Storms and #1068's Shared Shields)",
               (unsigned)RSBS_XITEM_ALL_V1);
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x022FF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 022FF81F (the five shared masks, the six shared extensions, "
-              "the three arrows, the lens and the shared shields; not the extensions, not the bottles)",
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x02EFF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 02EFF81F (the five shared masks, the six shared extensions, "
+              "the three arrows, the lens, the two songs and the shared shields; not the extensions, not the bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
     {
         ComboItemRulesRecord shields;
@@ -237,7 +239,7 @@ TestResult Test_CrossItemRulesRecord(void) {
         XIR_CHECK(!Combo_ComboItemRulesValid(&r), "a shared extension without its extension must be invalid");
         r = on;
         // The lowest free bit, derived so a later allocation (#1065 took
-        // 0x00200000, #1068 0x02000000) never turns this probe into an
+        // 0x00200000, #1066 the next two, #1068 0x02000000) never turns this probe into an
         // allocated bit.
         const uint32_t unallocated = (RSBS_XITEM_ALL_V1 + 1u) & ~(uint32_t)RSBS_XITEM_ALL_V1;
         XIR_CHECK((RSBS_XITEM_ALL_V1 & unallocated) == 0u && unallocated != 0u, "the probe bit %08X is allocated",
