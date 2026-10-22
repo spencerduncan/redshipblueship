@@ -135,21 +135,6 @@ mm->oot objects/object_gi_sword_4/
 mm->oot icon_item_static_yar/
 mm->oot icon_item_24_static_yar/
 #
-# The MM masks OoT wears (#977, epic #975 P3; worn and drawn on Link's head by
-# ForeignMaskOoT.cpp, src/common/foreign_masks.h).  Single paths, not the
-# directories: object_mask_bakuretu also carries the Blast Mask's glow pass and
-# its TextureAnimation resource, whose factory is MM-only; OoT draws the mask
-# without the glow, binding segment 0x09 to the no-glow list as MM does while
-# the cooldown timer is 0.  The Stone and Kamaro lists name only their own
-# directory.  Their pause icons (OoT's child trade slot shows them once P4
-# adds the items) ride the icon_item_static_yar/ entry above.
-mm->oot objects/object_mask_bakuretu/object_mask_bakuretu_DL_0005C0
-mm->oot objects/object_mask_bakuretu/object_mask_bakuretuVtx_000000
-mm->oot objects/object_mask_bakuretu/object_mask_bakuretu_Tex_0007B0
-mm->oot objects/object_mask_bakuretu/object_mask_bakuretu_Tex_000BB0
-mm->oot objects/object_mask_stone/
-mm->oot objects/object_mask_dancer/
-#
 # --- oot->mm: redship-mm.o2r ---------------------------------------------------
 # The 36 OoT-exclusive get-item objects (#577 M6; object_gi_hammer was M1's
 # seed).
@@ -199,28 +184,3 @@ oot->mm objects/gameplay_keep/gEffUnknown10Tex
 oot->mm objects/gameplay_keep/gEffUnknown11Tex
 oot->mm objects/gameplay_keep/gEffUnknown12Tex
 oot->mm objects/gameplay_keep/gUnknownWoodBoardTex
-#
-# The OoT masks MM wears (#977, epic #975 P3; worn and drawn on Link's head by
-# ForeignMaskMM.cpp, src/common/foreign_masks.h).  Single paths: MM's archive
-# has its own objects/object_link_child/, and only these lists, the textures
-# and vertex arrays they name (the escaping-reference guard's findings) and
-# the three pause icons are needed.  None of them exists in mm.o2r or
-# 2ship.o2r.  Each list loads the head matrix from segment 0x0D + 0x1C0 itself,
-# which MM's flex skeleton draw binds.
-oot->mm objects/object_link_child/gLinkChildGerudoMaskDL
-oot->mm objects/object_link_child/gLinkChildGerudoMaskEyeTex
-oot->mm objects/object_link_child/gLinkChildGerudoMaskHairTex
-oot->mm objects/object_link_child/gLinkChildGerudoMaskMouthTex
-oot->mm objects/object_link_child/gLinkChildGerudoMaskNoseTex
-oot->mm objects/object_link_child/object_link_childVtx_02A500
-oot->mm objects/object_link_child/gLinkChildSkullMaskDL
-oot->mm objects/object_link_child/gLinkChildSkullMaskEyeTex
-oot->mm objects/object_link_child/gLinkChildSkullMaskNoseTex
-oot->mm objects/object_link_child/gLinkChildSkullMaskTeethTex
-oot->mm objects/object_link_child/object_link_childVtx_029220
-oot->mm objects/object_link_child/gLinkChildSpookyMaskDL
-oot->mm objects/object_link_child/gLinkChildSpookyMaskTex
-oot->mm objects/object_link_child/object_link_childVtx_029670
-oot->mm textures/icon_item_static/gItemIconMaskGerudoTex
-oot->mm textures/icon_item_static/gItemIconMaskSkullTex
-oot->mm textures/icon_item_static/gItemIconMaskSpookyTex

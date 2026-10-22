@@ -12,9 +12,6 @@
 #include "soh/ResourceManagerHelpers.h"
 
 #include <stdlib.h>
-#ifdef RSBS_SINGLE_EXECUTABLE
-#include "soh/Enhancements/randomizer/ForeignMaskOoT.h" // the worn Majora's Mask mask (#977)
-#endif
 
 typedef struct {
     /* 0x00 */ u8 flag;
@@ -2022,11 +2019,6 @@ void OoT_Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList
             }
         } else if (limbIndex == PLAYER_LIMB_HEAD) {
             OoT_Matrix_MultVec3f(&D_801260D4, &this->actor.focus.pos);
-#ifdef RSBS_SINGLE_EXECUTABLE
-            // Cross-game masks (#977): a worn Majora's Mask mask, drawn in the head
-            // limb's space as MM draws its own (ForeignMaskOoT.cpp).
-            OoT_ForeignMask_DrawOnHead(play, this, *dList != NULL);
-#endif
         } else {
             Vec3f* vec = &sLeftRightFootLimbModelFootPos[(gSaveContext.linkAge)];
 

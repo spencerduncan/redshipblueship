@@ -42,7 +42,6 @@
 #include "pairing_refusal_toast.h" // RSBS_REFUSAL_TOAST_PREFIX: that check's matcher (#836)
 #include "crossing_store.h"        // the paired row's crossing-store check
 #include "foreign_model.h"         // the #800 S1 shop playtest's model answer
-#include "soh/Enhancements/randomizer/ForeignMaskOoT.h" // #977: the worn-mask integration drive
 // The paired row's "shipped defaults" check: every setting the generation
 // reads, per surface (OoT's options/tricks/exclusions, MM's options/tricks, the
 // combo settings), must be unset in the CVar store.
@@ -2429,12 +2428,6 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             sGpFramesInPhase++;
             if (phase == GP_PHASE_OOT_PRE && IntegrationTest_PairedFirstCrossing()) {
                 GpPairedTrackerPlaytest(sGpFramesInPhase);
-            }
-            // #977 IntForeignMasksWorn: the first OoT window wears and draws the three
-            // Majora's Mask masks (ForeignMaskOoT.cpp).
-            if (phase == GP_PHASE_OOT_PRE && getenv("RSBS_GP_FOREIGN_MASKS") != NULL &&
-                !OoT_ForeignMask_PlaytestFrame(play, sGpFramesInPhase)) {
-                return;
             }
             if (sGpFramesInPhase == 20 && (phase == GP_PHASE_OOT_PRE || phase == GP_PHASE_OOT_RETURN) &&
                 IntegrationTest_PairedFirstCrossing() && !IntegrationTest_PairedSkipCreation()) {

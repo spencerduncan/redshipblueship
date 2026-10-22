@@ -195,11 +195,6 @@ games/oot/soh/Enhancements/randomizer/ForeignTextboxIconOoT.cpp
 games/oot/soh/Enhancements/randomizer/ForeignModelOoT.cpp
 games/oot/soh/Enhancements/randomizer/ForeignModelHostOoT.h
 games/oot/soh/Enhancements/randomizer/ForeignModelHostOoT.cpp
-games/oot/soh/Enhancements/randomizer/ForeignMaskOoT.h
-games/oot/soh/Enhancements/randomizer/ForeignMaskOoT.cpp
-games/oot/soh/oot_foreign_mask_test.cpp
-games/mm/2s2h/Rando/ForeignMaskMM.cpp
-games/mm/2s2h/mm_foreign_mask_test.cpp
 games/oot/soh/Enhancements/randomizer/ComboGoalEndingOoT.cpp
 games/mm/2s2h/Rando/ComboGoalEndingMM.cpp
 games/oot/soh/oot_combo_goal_test.cpp

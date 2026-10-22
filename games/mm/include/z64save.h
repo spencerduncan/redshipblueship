@@ -454,18 +454,6 @@ typedef struct RandoSaveInfo {
     // trick set's was accepted pre-release (operator ruling 2026-09-17), and
     // accepting this one is the operator's call.
     u8 randoSaveExcludedChecks[(RC_MAX + 7) / 8];
-    // RedShipBlueShip (#977): the Ocarina of Time mask Link wears in human form, a
-    // ComboForeignMask (src/common/foreign_masks.h), never currentMask or
-    // equippedMask: MM indexes unbounded tables by both. Then the variant each
-    // shared pause slot shows (index ComboForeignMaskSlot - 1; NONE is the slot's
-    // own mask). Appended after the excluded-check set, and with the same caveat:
-    // a .redsave written before them does not zero-extend into them (growing Save
-    // shifts every later SaveContext field of the raw MM tier). Every reader
-    // sanitizes the bytes (Combo_ForeignMask_Sanitize), so a shifted byte selects
-    // no mask unless it is a mask MM wears whose rule the world froze on. Not part
-    // of the profile identity: ProfileIdentityString does not fold them.
-    u8 foreignMask;
-    u8 foreignMaskSlotSel[2];
 } RandoSaveInfo;
 
 // These are values added by 2S2H that we need to be persisted to the save file

@@ -10,10 +10,6 @@
 #include "2s2h/BenGui/HudEditor.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include <libultraship/bridge/consolevariablebridge.h>
-#ifdef RSBS_SINGLE_EXECUTABLE
-// games/mm/2s2h/Rando/ForeignMaskMM.cpp (#977).
-const char* MM_ForeignMask_PageIcon(int maskSlot, const char* nativeIcon);
-#endif
 
 s16 sMaskEquipState = EQUIP_STATE_MAGIC_ARROW_GROW_ORB;
 
@@ -282,19 +278,9 @@ void KaleidoScope_DrawMaskSelect(PlayState* play) {
                 }
 
                 MM_gSPVertex(POLY_OPA_DISP++, &pauseCtx->maskVtx[j + 0], 4, 0);
-#ifdef RSBS_SINGLE_EXECUTABLE
-                // Cross-game masks (#977): a shared slot shows the Ocarina of Time mask
-                // chosen in it (ForeignMaskMM.cpp); every other cell its own icon.
-                KaleidoScope_DrawTexQuadRGBA32(
-                    play->state.gfxCtx,
-                    (TexturePtr)MM_ForeignMask_PageIcon(
-                        i, MM_gItemIcons[((void)0, gSaveContext.save.saveInfo.inventory.items[i + ITEM_NUM_SLOTS])]),
-                    32, 32, 0);
-#else
                 KaleidoScope_DrawTexQuadRGBA32(
                     play->state.gfxCtx,
                     MM_gItemIcons[((void)0, gSaveContext.save.saveInfo.inventory.items[i + ITEM_NUM_SLOTS])], 32, 32, 0);
-#endif
             }
         }
     }
