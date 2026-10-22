@@ -497,6 +497,15 @@ uint32_t MMItemSharedFamily(const MMItemRowDef& def) {
     if (def.kind == MMRK_QUEST && def.data == (uint32_t)QUEST_SONG_STORMS) {
         return RSBS_XITEM_SHARED_SONG_STORMS; // #1066
     }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_ARROW_FIRE) {
+        return RSBS_XITEM_SHARED_ARROW_FIRE; // #968
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_ARROW_ICE) {
+        return RSBS_XITEM_SHARED_ARROW_ICE; // #968
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_ARROW_LIGHT) {
+        return RSBS_XITEM_SHARED_ARROW_LIGHT; // #968
+    }
     return 0u;
 }
 

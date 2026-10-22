@@ -117,6 +117,11 @@ typedef enum {
     COMBO_SETTING_SHARED_SONG_STORMS, // gCombo.Rando.SharedSongStorms -> RSBS_XITEM_SHARED_SONG_STORMS
     // #1067, the same shape: gCombo.Rando.SharedOcarinaButtons -> rules.crossItemFlags & 0x01000000.
     COMBO_SETTING_SHARED_OCARINA_BUTTONS,
+    // #968. The three magic arrows' bits #976 reserved, the lens's shape: 0 or
+    // 1, default 0 each, one row per arrow (OoTMM's three options).
+    COMBO_SETTING_SHARED_ARROW_FIRE,  // gCombo.Rando.SharedArrowFire -> RSBS_XITEM_SHARED_ARROW_FIRE
+    COMBO_SETTING_SHARED_ARROW_ICE,   // gCombo.Rando.SharedArrowIce -> RSBS_XITEM_SHARED_ARROW_ICE
+    COMBO_SETTING_SHARED_ARROW_LIGHT, // gCombo.Rando.SharedArrowLight -> RSBS_XITEM_SHARED_ARROW_LIGHT
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
