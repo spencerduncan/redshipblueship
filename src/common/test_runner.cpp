@@ -1601,6 +1601,124 @@ TestResult Test_RandoHintCrossGame(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The two games' frame-interpolation recorders (#965). Every name but
+// Interpolate is extern "C"; this TU sees neither game's Mtx/MtxF, so the
+// matrix arguments are opaque here. MM's carry the MM_ prefix
+// (games/mm/include/mm_frame_interpolation_prefix.h). The probe is the seam in
+// games/oot/soh/OTRGlobals.cpp next to the shared Graph_ProcessGfxCommands.
+extern "C" {
+void FrameInterpolation_StartRecord(void);
+void FrameInterpolation_StopRecord(void);
+void FrameInterpolation_RecordMatrixMtxFToMtx(void* src, void* dest);
+void MM_FrameInterpolation_ShouldInterpolateFrame(bool shouldInterpolate);
+void MM_FrameInterpolation_StartRecord(void);
+void MM_FrameInterpolation_StopRecord(void);
+void MM_FrameInterpolation_RecordMatrixMtxFToMtx(void* src, void* dest);
+int OoT_Graph_ProbeInterpolatedFrame(float step, const void* mtx, float* out16);
+}
+
+// One recorded frame holding one matrix conversion: src filled with `value`,
+// written to `dest`. Only dest's address matters (it keys the replacement).
+static void FrameInterpLock_RecordFrame(bool mm, float value, void* dest) {
+    float src[16];
+    for (float& f : src) {
+        f = value;
+    }
+    if (mm) {
+        MM_FrameInterpolation_ShouldInterpolateFrame(true); // MM skips one frame after a camera cut
+        MM_FrameInterpolation_StartRecord();
+        MM_FrameInterpolation_RecordMatrixMtxFToMtx(src, dest);
+        MM_FrameInterpolation_StopRecord();
+    } else {
+        FrameInterpolation_StartRecord();
+        FrameInterpolation_RecordMatrixMtxFToMtx(src, dest);
+        FrameInterpolation_StopRecord();
+    }
+}
+
+// One processed frame of the shared processor, asking for `dest`'s replacement.
+// expect < 0: no replacement; otherwise a replacement whose 16 floats all equal expect.
+static bool FrameInterpLock_Expect(const char* leg, const void* dest, const char* destName, float expect) {
+    float out[16] = {};
+    int found = OoT_Graph_ProbeInterpolatedFrame(0.5f, dest, out);
+    bool ok = expect < 0.0f ? found == 0 : found == 1;
+    for (int i = 0; ok && found && i < 16; i++) {
+        ok = out[i] == expect;
+    }
+    if (found) {
+        printf("[TEST]   %s: %s replaced with %.2f (want %s) %s\n", leg, destName, out[0],
+               expect < 0.0f ? "no replacement" : "that value", ok ? "ok" : "WRONG");
+    } else {
+        printf("[TEST]   %s: %s not replaced (want %s) %s\n", leg, destName,
+               expect < 0.0f ? "no replacement" : "a replacement", ok ? "ok" : "WRONG");
+    }
+    return ok;
+}
+
+// #965 lock: the shared Graph_ProcessGfxCommands (games/oot/soh/OTRGlobals.cpp)
+// runs every frame of BOTH games, and MM's draw code records into MM's own
+// recorder. The processor must build its interpolated sub-frames from the
+// ACTIVE game's recorder, or MM's sub-frames get OoT's (empty or stale)
+// replacements and frame interpolation does nothing in MM. And the first frame
+// after the active game changes must interpolate nothing: the arriving game's
+// recorder still holds its last frame from before it was suspended. Records two
+// frames into each recorder (OoT 0 -> 4, MM 0 -> 2, so the halfway step is 2.0
+// from OoT's and 1.0 from MM's), then probes the processor's step with each game
+// active. Needs a display: the recorders record only while
+// OTRGlobals::GetInterpolationFPS() is above 20, which reads the window.
+TestResult Test_CrossGameFrameInterpolation(void) {
+    printf("[TEST] crossgame-frame-interpolation: the shared gfx processor interpolates with the active game's "
+           "recorder (#965)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    // In memory only (never saved): the recorders record only above 20 fps.
+    CVarSetInteger("gSettings.InterpolationFPS", 60);
+
+    static unsigned char sOoTDest[64];
+    static unsigned char sMMDest[64];
+    FrameInterpLock_RecordFrame(false, 0.0f, sOoTDest);
+    FrameInterpLock_RecordFrame(false, 4.0f, sOoTDest);
+    FrameInterpLock_RecordFrame(true, 0.0f, sMMDest);
+    FrameInterpLock_RecordFrame(true, 2.0f, sMMDest);
+
+    GameId prevGame = Context_GetCurrentGame();
+    bool ok = true;
+
+    Context_SetCurrentGame(GAME_OOT);
+    bool ootRecorded = FrameInterpLock_Expect("OoT active", sOoTDest, "OoT's matrix", 2.0f);
+    if (!ootRecorded) {
+        printf("[TEST]   precondition: OoT's recorder did not interpolate (did it record? "
+               "GetInterpolationFPS() must be above 20)\n");
+    }
+    ok = ootRecorded && ok;
+    ok = FrameInterpLock_Expect("OoT active", sMMDest, "MM's matrix", -1.0f) && ok;
+
+    Context_SetCurrentGame(GAME_MM);
+    ok = FrameInterpLock_Expect("first MM frame after the switch", sOoTDest, "OoT's matrix", -1.0f) && ok;
+    ok = FrameInterpLock_Expect("MM active", sMMDest, "MM's matrix", 1.0f) && ok;
+    ok = FrameInterpLock_Expect("MM active", sOoTDest, "OoT's matrix", -1.0f) && ok;
+
+    Context_SetCurrentGame(GAME_OOT);
+    ok = FrameInterpLock_Expect("first OoT frame after the switch", sOoTDest, "OoT's matrix", -1.0f) && ok;
+    ok = FrameInterpLock_Expect("OoT active again", sOoTDest, "OoT's matrix", 2.0f) && ok;
+    ok = FrameInterpLock_Expect("OoT active again", sMMDest, "MM's matrix", -1.0f) && ok;
+
+    Context_SetCurrentGame(prevGame);
+    CVarClear("gSettings.InterpolationFPS");
+
+    printf("[TEST] %s: crossgame-frame-interpolation\n", ok ? "PASS" : "FAIL");
+    return ok ? TEST_PASS : TEST_FAIL;
+}
+
 // Arrival-rehydration lock (#482). Two more instances of the #441 class on the
 // OoT side: the check tracker's `areasSpoiled` and the item tracker's typed
 // `itemTrackerNotes` are blanked by SaveManager initFuncs that the arrival
@@ -6281,6 +6399,10 @@ const TestDescriptor gTests[] = {
     // whose title-chain Save_Init used to wipe the placement table. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     { "rando-hint-crossgame", "Item hints survive a cross-game OoT arrival (#441)", Test_RandoHintCrossGame },
+    // #965: the shared gfx processor interpolates with the active game's recorder.
+    // Needs a display like rando-gen, so `--test all` skips it (below).
+    { "crossgame-frame-interpolation", "The shared gfx processor interpolates with the active game's recorder (#965)",
+      Test_CrossGameFrameInterpolation },
     // #575 H1: the shared area vocabulary. Display-free and ROM-free, so it
     // runs in the redship tier and in `--test all`.
     { "combo-area-vocabulary", "One shared hint area vocabulary over both games (#575 H1)", Test_ComboAreaVocabulary },
@@ -7491,9 +7613,10 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-player-path-digest") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
-                strcmp(gTests[i].name, "rando-hint-crossgame") == 0 || strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
-                strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 || strcmp(gTests[i].name, "mm-paired-start") == 0 ||
-                strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
+                strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
+                strcmp(gTests[i].name, "crossgame-frame-interpolation") == 0 ||
+                strcmp(gTests[i].name, "mm-rando-gen") == 0 || strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-start") == 0 || strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
                 strcmp(gTests[i].name, "mm-round-budget-host-scale") == 0 ||
                 strcmp(gTests[i].name, "mm-golden-seeds-round-budget") == 0 ||
