@@ -31,6 +31,12 @@
  *   leg 6  THE NOTE. Unpaired, the page says the sentence every randomizer page
  *          of ours shares; frozen, the shared frozen sentence; under Vanilla
  *          logic, why the table is disabled.
+ *   leg 7  THE TABLE OWNS ITS NAMES. PopulateCheckNames reassigns every
+ *          CheckNames entry (a move from a temporary, which frees each longer
+ *          name's old buffer), and MM's tracker bring-up and the combo tracker
+ *          adapter both call it after the page's table exists. No row's name
+ *          may point into CheckNames, and every row reads the same after
+ *          another PopulateCheckNames and another registration.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -321,6 +327,43 @@ int LegNote(uint16_t a) {
     return 0;
 }
 
+int LegOwnedNames(uint16_t, uint16_t) {
+    const int count = Combo_MMLocationCount();
+    std::vector<std::string> names;
+    std::vector<uint16_t> ids;
+    names.reserve((size_t)count);
+    ids.reserve((size_t)count);
+    for (int i = 0; i < count; i++) {
+        const ComboMMLocationDesc* d = Combo_MMLocationAt(i);
+        // Checked before anything reads a name after the repopulation below: a
+        // pointer into CheckNames would be read after its buffer was freed.
+        if (d->name == Rando::StaticData::CheckNames[d->id].c_str()) {
+            return Fail(63,
+                        "check %u's row points its name into CheckNames, whose buffer the next PopulateCheckNames "
+                        "frees (MM's tracker bring-up makes one after the page's table exists)",
+                        (unsigned)d->id);
+        }
+        names.emplace_back(d->name);
+        ids.push_back(d->id);
+    }
+    Rando::StaticData::PopulateCheckNames();
+    MM_RandoLocationsUi_Register();
+    printf("[TEST] leg 7 OBSERVED: %d rows before, %d after another PopulateCheckNames and registration\n", count,
+           Combo_MMLocationCount());
+    if (Combo_MMLocationCount() != count) {
+        return Fail(64, "another registration changed the row count from %d to %d", count, Combo_MMLocationCount());
+    }
+    for (int i = 0; i < count; i++) {
+        const ComboMMLocationDesc* d = Combo_MMLocationAt(i);
+        if (d->id != ids[(size_t)i] || names[(size_t)i] != d->name) {
+            return Fail(65, "row %d was check %u '%s' and reads check %u '%s' after another PopulateCheckNames", i,
+                        (unsigned)ids[(size_t)i], names[(size_t)i].c_str(), (unsigned)d->id, d->name);
+        }
+    }
+    printf("[TEST] leg 7: the table's names survive another PopulateCheckNames\n");
+    return 0;
+}
+
 } // namespace
 
 extern "C" int MM_LocationsView_RunHeadless(void) {
@@ -349,6 +392,7 @@ extern "C" int MM_LocationsView_RunHeadless(void) {
             [](uint16_t x, uint16_t) { return LegVanilla(x); },
             LegDigest,
             [](uint16_t x, uint16_t) { return LegNote(x); },
+            LegOwnedNames,
         };
         for (auto leg : legs) {
             const int legRc = leg(a, b);
