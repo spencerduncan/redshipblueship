@@ -6222,6 +6222,48 @@ TestResult Test_RandoMaskQuestPaired(void) {
     return OoT_MaskQuestPaired_RunGenerated() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #994: the two native check trackers' reachability. Same bring-up as the row
+// above (a real paired generation and creation, or MM's real region graph);
+// assertions in games/oot/soh/oot_tracker_reachability_test.cpp and
+// games/mm/2s2h/mm_tracker_in_logic_test.cpp. Each body returns its failure count.
+extern "C" int OoT_TrackerAvailability_RunArrival(void);
+extern "C" int OoT_TrackerFillSuperset_RunOoT(void);
+extern "C" int MM_TrackerInLogic_RunArrival(void);
+extern "C" int MM_TrackerFillSuperset_RunMM(void);
+static bool TrackerReachabilityBringUp(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return false;
+    }
+    static char trrArg0[] = "redship";
+    static char* trrArgv[] = { trrArg0, nullptr };
+    InitOTRForMMFirstBoot(1, trrArgv);
+    return true;
+}
+TestResult Test_TrackerAvailabilityArrival(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_TrackerAvailability_RunArrival() == 0 ? TEST_PASS : TEST_FAIL;
+}
+TestResult Test_MMTrackerInLogicArrival(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return MM_TrackerInLogic_RunArrival() == 0 ? TEST_PASS : TEST_FAIL;
+}
+TestResult Test_TrackerFillSuperset(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    const int oot = OoT_TrackerFillSuperset_RunOoT();
+    const int mm = MM_TrackerFillSuperset_RunMM(); // over the MM half the OoT half's creation armed
+    printf("[TEST] %s: tracker-fill-superset (OoT failures %d, MM failures %d)\n",
+           (oot == 0 && mm == 0) ? "PASS" : "FAIL", oot, mm);
+    return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
+}
+
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason; the row
 // body lives in tests/test_combo_logic_measure.c beside the composition helpers
@@ -7431,6 +7473,20 @@ const TestDescriptor gTests[] = {
       "A paired world generates Mask Quest as Shuffle and the Mask Shop Hint off, all eight OoT masks are in the "
       "world, and each Deku Theater check is reached only once its mask is assumed (#973)",
       Test_RandoMaskQuestPaired },
+    // #994: the native check trackers' reachability. Each needs a generation or
+    // MM's real region graph; skipped by `--test all` below like their siblings.
+    { "tracker-availability-arrival",
+      "OoT's Check Tracker on a paired creation save: sphere zero, a slingshot redeemed at an arrival flips its "
+      "gated check after the deferred recalculation, and no Mask Shop mask is ever credited (#994, #990, #973)",
+      Test_TrackerAvailabilityArrival },
+    { "mm-tracker-in-logic-arrival",
+      "MM's Check Tracker in-logic set: a hookshot tier applied at an arrival brings the South Clock Town lower chest "
+      "into logic, obtained drops it, and the computation writes nothing (#994)",
+      Test_MMTrackerInLogicArrival },
+    { "tracker-fill-superset",
+      "On one paired creation save, each game's tracker shows every check the fill's sphere zero reaches, minus "
+      "obtained (#994)",
+      Test_TrackerFillSuperset },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     { "combo-logic-bag-composition",
@@ -7775,6 +7831,9 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
                 strcmp(gTests[i].name, "rando-combo-hunt-own-mode") == 0 ||
                 strcmp(gTests[i].name, "rando-mask-quest-paired") == 0 ||
+                strcmp(gTests[i].name, "tracker-availability-arrival") == 0 ||
+                strcmp(gTests[i].name, "mm-tracker-in-logic-arrival") == 0 ||
+                strcmp(gTests[i].name, "tracker-fill-superset") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||

@@ -2445,6 +2445,26 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #994 (audit R4): the native check trackers' reachability, which nothing else
+    # drives. TrackerAvailabilityArrival runs OoT's real Available Checks
+    # recalculation on a paired creation save, across a real arrival redeem and the
+    # deferred flag (#990), with #973's Mask Shop assertion; MMTrackerInLogicArrival
+    # runs MM's ComputeChecksInLogic across a hookshot tier applied by the real
+    # MM_ApplySharedResources; TrackerFillSuperset compares each tracker with the
+    # fill's sphere-zero round on one paired creation. `rando`: a generation, or
+    # MM's real region graph (the MMComboLogicEngine reason).
+    redship_add_test(NAME TrackerAvailabilityArrival COMMAND redship --test tracker-availability-arrival
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME MMTrackerInLogicArrival COMMAND redship --test mm-tracker-in-logic-arrival
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME TrackerFillSuperset COMMAND redship --test tracker-fill-superset
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
     # #731, #733): the composed bag holds progression copies only, plentiful copies
     # are surplus, OoT's restricted passes confine their families, filler and traps
