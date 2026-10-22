@@ -72,7 +72,7 @@ extern "C" {
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
 #include "foreign_items.h" // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: shared families a row is MM's copy of (#1065, #1067)
-#include "game.h"             // MM_SAVE_CONTEXT_SIZE
+#include "game.h"          // MM_SAVE_CONTEXT_SIZE
 #include "shared_resources.h" // Combo_SaveIsLiveFile, Combo_MakeHealthQuarters (the Shared column's live view, #971)
 
 // The view hands this TU either the unified live storage (unified_save.c,

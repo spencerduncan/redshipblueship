@@ -59,7 +59,7 @@ extern "C" int OoT_SaveBlobIsStarted(const uint8_t* blob, size_t blobSize);
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
-#include "foreign_items.h" // RSBS_XITEM_*: the shared families a row is OoT's copy of (#1065)
+#include "foreign_items.h"    // RSBS_XITEM_*: the shared families a row is OoT's copy of (#1065)
 #include "game.h"             // OOT_SAVE_CONTEXT_SIZE
 #include "shared_resources.h" // Combo_SaveIsLiveFile, Combo_MakeHealthQuarters (the Shared column's live view, #971)
 
