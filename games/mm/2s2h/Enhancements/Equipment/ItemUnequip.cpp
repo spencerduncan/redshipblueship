@@ -18,6 +18,8 @@ extern "C" {
 
 void RegisterDpadPageSwitchPrevention() {
     COND_VB_SHOULD(VB_KALEIDO_SWITCH_PAGE_WITH_DPAD, CVAR_DPAD, {
+        // #1015: this TU is in the single-exe link now (2ship_enh_registrars); the body reads the play state.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         u16 button = va_arg(args, int);
         Input* input = &MM_gPlayState->state.input[0];
 
@@ -35,6 +37,8 @@ void RegisterDpadPageSwitchPrevention() {
 
 void MM_RegisterItemUnequip() {
     COND_VB_SHOULD(VB_KALEIDO_EQUIP_ITEM_TO_BUTTON, CVAR, {
+        // #1015: see the dpad hook above.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         u16 cursorSlot = va_arg(args, int);
         u16 cursorItem = va_arg(args, int);
 
