@@ -307,9 +307,17 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     // from the file, which a spelling could not survive. Two spellings of one
     // set generate one world, so they are one identity; any change to the set
     // between creation and arrival still moves the digest. The empty set folds
-    // as before (""), so no existing pair's digest moves.
+    // as before (""), so no existing pair's digest moves. The fold drops the
+    // writers' trailing comma: "26,77,211" is the form the golden harness
+    // (RSBS_GOLDEN_MM_EXCLUDES) wrote raw before R3, and the profile digest is
+    // an entropy input of the single bag (combo_single_bag.c), so folding any
+    // other spelling would move GoldenSeedDigestExcludesTricks' pinned world.
     s += "|excluded:";
-    s += ExcludedChecksString(excludedChecks);
+    std::string excludedFold = ExcludedChecksString(excludedChecks);
+    if (!excludedFold.empty()) {
+        excludedFold.pop_back();
+    }
+    s += excludedFold;
     // The paired start, folded as its item-id list — the SAME accessor the
     // paired generation consumes, so the identity term and the generation input
     // are one computation. Since #879 that is the combo's own constant
