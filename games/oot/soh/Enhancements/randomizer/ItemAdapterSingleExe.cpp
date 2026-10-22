@@ -498,6 +498,12 @@ uint32_t OoTItemSharedFamily(const RowDef& def) {
     if (def.kind == RK_INV && def.item == (uint8_t)ITEM_LENS) {
         return RSBS_XITEM_SHARED_LENS;
     }
+    if (def.kind == RK_QUEST && def.data == (uint32_t)QUEST_SONG_EPONA) {
+        return RSBS_XITEM_SHARED_SONG_EPONA; // #1066
+    }
+    if (def.kind == RK_QUEST && def.data == (uint32_t)QUEST_SONG_STORMS) {
+        return RSBS_XITEM_SHARED_SONG_STORMS; // #1066
+    }
     return 0u;
 }
 
