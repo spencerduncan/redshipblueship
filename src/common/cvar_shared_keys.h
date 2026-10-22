@@ -192,6 +192,17 @@
  * a BIT of the item rules record, so with it off the record stays all clear and
  * every fingerprint holds. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES "gCombo.Rando.SharedBottles"
+/* #978 (epic #975 P2): one Goron Mask, Zora Mask, Bunny Hood, Keaton Mask and
+ * Mask of Truth across both games (OoTMM sharedMaskGoron, sharedMaskZora,
+ * sharedMaskBunny, sharedMaskKeaton, sharedMaskTruth). Boolean (0/1), DEFAULT 0
+ * each. Bits of the same crossItemFlags (RSBS_XITEM_SHARED_GORON ... _TRUTH,
+ * reserved by #976), folded into comboSettingsHash only when on. #969's Bunny
+ * Hood speed in Hyrule rides the Bunny Hood's bit. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GORON "gCombo.Rando.SharedMaskGoron"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_ZORA "gCombo.Rando.SharedMaskZora"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BUNNY "gCombo.Rando.SharedMaskBunny"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_KEATON "gCombo.Rando.SharedMaskKeaton"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH "gCombo.Rando.SharedMaskTruth"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -671,6 +682,25 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_BOTTLES bit (#970): the bottle count is ONE shared "
       "quantity across both games, up to OoT's four slots" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GORON, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_GORON bit (#978): the Goron Mask is ONE shared-pair "
+      "family "
+      "across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_ZORA, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_ZORA bit (#978): the Zora Mask is ONE shared-pair family "
+      "across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BUNNY, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_BUNNY bit (#978): the Bunny Hood is ONE shared-pair "
+      "family "
+      "across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_KEATON, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_KEATON bit (#978): the Keaton Mask is ONE shared-pair "
+      "family "
+      "across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_TRUTH bit (#978): the Mask of Truth is ONE shared-pair "
+      "family "
+      "across both games" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -1087,20 +1117,21 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Twelve identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Seventeen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
 // SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
-// SharedArrowFire, SharedArrowIce and SharedArrowLight (#968) and SharedBottles
-// (#970); #879 retired SharedOcarina (#668)) + four
+// SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
+// (#970), SharedMaskGoron, SharedMaskZora, SharedMaskBunny, SharedMaskKeaton and
+// SharedMaskTruth (#978); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
 // (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 25, "twelve gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
-                                    "gCombo.Tracker.Items.* preferences = 25");
+static_assert(kComboKeyCount == 30, "seventeen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+                                    "nine gCombo.Tracker.Items.* preferences = 30");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is
