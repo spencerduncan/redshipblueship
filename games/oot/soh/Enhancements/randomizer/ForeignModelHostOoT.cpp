@@ -630,8 +630,9 @@ extern "C" int OoT_ForeignModel_TestShelfXlu(uint16_t rc, uint8_t bound[16], uin
         const uint32_t w0 = (uint32_t)g->words.w0;
         const uintptr_t w1 = (uintptr_t)g->words.w1;
         const uint32_t op = (w0 >> 24) & 0xFF;
-        if (op == (uint32_t)(uint8_t)G_MOVEWORD && (w0 & 0xFF) == G_MW_SEGMENT) {
-            const uint32_t segment = ((w0 >> 8) & 0xFFFF) / 4;
+        // F3DEX2's gMoveWd (gDma1p): the index in bits 16-23, the offset in bits 0-15.
+        if (op == (uint32_t)(uint8_t)G_MOVEWORD && ((w0 >> 16) & 0xFF) == G_MW_SEGMENT) {
+            const uint32_t segment = (w0 & 0xFFFF) / 4;
             if (parts == 0 && segment < 16) {
                 bound[segment] = 1;
             }
