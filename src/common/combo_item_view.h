@@ -48,6 +48,14 @@
  * found a minute ago is in the live save only). A copy ahead of the pool stays
  * lit: it is the only place the find shows.
  *
+ * THE SHARED COLUMN IS LIVE FOR THE ACTIVE GAME (#971). Every other shared kind
+ * (the hookshot, the wallet, magic, double defense, hearts, and the rupee and
+ * ammo counts) is read the same way, through ComboItemOps::sharedLive over the
+ * active game's LIVE buffer, with no harvest: a MONOTONIC kind shows
+ * max(pool, live), a CONSUMABLE count shows the live game's own value (an ammo
+ * count only while the live tier is at least the pool's). The pool is never
+ * written by a draw, and the inactive game keeps its snapshot.
+ *
  * FRESHNESS IS A FIELD. Every row carries the freshness the view set for its
  * source; the adapter never sets it.
  *
@@ -177,6 +185,15 @@ typedef struct ComboItemOps {
     // that `src` and contiguous, so a drawer that stops at the first refused row
     // sees them all. May be NULL: count() is then the answer for every save.
     int (*countFor)(const void* src);
+    // The LIVE view of shared resource `kind` (RSBS_SHARED_RES_*, #971): what this
+    // game's save `src` holds of it right now, written to `*out` and answered true,
+    // or false when the game has no reading of that kind (or `src` is not a played
+    // file). A READ ONLY op over the handed buffer: it reuses the harvest's readers'
+    // arithmetic but never harvests, applies or writes the pool, the save or the
+    // watermarks. The view calls it only for the ACTIVE game's LIVE buffer, so the
+    // Shared column shows a find made since the last save or crossing. May be NULL:
+    // the column is then the pool alone.
+    bool (*sharedLive)(const void* src, uint8_t kind, uint16_t* out);
 } ComboItemOps;
 
 /**
