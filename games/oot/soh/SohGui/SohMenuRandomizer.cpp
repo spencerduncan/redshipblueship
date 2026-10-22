@@ -22,10 +22,6 @@ static const std::map<int32_t, const char*> skipGetItemAnimationOptions = {
     { SGIA_ALL, "All Items" },
 };
 
-// Defined below AddMenuRandomizer, which calls it; see its doc comment for why
-// what is left of the Cross-Game page is a named function of its own.
-void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path);
-
 static bool locationsDirty = true;
 static bool tricksDirty = true;
 static char seedString[MAX_SEED_STRING_SIZE];
@@ -735,6 +731,10 @@ void SohMenu::AddMenuRandomizer() {
     AddSidebarEntry("Randomizer", path.sidebarName, 1);
     AddWidget(path, "Tricks/Glitches", WIDGET_CUSTOM).CustomFunction(DrawTricksMenu);
 
+    // RSBS (#1101): one randomizer menu for both games. MM Randomizer, MM Tricks
+    // and Cross-Game (the cross-game rules), registered by SohMenuCombo.cpp.
+    AddComboRandomizerPages(*this, path);
+
     // Plandomizer
     path.sidebarName = "Plandomizer";
     AddSidebarEntry("Randomizer", path.sidebarName, 1);
@@ -804,60 +804,6 @@ void SohMenu::AddMenuRandomizer() {
         .WindowName("Check Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Enables the separate Check Tracker Settings Window."));
-
-    AddCrossGamePointerWidgets(*this, path);
-}
-
-/**
- * What is left of the interim Cross-Game page (#509, #655) after #497 step 6
- * moved its rows into the tier-4 Combo section: one pointer row.
- *
- * WHY THE PAGE IS NOT DELETED. Sidebar selection persists BY DISPLAY-NAME STRING
- * into gSettings.Menu.RandomizerSidebarSection, so a config holding "Cross-Game"
- * would select a sidebar that no longer exists - which is the measured reason ADR
- * 0004's resolved call 1 refused to promote Cheats out of Enhancements. The
- * player's selection is silently lost either way, and the page they land on
- * instead has no clue where their combo rules went. One row is cheaper than that.
- *
- * WHY A ROW AND NOT AN EMPTY PAGE. An empty multi-column page is #640's failure
- * mode - Menu::DrawElement's unconditional SetNextWindowPos goes unconsumed and
- * undocks libultraship's "Main Game" window. This page holds two widgets, in the
- * first of two declared columns: two for the MEASURE (UI parity M2), so its gray
- * note wraps at the width of Randomizer > General's column notes instead of
- * running as one line across the whole page.
- *
- * Externally linked and declared in no header, like the registrar it replaces:
- * MenuComboSection drives it directly, because AddMenuRandomizer as a whole
- * cannot run ROM-free (its five Rando::Settings option groups reach
- * Option::AddWidget, which RUNS each option's callback at registration time,
- * Enhancements/randomizer/option.cpp:330, and those callbacks dereference
- * OTRGlobals::Instance->gRandoContext - null in every display-free harness).
- */
-void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path) {
-    // PIN THE COLUMN: OptionGroup::AddWidgets advances path.column per COLUMN
-    // container (option.cpp:469-472) and five option groups run immediately
-    // before this page, so what arrives here is whatever the last settings column
-    // left behind. This page fills one column, so it takes the first.
-    path.column = SECTION_COLUMN_1;
-    path.sidebarName = "Cross-Game";
-    menu.AddSidebarEntry("Randomizer", path.sidebarName, 2);
-    // UI parity M2: a Title Case separator and ONE gray sentence, the shape of
-    // SoH's own notes (SohMenuRandomizer.cpp's General page). The sentence names
-    // the header, not the pages under it, so renaming a Combo page cannot strand
-    // it; why these rows are combo-level is ADR 0004's to say, not the player's
-    // to read.
-    menu.AddWidget(path, "Moved to Combo", WIDGET_SEPARATOR_TEXT);
-    menu.AddWidget(path,
-                   "The cross-game rules, the cross-game windows and Majora's Mask's trackers are now under the "
-                   "Combo header.",
-                   WIDGET_TEXT)
-        .RaceDisable(false)
-        // Out of the menu search, like the tier-4 status row: a widget's NAME is
-        // what the search indexes, and seeding it with a paragraph buries the rows
-        // a player was actually looking for. The searchable pointer is the
-        // separator above.
-        .HideInSearch(true)
-        .Options(TextOptions().Color(UIWidgets::Colors::Gray));
 }
 
 } // namespace SohGui

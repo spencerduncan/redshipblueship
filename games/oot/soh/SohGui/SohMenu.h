@@ -219,7 +219,9 @@ struct ComboSectionPage {
  * THE EXTENSION POINT. A TU that wants its own page in the tier-4 Combo section
  * registers one here instead of editing SohMenuCombo.cpp; AddMenuCombo() walks
  * the registry after its own pages and creates each sidebar, so a contributor
- * touches no file this lane owns. Registration must happen BEFORE
+ * touches no file this lane owns. A randomizer settings page passes
+ * ComboPageHost::Randomizer instead and is drawn under SoH's Randomizer header
+ * by AddComboRandomizerPages() (#1101). Registration must happen BEFORE
  * AddMenuElements() runs - a file-scope initializer is the intended shape:
  *
  *     static void AddMyPage(SohGui::SohMenu& menu, WidgetPath& path) {

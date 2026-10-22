@@ -221,7 +221,7 @@ controls are what a player sees by default and the per-game ones read as excepti
 | **Enhancements** | Quality of Life, Skips & Speed-ups, Graphics, Items, Fixes, Difficulty, Minigames, Extra Modes | Shared-intent entries first in each sidebar; then `— Ocarina of Time —` and `— Majora's Mask —` separators for tier-3 entries |
 | **Cheats** | ~~(promoted out of Enhancements)~~ **stays an Enhancements sidebar** | Superseded on acceptance — see resolved call 1. Shared-intent block first (the 5 matched + 5 converged cheats), then per-game |
 | **Cosmetics** | Cosmetics Editor, Audio Editor, HUD Editor | Mostly (O) per game; MM's 3 tunic keys converge — see classification §3.3 BUG 1 |
-| **Randomizer** | OoT, MM, **Paired** | See §4.1 and **§4.1a** — MM's half is a common-owned window, not a SohMenu sidebar, for the timing reason given there (host superseded 2026-09-27: Combo > MM Randomizer and Combo > MM Tricks pages, see the host amendment) |
+| **Randomizer** | OoT, MM, **Paired** | See §4.1 and **§4.1a** — MM's half is a common-owned window, not a SohMenu sidebar, for the timing reason given there (host superseded 2026-09-27: Combo > MM Randomizer and Combo > MM Tricks pages, see the host amendment; superseded again 2026-10-21: Randomizer > MM Randomizer, MM Tricks and Cross-Game, see the one-randomizer-menu amendment) |
 | **Trackers** | Item, Check, Entrance, Combo | Per findings §3, MM trackers are nearly free — blocked on registration surface + selective un-elision, not hook migration |
 | **Combo** | Pairing status, Save slots, Entrance links, Hot-swap | Tier 4. Absorbs `ComboMenuBar`'s working `.redsave` file-select panel (built 2026-09-28 as Combo > Save Files; `ComboMenuBar` deleted) |
 | **Dev Tools** | (existing) | Shared where already shared; MM's viewers gated per §5 |
@@ -830,3 +830,33 @@ spellings in `cvar_shared_keys.h` went with the rows, their only writer; the key
 (`TrackersGuiSingleExe.h`), and `MMTrackersGui` still locks that they open the registered windows.
 
 **Note (2026-10-11, #897).** Item 3's "the `MMActiveGated` wrapper is unchanged" no longer holds word for word: the wrapper now gives each window it draws a right-click menu with one item, Close, which clears that window's `gWindows.*` key, so a tracker an old config left open (floating or docked) can be shut in game. The ruling itself stands: the keys still open MM's native windows, and `MMTrackersGui` leg 7 locks both.
+
+## Amendment 2026-10-21 — one randomizer menu: our randomizer pages move under SoH's Randomizer header (#1101)
+
+**The ruling.** The operator's ruling on #1101 (2026-10-21, option C): the paired combo gets one randomizer menu,
+as OoTMM has one generator. The 2026-09-27 "no unneeded overhaul of original SoH menus" ruling is amended narrowly:
+our pages may register under SoH's Randomizer header after Tricks/Glitches and before Plandomizer, in the order MM
+Randomizer, MM Locations, MM Tricks, Cross-Game, and the "Cross-Game" pointer page becomes the rules page. No SoH
+page's rows, widgets or wording change. The sidebar name carries the game, rows stay unlabelled, and "[Both Games]"
+stays on every pair-level row.
+
+**What moved (lane R1, registration only).** §4's Randomizer row and the 2026-09-27 host amendment's page names are
+superseded: **Combo > MM Randomizer** and **Combo > MM Tricks** are now **Randomizer > MM Randomizer** and
+**Randomizer > MM Tricks**, and **Combo > Cross-Game Rules** is **Randomizer > Cross-Game**, the name the pointer
+page kept alive. `RegisterComboSectionPage` takes a `ComboPageHost`; the two MM pages register with
+`ComboPageHost::Randomizer`, and `AddComboRandomizerPages` (`SohMenuCombo.cpp`), called by `AddMenuRandomizer` right
+after Tricks/Glitches, draws them and then the rules. The pointer page (`AddCrossGamePointerWidgets`) is deleted with
+its lint slice. Every TU, row, model, gated writer and freeze is unchanged, and no key is minted.
+
+**The Combo header keeps** Windows, Majora's Mask (the enhancements page), MM Mods, Save Files and Tracker Settings.
+
+**Persisted selections.** A config whose Combo selection names a moved page reopens on that page under Randomizer
+when Combo was the open header (`gSettings.Menu.ActiveHeader` and `gSettings.Menu.RandomizerSidebarSection`, both
+existing keys), and leaves the player's own Randomizer selection alone otherwise; the stale Combo selection is cleared
+either way. A config holding `Cross-Game` under Randomizer lands on the rules instead of a signpost.
+
+**Locks:** `MenuComboSection` (the Combo header's five pages, our three Randomizer pages between stand-ins for
+Tricks/Glitches and Plandomizer, the host seam, the cross-header carry), `MenuMmRandomizerPages` leg 1 (host and
+order), `ComboSettingsRows` (the rules' host), `UiSnapshot` and `UiSnapshotMin` (page ids `Randomizer/MM Randomizer`,
+`Randomizer/MM Tricks` and `Randomizer/Cross-Game`; `Combo/Cross-Game Rules` and the pointer page retired). The later
+lanes of #1101 (R2 vocabulary, R3 MM Locations, R4 trap types, R5 docs) amend this section when they land.
