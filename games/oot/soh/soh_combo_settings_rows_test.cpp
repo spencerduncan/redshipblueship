@@ -362,6 +362,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_SHARED_ARROW_LIGHT, WIDGET_CHECKBOX, "" },
         // #970's Shared Bottles: the same shape.
         { COMBO_SETTING_SHARED_BOTTLES, WIDGET_CHECKBOX, "" },
+        // #978: the five shared masks, the lens's shape.
+        { COMBO_SETTING_SHARED_MASK_GORON, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_ZORA, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_BUNNY, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_KEATON, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_TRUTH, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -524,10 +530,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // only effect was to carry that free instrument back to Hyrule. Operator
     // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
-    // fix removes. The page's ten checkboxes are #886's Shared Kokiri Sword,
+    // fix removes. The page's fifteen checkboxes are #886's Shared Kokiri Sword,
     // #1068's Shared Shields, #1065's Shared Lens of Truth, #1066's two shared
-    // songs, #1067's Shared Ocarina Buttons, #968's three shared arrows and
-    // #970's Shared Bottles. #1067's "Shared Ocarina Buttons" is a different rule
+    // songs, #1067's Shared Ocarina Buttons, #968's three shared arrows,
+    // #970's Shared Bottles and #978's five shared masks. #1067's "Shared Ocarina Buttons" is a different rule
     // (the five ocarina buttons, not the instrument), so its name is not the
     // retired row's: the match excludes it explicitly.
     {
@@ -544,14 +550,15 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 10,
-                   "the Cross-Game Rules page has %d checkbox row(s); the ten expected are the Shared Kokiri Sword "
+        ROWS_CHECK(checkboxes == 15,
+                   "the Cross-Game Rules page has %d checkbox row(s); the fifteen expected are the Shared Kokiri Sword "
                    "(#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song and "
                    "Shared Song of Storms (#1066), the Shared Ocarina Buttons (#1067), Shared Fire, Ice and Light "
-                   "Arrows (#968) and the Shared Bottles (#970), after #879 retired the Shared Ocarina",
+                   "Arrows (#968), the Shared Bottles (#970) and the Shared Goron, Zora, Keaton and Truth masks and "
+                   "Bunny Hood (#978), after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 10 "
-               "(#879, #886, #1068, #1065, #1066, #1067, #968, #970)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 15 "
+               "(#879, #886, #1068, #1065, #1066, #1067, #968, #970, #978)\n",
                ocarinaRows, checkboxes);
     }
 
@@ -942,7 +949,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_FIRE, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_ICE, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_LIGHT, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_GORON, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_ZORA, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BUNNY, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_KEATON, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
