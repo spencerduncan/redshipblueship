@@ -336,12 +336,12 @@ TestResult SharedSongsRule_Run(void) {
         SS_CHECK(bits == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS,
                  "a songs-on file met by a songs-off session diverged %08X, expected crossItemFlags alone",
                  (unsigned)bits);
-        SS_CHECK(Combo_ComboSettingsCanRestoreLiveEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 1,
+        SS_CHECK(Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 1,
                  "the file-select probe would refuse a songs-on file the keys can restore");
         char names[256] = { 0 };
         ComboSettingsKeyUndo undo;
-        const int restored = Combo_ComboSettingsRestoreLiveEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits,
-                                                              names, sizeof(names), &undo);
+        const int restored = Combo_ComboSettingsRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits,
+                                                            names, sizeof(names), &undo);
         printf("[TEST] (5) restore: %d, restored '%s', diverged after %08X\n", restored, names,
                (unsigned)Combo_ComboSettingsDivergence());
         SS_CHECK(restored == 1 && strstr(names, kSsSongs[0].label) != NULL && strstr(names, kSsSongs[1].label) != NULL,
@@ -360,8 +360,8 @@ TestResult SharedSongsRule_Run(void) {
 
         // A later build's bit beside the songs is never restored.
         const ComboItemRulesRecord later = SsRules(kSsBoth | kSsLaterBuildBit);
-        SS_CHECK(Combo_ComboSettingsCanRestoreLiveEx(&gComboCtx.comboSettings, &later,
-                                                     RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS) == 0,
+        SS_CHECK(Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &later,
+                                                   RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS) == 0,
                  "a frozen rule no key authors must not be claimed restorable");
         ComboContext_Init();
     }

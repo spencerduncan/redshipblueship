@@ -71,7 +71,7 @@ extern "C" {
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
-#include "foreign_items.h" // RSBS_XITEM_*: the shared families a row is MM's copy of (#1065)
+#include "foreign_items.h" // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: the shared families a row is MM's copy of (#1067)
 #include "game.h"          // MM_SAVE_CONTEXT_SIZE
 
 // The view hands this TU either the unified live storage (unified_save.c,
@@ -329,6 +329,13 @@ bool MMItemDeriveButton(const SaveContext* src, int button, ComboItemRow* out) {
     MMItemFillRando(out, (RandoItemId)(RI_OCARINA_BUTTON_A + button));
     out->iconTint = (button == 0) ? kMMButtonTintA : kMMButtonTintC;
     out->have = MMItemButtonHeld(src, button);
+    // #1067: each button is MM's copy of a Shared Ocarina Buttons family; under
+    // the frozen rule the view draws it once, in the Shared group.
+    static const uint32_t kSlots[kMMButtonRowCount] = {
+        RSBS_XITEM_SHARED_OCARINA_BUTTONS, RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT,
+        RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, RSBS_XFAMILY_SLOT_OCARINA_C_UP
+    };
+    out->sharedFamily = kSlots[button];
     return true;
 }
 
@@ -596,6 +603,9 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             break;
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             key = MMItemRandoIcon(RI_TRIFORCE_PIECE);
+            break;
+        case RSBS_SHARED_RES_BOTTLE_COUNT: // #970
+            key = MMItemIcon(ITEM_BOTTLE);
             break;
         default:
             break;

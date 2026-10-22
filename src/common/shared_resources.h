@@ -150,12 +150,20 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 21u
+#define RSBS_SHARED_RES_KIND_COUNT 22u
+
+/* Every kind one world can arm at once must have a slot in the two blocks: the
+ * real kinds less the retired ocarina tier, which is never armed (#879). Today
+ * that is twenty of twenty (#970's bottles took the last one), so the next kind
+ * fails here and needs a third block (context.h), rather than silently finding
+ * no slot at its first harvest. */
+RSBS_CTX_STATIC_ASSERT(RSBS_SHARED_RES_KIND_COUNT - 2u <= RSBS_SHARED_RESOURCE_TOTAL_CAP,
+                       "more shared-resource kinds can be armed at once than the two blocks have slots");
 
 /**
  * Is `kind` ARMED for this world?
  *
- * Seventeen of the twenty kinds are unconditional: #525 decided that both
+ * Seventeen of the twenty-one kinds are unconditional: #525 decided that both
  * games share one wallet, one health bar, one magic meter, one set of ammo and
  * one hookshot, and no save can turn that off. RSBS_SHARED_RES_OCARINA_TIER
  * (#668) was the first that a PLAYER chose, through a tier-4 key frozen into
@@ -166,6 +174,8 @@ extern "C" {
  * (Combo_TriforceHuntArmed, triforce_hunt.h). RSBS_SHARED_RES_KOKIRI_SWORD
  * (#886) is armed only by the FROZEN record's RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD
  * bit, the player's Cross-Game Rules choice (Combo_ComboSharedKokiriSword).
+ * RSBS_SHARED_RES_BOTTLE_COUNT (#970) is armed only by the FROZEN item rules'
+ * RSBS_XITEM_SHARED_BOTTLES bit (Combo_ComboCrossItemRule).
  *
  * THE GATE LIVES HERE, ONCE, AND BOTH ENTRY POINTS CONSULT IT. A gate written
  * into the four per-game call sites instead would be four chances to gate one
@@ -456,8 +466,13 @@ void Combo_ResetSharedResourceWatermarks(void);
  * slot. A family is a 0/1 fact per family, so the whole set is ONE BITSET,
  * gComboCtx.sharedFamilyOwned, one bit per family at the family's own
  * RSBS_XITEM_* rule bit (all twenty slots are allocated, and a slot's 16-bit
- * value could not hold the 32-bit family space). Its merge is a third
- * discipline:
+ * value could not hold the 32-bit family space). A rule that makes MORE than one
+ * pair one item owns its first pair at its own bit and each further pair at an
+ * EXTRA SLOT (RSBS_XFAMILY_SLOTS_EXTRA, foreign_items.h), a bit no family rule
+ * can occupy, armed with the rule (#1068: the Shared Shields rule's Hylian/Hero's
+ * pair at its bit, its Mirror pair at RSBS_XFAMILY_SLOT_MIRROR_SHIELD; #1067:
+ * the Shared Ocarina Buttons' A pair at its bit, its four C pairs at the
+ * extension rules' bits). Its merge is a third discipline:
  *
  *   OR - harvest is `owned |= held & armed`, apply gives the arriving game its
  *   NATIVE copy of every family in `owned & armed & ~held`. Monotonic in both
@@ -495,18 +510,31 @@ typedef struct {
      *  startup entrance runs before gameplay). Called only when held() is false.
      *  Required. */
     void (*give)(uint16_t nativeId);
+    /** Is this game's copy an item of this world's pool, i.e. do the game's own
+     *  settings shuffle it? Read by the bag at generation (Combo_SingleBag): a
+     *  pair is built only when BOTH copies are pooled, because a shared row can
+     *  be hosted in either game, and a game that does not shuffle its copy may
+     *  not be able to hand it on (#1067: a button found in a game without the
+     *  button shuffle is never held there). Optional: NULL means always pooled. */
+    bool (*pooled)(uint16_t nativeId);
 } ComboSharedFamilyMember;
 
 /**
  * Register (or, with NULL @p member, unregister) @p game's copy of the family at
  * @p familyBit. Refused (false) for a game that is not OoT or MM, a bit that is
- * not exactly one RSBS_XITEM_FAMILY_MASK bit, or a member with a NULL callback.
+ * not exactly one family slot (an RSBS_XITEM_FAMILY_MASK bit or an
+ * RSBS_XFAMILY_SLOTS_EXTRA bit), or a member with a NULL callback.
  */
 bool Combo_RegisterSharedFamilyMember(GameId game, uint32_t familyBit, const ComboSharedFamilyMember* member);
 
 /** @p game's registered native id for the family at @p familyBit; false when
  *  none is registered. */
 bool Combo_SharedFamilyMemberId(GameId game, uint32_t familyBit, uint16_t* outId);
+
+/** Is @p game's registered copy of the family at @p familyBit in this world's
+ *  pool (its member's pooled(), true when that is NULL)? False when none is
+ *  registered. */
+bool Combo_SharedFamilyMemberPooled(GameId game, uint32_t familyBit);
 
 /** @p game's whole registered member for the family at @p familyBit, so a
  *  test that registers its own can put the game's back (#978); false when none
@@ -516,8 +544,18 @@ bool Combo_SharedFamilyMemberGet(GameId game, uint32_t familyBit, ComboSharedFam
 /** Drop every registered member (tests). */
 void Combo_ClearSharedFamilyMembers(void);
 
-/** The families the FROZEN record arms: crossItemFlags & RSBS_XITEM_FAMILY_MASK,
- *  0 while nothing is frozen. */
+/** The family slots @p crossItemFlags arms: its RSBS_XITEM_FAMILY_MASK bits,
+ *  plus each extra slot of a rule it holds (#1068's Mirror slot with
+ *  RSBS_XITEM_SHARED_SHIELDS). Pure. */
+uint32_t Combo_SharedFamilySlotsArmedBy(uint32_t crossItemFlags);
+
+/** A short name for one family slot, for logs: the rule's name at a rule bit
+ *  (Combo_ComboItemRuleName), the owning rule and its pair at an extra slot.
+ *  Never NULL. */
+const char* Combo_SharedFamilySlotName(uint32_t slot);
+
+/** The family slots the FROZEN record arms (Combo_SharedFamilySlotsArmedBy of
+ *  its crossItemFlags), 0 while nothing is frozen. */
 uint32_t Combo_SharedFamiliesArmed(void);
 
 /** The pool: the family bits the player holds in either game. */

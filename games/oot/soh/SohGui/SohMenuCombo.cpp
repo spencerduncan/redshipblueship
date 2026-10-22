@@ -101,19 +101,22 @@ using namespace UIWidgets;
 // PreFunc overwrites the buffer with the model's value again — so the rows can
 // never disagree with the record about what this world's rules are.
 static int32_t comboRuleDirection;
-static int32_t comboRuleGoal;           // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
-static bool comboRuleSharedKokiriSword; // #886: ComboSettingsRecord.comboFlags' shared-sword bit
-static bool comboRuleSharedLens;        // #1065: the item rules' RSBS_XITEM_SHARED_LENS bit
-static bool comboRuleSharedSongEpona;   // #1066: the item rules' RSBS_XITEM_SHARED_SONG_EPONA bit
-static bool comboRuleSharedSongStorms;  // #1066: the item rules' RSBS_XITEM_SHARED_SONG_STORMS bit
-static bool comboRuleSharedArrowFire;   // #968: the item rules' RSBS_XITEM_SHARED_ARROW_FIRE bit
-static bool comboRuleSharedArrowIce;    // #968: the item rules' RSBS_XITEM_SHARED_ARROW_ICE bit
-static bool comboRuleSharedArrowLight;  // #968: the item rules' RSBS_XITEM_SHARED_ARROW_LIGHT bit
-static bool comboRuleSharedMaskGoron;   // #978: the item rules' RSBS_XITEM_SHARED_GORON bit
-static bool comboRuleSharedMaskZora;    // #978: the item rules' RSBS_XITEM_SHARED_ZORA bit
-static bool comboRuleSharedMaskBunny;   // #978: the item rules' RSBS_XITEM_SHARED_BUNNY bit
-static bool comboRuleSharedMaskKeaton;  // #978: the item rules' RSBS_XITEM_SHARED_KEATON bit
-static bool comboRuleSharedMaskTruth;   // #978: the item rules' RSBS_XITEM_SHARED_TRUTH bit
+static int32_t comboRuleGoal;              // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
+static bool comboRuleSharedKokiriSword;    // #886: ComboSettingsRecord.comboFlags' shared-sword bit
+static bool comboRuleSharedShields;        // #1068: ComboItemRulesRecord.crossItemFlags' shared-shields bit
+static bool comboRuleSharedLens;           // #1065: the item rules' RSBS_XITEM_SHARED_LENS bit
+static bool comboRuleSharedSongEpona;      // #1066: the item rules' RSBS_XITEM_SHARED_SONG_EPONA bit
+static bool comboRuleSharedSongStorms;     // #1066: the item rules' RSBS_XITEM_SHARED_SONG_STORMS bit
+static bool comboRuleSharedOcarinaButtons; // #1067: ComboItemRulesRecord.crossItemFlags' shared-buttons bit
+static bool comboRuleSharedArrowFire;      // #968: the item rules' RSBS_XITEM_SHARED_ARROW_FIRE bit
+static bool comboRuleSharedArrowIce;       // #968: the item rules' RSBS_XITEM_SHARED_ARROW_ICE bit
+static bool comboRuleSharedArrowLight;     // #968: the item rules' RSBS_XITEM_SHARED_ARROW_LIGHT bit
+static bool comboRuleSharedBottles;        // #970: ComboItemRulesRecord.crossItemFlags' shared-bottles bit
+static bool comboRuleSharedMaskGoron;      // #978: the item rules' RSBS_XITEM_SHARED_GORON bit
+static bool comboRuleSharedMaskZora;       // #978: the item rules' RSBS_XITEM_SHARED_ZORA bit
+static bool comboRuleSharedMaskBunny;      // #978: the item rules' RSBS_XITEM_SHARED_BUNNY bit
+static bool comboRuleSharedMaskKeaton;     // #978: the item rules' RSBS_XITEM_SHARED_KEATON bit
+static bool comboRuleSharedMaskTruth;      // #978: the item rules' RSBS_XITEM_SHARED_TRUTH bit
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -202,6 +205,17 @@ static bool ComboRuleShownRecord(ComboSettingsRecord* out) {
         return true;
     }
     Combo_ResolveComboSettings(out);
+    return false;
+}
+
+/** ComboRuleShownRecord for the item rules (#976 record, #1068's row): the
+ *  frozen record once decided, else what this session would freeze. */
+static bool ComboRuleShownItemRules(ComboItemRulesRecord* out) {
+    if (Combo_ComboSettingsFrozen()) {
+        *out = gComboCtx.comboItemRules;
+        return true;
+    }
+    Combo_ResolveComboItemRules(out);
     return false;
 }
 
@@ -560,6 +574,25 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "other. A Razor or Gilded Sword gives the Kokiri Sword in Ocarina of Time. Majora's Mask's sword upgrades "
             "count from the shared sword, so one of the two games' sword pickups ends up spare."));
 
+    // The Shared Shields (#1068; operator ruling 2026-10-20: OoTMM's
+    // sharedShields, default off). A BIT of the item rules record rather than
+    // of comboFlags; otherwise the Kokiri Sword row's pattern exactly.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SHIELDS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedShields)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleSharedShields = (shown.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_SHIELDS) != 0u;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, comboRuleSharedShields ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes Ocarina of Time's Hylian Shield and Majora's Mask's Hero's Shield one item, and the two Mirror "
+            "Shields one item: finding one in either game gives it to you in the other. In Majora's Mask the Mirror "
+            "Shield replaces the Hero's Shield. Shops still sell their own game's shield. The Deku Shield stays "
+            "Ocarina of Time's own."));
     // The Shared Lens of Truth (#1065; OoTMM sharedLens, off by default), the
     // first rule of the cross-game item rules record (#976). The sword row's
     // pattern, except that the frozen value is a bit of the item rules, read
@@ -612,6 +645,25 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "one Song of Storms is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy "
             "too."));
 
+    // The Shared Ocarina Buttons (#1067; OoTMM's sharedOcarinaButtons, default
+    // off). The Shared Shields row's pattern exactly.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_OCARINA_BUTTONS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedOcarinaButtons)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleSharedOcarinaButtons = (shown.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, comboRuleSharedOcarinaButtons ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes each ocarina button one item across both games: finding the A or a C button in either game gives "
+            "it to you in the other. It only matters when both games shuffle their ocarina buttons. A game that does "
+            "not shuffle them already has all five, so there is nothing to share there. The ocarina itself stays each "
+            "game's own."));
+
     // Shared Fire, Ice and Light Arrows (#968; OoTMM sharedMagicArrowFire, Ice
     // and Light, off by default): the lens row's shape, one row per arrow as
     // OoTMM has one option per arrow. The bits are the ones #976 reserved.
@@ -657,6 +709,27 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Options(CheckboxOptions().Tooltip(
             "Makes the Light Arrows one item across both games: finding them in either game gives them to you in the "
             "other. Only one set of Light Arrows is shuffled, and both games' logic counts it."));
+
+    // The Shared Bottles (#970, default off; a count up to OoT's four with the
+    // contents per game, a deliberate divergence from OoTMM's sharedBottles,
+    // which shares six bottles and their contents). The Shared Shields row's
+    // pattern exactly.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_BOTTLES), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedBottles)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleSharedBottles = (shown.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_BOTTLES) != 0u;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, comboRuleSharedBottles ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the number of bottles one count across both games, up to Ocarina of Time's four: a bottle found "
+            "in either game gives you an empty bottle in the other. What is in each bottle stays that game's own. "
+            "Only four bottles are placed across both games (Ruto's Letter, when it is shuffled, is one of them), "
+            "so Majora's Mask's fifth and sixth bottle slots stay empty."));
 
     // The five shared masks (#978; OoTMM sharedMaskGoron, Zora, Bunny, Keaton and
     // Truth, off by default): the lens row's shape, one row per mask as OoTMM has

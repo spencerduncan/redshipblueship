@@ -158,6 +158,10 @@
  * world created before it existed, and every world whose player leaves it alone,
  * resolves to the same twelve record bytes and the same comboSettingsHash. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD "gCombo.Rando.SharedKokiriSword"
+/* #1068: one Hylian/Hero's Shield and one Mirror Shield across both games
+ * (OoTMM sharedShields). Boolean (0/1), DEFAULT 0: a BIT of the item rules
+ * record, so with it off the record stays all clear and every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS "gCombo.Rando.SharedShields"
 /* #1065: one Lens of Truth across both games (OoTMM sharedLens). Boolean (0/1),
  * DEFAULT 0. A bit of the sibling ComboItemRulesRecord's crossItemFlags
  * (RSBS_XITEM_SHARED_LENS), folded into comboSettingsHash only when on, so a
@@ -169,6 +173,10 @@
  * comboSettingsHash only when on. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_EPONA "gCombo.Rando.SharedSongEpona"
 #define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_STORMS "gCombo.Rando.SharedSongStorms"
+/* #1067: each game's five ocarina buttons are one set for the pair (OoTMM
+ * sharedOcarinaButtons). Boolean (0/1), DEFAULT 0: a BIT of the item rules
+ * record, so with it off the record stays all clear and every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS "gCombo.Rando.SharedOcarinaButtons"
 /* #968: one Fire, one Ice and one Light Arrows across both games (OoTMM
  * sharedMagicArrowFire, sharedMagicArrowIce, sharedMagicArrowLight). Boolean
  * (0/1), DEFAULT 0 each. Bits of the same crossItemFlags
@@ -177,6 +185,13 @@
 #define RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_FIRE "gCombo.Rando.SharedArrowFire"
 #define RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_ICE "gCombo.Rando.SharedArrowIce"
 #define RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_LIGHT "gCombo.Rando.SharedArrowLight"
+/* #970: the bottle COUNT is one quantity for the pair up to OoT's four slots, the
+ * contents stay each game's own. A deliberate divergence from OoTMM's sharedBottles
+ * (six bottles, contents and refills shared, needs extraBottlesOot's six OoT
+ * slots): see PR #1094. Boolean (0/1), DEFAULT 0:
+ * a BIT of the item rules record, so with it off the record stays all clear and
+ * every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES "gCombo.Rando.SharedBottles"
 /* #978 (epic #975 P2): one Goron Mask, Zora Mask, Bunny Hood, Keaton Mask and
  * Mask of Truth across both games (OoTMM sharedMaskGoron, sharedMaskZora,
  * sharedMaskBunny, sharedMaskKeaton, sharedMaskTruth). Boolean (0/1), DEFAULT 0
@@ -627,6 +642,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, ComboKeyClass::Identity,
       "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit (#886): the Kokiri Sword is ONE "
       "monotonic shared item across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SHIELDS bit (#1068): the Hylian/Hero's Shield and the "
+      "Mirror Shield are each ONE shared item across both games" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_LENS, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_LENS bit (#1065): the Lens of Truth is ONE shared-pair "
       "family across both games" },
@@ -636,6 +654,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_STORMS, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SONG_STORMS bit (#1066): the Song of Storms is ONE "
       "shared-pair family across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_OCARINA_BUTTONS bit (#1067): each of the five ocarina "
+      "buttons is ONE shared item across both games" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_FIRE, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_ARROW_FIRE bit (#968): the Fire Arrows are ONE "
       "shared-pair family across both games" },
@@ -645,6 +666,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_LIGHT, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_ARROW_LIGHT bit (#968): the Light Arrows are ONE "
       "shared-pair family across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_BOTTLES bit (#970): the bottle count is ONE shared "
+      "quantity across both games, up to OoT's four slots" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GORON, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_GORON bit (#978): the Goron Mask is ONE shared-pair "
       "family "
@@ -1079,21 +1103,21 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Fourteen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Seventeen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
-// SharedKokiriSword (#886), SharedLens (#1065), SharedSongEpona and
-// SharedSongStorms (#1066), SharedArrowFire, SharedArrowIce and
-// SharedArrowLight (#968), SharedMaskGoron, SharedMaskZora, SharedMaskBunny,
-// SharedMaskKeaton and SharedMaskTruth (#978); #879 retired SharedOcarina
-// (#668)) + four
+// SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
+// SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
+// SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
+// (#970), SharedMaskGoron, SharedMaskZora, SharedMaskBunny, SharedMaskKeaton and
+// SharedMaskTruth (#978); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
 // (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 27, "fourteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
-                                    "nine gCombo.Tracker.Items.* preferences = 27");
+static_assert(kComboKeyCount == 30, "seventeen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+                                    "nine gCombo.Tracker.Items.* preferences = 30");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

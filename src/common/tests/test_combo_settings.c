@@ -1243,11 +1243,11 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         CS_ASSERT(!Combo_ComboSettingsDivergenceIsDamage(bits), "a settings divergence must not quarantine the file");
         CS_ASSERT(Combo_ComboSharedKokiriSword(), "the predicate followed the SESSION instead of the frozen record");
         CS_ASSERT((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD) != 0 &&
-                      Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, bits) == 1,
+                      Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 1,
                   "the load cannot restore the file's Shared Kokiri Sword; the player's own world would be refused");
         char restored[96];
-        const int restoredOk =
-            Combo_ComboSettingsRestoreLive(&gComboCtx.comboSettings, bits, restored, sizeof(restored), NULL);
+        const int restoredOk = Combo_ComboSettingsRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits,
+                                                              restored, sizeof(restored), NULL);
         CS_ASSERT(restoredOk == 1 && strcmp(restored, "Shared Kokiri Sword") == 0,
                   "the load's restore did not write the file's Shared Kokiri Sword back under its label");
         CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_SHARED_KOKIRI_SWORD) == 1 &&
@@ -1272,6 +1272,81 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         CS_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_SHARED_KOKIRI_SWORD), "the cleared flag must read unset");
         printf("[TEST] (2c) #886: the Shared Kokiri Sword key authors bit 0x02, freezes, diverges by name both ways "
                "and is restored at load\n");
+    }
+
+    // ---- (2d) The Shared Shields, end to end (#1068) -------------------------
+    // The first key over the ITEM RULES record (#976): key -> resolver ->
+    // crossItemFlags -> the frozen predicate -> the arrival refusal -> the
+    // load's restore, which must refuse a file whose other differing rule has
+    // no key. Self contained, like (2c).
+    {
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_SHARED_SHIELDS) == 0,
+                  "the Shared Shields default must be OFF — an existing world has to reproduce byte for byte");
+        ComboItemRulesRecord rulesOff;
+        Combo_ResolveComboItemRules(&rulesOff);
+        CS_ASSERT(Combo_ComboItemRulesClear(&rulesOff), "an unauthored rule key must resolve to all-clear rules");
+
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1, "the rule must be authorable");
+        ComboItemRulesRecord rulesOn;
+        Combo_ResolveComboItemRules(&rulesOn);
+        CS_ASSERT(rulesOn.crossItemFlags == (uint32_t)RSBS_XITEM_SHARED_SHIELDS && Combo_ComboItemRulesValid(&rulesOn),
+                  "the resolver did not assemble the authored rule into crossItemFlags");
+        CS_ASSERT(!Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SHIELDS),
+                  "the rule followed an UNFROZEN resolution; it reads the frozen record only");
+
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        ComboSettingsArmPairing(0xA07A1068u, kSettingsHash, kProfileDigest);
+        Combo_FreezeComboSettingsEx(&rec, &rulesOn);
+        CS_ASSERT(Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SHIELDS), "the frozen record's rule must read on");
+        CS_ASSERT(Combo_ComboSettingsDivergence() == 0, "a world frozen from its own store must compare healthy");
+
+        CVarClear(Combo_ComboSettingKey(COMBO_SETTING_SHARED_SHIELDS));
+        const uint32_t bits = Combo_ComboSettingsDivergence();
+        CS_ASSERT(bits == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS,
+                  "a session that resolved the Shared Shields OFF against a file created with it ON did not diverge as "
+                  "exactly crossItemFlags");
+        CS_ASSERT(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == 0u &&
+                      Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 1,
+                  "the load cannot restore the file's Shared Shields; turning the rule off would lock the player out "
+                  "of their own world");
+        char restored[96];
+        const int restoredOk = Combo_ComboSettingsRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits,
+                                                              restored, sizeof(restored), NULL);
+        CS_ASSERT(restoredOk == 1 && strcmp(restored, "Shared Shields") == 0,
+                  "the load's restore did not write the file's Shared Shields back under its label");
+        CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SHIELDS) == 1 && Combo_ComboSettingsDivergence() == 0,
+                  "after the restore the key must hold the file's ON and the pair must compare healthy");
+
+        // A file whose other differing rule only a later build authors: the key
+        // alone cannot answer it, so nothing is written and the load refuses.
+        // (An extension: #978 keyed the five shared masks.)
+        ComboItemRulesRecord later = rulesOn;
+        later.crossItemFlags |= (uint32_t)RSBS_XITEM_BLAST_MASK_OOT;
+        Combo_FreezeComboSettingsEx(&rec, &later);
+        CVarClear(Combo_ComboSettingKey(COMBO_SETTING_SHARED_SHIELDS));
+        const uint32_t laterBits = Combo_ComboSettingsDivergence();
+        CS_ASSERT(
+            laterBits == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS &&
+                Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, laterBits) ==
+                    RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS &&
+                Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, laterBits) == 0,
+            "a file with a keyless item rule must be refused as another build's, not restored");
+        CS_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_SHARED_SHIELDS),
+                  "a refused restore wrote the Shared Shields key");
+
+        // ...and the reverse: a file created with it OFF, met by an ON session.
+        Combo_FreezeComboSettingsEx(&rec, &rulesOff);
+        CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_SHARED_SHIELDS), 1);
+        CS_ASSERT(Combo_ComboSettingsDivergence() == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS,
+                  "a session that resolved the Shared Shields ON against a file created with it OFF was not refused");
+        CS_ASSERT(!Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SHIELDS), "the OFF file's rule must hold");
+
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingClear(COMBO_SETTING_SHARED_SHIELDS) == 1, "clear the rule before leg 3");
+        printf("[TEST] (2d) #1068: the Shared Shields key authors crossItemFlags 0x02000000, freezes, diverges both "
+               "ways and is restored at load unless a keyless rule also differs\n");
     }
     CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1,
               "an in-space write must land while nothing is frozen");

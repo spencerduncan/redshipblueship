@@ -108,6 +108,101 @@
  *   - gCheats.EasyFrameAdvance: OnGameStateMainStart.
  * The probe puts every key back to 0 and re-drives it, so the row is order-free.
  *
+ * PHASE 5 (#1018-#1022) -- THE SKIPS & SPEED-UPS TUs. Cutscenes/HideTitleCards,
+ * SkipIntroSequence, SkipEntranceCutscenes, SkipOnePointCutscenes and the
+ * StoryCutscenes/* set register only through a file-scope RegisterShipInitFunc
+ * keyed on the converged gEnhancements.TimeSavers.* key SoH's row writes, in the
+ * plain `2ship_enh` archive, so the linker dropped them and the rows did
+ * nothing in Majora's Mask. Each registrar is CVar-gated, so what proves a TU is
+ * linked is that ShipInit::Init(<its key>) with the key ON raises the registry
+ * the TU writes to by EXACTLY the number of registrations the table below names
+ * for that key. Exact, not "at least": the Story key is also read by linked TUs
+ * (SkipGiantsChamber) and by the #1071 song teachers, which are in the table, so
+ * a TU of this set falling out of the link leaves the delta short by its own
+ * count. Adding a Story registrant means adding its line to the table. Nothing a
+ * TU defines is named here (a reference would un-elide it).
+ *   - one key, one TU: Title Card (VB_SHOW_TITLE_CARD), Intro
+ *     (VB_PLAY_TRANSITION_CS), Entrances (VB_PLAY_ENTRANCE_CS, VB_START_CUTSCENE),
+ *     One Point (VB_CAMERA_SET_FOCAL_ACTOR, VB_START_CUTSCENE).
+ *   - Story: the remaining StoryCutscenes TUs, minus HealingMikauAudio, which is
+ *     unconditional and is probed separately: OnActorInit[ACTOR_EN_ZOG] has no
+ *     other registrant, empty before MM_Rando_Init and one after.
+ *
+ * PHASE 6 (#1010-#1017) -- THE EIGHT ENHANCEMENT TUs. Timesavers/FastChests,
+ * Graphics/EnemyHealthBars, Graphics/BowReticle, Graphics/DisableBlackBars,
+ * Player/InstantPutaway, Equipment/ItemUnequip, Restorations/PauseBufferInputs
+ * and DifficultyOptions/HyperEnemies register only through a file-scope
+ * RegisterShipInitFunc keyed on the converged gEnhancements.* key SoH's row
+ * writes (kConvergedKeys), in the plain `2ship_enh` archive, so the linker
+ * dropped all eight and the rows did nothing in Majora's Mask. Same probe as
+ * Phase 5: the key ON plus ShipInit::Init(key) must raise the registry the TU
+ * writes to by EXACTLY the count the table names. Every key is read by one TU
+ * tree-wide (BenMenu.cpp only draws it), so the delta is attributable. Nothing a
+ * TU defines is named here (a reference would un-elide it).
+ *   - FastChests: VB_PLAY_SLOW_CHEST_CS.   DisableBlackBars: VB_DISABLE_LETTERBOX.
+ *   - InstantPutaway: VB_RESET_PUTAWAY_TIMER.
+ *   - ItemUnequip: VB_KALEIDO_EQUIP_ITEM_TO_BUTTON; the same TU's second key,
+ *     DpadEquips, arms VB_KALEIDO_SWITCH_PAGE_WITH_DPAD.
+ *   - PauseBufferWindow: VB_KALEIDO_UNPAUSE_CLOSE and OnGameStateMainStart.
+ *   - HyperEnemies: OnActorUpdate (unkeyed).
+ *   - BowReticle: OnPlayerPostLimbDraw keyed on PLAYER_LIMB_RIGHT_HAND, the
+ *     ForID leg MM_GameHooks_ExecuteOnPlayerPostLimbDraw runs from
+ *     Player_PostLimbDrawGameplay (z_player_lib.c): the draw hook of the aiming
+ *     reticle.
+ *   - EnemyHealthBars: OnInterfaceDrawStart (+1), and the TU's unconditional
+ *     OnActorInit registrant must NOT grow when the key is toggled (it used to
+ *     register again on every toggle; the unkeyed OnActorInit bucket is read
+ *     before and after the drive).
+ * Each key is driven TWICE per probe, so a registrar that stacks one
+ * registration per toggle shows up as a second delta.
+ *
+ * PHASE 7 (#1024-#1026) -- THE THREE AUDIO EDITOR TUs. Audio/Sfx/MuteLowHpAlarm,
+ * Audio/Sfx/DisableEnemyProximityMusic and Audio/AudioHook (the sequence-name
+ * notification) register only through a file-scope RegisterShipInitFunc keyed on
+ * the gAudioEditor.* key SoH's Audio Editor row writes (kSharedIntentKeys), in
+ * the plain `2ship_enh` archive, so the linker dropped all three and the rows did
+ * nothing in Majora's Mask. Same probe as Phases 5 and 6: the key ON plus
+ * ShipInit::Init(key), driven twice, must raise the registry the TU writes to by
+ * EXACTLY the count the table names. Nothing a TU defines is named here (a
+ * reference would un-elide it).
+ *   - gAudioEditor.LowHpAlarm: VB_PLAY_LOW_HP_ALARM (z_lifemeter.c).
+ *   - gAudioEditor.EnemyBGMDisable: VB_PLAY_ENEMY_PROXIMITY_MUSIC (z_player.c).
+ *   - gAudioEditor.SeqNameNotification: OnSeqPlayerInit, unkeyed (audio/lib/load.c).
+ *     The duration row, gAudioEditor.SeqNameNotificationDuration, is READ by that
+ *     same TU's handler at emit time, so it has no registration of its own.
+ *
+ * PHASE 8 (#1023) -- FREE LOOK. Camera/FreeLook.cpp registers only through a
+ * file-scope RegisterShipInitFunc keyed on gSettings.FreeLook.Enabled (the
+ * converged key SoH's Settings > Controls > Free Look row writes), in the plain
+ * `2ship_enh` archive, so the linker dropped it and Free Look, Camera Distance
+ * and Camera Transition Speed did nothing in Majora's Mask. Same probe as
+ * Phases 5-7: the key ON plus ShipInit::Init(key), driven twice, must raise each
+ * registry the TU writes to by EXACTLY the count the table names. The key is read
+ * by one TU tree-wide (BenMenu.cpp only draws it), so the delta is attributable.
+ * Nothing the TU defines is named here (a reference would un-elide it).
+ *   - ShouldVanillaBehavior[VB_USE_CUSTOM_CAMERA] (z_camera.c, Camera_Update): the
+ *     free-look camera itself. DebugCam.cpp also registers there but keys on
+ *     gEnhancements.Camera.DebugCam.Enable and is not linked.
+ *   - OnCameraChangeModeFlags, unkeyed (z_camera.c, Camera_ChangeMode): the
+ *     per-mode "may free-look" reset.
+ *
+ * PHASE 9 (#1030-#1034) -- THE FIVE KEY-GAP TUs. Accessibility/NoScreenFlashForEnemyKill,
+ * Graphics/3DItemDrops, Cutscenes/MiscInteractions/* (25 TUs), Songs/SkipScarecrowSong and
+ * Equipment/ArrowCycle register only through a file-scope RegisterShipInitFunc
+ * keyed on the key SoH's row writes (PR #1046 moved MM's readers onto it:
+ * gSettings.A11yNoScreenFlashForFinishingBlow, gEnhancements.NewDrops,
+ * gEnhancements.TimeSavers.SkipMiscInteractions, gEnhancements.InstantScarecrow,
+ * gEnhancements.BowArrowCycle), in the plain `2ship_enh` archive, so the linker
+ * dropped all 29 and the five rows stayed dead even once mapped. Same probe as
+ * Phases 5-8: the key ON plus ShipInit::Init(key), driven twice, must raise every
+ * registry the TU(s) write to by EXACTLY the count the table names. Each key is
+ * read by these TUs alone (BenMenu.cpp only draws it; ChuDrops.cpp reads
+ * gEnhancements.NewDrops inline and registers nothing on it), so the delta is
+ * attributable. Nothing a TU defines is named here (a reference would un-elide it).
+ *   - Skip Misc Interactions: the 25 TUs' registrations are summed per bucket in the table
+ *     below, each bucket attributed to its TU(s) by name. Several TUs share a bucket
+ *     (VB_START_CUTSCENE has eight of them), so one dropped TU leaves its bucket short.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -122,6 +217,7 @@
 #include "global.h"
 
 #include <cstdio>
+#include <vector>
 
 #if !defined(RSBS_SINGLE_EXECUTABLE)
 /**
@@ -253,6 +349,321 @@ void ResetCheatKeys() {
     }
 }
 
+// ---- Phase 5 (#1018-#1022): the Skips & Speed-ups TUs ---------------------
+// One probe per SoH-written key. Each registry row names the TUs that put a
+// hook there when the key turns on; `expected` is their summed count.
+struct SkipRegistry {
+    const char* what;
+    size_t (*count)();
+    size_t expected;
+};
+
+struct SkipKeyProbe {
+    const char* key;
+    const char* row;
+    std::vector<SkipRegistry> registries;
+};
+
+#define SKIP_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define SKIP_ACTOR_INIT_COUNT(id) []() { return SettledCountForId<GameInteractor::OnActorInit>(id); }
+
+const std::vector<SkipKeyProbe>& SkipProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.TimeSavers.DisableTitleCard",
+          "Disable Title Card",
+          { { "VB_SHOW_TITLE_CARD (Cutscenes/HideTitleCards.cpp)", SKIP_VB_COUNT(VB_SHOW_TITLE_CARD), 1 } } },
+        { "gEnhancements.TimeSavers.SkipCutscene.Intro",
+          "Skip Intro",
+          { { "VB_PLAY_TRANSITION_CS (Cutscenes/SkipIntroSequence.cpp)", SKIP_VB_COUNT(VB_PLAY_TRANSITION_CS), 1 } } },
+        { "gEnhancements.TimeSavers.SkipCutscene.Entrances",
+          "Skip Entrance Cutscenes",
+          { { "VB_PLAY_ENTRANCE_CS (Cutscenes/SkipEntranceCutscenes.cpp)", SKIP_VB_COUNT(VB_PLAY_ENTRANCE_CS), 1 },
+            { "VB_START_CUTSCENE (Cutscenes/SkipEntranceCutscenes.cpp)", SKIP_VB_COUNT(VB_START_CUTSCENE), 1 } } },
+        { "gEnhancements.TimeSavers.SkipCutscene.OnePoint",
+          "Skip One Point Cutscenes",
+          { { "VB_CAMERA_SET_FOCAL_ACTOR (Cutscenes/SkipOnePointCutscenes.cpp)",
+              SKIP_VB_COUNT(VB_CAMERA_SET_FOCAL_ACTOR), 1 },
+            { "VB_START_CUTSCENE (Cutscenes/SkipOnePointCutscenes.cpp)", SKIP_VB_COUNT(VB_START_CUTSCENE), 1 } } },
+        // The Story key. Per registry, the contributing TUs (StoryCutscenes/ unless noted):
+        //   VB_START_CUTSCENE 14 = Biggoron, DefeatCaptain, HealingMikau, IkanaCurse x2 (Pamela, Sharp),
+        //     PrincessDelivery, RaisingWoodfall, StoppingMoon, WakingAndRidingTurtle (9, #1022) +
+        //     LearningElegy, LearningGoronLullaby, LearningNewWaveBossaNova, LearningSonataOfAwakening,
+        //     LearningSongOfStorms (5, #1071).
+        //   VB_QUEUE_CUTSCENE 4 = BombBagTheft, HealingDarmani, IkanaCurse (3, #1022) + LearningEponasSong (#1071).
+        //   VB_PLAY_TRANSITION_CS 5 = ClockTowerOpen, FirstSongOfTimeFlashbacks, MilkRun, MoonCrash (4, #1022) +
+        //     SkipGiantsChamber (already linked).
+        //   VB_GIVE_ITEM_FROM_OFFER 1 = SkipGiantsChamber (already linked, CVAR && !IS_RANDO).
+        //   The 1-of-1 buckets: VB_SAKON_TAKE_DAMAGE (BombBagTheft), VB_CLOCK_TOWER_OPENING_CONSIDER_THIS_FIRST_CYCLE
+        //     (ClockTowerOpen), VB_PLAY_DEFEAT_CAPTAIN_SEQUENCE (DefeatCaptain), VB_PLAY_SONG_OF_TIME_CS
+        //     (LearningSongOfTime), OnActorInit[DM_STK] and [DM_CHAR02] (ClockTowerSkullKidEncounter),
+        //     OnActorInit[EN_PO_COMPOSER] (IkanaCurse).
+        { "gEnhancements.TimeSavers.SkipCutscene.Story",
+          "Skip Story Cutscenes",
+          { { "VB_START_CUTSCENE", SKIP_VB_COUNT(VB_START_CUTSCENE), 14 },
+            { "VB_QUEUE_CUTSCENE", SKIP_VB_COUNT(VB_QUEUE_CUTSCENE), 4 },
+            { "VB_PLAY_TRANSITION_CS", SKIP_VB_COUNT(VB_PLAY_TRANSITION_CS), 5 },
+            { "VB_GIVE_ITEM_FROM_OFFER", SKIP_VB_COUNT(VB_GIVE_ITEM_FROM_OFFER), 1 },
+            { "VB_SAKON_TAKE_DAMAGE (SkipBombBagTheftCutscene.cpp)", SKIP_VB_COUNT(VB_SAKON_TAKE_DAMAGE), 1 },
+            { "VB_CLOCK_TOWER_OPENING_CONSIDER_THIS_FIRST_CYCLE (SkipClockTowerOpen.cpp)",
+              SKIP_VB_COUNT(VB_CLOCK_TOWER_OPENING_CONSIDER_THIS_FIRST_CYCLE), 1 },
+            { "VB_PLAY_DEFEAT_CAPTAIN_SEQUENCE (SkipDefeatCaptainSequence.cpp)",
+              SKIP_VB_COUNT(VB_PLAY_DEFEAT_CAPTAIN_SEQUENCE), 1 },
+            { "VB_PLAY_SONG_OF_TIME_CS (SkipLearningSongOfTime.cpp)", SKIP_VB_COUNT(VB_PLAY_SONG_OF_TIME_CS), 1 },
+            { "OnActorInit[DM_STK] (SkipClockTowerSkullKidEncounter.cpp)", SKIP_ACTOR_INIT_COUNT(ACTOR_DM_STK), 1 },
+            { "OnActorInit[DM_CHAR02] (SkipClockTowerSkullKidEncounter.cpp)", SKIP_ACTOR_INIT_COUNT(ACTOR_DM_CHAR02),
+              1 },
+            { "OnActorInit[EN_PO_COMPOSER] (SkipIkanaCurseCutscenes.cpp)", SKIP_ACTOR_INIT_COUNT(ACTOR_EN_PO_COMPOSER),
+              1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetSkipKeys() {
+    for (const auto& probe : SkipProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : SkipProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
+// ---- Phase 6 (#1010-#1017): the eight enhancement TUs ----------------------
+// Same shape as Phase 5 (SkipKeyProbe). `expected` may be 0: that row asserts a
+// registry does NOT grow when the key is driven (the EnemyHealthBars OnActorInit
+// once-only registration).
+#define ENH_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+
+const std::vector<SkipKeyProbe>& EnhProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.FastChests",
+          "Fast Chests",
+          { { "VB_PLAY_SLOW_CHEST_CS (Timesavers/FastChests.cpp)", ENH_VB_COUNT(VB_PLAY_SLOW_CHEST_CS), 1 } } },
+        { "gEnhancements.EnemyHealthBar",
+          "Enemy Health Bars",
+          { { "OnInterfaceDrawStart (Graphics/EnemyHealthBars.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnInterfaceDrawStart>(); }, 1 },
+            { "OnActorInit, unkeyed: must not grow per toggle (Graphics/EnemyHealthBars.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnActorInit>(); }, 0 } } },
+        { "gEnhancements.BowReticle",
+          "Aiming Reticle for the Bow/Slingshot",
+          { { "OnPlayerPostLimbDraw[PLAYER_LIMB_RIGHT_HAND] (Graphics/BowReticle.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnPlayerPostLimbDraw>(PLAYER_LIMB_RIGHT_HAND); }, 1 } } },
+        { "gEnhancements.DisableBlackBars",
+          "Disable Black Bar Letterboxes",
+          { { "VB_DISABLE_LETTERBOX (Graphics/DisableBlackBars.cpp)", ENH_VB_COUNT(VB_DISABLE_LETTERBOX), 1 } } },
+        { "gEnhancements.InstantPutaway",
+          "Instant Putaway",
+          { { "VB_RESET_PUTAWAY_TIMER (Player/InstantPutaway.cpp)", ENH_VB_COUNT(VB_RESET_PUTAWAY_TIMER), 1 } } },
+        { "gEnhancements.ItemUnequip",
+          "Unequip C-Items on Re-press",
+          { { "VB_KALEIDO_EQUIP_ITEM_TO_BUTTON (Equipment/ItemUnequip.cpp)",
+              ENH_VB_COUNT(VB_KALEIDO_EQUIP_ITEM_TO_BUTTON), 1 } } },
+        { "gEnhancements.DpadEquips",
+          "D-pad Equips (the dpad page-switch half of Equipment/ItemUnequip.cpp)",
+          { { "VB_KALEIDO_SWITCH_PAGE_WITH_DPAD (Equipment/ItemUnequip.cpp)",
+              ENH_VB_COUNT(VB_KALEIDO_SWITCH_PAGE_WITH_DPAD), 1 } } },
+        { "gEnhancements.PauseBufferWindow",
+          "Pause Buffer Input Window",
+          { { "VB_KALEIDO_UNPAUSE_CLOSE (Restorations/PauseBufferInputs.cpp)", ENH_VB_COUNT(VB_KALEIDO_UNPAUSE_CLOSE),
+              1 },
+            { "OnGameStateMainStart (Restorations/PauseBufferInputs.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnGameStateMainStart>(); }, 1 } } },
+        { "gEnhancements.HyperEnemies",
+          "Hyper Enemies",
+          { { "OnActorUpdate, unkeyed (DifficultyOptions/HyperEnemies.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnActorUpdate>(); }, 1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetEnhKeys() {
+    for (const auto& probe : EnhProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : EnhProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
+// ---- Phase 7 (#1024-#1026): the three Audio Editor TUs ---------------------
+// Same shape as Phase 5 (SkipKeyProbe).
+const std::vector<SkipKeyProbe>& AudioProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gAudioEditor.LowHpAlarm",
+          "Mute Low HP Alarm",
+          { { "VB_PLAY_LOW_HP_ALARM (Audio/Sfx/MuteLowHpAlarm.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PLAY_LOW_HP_ALARM); }, 1 } } },
+        { "gAudioEditor.EnemyBGMDisable",
+          "Disable Enemy Proximity Music",
+          { { "VB_PLAY_ENEMY_PROXIMITY_MUSIC (Audio/Sfx/DisableEnemyProximityMusic.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PLAY_ENEMY_PROXIMITY_MUSIC); },
+              1 } } },
+        { "gAudioEditor.SeqNameNotification",
+          "Display Sequence Name in Notifications",
+          { { "OnSeqPlayerInit, unkeyed (Audio/AudioHook.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnSeqPlayerInit>(); }, 1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetAudioKeys() {
+    for (const auto& probe : AudioProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : AudioProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
+// ---- Phase 8 (#1023): Free Look ---------------------------------------------
+// Same shape as Phase 5 (SkipKeyProbe).
+const std::vector<SkipKeyProbe>& FreeLookProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gSettings.FreeLook.Enabled",
+          "Free Look",
+          { { "VB_USE_CUSTOM_CAMERA (Camera/FreeLook.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_USE_CUSTOM_CAMERA); }, 1 },
+            { "OnCameraChangeModeFlags, unkeyed (Camera/FreeLook.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnCameraChangeModeFlags>(); }, 1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetFreeLookKeys() {
+    for (const auto& probe : FreeLookProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : FreeLookProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
+// ---- Phase 9 (#1030-#1034): the five key-gap TUs ---------------------------
+// Same shape as Phase 5 (SkipKeyProbe).
+#define GAP_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define GAP_HOOK_COUNT(hook, id) []() { return SettledCountForId<GameInteractor::hook>(id); }
+
+const std::vector<SkipKeyProbe>& KeyGapProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gSettings.A11yNoScreenFlashForFinishingBlow",
+          "Disable Screen Flash for Finishing Blow",
+          { { "VB_FLASH_SCREEN_FOR_ENEMY_KILL (Accessibility/NoScreenFlashForEnemyKill.cpp)",
+              GAP_VB_COUNT(VB_FLASH_SCREEN_FOR_ENEMY_KILL), 1 } } },
+        { "gEnhancements.NewDrops",
+          "Enable 3D Dropped Items/Projectiles",
+          { { "VB_DRAW_SLIME_BODY_ITEM (Graphics/3DItemDrops.cpp)", GAP_VB_COUNT(VB_DRAW_SLIME_BODY_ITEM), 1 },
+            { "OnActorInit[EN_ITEM00] (Graphics/3DItemDrops.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_ITEM00), 1 },
+            { "OnActorUpdate[EN_ITEM00] (Graphics/3DItemDrops.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_ITEM00),
+              1 },
+            { "OnActorInit[EN_TANRON5] (Graphics/3DItemDrops.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_TANRON5), 1 },
+            { "OnActorUpdate[EN_TANRON5] (Graphics/3DItemDrops.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_TANRON5),
+              1 } } },
+        { "gEnhancements.InstantScarecrow",
+          "Skip Playing Scarecrow's Song",
+          { { "VB_NEED_SCARECROW_SONG (Songs/SkipScarecrowSong.cpp)", GAP_VB_COUNT(VB_NEED_SCARECROW_SONG), 1 } } },
+        { "gEnhancements.BowArrowCycle",
+          "Arrow Cycle",
+          { { "VB_SHIELD_FROM_BUTTON_HOLD (Equipment/ArrowCycle.cpp)", GAP_VB_COUNT(VB_SHIELD_FROM_BUTTON_HOLD), 1 },
+            { "VB_EXIT_FIRST_PERSON_MODE_FROM_BUTTON (Equipment/ArrowCycle.cpp)",
+              GAP_VB_COUNT(VB_EXIT_FIRST_PERSON_MODE_FROM_BUTTON), 1 },
+            { "OnActorUpdate[PLAYER] (Equipment/ArrowCycle.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_PLAYER), 1 } } },
+        // Skip Misc Interactions: 25 TUs under Cutscenes/MiscInteractions/, one key. Per registry, the contributors:
+        //   VB_START_CUTSCENE 8 = AlienStartAndFail, DekuTelescope, GivingBombersNotebook, KamaroTeachDance,
+        //     KotakeFlying, MayorsOfficeCutscene, RosaSistersDance, TurtleGoodbye.
+        //   VB_PLAY_TRANSITION_CS 3 = AlienStartAndFail, EvanSong, TatlInterrupts.
+        //   ShouldActorInit: EN_MA4 (AlienWarning), DOOR_WARP1 (BossWarpPrompt), EN_SELLNUTS (DekuSalesman),
+        //     EN_GEG (HungryGoronDialogue), EN_ZOG (PushingMikau), EN_BAL (TingleTime).
+        //   OnActorInit: EN_GINKO_MAN (BankerDialogue), EN_STOP_HEISHI (GateGuards), EN_BOM_BOWL_MAN
+        //     (GivingBombersNotebook), EN_OWL (OwlInteractions).
+        //   OnActorUpdate: EN_SELLNUTS and EN_AKINDONUTS (DekuSalesman), EN_SCOPENUTS (DekuTelescope),
+        //     EN_BJI_01 (FallingMoonsTear), EN_KAKASI (ScarecrowDance). OnActorDestroy: EN_BJI_01 (FallingMoonsTear).
+        //   OnOpenText: 0x72F and 0x716 (GivingBombersNotebook), 0x296A (KafeiReveal).
+        //   The rest are single VB buckets, one TU each (named on the row).
+        { "gEnhancements.TimeSavers.SkipMiscInteractions",
+          "Skip Misc Interactions",
+          { { "VB_START_CUTSCENE", GAP_VB_COUNT(VB_START_CUTSCENE), 8 },
+            { "VB_PLAY_TRANSITION_CS", GAP_VB_COUNT(VB_PLAY_TRANSITION_CS), 3 },
+            { "VB_QUEUE_CUTSCENE (SkipEponaReveal.cpp)", GAP_VB_COUNT(VB_QUEUE_CUTSCENE), 1 },
+            { "VB_CONTINUE_BANKER_DIALOGUE (SkipBankerDialogue.cpp)", GAP_VB_COUNT(VB_CONTINUE_BANKER_DIALOGUE), 1 },
+            { "VB_MONKEY_WAIT_TO_TALK_AFTER_APPROACH (SkipBothersomeMonkey.cpp)",
+              GAP_VB_COUNT(VB_MONKEY_WAIT_TO_TALK_AFTER_APPROACH), 1 },
+            { "VB_SETUP_EAST_CLOCK_TOWN_BOM_BOWL_MAN (SkipGivingBombersNotebook.cpp)",
+              GAP_VB_COUNT(VB_SETUP_EAST_CLOCK_TOWN_BOM_BOWL_MAN), 1 },
+            { "VB_START_GREAT_FAIRY_CUTSCENE (SkipGreatFairyCutscene.cpp)", GAP_VB_COUNT(VB_START_GREAT_FAIRY_CUTSCENE),
+              1 },
+            { "VB_OWL_TELL_ABOUT_SHRINE (SkipOwlInteractions.cpp)", GAP_VB_COUNT(VB_OWL_TELL_ABOUT_SHRINE), 1 },
+            { "VB_TATL_INTERRUPT_MSG (SkipTatlInterrupts.cpp)", GAP_VB_COUNT(VB_TATL_INTERRUPT_MSG), 1 },
+            { "VB_TATL_INTERRUPT_MSG3 (SkipTatlInterrupts.cpp)", GAP_VB_COUNT(VB_TATL_INTERRUPT_MSG3), 1 },
+            { "VB_TATL_INTERRUPT_MSG4 (SkipTatlInterrupts.cpp)", GAP_VB_COUNT(VB_TATL_INTERRUPT_MSG4), 1 },
+            { "VB_TATL_INTERRUPT_MSG6 (SkipTatlInterrupts.cpp)", GAP_VB_COUNT(VB_TATL_INTERRUPT_MSG6), 1 },
+            { "ShouldActorInit[EN_MA4] (SkipAlienWarning.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_MA4), 1 },
+            { "ShouldActorInit[DOOR_WARP1] (SkipBossWarpPrompt.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_DOOR_WARP1),
+              1 },
+            { "ShouldActorInit[EN_SELLNUTS] (SkipDekuSalesman.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_SELLNUTS),
+              1 },
+            { "ShouldActorInit[EN_GEG] (SkipHungryGoronDialogue.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_GEG),
+              1 },
+            { "ShouldActorInit[EN_ZOG] (SkipPushingMikau.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_ZOG), 1 },
+            { "ShouldActorInit[EN_BAL] (SkipTingleTime.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_BAL), 1 },
+            { "OnActorInit[EN_GINKO_MAN] (SkipBankerDialogue.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_GINKO_MAN),
+              1 },
+            { "OnActorInit[EN_STOP_HEISHI] (SkipGateGuards.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_STOP_HEISHI),
+              1 },
+            { "OnActorInit[EN_BOM_BOWL_MAN] (SkipGivingBombersNotebook.cpp)",
+              GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_BOM_BOWL_MAN), 1 },
+            { "OnActorInit[EN_OWL] (SkipOwlInteractions.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_OWL), 1 },
+            { "OnActorUpdate[EN_SELLNUTS] (SkipDekuSalesman.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_SELLNUTS),
+              1 },
+            { "OnActorUpdate[EN_AKINDONUTS] (SkipDekuSalesman.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_AKINDONUTS),
+              1 },
+            { "OnActorUpdate[EN_SCOPENUTS] (SkipDekuTelescope.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_SCOPENUTS),
+              1 },
+            { "OnActorUpdate[EN_BJI_01] (SkipFallingMoonsTear.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_BJI_01),
+              1 },
+            { "OnActorUpdate[EN_KAKASI] (SkipScarecrowDance.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_KAKASI), 1 },
+            { "OnActorDestroy[EN_BJI_01] (SkipFallingMoonsTear.cpp)", GAP_HOOK_COUNT(OnActorDestroy, ACTOR_EN_BJI_01),
+              1 },
+            { "OnOpenText[0x72F] (SkipGivingBombersNotebook.cpp)", GAP_HOOK_COUNT(OnOpenText, 0x72F), 1 },
+            { "OnOpenText[0x716] (SkipGivingBombersNotebook.cpp)", GAP_HOOK_COUNT(OnOpenText, 0x716), 1 },
+            { "OnOpenText[0x296A] (SkipKafeiReveal.cpp)", GAP_HOOK_COUNT(OnOpenText, 0x296A), 1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetKeyGapKeys() {
+    for (const auto& probe : KeyGapProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : KeyGapProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
 } // namespace
 
 extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
@@ -276,6 +687,30 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     for (const auto& probe : kCheatProbes) {
         CVarSetInteger(probe.key, 0);
     }
+    // Phase 5: the same for the Skips & Speed-ups keys. They are not default-on
+    // for MM, but the operator's config may hold them on (OoT's rando preset
+    // writes them true), and a TU that is linked would then arm at MM_Rando_Init
+    // and shrink the delta the probe measures.
+    for (const auto& probe : SkipProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
+    // Phase 6: the same for the enhancement keys (an operator config may hold
+    // any of them on, and a linked TU would then arm at MM_Rando_Init).
+    for (const auto& probe : EnhProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
+    // Phase 7: the same for the Audio Editor keys.
+    for (const auto& probe : AudioProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
+    // Phase 8: the same for Free Look.
+    for (const auto& probe : FreeLookProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
+    // Phase 9: the same for the five key-gap keys.
+    for (const auto& probe : KeyGapProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
 
     // ---- Non-vacuity: every probed registry starts empty -------------------
     // If any of these is already populated, the "non-empty after" assertions
@@ -297,6 +732,8 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
               "vacuous (#618)");
     RC_ASSERT(MM_ExtensionRescan_FlipbooksPatchedAfterScan() == 0, 2,
               "PlayerCustomFlipbooks_Patch already ran before MM_Rando_Init — probe would be vacuous (#618)");
+    RC_ASSERT(SettledCountForId<GameInteractor::OnActorInit>(ACTOR_EN_ZOG) == 0, 2,
+              "OnActorInit[EN_ZOG] was already populated before MM_Rando_Init — probe would be vacuous (#1022)");
 
     // ---- The production bring-up -------------------------------------------
     // Once-only guarded internally; this row is the only caller in its process.
@@ -411,8 +848,201 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     ResetCheatKeys();
 
+    // ---- #1022: HealingMikauAudio, the one unconditional Story TU -----------
+    // Registers OnActorInit[EN_ZOG] at InitAll whatever any CVar says, and is the
+    // only registrant of that bucket (SkipPushingMikau is ShouldActorInit).
+    RC_ASSERT(SettledCountForId<GameInteractor::OnActorInit>(ACTOR_EN_ZOG) == 1, 12,
+              "OnActorInit[EN_ZOG] is not exactly one after MM_Rando_Init - StoryCutscenes/HealingMikauAudio.cpp "
+              "is not in the link, so the Healing Mikau cutscene loses its Great Bay Coast BGM (#1022)");
+
+    // ---- #1018-#1022: the Skips & Speed-ups TUs ------------------------------
+    // Each probe turns ONE key on, drives ShipInit::Init(key), and requires every
+    // registry the key's TUs write to to rise by exactly the table's count. The
+    // baseline is read per probe after the previous key was put back to 0.
+    for (const auto& probe : SkipProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(13): %s went %zu -> %zu when %s was turned on, expected exactly +%zu - the "
+                       "Skips & Speed-ups TU(s) behind the \"%s\" row are not in the link (a plain 2ship_enh "
+                       "archive drops a TU whose only anchor is a RegisterShipInitFunc), so the row does "
+                       "nothing in Majora's Mask (#1018-#1022)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetSkipKeys();
+                ResetCheatKeys();
+                return 13;
+            }
+        }
+        // Back to 0 before the next key so the buckets two keys share
+        // (VB_START_CUTSCENE) are measured one key at a time.
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetSkipKeys();
+
+    // ---- #1010-#1017: the eight enhancement TUs ------------------------------
+    // Same drive as the Skips & Speed-ups loop above: ONE key on, ShipInit::Init
+    // (key), every registry the key's TU writes to must move by exactly the
+    // table's count (0 meaning "must not move"). The key is driven TWICE so a
+    // registrar that stacks a registration per toggle shows up as a second delta.
+    for (const auto& probe : EnhProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(14): %s went %zu -> %zu when %s was turned on and driven twice, expected "
+                       "exactly +%zu - the enhancement TU behind the \"%s\" row is not in the link (a plain "
+                       "2ship_enh archive drops a TU whose only anchor is a RegisterShipInitFunc), or it stacks "
+                       "a registration per toggle, so the row does nothing or misbehaves in Majora's Mask "
+                       "(#1010-#1017)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetEnhKeys();
+                ResetSkipKeys();
+                ResetCheatKeys();
+                ResetAudioKeys();
+                return 14;
+            }
+        }
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetEnhKeys();
+
+    // ---- #1024-#1026: the three Audio Editor TUs -----------------------------
+    // Same drive as the enhancement loop above: ONE key on, ShipInit::Init(key)
+    // twice, every registry the key's TU writes to must move by exactly the
+    // table's count.
+    for (const auto& probe : AudioProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(15): %s went %zu -> %zu when %s was turned on and driven twice, expected "
+                       "exactly +%zu - the Audio Editor TU behind the \"%s\" row is not in the link (a plain "
+                       "2ship_enh archive drops a TU whose only anchor is a RegisterShipInitFunc), or it stacks "
+                       "a registration per toggle, so the row does nothing or misbehaves in Majora's Mask "
+                       "(#1024-#1026)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetAudioKeys();
+                ResetEnhKeys();
+                ResetSkipKeys();
+                ResetCheatKeys();
+                return 15;
+            }
+        }
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetAudioKeys();
+
+    // ---- #1023: Free Look ------------------------------------------------------
+    // Same drive as the Audio Editor loop above.
+    for (const auto& probe : FreeLookProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(16): %s went %zu -> %zu when %s was turned on and driven twice, expected "
+                       "exactly +%zu - Camera/FreeLook.cpp behind the \"%s\" row is not in the link (a plain "
+                       "2ship_enh archive drops a TU whose only anchor is a RegisterShipInitFunc), or it stacks "
+                       "a registration per toggle, so Free Look, Camera Distance and Camera Transition Speed do "
+                       "nothing or misbehave in Majora's Mask (#1023)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetFreeLookKeys();
+                ResetAudioKeys();
+                ResetEnhKeys();
+                ResetSkipKeys();
+                ResetCheatKeys();
+                return 16;
+            }
+        }
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetFreeLookKeys();
+
+    // ---- #1030-#1034: the five key-gap rows --------------------------------------
+    // Same drive as Free Look above.
+    for (const auto& probe : KeyGapProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(17): %s went %zu -> %zu when %s was turned on and driven twice, expected "
+                       "exactly +%zu - the TU(s) behind the \"%s\" row are not in the link (a plain 2ship_enh "
+                       "archive drops a TU whose only anchor is a RegisterShipInitFunc), or one stacks a "
+                       "registration per toggle, so the row SoH's menu draws does nothing or misbehaves in "
+                       "Majora's Mask (#1030-#1034)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetKeyGapKeys();
+                ResetFreeLookKeys();
+                ResetAudioKeys();
+                ResetEnhKeys();
+                ResetSkipKeys();
+                ResetCheatKeys();
+                return 17;
+            }
+        }
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetKeyGapKeys();
+
     printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars populated their registries; the two "
-           "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook)\n");
+           "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
+           "Skips & Speed-ups keys each armed their TUs; the 9 enhancement keys of #1010-#1017 each armed "
+           "theirs; the 3 Audio Editor keys of #1024-#1026 each armed theirs; Free Look "
+           "of #1023 armed both its hooks; the 5 key-gap keys of #1030-#1034 each armed their TUs)\n");
     return 0;
 }
 

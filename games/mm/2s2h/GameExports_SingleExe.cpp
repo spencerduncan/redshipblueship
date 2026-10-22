@@ -217,6 +217,8 @@ int ArchiveHotswap_TargetArrivals(void);
 // #981 resource cache owner checks (src/common/tests/test_resource_cache_owner.c).
 int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, int limbCount, char* msg, size_t cap);
 void ResourceCacheOwner_SetMMLegPassed(void);
+int ResourceCacheOwner_PatchProbeMM(char* msg, size_t cap);                     // #1040 R2
+int ResourceCacheOwner_CheckBootOwner(const char* when, char* msg, size_t cap); // #1040 R3
 // OoT's port layer defines the one ResourceMgr_LoadSkeletonByName both games call.
 SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
 // MM's staff roll table (z_message.c), built by MM_OTRMessage_Init.
@@ -776,6 +778,13 @@ static void MMCrSceneInit(void) {
                 MMCrFail("the refused door froze MM's half: the refusal must come before the departure freeze");
                 return;
             }
+            // #1040 R3: MM booted (--game mm's path) loads under owner 0, and a
+            // refused crossing never reaches ApplyResourceCacheOwner.
+            if (!ResourceCacheOwner_CheckBootOwner(door ? "after the refused door" : "after the late refusal", msg,
+                                                   sizeof(msg))) {
+                MMCrFail(msg);
+                return;
+            }
             const int expectedEntries = door ? 1 : 2;
             if (sMMRunEntries != expectedEntries) {
                 snprintf(msg, sizeof(msg),
@@ -1080,7 +1089,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
             }
             sLegDone = true;
             char msg[512];
-            if (!RcoMMCheck(msg, sizeof(msg))) {
+            if (!RcoMMCheck(msg, sizeof(msg)) || !ResourceCacheOwner_PatchProbeMM(msg, sizeof(msg))) {
                 fprintf(stderr, "[MM-INT-TEST] FAIL (int-resource-cache-owner): %s\n", msg);
                 fflush(stderr);
                 IntegrationTest_RequestExit();
@@ -4320,17 +4329,24 @@ extern "C" void MM_GameHooks_ExecuteOnBossDefeated(s16 actorId) {
  * CVar-gated first. Enhancements/Camera/CameraInterpolationFixes.cpp is the one
  * registrant in the set whose COND_HOOK condition is literally `true`, so it
  * arms for every player the instant its TU links, and #438's audit flagged its
- * effect on MM frames as unverified. Re-measured: the body is
- * Camera_ShouldInterpolateDist (camera math over six function-local statics)
- * feeding MM_FrameInterpolation_ShouldInterpolateFrame, whose entire effect is
- * one bool gating MM's OWN matrix recorder. The consumer of that recording,
- * MM_FrameInterpolation_Interpolate, has exactly one caller in the tree --
- * 2s2h/BenPort.cpp -- and BenPort is excluded from the single-exe link, so MM's
- * recording is never replayed and the bool cannot reach a rendered frame. The
- * gate therefore stays upstream-faithful: diverging from a vendored 2S2H
- * registration to CVar-gate a body that can only make MM skip a recording
- * nothing reads would buy nothing and cost an upstream-sync landmine. Restoring
- * MM's replay path is the change that has to re-measure this row.
+ * effect on MM frames as unverified. The body is Camera_ShouldInterpolateDist
+ * (camera math over six function-local statics) feeding
+ * MM_FrameInterpolation_ShouldInterpolateFrame, whose entire effect is one bool
+ * gating MM's OWN matrix recorder. The TU does NOT link today: it compiles into
+ * the plain STATIC 2ship_enh archive (it is in neither ship__Enh_registrars nor
+ * 2ship_enh_clockshuffle in games/mm/CMakeLists.txt), and nothing references it
+ * but its file-scope RegisterShipInitFunc, so the linker drops it (redship.map
+ * carries no CameraInterpolationFixes.cpp.obj and no Camera_ShouldInterpolateDist).
+ * The gate is therefore inert in the single exe: MM's camera_interpolation stays
+ * true after the first StartRecord, and no MM frame skips its recording after a
+ * large camera jump. Real view resets still break interpolation through the
+ * camera-epoch child (z_view.c, z_camera.c), as in SoH, but a hard camera swing
+ * with no view reset interpolates across it, unlike upstream 2S2H.
+ * Since #965 MM's recording IS replayed (the shared Graph_ProcessGfxCommands in
+ * soh/OTRGlobals.cpp calls MM_FrameInterpolation_Interpolate on MM frames), so
+ * if this TU is ever linked (for example through 2ship_enh_registrars), its
+ * unconditional gate will change rendered MM frames from that point on:
+ * re-measure this row then.
  *
  * LEGS mirror each excluded twin minus ForFilter. OnPlayerPostLimbDraw keys its
  * id leg on limbIndex, which is what PersistentMasks (PLAYER_LIMB_HEAD),
@@ -4798,6 +4814,175 @@ static uint16_t MM_ReadKokiriSword(void) {
     return GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) != EQUIP_VALUE_SWORD_NONE ? 1u : 0u;
 }
 
+// The bottle count as a shared tier (#970), the twin of OoT's. MM has six bottle
+// slots and OoT four: the shared count is OoT's 0..4, so MM's harvest is clamped
+// at four and MM's fifth and sixth bottles never reach Hyrule; the apply raises
+// MM only up to the shared count, so those two slots fill only from MM's own
+// pickups. Contents never cross.
+#define MM_MAX_BOTTLE_COUNT 4u
+
+static uint16_t MM_HeldBottles(void) {
+    uint16_t count = 0u;
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_6; slot++) {
+        if (gSaveContext.save.saveInfo.inventory.items[slot] != ITEM_NONE) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static uint16_t MM_ReadBottleCount(void) {
+    const uint16_t held = MM_HeldBottles();
+    return held > MM_MAX_BOTTLE_COUNT ? (uint16_t)MM_MAX_BOTTLE_COUNT : held;
+}
+
+/** Raise MM's bottle count to @p count by putting an EMPTY bottle in the next
+ *  empty slots, as MM's own Item_Give(ITEM_BOTTLE) does; a filled slot is never
+ *  touched. */
+static void MM_WriteBottleCount(uint16_t count) {
+    uint16_t held = MM_HeldBottles();
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_6 && held < count; slot++) {
+        if (gSaveContext.save.saveInfo.inventory.items[slot] == ITEM_NONE) {
+            gSaveContext.save.saveInfo.inventory.items[slot] = ITEM_BOTTLE;
+            held++;
+        }
+    }
+}
+
+// ============================================================================
+// The Shared Shields families (#1068; OoTMM sharedShields)
+// ============================================================================
+//
+// MM's copies of the rule's two pairs: the Hero's Shield (the family at
+// RSBS_XITEM_SHARED_SHIELDS, paired with OoT's Hylian Shield) and the Mirror
+// Shield (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD). MM has ONE shield
+// slot: the equipment value is both what Link owns and what he wears (0 none,
+// 1 Hero's, 2 Mirror). So:
+//   - HELD (Hero's) is ANY shield: MM's Mirror Shield replaced a Hero's Shield
+//     the player may have found first, and a Hero's Shield found and replaced in
+//     the same stint must still reach OoT (the solver credited OoT's half when
+//     the shared row was collected). The cost, stated: a Mirror Shield found
+//     first in Termina also gives OoT the Hylian Shield, which never takes
+//     anything away from a world the solver proved.
+//   - HELD (Mirror) is the Mirror Shield.
+//   - GIVE (Hero's) only into an EMPTY slot: a Hero's Shield never replaces a
+//     Mirror Shield. GIVE (Mirror) always replaces, as MM's own give does
+//     (Rando::GiveItem writes the equipment value).
+// Equipping is the same write; the startup entrance runs before Player init,
+// which reads it.
+
+static bool MM_SharedShieldHeld(uint16_t nativeId) {
+    const u8 shield = GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
+    if (nativeId == (uint16_t)RI_SHIELD_MIRROR) {
+        return shield == EQUIP_VALUE_SHIELD_MIRROR;
+    }
+    return shield != EQUIP_VALUE_SHIELD_NONE;
+}
+
+static void MM_SharedShieldGive(uint16_t nativeId) {
+    if (nativeId == (uint16_t)RI_SHIELD_MIRROR) {
+        SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
+    } else if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_NONE) {
+        SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HERO);
+    }
+}
+
+/** Register MM's copies of the Shared Shields families (#1068). Idempotent;
+ *  the static registrar below runs it at start-up, and the locks re-run it
+ *  after a row that cleared the registry. */
+extern "C" void MM_RegisterSharedShieldFamilies(void) {
+    const ComboSharedFamilyMember hero = { (uint16_t)RI_SHIELD_HERO, MM_SharedShieldHeld, MM_SharedShieldGive };
+    const ComboSharedFamilyMember mirror = { (uint16_t)RI_SHIELD_MIRROR, MM_SharedShieldHeld, MM_SharedShieldGive };
+    Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SHIELDS, &hero);
+    Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XFAMILY_SLOT_MIRROR_SHIELD, &mirror);
+}
+
+namespace {
+struct MMSharedShieldRegistrar {
+    MMSharedShieldRegistrar() {
+        MM_RegisterSharedShieldFamilies();
+    }
+};
+const MMSharedShieldRegistrar gMMSharedShieldRegistrar;
+} // namespace
+
+// ============================================================================
+// The Shared Ocarina Buttons families (#1067; OoTMM sharedOcarinaButtons)
+// ============================================================================
+//
+// MM's copies of the rule's five pairs: RI_OCARINA_BUTTON_A at the rule's own
+// bit, the four C buttons at their extra slots. Ownership is the
+// RANDO_INF_OBTAINED_OCARINA_BUTTON_* bit MM's own give writes (GiveItem.cpp:
+// the flag at the item's offset from RI_OCARINA_BUTTON_A) and the
+// VB_PLAY_OCARINA_NOTE gate reads (Rando/ActorBehavior/Player.cpp).
+//
+// HELD only in a randomizer file whose frozen RO_SHUFFLE_OCARINA_BUTTONS is on
+// (the note gate's own test): without it MM plays every note and finds no
+// button, so it has nothing to share. The GIVE writes the bit directly, as the
+// shields write the equipment value (Flags_SetRandoInf would also fire the
+// flag-set hooks before gameplay); with MM's shuffle off nothing reads it.
+
+namespace {
+
+int MM_SharedButtonFlag(uint16_t nativeId) {
+    return RANDO_INF_OBTAINED_OCARINA_BUTTON_A + ((int)nativeId - (int)RI_OCARINA_BUTTON_A);
+}
+
+bool MM_SharedButtonHeld(uint16_t nativeId) {
+    if (!IS_RANDO || RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] == RO_GENERIC_OFF) {
+        return false;
+    }
+    const int flag = MM_SharedButtonFlag(nativeId);
+    return (gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+void MM_SharedButtonGive(uint16_t nativeId) {
+    const int flag = MM_SharedButtonFlag(nativeId);
+    gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] |= (u16)(1 << (flag & 0xF));
+}
+
+/** POOLED (the bag, at generation): MM's buttons are items of its pool only
+ *  under its own shuffle, which its frozen profile publishes as
+ *  RSBS_GIVECAP_OCARINA_BUTTONS (the same word that arms MM's button rows into
+ *  the bag). Without it no pair is built, so a button can never be hosted at an
+ *  MM check whose give HELD above would not see. */
+bool MM_SharedButtonPooled(uint16_t nativeId) {
+    (void)nativeId;
+    return Combo_ForeignGiveCapsArm((uint8_t)GAME_MM, RSBS_GIVECAP_OCARINA_BUTTONS);
+}
+
+} // namespace
+
+/** Register MM's copies of the Shared Ocarina Buttons families (#1067).
+ *  Idempotent; the static registrar below runs it at start-up, and the locks
+ *  re-run it after a row that cleared the registry. */
+extern "C" void MM_RegisterSharedOcarinaButtonFamilies(void) {
+    static const struct {
+        uint32_t slot;
+        RandoItemId button;
+    } kButtons[] = {
+        { RSBS_XITEM_SHARED_OCARINA_BUTTONS, RI_OCARINA_BUTTON_A },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_UP, RI_OCARINA_BUTTON_C_UP },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, RI_OCARINA_BUTTON_C_DOWN },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, RI_OCARINA_BUTTON_C_LEFT },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, RI_OCARINA_BUTTON_C_RIGHT },
+    };
+    for (const auto& b : kButtons) {
+        const ComboSharedFamilyMember member = { (uint16_t)b.button, MM_SharedButtonHeld, MM_SharedButtonGive,
+                                                 MM_SharedButtonPooled };
+        Combo_RegisterSharedFamilyMember(GAME_MM, b.slot, &member);
+    }
+}
+
+namespace {
+struct MMSharedOcarinaButtonRegistrar {
+    MMSharedOcarinaButtonRegistrar() {
+        MM_RegisterSharedOcarinaButtonFamilies();
+    }
+};
+const MMSharedOcarinaButtonRegistrar gMMSharedOcarinaButtonRegistrar;
+} // namespace
+
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
         (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & MM_HEART_PIECE_MASK) >> MM_HEART_PIECE_SHIFT);
@@ -4994,6 +5179,10 @@ extern "C" void MM_HarvestSharedResources(void) {
     // one at the smithy) reads 0 here and cannot lower the pool: the kind is
     // monotonic. The arming gate is inside Combo_HarvestSharedResource.
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_ReadKokiriSword());
+
+    // The bottle count (#970), the twin of OoT's line, clamped at OoT's four. The
+    // arming gate is inside Combo_HarvestSharedResource.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_ReadBottleCount());
 
     // Triforce pieces (ADR 0010 answer O10), the twin of OoT's line: MM's
     // counter is a MIRROR of the one combo count, so harvesting it max-merges
@@ -5376,6 +5565,16 @@ extern "C" void MM_ApplySharedResources(void) {
         kokiriSword >= 1u && GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_NONE) {
         SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
         BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_KOKIRI;
+    }
+
+    // --- The bottle count (monotonic 0..4), armed per world by the frozen Shared
+    // Bottles rule (#970). A bottle found in Hyrule is one more EMPTY bottle here,
+    // in the next empty slot; MM's own bottles keep what they hold. Read through
+    // the clamped reader, so an MM holding five or six is already at the cap and
+    // gains nothing. With the rule off nothing below runs.
+    uint16_t bottleCount = MM_ReadBottleCount();
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_MAX_BOTTLE_COUNT, &bottleCount)) {
+        MM_WriteBottleCount(bottleCount);
     }
 
     // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the

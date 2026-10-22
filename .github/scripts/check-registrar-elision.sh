@@ -595,6 +595,88 @@ main() {
         "RegisterHookshotAnywhere()"
         "MM_RegisterMoonJump()"
         "MM_RegisterEasyFrameAdvance()"
+        # #1018-#1022: the Skips & Speed-ups registrars in lib2ship_enh_registrars.a (Disable Title Card,
+        # Skip Intro, Skip Entrance Cutscenes, Skip One Point Cutscenes and the Story set). No OoT twin
+        # exists for any of the names (grep games/oot); the trailing "()" keeps one name from satisfying
+        # a longer one. The archive gate above covers the same files by member.
+        "RegisterHideTitleCards()"
+        "RegisterSkipIntroSequence()"
+        "RegisterSkipEntranceCutscenes()"
+        "RegisterSkipOnePointCutscenes()"
+        "RegisterHealingMikauAudioFix()"
+        "RegisterSkipBiggoronSnowheadLullabyCutscene()"
+        "RegisterSkipBombBagTheftCutscene()"
+        "RegisterSkipClockTowerOpen()"
+        "RegisterSkipClockTowerSkullKidEncounter()"
+        "RegisterSkipDefeatCaptainSequence()"
+        "RegisterSkipFirstSongOfTimeFlashbacks()"
+        "RegisterSkipHealingDarmani()"
+        "RegisterSkipHealingMikau()"
+        "RegisterSkipIkanaCurseCutscenes()"
+        "RegisterSkipLearningSongOfTime()"
+        "RegisterSkipMilkRunCutscenes()"
+        "RegisterSkipMoonCrash()"
+        "RegisterSkipPrincessDelivery()"
+        "RegisterSkipRaisingWoodfall()"
+        "RegisterSkipStoppingMoon()"
+        "RegisterSkipWakingAndRidingTurtle()"
+        # #1010-#1017: the enhancement registrars in lib2ship_enh_registrars.a (Fast Chests, Enemy Health Bars,
+        # Bow Reticle, Disable Black Bars, Instant Putaway, Unequip C-Items, Pause Buffer, Hyper Enemies). Where
+        # OoT ships a twin of a name (RegisterItemUnequip, RegisterPauseBufferInputs) MM's copy is MM_-prefixed
+        # in the source, so the OoT copy cannot satisfy the probe. EnemyHealthBars registers through a lambda,
+        # so it is gated by the one function it exports; the parameter list separates it from OoT's C
+        # Interface_DrawEnemyHealthBar. The archive gate above covers the same files by member.
+        # The symbol is matched as a basic regex, so the pointer star is escaped (an unescaped * is a quantifier).
+        "RegisterFastChests()"
+        "GetActorMaxHealth(Actor\*)"
+        "RegisterBowReticle()"
+        "RegisterDisableBlackBars()"
+        "RegisterInstantPutaway()"
+        "MM_RegisterItemUnequip()"
+        "RegisterDpadPageSwitchPrevention()"
+        "MM_RegisterPauseBufferInputs()"
+        "RegisterHyperEnemies()"
+        # #1024-#1026: the Audio Editor registrars in lib2ship_enh_registrars.a (Mute Low HP Alarm, Disable Enemy
+        # Proximity Music, Display Sequence Name in Notifications). RegisterAudioNotificationHooks is MM_-prefixed
+        # by include/mm_audio_prefix.h because OoT's AudioHooks.cpp defines the same name; the other two have no
+        # OoT twin. The archive gate above covers the same files by member.
+        "RegisterMuteLowHpAlarm()"
+        "RegisterDisableEnemyProximityMusic()"
+        "MM_RegisterAudioNotificationHooks()"
+        # #1023: Free Look (Camera/FreeLook.cpp), in lib2ship_enh_registrars.a. Its registrar has no OoT twin (grep games/oot);
+        # the archive gate above covers the same file by member.
+        "RegisterCameraFreeLook()"
+        # #1030-#1034: the key-gap registrars in lib2ship_enh_registrars.a (Disable Screen Flash for Finishing Blow,
+        # 3D Dropped Items, Skip Misc Interactions (25 TUs), Skip Scarecrow's Song, Arrow Cycle). MM's ArrowCycle
+        # registrar is MM_-prefixed in the source because OoT ships RegisterArrowCycle. The file-scope static
+        # registrars (RegisterDisableScreenFlash, SkipHungryGoronDialogue, SkipMayorsOfficeCutscene) have no
+        # exported name to probe; the archive gate above covers every file by member.
+        "Register3DItemDrops()"
+        "RegisterSkipScarecrowSong()"
+        "MM_RegisterArrowCycle()"
+        "RegisterSkipAlienStartAndFail()"
+        "RegisterSkipAlienWarning()"
+        "RegisterSkipBankerDialogue()"
+        "RegisterSkipBossWarpPrompt()"
+        "RegisterSkipBothersomeMonkey()"
+        "RegisterSkipDekuSalesman()"
+        "RegisterSkipDekuTelescope()"
+        "RegisterSkipEponaReveal()"
+        "RegisterSkipEvansSong()"
+        "RegisterSkipFallingMoonsTear()"
+        "RegisterSkipGateGuards()"
+        "RegisterSkipGivingBombersNotebook()"
+        "RegisterSkipGreatFairyCutscene()"
+        "RegisterSkipKafeiReveal()"
+        "RegisterSkipKamaroTeachDance()"
+        "RegisterSkipKotakeFlying()"
+        "RegisterSkipOwlInteractions()"
+        "RegisterSkipPushingMikau()"
+        "RegisterSkipRosaSistersDance()"
+        "RegisterSkipScarecrowDance()"
+        "RegisterSkipTatlInterrupts()"
+        "RegisterSkipTingleTime()"
+        "RegisterSkipTurtleGoodbye()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do

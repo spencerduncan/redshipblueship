@@ -628,6 +628,12 @@ extern "C" {
 // neighbour.
 #include "tests/test_shared_kokiri_sword.c"
 
+// The Shared Bottles rule (#970): the key reaches the frozen record, the bottle
+// count is one shared tier through both games' real shims, and the fill trims
+// the pair's bottle items to four. FILE SCOPE for the same reason as its
+// neighbours.
+#include "tests/test_shared_bottles.c"
+
 // The shared wallet (#991, #992): a wallet found in Termina is the pair's wallet,
 // so OoT's arrival apply sets the possession flag and an arrival with no wallet
 // never debits the rupee pool. FILE SCOPE for the same reason as its neighbours.
@@ -657,6 +663,16 @@ extern "C" {
 // families #976 reserved, and the Bunny Hood's speed in Hyrule under its rule
 // (shared-masks-rule, -merge, -bag, -bunny-boost).
 #include "tests/test_shared_masks.c"
+
+// The Shared Shields rule (#1068): both games register both shield pairs, the
+// bag makes each one shared row, and the arrival gives and wears the shield in
+// the other game. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_shields.c"
+
+// The Shared Ocarina Buttons rule (#1067): both games register all five button
+// pairs, the bag makes each one shared row, and a button found in one game is
+// owned in the other on arrival. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_ocarina_buttons.c"
 
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
@@ -1593,6 +1609,124 @@ TestResult Test_RandoHintCrossGame(void) {
     int rc = Rando_HeadlessHintCrossGameTest("RSBSHINT1");
     printf("[TEST] %s: hint cross-game rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The two games' frame-interpolation recorders (#965). Every name but
+// Interpolate is extern "C"; this TU sees neither game's Mtx/MtxF, so the
+// matrix arguments are opaque here. MM's carry the MM_ prefix
+// (games/mm/include/mm_frame_interpolation_prefix.h). The probe is the seam in
+// games/oot/soh/OTRGlobals.cpp next to the shared Graph_ProcessGfxCommands.
+extern "C" {
+void FrameInterpolation_StartRecord(void);
+void FrameInterpolation_StopRecord(void);
+void FrameInterpolation_RecordMatrixMtxFToMtx(void* src, void* dest);
+void MM_FrameInterpolation_ShouldInterpolateFrame(bool shouldInterpolate);
+void MM_FrameInterpolation_StartRecord(void);
+void MM_FrameInterpolation_StopRecord(void);
+void MM_FrameInterpolation_RecordMatrixMtxFToMtx(void* src, void* dest);
+int OoT_Graph_ProbeInterpolatedFrame(float step, const void* mtx, float* out16);
+}
+
+// One recorded frame holding one matrix conversion: src filled with `value`,
+// written to `dest`. Only dest's address matters (it keys the replacement).
+static void FrameInterpLock_RecordFrame(bool mm, float value, void* dest) {
+    float src[16];
+    for (float& f : src) {
+        f = value;
+    }
+    if (mm) {
+        MM_FrameInterpolation_ShouldInterpolateFrame(true); // MM skips one frame after a camera cut
+        MM_FrameInterpolation_StartRecord();
+        MM_FrameInterpolation_RecordMatrixMtxFToMtx(src, dest);
+        MM_FrameInterpolation_StopRecord();
+    } else {
+        FrameInterpolation_StartRecord();
+        FrameInterpolation_RecordMatrixMtxFToMtx(src, dest);
+        FrameInterpolation_StopRecord();
+    }
+}
+
+// One processed frame of the shared processor, asking for `dest`'s replacement.
+// expect < 0: no replacement; otherwise a replacement whose 16 floats all equal expect.
+static bool FrameInterpLock_Expect(const char* leg, const void* dest, const char* destName, float expect) {
+    float out[16] = {};
+    int found = OoT_Graph_ProbeInterpolatedFrame(0.5f, dest, out);
+    bool ok = expect < 0.0f ? found == 0 : found == 1;
+    for (int i = 0; ok && found && i < 16; i++) {
+        ok = out[i] == expect;
+    }
+    if (found) {
+        printf("[TEST]   %s: %s replaced with %.2f (want %s) %s\n", leg, destName, out[0],
+               expect < 0.0f ? "no replacement" : "that value", ok ? "ok" : "WRONG");
+    } else {
+        printf("[TEST]   %s: %s not replaced (want %s) %s\n", leg, destName,
+               expect < 0.0f ? "no replacement" : "a replacement", ok ? "ok" : "WRONG");
+    }
+    return ok;
+}
+
+// #965 lock: the shared Graph_ProcessGfxCommands (games/oot/soh/OTRGlobals.cpp)
+// runs every frame of BOTH games, and MM's draw code records into MM's own
+// recorder. The processor must build its interpolated sub-frames from the
+// ACTIVE game's recorder, or MM's sub-frames get OoT's (empty or stale)
+// replacements and frame interpolation does nothing in MM. And the first frame
+// after the active game changes must interpolate nothing: the arriving game's
+// recorder still holds its last frame from before it was suspended. Records two
+// frames into each recorder (OoT 0 -> 4, MM 0 -> 2, so the halfway step is 2.0
+// from OoT's and 1.0 from MM's), then probes the processor's step with each game
+// active. Needs a display: the recorders record only while
+// OTRGlobals::GetInterpolationFPS() is above 20, which reads the window.
+TestResult Test_CrossGameFrameInterpolation(void) {
+    printf("[TEST] crossgame-frame-interpolation: the shared gfx processor interpolates with the active game's "
+           "recorder (#965)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    // In memory only (never saved): the recorders record only above 20 fps.
+    CVarSetInteger("gSettings.InterpolationFPS", 60);
+
+    static unsigned char sOoTDest[64];
+    static unsigned char sMMDest[64];
+    FrameInterpLock_RecordFrame(false, 0.0f, sOoTDest);
+    FrameInterpLock_RecordFrame(false, 4.0f, sOoTDest);
+    FrameInterpLock_RecordFrame(true, 0.0f, sMMDest);
+    FrameInterpLock_RecordFrame(true, 2.0f, sMMDest);
+
+    GameId prevGame = Context_GetCurrentGame();
+    bool ok = true;
+
+    Context_SetCurrentGame(GAME_OOT);
+    bool ootRecorded = FrameInterpLock_Expect("OoT active", sOoTDest, "OoT's matrix", 2.0f);
+    if (!ootRecorded) {
+        printf("[TEST]   precondition: OoT's recorder did not interpolate (did it record? "
+               "GetInterpolationFPS() must be above 20)\n");
+    }
+    ok = ootRecorded && ok;
+    ok = FrameInterpLock_Expect("OoT active", sMMDest, "MM's matrix", -1.0f) && ok;
+
+    Context_SetCurrentGame(GAME_MM);
+    ok = FrameInterpLock_Expect("first MM frame after the switch", sOoTDest, "OoT's matrix", -1.0f) && ok;
+    ok = FrameInterpLock_Expect("MM active", sMMDest, "MM's matrix", 1.0f) && ok;
+    ok = FrameInterpLock_Expect("MM active", sOoTDest, "OoT's matrix", -1.0f) && ok;
+
+    Context_SetCurrentGame(GAME_OOT);
+    ok = FrameInterpLock_Expect("first OoT frame after the switch", sOoTDest, "OoT's matrix", -1.0f) && ok;
+    ok = FrameInterpLock_Expect("OoT active again", sOoTDest, "OoT's matrix", 2.0f) && ok;
+    ok = FrameInterpLock_Expect("OoT active again", sMMDest, "MM's matrix", -1.0f) && ok;
+
+    Context_SetCurrentGame(prevGame);
+    CVarClear("gSettings.InterpolationFPS");
+
+    printf("[TEST] %s: crossgame-frame-interpolation\n", ok ? "PASS" : "FAIL");
+    return ok ? TEST_PASS : TEST_FAIL;
 }
 
 // Arrival-rehydration lock (#482). Two more instances of the #441 class on the
@@ -3990,6 +4124,106 @@ TestResult Test_ResourceCacheOwner(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1040 R4: an unload with an explicit owner in its ResourceFilter must unload
+// that owner's entries, not the current default owner's. Body in
+// src/common/tests/test_resource_cache_owner.c; same bring-up as the row above.
+TestResult Test_ResourceCacheOwnerUnloadFilter(void) {
+    printf("[TEST] resource-cache-owner-unload-filter: a filtered unload honours the filter's owner (#1040)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    ctx->GetResourceManager()->GetResourceLoader()->RegisterResourceFactory(
+        std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY, "Blob",
+        static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+
+    int rc = ResourceCacheOwner_RunUnloadFilterHeadless();
+    printf("[TEST] %s: filtered unload rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1040 R1: OoT's Cosmetics Editor patches display lists in whatever copy the
+// current resource cache owner holds (#981). While Majora's Mask runs that is
+// MM's owner, so a colour changed then would parse OoT-only display lists again
+// under MM's owner and write OoT's command indices into MM's copies of the ones
+// both archives carry. The editor must patch only while OoT runs, owe the pass
+// otherwise, and pay it once on OoT's next frame. Seams in
+// games/oot/soh/Enhancements/cosmetics/CosmeticsEditor.cpp. ROM-free: the row
+// skips the patch body once a pass is counted, because that body reads
+// OTRGlobals::Instance (the Greg Bridge check), which this bring-up never builds.
+extern "C" int CosmeticsEditor_CustomGfxPatchPasses(void);
+extern "C" int CosmeticsEditor_CustomGfxPatchesDeferred(void);
+extern "C" void CosmeticsEditor_ApplyCustomGfxPatches(void);
+extern "C" void CosmeticsEditor_ReapplyDeferredGfxPatches(void);
+extern "C" void CosmeticsEditor_SetCustomGfxPatchBodySkipped(int skip);
+
+TestResult Test_CosmeticsPatchOwnerGate(void) {
+    printf("[TEST] cosmetics-patch-owner-gate: the Cosmetics Editor patches only while OoT runs (#1040)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    const GameId savedGame = Context_GetCurrentGame();
+    CosmeticsEditor_SetCustomGfxPatchBodySkipped(1);
+    int failures = 0;
+    auto expect = [&failures](bool ok, const char* what, int passes, int deferred) {
+        if (!ok) {
+            printf("[TEST] FAIL: %s (patch passes %d, deferred %d)\n", what, passes, deferred);
+            failures++;
+        }
+    };
+
+    // 1. OoT runs: a change patches at once and owes nothing.
+    Context_SetCurrentGame(GAME_OOT);
+    const int p0 = CosmeticsEditor_CustomGfxPatchPasses();
+    CosmeticsEditor_ApplyCustomGfxPatches();
+    int passes = CosmeticsEditor_CustomGfxPatchPasses();
+    int deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p0 + 1 && deferred == 0, "under OoT a change did not patch at once", passes - p0, deferred);
+
+    // 2. MM runs: a change reaches no patch (that would write MM's owner's copies)
+    //    and is owed to OoT. A reapply attempt while MM still runs pays nothing.
+    Context_SetCurrentGame(GAME_MM);
+    const int p1 = CosmeticsEditor_CustomGfxPatchPasses();
+    CosmeticsEditor_ApplyCustomGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p1, "under MM a change reached the patches", passes - p1, deferred);
+    expect(deferred == 1, "under MM a change was not owed to OoT", passes - p1, deferred);
+    CosmeticsEditor_ReapplyDeferredGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p1 && deferred == 1, "the owed pass was paid while MM still ran", passes - p1, deferred);
+
+    // 3. OoT's next frame pays the owed pass, once.
+    Context_SetCurrentGame(GAME_OOT);
+    CosmeticsEditor_ReapplyDeferredGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p1 + 1 && deferred == 0, "OoT's return did not pay the owed pass", passes - p1, deferred);
+    CosmeticsEditor_ReapplyDeferredGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    expect(passes == p1 + 1, "the owed pass was paid twice", passes - p1, deferred);
+
+    CosmeticsEditor_SetCustomGfxPatchBodySkipped(0);
+    Context_SetCurrentGame(savedGame);
+    printf("[TEST] %s: cosmetics patch owner gate (%d failure(s))\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #987: a game switch re-adds the arriving game's archives by path, and the
 // ArchiveManager must not mount a second copy of one that is already mounted.
 // Body in src/common/tests/test_archive_add_dedup.c: two temporary O2R zips
@@ -5693,6 +5927,18 @@ TestResult Test_ComboSettingsWindow(void) {
     return Combo_SettingsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #970: the Shared Bottles record row reads gCombo.Rando.SharedBottles, which
+// lives in the CVar store on the Ship::Context singleton, so it needs the same
+// display-free bring-up. Assertions in tests/test_shared_bottles.c.
+TestResult Test_SharedBottlesRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return SharedBottlesRule_Run();
+}
+
 // #1047: the trap row sets the gRando.Traps.* CVars, which live on the
 // Ship::Context singleton, so it needs the same display-free bring-up.
 TestResult Test_MmTrapRollFrozen(void) {
@@ -5940,6 +6186,22 @@ TestResult Test_RandoTriforceHuntWin(void) {
     printf("[TEST] %s: rando-triforce-hunt-win (OoT rc=%d, MM rc=%d)\n", (oot == 0 && mm == 0) ? "PASS" : "FAIL", oot,
            mm);
     return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
+}
+
+// #997: under the combo triforce hunt OoT's own hunt is generated as "Win". Same
+// bring-up as the row above (a real paired creation through the headless bridge).
+// Assertions in games/oot/soh/oot_triforce_hunt_test.cpp.
+extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void);
+TestResult Test_RandoComboHuntOwnMode(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char chomArg0[] = "redship";
+    static char* chomArgv[] = { chomArg0, nullptr };
+    InitOTRForMMFirstBoot(1, chomArgv);
+    return OoT_ComboHuntOwnMode_RunGenerated() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #973: a paired world generates OoT's Mask Quest as "Shuffle" and its Mask Shop
@@ -6260,6 +6522,10 @@ const TestDescriptor gTests[] = {
     // whose title-chain Save_Init used to wipe the placement table. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     { "rando-hint-crossgame", "Item hints survive a cross-game OoT arrival (#441)", Test_RandoHintCrossGame },
+    // #965: the shared gfx processor interpolates with the active game's recorder.
+    // Needs a display like rando-gen, so `--test all` skips it (below).
+    { "crossgame-frame-interpolation", "The shared gfx processor interpolates with the active game's recorder (#965)",
+      Test_CrossGameFrameInterpolation },
     // #575 H1: the shared area vocabulary. Display-free and ROM-free, so it
     // runs in the redship tier and in `--test all`.
     { "combo-area-vocabulary", "One shared hint area vocabulary over both games (#575 H1)", Test_ComboAreaVocabulary },
@@ -6360,6 +6626,10 @@ const TestDescriptor gTests[] = {
       Test_ModArchiveSurvivesSwitch },
     { "resource-cache-owner", "Each resource cache owner keeps its own copy of a shared path (#981)",
       Test_ResourceCacheOwner },
+    { "resource-cache-owner-unload-filter", "A filtered unload honours the filter's cache owner (#1040)",
+      Test_ResourceCacheOwnerUnloadFilter },
+    { "cosmetics-patch-owner-gate", "The Cosmetics Editor patches only while OoT runs (#1040)",
+      Test_CosmeticsPatchOwnerGate },
     { "archive-add-dedup", "Re-adding a mounted archive path mounts nothing new (#987)", Test_ArchiveAddDedup },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
@@ -6437,6 +6707,19 @@ const TestDescriptor gTests[] = {
       "One Kokiri Sword across both games when the frozen combo bit arms it, and neither crosses when it does not "
       "(#886)",
       Test_SharedKokiriSword },
+    // #970: the Shared Bottles rule. ROM-free: the resolver and the frozen record,
+    // both games' real harvest and apply shims, and the real composer over both
+    // games' real classifications.
+    { "shared-bottles-rule",
+      "The Shared Bottles key is read into the frozen item rules record, and the fingerprint carries it (#970)",
+      Test_SharedBottlesRule },
+    { "shared-bottles-tier",
+      "With the Shared Bottles rule on, a bottle found in one game unlocks an empty bottle slot in the other on "
+      "arrival, up to OoT's four; off, nothing crosses (#970)",
+      Test_SharedBottlesTier },
+    { "shared-bottles-trim",
+      "With the Shared Bottles rule on, the fill keeps four of the pair's bottle items; off, it trims none (#970)",
+      Test_SharedBottlesTrim },
     // #991/#992: one wallet progression across both games. ROM-free: gComboCtx,
     // the RAM watermark table, OoT's real shims, logic's capacity and the
     // per-frame rupee handler.
@@ -6460,6 +6743,17 @@ const TestDescriptor gTests[] = {
       "The shared-family bitset merges by OR in both directions, arms only from the frozen rules, and reaches both "
       "games through their real harvest and apply shims (#976)",
       Test_SharedFamilyMerge },
+    // #1068: the Shared Shields rule on the #976 mechanism. ROM-free: the
+    // registry, the bag's pair list, the real composer over both games' real
+    // classifications, and both games' real harvest and apply shims.
+    { "shared-shields-pairs",
+      "The Shared Shields rule arms the Hylian/Hero's and Mirror/Mirror families both games register, and the bag "
+      "makes each one row both solvers credit (#1068)",
+      Test_SharedShieldsPairs },
+    { "shared-shields-arrival",
+      "With the Shared Shields rule on, a shield found in one game is given and worn in the other on arrival; off, "
+      "nothing crosses (#1068)",
+      Test_SharedShieldsArrival },
     // #1065: the Shared Lens of Truth on the #976 mechanism.
     { "shared-lens-rule",
       "The Shared Lens of Truth is one Cross-Game Rule, off by default, frozen at creation into the fingerprint, and "
@@ -6478,6 +6772,16 @@ const TestDescriptor gTests[] = {
       "Both games register Epona's Song and the Song of Storms as shared families, and a song learnt in either game "
       "is known in the other at arrival through the real shims (#1066)",
       Test_SharedSongsMerge },
+    // #1067: the Shared Ocarina Buttons rule on the same mechanism, five pairs
+    // behind one bit. ROM-free, as the shields rows.
+    { "shared-ocarina-buttons-pairs",
+      "The Shared Ocarina Buttons rule arms the five button families both games register, and the bag makes each one "
+      "row both solvers credit (#1067)",
+      Test_SharedOcarinaButtonsPairs },
+    { "shared-ocarina-buttons-arrival",
+      "With the Shared Ocarina Buttons rule on, a button found in one game is owned in the other on arrival; a game "
+      "whose own shuffle is off shares nothing; off, nothing crosses (#1067)",
+      Test_SharedOcarinaButtonsArrival },
     // #968: Shared Fire, Ice and Light Arrows on the same mechanism.
     { "shared-arrows-rule",
       "Shared Fire, Ice and Light Arrows are three Cross-Game Rules, off by default, frozen at creation into the "
@@ -7117,6 +7421,11 @@ const TestDescriptor gTests[] = {
       "requirement "
       "ends the combo, in whichever game reaches it (ADR 0010 O10)",
       Test_RandoTriforceHuntWin },
+    // #997. Needs a generation; skipped by `--test all` below like its siblings.
+    { "rando-combo-hunt-own-mode",
+      "Under the combo triforce hunt a paired creation generates OoT's own \"Ganon's Boss Key\" hunt as \"Win\", "
+      "so RC_TRIFORCE_COMPLETED never holds Ganon's Boss Key (#997)",
+      Test_RandoComboHuntOwnMode },
     // #973. Needs a generation; skipped by `--test all` below like its siblings.
     { "rando-mask-quest-paired",
       "A paired world generates Mask Quest as Shuffle and the Mask Shop Hint off, all eight OoT masks are in the "
@@ -7447,9 +7756,10 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-player-path-digest") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
-                strcmp(gTests[i].name, "rando-hint-crossgame") == 0 || strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
-                strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 || strcmp(gTests[i].name, "mm-paired-start") == 0 ||
-                strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
+                strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
+                strcmp(gTests[i].name, "crossgame-frame-interpolation") == 0 ||
+                strcmp(gTests[i].name, "mm-rando-gen") == 0 || strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-start") == 0 || strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
                 strcmp(gTests[i].name, "mm-round-budget-host-scale") == 0 ||
                 strcmp(gTests[i].name, "mm-golden-seeds-round-budget") == 0 ||
@@ -7463,6 +7773,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
                 strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
+                strcmp(gTests[i].name, "rando-combo-hunt-own-mode") == 0 ||
                 strcmp(gTests[i].name, "rando-mask-quest-paired") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||

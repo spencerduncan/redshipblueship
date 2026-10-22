@@ -81,6 +81,9 @@ static bool IsMonotonicKind(uint8_t kind) {
         // #886: the Kokiri Sword, 0/1. A sword lost in MM (Takkuri) must not take
         // OoT's away: max-merge keeps the 1.
         case RSBS_SHARED_RES_KOKIRI_SWORD:
+        // #970: the bottle count. Bottles are never lost, but a rewound or stale
+        // save can harvest fewer than the pair holds; max-merge keeps the count.
+        case RSBS_SHARED_RES_BOTTLE_COUNT:
             return true;
         default:
             // The spent quantities — rupees, current health, current magic, and
@@ -237,6 +240,12 @@ bool Combo_SharedResourceKindArmed(uint8_t kind) {
     // applied and a world has no slot of this kind.
     if (kind == (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD) {
         return Combo_ComboSharedKokiriSword();
+    }
+    // #970: the Shared Bottles rule, read from the FROZEN item rules record.
+    // Off (the default), neither game's bottles are harvested or applied and a
+    // world has no slot of this kind.
+    if (kind == (uint8_t)RSBS_SHARED_RES_BOTTLE_COUNT) {
+        return Combo_ComboCrossItemRule((uint32_t)RSBS_XITEM_SHARED_BOTTLES);
     }
     return true;
 }
@@ -444,10 +453,11 @@ void Combo_ResetSharedResourceWatermarks(void) {
 static ComboSharedFamilyMember sFamilyMembers[3][RSBS_XITEM_BIT_COUNT];
 static bool sFamilyMemberSet[3][RSBS_XITEM_BIT_COUNT];
 
-/** The bit index of a single FAMILY bit, or -1 for anything else. */
+/** The bit index of a single FAMILY SLOT (a family rule's own bit, or an extra
+ *  slot such as #1068's Mirror Shield), or -1 for anything else. */
 static int FamilyIndex(uint32_t familyBit) {
     if (familyBit == 0u || (familyBit & (familyBit - 1u)) != 0u ||
-        (familyBit & (uint32_t)RSBS_XITEM_FAMILY_MASK) == 0u) {
+        (familyBit & (uint32_t)RSBS_XFAMILY_SLOTS_ALL) == 0u) {
         return -1;
     }
     for (int b = 0; b < (int)RSBS_XITEM_BIT_COUNT; ++b) {
@@ -498,15 +508,61 @@ bool Combo_SharedFamilyMemberGet(GameId game, uint32_t familyBit, ComboSharedFam
     return true;
 }
 
+bool Combo_SharedFamilyMemberPooled(GameId game, uint32_t familyBit) {
+    const int b = FamilyIndex(familyBit);
+    if (!IsRealGame(game) || b < 0 || !sFamilyMemberSet[game][b]) {
+        return false;
+    }
+    const ComboSharedFamilyMember* m = &sFamilyMembers[game][b];
+    return m->pooled == NULL || m->pooled(m->nativeId);
+}
+
 void Combo_ClearSharedFamilyMembers(void) {
     memset(sFamilyMembers, 0, sizeof(sFamilyMembers));
     memset(sFamilyMemberSet, 0, sizeof(sFamilyMemberSet));
 }
 
+uint32_t Combo_SharedFamilySlotsArmedBy(uint32_t crossItemFlags) {
+    uint32_t slots = crossItemFlags & (uint32_t)RSBS_XITEM_FAMILY_MASK;
+    // A rule with more than one pair arms its extra slots with its own bit
+    // (#1068: the shields rule's second pair, the two Mirror Shields).
+    if ((crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_SHIELDS) != 0u) {
+        slots |= (uint32_t)RSBS_XFAMILY_SLOT_MIRROR_SHIELD;
+    }
+    // #1067: the shared ocarina buttons' four C-button pairs.
+    if ((crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u) {
+        slots |= (uint32_t)(RSBS_XFAMILY_SLOT_OCARINA_C_UP | RSBS_XFAMILY_SLOT_OCARINA_C_DOWN |
+                            RSBS_XFAMILY_SLOT_OCARINA_C_LEFT | RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT);
+    }
+    return slots;
+}
+
+const char* Combo_SharedFamilySlotName(uint32_t slot) {
+    if (slot == (uint32_t)RSBS_XFAMILY_SLOT_MIRROR_SHIELD) {
+        return "sharedShields (Mirror Shield)";
+    }
+    // An extra slot at an extension rule's bit names its pair, not that rule.
+    switch (slot) {
+        case RSBS_XFAMILY_SLOT_OCARINA_C_UP:
+            return "sharedOcarinaButtons (C-Up)";
+        case RSBS_XFAMILY_SLOT_OCARINA_C_DOWN:
+            return "sharedOcarinaButtons (C-Down)";
+        case RSBS_XFAMILY_SLOT_OCARINA_C_LEFT:
+            return "sharedOcarinaButtons (C-Left)";
+        case RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT:
+            return "sharedOcarinaButtons (C-Right)";
+        case RSBS_XITEM_SHARED_OCARINA_BUTTONS:
+            return "sharedOcarinaButtons (A)";
+        default:
+            break;
+    }
+    return Combo_ComboItemRuleName(slot);
+}
+
 uint32_t Combo_SharedFamiliesArmed(void) {
     // The FROZEN record only, as every arming gate in this file: before a world
     // exists there is nothing to share, and after it the rules are identity.
-    return Combo_ComboCrossItemFlags() & (uint32_t)RSBS_XITEM_FAMILY_MASK;
+    return Combo_SharedFamilySlotsArmedBy(Combo_ComboCrossItemFlags());
 }
 
 uint32_t Combo_SharedFamiliesOwned(void) {
@@ -577,7 +633,7 @@ int Combo_SharedFamiliesApplyLive(GameId game) {
         m->give(m->nativeId);
         given++;
         fprintf(stderr, "[combo] shared family %s: %s given its own copy (id %u) at arrival\n",
-                Combo_ComboItemRuleName(bit), Game_ToString(game), (unsigned)m->nativeId);
+                Combo_SharedFamilySlotName(bit), Game_ToString(game), (unsigned)m->nativeId);
     }
     return given;
 }

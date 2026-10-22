@@ -655,6 +655,13 @@ if(BUILD_TESTING)
     # either game's Kokiri Sword lights both through the real harvest/apply shims;
     # with it off, neither crosses and no slot appears. Display-free, ROM-free.
     redship_add_test(NAME SharedKokiriSword COMMAND redship --test shared-kokiri-sword)
+    # #970: the Shared Bottles rule. The key reaches the frozen record; with it on,
+    # the bottle count is one tier through both games' real harvest/apply shims
+    # (empty slots given, filled slots untouched, capped at OoT's four) and the
+    # fill keeps four of the pair's bottle items. ROM-free.
+    redship_add_test(NAME SharedBottlesRule COMMAND redship --test shared-bottles-rule)
+    redship_add_test(NAME SharedBottlesTier COMMAND redship --test shared-bottles-tier)
+    redship_add_test(NAME SharedBottlesTrim COMMAND redship --test shared-bottles-trim)
     # #991/#992: one wallet progression. A wallet found in Termina is the pair's
     # wallet, so OoT's arrival apply sets RAND_INF_HAS_WALLET at tier 1 or more
     # (logic's capacity and the per-frame rupee pin then agree with the tier),
@@ -672,7 +679,12 @@ if(BUILD_TESTING)
     # and the shared-family OR merge through both games' real shims. ROM-free.
     redship_add_test(NAME CrossItemRulesRecord COMMAND redship --test cross-item-rules-record)
     redship_add_test(NAME SharedFamilyMerge COMMAND redship --test shared-family-merge)
-    # #1065: the Shared Lens of Truth, the first family a player can turn on. Its
+    # #1068: the Shared Shields rule (OoTMM sharedShields) on that mechanism: the
+    # two pairs registered by both games and composed into one shared row each,
+    # and the arrival giving and wearing the shield in the other game. ROM-free.
+    redship_add_test(NAME SharedShieldsPairs COMMAND redship --test shared-shields-pairs)
+    redship_add_test(NAME SharedShieldsArrival COMMAND redship --test shared-shields-arrival)
+    # #1065: the Shared Lens of Truth, a family a player can turn on. Its
     # bit, its Cross-Game Rules key (off by default, 0 or 1), the creation freezing
     # it into the fingerprint, and a load restoring it into the key (CVar store,
     # display-free bring-up); then both games' real lens registered as the family
@@ -685,6 +697,11 @@ if(BUILD_TESTING)
     # carried by the real harvest/apply shims, each rule only its own song. ROM-free.
     redship_add_test(NAME SharedSongsRule COMMAND redship --test shared-songs-rule)
     redship_add_test(NAME SharedSongsMerge COMMAND redship --test shared-songs-merge)
+    # #1067: the Shared Ocarina Buttons rule (OoTMM sharedOcarinaButtons): five
+    # pairs behind one bit, registered by both games and composed into one shared
+    # row each, and a button found in one game owned in the other on arrival.
+    redship_add_test(NAME SharedOcarinaButtonsPairs COMMAND redship --test shared-ocarina-buttons-pairs)
+    redship_add_test(NAME SharedOcarinaButtonsArrival COMMAND redship --test shared-ocarina-buttons-arrival)
     # #968: Shared Fire, Ice and Light Arrows, three more families on the lens's
     # rows (#976 reserved their bits): the three keys (off by default, 0 or 1),
     # the freeze, the fingerprint and the load restore; then both games' arrows
@@ -862,6 +879,14 @@ if(BUILD_TESTING)
     # ResourceManager::SetDefaultCacheOwner: each owner keeps its own bytes, and
     # the first keeps its original object. ROM-free and archive-free.
     redship_add_test(NAME ResourceCacheOwner COMMAND redship --test resource-cache-owner)
+    # #1040 R4: UnloadResources with an explicit owner in its ResourceFilter
+    # unloads that owner's entry and leaves the default owner's alone (the fork's
+    # UnloadResourcesProcess once took mDefaultCacheOwner instead). ROM-free.
+    redship_add_test(NAME ResourceCacheOwnerUnloadFilter COMMAND redship --test resource-cache-owner-unload-filter)
+    # #1040 R1: OoT's Cosmetics Editor patches display lists only while OoT
+    # runs (under MM it would write MM's owner's copies); a change made under MM
+    # is owed to OoT and paid once on OoT's next frame. ROM-free.
+    redship_add_test(NAME CosmeticsPatchOwnerGate COMMAND redship --test cosmetics-patch-owner-gate)
     # #987: re-adding a mounted archive path (every game switch does) mounts
     # nothing new and keeps newest-wins. Two temporary O2R zips added and
     # re-added by path: archive count, game-version list and mount order
@@ -1575,6 +1600,18 @@ if(BUILD_TESTING)
     # touches hintTable). Drives the real Save_Init with and without the arrival
     # flag. Same display-but-no-archives tier.
     redship_add_test(NAME RandoHintCrossGame COMMAND redship --test rando-hint-crossgame
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
+    # Frame interpolation in MM (#965). The shared Graph_ProcessGfxCommands runs
+    # both games' frames but built its interpolated sub-frames from OoT's recorder
+    # only, while MM's draws record into MM's own, so interpolation did nothing in
+    # MM. Records into both recorders and locks that the processor's step reads
+    # the active game's, and nothing on the first frame after a switch. Needs the
+    # window (the recorders run only while GetInterpolationFPS() is above 20), so
+    # it sits in this display tier.
+    redship_add_test(NAME CrossGameFrameInterpolation COMMAND redship --test crossgame-frame-interpolation
         LABEL rando
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
@@ -2392,6 +2429,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #997: under the combo hunt OoT's own "Ganon's Boss Key" hunt is generated as
+    # "Win", so RC_TRIFORCE_COMPLETED never holds the boss key the game grants only
+    # as the paired game ends. `rando`: it needs a paired creation.
+    redship_add_test(NAME RandoComboHuntOwnMode COMMAND redship --test rando-combo-hunt-own-mode
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #973: the Happy Mask Shop door is the crossing, so its room never loads. A
     # paired world generates Mask Quest as "Shuffle" and the Mask Shop Hint off
     # (under both authored modes a player can arrive with), all eight OoT masks are
@@ -2863,7 +2907,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
     # #981: T1's crossing and back. Each game is served its own gOctorokSkel (OoT
     # 37 limbs, MM 15) and staff text (SOH::Text, S2H::TextMM with MM's credit
-    # ids), and OoT gets back the very objects it had before it left.
+    # ids), and OoT gets back the very objects it had before it left. #1040 R2:
+    # OoT patches a display list both archives carry before it leaves, MM
+    # unpatches the same name under its own owner and keeps its copy cached and
+    # untouched, and OoT's own unpatch on return still restores its original (the
+    # per-owner gfx-patch registry, games/oot/soh/ResourceManagerHelpers.cpp).
     redship_add_test(NAME IntResourceCacheOwner
         COMMAND redship --integration-test int-resource-cache-owner
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
@@ -2902,8 +2950,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # refused while MM is still in its frame loop (z_play.c loads the 0xD800
     # Combo_CheckEntranceSwitch hands back; MM_Game_Run entered once); then the
     # raw switch request, after which MM must come back through suspend/resume
-    # with its save. Each row also asserts the door's own refusal line, which
-    # only Combo_CheckEntranceSwitch prints.
+    # with its save. After each refusal both drivers also assert the resource
+    # cache owner is still the booted game's 0 (#1040 R3: a refused switch never
+    # reaches ApplyResourceCacheOwner, and --game mm boots MM at owner 0).
+    # Each row also asserts the door's own refusal line, which only
+    # Combo_CheckEntranceSwitch prints.
     #
     # CMake/CheckCrossingRefused.cmake; the drivers are in
     # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp.
