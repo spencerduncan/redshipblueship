@@ -13,10 +13,13 @@ void func_809C53A4(EnBomBowlMan* enBomBowlMan);
 void CutsceneManager_End();
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void EnBomBowlMan_WaitForPlayer(EnBomBowlMan* enBomBowlMan, PlayState* play) {
+    // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+    // a missing play state leaves the vanilla behavior untouched.
+    RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
     Player* player = GET_PLAYER(play);
 
     if (GameInteractor_Should(VB_BE_ELIGIBLE_FOR_BOMBERS_NOTEBOOK,
@@ -46,6 +49,9 @@ void EnBomBowlMan_WaitForPlayer(EnBomBowlMan* enBomBowlMan, PlayState* play) {
  */
 void RegisterSkipGivingBombersNotebook() {
     COND_VB_SHOULD(VB_SETUP_EAST_CLOCK_TOWN_BOM_BOWL_MAN, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->sceneId == SCENE_TOWN) {
             *should = true;
         }
@@ -60,6 +66,9 @@ void RegisterSkipGivingBombersNotebook() {
 
     // "Hey, guy! You haven't passed my test..."
     COND_ID_HOOK(OnOpenText, 0x72F, CVAR, [](u16* textId, bool* loadFromMessageTable) {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         EnBomBowlMan* enBomBowlMan =
             (EnBomBowlMan*)MM_Actor_FindNearby(MM_gPlayState, &player->actor, ACTOR_EN_BOM_BOWL_MAN, ACTORCAT_NPC, 100.0f);
@@ -71,6 +80,9 @@ void RegisterSkipGivingBombersNotebook() {
 
     // "Rules of the Bombers..."
     COND_ID_HOOK(OnOpenText, 0x716, CVAR, [](u16* textId, bool* loadFromMessageTable) {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         EnBomBowlMan* enBomBowlMan =
             (EnBomBowlMan*)MM_Actor_FindNearby(MM_gPlayState, &player->actor, ACTOR_EN_BOM_BOWL_MAN, ACTORCAT_NPC, 100.0f);
@@ -81,6 +93,9 @@ void RegisterSkipGivingBombersNotebook() {
     });
 
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         // Cutscene 12 in East Clock Town is the bomber running away after giving notebook
         if (MM_gPlayState->sceneId == SCENE_TOWN) {
             s16* csId = va_arg(args, s16*);

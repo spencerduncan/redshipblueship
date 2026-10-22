@@ -429,6 +429,9 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // same creation event, right after the combo record, so it is in the same
     // KEEP set for the same reason.
     const ComboTriforceRecord savedComboTriforce = gComboCtx.comboTriforce;
+    // #976: the frozen cross-game item rules are written by the same freeze as
+    // the combo record and folded into its fingerprint, so they are KEPT with it.
+    const ComboItemRulesRecord savedComboItemRules = gComboCtx.comboItemRules;
 
     // Frozen blobs and shadow copies in one call — they are the same storage
     // (FrozenStateManager::ClearFrozenState memsets the buffer AND clears
@@ -491,6 +494,9 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         // moves with it: a kept goal of triforce-hunt with a dropped record
         // would disarm the one shared piece count for a world that froze it.
         gComboCtx.comboTriforce = savedComboTriforce;
+        // The item rules are half of the fingerprint above: a kept hash with
+        // dropped rules would read as damage at the next compare (#976).
+        gComboCtx.comboItemRules = savedComboItemRules;
         // The crossing store (ADR 0010 O7) is KEPT by not being cleared: it
         // lives outside gComboCtx, so the ComboContext_Init above never touched
         // it. Same author and same moment as the stamp; see

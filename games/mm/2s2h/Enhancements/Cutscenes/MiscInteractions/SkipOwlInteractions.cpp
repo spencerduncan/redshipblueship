@@ -13,10 +13,13 @@ void MM_EnOwl_ChangeMode(EnOwl* enOwl, EnOwlActionFunc actionFunc, EnOwlFunc unk
                       AnimationHeader* animation, f32 morphFrames);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void flyOnApproach(EnOwl* enOwl, PlayState* play) {
+    // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+    // a missing play state leaves the vanilla behavior untouched.
+    RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
     func_8095A920(enOwl, play); // Turn to face player
     if (enOwl->actor.xzDistToPlayer < 200.0f) {
         s32 owlType = ENOWL_GET_TYPE(&enOwl->actor);

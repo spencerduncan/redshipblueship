@@ -115,7 +115,9 @@
  * the RAM watermark). Keep it that way — it is what makes the wiring auditable:
  * every pool mutation is at a suspend or a pre-save point, never mid-scene. An
  * arriving game holding MORE than the pool is not lost, it is picked up by that
- * game's own next harvest.
+ * game's own next harvest. The ONE exception is CREDIT AT PICKUP (#1061, below):
+ * a counted pack found in the other game is added mid-scene, bracketed by a
+ * harvest before it and an apply after it, so the watermark stays exact.
  *
  * WIRING (both games, see each GameExports_SingleExe.cpp):
  *   - Harvest at `Game_Suspend`, beside `Combo_CommitStagedSharedItems()`, and
@@ -148,12 +150,20 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 21u
+#define RSBS_SHARED_RES_KIND_COUNT 22u
+
+/* Every kind one world can arm at once must have a slot in the two blocks: the
+ * real kinds less the retired ocarina tier, which is never armed (#879). Today
+ * that is twenty of twenty (#970's bottles took the last one), so the next kind
+ * fails here and needs a third block (context.h), rather than silently finding
+ * no slot at its first harvest. */
+RSBS_CTX_STATIC_ASSERT(RSBS_SHARED_RES_KIND_COUNT - 2u <= RSBS_SHARED_RESOURCE_TOTAL_CAP,
+                       "more shared-resource kinds can be armed at once than the two blocks have slots");
 
 /**
  * Is `kind` ARMED for this world?
  *
- * Seventeen of the twenty kinds are unconditional: #525 decided that both
+ * Seventeen of the twenty-one kinds are unconditional: #525 decided that both
  * games share one wallet, one health bar, one magic meter, one set of ammo and
  * one hookshot, and no save can turn that off. RSBS_SHARED_RES_OCARINA_TIER
  * (#668) was the first that a PLAYER chose, through a tier-4 key frozen into
@@ -164,6 +174,8 @@ extern "C" {
  * (Combo_TriforceHuntArmed, triforce_hunt.h). RSBS_SHARED_RES_KOKIRI_SWORD
  * (#886) is armed only by the FROZEN record's RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD
  * bit, the player's Cross-Game Rules choice (Combo_ComboSharedKokiriSword).
+ * RSBS_SHARED_RES_BOTTLE_COUNT (#970) is armed only by the FROZEN item rules'
+ * RSBS_XITEM_SHARED_BOTTLES bit (Combo_ComboCrossItemRule).
  *
  * THE GATE LIVES HERE, ONCE, AND BOTH ENTRY POINTS CONSULT IT. A gate written
  * into the four per-game call sites instead would be four chances to gate one
@@ -354,6 +366,68 @@ void Combo_HarvestSharedResource(GameId game, uint8_t kind, uint16_t liveValue);
  */
 bool Combo_ApplySharedResource(GameId game, uint8_t kind, uint16_t cap, uint16_t* liveValue);
 
+/*
+ * ---------------------------------------------------------------------------
+ * CREDIT AT PICKUP (#1061), the one pool write outside a harvest
+ * ---------------------------------------------------------------------------
+ * A pack of a COUNTED kind found in the other game does not cross: it is
+ * credited to the pool where it is found. A crossing waits for the next arrival
+ * in its home game and then runs that game's own give, and MM's give caps
+ * bombchus at MM's BOMB BAG capacity (0 with no bag, z_parameter.c), so a
+ * crossed MM bombchu pack was lost whenever the pool already filled MM's bag,
+ * and wholly lost with no bag. The pool is the one count both games share; the
+ * pack belongs in it the moment it is found, and each game then holds what fits
+ * (OoTMM's SHARED_BOMBCHU: one quantity, a pack from either game adds to it).
+ *
+ * THE FINDING GAME RUNS THREE STEPS, in this order, through its own shim
+ * (OoT_/MM_CreditSharedPickup, each game's GameExports_SingleExe.cpp):
+ *   1. HARVEST its own live count for the kind, so everything spent since the
+ *      last apply leaves the pool first. Apply ASSIGNS a consumable, so a credit
+ *      re-applied without this harvest would refund every unit spent since the
+ *      arrival.
+ *   2. CREDIT the pack's units (Combo_CreditSharedResource).
+ *   3. RE-APPLY the kind in place: the live count becomes min(pool, cap) and
+ *      the watermark records exactly that, as at an arrival.
+ * Behind the shim's live-file gate, like the harvest. A shim that answers 0
+ * (not a counted pack, not a live file) leaves the pickup to the crossing, the
+ * behaviour before #1061.
+ *
+ * WHO KNOWS THE AMOUNT. The item's own game, through the item class owner
+ * (shared_items.h): `sharedKind` names the kind and `sharedUnits` the pack size
+ * in that kind's units (one bombchu), so the finding game never names the other
+ * game's ids (ADR 0002). A crossing already recorded in an older save gets the
+ * same credit when its home game redeems it (OoT_/MM_AwardSharedItem).
+ *
+ * Only RSBS_SHARED_RES_BOMBCHU_COUNT is credited at pickup: it is the one
+ * counted kind whose packs the bag classes PROGRESSION, so the only one that
+ * crosses. Another counted kind joins only with its pack sizes published.
+ */
+
+/** Is @p kind one a pickup credits to the pool instead of crossing? (#1061) */
+bool Combo_SharedResourceCreditsAtPickup(uint8_t kind);
+
+/**
+ * The credit a pickup of @p item makes in place of a crossing: true, with the
+ * kind and the pack's units, when @p item feeds a kind credited at pickup;
+ * false otherwise (outs untouched).
+ */
+bool Combo_SharedPickupCreditOf(SharedItem item, uint8_t* outKind, uint16_t* outUnits);
+
+/**
+ * CREDIT (step 2 above). Add @p amount to the pool's slot for @p kind, creating
+ * the slot on first use and saturating at 0xFFFF. Touches no watermark: the
+ * caller's harvest before it and re-apply after it own those.
+ * @return false (nothing written) for a kind not credited at pickup, a disarmed
+ *         kind, a zero amount, or full slot blocks.
+ */
+bool Combo_CreditSharedResource(uint8_t kind, uint16_t amount);
+
+/** Each game's shim: steps 1-3 above over its OWN live save, for @p item (the
+ *  found item, of either origin). 1 when the pool was credited and the live
+ *  count re-applied; 0 when the pickup is not a credit (the caller crosses it). */
+int OoT_CreditSharedPickup(const SharedItem* item);
+int MM_CreditSharedPickup(const SharedItem* item);
+
 /**
  * Read the shared pool's value for `kind` (trackers / tests / the cycle-safe
  * rupee hook). Returns false and leaves `*outValue` untouched when the resource
@@ -376,6 +450,137 @@ int Combo_CountSharedResources(void);
  * isolation.
  */
 void Combo_ResetSharedResourceWatermarks(void);
+
+/*
+ * ---------------------------------------------------------------------------
+ * SHARED FAMILIES AND THE OR DISCIPLINE (#976, epic #975 P1)
+ * ---------------------------------------------------------------------------
+ * A SHARED FAMILY is a pair of items, one per game, that a frozen cross-game
+ * rule makes ONE item: OoT's Goron Mask and MM's Goron Mask under
+ * RSBS_XITEM_SHARED_GORON (foreign_items.h). The bag holds one shared-pair row
+ * for it that both solvers credit (combo_logic.h, THE SHARED PAIR); this is the
+ * runtime half, which makes the player hold the family in both games once
+ * either game's copy has been found.
+ *
+ * It is neither of the two disciplines above and it is not a shared-resource
+ * slot. A family is a 0/1 fact per family, so the whole set is ONE BITSET,
+ * gComboCtx.sharedFamilyOwned, one bit per family at the family's own
+ * RSBS_XITEM_* rule bit (all twenty slots are allocated, and a slot's 16-bit
+ * value could not hold the 32-bit family space). A rule that makes MORE than one
+ * pair one item owns its first pair at its own bit and each further pair at an
+ * EXTRA SLOT (RSBS_XFAMILY_SLOTS_EXTRA, foreign_items.h), a bit no family rule
+ * can occupy, armed with the rule (#1068: the Shared Shields rule's Hylian/Hero's
+ * pair at its bit, its Mirror pair at RSBS_XFAMILY_SLOT_MIRROR_SHIELD; #1067:
+ * the Shared Ocarina Buttons' A pair at its bit, its four C pairs at the
+ * extension rules' bits). Its merge is a third discipline:
+ *
+ *   OR - harvest is `owned |= held & armed`, apply gives the arriving game its
+ *   NATIVE copy of every family in `owned & armed & ~held`. Monotonic in both
+ *   directions by construction: a harvest can only add bits (a mask the player
+ *   has traded away never takes the other game's copy with it), and an apply
+ *   only gives, never takes.
+ *
+ * THE SAME DIRECTION RULE as the slots: only harvest writes the bitset, apply
+ * only reads it. And THE SAME ARMING RULE, read from the FROZEN record only: a
+ * family whose rule is off is neither harvested nor applied, so a world that
+ * never asked for one keeps an all-zero bitset, the same bytes a pre-#976
+ * .redsave holds.
+ *
+ * WHO KNOWS THE ITEMS. Nothing here names an RG_* or RI_*. Each game's
+ * single-exe TU registers its NATIVE copy of a family through
+ * Combo_RegisterSharedFamilyMember, with two callbacks that read and write its
+ * own live save (epic #975 P2 registers the five masks). The same registration is
+ * what the bag reads for the family's two ids (combo_single_bag.c), so the bag
+ * row and the runtime family can never name different items.
+ *
+ * WIRING: Combo_SharedFamiliesHarvestLive runs at the end of each game's
+ * harvest shim (OoT_/MM_HarvestSharedResources: Game_Suspend and every
+ * .redsave capture, behind the shim's live-file gate), and
+ * Combo_SharedFamiliesApplyLive at the end of each game's apply shim
+ * (OoT_/MM_ApplySharedResources: the startup entrance, BEFORE the shared-item
+ * consumer). With no member registered, both are no-ops.
+ */
+
+/** One game's NATIVE copy of one shared family. */
+typedef struct {
+    uint16_t nativeId; // the game's own id (OoT RG_*, MM RI_*); also the bag's id for this half
+    /** Does the LIVE save hold this game's copy? Read at harvest. Required. */
+    bool (*held)(uint16_t nativeId);
+    /** Give this game's copy to the LIVE save, without a get-item cutscene (the
+     *  startup entrance runs before gameplay). Called only when held() is false.
+     *  Required. */
+    void (*give)(uint16_t nativeId);
+    /** Is this game's copy an item of this world's pool, i.e. do the game's own
+     *  settings shuffle it? Read by the bag at generation (Combo_SingleBag): a
+     *  pair is built only when BOTH copies are pooled, because a shared row can
+     *  be hosted in either game, and a game that does not shuffle its copy may
+     *  not be able to hand it on (#1067: a button found in a game without the
+     *  button shuffle is never held there). Optional: NULL means always pooled. */
+    bool (*pooled)(uint16_t nativeId);
+} ComboSharedFamilyMember;
+
+/**
+ * Register (or, with NULL @p member, unregister) @p game's copy of the family at
+ * @p familyBit. Refused (false) for a game that is not OoT or MM, a bit that is
+ * not exactly one family slot (an RSBS_XITEM_FAMILY_MASK bit or an
+ * RSBS_XFAMILY_SLOTS_EXTRA bit), or a member with a NULL callback.
+ */
+bool Combo_RegisterSharedFamilyMember(GameId game, uint32_t familyBit, const ComboSharedFamilyMember* member);
+
+/** @p game's registered native id for the family at @p familyBit; false when
+ *  none is registered. */
+bool Combo_SharedFamilyMemberId(GameId game, uint32_t familyBit, uint16_t* outId);
+
+/** Is @p game's registered copy of the family at @p familyBit in this world's
+ *  pool (its member's pooled(), true when that is NULL)? False when none is
+ *  registered. */
+bool Combo_SharedFamilyMemberPooled(GameId game, uint32_t familyBit);
+
+/** @p game's whole registered member for the family at @p familyBit, so a
+ *  test that registers its own can put the game's back (#978); false when none
+ *  is registered. */
+bool Combo_SharedFamilyMemberGet(GameId game, uint32_t familyBit, ComboSharedFamilyMember* out);
+
+/** Drop every registered member (tests). */
+void Combo_ClearSharedFamilyMembers(void);
+
+/** The family slots @p crossItemFlags arms: its RSBS_XITEM_FAMILY_MASK bits,
+ *  plus each extra slot of a rule it holds (#1068's Mirror slot with
+ *  RSBS_XITEM_SHARED_SHIELDS). Pure. */
+uint32_t Combo_SharedFamilySlotsArmedBy(uint32_t crossItemFlags);
+
+/** A short name for one family slot, for logs: the rule's name at a rule bit
+ *  (Combo_ComboItemRuleName), the owning rule and its pair at an extra slot.
+ *  Never NULL. */
+const char* Combo_SharedFamilySlotName(uint32_t slot);
+
+/** The family slots the FROZEN record arms (Combo_SharedFamilySlotsArmedBy of
+ *  its crossItemFlags), 0 while nothing is frozen. */
+uint32_t Combo_SharedFamiliesArmed(void);
+
+/** The pool: the family bits the player holds in either game. */
+uint32_t Combo_SharedFamiliesOwned(void);
+
+/**
+ * HARVEST, the OR half: fold @p heldBits (the families @p game's live save holds
+ * its copy of) into the pool, armed bits only. Never clears a bit. No-op for a
+ * game that is not OoT or MM. Returns the pool afterwards.
+ */
+uint32_t Combo_SharedFamiliesHarvest(GameId game, uint32_t heldBits);
+
+/**
+ * APPLY, the OR half: the families @p game must be GIVEN: owned, armed, and not
+ * in @p heldBits. Pure; reads the pool and the frozen record only.
+ */
+uint32_t Combo_SharedFamiliesOwed(GameId game, uint32_t heldBits);
+
+/** The harvest shims' call: ask every member registered for @p game whether the
+ *  live save holds it, then Combo_SharedFamiliesHarvest. Returns the pool. */
+uint32_t Combo_SharedFamiliesHarvestLive(GameId game);
+
+/** The apply shims' call: give @p game's registered copy of every family it is
+ *  owed. Returns how many copies were given. */
+int Combo_SharedFamiliesApplyLive(GameId game);
 
 #ifdef __cplusplus
 }

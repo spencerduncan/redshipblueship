@@ -1869,4 +1869,74 @@ extern "C" int Rando_GetCrossingEntranceIndices(int* forwardIndex, int* reverseI
     }
     return found;
 }
+
+// #998 probe surface for the one-way target pools. The Spawn and Warp Song target
+// lists include EntranceType::Interior, which holds the crossing pair, and are
+// built by BuildOneWayTargets() out of GetShufflePoolEntrances(); a regression
+// that routes it back through upstream's GetShuffleableEntrances() would let a
+// warp song or spawn target the Mask Shop door (override 0x0530) without tripping
+// the Interior-pool probe above.
+//
+// The Spawn and Warp Song target lists in ShuffleAllEntrances() are identical
+// today, so one list stands for both. It mirrors them; the raw side below proves
+// it still reaches the crossing, so a list that stopped doing so turns the lock
+// red rather than vacuous. `filtered` = 0 counts the crossing among the entrances
+// an unfiltered builder would offer; `filtered` = 1 runs the REAL
+// BuildOneWayTargets() and counts the crossing among the targets it returns (a
+// target's replacement is the entrance it was made from). Writes the list size to
+// `poolSize` when non-NULL. The filtered side adds target exits to the root region
+// as a real generation does, so call it after the other probes.
+extern "C" int Rando_CountCrossingEntrancesInOneWayTargets(int filtered, int* poolSize) {
+    const std::vector<Rando::EntranceType> types = { Rando::EntranceType::Spawn,
+                                                     Rando::EntranceType::WarpSong,
+                                                     Rando::EntranceType::OwlDrop,
+                                                     Rando::EntranceType::Overworld,
+                                                     Rando::EntranceType::Interior,
+                                                     Rando::EntranceType::SpecialInterior,
+                                                     Rando::EntranceType::GrottoGrave,
+                                                     Rando::EntranceType::Extra };
+    int crossings = 0;
+    int size = 0;
+    if (filtered) {
+        for (const Rando::Entrance* target : Rando::BuildOneWayTargets(types)) {
+            size++;
+            const Rando::Entrance* source = target->GetReplacement();
+            if (source != nullptr && Rando::EntranceIsCrossGameCrossing(source)) {
+                crossings++;
+            }
+        }
+    } else {
+        for (Rando::EntranceType type : types) {
+            for (const Rando::Entrance* entrance : GetShuffleableEntrances(type, false)) {
+                size++;
+                if (Rando::EntranceIsCrossGameCrossing(entrance)) {
+                    crossings++;
+                }
+            }
+        }
+    }
+    if (poolSize != nullptr) {
+        *poolSize = size;
+    }
+    return crossings;
+}
+
+// How many rows of the generated override table belong to the three one-way pools
+// (Spawn, Warp Song, Owl Drop). RandoEntrancePin asserts it is non-zero so its
+// "no row names the crossing" cannot be true of a generation where the one-way
+// shuffles did not run.
+extern "C" int Rando_CountOneWayOverrideRows(void) {
+    int rows = 0;
+    for (const EntranceOverride& row : Rando::Context::GetInstance()->GetEntranceShuffler()->entranceOverrides) {
+        if (row.index == 0 && row.destination == 0 && row.override == 0 && row.overrideDestination == 0) {
+            continue;
+        }
+        const auto type = static_cast<Rando::EntranceType>(row.type);
+        if (type == Rando::EntranceType::Spawn || type == Rando::EntranceType::WarpSong ||
+            type == Rando::EntranceType::OwlDrop) {
+            rows++;
+        }
+    }
+    return rows;
+}
 #endif

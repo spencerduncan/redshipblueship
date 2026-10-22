@@ -27,6 +27,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include <ship/Context.h>
@@ -94,6 +95,7 @@ uint32_t Rando_HeadlessPlacementHash(size_t* outPlacedCount);
 // MM's gossip-stone candidates and their text (Rando/ActorBehavior/EnGs.cpp).
 void Rando_HeadlessWriteOoTContentDigest(FILE* out);
 int MM_Rando_Hints_DigestCandidates(uint32_t* outDigest);
+int MM_Rando_Hints_DigestFreeStones(uint32_t* outDigest); // #1047, EnGs.cpp
 }
 
 #include "gen_budget.h"       // src/common — the creation's round budget (#950)
@@ -155,7 +157,11 @@ int K11FinishPairedOoTHalf() {
  *   mmStartingItems             <count>/<digest> of the frozen start the save holds
  *                               (randoStartingItems, the paired start since #879);
  *   mmStartInventory            the save's inventory and health, rupees and magic
- *                               after creation: what GrantStartingItems granted.
+ *                               after creation: what GrantStartingItems granted;
+ *   mmFreeStoneCount /          #1047: what every free gossip stone placed in MM
+ *   mmFreeStoneDigest           says: its seed, its pick and its text, in the stone
+ *                               table's order (written last: reading a stone
+ *                               reseeds MM's stream).
  */
 void WriteContentDigest(FILE* out) {
     Rando_HeadlessWriteOoTContentDigest(out);
@@ -223,6 +229,13 @@ void WriteContentDigest(FILE* out) {
             "mmStartInventory=%08X\n",
             mmHintCount, mmHintDigest, foolishList.empty() ? "none" : foolishList.c_str(), priceCount,
             Ship_Hash(priceBlob), startCount, Ship_Hash(startBlob), Ship_Hash(invBlob));
+
+    uint32_t mmFreeStoneDigest = 0;
+    const int mmFreeStoneCount = MM_Rando_Hints_DigestFreeStones(&mmFreeStoneDigest);
+    fprintf(out,
+            "mmFreeStoneCount=%d\n"
+            "mmFreeStoneDigest=%08X\n",
+            mmFreeStoneCount, mmFreeStoneDigest);
 }
 
 } // namespace
@@ -718,6 +731,184 @@ extern "C" int MM_Rando_Logic_JoinOrderProbe(void) {
     return 0;
 }
 
+namespace {
+
+/** The MM world's own hashes, as the paired determinism digests fold them: MM's
+ *  placement in fixed check order and its reachable-check closure. Read off MM's
+ *  save, so MM's bytes must be the ones in view. */
+struct PairedMMWorldHashes {
+    uint32_t placementHash = 0;
+    size_t reachableCount = 0;
+    uint32_t reachableHash = 0;
+};
+
+PairedMMWorldHashes ComputePairedMMWorldHashes() {
+    PairedMMWorldHashes out;
+    // Canonical MM placement blob in fixed check order (std::map), folded
+    // through the project's FNV-1a — mirrors the OoT digest's placementHash.
+    std::string blob;
+    for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+        if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
+            continue;
+        }
+        blob += std::to_string((int)randoCheckId);
+        blob += ':';
+        blob += std::to_string((int)RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
+        blob += ';';
+    }
+    out.placementHash = Ship_Hash(blob);
+
+    // ADR 0010 increment 1.3: the reachable-check closure is now a GENERATION
+    // INPUT (the foreign-host gate filters candidates by it), so the
+    // determinism artifact folds it too. Two processes computing different
+    // closures for the same world is exactly the divergence
+    // CheckSeedDeterminism's byte-compare exists to catch — this is the
+    // two-process half of the callable's determinism lock (the in-process
+    // half lives in MM_Rando_HeadlessGenTest's paired phase).
+    std::string reachableBlob;
+    const std::set<RandoCheckId> digestReachable = Rando::Logic::ComputeReachableCheckSet();
+    for (RandoCheckId randoCheckId : digestReachable) {
+        reachableBlob += std::to_string((int)randoCheckId);
+        reachableBlob += ';';
+    }
+    out.reachableCount = digestReachable.size();
+    out.reachableHash = Ship_Hash(reachableBlob);
+    return out;
+}
+
+/**
+ * #982: a golden profile's MM keys must have reached MM's world, as its OoT keys
+ * must reach OoT's (Rando_HeadlessWriteDeterminismHead). Read off the save MM's
+ * creation froze, so MM's bytes must be in view. Every id in RSBS_GOLDEN_MM_EXCLUDES
+ * must be a check GeneratePools skipped and filled with junk, and every
+ * gRando.Tricks.* assignment RSBS_DIAG_CVARS turns on must name an MM trick that
+ * froze on: a misspelled CVar names none, and a trick later flagged reserved
+ * resolves off (ResolveTrickFromCVar), so either would otherwise let a re-pin
+ * record a smaller profile. Logs each MM key it checks, so a re-pin reader sees
+ * them by name. With neither variable naming an MM key it checks nothing.
+ * @return false (after a FAIL line) when a requested MM key did not take.
+ */
+bool GoldenMMProfileTook() {
+    bool ok = true;
+    if (const char* excludes = std::getenv("RSBS_GOLDEN_MM_EXCLUDES")) {
+        std::stringstream ss(excludes);
+        std::string key;
+        while (std::getline(ss, key, ',')) {
+            if (key.empty()) {
+                continue;
+            }
+            const int id = std::atoi(key.c_str());
+            auto it = Rando::StaticData::Checks.find((RandoCheckId)id);
+            const bool known = it != Rando::StaticData::Checks.end() && id > (int)RC_UNKNOWN && id < (int)RC_MAX;
+            const bool took = known && RANDO_SAVE_CHECKS[id].skipped && RANDO_SAVE_CHECKS[id].randoItemId == RI_JUNK;
+            fprintf(stderr, "[golden-profile] MM exclude %d = %s %s\n", id, known ? it->second.name : "(no such check)",
+                    took ? "took" : "DID NOT TAKE");
+            ok = ok && took;
+        }
+    }
+    if (const char* cvars = std::getenv("RSBS_DIAG_CVARS")) {
+        static const std::string kTrickPrefix = "gRando.Tricks.";
+        std::stringstream ss(cvars);
+        std::string pair;
+        while (std::getline(ss, pair, ',')) {
+            const size_t eq = pair.find('=');
+            if (eq == std::string::npos || pair.rfind(kTrickPrefix, 0) != 0 || std::atoi(pair.c_str() + eq + 1) == 0) {
+                continue;
+            }
+            const std::string cvar = pair.substr(0, eq);
+            int id = -1;
+            for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
+                if (cvar == randoStaticTrick.cvar) {
+                    id = (int)mmRandoTrickId;
+                    break;
+                }
+            }
+            const bool took = id >= 0 && gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[id] != 0;
+            fprintf(stderr, "[golden-profile] MM trick %d = %s %s\n", id, cvar.c_str(),
+                    id < 0 ? "NAMES NO MM TRICK" : (took ? "took" : "DID NOT TAKE (reserved?)"));
+            ok = ok && took;
+        }
+    }
+    if (!ok) {
+        fprintf(stderr, "[golden-profile] FAIL: a golden profile's MM key did not reach MM's world (lines above)\n");
+    }
+    return ok;
+}
+
+/**
+ * The MM half of a paired world's determinism digest, APPENDED to @p outPath
+ * (stdout when NULL/empty): MM's world, the single bag, OoT's final world, the
+ * content (#949) and every crossing. One writer for the headless digest and the
+ * player-path digest (#982), so the two cannot fold different fields. MM's bytes
+ * must be in view. @return 0, or 4 when the file cannot be opened.
+ */
+int WritePairedHalfDigest(const char* outPath, const PairedMMWorldHashes& mm, const ComboSingleBagReport& bag,
+                          uint32_t coordinatorDigest, uint32_t ootFinalHash, size_t ootFinalPlaced) {
+    FILE* out = stdout;
+    bool closeOut = false;
+    if (outPath != NULL && outPath[0] != '\0') {
+        out = fopen(outPath, "a"); // APPEND: the OoT half wrote the file first
+        if (out == NULL) {
+            return 4;
+        }
+        closeOut = true;
+    }
+    fprintf(out,
+            "mmFinalSeed=%08X\n"
+            "mmPlacementHash=%08X\n"
+            "mmReachableCount=%zu\n"
+            "mmReachableHash=%08X\n"
+            // ADR 0010 increment 1.2: the winning ladder attempt joins the
+            // two-process diff, so both processes must not merely reach the
+            // same world — they must reach it via the same derivation.
+            "mmPairedAttempt=%u\n"
+            // ADR 0010 increment 3 (lane K11): the single bag that placed both
+            // worlds' progression, and OoT's world after OoT's own remainder.
+            "bagSeed=%08X\n"
+            "bagRows=%d\n"
+            // PR #744's shared-quantity trim: pool rows handed back to each
+            // origin's own pass as filler (lane K11b).
+            "bagTrimmedOoT=%d\n"
+            "bagTrimmedMM=%d\n"
+            "bagHomeOnly=%d\n"
+            "bagRequiredPlaced=%d\n"
+            "bagSurplusPlaced=%d\n"
+            "bagSurplusDropped=%d\n"
+            "bagBatchAttempts=%d\n"
+            "bagRounds=%d\n"
+            "bagLeftoverOoT=%d\n"
+            "bagLeftoverMM=%d\n"
+            "coordinatorDigest=%08X\n"
+            "ootFinalPlacementHash=%08X\n"
+            "ootFinalPlacedCount=%zu\n"
+            "crossingDigest=%08X\n"
+            "crossingsInOoT=%d\n"
+            "crossingsInMM=%d\n",
+            gSaveContext.save.shipSaveInfo.rando.finalSeed, mm.placementHash, mm.reachableCount, mm.reachableHash,
+            (unsigned)gComboCtx.mmPairedAttempt, bag.seed, bag.bagCount, bag.trimmedOoT, bag.trimmedMM, bag.homeOnlyRows, bag.fill.requiredPlaced,
+            bag.fill.surplusPlaced, bag.fill.surplusDropped, bag.fill.attempts, bag.fill.rounds,
+            bag.fill.leftoverHostsOoT, bag.fill.leftoverHostsMM, coordinatorDigest, ootFinalHash, ootFinalPlaced,
+            Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM));
+    WriteContentDigest(out); // #949: hints, prices, starting items, entrances
+    // Every crossing, row by row, so a golden diff names WHICH host moved:
+    // host:origin:id, in the coordinator's order.
+    for (const GameId host : { GAME_OOT, GAME_MM }) {
+        for (int i = 0; i < Combo_Crossings_Count(host); i++) {
+            ComboCrossing row;
+            if (Combo_Crossings_At(host, i, &row)) {
+                fprintf(out, "%s%d=%u:%u:%u\n", host == GAME_OOT ? "crossingOoT" : "crossingMM", i,
+                        (unsigned)row.hostCheck, (unsigned)row.item.originGame, (unsigned)row.item.id);
+            }
+        }
+    }
+    if (closeOut) {
+        fclose(out);
+    }
+    return 0;
+}
+
+} // namespace
+
 /**
  * Foreign-placement determinism digest (Lane C1, #392) — the MM half of the
  * SeedDeterminism lock. Runs inside the rando-determinism dispatch AFTER the
@@ -784,35 +975,15 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
                         "different determinism seed\n");
         return 3;
     }
-
-    // Canonical MM placement blob in fixed check order (std::map), folded
-    // through the project's FNV-1a — mirrors the OoT digest's placementHash.
-    std::string blob;
-    for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
-        if (randoStaticCheck.randoCheckId == RC_UNKNOWN) {
-            continue;
-        }
-        blob += std::to_string((int)randoCheckId);
-        blob += ':';
-        blob += std::to_string((int)RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
-        blob += ';';
+    // #982: a golden profile that lost an MM key writes no digest, as one that lost
+    // an OoT key does (refusal 2, Rando_HeadlessWriteDeterminismHead).
+    if (!GoldenMMProfileTook()) {
+        fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(7): the golden profile's MM keys did not all take\n");
+        Combo_SingleBag_Forget();
+        return 7;
     }
-    const uint32_t mmPlacementHash = Ship_Hash(blob);
 
-    // ADR 0010 increment 1.3: the reachable-check closure is now a GENERATION
-    // INPUT (the foreign-host gate filters candidates by it), so the
-    // determinism artifact folds it too. Two processes computing different
-    // closures for the same world is exactly the divergence
-    // CheckSeedDeterminism's byte-compare exists to catch — this is the
-    // two-process half of the callable's determinism lock (the in-process
-    // half lives in MM_Rando_HeadlessGenTest's paired phase).
-    std::string reachableBlob;
-    const std::set<RandoCheckId> digestReachable = Rando::Logic::ComputeReachableCheckSet();
-    for (RandoCheckId randoCheckId : digestReachable) {
-        reachableBlob += std::to_string((int)randoCheckId);
-        reachableBlob += ';';
-    }
-    const uint32_t mmReachableHash = Ship_Hash(reachableBlob);
+    const PairedMMWorldHashes mmWorld = ComputePairedMMWorldHashes();
 
     // ------------------------------------------------------------------
     // THE SINGLE BAG (ADR 0010 increment 3, lane K11). OnSaveInit above ran the
@@ -840,72 +1011,130 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
     const uint32_t coordinatorDigest = Combo_Logic_PlacementDigest();
     Combo_SingleBag_Forget();
 
-    FILE* out = stdout;
-    bool closeOut = false;
-    if (outPath != NULL && outPath[0] != '\0') {
-        out = fopen(outPath, "a"); // APPEND: the OoT half wrote the file first
-        if (out == NULL) {
-            fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(4): cannot open digest output '%s'\n", outPath);
-            return 4;
-        }
-        closeOut = true;
-    }
-    fprintf(out,
-            "mmFinalSeed=%08X\n"
-            "mmPlacementHash=%08X\n"
-            "mmReachableCount=%zu\n"
-            "mmReachableHash=%08X\n"
-            // ADR 0010 increment 1.2: the winning ladder attempt joins the
-            // two-process diff, so both processes must not merely reach the
-            // same world — they must reach it via the same derivation.
-            "mmPairedAttempt=%u\n"
-            // ADR 0010 increment 3 (lane K11): the single bag that placed both
-            // worlds' progression, and OoT's world after OoT's own remainder.
-            "bagSeed=%08X\n"
-            "bagRows=%d\n"
-            // PR #744's shared-quantity trim: pool rows handed back to each
-            // origin's own pass as filler (lane K11b).
-            "bagTrimmedOoT=%d\n"
-            "bagTrimmedMM=%d\n"
-            "bagHomeOnly=%d\n"
-            "bagRequiredPlaced=%d\n"
-            "bagSurplusPlaced=%d\n"
-            "bagSurplusDropped=%d\n"
-            "bagBatchAttempts=%d\n"
-            "bagRounds=%d\n"
-            "bagLeftoverOoT=%d\n"
-            "bagLeftoverMM=%d\n"
-            "coordinatorDigest=%08X\n"
-            "ootFinalPlacementHash=%08X\n"
-            "ootFinalPlacedCount=%zu\n"
-            "crossingDigest=%08X\n"
-            "crossingsInOoT=%d\n"
-            "crossingsInMM=%d\n",
-            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, digestReachable.size(), mmReachableHash,
-            (unsigned)gComboCtx.mmPairedAttempt, bag.seed, bag.bagCount, bag.trimmedOoT, bag.trimmedMM, bag.homeOnlyRows, bag.fill.requiredPlaced,
-            bag.fill.surplusPlaced, bag.fill.surplusDropped, bag.fill.attempts, bag.fill.rounds,
-            bag.fill.leftoverHostsOoT, bag.fill.leftoverHostsMM, coordinatorDigest, ootFinalHash, ootFinalPlaced,
-            Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM));
-    WriteContentDigest(out); // #949: hints, prices, starting items, entrances
-    // Every crossing, row by row, so a golden diff names WHICH host moved:
-    // host:origin:id, in the coordinator's order.
-    for (const GameId host : { GAME_OOT, GAME_MM }) {
-        for (int i = 0; i < Combo_Crossings_Count(host); i++) {
-            ComboCrossing row;
-            if (Combo_Crossings_At(host, i, &row)) {
-                fprintf(out, "%s%d=%u:%u:%u\n", host == GAME_OOT ? "crossingOoT" : "crossingMM", i,
-                        (unsigned)row.hostCheck, (unsigned)row.item.originGame, (unsigned)row.item.id);
-            }
-        }
-    }
-    if (closeOut) {
-        fclose(out);
+    if (WritePairedHalfDigest(outPath, mmWorld, bag, coordinatorDigest, ootFinalHash, ootFinalPlaced) != 0) {
+        fprintf(stderr, "[MM-FOREIGN-DIGEST] FAIL(4): cannot open digest output '%s'\n", outPath);
+        return 4;
     }
     fprintf(stderr,
             "[MM-FOREIGN-DIGEST] mmFinalSeed=%08X mmPlacementHash=%08X mmReachableHash=%08X crossings=%d (OoT %d, MM "
             "%d) ootFinal=%08X\n",
-            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmPlacementHash, mmReachableHash, crossings,
+            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmWorld.placementHash, mmWorld.reachableHash, crossings,
             Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM), ootFinalHash);
+    return 0;
+}
+
+// randomizer.cpp / 3drando/menu.cpp (#982): the Generate button's worker-thread
+// generation with the full OTR bring-up, and the OoT half of the digest.
+extern "C" int Rando_HeadlessWorkerGenerate(const char* seedStr);
+extern "C" int Rando_HeadlessWriteDeterminismHead(const char* outPath);
+// ForeignItemsSingleExe.cpp (#1055): this generation's spoilers out of the shared build directory.
+extern "C" int OoT_Creation_TestClearPairedSpoiler(void);
+
+/**
+ * #982: THE PLAYER'S PATH, DIGESTED. Driven only by the GoldenSeedDigestPlayerPath
+ * row, which compares what this writes with tests/golden/seed-digest-default.txt.
+ *
+ * Every golden digest is written by the headless harness: the synchronous
+ * GenerateRandomizer on the test thread with RSBS_DISABLE_OTR_INIT=1, then MM's
+ * OnSaveInit driven directly and OoT's side of the tail (MM_Rando_HeadlessForeignDigest
+ * above). A player takes another path: the full OTR bring-up, the Generate
+ * button's GenerateRandomizer(seed) on its worker thread (which reads the settings
+ * snapshot and the menu's exclude and trick CVars itself), and then, at file
+ * creation, OoT_RunPairedCreationEvent: MM's half through
+ * MM_Rando_AuthorHalfAtCreation, the crossings, OoT's remainder with its spoiler,
+ * the spoiler join and the armed MM shadow. This generates the same seed that way
+ * and writes the same fields with the same writers: Rando_HeadlessWriteDeterminismHead
+ * after the worker joins, then WritePairedHalfDigest with MM's armed half in view.
+ *
+ * One field is read from another source, because the creation's commit drops the
+ * coordinator's tables before the event returns: coordinatorDigest is the fill's
+ * own digest of those tables (fill.placementDigest, taken as the fill returned),
+ * where the headless writer reads the tables after OoT's remainder.
+ *
+ * @return 0 when the digest was written; a distinct nonzero step code otherwise.
+ */
+extern "C" int MM_Rando_HeadlessPlayerPathDigest(const char* seedStr, const char* outPath) {
+    const char* const kSaveDir = "rsbs_test_playerpath_saves";
+    rsbs::SaveManager::Instance().SetSaveDirectory(kSaveDir);
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0); // the file select's create seam: slot 0 is the file being created
+    RsbsSave_SetActiveSlot(0);
+    auto cleanup = [kSaveDir]() {
+        RsbsSave_DeleteSave(0);
+        RsbsSave_ResetSlotSessionState();
+        RsbsSave_SetActiveSlot(-1);
+        rsbs::SaveManager::Instance().SetSaveDirectory("Save"); // the documented harness default
+        std::error_code ec;
+        std::filesystem::remove_all(kSaveDir, ec);
+    };
+
+    const int genRc = Rando_HeadlessWorkerGenerate(seedStr);
+    if (genRc != 0) {
+        fprintf(stderr, "[MM-PLAYER-PATH] FAIL(1): the worker-thread generation of %s failed (rc=%d)\n", seedStr,
+                genRc);
+        cleanup();
+        return 1;
+    }
+    if (!Combo_ForeignPairingActive() || !Combo_ComboSettingsFrozen() || !OoT_ComboLogic_GeneralPassDeferred()) {
+        fprintf(stderr, "[MM-PLAYER-PATH] FAIL(2): the worker's generation left no frozen paired world waiting at "
+                        "its general pass\n");
+        cleanup();
+        return 2;
+    }
+    const int headRc = Rando_HeadlessWriteDeterminismHead(outPath);
+    if (headRc != 0) {
+        fprintf(stderr, "[MM-PLAYER-PATH] FAIL(3): the OoT half of the digest could not be written (rc=%d)\n",
+                headRc);
+        cleanup();
+        return 3;
+    }
+
+    // #1055: a spoiler of this seed that a run of another build left in the build
+    // directory must not meet this creation's spoiler write.
+    OoT_Creation_TestClearPairedSpoiler();
+    // Cleared first, so the shadow read below can only be the one this creation armed.
+    Combo_ClearFrozenState("mm");
+    if (OoT_RunPairedCreationEvent(0) == 0) {
+        fprintf(stderr, "[MM-PLAYER-PATH] FAIL(4): the paired creation event failed for %s\n", seedStr);
+        cleanup();
+        return 4;
+    }
+    if (Combo_Crossings_Count(GAME_OOT) + Combo_Crossings_Count(GAME_MM) == 0) {
+        // The same vacuity as MM_Rando_HeadlessForeignDigest's FAIL(6).
+        fprintf(stderr, "[MM-PLAYER-PATH] FAIL(5): the created world crossed no item in either direction\n");
+        cleanup();
+        return 5;
+    }
+
+    // MM's armed half into view for the MM fields, OoT's bytes back afterwards. Only
+    // MM's sizeof is copied either way: the shadow restores at most that much.
+    static unsigned char sOoTBytes[sizeof(SaveContext)];
+    memcpy(sOoTBytes, &gSaveContext, sizeof(SaveContext));
+    if (Context_RestoreState(GAME_MM, &gSaveContext, sizeof(SaveContext)) == 0 ||
+        gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        memcpy(&gSaveContext, sOoTBytes, sizeof(SaveContext));
+        fprintf(stderr, "[MM-PLAYER-PATH] FAIL(6): the creation armed no randomizer MM half\n");
+        cleanup();
+        return 6;
+    }
+    const PairedMMWorldHashes mmWorld = ComputePairedMMWorldHashes();
+    const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+    size_t ootFinalPlaced = 0;
+    const uint32_t ootFinalHash = Rando_HeadlessPlacementHash(&ootFinalPlaced);
+    const int writeRc = WritePairedHalfDigest(outPath, mmWorld, bag, bag.fill.placementDigest, ootFinalHash,
+                                              ootFinalPlaced);
+    const uint32_t mmFinalSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed;
+    memcpy(&gSaveContext, sOoTBytes, sizeof(SaveContext));
+    cleanup();
+    if (writeRc != 0) {
+        fprintf(stderr, "[MM-PLAYER-PATH] FAIL(7): cannot open digest output '%s'\n", outPath);
+        return 7;
+    }
+    fprintf(stderr,
+            "[MM-PLAYER-PATH] mmFinalSeed=%08X mmPlacementHash=%08X mmReachableHash=%08X crossings OoT %d, MM %d, "
+            "ootFinal=%08X\n",
+            mmFinalSeed, mmWorld.placementHash, mmWorld.reachableHash, Combo_Crossings_Count(GAME_OOT),
+            Combo_Crossings_Count(GAME_MM), ootFinalHash);
     return 0;
 }
 
@@ -2948,9 +3177,15 @@ extern "C" int MM_Rando_HeadlessRoundBudgetHostScale(void) {
  * row's dispatch generates it (the OoT seed and settings, then MM's half through
  * the real OnSaveInit chain), under the shipped per-attempt budget, and must
  * create on its expected ladder attempt with its fill inside the budget. When the
- * golden file is in the tree (RSBS_GOLDEN_DIR), its recorded `bagRounds` and
- * `mmPairedAttempt` must match too, which ties this row to the pinned worlds
- * rather than to look-alikes. The row prints each seed's headroom.
+ * golden file is in the tree (RSBS_GOLDEN_DIR), its recorded `bagSeed`,
+ * `bagRounds` and `mmPairedAttempt` must match too, which ties this row to the
+ * pinned worlds rather than to look-alikes. `bagSeed` is the part that tells the
+ * profiles apart (#982): every seed-digest golden on RSBSUNIFIED1 creates on
+ * attempt 1 in the same number of rounds, so an entry whose settings were dropped
+ * or misspelled would generate the default world and still match those two, but
+ * the bag's seed folds the frozen identity (both games' settings hashes and the
+ * combo settings, Combo_SingleBag_SeedFor) and differs per golden. The row prints
+ * each seed's headroom.
  *
  * COUNTERFACTUAL (measured, not asserted): shrink RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT
  * below a golden fill's rounds (200) and FAIL(10) fires for every seed.
@@ -2967,21 +3202,35 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
     struct GoldenSeed {
         const char* golden;
         const char* ootSeed;
-        const char* cvars[2]; // OoT settings the golden row passes in RSBS_DIAG_CVARS, value 1 or 2 below
-        int values[2];
+        const char* cvars[3]; // the settings the golden row passes in RSBS_DIAG_CVARS, values below
+        int values[3];
         int injectedRungs;    // the paired-attempt golden's pre-fill rung
         int expectedAttempts; // ladder attempts until the world was created
     };
     static const GoldenSeed kGoldens[] = {
-        { "seed-digest-default", "RSBSUNIFIED1", { nullptr, nullptr }, { 0, 0 }, 0, 1 },
-        { "seed-digest-profile-v1", "RSBSUNIFIED1", { "gRandoSettings.ShuffleSongs", nullptr }, { 2, 0 }, 0, 1 },
+        { "seed-digest-default", "RSBSUNIFIED1", { nullptr, nullptr, nullptr }, { 0, 0, 0 }, 0, 1 },
+        { "seed-digest-profile-v1", "RSBSUNIFIED1", { "gRandoSettings.ShuffleSongs", nullptr, nullptr }, { 2, 0, 0 },
+          0, 1 },
         { "seed-digest-entrances",
           "RSBSUNIFIED1",
-          { "gRandoSettings.ShuffleInteriorsEntrances", "gRandoSettings.ShuffleOverworldEntrances" },
-          { 2, 1 },
+          { "gRandoSettings.ShuffleInteriorsEntrances", "gRandoSettings.ShuffleOverworldEntrances", nullptr },
+          { 2, 1, 0 },
           0,
           1 },
-        { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr }, { 0, 0 }, kLadderInjectedRungs,
+        // #982's profiles that RSBS_DIAG_CVARS alone describes. seed-digest-excludes-tricks
+        // also needs the harness's exclude and trick sets, so its own golden row is
+        // where its creation inside the budget is checked.
+        { "seed-digest-shopsanity",
+          "RSBSUNIFIED1",
+          { "gRandoSettings.Shopsanity", "gRandoSettings.ShopsanityCount", "gRandoSettings.ShopsanityPrices" },
+          { 1, 4, 2 },
+          0,
+          1 },
+        { "seed-digest-mm-nearly-no-logic", "RSBSUNIFIED1", { "gRando.Options.RO_LOGIC", nullptr, nullptr }, { 2, 0, 0 },
+          0, 1 },
+        { "seed-digest-direction-forward", "RSBSUNIFIED1", { "gCombo.Rando.Direction", nullptr, nullptr }, { 2, 0, 0 },
+          0, 1 },
+        { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr, nullptr }, { 0, 0, 0 }, kLadderInjectedRungs,
           kLadderInjectedRungs + 1 },
     };
     const char* goldenDir = std::getenv("RSBS_GOLDEN_DIR");
@@ -2994,7 +3243,7 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
 
     int rc = 0;
     for (const GoldenSeed& g : kGoldens) {
-        for (int i = 0; i < 2; ++i) {
+        for (int i = 0; i < 3; ++i) {
             if (g.cvars[i] != nullptr) {
                 CVarSetInteger(g.cvars[i], g.values[i]);
             }
@@ -3006,7 +3255,7 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         // The OoT settings stay set until MM's half has run, as they do for the
         // golden row (RSBS_DIAG_CVARS lives for the whole process there).
         auto clearSettings = [&g]() {
-            for (int i = 0; i < 2; ++i) {
+            for (int i = 0; i < 3; ++i) {
                 if (g.cvars[i] != nullptr) {
                     CVarClear(g.cvars[i]);
                 }
@@ -3060,6 +3309,8 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
             } else {
                 int pinnedRounds = -1;
                 int pinnedAttempt = -1;
+                bool havePinnedSeed = false;
+                uint32_t pinnedSeed = 0;
                 std::string line;
                 while (std::getline(in, line)) {
                     if (!line.empty() && line.back() == '\r') {
@@ -3069,13 +3320,21 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
                         pinnedRounds = std::atoi(line.c_str() + 10);
                     } else if (line.rfind("mmPairedAttempt=", 0) == 0) {
                         pinnedAttempt = std::atoi(line.c_str() + 16);
+                    } else if (line.rfind("bagSeed=", 0) == 0) {
+                        pinnedSeed = (uint32_t)std::strtoul(line.c_str() + 8, nullptr, 16);
+                        havePinnedSeed = true;
                     }
                 }
-                if (pinnedRounds != bag.fill.rounds || pinnedAttempt != (int)gComboCtx.mmPairedAttempt) {
+                // #982: bagSeed is what separates a profile from the default world;
+                // rounds and attempt alone are equal across the RSBSUNIFIED1 goldens.
+                if (!havePinnedSeed || pinnedSeed != bag.seed || pinnedRounds != bag.fill.rounds ||
+                    pinnedAttempt != (int)gComboCtx.mmPairedAttempt) {
                     fprintf(stderr,
-                            "[MM-GOLDEN-ROUNDS] FAIL(11): %s pins bagRounds=%d mmPairedAttempt=%d but this creation "
-                            "ran %d rounds with attempt record %u — this row is not generating the pinned world\n",
-                            g.golden, pinnedRounds, pinnedAttempt, bag.fill.rounds, (unsigned)gComboCtx.mmPairedAttempt);
+                            "[MM-GOLDEN-ROUNDS] FAIL(11): %s pins bagSeed=%08X bagRounds=%d mmPairedAttempt=%d but "
+                            "this creation drew bag seed %08X and ran %d rounds with attempt record %u — this row is "
+                            "not generating the pinned world\n",
+                            g.golden, pinnedSeed, pinnedRounds, pinnedAttempt, bag.seed, bag.fill.rounds,
+                            (unsigned)gComboCtx.mmPairedAttempt);
                     rc = 11;
                     break;
                 }

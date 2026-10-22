@@ -158,6 +158,56 @@
  * world created before it existed, and every world whose player leaves it alone,
  * resolves to the same twelve record bytes and the same comboSettingsHash. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD "gCombo.Rando.SharedKokiriSword"
+/* #1068: one Hylian/Hero's Shield and one Mirror Shield across both games
+ * (OoTMM sharedShields). Boolean (0/1), DEFAULT 0: a BIT of the item rules
+ * record, so with it off the record stays all clear and every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS "gCombo.Rando.SharedShields"
+/* #1065: one Lens of Truth across both games (OoTMM sharedLens). Boolean (0/1),
+ * DEFAULT 0. A bit of the sibling ComboItemRulesRecord's crossItemFlags
+ * (RSBS_XITEM_SHARED_LENS), folded into comboSettingsHash only when on, so a
+ * player who leaves it alone keeps every world's identity. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_LENS "gCombo.Rando.SharedLens"
+/* #1066: one Epona's Song and one Song of Storms across both games (OoTMM
+ * sharedSongEpona, sharedSongStorms). Boolean (0/1), DEFAULT 0 each. Bits of the
+ * same crossItemFlags (RSBS_XITEM_SHARED_SONG_EPONA / _STORMS), folded into
+ * comboSettingsHash only when on. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_EPONA "gCombo.Rando.SharedSongEpona"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_STORMS "gCombo.Rando.SharedSongStorms"
+/* #1067: each game's five ocarina buttons are one set for the pair (OoTMM
+ * sharedOcarinaButtons). Boolean (0/1), DEFAULT 0: a BIT of the item rules
+ * record, so with it off the record stays all clear and every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS "gCombo.Rando.SharedOcarinaButtons"
+/* #1069: one Song of Time across both games (OoTMM sharedSongTime). Boolean
+ * (0/1), DEFAULT 0. A bit of the same crossItemFlags (RSBS_XITEM_SHARED_SONG_TIME),
+ * folded into comboSettingsHash only when on. On, MM's paired start drops the
+ * song and MM's moon crash is a New Cycle. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_TIME "gCombo.Rando.SharedSongTime"
+/* #968: one Fire, one Ice and one Light Arrows across both games (OoTMM
+ * sharedMagicArrowFire, sharedMagicArrowIce, sharedMagicArrowLight). Boolean
+ * (0/1), DEFAULT 0 each. Bits of the same crossItemFlags
+ * (RSBS_XITEM_SHARED_ARROW_FIRE / _ICE / _LIGHT, reserved by #976), folded into
+ * comboSettingsHash only when on. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_FIRE "gCombo.Rando.SharedArrowFire"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_ICE "gCombo.Rando.SharedArrowIce"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_LIGHT "gCombo.Rando.SharedArrowLight"
+/* #970: the bottle COUNT is one quantity for the pair up to OoT's four slots, the
+ * contents stay each game's own. A deliberate divergence from OoTMM's sharedBottles
+ * (six bottles, contents and refills shared, needs extraBottlesOot's six OoT
+ * slots): see PR #1094. Boolean (0/1), DEFAULT 0:
+ * a BIT of the item rules record, so with it off the record stays all clear and
+ * every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES "gCombo.Rando.SharedBottles"
+/* #978 (epic #975 P2): one Goron Mask, Zora Mask, Bunny Hood, Keaton Mask and
+ * Mask of Truth across both games (OoTMM sharedMaskGoron, sharedMaskZora,
+ * sharedMaskBunny, sharedMaskKeaton, sharedMaskTruth). Boolean (0/1), DEFAULT 0
+ * each. Bits of the same crossItemFlags (RSBS_XITEM_SHARED_GORON ... _TRUTH,
+ * reserved by #976), folded into comboSettingsHash only when on. #969's Bunny
+ * Hood speed in Hyrule rides the Bunny Hood's bit. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GORON "gCombo.Rando.SharedMaskGoron"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_ZORA "gCombo.Rando.SharedMaskZora"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BUNNY "gCombo.Rando.SharedMaskBunny"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_KEATON "gCombo.Rando.SharedMaskKeaton"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH "gCombo.Rando.SharedMaskTruth"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -302,6 +352,55 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     { "gEnhancements.Camera.FreeLook.Enable", "gSettings.FreeLook.Enabled", false },
     { "gEnhancements.Camera.FreeLook.MaxCameraDistance", "gSettings.FreeLook.MaxCameraDistance", false },
     { "gEnhancements.Camera.FreeLook.TransitionSpeed", "gSettings.FreeLook.TransitionSpeed", false },
+
+    // ---- The #966 key-name gaps (issues #1027-#1038). ----
+    // The audit of which settings MM does not honour found rows where SoH's menu
+    // writes one key and MM reads a differently spelled twin with NO row here, so
+    // the control moved a key nothing in MM consulted. Each row below was
+    // re-verified at its read sites to agree on TYPE and RANGE on both sides
+    // (the draw-distance multiplier is an int 1..5, default 1; every other row is
+    // a 0/1 toggle, default 0), which makes it a pure rename: ConfigVersion9Updater
+    // copies a stored MM-spelled value across and test_cvar_classification pins
+    // every row (the "#966 key-gap rows" block). MM's readers moved to SoH's key
+    // in the same change, BenMenu.cpp's excluded widgets included.
+    //
+    // Mapping is not the same as live. The first three rows (#1027-#1029) have
+    // readers that are LINKED (the actor-cull TUs and AuthenticGfxPatches.cpp).
+    // The other eight providers sat in the plain 2ship_enh archive and were
+    // elided from the single exe; mapping came first so the day a provider
+    // linked it already read the one shared key, and #1030-#1036 and #1038 have
+    // since carved them into the WHOLE_ARCHIVE'd registrars list (games/mm/
+    // CMakeLists.txt), which test_cvar_classification pins row by row.
+    // Defaults: N64WeirdFrames (#1038) is the one row whose MM reader default
+    // differed (2Ship: on, to match hardware); the reader now takes OoT's off, so
+    // the one checkbox cannot show a state MM is not in. SkipMiscInteractions
+    // keeps the per-reader default difference the cutscene-skip family already
+    // documents above (OoT IS_RANDO, MM 0).
+    { "gEnhancements.Graphics.IncreaseActorDrawDistance", "gEnhancements.DisableDrawDistance", false },
+    { "gEnhancements.Graphics.ActorCullingAccountsForWidescreen", "gEnhancements.WidescreenActorCulling", false },
+    { "gEnhancements.Fixes.FixTexturesOOB", "gEnhancements.FixTexturesOOB", false },
+    { "gEnhancements.A11y.NoScreenFlashForEnemyKill", "gSettings.A11yNoScreenFlashForFinishingBlow", false },
+    { "gEnhancements.Graphics.3DItemDrops", "gEnhancements.NewDrops", false },
+    { "gEnhancements.Cutscenes.SkipMiscInteractions", "gEnhancements.TimeSavers.SkipMiscInteractions", false },
+    { "gEnhancements.Playback.SkipScarecrowSong", "gEnhancements.InstantScarecrow", false },
+    { "gEnhancements.PlayerActions.ArrowCycle", "gEnhancements.BowArrowCycle", false },
+    { "gEnhancements.Equipment.MagicArrowEquipSpeed", "gEnhancements.SkipArrowAnimation", false },
+    { "gEnhancements.DifficultyOptions.PermanentHeartLoss", "gEnhancements.PermanentHeartLoss", false },
+    { "gEnhancements.Restorations.N64WeirdFrames", "gEnhancements.N64WeirdFrames", false },
+    // #1062: the ocarina D-pad and right-stick switches and "Prevent Dropped Ocarina Inputs". MM kept them
+    // under Playback.*; SoH writes gSettings.CustomOcarina.Dpad and gSettings.CustomOcarina.RightStick (Settings >
+    // Controls > Ocarina Controls) and gEnhancements.DpadNoDropOcarinaInput.
+    // All bool, default off, read per frame by GameInteractor_Dpad,
+    // GameInteractor_RightStickOcarina and the two ocarina input loops, so a plain rename. The held-apart P6 pair that
+    // stood in kMustStayDistinct is gone: both games have all three switches, and the one genuinely OoT-only piece (the
+    // custom button-mapping layer, gSettings.CustomOcarina.Enabled) has no MM key to pair.
+    { "gEnhancements.Playback.DpadOcarina", "gSettings.CustomOcarina.Dpad", false },
+    { "gEnhancements.Playback.RightStickOcarina", "gSettings.CustomOcarina.RightStick", false },
+    { "gEnhancements.Playback.NoDropOcarinaInput", "gEnhancements.DpadNoDropOcarinaInput", false },
+    // #1064: SoH's Containers Match Contents. MM's chest/pot/grass/crate/barrel readers sat on gRando.CSMC (its only
+    // widget, in the excluded Rando/Menu.cpp, never drew). Both bool, default off. ChestSizeDependsStoneOfAgony stays
+    // OoT-only: MM has no Stone of Agony.
+    { "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents", false },
 };
 
 /**
@@ -332,7 +431,8 @@ struct DistinctPair {
 };
 
 /**
- * Inventory §4 rows (P1-P7, minus the ones with no single representative key)
+ * Inventory §4 rows (P1-P7, minus the ones with no single representative key and
+ * minus P6, which #1062 converged: the D-pad and right-stick ocarina switches)
  * plus §5.3's four PARKED rows, which are real convergence candidates blocked
  * on maintainer answers rather than settled non-merges.
  */
@@ -350,9 +450,6 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "Different axis decomposition: OoT splits by context (free-look / aiming / shield / Z-aim), MM by "
       "input device (right stick / gyro / first-person). No 1:1 mapping — OoT has no gyro axis, MM has no "
       "shield-aim axis. Merging drops settings on both sides." },
-    { "P6 ocarina d-pad input", "gEnhancements.Playback.DpadOcarina", "gSettings.OcarinaControl.Dpad",
-      "Split across different top-level namespaces with different member sets: MM adds right-stick "
-      "ocarina, OoT adds a custom-mapping layer. Structurally parallel, not identical." },
     { "P7 shield aim inversion", "gEnhancements.Equipment.InvertShieldY", "gSettings.Controls.InvertShieldAimingYAxis",
       "Different namespace AND different axis coverage: OoT has X+Y, MM has Y only. Merging loses OoT's "
       "X axis." },
@@ -368,6 +465,13 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "(none — OoT hardcodes THREE_MINUTES_IN_UNIX)",
       "The Autosave ENABLE flag is genuinely shared-intent, but OoT's interval is hardcoded with no CVar. "
       "The interval is MM-only and must NOT ride along with an Autosave rename." },
+    { "PARKED: damage multiplier value space (#1037)", "gEnhancements.DifficultyOptions.DamageMultiplier",
+      "gEnhancements.DamageMult",
+      "Same intent (a left-shift of incoming damage: OoT z_player.c `1 << DamageMult`, MM `*damage <<= value`) "
+      "and 0-4 agree (1x-16x), but the VALUE SPACES differ: OoT's list runs 0-8 (to 256x) while MM's is 0-4 plus "
+      "10 = '1 Hit KO'. A plain key swap leaves OoT's 5-8 with no entry in MM's list and MM's 10 with none in "
+      "OoT's, so each menu would show a blank for the other's value. Pending an operator ruling on which value "
+      "space wins; do not converge until it lands." },
     { "PARKED: infinite ammo scope", "gCheats.InfiniteConsumables", "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },
@@ -375,6 +479,34 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "Same intent (drop item gating) but DIFFERENT GATE: OoT ignores age restrictions, MM lets all forms "
       "use all items. Pending a maintainer answer; do not converge until it lands." },
 };
+
+/**
+ * A pair where SoH's control drives MM through a VALUE TRANSLATION (#1060).
+ *
+ * Neither a rename (kConvergedKeys: the value spaces differ, so a key swap
+ * would mean something else in MM) nor a held-apart pair (kMustStayDistinct:
+ * there is one control for the concept, and it is SoH's). MM keeps its own key
+ * only for its elided widget; every linked MM reader calls one translator that
+ * reads `ootKey` and returns MM's value. CvarClassification pins each row and
+ * checks the tree agrees.
+ */
+struct TranslatedKey {
+    int issue;              ///< The issue that decided the translation.
+    const char* mmKey;      ///< MM's key. Named in games/mm only by the translator and elided widgets.
+    const char* ootKey;     ///< SoH's key: the one control writes it.
+    const char* translator; ///< The games/mm-relative TU that maps ootKey's values onto MM's.
+    const char* why;        ///< Why a rename would be wrong.
+};
+
+inline constexpr TranslatedKey kTranslatedKeys[] = {
+    { 1060, "gEnhancements.Cutscenes.SkipGetItemCutscenes", "gRandoEnhancements.TimeSavers.SkipGetItemAnimation",
+      "2s2h/Rando/StaticData/Items.cpp",
+      "SoH has three tiers (Off / Junk Items / All Items), MM four (Never / Junk Items Only / Everything But "
+      "Major / Always). A rename would give SoH's All Items (2) MM's Everything But Major and keep presenting "
+      "majors, so Rando::StaticData::SkipGetItemCutsceneTierFromSoh maps Off->Never, Junk Items->Junk Items "
+      "Only, All Items->Always." },
+};
+inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
 
 /**
  * Casing hazard, inventory §5.1. MM uses `gEnhancements.Timesavers.*`
@@ -412,9 +544,11 @@ inline constexpr const char* kSharedIntentKeys[] = {
     "gDeveloperTools.DebugSaveFileMode",
     "gDeveloperTools.FrameAdvanceTick",
     "gDeveloperTools.LogLevel",
-    // Graphics enhancements that describe the renderer, not the game.
-    "gEnhancements.Graphics.IncreaseActorDrawDistance",
-    "gEnhancements.Graphics.ActorCullingAccountsForWidescreen",
+    // (The actor draw-distance and widescreen-culling keys that stood here were
+    // NOT shared: the ADR's measurement matched them in OoT's uncalled
+    // ShipUtils.cpp copy, while every live OoT reader and SoH's menu use
+    // gEnhancements.DisableDrawDistance / .WidescreenActorCulling. #966 moved MM
+    // onto those two keys, so they are converged rows above: #1027, #1028.)
     // Audio editor behaviour.
     "gAudioEditor.EnemyBGMDisable",
     "gAudioEditor.LowHpAlarm",
@@ -554,6 +688,55 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, ComboKeyClass::Identity,
       "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit (#886): the Kokiri Sword is ONE "
       "monotonic shared item across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SHIELDS bit (#1068): the Hylian/Hero's Shield and the "
+      "Mirror Shield are each ONE shared item across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_LENS, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_LENS bit (#1065): the Lens of Truth is ONE shared-pair "
+      "family across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_EPONA, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SONG_EPONA bit (#1066): Epona's Song is ONE "
+      "shared-pair family across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_STORMS, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SONG_STORMS bit (#1066): the Song of Storms is ONE "
+      "shared-pair family across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_OCARINA_BUTTONS bit (#1067): each of the five ocarina "
+      "buttons is ONE shared item across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_TIME, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SONG_TIME bit (#1069): the Song of Time is ONE "
+      "shared-pair family across both games, MM starts without it and its moon crash is a New Cycle" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_FIRE, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_ARROW_FIRE bit (#968): the Fire Arrows are ONE "
+      "shared-pair family across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_ICE, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_ARROW_ICE bit (#968): the Ice Arrows are ONE "
+      "shared-pair family across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_LIGHT, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_ARROW_LIGHT bit (#968): the Light Arrows are ONE "
+      "shared-pair family across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_BOTTLES bit (#970): the bottle count is ONE shared "
+      "quantity across both games, up to OoT's four slots" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GORON, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_GORON bit (#978): the Goron Mask is ONE shared-pair "
+      "family "
+      "across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_ZORA, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_ZORA bit (#978): the Zora Mask is ONE shared-pair family "
+      "across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BUNNY, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_BUNNY bit (#978): the Bunny Hood is ONE shared-pair "
+      "family "
+      "across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_KEATON, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_KEATON bit (#978): the Keaton Mask is ONE shared-pair "
+      "family "
+      "across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_TRUTH bit (#978): the Mask of Truth is ONE shared-pair "
+      "family "
+      "across both games" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -942,17 +1125,25 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 
 // Tier 1 (#34) landed 9 keys — 6 audio + 3 tunic. #462 adds 23 of the inventory
 // §5.3 remainder's 26 rows (the 3 held out are ClimbSpeed and the two parked
-// cheat pairs, all in kMustStayDistinct). 9 + 23 = 32. Pinning the count makes a
-// silently dropped or double-added row a compile error.
-static_assert(kConvergedKeyCount == 32, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) = 32");
+// cheat pairs, all in kMustStayDistinct). 9 + 23 = 32. The #966 audit adds 11
+// key-name-gap rows (#1027-#1036 and #1038; #1037's damage multiplier is held
+// out in kMustStayDistinct), and #1062 / #1064 add four more (the ocarina D-pad,
+// right-stick and no-dropped-input switches, Containers Match Contents). 32 + 11 + 4 = 47. Pinning
+// the count makes a silently dropped or double-added row a compile error.
+static_assert(kConvergedKeyCount == 47, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
+                                        "key-name gaps (11 of 12; #1037 held out) + #1062 (3) + #1064 (1) = 47");
 
-// ADR 0003 Appendix B measured 26 class-(S) collisions, and this table now
-// carries all 26: DebugSaveFileMode rejoined when #454 was fixed (MM's clobber
-// retired, read default aligned to OoT's 1). Pinning the count makes a silent
-// drop a compile error rather than a quietly weaker lock.
-static_assert(kSharedIntentKeyCount == 26,
-              "ADR 0003 Appendix B's 26 class-(S) keys, including DebugSaveFileMode — restored to (S) by #454 "
-              "once MM's DeveloperTools.cpp write was retired and its read default aligned to OoT's 1");
+// ADR 0003 Appendix B measured 26 class-(S) collisions. DebugSaveFileMode
+// rejoined when #454 was fixed (MM's clobber retired, read default aligned to
+// OoT's 1). Two of the 26 were never shared: the draw-distance and
+// widescreen-culling spellings matched only in OoT's uncalled ShipUtils.cpp, so
+// #966 (#1027, #1028) converged them as ordinary rows and this table carries 24.
+// Pinning the count makes a silent drop a compile error rather than a quietly
+// weaker lock.
+static_assert(kSharedIntentKeyCount == 24,
+              "ADR 0003 Appendix B's 26 class-(S) keys less the two actor-cull spellings #966 moved to converged "
+              "rows (#1027, #1028); includes DebugSaveFileMode — restored to (S) by #454 once MM's "
+              "DeveloperTools.cpp write was retired and its read default aligned to OoT's 1");
 static_assert(kMenuIndexKeyCount == 4, "four menu-index keys — #451");
 // The disputed table is empty since #454's fix. Pinned at 0 like every other
 // table here, so a key silently re-added to it is a compile error rather than a
@@ -962,17 +1153,21 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Three identity keys (the five of ADR 0011 increment 2 less the two pool sizes
-// #801 and the two item classes #834 retired, Goal (ADR 0010 D1) and
-// SharedKokiriSword (#886); #879 retired SharedOcarina (#668)) + four
+// Eighteen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
+// SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
+// SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
+// SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
+// (#970), SharedMaskGoron, SharedMaskZora, SharedMaskBunny, SharedMaskKeaton and
+// SharedMaskTruth (#978); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
 // (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 16, "three gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
-                                    "gCombo.Tracker.Items.* preferences = 16");
+static_assert(kComboKeyCount == 31, "eighteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+                                    "nine gCombo.Tracker.Items.* preferences = 31");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

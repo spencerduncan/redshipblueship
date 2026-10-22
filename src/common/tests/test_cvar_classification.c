@@ -153,6 +153,7 @@ bool CvarClassOotTreeNamesKey(const std::vector<std::string>& tree, const char* 
         { "gEnhancements.", "CVAR_ENHANCEMENT(\"" },
         { "gCheats.", "CVAR_CHEAT(\"" },
         { "gSettings.", "CVAR_SETTING(\"" },
+        { "gRandoEnhancements.", "CVAR_RANDOMIZER_ENHANCEMENT(\"" }, // #1060's translated row
     };
     const std::string k(key);
     for (const PrefixMacro& m : kMacros) {
@@ -221,6 +222,120 @@ std::vector<CvarClassSourceFile> CvarClassSlurpTreeWithPaths(const std::filesyst
 
 } // namespace
 #endif // RSBS_SOURCE_DIR
+
+namespace {
+
+/// One row of the #966 key-name-gap audit: SoH's menu writes `canonical`, MM
+/// used to read the unmapped twin `legacy`. The table is the lock's own copy of
+/// the audit's issue list, kept apart from RSBS::kConvergedKeys on purpose: if it
+/// derived from the manifest, deleting a manifest row would delete its own
+/// assertion and the lock would pass, which is exactly the regression it exists
+/// to catch. Every entry must stay in the manifest, in MM's readers (under the
+/// canonical spelling), in SoH's menu, and in ConfigVersion9Updater's table.
+struct CvarClassKeyGapRow {
+    int issue;
+    const char* legacy;
+    const char* canonical;
+};
+
+constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
+    { 1027, "gEnhancements.Graphics.IncreaseActorDrawDistance", "gEnhancements.DisableDrawDistance" },
+    { 1028, "gEnhancements.Graphics.ActorCullingAccountsForWidescreen", "gEnhancements.WidescreenActorCulling" },
+    { 1029, "gEnhancements.Fixes.FixTexturesOOB", "gEnhancements.FixTexturesOOB" },
+    { 1030, "gEnhancements.A11y.NoScreenFlashForEnemyKill", "gSettings.A11yNoScreenFlashForFinishingBlow" },
+    { 1031, "gEnhancements.Graphics.3DItemDrops", "gEnhancements.NewDrops" },
+    { 1032, "gEnhancements.Cutscenes.SkipMiscInteractions", "gEnhancements.TimeSavers.SkipMiscInteractions" },
+    { 1033, "gEnhancements.Playback.SkipScarecrowSong", "gEnhancements.InstantScarecrow" },
+    { 1034, "gEnhancements.PlayerActions.ArrowCycle", "gEnhancements.BowArrowCycle" },
+    { 1035, "gEnhancements.Equipment.MagicArrowEquipSpeed", "gEnhancements.SkipArrowAnimation" },
+    { 1036, "gEnhancements.DifficultyOptions.PermanentHeartLoss", "gEnhancements.PermanentHeartLoss" },
+    { 1038, "gEnhancements.Restorations.N64WeirdFrames", "gEnhancements.N64WeirdFrames" },
+    // #1062: the ocarina enhancements MM kept under Playback.*. SoH writes the D-pad and right-stick switches as
+    // gSettings.CustomOcarina.Dpad / .RightStick (Settings > Controls > Ocarina Controls, drawn from the input editor)
+    // and "Prevent Dropped Ocarina Inputs" as gEnhancements.DpadNoDropOcarinaInput. All bool, default off; the P6
+    // held-apart entry retires with these rows.
+    { 1062, "gEnhancements.Playback.DpadOcarina", "gSettings.CustomOcarina.Dpad" },
+    { 1062, "gEnhancements.Playback.RightStickOcarina", "gSettings.CustomOcarina.RightStick" },
+    { 1062, "gEnhancements.Playback.NoDropOcarinaInput", "gEnhancements.DpadNoDropOcarinaInput" },
+    // #1064: the container-matches-contents switch. MM's rando readers (chests, pots, grass, crates, barrels) read
+    // gRando.CSMC; SoH writes gEnhancements.ChestSizeAndTextureMatchContents. Both bool, default off.
+    { 1064, "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents" },
+};
+
+/// One reader of a #966 key-gap key that has to be IN THE LINK, not just mapped. Mapping MM's reader onto SoH's key
+/// (PR #1046) is necessary and not sufficient: every one of these providers registers only through a file-scope
+/// RegisterShipInitFunc, in the plain `2ship_enh` archive, which the linker drops, so the control moved a key
+/// nothing in the single exe consulted. The carve-out list in games/mm/CMakeLists.txt (`ship__Enh_registrars`,
+/// WHOLE_ARCHIVE'd) is what keeps a provider; `path` is relative to games/mm/2s2h/Enhancements and names either
+/// one file or a directory (every .cpp directly inside it). The table is the lock's own copy, like the key-gap
+/// rows above: deleting a CMake entry has to turn this red, and deleting a table entry is a reviewed edit here.
+struct CvarClassLinkedReader {
+    int issue;
+    const char* canonical;
+    const char* path;
+};
+
+constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
+    { 1030, "gSettings.A11yNoScreenFlashForFinishingBlow", "Accessibility/NoScreenFlashForEnemyKill.cpp" },
+    { 1031, "gEnhancements.NewDrops", "Graphics/3DItemDrops.cpp" },
+    { 1032, "gEnhancements.TimeSavers.SkipMiscInteractions", "Cutscenes/MiscInteractions" },
+    { 1033, "gEnhancements.InstantScarecrow", "Songs/SkipScarecrowSong.cpp" },
+    { 1034, "gEnhancements.BowArrowCycle", "Equipment/ArrowCycle.cpp" },
+    { 1035, "gEnhancements.SkipArrowAnimation", "Equipment/SkipMagicArrowEquip.cpp" },
+    { 1036, "gEnhancements.PermanentHeartLoss", "DifficultyOptions/PermanentHeartLoss.cpp" },
+    { 1038, "gEnhancements.N64WeirdFrames", "Restorations/N64WeirdFrames/N64WeirdFrames.cpp" },
+};
+
+/// #1037: held APART, not mapped. OoT's DamageMult list runs 0-8, MM's 0-4 plus 10.
+constexpr const char* kCvarClassDamageMultMm = "gEnhancements.DifficultyOptions.DamageMultiplier";
+constexpr const char* kCvarClassDamageMultOot = "gEnhancements.DamageMult";
+
+/// #1060: SoH's three-tier "Skip Get Item Animations" drives MM's four-tier
+/// get-item presentation through a translator. The lock's own copy of the row,
+/// apart from RSBS::kTranslatedKeys for the reason the key-gap rows are.
+struct CvarClassTranslatedRow {
+    int issue;
+    const char* mmKey;
+    const char* ootKey;
+    const char* translator;
+};
+
+constexpr CvarClassTranslatedRow kCvarClassTranslatedRows[] = {
+    { 1060, "gEnhancements.Cutscenes.SkipGetItemCutscenes", "gRandoEnhancements.TimeSavers.SkipGetItemAnimation",
+      "2s2h/Rando/StaticData/Items.cpp" },
+};
+
+/// #1060's linked read sites: each must call the translator's tier.
+constexpr const char* kCvarClassGetItemTierReaders[] = {
+    "2s2h/Rando/StaticData/Items.cpp",
+    "2s2h/Rando/MiscBehavior/CheckQueue.cpp",
+};
+
+/// #1060's story-cutscene gives (they queue only outside rando): each must ask
+/// StoryGiveShowsGetItemCutscene(), which keeps the hold unless SoH says All
+/// Items, so the default Junk Items never strips a mask, song or the Oath.
+constexpr const char* kCvarClassStoryGiveReaders[] = {
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipGiantsChamber.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingDarmani.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingMikau.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipIkanaCurseCutscenes.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningElegyOfEmptiness.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullaby.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullabyIntro.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningNewWaveBossaNova.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSonataOfAwakening.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfSoaring.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfStorms.cpp",
+};
+
+/// MM files that may still name a translated row's MM key: BenMenu.cpp, whose
+/// widget writes it, is excluded wholesale by games/mm/CMakeLists.txt's BenGui
+/// filter, so nothing linked reads or writes the key.
+constexpr const char* kCvarClassTranslatedElidedWriters[] = {
+    "2s2h/BenGui/BenMenu.cpp",
+};
+
+} // namespace
 
 TestResult Test_CVarClassification(void) {
     printf("[TEST] cvar-classification: cross-game CVar classification matches ADR 0003 + the inventory (#34)\n");
@@ -314,6 +429,94 @@ TestResult Test_CVarClassification(void) {
         for (std::size_t d = 0; d < RSBS::kDisputedClassificationKeyCount; d++) {
             CVARCLASS_CHECK(strcmp(RSBS::kDisputedClassificationKeys[d], "gDeveloperTools.DebugSaveFileMode") != 0,
                             "gDeveloperTools.DebugSaveFileMode is back in the disputed table — #454 reopened");
+        }
+    }
+
+    // The #966 key-name-gap rows (#1027-#1036, #1038): each pinned row is in the
+    // manifest exactly as the audit specified, and is classified ONCE (a legacy
+    // spelling is not also a shared-intent key, which would claim "both games
+    // read this key" of a key only one game reads).
+    for (const CvarClassKeyGapRow& row : kCvarClassKeyGapRows) {
+        bool inManifest = false;
+        for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
+            const RSBS::ConvergedKey& key = RSBS::kConvergedKeys[i];
+            if (strcmp(key.legacy, row.legacy) == 0 && strcmp(key.canonical, row.canonical) == 0) {
+                inManifest = !key.scaledPercent;
+                break;
+            }
+        }
+        if (!inManifest) {
+            printf("[TEST] FAIL: #%d: RSBS::kConvergedKeys has no plain row mapping MM's \"%s\" onto SoH's \"%s\".\n"
+                   "[TEST]       SoH's menu writes the canonical key; without the row MM reads a key nothing\n"
+                   "[TEST]       writes and the control silently does nothing in Majora's Mask (#966).\n",
+                   row.issue, row.legacy, row.canonical);
+            return TEST_FAIL;
+        }
+        for (std::size_t i = 0; i < RSBS::kSharedIntentKeyCount; i++) {
+            if (strcmp(RSBS::kSharedIntentKeys[i], row.legacy) == 0 ||
+                strcmp(RSBS::kSharedIntentKeys[i], row.canonical) == 0) {
+                printf("[TEST] FAIL: #%d: \"%s\" is both a converged key and a shared-intent key.\n"
+                       "[TEST]       A key is classified once: converged rows retire the MM spelling, shared-intent\n"
+                       "[TEST]       rows claim both games already read ONE spelling.\n",
+                       row.issue, strcmp(RSBS::kSharedIntentKeys[i], row.legacy) == 0 ? row.legacy : row.canonical);
+                return TEST_FAIL;
+            }
+        }
+    }
+
+    // #1037 is the one audit row that must NOT be mapped: it stays in
+    // kMustStayDistinct until an operator ruling picks a value space.
+    {
+        bool held = false;
+        for (std::size_t i = 0; i < RSBS::kMustStayDistinctCount; i++) {
+            if (strcmp(RSBS::kMustStayDistinct[i].mmKey, kCvarClassDamageMultMm) == 0 &&
+                strcmp(RSBS::kMustStayDistinct[i].ootKey, kCvarClassDamageMultOot) == 0) {
+                held = true;
+            }
+        }
+        CVARCLASS_CHECK(held, "#1037: the damage multiplier pair is not in kMustStayDistinct — OoT's DamageMult "
+                              "runs 0-8 and MM's 0-4 plus 10 (1-hit KO), so a plain key swap is a regression; "
+                              "an operator ruling on the value space comes first");
+        for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
+            CVARCLASS_CHECK(strcmp(RSBS::kConvergedKeys[i].legacy, kCvarClassDamageMultMm) != 0 &&
+                                strcmp(RSBS::kConvergedKeys[i].canonical, kCvarClassDamageMultOot) != 0,
+                            "#1037: the damage multiplier was converged while its value spaces still differ");
+        }
+    }
+
+    // #1060: each translated row is in the manifest as pinned, and is classified
+    // ONCE: a rename row or a held-apart pair would contradict the translation.
+    for (const CvarClassTranslatedRow& row : kCvarClassTranslatedRows) {
+        bool inManifest = false;
+        for (std::size_t i = 0; i < RSBS::kTranslatedKeyCount; i++) {
+            const RSBS::TranslatedKey& key = RSBS::kTranslatedKeys[i];
+            if (key.issue == row.issue && strcmp(key.mmKey, row.mmKey) == 0 && strcmp(key.ootKey, row.ootKey) == 0 &&
+                strcmp(key.translator, row.translator) == 0) {
+                inManifest = true;
+                break;
+            }
+        }
+        if (!inManifest) {
+            printf("[TEST] FAIL: #%d: RSBS::kTranslatedKeys has no row translating SoH's \"%s\" onto MM's \"%s\"\n"
+                   "[TEST]       in games/mm/%s. Without it nothing records that SoH's control drives MM, and\n"
+                   "[TEST]       MM's key, which nothing in the single exe writes, decides alone (#1060).\n",
+                   row.issue, row.ootKey, row.mmKey, row.translator);
+            return TEST_FAIL;
+        }
+        for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
+            const RSBS::ConvergedKey& key = RSBS::kConvergedKeys[i];
+            CVARCLASS_CHECK(strcmp(key.legacy, row.mmKey) != 0 && strcmp(key.canonical, row.ootKey) != 0,
+                            "#1060: a translated key is also a rename row; the value spaces differ, so a key swap "
+                            "would give SoH's All Items MM's Everything But Major");
+        }
+        for (std::size_t i = 0; i < RSBS::kSharedIntentKeyCount; i++) {
+            CVARCLASS_CHECK(strcmp(RSBS::kSharedIntentKeys[i], row.mmKey) != 0 &&
+                                strcmp(RSBS::kSharedIntentKeys[i], row.ootKey) != 0,
+                            "#1060: a translated key is also a shared-intent key");
+        }
+        for (std::size_t i = 0; i < RSBS::kMustStayDistinctCount; i++) {
+            CVARCLASS_CHECK(strcmp(RSBS::kMustStayDistinct[i].mmKey, row.mmKey) != 0,
+                            "#1060: a translated key is also held apart in kMustStayDistinct");
         }
     }
 
@@ -587,6 +790,199 @@ TestResult Test_CVarClassification(void) {
             }
         }
 
+        // (3f-2) The #966 key-name gaps, in the tree. The manifest row alone proves
+        // nothing: MM's reader must actually read SoH's spelling (the retired MM
+        // spelling being gone is (3a)), SoH's menu must actually write it, and the
+        // version-9 migration must carry a stored MM-spelled value across.
+        {
+            bool menuOk = false;
+            std::vector<std::string> sohMenuTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "SohGui", menuOk);
+            CVARCLASS_CHECK(menuOk && !sohMenuTree.empty(), "could not scan games/oot/soh/SohGui for the menu rows");
+            // Settings > Controls is drawn partly from the input editor window (the ocarina and D-pad rows, #1062),
+            // which lives beside the controls code rather than under SohGui.
+            bool controlsOk = false;
+            const std::vector<std::string> sohControlsTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "Enhancements" / "controls", controlsOk);
+            CVARCLASS_CHECK(controlsOk && !sohControlsTree.empty(),
+                            "could not scan games/oot/soh/Enhancements/controls for the input editor rows");
+            sohMenuTree.insert(sohMenuTree.end(), sohControlsTree.begin(), sohControlsTree.end());
+
+            std::ifstream migratorFile(sourceRoot / "games" / "oot" / "soh" / "config" / "ConfigMigrators.h",
+                                       std::ios::binary);
+            const std::string migrators((std::istreambuf_iterator<char>(migratorFile)),
+                                        std::istreambuf_iterator<char>());
+            const std::size_t v9 = migrators.find("version9Migrations");
+            CVARCLASS_CHECK(v9 != std::string::npos, "ConfigMigrators.h has no version9Migrations table (#966)");
+            const std::string v9Text = migrators.substr(v9);
+
+            for (const CvarClassKeyGapRow& row : kCvarClassKeyGapRows) {
+                if (!CvarClassTreeContainsExactKey(mmTree, row.canonical)) {
+                    printf("[TEST] FAIL: #%d: no file under games/mm reads SoH's \"%s\".\n"
+                           "[TEST]       MM's reader of \"%s\" has to move onto the key SoH's menu writes, or the\n"
+                           "[TEST]       control does nothing in Majora's Mask.\n",
+                           row.issue, row.canonical, row.legacy);
+                    return TEST_FAIL;
+                }
+                if (!CvarClassOotTreeNamesKey(sohMenuTree, row.canonical)) {
+                    printf("[TEST] FAIL: #%d: no SoH menu row (SohGui or the input editor) writes \"%s\".\n"
+                           "[TEST]       The manifest maps MM onto a key no widget sets; check the spelling.\n",
+                           row.issue, row.canonical);
+                    return TEST_FAIL;
+                }
+                const std::string legacyLiteral = std::string("\"") + row.legacy + "\"";
+                const std::string canonicalLiteral = std::string("\"") + row.canonical + "\"";
+                if (v9Text.find(legacyLiteral) == std::string::npos ||
+                    v9Text.find(canonicalLiteral) == std::string::npos) {
+                    printf("[TEST] FAIL: #%d: version9Migrations lacks \"%s\" -> \"%s\".\n"
+                           "[TEST]       A config storing the MM spelling would keep it and lose the setting.\n",
+                           row.issue, row.legacy, row.canonical);
+                    return TEST_FAIL;
+                }
+            }
+        }
+
+        // (3f-3) Mapped is not live: the #966 key-gap rows whose provider is a RegisterShipInitFunc-only TU
+        // (#1030-#1034). (3f-2) proves MM reads SoH's spelling; this proves the TU that reads it is carved into the
+        // WHOLE_ARCHIVE'd registrars archive, so the single exe contains it at all. Each reader file is also
+        // required to still spell the canonical key, so a table row cannot outlive a reader that moved.
+        {
+            std::ifstream cmakeFile(sourceRoot / "games" / "mm" / "CMakeLists.txt", std::ios::binary);
+            const std::string cmake((std::istreambuf_iterator<char>(cmakeFile)), std::istreambuf_iterator<char>());
+            const std::size_t listBegin = cmake.find("set(ship__Enh_registrars");
+            const std::size_t listEnd = cmake.find("list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})");
+            CVARCLASS_CHECK(listBegin != std::string::npos && listEnd != std::string::npos && listEnd > listBegin,
+                            "games/mm/CMakeLists.txt has no ship__Enh_registrars carve-out list (#1071) — the "
+                            "mapped-is-not-live scan cannot run");
+            const std::string registrars = cmake.substr(listBegin, listEnd - listBegin);
+
+            for (const CvarClassLinkedReader& row : kCvarClassLinkedReaders) {
+                const std::filesystem::path readerPath =
+                    sourceRoot / "games" / "mm" / "2s2h" / "Enhancements" / row.path;
+                std::vector<std::filesystem::path> readers;
+                std::error_code ec;
+                if (std::filesystem::is_directory(readerPath, ec)) {
+                    for (const auto& entry : std::filesystem::directory_iterator(readerPath, ec)) {
+                        if (entry.is_regular_file() && entry.path().extension() == ".cpp") {
+                            readers.push_back(entry.path());
+                        }
+                    }
+                } else {
+                    readers.push_back(readerPath);
+                }
+                if (readers.empty()) {
+                    printf("[TEST] FAIL: #%d: no reader file at games/mm/2s2h/Enhancements/%s.\n"
+                           "[TEST]       The lock table names a provider that is gone; update the row with the move.\n",
+                           row.issue, row.path);
+                    return TEST_FAIL;
+                }
+                for (const std::filesystem::path& reader : readers) {
+                    std::ifstream readerFile(reader, std::ios::binary);
+                    const std::string text((std::istreambuf_iterator<char>(readerFile)),
+                                           std::istreambuf_iterator<char>());
+                    if (text.find(std::string("\"") + row.canonical + "\"") == std::string::npos) {
+                        printf("[TEST] FAIL: #%d: %s no longer spells \"%s\".\n"
+                               "[TEST]       The lock table's reader moved or was repointed; update the row.\n",
+                               row.issue, reader.generic_string().c_str(), row.canonical);
+                        return TEST_FAIL;
+                    }
+                    const std::string listed = std::string("\"2s2h/Enhancements/") +
+                                               (std::filesystem::is_directory(readerPath, ec)
+                                                    ? std::string(row.path) + "/" + reader.filename().generic_string()
+                                                    : std::string(row.path)) +
+                                               "\"";
+                    if (registrars.find(listed) == std::string::npos) {
+                        printf("[TEST] FAIL: #%d: %s is not in the ship__Enh_registrars carve-out list.\n"
+                               "[TEST]       MM reads SoH's \"%s\" there, but the plain 2ship_enh archive drops a TU "
+                               "whose\n"
+                               "[TEST]       only anchor is a RegisterShipInitFunc, so the row does nothing in the "
+                               "single\n"
+                               "[TEST]       exe (#966). Append it to the list in games/mm/CMakeLists.txt and add a\n"
+                               "[TEST]       MMRegistrarCoverage probe for it.\n",
+                               row.issue, listed.c_str(), row.canonical);
+                        return TEST_FAIL;
+                    }
+                }
+            }
+        }
+
+        // (3f-4) #1060's translated rows, in the tree: the translator reads SoH's
+        // key, SoH's menu writes it, every linked MM read site calls the
+        // translator, and no linked MM file names MM's own key any more.
+        {
+            bool mmPathsOk = false;
+            const std::vector<CvarClassSourceFile> mmFiles =
+                CvarClassSlurpTreeWithPaths(sourceRoot / "games" / "mm", mmPathsOk);
+            CVARCLASS_CHECK(mmPathsOk && !mmFiles.empty(), "could not re-scan games/mm for the translated rows");
+            bool menuOk = false;
+            const std::vector<std::string> sohMenuTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "SohGui", menuOk);
+            CVARCLASS_CHECK(menuOk && !sohMenuTree.empty(), "could not scan games/oot/soh/SohGui for the menu rows");
+
+            auto fileText = [&mmFiles](const char* relPath) -> const std::string* {
+                for (const CvarClassSourceFile& f : mmFiles) {
+                    if (f.relPath == relPath) {
+                        return &f.text;
+                    }
+                }
+                return nullptr;
+            };
+
+            for (const CvarClassTranslatedRow& row : kCvarClassTranslatedRows) {
+                const std::string mmLiteral = std::string("\"") + row.mmKey + "\"";
+                const std::string ootLiteral = std::string("\"") + row.ootKey + "\"";
+                const std::string* translator = fileText(row.translator);
+                if (translator == nullptr || translator->find(ootLiteral) == std::string::npos) {
+                    printf("[TEST] FAIL: #%d: games/mm/%s does not read SoH's \"%s\".\n"
+                           "[TEST]       The translator must read the key SoH's menu writes, or the control does\n"
+                           "[TEST]       nothing in Majora's Mask.\n",
+                           row.issue, row.translator, row.ootKey);
+                    return TEST_FAIL;
+                }
+                if (!CvarClassOotTreeNamesKey(sohMenuTree, row.ootKey)) {
+                    printf("[TEST] FAIL: #%d: no SoH menu row under games/oot/soh/SohGui writes \"%s\".\n", row.issue,
+                           row.ootKey);
+                    return TEST_FAIL;
+                }
+                for (const CvarClassSourceFile& f : mmFiles) {
+                    if (f.text.find(mmLiteral) == std::string::npos || f.relPath == row.translator) {
+                        continue;
+                    }
+                    bool elided = false;
+                    for (const char* ok : kCvarClassTranslatedElidedWriters) {
+                        elided = elided || f.relPath == ok;
+                    }
+                    if (!elided) {
+                        printf("[TEST] FAIL: #%d: games/mm/%s reads MM's \"%s\" directly.\n"
+                               "[TEST]       Nothing in the single exe writes that key; SoH's \"%s\" decides it\n"
+                               "[TEST]       through the translator in games/mm/%s. Call the translator instead.\n",
+                               row.issue, f.relPath.c_str(), row.mmKey, row.ootKey, row.translator);
+                        return TEST_FAIL;
+                    }
+                }
+            }
+            for (const char* reader : kCvarClassGetItemTierReaders) {
+                const std::string* text = fileText(reader);
+                if (text == nullptr || text->find("SkipGetItemCutsceneTier()") == std::string::npos) {
+                    printf("[TEST] FAIL: #1060: games/mm/%s does not call SkipGetItemCutsceneTier(); its get-item\n"
+                           "[TEST]       presentation would not follow SoH's Skip Get Item Animations.\n",
+                           reader);
+                    return TEST_FAIL;
+                }
+            }
+            for (const char* reader : kCvarClassStoryGiveReaders) {
+                const std::string* text = fileText(reader);
+                if (text == nullptr || text->find("StoryGiveShowsGetItemCutscene()") == std::string::npos ||
+                    text->find("!Rando::StaticData::SkipGetItemCutsceneTier()") != std::string::npos) {
+                    printf("[TEST] FAIL: #1060: games/mm/%s does not ask StoryGiveShowsGetItemCutscene() for its\n"
+                           "[TEST]       story give's hold (or still negates the raw tier, which strips the hold\n"
+                           "[TEST]       at SoH's default Junk Items).\n",
+                           reader);
+                    return TEST_FAIL;
+                }
+            }
+        }
+
         // (3g) The tier-4 namespace is CLASSIFIED (ADR 0004 §6's scope note;
         // ADR 0011 increment 2).
         //
@@ -678,9 +1074,13 @@ TestResult Test_CVarClassification(void) {
             // (cvar_shared_keys.h static_asserts it): every key under the
             // identity sub-namespace is Identity, and there are exactly the
             // direction ADR 0011 increment 2 introduced (its pool sizes and
-            // item classes were retired by #801 and #834), the goal, and #886's
+            // item classes were retired by #801 and #834), the goal, #886's
             // Shared Kokiri Sword, a BIT of the same frozen record and therefore
-            // identity for the same reason. #668's shared ocarina was a third
+            // identity for the same reason, and #1068's Shared Shields, #1065's
+            // Shared Lens of Truth, #1066's two shared songs, #1067's Shared
+            // Ocarina Buttons, #1069's Shared Song of Time, #968's three shared
+            // arrows, #970's Shared Bottles and #978's five shared masks, bits of
+            // the sibling frozen item rules. #668's shared ocarina was a third
             // until #879 retired it.
             std::size_t identityKeys = 0;
             for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
@@ -692,10 +1092,14 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 3,
-                            "exactly three tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
-                            "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, and the "
-                            "Shared Kokiri Sword, #886; #879 retired #668's shared ocarina)");
+            CVARCLASS_CHECK(identityKeys == 18,
+                            "exactly eighteen tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
+                            "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, the Shared "
+                            "Kokiri Sword, #886, the Shared Shields, #1068, the Shared Lens of Truth, #1065, Shared "
+                            "Epona's Song and Song of Storms, #1066, the Shared Ocarina Buttons, #1067, the "
+                            "Shared Song of Time, #1069, Shared Fire, Ice and Light Arrows, #968, the Shared Bottles, "
+                            "#970, and the five shared masks, "
+                            "#978; #879 retired #668's shared ocarina)");
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",
                    literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);

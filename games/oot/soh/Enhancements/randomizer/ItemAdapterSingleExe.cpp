@@ -59,7 +59,9 @@ extern "C" int OoT_SaveBlobIsStarted(const uint8_t* blob, size_t blobSize);
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
-#include "game.h" // OOT_SAVE_CONTEXT_SIZE
+#include "foreign_items.h"    // RSBS_XITEM_*: the shared families a row is OoT's copy of (#1065)
+#include "game.h"             // OOT_SAVE_CONTEXT_SIZE
+#include "shared_resources.h" // Combo_SaveIsLiveFile, Combo_MakeHealthQuarters (the Shared column's live view, #971)
 
 // The view hands this TU either the unified live storage (unified_save.c,
 // alignas(16)) or OoT's shadow, a std::vector<uint8_t> buffer (context.cpp),
@@ -359,6 +361,23 @@ void FillSlot(ComboItemRow* out, uint32_t content, const RowDef& def) {
     }
 }
 
+/** The shared-resource kind of capacity upgrade `upg` (#967), or NONE when the pair does not share it:
+ *  the quiver, bomb bag, stick bag and nut bag (shared_items.h TRIM_TO_SHARED_MAX). */
+uint8_t SharedTierKindOf(uint32_t upg) {
+    switch (upg) {
+        case UPG_QUIVER:
+            return RSBS_SHARED_RES_QUIVER_TIER;
+        case UPG_BOMB_BAG:
+            return RSBS_SHARED_RES_BOMB_BAG_TIER;
+        case UPG_STICKS:
+            return RSBS_SHARED_RES_STICK_TIER;
+        case UPG_NUTS:
+            return RSBS_SHARED_RES_NUT_TIER;
+        default:
+            return RSBS_SHARED_RES_NONE;
+    }
+}
+
 bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
     out->group = def.group;
     switch (def.kind) {
@@ -367,6 +386,9 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             return true;
         case RK_INV_AMMO:
             FillSlot(out, INV_CONTENT(def.item), def);
+            // This game's copy of a shared capacity tier: the view dims it once the Shared column holds it.
+            out->sharedKind = SharedTierKindOf(def.data);
+            out->sharedTier = (uint8_t)CUR_UPG_VALUE(def.data);
             if (out->have) {
                 out->count = AMMO(def.item);
                 out->max = CUR_CAPACITY(def.data);
@@ -387,6 +409,11 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             out->iconKey = def.key;
             out->iconKeyFaded = def.keyFaded;
             out->have = (gSaveContext.inventory.equipment & def.data) != 0;
+            if (def.item == ITEM_SWORD_KOKIRI) {
+                // The shared Kokiri Sword (#886): the owned bit is the pool's 0/1.
+                out->sharedKind = RSBS_SHARED_RES_KOKIRI_SWORD;
+                out->sharedTier = out->have ? 1 : 0;
+            }
             return true;
         case RK_QUEST:
         case RK_TOKENS:
@@ -466,6 +493,33 @@ bool OoTItemHasSave(const void* buf) {
     return Aligned(buf) && OoT_SaveBlobIsStarted(static_cast<const uint8_t*>(buf), sizeof(SaveContext)) != 0;
 }
 
+/** The shared family (foreign_items.h) an inventory row's item is OoT's own copy
+ *  of, or 0: the view draws an armed family once, in the Shared group (#1065). */
+uint32_t OoTItemSharedFamily(const RowDef& def) {
+    if (def.kind == RK_INV && def.item == (uint8_t)ITEM_LENS) {
+        return RSBS_XITEM_SHARED_LENS;
+    }
+    if (def.kind == RK_QUEST && def.data == (uint32_t)QUEST_SONG_EPONA) {
+        return RSBS_XITEM_SHARED_SONG_EPONA; // #1066
+    }
+    if (def.kind == RK_QUEST && def.data == (uint32_t)QUEST_SONG_STORMS) {
+        return RSBS_XITEM_SHARED_SONG_STORMS; // #1066
+    }
+    if (def.kind == RK_QUEST && def.data == (uint32_t)QUEST_SONG_TIME) {
+        return RSBS_XITEM_SHARED_SONG_TIME; // #1069
+    }
+    if (def.kind == RK_INV && def.item == (uint8_t)ITEM_ARROW_FIRE) {
+        return RSBS_XITEM_SHARED_ARROW_FIRE; // #968
+    }
+    if (def.kind == RK_INV && def.item == (uint8_t)ITEM_ARROW_ICE) {
+        return RSBS_XITEM_SHARED_ARROW_ICE; // #968
+    }
+    if (def.kind == RK_INV && def.item == (uint8_t)ITEM_ARROW_LIGHT) {
+        return RSBS_XITEM_SHARED_ARROW_LIGHT; // #968
+    }
+    return 0u;
+}
+
 bool OoTItemRowAt(const void* buf, int index, ComboItemRow* out) {
     if (!Aligned(buf) || out == nullptr || index < 0 || index >= kRowCount) {
         return false;
@@ -474,7 +528,11 @@ bool OoTItemRowAt(const void* buf, int index, ComboItemRow* out) {
     const uint8_t freshness = out->freshness; // the view's field; left alone
     std::memset(out, 0, sizeof(*out));
     out->freshness = freshness;
-    return Derive(src, kRows[index], out);
+    if (!Derive(src, kRows[index], out)) {
+        return false;
+    }
+    out->sharedFamily = OoTItemSharedFamily(kRows[index]);
+    return true;
 }
 
 } // namespace
@@ -526,12 +584,14 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             }
             break;
         case RSBS_SHARED_RES_ARROW_COUNT:
+            // The quiver tiers as the player knows them (#967): the Bow, then
+            // the Big and Biggest Quivers.
             if (tier >= 3) {
                 OOT_SHARED_ICON("ITEM_QUIVER_50");
             } else if (tier == 2) {
                 OOT_SHARED_ICON("ITEM_QUIVER_40");
             } else {
-                OOT_SHARED_ICON("ITEM_QUIVER_30");
+                OOT_SHARED_ICON("ITEM_BOW");
             }
             break;
         case RSBS_SHARED_RES_BOMB_COUNT:
@@ -566,8 +626,14 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
                 OOT_SHARED_ICON("ITEM_OCARINA_FAIRY");
             }
             break;
+        case RSBS_SHARED_RES_KOKIRI_SWORD:
+            OOT_SHARED_ICON("ITEM_SWORD_KOKIRI");
+            break;
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             OOT_SHARED_ICON("RG_TRIFORCE_PIECE");
+            break;
+        case RSBS_SHARED_RES_BOTTLE_COUNT: // #970
+            OOT_SHARED_ICON("ITEM_BOTTLE");
             break;
         default:
             break;
@@ -580,14 +646,94 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     row->iconTint = 0;
 }
 
+// The live view reads the HANDED buffer (the view's liveSave, which production points at the process
+// global and the ROM-free test points at an authored one), so the accessor macros are redirected again.
+#define gSaveContext (*src)
+
+// Heart pieces occupy the TOP NIBBLE of questItems (the pool's canonical health quantity,
+// OoT_ReadHealthQuarters in GameExports_SingleExe.cpp).
+constexpr uint32_t kOoTHeartPieceShift = 28u;
+constexpr uint32_t kOoTHeartPieceMask = 0xF0000000u;
+
+/**
+ * The Shared column's LIVE view (#971): the value of shared kind `kind` in the save
+ * `src`, over the harvest's own arithmetic (OoT_HarvestSharedResources in
+ * GameExports_SingleExe.cpp: the wallet tier, the health quarters, the double
+ * defense flag, the magic level from its acquired flags, the ammo slots and the
+ * hookshot slot), but READ ONLY: no settle of the rupee accumulator, no pool or
+ * watermark write, nothing stored in `src`. Gated like the harvest, on a played
+ * file (Combo_SaveIsLiveFile over the buffer's own game mode), so the title
+ * screen's attract save and file select read nothing. False for a kind this view
+ * has no reading of.
+ */
+bool OoTItemSharedLive(const void* srcv, uint8_t kind, uint16_t* out) {
+    if (out == nullptr || !Aligned(srcv)) {
+        return false;
+    }
+    const SaveContext* src = static_cast<const SaveContext*>(srcv);
+    if (!Combo_SaveIsLiveFile(GAME_OOT, (int32_t)gSaveContext.gameMode)) {
+        return false;
+    }
+    const auto ammoOf = [src](uint8_t item) -> uint16_t {
+        const s8 held = AMMO(item);
+        return held < 0 ? 0u : (uint16_t)held;
+    };
+    switch (kind) {
+        case RSBS_SHARED_RES_RUPEES:
+            // The HUD's count: a pending rupeeAccumulator (settled by the harvest) lags a few frames.
+            *out = gSaveContext.rupees < 0 ? 0u : (uint16_t)gSaveContext.rupees;
+            return true;
+        case RSBS_SHARED_RES_WALLET_TIER:
+            *out = (uint16_t)CUR_UPG_VALUE(UPG_WALLET);
+            return true;
+        case RSBS_SHARED_RES_HEALTH_QUARTERS: {
+            const uint16_t pieces =
+                (uint16_t)((gSaveContext.inventory.questItems & kOoTHeartPieceMask) >> kOoTHeartPieceShift);
+            const uint16_t capacity = gSaveContext.healthCapacity < 0 ? 0u : (uint16_t)gSaveContext.healthCapacity;
+            *out = Combo_MakeHealthQuarters(capacity, pieces);
+            return true;
+        }
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+            *out = gSaveContext.isDoubleDefenseAcquired ? 1u : 0u;
+            return true;
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
+            *out = !gSaveContext.isMagicAcquired ? 0u : (gSaveContext.isDoubleMagicAcquired ? 2u : 1u);
+            return true;
+        case RSBS_SHARED_RES_ARROW_COUNT:
+            *out = ammoOf(ITEM_BOW);
+            return true;
+        case RSBS_SHARED_RES_BOMB_COUNT:
+            *out = ammoOf(ITEM_BOMB);
+            return true;
+        case RSBS_SHARED_RES_BOMBCHU_COUNT:
+            *out = ammoOf(ITEM_BOMBCHU);
+            return true;
+        case RSBS_SHARED_RES_STICK_COUNT:
+            *out = ammoOf(ITEM_STICK);
+            return true;
+        case RSBS_SHARED_RES_NUT_COUNT:
+            *out = ammoOf(ITEM_NUT);
+            return true;
+        case RSBS_SHARED_RES_HOOKSHOT_TIER: {
+            const u8 held = INV_CONTENT(ITEM_HOOKSHOT);
+            *out = (held == ITEM_LONGSHOT) ? 2u : (held == ITEM_HOOKSHOT ? 1u : 0u);
+            return true;
+        }
+        default:
+            return false;
+    }
+}
+
+#undef gSaveContext
+
 } // namespace
 
 extern "C" void OoT_ItemAdapter_Register(void) {
     // SoH's main window grid (kComboItemSohGrid): the 66 rows flow six a line,
     // 11 lines, exactly DrawItemsInRows(mainWindowItems, 6).
     static const ComboItemOps kOps = {
-        OoTItemCount,  OoTItemRowAt,       OoTItemHasSave,    OoTItemLiveSave,
-        OoTItemPaused, &kComboItemSohGrid, OoTItemSharedIcon,
+        OoTItemCount,       OoTItemRowAt,      OoTItemHasSave, OoTItemLiveSave,   OoTItemPaused,
+        &kComboItemSohGrid, OoTItemSharedIcon, nullptr,        OoTItemSharedLive,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, &kOps);
 }
@@ -605,8 +751,10 @@ extern "C" void OoT_ItemAdapter_Register(void) {
  * a Red Potion in bottle 1, the Kokiri Sword, Zelda's Lullaby, the Forest
  * Medallion, 17 Gold Skulltula Tokens, 5 pieces of heart and an Adult's Wallet
  * holding 123 rupees, on a vanilla (not randomized) file. Variant 1, the "live"
- * world: the Hookshot and the Song of Time only. Returns 1, or 0 when `size`
- * cannot hold a SaveContext or `buf` is misaligned.
+ * world: the Hookshot and the Song of Time only. Variant 2, the "capacity
+ * tier" world (#967): the Fairy Bow (tier-1 quiver, 12 arrows), bombs (tier-2
+ * bag, 7), Deku Sticks (tier 1, 5), Deku Nuts (tier 3, 9) and the Kokiri Sword.
+ * Returns 1, or 0 when `size` cannot hold a SaveContext or `buf` is misaligned.
  */
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant) {
     if (buf == nullptr || size < sizeof(SaveContext) || !Aligned(buf)) {
@@ -634,6 +782,23 @@ extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int varian
             (1u << QUEST_SONG_LULLABY) | (1u << QUEST_MEDALLION_FOREST) | (1u << QUEST_SKULL_TOKEN);
         s->inventory.gsTokens = 17;
         s->ship.stats.heartPieces = 5;
+    } else if (variant == 2) {
+        // The capacity-tier world (#967): the Fairy Bow with a tier-1 quiver
+        // holding 12 arrows, bombs with a tier-2 bag holding 7, 5 Deku Sticks
+        // in a tier-1 bag, 9 Deku Nuts in a tier-3 bag, and the Kokiri Sword.
+        s->inventory.items[SLOT_BOW] = ITEM_BOW;
+        s->inventory.ammo[SLOT_BOW] = 12;
+        s->inventory.upgrades |= (1u << OoT_gUpgradeShifts[UPG_QUIVER]);
+        s->inventory.items[SLOT_BOMB] = ITEM_BOMB;
+        s->inventory.ammo[SLOT_BOMB] = 7;
+        s->inventory.upgrades |= (2u << OoT_gUpgradeShifts[UPG_BOMB_BAG]);
+        s->inventory.items[SLOT_STICK] = ITEM_STICK;
+        s->inventory.ammo[SLOT_STICK] = 5;
+        s->inventory.upgrades |= (1u << OoT_gUpgradeShifts[UPG_STICKS]);
+        s->inventory.items[SLOT_NUT] = ITEM_NUT;
+        s->inventory.ammo[SLOT_NUT] = 9;
+        s->inventory.upgrades |= (3u << OoT_gUpgradeShifts[UPG_NUTS]);
+        s->inventory.equipment |= (1 << 0); // Kokiri Sword
     } else {
         s->inventory.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
         s->inventory.questItems |= (1u << QUEST_SONG_TIME);

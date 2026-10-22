@@ -55,6 +55,16 @@
  *    being the child's wallet. No label is a caption (#927; the
  *    ComboItemTrackerWindow row's leg 9 holds every label function).
  *
+ * 5b. SHARED CAPACITY TIERS SHOW ONCE (#967). A world holding a Bow (tier-1
+ *    quiver), a tier-2 bomb bag, sticks, nuts and the Kokiri Sword (authoring
+ *    variant 2, both games) draws all five lit per game while the pool holds
+ *    none of them. With the pool at those tiers each game's five per-game copies
+ *    are dimmed (nothing held, no count) and nothing else changes; a copy ahead
+ *    of the pool stays lit; the Shared Arrows row draws the Bow at tier 1 (each
+ *    game's own art) and the quiver beyond; the Shared Kokiri Sword row exists
+ *    only while the frozen rule is on; and a live game's own tiers and counts
+ *    reach the Shared row before the next harvest.
+ *
  * 6. STATE PUT BACK. The OoT shadow goes back to the bytes this row inherited
  *    (asserted byte-equal; a shadow that was absent comes back all-zero, which
  *    reads as absent by the zero-means-no-data rule), the context, the active
@@ -71,6 +81,7 @@
 #include "../ComboTrackerWindow.h" // Combo_TrackerWindow_Init: the production registration
 #include "../combo_item_view.h"
 #include "../context.h"
+#include "../foreign_items.h" // RSBS_XITEM_SHARED_OCARINA_BUTTONS: the #1067 leg
 #include "../game.h"
 #include "../save.h" // rsbs::SaveManager, SlotMeta: the new-file row's slot-panel leg (#873)
 #include "../shared_resources.h"
@@ -87,6 +98,11 @@
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 // The MM-side twin (games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp), #458 U1b.
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
+// #1072: the variant-0 MM save with the file's frozen ocarina-button shuffle
+// option and the held button bits set (mode 0 off, 1 on in a randomizer file,
+// 2 on in a file that is not a randomizer file; heldMask bit i = the i-th
+// button of A, C-Down, C-Right, C-Left, C-Up).
+extern "C" int MM_ItemAdapter_TestAuthorOcarinaButtons(void* buf, size_t size, int mode, unsigned heldMask);
 // #873, the combo-item-view-new-file row: a save Ship of Harkinian's own init
 // path authors, copied into `buf`. Variant 0 is the player's new file
 // (Save_InitFile(false)), 1 the title screen's attract save, 2 that debug save
@@ -456,6 +472,108 @@ static int CivMMLegs(const ComboItemOps* ops, const ComboItemOps* ootOps) {
     return TEST_PASS;
 }
 
+/**
+ * #1072: MM's five shuffled ocarina buttons are rows of MM's section, shown only
+ * when the FILE's frozen RO_SHUFFLE_OCARINA_BUTTONS is on in a randomizer file,
+ * and held from the save's own button bits (the bits the VB_PLAY_OCARINA_NOTE
+ * gate reads, Player.cpp). Without the rows a player whose C-up is still
+ * missing sees a Sonata or a Song of Soaring that will not play and nothing
+ * that says why. The option is never read from the live CVar: it arrives in
+ * the buffer the view hands over.
+ */
+static int CivMMOcarinaButtonLegs(const ComboItemOps* ops) {
+    static const char* const kButtons[5] = { "A Button", "C Down Button", "C Right Button", "C Left Button",
+                                             "C Up Button" };
+    ComboItemRow row;
+    std::vector<uint8_t> buf((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+
+    Context_SetCurrentGame(GAME_OOT); // MM inactive: its shadow is what the view reads
+    const int baseRows = ops->count();
+
+    // Option on, every button but C-up held: five rows, C-up alone unowned.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 1, 0x0Fu) == 1);
+    CIV_ASSERT(ops->hasSave(buf.data()));
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, kButtons[i], &row));
+        printf("[TEST] combo-item-view: MM button row %s have=%d group=%s\n", kButtons[i], (int)row.have, row.group);
+        CIV_ASSERT(strcmp(row.group, "Ocarina Buttons") == 0);
+        CIV_ASSERT(row.have == (i != 4));
+        CIV_ASSERT(row.iconKey != NULL && row.iconKeyFaded != NULL); // MM's own icon
+    }
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == baseRows + 5);
+    for (int i = 0; i < Combo_ItemCount((uint8_t)GAME_MM); i++) {
+        CIV_ASSERT(Combo_ItemRowAt((uint8_t)GAME_MM, i, &row)); // contiguous: no hole the drawer stops at
+    }
+    CIV_ASSERT(!Combo_ItemRowAt((uint8_t)GAME_MM, baseRows + 5, &row));
+
+    // The same file once C-up is found: all five held.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 1, 0x1Fu) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "C Up Button", &row) && row.have);
+
+    // Nothing held yet: five unowned rows, still shown.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 1, 0u) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, kButtons[i], &row) && !row.have);
+    }
+
+    // The frozen option off: no button row, however many bits are set.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 0, 0x0Fu) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, kButtons[i], &row));
+    }
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == baseRows);
+
+    // The option byte alone is not the gate: a file that is not a randomizer
+    // file never ran the note gate, so it shows no buttons.
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 2, 0x0Fu) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, kButtons[i], &row));
+    }
+
+    // #1067: under the frozen Shared Ocarina Buttons rule the five buttons are
+    // ONE set for the pair: drawn once, in the Shared group (held from MM's own
+    // bits or the pool), and left out of MM's section.
+    {
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = 0x1067F00Du;
+        gComboCtx.sharedRandoSettingsHash = 0x1067CA5Eu;
+        gComboCtx.mmProfileDigest = 0x1067D16Eu;
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        ComboItemRulesRecord rules;
+        memset(&rules, 0, sizeof(rules));
+        rules.crossItemFlags = (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS;
+        Combo_FreezeComboSettingsEx(&rec, &rules);
+        Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 1); // a Shared group to draw in
+        CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 1, 0x0Fu) == 1);
+        Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+        CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == baseRows);
+        for (int i = 0; i < 5; i++) {
+            CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, kButtons[i], &row)); // not in MM's section
+            CIV_ASSERT(CivFindSharedRow(kButtons[i], &row));
+            printf("[TEST] combo-item-view: shared button row %s have=%d\n", kButtons[i], (int)row.have);
+            CIV_ASSERT(strcmp(row.group, COMBO_ITEM_SHARED_GROUP) == 0);
+            CIV_ASSERT(row.have == (i != 4));
+        }
+        for (int i = 0; i < Combo_ItemCount((uint8_t)GAME_MM); i++) {
+            CIV_ASSERT(Combo_ItemRowAt((uint8_t)GAME_MM, i, &row)); // contiguous after the walk-past
+        }
+        // The pool lights a button MM's own save does not hold yet (found in Hyrule).
+        Combo_SharedFamiliesHarvest(GAME_OOT, (uint32_t)RSBS_XFAMILY_SLOT_OCARINA_C_UP);
+        CIV_ASSERT(CivFindSharedRow("C Up Button", &row) && row.have);
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+    }
+    return TEST_PASS;
+}
+
 /** Leg 5: the Shared group, over a freshly initialized context. */
 static int CivSharedLegs(void) {
     ComboContext_Init();
@@ -546,6 +664,397 @@ static int CivSharedLegs(void) {
     return TEST_PASS;
 }
 
+/** Every row of `game` as the view hands it over, in order. */
+static void CivReadAll(uint8_t game, std::vector<ComboItemRow>& out) {
+    out.clear();
+    const int n = Combo_ItemCount(game);
+    for (int i = 0; i < n; i++) {
+        ComboItemRow row;
+        if (Combo_ItemRowAt(game, i, &row)) {
+            out.push_back(row);
+        }
+    }
+}
+
+/** Is `name` one of the NULL-terminated `names`? */
+static bool CivNameIn(const char* name, const char* const* names) {
+    for (; *names != NULL; names++) {
+        if (strcmp(name, *names) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * The rows `pooled` draws dimmed that `base` drew held (#967): the per-game
+ * copies of an item the Shared column now holds. Every such row is empty
+ * (nothing held, no count, no ceiling), and no other row may differ from `base`
+ * in `have`. Returns the number of dimmed rows, or -1 on a violation; the names
+ * of the dimmed rows go to `names` (at most `cap`).
+ */
+static int CivDimmedRows(const std::vector<ComboItemRow>& base, const std::vector<ComboItemRow>& pooled,
+                         const char** names, int cap) {
+    if (base.size() != pooled.size()) {
+        return -1;
+    }
+    int dimmed = 0;
+    for (size_t i = 0; i < base.size(); i++) {
+        if (strcmp(base[i].name, pooled[i].name) != 0) {
+            return -1;
+        }
+        if (base[i].have && !pooled[i].have) {
+            if (pooled[i].count != 0 || pooled[i].max != 0) {
+                return -1; // a dimmed copy prints no second count
+            }
+            if (dimmed < cap) {
+                names[dimmed] = pooled[i].name;
+            }
+            dimmed++;
+        } else if (base[i].have != pooled[i].have) {
+            return -1;
+        }
+    }
+    return dimmed;
+}
+
+/**
+ * Leg 5b (#967): a shared capacity tier shows once, in the Shared column, and
+ * the per-game copy of it is dimmed.
+ *
+ * The "capacity tier" world (authoring variant 2, both games): a Bow in a tier-1
+ * quiver holding 12 arrows, bombs in a tier-2 bag holding 7, 5 Deku Sticks in a
+ * tier-1 bag, 9 Deku Nuts in a tier-3 bag, and the Kokiri Sword. Without the pool
+ * holding those tiers, both games draw all five lit. With it (the pool at the
+ * same tiers), each game's five copies are dimmed and nothing else changes; a
+ * copy AHEAD of the pool stays lit (it is the only place the find shows); the
+ * Shared Arrows row draws the Bow at tier 1 and the quiver beyond; and a LIVE
+ * game's own tiers and counts reach the Shared row without waiting for the next
+ * harvest (the pool is written at a game switch or a save only).
+ */
+static int CivSharedTierLegs(const ComboItemOps* ootOps, const ComboItemOps* mmOps) {
+    ComboItemRow row;
+    ComboItemRow sharedRow;
+    std::vector<uint8_t> ootT((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> mmT((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorSave(ootT.data(), ootT.size(), 2) == 1);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(mmT.data(), mmT.size(), 2) == 1);
+    Context_UpdateShadowCopy(GAME_OOT, ootT.data(), ootT.size());
+    Context_UpdateShadowCopy(GAME_MM, mmT.data(), mmT.size());
+    Context_SetCurrentGame(GAME_NONE); // no live source: both games read their shadows
+
+    // ---- baseline: the pool holds rupees only ----------------------------------
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    ComboSettingsRecord rec;
+    Combo_ComboSettingsDefaults(&rec);
+    rec.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD;
+    Combo_FreezeComboSettings(&rec);
+    CIV_ASSERT(Combo_SharedResourceKindArmed(RSBS_SHARED_RES_KOKIRI_SWORD));
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99);
+    std::vector<ComboItemRow> ootBase, mmBase, ootPooled, mmPooled;
+    CivReadAll((uint8_t)GAME_OOT, ootBase);
+    CivReadAll((uint8_t)GAME_MM, mmBase);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Bow", &row) && row.have && row.count == 12 && row.max == 30);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Bombs", &row) && row.have && row.count == 7 && row.max == 30);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Deku Sticks", &row) && row.have && row.count == 5 && row.max == 10);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Deku Nuts", &row) && row.have && row.count == 9 && row.max == 40);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Kokiri Sword", &row) && row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row) && row.have && row.count == 12 && row.max == 30);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Kokiri Sword", &row) && row.have);
+    CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow) && !sharedRow.have);       // the pool holds no quiver yet
+    CIV_ASSERT(CivFindSharedRow("Kokiri Sword", &sharedRow) && !sharedRow.have); // the rule is on: the row is there
+
+    // ---- the pool at the same tiers: five copies per game dimmed -----------------
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 1);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_BOMB_BAG_TIER, 2);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_STICK_TIER, 1);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_NUT_TIER, 3);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_KOKIRI_SWORD, 1);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 12);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_BOMB_COUNT, 7);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_STICK_COUNT, 5);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_NUT_COUNT, 9);
+    CivReadAll((uint8_t)GAME_OOT, ootPooled);
+    CivReadAll((uint8_t)GAME_MM, mmPooled);
+    const char* dimmedNames[16] = { NULL };
+    static const char* const kOoTShared[] = { "Fairy Bow", "Bombs", "Deku Sticks", "Deku Nuts", "Kokiri Sword", NULL };
+    int dimmed = CivDimmedRows(ootBase, ootPooled, dimmedNames, 16);
+    printf("[TEST] combo-item-view: OoT copies dimmed with the pool at the world's tiers: %d (expected 5)\n", dimmed);
+    CIV_ASSERT(dimmed == 5);
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(CivNameIn(dimmedNames[i], kOoTShared));
+    }
+    dimmed = CivDimmedRows(mmBase, mmPooled, dimmedNames, 16);
+    printf("[TEST] combo-item-view: MM copies dimmed with the pool at the world's tiers: %d (expected 5)\n", dimmed);
+    CIV_ASSERT(dimmed == 5);
+    static const char* const kMMShared[] = { "Bow", "Kokiri Sword", NULL };
+    int mmNamed = 0;
+    for (int i = 0; i < 5; i++) {
+        mmNamed += CivNameIn(dimmedNames[i], kMMShared) ? 1 : 0;
+    }
+    CIV_ASSERT(mmNamed == 2); // the other three are MM's bombs, sticks and nuts, named by MM's own table
+
+    // The Shared column holds each once: the bow icon at quiver tier 1 (each
+    // game's own art), the bag tiers beyond, counts under them.
+    int sharedChecked = 0;
+    for (int i = 0; i < Combo_ItemSharedCount(); i++) {
+        CIV_ASSERT(Combo_ItemSharedRowAtWithIcons(i, (uint8_t)GAME_OOT, &sharedRow));
+        if (strcmp(sharedRow.name, "Arrows") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.count == 12 && sharedRow.max == 30);
+            CIV_ASSERT(sharedRow.iconKey != NULL &&
+                       strcmp(sharedRow.iconKey, "ITEM_BOW") == 0); // the Bow, not a quiver
+            sharedChecked++;
+        } else if (strcmp(sharedRow.name, "Bombs") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.count == 7 && sharedRow.max == 30);
+            CIV_ASSERT(sharedRow.iconKey != NULL && strcmp(sharedRow.iconKey, "ITEM_BOMB_BAG_30") == 0);
+            sharedChecked++;
+        } else if (strcmp(sharedRow.name, "Deku Sticks") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.count == 5 && sharedRow.max == 10);
+            sharedChecked++;
+        } else if (strcmp(sharedRow.name, "Deku Nuts") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.count == 9 && sharedRow.max == 40);
+            sharedChecked++;
+        } else if (strcmp(sharedRow.name, "Kokiri Sword") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.iconKey != NULL &&
+                       strcmp(sharedRow.iconKey, "ITEM_SWORD_KOKIRI") == 0);
+            sharedChecked++;
+        }
+    }
+    CIV_ASSERT(sharedChecked == 5);
+    // MM's own art: the Shared bow icon is the one MM's own Bow row draws.
+    const ComboItemRow* mmBowBase = NULL;
+    for (const ComboItemRow& b : mmBase) {
+        if (strcmp(b.name, "Bow") == 0) {
+            mmBowBase = &b;
+        }
+    }
+    CIV_ASSERT(mmBowBase != NULL && mmBowBase->iconKey != NULL);
+    for (int i = 0; i < Combo_ItemSharedCount(); i++) {
+        CIV_ASSERT(Combo_ItemSharedRowAtWithIcons(i, (uint8_t)GAME_MM, &sharedRow));
+        if (strcmp(sharedRow.name, "Arrows") == 0) {
+            CIV_ASSERT(sharedRow.iconKey != NULL && strcmp(sharedRow.iconKey, mmBowBase->iconKey) == 0);
+        }
+    }
+
+    // ---- a quiver at tier 2 is one Bow row, and both tier-1 copies are dimmed -----
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 2);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 33);
+    CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow));
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 33 && sharedRow.max == 40);
+    CIV_ASSERT(sharedRow.iconKey != NULL && strcmp(sharedRow.iconKey, "ITEM_QUIVER_40") == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Bow", &row) && !row.have && row.count == 0 && row.max == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row) && !row.have && row.count == 0 && row.max == 0);
+
+    // ---- a copy ahead of the pool stays lit --------------------------------------
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_NUT_TIER, 2); // behind the world's tier-3 nut bag
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Bow", &row) && row.have && row.count == 12 && row.max == 30);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row) && row.have && row.count == 12);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Deku Nuts", &row) && row.have && row.count == 9 && row.max == 40);
+
+    // ---- the rule off: no Shared Kokiri Sword row, the sword stays lit -------------
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_KOKIRI_SWORD, 1);
+    CIV_ASSERT(!CivFindSharedRow("Kokiri Sword", &sharedRow));
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Kokiri Sword", &row) && row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Kokiri Sword", &row) && row.have);
+
+    // ---- a live game's tiers and counts reach the Shared column at once -----------
+    static ComboItemOps sTierOoTOps;
+    static ComboItemOps sTierMMOps;
+    sTierOoTOps = *ootOps;
+    sTierOoTOps.liveSave = CivLiveSave;
+    sTierMMOps = *mmOps;
+    sTierMMOps.liveSave = CivMMLiveSave;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, &sTierOoTOps);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, &sTierMMOps);
+    for (GameId active : { GAME_OOT, GAME_MM }) {
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+        Combo_FreezeComboSettings(&rec);
+        Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99); // the pool holds nothing of the tiers
+        sCivLive = (active == GAME_OOT) ? ootT.data() : NULL;
+        sCivMMLive = (active == GAME_MM) ? mmT.data() : NULL;
+        Context_SetCurrentGame(active);
+        const uint8_t activeGame = (uint8_t)active;
+        CIV_ASSERT(Combo_ItemFreshness(activeGame) == COMBO_TRACKER_FRESH_LIVE);
+        CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow));
+        printf("[TEST] combo-item-view: live %s, empty pool: shared Arrows have=%d count=%d max=%d\n",
+               active == GAME_OOT ? "OoT" : "MM", (int)sharedRow.have, sharedRow.count, sharedRow.max);
+        CIV_ASSERT(sharedRow.have && sharedRow.count == 12 && sharedRow.max == 30);
+        CIV_ASSERT(CivFindSharedRow("Bombs", &sharedRow) && sharedRow.have && sharedRow.count == 7 &&
+                   sharedRow.max == 30);
+        CIV_ASSERT(CivFindSharedRow("Deku Sticks", &sharedRow) && sharedRow.have && sharedRow.count == 5 &&
+                   sharedRow.max == 10);
+        CIV_ASSERT(CivFindSharedRow("Deku Nuts", &sharedRow) && sharedRow.have && sharedRow.count == 9 &&
+                   sharedRow.max == 40);
+        if (active == GAME_OOT) {
+            CIV_ASSERT(CivFindSharedRow("Kokiri Sword", &sharedRow) && sharedRow.have);
+            CIV_ASSERT(CivFindRow(activeGame, "Fairy Bow", &row) && !row.have && row.count == 0);
+        } else {
+            CIV_ASSERT(CivFindRow(activeGame, "Bow", &row) && !row.have && row.count == 0);
+        }
+        // The inactive game, read from its shadow, is dimmed against the live tiers too.
+        const uint8_t other = (active == GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+        CIV_ASSERT(CivFindRow(other, other == (uint8_t)GAME_MM ? "Bow" : "Fairy Bow", &row) && !row.have);
+    }
+    sCivLive = NULL;
+    sCivMMLive = NULL;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, ootOps);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps);
+    printf("[TEST] combo-item-view: shared capacity tiers shown once, per-game copies dimmed PASS (#967)\n");
+    return TEST_PASS;
+}
+
+// ---- the Shared column follows the active game's live save (#971) -------------
+
+/** The pool's value for `kind`, 0 when nothing was ever written. Read-only. */
+static uint16_t CivPoolValue(uint8_t kind) {
+    uint16_t v = 0;
+    return Combo_GetSharedResource(kind, &v) ? v : 0;
+}
+
+/** A pool holding `rupees` and nothing else, the way a departing game's harvest leaves it. */
+static void CivFreshPool(uint16_t rupees) {
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, rupees);
+}
+
+/**
+ * The Shared column over the ACTIVE game's live save, with no harvest: a hookshot or
+ * a wallet found since the last save or crossing shows at once, the monotonic tiers
+ * never fall below the pool, a consumable count is the live game's own, and the
+ * pool is never written by a draw. The inactive game keeps its snapshot.
+ */
+static int CivSharedLiveLegs(const ComboItemOps* ootOps, const ComboItemOps* mmOps) {
+    ComboItemRow row;
+    ComboItemRow sharedRow;
+    std::vector<uint8_t> ootV0((size_t)OOT_SAVE_CONTEXT_SIZE, 0); // Longshot, Adult's Wallet, 123 rupees, tier-2 quiver
+    std::vector<uint8_t> ootV2((size_t)OOT_SAVE_CONTEXT_SIZE, 0); // the shadow: no hookshot
+    std::vector<uint8_t> mmV0((size_t)MM_SAVE_CONTEXT_SIZE, 0);   // Adult's Wallet, 150 rupees, magic
+    std::vector<uint8_t> mmV1((size_t)MM_SAVE_CONTEXT_SIZE, 0);   // the Hookshot
+    std::vector<uint8_t> mmV2((size_t)MM_SAVE_CONTEXT_SIZE, 0);   // the shadow: no hookshot
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorSave(ootV0.data(), ootV0.size(), 0) == 1);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorSave(ootV2.data(), ootV2.size(), 2) == 1);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(mmV0.data(), mmV0.size(), 0) == 1);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(mmV1.data(), mmV1.size(), 1) == 1);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(mmV2.data(), mmV2.size(), 2) == 1);
+    Context_UpdateShadowCopy(GAME_OOT, ootV2.data(), ootV2.size());
+    Context_UpdateShadowCopy(GAME_MM, mmV2.data(), mmV2.size());
+
+    static ComboItemOps sLiveOoTOps;
+    static ComboItemOps sLiveMMOps;
+    sLiveOoTOps = *ootOps;
+    sLiveOoTOps.liveSave = CivLiveSave;
+    sLiveMMOps = *mmOps;
+    sLiveMMOps.liveSave = CivMMLiveSave;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, &sLiveOoTOps);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, &sLiveMMOps);
+
+    // ---- OoT played live, the pool holding 99 rupees and nothing else ---------------
+    CivFreshPool(99);
+    sCivLive = ootV0.data();
+    sCivMMLive = NULL;
+    Context_SetCurrentGame(GAME_OOT);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_LIVE);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_HOOKSHOT_TIER) == 0);
+    CIV_ASSERT(CivFindSharedRow("Hookshot", &sharedRow));
+    printf("[TEST] combo-item-view: OoT live Longshot, pool 0: shared Hookshot have=%d count=%d max=%d\n",
+           (int)sharedRow.have, sharedRow.count, sharedRow.max);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 2 && sharedRow.max == 2);
+    // The draw wrote nothing: no harvest ran, so the pool still holds only the rupees.
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_HOOKSHOT_TIER) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_WALLET_TIER) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_HEALTH_QUARTERS) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_RUPEES) == 99);
+
+    // A wallet and the hearts the live save holds (three whole hearts).
+    CIV_ASSERT(CivFindSharedRow("Wallet", &sharedRow));
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 1 && sharedRow.max == 3);
+    CIV_ASSERT(CivFindSharedRow("Hearts", &sharedRow));
+    printf("[TEST] combo-item-view: OoT live, pool 0: shared Hearts count=%d\n", sharedRow.count);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 3);
+
+    // The rupees are the live game's, below or above the pool's.
+    CIV_ASSERT(CivFindSharedRow("Rupees", &sharedRow));
+    printf("[TEST] combo-item-view: OoT live 123 rupees, pool 99: shared Rupees count=%d\n", sharedRow.count);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 123);
+    CivFreshPool(250);
+    CIV_ASSERT(CivFindSharedRow("Rupees", &sharedRow));
+    printf("[TEST] combo-item-view: OoT live 123 rupees, pool 250: shared Rupees count=%d\n", sharedRow.count);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 123);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_RUPEES) == 250);
+
+    // A monotonic tier never falls below the pool: 16 hearts pooled, 3 live.
+    CivFreshPool(99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x100, 0));
+    CIV_ASSERT(CivFindSharedRow("Hearts", &sharedRow) && sharedRow.have && sharedRow.count == 16);
+
+    // The ammo: the live quiver (tier 2, 35 arrows) is ahead of a tier-1 pool, so
+    // its count shows; a live quiver behind the pool leaves the pool's.
+    CivFreshPool(99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 1);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 10);
+    CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow));
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 35 && sharedRow.max == 40);
+    CivFreshPool(99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 3);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 50);
+    CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow));
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 50 && sharedRow.max == 50);
+
+    // The inactive game keeps its snapshot: MM's own Hookshot (its shadow holds none) stays dark.
+    CIV_ASSERT(!(CivFindRow((uint8_t)GAME_MM, "Hookshot", &row) && row.have));
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_STALE);
+
+    // No live source (a title screen, file select): the column is the pool alone.
+    CivFreshPool(250);
+    sCivLive = NULL;
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindSharedRow("Hookshot", &sharedRow) && !sharedRow.have && sharedRow.count == 0);
+    CIV_ASSERT(CivFindSharedRow("Rupees", &sharedRow) && sharedRow.count == 250);
+
+    // ---- MM played live ---------------------------------------------------------------
+    CivFreshPool(99);
+    sCivLive = NULL;
+    sCivMMLive = mmV1.data();
+    Context_SetCurrentGame(GAME_MM);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_LIVE);
+    CIV_ASSERT(CivFindSharedRow("Hookshot", &sharedRow));
+    printf("[TEST] combo-item-view: MM live Hookshot, pool 0: shared Hookshot have=%d count=%d\n", (int)sharedRow.have,
+           sharedRow.count);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 1);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_HOOKSHOT_TIER) == 0);
+    // MM tops out at a hookshot: a Longshot the pool holds stays.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, 2);
+    CIV_ASSERT(CivFindSharedRow("Hookshot", &sharedRow) && sharedRow.have && sharedRow.count == 2);
+
+    CivFreshPool(99);
+    sCivMMLive = mmV0.data();
+    CIV_ASSERT(CivFindSharedRow("Rupees", &sharedRow) && sharedRow.count == 150);
+    CIV_ASSERT(CivFindSharedRow("Wallet", &sharedRow) && sharedRow.have && sharedRow.count == 1);
+    CIV_ASSERT(CivFindSharedRow("Magic", &sharedRow) && sharedRow.have && sharedRow.count == 1);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_MAGIC_LEVEL) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_WALLET_TIER) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_RUPEES) == 99);
+
+    sCivLive = NULL;
+    sCivMMLive = NULL;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, ootOps);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps);
+    printf("[TEST] combo-item-view: the Shared column follows the active game's live save, the pool untouched PASS "
+           "(#971)\n");
+    return TEST_PASS;
+}
+
 extern "C" int Combo_ItemView_RunHeadless(void) {
     printf("[TEST] combo-item-view: per-game item adapters over live/shadow buffers, the shared group (#458 U1)\n");
 
@@ -631,8 +1140,26 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
             break;
         }
 
+        // ---- 2 for MM's ocarina buttons (#1072) --------------------------------
+        if (CivMMOcarinaButtonLegs(mmOps) != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
         // ---- 5. the Shared group -----------------------------------------
         if (CivSharedLegs() != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 5b. the shared capacity tiers, once (#967) -----------------------
+        if (CivSharedTierLegs(ops, mmOps) != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 5c. the Shared column follows the active game's live save (#971) --
+        if (CivSharedLiveLegs(ops, mmOps) != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }

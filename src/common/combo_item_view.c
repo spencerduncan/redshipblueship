@@ -13,6 +13,7 @@
 #include "combo_item_view.h"
 
 #include "context.h"          // Context_GetCurrentGame, Context_Get{OoT,MM}SaveContext
+#include "foreign_items.h"    // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: the shared families the Shared group draws
 #include "shared_resources.h" // Combo_GetSharedResource, Combo_SharedResourceKindArmed
 
 #include <stdio.h>
@@ -133,10 +134,203 @@ uint8_t Combo_ItemFreshness(uint8_t game) {
     return freshness;
 }
 
+/** The rows `src` shows: the adapter's per-save count when it has one (#1072), never below count(). */
+static int ItemRowCount(const ComboItemOps* ops, const void* src) {
+    const int base = ops->count();
+    if (ops->countFor == NULL) {
+        return base;
+    }
+    const int rows = ops->countFor(src);
+    return (rows > base) ? rows : base;
+}
+
+// ============================================================================
+// Shared capacity tiers (#967)
+// ============================================================================
+
+/** The pool's value for `kind`, 0 when the kind has never been shared. */
+static uint16_t SharedValue(uint8_t kind) {
+    uint16_t v = 0;
+    return Combo_GetSharedResource(kind, &v) ? v : 0;
+}
+
+/**
+ * The ACTIVE game's LIVE reading of shared kind `kind` (#971), or false: through
+ * ComboItemOps::sharedLive over the buffer PickSource calls LIVE. A read only, and
+ * never of the inactive game: its snapshot is the pool until it applies it.
+ */
+static bool LiveSharedRead(uint8_t kind, uint16_t* out) {
+    const GameId active = Context_GetCurrentGame();
+    if (active != GAME_OOT && active != GAME_MM) {
+        return false;
+    }
+    const ComboItemOps* ops = NULL;
+    uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
+    const void* src = PickSource((uint8_t)active, &ops, &freshness);
+    if (src == NULL || freshness != COMBO_TRACKER_FRESH_LIVE || ops->sharedLive == NULL) {
+        return false;
+    }
+    return ops->sharedLive(src, kind, out);
+}
+
+/** A quantity the player spends (shared_resources.h CONSUMABLE): the live game's value is the truth. */
+static bool SharedKindConsumable(uint8_t kind) {
+    switch (kind) {
+        case RSBS_SHARED_RES_RUPEES:
+        case RSBS_SHARED_RES_ARROW_COUNT:
+        case RSBS_SHARED_RES_BOMB_COUNT:
+        case RSBS_SHARED_RES_BOMBCHU_COUNT:
+        case RSBS_SHARED_RES_STICK_COUNT:
+        case RSBS_SHARED_RES_NUT_COUNT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+/**
+ * What the Shared column shows for `kind` (#971): the pool's value, brought up to
+ * the active game's live reading when that is ahead for a MONOTONIC kind (the
+ * hookshot, the wallet, magic, double defense, hearts: a capacity that only
+ * grows, so a live save behind the pool never lowers it), and replaced by it for
+ * a CONSUMABLE count. The pool itself is not written.
+ */
+static uint16_t SharedColumnValue(uint8_t kind) {
+    const uint16_t pool = SharedValue(kind);
+    uint16_t live = 0;
+    if (!LiveSharedRead(kind, &live)) {
+        return pool;
+    }
+    if (SharedKindConsumable(kind)) {
+        return live;
+    }
+    return (live > pool) ? live : pool;
+}
+
+/**
+ * The ACTIVE game's own copy of shared tier `kind`: the row of its LIVE save that
+ * names `kind` (ComboItemRow::sharedKind). The pool is written at a game switch
+ * or a save only, so a find made since is in the live save and nowhere else.
+ * False when no game is active, the active game's rows are not LIVE, or none of
+ * its rows names `kind`. Reads the adapter's raw rows, never the dimmed ones.
+ */
+static bool LiveCopyOf(uint8_t kind, uint16_t* outTier, int* outCount) {
+    const GameId active = Context_GetCurrentGame();
+    if (active != GAME_OOT && active != GAME_MM) {
+        return false;
+    }
+    const ComboItemOps* ops = NULL;
+    uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
+    const void* src = PickSource((uint8_t)active, &ops, &freshness);
+    if (src == NULL || freshness != COMBO_TRACKER_FRESH_LIVE) {
+        return false;
+    }
+    const int rows = ItemRowCount(ops, src);
+    for (int i = 0; i < rows; i++) {
+        ComboItemRow row;
+        memset(&row, 0, sizeof(row));
+        if (ops->rowAt(src, i, &row) && row.sharedKind == kind) {
+            *outTier = row.sharedTier;
+            *outCount = row.count;
+            return true;
+        }
+    }
+    return false;
+}
+
+/** The tier the Shared column shows for `kind` (see ReadSharedTier). */
+typedef struct {
+    uint16_t tier;
+    bool live;     // the active game's live copy supplied it (it is at least the pool's)
+    int liveCount; // that copy's ammo count, when `live`
+} SharedTierRead;
+
+/**
+ * `kind`'s tier as the Shared column shows it: the pool's, raised to the active
+ * game's live copy when that is at least the pool's. A live save behind the pool
+ * (a game that has not yet received it) never lowers it.
+ */
+static SharedTierRead ReadSharedTier(uint8_t kind) {
+    SharedTierRead read = { SharedValue(kind), false, 0 };
+    uint16_t liveTier = 0;
+    int liveCount = 0;
+    if (LiveCopyOf(kind, &liveTier, &liveCount) && liveTier >= read.tier) {
+        read.tier = liveTier;
+        read.live = true;
+        read.liveCount = liveCount;
+    }
+    return read;
+}
+
+/**
+ * Dim a per-game copy of a shared tier once the Shared column holds that tier
+ * (at least as high as this save's): nothing held, no count, so the item reads as
+ * held once. A copy ahead of the pool stays lit.
+ */
+static void DimSharedCopy(ComboItemRow* row) {
+    if (row->sharedKind == (uint8_t)RSBS_SHARED_RES_NONE ||
+        Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE ||
+        !Combo_SharedResourceKindArmed(row->sharedKind)) {
+        return;
+    }
+    const SharedTierRead read = ReadSharedTier(row->sharedKind);
+    if (read.tier == 0 || read.tier < row->sharedTier) {
+        return;
+    }
+    row->have = false;
+    row->count = 0;
+    row->max = 0;
+}
+
+/**
+ * The shared families the Shared group draws instead of the games' own rows
+ * (#1065, #1067): every family slot the frozen rules arm, while the Shared group is
+ * shown at all. Before the pool's first harvest there is no Shared group, so
+ * each game keeps its own row and the item is never drawn nowhere.
+ */
+static uint32_t SharedFamiliesDrawnShared(void) {
+    return (Combo_ItemSharedFreshness() != COMBO_TRACKER_FRESH_UNAVAILABLE) ? Combo_SharedFamiliesArmed() : 0u;
+}
+
+/** Is adapter row `index` of `src` a game's own copy of a family in `drawnShared`? */
+static bool RowLeftOut(const ComboItemOps* ops, const void* src, int index, uint32_t drawnShared) {
+    ComboItemRow row;
+    memset(&row, 0, sizeof(row));
+    return ops->rowAt(src, index, &row) && (row.sharedFamily & drawnShared) != 0u;
+}
+
+/** The adapter index of the `index`-th row the view shows for `src`, or -1. */
+static int AdapterIndexOf(const ComboItemOps* ops, const void* src, int index) {
+    const int n = ItemRowCount(ops, src);
+    const uint32_t drawnShared = SharedFamiliesDrawnShared();
+    if (drawnShared == 0u) {
+        return (index < n) ? index : -1; // every rule off: the adapter's rows exactly
+    }
+    int seen = 0;
+    for (int i = 0; i < n; i++) {
+        if (!RowLeftOut(ops, src, i, drawnShared) && seen++ == index) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int Combo_ItemCount(uint8_t game) {
     const ComboItemOps* ops = NULL;
     const void* src = PickSource(game, &ops, NULL);
-    return (src != NULL) ? ops->count() : 0;
+    if (src == NULL) {
+        return 0;
+    }
+    const int n = ItemRowCount(ops, src);
+    const uint32_t drawnShared = SharedFamiliesDrawnShared();
+    if (drawnShared == 0u) {
+        return n;
+    }
+    int shown = 0;
+    for (int i = 0; i < n; i++) {
+        shown += RowLeftOut(ops, src, i, drawnShared) ? 0 : 1;
+    }
+    return shown;
 }
 
 bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
@@ -146,15 +340,19 @@ bool Combo_ItemRowAt(uint8_t game, int index, ComboItemRow* out) {
     const ComboItemOps* ops = NULL;
     uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
     const void* src = PickSource(game, &ops, &freshness);
-    if (src == NULL || index >= ops->count()) {
+    // `index` counts the rows Combo_ItemCount counts: a family the Shared group
+    // draws is walked past.
+    const int adapterIndex = (src != NULL) ? AdapterIndexOf(ops, src, index) : -1;
+    if (adapterIndex < 0) {
         return false;
     }
     ComboItemRow row;
     memset(&row, 0, sizeof(row));
-    if (!ops->rowAt(src, index, &row) || row.group == NULL || row.name == NULL) {
+    if (!ops->rowAt(src, adapterIndex, &row) || row.group == NULL || row.name == NULL) {
         return false; // an adapter must not hand out a row the drawer cannot label
     }
     row.freshness = freshness; // the view's call, never the adapter's
+    DimSharedCopy(&row);       // a shared tier shows once, in the Shared column (#967)
     *out = row;
     return true;
 }
@@ -233,6 +431,14 @@ static const SharedRowDef kSharedRows[] = {
     { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false, false },
     { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false, false },
     { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    // The shared Kokiri Sword (#886): a row only in a world whose frozen record
+    // turns the rule on (Combo_SharedResourceKindArmed). One item, so it draws
+    // as the sword itself with no number.
+    { "Kokiri Sword", RSBS_SHARED_RES_KOKIRI_SWORD, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, true },
+    // #970: how many bottles the pair holds, up to OoT's four; a row only in a
+    // world whose frozen Shared Bottles rule shares the count. What each bottle
+    // holds is each game's own, so the per-game bottle rows stay.
+    { "Bottles", RSBS_SHARED_RES_BOTTLE_COUNT, RSBS_SHARED_RES_NONE, NULL, 4, 1, false, false },
     // No "Ocarina" row: #879 retired the Shared Ocarina rule, and the kind is
     // never armed.
     { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
@@ -241,11 +447,6 @@ static const SharedRowDef kSharedRows[] = {
 
 // The current and magic meters are left out on purpose: the HUD shows them, and
 // they move every frame the pool cannot see.
-
-static uint16_t SharedValue(uint8_t kind) {
-    uint16_t v = 0;
-    return Combo_GetSharedResource(kind, &v) ? v : 0;
-}
 
 static bool SharedRowShown(const SharedRowDef* def) {
     // A conditional kind (the triforce pieces) is a row only in a world that
@@ -278,10 +479,39 @@ const char* Combo_ItemSharedLabel(void) {
     return "";
 }
 
-int Combo_ItemSharedCount(void) {
-    if (Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE) {
-        return 0; // "nothing shared yet", not a row of zeroes
-    }
+// ---- the shared families (#976's OR discipline; #1065, #1067 on) -------------
+
+/** One shared family the Shared group can draw, after the resource rows. Its
+ *  icon is the icon game's own row for it (the adapter row whose sharedFamily
+ *  is this slot), so no adapter grows a second icon table. */
+typedef struct {
+    uint32_t family; // the family slot (an RSBS_XITEM_* family bit or an RSBS_XFAMILY_SLOT_*)
+    const char* name;
+} SharedFamilyRowDef;
+
+static const SharedFamilyRowDef kSharedFamilyRows[] = {
+    { RSBS_XITEM_SHARED_LENS, "Lens of Truth" },         // #1065
+    { RSBS_XITEM_SHARED_SONG_EPONA, "Epona's Song" },    // #1066
+    { RSBS_XITEM_SHARED_SONG_STORMS, "Song of Storms" }, // #1066
+    { RSBS_XITEM_SHARED_SONG_TIME, "Song of Time" },     // #1069
+    // #1067: the five ocarina buttons, in MM's tracker order.
+    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, "A Button" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, "C Down Button" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, "C Right Button" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, "C Left Button" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_UP, "C Up Button" },
+    { RSBS_XITEM_SHARED_ARROW_FIRE, "Fire Arrows" },   // #968
+    { RSBS_XITEM_SHARED_ARROW_ICE, "Ice Arrows" },     // #968
+    { RSBS_XITEM_SHARED_ARROW_LIGHT, "Light Arrows" }, // #968
+    { RSBS_XITEM_SHARED_GORON, "Goron Mask" },         // #978
+    { RSBS_XITEM_SHARED_ZORA, "Zora Mask" },           // #978
+    { RSBS_XITEM_SHARED_BUNNY, "Bunny Hood" },         // #978
+    { RSBS_XITEM_SHARED_KEATON, "Keaton Mask" },       // #978
+    { RSBS_XITEM_SHARED_TRUTH, "Mask of Truth" },      // #978
+};
+#define SHARED_FAMILY_ROW_DEF_COUNT ((int)(sizeof(kSharedFamilyRows) / sizeof(kSharedFamilyRows[0])))
+
+static int SharedResourceRowCount(void) {
     int n = 0;
     for (int i = 0; i < SHARED_ROW_DEF_COUNT; i++) {
         if (SharedRowShown(&kSharedRows[i])) {
@@ -289,6 +519,94 @@ int Combo_ItemSharedCount(void) {
         }
     }
     return n;
+}
+
+/** `game`'s own row for `family`, read from the source the view picks for it
+ *  (live or shadow). False when the game has no data or no such row. */
+static bool FamilyRowOf(uint8_t game, uint32_t family, ComboItemRow* out) {
+    const ComboItemOps* ops = NULL;
+    const void* src = PickSource(game, &ops, NULL);
+    if (src == NULL) {
+        return false;
+    }
+    const int n = ItemRowCount(ops, src);
+    for (int i = 0; i < n; i++) {
+        memset(out, 0, sizeof(*out));
+        if (ops->rowAt(src, i, out) && (out->sharedFamily & family) != 0u) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** Is family row `def` drawn? Its slot is armed and at least one game has a row
+ *  for it (a button has rows only in a game that shuffles it: with a row in
+ *  neither game there is nothing to show, not a missing button). */
+static bool SharedFamilyRowShown(const SharedFamilyRowDef* def) {
+    if ((Combo_SharedFamiliesArmed() & def->family) == 0u) {
+        return false;
+    }
+    ComboItemRow own;
+    return FamilyRowOf((uint8_t)GAME_OOT, def->family, &own) || FamilyRowOf((uint8_t)GAME_MM, def->family, &own);
+}
+
+/** The `index`-th family row shown, or NULL. */
+static const SharedFamilyRowDef* SharedFamilyDefAt(int index) {
+    int seen = 0;
+    for (int i = 0; i < SHARED_FAMILY_ROW_DEF_COUNT; i++) {
+        if (SharedFamilyRowShown(&kSharedFamilyRows[i]) && seen++ == index) {
+            return &kSharedFamilyRows[i];
+        }
+    }
+    return NULL;
+}
+
+int Combo_ItemSharedCount(void) {
+    if (Combo_ItemSharedFreshness() == COMBO_TRACKER_FRESH_UNAVAILABLE) {
+        return 0; // "nothing shared yet", not a row of zeroes
+    }
+    int n = SharedResourceRowCount();
+    if (Combo_SharedFamiliesArmed() != 0u) {
+        for (int i = 0; i < SHARED_FAMILY_ROW_DEF_COUNT; i++) {
+            n += SharedFamilyRowShown(&kSharedFamilyRows[i]) ? 1 : 0;
+        }
+    }
+    return n;
+}
+
+/** Fill `out` with family row `familyIndex`: held when the pool holds it or
+ *  either game's own copy does (the pool only advances at a crossing or a save,
+ *  so a button found this stint lights at once); its icon is `iconGame`'s own
+ *  row's, and the row is text when that game has none. */
+static bool SharedFamilyRowAt(int familyIndex, uint8_t iconGame, ComboItemRow* out) {
+    const SharedFamilyRowDef* def = SharedFamilyDefAt(familyIndex);
+    if (def == NULL) {
+        return false;
+    }
+    bool have = (Combo_SharedFamiliesOwned() & def->family) != 0u;
+    ComboItemRow own;
+    for (uint8_t g = (uint8_t)GAME_OOT; g <= (uint8_t)GAME_MM; g++) {
+        if (FamilyRowOf(g, def->family, &own) && own.have) {
+            have = true;
+        }
+    }
+    memset(out, 0, sizeof(*out));
+    // OoT's tracker has one child-trade row, not a row per mask (#978), so a
+    // family with no row in the icon game takes the other game's icon.
+    const uint8_t otherGame = (iconGame == (uint8_t)GAME_MM) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
+    if (FamilyRowOf(iconGame, def->family, &own) || FamilyRowOf(otherGame, def->family, &own)) {
+        out->iconKey = own.iconKey;
+        out->iconKeyFaded = own.iconKeyFaded;
+        out->iconAspect = own.iconAspect;
+        out->fadedAlpha = own.fadedAlpha;
+        out->iconTint = own.iconTint;
+    }
+    out->group = COMBO_ITEM_SHARED_GROUP;
+    out->name = def->name;
+    out->have = have;
+    out->sharedFamily = def->family;
+    out->freshness = COMBO_TRACKER_FRESH_STALE;
+    return true;
 }
 
 bool Combo_ItemSharedRowAt(int index, ComboItemRow* out) {
@@ -303,24 +621,43 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
     }
     const SharedRowDef* def = SharedDefAt(index);
     if (def == NULL) {
-        return false;
+        // Past the resource rows: the shared families the frozen rules arm.
+        return SharedFamilyRowAt(index - SharedResourceRowCount(), iconGame, out);
     }
     memset(out, 0, sizeof(*out));
     out->group = COMBO_ITEM_SHARED_GROUP;
     out->name = def->name;
     out->iconKey = NULL; // the icon game's own, below; NULL draws the row as text
     out->iconKeyFaded = NULL;
-    out->count = (int)(SharedValue(def->countKind) / def->unitsPerCount);
+    // An ammo count is bounded by its capacity tier, so it follows the live game only
+    // below, where the tier is read; every other kind is live here (#971).
+    out->count = (int)(((def->tierKind != RSBS_SHARED_RES_NONE) ? SharedValue(def->countKind)
+                                                                : SharedColumnValue(def->countKind)) /
+                       def->unitsPerCount);
     uint16_t iconTier = (uint16_t)out->count;
     if (def->tierKind != RSBS_SHARED_RES_NONE) {
-        uint16_t tier = SharedValue(def->tierKind);
+        // The tier and the ammo of the active game's live copy when it is at
+        // least the pool's: the pool is written at a switch or a save, so a
+        // bow found since is in the live save only (#967).
+        const SharedTierRead read = ReadSharedTier(def->tierKind);
+        uint16_t tier = read.tier;
         if (tier > 3) {
             tier = 3;
+        }
+        if (read.live) {
+            // The live game's own count (#971), the copy's row count when the
+            // adapter has no live reading of the kind.
+            uint16_t liveAmmo = 0;
+            out->count = LiveSharedRead(def->countKind, &liveAmmo) ? (int)liveAmmo : read.liveCount;
         }
         out->have = tier > 0;
         out->max = (int)def->tierCaps[tier];
         iconTier = tier;
     } else {
+        if (def->countKind == (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD) {
+            out->count = (int)ReadSharedTier(def->countKind).tier;
+            iconTier = (uint16_t)out->count;
+        }
         out->have = def->heldAtZero || out->count > 0;
         out->max = (int)def->fixedMax;
     }

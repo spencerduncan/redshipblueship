@@ -23,6 +23,7 @@
 #include <cstddef>     // offsetof for the #395 layout facts; ptrdiff_t
 #include <type_traits> // std::is_same_v for the #470 payload-divergence premise
 #include <cctype>
+#include <chrono> // int-crossing-refused-mm's stage clock (#954)
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -91,6 +92,7 @@
 #include "2s2h/resource/type/2shResourceType.h"
 #include "2s2h/resource/importer/PathFactory.h"
 #include "2s2h/resource/importer/TextMMFactory.h"
+#include "2s2h/resource/type/TextMM.h" // #981: the cache-owner row's staff text type check
 #include "2s2h/resource/importer/TextureAnimationFactory.h"
 #include "2s2h/resource/importer/KeyFrameFactory.h"
 #include "2s2h/resource/importer/SceneFactory.h"
@@ -116,6 +118,11 @@ extern "C" {
 #include "system_heap.h"
 #include "z64thread.h"
 #include "global.h"
+// int-crossing-refused-mm's boot (#954): the console logo it recognizes, and
+// MM's map-select load it enters Play through.
+#include "overlays/gamestates/ovl_title/z_title.h"
+#include "overlays/gamestates/ovl_select/z_select.h"
+#include "message_data_static.h" // #981: MessageTableEntry, for the credits table accessor
 }
 
 // External declarations from main.c
@@ -207,6 +214,47 @@ extern "C" {
 int ArchiveHotswap_RecordArrival(void);
 int ArchiveHotswap_RssExceeded(void);
 int ArchiveHotswap_TargetArrivals(void);
+// #981 resource cache owner checks (src/common/tests/test_resource_cache_owner.c).
+int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, int limbCount, char* msg, size_t cap);
+void ResourceCacheOwner_SetMMLegPassed(void);
+int ResourceCacheOwner_PatchProbeMM(char* msg, size_t cap);                     // #1040 R2
+int ResourceCacheOwner_CheckBootOwner(const char* when, char* msg, size_t cap); // #1040 R3
+// OoT's port layer defines the one ResourceMgr_LoadSkeletonByName both games call.
+SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
+// MM's staff roll table (z_message.c), built by MM_OTRMessage_Init.
+extern MessageTableEntry* sMessageTableCredits;
+}
+
+// #981: MM's own copies of two paths OoT's archive also carries. OoT's would
+// be a 37-limb skeleton (MM's joint tables hold 16) and a SOH::Text, whose
+// 40-byte entries MM_OTRMessage_Init reads as 56-byte S2H::TextMM ones.
+static const char* const kRcoOctorokSkel = "objects/object_okuta/gOctorokSkel";
+
+static bool RcoMMCheck(char* msg, size_t cap) {
+    SkeletonHeader* skel = ResourceMgr_LoadSkeletonByName(kRcoOctorokSkel, NULL);
+    auto text = std::dynamic_pointer_cast<S2H::TextMM>(Ship::Context::GetInstance()->GetResourceManager()->LoadResource(
+        "text/staff_message_data_static/staff_message_data_static"));
+    const int limbs = skel != NULL ? skel->limbCount : -1;
+    const int creditsId = sMessageTableCredits != NULL ? sMessageTableCredits[0].textId : -1;
+    std::string fail;
+    if (limbs != 15) {
+        fail += "gOctorokSkel has " + std::to_string(limbs) + " limbs, expected MM's 15; ";
+    }
+    if (text == nullptr) {
+        fail += "the staff text is not an S2H::TextMM; ";
+    }
+    if (creditsId < 0x4E20) {
+        char line[96];
+        snprintf(line, sizeof(line), "the credits table's first textId is 0x%X, expected MM's >= 0x4E20; ", creditsId);
+        fail += line;
+    }
+    if (!fail.empty()) {
+        snprintf(msg, cap, "MM on arrival: %s", fail.c_str());
+        return false;
+    }
+    snprintf(msg, cap, "MM on arrival: gOctorokSkel %p with 15 limbs, staff text %p is an S2H::TextMM, credits at 0x%X",
+             (void*)skel, (void*)text.get(), creditsId);
+    return true;
 }
 
 // Shared single-exe bring-up (issues #329/#330). Defined in OoT's port layer
@@ -513,6 +561,522 @@ static void MM_IntegrationWatchdogDescribe(char* out, size_t cap) {
              (unsigned)gSaveContext.save.entrance, (void*)MM_gPlayState);
 }
 
+// ============================================================================
+// int-crossing-refused-mm (#954): a refused crossing leaves MM running
+// ============================================================================
+//
+// MM's twin of OoT's int-crossing-refused (games/oot/soh/GameExports_SingleExe.cpp).
+// The row's script (CMake/CheckCrossingRefused.cmake) sets oot.o2r aside and
+// MM boots first, so no switch into Ocarina of Time can go ahead. Both legs
+// start from live gameplay outside the Clock Tower:
+//
+//   0. THE BOOT. An unattended MM boot settles into the title demo, and its file
+//      select needs a Start press. So on the console logo's first frame the
+//      driver loads MM's debug save at South Clock Town (0xD800), the way MM's
+//      map select loads it, and Play starts outside the Clock Tower.
+//   1. THE DOOR. The production door transition into 0xC010 (the round trip's
+//      GP_PHASE_MM_PLAY trio): z_play.c's TRANS_MODE_SETUP runs
+//      Combo_CheckEntranceSwitch, which must refuse the crossing while MM is
+//      still in its frame loop and hand back 0xD800, which z_play.c loads. The
+//      scene then reloads at 0xD800 with no switch pending, MM's half not
+//      frozen and MM_Game_Run entered once, and MM plays on. If z_play.c drops
+//      the return, the transition carries Link through the door into the
+//      Clock Tower's interior (0xC010) instead.
+//   2. A LATE REFUSAL. A raw switch request (Combo_RequestGameSwitch, which
+//      MM's owl-save and game-over exits make) leaves MM's loop past the
+//      in-game gates. main must refuse it and bring MM back through its
+//      suspend/resume contract (ReenterAfterRefusedSwitch): MM_Game_Run is
+//      entered a second time, the scene loads at 0xD800 (MM's hot-swap return
+//      entrance), the save MM left with comes back (a sentinel written before
+//      the request), and MM plays on.
+//
+// "Plays on" is kMMCrLiveFrames live gameplay frames AND kMMCrLiveSecs of wall
+// clock. A stage that stalls while MM keeps ticking frames fails on
+// kMMCrStageBudgetSecs; a dead or wedged process is the wall-clock watchdog
+// thread's and the script's to report.
+typedef enum {
+    MMCR_STAGE_BOOT,          // waiting for the console logo to inject the debug save
+    MMCR_STAGE_ENTERING_PLAY, // debug save injected; waiting for the scene init at kMMCrOutsideDoor
+    MMCR_STAGE_BEFORE_DOOR,   // live frames outside the Clock Tower
+    MMCR_STAGE_DOOR,          // walked into the door; waiting for the scene init it leads to
+    MMCR_STAGE_AFTER_DOOR,    // playing on after the refused door
+    MMCR_STAGE_LATE,          // raw switch request made; waiting for MM to come back
+    MMCR_STAGE_AFTER_LATE,    // playing on after the late refusal
+    MMCR_STAGE_DONE,
+    MMCR_STAGE_FAILED,
+} MMCrStage;
+
+// How many times MM_Game_Run has been entered in this process: once at boot,
+// and once more for each time MM's frame loop was left and re-entered.
+static int sMMRunEntries = 0;
+
+static MMCrStage sMMCrStage = MMCR_STAGE_BOOT;
+static int sMMCrLiveFrames = 0;
+static std::chrono::steady_clock::time_point sMMCrStageStart{};
+static bool sMMCrSceneHookRegistered = false;
+static const uint16_t kMMCrOutsideDoor = MM_ENTR_SOUTH_CLOCK_TOWN_0;
+static const int kMMCrFramesBeforeDoor = 20;
+static const int kMMCrLiveFrames = 60;
+static const double kMMCrLiveSecs = 3.0;
+static const int kMMCrStageBudgetSecs = 30;
+// The late leg's continuity sentinel, in the field the paired round trip uses
+// for the same purpose (GP_MM_CONTINUITY_DEKU_SCORE_BASE): only the Deku
+// Playground's own record and the high-score resets write it, never the shared
+// resources or an arrival's apply. A re-entry that cold-booted MM's bootstrap
+// file instead of restoring the freeze reads the new file's 7500.
+static const u32 kMMCrLateSentinel = 6954u;
+
+static const char* MMCrStageName(MMCrStage stage) {
+    switch (stage) {
+        case MMCR_STAGE_BOOT:
+            return "boot";
+        case MMCR_STAGE_ENTERING_PLAY:
+            return "entering-play";
+        case MMCR_STAGE_BEFORE_DOOR:
+            return "before-door";
+        case MMCR_STAGE_DOOR:
+            return "door";
+        case MMCR_STAGE_AFTER_DOOR:
+            return "after-door";
+        case MMCR_STAGE_LATE:
+            return "late";
+        case MMCR_STAGE_AFTER_LATE:
+            return "after-late";
+        case MMCR_STAGE_DONE:
+            return "done";
+        case MMCR_STAGE_FAILED:
+            return "failed";
+    }
+    return "unknown";
+}
+
+static double MMCrSecondsInStage(void) {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - sMMCrStageStart).count();
+}
+
+static void MMCrSetStage(MMCrStage stage) {
+    fprintf(stderr, "[MM-INT-TEST] crossing-refused-mm: stage %s -> %s (%.1f s, %d live frames in %s)\n",
+            MMCrStageName(sMMCrStage), MMCrStageName(stage), MMCrSecondsInStage(), sMMCrLiveFrames,
+            MMCrStageName(sMMCrStage));
+    fflush(stderr);
+    sMMCrStage = stage;
+    sMMCrLiveFrames = 0;
+    sMMCrStageStart = std::chrono::steady_clock::now();
+}
+
+// Same exit as the other MM rows (#793): RequestExit leaves the pass flag
+// unset, and the switch request is what makes MM's frame loop return to main,
+// which sees the exit first.
+static void MMCrFail(const char* why) {
+    PlayState* play = MM_gPlayState;
+    fprintf(stderr,
+            "[MM-INT-TEST] FAIL (int-crossing-refused-mm): %s [stage=%s after %.1f s; MM_Game_Run entries=%d "
+            "gameMode=%d entrance=0x%04X gPlayState=%p sceneId=%d]\n",
+            why, MMCrStageName(sMMCrStage), MMCrSecondsInStage(), sMMRunEntries, (int)gSaveContext.gameMode,
+            (unsigned)gSaveContext.save.entrance, (void*)play, play != NULL ? (int)play->sceneId : -1);
+    fflush(stderr);
+    sMMCrStage = MMCR_STAGE_FAILED;
+    IntegrationTest_RequestExit();
+    Combo_RequestGameSwitch();
+}
+
+// MM's twin of OoT's IntInjectDebugSaveAndEnterPlay. The load is MM's own map
+// select's (MapSelect_LoadGame, ovl_select/z_select.c): on the debug file
+// (fileNum 0xFF, which ConsoleLogo_Init sets) it authors MM_Sram_InitDebugSave,
+// resets the cycle's flags, re-dispatches OnSaveLoad and starts Play at the
+// entrance. It touches nothing of its gamestate but `state`, so the console
+// logo stands in for the map select, as 2S2H's boot-to-warp-point does. What
+// the map select's menu authors before it is set here: a day-1 spawn in normal
+// play with no cutscene.
+static void MMCrInjectDebugSave(GameState* gameState) {
+    fprintf(stderr,
+            "[MM-INT-TEST] crossing-refused-mm: injecting MM's debug save at the console logo; entering Play at "
+            "entrance 0x%04X\n",
+            kMMCrOutsideDoor);
+    fflush(stderr);
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.save.cutsceneIndex = 0;
+    gSaveContext.nextCutsceneIndex = 0xFFEF;
+    gSaveContext.sceneLayer = 0;
+    gSaveContext.save.time = CLOCK_TIME(8, 0);
+    gSaveContext.save.day = 1;
+    gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+    MapSelect_LoadGame((MapSelectState*)gameState, kMMCrOutsideDoor, 0);
+    MMCrSetStage(MMCR_STAGE_ENTERING_PLAY);
+}
+
+// The production door (MM_IntegrationGameplayFrameTick's GP_PHASE_MM_PLAY
+// trio): the play update loop runs the real transition, and z_play.c calls
+// Combo_CheckEntranceSwitch.
+static void MMCrWalkIntoDoor(PlayState* play) {
+    fprintf(stderr,
+            "[MM-INT-TEST] crossing-refused-mm: %d live frames outside the Clock Tower; walking into its door "
+            "(entrance 0x%04X)\n",
+            sMMCrLiveFrames, MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+    fflush(stderr);
+    MMCrSetStage(MMCR_STAGE_DOOR);
+    play->nextEntrance = MM_ENTR_CLOCK_TOWER_INTERIOR_1;
+    play->transitionTrigger = TRANS_TRIGGER_START;
+    play->transitionType = TRANS_TYPE_FADE_BLACK;
+    gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+}
+
+static void MMCrRequestLateSwitch(void) {
+    fprintf(stderr,
+            "[MM-INT-TEST] crossing-refused-mm: leg 1 PASS (the door was refused in MM's loop; %d live frames, "
+            "%.1f s outside it); leg 2: a raw switch request leaves the loop past the in-game gates (continuity "
+            "sentinel: dekuPlaygroundHighScores[0]=%u)\n",
+            sMMCrLiveFrames, MMCrSecondsInStage(), (unsigned)kMMCrLateSentinel);
+    fflush(stderr);
+    gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0] = kMMCrLateSentinel;
+    MMCrSetStage(MMCR_STAGE_LATE);
+    Combo_RequestGameSwitch();
+}
+
+// Gameplay (re)built: where the debug save, the refused door, or the re-entry
+// after the late refusal put Link. MM's OnSceneInit fires at the end of
+// MM_Play_Init, after the startup-entrance consumption, so the save's entrance
+// is final here.
+static void MMCrSceneInit(void) {
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return;
+    }
+    const uint16_t entrance = (uint16_t)gSaveContext.save.entrance;
+    char msg[224];
+    switch (sMMCrStage) {
+        case MMCR_STAGE_ENTERING_PLAY:
+            if (entrance != kMMCrOutsideDoor) {
+                snprintf(msg, sizeof(msg), "gameplay arrived at entrance 0x%04X, expected 0x%04X", entrance,
+                         kMMCrOutsideDoor);
+                MMCrFail(msg);
+                return;
+            }
+            MMCrSetStage(MMCR_STAGE_BEFORE_DOOR);
+            return;
+        case MMCR_STAGE_DOOR:
+        case MMCR_STAGE_LATE: {
+            const bool door = sMMCrStage == MMCR_STAGE_DOOR;
+            fprintf(stderr,
+                    "[MM-INT-TEST] crossing-refused-mm: scene init after the %s: scene %d, entrance 0x%04X, "
+                    "MM_Game_Run entries %d\n",
+                    door ? "door" : "late refusal", MM_gPlayState != NULL ? (int)MM_gPlayState->sceneId : -1, entrance,
+                    sMMRunEntries);
+            fflush(stderr);
+            if (entrance != kMMCrOutsideDoor) {
+                snprintf(msg, sizeof(msg),
+                         "after the %s, entrance 0x%04X loaded; a refused crossing must leave Link outside the "
+                         "Clock Tower (0x%04X)",
+                         door ? "refused door" : "late refusal", entrance, kMMCrOutsideDoor);
+                MMCrFail(msg);
+                return;
+            }
+            if (Combo_IsCrossGameSwitch() || Combo_IsGameSwitchRequested()) {
+                MMCrFail("a switch is still pending after the refusal");
+                return;
+            }
+            if (door && Context_HasFrozenState(GAME_MM)) {
+                MMCrFail("the refused door froze MM's half: the refusal must come before the departure freeze");
+                return;
+            }
+            // #1040 R3: MM booted (--game mm's path) loads under owner 0, and a
+            // refused crossing never reaches ApplyResourceCacheOwner.
+            if (!ResourceCacheOwner_CheckBootOwner(door ? "after the refused door" : "after the late refusal", msg,
+                                                   sizeof(msg))) {
+                MMCrFail(msg);
+                return;
+            }
+            const int expectedEntries = door ? 1 : 2;
+            if (sMMRunEntries != expectedEntries) {
+                snprintf(msg, sizeof(msg),
+                         door ? "MM_Game_Run was entered %d times: MM left its frame loop for the refused door "
+                                "instead of being refused while it ran"
+                              : "MM_Game_Run was entered %d times, expected 2 (boot, then the re-entry after the "
+                                "late refusal)",
+                         sMMRunEntries);
+                MMCrFail(msg);
+                return;
+            }
+            if (!door) {
+                const u32 score = gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0];
+                if (score != kMMCrLateSentinel) {
+                    snprintf(msg, sizeof(msg),
+                             "the re-entry lost MM's save: dekuPlaygroundHighScores[0]=%u, expected the sentinel %u "
+                             "written before the late request",
+                             (unsigned)score, (unsigned)kMMCrLateSentinel);
+                    MMCrFail(msg);
+                    return;
+                }
+            }
+            MMCrSetStage(door ? MMCR_STAGE_AFTER_DOOR : MMCR_STAGE_AFTER_LATE);
+            return;
+        }
+        default:
+            return;
+    }
+}
+
+static void MMCrFrame(void) {
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return; // the ROM-free arming row dispatches with no game running
+    }
+    // Registered on MM's first frame rather than at arming, so the ROM-free
+    // mm-gi-shim row arms this mode without leaving a hook in MM's registry.
+    if (!sMMCrSceneHookRegistered) {
+        sMMCrSceneHookRegistered = true;
+        S2H::GameHooks::Register<GameInteractor::OnSceneInit>([](s8 sceneId, s8 spawnNum) {
+            (void)sceneId;
+            (void)spawnNum;
+            MMCrSceneInit();
+        });
+    }
+    if (sMMCrStage == MMCR_STAGE_DONE || sMMCrStage == MMCR_STAGE_FAILED) {
+        return;
+    }
+    if (MMCrSecondsInStage() >= kMMCrStageBudgetSecs) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "stage %s made no progress for %d s", MMCrStageName(sMMCrStage),
+                 kMMCrStageBudgetSecs);
+        MMCrFail(msg);
+        return;
+    }
+    if (sMMCrStage == MMCR_STAGE_BOOT) {
+        if (MM_gGameState != NULL && MM_gGameState->destroy == ConsoleLogo_Destroy) {
+            MMCrInjectDebugSave(MM_gGameState);
+        }
+        return;
+    }
+    if (sMMCrStage != MMCR_STAGE_BEFORE_DOOR && sMMCrStage != MMCR_STAGE_AFTER_DOOR &&
+        sMMCrStage != MMCR_STAGE_AFTER_LATE) {
+        return;
+    }
+    // A live frame is one with no transition under way. The door must not fire
+    // during the scene's fade-in: a trigger set while that instance runs is
+    // read as the fade's own exit, and z_play.c loads nextEntrance as it
+    // finishes without passing TRANS_MODE_SETUP, where the crossing is asked.
+    PlayState* play = MM_gPlayState;
+    if (play == NULL || MM_gGameState != &play->state || gSaveContext.gameMode != GAMEMODE_NORMAL ||
+        !MM_SceneLoadComplete() || play->transitionMode != TRANS_MODE_OFF ||
+        play->transitionTrigger != TRANS_TRIGGER_OFF) {
+        return;
+    }
+    sMMCrLiveFrames++;
+    if (sMMCrStage == MMCR_STAGE_BEFORE_DOOR) {
+        if (sMMCrLiveFrames >= kMMCrFramesBeforeDoor) {
+            MMCrWalkIntoDoor(play);
+        }
+        return;
+    }
+    if (sMMCrLiveFrames < kMMCrLiveFrames || MMCrSecondsInStage() < kMMCrLiveSecs) {
+        return;
+    }
+    if (sMMCrStage == MMCR_STAGE_AFTER_DOOR) {
+        MMCrRequestLateSwitch();
+        return;
+    }
+    fprintf(stderr,
+            "[MM-INT-TEST] int-crossing-refused-mm: PASS (the Clock Tower door was refused while MM ran, the late "
+            "refusal re-entered MM through suspend/resume with its save, and MM played on after both: %d live "
+            "frames, %.1f s)\n",
+            sMMCrLiveFrames, MMCrSecondsInStage());
+    fflush(stderr);
+    MMCrSetStage(MMCR_STAGE_DONE);
+    IntegrationTest_SignalBootComplete(GAME_MM, "crossing refused; MM played on");
+}
+
+static void MMCrRegisterHooks(void) {
+    fprintf(stderr, "[MM] Registering integration test hooks for the refused crossing (#954)\n");
+    fflush(stderr);
+    sMMCrStage = MMCR_STAGE_BOOT;
+    sMMCrLiveFrames = 0;
+    sMMCrStageStart = std::chrono::steady_clock::now();
+    MM_GameHooks_RegisterOnGameStateMainStart(MMCrFrame);
+}
+
+// ============================================================================
+// int-mm-moon-crash-cycle (#1069): the moon falls on a live MM session whose
+// frozen Moon Crash Behavior is New Cycle (OoTMM's moonCrash 'cycle').
+// ============================================================================
+//
+// MM boots on its debug save outside the Clock Tower (the refused-crossing
+// row's injection), plays kMMMcFramesBeforeCrash live frames, then marks the
+// file New Cycle (randoSaveMoonCrash, the frozen option the creation writes),
+// records what a new cycle must keep (the Bunny Hood, the Song of Healing, a
+// bottle) and what only a new cycle clears (a Deku Playground record and the
+// three-day reset count), and lets the moon fall through the REAL
+// Interface_StartMoonCrash. The moon falls in Termina Field, the Fire Wall
+// follows in the cutscene scene (SCENE_SPOT00), and its
+// CS_MISC_RESET_SAVE_FROM_MOON_CRASH runs the reset. Once gameplay is live in
+// the scene after the Fire Wall, the file must be in a NEW cycle with its
+// progress: day 1 or the dawn before it, one more three-day reset, the record
+// cleared, the mask, the song and the bottle kept. A debug session has no
+// .redsave slot, so under Last Save the crash would restart the clock and keep
+// the bytes (#785's no-commit leg): the reset count and the cleared record are
+// what tell a new cycle from that.
+typedef enum {
+    MMMC_STAGE_BOOT,
+    MMMC_STAGE_ENTERING_PLAY,
+    MMMC_STAGE_BEFORE_CRASH,
+    MMMC_STAGE_CRASHING,
+    MMMC_STAGE_DONE,
+    MMMC_STAGE_FAILED,
+} MMMcStage;
+
+static MMMcStage sMMMcStage = MMMC_STAGE_BOOT;
+static int sMMMcLiveFrames = 0;
+static std::chrono::steady_clock::time_point sMMMcStageStart{};
+static u16 sMMMcResetsBefore = 0;
+static const int kMMMcFramesBeforeCrash = 20;
+static const int kMMMcFramesAfterCrash = 30;
+static const int kMMMcStageBudgetSecs = 240; // the crash cutscene plays in full
+static const u32 kMMMcRecordSentinel = 1069u;
+
+static double MMMcSecondsInStage(void) {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - sMMMcStageStart).count();
+}
+
+static void MMMcSetStage(MMMcStage stage) {
+    fprintf(stderr, "[MM-INT-TEST] mm-moon-crash-cycle: stage %d -> %d (%.1f s)\n", (int)sMMMcStage, (int)stage,
+            MMMcSecondsInStage());
+    fflush(stderr);
+    sMMMcStage = stage;
+    sMMMcLiveFrames = 0;
+    sMMMcStageStart = std::chrono::steady_clock::now();
+}
+
+static void MMMcFail(const char* why) {
+    PlayState* play = MM_gPlayState;
+    fprintf(stderr,
+            "[MM-INT-TEST] FAIL (int-mm-moon-crash-cycle): %s [stage=%d after %.1f s; day=%d time=0x%04X "
+            "entrance=0x%04X sceneId=%d]\n",
+            why, (int)sMMMcStage, MMMcSecondsInStage(), (int)gSaveContext.save.day, (unsigned)gSaveContext.save.time,
+            (unsigned)gSaveContext.save.entrance, play != NULL ? (int)play->sceneId : -1);
+    fflush(stderr);
+    sMMMcStage = MMMC_STAGE_FAILED;
+    IntegrationTest_RequestExit();
+    Combo_RequestGameSwitch();
+}
+
+static void MMMcCrash(PlayState* play) {
+    gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = RSBS_MM_MOON_CRASH_CYCLE;
+    gSaveContext.save.saveInfo.inventory.items[SLOT_MASK_BUNNY] = ITEM_MASK_BUNNY;
+    gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = ITEM_BOTTLE;
+    gSaveContext.save.saveInfo.inventory.questItems |= (1u << QUEST_SONG_HEALING);
+    gSaveContext.save.saveInfo.dekuPlaygroundHighScores[0] = kMMMcRecordSentinel;
+    sMMMcResetsBefore = gSaveContext.save.saveInfo.playerData.threeDayResetCount;
+    fprintf(stderr,
+            "[MM-INT-TEST] mm-moon-crash-cycle: %d live frames outside the Clock Tower; the file plays under %d "
+            "(expected %d, New Cycle); the moon falls (threeDayResetCount %u)\n",
+            sMMMcLiveFrames, MM_Rando_FrozenMoonCrash(), RSBS_MM_MOON_CRASH_CYCLE, (unsigned)sMMMcResetsBefore);
+    fflush(stderr);
+    MMMcSetStage(MMMC_STAGE_CRASHING);
+    Interface_StartMoonCrash(play);
+}
+
+static void MMMcVerify(void) {
+    const SaveInfo& info = gSaveContext.save.saveInfo;
+    const bool newCycle = info.playerData.threeDayResetCount == (u16)(sMMMcResetsBefore + 1);
+    const bool recordCleared = info.dekuPlaygroundHighScores[0] != kMMMcRecordSentinel;
+    const bool dawn = gSaveContext.save.day <= 1 && gSaveContext.save.eventDayCount <= 1;
+    const bool kept = info.inventory.items[SLOT_MASK_BUNNY] == ITEM_MASK_BUNNY &&
+                      info.inventory.items[SLOT_BOTTLE_1] == ITEM_BOTTLE &&
+                      (info.inventory.questItems & (1u << QUEST_SONG_HEALING)) != 0u;
+    fprintf(stderr,
+            "[MM-INT-TEST] mm-moon-crash-cycle: after the crash: scene %d, day %d, eventDayCount %d, time 0x%04X, "
+            "threeDayResetCount %u (was %u), Deku record %u (was %u), mask 0x%02X bottle 0x%02X quest %08X\n",
+            MM_gPlayState != NULL ? (int)MM_gPlayState->sceneId : -1, (int)gSaveContext.save.day,
+            (int)gSaveContext.save.eventDayCount, (unsigned)gSaveContext.save.time,
+            (unsigned)info.playerData.threeDayResetCount, (unsigned)sMMMcResetsBefore,
+            (unsigned)info.dekuPlaygroundHighScores[0], (unsigned)kMMMcRecordSentinel,
+            (unsigned)info.inventory.items[SLOT_MASK_BUNNY], (unsigned)info.inventory.items[SLOT_BOTTLE_1],
+            (unsigned)info.inventory.questItems);
+    fflush(stderr);
+    if (!newCycle || !recordCleared) {
+        MMMcFail("the crash under New Cycle did not start a new cycle (the reset count did not move, or the cycle's "
+                 "Deku record survived): the Last Save path ran");
+        return;
+    }
+    if (!dawn) {
+        MMMcFail("after the crash the file is not at the Dawn of the First Day");
+        return;
+    }
+    if (!kept) {
+        MMMcFail("the new cycle lost the Bunny Hood, the bottle or the Song of Healing");
+        return;
+    }
+    fprintf(stderr, "[MM-INT-TEST] int-mm-moon-crash-cycle: PASS (the moon fell and a new cycle began with the "
+                    "file's progress kept)\n");
+    fflush(stderr);
+    MMMcSetStage(MMMC_STAGE_DONE);
+    IntegrationTest_SignalBootComplete(GAME_MM, "moon crash started a new cycle");
+}
+
+static void MMMcFrame(void) {
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return; // the ROM-free arming row dispatches with no game running
+    }
+    if (sMMMcStage == MMMC_STAGE_DONE || sMMMcStage == MMMC_STAGE_FAILED) {
+        return;
+    }
+    if (MMMcSecondsInStage() >= kMMMcStageBudgetSecs) {
+        MMMcFail("a stage made no progress within its budget");
+        return;
+    }
+    if (sMMMcStage == MMMC_STAGE_BOOT) {
+        if (MM_gGameState != NULL && MM_gGameState->destroy == ConsoleLogo_Destroy) {
+            gSaveContext.gameMode = GAMEMODE_NORMAL;
+            gSaveContext.save.cutsceneIndex = 0;
+            gSaveContext.nextCutsceneIndex = 0xFFEF;
+            gSaveContext.sceneLayer = 0;
+            gSaveContext.save.time = CLOCK_TIME(8, 0);
+            gSaveContext.save.day = 1;
+            gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+            MapSelect_LoadGame((MapSelectState*)MM_gGameState, kMMCrOutsideDoor, 0);
+            MMMcSetStage(MMMC_STAGE_ENTERING_PLAY);
+        }
+        return;
+    }
+    PlayState* play = MM_gPlayState;
+    if (play == NULL || MM_gGameState != &play->state || gSaveContext.gameMode != GAMEMODE_NORMAL ||
+        !MM_SceneLoadComplete() || play->transitionMode != TRANS_MODE_OFF ||
+        play->transitionTrigger != TRANS_TRIGGER_OFF) {
+        return;
+    }
+    if (sMMMcStage == MMMC_STAGE_ENTERING_PLAY) {
+        MMMcSetStage(MMMC_STAGE_BEFORE_CRASH);
+        return;
+    }
+    if (sMMMcStage == MMMC_STAGE_BEFORE_CRASH) {
+        if (++sMMMcLiveFrames >= kMMMcFramesBeforeCrash) {
+            MMMcCrash(play);
+        }
+        return;
+    }
+    // CRASHING: Termina Field holds the moon's fall, and its
+    // CS_MISC_DEST_MOON_CRASH_FIRE_WALL hands over to the cutscene scene
+    // (SCENE_SPOT00, cutscene 0xFFF8): the Fire Wall, whose
+    // CS_MISC_RESET_SAVE_FROM_MOON_CRASH cue runs the reset late in its
+    // timeline. Gameplay reads as live through both (GAMEMODE_NORMAL, no
+    // transition), so the verdict waits for the scene after the Fire Wall, where
+    // the new cycle plays; counting frames in SCENE_SPOT00 read the file before
+    // the reset (day 4, time 0x400A: Interface_StartMoonCrash's own values).
+    if (play->sceneId == SCENE_00KEIKOKU || play->sceneId == SCENE_SPOT00) {
+        sMMMcLiveFrames = 0;
+        return;
+    }
+    if (++sMMMcLiveFrames >= kMMMcFramesAfterCrash) {
+        MMMcVerify();
+    }
+}
+
+static void MMMcRegisterHooks(void) {
+    fprintf(stderr, "[MM] Registering integration test hooks for the New Cycle moon crash (#1069)\n");
+    fflush(stderr);
+    sMMMcStage = MMMC_STAGE_BOOT;
+    sMMMcLiveFrames = 0;
+    sMMMcStageStart = std::chrono::steady_clock::now();
+    MM_GameHooks_RegisterOnGameStateMainStart(MMMcFrame);
+}
+
 static void MM_RegisterIntegrationTestHooks(void) {
     if (!IntegrationTest_IsActive()) {
         return;
@@ -684,6 +1248,44 @@ static void MM_RegisterIntegrationTestHooks(void) {
 
         fprintf(stderr, "[MM] Clock Tower door->OoT switch hooks registered\n");
         fflush(stderr);
+    } else if (mode == INT_TEST_RESOURCE_CACHE_OWNER) {
+        // #981: T1's arrival in South Clock Town (OoT's leg 1 recorded OoT's
+        // copies). 10 stable frames in, MM must be served its own copies; then it
+        // walks back through the Clock Tower door and OoT's leg 3 checks OoT got
+        // back what it had.
+        fprintf(stderr, "[MM] Registering integration test hooks for the resource cache owner row (#981)\n");
+        fflush(stderr);
+
+        sSceneLoadWaitFrames = 0;
+        sSceneLoadStableFrames = 0;
+
+        MM_GameHooks_RegisterOnGameStateMainStart([]() {
+            static bool sLegDone = false;
+            if (sLegDone) {
+                return;
+            }
+            if (!MM_SceneLoadComplete() || MM_gPlayState->sceneId != SCENE_CLOCKTOWER) {
+                sSceneLoadStableFrames = 0;
+                MM_SceneLoadWatchdogExpired("int-resource-cache-owner");
+                return;
+            }
+            if (++sSceneLoadStableFrames != 10) {
+                return;
+            }
+            sLegDone = true;
+            char msg[512];
+            if (!RcoMMCheck(msg, sizeof(msg)) || !ResourceCacheOwner_PatchProbeMM(msg, sizeof(msg))) {
+                fprintf(stderr, "[MM-INT-TEST] FAIL (int-resource-cache-owner): %s\n", msg);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
+                return;
+            }
+            fprintf(stderr, "[MM-INT-TEST] PASS cache-owner leg 2: %s; back through the Clock Tower door\n", msg);
+            fflush(stderr);
+            ResourceCacheOwner_SetMMLegPassed();
+            Combo_CheckCrossGameEntrance("mm", MM_ENTR_CLOCK_TOWER_INTERIOR_1);
+        });
     } else if (mode == INT_TEST_ARCHIVE_HOTSWAP_CYCLE) {
         // T4 (#263): MM side of the OoT<->MM archive hot-swap cycle. OoT boots
         // first, so MM is arrivals #2 and #4 (the last) of the
@@ -727,6 +1329,19 @@ static void MM_RegisterIntegrationTestHooks(void) {
             fprintf(stderr, "[MM-INT-TEST] MM stable; archive-hotswap arrival #%d of %d\n", n,
                     ArchiveHotswap_TargetArrivals());
             fflush(stderr);
+
+            // #981: MM is served its own copies of the paths OoT also carries.
+            SkeletonHeader* skel = ResourceMgr_LoadSkeletonByName(kRcoOctorokSkel, NULL);
+            char rco[512];
+            if (!ResourceCacheOwner_CheckArrival(GAME_MM, n, skel, skel != NULL ? skel->limbCount : -1, rco,
+                                                 sizeof(rco))) {
+                fprintf(stderr, "[MM-INT-TEST] FAIL: resource cache: %s\n", rco);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
+                return;
+            }
+            fprintf(stderr, "[MM-INT-TEST] resource cache: %s\n", rco);
 
             if (ArchiveHotswap_RssExceeded()) {
                 // Steady-state RSS blew the bound — the #154 per-switch leak
@@ -783,6 +1398,10 @@ static void MM_RegisterIntegrationTestHooks(void) {
 
         fprintf(stderr, "[MM] gameplay round-trip driver armed (direct frame tick)\n");
         fflush(stderr);
+    } else if (mode == INT_TEST_CROSSING_REFUSED_MM) {
+        MMCrRegisterHooks();
+    } else if (mode == INT_TEST_MM_MOON_CRASH_CYCLE) {
+        MMMcRegisterHooks();
     }
 }
 
@@ -1969,7 +2588,7 @@ int GameInteractor_InvertControl(GIInvertType type) {
  * enhancements: BTN_DPAD_EQUIP (include/z64save.h) expanded to BTN_DPAD as
  * if gEnhancements.DpadEquips were on, and the ocarina paths in
  * src/audio/code_8019AF00.c treated the D-pad as ocarina buttons as if
- * gEnhancements.Playback.DpadOcarina were on.
+ * gSettings.CustomOcarina.Dpad were on (the key SoH writes since #1062).
  *
  * Bodies lifted verbatim from upstream 2s2h/GameInteractor/
  * GameInteractor.cpp so the shipped 2S2H defaults apply (both
@@ -1982,7 +2601,7 @@ uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo) {
 
     switch (type) {
         case GI_DPAD_OCARINA:
-            if (CVarGetInteger("gEnhancements.Playback.DpadOcarina", 0)) {
+            if (CVarGetInteger("gSettings.CustomOcarina.Dpad", 0)) {
                 result = buttonCombo;
             }
             break;
@@ -1999,14 +2618,14 @@ uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo) {
 /**
  * The old stub `int GameInteractor_RightStickOcarina(void* input)` returned
  * 0, which matched the enhancement's default-off CVar
- * (gEnhancements.Playback.RightStickOcarina) — but it kept the enhancement
+ * (gSettings.CustomOcarina.RightStick since #1062) — but it kept the enhancement
  * dead even when enabled, and its untyped signature (void* vs Input*) sat
  * in the same drift class. Body lifted verbatim from upstream.
  */
 uint32_t GameInteractor_RightStickOcarina(Input* input) {
     uint32_t result = 0;
 
-    if (!CVarGetInteger("gEnhancements.Playback.RightStickOcarina", 0)) {
+    if (!CVarGetInteger("gSettings.CustomOcarina.RightStick", 0)) {
         return result;
     }
 
@@ -2520,6 +3139,7 @@ extern "C" int MM_ExtensionRescan_LastEntriesAdded(void) {
 }
 
 void MM_Game_Run(void) {
+    sMMRunEntries++;
     fprintf(stderr, "[MM] Game_Run called, entering MM_Graph_ThreadEntry()\n");
     fflush(stderr);
     // Assert context still valid before graph loop (issue #158)
@@ -3906,17 +4526,24 @@ extern "C" void MM_GameHooks_ExecuteOnBossDefeated(s16 actorId) {
  * CVar-gated first. Enhancements/Camera/CameraInterpolationFixes.cpp is the one
  * registrant in the set whose COND_HOOK condition is literally `true`, so it
  * arms for every player the instant its TU links, and #438's audit flagged its
- * effect on MM frames as unverified. Re-measured: the body is
- * Camera_ShouldInterpolateDist (camera math over six function-local statics)
- * feeding MM_FrameInterpolation_ShouldInterpolateFrame, whose entire effect is
- * one bool gating MM's OWN matrix recorder. The consumer of that recording,
- * MM_FrameInterpolation_Interpolate, has exactly one caller in the tree --
- * 2s2h/BenPort.cpp -- and BenPort is excluded from the single-exe link, so MM's
- * recording is never replayed and the bool cannot reach a rendered frame. The
- * gate therefore stays upstream-faithful: diverging from a vendored 2S2H
- * registration to CVar-gate a body that can only make MM skip a recording
- * nothing reads would buy nothing and cost an upstream-sync landmine. Restoring
- * MM's replay path is the change that has to re-measure this row.
+ * effect on MM frames as unverified. The body is Camera_ShouldInterpolateDist
+ * (camera math over six function-local statics) feeding
+ * MM_FrameInterpolation_ShouldInterpolateFrame, whose entire effect is one bool
+ * gating MM's OWN matrix recorder. The TU does NOT link today: it compiles into
+ * the plain STATIC 2ship_enh archive (it is in neither ship__Enh_registrars nor
+ * 2ship_enh_clockshuffle in games/mm/CMakeLists.txt), and nothing references it
+ * but its file-scope RegisterShipInitFunc, so the linker drops it (redship.map
+ * carries no CameraInterpolationFixes.cpp.obj and no Camera_ShouldInterpolateDist).
+ * The gate is therefore inert in the single exe: MM's camera_interpolation stays
+ * true after the first StartRecord, and no MM frame skips its recording after a
+ * large camera jump. Real view resets still break interpolation through the
+ * camera-epoch child (z_view.c, z_camera.c), as in SoH, but a hard camera swing
+ * with no view reset interpolates across it, unlike upstream 2S2H.
+ * Since #965 MM's recording IS replayed (the shared Graph_ProcessGfxCommands in
+ * soh/OTRGlobals.cpp calls MM_FrameInterpolation_Interpolate on MM frames), so
+ * if this TU is ever linked (for example through 2ship_enh_registrars), its
+ * unconditional gate will change rendered MM frames from that point on:
+ * re-measure this row then.
  *
  * LEGS mirror each excluded twin minus ForFilter. OnPlayerPostLimbDraw keys its
  * id leg on limbIndex, which is what PersistentMasks (PLAYER_LIMB_HEAD),
@@ -4108,7 +4735,19 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId, int announce);
  */
 static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    int given = MM_ForeignItem_Give(item->id, (item->flags & RSBS_SHARED_ITEM_SOURCED) != 0 ? 1 : 0);
+    const bool sourced = (item->flags & RSBS_SHARED_ITEM_SOURCED) != 0;
+    // #1061: a crossed counted pack (an MM bombchu pack an older save recorded in
+    // Hyrule) is credited to the shared pool, not given. MM's give caps
+    // bombchus at MM's bomb-bag capacity and lost the pack whenever the pool
+    // already filled the bag (all of it with no bag). New pickups never cross
+    // such a pack (OoT_/MM_CreditSharedPickup); this redeems the ones recorded
+    // before. A SOURCED grant keeps the give, whose toast is its only
+    // presentation.
+    if (!sourced && MM_CreditSharedPickup(item) != 0) {
+        fprintf(stderr, "[MM] shared-item redeem: RI id=%u credited to the shared pool (#1061)\n", (unsigned)item->id);
+        return;
+    }
+    int given = MM_ForeignItem_Give(item->id, sourced ? 1 : 0);
     fprintf(stderr, "[MM] shared-item redeem: RI id=%u %s (Lane 6 foreign give)\n", (unsigned)item->id,
             given ? "awarded or queued for the next gameplay frame" : "NOT awarded — no such MM item");
 }
@@ -4209,6 +4848,147 @@ static void MM_EnsureInventoryItem(uint8_t item) {
     }
 }
 
+// One row's COUNT from the pool, clamped to MM's own capacity: the arrival's
+// per-row count step, and the re-apply a pickup credit runs (#1061,
+// MM_CreditSharedPickup). The item goes in its slot only for a nonzero count, so
+// a bombchu count MM's bomb bag cannot hold stays in the pool, item and all.
+static void MM_ApplySharedAmmoCount(const MMSharedAmmo* row) {
+    uint16_t count = MM_ReadAmmo(row->item);
+    if (Combo_ApplySharedResource(GAME_MM, row->countKind, MM_AmmoCapacity(row), &count)) {
+        if (count > 0u) {
+            MM_EnsureInventoryItem(row->item);
+        }
+        AMMO(row->item) = (s8)count;
+    }
+}
+
+// ---- Shared families (#976's OR discipline): MM's own copies ----------------
+//
+// The twin of OoT's block (OoT_SharedLensHeld): MM registers its NATIVE copy of
+// each family, the RI_* its pool places and the two callbacks the harvest and
+// apply shims call. The give runs at the startup entrance, before gameplay, so
+// it writes the inventory the way Item_Give does and shows nothing.
+
+// #1065: the Lens of Truth (OoTMM sharedLens). Item_Give(ITEM_LENS_OF_TRUTH)
+// only fills its slot, and the slot is not reset by the Song of Time.
+static bool MM_SharedLensHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return INV_CONTENT(ITEM_LENS_OF_TRUTH) == ITEM_LENS_OF_TRUTH;
+}
+static void MM_SharedLensGive(uint16_t nativeId) {
+    (void)nativeId;
+    INV_CONTENT(ITEM_LENS_OF_TRUTH) = ITEM_LENS_OF_TRUTH;
+}
+
+// #1066: Epona's Song and the Song of Storms (OoTMM sharedSongEpona,
+// sharedSongStorms). Item_Give(ITEM_SONG_*) only sets the song's quest bit, free
+// play builds the playable set from the quest bits alone (z_message.c,
+// Message_DisplayOcarinaStaffImpl; the #1070 finding), and Epona's spawn reads
+// the same bit (z_horse.c). Songs survive the Song of Time.
+static uint32_t MM_SharedSongQuestBit(uint16_t nativeId) {
+    return (nativeId == (uint16_t)RI_SONG_STORMS) ? (1u << QUEST_SONG_STORMS) : (1u << QUEST_SONG_EPONA);
+}
+static bool MM_SharedSongHeld(uint16_t nativeId) {
+    return (gSaveContext.save.saveInfo.inventory.questItems & MM_SharedSongQuestBit(nativeId)) != 0u;
+}
+static void MM_SharedSongGive(uint16_t nativeId) {
+    gSaveContext.save.saveInfo.inventory.questItems |= MM_SharedSongQuestBit(nativeId);
+}
+
+// #1069: the Song of Time (OoTMM sharedSongTime). Item_Give(ITEM_SONG_TIME) only
+// sets the song's quest bit; free play builds the playable set from the quest
+// bits alone (z_message.c, Message_DisplayOcarinaStaffImpl; the #1070 finding),
+// the Songs of Inverted and Double Time follow from it, and songs survive the
+// Song of Time's own reset.
+static bool MM_SharedSongOfTimeHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return CHECK_QUEST_ITEM(QUEST_SONG_TIME) != 0;
+}
+static void MM_SharedSongOfTimeGive(uint16_t nativeId) {
+    (void)nativeId;
+    gSaveContext.save.saveInfo.inventory.questItems |= (1u << QUEST_SONG_TIME);
+}
+
+// #968: the Fire, Ice and Light Arrows (OoTMM sharedMagicArrowFire, Ice,
+// Light). Item_Give(ITEM_ARROW_*) only fills the arrow's own slot, and the
+// Song of Time keeps the magic arrows (only ammo and the cycle's items reset);
+// the bow is already one shared quiver tier (#744) and is not touched here.
+static uint8_t MM_SharedArrowItem(uint16_t nativeId) {
+    return (nativeId == (uint16_t)RI_ARROW_ICE)     ? (uint8_t)ITEM_ARROW_ICE
+           : (nativeId == (uint16_t)RI_ARROW_LIGHT) ? (uint8_t)ITEM_ARROW_LIGHT
+                                                    : (uint8_t)ITEM_ARROW_FIRE;
+}
+static bool MM_SharedArrowHeld(uint16_t nativeId) {
+    const uint8_t item = MM_SharedArrowItem(nativeId);
+    return INV_CONTENT(item) == item;
+}
+static void MM_SharedArrowGive(uint16_t nativeId) {
+    const uint8_t item = MM_SharedArrowItem(nativeId);
+    INV_CONTENT(item) = item;
+}
+
+// #978: the Goron, Zora, Keaton and Truth masks and the Bunny Hood (OoTMM
+// sharedMaskGoron, Zora, Bunny, Keaton, Truth). Item_Give(ITEM_MASK_*) only
+// fills the mask's own slot, and the Song of Time keeps every mask. MM's Goron
+// and Zora masks still transform: holding the mask is all transforming needs.
+static uint8_t MM_SharedMaskItem(uint16_t nativeId) {
+    switch (nativeId) {
+        case (uint16_t)RI_MASK_GORON:
+            return (uint8_t)ITEM_MASK_GORON;
+        case (uint16_t)RI_MASK_ZORA:
+            return (uint8_t)ITEM_MASK_ZORA;
+        case (uint16_t)RI_MASK_BUNNY:
+            return (uint8_t)ITEM_MASK_BUNNY;
+        case (uint16_t)RI_MASK_KEATON:
+            return (uint8_t)ITEM_MASK_KEATON;
+        default:
+            return (uint8_t)ITEM_MASK_TRUTH;
+    }
+}
+static bool MM_SharedMaskHeld(uint16_t nativeId) {
+    const uint8_t item = MM_SharedMaskItem(nativeId);
+    return INV_CONTENT(item) == item;
+}
+static void MM_SharedMaskGive(uint16_t nativeId) {
+    const uint8_t item = MM_SharedMaskItem(nativeId);
+    INV_CONTENT(item) = item;
+}
+
+namespace {
+// Static-init registration (the ComboLogicEngine registrars' shape): this TU is
+// always linked, and the registry is zero-initialised storage.
+struct MMSharedFamilyRegistrar {
+    MMSharedFamilyRegistrar() {
+        const ComboSharedFamilyMember lens = { (uint16_t)RI_LENS, MM_SharedLensHeld, MM_SharedLensGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_LENS, &lens);
+        const ComboSharedFamilyMember epona = { (uint16_t)RI_SONG_EPONA, MM_SharedSongHeld, MM_SharedSongGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_EPONA, &epona);
+        const ComboSharedFamilyMember storms = { (uint16_t)RI_SONG_STORMS, MM_SharedSongHeld, MM_SharedSongGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_STORMS, &storms);
+        const ComboSharedFamilyMember songOfTime = { (uint16_t)RI_SONG_TIME, MM_SharedSongOfTimeHeld,
+                                                     MM_SharedSongOfTimeGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_TIME, &songOfTime);
+        const ComboSharedFamilyMember fire = { (uint16_t)RI_ARROW_FIRE, MM_SharedArrowHeld, MM_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ARROW_FIRE, &fire);
+        const ComboSharedFamilyMember ice = { (uint16_t)RI_ARROW_ICE, MM_SharedArrowHeld, MM_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ARROW_ICE, &ice);
+        const ComboSharedFamilyMember light = { (uint16_t)RI_ARROW_LIGHT, MM_SharedArrowHeld, MM_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ARROW_LIGHT, &light);
+        const ComboSharedFamilyMember maskGoron = { (uint16_t)RI_MASK_GORON, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_GORON, &maskGoron);
+        const ComboSharedFamilyMember maskZora = { (uint16_t)RI_MASK_ZORA, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ZORA, &maskZora);
+        const ComboSharedFamilyMember maskBunny = { (uint16_t)RI_MASK_BUNNY, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_BUNNY, &maskBunny);
+        const ComboSharedFamilyMember maskKeaton = { (uint16_t)RI_MASK_KEATON, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_KEATON, &maskKeaton);
+        const ComboSharedFamilyMember maskTruth = { (uint16_t)RI_MASK_TRUTH, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_TRUTH, &maskTruth);
+    }
+};
+const MMSharedFamilyRegistrar gMMSharedFamilyRegistrar;
+} // namespace
+
 // MM's hookshot ceiling. MM has no longshot: there is no RI_LONGSHOT at all,
 // and MM's ITEM_LONGSHOT id is an OoT leftover its give path repurposes into a
 // Red Potion. So MM tops out at tier 1, and the pool's tier 2 materializes here
@@ -4247,6 +5027,175 @@ static uint16_t MM_ReadOcarinaTier(void) {
 static uint16_t MM_ReadKokiriSword(void) {
     return GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) != EQUIP_VALUE_SWORD_NONE ? 1u : 0u;
 }
+
+// The bottle count as a shared tier (#970), the twin of OoT's. MM has six bottle
+// slots and OoT four: the shared count is OoT's 0..4, so MM's harvest is clamped
+// at four and MM's fifth and sixth bottles never reach Hyrule; the apply raises
+// MM only up to the shared count, so those two slots fill only from MM's own
+// pickups. Contents never cross.
+#define MM_MAX_BOTTLE_COUNT 4u
+
+static uint16_t MM_HeldBottles(void) {
+    uint16_t count = 0u;
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_6; slot++) {
+        if (gSaveContext.save.saveInfo.inventory.items[slot] != ITEM_NONE) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static uint16_t MM_ReadBottleCount(void) {
+    const uint16_t held = MM_HeldBottles();
+    return held > MM_MAX_BOTTLE_COUNT ? (uint16_t)MM_MAX_BOTTLE_COUNT : held;
+}
+
+/** Raise MM's bottle count to @p count by putting an EMPTY bottle in the next
+ *  empty slots, as MM's own Item_Give(ITEM_BOTTLE) does; a filled slot is never
+ *  touched. */
+static void MM_WriteBottleCount(uint16_t count) {
+    uint16_t held = MM_HeldBottles();
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_6 && held < count; slot++) {
+        if (gSaveContext.save.saveInfo.inventory.items[slot] == ITEM_NONE) {
+            gSaveContext.save.saveInfo.inventory.items[slot] = ITEM_BOTTLE;
+            held++;
+        }
+    }
+}
+
+// ============================================================================
+// The Shared Shields families (#1068; OoTMM sharedShields)
+// ============================================================================
+//
+// MM's copies of the rule's two pairs: the Hero's Shield (the family at
+// RSBS_XITEM_SHARED_SHIELDS, paired with OoT's Hylian Shield) and the Mirror
+// Shield (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD). MM has ONE shield
+// slot: the equipment value is both what Link owns and what he wears (0 none,
+// 1 Hero's, 2 Mirror). So:
+//   - HELD (Hero's) is ANY shield: MM's Mirror Shield replaced a Hero's Shield
+//     the player may have found first, and a Hero's Shield found and replaced in
+//     the same stint must still reach OoT (the solver credited OoT's half when
+//     the shared row was collected). The cost, stated: a Mirror Shield found
+//     first in Termina also gives OoT the Hylian Shield, which never takes
+//     anything away from a world the solver proved.
+//   - HELD (Mirror) is the Mirror Shield.
+//   - GIVE (Hero's) only into an EMPTY slot: a Hero's Shield never replaces a
+//     Mirror Shield. GIVE (Mirror) always replaces, as MM's own give does
+//     (Rando::GiveItem writes the equipment value).
+// Equipping is the same write; the startup entrance runs before Player init,
+// which reads it.
+
+static bool MM_SharedShieldHeld(uint16_t nativeId) {
+    const u8 shield = GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
+    if (nativeId == (uint16_t)RI_SHIELD_MIRROR) {
+        return shield == EQUIP_VALUE_SHIELD_MIRROR;
+    }
+    return shield != EQUIP_VALUE_SHIELD_NONE;
+}
+
+static void MM_SharedShieldGive(uint16_t nativeId) {
+    if (nativeId == (uint16_t)RI_SHIELD_MIRROR) {
+        SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
+    } else if (GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_NONE) {
+        SET_EQUIP_VALUE(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HERO);
+    }
+}
+
+/** Register MM's copies of the Shared Shields families (#1068). Idempotent;
+ *  the static registrar below runs it at start-up, and the locks re-run it
+ *  after a row that cleared the registry. */
+extern "C" void MM_RegisterSharedShieldFamilies(void) {
+    const ComboSharedFamilyMember hero = { (uint16_t)RI_SHIELD_HERO, MM_SharedShieldHeld, MM_SharedShieldGive };
+    const ComboSharedFamilyMember mirror = { (uint16_t)RI_SHIELD_MIRROR, MM_SharedShieldHeld, MM_SharedShieldGive };
+    Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SHIELDS, &hero);
+    Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XFAMILY_SLOT_MIRROR_SHIELD, &mirror);
+}
+
+namespace {
+struct MMSharedShieldRegistrar {
+    MMSharedShieldRegistrar() {
+        MM_RegisterSharedShieldFamilies();
+    }
+};
+const MMSharedShieldRegistrar gMMSharedShieldRegistrar;
+} // namespace
+
+// ============================================================================
+// The Shared Ocarina Buttons families (#1067; OoTMM sharedOcarinaButtons)
+// ============================================================================
+//
+// MM's copies of the rule's five pairs: RI_OCARINA_BUTTON_A at the rule's own
+// bit, the four C buttons at their extra slots. Ownership is the
+// RANDO_INF_OBTAINED_OCARINA_BUTTON_* bit MM's own give writes (GiveItem.cpp:
+// the flag at the item's offset from RI_OCARINA_BUTTON_A) and the
+// VB_PLAY_OCARINA_NOTE gate reads (Rando/ActorBehavior/Player.cpp).
+//
+// HELD only in a randomizer file whose frozen RO_SHUFFLE_OCARINA_BUTTONS is on
+// (the note gate's own test): without it MM plays every note and finds no
+// button, so it has nothing to share. The GIVE writes the bit directly, as the
+// shields write the equipment value (Flags_SetRandoInf would also fire the
+// flag-set hooks before gameplay); with MM's shuffle off nothing reads it.
+
+namespace {
+
+int MM_SharedButtonFlag(uint16_t nativeId) {
+    return RANDO_INF_OBTAINED_OCARINA_BUTTON_A + ((int)nativeId - (int)RI_OCARINA_BUTTON_A);
+}
+
+bool MM_SharedButtonHeld(uint16_t nativeId) {
+    if (!IS_RANDO || RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] == RO_GENERIC_OFF) {
+        return false;
+    }
+    const int flag = MM_SharedButtonFlag(nativeId);
+    return (gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+void MM_SharedButtonGive(uint16_t nativeId) {
+    const int flag = MM_SharedButtonFlag(nativeId);
+    gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] |= (u16)(1 << (flag & 0xF));
+}
+
+/** POOLED (the bag, at generation): MM's buttons are items of its pool only
+ *  under its own shuffle, which its frozen profile publishes as
+ *  RSBS_GIVECAP_OCARINA_BUTTONS (the same word that arms MM's button rows into
+ *  the bag). Without it no pair is built, so a button can never be hosted at an
+ *  MM check whose give HELD above would not see. */
+bool MM_SharedButtonPooled(uint16_t nativeId) {
+    (void)nativeId;
+    return Combo_ForeignGiveCapsArm((uint8_t)GAME_MM, RSBS_GIVECAP_OCARINA_BUTTONS);
+}
+
+} // namespace
+
+/** Register MM's copies of the Shared Ocarina Buttons families (#1067).
+ *  Idempotent; the static registrar below runs it at start-up, and the locks
+ *  re-run it after a row that cleared the registry. */
+extern "C" void MM_RegisterSharedOcarinaButtonFamilies(void) {
+    static const struct {
+        uint32_t slot;
+        RandoItemId button;
+    } kButtons[] = {
+        { RSBS_XITEM_SHARED_OCARINA_BUTTONS, RI_OCARINA_BUTTON_A },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_UP, RI_OCARINA_BUTTON_C_UP },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, RI_OCARINA_BUTTON_C_DOWN },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, RI_OCARINA_BUTTON_C_LEFT },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, RI_OCARINA_BUTTON_C_RIGHT },
+    };
+    for (const auto& b : kButtons) {
+        const ComboSharedFamilyMember member = { (uint16_t)b.button, MM_SharedButtonHeld, MM_SharedButtonGive,
+                                                 MM_SharedButtonPooled };
+        Combo_RegisterSharedFamilyMember(GAME_MM, b.slot, &member);
+    }
+}
+
+namespace {
+struct MMSharedOcarinaButtonRegistrar {
+    MMSharedOcarinaButtonRegistrar() {
+        MM_RegisterSharedOcarinaButtonFamilies();
+    }
+};
+const MMSharedOcarinaButtonRegistrar gMMSharedOcarinaButtonRegistrar;
+} // namespace
 
 static uint16_t MM_ReadHealthQuarters(void) {
     const uint16_t pieces =
@@ -4445,12 +5394,54 @@ extern "C" void MM_HarvestSharedResources(void) {
     // monotonic. The arming gate is inside Combo_HarvestSharedResource.
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_ReadKokiriSword());
 
+    // The bottle count (#970), the twin of OoT's line, clamped at OoT's four. The
+    // arming gate is inside Combo_HarvestSharedResource.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_ReadBottleCount());
+
     // Triforce pieces (ADR 0010 answer O10), the twin of OoT's line: MM's
     // counter is a MIRROR of the one combo count, so harvesting it max-merges
     // MM's collects into that count. The arming gate (the frozen goal is
     // triforce-hunt) is inside Combo_HarvestSharedResource.
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES,
                                 (uint16_t)gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces);
+
+    // Shared families (#976), the twin of OoT's line: behind the same live-file
+    // gate, a no-op until a family is frozen on and registered.
+    Combo_SharedFamiliesHarvestLive(GAME_MM);
+}
+
+/**
+ * CREDIT AT PICKUP (#1061; shared_resources.h), the twin of
+ * OoT_CreditSharedPickup: an OoT bombchu pack found in Termina, or an MM pack
+ * redeemed from an older save's crossing, goes into the pool now and MM's count
+ * re-applies from it (harvest, credit, re-apply). MM holds what its bomb bag
+ * fits, 0 with no bag; the rest stays in the pool, where OoT reads it.
+ *
+ * @return 1 when credited; 0 (nothing touched) when @p item is not a counted
+ *         pack, MM's live save is not a real file, or the kind has no MM row.
+ */
+extern "C" int MM_CreditSharedPickup(const SharedItem* item) {
+    uint8_t kind = 0;
+    uint16_t units = 0;
+    if (item == nullptr || !Combo_SharedPickupCreditOf(*item, &kind, &units) || !MM_SaveIsLiveFile()) {
+        return 0;
+    }
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        const MMSharedAmmo* row = &kMMSharedAmmo[i];
+        if (row->countKind != kind) {
+            continue;
+        }
+        Combo_HarvestSharedResource(GAME_MM, kind, MM_ReadAmmo(row->item));
+        if (!Combo_CreditSharedResource(kind, units)) {
+            return 0; // the harvest alone changes nothing a later harvest would not
+        }
+        MM_ApplySharedAmmoCount(row);
+        fprintf(stderr, "[MM] shared pickup credit: %s id=%u adds %u to shared kind %u; MM now holds %d\n",
+                Game_ToString((GameId)item->originGame), (unsigned)item->id, (unsigned)units, (unsigned)kind,
+                (int)AMMO(row->item));
+        return 1;
+    }
+    return 0;
 }
 
 // ============================================================================
@@ -4741,13 +5732,7 @@ extern "C" void MM_ApplySharedResources(void) {
             }
         }
 
-        uint16_t count = MM_ReadAmmo(row->item);
-        if (Combo_ApplySharedResource(GAME_MM, row->countKind, MM_AmmoCapacity(row), &count)) {
-            if (count > 0u) {
-                MM_EnsureInventoryItem(row->item);
-            }
-            AMMO(row->item) = (s8)count;
-        }
+        MM_ApplySharedAmmoCount(row);
     }
 
     // --- Hookshot (monotonic). Clamped to MM's ceiling of 1, so an OoT
@@ -4796,6 +5781,16 @@ extern "C" void MM_ApplySharedResources(void) {
         BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_KOKIRI;
     }
 
+    // --- The bottle count (monotonic 0..4), armed per world by the frozen Shared
+    // Bottles rule (#970). A bottle found in Hyrule is one more EMPTY bottle here,
+    // in the next empty slot; MM's own bottles keep what they hold. Read through
+    // the clamped reader, so an MM holding five or six is already at the cap and
+    // gains nothing. With the rule off nothing below runs.
+    uint16_t bottleCount = MM_ReadBottleCount();
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_MAX_BOTTLE_COUNT, &bottleCount)) {
+        MM_WriteBottleCount(bottleCount);
+    }
+
     // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the
     // frozen combo goal is triforce-hunt. MM's counter becomes the whole combo
     // count, capped at the combo total, so MM's give arm compares the combo
@@ -4805,6 +5800,10 @@ extern "C" void MM_ApplySharedResources(void) {
                                   &triforcePieces)) {
         gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces = triforcePieces;
     }
+
+    // Shared families (#976): MM's own copy of every armed family found in either
+    // game, before MM_ConsumeSharedItems (z_play.c).
+    Combo_SharedFamiliesApplyLive(GAME_MM);
 }
 
 // ============================================================================
@@ -6147,14 +7146,14 @@ int MM_Extract_DebugNativeBoxCount() {
 extern "C" float OTRGetAspectRatio();
 
 extern "C" void MM_Ship_ExtendedCullingActorAdjustProjectedZ(Actor* actor) {
-    s32 multiplier = CVarGetInteger("gEnhancements.Graphics.IncreaseActorDrawDistance", 1);
+    s32 multiplier = CVarGetInteger("gEnhancements.DisableDrawDistance", 1);
     if (multiplier > 1) {
         actor->projectedPos.z /= multiplier;
     }
 }
 
 extern "C" void MM_Ship_ExtendedCullingActorAdjustProjectedX(Actor* actor) {
-    if (CVarGetInteger("gEnhancements.Graphics.ActorCullingAccountsForWidescreen", 0)) {
+    if (CVarGetInteger("gEnhancements.WidescreenActorCulling", 0)) {
         // Same clamp-to-1 as Ship_GetExtendedAspectRatioMultiplier, computed
         // inline. That helper is itself a duplicated symbol across the two
         // ports; it happens to be Actor-free and therefore harmless to share,

@@ -2,6 +2,7 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/CustomItem/CustomItem.h"
+#include "2s2h/Rando/StaticData/StaticData.h"
 #include "2s2h/ShipInit.hpp"
 
 extern "C" {
@@ -35,6 +36,9 @@ void skipHealingPamelasFather() {
 void RegisterSkipIkanaCurseCutscenes() {
     // Must use the queue hook for the skip. If the start hook is used, cutscene cues will mess up the curtain movement.
     COND_VB_SHOULD(VB_QUEUE_CUTSCENE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         s16* csId = va_arg(args, s16*);
         if (MM_gPlayState->sceneId == SCENE_HAKASHITA && *csId == 16) { // Flat appears in his tomb Beneath the Graveyard
             BgHakaCurtain* bgHakaCurtain = (BgHakaCurtain*)MM_Actor_FindNearby(
@@ -48,6 +52,9 @@ void RegisterSkipIkanaCurseCutscenes() {
 
     // Pamela's Father
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         s16* csId = va_arg(args, s16*);
         if (MM_gPlayState->sceneId == SCENE_MUSICHOUSE) { // Music Box House
             if (*csId == 9) {                          // Gibdo dad busts out
@@ -81,7 +88,7 @@ void RegisterSkipIkanaCurseCutscenes() {
                 skipHealingPamelasFather();
                 if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_GIBDO)) {
                     MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                        .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
+                        .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                         .param = GID_MASK_GIBDO,
                         .giveItem =
                             [](Actor* actor, PlayState* play) {
@@ -117,6 +124,9 @@ void RegisterSkipIkanaCurseCutscenes() {
 
     // Healing Sharp's curse
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         s16* csId = va_arg(args, s16*);
         if (MM_gPlayState->sceneId == SCENE_IKANA && *csId == 20) { // Played Song of Storms for Sharp
             // Reload the scene so that all actor states are appropriate

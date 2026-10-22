@@ -12,10 +12,14 @@
 void RegisterSkipLearningElegyOfEmptiness() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR || IS_RANDO, {
         s16* csId = va_arg(args, s16*);
+        // #1071, per PR #673's criterion: this TU is in the single-exe link now and
+        // the line below reads MM_gPlayState. Before any *should write, so a
+        // missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->sceneId == SCENE_IKNINSIDE && *csId == 10) { // Defeated Igos, learn Elegy of Emptiness
             if (GameInteractor_Should(VB_GIVE_ITEM_FROM_KNIGHT, true)) {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                    .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
+                    .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                     .giveItem =
                         [](Actor* actor, PlayState* play) {
                             if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {

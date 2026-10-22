@@ -998,7 +998,7 @@ void BenMenu::AddEnhancements() {
         .Options(CheckboxOptions().Tooltip("In the pause menu, press the same C-button or D-pad button an item is "
                                            "equipped to in order to unequip it."));
     AddWidget(path, "Fast Magic Arrow Equip Animation", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Equipment.MagicArrowEquipSpeed")
+        .CVar("gEnhancements.SkipArrowAnimation")
         .Options(CheckboxOptions().Tooltip("Removes the animation for equipping Magic Arrows."));
     AddWidget(path, "Instant Fin Boomerangs Recall", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.PlayerActions.InstantRecall")
@@ -1013,7 +1013,7 @@ void BenMenu::AddEnhancements() {
         .Options(
             CheckboxOptions().Tooltip("Inform the player what target if any is being captured in the pictograph."));
     AddWidget(path, "Arrow Type Cycling", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.PlayerActions.ArrowCycle")
+        .CVar("gEnhancements.BowArrowCycle")
         .Options(CheckboxOptions().Tooltip(
             "While aiming the bow, use R to cycle between Normal, Fire, Ice and Light arrows."));
     AddWidget(path, "Remote Bombchu Control", WIDGET_CVAR_CHECKBOX)
@@ -1079,7 +1079,7 @@ void BenMenu::AddEnhancements() {
                      .ComboVec(&ammoBuybackOptions));
     AddWidget(path, "Accessibility", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Disable Screen Flash for Enemy Kills", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.A11y.NoScreenFlashForEnemyKill")
+        .CVar("gSettings.A11yNoScreenFlashForFinishingBlow")
         .Options(CheckboxOptions().Tooltip("Disables the white screen flash on enemy kill."));
     AddWidget(path, "Bow Reticle", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.BowReticle")
@@ -1218,7 +1218,7 @@ void BenMenu::AddEnhancements() {
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "Other", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "3D Item Drops", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Graphics.3DItemDrops")
+        .CVar("gEnhancements.NewDrops")
         .Options(CheckboxOptions().Tooltip("Makes item drops 3D"));
     AddWidget(path, "Authentic Logo", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Graphics.AuthenticLogo")
@@ -1243,11 +1243,11 @@ void BenMenu::AddEnhancements() {
             "Disables the distance check for scene geometry, allowing it to be drawn no matter how far "
             "away it is from the player. This may have unintended side effects."));
     AddWidget(path, "Widescreen Actor Culling", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Graphics.ActorCullingAccountsForWidescreen")
+        .CVar("gEnhancements.WidescreenActorCulling")
         .Options(CheckboxOptions().Tooltip("Adjusts the culling planes to account for widescreen resolutions. "
                                            "This may have unintended side effects."));
     AddWidget(path, "Increase Actor Draw Distance: %dx", WIDGET_CVAR_SLIDER_INT)
-        .CVar("gEnhancements.Graphics.IncreaseActorDrawDistance")
+        .CVar("gEnhancements.DisableDrawDistance")
         .Options(IntSliderOptions()
                      .Tooltip("Increase the range in which Actors are drawn. This may have unintended side effects.")
                      .Min(1)
@@ -1305,10 +1305,10 @@ void BenMenu::AddEnhancements() {
             "This song will make time move very fast until either Link moves to a different scene, "
             "or when the time switches to a new time period."));
     AddWidget(path, "D-pad Ocarina", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Playback.DpadOcarina")
+        .CVar("gSettings.CustomOcarina.Dpad")
         .Options(CheckboxOptions().Tooltip("Enables using the D-pad for Ocarina playback."));
     AddWidget(path, "Right Stick Ocarina", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Playback.RightStickOcarina")
+        .CVar("gSettings.CustomOcarina.RightStick")
         .Options(CheckboxOptions().Tooltip("Enables using the Right Stick for Ocarina playback."));
     AddWidget(path, "Pause Owl Warp", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Songs.PauseOwlWarp")
@@ -1325,10 +1325,10 @@ void BenMenu::AddEnhancements() {
                      .Max(7)
                      .DefaultValue(7));
     AddWidget(path, "Prevent Dropped Ocarina Inputs", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Playback.NoDropOcarinaInput")
+        .CVar("gEnhancements.DpadNoDropOcarinaInput")
         .Options(CheckboxOptions().Tooltip("Prevent dropping inputs when playing the Ocarina quickly."));
     AddWidget(path, "Skip Scarecrow Song", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Playback.SkipScarecrowSong")
+        .CVar("gEnhancements.InstantScarecrow")
         .Options(CheckboxOptions().Tooltip("Pierre appears when the Ocarina is pulled out."));
     AddWidget(path, "Faster Song Playback", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Songs.FasterSongPlayback")
@@ -1377,7 +1377,7 @@ void BenMenu::AddEnhancements() {
         .CVar("gEnhancements.TimeSavers.SkipCutscene.Story")
         .Options(CheckboxOptions().Tooltip("This skips many of the cutscenes associated with the main story."));
     AddWidget(path, "Skip Misc Interactions", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Cutscenes.SkipMiscInteractions")
+        .CVar("gEnhancements.TimeSavers.SkipMiscInteractions")
         .Options(CheckboxOptions().Tooltip("This skips many minor cutscenes and interactions."));
     AddWidget(path, "Skip Enemy Cutscenes", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Cutscenes.SkipEnemyCutscenes")
@@ -1478,7 +1478,7 @@ void BenMenu::AddEnhancements() {
             "Fixes a bug that results in the Ikana Great Fairy fountain looking green instead of "
             "yellow, this was fixed in the EU version."));
     AddWidget(path, "Fix Texture overflow OOB", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Fixes.FixTexturesOOB")
+        .CVar("gEnhancements.FixTexturesOOB")
         .Options(CheckboxOptions()
                      .Tooltip("Fixes textures that normally overflow to be patched with the correct size or format.")
                      .DefaultValue(true))
@@ -1557,7 +1557,7 @@ void BenMenu::AddEnhancements() {
                      .Tooltip("Adjusts the amount of damage Link takes from all sources.")
                      .ComboMap(&damageMultiplierOptions));
     AddWidget(path, "Permanent Heart Loss", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.DifficultyOptions.PermanentHeartLoss")
+        .CVar("gEnhancements.PermanentHeartLoss")
         .Options(CheckboxOptions().Tooltip(
             "When you lose 4 quarters of a heart you will permanently lose that heart container.\n\nDisabling this "
             "after the fact will not restore any received heart containers."));

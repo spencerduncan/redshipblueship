@@ -15,17 +15,25 @@
  * creation-time resolver and the freeze gate are all still src/common's, and
  * nothing about how a row reaches them changed.
  *
- * THE OLD PAGE IS NOT DELETED. `Randomizer -> Cross-Game` survives with a
- * pointer row (AddCrossGamePointerWidgets, SohMenuRandomizer.cpp). That is not
- * politeness: sidebar selection persists BY DISPLAY-NAME STRING into
- * `gSettings.Menu.RandomizerSidebarSection`, which is the measured reason ADR
- * 0004's resolved call 1 refused to promote Cheats out of Enhancements. Deleting
- * the page would strand every config holding `"Cross-Game"` on a header with no
- * such sidebar.
+ * THE OLD PAGE WAS NOT DELETED. `Randomizer -> Cross-Game` survived with a
+ * pointer row, because sidebar selection persists BY DISPLAY-NAME STRING into
+ * `gSettings.Menu.RandomizerSidebarSection` (the measured reason ADR 0004's
+ * resolved call 1 refused to promote Cheats out of Enhancements).
+ *
+ * THE RULES ARE BACK UNDER THE RANDOMIZER HEADER (#1101, operator ruling
+ * 2026-10-21, option C: one randomizer menu for both games, OoTMM parity). The
+ * pointer page became the rules page again, under its "Cross-Game" name, after
+ * MM Randomizer and MM Tricks, all three between SoH's Tricks/Glitches and
+ * Plandomizer (AddComboRandomizerPages below, called by AddMenuRandomizer). The
+ * Combo header keeps Windows and the contributed non-randomizer pages; a
+ * persisted Combo selection on a moved page is carried across headers
+ * (ComboSidebarCarryMovedSelection). Nothing about the rows, the model or the
+ * freeze changed: only the registration moved.
  *
  * WHAT IS NOT BUILT HERE, named rather than implied. ADR 0004 section 4's table
  * lists four Combo sidebars - pairing status, save slots, entrance links,
- * hot-swap. Two pages ship here: `Cross-Game Rules` and `Windows`; save slots
+ * hot-swap. One page ships here, `Windows` (`Cross-Game Rules` did until
+ * #1101 moved it under the Randomizer header); save slots
  * are the contributed `Save Files` page (SohMenuComboSaveFiles.cpp, 2026-09-28,
  * which absorbed the never-constructed ComboMenuBar's `.redsave` panel; that
  * file is deleted). Pairing status, entrance links and hot-swap would be EMPTY
@@ -40,9 +48,9 @@
  * bite: a file-scope registrar in a plain archive is dropped by the linker, and
  * an empty page is #640.
  *
- * Locked ROM-free by MenuComboSection (the section, its pages, the pointer row
- * and the extension point) and by ComboSettingsRows (the six rules' own
- * behaviour, which followed them here).
+ * Locked ROM-free by MenuComboSection (both headers' pages of ours, their order,
+ * the carried selections and the extension point) and by ComboSettingsRows (the
+ * rules' own behaviour, which followed them).
  */
 
 #include "SohMenu.h"
@@ -55,6 +63,8 @@
 // gSaveContext.
 #include "combo_settings_view.h"
 #include "foreign_items.h"
+// The status sentences every randomizer page of ours shares (#1101 decision 7).
+#include "combo_mm_options_page.h"
 // The windows the Windows page opens: their registered names and visibility
 // CVars, from the constants the windows themselves are built with.
 #include "ComboSpoilerWindow.h"
@@ -101,8 +111,23 @@ using namespace UIWidgets;
 // PreFunc overwrites the buffer with the model's value again — so the rows can
 // never disagree with the record about what this world's rules are.
 static int32_t comboRuleDirection;
-static int32_t comboRuleGoal;           // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
-static bool comboRuleSharedKokiriSword; // #886: ComboSettingsRecord.comboFlags' shared-sword bit
+static int32_t comboRuleGoal;              // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
+static bool comboRuleSharedKokiriSword;    // #886: ComboSettingsRecord.comboFlags' shared-sword bit
+static bool comboRuleSharedShields;        // #1068: ComboItemRulesRecord.crossItemFlags' shared-shields bit
+static bool comboRuleSharedLens;           // #1065: the item rules' RSBS_XITEM_SHARED_LENS bit
+static bool comboRuleSharedSongEpona;      // #1066: the item rules' RSBS_XITEM_SHARED_SONG_EPONA bit
+static bool comboRuleSharedSongStorms;     // #1066: the item rules' RSBS_XITEM_SHARED_SONG_STORMS bit
+static bool comboRuleSharedOcarinaButtons; // #1067: ComboItemRulesRecord.crossItemFlags' shared-buttons bit
+static bool comboRuleSharedSongTime;       // #1069: the item rules' RSBS_XITEM_SHARED_SONG_TIME bit
+static bool comboRuleSharedArrowFire;      // #968: the item rules' RSBS_XITEM_SHARED_ARROW_FIRE bit
+static bool comboRuleSharedArrowIce;       // #968: the item rules' RSBS_XITEM_SHARED_ARROW_ICE bit
+static bool comboRuleSharedArrowLight;     // #968: the item rules' RSBS_XITEM_SHARED_ARROW_LIGHT bit
+static bool comboRuleSharedBottles;        // #970: ComboItemRulesRecord.crossItemFlags' shared-bottles bit
+static bool comboRuleSharedMaskGoron;      // #978: the item rules' RSBS_XITEM_SHARED_GORON bit
+static bool comboRuleSharedMaskZora;       // #978: the item rules' RSBS_XITEM_SHARED_ZORA bit
+static bool comboRuleSharedMaskBunny;      // #978: the item rules' RSBS_XITEM_SHARED_BUNNY bit
+static bool comboRuleSharedMaskKeaton;     // #978: the item rules' RSBS_XITEM_SHARED_KEATON bit
+static bool comboRuleSharedMaskTruth;      // #978: the item rules' RSBS_XITEM_SHARED_TRUTH bit
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -191,6 +216,17 @@ static bool ComboRuleShownRecord(ComboSettingsRecord* out) {
         return true;
     }
     Combo_ResolveComboSettings(out);
+    return false;
+}
+
+/** ComboRuleShownRecord for the item rules (#976 record, #1068's row): the
+ *  frozen record once decided, else what this session would freeze. */
+static bool ComboRuleShownItemRules(ComboItemRulesRecord* out) {
+    if (Combo_ComboSettingsFrozen()) {
+        *out = gComboCtx.comboItemRules;
+        return true;
+    }
+    Combo_ResolveComboItemRules(out);
     return false;
 }
 
@@ -359,10 +395,9 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
                  "Session state is corrupt: these rules are frozen but no paired world is loaded, so the values "
                  "below are not in effect. Return to the title screen.");
     } else if (reason != nullptr) {
-        snprintf(buffer, sizeof(buffer),
-                 "Already decided when this world was created (fingerprint %08X). Return to the title screen to "
-                 "choose rules for a new world.",
-                 (unsigned)summary.comboSettingsHash);
+        // The frozen sentence every randomizer page of ours shares (#1101
+        // decision 7), with the identity the rules are frozen to.
+        Combo_RandoPages_FrozenNote(summary.comboSettingsHash, buffer, sizeof(buffer));
     } else if (summary.paired) {
         snprintf(buffer, sizeof(buffer),
                  "Your paired world predates these rules and will use the defaults. Keep them at the defaults "
@@ -370,12 +405,10 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
     } else {
         // No paired file is loaded, so the rows author the NEXT world. Loading
         // an existing paired file puts that file's own rules back (#781), so an
-        // edit here never reaches a world that already exists. It wraps at the
-        // page's one column (#844): one line at desk-1280x800, two at
-        // min-832x600; the freeze itself is the frozen state's own sentence.
-        snprintf(buffer, sizeof(buffer),
-                 "These rules apply to the next paired world you create. Loading a paired file restores its own "
-                 "rules.");
+        // edit here never reaches a world that already exists. One sentence for
+        // every randomizer page of ours (#1101 decision 7), so MM Randomizer, MM
+        // Tricks and Cross-Game say it in the same words.
+        snprintf(buffer, sizeof(buffer), "%s", COMBO_RANDO_PAGES_NEXT_WORLD_NOTE);
     }
     comboRuleStatusText = buffer;
     info.name = comboRuleStatusText;
@@ -396,7 +429,8 @@ std::vector<ComboSectionPage>& MutableComboSectionPages() {
 
 } // namespace
 
-void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar) {
+void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar,
+                              ComboPageHost host) {
     if (sidebarName == nullptr || sidebarName[0] == '\0' || registrar == nullptr || columnCount == 0) {
         SPDLOG_ERROR("RegisterComboSectionPage: refused - a page needs a name, a registrar and at least one column");
         return;
@@ -411,10 +445,11 @@ void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, Com
                         sidebarName);
             page.columnCount = columnCount;
             page.registrar = registrar;
+            page.host = host;
             return;
         }
     }
-    pages.push_back(ComboSectionPage{ sidebarName, columnCount, registrar });
+    pages.push_back(ComboSectionPage{ sidebarName, columnCount, registrar, host });
 }
 
 bool UnregisterComboSectionPage(const char* sidebarName) {
@@ -448,8 +483,9 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
  * the SohGui TUs already declare SohGui::mSohMenu, so no production header grows
  * a test-only entry point.
  *
- * The caller owns the sidebar: AddMenuCombo() creates it with one column, and
- * this function pins `path.column` before its first row. That is a change from the interim registrar,
+ * The caller owns the sidebar: AddComboRandomizerPages() creates it (as
+ * Randomizer > Cross-Game since #1101) with one column, and this function pins
+ * `path.column` before its first row. That is a change from the interim registrar,
  * which had to pin the column itself because five `Rando::Settings` option groups
  * ran immediately before it and left `path.column` wherever their last COLUMN
  * container landed (option.cpp:469-472). Nothing runs before this page in the
@@ -524,8 +560,215 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     // paired world holding its Ocarina of Time, so the rule's only effect was
     // to hand OoT a free Fairy Ocarina at the first return.
 
+    // ---- Shared Items (#1101) ----------------------------------------------
+    // OoTMM's own section name for its "Shared <Item>" rules (Items > Extended
+    // Items > Shared Items), and its order: the rows below follow the order
+    // OoTMM's settings list them in (packages/core/src/settings/data.ts:
+    // arrows, songs, Lens of Truth, masks, swords, shields, ocarina buttons,
+    // bottles). A rule added later takes its OoTMM place, not the end of the
+    // list; ComboSettingsRows leg 1f holds the whole order by name.
+    menu.AddWidget(path, "Shared Items", WIDGET_SEPARATOR_TEXT);
+
+    // Shared Fire, Ice and Light Arrows (#968; OoTMM sharedMagicArrowFire, Ice
+    // and Light, off by default): the lens row's shape, one row per arrow as
+    // OoTMM has one option per arrow. The bits are the ones #976 reserved.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_ARROW_FIRE), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedArrowFire)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedArrowFire = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_ARROW_FIRE)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_ARROW_FIRE) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_FIRE, comboRuleSharedArrowFire ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Fire Arrows one item across both games: finding them in either game gives them to you in the "
+            "other. Only one set of Fire Arrows is shuffled, and both games' logic counts it."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_ARROW_ICE), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedArrowIce)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedArrowIce = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_ARROW_ICE)
+                                              : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_ARROW_ICE) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_ICE, comboRuleSharedArrowIce ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Ice Arrows one item across both games: finding them in either game gives them to you in the "
+            "other. Only one set of Ice Arrows is shuffled, and both games' logic counts it."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_ARROW_LIGHT), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedArrowLight)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedArrowLight = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_ARROW_LIGHT)
+                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_ARROW_LIGHT) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_LIGHT, comboRuleSharedArrowLight ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Light Arrows one item across both games: finding them in either game gives them to you in the "
+            "other. Only one set of Light Arrows is shuffled, and both games' logic counts it."));
+
+    // Shared Epona's Song and Shared Song of Storms (#1066; OoTMM sharedSongEpona,
+    // sharedSongStorms, off by default): the lens row's shape, one row per song.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SONG_EPONA), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedSongEpona)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedSongEpona = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SONG_EPONA)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SONG_EPONA) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_EPONA, comboRuleSharedSongEpona ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes Epona's Song one song across both games: learning it in either game teaches it to you in the "
+            "other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only one "
+            "Epona's Song is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy too."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SONG_STORMS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedSongStorms)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedSongStorms = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SONG_STORMS)
+                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SONG_STORMS) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, comboRuleSharedSongStorms ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Song of Storms one song across both games: learning it in either game teaches it to you in "
+            "the other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only "
+            "one Song of Storms is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy "
+            "too."));
+
+    // The Shared Song of Time (#1069; OoTMM sharedSongTime, off by default): the
+    // lens row's shape. On, Majora's Mask starts without the song and its moon
+    // crash is always a New Cycle (Combo > Majora's Mask's Moon Crash Behavior).
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SONG_TIME), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedSongTime)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedSongTime = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SONG_TIME)
+                                              : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SONG_TIME) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_TIME, comboRuleSharedSongTime ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Song of Time one song across both games: learning it in either game teaches it to you in the "
+            "other, and both games' logic counts it. Majora's Mask then starts without it, so its Moon Crash "
+            "Behavior is New Cycle whatever that option says: when the moon falls, a new cycle starts and you keep "
+            "your progress. With Ocarina of Time's Shuffle Songs set to Anywhere, only one Song of Time is shuffled; "
+            "with any other Shuffle Songs setting, Ocarina of Time keeps its own copy too."));
+
+    // The Shared Lens of Truth (#1065; OoTMM sharedLens, off by default), the
+    // first rule of the cross-game item rules record (#976). The sword row's
+    // pattern, except that the frozen value is a bit of the item rules, read
+    // through the frozen-rule accessor rather than ComboRuleShownRecord.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_LENS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedLens)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedLens = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_LENS)
+                                          : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_LENS) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback(
+            [](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, comboRuleSharedLens ? 1 : 0); })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Lens of Truth one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Lens of Truth is shuffled, and both games' logic counts it."));
+
+    // The five shared masks (#978; OoTMM sharedMaskGoron, Zora, Bunny, Keaton and
+    // Truth, off by default): the lens row's shape, one row per mask as OoTMM has
+    // one option per mask. The bits are the ones #976 reserved.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_GORON), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskGoron)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskGoron = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_GORON)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_GORON) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_GORON, comboRuleSharedMaskGoron ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Goron Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Goron Mask is shuffled, and both games' logic counts it. In Hyrule it stays a trade "
+            "mask; in Termina it still transforms."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_ZORA), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskZora)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskZora = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_ZORA)
+                                              : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_ZORA) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_ZORA, comboRuleSharedMaskZora ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Zora Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Zora Mask is shuffled, and both games' logic counts it. In Hyrule it stays a trade "
+            "mask; in Termina it still transforms."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_BUNNY), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskBunny)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskBunny = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_BUNNY)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_BUNNY) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BUNNY, comboRuleSharedMaskBunny ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Bunny Hood one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Bunny Hood is shuffled, and both games' logic counts it. In Hyrule it also gives "
+            "Majora's Mask's speed boost, as if Enhancements > Bunny Hood Effect were on, whatever that setting "
+            "says."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_KEATON), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskKeaton)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskKeaton = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_KEATON)
+                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_KEATON) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_KEATON, comboRuleSharedMaskKeaton ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Keaton Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Keaton Mask is shuffled, and both games' logic counts it."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_TRUTH), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskTruth)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskTruth = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_TRUTH)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_TRUTH) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, comboRuleSharedMaskTruth ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Mask of Truth one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Mask of Truth is shuffled, and both games' logic counts it."));
+
     // The Shared Kokiri Sword (#886; operator ruling 2026-10-09 on #879: an
-    // option, default off), where the Shared Ocarina row was. One line: the
+    // option, default off): OoTMM's sharedSwords, which it lists after the
+    // masks and before the shields. One line: the
     // page is one column since #844, so "[Both Games] Shared Kokiri Sword"
     // fits beside the box at min-832x600 (the retired row needed a two-line
     // name on the old two-column page).
@@ -548,6 +791,66 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "Makes the Kokiri Sword one item across both games: finding it in either game gives it to you in the "
             "other. A Razor or Gilded Sword gives the Kokiri Sword in Ocarina of Time. Majora's Mask's sword upgrades "
             "count from the shared sword, so one of the two games' sword pickups ends up spare."));
+
+    // The Shared Shields (#1068; operator ruling 2026-10-20: OoTMM's
+    // sharedShields, default off). A BIT of the item rules record rather than
+    // of comboFlags; otherwise the Kokiri Sword row's pattern exactly.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SHIELDS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedShields)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleSharedShields = (shown.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_SHIELDS) != 0u;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, comboRuleSharedShields ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes Ocarina of Time's Hylian Shield and Majora's Mask's Hero's Shield one item, and the two Mirror "
+            "Shields one item: finding one in either game gives it to you in the other. In Majora's Mask the Mirror "
+            "Shield replaces the Hero's Shield. Shops still sell their own game's shield. The Deku Shield stays "
+            "Ocarina of Time's own."));
+
+    // The Shared Ocarina Buttons (#1067; OoTMM's sharedOcarinaButtons, default
+    // off). The Shared Shields row's pattern exactly.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_OCARINA_BUTTONS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedOcarinaButtons)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleSharedOcarinaButtons = (shown.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, comboRuleSharedOcarinaButtons ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes each ocarina button one item across both games: finding the A or a C button in either game gives "
+            "it to you in the other. It only matters when both games shuffle their ocarina buttons. A game that does "
+            "not shuffle them already has all five, so there is nothing to share there. The ocarina itself stays each "
+            "game's own."));
+
+    // The Shared Bottles (#970, default off; a count up to OoT's four with the
+    // contents per game, a deliberate divergence from OoTMM's sharedBottles,
+    // which shares six bottles and their contents). The Shared Shields row's
+    // pattern exactly.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_BOTTLES), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedBottles)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleSharedBottles = (shown.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_BOTTLES) != 0u;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, comboRuleSharedBottles ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the number of bottles one count across both games, up to Ocarina of Time's four: a bottle found "
+            "in either game gives you an empty bottle in the other. What is in each bottle stays that game's own. "
+            "Only four bottles are placed across both games (Ruto's Letter, when it is shuffled, is one of them), "
+            "so Majora's Mask's fifth and sixth bottle slots stay empty."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.
@@ -655,7 +958,9 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .RaceDisable(false)
         .WindowName(ComboGui::kComboItemTrackerWindowName)
         .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Toggles the Combo Item Tracker.").EmbedWindow(false));
+        .Options(WindowButtonOptions()
+                     .Tooltip("Toggles the Combo Item Tracker. Drag it via Tracker Settings > Enable Dragging.")
+                     .EmbedWindow(false));
 }
 
 /**
@@ -704,6 +1009,49 @@ static void ComboSidebarCarryRenamedSelection(const char* sidebarCvar) {
 }
 
 /**
+ * The pages #1101 moved from the Combo header to the Randomizer header, and the
+ * Randomizer sidebar name each one has there. Spelled here as literals for the
+ * same reason the rename table above is: MenuComboSection leg 6 requires every
+ * carried-to name to be a page AddComboRandomizerPages registers.
+ */
+static constexpr ComboSidebarRename kComboSidebarMoves[] = {
+    { "Cross-Game Rules", "Cross-Game" },
+    { "MM Randomizer", "MM Randomizer" },
+    { "MM Tricks", "MM Tricks" },
+};
+
+/**
+ * A persisted Combo selection on a moved page, carried ACROSS headers. Menu's
+ * DrawElement reads gSettings.Menu.ActiveHeader, then that header's sidebar
+ * key, and falls back to the header's first page when the name is not one of
+ * its pages. So a config last open on Combo > MM Randomizer would reopen on
+ * Combo > Windows. Instead: when Combo was the open header, the menu reopens on
+ * the moved page under Randomizer; when another header was open, the player's
+ * own Randomizer selection is left alone. Either way the Combo key is cleared,
+ * so it never names a page the header no longer has. Runs once, before the
+ * menu's first draw reads the keys; writes only existing keys (no key minted).
+ */
+static void ComboSidebarCarryMovedSelection(const char* sidebarCvar) {
+    const char* selected = CVarGetString(sidebarCvar, "");
+    if (selected == nullptr) {
+        return;
+    }
+    for (const ComboSidebarRename& move : kComboSidebarMoves) {
+        if (strcmp(selected, move.formerName) != 0) {
+            continue;
+        }
+        const char* headerCvar = CVAR_SETTING("Menu.ActiveHeader");
+        const char* header = CVarGetString(headerCvar, "");
+        if (header != nullptr && strcmp(header, "Combo") == 0) {
+            CVarSetString(headerCvar, "Randomizer");
+            CVarSetString(CVAR_SETTING("Menu.RandomizerSidebarSection"), move.currentName);
+        }
+        CVarClear(sidebarCvar);
+        return;
+    }
+}
+
+/**
  * The tier-4 **Combo** section itself (ADR 0004 section 4, #497 step 6).
  *
  * `Menu.ComboSidebarSection` is a new `gSettings.Menu.*` key, minted the way
@@ -723,19 +1071,15 @@ void SohMenu::AddMenuCombo() {
     AddMenuEntry("Combo", CVAR_SETTING("Menu.ComboSidebarSection"));
     ComboSidebarCarryRenamedSelection(CVAR_SETTING("Menu.ComboSidebarSection"));
 
+    ComboSidebarCarryMovedSelection(CVAR_SETTING("Menu.ComboSidebarSection"));
+
     // PIN THE COLUMN on every page. A row parked in a column past the page's
     // count is registered and never drawn - Menu::DrawElement iterates
-    // columnCount columns, not every column a caller left behind. Both shipped
-    // pages are one column. Cross-Game Rules declared two until #844: its
-    // second had been empty since #834 retired the item-class groups, and
-    // Menu::DrawElement halves the section for a declared column whether or
-    // not it holds rows, so the rules sat beside an empty half.
-    WidgetPath path = { "Combo", "Cross-Game Rules", SECTION_COLUMN_1 };
-    AddSidebarEntry("Combo", path.sidebarName, 1);
-    AddComboRulesWidgets(*this, path);
-
-    path.sidebarName = kComboWindowsPage;
-    path.column = SECTION_COLUMN_1;
+    // columnCount columns, not every column a caller left behind. The shipped
+    // page is one column. Cross-Game Rules, the first page here until #1101
+    // moved it under the Randomizer header, is registered by
+    // AddComboRandomizerPages below.
+    WidgetPath path = { "Combo", kComboWindowsPage, SECTION_COLUMN_1 };
     AddSidebarEntry("Combo", path.sidebarName, 1);
     AddComboWindowWidgets(*this, path);
 
@@ -744,7 +1088,7 @@ void SohMenu::AddMenuCombo() {
     // created here rather than in its own registrar - a registrar that had to
     // call AddSidebarEntry itself could name a section it does not belong to.
     for (const ComboSectionPage& page : GetComboSectionPages()) {
-        if (page.registrar == nullptr || page.sidebarName.empty()) {
+        if (page.registrar == nullptr || page.sidebarName.empty() || page.host != ComboPageHost::Combo) {
             continue;
         }
         path.sidebarName = page.sidebarName;
@@ -752,6 +1096,47 @@ void SohMenu::AddMenuCombo() {
         AddSidebarEntry("Combo", path.sidebarName, page.columnCount);
         page.registrar(*this, path);
     }
+}
+
+/**
+ * Our pages under SoH's Randomizer header (#1101; declared in SohMenu.h). The
+ * Randomizer-hosted contributed pages in registration order (MM Randomizer, MM
+ * Tricks: SohMenuComboMmEnhancements.cpp), then the cross-game rules under the
+ * "Cross-Game" name the pointer page kept alive, so a config holding it in
+ * gSettings.Menu.RandomizerSidebarSection lands on the rules. AddMenuRandomizer
+ * calls this right after Tricks/Glitches, so they sit between SoH's option
+ * pages and Plandomizer, the order the operator's ruling of 2026-10-21 names.
+ *
+ * Every page pins its own column: SoH's option groups, which run before this,
+ * leave path.column wherever their last COLUMN container landed (option.cpp).
+ * The rules page is ONE column, as it has been since #844 (a declared column
+ * with no rows draws as an empty half beside the page).
+ */
+void AddComboRandomizerPages(SohMenu& menu, WidgetPath& path) {
+    for (const ComboSectionPage& page : GetComboSectionPages()) {
+        if (page.registrar == nullptr || page.sidebarName.empty() || page.host != ComboPageHost::Randomizer) {
+            continue;
+        }
+        path.sidebarName = page.sidebarName;
+        path.column = SECTION_COLUMN_1;
+        menu.AddSidebarEntry("Randomizer", path.sidebarName, page.columnCount);
+        page.registrar(menu, path);
+    }
+    path.sidebarName = kComboRulesRandomizerPage;
+    path.column = SECTION_COLUMN_1;
+    menu.AddSidebarEntry("Randomizer", path.sidebarName, 1);
+    AddComboRulesWidgets(menu, path);
+}
+
+std::vector<std::string> ComboRandomizerPageNames() {
+    std::vector<std::string> names;
+    for (const ComboSectionPage& page : GetComboSectionPages()) {
+        if (page.registrar != nullptr && !page.sidebarName.empty() && page.host == ComboPageHost::Randomizer) {
+            names.push_back(page.sidebarName);
+        }
+    }
+    names.push_back(kComboRulesRandomizerPage);
+    return names;
 }
 
 } // namespace SohGui

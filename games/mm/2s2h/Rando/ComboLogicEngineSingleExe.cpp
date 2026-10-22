@@ -1619,7 +1619,7 @@ extern "C" int MM_ComboLogic_ApplyShippedProfile(void) {
     MM_Sram_InitNewSave();
     gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
     Rando::Foreign::ResolvePairedProfile(false);
-    auto startingItems = Rando::Foreign::PairedStartingItems();
+    auto startingItems = Rando::Foreign::PairedStartingItemsForWorld(); // #1069: the frozen rules' start
     Rando::SetStartingItemsInSave(gSaveContext.save.shipSaveInfo.rando, startingItems);
     Rando::GrantStartingItems();
     return (int)RANDO_SAVE_OPTIONS[RO_LOGIC];
@@ -1700,7 +1700,7 @@ int GeneratePoolBridge(bool authorCheckTable, uint16_t* outItems, uint16_t* outF
     }
     std::unique_ptr<RandoSaveInfo> info = std::make_unique<RandoSaveInfo>();
     memcpy(info.get(), &gSaveContext.save.shipSaveInfo.rando, sizeof(RandoSaveInfo));
-    auto startingItems = Rando::Foreign::PairedStartingItems();
+    auto startingItems = Rando::Foreign::PairedStartingItemsForWorld(); // #1069: the frozen rules' start
     Rando::SetStartingItemsInSave(*info, startingItems);
     std::vector<RandoCheckId> checkPool;
     std::vector<RandoItemId> itemPool;
@@ -2154,8 +2154,40 @@ uint8_t MMFillClassSharedKind(RandoItemId ri) {
             return RSBS_SHARED_RES_HOOKSHOT_TIER;
         case RI_OCARINA:
             return RSBS_SHARED_RES_OCARINA_TIER;
+        // #970: a bottle, whatever it holds (MM's six bottle checks). The policy
+        // trims only while the frozen Shared Bottles rule arms the kind.
+        case RI_BOTTLE_EMPTY:
+        case RI_BOTTLE_CHATEAU_ROMANI:
+        case RI_BOTTLE_GOLD_DUST:
+        case RI_BOTTLE_MILK:
+        case RI_BOTTLE_RED_POTION:
+            return RSBS_SHARED_RES_BOTTLE_COUNT;
         default:
             return 0u;
+    }
+}
+
+/** The size of one copy of an MM item in its shared kind's units (ABI 3, the
+ *  #525 pool policy): a heart container is four heart pieces; a bombchu pack is
+ *  as many bombchus as MM's give adds (ITEM_BOMBCHUS_1/5/10, z_parameter.c's
+ *  sBombchuRefillCounts; #1061: a pack found in Hyrule is credited to the pool
+ *  at pickup by this many, shared_resources.h); every other copy is one unit.
+ *  0 for an item that feeds no kind. */
+uint8_t MMFillClassSharedUnits(RandoItemId ri, uint8_t sharedKind) {
+    if (sharedKind == 0u) {
+        return 0u;
+    }
+    switch (ri) {
+        case RI_HEART_CONTAINER:
+            return (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER;
+        case RI_BOMBCHU:
+            return 1u;
+        case RI_BOMBCHU_5:
+            return 5u;
+        case RI_BOMBCHU_10:
+            return 10u;
+        default:
+            return (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
     }
 }
 } // namespace
@@ -2268,11 +2300,9 @@ extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
         row.armedBy = RSBS_FILL_ARM_WORLD_EVENT;
     }
     row.sharedKind = (row.fillClass == RSBS_FILL_CLASS_TRAP) ? 0u : MMFillClassSharedKind(ri);
-    // The size of one copy in its kind's units (ABI 3, the #525 pool policy): a
-    // heart container is four heart pieces; every other copy is one unit.
-    row.sharedUnits = (row.sharedKind == 0u)       ? 0u
-                      : (ri == RI_HEART_CONTAINER) ? (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER
-                                                   : (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
+    // The size of one copy in its kind's units (ABI 3, the #525 pool policy;
+    // a bombchu pack's size since #1061): see MMFillClassSharedUnits.
+    row.sharedUnits = MMFillClassSharedUnits(ri, row.sharedKind);
     // How an OoT chest hosting this item is dressed (#862): MM's own grade for it.
     row.chestGrade = MMChestGradeOf(type);
     if (out != nullptr) {

@@ -29,6 +29,7 @@
 #include <vector> // the #656 reachability leg collects its host list
 
 #include <ship/Context.h>
+#include <ship/config/Config.h>
 #include <ship/resource/ResourceManager.h>
 // For Test_ZipContention's headless factory registration (#560): both games
 // register these only inside their display-bound Initialize paths.
@@ -121,6 +122,11 @@ int MM_MoonCrashNeverSaved_Run(void);
 // mm-moon-crash-pool-applied (#785 review, same file): after a moon crash
 // restores a commit taken on OoT's side, MM's consumables equal the pool.
 int MM_MoonCrashPoolApplied_Run(void);
+// mm-moon-crash-cycle-forced / mm-moon-crash-cycle-reset (#1069, same file): the
+// frozen Moon Crash Behavior (OoTMM's moonCrash), forced to New Cycle by the
+// Shared Song of Time rule; and a crash under New Cycle starts a new cycle.
+int MM_MoonCrashCycleForced_Run(void);
+int MM_MoonCrashCycleReset_Run(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -290,6 +296,14 @@ int MM_RegistrarCoverage_RunHeadless(void);
 // display-free shared bring-up first (CVarSetInteger). Returns 0 on pass,
 // non-zero on fail.
 int MM_ClockShuffleSongs_RunHeadless(void);
+// The song-teacher hooks (games/mm/2s2h/mm_song_teacher_hooks_test.cpp,
+// #1071): the nine StoryCutscenes/SkipLearning*.cpp TUs register only through a
+// file-scope RegisterShipInitFunc, so plain-archive 2ship_enh dropped all nine
+// and every song-teacher check in Termina could give the vanilla song instead of
+// the seed's item. Asserts each one arms under the production rando path and
+// that the Epona and Healing hooks survive a missing play state. Needs the
+// display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
+int MM_SongTeacherHooks_RunHeadless(void);
 // The curated MM enhancement keys' liveness evidence
 // (games/mm/2s2h/mm_enhancement_toggles_test.cpp, #682): the EVIDENCE half of the
 // pair above, MM-side because the registries are. Per key: exactly one
@@ -362,6 +376,9 @@ int MM_PairedProfile_RunHeadless(void);
 // Rando::Logic::Regions. The table bridge is graph-free and runs in the
 // display-free tier; the GBT bridge needs the region graph. Return 0 on pass.
 int MM_TrickTable_RunHeadless(void);
+// games/mm/2s2h/mm_locations_view_test.cpp (#1101 lane R3): Randomizer > MM
+// Locations' model over MM's check table and gRando.ExcludedChecks. Return 0 on pass.
+int MM_LocationsView_RunHeadless(void);
 int MM_TrickGbtGate_RunHeadless(void);
 // games/mm/2s2h/mm_trick_bindings_test.cpp (#578 part 2): the table-driven
 // red/green lock on every trick binding part 2 authored. Needs the region graph
@@ -374,6 +391,9 @@ int MM_TrickBindings_RunHeadless(void);
 // Rando::Foreign::RecordForeignPickup. Return 0 on pass.
 int MM_SpoilerIdentity_RunHeadless(void);
 int MM_ForeignPickupGate_RunHeadless(void);
+// #1055: where a paired spoiler goes when its seed-named file is another
+// identity's (same file, MM_Rando_ChoosePairedSpoilerName). Return 0 on pass.
+int MM_PairedSpoilerName_RunHeadless(void);
 // games/mm/2s2h/mm_combo_settings_test.cpp (#498, ADR 0011 increment 1): the
 // COMBO-LEVEL arrival identity gate. MM-side because it drives the REAL
 // MM_Rando_PairOnCrossGameArrival, and because reaching its combo leg means
@@ -421,6 +441,10 @@ int OoT_CheckStateLoad_RunHeadless(void);
 // needs the display bring-up, like the other rando-tier rows. Return 0 on pass.
 int OoTTest_EntrancePinPool(void);
 int RandoTest_EntrancePinGenerated(void);
+// #999: a Range price setting's tracker minimum is min(range 1, range 2) * 5 in
+// either slider order. ROM-free and display-free; body in
+// games/oot/soh/oot_price_range_test.cpp. Return 0 on pass.
+int OoTTest_PriceRangeMinimum(void);
 // #948: in a paired world the night Market's Happy Mask Shop door is a
 // scene-exit door, so the crossing works at night. ROM-free and display-free;
 // body in games/oot/soh/oot_mask_shop_night_door_test.cpp. Return 0 on pass.
@@ -434,6 +458,9 @@ int RandoTest_SettingsFoldExcludes(void);
 // five icons and different fingerprints beside them. Body in
 // games/oot/soh/oot_combo_identity_display_test.cpp. Return 0 on pass.
 int RandoTest_ComboIdentityDisplayWorld(void);
+// #855: the scrub's offer textbox follows Scrub Hint Text, not Merchant Hint Text.
+// Body in games/oot/soh/oot_scrub_text_hint_test.cpp. Return 0 on pass.
+int RandoTest_ScrubTextHintSetting(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -535,9 +562,13 @@ extern "C" {
 // #575 H1: the shared hint area vocabulary, both adapters and MM's table
 #include "tests/test_combo_area.c"
 #include "tests/test_foolish_hints.c"
+#include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
+// #1060: SoH's Skip Get Item Animations drives MM's get-item presentation
+#include "tests/test_mm_get_item_presentation.c"
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
-#include "tests/test_crossing_toasts.c" // #878: a crossing toasts nothing its pickup announced
+#include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
+#include "tests/test_tracker_arrival_recalc.c" // #990: an arrival schedules the tracker recalc
 
 // Lane C1 in-game spoiler VIEW model (#496): the read-only projection of
 // gComboCtx.foreignPlacements the combo spoiler window renders — named
@@ -607,6 +638,56 @@ extern "C" {
 // neighbour.
 #include "tests/test_shared_kokiri_sword.c"
 
+// The Shared Bottles rule (#970): the key reaches the frozen record, the bottle
+// count is one shared tier through both games' real shims, and the fill trims
+// the pair's bottle items to four. FILE SCOPE for the same reason as its
+// neighbours.
+#include "tests/test_shared_bottles.c"
+
+// The shared wallet (#991, #992): a wallet found in Termina is the pair's wallet,
+// so OoT's arrival apply sets the possession flag and an arrival with no wallet
+// never debits the rupee pool. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_wallet.c"
+
+// #1061: a bombchu pack found in the other game credits the shared count at its
+// pickup instead of crossing into MM's bomb-bag-capped give. FILE SCOPE for the
+// same reason as its neighbours.
+#include "tests/test_shared_bombchu.c"
+
+// The cross-game item rules and the shared-family bitset (#976, epic #975 P1):
+// the sibling record's format, fingerprint, freeze and load check, and the OR
+// merge through both games' real harvest/apply shims. FILE SCOPE for
+// rsbs::SaveManager, like its neighbours.
+#include "tests/test_cross_item_rules.c"
+// #1065: the Shared Lens of Truth, the first family a player can turn on: the
+// rule, its key and restore (shared-lens-rule, needs the CVar store), the merge
+// through both games' real shims, and the shared bag row (shared-lens-bag, rando).
+#include "tests/test_shared_lens.c"
+// #1066: Shared Epona's Song and Shared Song of Storms, the lens's three rows
+// for two more families (shared-songs-rule, -merge, -bag).
+#include "tests/test_shared_songs.c"
+// #968: Shared Fire, Ice and Light Arrows, the same three rows for the three
+// arrow families #976 reserved (shared-arrows-rule, -merge, -bag).
+#include "tests/test_shared_arrows.c"
+// #978 (absorbs #969): the five shared masks, the same three rows for the mask
+// families #976 reserved, and the Bunny Hood's speed in Hyrule under its rule
+// (shared-masks-rule, -merge, -bag, -bunny-boost).
+#include "tests/test_shared_masks.c"
+
+// The Shared Shields rule (#1068): both games register both shield pairs, the
+// bag makes each one shared row, and the arrival gives and wears the shield in
+// the other game. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_shields.c"
+// The Shared Song of Time rule (#1069): both games register their Song of Time
+// as one family, the bag makes it one shared row, and the arrival teaches it in
+// the other game. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_song_of_time.c"
+
+// The Shared Ocarina Buttons rule (#1067): both games register all five button
+// pairs, the bag makes each one shared row, and a button found in one game is
+// owned in the other on arrival. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_ocarina_buttons.c"
+
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
 // so the code under test does not exist. The `#include "tests/..."` text is
@@ -633,6 +714,16 @@ extern "C" {
 // block (including either game's z64audio.h here would collide on
 // MAX_AUTHENTIC_SEQID). Pure arithmetic — no audio subsystem, no archives.
 #include "tests/test_seq_map_bounds.c"
+
+// OoT pause-menu item age table bounds (#983). Included at FILE SCOPE: it reads
+// the entry count z_kaleido_scope_PAL.c exports for it, declared in its own
+// extern "C" block, so no game header is needed. ROM-free, display-free.
+#include "tests/test_item_age_reqs_bounds.c"
+
+// OoT item-action table bounds (#984). Included at FILE SCOPE: it reads the entry count and
+// raw entry z_player.c exports for it (the table is static), declared in its own extern "C"
+// block, so no game header is needed. ROM-free, display-free.
+#include "tests/test_item_actions_bounds.c"
 
 // Cross-game CVar classification lock (#34, ADR 0003 §6.5 + the
 // enhancement-classification inventory). Manifest self-consistency, the
@@ -693,6 +784,17 @@ extern "C" {
 // production Combo_EnsureGameArchivesLoaded defined in rsbs/src/main.cpp. The
 // wrappers below resolve the staged archives and SKIP when they are absent.
 #include "tests/test_curated_archive_order.c"
+
+// #981 resource cache owner locks. FILE SCOPE (compiled as C++): the ROM-free
+// row drives the C++-linkage ResourceManager over two temporary O2R zips, and
+// ResourceCacheOwner_CheckArrival (C linkage) is the per-arrival check both
+// games' integration hooks call.
+#include "tests/test_resource_cache_owner.c"
+
+// #987 ArchiveManager::AddArchive de-duplication lock. FILE SCOPE (compiled as
+// C++): the ROM-free row drives the C++-linkage ArchiveManager over two
+// temporary O2R zips.
+#include "tests/test_archive_add_dedup.c"
 
 // #618 (#516 Phase 3) ExtensionCache rescan lock. FILE SCOPE (compiled as C++):
 // it drives the C++-linkage Ship::Context / ResourceManager APIs directly and
@@ -1006,6 +1108,10 @@ static TestResult Test_MMMoonCrashPoolApplied(void) {
     return MM_MoonCrashPoolApplied_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+static TestResult Test_MMMoonCrashCycleReset(void) {
+    return MM_MoonCrashCycleReset_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 static TestResult Test_MMCreationNewFile(void) {
     const bool synthetic = MM_CreationNewFile_RunSynthetic() == 0;
     const bool entryPoint = MMCreationNewFile_EntryPointRegisters();
@@ -1110,6 +1216,12 @@ static TestResult Test_OoTSceneFlagFreeze(void) {
 // up only the rando region graph, no Ship::Context and no archives.
 static TestResult Test_OoTEntrancePin(void) {
     return OoTTest_EntrancePinPool() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #999 (see the extern decl above). Thin wrapper over the C entry point in
+// games/oot/soh/oot_price_range_test.cpp. Display-free and ROM-free.
+static TestResult Test_OoTPriceRangeMinimum(void) {
+    return OoTTest_PriceRangeMinimum() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #948 (see the extern decl above). Thin wrapper over the C entry point in
@@ -1221,6 +1333,23 @@ TestResult Test_MMComboFirstCycle(void) {
     return MM_ComboFirstCycle_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Needs the display-free shared bring-up its mm-paired-profile sibling has: it
+// drives the real ResolvePairedProfile and MM_Rando_ComputeProfileStamp, which
+// read the Ship::Context singleton's ConsoleVariables (alone in its process, as
+// CTest runs it, that singleton is otherwise null and the row crashes).
+TestResult Test_MMMoonCrashCycleForced(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_MoonCrashCycleForced_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_BootOoT(void) {
     printf("[TEST] boot-oot: shared-context bring-up leaves no null subsystems (#329)\n");
     sTargetGame = GAME_OOT;
@@ -1275,6 +1404,21 @@ TestResult Test_BootOoT(void) {
     return TEST_PASS;
 }
 
+// #990 tracker-arrival-recalc (body: tests/test_tracker_arrival_recalc.c). The arrival's
+// apply + redeem reach the real consumers, which read the CVar store, so the
+// row needs the display-free shared Context bring-up first.
+static TestResult Test_TrackerArrivalRecalc(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    CVarSetInteger("gSettings.Notifications.Mute", 1);
+    const TestResult result = TrackerArrivalRecalc_Run();
+    CVarClear("gSettings.Notifications.Mute");
+    return result;
+}
+
 // #878 crossing-arrival-toasts (body: tests/test_crossing_toasts.c, included
 // beside test_foreign_award.c). The overlay's Emit reads the CVar store, so the
 // row needs the display-free shared Context bring-up first; it mutes the
@@ -1313,6 +1457,12 @@ extern "C" int Rando_HeadlessSeedDeterminismDigest(const char* seedStr, const ch
 // + every foreign placement to the same digest file, so the SeedDeterminism
 // two-process diff covers the whole paired world.
 extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath);
+// #982 (body in games/mm/2s2h/mm_rando_gen_test.cpp): the player's path, digested:
+// the Generate button's worker-thread generation with the full OTR bring-up, then
+// the real paired creation event, written with the same two writers as above.
+extern "C" int MM_Rando_HeadlessPlayerPathDigest(const char* seedStr, const char* outPath);
+// randomizer.cpp (#982): Rando_HeadlessFullInitSeedTest's audio teardown.
+extern "C" void Rando_HeadlessFullInitTeardown(void);
 extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 // Hint-validity lock (#441, body in menu.cpp): generates one seed, then asserts
 // every enabled hint names a REAL item — no hint may resolve to the no-item
@@ -1498,6 +1648,124 @@ TestResult Test_RandoHintCrossGame(void) {
     int rc = Rando_HeadlessHintCrossGameTest("RSBSHINT1");
     printf("[TEST] %s: hint cross-game rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The two games' frame-interpolation recorders (#965). Every name but
+// Interpolate is extern "C"; this TU sees neither game's Mtx/MtxF, so the
+// matrix arguments are opaque here. MM's carry the MM_ prefix
+// (games/mm/include/mm_frame_interpolation_prefix.h). The probe is the seam in
+// games/oot/soh/OTRGlobals.cpp next to the shared Graph_ProcessGfxCommands.
+extern "C" {
+void FrameInterpolation_StartRecord(void);
+void FrameInterpolation_StopRecord(void);
+void FrameInterpolation_RecordMatrixMtxFToMtx(void* src, void* dest);
+void MM_FrameInterpolation_ShouldInterpolateFrame(bool shouldInterpolate);
+void MM_FrameInterpolation_StartRecord(void);
+void MM_FrameInterpolation_StopRecord(void);
+void MM_FrameInterpolation_RecordMatrixMtxFToMtx(void* src, void* dest);
+int OoT_Graph_ProbeInterpolatedFrame(float step, const void* mtx, float* out16);
+}
+
+// One recorded frame holding one matrix conversion: src filled with `value`,
+// written to `dest`. Only dest's address matters (it keys the replacement).
+static void FrameInterpLock_RecordFrame(bool mm, float value, void* dest) {
+    float src[16];
+    for (float& f : src) {
+        f = value;
+    }
+    if (mm) {
+        MM_FrameInterpolation_ShouldInterpolateFrame(true); // MM skips one frame after a camera cut
+        MM_FrameInterpolation_StartRecord();
+        MM_FrameInterpolation_RecordMatrixMtxFToMtx(src, dest);
+        MM_FrameInterpolation_StopRecord();
+    } else {
+        FrameInterpolation_StartRecord();
+        FrameInterpolation_RecordMatrixMtxFToMtx(src, dest);
+        FrameInterpolation_StopRecord();
+    }
+}
+
+// One processed frame of the shared processor, asking for `dest`'s replacement.
+// expect < 0: no replacement; otherwise a replacement whose 16 floats all equal expect.
+static bool FrameInterpLock_Expect(const char* leg, const void* dest, const char* destName, float expect) {
+    float out[16] = {};
+    int found = OoT_Graph_ProbeInterpolatedFrame(0.5f, dest, out);
+    bool ok = expect < 0.0f ? found == 0 : found == 1;
+    for (int i = 0; ok && found && i < 16; i++) {
+        ok = out[i] == expect;
+    }
+    if (found) {
+        printf("[TEST]   %s: %s replaced with %.2f (want %s) %s\n", leg, destName, out[0],
+               expect < 0.0f ? "no replacement" : "that value", ok ? "ok" : "WRONG");
+    } else {
+        printf("[TEST]   %s: %s not replaced (want %s) %s\n", leg, destName,
+               expect < 0.0f ? "no replacement" : "a replacement", ok ? "ok" : "WRONG");
+    }
+    return ok;
+}
+
+// #965 lock: the shared Graph_ProcessGfxCommands (games/oot/soh/OTRGlobals.cpp)
+// runs every frame of BOTH games, and MM's draw code records into MM's own
+// recorder. The processor must build its interpolated sub-frames from the
+// ACTIVE game's recorder, or MM's sub-frames get OoT's (empty or stale)
+// replacements and frame interpolation does nothing in MM. And the first frame
+// after the active game changes must interpolate nothing: the arriving game's
+// recorder still holds its last frame from before it was suspended. Records two
+// frames into each recorder (OoT 0 -> 4, MM 0 -> 2, so the halfway step is 2.0
+// from OoT's and 1.0 from MM's), then probes the processor's step with each game
+// active. Needs a display: the recorders record only while
+// OTRGlobals::GetInterpolationFPS() is above 20, which reads the window.
+TestResult Test_CrossGameFrameInterpolation(void) {
+    printf("[TEST] crossgame-frame-interpolation: the shared gfx processor interpolates with the active game's "
+           "recorder (#965)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    // In memory only (never saved): the recorders record only above 20 fps.
+    CVarSetInteger("gSettings.InterpolationFPS", 60);
+
+    static unsigned char sOoTDest[64];
+    static unsigned char sMMDest[64];
+    FrameInterpLock_RecordFrame(false, 0.0f, sOoTDest);
+    FrameInterpLock_RecordFrame(false, 4.0f, sOoTDest);
+    FrameInterpLock_RecordFrame(true, 0.0f, sMMDest);
+    FrameInterpLock_RecordFrame(true, 2.0f, sMMDest);
+
+    GameId prevGame = Context_GetCurrentGame();
+    bool ok = true;
+
+    Context_SetCurrentGame(GAME_OOT);
+    bool ootRecorded = FrameInterpLock_Expect("OoT active", sOoTDest, "OoT's matrix", 2.0f);
+    if (!ootRecorded) {
+        printf("[TEST]   precondition: OoT's recorder did not interpolate (did it record? "
+               "GetInterpolationFPS() must be above 20)\n");
+    }
+    ok = ootRecorded && ok;
+    ok = FrameInterpLock_Expect("OoT active", sMMDest, "MM's matrix", -1.0f) && ok;
+
+    Context_SetCurrentGame(GAME_MM);
+    ok = FrameInterpLock_Expect("first MM frame after the switch", sOoTDest, "OoT's matrix", -1.0f) && ok;
+    ok = FrameInterpLock_Expect("MM active", sMMDest, "MM's matrix", 1.0f) && ok;
+    ok = FrameInterpLock_Expect("MM active", sOoTDest, "OoT's matrix", -1.0f) && ok;
+
+    Context_SetCurrentGame(GAME_OOT);
+    ok = FrameInterpLock_Expect("first OoT frame after the switch", sOoTDest, "OoT's matrix", -1.0f) && ok;
+    ok = FrameInterpLock_Expect("OoT active again", sOoTDest, "OoT's matrix", 2.0f) && ok;
+    ok = FrameInterpLock_Expect("OoT active again", sMMDest, "MM's matrix", -1.0f) && ok;
+
+    Context_SetCurrentGame(prevGame);
+    CVarClear("gSettings.InterpolationFPS");
+
+    printf("[TEST] %s: crossgame-frame-interpolation\n", ok ? "PASS" : "FAIL");
+    return ok ? TEST_PASS : TEST_FAIL;
 }
 
 // Arrival-rehydration lock (#482). Two more instances of the #441 class on the
@@ -1825,6 +2093,8 @@ static const DigestOutDispatch kDigestOutDispatches[] = {
       "golden-seed-digest-armed-caps-actual.txt" },
     { "mm-paired-attempt", "RSBS_ATTEMPT_DIGEST_OUT", "MMPairedAttemptDeterminism|GoldenPairedAttemptDigest",
       "paired-attempt-run1.txt, golden-paired-attempt-digest-actual.txt" },
+    { "rando-player-path-digest", "RSBS_SEED_DIGEST_OUT", "GoldenSeedDigestPlayerPath",
+      "golden-seed-digest-default-player-path-actual.txt" },
 };
 
 static const DigestOutDispatch* DigestOut_Find(const char* dispatch) {
@@ -2128,6 +2398,142 @@ TestResult Test_TestWindowNoActivation(void) {
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Silent tests (S0): a --test / --integration-test process never plays audio,
+// whatever the staged config's Window.AudioBackend or the caller's environment say.
+// Two layers hold it: redship_add_test() puts SDL_AUDIODRIVER=dummy in every row's
+// environment, and main.cpp pins SDL's audio driver in code
+// (TestWindowFocus_ArmSilentAudio). This row proves the in-code layer alone: it
+// REMOVES SDL_AUDIODRIVER from its own environment first (the CMake layer has
+// already put it there, so leaving it would make the row pass vacuously), then
+// asserts the pin survives and a real SDL audio init lands on the dummy driver.
+// The SDL driver pin does not silence a Windows run on its own: libultraship's
+// default Ship audio backend there is WASAPI (Config::GetCurrentAudioBackend, when
+// Window.AudioBackend is absent or "wasapi"), and a WASAPI player never goes
+// through SDL's driver. So a second layer forces the Ship backend to "null" in
+// memory before Context::InitAudio (TestWindowFocus_ForceNullAudioBackend, called
+// from OTRGlobals) and puts the key back after. A4-A8 drive that layer on throw-away
+// Ship::Config files in a scratch directory (never the staged config, whose own
+// "null" would make them pass vacuously), with the key absent and with "sdl".
+// Red half, one switch per assertion group (RSBS_TEST_AUDIO_SABOTAGE, comma-joinable):
+//   no-default  main skips the whole arm            -> A1-A3, A5, A7 red
+//   no-config   the force call is removed           -> A5, A7 red
+//   no-restore  the restore call is removed         -> A6, A8 red
+// RSBS_TEST_AUDIO=1 is the operator's opt-out, so the row reports and skips rather
+// than failing a deliberate choice (SKIP_RETURN_CODE 77 in CMake).
+TestResult Test_TestAudioSilent(void) {
+    printf("[TEST] test-audio-silent: a test process defaults SDL to the dummy audio driver in code\n");
+    const char* optOut = getenv("RSBS_TEST_AUDIO");
+    if (optOut != nullptr && strcmp(optOut, "1") == 0) {
+        printf("[TEST] SKIP: RSBS_TEST_AUDIO=1 is set, so main left audio at the platform default on purpose\n");
+        return TEST_SKIP;
+    }
+    int failures = 0;
+#define TAS_ASSERT(cond, ...)        \
+    do {                             \
+        if (!(cond)) {               \
+            printf("[TEST] FAIL: "); \
+            printf(__VA_ARGS__);     \
+            printf("\n");            \
+            failures++;              \
+        }                            \
+    } while (0)
+
+    DigestOut_SetEnv("SDL_AUDIODRIVER", nullptr);
+    TAS_ASSERT(SDL_getenv("SDL_AUDIODRIVER") == nullptr || SDL_getenv("SDL_AUDIODRIVER")[0] == '\0',
+               "A0: setup: SDL_AUDIODRIVER is still in the environment after removing it");
+
+    TAS_ASSERT(TestWindowFocus_IsAudioArmed() == 1,
+               "A1: main.cpp did not pin the audio driver for --test (TestWindowFocus_ArmSilentAudio)");
+    const char* hint = SDL_GetHint(SDL_HINT_AUDIODRIVER);
+    TAS_ASSERT(hint != nullptr && strcmp(hint, "dummy") == 0,
+               "A2: SDL_HINT_AUDIODRIVER is '%s' with the environment variable removed, not 'dummy'",
+               hint != nullptr ? hint : "(unset)");
+
+    // A3 brings the SDL audio subsystem up for real and asks which driver won. That
+    // opens the driver, never a device, so even the red half (no pin: the platform's
+    // own driver) makes no sound; the FAIL line names the driver that would have played.
+    const bool audioWasUp = SDL_WasInit(SDL_INIT_AUDIO) != 0;
+    if (!audioWasUp && SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+        TAS_ASSERT(false, "A3: SDL_InitSubSystem(SDL_INIT_AUDIO) failed (%s)", SDL_GetError());
+    } else {
+        const char* driver = SDL_GetCurrentAudioDriver();
+        printf("[AUDIO] row: SDL_GetCurrentAudioDriver() = %s\n", driver != nullptr ? driver : "(null)");
+        TAS_ASSERT(driver != nullptr && strcmp(driver, "dummy") == 0,
+                   "A3: SDL_GetCurrentAudioDriver() is '%s' after SDL_InitSubSystem(SDL_INIT_AUDIO), not 'dummy'",
+                   driver != nullptr ? driver : "(null)");
+        if (!audioWasUp) {
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        }
+    }
+
+    // A4-A8: the Ship backend layer, on throw-away configs.
+    {
+        namespace fs = std::filesystem;
+        const fs::path dir = rsbs::test::ScratchDir("audio-silent-config");
+        const char* kKey = "Window.AudioBackend";
+        auto backendName = [](Ship::AudioBackend b) {
+            return b == Ship::AudioBackend::NUL ? "null" : b == Ship::AudioBackend::SDL ? "sdl" : "wasapi";
+        };
+        auto writeConfig = [&](const char* file, const char* body) {
+            const fs::path p = dir / file;
+            std::ofstream(p, std::ios::trunc) << body;
+            return p.string();
+        };
+        auto readFile = [](const std::string& path) {
+            std::ifstream in(path);
+            return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        };
+
+        // Key ABSENT (a "Window" block with another key, so only the audio key is missing).
+        const std::string absentPath = writeConfig("absent.json", "{\"Window\":{\"PositionX\":100}}");
+        {
+            Ship::Config control(absentPath);
+            const Ship::AudioBackend def = control.GetCurrentAudioBackend();
+            printf("[AUDIO] row: key absent, unforced Ship backend = %s\n", backendName(def));
+            TAS_ASSERT(def != Ship::AudioBackend::NUL,
+                       "A4: control: a config without Window.AudioBackend already reads 'null', so A5 proves nothing");
+        }
+        {
+            Ship::Config c(absentPath);
+            const TestSilentAudioConfigState st = TestWindowFocus_ForceNullAudioBackend(&c);
+            const Ship::AudioBackend forced = c.GetCurrentAudioBackend();
+            TAS_ASSERT(forced == Ship::AudioBackend::NUL,
+                       "A5: with Window.AudioBackend absent the forced Ship backend is '%s', not 'null' "
+                       "(the platform default would build a real audio player)",
+                       backendName(forced));
+            c.Save(); // what Audio::Init does while the key is forced
+            TestWindowFocus_RestoreAudioBackend(&c, st);
+            const std::string after = c.GetString(kKey);
+            const std::string disk = readFile(absentPath);
+            TAS_ASSERT(after.empty() && disk.find("AudioBackend") == std::string::npos,
+                       "A6: the absent key was not put back: memory '%s', on disk %s", after.c_str(),
+                       disk.find("AudioBackend") == std::string::npos ? "absent" : "still holds the key");
+        }
+
+        // Key "sdl": an explicit real backend is overridden too, then put back as it was.
+        const std::string sdlPath =
+            writeConfig("sdl.json", "{\"Window\":{\"AudioBackend\":\"sdl\",\"PositionX\":100}}");
+        {
+            Ship::Config c(sdlPath);
+            const TestSilentAudioConfigState st = TestWindowFocus_ForceNullAudioBackend(&c);
+            const Ship::AudioBackend forced = c.GetCurrentAudioBackend();
+            TAS_ASSERT(forced == Ship::AudioBackend::NUL,
+                       "A7: with Window.AudioBackend 'sdl' the forced Ship backend is '%s', not 'null'",
+                       backendName(forced));
+            c.Save();
+            TestWindowFocus_RestoreAudioBackend(&c, st);
+            const std::string after = c.GetString(kKey);
+            const std::string disk = readFile(sdlPath);
+            TAS_ASSERT(after == "sdl" && disk.find("\"sdl\"") != std::string::npos,
+                       "A8: the 'sdl' key was not put back: memory '%s', on disk %s", after.c_str(),
+                       disk.find("\"sdl\"") != std::string::npos ? "'sdl'" : "not 'sdl'");
+        }
+    }
+#undef TAS_ASSERT
+    printf("[TEST] %s: test-audio-silent, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #880 lock: the version a person sees names the commit it was built from.
 // Every build between two release tags used to read the same
 // "RedShipBlueShip v0.1.1-prealpha (Morpheus Bravo)", so a stale build could not
@@ -2248,6 +2654,24 @@ TestResult Test_ComboIdentityDisplayWorld(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #855 lock: the scrub's offer follows Scrub Hint Text. Same bring-up as the rows
+// above. Assertions in games/oot/soh/oot_scrub_text_hint_test.cpp.
+TestResult Test_ScrubTextHintSetting(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = RandoTest_ScrubTextHintSetting();
+    printf("[TEST] %s: scrub text hint setting rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Lane B unified-seed lock. Single run: bring up OoT, generate one pinned seed,
 // and (inside the bridge) assert the LIVE producer stamped
 // gComboCtx.sourceIsRando/sharedRandoSeed at generation time, then emit a
@@ -2318,6 +2742,51 @@ TestResult Test_RandoDeterminism(void) {
     int mmRc = MM_Rando_HeadlessForeignDigest(digestOut);
     printf("[TEST] %s: foreign-placement digest rc=%d\n", mmRc == 0 ? "PASS" : "FAIL", mmRc);
     return mmRc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #982: THE PLAYER'S PATH AGAINST THE DEFAULT GOLDEN. Driven only by the
+// GoldenSeedDigestPlayerPath row, which runs WITHOUT RSBS_DISABLE_OTR_INIT and
+// compares this digest with tests/golden/seed-digest-default.txt (the pinned seed
+// of rando-determinism, at the shipped profile). The golden is written by the
+// headless harness; this generates the same seed the way a player does -- the full
+// OTR bring-up, GenerateRandomizer(seed) on the Generate button's worker thread,
+// then OoT_RunPairedCreationEvent -- and writes the same fields with the same
+// writers. A difference is a finding about the two paths, never a re-pin, which is
+// why the row sits outside REDSHIP_GOLDEN_DIGESTS. Needs a display and a mounted
+// soh.o2r like rando-gen-full-init, so `--test all` skips it.
+TestResult Test_RandoPlayerPathDigest(void) {
+    printf("[TEST] rando-player-path-digest: the Generate button's worker thread and the creation event, digested "
+           "(#982)\n");
+    DigestOutHandRunReminder handRun{ "rando-player-path-digest", false };
+    const char* digestOut = DigestOut_Resolve("rando-player-path-digest", &handRun.noticed); // NULL => stdout
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    // rando-gen-full-init's precondition, for its reason: with no archive the
+    // un-masked bring-up's synchronous audio load never returns.
+    const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    if (!std::filesystem::exists(sohArchive)) {
+        printf("[TEST] FAIL: no soh.o2r resolvable (tried '%s'); the full OTR bring-up needs a mounted archive\n",
+               sohArchive.c_str());
+        return TEST_FAIL;
+    }
+    if (std::getenv("RSBS_DISABLE_OTR_INIT") != nullptr) {
+        printf("[TEST] FAIL: RSBS_DISABLE_OTR_INIT is set, so this would digest the headless bring-up again, not a "
+               "player's\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    const int rc = MM_Rando_HeadlessPlayerPathDigest("RSBSUNIFIED1", digestOut);
+    Rando_HeadlessFullInitTeardown();
+    printf("[TEST] %s: player-path digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #681 review, re-aimed by ADR 0010 increment 3 (lane K11): THE ARMED CAPABILITY
@@ -3277,6 +3746,25 @@ TestResult Test_MMPairedStart(void) {
     return MM_PairedStart_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1069: under the frozen Shared Song of Time rule MM's paired start drops the
+// song (the pair's one copy is a pool item) and the identity list never moves.
+// Same body file and the same bring-up; `--test all` skips it.
+extern "C" int MM_PairedStartSharedSongTime_RunHeadless(void);
+
+TestResult Test_MMPairedStartSharedSongTime(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    return MM_PairedStartSharedSongTime_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Attempt-ladder convergence + determinism digest (ADR 0010 increment 1.2
 // lock (b)). Single-run assertions here; the two-process byte-diff runs via
 // the MMPairedAttemptDeterminism row (CMake/CheckPairedAttemptDeterminism
@@ -3665,6 +4153,155 @@ TestResult Test_CuratedArchiveOrder(void) {
 
     int rc = CuratedArchiveOrder_RunHeadless(sohArchive.c_str(), mmArchive.c_str());
     printf("[TEST] %s: curated archive order rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #981: one path parsed by one game must never be served to the other. Body in
+// src/common/tests/test_resource_cache_owner.c: two temporary O2R zips with
+// different Blob contents at one path, loaded under two cache owners through the
+// fork's ResourceManager::SetDefaultCacheOwner. ROM-free and archive-free: it
+// needs only the display-free shared bring-up and the Blob factory.
+TestResult Test_ResourceCacheOwner(void) {
+    printf("[TEST] resource-cache-owner: each cache owner keeps its own copy of a shared path (#981)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    ctx->GetResourceManager()->GetResourceLoader()->RegisterResourceFactory(
+        std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY, "Blob",
+        static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+
+    int rc = ResourceCacheOwner_RunHeadless();
+    printf("[TEST] %s: resource cache owner rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1040 R4: an unload with an explicit owner in its ResourceFilter must unload
+// that owner's entries, not the current default owner's. Body in
+// src/common/tests/test_resource_cache_owner.c; same bring-up as the row above.
+TestResult Test_ResourceCacheOwnerUnloadFilter(void) {
+    printf("[TEST] resource-cache-owner-unload-filter: a filtered unload honours the filter's owner (#1040)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    ctx->GetResourceManager()->GetResourceLoader()->RegisterResourceFactory(
+        std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY, "Blob",
+        static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+
+    int rc = ResourceCacheOwner_RunUnloadFilterHeadless();
+    printf("[TEST] %s: filtered unload rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1040 R1: OoT's Cosmetics Editor patches display lists in whatever copy the
+// current resource cache owner holds (#981). While Majora's Mask runs that is
+// MM's owner, so a colour changed then would parse OoT-only display lists again
+// under MM's owner and write OoT's command indices into MM's copies of the ones
+// both archives carry. The editor must patch only while OoT runs, owe the pass
+// otherwise, and pay it once on OoT's next frame. Seams in
+// games/oot/soh/Enhancements/cosmetics/CosmeticsEditor.cpp. ROM-free: the row
+// skips the patch body once a pass is counted, because that body reads
+// OTRGlobals::Instance (the Greg Bridge check), which this bring-up never builds.
+extern "C" int CosmeticsEditor_CustomGfxPatchPasses(void);
+extern "C" int CosmeticsEditor_CustomGfxPatchesDeferred(void);
+extern "C" void CosmeticsEditor_ApplyCustomGfxPatches(void);
+extern "C" void CosmeticsEditor_ReapplyDeferredGfxPatches(void);
+extern "C" void CosmeticsEditor_SetCustomGfxPatchBodySkipped(int skip);
+
+TestResult Test_CosmeticsPatchOwnerGate(void) {
+    printf("[TEST] cosmetics-patch-owner-gate: the Cosmetics Editor patches only while OoT runs (#1040)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    const GameId savedGame = Context_GetCurrentGame();
+    CosmeticsEditor_SetCustomGfxPatchBodySkipped(1);
+    int failures = 0;
+    auto expect = [&failures](bool ok, const char* what, int passes, int deferred) {
+        if (!ok) {
+            printf("[TEST] FAIL: %s (patch passes %d, deferred %d)\n", what, passes, deferred);
+            failures++;
+        }
+    };
+
+    // 1. OoT runs: a change patches at once and owes nothing.
+    Context_SetCurrentGame(GAME_OOT);
+    const int p0 = CosmeticsEditor_CustomGfxPatchPasses();
+    CosmeticsEditor_ApplyCustomGfxPatches();
+    int passes = CosmeticsEditor_CustomGfxPatchPasses();
+    int deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p0 + 1 && deferred == 0, "under OoT a change did not patch at once", passes - p0, deferred);
+
+    // 2. MM runs: a change reaches no patch (that would write MM's owner's copies)
+    //    and is owed to OoT. A reapply attempt while MM still runs pays nothing.
+    Context_SetCurrentGame(GAME_MM);
+    const int p1 = CosmeticsEditor_CustomGfxPatchPasses();
+    CosmeticsEditor_ApplyCustomGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p1, "under MM a change reached the patches", passes - p1, deferred);
+    expect(deferred == 1, "under MM a change was not owed to OoT", passes - p1, deferred);
+    CosmeticsEditor_ReapplyDeferredGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p1 && deferred == 1, "the owed pass was paid while MM still ran", passes - p1, deferred);
+
+    // 3. OoT's next frame pays the owed pass, once.
+    Context_SetCurrentGame(GAME_OOT);
+    CosmeticsEditor_ReapplyDeferredGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p1 + 1 && deferred == 0, "OoT's return did not pay the owed pass", passes - p1, deferred);
+    CosmeticsEditor_ReapplyDeferredGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    expect(passes == p1 + 1, "the owed pass was paid twice", passes - p1, deferred);
+
+    CosmeticsEditor_SetCustomGfxPatchBodySkipped(0);
+    Context_SetCurrentGame(savedGame);
+    printf("[TEST] %s: cosmetics patch owner gate (%d failure(s))\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #987: a game switch re-adds the arriving game's archives by path, and the
+// ArchiveManager must not mount a second copy of one that is already mounted.
+// Body in src/common/tests/test_archive_add_dedup.c: two temporary O2R zips
+// added and re-added, counts and newest-wins asserted. ROM-free and
+// archive-free: it needs only the display-free shared bring-up.
+TestResult Test_ArchiveAddDedup(void) {
+    printf("[TEST] archive-add-dedup: re-adding a mounted archive path mounts nothing new (#987)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = ArchiveAddDedup_RunHeadless();
+    printf("[TEST] %s: archive add dedup rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -4823,6 +5460,24 @@ static TestResult Test_MMClockShuffleSongs(void) {
     return MM_ClockShuffleSongs_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1071. Same display-free shared bring-up as mm-clock-shuffle-songs: the
+// registrars it arms read CVars through the Ship::Context singleton. It restores
+// the SaveContext image, MM_gPlayState, the event queue and the Story CVar and
+// re-runs the IS_RANDO drive on the way out, so it has no ordering constraints.
+static TestResult Test_MMSongTeacherHooks(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's evidence half. Same display-free shared bring-up and the same reason as
 // mm-clock-shuffle-songs: it drives MM's registrars through CVarSetInteger +
 // MM_ShipInit_OnCVarChanged, and reads the Ship::Context singleton's
@@ -5071,6 +5726,23 @@ TestResult Test_MMTrickTable(void) {
     return MM_TrickTable_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Randomizer > MM Locations' model (#1101 lane R3). The bring-up mm-trick-table
+// uses: no Gui and no region graph, the real ConsoleVariables store, and the
+// real MM_Rando_ComputeProfileStamp.
+TestResult Test_MMLocations(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_LocationsView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM trick GATE lock on the live region graph (#578 finding (b)). Needs MM's
 // boot, because Rando::Logic::Regions is populated by ShipInit registrars — the
 // same requirement (and the same bring-up) as mm-rando-gen, so `--test all`
@@ -5180,6 +5852,13 @@ TestResult Test_MMForeignPickupGate(void) {
     return MM_ForeignPickupGate_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1055: a paired spoiler whose seed-named file is another identity's goes to
+// <seed>-<fingerprint>.json. File I/O in a per-process scratch directory and
+// gComboCtx only: no bring-up.
+TestResult Test_MMPairedSpoilerName(void) {
+    return MM_PairedSpoilerName_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // The COMBO-LEVEL arrival identity gate (#498, ADR 0011 increment 1). Drives
 // the REAL MM_Rando_PairOnCrossGameArrival: a divergent frozen record must
 // refuse through the #533/#568 surface AND name the diverged rule (the
@@ -5235,6 +5914,78 @@ TestResult Test_ComboSettingsAuthoring(void) {
     return Combo_SettingsAuthoring_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1065: the Shared Lens of Truth's rule row reads and writes its tier-4 key, so
+// it needs the CVar store: the same bring-up as combo-settings-authoring.
+TestResult Test_SharedLensRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedLensRule_Run();
+}
+
+// #1066: the shared songs' rule rows, the same bring-up as shared-lens-rule.
+TestResult Test_SharedSongsRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedSongsRule_Run();
+}
+
+// #968: the shared arrows' rule rows, the same bring-up as shared-lens-rule.
+TestResult Test_SharedArrowsRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedArrowsRule_Run();
+}
+
+// #978: the shared masks' rule rows, the same bring-up as shared-lens-rule.
+TestResult Test_SharedMasksRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedMasksRule_Run();
+}
+
+// #969: the Bunny Hood's speed in Hyrule under the frozen rule. Needs only the
+// console variables, the rule rows' bring-up.
+TestResult Test_SharedMasksBunnyBoost(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedMasksBunnyBoost_Run();
+}
+
 // The combo settings pane's window (ADR 0011 increment 2). Same bring-up as
 // the Gui bridges above and for the same reason.
 TestResult Test_ComboSettingsWindow(void) {
@@ -5249,6 +6000,40 @@ TestResult Test_ComboSettingsWindow(void) {
     }
 
     return Combo_SettingsWindow_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #970: the Shared Bottles record row reads gCombo.Rando.SharedBottles, which
+// lives in the CVar store on the Ship::Context singleton, so it needs the same
+// display-free bring-up. Assertions in tests/test_shared_bottles.c.
+TestResult Test_SharedBottlesRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return SharedBottlesRule_Run();
+}
+
+// #1047: the trap row sets the gRando.Traps.* CVars, which live on the
+// Ship::Context singleton, so it needs the same display-free bring-up.
+TestResult Test_MmTrapRollFrozen(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MmTrapRollFrozen_Run();
+}
+
+// #1060: the row sets SoH's and MM's get-item CVars, which live on the
+// Ship::Context singleton, so it needs the same display-free bring-up.
+TestResult Test_MmGetItemPresentation(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MmGetItemPresentation_Run();
 }
 
 // ADR 0009 decision 4b (#590/#625): MM's cross-game death-decline exit is an
@@ -5351,6 +6136,62 @@ TestResult Test_ComboSingleBag(void) {
     return ComboSingleBag_Run();
 }
 
+// #1065: the shared lens's bag row over a real generation. Same bring-up as
+// combo-single-bag, for the same reason.
+TestResult Test_SharedLensBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char slbArg0[] = "redship";
+    static char* slbArgv[] = { slbArg0, nullptr };
+    InitOTRForMMFirstBoot(1, slbArgv);
+    return SharedLensBag_Run();
+}
+
+// #1066: the shared songs' bag rows over a real generation, shared-lens-bag's
+// bring-up.
+TestResult Test_SharedSongsBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char ssbArg0[] = "redship";
+    static char* ssbArgv[] = { ssbArg0, nullptr };
+    InitOTRForMMFirstBoot(1, ssbArgv);
+    return SharedSongsBag_Run();
+}
+
+// #968: the shared arrows' bag rows over a real generation, shared-lens-bag's
+// bring-up.
+TestResult Test_SharedArrowsBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char sabArg0[] = "redship";
+    static char* sabArgv[] = { sabArg0, nullptr };
+    InitOTRForMMFirstBoot(1, sabArgv);
+    return SharedArrowsBag_Run();
+}
+
+// #978: the shared masks' bag rows over a real generation, shared-lens-bag's
+// bring-up.
+TestResult Test_SharedMasksBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char smbArg0[] = "redship";
+    static char* smbArgv[] = { smbArg0, nullptr };
+    InitOTRForMMFirstBoot(1, smbArgv);
+    return SharedMasksBag_Run();
+}
+
 // #755/#757's two rows (tests/test_combo_crossing_views.c). The synthetic row
 // needs the display-free shared bring-up for the OoT authoring seam, like
 // combo-tracker-view; the world row needs a generation, like combo-single-bag.
@@ -5433,6 +6274,22 @@ TestResult Test_RandoTriforceHuntWin(void) {
     return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
 }
 
+// #997: under the combo triforce hunt OoT's own hunt is generated as "Win". Same
+// bring-up as the row above (a real paired creation through the headless bridge).
+// Assertions in games/oot/soh/oot_triforce_hunt_test.cpp.
+extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void);
+TestResult Test_RandoComboHuntOwnMode(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char chomArg0[] = "redship";
+    static char* chomArgv[] = { chomArg0, nullptr };
+    InitOTRForMMFirstBoot(1, chomArgv);
+    return OoT_ComboHuntOwnMode_RunGenerated() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #973: a paired world generates OoT's Mask Quest as "Shuffle" and its Mask Shop
 // Hint off, because the Happy Mask Shop's door leads to Termina. Same bring-up as
 // the row above (a real paired generation, then the registered OoT engine).
@@ -5449,6 +6306,48 @@ TestResult Test_RandoMaskQuestPaired(void) {
     static char* mqpArgv[] = { mqpArg0, nullptr };
     InitOTRForMMFirstBoot(1, mqpArgv);
     return OoT_MaskQuestPaired_RunGenerated() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #994: the two native check trackers' reachability. Same bring-up as the row
+// above (a real paired generation and creation, or MM's real region graph);
+// assertions in games/oot/soh/oot_tracker_reachability_test.cpp and
+// games/mm/2s2h/mm_tracker_in_logic_test.cpp. Each body returns its failure count.
+extern "C" int OoT_TrackerAvailability_RunArrival(void);
+extern "C" int OoT_TrackerFillSuperset_RunOoT(void);
+extern "C" int MM_TrackerInLogic_RunArrival(void);
+extern "C" int MM_TrackerFillSuperset_RunMM(void);
+static bool TrackerReachabilityBringUp(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return false;
+    }
+    static char trrArg0[] = "redship";
+    static char* trrArgv[] = { trrArg0, nullptr };
+    InitOTRForMMFirstBoot(1, trrArgv);
+    return true;
+}
+TestResult Test_TrackerAvailabilityArrival(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_TrackerAvailability_RunArrival() == 0 ? TEST_PASS : TEST_FAIL;
+}
+TestResult Test_MMTrackerInLogicArrival(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return MM_TrackerInLogic_RunArrival() == 0 ? TEST_PASS : TEST_FAIL;
+}
+TestResult Test_TrackerFillSuperset(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    const int oot = OoT_TrackerFillSuperset_RunOoT();
+    const int mm = MM_TrackerFillSuperset_RunMM(); // over the MM half the OoT half's creation armed
+    printf("[TEST] %s: tracker-fill-superset (OoT failures %d, MM failures %d)\n",
+           (oot == 0 && mm == 0) ? "PASS" : "FAIL", oot, mm);
+    return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
 }
 
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
@@ -5751,6 +6650,10 @@ const TestDescriptor gTests[] = {
     // whose title-chain Save_Init used to wipe the placement table. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     { "rando-hint-crossgame", "Item hints survive a cross-game OoT arrival (#441)", Test_RandoHintCrossGame },
+    // #965: the shared gfx processor interpolates with the active game's recorder.
+    // Needs a display like rando-gen, so `--test all` skips it (below).
+    { "crossgame-frame-interpolation", "The shared gfx processor interpolates with the active game's recorder (#965)",
+      Test_CrossGameFrameInterpolation },
     // #575 H1: the shared area vocabulary. Display-free and ROM-free, so it
     // runs in the redship tier and in `--test all`.
     { "combo-area-vocabulary", "One shared hint area vocabulary over both games (#575 H1)", Test_ComboAreaVocabulary },
@@ -5760,6 +6663,9 @@ const TestDescriptor gTests[] = {
     // display-free suite (NOT skipped by `--test all`).
     { "tracker-arrival-rehydration", "Check/item tracker state survives a cross-game OoT arrival (#482)",
       Test_TrackerArrivalRehydration },
+    // #990: the same arrival must also schedule the tracker's Available Checks recalculation.
+    { "tracker-arrival-recalc", "A cross-game arrival into OoT schedules the tracker's Available Checks recalc (#990)",
+      Test_TrackerArrivalRecalc },
     // Lane B unified seed: producer stamps gComboCtx at generation time; the
     // two-process same-seed determinism diff runs via the SeedDeterminism row.
     // Needs a display like rando-gen, so `--test all` skips it (below).
@@ -5770,6 +6676,11 @@ const TestDescriptor gTests[] = {
     // skips it (below).
     { "rando-armed-caps-digest", "Armed-profile reverse draw digest for the GoldenSeedDigestArmedCaps pin (#681)",
       Test_RandoArmedCapsDigest },
+    // #982: the player's path digested against the default golden. Driven only by
+    // the GoldenSeedDigestPlayerPath row; needs a display and soh.o2r, so `--test
+    // all` skips it (below).
+    { "rando-player-path-digest", "The Generate button's worker thread and the creation event, digested (#982)",
+      Test_RandoPlayerPathDigest },
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     { "mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen },
@@ -5796,6 +6707,11 @@ const TestDescriptor gTests[] = {
       "A paired MM half starts with exactly the Ocarina and the Song of Time, never 2Ship's StartingItems block; "
       "the Kokiri Sword and the Hero's Shield are MM pool items (#879)",
       Test_MMPairedStart },
+    // #1069: the same start under the Shared Song of Time rule.
+    { "mm-paired-start-shared-song-time",
+      "Under the frozen Shared Song of Time rule a paired MM half starts with the Ocarina alone and the Song of Time "
+      "is an MM pool item; with the rule off the start keeps it; MM's identity never moves with the rule (#1069)",
+      Test_MMPairedStartSharedSongTime },
     // ADR 0010 increment 1.2 lock (b): a pinned master seed that NEEDS the
     // attempt ladder converges, records its winning attempt, and digests the
     // world for the two-process MMPairedAttemptDeterminism diff. Same display
@@ -5841,6 +6757,13 @@ const TestDescriptor gTests[] = {
       Test_CuratedArchiveOrder },
     { "mod-survives-switch", "A registered mod archive still wins after a game switch (#593)",
       Test_ModArchiveSurvivesSwitch },
+    { "resource-cache-owner", "Each resource cache owner keeps its own copy of a shared path (#981)",
+      Test_ResourceCacheOwner },
+    { "resource-cache-owner-unload-filter", "A filtered unload honours the filter's cache owner (#1040)",
+      Test_ResourceCacheOwnerUnloadFilter },
+    { "cosmetics-patch-owner-gate", "The Cosmetics Editor patches only while OoT runs (#1040)",
+      Test_CosmeticsPatchOwnerGate },
+    { "archive-add-dedup", "Re-adding a mounted archive path mounts nothing new (#987)", Test_ArchiveAddDedup },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
     { "curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",
@@ -5881,6 +6804,12 @@ const TestDescriptor gTests[] = {
       Test_ForeignHostGossipHint },
     // #575 H5a: MM's free stone names a foolish area, in MM's voice.
     { "mm-foolish-stone-hint", "MM's free gossip stone names a foolish area (#575 H5a)", Test_MmFoolishStoneHint },
+    // #1047: a free stone's seed and a trap's type are pure functions of the frozen world.
+    { "mm-gossip-stone-seed", "MM's free gossip stone seeds are defined integers (#1047)", Test_MmGossipStoneSeed },
+    { "mm-trap-roll-frozen", "MM trap types come from the frozen world and the check (#1047)", Test_MmTrapRollFrozen },
+    // #1060: SoH's Skip Get Item Animations decides MM's get-item presentation.
+    { "mm-get-item-presentation", "SoH's Skip Get Item Animations decides MM's get-item presentation (#1060)",
+      Test_MmGetItemPresentation },
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     { "mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText },
     // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.
@@ -5914,6 +6843,113 @@ const TestDescriptor gTests[] = {
       "One Kokiri Sword across both games when the frozen combo bit arms it, and neither crosses when it does not "
       "(#886)",
       Test_SharedKokiriSword },
+    // #970: the Shared Bottles rule. ROM-free: the resolver and the frozen record,
+    // both games' real harvest and apply shims, and the real composer over both
+    // games' real classifications.
+    { "shared-bottles-rule",
+      "The Shared Bottles key is read into the frozen item rules record, and the fingerprint carries it (#970)",
+      Test_SharedBottlesRule },
+    { "shared-bottles-tier",
+      "With the Shared Bottles rule on, a bottle found in one game unlocks an empty bottle slot in the other on "
+      "arrival, up to OoT's four; off, nothing crosses (#970)",
+      Test_SharedBottlesTier },
+    { "shared-bottles-trim",
+      "With the Shared Bottles rule on, the fill keeps four of the pair's bottle items; off, it trims none (#970)",
+      Test_SharedBottlesTrim },
+    // #991/#992: one wallet progression across both games. ROM-free: gComboCtx,
+    // the RAM watermark table, OoT's real shims, logic's capacity and the
+    // per-frame rupee handler.
+    { "shared-wallet",
+      "A wallet found in Termina is the pair's wallet: the apply sets OoT's flag, and a wallet-less arrival never "
+      "debits the rupee pool (#991, #992)",
+      Test_SharedWallet },
+    // #1061: a bombchu pack found in the other game credits the one shared count
+    // at its pickup. ROM-free: gComboCtx, the RAM watermark table, both games'
+    // real shims, pickup cores and MM's arrival consumer.
+    { "shared-bombchu-pickup",
+      "A bombchu pack found in the other game credits the shared count at its pickup, and MM's bomb-bag cap no "
+      "longer eats it (#1061)",
+      Test_SharedBombchuPickup },
+    // #976: the cross-game item rules record and the shared-family OR merge.
+    { "cross-item-rules-record",
+      "The cross-game item rules are a frozen record folded into the fingerprint only when set, and a file with a "
+      "rule this build cannot honour is refused at load (#976)",
+      Test_CrossItemRulesRecord },
+    { "shared-family-merge",
+      "The shared-family bitset merges by OR in both directions, arms only from the frozen rules, and reaches both "
+      "games through their real harvest and apply shims (#976)",
+      Test_SharedFamilyMerge },
+    // #1068: the Shared Shields rule on the #976 mechanism. ROM-free: the
+    // registry, the bag's pair list, the real composer over both games' real
+    // classifications, and both games' real harvest and apply shims.
+    { "shared-shields-pairs",
+      "The Shared Shields rule arms the Hylian/Hero's and Mirror/Mirror families both games register, and the bag "
+      "makes each one row both solvers credit (#1068)",
+      Test_SharedShieldsPairs },
+    { "shared-shields-arrival",
+      "With the Shared Shields rule on, a shield found in one game is given and worn in the other on arrival; off, "
+      "nothing crosses (#1068)",
+      Test_SharedShieldsArrival },
+    // #1069: the Shared Song of Time rule on the same mechanism. ROM-free, as
+    // the shields rows.
+    { "shared-song-of-time-pairs",
+      "The Shared Song of Time rule arms the family both games register their Song of Time as, and the bag makes the "
+      "two copies one row both solvers credit (#1069)",
+      Test_SharedSongOfTimePairs },
+    { "shared-song-of-time-arrival",
+      "With the Shared Song of Time rule on, the song learnt in one game is known in the other at its arrival; off, "
+      "nothing crosses (#1069)",
+      Test_SharedSongOfTimeArrival },
+    // #1065: the Shared Lens of Truth on the #976 mechanism.
+    { "shared-lens-rule",
+      "The Shared Lens of Truth is one Cross-Game Rule, off by default, frozen at creation into the fingerprint, and "
+      "restored from the file at load (#1065)",
+      Test_SharedLensRule },
+    { "shared-lens-merge",
+      "Both games register their Lens of Truth as the shared family, and a lens found in either game is in the "
+      "other's inventory at arrival through the real shims (#1065)",
+      Test_SharedLensMerge },
+    // #1066: Shared Epona's Song and Shared Song of Storms on the same mechanism.
+    { "shared-songs-rule",
+      "Shared Epona's Song and Shared Song of Storms are two Cross-Game Rules, off by default, frozen at creation "
+      "into the fingerprint, and restored from the file at load (#1066)",
+      Test_SharedSongsRule },
+    { "shared-songs-merge",
+      "Both games register Epona's Song and the Song of Storms as shared families, and a song learnt in either game "
+      "is known in the other at arrival through the real shims (#1066)",
+      Test_SharedSongsMerge },
+    // #1067: the Shared Ocarina Buttons rule on the same mechanism, five pairs
+    // behind one bit. ROM-free, as the shields rows.
+    { "shared-ocarina-buttons-pairs",
+      "The Shared Ocarina Buttons rule arms the five button families both games register, and the bag makes each one "
+      "row both solvers credit (#1067)",
+      Test_SharedOcarinaButtonsPairs },
+    { "shared-ocarina-buttons-arrival",
+      "With the Shared Ocarina Buttons rule on, a button found in one game is owned in the other on arrival; a game "
+      "whose own shuffle is off shares nothing; off, nothing crosses (#1067)",
+      Test_SharedOcarinaButtonsArrival },
+    // #968: Shared Fire, Ice and Light Arrows on the same mechanism.
+    { "shared-arrows-rule",
+      "Shared Fire, Ice and Light Arrows are three Cross-Game Rules, off by default, frozen at creation into the "
+      "fingerprint, and restored from the file at load (#968)",
+      Test_SharedArrowsRule },
+    { "shared-arrows-merge",
+      "Both games register their Fire, Ice and Light Arrows as shared families, and an arrow found in either game is "
+      "in the other's inventory at arrival through the real shims (#968)",
+      Test_SharedArrowsMerge },
+    // #978 (absorbs #969): the five shared masks on the same mechanism.
+    { "shared-masks-rule",
+      "The Shared Goron, Zora, Keaton and Truth masks and the Shared Bunny Hood are five Cross-Game Rules, off by "
+      "default, frozen at creation into the fingerprint, and restored from the file at load (#978)",
+      Test_SharedMasksRule },
+    { "shared-masks-merge",
+      "Both games register their five shared masks as shared families, and a mask found in either game is owned in "
+      "the other at arrival through the real shims (#978)",
+      Test_SharedMasksMerge },
+    { "shared-masks-bunny-boost",
+      "With the shared Bunny Hood rule frozen on, OoT's Bunny Hood gets SoH's Bunny Hood Effect speed boost whatever "
+      "the enhancement's own setting, and nothing is written to that setting (#969)",
+      Test_SharedMasksBunnyBoost },
     { "combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
       Test_ComboSpoilerView },
     { "combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
@@ -5950,6 +6986,8 @@ const TestDescriptor gTests[] = {
       Test_MMSpoilerIdentity },
     { "mm-foreign-pickup-gate", "An unpaired session authors no durable shared-item record on a foreign pickup (#610)",
       Test_MMForeignPickupGate },
+    { "mm-paired-spoiler-name", "A paired spoiler whose seed name is another identity's goes to <seed>-<fp> (#1055)",
+      Test_MMPairedSpoilerName },
     // ADR 0011 increment 1 (#498): the arrival gate that CONSUMES the combo
     // divergence diff. The refusal must NAME the diverged rule, not merely
     // refuse — that capability is what the twelve-byte record buys over ADR
@@ -6054,6 +7092,9 @@ const TestDescriptor gTests[] = {
     { "combo-settings-canonical",
       "canonical() and the whole-pair fingerprint are pinned byte-for-byte (ADR 0011 decision 1.4)",
       Test_ComboSettingsCanonical },
+    { "combo-generator-version",
+      "comboSettingsHash folds RSBS_GENERATOR_VERSION; older files verify; the bag seed ignores it (#1003)",
+      Test_ComboGeneratorVersion },
     { "combo-settings-divergence", "The divergence diff names WHICH combo rule diverged (ADR 0011 decision 1.1)",
       Test_ComboSettingsDivergence },
     { "combo-settings-legacy-freeze",
@@ -6070,6 +7111,10 @@ const TestDescriptor gTests[] = {
       Test_ComboSettingsWindow },
     { "mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse },
     { "seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds },
+    { "item-age-reqs-bounds", "OoT's gItemAgeReqs covers ITEM_ROCS_FEATHER and every u8 ItemID (#983)",
+      Test_ItemAgeReqsBounds },
+    { "item-actions-bounds", "OoT sItemActions covers ITEM_ROCS_FEATHER and every u8 ItemID (#984)",
+      Test_ItemActionsBounds },
     { "cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
       Test_CVarClassification },
     { "active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue },
@@ -6204,6 +7249,11 @@ const TestDescriptor gTests[] = {
     // no ordering constraints.
     { "mm-clock-shuffle-songs", "RO_CLOCK_SHUFFLE's Songs handlers survive the link and their registrars run (#678)",
       Test_MMClockShuffleSongs },
+    // The same elided-registrar class again (#1071): the nine song-teacher
+    // hooks, carved into the WHOLE_ARCHIVE'd 2ship_enh_registrars. Restores
+    // everything it touches, so it has no ordering constraints.
+    { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
+      Test_MMSongTeacherHooks },
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after
@@ -6292,6 +7342,10 @@ const TestDescriptor gTests[] = {
     { "mm-trick-table",
       "MM's trick table is total, mirrored and honest; the Powder Keg gate and the trick digest term are real (#578)",
       Test_MMTrickTable },
+    { "mm-locations",
+      "MM Locations lists MM's checks and writes gRando.ExcludedChecks only through gated writers the digest "
+      "follows (#1101)",
+      Test_MMLocations },
     { "mm-trick-gbt-gate", "The Great Bay Temple boss-key edge is gated on MMRT_GBT_BOSS_KEY_ICE (#578)",
       Test_MMTrickGbtGate },
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it
@@ -6307,6 +7361,11 @@ const TestDescriptor gTests[] = {
     // row runs in its own process under the rando label).
     { "oot-entrance-pin", "The Happy Mask Shop pair never enters OoT's entrance-shuffle pools (#661)",
       Test_OoTEntrancePin },
+    // #999: display-free and ROM-free; sets the three price families' own options in
+    // a fresh rando Context and touches nothing else.
+    { "oot-price-range-minimum",
+      "A Range price setting's tracker minimum is min(range 1, range 2) * 5 in either slider order (#999)",
+      Test_OoTPriceRangeMinimum },
     // #948: display-free and ROM-free, and order-free: it restores the current
     // game, the active slot and OoT_gPlayState, and clears the combo identity.
     { "oot-mask-shop-night-door",
@@ -6416,6 +7475,10 @@ const TestDescriptor gTests[] = {
       "A round's forbidden host is never harvested or exchanged, an empty forbidden set changes no round, and a host "
       "its engine cannot withhold is refused (ABI 6, #575 H4)",
       Test_ComboLogicForbiddenHost },
+    { "combo-logic-shared-pair",
+      "One shared-pair bag row is credited by both engines, its far half goes through the crossing gate, and the "
+      "composer replaces both games' rows with one (ABI 7, #976)",
+      Test_ComboLogicSharedPair },
     // Increment 3's two §6.3 MEASUREMENTS, over both real engines at once (#645,
     // lane K3). Needs a real OoT generation AND MM's rando graph, hence the
     // `rando` tier and the `--test all` skip below. It asserts no timing: only
@@ -6508,11 +7571,30 @@ const TestDescriptor gTests[] = {
       "requirement "
       "ends the combo, in whichever game reaches it (ADR 0010 O10)",
       Test_RandoTriforceHuntWin },
+    // #997. Needs a generation; skipped by `--test all` below like its siblings.
+    { "rando-combo-hunt-own-mode",
+      "Under the combo triforce hunt a paired creation generates OoT's own \"Ganon's Boss Key\" hunt as \"Win\", "
+      "so RC_TRIFORCE_COMPLETED never holds Ganon's Boss Key (#997)",
+      Test_RandoComboHuntOwnMode },
     // #973. Needs a generation; skipped by `--test all` below like its siblings.
     { "rando-mask-quest-paired",
       "A paired world generates Mask Quest as Shuffle and the Mask Shop Hint off, all eight OoT masks are in the "
       "world, and each Deku Theater check is reached only once its mask is assumed (#973)",
       Test_RandoMaskQuestPaired },
+    // #994: the native check trackers' reachability. Each needs a generation or
+    // MM's real region graph; skipped by `--test all` below like their siblings.
+    { "tracker-availability-arrival",
+      "OoT's Check Tracker on a paired creation save: sphere zero, a slingshot redeemed at an arrival flips its "
+      "gated check after the deferred recalculation, and no Mask Shop mask is ever credited (#994, #990, #973)",
+      Test_TrackerAvailabilityArrival },
+    { "mm-tracker-in-logic-arrival",
+      "MM's Check Tracker in-logic set: a hookshot tier applied at an arrival brings the South Clock Town lower chest "
+      "into logic, obtained drops it, and the computation writes nothing (#994)",
+      Test_MMTrackerInLogicArrival },
+    { "tracker-fill-superset",
+      "On one paired creation save, each game's tracker shows every check the fill's sphere zero reaches, minus "
+      "obtained (#994)",
+      Test_TrackerFillSuperset },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     { "combo-logic-bag-composition",
@@ -6543,6 +7625,22 @@ const TestDescriptor gTests[] = {
       "The single-bag fill at the creation event over both real engines: the GOAL proven with crossings both ways on "
       "deliverable hosts, D5's removal locks in both directions, the direction gate, and OoT's remainder",
       Test_ComboSingleBag },
+    { "shared-lens-bag",
+      "With the Shared Lens of Truth on, the single bag holds one lens row both solvers credit, placed once over "
+      "both games, and the GOAL is still proven (#1065)",
+      Test_SharedLensBag },
+    { "shared-songs-bag",
+      "With both shared-song rules on, the single bag holds one row per song both solvers credit, each placed once "
+      "over both games, and the GOAL is still proven (#1066)",
+      Test_SharedSongsBag },
+    { "shared-arrows-bag",
+      "With all three shared-arrow rules on, the single bag holds one row per arrow both solvers credit, each placed "
+      "once over both games, and the GOAL is still proven (#968)",
+      Test_SharedArrowsBag },
+    { "shared-masks-bag",
+      "With all five shared-mask rules on, the single bag holds one row per mask both solvers credit, each placed "
+      "once over both games, the GOAL is still proven, and OoT's logic reads each mask's ownership (#978)",
+      Test_SharedMasksBag },
     { "shared-quantity-policy",
       "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "
       "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
@@ -6619,6 +7717,10 @@ const TestDescriptor gTests[] = {
       "Two real paired generations of one seed that differ in one MM option print the same five seed icons and "
       "different fingerprints beside them; the panes print the seed string, a blank field's ten digits (#952)",
       Test_ComboIdentityDisplayWorld },
+    { "scrub-text-hint-setting",
+      "A scrub's offer textbox names its item exactly when Scrub Hint Text is on, whatever Merchant Hint Text says "
+      "(#855)",
+      Test_ScrubTextHintSetting },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -6674,6 +7776,10 @@ const TestDescriptor gTests[] = {
       "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
       "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
       Test_TestWindowNoActivation },
+    { "test-audio-silent",
+      "A --test process pins SDL's audio driver to the dummy driver in code (not only from the CTest environment), "
+      "so a tier never plays game audio through the speakers of the person at the workstation (S0)",
+      Test_TestAudioSilent },
     { "version-short-commit",
       "The window title and --version read the release version plus the configured short commit (and -dirty), so "
       "a build says which commit it is; the release part stays RSBS_VERSION_STRING (#880)",
@@ -6687,6 +7793,14 @@ const TestDescriptor gTests[] = {
       "A moon crash that restores a commit taken on OoT's side (the pool moved after MM's departure) leaves MM's "
       "rupees, health and ammo EQUAL to the restored pool, and a later spend is an exact delta (#785)",
       Test_MMMoonCrashPoolApplied },
+    { "mm-moon-crash-cycle-forced",
+      "The frozen Moon Crash Behavior (OoTMM's moonCrash) is Last Save by default, the frozen option otherwise, and "
+      "New Cycle whenever the frozen Shared Song of Time rule is on; the rule never moves MM's profile stamp (#1069)",
+      Test_MMMoonCrashCycleForced },
+    { "mm-moon-crash-cycle-reset",
+      "A moon crash under New Cycle starts a new cycle (Dawn of the First Day, human form, no mask) keeping inventory "
+      "and quest items found after the last commit, and commits it; the last-commit rollback does not run (#1069)",
+      Test_MMMoonCrashCycleReset },
     { "oot-departure-windmill-flag",
       "A cross-game departure (F10 or door) from the windmill with the gear live freezes the Song of Storms windmill "
       "flag cleared, as the gear's Destroy leaves it on any non-cutscene exit; no gear, a cutscene, or no PlayState "
@@ -6758,6 +7872,10 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
     { "int-archive-hotswap-cycle",
       "Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (no missing assets, bounded RSS) (#263)",
       INT_TEST_ARCHIVE_HOTSWAP_CYCLE, GAME_OOT },
+    { "int-resource-cache-owner",
+      "Boot OoT into gameplay on a debug save, cross to MM through the Happy Mask Shop and back: each game is served "
+      "its own gOctorokSkel and staff text, and OoT gets back the objects it had (#981)",
+      INT_TEST_RESOURCE_CACHE_OWNER, GAME_OOT },
     { "int-gameplay-roundtrip",
       "Operator crash repro: debug save, live gameplay, production OoT<->MM round trip (freeze/restore + "
       "resume leg), post-return debug warp, door transition. Env: RSBS_GP_FRAMES/CYCLES/BOOT|WARP|EXIT_ENTRANCE",
@@ -6775,6 +7893,18 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
       "plays on outside the door; then a switch request that leaves the loop is refused by main and OoT comes back "
       "through its suspend/resume contract (#954)",
       INT_TEST_CROSSING_REFUSED, GAME_OOT },
+    { "int-crossing-refused-mm",
+      "With oot.o2r set aside (CMake/CheckCrossingRefused.cmake), MM boots first: MM's debug save outside the Clock "
+      "Tower, walk into its door, verify the crossing is refused while MM is still in its frame loop and Link plays "
+      "on in South Clock Town; then a switch request that leaves the loop is refused by main and MM comes back "
+      "through its suspend/resume contract with its save (#954)",
+      INT_TEST_CROSSING_REFUSED_MM, GAME_MM },
+    { "int-mm-moon-crash-cycle",
+      "MM boots on its debug save outside the Clock Tower, the file is marked New Cycle (OoTMM's moonCrash 'cycle'), "
+      "and the moon falls through the real crash cutscene: the scene after it must be a NEW cycle (one more three-day "
+      "reset, the cycle's Deku record cleared) at the Dawn of the First Day with the mask, the bottle and the song "
+      "kept (#1069)",
+      INT_TEST_MM_MOON_CRASH_CYCLE, GAME_MM },
     { nullptr, nullptr, INT_TEST_NONE, GAME_NONE } // Sentinel
 };
 
@@ -6820,10 +7950,14 @@ int TestRunner_Run(const char* testName) {
             if (strcmp(gTests[i].name, "rando-gen") == 0 || strcmp(gTests[i].name, "rando-gen-full-init") == 0 ||
                 strcmp(gTests[i].name, "rando-determinism") == 0 ||
                 strcmp(gTests[i].name, "rando-armed-caps-digest") == 0 ||
+                strcmp(gTests[i].name, "rando-player-path-digest") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
-                strcmp(gTests[i].name, "rando-hint-crossgame") == 0 || strcmp(gTests[i].name, "mm-rando-gen") == 0 ||
-                strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 || strcmp(gTests[i].name, "mm-paired-start") == 0 ||
+                strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
+                strcmp(gTests[i].name, "crossgame-frame-interpolation") == 0 ||
+                strcmp(gTests[i].name, "mm-rando-gen") == 0 || strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-start") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-start-shared-song-time") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
                 strcmp(gTests[i].name, "mm-round-budget-host-scale") == 0 ||
@@ -6838,10 +7972,16 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-multiplicity") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
                 strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
+                strcmp(gTests[i].name, "rando-combo-hunt-own-mode") == 0 ||
                 strcmp(gTests[i].name, "rando-mask-quest-paired") == 0 ||
+                strcmp(gTests[i].name, "tracker-availability-arrival") == 0 ||
+                strcmp(gTests[i].name, "mm-tracker-in-logic-arrival") == 0 ||
+                strcmp(gTests[i].name, "tracker-fill-superset") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
-                strcmp(gTests[i].name, "combo-single-bag") == 0 ||
+                strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
+                strcmp(gTests[i].name, "shared-songs-bag") == 0 || strcmp(gTests[i].name, "shared-arrows-bag") == 0 ||
+                strcmp(gTests[i].name, "shared-masks-bag") == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
                 strcmp(gTests[i].name, "combo-item-view-new-file") == 0 ||
                 strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||
@@ -6855,6 +7995,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-logic-export") == 0 ||
                 strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
                 strcmp(gTests[i].name, "combo-identity-display-world") == 0 ||
+                strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
@@ -6913,6 +8054,7 @@ int TestRunner_Run(const char* testName) {
     // focus" row by row (lane F1). Report only; the lock is the
     // test-window-no-activation row.
     TestWindowFocus_Probe(testName);
+    TestWindowFocus_AudioProbe(testName);
     if (result == TEST_SKIP) {
         // Rows that can self-skip declare SKIP_RETURN_CODE 77 in
         // CMake/SingleExecutable.cmake, so ctest reports "Skipped" rather than

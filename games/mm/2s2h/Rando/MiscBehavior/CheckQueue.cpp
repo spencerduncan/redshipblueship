@@ -213,10 +213,15 @@ void Rando::MiscBehavior::CheckQueue() {
 
                         if (randoItemId == RI_TRAP) {
                             prefix = "";
+#ifdef RSBS_SINGLE_EXECUTABLE
+                            // #1047: the check decides the trap (CUSTOM_ITEM_PARAM is still its id here)
+                            message = GetTrapMessage((RandoCheckId)CUSTOM_ITEM_PARAM);
+#else
                             message = GetTrapMessage();
+#endif
                             // We need to remove the Color Codes if the player is skipping Item Get Cutscenes as the
                             // Notification Emit doesnt support it.
-                            if (CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0) >= 2) {
+                            if (Rando::StaticData::SkipGetItemCutsceneTier() >= 2) {
                                 message = CustomMessage::RemoveColorCodes(message);
                             }
                         }

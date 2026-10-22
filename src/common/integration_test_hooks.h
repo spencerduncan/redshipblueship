@@ -34,8 +34,14 @@ typedef enum {
     INT_TEST_ARCHIVE_HOTSWAP_CYCLE,            // Boot OoT, hot-swap OoT<->MM >=3 times, verify healthy runtime (#263)
     INT_TEST_GAMEPLAY_ROUNDTRIP,               // Full operator repro: debug save + live gameplay + production
                                                // cross-game round-trip + post-return warp + door transition
-    INT_TEST_CROSSING_REFUSED                  // Boot OoT with MM's archive set aside, walk into the Happy Mask
+    INT_TEST_CROSSING_REFUSED,                 // Boot OoT with MM's archive set aside, walk into the Happy Mask
                                                // Shop door, verify OoT keeps running outside it (#954)
+    INT_TEST_RESOURCE_CACHE_OWNER,             // T1's crossing and back: each game is served its own copy of the
+                                               // paths both archives carry, OoT gets back what it had (#981)
+    INT_TEST_CROSSING_REFUSED_MM,              // Boot MM with oot.o2r set aside, walk into the Clock Tower
+                                               // door, verify MM keeps running outside it (#954)
+    INT_TEST_MM_MOON_CRASH_CYCLE               // Boot MM on its debug save, mark it New Cycle, let the moon
+                                               // fall, verify a new cycle began with progress kept (#1069)
 } IntegrationTestMode;
 
 /**

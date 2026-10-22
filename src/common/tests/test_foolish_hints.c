@@ -228,9 +228,17 @@ bool FhRunTwoFoolishAreas(const ComboArea areas[5], uint16_t lensCheck) {
 // in the row: each mutated copy must fail the check.
 
 const char* const kFhEnGs = "games/mm/2s2h/Rando/ActorBehavior/EnGs.cpp";
-const char* const kFhSeedLine =
-    "uint32_t seed = MM_gPlayState->sceneId + enGs->actor.home.pos.x + enGs->actor.home.pos.z;";
-const char* const kFhPickSeed = "Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);";
+// #1047: both read the stone seed through GossipStoneSeed, and the free stone's
+// pick is FreeStonePick, which seeds with the world's seed plus the stone's.
+const char* const kFhSeedLine = "uint32_t seed = GossipStoneSeed(MM_gPlayState->sceneId, enGs->actor.home.pos);";
+const char* const kFhPickSeed = "return FreeStonePick(availableChecks, seed);";
+const char* const kFhPickStream = "Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + stoneSeed);";
+// #1047: the single-exe GossipStoneSeed converts the float sum through int32_t,
+// which is defined for a negative sum; upstream's direct float-to-uint32_t
+// conversion (kept under #else) is not, and x86-64 happens to wrap it, so no
+// value-level row on a CI leg can tell the two apart. The text is the lock.
+const char* const kFhStoneSeedHead = "static uint32_t GossipStoneSeed(s16 sceneId, const Vec3f& homePos) {";
+const char* const kFhStoneSeedBody = "return (uint32_t)(int32_t)((f32)sceneId + homePos.x + homePos.z);";
 const char* const kFhHookCall = "entry.msg = FreeStoneHintText(randoCheckId);";
 const char* const kFhTextReturn =
     "return FreeStoneHintTextSeeded(target, gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);";
@@ -313,6 +321,29 @@ std::string FhWiringProblem(const std::string& text) {
     if (!FhHasLine(pick, kFhSeedLine) || !FhHasLine(pick, kFhPickSeed)) {
         return "GetRandomCheck's free-stone seed is no longer the expression FreeStoneHintText copies";
     }
+    // The first GossipStoneSeed is the single-exe one (upstream's follows under
+    // #else), and it must be the defined conversion.
+    size_t seedAt = 0;
+    while (seedAt < lines.size() && FhTrim(lines[seedAt]).rfind(kFhStoneSeedHead, 0) != 0) {
+        seedAt++;
+    }
+    size_t fenceAt = seedAt;
+    while (fenceAt > 0 && FhTrim(lines[fenceAt - 1]).rfind("#", 0) != 0) {
+        fenceAt--;
+    }
+    if (seedAt == lines.size() || fenceAt == 0 || FhTrim(lines[fenceAt - 1]) != "#ifdef RSBS_SINGLE_EXECUTABLE") {
+        return "the single-exe GossipStoneSeed (under #ifdef RSBS_SINGLE_EXECUTABLE) was not found";
+    }
+    if (!FhHasLine(FhBlock(lines, kFhStoneSeedHead, "}"), kFhStoneSeedBody)) {
+        return "the single-exe GossipStoneSeed does not convert the stone's position sum through int32_t";
+    }
+    const std::vector<std::string> pickSeeded = FhBlock(
+        lines,
+        "static GossipHintTarget FreeStonePick(const std::vector<GossipHintTarget>& candidates, uint32_t stoneSeed) {",
+        "}");
+    if (!FhHasLine(pickSeeded, kFhPickStream)) {
+        return "FreeStonePick does not seed the pick with the world's seed plus the stone's";
+    }
     const std::vector<std::string> freeText =
         FhBlock(lines, "static std::string FreeStoneHintText(const GossipHintTarget& target) {", "}");
     if (freeText.empty()) {
@@ -365,7 +396,10 @@ bool FhCheckWiring() {
         { "the hook back on the plain item hint", kFhHookCall, "entry.msg = GossipHintText(randoCheckId, false);" },
         { "FreeStoneHintText seeded without the world's seed", kFhTextReturn,
           "return FreeStoneHintTextSeeded(target, seed);" },
-        { "GetRandomCheck's free-stone seed changed alone", kFhPickSeed, "Ship_Random_Seed(seed);" },
+        { "GetRandomCheck's free-stone seed changed alone", kFhPickSeed, "return FreeStonePick(availableChecks, 0);" },
+        { "FreeStonePick seeded without the world's seed", kFhPickStream, "Ship_Random_Seed(stoneSeed);" },
+        { "GossipStoneSeed back on upstream's float-to-uint32_t conversion", kFhStoneSeedBody,
+          "return sceneId + homePos.x + homePos.z;" },
         { "the bridge off FreeStoneHintTextSeeded", kFhBridgeCall,
           "const std::string msg = GossipHintText((RandoCheckId)randoCheckId, false);" },
     };

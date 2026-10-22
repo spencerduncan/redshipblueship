@@ -105,8 +105,54 @@ typedef enum {
     // resolver assembles the byte from its flag keys instead of overlaying one
     // (see Combo_ResolveComboSettings). 0 or 1; the default is 0.
     COMBO_SETTING_SHARED_KOKIRI_SWORD, // gCombo.Rando.SharedKokiriSword -> record.comboFlags & 0x02
+    // #1068. A BIT of the item rules record (ComboItemRulesRecord.crossItemFlags),
+    // assembled by Combo_ResolveComboItemRules. 0 or 1; the default is 0.
+    COMBO_SETTING_SHARED_SHIELDS, // gCombo.Rando.SharedShields -> rules.crossItemFlags & 0x02000000
+    // #1065. A BIT of the sibling ComboItemRulesRecord's crossItemFlags (#976),
+    // not of this record: Combo_ResolveComboItemRules assembles crossItemFlags
+    // from the item-rule keys (Combo_ComboItemRulesAuthored). 0 or 1; default 0.
+    COMBO_SETTING_SHARED_LENS, // gCombo.Rando.SharedLens -> itemRules.crossItemFlags & RSBS_XITEM_SHARED_LENS
+    // #1066. Two more item-rule bits, the lens's shape: 0 or 1, default 0 each.
+    COMBO_SETTING_SHARED_SONG_EPONA,  // gCombo.Rando.SharedSongEpona -> RSBS_XITEM_SHARED_SONG_EPONA
+    COMBO_SETTING_SHARED_SONG_STORMS, // gCombo.Rando.SharedSongStorms -> RSBS_XITEM_SHARED_SONG_STORMS
+    // #1067, the same shape: gCombo.Rando.SharedOcarinaButtons -> rules.crossItemFlags & 0x01000000.
+    COMBO_SETTING_SHARED_OCARINA_BUTTONS,
+    // #1069. Another item-rule bit, the lens's shape: 0 or 1, default 0. On, it
+    // also drops the Song of Time from MM's paired start and forces MM's Moon
+    // Crash Behavior to New Cycle (both read from the FROZEN record).
+    COMBO_SETTING_SHARED_SONG_TIME, // gCombo.Rando.SharedSongTime -> RSBS_XITEM_SHARED_SONG_TIME
+    // #968. The three magic arrows' bits #976 reserved, the lens's shape: 0 or
+    // 1, default 0 each, one row per arrow (OoTMM's three options).
+    COMBO_SETTING_SHARED_ARROW_FIRE,  // gCombo.Rando.SharedArrowFire -> RSBS_XITEM_SHARED_ARROW_FIRE
+    COMBO_SETTING_SHARED_ARROW_ICE,   // gCombo.Rando.SharedArrowIce -> RSBS_XITEM_SHARED_ARROW_ICE
+    COMBO_SETTING_SHARED_ARROW_LIGHT, // gCombo.Rando.SharedArrowLight -> RSBS_XITEM_SHARED_ARROW_LIGHT
+    // #970, the same shape: gCombo.Rando.SharedBottles -> rules.crossItemFlags & 0x00100000.
+    COMBO_SETTING_SHARED_BOTTLES,
+    // #978. The five masks' bits #976 reserved, the lens's shape: 0 or 1,
+    // default 0 each, one row per mask (OoTMM's five sharedMask* options).
+    COMBO_SETTING_SHARED_MASK_GORON,  // gCombo.Rando.SharedMaskGoron -> RSBS_XITEM_SHARED_GORON
+    COMBO_SETTING_SHARED_MASK_ZORA,   // gCombo.Rando.SharedMaskZora -> RSBS_XITEM_SHARED_ZORA
+    COMBO_SETTING_SHARED_MASK_BUNNY,  // gCombo.Rando.SharedMaskBunny -> RSBS_XITEM_SHARED_BUNNY
+    COMBO_SETTING_SHARED_MASK_KEATON, // gCombo.Rando.SharedMaskKeaton -> RSBS_XITEM_SHARED_KEATON
+    COMBO_SETTING_SHARED_MASK_TRUTH,  // gCombo.Rando.SharedMaskTruth -> RSBS_XITEM_SHARED_TRUTH
     COMBO_SETTING_COUNT
 } ComboSettingId;
+
+/**
+ * THE ITEM-RULE KEYS (#976's ComboItemRulesRecord, #1065 on). Some settings
+ * author a bit of the item rules' crossItemFlags rather than a field of
+ * ComboSettingsRecord; these two answer which.
+ *
+ * Combo_ComboItemRulesAuthored: the RSBS_XITEM_* bits whose keys RESOLVE on now
+ * (Combo_ComboSettingResolved, so an unset or out-of-space key is its default
+ * off). Combo_ResolveComboItemRules reads this and nothing else.
+ *
+ * Combo_ComboItemRuleKeyedBits: every RSBS_XITEM_* bit a key authors at all. A
+ * frozen rule outside it is one only another build (or a later phase) writes,
+ * so no load can restore it through a key.
+ */
+uint32_t Combo_ComboItemRulesAuthored(void);
+uint32_t Combo_ComboItemRuleKeyedBits(void);
 
 /** The tier-4 CVar key for @p id (the RSBS_CVAR_COMBO_RANDO_* literal from
  *  cvar_shared_keys.h). Never NULL; "(invalid)" for an id past the table. */
@@ -241,10 +287,14 @@ typedef struct ComboSettingsKeyUndo {
  *
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
  * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the Shared
- * Kokiri Sword), the CVar
+ * Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
+ * from the session has a key: today the Shared Shields, #1068, the Shared
+ * Lens of Truth, #1065, the Shared Ocarina Buttons, #1067, the Shared Song
+ * of Time, #1069, and the Shared Bottles, #970), the CVar
  * store exists,
  * and every frozen value is inside its pinned space; otherwise it writes
- * NOTHING and returns 0, and the caller refuses. A record field no key authors
+ * NOTHING and returns 0, and the caller refuses. @p frozenRules is the file's
+ * own item rules record (NULL reads as every rule off). A record field no key authors
  * (the logic rung, an unallocated flag bit, the spare byte) cannot be restored
  * through a key, and the damage bits (unreadable, fingerprint, triforce) never
  * are.
@@ -261,13 +311,15 @@ typedef struct ComboSettingsKeyUndo {
  *
  * @return 1 when every diverged rule was restored; 0 when nothing was written.
  */
-int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits, char* names, size_t len,
-                                   ComboSettingsKeyUndo* undo);
+int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                   uint32_t divergedBits, char* names, size_t len, ComboSettingsKeyUndo* undo);
 
 /** 1 iff Combo_ComboSettingsRestoreLive would restore @p divergedBits from
- *  @p frozen (every bit restorable, the store present, every value in its
- *  space), WITHOUT writing anything: the file-select probe's question (#836). */
-int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, uint32_t divergedBits);
+ *  @p frozen and @p frozenRules (every bit restorable, the store present, every
+ *  value in its space), WITHOUT writing anything: the file-select probe's
+ *  question (#836). */
+int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                      uint32_t divergedBits);
 
 /** Undo a Combo_ComboSettingsRestoreLive: every key it wrote goes back to the
  *  value it held, or back to unset. A NULL or all-unwritten @p undo is a no-op. */
@@ -277,6 +329,13 @@ void Combo_ComboSettingsRestoreUndo(const ComboSettingsKeyUndo* undo);
  *  Combo_ComboSettingsRestoreLive can answer. A divergence with any other bit
  *  is damage, or a field only another build writes. */
 uint32_t Combo_ComboSettingsRestorableMask(void);
+
+/** The bits of @p divergedBits no key can answer for this file: those outside
+ *  Combo_ComboSettingsRestorableMask, plus RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS
+ *  when an item rule that differs from the session has no key in this build
+ *  (#1068; a rule only another build authors). Nonzero is the "other build"
+ *  refusal; zero with a refusal is "the store could not take them". */
+uint32_t Combo_ComboSettingsUnrestorableBits(const ComboItemRulesRecord* frozenRules, uint32_t divergedBits);
 
 /** Ask the host to write the CVar store to its config file on the next frame.
  *  A no-op in a process with no window or GUI (every headless row). */

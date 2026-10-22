@@ -812,6 +812,17 @@ bool Combo_SharedQuantityPolicyOf(uint8_t kind, ComboSharedQuantityPolicy* out) 
                 p.ceilingOoT = 2u; // OOT_MAX_HOOKSHOT_TIER / OOT_MAX_OCARINA_TIER
                 p.ceilingMM = 1u;  // MM_MAX_HOOKSHOT_TIER / MM_MAX_OCARINA_TIER
                 break;
+            case RSBS_SHARED_RES_BOTTLE_COUNT:
+                // #970: a SLOT count, not a progressive tier. Every bottle give,
+                // in either game, fills its own next empty slot, and the shared
+                // count is OoT's four (OOT_/MM_MAX_BOTTLE_COUNT): the pair keeps
+                // four bottle items. Armed by the frozen rule (below).
+                p.policy = RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX;
+                p.budget = RSBS_SHARED_QTY_BUDGET_SLOTS;
+                p.fixedCap = 4u;
+                p.ceilingOoT = 4u;
+                p.ceilingMM = 4u;
+                break;
             default:
                 // Rupees, current health / magic, the five ammo counts and the
                 // triforce count: renewable or counted, never a capacity.
@@ -897,8 +908,17 @@ int Combo_SharedQuantityHealthBudget(uint16_t startingHealth, int piecesAvailabl
 
 int Combo_SharedQuantityTierBudget(const ComboSharedQuantityPolicy* policy, int ootCopies, int mmCopies) {
     if (policy == NULL || policy->policy != RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX ||
-        policy->budget != RSBS_SHARED_QTY_BUDGET_TIER || ootCopies < 0 || mmCopies < 0) {
+        (policy->budget != RSBS_SHARED_QTY_BUDGET_TIER && policy->budget != RSBS_SHARED_QTY_BUDGET_SLOTS) ||
+        ootCopies < 0 || mmCopies < 0) {
         return -1;
+    }
+    if (policy->budget == RSBS_SHARED_QTY_BUDGET_SLOTS) {
+        // A slot count has no give-path ceiling a copy can be stuck under: every
+        // copy fills its own game's next empty slot, so below the shared cap any
+        // kept copy raises the count by one wherever it is found. The budget is
+        // the cap (or fewer, when the pools hold fewer).
+        const int larger = (ootCopies > mmCopies) ? ootCopies : mmCopies;
+        return (policy->fixedCap != 0u && larger > (int)policy->fixedCap) ? (int)policy->fixedCap : larger;
     }
     const int ceilO = ((int)policy->ceilingOoT > ootCopies) ? (int)policy->ceilingOoT : ootCopies;
     const int ceilM = ((int)policy->ceilingMM > mmCopies) ? (int)policy->ceilingMM : mmCopies;
@@ -910,6 +930,47 @@ int Combo_SharedQuantityTierBudget(const ComboSharedQuantityPolicy* policy, int 
         budget = (int)policy->fixedCap;
     }
     return budget;
+}
+
+// The slot reserves (shared_items.h). Constant-initialized, so a registrar that
+// runs during static initialization finds the table ready.
+typedef struct {
+    uint8_t originGame;
+    uint8_t kind;
+    uint16_t id;
+} SharedSlotReserve;
+static SharedSlotReserve sSlotReserves[RSBS_SHARED_SLOT_RESERVE_CAP];
+static int sSlotReserveCount = 0;
+
+bool Combo_RegisterSharedSlotReserve(uint8_t originGame, uint16_t id, uint8_t kind) {
+    if ((originGame != (uint8_t)GAME_OOT && originGame != (uint8_t)GAME_MM) || kind == 0u ||
+        kind >= (uint8_t)RSBS_SHARED_RES_KIND_COUNT) {
+        return false;
+    }
+    for (int i = 0; i < sSlotReserveCount; i++) {
+        if (sSlotReserves[i].originGame == originGame && sSlotReserves[i].id == id) {
+            return false;
+        }
+    }
+    if (sSlotReserveCount >= RSBS_SHARED_SLOT_RESERVE_CAP) {
+        fprintf(stderr, "[SharedItems] slot reserve %u:%u for kind %u refused: the table is full\n",
+                (unsigned)originGame, (unsigned)id, (unsigned)kind);
+        return false;
+    }
+    sSlotReserves[sSlotReserveCount].originGame = originGame;
+    sSlotReserves[sSlotReserveCount].kind = kind;
+    sSlotReserves[sSlotReserveCount].id = id;
+    sSlotReserveCount++;
+    return true;
+}
+
+uint8_t Combo_SharedSlotReserveKind(SharedItem item) {
+    for (int i = 0; i < sSlotReserveCount; i++) {
+        if (sSlotReserves[i].originGame == item.originGame && sSlotReserves[i].id == item.id) {
+            return sSlotReserves[i].kind;
+        }
+    }
+    return 0u;
 }
 
 void Combo_SharedQuantitySplit(int budget, int ootCopies, int mmCopies, uint32_t tieSeed, int* outOoT, int* outMM) {

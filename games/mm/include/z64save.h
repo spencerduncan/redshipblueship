@@ -412,13 +412,58 @@ typedef struct RandoSaveInfo {
     // APPEND-ONLY: the enumerator's number is the index in every written save
     // and a positional term in the identity string.
     u8 randoSaveTricks[MMRT_MAX];
+    // The FROZEN set of trap types (#1047): bit (1 << TrapTypes) per enabled
+    // type, resolved from the gRando.Traps.* CVars at creation beside the trick
+    // set and read when a trap springs, so a trap's type is part of the world.
+    // Appended after randoSaveTricks for the same reason: a .redsave written
+    // before it zero-extends into it, and zero reads as Freeze only, the
+    // fallback the roll always had (and the only type the single-exe options
+    // page offers). Not a generation input, but world identity: the profile
+    // digest folds it when nonzero (Foreign.cpp ProfileIdentityString), so a
+    // paired world cannot change it between creation and its first crossing.
+    u8 randoSaveTrapTypes;
+    // The FROZEN "Moon Crash Behavior" (#1069; OoTMM's moonCrash): 0 = "Last
+    // Save" (reset, the file as last saved; OoTMM's default), 1 = "New Cycle"
+    // (cycle: the crash starts a new cycle as the Song of Time does, keeping
+    // inventory and progress). The player's choice from gRando.Options.MoonCrash,
+    // resolved at creation beside the trap-type set and read when the moon falls.
+    // Appended after randoSaveTrapTypes for the same reason: a .redsave written
+    // before it zero-extends into it, and zero is "Last Save", today's behaviour.
+    // The profile digest folds it when nonzero (Foreign.cpp
+    // ProfileIdentityString), so no existing pair's mmProfileDigest moves. The
+    // Shared Song of Time rule FORCES a New Cycle in play whatever this holds
+    // (MM_Rando_FrozenMoonCrash): that force is the combo record's, frozen there.
+    u8 randoSaveMoonCrash;
+    // The FROZEN excluded-check set (#1101 lane R3): bit (1 << (id & 7)) of byte
+    // (id >> 3) per RandoCheckId in gRando.ExcludedChecks, resolved at creation
+    // beside the trick and trap-type sets, appended after the moon-crash byte.
+    // Not read by any fill (GeneratePools reads the CVar at the same moment this
+    // is written); it is what the load-time restore puts back into the key
+    // (Foreign.cpp, #781), since the profile digest folds the list.
+    //
+    // A .redsave written before this field does NOT zero-extend into it: Save
+    // is the FIRST member of SaveContext, and the MM tier is a raw SaveContext
+    // image of fixed size (MM_SAVE_CONTEXT_SIZE), so growing Save shifts every
+    // later SaveContext field. On such a file these bytes are that file's
+    // eventInf, bButtonStatus, jinxTimer and the fields after them (the trick,
+    // trap-type and moon-crash appends shift the same way). A file whose live
+    // MM profile still matches its frozen digest is unaffected (that path reads
+    // the live CVars only); one that needs the load-time restore folds those
+    // bytes as a set and, unless they happen to be zero, is refused as
+    // UNRESTORABLE. That invalidation is stated rather than papered over; the
+    // trick set's was accepted pre-release (operator ruling 2026-09-17), and
+    // accepting this one is the operator's call.
+    u8 randoSaveExcludedChecks[(RC_MAX + 7) / 8];
     // RedShipBlueShip (#977): the Ocarina of Time mask Link wears in human form, a
     // ComboForeignMask (src/common/foreign_masks.h), never currentMask or
     // equippedMask: MM indexes unbounded tables by both. Then the variant each
     // shared pause slot shows (index ComboForeignMaskSlot - 1; NONE is the slot's
-    // own mask). APPENDED like randoSaveTricks, so an older save zero-extends into
-    // them (no mask worn, every slot on its own mask). Not part of the profile
-    // identity: ProfileIdentityString folds the options and the tricks only.
+    // own mask). Appended after the excluded-check set, and with the same caveat:
+    // a .redsave written before them does not zero-extend into them (growing Save
+    // shifts every later SaveContext field of the raw MM tier). Every reader
+    // sanitizes the bytes (Combo_ForeignMask_Sanitize), so a shifted byte selects
+    // no mask unless it is a mask MM wears whose rule the world froze on. Not part
+    // of the profile identity: ProfileIdentityString does not fold them.
     u8 foreignMask;
     u8 foreignMaskSlotSel[2];
 } RandoSaveInfo;

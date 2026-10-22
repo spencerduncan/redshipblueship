@@ -9,13 +9,16 @@ extern "C" {
 #include "variables.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // Skips the interaction in which kafei reveals his secret to Link, and gives him the Pendant of Memories.
 void RegisterSkipKafeiReveal() {
     // "...Can you keep a secret?"
     COND_ID_HOOK(OnOpenText, 0x296A, CVAR, [](u16* textId, bool* loadFromMessageTable) {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         *textId = 0x2976; // "Keep what we just talked about a secret from everyone."
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         entry.autoFormat = true;

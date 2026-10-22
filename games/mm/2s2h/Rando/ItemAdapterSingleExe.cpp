@@ -33,6 +33,15 @@
  * (count goals whose ceilings are seed options), and the Dungeon keys
  * (setting-dependent, as OoT's adapter leaves out its dungeon items).
  *
+ * ONE MORE GROUP, BY THE FILE (#1072). The five ocarina buttons ("Ocarina
+ * Buttons", MM's native group of that name) follow the 60 rows, shown only when
+ * the buffer's own frozen RO_SHUFFLE_OCARINA_BUTTONS is on in a randomizer file
+ * (MMItemButtonRowsShown: the same IS_RANDO + option test the note gate in
+ * ActorBehavior/Player.cpp applies, read from the buffer, never the live CVar)
+ * and held from the buffer's button bits (RANDO_INF_OBTAINED_OCARINA_BUTTON_*,
+ * the bits that gate reads). The adapter's `countFor` reports them, so a file
+ * without the shuffle shows 60 rows exactly as before.
+ *
  * Names are MM's own (Rando::StaticData::Items, the table MM's tracker tooltips
  * read). Icon keys are resource paths (MM_gItemIcons, GetIconTexturePath), the
  * keys MM's tracker hands the Gui's texture map; MM has no faded variant (its
@@ -62,7 +71,9 @@ extern "C" {
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
-#include "game.h" // MM_SAVE_CONTEXT_SIZE
+#include "foreign_items.h" // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: shared families a row is MM's copy of (#1065, #1067)
+#include "game.h"          // MM_SAVE_CONTEXT_SIZE
+#include "shared_resources.h" // Combo_SaveIsLiveFile, Combo_MakeHealthQuarters (the Shared column's live view, #971)
 
 // The view hands this TU either the unified live storage (unified_save.c,
 // alignas(16)) or MM's shadow, a std::vector<uint8_t> buffer (context.cpp),
@@ -285,12 +296,72 @@ const MMItemRowDef kMMItemRows[] = {
 
 constexpr int kMMItemRowCount = (int)(sizeof(kMMItemRows) / sizeof(kMMItemRows[0]));
 
+// The ocarina-button rows (#1072), after the table above: button i is the Rando
+// item RI_OCARINA_BUTTON_A + i and the randoInf flag RANDO_INF_OBTAINED_OCARINA_BUTTON_A
+// + i (A, C-Down, C-Right, C-Left, C-Up; ConvertItem.cpp and GiveItem.cpp index
+// both the same way). Every gate on these rows is MMItemButtonRowsShown.
+constexpr int kMMButtonRowCount = 5;
+constexpr const char* kMMButtonGroup = "Ocarina Buttons";
+
+// MM's tracker tints the white button glyphs (ShipUtils.cpp randoItemColorMap):
+// the A button blue, the four C buttons yellow. 0xRRGGBBAA.
+constexpr uint32_t kMMButtonTintA = 0x167ECBFFu;
+constexpr uint32_t kMMButtonTintC = 0xD6C417FFu;
+
+/** Does this file shuffle the ocarina buttons? The frozen option of a randomizer
+ *  file, as the note gate reads it; the one place to change when the rows move
+ *  to the Shared column. */
+bool MMItemButtonRowsShown(const SaveContext* src) {
+    return IS_RANDO && RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] != 0;
+}
+
+/** Does the buffer's save hold ocarina button `button` (0..4)? Flags_GetRandoInf's
+ *  read, over the handed buffer. */
+bool MMItemButtonHeld(const SaveContext* src, int button) {
+    const int flag = RANDO_INF_OBTAINED_OCARINA_BUTTON_A + button;
+    return (gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+bool MMItemDeriveButton(const SaveContext* src, int button, ComboItemRow* out) {
+    if (button < 0 || button >= kMMButtonRowCount || !MMItemButtonRowsShown(src)) {
+        return false;
+    }
+    out->group = kMMButtonGroup;
+    MMItemFillRando(out, (RandoItemId)(RI_OCARINA_BUTTON_A + button));
+    out->iconTint = (button == 0) ? kMMButtonTintA : kMMButtonTintC;
+    out->have = MMItemButtonHeld(src, button);
+    // #1067: each button is MM's copy of a Shared Ocarina Buttons family; under
+    // the frozen rule the view draws it once, in the Shared group.
+    static const uint32_t kSlots[kMMButtonRowCount] = {
+        RSBS_XITEM_SHARED_OCARINA_BUTTONS, RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT,
+        RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, RSBS_XFAMILY_SLOT_OCARINA_C_UP
+    };
+    out->sharedFamily = kSlots[button];
+    return true;
+}
+
 /** An inventory slot: the held item names the row, the empty slot falls back to
  *  the base item (MM's tracker: safeItemsForInventorySlot[slot][0]). */
 void MMItemFillSlot(const SaveContext* src, const MMItemRowDef& def, ComboItemRow* out) {
     const uint8_t content = INV_CONTENT(def.item);
     out->have = content != ITEM_NONE;
     MMItemFillVanilla(out, out->have ? content : def.item);
+}
+
+/** The shared-resource kind of capacity upgrade `upg` (#967), or NONE when the pair does not share it. */
+uint8_t MMItemSharedTierKindOf(uint32_t upg) {
+    switch (upg) {
+        case UPG_QUIVER:
+            return RSBS_SHARED_RES_QUIVER_TIER;
+        case UPG_BOMB_BAG:
+            return RSBS_SHARED_RES_BOMB_BAG_TIER;
+        case UPG_DEKU_STICKS:
+            return RSBS_SHARED_RES_STICK_TIER;
+        case UPG_DEKU_NUTS:
+            return RSBS_SHARED_RES_NUT_TIER;
+        default:
+            return RSBS_SHARED_RES_NONE;
+    }
 }
 
 bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow* out) {
@@ -306,6 +377,11 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
         case MMRK_SLOT_BOMBCHU:
         case MMRK_SLOT_FIXED:
             MMItemFillSlot(src, def, out);
+            if (def.kind == MMRK_SLOT_AMMO) {
+                // This game's copy of a shared capacity tier: the view dims it once the Shared column holds it.
+                out->sharedKind = MMItemSharedTierKindOf(def.data);
+                out->sharedTier = (uint8_t)CUR_UPG_VALUE(def.data);
+            }
             if (out->have) {
                 out->count = AMMO(def.item);
                 out->max = (def.kind == MMRK_SLOT_FIXED)     ? (int)def.data
@@ -344,6 +420,12 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
             static const RandoItemId kSwords[] = { RI_SWORD_KOKIRI, RI_SWORD_KOKIRI, RI_SWORD_RAZOR, RI_SWORD_GILDED };
             MMItemFillRando(out, kSwords[tier <= EQUIP_VALUE_SWORD_GILDED ? tier : EQUIP_VALUE_SWORD_GILDED]);
             out->have = tier > EQUIP_VALUE_SWORD_NONE;
+            if (tier <= EQUIP_VALUE_SWORD_KOKIRI) {
+                // The shared Kokiri Sword (#886): this row is its copy while the sword held is the
+                // Kokiri one; a Razor or Gilded Sword is MM's alone and stays lit.
+                out->sharedKind = RSBS_SHARED_RES_KOKIRI_SWORD;
+                out->sharedTier = (tier == EQUIP_VALUE_SWORD_KOKIRI) ? 1 : 0;
+            }
             return true;
         }
         case MMRK_SHIELD: {
@@ -383,6 +465,16 @@ int MMItemCount(void) {
     return kMMItemRowCount;
 }
 
+/** The rows this buffer shows: the curated rows plus the ocarina buttons when
+ *  its file shuffles them (#1072). */
+int MMItemCountFor(const void* buf) {
+    if (!MMItemAligned(buf)) {
+        return kMMItemRowCount;
+    }
+    const SaveContext* src = static_cast<const SaveContext*>(buf);
+    return kMMItemRowCount + (MMItemButtonRowsShown(src) ? kMMButtonRowCount : 0);
+}
+
 bool MMItemHasSave(const void* buf) {
     if (!MMItemAligned(buf)) {
         return false;
@@ -394,15 +486,64 @@ bool MMItemHasSave(const void* buf) {
     return std::memcmp(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf)) == 0;
 }
 
+/** The shared family (foreign_items.h) a slot row's item is MM's own copy of,
+ *  or 0: the view draws an armed family once, in the Shared group (#1065). */
+uint32_t MMItemSharedFamily(const MMItemRowDef& def) {
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_LENS_OF_TRUTH) {
+        return RSBS_XITEM_SHARED_LENS;
+    }
+    if (def.kind == MMRK_QUEST && def.data == (uint32_t)QUEST_SONG_EPONA) {
+        return RSBS_XITEM_SHARED_SONG_EPONA; // #1066
+    }
+    if (def.kind == MMRK_QUEST && def.data == (uint32_t)QUEST_SONG_STORMS) {
+        return RSBS_XITEM_SHARED_SONG_STORMS; // #1066
+    }
+    if (def.kind == MMRK_QUEST && def.data == (uint32_t)QUEST_SONG_TIME) {
+        return RSBS_XITEM_SHARED_SONG_TIME; // #1069
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_ARROW_FIRE) {
+        return RSBS_XITEM_SHARED_ARROW_FIRE; // #968
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_ARROW_ICE) {
+        return RSBS_XITEM_SHARED_ARROW_ICE; // #968
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_ARROW_LIGHT) {
+        return RSBS_XITEM_SHARED_ARROW_LIGHT; // #968
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_MASK_GORON) {
+        return RSBS_XITEM_SHARED_GORON; // #978
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_MASK_ZORA) {
+        return RSBS_XITEM_SHARED_ZORA; // #978
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_MASK_BUNNY) {
+        return RSBS_XITEM_SHARED_BUNNY; // #978
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_MASK_KEATON) {
+        return RSBS_XITEM_SHARED_KEATON; // #978
+    }
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_MASK_TRUTH) {
+        return RSBS_XITEM_SHARED_TRUTH; // #978
+    }
+    return 0u;
+}
+
 bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
-    if (!MMItemAligned(buf) || out == nullptr || index < 0 || index >= kMMItemRowCount) {
+    if (!MMItemAligned(buf) || out == nullptr || index < 0 || index >= kMMItemRowCount + kMMButtonRowCount) {
         return false;
     }
     const SaveContext* src = static_cast<const SaveContext*>(buf);
     const uint8_t freshness = out->freshness; // the view's field; left alone
     std::memset(out, 0, sizeof(*out));
     out->freshness = freshness;
-    return MMItemDerive(src, kMMItemRows[index], out);
+    if (index >= kMMItemRowCount) {
+        return MMItemDeriveButton(src, index - kMMItemRowCount, out);
+    }
+    if (!MMItemDerive(src, kMMItemRows[index], out)) {
+        return false;
+    }
+    out->sharedFamily = MMItemSharedFamily(kMMItemRows[index]);
+    return true;
 }
 
 } // namespace
@@ -415,9 +556,10 @@ bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
 namespace {
 
 /** MM's own tracker tables (ItemTrackerSettings.cpp LoadAvailableWindows): the
- *  Inventory and Masks tables are 6 wide, Songs and Quest 5. */
+ *  Inventory and Masks tables are 6 wide, Songs, Quest and Ocarina Buttons 5. */
 int MMItemGroupColumns(const char* group) {
-    if (group != nullptr && (std::strcmp(group, "Songs") == 0 || std::strcmp(group, "Quest") == 0)) {
+    if (group != nullptr && (std::strcmp(group, "Songs") == 0 || std::strcmp(group, "Quest") == 0 ||
+                             std::strcmp(group, kMMButtonGroup) == 0)) {
         return 5;
     }
     return 6;
@@ -470,7 +612,9 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             key = MMItemIcon(tier >= 2 ? ITEM_MAGIC_JAR_BIG : ITEM_MAGIC_JAR_SMALL);
             break;
         case RSBS_SHARED_RES_ARROW_COUNT:
-            key = MMItemIcon(tier >= 3 ? ITEM_QUIVER_50 : (tier == 2 ? ITEM_QUIVER_40 : ITEM_QUIVER_30));
+            // The quiver tiers as the player knows them (#967): the Bow, then
+            // the Big and Biggest Quivers.
+            key = MMItemIcon(tier >= 3 ? ITEM_QUIVER_50 : (tier == 2 ? ITEM_QUIVER_40 : ITEM_BOW));
             break;
         case RSBS_SHARED_RES_BOMB_COUNT:
             key = MMItemIcon(tier >= 3 ? ITEM_BOMB_BAG_40 : (tier == 2 ? ITEM_BOMB_BAG_30 : ITEM_BOMB_BAG_20));
@@ -490,8 +634,14 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
         case RSBS_SHARED_RES_OCARINA_TIER:
             key = MMItemIcon(ITEM_OCARINA_OF_TIME);
             break;
+        case RSBS_SHARED_RES_KOKIRI_SWORD:
+            key = MMItemRandoIcon(RI_SWORD_KOKIRI);
+            break;
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             key = MMItemRandoIcon(RI_TRIFORCE_PIECE);
+            break;
+        case RSBS_SHARED_RES_BOTTLE_COUNT: // #970
+            key = MMItemIcon(ITEM_BOTTLE);
             break;
         default:
             break;
@@ -503,11 +653,93 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     row->iconTint = tint;
 }
 
+// The live view reads the HANDED buffer (the view's liveSave, which production points at the process
+// global and the ROM-free test points at an authored one), so the accessor macros are redirected again.
+#define gSaveContext (*src)
+
+// Heart pieces occupy the TOP NIBBLE of questItems (the pool's canonical health quantity,
+// MM_ReadHealthQuarters in GameExports_SingleExe.cpp).
+constexpr uint32_t kMMHeartPieceShift = 28u;
+constexpr uint32_t kMMHeartPieceMask = 0xF0000000u;
+
+/**
+ * The Shared column's LIVE view (#971), the twin of OoT's OoTItemSharedLive: the
+ * value of shared kind `kind` in the save `src` over MM_HarvestSharedResources'
+ * arithmetic (GameExports_SingleExe.cpp), READ ONLY: no rupee accumulator settle,
+ * no pool or watermark write, nothing stored in `src`. Gated like the harvest, on
+ * a played file (Combo_SaveIsLiveFile over the buffer's own game mode: MM plays
+ * real frames under its title screen, whose bootstrap save is not the player's).
+ * MM has no longshot, so its hookshot tier tops out at 1. False for a kind this
+ * view has no reading of.
+ */
+bool MMItemSharedLive(const void* srcv, uint8_t kind, uint16_t* out) {
+    if (out == nullptr || !MMItemAligned(srcv)) {
+        return false;
+    }
+    const SaveContext* src = static_cast<const SaveContext*>(srcv);
+    if (!Combo_SaveIsLiveFile(GAME_MM, (int32_t)gSaveContext.gameMode)) {
+        return false;
+    }
+    const auto ammoOf = [src](uint8_t item) -> uint16_t {
+        const s8 held = AMMO(item);
+        return held < 0 ? 0u : (uint16_t)held;
+    };
+    switch (kind) {
+        case RSBS_SHARED_RES_RUPEES:
+            // The HUD's count: a pending rupeeAccumulator (settled by the harvest) lags a few frames.
+            *out = gSaveContext.save.saveInfo.playerData.rupees < 0
+                       ? 0u
+                       : (uint16_t)gSaveContext.save.saveInfo.playerData.rupees;
+            return true;
+        case RSBS_SHARED_RES_WALLET_TIER:
+            *out = (uint16_t)CUR_UPG_VALUE(UPG_WALLET);
+            return true;
+        case RSBS_SHARED_RES_HEALTH_QUARTERS: {
+            const uint16_t pieces =
+                (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & kMMHeartPieceMask) >> kMMHeartPieceShift);
+            const s16 rawCapacity = gSaveContext.save.saveInfo.playerData.healthCapacity;
+            *out = Combo_MakeHealthQuarters(rawCapacity < 0 ? 0u : (uint16_t)rawCapacity, pieces);
+            return true;
+        }
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+            *out = gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u;
+            return true;
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
+            *out = !gSaveContext.save.saveInfo.playerData.isMagicAcquired
+                       ? 0u
+                       : (gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired ? 2u : 1u);
+            return true;
+        case RSBS_SHARED_RES_ARROW_COUNT:
+            *out = ammoOf(ITEM_BOW);
+            return true;
+        case RSBS_SHARED_RES_BOMB_COUNT:
+            *out = ammoOf(ITEM_BOMB);
+            return true;
+        case RSBS_SHARED_RES_BOMBCHU_COUNT:
+            *out = ammoOf(ITEM_BOMBCHU);
+            return true;
+        case RSBS_SHARED_RES_STICK_COUNT:
+            *out = ammoOf(ITEM_DEKU_STICK);
+            return true;
+        case RSBS_SHARED_RES_NUT_COUNT:
+            *out = ammoOf(ITEM_DEKU_NUT);
+            return true;
+        case RSBS_SHARED_RES_HOOKSHOT_TIER:
+            *out = (INV_CONTENT(ITEM_HOOKSHOT) == ITEM_HOOKSHOT) ? 1u : 0u;
+            return true;
+        default:
+            return false;
+    }
+}
+
+#undef gSaveContext
+
 } // namespace
 
 extern "C" void MM_ItemAdapter_Register(void) {
     static const ComboItemOps kOps = {
-        MMItemCount, MMItemRowAt, MMItemHasSave, MMItemLiveSave, MMItemPaused, &kMMItemGrid, MMItemSharedIcon,
+        MMItemCount,  MMItemRowAt,      MMItemHasSave,  MMItemLiveSave,   MMItemPaused,
+        &kMMItemGrid, MMItemSharedIcon, MMItemCountFor, MMItemSharedLive,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_MM, &kOps);
 }
@@ -526,8 +758,10 @@ extern "C" void MM_ItemAdapter_Register(void) {
  * the Song of Healing, the Goron Lullaby intro only, Odolwa's Remains, the
  * Razor Sword, the Hero's Shield, magic, and an Adult's Wallet holding 150
  * rupees. Variant 1, the "live" world: the Hookshot, the Zora Mask, the Song
- * of Soaring and the Kokiri Sword only. Returns 1, or 0 when `size` cannot hold
- * a SaveContext or `buf` is misaligned.
+ * of Soaring and the Kokiri Sword only. Variant 2, the "capacity tier" world
+ * (#967): the Bow (tier-1 quiver, 12 arrows), bombs (tier-2 bag, 7), Deku
+ * Sticks (tier 1, 5), Deku Nuts (tier 3, 9) and the Kokiri Sword. Returns 1, or
+ * 0 when `size` cannot hold a SaveContext or `buf` is misaligned.
  */
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant) {
     if (buf == nullptr || size < sizeof(SaveContext) || !MMItemAligned(buf)) {
@@ -556,11 +790,54 @@ extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant
         s->save.saveInfo.playerData.isMagicAcquired = 1;
         inv.upgrades |= (1u << MM_gUpgradeShifts[UPG_WALLET]);
         s->save.saveInfo.playerData.rupees = 150;
+    } else if (variant == 2) {
+        // The capacity-tier world (#967), OoT's twin: the Bow with a tier-1
+        // quiver holding 12 arrows, bombs with a tier-2 bag holding 7, 5 Deku
+        // Sticks (tier 1), 9 Deku Nuts (tier 3), and the Kokiri Sword.
+        inv.items[SLOT_BOW] = ITEM_BOW;
+        inv.ammo[SLOT_BOW] = 12;
+        inv.upgrades |= (1u << MM_gUpgradeShifts[UPG_QUIVER]);
+        inv.items[SLOT_BOMB] = ITEM_BOMB;
+        inv.ammo[SLOT_BOMB] = 7;
+        inv.upgrades |= (2u << MM_gUpgradeShifts[UPG_BOMB_BAG]);
+        inv.items[SLOT_DEKU_STICK] = ITEM_DEKU_STICK;
+        inv.ammo[SLOT_DEKU_STICK] = 5;
+        inv.upgrades |= (1u << MM_gUpgradeShifts[UPG_DEKU_STICKS]);
+        inv.items[SLOT_DEKU_NUT] = ITEM_DEKU_NUT;
+        inv.ammo[SLOT_DEKU_NUT] = 9;
+        inv.upgrades |= (3u << MM_gUpgradeShifts[UPG_DEKU_NUTS]);
+        s->save.saveInfo.equips.equipment |= (u16)(EQUIP_VALUE_SWORD_KOKIRI << MM_gEquipShifts[EQUIP_TYPE_SWORD]);
     } else {
         inv.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
         inv.items[SLOT_MASK_ZORA] = ITEM_MASK_ZORA;
         inv.questItems |= (1u << QUEST_SONG_SOARING);
         s->save.saveInfo.equips.equipment |= (u16)(EQUIP_VALUE_SWORD_KOKIRI << MM_gEquipShifts[EQUIP_TYPE_SWORD]);
+    }
+    return 1;
+}
+
+/**
+ * Author the ocarina-button world of #1072 into `buf`: the variant-0 save above
+ * with the file's frozen shuffle option and the button bits set from `mode` and
+ * `heldMask`. `mode` 0: the option off (a vanilla button world). 1: the option
+ * on in a randomizer file. 2: the option on in a file that is not a randomizer
+ * file (saveType vanilla), the gate IS_RANDO excludes. `heldMask` bit i is the
+ * i-th button of the shuffle's order (A, C-Down, C-Right, C-Left, C-Up, the
+ * RANDO_INF_OBTAINED_OCARINA_BUTTON_* order) held. Returns 1, or 0 as above.
+ */
+extern "C" int MM_ItemAdapter_TestAuthorOcarinaButtons(void* buf, size_t size, int mode, unsigned heldMask) {
+    if (MM_ItemAdapter_TestAuthorSave(buf, size, 0) != 1) {
+        return 0;
+    }
+    SaveContext* s = static_cast<SaveContext*>(buf);
+    s->save.shipSaveInfo.saveType = (mode == 2) ? SAVETYPE_VANILLA : SAVETYPE_RANDO;
+    s->save.shipSaveInfo.rando.randoSaveOptions[RO_SHUFFLE_OCARINA_BUTTONS] =
+        (mode == 0) ? RO_GENERIC_OFF : RO_GENERIC_YES;
+    for (int i = 0; i < 5; i++) {
+        if ((heldMask & (1u << i)) != 0) {
+            const int flag = RANDO_INF_OBTAINED_OCARINA_BUTTON_A + i;
+            s->save.shipSaveInfo.rando.randoInf[flag >> 4] |= (u16)(1u << (flag & 0xF));
+        }
     }
     return 1;
 }

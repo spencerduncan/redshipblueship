@@ -540,6 +540,10 @@ const char* ModeName(IntegrationTestMode mode) {
             return "gameplay-roundtrip";
         case INT_TEST_CROSSING_REFUSED:
             return "crossing-refused";
+        case INT_TEST_CROSSING_REFUSED_MM:
+            return "crossing-refused-mm";
+        case INT_TEST_RESOURCE_CACHE_OWNER:
+            return "resource-cache-owner";
     }
     return "unknown";
 }

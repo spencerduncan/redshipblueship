@@ -491,12 +491,22 @@ main() {
     # required_mm_registrars: the allowlist would prove the SYMBOLS survived a
     # plain link that happens to pull them, which PR #651 measured to be
     # linker-incidental rather than a contract.
+    #
+    # lib2ship_enh_registrars.a (#1071) is the general form of the same
+    # carve-out: enhancement TUs whose only anchor is a file-scope
+    # RegisterShipInitFunc, starting with the nine StoryCutscenes/SkipLearning*
+    # song-teacher hooks the plain link dropped (the rando hand-off for every
+    # song check). Required for the same reason: membership is the claim, and a
+    # file is added to it only to arm it. Its members are ALSO named in
+    # required_mm_registrars below, because this archive gate is nm-based on
+    # the Linux build only and the per-symbol probe is the second witness.
     run_elision_gate "$bin" \
         "$build_dir/games/oot/libsoh_rando.a:required" \
         "$build_dir/games/oot/libsoh_enh.a:required" \
         "$build_dir/games/oot/libsoh_port.a:required" \
         "$build_dir/games/mm/lib2ship_rando.a:required" \
         "$build_dir/games/mm/lib2ship_enh_clockshuffle.a:required" \
+        "$build_dir/games/mm/lib2ship_enh_registrars.a:required" \
         "$build_dir/games/mm/lib2ship_enh.a:report-only" \
         "$build_dir/games/mm/lib2ship_rando_ui.a:report-only"
     overall=$?
@@ -566,6 +576,113 @@ main() {
         "RegisterSavingEnhancements"                # owl-save persistence, cycle-save playtime (#516 Phase 2)
         "GfxPatcher_ApplyNecessaryAuthenticPatches" # authentic gfx patches incl. latent matrix-stack UB
         "PlayerCustomFlipbooks_Patch"               # static FD/Deku/Goron faces (#618, the #516 Phase 3 pair)
+        # #1071: the song-teacher hooks in lib2ship_enh_registrars.a. The trailing
+        # "()" matters: the demangled name of a no-argument function ends in it,
+        # and without it GoronLullaby would be satisfied by GoronLullabyIntro.
+        "RegisterSkipLearningElegyOfEmptiness()"
+        "RegisterSkipLearningEponasSong()"
+        "RegisterSkipLearningGoronLullaby()"
+        "RegisterSkipLearningGoronLullabyIntro()"
+        "RegisterSkipLearningNewWaveBossaNova()"
+        "RegisterSkipLearningSonataOfAwakening()"
+        "RegisterSkipLearningSongOfHealing()"
+        "RegisterSkipLearningSongOfSoaring()"
+        "RegisterSkipLearningSongOfStorms()"
+        # #1005-#1009: the Cheats registrars in lib2ship_enh_registrars.a. MM_-prefixed where OoT
+        # ships a twin (RegisterMoonJump, RegisterEasyFrameAdvance), so the OoT copy cannot satisfy
+        # the probe. Infinite.cpp exports nothing; the archive gate above covers it by member.
+        "RegisterClimbAnywhere()"
+        "RegisterHookshotAnywhere()"
+        "MM_RegisterMoonJump()"
+        "MM_RegisterEasyFrameAdvance()"
+        # #1018-#1022: the Skips & Speed-ups registrars in lib2ship_enh_registrars.a (Disable Title Card,
+        # Skip Intro, Skip Entrance Cutscenes, Skip One Point Cutscenes and the Story set). No OoT twin
+        # exists for any of the names (grep games/oot); the trailing "()" keeps one name from satisfying
+        # a longer one. The archive gate above covers the same files by member.
+        "RegisterHideTitleCards()"
+        "RegisterSkipIntroSequence()"
+        "RegisterSkipEntranceCutscenes()"
+        "RegisterSkipOnePointCutscenes()"
+        "RegisterHealingMikauAudioFix()"
+        "RegisterSkipBiggoronSnowheadLullabyCutscene()"
+        "RegisterSkipBombBagTheftCutscene()"
+        "RegisterSkipClockTowerOpen()"
+        "RegisterSkipClockTowerSkullKidEncounter()"
+        "RegisterSkipDefeatCaptainSequence()"
+        "RegisterSkipFirstSongOfTimeFlashbacks()"
+        "RegisterSkipHealingDarmani()"
+        "RegisterSkipHealingMikau()"
+        "RegisterSkipIkanaCurseCutscenes()"
+        "RegisterSkipLearningSongOfTime()"
+        "RegisterSkipMilkRunCutscenes()"
+        "RegisterSkipMoonCrash()"
+        "RegisterSkipPrincessDelivery()"
+        "RegisterSkipRaisingWoodfall()"
+        "RegisterSkipStoppingMoon()"
+        "RegisterSkipWakingAndRidingTurtle()"
+        # #1010-#1017: the enhancement registrars in lib2ship_enh_registrars.a (Fast Chests, Enemy Health Bars,
+        # Bow Reticle, Disable Black Bars, Instant Putaway, Unequip C-Items, Pause Buffer, Hyper Enemies). Where
+        # OoT ships a twin of a name (RegisterItemUnequip, RegisterPauseBufferInputs) MM's copy is MM_-prefixed
+        # in the source, so the OoT copy cannot satisfy the probe. EnemyHealthBars registers through a lambda,
+        # so it is gated by the one function it exports; the parameter list separates it from OoT's C
+        # Interface_DrawEnemyHealthBar. The archive gate above covers the same files by member.
+        # The symbol is matched as a basic regex, so the pointer star is escaped (an unescaped * is a quantifier).
+        "RegisterFastChests()"
+        "GetActorMaxHealth(Actor\*)"
+        "RegisterBowReticle()"
+        "RegisterDisableBlackBars()"
+        "RegisterInstantPutaway()"
+        "MM_RegisterItemUnequip()"
+        "RegisterDpadPageSwitchPrevention()"
+        "MM_RegisterPauseBufferInputs()"
+        "RegisterHyperEnemies()"
+        # #1024-#1026: the Audio Editor registrars in lib2ship_enh_registrars.a (Mute Low HP Alarm, Disable Enemy
+        # Proximity Music, Display Sequence Name in Notifications). RegisterAudioNotificationHooks is MM_-prefixed
+        # by include/mm_audio_prefix.h because OoT's AudioHooks.cpp defines the same name; the other two have no
+        # OoT twin. The archive gate above covers the same files by member.
+        "RegisterMuteLowHpAlarm()"
+        "RegisterDisableEnemyProximityMusic()"
+        "MM_RegisterAudioNotificationHooks()"
+        # #1023: Free Look (Camera/FreeLook.cpp), in lib2ship_enh_registrars.a. Its registrar has no OoT twin (grep games/oot);
+        # the archive gate above covers the same file by member.
+        "RegisterCameraFreeLook()"
+        # #1030-#1034: the key-gap registrars in lib2ship_enh_registrars.a (Disable Screen Flash for Finishing Blow,
+        # 3D Dropped Items, Skip Misc Interactions (25 TUs), Skip Scarecrow's Song, Arrow Cycle). MM's ArrowCycle
+        # registrar is MM_-prefixed in the source because OoT ships RegisterArrowCycle. The file-scope static
+        # registrars (RegisterDisableScreenFlash, SkipHungryGoronDialogue, SkipMayorsOfficeCutscene) have no
+        # exported name to probe; the archive gate above covers every file by member.
+        "Register3DItemDrops()"
+        "RegisterSkipScarecrowSong()"
+        "MM_RegisterArrowCycle()"
+        "RegisterSkipAlienStartAndFail()"
+        "RegisterSkipAlienWarning()"
+        "RegisterSkipBankerDialogue()"
+        "RegisterSkipBossWarpPrompt()"
+        "RegisterSkipBothersomeMonkey()"
+        "RegisterSkipDekuSalesman()"
+        "RegisterSkipDekuTelescope()"
+        "RegisterSkipEponaReveal()"
+        "RegisterSkipEvansSong()"
+        "RegisterSkipFallingMoonsTear()"
+        "RegisterSkipGateGuards()"
+        "RegisterSkipGivingBombersNotebook()"
+        "RegisterSkipGreatFairyCutscene()"
+        "RegisterSkipKafeiReveal()"
+        "RegisterSkipKamaroTeachDance()"
+        "RegisterSkipKotakeFlying()"
+        "RegisterSkipOwlInteractions()"
+        "RegisterSkipPushingMikau()"
+        "RegisterSkipRosaSistersDance()"
+        "RegisterSkipScarecrowDance()"
+        "RegisterSkipTatlInterrupts()"
+        "RegisterSkipTingleTime()"
+        "RegisterSkipTurtleGoodbye()"
+        # #1035, #1036, #1038: Skip Magic Arrow Equip Animation, Permanent Heart Loss and N64 Weird Frames, in
+        # lib2ship_enh_registrars.a. The last two are MM_-prefixed in the source because OoT ships a registrar of the
+        # same name (PermanentLosses.cpp has a static one; N64WeirdFrames.cpp an exported one); the first has no OoT twin.
+        "RegisterSkipMagicArrowEquip()"
+        "MM_RegisterPermanentHeartLoss()"
+        "MM_RegisterN64WeirdFrames()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do

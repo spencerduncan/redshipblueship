@@ -1718,3 +1718,278 @@ can be an option". Default OFF, in the shape #668 gave the shared ocarina.
 Locked by `SharedKokiriSword` (legs 6 and 7 lock the whole pools and the
 promotion), `ComboSettingsRows`, `ComboSettingsAuthoring`,
 `ComboSettingsDivergence` and `CVarClassification` (three identity keys).
+
+### 2026-10-18 -- The cross-game item rules: a sibling record at 900 and the shared-family bitset at 908 (#976, format note)
+
+Epic #975 (OoTMM-parity cross-game masks) needs one combo-level home for 17
+mask rules, #968's three arrows, #969's Bunny Hood and #970's bottles, plus
+the Blast Mask's cooldown. `comboFlags` has six free bits and `spare1` is one
+byte, and the record cannot grow in place: `comboTriforce` is pinned at 896,
+right behind it. So the rules are a **sibling record**, carved from the front
+of `reserved[]`, and the combo record's `formatVersion` stays 1.
+
+- **The layout.** `ComboItemRulesRecord comboItemRules` at **900** (8 bytes):
+  `uint32_t crossItemFlags` (offset 0), `uint8_t blastMaskCooldown` (4),
+  `uint8_t spare[3]` (5..7). Then `uint32_t sharedFamilyOwned` at **908**.
+  `reserved[]` goes from 104 bytes at 900 to **92 at 912**, 28 above ADR
+  0009's floor. `sizeof(ComboContext)` stays 1004. Every offset is pinned by a
+  static assert, beside the carves before it.
+- **The value spaces** (`foreign_items.h`, pinned, append-only):
+  `RSBS_XITEM_SHARED_GORON` 0x1, `_ZORA` 0x2, `_BUNNY` 0x4 (#969 rides this
+  bit; there is no separate one), `_KEATON` 0x8, `_TRUTH` 0x10;
+  `RSBS_XITEM_BLAST_MASK_OOT` 0x20, `_STONE_MASK_OOT` 0x40,
+  `_KAMARO_MASK_OOT` 0x80, `_GERUDO_MASK_MM` 0x100, `_SKULL_MASK_MM` 0x200,
+  `_SPOOKY_MASK_MM` 0x400; the shared extensions `RSBS_XITEM_SHARED_BLAST`
+  0x800 through `_SPOOKY` 0x10000, each requiring its extension bit; #968's
+  `_SHARED_ARROW_FIRE` 0x20000, `_ICE` 0x40000, `_LIGHT` 0x80000; #970's
+  `_SHARED_BOTTLES` 0x100000 (reserved, not a family); #1065's
+  `_SHARED_LENS` 0x200000 (2026-10-21, a family). `RSBS_XITEM_ALL_V1` is
+  0x3FFFFF (0x1FFFFF before #1065); bit 31 is never allocated. The cooldown is
+  `RSBS_BLAST_COOLDOWN_DEFAULT` 0 (MM's own), `_INSTANT` 1, `_VERY_SHORT` 2,
+  `_SHORT` 3, `_LONG` 4, `_VERY_LONG` 5.
+- **Zero is every rule off**, which is today's world and what every pre-carve
+  record holds, so no occupancy tag is needed: "frozen or not" is
+  `comboSettings.formatVersion`'s answer.
+- **The fingerprint.** `Combo_ComputeComboSettingsHashEx` appends
+  `"#" || canonical(itemRules)` (the u32 little-endian, the cooldown, the
+  spares, a byte at a time) **only when the record is not all clear**. An
+  all-clear record therefore leaves `comboSettingsHash`, the single-bag seed
+  folded from it, and every `Golden*` digest exactly where they were. Any set
+  bit, a non-default cooldown or a nonzero spare moves it. Vectors: the
+  defaults' fingerprint stays 0xBA5FC364; with `crossItemFlags` 0x825 and the
+  SHORT cooldown it is 0x3AC849EB (computed outside the build). Both are
+  generator-version-0 values: since #1003 (next section) the generator label
+  `":" || LE32(version)` is appended AFTER the rules term, so at version 1 the
+  defaults read 0xFC9F21AB and the 0x825/SHORT record 0x5033F222, while the
+  single bag still folds the version-0 value, rules included
+  (`Combo_ComboSettingsWorldHash`). The load and arrival checks accept any
+  known version over the record and its rules
+  (`Combo_ComboSettingsHashGeneratorVersionEx`).
+- **The freeze.** `Combo_FreezeComboSettingsEx(rec, rules)` freezes both and
+  stamps over both; the creation event (`Playthrough_Init`) calls it with
+  `Combo_ResolveComboItemRules`. `Combo_FreezeComboSettings(rec)` freezes every
+  rule off. `comboItemRules` joins the file-create invalidation's KEEP set
+  beside the record and its hash.
+- **Divergence.** Three bits, contiguous after 0x2000:
+  `RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS` 0x4000 (`crossItemFlags`),
+  `_BLAST_MASK_COOLDOWN` 0x8000 (`blastMaskCooldown`) and
+  `_ITEM_RULES_SPARE` 0x10000 (`itemRulesSpare`). One bit for the whole
+  bitset, not one per rule: the u32 has fewer bits left than there are rules.
+  The load (`SaveManager::LoadSlot`, both compares) and the arrival
+  (`Combo_ComboSettingsDivergence`) run `Combo_ComboSettingsDivergenceForEx`
+  over the record they hold, and the fingerprint cross-check folds the rules.
+- **No authoring surface yet.** #976 adds no Cross-Game Rules row and no
+  tier-4 key: the rows come with the phase that gives each rule its behaviour
+  (epic #975 P2 on). Until then `Combo_ResolveComboItemRules` is the defaults,
+  every world this build creates freezes every rule off, and a file a later
+  build made with a rule on is **refused at load and at arrival, by name, and
+  not quarantined** (a session divergence no key can restore). Playing it with
+  the rule silently off would be the corruption one-game semantics forbids.
+  When the keys land, they join `Combo_ComboSettingsRestorableMask`.
+  *2026-10-21 (#1068, #1065):* the keys landed, #1068's Shared Shields first
+  (its own section below), then `gCombo.Rando.SharedLens`
+  (`COMBO_SETTING_SHARED_LENS`, the "[Both Games] Shared Lens of Truth" row,
+  0 or 1, default off) authors `RSBS_XITEM_SHARED_LENS`, and
+  `Combo_ResolveComboItemRules` assembles `crossItemFlags` from the item-rule
+  keys and nothing else (`Combo_ComboItemRulesAuthored`). A `crossItemFlags`
+  divergence is restored at load from the file
+  (`Combo_ComboSettingsRestoreLive` with the file's item rules) when every
+  `crossItemFlags` bit that differs from the session has a key
+  (`Combo_ComboSettingsUnrestorableBits`); a rule no key authors is still
+  refused, as above. Both rules sit in one item-rule key table
+  (`kItemRuleKeys`), so `RSBS_XITEM_ALL_V1` is 0x023FFFFF with both.
+  *2026-10-21 (#1066):* two more keys, `gCombo.Rando.SharedSongEpona` and
+  `gCombo.Rando.SharedSongStorms` ("[Both Games] Shared Epona's Song" and
+  "Shared Song of Storms", 0 or 1, default off), author
+  `RSBS_XITEM_SHARED_SONG_EPONA` (0x00400000) and
+  `RSBS_XITEM_SHARED_SONG_STORMS` (0x00800000) through the same table, making
+  `RSBS_XITEM_ALL_V1` 0x02FFFFFF.
+  `RSBS_XITEM_SHARED_SONG_STORMS` (0x00800000) through the same table.
+  *2026-10-21 (#968):* three more keys, `gCombo.Rando.SharedArrowFire`,
+  `gCombo.Rando.SharedArrowIce` and `gCombo.Rando.SharedArrowLight`
+  ("[Both Games] Shared Fire Arrows", "Shared Ice Arrows" and "Shared Light
+  Arrows", 0 or 1, default off), author the bits this carve reserved for them,
+  `RSBS_XITEM_SHARED_ARROW_FIRE` (0x00020000), `_ICE` (0x00040000) and
+  `_LIGHT` (0x00080000), through the same table. No bit is allocated, so
+  `RSBS_XITEM_ALL_V1` and `RSBS_XITEM_FAMILY_MASK` do not move.
+  *2026-10-21 (#978, epic #975 P2):* five more keys,
+  `gCombo.Rando.SharedMaskGoron`, `SharedMaskZora`, `SharedMaskBunny`,
+  `SharedMaskKeaton` and `SharedMaskTruth` ("[Both Games] Shared Goron Mask",
+  "Shared Zora Mask", "Shared Bunny Hood", "Shared Keaton Mask" and "Shared
+  Mask of Truth", 0 or 1, default off), author the five mask bits this carve
+  reserved, `RSBS_XITEM_SHARED_GORON` (0x00000001) to `_TRUTH` (0x00000010),
+  through the same table. No bit is allocated. #969's Bunny Hood speed in
+  Hyrule rides `RSBS_XITEM_SHARED_BUNNY`, read through `OoT_BunnyHoodEffectMode`
+  and never written to the enhancement's own key.
+- **The family bitset.** `sharedFamilyOwned` holds one bit per SHARED family,
+  at the family's own rule bit (`RSBS_XITEM_FAMILY_MASK` 0x022FF81F: the five
+  shared masks, the six shared extensions, the three arrows and, since #1065
+  and #1068, the Lens of Truth and the Hylian/Hero's Shield, whose members OoT
+  and MM register at static init; #1066's two songs make it 0x02EFF81F). It merges by a
+  third discipline, OR (`shared_resources.h`): harvest `owned |= held & armed`,
+  apply gives the arriving game its own copy of `owned & armed & ~held`. It is
+  not a shared-resource slot: all twenty are allocated, and a slot's 16-bit
+  value could not hold the 32-bit family space. Session state, like the
+  shared-resource pool: not in the KEEP set.
+
+Locked by `CrossItemRulesRecord` (the carve, the spaces, canonical(), every
+rule moving the fingerprint and the all-clear record not moving it, the two
+vectors, the freeze and the KEEP set, the divergence names, and a `.redsave`
+with a rule on refused at load with nothing quarantined) and
+`SharedFamilyMerge` (the OR merge both ways and both games' real shims).
+
+### 2026-10-18 -- The generator version in the fingerprint (#1003)
+
+Decision 1.4's fingerprint gains a fourth term, the generator version:
+
+```
+comboSettingsHash = Hash( canonical(comboSettings) ‖ ":" ‖ LE32(sharedRandoSettingsHash) ‖ ":" ‖
+                          LE32(mmProfileDigest) ‖ ":" ‖ LE32(RSBS_GENERATOR_VERSION) )
+```
+
+The problem it fixes: the three terms name the seed and the settings, never the
+generator, so two builds whose generator differs made two worlds behind one
+fingerprint. #840, #874 and #895 each moved worlds without moving the 8 hex
+digits #960 prints at file select. `RSBS_GENERATOR_VERSION` (`foreign_items.h`) is
+bumped by hand in any PR that re-pins a golden for a world-moving reason
+(`docs/determinism-goldens.md`).
+
+- **Version 0 is the decision 1.4 formula as it was**, with no fourth term. Every
+  fingerprint written before #1003 is a version-0 fingerprint. The load and
+  arrival check (`Combo_ComboSettingsDivergenceFor`) accepts a stored hash that
+  any version from 0 to this build's reproduces
+  (`Combo_ComboSettingsHashGeneratorVersion`). So an older file is refused only
+  where it already was, and only a hash no version reproduces sets `FINGERPRINT`.
+  A file stamped by a newer generator matches no version this build knows and
+  reads as `FINGERPRINT`, as a newer record format already reads as `UNREADABLE`.
+- **The term is a label, not an input.** The single bag folds
+  `Combo_ComboSettingsWorldHash()`, which is the resident fingerprint with the
+  label taken off (its version-0 value). A version bump therefore moves no
+  placement, and every world the bag made before #1003 is still made from the
+  same seed. Worlds move only through code, and the bump is what makes that
+  visible.
+- R2 above ("22 bytes in") now describes version 0; a version-n fingerprint folds
+  27 bytes. R3's zero displacement is unchanged.
+
+Locked by `ComboGeneratorVersion` (the fold, the legacy and newer-version load
+legs, the version-free bag seeds, the file-select text) and `ComboSettingsCanonical`
+(vectors pinned at explicit versions 0 and 1).
+
+### 2026-10-21 -- The "Shared Shields" rule, and a rule with two pairs (#1068)
+
+The first item rule with an authoring surface (operator ruling 2026-10-20:
+follow OoTMM's `sharedShields`, off by default). One Cross-Game Rules row,
+"[Both Games] Shared Shields", key `gCombo.Rando.SharedShields` (0 or 1,
+IDENTITY), resolved into `crossItemFlags` by `Combo_ResolveComboItemRules` and
+frozen at creation like every rule.
+
+- **The bit.** `RSBS_XITEM_SHARED_SHIELDS` 0x02000000, a family. The bits
+  between it and #976's 21 are #1065, #1066 and #1067's (0x00200000 to
+  0x01000000), and 0x04000000 is #1069's. `RSBS_XITEM_ALL_V1` is
+  0x021FFFFF on this change alone.
+- **One rule, two pairs.** OoT's Hylian Shield with MM's Hero's Shield, and the
+  two Mirror Shields. A family is one ownership bit, so the second pair needs a
+  bit of its own in `sharedFamilyOwned`: an **extra family slot**
+  (`RSBS_XFAMILY_SLOTS_EXTRA`, pinned and append-only like the rule bits). The
+  Mirror pair's is `RSBS_XFAMILY_SLOT_MIRROR_SHIELD` 0x80000000: bit 31 is never
+  a rule bit, so it is free in the ownership bitset, and it is never a
+  `crossItemFlags` bit (a record holding it is still invalid). The rule arms
+  its own bit and its extra slot together (`Combo_SharedFamilySlotsArmedBy`);
+  the registry, the OR merge and the bag's pair list work over slots.
+- **Restore.** The item rules diverge as one bit, so a key under it is restored
+  only when every `crossItemFlags` bit that differs from the session has a key
+  in this build (`Combo_ComboSettingsUnrestorableBits`). A rule only a later
+  build authors is still refused by name, as before.
+- With the rule off nothing changes: the record stays all clear, the
+  fingerprint and every `Golden*` digest hold, nothing is armed or registered
+  into the bag.
+
+Locked by `CrossItemRulesRecord` (the bit allocated, named, valid and a
+family), `SharedShieldsPairs` (both games register both pairs, the bag names
+them, the real composer makes each one shared row) and `SharedShieldsArrival`
+(through both games' real shims, the shield found in one game is given and
+worn in the other; off, nothing crosses).
+
+### 2026-10-21 -- The "Shared Ocarina Buttons" rule, and extra slots at extension bits (#1067)
+
+OoTMM's `sharedOcarinaButtons`, off by default. One Cross-Game Rules row,
+"[Both Games] Shared Ocarina Buttons", key `gCombo.Rando.SharedOcarinaButtons`
+(0 or 1, IDENTITY), resolved into `crossItemFlags` by
+`Combo_ResolveComboItemRules` and frozen at creation like every rule.
+
+- **The bit.** `RSBS_XITEM_SHARED_OCARINA_BUTTONS` 0x01000000, a family (the
+  A buttons). `RSBS_XITEM_ALL_V1` is 0x031FFFFF with #1068's bit.
+- **One rule, five pairs.** The four C-button pairs need four more ownership
+  bits. Taking four free rule bits would leave almost none for the rules still
+  to come, so the C pairs take the `sharedFamilyOwned` bits of the six
+  EXTENSION rules (`RSBS_XITEM_BLAST_MASK_OOT` .. `_SPOOKY_MASK_MM`): an
+  extension is pinned as never a family (its family is its `RSBS_XITEM_SHARED_*`
+  bit), so its ownership bit is otherwise unused forever.
+  `RSBS_XFAMILY_SLOT_OCARINA_C_UP` 0x20, `_C_DOWN` 0x40, `_C_LEFT` 0x80,
+  `_C_RIGHT` 0x100. The extra-slot invariant becomes "never a family rule's
+  bit" (bit 31 or an extension's), static-asserted in `foreign_items.h`. An
+  extension rule arms nothing in the ownership bitset, so the two meanings of
+  those bits never meet.
+- **Only a shuffling game shares.** Each game's member reads its own button
+  ownership flag (OoT `RAND_INF_HAS_OCARINA_*`, MM
+  `RANDO_INF_OBTAINED_OCARINA_BUTTON_*`) only while its own frozen button
+  shuffle is on. A game without the shuffle starts with all five and finds
+  none, so it adds nothing to the pool; it still receives the found buttons,
+  which it already holds.
+- **The pairs need both shuffles.** A shared row can be hosted at a check in
+  either game, and that game gives its own copy. A game without the shuffle
+  never sees a button given there, so the button would never reach the game
+  that needs it while both solvers had credited it. Each member therefore has a
+  `pooled` callback the bag reads at generation (OoT: the seed's
+  `RSK_SHUFFLE_OCARINA_BUTTONS`; MM: its frozen `RSBS_GIVECAP_OCARINA_BUTTONS`),
+  and `SingleBagSharedPairs` builds a pair only when both copies are pooled.
+  With one shuffle off the rule still arms its five slots but builds no pair:
+  each game's buttons stay its own items, exactly as with the rule off.
+- With the rule off nothing changes: the record stays all clear, the
+  fingerprint and every `Golden*` digest hold, nothing is armed.
+
+Locked by `CrossItemRulesRecord` (the bit allocated, named, valid and a
+family; the C slots are extra slots at the extension bits; the rule arms
+exactly its five slots and moves the fingerprint), `SharedOcarinaButtonsPairs`
+(both games register all five, the bag names five pairs, the real composer
+makes each one shared row; with either shuffle off no pair is built and MM's
+five stay MM's own items) and `SharedOcarinaButtonsArrival` (through both
+games' real shims, a button found in one game is owned in the other; a game
+whose shuffle is off shares nothing; off, nothing crosses).
+
+### 2026-10-21 -- The "Shared Song of Time" rule and MM's Moon Crash Behavior (#1069)
+
+Operator ruling 2026-10-21: do it the OoTMM way, with the settings OoTMM offers.
+One Cross-Game Rules row, "[Both Games] Shared Song of Time", key
+`gCombo.Rando.SharedSongTime` (0 or 1, IDENTITY, off by default), and one MM
+option, Combo > Majora's Mask's "Moon Crash Behavior" (OoTMM's `moonCrash`:
+"Last Save", the default, or "New Cycle").
+
+- **The bit.** `RSBS_XITEM_SHARED_SONG_TIME` 0x04000000, a family: OoT's
+  `RG_SONG_OF_TIME` and MM's `RI_SONG_TIME`, each registered by its game on its
+  quest bit. The bag makes the two copies one shared row both solvers credit
+  and trims the other (OoTMM's pool transform replaces both games' copies with
+  one shared song); the arrival teaches it to the other game.
+- **MM's start.** With the rule frozen on, MM's paired start is the Ocarina
+  alone (`Rando::Foreign::PairedStartingItemsForWorld`), and the song is an MM
+  pool item. The identity term stays the rule-independent
+  `PairedStartingItems`: `MM_Rando_ComputeProfileStamp` runs before the combo
+  freeze, so a term that followed the rule would refuse every arrival.
+- **The moon crash.** "New Cycle" runs the Song of Time's end-of-cycle reset
+  where the crash would reload the last save (z_sram_NES.c, fenced), keeping
+  the file's items and progress, and commits the new cycle. It is frozen into
+  the MM half (`randoSaveMoonCrash`, appended; zero is "Last Save", so old
+  halves read as today) and folded into the MM profile digest only when it is
+  not the default. The rule FORCES "New Cycle" in play
+  (`MM_Rando_FrozenMoonCrash` reads both frozen records): with one Song of Time
+  MM starts without it, and the crash is then the free, progress-keeping reset
+  2Ship's logic assumes (it has no reset term; OoTMM's `can_reset_time_impl`
+  counts `setting(moonCrash, cycle)` as one). So no logic edit is needed. OoTMM
+  itself does not force it; it reasons about resets in logic instead.
+- With the rule off and the option at "Last Save" nothing changes: the record
+  stays all clear, no digest term is added, and every golden holds.
+
+Locked by `CrossItemRulesRecord`, `SharedSongOfTimePairs`,
+`SharedSongOfTimeArrival`, `MMPairedStartSharedSongTime`,
+`MMMoonCrashCycleForced`, `MMMoonCrashCycleReset` and the ROM-staged
+`IntMoonCrashCycle`.

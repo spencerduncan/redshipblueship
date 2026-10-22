@@ -13,7 +13,7 @@ s32 Player_UpperAction_7(Player* thisx, PlayState* play);
 s32 Player_UpperAction_8(Player* thisx, PlayState* play);
 }
 
-#define CVAR_NAME "gEnhancements.PlayerActions.ArrowCycle"
+#define CVAR_NAME "gEnhancements.BowArrowCycle"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // Magic arrow costs based on z_player.c
@@ -85,6 +85,13 @@ static s32 GetBowItemForArrow(PlayerItemAction arrowType) {
 }
 
 static bool CanCycleArrows() {
+#if defined(RSBS_SINGLE_EXECUTABLE)
+    // #1034, per PR #673's criterion: this TU is in the single-exe link now and every hook below goes through
+    // here. A missing play state or a player that has not spawned yet leaves the vanilla button handling alone.
+    if (MM_gPlayState == nullptr || GET_PLAYER(MM_gPlayState) == nullptr) {
+        return false;
+    }
+#endif
     Player* player = GET_PLAYER(MM_gPlayState);
 
     // Don't allow cycling during bow minigames in specific scenes

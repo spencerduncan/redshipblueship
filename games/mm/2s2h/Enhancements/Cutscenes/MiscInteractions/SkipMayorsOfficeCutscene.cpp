@@ -6,7 +6,7 @@ extern "C" {
 #include "overlays/actors/ovl_En_Dt/z_en_dt.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // These skips still allow the first textboxes to display, but they do ignore most of the scenes
@@ -40,6 +40,9 @@ static bool ShouldStartMayorsOfficeCutscene(s16 csId) {
 
 static void RegisterSkipMayorsOfficeCutscene() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->sceneId != SCENE_SONCHONOIE) {
             return;
         }

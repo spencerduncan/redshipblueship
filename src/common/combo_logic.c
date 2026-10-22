@@ -221,9 +221,18 @@ bool Combo_Logic_GetPlacement(GameId hostGame, uint16_t hostCheck, ComboLogicPla
     return false;
 }
 
+/** No shared pair: the `pair` of every placement that is not one (ABI 7). */
+static SharedItem ComboLogicNoPair(void) {
+    SharedItem none;
+    memset(&none, 0, sizeof(none));
+    return none;
+}
+
 /** Append one placement. False on capacity, or on a host already assigned (the
- *  fill never offers one, so this is a defect trap, not a flow-control path). */
-static bool ComboLogicAddPlacement(uint8_t hostGame, uint16_t hostCheck, SharedItem item, uint16_t itemClass) {
+ *  fill never offers one, so this is a defect trap, not a flow-control path).
+ *  `pair` is the shared pair's far half (ABI 7) or ComboLogicNoPair(). */
+static bool ComboLogicAddPlacement(uint8_t hostGame, uint16_t hostCheck, SharedItem item, uint16_t itemClass,
+                                   SharedItem pair) {
     if (!ComboLogicIsGame(hostGame)) {
         return false;
     }
@@ -241,6 +250,7 @@ static bool ComboLogicAddPlacement(uint8_t hostGame, uint16_t hostCheck, SharedI
     p->hostCheck = hostCheck;
     p->itemClass = itemClass;
     p->item = item;
+    p->pair = pair;
     ComboLogicBitSet(sOccupied[hostGame], (int)hostCheck);
     return true;
 }
@@ -280,7 +290,7 @@ bool Combo_Logic_Place(GameId hostGame, uint16_t hostCheck, SharedItem item, uin
         fprintf(stderr, "[ComboLogic] authored placement refused: no %s engine\n", Game_ToString(hostGame));
         return false;
     }
-    if (!ComboLogicAddPlacement(g, hostCheck, item, itemClass)) {
+    if (!ComboLogicAddPlacement(g, hostCheck, item, itemClass, ComboLogicNoPair())) {
         return false;
     }
     if (!e->place(e->self, hostCheck, item)) {
@@ -326,10 +336,14 @@ bool Combo_Logic_HydrateTables(const ComboLogicPlacement* ootHosted, int ootCoun
     memset(sExchanged, 0, sizeof(sExchanged));
     sDroppedCount = 0;
     for (int i = 0; i < ootCount; ++i) {
-        ComboLogicAddPlacement((uint8_t)GAME_OOT, ootHosted[i].hostCheck, ootHosted[i].item, ootHosted[i].itemClass);
+        // A hydrated row never carries a shared pair: the crossing store holds
+        // cross-origin rows only (combo_logic.h, ComboLogicPlacement.pair).
+        ComboLogicAddPlacement((uint8_t)GAME_OOT, ootHosted[i].hostCheck, ootHosted[i].item, ootHosted[i].itemClass,
+                               ComboLogicNoPair());
     }
     for (int i = 0; i < mmCount; ++i) {
-        ComboLogicAddPlacement((uint8_t)GAME_MM, mmHosted[i].hostCheck, mmHosted[i].item, mmHosted[i].itemClass);
+        ComboLogicAddPlacement((uint8_t)GAME_MM, mmHosted[i].hostCheck, mmHosted[i].item, mmHosted[i].itemClass,
+                               ComboLogicNoPair());
     }
     return true;
 }
@@ -371,6 +385,14 @@ uint32_t Combo_Logic_PlacementDigest(void) {
             ComboLogicDigestByte(&h, (uint8_t)((p->item.id >> 8) & 0xFF));
             ComboLogicDigestByte(&h, (uint8_t)(p->itemClass & 0xFF));
             ComboLogicDigestByte(&h, (uint8_t)((p->itemClass >> 8) & 0xFF));
+            // ABI 7: a shared pair's far half, folded ONLY when present, so a
+            // world without one digests byte for byte as it did at ABI 6.
+            if (ComboLogicIsGame(p->pair.originGame)) {
+                ComboLogicDigestByte(&h, (uint8_t)'P');
+                ComboLogicDigestByte(&h, p->pair.originGame);
+                ComboLogicDigestByte(&h, (uint8_t)(p->pair.id & 0xFF));
+                ComboLogicDigestByte(&h, (uint8_t)((p->pair.id >> 8) & 0xFF));
+            }
         }
     }
     return h;
@@ -618,6 +640,11 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap) {
  * which that host holds nothing, so its foreign item never crosses. (Its
  * own-origin counterpart is the engine's `withholdHost`.)
  *
+ * THE SHARED PAIR (ABI 7) is the one own-origin placement this DOES visit: its
+ * host-side half is the host engine's own harvest, and its far half (`pair`) is
+ * handed to the far engine here, under the same gate and the same delivered bit
+ * as a crossing from this host.
+ *
  * @return nonzero if anything was granted (the round must iterate again).
  */
 static int ComboLogicExchangeFrom(uint8_t hostGame, int gateOpen, int* exchanged) {
@@ -633,7 +660,13 @@ static int ComboLogicExchangeFrom(uint8_t hostGame, int gateOpen, int* exchanged
         if (ComboLogicBitGet(sExchanged[hostGame], i)) {
             continue;
         }
-        if (p->item.originGame == hostGame || !ComboLogicIsGame(p->item.originGame)) {
+        // What crosses from this host: a foreign-origin item, or a shared pair's
+        // far half (ABI 7). Nothing else: an own-origin item is the host's own
+        // harvest.
+        const bool sharedPair =
+            ComboLogicIsGame(p->pair.originGame) && p->pair.originGame != hostGame && p->item.originGame == hostGame;
+        const SharedItem crossing = sharedPair ? p->pair : p->item;
+        if (!sharedPair && (p->item.originGame == hostGame || !ComboLogicIsGame(p->item.originGame))) {
             continue;
         }
         if (ComboLogicBitGet(sForbidden[hostGame], p->hostCheck)) {
@@ -642,11 +675,11 @@ static int ComboLogicExchangeFrom(uint8_t hostGame, int gateOpen, int* exchanged
         if (!host->checkReached(host->self, p->hostCheck)) {
             continue;
         }
-        const ComboLogicEngine* owner = ComboLogicEngineFor(p->item.originGame);
+        const ComboLogicEngine* owner = ComboLogicEngineFor(crossing.originGame);
         if (owner == NULL) {
             continue;
         }
-        owner->assumeOwnItem(owner->self, p->item.id);
+        owner->assumeOwnItem(owner->self, crossing.id);
         ComboLogicBitSet(sExchanged[hostGame], i);
         if (exchanged != NULL) {
             (*exchanged)++;
@@ -801,6 +834,12 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
             }
             const ComboLogicEngine* owner = sEngines[og];
             owner->assumeOwnItem(owner->self, assumed[i].item.id);
+            // THE SHARED PAIR (ABI 7): one row, one copy in EACH engine.
+            if ((assumed[i].bagFlags & RSBS_COMBO_BAG_SHARED_PAIR) != 0u) {
+                const uint8_t far = (og == (uint8_t)GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+                const ComboLogicEngine* farOwner = sEngines[far];
+                farOwner->assumeOwnItem(farOwner->self, assumed[i].pairId);
+            }
         }
     }
 
@@ -1078,8 +1117,32 @@ static void ComboLogicRefreshCrossingBudget(void) {
     }
 }
 
-static bool ComboLogicRowMayUseHost(const ComboLogicBagItem* item, uint8_t hostGame, uint16_t host) {
+/** Is `item` a shared pair (ABI 7)? */
+static bool ComboLogicRowIsPair(const ComboLogicBagItem* item) {
+    return (item->bagFlags & RSBS_COMBO_BAG_SHARED_PAIR) != 0u;
+}
+
+/** Is `item` hosted by `hostGame` as that game's OWN item? Its origin's side,
+ *  and either side for a shared pair, whose halves are each game's own. */
+static bool ComboLogicRowNativeTo(const ComboLogicBagItem* item, uint8_t hostGame) {
+    return item->item.originGame == hostGame || (ComboLogicRowIsPair(item) && ComboLogicIsGame(hostGame));
+}
+
+/** The half of `item` that `hostGame` hosts: the row's own item on its origin's
+ *  side, the far half (`pairId`) on the other side of a shared pair. */
+static SharedItem ComboLogicHalfFor(const ComboLogicBagItem* item, uint8_t hostGame) {
     if (item->item.originGame == hostGame) {
+        return item->item;
+    }
+    SharedItem half;
+    memset(&half, 0, sizeof(half));
+    half.originGame = hostGame;
+    half.id = item->pairId;
+    return half;
+}
+
+static bool ComboLogicRowMayUseHost(const ComboLogicBagItem* item, uint8_t hostGame, uint16_t host) {
+    if (ComboLogicRowNativeTo(item, hostGame)) {
         return true;
     }
     if ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u || sCrossingSideFull[hostGame]) {
@@ -1093,7 +1156,7 @@ static bool ComboLogicRowMayUseHost(const ComboLogicBagItem* item, uint8_t hostG
  *  True for its own side, and for the other side when the row may cross and the
  *  host engine accepts foreign items everywhere (no predicate). */
 static bool ComboLogicRowUsesWholeSide(const ComboLogicBagItem* item, uint8_t hostGame) {
-    if (item->item.originGame == hostGame) {
+    if (ComboLogicRowNativeTo(item, hostGame)) {
         return true;
     }
     if ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u || sCrossingSideFull[hostGame]) {
@@ -1109,7 +1172,7 @@ static int ComboLogicEligibleOnSide(const ComboLogicBagItem* item, uint8_t hostG
     if (ComboLogicRowUsesWholeSide(item, hostGame)) {
         return buf->count;
     }
-    if (item->item.originGame != hostGame &&
+    if (!ComboLogicRowNativeTo(item, hostGame) &&
         ((item->bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u || sCrossingSideFull[hostGame])) {
         return 0;
     }
@@ -1181,12 +1244,21 @@ static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, 
     }
     const uint16_t host = sCandidates[hostGame].host[hostIndex];
 
-    if (!ComboLogicAddPlacement(hostGame, host, item->item, item->itemClass)) {
+    // THE SHARED PAIR (ABI 7): the host gets ITS OWN half and the table keeps the
+    // other half beside it for the exchange. Every other row is placed as is.
+    SharedItem placed = item->item;
+    SharedItem pair = ComboLogicNoPair();
+    if (ComboLogicRowIsPair(item)) {
+        const uint8_t far = (hostGame == (uint8_t)GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+        placed = ComboLogicHalfFor(item, hostGame);
+        pair = ComboLogicHalfFor(item, far);
+    }
+    if (!ComboLogicAddPlacement(hostGame, host, placed, item->itemClass, pair)) {
         return RSBS_COMBO_LOGIC_ERR_CAPACITY;
     }
 
     const ComboLogicEngine* e = ComboLogicEngineFor(hostGame);
-    if (!e->place(e->self, host, item->item)) {
+    if (!e->place(e->self, host, placed)) {
         // The engine refused a host IT offered. Take the row back out before
         // reporting: the coordinator's table is the occupancy authority, so a
         // row no engine accepted would be served by Combo_Logic_GetPlacement,
@@ -1406,6 +1478,13 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         if ((req->bag[i].bagFlags & (uint16_t)~RSBS_COMBO_BAG_FLAGS_KNOWN) != 0u) {
             fprintf(stderr, "[ComboLogic] fill refused: bag entry %d carries unknown bag flags 0x%04X\n", i,
                     (unsigned)req->bag[i].bagFlags);
+            status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+            goto finish;
+        }
+        // THE SHARED PAIR (ABI 7) has no single home, so HOME_ONLY contradicts it.
+        if ((req->bag[i].bagFlags & RSBS_COMBO_BAG_SHARED_PAIR) != 0u &&
+            (req->bag[i].bagFlags & RSBS_COMBO_BAG_HOME_ONLY) != 0u) {
+            fprintf(stderr, "[ComboLogic] fill refused: bag entry %d is a shared pair marked HOME_ONLY\n", i);
             status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
             goto finish;
         }
@@ -1782,6 +1861,47 @@ static void ComboTrimGroup(const ComboLogicComposeRequest* req, uint8_t* disp, i
     }
 }
 
+/**
+ * A SLOTS kind (#970's bottles): every kept copy, REQUIRED or SURPLUS, takes one
+ * slot when it is given, and so does every kept copy of a registered SLOT
+ * RESERVE (Ruto's Letter; shared_items.h), which feeds no kind and is never
+ * trimmed. The pair's slot-bound items must not outnumber the shared count's
+ * `fixedCap` slots, or the count can fill a game's slots before a reserve is
+ * found and the reserve's give finds no empty slot (PR #1094 review F1).
+ *
+ * So the reserves are counted first, per origin, and the REQUIRED budget is
+ * the tier budget over (copies + reserves) less the reserves; SURPLUS copies
+ * keep only the slots both left free (none, once the cap is reached).
+ */
+static void ComboTrimSlots(const ComboLogicComposeRequest* req, uint8_t* disp, int* scratch, uint8_t kind,
+                           const ComboSharedQuantityPolicy* policy, ComboLogicComposeResult* res) {
+    int reserved[3] = { 0, 0, 0 }; // indexed by GameId
+    for (int i = 0; i < req->rowCount; ++i) {
+        const uint8_t origin = req->rows[i].item.originGame;
+        if (disp[i] != (uint8_t)RSBS_COMBO_COMPOSE_TRIMMED && (origin == GAME_OOT || origin == GAME_MM) &&
+            Combo_SharedSlotReserveKind(req->rows[i].item) == kind) {
+            reserved[origin]++;
+        }
+    }
+    const int reserves = reserved[GAME_OOT] + reserved[GAME_MM];
+    int nO = 0;
+    int nM = 0;
+    ComboTrimCount(req, disp, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, &nO, &nM);
+    int budget = Combo_SharedQuantityTierBudget(policy, nO + reserved[GAME_OOT], nM + reserved[GAME_MM]);
+    if (budget < 0) {
+        return; // unreachable: a SLOTS budget is never kept whole
+    }
+    budget = (budget > reserves) ? budget - reserves : 0;
+    ComboTrimGroup(req, disp, scratch, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, budget, res);
+    if (policy->fixedCap == 0u) {
+        return; // no slot cap to keep under: surplus copies stay (unreachable for today's one SLOTS kind)
+    }
+    const int keptRequired = (nO + nM < budget) ? nO + nM : budget;
+    const int left = (int)policy->fixedCap - reserves - keptRequired;
+    ComboTrimGroup(req, disp, scratch, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS,
+                   (left > 0) ? left : 0, res);
+}
+
 static void ComboTrimSharedQuantities(const ComboLogicComposeRequest* req, uint8_t* disp, int* scratch,
                                       ComboLogicComposeResult* res) {
     const uint16_t start =
@@ -1815,6 +1935,10 @@ static void ComboTrimSharedQuantities(const ComboLogicComposeRequest* req, uint8
             }
             continue;
         }
+        if (policy.budget == RSBS_SHARED_QTY_BUDGET_SLOTS) {
+            ComboTrimSlots(req, disp, scratch, kind, &policy, res);
+            continue;
+        }
         int nO = 0;
         int nM = 0;
         ComboTrimCount(req, disp, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, &nO, &nM);
@@ -1839,6 +1963,7 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
     int status = RSBS_COMBO_LOGIC_OK;
     uint8_t* disp = NULL;
     int* scratch = NULL;
+    int32_t* pairOf = NULL; // per pool row: the shared pair's far id, or -1 (ABI 7)
     sComposeTrimmedCount = 0;
 
     if (req == NULL || req->rowCount < 0 || (req->rowCount > 0 && req->rows == NULL) || outCap < 0 ||
@@ -1848,6 +1973,12 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
     }
     if ((req->composeFlags & (uint16_t)~RSBS_COMBO_COMPOSE_FLAGS_KNOWN) != 0u) {
         fprintf(stderr, "[ComboLogic] compose refused: unknown compose flags 0x%04X\n", (unsigned)req->composeFlags);
+        status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        goto finish;
+    }
+    if (req->sharedPairCount < 0 || (req->sharedPairCount > 0 && req->sharedPairs == NULL)) {
+        fprintf(stderr, "[ComboLogic] compose refused: %d shared pair(s) with %s list\n", req->sharedPairCount,
+                req->sharedPairs == NULL ? "a NULL" : "a");
         status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
         goto finish;
     }
@@ -1865,7 +1996,8 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
     if (req->rowCount > 0) {
         disp = (uint8_t*)malloc((size_t)req->rowCount);
         scratch = (int*)malloc(sizeof(int) * (size_t)req->rowCount);
-        if (disp == NULL || scratch == NULL) {
+        pairOf = (int32_t*)malloc(sizeof(int32_t) * (size_t)req->rowCount);
+        if (disp == NULL || scratch == NULL || pairOf == NULL) {
             status = RSBS_COMBO_LOGIC_ERR_CAPACITY;
             goto finish;
         }
@@ -1916,6 +2048,49 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
         ComboTrimSharedQuantities(req, disp, scratch, &res);
     }
 
+    // ---- pass 2b: THE SHARED PAIR (ABI 7, #976; combo_logic.h) ---------------
+    // After the trim, so a family's rows are paired only if they are still
+    // REQUIRED; before the bag is written, so the dropped half is TRIMMED filler
+    // and the kept half is written as the shared row in its own pool position.
+    for (int i = 0; i < req->rowCount; ++i) {
+        pairOf[i] = -1;
+    }
+    for (int f = 0; f < req->sharedPairCount; ++f) {
+        const ComboLogicSharedPair* fam = &req->sharedPairs[f];
+        int rowOoT = -1;
+        int rowMM = -1;
+        for (int i = 0; i < req->rowCount && (rowOoT < 0 || rowMM < 0); ++i) {
+            if (disp[i] != (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED || pairOf[i] >= 0) {
+                continue;
+            }
+            const SharedItem it = req->rows[i].item;
+            if (rowOoT < 0 && it.originGame == (uint8_t)GAME_OOT && it.id == fam->ootId) {
+                rowOoT = i;
+            } else if (rowMM < 0 && it.originGame == (uint8_t)GAME_MM && it.id == fam->mmId) {
+                rowMM = i;
+            }
+        }
+        if (rowOoT < 0 && rowMM < 0) {
+            continue; // neither pool holds the family: nothing to share
+        }
+        // The kept row is the EARLIER pool position; the other is TRIMMED.
+        int keep = rowOoT;
+        int drop = rowMM;
+        if (keep < 0 || (drop >= 0 && drop < keep)) {
+            keep = rowMM;
+            drop = rowOoT;
+        }
+        pairOf[keep] =
+            (req->rows[keep].item.originGame == (uint8_t)GAME_OOT) ? (int32_t)fam->mmId : (int32_t)fam->ootId;
+        if (drop >= 0) {
+            const uint8_t dropOrigin = req->rows[drop].item.originGame;
+            disp[drop] = (uint8_t)RSBS_COMBO_COMPOSE_TRIMMED;
+            res.perGame[dropOrigin].rows[RSBS_COMBO_COMPOSE_REQUIRED]--;
+            res.perGame[dropOrigin].rows[RSBS_COMBO_COMPOSE_TRIMMED]++;
+        }
+        res.sharedPairs++;
+    }
+
     // ---- pass 3: the bag, a STABLE filter of the pool -----------------------
     for (int i = 0; i < req->rowCount; ++i) {
         if (disp[i] == (uint8_t)RSBS_COMBO_COMPOSE_TRIMMED) {
@@ -1947,6 +2122,12 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
                                  (confinedHome && (req->rows[i].poolFlags & RSBS_COMBO_POOL_PLENTIFUL) != 0u);
             b->bagFlags =
                 (uint16_t)((surplus ? RSBS_COMBO_BAG_SURPLUS : 0u) | (confinedHome ? RSBS_COMBO_BAG_HOME_ONLY : 0u));
+            if (pairOf[i] >= 0) {
+                // Only REQUIRED rows are paired, so this row is neither surplus
+                // nor confined: the shared pair's flag is its only one.
+                b->bagFlags = (uint16_t)RSBS_COMBO_BAG_SHARED_PAIR;
+                b->pairId = (uint16_t)pairOf[i];
+            }
             if (outPoolIndex != NULL) {
                 outPoolIndex[res.bagCount] = i;
             }
@@ -1966,6 +2147,7 @@ int Combo_Logic_ComposeBag(const ComboLogicComposeRequest* req, ComboLogicBagIte
 finish:
     free(disp);
     free(scratch);
+    free(pairOf);
     res.status = status;
     if (out != NULL) {
         *out = res;

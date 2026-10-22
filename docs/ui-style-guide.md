@@ -12,7 +12,8 @@ The test is pixels. Render the SoH reference and ours with `redship --test ui-sn
 - `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp`, `SohGui/SohMenuComboMmMods.cpp`,
   `SohGui/SohMenuComboMmRandomizer.cpp`, `SohGui/SohMenuComboSaveFiles.cpp` and
   `SohGui/SohMenuComboTrackerSettings.cpp`
-- `AddCrossGamePointerWidgets` (`SohMenuRandomizer.cpp:823-846`)
+- our pages under SoH's Randomizer header (#1101): MM Randomizer, MM Locations, MM Tricks and Cross-Game, registered by
+  `AddComboRandomizerPages` (`SohMenuCombo.cpp`), which `AddMenuRandomizer` calls after Tricks/Glitches
 - the capability and presentation code in `SohMenu.cpp:199-600`
 - `SohGui/CreationProgressOverlay.cpp`
 - `src/common/Combo{Spoiler,Tracker}Window.cpp`
@@ -76,8 +77,12 @@ and on ours (R-N4).
   highlight lost its padding and rounded corners. Since 2026-09-27 those pages are "Windows" and "Majora's Mask". The selection
   persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename an SoH sidebar. One of ours is renamed only together
   with a carry of the persisted value (`ComboSidebarCarryRenamedSelection`, `SohMenuCombo.cpp`) and a lock leg that
-  drives it (MenuComboSection leg 6). A page must hold at least one widget (#640, `Menu.cpp:896-904`). Pages under Combo register through
-  `RegisterComboSectionPage` (`SohMenu.h:176-212`).
+  drives it (MenuComboSection leg 6). A page that moves to another header carries the selection across headers
+  (`ComboSidebarCarryMovedSelection`, the same leg). A page must hold at least one widget (#640, `Menu.cpp:896-904`).
+  Our pages register through `RegisterComboSectionPage` (`SohMenu.h`), under Combo by default or under SoH's
+  Randomizer header with `ComboPageHost::Randomizer` (#1101), where they sit after Tricks/Glitches and before
+  Plandomizer. The Randomizer sidebar holds 15 entries since #1101; the sidebar child scrolls past `columnHeight`
+  (`Menu.cpp:855-857`), so at `min-832x600` it scrolls, as SoH's own 12 already did there.
 - **Column.** Set `path.column` explicitly before each column's first row (`SohMenuEnhancements.cpp:235,284`).
 - **Section.** `WIDGET_SEPARATOR_TEXT` (`Menu.cpp:370-379`). Most SoH columns open with one
   (`SohMenuEnhancements.cpp:155`, `SohMenuSettings.cpp:132`). Some open with a row or a gray note instead
@@ -251,8 +256,9 @@ SoH decides by WHEN a surface is used, not by how big it is. Ours follow the sam
   (`SohMenuEnhancements.cpp:1869,1879`), Plandomizer (`SohMenuRandomizer.cpp:730`) and Mod Menu
   (`SohMenuSettings.cpp:517`).
 
-Ours: MM's randomizer options and tricks freeze at the creation event, so they are pages (Combo > MM Randomizer
-and Combo > MM Tricks, `SohMenuComboMmRandomizer.cpp`, since 2026-09-27; ADR 0004's host amendment of that date).
+Ours: MM's randomizer options and tricks freeze at the creation event, so they are pages (Randomizer > MM
+Randomizer and Randomizer > MM Tricks, `SohMenuComboMmRandomizer.cpp`; pages since 2026-09-27, ADR 0004's host
+amendment of that date, and under the Randomizer header since #1101, its 2026-10-21 amendment).
 Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker and the Combo Item Tracker.
 MM's native trackers have no row since #458 U6 (the unified trackers cover both games); they stay registered as
 fallbacks that their `gWindows.*` keys still open. The unified trackers' settings are a page, Combo > Tracker Settings (`SohMenuComboTrackerSettings.cpp`),
@@ -375,14 +381,14 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 
 | Ours | SoH reference |
 |---|---|
-| Combo > Cross-Game Rules | Randomizer > General (its gray note, groups, comboboxes and 250 px button; ours is one column since #844, nothing being left for a second) |
+| Randomizer > Cross-Game (Combo > Cross-Game Rules until #1101) | Randomizer > General (its gray note, groups, comboboxes and 250 px button; ours is one column since #844, nothing being left for a second) |
 | Combo > Windows | Randomizer > Item Tracker |
 | Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (its rows; ours is two columns, section 1's width rule) |
 | Combo > MM Row States (harness-only: the Majora's Mask page's builder over a synthetic non-live table, so its disabled rows and group notes are drawn) | Enhancements > Quality of Life |
 | Combo > MM Mods | Randomizer > Tricks/Glitches (the two-column Disabled/Enabled table; OoT's Settings > Mod Menu throws in the harness's fresh config) |
-| Randomizer > Cross-Game | Randomizer > General (its gray note, at its two-column measure) |
-| Combo > MM Randomizer | Randomizer > General (the two-column option page) |
-| Combo > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |
+| Randomizer > MM Randomizer | Randomizer > General (the two-column option page) |
+| Randomizer > MM Locations | Randomizer > Tricks/Glitches (SoH's captured bordered two-column table; SoH's own Locations page, whose shape it takes, is not captured) |
+| Randomizer > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |
 | Combo > Tracker Settings | Randomizer > Item Tracker (SoH's tracker page; its states "" and "window" show and hide the two floating-only rows) |
 | Combo > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "", "listed" and "backup" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
 | Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |
@@ -420,9 +426,10 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   Combo > MM Row States' default (every gated row and both notes hidden), heading-on (the heading group's Dormant row
   drawn disabled under the note right under the heading) and gate-on (the pointer group's Dormant and Partial rows
   drawn disabled under the note below the pointer's sentence; no race-lockout state, because every row that page
-  registers is `.RaceDisable(false)`, so a lockout changes nothing there), Combo > MM Randomizer's unpaired, frozen and
-  mm-suspended (each shows its own note), and Combo > MM Tricks'
-  unpaired and frozen (the trick headline, then the freeze sentence).
+  registers is `.RaceDisable(false)`, so a lockout changes nothing there), Randomizer > MM Randomizer's unpaired,
+  frozen and mm-suspended (each shows its own note), Randomizer > MM Tricks'
+  unpaired and frozen (the trick headline, then the freeze sentence), and Randomizer > MM Locations' unpaired (the
+  shared status sentence, with one check moved to Forced Junk so both columns draw) and frozen (the freeze sentence).
   The Cross-Game Spoiler draws paired (no crossings), crossings (crossings both ways authored through the crossing
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
   glyphs) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
@@ -442,17 +449,18 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
   direction and goal comboboxes and (frozen) its first slider and its goal row; Majora's Mask hovers its first row and
   Windows its Combo Item Tracker toggle and Tracker Settings its Window Type row (`PageSpec::hoverRows`, a named row,
-  captured in the page's first state unless `PageSpec::hoverRowState` names another). Combo > MM Randomizer hovers its
-  first row unpaired and frozen and its first capability-blocked row (named rows; the frozen and blocked ones are in
-  `PageSpec::disabledHovers`). Combo > MM Tricks hovers a live, an unbound and a reserved trick unpaired and the live
+  captured in the page's first state unless `PageSpec::hoverRowState` names another). Randomizer > MM Randomizer hovers its
+  first row unpaired and frozen, its first capability-blocked row and its Freeze Traps row unpaired (named rows; the
+  frozen and blocked ones are in `PageSpec::disabledHovers`). Randomizer > MM Tricks hovers a live, an unbound and a reserved trick unpaired and the live
   one frozen (`PageSpec::paneHovers`, found through the `combo_ui` rect recorder, because the trick list is one custom
-  row; the harness scrolls the table's own child to reach a row). A disabled row's hover must show SoH's disabled
+  row; the harness scrolls the table's own child to reach a row). Randomizer > MM Locations hovers the first check it
+  lists, frozen (SoH's disabled shape, "Already Decided"), the same way. A disabled row's hover must show SoH's disabled
   shape with no tracker number. The trick hovers are composited against Settings > Graphics' Current FPS hover
   (`PageSpec::hoverCompareWith`), SoH's one captured tooltip: SoH's Tricks page draws its trick names as plain text
   with no item id, so no hover can be injected there.
 - MODAL: SoH's "Clear Config" reference, and the Cross-Game Rules and MM Randomizer Reset confirms (each queued
   through its Reset row's own Callback, the call the player's click makes).
-- `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Combo > Cross-Game Rules left open
+- `over-menu` (the creation overlay, and SoH's "Clear Config" as its reference): Randomizer > Cross-Game left open
   under the box, as a real pumped frame draws it. The page is first settled alone, then with the box over it, and
   `DimOracle` requires three things: "Main Menu" was drawn (and the bare frame is not nearly uniform outside the box);
   the overlay's own dim window sits above the menu and below the box in the display order; and every pixel outside
@@ -481,8 +489,8 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 
 **Two modes:**
 - **ROM-rich** (oot.o2r staged; the workstation) draws every SoH reference page and runs R8.
-- **ROM-free** (hosted CI) draws a probe menu holding only the sections that register without oot.o2r: the Randomizer
-  pointer page, the whole Combo section and Dev Tools. The rest is recorded as `skip: needs oot.o2r`.
+- **ROM-free** (hosted CI) draws a probe menu holding only the sections that register without oot.o2r: our pages
+  under the Randomizer header (`AddComboRandomizerPages`), the whole Combo section and Dev Tools. The rest is recorded as `skip: needs oot.o2r`.
 
 soh.o2r is required in both modes, because the menu fonts live only there. The harness writes its own config
 (`rsbs-ui-snapshot.json`) to the path the Context reads it from, `GetPathRelativeToAppDirectory`, so `SHIP_HOME`
@@ -504,7 +512,7 @@ fresh directory to keep that path exercised.
   absent from the same state without the pointer. Every line, because SoH's disabled shape opens every disabled
   row's tooltip with the same "This setting is disabled because:", so only the reason line proves which tooltip was
   drawn
-- Combo > MM Tricks' trick census, in each of its states (both turn two tricks on first, so both columns draw): for
+- Randomizer > MM Tricks' trick census, in each of its states (both turn two tricks on first, so both columns draw): for
   one frame the `combo_ui` rect recorder lists every trick name the list drew and the column child that drew it, and
   each of MM's trick descriptors must appear exactly once, in the column its value puts it in, with its row state's
   tooltip, and no other name may appear. The hovers read four rows; the census reads all of them. Observed red
@@ -541,6 +549,7 @@ names what must fail. Run them after changing the harness itself.
 | `hover-first-line` | a hovered row draws only the first line of its tooltip | every hover whose tooltip has a second line ("does not show its row's tooltip") |
 | `no-menu-under` | the overlay's `over-menu` variant leaves the menu hidden | that capture ("the menu under the dim was not drawn") |
 | `no-dim` | the overlay's dim is drawn fully transparent | that capture ("... pixels outside the box are not the menu dimmed by ModalWindowDimBg") |
+| `no-curated` | a ROM-rich run skips mounting OoT's curated archive | the Combo Item Tracker `live` and `snapshot` captures ("the pane drew N icon draw commands, expected at least 100": MM's column falls back to text; ROM-rich only) |
 | `no-label-fit` | R9's measuring frame records no row of our pages | each of our pages with measurable rows ("R9: measured no row of ...") |
 | `activate` | the no-activation hint is overridden to `"0"` before the window exists | on Windows with OpenGL only, the run ("focus: the harness window took keyboard focus ..."); `windowActivated` is a report on DirectX 11 (DXGI shows its window without consulting SDL's hint) and off Windows (Xvfb has no window manager) |
 

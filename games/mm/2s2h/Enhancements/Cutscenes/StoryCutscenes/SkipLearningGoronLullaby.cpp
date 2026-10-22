@@ -31,6 +31,11 @@ void RegisterSkipLearningGoronLullaby() {
             return;
         }
 
+        // #1071, per PR #673's criterion: MM_Flags_SetSwitch below writes
+        // through MM_gPlayState. Before any *should write, so a missing play
+        // state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
+
         EnGk* enGk = (EnGk*)actor;
 
         // Reset baby Goron cutscene flags state
@@ -49,7 +54,7 @@ void RegisterSkipLearningGoronLullaby() {
 
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_GK_LULLABY, !CHECK_QUEST_ITEM(QUEST_SONG_LULLABY))) {
             MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
+                .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                 .giveItem =
                     [](Actor* actor, PlayState* play) {
                         if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {

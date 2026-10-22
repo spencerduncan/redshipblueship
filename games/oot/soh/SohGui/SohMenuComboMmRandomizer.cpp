@@ -52,8 +52,10 @@
 #include "soh/OTRGlobals.h"
 #include "soh/SohGui/SohGui.hpp"
 
-// src/common only: the page model, the two descriptor views, and the combo_ui
-// seam (its SoH tag chip, and the rect recorder the trick names report to).
+// src/common only: the page model, the three descriptor views, and the combo_ui
+// seam (its SoH tag chip, and the rect recorder the trick and check names
+// report to).
+#include "combo_mm_locations_view.h"
 #include "combo_mm_options_page.h"
 #include "combo_ui.h"
 
@@ -85,9 +87,18 @@ char sUnknownLabel[kMaxOptionRows][24];
 // The Final Hours row's in-slider text ("05:59"), rewritten by its PreFunc.
 char sTimeFormat[kMaxOptionRows][8];
 
+/** The trap-type rows' staging values (#1101 lane R4); MM has seven types and
+ *  its frozen set is one byte, so eight is every type there can be. */
+constexpr int kMaxTrapTypeRows = 8;
+bool sTrapTypeOn[kMaxTrapTypeRows];
+/** The option the trap-type rows follow: Trap Count, as on MM's own Items tab. */
+constexpr const char* kTrapTypesFollow = "RO_TRAP_AMOUNT";
+
 /** The note rows' names, rewritten each frame by their PreFuncs. */
 std::string sStatusNote;
 std::string sTricksNote;
+std::string sTricksHeadline;
+std::string sLocationsNote;
 
 SohMenuPresentation ToPresentation(ComboMMRowState state) {
     switch (state) {
@@ -221,6 +232,34 @@ void AddOptionRow(SohMenu& menu, WidgetPath& path, int index) {
                 .Options(TextOptions().Color(Colors::Gray));
             break;
     }
+}
+
+/**
+ * One trap-type row (#1101 lane R4): a checkbox directly after Shuffle Traps and
+ * Trap Count, as MM's own Items tab drew its "Toggle Trap Types". Pointer
+ * widget over a staging value, like an option row, so the only writer is the
+ * gated one (Combo_MMTrapTypeSetValue). Live until the profile is stamped, then
+ * "Already Decided": the option rows' state with no capability to block it,
+ * since every type is armed in this build (Traps.cpp is linked).
+ */
+void AddTrapTypeRow(SohMenu& menu, WidgetPath& path, int index) {
+    const ComboMMTrapTypeDesc* desc = Combo_MMTrapTypeAt(index);
+    if (desc == nullptr || index >= kMaxTrapTypeRows) {
+        return;
+    }
+    const std::string label = desc->label != nullptr ? desc->label : "";
+    menu.AddWidget(path, label + COMBO_MM_OPTIONS_ROW_ID_SUFFIX, WIDGET_CHECKBOX)
+        .ValuePointer(&sTrapTypeOn[index])
+        .PreFunc([index](WidgetInfo& info) {
+            sTrapTypeOn[index] = Combo_MMTrapTypeGetValue(Combo_MMTrapTypeAt(index));
+            const char* reason = "";
+            const ComboMMRowState state = Combo_MMOptionsPage_OptionState(nullptr, &reason);
+            SohMenu::ApplyPresentation(info, info.name, ToPresentation(state),
+                                       state == COMBO_MM_ROW_LIVE ? nullptr : reason);
+        })
+        .Callback(
+            [index](WidgetInfo& info) { Combo_MMTrapTypeSetValue(Combo_MMTrapTypeAt(index), sTrapTypeOn[index]); })
+        .Options(CheckboxOptions().Tooltip(desc->tooltip != nullptr ? desc->tooltip : ""));
 }
 
 /** A gray note row whose sentence its PreFunc supplies. */
@@ -584,15 +623,146 @@ void DrawMmTrickList(WidgetInfo& info) {
     }
 }
 
+/** One pending move of a check between the columns, applied after the table is
+ *  drawn (DrawMmLocationTable), as TrickMove is for the trick list. */
+struct LocationMove {
+    int id = -1;
+    bool excluded = false;
+};
+
+/**
+ * Randomizer > MM Locations' table (#1101 lane R3), in the shape of SoH's
+ * Randomizer > Locations (DrawLocationsMenu, SohMenuRandomizer.cpp): a bordered
+ * two-column table, "Included" and MM's own "Forced Junk", SoH's cell padding,
+ * the filter over the Included column, area tree nodes that start open, and
+ * one row per check: SoH's themed arrow button, then the check's name. A
+ * check moves by its arrow, as in SoH, and is written through the gated writer
+ * (Combo_MMLocationSetExcluded) after the table is drawn.
+ *
+ * Where it differs from SoH, and why. The right column says "Forced Junk", the
+ * words MM's own Check Filter tab used, because that is what an excluded MM
+ * check holds (GeneratePools.cpp places junk there). Once the world is frozen,
+ * or under Vanilla logic (which never reads the list), every arrow is disabled
+ * and each name carries SoH's disabled tooltip with the reason, as a frozen
+ * trick does, but the areas still open, because the frozen list is worth
+ * reading. SoH greys the whole page only while it generates. The name cell is
+ * the trick list's (DrawTrickName), so the UI snapshot harness finds and
+ * hovers a check the way it does a trick.
+ */
+void DrawMmLocationTable(WidgetInfo& info) {
+    static ImGuiTextFilter locationSearch;
+    // Re-groups the grotto and enemy-drop checks if MM's region graph grew since
+    // the table was built (MMCheckScenes' rule); a no-op otherwise.
+    MM_RandoLocationsUi_Register();
+    const int count = Combo_MMLocationCount();
+    if (count == 0) {
+        ImGui::TextColored(UIWidgets::ColorValues.at(Colors::Gray), "%s",
+                           "The Majora's Mask check table is not available in this build.");
+        return;
+    }
+    const bool frozen = Combo_MMProfileFrozen();
+    const bool blocked = !frozen && Combo_MMLocationsBlockedByLogic();
+    ComboUiWidgetOpts opts;
+    opts.tooltip = "";
+    opts.disabled = frozen || blocked;
+    opts.disabledTooltip = frozen ? SohMenu::DisabledTooltip(COMBO_MM_OPTIONS_FROZEN_REASON)
+                                  : (blocked ? SohMenu::DisabledTooltip(COMBO_MM_LOCATIONS_VANILLA_REASON) : "");
+
+    // The list, read once a frame (the key is a comma list).
+    std::vector<uint16_t> excluded((size_t)count);
+    const int held = Combo_MMLocationsExcluded(excluded.data(), count);
+    excluded.resize((size_t)std::min(held, count));
+    auto isExcluded = [&excluded](uint16_t id) { return std::binary_search(excluded.begin(), excluded.end(), id); };
+    LocationMove move;
+
+    static ImVec2 cellPadding(8.0f, 8.0f);
+    ImGui::BeginDisabled(CVarGetInteger(CVAR_SETTING("DisableChanges"), 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
+    if (ImGui::BeginTable("tableMmLocations", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
+        ImGui::TableSetupColumn("Included", ImGuiTableColumnFlags_WidthStretch, 200.0f);
+        ImGui::TableSetupColumn("Forced Junk", ImGuiTableColumnFlags_WidthStretch, 200.0f);
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        ImGui::TableHeadersRow();
+        ImGui::PopItemFlag();
+        ImGui::TableNextRow();
+
+        for (int column = 0; column < 2; column++) {
+            const bool junkColumn = column == 1;
+            ImGui::TableNextColumn();
+            if (!junkColumn) {
+                UIWidgets::PushStyleInput(THEME_COLOR);
+                locationSearch.Draw("Filter (inc,-exc)##MMLocations");
+                UIWidgets::PopStyleInput();
+            }
+            ImGui::BeginChild(junkColumn ? "ChildMmLocationsJunk" : "ChildMmLocationsIncluded", ImVec2(0, -8));
+            // The table is sorted by area, then id, so each area is one run.
+            for (int start = 0; start < count;) {
+                const ComboMMLocationDesc* head = Combo_MMLocationAt(start);
+                int end = start + 1;
+                while (end < count && Combo_MMLocationAt(end)->areaKey == head->areaKey) {
+                    end++;
+                }
+                auto shown = [&](const ComboMMLocationDesc* d) {
+                    return isExcluded(d->id) == junkColumn && (junkColumn || locationSearch.PassFilter(d->name));
+                };
+                bool hasRows = false;
+                for (int i = start; i < end && !hasRows; i++) {
+                    hasRows = shown(Combo_MMLocationAt(i));
+                }
+                if (hasRows) {
+                    ImGui::PushID((int)head->areaKey);
+                    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+                    if (ImGui::TreeNode(head->areaName)) {
+                        for (int i = start; i < end; i++) {
+                            const ComboMMLocationDesc* d = Combo_MMLocationAt(i);
+                            if (!shown(d)) {
+                                continue;
+                            }
+                            ImGui::PushID((int)d->id);
+                            UIWidgets::PushStyleButton(THEME_COLOR, ImVec2(7.f, 5.f));
+                            ImGui::BeginDisabled(opts.disabled);
+                            if (ImGui::ArrowButton("move", junkColumn ? ImGuiDir_Left : ImGuiDir_Right)) {
+                                move.id = (int)d->id;
+                                move.excluded = !junkColumn;
+                            }
+                            ImGui::EndDisabled();
+                            UIWidgets::PopStyleButton();
+                            DrawTrickName(d->name, opts);
+                            ImGui::PopID();
+                        }
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+                }
+                start = end;
+            }
+            ImGui::EndChild();
+        }
+        ImGui::EndTable();
+    }
+    ImGui::PopStyleVar(1);
+    ImGui::EndDisabled();
+
+    // The writer refuses while frozen or under Vanilla logic, so this applies
+    // only what the rows above offered.
+    if (move.id >= 0 && Combo_MMLocationSetExcluded((uint16_t)move.id, move.excluded)) {
+        Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
+    }
+}
+
 } // namespace
 
 /**
- * Combo > MM Randomizer: MM's 47 randomizer options as rows, laid out like SoH's
- * Randomizer > General (two columns, SEPARATOR_TEXT groups in MM's own
- * taxonomy, the primary button at 250 px). Column 1 opens with the page's state
- * notes and its two warnings, then Logic & Conditions and Shuffle Options;
- * column 2 holds Items, Starting Items, Hints and Reset. The column of each
- * group is the model's (Combo_MMOptionsPage_GroupColumn).
+ * Combo > MM Randomizer: MM's 47 randomizer options as rows, laid out like
+ * SoH's Randomizer > General (two columns, SEPARATOR_TEXT groups, the primary
+ * button at 250 px). The groups are SoH's own Randomizer headers in SoH's order
+ * (#1101: the one randomizer menu speaks one vocabulary). Column 1 opens with
+ * the page's state notes and its warning, then Logic, Win Condition, Area Access
+ * and Shuffle Items; column 2 holds Shuffle Shops & Merchants, Additional Items,
+ * Traps, Hints, Starting Items and Reset. The column of each group is the
+ * model's (Combo_MMOptionsPage_GroupColumn), its name the model's
+ * (Combo_MMOptionGroupName). MM's seven trap types follow Trap Count, one
+ * checkbox each (AddTrapTypeRow, #1101 lane R4).
  *
  * No "[Both Games]" marker: every row is a tier-3 Majora's Mask key, none is in
  * RSBS::kSharedIntentKeys, so no row claims to apply to both games (ADR 0004
@@ -678,6 +848,13 @@ void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path) {
                 const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
                 if (desc != nullptr && desc->group == group) {
                     AddOptionRow(menu, path, i);
+                    // The trap types follow Shuffle Traps and Trap Count, in
+                    // whichever group holds Trap Count (#1101 lane R4).
+                    if (desc->name != nullptr && std::string(desc->name) == kTrapTypesFollow) {
+                        for (int t = 0; t < Combo_MMTrapTypeCount(); t++) {
+                            AddTrapTypeRow(menu, path, t);
+                        }
+                    }
                 }
             }
         }
@@ -706,9 +883,32 @@ void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path) {
 }
 
 /**
+ * Randomizer > MM Locations (#1101 lane R3): one column, like SoH's Randomizer >
+ * Locations: the page's gray note (the shared status sentence, the freeze, or
+ * why Vanilla logic disables the table), a section header, and the table
+ * (DrawMmLocationTable) as one custom row, as SoH's Locations page is one.
+ */
+void AddMmLocationsWidgets(SohMenu& menu, WidgetPath& path) {
+    Combo_MMOptionsPages_Init();
+
+    path.column = SECTION_COLUMN_1;
+    AddNote(menu, path, "MM Locations Status", [](WidgetInfo& info) {
+        sLocationsNote = Combo_MMLocationsPage_StatusNote();
+        info.name = sLocationsNote;
+    });
+    menu.AddWidget(path, "Majora's Mask Locations", WIDGET_SEPARATOR_TEXT);
+    // Kept out of the menu search, as the trick list is: the table draws its own
+    // rows, and SoH's search indexes a row by its name, which here is no check.
+    menu.AddWidget(path, "MM Location List", WIDGET_CUSTOM)
+        .RaceDisable(false)
+        .HideInSearch(true)
+        .CustomFunction(DrawMmLocationTable);
+}
+
+/**
  * Combo > MM Tricks: one column, like SoH's Randomizer > Tricks/Glitches: the
- * page's gray note (the honest headline, or the freeze), a section header, and
- * the trick list (DrawMmTrickList).
+ * page's gray notes (the shared status sentence and the honest headline, or the
+ * freeze), a section header, and the trick list (DrawMmTrickList).
  */
 void AddMmTricksWidgets(SohMenu& menu, WidgetPath& path) {
     Combo_MMOptionsPages_Init();
@@ -718,6 +918,14 @@ void AddMmTricksWidgets(SohMenu& menu, WidgetPath& path) {
         char note[256];
         sTricksNote = Combo_MMOptionsPage_TricksNote(note, sizeof(note));
         info.name = sTricksNote;
+    });
+    // The honest headline, a note of its own: hidden once frozen, where the
+    // freeze sentence alone speaks.
+    AddNote(menu, path, "MM Tricks Headline", [](WidgetInfo& info) {
+        char headline[128];
+        sTricksHeadline = Combo_MMOptionsPage_TricksHeadline(headline, sizeof(headline));
+        info.name = sTricksHeadline;
+        info.isHidden = sTricksHeadline.empty();
     });
     menu.AddWidget(path, "Majora's Mask Tricks", WIDGET_SEPARATOR_TEXT);
     // Kept out of the menu search: the list draws its own table, and SoH's

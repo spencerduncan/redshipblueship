@@ -11,12 +11,15 @@
 #include <cstring>
 #include <cmath>
 #include <chrono>
+#include <filesystem>
+#include <string>
 #include "OTRGlobals.h"
 #include "soh/CrashHandlerExt.h"
 #include <libultraship/bridge.h>
 #include <ship/Context.h>
 #include "z64save.h"
 #include "soh/cvar_prefixes.h" // CVAR_ENHANCEMENT: the continue value OoT_Combo_ReviveDeadHealthForFreeze mirrors
+#include "soh/Enhancements/enhancementTypes.h" // BunnyHoodMode: OoT_BunnyHoodEffectMode (#969)
 
 #include "game_lifecycle.h"
 #include "integration_test_hooks.h"
@@ -45,6 +48,7 @@
 // combo settings), must be unset in the CVar store.
 #include "soh/Enhancements/randomizer/settings.h"
 #include "soh/Enhancements/randomizer/static_data.h"
+#include "soh/resource/type/Text.h" // #981: the cache-owner row's staff text type check
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
@@ -118,6 +122,13 @@ extern "C" {
 int ArchiveHotswap_RecordArrival(void);
 int ArchiveHotswap_RssExceeded(void);
 int ArchiveHotswap_TargetArrivals(void);
+// #981 resource cache owner checks (src/common/tests/test_resource_cache_owner.c).
+int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, int limbCount, char* msg, size_t cap);
+int ResourceCacheOwner_MMLegPassed(void);
+int ResourceCacheOwner_PatchProbeOoTDepart(char* msg, size_t cap); // #1040 R2
+int ResourceCacheOwner_PatchProbeOoTReturn(char* msg, size_t cap);
+int ResourceCacheOwner_CheckBootOwner(const char* when, char* msg, size_t cap); // #1040 R3
+SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
 }
 
 // Game state
@@ -391,10 +402,63 @@ static void T1InjectFrom(GameState* gameState, const char* from) {
     T1SetStage(T1_STAGE_ENTERING_PLAY);
 }
 
+// #981 (int-resource-cache-owner): OoT's own copies of two paths MM's archive
+// also carries, before the crossing and after the return. The first check
+// records the objects; the second must be served the very same ones.
+static const char* const kRcoOctorokSkel = "objects/object_okuta/gOctorokSkel";
+static const char* const kRcoStaffText = "text/staff_message_data_static/staff_message_data_static";
+static const void* sRcoOoTSkel = nullptr;
+static const void* sRcoOoTText = nullptr;
+static int sRcoReturnFrames = 0;
+
+static bool RcoOoTCheck(const char* when, char* msg, size_t cap) {
+    SkeletonHeader* skel = ResourceMgr_LoadSkeletonByName(kRcoOctorokSkel, NULL);
+    auto text = std::dynamic_pointer_cast<SOH::Text>(
+        Ship::Context::GetInstance()->GetResourceManager()->LoadResource(kRcoStaffText));
+    const int limbs = skel != NULL ? skel->limbCount : -1;
+    std::string fail;
+    if (limbs != 37) {
+        fail += "gOctorokSkel has " + std::to_string(limbs) + " limbs, expected OoT's 37; ";
+    }
+    if (text == nullptr) {
+        fail += "the staff text is not a SOH::Text; ";
+    }
+    if (sRcoOoTSkel == nullptr) {
+        sRcoOoTSkel = skel;
+        sRcoOoTText = text.get();
+    } else if (sRcoOoTSkel != skel || sRcoOoTText != text.get()) {
+        char line[160];
+        snprintf(line, sizeof(line), "served gOctorokSkel %p / staff text %p, not the %p / %p it had before; ",
+                 (void*)skel, (void*)text.get(), sRcoOoTSkel, sRcoOoTText);
+        fail += line;
+    }
+    if (!fail.empty()) {
+        snprintf(msg, cap, "OoT %s: %s", when, fail.c_str());
+        return false;
+    }
+    snprintf(msg, cap, "OoT %s: gOctorokSkel %p with 37 limbs, staff text %p is a SOH::Text", when, (void*)skel,
+             (void*)text.get());
+    return true;
+}
+
 // Fire the HMS entrance and assert where it routes. Same call OoT's z_play.c
 // makes when the player walks into the Happy Mask Shop door — minus the
 // SaveContext freeze, which IntGameplayRoundtrip's production door covers.
 static void T1TriggerHmsAndAssertRouting(void) {
+    if (IntegrationTest_GetMode() == INT_TEST_RESOURCE_CACHE_OWNER) {
+        char msg[384];
+        if (!RcoOoTCheck("before the crossing", msg, sizeof(msg))) {
+            T1Fail(msg);
+            return;
+        }
+        fprintf(stderr, "[OoT-INT-TEST] PASS cache-owner leg 1: %s\n", msg);
+        // #1040 R2: a patch OoT makes before it leaves, for MM's leg to unpatch.
+        if (!ResourceCacheOwner_PatchProbeOoTDepart(msg, sizeof(msg))) {
+            T1Fail(msg);
+            return;
+        }
+        fprintf(stderr, "[OoT-INT-TEST] PASS cache-owner leg 1 (patch registry): %s\n", msg);
+    }
     fprintf(stderr, "[OoT-INT-TEST] gameplay reached (scene %d, %d live frames); triggering HMS entrance 0x%04X\n",
             OoT_gPlayState != NULL ? (int)OoT_gPlayState->sceneNum : -1, sT1GameplayFrames, OOT_ENTR_HAPPY_MASK_SHOP);
     fflush(stderr);
@@ -616,6 +680,13 @@ static void CrSceneInit(int16_t sceneNum) {
             }
             if (door && Context_HasFrozenState(GAME_OOT)) {
                 CrFail("the refused door froze OoT's half: the refusal must come before the departure freeze");
+                return;
+            }
+            // #1040 R3: a refused crossing never reaches ApplyResourceCacheOwner,
+            // so the booted game keeps owner 0.
+            if (!ResourceCacheOwner_CheckBootOwner(door ? "after the refused door" : "after the late refusal", msg,
+                                                   sizeof(msg))) {
+                CrFail(msg);
                 return;
             }
             const int expectedEntries = door ? 1 : 2;
@@ -911,6 +982,117 @@ extern "C" int OoT_PfcFileSelectShot_Begin(FileChooseContext* fileChoose, int sl
 extern "C" int OoT_PfcFileSelectShot_Running(void);
 extern "C" void OoT_PfcFileSelectShot_Frame(FileChooseContext* fileChoose);
 
+// #1055: the pair's spoilers in the shared build directory (ForeignItemsSingleExe.cpp).
+extern "C" int OoT_Creation_TestSpoilerSeedName(char* out, size_t cap);
+extern "C" int OoT_Creation_TestClearPairedSpoiler(void);
+
+/**
+ * RSBS_PFC_PLANT_FOREIGN_SPOILER=1 (#1055; CTest IntPairedFirstCrossingForeignSpoiler):
+ * after the drive clears this pair's spoilers, a spoiler of the SAME seed and
+ * another identity is planted at Randomizer/<seed>.json: the identity this
+ * generation froze with comboSettingsHash flipped, which is what a run of a
+ * build with another fingerprint leaves behind. The creation must leave it as
+ * it is and write its own spoiler to Randomizer/<seed>-<fingerprint>.json.
+ */
+static bool PfcPlantForeignSpoiler(void) {
+    const char* env = getenv("RSBS_PFC_PLANT_FOREIGN_SPOILER");
+    return env != NULL && strcmp(env, "1") == 0;
+}
+static std::string sPfcPlantedSeedName;
+static std::string sPfcPlantedPath;
+static std::string sPfcPlantedBytes;
+static uint32_t sPfcPlantedFingerprint = 0;
+
+static std::string PfcReadWholeFile(const std::string& path) {
+    FILE* f = fopen(path.c_str(), "rb");
+    if (f == NULL) {
+        return std::string();
+    }
+    std::string bytes;
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        bytes.append(buf, n);
+    }
+    fclose(f);
+    return bytes;
+}
+
+static bool PfcPlantForeignSpoilerWrite(char* msg, size_t cap) {
+    char seed[64];
+    if (!OoT_Creation_TestSpoilerSeedName(seed, sizeof(seed)) || seed[0] == '\0') {
+        snprintf(msg, cap, "the generation has no seed name to plant a foreign spoiler under");
+        return false;
+    }
+    sPfcPlantedSeedName = seed;
+    sPfcPlantedFingerprint = ~gComboCtx.comboSettingsHash;
+    if (sPfcPlantedFingerprint == 0) {
+        sPfcPlantedFingerprint = 0x10550000u;
+    }
+    char doc[768];
+    snprintf(doc, sizeof(doc),
+             "{\n    \"_note\": \"planted by IntPairedFirstCrossingForeignSpoiler (#1055): this seed under another "
+             "identity\",\n    \"rsbsSingleBagWorld\": true,\n    \"combo\": {\n        \"identity\": {\n            "
+             "\"masterSeed\": %u,\n            \"ootSettingsHash\": %u,\n            \"mmProfileDigest\": %u,\n      "
+             "      \"comboSettingsHash\": %u\n        }\n    }\n}\n",
+             (unsigned)gComboCtx.sharedRandoSeed, (unsigned)gComboCtx.sharedRandoSettingsHash,
+             (unsigned)gComboCtx.mmProfileDigest, (unsigned)sPfcPlantedFingerprint);
+    std::error_code ec;
+    std::filesystem::create_directories(Ship::Context::GetPathRelativeToAppDirectory("Randomizer"), ec);
+    sPfcPlantedPath = Ship::Context::GetPathRelativeToAppDirectory("Randomizer/" + sPfcPlantedSeedName + ".json");
+    FILE* f = fopen(sPfcPlantedPath.c_str(), "wb");
+    if (f == NULL) {
+        snprintf(msg, cap, "could not plant the foreign spoiler at '%s'", sPfcPlantedPath.c_str());
+        return false;
+    }
+    fwrite(doc, 1, strlen(doc), f);
+    fclose(f);
+    sPfcPlantedBytes = PfcReadWholeFile(sPfcPlantedPath);
+    fprintf(stderr, "[PFC] planted a spoiler of this seed under another identity (comboSettingsHash %08X) at '%s'\n",
+            (unsigned)sPfcPlantedFingerprint, sPfcPlantedPath.c_str());
+    fflush(stderr);
+    return !sPfcPlantedBytes.empty();
+}
+
+/** After the creation: the planted spoiler is unchanged, and this world's went
+ *  to Randomizer/<seed>-<fingerprint>.json, which gGeneral.SpoilerLog names and
+ *  whose combo.identity is this world's. */
+static bool PfcForeignSpoilerCheck(char* msg, size_t cap) {
+    if (sPfcPlantedFingerprint == gComboCtx.comboSettingsHash) {
+        snprintf(msg, cap, "the planted spoiler's fingerprint is the created world's (%08X), so the row proves nothing",
+                 (unsigned)gComboCtx.comboSettingsHash);
+        return false;
+    }
+    if (PfcReadWholeFile(sPfcPlantedPath) != sPfcPlantedBytes) {
+        snprintf(msg, cap, "the creation rewrote the planted spoiler of another identity at '%s' (#564 V23)",
+                 sPfcPlantedPath.c_str());
+        return false;
+    }
+    char expected[160];
+    snprintf(expected, sizeof(expected), "./Randomizer/%s-%08X.json", sPfcPlantedSeedName.c_str(),
+             (unsigned)gComboCtx.comboSettingsHash);
+    const std::string spoilerLog = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");
+    if (spoilerLog != expected) {
+        snprintf(msg, cap,
+                 "with another identity's spoiler at the seed name, gGeneral.SpoilerLog reads '%s' after the creation, "
+                 "not '%s': this world's spoiler was not written beside it (#1055)",
+                 spoilerLog.c_str(), expected);
+        return false;
+    }
+    const std::string written =
+        PfcReadWholeFile(Ship::Context::GetPathRelativeToAppDirectory(std::string(expected).substr(2)));
+    char identityTerm[64];
+    snprintf(identityTerm, sizeof(identityTerm), "\"comboSettingsHash\": %u", (unsigned)gComboCtx.comboSettingsHash);
+    if (written.find("\"combo\"") == std::string::npos || written.find(identityTerm) == std::string::npos) {
+        snprintf(msg, cap, "'%s' does not carry this world's joined combo section (%zu bytes)", expected,
+                 written.size());
+        return false;
+    }
+    snprintf(msg, cap, "the planted spoiler is unchanged and this world's is '%s' (%zu bytes, joined)", expected,
+             written.size());
+    return true;
+}
+
 /**
  * The paired variant's boot: the production path a player takes, minus the menu
  * clicks. It runs from the REAL file select (FileChoose_Main's OnFileChooseMain,
@@ -1009,6 +1191,14 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
         IntegrationTest_GameplayFail("generation on the shipped defaults published no cross-game pairing identity");
         return;
     }
+    // #1055: the build directory is shared by every run of every build, and a
+    // spoiler of this seed under another identity must not meet this creation
+    // unless the row plants one on purpose.
+    OoT_Creation_TestClearPairedSpoiler();
+    if (PfcPlantForeignSpoiler() && !PfcPlantForeignSpoilerWrite(msg, sizeof(msg))) {
+        IntegrationTest_GameplayFail(msg);
+        return;
+    }
 
     // ---- 2. create, through the naming screen's seam -------------------------
     // What the naming screen leaves set when the player confirms a name on file
@@ -1066,6 +1256,13 @@ static void GpCreatePairedFileAndEnterPlay(FileChooseContext* fileChoose, const 
         return;
     }
     IntegrationTest_PairedIdentityRecord();
+    if (PfcPlantForeignSpoiler()) {
+        if (!PfcForeignSpoilerCheck(msg, sizeof(msg))) {
+            IntegrationTest_GameplayFail(msg);
+            return;
+        }
+        fprintf(stderr, "[PFC] foreign spoiler PASS: %s\n", msg);
+    }
 
     // ---- the .sav the creation wrote names its record's world (#564 V12) -------
     // Read back from disk through the reader the file select's gate uses: SoH's
@@ -1809,7 +2006,7 @@ static void OoT_RegisterIntegrationTestHooks(void) {
 
         fprintf(stderr, "[OoT] Integration test hooks registered\n");
         fflush(stderr);
-    } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM) {
+    } else if (mode == INT_TEST_SWITCH_OOT_HMS_TO_MM || mode == INT_TEST_RESOURCE_CACHE_OWNER) {
         // T1 (#260, #544): reach live OoT gameplay without a Start press, fire
         // the Happy Mask Shop entrance from there, assert the cross-game switch
         // resolves to MM South Clock Town (the tower-exit arrival). Leg 1 passes
@@ -1894,6 +2091,35 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             T1TriggerHmsAndAssertRouting();
         });
 
+        // #981: int-resource-cache-owner rides T1 to MM (its leg 1 is in
+        // T1TriggerHmsAndAssertRouting), and MM walks back through the Clock Tower
+        // door once its leg passes. Back in OoT, 10 frames in, OoT must be served
+        // the objects it had before it left.
+        if (mode == INT_TEST_RESOURCE_CACHE_OWNER) {
+            sRcoReturnFrames = 0;
+            GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameStateMainStart>([]() {
+                if (Context_GetCurrentGame() != GAME_OOT || !ResourceCacheOwner_MMLegPassed()) {
+                    sRcoReturnFrames = 0;
+                    return;
+                }
+                if (++sRcoReturnFrames != 10) {
+                    return;
+                }
+                char msg[384];
+                if (!RcoOoTCheck("back from MM", msg, sizeof(msg)) ||
+                    !ResourceCacheOwner_PatchProbeOoTReturn(msg, sizeof(msg))) {
+                    fprintf(stderr, "[OoT-INT-TEST] FAIL (int-resource-cache-owner): %s\n", msg);
+                    fflush(stderr);
+                    IntegrationTest_RequestExit();
+                    Combo_RequestGameSwitch();
+                    return;
+                }
+                fprintf(stderr, "[OoT-INT-TEST] PASS cache-owner leg 3: %s\n", msg);
+                fflush(stderr);
+                IntegrationTest_SignalBootComplete(GAME_OOT, "each game served its own copies; OoT's survived");
+            });
+        }
+
         fprintf(stderr, "[OoT] HMS->MM switch hooks registered\n");
         fflush(stderr);
     } else if (mode == INT_TEST_CROSSING_REFUSED) {
@@ -1957,6 +2183,19 @@ static void OoT_RegisterIntegrationTestHooks(void) {
             fprintf(stderr, "[OoT-INT-TEST] OoT stable; archive-hotswap arrival #%d of %d\n", n,
                     ArchiveHotswap_TargetArrivals());
             fflush(stderr);
+
+            // #981: OoT is served its own copies of the paths MM also carries.
+            SkeletonHeader* skel = ResourceMgr_LoadSkeletonByName(kRcoOctorokSkel, NULL);
+            char rco[512];
+            if (!ResourceCacheOwner_CheckArrival(GAME_OOT, n, skel, skel != NULL ? skel->limbCount : -1, rco,
+                                                 sizeof(rco))) {
+                fprintf(stderr, "[OoT-INT-TEST] FAIL: resource cache: %s\n", rco);
+                fflush(stderr);
+                IntegrationTest_RequestExit();
+                Combo_RequestGameSwitch();
+                return;
+            }
+            fprintf(stderr, "[OoT-INT-TEST] resource cache: %s\n", rco);
 
             if (ArchiveHotswap_RssExceeded()) {
                 // Steady-state RSS blew the bound — the #154 per-switch leak
@@ -3046,7 +3285,12 @@ extern "C" int Combo_FreezeActiveGameForHotSwap(GameId departing) {
  */
 static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     (void)ctx;
-    int given = OoT_ForeignItem_Give(item->id);
+    // #1061: a counted pack (an OoT bombchu pack an older save crossed from
+    // Termina) is credited to the shared pool, not given: OoT's give adds to
+    // OoT's own count under OoT's own cap, which loses what the cap cuts.
+    // New pickups never cross such a pack (OoT_/MM_CreditSharedPickup at the
+    // pickup); this is the redemption of the ones recorded before that.
+    int given = OoT_CreditSharedPickup(item) != 0 ? 1 : OoT_ForeignItem_Give(item->id);
     fprintf(stderr, "[OoT] shared-item redeem: RG id=%u %s (Lane C1 foreign give)\n", (unsigned)item->id,
             given ? "awarded" : "NOT awarded — give path unavailable");
     if ((item->flags & RSBS_SHARED_ITEM_SOURCED) == 0) {
@@ -3248,6 +3492,159 @@ static void OoT_EnsureInventoryItem(uint8_t item) {
     }
 }
 
+// ---- Shared families (#976's OR discipline): OoT's own copies ---------------
+//
+// Each family is one item both games have, made ONE by a frozen cross-game rule
+// (foreign_items.h, RSBS_XITEM_FAMILY_MASK). OoT registers its NATIVE copy: the
+// id the bag pairs (OoT's pool places it as this RG_*) and the two callbacks the
+// harvest and apply shims call (shared_resources.h, SHARED FAMILIES). The give
+// runs at the startup entrance, before gameplay, so it writes the inventory the
+// way Item_Give does and shows nothing.
+
+// #1065: the Lens of Truth (OoTMM sharedLens). Item_Give(ITEM_LENS) only fills
+// its slot; nothing else in OoT's save records owning it.
+static bool OoT_SharedLensHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return INV_CONTENT(ITEM_LENS) == ITEM_LENS;
+}
+static void OoT_SharedLensGive(uint16_t nativeId) {
+    (void)nativeId;
+    INV_CONTENT(ITEM_LENS) = ITEM_LENS;
+}
+
+// #1066: Epona's Song and the Song of Storms (OoTMM sharedSongEpona,
+// sharedSongStorms). Item_Give(ITEM_SONG_*) only sets the song's quest bit, and
+// the ocarina staff builds its playable set from the quest bits alone
+// (z_message_PAL.c, the CHECK_QUEST_ITEM(QUEST_SONG_MINUET + i) loop), so the
+// bit is the whole of knowing the song.
+static uint32_t OoT_SharedSongQuestBit(uint16_t nativeId) {
+    return (nativeId == (uint16_t)RG_SONG_OF_STORMS) ? (1u << QUEST_SONG_STORMS) : (1u << QUEST_SONG_EPONA);
+}
+static bool OoT_SharedSongHeld(uint16_t nativeId) {
+    return (gSaveContext.inventory.questItems & OoT_SharedSongQuestBit(nativeId)) != 0u;
+}
+static void OoT_SharedSongGive(uint16_t nativeId) {
+    gSaveContext.inventory.questItems |= OoT_SharedSongQuestBit(nativeId);
+}
+
+// #1069: the Song of Time (OoTMM sharedSongTime). Item_Give(ITEM_SONG_TIME) only
+// sets the song's quest bit, and the ocarina staff builds its playable set from
+// the quest bits alone (z_message_PAL.c, the CHECK_QUEST_ITEM(QUEST_SONG_MINUET +
+// i) loop), so the bit is the whole of knowing the song.
+static bool OoT_SharedSongOfTimeHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return CHECK_QUEST_ITEM(QUEST_SONG_TIME) != 0;
+}
+static void OoT_SharedSongOfTimeGive(uint16_t nativeId) {
+    (void)nativeId;
+    gSaveContext.inventory.questItems |= (1u << QUEST_SONG_TIME);
+}
+
+// #968: the Fire, Ice and Light Arrows (OoTMM sharedMagicArrowFire, Ice,
+// Light). Item_Give(ITEM_ARROW_*) only fills the arrow's own slot (z_parameter.c
+// has no branch for them, so they take the plain INV_CONTENT write); the bow
+// they ride is already one shared quiver tier (#744) and is not touched here.
+static uint8_t OoT_SharedArrowItem(uint16_t nativeId) {
+    return (nativeId == (uint16_t)RG_ICE_ARROWS)     ? (uint8_t)ITEM_ARROW_ICE
+           : (nativeId == (uint16_t)RG_LIGHT_ARROWS) ? (uint8_t)ITEM_ARROW_LIGHT
+                                                     : (uint8_t)ITEM_ARROW_FIRE;
+}
+static bool OoT_SharedArrowHeld(uint16_t nativeId) {
+    const uint8_t item = OoT_SharedArrowItem(nativeId);
+    return INV_CONTENT(item) == item;
+}
+static void OoT_SharedArrowGive(uint16_t nativeId) {
+    const uint8_t item = OoT_SharedArrowItem(nativeId);
+    INV_CONTENT(item) = item;
+}
+
+// #978: the Goron, Zora, Keaton and Truth masks and the Bunny Hood (OoTMM
+// sharedMaskGoron, Zora, Bunny, Keaton, Truth). OoT owns a shuffled mask through
+// its RAND_INF_CHILD_TRADES_HAS_MASK_* flag (every paired world shuffles the
+// Happy Mask Shop's masks, #973), and its get-item also puts the mask in the
+// child trade slot when that slot is empty (randomizer.cpp, the RG_KEATON_MASK
+// ... RG_MASK_OF_TRUTH branch); the give does both, as that get-item does.
+// OoT's Goron and Zora masks stay cosmetic trade masks: nothing here makes them
+// transform.
+static RandomizerInf OoT_SharedMaskFlag(uint16_t nativeId) {
+    return (RandomizerInf)((int)RAND_INF_CHILD_TRADES_HAS_MASK_KEATON + ((int)nativeId - (int)RG_KEATON_MASK));
+}
+static bool OoT_SharedMaskHeld(uint16_t nativeId) {
+    return Flags_GetRandomizerInf(OoT_SharedMaskFlag(nativeId)) != 0;
+}
+static void OoT_SharedMaskGive(uint16_t nativeId) {
+    Flags_SetRandomizerInf(OoT_SharedMaskFlag(nativeId));
+    if (INV_CONTENT(ITEM_TRADE_CHILD) == ITEM_NONE) {
+        INV_CONTENT(ITEM_TRADE_CHILD) = (u8)((int)ITEM_MASK_KEATON + ((int)nativeId - (int)RG_KEATON_MASK));
+    }
+}
+// The arithmetic above is randomizer.cpp's own: the eight masks are contiguous,
+// in the same order, in RandomizerGet, RandomizerInf and ItemID.
+static_assert((int)RG_MASK_OF_TRUTH - (int)RG_KEATON_MASK == 7 &&
+                  (int)RAND_INF_CHILD_TRADES_HAS_MASK_TRUTH - (int)RAND_INF_CHILD_TRADES_HAS_MASK_KEATON == 7 &&
+                  (int)ITEM_MASK_TRUTH - (int)ITEM_MASK_KEATON == 7 &&
+                  (int)RG_GORON_MASK - (int)RG_KEATON_MASK == (int)ITEM_MASK_GORON - (int)ITEM_MASK_KEATON &&
+                  (int)RAND_INF_CHILD_TRADES_HAS_MASK_ZORA - (int)RAND_INF_CHILD_TRADES_HAS_MASK_KEATON ==
+                      (int)RG_ZORA_MASK - (int)RG_KEATON_MASK &&
+                  (int)RAND_INF_CHILD_TRADES_HAS_MASK_BUNNY - (int)RAND_INF_CHILD_TRADES_HAS_MASK_KEATON ==
+                      (int)RG_BUNNY_HOOD - (int)RG_KEATON_MASK,
+              "the masks' RG_*, RAND_INF_* and ITEM_* ids must stay contiguous and in the same order");
+
+namespace {
+// Static-init registration, the ComboLogicEngine registrars' shape: this TU is
+// always linked (it holds the shims), and the registry is zero-initialised
+// storage, so the order against other static constructors does not matter. The
+// bag reads it at the creation event and the shims at every crossing.
+struct OoTSharedFamilyRegistrar {
+    OoTSharedFamilyRegistrar() {
+        const ComboSharedFamilyMember lens = { (uint16_t)RG_LENS_OF_TRUTH, OoT_SharedLensHeld, OoT_SharedLensGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_LENS, &lens);
+        const ComboSharedFamilyMember epona = { (uint16_t)RG_EPONAS_SONG, OoT_SharedSongHeld, OoT_SharedSongGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SONG_EPONA, &epona);
+        const ComboSharedFamilyMember storms = { (uint16_t)RG_SONG_OF_STORMS, OoT_SharedSongHeld, OoT_SharedSongGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SONG_STORMS, &storms);
+        const ComboSharedFamilyMember songOfTime = { (uint16_t)RG_SONG_OF_TIME, OoT_SharedSongOfTimeHeld,
+                                                     OoT_SharedSongOfTimeGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SONG_TIME, &songOfTime);
+        const ComboSharedFamilyMember fire = { (uint16_t)RG_FIRE_ARROWS, OoT_SharedArrowHeld, OoT_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ARROW_FIRE, &fire);
+        const ComboSharedFamilyMember ice = { (uint16_t)RG_ICE_ARROWS, OoT_SharedArrowHeld, OoT_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ARROW_ICE, &ice);
+        const ComboSharedFamilyMember light = { (uint16_t)RG_LIGHT_ARROWS, OoT_SharedArrowHeld, OoT_SharedArrowGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ARROW_LIGHT, &light);
+        const ComboSharedFamilyMember maskGoron = { (uint16_t)RG_GORON_MASK, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_GORON, &maskGoron);
+        const ComboSharedFamilyMember maskZora = { (uint16_t)RG_ZORA_MASK, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ZORA, &maskZora);
+        const ComboSharedFamilyMember maskBunny = { (uint16_t)RG_BUNNY_HOOD, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_BUNNY, &maskBunny);
+        const ComboSharedFamilyMember maskKeaton = { (uint16_t)RG_KEATON_MASK, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_KEATON, &maskKeaton);
+        const ComboSharedFamilyMember maskTruth = { (uint16_t)RG_MASK_OF_TRUTH, OoT_SharedMaskHeld,
+                                                    OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_TRUTH, &maskTruth);
+    }
+};
+const OoTSharedFamilyRegistrar gOoTSharedFamilyRegistrar;
+} // namespace
+
+// #969: THE ONE READER of the Bunny Hood's behaviour in Hyrule. Every OoT site
+// that asks SoH's "Bunny Hood Effect" enhancement (CVAR_ENHANCEMENT
+// "MMBunnyHood", a BunnyHoodMode) asks this instead. With the shared Bunny Hood
+// FROZEN on (#978; operator ruling 2026-10-18, epic #975 decision 2) the hood
+// behaves as that enhancement does when on, whatever its own setting: at least
+// "Faster Run", Majora's Mask's speed boost; a stronger setting of the player's
+// own ("Faster + Longer Jump") stands. Read, never stored: the enhancement's
+// CVar keeps the player's value. OoT's logic gains no edge from it, as SoH's
+// own enhancement never did.
+extern "C" int OoT_BunnyHoodEffectMode(void) {
+    const int own = CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), BUNNY_HOOD_VANILLA);
+    if (own == BUNNY_HOOD_VANILLA && Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_BUNNY)) {
+        return BUNNY_HOOD_FAST;
+    }
+    return own;
+}
+
 // OoT's hookshot ceiling: 0 none, 1 hookshot, 2 longshot.
 #define OOT_MAX_HOOKSHOT_TIER 2u
 
@@ -3396,6 +3793,174 @@ static uint16_t OoT_ReadKokiriSword(void) {
     return CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI) ? 1u : 0u;
 }
 
+// The bottle count as a shared tier (#970): how many of OoT's four bottle slots
+// hold a bottle, whatever it holds (Ruto's Letter and a Big Poe included: each
+// is a bottle in the inventory). The shared count is OoT's 0..4, so this is
+// also the apply's cap. Contents never cross.
+#define OOT_MAX_BOTTLE_COUNT 4u
+
+static uint16_t OoT_ReadBottleCount(void) {
+    uint16_t count = 0u;
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_4; slot++) {
+        if (gSaveContext.inventory.items[slot] != ITEM_NONE) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/** Raise OoT's bottle count to @p count by putting an EMPTY bottle in the next
+ *  empty slots, as OoT's own Item_Give(ITEM_BOTTLE) does; a filled slot is never
+ *  touched. */
+static void OoT_WriteBottleCount(uint16_t count) {
+    uint16_t held = OoT_ReadBottleCount();
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_4 && held < count; slot++) {
+        if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
+            gSaveContext.inventory.items[slot] = ITEM_BOTTLE;
+            held++;
+        }
+    }
+}
+
+// ============================================================================
+// The Shared Shields families (#1068; OoTMM sharedShields)
+// ============================================================================
+//
+// OoT's copies of the rule's two pairs: the Hylian Shield (the family at
+// RSBS_XITEM_SHARED_SHIELDS, paired with MM's Hero's Shield) and the Mirror
+// Shield (the family at RSBS_XFAMILY_SLOT_MIRROR_SHIELD). OoT keeps its own
+// shields: HELD is the owned-equipment bit OoT's own give writes (a shop's
+// Hylian Shield included, so buying one in Hyrule gives Termina the Hero's
+// Shield), and the GIVE writes that bit. A given shield is also WORN when the
+// player's own choice allows it: the Hylian Shield when Link wears no shield,
+// the Mirror Shield when an adult wears none or the Hylian Shield (as MM's
+// Mirror Shield replaces its Hero's Shield). A child is never put in the Mirror
+// Shield, and a worn Deku Shield is the player's choice and stays. The startup
+// entrance runs this before Player init, which reads the equips.
+
+extern "C" void OoT_Inventory_ChangeEquipment(s16 equipment, u16 value);
+
+static bool OoT_SharedShieldHeld(uint16_t nativeId) {
+    const int inv = (nativeId == (uint16_t)RG_MIRROR_SHIELD) ? EQUIP_INV_SHIELD_MIRROR : EQUIP_INV_SHIELD_HYLIAN;
+    return CHECK_OWNED_EQUIP(EQUIP_TYPE_SHIELD, inv) != 0;
+}
+
+static void OoT_SharedShieldGive(uint16_t nativeId) {
+    const bool mirror = nativeId == (uint16_t)RG_MIRROR_SHIELD;
+    gSaveContext.inventory.equipment |=
+        (u16)OWNED_EQUIP_FLAG(EQUIP_TYPE_SHIELD, mirror ? EQUIP_INV_SHIELD_MIRROR : EQUIP_INV_SHIELD_HYLIAN);
+    const s32 worn = CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
+    if (mirror) {
+        if (LINK_IS_ADULT && (worn == EQUIP_VALUE_SHIELD_NONE || worn == EQUIP_VALUE_SHIELD_HYLIAN)) {
+            OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
+        }
+    } else if (worn == EQUIP_VALUE_SHIELD_NONE) {
+        OoT_Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HYLIAN);
+    }
+}
+
+/** Register OoT's copies of the Shared Shields families (#1068). Idempotent;
+ *  the static registrar below runs it at start-up, and the locks re-run it
+ *  after a row that cleared the registry. */
+extern "C" void OoT_RegisterSharedShieldFamilies(void) {
+    const ComboSharedFamilyMember hylian = { (uint16_t)RG_HYLIAN_SHIELD, OoT_SharedShieldHeld, OoT_SharedShieldGive };
+    const ComboSharedFamilyMember mirror = { (uint16_t)RG_MIRROR_SHIELD, OoT_SharedShieldHeld, OoT_SharedShieldGive };
+    Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SHIELDS, &hylian);
+    Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XFAMILY_SLOT_MIRROR_SHIELD, &mirror);
+}
+
+namespace {
+struct OoTSharedShieldRegistrar {
+    OoTSharedShieldRegistrar() {
+        OoT_RegisterSharedShieldFamilies();
+    }
+};
+const OoTSharedShieldRegistrar gOoTSharedShieldRegistrar;
+} // namespace
+
+// ============================================================================
+// The Shared Ocarina Buttons families (#1067; OoTMM sharedOcarinaButtons)
+// ============================================================================
+//
+// OoT's copies of the rule's five pairs: RG_OCARINA_A_BUTTON at the rule's own
+// bit, the four C buttons at their extra slots. Ownership is the
+// RAND_INF_HAS_OCARINA_* flag OoT's own give writes and its note gate reads
+// (hook_handlers.cpp VB_HAVE_OCARINA_NOTE_*); the RG ids and the flags run in
+// the same order (logic.cpp's item-to-flag table).
+//
+// HELD only when OoT's own frozen shuffle is on: a file without it is given all
+// five at creation (savefile.cpp) and finds none, and a harvest that read those
+// flags would hand Termina five buttons nobody found, which the solver never
+// proved. The GIVE writes the flag directly (Flags_SetRandomizerInf would also
+// fire the flag-set hooks, and the startup entrance runs before gameplay); with
+// OoT's shuffle off the flag is already set and the write changes nothing.
+
+namespace {
+
+RandomizerInf OoT_SharedButtonFlag(uint16_t nativeId) {
+    return (RandomizerInf)(RAND_INF_HAS_OCARINA_A + ((int)nativeId - (int)RG_OCARINA_A_BUTTON));
+}
+
+/** The seed's own button-shuffle option (the generating or loaded context). */
+bool OoT_SharedButtonOptionOn(void) {
+    const std::shared_ptr<Rando::Context> ctx = Rando::Context::GetInstance();
+    return ctx != nullptr && ctx->GetOption(RSK_SHUFFLE_OCARINA_BUTTONS).Get() != RO_GENERIC_OFF;
+}
+
+bool OoT_SharedButtonShuffleOn(void) {
+    return IS_RANDO && OoT_SharedButtonOptionOn();
+}
+
+/** POOLED (the bag, at generation): OoT's buttons are items of its pool only
+ *  under its own shuffle. Without it no pair is built, so a button can never be
+ *  hosted at an OoT check whose give HELD above would not see. */
+bool OoT_SharedButtonPooled(uint16_t nativeId) {
+    (void)nativeId;
+    return OoT_SharedButtonOptionOn();
+}
+
+bool OoT_SharedButtonHeld(uint16_t nativeId) {
+    const int flag = (int)OoT_SharedButtonFlag(nativeId);
+    return OoT_SharedButtonShuffleOn() && (gSaveContext.ship.randomizerInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+void OoT_SharedButtonGive(uint16_t nativeId) {
+    const int flag = (int)OoT_SharedButtonFlag(nativeId);
+    gSaveContext.ship.randomizerInf[flag >> 4] |= (u16)(1 << (flag & 0xF));
+}
+
+} // namespace
+
+/** Register OoT's copies of the Shared Ocarina Buttons families (#1067).
+ *  Idempotent; the static registrar below runs it at start-up, and the locks
+ *  re-run it after a row that cleared the registry. */
+extern "C" void OoT_RegisterSharedOcarinaButtonFamilies(void) {
+    static const struct {
+        uint32_t slot;
+        RandomizerGet button;
+    } kButtons[] = {
+        { RSBS_XITEM_SHARED_OCARINA_BUTTONS, RG_OCARINA_A_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_UP, RG_OCARINA_C_UP_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, RG_OCARINA_C_DOWN_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, RG_OCARINA_C_LEFT_BUTTON },
+        { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, RG_OCARINA_C_RIGHT_BUTTON },
+    };
+    for (const auto& b : kButtons) {
+        const ComboSharedFamilyMember member = { (uint16_t)b.button, OoT_SharedButtonHeld, OoT_SharedButtonGive,
+                                                 OoT_SharedButtonPooled };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, b.slot, &member);
+    }
+}
+
+namespace {
+struct OoTSharedOcarinaButtonRegistrar {
+    OoTSharedOcarinaButtonRegistrar() {
+        OoT_RegisterSharedOcarinaButtonFamilies();
+    }
+};
+const OoTSharedOcarinaButtonRegistrar gOoTSharedOcarinaButtonRegistrar;
+} // namespace
+
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
  * seed placed elsewhere? Then the pool may not hand it over.
@@ -3438,6 +4003,34 @@ static bool OoT_SharedAmmoGrantBlocked(const OoTSharedAmmo* row) {
                INV_CONTENT(ITEM_BOMBCHU) == ITEM_NONE;
     }
     return false;
+}
+
+/**
+ * Apply one row's COUNT from the pool: the arrival's per-row count step, and the
+ * re-apply a pickup credit runs (#1061, OoT_CreditSharedPickup).
+ *
+ * Runs even when the grant is blocked (see OoT_SharedAmmoGrantBlocked: skipping
+ * it loses the player's stock the moment the gate opens), and then against a cap
+ * of ZERO, so nothing materializes and the whole count stays in the pool. The
+ * row's own capacity is not enough for that: sticks and nuts read capacity 0 at
+ * tier 0, but OoT_BombchuCapacity is 50 under the Single Bombchu Bag option
+ * whether or not the bag has been found (only the progressive option reads the
+ * bag's level). Without the zero, a blocked apply under Single wrote a count
+ * with no item in the slot, the bag's own give then ASSIGNED 20 over it
+ * (SeedContext.cpp, HandleGetBombchuBag), and the next harvest took the
+ * difference out of the pool.
+ */
+static void OoT_ApplySharedAmmoCount(const OoTSharedAmmo* row, bool grantBlocked) {
+    uint16_t count = OoT_ReadAmmo(row->item);
+    const uint16_t cap = grantBlocked ? 0u : OoT_AmmoCapacity(row);
+    if (Combo_ApplySharedResource(GAME_OOT, row->countKind, cap, &count)) {
+        // Bombchus have no tier to carry the item across, so a nonzero
+        // shared count is what implies the item here.
+        if (!grantBlocked && count > 0u) {
+            OoT_EnsureInventoryItem(row->item);
+        }
+        AMMO(row->item) = (s8)count;
+    }
 }
 
 static uint16_t OoT_ReadHealthQuarters(void) {
@@ -3714,12 +4307,56 @@ extern "C" void OoT_HarvestSharedResources(void) {
     // Combo_HarvestSharedResource, the same predicate the apply consults.
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_KOKIRI_SWORD, OoT_ReadKokiriSword());
 
+    // The bottle count (#970), offered unconditionally like the sword: the
+    // arming gate (the frozen Shared Bottles rule) lives in
+    // Combo_HarvestSharedResource, the same predicate the apply consults.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_BOTTLE_COUNT, OoT_ReadBottleCount());
+
     // Triforce pieces (ADR 0010 answer O10): OoT's counter is a MIRROR of the
     // one combo count, so harvesting it max-merges OoT's collects into that
     // count. Offered unconditionally like the ocarina; the arming gate (the
     // frozen goal is triforce-hunt) lives in Combo_HarvestSharedResource.
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_TRIFORCE_PIECES,
                                 (uint16_t)gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected);
+
+    // Shared families (#976): OR in every armed family OoT's live save holds its
+    // copy of. Behind the same live-file gate as everything above; a no-op until
+    // a family is frozen on and registered (shared_resources.h).
+    Combo_SharedFamiliesHarvestLive(GAME_OOT);
+}
+
+/**
+ * CREDIT AT PICKUP (#1061; shared_resources.h): a counted pack found in Hyrule
+ * (an MM bombchu pack on an OoT check), or an OoT pack redeemed from an older
+ * save's crossing, goes into the pool now and OoT's count re-applies from it:
+ * harvest OoT's bombchus, credit the pack, re-apply. The harvest first is what
+ * keeps every bombchu spent since the arrival out of the re-applied count.
+ *
+ * @return 1 when credited; 0 (nothing touched) when @p item is not a counted
+ *         pack, OoT's live save is not a real file, or the kind has no OoT row.
+ */
+extern "C" int OoT_CreditSharedPickup(const SharedItem* item) {
+    uint8_t kind = 0;
+    uint16_t units = 0;
+    if (item == nullptr || !Combo_SharedPickupCreditOf(*item, &kind, &units) || !OoT_SaveIsLiveFile()) {
+        return 0;
+    }
+    for (int i = 0; i < ARRAY_COUNT(kOoTSharedAmmo); i++) {
+        const OoTSharedAmmo* row = &kOoTSharedAmmo[i];
+        if (row->countKind != kind) {
+            continue;
+        }
+        Combo_HarvestSharedResource(GAME_OOT, kind, OoT_ReadAmmo(row->item));
+        if (!Combo_CreditSharedResource(kind, units)) {
+            return 0; // the harvest alone changes nothing a later harvest would not
+        }
+        OoT_ApplySharedAmmoCount(row, OoT_SharedAmmoGrantBlocked(row));
+        fprintf(stderr, "[OoT] shared pickup credit: %s id=%u adds %u to shared kind %u; OoT now holds %d\n",
+                Game_ToString((GameId)item->originGame), (unsigned)item->id, (unsigned)units, (unsigned)kind,
+                (int)AMMO(row->item));
+        return 1;
+    }
+    return 0;
 }
 
 /**
@@ -3740,6 +4377,16 @@ extern "C" void OoT_ApplySharedResources(void) {
     uint16_t walletTier = (uint16_t)CUR_UPG_VALUE(UPG_WALLET);
     if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_WALLET_TIER, OOT_MAX_WALLET_TIER, &walletTier)) {
         OoT_Inventory_ChangeUpgrade(UPG_WALLET, (s16)walletTier);
+    }
+    // #991/#992 (operator ruling R2, 2026-10-19): OoT has ONE wallet progression
+    // shared by child and adult, and a wallet found in Termina IS the pair's
+    // wallet. Shuffle Child's Wallet shuffles the starting wallet of that
+    // progression, not a second item, so a tier of 1 or more implies the
+    // possession flag. Without it the tier rises with the flag clear (a state SoH
+    // alone cannot reach): logic's GetWalletCapacity reads the tier while the
+    // frame handler pins rupees at 0.
+    if (IS_RANDO && walletTier >= 1) {
+        Flags_SetRandomizerInf(RAND_INF_HAS_WALLET);
     }
 
     // --- Health capacity + pieces, from the ONE canonical quantity.
@@ -3773,7 +4420,14 @@ extern "C" void OoT_ApplySharedResources(void) {
 
     // --- Rupees (consumable), clamped to the wallet capacity just applied.
     uint16_t rupees = gSaveContext.rupees < 0 ? 0u : (uint16_t)gSaveContext.rupees;
-    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, (uint16_t)CUR_CAPACITY(UPG_WALLET), &rupees)) {
+    // With no wallet yet (Shuffle Child's Wallet on, flag clear, tier 0) OoT holds
+    // no rupees: the frame handler pins the count at 0. Apply against a ZERO
+    // capacity then, the way the ammo grant block does (OoT_SharedAmmoGrantBlocked):
+    // the pool keeps its balance, OoT shows 0, and the watermark moves to 0 so
+    // the next harvest reads no drop to debit from the pool (#992).
+    const uint16_t rupeeCap =
+        (!IS_RANDO || Flags_GetRandomizerInf(RAND_INF_HAS_WALLET)) ? (uint16_t)CUR_CAPACITY(UPG_WALLET) : 0u;
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, rupeeCap, &rupees)) {
         gSaveContext.rupees = (s16)rupees;
     }
     // Whatever the restored blob had pending would drain on top of the count we
@@ -3859,19 +4513,9 @@ extern "C" void OoT_ApplySharedResources(void) {
             }
         }
 
-        // Runs even when the grant is blocked — see OoT_SharedAmmoGrantBlocked
-        // for why suppressing the apply entirely loses the player's stock the
-        // moment the gate opens. The cap does the suppressing: with no bag it
-        // is zero, so nothing materializes.
-        uint16_t count = OoT_ReadAmmo(row->item);
-        if (Combo_ApplySharedResource(GAME_OOT, row->countKind, OoT_AmmoCapacity(row), &count)) {
-            // Bombchus have no tier to carry the item across, so a nonzero
-            // shared count is what implies the item here.
-            if (!grantBlocked && count > 0u) {
-                OoT_EnsureInventoryItem(row->item);
-            }
-            AMMO(row->item) = (s8)count;
-        }
+        // Runs even when the grant is blocked, against a zero cap then (see
+        // OoT_ApplySharedAmmoCount for both halves of that).
+        OoT_ApplySharedAmmoCount(row, grantBlocked);
     }
 
     // --- Hookshot (monotonic 0/1/2). Clamped to OoT's own ceiling of 2, which
@@ -3907,6 +4551,15 @@ extern "C" void OoT_ApplySharedResources(void) {
         gSaveContext.inventory.equipment |= (u16)OWNED_EQUIP_FLAG(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI);
     }
 
+    // --- The bottle count (monotonic 0..4), armed per world by the frozen Shared
+    // Bottles rule (#970). A bottle found in Termina is one more EMPTY bottle
+    // here, in the next empty slot; what OoT's own bottles hold stays OoT's. With
+    // the rule off Combo_ApplySharedResource returns false and nothing below runs.
+    uint16_t bottleCount = OoT_ReadBottleCount();
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_BOTTLE_COUNT, OOT_MAX_BOTTLE_COUNT, &bottleCount)) {
+        OoT_WriteBottleCount(bottleCount);
+    }
+
     // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the
     // frozen combo goal is triforce-hunt. OoT's counter becomes the whole combo
     // count, so the next piece OoT gives adds to BOTH worlds' collects and its
@@ -3918,6 +4571,10 @@ extern "C" void OoT_ApplySharedResources(void) {
     if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_TRIFORCE_PIECES, triforceCap, &triforcePieces)) {
         gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected = (u8)triforcePieces;
     }
+
+    // Shared families (#976): OoT's own copy of every armed family found in
+    // either game. Last, and still before the shared-item consumer (z_play.c).
+    Combo_SharedFamiliesApplyLive(GAME_OOT);
 }
 
 static bool sLastF10State = false;

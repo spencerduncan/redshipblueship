@@ -67,21 +67,32 @@ extern "C" {
 #endif
 
 /**
- * Presentation groups, taken from the 9-sidebar taxonomy MM's own (link-elided)
- * rando menu uses at `games/mm/2s2h/Rando/Menu.cpp:988-1028`.
+ * Presentation groups: SoH's Randomizer headers, in SoH's order (#1101, option
+ * C: one randomizer menu, with Majora's Mask's options in the words OoT's pages
+ * use). Each is the section name SoH's own option groups carry
+ * (Enhancements/randomizer/settings.cpp, the RSG_MENU_SECTION_* groups), and an
+ * option sits under the header its OoT twin does: the Moon and Majora counts
+ * beside SoH's Triforce Hunt under Win Condition, the dungeon and trial rows
+ * under Area Access, the souls, swim, buttons, clock and pool rows under
+ * Additional Items.
  *
- * Five, not nine. MM's other four sidebars carry no `RO_*` option at all:
- * General holds seed/spoiler controls (not options), Check Filter drives a
- * tracker filter held in separate CVars, and Item Tracker / Check Tracker are
- * window buttons. Inventing empty groups for them would put four permanently
- * blank sections in the pane and imply options are missing from it.
+ * Until #1101 these were five groups in MM's own (link-elided) rando menu's
+ * taxonomy (`games/mm/2s2h/Rando/Menu.cpp:988-1028`: Logic & Conditions,
+ * Shuffle Options, Items, Starting Items, Hints). SoH headers no MM option
+ * belongs under (Item Pool, Entrances, the dungeon-item and Master Quest
+ * groups, Static Hints) are not listed: a permanently empty section would imply
+ * options are missing from it.
  */
 typedef enum {
-    COMBO_MM_GROUP_LOGIC,    // logic mode and the access/entry conditions
-    COMBO_MM_GROUP_SHUFFLE,  // the RO_SHUFFLE_* family and its thresholds
-    COMBO_MM_GROUP_ITEMS,    // item-pool shaping
-    COMBO_MM_GROUP_STARTING, // what the file starts with
-    COMBO_MM_GROUP_HINTS,    // the RO_HINTS_* family
+    COMBO_MM_GROUP_LOGIC,            // the logic mode
+    COMBO_MM_GROUP_WIN_CONDITION,    // the triforce hunt and the Moon and Majora counts
+    COMBO_MM_GROUP_AREA_ACCESS,      // what a dungeon and a Moon trial require
+    COMBO_MM_GROUP_SHUFFLE_ITEMS,    // the check-pool shuffles and their thresholds
+    COMBO_MM_GROUP_SHUFFLE_SHOPS,    // shops and Tingle's maps
+    COMBO_MM_GROUP_ADDITIONAL_ITEMS, // items the pool gains: souls, swim, buttons, time
+    COMBO_MM_GROUP_TRAPS,            // the trap rows
+    COMBO_MM_GROUP_HINTS,            // the RO_HINTS_* family
+    COMBO_MM_GROUP_STARTING,         // what the file starts with
     COMBO_MM_GROUP_COUNT
 } ComboMMOptionGroup;
 
@@ -228,6 +239,49 @@ bool Combo_MMOptionIsExplicit(const ComboMMOptionDesc* desc);
 void Combo_MMOptionClear(const ComboMMOptionDesc* desc);
 
 /**
+ * MM's trap types (#1101 lane R4): which kinds of trap a shuffled trap may be,
+ * one checkbox each on the MM Randomizer page, directly after Shuffle Traps
+ * and Trap Count (MM's own Items tab drew them there as "Toggle Trap Types",
+ * games/mm/2s2h/Rando/Menu.cpp, which is not linked).
+ *
+ * A SEPARATE TABLE, not seven more option rows: the keys are `gRando.Traps.*`,
+ * not `gRando.Options.RO_*`, so no RandoStaticOption row exists for them and
+ * no RANDO_SAVE_OPTIONS slot holds them. They freeze as one bit set
+ * (randoSaveTrapTypes, #1047) and fold into mmProfileDigest as that set, so they
+ * are world identity exactly as the options are, behind the same gate.
+ *
+ * Registered MM-side by MM_RandoOptionsUi_Register (Traps.cpp owns the keys and
+ * the names), as flat data: this file holds no MM knowledge.
+ */
+typedef struct {
+    uint8_t type;        // MM's TrapTypes value: bit `type` of the frozen set
+    const char* cvar;    // "gRando.Traps.<Name>"; never NULL
+    const char* label;   // e.g. "Freeze Traps"; never NULL or empty
+    const char* tooltip; // one sentence; never NULL
+} ComboMMTrapTypeDesc;
+
+/** Install MM's trap-type table; (NULL, 0) un-registers. Re-registering the same
+ *  table is silent, a different one complains on stderr (the option table's rule). */
+void Combo_RegisterMMTrapTypeTable(const ComboMMTrapTypeDesc* table, int count);
+
+/** Number of registered trap types; 0 when the MM table did not link. */
+int Combo_MMTrapTypeCount(void);
+
+/** Trap type at `index` in table order, or NULL if out of range. */
+const ComboMMTrapTypeDesc* Combo_MMTrapTypeAt(int index);
+
+/** Whether the trap type is on: its CVar, default off (MM's own default). */
+bool Combo_MMTrapTypeGetValue(const ComboMMTrapTypeDesc* desc);
+
+/** Turn the trap type on or off. REJECTED (no CVar write, stderr log, returns
+ *  false) while Combo_MMProfileFrozen() is true, as the option writer is: the
+ *  set is world identity once the profile is stamped. True when written. */
+bool Combo_MMTrapTypeSetValue(const ComboMMTrapTypeDesc* desc, bool on);
+
+/** Clear the trap type's CVar (Reset). REJECTED while frozen, as above. */
+void Combo_MMTrapTypeClear(const ComboMMTrapTypeDesc* desc);
+
+/**
  * The frozen-state predicate (#498/#564; ADR 0004 §6's fourth presentation
  * state, ADR 0009 D1 as amended): true once a creation event has stamped the
  * MM profile identity — literally `gComboCtx.mmProfileDigest != 0`, a
@@ -286,6 +340,36 @@ void MM_Rando_PublishProfileGiveCaps(int fromSave);
  */
 void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, uint16_t* outRequired);
 
+/**
+ * MM's "Moon Crash Behavior" (#1069; OoTMM's moonCrash, key and values taken
+ * from OoTMM's settings data): what a moon crash does to the paired file.
+ * Pinned: the value is .redsave format (RandoSaveInfo.randoSaveMoonCrash).
+ */
+#define RSBS_MM_MOON_CRASH_RESET 0 // "Last Save": the file as last saved (OoTMM 'reset', the default)
+#define RSBS_MM_MOON_CRASH_CYCLE 1 // "New Cycle": a new cycle, keeping progress (OoTMM 'cycle')
+/** Its authoring key, in MM's option namespace beside the RO_* rows. */
+#define RSBS_CVAR_MM_MOON_CRASH "gRando.Options.MoonCrash"
+/**
+ * Its descriptor id on Combo > Majora's Mask. The option is the combo's, not a
+ * 2Ship RO_* row: an RO_* id would grow randoSaveOptions[RO_MAX] and move every
+ * later field of every .redsave's MM half, and its default would add a term to
+ * every MM profile digest. So it is frozen in its own appended byte
+ * (randoSaveMoonCrash) and its row takes an id from 0x8000 up, a range no
+ * RandoOptionId reaches (Combo_MMOptionById still finds it).
+ */
+#define RSBS_MM_OPTION_ID_MOON_CRASH 0x8000u
+
+/**
+ * THE MOON CRASH THIS FILE PLAYS UNDER, from its two frozen records (#1069):
+ * RSBS_MM_MOON_CRASH_CYCLE when the live MM half's frozen option
+ * (randoSaveMoonCrash) says New Cycle, or when the frozen combo record holds the
+ * Shared Song of Time rule (which forces it: with one Song of Time for the pair,
+ * MM starts without it, and the crash is then the free, progress-keeping reset
+ * 2Ship's logic assumes); RSBS_MM_MOON_CRASH_RESET otherwise. Never a CVar read.
+ * DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
+ */
+int MM_Rando_FrozenMoonCrash(void);
+
 /** Outcomes of MM_Rando_RestoreProfileForLoad. */
 enum {
     RSBS_MM_PROFILE_LOAD_MATCHES = 0,      // the live CVars already resolve the file's profile
@@ -334,13 +418,17 @@ int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSize, uint32_t
  * Tier-3 SaveContext bytes the .redsave carries; its RANDO_SAVE_OPTIONS and
  * randoSaveTricks are what creation resolved).
  *
- * Writes only when the half's options and tricks, folded with the LIVE
- * excluded-check list and starting-item block, reproduce @p frozenDigest
- * exactly — i.e. only when writing them is known to restore the file's
- * identity. The excluded-check list and the starting-item block are identity
- * inputs the file does not record (and no single-exe page authors), so a
- * divergence there, an MM half that is not a randomizer save, or a half too
- * short to read returns UNRESTORABLE with nothing written: the arrival gate
+ * Since #1101 lane R3 the half also records the excluded-check set
+ * (randoSaveExcludedChecks), which Randomizer > MM Locations authors into
+ * `gRando.ExcludedChecks`, and the restore writes it back too, in the list's
+ * one spelling (combo_mm_locations_view.h).
+ *
+ * Writes only when the half's options, tricks, trap types and excluded checks,
+ * folded with the paired start, reproduce @p frozenDigest exactly — i.e. only
+ * when writing them is known to restore the file's identity. The paired start
+ * is an identity input the file does not record (a constant since #879), so a
+ * file created before it, an MM half that is not a randomizer save, or a half
+ * too short to read returns UNRESTORABLE with nothing written: the arrival gate
  * stays the last line of defence for those. If the keys it did write still do
  * not resolve @p frozenDigest (unreachable while the resolver and the save
  * write agree), every one of them is put back as it was, set to its old value

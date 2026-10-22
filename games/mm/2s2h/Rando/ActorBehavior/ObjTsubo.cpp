@@ -334,7 +334,7 @@ void IdentifyPot(Actor* actor, bool* should) {
 }
 
 void ObjTsubo_RandoDraw(Actor* actor, PlayState* play) {
-    if (!CVarGetInteger("gRando.CSMC", 0)) {
+    if (!CVarGetInteger("gEnhancements.ChestSizeAndTextureMatchContents", 0)) {
         MM_Gfx_DrawDListOpa(play, (Gfx*)gPotStandardDL);
         return;
     }

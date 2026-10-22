@@ -14,7 +14,7 @@ s32 EnElfgrp_SummonStrayFairies(PlayState* play);
 void func_80A3A210(EnElfgrp* elfgrp, PlayState* play);
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 #define ELFGRP_STATE_0 (1 << 0)
@@ -22,6 +22,9 @@ void func_80A3A210(EnElfgrp* elfgrp, PlayState* play);
 
 void RegisterSkipGreatFairyCutscene() {
     COND_VB_SHOULD(VB_START_GREAT_FAIRY_CUTSCENE, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnElfgrp* elfgrp = va_arg(args, EnElfgrp*);
 
         if (*should && !(elfgrp->stateFlags & ELFGRP_STATE_0)) {

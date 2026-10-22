@@ -21,6 +21,10 @@ void RegisterSkipLearningSonataOfAwakening() {
      */
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR || IS_RANDO, {
         s16* csId = va_arg(args, s16*);
+        // #1071, per PR #673's criterion: this TU is in the single-exe link now and
+        // the line below reads MM_gPlayState. Before any *should write, so a
+        // missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         // Cutscenes 11 and 12 in the Deku Palace King's chamber play when Link pulls out Deku Pipes for the monkey.
         if (MM_gPlayState->sceneId == SCENE_DEKU_KING) {
             if (*csId == 11) {
@@ -28,7 +32,7 @@ void RegisterSkipLearningSonataOfAwakening() {
             } else if (*csId == 12) {
                 if (GameInteractor_Should(VB_GIVE_ITEM_FROM_MNK, true)) {
                     MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                        .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
+                        .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                         .giveItem =
                             [](Actor* actor, PlayState* play) {
                                 if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {

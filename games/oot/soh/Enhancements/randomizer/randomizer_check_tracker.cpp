@@ -2286,11 +2286,83 @@ void ImGuiDrawTwoColorPickerSection(const char* text, const char* cvarMainName, 
     UIWidgets::PopStyleCombobox();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Ask for a recalculation at the tracker's next draw, for a caller that cannot
+// run one now: RecalculateAvailableChecks returns while no OoT play state exists
+// (IsSaveLoaded is false), which is the case on a cross-game arrival until
+// Play_Init assigns OoT_gPlayState, and while Majora's Mask is the active game.
+// The draw consumes the flag once a save is loaded (#990).
+void ArmAvailableChecksRecalc() {
+    recalculateAvailable = true;
+    if (initialized) {
+        RecalculateAllAreaTotals();
+        CalculateTotals();
+    }
+}
+#endif
+
+// The Enable Available Checks option changed. With a live OoT save the set is
+// recomputed now; without one (Majora's Mask active, or the arrival window) the
+// direct call is a no-op, so the recalculation is left to the next draw (#990).
+static void SetEnableAvailableChecks(bool enabled) {
+    enableAvailableChecks = enabled;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (!GameInteractor::IsSaveLoaded()) {
+        ArmAvailableChecksRecalc();
+        return;
+    }
+#endif
+    RecalculateAvailableChecks();
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// TEST BRIDGES (#990): the deferred recalculation flag, and the Enable Available
+// Checks option's change handler (the toggle callback's body) with the option value
+// given, so a ROM-free row can drive both without the menu.
+extern "C" int RandoTest_CheckTrackerRecalcPending(void) {
+    return recalculateAvailable ? 1 : 0;
+}
+
+extern "C" void RandoTest_CheckTrackerClearRecalcPending(void) {
+    recalculateAvailable = false;
+}
+
+extern "C" void RandoTest_CheckTrackerSetEnableAvailable(int enabled) {
+    SetEnableAvailableChecks(enabled != 0);
+}
+#endif
+
+static void ComputeAvailableChecks(RandomizerRegion startingRegion);
+
 void RecalculateAvailableChecks(RandomizerRegion startingRegion /* = RR_ROOT */) {
     if (!enableAvailableChecks || !GameInteractor::IsSaveLoaded()) {
         return;
     }
+    ComputeAvailableChecks(startingRegion);
+}
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// TEST BRIDGE (#994): what the tracker's next draw does with the deferred flag
+// (DrawElement: clear it, then recalculate), without the draw's play-state gate,
+// which a ROM-free row cannot satisfy. Returns 1 when a recalculation was pending
+// and ran, 0 when nothing was pending, and -1 when one was pending but Enable
+// Available Checks is off (the draw's recalculation returns at once then).
+extern "C" int RandoTest_CheckTrackerDrainPendingRecalc(void) {
+    if (!recalculateAvailable) {
+        return 0;
+    }
+    recalculateAvailable = false;
+    if (!enableAvailableChecks) {
+        return -1;
+    }
+    ComputeAvailableChecks(RR_ROOT);
+    return 1;
+}
+#endif
+
+// The recalculation below RecalculateAvailableChecks' gate, split out (#994) so a
+// ROM-free row runs the real computation over a live save.
+static void ComputeAvailableChecks(RandomizerRegion startingRegion) {
     ResetPerformanceTimer(PT_RECALCULATE_AVAILABLE_CHECKS);
     StartPerformanceTimer(PT_RECALCULATE_AVAILABLE_CHECKS);
 
@@ -2559,8 +2631,7 @@ void RegisterCheckTrackerWidgets() {
                      .Tooltip("If enabled, will show the checks that are available to be collected "
                               "with your current progress."))
         .Callback([&](WidgetInfo& info) {
-            enableAvailableChecks = CVarGetInteger(CVAR_TRACKER_CHECK("EnableAvailableChecks"), 0);
-            RecalculateAvailableChecks();
+            SetEnableAvailableChecks(CVarGetInteger(CVAR_TRACKER_CHECK("EnableAvailableChecks"), 0));
         });
 }
 

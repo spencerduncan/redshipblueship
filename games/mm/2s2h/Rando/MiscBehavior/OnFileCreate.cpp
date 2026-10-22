@@ -161,9 +161,10 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
 #ifdef RSBS_SINGLE_EXECUTABLE
                     // Persist StartingItems to the save. #879: a paired world's start
                     // is the combo's frozen decision (Ocarina + Song of Time), never
-                    // 2Ship's config block.
-                    auto startingItems =
-                        rsbsPaired ? Rando::Foreign::PairedStartingItems() : Rando::GetStartingItemsFromConfig();
+                    // 2Ship's config block; #1069: without the song under the frozen
+                    // Shared Song of Time rule.
+                    auto startingItems = rsbsPaired ? Rando::Foreign::PairedStartingItemsForWorld()
+                                                    : Rando::GetStartingItemsFromConfig();
 #else
                     // Persist StartingItems to the save
                     auto startingItems = Rando::GetStartingItemsFromConfig();

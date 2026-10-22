@@ -1,6 +1,6 @@
 /**
  * @file soh_menu_mm_randomizer_pages_test.cpp
- * @brief ROM-free, display-free lock for Combo > MM Randomizer and Combo > MM
+ * @brief ROM-free, display-free lock for Randomizer > MM Randomizer and Randomizer > MM
  *        Tricks: MM's randomizer options and tricks as menu pages instead of a
  *        pop-out window (ADR 0004's 2026-09-27 host amendment; #497, #578).
  *
@@ -13,20 +13,32 @@
  * edit still goes through the gated writers. Every failure it catches is silent
  * otherwise, because a registered row with the wrong binding still draws.
  *
- *   1. THE PAGES ARE NOT THERE, OR NOT TOGETHER. Both register from a file-scope
- *      initializer beside the Majora's Mask page's (SohMenuComboMmEnhancements.cpp),
- *      so the sidebar reads Majora's Mask, MM Randomizer, MM Tricks. The options
- *      page declares two columns (Randomizer > General's), the tricks page one
- *      (Randomizer > Tricks/Glitches').
+ *   1. THE PAGES ARE NOT THERE, OR NOT TOGETHER, OR UNDER THE WRONG HEADER. Both
+ *      register from a file-scope initializer beside the Majora's Mask page's
+ *      (SohMenuComboMmEnhancements.cpp) with ComboPageHost::Randomizer, so they
+ *      are pages of SoH's Randomizer header (#1101, operator ruling 2026-10-21):
+ *      AddComboRandomizerPages draws them as MM Randomizer, MM Locations, MM
+ *      Tricks, then the rules as Cross-Game, and the Combo header holds none of
+ *      them. The options page declares two columns (Randomizer > General's),
+ *      the tricks and locations pages one each (Randomizer > Tricks/Glitches'
+ *      and Locations').
  *
  *   2. AN OPTION IS LOST OR DOUBLED. The options page's interactive rows are
  *      EXACTLY MM's descriptor table: one row per descriptor, of the widget type
  *      the descriptor names, under the name the page derives from its label (the
  *      "##MMRando" id suffix on checkboxes and comboboxes, SoH's "Name: %d" on
- *      sliders), and nothing else interactive but Reset.
+ *      sliders), plus the seven trap-type rows (#1101 lane R4: Freeze, Blast,
+ *      Shock, Jinx, Wallet, Like Like and Time Traps, each a "##MMRando"
+ *      checkbox over its gRando.Traps.* key, spelled here, directly after Trap
+ *      Count in Trap Count's column, as MM's own Items tab drew its "Toggle Trap
+ *      Types"), and nothing else interactive but Reset.
  *
  *   3. A ROW LANDS IN THE WRONG COLUMN, or in one the page never draws, or
- *      outside its group's header.
+ *      outside its group's header. The headers are SoH's Randomizer headers in
+ *      SoH's order (#1101, option C), spelled here independently of the model:
+ *      Logic, Win Condition, Area Access, Shuffle Items down the left column;
+ *      Shuffle Shops & Merchants, Additional Items, Traps, Hints, Starting
+ *      Items down the right.
  *
  *   4. A ROW SHOWS THE WRONG STATE. Unpaired: a capability-blocked row is
  *      disabled with SoH's disabled tooltip around the table's own reason, and
@@ -49,7 +61,8 @@
  *   7. THE NOTES DISAGREE WITH THE MODEL. The status note is the model's
  *      sentence in each state; the suspended note shows exactly while Majora's
  *      Mask is not running and the profile is editable; the tricks page's note
- *      is the model's headline.
+ *      is the model's headline. Unpaired, both pages open with the one status
+ *      sentence every randomizer page of ours shares (#1101 decision 7).
  *
  *   8. THE RACE LOCKOUT DIFFERS FROM SOH'S RANDOMIZER PAGES. SoH's race lockout
  *      (CVAR_SETTING("DisableChanges"), Menu.cpp's MenuDrawItem) disables every
@@ -63,6 +76,18 @@
  *      host amendment). The trick list applies the lockout itself, as SoH's
  *      DrawTricksMenu does.
  *
+ *   9. A TRAP-TYPE ROW WRITES AROUND THE GATE (#1101 lane R4). Each of the seven
+ *      rows refreshes from the model and offers its edit to the gated trap-type
+ *      writer: an unfrozen edit lands in its own gRando.Traps.* key and no
+ *      other, a frozen one is refused and the next draw restores the model's
+ *      value, and Reset clears all seven with the options and tricks.
+ *
+ *  10. MM LOCATIONS IS NOT SOH'S LOCATIONS IN SHAPE (#1101 lane R3). One column,
+ *      the gray status note (the model's sentence unpaired, frozen and under
+ *      Vanilla logic, legible under a race lockout), a section header, and ONE
+ *      custom row, the Included / Forced Junk table, as SoH's Locations page is
+ *      one custom row.
+ *
  * What the trick list DRAWS (every trick once, in its column, with its reason)
  * is UiSnapshot's trick census: it needs an ImGui frame, which this row has not.
  *
@@ -74,6 +99,7 @@
 
 #include "soh/SohGui/SohMenu.h"
 
+#include "combo_mm_locations_view.h"
 #include "combo_mm_options_page.h"
 #include "context.h"
 #include "foreign_items.h"
@@ -188,6 +214,21 @@ FlatRow* FindByName(std::vector<FlatRow>& rows, const std::string& name) {
     return nullptr;
 }
 
+/** The seven trap-type rows (#1101 lane R4), spelled independently of the table:
+ *  MM's own labels (Rando/Menu.cpp's "Toggle Trap Types") and the keys Traps.cpp
+ *  freezes, in MM's TrapTypes order. */
+struct TrapRow {
+    const char* label;
+    const char* cvar;
+};
+const TrapRow kTrapRows[] = {
+    { "Freeze Traps", "gRando.Traps.Freeze" }, { "Blast Traps", "gRando.Traps.Blast" },
+    { "Shock Traps", "gRando.Traps.Shock" },   { "Jinx Traps", "gRando.Traps.Jinx" },
+    { "Wallet Traps", "gRando.Traps.Wallet" }, { "Like Like Traps", "gRando.Traps.Enemy" },
+    { "Time Traps", "gRando.Traps.Time" },
+};
+constexpr int kTrapRowCount = (int)(sizeof(kTrapRows) / sizeof(kTrapRows[0]));
+
 void Freeze(bool frozen) {
     ComboContext_Init();
     if (frozen) {
@@ -207,46 +248,62 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
     const GameId prevGame = Context_GetCurrentGame();
     ComboContext_Init();
 
+    // Both headers, as production builds them: our slice of the Randomizer header
+    // (AddMenuRandomizer() as a whole cannot run ROM-free), then Combo.
     MmRandomizerPagesProbe probe;
+    probe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
+    WidgetPath randoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
+    SohGui::AddComboRandomizerPages(probe, randoPath);
     probe.AddMenuCombo();
     auto& entries = probe.Entries();
-    if (!entries.contains("Combo")) {
-        printf("[TEST] FAIL(1): AddMenuCombo registered no Combo section\n");
+    if (!entries.contains("Combo") || !entries.contains("Randomizer")) {
+        printf("[TEST] FAIL(1): the probe has no Combo and/or Randomizer section\n");
         return 1;
     }
     MainMenuEntry& combo = entries.at("Combo");
+    MainMenuEntry& rando = entries.at("Randomizer");
 
-    // ---- Leg 1: the pages, their column counts, their place -----------------
-    if (!combo.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) || !combo.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME)) {
-        printf("[TEST] FAIL(1): the Combo section has no \"%s\" and/or \"%s\" page: MM's randomizer options are "
-               "unreachable from the menu\n",
+    // ---- Leg 1: the pages, their column counts, their header and place ------
+    if (!rando.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) || !rando.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME)) {
+        printf("[TEST] FAIL(1): the Randomizer header has no \"%s\" and/or \"%s\" page: MM's randomizer options "
+               "are not where the one randomizer menu puts them (operator ruling 2026-10-21)\n",
                COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_TRICKS_PAGE_NAME);
         return 1;
     }
-    SidebarEntry& options = combo.sidebars.at(COMBO_MM_OPTIONS_PAGE_NAME);
-    SidebarEntry& tricks = combo.sidebars.at(COMBO_MM_TRICKS_PAGE_NAME);
+    MMRP_CHECK(
+        !combo.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) && !combo.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME),
+        "the Combo header still holds \"%s\" or \"%s\" as well", COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_TRICKS_PAGE_NAME);
+    SidebarEntry& options = rando.sidebars.at(COMBO_MM_OPTIONS_PAGE_NAME);
+    SidebarEntry& tricks = rando.sidebars.at(COMBO_MM_TRICKS_PAGE_NAME);
     MMRP_CHECK(options.columnCount == COMBO_MM_OPTIONS_PAGE_COLUMNS,
                "the options page declares %u columns, expected %d (Randomizer > General's)", options.columnCount,
                COMBO_MM_OPTIONS_PAGE_COLUMNS);
     MMRP_CHECK(tricks.columnCount == 1, "the tricks page declares %u columns, expected 1 (Tricks/Glitches')",
                tricks.columnCount);
     {
-        long mm = -1, rando = -1, trick = -1;
-        for (std::size_t i = 0; i < combo.sidebarOrder.size(); i++) {
-            if (combo.sidebarOrder[i] == "Majora's Mask") {
-                mm = (long)i;
-            } else if (combo.sidebarOrder[i] == COMBO_MM_OPTIONS_PAGE_NAME) {
-                rando = (long)i;
-            } else if (combo.sidebarOrder[i] == COMBO_MM_TRICKS_PAGE_NAME) {
-                trick = (long)i;
+        // The ruling's order: MM Randomizer, MM Locations, MM Tricks,
+        // Cross-Game, the four pages AddComboRandomizerPages registers.
+        const std::vector<std::string>& order = rando.sidebarOrder;
+        long options_at = -1, locations_at = -1, tricks_at = -1, rules_at = -1;
+        for (std::size_t i = 0; i < order.size(); i++) {
+            if (order[i] == COMBO_MM_OPTIONS_PAGE_NAME) {
+                options_at = (long)i;
+            } else if (order[i] == COMBO_MM_LOCATIONS_PAGE_NAME) {
+                locations_at = (long)i;
+            } else if (order[i] == COMBO_MM_TRICKS_PAGE_NAME) {
+                tricks_at = (long)i;
+            } else if (order[i] == "Cross-Game") {
+                rules_at = (long)i;
             }
         }
-        MMRP_CHECK(mm >= 0 && rando == mm + 1 && trick == rando + 1,
-                   "the sidebar order is Majora's Mask at %ld, MM Randomizer at %ld, MM Tricks at %ld; the MM pages "
-                   "must sit together in that order",
-                   mm, rando, trick);
+        MMRP_CHECK(options_at >= 0 && locations_at == options_at + 1 && tricks_at == locations_at + 1 &&
+                       rules_at == tricks_at + 1 && rules_at == (long)order.size() - 1,
+                   "the Randomizer sidebar has MM Randomizer at %ld, MM Locations at %ld, MM Tricks at %ld, "
+                   "Cross-Game at %ld of %zu; the ruling's order is MM Randomizer, MM Locations, MM Tricks, Cross-Game",
+                   options_at, locations_at, tricks_at, rules_at, order.size());
     }
-    printf("[TEST] leg 1: both pages are registered with their column counts, right under Majora's Mask\n");
+    printf("[TEST] leg 1: the pages are registered with their column counts under the Randomizer header, in the "
+           "order MM Randomizer, MM Locations, MM Tricks, Cross-Game\n");
 
     // ---- Leg 2: the row set equals the descriptor table ---------------------
     std::vector<FlatRow> rows = FlattenRows(options);
@@ -273,10 +330,65 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                        row.info->name.c_str(), row.column, options.columnCount);
         }
         MMRP_CHECK(resets == 1, "the options page holds %d Reset buttons, expected 1", resets);
-        MMRP_CHECK(interactive == count + 1,
-                   "the options page holds %d interactive rows, expected the %d descriptors plus Reset: an option is "
-                   "lost or doubled",
-                   interactive, count);
+        MMRP_CHECK(interactive == count + kTrapRowCount + 1,
+                   "the options page holds %d interactive rows, expected the %d descriptors, the %d trap types and "
+                   "Reset: an option is lost or doubled",
+                   interactive, count, kTrapRowCount);
+        // The seven trap-type rows (#1101 lane R4): the model's table is those
+        // seven, in MM's order, and each is one checkbox after Trap Count.
+        MMRP_CHECK(Combo_MMTrapTypeCount() == kTrapRowCount, "the trap-type table holds %d rows, expected %d",
+                   Combo_MMTrapTypeCount(), kTrapRowCount);
+        for (int t = 0; t < kTrapRowCount; t++) {
+            const ComboMMTrapTypeDesc* d = Combo_MMTrapTypeAt(t);
+            MMRP_CHECK(d != nullptr && d->type == (uint8_t)t && std::string(d->label) == kTrapRows[t].label &&
+                           std::string(d->cvar) == kTrapRows[t].cvar,
+                       "trap type %d is not %s over %s", t, kTrapRows[t].label, kTrapRows[t].cvar);
+            const std::string name = std::string(kTrapRows[t].label) + "##MMRando";
+            int matches = 0;
+            FlatRow* found = nullptr;
+            for (FlatRow& row : rows) {
+                if (row.info->name == name) {
+                    matches++;
+                    found = &row;
+                }
+            }
+            MMRP_CHECK(matches == 1, "the trap type %s has %d rows named '%s', expected exactly 1", kTrapRows[t].label,
+                       matches, name.c_str());
+            if (found == nullptr) {
+                continue;
+            }
+            MMRP_CHECK(found->info->type == WIDGET_CHECKBOX, "the trap row '%s' has widget type %d, expected %d",
+                       name.c_str(), (int)found->info->type, (int)WIDGET_CHECKBOX);
+            // Directly after Trap Count, in MM's order, in Trap Count's column
+            // and so under its header (MM's own Items tab drew the "Toggle Trap
+            // Types" there). Trap Count is named here, not read from the page.
+            const WidgetInfo* anchor = nullptr;
+            unsigned anchorColumn = 0;
+            for (FlatRow& row : rows) {
+                if (row.info->name == "Trap Count: %d") {
+                    anchor = row.info;
+                    anchorColumn = row.column;
+                }
+            }
+            MMRP_CHECK(anchor != nullptr, "the options page has no Trap Count row for the trap types to follow");
+            if (anchor == nullptr) {
+                continue;
+            }
+            MMRP_CHECK(found->column == anchorColumn, "the trap row '%s' sits in column %u, Trap Count in column %u",
+                       name.c_str(), found->column, anchorColumn);
+            const std::vector<WidgetInfo>& column = options.columnWidgets.at(anchorColumn);
+            size_t at = column.size();
+            for (size_t w = 0; w < column.size(); w++) {
+                if (&column[w] == anchor) {
+                    at = w;
+                }
+            }
+            const size_t want = at + 1 + (size_t)t;
+            MMRP_CHECK(
+                want < column.size() && &column[want] == found->info,
+                "the trap row '%s' is not row %d after Trap Count: the trap types do not follow it in MM's order",
+                name.c_str(), t + 1);
+        }
         for (int i = 0; i < count; i++) {
             const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
             const std::string name = ExpectedRowName(desc);
@@ -313,8 +425,32 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                        header != nullptr ? header->name.c_str() : "(none)", Combo_MMOptionGroupName(desc->group));
         }
     }
+    // ---- Leg 3 (cont.): the headers are SoH's, in SoH's order --------------
+    {
+        const std::vector<std::vector<std::string>> kHeaders = {
+            { "Logic", "Win Condition", "Area Access", "Shuffle Items" },
+            { "Shuffle Shops & Merchants", "Additional Items", "Traps", "Hints", "Starting Items" },
+        };
+        for (uint32_t column = 0; column < kHeaders.size(); column++) {
+            std::vector<std::string> seen;
+            if (column < options.columnWidgets.size()) {
+                for (WidgetInfo& row : options.columnWidgets.at(column)) {
+                    if (row.type == WIDGET_SEPARATOR_TEXT) {
+                        seen.push_back(row.name);
+                    }
+                }
+            }
+            std::string got;
+            for (const std::string& h : seen) {
+                got += (got.empty() ? "" : ", ") + h;
+            }
+            MMRP_CHECK(seen == kHeaders.at(column),
+                       "column %u of the options page reads the headers [%s], not SoH's vocabulary in SoH's order",
+                       column + 1, got.c_str());
+        }
+    }
     printf("[TEST] leg 2-3: the options page's rows are the %d descriptors, once each, in the model's columns under "
-           "their groups' headers\n",
+           "their groups' headers, which are SoH's in SoH's order\n",
            count);
 
     // ---- Leg 4: the states -----------------------------------------------------
@@ -345,6 +481,26 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                            IsDisabled(*row->info) ? "disabled" : "LIVE", TooltipShown(*row->info).c_str());
             } else {
                 MMRP_CHECK(!IsDisabled(*row->info), "live option %s is drawn disabled", desc->name);
+            }
+        }
+        // A trap row is live until the profile is stamped, then "Already Decided".
+        for (int t = 0; t < kTrapRowCount; t++) {
+            FlatRow* row = FindByName(rows, std::string(kTrapRows[t].label) + "##MMRando");
+            if (row == nullptr) {
+                continue;
+            }
+            const std::string registered = row->info->name;
+            DrawPass(*row->info);
+            DrawPass(*row->info);
+            MMRP_CHECK(row->info->name == registered, "the trap row %s was renamed to '%s' by its PreFunc",
+                       kTrapRows[t].label, row->info->name.c_str());
+            if (frozen) {
+                MMRP_CHECK(IsDisabled(*row->info) &&
+                               TooltipShown(*row->info) == SohDisabledShape(COMBO_MM_OPTIONS_FROZEN_REASON),
+                           "frozen: the trap row %s is %s with tooltip \"%s\"", kTrapRows[t].label,
+                           IsDisabled(*row->info) ? "disabled" : "LIVE", TooltipShown(*row->info).c_str());
+            } else {
+                MMRP_CHECK(!IsDisabled(*row->info), "the trap row %s is drawn disabled unpaired", kTrapRows[t].label);
             }
         }
         if (reset != nullptr) {
@@ -456,6 +612,9 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
 
     // ---- Leg 7: the notes --------------------------------------------------------
     {
+        // The one status sentence (#1101 decision 7), spelled independently.
+        const std::string kNextWorldNote =
+            "These apply to the next world you generate. Loading a paired file shows its own.";
         FlatRow* status = FindByName(rows, "MM Randomizer Status");
         FlatRow* suspended = FindByName(rows, "MM Randomizer Suspended");
         MMRP_CHECK(status != nullptr && suspended != nullptr, "the options page lacks its state notes");
@@ -469,6 +628,11 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                     DrawPass(s);
                     MMRP_CHECK(s.name == Combo_MMOptionsPage_StatusNote(), "the status note reads \"%s\"",
                                s.name.c_str());
+                    if (!frozen) {
+                        MMRP_CHECK(s.name == kNextWorldNote,
+                                   "unpaired, the status note reads \"%s\", not the shared sentence \"%s\"",
+                                   s.name.c_str(), kNextWorldNote.c_str());
+                    }
                     WidgetInfo n = *suspended->info;
                     DrawPass(n);
                     const bool shown = !n.isHidden;
@@ -490,7 +654,15 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
         MMRP_CHECK(FindByName(trickRows, "Majora's Mask Tricks") != nullptr, "the tricks page has no section header");
         FlatRow* tricksNote = FindByName(trickRows, "MM Tricks Status");
         MMRP_CHECK(tricksNote != nullptr, "the tricks page has no note");
+        // The trick headline is a note row of its own, under the status note: the
+        // shared sentence is two sentences already, a note's whole budget.
+        FlatRow* tricksHeadline = FindByName(trickRows, "MM Tricks Headline");
+        MMRP_CHECK(tricksHeadline != nullptr, "the tricks page has no headline row under its status note");
         if (tricksNote != nullptr) {
+            // The headline, spelled independently of the model.
+            char kHeadline[128];
+            snprintf(kHeadline, sizeof(kHeadline), "%d of %d tricks are supported by the randomizer logic so far.",
+                     Combo_MMOptionsPage_SettableTrickCount(), Combo_MMTrickCount());
             for (int frozen = 0; frozen <= 1; frozen++) {
                 Freeze(frozen != 0);
                 char expected[256];
@@ -499,6 +671,57 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                 DrawPass(t);
                 MMRP_CHECK(t.name == expected, "the tricks note reads \"%s\", the model \"%s\"", t.name.c_str(),
                            expected);
+                if (!frozen) {
+                    MMRP_CHECK(t.name == kNextWorldNote,
+                               "unpaired, the tricks note reads \"%s\", not the shared sentence \"%s\"", t.name.c_str(),
+                               kNextWorldNote.c_str());
+                }
+                if (tricksHeadline != nullptr) {
+                    WidgetInfo h = *tricksHeadline->info;
+                    DrawPass(h);
+                    // Unpaired, the honest headline; frozen, nothing is settable,
+                    // so the freeze sentence alone speaks (as before #1101).
+                    MMRP_CHECK(h.isHidden == (frozen != 0), "the trick headline is %s (frozen %d)",
+                               h.isHidden ? "hidden" : "shown", frozen);
+                    if (!frozen) {
+                        MMRP_CHECK(h.name == kHeadline, "the trick headline reads \"%s\", expected \"%s\"",
+                                   h.name.c_str(), kHeadline);
+                    }
+                }
+            }
+        }
+        // UiSnapshot's R6, held here ROM-free: every note on both pages is at
+        // most two sentences and 200 characters, in every state it is drawn in.
+        auto sentences = [](const std::string& text) {
+            int n = 0;
+            for (size_t i = 0; i < text.size(); i++) {
+                if ((text[i] == '.' || text[i] == '!' || text[i] == '?') &&
+                    (i + 1 == text.size() || text[i + 1] == ' ')) {
+                    n++;
+                }
+            }
+            return n;
+        };
+        for (int frozen = 0; frozen <= 1; frozen++) {
+            for (GameId game : { GAME_OOT, GAME_MM }) {
+                Freeze(frozen != 0);
+                Context_SetCurrentGame(game);
+                for (SidebarEntry* page : { &options, &tricks }) {
+                    for (FlatRow& row : FlattenRows(*page)) {
+                        if (row.info->type != WIDGET_TEXT) {
+                            continue;
+                        }
+                        WidgetInfo n = *row.info;
+                        DrawPass(n);
+                        if (n.isHidden) {
+                            continue;
+                        }
+                        MMRP_CHECK(sentences(n.name) <= 2 && n.name.size() <= 200,
+                                   "the note \"%s\" is %d sentence(s) and %zu characters (frozen %d, game %d); a "
+                                   "note is at most two sentences and 200 characters",
+                                   n.name.c_str(), sentences(n.name), n.name.size(), frozen, (int)game);
+                    }
+                }
             }
         }
     }
@@ -521,16 +744,118 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                 }
             }
         }
-        MMRP_CHECK(locked == count + 1, "%d rows obey the race lockout, expected every option row and Reset (%d)",
-                   locked, count + 1);
+        MMRP_CHECK(locked == count + kTrapRowCount + 1,
+                   "%d rows obey the race lockout, expected every option row, trap row and Reset (%d)", locked,
+                   count + kTrapRowCount + 1);
     }
-    printf("[TEST] leg 8: every option row and Reset obeys SoH's race lockout; every note stays legible\n");
+    printf("[TEST] leg 8: every option row, trap row and Reset obeys SoH's race lockout; every note stays legible\n");
+
+    // ---- Leg 9: the trap-type rows write through the gated writer (#1101 R4) ---
+    {
+        Freeze(false);
+        auto trapKeysOn = []() {
+            int on = 0;
+            for (int u = 0; u < kTrapRowCount; u++) {
+                on |= CVarGetInteger(kTrapRows[u].cvar, 0) != 0 ? (1 << u) : 0;
+            }
+            return on;
+        };
+        for (int u = 0; u < kTrapRowCount; u++) {
+            CVarClear(kTrapRows[u].cvar);
+        }
+        int landed = 0;
+        for (int t = 0; t < kTrapRowCount; t++) {
+            FlatRow* row = FindByName(rows, std::string(kTrapRows[t].label) + "##MMRando");
+            if (row == nullptr || row->info->type != WIDGET_CHECKBOX || row->info->callback == nullptr) {
+                continue;
+            }
+            WidgetInfo& cb = *row->info;
+            bool* value = std::get<bool*>(cb.valuePointer);
+            DrawPass(cb);
+            MMRP_CHECK(!*value, "the trap row %s starts on with every key clear", kTrapRows[t].label);
+            *value = true;
+            cb.callback(cb);
+            MMRP_CHECK(trapKeysOn() == (1 << t), "turning on %s left the trap keys at %02X, expected %02X (%s alone)",
+                       kTrapRows[t].label, (unsigned)trapKeysOn(), (unsigned)(1 << t), kTrapRows[t].cvar);
+            landed += trapKeysOn() == (1 << t) ? 1 : 0;
+            // Frozen: the edit is refused and the next draw restores the model.
+            Freeze(true);
+            DrawPass(cb);
+            *value = false;
+            cb.callback(cb);
+            MMRP_CHECK(CVarGetInteger(kTrapRows[t].cvar, 0) == 1, "a FROZEN edit of %s reached %s", kTrapRows[t].label,
+                       kTrapRows[t].cvar);
+            DrawPass(cb);
+            MMRP_CHECK(*value, "the next draw did not restore %s's frozen value", kTrapRows[t].label);
+            Freeze(false);
+            DrawPass(cb);
+            *value = false;
+            cb.callback(cb);
+            MMRP_CHECK(trapKeysOn() == 0, "turning %s off again left the trap keys at %02X", kTrapRows[t].label,
+                       (unsigned)trapKeysOn());
+        }
+        MMRP_CHECK(landed == kTrapRowCount, "%d of the %d trap rows wrote their own key", landed, kTrapRowCount);
+        // Reset clears the trap types with the options and tricks.
+        for (int u = 0; u < kTrapRowCount; u++) {
+            CVarSetInteger(kTrapRows[u].cvar, 1);
+        }
+        Combo_MMOptionsPage_ResetAll();
+        MMRP_CHECK(trapKeysOn() == 0, "Reset MM Randomizer left the trap keys at %02X", (unsigned)trapKeysOn());
+        for (int u = 0; u < kTrapRowCount; u++) {
+            CVarClear(kTrapRows[u].cvar);
+        }
+    }
+    printf("[TEST] leg 9: each trap-type row writes its own key through the gated writer, is refused while frozen, "
+           "and Reset clears all seven\n");
+
+    // ---- Leg 10: Randomizer > MM Locations (#1101 lane R3) -------------------
+    if (!rando.sidebars.contains(COMBO_MM_LOCATIONS_PAGE_NAME)) {
+        MMRP_CHECK(false, "the Randomizer header has no \"%s\" page: MM's excluded checks have no surface",
+                   COMBO_MM_LOCATIONS_PAGE_NAME);
+    } else {
+        SidebarEntry& locations = rando.sidebars.at(COMBO_MM_LOCATIONS_PAGE_NAME);
+        MMRP_CHECK(!combo.sidebars.contains(COMBO_MM_LOCATIONS_PAGE_NAME), "the Combo header holds \"%s\" as well",
+                   COMBO_MM_LOCATIONS_PAGE_NAME);
+        MMRP_CHECK(locations.columnCount == 1, "the locations page declares %u columns, expected 1 (Locations')",
+                   locations.columnCount);
+        std::vector<FlatRow> locationRows = FlattenRows(locations);
+        int custom = 0;
+        int interactive = 0;
+        for (FlatRow& row : locationRows) {
+            MMRP_CHECK(row.column == 0, "the locations page row \"%s\" sits in column %u of a one-column page",
+                       row.info->name.c_str(), row.column);
+            custom += row.info->type == WIDGET_CUSTOM && row.info->customFunction != nullptr ? 1 : 0;
+            interactive += IsInteractiveRow(*row.info) ? 1 : 0;
+        }
+        MMRP_CHECK(custom == 1, "the locations page holds %d tables, expected 1 (SoH's Locations is one custom row)",
+                   custom);
+        MMRP_CHECK(interactive == 0,
+                   "the locations page holds %d interactive rows outside its table; SoH's Locations holds none",
+                   interactive);
+        FlatRow* note = FindByName(locationRows, "MM Locations Status");
+        MMRP_CHECK(note != nullptr, "the locations page has no status note");
+        if (note != nullptr) {
+            MMRP_CHECK(!note->info->raceDisable, "the locations note is disabled by the race lockout");
+            for (int frozen = 0; frozen <= 1; frozen++) {
+                Freeze(frozen != 0);
+                const std::string expected = Combo_MMLocationsPage_StatusNote();
+                WidgetInfo n = *note->info;
+                DrawPass(n);
+                MMRP_CHECK(n.name == expected, "the locations note reads \"%s\", the model \"%s\"", n.name.c_str(),
+                           expected.c_str());
+                MMRP_CHECK(frozen != 0 || n.name == COMBO_RANDO_PAGES_NEXT_WORLD_NOTE,
+                           "unpaired, the locations note \"%s\" is not the shared sentence", n.name.c_str());
+            }
+            Freeze(false);
+        }
+    }
+    printf("[TEST] leg 10: MM Locations is one column: the model's note, a header and the one table\n");
 
     ComboContext_Init();
     Context_SetCurrentGame(prevGame);
     if (gFailures == 0) {
-        printf("[TEST] PASS: Combo > MM Randomizer and Combo > MM Tricks carry MM's whole option table and trick list "
-               "behind the same gates the pop-out window had\n");
+        printf("[TEST] PASS: Randomizer > MM Randomizer and Randomizer > MM Tricks carry MM's whole option table "
+               "and trick list behind the same gates the pop-out window had\n");
     }
     return gFailures == 0 ? 0 : 1;
 }

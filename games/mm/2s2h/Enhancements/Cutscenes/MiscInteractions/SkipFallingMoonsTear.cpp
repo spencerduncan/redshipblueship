@@ -10,13 +10,16 @@ extern "C" {
 #include "overlays/actors/ovl_En_Bji_01/z_en_bji_01.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 static int frames = 0;
 
 void RegisterSkipFallingMoonsTear() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_BJI_01, CVAR, [](Actor* actor) {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnBji01* bji = (EnBji01*)actor;
         if (bji->actor.playerHeightRel >= -350.0f && !CHECK_WEEKEVENTREG(WEEKEVENTREG_74_80)) {
             // Normally set in the cutscene

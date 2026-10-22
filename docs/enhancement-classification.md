@@ -141,8 +141,8 @@ Per decision (2), cheats are (S). Verified per-key that the semantics genuinely 
 | `gAudioEditor.LowHpAlarm` | mute low-HP beep | `Audio/Sfx/MuteLowHpAlarm.cpp` | ✅ both bool |
 | `gAudioEditor.EnemyBGMDisable` | disable enemy proximity music | `Audio/Sfx/DisableEnemyProximityMusic.cpp` | ✅ both bool |
 | `gAudioEditor.SeqNameNotification` + `…Duration` (2) | sequence-name toast | `Audio/AudioHook.cpp` | ✅ bool + int seconds |
-| `gEnhancements.Graphics.ActorCullingAccountsForWidescreen` | `ShipUtils.cpp:41` | `ShipUtils.cpp:246` | ✅ both bool, structurally identical code |
-| `gEnhancements.Graphics.IncreaseActorDrawDistance` | `ShipUtils.cpp:30` | `ShipUtils.cpp:235` | ✅ both `s32 multiplier`, default 1, slider 1–5 |
+| `gEnhancements.Graphics.ActorCullingAccountsForWidescreen` | `ShipUtils.cpp:41` | `ShipUtils.cpp:246` | ✅ both bool, structurally identical code. **CORRECTED by #966 (#1028): not shared.** Only OoT's uncalled `ShipUtils.cpp` copy read this spelling; SoH's menu and every live OoT reader use `gEnhancements.WidescreenActorCulling`, and MM now reads that key (a `kConvergedKeys` row) |
+| `gEnhancements.Graphics.IncreaseActorDrawDistance` | `ShipUtils.cpp:30` | `ShipUtils.cpp:235` | ✅ both `s32 multiplier`, default 1, slider 1–5. **CORRECTED by #966 (#1027): not shared.** Same as the row above; the key SoH writes is `gEnhancements.DisableDrawDistance` |
 | `gDeveloperTools.DebugEnabled` | unlocks OoT debug features | unlocks MM debug features | ✅ same intent |
 | `gDeveloperTools.FrameAdvanceTick` | frame-advance tick | frame-advance tick | ✅ same intent |
 | `gDeveloperTools.LogLevel` | one spdlog logger | one spdlog logger | ✅ port-level |
@@ -203,7 +203,7 @@ write retired — so the key is now genuine (S). The pre-fix (P) framing is kept
 
 ## 4. (P) — per-game parallel: same idea, incompatible realisation
 
-Seven rows. Each says WHY one control would be wrong. **These must not be merged by the
+Seven rows, two of them since resolved (P5 by #454, P6 by #1062). Each says WHY one control would be wrong. **These must not be merged by the
 rename pass.**
 
 | # | Setting | OoT key | MM key | Why (P) |
@@ -213,7 +213,7 @@ rename pass.**
 | P3 | **Camera invert / sensitivity** | `gSettings.FreeLook.Invert{X,Y}Axis`, `gSettings.Controls.InvertAiming{X,Y}Axis`, `…InvertShieldAiming{X,Y}Axis`, `…InvertZAimingYAxis`, `gSettings.FirstPersonCameraSensitivity.{Enabled,X,Y}` | `gEnhancements.Camera.RightStick.Invert{X,Y}Axis`, `gEnhancements.Camera.FirstPerson.Invert{X,Y}`, `…RightStickInvert{X,Y}`, `…GyroInvert{X,Y}`, `…Sensitivity{X,Y}` | **Different axis decomposition.** OoT splits by *context* (free-look vs aiming vs shield-aiming vs Z-aiming); MM splits by *input device* (right stick vs gyro vs first-person). There is no 1:1 mapping — OoT has no gyro axis, MM has no shield-aim axis. Merging would drop settings on both sides. |
 | P4 | **Tunic / transformation colours** | `gCosmetics.Link.{Kokiri,Goron,Zora}Tunic.Value` | `gCosmetics.Link_{Kokiri,Goron,Zora}Tunic.Value` | See §3.3 BUG 1. Intent is shared; the *current keys* are desynced by an OoT migration MM never followed. Converge, but as a fix, not a plain rename. |
 | P5 | **Debug save file mode** | `gDeveloperTools.DebugSaveFileMode` (default 1) | `gDeveloperTools.DebugSaveFileMode` (default 1 since #454) | **RESOLVED (#454): now (S).** See §3.3 BUG 2 — MM's clobbering write retired and read default aligned to OoT's 1. |
-| P6 | **Ocarina D-pad input** | `gEnhancements.DpadNoDropOcarinaInput`, `gSettings.OcarinaControl.Dpad`, `gSettings.CustomOcarina.Dpad` | `gEnhancements.Playback.DpadOcarina`, `…NoDropOcarinaInput`, `…RightStickOcarina` | Split across **different top-level namespaces** (OoT: partly `gSettings`, partly `gEnhancements`; MM: all `gEnhancements.Playback`) with different member sets — MM adds right-stick ocarina, OoT adds a custom-mapping layer. Structurally parallel, not identical. |
+| P6 | **Ocarina D-pad input** | `gSettings.CustomOcarina.Dpad`, `gSettings.CustomOcarina.RightStick` (Settings > Controls > Ocarina Controls), `gEnhancements.DpadNoDropOcarinaInput`; OoT-only: `gSettings.CustomOcarina.Enabled` (the button-mapping layer) | `gEnhancements.Playback.DpadOcarina`, `gEnhancements.Playback.RightStickOcarina`, `gEnhancements.Playback.NoDropOcarinaInput` | **RESOLVED (#1062): now (S).** This row was first written from key names alone: it listed a `gSettings.OcarinaControl.Dpad` that no OoT code reads. Read at the call sites, the three switches mean the same thing on both sides (bool, default off; the D-pad or the right stick also plays the ocarina notes; a second note is no longer dropped in the frame after the first). MM therefore moved onto SoH's keys (three `kConvergedKeys` rows, three version-9 migration rows) and the held-apart entry left `kMustStayDistinct`. MM's readers were never elided (`GameInteractor_Dpad` and `GameInteractor_RightStickOcarina` are real definitions in `GameExports_SingleExe.cpp`; `code_8019AF00.c` and `z_player.c` read the other key directly); what was missing was a writer, because MM's only widgets sat in the excluded `BenMenu.cpp`. Still OoT-only: the custom button-mapping layer (`CustomOcarina.Enabled` and its per-note bindings), which MM has no equivalent of. `gSettings.DpadInText`, `gSettings.DpadHoldChange` and `gSettings.DPadOnPause` (D-pad navigation of text boxes, shops, file select and the pause screen) have no MM reader at all, so they stay (O) until MM grows the behaviour. |
 | P7 | **Shield aim inversion** | `gSettings.Controls.InvertShieldAimingYAxis` (+ X axis) | `gEnhancements.Equipment.InvertShieldY` (Y only) | Different namespace *and* different axis coverage (OoT X+Y, MM Y only). Merging loses OoT's X axis. |
 
 ## 5. (S) CONVERGE — the rename list for the settings-namespace ADR
@@ -307,8 +307,22 @@ under `Cutscenes.Skip*Cutscenes`. Same behaviour, both bool.
 | Skip story cutscenes | `gEnhancements.TimeSavers.SkipCutscene.Story` | `gEnhancements.Cutscenes.SkipStoryCutscenes` |
 
 Remaining members of each family are (O): OoT-only `SkipCutscene.{BossIntro, GlitchAiding,
-LearnSong, QuickBossDeaths}`; MM-only `Cutscenes.{SkipFirstCycle, SkipMiscInteractions,
-SkipToFileSelect, SkipGetItemCutscenes, SkipEnemyCutscenes}`.
+LearnSong, QuickBossDeaths}`; MM-only `Cutscenes.{SkipFirstCycle, SkipToFileSelect,
+SkipEnemyCutscenes}`. `Cutscenes.SkipMiscInteractions` is no longer MM-only: since #1046 MM reads
+SoH's `gEnhancements.TimeSavers.SkipMiscInteractions` ("Skip Misc Interactions"), and #1093 linked
+its providers.
+
+`Cutscenes.SkipGetItemCutscenes` is NOT MM-only (#1060): its twin is SoH's
+`gRandoEnhancements.TimeSavers.SkipGetItemAnimation` ("Skip Get Item Animations", Randomizer
+page), outside the `gEnhancements` namespace. The value spaces differ (SoH Off / Junk Items /
+All Items, MM Never / Junk Items Only / Everything But Major / Always), so it is a
+**translated** pair (`RSBS::kTranslatedKeys`), not a rename: every MM reader calls
+`Rando::StaticData::SkipGetItemCutsceneTier()`, which reads SoH's key and maps Off → Never,
+Junk Items → Junk Items Only, All Items → Always. The story-cutscene gives (masks, songs, the
+Oath to Order, the Giants' Chamber), which queue only outside rando, ask
+`StoryGiveShowsGetItemCutscene()` instead and keep their hold unless SoH says All Items: SoH
+itself always shows outside rando, so its default Junk Items must not strip them. MM's own key
+is left to its elided widget.
 
 **Group D — free-look (3).** OoT files free-look under `gSettings.`, MM under
 `gEnhancements.Camera.` — a top-level namespace disagreement.
@@ -321,6 +335,21 @@ SkipToFileSelect, SkipGetItemCutscenes, SkipEnemyCutscenes}`.
 
 MM-only within free-look: `MinPitch`, `MaxPitch` → (O). OoT-only:
 `FreeLook.CameraSensitivity.{X,Y}` → see P3, do not merge.
+
+**Group E — the #966 key-name gaps (rows added after the audit).** MM's reader sat on a
+differently spelled twin of the key SoH's widget writes, so the control moved a key nothing in
+MM consulted. Each row was read at both call sites and agrees on type (bool), range and
+default (off).
+
+| Setting | OoT key (target) | MM key (rename from) | Issue | Note |
+|---|---|---|---|---|
+| Skip Magic Arrow Equip Animation | `gEnhancements.SkipArrowAnimation` | `gEnhancements.Equipment.MagicArrowEquipSpeed` | #1035 | The key name says "speed" and the issue asked whether the value spaces differ; they do not: MM's reader is `CVarGetInteger(..., 0)` truthiness on a checkbox, exactly SoH's. |
+| Permanent Heart Loss | `gEnhancements.PermanentHeartLoss` | `gEnhancements.DifficultyOptions.PermanentHeartLoss` | #1036 | The two tooltips disagreed about turning the option off. Settled: OoT restores lost containers (it keeps a heart-container count in its save stats), MM does not (it has no such count), so the shared tooltip now says so. |
+| N64 Weird Frames | `gEnhancements.N64WeirdFrames` | `gEnhancements.Restorations.N64WeirdFrames` | #1038 | Default is off on both sides since #1046 (2Ship defaulted it on). |
+| D-pad ocarina | `gSettings.CustomOcarina.Dpad` | `gEnhancements.Playback.DpadOcarina` | #1062 | Was P6 (held apart); see §4. |
+| Right-stick ocarina | `gSettings.CustomOcarina.RightStick` | `gEnhancements.Playback.RightStickOcarina` | #1062 | Was P6. |
+| Prevent dropped ocarina inputs | `gEnhancements.DpadNoDropOcarinaInput` | `gEnhancements.Playback.NoDropOcarinaInput` | #1062 | Was P6. |
+| Containers Match Contents | `gEnhancements.ChestSizeAndTextureMatchContents` | `gRando.CSMC` | #1064 | The #966 audit table listed this OOT-ONLY with no MM reader; that was wrong, the reader is `gRando.CSMC` (chests, pots, grass, crates, barrels). `ChestSizeDependsStoneOfAgony` stays OoT-only (MM has no Stone of Agony). |
 
 ## 6. (O) — only-in-one, by category
 
@@ -394,9 +423,11 @@ are not rediscovered.
    shared header. Any rename in the SoH cvar config silently moves MM's audio keys too.
 3. **Orphan CVars with no widget** — `gFixes.FixButtonEnvColor`,
    `gEnhancements.Restorations.N64WeirdFrames`, `gSettings.DisableMenuShortcutNotify`. These
-   are settings with no way to set them; either surface or retire.
+   are settings with no way to set them; either surface or retire. (`N64WeirdFrames` is no
+   longer an orphan: #1038 moved MM's reader onto OoT's `gEnhancements.N64WeirdFrames`, whose
+   widget is SoH's Fixes > N64 Weird Frames checkbox, and linked the provider.)
 4. **High fan-out single toggles** — 25 TUs in `Cutscenes/MiscInteractions/` all read the one
-   key `gEnhancements.Cutscenes.SkipMiscInteractions`; 28 TUs in `Cutscenes/StoryCutscenes/`
+   key `gEnhancements.Cutscenes.SkipMiscInteractions` (SoH's `TimeSavers.SkipMiscInteractions` since #1046); 27 TUs in `Cutscenes/StoryCutscenes/`
    all read `…SkipStoryCutscenes`. Relevant to capability gating (ADR 0004 §4): the control
    is only as live as the *least* linked of its 25 TUs.
 5. **MM's directory taxonomy ≠ MM's menu taxonomy.** `Modes/`, `Player/`, `Equipment/`,

@@ -109,6 +109,23 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
                     "[OoT] Triforce Hunt: \"Win\" generated as \"Ganon's Boss Key\" under combo goal %u (#768)\n",
                     (unsigned)rsbsGoalPreview.goal);
         }
+        // #997, the reverse: under the combo triforce hunt the give that reaches
+        // the COMBO requirement grants Ganon's Boss Key and ends the paired game
+        // (it takes the Win branch whichever mode is named here), so "Ganon's
+        // Boss Key" would put the boss key at RC_TRIFORCE_COMPLETED behind OoT's
+        // OWN requirement, crediting Ganondorf's Lair to the proof long before
+        // play opens it. Generated as "Win": the same pieces and requirement (the
+        // creation freeze below reads them unchanged), RG_TRIFORCE at
+        // RC_TRIFORCE_COMPLETED, and the lair is post-game, as it is in play.
+        if (Combo_GoalGeneratesOwnHuntAsWin(rsbsGoalPreview.goal) &&
+            ctx->GetOption(RSK_TRIFORCE_HUNT).Is(RO_TRIFORCE_HUNT_GBK)) {
+            ctx->GetOption(RSK_TRIFORCE_HUNT).Set(RO_TRIFORCE_HUNT_WIN);
+            SPDLOG_WARN("Paired world: OoT's Triforce Hunt \"Ganon's Boss Key\" is generated as \"Win\" under the "
+                        "combo triforce hunt: the combo requirement ends the game and opens Ganon's tower door in "
+                        "the same give (#997)");
+            fprintf(stderr, "[OoT] Triforce Hunt: \"Ganon's Boss Key\" generated as \"Win\" under the combo "
+                            "triforce hunt (#997)\n");
+        }
     }
     // #973: the Happy Mask Shop door IS the OoT<->MM crossing (entrance.cpp pins it
     // out of every shuffle pool), so the shop's room never loads, and two settings
@@ -247,9 +264,10 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     const uint32_t rsbsPriorSeed = gComboCtx.sharedRandoSeed;
     const uint32_t rsbsPriorSettingsHash = gComboCtx.sharedRandoSettingsHash;
     const uint32_t rsbsPriorMmProfileDigest = gComboCtx.mmProfileDigest;
-    const ComboSettingsRecord rsbsPriorComboSettings = gComboCtx.comboSettings;
-    const uint32_t rsbsPriorComboSettingsHash = gComboCtx.comboSettingsHash;
-    const ComboTriforceRecord rsbsPriorComboTriforce = gComboCtx.comboTriforce;
+    // The combo record, its fingerprint, the triforce record and the item rules
+    // (#976): one snapshot, so a field the freeze gains is rolled back with it.
+    ComboCreationRecords rsbsPriorCreationRecords;
+    Combo_SnapshotCreationRecords(&rsbsPriorCreationRecords);
     const uint32_t rsbsPriorGiveCaps = Combo_ForeignGiveCaps((uint8_t)GAME_MM);
     const bool rsbsPriorGiveCapsPublished = Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM);
     auto rsbsRollbackFreeze = [&]() {
@@ -257,9 +275,7 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         gComboCtx.sharedRandoSeed = rsbsPriorSeed;
         gComboCtx.sharedRandoSettingsHash = rsbsPriorSettingsHash;
         gComboCtx.mmProfileDigest = rsbsPriorMmProfileDigest;
-        gComboCtx.comboSettings = rsbsPriorComboSettings;
-        gComboCtx.comboSettingsHash = rsbsPriorComboSettingsHash;
-        gComboCtx.comboTriforce = rsbsPriorComboTriforce;
+        Combo_RestoreCreationRecords(&rsbsPriorCreationRecords);
         Combo_ClearForeignGiveCaps();
         if (rsbsPriorGiveCapsPublished) {
             Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, rsbsPriorGiveCaps);
@@ -347,7 +363,11 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     {
         ComboSettingsRecord comboSettings;
         Combo_ResolveComboSettings(&comboSettings);
-        Combo_FreezeComboSettings(&comboSettings);
+        // #976: the cross-game item rules freeze in the same act, so the
+        // fingerprint folds them (every rule off reproduces today's hash).
+        ComboItemRulesRecord comboItemRules;
+        Combo_ResolveComboItemRules(&comboItemRules);
+        Combo_FreezeComboSettingsEx(&comboSettings, &comboItemRules);
         SPDLOG_INFO("Paired identity: combo settings frozen at creation (fingerprint {:08X})",
                     gComboCtx.comboSettingsHash);
     }

@@ -63,5 +63,9 @@ void UpdateAllAreas();
 void RecalculateAllAreaTotals();
 void SpoilAreaFromCheck(RandomizerCheck rc);
 void RecalculateAvailableChecks(RandomizerRegion startingRegion = RR_ROOT);
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Schedule a recalculation for the next draw (#990); see the definition.
+void ArmAvailableChecksRecalc();
+#endif
 void LoadFromPreset(nlohmann::json info);
 } // namespace CheckTracker

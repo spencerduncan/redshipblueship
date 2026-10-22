@@ -50,6 +50,12 @@ jobs:
     - name: Git Checkout
       uses: actions/checkout@v4
       with:
+        # Tag push: check out the tag's commit by SHA. By default checkout
+        # fetches `<sha>:refs/tags/<tag>` and fetch-tags fetches that ref again;
+        # for an ANNOTATED tag the two differ and git refuses (#1059). fetch-tags
+        # stays: CMakeLists.txt bakes `git describe --tags --exact-match HEAD`
+        # into the build. Empty ref on other events keeps the default.
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     # Required for the git commands run by the otr-cache-key action and the
@@ -117,6 +123,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        # Tag push by SHA, see the first checkout (#1059).
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     - name: Configure ccache
@@ -232,6 +240,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        # Tag push by SHA, see the first checkout (#1059).
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     - name: Configure git safe directory
@@ -403,6 +413,25 @@ jobs:
           echo "===== $f ====="
           cat "$f"
         done
+    # The digests this leg PRODUCED, for digest-crossos-diff (#1003): the golden
+    # rows' actual files, the self-diff rows' first runs, and the hint and shop
+    # digests the redship tier writes. A few KB.
+    - name: Upload this build's determinism digests (Linux) (#1003)
+      if: always()
+      run: |
+        mkdir -p crossos-digests
+        for f in build-cmake/golden-*-actual.txt build-cmake/seed-determinism-run1.txt \
+                 build-cmake/paired-attempt-run1.txt build-cmake/rsbs_*_digest.txt; do
+          [ -e "$f" ] && cp "$f" crossos-digests/
+        done
+        ls -la crossos-digests
+    - if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: determinism-digests-linux
+        path: crossos-digests/
+        if-no-files-found: warn
+        retention-days: 7
     # The UI snapshot harness (docs/ui-style-guide.md section 12): SoH's own menu
     # pages and every page this project added, rendered the same way into
     # build-cmake/ui-snapshots/ for an agent or reviewer to compare. Its OWN label
@@ -467,6 +496,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        # Tag push by SHA, see the first checkout (#1059).
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     - name: Configure git safe directory
@@ -582,6 +613,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
+        # Tag push by SHA, see the first checkout (#1059).
+        ref: ${{ startsWith(github.ref, 'refs/tags/') && github.sha || '' }}
         fetch-depth: 1
         fetch-tags: true
     - name: Configure sccache
@@ -743,6 +776,22 @@ jobs:
             Get-Content -LiteralPath $f.FullName
           }
         }
+    # The Windows twin of build-linux's digest upload, for digest-crossos-diff (#1003).
+    - name: Upload this build's determinism digests (Windows) (#1003)
+      if: always()
+      run: |
+        New-Item -ItemType Directory -Force crossos-digests | Out-Null
+        foreach ($pattern in @('golden-*-actual.txt', 'seed-determinism-run1.txt', 'paired-attempt-run1.txt', 'rsbs_*_digest.txt')) {
+          Get-ChildItem -Path bw -Filter $pattern -File -ErrorAction SilentlyContinue | Copy-Item -Destination crossos-digests
+        }
+        Get-ChildItem crossos-digests
+    - if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: determinism-digests-windows
+        path: crossos-digests/
+        if-no-files-found: warn
+        retention-days: 7
     # The Windows twin of build-linux's UI snapshot step. The harness picks the
     # DirectX 11 backend here (auto: DX11 when CI is set on Windows; a hosted
     # runner has no usable desktop GL) and reads back through the swap chain, and
@@ -779,6 +828,47 @@ jobs:
       with:
         key: ${{ runner.os }}-vcpkg-v2-${{ hashFiles('CMakeLists.txt', 'CMake/automate-vcpkg.cmake') }}
         path: vcpkg
+
+  # ==========================================================================
+  # Cross-OS digest diff (#1003)
+  #
+  # Both legs compare their golden rows against the SAME committed bytes, which
+  # proves they agree only on what a committed golden pins. This job diffs the
+  # digests the two legs PRODUCED against each other (field by field, CR
+  # stripped): the self-diff rows' worlds and the hint and shop digests no
+  # golden pins, and a world a PR moves on purpose, where both legs are red
+  # against the old golden and only this says whether they agree on the new
+  # one. It fails when any file differs or exists on one leg only.
+  #
+  # Cheap (a sparse checkout of one script and two small artifacts) and NOT a
+  # required check, so a docs-only PR, which skips this workflow and gets the
+  # required names from docs-bypass.yml, is unaffected. Skipped when a leg
+  # never ran; runs when a leg is red, because the diff still says whether
+  # the two OSes agree.
+  # ==========================================================================
+  digest-crossos-diff:
+    needs: [build-linux, build-windows]
+    if: ${{ !cancelled() && needs.build-linux.result != 'skipped' && needs.build-windows.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        sparse-checkout: .github/scripts
+        fetch-depth: 1
+    - name: Download the Linux leg's digests
+      continue-on-error: true
+      uses: actions/download-artifact@v4
+      with:
+        name: determinism-digests-linux
+        path: digests/linux
+    - name: Download the Windows leg's digests
+      continue-on-error: true
+      uses: actions/download-artifact@v4
+      with:
+        name: determinism-digests-windows
+        path: digests/windows
+    - name: Diff the two legs' digests
+      run: python3 .github/scripts/diff-crossos-digests.py digests/linux linux digests/windows windows
 
   create-release:
     # Tag-triggered release publishing (issue #318): attaches the builds from

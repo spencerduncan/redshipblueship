@@ -317,6 +317,193 @@ if(SINGLE_EXECUTABLE_BUILD)
     list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Songs/BetterSongOfDoubleTime\\.cpp$")
     list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Songs/SkipSoTCutscenes\\.cpp$")
 
+    # #1071 - 2ship_enh_registrars: enhancement TUs whose ONLY anchor in the
+    # link is a file-scope RegisterShipInitFunc, carved out of 2ship_enh so
+    # they can be WHOLE_ARCHIVE'd one deliberate file at a time.
+    #
+    # THE CLASS (#516's elided provider). A TU that registers purely through a
+    # static RegisterShipInitFunc object and exports nothing anything else
+    # references is dropped outright by plain archive semantics: its object
+    # never reaches redship.map, its static initializer never runs, and every
+    # hook it would have registered stays empty. When that hook is the rando
+    # hand-off for a check, the check silently plays vanilla. #678 hit it with
+    # the two ClockShuffle Songs TUs above (they keep their own archive, which
+    # predates this one); #1071 hit it with the nine song teachers below.
+    #
+    # WHY THIS ARCHIVE AND NOT THE WHOLE OF 2ship_enh: the reasons the #678
+    # block above gives, unchanged. Each member of this list is a decision to
+    # ARM that TU in the single exe, and check-registrar-elision.sh audits the
+    # archive as `required`, so every member must survive the link.
+    #
+    # TO ADD A FILE (later lanes of the same class): append it to the list
+    # below, ONE FILE PER LINE, under a `# #<issue>` comment of its own, after
+    # the last group, so two lanes' appends do not touch the same lines. In the
+    # same change: land the play-state guards PR #673's criterion asks for in
+    # every hook the TU registers, confirm each of those hooks is DISPATCHED in
+    # the single exe (the #512/#517 registered-but-not-dispatched class), check
+    # the TU's other definitions for a twin anywhere in games/oot or games/mm,
+    # and add a ROM-free row that attributes the TU by registry content without
+    # naming any symbol it defines (a reference from a test would un-elide it
+    # by itself). The REMOVE_ITEM below takes every listed file out of
+    # ship__Enhancements, so there is nothing else to edit here.
+    set(ship__Enh_registrars
+        # #1071: the song-teacher hooks. Forced on under IS_RANDO because they
+        # are the rando hand-off for the song checks (the Sonata hook is the
+        # only caller of VB_GIVE_ITEM_FROM_MNK, which
+        # Rando/ActorBehavior/EnMnk.cpp waits on). SkipLearningSongOfTime.cpp
+        # has no IS_RANDO gate and is not part of #1071; it stays in 2ship_enh.
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningElegyOfEmptiness.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningEponasSong.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullaby.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullabyIntro.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningNewWaveBossaNova.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSonataOfAwakening.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfHealing.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfSoaring.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfStorms.cpp"
+        # #1005-#1009: the Cheats rows the SoH menu draws (kSharedIntentKeys / kConvergedKeys):
+        # Infinite Health/Magic/Money(/Consumables), Climb Everything, Hookshot Everything,
+        # Moon Jump on L and Easy Frame Advancing. Each is CVar-gated, so a TU only arms when
+        # its row is on; the play-state guards landed with the carve-out.
+        "2s2h/Enhancements/Cheats/Infinite.cpp"
+        "2s2h/Enhancements/Cheats/ClimbAnywhere.cpp"
+        "2s2h/Enhancements/Cheats/HookshotAnywhere.cpp"
+        "2s2h/Enhancements/Cheats/MoonJump.cpp"
+        "2s2h/Enhancements/Cheats/EasyFrameAdvance.cpp"
+        # #1018-#1022: the Skips & Speed-ups rows the SoH menu draws. Every file keys on the converged
+        # gEnhancements.TimeSavers.* key SoH writes (kConvergedKeys), registers only through a file-scope
+        # RegisterShipInitFunc, and rides a VB/actor hook the single exe dispatches (z_demo.c, z_eventmgr.c,
+        # z_camera.c, the actor overlays). Play-state guards landed with the carve-out. The song-teacher
+        # SkipLearning* files above are #1071's; SkipLearningSongOfTime.cpp (excluded by the comment there) is
+        # carried here with the rest of the Story set, and SkipGiantsChamber.cpp stays linked through its own path.
+        # #1018
+        "2s2h/Enhancements/Cutscenes/HideTitleCards.cpp"
+        # #1019
+        "2s2h/Enhancements/Cutscenes/SkipIntroSequence.cpp"
+        # #1020
+        "2s2h/Enhancements/Cutscenes/SkipEntranceCutscenes.cpp"
+        # #1021
+        "2s2h/Enhancements/Cutscenes/SkipOnePointCutscenes.cpp"
+        # #1022: the Story set (the remaining StoryCutscenes TUs, HealingMikauAudio included)
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/HealingMikauAudio.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipBiggoronSnowheadLullaby.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipBombBagTheftCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipClockTowerOpen.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipClockTowerSkullKidEncounter.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipDefeatCaptainSequence.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipFirstSongOfTimeFlashbacks.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingDarmani.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingMikau.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipIkanaCurseCutscenes.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfTime.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipMilkRunCutscenes.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipMoonCrash.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipPrincessDelivery.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipRaisingWoodfall.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipStoppingMoonCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipWakingAndRidingTurtle.cpp"
+        # #1010-#1017: eight enhancement rows the SoH menu draws. Each keys on the converged
+        # gEnhancements.* key SoH's row writes (kConvergedKeys; DpadEquips for ItemUnequip's second
+        # half), registers only through a file-scope RegisterShipInitFunc, and rides a hook the single
+        # exe dispatches (VB_* via MM_GameHooks_ExecuteVBShould; OnInterfaceDrawStart, OnPlayerPostLimbDraw,
+        # OnActorUpdate, OnActorInit, OnGameStateMainStart via MM_GameHooks_Execute*). Play-state guards
+        # landed with the carve-out. Duplicate-symbol exposure measured: RegisterItemUnequip and
+        # RegisterPauseBufferInputs exist in games/oot too, and MM's copies are MM_-prefixed in the source;
+        # Interface_DrawEnemyHealthBar is a C symbol in OoT's z_parameter.c and a C++ one (Attention*) here.
+        # #1010
+        "2s2h/Enhancements/Timesavers/FastChests.cpp"
+        # #1011
+        "2s2h/Enhancements/Graphics/EnemyHealthBars.cpp"
+        # #1012
+        "2s2h/Enhancements/Graphics/BowReticle.cpp"
+        # #1013
+        "2s2h/Enhancements/Graphics/DisableBlackBars.cpp"
+        # #1014
+        "2s2h/Enhancements/Player/InstantPutaway.cpp"
+        # #1015
+        "2s2h/Enhancements/Equipment/ItemUnequip.cpp"
+        # #1016
+        "2s2h/Enhancements/Restorations/PauseBufferInputs.cpp"
+        # #1017
+        "2s2h/Enhancements/DifficultyOptions/HyperEnemies.cpp"
+        # #1024-#1026: the three Audio Editor rows the SoH menu draws (kSharedIntentKeys: gAudioEditor.LowHpAlarm,
+        # .EnemyBGMDisable, .SeqNameNotification and its Duration). Each registers only through a file-scope
+        # RegisterShipInitFunc, and rides a hook the single exe dispatches: VB_PLAY_LOW_HP_ALARM (z_lifemeter.c) and
+        # VB_PLAY_ENEMY_PROXIMITY_MUSIC (z_player.c) via MM_GameHooks_ExecuteVBShould, OnSeqPlayerInit (audio/lib/load.c)
+        # via MM_GameHooks_ExecuteOnSeqPlayerInit. None reads the play state unguarded (AudioHook null-checks
+        # MM_gPlayState). AudioHook's NotifySequenceName / RegisterAudioNotificationHooks exist in OoT too and are
+        # MM_-prefixed by include/mm_audio_prefix.h (pulled in through AudioCollection.h); the toast goes out through
+        # the MM_Notify_Emit bridge to OoT's overlay, and AudioCollection::Instance is created by GameExports_SingleExe.
+        # #1024
+        "2s2h/Enhancements/Audio/Sfx/MuteLowHpAlarm.cpp"
+        # #1025
+        "2s2h/Enhancements/Audio/Sfx/DisableEnemyProximityMusic.cpp"
+        # #1026
+        "2s2h/Enhancements/Audio/AudioHook.cpp"
+        # #1023: the Free Look, Camera Distance and Camera Transition Speed rows (Settings > Controls). FreeLook.cpp
+        # registers only through a file-scope RegisterShipInitFunc keyed on gSettings.FreeLook.Enabled (kConvergedKeys),
+        # and rides ShouldVanillaBehavior[VB_USE_CUSTOM_CAMERA] (Camera_Update) and OnCameraChangeModeFlags
+        # (Camera_ChangeMode), both dispatched by z_camera.c via MM_GameHooks_*. The play-state guards landed with the
+        # carve-out (Camera_CanFreeLook). It reads the right stick from the play state input, which PadMgr copies from
+        # libultraship's pad whole (right_stick_x/y included). Camera/DebugCam.cpp shares the VB leg but keys on its own
+        # CVar and stays out. IsBombchuFocused is fenced to false in the TU so RemoteBombchu.cpp is not dragged in.
+        # Its definitions (Camera_FreeLook, Camera_CanFreeLook, UpdateFreeLookState, RegisterCameraFreeLook) have no
+        # twin in games/oot or games/mm.
+        "2s2h/Enhancements/Camera/FreeLook.cpp"
+        # #1030-#1034 (#966 key-name gaps, the link half; PR #1046 mapped the keys): the five SoH rows whose MM twin
+        # was mapped onto SoH's key and still did nothing because its provider was dropped from the link. Each
+        # registers only through a file-scope RegisterShipInitFunc keyed on the converged key SoH's row writes
+        # (kConvergedKeys), and rides a hook the single exe dispatches: VB_* via MM_GameHooks_ExecuteVBShould,
+        # OnActorInit / OnActorUpdate / OnActorDestroy / ShouldActorInit / OnOpenText via MM_GameHooks_Execute*. Play-state
+        # guards landed with the carve-out (RSBS_SINGLE_EXE_REQUIRE in the hook bodies, CanCycleArrows). Equipment/ChuDrops.cpp
+        # reads gEnhancements.NewDrops inline but is its own row (gEnhancements.Equipment.ChuDrops) and stays out.
+        # #1030
+        "2s2h/Enhancements/Accessibility/NoScreenFlashForEnemyKill.cpp"
+        # #1031
+        "2s2h/Enhancements/Graphics/3DItemDrops.cpp"
+        # #1032: the 25 Skip Misc Interactions TUs, all keyed on gEnhancements.TimeSavers.SkipMiscInteractions
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipAlienStartAndFail.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipAlienWarning.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipBankerDialogue.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipBossWarpPrompt.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipBothersomeMonkey.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipDekuSalesman.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipDekuTelescope.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipEponaReveal.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipEvanSong.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipFallingMoonsTear.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipGateGuards.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipGivingBombersNotebook.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipGreatFairyCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipHungryGoronDialogue.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipKafeiReveal.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipKamaroTeachDance.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipKotakeFlying.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipMayorsOfficeCutscene.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipOwlInteractions.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipPushingMikau.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipRosaSistersDance.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipScarecrowDance.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipTatlInterrupts.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipTingleTime.cpp"
+        "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipTurtleGoodbye.cpp"
+        # #1033
+        "2s2h/Enhancements/Songs/SkipScarecrowSong.cpp"
+        # #1034
+        "2s2h/Enhancements/Equipment/ArrowCycle.cpp"
+        # #1035 (Skip Magic Arrow Equip Animation, OnKaleidoUpdate: dispatched through MM_GameHooks_ExecuteOnKaleidoUpdate;
+        # the body touches only the kaleido equip-state globals and the pauseCtx the dispatcher passes)
+        "2s2h/Enhancements/Equipment/SkipMagicArrowEquip.cpp"
+        # #1036 (Permanent Heart Loss, OnActorUpdate[PLAYER]; MM_RegisterPermanentHeartLoss is MM_-prefixed because OoT's
+        # PermanentLosses.cpp has a same-named static registrar the CI symbol probe could not tell apart)
+        "2s2h/Enhancements/DifficultyOptions/PermanentHeartLoss.cpp"
+        # #1038 (N64 Weird Frames, VB_LOAD_PLAYER_ANIMATION_FRAME from z_skelanime; OoT ships an identically named
+        # WeirdAnimation class, which MM's copy fences into S2H under RSBS_SINGLE_EXECUTABLE, so both files link)
+        "2s2h/Enhancements/Restorations/N64WeirdFrames/N64WeirdFrames.cpp"
+        "2s2h/Enhancements/Restorations/N64WeirdFrames/WeirdAnimation.cpp"
+    )
+    list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
+
     # GameInteractor (use OoT's)
     list(FILTER ship__ EXCLUDE REGEX "2s2h/GameInteractor/.*\\.cpp$")
 
@@ -437,9 +624,13 @@ if(SINGLE_EXECUTABLE_BUILD)
     # ZAPDLib deps, the include dirs, and the mm_gi_hook_guard.h poison prelude
     # that #427 item 2 made whole-target).
     add_library(2ship_enh_clockshuffle STATIC ${ship__Enh_clockshuffle})
+    # #1071: the RegisterShipInitFunc-only TUs, carved out above, with the same
+    # TWOSHIP_COMPILE_TARGETS inheritance as 2ship_enh_clockshuffle.
+    add_library(2ship_enh_registrars STATIC ${ship__Enh_registrars})
     add_library(2ship_rando STATIC ${ship__Rando})
     add_library(2ship_rando_ui STATIC ${ship__Rando_ui})
-    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_enh_clockshuffle 2ship_rando 2ship_rando_ui)
+    set(TWOSHIP_COMPILE_TARGETS 2ship_src 2ship_port 2ship_enh 2ship_enh_clockshuffle 2ship_enh_registrars
+        2ship_rando 2ship_rando_ui)
     foreach(_t ${TWOSHIP_COMPILE_TARGETS})
         target_compile_definitions(${_t} PRIVATE RSBS_SINGLE_EXECUTABLE)
     endforeach()
@@ -473,8 +664,14 @@ if(SINGLE_EXECUTABLE_BUILD)
     # separate archive rather than an added reference or the whole-archive
     # flip of 2ship_enh itself (#516). check-registrar-elision.sh audits it as
     # required.
+    #
+    # 2ship_enh_registrars links WHOLE_ARCHIVE as of #1071, for the same reason:
+    # every member registers only through a file-scope RegisterShipInitFunc (the
+    # carve-out block above lists them and says how to add one). Also audited as
+    # required by check-registrar-elision.sh.
     set(TWOSHIP_STATIC_TARGETS 2ship_src 2ship_port 2ship_enh
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_enh_clockshuffle>"
+        "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_enh_registrars>"
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,2ship_rando>"
         2ship_rando_ui PARENT_SCOPE)
 else()

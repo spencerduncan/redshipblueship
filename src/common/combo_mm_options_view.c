@@ -61,17 +61,26 @@ const ComboMMOptionDesc* Combo_MMOptionById(uint16_t id) {
 }
 
 const char* Combo_MMOptionGroupName(uint8_t group) {
+    // SoH's own section names, spelled as settings.cpp spells them (#1101).
     switch ((ComboMMOptionGroup)group) {
         case COMBO_MM_GROUP_LOGIC:
-            return "Logic & Conditions";
-        case COMBO_MM_GROUP_SHUFFLE:
-            return "Shuffle Options";
-        case COMBO_MM_GROUP_ITEMS:
-            return "Items";
-        case COMBO_MM_GROUP_STARTING:
-            return "Starting Items";
+            return "Logic";
+        case COMBO_MM_GROUP_WIN_CONDITION:
+            return "Win Condition";
+        case COMBO_MM_GROUP_AREA_ACCESS:
+            return "Area Access";
+        case COMBO_MM_GROUP_SHUFFLE_ITEMS:
+            return "Shuffle Items";
+        case COMBO_MM_GROUP_SHUFFLE_SHOPS:
+            return "Shuffle Shops & Merchants";
+        case COMBO_MM_GROUP_ADDITIONAL_ITEMS:
+            return "Additional Items";
+        case COMBO_MM_GROUP_TRAPS:
+            return "Traps";
         case COMBO_MM_GROUP_HINTS:
             return "Hints";
+        case COMBO_MM_GROUP_STARTING:
+            return "Starting Items";
         default:
             // Visible placeholder rather than NULL: every caller here is a
             // printf-family or ImGui text call, and a NULL would be an invalid
@@ -161,6 +170,78 @@ void Combo_MMOptionClear(const ComboMMOptionDesc* desc) {
     }
     // Clearing is a write too (see the header): it changes the resolved value
     // and the logic pin's explicitness, both folded into the frozen identity.
+    if (Combo_MMProfileFrozen()) {
+        fprintf(stderr,
+                "[MMOptions] clear of '%s' REJECTED: the MM profile is frozen into the paired world's "
+                "creation identity (digest %08X)\n",
+                desc->cvar, (unsigned)gComboCtx.mmProfileDigest);
+        return;
+    }
+    CVarClear(desc->cvar);
+}
+
+// ---- the trap types (#1101 lane R4) -------------------------------------------
+
+static const ComboMMTrapTypeDesc* sTrapTypeTable = NULL;
+static int sTrapTypeCount = 0;
+
+void Combo_RegisterMMTrapTypeTable(const ComboMMTrapTypeDesc* table, int count) {
+    if (table == NULL && count == 0) {
+        sTrapTypeTable = NULL;
+        sTrapTypeCount = 0;
+        return;
+    }
+    if (table == NULL || count <= 0) {
+        fprintf(stderr, "[MMOptions] trap-type table registration rejected: empty table (%d entries)\n", count);
+        return;
+    }
+    if (sTrapTypeTable != NULL && (sTrapTypeTable != table || sTrapTypeCount != count)) {
+        fprintf(stderr, "[MMOptions] trap-type table re-registered (%d entries replace %d)\n", count, sTrapTypeCount);
+    }
+    sTrapTypeTable = table;
+    sTrapTypeCount = count;
+}
+
+int Combo_MMTrapTypeCount(void) {
+    return sTrapTypeCount;
+}
+
+const ComboMMTrapTypeDesc* Combo_MMTrapTypeAt(int index) {
+    if (sTrapTypeTable == NULL || index < 0 || index >= sTrapTypeCount) {
+        return NULL;
+    }
+    return &sTrapTypeTable[index];
+}
+
+bool Combo_MMTrapTypeGetValue(const ComboMMTrapTypeDesc* desc) {
+    if (desc == NULL || desc->cvar == NULL) {
+        return false;
+    }
+    return CVarGetInteger(desc->cvar, 0) != 0;
+}
+
+bool Combo_MMTrapTypeSetValue(const ComboMMTrapTypeDesc* desc, bool on) {
+    if (desc == NULL || desc->cvar == NULL) {
+        return false;
+    }
+    // The set is folded into mmProfileDigest and frozen into the save
+    // (randoSaveTrapTypes, #1047): once stamped it is world identity, as the
+    // options are, so the gate is the option writer's.
+    if (Combo_MMProfileFrozen()) {
+        fprintf(stderr,
+                "[MMOptions] write to '%s' REJECTED: the MM profile is frozen into the paired world's "
+                "creation identity (digest %08X)\n",
+                desc->cvar, (unsigned)gComboCtx.mmProfileDigest);
+        return false;
+    }
+    CVarSetInteger(desc->cvar, on ? 1 : 0);
+    return true;
+}
+
+void Combo_MMTrapTypeClear(const ComboMMTrapTypeDesc* desc) {
+    if (desc == NULL || desc->cvar == NULL) {
+        return;
+    }
     if (Combo_MMProfileFrozen()) {
         fprintf(stderr,
                 "[MMOptions] clear of '%s' REJECTED: the MM profile is frozen into the paired world's "

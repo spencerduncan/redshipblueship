@@ -6,7 +6,7 @@ extern "C" {
 #include "overlays/actors/ovl_En_Yb/z_en_yb.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void RegisterSkipKamaroTeachDance() {
@@ -15,6 +15,9 @@ void RegisterSkipKamaroTeachDance() {
      * that timer to 0.
      */
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         // Cutscene 41 in Termina Field is the Kamaro dance scene.
         if (MM_gPlayState->sceneId == SCENE_00KEIKOKU) {
             s16* csId = va_arg(args, s16*);

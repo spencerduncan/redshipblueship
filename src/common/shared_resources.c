@@ -20,6 +20,7 @@
 // game-header-free too, so this TU stays compilable in the ROM-free harness.
 #include "foreign_items.h"
 #include "triforce_hunt.h" // Combo_TriforceHuntArmed: the O10 kind's arming gate
+#include "shared_items.h"  // #1061: a pack's kind and size, from the item class owner
 #include <stdio.h>
 #include <string.h>
 
@@ -80,6 +81,9 @@ static bool IsMonotonicKind(uint8_t kind) {
         // #886: the Kokiri Sword, 0/1. A sword lost in MM (Takkuri) must not take
         // OoT's away: max-merge keeps the 1.
         case RSBS_SHARED_RES_KOKIRI_SWORD:
+        // #970: the bottle count. Bottles are never lost, but a rewound or stale
+        // save can harvest fewer than the pair holds; max-merge keeps the count.
+        case RSBS_SHARED_RES_BOTTLE_COUNT:
             return true;
         default:
             // The spent quantities — rupees, current health, current magic, and
@@ -237,6 +241,12 @@ bool Combo_SharedResourceKindArmed(uint8_t kind) {
     if (kind == (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD) {
         return Combo_ComboSharedKokiriSword();
     }
+    // #970: the Shared Bottles rule, read from the FROZEN item rules record.
+    // Off (the default), neither game's bottles are harvested or applied and a
+    // world has no slot of this kind.
+    if (kind == (uint8_t)RSBS_SHARED_RES_BOTTLE_COUNT) {
+        return Combo_ComboCrossItemRule((uint32_t)RSBS_XITEM_SHARED_BOTTLES);
+    }
     return true;
 }
 
@@ -363,6 +373,51 @@ bool Combo_ApplySharedResource(GameId game, uint8_t kind, uint16_t cap, uint16_t
     return true;
 }
 
+bool Combo_SharedResourceCreditsAtPickup(uint8_t kind) {
+    // #1061: the one counted kind whose packs cross (see the header). A positive
+    // allowlist: a kind credited here must have its pack sizes published by both
+    // games' item class sources, and today only the bombchu rows do.
+    return kind == (uint8_t)RSBS_SHARED_RES_BOMBCHU_COUNT;
+}
+
+bool Combo_SharedPickupCreditOf(SharedItem item, uint8_t* outKind, uint16_t* outUnits) {
+    const uint8_t kind = Combo_ItemClassSharedKind(item);
+    if (!Combo_SharedResourceCreditsAtPickup(kind)) {
+        return false;
+    }
+    const uint8_t units = Combo_ItemClassSharedUnits(item);
+    if (units == 0u) {
+        return false;
+    }
+    if (outKind != NULL) {
+        *outKind = kind;
+    }
+    if (outUnits != NULL) {
+        *outUnits = (uint16_t)units;
+    }
+    return true;
+}
+
+bool Combo_CreditSharedResource(uint8_t kind, uint16_t amount) {
+    // Consumable only, by construction: the allowlist holds no monotonic kind,
+    // and a capacity tier is never "added to".
+    if (!IsRealKind(kind) || amount == 0u || !Combo_SharedResourceCreditsAtPickup(kind) || IsMonotonicKind(kind)) {
+        return false;
+    }
+    // The same arming gate as both halves above, so a disarmed kind grows no slot.
+    if (!Combo_SharedResourceKindArmed(kind)) {
+        return false;
+    }
+    const int slot = FindOrCreateSlot(kind);
+    if (slot < 0) {
+        return false;
+    }
+    ComboSharedResource* entry = SlotAt(slot);
+    const uint32_t next = (uint32_t)entry->value + (uint32_t)amount;
+    entry->value = (uint16_t)(next > 0xFFFFu ? 0xFFFFu : next);
+    return true;
+}
+
 bool Combo_GetSharedResource(uint8_t kind, uint16_t* outValue) {
     if (!IsRealKind(kind) || outValue == NULL) {
         return false;
@@ -387,4 +442,198 @@ int Combo_CountSharedResources(void) {
 
 void Combo_ResetSharedResourceWatermarks(void) {
     memset(sWatermarks, 0, sizeof(sWatermarks));
+}
+
+// ============================================================================
+// SHARED FAMILIES, the OR discipline (#976). See shared_resources.h.
+// ============================================================================
+
+/** One registered native copy per (game, family bit). RAM only: a registration
+ *  is a property of this build's code, not of the saved world. */
+static ComboSharedFamilyMember sFamilyMembers[3][RSBS_XITEM_BIT_COUNT];
+static bool sFamilyMemberSet[3][RSBS_XITEM_BIT_COUNT];
+
+/** The bit index of a single FAMILY SLOT (a family rule's own bit, or an extra
+ *  slot such as #1068's Mirror Shield), or -1 for anything else. */
+static int FamilyIndex(uint32_t familyBit) {
+    if (familyBit == 0u || (familyBit & (familyBit - 1u)) != 0u ||
+        (familyBit & (uint32_t)RSBS_XFAMILY_SLOTS_ALL) == 0u) {
+        return -1;
+    }
+    for (int b = 0; b < (int)RSBS_XITEM_BIT_COUNT; ++b) {
+        if (familyBit == (1u << b)) {
+            return b;
+        }
+    }
+    return -1;
+}
+
+bool Combo_RegisterSharedFamilyMember(GameId game, uint32_t familyBit, const ComboSharedFamilyMember* member) {
+    const int b = FamilyIndex(familyBit);
+    if (!IsRealGame(game) || b < 0) {
+        return false;
+    }
+    if (member == NULL) {
+        sFamilyMemberSet[game][b] = false;
+        memset(&sFamilyMembers[game][b], 0, sizeof(sFamilyMembers[game][b]));
+        return true;
+    }
+    if (member->held == NULL || member->give == NULL) {
+        return false;
+    }
+    sFamilyMembers[game][b] = *member;
+    sFamilyMemberSet[game][b] = true;
+    return true;
+}
+
+bool Combo_SharedFamilyMemberId(GameId game, uint32_t familyBit, uint16_t* outId) {
+    const int b = FamilyIndex(familyBit);
+    if (!IsRealGame(game) || b < 0 || !sFamilyMemberSet[game][b]) {
+        return false;
+    }
+    if (outId != NULL) {
+        *outId = sFamilyMembers[game][b].nativeId;
+    }
+    return true;
+}
+
+bool Combo_SharedFamilyMemberGet(GameId game, uint32_t familyBit, ComboSharedFamilyMember* out) {
+    const int b = FamilyIndex(familyBit);
+    if (!IsRealGame(game) || b < 0 || !sFamilyMemberSet[game][b]) {
+        return false;
+    }
+    if (out != NULL) {
+        *out = sFamilyMembers[game][b];
+    }
+    return true;
+}
+
+bool Combo_SharedFamilyMemberPooled(GameId game, uint32_t familyBit) {
+    const int b = FamilyIndex(familyBit);
+    if (!IsRealGame(game) || b < 0 || !sFamilyMemberSet[game][b]) {
+        return false;
+    }
+    const ComboSharedFamilyMember* m = &sFamilyMembers[game][b];
+    return m->pooled == NULL || m->pooled(m->nativeId);
+}
+
+void Combo_ClearSharedFamilyMembers(void) {
+    memset(sFamilyMembers, 0, sizeof(sFamilyMembers));
+    memset(sFamilyMemberSet, 0, sizeof(sFamilyMemberSet));
+}
+
+uint32_t Combo_SharedFamilySlotsArmedBy(uint32_t crossItemFlags) {
+    uint32_t slots = crossItemFlags & (uint32_t)RSBS_XITEM_FAMILY_MASK;
+    // A rule with more than one pair arms its extra slots with its own bit
+    // (#1068: the shields rule's second pair, the two Mirror Shields).
+    if ((crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_SHIELDS) != 0u) {
+        slots |= (uint32_t)RSBS_XFAMILY_SLOT_MIRROR_SHIELD;
+    }
+    // #1067: the shared ocarina buttons' four C-button pairs.
+    if ((crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u) {
+        slots |= (uint32_t)(RSBS_XFAMILY_SLOT_OCARINA_C_UP | RSBS_XFAMILY_SLOT_OCARINA_C_DOWN |
+                            RSBS_XFAMILY_SLOT_OCARINA_C_LEFT | RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT);
+    }
+    return slots;
+}
+
+const char* Combo_SharedFamilySlotName(uint32_t slot) {
+    if (slot == (uint32_t)RSBS_XFAMILY_SLOT_MIRROR_SHIELD) {
+        return "sharedShields (Mirror Shield)";
+    }
+    // An extra slot at an extension rule's bit names its pair, not that rule.
+    switch (slot) {
+        case RSBS_XFAMILY_SLOT_OCARINA_C_UP:
+            return "sharedOcarinaButtons (C-Up)";
+        case RSBS_XFAMILY_SLOT_OCARINA_C_DOWN:
+            return "sharedOcarinaButtons (C-Down)";
+        case RSBS_XFAMILY_SLOT_OCARINA_C_LEFT:
+            return "sharedOcarinaButtons (C-Left)";
+        case RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT:
+            return "sharedOcarinaButtons (C-Right)";
+        case RSBS_XITEM_SHARED_OCARINA_BUTTONS:
+            return "sharedOcarinaButtons (A)";
+        default:
+            break;
+    }
+    return Combo_ComboItemRuleName(slot);
+}
+
+uint32_t Combo_SharedFamiliesArmed(void) {
+    // The FROZEN record only, as every arming gate in this file: before a world
+    // exists there is nothing to share, and after it the rules are identity.
+    return Combo_SharedFamilySlotsArmedBy(Combo_ComboCrossItemFlags());
+}
+
+uint32_t Combo_SharedFamiliesOwned(void) {
+    return gComboCtx.sharedFamilyOwned;
+}
+
+uint32_t Combo_SharedFamiliesHarvest(GameId game, uint32_t heldBits) {
+    if (!IsRealGame(game)) {
+        return gComboCtx.sharedFamilyOwned;
+    }
+    // OR, never assign: a family the departing game no longer holds keeps its
+    // bit, so the other game's copy is never taken away.
+    gComboCtx.sharedFamilyOwned |= heldBits & Combo_SharedFamiliesArmed();
+    return gComboCtx.sharedFamilyOwned;
+}
+
+uint32_t Combo_SharedFamiliesOwed(GameId game, uint32_t heldBits) {
+    if (!IsRealGame(game)) {
+        return 0u;
+    }
+    return gComboCtx.sharedFamilyOwned & Combo_SharedFamiliesArmed() & ~heldBits;
+}
+
+/** The families @p game's registered members say its live save holds, armed
+ *  families only (a disarmed family's callback is never called). */
+static uint32_t FamiliesHeldLive(GameId game, uint32_t armed) {
+    uint32_t held = 0u;
+    for (int b = 0; b < (int)RSBS_XITEM_BIT_COUNT; ++b) {
+        const uint32_t bit = 1u << b;
+        if ((armed & bit) == 0u || !sFamilyMemberSet[game][b]) {
+            continue;
+        }
+        const ComboSharedFamilyMember* m = &sFamilyMembers[game][b];
+        if (m->held(m->nativeId)) {
+            held |= bit;
+        }
+    }
+    return held;
+}
+
+uint32_t Combo_SharedFamiliesHarvestLive(GameId game) {
+    if (!IsRealGame(game)) {
+        return gComboCtx.sharedFamilyOwned;
+    }
+    const uint32_t armed = Combo_SharedFamiliesArmed();
+    if (armed == 0u) {
+        return gComboCtx.sharedFamilyOwned; // the default world: no callback runs
+    }
+    return Combo_SharedFamiliesHarvest(game, FamiliesHeldLive(game, armed));
+}
+
+int Combo_SharedFamiliesApplyLive(GameId game) {
+    if (!IsRealGame(game)) {
+        return 0;
+    }
+    const uint32_t armed = Combo_SharedFamiliesArmed();
+    if (armed == 0u || gComboCtx.sharedFamilyOwned == 0u) {
+        return 0;
+    }
+    const uint32_t owed = Combo_SharedFamiliesOwed(game, FamiliesHeldLive(game, armed));
+    int given = 0;
+    for (int b = 0; b < (int)RSBS_XITEM_BIT_COUNT; ++b) {
+        const uint32_t bit = 1u << b;
+        if ((owed & bit) == 0u || !sFamilyMemberSet[game][b]) {
+            continue;
+        }
+        const ComboSharedFamilyMember* m = &sFamilyMembers[game][b];
+        m->give(m->nativeId);
+        given++;
+        fprintf(stderr, "[combo] shared family %s: %s given its own copy (id %u) at arrival\n",
+                Combo_SharedFamilySlotName(bit), Game_ToString(game), (unsigned)m->nativeId);
+    }
+    return given;
 }

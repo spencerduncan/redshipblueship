@@ -43,11 +43,14 @@
  * WHERE THE ROWS LIVE NOW (#497 step 6). They were registered by
  * `SohGui::AddCrossGameWidgets` into `Randomizer → Cross-Game`, a page that said
  * in-tree it was the interim host until the tier-4 Combo section existed. That
- * section exists, so this lock follows them: the rows are now
- * `Combo → Cross-Game Rules`, registered by `SohMenu::AddMenuCombo()`. The old
- * page survives with a pointer row, and `MenuComboSection` owns the section's
- * shape (both pages, the pointer row, the extension point); this row still owns
- * the seam between the model and the rows, which is unchanged by the move.
+ * section exists, so this lock followed them to `Combo → Cross-Game Rules`,
+ * registered by `SohMenu::AddMenuCombo()`. #1101 (operator ruling 2026-10-21,
+ * option C) moved them back under SoH's Randomizer header as
+ * `Randomizer → Cross-Game`, the one randomizer menu for both games, registered
+ * by `SohGui::AddComboRandomizerPages()` (our slice of `AddMenuRandomizer()`),
+ * and this lock follows them again. `MenuComboSection` owns the headers' shape
+ * (which pages, in which order, the persisted selection); this row still owns
+ * the seam between the model and the rows, which no move changed.
  *
  * HOW IT OBSERVES. It builds a real SohMenu headless and calls the REAL
  * production entry point, `AddMenuCombo()` — not a test-only registrar. That is
@@ -210,6 +213,15 @@ int StagedBool(WidgetInfo& row) {
     return p != nullptr ? (*p ? 1 : 0) : -1;
 }
 
+/** #1065: the Shared Lens of Truth row, found by its NAME TEXT (the marker and
+ *  the rule's label) so the lock compiles, and goes red, on a tree that has no
+ *  such row yet; and its rule bit (RSBS_XITEM_SHARED_LENS). */
+const char* const kLensLabel = "Shared Lens of Truth";
+const uint32_t kLensBit = 0x00200000u;
+std::string LensRowName() {
+    return std::string(Combo_ComboSettingSharedMarker()) + " " + kLensLabel;
+}
+
 /**
  * The disabled tooltip a frozen row must show: MenuDrawItem's disabled shape
  * ("This setting is disabled because: \n" then "\n- Reason", Menu.cpp) around
@@ -281,29 +293,33 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         Combo_ComboSettingClear((ComboSettingId)i);
     }
 
-    // The REAL production entry point, not a test-only registrar: AddMenuCombo()
-    // creates the "Combo" header, both sidebars and every row, and nothing in it
-    // reaches Rando::Settings. So the page layout under test is the one a player
-    // gets, including which column each row lands in -- the scope the interim
-    // host's lock had to give up.
+    // The REAL production entry points, not test-only registrars:
+    // AddComboRandomizerPages() is the slice of AddMenuRandomizer() that creates
+    // our Randomizer pages (the rules among them), and AddMenuCombo() the "Combo"
+    // header; neither reaches Rando::Settings. So the page layout under test is
+    // the one a player gets, including which column each row lands in.
     ComboRulesMenuProbe probe;
+    probe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
+    WidgetPath randoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
+    SohGui::AddComboRandomizerPages(probe, randoPath);
     probe.AddMenuCombo();
 
     // ---- Leg 1: the section and the two rows exist ----------------------------
     auto& entries = probe.Entries();
-    if (!entries.contains("Combo")) {
-        printf("[TEST] FAIL(1): AddMenuCombo registered no \"Combo\" menu entry -- ADR 0004 §4's tier-4 section "
-               "(#497 step 6) is gone or was renamed\n");
+    if (!entries.contains("Combo") || !entries.contains("Randomizer")) {
+        printf("[TEST] FAIL(1): the probe has no \"Randomizer\" and/or \"Combo\" menu entry\n");
+        return 1;
+    }
+    auto& randoSidebars = entries.at("Randomizer").sidebars;
+    if (!randoSidebars.contains("Cross-Game") || randoSidebars.at("Cross-Game").columnWidgets.empty() ||
+        randoSidebars.at("Cross-Game").columnWidgets.at(0).empty()) {
+        printf("[TEST] FAIL(1): the \"Randomizer\" menu has no \"Cross-Game\" page with rows -- the host for the "
+               "tier-4 combo rules under the one randomizer menu (operator ruling 2026-10-21)\n");
         return 1;
     }
     auto& sidebars = entries.at("Combo").sidebars;
-    if (!sidebars.contains("Cross-Game Rules")) {
-        printf("[TEST] FAIL(1): the \"Combo\" menu has no \"Cross-Game Rules\" sidebar page -- the host for the "
-               "tier-4 combo rules (#509/#655, moved by #497 step 6) is gone or was renamed\n");
-        return 1;
-    }
-    const SidebarEntry& page = sidebars.at("Cross-Game Rules");
-    auto& columns = sidebars.at("Cross-Game Rules").columnWidgets;
+    const SidebarEntry& page = randoSidebars.at("Cross-Game");
+    auto& columns = randoSidebars.at("Cross-Game").columnWidgets;
     if (columns.empty()) {
         printf("[TEST] FAIL(1): the Cross-Game Rules page has no widget columns\n");
         return 1;
@@ -338,6 +354,29 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     const ExpectedRow kExpected[] = {
         { COMBO_SETTING_DIRECTION, WIDGET_COMBOBOX, "" },
         { COMBO_SETTING_SHARED_KOKIRI_SWORD, WIDGET_CHECKBOX, "" },
+        // #1068's Shared Shields: a checkbox over a bit of the item rules record.
+        { COMBO_SETTING_SHARED_SHIELDS, WIDGET_CHECKBOX, "" },
+        // #1065: the Shared Lens of Truth, the sword's shape over an item rule.
+        { COMBO_SETTING_SHARED_LENS, WIDGET_CHECKBOX, "" },
+        // #1066: the two shared songs, the lens's shape.
+        { COMBO_SETTING_SHARED_SONG_EPONA, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_SONG_STORMS, WIDGET_CHECKBOX, "" },
+        // #1067's Shared Ocarina Buttons: the same shape.
+        { COMBO_SETTING_SHARED_OCARINA_BUTTONS, WIDGET_CHECKBOX, "" },
+        // #1069: the Shared Song of Time, the lens's shape.
+        { COMBO_SETTING_SHARED_SONG_TIME, WIDGET_CHECKBOX, "" },
+        // #968: the three shared arrows, the lens's shape.
+        { COMBO_SETTING_SHARED_ARROW_FIRE, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_ARROW_ICE, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_ARROW_LIGHT, WIDGET_CHECKBOX, "" },
+        // #970's Shared Bottles: the same shape.
+        { COMBO_SETTING_SHARED_BOTTLES, WIDGET_CHECKBOX, "" },
+        // #978: the five shared masks, the lens's shape.
+        { COMBO_SETTING_SHARED_MASK_GORON, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_ZORA, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_BUNNY, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_KEATON, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_TRUTH, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -379,7 +418,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] combo-settings-rows: %d failure(s) in leg 1; the later legs need the rows\n", gFailures);
         return gFailures;
     }
-    printf("[TEST] leg 1: all three tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
+    printf("[TEST] leg 1: all three tier-4 settings are rows in Randomizer / Cross-Game, each marked '%s'\n",
            Combo_ComboSettingSharedMarker());
 
     // ---- Leg 1b: the goal row offers exactly OoTMM's goals, in its words ----
@@ -500,13 +539,20 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // only effect was to carry that free instrument back to Hyrule. Operator
     // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
-    // fix removes. The page's one checkbox is #886's Shared Kokiri Sword.
+    // fix removes. The page's sixteen checkboxes are #886's Shared Kokiri Sword,
+    // #1068's Shared Shields, #1065's Shared Lens of Truth, #1066's two shared
+    // songs, #1067's Shared Ocarina Buttons, #1069's Shared Song of Time,
+    // #968's three shared arrows, #970's Shared Bottles and #978's five shared
+    // masks. #1067's "Shared Ocarina Buttons" is a different rule
+    // (the five ocarina buttons, not the instrument), so its name is not the
+    // retired row's: the match excludes it explicitly.
     {
         int ocarinaRows = 0;
         int checkboxes = 0;
         for (PageRow& pageRow : rows) {
             const std::string& name = pageRow.first->name;
-            const bool retired = name.find("Shared Ocarina") != std::string::npos;
+            const bool retired = name.find("Shared Ocarina") != std::string::npos &&
+                                 name.find("Shared Ocarina Buttons") == std::string::npos;
             ROWS_CHECK(!retired,
                        "the Cross-Game Rules page still offers the retired row '%s' (#879): MM already starts with "
                        "its ocarina, so the rule only hands OoT a free one",
@@ -514,13 +560,87 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 1,
-                   "the Cross-Game Rules page has %d checkbox row(s); the one expected is the Shared Kokiri Sword "
-                   "(#886), after #879 retired the Shared Ocarina",
+        ROWS_CHECK(checkboxes == 16,
+                   "the Cross-Game Rules page has %d checkbox row(s); the sixteen expected are the Shared Kokiri Sword "
+                   "(#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song and "
+                   "Shared Song of Storms (#1066), the Shared Ocarina Buttons (#1067), the Shared Song of Time "
+                   "(#1069), Shared Fire, Ice and Light Arrows (#968), the Shared Bottles (#970) and the Shared Goron, "
+                   "Zora, Keaton and Truth masks and Bunny Hood (#978), after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 1 "
-               "(#879, #886)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 16 "
+               "(#879, #886, #1068, #1065, #1066, #1067, #1069, #968, #970, #978)\n",
                ocarinaRows, checkboxes);
+    }
+
+    // ---- Leg 1f: OoTMM's sections, in OoTMM's order (#1101, option C) -------
+    // The page reads as OoTMM's Settings do: "Win Condition" over the Goal,
+    // "Item Crossing" over the Crossing Direction, then OoTMM's own section name,
+    // "Shared Items", over every Shared <Item> rule, and the rules in the order
+    // OoTMM's settings list them (packages/core/src/settings/data.ts). The ranks
+    // are by LABEL, spelled here, and cover the rules in flight too: a name the
+    // page does not hold yet is skipped, so each rule lands in its place as it
+    // merges and this leg pins it there.
+    {
+        static const char* const kOotmmSharedOrder[] = {
+            "Shared Fire Arrows",    "Shared Ice Arrows",   "Shared Light Arrows",    "Shared Epona's Song",
+            "Shared Song of Storms", "Shared Song of Time", "Shared Lens of Truth",   "Shared Goron Mask",
+            "Shared Zora Mask",      "Shared Bunny Hood",   "Shared Keaton Mask",     "Shared Mask of Truth",
+            "Shared Kokiri Sword",   "Shared Shields",      "Shared Ocarina Buttons", "Shared Bottles",
+        };
+        const int ranks = (int)(sizeof(kOotmmSharedOrder) / sizeof(kOotmmSharedOrder[0]));
+        const std::string marker = std::string(Combo_ComboSettingSharedMarker()) + " ";
+        auto rankOf = [&](const std::string& name) {
+            for (int r = 0; r < ranks; r++) {
+                if (name == marker + kOotmmSharedOrder[r]) {
+                    return r;
+                }
+            }
+            return -1;
+        };
+        std::vector<std::string> separators;
+        std::string section;
+        int lastRank = -1;
+        std::string lastName;
+        int sharedRows = 0;
+        for (PageRow& pageRow : rows) {
+            const WidgetInfo& row = *pageRow.first;
+            if (row.type == WIDGET_SEPARATOR_TEXT) {
+                separators.push_back(row.name);
+                section = row.name;
+                continue;
+            }
+            if (row.name == RowName(COMBO_SETTING_GOAL)) {
+                ROWS_CHECK(section == "Win Condition", "the Goal row sits under '%s', expected \"Win Condition\"",
+                           section.c_str());
+            } else if (row.name == RowName(COMBO_SETTING_DIRECTION)) {
+                ROWS_CHECK(section == "Item Crossing",
+                           "the Crossing Direction row sits under '%s', expected \"Item Crossing\"", section.c_str());
+            } else if (row.type == WIDGET_CHECKBOX) {
+                sharedRows++;
+                ROWS_CHECK(section == "Shared Items", "the rule '%s' sits under '%s', expected \"Shared Items\"",
+                           row.name.c_str(), section.c_str());
+                const int rank = rankOf(row.name);
+                ROWS_CHECK(rank >= 0, "the rule '%s' has no place in OoTMM's order; add it to this leg's table",
+                           row.name.c_str());
+                ROWS_CHECK(rank > lastRank, "the rule '%s' comes after '%s'; OoTMM lists it first", row.name.c_str(),
+                           lastName.c_str());
+                if (rank > lastRank) {
+                    lastRank = rank;
+                    lastName = row.name;
+                }
+            }
+        }
+        const std::vector<std::string> kSections = { "Win Condition", "Item Crossing", "Shared Items" };
+        std::string got;
+        for (const std::string& s : separators) {
+            got += (got.empty() ? "" : ", ") + s;
+        }
+        ROWS_CHECK(separators == kSections,
+                   "the page's sections read [%s]; OoTMM's are Win Condition, Item Crossing, Shared Items",
+                   got.c_str());
+        printf("[TEST] leg 1f: the page's sections are [%s] and its %d shared rule(s) sit under Shared Items in "
+               "OoTMM's order\n",
+               got.c_str(), sharedRows);
     }
 
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
@@ -559,6 +679,24 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the writer refused a pre-creation goal");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1,
                "the writer refused a pre-creation Shared Kokiri Sword");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1,
+               "the writer refused a pre-creation Shared Shields");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, 1) == 1,
+               "the writer refused a pre-creation Shared Ocarina Buttons");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, 1) == 1,
+               "the writer refused a pre-creation Shared Bottles");
+    // #1065: the lens is authored ON through its own row's Callback (the row's
+    // only write path), so the PreFunc below must stage what the writer kept.
+    WidgetInfo* lensRow = FindRow(rows, LensRowName());
+    ROWS_CHECK(lensRow != nullptr && lensRow->type == WIDGET_CHECKBOX && lensRow->callback != nullptr,
+               "no Cross-Game Rules checkbox named '%s' with a Callback (#1065)", LensRowName().c_str());
+    if (lensRow != nullptr && (lensRow->type != WIDGET_CHECKBOX || lensRow->callback == nullptr)) {
+        lensRow = nullptr;
+    }
+    if (lensRow != nullptr) {
+        *std::get<bool*>(lensRow->valuePointer) = true;
+        lensRow->callback(*lensRow);
+    }
 
     RunAllPreFuncs(rows);
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() == nullptr, "the model reports a read-only reason before creation");
@@ -578,6 +716,22 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]) == 1,
                "the Shared Kokiri Sword row staged %d, expected the authored 1",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]));
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]) == 1,
+               "the Shared Shields row staged %d, expected the authored 1",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]));
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]) == 1,
+               "the Shared Ocarina Buttons row staged %d, expected the authored 1",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]));
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]) == 1,
+               "the Shared Bottles row staged %d, expected the authored 1",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]));
+    if (lensRow != nullptr) {
+        ROWS_CHECK(!lensRow->options->disabled, "the Shared Lens of Truth row is disabled before the creation event");
+        ROWS_CHECK(StagedBool(*lensRow) == 1,
+                   "the Shared Lens of Truth row staged %d after its own Callback authored ON; the edit did not reach "
+                   "the resolver",
+                   StagedBool(*lensRow));
+    }
     printf("[TEST] leg 3: before the creation event every row is editable and stages the resolver's value\n");
 
     // ---- Leg 4: a pre-creation edit reaches the store through the model -----
@@ -640,6 +794,28 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the frozen Shared Kokiri Sword row staged %d; it must show the SAVE's OFF, not the CVar's ON -- the "
                "world was built with two swords and a row that showed otherwise would be lying about it",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]));
+    // #1068: the frozen ITEM RULES record (every rule off here) against the
+    // authored ON key.
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_SHIELDS], "the Shared Shields row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]) == 0,
+               "the frozen Shared Shields row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]));
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS], "the Shared Ocarina Buttons row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]) == 0,
+               "the frozen Shared Ocarina Buttons row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_OCARINA_BUTTONS]));
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_BOTTLES], "the Shared Bottles row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]) == 0,
+               "the frozen Shared Bottles row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]));
+    // #1065: the frozen ITEM RULES record (every rule off: the freeze above
+    // passed none) against the authored ON key.
+    if (lensRow != nullptr) {
+        ExpectDecided(*lensRow, "the Shared Lens of Truth row");
+        ROWS_CHECK(StagedBool(*lensRow) == 0,
+                   "the frozen Shared Lens of Truth row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+                   StagedBool(*lensRow));
+    }
     printf("[TEST] leg 5: once frozen every row is read-only with the model's reason and shows the save's record\n");
 
     // ---- Leg 6: a frozen row's Callback cannot move the store ---------------
@@ -704,6 +880,20 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                    "after a refused toggle the Shared Kokiri Sword row staged %d; the next frame must restore the "
                    "save's OFF",
                    StagedBool(swordRow));
+
+        // And the lens (#1065): a toggle on a decided world's row must move
+        // neither the frozen item rules nor, after the next PreFunc, the row.
+        if (lensRow != nullptr) {
+            *std::get<bool*>(lensRow->valuePointer) = true;
+            lensRow->callback(*lensRow);
+            ROWS_CHECK(!Combo_ComboCrossItemRule(kLensBit),
+                       "a post-creation toggle changed the world's lens rule; the frozen record is the authority");
+            RunPreFunc(*lensRow);
+            ROWS_CHECK(StagedBool(*lensRow) == 0,
+                       "after a refused toggle the Shared Lens of Truth row staged %d; the next frame must restore "
+                       "the save's OFF",
+                       StagedBool(*lensRow));
+        }
     }
 
     // ---- Leg 7: an unknown direction cannot take the process down ----------
@@ -815,10 +1005,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // Unfrozen and unpaired: the ordinary pre-creation state.
         ComboContext_Init();
         RunPreFunc(*statusRow);
-        ROWS_CHECK(statusRow->name.find("apply to the next paired world") != std::string::npos &&
-                       statusRow->name.find("Loading a paired file restores its own rules") != std::string::npos,
-                   "the pre-creation status line does not say these author the next world and that a load restores "
-                   "a file's own rules (#781): '%s'",
+        // The one status sentence every randomizer page of ours shares (#1101
+        // decision 7): these author the next world, a load shows its own (#781).
+        ROWS_CHECK(statusRow->name ==
+                       "These apply to the next world you generate. Loading a paired file shows its own.",
+                   "the pre-creation status line is not the shared sentence that these author the next world and "
+                   "that a load shows a file's own rules (#781): '%s'",
                    statusRow->name.c_str());
     }
 
@@ -831,7 +1023,22 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ComboContext_Init();
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_EPONA, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_TIME, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_FIRE, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_ICE, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_LIGHT, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_GORON, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_ZORA, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BUNNY, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_KEATON, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),

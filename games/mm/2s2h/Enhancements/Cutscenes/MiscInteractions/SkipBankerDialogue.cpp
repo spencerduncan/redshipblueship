@@ -7,7 +7,7 @@ extern "C" {
 #include "overlays/actors/ovl_En_Ginko_Man/z_en_ginko_man.h"
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipMiscInteractions"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipMiscInteractions"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 int16_t choiceIndex = 0;
@@ -24,6 +24,9 @@ void RegisterSkipBankerDialogue() {
     });
 
     COND_VB_SHOULD(VB_CONTINUE_BANKER_DIALOGUE, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnGinkoMan* enGinkoMan = va_arg(args, EnGinkoMan*);
 
         // Initial Banter

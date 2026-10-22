@@ -11,7 +11,7 @@ void MM_EnItem00_Draw(Actor* thisx, PlayState* play);
 void EnTanron5_ItemDrop_Draw(Actor* thisx, PlayState* play);
 }
 
-#define CVAR_NAME "gEnhancements.Graphics.3DItemDrops"
+#define CVAR_NAME "gEnhancements.NewDrops"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 bool ItemShouldSpinWhen3D(Actor* actor) {
@@ -238,6 +238,9 @@ void Register3DItemDrops() {
     });
 
     COND_VB_SHOULD(VB_DRAW_SLIME_BODY_ITEM, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Actor* actor = va_arg(args, Actor*);
         DrawSlime3DItem(actor, should);
     });

@@ -24,6 +24,8 @@ ConfigVersion7Updater::ConfigVersion7Updater() : ConfigVersionUpdater(7) {
 }
 ConfigVersion8Updater::ConfigVersion8Updater() : ConfigVersionUpdater(8) {
 }
+ConfigVersion9Updater::ConfigVersion9Updater() : ConfigVersionUpdater(9) {
+}
 
 void ConfigVersion1Updater::Update(Ship::Config* conf) {
     if (conf->GetInt("Window.Width", 640) == 640) {
@@ -233,6 +235,30 @@ void ConfigVersion7Updater::Update(Ship::Config* conf) {
  */
 void ConfigVersion8Updater::Update(Ship::Config* conf) {
     for (Migration migration : version8Migrations) {
+        if (migration.action == MigrationAction::RenameIfAbsent) {
+            if (ShouldAdoptLegacyValue(CVarPresent(migration.from.c_str()),
+                                       CVarPresent(migration.to.value().c_str()))) {
+                CVarCopy(migration.from.c_str(), migration.to.value().c_str());
+            }
+        } else if (migration.action == MigrationAction::Rename) {
+            CVarCopy(migration.from.c_str(), migration.to.value().c_str());
+        }
+        CVarClear(migration.from.c_str());
+    }
+}
+
+// ============================================================================
+// Version 9 — the #966 key-name gaps (#1027-#1036, #1038)
+// ============================================================================
+
+/**
+ * 15 pure MM -> SoH renames for settings whose MM reader sat on a differently
+ * spelled twin of the key SoH's menu writes. Same shape and the same conflict
+ * rule as version 8: OoT's value wins, the MM spelling is cleared either way,
+ * so a re-run is a no-op and the migration cannot oscillate.
+ */
+void ConfigVersion9Updater::Update(Ship::Config* conf) {
+    for (Migration migration : version9Migrations) {
         if (migration.action == MigrationAction::RenameIfAbsent) {
             if (ShouldAdoptLegacyValue(CVarPresent(migration.from.c_str()),
                                        CVarPresent(migration.to.value().c_str()))) {

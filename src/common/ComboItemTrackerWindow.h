@@ -20,6 +20,13 @@
  * pause menu opens. Like SoH's overlay it has no close button: the Combo >
  * Windows row toggles it.
  *
+ * POSITION (#962). The floating overlay first appears at the left edge, just
+ * below the HUD's hearts and magic bar (ComboItemTrackerDefaultPos), not on
+ * them; a dragged position is kept (ImGui's saved window settings, as SoH's
+ * trackers keep theirs) and Combo > Tracker Settings > Move to Default Position
+ * returns it, also from an old saved position on the hearts. The Windows
+ * toggle's tooltip and the Enable Dragging row say how to move it.
+ *
  * ICONS (#458 U3). Each game's section is that game's own tracker: its icons
  * (OoT's keyed by texture name, MM's by resource path, both straight from the
  * adapters), laid out as that tracker lays them out (the adapter's
@@ -62,6 +69,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <ship/window/gui/GuiWindow.h>
 
@@ -158,6 +166,51 @@ bool ComboItemTrackerShows(int windowType, bool showOnlyPaused, bool paused);
  * mouse scroll or scrollbar, and, unless draggable, no inputs and no move.
  */
 int ComboItemTrackerWindowFlags(int windowType, bool draggable);
+
+/** A rectangle in game-view pixels (the decisions below keep ImGui out of the lock). */
+struct ComboItemTrackerRect {
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+};
+
+/**
+ * The HUD's top-left band in a game view of `viewW` x `viewH` pixels at
+ * (`viewX`, `viewY`): the heart rows and the magic bar under them, which both
+ * games draw in the same place. The HUD is laid out on a 320x240 grid scaled to
+ * the view's height (hearts: first centre at (30, 26), 10 apart, ten to a row,
+ * two rows for 20 hearts, z_lifemeter.c; magic bar: top at y 42 at its lowest,
+ * 16 tall, so its bottom is y 58, z_construct.c and z_parameter.c; the rupee
+ * counter and key count sit at the bottom left, (26, 206)), so the band is 136
+ * grid units wide and 58 tall, from the view's left edge. Wider than the hearts
+ * themselves: it only needs to be a rect the overlay stays out of.
+ *
+ * Covered: a 4:3 or wider view, however far it is pillarboxed (the hearts shift
+ * right, never down, so the vertical separation holds). NOT covered: a view
+ * narrower than 4:3 that letterboxes the game top and bottom, where the grid's
+ * unit is the view's width, not its height, and the hearts may sit lower than the
+ * band; nor a HUD the player moved with the cosmetic HUD editor.
+ */
+ComboItemTrackerRect ComboItemTrackerHudBand(float viewX, float viewY, float viewW, float viewH);
+
+/**
+ * Where the floating overlay first appears (#962): at the left edge, just
+ * below the HUD band (ComboItemTrackerHudBand), in the free stretch above the
+ * rupee counter. The old default was ImGui's own (60, 60) for a new window,
+ * which is on the hearts at every size. Applied only when the window has no
+ * saved position (ImGuiCond_FirstUseEver) or the player presses Move to
+ * Default Position; a position the player dragged to is kept, as SoH's trackers keep
+ * theirs (ImGui's saved window settings).
+ */
+void ComboItemTrackerDefaultPos(float viewX, float viewY, float viewW, float viewH, float* outX, float* outY);
+
+/**
+ * Asks the floating overlay to go back to ComboItemTrackerDefaultPos on its
+ * next draw (the Combo > Tracker Settings Move to Default Position button). Takes effect
+ * once; draws nothing itself.
+ */
+void ComboItemTrackerResetPosition();
 
 /** A row as the overlay prints it: the name, then " count/max" when the row has
  *  a ceiling, else " count" when it has a count, else nothing more. A row
@@ -262,9 +315,46 @@ bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCou
 /**
  * Whether a section draws icons: some row's picked texture is loaded
  * (`hasImage`, the seam's HasImage). Otherwise it is U2's text grid, the
- * fallback while a game's icons are not loaded (MM's before MM's first boot).
+ * fallback while a game's icons are not loaded and cannot be (ComboItemTrackerLoadIcons).
  */
 bool ComboItemSectionDrawsIcons(const std::vector<ComboItemRow>& rows, bool (*hasImage)(const char*));
+
+/**
+ * Which keys a section's load already tried, for one stretch of the session. A
+ * key that could not be loaded is not asked again until the epoch changes: the
+ * archives a game can reach change only at a game switch, so the overlay passes
+ * the active game as the epoch and a miss costs one attempt per switch, not one
+ * per frame.
+ */
+struct ComboItemIconLoadMemo {
+    int epoch = -1;
+    std::unordered_set<std::string> missed;
+};
+
+/**
+ * Load the textures a section's rows name that are not loaded yet (#963). A
+ * game's icon textures are normally registered by that game's own init, and
+ * Majora's Mask's runs at its first boot, so before it the overlay's MM column
+ * had no icons to draw. A row key that is a resource path (ComboItemKeyIsPath)
+ * is loaded by that path through `loadImage` (the shared resource manager's
+ * archives), independent of any game's init; a texture name is a game's own
+ * and is left alone. `hasImage` says what is loaded, `loadImage` loads one key
+ * and says whether it is now loaded. Returns the number loaded by this call. A
+ * key that fails stays a text cell, and is not retried within `epoch`.
+ */
+int ComboItemTrackerLoadIcons(const std::vector<ComboItemRow>& rows, bool (*hasImage)(const char*),
+                              bool (*loadImage)(const char*), int epoch, ComboItemIconLoadMemo& memo);
+
+/** Is `key` a resource path ("__OTR__..."), the kind MM's icons are keyed by, and OoT's are not? */
+bool ComboItemKeyIsPath(const char* key);
+
+/**
+ * The production loader: load the Gui texture named `key` from the resource of
+ * that path in the mounted archives, if one is there and parses as a texture.
+ * Safe with no window, no Gui or no archive (false). True when the texture is
+ * loaded under `key` afterwards, including when it already was.
+ */
+bool ComboItemLoadIconByPath(const char* key);
 
 // ============================================================================
 // The fit

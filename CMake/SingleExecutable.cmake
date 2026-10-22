@@ -73,6 +73,9 @@ set(REDSHIP_COMMON_SOURCES
     # descriptor set covers RandoOptionId exactly.
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_tricks_view.c
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_page.c
+    # MM's excluded-check list for Randomizer > MM Locations (#1101 lane R3):
+    # the same seam a third time, over MM's check table.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_mm_locations_view.c
     # The combo_ui seam (UI parity M6): the table our common-owned panes draw
     # through, SoH's disabled-tooltip composer, the snapshot harness's rect
     # recorder, and the raw-ImGui fallback. SoH's implementation is
@@ -534,6 +537,11 @@ if(BUILD_TESTING)
     # the real init functions with and without the arrival flag (survive vs. still
     # clear). Pure -- no display -- so it runs in this redship tier.
     redship_add_test(NAME TrackerArrivalRehydration COMMAND redship --test tracker-arrival-rehydration)
+    # Arrival-recalc lock (#990): the same arrival restores the frozen save without Save_LoadFile, so
+    # nothing armed the Check Tracker's deferred Available Checks recalculation, and the apply + redeem
+    # run before OoT_gPlayState exists (every handler bails on IsSaveLoaded). Drives
+    # OoT_Play_ApplyArrivalShared (what OoT_Play_Init runs) and the option toggle. ROM-free.
+    redship_add_test(NAME TrackerArrivalRecalc COMMAND redship --test tracker-arrival-recalc)
     # Entrance-link dedup regression (#374): the default (mask shop) and test
     # (Mido's House) links both return through MM 0xC010, and both were
     # registered unconditionally. Entrance_CheckCrossGame resolves first-match,
@@ -594,6 +602,25 @@ if(BUILD_TESTING)
     # and nothing MM's fill counts. Authors a five-area world over MM's real
     # check table and reads the free stone's text (EnGs.cpp) for 512 stone seeds.
     redship_add_test(NAME MmFoolishStoneHint COMMAND redship --test mm-foolish-stone-hint)
+    # #1047: what MM decides while you play is a pure function of the frozen world.
+    # A free stone's seed was a float sum converted to uint32_t (undefined when
+    # negative, which 23 of MM's 58 stones are); a trap's type was rolled at pickup
+    # from the live gRando.Traps.* CVars and the running stream. Each row runs once
+    # here and twice, in two processes, in its *TwoProcesses row
+    # (CMake/CheckPureTwoRuns.cmake: the "[pure]" lines must match).
+    redship_add_test(NAME MmGossipStoneSeed COMMAND redship --test mm-gossip-stone-seed)
+    redship_add_test(NAME MmGossipStoneSeedTwoProcesses
+        COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-gossip-stone-seed
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
+    redship_add_test(NAME MmTrapRollFrozen COMMAND redship --test mm-trap-roll-frozen)
+    redship_add_test(NAME MmTrapRollFrozenTwoProcesses
+        COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-trap-roll-frozen
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
+    # #1060: SoH's "Skip Get Item Animations" decides MM's get-item presentation
+    # too. Every MM reader goes through Rando::StaticData::SkipGetItemCutsceneTier,
+    # which maps SoH Off/Junk Items/All Items onto MM's Never/Junk Items Only/Always
+    # and ignores MM's own key (whose widget and preset are not in the single exe).
+    redship_add_test(NAME MmGetItemPresentation COMMAND redship --test mm-get-item-presentation)
     # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
     # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
     # stone's real text and candidate filter (EnGs.cpp) over MM's real check
@@ -640,6 +667,75 @@ if(BUILD_TESTING)
     # either game's Kokiri Sword lights both through the real harvest/apply shims;
     # with it off, neither crosses and no slot appears. Display-free, ROM-free.
     redship_add_test(NAME SharedKokiriSword COMMAND redship --test shared-kokiri-sword)
+    # #970: the Shared Bottles rule. The key reaches the frozen record; with it on,
+    # the bottle count is one tier through both games' real harvest/apply shims
+    # (empty slots given, filled slots untouched, capped at OoT's four) and the
+    # fill keeps four of the pair's bottle items. ROM-free.
+    redship_add_test(NAME SharedBottlesRule COMMAND redship --test shared-bottles-rule)
+    redship_add_test(NAME SharedBottlesTier COMMAND redship --test shared-bottles-tier)
+    redship_add_test(NAME SharedBottlesTrim COMMAND redship --test shared-bottles-trim)
+    # #991/#992: one wallet progression. A wallet found in Termina is the pair's
+    # wallet, so OoT's arrival apply sets RAND_INF_HAS_WALLET at tier 1 or more
+    # (logic's capacity and the per-frame rupee pin then agree with the tier),
+    # and a wallet-less arrival leaves the shared rupee pool whole. OoT's real
+    # shims, ROM-free.
+    redship_add_test(NAME SharedWallet COMMAND redship --test shared-wallet)
+    # #1061: MM caps bombchus at its bomb bag (0 with none), and an MM bombchu pack
+    # found in Hyrule crossed into that capped give and was lost. A counted pack
+    # now credits the shared count at its pickup in either game (harvest, credit,
+    # re-apply) and an older save's crossing is credited at redemption. Both
+    # games' real shims and pickup cores, ROM-free.
+    redship_add_test(NAME SharedBombchuPickup COMMAND redship --test shared-bombchu-pickup)
+    # #976 (epic #975 P1): the cross-game item rules record (carve, fingerprint
+    # only when set, freeze, the load refusing a rule this build cannot honour)
+    # and the shared-family OR merge through both games' real shims. ROM-free.
+    redship_add_test(NAME CrossItemRulesRecord COMMAND redship --test cross-item-rules-record)
+    redship_add_test(NAME SharedFamilyMerge COMMAND redship --test shared-family-merge)
+    # #1068: the Shared Shields rule (OoTMM sharedShields) on that mechanism: the
+    # two pairs registered by both games and composed into one shared row each,
+    # and the arrival giving and wearing the shield in the other game. ROM-free.
+    redship_add_test(NAME SharedShieldsPairs COMMAND redship --test shared-shields-pairs)
+    redship_add_test(NAME SharedShieldsArrival COMMAND redship --test shared-shields-arrival)
+    # #1069: the Shared Song of Time rule (OoTMM sharedSongTime) on that
+    # mechanism: both games' Song of Time registered as one family and composed
+    # into one shared row, and the song learnt in one game known in the other at
+    # the arrival. ROM-free.
+    redship_add_test(NAME SharedSongOfTimePairs COMMAND redship --test shared-song-of-time-pairs)
+    redship_add_test(NAME SharedSongOfTimeArrival COMMAND redship --test shared-song-of-time-arrival)
+    # #1065: the Shared Lens of Truth, a family a player can turn on. Its
+    # bit, its Cross-Game Rules key (off by default, 0 or 1), the creation freezing
+    # it into the fingerprint, and a load restoring it into the key (CVar store,
+    # display-free bring-up); then both games' real lens registered as the family
+    # and carried by the real harvest/apply shims. ROM-free.
+    redship_add_test(NAME SharedLensRule COMMAND redship --test shared-lens-rule)
+    redship_add_test(NAME SharedLensMerge COMMAND redship --test shared-lens-merge)
+    # #1066: Shared Epona's Song and Shared Song of Storms, the lens's rows for two
+    # more families: both bits and keys (off by default, 0 or 1), the freeze, the
+    # fingerprint and the load restore; then both games' songs registered and
+    # carried by the real harvest/apply shims, each rule only its own song. ROM-free.
+    redship_add_test(NAME SharedSongsRule COMMAND redship --test shared-songs-rule)
+    redship_add_test(NAME SharedSongsMerge COMMAND redship --test shared-songs-merge)
+    # #1067: the Shared Ocarina Buttons rule (OoTMM sharedOcarinaButtons): five
+    # pairs behind one bit, registered by both games and composed into one shared
+    # row each, and a button found in one game owned in the other on arrival.
+    redship_add_test(NAME SharedOcarinaButtonsPairs COMMAND redship --test shared-ocarina-buttons-pairs)
+    redship_add_test(NAME SharedOcarinaButtonsArrival COMMAND redship --test shared-ocarina-buttons-arrival)
+    # #968: Shared Fire, Ice and Light Arrows, three more families on the lens's
+    # rows (#976 reserved their bits): the three keys (off by default, 0 or 1),
+    # the freeze, the fingerprint and the load restore; then both games' arrows
+    # registered and carried by the real harvest/apply shims, each rule only its
+    # own arrow. ROM-free.
+    redship_add_test(NAME SharedArrowsRule COMMAND redship --test shared-arrows-rule)
+    redship_add_test(NAME SharedArrowsMerge COMMAND redship --test shared-arrows-merge)
+    # #978 (absorbs #969): the five shared masks, five more families on the
+    # lens's rows (#976 reserved their bits): the five keys (off by default, 0 or
+    # 1), the freeze, the fingerprint and the load restore; then both games'
+    # masks registered and carried by the real harvest/apply shims, each rule
+    # only its own mask; then the Bunny Hood's speed in Hyrule under the frozen
+    # shared Bunny Hood rule. ROM-free.
+    redship_add_test(NAME SharedMasksRule COMMAND redship --test shared-masks-rule)
+    redship_add_test(NAME SharedMasksMerge COMMAND redship --test shared-masks-merge)
+    redship_add_test(NAME SharedMasksBunnyBoost COMMAND redship --test shared-masks-bunny-boost)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an
@@ -682,6 +778,11 @@ if(BUILD_TESTING)
     # the placement table need no fill, no display, and no ROM.
     redship_add_test(NAME MMSpoilerIdentity COMMAND redship --test mm-spoiler-identity)
     redship_add_test(NAME MMForeignPickupGate COMMAND redship --test mm-foreign-pickup-gate)
+    # #1055: a paired spoiler whose seed-named file is another identity's (an
+    # older build's fingerprint, other MM options) goes to
+    # <seed>-<fingerprint>.json instead of nowhere. Files in a per-process
+    # scratch directory and gComboCtx only.
+    redship_add_test(NAME MMPairedSpoilerName COMMAND redship --test mm-paired-spoiler-name)
     # Combo-level arrival identity gate (#498, ADR 0011 increment 1). Drives the
     # REAL MM_Rando_PairOnCrossGameArrival. A divergent frozen combo record must
     # refuse through the #533/#568 surface AND NAME the diverged rule — the
@@ -790,6 +891,25 @@ if(BUILD_TESTING)
     set_tests_properties(CuratedArchiveOrder PROPERTIES SKIP_RETURN_CODE 77)
     redship_add_test(NAME ModArchiveSurvivesSwitch COMMAND redship --test mod-survives-switch)
     set_tests_properties(ModArchiveSurvivesSwitch PROPERTIES SKIP_RETURN_CODE 77)
+    # #981: the resource cache is keyed by owner as well as path, and each game
+    # runs under its own owner. Two temporary O2R zips with different Blob
+    # contents at one path, loaded under two owners through the fork's
+    # ResourceManager::SetDefaultCacheOwner: each owner keeps its own bytes, and
+    # the first keeps its original object. ROM-free and archive-free.
+    redship_add_test(NAME ResourceCacheOwner COMMAND redship --test resource-cache-owner)
+    # #1040 R4: UnloadResources with an explicit owner in its ResourceFilter
+    # unloads that owner's entry and leaves the default owner's alone (the fork's
+    # UnloadResourcesProcess once took mDefaultCacheOwner instead). ROM-free.
+    redship_add_test(NAME ResourceCacheOwnerUnloadFilter COMMAND redship --test resource-cache-owner-unload-filter)
+    # #1040 R1: OoT's Cosmetics Editor patches display lists only while OoT
+    # runs (under MM it would write MM's owner's copies); a change made under MM
+    # is owed to OoT and paid once on OoT's next frame. ROM-free.
+    redship_add_test(NAME CosmeticsPatchOwnerGate COMMAND redship --test cosmetics-patch-owner-gate)
+    # #987: re-adding a mounted archive path (every game switch does) mounts
+    # nothing new and keeps newest-wins. Two temporary O2R zips added and
+    # re-added by path: archive count, game-version list and mount order
+    # asserted. ROM-free and archive-free.
+    redship_add_test(NAME ArchiveAddDedup COMMAND redship --test archive-add-dedup)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture
@@ -874,6 +994,9 @@ if(BUILD_TESTING)
     # different world identity on one peer's build.
     redship_add_test(NAME ComboSettingsFormat COMMAND redship --test combo-settings-format)
     redship_add_test(NAME ComboSettingsCanonical COMMAND redship --test combo-settings-canonical)
+    # #1003: the fingerprint folds RSBS_GENERATOR_VERSION (red with the fold
+    # removed), a pre-#1003 file still verifies, and the bag seed ignores the label.
+    redship_add_test(NAME ComboGeneratorVersion COMMAND redship --test combo-generator-version)
     # #951: the project hash (SohUtils::Hash, Ship_Hash) folds bytes >= 0x80
     # unsigned, so a non-ASCII seed makes the same world on signed- and
     # unsigned-char targets. Pinned vectors; reverting either cast is red on x86.
@@ -923,6 +1046,16 @@ if(BUILD_TESTING)
     # bound-arithmetic bugs, so the capacity computation was factored into pure
     # helpers this test calls directly — display-free, ROM-free.
     redship_add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
+    # OoT pause-menu item age table bounds (#983). OoT_Play_Init writes
+    # gItemAgeReqs[ITEM_ROCS_FEATHER] (0x9C) and the pause menu reads it, but
+    # the table held the 86 vanilla entries. Asserts the count the defining TU
+    # exports covers that index and every u8 ItemID. Display-free, ROM-free.
+    redship_add_test(NAME ItemAgeReqsBounds COMMAND redship --test item-age-reqs-bounds)
+    # OoT item-action table bounds (#984). OoT_Player_ItemToItemAction indexes the static
+    # sItemActions[] with an ItemID, and ITEM_ROCS_FEATHER (0x9C) sat 94 bytes past its
+    # 62 vanilla entries. Asserts the count and entries z_player.c exports cover every u8
+    # ItemID. Display-free, ROM-free.
+    redship_add_test(NAME ItemActionsBounds COMMAND redship --test item-actions-bounds)
     # OoT audio producer init-guard (#365). The shared OTRAudio_Thread runs
     # OoT_AudioMgr_CreateNextAudioBuffer whenever MM's synth is inactive — every
     # MM frame before MM audio boots, and the mid-switch window where OoT is
@@ -1201,6 +1334,21 @@ if(BUILD_TESTING)
     # reference would un-elide them by itself). Pure (no display, no ROM);
     # needs the shared bring-up only for CVarSetInteger.
     redship_add_test(NAME MMClockShuffleSongs COMMAND redship --test mm-clock-shuffle-songs)
+    # The same class a third time (#1071): the nine song-teacher hooks under
+    # games/mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearning*.cpp are
+    # forced on under IS_RANDO because they ARE the rando hand-off for those
+    # checks (the Sonata hook is the only caller of VB_GIVE_ITEM_FROM_MNK,
+    # which Rando/ActorBehavior/EnMnk.cpp waits on), and plain-archive
+    # 2ship_enh dropped all nine: the monkey taught the vanilla Sonata and the
+    # seed's item was never given. They are carved into the WHOLE_ARCHIVE'd
+    # 2ship_enh_registrars (games/mm/CMakeLists.txt); this row arms them through
+    # the production rando path (saveType + ShipInit::Init("IS_RANDO")) and
+    # attributes each one, by an exactly-one registry delta or by the VB
+    # verdict and check hand-off only that hook produces, and checks the Epona
+    # and Healing hooks survive a missing play state. Names no symbol from the
+    # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
+    # the CVar reads.
+    redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
     # The entrance -> region cache's registration boundary (#659).
     # Rando::Logic::Regions is filled by eighteen independent ShipInit
     # registrars whose order is link order, and the cache inside
@@ -1233,12 +1381,12 @@ if(BUILD_TESTING)
     # section (Dev Tools, the only one that registers ROM-free).
     #
     # MenuComboSection owns step 6's shape: the Combo header and its own sidebar
-    # CVar, both shipped pages non-empty (an empty multi-column page is #640's
-    # undocked-window failure), every row inside a column the page draws, the seven
-    # window rows' CVar/WindowName pairs with EmbedWindow(false), the pointer row
-    # left on Randomizer / Cross-Game so a persisted sidebar name is not stranded,
-    # and the contributed-page extension point lane G hangs #682's MM enhancement
-    # rows off.
+    # CVar, its five pages non-empty (an empty multi-column page is #640's
+    # undocked-window failure), every row inside a column the page draws, the
+    # window rows' CVar/WindowName pairs with EmbedWindow(false), our pages under
+    # the Randomizer header (#1101: MM Randomizer, MM Tricks, Cross-Game after
+    # Tricks/Glitches), the persisted selections carried across renames and
+    # headers, and the contributed-page extension point with its host.
     #
     # SetMenuCount is #497 step 2's second half, which shipped as prose: ADR 0004
     # §3's "one shell" proviso. Ship::Gui holds a SINGLE menu slot, so a second
@@ -1270,6 +1418,12 @@ if(BUILD_TESTING)
     # runs in this display-free tier; finding (b)'s probe needs the region graph
     # and is MMTrickGbtGate in the rando tier below.
     redship_add_test(NAME MMTrickTable COMMAND redship --test mm-trick-table)
+    # Randomizer > MM Locations' model (#1101 lane R3): the check table mirrors
+    # MM's checks, the writers emit MM's one spelling of gRando.ExcludedChecks
+    # and refuse while the profile is frozen or the logic is Vanilla, and the
+    # profile digest moves with an edit. Display-free and ROM-free, the bring-up
+    # MMTrickTable uses. games/mm/2s2h/mm_locations_view_test.cpp.
+    redship_add_test(NAME MMLocations COMMAND redship --test mm-locations)
 
     # #661: the Happy Mask Shop interior door IS the OoT<->MM crossing, and OoT's
     # own entrance shuffle lists it as an ordinary EntranceType::Interior pair.
@@ -1286,6 +1440,15 @@ if(BUILD_TESTING)
     # The end-to-end complement, which needs a real fill, is RandoEntrancePin in
     # the rando tier below.
     redship_add_test(NAME OoTEntrancePin COMMAND redship --test oot-entrance-pin)
+
+    # #999: the Check Tracker's Available Checks prices an unidentified shop, scrub
+    # or merchant slot at GetMinimumPrice, and for a Range price setting that must
+    # be min(range 1, range 2) * 5 whichever slider is higher; the inherited code
+    # read range 1 for both ends, so a reversed range hid affordable checks. The row
+    # sets each family to Range with a pair in both orders and asserts the minimum
+    # through the bridge in location_access.cpp. Display-free and ROM-free: it needs
+    # only the rando Context.
+    redship_add_test(NAME OoTPriceRangeMinimum COMMAND redship --test oot-price-range-minimum)
 
     # #948: the same door at night. SCENE_MARKET_NIGHT places it as a sign door
     # (DOOR_CHECKABLE, text 0x0210), so the crossing waited for morning; in a
@@ -1331,10 +1494,11 @@ if(BUILD_TESTING)
     # store but no window.
     redship_add_test(NAME MenuMmEnhancementRows COMMAND redship --test menu-mm-enhancement-rows)
     redship_add_test(NAME MMEnhancementToggles COMMAND redship --test mm-enhancement-toggles)
-    # MM's randomizer options and tricks as Combo pages (ADR 0004's 2026-09-27
-    # host amendment). Display-free and ROM-free, like the two rows above: it
-    # builds a SohMenu probe, walks the registered rows of Combo > MM Randomizer
-    # and Combo > MM Tricks, and runs their PreFuncs and Callbacks itself. The
+    # MM's randomizer options and tricks as Randomizer pages (ADR 0004's
+    # 2026-09-27 host amendment, moved under the Randomizer header by #1101).
+    # Display-free and ROM-free, like the two rows above: it builds a SohMenu
+    # probe, walks the registered rows of Randomizer > MM Randomizer and
+    # Randomizer > MM Tricks, and runs their PreFuncs and Callbacks itself. The
     # row set must equal MM's descriptor table, each row must sit in the model's
     # column, carry the model's state (live, blocked with its reason, frozen) and
     # write only through the gated writers, and the Windows page must no longer
@@ -1465,6 +1629,18 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # Frame interpolation in MM (#965). The shared Graph_ProcessGfxCommands runs
+    # both games' frames but built its interpolated sub-frames from OoT's recorder
+    # only, while MM's draws record into MM's own, so interpolation did nothing in
+    # MM. Records into both recorders and locks that the processor's step reads
+    # the active game's, and nothing on the first frame after a switch. Needs the
+    # window (the recorders run only while GetInterpolationFPS() is above 20), so
+    # it sits in this display tier.
+    redship_add_test(NAME CrossGameFrameInterpolation COMMAND redship --test crossgame-frame-interpolation
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # #575 H1: the one shared hint AREA vocabulary (src/common/combo_area.c).
     # Unlike the two rows above it is display-free and ROM-free, so it sits in
     # the redship tier: names unique per half and invertible, no OoT name equal
@@ -1555,6 +1731,14 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1069: the same paired creation under the Shared Song of Time rule (OoTMM
+    # sharedSongTime): MM's start is the Ocarina alone and the song is an MM pool
+    # item (the pair's one copy); with the rule off the start keeps it; MM's
+    # identity list and creation stamp never move with the rule. Same label/env.
+    redship_add_test(NAME MMPairedStartSharedSongTime COMMAND redship --test mm-paired-start-shared-song-time
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # ADR 0010 increment 1.2, lock (b), single-run half: a paired generation
     # whose first ladder attempt fails DETERMINISTICALLY climbs one rung,
@@ -1616,9 +1800,11 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
-    # #950: every golden seed (default, profile-v1, entrances, the ladder world)
-    # still creates on its pinned attempt inside the shipped round budget, and its
-    # rounds match the golden's bagRounds when the golden is in the tree.
+    # #950: every golden seed (default, profile-v1, entrances, #982's shopsanity,
+    # mm-nearly-no-logic and direction-forward, the ladder world) still creates on
+    # its pinned attempt inside the shipped round budget, and its bagSeed,
+    # bagRounds and mmPairedAttempt match the golden's when the golden is in the
+    # tree (bagSeed tells the profiles apart; #982).
     redship_add_test(NAME GoldenSeedsRoundBudget COMMAND redship --test mm-golden-seeds-round-budget
         LABEL rando
         TIMEOUT 300
@@ -1827,6 +2013,8 @@ if(BUILD_TESTING)
     # runner reproduces, and the sandbox is not "the build directory minus the ROM
     # archives" (CheckGoldenDigest.cmake, _archive_free_sandbox).
     # Fields: <ctest-name>|<golden-name>|<dispatch>|<digest-env-var>|<archive-free-only>|<extra-env>
+    # <extra-env> holds VAR=value assignments separated by '^' (#982), never ';'
+    # (the field is split into a CMake list on '|').
     set(REDSHIP_GOLDEN_DIGESTS
         "GoldenSeedDigestDefault|seed-digest-default|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|"
         "GoldenSeedDigestProfileV1|seed-digest-profile-v1|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRandoSettings.ShuffleSongs=2"
@@ -1852,6 +2040,34 @@ if(BUILD_TESTING)
         # clock), so the table, and the hints and prices of a shuffled world, are
         # pinned too. Same seed and dispatch as seed-digest-default.
         "GoldenSeedDigestEntrances|seed-digest-entrances|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRandoSettings.ShuffleInteriorsEntrances=2,gRandoSettings.ShuffleOverworldEntrances=1"
+        # #982: four more profiles on the same seed and dispatch as
+        # seed-digest-default, each pinning an input no row above varies.
+        # Excludes and tricks, both games: every golden above generates with
+        # EMPTY exclude and trick sets. The OoT keys are RandomizerCheck and
+        # RandomizerTrick ids in the menu's own CVar form, parsed by the Generate
+        # button's code (ReadGoldenProfileSets, 3drando/menu.cpp): excluded
+        # 24 RC_KF_MIDOS_TOP_LEFT_CHEST, 44 RC_LW_TARGET_IN_WOODS,
+        # 144 RC_KAK_10_GOLD_SKULLTULA_REWARD, 194 RC_GC_DARUNIAS_JOY,
+        # 301 RC_LH_SUN; tricks 1 RT_GROTTOS_WITHOUT_AGONY,
+        # 2 RT_FEWER_TUNIC_REQUIREMENTS, 16 RT_LW_BRIDGE, 21 RT_KAK_TOWER_GS,
+        # 24 RT_GY_POH. MM's excluded checks are RandoCheckId ids in
+        # gRando.ExcludedChecks form (26 RC_CLOCK_TOWN_EAST_TREASURE_CHEST_GAME_GORON,
+        # 77 RC_GREAT_BAY_COAST_FISHERMAN_MINIGAME, 211 RC_ROMANI_RANCH_ALIENS);
+        # MM's tricks are their own gRando.Tricks.MMRT_* CVars. An id moved by an
+        # enum insertion moves this golden: read the [golden-profile] log lines,
+        # which name every OoT key, before re-pinning.
+        "GoldenSeedDigestExcludesTricks|seed-digest-excludes-tricks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_GOLDEN_EXCLUDES=24,44,144,194,301^RSBS_GOLDEN_TRICKS=1,2,16,21,24^RSBS_GOLDEN_MM_EXCLUDES=26,77,211^RSBS_DIAG_CVARS=gRando.Tricks.MMRT_LENS=1,gRando.Tricks.MMRT_SCT_NOTHING=1,gRando.Tricks.MMRT_BANK_ONE_WALLET=1"
+        # OoT shopsanity with drawn prices (four items a shop, Balanced): under
+        # every profile above OoT's prices are fixed (ootPriceDigest 2F60E6D1 in
+        # all of them), so the stream-drawn price path of 3drando/shops.cpp is
+        # pinned only here.
+        "GoldenSeedDigestShopsanity|seed-digest-shopsanity|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRandoSettings.Shopsanity=1,gRandoSettings.ShopsanityCount=4,gRandoSettings.ShopsanityPrices=2"
+        # MM Nearly No Logic, the explicit choice the paired profile honours
+        # (Foreign.cpp): every profile above resolves MM to Glitchless.
+        "GoldenSeedDigestMMNearlyNoLogic|seed-digest-mm-nearly-no-logic|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRando.Options.RO_LOGIC=2"
+        # Combo direction FORWARD (OoT items into MM checks only): every profile
+        # above resolves BOTH, so this is the one golden whose crossingsInOoT is 0.
+        "GoldenSeedDigestDirectionForward|seed-digest-direction-forward|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Direction=2"
     )
     set(REDSHIP_GOLDEN_DIR "${CMAKE_SOURCE_DIR}/tests/golden")
 
@@ -1865,7 +2081,9 @@ if(BUILD_TESTING)
         list(GET _golden_fields 5 _golden_extra_env)
         set(_golden_env "SDL_AUDIODRIVER=dummy" "RSBS_DISABLE_OTR_INIT=1")
         if(_golden_extra_env)
-            list(APPEND _golden_env "${_golden_extra_env}")
+            # #982: several assignments, separated by '^'.
+            string(REPLACE "^" ";" _golden_extra_env "${_golden_extra_env}")
+            list(APPEND _golden_env ${_golden_extra_env})
         endif()
         redship_add_test(NAME ${_golden_row}
             COMMAND ${CMAKE_COMMAND}
@@ -1911,6 +2129,31 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_GENBUDGET_HOST_SCALE=300")
+    # #982: THE PLAYER'S PATH against the default golden. Every golden is written
+    # by the headless harness (RSBS_DISABLE_OTR_INIT=1, the synchronous generation,
+    # MM's OnSaveInit driven directly); this row generates the same seed the way a
+    # player does -- the full OTR bring-up, GenerateRandomizer(seed) on the Generate
+    # button's worker thread, then the real OoT_RunPairedCreationEvent -- writes the
+    # same fields with the same writers, and requires seed-digest-default. So NO
+    # RSBS_DISABLE_OTR_INIT here (the dispatch refuses it), and it needs soh.o2r,
+    # which the archive-free sandbox carries. Outside REDSHIP_GOLDEN_DIGESTS for
+    # the host-scale row's reason: the re-pin loop must never pin the default
+    # golden from this path, because a difference here is a finding about the two
+    # paths, not a world to record.
+    redship_add_test(NAME GoldenSeedDigestPlayerPath
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -DDISPATCH=rando-player-path-digest
+                -DDIGEST_ENV=RSBS_SEED_DIGEST_OUT
+                -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
+                -DGOLDEN_NAME=seed-digest-default
+                -DRUN_TAG=seed-digest-default-player-path
+                -DARCHIVE_FREE_ONLY=ON
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy")
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL
     # candidate; this one proves a REAL fill with entrance shuffle on never writes
@@ -2042,6 +2285,11 @@ if(BUILD_TESTING)
     # never harvested, its cross-origin item never exchanged, and an empty set
     # changes no round.
     redship_add_test(NAME ComboLogicForbiddenHost COMMAND redship --test combo-logic-forbidden-host)
+    # THE SHARED PAIR (ABI 7, #976): one bag row both engines credit. Same stub
+    # fixture, same `redship` tier: seeded in both engines, placed as the host's
+    # own half, the far half through the crossing gate, and composed from both
+    # games' rows into one.
+    redship_add_test(NAME ComboLogicSharedPair COMMAND redship --test combo-logic-shared-pair)
 
     # The OoT ENGINE behind that coordinator (#645, lane K2a). `rando` tier, and
     # for a correctness reason rather than a convenience one: every fact this row
@@ -2141,6 +2389,10 @@ if(BUILD_TESTING)
     redship_test_exempt(rando-armed-caps-digest
         "Driven by the GoldenSeedDigestArmedCaps golden row (cmake -P CheckGoldenDigest.cmake), which the manifest \
 records as a meta row. A plain --test row would only regenerate the same world without comparing it (#681).")
+    # The player-path golden's dispatch, for the same reason (#982).
+    redship_test_exempt(rando-player-path-digest
+        "Driven by the GoldenSeedDigestPlayerPath golden row (cmake -P CheckGoldenDigest.cmake), which the manifest \
+records as a meta row. A plain --test row would only regenerate the same world without comparing it (#982).")
 
     redship_test_exempt(combo-logic-give-probe
         "Diagnostic, not a lock: walks MM's giveable vanilla ids through Rando::GiveItem headlessly so an id whose \
@@ -2210,6 +2462,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #997: under the combo hunt OoT's own "Ganon's Boss Key" hunt is generated as
+    # "Win", so RC_TRIFORCE_COMPLETED never holds the boss key the game grants only
+    # as the paired game ends. `rando`: it needs a paired creation.
+    redship_add_test(NAME RandoComboHuntOwnMode COMMAND redship --test rando-combo-hunt-own-mode
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #973: the Happy Mask Shop door is the crossing, so its room never loads. A
     # paired world generates Mask Quest as "Shuffle" and the Mask Shop Hint off
     # (under both authored modes a player can arrive with), all eight OoT masks are
@@ -2218,6 +2477,26 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME RandoMaskQuestPaired COMMAND redship --test rando-mask-quest-paired
         LABEL rando
         TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #994 (audit R4): the native check trackers' reachability, which nothing else
+    # drives. TrackerAvailabilityArrival runs OoT's real Available Checks
+    # recalculation on a paired creation save, across a real arrival redeem and the
+    # deferred flag (#990), with #973's Mask Shop assertion; MMTrackerInLogicArrival
+    # runs MM's ComputeChecksInLogic across a hookshot tier applied by the real
+    # MM_ApplySharedResources; TrackerFillSuperset compares each tracker with the
+    # fill's sphere-zero round on one paired creation. `rando`: a generation, or
+    # MM's real region graph (the MMComboLogicEngine reason).
+    redship_add_test(NAME TrackerAvailabilityArrival COMMAND redship --test tracker-availability-arrival
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME MMTrackerInLogicArrival COMMAND redship --test mm-tracker-in-logic-arrival
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME TrackerFillSuperset COMMAND redship --test tracker-fill-superset
+        LABEL rando
+        TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
     # #731, #733): the composed bag holds progression copies only, plentiful copies
@@ -2305,6 +2584,34 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # with removal in BOTH directions, the direction gate (OFF crosses nothing and
     # still proves), and OoT's remainder. rando tier: it needs a real generation.
     redship_add_test(NAME ComboSingleBag COMMAND redship --test combo-single-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1065: the Shared Lens of Truth's ONE bag row over a real paired generation:
+    # the composer pairs the two games' lenses, the coordinator places one copy
+    # both solvers credit, MM's world holds no second lens, and the GOAL is proven.
+    redship_add_test(NAME SharedLensBag COMMAND redship --test shared-lens-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1066: each shared song's ONE bag row over a real paired generation (OoT's
+    # songs shuffled anywhere, so both halves are bag rows): one copy per song,
+    # both solvers credit it, MM's world holds no second copy, the GOAL proven.
+    redship_add_test(NAME SharedSongsBag COMMAND redship --test shared-songs-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #968: each shared arrow's ONE bag row over a real paired generation: one
+    # copy per arrow, both solvers credit it (OoT's logic and MM's Snowhead, Great
+    # Bay and Stone Tower logic), MM's world holds no second copy, the GOAL proven.
+    redship_add_test(NAME SharedArrowsBag COMMAND redship --test shared-arrows-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #978: each shared mask's ONE bag row over a real paired generation: one copy
+    # per mask, both solvers credit it, MM's world holds no second copy, the GOAL
+    # proven, and OoT's logic answers HasItem for each mask from its ownership.
+    redship_add_test(NAME SharedMasksBag COMMAND redship --test shared-masks-bag
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
@@ -2436,6 +2743,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #855: a Business Scrub's offer textbox read Merchant Hint Text while the Check
+    # Tracker's reveal and row name read Scrub Hint Text, so the two disagreed
+    # whenever the settings differed. Gives a scrub check a known item and reads
+    # the real builder's English offer for all four settings pairs: it must name
+    # the item exactly when Scrub Hint Text is on. games/oot/soh/oot_scrub_text_hint_test.cpp.
+    redship_add_test(NAME ScrubTextHintSetting COMMAND redship --test scrub-text-hint-setting
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
@@ -2511,6 +2827,25 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+    # S0: test processes are silent. redship_add_test() puts SDL_AUDIODRIVER=dummy
+    # in every row's environment and main.cpp pins the driver in code for every
+    # --test / --integration-test process (src/common/test_window_focus.h). This
+    # row removes the variable from its own process and asserts the in-code pin
+    # alone: SDL_GetHint, then a real SDL audio init reports the dummy driver.
+    # Default tier: SDL audio only, no window, no archive.
+    redship_add_test(NAME TestAudioSilent COMMAND redship --test test-audio-silent)
+    # Self-skips (exit 77) when RSBS_TEST_AUDIO=1 is exported, the operator's opt-out.
+    set_tests_properties(TestAudioSilent PROPERTIES SKIP_RETURN_CODE 77)
+    # S0: every row's ENVIRONMENT carries SDL_AUDIODRIVER=, read back from
+    # `ctest --show-only=json-v1`. Holds the integration rows (ROM-only, so never run
+    # in hosted CI) and every redship_add_test() caller to the CMake half of the
+    # silent default; a deleted PREPEND line or a bare add_test() fails it.
+    redship_add_test(NAME TestAudioEnvCoverage
+        COMMAND ${CMAKE_COMMAND}
+                -DCTEST_EXE=${CMAKE_CTEST_COMMAND}
+                -DBUILD_DIR=${CMAKE_BINARY_DIR}
+                "-DEXEMPT=prism" # libultraship's own row; it runs no redship
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckTestAudioEnv.cmake)
     # #880: the window title and --version carry the configured short commit
     # (and "-dirty"), so a build says which commit it is. The expected identity is
     # handed over from configure ("none" for a tree without git); run outside
@@ -2558,6 +2893,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the restored pool, or a spend in OoT is refunded in MM. ROM-free (default
     # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME MMMoonCrashPoolApplied COMMAND redship --test mm-moon-crash-pool-applied)
+
+    # #1069: MM's Moon Crash Behavior (OoTMM's moonCrash: "Last Save", the
+    # default and the rows above, or "New Cycle"). The frozen value a file plays
+    # under, forced to New Cycle by the Shared Song of Time rule (which never moves
+    # MM's profile stamp); and a crash under New Cycle starting a new cycle that
+    # keeps progress and is committed, not the last commit. ROM-free (default
+    # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashCycleForced COMMAND redship --test mm-moon-crash-cycle-forced)
+    redship_add_test(NAME MMMoonCrashCycleReset COMMAND redship --test mm-moon-crash-cycle-reset)
 
     # #770: two OoT actor Destroys write the save on ANY exit from their scene
     # (the windmill gear clears the Song of Storms windmill flag; in rando, after
@@ -2632,6 +2976,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME IntArchiveHotswapCycle
         COMMAND redship --integration-test int-archive-hotswap-cycle
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
+    # #981: T1's crossing and back. Each game is served its own gOctorokSkel (OoT
+    # 37 limbs, MM 15) and staff text (SOH::Text, S2H::TextMM with MM's credit
+    # ids), and OoT gets back the very objects it had before it left. #1040 R2:
+    # OoT patches a display list both archives carry before it leaves, MM
+    # unpatches the same name under its own owner and keeps its copy cached and
+    # untouched, and OoT's own unpatch on return still restores its original (the
+    # per-owner gfx-patch registry, games/oot/soh/ResourceManagerHelpers.cpp).
+    redship_add_test(NAME IntResourceCacheOwner
+        COMMAND redship --integration-test int-resource-cache-owner
+        LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
     # #806 on the real boot path: with the staged redship-oot.o2r replaced by an
     # unstamped zip and redship-mm.o2r removed, an OoT boot must regenerate both
     # (Combo_EnsureCuratedArchives, rsbs/src/main.cpp) BEFORE it mounts the
@@ -2660,32 +3014,53 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # door left the loop and main re-ran OoT's Main() on the retired gamestate:
     # an access violation in OoT_GameState_SetFrameBuffer. RUN_SERIAL because
     # the archive is missing from the build directory while the row runs.
-    # CMake/CheckCrossingRefused.cmake; the driver is in
-    # games/oot/soh/GameExports_SingleExe.cpp.
+    #
+    # IntCrossingRefusedNoOoTArchive is the same gate from the other side: with
+    # oot.o2r aside MM boots first (int-crossing-refused-mm), loads its debug
+    # save outside the Clock Tower and walks into the door, which must be
+    # refused while MM is still in its frame loop (z_play.c loads the 0xD800
+    # Combo_CheckEntranceSwitch hands back; MM_Game_Run entered once); then the
+    # raw switch request, after which MM must come back through suspend/resume
+    # with its save. After each refusal both drivers also assert the resource
+    # cache owner is still the booted game's 0 (#1040 R3: a refused switch never
+    # reaches ApplyResourceCacheOwner, and --game mm boots MM at owner 0).
+    # Each row also asserts the door's own refusal line, which only
+    # Combo_CheckEntranceSwitch prints.
+    #
+    # CMake/CheckCrossingRefused.cmake; the drivers are in
+    # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp.
     math(EXPR _crossing_refused_run_timeout "${REDSHIP_INTEGRATION_TEST_TIMEOUT} - 5")
     foreach(_refusal
-            "IntCrossingRefusedNoMMArchive|mm.o2r|=== Majora's Mask archive missing ==="
-            "IntCrossingRefusedNoPortArchive|2ship.o2r|=== Majora's Mask port archive missing ===")
+            "IntCrossingRefusedNoMMArchive|int-crossing-refused|mm.o2r|=== Majora's Mask archive missing ===|[COMBO] Crossing (oot) to mm refused"
+            "IntCrossingRefusedNoPortArchive|int-crossing-refused|2ship.o2r|=== Majora's Mask port archive missing ===|[COMBO] Crossing (oot) to mm refused"
+            "IntCrossingRefusedNoOoTArchive|int-crossing-refused-mm|oot.o2r|=== Ocarina of Time archive missing ===|[COMBO] Crossing (mm) to oot refused")
         string(REPLACE "|" ";" _refusal_fields "${_refusal}")
         list(GET _refusal_fields 0 _refusal_name)
-        list(GET _refusal_fields 1 _refusal_hide)
-        list(GET _refusal_fields 2 _refusal_report)
+        list(GET _refusal_fields 1 _refusal_mode)
+        list(GET _refusal_fields 2 _refusal_hide)
+        list(GET _refusal_fields 3 _refusal_report)
+        list(GET _refusal_fields 4 _refusal_line)
         redship_add_test(NAME ${_refusal_name}
             COMMAND ${CMAKE_COMMAND}
                     -DREDSHIP_EXE=$<TARGET_FILE:redship>
                     -DWORK_DIR=${CMAKE_BINARY_DIR}
-                    -DMODE=int-crossing-refused
+                    -DMODE=${_refusal_mode}
                     -DHIDE=${_refusal_hide}
                     "-DEXPECT_REPORT=${_refusal_report}"
+                    "-DEXPECT_REFUSAL=${_refusal_line}"
                     -DRUN_TIMEOUT=${_crossing_refused_run_timeout}
                     -P ${CMAKE_CURRENT_LIST_DIR}/CheckCrossingRefused.cmake
             LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
         set_tests_properties(${_refusal_name} PROPERTIES RUN_SERIAL TRUE)
     endforeach()
     redship_test_exempt(int-crossing-refused
-        "Driven by the IntCrossingRefused* rows (cmake -P CheckCrossingRefused.cmake), which the manifest records as \
-meta rows: each sets one of MM's archives aside first. A plain --integration-test row with every archive staged has \
-no crossing to refuse (#954).")
+        "Driven by the IntCrossingRefusedNoMMArchive/NoPortArchive rows (cmake -P CheckCrossingRefused.cmake), which the \
+manifest records as meta rows: each sets one of MM's archives aside first. A plain --integration-test row with every \
+archive staged has no crossing to refuse (#954).")
+    redship_test_exempt(int-crossing-refused-mm
+        "Driven by the IntCrossingRefusedNoOoTArchive row (cmake -P CheckCrossingRefused.cmake), which the manifest \
+records as a meta row: it sets oot.o2r aside first. A plain --integration-test row with every archive staged has no \
+crossing to refuse (#954).")
 
     # #793: the wall-clock watchdog thread (src/common/integration_test_hooks.cpp).
     # Each row wedges a real run with RSBS_INT_WEDGE (a 600 s sleep with no frame
@@ -2761,6 +3136,21 @@ no crossing to refuse (#954).")
         TIMEOUT ${REDSHIP_GAMEPLAY_SOAK_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=3")
 
+    # #1069: the moon falls on a live MM session whose frozen Moon Crash Behavior
+    # is New Cycle (OoTMM's moonCrash 'cycle', which the Shared Song of Time rule
+    # forces). MM boots on its debug save outside the Clock Tower, the crash runs
+    # the real Interface_StartMoonCrash and the real crash and Fire Wall
+    # cutscenes (the reset cue is the Fire Wall's, in SCENE_SPOT00), and the scene
+    # after them must be a NEW cycle (one more three-day reset, the cycle's Deku
+    # record cleared) at the Dawn of the First Day with the mask, the bottle and
+    # the song kept. Red under Last Save: a debug session has no commit, so that
+    # path restarts the clock and keeps the bytes but counts no reset. Same
+    # ROM/display needs and timeout as the round trip (the cutscene plays whole).
+    redship_add_test(NAME IntMoonCrashCycle
+        COMMAND redship --integration-test int-mm-moon-crash-cycle
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
+
     # The FIRST CROSSING OF A PAIRED FILE with the archives mounted, in one
     # process (hop 6 of the playtest path, which no row ran before: the rows
     # above cross with a vanilla debug save, and ComboCreationEvent /
@@ -2813,6 +3203,17 @@ no crossing to refuse (#954).")
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=2")
+    # #1055: the same creation with a spoiler of the same seed and another
+    # identity (comboSettingsHash flipped: what an older build leaves behind)
+    # planted at Randomizer/<seed>.json after the drive clears the pair's
+    # spoilers. The planted file must stay as it was, the creation's spoiler must
+    # land at Randomizer/<seed>-<fingerprint>.json with gGeneral.SpoilerLog naming
+    # it, and the run must settle with no refusal line.
+    redship_add_test(NAME IntPairedFirstCrossingForeignSpoiler
+        COMMAND redship --integration-test int-paired-first-crossing
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
+        ENVIRONMENT "RSBS_PFC_PLANT_FOREIGN_SPOILER=1")
     # #952: the same creation, then the REAL file select opens file 3 (A on the
     # file, as a player opens it) instead of loading it. On the confirm screen
     # the file's five seed icons must have the pair's fingerprint and the build
@@ -2825,6 +3226,14 @@ no crossing to refuse (#954).")
         LABEL integration
         TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT}
         ENVIRONMENT "RSBS_PFC_FILE_SELECT_SHOT=1" "RSBS_CAPTURE_OUT=${CMAKE_BINARY_DIR}/frame-capture")
+    # #1055: every int-paired-first-crossing row generates the same pinned seed,
+    # so they share Randomizer/<seed>.json, which each drive clears (and
+    # IntPairedFirstCrossingForeignSpoiler plants into) between its generation
+    # and its creation; they also all create save slot 3. One lock, so a
+    # parallel ctest -j never interleaves two of them.
+    set_tests_properties(IntPairedFirstCrossing IntPairedFirstCrossingDiverged IntPairedFirstCrossingTwoCycles
+        IntPairedFirstCrossingForeignSpoiler IntPairedFileSelectIdentity
+        PROPERTIES RESOURCE_LOCK rsbs_paired_first_crossing)
 
     # ========================================================================
     # #688 — THE ONE DOCUMENTED RE-PIN COMMAND.
@@ -2896,7 +3305,9 @@ no crossing to refuse (#954).")
             list(GET _golden_fields 5 _golden_extra_env)
             set(_golden_env "SDL_AUDIODRIVER=dummy" "RSBS_DISABLE_OTR_INIT=1")
             if(_golden_extra_env)
-                list(APPEND _golden_env "${_golden_extra_env}")
+                # #982: several assignments, separated by '^' (as in the CTest loop).
+                string(REPLACE "^" ";" _golden_extra_env "${_golden_extra_env}")
+                list(APPEND _golden_env ${_golden_extra_env})
             endif()
             add_custom_command(TARGET ${_regen_target} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E env ${_golden_env}

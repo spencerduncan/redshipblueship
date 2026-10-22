@@ -49,6 +49,7 @@
 #include <nlohmann/json.hpp>
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#include "2s2h/Rando/Foreign.h"
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/Logic/Logic.h"
 #include "2s2h/Rando/StaticData/StaticData.h"
@@ -56,6 +57,8 @@
 // src/common — the creation stamp, the coordinator's placement table.
 #include "combo_mm_options_view.h"
 #include "combo_logic.h"
+#include "context.h"
+#include "cvar_shared_keys.h"
 #include "foreign_items.h"
 
 extern "C" {
@@ -282,6 +285,131 @@ extern "C" int MM_PairedStart_RunHeadless(void) {
     }
     printf("[TEST] PASS: a paired MM half starts with exactly the Ocarina of Time and the Song of Time whatever "
            "2Ship's config says; the Kokiri Sword and the Hero's Shield are placed as MM pool items (#879)\n");
+    return 0;
+}
+
+/**
+ * mm-paired-start-shared-song-time (#1069; OoTMM's sharedSongTime). With the
+ * Shared Song of Time rule frozen on, the pair has ONE Song of Time and MM's
+ * paired start no longer holds it (OoTMM replaces both games' copies with the
+ * shared song and removes the second); with the rule off the start keeps it.
+ *
+ *   1. The IDENTITY list (PairedStartingItems, folded into MM's profile stamp)
+ *      is rule-independent: the stamp runs before the combo freeze, so a list
+ *      that followed the rule would refuse every arrival. The stamp is the same
+ *      with the rule's key on and off.
+ *   2. The WORLD list (PairedStartingItemsForWorld) follows the FROZEN rule:
+ *      off, the Ocarina and the Song of Time; on, the Ocarina alone.
+ *   3. A real paired creation with the rule's key on: the rule freezes on, the MM
+ *      half's persisted start is the Ocarina alone, the half does not know the
+ *      Song of Time, and MM's pool holds the Song of Time (the one copy the bag
+ *      pairs with OoT's).
+ */
+extern "C" int MM_PairedStartSharedSongTime_RunHeadless(void) {
+    printf("[TEST] mm-paired-start-shared-song-time: under the frozen Shared Song of Time rule MM's paired start is "
+           "the Ocarina alone and the song is a pool item; the identity list never moves (#1069)\n");
+    sFailures = 0;
+    const std::string key = std::string(RSBS::kComboIdentityKeyPrefix) + "SharedSongTime";
+    const uint32_t kBit = 0x04000000u; // the rule's record bit (.redsave format)
+    CVarClear(key.c_str());
+    struct ClearKey {
+        std::string key;
+        ~ClearKey() {
+            CVarClear(key.c_str());
+        }
+    } clearKey{ key };
+
+    // ------------------------------------------------------------------------
+    // 1. The identity list, and the stamp, ignore the rule.
+    // ------------------------------------------------------------------------
+    const std::vector<RandoItemId> identity = Rando::Foreign::PairedStartingItems();
+    printf("[TEST] mm-paired-start-shared-song-time: (1) identity list: %s (expected Ocarina, Song of Time)\n",
+           ItemNames(identity).c_str());
+    Check(identity.size() == 2 && CountOf(identity, RI_OCARINA) == 1 && CountOf(identity, RI_SONG_TIME) == 1,
+          "(1) the identity start list moved: every existing pair's MM profile digest would move");
+    const uint32_t stampOff = MM_Rando_ComputeProfileStamp();
+    CVarSetInteger(key.c_str(), 1);
+    const uint32_t stampOn = MM_Rando_ComputeProfileStamp();
+    CVarClear(key.c_str());
+    printf("[TEST] mm-paired-start-shared-song-time: (1) creation stamp off %08X, on %08X (expected equal)\n",
+           (unsigned)stampOff, (unsigned)stampOn);
+    Check(stampOff == stampOn, "(1) the rule moved MM's creation stamp: every arrival of such a world is refused");
+
+    // ------------------------------------------------------------------------
+    // 2. The world list follows the frozen rule.
+    // ------------------------------------------------------------------------
+    for (int on = 0; on < 2; on++) {
+        ComboContext_Init();
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = 0x1069517Au;
+        gComboCtx.sharedRandoSettingsHash = 0x1069CA5Eu;
+        gComboCtx.mmProfileDigest = 0x1069D16Eu;
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        ComboItemRulesRecord rules;
+        memset(&rules, 0, sizeof(rules));
+        rules.crossItemFlags = on != 0 ? kBit : 0u;
+        Combo_FreezeComboSettingsEx(&rec, &rules);
+        const std::vector<RandoItemId> world = Rando::Foreign::PairedStartingItemsForWorld();
+        printf("[TEST] mm-paired-start-shared-song-time: (2) rule %s: world start %s (expected %s)\n",
+               on != 0 ? "on" : "off", ItemNames(world).c_str(), on != 0 ? "Ocarina" : "Ocarina, Song of Time");
+        if (on != 0) {
+            Check(world.size() == 1 && CountOf(world, RI_OCARINA) == 1,
+                  "(2) with the rule frozen on the paired start still holds the Song of Time: the pair would have "
+                  "two");
+        } else {
+            Check(world.size() == 2 && CountOf(world, RI_OCARINA) == 1 && CountOf(world, RI_SONG_TIME) == 1,
+                  "(2) with the rule off the paired start is not the Ocarina and the Song of Time (#879)");
+        }
+    }
+    ComboContext_Init();
+
+    // ------------------------------------------------------------------------
+    // 3. A real paired creation with the rule's key on.
+    // ------------------------------------------------------------------------
+    CVarSetInteger(key.c_str(), 1);
+    int rc = Rando_HeadlessSeedTest(kStartSeed);
+    if (rc != 0 || !Combo_ForeignPairingActive() || !Combo_ComboSettingsFrozen() ||
+        !OoT_ComboLogic_GeneralPassDeferred()) {
+        printf("[TEST] FAIL: the paired OoT generation for %s did not leave a frozen paired world at its general "
+               "pass (rc=%d)\n",
+               kStartSeed, rc);
+        return 1;
+    }
+    printf("[TEST] mm-paired-start-shared-song-time: (3) frozen rules %08X (expected the %08X bit)\n",
+           (unsigned)gComboCtx.comboItemRules.crossItemFlags, (unsigned)kBit);
+    Check(Combo_ComboCrossItemRule(kBit), "(3) the creation did not freeze the Shared Song of Time rule from its key");
+    rc = MM_Rando_HeadlessPairedHalf();
+    if (rc != 0) {
+        printf("[TEST] FAIL: MM's creation-time half did not produce a rando world (rc=%d)\n", rc);
+        return 1;
+    }
+    const std::vector<RandoItemId> persisted = Rando::GetStartingItemsFromSave(gSaveContext.save.shipSaveInfo.rando);
+    const bool ocarina = INV_CONTENT(ITEM_OCARINA_OF_TIME) == ITEM_OCARINA_OF_TIME;
+    const bool songOfTime = CHECK_QUEST_ITEM(QUEST_SONG_TIME) != 0;
+    printf("[TEST] mm-paired-start-shared-song-time: (3) the MM half's frozen start %s; ocarina=%d songOfTime=%d "
+           "(expected Ocarina, 1, 0)\n",
+           ItemNames(persisted).c_str(), ocarina ? 1 : 0, songOfTime ? 1 : 0);
+    Check(persisted.size() == 1 && CountOf(persisted, RI_OCARINA) == 1,
+          "(3) the paired MM half's start is not the Ocarina alone under the Shared Song of Time rule");
+    Check(ocarina, "(3) the paired MM half does not hold the Ocarina of Time (the ocarina stays MM's start)");
+    Check(!songOfTime, "(3) the paired MM half starts knowing the Song of Time: the pair's one copy is a pool item");
+
+    auto info = std::make_unique<RandoSaveInfo>();
+    memcpy(info.get(), &gSaveContext.save.shipSaveInfo.rando, sizeof(RandoSaveInfo));
+    std::vector<RandoCheckId> checkPool;
+    std::vector<RandoItemId> itemPool;
+    Rando::Logic::GeneratePools(*info, checkPool, itemPool);
+    const int songs = CountOf(itemPool, RI_SONG_TIME);
+    printf("[TEST] mm-paired-start-shared-song-time: (3) MM's pool holds %d Song of Time (expected 1)\n", songs);
+    Check(songs == 1, "(3) MM's pool does not hold the Song of Time the world no longer starts with");
+
+    if (sFailures != 0) {
+        printf("[TEST] FAIL: %d contract(s) broken\n", sFailures);
+        return 1;
+    }
+    printf("[TEST] PASS: under the Shared Song of Time rule MM's paired start is the Ocarina alone, the song is an "
+           "MM pool item, and MM's identity never moves (#1069)\n");
     return 0;
 }
 

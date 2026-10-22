@@ -64,6 +64,23 @@
  *    registers names (the one path-keyed call, the seed-hash icons that key a
  *    texture by its own OoT path, is named and held to that shape).
  *
+ * 10. THE DEFAULT POSITION (#962). The floating overlay's default placement
+ *    (ComboItemTrackerDefaultPos) stays below the HUD band that holds the
+ *    hearts and the magic bar (ComboItemTrackerHudBand) at seven view sizes and
+ *    two view origins, the HUD literals held to the decomp by a source scan.
+ *    UiSnapshot's HudBandOracle holds the same over the drawn overlay, and its
+ *    ResetPositionCheck drives Move to Default Position over real ImGui frames
+ *    (a saved position is kept, the button returns to the default once).
+ * 11. MM'S ICONS BEFORE MM HAS RUN (#963). MM's icon textures are keyed by
+ *    resource path and registered by MM's init, which runs at the first
+ *    crossing. The overlay loads the row keys it draws by path from the archives
+ *    mounted at that moment (ComboItemTrackerLoadIcons), and OoT mounts the
+ *    curated redship-oot.o2r at boot, so the manifest must carry every icon the
+ *    MM rows can name (all of them, held and not held, from an empty save and
+ *    both authored worlds). The section then draws icons, a key that cannot be
+ *    loaded stays a text cell and is tried once per game switch, and OoT's
+ *    texture names are never handed to the path loader.
+ *
  * Appearance is judged from the UiSnapshot captures (window/Combo Item Tracker
  * @no-data, @live and @snapshot beside SoH's window/Item Tracker); ImageOracle
  * there holds that the live and snapshot states draw icons.
@@ -81,6 +98,7 @@
 #include "../shared_resources.h"
 #include "../test_runner.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -88,6 +106,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -301,6 +320,104 @@ int CitwLockDecisions(void) {
     return TEST_PASS;
 }
 
+/**
+ * Point 10, #962: the floating overlay's default position stays off the HUD's
+ * hearts and magic bar. Both are rebuilt here from the HUD's own grid, written
+ * out as the decomp's literals: hearts (z_lifemeter.c: first heart centre
+ * (30, 26) of a 320x240 layout, 10 apart, ten to a row, 16 px hearts drawn at
+ * 0.7), up to the two rows of 20 hearts; the magic bar (z_construct.c: left
+ * X 18, lowest top 42; z_parameter.c: 16 px tall, 8 + up to 96 + 8 wide). A
+ * source scan below holds those literals to the decomp. The overlay is given
+ * a generous 300x300 px of body. (The old default, ImGui's (60, 60), sat on the
+ * hearts at every size: the HudBandOracle in UiSnapshot holds that regression
+ * over the drawn overlay.)
+ */
+int CitwLockDefaultPosition(void) {
+    using namespace ComboGui;
+    struct View {
+        float w;
+        float h;
+    };
+    const View views[] = { { 640, 480 },   { 832, 600 },   { 1280, 720 }, { 1280, 800 },
+                           { 1920, 1080 }, { 2560, 1080 }, { 3840, 2160 } };
+    for (const View& v : views) {
+        for (int offset = 0; offset < 2; offset++) {
+            const float vx = offset ? 7.0f : 0.0f; // a view that does not start at the screen's corner
+            const float vy = offset ? 19.0f : 0.0f;
+            const float unit = v.h / 240.0f;
+            ComboItemTrackerRect hearts;
+            hearts.x = vx + (30.0f - 5.6f) * unit;
+            hearts.y = vy + (26.0f - 5.6f) * unit;
+            hearts.w = (90.0f + 11.2f) * unit;
+            hearts.h = (10.0f + 11.2f) * unit; // two rows
+            ComboItemTrackerRect bar;
+            bar.x = vx + 18.0f * unit;
+            bar.y = vy + 42.0f * unit;
+            bar.w = (8.0f + 96.0f + 8.0f) * unit;
+            bar.h = 16.0f * unit;
+            const ComboItemTrackerRect band = ComboItemTrackerHudBand(vx, vy, v.w, v.h);
+            // The band holds the hearts whole ...
+            CITW_ASSERT(band.x <= hearts.x && band.y <= hearts.y);
+            CITW_ASSERT(band.x + band.w >= hearts.x + hearts.w && band.y + band.h >= hearts.y + hearts.h);
+            // ... and the magic bar whole, to its bottom edge (y 58).
+            CITW_ASSERT(band.x <= bar.x && band.y <= bar.y);
+            CITW_ASSERT(band.x + band.w >= bar.x + bar.w);
+            CITW_ASSERT(band.y + band.h >= bar.y + bar.h);
+
+            float x = 0.0f;
+            float y = 0.0f;
+            ComboItemTrackerDefaultPos(vx, vy, v.w, v.h, &x, &y);
+            ComboItemTrackerRect overlay;
+            overlay.x = x;
+            overlay.y = y;
+            overlay.w = 300.0f;
+            overlay.h = 300.0f;
+            const bool hitsHearts = overlay.x < hearts.x + hearts.w && hearts.x < overlay.x + overlay.w &&
+                                    overlay.y < hearts.y + hearts.h && hearts.y < overlay.y + overlay.h;
+            const bool hitsBar = overlay.x < bar.x + bar.w && bar.x < overlay.x + overlay.w &&
+                                 overlay.y < bar.y + bar.h && bar.y < overlay.y + overlay.h;
+            if (hitsHearts) {
+                printf("[TEST] FAIL: %.0fx%.0f view at (%.0f, %.0f): default overlay at (%.0f, %.0f) covers the "
+                       "hearts (%.0f,%.0f %.0fx%.0f)\n",
+                       v.w, v.h, vx, vy, x, y, hearts.x, hearts.y, hearts.w, hearts.h);
+                return TEST_FAIL;
+            }
+            if (hitsBar) {
+                printf("[TEST] FAIL: %.0fx%.0f view at (%.0f, %.0f): default overlay at (%.0f, %.0f) covers the "
+                       "magic bar (%.0f,%.0f %.0fx%.0f)\n",
+                       v.w, v.h, vx, vy, x, y, bar.x, bar.y, bar.w, bar.h);
+                return TEST_FAIL;
+            }
+            // Below the whole band, not merely clear of the two rects.
+            CITW_ASSERT(y >= band.y + band.h);
+            // Inside the view, flush to its left, with the lower half of it to grow into.
+            CITW_ASSERT(x >= vx && x < vx + v.w);
+            CITW_ASSERT(y < vy + v.h * 0.5f);
+        }
+    }
+#ifdef RSBS_SOURCE_DIR
+    {
+        // The literals above are the decomp's: if the HUD moves, this fails.
+        auto slurp = [](const char* rel) {
+            std::ifstream in(std::string(RSBS_SOURCE_DIR) + rel, std::ios::binary);
+            return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        };
+        const std::string construct = slurp("/games/oot/src/code/z_construct.c");
+        const std::string parameter = slurp("/games/oot/src/code/z_parameter.c");
+        const std::string lifemeter = slurp("/games/oot/src/code/z_lifemeter.c");
+        CITW_ASSERT(construct.find("R_MAGIC_BAR_LARGE_Y = 42;") != std::string::npos);
+        CITW_ASSERT(construct.find("R_MAGIC_BAR_X = 18;") != std::string::npos);
+        CITW_ASSERT(parameter.find("gMagicMeterEndTex, 8, 16, PosX_Start, magicBarY, 8, 16") != std::string::npos);
+        CITW_ASSERT(lifemeter.find("-130 + offsetX,       // Pos X") != std::string::npos);
+        CITW_ASSERT(lifemeter.find("(-94 + offsetY) * -1, // Pos Y") != std::string::npos);
+    }
+#endif
+    printf("[TEST] combo-item-tracker-window: the default position clears the HUD's hearts and magic bar at %zu view "
+           "sizes PASS\n",
+           sizeof(views) / sizeof(views[0]));
+    return TEST_PASS;
+}
+
 bool CitwIsPath(const char* key) {
     return key != nullptr && strchr(key, '/') != nullptr;
 }
@@ -316,6 +433,46 @@ bool CitwBothLoaded(const char* key) {
 }
 
 bool CitwNoneLoaded(const char*) {
+    return false;
+}
+
+// ---- #963: MM's icons before MM has run ----------------------------------------
+// A stand-in Gui texture map and archive. The archive holds exactly what the
+// shipped curated manifest (assets/crossgame/manifest.txt) carries into
+// redship-oot.o2r, the half OoT mounts at boot, so a key the manifest does not
+// name is not loadable here, as it is not in the real session.
+std::set<std::string> sCitwTextures;
+std::vector<std::string> sCitwCuratedPrefixes;
+int sCitwLoadCalls = 0;
+
+bool CitwStoreHas(const char* key) {
+    return key != nullptr && sCitwTextures.count(key) != 0;
+}
+
+bool CitwArchiveHolds(const char* key) {
+    if (!ComboGui::ComboItemKeyIsPath(key)) {
+        return false;
+    }
+    const std::string path(key + 7);
+    for (const std::string& prefix : sCitwCuratedPrefixes) {
+        if (path == prefix || (prefix.back() == '/' && path.compare(0, prefix.size(), prefix) == 0)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool CitwStoreLoad(const char* key) {
+    sCitwLoadCalls++;
+    if (!CitwArchiveHolds(key)) {
+        return false;
+    }
+    sCitwTextures.insert(key);
+    return true;
+}
+
+bool CitwStoreLoadNothing(const char*) {
+    sCitwLoadCalls++;
     return false;
 }
 
@@ -402,12 +559,17 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     const ComboItemRow* ootSong = CitwFindRow(oot, "Song of Time");
     CITW_ASSERT(ootSong != nullptr && ootSong->iconAspect > 0.66f && ootSong->iconAspect < 0.67f); // iconSize / 1.5
     CITW_ASSERT(hookshot->iconAspect == 0.0f);
-    const ComboItemRow* mmBow = CitwFindRow(mm, "Bow");              // held in MM's snapshot world
+    // The quiver is the pair's (the pool holds tier 2): MM's snapshot Bow is a
+    // copy of it, drawn dimmed, once, in the Shared column (#967).
+    const ComboItemRow* mmBow = CitwFindRow(mm, "Bow");
     const ComboItemRow* mmZora = CitwFindRow(mm, "Zora Mask");       // not held there
     const ComboItemRow* mmSong = CitwFindRow(mm, "Song of Healing"); // held
-    CITW_ASSERT(mmBow != nullptr && mmBow->have && mmZora != nullptr && !mmZora->have && mmSong != nullptr);
-    pick = ComboItemPickIcon(*mmBow);
+    CITW_ASSERT(mmBow != nullptr && !mmBow->have && mmBow->count == 0 && mmBow->max == 0);
+    CITW_ASSERT(mmZora != nullptr && !mmZora->have && mmSong != nullptr && mmSong->have);
+    pick = ComboItemPickIcon(*mmSong);
     CITW_ASSERT(CitwIsPath(pick.key) && pick.alpha == 1.0f);
+    pick = ComboItemPickIcon(*mmBow);
+    CITW_ASSERT(CitwIsPath(pick.key) && pick.alpha == 0.4f); // MM's 40%, the dimmed copy
     pick = ComboItemPickIcon(*mmZora);
     CITW_ASSERT(CitwIsPath(pick.key) && pick.key == mmZora->iconKey && pick.alpha == 0.4f); // MM's 40%
     CITW_ASSERT(mmSong->iconAspect > 0.69f && mmSong->iconAspect < 0.70f);                  // 32 / 46
@@ -415,13 +577,19 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     // ---- counts ---------------------------------------------------------------
     ComboItemCount count;
     const ComboItemRow* ootSnapBow = CitwFindRow(ootSnap, "Fairy Bow");
-    CITW_ASSERT(ootSnapBow != nullptr && ootSnapBow->have);
-    // SoH's DrawItemCount: the slash is the amount's ("35/" in the amount's
-    // tone), the ceiling alone takes the accent (#458 U3 review).
-    CITW_ASSERT(ComboItemCountFor(*ootSnapBow, COMBO_ITEM_COUNT_SOH, count));
+    // OoT's snapshot Bow is the pair's quiver too: dimmed, no second count (#967).
+    CITW_ASSERT(ootSnapBow != nullptr && !ootSnapBow->have && ootSnapBow->count == 0 && ootSnapBow->max == 0);
+    // A bow held outside the pool's share (35 arrows in a 40 quiver): SoH's
+    // DrawItemCount, the slash is the amount's ("35/" in the amount's tone),
+    // the ceiling alone takes the accent (#458 U3 review).
+    ComboItemRow ootBowHeld = *ootSnapBow;
+    ootBowHeld.have = true;
+    ootBowHeld.count = 35;
+    ootBowHeld.max = 40;
+    CITW_ASSERT(ComboItemCountFor(ootBowHeld, COMBO_ITEM_COUNT_SOH, count));
     CITW_ASSERT(count.amount == "35/" && count.ceiling == "40" && count.amountTone == COMBO_UI_TONE_WHITE &&
                 count.ceilingTone == COMBO_UI_TONE_GREEN);
-    ComboItemRow full = *ootSnapBow;
+    ComboItemRow full = ootBowHeld;
     full.count = 40;
     CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GREEN &&
                 count.amount == "40/");
@@ -439,7 +607,11 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     allTokens.count = 100;
     CITW_ASSERT(ComboItemCountFor(allTokens, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_RED);
     CITW_ASSERT(ootSnapBow->countAccent == COMBO_ITEM_ACCENT_GREEN);
-    CITW_ASSERT(ComboItemCountFor(*mmBow, COMBO_ITEM_COUNT_MM, count) && count.amount == "25" &&
+    ComboItemRow mmBowHeld = *mmBow;
+    mmBowHeld.have = true;
+    mmBowHeld.count = 25;
+    mmBowHeld.max = 40;
+    CITW_ASSERT(ComboItemCountFor(mmBowHeld, COMBO_ITEM_COUNT_MM, count) && count.amount == "25" &&
                 count.ceiling.empty()); // MM prints the ammo alone
     const ComboItemRow* rupees = CitwFindRow(shared, "Rupees");
     const ComboItemRow* arrows = CitwFindRow(shared, "Arrows");
@@ -470,6 +642,152 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     CITW_ASSERT(!ComboItemSectionDrawsIcons(oot.rows, CitwNoneLoaded));
     CITW_ASSERT(!ComboItemSectionDrawsIcons(oot.rows, nullptr));
     printf("[TEST] combo-item-tracker-window: picks, song notes, counts and the per-section text fallback PASS\n");
+    return TEST_PASS;
+}
+
+/**
+ * Point 11 (#963): the MM section draws icons from the first frame, with
+ * Majora's Mask never started. MM's icons are registered by MM's own init, so
+ * before this the column was the text grid until the first crossing. Here the
+ * section's rows come from the real MM adapter (an empty save and both
+ * authored worlds, so the held and not-held picks of every row are covered);
+ * the texture map starts empty (MM has not run); the overlay's loader is given
+ * the archive the shipped manifest describes.
+ */
+int CitwLockMMIconsBeforeMM(const ComboItemOps* oot, const ComboItemOps* mm) {
+    using namespace ComboGui;
+
+    // The curated half OoT mounts at boot: the manifest's `mm->oot` prefixes.
+    sCitwCuratedPrefixes.clear();
+#ifdef RSBS_SOURCE_DIR
+    {
+        std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/assets/crossgame/manifest.txt", std::ios::binary);
+        CITW_ASSERT(in.good());
+        std::string line;
+        const std::string head = "mm->oot ";
+        while (std::getline(in, line)) {
+            while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) {
+                line.pop_back();
+            }
+            if (line.compare(0, head.size(), head) == 0) {
+                sCitwCuratedPrefixes.push_back(line.substr(head.size()));
+            }
+        }
+    }
+    CITW_ASSERT(!sCitwCuratedPrefixes.empty());
+#endif
+
+    // The MM section's rows: every row of an empty save and of both authored worlds.
+    std::vector<ComboItemRow> rows;
+    std::vector<uint8_t> mmBuf((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    for (int variant = -1; variant < 2; variant++) {
+        std::fill(mmBuf.begin(), mmBuf.end(), 0);
+        if (variant >= 0) {
+            CITW_ASSERT(MM_ItemAdapter_TestAuthorSave(mmBuf.data(), mmBuf.size(), variant) == 1);
+        }
+        for (int i = 0; i < mm->count(); i++) {
+            ComboItemRow row;
+            CITW_ASSERT(mm->rowAt(mmBuf.data(), i, &row));
+            rows.push_back(row);
+        }
+    }
+    CITW_ASSERT(rows.size() == (size_t)(3 * mm->count()));
+
+    // The resolver answers for every row without MM having started: a key to
+    // draw whether the row is held (iconKey) or not (the faded pick).
+    std::set<std::string> keys;
+    for (const ComboItemRow& row : rows) {
+        CITW_ASSERT(ComboItemKeyIsPath(row.iconKey) && ComboItemKeyIsPath(row.iconKeyFaded));
+        keys.insert(row.iconKey);
+        keys.insert(row.iconKeyFaded);
+    }
+    CITW_ASSERT(keys.size() > 40);
+
+    // Every key lies in the curated half OoT mounts at boot. This is the leg
+    // that is red on a tree without the manifest entries: the archive then
+    // cannot supply the icon, and the column stays the text grid.
+    int uncovered = 0;
+    for (const std::string& key : keys) {
+        if (!CitwArchiveHolds(key.c_str())) {
+            printf("[TEST] FAIL: MM icon %s is in no curated mm->oot manifest entry, so OoT's archives cannot "
+                   "supply it before MM has run\n",
+                   key.c_str());
+            uncovered++;
+        }
+    }
+    CITW_ASSERT(uncovered == 0);
+
+    // Before the load: MM has not run, nothing of MM's is in the texture map,
+    // and the section is the text grid. A precondition of the legs below (true by
+    // construction: the map is cleared on the line above), not a lock on the fix;
+    // the after-the-load assertions are the ones that fail without it.
+    sCitwTextures.clear();
+    sCitwLoadCalls = 0;
+    CITW_ASSERT(!ComboItemSectionDrawsIcons(rows, CitwStoreHas));
+
+    ComboItemIconLoadMemo memo;
+    const int loaded = ComboItemTrackerLoadIcons(rows, CitwStoreHas, CitwStoreLoad, (int)GAME_OOT, memo);
+    CITW_ASSERT(loaded == (int)keys.size());
+    CITW_ASSERT(sCitwLoadCalls == (int)keys.size()); // one load per distinct key, not per row
+    CITW_ASSERT(ComboItemSectionDrawsIcons(rows, CitwStoreHas));
+    // (Every row's held and faded pick has its texture: implied by `loaded == keys.size()` above, since
+    // `keys` is exactly those picks, so it is not asserted a second time.)
+    // Loaded is loaded: the next frame asks the loader for nothing.
+    CITW_ASSERT(ComboItemTrackerLoadIcons(rows, CitwStoreHas, CitwStoreLoad, (int)GAME_OOT, memo) == 0);
+    CITW_ASSERT(sCitwLoadCalls == (int)keys.size());
+
+    // A key the archives cannot supply is a text cell, tried once per game
+    // switch and not once per frame.
+    sCitwTextures.clear();
+    sCitwLoadCalls = 0;
+    ComboItemIconLoadMemo missMemo;
+    CITW_ASSERT(ComboItemTrackerLoadIcons(rows, CitwStoreHas, CitwStoreLoadNothing, (int)GAME_OOT, missMemo) == 0);
+    CITW_ASSERT(sCitwLoadCalls == (int)keys.size());
+    CITW_ASSERT(!ComboItemSectionDrawsIcons(rows, CitwStoreHas)); // the text fallback stays
+    for (int frame = 0; frame < 3; frame++) {
+        CITW_ASSERT(ComboItemTrackerLoadIcons(rows, CitwStoreHas, CitwStoreLoadNothing, (int)GAME_OOT, missMemo) == 0);
+    }
+    CITW_ASSERT(sCitwLoadCalls == (int)keys.size());
+    CITW_ASSERT(ComboItemTrackerLoadIcons(rows, CitwStoreHas, CitwStoreLoadNothing, (int)GAME_MM, missMemo) == 0);
+    CITW_ASSERT(sCitwLoadCalls == 2 * (int)keys.size()); // a switch changes the mounted archives: ask again
+
+    // OoT's keys are texture names, owned by OoT's init: never handed to the
+    // path loader.
+    std::vector<uint8_t> ootBuf((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    CITW_ASSERT(OoT_ItemAdapter_TestAuthorSave(ootBuf.data(), ootBuf.size(), 0) == 1);
+    std::vector<ComboItemRow> ootRows;
+    for (int i = 0; i < oot->count(); i++) {
+        ComboItemRow row;
+        CITW_ASSERT(oot->rowAt(ootBuf.data(), i, &row));
+        ootRows.push_back(row);
+    }
+    sCitwTextures.clear();
+    sCitwLoadCalls = 0;
+    ComboItemIconLoadMemo ootMemo;
+    CITW_ASSERT(ComboItemTrackerLoadIcons(ootRows, CitwStoreHas, CitwStoreLoad, (int)GAME_OOT, ootMemo) == 0);
+    CITW_ASSERT(sCitwLoadCalls == 0);
+    // No seam, no loader: nothing to do.
+    CITW_ASSERT(ComboItemTrackerLoadIcons(rows, nullptr, CitwStoreLoad, (int)GAME_OOT, ootMemo) == 0);
+    CITW_ASSERT(ComboItemTrackerLoadIcons(rows, CitwStoreHas, nullptr, (int)GAME_OOT, ootMemo) == 0);
+
+    // The path predicate itself: only a `__OTR__` resource path is a key for the
+    // loader; a texture name, an empty string, a short prefix and null are not.
+    CITW_ASSERT(ComboItemKeyIsPath("__OTR__icon_item_static_yar/gItemIconBowTex"));
+    CITW_ASSERT(!ComboItemKeyIsPath(nullptr));
+    CITW_ASSERT(!ComboItemKeyIsPath(""));
+    CITW_ASSERT(!ComboItemKeyIsPath("ITEM_OCARINA"));
+    CITW_ASSERT(!ComboItemKeyIsPath("__OTR_"));
+
+    // The production loader with no archive behind it (this harness mounts
+    // none): a miss, never a crash.
+    CITW_ASSERT(!ComboItemLoadIconByPath(nullptr));
+    CITW_ASSERT(!ComboItemLoadIconByPath("ITEM_OCARINA"));
+    CITW_ASSERT(!ComboItemLoadIconByPath("__OTR__icon_item_static_yar/gItemIconBowTex"));
+
+    sCitwTextures.clear();
+    printf("[TEST] combo-item-tracker-window: MM's %d distinct icon paths load from the curated half before MM has "
+           "run, and a miss is tried once per switch PASS (#963)\n",
+           (int)keys.size());
     return TEST_PASS;
 }
 
@@ -871,7 +1189,9 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(mmSnap.freshness == COMBO_TRACKER_FRESH_STALE);
     CITW_ASSERT(mmSnap.note.empty());
     CITW_ASSERT((int)mmSnap.rows.size() == mm->count());
-    CITW_ASSERT(CitwSectionHasText(mmSnap, "Bow 25/40", true));
+    // The pool holds the tier-2 quiver: the Bow shows once, in the Shared column
+    // (below), and MM's copy is dimmed with no second count (#967).
+    CITW_ASSERT(CitwSectionHasText(mmSnap, "Bow", false));
     CITW_ASSERT(CitwSectionHasText(mmSnap, "Magic Bean 7/20", true));
     CITW_ASSERT(CitwSectionHasText(mmSnap, "Zora Mask", false)); // the live world's, not the snapshot's
     CITW_ASSERT(strcmp(shared.title, "Shared") == 0);
@@ -902,7 +1222,7 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].freshness == COMBO_TRACKER_FRESH_STALE);
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_OOT].note.empty());
     CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Longshot", true));
-    CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Fairy Bow 35/40", true));
+    CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_OOT], "Fairy Bow", false)); // #967: dimmed
     CITW_ASSERT(sections[ComboGui::COMBO_ITEM_SECTION_MM].freshness == COMBO_TRACKER_FRESH_LIVE);
     CITW_ASSERT(CitwSectionHasText(sections[ComboGui::COMBO_ITEM_SECTION_MM], "Zora Mask", true));
 
@@ -933,6 +1253,10 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     }
     const ComboItemTrackerSection live[ComboGui::COMBO_ITEM_SECTION_COUNT] = { ootLiveCopy, mmSnapCopy, sharedCopy };
     if (CitwLockFit(live) != TEST_PASS) {
+        return TEST_FAIL;
+    }
+    // ---- 11. MM's icons before MM has run (#963) --------------------------------
+    if (CitwLockMMIconsBeforeMM(oot, mm) != TEST_PASS) {
         return TEST_FAIL;
     }
     // ---- 8. the key spaces ----------------------------------------------------
@@ -1005,6 +1329,9 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
     if (CitwLockDecisions() != TEST_PASS) {
         return TEST_FAIL;
     }
+    if (CitwLockDefaultPosition() != TEST_PASS) {
+        return TEST_FAIL;
+    }
 
     // ---- 6. the seam -----------------------------------------------------------
     // The Image entry is installed (SoH's table) and, with no texture under a
@@ -1061,6 +1388,18 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         // Icons or text per section, each game's grid, the picked texture
         // through the seam, the count and the name as its tooltip (#458 U3).
         CITW_ASSERT(text.find("ComboItemSectionDrawsIcons(section.rows, Ui().HasImage)") != std::string::npos);
+        // #963: the section's rows are loaded by path before the icons-or-text
+        // decision, so a column whose game has not run is decided on what the
+        // archives can supply.
+        const size_t loadAt =
+            text.find("ComboItemTrackerLoadIcons(section.rows, Ui().HasImage, ComboItemLoadIconByPath,");
+        CITW_ASSERT(loadAt != std::string::npos);
+        // The epoch is the active game (a switch re-arms the misses) and the memo is per
+        // section (one section's misses never hide another's): both belong to the call.
+        const std::string loadCall = text.substr(loadAt, text.find(';', loadAt) - loadAt);
+        CITW_ASSERT(loadCall.find("(int)Context_GetCurrentGame()") != std::string::npos);
+        CITW_ASSERT(loadCall.find("iconLoadMemo[section.id]") != std::string::npos);
+        CITW_ASSERT(loadAt < text.find("ComboItemSectionDrawsIcons(section.rows, Ui().HasImage)"));
         CITW_ASSERT(text.find("ComboItemIconLayout(section.rows, *section.grid, plan.cells)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemPickIcon(row)") != std::string::npos);
         CITW_ASSERT(text.find("Ui().Image(pick.key, iconWidth, cell, row.iconTint)") != std::string::npos);

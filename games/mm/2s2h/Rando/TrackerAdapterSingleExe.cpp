@@ -41,6 +41,8 @@
 #include <cstring>
 #include <string>
 
+#include <algorithm>
+#include <deque>
 #include <unordered_map>
 #include <vector>
 
@@ -57,7 +59,8 @@ s16 Play_GetOriginalSceneId(s16 sceneId);
 // own linkage and pulls context.h, whose <type_traits> include must not be
 // wrapped in C linkage (matching Foreign.cpp).
 #include "combo_tracker_view.h"
-#include "game.h" // MM_SAVE_CONTEXT_SIZE
+#include "combo_mm_locations_view.h" // Randomizer > MM Locations' check table (#1101 lane R3)
+#include "game.h"                    // MM_SAVE_CONTEXT_SIZE
 
 // The reader in combo_tracker_view.c walks the row's flag bytes as u8 and the
 // header fields as u32; these pin the assumptions to the real types.
@@ -350,6 +353,78 @@ extern "C" int MM_TrackerAdapter_TestSetStoredItem(void* save, uint16_t checkId,
  */
 extern "C" int MM_TrackerAdapter_TestSetSkippedIn(void* save, uint16_t checkId, int skipped) {
     return MMTrackerSetSkippedIn(static_cast<SaveContext*>(save), checkId, skipped != 0) ? 1 : 0;
+}
+
+// ---- #1101 lane R3: Randomizer > MM Locations' check table ------------------
+
+namespace {
+
+/**
+ * True while MM's pool generation ignores gRando.ExcludedChecks: under Vanilla
+ * logic GeneratePools.cpp places every check's vanilla item and never reads the
+ * list, which is why MM's own Check Filter tab refused to draw there. The same
+ * read that tab made (the RO_LOGIC CVar, Glitchless when unset, the paired
+ * resolution's default too).
+ */
+bool MMLocationsVanillaLogic(void) {
+    return CVarGetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_GLITCHLESS) == RO_LOGIC_VANILLA;
+}
+
+} // namespace
+
+/**
+ * Publish Randomizer > MM Locations' check table to src/common
+ * (combo_mm_locations_view.h). One row per check MM's pool can hold: every
+ * static check but RC_UNKNOWN and the two Stone Tower pots GeneratePools.cpp
+ * never adds (excluding a check the pool never holds would be a control that
+ * changes nothing). Each row carries the name and the area the combo tracker
+ * lists it under (MMTrackerCheckName, MMTrackerAreaName above: MM's own check
+ * tracker's names and scene order), sorted by area, then id, the order the page
+ * draws.
+ *
+ * The rows are built once and own copies of their names: CheckNames[id] is
+ * reassigned (a move from a temporary, which frees each longer name's old
+ * buffer) by every PopulateCheckNames, and MM's tracker bring-up and the combo
+ * tracker adapter both call it after this table exists, so a cached c_str()
+ * would dangle. The areas follow MMCheckScenes' rule instead: a grotto's or an
+ * enemy drop's area comes from the region graph, so the areas are re-resolved
+ * and the rows re-sorted in place whenever the region count changes (the page
+ * calls this each frame it draws). In place: the row count and the vector's
+ * storage never change, so the registry's pointer stays valid. Idempotent.
+ */
+extern "C" void MM_RandoLocationsUi_Register(void) {
+    static std::vector<ComboMMLocationDesc> sTable;
+    static std::deque<std::string> sNames; // a deque never moves an element it holds
+    static size_t sAreasAt = (size_t)-1;
+    if (sTable.empty()) {
+        Rando::StaticData::PopulateCheckNames();
+        // Reserved first: the registry keeps a raw pointer into the vector.
+        sTable.reserve(Rando::StaticData::Checks.size());
+        for (const auto& [randoCheckId, check] : Rando::StaticData::Checks) {
+            if (randoCheckId == RC_UNKNOWN || check.sceneId == SCENE_LAST_BS) {
+                continue;
+            }
+            const char* name = MMTrackerCheckName((uint16_t)randoCheckId);
+            sNames.emplace_back(name != nullptr ? name : (check.name != nullptr ? check.name : ""));
+            ComboMMLocationDesc desc = {};
+            desc.id = (uint16_t)randoCheckId;
+            desc.name = sNames.back().c_str();
+            sTable.push_back(desc);
+        }
+    }
+    if (sAreasAt != Rando::Logic::Regions.size()) {
+        for (ComboMMLocationDesc& desc : sTable) {
+            uint16_t areaKey = 0xFFFF;
+            const char* areaName = MMTrackerAreaName(desc.id, &areaKey);
+            desc.areaName = areaName != nullptr ? areaName : "";
+            desc.areaKey = areaKey;
+        }
+        std::sort(sTable.begin(), sTable.end(), [](const ComboMMLocationDesc& a, const ComboMMLocationDesc& b) {
+            return a.areaKey != b.areaKey ? a.areaKey < b.areaKey : a.id < b.id;
+        });
+        sAreasAt = Rando::Logic::Regions.size();
+    }
+    Combo_RegisterMMLocationTable(sTable.data(), (int)sTable.size(), MMLocationsVanillaLogic);
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

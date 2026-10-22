@@ -33,7 +33,28 @@
  * THE SHARED GROUP. The shared-resource pool (shared_resources.h) is a third
  * source, origin-neutral by construction: rupees, hearts, magic, ammo and the
  * rest are one quantity across both games. It is harvested at every game switch
- * and before every save, so its rows are STALE, never live.
+ * and before every save, so its rows are STALE, never live. It also draws each
+ * SHARED FAMILY the frozen rules arm (#976; #1065: the Lens of Truth, #1067: the
+ * ocarina buttons) once, held when the pool or either game's own copy holds it,
+ * and the games' own rows for that family are then left out of their sections.
+ *
+ * A SHARED TIER SHOWS ONCE (#967). The quiver, the bomb bag, the stick and nut
+ * bags and (under the shared-sword rule) the Kokiri Sword are one item for the
+ * pair, held in the pool. Each game's row for one names its shared kind and the
+ * tier its save holds (sharedKind, sharedTier); Combo_ItemRowAt then returns the
+ * row dimmed (nothing held, no count) once the Shared column holds that tier, and
+ * the Shared row for it takes the ACTIVE game's live tier and count when they are
+ * ahead of the pool (the pool is written at a game switch or a save, so a bow
+ * found a minute ago is in the live save only). A copy ahead of the pool stays
+ * lit: it is the only place the find shows.
+ *
+ * THE SHARED COLUMN IS LIVE FOR THE ACTIVE GAME (#971). Every other shared kind
+ * (the hookshot, the wallet, magic, double defense, hearts, and the rupee and
+ * ammo counts) is read the same way, through ComboItemOps::sharedLive over the
+ * active game's LIVE buffer, with no harvest: a MONOTONIC kind shows
+ * max(pool, live), a CONSUMABLE count shows the live game's own value (an ammo
+ * count only while the live tier is at least the pool's). The pool is never
+ * written by a draw, and the inactive game keeps its snapshot.
  *
  * FRESHNESS IS A FIELD. Every row carries the freshness the view set for its
  * source; the adapter never sets it.
@@ -77,6 +98,18 @@ typedef struct {
     uint8_t countAccent; // ComboItemCountAccent: the tone of the ceiling, and of the amount once it is full
     int iconNumber;      // 0: count (and max) as usual; > 0: this number alone (a wallet's capacity, as
                          // both native trackers print it); < 0: no number (the icon itself shows the tier)
+    // The shared copy (#967), set by the adapter on a row that is THIS game's copy of a capacity tier the
+    // pair shares (the quiver, bomb bag, stick and nut bags, the Kokiri Sword): the shared-resource kind
+    // (RSBS_SHARED_RES_*; 0: the row is not one) and the tier this save holds in it. The view draws the
+    // copy dimmed once the Shared column holds the tier, so an item never reads as held twice.
+    uint8_t sharedKind;
+    uint8_t sharedTier;
+    // The shared-family slot (foreign_items.h: an RSBS_XITEM_* family bit or an
+    // RSBS_XFAMILY_SLOT_*) this row is the game's own copy of, set by the
+    // adapter; 0 for every other row. While the frozen rules arm that slot the
+    // view draws it ONCE, in the Shared group, and leaves this game's row out
+    // (#1065's Lens of Truth and #1067's ocarina buttons the first).
+    uint32_t sharedFamily;
 } ComboItemRow;
 
 /** The tone SoH's DrawItemCount gives a row's ceiling and its full amount (#458 U3). */
@@ -116,7 +149,9 @@ extern const ComboItemGridStyle kComboItemSohGrid;
  * called on the game thread.
  */
 typedef struct ComboItemOps {
-    // Number of rows; fixed for the adapter's lifetime.
+    // Number of rows that are always there; fixed for the adapter's lifetime.
+    // Rows a save adds on top (see countFor) come after these, so an index below
+    // this answers for every save.
     int (*count)(void);
     // Fill row `index` from `src` (a SaveContext image of this game) and nothing
     // else: never the global save. Leaves `out->freshness` alone. False when
@@ -144,6 +179,21 @@ typedef struct ComboItemOps {
     // be NULL, and may leave the keys NULL for a kind the game has no icon for:
     // the row is then text.
     void (*sharedIcon)(uint8_t kind, uint16_t tier, ComboItemRow* row);
+    // The rows THIS save shows (#1072): count() plus the rows a save's frozen
+    // options switch on (MM's ocarina buttons, shown only when the file shuffles
+    // them). Never below count(); indices count()..countFor()-1 are valid for
+    // that `src` and contiguous, so a drawer that stops at the first refused row
+    // sees them all. May be NULL: count() is then the answer for every save.
+    int (*countFor)(const void* src);
+    // The LIVE view of shared resource `kind` (RSBS_SHARED_RES_*, #971): what this
+    // game's save `src` holds of it right now, written to `*out` and answered true,
+    // or false when the game has no reading of that kind (or `src` is not a played
+    // file). A READ ONLY op over the handed buffer: it reuses the harvest's readers'
+    // arithmetic but never harvests, applies or writes the pool, the save or the
+    // watermarks. The view calls it only for the ACTIVE game's LIVE buffer, so the
+    // Shared column shows a find made since the last save or crossing. May be NULL:
+    // the column is then the pool alone.
+    bool (*sharedLive)(const void* src, uint8_t kind, uint16_t* out);
 } ComboItemOps;
 
 /**
@@ -179,7 +229,8 @@ void MM_ItemAdapter_Register(void);
 /** Which source `game`'s rows come from right now (see the header comment). */
 uint8_t Combo_ItemFreshness(uint8_t game);
 
-/** Rows for `game`; 0 whenever its data is UNAVAILABLE. */
+/** Rows for `game`; 0 whenever its data is UNAVAILABLE. A row whose shared
+ *  family the Shared group draws is not counted (and Combo_ItemRowAt skips it). */
 int Combo_ItemCount(uint8_t game);
 
 /** Fill `out` with `game`'s row `index`, read from the source the view picks for
@@ -216,7 +267,8 @@ uint8_t Combo_ItemSharedFreshness(void);
 const char* Combo_ItemSharedLabel(void);
 
 /** Shared rows: one per resource this world shares (the triforce pieces only
- *  when armed); 0 while the pool is empty. */
+ *  when armed), then one per shared family the frozen rules arm; 0 while the
+ *  pool is empty. */
 int Combo_ItemSharedCount(void);
 
 /** Fill `out` with shared row `index`, its icon the active game's own (OoT's

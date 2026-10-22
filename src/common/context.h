@@ -316,13 +316,15 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  * splits a kind across blocks or drops a harvest on a "full" array that has
  * twelve free slots behind it.
  *
- * Sized for the whole class in ONE carve, deliberately. Today's set occupies
- * seventeen of the twenty slots (seven from v1 plus magic, nine from ammo, one
- * for the hookshot), and a carve is permanent: a third block would cost another
- * literal offset, another span in every accessor, and another ADR amendment.
- * The three spare slots are what keeps the next resource from needing any of
- * that — the hookshot took one of them and needed no format change at all,
- * which is the headroom doing its job.
+ * Sized for the whole class in ONE carve, deliberately. The unconditional set
+ * occupies seventeen of the twenty slots (seven from v1 plus magic, nine from
+ * ammo, one for the hookshot), and a carve is permanent: a third block would
+ * cost another literal offset, another span in every accessor, and another ADR
+ * amendment. The three spare slots kept the next resources from needing any of
+ * that, and they are now spoken for: the triforce count, the Kokiri Sword and
+ * the bottle count (#970) are each armed per world, and a world that arms all
+ * three fills the twentieth slot. RSBS_SHARED_RES_KIND_COUNT's static assert
+ * (shared_resources.h) stops the next kind at compile time.
  *
  * Bounded from above by ADR 0009's 64-byte reserved[] floor, not by taste:
  * twelve slots is 48 bytes, leaving reserved[132], which still clears the floor
@@ -502,6 +504,16 @@ enum {
     // ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit,
     // frozen at file creation; disarmed, a world has no slot of this kind.
     RSBS_SHARED_RES_KOKIRI_SWORD = 20, // MONOTONIC: 0/1, gated by the frozen combo setting (#886)
+    // The bottle COUNT (#970): how many bottle slots hold a bottle, whatever is
+    // in it. OoT has four slots and MM six; the shared count is OoT's 0..4, so
+    // MM's harvest clamps at four and MM's fifth and sixth bottles stay MM's own.
+    // The CONTENTS never cross: an apply gives the arriving game EMPTY bottles in
+    // its next empty slots and never touches a filled one. ARMED PER WORLD by the
+    // frozen item rules' RSBS_XITEM_SHARED_BOTTLES bit; disarmed, a world has no
+    // slot of this kind. A world this build creates can hold at most twenty kinds
+    // at once (the retired ocarina is never armed in one), which is exactly the
+    // two blocks' twenty slots: the next kind needs a third block.
+    RSBS_SHARED_RES_BOTTLE_COUNT = 21, // MONOTONIC: 0..4, gated by the frozen Shared Bottles rule (#970)
 };
 
 /**
@@ -669,6 +681,50 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboTriforceRecord, totalOoT) == 0 &&
                            offsetof(ComboTriforceRecord, totalMM) == 2 &&
                            offsetof(ComboTriforceRecord, requiredMM) == 3,
                        "ComboTriforceRecord member offsets are .redsave format and must not move");
+
+/**
+ * The FROZEN CROSS-GAME ITEM RULES (#976, epic #975 P1; ADR 0011's 2026-10-18
+ * amendment is its format note): which items are SHARED between the two games
+ * (one bag row both solvers credit, held in both games), which items one game
+ * borrows from the other (an MM mask worn in Hyrule, an OoT mask in Termina),
+ * and the one parameter those rules carry, the Blast Mask's cooldown.
+ *
+ * WHY A SIBLING RECORD AND NOT A WIDER ComboSettingsRecord. The combo record is
+ * twelve bytes at 884 and the triforce record is pinned right behind it at 896,
+ * so the combo record cannot grow in place; a formatVersion bump that moved it
+ * would reinterpret every shipped .redsave. comboFlags (byte 10) has six free
+ * bits and spare1 is one byte, which cannot hold the 17 mask rules plus #968's
+ * arrows and #970's bottles. So the rules are a second record, carved from the
+ * FRONT of reserved[] at 900, written by the same creation event, KEPT through
+ * file-create invalidation beside comboSettings, and folded into
+ * comboSettingsHash (Combo_ComputeComboSettingsHashEx, foreign_items.h).
+ *
+ * ZERO MEANS EVERY RULE OFF, which is what every world written before this
+ * carve holds and what every new world freezes unless a player turns a rule on
+ * (one-game semantics; OoTMM's own defaults are all off). No occupancy tag is
+ * needed: "frozen or not" is comboSettings.formatVersion's answer, and an
+ * all-clear record is byte-for-byte the legacy one, so its canonical bytes and
+ * the fingerprint are exactly today's (the digest encoder appends the record
+ * only when it is not all clear).
+ *
+ * The value spaces (RSBS_XITEM_* bits, RSBS_BLAST_COOLDOWN_*) are PINNED and
+ * APPEND-ONLY, in foreign_items.h beside the comboFlags table, with the same
+ * retire-never-renumber rule.
+ */
+typedef struct {
+    uint32_t crossItemFlags;   // RSBS_XITEM_* bitset; 0 = every cross-game item rule off
+    uint8_t blastMaskCooldown; // RSBS_BLAST_COOLDOWN_*; 0 = the default cooldown
+    uint8_t spare[3];          // growth; nonzero is corruption the divergence diff reports
+} ComboItemRulesRecord;
+
+RSBS_CTX_STATIC_ASSERT(sizeof(ComboItemRulesRecord) == 8,
+                       "ComboItemRulesRecord is serialized raw inside the .redsave Tier-1 record; its layout is "
+                       "format (ADR 0011's 2026-10-18 amendment)");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboItemRulesRecord, crossItemFlags) == 0 &&
+                           offsetof(ComboItemRulesRecord, blastMaskCooldown) == 4 &&
+                           offsetof(ComboItemRulesRecord, spare) == 5,
+                       "ComboItemRulesRecord member offsets are .redsave format and must not move; the canonical "
+                       "digest encoder walks them in this declaration order");
 
 typedef struct {
     char magic[8]; // "OoT+MM<3"
@@ -911,7 +967,12 @@ typedef struct {
     // twelve bytes beside it.
     //
     //   comboSettingsHash = Hash( canonical(comboSettings) || ":" ||
-    //                             sharedRandoSettingsHash || ":" || mmProfileDigest )
+    //                             sharedRandoSettingsHash || ":" || mmProfileDigest ||
+    //                             ":" || RSBS_GENERATOR_VERSION )
+    //
+    // The generator term (#1003) is a label: a pre-#1003 file carries the
+    // legacy form without it (version 0) and still verifies, and nothing is
+    // seeded from it (foreign_items.h, RSBS_GENERATOR_VERSION).
     //
     // Folding both half-digests is what makes the term non-vacuous (ADR 0009
     // decision 1's amendment: "a digest narrower than the input set is vacuous —
@@ -975,6 +1036,24 @@ typedef struct {
     // keeps its offset and a zero-extended record reads as "no hunt".
     ComboTriforceRecord comboTriforce;
 
+    // #976 (epic #975 P1): the frozen cross-game item rules (see
+    // ComboItemRulesRecord above). Written once by the creation event beside
+    // comboSettings and folded into comboSettingsHash, KEPT through file-create
+    // invalidation with it, and never mutated by an arrival or a load. Carved
+    // from the FRONT of the old reserved[104], so every field above keeps its
+    // offset and a zero-extended record reads as "every rule off".
+    ComboItemRulesRecord comboItemRules;
+
+    // #976: the SHARED FAMILIES the player holds, one bit per family, at the
+    // family's own RSBS_XITEM_* rule bit (shared_resources.h, THE OR
+    // DISCIPLINE). Not a shared-resource slot: all twenty are allocated, and a
+    // slot's 16-bit value could not hold the record's 32-bit family space. Only
+    // the family harvest writes it, only bits the frozen record arms, and it
+    // only ever gains bits, so a zero-extended legacy record (no family armed)
+    // reads exactly as a world that never held one. Session state like the
+    // shared-resource pool: NOT in the invalidation KEEP set.
+    uint32_t sharedFamilyOwned;
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -988,7 +1067,8 @@ typedef struct {
     // 264 - 48 (foreignPlacementsOoT) - 4 (mmProfileDigest) - 32 (sharedResources)
     // - 48 (sharedResourcesExt) - 4 (commitGeneration) - 4 (mmPairedAttempt)
     // - 4 (comboSettingsHash) - 12 (comboSettings) = 108, then - 4 (comboTriforce,
-    // ADR 0010 O10) = 104.
+    // ADR 0010 O10) = 104, then - 8 (comboItemRules) - 4 (sharedFamilyOwned,
+    // #976) = 92.
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
@@ -1016,8 +1096,9 @@ typedef struct {
     // hundreds. The records live in the .redsave format-v3 Tier-4 block instead
     // (crossing_store.h, which states the layout and the alternatives weighed).
     // O10's triforce record (4 bytes at 896) was carved after that measurement,
-    // so the next carver starts from 104 at 900.
-    uint8_t reserved[104];
+    // and #976's item rules (8 bytes at 900) and family bitset (4 at 908) after
+    // it, so the next carver starts from 92 at 912; 92 clears the floor by 28.
+    uint8_t reserved[92];
 } ComboContext;
 
 /**
@@ -1197,16 +1278,31 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboTriforce) ==
                            offsetof(ComboContext, comboSettings) + sizeof(ComboSettingsRecord),
                        "comboTriforce must be carved from the FRONT of reserved[] (contiguous with "
                        "the combo settings record); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
+// #976's two carves, pinned to the literals 900 and 908 on the same terms as
+// every carve above them.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboItemRules) == 900u,
+                       "comboItemRules lives at .redsave byte offset 900; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboItemRules) ==
                            offsetof(ComboContext, comboTriforce) + sizeof(ComboTriforceRecord),
+                       "comboItemRules must be carved from the FRONT of reserved[] (contiguous with "
+                       "the triforce record); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedFamilyOwned) == 908u,
+                       "sharedFamilyOwned lives at .redsave byte offset 908; if this fires, a field "
+                       "before it grew in place - carve from reserved[] instead");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedFamilyOwned) ==
+                           offsetof(ComboContext, comboItemRules) + sizeof(ComboItemRulesRecord),
+                       "sharedFamilyOwned must be carved from the FRONT of reserved[] (contiguous with "
+                       "the item rules); moving it changes .redsave format");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == offsetof(ComboContext, sharedFamilyOwned) + sizeof(uint32_t),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
                        "the grant cursors, the overflow count, the MM profile digest, BOTH shared "
                        "resource blocks, the commit generation, the paired-attempt record, the "
-                       "combo settings digest and record, the triforce record, and the "
-                       "remaining headroom must stay contiguous (no padding, no fields slipped "
-                       "between them)");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 900u,
-                       "reserved[] begins at .redsave byte offset 900 after the O10 triforce carve; if "
+                       "combo settings digest and record, the triforce record, the item rules, the "
+                       "family bitset, and the remaining headroom must stay contiguous (no padding, no "
+                       "fields slipped between them)");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 912u,
+                       "reserved[] begins at .redsave byte offset 912 after #976's two carves; if "
                        "this fires, a field ahead of it moved and every shipped save is being "
                        "reinterpreted - that is a format generation, not an assert edit");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to

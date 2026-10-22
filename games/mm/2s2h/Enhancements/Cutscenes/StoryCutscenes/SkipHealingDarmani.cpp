@@ -2,6 +2,7 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/CustomItem/CustomItem.h"
+#include "2s2h/Rando/StaticData/StaticData.h"
 #include "2s2h/ShipInit.hpp"
 
 extern "C" {
@@ -17,12 +18,15 @@ void RegisterSkipHealingDarmani() {
      * cutscene start hook would result in 1 frame where the actor becomes visible before disappearing again.
      */
     COND_VB_SHOULD(VB_QUEUE_CUTSCENE, CVAR, {
+        // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla verdict untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         s16* csId = va_arg(args, s16*);
         // Played Song of Healing for Darmani in Goron Graveyard
         if (MM_gPlayState->sceneId == SCENE_GORON_HAKA && *csId == 9) {
             if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_GORON)) {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                    .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
+                    .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                     .param = GID_MASK_GORON,
                     .giveItem =
                         [](Actor* actor, PlayState* play) {

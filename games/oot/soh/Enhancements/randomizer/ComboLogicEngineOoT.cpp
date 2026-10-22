@@ -2179,8 +2179,52 @@ uint8_t OoTFillClassSharedKind(RandomizerGet rg) {
             return RSBS_SHARED_RES_HOOKSHOT_TIER;
         case RG_PROGRESSIVE_OCARINA:
             return RSBS_SHARED_RES_OCARINA_TIER;
+        // #970: a bottle, whatever it holds. Ruto's Letter is not tagged: it is a
+        // bottle in the inventory (the shared count sees its slot) but it is OoT's
+        // quest item, and the Shared Bottles trim must never take it out of the
+        // pool. It is a SLOT RESERVE instead (the registrar below): the trim
+        // counts it against the four slots. The policy trims only while the
+        // frozen rule arms the kind.
+        case RG_EMPTY_BOTTLE:
+        case RG_BOTTLE_WITH_MILK:
+        case RG_BOTTLE_WITH_RED_POTION:
+        case RG_BOTTLE_WITH_GREEN_POTION:
+        case RG_BOTTLE_WITH_BLUE_POTION:
+        case RG_BOTTLE_WITH_FAIRY:
+        case RG_BOTTLE_WITH_FISH:
+        case RG_BOTTLE_WITH_BLUE_FIRE:
+        case RG_BOTTLE_WITH_BUGS:
+        case RG_BOTTLE_WITH_POE:
+        case RG_BOTTLE_WITH_BIG_POE:
+            return RSBS_SHARED_RES_BOTTLE_COUNT;
         default:
             return 0u;
+    }
+}
+
+/**
+ * The size of one copy of an OoT item in its shared kind's units (ABI 3, the
+ * #525 pool policy). A heart container is four heart pieces; a bombchu pack is
+ * as many bombchus as OoT's give adds (#1061: a pack found in Termina is
+ * credited to the pool at pickup by this many, shared_resources.h); every other
+ * copy is one unit (a piece, the treasure-game piece, or one progressive tier
+ * step). 0 for an item that feeds no kind.
+ */
+uint8_t OoTFillClassSharedUnits(RandomizerGet rg, uint8_t sharedKind) {
+    if (sharedKind == 0u) {
+        return 0u;
+    }
+    switch (rg) {
+        case RG_HEART_CONTAINER:
+            return (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER;
+        case RG_BOMBCHU_5:
+            return 5u;
+        case RG_BOMBCHU_10:
+            return 10u;
+        case RG_BOMBCHU_20:
+            return 20u;
+        default:
+            return (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
     }
 }
 
@@ -2266,12 +2310,9 @@ extern "C" int OoT_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) 
     // A trap feeds no quantity (the owner refuses that row), and RG_ICE_TRAP is
     // tagged nowhere above, so this is a statement rather than a filter.
     row.sharedKind = (row.fillClass == RSBS_FILL_CLASS_TRAP) ? 0u : OoTFillClassSharedKind(rg);
-    // The size of one copy in its kind's units (ABI 3, the #525 pool policy): a
-    // heart container is four heart pieces; every other copy is one unit (a
-    // piece, the treasure-game piece, or one progressive tier step).
-    row.sharedUnits = (row.sharedKind == 0u)       ? 0u
-                      : (rg == RG_HEART_CONTAINER) ? (uint8_t)RSBS_SHARED_QTY_UNITS_CONTAINER
-                                                   : (uint8_t)RSBS_SHARED_QTY_UNITS_PIECE;
+    // The size of one copy in its kind's units (ABI 3, the #525 pool policy;
+    // a bombchu pack's size since #1061): see OoTFillClassSharedUnits.
+    row.sharedUnits = OoTFillClassSharedUnits(rg, row.sharedKind);
     // How an MM chest hosting this item is dressed (#862): OoT's own grade for it.
     row.chestGrade = OoTChestGradeOf(item.GetCategory());
     if (out != nullptr) {
@@ -2290,6 +2331,10 @@ const ComboItemClassSource kOoTItemClassSource = {
 struct OoTItemClassRegistrar {
     OoTItemClassRegistrar() {
         Combo_RegisterItemClassSource(GAME_OOT, &kOoTItemClassSource);
+        // #970: Ruto's Letter is given only into an empty bottle slot, so under
+        // the Shared Bottles rule it takes one of the pair's four slots; the
+        // composer counts it against the bottle budget and never trims it.
+        Combo_RegisterSharedSlotReserve(GAME_OOT, (uint16_t)RG_RUTOS_LETTER, RSBS_SHARED_RES_BOTTLE_COUNT);
     }
 };
 const OoTItemClassRegistrar gOoTItemClassRegistrar;

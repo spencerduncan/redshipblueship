@@ -113,7 +113,7 @@
 
 namespace SohGui {
 // The page's registrar and its registered sidebar name, both externally linked
-// and declared in no header — the same shape AddCrossGamePointerWidgets uses.
+// and declared in no header — the same shape AddComboRulesWidgets uses.
 // This row reaches the registrar THROUGH AddMenuCombo() rather than by calling
 // it, so the real extension point is what is exercised; the name accessor exists
 // so the test cannot drift from the registration by spelling the literal twice.
