@@ -1804,6 +1804,7 @@ of `reserved[]`, and the combo record's `formatVersion` stays 1.
   `RSBS_XITEM_SHARED_SONG_EPONA` (0x00400000) and
   `RSBS_XITEM_SHARED_SONG_STORMS` (0x00800000) through the same table, making
   `RSBS_XITEM_ALL_V1` 0x02FFFFFF.
+  `RSBS_XITEM_SHARED_SONG_STORMS` (0x00800000) through the same table.
   *2026-10-21 (#968):* three more keys, `gCombo.Rando.SharedArrowFire`,
   `gCombo.Rando.SharedArrowIce` and `gCombo.Rando.SharedArrowLight`
   ("[Both Games] Shared Fire Arrows", "Shared Ice Arrows" and "Shared Light
@@ -1955,3 +1956,40 @@ makes each one shared row; with either shuffle off no pair is built and MM's
 five stay MM's own items) and `SharedOcarinaButtonsArrival` (through both
 games' real shims, a button found in one game is owned in the other; a game
 whose shuffle is off shares nothing; off, nothing crosses).
+
+### 2026-10-21 -- The "Shared Song of Time" rule and MM's Moon Crash Behavior (#1069)
+
+Operator ruling 2026-10-21: do it the OoTMM way, with the settings OoTMM offers.
+One Cross-Game Rules row, "[Both Games] Shared Song of Time", key
+`gCombo.Rando.SharedSongTime` (0 or 1, IDENTITY, off by default), and one MM
+option, Combo > Majora's Mask's "Moon Crash Behavior" (OoTMM's `moonCrash`:
+"Last Save", the default, or "New Cycle").
+
+- **The bit.** `RSBS_XITEM_SHARED_SONG_TIME` 0x04000000, a family: OoT's
+  `RG_SONG_OF_TIME` and MM's `RI_SONG_TIME`, each registered by its game on its
+  quest bit. The bag makes the two copies one shared row both solvers credit
+  and trims the other (OoTMM's pool transform replaces both games' copies with
+  one shared song); the arrival teaches it to the other game.
+- **MM's start.** With the rule frozen on, MM's paired start is the Ocarina
+  alone (`Rando::Foreign::PairedStartingItemsForWorld`), and the song is an MM
+  pool item. The identity term stays the rule-independent
+  `PairedStartingItems`: `MM_Rando_ComputeProfileStamp` runs before the combo
+  freeze, so a term that followed the rule would refuse every arrival.
+- **The moon crash.** "New Cycle" runs the Song of Time's end-of-cycle reset
+  where the crash would reload the last save (z_sram_NES.c, fenced), keeping
+  the file's items and progress, and commits the new cycle. It is frozen into
+  the MM half (`randoSaveMoonCrash`, appended; zero is "Last Save", so old
+  halves read as today) and folded into the MM profile digest only when it is
+  not the default. The rule FORCES "New Cycle" in play
+  (`MM_Rando_FrozenMoonCrash` reads both frozen records): with one Song of Time
+  MM starts without it, and the crash is then the free, progress-keeping reset
+  2Ship's logic assumes (it has no reset term; OoTMM's `can_reset_time_impl`
+  counts `setting(moonCrash, cycle)` as one). So no logic edit is needed. OoTMM
+  itself does not force it; it reasons about resets in logic instead.
+- With the rule off and the option at "Last Save" nothing changes: the record
+  stays all clear, no digest term is added, and every golden holds.
+
+Locked by `CrossItemRulesRecord`, `SharedSongOfTimePairs`,
+`SharedSongOfTimeArrival`, `MMPairedStartSharedSongTime`,
+`MMMoonCrashCycleForced`, `MMMoonCrashCycleReset` and the ROM-staged
+`IntMoonCrashCycle`.

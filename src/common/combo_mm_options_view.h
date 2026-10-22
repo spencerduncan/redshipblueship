@@ -293,6 +293,17 @@ void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, uint16_t* ou
  */
 #define RSBS_MM_MOON_CRASH_RESET 0 // "Last Save": the file as last saved (OoTMM 'reset', the default)
 #define RSBS_MM_MOON_CRASH_CYCLE 1 // "New Cycle": a new cycle, keeping progress (OoTMM 'cycle')
+/** Its authoring key, in MM's option namespace beside the RO_* rows. */
+#define RSBS_CVAR_MM_MOON_CRASH "gRando.Options.MoonCrash"
+/**
+ * Its descriptor id on Combo > Majora's Mask. The option is the combo's, not a
+ * 2Ship RO_* row: an RO_* id would grow randoSaveOptions[RO_MAX] and move every
+ * later field of every .redsave's MM half, and its default would add a term to
+ * every MM profile digest. So it is frozen in its own appended byte
+ * (randoSaveMoonCrash) and its row takes an id from 0x8000 up, a range no
+ * RandoOptionId reaches (Combo_MMOptionById still finds it).
+ */
+#define RSBS_MM_OPTION_ID_MOON_CRASH 0x8000u
 
 /**
  * THE MOON CRASH THIS FILE PLAYS UNDER, from its two frozen records (#1069):
