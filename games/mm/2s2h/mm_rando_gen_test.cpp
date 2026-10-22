@@ -3463,6 +3463,15 @@ int SpkWriteWorldReport(const char* outPath, const uint8_t* mmHalf, size_t mmHal
         memcpy(sReportOoTBytes, &gSaveContext, sizeof(SaveContext));
         memset(&gSaveContext, 0, sizeof(SaveContext));
         memcpy(&gSaveContext, mmHalf, mmHalfSize < sizeof(SaveContext) ? mmHalfSize : sizeof(SaveContext));
+        // A process that never generated has MM's region graph unbuilt until MM
+        // boots; the reachable closure needs it, as an arrival would build it.
+        if (Rando::Logic::Regions.empty()) {
+            MM_Rando_Init();
+        }
+        if (gRegEditor == NULL) { // logic predicates read registers; MM never booted here
+            static RegEditor sReportRegEditor = {};
+            gRegEditor = &sReportRegEditor;
+        }
         const PairedMMWorldHashes mm = ComputePairedMMWorldHashes();
         fprintf(out, "mmFinalSeed=%08X\nmmPlacementHash=%08X\nmmReachableCount=%zu\nmmReachableHash=%08X\n",
                 (unsigned)gSaveContext.save.shipSaveInfo.rando.finalSeed, (unsigned)mm.placementHash,
@@ -3843,6 +3852,14 @@ extern "C" int MM_SeedPackage_TestGoldenCreate(const char* pkgPath, const char* 
         fprintf(stderr, "[SEED-PACKAGE] FAIL(5): the creation armed no randomizer MM half\n");
         cleanup();
         return 5;
+    }
+    // This process never generated: MM's region graph is built as an arrival builds it.
+    if (Rando::Logic::Regions.empty()) {
+        MM_Rando_Init();
+    }
+    if (gRegEditor == NULL) { // logic predicates read registers; MM never booted here
+        static RegEditor sCreateRegEditor = {};
+        gRegEditor = &sCreateRegEditor;
     }
     const PairedMMWorldHashes mmWorld = ComputePairedMMWorldHashes();
     size_t ootFinalPlaced = 0;

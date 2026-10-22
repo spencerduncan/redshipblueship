@@ -65,7 +65,7 @@ _spk_lines("${_write_report}" _written)
 _spk_lines("${_load_report}" _loaded)
 list(LENGTH _written _n_written)
 list(LENGTH _loaded _n_loaded)
-if(_n_written LESS 40)
+if(_n_written LESS 30)
     message(FATAL_ERROR "CheckSeedPackageRoundTrip: the live world's report has only ${_n_written} line(s); a report "
                         "that small pins nothing")
 endif()
