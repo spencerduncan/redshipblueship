@@ -55,6 +55,7 @@
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/archive/ArchiveManager.h>
 
+#include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
 #include "Rando/Rando.h"
@@ -268,9 +269,10 @@ extern "C" size_t MM_ForeignMask_FieldOffset(void) {
            offsetof(RandoSaveInfo, foreignMask);
 }
 
-namespace {
-
-void DrawOnHead(Player* player, s32 limbIndex) {
+// Outside the anonymous namespace: OPEN_DISPS block-declares the
+// FrameInterpolation_Record* pair, and inside one GCC binds them to
+// (anonymous namespace) symbols that never link.
+static void DrawOnHead(Player* player, s32 limbIndex) {
     (void)limbIndex;
     if (Context_GetCurrentGame() != GAME_MM || MM_gPlayState == nullptr || player == nullptr ||
         player != GET_PLAYER(MM_gPlayState)) {
@@ -297,6 +299,8 @@ void DrawOnHead(Player* player, s32 limbIndex) {
     MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)dl);
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
+
+namespace {
 
 void RegisterForeignMasksMM() {
     COND_ID_HOOK(OnPlayerPostLimbDraw, PLAYER_LIMB_HEAD, true, DrawOnHead);
