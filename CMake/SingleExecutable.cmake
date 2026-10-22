@@ -2185,8 +2185,11 @@ if(BUILD_TESTING)
     # the LIVE state before the package exists; process 2 never generates, loads
     # the package and reports the STAGED world with the same writer (identity and
     # records, OoT's placement and content, the crossings, the give caps, MM's half
-    # byte for byte with its world and content, and the spoiler's bytes); the
-    # driver requires the two reports equal. RED with any field the writer drops.
+    # byte for byte with its world and content, and the spoiler's bytes), then both
+    # report what nothing applies (SeedPackageTestBridgeSingleExe.cpp): every
+    # identity.json term, every entry's name, digest.txt's and both spoilers'
+    # bytes, the world-only combo record and the crossing block; the driver
+    # requires the two reports equal. RED with any term or entry the writer drops.
     redship_add_test(NAME SeedPackageRoundTrip
         COMMAND ${CMAKE_COMMAND}
                 -DREDSHIP_EXE=$<TARGET_FILE:redship>
@@ -2203,6 +2206,13 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # The four rows above generate the default seed with the default settings and
+    # read Randomizer/<icons>.json in the build tree (the round trip twice, around
+    # its package write): one at a time under ctest -j, so none reads another's
+    # spoiler mid-rewrite.
+    set_tests_properties(GoldenSeedDigestPlayerPath GoldenSeedDigestPackagePath SeedPackageRoundTrip
+        SeedPackageCVarsCannotMoveWorld
+        PROPERTIES RESOURCE_LOCK rsbs_default_seed_spoiler)
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL
     # candidate; this one proves a REAL fill with entrance shuffle on never writes

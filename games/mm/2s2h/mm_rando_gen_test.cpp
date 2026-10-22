@@ -3392,6 +3392,8 @@ extern "C" {
 void Randomizer_TestClearOoTSave(void);
 void OoT_Creation_TestStageGeneration(void);
 int OoT_Creation_AuthorRandoFile(int slot);
+// SeedPackageTestBridgeSingleExe.cpp: the identity terms and entries, live or from a package.
+int OoT_SeedPackage_TestReportTerms(const char* pkgPath, const char* reportPath);
 }
 #include "seed_package.h" // src/common — the package's OoT-side entry points
 
@@ -3597,7 +3599,23 @@ extern "C" int MM_SeedPackage_TestWrite(const char* seed, const char* pkgPath, c
         fprintf(stderr, "[SEED-PACKAGE] FAIL(5): cannot write the report '%s'\n", reportPath);
         return 5;
     }
+    // What the package carries beyond what a load applies: identity.json's terms,
+    // every entry, digest.txt and the split spoilers, from the live sources.
+    if (OoT_SeedPackage_TestReportTerms(nullptr, reportPath) != 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(7): the live world's identity terms and entries cannot be reported\n");
+        return 7;
+    }
+    // A session an earlier file left in gComboCtx (its slot, its commit count) is
+    // not the world, and the package must not carry it: the report names the
+    // world-only record, and the writer runs with session fields that differ from
+    // a fresh session's.
+    static ComboContext sSessionBefore;
+    memcpy(&sSessionBefore, &gComboCtx, sizeof(ComboContext));
+    gComboCtx.saveSlot = 2;
+    gComboCtx.commitGeneration += 7;
+    gComboCtx.sharedItemOverflowCount += 3;
     const int written = OoT_SeedPackage_TestWritePackage(pkgPath);
+    memcpy(&gComboCtx, &sSessionBefore, sizeof(ComboContext));
     if (written != RSBS_SEEDPKG_OK) {
         fprintf(stderr, "[SEED-PACKAGE] FAIL(6): writing the package '%s' returned %d (%s)\n", pkgPath, written,
                 SeedPackage_StatusName(written));
@@ -3618,6 +3636,10 @@ extern "C" int MM_SeedPackage_TestLoad(const char* pkgPath, const char* reportPa
         fprintf(stderr, "[SEED-PACKAGE] FAIL(1): this process already holds a paired identity before the load\n");
         return 1;
     }
+    // The spoiler the report reads must be the one the load stages, not one the
+    // shared build-tree config or an earlier run left named (the package's own
+    // spoiler entry is also reported directly, below).
+    CVarClear("gGeneral.SpoilerLog");
     const int loaded = OoT_SeedPackage_LoadFile(pkgPath);
     if (loaded != RSBS_SEEDPKG_OK || OoT_SeedPackage_Staged() == 0) {
         fprintf(stderr, "[SEED-PACKAGE] FAIL(2): loading '%s' returned %d (%s)\n", pkgPath, loaded,
@@ -3633,6 +3655,10 @@ extern "C" int MM_SeedPackage_TestLoad(const char* pkgPath, const char* reportPa
     if (SpkWriteWorldReport(reportPath, half, halfSize, true, SpkSpoilerPath()) != 0) {
         fprintf(stderr, "[SEED-PACKAGE] FAIL(4): cannot write the report '%s'\n", reportPath);
         return 4;
+    }
+    if (OoT_SeedPackage_TestReportTerms(pkgPath, reportPath) != 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(5): the package's identity terms and entries cannot be reported\n");
+        return 5;
     }
     fprintf(stderr, "[SEED-PACKAGE] loaded %s and reported the staged world to %s\n", pkgPath, reportPath);
     return 0;
@@ -3765,6 +3791,14 @@ extern "C" int MM_SeedPackage_TestGoldenWrite(const char* seed, const char* pkgP
  * run, which describe how the world was made, not what it is) from the package's
  * digest, and every WORLD line recomputed from the created file with the goldens'
  * writers. The recomputed digest must also equal the package's own, line for line.
+ *
+ * What this row does NOT check: the head lines (the seed, the settings hash, OoT's
+ * world at its general pass, the bag's run) are copied from the package's digest,
+ * so "created equals package" cannot fail on them, and nothing here asserts that
+ * the bind re-applied the identity terms. SeedPackageCVarsCannotMoveWorld covers
+ * the bind (its report of the created world names gComboCtx's identity, records
+ * and placements), and SeedPackageRoundTrip covers digest.txt's bytes against the
+ * live world's.
  * @return 0, or a distinct nonzero step code.
  */
 extern "C" int MM_SeedPackage_TestGoldenCreate(const char* pkgPath, const char* outPath) {

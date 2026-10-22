@@ -14,7 +14,12 @@
 #
 # The two reports (identity and records, OoT's placement and content, the
 # crossings, the give capabilities, MM's half byte for byte with its world and
-# content, the spoiler's bytes) must be equal, line for line, CR stripped.
+# content, the spoiler's bytes) must be equal, line for line, CR stripped. Each
+# report then carries the `id.*` and `pkg.*` lines (SeedPackageTestBridgeSingleExe
+# .cpp): every identity.json term, the entries the package holds and identity.json
+# records, and the bytes of digest.txt, both spoilers, MM's half, the world-only
+# combo record and the crossing block. Process 1 reads them from the live sources,
+# process 2 from the package file; a term or entry the writer drops differs.
 #
 # Usage: cmake -DREDSHIP_EXE=<redship> -DWORK_DIR=<dir> -P CheckSeedPackageRoundTrip.cmake
 
@@ -68,6 +73,16 @@ list(LENGTH _loaded _n_loaded)
 if(_n_written LESS 30)
     message(FATAL_ERROR "CheckSeedPackageRoundTrip: the live world's report has only ${_n_written} line(s); a report "
                         "that small pins nothing")
+endif()
+
+# The package's own terms (the bridge's 45 `id.*`/`pkg.*` lines): fewer means the
+# live side stopped naming a term, and a dropped one could then pass unseen.
+set(_terms ${_written})
+list(FILTER _terms INCLUDE REGEX "^(id|pkg)\\.")
+list(LENGTH _terms _n_terms)
+if(_n_terms LESS 45)
+    message(FATAL_ERROR "CheckSeedPackageRoundTrip: the live world's report names only ${_n_terms} identity term(s) "
+                        "and entries (45 expected)")
 endif()
 
 set(_diff "")
