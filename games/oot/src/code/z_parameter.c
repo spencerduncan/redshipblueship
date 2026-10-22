@@ -1158,8 +1158,7 @@ void func_80083108(PlayState* play) {
 
                 if (interfaceCtx->restrictions.tradeItems != 0) {
                     for (i = 1; i < ARRAY_COUNT(gSaveContext.equips.buttonItems); i++) {
-                        if ((CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), BUNNY_HOOD_VANILLA) !=
-                             BUNNY_HOOD_VANILLA) &&
+                        if ((OoT_BunnyHoodEffectMode() /* [RSBS #969] */ != BUNNY_HOOD_VANILLA) &&
                             (gSaveContext.equips.buttonItems[i] >= ITEM_MASK_KEATON) &&
                             (gSaveContext.equips.buttonItems[i] <= ITEM_MASK_TRUTH)) {
                             gSaveContext.buttonStatus[BUTTON_STATUS_INDEX(i)] = BTN_ENABLED;

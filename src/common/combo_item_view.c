@@ -449,6 +449,11 @@ static const SharedFamilyRowDef kSharedFamilyRows[] = {
     { RSBS_XITEM_SHARED_ARROW_FIRE, "Fire Arrows" },   // #968
     { RSBS_XITEM_SHARED_ARROW_ICE, "Ice Arrows" },     // #968
     { RSBS_XITEM_SHARED_ARROW_LIGHT, "Light Arrows" }, // #968
+    { RSBS_XITEM_SHARED_GORON, "Goron Mask" },         // #978
+    { RSBS_XITEM_SHARED_ZORA, "Zora Mask" },           // #978
+    { RSBS_XITEM_SHARED_BUNNY, "Bunny Hood" },         // #978
+    { RSBS_XITEM_SHARED_KEATON, "Keaton Mask" },       // #978
+    { RSBS_XITEM_SHARED_TRUTH, "Mask of Truth" },      // #978
 };
 #define SHARED_FAMILY_ROW_DEF_COUNT ((int)(sizeof(kSharedFamilyRows) / sizeof(kSharedFamilyRows[0])))
 
@@ -532,7 +537,10 @@ static bool SharedFamilyRowAt(int familyIndex, uint8_t iconGame, ComboItemRow* o
         }
     }
     memset(out, 0, sizeof(*out));
-    if (FamilyRowOf(iconGame, def->family, &own)) {
+    // OoT's tracker has one child-trade row, not a row per mask (#978), so a
+    // family with no row in the icon game takes the other game's icon.
+    const uint8_t otherGame = (iconGame == (uint8_t)GAME_MM) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
+    if (FamilyRowOf(iconGame, def->family, &own) || FamilyRowOf(otherGame, def->family, &own)) {
         out->iconKey = own.iconKey;
         out->iconKeyFaded = own.iconKeyFaded;
         out->iconAspect = own.iconAspect;
